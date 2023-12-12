@@ -60,7 +60,7 @@ nestedNameSpecifier:
 	| decltypeSpecifier Doublecolon
 	| Doublecolon
 	| nestedNameSpecifier clangppIdentifier Doublecolon
-	| nestedNameSpecifier Template? simpleTemplateId Doublecolon; // EW TODO remove left-recursion
+	| nestedNameSpecifier Template? simpleTemplateId Doublecolon;
 
 lambdaExpression:
 	valEmbedContract? lambdaIntroducer lambdaDeclarator? compoundStatement;

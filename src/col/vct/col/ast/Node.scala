@@ -1052,8 +1052,6 @@ final case class SYCLTAccessor[G](typ: Type[G] = TBool[G](), dimCount: Int = 1)(
 final case class SYCLTLocalAccessor[G](typ: Type[G] = TBool[G](), dimCount: Int = 1)(implicit val o: Origin) extends SYCLTConstructableClass[G] with SYCLTLocalAccessorImpl[G]
 final case class SYCLTAccessMode[G]()(implicit val o: Origin) extends SYCLTClass[G] with SYCLTAccessModeImpl[G]
 
-//final case class SYCLConstructorDefinition[G](typ: Type[G])(implicit val o: Origin = DiagnosticOrigin) extends CPPAbstractDeclaration[G] with SYCLConstructorDefinitionImpl[G]
-
 sealed trait SYCLClassObject[G] extends CPPExpr[G]
 final case class SYCLRange[G](dimensions: Seq[Expr[G]])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLRangeImpl[G]
 final case class SYCLNDRange[G](globalSize: Expr[G], localSize: Expr[G])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLNDRangeImpl[G]

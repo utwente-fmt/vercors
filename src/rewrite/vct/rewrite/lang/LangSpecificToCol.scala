@@ -117,6 +117,10 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     case decl: CPPGlobalDeclaration[Pre] =>
       cpp.rewriteGlobalDecl(decl)
     case decl: CPPLocalDeclaration[Pre] => ???
+    case func: Function[Pre] => {
+      rewriteDefault(func)
+      cpp.storeIfSYCLFunction(func)
+    }
 
     case func: LlvmFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
     case global: LlvmGlobal[Pre] => llvm.rewriteGlobal(global)

@@ -15,6 +15,18 @@ class SYCLSpec extends VercorsSpec {
   vercors should error withCode "syclItemMethodSeqBoundExceedsLength" example "concepts/sycl/kernels/TooHighKernelDimension.cpp"
   vercors should error withCode "syclKernelRangeInvalid" example "concepts/sycl/kernels/ZeroNDRange.cpp"
 
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalId.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalLinearId1.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalLinearId2.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalLinearId3.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGroupLinearId1.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGroupLinearId2.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGroupLinearId3.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetLinearId.cpp"
+  vercors should verify using silicon example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetLocalLinearId1.cpp"
+  vercors should verify using silicon example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetLocalLinearId2.cpp"
+  vercors should verify using silicon example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetLocalLinearId3.cpp"
+
   vercors should verify using silicon example "concepts/sycl/buffers/AllBufferDimensions.cpp"
   vercors should error withCode "syclUnsupportedReassigningOfBuffer" example "concepts/sycl/buffers/NoBufferReassign.cpp"
   vercors should error withCode "noSuchName" example "concepts/sycl/buffers/UnfoldingExclusiveHostDataAccessPredicate.cpp"
@@ -26,7 +38,7 @@ class SYCLSpec extends VercorsSpec {
   vercors should fail withCode "assignFieldFailed" using silicon example "concepts/sycl/buffers/WriteDataInBufferScope.cpp"
 
   vercors should error withCode "syclAccessorInsufficientReferencePermission" example "concepts/sycl/accessors/AccessorGetRangeDimensionOutOfBounds.cpp"
-  vercors should verify using silicon example "concepts/sycl/accessors/AccessorInNDRange.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/accessors/AccessorInNDRange.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/accessors/AllAccessModes.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/accessors/DoNotWriteOnReadAccessorWithDoubleAccessors.cpp"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/accessors/GetKernelResult.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
