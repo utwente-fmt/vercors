@@ -1,8 +1,3 @@
-//:: cases NonRoleMethodCall
-//:: suite veymont veymont-check
-//:: option --veymont tmp.pvl
-//:: verdict Error
-//:: tool veymont
 class Main {
 
 	Role a,b,c;
@@ -14,7 +9,7 @@ class Main {
 	}
 	
 	void run() {
-		Other.foo();
+		Other.foo(); // Error: Other is not an endpoint?
 	}
 	
 	void main() {

@@ -14,7 +14,7 @@ class Main {
 	}
 	
 	void run() {
-		int i = 17;
+		int i = 17; // Error, not allowed (yet)
 	}
 	
 	void main() {

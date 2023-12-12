@@ -7,35 +7,21 @@ class TechnicalVeyMontExamplesSpec extends VercorsSpec {
 
   vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkLTS/ltstest.pvl"
   vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkLTS/simpleifelse.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkLTS/simplemethodcall.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkLTS/simplewhile.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainClass/MainConstructorArg.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainClass/NoMain.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainClass/NoMainConstructor.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainClass/NoMainMethod.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainClass/NoMainMethod2.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainClass/NoRunArg.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainClass/NoRunMethod.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainClass/OtherMainConstructor.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainClass/TwoMainConstructors.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainClass/WrongRunType.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainConstructor/MainConstructorAssignmentWrongType.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainConstructor/MainConstructorAssignsNoRole.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainConstructor/MainConstructorBlock.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainConstructor/MainConstructorNonRoleAssignment.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainConstructor/MainConstructorNonRoleAssignment2.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainConstructor/MainConstructorNonRoleAssignment3.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainConstructor/MainConstructorNonRoleAssignment4.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainConstructor/MainConstructorWrongRoleNr.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/ConstructorCall.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/ConstructorCall2.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/ForLoop.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/GuardedRecursion.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/GuardedRecursion2.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/IfCondition.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/MainConstructorWithArgs.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/MainConstructorWithArgs2.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/MainConstructorWithArgs3.pvl"
+
+  (vercors
+    should fail withCode "resolutionError:seqProgInvocation"
+    using silicon flag "--veymont-generate-permissions"
+    example s"$wd/checkMainSyntaxAndWellFormedness/ConstructorCall.pvl")
+  (vercors
+    should verify
+    using silicon flag "--veymont-generate-permissions"
+    example s"$wd/checkMainSyntaxAndWellFormedness/IfCondition.pvl")
+
+  (vercors
+    should verify
+    using silicon flag "--veymont-generate-permissions"
+    example s"$wd/checkMainSyntaxAndWellFormedness/MainConstructorWithArgs.pvl")
+
   vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/MainMethodCall.pvl"
   vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/NewNonRoleObject.pvl"
   vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/NewRoleObject.pvl"

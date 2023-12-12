@@ -1,35 +1,17 @@
-//:: cases ConstructorCall
-//:: suite veymont veymont-check
-//:: option --veymont tmp.pvl
-//:: verdict Error
-//:: tool veymont
-class Main {
+seq_program Main() {
+	endpoint a = Role(5);
+	endpoint b = Role(6);
+	endpoint c = Role(7);
 
-	Role a,b,c;
-
-	constructor() {
-		a = new Role(5);
-		b = new Role(6);
-		c = new Role(7);
+	seq_run {
+		new Role(3); // Error
 	}
-	
-	void run() {
-		new Main();
-	}
-	
-	void main() {
-		Main m = new Main();
-		m.run();
-	}
-
 }
 
 class Role {
-
 	int x;
 	
 	constructor(int v) {
 		x = v;
 	}
-
 }

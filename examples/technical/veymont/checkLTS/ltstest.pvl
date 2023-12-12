@@ -5,7 +5,8 @@ class Role {
 	constructor(int v) {
 		x = v;
 	}
-	
+
+	ensures x == \old(x);
 	void compute();
 }
 
@@ -21,6 +22,7 @@ seq_program Main() {
 		b.x := 3;
 		foo();
 		a.compute();
+		b.x := 8;
 	}
 
     requires a.x == 0 && c.x == 4;

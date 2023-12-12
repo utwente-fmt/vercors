@@ -1,8 +1,3 @@
-//:: cases PureMethodCall
-//:: suite veymont veymont-check
-//:: option --veymont tmp.pvl
-//:: verdict Error
-//:: tool veymont
 class Main {
 
 	Role a,b,c;
@@ -14,7 +9,7 @@ class Main {
 	}
 	
 	void run() {
-		Main.foo();
+		Main.foo(); // Error: cannot call static pure methods (after making foo a pure global func)
 	}
 	
 

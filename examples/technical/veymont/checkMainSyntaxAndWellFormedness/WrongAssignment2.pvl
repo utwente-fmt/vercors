@@ -18,7 +18,7 @@ class Main {
 	}
 	
 	void bla() {
-		a.x = b.x + c.x;
+		a.x = b.x + c.x; // Error, except it's in a method. Integrate in WrongAssignment.pvl
 	}
 	
 	void main() {

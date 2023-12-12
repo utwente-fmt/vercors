@@ -1,60 +1,34 @@
-//:: cases SimpleIfElse
-//:: suite veymont veymont-check
-//:: option --veymont tmp.pvl
-//:: verdict Pass
-//:: tool veymont
-
 class Role {
+	int x;
+	int left;
 	
-	int x, left;
-	
-	ensures Perm(x, write) ** Perm(left, write);
-	ensures x == v;
-	Role (int v) {
+	ensures x == v && left == v;
+	constructor(int v) {
 		x = v;
+		left = v;
 	}
-	
 }
 
 
-class Main {
-	
-	Role a, b, c;
-	
-	ensures Perm(a,read) ** Perm(b,read) ** Perm(c,read);
-	ensures Perm(a.x, write) ** Perm(a.left, write);
-	ensures Perm(b.x, write) ** Perm(b.left, write);
-	ensures Perm(c.x, write) ** Perm(c.left, write);
-	ensures a.x == 0 && b.x == 8 && c.x == 4;
-	constructor() {
-		a = new Role(0);
-		b = new Role(8);
-		c = new Role(4);
-	}
+seq_program Main() {
+	endpoint a = Role(0);
+	endpoint b = Role(8);
+	endpoint c = Role(4);
 
-	context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
-	context Perm(a.x, write) ** Perm(a.left, write);
-	context Perm(b.x, write) ** Perm(b.left, write);
-	context Perm(c.x, write) ** Perm(c.left, write);
 	requires a.x == 0 && b.x == 8 && c.x == 4;
-	ensures a.x == b.x && b.x == c.x; 
-	void run() {
-		assert (a.left != a.x) == (b.left != b.x) && (b.left != b.x) == (c.left != c.x);
+	requires a.left == a.x && b.left == b.x && c.left == c.x;
+	ensures a.x == b.x && b.x == c.x;
+	seq_run {
 		if(a.left != a.x && b.left != b.x && c.left != c.x) {
-			a.x = a.x + 1;
+			a.x := a.x + 1;
 		}
-		assert (a.left != 2) == (b.left != 3) && (b.left != 3) == (c.left != 4);
 		if(a.left != 2 && b.left != 3 && c.left != 4) {
-			b.x = 5;
+			b.x := 5;
 		} else {
-		    c.x = 7;
+		    c.x := 7;
 		}
+		communicate a.x -> b.x;
+		communicate b.x -> c.x;
 	}
-
-	void main() {
-		Main m = new Main();
-		m.run();
-	}
-	
 }
 

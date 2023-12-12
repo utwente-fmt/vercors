@@ -1,33 +1,22 @@
-//:: cases MainConstructorWithArgs
-//:: suite veymont veymont-check
-//:: option --veymont tmp.pvl
-//:: verdict Pass
-class Main {
-
-	Role a, b;
-
-	Main(int va, int vb) {
-		a = new Role(va);
-		b = new Role(vb);
-	}
-
-	void run() {
-		a.i = b.i;
-	}
-	
-	void main(int va, int vb) {
-		Main m = new Main(va,vb);
-		m.run();
-	}
-
-}
-
 class Role {
-
 	int i;
-	
-	Role(int v) {
+
+	constructor(int v) {
 		i = v;
 	}
 }
 
+seq_program main0(int va, int vb) {
+    endpoint a = Role(va);
+    endpoint b = Role(vb);
+
+	seq_run {
+		communicate a.i <- b.i;
+	}
+}
+
+seq_program main(Role v) {
+	endpoint a = Role(v.i);
+
+	seq_run { }
+}

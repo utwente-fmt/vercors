@@ -14,7 +14,7 @@ class Main {
 	}
 	
 	void run() {
-		while(a.x >= 5 && b.x == 6){
+		while(a.x >= 5 && b.x == 6){ // Error, after adding  c as a participant where the loop _does_ terminate
 			a.x = 5;
 		}
 	}

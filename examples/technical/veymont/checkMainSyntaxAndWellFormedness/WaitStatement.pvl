@@ -1,8 +1,3 @@
-//:: cases WaitStatement
-//:: suite veymont veymont-check
-//:: option --veymont tmp.pvl
-//:: verdict Error
-//:: tool veymont
 class Main {
 
 	Role a;
@@ -12,7 +7,7 @@ class Main {
 	}
 	
 	void run() {
-		wait this;
+		wait this; // Not allowed
 	}
 	
 	void main() {
