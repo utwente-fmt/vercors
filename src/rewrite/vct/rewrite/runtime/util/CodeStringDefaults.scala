@@ -44,4 +44,8 @@ case object CodeStringDefaults {
     s"}"
   val loopConditionTemplate: (String, String) => String = (loopCondition: String, body: String) => s"if($loopCondition){\n$body\n}"
   val callMethodTemplate: (String, String) => String = (quantifierId: String, paramaters: String) => s"__runtime__quantifier__$quantifierId($paramaters)"
+
+
+  //predicates
+  val predicateStore : String = "private static ConcurrentHashMap<Long, CopyOnWriteArrayList<Predicate>> predicateStore = new ConcurrentHashMap();"
 }

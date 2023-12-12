@@ -1330,3 +1330,7 @@ object CodeStringQuantifierMethod{
     newMethodId
   }
 }
+
+final class CodeStringPredicateConstructor[G](val args: Seq[Variable[G]], val body: Option[Statement[G]])(implicit val o: Origin) extends ClassDeclaration[G] with CodeStringPredicateConstructorImpl[G]
+
+final case class JavaLocalRuntime[G](ref: Ref[G, JavaParam[G]])(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends JavaExpr[G] with JavaLocalRuntimeImpl[G]

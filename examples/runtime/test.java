@@ -1,14 +1,13 @@
-class Test {
-
-    private int[] z;
-
+class Counter {
     /*@
-        requires (\exists int i, int p; 0 <= i && i < z.length&& p > -19 && p < i; (\forall int j; 0 <= j && j < i ; z[i] > 0 && z[i] <= z[j] && z[p] != z[i]));
+        requires a.length > 0;
+        requires \forall* int i; 0 <= i < a.length; Perm(a[i], write);
+        requires \forall int i; 0 <= i < a.length; a[i] > 0;
+        requires \forall int i; 0 <= i < a.length; \forall int j; 0 <= j < i; a[j] <= a[i];
+        ensures (\exists int i; 0 <= i < a.length; a[i] == b) ==> \result >= 0;
+        ensures \forall* int i; 0 <= i < a.length; Perm(a[i], write);
      */
-    public void run() {
-
+    public int indexOf() {
+        return 1;
     }
-
 }
-
-

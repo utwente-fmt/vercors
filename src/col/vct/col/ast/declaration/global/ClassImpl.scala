@@ -72,7 +72,10 @@ trait ClassImpl[G] extends Declarator[G] {
 
 
   override def layout(implicit ctx: Ctx): Doc = {
-    val classOrInterface = classOrInterfaceDoc()
+    val classOrInterface = classOrInterfaceDoc() match {
+      case Empty => Text("class")
+      case e => e
+    }
     val extension = extendsDoc()
     val implements = implementsDoc()
 

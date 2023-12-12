@@ -14,7 +14,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 
-case class FindBoundsQuantifier[Pre <: Generation](outer: RewriteQuantifier[Pre], newVariables: SuccessionMap[Variable[Pre], Variable[Rewritten[Pre]]] = new SuccessionMap[Variable[Pre], Variable[Rewritten[Pre]]]()) extends Rewriter[Pre] {
+case class FindBoundsQuantifier[Pre <: Generation](outer: RewriteQuantifier[Pre]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
 

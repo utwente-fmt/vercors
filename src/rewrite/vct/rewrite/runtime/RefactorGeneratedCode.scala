@@ -21,7 +21,8 @@ case class RefactorGeneratedCode[Pre <: Generation]() extends Rewriter[Pre] {
 
 
   override def rewriteDefault(node: Program[Pre]): Program[Rewritten[Pre]] = {
-    super.rewriteDefault(node)
+    val test = super.rewriteDefault(node)
+    test
   }
 
   def createClassDeclarations(c: Class[Pre], rw: Rewriter[Pre]): Seq[ClassDeclaration[Rewritten[Pre]]] = {

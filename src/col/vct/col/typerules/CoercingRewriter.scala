@@ -1038,6 +1038,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case JavaLiteralArray(exprs) =>
         JavaLiteralArray(exprs)
       case JavaLocal(name) => e
+      case JavaLocalRuntime(r) => e
       case JavaNewClass(args, typeArgs, name, givenMap, yields) => e
       case JavaNewDefaultArray(baseType, specifiedDims, moreDims) => e
       case JavaNewLiteralArray(baseType, dims, initializer) => e
