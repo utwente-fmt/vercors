@@ -70,13 +70,13 @@ seq_program Main() {
       communicate p1.id3 <- p3.id3;
       communicate p2.id3 <- p3.id3;
     }
-    if (p1.id1 == p1.getMaxId() && p2.id1 == p2.getMaxId() && p3.id1 == p3.getMaxId()) {
+    if (p1.id1 == p1.getMaxId()) {
       p1.leader := true;
     }
-    if (p1.id2 == p1.getMaxId() && p2.id2 == p2.getMaxId() && p3.id2 == p3.getMaxId()) {
+    if (p2.id2 == p2.getMaxId()) {
       p2.leader := true;
     }
-    if (p1.id3 == p1.getMaxId() && p2.id3 == p2.getMaxId() && p3.id3 == p3.getMaxId()) {
+    if (p3.id3 == p3.getMaxId()) {
       p3.leader := true;
     }
   }
