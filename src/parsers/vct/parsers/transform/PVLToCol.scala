@@ -360,11 +360,6 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       PVLCommunicate(convert(sender), convert(receiver))(blame(stat))
     case PvlCommunicateStatement(_, sender, Direction1("->"), receiver, _) =>
       PVLCommunicate(convert(sender), convert(receiver))(blame(stat))
-    case PvlSeqAssign(endpoint, _, field, _, _, expr, _) =>
-      PVLSeqAssign(
-        new UnresolvedRef[G, PVLEndpoint[G]](convert(endpoint)),
-        new UnresolvedRef[G, InstanceField[G]](convert(field)),
-        convert(expr))(blame(stat))
   }
 
   def convert(implicit stat: ForStatementListContext): Statement[G] =
@@ -386,6 +381,11 @@ case class PVLToCol[G](override val baseOrigin: Origin,
         case "--" => PostAssignExpression[G](target, target - const(1))(blame(stat))
       })
     case PvlAssign(target, _, value) => Assign(convert(target), convert(value))(blame(stat))
+    case PvlSeqAssign(endpoint, _, field, _, _, expr) =>
+      PVLSeqAssign(
+        new UnresolvedRef[G, PVLEndpoint[G]](convert(endpoint)),
+        new UnresolvedRef[G, InstanceField[G]](convert(field)),
+        convert(expr))(blame(stat))
   }
 
   def convert(implicit acc: AccessContext): PVLAccess[G] = acc match {

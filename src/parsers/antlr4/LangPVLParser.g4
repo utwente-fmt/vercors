@@ -188,7 +188,6 @@ statement
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
  | 'communicate' access direction access ';' # pvlCommunicateStatement
- | identifier '.' identifier ':' '=' expr ';' # pvlSeqAssign
  ;
 
 direction
@@ -211,6 +210,7 @@ allowedForStatement
  | expr # pvlEval
  | identifier ('++'|'--') # pvlIncDec
  | expr '=' expr # pvlAssign
+ | identifier '.' identifier ':' '=' expr # pvlSeqAssign
  ;
 
 forStatementList

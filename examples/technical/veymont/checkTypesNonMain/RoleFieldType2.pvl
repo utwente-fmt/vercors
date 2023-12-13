@@ -1,36 +1,16 @@
-//:: cases RoleFieldType2
-//:: suite veymont veymont-check
-//:: option --veymont tmp.pvl
-//:: verdict Pass
-//:: tool veymont
-class Main {
+seq_program Main() {
+	endpoint a = Role();
+	endpoint b = Role();
+	endpoint c = Role();
 
-	Role a,b,c;
-
-	constructor() {
-		a = new Role();
-		b = new Role();
-		c = new Role();
+	seq_run {
+		a.x := new Other();
 	}
-	
-	void run() {
-		a.x = new Other();
-	}
-	
-	void main() {
-		Main m = new Main();
-		m.run();
-	}
-
 }
 
 class Role {
-
 	Other x;
-	
 }
 
-class Other {
-
-}
+class Other { }
 

@@ -38,24 +38,26 @@ seq_program SeqProgram(int x, int y) {
   requires (s1.v == 0) == (s2.v == 0);
   seq_run {
     if(s1.v == 5 && s2.v == 6) {
-    	s1.temp = s1.num();
-        s1.temp = s1.v + s2.v;
+    	s1.temp := s1.num();
+        s1.temp := s1.v + s1.v;
     } else if(s1.v == 0 && s2.v == 0) {
     	while(s1.v == 1 && s2.v == 3) {
-    	  s1.temp = 5;
+    	  s1.temp := 5;
     	}
     }
 
-    for(s1.temp = 0; s1.temp > 10 && s2.v == 6; s1.v = s1.v+1) {
-    	s2.temp = 6;
+    for (s1.temp := 0; s1.temp > 10 && s2.v == 6; s1.v := s1.v+1) {
+    	s2.temp := 6;
     }
 
-    if(s1.temp > 10 && s1.v == 6) {
-    	s2.v = 2;
+    s1.temp := 11;
+    s2.v := 6;
+    if(s1.temp > 10 && s2.v == 6) {
+    	s2.v := 2;
     }
 
-    s1.temp = s1.v;
-    s2.temp = s2.v;
+    s1.temp := s1.v;
+    s2.temp := s2.v;
 
     foo();
     s1.inc();
