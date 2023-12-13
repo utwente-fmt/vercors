@@ -255,6 +255,9 @@ final case class Origin(originContents: Seq[OriginContent]) extends Blame[Verifi
   def sourceName(name: String): Origin =
     withContent(SourceName(name))
 
+  def debugName(name: String = "unknown"): String =
+    find[SourceName].map(_.name).getOrElse(getPreferredNameOrElse(Seq(name)).camel)
+
 //  def addStartEndLines(startIdx: Int, endIdx: Int): Origin =
 //    withContent(StartEndLines(startIdx, endIdx))
 //

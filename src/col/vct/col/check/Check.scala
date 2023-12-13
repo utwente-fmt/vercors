@@ -75,6 +75,8 @@ sealed trait CheckError {
         Seq(context(e) -> s"Can only refer to the receiving endpoint of this statement.")
       case SeqProgParticipant(s) =>
         Seq(context(s) -> s"An endpoint is used in this branch which is not allowed to participate at this point in the program because of earlier branches.")
+      case SeqProgEndpointAssign(a) =>
+        Seq(context(a) -> s"Raw assignment to an endpoint is not allowed.")
     }): _*)
 
   def subcode: String
@@ -139,6 +141,9 @@ case class SeqProgReceivingEndpoint(e: Expr[_]) extends CheckError {
 }
 case class SeqProgParticipant(s: Node[_]) extends CheckError {
   val subcode = "seqProgParticipant"
+}
+case class SeqProgEndpointAssign(a: Assign[_]) extends CheckError {
+  val subcode = "seqProgEndpointAssign"
 }
 
 case object CheckContext {

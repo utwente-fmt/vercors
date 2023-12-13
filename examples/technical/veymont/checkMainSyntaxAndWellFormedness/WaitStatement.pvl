@@ -1,27 +1,5 @@
-class Main {
-
-	Role a;
-
-	constructor() {
-		a = new Role(5);
+seq_program Main() {
+	seq_run {
+		wait null; // Not allowed
 	}
-	
-	void run() {
-		wait this; // Not allowed
-	}
-	
-	void main() {
-		Main m = new Main();
-		m.run();
-	}
-}
-
-class Role {
-
-	int x;
-	
-	constructor(int v) {
-		x = v;
-	}
-
 }

@@ -101,9 +101,10 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
   def rewriteSeqAssign(assign: PVLSeqAssign[Pre]): SeqAssign[Post] =
     SeqAssign[Post](endpointSucc.ref(assign.receiver.decl), rw.succ(assign.field.decl), rw.dispatch(assign.value))(assign.blame)(assign.o)
 
-  def rewriteAssign(assign: Assign[Pre]): Statement[Post] =
+  def rewriteAssign(assign: Assign[Pre]): Statement[Post] = {
     if (allowAssign) assign.rewriteDefault()
     else throw AssignNotAllowed(assign)
+  }
 
   def rewriteBranch(branch: PVLBranch[Pre]): UnresolvedSeqBranch[Post] =
     UnresolvedSeqBranch(branch.branches.map { case (e, s) => (rw.dispatch(e), rw.dispatch(s)) })(branch.blame)(branch.o)

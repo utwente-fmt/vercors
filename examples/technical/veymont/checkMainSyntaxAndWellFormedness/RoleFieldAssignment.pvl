@@ -1,19 +1,9 @@
-class Main {
-	Role a;
-	
-	constructor() {
-		a = new Role();
-	}
-	
-	void run() {
+seq_program Main() {
+    endpoint a = Role();
+
+	seq_run {
 		a = new Role(); // Should error! Cannot reassign roles
 	}
-	
-	void main() {
-		Main m = new Main();
-		m.run();
-	}
-
 }
 
 class Role {

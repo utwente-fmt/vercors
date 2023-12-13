@@ -1,37 +1,21 @@
-//:: cases WhileCondition
-//:: suite veymont veymont-check
-//:: option --veymont tmp.pvl
-//:: verdict Error
-//:: tool veymont
-class Main {
+seq_program Main() {
+    endpoint a = Role(5);
+    endpoint b = Role(6);
+    endpoint c = Role(7);
 
-	Role a,b,c;
-
-	constructor() {
-		a = new Role(5);
-		b = new Role(6);
-		c = new Role(7);
-	}
-	
-	void run() {
-		while(a.x >= 5 && b.x == 6){ // Error, after adding  c as a participant where the loop _does_ terminate
-			a.x = 5;
+    requires a.x == 5 && b.x == 6 && c.x == 7;
+	seq_run {
+		while(a.x >= 5 && b.x == 6 && c.x == 7) {
+			c.x := -2;
 		}
 	}
-	
-	void main() {
-		Main m = new Main();
-		m.run();
-	}
-
 }
 
 class Role {
-
 	int x;
-	
+
+	ensures x == v;
 	constructor(int v) {
 		x = v;
 	}
-
 }

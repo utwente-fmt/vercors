@@ -4,11 +4,13 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
-import vct.col.ast.{Applicable, ApplicableContract, ArraySubscript, BooleanValue, Class, ContractApplicable, Declaration, Deref, Endpoint, EndpointGuard, EndpointName, SeqLoop, EndpointUse, EnumUse, Expr, FieldLocation, Function, InstanceField, InstanceFunction, InstanceMethod, IterationContract, Length, Local, LoopContract, LoopInvariant, Node, Null, Perm, Procedure, Result, SeqAssign, SeqProg, SeqRun, SplitAccountedPredicate, Statement, TArray, TClass, TInt, ThisObject, Type, UnitAccountedPredicate, Variable, WritePerm}
+import vct.col.ast.{Applicable, ApplicableContract, ArraySubscript, BooleanValue, Class, ContractApplicable, Declaration, Deref, Endpoint, EndpointGuard, EndpointName, EndpointUse, EnumUse, Expr, FieldLocation, Function, InstanceField, InstanceFunction, InstanceMethod, IterationContract, Length, Local, LoopContract, LoopInvariant, Node, Null, Perm, Procedure, Result, SeqAssign, SeqLoop, SeqProg, SeqRun, SplitAccountedPredicate, Statement, TArray, TClass, TInt, ThisObject, Type, UnitAccountedPredicate, Variable, WritePerm}
 import vct.col.ast.declaration.global.SeqProgImpl.participants
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
+import vct.col.resolve.ctx.Referrable
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
+
 import scala.collection.immutable.ListSet
 
 object GenerateSeqProgPermissions extends RewriterBuilderArg[Boolean] {
@@ -20,6 +22,8 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
 
   val currentPerm: ScopedStack[Expr[Post]] = ScopedStack()
   val currentProg: ScopedStack[SeqProg[Pre]] = ScopedStack()
+  val generatingClasses: ScopedStack[Class[Pre]] = ScopedStack()
+  val generatingOrigin: ScopedStack[Node[Pre]] = ScopedStack()
 
   /* - Permission generation table -
       Only considers nodes as necessary for VeyMont case studies.
@@ -179,7 +183,15 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
           (arrayPerm(e, i, WritePerm(), PanicBlame("Encoding guarantees well-formedness")) &*
             transitivePerm(ArraySubscript(e, i)(PanicBlame("Encoding guarantees well-formedness")), u))
       )
-    case TClass(Ref(cls)) => foldStar(cls.collect { case f: InstanceField[Pre] => fieldTransitivePerm(e, f)(f.o) })
+    case TClass(Ref(cls)) if !generatingClasses.contains(cls) =>
+      generatingClasses.having(cls) {
+        foldStar(cls.collect { case f: InstanceField[Pre] => fieldTransitivePerm(e, f)(f.o) })
+      }
+    case TClass(Ref(cls)) =>
+      // The class we are generating permission for has already been encountered when going through the chain
+      // of fields. So we cut off the computation
+      logger.warn(s"Not generating permissions for recursive occurrence of ${cls.o.debugName()}. Circular datastructures are not supported by permission generation")
+      tt
     case _ => tt
   }
 
