@@ -4,7 +4,7 @@ import vct.col.ast.helpers.defn.Constants._
 import vct.col.ast.helpers.defn.Naming._
 import vct.col.ast.helpers.defn.{Naming, Proto, ProtoNaming}
 import vct.col.ast.structure
-import vct.col.ast.structure.{NodeDefinition, NodeGenerator, Type => ST}
+import vct.col.ast.structure.{DeclaredNode, NodeDefinition, NodeGenerator, Type => ST}
 
 import java.nio.file.Path
 import scala.meta._
@@ -18,25 +18,34 @@ class Serialize extends NodeGenerator {
       package $SerializePackage
 
       trait ${serializeTrait(node)}[G] { this: ${typ(node)}[G] =>
-        def serialize(): ${scalapbType(node.name)} =
-          new ${scalapbType(node.name)}(..${node.fields.map { case (name, t) => serializeField(name, t) }.toList})
+        def serialize(decls: $Map[$Declaration[G], $Long]): ${scalapbType(node.name)} =
+          new ${scalapbType(node.name)}(..${data(node).toList})
 
-        def serializeFamily(): ${scalapbType(node.family)} =
+        def serializeFamily(decls: $Map[$Declaration[G], $Long]): ${scalapbType(node.family)} =
           ${serializeFamily(node)}
       }
     """
 
   def serializeFamily(node: NodeDefinition): Term =
     if (node.name == node.family)
-      q"this.serialize()"
+      q"this.serialize(decls)"
     else
       q"""
         new ${scalapbType(node.family)}(
           new ${Type.Select(q"${Naming.term(scalapbName(node.family))}.V", Type.Name(ProtoNaming.ucamel(node.name.base)))}(
-            this.serialize()
+            this.serialize(decls)
           )
         )
       """
+
+  def data(node: NodeDefinition): Seq[Term] = {
+    val fields = node.fields.map { case (name, t) => serializeField(name, t) }
+
+    if(node.kind == DeclaredNode)
+      q"decls(this)" +: fields
+    else
+      fields
+  }
 
   def err(st: ST, pt: Any): Nothing = {
     System.err.println("Unknown pair of structural type and protobuf type:")
@@ -60,7 +69,7 @@ class Serialize extends NodeGenerator {
       case (ST.Seq(st), Proto.Repeated(pt)) =>
         q"$term.map(`~x` => ${serializeTerm(q"`~x`", st, pt)})"
       case (ST.DeclarationSeq(name), Proto.Repeated(pt)) =>
-        q"$term.map(`~x` => new $NodeMessageView(`~x`))"
+        q"$term.map(`~x` => new $NodeMessageView(`~x`, decls))"
       case (st, pt) =>
         err(st, pt)
     }
@@ -71,15 +80,15 @@ class Serialize extends NodeGenerator {
   def serializeTerm(term: Term, structureType: ST, protoType: Proto.PrimitiveType): Term =
     (structureType, protoType) match {
       case (ST.Node(_), Proto.FamilyType(_)) =>
-        q"new $NodeMessageView($term)"
+        q"new $NodeMessageView($term, decls)"
       case (ST.Declaration(_), Proto.FamilyType(_)) =>
-        q"new $NodeMessageView($term)"
+        q"new $NodeMessageView($term, decls)"
       case (ST.DeclarationSeq(_), Proto.AuxType(name)) =>
-        mk(name, q"$term.map(`~x` => new $NodeMessageView(`~x`))")
+        mk(name, q"$term.map(`~x` => new $NodeMessageView(`~x`, decls))")
       case (ST.Ref(_), Proto.StandardType(name)) =>
-        mk(name, q"0L")
+        mk(name, q"decls($term.decl)")
       case (ST.MultiRef(_), Proto.StandardType(name)) =>
-        mk(name, q"0L")
+        mk(name, q"decls($term.decl)")
       case (ST.Tuple(args), Proto.AuxType(name)) =>
         mk(name, args.zipWithIndex.map { case (structureType, idx) =>
           val protoType = ProtoNaming.getType(structureType).t

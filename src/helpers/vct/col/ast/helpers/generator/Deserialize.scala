@@ -3,7 +3,7 @@ package vct.col.ast.helpers.generator
 import vct.col.ast.helpers.defn.Constants._
 import vct.col.ast.helpers.defn.Naming._
 import vct.col.ast.helpers.defn.{Proto, ProtoNaming}
-import vct.col.ast.structure.{NodeDefinition, NodeGenerator, Type => ST}
+import vct.col.ast.structure.{DeclaredNode, NodeDefinition, NodeGenerator, NodeKind, Type => ST}
 
 import java.nio.file.Path
 import scala.meta._
@@ -17,7 +17,7 @@ class Deserialize extends NodeGenerator {
       package $DeserializePackage
 
       object ${deserializeObjectName(node)} {
-        def deserialize[G](node: ${scalapbType(node.name)}): ${typ(node)}[G] =
+        def deserialize[G](node: ${scalapbType(node.name)}, decls: $MutMap[$Long, $Declaration[G]]): ${typ(node)}[G] =
           ${deserializeNode(q"node", node)}
       }
     """
@@ -31,10 +31,16 @@ class Deserialize extends NodeGenerator {
         deserializeTerm(fieldTerm, protoType, structuralType)
     }.toList
 
-    if(node.blameType.isEmpty)
-      q"new ${typ(node)}(..$fields)($OriginObj($SeqObj.empty))"
+    val instance =
+      if(node.blameType.isEmpty)
+        q"new ${t"${typ(node)}[G]"}(..$fields)($OriginObj($SeqObj.empty))"
+      else
+        q"new ${t"${typ(node)}[G]"}(..$fields)(null)($OriginObj($SeqObj.empty))"
+
+    if(node.kind == DeclaredNode)
+      q"{ val res = $instance; decls($term.id) = res; res }"
     else
-      q"new ${typ(node)}(..$fields)(null)($OriginObj($SeqObj.empty))"
+      instance
   }
 
   def err(pt: Any, st: ST): Nothing = {
@@ -53,7 +59,7 @@ class Deserialize extends NodeGenerator {
       case (Proto.Repeated(pt), ST.Seq(st)) =>
         q"$term.map(`~x` => ${deserializeTerm(q"`~x`", pt, st)})"
       case (Proto.Repeated(_), ST.DeclarationSeq(name)) =>
-        q"$term.map(`~x` => ${deserializeFamilyObject(name)}.deserialize[G](`~x`.parseAs[${scalapbType(name)}]))"
+        q"$term.map(`~x` => ${deserializeFamilyObject(name)}.deserialize[G](`~x`.parseAs[${scalapbType(name)}], decls))"
       case (pt, st) =>
         err(pt, st)
     }
@@ -64,13 +70,13 @@ class Deserialize extends NodeGenerator {
         q"$SeqObj.empty"
 
       case (Proto.FamilyType(_), ST.Node(name)) =>
-        q"${deserializeFamilyObject(name)}.deserialize[G]($term.parseAs[${scalapbType(name)}])"
+        q"${deserializeFamilyObject(name)}.deserialize[G]($term.parseAs[${scalapbType(name)}], decls)"
       case (Proto.FamilyType(_), ST.Declaration(name)) =>
-        q"${deserializeFamilyObject(name)}.deserialize[G]($term.parseAs[${scalapbType(name)}])"
+        q"${deserializeFamilyObject(name)}.deserialize[G]($term.parseAs[${scalapbType(name)}], decls)"
       case (Proto.StandardType(_), ST.Ref(node)) =>
-        q"new ${Init(t"$LazyRef[G, ${typ(node.name)}[G]]", Name.Anonymous(), List(List(q"???")))}"
+        q"new ${Init(t"$LazyRef[G, ${typ(node.name)}[G]]", Name.Anonymous(), List(List(q"decls($term.id)")))}"
       case (Proto.StandardType(_), ST.MultiRef(node)) =>
-        q"new ${Init(t"$LazyRef[G, ${typ(node.name)}[G]]", Name.Anonymous(), List(List(q"???")))}"
+        q"new ${Init(t"$LazyRef[G, ${typ(node.name)}[G]]", Name.Anonymous(), List(List(q"decls($term.id)")))}"
       case (Proto.AuxType(_), ST.Tuple(args)) =>
         q"(..${
           args.zipWithIndex.map {
@@ -85,11 +91,14 @@ class Deserialize extends NodeGenerator {
       case (Proto.AuxType(_), ST.Seq(structuralType)) =>
         q"$term.value.map(`~x` => ${deserializeTerm(q"`~x`", ProtoNaming.getType(structuralType).t, structuralType)})"
       case (Proto.AuxType(_), ST.DeclarationSeq(name)) =>
-        q"$term.value.map(`~x` => ${deserializeFamilyObject(name)}.deserialize[G](`~x`.parseAs[${scalapbType(name)}]))"
+        q"$term.value.map(`~x` => ${deserializeFamilyObject(name)}.deserialize[G](`~x`.parseAs[${scalapbType(name)}], decls))"
       case (Proto.AuxType(_), ST.Option(structuralType)) =>
         q"$term.value.map(`~x` => ${deserializeTerm(q"`~x`", ProtoNaming.getPrimitiveType(structuralType).t, structuralType)})"
       case (Proto.AuxType(_), ST.Either(left, right)) =>
-        q"???"
+        q"""
+          if($term.either.isLeft) ${deserializeTerm(q"$term.left.get.value", ProtoNaming.getPrimitiveType(left).t, left)}
+          else ${deserializeTerm(q"$term.right.get.value", ProtoNaming.getPrimitiveType(right).t, right)}
+        """
       case (Proto.Bool, ST.Nothing) =>
         q"???"
       case (Proto.Bool, ST.Unit) =>

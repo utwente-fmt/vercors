@@ -3,5 +3,5 @@ syntax = "proto2";
 package vct.col.ast.serialize;
 
 message Ref {
-  required int64 index = 1;
+  required int64 id = 1;
 }

@@ -16,8 +16,8 @@ class DeserializeFamily extends FamilyGenerator {
       package $DeserializePackage
 
       object ${Term.Name(deserializeFamilyName(name))} {
-        def deserialize[G](node: ${scalapbType(name)}): ${typ(name)}[G] =
-          ${if(nodes == Seq(name)) q"${Term.Name(deserializeName(name))}.deserialize[G](node)" else deserializeOneof(q"node.v", name, nodes)}
+        def deserialize[G](node: ${scalapbType(name)}, decls: $MutMap[$Long, $Declaration[G]]): ${typ(name)}[G] =
+          ${if(nodes == Seq(name)) q"${Term.Name(deserializeName(name))}.deserialize[G](node, decls)" else deserializeOneof(q"node.v", name, nodes)}
       }
     """
 
@@ -28,5 +28,5 @@ class DeserializeFamily extends FamilyGenerator {
     )
 
   def deserializeCase(term: Term, node: Name, number: Int): Case =
-    Case(Lit.Int(number), None, q"${deserializeObject(node)}.deserialize[G]($term.value.asInstanceOf[${scalapbType(node)}])")
+    Case(Lit.Int(number), None, q"${deserializeObject(node)}.deserialize[G]($term.value.asInstanceOf[${scalapbType(node)}], decls)")
 }

@@ -184,7 +184,7 @@ object util {
         ) ++ shared
       } else {
         Seq(
-          "-Ypatmat-exhaust-depth", "40",
+          "-Xno-patmat-analysis",
         ) ++ shared
       }
     }

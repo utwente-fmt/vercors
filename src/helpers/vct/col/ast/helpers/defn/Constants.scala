@@ -12,6 +12,7 @@ object Constants {
   val Unit: Type = t"_root_.scala.Unit"
   val Any: Type = t"_root_.scala.Any"
   val Boolean: Type = t"_root_.scala.Boolean"
+  val Long: Type = t"_root_.scala.Long"
   val OptionType: Type = t"_root_.scala.Option"
   val BigInt: Type = t"_root_.scala.BigInt"
   val BigInteger: Type = t"_root_.java.math.BigInteger"
@@ -20,6 +21,8 @@ object Constants {
   val BitString: Type = t"_root_.hre.data.BitString"
   val LazyList: Type = t"_root_.scala.collection.immutable.LazyList"
   val LazyListObj: Term = q"_root_.scala.collection.immutable.LazyList"
+  val MutMap: Type = t"_root_.scala.collection.mutable.Map"
+  val Map: Type = t"_root_.scala.collection.immutable.Map"
   val ClassTag: Type = t"_root_.scala.reflect.ClassTag"
 
   val LeftObj: Term = q"_root_.scala.util.Left"
