@@ -103,20 +103,20 @@ seq_program Main() {
       communicate p3.id5 <- p5.id5;
       communicate p4.id5 <- p5.id5;
     }
-    // TODO: smaller
-    if (p1.id1 == p1.getMaxId() && p2.id1 == p2.getMaxId() && p3.id1 == p3.getMaxId() && p4.id1 == p4.getMaxId() && p5.id1 == p5.getMaxId()) {
+
+    if (p1.id1 == p1.getMaxId()) {
       p1.leader := true;
     }
-    if (p1.id2 == p1.getMaxId() && p2.id2 == p2.getMaxId() && p3.id2 == p3.getMaxId() && p4.id2 == p4.getMaxId() && p5.id2 == p5.getMaxId()) {
+    if (p2.id2 == p2.getMaxId()) {
       p2.leader := true;
     }
-    if (p1.id3 == p1.getMaxId() && p2.id3 == p2.getMaxId() && p3.id3 == p3.getMaxId() && p4.id3 == p4.getMaxId() && p5.id3 == p5.getMaxId()) {
+    if (p3.id3 == p3.getMaxId()) {
       p3.leader := true;
     }
-    if (p1.id4 == p1.getMaxId() && p2.id4 == p2.getMaxId() && p3.id4 == p3.getMaxId() && p4.id4 == p4.getMaxId() && p5.id4 == p5.getMaxId()) {
+    if (p4.id4 == p4.getMaxId()) {
       p4.leader := true;
     }
-    if (p1.id5 == p1.getMaxId() && p2.id5 == p2.getMaxId() && p3.id5 == p3.getMaxId() && p4.id5 == p4.getMaxId() && p5.id5 == p5.getMaxId()) {
+    if (p5.id5 == p5.getMaxId()) {
       p5.leader := true;
     }
   }
