@@ -57,6 +57,8 @@ inline resource consistency(Process p1, Process p2, Process p3, Process p4, Proc
     p1.id4 == p2.id4 && p2.id4 == p3.id4 && p3.id4 == p4.id4 && p4.id4 == p5.id4 && p5.id4 == p1.id4 &&
     p1.id5 == p2.id5 && p2.id5 == p3.id5 && p3.id5 == p4.id5 && p4.id5 == p5.id5 && p5.id5 == p1.id5;
 
+pure boolean xor(boolean a, boolean b) = a != b;
+
 seq_program Main() {
   endpoint p1 = Process();
   endpoint p2 = Process();
@@ -66,12 +68,7 @@ seq_program Main() {
 
   requires !p1.leader && !p2.leader && !p3.leader && !p4.leader && !p5.leader;
   requires consistency(p1, p2, p3, p4, p5);
-  // TODO: xor
-  ensures (p1.leader && !p2.leader && !p3.leader && !p4.leader && !p5.leader) ||
-          (!p1.leader && p2.leader && !p3.leader && !p4.leader && !p5.leader) ||
-          (!p1.leader && !p2.leader && p3.leader && !p4.leader && !p5.leader) ||
-          (!p1.leader && !p2.leader && !p3.leader && p4.leader && !p5.leader) ||
-          (!p1.leader && !p2.leader && !p3.leader && !p4.leader && p5.leader);
+  ensures xor(p1.leader, xor(p2.leader, xor(p3.leader, xor(p4.leader, p5.leader))));
   seq_run {
     loop_invariant !p1.leader && !p2.leader && !p3.leader && !p4.leader && !p5.leader;
     loop_invariant consistency(p1, p2, p3, p4, p5);
