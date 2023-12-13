@@ -22,7 +22,7 @@ class Process {
   ensures this.fault == fault;
   ensures this.v == v;
   ensures class_invariant();
-  Process(int n, int f, int fault, int v) {
+  constructor(int n, int f, int fault, int v) {
     this.n = n;
     this.f = f;
     this.fault = fault;
@@ -93,66 +93,55 @@ class Process {
   void setValueOrFail();
 }
 
-class SeqProgram {
-  Process p1, p2, p3;
-
-  inline resource consistency() =
+inline resource consistency(Process p1, Process p2, Process p3) =
     p1.n == p2.n && p2.n == p3.n && p3.n == p1.n &&
     p1.f == p2.f && p2.f == p3.f && p3.f == p1.f;
 
-  requires n == 3;
-//*
-  requires f == 0;
-/*/
-  requires f == 1;
-//*/
-  requires fault1 == 0 || fault1 == 1;
-  requires fault2 == 0 || fault2 == 1;
-  requires fault3 == 0 || fault3 == 1;
-  requires v1 == 0 || v1 == 1;
-  requires v2 == 0 || v2 == 1;
-  requires v3 == 0 || v3 == 1;
-  requires fault1 + fault2 + fault3 <= f;
-  ensures p1.class_invariant();
-  ensures p2.class_invariant();
-  ensures p3.class_invariant();
-  ensures consistency();
-//*
-  ensures p1.fault + p2.fault + p3.fault <= p1.f && p1.f == 0 && p1.n == 3;
-/*/
-  ensures p1.fault + p2.fault + p3.fault <= p1.f && p1.f == 1 && p1.n == 3;
-//*/
-  SeqProgram(int n, int f,
-             int fault1, int v1,
-             int fault2, int v2,
-             int fault3, int v3) {
-    p1 = new Process(n, f, fault1, v1);
-    p2 = new Process(n, f, fault2, v2);
-    p3 = new Process(n, f, fault3, v3);
-  }
+requires n == 3;
+requires f == 0;
+requires fault1 == 0 || fault1 == 1;
+requires fault2 == 0 || fault2 == 1;
+requires fault3 == 0 || fault3 == 1;
+requires v1 == 0 || v1 == 1;
+requires v2 == 0 || v2 == 1;
+requires v3 == 0 || v3 == 1;
+requires fault1 + fault2 + fault3 <= f;
+seq_program Main(int n, int f,
+                 int fault1, int v1,
+                 int fault2, int v2,
+                 int fault3, int v3) {
+  endpoint p1 = Process(n, f, fault1, v1);
+  endpoint p2 = Process(n, f, fault2, v2);
+  endpoint p3 = Process(n, f, fault3, v3);
 
   requires p1.class_invariant();
   requires p2.class_invariant();
   requires p3.class_invariant();
-  requires consistency();
-//*
+  requires consistency(p1, p2, p3);
   requires p1.fault + p2.fault + p3.fault <= p1.f && p1.f == 0 && p1.n == 3;
-/*/
-  requires p1.fault + p2.fault + p3.fault <= p1.f && p1.f == 1 && p1.n == 3;
-//*/
   ensures ((p1.fault == 0 ==> p1.v == 0) &&
            (p2.fault == 0 ==> p2.v == 0) &&
            (p3.fault == 0 ==> p3.v == 0)) ||
           ((p1.fault == 0 ==> p1.v == 1) &&
            (p2.fault == 0 ==> p2.v == 1) &&
            (p3.fault == 0 ==> p3.v == 1));
-  void run() {
-    p1.v1 = p1.getValueOrFail(); p2.v1 = p1.getValueOrFail(); p3.v1 = p1.getValueOrFail();
-    p1.v2 = p2.getValueOrFail(); p2.v2 = p2.getValueOrFail(); p3.v2 = p2.getValueOrFail();
-    p1.v3 = p3.getValueOrFail(); p2.v3 = p3.getValueOrFail(); p3.v3 = p3.getValueOrFail();
-    p1.tiebreaker = p1.getMajorityOrFail();
-    p2.tiebreaker = p1.getMajorityOrFail();
-    p3.tiebreaker = p1.getMajorityOrFail();
+  seq_run {
+    p1.v1 := p1.getValueOrFail();
+    communicate p2.v1 <- p1.v;
+    communicate p3.v1 <- p1.v;
+
+    p2.v2 := p2.getValueOrFail();
+    communicate p1.v2 <- p2.v2;
+    communicate p3.v2 <- p2.v2;
+
+    p3.v3 := p3.getValueOrFail();
+    communicate p1.v3 <- p3.v3;
+    communicate p2.v3 <- p3.v3;
+
+    p1.tiebreaker := p1.getMajorityOrFail();
+    communicate p2.tiebreaker <- p1.tiebreaker;
+    communicate p3.tiebreaker <- p1.tiebreaker;
+
     p1.setValueOrFail();
     p2.setValueOrFail();
     p3.setValueOrFail();
