@@ -43,6 +43,8 @@ inline resource consistency(Process p1, Process p2, Process p3) =
     p1.id2 == p2.id2 && p2.id2 == p3.id2 && p3.id2 == p1.id2 &&
     p1.id3 == p2.id3 && p2.id3 == p3.id3 && p3.id3 == p1.id3;
 
+pure boolean xor(boolean a, boolean b) = a != b;
+
 seq_program Main() {
   endpoint p1 = Process();
   endpoint p2 = Process();
@@ -50,10 +52,7 @@ seq_program Main() {
 
   requires !p1.leader && !p2.leader && !p3.leader;
   requires consistency(p1, p2, p3);
-  ensures (p1.leader && !p2.leader && !p3.leader) ||
-          (!p1.leader && p2.leader && !p3.leader) ||
-          (!p1.leader && !p2.leader && p3.leader);
-          // TODO: xor?
+  ensures xor(p1.leader, xor(p2.leader, p3.leader));
   seq_run {
     loop_invariant !p1.leader && !p2.leader && !p3.leader;
     loop_invariant consistency(p1, p2, p3);
