@@ -24,7 +24,7 @@ class Process {
   ensures this.fault == fault;
   ensures this.v == v;
   ensures class_invariant();
-  Process(int n, int f, int fault, int v) {
+  constructor(int n, int f, int fault, int v) {
     this.n = n;
     this.f = f;
     this.fault = fault;
@@ -103,65 +103,43 @@ class Process {
   void setValueOrFail();
 }
 
-class SeqProgram {
-  Process p1, p2, p3, p4, p5;
-
-  inline resource consistency() =
+inline resource consistency(Process p1, Process p2, Process p3, Process p4, Process p5) =
     p1.n == p2.n && p2.n == p3.n && p3.n == p4.n && p4.n == p5.n && p5.n == p1.n &&
     p1.f == p2.f && p2.f == p3.f && p3.f == p4.f && p4.f == p5.f && p5.f == p1.f;
 
-  requires n == 5;
-//*
-  requires f == 1;
-/*/
-  requires f == 2;
-//*/
-  requires fault1 == 0 || fault1 == 1;
-  requires fault2 == 0 || fault2 == 1;
-  requires fault3 == 0 || fault3 == 1;
-  requires fault4 == 0 || fault4 == 1;
-  requires fault5 == 0 || fault5 == 1;
-  requires v1 == 0 || v1 == 1;
-  requires v2 == 0 || v2 == 1;
-  requires v3 == 0 || v3 == 1;
-  requires v4 == 0 || v4 == 1;
-  requires v5 == 0 || v5 == 1;
-  requires fault1 + fault2 + fault3 + fault4 + fault5 <= f;
-  ensures p1.class_invariant();
-  ensures p2.class_invariant();
-  ensures p3.class_invariant();
-  ensures p4.class_invariant();
-  ensures p5.class_invariant();
-  ensures consistency();
-//*
-  ensures p1.fault + p2.fault + p3.fault + p4.fault + p5.fault <= p1.f && p1.f == 1 && p1.n == 5;
-/*/
-  ensures p1.fault + p2.fault + p3.fault + p4.fault + p5.fault <= p1.f && p1.f == 2 && p1.n == 5;
-//*/
-  SeqProgram(int n, int f,
-             int fault1, int v1,
-             int fault2, int v2,
-             int fault3, int v3,
-             int fault4, int v4,
-             int fault5, int v5) {
-    p1 = new Process(n, f, fault1, v1);
-    p2 = new Process(n, f, fault2, v2);
-    p3 = new Process(n, f, fault3, v3);
-    p4 = new Process(n, f, fault4, v4);
-    p5 = new Process(n, f, fault5, v5);
-  }
+requires n == 5;
+requires f == 1;
+requires fault1 == 0 || fault1 == 1;
+requires fault2 == 0 || fault2 == 1;
+requires fault3 == 0 || fault3 == 1;
+requires fault4 == 0 || fault4 == 1;
+requires fault5 == 0 || fault5 == 1;
+requires v1 == 0 || v1 == 1;
+requires v2 == 0 || v2 == 1;
+requires v3 == 0 || v3 == 1;
+requires v4 == 0 || v4 == 1;
+requires v5 == 0 || v5 == 1;
+requires fault1 + fault2 + fault3 + fault4 + fault5 <= f;
+seq_program Main(int n, int f,
+                 int fault1, int v1,
+                 int fault2, int v2,
+                 int fault3, int v3,
+                 int fault4, int v4,
+                 int fault5, int v5) {
+
+  endpoint p1 = Process(n, f, fault1, v1);
+  endpoint p2 = Process(n, f, fault2, v2);
+  endpoint p3 = Process(n, f, fault3, v3);
+  endpoint p4 = Process(n, f, fault4, v4);
+  endpoint p5 = Process(n, f, fault5, v5);
 
   requires p1.class_invariant();
   requires p2.class_invariant();
   requires p3.class_invariant();
   requires p4.class_invariant();
   requires p5.class_invariant();
-  requires consistency();
-//*
+  requires consistency(p1, p2, p3, p4, p5);
   requires p1.fault + p2.fault + p3.fault + p4.fault + p5.fault <= p1.f && p1.f == 1 && p1.n == 5;
-/*/
-  requires p1.fault + p2.fault + p3.fault + p4.fault + p5.fault <= p1.f && p1.f == 2 && p1.n == 5;
-//*/
   ensures ((p1.fault == 0 ==> p1.v == 0) &&
            (p2.fault == 0 ==> p2.v == 0) &&
            (p3.fault == 0 ==> p3.v == 0) &&
@@ -172,19 +150,44 @@ class SeqProgram {
            (p3.fault == 0 ==> p3.v == 1) &&
            (p4.fault == 0 ==> p4.v == 1) &&
            (p5.fault == 0 ==> p5.v == 1));
-  void run() {
-
+  seq_run {
     // Phase 1 (p1 is "king")
-    p1.v1 = p1.getValueOrFail(); p2.v1 = p1.getValueOrFail(); p3.v1 = p1.getValueOrFail(); p4.v1 = p1.getValueOrFail(); p5.v1 = p1.getValueOrFail();
-    p1.v2 = p2.getValueOrFail(); p2.v2 = p2.getValueOrFail(); p3.v2 = p2.getValueOrFail(); p4.v2 = p2.getValueOrFail(); p5.v2 = p2.getValueOrFail();
-    p1.v3 = p3.getValueOrFail(); p2.v3 = p3.getValueOrFail(); p3.v3 = p3.getValueOrFail(); p4.v3 = p3.getValueOrFail(); p5.v3 = p3.getValueOrFail();
-    p1.v4 = p4.getValueOrFail(); p2.v4 = p4.getValueOrFail(); p3.v4 = p4.getValueOrFail(); p4.v4 = p4.getValueOrFail(); p5.v4 = p4.getValueOrFail();
-    p1.v5 = p5.getValueOrFail(); p2.v5 = p5.getValueOrFail(); p3.v5 = p5.getValueOrFail(); p4.v5 = p5.getValueOrFail(); p5.v5 = p5.getValueOrFail();
-    p1.tiebreaker = p1.getMajorityOrFail();
-    p2.tiebreaker = p1.getMajorityOrFail();
-    p3.tiebreaker = p1.getMajorityOrFail();
-    p4.tiebreaker = p1.getMajorityOrFail();
-    p5.tiebreaker = p1.getMajorityOrFail();
+    p1.v1 := p1.getValueOrFail();
+    communicate p2.v1 <- p1.v1;
+    communicate p3.v1 <- p1.v1;
+    communicate p4.v1 <- p1.v1;
+    communicate p5.v1 <- p1.v1;
+
+    p2.v2 := p2.getValueOrFail();
+    communicate p1.v2 <- p2.v2;
+    communicate p3.v2 <- p2.v2;
+    communicate p4.v2 <- p2.v2;
+    communicate p5.v2 <- p2.v2;
+
+    p3.v3 := p3.getValueOrFail();
+    communicate p1.v3 <- p3.v3;
+    communicate p2.v3 <- p3.v3;
+    communicate p4.v3 <- p3.v3;
+    communicate p5.v3 <- p3.v3;
+
+    p4.v4 := p4.getValueOrFail();
+    communicate p1.v4 <- p4.v4;
+    communicate p2.v4 <- p4.v4;
+    communicate p3.v4 <- p4.v4;
+    communicate p5.v4 <- p4.v4;
+
+    p5.v5 := p5.getValueOrFail();
+    communicate p1.v5 <- p5.v5;
+    communicate p2.v5 <- p5.v5;
+    communicate p3.v5 <- p5.v5;
+    communicate p4.v5 <- p5.v5;
+
+    p1.tiebreaker := p1.getMajorityOrFail();
+    communicate p2.tiebreaker <- p1.tiebreaker;
+    communicate p3.tiebreaker <- p1.tiebreaker;
+    communicate p4.tiebreaker <- p1.tiebreaker;
+    communicate p5.tiebreaker <- p1.tiebreaker;
+
     p1.setValueOrFail();
     p2.setValueOrFail();
     p3.setValueOrFail();
@@ -192,16 +195,42 @@ class SeqProgram {
     p5.setValueOrFail();
 
     // Phase 2 (p2 is "king")
-    p1.v1 = p1.getValueOrFail(); p2.v1 = p1.getValueOrFail(); p3.v1 = p1.getValueOrFail(); p4.v1 = p1.getValueOrFail(); p5.v1 = p1.getValueOrFail();
-    p1.v2 = p2.getValueOrFail(); p2.v2 = p2.getValueOrFail(); p3.v2 = p2.getValueOrFail(); p4.v2 = p2.getValueOrFail(); p5.v2 = p2.getValueOrFail();
-    p1.v3 = p3.getValueOrFail(); p2.v3 = p3.getValueOrFail(); p3.v3 = p3.getValueOrFail(); p4.v3 = p3.getValueOrFail(); p5.v3 = p3.getValueOrFail();
-    p1.v4 = p4.getValueOrFail(); p2.v4 = p4.getValueOrFail(); p3.v4 = p4.getValueOrFail(); p4.v4 = p4.getValueOrFail(); p5.v4 = p4.getValueOrFail();
-    p1.v5 = p5.getValueOrFail(); p2.v5 = p5.getValueOrFail(); p3.v5 = p5.getValueOrFail(); p4.v5 = p5.getValueOrFail(); p5.v5 = p5.getValueOrFail();
-    p1.tiebreaker = p2.getMajorityOrFail();
-    p2.tiebreaker = p2.getMajorityOrFail();
-    p3.tiebreaker = p2.getMajorityOrFail();
-    p4.tiebreaker = p2.getMajorityOrFail();
-    p5.tiebreaker = p2.getMajorityOrFail();
+    p1.v1 := p1.getValueOrFail();
+    communicate p2.v1 <- p1.v1;
+    communicate p3.v1 <- p1.v1;
+    communicate p4.v1 <- p1.v1;
+    communicate p5.v1 <- p1.v1;
+
+    p2.v2 := p2.getValueOrFail();
+    communicate p1.v2 <- p2.v2;
+    communicate p3.v2 <- p2.v2;
+    communicate p4.v2 <- p2.v2;
+    communicate p5.v2 <- p2.v2;
+
+    p3.v3 := p3.getValueOrFail();
+    communicate p1.v3 <- p3.v3;
+    communicate p2.v3 <- p3.v3;
+    communicate p4.v3 <- p3.v3;
+    communicate p5.v3 <- p3.v3;
+
+    p4.v4 := p4.getValueOrFail();
+    communicate p1.v4 <- p4.v4;
+    communicate p2.v4 <- p4.v4;
+    communicate p3.v4 <- p4.v4;
+    communicate p5.v4 <- p4.v4;
+
+    p5.v5 := p5.getValueOrFail();
+    communicate p1.v5 <- p5.v5;
+    communicate p2.v5 <- p5.v5;
+    communicate p3.v5 <- p5.v5;
+    communicate p4.v5 <- p5.v5;
+
+    p2.tiebreaker := p2.getMajorityOrFail();
+    communicate p1.tiebreaker <- p2.tiebreaker;
+    communicate p3.tiebreaker <- p2.tiebreaker;
+    communicate p4.tiebreaker <- p2.tiebreaker;
+    communicate p5.tiebreaker <- p2.tiebreaker;
+
     p1.setValueOrFail();
     p2.setValueOrFail();
     p3.setValueOrFail();
