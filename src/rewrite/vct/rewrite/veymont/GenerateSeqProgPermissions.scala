@@ -77,7 +77,7 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
         contract = prependContract(
           method.contract,
           currentPerm.top,
-          currentPerm.top &* resultPerm(method)
+          if(!method.pure) currentPerm.top &* resultPerm(method) else tt
         )
       ))
 

@@ -131,7 +131,8 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   def convert(implicit constructor: ConstructorContext): Seq[ClassDeclaration[G]] = constructor match {
     case Constructor0(contract, _, _, args, _, body) =>
       Seq(withContract(contract, contract =>
-        new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), args.map(convert(_)).getOrElse(Nil), convert(body))(blame(constructor))))
+        new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), args.map(convert(_)).getOrElse(Nil), convert(body)
+        )(blame(constructor))))
   }
 
   def convert(implicit finalFlag: FinalFlagContext): FieldFlag[G] = finalFlag match {

@@ -1,7 +1,7 @@
 class Query {
   int serialNumber;
 
-  Query(int serialNumber) {
+  constructor(int serialNumber) {
     this.serialNumber = serialNumber;
   }
 
@@ -9,13 +9,14 @@ class Query {
 }
 
 class Client {
-  Query query;
+  Query query, temp;
   boolean flag, flag1, flag2;
 
   ensures query != null;
   ensures flag == false;
-  Client(int n) {
+  constructor(int n) {
     query = new Query(5);
+    temp = new Query(-1);
     flag = false;
   }
 
@@ -38,7 +39,7 @@ class Server {
   pure int ABORTED() = 3;
 
   ensures status == INITIAL();
-  Server(int n) {
+  constructor(int n) {
     status = 0;
     flag = false;
     query = new Query(-1); // dummy
@@ -52,7 +53,7 @@ class Server {
 
   requires status == STARTED();
   ensures status == COMMITTED();
-  void commit() {
+  void `commit`() {
     status = 2;
   }
 
@@ -68,52 +69,45 @@ class Server {
   }
 }
 
-class SeqProgram {
-  Client c;
-  Server s1, s2;
-
-  inline resource consistency() =
+inline resource consistency(Client c, Server s1, Server s2) =
     (!c.flag ==> s1.isUncommitted()) &&
     (!c.flag ==> s2.isUncommitted());
 
-  ensures c.query != null;
-  ensures c.flag == false;
-  ensures s1.status == s1.INITIAL();
-  ensures s2.status == s2.INITIAL();
-  ensures consistency();
-  SeqProgram(int n){
-    c = new Client(n);
-    s1 = new Server(n);
-    s2 = new Server(n);
-  }
+seq_program Main(int n) {
+  endpoint c = Client(n);
+  endpoint s1 = Server(n);
+  endpoint s2 = Server(n);
 
   requires c.query != null;
   requires c.flag == false;
   requires s1.status == s1.INITIAL();
   requires s2.status == s2.INITIAL();
-  requires consistency();
+  requires consistency(c, s1, s2);
   ensures s1.status == s1.COMMITTED();
   ensures s2.status == s2.COMMITTED();
-  void run() {
+  seq_run {
     loop_invariant c.query != null;
     loop_invariant s1.status == s1.INITIAL() || s1.status == s1.COMMITTED() || s1.status == s1.ABORTED();
     loop_invariant s2.status == s2.INITIAL() || s2.status == s2.COMMITTED() || s2.status == s2.ABORTED();
-    loop_invariant consistency();
+    loop_invariant consistency(c, s1, s2);
     while (!c.flag &&
            s1.isUncommitted() &&
            s2.isUncommitted()) {
-      s1.query = c.query.clone();
-      s2.query = c.query.clone();
+      c.temp := c.query.clone(); // TODO: when expressions are allowed in communicates, remove temp workaround
+      communicate s1.query <- c.query;
+      c.query := c.temp.clone();
+      communicate s2.query <- c.query;
+      c.query := c.temp.clone();
       s1.start();
       s2.start();
-      c.flag1 = s1.flag;
-      c.flag2 = s2.flag;
+      communicate c.flag1 <- s1.flag;
+      communicate c.flag2 <- s2.flag;
       c.checkFlags();
-      s1.flag = c.flag;
-      s2.flag = c.flag;
+      communicate s1.flag <- c.flag;
+      communicate s2.flag <- c.flag;
       if (c.flag && s1.flag && s2.flag) {
-          s1.commit();
-          s2.commit();
+          s1.`commit`();
+          s2.`commit`();
       } else {
           s1.abort();
           s2.abort();

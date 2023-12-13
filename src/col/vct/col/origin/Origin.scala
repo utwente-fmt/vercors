@@ -74,6 +74,7 @@ case class PreferredName(preferredName: Seq[String]) extends NameStrategy {
 }
 
 case class NamePrefix(prefix: String) extends OriginContent
+case class NameSuffix(suffix: String) extends OriginContent
 
 case class RequiredName(requiredName: String) extends NameStrategy {
   override def name(tail: Origin): Option[Name] = Some(Name.Required(requiredName))

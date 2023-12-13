@@ -53,7 +53,8 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
           right = rw.dispatch(cons.contract.ensures),
         )
       ) },
-    )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))))
+    )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame)
+    )(cons.o.where(name = s"constructor${rw.currentClass.top.o.getPreferredNameOrElse().ucamel}"))))
   }
 
   def maybeDeclareDefaultConstructor(cls: Class[Pre]): Unit = {

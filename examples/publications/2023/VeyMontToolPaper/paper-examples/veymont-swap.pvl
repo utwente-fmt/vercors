@@ -7,7 +7,7 @@ class Storage {
   }
 }
 
-seq_program Swap() {
+seq_program Swap(int x, int y) {
     endpoint alex = Storage(x);
     endpoint bobby = Storage(y);
 
@@ -15,8 +15,8 @@ seq_program Swap() {
     ensures bobby.v == \old(alex.v);
     seq_run {
         // First save the previous values
-        alex.temp := alex.v
-        bobby.temp := bobby.v
+        alex.temp := alex.v;
+        bobby.temp := bobby.v;
         // Then send them to the other
         communicate alex.v <- bobby.temp;
         communicate bobby.v <- alex.temp;

@@ -202,10 +202,15 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
       )(AssignFailedToSeqAssignFailure(assign))
     case comm @ Communicate(receiver, sender) =>
       implicit val o = comm.o
-      Block(Seq(
+      val equalityTest: Statement[Post] = if(receiver.subject.cls == sender.subject.cls)
         Assert(
           rewriteSubject(receiver.subject) !== rewriteSubject(sender.subject)
-        )(AssertFailedToParticipantsNotDistinct(comm)),
+        )(AssertFailedToParticipantsNotDistinct(comm))
+      else
+        Block(Nil)
+
+      Block(Seq(
+        equalityTest,
         Assign[Post](
           rewriteAccess(receiver),
           rewriteAccess(sender)

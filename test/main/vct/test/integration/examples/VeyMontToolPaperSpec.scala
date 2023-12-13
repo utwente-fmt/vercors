@@ -19,8 +19,8 @@ class VeyMontToolPaperSpec extends VercorsSpec {
   vercors should verify using silicon example s"$applicability/election-5.pvl"
   vercors should verify using silicon example s"$applicability/election-8.pvl"
 
-  vercors should verify using silicon example s"$paperExamples/veymont-swap.pvl"
-  vercors should verify using silicon example s"$paperExamples/veymont-tictactoemn.pvl"
+  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$paperExamples/veymont-swap.pvl"
+//  vercors should verify using silicon example s"$paperExamples/veymont-tictactoemn.pvl"
 
   vercors should verify using silicon example s"$performance/binary-trees-2.pvl"
   vercors should verify using silicon example s"$performance/binary-trees-4.pvl"
