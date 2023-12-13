@@ -39,12 +39,12 @@ class Serialize extends NodeGenerator {
       """
 
   def data(node: NodeDefinition): Seq[Term] = {
+    val id = if(node.kind == DeclaredNode) Seq(q"decls(this)") else Nil
     val fields = node.fields.map { case (name, t) => serializeField(name, t) }
+    val blame = if(node.blameType.isDefined) Seq(q"$SerializeBlame.serialize(this.blame)") else Nil
+    val origin = Seq(q"$SerializeOrigin.serialize(this.o)")
 
-    if(node.kind == DeclaredNode)
-      q"decls(this)" +: fields
-    else
-      fields
+    id ++ fields ++ blame ++ origin
   }
 
   def err(st: ST, pt: Any): Nothing = {

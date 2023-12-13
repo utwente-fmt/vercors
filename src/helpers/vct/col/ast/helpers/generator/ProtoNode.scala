@@ -1,7 +1,7 @@
 package vct.col.ast.helpers.generator
 
 import vct.col.ast.helpers.defn.{Proto, ProtoNaming}
-import vct.col.ast.structure.{NodeDefinition, NodeGenerator, StructuralNode}
+import vct.col.ast.structure.{DeclaredNode, NodeDefinition, NodeGenerator, StructuralNode}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
@@ -10,13 +10,23 @@ import scala.util.Using
 class ProtoNode extends NodeGenerator {
   override def generate(out: Path, node: NodeDefinition): Unit = {
     val typeResults = node.fields.map(_._2).map(ProtoNaming.getType)
-    val indexOffset = if(node.kind == StructuralNode) 1 else 2
-    val fields = node.fields.map(_._1).zip(typeResults).zipWithIndex.map {
-      case ((name, res), idx) => Proto.Field(ProtoNaming.snake(name), idx + indexOffset, res.t)
+    val id = "id" -> Proto.Required(Proto.Long)
+    val fields = node.fields.map(_._1).zip(typeResults).map {
+      case (name, res) => ProtoNaming.snake(name) -> res.t
     }
-    val allFields =
-      if(node.kind == StructuralNode) fields
-      else Proto.Field("id", 1, Proto.Required(Proto.Long)) +: fields
+    val blame = "blame" -> Proto.Required(Proto.StandardType(Proto.auxBase :+ "Blame"))
+    val origin = "origin" -> Proto.Required(Proto.StandardType(Proto.auxBase :+ "Origin"))
+
+    val allFieldDecls =
+      (if(node.kind == DeclaredNode) Seq(id) else Nil) ++
+        fields ++
+        (if(node.blameType.isDefined) Seq(blame) else Nil) ++
+        Seq(origin)
+
+    val allFields = allFieldDecls.zipWithIndex.map {
+      case (name -> t, idx) => Proto.Field(name, idx+1, t)
+    }
+
     val name = ProtoNaming.getTypeName(node.name)
     val message = Proto.Message(name, Proto.MessageFields(allFields)).opaqueNodes
     val source = Proto.Source(

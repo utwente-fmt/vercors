@@ -33,9 +33,14 @@ class Deserialize extends NodeGenerator {
 
     val instance =
       if(node.blameType.isEmpty)
-        q"new ${t"${typ(node)}[G]"}(..$fields)($OriginObj($SeqObj.empty))"
+        q"new ${t"${typ(node)}[G]"}(..$fields)($SerializeOrigin.deserialize($term.origin))"
       else
-        q"new ${t"${typ(node)}[G]"}(..$fields)(null)($OriginObj($SeqObj.empty))"
+        q"""
+          {
+            val `~o`: $Origin = $SerializeOrigin.deserialize($term.origin)
+            new ${t"${typ(node)}[G]"}(..$fields)($SerializeBlame.deserialize($term.blame, `~o`))(`~o`)
+          }
+        """
 
     if(node.kind == DeclaredNode)
       q"{ val res = $instance; decls($term.id) = res; res }"
