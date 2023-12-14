@@ -14,8 +14,8 @@ import java.io.FileNotFoundException
 
 case object Main {
 
-  def parse() = {
-    val readable: Readable = RWFile(new File("C:\\Development\\Vercors-Dev\\vercors\\src\\parsers\\antlr4\\LangPVLLexer.g4"))
+  def parse(path: String) = {
+    val readable: Readable = RWFile(new File(path))
     try {
       readable.read { reader =>
         val stream: runtime.CharStream = CharStreams.fromReader(reader, readable.fileName)
@@ -31,20 +31,28 @@ case object Main {
 
   def main(args: Array[String]): Unit = {
     var textMateGrammar = CGL(args(0), args(1), Nil)
-    val tree = parse()
+    val tree = parse(args(2))
     tree match {
       case GrammarSpec0(grammarDecl, prequelConstructs, rules, modeSpec, _) =>
         rules match {
           case Rules0(specRules) =>
             for (ruleText <- specRules.map(rule => rule.getText))
               if (ruleText.matches(".*\\{.*\\}.*"))
-              textMateGrammar = textMateGrammar.addPattern(
-                MatchPattern(ruleText.substring(ruleText.indexOf('{') + 2, ruleText.indexOf("}") - 2),
-                "\\b(?:" + ruleText.split('\'')(1) + ")\\b")
-              )
-        }
+                textMateGrammar = textMateGrammar.addPattern(
+                  MatchPattern(ruleText.substring(ruleText.indexOf('{') + 2, ruleText.indexOf("}") - 2),
+                    escapeAndEncloseWords(ruleText.split('\'')(1)))
+                )
+             }
     }
     print(upickle.default.write(textMateGrammar, indent = 2))
+  }
+
+  def escapeAndEncloseWords(text: String): String = {
+    val stringWithEscapedSymbols = text.replaceAll("([^\\w\\\\])", "\\\\$1")
+    val wordsWithBoundaries = stringWithEscapedSymbols.replaceAll("\\b(\\w+)\\b", "\\\\b(?:$1)\\\\b")
+    val finalString = wordsWithBoundaries.replaceAll("""\\\\\\\\\\""", """\\\\\\""")
+
+    finalString
   }
 
 }
