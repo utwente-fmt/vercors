@@ -23,6 +23,9 @@ case class Name(parts: Seq[String]) {
 
   def initName: Name = Name(parts.init)
   def tailName: Name = Name(parts.tail)
+
+  def path: os.SubPath =
+    parts.foldLeft(os.sub)(_ / _)
 }
 
 object Name {
@@ -152,5 +155,16 @@ case class NodeDefinition(name: Name, kind: NodeKind, family: Name, scopes: Seq[
 
 object NodeDefinition {
   implicit val rw: RW[NodeDefinition] = macroRW
-  implicit val segments: mill.define.Cross.ToSegments[NodeDefinition] = new mill.define.Cross.ToSegments(n => n.name.parts.toList)
+}
+
+case class FamilyDefinition(name: Name, kind: NodeKind, nodes: Seq[Name])
+
+object FamilyDefinition {
+  implicit val rw: RW[FamilyDefinition] = macroRW
+}
+
+case class AllFamilies(declaredFamilies: Seq[Name], structuralFamilies: Seq[Name])
+
+object AllFamilies {
+  implicit val rw: RW[AllFamilies] = macroRW
 }

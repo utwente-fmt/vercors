@@ -8,8 +8,8 @@ import scalalib.{JavaModule => BaseJavaModule, ScalaModule => BaseScalaModule, _
 import contrib.scalapblib.{ScalaPBModule => BaseScalaPBModule, _}
 import contrib.buildinfo.BuildInfo
 import mill.util.Jvm
-
 import vct.col.ast.structure
+import vct.col.ast.structure.{AllFamilies, FamilyDefinition, Name, NodeDefinition}
 
 import scala.util.control.NonFatal
 
@@ -572,6 +572,12 @@ object viper extends ScalaModule {
 }
 
 object vercors extends Module {
+  def read[T: upickle.default.ReadWriter](p: PathRef): T =
+    upickle.default.read[T](p.path.toNIO)
+
+  def readAndWatch[T: upickle.default.ReadWriter](p: Path): T =
+    upickle.default.read[T](interp.watch(p).toNIO)
+
   object hre extends VercorsModule {
     def key = "hre"
     def deps = Agg(
@@ -589,22 +595,16 @@ object vercors extends Module {
 
   object col extends VercorsModule {
     object helpers extends Module {
-      class Loader[Obj: upickle.default.Reader](file: Path) extends Module {
-        def load(): Obj = upickle.default.read[Obj](file.toNIO, trace = true)
-        def source: T[PathRef] = T.source(file)
-        def task: Task[Obj] = T.task {
-          source()
-          load()
-        }
-      }
-
       def analysis: Path = settings.meta / "analyseNodeDeclarations.dest"
+      def structureClasspathDir: Path = settings.meta / "structureClassPath.dest"
 
-      object declarationFamilies extends Loader[Seq[structure.Name]](analysis / "col-decl-families.json")
-      object structuralFamilies extends Loader[Seq[structure.Name]](analysis / "col-struct-families.json")
-      object definitions extends Loader[Seq[structure.NodeDefinition]](analysis / "col-definitions.json")
-      object families extends Loader[Seq[(structure.Name, structure.NodeKind, Seq[structure.Name])]](analysis / "col-families.json")
-      object structureClasspath extends Loader[Seq[Path]](settings.meta / "structureClassPath.dest" / "classpath.json")
+      val familyCross = readAndWatch[Seq[Name]](analysis / "cross-family.json")
+      val nodeCross = readAndWatch[Seq[Name]](analysis / "cross-node.json")
+
+      def allFamiliesSource = T.source(analysis / "all-families.json")
+      def allFamilies = T { read[AllFamilies](allFamiliesSource()) }
+      def allDefinitionsSource = T.source(analysis / "all-definitions.json")
+      def allDefinitions = T { read[Seq[NodeDefinition]](allDefinitionsSource()) }
 
       object generators extends VercorsModule {
         def key = "helpers"
@@ -613,9 +613,9 @@ object vercors extends Module {
             ivy"org.scalameta::scalameta:4.4.9",
           )
         }
-        def unmanagedClasspath = T { structureClasspath.task().map(PathRef(_)) }
+        def structureClasspath = T.source(structureClasspathDir / "classpath.json")
+        def unmanagedClasspath = T { read[Seq[Path]](structureClasspath()).map(PathRef(_)) }
       }
-
 
       def instantiate[T](name: String): Task[T] = T.task {
         mill.api.ClassLoader
@@ -634,18 +634,25 @@ object vercors extends Module {
 
         def inputs = T.sources(os.walk(root).filter(_.last.endsWith("Impl.scala")).map(PathRef(_)))
 
-        def loadDefnSet() = definitions.load().map(_.name.base).toSet
-        def loadFamilySet() = (declarationFamilies.load() ++ structuralFamilies.load()).map(_.base).toSet
-
         private def nodeName(p: PathRef): String =
           p.path.last.dropRight("Impl.scala".length)
 
         def generator = T.worker(instantiate[structure.ImplTraitGenerator]("ImplTrait"))
 
+        def allDefinitionsSet = T {
+          allDefinitions().map(_.name.base).toSet
+        }
+
+        def allFamiliesSet = T {
+          val allFamiliesVal = allFamilies()
+          (allFamiliesVal.declaredFamilies ++ allFamiliesVal.structuralFamilies)
+            .map(_.base).toSet
+        }
+
         def fix = T {
           val gen = generator()
-          val defnSet = loadDefnSet()
-          val familySet = loadFamilySet()
+          val defnSet = allDefinitionsSet()
+          val familySet = allFamiliesSet()
           inputs().foreach { input =>
             val name = nodeName(input)
             val opsNames =
@@ -662,8 +669,8 @@ object vercors extends Module {
 
         def generate: T[Unit] = T {
           val gen = generator()
-          val defnSet = loadDefnSet()
-          val familySet = loadFamilySet()
+          val defnSet = allDefinitionsSet()
+          val familySet = allFamiliesSet()
           val ungenerated = (defnSet ++ familySet) -- inputs().map(nodeName)
           ungenerated.foreach { node =>
             os.makeDir.all(root / "unsorted")
@@ -737,42 +744,41 @@ object vercors extends Module {
 
       object global extends Module {
         def generate = T {
-          val declarationFamiliesVal = declarationFamilies.task()
-          val structuralFamiliesVal = structuralFamilies.task()
-          val definitionsVal = definitions.task()
+          val allFamiliesVal = allFamilies()
+          val declarationFamilies = allFamiliesVal.declaredFamilies
+          val structuralFamilies = allFamiliesVal.structuralFamilies
+          val definitions = allDefinitions()
           allFamiliesGenerators().foreach { gen =>
             T.log.debug(s"Generating ${gen.getClass.getSimpleName}")
-            gen.generate(T.dest.toNIO, declarationFamiliesVal, structuralFamiliesVal)
+            gen.generate(T.dest.toNIO, declarationFamilies, structuralFamilies)
           }
-          protoAuxTypes().foreach(_.generate(T.dest.toNIO, definitionsVal))
+          protoAuxTypes().foreach(_.generate(T.dest.toNIO, definitions))
           Seq(PathRef(T.dest, quick = true))
         }
       }
 
       implicit object FamilySegments extends Cross.ToSegments[(structure.Name, structure.NodeKind, Seq[structure.Name])](v => implicitly[Cross.ToSegments[structure.Name]].convert(v._1))
 
-      object family extends Cross[FamilyCross](families.load())
-      trait FamilyCross extends Cross.Module[(structure.Name, structure.NodeKind, Seq[structure.Name])] {
-        def family = T(crossValue._1)
-        def kind = T(crossValue._2)
-        def nodes = T(crossValue._3)
+      object family extends Cross[FamilyCross](familyCross)
+      trait FamilyCross extends Cross.Module[Name] {
+        def source = T.source(PathRef(analysis / "cross-family" / crossValue.path / "family.json", quick = true))
+        def sourceDefn = T { read[FamilyDefinition](source()) }
         def generate = T {
-          val familyVal = family()
-          val kindVal = kind()
-          val nodesVal = nodes()
+          val defn = sourceDefn()
           familyGenerators().foreach { gen =>
-            T.log.debug(s"Generating ${gen.getClass.getSimpleName} for ${familyVal.base}")
-            gen.generate(T.dest.toNIO, familyVal, kindVal, nodesVal)
+            T.log.debug(s"Generating ${gen.getClass.getSimpleName} for ${defn.name.base}")
+            gen.generate(T.dest.toNIO, defn.name, defn.kind, defn.nodes)
           }
           PathRef(T.dest, quick = true)
         }
       }
 
-      object node extends Cross[NodeCross](definitions.load())
-      trait NodeCross extends Cross.Module[structure.NodeDefinition] {
-        def definition = T(crossValue)
+      object node extends Cross[NodeCross](nodeCross)
+      trait NodeCross extends Cross.Module[Name] {
+        def source = T.source(PathRef(analysis / "cross-node" / crossValue.path / "node.json", quick = true))
+        def sourceDefn = T { read[NodeDefinition](source()) }
         def generate = T {
-          val defn = definition()
+          val defn = sourceDefn()
           nodeGenerators().foreach { gen =>
             T.log.debug(s"Generating ${gen.getClass.getSimpleName} for ${defn.name.base}")
             gen.generate(T.dest.toNIO, defn)
@@ -782,8 +788,8 @@ object vercors extends Module {
       }
 
       def generatedSources: T[Seq[PathRef]] = T {
-        T.traverse(definitions.load())(node(_).generate)() ++
-          T.traverse(families.load())(family(_).generate)() ++
+        T.traverse(nodeCross)(node(_).generate)() ++
+          T.traverse(familyCross)(family(_).generate)() ++
           global.generate()
       }
 

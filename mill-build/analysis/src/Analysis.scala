@@ -11,15 +11,13 @@ import Util._
 object Analysis {
   def main(args0: Array[String]): Unit = {
     val args = args0.toIndexedSeq
-    val output = Paths.get(args.head)
-    val input = args.tail.map(Paths.get(_))
+    val output = os.Path(args.head)
+    val input = args.tail.map(os.Path(_))
 
     val hierarchy = Try("analysis") {
       val decls = input.map(read).get.flatten
       val typeLookup = decls.groupBy(_.name.base)
-
       val resolvedDecls = decls.map(StatAnalysis(typeLookup).getDeclaration).get
-
       HierarchyAnalysis.get(resolvedDecls).get
     } match {
       case Failures(failures) =>
@@ -30,21 +28,37 @@ object Analysis {
       case Ok(decls) => decls
     }
 
-    write(output.resolve("col-decl-families.json"), hierarchy.declaredNodes.map(_._1))
-    write(output.resolve("col-struct-families.json"), hierarchy.structuralNodes.map(_._1))
-    write(output.resolve("col-definitions.json"), (hierarchy.declaredNodes ++ hierarchy.structuralNodes).flatMap(_._2))
-    write(output.resolve("col-families.json"),
-      hierarchy.declaredNodes.map { case category -> defns => (category, DeclaredNode, defns.map(_.name)) } ++
-      hierarchy.structuralNodes.map { case category -> defns => (category, StructuralNode, defns.map(_.name)) }
-    )
+    val h = hierarchy
+
+    val nodes = (h.declaredNodes ++ h.structuralNodes).flatMap(_._2)
+    val nodeNames = nodes.map(_.name)
+    write(output / "cross-node.json", nodeNames)
+
+    for(node <- nodes) {
+      write(output / "cross-node" / node.name.path / "node.json", node)
+    }
+
+    val families =
+      hierarchy.declaredNodes.map { case family -> defns => FamilyDefinition(family, DeclaredNode, defns.map(_.name)) } ++
+        hierarchy.structuralNodes.map { case family -> defns => FamilyDefinition(family, StructuralNode, defns.map(_.name)) }
+    val familyNames = families.map(_.name)
+    write(output / "cross-family.json", familyNames)
+
+    for(family <- families) {
+      write(output / "cross-family" / family.name.path / "family.json", family)
+    }
+
+    write(output / "all-families.json", AllFamilies(h.declaredNodes.map(_._1), h.structuralNodes.map(_._1)))
+
+    write(output / "all-definitions.json", nodes)
   }
 
-  def read(path: Path): Result[Seq[RawStatAnalysis.RawStat]] = Try(s"reading $path") {
-    FileAnalysis.namedDecls(scala.meta.Input.File(path)).get
+  def read(path: os.Path): Result[Seq[RawStatAnalysis.RawStat]] = Try(s"reading $path") {
+    FileAnalysis.namedDecls(scala.meta.Input.File(path.toNIO)).get
   }
 
-  def write[T: Writer](path: Path, out: T): Unit =
-    Using(Files.newOutputStream(path)) { writer =>
+  def write[T: Writer](path: os.Path, out: T): Unit =
+    Using(os.write.outputStream(path, createFolders = true)) { writer =>
       writeToOutputStream(out, writer)
     }
 }
