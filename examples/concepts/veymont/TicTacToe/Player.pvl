@@ -1,12 +1,7 @@
-// -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases TicTacToeInt
-//:: suite problem-fail
-
 class Player {
-
 	int c00, c01, c02, c10, c11, c12, c20, c21, c22;
 	int myToken;
-	Move move;
+	Move move, temp;
 	boolean turn;
 	
 	
@@ -17,7 +12,7 @@ class Player {
 	ensures myToken == tok;
 	ensures myToken == 0 || myToken == 1;
 	ensures turn == t;
-	Player(int tok, boolean t) {
+	constructor(int tok, boolean t) {
 		c00 = -1;
 		c01 = -1;
 		c02 = -1;
@@ -29,7 +24,8 @@ class Player {
 		c22 = -1;
 		myToken = tok;
 		turn = t;
-		move = new Move(0,0,tok);
+		move = new Move(0, 0, tok);
+		temp = new Move(-1, -1, -1);
 	}
 	
 

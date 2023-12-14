@@ -1,11 +1,8 @@
-// -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases TicTacToeInt
-
 class Move {
 	int i, j, token;
 	
 	ensures i == mi ** j == mj ** token == mt;
-	Move(int mi, int mj, int mt) {
+	constructor(int mi, int mj, int mt) {
 		i = mi;
 		j = mj;
 		token = mt;

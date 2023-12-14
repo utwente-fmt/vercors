@@ -58,7 +58,11 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
 
     case fun: InstanceFunction[Pre] if enabled =>
       implicit val o = fun.o
-      classDeclarations.succeed(fun, fun.rewrite(contract = prependContract(fun.contract, currentPerm.top, tt)))
+      classDeclarations.succeed(fun, fun.rewrite(
+        contract = prependContract(
+          fun.contract,
+          currentPerm.top &* variablesPerm(fun.args),
+          tt)))
 
     case method: InstanceMethod[Pre] if enabled && currentProg.nonEmpty =>
       implicit val o = method.o
@@ -76,7 +80,7 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
       classDeclarations.succeed(method, method.rewrite(
         contract = prependContract(
           method.contract,
-          currentPerm.top,
+          currentPerm.top &* variablesPerm(method.args),
           if(!method.pure) currentPerm.top &* resultPerm(method) else tt
         )
       ))

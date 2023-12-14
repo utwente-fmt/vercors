@@ -5,7 +5,7 @@ import vct.test.integration.helper.VercorsSpec
 class VeyMontExamplesSpec extends VercorsSpec {
   val wd = "concepts/veymont"
   vercors should verify using silicon examples(
-    s"$wd/TicTacToe/IntGrid.pvl",
+    s"$wd/TicTacToe/Player.pvl",
     s"$wd/TicTacToe/Move.pvl",
     s"$wd/TicTacToe/TicTacToe.pvl",
     )

@@ -1,46 +1,34 @@
-// -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases TicTacToeInt
-//:: verdict Pass
+inline resource ticTacToeAnnotations(Player p1, Player p2) =
+    p1.myToken == 0 ** p2.myToken == 1
+    ** p1.turn != p2.turn
+    ** p1.equalGrid(p2);
 
-class SeqProgram {
+seq_program TTT() {
+	endpoint p1 = Player(0, true);
+	endpoint p2 = Player(1, false);
 	
-	Player p1,p2;
-	
-	inline resource ticTacToeAnnotations() = 
-	    p1.myToken == 0 ** p2.myToken == 1
-	** p1.turn != p2.turn
-	** p1.equalGrid(p2); 
-	
-	ensures (ticTacToeAnnotations());
-	SeqProgram() {
-		p1 = new Player(0,true);
-		p2 = new Player(1,false);	
-	}
-	
-	context (ticTacToeAnnotations());		  
+	context ticTacToeAnnotations(p1, p2);
 	ensures p1.gameFinished() && p2.gameFinished();
-	void run() {	  
-		loop_invariant (ticTacToeAnnotations());
+	seq_run {
+		loop_invariant ticTacToeAnnotations(p1, p2);
 		loop_invariant !p1.gameFinished() == !p2.gameFinished();
 		while(!p1.gameFinished() && !p2.gameFinished()) {
 			assert p1.turn == !p2.turn;
 			if(p1.turn && !p2.turn) {
 				p1.createNewMove();
-				p2.move = p1.move.clone();
+				p1.temp := p1.move.clone();
+				communicate p2.move <- p1.temp;
+				p1.temp := new Move(-1, -1, -1); // TODO: Workaround for not having memory management, delete when we support exprs in communicate
 			} else {
 				p2.createNewMove();
-				p1.move = p2.move.clone();
+				p2.temp := p2.move.clone();
+				communicate p1.move <- p2.temp;
+				p2.temp := new Move(-1, -1, -1); // TODO: Workaround for not having memory management, delete when we support exprs in communicate
 			}
 			p1.doMove();
 			p2.doMove();
-			p1.turn = !p1.turn;
-			p2.turn = !p2.turn;
+			p1.turn := !p1.turn;
+			p2.turn := !p2.turn;
 		}
 	}
-	
-	void main() {
-		SeqProgram m = new SeqProgram();
-		m.run();
-	}
-
 }
