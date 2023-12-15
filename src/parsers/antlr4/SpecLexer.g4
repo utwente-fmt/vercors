@@ -167,6 +167,11 @@ POLARITY_DEPENDENT: '\\polarity_dependent';
 SMT_LIB: '\\smtlib';
 BOOGIE: '\\boogie';
 
+EUCLIDIAN_DIV: '\\euclidean_div';
+EUCLIDIAN_MOD: '\\euclidean_mod';
+POW: '\\pow';
+IS_INT: '\\is_int';
+
 NONE: 'none';
 OPTION_NONE: 'None';
 WRITE: 'write';

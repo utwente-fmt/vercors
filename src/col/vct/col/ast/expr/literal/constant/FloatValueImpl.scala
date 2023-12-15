@@ -1,6 +1,6 @@
 package vct.col.ast.expr.literal.constant
 
-import vct.col.ast.{FloatValue, TFloat}
+import vct.col.ast.{FloatValue}
 import vct.col.print._
 
 trait FloatValueImpl[G] { this: FloatValue[G] =>

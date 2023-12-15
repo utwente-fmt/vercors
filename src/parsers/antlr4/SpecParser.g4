@@ -287,6 +287,10 @@ valPrimary
  | '\\nd_index' '(' langExpr ',' langExpr valExprPair* ')' # valNdIndex
  | '\\nd_partial_index' '(' valExpressionList ';' valExpressionList ')' # valNdLIndex
  | '\\nd_length' '(' valExpressionList ')' # ValNdLength
+ | '\\euclidean_div' '(' langExpr ',' langExpr ')' # valEuclideanDiv
+ | '\\euclidean_mod' '(' langExpr ',' langExpr ')' # valEuclideanMod
+ | '\\pow' '(' langExpr ',' langExpr ')' # valPow
+ | '\\is_int' '(' langExpr ')' # valIsInt
  ;
 
 // Out spec: defined meaning: a language local

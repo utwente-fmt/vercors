@@ -3,12 +3,17 @@ package vct.col.typerules
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.resolve.lang.{C, CPP}
 import vct.col.resolve.lang.CPP.getBaseTypeFromSpecs
 
 case object CoercionUtils {
   private implicit val o: Origin = DiagnosticOrigin
 
-  def getCoercion[G](source: Type[G], target: Type[G]): Option[Coercion[G]] = {
+  // We only want Coercions that are promoting in C
+  def getCoercion[G](source: Type[G], target: Type[G]): Option[Coercion[G]] =
+    getAnyCoercion(source, target).filter(_.isCPromoting)
+
+  def getAnyCoercion[G](source: Type[G], target: Type[G]): Option[Coercion[G]] = {
     Some((source, target) match {
       case (_: TNotAValue[_], _) => return None
       case (_, _: TNotAValue[_]) => return None
@@ -21,38 +26,39 @@ case object CoercionUtils {
       case (TResource(), TResourceVal()) => CoerceResourceResourceVal()
       case (TResourceVal(), TResource()) => CoerceResourceValResource()
       case (TBool(), TResource()) => CoerceBoolResource()
+      case (TBool(), TResourceVal()) => CoercionSequence(Seq(CoerceBoolResource(), CoerceResourceResourceVal()))
 
       case (_, TAnyValue()) => CoerceSomethingAnyValue(source)
 
       case (source @ TOption(innerSource), target @ TOption(innerTarget)) =>
-        CoerceMapOption(getCoercion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
+        CoerceMapOption(getAnyCoercion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
       case (source @ TTuple(Seq(leftSource, rightSource)), target @ TTuple(Seq(leftTarget, rightTarget))) =>
         CoerceMapTuple(
           inner = Seq(
-            getCoercion(leftSource, leftTarget).getOrElse(return None),
-          getCoercion(rightSource, rightTarget).getOrElse(return None),
+            getAnyCoercion(leftSource, leftTarget).getOrElse(return None),
+            getAnyCoercion(rightSource, rightTarget).getOrElse(return None),
           ),
           sourceTypes = Seq(leftSource, rightSource),
           targetTypes = Seq(leftTarget, rightTarget),
         )
       case (source @ TEither(leftSource, rightSource), target @ TEither(leftTarget, rightTarget)) =>
         CoerceMapEither(
-          (getCoercion(leftSource, leftTarget).getOrElse(return None), getCoercion(rightSource, rightTarget).getOrElse(return None)),
+          (getAnyCoercion(leftSource, leftTarget).getOrElse(return None), getAnyCoercion(rightSource, rightTarget).getOrElse(return None)),
           (leftSource, rightSource),
           (leftTarget, rightTarget),
         )
       case (TSeq(innerSource), TSeq(innerTarget)) =>
-        CoerceMapSeq(getCoercion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
+        CoerceMapSeq(getAnyCoercion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
       case (TSet(innerSource), TSet(innerTarget)) =>
         CoerceMapSet(getPromotion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
       case (TBag(innerSource), TBag(innerTarget)) =>
         CoerceMapBag(getPromotion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
       case (TMatrix(innerSource), TMatrix(innerTarget)) =>
-        CoerceMapMatrix(getCoercion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
+        CoerceMapMatrix(getAnyCoercion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
       case (TMap(sourceKey, innerSource), TMap(targetKey, innerTarget)) if sourceKey == targetKey =>
-        CoerceMapMap(getCoercion(innerSource, innerTarget).getOrElse(return None), (sourceKey, innerSource), (sourceKey, innerTarget))
+        CoerceMapMap(getAnyCoercion(innerSource, innerTarget).getOrElse(return None), (sourceKey, innerSource), (sourceKey, innerTarget))
       case (TType(innerSource), TType(innerTarget)) =>
-        CoerceMapType(getCoercion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
+        CoerceMapType(getAnyCoercion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
 
       case (TNull(), TRef()) => CoerceNullRef()
       case (TNull(), TArray(target)) => CoerceNullArray(target)
@@ -62,28 +68,54 @@ case object CoercionUtils {
       case (TNull(), TPointer(target)) => CoerceNullPointer(target)
       case (TNull(), TEnum(target)) => CoerceNullEnum(target)
 
-      case (_ @ CTArray(_, innerType), _ @ TArray(element)) if element == innerType =>
+      case (CTArray(_, innerType), TArray(element)) if element == innerType =>
         CoerceCArrayPointer(element)
-      case (_@CPPTArray(_, innerType), _@TArray(element)) if element == innerType =>
+      case (CPPTArray(_, innerType), TArray(element)) if element == innerType =>
         CoerceCPPArrayPointer(element)
-
+      case (CTPointer(innerType), TPointer(element)) => //if element == innerType =>
+        getAnyCoercion(element, innerType).getOrElse(return None)
+      case (TPointer(element), CTPointer(innerType)) => //if element == innerType =>
+        getAnyCoercion(element, innerType).getOrElse(return None)
+      case (CTArray(_, innerType), CTPointer(element)) =>
+        if(element == innerType){
+          CoerceCArrayPointer(innerType)
+        } else {
+          CoercionSequence(Seq(
+            CoerceCArrayPointer(element),
+            getAnyCoercion(element, innerType).getOrElse(return None)
+          ))
+        }
       case (TFraction(), TZFraction()) => CoerceFracZFrac()
       case (TFraction(), TRational()) => CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat()))
       case (TZFraction(), TRational()) => CoerceZFracRat()
-      case (source @ TFloat(_, _), TRational()) => CoerceFloatRat(source)
+      case (source: FloatType[G], TRational()) => CoerceFloatRat(source)
 
       case (source @ TFloat(exponentL, mantissaL), target @ TFloat(exponentR, mantissaR)) if exponentL <= exponentR && mantissaL <= mantissaR =>
         CoerceIncreasePrecision(source, target)
+      case (source@TCFloat(exponentL, mantissaL), target@TCFloat(exponentR, mantissaR)) if exponentL <= exponentR && mantissaL <= mantissaR =>
+        CoerceIncreasePrecision(source, target)
+      case (source@TCFloat(_, _), target@TCFloat(_, _)) =>
+        CoerceDecreasePrecision(source, target)
+      // Allow to go from C float to normal float and C Int to Int
+      case (source@TCFloat(exponentL, mantissaL), target@TFloat(exponentR, mantissaR)) if exponentL == exponentR && mantissaL == mantissaR =>
+        CoerceCFloatFloat(source, target)
+      case (source@TCFloat(exponentL, mantissaL), target@TFloat(exponentR, mantissaR)) if exponentL < exponentR && mantissaL < mantissaR =>
+        val coercedCFloat = TCFloat[G](exponentR, mantissaR)
+        CoercionSequence(Seq(CoerceIncreasePrecision(source, coercedCFloat), CoerceCFloatFloat(coercedCFloat, target)))
+      case (source@TCFloat(_, _), target@TFloat(exponentR, mantissaR)) =>
+        val coercedCFloat = TCFloat[G](exponentR, mantissaR)
+        CoercionSequence(Seq(CoerceDecreasePrecision(source, coercedCFloat), CoerceCFloatFloat(coercedCFloat, target)))
+      case (TCInt(), TInt()) => CoerceCIntInt()
 
       case (TBoundedInt(gte, lt), TFraction()) if gte >= 1 && lt <= 2 => CoerceBoundIntFrac()
       case (source @ TBoundedInt(gte, lt), TZFraction()) if gte >= 0 && lt <= 2 => CoerceBoundIntZFrac(source)
-      case (source @ TBoundedInt(_, _), target @ TFloat(_, _)) => CoerceBoundIntFloat(source, target)
+      case (source @ TBoundedInt(_, _), target: TFloat[G]) => CoerceBoundIntFloat(source, target)
 
       case (source @ TBoundedInt(gte, lt), target @ TBoundedInt(t_gte, t_lt)) if t_gte <= gte && t_lt >= lt =>
         CoerceWidenBound(source, target)
-      case (source: TBoundedInt[G], TInt()) => CoerceUnboundInt(source)
-      case (source: TBoundedInt[G], TRational()) => CoercionSequence(Seq(CoerceUnboundInt(source), CoerceIntRat()))
-      case (TInt(), TRational()) => CoerceIntRat()
+      case (source: TBoundedInt[G], target: TInt[G]) => CoerceUnboundInt(source, target)
+      case (source: TBoundedInt[G], TRational()) => CoercionSequence(Seq(CoerceUnboundInt(source, TInt()), CoerceIntRat()))
+      case (_: IntType[G], TRational()) => CoerceIntRat()
 
       case (source @ TClass(sourceClass), target @ TClass(targetClass))
         if source.transSupportArrows.exists { case (_, supp) => supp == targetClass.decl } =>
@@ -100,22 +132,28 @@ case object CoercionUtils {
         CoerceJavaClassAnyClass(sourceClass)
 
       case (source @ TUnion(ts), target) =>
-        CoerceJoinUnion(ts.map(getCoercion(_, target)).map {
+        CoerceJoinUnion(ts.map(getAnyCoercion(_, target)).map {
           case Some(coercion) => coercion
           case None => return None
         }, source.types, target)
       case (source, target @ TUnion(ts)) =>
-        return ts.map(getCoercion(source, _)).zipWithIndex.collectFirst {
+        return ts.map(getAnyCoercion(source, _)).zipWithIndex.collectFirst {
           case (Some(coercion), index) =>
             CoerceSelectUnion(coercion, source, target.types, index)
         }
+      case (source @ TCFloat(_, _), TCInt()) => CoerceCFloatCInt(source)
+      case (TCInt() , target @ TCFloat(_, _)) => CoerceCIntCFloat(target)
 
+      case (source @ TCFloat(_, _), TInt()) => CoercionSequence(Seq(CoerceCFloatCInt(source), CoerceCIntInt()))
+      case (TCInt() , target @ TFloat(exponent, mantissa)) =>
+        val coercedCFloat = TCFloat[G](exponent, mantissa)
+        CoercionSequence(Seq(CoerceCIntCFloat(coercedCFloat), CoerceCFloatFloat(coercedCFloat, target)))
       case (source @ CPrimitiveType(specs), target) =>
         specs.collectFirst { case spec: CSpecificationType[G] => spec } match {
           case Some(CSpecificationType(t)) =>
             CoercionSequence(Seq(
               CoerceCPrimitiveToCol(source, t),
-              getCoercion(t, target).getOrElse(return None),
+              getAnyCoercion(t, target).getOrElse(return None),
             ))
           case None => return None
         }
@@ -124,7 +162,7 @@ case object CoercionUtils {
         specs.collectFirst { case spec: CSpecificationType[G] => spec } match {
           case Some(CSpecificationType(t)) =>
             CoercionSequence(Seq(
-              getCoercion(source, t).getOrElse(return None),
+              getAnyCoercion(source, t).getOrElse(return None),
               CoerceColToCPrimitive(t, target),
             ))
           case None => return None
@@ -135,7 +173,7 @@ case object CoercionUtils {
           case Some(CPPSpecificationType(t)) =>
             CoercionSequence(Seq(
               CoerceCPPPrimitiveToCol(source, t),
-              getCoercion(t, target).getOrElse(return None),
+              getAnyCoercion(t, target).getOrElse(return None),
             ))
           case None => return None
         }
@@ -144,7 +182,7 @@ case object CoercionUtils {
         specs.collectFirst { case spec: CPPSpecificationType[G] => spec } match {
           case Some(CPPSpecificationType(t)) =>
             CoercionSequence(Seq(
-              getCoercion(source, t).getOrElse(return None),
+              getAnyCoercion(source, t).getOrElse(return None),
               CoerceColToCPPPrimitive(t, target),
             ))
           case None => return None

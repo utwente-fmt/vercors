@@ -8,8 +8,6 @@ import vct.col.resolve.ctx._
 import vct.col.typerules.Types
 import vct.result.VerificationError.UserError
 
-import scala.collection.immutable.Seq
-
 case object CPP {
   implicit private val o: Origin = DiagnosticOrigin
 
@@ -78,13 +76,13 @@ case object CPP {
     specs.collect { case spec: CPPTypeSpecifier[G] => spec } match {
       case Seq(CPPVoid()) => TVoid()
       case Seq(CPPChar()) => TChar()
-      case t if CPP.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
-      case Seq(CPPSpecificationType(t@TFloat(_, _))) => t
+      case t if CPP.NUMBER_LIKE_SPECIFIERS.contains(t) => TCInt()
+      case Seq(CPPSpecificationType(t@TCFloat(_, _))) => t
       case Seq(CPPBool()) => TBool()
       case Seq(SYCLClassDefName("event", Seq())) => SYCLTEvent()
       case Seq(SYCLClassDefName("handler", Seq())) => SYCLTHandler()
       case Seq(SYCLClassDefName("queue", Seq())) => SYCLTQueue()
-      case Seq(SYCLClassDefName(name, Seq(CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) =>
+      case Seq(SYCLClassDefName(name, Seq(CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)))) =>
         name match {
           case "item" => SYCLTItem(dim.intValue)
           case "nd_item" => SYCLTNDItem(dim.intValue)
@@ -92,7 +90,7 @@ case object CPP {
           case "nd_range" => SYCLTNDRange(dim.intValue)
           case _ => throw CPPTypeNotSupported(context)
         }
-      case Seq(SYCLClassDefName(name, Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) =>
+      case Seq(SYCLClassDefName(name, Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)))) =>
         val baseType = getBaseTypeFromSpecs(Seq(typ))
         name match {
           case "buffer" => SYCLTBuffer(baseType, dim.intValue)
@@ -101,8 +99,6 @@ case object CPP {
           case _ => throw CPPTypeNotSupported(context)
         }
       case Seq(CPPTypedefName("VERCORS::LAMBDA", _)) => CPPTLambda()
-      case Seq(CPPTypedefName("VERCORS::ARRAY", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) =>
-        FuncTools.repeat(TArray[G](_), dim.toInt, getBaseTypeFromSpecs(Seq(typ)))
       case Seq(defn@CPPTypedefName(_, _)) => Types.notAValue(defn.ref.get)
       case Seq(CPPSpecificationType(typ)) => typ
       case spec +: _ => throw CPPTypeNotSupported(context.orElse(Some(spec)))

@@ -6,7 +6,7 @@ import vct.col.print.{Ctx, Doc, Group, Text}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{CPPInvocationTarget, RefSYCLConstructorDefinition}
 import vct.col.resolve.lang.{CPP, Util}
-import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, const, foldStar, tt, withResult}
+import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, c_const, foldStar, tt, withResult}
 
 trait SYCLTBufferImpl[G] { this: SYCLTBuffer[G] =>
   override def layout(implicit ctx: Ctx): Doc =
@@ -15,7 +15,7 @@ trait SYCLTBufferImpl[G] { this: SYCLTBuffer[G] =>
   override val namespacePath = "sycl::buffer"
 
   def findConstructor(genericArgs: Seq[CPPExprOrTypeSpecifier[G]], args: Seq[Expr[G]]): Option[CPPInvocationTarget[G]] = genericArgs match {
-    case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec)), CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)) if dim > 0 && dim <= 3 &&
+    case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)) if dim > 0 && dim <= 3 &&
       Util.compatTypes[G](args, Seq(TPointer[G](CPP.getBaseTypeFromSpecs[G](Seq(typeSpec))), SYCLTRange[G](dim.toInt))) => Some(RefSYCLConstructorDefinition[G](SYCLTBuffer[G](CPP.getBaseTypeFromSpecs[G](Seq(typeSpec)), dim.toInt)))
     case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec))) if Util.compatTypes(args, Seq(TPointer[G](CPP.getBaseTypeFromSpecs(Seq(typeSpec))), SYCLTRange[G](1))) =>
       Some(RefSYCLConstructorDefinition(SYCLTBuffer(CPP.getBaseTypeFromSpecs(Seq(typeSpec)), 1)))
@@ -32,7 +32,7 @@ trait SYCLTBufferImpl[G] { this: SYCLTBuffer[G] =>
   // resource exclusive_hostData_access(TYPE* hostData, int range) = \pointer(hostData, range, write);
   def generateExclusiveAccessPredicate(): Predicate[G] = {
     val hostDataVar = new Variable[G](TPointer(this.typ))(o.where(name = "hostData"))
-    val sizeVar = new Variable[G](TInt())(o.where(name = "range"))
+    val sizeVar = new Variable[G](TInt())(o.where(name = "range")) // Needs to be TInt instead of TCInt as it is called with a Length expr which has type TInt
 
     new Predicate[G](
       args = Seq(hostDataVar, sizeVar),
@@ -45,10 +45,10 @@ trait SYCLTBufferImpl[G] { this: SYCLTBuffer[G] =>
   // ensures \array(\result, size) ** Perm(\result[*], write);
   // ensures (\forall int i; i >= 0 && i < size; {: \result[i] :} == hostData[i]);
   // TYPE[] copy_hostdata_to_buffer(TYPE* hostData, int size);
-  def generateCopyHostDataToBufferProcedure(exclusiveAccessPredRef: Ref[G, Predicate[G]]): Procedure[G] = {
+  def generateCopyHostDataToBufferProcedure(): Procedure[G] = {
     val hostDataVar = new Variable[G](TPointer(this.typ))(o.where(name = "hostData"))
-    val sizeVar = new Variable[G](TInt())(o.where(name = "size"))
-    val indexVar = new Variable[G](TInt())(o.where(name = "i"))
+    val sizeVar = new Variable[G](TCInt())(o.where(name = "size"))
+    val indexVar = new Variable[G](TCInt())(o.where(name = "i"))
     val copyHostdataToBufferBlame = PanicBlame("The generated method 'copy_hostData_to_buffer' should not throw any errors.")
 
     withResult((result: Result[G]) => {
@@ -60,7 +60,7 @@ trait SYCLTBufferImpl[G] { this: SYCLTBuffer[G] =>
         body = None,
         contract = ApplicableContract(
           requires = UnitAccountedPredicate(Star(
-            GreaterEq(Local[G](sizeVar.ref), const(0)),
+            GreaterEq(Local[G](sizeVar.ref), c_const(0)),
             PermPointer[G](Local[G](hostDataVar.ref), Local[G](sizeVar.ref), WritePerm())
           )),
           ensures = UnitAccountedPredicate(foldStar(Seq(
@@ -70,7 +70,7 @@ trait SYCLTBufferImpl[G] { this: SYCLTBuffer[G] =>
               bindings = Seq(indexVar),
               triggers = Seq(Seq(ArraySubscript(result, Local[G](indexVar.ref))(copyHostdataToBufferBlame))),
               body =
-                (Local[G](indexVar.ref) >= const(0) && Local[G](indexVar.ref) < Local[G](sizeVar.ref)) ==>
+                (Local[G](indexVar.ref) >= c_const(0) && Local[G](indexVar.ref) < Local[G](sizeVar.ref)) ==>
                 Eq(
                   ArraySubscript(result, Local[G](indexVar.ref))(copyHostdataToBufferBlame),
                   PointerSubscript(Local[G](hostDataVar.ref), Local[G](indexVar.ref))(copyHostdataToBufferBlame)
@@ -94,7 +94,7 @@ trait SYCLTBufferImpl[G] { this: SYCLTBuffer[G] =>
   def generateCopyBufferToHostDataProcedure(exclusiveAccessPredRef: Ref[G, Predicate[G]]): Procedure[G] = {
     val bufferVar = new Variable[G](TArray(this.typ))(o.where(name = "buffer"))
     val hostDataVar = new Variable[G](TPointer(this.typ))(o.where(name = "hostData"))
-    val indexVar = new Variable[G](TInt())(o.where(name = "i"))
+    val indexVar = new Variable[G](TCInt())(o.where(name = "i"))
     val copyBufferToHostdataBlame = PanicBlame("The generated method 'copy_buffer_to_hostData' should not throw any errors.")
 
     new Procedure[G](
@@ -117,7 +117,7 @@ trait SYCLTBufferImpl[G] { this: SYCLTBuffer[G] =>
               bindings = Seq(indexVar),
               triggers = Seq(Seq(PointerSubscript(Local[G](hostDataVar.ref), Local[G](indexVar.ref))(copyBufferToHostdataBlame))),
               body =
-                (Local[G](indexVar.ref) >= const(0) && Local[G](indexVar.ref) < Length(Local[G](bufferVar.ref))(copyBufferToHostdataBlame)) ==>
+                (Local[G](indexVar.ref) >= c_const(0) && Local[G](indexVar.ref) < Length(Local[G](bufferVar.ref))(copyBufferToHostdataBlame)) ==>
                 Eq(
                   PointerSubscript(Local[G](hostDataVar.ref), Local[G](indexVar.ref))(copyBufferToHostdataBlame),
                   ArraySubscript[G](Local[G](bufferVar.ref), Local[G](indexVar.ref))(copyBufferToHostdataBlame)

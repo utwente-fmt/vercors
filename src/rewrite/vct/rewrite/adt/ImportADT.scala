@@ -2,7 +2,7 @@ package vct.col.rewrite.adt
 
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.RewriteProgram
-import vct.col.ast.`type`.TFloats
+import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.ast.util.Declarator
 import vct.col.ast._
 import vct.col.typerules.CoercingRewriter

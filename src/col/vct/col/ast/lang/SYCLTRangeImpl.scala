@@ -12,10 +12,10 @@ trait SYCLTRangeImpl[G] { this: SYCLTRange[G] =>
   val namespacePath = "sycl::range"
 
   def findConstructor(genericArgs: Seq[CPPExprOrTypeSpecifier[G]], args: Seq[Expr[G]]): Option[CPPInvocationTarget[G]] = genericArgs match {
-    case Seq(CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)) if dim > 0 && dim <= 3 && Util.compatTypes(args, Seq.range(0, dim.toInt).map(_ => TInt[G]())) => Some(RefSYCLConstructorDefinition(SYCLTRange(dim.toInt)))
-    case Nil if Util.compatTypes(args, Seq(TInt[G]())) => Some(RefSYCLConstructorDefinition(SYCLTRange(1)))
-    case Nil if Util.compatTypes(args, Seq(TInt[G](), TInt[G]())) => Some(RefSYCLConstructorDefinition(SYCLTRange(2)))
-    case Nil if Util.compatTypes(args, Seq(TInt[G](), TInt[G](), TInt[G]())) => Some(RefSYCLConstructorDefinition(SYCLTRange(3)))
+    case Seq(CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)) if dim > 0 && dim <= 3 && Util.compatTypes(args, Seq.range(0, dim.toInt).map(_ => TCInt[G]())) => Some(RefSYCLConstructorDefinition(SYCLTRange(dim.toInt)))
+    case Nil if Util.compatTypes(args, Seq(TCInt[G]())) => Some(RefSYCLConstructorDefinition(SYCLTRange(1)))
+    case Nil if Util.compatTypes(args, Seq(TCInt[G](), TCInt[G]())) => Some(RefSYCLConstructorDefinition(SYCLTRange(2)))
+    case Nil if Util.compatTypes(args, Seq(TCInt[G](), TCInt[G](), TCInt[G]())) => Some(RefSYCLConstructorDefinition(SYCLTRange(3)))
     case _ => None
   }
 }

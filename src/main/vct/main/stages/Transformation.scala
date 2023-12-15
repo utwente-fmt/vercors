@@ -22,7 +22,7 @@ import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
-import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef}
+import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, GenerateSeqProgPermissions, EncodeUnpointedGuard, SplitSeqGuards}
 
@@ -177,6 +177,7 @@ case class SilverTransformation
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     // Replace leftover SYCL types
     ReplaceSYCLTypes,
+    CFloatIntCoercion,
 
     ComputeBipGlue,
     InstantiateBipSynchronizations,
@@ -190,6 +191,7 @@ case class SilverTransformation
     FilterSpecIgnore,
 
     // Normalize AST
+    TruncDivMod,
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
     EncodeRangedFor,
@@ -274,6 +276,7 @@ case class SilverTransformation
     ExtractInlineQuantifierPatterns,
     // Translate internal types to domains
     FloatToRat,
+    SmtlibToProverTypes,
     EnumToDomain,
     ImportArray.withArg(adtImporter),
     ImportPointer.withArg(adtImporter),
