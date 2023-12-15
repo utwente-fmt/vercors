@@ -4,11 +4,16 @@ class Collector {
     int[] result;
     int nrThreads;
     
-    Collector(int nn, int nrT) {
+    constructor(int nn, int nrT) {
         n = nn;
+        t0 = new int[0];
+        t1 = new int[0];
+        t2 = new int[0];
+        result = new int[0];
         nrThreads = nrT;
     }
-    
+
+    requires n >= 0;
     void flatten() {
         result = new int[n];
         int l = n / nrThreads;
@@ -26,8 +31,10 @@ class Times {
     boolean transpose;
     int seg;
     
-    Times(int nn, boolean transp, int nrThreads) {
+    constructor(int nn, boolean transp, int nrThreads) {
         n = nn;
+        v = new int[0];
+        u = new int[0];
         transpose = transp;
         seg = n / nrThreads;
     }
@@ -52,7 +59,9 @@ class Calculator {
     int[] v, u; 
     int n,vBv, vv;
     
-    Calculator(int nn) {
+    constructor(int nn) {
+        v = new int[0];
+        u = new int[0];
         n = nn;
     }
     
@@ -60,79 +69,61 @@ class Calculator {
     //compute vBv and vv from v and u
 }
 
-class Main {
+seq_program spectralNorm(int n) {
+    endpoint t0 = Times(n, false, 3);
+    endpoint t1 = Times(n, false, 3);
+    endpoint t2 = Times(n, false, 3);
 
-    Times t0, t1, t2;
-    Collector c;
-    Calculator cal;
-    
-    Main(int n) {
-        t0 = new Times(n,false,3);
-        t1 = new Times(n,false,3);
-        t2 = new Times(n,false,3);
-        c = new Collector(n, 3);
-        cal = new Calculator(n);
-    }
-    
-    void run() {
+    endpoint c = Collector(n, 3);
+    endpoint cal = Calculator(n);
+
+    seq_run {
         t0.initu();
         t1.initu();
         t2.initu();
         aTimesTransp();
-        t0.u = c.result;        
-        t1.u = c.result;
-        t2.u = c.result;
-        t0.transpose = true;
-        t1.transpose = true;
-        t2.transpose = true;
+        communicate t0.u <- c.result;
+        communicate t1.u <- c.result;
+        communicate t2.u <- c.result;
+        t0.transpose := true;
+        t1.transpose := true;
+        t2.transpose := true;
         aTimesTransp();
-        cal.v = t0.u;
-        cal.u = c.result;
+        communicate cal.v <- t0.u;
+        communicate cal.u <- c.result;
         cal.calculate();
     }
     
     void aTimesTransp() {
-         par
-        { 
-            t0.initv();
-            t0.runn();
-            c.t0 = t0.v;
-            
-        } and 
-        {
-            t1.initv();
-            t1.runn();
-            c.t1 = t1.v;
-        } and 
-        {
-            t2.initv();
-            t2.runn();
-            c.t1 = t1.v;
-        }
+        t0.initv();
+        t0.runn();
+        communicate c.t0 <- t0.v;
+
+        t1.initv();
+        t1.runn();
+        communicate c.t1 <- t1.v;
+
+        t2.initv();
+        t2.runn();
+        communicate c.t1 <- t1.v;
+
         c.flatten(); // x in c.result
-        par
-        {
-            t0.initv();
-            t0.u = c.result;
-            t0.runn();
-            c.t0 = t0.v;
-        } and
-        {
-            t1.initv();
-            t1.u = c.result;
-            t1.runn();
-            c.t1 = t1.v;
-        } and {
-            t2.initv();
-            t2.u = c.result;
-            t2.runn();
-            c.t2 = t2.v;
-        }
+
+        t0.initv();
+        communicate t0.u <- c.result;
+        t0.runn();
+        communicate c.t0 <- t0.v;
+
+        t1.initv();
+        communicate t1.u <- c.result;
+        t1.runn();
+        communicate c.t1 <- t1.v;
+
+        t2.initv();
+        communicate t2.u <- c.result;
+        t2.runn();
+        communicate c.t2 <- t2.v;
+
         c.flatten(); // v in c.result
     }
-    
-    void main(int n) {
-        Main m = new Main(n);
-        m.run();
-    }    
 }

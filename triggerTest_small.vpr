@@ -1,0 +1,556 @@
+domain WellFoundedOrder[T]  {
+  
+  function bounded(v: T): Bool 
+  
+  function decreasing(v1: T, v2: T): Bool 
+}
+
+domain IntOrder  {
+  
+  axiom {
+    (forall i: Int ::0 <= i == (bounded(i): Bool))
+  }
+  
+  axiom {
+    (forall i: Int ::(forall j: Int ::i < j == (decreasing(i, j): Bool)))
+  }
+}
+
+domain Array  {
+  
+  function array_loc(a1: Array, i: Int): Ref 
+  
+  function alen(a1: Array): Int 
+  
+  function loc_inv_1(loc: Ref): Array 
+  
+  function loc_inv_2(loc: Ref): Int 
+  
+  axiom {
+    (forall a1: Array, i: Int ::
+      { array_loc(a1, i) }
+      loc_inv_1(array_loc(a1, i)) == a1 && loc_inv_2(array_loc(a1, i)) == i)
+  }
+  
+  axiom {
+    (forall a1: Array :: { alen(a1) } alen(a1) >= 0)
+  }
+}
+
+domain Any  {
+  
+  
+}
+
+domain Option[T1]  {
+  
+  function none1(): Option[T1] 
+  
+  function some(x: T1): Option[T1] 
+  
+  function option_get(opt: Option[T1]): T1 
+  
+  axiom {
+    (forall x: T1 ::
+      { (some(x): Option[T1]) }
+      (none1(): Option[T1]) != (some(x): Option[T1]))
+  }
+  
+  axiom {
+    (forall x: T1 ::
+      { (some(x): Option[T1]) }
+      (option_get((some(x): Option[T1])): T1) == x)
+  }
+  
+  axiom {
+    (forall opt: Option[T1] ::
+      { (some((option_get(opt): T1)): Option[T1]) }
+      (some((option_get(opt): T1)): Option[T1]) == opt)
+  }
+}
+
+domain Void  {
+  
+  function unit(): Void 
+  
+  axiom {
+    (forall v: Void ::true ==> unit() == v)
+  }
+}
+
+field int: Int
+
+field c: Option[Array]
+
+field a: Option[Array]
+
+field b: Option[Array]
+
+function aloc(a1: Array, i: Int): Ref
+  requires 0 <= i
+  requires i < alen(a1)
+  decreases 
+  ensures loc_inv_1(result) == a1
+  ensures loc_inv_2(result) == i
+{
+  array_loc(a1, i)
+}
+
+function anyAs(t: Any): Any
+  decreases 
+
+
+function asAny(t: Any): Any
+  decreases 
+  ensures anyAs(result) == t
+
+
+function optGet(opt: Option[Any]): Any
+  requires opt != (none1(): Option[Any])
+  decreases 
+  ensures (some(result): Option[Any]) == opt
+{
+  (option_get(opt): Any)
+}
+
+function optOrElse(opt: Option[Any], alt: Any): Any
+  decreases 
+  ensures opt == (none1(): Option[Any]) ==> result == alt
+  ensures opt != (none1(): Option[Any]) ==> result == optGet(opt)
+{
+  (opt == (none1(): Option[Any]) ? alt : optGet(opt))
+}
+
+function optGet1(opt: Option[Array]): Array
+  requires opt != (none1(): Option[Array])
+  decreases 
+  ensures (some(result): Option[Array]) == opt
+{
+  (option_get(opt): Array)
+}
+
+function type1(type2: Ref): Int
+  decreases 
+  ensures result >= 0
+  ensures result <= 1
+  ensures type2 == null ==> result == 0
+  ensures type2 != null ==> result != 0
+
+
+function subtype1(subtype2: Int, subtype3: Int): Bool
+  requires subtype2 >= 0
+  requires subtype2 <= 1
+  requires subtype3 >= 0
+  requires subtype3 <= 1
+  decreases 
+{
+  (subtype2 == 0 ==> true) && (subtype2 == 1 ==> subtype3 == 1)
+}
+
+method make_array(dim0: Int)
+  requires 0 <= dim0
+{
+  assert false
+}
+
+method make_array1(tid: Int, dim0: Int) returns (res: Option[Array])
+  requires 0 <= dim0
+  ensures res != (none1(): Option[Array])
+  ensures alen(optGet1(res)) == dim0
+  ensures (forall preferred_list_i0__: Int ::
+      { aloc(optGet1(res), preferred_list_i0__) }
+      0 <= preferred_list_i0__ && preferred_list_i0__ < dim0 ==>
+      acc(aloc(optGet1(res), preferred_list_i0__).int, write))
+  ensures (forall preferred_list_i0__: Int ::
+      { aloc(optGet1(res), preferred_list_i0__) }
+      0 <= preferred_list_i0__ && preferred_list_i0__ < dim0 ==>
+      aloc(optGet1(res), preferred_list_i0__).int == 0)
+
+
+method constructorc()
+{
+  assert false
+}
+
+method constructorc1(tid: Int) returns (res: Ref)
+  ensures acc(res.a, write)
+  ensures res.a != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(res.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(res.a)) ==>
+      acc(aloc(optGet1(res.a), preferred_list_i__).int, write))
+  ensures acc(res.b, write)
+  ensures res.b != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(res.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(res.b)) ==>
+      acc(aloc(optGet1(res.b), preferred_list_i__).int, write))
+  ensures acc(res.c, write)
+  ensures res.c != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(res.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(res.c)) ==>
+      acc(aloc(optGet1(res.c), preferred_list_i__).int, write))
+  ensures res != null
+  ensures type1(res) == 1
+{
+  {
+    var exc: Ref
+    var return: Ref
+    var unknown: Ref
+    var flatten: Ref
+    var res1: Option[Array]
+    var flatten1: Option[Array]
+    var res2: Option[Array]
+    var flatten2: Option[Array]
+    var res3: Option[Array]
+    var flatten3: Option[Array]
+    exc := null
+    flatten := new(a, b, c)
+    inhale type1(flatten) == 1
+    unknown := flatten
+    res1 := make_array1(tid, 0)
+    flatten1 := res1
+    unknown.a := flatten1
+    res2 := make_array1(tid, 0)
+    flatten2 := res2
+    unknown.b := flatten2
+    res3 := make_array1(tid, 0)
+    flatten3 := res3
+    unknown.c := flatten3
+    return := unknown
+    goto END
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method init(this: Ref)
+  requires this != null
+  requires acc(this.a, write)
+  requires this.a != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(this.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(this.a)) ==>
+      acc(aloc(optGet1(this.a), preferred_list_i__).int, write))
+  requires acc(this.b, write)
+  requires this.b != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(this.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(this.b)) ==>
+      acc(aloc(optGet1(this.b), preferred_list_i__).int, write))
+  requires acc(this.c, write)
+  requires this.c != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(this.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(this.c)) ==>
+      acc(aloc(optGet1(this.c), preferred_list_i__).int, write))
+{
+  assert false
+}
+
+method init1(this: Ref, tid: Int) returns (res: Void)
+  requires this != null
+  requires acc(this.a, write)
+  requires this.a != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(this.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(this.a)) ==>
+      acc(aloc(optGet1(this.a), preferred_list_i__).int, write))
+  requires acc(this.b, write)
+  requires this.b != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(this.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(this.b)) ==>
+      acc(aloc(optGet1(this.b), preferred_list_i__).int, write))
+  requires acc(this.c, write)
+  requires this.c != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(this.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(this.c)) ==>
+      acc(aloc(optGet1(this.c), preferred_list_i__).int, write))
+  ensures acc(this.a, write)
+  ensures this.a != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(this.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(this.a)) ==>
+      acc(aloc(optGet1(this.a), preferred_list_i__).int, write))
+  ensures acc(this.b, write)
+  ensures this.b != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(this.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(this.b)) ==>
+      acc(aloc(optGet1(this.b), preferred_list_i__).int, write))
+  ensures acc(this.c, write)
+  ensures this.c != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(this.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(this.c)) ==>
+      acc(aloc(optGet1(this.c), preferred_list_i__).int, write))
+
+
+method bar(c1: Ref)
+  requires acc(c1.a, write)
+  requires c1.a != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.a)) ==>
+      acc(aloc(optGet1(c1.a), preferred_list_i__).int, write))
+  requires acc(c1.b, write)
+  requires c1.b != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.b)) ==>
+      acc(aloc(optGet1(c1.b), preferred_list_i__).int, write))
+  requires acc(c1.c, write)
+  requires c1.c != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.c)) ==>
+      acc(aloc(optGet1(c1.c), preferred_list_i__).int, write))
+{
+  assert false
+}
+
+method bar1(tid: Int, c1: Ref) returns (res: Void)
+  requires acc(c1.a, write)
+  requires c1.a != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.a)) ==>
+      acc(aloc(optGet1(c1.a), preferred_list_i__).int, write))
+  requires acc(c1.b, write)
+  requires c1.b != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.b)) ==>
+      acc(aloc(optGet1(c1.b), preferred_list_i__).int, write))
+  requires acc(c1.c, write)
+  requires c1.c != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.c)) ==>
+      acc(aloc(optGet1(c1.c), preferred_list_i__).int, write))
+  ensures acc(c1.a, write)
+  ensures c1.a != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.a)) ==>
+      acc(aloc(optGet1(c1.a), preferred_list_i__).int, write))
+  ensures acc(c1.b, write)
+  ensures c1.b != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.b)) ==>
+      acc(aloc(optGet1(c1.b), preferred_list_i__).int, write))
+  ensures acc(c1.c, write)
+  ensures c1.c != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.c)) ==>
+      acc(aloc(optGet1(c1.c), preferred_list_i__).int, write))
+
+
+method foo(c1: Ref, d: Ref, e: Ref)
+  requires acc(c1.a, write)
+  requires c1.a != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.a)) ==>
+      acc(aloc(optGet1(c1.a), preferred_list_i__).int, write))
+  requires acc(c1.b, write)
+  requires c1.b != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.b)) ==>
+      acc(aloc(optGet1(c1.b), preferred_list_i__).int, write))
+  requires acc(c1.c, write)
+  requires c1.c != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.c)) ==>
+      acc(aloc(optGet1(c1.c), preferred_list_i__).int, write))
+  requires acc(d.a, write)
+  requires d.a != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(d.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(d.a)) ==>
+      acc(aloc(optGet1(d.a), preferred_list_i__).int, write))
+  requires acc(d.b, write)
+  requires d.b != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(d.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(d.b)) ==>
+      acc(aloc(optGet1(d.b), preferred_list_i__).int, write))
+  requires acc(d.c, write)
+  requires d.c != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(d.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(d.c)) ==>
+      acc(aloc(optGet1(d.c), preferred_list_i__).int, write))
+  requires acc(e.a, write)
+  requires e.a != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(e.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(e.a)) ==>
+      acc(aloc(optGet1(e.a), preferred_list_i__).int, write))
+  requires acc(e.b, write)
+  requires e.b != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(e.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(e.b)) ==>
+      acc(aloc(optGet1(e.b), preferred_list_i__).int, write))
+  requires acc(e.c, write)
+  requires e.c != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(e.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(e.c)) ==>
+      acc(aloc(optGet1(e.c), preferred_list_i__).int, write))
+{
+  assert false
+}
+
+method foo1(tid: Int, c1: Ref, d: Ref, e: Ref) returns (res: Void)
+  requires acc(c1.a, write)
+  requires c1.a != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.a)) ==>
+      acc(aloc(optGet1(c1.a), preferred_list_i__).int, write))
+  requires acc(c1.b, write)
+  requires c1.b != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.b)) ==>
+      acc(aloc(optGet1(c1.b), preferred_list_i__).int, write))
+  requires acc(c1.c, write)
+  requires c1.c != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.c)) ==>
+      acc(aloc(optGet1(c1.c), preferred_list_i__).int, write))
+  requires acc(d.a, write)
+  requires d.a != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(d.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(d.a)) ==>
+      acc(aloc(optGet1(d.a), preferred_list_i__).int, write))
+  requires acc(d.b, write)
+  requires d.b != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(d.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(d.b)) ==>
+      acc(aloc(optGet1(d.b), preferred_list_i__).int, write))
+  requires acc(d.c, write)
+  requires d.c != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(d.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(d.c)) ==>
+      acc(aloc(optGet1(d.c), preferred_list_i__).int, write))
+  requires acc(e.a, write)
+  requires e.a != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(e.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(e.a)) ==>
+      acc(aloc(optGet1(e.a), preferred_list_i__).int, write))
+  requires acc(e.b, write)
+  requires e.b != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(e.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(e.b)) ==>
+      acc(aloc(optGet1(e.b), preferred_list_i__).int, write))
+  requires acc(e.c, write)
+  requires e.c != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(e.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(e.c)) ==>
+      acc(aloc(optGet1(e.c), preferred_list_i__).int, write))
+  ensures acc(c1.a, write)
+  ensures c1.a != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.a)) ==>
+      acc(aloc(optGet1(c1.a), preferred_list_i__).int, write))
+  ensures acc(c1.b, write)
+  ensures c1.b != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.b)) ==>
+      acc(aloc(optGet1(c1.b), preferred_list_i__).int, write))
+  ensures acc(c1.c, write)
+  ensures c1.c != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(c1.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(c1.c)) ==>
+      acc(aloc(optGet1(c1.c), preferred_list_i__).int, write))
+  ensures acc(d.a, write)
+  ensures d.a != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(d.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(d.a)) ==>
+      acc(aloc(optGet1(d.a), preferred_list_i__).int, write))
+  ensures acc(d.b, write)
+  ensures d.b != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(d.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(d.b)) ==>
+      acc(aloc(optGet1(d.b), preferred_list_i__).int, write))
+  ensures acc(d.c, write)
+  ensures d.c != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(d.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(d.c)) ==>
+      acc(aloc(optGet1(d.c), preferred_list_i__).int, write))
+  ensures acc(e.a, write)
+  ensures e.a != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(e.a), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(e.a)) ==>
+      acc(aloc(optGet1(e.a), preferred_list_i__).int, write))
+  ensures acc(e.b, write)
+  ensures e.b != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(e.b), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(e.b)) ==>
+      acc(aloc(optGet1(e.b), preferred_list_i__).int, write))
+  ensures acc(e.c, write)
+  ensures e.c != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(e.c), preferred_list_i__) }
+      0 <= preferred_list_i__ && preferred_list_i__ < alen(optGet1(e.c)) ==>
+      acc(aloc(optGet1(e.c), preferred_list_i__).int, write))
+{
+  {
+    var exc: Ref
+    var return: Void
+    var res1: Void
+    var res2: Void
+    var res3: Void
+    var res4: Void
+    exc := null
+    res1 := init1(c1, tid)
+    res2 := bar1(tid, c1)
+    res3 := init1(c1, tid)
+    res4 := bar1(tid, d)
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method type()
+{
+  assert false
+}
+
+method subtype(subtype2: Int, subtype3: Int)
+  requires subtype2 >= 0
+  requires subtype2 <= 1
+  requires subtype3 >= 0
+  requires subtype3 <= 1
+{
+  assert false
+}

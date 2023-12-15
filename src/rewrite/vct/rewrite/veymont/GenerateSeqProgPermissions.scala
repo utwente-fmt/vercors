@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
-import vct.col.ast.{Applicable, ApplicableContract, ArraySubscript, BooleanValue, Class, ContractApplicable, Declaration, Deref, Endpoint, EndpointGuard, EndpointName, EndpointUse, EnumUse, Expr, FieldLocation, Function, InstanceField, InstanceFunction, InstanceMethod, IterationContract, Length, Local, LoopContract, LoopInvariant, Node, Null, Perm, Procedure, Result, SeqAssign, SeqLoop, SeqProg, SeqRun, SplitAccountedPredicate, Statement, TArray, TClass, TInt, ThisObject, Type, UnitAccountedPredicate, Variable, WritePerm}
+import vct.col.ast.{Applicable, ApplicableContract, ArrayLocation, ArraySubscript, BooleanValue, Class, ContractApplicable, Declaration, Deref, Endpoint, EndpointGuard, EndpointName, EndpointUse, EnumUse, Expr, FieldLocation, Function, InlinePattern, InstanceField, InstanceFunction, InstanceMethod, IterationContract, Length, Local, LoopContract, LoopInvariant, Node, Null, Perm, Procedure, Result, SeqAssign, SeqLoop, SeqProg, SeqRun, SplitAccountedPredicate, Statement, TArray, TClass, TInt, ThisObject, Type, UnitAccountedPredicate, Variable, WritePerm}
 import vct.col.ast.declaration.global.SeqProgImpl.participants
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
@@ -184,8 +184,9 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
         PanicBlame("Quantifying over an array should be injective."),
         TInt(),
         (i: Local[Post]) => ((const[Post](0) <= i) && (i < Length(e)(PanicBlame("Array is guaranteed non-null")))) ==>
-          (arrayPerm(e, i, WritePerm(), PanicBlame("Encoding guarantees well-formedness")) &*
-            transitivePerm(ArraySubscript(e, i)(PanicBlame("Encoding guarantees well-formedness")), u))
+//          (arrayPerm(e, i, WritePerm(), PanicBlame("Encoding guarantees well-formedness")) &*
+            (Perm(ArrayLocation(e, i)(PanicBlame("Encoding guarantees well-formedness")), WritePerm()) &*
+              transitivePerm(ArraySubscript(e, i)(PanicBlame("Encoding guarantees well-formedness")), u))
       )
     case TClass(Ref(cls)) if !generatingClasses.contains(cls) =>
       generatingClasses.having(cls) {

@@ -1,0 +1,48 @@
+class C {
+    int[] A, B, C; // , D, E, F, G;
+
+    constructor() {
+        A = new int[0];
+        B = new int[0];
+        C = new int[0];
+        // D = new int[0];
+        // E = new int[0];
+        // F = new int[0];
+        // G = new int[0];
+    }
+
+    void init();
+}
+
+void bar(C c);
+
+// void baz(C c);
+//
+// void qux(C c);
+
+void foo(C c, C d, C e) {
+    c.init();
+    // d.init();
+    // e.init();
+
+    bar(c);
+    // baz(d);
+    // qux(e);
+
+    c.init();
+    // d.init();
+    // e.init();
+
+    bar(d);
+    // baz(e);
+    // qux(c);
+
+    // c.init();
+    // d.init();
+    // e.init();
+
+    // bar(e);
+    // baz(c);
+    // qux(d);
+}
+
