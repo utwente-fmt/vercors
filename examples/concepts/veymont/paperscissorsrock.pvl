@@ -1,42 +1,26 @@
-// -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases PaperScissorsRock
-//:: verdict Pass
-
 class Role {
-	
 	int i,x,y,z;
+	int temp;
 	// 0 == paper, 1 == rock, 2 == scissors
 	
-	ensures (draw());
+	ensures draw();
 	ensures i == j;
-	Role(int j);
+	constructor(int j);
 	
 	pure boolean draw() = 
 		(x == y && y == z) ||
 		(x != y && y != z && z != x);
-	
 }
 
+seq_program paperScissorsRock() {
+	endpoint a = Role(0);
+	endpoint b = Role(1);
+	endpoint c = Role(0);
 
-
-class SeqProgram {
-
-	Role a,b,c;
-
-	
-
-	ensures a.i == 0 && b.i == 1;
-	ensures a.draw() && b.draw() && c.draw();
-	SeqProgram() {	
-		a = new Role(0);
-		b = new Role(1);
-		c = new Role(0);
-	}
-	
 	requires a.i == 0 && b.i == 1;
 	requires a.draw() && b.draw() && c.draw();
 	ensures a.i == -2 && b.i == 3;
-	void run() {
+	seq_run {
 		loop_invariant a.i <= 0 && b.i >= 1;
 		loop_invariant a.i == 0 && b.i == 1 ==> a.draw() && b.draw() && c.draw();
 		loop_invariant a.i == b.i*(-1) + 1;
@@ -47,41 +31,20 @@ class SeqProgram {
 		loop_invariant a.i < 0 ==> b.y == (b.i == 6 ? 0 : 1);
 		loop_invariant a.i < 0 ==> c.z == 2;
 		loop_invariant b.i - a.i <= 5;
-		loop_invariant a.draw() == b.draw() && b.draw() == c.draw();
 		while(a.draw() && b.draw() && c.draw()) {
-			par 
-			ensures a.i == \old(a.i) - 1;
-			ensures a.x == (\old(a.i) % 2 == 1 ? 1 : 0);
-			ensures b.x == a.x && c.x == a.x; 
-			{
-				a.x = a.i % 2 == 1 ? 1 : 0;
-				a.i = a.i-1;
-				b.x = a.x;
-				c.x = a.x;
-			} and
-			ensures b.i == \old(b.i) + 1;
-			ensures b.y == (\old(b.i) == 5 ? 0 : 1);
-			ensures b.y == a.y && b.y == c.y;
-			{
-				b.y = b.i == 5 ? 0 : 1;
-				b.i = b.i +1;
-				a.y = b.y;
-				c.y = b.y;
-			} and
-			context Perm( c.i , 1 );
-			ensures c.z == 2;
-			ensures c.z == a.z && c.z == b.z;
-			{
-				c.z = 2;
-				a.z = c.z;
-				b.z = c.z; //typo in paper hier
-			}
+            a.x := a.i % 2 == 1 ? 1 : 0;
+            a.i := a.i - 1;
+            communicate b.x <- a.x;
+            communicate c.x <- a.x;
+
+            b.y := b.i == 5 ? 0 : 1;
+            b.i := b.i + 1;
+            communicate a.y <- b.y;
+            communicate c.y <- b.y;
+
+            c.z := 2;
+            communicate a.z <- c.z;
+            communicate b.z <- c.z;
 		}
 	}
-	
-    void main() {
-		SeqProgram m = new SeqProgram();
-		m.run();
-	}
-
 }
