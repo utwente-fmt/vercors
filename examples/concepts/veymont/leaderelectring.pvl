@@ -26,19 +26,6 @@ seq_program leaderElectRing() {
     endpoint c = Node(4);
     endpoint d = Node(5);
 
-/*
-	ensures a.rank != b.rank && a.rank != c.rank && a.rank != d.rank && b.rank != c.rank && b.rank != d.rank && c.rank != d.rank;
-	ensures a.maxVal != a.left && b.maxVal != b.left && c.maxVal != c.left && d.maxVal != d.left;
-	ensures a.maxVal == a.rank && b.maxVal == b.rank && c.maxVal == c.rank && d.maxVal == d.rank;
-	ensures c.n == 0 && a.n == c.n && b.n == c.n && d.n == c.n;
-	SeqProgram() {
-		a = new Node(0);
-		b = new Node(8);
-		c = new Node(4);
-		d = new Node(5);
-	}
-*/
-
 	context a.rank != b.rank && a.rank != c.rank && a.rank != d.rank && b.rank != c.rank && b.rank != d.rank && c.rank != d.rank;
 	requires c.n == 0 && a.n == c.n && b.n == c.n && d.n == c.n;
 	requires a.maxVal == a.rank && b.maxVal == b.rank && c.maxVal == c.rank && d.maxVal == d.rank;
