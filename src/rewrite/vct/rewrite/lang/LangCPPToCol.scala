@@ -681,7 +681,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           val newArr = NewArray[Post](t, Seq(size), 0, false)(cta.blame)
           v = new Variable[Post](TArray(t))(varO)
           result = Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
-        case SYCLTQueue() | SYCLTEvent() | SYCLTBuffer(_, _) => // Do not generate COL code for uninitialized queues, events, and buffers, as cannot be re-assigned
         case _ => result = LocalDecl(v)
       }
     }
@@ -1405,7 +1404,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     Block[Post](kernelsToWaitFor.map(tuple => syclKernelTermination(tuple._1, tuple._2)).toSeq)
   }
 
-  def rewriteSubscript(sub: AmbiguousSubscript[Pre]): Expr[Post] = sub match {
+  def rewriteSubscript(sub: AmbiguousSubscript[Pre]): Expr[Post] = sub match { // EW TODO: add custom error if index not int. Otherwise you get coercion error
     case AmbiguousSubscript(base: CPPLocal[Pre], index) if CPP.unwrappedType(base.t).isInstanceOf[SYCLTAccessor[Pre]] =>
       CPP.unwrappedType(base.t) match {
         case SYCLTAccessor(_, 1) => ArraySubscript[Post](
