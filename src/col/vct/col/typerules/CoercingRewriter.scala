@@ -972,6 +972,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CPPLambdaRef() => e
       case inv@CPPInvocation(applicable, args, givenArgs, yields) =>
         CPPInvocation(applicable, args, givenArgs, yields)(inv.blame)
+      case CPPLiteralArray(exprs) =>
+        CPPLiteralArray(exprs)
       case CPPLocal(_, _) => e
       case SYCLReadWriteAccess() => e
       case SYCLReadOnlyAccess() => e
@@ -2122,8 +2124,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     node match {
       case CPPAddressingDeclarator(pointers, inner) =>
         CPPAddressingDeclarator(pointers, inner)
-      case array @ CPPArrayDeclarator(inner, size) =>
-        CPPArrayDeclarator(inner, size.map(int))(array.blame)
+      case array @ CPPArrayDeclarator(size, inner) =>
+        CPPArrayDeclarator(size.map(int), inner)(array.blame)
       case CPPTypedFunctionDeclarator(params, varargs, inner) =>
         CPPTypedFunctionDeclarator(params, varargs, inner)
       case CPPLambdaDeclarator(params) =>

@@ -2,6 +2,7 @@ package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
+import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.ast.{CPPLocalDeclaration, Expr, FunctionInvocation, InstanceField, Perm, ProcedureInvocation, SeqSubscript, _}
 import vct.col.origin._
 import vct.col.ref.Ref
@@ -629,6 +630,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   def rewriteLocalDecl(decl: CPPLocalDeclaration[Pre]): Statement[Post] = {
     decl.drop()
+
+    val isArray = decl.decl.specs.collectFirst { case CPPSpecificationType(_: CPPTArray[Pre]) => () }.isDefined
+    if(isArray){
+      return rewriteArrayDeclaration(decl)
+    }
+
     val t = decl.decl.specs.collectFirst { case t: CPPSpecificationType[Pre] => rw.dispatch(t.t) }.get
     decl.decl.specs.foreach {
       case _: CPPSpecificationType[Pre] =>
@@ -648,7 +655,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     if (init.init.isDefined) {
       val preValue = init.init.get
       (t, preValue) match {
-        case (CPPTArray(Some(_), _), _) => throw WrongCPPType(decl)
         case (SYCLTEvent(), inv: CPPInvocation[Pre]) if inv.ref.get.name == "sycl::queue::submit" =>
           val (block, syclEventRef) = rewriteSYCLQueueSubmit(inv)
           v = syclEventRef
@@ -677,10 +683,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       }
     } else {
       t match {
-        case cta@CPPTArray(Some(size), t) =>
-          val newArr = NewArray[Post](t, Seq(size), 0, false)(cta.blame)
-          v = new Variable[Post](TArray(t))(varO)
-          result = Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
         case _ => result = LocalDecl(v)
       }
     }
@@ -1520,6 +1522,46 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     case CPPLifetimeScope(body) => findStatements(body, pred)
     case Block(statements) => statements.flatMap(s => findStatements(s, pred))
     case s => pred(s).toSeq
+  }
+
+  def assignliteralArray(array: Variable[Post], exprs: Seq[Expr[Pre]], origin: Origin): Seq[Statement[Post]] = {
+    implicit val o: Origin = origin
+    (exprs.zipWithIndex.map {
+      case (value, index) => Assign[Post](AmbiguousSubscript(array.get, c_const(index))(PanicBlame("The explicit initialization of an array in CPP should never generate an assignment that exceeds the bounds of the array")), rw.dispatch(value))(
+        PanicBlame("Assignment for an explicit array initializer cannot fail."))
+      }
+    )
+  }
+
+  def rewriteArrayDeclaration(decl: CPPLocalDeclaration[Pre]): Statement[Post] = {
+    // LangTypesToCol makes it so that each declaration only has one init
+    val init = decl.decl.inits.head
+    val info = CPP.getDeclaratorInfo(init.decl)
+    implicit val o: Origin = init.o
+
+    decl.decl.specs match {
+      case Seq(CPPSpecificationType(cta@CPPTArray(sizeOption, oldT))) =>
+        val t = rw.dispatch(oldT)
+        val v = new Variable[Post](TPointer(t))(o.sourceName(info.name))
+        cppNameSuccessor(RefCPPLocalDeclaration(decl, 0)) = v
+
+        (sizeOption, init.init) match {
+          case (None, None) => throw WrongCPPType(decl)
+          case (Some(size), None) =>
+            val newArr = NewPointerArray[Post](t, rw.dispatch(size))(cta.blame)
+            Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
+          case (None, Some(CPPLiteralArray(exprs))) =>
+            val newArr = NewPointerArray[Post](t, c_const[Post](exprs.size))(cta.blame)
+            Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++ assignliteralArray(v, exprs, o))
+          case (Some(size), Some(CPPLiteralArray(exprs))) =>
+            val realSize = isConstantInt(size).filter(_ >= 0).getOrElse(throw WrongCPPType(decl))
+            if(realSize < exprs.size) logger.warn(s"Excess elements in array initializer: '${decl}'")
+            val newArr = NewPointerArray[Post](t, c_const[Post](realSize))(cta.blame)
+            Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++ assignliteralArray(v, exprs.take(realSize.intValue), o))
+          case _ => throw WrongCPPType(decl)
+        }
+      case _ => throw WrongCPPType(decl)
+    }
   }
 
   def result(ref: RefCPPFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =

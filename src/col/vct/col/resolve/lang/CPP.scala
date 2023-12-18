@@ -60,7 +60,7 @@ case object CPP {
           t => innerInfo.typeOrReturnType(FuncTools.repeat[Type[G]](TPointer(_), operators.size, t)),
           innerInfo.name)
       }
-    case array@CPPArrayDeclarator(inner, size) =>
+    case array@CPPArrayDeclarator(size, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(innerInfo.params, t => innerInfo.typeOrReturnType(CPPTArray(size, t)(array.blame)), innerInfo.name)
     case CPPTypedFunctionDeclarator(params, _, inner) =>

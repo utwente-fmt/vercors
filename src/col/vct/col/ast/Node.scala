@@ -1028,7 +1028,7 @@ final class CPPParam[G](val specifiers: Seq[CPPDeclarationSpecifier[G]], val dec
 
 sealed trait CPPDeclarator[G] extends NodeFamily[G] with CPPDeclaratorImpl[G]
 final case class CPPAddressingDeclarator[G](operators: Seq[CPPAddressing[G]], inner: CPPDeclarator[G])(implicit val o: Origin) extends CPPDeclarator[G] with CPPAddressingDeclaratorImpl[G]
-final case class CPPArrayDeclarator[G](inner: CPPDeclarator[G], size: Option[Expr[G]])(val blame: Blame[ArraySizeError])(implicit val o: Origin) extends CPPDeclarator[G] with CPPArrayDeclaratorImpl[G]
+final case class CPPArrayDeclarator[G](size: Option[Expr[G]], inner: CPPDeclarator[G])(val blame: Blame[ArraySizeError])(implicit val o: Origin) extends CPPDeclarator[G] with CPPArrayDeclaratorImpl[G]
 final case class CPPTypedFunctionDeclarator[G](params: Seq[CPPParam[G]], varargs: Boolean, inner: CPPDeclarator[G])(implicit val o: Origin) extends CPPDeclarator[G] with CPPTypedFunctionDeclaratorImpl[G]
 final case class CPPLambdaDeclarator[G](params: Seq[CPPParam[G]])(implicit val o: Origin) extends CPPDeclarator[G] with CPPLambdaDeclaratorImpl[G]
 final case class CPPName[G](name: String)(implicit val o: Origin) extends CPPDeclarator[G] with CPPNameImpl[G]
@@ -1065,6 +1065,8 @@ final case class CPPInvocation[G](applicable: Expr[G], args: Seq[Expr[G]], given
 }
 final case class CPPLambdaRef[G]()(implicit val o: Origin) extends CPPExpr[G] with CPPLambdaRefImpl[G]
 final case class CPPLambdaDefinition[G](contract: ApplicableContract[G], declarator: CPPDeclarator[G], body: Statement[G])(val blame: Blame[SYCLKernelLambdaFailure])(implicit val o: Origin) extends CPPExpr[G] with CPPLambdaDefinitionImpl[G]
+
+final case class CPPLiteralArray[G](exprs: Seq[Expr[G]])(implicit val o: Origin) extends CPPExpr[G] with CPPLiteralArrayImpl[G]
 
 sealed trait CPPType[G] extends Type[G] with CPPTypeImpl[G]
 final case class CPPPrimitiveType[G](specifiers: Seq[CPPDeclarationSpecifier[G]])(implicit val o: Origin = DiagnosticOrigin) extends CPPType[G] with CPPPrimitiveTypeImpl[G]
