@@ -6,8 +6,8 @@ import LangCPPParser, SpecParser;
     public int specLevel = 0;
 }
 
-langExpr: assignmentExpression;
-langId: clangppIdentifier; // clangppIdentifier declarator
+langExpr: expression;
+langId: clangppIdentifier;
 langConstInt: literal;
 langType: typeSpecifier;
 langStatement: statement;

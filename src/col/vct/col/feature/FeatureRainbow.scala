@@ -258,6 +258,7 @@ class FeatureRainbow[G] {
     case node: SYCLTEvent[G] => CPPSpecific
     case node: SYCLTHandler[G] => CPPSpecific
     case node: SYCLTItem[G] => CPPSpecific
+    case node: SYCLTLocalAccessor[G] => CPPSpecific
     case node: SYCLTNDItem[G] => CPPSpecific
     case node: SYCLTNDRange[G] => CPPSpecific
     case node: SYCLTQueue[G] => CPPSpecific

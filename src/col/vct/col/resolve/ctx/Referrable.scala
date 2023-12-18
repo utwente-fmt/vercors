@@ -27,6 +27,7 @@ sealed trait Referrable[G] {
     case RefCPPLambdaDefinition(decl) => ""
     case RefCPPLocalDeclaration(decls, initIdx) => CPP.nameFromDeclarator(decls.decl.inits(initIdx).decl)
     case RefSYCLAccessMode(decl) => decl.name
+    case RefSYCLConstructorDefinition(typ) => typ.namespacePath
     case RefJavaNamespace(_) => ""
     case RefUnloadedJavaNamespace(_) => ""
     case RefCStruct(CGlobalDeclaration(CDeclaration(_, _, Seq(defn: CStructDeclaration[G]), Seq()))) => defn.name.getOrElse("")
@@ -259,6 +260,7 @@ case class RefCPPCustomType[G](typeName: String) extends Referrable[G] with CPPT
 case class RefCPPGlobalDeclaration[G](decls: CPPGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with CPPDerefTarget[G] with ResultTarget[G]
 case class RefCPPLocalDeclaration[G](decls: CPPLocalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G]
 case class RefSYCLAccessMode[G](decl: SYCLAccessMode[G]) extends Referrable[G] with CPPNameTarget[G]
+case class RefSYCLConstructorDefinition[G](typ: SYCLTConstructableClass[G]) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G]
 case class RefJavaNamespace[G](decl: JavaNamespace[G]) extends Referrable[G]
 case class RefUnloadedJavaNamespace[G](names: Seq[String]) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
 case class RefCStruct[G](decl: CGlobalDeclaration[G]) extends Referrable[G] with CStructTarget[G] with CNameTarget[G] with CDerefTarget[G]

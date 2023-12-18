@@ -5,7 +5,7 @@ import hre.io.{RWFile, Readable}
 import org.antlr.v4.runtime.CharStream
 import vct.col.origin.{Origin, ReadableOrigin}
 import vct.parsers.CParser.PreprocessorError
-import vct.parsers.transform.{BlameProvider, OriginProvider}
+import vct.parsers.transform.BlameProvider
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import java.io._

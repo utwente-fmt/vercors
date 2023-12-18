@@ -3,7 +3,7 @@
 /*@
   requires \pointer(a, 12, write);
 */
-void main(int* a) {
+void test(int* a) {
 	sycl::queue myQueue;
 
   sycl::buffer<int, 1> aBuffer = sycl::buffer<int, 1>(a, sycl::range<1>(12));
