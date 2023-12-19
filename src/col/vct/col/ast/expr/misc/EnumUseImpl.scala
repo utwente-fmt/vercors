@@ -2,9 +2,8 @@ package vct.col.ast.expr.misc
 
 import vct.col.ast.{EnumUse, TEnum, Type}
 import vct.col.print._
-import vct.col.ast.ops.EnumUseOps
 
-trait EnumUseImpl[G] extends EnumUseOps[G] { this: EnumUse[G] =>
+trait EnumUseImpl[G] { this: EnumUse[G] =>
   override def t: Type[G] = TEnum(enum)
 
   override def precedence: Int = Precedence.POSTFIX

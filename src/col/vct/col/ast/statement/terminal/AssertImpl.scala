@@ -2,9 +2,8 @@ package vct.col.ast.statement.terminal
 
 import vct.col.ast.Assert
 import vct.col.print.{Ctx, Doc, Show, Text}
-import vct.col.ast.ops.AssertOps
 
-trait AssertImpl[G] extends AssertOps[G] { this: Assert[G] =>
+trait AssertImpl[G] { this: Assert[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc =
     Text("assert") <+> res <> ";"
 

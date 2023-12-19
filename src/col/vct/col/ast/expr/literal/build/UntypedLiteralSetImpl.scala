@@ -3,9 +3,8 @@ package vct.col.ast.expr.literal.build
 import vct.col.ast.{TSet, Type, UntypedLiteralSet}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.typerules.Types
-import vct.col.ast.ops.UntypedLiteralSetOps
 
-trait UntypedLiteralSetImpl[G] extends UntypedLiteralSetOps[G] { this: UntypedLiteralSet[G] =>
+trait UntypedLiteralSetImpl[G] { this: UntypedLiteralSet[G] =>
   lazy val elementType: Type[G] = Types.leastCommonSuperType(values.map(_.t))
   override def t: Type[G] = TSet(elementType)
 

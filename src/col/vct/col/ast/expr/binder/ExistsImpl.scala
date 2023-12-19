@@ -2,9 +2,8 @@ package vct.col.ast.expr.binder
 
 import vct.col.ast.{Exists, TBool, Type}
 import vct.col.print._
-import vct.col.ast.ops.ExistsOps
 
-trait ExistsImpl[G] extends ExistsOps[G] { this: Exists[G] =>
+trait ExistsImpl[G] { this: Exists[G] =>
   override def t: Type[G] = TBool()
 
   def layoutTriggers(implicit ctx: Ctx): Doc =

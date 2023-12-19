@@ -2,9 +2,8 @@ package vct.col.ast.expr.apply
 
 import vct.col.ast.FunctionInvocation
 import vct.col.print._
-import vct.col.ast.ops.FunctionInvocationOps
 
-trait FunctionInvocationImpl[G] extends FunctionInvocationOps[G] { this: FunctionInvocation[G] =>
+trait FunctionInvocationImpl[G] { this: FunctionInvocation[G] =>
   def layoutSilver(implicit ctx: Ctx): Doc =
     Group(Text(ctx.name(ref)) <> "(" <> Doc.args(args) <> ")")
 

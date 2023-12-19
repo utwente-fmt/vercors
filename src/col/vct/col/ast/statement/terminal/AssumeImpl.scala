@@ -2,9 +2,8 @@ package vct.col.ast.statement.terminal
 
 import vct.col.ast.Assume
 import vct.col.print.{Ctx, Doc, Show, Text}
-import vct.col.ast.ops.AssumeOps
 
-trait AssumeImpl[G] extends AssumeOps[G] { this: Assume[G] =>
+trait AssumeImpl[G] { this: Assume[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc =
     Text("assume") <+> assn <> ";"
 

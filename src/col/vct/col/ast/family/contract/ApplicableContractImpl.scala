@@ -4,9 +4,8 @@ import vct.col.ast.{ApplicableContract, BooleanValue, Node, UnitAccountedPredica
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.print._
-import vct.col.ast.ops.{ApplicableContractOps, ApplicableContractFamilyOps}
 
-trait ApplicableContractImpl[G] extends NodeFamilyImpl[G] with ApplicableContractOps[G] with ApplicableContractFamilyOps[G] { this: ApplicableContract[G] =>
+trait ApplicableContractImpl[G] extends NodeFamilyImpl[G] { this: ApplicableContract[G] =>
   override def checkContextRecursor[T](context: CheckContext[G], f: (CheckContext[G], Node[G]) => T): Seq[T] =
     this match {
       // Redundant match so this doesn't compile if we add a field to ApplicableContract

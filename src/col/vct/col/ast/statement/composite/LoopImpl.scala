@@ -1,7 +1,6 @@
 package vct.col.ast.statement.composite
 
 import vct.col.ast._
-import vct.col.ast.ops.LoopOps
 import vct.col.origin.Origin
 import vct.col.print
 import vct.col.print._
@@ -19,7 +18,7 @@ object LoopImpl {
   case class IterationContractData[G](v: Variable[G], lowerBound: Expr[G], upperBound: Expr[G])
 }
 
-trait LoopImpl[G] extends LoopOps[G] { this: Loop[G] =>
+trait LoopImpl[G] { this: Loop[G] =>
   import LoopImpl._
 
   def getVariableAndLowerBound(implicit o: Origin): Option[(Variable[G], Expr[G])] =

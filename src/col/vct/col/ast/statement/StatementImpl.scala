@@ -1,13 +1,11 @@
 package vct.col.ast.statement
 
-import vct.col.ast.{Assert, Assign, Block, Branch, Communicate, CommunicateX, EndpointUse, Eval, Loop, MethodInvocation, SeqAssign, Scope, Statement, ThisSeqProg, VeyMontAssignExpression}
 import vct.col.ast.node.NodeFamilyImpl
+import vct.col.ast._
 import vct.col.check.{CheckContext, CheckError, SeqProgStatement}
 import vct.col.print._
-import vct.col.ref.Ref
-import vct.col.ast.ops.StatementFamilyOps
 
-trait StatementImpl[G] extends NodeFamilyImpl[G] with StatementFamilyOps[G] { this: Statement[G] =>
+trait StatementImpl[G] extends NodeFamilyImpl[G] { this: Statement[G] =>
   def layoutAsBlock(implicit ctx: Ctx): Doc =
     Text("{") <>> foldBlock(_ <+/> _) <+/> "}"
 
@@ -27,7 +25,12 @@ trait StatementImpl[G] extends NodeFamilyImpl[G] with StatementFamilyOps[G] { th
         _: Scope[G] |
         _: Block[G] |
         _: Eval[G] |
-        _: Assert[G] => Seq()
+        _: Assert[G] |
+        _: UnresolvedSeqBranch[G] |
+        _: UnresolvedSeqLoop[G] |
+        _: SeqBranch[G] |
+        _: SeqLoop[G]
+        => Seq()
       case _ => Seq(SeqProgStatement(this))
     }
   })

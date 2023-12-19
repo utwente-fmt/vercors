@@ -2,9 +2,8 @@ package vct.col.ast.declaration.cls
 
 import vct.col.ast.BipComponent
 import vct.col.print._
-import vct.col.ast.ops.BipComponentOps
 
-trait BipComponentImpl[G] extends BipComponentOps[G] { this: BipComponent[G] =>
+trait BipComponentImpl[G] { this: BipComponent[G] =>
   override def layout(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
       Text("/*"),

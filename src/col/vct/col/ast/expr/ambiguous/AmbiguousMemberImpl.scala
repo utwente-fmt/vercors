@@ -3,9 +3,8 @@ package vct.col.ast.expr.ambiguous
 import vct.col.ast.{AmbiguousMember, TBool, TInt, Type}
 import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.typerules.CoercionUtils
-import vct.col.ast.ops.AmbiguousMemberOps
 
-trait AmbiguousMemberImpl[G] extends AmbiguousMemberOps[G] { this: AmbiguousMember[G] =>
+trait AmbiguousMemberImpl[G] { this: AmbiguousMember[G] =>
   def isSeqOp: Boolean = CoercionUtils.getAnySeqCoercion(xs.t).isDefined
   def isSetOp: Boolean = CoercionUtils.getAnySetCoercion(xs.t).isDefined
   def isMapOp: Boolean = CoercionUtils.getAnyMapCoercion(xs.t).isDefined

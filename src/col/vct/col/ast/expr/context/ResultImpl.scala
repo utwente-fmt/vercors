@@ -4,9 +4,8 @@ import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.{Result, Type}
 import vct.col.check.{CheckContext, CheckError, ResultOutsidePostcondition}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
-import vct.col.ast.ops.ResultOps
 
-trait ResultImpl[G] extends NodeFamilyImpl[G] with ResultOps[G] { this: Result[G] =>
+trait ResultImpl[G] extends NodeFamilyImpl[G] { this: Result[G] =>
   override def t: Type[G] = applicable.decl.returnType
 
   override def check(context: CheckContext[G]): Seq[CheckError] =

@@ -2,7 +2,6 @@ package vct.col.ast.node
 
 import vct.col.ast._
 import vct.col.check._
-import vct.col.compare.CompareResult
 import vct.col.origin._
 import vct.col.print._
 import vct.col.ref.Ref
@@ -41,11 +40,6 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
   def check(context: CheckContext[G]): Seq[CheckError]
   def o: Origin
 
-  def compare[G1](other: Node[G1]): LazyList[CompareResult[G, G1]]
-  def rewriteDefault[G1]()(implicit rw: AbstractRewriter[G, G1]): Node[G1]
-  def serialize(decls: Map[Declaration[G], Long]): scalapb.GeneratedMessage
-  def serializeFamily(decls: Map[Declaration[G], Long]): scalapb.GeneratedMessage
-
   def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
     context
 
@@ -74,7 +68,7 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
   def checkContextRecursor[T](context: CheckContext[G], f: (CheckContext[G], Node[G]) => T): Seq[T] =
     subnodes.map(f(enterCheckContext(context), _))
 
-  def subnodes: Seq[Node[G]]
+  def subnodes: Seq[Node[G]] = Subnodes.subnodes(this)
 
   def transSubnodes: LazyList[Node[G]] =
     this #:: subnodes.to(LazyList).flatMap(_.transSubnodes)

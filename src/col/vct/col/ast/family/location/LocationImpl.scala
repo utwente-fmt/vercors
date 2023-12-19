@@ -1,9 +1,8 @@
 package vct.col.ast.family.location
 
 import vct.col.ast.{AmbiguousLocation, ArrayLocation, FieldLocation, HeapVariableLocation, InstancePredicateLocation, Location, ModelLocation, PointerLocation, PredicateLocation, SilverFieldLocation, Type}
-import vct.col.ast.ops.LocationFamilyOps
 
-trait LocationImpl[G] extends LocationFamilyOps[G] { this: Location[G] =>
+trait LocationImpl[G] { this: Location[G] =>
   def t: Type[G] = {
     this match {
       case FieldLocation(obj, field) => field.decl.t

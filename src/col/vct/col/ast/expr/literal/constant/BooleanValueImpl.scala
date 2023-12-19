@@ -2,9 +2,8 @@ package vct.col.ast.expr.literal.constant
 
 import vct.col.ast.{BooleanValue, TBool, Type}
 import vct.col.print._
-import vct.col.ast.ops.BooleanValueOps
 
-trait BooleanValueImpl[G] extends BooleanValueOps[G] { this: BooleanValue[G] =>
+trait BooleanValueImpl[G] { this: BooleanValue[G] =>
   override def t: Type[G] = TBool()
 
   sealed trait LayoutElement[+T] { def textualData: Char }

@@ -1,6 +1,6 @@
 package vct.col.ast.declaration
 
-import vct.col.ast.{AbstractRewriter, Declaration}
+import vct.col.ast.Declaration
 import vct.col.check.{CheckContext, CheckError, TypeError, TypeErrorExplanation, TypeErrorText}
 import vct.col.debug.{DebugRewriteState, Dropped, NotProcessed}
 import vct.col.ref.{DirectRef, Ref}
@@ -13,8 +13,6 @@ trait DeclarationImpl[G] { this: Declaration[G] =>
   var debugRewriteState: DebugRewriteState = NotProcessed
 
   def drop(): Unit = debugRewriteState = Dropped
-
-  def rewriteDefault[G1]()(implicit rw: AbstractRewriter[G, G1]): Declaration[G1]
 
   /**
     * Create a Ref to this declaration. This is often useful in a place where the type of the ref can be directly

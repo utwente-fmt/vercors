@@ -2,9 +2,8 @@ package vct.col.ast.expr.heap.read
 
 import vct.col.ast.{NdIndex, TInt}
 import vct.col.print._
-import vct.col.ast.ops.NdIndexOps
 
-trait NdIndexImpl[G] extends NdIndexOps[G] { this: NdIndex[G] =>
+trait NdIndexImpl[G] { this: NdIndex[G] =>
   override def t: TInt[G] = TInt()
 
   override def precedence: Int = Precedence.ATOMIC

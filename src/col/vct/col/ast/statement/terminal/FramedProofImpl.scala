@@ -2,9 +2,8 @@ package vct.col.ast.statement.terminal
 
 import vct.col.ast.FramedProof
 import vct.col.print.{Ctx, Doc, DocUtil, Show, Text}
-import vct.col.ast.ops.FramedProofOps
 
-trait FramedProofImpl[G] extends FramedProofOps[G] { this: FramedProof[G] =>
+trait FramedProofImpl[G] { this: FramedProof[G] =>
   def frameHeader(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
       Text("frame"),

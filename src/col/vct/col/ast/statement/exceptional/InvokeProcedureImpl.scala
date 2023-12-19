@@ -2,9 +2,8 @@ package vct.col.ast.statement.exceptional
 
 import vct.col.ast.InvokeProcedure
 import vct.col.print.{Ctx, Doc, DocUtil, Empty, Group, Text}
-import vct.col.ast.ops.InvokeProcedureOps
 
-trait InvokeProcedureImpl[G] extends InvokeProcedureOps[G] { this: InvokeProcedure[G] =>
+trait InvokeProcedureImpl[G] { this: InvokeProcedure[G] =>
   def layoutGeneric(implicit ctx: Ctx): Doc = Group(
     Group(
       Text(ctx.name(ref)) <>

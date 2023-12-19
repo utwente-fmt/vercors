@@ -5,9 +5,8 @@ import vct.col.ast.expr.ExprImpl
 import vct.col.ast.{TTuple, TupGet, Type}
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
-import vct.col.ast.ops.TupGetOps
 
-trait TupGetImpl[G] extends ExprImpl[G] with TupGetOps[G] { this: TupGet[G] =>
+trait TupGetImpl[G] extends ExprImpl[G] { this: TupGet[G] =>
   def tupleType: TTuple[G] = tup.t.asTuple.get
   override def t: Type[G] = tupleType.elements(index)
   override def check(context: CheckContext[G]): Seq[CheckError] =

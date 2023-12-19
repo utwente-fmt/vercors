@@ -2,9 +2,8 @@ package vct.col.ast.expr.binder
 
 import vct.col.ast.{ForPermWithValue, TBool, Variable}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
-import vct.col.ast.ops.ForPermWithValueOps
 
-trait ForPermWithValueImpl[G] extends ForPermWithValueOps[G] { this: ForPermWithValue[G] =>
+trait ForPermWithValueImpl[G] { this: ForPermWithValue[G] =>
   override def bindings: Seq[Variable[G]] = Seq(binding)
   override def t: TBool[G] = TBool()
 

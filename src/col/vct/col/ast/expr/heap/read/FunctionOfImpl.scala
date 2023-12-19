@@ -2,9 +2,8 @@ package vct.col.ast.expr.heap.read
 
 import vct.col.ast.{FunctionOf, Type}
 import vct.col.print._
-import vct.col.ast.ops.FunctionOfOps
 
-trait FunctionOfImpl[G] extends FunctionOfOps[G] { this: FunctionOf[G] =>
+trait FunctionOfImpl[G] { this: FunctionOf[G] =>
   override def t: Type[G] = binding.decl.t
 
   override def precedence: Int = Precedence.ATOMIC

@@ -2,9 +2,8 @@ package vct.col.ast.expr.sideeffect
 
 import vct.col.ast.{Then, Type}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Show, Text}
-import vct.col.ast.ops.ThenOps
 
-trait ThenImpl[G] extends ThenOps[G] { this: Then[G] =>
+trait ThenImpl[G] { this: Then[G] =>
   override def t: Type[G] = value.t
 
   def layoutEffect(implicit ctx: Ctx): Doc =

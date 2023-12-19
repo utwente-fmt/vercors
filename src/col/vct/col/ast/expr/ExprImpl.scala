@@ -5,9 +5,8 @@ import vct.col.ast.{Expr, ProcessPar, Star, Type}
 import vct.col.check.{CheckError, TypeError}
 import vct.col.print._
 import vct.col.typerules.CoercionUtils
-import vct.col.ast.ops.ExprFamilyOps
 
-trait ExprImpl[G] extends NodeFamilyImpl[G] with ExprFamilyOps[G] { this: Expr[G] =>
+trait ExprImpl[G] extends NodeFamilyImpl[G] { this: Expr[G] =>
   def checkSubType(other: Type[G]): Seq[CheckError] =
     CoercionUtils.getCoercion(t, other) match {
       case Some(_) => Nil

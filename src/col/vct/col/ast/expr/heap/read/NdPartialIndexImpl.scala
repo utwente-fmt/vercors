@@ -2,9 +2,8 @@ package vct.col.ast.expr.heap.read
 
 import vct.col.ast.{NdPartialIndex, TBool}
 import vct.col.print._
-import vct.col.ast.ops.NdPartialIndexOps
 
-trait NdPartialIndexImpl[G] extends NdPartialIndexOps[G] { this: NdPartialIndex[G] =>
+trait NdPartialIndexImpl[G] { this: NdPartialIndex[G] =>
   override def t: TBool[G] = TBool()
 
   override def precedence: Int = Precedence.ATOMIC

@@ -2,9 +2,8 @@ package vct.col.ast.statement.terminal
 
 import vct.col.ast.Exhale
 import vct.col.print.{Ctx, Doc, Show, Text}
-import vct.col.ast.ops.ExhaleOps
 
-trait ExhaleImpl[G] extends ExhaleOps[G] { this: Exhale[G] =>
+trait ExhaleImpl[G] { this: Exhale[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc =
     Text("exhale") <+> res <> ";"
 
