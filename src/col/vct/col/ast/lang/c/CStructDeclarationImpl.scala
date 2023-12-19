@@ -1,9 +1,10 @@
-package vct.col.ast.lang
+package vct.col.ast.lang.c
 
 import vct.col.ast.CStructDeclaration
-import vct.col.print.{Ctx, Doc, Text, Empty}
+import vct.col.ast.ops.CStructDeclarationOps
+import vct.col.print.{Ctx, Doc, Empty, Text}
 
-trait CStructDeclarationImpl[G] { this: CStructDeclaration[G] =>
+trait CStructDeclarationImpl[G] extends CStructDeclarationOps[G] { this: CStructDeclaration[G] =>
   override def layout(implicit ctx: Ctx): Doc = {
     Doc.stack(Seq(
       Text("struct") <+>

@@ -1,14 +1,16 @@
 package vct.col.ast.lang.sycl
 
 import vct.col.ast._
+import vct.col.ast.ops.SYCLTBufferOps
 import vct.col.origin.PanicBlame
 import vct.col.print.{Ctx, Doc, Group, Text}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{CPPInvocationTarget, RefSYCLConstructorDefinition}
 import vct.col.resolve.lang.{CPP, Util}
 import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, c_const, foldStar, tt, withResult}
+import vct.col.ast.ops.SYCLTBufferOps
 
-trait SYCLTBufferImpl[G] { this: SYCLTBuffer[G] =>
+trait SYCLTBufferImpl[G] extends SYCLTBufferOps[G] { this: SYCLTBuffer[G] =>
   override def layout(implicit ctx: Ctx): Doc =
     Group(Text("sycl::buffer") <> "<" <> typ <> ", " <> Text(dimCount.toString) <> ">")
 

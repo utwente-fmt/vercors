@@ -281,10 +281,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
     throw Unreachable("Coercions are rewritten by the Expr dispatch")
   }
 
-  def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
-    ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
-      case Some(coercion) => coercion
-      case None => throw Incoercible(value, target)
+  def coerce(value: Expr[Pre], target: Type[Pre], canCDemote: Boolean = false): Expr[Pre] =
+    ApplyCoercion(value, CoercionUtils.getAnyCoercion(value.t, target) match {
+      case Some(coercion) if canCDemote || coercion.isCPromoting => coercion
+      case _ => throw Incoercible(value, target)
     })(coercionOrigin(value))
 
   def coerceArgs(args: Seq[Expr[Pre]], app: Applicable[Pre]): Seq[Expr[Pre]] =

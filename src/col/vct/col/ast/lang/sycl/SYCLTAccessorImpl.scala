@@ -4,8 +4,9 @@ import vct.col.ast._
 import vct.col.print.{Ctx, Doc, Group, Text}
 import vct.col.resolve.ctx.{CPPInvocationTarget, RefSYCLConstructorDefinition}
 import vct.col.resolve.lang.{CPP, Util}
+import vct.col.ast.ops.SYCLTAccessorOps
 
-trait SYCLTAccessorImpl[G] { this: SYCLTAccessor[G] =>
+trait SYCLTAccessorImpl[G] extends SYCLTAccessorOps[G] { this: SYCLTAccessor[G] =>
   override def layout(implicit ctx: Ctx): Doc =
     Group(Text("sycl::accessor") <> "<" <> typ <> ", " <> Text(dimCount.toString) <> ">")
 

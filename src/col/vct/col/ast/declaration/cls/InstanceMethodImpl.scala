@@ -6,8 +6,9 @@ import vct.col.check.{CheckContext, CheckError, SeqProgInstanceMethodArgs, SeqPr
 import vct.col.print._
 
 import scala.collection.immutable.ListMap
+import vct.col.ast.ops.InstanceMethodOps
 
-trait InstanceMethodImpl[G] extends ClassDeclarationImpl[G] with AbstractMethodImpl[G] { this: InstanceMethod[G] =>
+trait InstanceMethodImpl[G] extends ClassDeclarationImpl[G] with AbstractMethodImpl[G] with InstanceMethodOps[G] { this: InstanceMethod[G] =>
   def layoutModifiers(implicit ctx: Ctx): Seq[Doc] = ListMap(
     pure -> "pure",
     inline -> "inline",

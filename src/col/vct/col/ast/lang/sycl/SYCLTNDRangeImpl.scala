@@ -4,8 +4,9 @@ import vct.col.ast._
 import vct.col.print.{Ctx, Doc, Group, Text}
 import vct.col.resolve.ctx.{CPPInvocationTarget, RefSYCLConstructorDefinition}
 import vct.col.resolve.lang.Util
+import vct.col.ast.ops.SYCLTNDRangeOps
 
-trait SYCLTNDRangeImpl[G] { this: SYCLTNDRange[G] =>
+trait SYCLTNDRangeImpl[G] extends SYCLTNDRangeOps[G] { this: SYCLTNDRange[G] =>
   override def layout(implicit ctx: Ctx): Doc =
     Group(Text("sycl::nd_range") <> "<" <> Text(dimCount.toString) <> ">")
 
