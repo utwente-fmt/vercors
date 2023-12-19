@@ -2,6 +2,7 @@ package vct.col.resolve.lang
 
 import hre.util.FuncTools
 import vct.col.ast._
+import vct.col.ast.`type`.typeclass.TFloats.{C_ieee754_32bit, C_ieee754_64bit}
 import vct.col.origin._
 import vct.col.resolve._
 import vct.col.resolve.ctx._
@@ -27,7 +28,7 @@ case object C {
     Seq(CSigned()),
   )
 
-  val NUMBER_LIKE_TYPES: Seq[Seq[CDeclarationSpecifier[_]]] = Seq(
+  val INTEGER_LIKE_TYPES: Seq[Seq[CDeclarationSpecifier[_]]] = Seq(
     Seq(CInt()),
     Seq(CLong()),
     Seq(CLong(), CInt()),
@@ -35,8 +36,8 @@ case object C {
     Seq(CLong(), CLong(), CInt()),
   )
 
-  val NUMBER_LIKE_SPECIFIERS: Seq[Seq[CDeclarationSpecifier[_]]] =
-    for (prefix <- NUMBER_LIKE_PREFIXES; t <- NUMBER_LIKE_TYPES)
+  val INTEGER_LIKE_SPECIFIERS: Seq[Seq[CDeclarationSpecifier[_]]] =
+    for (prefix <- NUMBER_LIKE_PREFIXES; t <- INTEGER_LIKE_TYPES)
       yield prefix ++ t
 
   case class DeclaratorInfo[G](params: Option[Seq[CParam[G]]], typeOrReturnType: Type[G] => Type[G], name: String)
@@ -62,15 +63,19 @@ case object C {
     case CName(name) => DeclaratorInfo(params=None, typeOrReturnType=(t => t), name)
   }
 
+
   def getPrimitiveType[G](specs: Seq[CDeclarationSpecifier[G]], context: Option[Node[G]] = None): Type[G] =
     specs.collect { case spec: CTypeSpecifier[G] => spec } match {
       case Seq(CVoid()) => TVoid()
       case Seq(CChar()) => TChar()
-      case t if C.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
-      case Seq(CSpecificationType(t @ TFloat(_, _))) => t
+      case t if C.INTEGER_LIKE_SPECIFIERS.contains(t) => TCInt()
+      case Seq(CFloat()) => C_ieee754_32bit()
+      case Seq(CDouble()) => C_ieee754_64bit()
+      case Seq(CLong(), CDouble()) => C_ieee754_64bit()
       case Seq(CBool()) => TBool()
       case Seq(defn @ CTypedefName(_)) => Types.notAValue(defn.ref.get)
       case Seq(CSpecificationType(typ)) => typ
+      case Seq(defn @ CStructSpecifier(_)) => CTStruct(defn.ref.get.decl.ref)
       case spec +: _ => throw CTypeNotSupported(context.orElse(Some(spec)))
       case _ => throw CTypeNotSupported(context)
     }
@@ -87,6 +92,11 @@ case object C {
   def findCTypeName[G](name: String, ctx: TypeResolutionContext[G]): Option[CTypeNameTarget[G]] =
     ctx.stack.flatten.collectFirst {
       case target: CTypeNameTarget[G] if target.name == name => target
+    }
+
+  def findCStruct[G](name: String, ctx: TypeResolutionContext[G]): Option[RefCStruct[G]] =
+    ctx.stack.flatten.collectFirst {
+      case target: RefCStruct[G] if target.name == name => target
     }
 
   def findCName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[CNameTarget[G]] =
@@ -110,14 +120,45 @@ case object C {
       case target: RefCFunctionDefinition[G] if target.name == nameFromDeclarator(declarator) => target
     }
 
+  def findPointerDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[CDerefTarget[G]] =
+    obj.t match {
+      case CPrimitiveType(Seq(CSpecificationType(CTPointer(innerType: TNotAValue[G])))) => innerType.decl.get match {
+        case RefCStruct(decl) => getCStructDeref(decl, name)
+        case _ => None
+      }
+      case CPrimitiveType(Seq(CSpecificationType(CTPointer(struct: CTStruct[G])))) =>
+        getCStructDeref(struct.ref.decl, name)
+      case CPrimitiveType(Seq(CSpecificationType(CTArray(_, innerType: TNotAValue[G])))) => innerType.decl.get match {
+        case RefCStruct(decl) => getCStructDeref(decl, name)
+        case _ => None
+      }
+      case CPrimitiveType(Seq(CSpecificationType(CTArray(_, struct: CTStruct[G])))) =>
+        getCStructDeref(struct.ref.decl, name)
+      case _ => None
+    }
+
+  def getCStructDeref[G](decl: CGlobalDeclaration[G], name: String): Option[CDerefTarget[G]] =
+    decl match {
+      case CGlobalDeclaration(CDeclaration(_, _, Seq(CStructDeclaration(_, decls)), Seq())) =>
+        decls.flatMap(Referrable.from).collectFirst {
+          case ref: RefCStructField[G] if ref.name == name => ref
+        }
+      case _ => None
+    }
+
   def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[CDerefTarget[G]] =
     (obj.t match {
       case t: TNotAValue[G] => t.decl.get match {
         case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
           case ref: RefADTFunction[G] if ref.name == name => ref
         }
+        case RefCStruct(decl: CGlobalDeclaration[G]) => getCStructDeref(decl, name)
         case _ => None
       }
+      case CPrimitiveType(Seq(CSpecificationType(struct: CTStruct[G]))) =>
+        getCStructDeref(struct.ref.decl, name)
+      case struct: CTStruct[G] =>
+        getCStructDeref(struct.ref.decl, name)
       case CTCudaVec() =>
         val ref = obj.asInstanceOf[CLocal[G]].ref.get.asInstanceOf[RefCudaVec[G]]
         name match {

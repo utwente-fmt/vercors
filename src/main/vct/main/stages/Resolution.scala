@@ -8,7 +8,7 @@ import vct.col.ast._
 import vct.col.check.CheckError
 import vct.col.origin.{FileSpanningOrigin, InlineBipContext, Origin, OriginFilename, ReadableOrigin}
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
-import vct.col.rewrite.Generation
+import vct.col.rewrite.{Generation}
 import vct.col.rewrite.bip.IsolateBipGlue
 import vct.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.importer.JavaLibraryLoader
@@ -36,6 +36,7 @@ case object Resolution {
         case ClassPathEntry.SourcePackageRoot => ResolveTypes.JavaClassPathEntry.SourcePackageRoot
         case ClassPathEntry.SourcePath(root) => ResolveTypes.JavaClassPathEntry.Path(root)
       },
+      options.veymontGeneratePermissions
     )
 }
 
@@ -98,6 +99,7 @@ case class Resolution[G <: Generation]
     ResolveTypes.JavaClassPathEntry.Path(Resources.getJrePath),
     ResolveTypes.JavaClassPathEntry.SourcePackageRoot
   ),
+  veymontGeneratePermissions: Boolean = false,
 ) extends Stage[ParseResult[G], Verification[_ <: Generation]] with LazyLogging {
   override def friendlyName: String = "Name Resolution"
 
@@ -115,7 +117,7 @@ case class Resolution[G <: Generation]
       case Nil => // ok
       case some => throw InputResolutionError(some)
     }
-    val resolvedProgram = LangSpecificToCol().dispatch(typedProgram)
+    val resolvedProgram = LangSpecificToCol(veymontGeneratePermissions).dispatch(typedProgram)
     resolvedProgram.check match {
       case Nil => // ok
       // PB: This explicitly allows LangSpecificToCol to generate invalid ASTs, and will blame the input for them. The

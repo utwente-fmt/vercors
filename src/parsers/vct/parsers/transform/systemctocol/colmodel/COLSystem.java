@@ -83,7 +83,7 @@ public class COLSystem<T> {
     /** Constant integer value for -3 */
     public final IntegerValue<T> MINUS_THREE = new IntegerValue<>(BigInt.apply(-3), OriGen.create());
     /** Constant value for 1\2 */
-    public final Expr<T> HALF = new Div<>(new IntegerValue<>(BigInt.apply(1), OriGen.create()), new IntegerValue<>(BigInt.apply(2), OriGen.create()),
+    public final Expr<T> HALF = new RatDiv<>(new IntegerValue<>(BigInt.apply(1), OriGen.create()), new IntegerValue<>(BigInt.apply(2), OriGen.create()),
             new GeneratedBlame<>(), OriGen.create());
     /** Constant null value */
     public final Null<T> NULL = new Null<>(OriGen.create());

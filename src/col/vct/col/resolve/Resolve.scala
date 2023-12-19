@@ -128,6 +128,10 @@ case object ResolveTypes {
       t.ref = Some(C.findCTypeName(name, ctx).getOrElse(
         throw NoSuchNameError("struct", name, t)
       ))
+    case t@CStructSpecifier(name) =>
+      t.ref = Some(C.findCStruct(name, ctx).getOrElse(
+        throw NoSuchNameError("struct", name, t)
+      ))
     case t@CPPTypedefName(nestedName, _) =>
       t.ref = Some(CPP.findCPPTypeName(nestedName, ctx).getOrElse(
         throw NoSuchNameError("class, struct, or namespace", nestedName, t)
@@ -374,7 +378,7 @@ case object ResolveReferences extends LazyLogging {
     case local@CLocal(name) =>
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@CPPLocal(name, arg) =>
-      local.ref = Some(CPP.findCPPName(name, arg, ctx).headOption.getOrElse(throw NoSuchNameError("local", name, local)))
+      local.ref = Some(CPP.findCPPName(name, ctx).headOption.getOrElse(throw NoSuchNameError("local", name, local)))
     case local @ JavaLocal(name) =>
       val start: Option[JavaNameTarget[G]] = if (ctx.javaBipGuardsEnabled) {
         Java.findJavaBipGuard(ctx, name).map(RefJavaBipGuard(_))
@@ -404,7 +408,7 @@ case object ResolveReferences extends LazyLogging {
       case Some(_) => throw ForbiddenEndpointNameType(local)
       case None => throw NoSuchNameError("endpoint", name, local)
     }
-    case access@PVLCommunicateAccess(subject, field) =>
+    case access@PVLAccess(subject, field) =>
         access.ref = Some(PVL.findDerefOfClass(subject.cls, field).getOrElse(throw NoSuchNameError("field", field, access)))
     case endpoint: PVLEndpoint[G] =>
       endpoint.ref = Some(PVL.findConstructor(TClass(endpoint.cls.decl.ref[Class[G]]), endpoint.args).getOrElse(throw ConstructorNotFound(endpoint)))
@@ -419,6 +423,8 @@ case object ResolveReferences extends LazyLogging {
         case Some(_) => throw UnassignableField(parAssign)
         case None => throw NoSuchNameError("field", field, parAssign)
       })
+    case deref@CStructDeref(struct, field) =>
+      deref.ref = Some(C.findPointerDeref(struct, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref@CStructAccess(obj, field) =>
       deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref@CPPClassMethodOrFieldAccess(obj, methodOrFieldName) =>

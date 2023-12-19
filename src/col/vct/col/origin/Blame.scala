@@ -121,11 +121,26 @@ case class ExpectedErrorNotTripped(err: ExpectedError) extends ExpectedErrorFail
   override def inlineDesc: String = s"The expected error with code `${err.errorCode}` was not encountered."
 }
 
-case class AssignFailed(node: SilverFieldAssign[_]) extends NodeVerificationFailure {
+sealed trait AssignFailed extends NodeVerificationFailure
+
+case class AssignFieldFailed(node: SilverFieldAssign[_]) extends AssignFailed with NodeVerificationFailure {
   override def code: String = "assignFieldFailed"
   override def descInContext: String = "Insufficient permission to assign to field."
   override def inlineDescWithSource(source: String): String = s"Insufficient permission for assignment `$source`."
 }
+
+case class CopyStructFailed(node: Expr[_], field: String) extends AssignFailed with NodeVerificationFailure {
+  override def code: String = "copyStructFailed"
+  override def descInContext: String = s"Insufficient read permission for field '$field' to copy struct."
+  override def inlineDescWithSource(source: String): String = s"Insufficient permission for assignment `$source`."
+}
+
+case class CopyStructFailedBeforeCall(node: Expr[_], field: String) extends AssignFailed with FrontendInvocationError with NodeVerificationFailure {
+  override def code: String = "copyStructFailedBeforeCall"
+  override def descInContext: String = s"Insufficient read permission for field '$field' to copy struct before call."
+  override def inlineDescWithSource(source: String): String = s"Insufficient permission for call `$source`."
+}
+
 case class AssertFailed(failure: ContractFailure, node: Assert[_]) extends WithContractFailure {
   override def baseCode: String = "assertFailed"
   override def descInContext: String = "Assertion may not hold, since"
@@ -217,12 +232,13 @@ case class SYCLItemMethodPreconditionFailed(node: InvokingNode[_]) extends NodeV
 
 sealed trait CallableFailure extends ConstructorFailure with JavaConstructorFailure
 sealed trait ContractedFailure extends CallableFailure
-case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
+sealed trait SeqCallableFailure extends CallableFailure
+case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with SeqCallableFailure with WithContractFailure {
   override def baseCode: String = "postFailed"
   override def descInContext: String = "Postcondition may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Postcondition of `$node` may not hold, since $failure."
 }
-case class TerminationMeasureFailed(applicable: ContractApplicable[_], apply: Invocation[_], measure: DecreasesClause[_]) extends ContractedFailure with VerificationFailure {
+case class TerminationMeasureFailed(applicable: ContractApplicable[_], apply: Invocation[_], measure: DecreasesClause[_]) extends ContractedFailure with SeqCallableFailure with VerificationFailure {
   override def code: String = "decreasesFailed"
   override def position: String = measure.o.shortPositionText
   override def desc: String = Message.messagesInContext(
@@ -233,7 +249,7 @@ case class TerminationMeasureFailed(applicable: ContractApplicable[_], apply: In
   override def inlineDesc: String =
     s"${apply.o.inlineContextText} may not terminate, since `${measure.o.inlineContextText}` is not decreased or not bounded"
 }
-case class ContextEverywhereFailedInPost(failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
+case class ContextEverywhereFailedInPost(failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with SeqCallableFailure with WithContractFailure {
   override def baseCode: String = "contextPostFailed"
   override def descInContext: String = "Context may not hold in postcondition, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the postcondition, since $failure."
@@ -303,6 +319,66 @@ case class PlusProviderInvocationFailed(innerFailure: WithContractFailure) exten
   override def baseCode: String = innerFailure.baseCode
   override def descInContext: String = innerFailure.descInContext
   override def inlineDescWithSource(node: String, failure: String): String = innerFailure.inlineDescWithSource(node, failure)
+}
+
+sealed trait FrontendIfFailure extends VerificationFailure
+sealed trait SeqBranchFailure extends FrontendIfFailure
+
+case class BranchUnanimityFailed(guard1: Node[_], guard2: Node[_]) extends SeqBranchFailure {
+  override def code: String = "branchNotUnanimous"
+
+  override def desc: String = Message.messagesInContext(
+    (guard1.o, "This condition..."),
+    (guard2.o, "...should agree with this condition, but this might not be the case")
+  )
+
+  override def position: String = guard1.o.shortPositionText
+  override def inlineDesc: String = "Two conditions in this branch might disagree."
+}
+
+sealed trait FrontEndLoopFailure extends VerificationFailure
+sealed trait SeqLoopFailure extends FrontEndLoopFailure
+
+case class LoopUnanimityNotEstablished(guard1: Node[_], guard2: Node[_]) extends SeqLoopFailure {
+  override def code: String = "loopUnanimityNotEstablished"
+
+  override def desc: String = Message.messagesInContext(
+    (guard1.o, "This condition..."),
+    (guard2.o, "...should agree with this condition, but this could not be established before the loop.")
+  )
+
+  override def position: String = guard1.o.shortPositionText
+  override def inlineDesc: String = "The agreement of two conditions in this branch could not be established before the loop."
+}
+
+case class LoopUnanimityNotMaintained(guard1: Node[_], guard2: Node[_]) extends SeqLoopFailure {
+  override def code: String = "loopUnanimityNotMaintained"
+
+  override def desc: String = Message.messagesInContext(
+    (guard1.o, "This condition..."),
+    (guard2.o, "...should agree with this condition, but this could not be maintained for an arbitrary loop iteration.")
+  )
+
+  override def position: String = guard1.o.shortPositionText
+  override def inlineDesc: String = "The agreement of two conditions in this branch could not be maintained for an arbitrary loop iteration."
+}
+
+sealed trait PVLAccessFailure extends VerificationFailure
+sealed trait AccessFailure extends PVLAccessFailure
+
+case class AccessInsufficientPermission(node: Access[_]) extends AccessFailure with NodeVerificationFailure {
+  override def code: String = "accessPerm"
+  override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
+  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
+}
+
+sealed trait PVLSeqAssignFailure extends VerificationFailure
+sealed trait SeqAssignFailure extends PVLSeqAssignFailure
+
+case class SeqAssignInsufficientPermission(node: SeqAssign[_]) extends SeqAssignFailure with NodeVerificationFailure {
+  override def code: String = "seqAssignPerm"
+  override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
+  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
 }
 
 sealed trait DerefInsufficientPermission extends FrontendDerefError
@@ -491,6 +567,12 @@ case class MapKeyError(node: MapGet[_]) extends BuiltinError with FrontendSubscr
   override def descInContext: String = "Map may not contain this key."
   override def inlineDescWithSource(source: String): String = s"Map in `$source` may not contain that key."
 }
+case class MallocSize(node: Expr[_]) extends BuiltinError with NodeVerificationFailure {
+  override def code: String = "mallocNegativeSize"
+  override def descInContext: String = "Argument of malloc may be negative."
+  override def inlineDescWithSource(source: String): String = s"Size `$source` in malloc may be negative."
+}
+
 sealed trait ArraySizeError extends VerificationFailure
 sealed trait ArraySubscriptError extends FrontendSubscriptError
 sealed trait ArrayLocationError extends ArraySubscriptError
@@ -545,10 +627,36 @@ case class ArrayValuesPerm(node: Values[_]) extends ArrayValuesError {
 }
 
 sealed trait PointerSubscriptError extends FrontendSubscriptError
-sealed trait PointerDerefError extends PointerSubscriptError
+sealed trait PointerDerefError extends PointerSubscriptError with FrontendDerefError
 sealed trait PointerLocationError extends PointerDerefError
 sealed trait PointerAddError extends FrontendAdditiveError
-case class PointerNull(node: Expr[_]) extends PointerLocationError with PointerAddError with NodeVerificationFailure {
+sealed trait PointerFreeError extends FrontendInvocationError
+
+case class PointerOffsetNonZero(node: Expr[_]) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrOffsetNonZero"
+  override def descInContext: String = "Free can only be called on pointers which are allocated and are at the start of the pointer block."
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed due to invalid pointer block."
+}
+
+case class PointerInsufficientFreePermission(node: Expr[_]) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrFreePerm"
+  override def descInContext: String = "Not enough permission to free the whole pointer block."
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed due to insufficient permission."
+}
+
+case class GenericPointerFreeError(node: Expr[_]) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrFreeError"
+  override def descInContext: String = "Pointer block cannot be freed."
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed."
+}
+
+case class PointerInsufficientFreeFieldPermission(node: Expr[_], field: String) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrFreeFieldError"
+  override def descInContext: String = s"Not enough permission to free the whole pointer block, since we miss permission for field `$field`"
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed."
+}
+
+case class PointerNull(node: Expr[_]) extends PointerLocationError with PointerAddError with PointerFreeError with NodeVerificationFailure {
   override def code: String = "ptrNull"
   override def descInContext: String = "Pointer may be null."
   override def inlineDescWithSource(source: String): String = s"Pointer in `$source` may be null."

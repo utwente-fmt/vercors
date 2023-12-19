@@ -27,8 +27,12 @@ sealed trait Referrable[G] {
     case RefCPPLambdaDefinition(decl) => ""
     case RefCPPLocalDeclaration(decls, initIdx) => CPP.nameFromDeclarator(decls.decl.inits(initIdx).decl)
     case RefSYCLAccessMode(decl) => decl.name
+    case RefSYCLConstructorDefinition(typ) => typ.namespacePath
     case RefJavaNamespace(_) => ""
     case RefUnloadedJavaNamespace(_) => ""
+    case RefCStruct(CGlobalDeclaration(CDeclaration(_, _, Seq(defn: CStructDeclaration[G]), Seq()))) => defn.name.getOrElse("")
+    case RefCStruct(_) => ???
+    case RefCStructField(decls, idx) => C.nameFromDeclarator(decls.decls(idx))
     case RefJavaClass(decl) => decl.name
     case RefSilverField(decl) => Referrable.originName(decl)
     case RefSimplificationRule(decl) => Referrable.originName(decl)
@@ -112,6 +116,8 @@ case object Referrable {
     case decl: CTranslationUnit[G] => RefCTranslationUnit(decl)
     case decl: CParam[G] => RefCParam(decl)
     case decl: CFunctionDefinition[G] => RefCFunctionDefinition(decl)
+    case decl: CStructMemberDeclarator[G] => return decl.decls.indices.map(RefCStructField(decl, _))
+    case decl @ CGlobalDeclaration(CDeclaration(_, _, Seq(_ :CStructDeclaration[G]), Seq())) => RefCStruct(decl)
     case decl: CGlobalDeclaration[G] => return decl.decl.inits.indices.map(RefCGlobalDeclaration(decl, _))
     case decl: CPPTranslationUnit[G] => RefCPPTranslationUnit(decl)
     case decl: CPPParam[G] => RefCPPParam(decl)
@@ -201,6 +207,7 @@ name in Java, we can just search for in-scope JavaNameTarget's with the correct 
 
 sealed trait JavaTypeNameTarget[G] extends Referrable[G] with JavaDerefTarget[G]
 sealed trait CTypeNameTarget[G] extends Referrable[G]
+sealed trait CStructTarget[G] extends Referrable[G]
 sealed trait CPPTypeNameTarget[G] extends Referrable[G]
 sealed trait PVLTypeNameTarget[G] extends Referrable[G]
 sealed trait SpecTypeNameTarget[G] extends JavaTypeNameTarget[G] with CTypeNameTarget[G] with CPPTypeNameTarget[G] with PVLTypeNameTarget[G]
@@ -253,8 +260,11 @@ case class RefCPPCustomType[G](typeName: String) extends Referrable[G] with CPPT
 case class RefCPPGlobalDeclaration[G](decls: CPPGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with CPPDerefTarget[G] with ResultTarget[G]
 case class RefCPPLocalDeclaration[G](decls: CPPLocalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G]
 case class RefSYCLAccessMode[G](decl: SYCLAccessMode[G]) extends Referrable[G] with CPPNameTarget[G]
+case class RefSYCLConstructorDefinition[G](typ: SYCLTConstructableClass[G]) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G]
 case class RefJavaNamespace[G](decl: JavaNamespace[G]) extends Referrable[G]
 case class RefUnloadedJavaNamespace[G](names: Seq[String]) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
+case class RefCStruct[G](decl: CGlobalDeclaration[G]) extends Referrable[G] with CStructTarget[G] with CNameTarget[G] with CDerefTarget[G]
+case class RefCStructField[G](decls: CStructMemberDeclarator[G], idx: Int) extends Referrable[G] with CNameTarget[G] with CDerefTarget[G]
 case class RefJavaClass[G](decl: JavaClassOrInterface[G]) extends Referrable[G] with JavaTypeNameTarget[G] with JavaNameTarget[G] with JavaDerefTarget[G] with ThisTarget[G]
 case class RefSilverField[G](decl: SilverField[G]) extends Referrable[G]
 case class RefSimplificationRule[G](decl: SimplificationRule[G]) extends Referrable[G]

@@ -3,7 +3,7 @@ package vct.parsers
 import org.antlr.v4.runtime.{CharStream, CommonTokenStream}
 import vct.antlr4.generated.{CPPParser, LangCPPLexer}
 import vct.col.origin.Origin
-import vct.parsers.transform.{BlameProvider, CPPToCol, OriginProvider}
+import vct.parsers.transform.{BlameProvider, CPPToCol}
 
 case class ColIPPParser(override val origin: Origin, override val blameProvider: BlameProvider, val cppOrigin: Option[Origin]) extends Parser(origin, blameProvider) {
 

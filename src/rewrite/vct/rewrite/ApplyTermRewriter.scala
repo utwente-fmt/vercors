@@ -6,7 +6,7 @@ import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.compare._
 import vct.col.rewrite.util.FreeVariables
-import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.origin.{DiagnosticOrigin, Name, Origin, SourceName}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite._
 import vct.result.VerificationError.{Unreachable, UserError}
@@ -161,8 +161,8 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
     val (free, pattern, substitute, ruleOrigin) = rule
 
     val debugFilter =
-      debugFilterRule.map(_ == ruleOrigin.getPreferredNameOrElse()).getOrElse(true) &&
-        debugFilterInputKind.map(_ == subject.getClass.getSimpleName).getOrElse(true) &&
+      debugFilterRule.forall(SourceName.stringToName(_) == ruleOrigin.getPreferredNameOrElse()) &&
+        debugFilterInputKind.forall(_ == subject.getClass.getSimpleName) &&
         (debugIn.isEmpty || debugIn.exists(name => debugNameStack.exists(_ == name)))
 
     val inst = mutable.Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])]()

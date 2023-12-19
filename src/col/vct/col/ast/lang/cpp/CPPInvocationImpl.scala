@@ -17,6 +17,7 @@ trait CPPInvocationImpl[G] extends CPPInvocationOps[G] { this: CPPInvocation[G] 
     case RefModelAction(decl) => decl.returnType
     case RefCPPFunctionDefinition(decl) => CPP.typeOrReturnTypeFromDeclarator(decl.specs, decl.declarator)
     case RefCPPGlobalDeclaration(decls, initIdx) => CPP.typeOrReturnTypeFromDeclarator(decls.decl.specs, decls.decl.inits(initIdx).decl)
+    case RefSYCLConstructorDefinition(typ) => typ
     case RefCPPLambdaDefinition(_) => CPPTLambda()
     case RefProverFunction(decl) => decl.returnType
     case RefInstanceMethod(decl) => decl.returnType
