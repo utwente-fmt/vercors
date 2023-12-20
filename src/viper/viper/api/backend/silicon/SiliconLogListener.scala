@@ -47,7 +47,7 @@ case class SiliconLogListener(
 }
 
 class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: PathConditionStack, superTask: Option[AbstractTask]) extends MemberSymbExLogger(log, member, pcs) with LazyLogging {
-  var openScopeFrames: List[mutable.Map[Int, DataRecord]] = List(mutable.Map())
+  var openScopeFrames: List[mutable.LinkedHashMap[Int, DataRecord]] = List(mutable.LinkedHashMap())
   var branchScopeCloseRecords: List[mutable.Set[Int]] = List(mutable.Set())
   var branchConditions: List[BranchCondition] = List()
   var branchUpdates: Int = 0
@@ -84,7 +84,7 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
 
   def where(node: Node): Option[String] = Util.getOrigin(node).map(_.shortPositionText)
 
-  def printRecords(records: mutable.Map[Int, DataRecord], excludedBy: Map[Int, Int]): Unit = {
+  def printRecords(records: mutable.LinkedHashMap[Int, DataRecord], excludedBy: Map[Int, Int]): Unit = {
     for(record <- records.values.toSeq.sortBy(_.id)) {
       val at = record match {
         case member: MemberRecord => where(member.value)
@@ -248,7 +248,7 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
   }
 
   override def appendBranchingRecord(r: BranchingRecord): Unit = {
-    openScopeFrames +:= mutable.Map()
+    openScopeFrames +:= mutable.LinkedHashMap()
     branchScopeCloseRecords +:= mutable.Set()
 
     if(r.getBranchInfos.size == 2) {
