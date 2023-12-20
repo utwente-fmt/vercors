@@ -13,6 +13,7 @@ class Collector {
         nrThreads = nrT;
     }
 
+    requires nrThreads > 0;
     requires n >= 0;
     void flatten() {
         result = new int[n];
@@ -30,7 +31,9 @@ class Times {
     int[] v,u;
     boolean transpose;
     int seg;
-    
+
+    requires nrThreads > 0;
+    ensures n == nn;
     constructor(int nn, boolean transp, int nrThreads) {
         n = nn;
         v = new int[0];
@@ -41,13 +44,17 @@ class Times {
     
     void runn();
     //assign v
-    
+
+    requires n >= 0;
     void initv() {
         v = new int[n];
     }
-    
+
+    requires n >= 0;
     void initu() {
         u = new int[n];
+        loop_invariant 0 <= i && i <= n;
+        loop_invariant u.length == n;
         for(int i = 0; i < n; i++) {
             u[i] = 1;
         }
@@ -69,6 +76,7 @@ class Calculator {
     //compute vBv and vv from v and u
 }
 
+requires n >= 0;
 seq_program spectralNorm(int n) {
     endpoint t0 = Times(n, false, 3);
     endpoint t1 = Times(n, false, 3);
@@ -77,6 +85,7 @@ seq_program spectralNorm(int n) {
     endpoint c = Collector(n, 3);
     endpoint cal = Calculator(n);
 
+    requires t0.n >= 0 && t1.n >= 0 && t2.n >= 0;
     seq_run {
         t0.initu();
         t1.initu();
