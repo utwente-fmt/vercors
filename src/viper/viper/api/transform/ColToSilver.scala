@@ -37,6 +37,7 @@ case class ColToSilver(program: col.Program[_]) {
   val currentStarall: ScopedStack[col.Starall[_]] = ScopedStack()
   val currentUnfolding: ScopedStack[col.Unfolding[_]] = ScopedStack()
   val currentMapGet: ScopedStack[col.MapGet[_]] = ScopedStack()
+  val currentDividingExpr: ScopedStack[col.DividingExpr[_]] = ScopedStack()
 
   case class NotSupported(node: col.Node[_]) extends SystemError {
     override def text: String =
@@ -284,6 +285,7 @@ case class ColToSilver(program: col.Program[_]) {
     result.starall = currentStarall.topOption
     result.unfolding = currentUnfolding.topOption
     result.mapGet = currentMapGet.topOption
+    result.dividingExpr = currentDividingExpr.topOption
     result
   }
 
@@ -386,15 +388,24 @@ case class ColToSilver(program: col.Program[_]) {
     case op @ col.Plus(left, right) if op.isIntOp => silver.Add(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Minus(left, right) if op.isIntOp => silver.Sub(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Mult(left, right) if op.isIntOp => silver.Mul(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
-    case op @ col.Mod(left, right) if op.isIntOp => silver.Mod(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+    case op @ col.Mod(left, right) if op.isIntOp =>
+      currentDividingExpr.having(op) {
+        silver.Mod(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+      }
 
     case op @ col.Plus(left, right) if !op.isIntOp => silver.PermAdd(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Minus(left, right) if !op.isIntOp => silver.PermSub(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Mult(left, right) if !op.isIntOp => silver.PermMul(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Mod(left, right) if !op.isIntOp => ??(op)
 
-    case col.Div(left, right) => silver.PermDiv(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
-    case col.FloorDiv(left, right) => silver.Div(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+    case div @ col.Div(left, right) =>
+      currentDividingExpr.having(div) {
+        silver.PermDiv(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+      }
+    case div @ col.FloorDiv(left, right) =>
+      currentDividingExpr.having(div) {
+        silver.Div(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+      }
 
     case col.SilverIntToRat(col.NoPerm()) => silver.NoPerm()(pos=pos(e), info=expInfo(e))
     case col.SilverIntToRat(col.WritePerm()) => silver.FullPerm()(pos=pos(e), info=expInfo(e))
