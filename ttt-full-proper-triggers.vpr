@@ -1,21 +1,3 @@
-domain WellFoundedOrder[T]  {
-  
-  function bounded(v: T): Bool 
-  
-  function decreasing(v1: T, v2: T): Bool 
-}
-
-domain IntOrder  {
-  
-  axiom {
-    (forall i: Int ::0 <= i == (bounded(i): Bool))
-  }
-  
-  axiom {
-    (forall i: Int ::(forall j: Int ::i < j == (decreasing(i, j): Bool)))
-  }
-}
-
 domain Array  {
   
   function array_loc(a: Array, i: Int): Ref 
