@@ -583,6 +583,7 @@ final case class PointerLocation[G](pointer: Expr[G])(val blame: Blame[PointerLo
 final case class PredicateLocation[G](predicate: Ref[G, Predicate[G]], args: Seq[Expr[G]])(implicit val o: Origin) extends Location[G] with PredicateLocationImpl[G]
 final case class InstancePredicateLocation[G](predicate: Ref[G, InstancePredicate[G]], obj: Expr[G], args: Seq[Expr[G]])(implicit val o: Origin) extends Location[G] with InstancePredicateLocationImpl[G]
 final case class AmbiguousLocation[G](expr: Expr[G])(val blame: Blame[PointerLocationError])(implicit val o: Origin) extends Location[G] with AmbiguousLocationImpl[G]
+final case class InLinePatternLocation[G](loc: Location[G], pattern: Expr[G])(implicit val o: Origin) extends Location[G] with InLinePatternLocationImpl[G]
 
 final case class Perm[G](loc: Location[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with PermImpl[G]
 final case class PointsTo[G](loc: Location[G], perm: Expr[G], value: Expr[G])(implicit val o: Origin) extends Expr[G] with PointsToImpl[G]

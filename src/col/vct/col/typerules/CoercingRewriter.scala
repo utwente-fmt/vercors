@@ -2022,6 +2022,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         InstancePredicateLocation(predicate, cls(obj), coerceArgs(args, predicate.decl))
       case al @ AmbiguousLocation(expr) =>
         AmbiguousLocation(expr)(al.blame)
+      case patLoc @ InLinePatternLocation(loc, pat) =>
+        InLinePatternLocation(loc, pat)
     }
   }
 
