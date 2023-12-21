@@ -312,8 +312,6 @@ case object LangCPPToCol {
 
   private class SYCLRangeDerefBlame(rangeField: InstanceField[_]) extends PanicBlame(rangeField.o.messageInContext("There should always be enough permission to dereference the range fields."))
 
-  private class SYCLRangeInjectivityCheckBlame(rangeO: Origin) extends PanicBlame(rangeO.messageInContext("The injectivity check functions for range indices should always be callable."))
-
   private case class SYCLAccessorArraySubscriptErrorBlame(accSubscript: AmbiguousSubscript[_]) extends Blame[ArraySubscriptError] {
     private case class SYCLAccessorArraySubscriptArrayInsufficientPermissionError(error: ArrayInsufficientPermission) extends UserError {
       override def code: String = "syclAccessorArraySubscriptArrayInsufficientPermission"
@@ -411,7 +409,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   sealed abstract class KernelType(rangeFields: Seq[InstanceField[Post]], rangeValues: Seq[Expr[Post]]) {
     def getRangeSizeChecksForConstructor(params: mutable.Buffer[Variable[Post]]): Expr[Post]
     def getConstructorPostConditions(result: Result[Post], params: mutable.Buffer[Variable[Post]]): Seq[Expr[Post]]
-    def getRangeInjectivityChecks: Expr[Post]
 
     def getRangeFields: Seq[InstanceField[Post]] = rangeFields
     def getRangeValues: Seq[Expr[Post]] = rangeValues
@@ -433,15 +430,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         Deref[Post](result, rangeFields(i).ref)(new SYCLRangeDerefBlame(rangeFields(i))) === Local[Post](params(i).ref)
       )
     })
-
-    override def getRangeInjectivityChecks: Expr[Post] = {
-      currentDimensionIterVars(GlobalScope()).size match {
-        case i@(2 | 3)=> syclHelperFunctions(s"sycl_:_:linearize_${i}_is_injective")(
-          currentDimensionIterVars(GlobalScope()).map(iterVar => iterVar.to).toSeq, new SYCLRangeInjectivityCheckBlame(rangeO), rangeO
-        )
-        case _ => tt
-      }
-    }
   }
   private case class NDRangeKernel(rangeO: Origin, rangeFields: Seq[InstanceField[Post]], rangeValues: Seq[Expr[Post]]) extends KernelType(rangeFields, rangeValues) {
     override def getRangeSizeChecksForConstructor(params: mutable.Buffer[Variable[Post]]): Expr[Post] = {
@@ -467,41 +455,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           Deref[Post](result, rangeFields(i+1).ref)(new SYCLRangeDerefBlame(rangeFields(i+1))) === Local[Post](params(i+1).ref)
         ))}
       )
-    }
-
-    override def getRangeInjectivityChecks: Expr[Post] = {
-      val blame = new SYCLRangeInjectivityCheckBlame(rangeO)
-      val linearizedIdsInjective: Seq[Expr[Post]] = currentDimensionIterVars(GroupScope()).size match {
-        case dims@(2 | 3)=>
-          val globalRanges = currentDimensionIterVars(GroupScope()).indices.map(i => {
-            val args: Seq[Expr[Post]] = Seq(
-              currentDimensionIterVars(LocalScope())(i).to,
-              currentDimensionIterVars(GroupScope())(i).to,
-            )
-            syclHelperFunctions("sycl_:_:nd_item_:_:get_global_range")(args, blame, rangeO)
-          })
-
-          Seq(
-            syclHelperFunctions(s"sycl_:_:linearize_${dims}_is_injective")( // Group linear ids
-              currentDimensionIterVars(GroupScope()).map(iterVar => iterVar.to).toSeq, blame, rangeO
-            ),
-            syclHelperFunctions(s"sycl_:_:linearize_${dims}_is_injective")( // Local linear ids
-              currentDimensionIterVars(LocalScope()).map(iterVar => iterVar.to).toSeq, blame, rangeO
-            ),
-            syclHelperFunctions(s"sycl_:_:linearize_${dims}_is_injective")( // Global linear ids
-              globalRanges, blame, rangeO
-            )
-          )
-        case _ => Seq(tt)
-      }
-      foldStar(
-        linearizedIdsInjective ++
-        currentDimensionIterVars(GroupScope()).indices.map(i => {
-          syclHelperFunctions("sycl_:_:linearize_2_is_injective")( // Global ids
-            Seq(currentDimensionIterVars(LocalScope())(i).to, currentDimensionIterVars(GroupScope())(i).to), blame, rangeO
-          )
-        })
-      )(rangeO)
     }
   }
 
@@ -896,7 +849,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       implicit val o: Origin = kernelDeclaration.contract.requires.o
       UnitAccountedPredicate(foldStar(
         currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++
-        Seq(currentKernelType.get.getRangeInjectivityChecks) ++
         accessorRunMethodConditions :+
         getKernelQuantifiedCondition(kernelParBlock, removeKernelClassInstancePermissions(contractRequires))
       )(commandGroupBody.o))
@@ -1069,8 +1021,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       decl = new ParBlockDecl[Post]()(o.where(name = "SYCL_ND_RANGE_KERNEL_WORKGROUPS")),
       iters = currentDimensionIterVars(GroupScope()).toSeq,
       context_everywhere = tt,
-      requires = foldStar(currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++ groupIdLimits ++ Seq(currentKernelType.get.getRangeInjectivityChecks) ++ accessorParblockConditions :+ quantifiedContractRequires),
-      ensures = foldStar(currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++ groupIdLimits ++ Seq(currentKernelType.get.getRangeInjectivityChecks) ++ accessorParblockConditions :+ quantifiedContractEnsures),
+      requires = foldStar(currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++ groupIdLimits ++ accessorParblockConditions :+ quantifiedContractRequires),
+      ensures = foldStar(currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++ groupIdLimits ++ accessorParblockConditions :+ quantifiedContractEnsures),
       content = Scope(Nil, Block(localAccessorDecls.toSeq :+ workItemParBlock))
     )(SYCLKernelParBlockFailureBlame(kernelDeclaration))
 
