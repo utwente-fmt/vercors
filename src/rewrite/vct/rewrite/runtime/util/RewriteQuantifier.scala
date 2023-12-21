@@ -3,7 +3,7 @@ package vct.rewrite.runtime.util
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast.{And, Expr, Variable, _}
-import vct.col.rewrite.{Generation, Rewriter}
+import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.SuccessionMap
 
 import scala.Int.{MaxValue, MinValue}
@@ -11,7 +11,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 
-case class RewriteQuantifier[Pre <: Generation](outer: Rewriter[Pre], cls: Class[Pre]) extends Rewriter[Pre] {
+case class RewriteQuantifier[Pre <: Generation](outer: Rewriter[Pre], cls: Class[Pre])(implicit program: Program[Pre], newThis: Expr[Rewritten[Pre]]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
   val newVariables: NewVariableGenerator[Pre] = new NewVariableGenerator[Pre](new Rewriter[Pre])
@@ -129,6 +129,7 @@ case class RewriteQuantifier[Pre <: Generation](outer: Rewriter[Pre], cls: Class
       case quantifier: Exists[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
       case quantifier: Forall[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
       case local: Local[Pre] => dispatchLocal(local)
+      case p: Perm[Pre] => PermissionRewriter(p)
       case _ => super.dispatch(e)
     }
   }

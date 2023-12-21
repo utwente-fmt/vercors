@@ -18,15 +18,17 @@ object CreateFieldPermissions extends RewriterBuilder {
 
 case class CreateFieldPermissions[Pre <: Generation]() extends Rewriter[Pre] {
 
-  val fieldFinder: ScopedStack[FieldNumber[Pre]] = ScopedStack()
   val methodStatements: ScopedStack[ArrayBuffer[Statement[Post]]] = ScopedStack();
   val dereferences: ScopedStack[ArrayBuffer[InstanceField[Pre]]] = ScopedStack();
 
+  implicit var program: Program[Pre] = null
+
+
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-    fieldFinder.having(FieldNumber[Pre](program)) {
-      val test = super.dispatch(program)
-      test
-    }
+    this.program = program
+    val test = super.dispatch(program)
+    test
+
   }
 
   private def dispatchClassDeclarations(cls: Class[Pre]): Seq[ClassDeclaration[Post]] = {
@@ -42,7 +44,7 @@ case class CreateFieldPermissions[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   private def createPermissionFieldArray(instanceField: InstanceField[Pre]): Unit = {
-    val id = fieldFinder.top.findNumber(instanceField)
+    val id = FieldNumber(instanceField)
     val preferredName = instanceField.o.getPreferredNameOrElse()
     val cs = new CodeStringClass[Post](newArrayPermission(id), preferredName)(instanceField.o)
     classDeclarations.declare(cs)
@@ -70,7 +72,7 @@ case class CreateFieldPermissions[Pre <: Generation]() extends Rewriter[Pre] {
 
   def dispatchNewArray(newArray: NewArray[Pre]): Expr[Post] = {
     if (dereferences.top.nonEmpty && methodStatements.nonEmpty) {
-      val id = fieldFinder.top.findNumber(dereferences.top(0))
+      val id = FieldNumber(dereferences.top(0))
       val callGHS = callGenerateHashMaps(newArray.dims.head.toString, id)
       val newStat = CodeStringStatement[Post](callGHS)(newArray.o)
       methodStatements.top.addOne(newStat)
@@ -100,7 +102,7 @@ case class CreateFieldPermissions[Pre <: Generation]() extends Rewriter[Pre] {
 
   def dispatchMethodBlock(block: Block[Pre], im: InstanceMethod[Pre]): Block[Post] = {
     methodStatements.having(new ArrayBuffer[Statement[Post]]()) {
-      block.rewrite()                           //rewriting it first to determine all the new statements
+      block.rewrite() //rewriting it first to determine all the new statements
       block.rewrite(methodStatements.top.toSeq) //collecting also newly created statements in the correct order
     }
   }

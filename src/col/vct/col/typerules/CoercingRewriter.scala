@@ -906,6 +906,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case CLocal(name) => e
+      case CodeStringCheckPermissionExpr(_, _,_,_) => e
       case c @ Committed(obj) =>
         Committed(cls(obj))(c.blame)
       case ComputationalAnd(left, right) =>
@@ -1660,6 +1661,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case PVLCommunicate(s, r) => PVLCommunicate(s, r)
       case CodeStringStatement(c) => CodeStringStatement(c)
       case CodeStringQuantifier(q, l, u, body) => CodeStringQuantifier(q, l, u, body)
+      case PredicateEquals(c, a) => PredicateEquals(c, a)
+      case CodeStringGetPredicate(a, c) => CodeStringGetPredicate(a, c)
+      case RuntimeNewPredicate(i, a) => RuntimeNewPredicate(i, a)
     }
   }
 
@@ -1806,6 +1810,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case seqProg: PVLSeqProg[Pre] => seqProg
       case codestring: CodeString[Pre] => decl
       case codeStringQuantifier: CodeStringQuantifierMethod[Pre] => decl
+      case predicateStore: PredicateStore[Pre] => decl
+      case _ => decl
     }
   }
 

@@ -1,7 +1,7 @@
 package vct.rewrite.runtime.util
 
 import hre.util.ScopedStack
-import vct.col.ast.{Local, Variable}
+import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.col.origin.Origin
@@ -13,14 +13,14 @@ import vct.col.origin.Origin
 class NewVariableGenerator[Pre <: Generation](val rewriter: Rewriter[Pre] = new Rewriter[Pre]) {
   type Post = Rewritten[Pre]
 
-  val newVariables: ScopedStack[SuccessionMap[Variable[Pre], Variable[Post]]] = new ScopedStack();
+  val newVariables: ScopedStack[SuccessionMap[Declaration[_], Variable[Post]]] = new ScopedStack();
 
   def get(v: Variable[Pre]): Option[Variable[Post]] = {
     newVariables.top.get(v)
   }
 
   private def create(v: Variable[Pre]): Variable[Post] = {
-    val newOrigin = Origin(Seq.empty).addPrefName(v.o.getPreferredNameOrElse())
+    val newOrigin = v.o.replacePrefName(v.o.getPreferredNameOrElse())
     new Variable[Post](rewriter.dispatch(v.t))(newOrigin)
   }
 
@@ -34,7 +34,13 @@ class NewVariableGenerator[Pre <: Generation](val rewriter: Rewriter[Pre] = new 
     newVar
   }
 
-  def collect[R](f: => R): (R, SuccessionMap[Variable[Pre], Variable[Post]]) = {
+  def createNewFromInstanceField(instanceField: InstanceField[Post]) : Variable[Post] = {
+    val newVar = new Variable[Post](instanceField.t)(instanceField.o)
+    newVariables.top.update(instanceField, newVar)
+    newVar
+  }
+
+  def collect[R](f: => R): (R, SuccessionMap[Declaration[_], Variable[Post]]) = {
     newVariables.having(new SuccessionMap()) {
       (f, newVariables.top)
     }
@@ -62,7 +68,7 @@ class NewVariableGenerator[Pre <: Generation](val rewriter: Rewriter[Pre] = new 
     newVariables.nonEmpty
   }
 
-  def prevOrEmpty(): SuccessionMap[Variable[Pre], Variable[Post]] = {
+  def prevOrEmpty(): SuccessionMap[Declaration[_], Variable[Post]] = {
     try {
       val tmp = newVariables.pop()
       val prev = newVariables.top

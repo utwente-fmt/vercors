@@ -1331,6 +1331,16 @@ object CodeStringQuantifierMethod{
   }
 }
 
+final case class CodeStringCheckPermissionExpr[G](objectLocation: Expr[G], id: Int, field: Expr[G], permission: Expr[G]) (implicit val o: Origin) extends Expr[G] with CodeStringCheckPermissionExprImpl[G]
+
 final class CodeStringPredicateConstructor[G](val args: Seq[Variable[G]], val body: Option[Statement[G]])(implicit val o: Origin) extends ClassDeclaration[G] with CodeStringPredicateConstructorImpl[G]
 
 final case class JavaLocalRuntime[G](ref: Ref[G, JavaParam[G]])(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends JavaExpr[G] with JavaLocalRuntimeImpl[G]
+
+final case class PredicateStore[G](storeType: Type[G])(implicit val o: Origin) extends ClassDeclaration[G] with PredicateStoreImpl[G]
+
+final case class PredicateEquals[G](currentObject: Expr[G], arg: Expr[G])(implicit val o: Origin) extends Statement[G] with PredicateEqualsImpl[G]
+
+final case class CodeStringGetPredicate[G](args: Seq[Expr[G]], cls: Ref[G, Class[G]])(implicit val o: Origin) extends Statement[G] with CodeStringGetPredicateImpl[G]
+
+final case class RuntimeNewPredicate[G](instance: Variable[G], args: Seq[Expr[G]])(implicit val o: Origin) extends Statement[G] with RuntimeNewPredicateImpl[G]

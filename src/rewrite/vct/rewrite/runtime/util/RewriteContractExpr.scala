@@ -4,19 +4,30 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
+import vct.col.util.SuccessionMap
 import vct.rewrite.runtime.util.CodeStringDefaults._
 
 import scala.collection.mutable
 
 
-case class RewriteContractExpr[Pre <: Generation](outer: Rewriter[Pre], givenStatementBuffer: mutable.Buffer[Statement[Rewritten[Pre]]], cls: Class[Pre]) extends Rewriter[Pre] {
+case class RewriteContractExpr[Pre <: Generation](outer: Rewriter[Pre], cls: Class[Pre])(implicit program: Program[Pre], newLocals: SuccessionMap[Declaration[_], Variable[Rewritten[Pre]]]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
   private val internalExpression: ScopedStack[Expr[Pre]] = new ScopedStack()
+  private val givenStatementBuffer: mutable.Buffer[Statement[Rewritten[Pre]]] = new mutable.ArrayBuffer[Statement[Rewritten[Pre]]]()
+
+  def createStatements(expr: Expr[Pre]): mutable.Buffer[Statement[Rewritten[Pre]]] = {
+    dispatch(expr)
+    givenStatementBuffer
+  }
 
   def createStatement(expr: Expr[Post]): Expr[Post] = {
-    givenStatementBuffer.addOne(CodeStringStatement[Post](assertCondition(expr.toString))(expr.o))
+    givenStatementBuffer.addOne(Assert[Post](expr)(null)(expr.o))
     expr
+  }
+
+  def dispatchPermission(p: Perm[Pre]) : CodeStringCheckPermissionExpr[Post] = {
+    PermissionRewriter(p)
   }
 
 
@@ -40,6 +51,7 @@ case class RewriteContractExpr[Pre <: Generation](outer: Rewriter[Pre], givenSta
       case _: Or[Pre] => internalExpression.having(e){super.dispatch(e)}
       case _: AmbiguousOr[Pre] => internalExpression.having(e){super.dispatch(e)}
       case _: Starall[Pre] | _ : Exists[Pre] | _ : Forall[Pre]  => RewriteQuantifier[Pre](this, cls).dispatch(e)
+      case p: Perm[Pre] => dispatchPermission(p)
       case _ => super.dispatch(e)
     }
 

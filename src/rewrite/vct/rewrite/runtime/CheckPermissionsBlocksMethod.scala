@@ -25,15 +25,17 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
   var hasInvocation: Boolean = false
   private val dereferences: ScopedStack[mutable.HashMap[Deref[Pre], Boolean]] = ScopedStack()
   val isTarget: ScopedStack[Boolean] = ScopedStack()
-  val fieldFinder: ScopedStack[FieldNumber[Pre]] = ScopedStack()
+  val programStack: ScopedStack[Program[Pre]] = ScopedStack()
+
+  implicit var program: Program[Pre] = null
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-    fieldFinder.having(FieldNumber[Pre](program)) {
-      isTarget.having(false) {
-        val test = super.dispatch(program)
-        test
-      }
+    this.program = program
+    isTarget.having(false) {
+      val test = super.dispatch(program)
+      test
     }
+
   }
 
   private def rewriteDefaultMethod(im: InstanceMethod[Pre]): Unit = {
@@ -45,7 +47,7 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
 
   private def generatePermissionChecksStatements(d: Deref[Pre], write: Boolean): Option[CodeStringStatement[Post]] = {
     val objectLocation: String = FieldObjectString().determineObjectReference(d)
-    val id: Int = fieldFinder.top.findNumber(d.ref.decl)
+    val id: Int = FieldNumber(d.ref.decl)
     val name: String = d.ref.decl.o.getPreferredNameOrElse()
     Some(CodeStringStatement[Post](assertCheck(objectLocation, id, name, write))(d.o))
   }
@@ -199,7 +201,7 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
       }
       case d: Deref[Pre] => {
         val newD = super.rewriteDefault(d)
-        if(dereferences.isEmpty) return newD
+        if (dereferences.isEmpty) return newD
         if (isTarget.top) {
           dereferences.top += (d -> true)
         } else if (!dereferences.top.contains(d)) {

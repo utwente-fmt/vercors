@@ -22,69 +22,68 @@ object CreatePrePostConditions extends RewriterBuilder {
 case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
 
 
-//  val givenStatementBuffer: mutable.Buffer[Statement[Rewritten[Pre]]] = new ArrayBuffer()
-//  val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
-//  val currentContract: ScopedStack[AccountedPredicate[Pre]] = new ScopedStack()
-//
-//  override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-//    val test = super.dispatch(program)
-//    test
-//  }
-//
-//  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
-//    if (currentClass.isEmpty || currentContract.isEmpty) {
-//      return super.dispatch(e)
-//    }
-//    val newExpr = new RewriteContractExpr[Pre](this, givenStatementBuffer, currentClass.top).dispatch(e)
-//    newExpr
-//  }
-//
-//
-//  override def dispatch(decl: Declaration[Pre]): Unit = {
-//    decl match {
-//      case im: InstanceMethod[Pre] => dispatchInstanceMethod(im)
-//      case cls: Class[Pre] => currentClass.having(cls) {
-//        super.dispatch(cls)
-//      }
-//      case _ => super.dispatch(decl)
-//    }
-//  }
-//
-//  def dispatchInstanceMethod(im: InstanceMethod[Pre]): Unit = {
-//    im.body match {
-//      case Some(sc: Scope[Pre]) => sc.body match {
-//        case block: Block[Pre] =>
-//          dispatchMethodBlock(block, im)
-//
-//          super.dispatch(im)
-//        case _ => ???
-//      }
-//      case _ => super.dispatch(im)
-//    }
-//  }
-//
-//  def dispatchMethodBlock(block: Block[Pre], im: InstanceMethod[Pre]): Unit = {
-//    val preConditionStatements = currentContract.having(im.contract.requires) {
-//      dispatch(im.contract.requires)
-//      val statements = givenStatementBuffer.toSeq
-//      givenStatementBuffer.clear()
-//      statements
-//    }
-//    //    val postConditionStatements: Seq[CodeStringStatement[Post]] = dispatchApplicableContractToAssert(im.contract.ensures)
-//  }
+  //  val givenStatementBuffer: mutable.Buffer[Statement[Rewritten[Pre]]] = new ArrayBuffer()
+  //  val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
+  //  val currentContract: ScopedStack[AccountedPredicate[Pre]] = new ScopedStack()
+  //
+  //  override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
+  //    val test = super.dispatch(program)
+  //    test
+  //  }
+  //
+  //  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
+  //    if (currentClass.isEmpty || currentContract.isEmpty) {
+  //      return super.dispatch(e)
+  //    }
+  //    val newExpr = new RewriteContractExpr[Pre](this, givenStatementBuffer, currentClass.top).dispatch(e)
+  //    newExpr
+  //  }
+  //
+  //
+  //  override def dispatch(decl: Declaration[Pre]): Unit = {
+  //    decl match {
+  //      case im: InstanceMethod[Pre] => dispatchInstanceMethod(im)
+  //      case cls: Class[Pre] => currentClass.having(cls) {
+  //        super.dispatch(cls)
+  //      }
+  //      case _ => super.dispatch(decl)
+  //    }
+  //  }
+  //
+  //  def dispatchInstanceMethod(im: InstanceMethod[Pre]): Unit = {
+  //    im.body match {
+  //      case Some(sc: Scope[Pre]) => sc.body match {
+  //        case block: Block[Pre] =>
+  //          dispatchMethodBlock(block, im)
+  //
+  //          super.dispatch(im)
+  //        case _ => ???
+  //      }
+  //      case _ => super.dispatch(im)
+  //    }
+  //  }
+  //
+  //  def dispatchMethodBlock(block: Block[Pre], im: InstanceMethod[Pre]): Unit = {
+  //    val preConditionStatements = currentContract.having(im.contract.requires) {
+  //      dispatch(im.contract.requires)
+  //      val statements = givenStatementBuffer.toSeq
+  //      givenStatementBuffer.clear()
+  //      statements
+  //    }
+  //    //    val postConditionStatements: Seq[CodeStringStatement[Post]] = dispatchApplicableContractToAssert(im.contract.ensures)
+  //  }
 
   val permissionExprContract: ScopedStack[Seq[CodeStringStatement[Post]]] = ScopedStack()
   val permDeref: ScopedStack[Deref[Pre]] = ScopedStack()
 
-
-  val fieldFinder: ScopedStack[FieldNumber[Pre]] = ScopedStack()
+  implicit var program: Program[Pre] = null
 
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-    fieldFinder.having(FieldNumber[Pre](program)) {
-      val test = super.dispatch(program)
-      test
-    }
+    this.program = program
+    val test = super.dispatch(program)
+    test
+
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
@@ -182,7 +181,7 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
 
   private def createConditionCode(deref: Deref[Pre], p: Perm[Pre]): CodeStringStatement[Post] = {
     val name: String = FieldObjectString().determineObjectReference(deref)
-    val id: Int = fieldFinder.top.findNumber(deref.ref.decl)
+    val id: Int = FieldNumber(deref.ref.decl)
     p.perm match {
       case iv: IntegerValue[Pre] => {
         if (iv.value > 1) {
