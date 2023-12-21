@@ -3,6 +3,7 @@ package vct.rewrite.runtime.util
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
+import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.rewrite.runtime.util.CodeStringDefaults._
@@ -22,12 +23,12 @@ case class RewriteContractExpr[Pre <: Generation](outer: Rewriter[Pre], cls: Cla
   }
 
   def createStatement(expr: Expr[Post]): Expr[Post] = {
-    givenStatementBuffer.addOne(Assert[Post](expr)(null)(expr.o))
+    givenStatementBuffer.addOne(Assert[Post](expr)(null)(Origin(Seq())))
     expr
   }
 
-  def dispatchPermission(p: Perm[Pre]) : CodeStringCheckPermissionExpr[Post] = {
-    PermissionRewriter(p)
+  def dispatchPermission(p: Perm[Pre]) : Expr[Post] = {
+    PermissionRewriter(this).rewritePermission(p)
   }
 
 
@@ -39,6 +40,7 @@ case class RewriteContractExpr[Pre <: Generation](outer: Rewriter[Pre], cls: Cla
       case _: Or[Pre] => false
       case _: AmbiguousOr[Pre] => false
       case _: Implies[Pre] => false
+      case _: OrderOp[Pre] => false
       case _: BinExpr[Pre] => true
       case _ => true
     }

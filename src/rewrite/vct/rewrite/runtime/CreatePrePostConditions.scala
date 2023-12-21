@@ -1,6 +1,6 @@
 package vct.rewrite.runtime
 
-import vct.col.ast.{AccountedPredicate, AmbiguousLocation, ApplicableContract, Block, Branch, Class, CodeStringStatement, Declaration, Deref, Div, Expr, InstanceField, InstanceMethod, IntegerValue, Local, Loop, Perm, Program, ReadPerm, Result, Return, RewriteHelpers, Scope, Statement, TClass, ThisObject, WritePerm}
+import vct.col.ast.{AccountedPredicate, AmbiguousLocation, ApplicableContract, Block, Branch, Class, CodeStringStatement, Declaration, Deref, Div, Expr, InstanceField, InstanceMethod, IntegerValue, Local, Loop, Perm, Program, ReadPerm, Result, Return, RewriteHelpers, Scope, Statement, TClass, ThisObject, UnitAccountedPredicate, WritePerm}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import RewriteHelpers._
 import hre.util.ScopedStack
@@ -25,6 +25,7 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
   val givenStatementBuffer: mutable.Buffer[Statement[Rewritten[Pre]]] = new ArrayBuffer()
   val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
   val currentContract: ScopedStack[AccountedPredicate[Pre]] = new ScopedStack()
+
   implicit var program: Program[Pre] = null
 
 
@@ -34,32 +35,29 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     test
   }
 
-  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
-    if (currentClass.isEmpty || currentContract.isEmpty) {
-      return super.dispatch(e)
-    }
-    val (newExpr, newStatements) = new RewriteContractExpr[Pre](this, currentClass.top)(program, null).createStatements(e)
-    givenStatementBuffer.addAll(newStatements)
-    newExpr
-  }
-
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case im: InstanceMethod[Pre] => dispatchInstanceMethod(im)
       case cls: Class[Pre] => currentClass.having(cls) {
-        super.dispatch(cls)
+        globalDeclarations.succeed(cls, cls.rewrite())
       }
       case _ => super.dispatch(decl)
     }
   }
 
   private def dispatchApplicableContractToAssert(ap: AccountedPredicate[Pre]): Seq[Statement[Post]] = {
-    currentContract.having(ap) {
-      dispatch(ap)
-      val statements = givenStatementBuffer.toSeq
-      givenStatementBuffer.clear()
-      statements
+    ap match {
+      case uni: UnitAccountedPredicate[Pre] => {
+        currentContract.having(ap) {
+          val (_, newStatements) = new RewriteContractExpr[Pre](this, currentClass.top)(program, null)
+            .createStatements(uni.pred)
+          dispatch(ap)
+          newStatements.toSeq
+        }
+      }
+      case _ => ???
     }
+
   }
 
   def dispatchMethodBlock(block: Block[Pre], im: InstanceMethod[Pre]): Block[Post] = {
@@ -81,7 +79,7 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
         case block: Block[Pre] => classDeclarations.succeed(im, im.rewrite(body = Some(sc.rewrite(body = dispatchMethodBlock(block, im)))))
         case _ => ???
       }
-      case _ => super.rewriteDefault(im)
+      case _ => super.dispatch(im)
     }
   }
 
@@ -113,6 +111,5 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     })
     Branch[Post](updatedBranches)(branch.o)
   }
-
 }
 

@@ -907,6 +907,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case CLocal(name) => e
       case CodeStringCheckPermissionExpr(_, _,_,_) => e
+      case CodeStringCheckArrayPermissionExpr(_, _,_,_,_) => e
       case c @ Committed(obj) =>
         Committed(cls(obj))(c.blame)
       case ComputationalAnd(left, right) =>

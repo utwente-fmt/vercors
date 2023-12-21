@@ -87,6 +87,10 @@ class NewVariableGenerator[Pre <: Generation](val rewriter: Rewriter[Pre] = new 
       case _: Throwable => new SuccessionMap()
     }
   }
+
+  def freeze() : NewVariableResult[Pre, _] = {
+    NewVariableResult(inputs.top.toSeq, newVariables.top, outputs.top.toSeq, null)
+  }
 }
 
 

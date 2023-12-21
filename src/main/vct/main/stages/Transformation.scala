@@ -325,8 +325,8 @@ case class RuntimeTransformation(override val onBeforePassKey: Seq[(String, Veri
     RefactorGeneratedCode,
     CreateFieldPermissions,
     //    CreateLocking,                //Create predicate instance for the Lock and use the constructor and synchronize keyword to check it
-    CreatePredicates, //Create predicate templates for all specified predicates -> since you only need to check the predicate condition if the predicate is folded In the pre and post conditions then we need to do the check if the thread holds a predicate
     CheckPermissionsBlocksMethod, //Basic permission check
+    CreatePredicates, //Create predicate templates for all specified predicates -> since you only need to check the predicate condition if the predicate is folded In the pre and post conditions then we need to do the check if the thread holds a predicate
     CreatePrePostConditions, //Basic permission check for pre and post conditions by making use of the RewriteContractExpr
     //    CreateLoopInvariants,         //Create pre and post inside loop for all the specified conditions (maybe we can reuse code from the previous assertion checks) by making use of the RewriteContractExpr
 

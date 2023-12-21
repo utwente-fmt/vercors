@@ -129,7 +129,7 @@ case class RewriteQuantifier[Pre <: Generation](outer: Rewriter[Pre], cls: Class
       case quantifier: Exists[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
       case quantifier: Forall[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
       case local: Local[Pre] => dispatchLocal(local)
-      case p: Perm[Pre] => PermissionRewriter(p)
+      case p: Perm[Pre] => PermissionRewriter(this)(program, newVariables.freeze()).rewritePermission(p)
       case _ => super.dispatch(e)
     }
   }

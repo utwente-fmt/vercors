@@ -1332,6 +1332,7 @@ object CodeStringQuantifierMethod{
 }
 
 final case class CodeStringCheckPermissionExpr[G](objectLocation: Expr[G], id: Int, field: Expr[G], permission: Expr[G]) (implicit val o: Origin) extends Expr[G] with CodeStringCheckPermissionExprImpl[G]
+final case class CodeStringCheckArrayPermissionExpr[G](objectLocation: Expr[G], id: Int, location: Expr[G], field: Expr[G], permission: Expr[G]) (implicit val o: Origin) extends Expr[G] with CodeStringCheckArrayPermissionExprImpl[G]
 
 final class CodeStringPredicateConstructor[G](val args: Seq[Variable[G]], val body: Option[Statement[G]])(implicit val o: Origin) extends ClassDeclaration[G] with CodeStringPredicateConstructorImpl[G]
 
