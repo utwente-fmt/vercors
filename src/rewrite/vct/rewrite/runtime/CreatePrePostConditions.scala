@@ -22,60 +22,9 @@ object CreatePrePostConditions extends RewriterBuilder {
 case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
 
 
-  //  val givenStatementBuffer: mutable.Buffer[Statement[Rewritten[Pre]]] = new ArrayBuffer()
-  //  val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
-  //  val currentContract: ScopedStack[AccountedPredicate[Pre]] = new ScopedStack()
-  //
-  //  override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-  //    val test = super.dispatch(program)
-  //    test
-  //  }
-  //
-  //  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
-  //    if (currentClass.isEmpty || currentContract.isEmpty) {
-  //      return super.dispatch(e)
-  //    }
-  //    val newExpr = new RewriteContractExpr[Pre](this, givenStatementBuffer, currentClass.top).dispatch(e)
-  //    newExpr
-  //  }
-  //
-  //
-  //  override def dispatch(decl: Declaration[Pre]): Unit = {
-  //    decl match {
-  //      case im: InstanceMethod[Pre] => dispatchInstanceMethod(im)
-  //      case cls: Class[Pre] => currentClass.having(cls) {
-  //        super.dispatch(cls)
-  //      }
-  //      case _ => super.dispatch(decl)
-  //    }
-  //  }
-  //
-  //  def dispatchInstanceMethod(im: InstanceMethod[Pre]): Unit = {
-  //    im.body match {
-  //      case Some(sc: Scope[Pre]) => sc.body match {
-  //        case block: Block[Pre] =>
-  //          dispatchMethodBlock(block, im)
-  //
-  //          super.dispatch(im)
-  //        case _ => ???
-  //      }
-  //      case _ => super.dispatch(im)
-  //    }
-  //  }
-  //
-  //  def dispatchMethodBlock(block: Block[Pre], im: InstanceMethod[Pre]): Unit = {
-  //    val preConditionStatements = currentContract.having(im.contract.requires) {
-  //      dispatch(im.contract.requires)
-  //      val statements = givenStatementBuffer.toSeq
-  //      givenStatementBuffer.clear()
-  //      statements
-  //    }
-  //    //    val postConditionStatements: Seq[CodeStringStatement[Post]] = dispatchApplicableContractToAssert(im.contract.ensures)
-  //  }
-
-  val permissionExprContract: ScopedStack[Seq[CodeStringStatement[Post]]] = ScopedStack()
-  val permDeref: ScopedStack[Deref[Pre]] = ScopedStack()
-
+  val givenStatementBuffer: mutable.Buffer[Statement[Rewritten[Pre]]] = new ArrayBuffer()
+  val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
+  val currentContract: ScopedStack[AccountedPredicate[Pre]] = new ScopedStack()
   implicit var program: Program[Pre] = null
 
 
@@ -83,15 +32,48 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     this.program = program
     val test = super.dispatch(program)
     test
+  }
 
+  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
+    if (currentClass.isEmpty || currentContract.isEmpty) {
+      return super.dispatch(e)
+    }
+    val (newExpr, newStatements) = new RewriteContractExpr[Pre](this, currentClass.top)(program, null).createStatements(e)
+    givenStatementBuffer.addAll(newStatements)
+    newExpr
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case im: InstanceMethod[Pre] => dispatchInstanceMethod(im)
-      case _ => rewriteDefault(decl)
+      case cls: Class[Pre] => currentClass.having(cls) {
+        super.dispatch(cls)
+      }
+      case _ => super.dispatch(decl)
     }
   }
+
+  private def dispatchApplicableContractToAssert(ap: AccountedPredicate[Pre]): Seq[Statement[Post]] = {
+    currentContract.having(ap) {
+      dispatch(ap)
+      val statements = givenStatementBuffer.toSeq
+      givenStatementBuffer.clear()
+      statements
+    }
+  }
+
+  def dispatchMethodBlock(block: Block[Pre], im: InstanceMethod[Pre]): Block[Post] = {
+    val preConditionStatements = dispatchApplicableContractToAssert(im.contract.requires)
+    val postConditionStatements = dispatchApplicableContractToAssert(im.contract.ensures)
+    val originalStatements: Seq[Statement[Post]] = block.statements.map(dispatch)
+    val lastStatement: Option[Statement[Post]] = originalStatements.lastOption
+    val insertedPostConditions = addPostConditions(postConditionStatements, originalStatements)
+    lastStatement match {
+      case Some(_: Return[Post]) => Block[Post](preConditionStatements ++ insertedPostConditions)(block.o)
+      case _ => Block[Post](preConditionStatements ++ insertedPostConditions ++ postConditionStatements)(block.o)
+    }
+  }
+
 
   def dispatchInstanceMethod(im: InstanceMethod[Pre]): Unit = {
     im.body match {
@@ -103,19 +85,7 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
-  def dispatchMethodBlock(block: Block[Pre], im: InstanceMethod[Pre]): Block[Post] = {
-    val preConditionStatements: Seq[CodeStringStatement[Post]] = dispatchApplicableContractToAssert(im.contract.requires)
-    val postConditionStatements: Seq[CodeStringStatement[Post]] = dispatchApplicableContractToAssert(im.contract.ensures)
-    val originalStatements: Seq[Statement[Post]] = block.statements.map(dispatch)
-    val lastStatement: Option[Statement[Post]] = originalStatements.lastOption
-    val insertedPostConditions = addPostConditions(postConditionStatements, originalStatements)
-    lastStatement match {
-      case Some(_: Return[Post]) => Block[Post](preConditionStatements ++ insertedPostConditions)(block.o)
-      case _ => Block[Post](preConditionStatements ++ insertedPostConditions ++ postConditionStatements)(block.o)
-    }
-  }
-
-  private def addPostConditions(postConditionStatements: Seq[CodeStringStatement[Post]], originalStatements: Seq[Statement[Post]]): Seq[Statement[Post]] = {
+  private def addPostConditions(postConditionStatements: Seq[Statement[Post]], originalStatements: Seq[Statement[Post]]): Seq[Statement[Post]] = {
     originalStatements.foldLeft[Seq[Statement[Post]]](Seq.empty[Statement[Post]]) {
       case (statements: Seq[Statement[Post]], currentStatement: Return[Post]) => statements ++ postConditionStatements :+ currentStatement
       case (statements: Seq[Statement[Post]], loop: Loop[Post]) => statements :+ addPostConditionsLoop(postConditionStatements, loop)
@@ -124,7 +94,7 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
-  private def addPostConditionsLoop(postConditionStatements: Seq[CodeStringStatement[Post]], loop: Loop[Post]): Loop[Post] = {
+  private def addPostConditionsLoop(postConditionStatements: Seq[Statement[Post]], loop: Loop[Post]): Loop[Post] = {
     loop.body match {
       case block: Block[Post] => {
         val newBlock = Block[Post](addPostConditions(postConditionStatements, block.statements))(block.o)
@@ -134,7 +104,7 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
-  private def addPostConditionsBranch(postConditionStatements: Seq[CodeStringStatement[Post]], branch: Branch[Post]): Branch[Post] = {
+  private def addPostConditionsBranch(postConditionStatements: Seq[Statement[Post]], branch: Branch[Post]): Branch[Post] = {
     val updatedBranches = branch.branches.map(b => {
       b._2 match {
         case block: Block[Post] => (b._1, Block[Post](addPostConditions(postConditionStatements, block.statements))(block.o))
@@ -142,58 +112,6 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
       }
     })
     Branch[Post](updatedBranches)(branch.o)
-  }
-
-  private def dispatchApplicableContractToAssert(ap: AccountedPredicate[Pre]): Seq[CodeStringStatement[Post]] = {
-    permissionExprContract.having(Seq.empty) {
-      dispatch(ap)
-      permissionExprContract.top
-    }
-  }
-
-  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
-    e match {
-      case p: Perm[Pre] => {
-        if (!permissionExprContract.isEmpty) {
-          permDeref.having(null) {
-            val res = super.dispatch(e)
-            val newTop = permissionExprContract.top :+ createConditionCode(permDeref.top, p)
-            permissionExprContract.pop()
-            permissionExprContract.push(newTop)
-            res
-          }
-        } else {
-          super.dispatch(e)
-        }
-      }
-      case d: Deref[Pre] => {
-        if (!permDeref.isEmpty && permDeref.top == null) {
-          permDeref.pop()
-          permDeref.push(d)
-        }
-        super.rewriteDefault(d)
-
-      }
-      case _ => super.dispatch(e)
-    }
-  }
-
-
-  private def createConditionCode(deref: Deref[Pre], p: Perm[Pre]): CodeStringStatement[Post] = {
-    val name: String = FieldObjectString().determineObjectReference(deref)
-    val id: Int = FieldNumber(deref.ref.decl)
-    p.perm match {
-      case iv: IntegerValue[Pre] => {
-        if (iv.value > 1) {
-          throw Unreachable("Permission cannot be exceeding 1")
-        }
-        CodeStringStatement(assertPermissionCondition(name, id, p.perm.toString))(p.o)
-      }
-      case d: Div[Pre] => CodeStringStatement(assertPermissionCondition(name, id, fractionTemplate(d.left.toString, d.right.toString)))(p.o)
-      case _: WritePerm[Pre] => CodeStringStatement(assertCheckWrite(name, id, deref.ref.decl.o.getPreferredNameOrElse()))(p.o)
-      case _: ReadPerm[Pre] => CodeStringStatement(assertCheckRead(name, id, deref.ref.decl.o.getPreferredNameOrElse()))(p.o)
-      case _ => CodeStringStatement(assertPermissionCondition(name, id, p.perm.toString))(p.o)
-    }
   }
 
 }

@@ -6,7 +6,7 @@ import vct.col.util.SuccessionMap
 
 object PermissionRewriter{
 
-  def apply[Pre <: Generation](p: Perm[Pre])(implicit program: Program[Pre], newLocals: SuccessionMap[Declaration[_], Variable[Rewritten[Pre]]]): CodeStringCheckPermissionExpr[Rewritten[Pre]] = {
+  def apply[Pre <: Generation](p: Perm[Pre])(implicit program: Program[Pre], newLocals: NewVariableResult[Pre, _]): CodeStringCheckPermissionExpr[Rewritten[Pre]] = {
     type Post = Rewritten[Pre]
     val rewriter = new PermissionRewriter[Pre]()
 
@@ -25,7 +25,7 @@ object PermissionRewriter{
 }
 
 
-case class PermissionRewriter[Pre <: Generation]()(implicit newLocals: SuccessionMap[Declaration[_], Variable[Rewritten[Pre]]]) extends Rewriter[Pre] {
+case class PermissionRewriter[Pre <: Generation]()(implicit newLocals: NewVariableResult[Pre, _]) extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
       //TODO fix possible change in location (when in a predicate)

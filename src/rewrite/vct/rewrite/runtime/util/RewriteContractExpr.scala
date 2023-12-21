@@ -10,15 +10,15 @@ import vct.rewrite.runtime.util.CodeStringDefaults._
 import scala.collection.mutable
 
 
-case class RewriteContractExpr[Pre <: Generation](outer: Rewriter[Pre], cls: Class[Pre])(implicit program: Program[Pre], newLocals: SuccessionMap[Declaration[_], Variable[Rewritten[Pre]]]) extends Rewriter[Pre] {
+case class RewriteContractExpr[Pre <: Generation](outer: Rewriter[Pre], cls: Class[Pre])(implicit program: Program[Pre], newLocals: NewVariableResult[Pre, _]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
   private val internalExpression: ScopedStack[Expr[Pre]] = new ScopedStack()
   private val givenStatementBuffer: mutable.Buffer[Statement[Rewritten[Pre]]] = new mutable.ArrayBuffer[Statement[Rewritten[Pre]]]()
 
-  def createStatements(expr: Expr[Pre]): mutable.Buffer[Statement[Rewritten[Pre]]] = {
-    dispatch(expr)
-    givenStatementBuffer
+  def createStatements(expr: Expr[Pre]): (Expr[Post], mutable.Buffer[Statement[Rewritten[Pre]]]) = {
+    val newExpr = dispatch(expr)
+    (newExpr, givenStatementBuffer)
   }
 
   def createStatement(expr: Expr[Post]): Expr[Post] = {

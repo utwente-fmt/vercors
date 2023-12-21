@@ -11,7 +11,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 
-case class RewriteQuantifier[Pre <: Generation](outer: Rewriter[Pre], cls: Class[Pre])(implicit program: Program[Pre], newThis: Expr[Rewritten[Pre]]) extends Rewriter[Pre] {
+case class RewriteQuantifier[Pre <: Generation](outer: Rewriter[Pre], cls: Class[Pre])(implicit program: Program[Pre], newLocals: NewVariableResult[Pre, _]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
   val newVariables: NewVariableGenerator[Pre] = new NewVariableGenerator[Pre](new Rewriter[Pre])
@@ -83,7 +83,7 @@ case class RewriteQuantifier[Pre <: Generation](outer: Rewriter[Pre], cls: Class
   }
 
 
-  def createQuantifierMethod(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre], prev: SuccessionMap[Variable[Pre], Variable[Post]]): CodeStringQuantifierCall[Post] = {
+  def createQuantifierMethod(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre], prev: SuccessionMap[Declaration[_], Variable[Post]]): CodeStringQuantifierCall[Post] = {
     val quantifierId = CodeStringQuantifierMethod.nextId()
     val newLocals: Seq[Variable[Post]] = bindings.map(newVariables.createNew)
     val newBodyStatements: Seq[Statement[Post]] = expr match {
@@ -110,7 +110,7 @@ case class RewriteQuantifier[Pre <: Generation](outer: Rewriter[Pre], cls: Class
         }
         (newQuantifier, requiredLocals.top)
       }
-    }._1
+    }.result
     if(requiredLocals.nonEmpty) {
       val d = requiredLocals.top
       requiredLocals.top.addAll(result._2)

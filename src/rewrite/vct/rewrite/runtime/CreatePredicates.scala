@@ -4,7 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
-import vct.rewrite.runtime.util.{NewVariableGenerator, RewriteContractExpr}
+import vct.rewrite.runtime.util.{NewVariableGenerator, NewVariableResult, RewriteContractExpr}
 import vct.col.ast.RewriteHelpers._
 import vct.col.origin.Origin
 import vct.col.ref.Ref
@@ -95,11 +95,12 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   private def generateConstructorOnArgs(arguments: Seq[Variable[Pre]], origin: Origin): ClassDeclaration[Post] = {
-    val (newArgs, mapping) = newVariables.collect {
+
+    val newVars = newVariables.collect {
       arguments.map(newVariables.createNew)
     }
     val dereferences = arguments.map(createDerefOfInstanceField) :+ createDerefOfInstanceField(classInstanceField.top)
-    val newJavaParams: Seq[JavaParam[Post]] = newArgs.map(generateJavaParams) :+ generateJavaParams(createClassVariable)
+    val newJavaParams: Seq[JavaParam[Post]] = newVars.outputs.map(generateJavaParams) :+ generateJavaParams(createClassVariable)
     val constructorStatements: Seq[Statement[Post]] = newJavaParams.zip(dereferences).map(a => createAssignStatement(a._1, a._2))
     val newBody = Scope[Post](Seq.empty, Block[Post](constructorStatements)(origin))(origin)
     val newJC = new JavaConstructor[Post](
@@ -170,24 +171,24 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   private def createUnfoldMethod(args: Seq[InstanceField[Post]]): InstanceMethod[Post] = {
     val o = new Origin(Seq()).addPrefName("unFold")
-    val (newArgs: Seq[Variable[Post]], mapping) = newVariables.collect {
+    val newVars = newVariables.collect {
       args.map(newVariables.createNewFromInstanceField)
     }
     val ip = currentInstancePredicate.top
     val cls: Ref[Post, Class[Post]] = newClasses.ref(ip)
-    val localsFromArgs: Seq[Local[Post]] = newArgs.map(v => Local[Post](v.ref)(v.o))
-    val newAssertions = RewriteContractExpr[Pre](this, currentClass.top)(program, mapping)
+    val localsFromArgs: Seq[Local[Post]] = newVars.outputs.map(v => Local[Post](v.ref)(v.o))
+    val newAssertions = RewriteContractExpr[Pre](this, currentClass.top)(program, newVars)
       .createStatements(ip.body.getOrElse(BooleanValue[Pre](value = false)(Origin(Seq()))))
 
     //TODO remove permissions from thread (difficult first design how to do this maybe create a helperRewriter for this)
 
     val newRuntimePredicate = RuntimeNewPredicate[Post](createRuntimeVariable, localsFromArgs)(ip.o)
-    val block = Block[Post](newAssertions.toSeq :+ newRuntimePredicate)(o)
+    val block = Block[Post](newAssertions._2.toSeq :+ newRuntimePredicate)(o)
     val body = Scope(Seq(), block)(o)
 
     val newMethod = new InstanceMethod[Post](
       TClass[Post](cls)(o),
-      newArgs,
+      newVars.outputs,
       Seq(),
       Seq(),
       Some(body),
@@ -204,16 +205,18 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   private def createGetPredicate(args: Seq[InstanceField[Post]]): InstanceMethod[Post] = {
     val o = new Origin(Seq()).addPrefName("getPredicate")
-    val (newArgs: Seq[Variable[Post]], _) = newVariables.collect {
+    val newVars = newVariables.collect {
       args.map(newVariables.createNewFromInstanceField)
     }
 
-    val localsFromArgs: Seq[Local[Post]] = newArgs.map(v => Local[Post](v.ref)(v.o))
+
+    //todo fix arguments for predicate (not working at the moment)
+    val localsFromArgs: Seq[Local[Post]] = newVars.outputs.map(v => Local[Post](v.ref)(v.o))
     val cls: Ref[Post, Class[Post]] = newClasses.ref(currentInstancePredicate.top)
     val body = Scope(Seq(), Block[Post](Seq(CodeStringGetPredicate(localsFromArgs, cls)(o)))(o))(o)
     val newMethod = new InstanceMethod[Post](
       TClass[Post](cls)(o),
-      newArgs,
+      newVars.outputs,
       Seq(),
       Seq(),
       Some(body),
@@ -257,7 +260,8 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   private def createHelperMethods(ip: InstancePredicate[Pre], args: Seq[Variable[Pre]], instanceFields: Seq[InstanceField[Post]]): Seq[InstanceMethod[Post]] = {
     val equalsMethod = createEqualsMethod(instanceFields)
     val getPredicate = createGetPredicate(instanceFields)
-    val unFold = createUnfoldMethod(instanceFields)
+//    val unFold = createUnfoldMethod(instanceFields)
+    //TODO fix fold and unfold with the newly created locals
     Seq(equalsMethod, getPredicate)
   }
 
