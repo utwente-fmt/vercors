@@ -65,18 +65,18 @@ class Player {
               (i != move.x || j != move.y) ==> \old({: board[i][j] :}) == board[i][j]);
   ensures board[move.x][move.y] == move.t;
   ensures \old(goOn) == false ==> goOn == false;
-  ensures \old(goOn) == true && ((board[move.x-2][move.y] == move.t && board[move.x-1][move.y] == move.t) ||
-                                 (board[move.x-1][move.y] == move.t && board[move.x+1][move.y] == move.t) ||
-                                 (board[move.x+1][move.y] == move.t && board[move.x+2][move.y] == move.t) ||
-                                 (board[move.x][move.y-2] == move.t && board[move.x][move.y-1] == move.t) ||
-                                 (board[move.x][move.y-1] == move.t && board[move.x][move.y+1] == move.t) ||
-                                 (board[move.x][move.y+1] == move.t && board[move.x][move.y+2] == move.t) ||
-                                 (board[move.x-2][move.y-2] == move.t && board[move.x-1][move.y-1] == move.t) ||
-                                 (board[move.x-1][move.y-1] == move.t && board[move.x+1][move.y+1] == move.t) ||
-                                 (board[move.x+1][move.y+1] == move.t && board[move.x+2][move.y+2] == move.t) ||
-                                 (board[move.x+2][move.y-2] == move.t && board[move.x+1][move.y-1] == move.t) ||
-                                 (board[move.x+1][move.y-1] == move.t && board[move.x-1][move.y+1] == move.t) ||
-                                 (board[move.x-1][move.y+1] == move.t && board[move.x-2][move.y+2] == move.t)) == !goOn;
+  ensures \old(goOn) == true ==> ((board[move.x-2][move.y] == move.t && board[move.x-1][move.y] == move.t) ||
+                                  (board[move.x-1][move.y] == move.t && board[move.x+1][move.y] == move.t) ||
+                                  (board[move.x+1][move.y] == move.t && board[move.x+2][move.y] == move.t) ||
+                                  (board[move.x][move.y-2] == move.t && board[move.x][move.y-1] == move.t) ||
+                                  (board[move.x][move.y-1] == move.t && board[move.x][move.y+1] == move.t) ||
+                                  (board[move.x][move.y+1] == move.t && board[move.x][move.y+2] == move.t) ||
+                                  (board[move.x-2][move.y-2] == move.t && board[move.x-1][move.y-1] == move.t) ||
+                                  (board[move.x-1][move.y-1] == move.t && board[move.x+1][move.y+1] == move.t) ||
+                                  (board[move.x+1][move.y+1] == move.t && board[move.x+2][move.y+2] == move.t) ||
+                                  (board[move.x+2][move.y-2] == move.t && board[move.x+1][move.y-1] == move.t) ||
+                                  (board[move.x+1][move.y-1] == move.t && board[move.x-1][move.y+1] == move.t) ||
+                                  (board[move.x-1][move.y+1] == move.t && board[move.x-2][move.y+2] == move.t)) == !goOn;
   void play();
 }
 
