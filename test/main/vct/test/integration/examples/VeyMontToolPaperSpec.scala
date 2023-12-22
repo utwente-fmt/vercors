@@ -15,6 +15,5 @@ class VeyMontToolPaperSpec extends VercorsSpec {
   vercors should verify using silicon flag "--veymont-generate-permissions" example s"$applicability/election-5.pvl"
 
   vercors should verify using silicon flag "--veymont-generate-permissions" example s"$paperExamples/veymont-swap.pvl"
-  // To be enabled when the trigger concretization bug w.r.t. inline predicates is fixed
-//  vercors should verify using silicon example s"$paperExamples/veymont-tictactoemn.pvl"
+  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$paperExamples/veymont-tictactoemn.pvl"
 }
