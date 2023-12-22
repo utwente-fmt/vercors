@@ -163,7 +163,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
           allScopes.anyDeclare(allScopes.anySucceedOnly(method, method.rewrite(body = Some({
             if (needBreakReturnExceptions(body)) {
               implicit val o: Origin = body.o
-              val returnField = new InstanceField[Post](dispatch(method.returnType), Set.empty)(ReturnField)
+              val returnField = new InstanceField[Post](dispatch(method.returnType), Nil)(ReturnField)
               val returnClass = new Class[Post](Seq(returnField), Nil, tt)(ReturnClass)
               globalDeclarations.declare(returnClass)
 

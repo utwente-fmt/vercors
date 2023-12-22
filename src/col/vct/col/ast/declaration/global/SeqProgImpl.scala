@@ -8,6 +8,7 @@ import vct.col.print._
 import vct.col.ref.Ref
 
 import scala.collection.immutable.ListSet
+import vct.col.ast.ops.SeqProgOps
 
 object SeqProgImpl {
   def participants[G](node: Node[G]): ListSet[Endpoint[G]] =
@@ -18,7 +19,7 @@ object SeqProgImpl {
     })
 }
 
-trait SeqProgImpl[G] extends Declarator[G] { this: SeqProg[G] =>
+trait SeqProgImpl[G] extends Declarator[G] with SeqProgOps[G] { this: SeqProg[G] =>
   override def declarations: Seq[Declaration[G]] = args ++ endpoints ++ decls
 
   override def layout(implicit ctx: Ctx): Doc =

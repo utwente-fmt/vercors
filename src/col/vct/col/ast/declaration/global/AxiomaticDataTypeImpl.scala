@@ -3,8 +3,9 @@ package vct.col.ast.declaration.global
 import vct.col.ast.util.Declarator
 import vct.col.ast.{AxiomaticDataType, Declaration}
 import vct.col.print._
+import vct.col.ast.ops.AxiomaticDataTypeOps
 
-trait AxiomaticDataTypeImpl[G] extends Declarator[G] { this: AxiomaticDataType[G] =>
+trait AxiomaticDataTypeImpl[G] extends Declarator[G] with AxiomaticDataTypeOps[G] { this: AxiomaticDataType[G] =>
   override def declarations: Seq[Declaration[G]] = decls ++ typeArgs
 
   def layoutSilver(implicit ctx: Ctx): Doc =

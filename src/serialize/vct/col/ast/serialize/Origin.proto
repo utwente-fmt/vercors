@@ -1,0 +1,17 @@
+syntax = "proto2";
+
+package vct.col.ast.serialize;
+
+message Origin {
+  repeated OriginContent content = 1;
+}
+
+message OriginContent {
+  oneof content {
+    DummyOriginContent dummy = 9999;
+  }
+}
+
+message DummyOriginContent {
+
+}

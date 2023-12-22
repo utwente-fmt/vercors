@@ -6,8 +6,9 @@ import vct.col.ref.Ref
 import vct.col.rewrite.NonLatchingRewriter
 import vct.col.typerules.CoercionUtils
 import vct.col.print._
+import vct.col.ast.ops.TypeFamilyOps
 
-trait TypeImpl[G] { this: Type[G] =>
+trait TypeImpl[G] extends TypeFamilyOps[G] { this: Type[G] =>
   def superTypeOf(other: Type[G]): Boolean =
     CoercionUtils.getCoercion(other, this).isDefined
 

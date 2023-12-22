@@ -5,8 +5,9 @@ import vct.col.print.{Ctx, Doc, Empty, Group, Text}
 import vct.col.util.AstBuildHelpers.tt
 
 import scala.util.Try
+import vct.col.ast.ops.BipTransitionOps
 
-trait BipTransitionImpl[G] { this: BipTransition[G] =>
+trait BipTransitionImpl[G] extends BipTransitionOps[G] { this: BipTransition[G] =>
   def layoutAnnotation(implicit ctx: Ctx): Doc =
     Group(Text("@Transition(") <> Doc.args(Seq(
       Text("name =") <+> ctx.name(this),

@@ -138,8 +138,8 @@ case object C {
     }
 
   def getCStructDeref[G](decl: CGlobalDeclaration[G], name: String): Option[CDerefTarget[G]] =
-    decl match {
-      case CGlobalDeclaration(CDeclaration(_, _, Seq(CStructDeclaration(_, decls)), Seq())) =>
+    decl.decl match {
+      case CDeclaration(_, _, Seq(CStructDeclaration(_, decls)), Seq()) =>
         decls.flatMap(Referrable.from).collectFirst {
           case ref: RefCStructField[G] if ref.name == name => ref
         }

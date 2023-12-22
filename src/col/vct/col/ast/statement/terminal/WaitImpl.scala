@@ -2,8 +2,9 @@ package vct.col.ast.statement.terminal
 
 import vct.col.ast.Wait
 import vct.col.print.{Ctx, Doc, Show, Text}
+import vct.col.ast.ops.WaitOps
 
-trait WaitImpl[G] { this: Wait[G] =>
+trait WaitImpl[G] extends WaitOps[G] { this: Wait[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc =
     Text("wait") <+> obj <> ";"
 

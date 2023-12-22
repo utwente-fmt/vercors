@@ -5,8 +5,9 @@ import vct.col.ast.util.Declarator
 import vct.col.print._
 import vct.col.util.AstBuildHelpers.tt
 import vct.result.VerificationError.Unreachable
+import vct.col.ast.ops.ClassOps
 
-trait ClassImpl[G] extends Declarator[G] { this: Class[G] =>
+trait ClassImpl[G] extends Declarator[G] with ClassOps[G] { this: Class[G] =>
   protected def transSupportArrows(seen: Set[Class[G]]): Seq[(Class[G], Class[G])] =
     if(seen.contains(this)) Nil
     else supports.map(other => (this, other.decl)) ++

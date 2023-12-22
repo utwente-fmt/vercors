@@ -3,7 +3,7 @@ package vct.col.resolve.lang
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.RWFile
 import hre.util.FuncTools
-import vct.col.ast.lang.JavaAnnotationEx
+import vct.col.ast.lang.java.JavaAnnotationEx
 import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, BipPortType, Block, CType, EmptyProcess, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaModifier, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Node, Null, OptNone, PVLType, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TProverType, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
 import vct.col.origin._

@@ -6,8 +6,9 @@ import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.ref.Ref
 
 import scala.collection.immutable.ListSet
+import vct.col.ast.ops.SeqBranchOps
 
-trait SeqBranchImpl[G] extends StatementImpl[G] { this: SeqBranch[G] =>
+trait SeqBranchImpl[G] extends StatementImpl[G] with SeqBranchOps[G] { this: SeqBranch[G] =>
   def hasUnpointed: Boolean = guards.exists { case _: UnpointedGuard[G] => true; case _ => false }
   def explicitParticipants: Seq[Endpoint[G]] = guards.collect { case EndpointGuard(Ref(endpoint), condition) => endpoint }
 

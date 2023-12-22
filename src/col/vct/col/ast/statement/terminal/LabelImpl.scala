@@ -2,8 +2,9 @@ package vct.col.ast.statement.terminal
 
 import vct.col.ast.Label
 import vct.col.print.{Ctx, Doc, NodeDoc, Show, Text}
+import vct.col.ast.ops.LabelOps
 
-trait LabelImpl[G] { this: Label[G] =>
+trait LabelImpl[G] extends LabelOps[G] { this: Label[G] =>
   override def foldBlock(f: (Doc, Doc) => Doc)(implicit ctx: Ctx): Doc = ctx.syntax match {
     case Ctx.PVL => f(layoutLabel, stat.foldBlock(f))
     case Ctx.Silver => f(layoutLabel, stat.foldBlock(f))
