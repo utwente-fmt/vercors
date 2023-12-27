@@ -98,6 +98,13 @@ case object CPP {
           case "local_accessor" => SYCLTLocalAccessor(baseType, dim.intValue)
           case _ => throw CPPTypeNotSupported(context)
         }
+      case Seq(SYCLClassDefName("accessor", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None), CPPExprOrTypeSpecifier(None, Some(SYCLClassDefName(accessMode, Nil)))))) =>
+        val baseType = getBaseTypeFromSpecs(Seq(typ))
+        accessMode match {
+          case "access_mode::read_write" => SYCLTAccessor(baseType, dim.intValue)
+          case "access_mode::read" => SYCLTAccessor(baseType, dim.intValue, readOnly = true)
+          case _ => throw CPPTypeNotSupported(context)
+        }
       case Seq(CPPTypedefName("VERCORS::LAMBDA", _)) => CPPTLambda()
       case Seq(defn@CPPTypedefName(_, _)) => Types.notAValue(defn.ref.get)
       case Seq(CPPSpecificationType(typ)) => typ

@@ -15,24 +15,31 @@ trait SYCLTBufferImpl[G] { this: SYCLTBuffer[G] =>
   override val namespacePath = "sycl::buffer"
 
   def findConstructor(genericArgs: Seq[CPPExprOrTypeSpecifier[G]], args: Seq[Expr[G]]): Option[CPPInvocationTarget[G]] = genericArgs match {
-    case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)) if dim > 0 && dim <= 3 &&
-      Util.compatTypes[G](args, Seq(TPointer[G](CPP.getBaseTypeFromSpecs[G](Seq(typeSpec))), SYCLTRange[G](dim.toInt))) => Some(RefSYCLConstructorDefinition[G](SYCLTBuffer[G](CPP.getBaseTypeFromSpecs[G](Seq(typeSpec)), dim.toInt)))
-    case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec))) if Util.compatTypes(args, Seq(TPointer[G](CPP.getBaseTypeFromSpecs(Seq(typeSpec))), SYCLTRange[G](1))) =>
+    case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)) if dim > 0 && dim <= 3 && args.nonEmpty && args.head.t.asPointer.isDefined &&
+      CPP.getBaseTypeFromSpecs[G](Seq(typeSpec)).superTypeOf(args.head.t.asPointer.get.element) && Util.compatTypes[G](args.tail, Seq(SYCLTRange[G](dim.toInt))) =>
+      Some(RefSYCLConstructorDefinition[G](SYCLTBuffer[G](CPP.getBaseTypeFromSpecs[G](Seq(typeSpec)), dim.toInt)))
+    case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec))) if args.nonEmpty && args.head.t.asPointer.isDefined &&
+      CPP.getBaseTypeFromSpecs[G](Seq(typeSpec)).superTypeOf(args.head.t.asPointer.get.element) && Util.compatTypes[G](args.tail, Seq(SYCLTRange[G](1))) =>
       Some(RefSYCLConstructorDefinition(SYCLTBuffer(CPP.getBaseTypeFromSpecs(Seq(typeSpec)), 1)))
-    case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec))) if Util.compatTypes(args, Seq(TPointer[G](CPP.getBaseTypeFromSpecs(Seq(typeSpec))), SYCLTRange[G](2))) =>
+    case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec))) if args.nonEmpty && args.head.t.asPointer.isDefined &&
+      CPP.getBaseTypeFromSpecs[G](Seq(typeSpec)).superTypeOf(args.head.t.asPointer.get.element) && Util.compatTypes[G](args.tail, Seq(SYCLTRange[G](2))) =>
       Some(RefSYCLConstructorDefinition(SYCLTBuffer(CPP.getBaseTypeFromSpecs(Seq(typeSpec)), 2)))
-    case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec))) if Util.compatTypes(args, Seq(TPointer[G](CPP.getBaseTypeFromSpecs(Seq(typeSpec))), SYCLTRange[G](3))) =>
+    case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec))) if args.nonEmpty && args.head.t.asPointer.isDefined &&
+      CPP.getBaseTypeFromSpecs[G](Seq(typeSpec)).superTypeOf(args.head.t.asPointer.get.element) && Util.compatTypes[G](args.tail, Seq(SYCLTRange[G](3))) =>
       Some(RefSYCLConstructorDefinition(SYCLTBuffer(CPP.getBaseTypeFromSpecs(Seq(typeSpec)), 3)))
-    case Nil if args.nonEmpty && args.head.t.asPointer.isDefined && Util.compatTypes(args.tail, Seq(SYCLTRange[G](1))) => Some(RefSYCLConstructorDefinition(SYCLTBuffer(args.head.t.asPointer.get.element, 1)))
-    case Nil if args.nonEmpty && args.head.t.asPointer.isDefined && Util.compatTypes(args.tail, Seq(SYCLTRange[G](2))) => Some(RefSYCLConstructorDefinition(SYCLTBuffer(args.head.t.asPointer.get.element, 2)))
-    case Nil if args.nonEmpty && args.head.t.asPointer.isDefined && Util.compatTypes(args.tail, Seq(SYCLTRange[G](3))) => Some(RefSYCLConstructorDefinition(SYCLTBuffer(args.head.t.asPointer.get.element, 3)))
+    case Nil if args.nonEmpty && args.head.t.asPointer.isDefined && Util.compatTypes(args.tail, Seq(SYCLTRange[G](1))) =>
+      Some(RefSYCLConstructorDefinition(SYCLTBuffer(args.head.t.asPointer.get.element, 1)))
+    case Nil if args.nonEmpty && args.head.t.asPointer.isDefined && Util.compatTypes(args.tail, Seq(SYCLTRange[G](2))) =>
+      Some(RefSYCLConstructorDefinition(SYCLTBuffer(args.head.t.asPointer.get.element, 2)))
+    case Nil if args.nonEmpty && args.head.t.asPointer.isDefined && Util.compatTypes(args.tail, Seq(SYCLTRange[G](3))) =>
+      Some(RefSYCLConstructorDefinition(SYCLTBuffer(args.head.t.asPointer.get.element, 3)))
     case _ => None
   }
 
   // resource exclusive_hostData_access(TYPE* hostData, int range) = \pointer(hostData, range, write);
   def generateExclusiveAccessPredicate(): Predicate[G] = {
     val hostDataVar = new Variable[G](TPointer(this.typ))(o.where(name = "hostData"))
-    val sizeVar = new Variable[G](TInt())(o.where(name = "range")) // Needs to be TInt instead of TCInt as it is called with a Length expr which has type TInt
+    val sizeVar = new Variable[G](TInt())(o.where(name = "size")) // Needs to be TInt instead of TCInt as it is called with a Length expr which has type TInt
 
     new Predicate[G](
       args = Seq(hostDataVar, sizeVar),

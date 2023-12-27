@@ -1087,7 +1087,7 @@ final case class SYCLTNDItem[G](dimCount: Int = 1)(implicit val o: Origin) exten
 final case class SYCLTRange[G](dimCount: Int = 1)(implicit val o: Origin) extends SYCLTConstructableClass[G] with SYCLTRangeImpl[G]
 final case class SYCLTNDRange[G](dimCount: Int = 1)(implicit val o: Origin) extends SYCLTConstructableClass[G] with SYCLTNDRangeImpl[G]
 final case class SYCLTBuffer[G](typ: Type[G] = TBool[G](), dimCount: Int = 1)(implicit val o: Origin) extends SYCLTConstructableClass[G] with SYCLTBufferImpl[G]
-final case class SYCLTAccessor[G](typ: Type[G] = TBool[G](), dimCount: Int = 1)(implicit val o: Origin) extends SYCLTConstructableClass[G] with SYCLTAccessorImpl[G]
+final case class SYCLTAccessor[G](typ: Type[G] = TBool[G](), dimCount: Int = 1, readOnly: Boolean = false)(implicit val o: Origin) extends SYCLTConstructableClass[G] with SYCLTAccessorImpl[G]
 final case class SYCLTLocalAccessor[G](typ: Type[G] = TBool[G](), dimCount: Int = 1)(implicit val o: Origin) extends SYCLTConstructableClass[G] with SYCLTLocalAccessorImpl[G]
 final case class SYCLTAccessMode[G]()(implicit val o: Origin) extends SYCLTClass[G] with SYCLTAccessModeImpl[G]
 

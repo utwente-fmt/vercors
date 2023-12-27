@@ -80,6 +80,11 @@ case object LangCPPToCol {
     override def text: String = ass.o.messageInContext(s"Reassigning variables holding a SYCL " + objectName + " is not supported.")
   }
 
+  private case class SYCLReassigningOfReadonlyAccessor(ass: PreAssignExpression[_]) extends UserError {
+    override def code: String = "syclUnsupportedReassigningOfReadonlyAccessor"
+    override def text: String = ass.o.messageInContext(s"Reassigning (an element of) a readonly data accessor is not allowed.")
+  }
+
   private case class SYCLContractForCommandGroupUnsupported(contract: ApplicableContract[_]) extends UserError {
     override def code: String = "syclContractForCommandGroupUnsupported"
     override def text: String = contract.o.messageInContext(s"Contracts above SYCL command groups are not supported.")
@@ -677,6 +682,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     CPP.unwrappedType(preAssign.target.t) match {
       case _: SYCLTEvent[Pre] => throw SYCLReassigningOfVariableUnsupported("event", "EventVariable", preAssign)
       case _: SYCLTBuffer[Pre] => throw SYCLReassigningOfVariableUnsupported("buffer", "Buffer", preAssign)
+      case SYCLTAccessor(_, _, true) => throw SYCLReassigningOfReadonlyAccessor(preAssign)
       case _ => rw.rewriteDefault(preAssign)
     }
   }
@@ -732,7 +738,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case "sycl::nd_item::get_local_id" if args.length == 1 => getSimpleWorkItemId(inv, LocalScope())
       case "sycl::nd_item::get_local_range" if args.length == 1 => getSimpleWorkItemRange(inv, LocalScope())
       case "sycl::nd_item::get_local_linear_id" => getSimpleWorkItemLinearId(inv, LocalScope())
-      case "sycl::nd_item::get_group_id" if args.length == 1 => getSimpleWorkItemId(inv, GroupScope())
+      case "sycl::nd_item::get_group" if args.length == 1 => getSimpleWorkItemId(inv, GroupScope())
       case "sycl::nd_item::get_group_range" if args.length == 1 => getSimpleWorkItemRange(inv, GroupScope())
       case "sycl::nd_item::get_group_linear_id" => getSimpleWorkItemLinearId(inv, GroupScope())
       case "sycl::nd_item::get_global_id" if args.length == 1 => getGlobalWorkItemId(inv)
@@ -1044,7 +1050,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
                 val accO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl).where(name = accName)
                 val dimO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl)
                 if (!CPP.getBaseTypeFromSpecs(accDecl.specs).asInstanceOf[SYCLTAccessor[Pre]].equals(CPP.unwrappedType(inv.t))) {
-                  throw Unreachable("Accessor type does not correspond with buffer type!")
+                  throw Unreachable("Accessor type does not correspond with buffer type.")
                 }
 
                 buffersToAccessorResults.get(buffer) match {
@@ -1124,7 +1130,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       val preConditions = UnitAccountedPredicate[Post](currentKernelType.get.getRangeSizeChecksForConstructor(constructorArgs))(commandGroupO)
 
       accessors.foreach(acc => {
-        val newConstructorAccessorArg = new Variable[Post](TArray(TCInt()))(acc.instanceField.o)
+        val newConstructorAccessorArg = new Variable[Post](acc.buffer.generatedVar.t)(acc.instanceField.o)
         val newConstructorAccessorDimensionArgs = acc.rangeIndexFields.map(f => new Variable[Post](TCInt())(f.o))
 
         val (basicPermissions, fieldArrayElementsPermission) = getBasicAccessorPermissions(acc, result)
@@ -1361,7 +1367,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   def rewriteSubscript(sub: AmbiguousSubscript[Pre]): Expr[Post] = sub match { // EW TODO: add custom error if index not int. Otherwise you get coercion error
     case AmbiguousSubscript(base: CPPLocal[Pre], index) if CPP.unwrappedType(base.t).isInstanceOf[SYCLTAccessor[Pre]] =>
       CPP.unwrappedType(base.t) match {
-        case SYCLTAccessor(_, 1) => ArraySubscript[Post](
+        case SYCLTAccessor(_, 1, _) => ArraySubscript[Post](
           Deref[Post](
             currentThis.get,
             syclAccessorSuccessor(base.ref.get).instanceField.ref
@@ -1379,7 +1385,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         Deref[Post](currentThis.get, accessor.rangeIndexFields(1).ref)(new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(1)))
       )
       CPP.unwrappedType(base.t) match {
-        case SYCLTAccessor(_, 2) => ArraySubscript[Post](
+        case SYCLTAccessor(_, 2, _) => ArraySubscript[Post](
           Deref[Post](currentThis.get, accessor.instanceField.ref)(new SYCLAccessorDerefBlame(accessor.instanceField)),
           syclHelperFunctions("sycl_:_:linearize_2")(linearizeArgs, SYCLAccessorArraySubscriptLinearizeInvocationBlame(sub, base, Seq(indexX, indexY)), o)
         )(SYCLAccessorArraySubscriptErrorBlame(sub))
@@ -1395,7 +1401,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         Deref[Post](currentThis.get, accessor.rangeIndexFields(2).ref)(new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(2)))
       )
       CPP.unwrappedType(base.t) match {
-        case SYCLTAccessor(_, 3) => ArraySubscript[Post](
+        case SYCLTAccessor(_, 3, _) => ArraySubscript[Post](
           Deref[Post](currentThis.get, accessor.instanceField.ref)(new SYCLAccessorDerefBlame(accessor.instanceField)),
           syclHelperFunctions("sycl_:_:linearize_3")(linearizeArgs, SYCLAccessorArraySubscriptLinearizeInvocationBlame(sub, base, Seq(indexX, indexY, indexZ)), o)
         )(SYCLAccessorArraySubscriptErrorBlame(sub))

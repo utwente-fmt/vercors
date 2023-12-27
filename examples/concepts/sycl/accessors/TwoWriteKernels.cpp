@@ -8,7 +8,7 @@ void test(int* a) {
 
   sycl::buffer<int, 1> aBuffer = sycl::buffer<int, 1>(a, sycl::range<1>(12));
 
-  // Two kernels writing to the same buffer is not allowed
+  // Two kernels writing to the same buffer wait on each other
 
 	myQueue.submit(
   	[&](sycl::handler& cgh) {

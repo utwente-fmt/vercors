@@ -69,7 +69,7 @@ namespace sycl {
 
 		int get_local_linear_id();
 
-		int get_group_id(int dimension);
+		int get_group(int dimension);
 
 		int get_group_range(int dimension);
 

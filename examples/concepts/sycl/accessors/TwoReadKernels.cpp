@@ -12,7 +12,7 @@ void test(int* a) {
 
 	myQueue.submit(
   	[&](sycl::handler& cgh) {
-      sycl::accessor<int, 1> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_only);
+      sycl::accessor<int, 1, sycl::access_mode::read> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_only);
 
       cgh.parallel_for(sycl::range<1>(1), [=] (sycl::item<1> it) {});
   	}
@@ -20,7 +20,7 @@ void test(int* a) {
 
   myQueue.submit(
     [&](sycl::handler& cgh) {
-      sycl::accessor<int, 1> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_only);
+      sycl::accessor<int, 1, sycl::access_mode::read> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_only);
 
       cgh.parallel_for(sycl::range<1>(1), [=] (sycl::item<1> it) {});
     }
