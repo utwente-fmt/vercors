@@ -10,14 +10,11 @@ trait PredicateEqualsImpl[G] {
 
   def getExpression(implicit ctx: Ctx): Doc = {
     currentObject match {
-      case d: Deref[G] => d.obj match {
-        case l: Local[G] => l.ref.decl.t match {
-          case cls: TClass[G] => Group(Text("") <> currentObject <> Text(".equals(") <> arg <> Text(")"))
-          case _ => Group(Text("") <> currentObject <> Text("==") <> arg <> Text(")"))
+      case d: Deref[G] => d.ref.decl.t match {
+          case _: TClass[G] => Group(Text("!") <> currentObject <> Text(".equals(") <> arg <> Text(")"))
+          case _ => Group(Text("") <> currentObject <+> Text("!=") <+> arg <> Text(")"))
         }
-        case _ => Group(Text("") <> currentObject <> Text("==") <> arg <> Text(")"))
-      }
-      case _ => Group(Text("") <> currentObject <> Text("==") <> arg <> Text(")"))
+      case _ => Group(Text("") <> currentObject <+> Text("!=") <+> arg <> Text(")"))
     }
   }
 
