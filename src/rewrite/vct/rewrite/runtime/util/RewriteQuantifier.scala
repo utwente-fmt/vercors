@@ -100,7 +100,7 @@ case class RewriteQuantifier[Pre <: Generation](outer: Rewriter[Pre], cls: Class
   }
 
   def dispatchQuantifier(quantifier: Expr[Pre], bindings: Seq[Variable[Pre]], body: Expr[Pre]): Expr[Post] = {
-    val prev = newVariables.prevOrEmpty()
+    val prev = if (newVariables.nonEmpty) newVariables.freeze().mapping else new SuccessionMap[Declaration[_], Variable[Rewritten[Pre]]]()
     val result: (Expr[Post], mutable.HashSet[Variable[Pre]]) = requiredLocals.having(new mutable.HashSet[Variable[Pre]]()){
       newVariables.collect{
           val newQuantifier = body match {

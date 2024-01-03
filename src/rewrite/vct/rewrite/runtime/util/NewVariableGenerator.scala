@@ -73,24 +73,12 @@ class NewVariableGenerator[Pre <: Generation](val rewriter: Rewriter[Pre] = new 
     Local[Post](newVariables.top.ref(v))(o)
   }
 
-  def nonEmpty(): Boolean = {
-    newVariables.nonEmpty
-  }
-
-  def prevOrEmpty(): SuccessionMap[Declaration[_], Variable[Post]] = {
-    try {
-      val tmp = newVariables.pop()
-      val prev = newVariables.top
-      newVariables.push(tmp)
-      prev
-    } catch {
-      case _: Throwable => new SuccessionMap()
-    }
-  }
-
   def freeze() : NewVariableResult[Pre, _] = {
     NewVariableResult(inputs.top.toSeq, newVariables.top, outputs.top.toSeq, null)
   }
+
+  def nonEmpty : Boolean = newVariables.nonEmpty
+
 }
 
 
