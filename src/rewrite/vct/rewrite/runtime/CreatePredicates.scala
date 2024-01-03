@@ -209,8 +209,6 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
       args.map(newVariables.createNewFromInstanceField)
     }
 
-
-    //todo fix arguments for predicate (not working at the moment)
     val localsFromArgs: Seq[Local[Post]] = newVars.outputs.map(v => Local[Post](v.ref)(v.o))
     val cls: Ref[Post, Class[Post]] = newClasses.ref(currentInstancePredicate.top)
     val body = Scope(Seq(), Block[Post](Seq(CodeStringGetPredicate(localsFromArgs, cls)(o)))(o))(o)

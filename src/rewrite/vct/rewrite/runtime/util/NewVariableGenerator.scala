@@ -20,12 +20,16 @@ class NewVariableGenerator[Pre <: Generation](val rewriter: Rewriter[Pre] = new 
     newVariables.top.get(v)
   }
 
-  private def create(v: Variable[Pre]): Variable[Post] = {
-    inputs.top.addOne(v)
-    val newOrigin = v.o.replacePrefName(v.o.getPreferredNameOrElse())
-    val res = new Variable[Post](rewriter.dispatch(v.t))(newOrigin)
+  private def create(d: Declaration[_], t: Type[Post]) : Variable[Post] = {
+    inputs.top.addOne(d)
+    val newOrigin = d.o.replacePrefName(d.o.getPreferredNameOrElse())
+    val res = new Variable[Post](t)(newOrigin)
     outputs.top.addOne(res)
     res
+  }
+
+  private def create(v: Variable[Pre]): Variable[Post] = {
+    create(v, rewriter.dispatch(v.t))
   }
 
   def getOrCreate(v: Variable[Pre]): Variable[Post] = {
@@ -39,9 +43,7 @@ class NewVariableGenerator[Pre <: Generation](val rewriter: Rewriter[Pre] = new 
   }
 
   def createNewFromInstanceField(instanceField: InstanceField[Post]): Variable[Post] = {
-    val newVar = new Variable[Post](instanceField.t)(instanceField.o)
-    newVariables.top.update(instanceField, newVar)
-    newVar
+    create(instanceField, instanceField.t)
   }
 
   def collect[R](f: => R): NewVariableResult[Pre, R] = {

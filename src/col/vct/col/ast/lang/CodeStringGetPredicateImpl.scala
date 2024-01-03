@@ -16,7 +16,7 @@ trait CodeStringGetPredicateImpl[G] {
       Group(getClassType <+> Text("tmp = new") <+> cls.decl.o.getPreferredNameOrElse() <> "(" <+> Doc.args(args) <+> ");") <+/>
         Group(
           Group(Text("for(") <> getClassType <+> getClassTypeLower <+> ": predicateStore.get(Thread.currentThread().threadId()))") <+>
-            Text("{") <>> Group(Text("if(tmp.equals(") <> getClassTypeLower <> ") return" <+> getClassTypeLower <+> ";") <+/> "}" <+/>
+            Text("{") <>> Group(Text("if(tmp.equals(") <> getClassTypeLower <> ")) return" <+> getClassTypeLower <> ";") <+/> "}" <+/>
             Text("return null;")
         )
     )
