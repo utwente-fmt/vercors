@@ -39,7 +39,7 @@ void test(int* a, int* b, int* c, int* d) {
           context Perm(c_accessor[1][2][1], read);
         */
         [=] (sycl::item<1> it) {
-//          b_accessor[1][2] = c_accessor[1][2][1] + a_accessor[1];
+          b_accessor[1][2] = c_accessor[1][2][1] + a_accessor[1];
         }
       );
   	}

@@ -27,6 +27,12 @@ case object LangCPPToCol {
       decl.o.messageInContext(s"This declaration has a type that is not supported.")
   }
 
+  private case class UnexpectedCPPTypeError(declType: Type[_], init: Expr[_]) extends UserError {
+    override def code: String = "unexpectedCPPTypeError"
+    override def text: String =
+      init.o.messageInContext(s"Expected the type of this expression to be `$declType`, but got ${init.t}")
+  }
+
   private case class LambdaDefinitionUnsupported(lambda: CPPLambdaDefinition[_]) extends UserError {
     override def text: String = lambda.o.messageInContext("Lambda expressions are only supported as parameters for invocations of SYCL's submit and parallel_for methods.")
     override def code: String = "unsupportedLambdaDefinition"
@@ -457,7 +463,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           Perm(FieldLocation[Post](result, rangeFields(i).ref), ReadPerm()),
           Deref[Post](result, rangeFields(i).ref)(new SYCLRangeDerefBlame(rangeFields(i))) === FloorDiv(Local[Post](params(i).ref), Local[Post](params(i+1).ref))(ImpossibleDivByZeroBlame()),
           Perm(FieldLocation[Post](result, rangeFields(i+1).ref), ReadPerm()),
-          Deref[Post](result, rangeFields(i+1).ref)(new SYCLRangeDerefBlame(rangeFields(i+1))) === Local[Post](params(i+1).ref)
+          Deref[Post](result, rangeFields(i+1).ref)(new SYCLRangeDerefBlame(rangeFields(i+1))) === Local[Post](params(i+1).ref),
+          Deref[Post](result, rangeFields(i).ref)(new SYCLRangeDerefBlame(rangeFields(i))) * Deref[Post](result, rangeFields(i+1).ref)(new SYCLRangeDerefBlame(rangeFields(i+1))) === Local[Post](params(i).ref)
         ))}
       )
     }
@@ -624,11 +631,17 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           result = Block(Seq(LocalDecl(v), assignLocal(v.get, postValue)))
         case (SYCLTBuffer(_, _), inv: CPPInvocation[Pre]) if inv.ref.get.isInstanceOf[RefSYCLConstructorDefinition[Pre]] =>
           // Buffer constructor
+          if (!t.superTypeOf(rw.dispatch(inv.t))) {
+            throw UnexpectedCPPTypeError(t, inv)
+          }
           val (block, syclBufferRef) = rewriteSYCLBufferConstruction(inv, Some(varO))
           v = syclBufferRef
           result = block
         case (SYCLTLocalAccessor(_, _), inv: CPPInvocation[Pre]) if inv.ref.get.isInstanceOf[RefSYCLConstructorDefinition[Pre]] =>
           // Local accessor constructor
+          if (!t.superTypeOf(rw.dispatch(inv.t))) {
+            throw UnexpectedCPPTypeError(t, inv)
+          }
           val newValue: NewArray[Post] = rw.dispatch(preValue) match {
             case arr: NewArray[Post] => arr
             case _ => throw Unreachable("A SYCL local accessor should only be able to be initialized with a constructor that returns a new COL array.")
@@ -1049,8 +1062,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
                 val accName = buffer.generatedVar.o.getPreferredNameOrElse().ucamel
                 val accO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl).where(name = accName)
                 val dimO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl)
-                if (!CPP.getBaseTypeFromSpecs(accDecl.specs).asInstanceOf[SYCLTAccessor[Pre]].equals(CPP.unwrappedType(inv.t))) {
-                  throw Unreachable("Accessor type does not correspond with buffer type.")
+                if (!CPP.getBaseTypeFromSpecs(accDecl.specs).asInstanceOf[SYCLTAccessor[Pre]].superTypeOf(CPP.unwrappedType(inv.t))) {
+                  throw UnexpectedCPPTypeError(CPP.getBaseTypeFromSpecs(accDecl.specs), inv)
                 }
 
                 buffersToAccessorResults.get(buffer) match {
@@ -1364,7 +1377,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     Block[Post](kernelsToWaitFor.map(tuple => syclKernelTermination(tuple._1, tuple._2)).toSeq)
   }
 
-  def rewriteSubscript(sub: AmbiguousSubscript[Pre]): Expr[Post] = sub match { // EW TODO: add custom error if index not int. Otherwise you get coercion error
+  def rewriteSubscript(sub: AmbiguousSubscript[Pre]): Expr[Post] = sub match {
     case AmbiguousSubscript(base: CPPLocal[Pre], index) if CPP.unwrappedType(base.t).isInstanceOf[SYCLTAccessor[Pre]] =>
       CPP.unwrappedType(base.t) match {
         case SYCLTAccessor(_, 1, _) => ArraySubscript[Post](

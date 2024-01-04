@@ -41,6 +41,7 @@ class ExampleCoverage extends AnyFlatSpec {
       new SmtSpec(),
       new SummationSpec(),
       new SYCLSpec(),
+      new SYCLFullProgramsSpec(),
       new TechnicalAbruptSpec(),
       new TechnicalEnumSpec(),
       new TechnicalFloatSpec(),

@@ -16,9 +16,10 @@ void test(int* a) {
       cgh.parallel_for(sycl::range<1>(10),
         /*@
           context it.get_id(0) < a_accessor.get_range().get(0);
+          context Perm(a_accessor[it.get_id(0)], write);
         */
         [=] (sycl::item<1> it) {
-          a_accessor[it.get_id(0)] = 10; // Shloud not be allowed
+          a_accessor[it.get_id(0)] = 10; // Should not be allowed
         }
       );
   	}

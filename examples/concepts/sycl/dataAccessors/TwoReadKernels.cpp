@@ -5,10 +5,7 @@
 */
 void test(int* a) {
 	sycl::queue myQueue;
-
   sycl::buffer<int, 1> aBuffer = sycl::buffer<int, 1>(a, sycl::range<1>(12));
-
-  // Two kernels reading the same buffer should be allowed
 
 	myQueue.submit(
   	[&](sycl::handler& cgh) {

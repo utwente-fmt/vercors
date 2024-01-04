@@ -25,21 +25,21 @@ namespace sycl {
   // See SYCL spec 3.11.1 for the linearization formulas
   /*@
     requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1;
-    requires r0 >= 0 && r1 >= 0;
+    requires r0 > 0 && r1 > 0;
     ensures \result == sycl::linearize2formula(id0, id1, r1);
     ensures \result >= 0 && \result < r0 * r1;
     ensures (\forall int ida0, int ida1;
       ida0 >= 0 && ida0 < r0 &&
       ida1 >= 0 && ida1 < r1 &&
       (ida0 != id0 || ida1 != id1) ==>
-      \result != sycl::linearize2formula(ida0, ida1, r1)
+      \result != {: sycl::linearize2formula(ida0, ida1, r1) :}
     );
     pure int linearize2(int id0, int id1, int r0, int r1);
 
     pure int linearize2formula(int id0, int id1, int r1) = id1 + (id0 * r1);
 
     requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1 && id2 >= 0 && id2 < r2;
-    requires r0 >= 0 && r1 >= 0 && r2 >= 0;
+    requires r0 > 0 && r1 > 0 && r2 > 0;
     ensures \result == sycl::linearize3formula(id0, id1, id2, r1, r2);
     ensures \result >= 0 && \result < r0 * r1 * r2;
     ensures (\forall int ida0, int ida1, int ida2;
@@ -47,7 +47,7 @@ namespace sycl {
       ida1 >= 0 && ida1 < r1 &&
       ida2 >= 0 && ida2 < r2 &&
       (ida0 != id0 || ida1 != id1 || ida2 != id2) ==>
-      \result != sycl::linearize3formula(ida0, ida1, ida2, r1, r2)
+      \result != {: sycl::linearize3formula(ida0, ida1, ida2, r1, r2) :}
     );
     pure int linearize3(int id0, int id1, int id2, int r0, int r1, int r2);
 
@@ -77,7 +77,7 @@ namespace sycl {
 
 		int get_global_id(int dimension);
 
-		//@ pure int get_global_range(int localRange, int globalRange) = localRange * globalRange;
+		//@ pure int get_global_range(int localRange, int groupRange) = localRange * groupRange;
 
 		int get_global_range(int dimension);
 

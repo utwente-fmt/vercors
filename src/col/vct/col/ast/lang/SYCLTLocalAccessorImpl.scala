@@ -16,10 +16,6 @@ trait SYCLTLocalAccessorImpl[G] { this: SYCLTLocalAccessor[G] =>
       Util.compatTypes[G](args, Seq(SYCLTRange[G](dim.toInt), SYCLTHandler[G]())) => Some(RefSYCLConstructorDefinition(SYCLTLocalAccessor[G](CPP.getBaseTypeFromSpecs[G](Seq(typeSpec)), dim.toInt)))
     case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec))) if Util.compatTypes(args, Seq(SYCLTRange[G](1), SYCLTHandler[G]())) =>
       Some(RefSYCLConstructorDefinition(SYCLTLocalAccessor(CPP.getBaseTypeFromSpecs(Seq(typeSpec)), 1)))
-    case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec))) if Util.compatTypes(args, Seq(SYCLTRange[G](2), SYCLTHandler[G]())) =>
-      Some(RefSYCLConstructorDefinition(SYCLTLocalAccessor(CPP.getBaseTypeFromSpecs(Seq(typeSpec)), 2)))
-    case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec))) if Util.compatTypes(args, Seq(SYCLTRange[G](3), SYCLTHandler[G]())) =>
-      Some(RefSYCLConstructorDefinition(SYCLTLocalAccessor(CPP.getBaseTypeFromSpecs(Seq(typeSpec)), 3)))
     case _ => None
   }
 }
