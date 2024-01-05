@@ -1350,7 +1350,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     implicit val o: Origin = buffer.o
 
     // Wait for SYCL kernels that access the buffer to finish executing
-    val kernelsToTerminate = currentlyRunningKernels.filter(tuple => tuple._2.exists(acc => acc.buffer.equals(buffer)))
+    val kernelsToTerminate = currentlyRunningKernels.filter(tuple => tuple._2.exists(acc => acc.buffer.equals(buffer) && acc.accessMode.isInstanceOf[SYCLReadWriteAccess[Post]]))
     val kernelTerminations = kernelsToTerminate.map(tuple => syclKernelTermination(tuple._1, tuple._2)).toSeq
 
     // Get the exclusive access predicate and copy procedures
