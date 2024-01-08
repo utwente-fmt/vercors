@@ -906,8 +906,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case CLocal(name) => e
-      case CodeStringCheckPermissionExpr(_, _,_,_) => e
-      case CodeStringCheckArrayPermissionExpr(_, _,_,_,_) => e
       case c @ Committed(obj) =>
         Committed(cls(obj))(c.blame)
       case ComputationalAnd(left, right) =>
@@ -965,6 +963,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Drop(seq(xs)._1, int(count))
       case Empty(obj) =>
         Empty(sized(obj)._1)
+      case Equals(obj, target) => Equals(obj, target)
       case EmptyProcess() => EmptyProcess()
       case use @ EnumUse(enum, const) => use
       case Eq(left, right) =>
@@ -993,6 +992,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case get @ GetLeft(e) =>
         GetLeft(either(e)._1)(get.blame)
+      case GetPermission(o, i) => e
+      case GetArrayPermission(o, i,l) => e
       case get @ GetRight(e) =>
         GetRight(either(e)._1)(get.blame)
       case GlobalThreadId() =>
@@ -1262,6 +1263,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Product(bindings, bool(condition), int(main))
       case ProverFunctionInvocation(ref, args) =>
         ProverFunctionInvocation(ref, coerceArgs(args, ref.decl))
+      case PutPermission(o, i, p) => e
+      case PutArrayPermission(o, i, l, p) => e
       case PVLDeref(obj, field) => e
       case PVLInvocation(obj, method, args, typeArgs, givenArgs, yields) => e
       case PVLLocal(name) => e
@@ -1278,6 +1281,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ResourceValue(res(r))
       case Result(ref) =>
         Result(ref)
+      case RuntimePermission(p) => e
+      case RuntimeFractionGet(l, r) => e
       case s @ Scale(scale, r) =>
         Scale(rat(scale), res(r))(s.blame)
       case ScaleByParBlock(ref, r) =>
@@ -1662,7 +1667,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case PVLCommunicate(s, r) => PVLCommunicate(s, r)
       case CodeStringStatement(c) => CodeStringStatement(c)
       case CodeStringQuantifier(q, l, u, body) => CodeStringQuantifier(q, l, u, body)
-      case PredicateEquals(c, a) => PredicateEquals(c, a)
       case CodeStringGetPredicate(a, c) => CodeStringGetPredicate(a, c)
       case RuntimeNewPredicate(i, a) => RuntimeNewPredicate(i, a)
     }

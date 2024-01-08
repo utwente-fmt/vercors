@@ -7,6 +7,7 @@ import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.rewrite.runtime.util.CodeStringDefaults._
+import vct.col.util.AstBuildHelpers._
 
 import scala.collection.mutable
 
@@ -18,6 +19,8 @@ case class RewriteContractExpr[Pre <: Generation](outer: Rewriter[Pre], cls: Cla
   private val givenStatementBuffer: mutable.Buffer[Statement[Rewritten[Pre]]] = new mutable.ArrayBuffer[Statement[Rewritten[Pre]]]()
 
   def createStatements(expr: Expr[Pre]): (Expr[Post], mutable.Buffer[Statement[Rewritten[Pre]]]) = {
+    val unfoldedPredicate: Seq[Expr[Pre]] = unfoldStar(expr)
+    println(unfoldedPredicate)
     val newExpr = dispatch(expr)
     (newExpr, givenStatementBuffer)
   }

@@ -3,8 +3,8 @@ package vct.col.ast.lang
 import vct.col.ast._
 import vct.col.print.{Empty, _}
 
-trait CodeStringCheckArrayPermissionExprImpl[G] {
-  this: CodeStringCheckArrayPermissionExpr[G] =>
+trait RemovePermissionsImpl[G] {
+  this: RemovePermissions[G] =>
 
   override def t: Type[G] = TBool[G]()
 
@@ -18,5 +18,8 @@ trait CodeStringCheckArrayPermissionExprImpl[G] {
   }
 
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Doc.arg(objectLocation) <> Text(s".__runtime__$id.get(") <> location <> Text(").get(Thread.currentThread().getId()") <> layoutPermission)
+    Group(Doc.arg(objectLocation)
+      <> Text(s"__runtime__.get($id)")
+      <> Text(".get(Thread.currentThread().getId()")
+      <> layoutPermission)
 }

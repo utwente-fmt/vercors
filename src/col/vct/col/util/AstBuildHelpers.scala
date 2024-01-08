@@ -45,6 +45,7 @@ object AstBuildHelpers {
     def %(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]): Mod[G] = Mod(left, right)(blame)
 
     def ===(right: Expr[G])(implicit origin: Origin): Eq[G] = Eq(left, right)
+    def ====(right: Expr[G])(implicit origin: Origin) : Equals[G] = Equals(left, right)
     def !==(right: Expr[G])(implicit origin: Origin): Neq[G] = Neq(left, right)
     def <(right: Expr[G])(implicit origin: Origin): Less[G] = Less(left, right)
     def >(right: Expr[G])(implicit origin: Origin): Greater[G] = Greater(left, right)

@@ -6,7 +6,8 @@ import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.rewrite.runtime.util.{NewVariableGenerator, NewVariableResult, RewriteContractExpr}
 import vct.col.ast.RewriteHelpers._
-import vct.col.origin.Origin
+import vct.col.origin.{Origin, PreferredName, ShortPosition}
+import vct.col.print.{Group, Text}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{RefJavaParam, RefVariable}
 import vct.col.util.SuccessionMap
@@ -15,6 +16,8 @@ import vct.rewrite.runtime.util.CodeStringDefaults.predicateStore
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import vct.col.util.AstBuildHelpers._
+
 
 object CreatePredicates extends RewriterBuilder {
   override def key: String = "createPredicates"
@@ -246,8 +249,16 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     instanceFields.map(i => createEqualsStatement(currentObject, arg, i))
   }
 
-  private def createEqualsStatement(currentObject: Variable[Post], arg: Variable[Post], instanceField: InstanceField[Post]): PredicateEquals[Post] = {
-    PredicateEquals(createEqualsDeref(currentObject, instanceField), createEqualsDeref(arg, instanceField))(new Origin(Seq()))
+  private def createEqualsStatement(currentObject: Variable[Post], arg: Variable[Post], instanceField: InstanceField[Post]): Branch[Post] = {
+    implicit val origin: Origin = Origin(Seq(ShortPosition("Generated"), PreferredName("equals")))
+    val obj = createEqualsDeref(currentObject, instanceField)
+    val target = createEqualsDeref(arg, instanceField)
+    val comparison = instanceField.t match {
+      case _ : TClass[Post] => !(obj ==== target) //if it is an object use the equals method otherwise use the != operator
+      case _ => obj !== target
+    }
+    val returnStatement = Return[Post](tt)
+    Branch[Post](Seq((comparison, returnStatement)))(obj.o)
   }
 
   private def createEqualsDeref(v: Variable[Post], instanceField: InstanceField[Post]): Deref[Post] = {
