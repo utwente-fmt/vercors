@@ -80,7 +80,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   val javaParamSuccessor: SuccessionMap[JavaParam[Pre], Variable[Post]] = SuccessionMap()
 
   val javaMethod: SuccessionMap[JavaMethod[Pre], InstanceMethod[Post]] = SuccessionMap()
-  val javaConstructor: SuccessionMap[JavaConstructor[Pre], Procedure[Post]] = SuccessionMap()
+  val javaConstructor: SuccessionMap[JavaConstructor[Pre], Constructor[Post]] = SuccessionMap()
   val javaDefaultConstructor: SuccessionMap[JavaClassOrInterface[Pre], JavaConstructor[Pre]] = SuccessionMap()
 
   val javaClassDeclToJavaClass: mutable.Map[JavaClassDeclaration[Pre], JavaClassOrInterface[Pre]] = mutable.Map()
@@ -191,8 +191,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         logger.debug(s"Constructor for ${cons.o.inlineContextText}")
         implicit val o: Origin = cons.o
         val t = TClass(ref)
-        val resVar = new Variable[Post](t)(ThisVar())
-        val res = Local[Post](resVar.ref)
+        val `this` = ThisObject(ref)
 
         val results = currentJavaClass.top.modifiers.collect {
           case annotation@JavaAnnotationEx(_, _, component@JavaAnnotationData.BipComponent(_, _)) if !isStaticPart =>
@@ -200,28 +199,22 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         }
         if (results.isEmpty) { // We didn't execute the bip rewrite, so we do the normal one
           rw.labelDecls.scope {
-            javaConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) =>
-              new Procedure(
-                returnType = t,
+            javaConstructor(cons) = rw.classDeclarations.declare(
+              new Constructor[Post](
+                cls = ref,
                 args = rw.variables.collect { cons.parameters.map(rw.dispatch) }._1,
-                outArgs = Nil, typeArgs = Nil,
-                body = rw.currentThis.having(res) { Some(Scope(Seq(resVar), Block(Seq(
-                  assignLocal(res, NewObject(ref)),
-                  fieldInit(res),
-                  sharedInit(res),
+                typeArgs = Nil,
+                requiredBody = rw.currentThis.having(`this`) { Block(Seq(
+                  fieldInit(`this`),
+                  sharedInit(`this`),
                   rw.dispatch(cons.body),
-                  Return(res),
-                )))) },
-                contract = rw.currentThis.having(result) { cons.contract.rewrite(
-                  ensures = SplitAccountedPredicate(
-                    left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
-                    right = rw.dispatch(cons.contract.ensures),
-                  ),
+                )) },
+                contract = rw.currentThis.having(`this`) { cons.contract.rewrite(
                   signals = cons.contract.signals.map(rw.dispatch) ++
                     cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-                ) },
-              )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
-            ))
+                )},
+              )(cons.blame)(JavaConstructorOrigin(cons))
+            )
           }
         }
       case method: JavaMethod[Pre] =>
@@ -462,7 +455,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     inv.ref.get match {
       case RefModel(decl) => ModelNew[Post](rw.succ(decl))
       case RefJavaConstructor(cons) =>
-        ProcedureInvocation[Post](javaConstructor.ref(cons), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
+        ConstructorInvocation[Post](javaConstructor.ref(cons), args.map(rw.dispatch), typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultJavaConstructor(_) =>

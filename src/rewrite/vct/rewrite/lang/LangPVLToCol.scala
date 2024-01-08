@@ -25,7 +25,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
   val pvlDefaultConstructor: SuccessionMap[Class[Pre], Procedure[Post]] = SuccessionMap()
-  val pvlConstructor: SuccessionMap[PVLConstructor[Pre], Procedure[Post]] = SuccessionMap()
+  val pvlConstructor: SuccessionMap[PVLConstructor[Pre], Constructor[Post]] = SuccessionMap()
 
   def constructorSucc(ref: PVLConstructorTarget[Pre]): Ref[Post, Procedure[Post]] = ref match {
     case ImplicitDefaultPVLConstructor(cls) => pvlDefaultConstructor.ref(cls)
@@ -37,23 +37,16 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
     implicit val o: Origin = cons.o
     val t = TClass[Post](rw.succ(rw.currentClass.top))
     val resVar = new Variable(t)
-    pvlConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) => new Procedure[Post](
-      returnType = t,
-      args = rw.variables.dispatch(cons.args),
-      outArgs = Nil,
-      typeArgs = Nil,
-      body = rw.currentThis.having(resVar.get) { cons.body.map(body => Scope(Seq(resVar), Block(Seq(
-        assignLocal(resVar.get, NewObject[Post](rw.succ(rw.currentClass.top))),
-        rw.dispatch(body),
-        Return(resVar.get),
-      )))) },
-      contract = rw.currentThis.having(result) { cons.contract.rewrite(
-        ensures = SplitAccountedPredicate(
-          left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
-          right = rw.dispatch(cons.contract.ensures),
-        )
-      ) },
-    )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))))
+    pvlConstructor(cons) =
+      rw.currentThis.having(ThisObject(rw.succ(rw.currentClass.top))) {
+        rw.classDeclarations.declare(new Constructor[Post](
+          cls = rw.succ(rw.currentClass.top),
+          args = rw.variables.dispatch(cons.args),
+          typeArgs = Nil,
+          requiredBody = rw.dispatch(cons.body),
+          contract = rw.dispatch(cons.contract),
+        )(cons.blame))
+      }
   }
 
   def maybeDeclareDefaultConstructor(cls: Class[Pre]): Unit = {
@@ -122,7 +115,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
     inv.ref.get match {
       case RefModel(decl) => ModelNew[Post](rw.succ(decl))
       case RefPVLConstructor(decl) =>
-        ProcedureInvocation[Post](pvlConstructor.ref(decl), args.map(rw.dispatch), Nil, Nil,
+        ConstructorInvocation[Post](pvlConstructor.ref(decl), args.map(rw.dispatch), Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultPVLConstructor(_) =>
