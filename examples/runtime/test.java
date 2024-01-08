@@ -7,7 +7,7 @@ class Counter {
 
 
     /*@
-        requires (\forall* int i; 0 < i && i < countList.length; Perm(countList[i], 1));
+        requires (\forall* int i; 0 < i && i < countList.length; Perm(countList[i], write));
         requires Perm(count, 0.5) ** (count < 0 || count >= 2);
      */
     void increment(int n) {
