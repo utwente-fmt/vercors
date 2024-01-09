@@ -1,6 +1,6 @@
 #include <sycl/sycl.hpp>
 
-// Helper function which calculates a linear index out a row and column
+// Helper function which calculates a linear index out of a row and a column
 /*@
 	requires row >= 0 && row < rows && col >= 0 && col < cols;
 	ensures \result == col + (row * cols);

@@ -1,15 +1,14 @@
 package vct.rewrite.lang
 
 import vct.col.ast.RewriteHelpers._
-import vct.col.ast.{TModel, _}
+import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, CPP}
-import vct.rewrite.lang.LangTypesToCol.{EmptyInlineDecl, IncompleteTypeArgs}
-import vct.col.typerules.Types
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.result.VerificationError.UserError
+import vct.rewrite.lang.LangTypesToCol.{EmptyInlineDecl, IncompleteTypeArgs}
 
 import scala.reflect.ClassTag
 
@@ -109,6 +108,10 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
                            (implicit o: Origin): (Seq[CPPDeclarationSpecifier[Post]], CPPDeclarator[Post]) = {
     val info = CPP.getDeclaratorInfo(declarator, context.getOrElse(false).isInstanceOf[CPPParam[Pre]])
     val baseType = CPP.getBaseTypeFromSpecs(specifiers, context)
+    if (info.isReference && !baseType.isInstanceOf[SYCLTHandler[Pre]]) {
+      // Only accept reference parameters for type sycl::handler, as we only need & support for a lambda method with that parameter
+      throw CPP.CPPTypeNotSupported(Some(declarator))
+    }
     val otherSpecifiers = specifiers.filter(!_.isInstanceOf[CPPTypeSpecifier[Pre]]).map(dispatch)
     val newSpecifiers = CPPSpecificationType[Post](dispatch(info.typeOrReturnType(baseType))) +: otherSpecifiers
     val newDeclarator = info.params match {
