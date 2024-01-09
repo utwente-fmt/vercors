@@ -146,8 +146,24 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
           ),
         ))
       })
-    case declaration@CGlobalDeclaration(CDeclaration(_, _, Seq(_: CStructDeclaration[Pre]), Seq())) =>
-      rewriteDefault(declaration)
+    case declaration: CGlobalDeclaration[Pre] =>
+      declaration.decl match {
+        case CDeclaration(_, _, Seq(_: CStructDeclaration[Pre]), Seq()) =>
+          globalDeclarations.succeed(declaration, declaration.rewriteDefault())
+        case decl =>
+          decl.inits.foreach(init => {
+            implicit val o: Origin = init.o
+            val (specs, decl1) = normalizeCDeclaration(decl.specs, init.decl, context = Some(declaration))
+            globalDeclarations.declare(declaration.rewrite(
+              decl = declaration.decl.rewrite(
+                specs = specs,
+                inits = Seq(
+                  CInit(decl1, init.init.map(dispatch)),
+                ),
+              ),
+            ))
+          })
+      }
     case declaration: CStructMemberDeclarator[Pre] =>
       declaration.decls.foreach(decl => {
         implicit val o: Origin = decl.o
@@ -155,19 +171,6 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
         cStructMemberDeclarators.declare(declaration.rewrite(
          specs = specs,
           decls = Seq(newDecl)
-        ))
-      })
-    case declaration: CGlobalDeclaration[Pre] =>
-      declaration.decl.inits.foreach(init => {
-        implicit val o: Origin = init.o
-        val (specs, decl) = normalizeCDeclaration(declaration.decl.specs, init.decl, context = Some(declaration))
-        globalDeclarations.declare(declaration.rewrite(
-          decl = declaration.decl.rewrite(
-            specs = specs,
-            inits = Seq(
-              CInit(decl, init.init.map(dispatch)),
-            ),
-          ),
         ))
       })
     case declaration: CFunctionDefinition[Pre] =>

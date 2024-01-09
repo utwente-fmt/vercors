@@ -4,10 +4,10 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.io.Readable
 import org.antlr.v4.runtime.{CharStream, CommonTokenStream}
 import vct.antlr4.generated.{LLVMSpecParser, LangLLVMSpecLexer}
+import vct.col.ast.serialize.Program
 import vct.col.ast.{Declaration, Deserialize}
 import vct.col.origin.{ExpectedError, Origin}
 import vct.col.ref.Ref
-import vct.col.serialize.{GlobalDeclaration, Program}
 import vct.parsers.transform.{BlameProvider, LLVMContractToCol, OriginProvider}
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 

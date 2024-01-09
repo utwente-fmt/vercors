@@ -1,8 +1,9 @@
 package vct.col.ast.family.coercion
 
 import vct.col.ast._
+import vct.col.ast.ops.CoercionFamilyOps
 
-trait CoercionImpl[G] { this: Coercion[G] =>
+trait CoercionImpl[G] extends CoercionFamilyOps[G] { this: Coercion[G] =>
   def target: Type[G]
 
   def isCPromoting: Boolean = this match {

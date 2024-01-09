@@ -2,8 +2,9 @@ package vct.col.ast.statement.terminal
 
 import vct.col.ast.Commit
 import vct.col.print.{Ctx, Doc, Show, Text}
+import vct.col.ast.ops.CommitOps
 
-trait CommitImpl[G] { this: Commit[G] =>
+trait CommitImpl[G] extends CommitOps[G] { this: Commit[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc =
     Text("commit") <+> obj <> ";"
 

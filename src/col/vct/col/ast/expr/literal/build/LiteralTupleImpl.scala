@@ -4,8 +4,9 @@ import vct.col.ast.expr.ExprImpl
 import vct.col.ast.{LiteralTuple, TTuple, Type}
 import vct.col.check.{CheckContext, CheckError, TupleTypeCount}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
+import vct.col.ast.ops.LiteralTupleOps
 
-trait LiteralTupleImpl[G] extends ExprImpl[G] { this: LiteralTuple[G] =>
+trait LiteralTupleImpl[G] extends ExprImpl[G] with LiteralTupleOps[G] { this: LiteralTuple[G] =>
   override def t: Type[G] = TTuple(ts)
 
   override def check(context: CheckContext[G]): Seq[CheckError] =

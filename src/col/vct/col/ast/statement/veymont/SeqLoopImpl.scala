@@ -6,8 +6,9 @@ import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.ref.Ref
 
 import scala.collection.immutable.ListSet
+import vct.col.ast.ops.SeqLoopOps
 
-trait SeqLoopImpl[G] extends StatementImpl[G] { this: SeqLoop[G] =>
+trait SeqLoopImpl[G] extends StatementImpl[G] with SeqLoopOps[G] { this: SeqLoop[G] =>
   def hasUnpointed: Boolean = guards.exists { case _: UnpointedGuard[G] => true; case _ => false }
   def explicitParticipants: Seq[Endpoint[G]] = guards.collect { case EndpointGuard(Ref(endpoint), condition) => endpoint }
 

@@ -7,8 +7,9 @@ import vct.col.origin.{Blame, ReceiverNotInjective}
 import vct.col.print._
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
+import vct.col.ast.ops.ParBlockOps
 
-trait ParBlockImpl[G] extends ParRegionImpl[G] with Declarator[G] { this: ParBlock[G] =>
+trait ParBlockImpl[G] extends ParRegionImpl[G] with Declarator[G] with ParBlockOps[G] { this: ParBlock[G] =>
   override def declarations: Seq[Declaration[G]] = iters.map(_.variable)
 
   def quantify(expr: Expr[G], blame: Blame[ReceiverNotInjective]): Expr[G] = {

@@ -4,8 +4,9 @@ import vct.col.ast.Scope
 import vct.col.check.CheckContext
 import vct.col.print._
 import vct.col.resolve.ResolveReferences
+import vct.col.ast.ops.ScopeOps
 
-trait ScopeImpl[G] {
+trait ScopeImpl[G] extends ScopeOps[G] {
   this: Scope[G] =>
   override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
     context.withScope(locals, toScan = Seq(body))

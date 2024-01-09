@@ -1,6 +1,7 @@
 package vct.col.ast.family.accountedpredicate
 
 import vct.col.ast.AccountedPredicate
+import vct.col.ast.ops.AccountedPredicateFamilyOps
 
 /**
  * A tree of assertions that represents the separating conjunction of the flattened tree. Either the tree splits
@@ -9,6 +10,6 @@ import vct.col.ast.AccountedPredicate
  * position in the tree that failed via a path. See also [[vct.col.origin.AccountedDirection]],
  * [[vct.col.origin.PostBlameSplit]], [[vct.col.origin.PreBlameSplit]].
  */
-trait AccountedPredicateImpl[G] { this: AccountedPredicate[G] =>
+trait AccountedPredicateImpl[G] extends AccountedPredicateFamilyOps[G] { this: AccountedPredicate[G] =>
 
 }

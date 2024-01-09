@@ -2,8 +2,9 @@ package vct.col.ast.expr.binder
 
 import vct.col.ast.{ForPerm, TBool}
 import vct.col.print._
+import vct.col.ast.ops.ForPermOps
 
-trait ForPermImpl[G] { this: ForPerm[G] =>
+trait ForPermImpl[G] extends ForPermOps[G] { this: ForPerm[G] =>
   override def t: TBool[G] = TBool()
 
   def layoutSpec(implicit ctx: Ctx): Doc =
