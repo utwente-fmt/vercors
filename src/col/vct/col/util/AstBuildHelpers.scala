@@ -240,6 +240,8 @@ object AstBuildHelpers {
         inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
       case inv: MethodInvocation[Pre] =>
         inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
+      case inv: ConstructorInvocation[Pre] =>
+        inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
     }
   }
 
@@ -248,6 +250,8 @@ object AstBuildHelpers {
       case inv: InvokeProcedure[Pre] =>
         inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
       case inv: InvokeMethod[Pre] =>
+        inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
+      case inv: InvokeConstructor[Pre] =>
         inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
     }
   }

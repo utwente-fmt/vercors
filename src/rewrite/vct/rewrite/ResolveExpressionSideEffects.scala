@@ -497,13 +497,14 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
       )(inv.blame)(e.o))
       stored(res.get(SideEffectOrigin), method.returnType)
-    case inv @ ConstructorInvocation(Ref(cons), args, typeArgs, givenMap, yields) =>
+    case inv @ ConstructorInvocation(Ref(cons), args, outArgs, typeArgs, givenMap, yields) =>
       val typ = TClass[Post](succ(cons.cls.decl))
       val res = new Variable[Post](typ)(ResultVar)
       variables.succeed(res.asInstanceOf[Variable[Pre]], res)
       effect(InvokeConstructor[Post](
         ref = succ(cons),
         args = args.map(inlined),
+        outArgs = outArgs.map(dispatch),
         typeArgs = typeArgs.map(dispatch),
         givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
         yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },

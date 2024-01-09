@@ -1486,6 +1486,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case Havoc(loc) => Havoc(loc)
       case IndetBranch(branches) => IndetBranch(branches)
       case Inhale(assn) => Inhale(res(assn))
+      case Instantiate(cls, dest) => Instantiate(cls, dest)
+      case inv @ InvokeConstructor(ref, args, outArgs, typeArgs, givenMap, yields) =>
+        InvokeConstructor(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
         InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
@@ -1584,6 +1587,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         declaration
       case declaration: CStructMemberDeclarator[Pre] =>
         declaration
+      case cons: Constructor[Pre] =>
+        cons
       case definition: CPPFunctionDefinition[Pre] =>
         definition
       case declaration: CPPGlobalDeclaration[Pre] =>
