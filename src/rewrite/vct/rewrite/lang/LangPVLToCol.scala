@@ -42,8 +42,9 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
         rw.classDeclarations.declare(new Constructor[Post](
           cls = rw.succ(rw.currentClass.top),
           args = rw.variables.dispatch(cons.args),
+          outArgs = Nil,
           typeArgs = Nil,
-          requiredBody = rw.dispatch(cons.body),
+          body = cons.body.map(rw.dispatch),
           contract = rw.dispatch(cons.contract),
         )(cons.blame))
       }

@@ -203,12 +203,13 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
               new Constructor[Post](
                 cls = ref,
                 args = rw.variables.collect { cons.parameters.map(rw.dispatch) }._1,
+                outArgs = Nil,
                 typeArgs = Nil,
-                requiredBody = rw.currentThis.having(`this`) { Block(Seq(
+                body = Some(rw.currentThis.having(`this`) { Block(Seq(
                   fieldInit(`this`),
                   sharedInit(`this`),
                   rw.dispatch(cons.body),
-                )) },
+                )) }),
                 contract = rw.currentThis.having(`this`) { cons.contract.rewrite(
                   signals = cons.contract.signals.map(rw.dispatch) ++
                     cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),

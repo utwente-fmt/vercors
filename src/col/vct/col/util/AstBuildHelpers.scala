@@ -152,6 +152,8 @@ object AstBuildHelpers {
         method.rewrite(args = args, returnType = returnType, body = body, inline = Some(inline), contract = contract, typeArgs = typeArgs, outArgs = outArgs, pure = Some(pure), blame = blame)
       case method: InstanceOperatorMethod[Pre] =>
         method.rewrite(returnType = returnType, operator = rewriter.dispatch(method.operator), args = args, body = body, contract = contract, inline = Some(inline), pure = Some(pure), blame = blame)
+      case cons: Constructor[Pre] =>
+        cons.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, body = body, contract = contract, inline = Some(inline), blame = blame)
     }
   }
 

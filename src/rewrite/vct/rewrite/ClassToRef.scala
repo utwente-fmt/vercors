@@ -183,9 +183,9 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             args = variables.collect { cons.args.map(dispatch) }._1,
             typeArgs = variables.collect { cons.typeArgs.map(dispatch) }._1,
             outArgs = Nil,
-            body = Some(diz.having(thisVar.get) { Scope(Seq(thisVar), Block(Seq(
+            body = cons.body.map(body => diz.having(thisVar.get) { Scope(Seq(thisVar), Block(Seq(
               Instantiate[Post](succ(cons.cls.decl), thisVar.ref),
-              dispatch(cons.requiredBody),
+              dispatch(body),
               Return(thisVar.get),
             )))}),
             contract = diz.having(result) { cons.contract.rewrite(
