@@ -18,7 +18,7 @@ class VeyMontToolPaperSpec extends VercorsSpec {
   (vercors
     should verify
     using silicon
-    flags Seq("--veymont-generate-permissions", "--backend-option", "--assumeInjectivityOnInhale")
+    flags("--veymont-generate-permissions", "--backend-option", "--assumeInjectivityOnInhale")
     example s"$paperExamples/veymont-tictactoemn.pvl"
     )
 }
