@@ -37,7 +37,7 @@ class SYCLSpec extends VercorsSpec {
   vercors should error withCode "syclUnsupportedReassigningOfBuffer" example "concepts/sycl/buffers/NoBufferReassign.cpp"
   vercors should error withCode "syclBufferConstructionFailed" example "concepts/sycl/buffers/NoWritePermission.cpp"
   vercors should fail withCode "ptrPerm" using silicon example "concepts/sycl/buffers/ReadDataInBufferScope.cpp"
-  vercors should verify using silicon example "concepts/sycl/buffers/ReleaseFromBuffer.cpp"
+  vercors should verify using silicon example "concepts/sycl/buffers/ReleaseDataFromBuffer.cpp"
   vercors should verify using silicon example "concepts/sycl/buffers/SmallerBuffer.cpp"
   vercors should error withCode "syclBufferConstructionFailed" example "concepts/sycl/buffers/TooBigBuffer.cpp"
   vercors should error withCode "syclBufferConstructionFailed" example "concepts/sycl/buffers/TwoBuffersForSameData.cpp"
