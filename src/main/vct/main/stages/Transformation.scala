@@ -258,6 +258,7 @@ case class SilverTransformation
     ConstantifyFinalFields,
 
     // Resolve side effects including method invocations, for encodetrythrowsignals.
+    ResolveExpressionSideChecks,
     ResolveExpressionSideEffects,
     EncodeTryThrowSignals,
 
@@ -267,8 +268,6 @@ case class SilverTransformation
     HeapVariableToRef,
 
     CheckContractSatisfiability.withArg(checkSat),
-
-    ResolveExpressionSideChecks,
 
     DesugarCollectionOperators,
     EncodeNdIndex,
