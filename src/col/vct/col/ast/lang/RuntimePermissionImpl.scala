@@ -6,7 +6,7 @@ import vct.col.print.{Empty, _}
 trait RuntimePermissionImpl[G] {
   this: RuntimePermission[G] =>
 
-  override def t: Type[G] = TBool[G]()
+  override def t: Type[G] = TFraction[G]()
 
   def layoutPermission(implicit ctx: Ctx): Doc = {
     permission match {

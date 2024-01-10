@@ -1,14 +1,18 @@
 package vct.rewrite.runtime
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers.{RewriteInstanceMethod, RewriteScope}
-import vct.col.ast.{AccountedPredicate, Block, Class, CodeStringStatement, Declaration, Deref, Div, Expr, InstanceMethod, IntegerValue, Perm, Program, ReadPerm, Scope, Statement, WritePerm}
+import vct.col.ast.RewriteHelpers.{RewriteBlock, RewriteClass, RewriteInstanceMethod, RewriteScope}
+import vct.col.ast._
+import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
+import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.util.CodeStringDefaults._
-import vct.rewrite.runtime.util.{FieldNumber, FieldObjectString}
+import vct.rewrite.runtime.util.Util._
+import vct.rewrite.runtime.util.{FieldNumber, FieldObjectString, NewVariableGenerator, NewVariableResult, TransferPermissionRewriter}
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 object CreateForkPermissionTransfer extends RewriterBuilder {
   override def key: String = "createForkPermissionTransfrer"
@@ -40,111 +44,85 @@ case class CreateForkPermissionTransfer[Pre <: Generation]() extends Rewriter[Pr
     thread.start();
 
    */
+  implicit var program: Program[Pre] = null
 
-//  val classes: ScopedStack[Class[Pre]] = ScopedStack()
-//  val permissionExprContract: ScopedStack[Seq[CodeStringStatement[Post]]] = ScopedStack()
-//  val permDeref: ScopedStack[Deref[Pre]] = ScopedStack()
-//
-//  val fieldFinder: ScopedStack[FieldNumber[Pre]] = ScopedStack()
-//
-//  override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-//    fieldFinder.having(FieldNumber[Pre](program)) {
-//      val test = super.dispatch(program)
-//      test
-//    }
-//  }
-//
-//  override def dispatch(decl: Declaration[Pre]): Unit = {
-//    decl match {
-//      case im: InstanceMethod[Pre] => dispatchInstanceMethod(im)
-//      case cls: Class[Pre] => classes.having(cls){super.dispatch(decl)}
-//      case _ => super.dispatch(decl)
-//    }
-//  }
-//
-//  def dispatchInstanceMethod(im: InstanceMethod[Pre]): Unit = {
-//    im.o.getPreferredNameOrElse() match {
-//      case "run" => dispatchInstanceMethodRun(im)
-//      case _ => super.dispatch(im);
-//    }
-//  }
-//
-//  def dispatchInstanceMethodRun(im: InstanceMethod[Pre]): Unit = {
-//    if(isRunnable(classes.top)){
-//      assignRequiredPermissions(im)
-//    }else {
-//      super.dispatch(im)
-//    }
-//  }
-//
-//  def isRunnable(cls: Class[Pre]) : Boolean = {
-//    cls.supports.map(c => c.decl.o.getPreferredNameOrElse()).contains("Runnable")
-//  }
-//
-//  def assignRequiredPermissions(im: InstanceMethod[Pre]): Unit = {
-//    im.rewrite(
-//      body = rewriteBodyInstanceMethod(im)
-//    )
-//  }
-//
-//  def rewriteBodyInstanceMethod(im: InstanceMethod[Pre]): Option[Statement[Post]] = {
-//    im.body match {
-//      case Some(sc: Scope[Pre]) => sc match {
-//        case block: Block[Pre] => Some(sc.rewrite(body = rewriteMethodStatements(block, im)))
-//      }
-//      case _ => None
-//    }
-//  }
-//
-//  def rewriteMethodStatements(block: Block[Pre], im: InstanceMethod[Pre]): Block[Post] = {
-//    permissionExprContract.having(Seq[CodeStringStatement[Post]]){
-//      dispatch(im.contract.requires);
-//      Block[Post](permissionExprContract.top ++ block.statements.map(dispatch))(block.o)
-//    }
-//  }
-//
-//  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
-//    e match {
-//      case p: Perm[Pre] => {
-//        if (!permissionExprContract.isEmpty) {
-//          permDeref.having(null) {
-//            val res = super.dispatch(e)
-//            val newTop = permissionExprContract.top :+ createTransferCode(permDeref.top, p)
-//            permissionExprContract.pop()
-//            permissionExprContract.push(newTop)
-//            res
-//          }
-//        } else {
-//          super.dispatch(e)
-//        }
-//      }
-//      case d: Deref[Pre] => {
-//        if (!permDeref.isEmpty && permDeref.top == null) {
-//          permDeref.pop()
-//          permDeref.push(d)
-//        }
-//        super.rewriteDefault(d)
-//
-//      }
-//      case _ => super.dispatch(e)
-//    }
-//  }
-//
-//  private def createTransferCode(deref: Deref[Pre], p: Perm[Pre]): CodeStringStatement[Post] = {
-//    val name: String = FieldObjectString().determineObjectReference(deref)
-//    val id: Int = fieldFinder.top.findNumber(deref.ref.decl)
-//    p.perm match {
-//      case iv: IntegerValue[Pre] => {
-//        if (iv.value > 1) {
-//          throw Unreachable("Permission cannot be exceeding 1")
-//        }
-//        CodeStringStatement(takePermissionInteger(name, id, p.perm.toString))(p.o)
-//      }
-//      case d: Div[Pre] => CodeStringStatement(takePermissionDiv(name, id, fractionTemplate(d.left.toString, d.right.toString)))(p.o)
-//      case _: WritePerm[Pre] => CodeStringStatement(takePermissionWrite(name, id))(p.o)
-//      case _: ReadPerm[Pre] => CodeStringStatement(takePermissionRead(name, id))(p.o)
-//      case _ => ???
-//    }
-//  }
+  implicit val newVariables: NewVariableGenerator[Pre] = new NewVariableGenerator[Pre](this)
+  val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
+  val statementBuffer: ScopedStack[mutable.ArrayBuffer[Statement[Post]]] = new ScopedStack()
 
+  def threadClasses: Seq[Class[Pre]] = collectThreadClasses(program.declarations)
+
+
+  override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
+    this.program = program
+    val test = super.dispatch(program)
+    test
+  }
+
+
+  private def dispatchRunMethod(i: InstanceMethod[Pre]): Unit = {
+    val predicate = unfoldPredicate(i.contract.requires).head
+    val transferPermissionsStatements: Seq[Statement[Post]] = TransferPermissionRewriter(this, null, add = true)(program, newVariables.freeze()).transferPermissions(predicate)
+    dispatchInstanceMethod(i, transferPermissionsStatements)
+  }
+
+  private def dispatchInstanceMethod(i: InstanceMethod[Pre], transferPermissionsStatements: Seq[Statement[Post]] = Seq.empty): Unit = {
+    implicit val o: Origin = i.o
+    statementBuffer.collect {
+      statementBuffer.top.addAll(transferPermissionsStatements)
+      i.body match {
+        case Some(sc: Scope[Pre]) => sc.body match {
+          case b: Block[Pre] => {
+            val newScope = RewriteScope(sc)(this).rewrite(body = dispatchBlock(b))
+            classDeclarations.succeed(i, i.rewrite(body = Some(newScope)))
+          }
+        }
+      }
+    }
+  }
+
+  private def dispatchBlock(b: Block[Pre])(implicit o: Origin): Block[Post] = {
+    super.dispatch(b)
+    Block[Post](statementBuffer.top.toSeq)
+  }
+
+  def dispatchMethodInvocation(mi: MethodInvocation[Pre]): Expr[Post] = {
+    val runMethod: InstanceMethod[Pre] = getRunMethod(mi)
+    val predicate = unfoldPredicate(runMethod.contract.requires).head
+    //TODO check that the thread has enough permissions to do this operation
+    val removePermissions: Seq[Statement[Post]] = TransferPermissionRewriter(this, null, add = false)(program, newVariables.freeze()).transferPermissions(predicate)
+    statementBuffer.top.addAll(removePermissions)
+    super.dispatch(mi)
+  }
+
+
+  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
+    e match {
+      case mi: MethodInvocation[Pre] if statementBuffer.nonEmpty && isStartThreadMethod(mi) => dispatchMethodInvocation(mi)
+      case _ => super.dispatch(e)
+    }
+  }
+
+
+  override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
+    stat match {
+      case s: Statement[Pre] if statementBuffer.nonEmpty => {
+        val newStatement = super.dispatch(stat)
+        statementBuffer.top.addOne(newStatement)
+        newStatement
+      }
+      case _ => super.dispatch(stat)
+    }
+  }
+
+  override def dispatch(decl: Declaration[Pre]): Unit = {
+    decl match {
+      case cls: Class[Pre] => currentClass.having(cls) {
+        super.dispatch(cls)
+      }
+      case i: InstanceMethod[Pre] if isExtendingThread(currentClass.top) && isRunMethod(i) => dispatchRunMethod(i)
+      case i: InstanceMethod[Pre] => dispatchInstanceMethod(i)
+      case _ => super.dispatch(decl)
+    }
+  }
 }

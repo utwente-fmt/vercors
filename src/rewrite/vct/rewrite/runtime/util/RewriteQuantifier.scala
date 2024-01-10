@@ -4,7 +4,7 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.ast.{Expr, Variable, _}
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter}
-import vct.col.util.AstBuildHelpers.{ff, tt}
+import vct.col.util.AstBuildHelpers._
 
 
 
@@ -12,10 +12,14 @@ case class RewriteQuantifier[Pre <: Generation](override val outer: Rewriter[Pre
 
 
   def defineLoopAssertion(expr: Expr[Pre], condition: Expr[Pre]): Branch[Post] = {
+    implicit val origin: Origin = expr.o
+    val con = dispatch(condition)
+
+
     val loopAssertion = expr match {
-      case _: Forall[Pre] => (Not[Post](dispatch(condition))(expr.o), Return[Post](BooleanValue(false)(expr.o))(expr.o))
-      case _: Starall[Pre] => (Not[Post](dispatch(condition))(expr.o), Return[Post](BooleanValue(false)(expr.o))(expr.o)) //TODO fix separation conjunction that it keeps track of it if it is the same variable or not
-      case _: Exists[Pre] => (dispatch(condition), Return[Post](BooleanValue(true)(expr.o))(expr.o))
+      case _: Forall[Pre] => (!con, Return[Post](ff))
+      case _: Starall[Pre] => (!con, Return[Post](ff)) //TODO fix separation conjunction that it keeps track of it if it is the same variable or not
+      case _: Exists[Pre] => (con, Return[Post](ff))
       case _ => ???
     }
     Branch[Post](Seq(loopAssertion))(expr.o)

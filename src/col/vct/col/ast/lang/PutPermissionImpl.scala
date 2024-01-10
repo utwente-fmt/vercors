@@ -6,9 +6,9 @@ import vct.col.print.{Empty, _}
 trait PutPermissionImpl[G] {
   this: PutPermission[G] =>
 
-  override def t: Type[G] = TBool[G]()
+  override def t: Type[G] = TFraction[G]()
 
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Doc.arg(objectLocation) <> Text(s"__runtime__.get($id)") <> Text(".put(Thread.currentThread().getId(),") <> permission <> Text(")"))
+    Nest(objectLocation.show <> Text(s".__runtime__.get($id)") <> Text(".put(Thread.currentThread().getId(),") <> Nest(permission.show) <> Text(")"))
 
 }

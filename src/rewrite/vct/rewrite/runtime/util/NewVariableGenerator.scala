@@ -75,8 +75,12 @@ class NewVariableGenerator[Pre <: Generation](val rewriter: Rewriter[Pre] = new 
     Local[Post](newVariables.top.ref(v))(o)
   }
 
+  def freezeOption() : Option[NewVariableResult[Pre, _]] = {
+    Option.when(inputs.nonEmpty && outputs.nonEmpty && newVariables.nonEmpty){NewVariableResult(inputs.top.toSeq, newVariables.top, outputs.top.toSeq, null)}
+  }
+
   def freeze() : NewVariableResult[Pre, _] = {
-    NewVariableResult(inputs.top.toSeq, newVariables.top, outputs.top.toSeq, null)
+    freezeOption().getOrElse(NewVariableResult(Seq.empty, new SuccessionMap[Declaration[_], Variable[Post]](), Seq.empty, null))
   }
 
   def nonEmpty : Boolean = newVariables.nonEmpty

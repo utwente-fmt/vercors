@@ -6,6 +6,8 @@ import vct.col.ast.expr.apply.FunctionInvocationImpl
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
 
+import scala.:+
+
 /**
  * Collection of general AST building utilities. This is meant to organically grow, so add helpers as you see fit.
  */
@@ -466,4 +468,11 @@ object AstBuildHelpers {
 
   def foldOr[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(Or(_, _)).getOrElse(ff)
+
+  def findAllDerefs[G](d: Deref[G]) : Seq[Deref[G]] = {
+    d.obj match {
+      case d2: Deref[G] => Seq(d) ++ findAllDerefs(d2)
+      case _ => Seq(d)
+    }
+  }
 }

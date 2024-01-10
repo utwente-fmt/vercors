@@ -14,10 +14,14 @@ import scala.collection.mutable.ArrayBuffer
 
 case class TransferPermissionRewriter[Pre <: Generation](override val outer: Rewriter[Pre], override val cls: Class[Pre], add: Boolean)(implicit program: Program[Pre], newLocals: NewVariableResult[Pre, _]) extends AbstractQuantifierRewriter[Pre](outer, cls) {
 
+
+
   private def op(a: Expr[Post], b: Expr[Post])(implicit origin: Origin): Expr[Post] = if (add) a + b else a - b
 
   private def unfoldPredicate(pred: Expr[Pre]): Seq[Expr[Pre]] =
     unfoldStar(pred).collect { case p@(_: Perm[Pre] | _: Starall[Pre]) => p }
+
+
 
   def transferPermissions(pred: Expr[Pre]): Seq[Statement[Post]] = {
     implicit val origin: Origin = pred.o
