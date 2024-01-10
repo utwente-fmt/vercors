@@ -22,6 +22,7 @@ case class Ctx(
   tabWidth: Int = 4,
   names: Map[Declaration[_], String] = Map.empty,
   inSpec: Boolean = false,
+  withoutHash: Boolean = false,
 ) {
   def namesIn[G](node: Node[G]): Ctx =
     copy(names = {
@@ -30,8 +31,10 @@ case class Ctx(
       namer.finish.asInstanceOf[Map[Declaration[_], String]]
     })
 
-  def name(decl: Declaration[_]): String =
-    names.getOrElse(decl, s"${decl.o.getPreferredNameOrElse().ucamel}_${decl.hashCode()}")
+  def name(decl: Declaration[_]): String = {
+    val hash = if(withoutHash) "" else "_${decl.hashCode()}"
+    names.getOrElse(decl, s"${decl.o.getPreferredNameOrElse().ucamel}${hash}")
+  }
 
   def name(ref: Ref[_, _ <: Declaration[_]]): String =
     name(Try(ref.decl).getOrElse(return "?brokenref?"))
