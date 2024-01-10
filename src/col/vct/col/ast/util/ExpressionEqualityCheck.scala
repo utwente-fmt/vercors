@@ -2,6 +2,8 @@ package vct.col.ast.util
 
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.ast._
+import vct.col.typerules.CoercionUtils
+import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
@@ -79,6 +81,7 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     case Mod(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield eucl_mod(i1, i2)
     case TruncDiv(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 / i2
     case TruncMod(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 % i2
+    case UMinus(e1) => for {i1 <- isConstantIntRecurse(e1)} yield -i1
 
     case BitAnd(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 & i2
     case ComputationalAnd(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 & i2
@@ -172,6 +175,7 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
   def isNonZero(e: Expr[G]):Boolean = e match {
     case v: Local[G] => info.exists(_.variableNotZero.contains(v))
     case _ => isConstantInt(e).getOrElse(0) != 0
+    case _ => lessThenEq(const(1)(e.o), e).getOrElse(false)
   }
 
   def unfoldComm[B <: BinExpr[G]](e: Expr[G])(implicit tag: ClassTag[B]): Seq[Expr[G]] = {
@@ -282,6 +286,9 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
       case (e1, name2: Local[G]) =>
         replaceVariable(name2, e1)
 
+      case (inv: MethodInvocation[G], _) if !inv.ref.decl.pure => false
+      case (_, inv: MethodInvocation[G]) if !inv.ref.decl.pure => false
+
       // In the general case, we are just interested in syntactic equality
       case (e1, e2) => e1 == e2
     }
@@ -311,7 +318,8 @@ case class AnnotationVariableInfo[G](variableEqualities: Map[Local[G], List[Expr
                                      variableSynonyms: Map[Local[G], Int], variableNotZero: Set[Local[G]],
                                      lessThanEqVars: Map[Local[G], Set[Local[G]]],
                                      upperBound: Map[Local[G], BigInt],
-                                     lowerBound: Map[Local[G], BigInt])
+                                     lowerBound: Map[Local[G], BigInt],
+                                     usefullConditions: mutable.ArrayBuffer[Expr[G]])
 
 /** This class gathers information about variables, such as:
   * `requires x == 0` and stores that x is equal to the value 0.
@@ -335,6 +343,8 @@ class AnnotationVariableInfoGetter[G]() {
   val upperBound: mutable.Map[Local[G], BigInt] = mutable.Map()
   // lowerBound(v) = 5 Captures that variable v is greater than or equal to 5
   val lowerBound: mutable.Map[Local[G], BigInt] = mutable.Map()
+
+  val usefullConditions: mutable.ArrayBuffer[Expr[G]] = mutable.ArrayBuffer()
 
   def extractEqualities(e: Expr[G]): Unit = {
     e match{
@@ -408,6 +418,24 @@ class AnnotationVariableInfoGetter[G]() {
     if(upperBound.contains(k) && upperBound(k) <= 0) lessThanEqVars.getOrElseUpdate(n, mutable.Set()).addOne(m)
     if(lowerBound.contains(m) && lowerBound(m) >= 0) lessThanEqVars.getOrElseUpdate(k, mutable.Set()).addOne(n)
     if(upperBound.contains(m) && upperBound(m) <= 0) lessThanEqVars.getOrElseUpdate(n, mutable.Set()).addOne(k)
+  }
+
+  def isBool[G](e: Expr[G]) = {
+    CoercionUtils.getCoercion(e.t, TBool[G]()).isDefined
+  }
+
+  def isInt[G](e: Expr[G]) = {
+    CoercionUtils.getCoercion(e.t, TInt[G]()).isDefined
+  }
+  def isSimpleExpr(e: Expr[G]): Boolean = {
+    e match {
+      case e if(!isInt(e) && !isBool(e)) => false
+      case SeqMember(e1, Range(from, to)) => isSimpleExpr(e1) && isSimpleExpr(from) && isSimpleExpr(to)
+      case e: BinExpr[G] => isSimpleExpr(e.left) && isSimpleExpr(e.right)
+      case _: Local[G] => true
+      case _: Constant[G, _] => true
+      case _ => false
+    }
   }
 
   def extractComparisons(e: Expr[G]): Unit = {
@@ -487,6 +515,7 @@ class AnnotationVariableInfoGetter[G]() {
     lessThanEqVars.clear()
     upperBound.clear()
     lowerBound.clear()
+    usefullConditions.clear()
 
     for(clause <- annotations){
       extractEqualities(clause)
@@ -494,18 +523,21 @@ class AnnotationVariableInfoGetter[G]() {
 
     val res = AnnotationVariableInfo[G](variableEqualities.view.mapValues(_.toList).toMap, variableValues.toMap,
       variableSynonyms.toMap, Set[Local[G]](), Map[Local[G], Set[Local[G]]](), Map[Local[G],BigInt](),
-      Map[Local[G],BigInt]())
+      Map[Local[G],BigInt](), usefullConditions)
     equalCheck = ExpressionEqualityCheck(Some(res))
 
     for(clause <- annotations){
-      extractComparisons(clause)
+      if(isSimpleExpr(clause)) {
+        extractComparisons(clause)
+        usefullConditions.addOne(clause)
+      }
     }
 
     distributeInfo()
 
     AnnotationVariableInfo(variableEqualities.view.mapValues(_.toList).toMap, variableValues.toMap,
       variableSynonyms.toMap, variableNotZero.toSet, lessThanEqVars.view.mapValues(_.toSet).toMap,
-      upperBound.toMap, lowerBound.toMap)
+      upperBound.toMap, lowerBound.toMap, usefullConditions)
   }
 
   def distributeInfo(): Unit = {
