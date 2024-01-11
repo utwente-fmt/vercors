@@ -66,6 +66,7 @@ import vct.col.ast.statement.nonexecutable._
 import vct.col.ast.statement.terminal._
 import vct.col.ast.statement.veymont._
 import vct.col.ast.util.Declarator
+import vct.col.check.{CheckContext, CheckError}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
@@ -1353,4 +1354,9 @@ final case class GetArrayPermission[G](objectLocation: Expr[G], id: Int, locatio
 final case class PutPermission[G](objectLocation: Expr[G], id: Int, permission: Expr[G])(implicit val o: Origin) extends Expr[G] with PutPermissionImpl[G]
 final case class PutArrayPermission[G](objectLocation: Expr[G], id: Int, location: Expr[G], permission: Expr[G])(implicit val o: Origin) extends Expr[G] with PutArrayPermissionImpl[G]
 final case class RuntimePermission[G](permission: Expr[G])(implicit val o: Origin) extends Expr[G] with RuntimePermissionImpl[G]
-final case class RuntimeFractionGet[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Expr[G] with RuntimeFractionGetImpl[G]
+sealed trait RuntimeFraction[G] extends Expr[G]
+final case class RuntimeFractionDiff[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends RuntimeFraction[G] with RuntimeFractionDiffImpl[G]
+final case class RuntimeFractionZero[G]()(implicit val o: Origin) extends RuntimeFraction[G] with RuntimeFractionZeroImpl[G]
+final case class RuntimeFractionOne[G]()(implicit val o: Origin) extends RuntimeFraction[G] with RuntimeFractionOneImpl[G]
+
+final case class RuntimePostJoin[G](args: Seq[Expr[G]])(val blame: Blame[AssertFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with RuntimePostJoinImpl[G]

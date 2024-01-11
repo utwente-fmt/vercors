@@ -7,7 +7,8 @@ trait GetArrayPermissionImpl[G] {
   this: GetArrayPermission[G] =>
 
   override def t: Type[G] = TFraction[G]()
+  private def defaultFraction: RuntimeFractionZero[G] = RuntimeFractionZero[G]()
 
   override def layout(implicit ctx: Ctx): Doc =
-    Nest(objectLocation.show <> Text(s".__runtime__$id.get(") <> location <> Text(").get(Thread.currentThread().getId())"))
+    Nest(objectLocation.show <> Text(s".__runtime__$id.get(") <> location <> Text(").getOrDefault(Thread.currentThread().getId(),") <+> defaultFraction.show <> Text(")"))
 }

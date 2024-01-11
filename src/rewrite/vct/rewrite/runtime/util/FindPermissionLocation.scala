@@ -7,7 +7,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 
 
-case class FindPermissionLocation[Pre <: Generation](outer: Rewriter[Pre])(implicit program: Program[Pre], newLocals: NewVariableResult[Pre, _]) extends Rewriter[Pre] {
+case class FindPermissionLocation[Pre <: Generation](outer: Rewriter[Pre], offset: Option[Expr[Rewritten[Pre]]] = None )(implicit program: Program[Pre], newLocals: NewVariableResult[Pre, _]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
   def getPermission(p: Perm[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
@@ -44,7 +44,7 @@ case class FindPermissionLocation[Pre <: Generation](outer: Rewriter[Pre])(impli
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
       //TODO fix possible change in location (when in a predicate)
-      case t: ThisObject[Pre] => super.dispatch(e)
+      case t: ThisObject[Pre] => offset.getOrElse(super.dispatch(e))
       case l: Local[Pre] => {
         Local[Post](newLocals.mapping.ref(l.ref.decl))(l.o)
       }

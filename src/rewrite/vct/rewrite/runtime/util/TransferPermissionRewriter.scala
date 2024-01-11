@@ -12,8 +12,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 
-case class TransferPermissionRewriter[Pre <: Generation](override val outer: Rewriter[Pre], override val cls: Class[Pre], add: Boolean)(implicit program: Program[Pre], newLocals: NewVariableResult[Pre, _]) extends AbstractQuantifierRewriter[Pre](outer, cls) {
-
+case class TransferPermissionRewriter[Pre <: Generation](override val outer: Rewriter[Pre], override val cls: Class[Pre], add: Boolean, offset: Option[Expr[Rewritten[Pre]]] = None)(implicit program: Program[Pre], newLocals: NewVariableResult[Pre, _]) extends AbstractQuantifierRewriter[Pre](outer, cls) {
 
 
   private def op(a: Expr[Post], b: Expr[Post])(implicit origin: Origin): Expr[Post] = if (add) a + b else a - b
@@ -22,14 +21,13 @@ case class TransferPermissionRewriter[Pre <: Generation](override val outer: Rew
     unfoldStar(pred).collect { case p@(_: Perm[Pre] | _: Starall[Pre]) => p }
 
 
-
   def transferPermissions(pred: Expr[Pre]): Seq[Statement[Post]] = {
     implicit val origin: Origin = pred.o
     unfoldPredicate(pred).map(dispatch).map(e => Eval[Post](e))
   }
 
   private def dispatchPerm(p: Perm[Pre])(implicit origin: Origin): Expr[Post] = {
-    val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](this).getPermission(p)
+    val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](this, offset).getPermission(p)(origin)
     val newValue = PermissionRewriter.permissionToRuntimeValue(p)
     val getPermission = permissionLocation.get()
     permissionLocation.put(op(getPermission, newValue))

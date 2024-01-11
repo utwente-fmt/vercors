@@ -89,8 +89,9 @@ case class CreateForkPermissionTransfer[Pre <: Generation]() extends Rewriter[Pr
   def dispatchMethodInvocation(mi: MethodInvocation[Pre]): Expr[Post] = {
     val runMethod: InstanceMethod[Pre] = getRunMethod(mi)
     val predicate = unfoldPredicate(runMethod.contract.requires).head
+    val offset: Option[Expr[Rewritten[Pre]]] = Some(dispatch(mi.obj))
     //TODO check that the thread has enough permissions to do this operation
-    val removePermissions: Seq[Statement[Post]] = TransferPermissionRewriter(this, null, add = false)(program, newVariables.freeze()).transferPermissions(predicate)
+    val removePermissions: Seq[Statement[Post]] = TransferPermissionRewriter(this, null, add = false, offset = offset)(program, newVariables.freeze()).transferPermissions(predicate)
     statementBuffer.top.addAll(removePermissions)
     super.dispatch(mi)
   }

@@ -50,6 +50,7 @@ class Test {
 
         source.start();
         sink.start();
+        //@ postJoin(1, 1/2);
         source.join();
         sink.join();
 

@@ -1282,7 +1282,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Result(ref) =>
         Result(ref)
       case RuntimePermission(p) => e
-      case RuntimeFractionGet(l, r) => e
+      case RuntimeFractionDiff(l, r) => e
+      case RuntimeFractionZero() => e
+      case RuntimeFractionOne() => e
       case s @ Scale(scale, r) =>
         Scale(rat(scale), res(r))(s.blame)
       case ScaleByParBlock(ref, r) =>
@@ -1645,6 +1647,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Recv(ref) => Recv(ref)
       case r @ Refute(assn) => Refute(res(assn))(r.blame)
       case Return(result) => Return(result) // TODO coerce return, make AmbiguousReturn?
+      case r@RuntimePostJoin(args) => RuntimePostJoin(args)(r.blame)
       case Scope(locals, body) => Scope(locals, body)
       case send @ Send(decl, offset, resource) => Send(decl, offset, res(resource))(send.blame)
       case ass @ SilverFieldAssign(obj, field, value) => SilverFieldAssign(ref(obj), field, coerce(value, field.decl.t))(ass.blame)

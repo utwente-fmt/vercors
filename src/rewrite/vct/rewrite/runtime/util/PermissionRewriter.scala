@@ -16,7 +16,7 @@ object PermissionRewriter {
     permission.perm match {
       case _: WritePerm[Pre] => const(1)
       case _: ReadPerm[Pre] => const(0)
-      case d: Div[Pre] => RuntimeFractionGet[Post](rw.dispatch(d.left), rw.dispatch(d.right))
+      case d: Div[Pre] => RuntimeFractionDiff[Post](rw.dispatch(d.left), rw.dispatch(d.right))
       case _ => rw.dispatch(permission.perm)
     }
   }
@@ -36,18 +36,7 @@ case class PermissionRewriter[Pre <: Generation](outer: Rewriter[Pre])(implicit 
 
   def rewritePermission(p: Perm[Pre]): Expr[Rewritten[Pre]] = {
     implicit val origin: Origin = p.o
-    val permissionLocation : Expr[Post] = FindPermissionLocation[Pre](this).getPermission(p).get()
+    val permissionLocation : Expr[Post] = FindPermissionLocation[Pre](this).getPermission(p)(origin).get()
     PermissionRewriter.createCheckPermission(permissionLocation, p)
   }
-
-//  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
-//    e match {
-//      //TODO fix possible change in location (when in a predicate)
-//      case t: ThisObject[Pre] => super.dispatch(e)
-//      case l: Local[Pre] => {
-//        Local[Post](newLocals.mapping.ref(l.ref.decl))(l.o)
-//      }
-//      case _ => super.dispatch(e)
-//    }
-//  }
 }
