@@ -1359,4 +1359,4 @@ final case class RuntimeFractionDiff[G](left: Expr[G], right: Expr[G])(implicit 
 final case class RuntimeFractionZero[G]()(implicit val o: Origin) extends RuntimeFraction[G] with RuntimeFractionZeroImpl[G]
 final case class RuntimeFractionOne[G]()(implicit val o: Origin) extends RuntimeFraction[G] with RuntimeFractionOneImpl[G]
 
-final case class RuntimePostJoin[G](args: Seq[Expr[G]])(val blame: Blame[AssertFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with RuntimePostJoinImpl[G]
+final case class RuntimePostJoin[G](obj: Expr[G], args: Seq[Expr[G]])(val blame: Blame[AssertFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with RuntimePostJoinImpl[G]

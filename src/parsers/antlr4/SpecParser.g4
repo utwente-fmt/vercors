@@ -70,7 +70,7 @@ valStatement
  | 'open' langExpr ';' # valOpen
  | 'close' langExpr ';' # valClose
  | 'assert' langExpr ';' # valAssert
- | 'postJoin' '(' valExpressionList? ')' ';' # valPostJoin
+ | langExpr '.' 'postJoin' '(' valExpressionList? ')' ';' # valPostJoin
  | 'assume' langExpr ';' # valAssume
  | 'inhale' langExpr ';' # valInhale
  | 'exhale' langExpr ';' # valExhale
