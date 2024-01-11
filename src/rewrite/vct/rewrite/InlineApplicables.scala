@@ -262,12 +262,10 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
       dispatch(InstancePredicateApply(obj, pred, args, WritePerm()(loc.o))(loc.o))
 
     case Perm(InLinePatternLocation(loc @ PredicateLocation(pred, args), pat), WritePerm()) if pred.decl.inline =>
-      dispatch(PredicateApply(pred, args, WritePerm()(loc.o))(loc.o))
-//      TODO: Or should I do:
-//      dispatch(InlinePattern(PredicateApply(pred, args, WritePerm()(loc.o))(loc.o))(loc.o))
+      dispatch(InlinePattern(PredicateApply(pred, args, WritePerm()(loc.o))(loc.o))(loc.o))
 
     case Perm(InLinePatternLocation(loc @ InstancePredicateLocation(pred, obj, args), pat), WritePerm()) if pred.decl.inline =>
-      dispatch(InstancePredicateApply(obj, pred, args, WritePerm()(loc.o))(loc.o))
+      dispatch(InlinePattern(InstancePredicateApply(obj, pred, args, WritePerm()(loc.o))(loc.o)))
 
     case other => rewriteDefault(other)
   }
