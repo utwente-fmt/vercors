@@ -357,6 +357,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case cons: Constructor[Pre] => rewriteDefault(cons)
     case method: AbstractMethod[Pre] =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
       currentResultVar.having(Local[Post](res.ref)(ResultVar)) {

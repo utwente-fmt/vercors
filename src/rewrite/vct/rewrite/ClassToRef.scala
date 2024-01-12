@@ -178,25 +178,24 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         case cons: Constructor[Pre] =>
           implicit val o: Origin = cons.o
           val thisVar = new Variable[Post](TRef())(This)
-          consSucc(cons) = globalDeclarations.declare(labelDecls.scope { withResult((result: Result[Post]) => new Procedure(
-            returnType = TRef(),
+          consSucc(cons) = globalDeclarations.declare(labelDecls.scope { new Procedure(
+            returnType = TVoid(),
             args = variables.collect { cons.args.map(dispatch) }._1,
-            outArgs = variables.collect { cons.outArgs.map(dispatch) }._1,
+            outArgs = thisVar +: variables.collect { cons.outArgs.map(dispatch) }._1,
             typeArgs = variables.collect { cons.typeArgs.map(dispatch) }._1,
-            body = cons.body.map(body => diz.having(thisVar.get) { Scope(Seq(thisVar), Block(Seq(
-              Instantiate[Post](succ(cons.cls.decl), thisVar.get),
+            body = cons.body.map(body => diz.having(thisVar.get) { Block(Seq(
+              instantiate(cons.cls.decl, thisVar.ref),
               dispatch(body),
-              Return(thisVar.get),
-            )))}),
-            contract = diz.having(result) { cons.contract.rewrite(
+            )) }),
+            contract = diz.having(thisVar.get) { cons.contract.rewrite(
               ensures = SplitAccountedPredicate(
-                left = UnitAccountedPredicate((result !== Null()) &&
-                  (FunctionInvocation[Post](typeOf.ref(()), Seq(result), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing"))(cons.o) ===
+                left = UnitAccountedPredicate((thisVar.get !== Null()) &&
+                  (FunctionInvocation[Post](typeOf.ref(()), Seq(thisVar.get), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing"))(cons.o) ===
                     const(typeNumber(cls))(cons.o))),
                 right = dispatch(cons.contract.ensures),
               ),
             )},
-          )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame)))})
+          )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))})
         case predicate: InstancePredicate[Pre] =>
           val thisVar = new Variable[Post](TRef())(This)
           diz.having(thisVar.get(predicate.o)) {
@@ -219,13 +218,16 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     case decl => rewriteDefault(decl)
   }
 
+  def instantiate(cls: Class[Pre], target: Ref[Post, Variable[Post]])(implicit o: Origin): Statement[Post] = {
+    Block(Seq(
+      SilverNewRef[Post](target, cls.declarations.collect { case field: InstanceField[Pre] => fieldSucc.ref(field) }),
+      Inhale(FunctionInvocation[Post](typeOf.ref(()), Seq(Local(target)), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing.")) === const(typeNumber(cls))),
+    ))
+  }
+
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case Instantiate(Ref(cls), Local(Ref(v))) =>
-      implicit val o: Origin = stat.o
-      Block(Seq(
-        SilverNewRef[Post](succ(v), cls.declarations.collect { case field: InstanceField[Pre] => fieldSucc.ref(field) }),
-        Inhale(FunctionInvocation[Post](typeOf.ref(()), Seq(Local(succ(v))), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing.")) === const(typeNumber(cls))),
-      ))
+      instantiate(cls, succ(v))(stat.o)
     case inv @ InvokeMethod(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       InvokeProcedure[Post](
         ref = methodSucc.ref(method),

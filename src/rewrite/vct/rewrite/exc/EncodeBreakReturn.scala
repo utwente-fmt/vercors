@@ -156,6 +156,8 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case cons: Constructor[Pre] =>
+      rewriteDefault(cons)
     case method: AbstractMethod[Pre] =>
       method.body match {
         case None => rewriteDefault(method)
