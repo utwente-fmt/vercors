@@ -181,10 +181,10 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           consSucc(cons) = globalDeclarations.declare(labelDecls.scope { withResult((result: Result[Post]) => new Procedure(
             returnType = TRef(),
             args = variables.collect { cons.args.map(dispatch) }._1,
+            outArgs = variables.collect { cons.outArgs.map(dispatch) }._1,
             typeArgs = variables.collect { cons.typeArgs.map(dispatch) }._1,
-            outArgs = Nil,
             body = cons.body.map(body => diz.having(thisVar.get) { Scope(Seq(thisVar), Block(Seq(
-              Instantiate[Post](succ(cons.cls.decl), thisVar.ref),
+              Instantiate[Post](succ(cons.cls.decl), thisVar.get),
               dispatch(body),
               Return(thisVar.get),
             )))}),
@@ -220,7 +220,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case Instantiate(Ref(cls), Ref(v)) =>
+    case Instantiate(Ref(cls), Local(Ref(v))) =>
       implicit val o: Origin = stat.o
       Block(Seq(
         SilverNewRef[Post](succ(v), cls.declarations.collect { case field: InstanceField[Pre] => fieldSucc.ref(field) }),
@@ -235,11 +235,11 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
         yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
       )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), PreBlameSplit.left(PanicBlame("incorrect instance method type?"), inv.blame)))(inv.o)
-    case inv @ InvokeConstructor(Ref(cons), args, outArgs, typeArgs, givenMap, yields) =>
+    case inv @ InvokeConstructor(Ref(cons), out, args, outArgs, typeArgs, givenMap, yields) =>
       InvokeProcedure[Post](
         ref = consSucc.ref(cons),
         args = args.map(dispatch),
-        outArgs = outArgs.map(dispatch),
+        outArgs = dispatch(out) +: outArgs.map(dispatch),
         typeArgs = typeArgs.map(dispatch),
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
         yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },

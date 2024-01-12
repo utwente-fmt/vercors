@@ -1487,8 +1487,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case IndetBranch(branches) => IndetBranch(branches)
       case Inhale(assn) => Inhale(res(assn))
       case Instantiate(cls, dest) => Instantiate(cls, dest)
-      case inv @ InvokeConstructor(ref, args, outArgs, typeArgs, givenMap, yields) =>
-        InvokeConstructor(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
+      case inv @ InvokeConstructor(ref, out, args, outArgs, typeArgs, givenMap, yields) =>
+        InvokeConstructor(ref, out, coerceArgs(args, ref.decl, typeArgs, canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
         InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>

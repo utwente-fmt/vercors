@@ -503,6 +503,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       variables.succeed(res.asInstanceOf[Variable[Pre]], res)
       effect(InvokeConstructor[Post](
         ref = succ(cons),
+        out = res.get(ResultVar),
         args = args.map(inlined),
         outArgs = outArgs.map(dispatch),
         typeArgs = typeArgs.map(dispatch),
@@ -513,7 +514,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     case NewObject(Ref(cls)) =>
       val res = new Variable[Post](TClass(succ(cls)))(ResultVar)
       variables.succeed(res.asInstanceOf[Variable[Pre]], res)
-      effect(Instantiate[Post](succ(cls), res.ref)(e.o))
+      effect(Instantiate[Post](succ(cls), res.get(ResultVar))(e.o))
       stored(res.get(SideEffectOrigin), TClass(cls.ref))
     case other =>
       stored(ReInliner().dispatch(rewriteDefault(other)), other.t)
