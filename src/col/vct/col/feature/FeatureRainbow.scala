@@ -486,6 +486,7 @@ class FeatureRainbow[G] {
     case node: LiteralSet[G] => SilverAxiomaticLibraryType
     case node: SeqMember[G] => SilverAxiomaticLibraryType
     case node: SeqSubscript[G] => SilverAxiomaticLibraryType
+    case node: VectorSubscript[G] => SilverAxiomaticLibraryType
     case node: SeqUpdate[G] => SilverAxiomaticLibraryType
     case node: SetIntersection[G] => SilverAxiomaticLibraryType
     case node: SetMember[G] => SilverAxiomaticLibraryType
@@ -502,6 +503,7 @@ class FeatureRainbow[G] {
     case node: TBag[G] => SilverAxiomaticLibraryType
     case node: TSeq[G] => SilverAxiomaticLibraryType
     case node: TSet[G] => SilverAxiomaticLibraryType
+    case node: TVector[G] => SilverAxiomaticLibraryType
 
     case node: SilverCurFieldPerm[G] => SilverSpecific
     case node: SilverCurPredPerm[G] => SilverSpecific

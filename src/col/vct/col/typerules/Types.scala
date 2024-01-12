@@ -40,6 +40,8 @@ object Types {
       TSeq(leastCommonSuperType(left, right))
     case (TSet(left), TSet(right)) =>
       TSet(leastCommonSuperType(left, right))
+    case (TVector(left, sizeLeft), TVector(right, sizeRight)) if sizeLeft == sizeRight =>
+      TVector(leastCommonSuperType(left, right), sizeLeft)
     case (TBag(left), TBag(right)) =>
       TBag(leastCommonSuperType(left, right))
     case (TMatrix(left), TMatrix(right)) =>

@@ -1009,6 +1009,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     }
     case ValSeqType(_, _, element, _) => TSeq(convert(element))
     case ValSetType(_, _, element, _) => TSet(convert(element))
+    case ValVectorType(_, _, element, _, size, _) => TVector(convert(element), convert(size))
     case ValBagType(_, _, element, _) => TBag(convert(element))
     case ValOptionType(_, _, element, _) => TOption(convert(element))
     case ValMapType(_, _, key, _, value, _) => TMap(convert(key), convert(value))
@@ -1041,6 +1042,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   def convert(implicit e: ValPrimaryCollectionConstructorContext): Expr[G] = e match {
     case ValTypedLiteralSeq(_, _, t, _, _, exprs, _) => LiteralSeq(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralSet(_, _, t, _, _, exprs, _) => LiteralSet(convert(t), exprs.map(convert(_)).getOrElse(Nil))
+    case ValTypedLiteralVector(_, _, t, _, _, exprs, _) => LiteralVector(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValSetComprehension(_, _, t, _, _, value, _, selectors, _, something, _) => ??(e)
     case ValTypedLiteralBag(_, _, t, _, _, exprs, _) => LiteralBag(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => LiteralMap(convert(key), convert(value), pairs.map(convert(_)).getOrElse(Nil))

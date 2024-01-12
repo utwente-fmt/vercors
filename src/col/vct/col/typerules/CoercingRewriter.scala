@@ -340,6 +340,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"set")
     }
+  def vector(e: Expr[Pre]): (Expr[Pre], TVector[Pre]) =
+    CoercionUtils.getAnyVectorCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
+      case None => throw IncoercibleText(e, s"set")
+    }
   def bag(e: Expr[Pre]): (Expr[Pre], TBag[Pre]) =
     CoercionUtils.getAnyBagCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
@@ -680,8 +685,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         )
       case AmbiguousResult() => e
       case sub @ AmbiguousSubscript(collection, index) =>
-        firstOk(e, s"Expected collection to be a sequence, array, pointer or map, but got ${collection.t}.",
+        firstOk(e, s"Expected collection to be a sequence, vector, array, pointer or map, but got ${collection.t}.",
           AmbiguousSubscript(seq(collection)._1, int(index))(sub.blame),
+          AmbiguousSubscript(vector(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(array(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(pointer(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(map(collection)._1, coerce(index, map(collection)._2.key))(sub.blame),
@@ -905,6 +911,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         LiteralSeq(element, values.map(coerce(_, element)))
       case LiteralSet(element, values) =>
         LiteralSet(element, values.map(coerce(_, element)))
+      case LiteralVector(element, values) =>
+        LiteralVector(element, values.map(coerce(_, element)))
       case LiteralTuple(ts, values) =>
         LiteralTuple(ts, values.zip(ts).map {
           case (v, t) => coerce(v, t)
@@ -1396,6 +1404,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         VectorCompare(coerce(coercedLeft, seqType), coerce(coercedRight, seqType))
       case VectorRepeat(e) =>
         VectorRepeat(e)
+      case get @ VectorSubscript(xs, index) =>
+        VectorSubscript(vector(xs)._1, int(index))(get.blame)
       case VectorSum(indices, vec) =>
         VectorSum(coerce(indices, TSeq[Pre](TInt())), coerce(vec, TSeq[Pre](TRational())))
       case Void() =>

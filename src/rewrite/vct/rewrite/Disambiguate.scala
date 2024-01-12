@@ -105,6 +105,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else if(op.isMapOp) MapGet(dispatch(collection), dispatch(index))(op.blame)
         else if(op.isArrayOp) ArraySubscript(dispatch(collection), dispatch(index))(op.blame)
         else if(op.isSeqOp) SeqSubscript(dispatch(collection), dispatch(index))(op.blame)
+        else if(op.isVectorOp) VectorSubscript(dispatch(collection), dispatch(index))(op.blame)
         else throw Unreachable("AmbiguousSubscript must subscript a pointer, map, array, or seq because of the type check.")
       case op @ AmbiguousMember(x, xs) =>
         if(op.isMapOp) MapMember(dispatch(x), dispatch(xs))

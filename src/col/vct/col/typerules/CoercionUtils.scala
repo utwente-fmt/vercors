@@ -51,6 +51,8 @@ case object CoercionUtils {
         CoerceMapSeq(getAnyCoercion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
       case (TSet(innerSource), TSet(innerTarget)) =>
         CoerceMapSet(getPromotion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
+      case (TVector(innerSource, sizeSource), TVector(innerTarget, sizeTarget)) if sizeSource == sizeTarget =>
+        CoerceMapVector(getPromotion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget, sizeTarget)
       case (TBag(innerSource), TBag(innerTarget)) =>
         CoerceMapBag(getPromotion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
       case (TMatrix(innerSource), TMatrix(innerTarget)) =>
@@ -255,6 +257,13 @@ case object CoercionUtils {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnySetCoercion)
     case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnySetCoercion)
     case t: TSet[G] => Some((CoerceIdentity(source), t))
+    case _ => None
+  }
+
+  def getAnyVectorCoercion[G](source: Type[G]): Option[(Coercion[G], TVector[G])] = source match {
+    case t: CPrimitiveType[G] => chainCCoercion(t, getAnyVectorCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyVectorCoercion)
+    case t: TVector[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 

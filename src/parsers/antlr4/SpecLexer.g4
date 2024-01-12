@@ -41,6 +41,7 @@ VAL_REF: 'ref';
 VAL_RATIONAL: 'rational';
 VAL_SEQ: 'seq';
 VAL_SET: 'set';
+VAL_VECTOR: 'vector';
 VAL_BAG: 'bag';
 VAL_POINTER: 'pointer';
 VAL_MAP: 'map';

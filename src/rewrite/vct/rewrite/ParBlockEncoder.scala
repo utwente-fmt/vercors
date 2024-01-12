@@ -223,6 +223,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     case PointerSubscript(pointer, index) => combine(scanForAssignE(pointer), scanForAssignE(index))
     case ArraySubscript(pointer, index) => combine(scanForAssignE(pointer), scanForAssignE(index))
     case SeqSubscript(seq, index) => combine(scanForAssignE(seq), scanForAssignE(index))
+    case VectorSubscript(vec, index) => combine(scanForAssignE(vec), scanForAssignE(index))
     case _ => None
   }
 
@@ -231,6 +232,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     case ArraySubscript(arr, index) => combine(scanAssignTarget(arr), scanForAssignE(index))
     case PointerSubscript(pointer, index) => combine(scanAssignTarget(pointer), scanForAssignE(index))
     case SeqSubscript(seq, index) => combine(scanAssignTarget(seq), scanForAssignE(index))
+    case VectorSubscript(vec, index) => combine(scanAssignTarget(vec), scanForAssignE(index))
     case _ => None
   }
 

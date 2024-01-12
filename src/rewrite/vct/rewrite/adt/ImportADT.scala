@@ -46,6 +46,7 @@ case object ImportADT {
     case TEither(left, right) => "either$" + typeText(left) + "__" + typeText(right) + "$"
     case TSeq(element) => "seq_" + typeText(element)
     case TSet(element) => "set_" + typeText(element)
+    case TVector(element, size) => "vector" + size.toString + "_" + typeText(element)
     case TBag(element) => "bag_" + typeText(element)
     case TMatrix(element) => "mat_" + typeText(element)
     case TType(t) => "typ_" + typeText(t)

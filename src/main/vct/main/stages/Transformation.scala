@@ -280,6 +280,7 @@ case class SilverTransformation
     EnumToDomain,
     ImportArray.withArg(adtImporter),
     ImportPointer.withArg(adtImporter),
+    ImportVector.withArg(adtImporter),
     ImportMapCompat.withArg(adtImporter),
     ImportEither.withArg(adtImporter),
     ImportTuple.withArg(adtImporter),
