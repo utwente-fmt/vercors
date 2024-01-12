@@ -7,7 +7,7 @@ class ZeroMixedArray {
 	context_everywhere ar.length == M * N;
   context (\forall* int i;0 <= i && i < M*N ; Perm(ar[i],write));
   ensures (\forall int i;0 <= i && i < M*N ; ar[i]==0);
-  void vector(int M, int N, int[M*N] ar) {
+  void vectorZero(int M, int N, int[M*N] ar) {
     par outer (int i = 0 .. M)
       context (\forall* int k; N*i <= k && k < N*(i+1) ; Perm(ar[k],write));
       ensures (\forall int k; N*i <= k && k < N*(i+1) ; ar[k]==0 );
