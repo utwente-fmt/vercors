@@ -461,8 +461,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultJavaConstructor(_) =>
         val cls = t.asInstanceOf[JavaTClass[Pre]].ref.decl
-        val ref = new LazyRef[Post, Procedure[Post]](javaConstructor(javaDefaultConstructor(cls)))
-        ProcedureInvocation[Post](ref,
+        val ref = new LazyRef[Post, Constructor[Post]](javaConstructor(javaDefaultConstructor(cls)))
+        ConstructorInvocation[Post](ref,
           args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
