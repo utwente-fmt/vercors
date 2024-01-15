@@ -13,9 +13,9 @@ import scala.collection.mutable
 
 
 object ForkJoinPermissionTransfer extends RewriterBuilder {
-  override def key: String = "createForkPermissionTransfrer"
+  override def key: String = "forkJoinPermissionTransfer"
 
-  override def desc: String = "Detects fork methods and creates a permission transfer for the forked thread"
+  override def desc: String = "Detects fork/join/run methods and creates a permission transfer for the forked thread"
 }
 
 
