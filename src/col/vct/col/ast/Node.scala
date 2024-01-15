@@ -1347,8 +1347,6 @@ final case class RuntimeNewPredicate[G](instance: Variable[G], args: Seq[Expr[G]
 
 final case class Equals[G](obj: Expr[G], target: Expr[G])(implicit val o: Origin) extends Expr[G] with EqualsImpl[G]
 
-final case class RemovePermissions[G](objectLocation: Expr[G], id: Int, field: Expr[G], permission: Expr[G])(implicit val o: Origin) extends Expr[G] with RemovePermissionsImpl[G]
-
 final case class GetPermission[G](objectLocation: Expr[G], id: Int)(implicit val o: Origin) extends Expr[G] with GetPermissionImpl[G]
 final case class GetArrayPermission[G](objectLocation: Expr[G], id: Int, location: Expr[G])(implicit val o: Origin) extends Expr[G] with GetArrayPermissionImpl[G]
 final case class PutPermission[G](objectLocation: Expr[G], id: Int, permission: Expr[G])(implicit val o: Origin) extends Expr[G] with PutPermissionImpl[G]
@@ -1359,4 +1357,4 @@ final case class RuntimeFractionDiff[G](left: Expr[G], right: Expr[G])(implicit 
 final case class RuntimeFractionZero[G]()(implicit val o: Origin) extends RuntimeFraction[G] with RuntimeFractionZeroImpl[G]
 final case class RuntimeFractionOne[G]()(implicit val o: Origin) extends RuntimeFraction[G] with RuntimeFractionOneImpl[G]
 
-final case class RuntimePostJoin[G](obj: Expr[G], args: Seq[Expr[G]])(val blame: Blame[AssertFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with RuntimePostJoinImpl[G]
+final case class RuntimePostJoin[G](obj: Expr[G], args: Expr[G])(val blame: Blame[AssertFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with RuntimePostJoinImpl[G]

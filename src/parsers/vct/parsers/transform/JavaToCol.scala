@@ -1131,7 +1131,7 @@ case class JavaToCol[G](override val baseOrigin: Origin,
     case ValOpen(_, _, _) => ??(stat)
     case ValClose(_, _, _) => ??(stat)
     case ValAssert(_, assn, _) => Assert(convert(assn))(blame(stat))
-    case ValPostJoin(obj, _, _, _, args, _, _) => RuntimePostJoin(convert(obj), args.map(convert(_)).getOrElse(Seq.empty))(blame(stat))
+    case ValPostJoin(obj, _, _, _, arg, _, _) => RuntimePostJoin(convert(obj), convert(arg))(blame(stat))
     case ValAssume(_, assn, _) => Assume(convert(assn))
     case ValInhale(_, resource, _) => Inhale(convert(resource))
     case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
