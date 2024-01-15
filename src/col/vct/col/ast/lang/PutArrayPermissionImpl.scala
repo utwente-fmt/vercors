@@ -9,5 +9,5 @@ trait PutArrayPermissionImpl[G] {
   override def t: Type[G] = TFraction[G]()
 
   override def layout(implicit ctx: Ctx): Doc =
-    Nest(objectLocation.show <> Text(s".__runtime__$id.get(") <> location <> Text(").put(Thread.currentThread().getId(), ") <> permission <> Text(")"))
+    Nest(objectLocation.show <> Text(s".__runtime__$id.get(") <> location <> Text(").put(") <> threadId.show <> Text(", ") <> permission <> Text(")"))
 }

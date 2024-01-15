@@ -992,8 +992,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case get @ GetLeft(e) =>
         GetLeft(either(e)._1)(get.blame)
-      case GetPermission(o, i) => e
-      case GetArrayPermission(o, i,l) => e
+      case GetPermission(o, i, t) => e
+      case GetArrayPermission(o, i,l, t) => e
       case get @ GetRight(e) =>
         GetRight(either(e)._1)(get.blame)
       case GlobalThreadId() =>
@@ -1263,8 +1263,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Product(bindings, bool(condition), int(main))
       case ProverFunctionInvocation(ref, args) =>
         ProverFunctionInvocation(ref, coerceArgs(args, ref.decl))
-      case PutPermission(o, i, p) => e
-      case PutArrayPermission(o, i, l, p) => e
+      case PutPermission(o, i, p,t) => e
+      case PutArrayPermission(o, i, l, p,t) => e
       case PVLDeref(obj, field) => e
       case PVLInvocation(obj, method, args, typeArgs, givenArgs, yields) => e
       case PVLLocal(name) => e
@@ -1494,6 +1494,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ThisSeqProg(ref)
       case ThisObject(ref) =>
         ThisObject(ref)
+      case ThreadId(o) => e
       case TupGet(tup, index) =>
         TupGet(tuple(tup)._1, index)
       case TypeOf(expr) =>

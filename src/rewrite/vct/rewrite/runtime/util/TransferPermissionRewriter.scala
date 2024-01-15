@@ -7,15 +7,17 @@ import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.Unreachable
+import vct.rewrite.runtime.util.PermissionRewriter._
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 
-case class TransferPermissionRewriter[Pre <: Generation](override val outer: Rewriter[Pre], override val cls: Class[Pre], add: Boolean, offset: Option[Expr[Rewritten[Pre]]] = None)(implicit program: Program[Pre], newLocals: NewVariableResult[Pre, _]) extends AbstractQuantifierRewriter[Pre](outer, cls) {
+case class TransferPermissionRewriter[Pre <: Generation](override val outer: Rewriter[Pre], override val cls: Class[Pre], threadId: ThreadId[Rewritten[Pre]], add: Boolean, offset: Option[Expr[Rewritten[Pre]]] = None, factor: Option[Expr[Rewritten[Pre]]] = None)(implicit program: Program[Pre], newLocals: NewVariableResult[Pre, _]) extends AbstractQuantifierRewriter[Pre](outer, cls) {
 
+  private def transA(a: Expr[Post])(implicit origin: Origin): Expr[Post] = if (factor.nonEmpty) permissionToRuntimeValue(factor.get) * a else a
 
-  private def op(a: Expr[Post], b: Expr[Post])(implicit origin: Origin): Expr[Post] = if (add) a + b else a - b
+  private def op(a: Expr[Post], b: Expr[Post])(implicit origin: Origin): Expr[Post] = if (add) transA(a) + b else transA(a) - b
 
   private def unfoldPredicate(pred: Expr[Pre]): Seq[Expr[Pre]] =
     unfoldStar(pred).collect { case p@(_: Perm[Pre] | _: Starall[Pre]) => p }
@@ -27,8 +29,8 @@ case class TransferPermissionRewriter[Pre <: Generation](override val outer: Rew
   }
 
   private def dispatchPerm(p: Perm[Pre])(implicit origin: Origin): Expr[Post] = {
-    val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](this, offset).getPermission(p)(origin)
-    val newValue = PermissionRewriter.permissionToRuntimeValue(p)
+    val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](this, threadId, offset).getPermission(p)(origin)
+    val newValue = permissionToRuntimeValueRewrite(p)
     val getPermission = permissionLocation.get()
     permissionLocation.put(op(getPermission, newValue))
   }

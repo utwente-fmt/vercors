@@ -12,5 +12,5 @@ trait GetPermissionImpl[G] {
 
 
   override def layout(implicit ctx: Ctx): Doc =
-    Nest(objectLocation.show <> Text(s".__runtime__.get($id).getOrDefault(Thread.currentThread().getId(),") <+> defaultFraction.show <> Text(")"))
+    Nest(objectLocation.show <> Text(s".__runtime__.get($id).getOrDefault(") <> threadId.show <> Text(",") <+> defaultFraction.show <> Text(")"))
 }

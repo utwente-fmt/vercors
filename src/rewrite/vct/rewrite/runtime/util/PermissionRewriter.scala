@@ -10,19 +10,35 @@ import vct.result.VerificationError.Unreachable
 
 object PermissionRewriter {
 
-  def permissionToRuntimeValue[Pre <: Generation](permission: Perm[Pre])(implicit origin: Origin): Expr[Rewritten[Pre]] = {
+  def permissionToRuntimeValueRewrite[Pre <: Generation](permission: Perm[Pre])(implicit origin: Origin): Expr[Rewritten[Pre]] = {
     type Post = Rewritten[Pre]
     val rw = new Rewriter[Pre]()
     permission.perm match {
-      case _: WritePerm[Pre] => const(1)
-      case _: ReadPerm[Pre] => const(0)
+      case _: WritePerm[Pre] => RuntimeFractionOne()
+      case _: ReadPerm[Pre] => RuntimeFractionZero()
       case d: Div[Pre] => RuntimeFractionDiff[Post](rw.dispatch(d.left), rw.dispatch(d.right))
+      case IntegerValue(n: BigInt) if n == 1 => RuntimeFractionOne()
       case _ => rw.dispatch(permission.perm)
     }
   }
 
+  def permissionToRuntimeValue[G](expr: Expr[G])(implicit origin: Origin): Expr[G] = {
+    expr match {
+      case _: WritePerm[G] => RuntimeFractionOne()
+      case _: ReadPerm[G] => RuntimeFractionZero()
+      case d: Div[G] => RuntimeFractionDiff[G](d.left, d.right)
+      case IntegerValue(n: BigInt) if n == 1 => RuntimeFractionOne()
+      case _ => expr
+    }
+  }
+
+  def permissionToRuntimeValue[G](perm: Perm[G])(implicit origin: Origin): Expr[G] = {
+    permissionToRuntimeValue(perm.perm)
+  }
+
+
   def createCheckPermission[Pre <: Generation](retrievedPermission: Expr[Rewritten[Pre]], permission: Perm[Pre])(implicit origin: Origin): Expr[Rewritten[Pre]] = {
-    val newValue = permissionToRuntimeValue(permission)
+    val newValue = permissionToRuntimeValueRewrite(permission)
     permission.perm match {
       case _: ReadPerm[Pre] => retrievedPermission > newValue
       case _ => retrievedPermission === newValue
@@ -36,7 +52,7 @@ case class PermissionRewriter[Pre <: Generation](outer: Rewriter[Pre])(implicit 
 
   def rewritePermission(p: Perm[Pre]): Expr[Rewritten[Pre]] = {
     implicit val origin: Origin = p.o
-    val permissionLocation : Expr[Post] = FindPermissionLocation[Pre](this).getPermission(p)(origin).get()
+    val permissionLocation: Expr[Post] = FindPermissionLocation[Pre](this, ThreadId(None)).getPermission(p)(origin).get()
     PermissionRewriter.createCheckPermission(permissionLocation, p)
   }
 }
