@@ -18,29 +18,52 @@ object CreateFieldPermissions extends RewriterBuilder {
 
 case class CreateFieldPermissions[Pre <: Generation]() extends Rewriter[Pre] {
 
-  val methodStatements: ScopedStack[ArrayBuffer[Statement[Post]]] = ScopedStack();
-  val dereferences: ScopedStack[ArrayBuffer[InstanceField[Pre]]] = ScopedStack();
-
   implicit var program: Program[Pre] = null
+  val blockStatements: ScopedStack[ArrayBuffer[Statement[Post]]] = ScopedStack();
+
 
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     this.program = program
     val test = super.dispatch(program)
     test
-
   }
 
-  private def dispatchClassDeclarations(cls: Class[Pre]): Seq[ClassDeclaration[Post]] = {
-    classDeclarations.collect {
-      val numberOfInstanceFields = cls.declarations.collect { case i: InstanceField[Pre] => i }.size
-      if (numberOfInstanceFields >= 1) {
-        val ledger = CodeStringClass[Post](newFieldPermissions(generateHashMapCreation(numberOfInstanceFields)), cls.o.getPreferredNameOrElse())(cls.o)
-        classDeclarations.declare(ledger)
-      }
+
+  def dispatchClass(cls: Class[Pre]) : Unit = {
+    val newClassDeclarations = classDeclarations.collect{
+      defineLedger(cls)
       cls.declarations.foreach(d => dispatch(d))
-      classDeclarations.declare(CodeStringClass[Post](generatedHashMapsFunction, cls.o.getPreferredNameOrElse())(cls.o))
+      defineHashMapFunction(cls)
     }._1
+
+    globalDeclarations.succeed(cls, cls.rewrite(declarations = newClassDeclarations))
+  }
+
+  def defineLedger(cls: Class[Pre]) : Unit = {
+    val numberOfInstanceFields = cls.declarations.collect { case i: InstanceField[Pre] => i }.size
+    if (numberOfInstanceFields >= 1) {
+      val ledger = CodeStringClass[Post](newFieldPermissions(generateHashMapCreation(numberOfInstanceFields)), cls.o.getPreferredNameOrElse())(cls.o)
+      classDeclarations.declare(ledger)
+    }
+  }
+
+  def defineHashMapFunction(cls: Class[Pre]) : Unit = {
+    val hasArray = cls.declarations.collect{case i: InstanceField[Pre] => i}
+      .map(i => i.t)
+      .collect{case ta: TArray[Pre] => ta}
+      .nonEmpty
+
+    if(hasArray) {
+      classDeclarations.declare(CodeStringClass[Post](generatedHashMapsFunction, cls.o.getPreferredNameOrElse())(cls.o))
+    }
+  }
+
+  private def dispatchCheckInstanceField(instanceField: InstanceField[Pre]): Unit = {
+    instanceField.t match {
+      case _: TArray[Pre] => createPermissionFieldArray(instanceField)
+      case _ => super.dispatch(instanceField)
+    }
   }
 
   private def createPermissionFieldArray(instanceField: InstanceField[Pre]): Unit = {
@@ -48,81 +71,50 @@ case class CreateFieldPermissions[Pre <: Generation]() extends Rewriter[Pre] {
     val preferredName = instanceField.o.getPreferredNameOrElse()
     val cs = new CodeStringClass[Post](newArrayPermission(id), preferredName)(instanceField.o)
     classDeclarations.declare(cs)
-    super.rewriteDefault(instanceField)
+    super.dispatch(instanceField)
   }
 
+  def dispatchBlock(b: Block[Pre]) : Block[Post] = {
+    val (newStatements, res) = blockStatements.collect{b.statements.foreach(dispatch)}
+    Block[Post](newStatements)(b.o)
+  }
 
-  override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
-    val newStatement = dereferences.having(new ArrayBuffer[InstanceField[Pre]]()) {
-      super.dispatch(stat)
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = {
+    val newStatement = stat match {
+      case b: Block[Pre] => dispatchBlock(b)
+      case _ : Loop[Pre] => blockStatements.collect{super.dispatch(stat)}._2
+      case _ => super.dispatch(stat)
     }
-    if (methodStatements.nonEmpty) {
-      methodStatements.top.addOne(newStatement)
+    if (blockStatements.nonEmpty) {
+      blockStatements.top.addOne(newStatement)
     }
     newStatement
   }
 
-  private def dispatchCheckInstanceField(instanceField: InstanceField[Pre]): Unit = {
-    instanceField.t match {
-      case _: TArray[Pre] => createPermissionFieldArray(instanceField)
-      case _ => super.rewriteDefault(instanceField)
-    }
+
+  def dispatchNewArray(d: Deref[Pre], na: NewArray[Pre]) : Unit = {
+    val instanceField: InstanceField[Pre] = d.ref.decl
+    val id = FieldNumber(instanceField)
+    val callGHS = callGenerateHashMaps(na.dims.head.toString, id)
+    val newStat = CodeStringStatement[Post](callGHS)(na.o)
+    blockStatements.top.addOne(newStat)
   }
-
-
-  def dispatchNewArray(newArray: NewArray[Pre]): Expr[Post] = {
-    if (dereferences.top.nonEmpty && methodStatements.nonEmpty) {
-      val id = FieldNumber(dereferences.top(0))
-      val callGHS = callGenerateHashMaps(newArray.dims.head.toString, id)
-      val newStat = CodeStringStatement[Post](callGHS)(newArray.o)
-      methodStatements.top.addOne(newStat)
-    }
-    super.dispatch(newArray)
-  }
-
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
-      case newArray: NewArray[Pre] => dispatchNewArray(newArray)
-      case deref: Deref[Pre] => {
-        deref.ref.decl match {
-          case instanceField: InstanceField[Pre] => {
-            if (dereferences.nonEmpty) {
-              dereferences.top.addOne(instanceField)
-            }
-          }
-          case _ =>
-        }
-        deref.rewrite()
+      case PreAssignExpression(d: Deref[Pre], na: NewArray[Pre]) => {
+        dispatchNewArray(d, na)
+        super.dispatch(e)
       }
       case _ => super.dispatch(e)
     }
   }
 
-
-  def dispatchMethodBlock(block: Block[Pre], im: InstanceMethod[Pre]): Block[Post] = {
-    methodStatements.collect {
-      super.dispatch(block) //rewriting it first to determine all the new statements
-      Block[Post](methodStatements.top.toSeq)(block.o) //collecting also newly created statements in the correct order
-    }._2
-  }
-
-  def dispatchInstanceMethod(im: InstanceMethod[Pre]): Unit = {
-    im.body match {
-      case Some(sc: Scope[Pre]) => sc.body match {
-        case block: Block[Pre] => classDeclarations.succeed(im, im.rewrite(body = Some(sc.rewrite(body = dispatchMethodBlock(block, im)))))
-        case _ => ???
-      }
-      case _ => super.rewriteDefault(im)
-    }
-  }
-
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
-      case cls: Class[Pre] => globalDeclarations.succeed(cls, cls.rewrite(declarations = dispatchClassDeclarations(cls)))
-      case im: InstanceMethod[Pre] => dispatchInstanceMethod(im)
+      case cls: Class[Pre] => dispatchClass(cls)
       case instanceField: InstanceField[Pre] => dispatchCheckInstanceField(instanceField)
-      case _ => super.rewriteDefault(decl)
+      case _ => super.dispatch(decl)
     }
   }
 }

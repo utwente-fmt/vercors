@@ -72,12 +72,9 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
 
   private def dispatchBlock(b: Block[Pre], transferPermissionsStatements: Seq[Statement[Post]] = Seq.empty)(implicit o: Origin): Block[Post] = {
     val (statements, _) = statementBuffer.collect{
-      println("adding")
       statementBuffer.top.addAll(transferPermissionsStatements)
       super.dispatch(b)
     }
-    println("removing")
-    println(statements)
     Block[Post](statements)
   }
 
@@ -133,7 +130,6 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     stat match {
       case rpj: RuntimePostJoin[Pre] if postJoinTokens.nonEmpty => {
         val newRpj = statementBuffer.collect{
-          println("new level rpj")
           super.dispatch(rpj)}._2
         postJoinTokens.top.addOne(newRpj.asInstanceOf[RuntimePostJoin[Post]])
         statementBuffer.top.addOne(newRpj)
@@ -147,7 +143,6 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
       }
       case s: Statement[Pre] if statementBuffer.nonEmpty => {
           val newStatement = statementBuffer.collect{
-            println("new level normal statement")
             super.dispatch(stat)}._2
           statementBuffer.top.addOne(newStatement)
           newStatement
