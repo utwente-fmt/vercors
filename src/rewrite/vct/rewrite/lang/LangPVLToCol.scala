@@ -27,7 +27,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
   val pvlDefaultConstructor: SuccessionMap[Class[Pre], Constructor[Post]] = SuccessionMap()
   val pvlConstructor: SuccessionMap[PVLConstructor[Pre], Constructor[Post]] = SuccessionMap()
 
-  def constructorSucc(ref: PVLConstructorTarget[Pre]): Ref[Post, Procedure[Post]] = ref match {
+  def constructorSucc(ref: PVLConstructorTarget[Pre]): Ref[Post, Constructor[Post]] = ref match {
     case ImplicitDefaultPVLConstructor(cls) => pvlDefaultConstructor.ref(cls)
     case RefPVLConstructor(cons) => pvlConstructor.ref(cons)
     case RefModel(_) => throw new ModelConstructorNotSupported()
