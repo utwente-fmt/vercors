@@ -23,10 +23,12 @@ class LazyRef[G, Decl <: Declaration[G]](lazyDecl: => Declaration[G], val eqMeas
     // Clear out the value of computeDecl once we have computed the declaration. If we wouldn't do this, we would create
     // long chains of LazyRef(() => LazyRef(() => LazyRef(...).decl).decl).decl, which would be hard on the garbage
     // collector.
-    computeDecl = null
     result match {
-      case decl: /*tagged*/ Decl => decl
-      case other => throw MistypedRef(other, tag)
+      case decl: /*tagged*/ Decl =>
+        computeDecl = null
+        decl
+      case other =>
+        throw MistypedRef(other, tag)
     }
   }
 
