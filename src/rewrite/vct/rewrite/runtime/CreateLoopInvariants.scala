@@ -1,7 +1,9 @@
 package vct.rewrite.runtime
 
 import hre.util.ScopedStack
+import vct.col.ast.RewriteHelpers.{RewriteBlock, RewriteLoop}
 import vct.col.ast._
+import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.rewrite.runtime.util.RewriteContractExpr
 
@@ -41,22 +43,31 @@ case class CreateLoopInvariants[Pre<: Generation]() extends Rewriter[Pre]{
       case li: LoopInvariant[Pre] => {
         val contract = li.invariant
         val (_, newStatements) = new RewriteContractExpr[Pre](this, currentClass.top)(program, null).createStatements(contract)
-        newStatements.toSeq
+        val ns =newStatements.toSeq
+        ns
       }
       case _ => Seq.empty
     }
   }
 
-
   def dispatchLoop(l: Loop[Pre]): Statement[Post] = {
-    val loopContract = dispatchLoopContract(l.contract)
-    super.dispatch(l)
+    implicit val o: Origin = l.o
+    val loopContract: Seq[Statement[Post]] = dispatchLoopContract(l.contract)
+    val rewrittenBody = dispatch(l.body)
+    val newBody = Block[Post]((loopContract :+ rewrittenBody) ++ loopContract)
+    l.rewrite(body= newBody)
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
     stat match {
       case l: Loop[Pre] => dispatchLoop(l)
+      case b: Block[Pre] => dispatchBlock(b)
       case _ => super.dispatch(stat)
     }
+  }
+
+
+  def dispatchBlock(b: Block[Pre]): Block[Post] = {
+    b.rewrite()
   }
 }
