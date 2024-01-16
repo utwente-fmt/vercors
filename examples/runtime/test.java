@@ -1,70 +1,21 @@
-class Source extends Thread {
-    int i;
+class Program {
 
-    /*@
-        requires Perm(this.i, 1);
-        ensures Perm(this.i, 1);
-     */
-    public void run() {
-        i = 42;
-    }
-    public void join(){
+    int[] a;
 
-    }
-    public void start(){
 
-    }
-}
+    public int indexOf(int b) {
 
-class Sink extends Thread {
-    Source source;
-
-    public Sink() {
-
+        //@ loop_invariant i <= a.length;
+        //@ loop_invariant (\forall* int j; 0 <= j && j < a.length; Perm(a[j], read));
+        for(int i = 0; i < a.length; i++) {
+            if(a[i] == b) {
+                return i;
+            }
+        }
+        return -1;
     }
 
-    public void setSource(Source source) {
-        this.source = source;
+    public void main() {
+        Program main = new Program();
     }
-
-    /*@
-        requires Perm(source, 1);
-        requires Perm(source.i, 1);
-        ensures Perm(source.i, 1);
-        ensures Perm(source, 1);
-     */
-    public void run() {
-        //@ source.postJoin(1);
-        source.join();
-    }
-
-    public void join(){
-
-    }
-    public void start(){
-
-    }
-}
-
-class Test {
-
-    public void test() {
-        Source source = new Source();
-        Sink sink = new Sink();
-        sink.setSource(source);
-
-        source.start();
-        sink.start();
-        //@ source.postJoin(1\2);
-        source.join();
-        //@ sink.postJoin(1);
-        sink.join();
-
-        source.i = 1988;
-    }
-}
-
-
-class Thread {
-
 }

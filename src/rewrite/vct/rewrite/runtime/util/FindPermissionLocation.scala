@@ -30,6 +30,7 @@ case class FindPermissionLocation[Pre <: Generation](outer: Rewriter[Pre], threa
   private def getPermission(subscript: AmbiguousSubscript[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
     subscript.collection match {
       case d: Deref[Pre] => getPermission(d, subscript)
+      case l: Local[Pre] =>throw Unreachable("Currently paramaters permissions cannot be checked")
       case _ => throw Unreachable("Currently no other collections are allowed execpt deref")
     }
   }
@@ -40,6 +41,15 @@ case class FindPermissionLocation[Pre <: Generation](outer: Rewriter[Pre], threa
     val location = this.dispatch(subscript.index)
     ArrayLocation[Pre](permLocation, instanceFieldId, location, threadId)
   }
+
+//  private def getPermission(l: Local[Pre], subscript: AmbiguousSubscript[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
+//    val permLocation = this.dispatch(l)
+//    val instanceFieldId = FieldNumber(d.ref.decl)
+//    val location = this.dispatch(subscript.index)
+//    ArrayLocation[Pre](permLocation, instanceFieldId, location, threadId)
+//    ArrayLocation[Pre]()
+//  }
+
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {

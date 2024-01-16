@@ -58,24 +58,27 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
 
   protected def dispatchInstanceMethod(i: InstanceMethod[Pre], transferPermissionsStatements: Seq[Statement[Post]] = Seq.empty): Unit = {
     implicit val o: Origin = i.o
-    statementBuffer.collect {
-      postJoinTokens.collect {
-        statementBuffer.top.addAll(transferPermissionsStatements)
-        i.body match {
-          case Some(sc: Scope[Pre]) => sc.body match {
-            case b: Block[Pre] => {
-              val newScope = RewriteScope(sc)(this).rewrite(body = dispatchBlock(b))
-              classDeclarations.succeed(i, i.rewrite(body = Some(newScope)))
-            }
+    postJoinTokens.collect {
+      i.body match {
+        case Some(sc: Scope[Pre]) => sc.body match {
+          case b: Block[Pre] => {
+            val newScope = RewriteScope(sc)(this).rewrite(body = dispatchBlock(b,transferPermissionsStatements))
+            classDeclarations.succeed(i, i.rewrite(body = Some(newScope)))
           }
         }
       }
     }
   }
 
-  private def dispatchBlock(b: Block[Pre])(implicit o: Origin): Block[Post] = {
-    super.dispatch(b)
-    Block[Post](statementBuffer.top.toSeq)
+  private def dispatchBlock(b: Block[Pre], transferPermissionsStatements: Seq[Statement[Post]] = Seq.empty)(implicit o: Origin): Block[Post] = {
+    val (statements, _) = statementBuffer.collect{
+      println("adding")
+      statementBuffer.top.addAll(transferPermissionsStatements)
+      super.dispatch(b)
+    }
+    println("removing")
+    println(statements)
+    Block[Post](statements)
   }
 
 
@@ -129,15 +132,25 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
     stat match {
       case rpj: RuntimePostJoin[Pre] if postJoinTokens.nonEmpty => {
-        val newRpj = super.dispatch(rpj)
+        val newRpj = statementBuffer.collect{
+          println("new level rpj")
+          super.dispatch(rpj)}._2
         postJoinTokens.top.addOne(newRpj.asInstanceOf[RuntimePostJoin[Post]])
         statementBuffer.top.addOne(newRpj)
         newRpj
       }
-      case s: Statement[Pre] if statementBuffer.nonEmpty => {
-        val newStatement = super.dispatch(stat)
+      case b: Block[Pre] if statementBuffer.nonEmpty => {
+        //TODO: FIX
+        val newStatement = dispatchBlock(b)(b.o)
         statementBuffer.top.addOne(newStatement)
         newStatement
+      }
+      case s: Statement[Pre] if statementBuffer.nonEmpty => {
+          val newStatement = statementBuffer.collect{
+            println("new level normal statement")
+            super.dispatch(stat)}._2
+          statementBuffer.top.addOne(newStatement)
+          newStatement
       }
       case _ => super.dispatch(stat)
     }

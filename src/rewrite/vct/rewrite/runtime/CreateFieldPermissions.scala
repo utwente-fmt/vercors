@@ -101,10 +101,10 @@ case class CreateFieldPermissions[Pre <: Generation]() extends Rewriter[Pre] {
 
 
   def dispatchMethodBlock(block: Block[Pre], im: InstanceMethod[Pre]): Block[Post] = {
-    methodStatements.having(new ArrayBuffer[Statement[Post]]()) {
-      block.rewrite() //rewriting it first to determine all the new statements
-      block.rewrite(methodStatements.top.toSeq) //collecting also newly created statements in the correct order
-    }
+    methodStatements.collect {
+      super.dispatch(block) //rewriting it first to determine all the new statements
+      Block[Post](methodStatements.top.toSeq)(block.o) //collecting also newly created statements in the correct order
+    }._2
   }
 
   def dispatchInstanceMethod(im: InstanceMethod[Pre]): Unit = {
