@@ -100,6 +100,12 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] => currentClass.having(cls) { rewriteDefault(cls) }
+    case cons: Constructor[Pre] if currentClass.top.collectFirst { case run: RunMethod[Pre] => () }.nonEmpty =>
+      implicit val o: Origin = cons.o
+      cons.rewrite(body = cons.body.map(body => Block(Seq(
+        Inhale(InstancePredicateApply[Post](ThisObject(succ(cons.cls.decl)), idleToken.ref(cons.cls.decl), Nil, WritePerm())),
+        dispatch(body),
+      )))).succeed(cons)
     case m: RunMethod[Pre] =>
       implicit val o: Origin = m.o
       val cls = currentClass.top
