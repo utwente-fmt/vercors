@@ -15,10 +15,17 @@ class VeyMontToolPaperSpec extends VercorsSpec {
   vercors should verify using silicon flag "--veymont-generate-permissions" example s"$applicability/election-5.pvl"
 
   vercors should verify using silicon flag "--veymont-generate-permissions" example s"$paperExamples/veymont-swap.pvl"
+  // Slow because of generated permisissions. Can fix when VeyMont has permission support.
+//  (vercors
+//    should verify
+//    using silicon
+//    flags("--veymont-generate-permissions", "--backend-option", "--assumeInjectivityOnInhale", "--dev-assert-timeout", "300")
+//    example s"$paperExamples/veymont-tictactoemn.pvl"
+//    )
   (vercors
     should verify
     using silicon
     flags("--veymont-generate-permissions", "--backend-option", "--assumeInjectivityOnInhale", "--dev-assert-timeout", "300")
-    example s"$paperExamples/veymont-tictactoemn.pvl"
+    example s"$paperExamples/veymont-tictactoemn-seq.pvl"
     )
 }

@@ -1,5 +1,10 @@
-/* TODO: Requires to pass: --assumeInjectivityOnInhale, fix s.t. inlining leaves obvious triggers alone
-         And even then, still takes long: 4m20s when running viper manually. */
+/*
+  (RR) TODO: Requires to pass: --assumeInjectivityOnInhale.
+
+  (RR) TODO: This file verifies slowly because the generated permissions are too coarse. This can be fixed in two ways.
+  First, when VeyMont has permission support, we can manually specify the permissions. Second, the permissions that
+  VeyMont generates can be tightened, though it is unclear if that speeds up this file.
+*/
 
 class Move {
   int x;

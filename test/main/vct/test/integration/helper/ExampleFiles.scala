@@ -21,7 +21,8 @@ case object ExampleFiles {
     "package-info.java",
     "Makefile",
     "README",
-    "veymont-tictactoemn-seq.pvl"
+    // (RR) Slow because of generated permissions. Can fix when permission support for VeyMont is finished
+    "veymont-tictactoemn.pvl"
   )
 
   val MAIN_FILES: Set[String] = Set(
