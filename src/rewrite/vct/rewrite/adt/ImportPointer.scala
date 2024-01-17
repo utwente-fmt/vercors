@@ -5,7 +5,7 @@ import ImportADT.typeText
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.Generation
-import vct.col.util.AstBuildHelpers.ExprBuildHelpers
+import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, const}
 
 import scala.collection.mutable
 
@@ -26,6 +26,12 @@ case object ImportPointer extends ImportADTBuilder("pointer") {
     override def blame(error: PreconditionFailed): Unit =
       inner.blame(PointerBounds(expr))
   }
+
+  case class DerefPointerBoundsPreconditionFailed(inner: Blame[PointerDerefError], expr: Expr[_]) extends Blame[PreconditionFailed] {
+    override def blame(error: PreconditionFailed): Unit =
+      inner.blame(PointerInsufficientPermission(expr))
+  }
+
 
   case class PointerFieldInsufficientPermission(inner: Blame[PointerInsufficientPermission], expr: Expr[_]) extends Blame[InsufficientPermission] {
     override def blame(error: InsufficientPermission): Unit =
@@ -106,7 +112,11 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter) extends
         SilverDeref(
           obj = FunctionInvocation[Post](
             ref = pointerDeref.ref,
-            args = Seq(OptGet(dispatch(pointer))(PointerNullOptNone(deref.blame, pointer))),
+            args = Seq(FunctionInvocation[Post](
+              ref = pointerAdd.ref,
+              // Always index with zero, otherwise quantifiers with pointers do not get triggered
+              args = Seq(OptGet(dispatch(pointer))(PointerNullOptNone(deref.blame, pointer)), const(0)),
+              typeArgs = Nil, Nil, Nil)(NoContext(DerefPointerBoundsPreconditionFailed(deref.blame, pointer)))),
             typeArgs = Nil, Nil, Nil,
           )(PanicBlame("ptr_deref requires nothing.")),
           field = getPointerField(pointer),

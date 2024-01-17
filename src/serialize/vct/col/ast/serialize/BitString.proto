@@ -1,0 +1,8 @@
+syntax = "proto2";
+
+package vct.col.ast.serialize;
+
+message BitString {
+  required bytes data = 1;
+  required int32 skipAtLastByte = 2;
+}

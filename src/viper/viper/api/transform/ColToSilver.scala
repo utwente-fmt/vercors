@@ -398,7 +398,11 @@ case class ColToSilver(program: col.Program[_]) {
     case op @ col.Mult(left, right) if !op.isIntOp => silver.PermMul(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Mod(left, right) if !op.isIntOp => ??(op)
 
-    case div @ col.Div(left, right) =>
+    case div @ col.RatDiv(left, right) if right.t.isInstanceOf[col.TRational[_]] =>
+      currentDividingExpr.having(div) {
+        silver.PermPermDiv(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+      }
+    case div @ col.RatDiv(left, right) =>
       currentDividingExpr.having(div) {
         silver.PermDiv(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
       }

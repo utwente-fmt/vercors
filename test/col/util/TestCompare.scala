@@ -2,9 +2,9 @@ package vct.col.ast.util
 
 import org.scalatest.flatspec.AnyFlatSpec
 import vct.col.ast._
+import vct.col.compare.Compare
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.util.AstBuildHelpers._
-import vct.col.util.Compare
 
 class TestCompare extends AnyFlatSpec {
   sealed trait G

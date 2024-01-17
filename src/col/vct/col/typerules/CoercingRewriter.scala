@@ -3,7 +3,8 @@ package vct.col.typerules
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.FuncTools
 import vct.col.ast._
-import vct.col.ast.`type`.TFloats
+import vct.col.ast.rewrite.BaseCoercingRewriter
+import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewritten}
@@ -42,7 +43,7 @@ case object CoercingRewriter {
   private def coercionOrigin(of: Expr[_]): Origin = of.o.where(name = "unknown")
 }
 
-abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pre, Rewritten[Pre]] with LazyLogging {
+abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewriter[Pre, Rewritten[Pre]] with LazyLogging {
   import CoercingRewriter._
 
   type Post = Rewritten[Pre]
@@ -196,7 +197,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceFloatRat(_) => e
       case CoerceIncreasePrecision(_, _) => e
       case CoerceWidenBound(_, _) => e
-      case CoerceUnboundInt(_) => e
+      case CoerceUnboundInt(_, _) => e
       case CoerceCArrayPointer(_) => e
       case CoerceCPPArrayPointer(_) => e
       case CoerceNullEnum(_) => e
@@ -204,6 +205,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceIntRat() => e
       case CoerceRatZFrac() => e
       case CoerceZFracFrac() => e
+
+      case CoerceDecreasePrecision(_, _) => e
+      case CoerceCFloatCInt(_) => e
+      case CoerceCIntCFloat(_) => e
+      case CoerceCIntInt() => e
+      case CoerceCFloatFloat(_, _) => e
     }
   }
 
@@ -223,8 +230,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: SignalsClause[Pre] => node
     case node: FieldFlag[Pre] => node
     case node: IterVariable[Pre] => node
-    case node: CDeclarator[Pre] => node
     case node: CDeclaration[Pre] => node
+    case node: CDeclarator[Pre] => node
     case node: CDeclarationSpecifier[Pre] => node
     case node: CTypeQualifier[Pre] => node
     case node: CPointer[Pre] => node
@@ -262,234 +269,22 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: SeqGuard[Pre] => coerce(node)
   }
 
-  def preCoerce(e: Expr[Pre]): Expr[Pre] = e
-  def postCoerce(e: Expr[Pre]): Expr[Post] = rewriteDefault(e)
-  override final def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case ApplyCoercion(e, coercion) => applyCoercion(dispatch(e), coercion)(e.o)
-    case other => postCoerce(coerce(preCoerce(other)))
-  }
-
-  def preCoerce(stat: Statement[Pre]): Statement[Pre] = stat
-  def postCoerce(stat: Statement[Pre]): Statement[Post] = rewriteDefault(stat)
-  override final def dispatch(stat: Statement[Pre]): Statement[Post] =
-    postCoerce(coerce(preCoerce(stat)))
-
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
-  def postCoerce(decl: Declaration[Pre]): Unit = rewriteDefault(decl)
+  def postCoerce(decl: Declaration[Pre]): Unit = allScopes.anySucceed(decl, decl.rewriteDefault())
   override final def dispatch(decl: Declaration[Pre]): Unit = {
     val coercedDecl = coerce(preCoerce(decl))
     coercedDeclaration(decl) = coercedDecl
     postCoerce(coercedDecl)
   }
 
-  def preCoerce(region: ParRegion[Pre]): ParRegion[Pre] = region
-  def postCoerce(region: ParRegion[Pre]): ParRegion[Post] = rewriteDefault(region)
-  override final def dispatch(region: ParRegion[Pre]): ParRegion[Post] =
-    postCoerce(coerce(preCoerce(region)))
-
-
-
-  def preCoerce(node: Verification[Pre]): Verification[Pre] = node
-  def postCoerce(node: Verification[Pre]): Verification[Post] = rewriteDefault(node)
-  override final def dispatch(node: Verification[Pre]): Verification[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: VerificationContext[Pre]): VerificationContext[Pre] = node
-  def postCoerce(node: VerificationContext[Pre]): VerificationContext[Post] = rewriteDefault(node)
-  override final def dispatch(node: VerificationContext[Pre]): VerificationContext[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: Program[Pre]): Program[Pre] = node
-  def postCoerce(node: Program[Pre]): Program[Post] = rewriteDefault(node)
-  override final def dispatch(node: Program[Pre]): Program[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: Type[Pre]): Type[Pre] = node
-  def postCoerce(node: Type[Pre]): Type[Post] = rewriteDefault(node)
-  override final def dispatch(node: Type[Pre]): Type[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: LoopContract[Pre]): LoopContract[Pre] = node
-  def postCoerce(node: LoopContract[Pre]): LoopContract[Post] = rewriteDefault(node)
-  override final def dispatch(node: LoopContract[Pre]): LoopContract[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: CatchClause[Pre]): CatchClause[Pre] = node
-  def postCoerce(node: CatchClause[Pre]): CatchClause[Post] = rewriteDefault(node)
-  override final def dispatch(node: CatchClause[Pre]): CatchClause[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: IterVariable[Pre]): IterVariable[Pre] = node
-  def postCoerce(node: IterVariable[Pre]): IterVariable[Post] = rewriteDefault(node)
-  override final def dispatch(node: IterVariable[Pre]): IterVariable[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: SignalsClause[Pre]): SignalsClause[Pre] = node
-  def postCoerce(node: SignalsClause[Pre]): SignalsClause[Post] = rewriteDefault(node)
-  override final def dispatch(node: SignalsClause[Pre]): SignalsClause[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: DecreasesClause[Pre]): DecreasesClause[Pre] = node
-  def postCoerce(node: DecreasesClause[Pre]): DecreasesClause[Post] = rewriteDefault(node)
-  override final def dispatch(node: DecreasesClause[Pre]): DecreasesClause[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: ApplicableContract[Pre]): ApplicableContract[Pre] = node
-  def postCoerce(node: ApplicableContract[Pre]): ApplicableContract[Post] = rewriteDefault(node)
-  override final def dispatch(node: ApplicableContract[Pre]): ApplicableContract[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: AccountedPredicate[Pre]): AccountedPredicate[Pre] = node
-  def postCoerce(node: AccountedPredicate[Pre]): AccountedPredicate[Post] = rewriteDefault(node)
-  override final def dispatch(node: AccountedPredicate[Pre]): AccountedPredicate[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: FieldFlag[Pre]): FieldFlag[Pre] = node
-  def postCoerce(node: FieldFlag[Pre]): FieldFlag[Post] = rewriteDefault(node)
-  override final def dispatch(node: FieldFlag[Pre]): FieldFlag[Post] = postCoerce(coerce(preCoerce(node)))
-
-  override final def dispatch(node: Coercion[Pre]): Coercion[Post] = {
+  def coerce(node: Coercion[Pre]): Coercion[Pre] = {
     throw Unreachable("Coercions are rewritten by the Expr dispatch")
   }
 
-
-  def preCoerce(node: Location[Pre]): Location[Pre] = node
-  def postCoerce(node: Location[Pre]): Location[Post] = rewriteDefault(node)
-  override final def dispatch(node: Location[Pre]): Location[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Pre] = node
-  def postCoerce(node: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Post] = rewriteDefault(node)
-  override final def dispatch(node: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: CTypeQualifier[Pre]): CTypeQualifier[Pre] = node
-  def postCoerce(node: CTypeQualifier[Pre]): CTypeQualifier[Post] = rewriteDefault(node)
-  override final def dispatch(node: CTypeQualifier[Pre]): CTypeQualifier[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: CPointer[Pre]): CPointer[Pre] = node
-  def postCoerce(node: CPointer[Pre]): CPointer[Post] = rewriteDefault(node)
-  override final def dispatch(node: CPointer[Pre]): CPointer[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: CDeclarator[Pre]): CDeclarator[Pre] = node
-  def postCoerce(node: CDeclarator[Pre]): CDeclarator[Post] = rewriteDefault(node)
-  override final def dispatch(node: CDeclarator[Pre]): CDeclarator[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: CInit[Pre]): CInit[Pre] = node
-  def postCoerce(node: CInit[Pre]): CInit[Post] = rewriteDefault(node)
-  override final def dispatch(node: CInit[Pre]): CInit[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: CDeclaration[Pre]): CDeclaration[Pre] = node
-  def postCoerce(node: CDeclaration[Pre]): CDeclaration[Post] = rewriteDefault(node)
-  override final def dispatch(node: CDeclaration[Pre]): CDeclaration[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Pre] = node
-  def postCoerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Post] = rewriteDefault(node)
-  override final def dispatch(node: GpuMemoryFence[Pre]): GpuMemoryFence[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: CPPDeclarator[Pre]): CPPDeclarator[Pre] = node
-  def postCoerce(node: CPPDeclarator[Pre]): CPPDeclarator[Post] = rewriteDefault(node)
-  override final def dispatch(node: CPPDeclarator[Pre]): CPPDeclarator[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Pre] = node
-  def postCoerce(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Post] = rewriteDefault(node)
-  override final def dispatch(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: CPPDeclaration[Pre]): CPPDeclaration[Pre] = node
-  def postCoerce(node: CPPDeclaration[Pre]): CPPDeclaration[Post] = rewriteDefault(node)
-  override final def dispatch(node: CPPDeclaration[Pre]): CPPDeclaration[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: CPPAddressing[Pre]): CPPAddressing[Pre] = node
-  def postCoerce(node: CPPAddressing[Pre]): CPPAddressing[Post] = rewriteDefault(node)
-  override final def dispatch(node: CPPAddressing[Pre]): CPPAddressing[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: CPPInit[Pre]): CPPInit[Pre] = node
-  def postCoerce(node: CPPInit[Pre]): CPPInit[Post] = rewriteDefault(node)
-  override final def dispatch(node: CPPInit[Pre]): CPPInit[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: CPPExprOrTypeSpecifier[Pre]): CPPExprOrTypeSpecifier[Pre] = node
-  def postCoerce(node: CPPExprOrTypeSpecifier[Pre]): CPPExprOrTypeSpecifier[Post] = rewriteDefault(node)
-  override final def dispatch(node: CPPExprOrTypeSpecifier[Pre]): CPPExprOrTypeSpecifier[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: JavaName[Pre]): JavaName[Pre] = node
-  def postCoerce(node: JavaName[Pre]): JavaName[Post] = rewriteDefault(node)
-  override final def dispatch(node: JavaName[Pre]): JavaName[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: JavaImport[Pre]): JavaImport[Pre] = node
-  def postCoerce(node: JavaImport[Pre]): JavaImport[Post] = rewriteDefault(node)
-  override final def dispatch(node: JavaImport[Pre]): JavaImport[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: JavaModifier[Pre]): JavaModifier[Pre] = node
-  def postCoerce(node: JavaModifier[Pre]): JavaModifier[Post] = rewriteDefault(node)
-  override final def dispatch(node: JavaModifier[Pre]): JavaModifier[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Pre] = node
-  def postCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = rewriteDefault(node)
-  override final def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: Operator[Pre]): Operator[Pre] = node
-  def postCoerce(node: Operator[Pre]): Operator[Post] = rewriteDefault(node)
-  override final def dispatch(node: Operator[Pre]): Operator[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: BipPortType[Pre]): BipPortType[Pre] = node
-  def postCoerce(node: BipPortType[Pre]): BipPortType[Post] = rewriteDefault(node)
-  override final def dispatch(node: BipPortType[Pre]): BipPortType[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: BipTransitionSignature[Pre]): BipTransitionSignature[Pre] = node
-  def postCoerce(node: BipTransitionSignature[Pre]): BipTransitionSignature[Post] = rewriteDefault(node)
-  override final def dispatch(node: BipTransitionSignature[Pre]): BipTransitionSignature[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: BipGlueDataWire[Pre]): BipGlueDataWire[Pre] = node
-  def postCoerce(node: BipGlueDataWire[Pre]): BipGlueDataWire[Post] = rewriteDefault(node)
-  override final def dispatch(node: BipGlueDataWire[Pre]): BipGlueDataWire[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: BipGlueRequires[Pre]): BipGlueRequires[Pre] = node
-  def postCoerce(node: BipGlueRequires[Pre]): BipGlueRequires[Post] = rewriteDefault(node)
-  override final def dispatch(node: BipGlueRequires[Pre]): BipGlueRequires[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: BipGlueAccepts[Pre]): BipGlueAccepts[Pre] = node
-  def postCoerce(node: BipGlueAccepts[Pre]): BipGlueAccepts[Post] = rewriteDefault(node)
-  override final def dispatch(node: BipGlueAccepts[Pre]): BipGlueAccepts[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Pre] = node
-  def postCoerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Post] = rewriteDefault(node)
-  override final def dispatch(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Pre] = node
-  def postCoerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Post] = rewriteDefault(node)
-  override final def dispatch(node: JavaBipGlueName[Pre]): JavaBipGlueName[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Pre] = node
-  def postCoerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Post] = rewriteDefault(node)
-  override final def dispatch(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: LlvmLoopContract[Pre]): LlvmLoopContract[Pre] = node
-  def postCoerce(node: LlvmLoopContract[Pre]): LlvmLoopContract[Post] = rewriteDefault(node)
-  override final def dispatch(node: LlvmLoopContract[Pre]): LlvmLoopContract[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node
-  def postCoerce(node: ProverLanguage[Pre]): ProverLanguage[Post] = rewriteDefault(node)
-  override final def dispatch(node: ProverLanguage[Pre]): ProverLanguage[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node
-  def postCoerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = rewriteDefault(node)
-  override final def dispatch(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: PVLAccess[Pre]): PVLAccess[Pre] = node
-  def postCoerce(node: PVLAccess[Pre]): PVLAccess[Post] = rewriteDefault(node)
-  override final def dispatch(node: PVLAccess[Pre]): PVLAccess[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: PVLSubject[Pre]): PVLSubject[Pre] = node
-  def postCoerce(node: PVLSubject[Pre]): PVLSubject[Post] = rewriteDefault(node)
-  override final def dispatch(node: PVLSubject[Pre]): PVLSubject[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: Access[Pre]): Access[Pre] = node
-  def postCoerce(node: Access[Pre]): Access[Post] = rewriteDefault(node)
-  override final def dispatch(node: Access[Pre]): Access[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: Subject[Pre]): Subject[Pre] = node
-  def postCoerce(node: Subject[Pre]): Subject[Post] = rewriteDefault(node)
-  override final def dispatch(node: Subject[Pre]): Subject[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: SeqRun[Pre]): SeqRun[Pre] = node
-  def postCoerce(node: SeqRun[Pre]): SeqRun[Post] = rewriteDefault(node)
-  override final def dispatch(node: SeqRun[Pre]): SeqRun[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: SeqGuard[Pre]): SeqGuard[Pre] = node
-  def postCoerce(node: SeqGuard[Pre]): SeqGuard[Post] = rewriteDefault(node)
-  override final def dispatch(node: SeqGuard[Pre]): SeqGuard[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
-    ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
-      case Some(coercion) => coercion
-      case None => throw Incoercible(value, target)
+  def coerce(value: Expr[Pre], target: Type[Pre], canCDemote: Boolean = false): Expr[Pre] =
+    ApplyCoercion(value, CoercionUtils.getAnyCoercion(value.t, target) match {
+      case Some(coercion) if canCDemote || coercion.isCPromoting => coercion
+      case _ => throw Incoercible(value, target)
     })(coercionOrigin(value))
 
   def coerceArgs(args: Seq[Expr[Pre]], app: Applicable[Pre]): Seq[Expr[Pre]] =
@@ -497,14 +292,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case (value, arg) => coerce(value, arg.t)
     }
 
-  def coerceArgs(args: Seq[Expr[Pre]], app: ContractApplicable[Pre], tArgs: Seq[Type[Pre]]): Seq[Expr[Pre]] =
+  def coerceArgs(args: Seq[Expr[Pre]], app: ContractApplicable[Pre], tArgs: Seq[Type[Pre]], canCDemote: Boolean = false): Seq[Expr[Pre]] =
     args.zip(app.args).map {
-      case (value, arg) => coerce(value, arg.t.particularize(app.typeArgs.zip(tArgs).toMap))
+      case (value, arg) => coerce(value, arg.t.particularize(app.typeArgs.zip(tArgs).toMap), canCDemote)
     }
 
-  def coerceGiven(givenMap: Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])]): Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])] =
+  def coerceGiven(givenMap: Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])], canCDemote: Boolean = false): Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])] =
     givenMap.map {
-      case (Ref(v), e) => (v.ref, coerce(e, v.t))
+      case (Ref(v), e) => (v.ref, coerce(e, v.t, canCDemote))
     }
 
   def coerceYields(yields: Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])], blame: => Expr[_]): Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])] =
@@ -521,7 +316,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
   def string(e: Expr[Pre]): Expr[Pre] = coerce(e, TString[Pre]())
-  def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.max[Pre])
+  def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.ieee754_64bit[Pre])
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
   def cls(e: Expr[Pre]): Expr[Pre] = coerce(e, TAnyClass[Pre]())
@@ -679,12 +474,16 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     }
   }
 
+  override def postCoerce(e: Expr[Pre]): Expr[Post] = e match {
+    case ApplyCoercion(e, coercion) => applyCoercion(dispatch(e), coercion)(e.o)
+    case e => e.rewriteDefault()
+  }
+
   def coerce(e: Expr[Pre]): Expr[Pre] = {
     implicit val o: Origin = e.o
 
     e match {
-      case ApplyCoercion(_, _) =>
-        throw Unreachable("All instances of ApplyCoercion should be immediately rewritten by CoercingRewriter.dispatch.")
+      case ApplyCoercion(_, _) => e
 
       case ActionApply(action, args) =>
         ActionApply(action, coerceArgs(args, action.decl))
@@ -725,6 +524,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case AmbiguousGreater(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           AmbiguousGreater(int(left), int(right)),
+          AmbiguousGreater(float(left), float(right)),
           AmbiguousGreater(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
@@ -740,6 +540,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case AmbiguousGreaterEq(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           AmbiguousGreaterEq(int(left), int(right)),
+          AmbiguousGreaterEq(float(left), float(right)),
           AmbiguousGreaterEq(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
@@ -755,6 +556,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case AmbiguousLess(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           AmbiguousLess(int(left), int(right)),
+          AmbiguousLess(float(left), float(right)),
           AmbiguousLess(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
@@ -770,6 +572,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case AmbiguousLessEq(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           AmbiguousLessEq(int(left), int(right)),
+          AmbiguousLessEq(float(left), float(right)),
           AmbiguousLessEq(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
@@ -785,6 +588,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case minus @ AmbiguousMinus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a set or a bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
+          Minus(float(left), float(right)),
           Minus(rat(left), rat(right)),
           AmbiguousMinus(pointer(left)._1, int(right))(minus.blame), {
             val (coercedLeft, TSet(elementLeft)) = set(left)
@@ -818,6 +622,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case AmbiguousMult(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a process, a set or a bag but got ${left.t} and ${right.t}.",
           AmbiguousMult(int(left), int(right)),
+          AmbiguousMult(float(left), float(right)),
           AmbiguousMult(rat(left), rat(right)),
           AmbiguousMult(process(left), process(right)), {
             val (coercedLeft, TSet(elementLeft)) = set(left)
@@ -926,11 +731,16 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Cast(value, typeValue) =>
         Cast(value, typeValue)
       case CastFloat(e, t) =>
-        CastFloat(float(e), t)
+        firstOk(e, s"Can only cast between integer and float or float and float.",
+          CastFloat(float(e), t),
+          CastFloat(int(e), t),
+        )
       case CCast(e, t) => CCast(e, t)
       case c @ CharValue(_) => c
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
+      case CLiteralArray(exprs) =>
+        CLiteralArray(exprs)
       case CLocal(name) => e
       case c @ Committed(obj) =>
         Committed(cls(obj))(c.blame)
@@ -964,8 +774,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         StringConcat(string(left), string(right))
       case acc @ CStructAccess(struct, field) =>
         CStructAccess(struct, field)(acc.blame)
-      case CStructDeref(struct, field) =>
-        CStructDeref(struct, field)
+      case deref @ CStructDeref(struct, field) =>
+        CStructDeref(struct, field)(deref.blame)
       case CurPerm(loc) =>
         CurPerm(loc)
       case CurrentThreadId() =>
@@ -979,14 +789,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case deref @ DerefPointer(p) =>
         DerefPointer(pointer(p)._1)(deref.blame)
       case deref @ EndpointUse(_) => deref
-      case div @ Div(left, right) =>
-        firstOk(e, s"Expected both operands to be rational.",
-          // PB: horrible hack: Div ends up being silver.PermDiv, which expects an integer divisor. In other cases,
-          // we just hope the silver type-check doesn't complain, since in z3 it is uniformly `/` for mixed integers
-          // and rationals.
-          Div(rat(left), int(right))(div.blame),
-          Div(rat(left), rat(right))(div.blame),
-        )
       case Drop(xs, count) =>
         Drop(seq(xs)._1, int(count))
       case Empty(obj) =>
@@ -1005,10 +807,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Exp(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Exp(int(left), int(right)),
+          Exp(float(left), float(right)),
           Exp(rat(left), rat(right)),
         )
-      case div @ FloorDiv(left, right) =>
-        FloorDiv(int(left), int(right))(div.blame)
+      case div@FloatDiv(left, right) => FloatDiv(float(left), float(right))(div.blame)
+      case div @ FloorDiv(left, right) => FloorDiv(int(left), int(right))(div.blame)
       case Forall(bindings, triggers, body) =>
         Forall(bindings, triggers, bool(body))
       case ForPerm(bindings, loc, body) =>
@@ -1016,7 +819,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case ForPermWithValue(binding, body) =>
         ForPermWithValue(binding, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
-        FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
+        FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case get @ GetLeft(e) =>
         GetLeft(either(e)._1)(get.blame)
       case get @ GetRight(e) =>
@@ -1028,11 +831,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Greater(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Greater(int(left), int(right)),
+          Greater(float(left), float(right)),
           Greater(rat(left), rat(right)),
         )
       case GreaterEq(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           GreaterEq(int(left), int(right)),
+          GreaterEq(float(left), float(right)),
           GreaterEq(rat(left), rat(right)),
         )
       case head @ Head(xs) =>
@@ -1045,12 +850,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Implies(bool(left), res(right))
       case FunctionOf(e, ref) =>
         FunctionOf(e, ref)
+      case f @ FreePointer(p) => FreePointer(pointer(p)._1)(f.blame)
       case IndeterminateInteger(min, max) =>
         IndeterminateInteger(int(min), int(max))
       case InlinePattern(inner, parent, group) =>
         InlinePattern(inner, parent, group)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
-        InstanceFunctionInvocation(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
+        InstanceFunctionInvocation(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case InstanceOf(value, typeValue) =>
         InstanceOf(value, typeValue)
       case InstancePredicateApply(obj, ref, args, perm) =>
@@ -1070,6 +876,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case JavaNewDefaultArray(baseType, specifiedDims, moreDims) => e
       case JavaNewLiteralArray(baseType, dims, initializer) => e
       case str @ JavaStringValue(_, _) => str
+      case sizeof @ SizeOf(_) => sizeof
       case str @ StringValue(_) => str
       case JoinToken(thread) =>
         JoinToken(cls(thread))
@@ -1083,6 +890,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case LessEq(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           LessEq(int(left), int(right)),
+          LessEq(float(left), float(right)),
           LessEq(rat(left), rat(right)),
         )
       case Let(binding, value, main) =>
@@ -1156,16 +964,24 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case MatrixSum(indices, mat) =>
         MatrixSum(coerce(indices, TSeq[Pre](TInt())), coerce(mat, TSeq[Pre](TRational())))
       case inv @ MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-        MethodInvocation(obj, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
+        MethodInvocation(obj, ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case Minus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
+          Minus(float(left), float(right)),
           Minus(rat(left), rat(right)),
         )
       case div @ Mod(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Mod(int(left), int(right))(div.blame),
+          Mod(float(left), float(right))(div.blame),
           Mod(rat(left), rat(right))(div.blame),
+        )
+      case div@TruncMod(left, right) => TruncMod(int(left), int(right))(div.blame)
+      case div@TruncDiv(left, right) =>
+        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
+          TruncDiv(int(left), int(right))(div.blame),
+          TruncDiv(float(left), float(right))(div.blame),
         )
       case ModelAbstractState(m, state) =>
         ModelAbstractState(model(m)._1, bool(state))
@@ -1190,6 +1006,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Mult(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Mult(int(left), int(right)),
+          Mult(float(left), float(right)),
           Mult(rat(left), rat(right)),
         )
       case NdIndex(indices, dimensions) =>
@@ -1201,8 +1018,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Neq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Neq(coerce(left, sharedType), coerce(right, sharedType))
-      case na @ NewArray(element, dims, moreDims) =>
-        NewArray(element, dims.map(int), moreDims)(na.blame)
+      case na @ NewArray(element, dims, moreDims, initialize) =>
+        NewArray(element, dims.map(int), moreDims, initialize)(na.blame)
+      case na@NewPointerArray(element, size) =>
+        NewPointerArray(element, size)(na.blame)
       case NewObject(cls) =>
         NewObject(cls)
       case NoPerm() =>
@@ -1245,6 +1064,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Plus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Plus(int(left), int(right)),
+          Plus(float(left), float(right)),
           Plus(rat(left), rat(right)),
         )
       case add @ PointerAdd(p, offset) =>
@@ -1262,13 +1082,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case PolarityDependent(onInhale, onExhale) =>
         PolarityDependent(res(onInhale), res(onExhale))
       case ass @ PostAssignExpression(target, value) =>
-        PostAssignExpression(target, coerce(value, target.t))(ass.blame)
+        PostAssignExpression(target, coerce(value, target.t, canCDemote=true))(ass.blame)
       case ass @ PreAssignExpression(target, value) =>
-        PreAssignExpression(target, coerce(value, target.t))(ass.blame)
+        PreAssignExpression(target, coerce(value, target.t, canCDemote=true))(ass.blame)
       case PredicateApply(ref, args, perm) =>
         PredicateApply(ref, coerceArgs(args, ref.decl), rat(perm))
       case inv @ ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
-        ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
+        ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case inv @ LlvmFunctionInvocation(ref, args, givenMap, yields) =>
         LlvmFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
       case inv @ LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields) =>
@@ -1293,6 +1113,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case PVLNew(t, args, givenMap, yields) => e
       case Range(from, to) =>
         Range(int(from), int(to))
+      case div@RatDiv(left, right) =>
+        firstOk(e, s"Expected both operands to be rational.",
+          // PB: horrible hack: Div ends up being silver.PermDiv, which expects an integer divisor. In other cases,
+          // we just hope the silver type-check doesn't complain, since in z3 it is uniformly `/` for mixed integers
+          // and rationals.
+          RatDiv(rat(left), int(right))(div.blame),
+          RatDiv(rat(left), rat(right))(div.blame),
+        )
       case ReadPerm() =>
         ReadPerm()
       case RemoveAt(xs, i) =>
@@ -1422,6 +1250,19 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case SmtlibFpToReal(arg) => SmtlibFpToReal(fp(arg)._1)
       case SmtlibFpToSInt(arg, bits) => SmtlibFpToSInt(fp(arg)._1, bits)
       case SmtlibFpToUInt(arg, bits) => SmtlibFpToUInt(fp(arg)._1, bits)
+      case SmtlibIsInt(arg) =>
+        firstOk(e, s"Expected operand to be floating, but got ${arg.t}.",
+          SmtlibIsInt(float(arg)),
+          SmtlibIsInt(rat(arg)),
+        )
+      case SmtlibToInt(arg) => SmtlibToInt(rat(arg))
+      case SmtlibToReal(arg) => SmtlibToReal(int(arg))
+      case SmtlibPow(left, right) =>
+        firstOk(e, s"Expected args to be numerical, but got ${left.t} and ${right.t}.",
+          SmtlibPow(int(left), int(right)),
+          SmtlibPow(float(left), float(right)),
+          SmtlibPow(rat(left), rat(right)),
+        )
       case SmtlibLiteralString(data) => SmtlibLiteralString(data)
       case SmtlibReAll() => SmtlibReAll()
       case SmtlibReAllChar() => SmtlibReAllChar()
@@ -1521,6 +1362,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case UMinus(arg) =>
         firstOk(e, s"Expected operand to be numeric, but got ${arg.t}.",
           UMinus(int(arg)),
+          UMinus(float(arg)),
           UMinus(rat(arg)),
         )
       case u @ Unfolding(pred, body) =>
@@ -1539,6 +1381,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case ValidMatrix(mat, w, h) =>
         ValidMatrix(arrayMatrix(mat)._1, int(w), int(h))
       case value: BooleanValue[Pre] => e
+      case value: CIntegerValue[Pre] => e
       case value: IntegerValue[Pre] => e
       case value: FloatValue[Pre] => e
       case value @ Value(loc) =>
@@ -1614,7 +1457,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     stat match {
       case a @ Assert(assn) => Assert(res(assn))(a.blame)
       case a @ Assign(target, value) =>
-        try { Assign(target, coerce(value, target.t))(a.blame) } catch {
+        try { Assign(target, coerce(value, target.t, canCDemote=true))(a.blame) } catch {
           case err: Incoercible =>
             println(err.text)
             throw err
@@ -1644,9 +1487,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case IndetBranch(branches) => IndetBranch(branches)
       case Inhale(assn) => Inhale(res(assn))
       case inv @ InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
-        InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, args.head))(inv.blame)
+        InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-        InvokeMethod(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, args.head))(inv.blame)
+        InvokeMethod(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs,canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
       case JavaLocalDeclarationStatement(decl) => JavaLocalDeclarationStatement(decl)
       case j @ Join(obj) => Join(cls(obj))(j.blame)
       case Label(decl, stat) => Label(decl, stat)
@@ -1738,6 +1581,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case definition: CFunctionDefinition[Pre] =>
         definition
       case declaration: CGlobalDeclaration[Pre] =>
+        declaration
+      case declaration: CStructMemberDeclarator[Pre] =>
         declaration
       case definition: CPPFunctionDefinition[Pre] =>
         definition
@@ -1988,6 +1833,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CShort() => CShort()
       case CInt() => CInt()
       case CLong() => CLong()
+      case CFloat() => CFloat()
+      case CDouble() => CDouble()
       case CSigned() => CSigned()
       case CUnsigned() => CUnsigned()
       case CBool() => CBool()
@@ -1997,6 +1844,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         CTypeQualifierDeclarationSpecifier(typeQual)
       case specifier: CFunctionSpecifier[Pre] => specifier
       case specifier: CAlignmentSpecifier[Pre] => specifier
+      case specifier: CStructDeclaration[Pre] => specifier
+      case specifier: CStructSpecifier[Pre] => specifier
       case ck @ CUDAKernel() => CUDAKernel()(ck.blame)
       case ok @ OpenCLKernel() => OpenCLKernel()(ok.blame)
     }
@@ -2010,6 +1859,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CVolatile() => CVolatile()
       case CAtomic() => CAtomic()
     }
+  }
+
+  def coerce(node: CStructMemberDeclarator[Pre]): CStructMemberDeclarator[Pre] = {
+    implicit val o: Origin = node.o
+    val CStructMemberDeclarator(specs, decls) = node
+    CStructMemberDeclarator(specs, decls)
   }
 
   def coerce(node: CPointer[Pre]): CPointer[Pre] = {

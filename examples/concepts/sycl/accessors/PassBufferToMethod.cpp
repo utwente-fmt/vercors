@@ -3,7 +3,7 @@
 /*@ 
   requires \pointer(a, 10, write);
 */
-void main(int* a) {
+void test(int* a) {
   sycl::buffer<int, 1> aBuffer = sycl::buffer<int, 1>(a, sycl::range<1>(10));
   runKernel(aBuffer); // Passing buffer to another method is not supported.
 }

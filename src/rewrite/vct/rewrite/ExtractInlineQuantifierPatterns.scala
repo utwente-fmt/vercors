@@ -49,7 +49,7 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
       case Eq(_, _) | Neq(_, _) | Less(_, _) | Greater(_, _) | LessEq(_, _) | GreaterEq(_, _) =>
         throw NotAllowedInTrigger(e)
 
-      case Plus(_, _) | Minus(_, _) | Mult(_, _) | Div(_, _) | FloorDiv(_, _) | Mod(_, _) =>
+      case Plus(_, _) | Minus(_, _) | Mult(_, _) | FloatDiv(_, _) | RatDiv(_, _) | FloorDiv(_, _) | Mod(_, _) =>
         throw NotAllowedInTrigger(e)
 
       case InlinePattern(inner, _, _) => dispatch(inner)

@@ -121,11 +121,26 @@ case class ExpectedErrorNotTripped(err: ExpectedError) extends ExpectedErrorFail
   override def inlineDesc: String = s"The expected error with code `${err.errorCode}` was not encountered."
 }
 
-case class AssignFailed(node: SilverFieldAssign[_]) extends NodeVerificationFailure {
+sealed trait AssignFailed extends NodeVerificationFailure
+
+case class AssignFieldFailed(node: SilverFieldAssign[_]) extends AssignFailed with NodeVerificationFailure {
   override def code: String = "assignFieldFailed"
   override def descInContext: String = "Insufficient permission to assign to field."
   override def inlineDescWithSource(source: String): String = s"Insufficient permission for assignment `$source`."
 }
+
+case class CopyStructFailed(node: Expr[_], field: String) extends AssignFailed with NodeVerificationFailure {
+  override def code: String = "copyStructFailed"
+  override def descInContext: String = s"Insufficient read permission for field '$field' to copy struct."
+  override def inlineDescWithSource(source: String): String = s"Insufficient permission for assignment `$source`."
+}
+
+case class CopyStructFailedBeforeCall(node: Expr[_], field: String) extends AssignFailed with FrontendInvocationError with NodeVerificationFailure {
+  override def code: String = "copyStructFailedBeforeCall"
+  override def descInContext: String = s"Insufficient read permission for field '$field' to copy struct before call."
+  override def inlineDescWithSource(source: String): String = s"Insufficient permission for call `$source`."
+}
+
 case class AssertFailed(failure: ContractFailure, node: Assert[_]) extends WithContractFailure {
   override def baseCode: String = "assertFailed"
   override def descInContext: String = "Assertion may not hold, since"
@@ -585,6 +600,12 @@ case class MapKeyError(node: MapGet[_]) extends BuiltinError with FrontendSubscr
   override def descInContext: String = "Map may not contain this key."
   override def inlineDescWithSource(source: String): String = s"Map in `$source` may not contain that key."
 }
+case class MallocSize(node: Expr[_]) extends BuiltinError with NodeVerificationFailure {
+  override def code: String = "mallocNegativeSize"
+  override def descInContext: String = "Argument of malloc may be negative."
+  override def inlineDescWithSource(source: String): String = s"Size `$source` in malloc may be negative."
+}
+
 sealed trait ArraySizeError extends VerificationFailure
 sealed trait ArraySubscriptError extends FrontendSubscriptError
 sealed trait ArrayLocationError extends ArraySubscriptError
@@ -639,10 +660,36 @@ case class ArrayValuesPerm(node: Values[_]) extends ArrayValuesError {
 }
 
 sealed trait PointerSubscriptError extends FrontendSubscriptError
-sealed trait PointerDerefError extends PointerSubscriptError
+sealed trait PointerDerefError extends PointerSubscriptError with FrontendDerefError
 sealed trait PointerLocationError extends PointerDerefError
 sealed trait PointerAddError extends FrontendAdditiveError
-case class PointerNull(node: Expr[_]) extends PointerLocationError with PointerAddError with NodeVerificationFailure {
+sealed trait PointerFreeError extends FrontendInvocationError
+
+case class PointerOffsetNonZero(node: Expr[_]) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrOffsetNonZero"
+  override def descInContext: String = "Free can only be called on pointers which are allocated and are at the start of the pointer block."
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed due to invalid pointer block."
+}
+
+case class PointerInsufficientFreePermission(node: Expr[_]) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrFreePerm"
+  override def descInContext: String = "Not enough permission to free the whole pointer block."
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed due to insufficient permission."
+}
+
+case class GenericPointerFreeError(node: Expr[_]) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrFreeError"
+  override def descInContext: String = "Pointer block cannot be freed."
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed."
+}
+
+case class PointerInsufficientFreeFieldPermission(node: Expr[_], field: String) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrFreeFieldError"
+  override def descInContext: String = s"Not enough permission to free the whole pointer block, since we miss permission for field `$field`"
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed."
+}
+
+case class PointerNull(node: Expr[_]) extends PointerLocationError with PointerAddError with PointerFreeError with NodeVerificationFailure {
   override def code: String = "ptrNull"
   override def descInContext: String = "Pointer may be null."
   override def inlineDescWithSource(source: String): String = s"Pointer in `$source` may be null."

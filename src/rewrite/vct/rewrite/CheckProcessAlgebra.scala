@@ -119,7 +119,7 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] with L
       )(ModelPostconditionFailed(process)))
 
     case modelField: ModelField[Pre] =>
-      val instanceField = new InstanceField[Post](dispatch(modelField.t), Set())(modelField.o)
+      val instanceField = new InstanceField[Post](dispatch(modelField.t), Nil)(modelField.o)
       classDeclarations.declare(instanceField)
       modelFieldSuccessors(modelField) = instanceField
 

@@ -1,6 +1,6 @@
 #include <sycl/sycl.hpp>
 
-void main() {
+void test() {
 	sycl::queue myQueue;
 
 	sycl::event myEvent = myQueue.submit(

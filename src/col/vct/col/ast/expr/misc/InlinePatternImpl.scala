@@ -2,8 +2,9 @@ package vct.col.ast.expr.misc
 
 import vct.col.ast.{InlinePattern, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
+import vct.col.ast.ops.InlinePatternOps
 
-trait InlinePatternImpl[G] { this: InlinePattern[G] =>
+trait InlinePatternImpl[G] extends InlinePatternOps[G] { this: InlinePattern[G] =>
   override def t: Type[G] = inner.t
 
   override def precedence: Int = Precedence.ATOMIC

@@ -29,6 +29,7 @@ class FeatureRainbow[G] {
 
     case node: ArrayLocation[G] => Arrays
     case node: NewArray[G] => Arrays
+    case node: NewPointerArray[G] => Arrays
     case node: ArraySubscript[G] => Arrays
     case node: Length[G] => Arrays
     case node: TArray[G] => Arrays
@@ -166,7 +167,9 @@ class FeatureRainbow[G] {
     case node: CBool[G] => CSpecific
     case node: CConst[G] => CSpecific
     case node: CDeclaration[G] => CSpecific
+    case node: CDouble[G] => CSpecific
     case node: CExtern[G] => CSpecific
+    case node: CFloat[G] => CSpecific
     case node: CFunctionDefinition[G] => CSpecific
     case node: CGlobalDeclaration[G] => CSpecific
     case node: CInit[G] => CSpecific
@@ -255,6 +258,7 @@ class FeatureRainbow[G] {
     case node: SYCLTEvent[G] => CPPSpecific
     case node: SYCLTHandler[G] => CPPSpecific
     case node: SYCLTItem[G] => CPPSpecific
+    case node: SYCLTLocalAccessor[G] => CPPSpecific
     case node: SYCLTNDItem[G] => CPPSpecific
     case node: SYCLTNDRange[G] => CPPSpecific
     case node: SYCLTQueue[G] => CPPSpecific
@@ -291,7 +295,7 @@ class FeatureRainbow[G] {
 
     case node: CastFloat[G] => Floats
     case node: FloatValue[G] => Floats
-    case node: TFloat[G] => Floats
+    case node: FloatType[G] => Floats
 
     case node: Final[G] => FinalField
 
@@ -510,10 +514,11 @@ class FeatureRainbow[G] {
 
     case node: And[G] => SmtOperators
     case node: BooleanValue[G] => SmtOperators
-    case node: Div[G] => SmtOperators
+    case node: RatDiv[G] => SmtOperators
     case node: Eq[G] => SmtOperators
     case node: Exists[G] => SmtOperators
     case node: FloorDiv[G] => SmtOperators
+    case node: FloatDiv[G] => SmtOperators
     case node: Forall[G] => SmtOperators
     case node: Greater[G] => SmtOperators
     case node: GreaterEq[G] => SmtOperators
@@ -525,6 +530,8 @@ class FeatureRainbow[G] {
     case node: Local[G] => SmtOperators
     case node: Minus[G] => SmtOperators
     case node: Mod[G] => SmtOperators
+    case node: TruncMod[G] => SmtOperators
+    case node: TruncDiv[G] => SmtOperators
     case node: Mult[G] => SmtOperators
     case node: Neq[G] => SmtOperators
     case node: NoPerm[G] => SmtOperators
@@ -689,6 +696,7 @@ class FeatureRainbow[G] {
     case node: ValidMatrix[G] => return Seq(SugarPermissionOperator, Arrays)
     case node: PermPointer[G] => return Seq(SugarPermissionOperator, Pointers)
     case node: PermPointerIndex[G] => return Seq(SugarPermissionOperator, Pointers)
+    case node: CLiteralArray[G] => return Seq(CSpecific, Arrays)
     case node: CCast[G] => return Seq(CSpecific, TypeValuesAndGenerics)
     case node: CChar[G] => return Seq(CSpecific, TextTypes)
     case node: CDeclarationStatement[G] => return Seq(CSpecific, UnscopedDeclaration)

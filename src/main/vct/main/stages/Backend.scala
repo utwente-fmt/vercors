@@ -87,7 +87,7 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
     if(Files.exists(path)) {
       // The result is potentially cached in programFile
       val f = new FileInputStream(programFile)
-      val cachedProgram = vct.col.serialize.Program.parseFrom(f)
+      val cachedProgram = vct.col.ast.serialize.Program.parseFrom(f)
       f.close()
 
       if(cachedProgram != program) {

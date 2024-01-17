@@ -4,15 +4,13 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.rewrite.lang.LangBipToCol
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
-import vct.rewrite.lang.LangSpecificToCol.NotAValue
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, RewriterBuilderArg2}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg, RewriterBuilderArg2}
 import vct.result.VerificationError.UserError
-import vct.rewrite.lang.LangVeyMontToCol
+import vct.rewrite.lang.LangSpecificToCol.NotAValue
 
 case object LangSpecificToCol extends RewriterBuilderArg2[Boolean, Boolean] {
   override def key: String = "langSpecific"
@@ -118,9 +116,9 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     case decl: CPPGlobalDeclaration[Pre] =>
       cpp.rewriteGlobalDecl(decl)
     case decl: CPPLocalDeclaration[Pre] => ???
-    case pred: Predicate[Pre] => {
-      cpp.storePredicate(pred)
-      rewriteDefault(pred)
+    case func: Function[Pre] => {
+      rewriteDefault(func)
+      cpp.storeIfSYCLFunction(func)
     }
 
     case func: LlvmFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
@@ -171,6 +169,15 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
 
     case eval@Eval(CPPInvocation(_, _, _, _)) => cpp.invocationStatement(eval)
 
+    case fold: Fold[Pre] => {
+      cpp.checkPredicateFoldingAllowed(fold.res)
+      rewriteDefault(fold)
+    }
+    case unfold: Unfold[Pre] => {
+      cpp.checkPredicateFoldingAllowed(unfold.res)
+      rewriteDefault(unfold)
+    }
+
     case communicate: PVLCommunicate[Pre] => veymont.rewriteCommunicate(communicate)
     case assign: PVLSeqAssign[Pre] => veymont.rewriteSeqAssign(assign)
     case assign: Assign[Pre] => pvl.assign(assign)
@@ -220,19 +227,38 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
 
     case local: CLocal[Pre] => c.local(local)
     case deref: CStructAccess[Pre] => c.deref(deref)
+    case deref: CStructDeref[Pre] => c.deref(deref)
     case inv: CInvocation[Pre] => c.invocation(inv)
+
     case shared: SharedMemSize[Pre] => c.sharedSize(shared)
     case kernel: GpgpuCudaKernelInvocation[Pre] => c.cudaKernelInvocation(kernel)
     case local: LocalThreadId[Pre] => c.cudaLocalThreadId(local)
     case global: GlobalThreadId[Pre] => c.cudaGlobalThreadId(global)
     case cast: CCast[Pre] => c.cast(cast)
+    case sizeof: SizeOf[Pre] => throw LangCToCol.UnsupportedSizeof(sizeof)
 
+    case Perm(a@AmbiguousLocation(expr), perm)
+      if c.getBaseType(expr.t).isInstanceOf[CTStruct[Pre]] =>
+      c.getBaseType(expr.t) match {
+        case structType: CTStruct[Pre] => c.unwrapStructPerm(dispatch(a).asInstanceOf[AmbiguousLocation[Post]], perm, structType, e.o)
+      }
     case local: CPPLocal[Pre] => cpp.local(local)
     case deref: CPPClassMethodOrFieldAccess[Pre] => cpp.deref(deref)
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)
-    case preAssign@PreAssignExpression(local@CPPLocal(_, _), _) => cpp.preAssignExpr(preAssign, local)
-    case _: CPPLambdaDefinition[Pre] => ???
-    case arrSub@AmbiguousSubscript(_, _) => cpp.rewriteAccessorSubscript(arrSub)
+    case lambda: CPPLambdaDefinition[Pre] => cpp.rewriteLambdaDefinition(lambda)
+    case arrSub@AmbiguousSubscript(_, _) => cpp.rewriteSubscript(arrSub)
+    case unfolding: Unfolding[Pre] => {
+      cpp.checkPredicateFoldingAllowed(unfolding.res)
+      rewriteDefault(unfolding)
+    }
+
+    case assign: PreAssignExpression[Pre] =>
+      assign.target.t match {
+        case CPrimitiveType(specs) if specs.collectFirst { case CSpecificationType(_: CTStruct[Pre]) => () }.isDefined =>
+          c.assignStruct(assign)
+        case CPPPrimitiveType(_) => cpp.preAssignExpr(assign)
+        case _ => rewriteDefault(assign)
+      }
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
@@ -248,6 +274,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     case t: JavaTClass[Pre] => java.classType(t)
     case t: CTPointer[Pre] => c.pointerType(t)
     case t: CTArray[Pre] => c.arrayType(t)
+    case t: CTStruct[Pre] => c.structType(t)
     case t: CPPTArray[Pre] => cpp.arrayType(t)
     case other => rewriteDefault(other)
   }

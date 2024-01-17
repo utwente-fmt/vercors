@@ -3,7 +3,7 @@
 /*@ 
   requires \pointer(a, 10, write);
 */
-void main(int* a) {
+void test(int* a) {
 	sycl::queue myQueue;
 
   {
@@ -26,7 +26,7 @@ void main(int* a) {
         );
       }
     );
-  } // Leaving scope, so automatically wait on all running kernels to finish and write data back to the buffers
+  } // Leaving scope, which destroys aBuffer, which waits on the kernel to terminate as it uses aBuffer
 
   //@ assert (\forall int i; i >= 0 && i < 10; a[i] == 10);
 

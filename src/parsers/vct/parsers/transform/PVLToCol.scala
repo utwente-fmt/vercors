@@ -141,7 +141,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit field: FieldContext): Seq[InstanceField[G]] = field match {
     case Field0(finalFlag, t, ids, _) =>
-      convert(ids).map(name => new InstanceField[G](convert(t), finalFlag.map(convert(_)).toSet)(origin(field).sourceName(name)))
+      convert(ids).map(name => new InstanceField[G](convert(t), finalFlag.map(convert(_)).toSeq)(origin(field).sourceName(name)))
   }
 
   def convert(implicit method: RunMethodContext): Seq[RunMethod[G]] = method match {
@@ -261,7 +261,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   def convert(implicit expr: NewExprContext): Expr[G] = expr match {
     case NewExpr0(_, name, Call0(typeArgs, args, given, yields)) =>
       PVLNew(convert(name), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
-    case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0)(blame(expr))
+    case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0, true)(blame(expr))
     case NewExpr2(inner) => convert(inner)
   }
 
@@ -749,7 +749,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit root: ParserRuleContext, mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
-    case ValMulOp0(_) => col.Div(left, right)(blame(mulOp))
+    case ValMulOp0(_) => col.RatDiv(left, right)(blame(mulOp))
   }
 
   def convert(implicit root: ParserRuleContext, prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {

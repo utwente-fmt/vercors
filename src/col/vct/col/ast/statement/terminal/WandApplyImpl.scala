@@ -2,8 +2,9 @@ package vct.col.ast.statement.terminal
 
 import vct.col.ast.WandApply
 import vct.col.print.{Ctx, Doc, Show, Text}
+import vct.col.ast.ops.WandApplyOps
 
-trait WandApplyImpl[G] { this: WandApply[G] =>
+trait WandApplyImpl[G] extends WandApplyOps[G] { this: WandApply[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc =
     Text("apply") <+> res <> ";"
 

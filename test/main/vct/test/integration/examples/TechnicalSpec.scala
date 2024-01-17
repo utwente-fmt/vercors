@@ -159,7 +159,7 @@ class TechnicalSpec extends VercorsSpec {
 
   vercors should verify using anyBackend example "technical/keywords/allowed-c.c"
   vercors should verify using anyBackend example "technical/keywords/allowed-java.java"
-  vercors should error withCode "parseError" example "technical/keywords/disallowed-c-inline.c"
+  vercors should error withCode "emptyInlineDecl" example "technical/keywords/disallowed-c-inline.c"
   vercors should error withCode "parseError" example "technical/keywords/disallowed-java-assert.java"
 
   vercors should verify using silicon example "technical/array-item-access.pvl"
