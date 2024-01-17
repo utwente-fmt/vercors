@@ -10,10 +10,9 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 
-abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter[Pre], val cls: Class[Pre])(implicit program: Program[Pre], newLocals: NewVariableResult[Pre, _]) extends Rewriter[Pre] {
+abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter[Pre], val cls: Class[Pre], val firstRequiredLocals: Seq[Variable[Pre]] = Seq.empty)(implicit program: Program[Pre], newVariables: NewVariableGenerator[Pre]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
-  val newVariables: NewVariableGenerator[Pre] = new NewVariableGenerator[Pre](new Rewriter[Pre])
   val requiredLocals: ScopedStack[mutable.HashSet[Variable[Pre]]] = new ScopedStack()
   val allBinders: ArrayBuffer[Variable[Pre]] = new ArrayBuffer()
 
@@ -77,7 +76,8 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter
 
   final def createNewArguments() : Seq[Variable[Pre]] = {
     val requiredArguments = requiredLocals.top --= allBinders
-    requiredArguments.toSeq
+    firstRequiredLocals.map(newVariables.getOrCreate)
+    requiredArguments.toSeq ++ firstRequiredLocals
   }
 
 
@@ -106,7 +106,6 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter
       }
     }.result
     if(requiredLocals.nonEmpty) {
-      val d = requiredLocals.top
       requiredLocals.top.addAll(result._2)
     }
     result._1
@@ -123,7 +122,7 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter
       case quantifier: Exists[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
       case quantifier: Forall[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
       case local: Local[Pre] => dispatchLocal(local)
-      case p: Perm[Pre] => PermissionRewriter(this)(program, newVariables.freeze()).rewritePermission(p)
+      case p: Perm[Pre] => PermissionRewriter(this)(program, newVariables).rewritePermission(p)
       case _ => super.dispatch(e)
     }
   }

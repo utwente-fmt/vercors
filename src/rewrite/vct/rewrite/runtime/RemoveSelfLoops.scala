@@ -15,6 +15,7 @@ object RemoveSelfLoops extends RewriterBuilder {
 
 case class RemoveSelfLoops[Pre <: Generation]() extends Rewriter[Pre] {
 
+
   def createClassSupports(c: Class[Pre]): Seq[Ref[Post, Class[Post]]] = {
     c.supports.filter(ref => ref.decl.o.getPreferredNameOrElse() != "Object").map(
       element => {

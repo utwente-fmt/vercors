@@ -174,31 +174,31 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   private def createUnfoldMethod(args: Seq[InstanceField[Post]]): InstanceMethod[Post] = {
     val o = new Origin(Seq()).addPrefName("unFold")
-    val newVars = newVariables.collect {
+    newVariables.collect {
       args.map(newVariables.createNewFromInstanceField)
-    }
-    val ip = currentInstancePredicate.top
-    val cls: Ref[Post, Class[Post]] = newClasses.ref(ip)
-    val localsFromArgs: Seq[Local[Post]] = newVars.outputs.map(v => Local[Post](v.ref)(v.o))
-    val newAssertions = RewriteContractExpr[Pre](this, currentClass.top)(program, newVars)
-      .createStatements(ip.body.getOrElse(BooleanValue[Pre](value = false)(Origin(Seq()))))
+      val ip = currentInstancePredicate.top
+      val cls: Ref[Post, Class[Post]] = newClasses.ref(ip)
+      val localsFromArgs: Seq[Local[Post]] = newVariables.outputs.top.toSeq.map(v => Local[Post](v.ref)(v.o))
+      val newAssertions = RewriteContractExpr[Pre](this, currentClass.top)(program, newVariables)
+        .createStatements(ip.body.getOrElse(BooleanValue[Pre](value = false)(Origin(Seq()))))
 
-    //TODO remove permissions from thread (difficult first design how to do this maybe create a helperRewriter for this)
+      //TODO remove permissions from thread (difficult first design how to do this maybe create a helperRewriter for this)
 
-    val newRuntimePredicate = RuntimeNewPredicate[Post](createRuntimeVariable, localsFromArgs)(ip.o)
-    val block = Block[Post](newAssertions._2.toSeq :+ newRuntimePredicate)(o)
-    val body = Scope(Seq(), block)(o)
+      val newRuntimePredicate = RuntimeNewPredicate[Post](createRuntimeVariable, localsFromArgs)(ip.o)
+      val block = Block[Post](newAssertions._2.toSeq :+ newRuntimePredicate)(o)
+      val body = Scope(Seq(), block)(o)
 
-    val newMethod = new InstanceMethod[Post](
-      TClass[Post](cls)(o),
-      newVars.outputs,
-      Seq(),
-      Seq(),
-      Some(body),
-      ApplicableContract.createEmptyContract(o)
-    )(null)(o)
-    classDeclarations.declare(newMethod)
-    newMethod
+      val newMethod = new InstanceMethod[Post](
+        TClass[Post](cls)(o),
+        newVariables.outputs.top.toSeq,
+        Seq(),
+        Seq(),
+        Some(body),
+        ApplicableContract.createEmptyContract(o)
+      )(null)(o)
+      classDeclarations.declare(newMethod)
+      newMethod
+    }.result
 
 
     //TODO should first check if there exists a predicate with the same paramaters in the predicatestore for this thread
@@ -254,7 +254,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     val obj = createEqualsDeref(currentObject, instanceField)
     val target = createEqualsDeref(arg, instanceField)
     val comparison = instanceField.t match {
-      case _ : TClass[Post] => !(obj ==== target) //if it is an object use the equals method otherwise use the != operator
+      case _: TClass[Post] => !(obj ==== target) //if it is an object use the equals method otherwise use the != operator
       case _ => obj !== target
     }
     val returnStatement = Return[Post](tt)
@@ -269,7 +269,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   private def createHelperMethods(ip: InstancePredicate[Pre], args: Seq[Variable[Pre]], instanceFields: Seq[InstanceField[Post]]): Seq[InstanceMethod[Post]] = {
     val equalsMethod = createEqualsMethod(instanceFields)
     val getPredicate = createGetPredicate(instanceFields)
-//    val unFold = createUnfoldMethod(instanceFields)
+    //    val unFold = createUnfoldMethod(instanceFields)
     //TODO fix fold and unfold with the newly created locals
     Seq(equalsMethod, getPredicate)
   }

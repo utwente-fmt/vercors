@@ -6,7 +6,7 @@ import RewriteHelpers._
 import hre.util.ScopedStack
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.util.CodeStringDefaults._
-import vct.rewrite.runtime.util.{FieldNumber, FieldObjectString, RewriteContractExpr}
+import vct.rewrite.runtime.util.{FieldNumber, FieldObjectString, NewVariableGenerator, RewriteContractExpr}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -49,7 +49,7 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     ap match {
       case uni: UnitAccountedPredicate[Pre] => {
         currentContract.having(ap) {
-          val (_, newStatements) = new RewriteContractExpr[Pre](this, currentClass.top)(program, null)
+          val (_, newStatements) = new RewriteContractExpr[Pre](this, currentClass.top)(program, NewVariableGenerator.newGenerator)
             .createStatements(uni.pred)
           dispatch(ap)
           newStatements.toSeq

@@ -1,21 +1,34 @@
-class Program {
-
+class Source extends Thread {
     int[] a;
 
-
-    public int indexOf(int b) {
-        this.a = new int[4];
-        //@ loop_invariant i <= a.length;
-        //@ loop_invariant (\forall* int j; 0 <= j && j < a.length; Perm(a[j], read));
-        for(int i = 0; i < a.length; i++) {
-            if(a[i] == b) {
-                return i;
-            }
-        }
-        return -1;
+    /*@
+        requires Perm(this.a, 1);
+        requires (\forall* int i; 0 <= i && i < a.length; Perm(this.a[i], 1));
+     */
+    public void run() {
+        this.a = new int[2];
     }
+
+    public void join(){
+
+    }
+
+    public void start() {
+
+    }
+
+}
+class Main {
 
     public void main() {
-        Program main = new Program();
+        Source source = new Source();
+        source.start();
+        //@ source.postJoin(1\2);
+        source.join();
+        source.a[1] = 4;
     }
+}
+
+class Thread {
+
 }

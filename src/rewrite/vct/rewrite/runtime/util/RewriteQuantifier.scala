@@ -8,7 +8,7 @@ import vct.col.util.AstBuildHelpers._
 
 
 
-case class RewriteQuantifier[Pre <: Generation](override val outer: Rewriter[Pre], override val cls: Class[Pre])(implicit program: Program[Pre], newLocals: NewVariableResult[Pre, _]) extends AbstractQuantifierRewriter[Pre](outer, cls){
+case class RewriteQuantifier[Pre <: Generation](override val outer: Rewriter[Pre], override val cls: Class[Pre])(implicit program: Program[Pre], newVariables: NewVariableGenerator[Pre]) extends AbstractQuantifierRewriter[Pre](outer, cls){
 
 
   def defineLoopAssertion(expr: Expr[Pre], condition: Expr[Pre]): Branch[Post] = {

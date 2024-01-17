@@ -9,6 +9,15 @@ import vct.col.origin.Origin
 import scala.collection.mutable
 
 
+object NewVariableGenerator{
+
+  def newGenerator[G <: Generation] : NewVariableGenerator[G] = {
+    new NewVariableGenerator[G]()
+  }
+}
+
+
+
 class NewVariableGenerator[Pre <: Generation](val rewriter: Rewriter[Pre] = new Rewriter[Pre]) {
   type Post = Rewritten[Pre]
 

@@ -47,7 +47,7 @@ object PermissionRewriter {
 
 }
 
-case class PermissionRewriter[Pre <: Generation](outer: Rewriter[Pre])(implicit program: Program[Pre], newLocals: NewVariableResult[Pre, _]) extends Rewriter[Pre] {
+case class PermissionRewriter[Pre <: Generation](outer: Rewriter[Pre])(implicit program: Program[Pre], newVariables: NewVariableGenerator[Pre]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
   def rewritePermission(p: Perm[Pre]): Expr[Rewritten[Pre]] = {
