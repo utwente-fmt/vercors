@@ -1337,25 +1337,7 @@ final case class PVLSeqAssign[G](receiver: Ref[G, PVLEndpoint[G]], field: Ref[G,
 final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Subject[G] with EndpointNameImpl[G]
 @family case class Access[G](subject: Subject[G], field: Ref[G, InstanceField[G]])(val blame: Blame[AccessFailure])(implicit val o: Origin) extends NodeFamily[G] with AccessImpl[G]
 final case class Communicate[G](receiver: Access[G], sender: Access[G])(val blame: Blame[CommunicateFailure])(implicit val o: Origin) extends Statement[G] with CommunicateImpl[G]
-/*
-<<<<<<< HEAD
-final class Endpoint[G](val cls: Ref[G, Class[G]], val constructor: Ref[G, Procedure[G]], val args: Seq[Expr[G]])(val blame: Blame[EndpointFailure])(implicit val o: Origin) extends Declaration[G] with EndpointImpl[G]
-final class SeqProg[G](val contract: ApplicableContract[G], val args : Seq[Variable[G]], val endpoints: Seq[Endpoint[G]], val run: SeqRun[G], val decls: Seq[ClassDeclaration[G]])(val blame: Blame[SeqCallableFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with SeqProgImpl[G]
-final case class SeqRun[G](body: Statement[G], contract: ApplicableContract[G])(val blame: Blame[SeqCallableFailure])(implicit val o: Origin) extends NodeFamily[G] with SeqRunImpl[G]
-sealed trait Subject[G] extends NodeFamily[G] with SubjectImpl[G]
-final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Subject[G] with EndpointNameImpl[G]
-case class Access[G](subject: Subject[G], field: Ref[G, InstanceField[G]])(val blame: Blame[AccessFailure])(implicit val o: Origin) extends NodeFamily[G] with AccessImpl[G]
-final case class Communicate[G](receiver: Access[G], sender: Access[G])(val blame: Blame[CommunicateFailure])(implicit val o: Origin) extends Statement[G] with CommunicateImpl[G]
-=======
-@family final class Endpoint[G](val cls: Ref[G, Class[G]], val constructor: Ref[G, Procedure[G]], val args: Seq[Expr[G]])(implicit val o: Origin) extends Declaration[G] with EndpointImpl[G]
-@scopes[Endpoint] final class SeqProg[G](val contract: ApplicableContract[G], val args : Seq[Variable[G]], val endpoints: Seq[Endpoint[G]], val run: SeqRun[G], val decls: Seq[ClassDeclaration[G]])(val blame: Blame[SeqCallableFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with SeqProgImpl[G]
-@family final case class SeqRun[G](body: Statement[G], contract: ApplicableContract[G])(val blame: Blame[SeqCallableFailure])(implicit val o: Origin) extends NodeFamily[G] with SeqRunImpl[G]
-@family sealed trait Subject[G] extends NodeFamily[G] with SubjectImpl[G]
-final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Subject[G] with EndpointNameImpl[G]
-@family case class Access[G](subject: Subject[G], field: Ref[G, InstanceField[G]])(val blame: Blame[AccessFailure])(implicit val o: Origin) extends NodeFamily[G] with AccessImpl[G]
-final case class Communicate[G](receiver: Access[G], sender: Access[G])(implicit val o: Origin) extends Statement[G] with CommunicateImpl[G]
->>>>>>> dev
-*/
+
 final case class SeqAssign[G](receiver: Ref[G, Endpoint[G]], field: Ref[G, InstanceField[G]], value: Expr[G])(val blame: Blame[SeqAssignFailure])(implicit val o: Origin) extends Statement[G] with SeqAssignImpl[G]
 final case class EndpointUse[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Expr[G] with EndpointUseImpl[G]
 
