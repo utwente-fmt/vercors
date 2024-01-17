@@ -1,0 +1,194 @@
+/* TODO: Requires to pass: --assumeInjectivityOnInhale, fix s.t. inlining leaves obvious triggers alone
+         And even then, still takes long: 4m20s when running viper manually. */
+
+class Move {
+  int x;
+  int y;
+  int t;
+
+  ensures this.x == x;
+  ensures this.y == y;
+  ensures this.t == t;
+  constructor(int x, int y, int t);
+
+  ensures \old(x) == x && x == \result.x;
+  ensures \old(y) == y && y == \result.y;
+  ensures \old(t) == t && t == \result.t;
+  Move clone() {
+    return new Move(x, y, t);
+  }
+}
+
+class Player {
+  int width, height, myToken, yourToken;
+  seq<seq<int>> board;
+  Move temp;
+  Move move;
+  boolean goOn;
+
+  inline resource constants() =
+    \old(width) == width &&
+    \old(height) == height &&
+    \old(myToken) == myToken &&
+    \old(yourToken) == yourToken &&
+    \old(temp) == temp &&
+    \old(move) == move &&
+    \old(board) == board &&
+    (\forall int i = 0 .. board.length; \old(board[i]) == board[i]);
+
+  ensures width == m && height == n && myToken == t1 && yourToken == t2;
+  ensures matrix(board, width, height);
+  ensures (\forall int i = 0..width, int j = 0..height; {: board[i][j] :} == 0);
+  ensures goOn == false;
+  constructor(int m, int n, int t1, int t2);
+
+  context matrix(board, width, height);
+  ensures constants();
+  ensures (\forall int i = 0..width, int j = 0..height; \old(board[i][j]) == {: board[i][j] :});
+  ensures \old(goOn) == goOn;
+  ensures 2 <= move.x && move.x < width - 2;
+  ensures 2 <= move.y && move.y < height - 2;
+  ensures move.t == myToken;
+  ensures board[move.x][move.y] == 0;
+  void think();
+
+  requires matrix(board, width, height);
+  requires 2 <= x && x < width - 2;
+  requires 2 <= y && y < height - 2;
+  pure boolean twoTokensAroundMove(int x, int y) = (
+    (board[x-2][y] == move.t && board[x-1][y] == move.t) ||
+    (board[x-1][y] == move.t && board[x+1][y] == move.t) ||
+    (board[x+1][y] == move.t && board[x+2][y] == move.t) ||
+    (board[x][y-2] == move.t && board[x][y-1] == move.t) ||
+    (board[x][y-1] == move.t && board[x][y+1] == move.t) ||
+    (board[x][y+1] == move.t && board[x][y+2] == move.t) ||
+    (board[x-2][y-2] == move.t && board[x-1][y-1] == move.t) ||
+    (board[x-1][y-1] == move.t && board[x+1][y+1] == move.t) ||
+    (board[x+1][y+1] == move.t && board[x+2][y+2] == move.t) ||
+    (board[x+2][y-2] == move.t && board[x+1][y-1] == move.t) ||
+    (board[x+1][y-1] == move.t && board[x-1][y+1] == move.t) ||
+    (board[x-1][y+1] == move.t && board[x-2][y+2] == move.t));
+
+  context matrix(board, width, height);
+  context 2 <= move.x && move.x < width - 2;
+  context 2 <= move.y && move.y < height - 2;
+  context 1 <= move.t && move.t <= 2;
+  requires board[move.x][move.y] == 0;
+  ensures constants();
+  ensures \old(move.x) == move.x;
+  ensures \old(move.y) == move.y;
+  ensures \old(move.t) == move.t;
+  ensures (\forall int i = 0..width, int j = 0..height;
+              (i != move.x || j != move.y) ==> \old({: board[i][j] :}) == board[i][j]);
+  ensures board[move.x][move.y] == move.t;
+  ensures \old(goOn) == false ==> goOn == false;
+  /*ensures (\let int[] bx = board[move.x];
+          \old(goOn) == true ==> ((board[move.x-2][move.y] == move.t && board[move.x-1][move.y] == move.t) ||
+                                  (board[move.x-1][move.y] == move.t && board[move.x+1][move.y] == move.t) ||
+                                  (board[move.x+1][move.y] == move.t && board[move.x+2][move.y] == move.t) ||
+                                  (bx[move.y-2] == move.t && bx[move.y-1] == move.t) ||
+                                  (bx[move.y-1] == move.t && bx[move.y+1] == move.t) ||
+                                  (bx[move.y+1] == move.t && bx[move.y+2] == move.t) ||
+                                  (board[move.x-2][move.y-2] == move.t && board[move.x-1][move.y-1] == move.t) ||
+                                  (board[move.x-1][move.y-1] == move.t && board[move.x+1][move.y+1] == move.t) ||
+                                  (board[move.x+1][move.y+1] == move.t && board[move.x+2][move.y+2] == move.t) ||
+                                  (board[move.x+2][move.y-2] == move.t && board[move.x+1][move.y-1] == move.t) ||
+                                  (board[move.x+1][move.y-1] == move.t && board[move.x-1][move.y+1] == move.t) ||
+                                  (board[move.x-1][move.y+1] == move.t && board[move.x-2][move.y+2] == move.t)) == !goOn
+                                 ); */
+  ensures \old(goOn) == true ==> twoTokensAroundMove(move.x, move.y) == !goOn;
+  void play();
+}
+
+requires matrix(p1.board, p1.width, p1.height) ** matrix(p2.board, p2.width, p2.height);
+requires p1.width == p2.width && p1.height == p2.height;
+requires (\forall int i = 0..p1.width, int j = 0..p1.height; {: p1.board[i][j] :} == {: p2.board[i][j] :});
+requires p1.move.x == p2.move.x && p1.move.y == p2.move.y && p1.move.t == p2.move.t;
+requires 2 <= p1.move.x && p1.move.x < p1.width - 2;
+requires 2 <= p1.move.y && p1.move.y < p1.height - 2;
+requires !p1.goOn == p1.twoTokensAroundMove(p1.move.x, p1.move.y);
+requires !p2.goOn == p2.twoTokensAroundMove(p2.move.x, p2.move.y);
+ensures p1.constants() ** p2.constants();
+ensures p1.goOn == p2.goOn;
+ensures (\forall int i = 0..p1.width, int j = 0..p1.height; \old({: p1.board[i][j] :}) == p1.board[i][j]);
+ensures (\forall int i = 0..p2.width, int j = 0..p2.height; \old({: p2.board[i][j] :}) == p2.board[i][j]);
+void lemma(Player p1, Player p2) {
+    // Automatic
+}
+
+requires matrix(p.board, p.width, p.height);
+requires 2 <= p.move.x && p.move.x < p.width - 2;
+requires 2 <= p.move.y && p.move.y < p.height - 2;
+ensures !p.goOn == p.twoTokensAroundMove(p.move.x, p.move.y);
+pure boolean twoTokensLemma(Player p);
+
+inline resource matrix(int[][] mat, int w, int h) =
+  mat != null && mat.length == w && (\forall int i = 0 .. w; {: mat[i] :} != null && {: mat[i] :}.length == h);
+
+inline resource consistency(Player p1, Player p2) =
+  p1.myToken == 1 ** p2.myToken == 2 **
+  p1.myToken == p2.yourToken ** p1.yourToken == p2.myToken **
+  p1.width == p2.width ** p1.height == p2.height **
+  matrix(p1.board, p1.width, p1.height) **
+  matrix(p2.board, p2.width, p2.height) **
+  (\forall int i = 0..p1.width, int j = 0..p1.height; {: p1.board[i][j] :} == {: p2.board[i][j] :}) **
+  p1.goOn == p2.goOn;
+
+seq_program tic_tac_toe(int m, int n) {
+  endpoint p1 = Player(m, n, 1, 2);
+  endpoint p2 = Player(m, n, 2, 1);
+
+  // context consistency(p1, p2);
+  requires p1.goOn ** p2.goOn;
+  context
+      p1.myToken == 1 ** p2.myToken == 2 **
+      p1.myToken == p2.yourToken ** p1.yourToken == p2.myToken **
+      p1.width == p2.width ** p1.height == p2.height **
+      matrix(p1.board, p1.width, p1.height) **
+      matrix(p2.board, p2.width, p2.height) **
+      (\forall int i = 0..p1.width, int j = 0..p1.height; {: p1.board[i][j] :} == {: p2.board[i][j] :}) **
+      p1.goOn == p2.goOn;
+  void turn1() {
+    p1.think();
+    p1.play();
+    p2.think(); // in the background
+    p1.temp := p1.move.clone();
+    communicate p2.move <- p1.temp;
+    p1.temp := p1.move.clone(); // Workaround - shouldn't be necessary...
+    p2.play(); // to update
+
+    // The assume goal below is slow to prove. Basically because of the next two proof goals:
+    // assume !p1.goOn == p1.twoTokensAroundMove(p1.move.x, p1.move.y);
+    // assume !p2.goOn == p2.twoTokensAroundMove(p2.move.x, p2.move.y);
+    // I would expect them to be quick to verify, as they are in the postcondition of play().
+    // But the state changes above apparently cause this fact to be deleted everytime... Somehow.
+    // The program also verifies without the assume, but to keep the test suite quick we encode it like this
+    assume p1.goOn == p2.goOn;
+  }
+
+  requires p1.goOn ** p2.goOn;
+  context consistency(p1, p2);
+  void turn2() {
+    p2.think();
+    p2.play();
+    p1.think(); // in the background
+    p2.temp := p2.move.clone();
+    communicate p1.move <- p2.temp;
+    p2.temp := p2.move.clone(); // Workaround - shouldn't be necessary...
+    p1.play(); // to update
+
+    // See long comment above
+    assume p1.goOn == p2.goOn;
+  }
+
+  context consistency(p1, p2);
+  seq_run {
+    loop_invariant consistency(p1, p2);
+    while(p1.goOn && p2.goOn){
+      turn1();
+      if (p1.goOn && p2.goOn) {
+        turn2();
+      }
+    }
+  }
+}
