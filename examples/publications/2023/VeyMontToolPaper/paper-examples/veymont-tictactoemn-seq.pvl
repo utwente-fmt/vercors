@@ -1,10 +1,10 @@
 /*
-  TODO: Requires to pass: --assumeInjectivityOnInhale.
+  Note: requires to pass: --assumeInjectivityOnInhale.
 
-  This is a version of veymont-tictactoe.pvl, except instead of a doubly nested array it uses doubly nested seqs.
-  This brings down verification time from 3 minutes to 30 seconds, and also makes verification stable again.
-  Ideally we'd only have the array version of this program in the test suite, as it is more realistic to use arrays.
-  But as long as it verifies slowly this file will have to do.
+  This is a version of veymont-tictactoe.pvl (archived in known-problems), except instead of a doubly nested array it
+  uses doubly nested seqs. This brings down verification time from 3 minutes to 30 seconds, and also makes verification
+  stable again. Ideally we'd only have the array version of this program in the test suite, as it is more realistic to
+  use arrays. But as long as it verifies slowly this file will have to do.
 */
 
 class Move {
