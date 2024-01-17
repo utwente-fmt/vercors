@@ -22,4 +22,6 @@ class ArrayExamplesSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/arrays/array.pvl"
   vercors should verify using silicon example "concepts/arrays/zero_array.pvl"
   vercors should verify using silicon example "concepts/arrays/array-problem.pvl"
+
+  vercors should verify using silicon example "concepts/arrays/ArrayList.java"
 }
