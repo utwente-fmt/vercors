@@ -4,6 +4,7 @@ class Source extends Thread {
     /*@
         requires Perm(this.a, 1);
         requires (\forall* int i; 0 <= i && i < a.length; Perm(this.a[i], 1));
+        ensures (\forall* int i; 0 <= i && i < a.length; Perm(this.a[i], 1));
      */
     public void run() {
         this.a = new int[2];

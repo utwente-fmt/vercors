@@ -2,6 +2,7 @@ package vct.rewrite.runtime.util
 
 import hre.util.ScopedStack
 import vct.col.ast.{And, Expr, Variable, _}
+import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.SuccessionMap
 
@@ -37,10 +38,11 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter
   }
 
   final def createQuantifier(expr: Expr[Pre], acc: Statement[Post], element: Variable[Pre], filteredBounds: ArrayBuffer[(Variable[Pre], Option[Expr[Post]], Option[Expr[Post]])]): CodeStringQuantifier[Post] = {
+    implicit val origin: Origin = expr.o
     CodeStringQuantifier[Post](
-      newVariables.getLocal(element, expr.o),
-      filteredBounds.map(i => i._2).collectFirst { case Some(value: Expr[Post]) => value }.getOrElse(IntegerValue[Post](MinValue)(expr.o)),
-      filteredBounds.map(i => i._3).collectFirst { case Some(value: Expr[Post]) => value }.getOrElse(IntegerValue[Post](MaxValue)(expr.o)),
+      newVariables.getLocal(element),
+      filteredBounds.map(i => i._2).collectFirst { case Some(value: Expr[Post]) => value }.getOrElse(IntegerValue[Post](MinValue)),
+      filteredBounds.map(i => i._3).collectFirst { case Some(value: Expr[Post]) => value }.getOrElse(IntegerValue[Post](MaxValue)),
       acc
     )(expr.o)
   }
@@ -81,20 +83,21 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter
   }
 
 
-  final def createQuantifierMethod(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre], prev: SuccessionMap[Declaration[_], Variable[Post]]): CodeStringQuantifierCall[Post] = {
+  final def createQuantifierMethod(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre], prev: NewVariableResult[Pre, _]): CodeStringQuantifierCall[Post] = {
+    implicit val origin: Origin = expr.o
     val quantifierId = CodeStringQuantifierMethod.nextId()
     val newLocals: Seq[Variable[Post]] = bindings.map(newVariables.createNew)
     val postStatements: Seq[Statement[Post]] = dispatchPostBody(expr, bindings, left, right, quantifierId, newLocals)
     val newBodyStatements: Seq[Statement[Post]] = Seq(createBodyQuantifier(expr, bindings, left, right)) ++ postStatements
     allBinders.addAll(bindings)
-    val methodBlock = Block[Post](newBodyStatements)(expr.o)
+    val methodBlock = Block[Post](newBodyStatements)
     val arguments: Seq[Variable[Pre]] = createNewArguments()
     val newMethod = declareNewMethod(expr, quantifierId, arguments.map(a => newVariables.get(a).get), newLocals, methodBlock)
-    createMethodCall(expr, quantifierId, newMethod, arguments.map(a => Local[Post](prev.ref(a))(expr.o)))
+    createMethodCall(expr, quantifierId, newMethod, arguments.map(a => prev.getLocal(a)))
   }
 
   final def dispatchQuantifier(quantifier: Expr[Pre], bindings: Seq[Variable[Pre]], body: Expr[Pre]): Expr[Post] = {
-    val prev = if (newVariables.nonEmpty) newVariables.freeze().mapping else new SuccessionMap[Declaration[_], Variable[Rewritten[Pre]]]()
+    val prev = newVariables.freeze()
     val result: (Expr[Post], mutable.HashSet[Variable[Pre]]) = requiredLocals.having(new mutable.HashSet[Variable[Pre]]()){
       newVariables.collect{
           val newQuantifier = body match {

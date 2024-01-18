@@ -76,12 +76,8 @@ class NewVariableGenerator[Pre <: Generation](val rewriter: Rewriter[Pre] = new 
     }
   }
 
-  def getLocal(v: Variable[Pre]): Local[Post] = {
-    Local[Post](newVariables.top.ref(v))(v.o)
-  }
-
-  def getLocal(v: Variable[Pre], o: Origin): Local[Post] = {
-    Local[Post](newVariables.top.ref(v))(o)
+  def getLocal(v: Variable[Pre])(implicit origin: Origin): Local[Post] = {
+    Local[Post](newVariables.top.ref(v))
   }
 
   def freezeOption() : Option[NewVariableResult[Pre, _]] = {
@@ -97,4 +93,9 @@ class NewVariableGenerator[Pre <: Generation](val rewriter: Rewriter[Pre] = new 
 }
 
 
-case class NewVariableResult[Pre <: Generation, R](inputs: Seq[Declaration[_]], mapping: SuccessionMap[Declaration[_], Variable[Rewritten[Pre]]], outputs: Seq[Variable[Rewritten[Pre]]], result: R)
+case class NewVariableResult[Pre <: Generation, R](inputs: Seq[Declaration[_]], mapping: SuccessionMap[Declaration[_], Variable[Rewritten[Pre]]], outputs: Seq[Variable[Rewritten[Pre]]], result: R) {
+  type Post = Rewritten[Pre]
+  def getLocal(v: Variable[Pre])(implicit origin: Origin): Local[Post] = {
+    Local[Post](mapping.ref(v))
+  }
+}
