@@ -115,7 +115,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
       // For each endpoint, make a local variable and initialize it using the constructor referenced in the endpoint
       val endpointsInit = prog.endpoints.map { endpoint =>
         Assign(Local[Post](endpointSucc((mode, endpoint)).ref),
-          procedureInvocation[Post](
+          constructorInvocation[Post](
             ref = succ(endpoint.constructor.decl),
             args = endpoint.args.map(dispatch),
             blame = InvocationFailureToEndpointFailure(endpoint)

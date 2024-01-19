@@ -12,7 +12,7 @@ trait SeqLoopImpl[G] extends StatementImpl[G] with SeqLoopOps[G] { this: SeqLoop
   def hasUnpointed: Boolean = guards.exists { case _: UnpointedGuard[G] => true; case _ => false }
   def explicitParticipants: Seq[Endpoint[G]] = guards.collect { case EndpointGuard(Ref(endpoint), condition) => endpoint }
 
-  override def enterCheckContext(context: CheckContext[G]): CheckContext[G] = {
+  override def enterCheckContextCurrentParticipatingEndpoints(context: CheckContext[G]): Option[Set[Endpoint[G]]] = {
     // Assume SeqProg sets participatingEndpoints
     assert(context.currentParticipatingEndpoints.isDefined)
 

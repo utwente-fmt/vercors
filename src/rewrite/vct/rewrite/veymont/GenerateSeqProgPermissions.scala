@@ -2,9 +2,8 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
-import vct.col.ast.{Applicable, ApplicableContract, ArrayLocation, ArraySubscript, BooleanValue, Class, ContractApplicable, Declaration, Deref, Endpoint, EndpointGuard, EndpointName, EndpointUse, EnumUse, Expr, FieldLocation, Function, InlinePattern, InstanceField, InstanceFunction, InstanceMethod, IterationContract, Length, Local, LoopContract, LoopInvariant, Node, Null, Perm, Procedure, Result, SeqAssign, SeqLoop, SeqProg, SeqRun, SplitAccountedPredicate, Statement, TArray, TClass, TInt, ThisObject, Type, UnitAccountedPredicate, Variable, WritePerm}
+import vct.col.ast._
 import vct.col.ast.declaration.global.SeqProgImpl.participants
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
@@ -52,6 +51,17 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
           variablesPerm(proc.args),
           variablesPerm(proc.args) &* resultPerm(proc)(proc.o)),
         body = proc.body.map(body => currentPerm.having(variablesPerm(proc.args)) { dispatch(body) })
+      ))
+
+    case cons: Constructor[Pre] if enabled =>
+      implicit val o = cons.o
+      classDeclarations.succeed(cons, cons.rewrite(
+        contract = prependContract(
+          cons.contract,
+          tt,
+          variablesPerm(cons.args) &* currentPerm.top,
+        ),
+        body = cons.body.map(body => currentPerm.having(variablesPerm(cons.args)) { dispatch(body) })
       ))
 
     case cls: Class[Pre] if enabled => currentPerm.having(classPerm(cls)) { rewriteDefault(cls) }
@@ -130,10 +140,10 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
 
   override def dispatch(loopContract: LoopContract[Pre]): LoopContract[Post] =
     (currentPerm.topOption, loopContract) match {
-      case (Some(perm), invariant: LoopInvariant[pre]) =>
+      case (Some(perm), invariant: LoopInvariant[Pre]) =>
         implicit val o = loopContract.o
         invariant.rewrite(invariant = perm &* dispatch(invariant.invariant))
-      case (Some(perm), iteration: IterationContract[pre]) =>
+      case (Some(perm), iteration: IterationContract[Pre]) =>
         implicit val o = loopContract.o
         iteration.rewrite(
           requires = perm &* dispatch(iteration.requires),

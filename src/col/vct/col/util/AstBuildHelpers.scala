@@ -152,6 +152,8 @@ object AstBuildHelpers {
         method.rewrite(args = args, returnType = returnType, body = body, inline = Some(inline), contract = contract, typeArgs = typeArgs, outArgs = outArgs, pure = Some(pure), blame = blame)
       case method: InstanceOperatorMethod[Pre] =>
         method.rewrite(returnType = returnType, operator = rewriter.dispatch(method.operator), args = args, body = body, contract = contract, inline = Some(inline), pure = Some(pure), blame = blame)
+      case cons: Constructor[Pre] =>
+        cons.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, body = body, contract = contract, inline = Some(inline), blame = blame)
     }
   }
 
@@ -238,6 +240,8 @@ object AstBuildHelpers {
         inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
       case inv: MethodInvocation[Pre] =>
         inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
+      case inv: ConstructorInvocation[Pre] =>
+        inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
     }
   }
 
@@ -246,6 +250,8 @@ object AstBuildHelpers {
       case inv: InvokeProcedure[Pre] =>
         inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
       case inv: InvokeMethod[Pre] =>
+        inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
+      case inv: InvokeConstructor[Pre] =>
         inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
     }
   }
@@ -351,6 +357,16 @@ object AstBuildHelpers {
                           givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
                           yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): ProcedureInvocation[G] =
     ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields)(blame)
+
+  def constructorInvocation[G]
+                         (blame: Blame[InvocationFailure],
+                          ref: Ref[G, Constructor[G]],
+                          args: Seq[Expr[G]] = Nil,
+                          outArgs: Seq[Expr[G]] = Nil,
+                          typeArgs: Seq[Type[G]] = Nil,
+                          givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
+                          yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): ConstructorInvocation[G] =
+    ConstructorInvocation(ref, args, outArgs, typeArgs, givenMap, yields)(blame)
 
   private def GeneratedQuantifier: Origin = Origin(
     Seq(
