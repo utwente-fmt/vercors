@@ -1,0 +1,117 @@
+class Query {
+  int serialNumber;
+
+  constructor(int serialNumber) {
+    this.serialNumber = serialNumber;
+  }
+
+  Query clone();
+}
+
+class Client {
+  Query query, temp;
+  boolean flag, flag1, flag2;
+
+  ensures query != null;
+  ensures flag == false;
+  constructor(int n) {
+    query = new Query(5);
+    temp = new Query(-1);
+    flag = false;
+  }
+
+  ensures \old(query) == query;
+  ensures   flag1 && flag2  ==>  flag;
+  ensures !(flag1 && flag2) ==> !flag;
+  void checkFlags() {
+    flag = flag1 && flag2;
+  }
+}
+
+class Server {
+  int status;
+  boolean flag;
+  Query query;
+
+  pure int INITIAL() = 0;
+  pure int STARTED() = 1;
+  pure int COMMITTED() = 2;
+  pure int ABORTED() = 3;
+
+  ensures status == INITIAL();
+  constructor(int n) {
+    status = 0;
+    flag = false;
+    query = new Query(-1); // dummy
+  }
+
+  requires status == INITIAL() || status == ABORTED();
+  ensures status == STARTED();
+  void start() {
+    status = 1;
+  }
+
+  requires status == STARTED();
+  ensures status == COMMITTED();
+  void `commit`() {
+    status = 2;
+  }
+
+  requires status == STARTED();
+  ensures status == ABORTED();
+  void abort() {
+    status = 3;
+  }
+
+  ensures \result == (status != COMMITTED());
+  pure boolean isUncommitted() {
+    return status != 2;
+  }
+}
+
+inline resource consistency(Client c, Server s1, Server s2) =
+    (!c.flag ==> s1.isUncommitted()) &&
+    (!c.flag ==> s2.isUncommitted());
+
+seq_program Main(int n) {
+  endpoint c = Client(n);
+  endpoint s1 = Server(n);
+  endpoint s2 = Server(n);
+
+  requires c.query != null;
+  requires c.flag == false;
+  requires s1.status == s1.INITIAL();
+  requires s2.status == s2.INITIAL();
+  requires consistency(c, s1, s2);
+  ensures s1.status == s1.COMMITTED();
+  ensures s2.status == s2.COMMITTED();
+  seq_run {
+    loop_invariant c.query != null;
+    loop_invariant s1.status == s1.INITIAL() || s1.status == s1.COMMITTED() || s1.status == s1.ABORTED();
+    loop_invariant s2.status == s2.INITIAL() || s2.status == s2.COMMITTED() || s2.status == s2.ABORTED();
+    loop_invariant consistency(c, s1, s2);
+    while (!c.flag &&
+           s1.isUncommitted() &&
+           s2.isUncommitted()) {
+      c.temp := c.query.clone(); // TODO: when expressions are allowed in communicates, remove temp workaround
+      communicate s1.query <- c.query;
+      c.query := c.temp.clone();
+      communicate s2.query <- c.query;
+      c.query := c.temp.clone();
+      s1.start();
+      s2.start();
+      communicate c.flag1 <- s1.flag;
+      communicate c.flag2 <- s2.flag;
+      c.checkFlags();
+      communicate s1.flag <- c.flag;
+      communicate s2.flag <- c.flag;
+      if (c.flag && s1.flag && s2.flag) {
+          s1.`commit`();
+          s2.`commit`();
+      } else {
+          s1.abort();
+          s2.abort();
+      }
+    }
+  }
+}

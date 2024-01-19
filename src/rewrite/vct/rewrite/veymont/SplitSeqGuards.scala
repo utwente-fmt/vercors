@@ -90,12 +90,16 @@ case class SplitSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
 
   // "Points" an expression in the direction of an endpoint if possible
   def point(e: Expr[Pre]): (Option[Endpoint[Pre]], Expr[Pre]) = {
-    val endpoints: Seq[Endpoint[Pre]] = e.collect { case Deref(EndpointUse(Ref(endpoint)), _) => endpoint }
-    endpoints match {
-      case Seq(endpoint) =>
+    val endpoints: Set[Endpoint[Pre]] =
+      e.collect {
+        case Deref(EndpointUse(Ref(endpoint)), _) => endpoint
+        case MethodInvocation(EndpointUse(Ref(endpoint)), _, _, _, _, _, _) => endpoint
+      }.toSet
+    endpoints.size match {
+      case 1 =>
         // expr is totally in context of one endpoint and whatever else is in scope
-        (Some(endpoint), e)
-      case Seq() => (None, e)
+        (Some(endpoints.toSeq.head), e)
+      case 0 => (None, e)
       case _ => throw MultipleEndpoints(e) // Expr uses multiple endpoints - for now we should disallow that.
     }
   }

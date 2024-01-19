@@ -175,6 +175,7 @@ object util {
       val shared = Seq(
         "-deprecation",
         "-feature",
+        "-Xno-patmat-analysis"
       )
 
       if (strictOptions()) {
@@ -490,7 +491,7 @@ object viper extends ScalaModule {
 
   object siliconGit extends GitModule {
     def url = T { "https://github.com/viperproject/silicon.git" }
-    def commitish = T { "118f5a663ec3c4fab4c1d3008c7b5a07b9690a82" }
+    def commitish = T { "529d2a49108b954d2b0749356faf985d622f54f0" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")

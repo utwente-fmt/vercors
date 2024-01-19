@@ -1,0 +1,17 @@
+seq_program Main() {
+	endpoint a = Role(5);
+	endpoint b = Role(6);
+	endpoint c = Role(7);
+
+	seq_run {
+		new Role(3); // Error
+	}
+}
+
+class Role {
+	int x;
+	
+	constructor(int v) {
+		x = v;
+	}
+}

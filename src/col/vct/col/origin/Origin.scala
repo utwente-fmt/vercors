@@ -74,6 +74,7 @@ case class PreferredName(preferredName: Seq[String]) extends NameStrategy {
 }
 
 case class NamePrefix(prefix: String) extends OriginContent
+case class NameSuffix(suffix: String) extends OriginContent
 
 case class RequiredName(requiredName: String) extends NameStrategy {
   override def name(tail: Origin): Option[Name] = Some(Name.Required(requiredName))
@@ -256,6 +257,9 @@ final case class Origin(originContents: Seq[OriginContent]) extends Blame[Verifi
    */
   def sourceName(name: String): Origin =
     withContent(SourceName(name))
+
+  def debugName(name: String = "unknown"): String =
+    find[SourceName].map(_.name).getOrElse(getPreferredNameOrElse(Seq(name)).camel)
 
 //  def addStartEndLines(startIdx: Int, endIdx: Int): Origin =
 //    withContent(StartEndLines(startIdx, endIdx))

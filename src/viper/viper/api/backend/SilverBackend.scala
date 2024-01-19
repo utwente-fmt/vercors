@@ -309,7 +309,7 @@ trait SilverBackend extends Backend with LazyLogging {
 
   def defer(reason: ErrorReason): Unit = reason match {
     case reasons.DivisionByZero(e) =>
-      val division = get[col.DividingExpr[_]](e)
+      val division = info(e).dividingExpr.get
       division.blame.blame(blame.DivByZero(division))
     case reasons.InsufficientPermission(f@silver.FieldAccess(_, _)) =>
       val deref = get[col.SilverDeref[_]](f)

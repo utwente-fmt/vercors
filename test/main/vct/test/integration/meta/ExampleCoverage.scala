@@ -49,10 +49,12 @@ class ExampleCoverage extends AnyFlatSpec {
       new TechnicalSpec(),
       new TechnicalStaticSpec(),
       new TechnicalVeyMontSpec(),
+      new TechnicalVeyMontExamplesSpec(),
       new TerminationSpec(),
       new TypeValuesSpec(),
       new VerifyThisSpec(),
-      new VeymontSpec(),
+      new VeyMontToolPaperSpec(),
+      new VeyMontExamplesSpec(),
       new WaitNotifySpec(),
       new WandSpec(),
     )

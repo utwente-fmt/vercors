@@ -1531,9 +1531,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
       case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
-      case c @ PVLCommunicate(s, r) if r.fieldType == s.fieldType => PVLCommunicate(s, r)
+      case c @ PVLCommunicate(s, r) if r.fieldType == s.fieldType => PVLCommunicate(s, r)(c.blame)
       case comm@PVLCommunicate(s, r) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.fieldType}, but actually has type ${r.fieldType}.")
-      case c @ Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)
+      case c @ Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)(c.blame)
       case comm@Communicate(r, s) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.field.decl.t}, but actually has type ${r.field.decl.t}.")
       case a @ PVLSeqAssign(r, f, v) =>
         try { PVLSeqAssign(r, f, coerce(v, f.decl.t))(a.blame) } catch {
@@ -1672,7 +1672,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
       case seqProg: SeqProg[Pre] => seqProg
-      case thread: Endpoint[Pre] => new Endpoint(thread.cls, thread.constructor, thread.args)
+      case endpoint: Endpoint[Pre] => new Endpoint(endpoint.cls, endpoint.constructor, endpoint.args)(endpoint.blame)
       case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body, bc.requires)(bc.blame)
       case bc: BipComponent[Pre] =>
         new BipComponent(bc.fqn, res(bc.invariant), bc.initial)

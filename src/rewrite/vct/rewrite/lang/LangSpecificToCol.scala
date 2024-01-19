@@ -8,11 +8,11 @@ import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg, RewriterBuilderArg2}
 import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangSpecificToCol.NotAValue
 
-case object LangSpecificToCol extends RewriterBuilderArg[Boolean] {
+case object LangSpecificToCol extends RewriterBuilderArg2[Boolean, Boolean] {
   override def key: String = "langSpecific"
   override def desc: String = "Translate language-specific constructs to a common subset of nodes."
 
@@ -29,13 +29,13 @@ case object LangSpecificToCol extends RewriterBuilderArg[Boolean] {
   }
 }
 
-case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Boolean = false) extends Rewriter[Pre] with LazyLogging {
+case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Boolean = false, veymontAllowAssign: Boolean = false) extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
   val bip: LangBipToCol[Pre] = LangBipToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)
   val cpp: LangCPPToCol[Pre] = LangCPPToCol(this)
   val pvl: LangPVLToCol[Pre] = LangPVLToCol(this, veymontGeneratePermissions)
-  val veymont: LangVeyMontToCol[Pre] = LangVeyMontToCol(this)
+  val veymont: LangVeyMontToCol[Pre] = LangVeyMontToCol(this, veymontAllowAssign)
   val silver: LangSilverToCol[Pre] = LangSilverToCol(this)
   val llvm: LangLLVMToCol[Pre] = LangLLVMToCol(this)
 
@@ -180,6 +180,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
 
     case communicate: PVLCommunicate[Pre] => veymont.rewriteCommunicate(communicate)
     case assign: PVLSeqAssign[Pre] => veymont.rewriteSeqAssign(assign)
+    case assign: Assign[Pre] => pvl.assign(assign)
 
     case other => rewriteDefault(other)
   }

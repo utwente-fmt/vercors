@@ -1,0 +1,27 @@
+seq_program Main() {
+    endpoint a = Role();
+    endpoint b = Role();
+    endpoint c = Role();
+
+	seq_run {
+		a.x := b.x; // Error, assignment from multiple sources.
+	}
+}
+
+seq_program Main2() {
+    endpoint a = Role();
+    endpoint b = Role();
+    endpoint c = Role();
+
+	seq_run {
+	    foo();
+	}
+
+	void foo() {
+		a.x := c.x; // Error, assignment from multiple sources.
+    }
+}
+
+class Role {
+	int x;
+}
