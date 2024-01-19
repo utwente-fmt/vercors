@@ -38,6 +38,8 @@ sealed trait CheckError {
         Seq(context(use) -> "This usage is out of scope,", context(ref.decl) -> "since it is declared here.")
       case ThisOutsideScopeError(use) =>
         Seq(context(use) -> "`this` may not occur outside the declaration it refers to.")
+      case ThisInConstructorPre(use) =>
+        Seq(context(use) -> "`this` may not occur in the precondition of a constructor.")
       case OutOfWriteScopeError(reason, use, ref) =>
         Seq(
           context(use) -> "This may not be rewritten to, since ...",
@@ -103,6 +105,9 @@ case class OutOfScopeError[G](use: Node[G], ref: Ref[G, _ <: Declaration[G]]) ex
 }
 case class ThisOutsideScopeError[G](use: ThisDeclaration[G]) extends CheckError {
   override def subcode: String = "thisOutOfScope"
+}
+case class ThisInConstructorPre[G](use: ThisObject[G]) extends CheckError {
+  override def subcode: String = "thisInConsPre"
 }
 case class OutOfWriteScopeError[G](reason: Node[G], use: Node[G], ref: Ref[G, _ <: Declaration[G]]) extends CheckError {
   val subcode = "outOfWriteScope"
@@ -172,6 +177,7 @@ case class CheckContext[G]
   undeclared: Seq[Seq[Declaration[G]]] = Nil,
   roScopes: Int = 0, roScopeReason: Option[Node[G]] = None,
   currentApplicable: Option[Applicable[G]] = None,
+  inPreCondition: Boolean = false,
   inPostCondition: Boolean = false,
   currentSeqProg: Option[SeqProg[G]] = None,
   currentReceiverEndpoint: Option[Endpoint[G]] = None,
@@ -197,6 +203,9 @@ case class CheckContext[G]
 
   def withPostcondition: CheckContext[G] =
     copy(inPostCondition = true)
+
+  def withPrecondition: CheckContext[G] =
+    copy(inPreCondition = true)
 
   def withUndeclared(decls: Seq[Declaration[G]]): CheckContext[G] =
     copy(undeclared = undeclared :+ decls)

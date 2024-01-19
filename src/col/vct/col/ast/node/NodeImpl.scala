@@ -53,6 +53,7 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
       enterCheckContextRoScopes(context),
       enterCheckContextRoScopeReason(context),
       enterCheckContextCurrentApplicable(context),
+      enterCheckContextInPreCondition(context),
       enterCheckContextInPostCondition(context),
       enterCheckContextCurrentSeqProg(context),
       enterCheckContextCurrentReceiverEndpoint(context),
@@ -65,6 +66,7 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
   def enterCheckContextRoScopes(context: CheckContext[G]): Int = context.roScopes
   def enterCheckContextRoScopeReason(context: CheckContext[G]): Option[Node[G]] = context.roScopeReason
   def enterCheckContextCurrentApplicable(context: CheckContext[G]): Option[Applicable[G]] = context.currentApplicable
+  def enterCheckContextInPreCondition(context: CheckContext[G]): Boolean = context.inPreCondition
   def enterCheckContextInPostCondition(context: CheckContext[G]): Boolean = context.inPostCondition
   def enterCheckContextCurrentSeqProg(context: CheckContext[G]): Option[SeqProg[G]] = context.currentSeqProg
   def enterCheckContextCurrentReceiverEndpoint(context: CheckContext[G]): Option[Endpoint[G]] = context.currentReceiverEndpoint

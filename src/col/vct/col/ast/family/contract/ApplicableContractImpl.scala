@@ -11,9 +11,9 @@ trait ApplicableContractImpl[G] extends NodeFamilyImpl[G] with ApplicableContrac
     this match {
       // Redundant match so this doesn't compile if we add a field to ApplicableContract
       case ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases) =>
-        f(context.withUndeclared(yieldsArgs), requires) +:
+        f(context.withUndeclared(yieldsArgs).withPrecondition, requires) +:
           f(context.withPostcondition, ensures) +:
-          f(context.withUndeclared(yieldsArgs), contextEverywhere) +: (
+          f(context.withUndeclared(yieldsArgs).withPrecondition, contextEverywhere) +: (
             signals.map(f(context, _)) ++
               givenArgs.map(f(context, _)) ++
               yieldsArgs.map(f(context, _)) ++
