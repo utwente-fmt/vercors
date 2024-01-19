@@ -63,6 +63,8 @@ sealed trait CheckError {
         Seq(context(clause) -> "This catch clause is redundant, because it is subsumed by the caught types of earlier catch clauses in this block.")
       case ResultOutsidePostcondition(res) =>
         Seq(context(res) -> "\\result may only occur in the postcondition.")
+      case ReturnOutsideMethod(ret) =>
+        Seq(context(ret) -> "return may only occur in methods and procedures.")
       case FinalPermission(loc) =>
         Seq(context(loc) -> "Specifying permission over final fields is not allowed, since they are treated as constants.")
       case SeqProgStatement(s) =>
@@ -125,6 +127,9 @@ case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError {
 }
 case class ResultOutsidePostcondition(res: Expr[_]) extends CheckError {
   val subcode = "resultOutsidePostcondition"
+}
+case class ReturnOutsideMethod(ret: Return[_]) extends CheckError {
+  val subcode = "resultOutsideMethod"
 }
 case class FinalPermission(loc: FieldLocation[_]) extends CheckError {
   override def subcode: String = "finalPerm"

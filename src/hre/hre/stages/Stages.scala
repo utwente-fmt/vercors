@@ -23,9 +23,9 @@ trait Stages[-Input, +Output] {
       Progress.stages(flatNames) { progressNext =>
         var cur: Any = in
 
-        for(stage <- stages) {
+        for((stage, idx) <- stages.zipWithIndex) {
+          if(idx > 0) progressNext()
           cur = stage.run(cur)
-          progressNext()
         }
 
         Right(cur.asInstanceOf[Output])
