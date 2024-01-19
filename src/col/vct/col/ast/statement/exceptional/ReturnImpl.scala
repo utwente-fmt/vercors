@@ -10,6 +10,7 @@ trait ReturnImpl[G] extends ExceptionalStatementImpl[G] with ReturnOps[G] { this
     val app = context.declarationStack.collectFirst {
       case _: Procedure[G] | _: InstanceMethod[G] | _: InstanceOperatorMethod[G] => ()
       case _: JavaMethod[G] | _: CFunctionDefinition[G] | _: CPPFunctionDefinition[G] => ()
+      case _: BipTransition[G] | _: BipGuard[G] | _: BipOutgoingData[G] => ()
     }
     val wrongReturn = if(app.isEmpty) Seq(ReturnOutsideMethod(this)) else Nil
     super.check(context) ++ wrongReturn
