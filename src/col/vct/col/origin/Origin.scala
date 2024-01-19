@@ -55,15 +55,6 @@ trait OriginContent {
  */
 trait NameStrategy extends OriginContent
 
-case class SimpleSourceName(name: String) extends NameStrategy {
-  override def name(tail: Origin): Option[Name] =
-    Some(Name.Preferred(
-      tail.span[NameStrategy]._1.originContents.collect {
-        case NamePrefix(prefix) => prefix
-      }.reverse :+ name
-    ))
-}
-
 case class PreferredName(preferredName: Seq[String]) extends NameStrategy {
   override def name(tail: Origin): Option[Name] =
     Some(Name.Preferred(

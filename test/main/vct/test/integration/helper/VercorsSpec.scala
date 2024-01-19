@@ -89,7 +89,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
               Options.parse((Seq("--backend", "silicon") ++ flags).toArray).get,
               inputs
             )
-          case types.Backend.Carbon => Verify.verifyWithCarbon(inputs)
+          case types.Backend.Carbon =>
             Verify.verifyWithOptions(
               Options.parse((Seq("--backend", "carbon") ++ flags).toArray).get,
               inputs
