@@ -2,6 +2,7 @@ package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
+import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.ast.{CPPLocalDeclaration, Expr, FunctionInvocation, InstanceField, Perm, ProcedureInvocation, SeqSubscript, _}
 import vct.col.origin._
 import vct.col.ref.Ref
@@ -24,6 +25,12 @@ case object LangCPPToCol {
     override def code: String = "wrongCPPType"
     override def text: String =
       decl.o.messageInContext(s"This declaration has a type that is not supported.")
+  }
+
+  private case class UnexpectedCPPTypeError(declType: Type[_], init: Expr[_]) extends UserError {
+    override def code: String = "unexpectedCPPTypeError"
+    override def text: String =
+      init.o.messageInContext(s"Expected the type of this expression to be `$declType`, but got ${init.t}")
   }
 
   private case class LambdaDefinitionUnsupported(lambda: CPPLambdaDefinition[_]) extends UserError {
@@ -77,6 +84,11 @@ case object LangCPPToCol {
   private case class SYCLReassigningOfVariableUnsupported(objectName: String, codeExtension: String, ass: PreAssignExpression[_]) extends UserError {
     override def code: String = "syclUnsupportedReassigningOf" + codeExtension
     override def text: String = ass.o.messageInContext(s"Reassigning variables holding a SYCL " + objectName + " is not supported.")
+  }
+
+  private case class SYCLReassigningOfReadonlyAccessor(ass: PreAssignExpression[_]) extends UserError {
+    override def code: String = "syclUnsupportedReassigningOfReadonlyAccessor"
+    override def text: String = ass.o.messageInContext(s"Reassigning (an element of) a readonly data accessor is not allowed.")
   }
 
   private case class SYCLContractForCommandGroupUnsupported(contract: ApplicableContract[_]) extends UserError {
@@ -311,8 +323,6 @@ case object LangCPPToCol {
 
   private class SYCLRangeDerefBlame(rangeField: InstanceField[_]) extends PanicBlame(rangeField.o.messageInContext("There should always be enough permission to dereference the range fields."))
 
-  private class SYCLRangeInjectivityCheckBlame(rangeO: Origin) extends PanicBlame(rangeO.messageInContext("The injectivity check functions for range indices should always be callable."))
-
   private case class SYCLAccessorArraySubscriptErrorBlame(accSubscript: AmbiguousSubscript[_]) extends Blame[ArraySubscriptError] {
     private case class SYCLAccessorArraySubscriptArrayInsufficientPermissionError(error: ArrayInsufficientPermission) extends UserError {
       override def code: String = "syclAccessorArraySubscriptArrayInsufficientPermission"
@@ -410,7 +420,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   sealed abstract class KernelType(rangeFields: Seq[InstanceField[Post]], rangeValues: Seq[Expr[Post]]) {
     def getRangeSizeChecksForConstructor(params: mutable.Buffer[Variable[Post]]): Expr[Post]
     def getConstructorPostConditions(result: Result[Post], params: mutable.Buffer[Variable[Post]]): Seq[Expr[Post]]
-    def getRangeInjectivityChecks: Expr[Post]
 
     def getRangeFields: Seq[InstanceField[Post]] = rangeFields
     def getRangeValues: Seq[Expr[Post]] = rangeValues
@@ -432,15 +441,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         Deref[Post](result, rangeFields(i).ref)(new SYCLRangeDerefBlame(rangeFields(i))) === Local[Post](params(i).ref)
       )
     })
-
-    override def getRangeInjectivityChecks: Expr[Post] = {
-      currentDimensionIterVars(GlobalScope()).size match {
-        case i@(2 | 3)=> syclHelperFunctions(s"sycl_:_:linearize_${i}_is_injective")(
-          currentDimensionIterVars(GlobalScope()).map(iterVar => iterVar.to).toSeq, new SYCLRangeInjectivityCheckBlame(rangeO), rangeO
-        )
-        case _ => tt
-      }
-    }
   }
   private case class NDRangeKernel(rangeO: Origin, rangeFields: Seq[InstanceField[Post]], rangeValues: Seq[Expr[Post]]) extends KernelType(rangeFields, rangeValues) {
     override def getRangeSizeChecksForConstructor(params: mutable.Buffer[Variable[Post]]): Expr[Post] = {
@@ -463,44 +463,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           Perm(FieldLocation[Post](result, rangeFields(i).ref), ReadPerm()),
           Deref[Post](result, rangeFields(i).ref)(new SYCLRangeDerefBlame(rangeFields(i))) === FloorDiv(Local[Post](params(i).ref), Local[Post](params(i+1).ref))(ImpossibleDivByZeroBlame()),
           Perm(FieldLocation[Post](result, rangeFields(i+1).ref), ReadPerm()),
-          Deref[Post](result, rangeFields(i+1).ref)(new SYCLRangeDerefBlame(rangeFields(i+1))) === Local[Post](params(i+1).ref)
+          Deref[Post](result, rangeFields(i+1).ref)(new SYCLRangeDerefBlame(rangeFields(i+1))) === Local[Post](params(i+1).ref),
+          Deref[Post](result, rangeFields(i).ref)(new SYCLRangeDerefBlame(rangeFields(i))) * Deref[Post](result, rangeFields(i+1).ref)(new SYCLRangeDerefBlame(rangeFields(i+1))) === Local[Post](params(i).ref)
         ))}
       )
-    }
-
-    override def getRangeInjectivityChecks: Expr[Post] = {
-      val blame = new SYCLRangeInjectivityCheckBlame(rangeO)
-      val linearizedIdsInjective: Seq[Expr[Post]] = currentDimensionIterVars(GroupScope()).size match {
-        case dims@(2 | 3)=>
-          val globalRanges = currentDimensionIterVars(GroupScope()).indices.map(i => {
-            val args: Seq[Expr[Post]] = Seq(
-              currentDimensionIterVars(LocalScope())(i).to,
-              currentDimensionIterVars(GroupScope())(i).to,
-            )
-            syclHelperFunctions("sycl_:_:nd_item_:_:get_global_range")(args, blame, rangeO)
-          })
-
-          Seq(
-            syclHelperFunctions(s"sycl_:_:linearize_${dims}_is_injective")( // Group linear ids
-              currentDimensionIterVars(GroupScope()).map(iterVar => iterVar.to).toSeq, blame, rangeO
-            ),
-            syclHelperFunctions(s"sycl_:_:linearize_${dims}_is_injective")( // Local linear ids
-              currentDimensionIterVars(LocalScope()).map(iterVar => iterVar.to).toSeq, blame, rangeO
-            ),
-            syclHelperFunctions(s"sycl_:_:linearize_${dims}_is_injective")( // Global linear ids
-              globalRanges, blame, rangeO
-            )
-          )
-        case _ => Seq(tt)
-      }
-      foldStar(
-        linearizedIdsInjective ++
-        currentDimensionIterVars(GroupScope()).indices.map(i => {
-          syclHelperFunctions("sycl_:_:linearize_2_is_injective")( // Global ids
-            Seq(currentDimensionIterVars(LocalScope())(i).to, currentDimensionIterVars(GroupScope())(i).to), blame, rangeO
-          )
-        })
-      )(rangeO)
     }
   }
 
@@ -629,6 +595,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   def rewriteLocalDecl(decl: CPPLocalDeclaration[Pre]): Statement[Post] = {
     decl.drop()
+
+    val isArray = decl.decl.specs.collectFirst { case CPPSpecificationType(_: CPPTArray[Pre]) => () }.isDefined
+    if(isArray){
+      return rewriteArrayDeclaration(decl)
+    }
+
     val t = decl.decl.specs.collectFirst { case t: CPPSpecificationType[Pre] => rw.dispatch(t.t) }.get
     decl.decl.specs.foreach {
       case _: CPPSpecificationType[Pre] =>
@@ -648,7 +620,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     if (init.init.isDefined) {
       val preValue = init.init.get
       (t, preValue) match {
-        case (CPPTArray(Some(_), _), _) => throw WrongCPPType(decl)
         case (SYCLTEvent(), inv: CPPInvocation[Pre]) if inv.ref.get.name == "sycl::queue::submit" =>
           val (block, syclEventRef) = rewriteSYCLQueueSubmit(inv)
           v = syclEventRef
@@ -660,11 +631,17 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           result = Block(Seq(LocalDecl(v), assignLocal(v.get, postValue)))
         case (SYCLTBuffer(_, _), inv: CPPInvocation[Pre]) if inv.ref.get.isInstanceOf[RefSYCLConstructorDefinition[Pre]] =>
           // Buffer constructor
+          if (!t.superTypeOf(rw.dispatch(inv.t))) {
+            throw UnexpectedCPPTypeError(t, inv)
+          }
           val (block, syclBufferRef) = rewriteSYCLBufferConstruction(inv, Some(varO))
           v = syclBufferRef
           result = block
         case (SYCLTLocalAccessor(_, _), inv: CPPInvocation[Pre]) if inv.ref.get.isInstanceOf[RefSYCLConstructorDefinition[Pre]] =>
           // Local accessor constructor
+          if (!t.superTypeOf(rw.dispatch(inv.t))) {
+            throw UnexpectedCPPTypeError(t, inv)
+          }
           val newValue: NewArray[Post] = rw.dispatch(preValue) match {
             case arr: NewArray[Post] => arr
             case _ => throw Unreachable("A SYCL local accessor should only be able to be initialized with a constructor that returns a new COL array.")
@@ -677,11 +654,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       }
     } else {
       t match {
-        case cta@CPPTArray(Some(size), t) =>
-          val newArr = NewArray[Post](t, Seq(size), 0, false)(cta.blame)
-          v = new Variable[Post](TArray(t))(varO)
-          result = Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
-        case SYCLTQueue() | SYCLTEvent() | SYCLTBuffer(_, _) => // Do not generate COL code for uninitialized queues, events, and buffers, as cannot be re-assigned
         case _ => result = LocalDecl(v)
       }
     }
@@ -723,6 +695,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     CPP.unwrappedType(preAssign.target.t) match {
       case _: SYCLTEvent[Pre] => throw SYCLReassigningOfVariableUnsupported("event", "EventVariable", preAssign)
       case _: SYCLTBuffer[Pre] => throw SYCLReassigningOfVariableUnsupported("buffer", "Buffer", preAssign)
+      case SYCLTAccessor(_, _, true) => throw SYCLReassigningOfReadonlyAccessor(preAssign)
       case _ => rw.rewriteDefault(preAssign)
     }
   }
@@ -778,7 +751,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case "sycl::nd_item::get_local_id" if args.length == 1 => getSimpleWorkItemId(inv, LocalScope())
       case "sycl::nd_item::get_local_range" if args.length == 1 => getSimpleWorkItemRange(inv, LocalScope())
       case "sycl::nd_item::get_local_linear_id" => getSimpleWorkItemLinearId(inv, LocalScope())
-      case "sycl::nd_item::get_group_id" if args.length == 1 => getSimpleWorkItemId(inv, GroupScope())
+      case "sycl::nd_item::get_group" if args.length == 1 => getSimpleWorkItemId(inv, GroupScope())
       case "sycl::nd_item::get_group_range" if args.length == 1 => getSimpleWorkItemRange(inv, GroupScope())
       case "sycl::nd_item::get_group_linear_id" => getSimpleWorkItemLinearId(inv, GroupScope())
       case "sycl::nd_item::get_global_id" if args.length == 1 => getGlobalWorkItemId(inv)
@@ -895,7 +868,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       implicit val o: Origin = kernelDeclaration.contract.requires.o
       UnitAccountedPredicate(foldStar(
         currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++
-        Seq(currentKernelType.get.getRangeInjectivityChecks) ++
         accessorRunMethodConditions :+
         getKernelQuantifiedCondition(kernelParBlock, removeKernelClassInstancePermissions(contractRequires))
       )(commandGroupBody.o))
@@ -1068,8 +1040,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       decl = new ParBlockDecl[Post]()(o.where(name = "SYCL_ND_RANGE_KERNEL_WORKGROUPS")),
       iters = currentDimensionIterVars(GroupScope()).toSeq,
       context_everywhere = tt,
-      requires = foldStar(currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++ groupIdLimits ++ Seq(currentKernelType.get.getRangeInjectivityChecks) ++ accessorParblockConditions :+ quantifiedContractRequires),
-      ensures = foldStar(currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++ groupIdLimits ++ Seq(currentKernelType.get.getRangeInjectivityChecks) ++ accessorParblockConditions :+ quantifiedContractEnsures),
+      requires = foldStar(currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++ groupIdLimits ++ accessorParblockConditions :+ quantifiedContractRequires),
+      ensures = foldStar(currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++ groupIdLimits ++ accessorParblockConditions :+ quantifiedContractEnsures),
       content = Scope(Nil, Block(localAccessorDecls.toSeq :+ workItemParBlock))
     )(SYCLKernelParBlockFailureBlame(kernelDeclaration))
 
@@ -1090,8 +1062,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
                 val accName = buffer.generatedVar.o.getPreferredNameOrElse().ucamel
                 val accO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl).where(name = accName)
                 val dimO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl)
-                if (!CPP.getBaseTypeFromSpecs(accDecl.specs).asInstanceOf[SYCLTAccessor[Pre]].equals(CPP.unwrappedType(inv.t))) {
-                  throw Unreachable("Accessor type does not correspond with buffer type!")
+                if (!CPP.getBaseTypeFromSpecs(accDecl.specs).asInstanceOf[SYCLTAccessor[Pre]].superTypeOf(CPP.unwrappedType(inv.t))) {
+                  throw UnexpectedCPPTypeError(CPP.getBaseTypeFromSpecs(accDecl.specs), inv)
                 }
 
                 buffersToAccessorResults.get(buffer) match {
@@ -1171,7 +1143,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       val preConditions = UnitAccountedPredicate[Post](currentKernelType.get.getRangeSizeChecksForConstructor(constructorArgs))(commandGroupO)
 
       accessors.foreach(acc => {
-        val newConstructorAccessorArg = new Variable[Post](TArray(TCInt()))(acc.instanceField.o)
+        val newConstructorAccessorArg = new Variable[Post](acc.buffer.generatedVar.t)(acc.instanceField.o)
         val newConstructorAccessorDimensionArgs = acc.rangeIndexFields.map(f => new Variable[Post](TCInt())(f.o))
 
         val (basicPermissions, fieldArrayElementsPermission) = getBasicAccessorPermissions(acc, result)
@@ -1378,7 +1350,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     implicit val o: Origin = buffer.o
 
     // Wait for SYCL kernels that access the buffer to finish executing
-    val kernelsToTerminate = currentlyRunningKernels.filter(tuple => tuple._2.exists(acc => acc.buffer.equals(buffer)))
+    val kernelsToTerminate = currentlyRunningKernels.filter(tuple => tuple._2.exists(acc => acc.buffer.equals(buffer) && acc.accessMode.isInstanceOf[SYCLReadWriteAccess[Post]]))
     val kernelTerminations = kernelsToTerminate.map(tuple => syclKernelTermination(tuple._1, tuple._2)).toSeq
 
     // Get the exclusive access predicate and copy procedures
@@ -1408,7 +1380,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   def rewriteSubscript(sub: AmbiguousSubscript[Pre]): Expr[Post] = sub match {
     case AmbiguousSubscript(base: CPPLocal[Pre], index) if CPP.unwrappedType(base.t).isInstanceOf[SYCLTAccessor[Pre]] =>
       CPP.unwrappedType(base.t) match {
-        case SYCLTAccessor(_, 1) => ArraySubscript[Post](
+        case SYCLTAccessor(_, 1, _) => ArraySubscript[Post](
           Deref[Post](
             currentThis.get,
             syclAccessorSuccessor(base.ref.get).instanceField.ref
@@ -1426,7 +1398,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         Deref[Post](currentThis.get, accessor.rangeIndexFields(1).ref)(new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(1)))
       )
       CPP.unwrappedType(base.t) match {
-        case SYCLTAccessor(_, 2) => ArraySubscript[Post](
+        case SYCLTAccessor(_, 2, _) => ArraySubscript[Post](
           Deref[Post](currentThis.get, accessor.instanceField.ref)(new SYCLAccessorDerefBlame(accessor.instanceField)),
           syclHelperFunctions("sycl_:_:linearize_2")(linearizeArgs, SYCLAccessorArraySubscriptLinearizeInvocationBlame(sub, base, Seq(indexX, indexY)), o)
         )(SYCLAccessorArraySubscriptErrorBlame(sub))
@@ -1442,7 +1414,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         Deref[Post](currentThis.get, accessor.rangeIndexFields(2).ref)(new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(2)))
       )
       CPP.unwrappedType(base.t) match {
-        case SYCLTAccessor(_, 3) => ArraySubscript[Post](
+        case SYCLTAccessor(_, 3, _) => ArraySubscript[Post](
           Deref[Post](currentThis.get, accessor.instanceField.ref)(new SYCLAccessorDerefBlame(accessor.instanceField)),
           syclHelperFunctions("sycl_:_:linearize_3")(linearizeArgs, SYCLAccessorArraySubscriptLinearizeInvocationBlame(sub, base, Seq(indexX, indexY, indexZ)), o)
         )(SYCLAccessorArraySubscriptErrorBlame(sub))
@@ -1521,6 +1493,46 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     case CPPLifetimeScope(body) => findStatements(body, pred)
     case Block(statements) => statements.flatMap(s => findStatements(s, pred))
     case s => pred(s).toSeq
+  }
+
+  def assignliteralArray(array: Variable[Post], exprs: Seq[Expr[Pre]], origin: Origin): Seq[Statement[Post]] = {
+    implicit val o: Origin = origin
+    (exprs.zipWithIndex.map {
+      case (value, index) => Assign[Post](AmbiguousSubscript(array.get, c_const(index))(PanicBlame("The explicit initialization of an array in CPP should never generate an assignment that exceeds the bounds of the array")), rw.dispatch(value))(
+        PanicBlame("Assignment for an explicit array initializer cannot fail."))
+      }
+    )
+  }
+
+  def rewriteArrayDeclaration(decl: CPPLocalDeclaration[Pre]): Statement[Post] = {
+    // LangTypesToCol makes it so that each declaration only has one init
+    val init = decl.decl.inits.head
+    val info = CPP.getDeclaratorInfo(init.decl)
+    implicit val o: Origin = init.o
+
+    decl.decl.specs match {
+      case Seq(CPPSpecificationType(cta@CPPTArray(sizeOption, oldT))) =>
+        val t = rw.dispatch(oldT)
+        val v = new Variable[Post](TPointer(t))(o.sourceName(info.name))
+        cppNameSuccessor(RefCPPLocalDeclaration(decl, 0)) = v
+
+        (sizeOption, init.init) match {
+          case (None, None) => throw WrongCPPType(decl)
+          case (Some(size), None) =>
+            val newArr = NewPointerArray[Post](t, rw.dispatch(size))(cta.blame)
+            Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
+          case (None, Some(CPPLiteralArray(exprs))) =>
+            val newArr = NewPointerArray[Post](t, c_const[Post](exprs.size))(cta.blame)
+            Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++ assignliteralArray(v, exprs, o))
+          case (Some(size), Some(CPPLiteralArray(exprs))) =>
+            val realSize = isConstantInt(size).filter(_ >= 0).getOrElse(throw WrongCPPType(decl))
+            if(realSize < exprs.size) logger.warn(s"Excess elements in array initializer: '${decl}'")
+            val newArr = NewPointerArray[Post](t, c_const[Post](realSize))(cta.blame)
+            Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++ assignliteralArray(v, exprs.take(realSize.intValue), o))
+          case _ => throw WrongCPPType(decl)
+        }
+      case _ => throw WrongCPPType(decl)
+    }
   }
 
   def result(ref: RefCPPFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =

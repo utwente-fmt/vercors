@@ -11,7 +11,7 @@ void test(int* a) {
 	myQueue.submit(
   	[&](sycl::handler& cgh) {
 
-      sycl::accessor<int, 3> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_only);
+      sycl::accessor<int, 3, sycl::access_mode::read> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_only);
 
       cgh.parallel_for(sycl::range<1>(1),
         /*@

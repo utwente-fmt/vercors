@@ -1050,7 +1050,7 @@ final case class CPPReference[G]()(implicit val o: Origin) extends CPPAddressing
 
 @family sealed trait CPPDeclarator[G] extends NodeFamily[G] with CPPDeclaratorImpl[G]
 final case class CPPAddressingDeclarator[G](operators: Seq[CPPAddressing[G]], inner: CPPDeclarator[G])(implicit val o: Origin) extends CPPDeclarator[G] with CPPAddressingDeclaratorImpl[G]
-final case class CPPArrayDeclarator[G](inner: CPPDeclarator[G], size: Option[Expr[G]])(val blame: Blame[ArraySizeError])(implicit val o: Origin) extends CPPDeclarator[G] with CPPArrayDeclaratorImpl[G]
+final case class CPPArrayDeclarator[G](size: Option[Expr[G]], inner: CPPDeclarator[G])(val blame: Blame[ArraySizeError])(implicit val o: Origin) extends CPPDeclarator[G] with CPPArrayDeclaratorImpl[G]
 final case class CPPTypedFunctionDeclarator[G](params: Seq[CPPParam[G]], varargs: Boolean, inner: CPPDeclarator[G])(implicit val o: Origin) extends CPPDeclarator[G] with CPPTypedFunctionDeclaratorImpl[G]
 final case class CPPLambdaDeclarator[G](params: Seq[CPPParam[G]])(implicit val o: Origin) extends CPPDeclarator[G] with CPPLambdaDeclaratorImpl[G]
 final case class CPPName[G](name: String)(implicit val o: Origin) extends CPPDeclarator[G] with CPPNameImpl[G]
@@ -1088,6 +1088,8 @@ final case class CPPInvocation[G](applicable: Expr[G], args: Seq[Expr[G]], given
 final case class CPPLambdaRef[G]()(implicit val o: Origin) extends CPPExpr[G] with CPPLambdaRefImpl[G]
 final case class CPPLambdaDefinition[G](contract: ApplicableContract[G], declarator: CPPDeclarator[G], body: Statement[G])(val blame: Blame[SYCLKernelLambdaFailure])(implicit val o: Origin) extends CPPExpr[G] with CPPLambdaDefinitionImpl[G]
 
+final case class CPPLiteralArray[G](exprs: Seq[Expr[G]])(implicit val o: Origin) extends CPPExpr[G] with CPPLiteralArrayImpl[G]
+
 sealed trait CPPType[G] extends Type[G] with CPPTypeImpl[G]
 final case class CPPPrimitiveType[G](specifiers: Seq[CPPDeclarationSpecifier[G]])(implicit val o: Origin = DiagnosticOrigin) extends CPPType[G] with CPPPrimitiveTypeImpl[G]
 final case class CPPTArray[G](size: Option[Expr[G]], innerType: Type[G])(val blame: Blame[ArraySizeError])(implicit val o: Origin = DiagnosticOrigin) extends CPPType[G] with CPPTArrayImpl[G]
@@ -1107,7 +1109,7 @@ final case class SYCLTNDItem[G](dimCount: Int = 1)(implicit val o: Origin) exten
 final case class SYCLTRange[G](dimCount: Int = 1)(implicit val o: Origin) extends SYCLTConstructableClass[G] with SYCLTRangeImpl[G]
 final case class SYCLTNDRange[G](dimCount: Int = 1)(implicit val o: Origin) extends SYCLTConstructableClass[G] with SYCLTNDRangeImpl[G]
 final case class SYCLTBuffer[G](typ: Type[G] = TBool[G](), dimCount: Int = 1)(implicit val o: Origin) extends SYCLTConstructableClass[G] with SYCLTBufferImpl[G]
-final case class SYCLTAccessor[G](typ: Type[G] = TBool[G](), dimCount: Int = 1)(implicit val o: Origin) extends SYCLTConstructableClass[G] with SYCLTAccessorImpl[G]
+final case class SYCLTAccessor[G](typ: Type[G] = TBool[G](), dimCount: Int = 1, readOnly: Boolean = false)(implicit val o: Origin) extends SYCLTConstructableClass[G] with SYCLTAccessorImpl[G]
 final case class SYCLTLocalAccessor[G](typ: Type[G] = TBool[G](), dimCount: Int = 1)(implicit val o: Origin) extends SYCLTConstructableClass[G] with SYCLTLocalAccessorImpl[G]
 final case class SYCLTAccessMode[G]()(implicit val o: Origin) extends SYCLTClass[G] with SYCLTAccessModeImpl[G]
 

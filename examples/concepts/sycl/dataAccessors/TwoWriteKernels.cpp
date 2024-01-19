@@ -8,11 +8,11 @@ void test(int* a) {
 
   sycl::buffer<int, 1> aBuffer = sycl::buffer<int, 1>(a, sycl::range<1>(12));
 
-  // Two kernels reading the same buffer should be allowed
+  // Two kernels writing to the same buffer wait on each other
 
 	myQueue.submit(
   	[&](sycl::handler& cgh) {
-      sycl::accessor<int, 1> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_only);
+      sycl::accessor<int, 1> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_write);
 
       cgh.parallel_for(sycl::range<1>(1), [=] (sycl::item<1> it) {});
   	}
@@ -20,7 +20,7 @@ void test(int* a) {
 
   myQueue.submit(
     [&](sycl::handler& cgh) {
-      sycl::accessor<int, 1> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_only);
+      sycl::accessor<int, 1> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_write);
 
       cgh.parallel_for(sycl::range<1>(1), [=] (sycl::item<1> it) {});
     }

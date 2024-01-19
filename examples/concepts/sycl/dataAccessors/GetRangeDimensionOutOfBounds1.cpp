@@ -1,8 +1,6 @@
 #include <sycl/sycl.hpp>
 
-/*@
-  requires \pointer(a, 6, write);
-*/
+//@ requires \pointer(a, 6, write);
 void test(int* a) {
 	sycl::queue myQueue;
 
@@ -10,8 +8,7 @@ void test(int* a) {
 
 	myQueue.submit(
   	[&](sycl::handler& cgh) {
-
-      sycl::accessor<int, 2> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_only);
+      sycl::accessor<int, 2, sycl::access_mode::read> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_only);
 
       cgh.parallel_for(sycl::range<2>(2, 3),
         [=] (sycl::item<2> it) {

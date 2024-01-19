@@ -188,8 +188,6 @@ case object CoercionUtils {
           case None => return None
         }
 
-//      case (source: SYCLTClass[G], target@TRef()) => CoerceColToCPPPrimitive(source, target)
-
 
       // Something with TVar?
 

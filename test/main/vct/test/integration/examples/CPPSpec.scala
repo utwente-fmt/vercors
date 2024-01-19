@@ -19,6 +19,7 @@ class CPPSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/cpp/methods/GhostMethodsAndVariables.cpp"
   vercors should verify using silicon example "concepts/cpp/methods/GhostParamsAndResults.cpp"
   vercors should verify using silicon example "concepts/cpp/methods/InlineFunction.cpp"
+  vercors should verify using silicon example "concepts/cpp/methods/Overloading.cpp"
   vercors should verify using silicon example "concepts/cpp/methods/Permissions.cpp"
   vercors should verify using silicon example "concepts/cpp/methods/Predicates.cpp"
   vercors should verify using silicon example "concepts/cpp/methods/PureGhostMethod.cpp"
