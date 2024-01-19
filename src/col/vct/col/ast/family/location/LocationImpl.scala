@@ -1,7 +1,7 @@
 package vct.col.ast.family.location
 
+import vct.col.ast.{AmbiguousLocation, ArrayLocation, FieldLocation, HeapVariableLocation, InLinePatternLocation, InstancePredicateLocation, Location, ModelLocation, PointerLocation, PredicateLocation, SilverFieldLocation, Type}
 import vct.col.ast.node.NodeFamilyImpl
-import vct.col.ast.{AmbiguousLocation, ArrayLocation, FieldLocation, HeapVariableLocation, InstancePredicateLocation, Location, ModelLocation, PointerLocation, PredicateLocation, SilverFieldLocation, Type}
 import vct.col.ast.ops.LocationFamilyOps
 import vct.col.check.{CheckContext, CheckError}
 
@@ -18,6 +18,7 @@ trait LocationImpl[G] extends NodeFamilyImpl[G] with LocationFamilyOps[G] { this
       case PredicateLocation(predicate, args) => ???
       case InstancePredicateLocation(predicate, obj, args) => ???
       case AmbiguousLocation(expr) => expr.t
+      case InLinePatternLocation(loc, _) => loc.t
       case HeapVariableLocation(ref) => ref.decl.t
     }
   }

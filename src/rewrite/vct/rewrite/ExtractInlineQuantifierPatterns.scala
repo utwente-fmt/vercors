@@ -57,6 +57,13 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
     }
   }
 
+  override def dispatch(loc: Location[Pre]): Location[Post] = loc match {
+    case InLinePatternLocation(loc, pat) =>
+      dispatch(pat)
+      dispatch(loc)
+    case other => rewriteDefault(other)
+  }
+
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case Let(binding, value, _) =>
       letBindings.having(binding -> value) { rewriteDefault(e) }

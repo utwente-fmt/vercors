@@ -69,6 +69,7 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
       case col.PointerLocation(ptr) => PointerLocation(ptr.t.asPointer.get.element)
       case col.PredicateLocation(predicate, _) => PredicateLocation(predicate.decl)
       case col.InstancePredicateLocation(predicate, _, _) => InstancePredicateLocation(predicate.decl)
+      case col.InLinePatternLocation(loc, _) => scan(loc)
       case AmbiguousLocation(expr) => throw UnknownResourceValue(expr)
     }
 
