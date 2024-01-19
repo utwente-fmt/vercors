@@ -1,3 +1,4 @@
+import $meta._
 import $ivy.`com.lihaoyi::mill-contrib-buildinfo:`
 import $ivy.`com.lihaoyi::mill-contrib-scalapblib:`
 
@@ -7,6 +8,10 @@ import scalalib.{JavaModule => BaseJavaModule, ScalaModule => BaseScalaModule, _
 import contrib.scalapblib.{ScalaPBModule => BaseScalaPBModule, _}
 import contrib.buildinfo.BuildInfo
 import mill.util.Jvm
+import vct.col.ast.structure
+import vct.col.ast.structure.{AllFamilies, FamilyDefinition, Name, NodeDefinition}
+
+import scala.util.control.NonFatal
 
 object settings {
   val root = implicitly[define.Ctx].millSourcePath
@@ -15,6 +20,7 @@ object settings {
   val res = root / "res"
   val lib = root / "lib"
   val docs = root / "docs"
+  val meta = root / "out" / "mill-build"
 
   object deps {
     val log = Agg(
@@ -30,6 +36,59 @@ object settings {
 }
 
 object util {
+  case class DataPoint(base: Path, coordinate: os.SubPath) {
+    lazy val mtime = os.mtime(base / coordinate)
+
+    override def equals(obj: Any): Boolean = obj match {
+      case other: DataPoint => coordinate == other.coordinate
+    }
+
+    private lazy val _hashCode = coordinate.hashCode()
+    override def hashCode(): Int = _hashCode
+
+    def copyTo(dest: Path): Unit = {
+      os.copy(base / coordinate, dest / coordinate, createFolders = true)
+    }
+
+    def copyOver(dest: Path): Unit =
+      if(DataPoint(dest, coordinate).mtime != mtime)
+        os.copy.over(base / coordinate, dest / coordinate)
+
+    def delete(): Unit =
+      os.remove(base / coordinate)
+  }
+
+  def quickCopy(target: Path, sourcePaths: Seq[PathRef]): Unit = {
+    val sources =
+      sourcePaths
+        .map(_.path)
+        .flatMap { base =>
+          os.walk.stream(base)
+            .filter(os.isFile(_))
+            .map(p => DataPoint(base, p.subRelativeTo(base)))
+            .toSeq
+        }
+        .toSet
+
+    val targets =
+      os.walk.stream(target)
+        .filter(os.isFile(_))
+        .map(p => DataPoint(target, p.subRelativeTo(target)))
+        .toSet
+
+    for(toRemove <- targets if !sources.contains(toRemove)) {
+      toRemove.delete()
+    }
+
+    for(toWrite <- sources if !targets.contains(toWrite)) {
+      toWrite.copyTo(target)
+    }
+
+    for(toWriteOver <- sources if targets.contains(toWriteOver)) {
+      toWriteOver.copyOver(target)
+    }
+  }
+
   trait JavaModule extends BaseJavaModule {
     // https://github.com/viperproject/silicon/issues/748
     // 32MB is enough stack space for silicon, a 100% marco guarantee
@@ -86,10 +145,11 @@ object util {
       // PB: this is nearly just Jvm.createLauncher, but you cannot set the filename, and uses a literal classpath instead of a file.
       for((name, mainClass) <- runScriptClasses()) {
         // thanks https://gist.github.com/lhns/ee821a5cd1b2031856b21a0e78e1ecc9
+        val quote = "\""
         val header = "@ 2>/dev/null # 2>nul & echo off & goto BOF"
         val unix = Seq(
           ":",
-          s"java ${forkArgs().mkString(" ")} @${unixClassPathArgumentFile()} $mainClass \"$$@\"",
+          s"java ${forkArgs().mkString(" ")} @${unixClassPathArgumentFile()} $mainClass $quote$$@$quote",
           "exit",
         )
         val batch = Seq(
@@ -109,7 +169,7 @@ object util {
   }
 
   trait ScalaModule extends BaseScalaModule with JavaModule {
-    def scalaVersion = "2.13.5"
+    def scalaVersion = "2.13.12"
 
     override def scalacOptions = T {
       val shared = Seq(
@@ -124,7 +184,7 @@ object util {
         ) ++ shared
       } else {
         Seq(
-          "-Ypatmat-exhaust-depth", "40",
+          "-Xno-patmat-analysis",
         ) ++ shared
       }
     }
@@ -133,16 +193,22 @@ object util {
   trait ScalaPBModule extends BaseScalaPBModule with ScalaModule {
     def scalaPBVersion = "0.11.11"
 
+    def scalaPBFlatPackage = true
+
     override def scalaPBClasspath: T[mill.api.Loose.Agg[PathRef]] = T {
       mill.scalalib.Lib.resolveDependencies(
         Seq(
           coursier.LocalRepositories.ivy2Local,
           coursier.MavenRepository("https://repo1.maven.org/maven2")
         ),
-        Seq(ivy"com.thesamet.scalapb::scalapbc:${scalaPBVersion()}")
+        Seq(
+          ivy"com.thesamet.scalapb::scalapbc:${scalaPBVersion()}",
+        )
           .map(Lib.depToBoundDep(_, "2.13.1"))
       ).map(_.map(_.withRevalidateOnce))
     }
+
+    def scalaPBSearchDeps = true
   }
 
   trait SeparatePackedResourcesModule extends JavaModule {
@@ -462,7 +528,7 @@ object viper extends ScalaModule {
         Seq(
           BuildInfo.Value("projectName", "silicon"),
           BuildInfo.Value("projectVersion", "1.1-SNAPSHOT"),
-          BuildInfo.Value("scalaVersion", scalaVersion()),
+          BuildInfo.Value("scalaVersion", silicon.scalaVersion()),
           BuildInfo.Value("sbtVersion", "-"),
           BuildInfo.Value("gitRevision", silicon.repo.commitish()),
           BuildInfo.Value("gitBranch", "(detached)"),
@@ -506,35 +572,11 @@ object viper extends ScalaModule {
 }
 
 object vercors extends Module {
-  object meta extends VercorsModule {
-    def key = "colhelper"
-    def deps = Agg(
-      ivy"org.scalameta::scalameta:4.4.9",
-      ivy"com.google.protobuf:protobuf-java:3.19.6",
-    )
+  def read[T: upickle.default.ReadWriter](p: PathRef): T =
+    upickle.default.read[T](p.path.toNIO)
 
-    def nodeDefinitions = T.sources { settings.src / "col" / "vct" / "col" / "ast" / "Node.scala" }
-
-    def helperSources = T {
-      Jvm.runSubprocess(
-        mainClass = "ColHelper",
-        classPath = runClasspath().map(_.path),
-        mainArgs = Seq(
-          T.dest.toString,
-        ) ++ nodeDefinitions().map(_.path.toString),
-      )
-
-      T.dest
-    }
-
-    def helpers = T.sources { helperSources() / "java" }
-    def protobuf = T.sources { helperSources() / "protobuf" }
-  }
-
-  object proto extends ScalaPBModule {
-    override def scalaPBSources = meta.protobuf
-    override def scalaPBFlatPackage = true
-  }
+  def readAndWatch[T: upickle.default.ReadWriter](p: Path): T =
+    upickle.default.read[T](interp.watch(p).toNIO)
 
   object hre extends VercorsModule {
     def key = "hre"
@@ -552,12 +594,229 @@ object vercors extends Module {
   }
 
   object col extends VercorsModule {
+    object helpers extends Module {
+      def analysis: Path = settings.meta / "analyseNodeDeclarations.dest"
+      def structureClasspathDir: Path = settings.meta / "structureClassPath.dest"
+
+      val familyCross = readAndWatch[Seq[Name]](analysis / "cross-family.json")
+      val nodeCross = readAndWatch[Seq[Name]](analysis / "cross-node.json")
+
+      def allFamiliesSource = T.source(analysis / "all-families.json")
+      def allFamilies = T { read[AllFamilies](allFamiliesSource()) }
+      def allDefinitionsSource = T.source(analysis / "all-definitions.json")
+      def allDefinitions = T { read[Seq[NodeDefinition]](allDefinitionsSource()) }
+
+      object generators extends VercorsModule {
+        def key = "helpers"
+        def deps: T[Agg[Dep]] = T {
+          Agg(
+            ivy"org.scalameta::scalameta:4.4.9",
+          )
+        }
+        def structureClasspath = T.source(structureClasspathDir / "classpath.json")
+        def unmanagedClasspath = T { read[Seq[Path]](structureClasspath()).map(PathRef(_)) }
+      }
+
+      def instantiate[T](name: String): Task[T] = T.task {
+        mill.api.ClassLoader
+          .create(
+            generators.runClasspath().map(_.path.toIO.toURI.toURL),
+            parent = classOf[helpers.type].getClassLoader,
+          )
+          .loadClass(s"vct.col.ast.helpers.generator.$name")
+          .asInstanceOf[Class[T]]
+          .getDeclaredConstructor()
+          .newInstance()
+      }
+
+      object implTraits extends Module {
+        val root = settings.src / "col" / "vct" / "col" / "ast"
+
+        def inputs = T.sources(os.walk(root).filter(_.last.endsWith("Impl.scala")).map(PathRef(_)))
+
+        private def nodeName(p: PathRef): String =
+          p.path.last.dropRight("Impl.scala".length)
+
+        def generator = T.worker(instantiate[structure.ImplTraitGenerator]("ImplTrait"))
+
+        def allDefinitionsSet = T {
+          allDefinitions().map(_.name.base).toSet
+        }
+
+        def allFamiliesSet = T {
+          val allFamiliesVal = allFamilies()
+          (allFamiliesVal.declaredFamilies ++ allFamiliesVal.structuralFamilies)
+            .map(_.base).toSet
+        }
+
+        def fix = T {
+          val gen = generator()
+          val defnSet = allDefinitionsSet()
+          val familySet = allFamiliesSet()
+          inputs().foreach { input =>
+            val name = nodeName(input)
+            val opsNames =
+              (if(defnSet.contains(name)) Seq(name + "Ops") else Nil) ++
+                (if(familySet.contains(name)) Seq(name + "FamilyOps") else Nil)
+
+            try {
+              gen.fix(input.path.toNIO, opsNames)
+            } catch {
+              case NonFatal(_) => // ok, it's best effort.
+            }
+          }
+        }
+
+        def generate: T[Unit] = T {
+          val gen = generator()
+          val defnSet = allDefinitionsSet()
+          val familySet = allFamiliesSet()
+          val ungenerated = (defnSet ++ familySet) -- inputs().map(nodeName)
+          ungenerated.foreach { node =>
+            os.makeDir.all(root / "unsorted")
+            gen.generate(
+              p = (root / "unsorted" / (node + "Impl.scala")).toNIO,
+              node = node,
+              concrete = defnSet.contains(node),
+              family = familySet.contains(node),
+            )
+          }
+
+          if(ungenerated.nonEmpty)
+            T.log.error({
+              val items = ungenerated.map(name => s" - ${name}Impl").mkString("\n")
+              s"""
+                 |New {Node}Impl stubs have been generated for these nodes:
+                 |$items
+                 |Please make sure that the appropriate {Node} extends its corresponding {Node}Impl - you can do that before it exists.
+                 |If not, compilation will fail after this message.""".stripMargin
+            })
+
+          ()
+        }
+
+        def run = T {
+          fix()
+          generate()
+        }
+      }
+
+      def protoAuxTypes = T.worker {
+        Seq(
+          instantiate[structure.AllNodesGenerator]("ProtoAuxTypes")(),
+          instantiate[structure.AllNodesGenerator]("RewriteHelpers")(),
+        )
+      }
+
+      def allFamiliesGenerators = T.worker {
+        Seq(
+          instantiate[structure.AllFamiliesGenerator]("AbstractRewriter")(),
+          instantiate[structure.AllFamiliesGenerator]("AllScopes")(),
+          instantiate[structure.AllFamiliesGenerator]("AllFrozenScopes")(),
+          instantiate[structure.AllFamiliesGenerator]("BaseCoercingRewriter")(),
+          instantiate[structure.AllFamiliesGenerator]("BaseNonLatchingRewriter")(),
+          instantiate[structure.AllFamiliesGenerator]("SuccessorsProvider")(),
+        )
+      }
+
+      def familyGenerators = T.worker {
+        Seq(
+          instantiate[structure.FamilyGenerator]("DeserializeFamily")(),
+          instantiate[structure.FamilyGenerator]("DeclareFamily")(),
+          instantiate[structure.FamilyGenerator]("OpsFamily")(),
+
+          instantiate[structure.FamilyGenerator]("ProtoFamily")(),
+        )
+      }
+
+      def nodeGenerators = T.worker {
+        Seq(
+          instantiate[structure.NodeGenerator]("Compare")(),
+          instantiate[structure.NodeGenerator]("Rewrite")(),
+          instantiate[structure.NodeGenerator]("Serialize")(),
+          instantiate[structure.NodeGenerator]("Subnodes")(),
+          instantiate[structure.NodeGenerator]("Ops")(),
+
+          instantiate[structure.NodeGenerator]("Deserialize")(),
+          instantiate[structure.NodeGenerator]("ProtoNode")(),
+        )
+      }
+
+      object global extends Module {
+        def generate = T {
+          val allFamiliesVal = allFamilies()
+          val declarationFamilies = allFamiliesVal.declaredFamilies
+          val structuralFamilies = allFamiliesVal.structuralFamilies
+          val definitions = allDefinitions()
+          allFamiliesGenerators().foreach { gen =>
+            T.log.debug(s"Generating ${gen.getClass.getSimpleName}")
+            gen.generate(T.dest.toNIO, declarationFamilies, structuralFamilies)
+          }
+          protoAuxTypes().foreach(_.generate(T.dest.toNIO, definitions))
+          Seq(PathRef(T.dest, quick = true))
+        }
+      }
+
+      implicit object FamilySegments extends Cross.ToSegments[(structure.Name, structure.NodeKind, Seq[structure.Name])](v => implicitly[Cross.ToSegments[structure.Name]].convert(v._1))
+
+      object family extends Cross[FamilyCross](familyCross)
+      trait FamilyCross extends Cross.Module[Name] {
+        def source = T.source(PathRef(analysis / "cross-family" / crossValue.path / "family.json", quick = true))
+        def sourceDefn = T { read[FamilyDefinition](source()) }
+        def generate = T {
+          val defn = sourceDefn()
+          familyGenerators().foreach { gen =>
+            T.log.debug(s"Generating ${gen.getClass.getSimpleName} for ${defn.name.base}")
+            gen.generate(T.dest.toNIO, defn.name, defn.kind, defn.nodes)
+          }
+          PathRef(T.dest, quick = true)
+        }
+      }
+
+      object node extends Cross[NodeCross](nodeCross)
+      trait NodeCross extends Cross.Module[Name] {
+        def source = T.source(PathRef(analysis / "cross-node" / crossValue.path / "node.json", quick = true))
+        def sourceDefn = T { read[NodeDefinition](source()) }
+        def generate = T {
+          val defn = sourceDefn()
+          nodeGenerators().foreach { gen =>
+            T.log.debug(s"Generating ${gen.getClass.getSimpleName} for ${defn.name.base}")
+            gen.generate(T.dest.toNIO, defn)
+          }
+          PathRef(T.dest, quick = true)
+        }
+      }
+
+      def generatedSources: T[Seq[PathRef]] = T {
+        T.traverse(nodeCross)(node(_).generate)() ++
+          T.traverse(familyCross)(family(_).generate)() ++
+          global.generate()
+      }
+
+      def sources: T[PathRef] = T.persistent {
+        util.quickCopy(T.dest, generatedSources())
+        PathRef(T.dest, quick = true)
+      }
+    }
+
     def key = "col"
     def deps = T { Agg.empty }
-    override def generatedSources = T { meta.helpers() }
-    override def moduleDeps = Seq(hre, proto)
+    override def sources = T {
+      helpers.implTraits.run()
+      super.sources()
+    }
+    override def generatedSources = T { Seq(helpers.sources()) }
+    override def moduleDeps = Seq(hre, serialize)
 
     object test extends Tests
+  }
+
+  object serialize extends VercorsModule with ScalaPBModule {
+    override def scalaPBSources = T {
+      col.helpers.sources() +: this.sources()
+    }
+    override def key: String = "serialize"
+    override def deps: T[Agg[Dep]] = T { Agg.empty }
   }
 
   object parsers extends VercorsModule {
@@ -574,7 +833,7 @@ object vercors extends Module {
     def deps = Agg(
       ivy"org.antlr:antlr4-runtime:4.8"
     )
-    override def moduleDeps = Seq(hre, col)
+    override def moduleDeps = Seq(hre, col, serialize)
 
     trait GenModule extends Module {
       def base = T { settings.src / "parsers" / "antlr4" }
@@ -709,7 +968,7 @@ object vercors extends Module {
     object buildInfo extends BuildInfo with ScalaModule {
       def callOrElse(command: Shellable*)(alt: => String): String =
         try {
-          os.proc(command: _*).call().out.text().strip()
+          os.proc(command: _*).call().out.text().trim
         } catch {
           case _: SubprocessException => alt
         }
@@ -724,7 +983,7 @@ object vercors extends Module {
         Seq(
           BuildInfo.Value("name", "VerCors"),
           BuildInfo.Value("version", "2.0.0"),
-          BuildInfo.Value("scalaVersion", scalaVersion()),
+          BuildInfo.Value("scalaVersion", main.scalaVersion()),
           BuildInfo.Value("sbtVersion", "-"),
           BuildInfo.Value("currentBranch", gitBranch()),
           BuildInfo.Value("currentCommit", gitCommit()),

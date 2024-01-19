@@ -1,14 +1,15 @@
 package vct.col.ast.family.parregion
 
 import vct.col.ast.util.Declarator
-import vct.col.ast.{Declaration, Expr, Local, ParBlock, Starall, Variable}
+import vct.col.ast.{Declaration, Expr, Local, Node, ParBlock, Starall, Variable}
 import vct.col.check.CheckContext
 import vct.col.origin.{Blame, ReceiverNotInjective}
 import vct.col.print._
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
+import vct.col.ast.ops.ParBlockOps
 
-trait ParBlockImpl[G] extends ParRegionImpl[G] with Declarator[G] { this: ParBlock[G] =>
+trait ParBlockImpl[G] extends ParRegionImpl[G] with Declarator[G] with ParBlockOps[G] { this: ParBlock[G] =>
   override def declarations: Seq[Declaration[G]] = iters.map(_.variable)
 
   def quantify(expr: Expr[G], blame: Blame[ReceiverNotInjective]): Expr[G] = {
@@ -20,8 +21,14 @@ trait ParBlockImpl[G] extends ParRegionImpl[G] with Declarator[G] { this: ParBlo
     })
   }
 
-  override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
-    context.copy(roScopes = context.scopes.size, roScopeReason = Some(this)).withScope(declarations)
+  override def enterCheckContextRoScopes(context: CheckContext[G]): Int =
+    context.scopes.size
+
+  override def enterCheckContextRoScopeReason(context: CheckContext[G]): Option[Node[G]] =
+    Some(this)
+
+  override def enterCheckContextScopes(context: CheckContext[G]): Seq[CheckContext.ScopeFrame[G]] =
+    context.withScope(declarations)
 
   override def layout(implicit ctx: Ctx): Doc = {
     val header = Group(Text("par") <+> ctx.name(decl) <>

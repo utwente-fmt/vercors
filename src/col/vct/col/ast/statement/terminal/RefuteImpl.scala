@@ -2,8 +2,9 @@ package vct.col.ast.statement.terminal
 
 import vct.col.ast.Refute
 import vct.col.print.{Ctx, Doc, Show, Text}
+import vct.col.ast.ops.RefuteOps
 
-trait RefuteImpl[G] { this: Refute[G] =>
+trait RefuteImpl[G] extends RefuteOps[G] { this: Refute[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc =
     Text("refute") <+> assn <> ";"
 

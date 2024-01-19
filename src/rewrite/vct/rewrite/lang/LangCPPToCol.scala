@@ -970,7 +970,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val rangeFields: mutable.Buffer[InstanceField[Post]] = mutable.Buffer.empty
     range.indices.foreach(index => {
       implicit val o: Origin = range(index).o.where(name = s"range$index")
-      val instanceField = new InstanceField[Post](TCInt(), Set())
+      val instanceField = new InstanceField[Post](TCInt(), Nil)
       rangeFields.append(instanceField)
       val iterVar = createRangeIterVar(GlobalScope(), index, Deref[Post](currentThis.get, instanceField.ref)(new SYCLRangeDerefBlame(instanceField)))
       currentDimensionIterVars(GlobalScope()).append(iterVar)
@@ -1013,14 +1013,14 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     localRange.indices.foreach(index => {
       {
         implicit val o: Origin = kernelDimensions.o.where(name = s"group_range$index")
-        val groupInstanceField = new InstanceField[Post](TCInt(), Set())
+        val groupInstanceField = new InstanceField[Post](TCInt(), Nil)
         rangeFields.append(groupInstanceField)
         val groupIterVar = createRangeIterVar(GroupScope(), index, Deref[Post](currentThis.get, groupInstanceField.ref)(new SYCLRangeDerefBlame(groupInstanceField)))
         currentDimensionIterVars(GroupScope()).append(groupIterVar)
       }
       {
         implicit val o: Origin = localRange(index).o.where(name = s"local_range$index")
-        val localInstanceField = new InstanceField[Post](TCInt(), Set())
+        val localInstanceField = new InstanceField[Post](TCInt(), Nil)
         rangeFields.append(localInstanceField)
         val localIterVar = createRangeIterVar(LocalScope(), index, Deref[Post](currentThis.get, localInstanceField.ref)(new SYCLRangeDerefBlame(localInstanceField)))
         currentDimensionIterVars(LocalScope()).append(localIterVar)
@@ -1107,8 +1107,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
                     }
                   case None =>
                     // No accessor for buffer exist in the command group, so make fields and permissions
-                    val instanceField = new InstanceField[Post](buffer.generatedVar.t, Set())(accO)
-                    val rangeIndexFields = Seq.range(0, buffer.range.dimensions.size).map(i => new InstanceField[Post](TCInt(), Set())(dimO.where(name = s"${accName}_r$i")))
+                    val instanceField = new InstanceField[Post](buffer.generatedVar.t, Nil)(accO)
+                    val rangeIndexFields = Seq.range(0, buffer.range.dimensions.size).map(i => new InstanceField[Post](TCInt(), Nil)(dimO.where(name = s"${accName}_r$i")))
                     val newAcc = SYCLAccessor[Post](buffer, accessMode, instanceField, rangeIndexFields)(accDecl.o)
                     syclAccessorSuccessor(RefCPPLocalDeclaration(decl, 0)) = newAcc
 

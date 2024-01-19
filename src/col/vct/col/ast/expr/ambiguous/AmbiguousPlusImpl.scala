@@ -5,8 +5,9 @@ import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.ref.Ref
 import vct.col.typerules.{CoercionUtils, Types}
 import vct.result.VerificationError.Unreachable
+import vct.col.ast.ops.AmbiguousPlusOps
 
-trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
+trait AmbiguousPlusImpl[G] extends AmbiguousPlusOps[G] { this: AmbiguousPlus[G] =>
 
   def getValidOperatorsOf(operator: Operator[G]): Option[Seq[ContractApplicable[G]]] = {
     val subject = if(operator == OperatorLeftPlus[G]()) left else right

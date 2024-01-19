@@ -4,8 +4,9 @@ import vct.col.ast.Procedure
 import vct.col.print._
 
 import scala.collection.immutable.ListMap
+import vct.col.ast.ops.ProcedureOps
 
-trait ProcedureImpl[G] { this: Procedure[G] =>
+trait ProcedureImpl[G] extends ProcedureOps[G] { this: Procedure[G] =>
   def layoutSilver(implicit ctx: Ctx): Doc =
     Group(Text("method") <+> ctx.name(this) <> "(" <> Doc.args(args) <> ")" <>
       (if(outArgs.nonEmpty) Text(" returns (") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> ")" else Empty)) <+/>

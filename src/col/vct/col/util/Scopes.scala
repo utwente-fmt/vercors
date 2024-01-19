@@ -2,11 +2,7 @@ package vct.col.util
 
 import hre.util.ScopedStack
 import vct.col.ast.{AbstractRewriter, Declaration}
-import vct.col.origin.Origin
-import vct.col.print.{Ctx, Doc}
-import vct.col.ref.{LazyRef, Ref}
-import vct.col.rewrite.{Generation, SuccessorProvider}
-import vct.col.serialize.Program
+import vct.col.ref.Ref
 import vct.col.util.Scopes._
 import vct.result.Message
 import vct.result.VerificationError.SystemError

@@ -30,7 +30,10 @@ sealed trait Referrable[G] {
     case RefSYCLConstructorDefinition(typ) => typ.namespacePath
     case RefJavaNamespace(_) => ""
     case RefUnloadedJavaNamespace(_) => ""
-    case RefCStruct(CGlobalDeclaration(CDeclaration(_, _, Seq(defn: CStructDeclaration[G]), Seq()))) => defn.name.getOrElse("")
+    case RefCStruct(decl: CGlobalDeclaration[_]) => decl.decl match {
+      case CDeclaration(_, _, Seq(defn: CStructDeclaration[G]), Seq()) => defn.name.getOrElse("")
+      case _ => ???
+    }
     case RefCStruct(_) => ???
     case RefCStructField(decls, idx) => C.nameFromDeclarator(decls.decls(idx))
     case RefJavaClass(decl) => decl.name
@@ -117,8 +120,10 @@ case object Referrable {
     case decl: CParam[G] => RefCParam(decl)
     case decl: CFunctionDefinition[G] => RefCFunctionDefinition(decl)
     case decl: CStructMemberDeclarator[G] => return decl.decls.indices.map(RefCStructField(decl, _))
-    case decl @ CGlobalDeclaration(CDeclaration(_, _, Seq(_ :CStructDeclaration[G]), Seq())) => RefCStruct(decl)
-    case decl: CGlobalDeclaration[G] => return decl.decl.inits.indices.map(RefCGlobalDeclaration(decl, _))
+    case decl: CGlobalDeclaration[G] => decl.decl match {
+      case CDeclaration(_, _, Seq(_ :CStructDeclaration[G]), Seq()) => RefCStruct(decl)
+      case _ => return decl.decl.inits.indices.map(RefCGlobalDeclaration(decl, _))
+    }
     case decl: CPPTranslationUnit[G] => RefCPPTranslationUnit(decl)
     case decl: CPPParam[G] => RefCPPParam(decl)
     case decl: CPPFunctionDefinition[G] => RefCPPFunctionDefinition(decl)

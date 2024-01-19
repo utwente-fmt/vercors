@@ -684,17 +684,17 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
   def rewriteStruct(decl: CGlobalDeclaration[Pre]): Unit = {
-    val (decls, sdecl) = decl match {
-      case CGlobalDeclaration(CDeclaration(_, _, Seq(sdecl@CStructDeclaration(Some(_), decls)), Seq())) => (decls, sdecl)
+    val (decls, sdecl) = decl.decl match {
+      case CDeclaration(_, _, Seq(sdecl@CStructDeclaration(Some(_), decls)), Seq()) => (decls, sdecl)
       case _ => throw WrongStructType(decl)
     }
     val newStruct = new Class[Post](rw.classDeclarations.collect {
         decls.foreach { fieldDecl =>
-          val CStructMemberDeclarator(specs, Seq(x)) = fieldDecl
+          val CStructMemberDeclarator(specs: Seq[CDeclarationSpecifier[Pre]], Seq(x)) = fieldDecl
           fieldDecl.drop()
           val t = specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.get
           cStructFieldsSuccessor((decl, fieldDecl)) =
-            new InstanceField(t = t, flags = Set[FieldFlag[Post]]())(CStructFieldOrigin(x))
+            new InstanceField(t = t, flags = Nil)(CStructFieldOrigin(x))
           rw.classDeclarations.declare(cStructFieldsSuccessor((decl, fieldDecl)))
         }
       }._1, Seq(), tt[Post])(CStructOrigin(sdecl))

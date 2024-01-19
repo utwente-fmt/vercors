@@ -1,0 +1,10 @@
+syntax = "proto2";
+
+package vct.col.ast.serialize;
+
+import "vct/col/ast/serialize/BigInt.proto";
+
+message BigDecimal {
+  required int32 scale = 1;
+  required BigInt unscaledValue = 2;
+}

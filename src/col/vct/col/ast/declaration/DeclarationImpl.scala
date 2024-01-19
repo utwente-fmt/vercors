@@ -1,6 +1,7 @@
 package vct.col.ast.declaration
 
-import vct.col.ast.Declaration
+import vct.col.ast.node.NodeImpl
+import vct.col.ast.{AbstractRewriter, Declaration}
 import vct.col.check.{CheckContext, CheckError, TypeError, TypeErrorExplanation, TypeErrorText}
 import vct.col.debug.{DebugRewriteState, Dropped, NotProcessed}
 import vct.col.ref.{DirectRef, Ref}
@@ -9,10 +10,12 @@ import vct.col.typerules.{CoercingRewriter, NopCoercingRewriter}
 
 import scala.reflect.ClassTag
 
-trait DeclarationImpl[G] { this: Declaration[G] =>
+trait DeclarationImpl[G] extends NodeImpl[G] { this: Declaration[G] =>
   var debugRewriteState: DebugRewriteState = NotProcessed
 
   def drop(): Unit = debugRewriteState = Dropped
+
+  def rewriteDefault[G1]()(implicit rw: AbstractRewriter[G, G1]): Declaration[G1]
 
   /**
     * Create a Ref to this declaration. This is often useful in a place where the type of the ref can be directly
@@ -30,4 +33,7 @@ trait DeclarationImpl[G] { this: Declaration[G] =>
       case CoercingRewriter.IncoercibleText(e, m) => Seq(TypeErrorText(e, m))
       case CoercingRewriter.IncoercibleExplanation(e, m) => Seq(TypeErrorExplanation(e, m))
     }
+
+  override def enterCheckContextDeclarationStack(context: CheckContext[G]): Seq[Declaration[G]] =
+    this +: context.declarationStack
 }

@@ -3,8 +3,9 @@ package vct.col.ast.expr.apply
 import vct.col.ast.{ADTFunction, ADTFunctionInvocation, Type}
 import vct.col.print._
 import vct.col.ref.Ref
+import vct.col.ast.ops.ADTFunctionInvocationOps
 
-trait ADTFunctionInvocationImpl[G] { this: ADTFunctionInvocation[G] =>
+trait ADTFunctionInvocationImpl[G] extends ADTFunctionInvocationOps[G] { this: ADTFunctionInvocation[G] =>
   override def ref: Ref[G, _ <: ADTFunction[G]]
   override lazy val t: Type[G] =
     typeArgs match {

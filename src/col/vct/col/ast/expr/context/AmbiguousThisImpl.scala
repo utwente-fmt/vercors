@@ -4,8 +4,9 @@ import vct.col.ast._
 import vct.col.err.ContextSensitiveNodeNotResolved
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 import vct.col.resolve.ctx._
+import vct.col.ast.ops.AmbiguousThisOps
 
-trait AmbiguousThisImpl[G] { this: AmbiguousThis[G] =>
+trait AmbiguousThisImpl[G] extends AmbiguousThisOps[G] { this: AmbiguousThis[G] =>
   override lazy val t: Type[G] =
     ref.getOrElse(
       throw ContextSensitiveNodeNotResolved(this,
