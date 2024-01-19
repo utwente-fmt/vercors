@@ -25,7 +25,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "resolutionError:resultOutsidePostcondition" in "constructor using `this`" pvl """
+  vercors should error withCode "resolutionError:thisInConsPre" in "constructor using `this`" pvl """
     class err {
       int x;
 
