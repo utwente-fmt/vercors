@@ -463,9 +463,10 @@ final case class AmbiguousThis[G]()(implicit val o: Origin) extends Expr[G] with
   var ref: Option[ThisTarget[G]] = None
 }
 
-final case class ThisObject[G](cls: Ref[G, Class[G]])(implicit val o: Origin) extends Expr[G] with ThisObjectImpl[G]
-final case class ThisModel[G](cls: Ref[G, Model[G]])(implicit val o: Origin) extends Expr[G] with ThisModelImpl[G]
-final case class ThisSeqProg[G](cls: Ref[G, SeqProg[G]])(implicit val o: Origin) extends Expr[G] with ThisSeqProgImpl[G]
+sealed trait ThisDeclaration[G] extends Expr[G] with ThisDeclarationImpl[G]
+final case class ThisObject[G](cls: Ref[G, Class[G]])(implicit val o: Origin) extends ThisDeclaration[G] with ThisObjectImpl[G]
+final case class ThisModel[G](cls: Ref[G, Model[G]])(implicit val o: Origin) extends ThisDeclaration[G] with ThisModelImpl[G]
+final case class ThisSeqProg[G](cls: Ref[G, SeqProg[G]])(implicit val o: Origin) extends ThisDeclaration[G] with ThisSeqProgImpl[G]
 
 final case class AmbiguousResult[G]()(implicit val o: Origin) extends Expr[G] with AmbiguousResultImpl[G] {
   var ref: Option[ResultTarget[G]] = None

@@ -46,8 +46,30 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
   def serialize(decls: Map[Declaration[G], Long]): scalapb.GeneratedMessage
   def serializeFamily(decls: Map[Declaration[G], Long]): scalapb.GeneratedMessage
 
-  def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
-    context
+  final def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
+    CheckContext(
+      enterCheckContextScopes(context),
+      enterCheckContextUndeclared(context),
+      enterCheckContextRoScopes(context),
+      enterCheckContextRoScopeReason(context),
+      enterCheckContextCurrentApplicable(context),
+      enterCheckContextInPostCondition(context),
+      enterCheckContextCurrentSeqProg(context),
+      enterCheckContextCurrentReceiverEndpoint(context),
+      enterCheckContextCurrentParticipatingEndpoints(context),
+      enterCheckContextDeclarationStack(context),
+    )
+
+  def enterCheckContextScopes(context: CheckContext[G]): Seq[CheckContext.ScopeFrame[G]] = context.scopes
+  def enterCheckContextUndeclared(context: CheckContext[G]): Seq[Seq[Declaration[G]]] = context.undeclared
+  def enterCheckContextRoScopes(context: CheckContext[G]): Int = context.roScopes
+  def enterCheckContextRoScopeReason(context: CheckContext[G]): Option[Node[G]] = context.roScopeReason
+  def enterCheckContextCurrentApplicable(context: CheckContext[G]): Option[Applicable[G]] = context.currentApplicable
+  def enterCheckContextInPostCondition(context: CheckContext[G]): Boolean = context.inPostCondition
+  def enterCheckContextCurrentSeqProg(context: CheckContext[G]): Option[SeqProg[G]] = context.currentSeqProg
+  def enterCheckContextCurrentReceiverEndpoint(context: CheckContext[G]): Option[Endpoint[G]] = context.currentReceiverEndpoint
+  def enterCheckContextCurrentParticipatingEndpoints(context: CheckContext[G]): Option[Set[Endpoint[G]]] = context.currentParticipatingEndpoints
+  def enterCheckContextDeclarationStack(context: CheckContext[G]): Seq[Declaration[G]] = context.declarationStack
 
   /* Check children first, so that the check of nodes higher in the tree may depend on the type and correctness of
     subnodes */
