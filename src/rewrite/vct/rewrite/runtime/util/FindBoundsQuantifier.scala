@@ -88,16 +88,11 @@ case class FindBoundsQuantifier[Pre <: Generation](outer: AbstractQuantifierRewr
     super.dispatch(expr)
   }
 
-  def dispatchLocal(local: Local[Pre]): Expr[Post] = {
-    outer.dispatchLocal(local)
-  }
-
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     e match {
       case starAll: Starall[Pre] => dispatchStarAll(starAll)
       case exists: Exists[Pre] => dispatchExists(exists)
       case forAll: Forall[Pre] => dispatchForAll(forAll)
-      case local: Local[Pre] => dispatchLocal(local)
       case _: AmbiguousGreater[Pre] | _: AmbiguousLess[Pre] | _: AmbiguousGreaterEq[Pre] | _: AmbiguousLessEq[Pre] => dispatchAmbiguous(e)
       case _ => super.dispatch(e)
     }

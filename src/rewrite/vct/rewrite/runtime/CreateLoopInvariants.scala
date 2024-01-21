@@ -5,7 +5,7 @@ import vct.col.ast.RewriteHelpers.{RewriteBlock, RewriteLoop}
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
-import vct.rewrite.runtime.util.{NewVariableGenerator, RewriteContractExpr}
+import vct.rewrite.runtime.util.{RewriteContractExpr}
 
 object CreateLoopInvariants extends RewriterBuilder{
   override def key: String = "createLoopInvariants"
@@ -42,7 +42,7 @@ case class CreateLoopInvariants[Pre<: Generation]() extends Rewriter[Pre]{
     lc match {
       case li: LoopInvariant[Pre] => {
         val contract = li.invariant
-        val (_, newStatements) = new RewriteContractExpr[Pre](this, currentClass.top)(program, NewVariableGenerator.newGenerator).createStatements(contract)
+        val (_, newStatements) = new RewriteContractExpr[Pre](this, currentClass.top)(program).createStatements(contract)
         val ns =newStatements.toSeq
         ns
       }

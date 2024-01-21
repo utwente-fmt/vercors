@@ -62,7 +62,18 @@ object Util {
 
 
 
+  def collectMethodBody[G](i: InstanceMethod[G]) : Scope[G] = {
+    i.body match {
+      case Some(sc: Scope[G]) => sc
+      case _ => ???
+    }
+  }
 
-
+  def collectBlockScope[G](s: Scope[G]): Block[G] = {
+    s.body match {
+      case b: Block[G] => b
+      case _ => ???
+    }
+  }
 
 }

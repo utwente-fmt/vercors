@@ -12,7 +12,7 @@ import vct.col.util.AstBuildHelpers._
 import scala.collection.mutable
 
 
-case class RewriteContractExpr[Pre <: Generation](outer: Rewriter[Pre], cls: Class[Pre])(implicit program: Program[Pre], newVariables: NewVariableGenerator[Pre]) extends Rewriter[Pre] {
+case class RewriteContractExpr[Pre <: Generation](outer: Rewriter[Pre], cls: Class[Pre])(implicit program: Program[Pre]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
   private val internalExpression: ScopedStack[Expr[Pre]] = new ScopedStack()

@@ -4,7 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
-import vct.rewrite.runtime.util.{NewVariableGenerator, NewVariableResult, RewriteContractExpr}
+import vct.rewrite.runtime.util.{RewriteContractExpr}
 import vct.col.ast.RewriteHelpers._
 import vct.col.origin.{Origin, PreferredName, ShortPosition}
 import vct.col.print.{Group, Text}
@@ -33,8 +33,6 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   val newClasses: SuccessionMap[Declaration[_], Class[Post]] = new SuccessionMap()
   val newClassDeclarations: SuccessionMap[Variable[_], InstanceField[Post]] = new SuccessionMap()
   val classInstanceField: ScopedStack[InstanceField[Post]] = new ScopedStack()
-  val newVariables: NewVariableGenerator[Pre] = new NewVariableGenerator[Pre]()
-
   val currentInstancePredicate: ScopedStack[InstancePredicate[Pre]] = new ScopedStack()
 
   implicit var program: Program[Pre] = null
@@ -64,20 +62,20 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def dispatchInstancePredicate(ip: InstancePredicate[Pre]): Unit = {
+    implicit val origin: Origin = Origin(Seq.empty).addPrefName("RuntimePredicate" + ip.o.getPreferredNameOrElse().capitalize)
     super.dispatch(ip)
     val arguments = ip.args
-    val predicateOrigin = Origin(Seq.empty).addPrefName("RuntimePredicate" + ip.o.getPreferredNameOrElse().capitalize)
     val decl: Seq[ClassDeclaration[Post]] = classDeclarations.collect {
       classInstanceField.having(createClassVariableInstanceField) {
         val instanceFields = arguments.map(generateInstanceFieldOnArg) :+ classInstanceField.top
         val predicateStore = generatePredicateStore(ip)
-        val constructor = generateConstructorOnArgs(arguments, predicateOrigin)
+        val constructor = generateConstructorOnArgs(arguments)
         val helperMethods = createHelperMethods(ip, arguments, instanceFields)
         instanceFields ++ helperMethods :+ predicateStore :+ constructor
       }
     }._1
 
-    val csp = new Class[Post](decl, Seq.empty, BooleanValue(value = true)(predicateOrigin))(predicateOrigin)
+    val csp = new Class[Post](decl, Seq.empty, BooleanValue(value = true))
     newClasses.update(ip, csp)
     globalDeclarations.declare(csp)
   }
@@ -97,15 +95,15 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     res
   }
 
-  private def generateConstructorOnArgs(arguments: Seq[Variable[Pre]], origin: Origin): ClassDeclaration[Post] = {
+  private def generateConstructorOnArgs(arguments: Seq[Variable[Pre]])(implicit origin: Origin): ClassDeclaration[Post] = {
 
-    val newVars = newVariables.collect {
-      arguments.map(newVariables.createNew)
+    val (outputs, result) = variables.collect {
+      arguments.map(a => variables.succeed(a, a.rewrite()))
     }
     val dereferences = arguments.map(createDerefOfInstanceField) :+ createDerefOfInstanceField(classInstanceField.top)
-    val newJavaParams: Seq[JavaParam[Post]] = newVars.outputs.map(generateJavaParams) :+ generateJavaParams(createClassVariable)
+    val newJavaParams: Seq[JavaParam[Post]] = outputs.map(generateJavaParams) :+ generateJavaParams(createClassVariable)
     val constructorStatements: Seq[Statement[Post]] = newJavaParams.zip(dereferences).map(a => createAssignStatement(a._1, a._2))
-    val newBody = Scope[Post](Seq.empty, Block[Post](constructorStatements)(origin))(origin)
+    val newBody = Scope[Post](Seq.empty, Block[Post](constructorStatements))
     val newJC = new JavaConstructor[Post](
       Seq(JavaPrivate[Post]()(origin)),
       origin.getPreferredNameOrElse(),
@@ -113,8 +111,8 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
       Seq.empty,
       Seq.empty,
       newBody,
-      ApplicableContract.createEmptyContract(origin)
-    )(null)(origin)
+      ApplicableContract.createEmptyContract
+    )(null)
     classDeclarations.declare(newJC)
     newJC
   }
@@ -173,32 +171,32 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   private def createUnfoldMethod(args: Seq[InstanceField[Post]]): InstanceMethod[Post] = {
-    val o = new Origin(Seq()).addPrefName("unFold")
-    newVariables.collect {
-      args.map(newVariables.createNewFromInstanceField)
+    implicit val origin: Origin = new Origin(Seq()).addPrefName("unFold")
+    variables.collect {
+      val newArgs: Seq[Variable[Post]] = args.map(a => variables.declare(new Variable[Post](a.t)))
       val ip = currentInstancePredicate.top
       val cls: Ref[Post, Class[Post]] = newClasses.ref(ip)
-      val localsFromArgs: Seq[Local[Post]] = newVariables.outputs.top.toSeq.map(v => Local[Post](v.ref)(v.o))
-      val newAssertions = RewriteContractExpr[Pre](this, currentClass.top)(program, newVariables)
+      val localsFromArgs: Seq[Local[Post]] = newArgs.map(v => Local[Post](v.ref)(v.o))
+      val newAssertions = RewriteContractExpr[Pre](this, currentClass.top)(program)
         .createStatements(ip.body.getOrElse(BooleanValue[Pre](value = false)(Origin(Seq()))))
 
       //TODO remove permissions from thread (difficult first design how to do this maybe create a helperRewriter for this)
 
       val newRuntimePredicate = RuntimeNewPredicate[Post](createRuntimeVariable, localsFromArgs)(ip.o)
-      val block = Block[Post](newAssertions._2.toSeq :+ newRuntimePredicate)(o)
-      val body = Scope(Seq(), block)(o)
+      val block = Block[Post](newAssertions._2.toSeq :+ newRuntimePredicate)
+      val body = Scope(Seq(), block)
 
       val newMethod = new InstanceMethod[Post](
-        TClass[Post](cls)(o),
-        newVariables.outputs.top.toSeq,
+        TClass[Post](cls),
+        newArgs,
         Seq(),
         Seq(),
         Some(body),
-        ApplicableContract.createEmptyContract(o)
-      )(null)(o)
+        ApplicableContract.createEmptyContract
+      )(null)
       classDeclarations.declare(newMethod)
       newMethod
-    }.result
+    }._2
 
 
     //TODO should first check if there exists a predicate with the same paramaters in the predicatestore for this thread
@@ -207,22 +205,22 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   private def createGetPredicate(args: Seq[InstanceField[Post]]): InstanceMethod[Post] = {
-    val o = new Origin(Seq()).addPrefName("getPredicate")
-    val newVars = newVariables.collect {
-      args.map(newVariables.createNewFromInstanceField)
+    implicit val origin: Origin = new Origin(Seq()).addPrefName("getPredicate")
+    val (outputs, result) = variables.collect {
+      args.map(a => variables.declare(new Variable[Post](a.t)))
     }
 
-    val localsFromArgs: Seq[Local[Post]] = newVars.outputs.map(v => Local[Post](v.ref)(v.o))
+    val localsFromArgs: Seq[Local[Post]] = outputs.map(v => Local[Post](v.ref)(v.o))
     val cls: Ref[Post, Class[Post]] = newClasses.ref(currentInstancePredicate.top)
-    val body = Scope(Seq(), Block[Post](Seq(CodeStringGetPredicate(localsFromArgs, cls)(o)))(o))(o)
+    val body = Scope(Seq(), Block[Post](Seq(CodeStringGetPredicate(localsFromArgs, cls))))
     val newMethod = new InstanceMethod[Post](
-      TClass[Post](cls)(o),
-      newVars.outputs,
+      TClass[Post](cls),
+      outputs,
       Seq(),
       Seq(),
       Some(body),
-      ApplicableContract.createEmptyContract(o)
-    )(null)(o)
+      ApplicableContract.createEmptyContract
+    )(null)
     classDeclarations.declare(newMethod)
     newMethod
   }
