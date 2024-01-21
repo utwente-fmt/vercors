@@ -38,7 +38,7 @@ object Util {
   }
 
   def isThreadMethod[G](mi: MethodInvocation[G], methodName: String): Boolean = {
-    isExtendingThread(getClassOfMethodInvocation(mi)) && isMethod(mi.ref.decl, methodName)
+    isMethod(mi.ref.decl, methodName) && isExtendingThread(getClassOfMethodInvocation(mi))
   }
 
   private def getClassOfMethodInvocation[G](mi: MethodInvocation[G]): Class[G] = {
