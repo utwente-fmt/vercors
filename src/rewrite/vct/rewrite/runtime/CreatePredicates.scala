@@ -1,22 +1,14 @@
 package vct.rewrite.runtime
 
 import hre.util.ScopedStack
-import vct.col.ast
-import vct.col.ast._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
-import vct.rewrite.runtime.util.{RewriteContractExpr}
 import vct.col.ast.RewriteHelpers._
+import vct.col.ast._
 import vct.col.origin.{Origin, PreferredName, ShortPosition}
-import vct.col.print.{Group, Text}
 import vct.col.ref.Ref
-import vct.col.resolve.ctx.{RefJavaParam, RefVariable}
-import vct.col.util.SuccessionMap
-import vct.result.VerificationError.Unreachable
-import vct.rewrite.runtime.util.CodeStringDefaults.predicateStore
-
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.SuccessionMap
+import vct.rewrite.runtime.util.RewriteContractExpr
 
 
 object CreatePredicates extends RewriterBuilder {
@@ -88,13 +80,6 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     res
   }
 
-  private def generateInstanceFieldOnArg(cls: Class[Pre], v: Variable[Post], origin: Origin): InstanceField[Post] = {
-    val res = new InstanceField(TClass[Post](newClasses.ref(cls))(origin), Set[FieldFlag[Post]]())(origin)
-    newClassDeclarations.update(v, res)
-    classDeclarations.declare(res)
-    res
-  }
-
   private def generateConstructorOnArgs(arguments: Seq[Variable[Pre]])(implicit origin: Origin): ClassDeclaration[Post] = {
 
     val (outputs, result) = variables.collect {
@@ -115,26 +100,6 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     )(null)
     classDeclarations.declare(newJC)
     newJC
-  }
-
-  private def createRuntimeVariable: Variable[Post] = {
-    val origin = classInstanceField.top.o
-    val oldName = origin.getPreferredNameOrElse().capitalize
-    val newOrigin = origin.replacePrefName(s"runtime$oldName")
-    val t = TClass[Post](newClasses.ref(currentInstancePredicate.top))
-    new Variable[Post](t)(newOrigin)
-  }
-
-  private def createClassVariable: Variable[Post] = {
-    val cls = currentClass.top
-    val classVariableOrigin = Origin(Seq()).addPrefName(cls.o.getPreferredNameOrElse().toLowerCase)
-    val classVariableType = TClass[Post](newClasses.ref(cls))(classVariableOrigin)
-    new Variable[Post](classVariableType)(classVariableOrigin)
-  }
-
-  private def createClassVariableInstanceField: InstanceField[Post] = {
-    val v = createClassVariable
-    generateInstanceFieldOnArg(currentClass.top, v, v.o)
   }
 
   private def generateJavaParams(v: Variable[Post]): JavaParam[Post] = {
@@ -158,9 +123,95 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     Deref[Post](newThisObject, instanceFieldReference)(null)(instanceField.o)
   }
 
+  private def createClassVariableInstanceField: InstanceField[Post] = {
+    val v = createClassVariable
+    generateInstanceFieldOnArg(currentClass.top, v, v.o)
+  }
+
+  private def generateInstanceFieldOnArg(cls: Class[Pre], v: Variable[Post], origin: Origin): InstanceField[Post] = {
+    val res = new InstanceField(TClass[Post](newClasses.ref(cls))(origin), Set[FieldFlag[Post]]())(origin)
+    newClassDeclarations.update(v, res)
+    classDeclarations.declare(res)
+    res
+  }
+
+  private def createClassVariable: Variable[Post] = {
+    val cls = currentClass.top
+    val classVariableOrigin = Origin(Seq()).addPrefName(cls.o.getPreferredNameOrElse().toLowerCase)
+    val classVariableType = TClass[Post](newClasses.ref(cls))(classVariableOrigin)
+    new Variable[Post](classVariableType)(classVariableOrigin)
+  }
+
   private def generatePredicateStore(ip: InstancePredicate[Pre]): PredicateStore[Post] = {
     val predicateType = TClass[Post](newClasses.ref(ip))
     classDeclarations.declare(PredicateStore[Post](predicateType)(ip.o))
+  }
+
+  private def createHelperMethods(ip: InstancePredicate[Pre], args: Seq[Variable[Pre]], instanceFields: Seq[InstanceField[Post]]): Seq[InstanceMethod[Post]] = {
+    val equalsMethod = createEqualsMethod(instanceFields)
+    val getPredicate = createGetPredicate(instanceFields)
+    //    val unFold = createUnfoldMethod(instanceFields)
+    //TODO fix fold and unfold with the newly created locals
+    Seq(equalsMethod, getPredicate)
+  }
+
+  private def createGetPredicate(args: Seq[InstanceField[Post]]): InstanceMethod[Post] = {
+    implicit val origin: Origin = new Origin(Seq()).addPrefName("getPredicate")
+    val (outputs, result) = variables.collect {
+      args.map(a => variables.declare(new Variable[Post](a.t)))
+    }
+
+    val localsFromArgs: Seq[Local[Post]] = outputs.map(v => Local[Post](v.ref)(v.o))
+    val cls: Ref[Post, Class[Post]] = newClasses.ref(currentInstancePredicate.top)
+    val body = Scope(Seq(), Block[Post](Seq(CodeStringGetPredicate(localsFromArgs, cls))))
+    val newMethod = new InstanceMethod[Post](
+      TClass[Post](cls),
+      outputs,
+      Seq(),
+      Seq(),
+      Some(body),
+      ApplicableContract.createEmptyContract
+    )(null)
+    classDeclarations.declare(newMethod)
+    newMethod
+  }
+
+  private def createEqualsMethod(instanceFields: Seq[InstanceField[Post]]): InstanceMethod[Post] = {
+    val args = Seq(createRuntimeVariable, createRuntimeVariable)
+    val o = new Origin(Seq()).addPrefName("equals")
+    val bodyStatements = createEqualsStatements(args.head, args(1), instanceFields) :+ Return[Post](BooleanValue(value = true)(o))(o)
+    val body = Scope(Seq(), Block[Post](bodyStatements)(o))(o)
+    val newMethod = new InstanceMethod[Post](
+      TBool[Post](),
+      args,
+      Seq(),
+      Seq(),
+      Some(body),
+      ApplicableContract.createEmptyContract(o)
+    )(null)(o)
+    classDeclarations.declare(newMethod)
+    newMethod
+  }
+
+  private def createEqualsStatements(currentObject: Variable[Post], arg: Variable[Post], instanceFields: Seq[InstanceField[Post]]): Seq[Statement[Post]] = {
+    instanceFields.map(i => createEqualsStatement(currentObject, arg, i))
+  }
+
+  private def createEqualsStatement(currentObject: Variable[Post], arg: Variable[Post], instanceField: InstanceField[Post]): Branch[Post] = {
+    implicit val origin: Origin = Origin(Seq(ShortPosition("Generated"), PreferredName("equals")))
+    val obj = createEqualsDeref(currentObject, instanceField)
+    val target = createEqualsDeref(arg, instanceField)
+    val comparison = instanceField.t match {
+      case _: TClass[Post] => !(obj ==== target) //if it is an object use the equals method otherwise use the != operator
+      case _ => obj !== target
+    }
+    val returnStatement = Return[Post](tt)
+    Branch[Post](Seq((comparison, returnStatement)))(obj.o)
+  }
+
+  private def createEqualsDeref(v: Variable[Post], instanceField: InstanceField[Post]): Deref[Post] = {
+    val local = Local[Post](v.ref)(v.o)
+    Deref[Post](local, instanceField.ref)(null)(v.o)
   }
 
   private def createFoldMethod(): InstanceMethod[Post] = {
@@ -204,72 +255,12 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     //if not throw error
   }
 
-  private def createGetPredicate(args: Seq[InstanceField[Post]]): InstanceMethod[Post] = {
-    implicit val origin: Origin = new Origin(Seq()).addPrefName("getPredicate")
-    val (outputs, result) = variables.collect {
-      args.map(a => variables.declare(new Variable[Post](a.t)))
-    }
-
-    val localsFromArgs: Seq[Local[Post]] = outputs.map(v => Local[Post](v.ref)(v.o))
-    val cls: Ref[Post, Class[Post]] = newClasses.ref(currentInstancePredicate.top)
-    val body = Scope(Seq(), Block[Post](Seq(CodeStringGetPredicate(localsFromArgs, cls))))
-    val newMethod = new InstanceMethod[Post](
-      TClass[Post](cls),
-      outputs,
-      Seq(),
-      Seq(),
-      Some(body),
-      ApplicableContract.createEmptyContract
-    )(null)
-    classDeclarations.declare(newMethod)
-    newMethod
-  }
-
-  private def createEqualsMethod(instanceFields: Seq[InstanceField[Post]]): InstanceMethod[Post] = {
-    val args = Seq(createRuntimeVariable, createRuntimeVariable)
-    val o = new Origin(Seq()).addPrefName("equals")
-    val bodyStatements = createEqualsStatements(args(0), args(1), instanceFields) :+ Return[Post](BooleanValue(value = true)(o))(o)
-    val body = Scope(Seq(), Block[Post](bodyStatements)(o))(o)
-    val newMethod = new InstanceMethod[Post](
-      TBool[Post](),
-      args,
-      Seq(),
-      Seq(),
-      Some(body),
-      ApplicableContract.createEmptyContract(o)
-    )(null)(o)
-    classDeclarations.declare(newMethod)
-    newMethod
-  }
-
-
-  private def createEqualsStatements(currentObject: Variable[Post], arg: Variable[Post], instanceFields: Seq[InstanceField[Post]]): Seq[Statement[Post]] = {
-    instanceFields.map(i => createEqualsStatement(currentObject, arg, i))
-  }
-
-  private def createEqualsStatement(currentObject: Variable[Post], arg: Variable[Post], instanceField: InstanceField[Post]): Branch[Post] = {
-    implicit val origin: Origin = Origin(Seq(ShortPosition("Generated"), PreferredName("equals")))
-    val obj = createEqualsDeref(currentObject, instanceField)
-    val target = createEqualsDeref(arg, instanceField)
-    val comparison = instanceField.t match {
-      case _: TClass[Post] => !(obj ==== target) //if it is an object use the equals method otherwise use the != operator
-      case _ => obj !== target
-    }
-    val returnStatement = Return[Post](tt)
-    Branch[Post](Seq((comparison, returnStatement)))(obj.o)
-  }
-
-  private def createEqualsDeref(v: Variable[Post], instanceField: InstanceField[Post]): Deref[Post] = {
-    val local = Local[Post](v.ref)(v.o)
-    Deref[Post](local, instanceField.ref)(null)(v.o)
-  }
-
-  private def createHelperMethods(ip: InstancePredicate[Pre], args: Seq[Variable[Pre]], instanceFields: Seq[InstanceField[Post]]): Seq[InstanceMethod[Post]] = {
-    val equalsMethod = createEqualsMethod(instanceFields)
-    val getPredicate = createGetPredicate(instanceFields)
-    //    val unFold = createUnfoldMethod(instanceFields)
-    //TODO fix fold and unfold with the newly created locals
-    Seq(equalsMethod, getPredicate)
+  private def createRuntimeVariable: Variable[Post] = {
+    val origin = classInstanceField.top.o
+    val oldName = origin.getPreferredNameOrElse().capitalize
+    val newOrigin = origin.replacePrefName(s"runtime$oldName")
+    val t = TClass[Post](newClasses.ref(currentInstancePredicate.top))
+    new Variable[Post](t)(newOrigin)
   }
 
 

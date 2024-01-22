@@ -25,21 +25,6 @@ case class RefactorGeneratedCode[Pre <: Generation]() extends Rewriter[Pre] {
     test
   }
 
-  def createClassDeclarations(c: Class[Pre], rw: Rewriter[Pre]): Seq[ClassDeclaration[Rewritten[Pre]]] = {
-    classDeclarations.collect {
-      (givenClassConstrSucc.get(TClass(c.ref)).get +: c.declarations).foreach(d => rw.dispatch(d))
-    }._1
-  }
-
-  def dispatchGivenClass(c: Class[Pre]): GlobalDeclaration[Rewritten[Pre]] = {
-    val rw = CreateConstructor[Pre](this, givenClassSucc)
-    val newClass = new RewriteClass[Pre, Post](c)(rw).rewrite(
-      declarations = createClassDeclarations(c, rw),
-    )
-    givenClassSucc.update(TClass(c.ref), newClass)
-    newClass
-  }
-
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case p: Procedure[Pre] => {
@@ -56,5 +41,20 @@ case class RefactorGeneratedCode[Pre <: Generation]() extends Rewriter[Pre] {
         }
       case _ => super.rewriteDefault(decl)
     }
+  }
+
+  def dispatchGivenClass(c: Class[Pre]): GlobalDeclaration[Rewritten[Pre]] = {
+    val rw = CreateConstructor[Pre](this, givenClassSucc)
+    val newClass = new RewriteClass[Pre, Post](c)(rw).rewrite(
+      declarations = createClassDeclarations(c, rw),
+    )
+    givenClassSucc.update(TClass(c.ref), newClass)
+    newClass
+  }
+
+  def createClassDeclarations(c: Class[Pre], rw: Rewriter[Pre]): Seq[ClassDeclaration[Rewritten[Pre]]] = {
+    classDeclarations.collect {
+      (givenClassConstrSucc.get(TClass(c.ref)).get +: c.declarations).foreach(d => rw.dispatch(d))
+    }._1
   }
 }

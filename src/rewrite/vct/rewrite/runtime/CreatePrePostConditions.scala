@@ -1,12 +1,10 @@
 package vct.rewrite.runtime
 
-import vct.col.ast.{AccountedPredicate, AmbiguousLocation, ApplicableContract, Block, Branch, Class, CodeStringStatement, Declaration, Deref, Div, Expr, InstanceField, InstanceMethod, IntegerValue, Local, Loop, Perm, Program, ReadPerm, Result, Return, RewriteHelpers, Scope, Statement, TClass, ThisObject, UnitAccountedPredicate, WritePerm}
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
-import RewriteHelpers._
 import hre.util.ScopedStack
-import vct.result.VerificationError.Unreachable
-import vct.rewrite.runtime.util.CodeStringDefaults._
-import vct.rewrite.runtime.util.{FieldNumber, FieldObjectString, RewriteContractExpr}
+import vct.col.ast.RewriteHelpers._
+import vct.col.ast.{AccountedPredicate, Block, Branch, Class, Declaration, InstanceMethod, Loop, Program, Return, RewriteHelpers, Scope, Statement, UnitAccountedPredicate}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
+import vct.rewrite.runtime.util.RewriteContractExpr
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -45,6 +43,28 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  def dispatchMethodBlock(block: Block[Pre], im: InstanceMethod[Pre]): Block[Post] = {
+    val preConditionStatements = dispatchApplicableContractToAssert(im.contract.requires)
+    val postConditionStatements = dispatchApplicableContractToAssert(im.contract.ensures)
+    val originalStatements: Seq[Statement[Post]] = block.statements.map(dispatch)
+    val lastStatement: Option[Statement[Post]] = originalStatements.lastOption
+    val insertedPostConditions = addPostConditions(postConditionStatements, originalStatements)
+    lastStatement match {
+      case Some(_: Return[Post]) => Block[Post](preConditionStatements ++ insertedPostConditions)(block.o)
+      case _ => Block[Post](preConditionStatements ++ insertedPostConditions ++ postConditionStatements)(block.o)
+    }
+  }
+
+  def dispatchInstanceMethod(im: InstanceMethod[Pre]): Unit = {
+    im.body match {
+      case Some(sc: Scope[Pre]) => sc.body match {
+        case block: Block[Pre] => classDeclarations.succeed(im, im.rewrite(body = Some(sc.rewrite(body = dispatchMethodBlock(block, im)))))
+        case _ => ???
+      }
+      case _ => super.dispatch(im)
+    }
+  }
+
   private def dispatchApplicableContractToAssert(ap: AccountedPredicate[Pre]): Seq[Statement[Post]] = {
     ap match {
       case uni: UnitAccountedPredicate[Pre] => {
@@ -58,29 +78,6 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
       case _ => ???
     }
 
-  }
-
-  def dispatchMethodBlock(block: Block[Pre], im: InstanceMethod[Pre]): Block[Post] = {
-    val preConditionStatements = dispatchApplicableContractToAssert(im.contract.requires)
-    val postConditionStatements = dispatchApplicableContractToAssert(im.contract.ensures)
-    val originalStatements: Seq[Statement[Post]] = block.statements.map(dispatch)
-    val lastStatement: Option[Statement[Post]] = originalStatements.lastOption
-    val insertedPostConditions = addPostConditions(postConditionStatements, originalStatements)
-    lastStatement match {
-      case Some(_: Return[Post]) => Block[Post](preConditionStatements ++ insertedPostConditions)(block.o)
-      case _ => Block[Post](preConditionStatements ++ insertedPostConditions ++ postConditionStatements)(block.o)
-    }
-  }
-
-
-  def dispatchInstanceMethod(im: InstanceMethod[Pre]): Unit = {
-    im.body match {
-      case Some(sc: Scope[Pre]) => sc.body match {
-        case block: Block[Pre] => classDeclarations.succeed(im, im.rewrite(body = Some(sc.rewrite(body = dispatchMethodBlock(block, im)))))
-        case _ => ???
-      }
-      case _ => super.dispatch(im)
-    }
   }
 
   private def addPostConditions(postConditionStatements: Seq[Statement[Post]], originalStatements: Seq[Statement[Post]]): Seq[Statement[Post]] = {

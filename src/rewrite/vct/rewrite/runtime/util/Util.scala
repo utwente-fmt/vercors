@@ -2,32 +2,14 @@ package vct.rewrite.runtime.util
 
 
 import vct.col.ast._
-import vct.col.util.AstBuildHelpers.findAllDerefs
 import vct.result.VerificationError.Unreachable
 
 
 object Util {
 
 
-  def isMethod[G](i: InstanceMethod[G], methodName: String) : Boolean = {
-    i.o.getPreferredNameOrElse() == methodName
-  }
-
-  def isExtendingThread[G](cls: Class[G]) : Boolean = {
-    cls.supports.map(s => s.decl.o.getPreferredNameOrElse()).contains("Thread")
-  }
-
-  def collectThreadClasses[G](declarations: Seq[Declaration[G]]) : Seq[Class[G]] ={
-    declarations.collect{case c: Class[G] => c}.filter(isExtendingThread)
-  }
-
-  def getRunMethod[G](cls: Class[G]) : InstanceMethod[G] = {
-    if(!isExtendingThread(cls)) {
-      throw Unreachable("Can only get a run method if the class is extending a Thread")
-    }
-    cls.declarations.collect { case i: InstanceMethod[G] => i }.find(i => isMethod(i, "run")).getOrElse({
-      throw Unreachable("Extending Thread class should have a run method")
-    })
+  def collectThreadClasses[G](declarations: Seq[Declaration[G]]): Seq[Class[G]] = {
+    declarations.collect { case c: Class[G] => c }.filter(isExtendingThread)
   }
 
   def getRunMethod[G](mi: MethodInvocation[G]): InstanceMethod[G] = {
@@ -35,6 +17,23 @@ object Util {
       throw Unreachable("Looking up the run method requires a start/join method as input")
     }
     getRunMethod(getClassOfMethodInvocation(mi))
+  }
+
+  def getRunMethod[G](cls: Class[G]): InstanceMethod[G] = {
+    if (!isExtendingThread(cls)) {
+      throw Unreachable("Can only get a run method if the class is extending a Thread")
+    }
+    cls.declarations.collect { case i: InstanceMethod[G] => i }.find(i => isMethod(i, "run")).getOrElse({
+      throw Unreachable("Extending Thread class should have a run method")
+    })
+  }
+
+  def isMethod[G](i: InstanceMethod[G], methodName: String): Boolean = {
+    i.o.getPreferredNameOrElse() == methodName
+  }
+
+  def isExtendingThread[G](cls: Class[G]): Boolean = {
+    cls.supports.map(s => s.decl.o.getPreferredNameOrElse()).contains("Thread")
   }
 
   def isThreadMethod[G](mi: MethodInvocation[G], methodName: String): Boolean = {
@@ -61,8 +60,7 @@ object Util {
   }
 
 
-
-  def collectMethodBody[G](i: InstanceMethod[G]) : Scope[G] = {
+  def collectMethodBody[G](i: InstanceMethod[G]): Scope[G] = {
     i.body match {
       case Some(sc: Scope[G]) => sc
       case _ => ???

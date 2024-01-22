@@ -2,15 +2,9 @@ package vct.rewrite.runtime.util
 
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
-import vct.col.ast.{Variable, _}
-import vct.col.origin.Origin
-import vct.col.rewrite.{Generation, Rewriter, Rewritten}
-import vct.col.util.SuccessionMap
-import vct.rewrite.runtime.util.CodeStringDefaults._
+import vct.col.ast._
+import vct.col.rewrite.{Generation, Rewriter}
 
-import scala.Int.{MaxValue, MinValue}
-import scala.collection.immutable.Seq
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 
@@ -34,7 +28,6 @@ case class FindBoundsQuantifier[Pre <: Generation](outer: AbstractQuantifierRewr
       case _ =>
     }
   }
-
 
 
   def dispatchStarAll(starAll: Starall[Pre]): Starall[Post] = {

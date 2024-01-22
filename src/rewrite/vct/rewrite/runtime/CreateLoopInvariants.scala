@@ -5,16 +5,16 @@ import vct.col.ast.RewriteHelpers.{RewriteBlock, RewriteLoop}
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
-import vct.rewrite.runtime.util.{RewriteContractExpr}
+import vct.rewrite.runtime.util.RewriteContractExpr
 
-object CreateLoopInvariants extends RewriterBuilder{
+object CreateLoopInvariants extends RewriterBuilder {
   override def key: String = "createLoopInvariants"
 
   override def desc: String = "Create loop invariant statements"
 }
 
 
-case class CreateLoopInvariants[Pre<: Generation]() extends Rewriter[Pre]{
+case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
 
 
   implicit var program: Program[Pre] = null
@@ -37,13 +37,12 @@ case class CreateLoopInvariants[Pre<: Generation]() extends Rewriter[Pre]{
   }
 
 
-
-  def dispatchLoopContract(lc: LoopContract[Pre]) : Seq[Statement[Post]] = {
+  def dispatchLoopContract(lc: LoopContract[Pre]): Seq[Statement[Post]] = {
     lc match {
       case li: LoopInvariant[Pre] => {
         val contract = li.invariant
         val (_, newStatements) = new RewriteContractExpr[Pre](this, currentClass.top)(program).createStatements(contract)
-        val ns =newStatements.toSeq
+        val ns = newStatements.toSeq
         ns
       }
       case _ => Seq.empty
@@ -55,7 +54,7 @@ case class CreateLoopInvariants[Pre<: Generation]() extends Rewriter[Pre]{
     val loopContract: Seq[Statement[Post]] = dispatchLoopContract(l.contract)
     val rewrittenBody = dispatch(l.body)
     val newBody = Block[Post]((loopContract :+ rewrittenBody) ++ loopContract)
-    l.rewrite(body= newBody)
+    l.rewrite(body = newBody)
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {

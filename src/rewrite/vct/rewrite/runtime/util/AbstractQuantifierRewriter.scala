@@ -1,40 +1,45 @@
 package vct.rewrite.runtime.util
 
-import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.RewriteVariable
 import vct.col.ast.{And, Expr, Variable, _}
 import vct.col.origin.Origin
-import vct.col.rewrite.{Generation, Rewriter, Rewritten}
-import vct.col.util.{FrozenScopes, SuccessionMap}
+import vct.col.rewrite.{Generation, Rewriter}
 import vct.col.util.AstBuildHelpers._
 
 import scala.Int.{MaxValue, MinValue}
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 
 abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter[Pre], val cls: Class[Pre], val extraArgs: Seq[Variable[Pre]] = Seq.empty)(implicit program: Program[Pre]) extends Rewriter[Pre] {
-  override val allScopes = outer.allScopes
+  override val allScopes: AllScopes[Pre, Post] = outer.allScopes
 
   def dispatchLoopBody(quantifier: Expr[Pre], left: Expr[Pre], right: Expr[Pre], newArgs: Seq[Variable[Pre]]): Seq[Statement[Post]] = Seq()
 
   def dispatchPostBody(quantifier: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre], quantifierId: String, newLocals: Seq[Variable[Post]]): Seq[Statement[Post]] = Seq()
 
+  override def dispatch(e: Expr[Pre]): Expr[Post] = {
+    e match {
+      case quantifier: Starall[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
+      case quantifier: Exists[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
+      case quantifier: Forall[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
+      case p: Perm[Pre] => PermissionRewriter(this)(program).rewritePermission(p)
+      case _ => super.dispatch(e)
+    }
+  }
 
-  final def defineLoopCondition(expr: Expr[Pre], condition: Expr[Pre]): Branch[Post] = {
+  private final def defineLoopCondition(expr: Expr[Pre], condition: Expr[Pre]): Branch[Post] = {
     val loopCondition = (Not[Post](dispatch(condition))(expr.o), Continue[Post](None)(expr.o))
     Branch[Post](Seq(loopCondition))(expr.o)
   }
 
-
-  final def createBody(expr: Expr[Pre], left: Expr[Pre], right: Expr[Pre], newArgs: Seq[Variable[Pre]]): Statement[Post] = {
+  private final def createBody(expr: Expr[Pre], left: Expr[Pre], right: Expr[Pre], newArgs: Seq[Variable[Pre]]): Statement[Post] = {
     val loopConditionBranch = defineLoopCondition(expr, left)
     val test = variables.freeze
     val dispatchedLoopBody = dispatchLoopBody(expr, left, right, newArgs)
     Block[Post](Seq(loopConditionBranch) ++ dispatchedLoopBody)(expr.o)
   }
 
-  final def createQuantifier(expr: Expr[Pre], acc: Statement[Post], element: Variable[Pre], filteredBounds: ArrayBuffer[(Variable[Pre], Option[Expr[Post]], Option[Expr[Post]])]): CodeStringQuantifier[Post] = {
+  private final def createQuantifier(expr: Expr[Pre], acc: Statement[Post], element: Variable[Pre], filteredBounds: ArrayBuffer[(Variable[Pre], Option[Expr[Post]], Option[Expr[Post]])]): CodeStringQuantifier[Post] = {
     implicit val origin: Origin = expr.o
     CodeStringQuantifier[Post](
       Local[Post](variables.freeze.succ(element)),
@@ -44,7 +49,7 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter
     )(expr.o)
   }
 
-  final def createBodyQuantifier(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre], newArgs: Seq[Variable[Pre]]): Statement[Post] = {
+  private final def createBodyQuantifier(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre], newArgs: Seq[Variable[Pre]]): Statement[Post] = {
     val bounds: ArrayBuffer[(Variable[Pre], Option[Expr[Post]], Option[Expr[Post]])] = FindBoundsQuantifier[Pre](this).findBounds(expr)
     val loopBody = createBody(expr, left, right, newArgs)
     bindings.reverse.foldLeft[Statement[Post]](loopBody)((acc, element) =>
@@ -52,7 +57,7 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter
     )
   }
 
-  final def declareNewMethod(expr: Expr[Pre], quantifierId: String, arguments: Seq[Variable[Post]], newLocals: Seq[Variable[Post]], methodBlock: Block[Post]): InstanceMethod[Post] = {
+  private final def declareNewMethod(expr: Expr[Pre], quantifierId: String, arguments: Seq[Variable[Post]], newLocals: Seq[Variable[Post]], methodBlock: Block[Post]): InstanceMethod[Post] = {
     implicit val o: Origin = expr.o.replacePrefName("__runtime_quantifier__" + quantifierId)
     val newMethod = new InstanceMethod[Post](
       TBool(),
@@ -66,7 +71,7 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter
     newMethod
   }
 
-  final def createMethodCall(expr: Expr[Pre], quantifierId: String, newMethod: InstanceMethod[Post], args: Seq[Expr[Post]]): MethodInvocation[Post] = {
+  private final def createMethodCall(expr: Expr[Pre], quantifierId: String, newMethod: InstanceMethod[Post], args: Seq[Expr[Post]]): MethodInvocation[Post] = {
     implicit val origin: Origin = expr.o.replacePrefName("__runtime_quantifier__" + quantifierId)
     MethodInvocation[Post](
       ThisObject[Post](this.succ[Class[Post]](cls))(expr.o),
@@ -79,11 +84,10 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter
     )(null)
   }
 
-
-  final def createQuantifierMethod(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre])(implicit origin: Origin = expr.o): MethodInvocation[Post] = {
+  private final def createQuantifierMethod(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre])(implicit origin: Origin = expr.o): MethodInvocation[Post] = {
     val quantifierId = CodeStringQuantifierMethod.nextId()
     val newBindings = bindings.map(b => variables.succeed(b, b.rewrite()))
-    val extraArgsCall = extraArgs.map(v => variables.freeze.computeSucc(v).get).map(v=>v.get)
+    val extraArgsCall = extraArgs.map(v => variables.freeze.computeSucc(v).get).map(v => v.get)
     val copyOfExtraArgs = extraArgs.map(ea => variables.succeed(ea, ea.rewrite()))
     val nextArguments = bindings ++ extraArgs
     val postStatements: Seq[Statement[Post]] = dispatchPostBody(expr, bindings, left, right, quantifierId, newBindings)
@@ -93,15 +97,7 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter
     createMethodCall(expr, quantifierId, newMethod, extraArgsCall)
   }
 
-  /**
-   * Creates a quantifier method and creates a method call
-   *
-   * @param quantifier
-   * @param bindings
-   * @param body
-   * @return
-   */
-  final def dispatchQuantifier(quantifier: Expr[Pre], bindings: Seq[Variable[Pre]], body: Expr[Pre]): Expr[Post] = {
+  private final def dispatchQuantifier(quantifier: Expr[Pre], bindings: Seq[Variable[Pre]], body: Expr[Pre]): Expr[Post] = {
     variables.collectScoped {
       body match {
         case imp: Implies[Pre] => createQuantifierMethod(quantifier, bindings, imp.left, imp.right)
@@ -109,16 +105,6 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter
         case _ => super.dispatch(quantifier)
       }
     }._2
-  }
-
-  override def dispatch(e: Expr[Pre]): Expr[Post] = {
-    e match {
-      case quantifier: Starall[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
-      case quantifier: Exists[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
-      case quantifier: Forall[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
-      case p: Perm[Pre] => PermissionRewriter(this)(program).rewritePermission(p)
-      case _ => super.dispatch(e)
-    }
   }
 
 }

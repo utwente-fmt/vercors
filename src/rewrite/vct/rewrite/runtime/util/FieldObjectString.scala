@@ -1,8 +1,7 @@
 package vct.rewrite.runtime.util
 
 import hre.util.ScopedStack
-import vct.col.ast.{Class, Declaration, Deref, InstanceField, Local, Program, ThisObject}
-import vct.result.VerificationError.Unreachable
+import vct.col.ast.{Deref, Local, ThisObject}
 
 
 case class FieldObjectString[G]() {

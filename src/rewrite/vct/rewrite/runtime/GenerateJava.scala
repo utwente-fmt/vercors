@@ -1,19 +1,18 @@
 package vct.rewrite.runtime
 
-import vct.col.ast.RewriteHelpers.RewriteClass
 import vct.col.ast.{Class, ClassDeclaration, Declaration, JavaClass, Procedure, Program}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 
-object GenerateJava extends RewriterBuilder{
+object GenerateJava extends RewriterBuilder {
   override def key: String = "createArrayPermissions"
 
   override def desc: String = "Create permissions for items in arrays"
 }
 
 
-case class GenerateJava[Pre<: Generation]() extends Rewriter[Pre]{
+case class GenerateJava[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-    val gd = globalDeclarations.collect{
+    val gd = globalDeclarations.collect {
       program.declarations.foreach(d => dispatch(d))
     }._1
 
@@ -44,7 +43,7 @@ case class GenerateJava[Pre<: Generation]() extends Rewriter[Pre]{
     }._1
   }
 
-  def dispatchProcedure(p: Procedure[Pre]): Unit ={
+  def dispatchProcedure(p: Procedure[Pre]): Unit = {
 
   }
 }

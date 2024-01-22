@@ -7,10 +7,10 @@ import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.Unreachable
 
-case class CreateConstructor[Pre <: Generation](outer : Rewriter[Pre], val givenClassSucc: SuccessionMap[Type[Pre], Class[Rewritten[Pre]]]) extends Rewriter[Pre] {
+case class CreateConstructor[Pre <: Generation](outer: Rewriter[Pre], val givenClassSucc: SuccessionMap[Type[Pre], Class[Rewritten[Pre]]]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
-  val rewritingConstr: ScopedStack[(Seq[Variable[Pre]],TClass[Pre])] = ScopedStack()
+  val rewritingConstr: ScopedStack[(Seq[Variable[Pre]], TClass[Pre])] = ScopedStack()
 
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {

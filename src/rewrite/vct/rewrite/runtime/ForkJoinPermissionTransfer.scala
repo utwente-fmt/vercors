@@ -6,8 +6,9 @@ import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
-import vct.rewrite.runtime.util.Util._
+import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.util.TransferPermissionRewriter
+import vct.rewrite.runtime.util.Util._
 
 import scala.collection.mutable
 import scala.language.postfixOps
@@ -21,9 +22,9 @@ object ForkJoinPermissionTransfer extends RewriterBuilder {
 
 case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre] {
 
-  implicit var program: Program[Pre] = null
-  val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
-  val postJoinTokens: ScopedStack[mutable.ArrayBuffer[RuntimePostJoin[Post]]] = new ScopedStack()
+  implicit var program: Program[Pre] = _
+  private val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
+  private val postJoinTokens: ScopedStack[mutable.ArrayBuffer[RuntimePostJoin[Post]]] = new ScopedStack()
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     this.program = program
@@ -31,11 +32,14 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     test
   }
 
-  def collectTransferPermissionStatementsFromRunMethod(i: InstanceMethod[Pre]): Seq[Statement[Post]] = {
-    if (!isExtendingThread(currentClass.top) || !isMethod(i, "run")) return Seq.empty
-    implicit val o: Origin = i.o
-    val predicate = unfoldPredicate(i.contract.requires).head
-    TransferPermissionRewriter(this, currentClass.top, None, None, Seq.empty).addPermissions(predicate)
+  override def dispatch(decl: Declaration[Pre]): Unit = {
+    decl match {
+      case cls: Class[Pre] => currentClass.having(cls) {
+        super.dispatch(cls)
+      }
+      case i: InstanceMethod[Pre] => dispatchInstanceMethod(i)
+      case _ => super.dispatch(decl)
+    }
   }
 
   protected def dispatchInstanceMethod(i: InstanceMethod[Pre])(implicit o: Origin = i.o): Unit = {
@@ -50,31 +54,10 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     }
   }
 
-  def getDispatchedOffset(e: Eval[Post]): Expr[Post] = {
-    e.expr match {
-      case mi: MethodInvocation[Post] => mi.obj
-      case _ => ???
-    }
-  }
-
-
-  def dispatchJoinInvocation(e: Eval[Pre], mi: MethodInvocation[Pre])(implicit o: Origin = e.o): Statement[Rewritten[Pre]] = {
-    val runMethod: InstanceMethod[Pre] = getRunMethod(mi)
-    val predicate: Expr[Pre] = unfoldPredicate(runMethod.contract.ensures).head
-    val dispatchedStatement: Eval[Post] = super.dispatch(e).asInstanceOf[Eval[Post]]
-    val dispatchedOffset: Expr[Post] = getDispatchedOffset(dispatchedStatement)
-    val factor = Some(postJoinTokens.top.find(rpj => rpj.obj == dispatchedOffset).get.arg)
-    val newAddStatements = TransferPermissionRewriter(this, currentClass.top, None, factor, Seq.empty).addPermissions(predicate)
-    val removeStatements = TransferPermissionRewriter(this, currentClass.top, Some(mi.obj), factor, Seq(mi.obj.asInstanceOf[Local[Pre]].ref.decl)).removePermissions(predicate)
-    Block[Post](dispatchedStatement +: (newAddStatements ++ removeStatements))
-  }
-
-  def dispatchStartInvocation(e: Eval[Pre], mi: MethodInvocation[Pre])(implicit o: Origin = e.o): Statement[Rewritten[Pre]] = {
-    val runMethod: InstanceMethod[Pre] = getRunMethod(mi)
-    val predicate: Expr[Pre] = unfoldPredicate(runMethod.contract.requires).head
-    val dispatchedStatement: Eval[Post] = super.dispatch(e).asInstanceOf[Eval[Post]]
-    val removeStatements = TransferPermissionRewriter(this, currentClass.top, None, None, Seq.empty).removePermissions(predicate)
-    Block[Post](removeStatements :+ dispatchedStatement)
+  private def collectTransferPermissionStatementsFromRunMethod(i: InstanceMethod[Pre]): Seq[Statement[Post]] = {
+    if (!isExtendingThread(currentClass.top) || !isMethod(i, "run")) return Seq.empty
+    val predicate = unfoldPredicate(i.contract.requires).head
+    TransferPermissionRewriter(this, currentClass.top, None, None, Seq.empty).addPermissions(predicate)
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
@@ -90,14 +73,29 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     }
   }
 
+  private def dispatchJoinInvocation(e: Eval[Pre], mi: MethodInvocation[Pre])(implicit o: Origin = e.o): Statement[Rewritten[Pre]] = {
+    val runMethod: InstanceMethod[Pre] = getRunMethod(mi)
+    val predicate: Expr[Pre] = unfoldPredicate(runMethod.contract.ensures).head
+    val dispatchedStatement: Eval[Post] = super.dispatch(e).asInstanceOf[Eval[Post]]
+    val dispatchedOffset: Expr[Post] = getDispatchedOffset(dispatchedStatement)
+    val factor = Some(postJoinTokens.top.find(rpj => rpj.obj == dispatchedOffset).get.arg)
+    val newAddStatements = TransferPermissionRewriter(this, currentClass.top, None, factor, Seq.empty).addPermissions(predicate)
+    val removeStatements = TransferPermissionRewriter(this, currentClass.top, Some(mi.obj), factor, Seq(mi.obj.asInstanceOf[Local[Pre]].ref.decl)).removePermissions(predicate)
+    Block[Post](dispatchedStatement +: (newAddStatements ++ removeStatements))
+  }
 
-  override def dispatch(decl: Declaration[Pre]): Unit = {
-    decl match {
-      case cls: Class[Pre] => currentClass.having(cls) {
-        super.dispatch(cls)
-      }
-      case i: InstanceMethod[Pre] => dispatchInstanceMethod(i)
-      case _ => super.dispatch(decl)
+  private def getDispatchedOffset(e: Eval[Post]): Expr[Post] = {
+    e.expr match {
+      case mi: MethodInvocation[Post] => mi.obj
+      case _ => throw Unreachable("Only method invocations are expected")
     }
+  }
+
+  private def dispatchStartInvocation(e: Eval[Pre], mi: MethodInvocation[Pre])(implicit o: Origin = e.o): Statement[Rewritten[Pre]] = {
+    val runMethod: InstanceMethod[Pre] = getRunMethod(mi)
+    val predicate: Expr[Pre] = unfoldPredicate(runMethod.contract.requires).head
+    val dispatchedStatement: Eval[Post] = super.dispatch(e).asInstanceOf[Eval[Post]]
+    val removeStatements = TransferPermissionRewriter(this, currentClass.top, None, None, Seq.empty).removePermissions(predicate)
+    Block[Post](removeStatements :+ dispatchedStatement)
   }
 }

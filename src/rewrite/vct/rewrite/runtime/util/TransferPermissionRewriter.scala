@@ -9,39 +9,21 @@ import vct.rewrite.runtime.util.PermissionRewriter._
 
 case class TransferPermissionRewriter[Pre <: Generation](override val outer: Rewriter[Pre], override val cls: Class[Pre], offset: Option[Expr[Pre]], factor: Option[Expr[Rewritten[Pre]]], override val extraArgs: Seq[Variable[Pre]])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](outer, cls, extraArgs) {
 
-  implicit var add: Boolean = false;
+  implicit var add: Boolean = _
 
-  private def op(a: Expr[Post], b: Expr[Post])(implicit origin: Origin): Expr[Post] = if (add) transA(a) + b else transA(a) - b
-  protected def transA(a: Expr[Post])(implicit origin: Origin): Expr[Post] = if (factor.nonEmpty) permissionToRuntimeValue(factor.get) * a else a
-
-  private def unfoldPredicate(predicate: Expr[Pre]): Seq[Expr[Pre]] =
-    unfoldStar(predicate).collect { case p@(_: Perm[Pre] | _: Starall[Pre]) => p }
-
-  def addPermissions(predicate: Expr[Pre]) : Seq[Statement[Post]] = {
-    add = true;
+  def addPermissions(predicate: Expr[Pre]): Seq[Statement[Post]] = {
+    add = true
     transferPermissions(predicate)
   }
 
   def removePermissions(predicate: Expr[Pre]): Seq[Statement[Post]] = {
-    add = false;
+    add = false
     transferPermissions(predicate)
-  }
-
-  private def transferPermissions(predicate: Expr[Pre]): Seq[Statement[Post]] = {
-    implicit val origin: Origin = predicate.o
-    unfoldPredicate(predicate).map(dispatch).map(e => Eval[Post](e))
-  }
-
-  private def dispatchPerm(p: Perm[Pre])(implicit origin: Origin): Expr[Post] = {
-    val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](this, offset)(program).getPermission(p)(origin)
-    val newValue = permissionToRuntimeValueRewrite(p)
-    val getPermission = permissionLocation.get()
-    permissionLocation.put(op(getPermission, newValue))
   }
 
   override def dispatchLoopBody(quantifier: Expr[Pre], left: Expr[Pre], right: Expr[Pre], args: Seq[Variable[Pre]]): Seq[Statement[Post]] = {
     val test = variables.freeze
-    if(add) {
+    if (add) {
       TransferPermissionRewriter(this, cls, offset, factor, args).addPermissions(right)
     } else {
       TransferPermissionRewriter(this, cls, offset, factor, args).removePermissions(right)
@@ -57,5 +39,24 @@ case class TransferPermissionRewriter[Pre <: Generation](override val outer: Rew
       case s: Starall[Pre] => super.dispatch(s) //Let the AbstractQuantifier rewrite the StarAll, since it is the only one that can hold permissions
       case _ => super.dispatch(e)
     }
+  }
+
+  protected def transA(a: Expr[Post])(implicit origin: Origin): Expr[Post] = if (factor.nonEmpty) permissionToRuntimeValue(factor.get) * a else a
+
+  private def op(a: Expr[Post], b: Expr[Post])(implicit origin: Origin): Expr[Post] = if (add) transA(a) + b else transA(a) - b
+
+  private def unfoldPredicate(predicate: Expr[Pre]): Seq[Expr[Pre]] =
+    unfoldStar(predicate).collect { case p@(_: Perm[Pre] | _: Starall[Pre]) => p }
+
+  private def transferPermissions(predicate: Expr[Pre]): Seq[Statement[Post]] = {
+    implicit val origin: Origin = predicate.o
+    unfoldPredicate(predicate).map(dispatch).map(e => Eval[Post](e))
+  }
+
+  private def dispatchPerm(p: Perm[Pre])(implicit origin: Origin): Expr[Post] = {
+    val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](this, offset)(program).getPermission(p)(origin)
+    val newValue = permissionToRuntimeValueRewrite(p)
+    val getPermission = permissionLocation.get()
+    permissionLocation.put(op(getPermission, newValue))
   }
 }
