@@ -1249,6 +1249,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         LlvmFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
       case inv @ LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields) =>
         LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields)(inv.blame)
+      case PredicateStoreGet(c, t) => e
       case ProcessApply(process, args) =>
         ProcessApply(process, coerceArgs(args, process.decl))
       case ProcessChoice(left, right) =>
@@ -1281,6 +1282,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ResourceValue(res(r))
       case Result(ref) =>
         Result(ref)
+      case RuntimeNewPredicate(c, a) => e
       case RuntimePermission(p) => e
       case RuntimeFractionDiff(l, r) => e
       case RuntimeFractionZero() => e
@@ -1672,7 +1674,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CodeStringStatement(c) => CodeStringStatement(c)
       case CodeStringQuantifier(q, l, u, body) => CodeStringQuantifier(q, l, u, body)
       case CodeStringGetPredicate(a, c) => CodeStringGetPredicate(a, c)
-      case RuntimeNewPredicate(i, a) => RuntimeNewPredicate(i, a)
+      case EnhancedLoop(a, i, b) => EnhancedLoop(a, i, b)
     }
   }
 

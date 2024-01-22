@@ -6,9 +6,9 @@ import vct.col.print.{Ctx, Doc, Group, Text}
 trait RuntimeNewPredicateImpl[G] {
   this: RuntimeNewPredicate[G] =>
 
-  def getClassType(implicit ctx: Ctx): Doc = Doc.arg(instance.t)
+  override def t: Type[G] = TClass(cls)
 
   override def layout(implicit ctx: Ctx): Doc =
-    Group(getClassType <+> this.o.getPreferredNameOrElse() <+> Text("= new ") <+> getClassType <> Text("();"))
+    Text("new") <+> ctx.name(cls) <> "(" <> Doc.args(this.args) <> ")"
 
 }

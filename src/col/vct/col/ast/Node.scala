@@ -210,6 +210,7 @@ final case class Branch[G](branches: Seq[(Expr[G], Statement[G])])(implicit val 
 final case class IndetBranch[G](branches: Seq[Statement[G]])(implicit val o: Origin) extends CompositeStatement[G] with IndetBranchImpl[G]
 final case class Switch[G](expr: Expr[G], body: Statement[G])(implicit val o: Origin) extends CompositeStatement[G] with SwitchImpl[G]
 final case class Loop[G](init: Statement[G], cond: Expr[G], update: Statement[G], contract: LoopContract[G], body: Statement[G])(implicit val o: Origin) extends CompositeStatement[G] with LoopImpl[G]
+final case class EnhancedLoop[G](arg: Variable[G], iter: Expr[G], body: Statement[G])(implicit val o: Origin) extends CompositeStatement[G] with EnhancedLoopImpl[G]
 final case class RangedFor[G](iter: IterVariable[G], contract: LoopContract[G], body: Statement[G])(implicit val o: Origin) extends CompositeStatement[G] with Declarator[G] with RangedForImpl[G]
 final case class TryCatchFinally[G](body: Statement[G], after: Statement[G], catches: Seq[CatchClause[G]])(implicit val o: Origin) extends CompositeStatement[G] with TryCatchFinallyImpl[G]
 final case class Synchronized[G](obj: Expr[G], body: Statement[G])(val blame: Blame[LockRegionFailure])(implicit val o: Origin) extends CompositeStatement[G] with SynchronizedImpl[G]
@@ -1340,12 +1341,13 @@ final class CodeStringPredicateConstructor[G](val args: Seq[Variable[G]], val bo
 final case class JavaLocalRuntime[G](ref: Ref[G, JavaParam[G]])(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends JavaExpr[G] with JavaLocalRuntimeImpl[G]
 
 final case class PredicateStore[G](storeType: Type[G])(implicit val o: Origin) extends ClassDeclaration[G] with PredicateStoreImpl[G]
+final case class PredicateStoreGet[G](cls: Ref[G, Class[G]], threadId: Expr[G])(implicit val o: Origin) extends Expr[G] with PredicateStoreGetImpl[G]
 
+//final case class PredicateStoreCall[G](threadId: Expr[G])
 final case class CodeStringGetPredicate[G](args: Seq[Expr[G]], cls: Ref[G, Class[G]])(implicit val o: Origin) extends Statement[G] with CodeStringGetPredicateImpl[G]
-
-final case class RuntimeNewPredicate[G](instance: Variable[G], args: Seq[Expr[G]])(implicit val o: Origin) extends Statement[G] with RuntimeNewPredicateImpl[G]
-
+final case class RuntimeNewPredicate[G](cls: Ref[G, Class[G]], args: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with RuntimeNewPredicateImpl[G]
 final case class Equals[G](obj: Expr[G], target: Expr[G])(implicit val o: Origin) extends Expr[G] with EqualsImpl[G]
+
 
 final case class GetPermission[G](objectLocation: Expr[G], id: Int, threadId: Expr[G])(implicit val o: Origin) extends Expr[G] with GetPermissionImpl[G]
 final case class GetArrayPermission[G](objectLocation: Expr[G], id: Int, location: Expr[G], threadId: Expr[G])(implicit val o: Origin) extends Expr[G] with GetArrayPermissionImpl[G]

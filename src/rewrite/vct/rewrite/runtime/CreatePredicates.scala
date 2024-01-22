@@ -4,11 +4,13 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin.{Origin, PreferredName, ShortPosition}
-import vct.col.ref.Ref
+import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
-import vct.rewrite.runtime.util.RewriteContractExpr
+import vct.rewrite.runtime.util.{RewriteContractExpr, TransferPermissionRewriter}
+
+import scala.language.postfixOps
 
 
 object CreatePredicates extends RewriterBuilder {
@@ -31,6 +33,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Dispatch of the program for debugging and using the program everywhere to look up specific instancefields
+   *
    * @param program Program node
    * @return The rewritten program
    */
@@ -44,6 +47,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
    * Dispatches declarations
    * InstancePredicates will be rewritten to new classes
    * Class will be stored so it can be later used in the code
+   *
    * @param decl Any declaration kind
    */
   override def dispatch(decl: Declaration[Pre]): Unit = {
@@ -66,6 +70,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
    * Method that specifically dispatches an InstancePredicate
    * First it will create a new class, with instancefields, a predicate store, a constructor and helper methods
    * such as getPredicate, (un)fold and equals
+   *
    * @param ip The InstancePredicate that needs to be transformed to a class
    */
   def dispatchIP(ip: InstancePredicate[Pre]): Unit = {
@@ -89,6 +94,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Creates an InstanceField based on paramaters of the predicate
+   *
    * @param arg One paramater of the predicate
    * @return InstanceField for the created parameter
    */
@@ -102,8 +108,9 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Creates constructor for the Predicate class
+   *
    * @param arguments all paramaters of the constructor of the predicate class
-   * @param origin implicit origin of the new class
+   * @param origin    implicit origin of the new class
    * @return returns the newly created constructor for the predicate class
    */
   private def generateConstructorOnArgs(arguments: Seq[Variable[Pre]])(implicit origin: Origin): ClassDeclaration[Post] = {
@@ -130,6 +137,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Transforms a Variable to a JavaParam
+   *
    * @param v Input variable
    * @return variable that is transformed to a JavaParam
    */
@@ -139,6 +147,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Creates an assign statement using a java param and a dereference to an instancefied
+   *
    * @param arg
    * @param deref
    * @return
@@ -150,6 +159,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Creates a dereference of an instanceField using a variable
+   *
    * @param v
    * @return
    */
@@ -161,6 +171,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * creates a dereference of an instance field using an instanceField
+   *
    * @param instanceField
    * @return
    */
@@ -172,6 +183,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Creates a new instancefield for the class that the predicate was build in
+   *
    * @return Instancefield of the currentclass
    */
   private def createClassVariableInstanceField: InstanceField[Post] = {
@@ -181,6 +193,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Based on the cls, a variable and origin create an instanceField. This is used for creating instancefields for arguments
+   *
    * @param cls
    * @param v
    * @param origin
@@ -195,6 +208,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Creates a variable of the class that holds the predicate
+   *
    * @return
    */
   private def createClassVariable: Variable[Post] = {
@@ -206,6 +220,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Creates the predicateStore in the predicate class
+   *
    * @param ip
    * @return
    */
@@ -216,6 +231,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Creates the helper methods for the predicate class
+   *
    * @param ip
    * @param args
    * @param instanceFields
@@ -224,14 +240,15 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   private def createHelperMethods(ip: InstancePredicate[Pre], args: Seq[Variable[Pre]], instanceFields: Seq[InstanceField[Post]]): Seq[InstanceMethod[Post]] = {
     val equalsMethod = createEqualsMethod(instanceFields)
     val getPredicate = createGetPredicateMethod(instanceFields)
-    val unFold = createUnfoldMethod(instanceFields)
-//    val fold = createFoldMethod(instanceFields)
+    val unfold = createUnfoldMethod(instanceFields)
+    val fold = createFoldMethod(instanceFields)
     //TODO fix fold and unfold with the newly created locals
-    Seq(equalsMethod, getPredicate, unFold)
+    Seq(equalsMethod, getPredicate, unfold, fold)
   }
 
   /**
    * Creates the equals method
+   *
    * @param instanceFields
    * @return
    */
@@ -242,6 +259,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Creates the getPredicate method
+   *
    * @param instanceFields
    * @return
    */
@@ -252,6 +270,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Creates the Unfold Method
+   *
    * @param instanceFields
    * @return
    */
@@ -262,6 +281,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Creates the fold method
+   *
    * @param instanceFields
    * @return
    */
@@ -272,19 +292,21 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Case class to easily have all the inputs to generate a method body
+   *
    * @param instanceFields
    * @param newArgs
    * @param ip
    * @param clsRef
-   * @param locals
+   * @param argsLocals
    */
   private case class MethodBodyInputs(instanceFields: Seq[InstanceField[Post]],
                                       newArgs: Seq[Variable[Post]],
-                                      ip : InstancePredicate[Pre],
+                                      ip: InstancePredicate[Pre],
                                       clsRef: Ref[Post, Class[Post]],
-                                      locals: Seq[Local[Post]]) {
+                                      argsLocals: Seq[Local[Post]]) {
     /**
      * Creates a MethodBodyResult based on own inputs and the newly created statement that the body of the method is
+     *
      * @param statement
      * @return
      */
@@ -293,15 +315,16 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * MethodBodyResult is a case class to easily create instanceMethod based on the returned arguments
+   *
    * @param newArgs
    * @param returnType
    * @param statement
    */
   private case class MethodBodyResult(newArgs: Seq[Variable[Post]],
                                       returnType: Type[Post],
-                                      statement: Statement[Post]){
-    def getInstanceMethod(implicit o: Origin): InstanceMethod[Post] = {
-      val body = Scope(Seq(), statement)
+                                      statement: Statement[Post]) {
+    def getInstanceMethod(locals: Seq[Variable[Post]])(implicit o: Origin): InstanceMethod[Post] = {
+      val body = Scope(locals, statement)
       val newMethod = new InstanceMethod[Post](
         returnType,
         newArgs,
@@ -316,8 +339,9 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Default template to create a instanceMethod
+   *
    * @param instanceFields all instancefields of the predicate class
-   * @param f function that specifically transforms a methodbodyinput to a methodbodyresult
+   * @param f              function that specifically transforms a methodbodyinput to a methodbodyresult
    * @param origin
    * @return
    */
@@ -326,21 +350,25 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
       val newArgs: Seq[Variable[Post]] = instanceFields.map(a => new Variable[Post](a.t))
       val ip: InstancePredicate[Pre] = currentIP.top
       val clsRef: Ref[Post, Class[Post]] = newClasses.ref(ip)
-      val locals: Seq[Local[Post]] = newArgs.map(v => Local[Post](v.ref)(v.o))
-      val mbi: MethodBodyInputs = MethodBodyInputs(instanceFields, newArgs, ip, clsRef, locals)
-      val mbr: MethodBodyResult = f(mbi)
-      mbr.getInstanceMethod
+      val argsLocals: Seq[Local[Post]] = newArgs.map(v => Local[Post](v.ref)(v.o))
+      val mbi: MethodBodyInputs = MethodBodyInputs(instanceFields, newArgs, ip, clsRef, argsLocals)
+      val (newLocals: Seq[Variable[Post]], mbr: MethodBodyResult) = variables.collect {
+        f(mbi)
+      }
+      mbr.getInstanceMethod(newLocals)
     }._2
   }
 
   /**
    * Creates the body of the equals method
+   *
    * @param mbi
    * @param origin
    * @return
    */
   private def createMethodBodyEquals(mbi: MethodBodyInputs)(implicit origin: Origin): MethodBodyResult = {
-    val (first, second) = (createRuntimeVariable, createRuntimeVariable)
+
+    val (first, second) = variables.collect{(createRuntimeVariable, createRuntimeVariable)}._2
     val instanceFieldsStatements: Seq[Statement[Post]] = mbi.instanceFields.map(i => createEqualsStatement(first, second, i))
     val bodyStatements = instanceFieldsStatements :+ Return[Post](tt)
     MethodBodyResult(Seq(first, second), TBool[Post](), Block[Post](bodyStatements))
@@ -348,6 +376,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Creates a statement to check if a paramater of the classes are the same, if not return false
+   *
    * @param currentObject
    * @param arg
    * @param instanceField
@@ -355,6 +384,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
    */
   private def createEqualsStatement(currentObject: Variable[Post], arg: Variable[Post], instanceField: InstanceField[Post]): Branch[Post] = {
     implicit val origin: Origin = Origin(Seq(ShortPosition("Generated"), PreferredName("equals")))
+
     val obj = createEqualsDeref(currentObject, instanceField)
     val target = createEqualsDeref(arg, instanceField)
     val comparison = instanceField.t match {
@@ -363,10 +393,12 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     }
     val returnStatement = Return[Post](ff)
     Branch[Post](Seq((comparison, returnStatement)))(obj.o)
+
   }
 
   /**
    * Creates a dereference for a variable to its instancefield
+   *
    * @param v
    * @param instanceField
    * @return
@@ -378,16 +410,27 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   /**
    * Creates the method block of the getpredicate method
+   *
    * @param mbi
    * @param origin
    * @return
    */
   private def createMethodBodyGetPredicate(mbi: MethodBodyInputs)(implicit origin: Origin): MethodBodyResult = {
-    mbi.unit(Block[Post](Seq(CodeStringGetPredicate(mbi.locals, mbi.clsRef))))
+    val newClass: LazyRef[Post, Class[Post]] = newClasses.ref(currentIP.top)
+    val tmpPredicate = variables.declare(new Variable[Post](TClass[Post](newClass))(Origin(Seq()).addPrefName("tmp")))
+    val newPredicate = RuntimeNewPredicate[Post](newClass, mbi.argsLocals)
+    val assignTmp = Eval[Post](PostAssignExpression[Post](tmpPredicate.get, newPredicate)(null))
+    val loopVariable = variables.collectScoped {variables.declare(new Variable[Post](TClass[Post](newClass))(Origin(Seq()).addPrefName("p")))}._2
+    val loopBody = Block[Post](Seq(Branch[Post](Seq((Equals[Post](tmpPredicate.get, loopVariable.get), Return[Post](loopVariable.get))))))
+    val enhancedFor = EnhancedLoop[Post](loopVariable, PredicateStoreGet[Post](newClass, ThreadId[Post](None)), loopBody)
+    val postReturnNull = Return[Post](Null[Post]())
+    val methodBody = Block[Post](Seq(assignTmp, enhancedFor, postReturnNull))
+    mbi.unit(methodBody)
   }
 
   /**
    * Creates the body for the unfold method
+   *
    * @param mbi
    * @param origin
    * @return
@@ -395,24 +438,34 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   private def createMethodBodyUnfold(mbi: MethodBodyInputs)(implicit origin: Origin): MethodBodyResult = {
     val newAssertions = RewriteContractExpr[Pre](this, currentClass.top)(program)
       .createStatements(mbi.ip.body.getOrElse(ff))
-    val newRuntimePredicate = RuntimeNewPredicate[Post](createRuntimeVariable, mbi.locals)(mbi.ip.o)
-    mbi.unit(Block[Post](newAssertions._2.toSeq :+ newRuntimePredicate))
-    //TODO remove permissions from thread (difficult first design how to do this maybe create a helperRewriter for this)
+    //    val newRuntimePredicate = RuntimeNewPredicate[Post](createRuntimeVariable, mbi.locals)(mbi.ip.o)
+
+    val addPermissions: Seq[Statement[Post]] = TransferPermissionRewriter(this, currentClass.top, None, None, Seq.empty).addPermissions(mbi.ip.body.getOrElse(tt[Pre]))
+
+
+    mbi.unit(Block[Post](Seq.empty))
+    //    mbi.unit(Block[Post](newAssertions._2.toSeq ++ addPermissions ++ Seq(newRuntimePredicate)))
     //TODO should first check if there exists a predicate with the same paramaters in the predicatestore for this thread
   }
 
   /**
    * creates the body for the fold method
+   *
    * @param mbi
    * @param origin
    * @return
    */
   private def createMethodBodyFold(mbi: MethodBodyInputs)(implicit origin: Origin): MethodBodyResult = {
-    mbi.unit(Block[Post](Seq(Return[Post](tt))))
+    val newAssertions = RewriteContractExpr[Pre](this, currentClass.top)(program)
+      .createStatements(mbi.ip.body.getOrElse(ff))
+    val removePermissions: Seq[Statement[Post]] = TransferPermissionRewriter(this, currentClass.top, None, None, Seq.empty).removePermissions(mbi.ip.body.getOrElse(tt[Pre]))
+    //    val newRuntimePredicate = RuntimeNewPredicate[Post](newClasses.ref(currentClass.top), mbi.locals)(mbi.ip.o)
+    mbi.unit(Block[Post](newAssertions._2.toSeq ++ removePermissions))
   }
 
   /**
    * Creates a variables of the newly created predicate class
+   *
    * @return
    */
   private def createRuntimeVariable: Variable[Post] = {
