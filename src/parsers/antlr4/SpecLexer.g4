@@ -29,6 +29,8 @@ VAL_FALSE: 'false';
 VAL_PACKAGE: 'package';
 */
 
+NEVER: EOF '=';
+
 // Must be able to contain identifiers from any frontend, so it's fine to over-approximate valid identifiers a bit.
 LANG_ID_ESCAPE: '`' ~[`]+ '`';
 

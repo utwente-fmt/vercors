@@ -301,8 +301,8 @@ valKeywordExpr
  | 'read' # valRead
  | 'None' # valNoneOption
  | 'empty' # valEmpty
- | 'true' # valTrue
- | 'false' # valFalse
+ | specTrue # valTrue
+ | specFalse # valFalse
  ;
 
 // Out spec: defined meaning: a language local
