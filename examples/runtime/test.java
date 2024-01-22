@@ -1,36 +1,34 @@
-class Source extends Thread {
-    int[] a;
+public class PredicateTest {
 
-    /*@
-        requires Perm(this.a, 1);
-        requires (\forall* int i; 0 <= i && i < a.length; Perm(this.a[i], 1));
-        ensures Perm(this.a, 1);
-        ensures (\forall* int i; 0 <= i && i < a.length; Perm(this.a[i], 1));
-     */
-    public void run() {
-        this.a = new int[2];
+    //@ requires c != null ** c.state(0);
+    //@ ensures c.state(2);
+    void foo(Counter c) {
+        c.increment(2);
     }
 
-    public void join(){
 
-    }
+    public void test() {
+        Counter c = new Counter();
+        //@ fold c.state(0);
+        Counter c2 = new Counter();
+        //@ fold c2.state(0);
 
-    public void start() {
-
-    }
-
-}
-class Main {
-
-    public void main() {
-        Source source = new Source();
-        source.start();
-        //@ source.postJoin(1\2);
-        source.join();
-        source.a[1] = 4;
+        foo(c);
+        foo(c2);
     }
 }
 
-class Thread {
 
+class Counter {
+    int count;
+
+    //@ resource state(int val) = Perm(count, write) ** count == val;
+
+    //@ requires state(count);
+    //@ ensures state(\old(count) + n);
+    void increment(int n) {
+        //@ unfold state(count);
+        count += n;
+        //@ fold state(count);
+    };
 }
