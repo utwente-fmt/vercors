@@ -35,7 +35,7 @@ case class FindPermissionLocation[Pre <: Generation](outer: Rewriter[Pre], offse
   }
 
   private def getPermission(d: Deref[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
-    val permLocation: Expr[Post] = outer.dispatch(d.obj)
+    val permLocation: Expr[Post] = dispatch(d.obj)
     val instanceFieldId: Int = FieldNumber(d.ref.decl)
     NormalLocation[Pre](permLocation, instanceFieldId, threadId)
   }
@@ -49,7 +49,7 @@ case class FindPermissionLocation[Pre <: Generation](outer: Rewriter[Pre], offse
   }
 
   private def getPermission(d: Deref[Pre], subscript: AmbiguousSubscript[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
-    val permLocation = outer.dispatch(d.obj)
+    val permLocation = dispatch(d.obj)
     val instanceFieldId = FieldNumber(d.ref.decl)
     val location = outer.dispatch(subscript.index)
     ArrayLocation[Pre](permLocation, instanceFieldId, location, threadId)
