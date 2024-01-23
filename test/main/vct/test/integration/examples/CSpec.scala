@@ -379,13 +379,13 @@ class CSpec extends VercorsSpec {
     };
 
     void main() {
-      int *ip = NULL;                               // works
-      double *dp = NULL;                            // works
-      struct nested *np = NULL;                     // works
-      // np = (struct nested*) NULL;                // causes "This cast is not supported"
+      int *ip = NULL;                              
+      double *dp = NULL;                           
+      struct nested *np = NULL;                    
+      // np = (struct nested*) NULL;               
       np = (struct nested*) malloc(sizeof(struct nested));
-      // np->inner = NULL;                          // causes "Expected the type of this expression to be `pointer<struct Unknown_35326835>`, but got ??TNull??()"
-      // np->inner = (struct nested*) NULL;         // causes "This cast is not supported"
+      // np->inner = NULL;
+      // np->inner = (struct nested*) NULL;         
     }
     """
 }
