@@ -382,10 +382,10 @@ class CSpec extends VercorsSpec {
       int *ip = NULL;                              
       double *dp = NULL;                           
       struct nested *np = NULL;                    
-      // np = (struct nested*) NULL;               
+      np = (struct nested*) NULL;               
       np = (struct nested*) malloc(sizeof(struct nested));
-      // np->inner = NULL;
-      // np->inner = (struct nested*) NULL;         
+      np->inner = NULL;
+      np->inner = (struct nested*) NULL;         
     }
     """
 }
