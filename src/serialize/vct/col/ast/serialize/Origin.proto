@@ -8,10 +8,15 @@ message Origin {
 
 message OriginContent {
   oneof content {
-    DummyOriginContent dummy = 9999;
+    SourceName source_name = 1;
+    PreferredName preferred_name = 2;
   }
 }
 
-message DummyOriginContent {
+message SourceName {
+  required string name = 1;
+}
 
+message PreferredName {
+  repeated string preferred_name = 1;
 }
