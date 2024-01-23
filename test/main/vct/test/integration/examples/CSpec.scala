@@ -369,4 +369,23 @@ class CSpec extends VercorsSpec {
         assert(sum[2] == 2);
     }
     """
+
+    vercors should verify using silicon in "Casting null to pointers" c
+    """
+    #include <stdlib.h>
+
+    struct nested {
+      struct nested *inner;  
+    };
+
+    void main() {
+      int *ip = NULL;                               // works
+      double *dp = NULL;                            // works
+      struct nested *np = NULL;                     // works
+      // np = (struct nested*) NULL;                // causes "This cast is not supported"
+      np = (struct nested*) malloc(sizeof(struct nested));
+      // np->inner = NULL;                          // causes "Expected the type of this expression to be `pointer<struct Unknown_35326835>`, but got ??TNull??()"
+      // np->inner = (struct nested*) NULL;         // causes "This cast is not supported"
+    }
+    """
 }
