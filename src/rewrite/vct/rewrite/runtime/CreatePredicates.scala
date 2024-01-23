@@ -3,13 +3,14 @@ package vct.rewrite.runtime
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.{Origin, PreferredName, ShortPosition}
+import vct.col.origin.{InstanceInvocationFailure, Origin, PreferredName, ShortPosition}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.rewrite.runtime.util.{RewriteContractExpr, TransferPermissionRewriter}
 
+import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps
 
 
@@ -28,6 +29,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   val newClassDeclarations: SuccessionMap[Variable[_], InstanceField[Post]] = new SuccessionMap()
   val classInstanceField: ScopedStack[InstanceField[Post]] = new ScopedStack()
   val currentIP: ScopedStack[InstancePredicate[Pre]] = new ScopedStack()
+  val helperMethods: ScopedStack[ArrayBuffer[InstanceMethod[Post]]] = new ScopedStack()
 
   implicit var program: Program[Pre] = _
 
@@ -238,12 +240,14 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
    * @return
    */
   private def createHelperMethods(ip: InstancePredicate[Pre], args: Seq[Variable[Pre]], instanceFields: Seq[InstanceField[Post]]): Seq[InstanceMethod[Post]] = {
-    val equalsMethod = createEqualsMethod(instanceFields)
-    val getPredicate = createGetPredicateMethod(instanceFields)
-    val unfold = createUnfoldMethod(instanceFields)
-    val fold = createFoldMethod(instanceFields)
+    helperMethods.collect{
+      val equalsMethod = createEqualsMethod(instanceFields)
+      val getPredicate = createGetPredicateMethod(instanceFields)
+      val unfold = createUnfoldMethod(instanceFields)
+      val fold = createFoldMethod(instanceFields)
+      Seq(equalsMethod, getPredicate, unfold, fold)
+    }._2
     //TODO fix fold and unfold with the newly created locals
-    Seq(equalsMethod, getPredicate, unfold, fold)
   }
 
   /**
@@ -333,6 +337,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
         Some(body),
         ApplicableContract.createEmptyContract
       )(null)
+      helperMethods.top.addOne(newMethod)
       classDeclarations.declare(newMethod)
     }
   }
@@ -382,9 +387,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
    * @param instanceField
    * @return
    */
-  private def createEqualsStatement(currentObject: Variable[Post], arg: Variable[Post], instanceField: InstanceField[Post]): Branch[Post] = {
-    implicit val origin: Origin = Origin(Seq(ShortPosition("Generated"), PreferredName("equals")))
-
+  private def createEqualsStatement(currentObject: Variable[Post], arg: Variable[Post], instanceField: InstanceField[Post])(implicit origin: Origin): Branch[Post] = {
     val obj = createEqualsDeref(currentObject, instanceField)
     val target = createEqualsDeref(arg, instanceField)
     val comparison = instanceField.t match {
@@ -416,13 +419,12 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
    * @return
    */
   private def createMethodBodyGetPredicate(mbi: MethodBodyInputs)(implicit origin: Origin): MethodBodyResult = {
-    val newClass: LazyRef[Post, Class[Post]] = newClasses.ref(currentIP.top)
-    val tmpPredicate = variables.declare(new Variable[Post](TClass[Post](newClass))(Origin(Seq()).addPrefName("tmp")))
-    val newPredicate = RuntimeNewPredicate[Post](newClass, mbi.argsLocals)
+    val tmpPredicate = variables.declare(new Variable[Post](TClass[Post](mbi.clsRef))(Origin(Seq()).addPrefName("tmp")))
+    val newPredicate = RuntimeNewPredicate[Post](mbi.clsRef, mbi.argsLocals)
     val assignTmp = Eval[Post](PostAssignExpression[Post](tmpPredicate.get, newPredicate)(null))
-    val loopVariable = variables.collectScoped {variables.declare(new Variable[Post](TClass[Post](newClass))(Origin(Seq()).addPrefName("p")))}._2
+    val loopVariable = variables.collectScoped {variables.declare(new Variable[Post](TClass[Post](mbi.clsRef))(Origin(Seq()).addPrefName("p")))}._2
     val loopBody = Block[Post](Seq(Branch[Post](Seq((Equals[Post](tmpPredicate.get, loopVariable.get), Return[Post](loopVariable.get))))))
-    val enhancedFor = EnhancedLoop[Post](loopVariable, PredicateStoreGet[Post](newClass, ThreadId[Post](None)), loopBody)
+    val enhancedFor = EnhancedLoop[Post](loopVariable, PredicateStoreGet[Post](mbi.clsRef, ThreadId[Post](None)), loopBody)
     val postReturnNull = Return[Post](Null[Post]())
     val methodBody = Block[Post](Seq(assignTmp, enhancedFor, postReturnNull))
     mbi.unit(methodBody)
@@ -436,14 +438,18 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
    * @return
    */
   private def createMethodBodyUnfold(mbi: MethodBodyInputs)(implicit origin: Origin): MethodBodyResult = {
-    val newAssertions = RewriteContractExpr[Pre](this, currentClass.top)(program)
-      .createStatements(mbi.ip.body.getOrElse(ff))
+    val tmpPredicate = variables.declare(new Variable[Post](TClass[Post](mbi.clsRef))(Origin(Seq()).addPrefName("predicate")))
+    val getPredicateInstanceMethod: InstanceMethod[Post] = helperMethods.top.find(p => p.o.getPreferredNameOrElse() == "getPredicate").get
+    val getPredicateCall = MethodInvocation[Post](ThisObject[Post](mbi.clsRef), getPredicateInstanceMethod.ref, mbi.argsLocals, Seq.empty, Seq.empty, Seq.empty, Seq.empty)(null)
+    val assignTmp = Eval[Post](PostAssignExpression[Post](tmpPredicate.get, getPredicateCall)(null))
+    val nullCheck = Assert[Post](tmpPredicate.get !== Null[Post]())(null)
+    //We know that tmpPredicate is now not null
+    val getThreadSpecificPredicateStore = PredicateStoreGet[Post](mbi.clsRef, ThreadId[Post](None))
+    val removePredicate = Assert[Post](CopyOnWriteArrayListRemove[Post](getThreadSpecificPredicateStore, tmpPredicate.get))(null) //Inside an assert, because it should remove it, if it does not remove it something went wrong
+    val addPermissions: Seq[Statement[Post]] = TransferPermissionRewriter(this, currentClass.top, (None, Some(mbi.argsLocals.last)), (None, None), None, Seq.empty).addPermissions(mbi.ip.body.getOrElse(tt[Pre]))
     //    val newRuntimePredicate = RuntimeNewPredicate[Post](createRuntimeVariable, mbi.locals)(mbi.ip.o)
-
-    val addPermissions: Seq[Statement[Post]] = TransferPermissionRewriter(this, currentClass.top, None, None, Seq.empty).addPermissions(mbi.ip.body.getOrElse(tt[Pre]))
-
-
-    mbi.unit(Block[Post](Seq.empty))
+    val methodBody = Block[Post](Seq(assignTmp, nullCheck, removePredicate) ++ addPermissions)
+    mbi.unit(methodBody)
     //    mbi.unit(Block[Post](newAssertions._2.toSeq ++ addPermissions ++ Seq(newRuntimePredicate)))
     //TODO should first check if there exists a predicate with the same paramaters in the predicatestore for this thread
   }
@@ -458,7 +464,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   private def createMethodBodyFold(mbi: MethodBodyInputs)(implicit origin: Origin): MethodBodyResult = {
     val newAssertions = RewriteContractExpr[Pre](this, currentClass.top)(program)
       .createStatements(mbi.ip.body.getOrElse(ff))
-    val removePermissions: Seq[Statement[Post]] = TransferPermissionRewriter(this, currentClass.top, None, None, Seq.empty).removePermissions(mbi.ip.body.getOrElse(tt[Pre]))
+    val removePermissions: Seq[Statement[Post]] = TransferPermissionRewriter(this, currentClass.top, (None, None), (None, None), None, Seq.empty).removePermissions(mbi.ip.body.getOrElse(tt[Pre]))
     //    val newRuntimePredicate = RuntimeNewPredicate[Post](newClasses.ref(currentClass.top), mbi.locals)(mbi.ip.o)
     mbi.unit(Block[Post](newAssertions._2.toSeq ++ removePermissions))
   }

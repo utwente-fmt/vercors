@@ -49,7 +49,7 @@ case class PermissionRewriter[Pre <: Generation](outer: Rewriter[Pre])(implicit 
 
   def rewritePermission(p: Perm[Pre]): Expr[Rewritten[Pre]] = {
     implicit val origin: Origin = p.o
-    val permissionLocation: Expr[Post] = FindPermissionLocation[Pre](this, None).getPermission(p)(origin).get()
+    val permissionLocation: Expr[Post] = FindPermissionLocation[Pre](this, (None,None), (None,None)).getPermission(p)(origin).get()
     PermissionRewriter.createCheckPermission(permissionLocation, p)
   }
 }

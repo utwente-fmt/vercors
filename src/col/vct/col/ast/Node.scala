@@ -1342,6 +1342,8 @@ final case class JavaLocalRuntime[G](ref: Ref[G, JavaParam[G]])(val blame: Blame
 
 final case class PredicateStore[G](storeType: Type[G])(implicit val o: Origin) extends ClassDeclaration[G] with PredicateStoreImpl[G]
 final case class PredicateStoreGet[G](cls: Ref[G, Class[G]], threadId: Expr[G])(implicit val o: Origin) extends Expr[G] with PredicateStoreGetImpl[G]
+final case class CopyOnWriteArrayListAdd[G](obj: Expr[G], arg: Expr[G])(implicit val o: Origin) extends Expr[G] with CopyOnWriteArrayListAddImpl[G]
+final case class CopyOnWriteArrayListRemove[G](obj: Expr[G], arg: Expr[G])(implicit val o: Origin) extends Expr[G] with CopyOnWriteArrayListRemoveImpl[G]
 
 //final case class PredicateStoreCall[G](threadId: Expr[G])
 final case class CodeStringGetPredicate[G](args: Seq[Expr[G]], cls: Ref[G, Class[G]])(implicit val o: Origin) extends Statement[G] with CodeStringGetPredicateImpl[G]

@@ -7,20 +7,16 @@ import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 
 
-case class FindPermissionLocation[Pre <: Generation](outer: Rewriter[Pre], offset: Option[Expr[Pre]])(implicit program: Program[Pre]) extends Rewriter[Pre] {
+case class FindPermissionLocation[Pre <: Generation](outer: Rewriter[Pre], offset: (Option[Expr[Pre]], Option[Expr[Rewritten[Pre]]]), threadIdExpr: (Option[Expr[Pre]], Option[Expr[Rewritten[Pre]]]))(implicit program: Program[Pre]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
   val threadId: ThreadId[Post] = {
-    if (offset.isEmpty) {
-      ThreadId[Post](None)(Origin(Seq.empty))
-    } else {
-      val expr = offset.get
-      val inner = expr match {
-        case l: Local[Pre] => Some(variables.freeze.computeSucc(l.ref.decl).get.get(expr.o))
-        case _ => None
-      }
-      ThreadId[Post](inner)(Origin(Seq.empty))
+    val newThreadExpr = threadIdExpr match {
+      case (Some(e: Expr[Pre]), _) => Some(outer.dispatch(e))
+      case (_, Some(e: Expr[Post])) => Some(e)
+      case _ => None
     }
+    ThreadId[Post](newThreadExpr)(Origin(Seq()))
   }
 
   def getPermission(p: Perm[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
@@ -38,7 +34,11 @@ case class FindPermissionLocation[Pre <: Generation](outer: Rewriter[Pre], offse
     e match {
       //TODO fix possible change in location (when in a predicate)
       case t: ThisObject[Pre] => {
-        offset.map(dispatch).getOrElse(outer.dispatch(e))
+        offset match {
+          case (Some(p: Expr[Pre]), _) => outer.dispatch(p)
+          case (_, Some(p: Expr[Post])) => p
+          case _ => outer.dispatch(e)
+        }
       }
       case _ => outer.dispatch(e)
     }
@@ -57,14 +57,6 @@ case class FindPermissionLocation[Pre <: Generation](outer: Rewriter[Pre], offse
       case _ => throw Unreachable("Currently no other collections are allowed execpt deref")
     }
   }
-
-  //  private def getPermission(l: Local[Pre], subscript: AmbiguousSubscript[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
-  //    val permLocation = this.dispatch(l)
-  //    val instanceFieldId = FieldNumber(d.ref.decl)
-  //    val location = this.dispatch(subscript.index)
-  //    ArrayLocation[Pre](permLocation, instanceFieldId, location, threadId)
-  //    ArrayLocation[Pre]()
-  //  }
 
   private def getPermission(d: Deref[Pre], subscript: AmbiguousSubscript[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
     val permLocation = dispatch(d.obj)

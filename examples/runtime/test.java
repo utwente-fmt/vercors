@@ -1,7 +1,7 @@
 public class PredicateTest {
 
-    //@ requires c != null ** c.state(0);
-    //@ ensures c.state(2);
+    //@ requires c != null ** c.state();
+    //@ ensures c.state();
     void foo(Counter c) {
         c.increment(2);
     }
@@ -9,9 +9,9 @@ public class PredicateTest {
 
     public void test() {
         Counter c = new Counter();
-        //@ fold c.state(0);
+        //@ fold c.state();
         Counter c2 = new Counter();
-        //@ fold c2.state(0);
+        //@ fold c2.state();
 
         foo(c);
         foo(c2);
@@ -20,15 +20,15 @@ public class PredicateTest {
 
 
 class Counter {
-    int count;
+    int[] a;
 
-    //@ resource state(int val) = Perm(count, write) ** count == val;
+    //@ resource state() = (\forall* int i; 0 <= i && i < a.length; Perm(a[i], write));
 
-    //@ requires state(count);
-    //@ ensures state(\old(count) + n);
+    //@ requires state();
+    //@ ensures state();
     void increment(int n) {
-        //@ unfold state(count);
-        count += n;
-        //@ fold state(count);
+        //@ unfold state();
+
+        //@ fold state();
     };
 }

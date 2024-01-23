@@ -1,13 +1,13 @@
 package vct.rewrite.runtime.util
 
 import vct.col.ast.RewriteHelpers.{RewriteExists, RewriteForall}
-import vct.col.ast._
+import vct.col.ast.{Expr, _}
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.rewrite.runtime.util.PermissionRewriter._
 
-case class TransferPermissionRewriter[Pre <: Generation](override val outer: Rewriter[Pre], override val cls: Class[Pre], offset: Option[Expr[Pre]], factor: Option[Expr[Rewritten[Pre]]], override val extraArgs: Seq[Variable[Pre]])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](outer, cls, extraArgs) {
+case class TransferPermissionRewriter[Pre <: Generation](override val outer: Rewriter[Pre], override val cls: Class[Pre], offset: (Option[Expr[Pre]], Option[Expr[Rewritten[Pre]]]), threadIdExpr: (Option[Expr[Pre]], Option[Expr[Rewritten[Pre]]]), factor: Option[Expr[Rewritten[Pre]]], override val extraArgs: Seq[Variable[Pre]])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](outer, cls, extraArgs) {
 
   implicit var add: Boolean = _
 
@@ -22,11 +22,10 @@ case class TransferPermissionRewriter[Pre <: Generation](override val outer: Rew
   }
 
   override def dispatchLoopBody(quantifier: Expr[Pre], left: Expr[Pre], right: Expr[Pre], args: Seq[Variable[Pre]]): Seq[Statement[Post]] = {
-    val test = variables.freeze
     if (add) {
-      TransferPermissionRewriter(this, cls, offset, factor, args).addPermissions(right)
+      TransferPermissionRewriter(this, cls, offset, threadIdExpr, factor, args).addPermissions(right)
     } else {
-      TransferPermissionRewriter(this, cls, offset, factor, args).removePermissions(right)
+      TransferPermissionRewriter(this, cls, offset, threadIdExpr, factor, args).removePermissions(right)
     }
   }
 
@@ -54,7 +53,7 @@ case class TransferPermissionRewriter[Pre <: Generation](override val outer: Rew
   }
 
   private def dispatchPerm(p: Perm[Pre])(implicit origin: Origin): Expr[Post] = {
-    val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](this, offset)(program).getPermission(p)(origin)
+    val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](this, offset, threadIdExpr)(program).getPermission(p)(origin)
     val newValue = permissionToRuntimeValueRewrite(p)
     val getPermission = permissionLocation.get()
     permissionLocation.put(op(getPermission, newValue))
