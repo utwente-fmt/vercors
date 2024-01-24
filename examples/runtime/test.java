@@ -22,7 +22,7 @@ public class PredicateTest {
 class Counter {
     int[] a;
 
-    //@ resource state() = (\forall* int i; 0 <= i && i < a.length; Perm(a[i], write));
+    //@ resource state() = (\forall* int i; 0 < i && i < a.length; Perm(a[i], write));
 
     //@ requires state();
     //@ ensures state();

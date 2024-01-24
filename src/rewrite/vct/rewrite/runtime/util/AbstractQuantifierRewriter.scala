@@ -1,110 +1,77 @@
 package vct.rewrite.runtime.util
 
 import vct.col.ast.RewriteHelpers.RewriteVariable
-import vct.col.ast.{And, Expr, Variable, _}
+import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter}
 import vct.col.util.AstBuildHelpers._
+import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
+import vct.rewrite.runtime.util.permissionTransfer._
 
 import scala.Int.{MaxValue, MinValue}
 import scala.collection.mutable.ArrayBuffer
 
+object AbstractQuantifierRewriter{
 
-abstract class AbstractQuantifierRewriter[Pre <: Generation](val outer: Rewriter[Pre], val cls: Class[Pre], val extraArgs: Seq[Variable[Pre]] = Seq.empty)(implicit program: Program[Pre]) extends Rewriter[Pre] {
-  override val allScopes: AllScopes[Pre, Post] = outer.allScopes
+  case class LoopBodyContent[G](expr: Expr[G], quantifier: Expr[G])
+}
 
-  def dispatchLoopBody(quantifier: Expr[Pre], left: Expr[Pre], right: Expr[Pre], newArgs: Seq[Variable[Pre]]): Seq[Statement[Post]] = Seq()
 
-  def dispatchPostBody(quantifier: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre], quantifierId: String, newLocals: Seq[Variable[Post]]): Seq[Statement[Post]] = Seq()
+abstract class AbstractQuantifierRewriter[Pre <: Generation](pd: PermissionData[Pre])(implicit program: Program[Pre]) extends Rewriter[Pre] {
+  override val allScopes: AllScopes[Pre, Post] = pd.outer.allScopes
 
-  override def dispatch(e: Expr[Pre]): Expr[Post] = {
-    e match {
-      case quantifier: Starall[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
-      case quantifier: Exists[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
-      case quantifier: Forall[Pre] => dispatchQuantifier(quantifier, quantifier.bindings, quantifier.body)
-      case p: Perm[Pre] => PermissionRewriter(this)(program).rewritePermission(p)
-      case _ => super.dispatch(e)
+  def dispatchLoopBody(loopBodyContent: LoopBodyContent[Pre])(implicit origin: Origin): Block[Post] = Block[Post](Seq())
+
+  final def dispatchQuantifier(quantifier: Expr[Pre]): Scope[Post] = {
+    variables.collectScoped{
+      quantifier match {
+        case q: Starall[Pre] => dispatchQuantifier(q, q.bindings, q.body)
+        case q: Exists[Pre] => dispatchQuantifier(q, q.bindings, q.body)
+        case q: Forall[Pre] => dispatchQuantifier(q, q.bindings, q.body)
+        case _ => ???
+      }
+    }._2
+  }
+
+  private final def dispatchQuantifier(quantifier: Expr[Pre], bindings: Seq[Variable[Pre]], body: Expr[Pre]): Scope[Post] = {
+    body match {
+      case imp: Implies[Pre] => createQuantifierStatement(quantifier, bindings, imp.left, imp.right)
+      case and: And[Pre] => createQuantifierStatement(quantifier, bindings, and.left, and.right)
+      case _ => ???
     }
   }
 
-  private final def defineLoopCondition(expr: Expr[Pre], condition: Expr[Pre]): Branch[Post] = {
-    val loopCondition = (Not[Post](dispatch(condition))(expr.o), Continue[Post](None)(expr.o))
-    Branch[Post](Seq(loopCondition))(expr.o)
-  }
-
-  private final def createBody(expr: Expr[Pre], left: Expr[Pre], right: Expr[Pre], newArgs: Seq[Variable[Pre]]): Statement[Post] = {
-    val loopConditionBranch = defineLoopCondition(expr, left)
-    val test = variables.freeze
-    val dispatchedLoopBody = dispatchLoopBody(expr, left, right, newArgs)
-    Block[Post](Seq(loopConditionBranch) ++ dispatchedLoopBody)(expr.o)
-  }
-
-  private final def createQuantifier(expr: Expr[Pre], acc: Statement[Post], element: Variable[Pre], filteredBounds: ArrayBuffer[(Variable[Pre], Option[Expr[Post]], Option[Expr[Post]])]): CodeStringQuantifier[Post] = {
+  private final def createQuantifierStatement(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre]): Scope[Post] = {
     implicit val origin: Origin = expr.o
-    CodeStringQuantifier[Post](
-      Local[Post](variables.freeze.succ(element)),
-      filteredBounds.map(i => i._2).collectFirst { case Some(value: Expr[Post]) => value }.getOrElse(IntegerValue[Post](MinValue)),
-      filteredBounds.map(i => i._3).collectFirst { case Some(value: Expr[Post]) => value }.getOrElse(IntegerValue[Post](MaxValue)),
-      acc
-    )(expr.o)
+    val newBindings = bindings.map(b => variables.succeed(b, b.rewrite()))
+    val bodyLoop = createBodyQuantifier(expr, bindings, left, right)
+    Scope(newBindings, bodyLoop)
   }
 
-  private final def createBodyQuantifier(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre], newArgs: Seq[Variable[Pre]]): Statement[Post] = {
+  private final def createBodyQuantifier(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre]): Statement[Post] = {
+    implicit val origin: Origin = expr.o
     val bounds: ArrayBuffer[(Variable[Pre], Option[Expr[Post]], Option[Expr[Post]])] = FindBoundsQuantifier[Pre](this).findBounds(expr)
-    val loopBody = createBody(expr, left, right, newArgs)
+    val loopCondition = Branch[Post](Seq((!dispatch(left), Continue[Post](None))))
+    val loopOperation: Block[Post] = dispatchLoopBody(LoopBodyContent(right, expr))
+    val loopBody : Block[Post] = Block(Seq(loopCondition, loopOperation))
     bindings.reverse.foldLeft[Statement[Post]](loopBody)((acc, element) =>
       createQuantifier(expr, acc, element, bounds.filter(i => i._1 == element))
     )
   }
 
-  private final def declareNewMethod(expr: Expr[Pre], quantifierId: String, arguments: Seq[Variable[Post]], newLocals: Seq[Variable[Post]], methodBlock: Block[Post]): InstanceMethod[Post] = {
-    implicit val o: Origin = expr.o.replacePrefName("__runtime_quantifier__" + quantifierId)
-    val newMethod = new InstanceMethod[Post](
-      TBool(),
-      arguments,
-      Seq.empty,
-      Seq.empty,
-      Some(Scope[Post](newLocals, methodBlock)(expr.o)),
-      ApplicableContract.createEmptyContract
-    )(null)
-    classDeclarations.declare(newMethod)
-    newMethod
+  private final def createQuantifier(expr: Expr[Pre], acc: Statement[Post], element: Variable[Pre], filteredBounds: ArrayBuffer[(Variable[Pre], Option[Expr[Post]], Option[Expr[Post]])]): Loop[Post] = {
+    implicit val origin: Origin = expr.o
+    val minValue = filteredBounds.map(i => i._2).collectFirst { case Some(value: Expr[Post]) => value }.getOrElse(IntegerValue[Post](MinValue))
+    val maxValue = filteredBounds.map(i => i._3).collectFirst { case Some(value: Expr[Post]) => value }.getOrElse(IntegerValue[Post](MaxValue))
+    val localBinding = Local[Post](variables.freeze.succ(element))
+    Loop[Post](
+      Assign[Post](localBinding, minValue)(null),
+      localBinding < maxValue,
+      Assign[Post](localBinding, localBinding + const(1))(null),
+      LoopInvariant[Post](tt, None)(null),
+      acc
+    )
   }
 
-  private final def createMethodCall(expr: Expr[Pre], quantifierId: String, newMethod: InstanceMethod[Post], args: Seq[Expr[Post]]): MethodInvocation[Post] = {
-    implicit val origin: Origin = expr.o.replacePrefName("__runtime_quantifier__" + quantifierId)
-    MethodInvocation[Post](
-      ThisObject[Post](this.succ[Class[Post]](cls))(expr.o),
-      newMethod.ref,
-      args,
-      Seq.empty,
-      Seq.empty,
-      Seq.empty,
-      Seq.empty
-    )(null)
-  }
-
-  private final def createQuantifierMethod(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre])(implicit origin: Origin = expr.o): MethodInvocation[Post] = {
-    val quantifierId = CodeStringQuantifierMethod.nextId()
-    val newBindings = bindings.map(b => variables.succeed(b, b.rewrite()))
-    val extraArgsCall = extraArgs.map(v => variables.freeze.computeSucc(v).get).map(v => v.get)
-    val copyOfExtraArgs = extraArgs.map(ea => variables.succeed(ea, ea.rewrite()))
-    val nextArguments = bindings ++ extraArgs
-    val postStatements: Seq[Statement[Post]] = dispatchPostBody(expr, bindings, left, right, quantifierId, newBindings)
-    val newBodyStatements = Seq(createBodyQuantifier(expr, bindings, left, right, nextArguments)) ++ postStatements
-    val methodBlock = Block[Post](newBodyStatements)
-    val newMethod = declareNewMethod(expr, quantifierId, copyOfExtraArgs, newBindings, methodBlock)
-    createMethodCall(expr, quantifierId, newMethod, extraArgsCall)
-  }
-
-  private final def dispatchQuantifier(quantifier: Expr[Pre], bindings: Seq[Variable[Pre]], body: Expr[Pre]): Expr[Post] = {
-    variables.collectScoped {
-      body match {
-        case imp: Implies[Pre] => createQuantifierMethod(quantifier, bindings, imp.left, imp.right)
-        case and: And[Pre] => createQuantifierMethod(quantifier, bindings, and.left, and.right)
-        case _ => super.dispatch(quantifier)
-      }
-    }._2
-  }
 
 }

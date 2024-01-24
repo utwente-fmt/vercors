@@ -4,6 +4,7 @@ import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers._
+import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
 
 object PermissionRewriter {
@@ -17,6 +18,7 @@ object PermissionRewriter {
       case _: WritePerm[G] => RuntimeFractionOne()
       case _: ReadPerm[G] => RuntimeFractionZero()
       case d: Div[G] => RuntimeFractionDiff[G](d.left, d.right)
+      case d: FloorDiv[G] => RuntimeFractionDiff[G](d.left, d.right)
       case IntegerValue(n: BigInt) if n == 1 => RuntimeFractionOne()
       case _ => expr
     }
@@ -37,6 +39,7 @@ object PermissionRewriter {
       case _: WritePerm[Pre] => RuntimeFractionOne()
       case _: ReadPerm[Pre] => RuntimeFractionZero()
       case d: Div[Pre] => RuntimeFractionDiff[Post](rw.dispatch(d.left), rw.dispatch(d.right))
+      case d: FloorDiv[Pre] => RuntimeFractionDiff[Post](rw.dispatch(d.left), rw.dispatch(d.right))
       case IntegerValue(n: BigInt) if n == 1 => RuntimeFractionOne()
       case _ => rw.dispatch(permission.perm)
     }
@@ -49,7 +52,8 @@ case class PermissionRewriter[Pre <: Generation](outer: Rewriter[Pre])(implicit 
 
   def rewritePermission(p: Perm[Pre]): Expr[Rewritten[Pre]] = {
     implicit val origin: Origin = p.o
-    val permissionLocation: Expr[Post] = FindPermissionLocation[Pre](this, (None,None), (None,None)).getPermission(p)(origin).get()
+    val pd: PermissionData[Pre] = PermissionData().setOuter(this)
+    val permissionLocation: Expr[Post] = FindPermissionLocation[Pre](pd).getPermission(p)(origin).get()
     PermissionRewriter.createCheckPermission(permissionLocation, p)
   }
 }

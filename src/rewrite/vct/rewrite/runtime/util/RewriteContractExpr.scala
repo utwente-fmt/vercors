@@ -4,61 +4,41 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
+import vct.rewrite.runtime.util.permissionTransfer.PermissionData
+import vct.col.util.AstBuildHelpers._
+import vct.result.VerificationError.Unreachable
+import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
 
 import scala.collection.mutable
 
 
-case class RewriteContractExpr[Pre <: Generation](outer: Rewriter[Pre], cls: Class[Pre])(implicit program: Program[Pre]) extends Rewriter[Pre] {
-  override val allScopes = outer.allScopes
+case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](pd) {
+  override val allScopes = pd.outer.allScopes
 
-  private val internalExpression: ScopedStack[Expr[Pre]] = new ScopedStack()
-  private val givenStatementBuffer: mutable.Buffer[Statement[Rewritten[Pre]]] = new mutable.ArrayBuffer[Statement[Rewritten[Pre]]]()
+  override def dispatchLoopBody(loopBodyContent: LoopBodyContent[Pre])(implicit origin: Origin): Block[Post] = createAssertions(loopBodyContent.expr)
 
-  def createStatements(expr: Expr[Pre]): (Expr[Post], mutable.Buffer[Statement[Rewritten[Pre]]]) = {
-    val newExpr = dispatch(expr)
-    (newExpr, givenStatementBuffer)
+  def createAssertions(expr: Expr[Pre]): Block[Post] = {
+    implicit val origin: Origin = expr.o
+    val unfoldedExpr = unfoldStar(expr)
+    Block[Post](unfoldedExpr.map(dispatchExpr))
   }
 
-  override def dispatch(e: Expr[Pre]): Expr[Post] = {
-    val result = e match {
-      case _: Star[Pre] => super.dispatch(e) //TODO all the cases that have multiple expressions that needs to be taken apart in a separate expression needs to be places here
-      case _: Or[Pre] => internalExpression.having(e) {
-        super.dispatch(e)
-      }
-      case _: AmbiguousOr[Pre] => internalExpression.having(e) {
-        super.dispatch(e)
-      }
-      case _: Starall[Pre] | _: Exists[Pre] | _: Forall[Pre] => RewriteQuantifier[Pre](this, cls).dispatch(e)
-      case p: Perm[Pre] => dispatchPermission(p)
-      case _ => super.dispatch(e)
-    }
-
-    if (internalExpression.isEmpty && !canSplit(e)) {
-      createStatement(result)
-    }
-    result
-  }
-
-  def createStatement(expr: Expr[Post]): Expr[Post] = {
-    givenStatementBuffer.addOne(Assert[Post](expr)(null)(Origin(Seq())))
-    expr
-  }
-
-  def dispatchPermission(p: Perm[Pre]): Expr[Post] = {
-    PermissionRewriter(this).rewritePermission(p)
-  }
-
-  def canSplit(e: Expr[Pre]): Boolean = {
+  private def dispatchExpr(e: Expr[Pre]): Statement[Post] = {
+    implicit val origin: Origin = e.o
     e match {
-      case _: Star[Pre] => true
-      case _: Starall[Pre] | _: Exists[Pre] | _: Forall[Pre] => false
-      case _: Perm[Pre] => false
-      case _: Or[Pre] => false
-      case _: AmbiguousOr[Pre] => false
-      case _: Implies[Pre] => false
-      case _: OrderOp[Pre] => false
-      case _: BinExpr[Pre] => true
-      case _ => true
+      case _: Star[Pre] => createAssertions(e)
+      case p: Perm[Pre] => dispatchPermission(p)
+      case _: Starall[Pre] | _: Exists[Pre] | _: Forall[Pre] => {
+        super.dispatchQuantifier(e)
+      }
+      case _ => throw Unreachable("Only Perm and Starall classes are allowed")
     }
   }
+
+  private def dispatchPermission(p: Perm[Pre])(implicit origin: Origin = p.o): Block[Post] = {
+    val cond = PermissionRewriter(this).rewritePermission(p)
+    val assertion = Assert[Post](cond)(null)
+    Block[Post](Seq(assertion))
+  }
+
 }

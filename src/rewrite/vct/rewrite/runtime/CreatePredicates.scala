@@ -8,6 +8,7 @@ import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
+import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 import vct.rewrite.runtime.util.{RewriteContractExpr, TransferPermissionRewriter}
 
 import scala.collection.mutable.ArrayBuffer
@@ -446,9 +447,14 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     //We know that tmpPredicate is now not null
     val getThreadSpecificPredicateStore = PredicateStoreGet[Post](mbi.clsRef, ThreadId[Post](None))
     val removePredicate = Assert[Post](CopyOnWriteArrayListRemove[Post](getThreadSpecificPredicateStore, tmpPredicate.get))(null) //Inside an assert, because it should remove it, if it does not remove it something went wrong
-    val addPermissions: Seq[Statement[Post]] = TransferPermissionRewriter(this, currentClass.top, (None, Some(mbi.argsLocals.last)), (None, None), None, Seq.empty).addPermissions(mbi.ip.body.getOrElse(tt[Pre]))
+    val pd: PermissionData[Pre] = PermissionData()
+      .setOuter(this)
+      .setCls(currentClass.top)
+      .setExtraArgs(Seq(mbi.newArgs.last))
+      .setOffset(mbi.argsLocals.last)
+    val addPermissions: Block[Post] = TransferPermissionRewriter(pd).addPermissions(mbi.ip.body.getOrElse(tt[Pre]))
     //    val newRuntimePredicate = RuntimeNewPredicate[Post](createRuntimeVariable, mbi.locals)(mbi.ip.o)
-    val methodBody = Block[Post](Seq(assignTmp, nullCheck, removePredicate) ++ addPermissions)
+    val methodBody = Block[Post](Seq(assignTmp, nullCheck, removePredicate, addPermissions))
     mbi.unit(methodBody)
     //    mbi.unit(Block[Post](newAssertions._2.toSeq ++ addPermissions ++ Seq(newRuntimePredicate)))
     //TODO should first check if there exists a predicate with the same paramaters in the predicatestore for this thread
@@ -462,11 +468,12 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
    * @return
    */
   private def createMethodBodyFold(mbi: MethodBodyInputs)(implicit origin: Origin): MethodBodyResult = {
-    val newAssertions = RewriteContractExpr[Pre](this, currentClass.top)(program)
-      .createStatements(mbi.ip.body.getOrElse(ff))
-    val removePermissions: Seq[Statement[Post]] = TransferPermissionRewriter(this, currentClass.top, (None, None), (None, None), None, Seq.empty).removePermissions(mbi.ip.body.getOrElse(tt[Pre]))
+//    val newAssertions = RewriteContractExpr[Pre](this, currentClass.top)(program)
+//      .createStatements(mbi.ip.body.getOrElse(ff))
+//    val removePermissions: Seq[Statement[Post]] = TransferPermissionRewriter(this, currentClass.top, (None, None), (None, None), None, Seq.empty).removePermissions(mbi.ip.body.getOrElse(tt[Pre]))
     //    val newRuntimePredicate = RuntimeNewPredicate[Post](newClasses.ref(currentClass.top), mbi.locals)(mbi.ip.o)
-    mbi.unit(Block[Post](newAssertions._2.toSeq ++ removePermissions))
+//    mbi.unit(Block[Post](newAssertions._2.toSeq ++ removePermissions))
+    mbi.unit(Block[Post](Seq.empty))
   }
 
   /**

@@ -4,6 +4,7 @@ class Source extends Thread {
     /*@
         requires Perm(this.a, 1);
         requires (\forall* int i; 0 <= i && i < a.length; Perm(a[i], write));
+        ensures Perm(this.a, 1);
         ensures (\forall* int i; 0 <= i && i < a.length; Perm(a[i], write));
      */
     public void run() {
@@ -25,7 +26,7 @@ class Main {
         Source source = new Source();
         source.start();
 
-        //@ source.postJoin(1\2);
+        //@ source.postJoin(1/2);
         source.join();
     }
 }

@@ -4,11 +4,18 @@ import vct.col.ast.{Expr, Variable, _}
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter}
 import vct.col.util.AstBuildHelpers._
+import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
+import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
 
-case class RewriteQuantifier[Pre <: Generation](override val outer: Rewriter[Pre], override val cls: Class[Pre])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](outer, cls) {
+case class RewriteQuantifier[Pre <: Generation](pd: PermissionData[Pre])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](pd) {
 
-  override def dispatchLoopBody(quantifier: Expr[Pre], left: Expr[Pre], right: Expr[Pre], extraArgs: Seq[Variable[Pre]]): Seq[Statement[Post]] = Seq(defineLoopAssertion(quantifier, right))
+
+  override def dispatchLoopBody(loopBodyContent: LoopBodyContent[Pre])(implicit origin: Origin): Block[Post] = {
+    val loopAssertion = defineLoopAssertion(loopBodyContent.quantifier, loopBodyContent.expr)
+    val postBody = dispatchPostBody(loopBodyContent.quantifier)
+    Block[Post](Seq(loopAssertion, postBody))
+  }
 
   def defineLoopAssertion(expr: Expr[Pre], condition: Expr[Pre]): Branch[Post] = {
     implicit val origin: Origin = expr.o
@@ -23,7 +30,7 @@ case class RewriteQuantifier[Pre <: Generation](override val outer: Rewriter[Pre
     Branch[Post](Seq(loopAssertion))(expr.o)
   }
 
-  override def dispatchPostBody(quantifier: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre], quantifierId: String, newLocals: Seq[Variable[Post]]): Seq[Statement[Post]] = {
+  def dispatchPostBody(quantifier: Expr[Pre]): Statement[Post] = {
     implicit val origin: Origin = quantifier.o
     val postReturn = quantifier match {
       case _: Forall[Pre] => Return[Post](tt)
@@ -31,6 +38,6 @@ case class RewriteQuantifier[Pre <: Generation](override val outer: Rewriter[Pre
       case _: Exists[Pre] => Return[Post](ff)
       case _ => ???
     }
-    Seq(postReturn)
+    postReturn
   }
 }
