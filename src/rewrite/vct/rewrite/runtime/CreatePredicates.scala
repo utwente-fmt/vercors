@@ -8,6 +8,7 @@ import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
+import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 import vct.rewrite.runtime.util.{RewriteContractExpr, TransferPermissionRewriter}
 
@@ -27,8 +28,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
 
   val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
   val newClasses: SuccessionMap[Declaration[_], Class[Post]] = new SuccessionMap()
-  val newClassDeclarations: SuccessionMap[Variable[_], InstanceField[Post]] = new SuccessionMap()
-  val classInstanceField: ScopedStack[InstanceField[Post]] = new ScopedStack()
+  val newClassDeclarations: SuccessionMap[Declaration[_], InstanceField[Post]] = new SuccessionMap()
   val currentIP: ScopedStack[InstancePredicate[Pre]] = new ScopedStack()
   val helperMethods: ScopedStack[ArrayBuffer[InstanceMethod[Post]]] = new ScopedStack()
 
@@ -79,15 +79,13 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   def dispatchIP(ip: InstancePredicate[Pre]): Unit = {
     implicit val origin: Origin = Origin(Seq.empty).addPrefName("RuntimePredicate" + ip.o.getPreferredNameOrElse().capitalize)
     super.dispatch(ip)
-    val arguments = ip.args
+    val arguments: Seq[Variable[Pre]] = ip.args
     val decl: Seq[ClassDeclaration[Post]] = classDeclarations.collect {
-      classInstanceField.having(createClassVariableInstanceField) {
-        val instanceFields = arguments.map(generateInstanceFieldOnArg) :+ classInstanceField.top
-        val predicateStore = generatePredicateStore(ip)
+        val instanceFields = (arguments :+ currentClass.top).map(generateInstanceFieldOnArg)
+        val predicateStore = classDeclarations.declare(PredicateStore[Post](TClass[Post](newClasses.ref(ip)))(ip.o))
         val constructor = generateConstructorOnArgs(arguments)
         val helperMethods = createHelperMethods(ip, arguments, instanceFields)
         Seq(constructor, predicateStore) ++ instanceFields ++ helperMethods
-      }
     }._1
 
     val csp = new Class[Post](decl, Seq.empty, BooleanValue(value = true))
@@ -95,19 +93,18 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     globalDeclarations.declare(csp)
   }
 
-  /**
-   * Creates an InstanceField based on paramaters of the predicate
-   *
-   * @param arg One paramater of the predicate
-   * @return InstanceField for the created parameter
-   */
-  private def generateInstanceFieldOnArg(arg: Variable[Pre]): InstanceField[Post] = {
-    val newOrigin = Origin(Seq.empty).addPrefName(arg.o.getPreferredNameOrElse())
-    val res = new InstanceField(dispatch(arg.t), Set[FieldFlag[Post]]())(newOrigin)
-    newClassDeclarations.update(arg, res)
+  private def generateInstanceFieldOnArg(decl: Declaration[Pre]) : InstanceField[Post] = {
+    implicit val origin = Origin(Seq.empty).addPrefName(decl.o.getPreferredNameOrElse())
+    val t: Type[Rewritten[Pre]] = decl match {
+      case cls: Class[Pre] => TClass[Post](newClasses.ref(cls))
+      case v: Variable[Pre] => dispatch(v.t)
+      case _ => throw Unreachable("Only Class[Pre] and Variable[Pre] are allowed in this method")
+    }
+    val res = new InstanceField[Post](t, Set[FieldFlag[Post]]())
+    newClassDeclarations.update(decl, res)
     classDeclarations.declare(res)
-    res
   }
+
 
   /**
    * Creates constructor for the Predicate class
@@ -117,12 +114,11 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
    * @return returns the newly created constructor for the predicate class
    */
   private def generateConstructorOnArgs(arguments: Seq[Variable[Pre]])(implicit origin: Origin): ClassDeclaration[Post] = {
-
-    val (outputs, result) = variables.collect {
-      arguments.map(a => variables.succeed(a, a.rewrite()))
+    val (_, outputs) = variables.collectScoped{
+      createArgumentsVariables
     }
-    val dereferences = arguments.map(createDerefOfInstanceField) :+ createDerefOfInstanceField(classInstanceField.top)
-    val newJavaParams: Seq[JavaParam[Post]] = outputs.map(generateJavaParams) :+ generateJavaParams(createClassVariable)
+    val dereferences = (arguments :+ currentClass.top).map(createDerefOfInstanceField)
+    val newJavaParams: Seq[JavaParam[Post]] = outputs.map(generateJavaParams)
     val constructorStatements: Seq[Statement[Post]] = newJavaParams.zip(dereferences).map(a => createAssignStatement(a._1, a._2))
     val newBody = Scope[Post](Seq.empty, Block[Post](constructorStatements))
     val newJC = new JavaConstructor[Post](
@@ -160,77 +156,41 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     Assign[Post](deref, newLocal)(null)(arg.o)
   }
 
-  /**
-   * Creates a dereference of an instanceField using a variable
-   *
-   * @param v
-   * @return
-   */
-  private def createDerefOfInstanceField(v: Variable[Pre]): Deref[Post] = {
-    val newThisObject = ThisObject[Post](newClasses.ref(currentIP.top))(v.o)
-    val instanceFieldReference: Ref[Post, InstanceField[Post]] = newClassDeclarations.ref(v)
-    Deref[Post](newThisObject, instanceFieldReference)(null)(v.o)
+  private def createDerefOfInstanceField(decl: Declaration[Pre]): Deref[Post] = {
+    val newThisObject = ThisObject[Post](newClasses.ref(currentIP.top))(decl.o)
+    val instanceFieldReference: Ref[Post, InstanceField[Post]] = newClassDeclarations.ref(decl)
+    Deref[Post](newThisObject, instanceFieldReference)(null)(decl.o)
   }
 
   /**
-   * creates a dereference of an instance field using an instanceField
-   *
-   * @param instanceField
-   * @return
-   */
-  private def createDerefOfInstanceField(instanceField: InstanceField[Post]): Deref[Post] = {
-    val newThisObject = ThisObject[Post](newClasses.ref(currentIP.top))(instanceField.o)
-    val instanceFieldReference: Ref[Post, InstanceField[Post]] = instanceField.ref
-    Deref[Post](newThisObject, instanceFieldReference)(null)(instanceField.o)
-  }
-
-  /**
-   * Creates a new instancefield for the class that the predicate was build in
-   *
-   * @return Instancefield of the currentclass
-   */
-  private def createClassVariableInstanceField: InstanceField[Post] = {
-    val v = createClassVariable
-    generateInstanceFieldOnArg(currentClass.top, v, v.o)
-  }
-
-  /**
-   * Based on the cls, a variable and origin create an instanceField. This is used for creating instancefields for arguments
-   *
-   * @param cls
-   * @param v
-   * @param origin
-   * @return
-   */
-  private def generateInstanceFieldOnArg(cls: Class[Pre], v: Variable[Post], origin: Origin): InstanceField[Post] = {
-    val res = new InstanceField(TClass[Post](newClasses.ref(cls))(origin), Set[FieldFlag[Post]]())(origin)
-    newClassDeclarations.update(v, res)
-    classDeclarations.declare(res)
-    res
-  }
-
-  /**
-   * Creates a variable of the class that holds the predicate
+   * Creates a variables of the newly created predicate class
    *
    * @return
    */
-  private def createClassVariable: Variable[Post] = {
+  private def createRuntimeVariable: Variable[Post] = {
+    val origin = Origin(Seq.empty)
+    val oldName = currentClass.top.o.getPreferredNameOrElse().capitalize
+    val newOrigin = origin.replacePrefName(s"runtime$oldName")
+    val t = TClass[Post](newClasses.ref(currentIP.top))
+    variables.declare(new Variable[Post](t)(newOrigin))
+  }
+
+  private def createArgumentsVariables : Seq[Variable[Post]] = {
     val cls = currentClass.top
     val classVariableOrigin = Origin(Seq()).addPrefName(cls.o.getPreferredNameOrElse().toLowerCase)
     val classVariableType = TClass[Post](newClasses.ref(cls))(classVariableOrigin)
-    new Variable[Post](classVariableType)(classVariableOrigin)
+    val clsVar = variables.declare(new Variable[Post](classVariableType)(classVariableOrigin))
+    currentIP.top.args.map(a => variables.succeed(a, a.rewrite())) :+ clsVar
   }
 
-  /**
-   * Creates the predicateStore in the predicate class
-   *
-   * @param ip
-   * @return
-   */
-  private def generatePredicateStore(ip: InstancePredicate[Pre]): PredicateStore[Post] = {
-    val predicateType = TClass[Post](newClasses.ref(ip))
-    classDeclarations.declare(PredicateStore[Post](predicateType)(ip.o))
-  }
+
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //                                        Create methods for the predicate                                          //
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
 
   /**
    * Creates the helper methods for the predicate class
@@ -248,7 +208,6 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
       val fold = createFoldMethod(instanceFields)
       Seq(equalsMethod, getPredicate, unfold, fold)
     }._2
-    //TODO fix fold and unfold with the newly created locals
   }
 
   /**
@@ -353,8 +312,8 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
    */
   private def createMethod(instanceFields: Seq[InstanceField[Post]], f: MethodBodyInputs => MethodBodyResult)(implicit origin: Origin): InstanceMethod[Post] = {
     variables.collectScoped {
-      val newArgs: Seq[Variable[Post]] = instanceFields.map(a => new Variable[Post](a.t)(a.o))
       val ip: InstancePredicate[Pre] = currentIP.top
+      val newArgs: Seq[Variable[Post]] = createArgumentsVariables
       val clsRef: Ref[Post, Class[Post]] = newClasses.ref(ip)
       val argsLocals: Seq[Local[Post]] = newArgs.map(v => Local[Post](v.ref)(v.o))
       val mbi: MethodBodyInputs = MethodBodyInputs(instanceFields, newArgs, ip, clsRef, argsLocals)
@@ -473,18 +432,5 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     val addPredicateToStore : Eval[Post] = Eval(CopyOnWriteArrayListAdd(getThreadSpecificPredicateStore, newRuntimePredicate))
     val methodBody: Block[Post] = Block(Seq(assertion, removePermissions, addPredicateToStore))
     mbi.unit(methodBody)
-  }
-
-  /**
-   * Creates a variables of the newly created predicate class
-   *
-   * @return
-   */
-  private def createRuntimeVariable: Variable[Post] = {
-    val origin = classInstanceField.top.o
-    val oldName = origin.getPreferredNameOrElse().capitalize
-    val newOrigin = origin.replacePrefName(s"runtime$oldName")
-    val t = TClass[Post](newClasses.ref(currentIP.top))
-    variables.declare(new Variable[Post](t)(newOrigin))
   }
 }
