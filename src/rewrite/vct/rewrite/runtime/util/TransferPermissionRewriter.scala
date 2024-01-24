@@ -37,7 +37,7 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
     e match {
       case p: Perm[Pre] => Eval[Post](dispatchPerm(p))
       case s: Starall[Pre] => super.dispatchQuantifier(s) //Let the AbstractQuantifier rewrite the StarAll, since it is the only one that can hold permissions
-      case _ => throw Unreachable("Only Perm and Starall classes are allowed")
+      case _ => Block[Post](Seq.empty)
     }
   }
 

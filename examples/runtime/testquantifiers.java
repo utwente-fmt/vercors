@@ -3,9 +3,7 @@ class Source extends Thread {
 
     /*@
         requires Perm(this.a, 1);
-        requires (\forall* int i; 0 <= i && i < a.length; Perm(a[i], write));
-        ensures Perm(this.a, 1);
-        ensures (\forall* int i; 0 <= i && i < a.length; Perm(a[i], write));
+        requires (\forall* int i; 0 <= i && i < a.length; Perm(a[i], write) ** (\forall* int j; 0 < j && j < a.length; a[i] == a[j]));
      */
     public void run() {
 

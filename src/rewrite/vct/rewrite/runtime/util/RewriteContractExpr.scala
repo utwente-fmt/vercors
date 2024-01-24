@@ -31,7 +31,7 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
       case _: Starall[Pre] | _: Exists[Pre] | _: Forall[Pre] => {
         super.dispatchQuantifier(e)
       }
-      case _ => throw Unreachable("Only Perm and Starall classes are allowed")
+      case _ => Assert[Post](super.dispatch(e))(null)
     }
   }
 
