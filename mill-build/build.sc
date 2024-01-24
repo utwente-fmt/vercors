@@ -39,7 +39,8 @@ object millbuild extends MillBuildRootModule {
         ivy"com.lihaoyi::mill-main:0.11.0",
         ivy"com.lihaoyi::mill-main-api:0.11.0",
         ivy"com.lihaoyi::mill-scalalib:0.11.0",
-        ivy"com.lihaoyi::mill-contrib-scalapblib:0.11.0"
+        ivy"com.lihaoyi::mill-contrib-scalapblib:0.11.0",
+        ivy"me.pieterbos::mill-cpp_mill0.11::0.0.1",
       )
     }
     def compileResources = T { Seq.empty[PathRef] }

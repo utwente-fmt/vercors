@@ -8,7 +8,7 @@ import java.nio.file.{Files, Path}
 import scala.util.Using
 
 class ProtoNode extends NodeGenerator {
-  override def generate(out: Path, node: NodeDefinition): Unit = {
+  def message(node: NodeDefinition): Proto.Message = {
     val typeResults = node.fields.map(_._2).map(ProtoNaming.getType)
     val id = "id" -> Proto.Required(Proto.Long)
     val fields = node.fields.map(_._1).zip(typeResults).map {
@@ -28,10 +28,15 @@ class ProtoNode extends NodeGenerator {
     }
 
     val name = ProtoNaming.getTypeName(node.name)
-    val message = Proto.Message(name, Proto.MessageFields(allFields)).opaqueNodes
+    Proto.Message(name, Proto.MessageFields(allFields))
+  }
+
+  override def generate(out: Path, node: NodeDefinition): Unit = {
+    val message = this.message(node).opaqueNodes
+
     val source = Proto.Source(
       Seq("scalapb", "scalapb") +: message.imports,
-      Proto.renderOptions(Proto.OPAQUE_SUBMESSAGES_OPTIONS.updated("package_name", ProtoNaming.scalaPackageOption(name))),
+      Proto.renderOptions(Proto.OPAQUE_SUBMESSAGES_OPTIONS.updated("package_name", ProtoNaming.scalaPackageOption(message.name))),
       message,
     )
 

@@ -1,8 +1,8 @@
 syntax = "proto2";
 
-package vct.col.ast.serialize;
+package vct.col.ast;
 
-import "vct/col/ast/serialize/BigInt.proto";
+import "vct/col/ast/BigInt.proto";
 
 message BigDecimal {
   required int32 scale = 1;

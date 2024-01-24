@@ -1,6 +1,6 @@
 syntax = "proto2";
 
-package vct.col.ast.serialize;
+package vct.col.ast;
 
 message ExpectedError {
   // this

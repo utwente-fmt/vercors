@@ -1,6 +1,6 @@
 syntax = "proto2";
 
-package vct.col.ast.serialize;
+package vct.col.ast;
 
 /* Big-endian two's complement variable-length integer. If the most
  * significant bit of the first byte is 1, you may imagine that this bit is
