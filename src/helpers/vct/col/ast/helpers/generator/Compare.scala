@@ -12,15 +12,8 @@ import scala.reflect.internal.util.ScalaClassLoader.URLClassLoader
 import scala.util.Using
 
 class Compare extends NodeGenerator {
-  override def generate(out: Path, node: NodeDefinition): Unit = {
-    Using(Files.newBufferedWriter(Paths.get("/home/pieter/debug.txt"))) { w =>
-      this.getClass.getClassLoader match {
-        case url: URLClassLoader => w.write(url.classPathURLs.toString)
-        case other => w.write(other.toString)
-      }
-    }
+  override def generate(out: Path, node: NodeDefinition): Unit =
     ResultStream.write(out.resolve(s"${node.name.base}Compare.scala"), getTree(node))
-  }
 
   def getTree(node: NodeDefinition): Source = {
     source"""
