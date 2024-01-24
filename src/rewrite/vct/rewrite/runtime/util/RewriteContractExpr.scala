@@ -8,6 +8,7 @@ import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
+import vct.rewrite.runtime.util.PermissionRewriter.permissionToRuntimeValueRewrite
 
 import scala.collection.mutable
 
@@ -36,8 +37,9 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
   }
 
   private def dispatchPermission(p: Perm[Pre])(implicit origin: Origin = p.o): Block[Post] = {
-    val cond = PermissionRewriter(this).rewritePermission(p)
-    val assertion = Assert[Post](cond)(null)
+    val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](pd).getPermission(p)(origin)
+    val cond = permissionToRuntimeValueRewrite(p)
+    val assertion = Assert[Post](permissionLocation.get() === cond)(null)
     Block[Post](Seq(assertion))
   }
 

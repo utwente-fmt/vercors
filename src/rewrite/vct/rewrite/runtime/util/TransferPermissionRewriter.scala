@@ -52,7 +52,7 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
   }
 
   private def dispatchPerm(p: Perm[Pre])(implicit origin: Origin): Expr[Post] = {
-    val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](pd)(program).getPermission(p)(origin)
+    val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](pd).getPermission(p)(origin)
     val newValue = permissionToRuntimeValueRewrite(p)
     val getPermission = permissionLocation.get()
     permissionLocation.put(op(getPermission, newValue))
