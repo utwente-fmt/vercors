@@ -53,6 +53,9 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](pd: PermissionData[
     val bounds: ArrayBuffer[(Variable[Pre], Option[Expr[Post]], Option[Expr[Post]])] = FindBoundsQuantifier[Pre](this).findBounds(expr)
     val loopCondition = Branch[Post](Seq((!dispatch(left), Continue[Post](None))))
     val loopOperation: Block[Post] = dispatchLoopBody(LoopBodyContent(right, expr))
+    if(loopOperation.statements.isEmpty) {
+      return Block[Post](Seq.empty)
+    }
     val loopBody : Block[Post] = Block(Seq(loopCondition, loopOperation))
     bindings.reverse.foldLeft[Statement[Post]](loopBody)((acc, element) =>
       createQuantifier(expr, acc, element, bounds.filter(i => i._1 == element))
