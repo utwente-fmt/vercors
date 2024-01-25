@@ -1,10 +1,11 @@
 class Source extends Thread {
     int[] a;
 
+    //@ resource state() = Perm(this.a, 1) **(\forall* int i; 0 < i && i < a.length; Perm(a[i], write));
+
+
     /*@
-        requires Perm(this.a, 1);
-        requires (\forall* int i; 0 <= i && i < a.length; Perm(a[i], write) ** (\forall* int j; 0 < j && j < a.length; a[i] == a[j]));
-        ensures (\forall* int i; 0 <= i && i < a.length; Perm(a[i], write) ** (\forall* int j; 0 < j && j < a.length; a[i] == a[j]));
+        requires this.state();
      */
     public void run() {
 
@@ -25,7 +26,7 @@ class Main {
         Source source = new Source();
         source.start();
 
-        //@ source.postJoin(1/2);
+        //@ source.postJoin(1);
         source.join();
     }
 }

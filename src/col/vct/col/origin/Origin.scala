@@ -17,6 +17,8 @@ case object Origin {
       case ((origin, message), idx) =>
         origin.getContext.getOrElse(Context("")).context.replaceAll("(^[\r\n]+)|([\r\n]+$)", "") + "\n" + HR+ s"[${idx+1}/${messages.size}] $message\n"
     }.mkString(BOLD_HR, HR, BOLD_HR)
+
+  def apply() : Origin = Origin(Seq.empty)
 }
 
 /***

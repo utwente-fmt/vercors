@@ -20,6 +20,12 @@ object CreatePredicates extends RewriterBuilder {
   override def key: String = "createPredicates"
 
   override def desc: String = "Create predicate classes into the code, so that they can be used in the assertion checking"
+
+
+  val FOLD = "fold"
+  val UNFOLD = "unfold"
+  val GETPREDICATE = "getPredicate"
+  val EQUALS = "equals"
 }
 
 
@@ -414,7 +420,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
       .setOffset(mbi.argsLocals.last)
     val addPermissions: Block[Post] = TransferPermissionRewriter(pd).addPermissions(mbi.ip.body.getOrElse(tt[Pre]))
     val methodBody = Block[Post](Seq(assignTmp, nullCheck, removePredicate, addPermissions))
-    mbi.unit(methodBody)
+    MethodBodyResult(mbi.newArgs, TVoid[Post](), methodBody)
   }
 
   /**
@@ -433,6 +439,6 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     val getThreadSpecificPredicateStore = PredicateStoreGet[Post](mbi.clsRef, ThreadId[Post](None))
     val addPredicateToStore : Eval[Post] = Eval(CopyOnWriteArrayListAdd(getThreadSpecificPredicateStore, newRuntimePredicate))
     val methodBody: Block[Post] = Block(Seq(assertion, removePermissions, addPredicateToStore))
-    mbi.unit(methodBody)
+    MethodBodyResult(mbi.newArgs, TVoid[Post](), methodBody)
   }
 }

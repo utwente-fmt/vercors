@@ -7,6 +7,7 @@ import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
+import vct.rewrite.runtime.CreatePredicates
 import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
 import vct.rewrite.runtime.util.PermissionRewriter.permissionToRuntimeValueRewrite
 import vct.rewrite.runtime.util.Util._
@@ -46,22 +47,9 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
   }
 
   private def dispatchInstancePredicateApply(ipa: InstancePredicateApply[Pre]) : Block[Post] = {
-    val cls: Class[Pre] = ipa.obj.t.asInstanceOf[TClass[Pre]].cls.decl
-    val ip: InstancePredicate[Pre] = ipa.ref.decl
-    val predicateClass: Class[Pre] = findInstancePredicateClass[Pre](cls, ip)
-    val instanceMethod: InstanceMethod[Pre] = findInstancePredicateFunction[Pre](predicateClass, "getPredicate")
-    val staticRef = StaticClassRef[Pre](predicateClass.ref)(predicateClass.o)
-    val args: Seq[Expr[Pre]] = ipa.args :+ ipa.obj
-    implicit val origin: Origin = Origin(Seq.empty)
-    val mi: MethodInvocation[Pre] = MethodInvocation[Pre](
-      staticRef,
-      instanceMethod.ref,
-      args,
-      Seq.empty,
-      Seq.empty,
-      Seq.empty,
-      Seq.empty
-    )(null)
+    implicit val origin: Origin = ipa.o
+    val ipd: InstancePredicateData[Pre] = findInstancePredicateData(ipa)
+    val mi = ipd.createMethodInvocation(CreatePredicates.GETPREDICATE)
     val dispatchedMI = super.dispatch(mi)
     val newAssign = Assert[Post](dispatchedMI !== Null[Post]())(null)
     Block[Post](Seq(newAssign))

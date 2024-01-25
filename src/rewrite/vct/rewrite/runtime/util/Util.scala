@@ -2,9 +2,9 @@ package vct.rewrite.runtime.util
 
 
 import vct.col.ast._
-import vct.col.origin.InstancePredicateClassRuntime
+import vct.col.origin.{InstancePredicateClassRuntime, Origin}
+import vct.col.rewrite.{Rewritten, Generation}
 import vct.result.VerificationError.Unreachable
-
 
 object Util {
 
@@ -73,6 +73,31 @@ object Util {
       case b: Block[G] => b
       case _ => ???
     }
+  }
+
+
+  case class InstancePredicateData[G](ipa: InstancePredicateApply[G], cls: Class[G], ip: InstancePredicate[G], predicateClass: Class[G], args: Seq[Expr[G]])(implicit program: Program[G]) {
+    def createMethodInvocation(methodName: String)(implicit origin: Origin): MethodInvocation[G] = {
+      val instanceMethod: InstanceMethod[G] = findInstancePredicateFunction[G](predicateClass, methodName)
+      val staticRef = StaticClassRef[G](predicateClass.ref)(predicateClass.o)
+      MethodInvocation[G](
+        staticRef,
+        instanceMethod.ref,
+        args,
+        Seq.empty,
+        Seq.empty,
+        Seq.empty,
+        Seq.empty
+      )(null)
+    }
+  }
+
+  def findInstancePredicateData[G](ipa: InstancePredicateApply[G])(implicit program: Program[G]) : InstancePredicateData[G] = {
+    val cls: Class[G] = ipa.obj.t.asInstanceOf[TClass[G]].cls.decl
+    val ip: InstancePredicate[G] = ipa.ref.decl
+    val predicateClass: Class[G] = findInstancePredicateClass[G](cls, ip)
+    val args: Seq[Expr[G]] = ipa.args :+ ipa.obj
+    InstancePredicateData[G](ipa, cls, ip, predicateClass, args)
   }
 
   def findInstancePredicateClass[G](cls: Class[G], ip: InstancePredicate[G])(implicit program: Program[G]) : Class[G] = {
