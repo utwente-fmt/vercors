@@ -6,6 +6,8 @@ import vct.col.print._
 trait GetArrayPermissionImpl[G] {
   this: GetArrayPermission[G] =>
 
+  override def precedence: Int = Precedence.ATOMIC
+
   override def t: Type[G] = TFraction[G]()
   private def defaultFraction: RuntimeFractionZero[G] = RuntimeFractionZero[G]()
 

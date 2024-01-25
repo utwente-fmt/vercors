@@ -30,13 +30,13 @@ case class FindPermissionLocation[Pre <: Generation](pd: PermissionData[Pre])(im
     }
   }
 
-  private def getPermission(d: Deref[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
+  def getPermission(d: Deref[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
     val permLocation: Expr[Post] = dispatch(d.obj)
     val instanceFieldId: Int = FieldNumber(d.ref.decl)
     NormalLocation[Pre](permLocation, instanceFieldId, pd.threadId)
   }
 
-  private def getPermission(subscript: AmbiguousSubscript[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
+  def getPermission(subscript: AmbiguousSubscript[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
     subscript.collection match {
       case d: Deref[Pre] => getPermission(d, subscript)
       case l: Local[Pre] => throw Unreachable("Currently paramaters permissions cannot be checked")
@@ -44,7 +44,7 @@ case class FindPermissionLocation[Pre <: Generation](pd: PermissionData[Pre])(im
     }
   }
 
-  private def getPermission(d: Deref[Pre], subscript: AmbiguousSubscript[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
+  def getPermission(d: Deref[Pre], subscript: AmbiguousSubscript[Pre])(implicit origin: Origin): PermissionLocation[Pre] = {
     val permLocation = dispatch(d.obj)
     val instanceFieldId = FieldNumber(d.ref.decl)
     val location = pd.outer.dispatch(subscript.index)

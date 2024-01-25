@@ -1,31 +1,20 @@
-public class PredicateTest {
-
-    //@ requires c != null ** c.state(0);
-    //@ ensures c.state(0);
-    void foo(Counter c) {
-        c.increment(2);
-    }
-
-
-    public void test() {
-        Counter c = new Counter();
-        //@ fold c.state(0);
-        Counter c2 = new Counter();
-        //@ fold c2.state(0);
-
-        foo(c);
-        foo(c2);
-    }
-}
-
-
 class Counter {
     int[] a;
+    int b;
+    Counter d;
 
-    //@ resource state(int j) = (\forall* int i; 0 < i && i < a.length; Perm(a[i], write) ** a[i] == j);
+    int increment(Counter c) {
+        c.b += b;
+        a[0] = a[0] + c.a[1];
+        increment(d);
+        b = a[0] + c.b;
 
-    //@ requires state(0);
-    //@ ensures state(0);
-    void increment(int n) {
+        for (int i = 0; i < a.length; i++) {
+            if(b < c.b) {
+                int n = b + c.b;
+            } else if(c.increment(c) < b) {
+                int z = b;
+            }
+        }
     };
 }

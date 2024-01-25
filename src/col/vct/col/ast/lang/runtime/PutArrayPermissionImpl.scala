@@ -6,6 +6,8 @@ import vct.col.print._
 trait PutArrayPermissionImpl[G] {
   this: PutArrayPermission[G] =>
 
+  override def precedence: Int = Precedence.ATOMIC
+
   override def t: Type[G] = TFraction[G]()
 
   override def layout(implicit ctx: Ctx): Doc =
