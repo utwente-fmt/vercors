@@ -2,6 +2,15 @@ syntax = "proto2";
 
 package vct.col.ast;
 
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  lenses: false
+  getters: false
+  no_default_values_in_constructor: true
+  package_name: "vct.col.ast.serialize"
+};
+
 /* Big-endian two's complement variable-length integer. If the most
  * significant bit of the first byte is 1, you may imagine that this bit is
  * "sign-extended" left into infinity.

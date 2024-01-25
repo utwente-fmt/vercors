@@ -627,7 +627,7 @@ object vercors extends Module {
       }
 
       def root = T.source(protobufGit.repo())
-      def jobs = T { 8 }
+      def jobs = T { 2 }
 
       override def cMakeBuild: T[PathRef] = T {
         os.proc("cmake", "-B", T.dest, "-S", root().path).call(cwd = T.dest)
@@ -643,8 +643,20 @@ object vercors extends Module {
         def target = T { "protoc" }
       }
 
-      def protoPath = T.sources(vercors.col.helpers.megacol().path / os.up, settings.src / "serialize")
-      def proto = T { vercors.col.helpers.megacol() +: os.walk(settings.src / "serialize").filter(_.ext == "proto").map(PathRef(_)) }
+      object scalaPBDummy extends ScalaPBModule
+
+      def protoPath =
+        T.sources(
+          vercors.col.helpers.megacol().path / os.up,
+          settings.src / "serialize",
+          scalaPBDummy.scalaPBUnpackProto().path
+        )
+
+      def proto = T {
+        Seq(vercors.col.helpers.megacol()) ++
+          os.walk(scalaPBDummy.scalaPBUnpackProto().path).filter(_.ext == "proto").map(PathRef(_)) ++
+          os.walk(settings.src / "serialize").filter(_.ext == "proto").map(PathRef(_))
+      }
 
       def generate = T {
         os.proc(protoc.executable().path, protoPath().map(p => "-I=" + p.path.toString),  "--cpp_out=" + T.dest.toString, proto().map(_.path)).call()

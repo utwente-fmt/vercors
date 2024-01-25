@@ -75,7 +75,7 @@ class Serialize extends NodeGenerator {
     }
 
   def mk(name: Seq[String], args: Term*): Term =
-    q"new ${typ(structure.Name(name))}(..${args.toList})"
+    q"new ${typ(structure.Name(ProtoNaming.scalaPackage(name) :+ name.last))}(..${args.toList})"
 
   def serializeTerm(term: Term, structureType: ST, protoType: Proto.PrimitiveType): Term =
     (structureType, protoType) match {

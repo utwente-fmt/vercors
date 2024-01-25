@@ -26,7 +26,7 @@ class ProtoAuxTypes extends AllNodesGenerator {
       Using(Files.newBufferedWriter(dir.resolve(aux.name.last + ".proto"))) { writer =>
         Proto.Source(
           Seq("scalapb", "scalapb") +: aux.imports,
-          Proto.renderOptions(Proto.OPAQUE_SUBMESSAGES_OPTIONS),
+          Proto.renderOptions(Proto.OPAQUE_SUBMESSAGES_OPTIONS.updated("package_name", ProtoNaming.scalaPackageOption(aux.name))),
           aux,
         ).write(writer)
       }
