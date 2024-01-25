@@ -10,9 +10,9 @@ import vct.rewrite.runtime.util.{RewriteContractExpr, TransferPermissionRewriter
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
 object CreateLocking extends RewriterBuilder {
-  override def key: String = "createArrayPermissions"
+  override def key: String = "createLocking"
 
-  override def desc: String = "Create permissions for items in arrays"
+  override def desc: String = "Creates locking for the constructor and synchronized key word"
 }
 
 
@@ -36,13 +36,13 @@ case class CreateLocking[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
-      case jc: JavaConstructor[Pre] => dispatchJC(jc)
+      case jc: JavaConstructor[Pre] if currentClass.top.o.getInstancePredicateClassRuntime.isEmpty => dispatchJC(jc)
       case cls: Class[Pre] => currentClass.having(cls) {super.dispatch(cls)}
       case _ => super.dispatch(decl)
     }
   }
 
-  private def dispatchJC(jc: JavaConstructor[Pre]) = {
+  private def dispatchJC(jc: JavaConstructor[Pre]) : Unit = {
     implicit val origin: Origin = jc.o
     val pd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top)
     val removePermissions: Block[Post] = TransferPermissionRewriter[Pre](pd).removePermissions(currentClass.top.intrinsicLockInvariant)

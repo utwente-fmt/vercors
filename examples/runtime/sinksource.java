@@ -1,61 +1,56 @@
 class Source extends Thread {
     int i;
 
-    //@ resource postJoin(frac p) = Perm(this.i, p);
-
     /*@
         requires Perm(this.i, 1);
+        ensures Perm(this.i, 1);
      */
     public void run() {
         i = 42;
     }
+
+
+    public void join(){}
+    public void start(){}
 }
 
 class Sink extends Thread {
     Source source;
 
-    //@ resource postJoin(frac p) = Perm(this.source.i, p);
-
-    public Sink(Source source) {
+    public void setSource(Source source) {
         this.source = source;
     }
 
     /*@
-        requires Perm(source, 1);
-     */
+       requires Perm(source, 1);
+       ensures Perm(source, 1);
+    */
     public void run() {
-        try {
-            //@ source.postJoin(1\2);
-            source.join();
-        }catch (Exception e) {
-            System.err.println(e.toString());
-        }
-        System.out.print("Sink: ");
-        System.out.println(source.i);
+        //@ source.postJoin(1\2);
+        source.join();
     }
+
+    public void join(){}
+    public void start(){}
 }
 
 class Main{
 
-    public static void main(String[] args) {
+    public void main() {
         Source source = new Source();
-        Sink sink = new Sink(source);
+        Sink sink = new Sink();
+        sink.setSource(source);
 
-        try {
-            source.start();
-            sink.start();
-
-            //@ source.postJoin(1\2);
-            source.join();
-            System.out.print("Main: ");
-            System.out.println(source.i);
-            //@ sink.postJoin(1\2);
-            sink.join();
-        } catch (Exception e) {
-            System.err.println(e.toString());
-        }
-
+        source.start();
+        sink.start();
+        //@ source.postJoin(1\2);
+        source.join();
+        //@ sink.postJoin(1\2);
+        sink.join();
         source.i = 1988;
-        System.out.println(source.i);
     }
+}
+
+class Thread{
+
 }

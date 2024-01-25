@@ -6,5 +6,5 @@ import vct.col.print._
 trait RuntimePostJoinImpl[G] {
   this: RuntimePostJoin[G] =>
 
-  override def layout(implicit ctx: Ctx): Doc = Text("postjoin function")
+  override def layout(implicit ctx: Ctx): Doc = Doc.spec(obj.show <> ".postJoin(" <> arg.show <> ")")
 }

@@ -45,7 +45,7 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
     }
   }
 
-  private def op(a: Expr[Post], b: Expr[Post])(implicit origin: Origin): Expr[Post] = if (add) pd.factored(a) + b else pd.factored(a) - b
+  private def op(a: Expr[Post], b: Expr[Post])(implicit origin: Origin): Expr[Post] = if (add) a + b else a - b
 
   private def unfoldPredicate(predicate: Expr[Pre]): Seq[Expr[Pre]] =
     unfoldStar(predicate).collect { case p@(_: Perm[Pre] | _: Starall[Pre] | _: InstancePredicateApply[Pre]) => p }
@@ -57,7 +57,7 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
 
   private def dispatchPerm(p: Perm[Pre])(implicit origin: Origin): Expr[Post] = {
     val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](pd).getPermission(p)(origin)
-    val newValue = permissionToRuntimeValueRewrite(p)
+    val newValue = pd.factored(permissionToRuntimeValueRewrite(p))
     val getPermission = permissionLocation.get()
     permissionLocation.put(op(getPermission, newValue))
   }

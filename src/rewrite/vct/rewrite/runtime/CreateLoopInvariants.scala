@@ -5,6 +5,7 @@ import vct.col.ast.RewriteHelpers.{RewriteBlock, RewriteLoop}
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
+import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.runtime.util.RewriteContractExpr
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
@@ -51,10 +52,11 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
 
   def dispatchLoop(l: Loop[Pre]): Statement[Post] = {
     implicit val o: Origin = l.o
-    val loopContract: Statement[Post] = dispatchLoopContract(l.contract)
+    val loopContractPre: Statement[Post] = dispatchLoopContract(l.contract)
+    val loopContractPost: Statement[Post] = dispatchLoopContract(l.contract)
     val rewrittenBody: Statement[Rewritten[Pre]] = dispatch(l.body)
-    val newBody = Block[Post](Seq(loopContract, rewrittenBody, loopContract))
-    l.rewrite(body = newBody)
+    val newBody = Block[Post](Seq(loopContractPre, rewrittenBody, loopContractPost))
+    l.rewrite(body = newBody, contract = LoopInvariant[Post](tt[Post], None)(null))
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {

@@ -72,6 +72,7 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     val locator = FindPermissionLocation(PermissionData().setOuter(this))
     val location: Expr[Post] = l match {
       case d: Deref[Pre] => locator.getPermission(d).get()
+      case AmbiguousSubscript(_: Local[Pre], _) => return Block[Post](Seq.empty)
       case a: AmbiguousSubscript[Pre] => locator.getPermission(a).get()
       case _ => throw Unreachable("Only Deref and AmbiguousSubscript allowed")
     }
@@ -81,7 +82,8 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
 
   private def dispatchLoop(loop: Loop[Pre]): Loop[Post] = {
     lazy val newBody = dereferences.collect(determineNewBlockStructure(loop.body.asInstanceOf[Block[Pre]]))._2
-    loop.rewrite(init = dispatch(loop.init), cond = dispatch(loop.cond), update = dispatch(loop.update), body = newBody)
+    val contract = dereferences.collect(dispatch(loop.contract))._2     //Any dereference in the contract should not be checked by the permission checker so putting it in its own scope
+    loop.rewrite(init = dispatch(loop.init), cond = dispatch(loop.cond), update = dispatch(loop.update), body = newBody, contract = contract)
   }
 
   private def dispatchSynchronized(s: Synchronized[Pre]): Synchronized[Post] = {

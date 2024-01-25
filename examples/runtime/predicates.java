@@ -7,7 +7,7 @@ public class PredicateTest {
     }
 
 
-    public static void main(String[] args) {
+    public void main() {
         Counter c = new Counter();
         //@ fold c.state(0);
         Counter c2 = new Counter();

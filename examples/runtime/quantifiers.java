@@ -1,24 +1,34 @@
-class Program{
+class Program {
+    int[] a;
+
+    public void setA(int[] a) {
+        this.a = a;
+    }
 
     /*@
         requires a.length > 0;
-        requires \forall* int i; 0 <= i < a.length; Perm(a[i], write);
-        requires \forall int i; 0 <= i < a.length; a[i] > 0;
-        requires \forall int i; 0 <= i < a.length; \forall int j; 0 <= j < i; a[j] <= a[i];
-        ensures (\exists int i; 0 <= i < a.length; a[i] == b) ==> \result >= 0;
-        ensures \forall* int i; 0 <= i < a.length; Perm(a[i], write);
+        requires (\forall* int x; 0 <= x && x < a.length; Perm(a[x], write));
+        requires (\forall int x; 0 <= x && x < a.length; a[x] > 0);
+        requires (\forall int x; 0 <= x && x < a.length; (\forall int j; 0 <= j && j < x; a[j] <= a[x]));
+        ensures (\forall* int x; 0 <= x && x < a.length; Perm(a[x], write));
      */
-    public int indexOf(int[] a, int b) {
-        for(int i = 0; i < a.length; i++) {
-            if(a[i] == b) {
+    //ensures (\exists int x; 0 <= x && x < a.length; a[x] == b) ==> \result >= 0;
+    public int indexOf(int b) {
+        for (int i = 0; i < a.length; i++) {
+            if (a[i] == b) {
                 return i;
             }
         }
         return -1;
     }
 
-    public static void main(String[] args) {
-        Program main = new Program();
-        main.indexOf(new int[]{1,2,3,4,5}, 4);
+    public void main() {
+        Program program = new Program();
+        int[] tmp = new int[3];
+        tmp[0] = 2;
+        tmp[1] = 4;
+        tmp[2] = 6;
+        program.setA(tmp);
+        program.indexOf(4);
     }
 }

@@ -7,6 +7,7 @@ trait RuntimeFractionOneImpl[G] {
   this: RuntimeFractionOne[G] =>
 
   override def t: Type[G] = TFraction[G]()
+  override def precedence: Int = Precedence.ATOMIC
 
   override def layout(implicit ctx: Ctx): Doc =
     Text("Fraction.ONE")
