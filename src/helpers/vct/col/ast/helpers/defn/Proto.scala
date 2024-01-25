@@ -8,7 +8,7 @@ import scala.collection.immutable.ListMap
 import scala.collection.mutable
 
 object Proto {
-  val auxBase = Seq("vct", "col", "ast", "serialize")
+  val auxBase = Seq("vct", "col", "ast")
 
   val STANDARD_OPTIONS: Map[String, String] = ListMap(
     "lenses" -> "false",
@@ -143,6 +143,8 @@ object Proto {
   }
 
   case class Message(name: Seq[String], body: MessageBody) {
+    require(name.nonEmpty)
+
     def write(out: Appendable): Unit = {
       out.append("message ").append(name.last).append(" {\n")
       body.write(out)
@@ -157,13 +159,27 @@ object Proto {
     def imports: Seq[Seq[String]] = namedTypes.distinct.map(_.fqName)
   }
 
-  case class Source(imports: Seq[Seq[String]], options: String, message: Message) {
+  object Source {
+    def apply(imports: Seq[Seq[String]], options: String, message: Message): Source =
+      Source(imports, options, Seq(message))
+  }
+
+  case class Source(imports: Seq[Seq[String]], options: String, messages: Seq[Message]) {
+    require(messages.nonEmpty)
+
     def write(out: Appendable): Unit = {
       out.append("syntax = \"proto2\";\n")
       out.append("\n")
 
-      if(message.name.size > 1) {
-        out.append("package ").append(message.name.init.mkString(".")).append(";\n")
+      if(messages.exists(_.name.size > 1)) {
+        val pkg = messages.collectFirst { case msg if msg.name.size > 1 => msg.name.init }.get
+
+        val wrongPackageMessages = messages.filter(msg => msg.name.size != pkg.size + 1 || msg.name.init != pkg)
+        require(wrongPackageMessages.isEmpty,
+          out.append(s"Messages rendered jointly in one source must have the same package. Wrong: ${
+            wrongPackageMessages.map(_.name.mkString(".")).mkString("{", ", ", "}")}"))
+
+        out.append("package ").append(pkg.mkString(".")).append(";\n")
         out.append("\n")
       }
 
@@ -176,13 +192,16 @@ object Proto {
 
       if(!options.isBlank) {
         out.append(options)
-        out.append("\n\n")
+        out.append("\n")
       }
 
-      message.write(out)
+      for(message <- messages) {
+        out.append("\n")
+        message.write(out)
+      }
     }
 
     def opaqueNodes: Source =
-      copy(message = message.opaqueNodes)
+      copy(messages = messages.map(_.opaqueNodes))
   }
 }
