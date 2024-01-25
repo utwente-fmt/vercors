@@ -26,13 +26,11 @@ trait ClassImpl[G] extends Declarator[G] {
     val readableOrigin = this.o.getReadable
     readableOrigin match {
       case Some(ro: ReadableOrigin) => {
-        val start = this.o.getStartEndLines.get.startEndLineIdx._1
-        val classDeclaration = ro.readable.readLines()(start)
-        regex.findFirstMatchIn(classDeclaration) match {
-          case Some(matched) =>
-            Text(matched.toString())
-          case None => Empty
+        val range = this.o.getStartEndLines.get.startEndLineIdx._1 to this.o.getStartEndLines.get.startEndLineIdx._2
+        val res = range.collectFirst{
+          case index: Int if regex.findFirstMatchIn(ro.readable.readLines()(index)).nonEmpty => Text(regex.findFirstMatchIn(ro.readable.readLines()(index)).get.toString())
         }
+        res.getOrElse(Empty)
       }
       case None => Empty
     }

@@ -84,6 +84,11 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     loop.rewrite(init = dispatch(loop.init), cond = dispatch(loop.cond), update = dispatch(loop.update), body = newBody)
   }
 
+  private def dispatchSynchronized(s: Synchronized[Pre]): Synchronized[Post] = {
+    lazy val newBody = dereferences.collect(determineNewBlockStructure(s.body.asInstanceOf[Block[Pre]]))._2
+    s.rewrite(body = newBody)
+  }
+
   private def dispatchBranch(branch: Branch[Pre]): Branch[Post] = {
     val gatheredConditions = branch.branches.map(b => dispatch(b._1))
     val gatheredBlocks = branch.branches
@@ -111,7 +116,7 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     }
   }
 
-  private def dispatchBranchOrLoop[T[Pre] <: Statement[Pre]](preBlock: Block[Pre], blockFold: (Seq[Block[Post]], Block[Post]), statement: T[Pre], dispatchFunc: T[Pre] => T[Post])(implicit origin: Origin): (Seq[Block[Post]], Block[Post]) = {
+  private def dispatchStatementWrapper[T[Pre] <: Statement[Pre]](preBlock: Block[Pre], blockFold: (Seq[Block[Post]], Block[Post]), statement: T[Pre], dispatchFunc: T[Pre] => T[Post])(implicit origin: Origin): (Seq[Block[Post]], Block[Post]) = {
     val newStat = dispatchFunc(statement)
     (blockFold._1 :+ Block[Post](retrieveDereferences ++ blockFold._2.statements :+ newStat), Block[Post](Seq.empty))
   }
@@ -120,8 +125,9 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     implicit val origin: Origin = b.o
     dereferences.collect {
       val newBlocks = b.statements.foldLeft((Seq.empty[Block[Post]], Block[Post](Seq()))) {
-        case (blockFold, branch: Branch[Pre]) => dispatchBranchOrLoop(b, blockFold, branch, dispatchBranch)
-        case (blockFold, loop: Loop[Pre]) => dispatchBranchOrLoop(b, blockFold, loop, dispatchLoop)
+        case (blockFold, branch: Branch[Pre]) => dispatchStatementWrapper(b, blockFold, branch, dispatchBranch)
+        case (blockFold, loop: Loop[Pre]) => dispatchStatementWrapper(b, blockFold, loop, dispatchLoop)
+        case (blockFold, sync: Synchronized[Pre]) => dispatchStatementWrapper(b, blockFold, sync, dispatchSynchronized)
         case (blockFold, statement) => defaultStatementNewMethodStructure(b, blockFold, statement)
       }
       val finalBlock: Block[Post] = Block[Post](retrieveDereferences ++ newBlocks._2.statements)

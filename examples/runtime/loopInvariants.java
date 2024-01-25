@@ -1,9 +1,13 @@
 class Program {
+    int[] a;
 
-    public int indexOf(int[] a, int b) {
+    public void setA(int[] a) {
+        this.a = a;
+    }
 
+    public int indexOf(int b) {
         //@ loop_invariant i <= a.length;
-        //@ loop_invariant \forall* int j; 0 <= j < a.length; Perm(a[j], read);
+        //@ loop_invariant (\forall* int j; 0 <= j && j < a.length; Perm(a[j], read));
         for(int i = 0; i < a.length; i++) {
             if(a[i] == b) {
                 return i;
@@ -12,8 +16,13 @@ class Program {
         return -1;
     }
 
-    public static void main(String[] args) {
-        Program main = new Program();
-        main.indexOf(new int[]{1,2,3,4,5}, 4);
+    public void main() {
+        Program program = new Program();
+        int[] tmp = new int[3];
+        tmp[0] = 2;
+        tmp[1] = 4;
+        tmp[2] = 6;
+        program.setA(tmp);
+        program.indexOf(4);
     }
 }

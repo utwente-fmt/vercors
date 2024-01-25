@@ -4,7 +4,7 @@ import vct.col.ast.{Class, ClassDeclaration, Declaration, JavaClass, Procedure, 
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 
 object GenerateJava extends RewriterBuilder {
-  override def key: String = "createArrayPermissions"
+  override def key: String = "generateJava"
 
   override def desc: String = "Create permissions for items in arrays"
 }
