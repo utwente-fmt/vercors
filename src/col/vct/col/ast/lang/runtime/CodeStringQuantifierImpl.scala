@@ -1,6 +1,6 @@
-package vct.col.ast.lang
+package vct.col.ast.lang.runtime
 
-import vct.col.ast.{CodeString, CodeStringQuantifier, Local}
+import vct.col.ast.{CodeStringQuantifier, Local}
 import vct.col.print.{Ctx, Doc, Group, Text}
 trait CodeStringQuantifierImpl[G] {
   this: CodeStringQuantifier[G] =>

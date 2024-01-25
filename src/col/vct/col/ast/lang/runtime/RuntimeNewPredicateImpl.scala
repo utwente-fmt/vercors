@@ -1,7 +1,7 @@
-package vct.col.ast.lang
+package vct.col.ast.lang.runtime
 
 import vct.col.ast._
-import vct.col.print.{Ctx, Doc, Group, Text}
+import vct.col.print.{Ctx, Doc, Text}
 
 trait RuntimeNewPredicateImpl[G] {
   this: RuntimeNewPredicate[G] =>

@@ -57,6 +57,7 @@ import vct.col.ast.family.parregion._
 import vct.col.ast.family.pvlcommunicate.{PVLCommunicateAccessImpl, PVLCommunicateImpl, PVLCommunicateSubjectImpl, PVLEndpointNameImpl, PVLFamilyRangeImpl, PVLIndexedFamilyNameImpl}
 import vct.col.ast.family.signals._
 import vct.col.ast.lang._
+import vct.col.ast.lang.runtime._
 import vct.col.ast.lang.smt._
 import vct.col.ast.node._
 import vct.col.ast.statement._
@@ -1363,3 +1364,5 @@ final case class RuntimeFractionOne[G]()(implicit val o: Origin) extends Runtime
 
 final case class RuntimePostJoin[G](obj: Expr[G], arg: Expr[G])(val blame: Blame[AssertFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with RuntimePostJoinImpl[G]
 final case class ThreadId[G](obj: Option[Expr[G]])(implicit val o: Origin) extends Expr[G] with ThreadIdImpl[G]
+
+final case class StaticClassRef[G](cls: Ref[G, Class[G]])(implicit val o: Origin) extends Expr[G] with StaticClassRefImpl[G]

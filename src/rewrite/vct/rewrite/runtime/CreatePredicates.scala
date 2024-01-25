@@ -77,7 +77,9 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
    * @param ip The InstancePredicate that needs to be transformed to a class
    */
   def dispatchIP(ip: InstancePredicate[Pre]): Unit = {
-    implicit val origin: Origin = Origin(Seq.empty).addPrefName("RuntimePredicate" + ip.o.getPreferredNameOrElse().capitalize)
+    implicit val origin: Origin = Origin(Seq.empty)
+      .addPrefName("RuntimePredicate" + ip.o.getPreferredNameOrElse().capitalize)
+      .addInstancePredicateClassRuntime(currentClass.top.o.getPreferredNameOrElse(), ip.o.getPreferredNameOrElse())
     super.dispatch(ip)
     val arguments: Seq[Variable[Pre]] = ip.args
     val decl: Seq[ClassDeclaration[Post]] = classDeclarations.collect {

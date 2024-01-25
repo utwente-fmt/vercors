@@ -1460,6 +1460,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Star(res(left), res(right))
       case starall @ Starall(bindings, triggers, body) =>
         Starall(bindings, triggers, res(body))(starall.blame)
+      case StaticClassRef(cls) => e
       case SubBag(left, right) =>
         val (coercedLeft, leftBag) = bag(left)
         val (coercedRight, rightBag) = bag(right)

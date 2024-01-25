@@ -1,8 +1,7 @@
-package vct.col.ast.lang
+package vct.col.ast.lang.runtime
 
 import vct.col.ast._
 import vct.col.print.{Ctx, Doc, Text}
-import vct.col.ref.Ref
 
 trait CodeStringPredicateConstructorImpl[G] {
   this: CodeStringPredicateConstructor[G] =>

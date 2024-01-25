@@ -1,7 +1,7 @@
-package vct.col.ast.lang
+package vct.col.ast.lang.runtime
 
 import vct.col.ast._
-import vct.col.print.{Empty, _}
+import vct.col.print._
 
 trait PutPermissionImpl[G] {
   this: PutPermission[G] =>

@@ -1,7 +1,6 @@
-package vct.col.ast.lang
+package vct.col.ast.lang.runtime
 
 import vct.col.ast._
-import vct.col.check.{CheckContext, CheckError}
 import vct.col.print._
 
 trait RuntimePostJoinImpl[G] {

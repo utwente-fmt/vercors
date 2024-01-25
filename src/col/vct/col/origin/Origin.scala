@@ -35,6 +35,7 @@ case class StartEndLines(startEndLineIdx: (Int, Int)) extends OriginContent
 case class OriginCols(cols: Option[(Int, Int)]) extends OriginContent
 case class OriginFilename(filename: String) extends OriginContent
 case class InlineBipContext(bipContext: String) extends OriginContent
+case class InstancePredicateClassRuntime(className: String, predicateName: String) extends OriginContent
 
 /**
  * A sequence of OriginContents. This sequence can be mutated (add, remove, replace) for convenience.
@@ -98,6 +99,10 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
 
   def addOriginCols(cols: Option[(Int, Int)]): Origin = {
     Origin(originContents :+ OriginCols(cols))
+  }
+
+  def addInstancePredicateClassRuntime(className: String, predicateName: String): Origin = {
+    Origin(originContents :+ InstancePredicateClassRuntime(className, predicateName))
   }
 
   def getReadable: Option[ReadableOrigin] = {
@@ -204,6 +209,16 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
       case _ => Nil
     } match {
       case Seq(OriginCols(any)) => Some(OriginCols(any))
+      case _ => None
+    }
+  }
+
+  def getInstancePredicateClassRuntime: Option[InstancePredicateClassRuntime] = {
+    originContents.flatMap {
+      case InstancePredicateClassRuntime(a, b) => Seq(InstancePredicateClassRuntime(a, b))
+      case _ => Nil
+    } match {
+      case Seq(i@InstancePredicateClassRuntime(a, b)) => Some(i)
       case _ => None
     }
   }
