@@ -2,6 +2,7 @@ package vct.rewrite.runtime.util
 
 
 import vct.col.ast._
+import vct.col.origin.InstancePredicateClassRuntime
 import vct.result.VerificationError.Unreachable
 
 
@@ -74,4 +75,15 @@ object Util {
     }
   }
 
+  def findInstancePredicateClass[G](cls: Class[G], ip: InstancePredicate[G])(implicit program: Program[G]) : Class[G] = {
+    val allClasses = program.declarations.collect{case c: Class[G] => c}
+    val allOrigins = allClasses.map(c => c.o.getInstancePredicateClassRuntime)
+    allClasses.zip(allOrigins).collectFirst{
+      case (c: Class[G], Some(InstancePredicateClassRuntime(a, b))) if a == cls.o.getPreferredNameOrElse() && b == ip.o.getPreferredNameOrElse() => c
+    }.get
+  }
+
+  def findInstancePredicateFunction[G](cls: Class[G], name: String)(implicit program: Program[G]) : InstanceMethod[G] = {
+    cls.declarations.collectFirst{case im: InstanceMethod[G] if im.o.getPreferredNameOrElse() == name => im}.get
+  }
 }
