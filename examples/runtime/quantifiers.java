@@ -1,6 +1,11 @@
 class Program {
     int[] a;
+    int b;
 
+
+    /*@
+        requires (\forall int i; 0 <= i && i < a.length; Perm(a[i], write));
+     */
     public void setA(int[] a) {
         this.a = a;
     }
