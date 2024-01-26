@@ -321,6 +321,7 @@ case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Veri
 case class RuntimeTransformation(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
                                  override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
   extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    CreateLedger,
     RemoveSelfLoops,
     RefactorGeneratedCode,
     CreateFieldPermissions,
