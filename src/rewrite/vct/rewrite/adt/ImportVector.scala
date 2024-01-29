@@ -25,6 +25,10 @@ case class ImportVector[Pre <: Generation](importer: ImportADTImporter) extends 
   private lazy val vector_loc = find[ADTFunction[Post]](vectorAdt, "vector_loc")
 
   val makeVectorMethods: mutable.Map[BigInt, Function[Post]] = mutable.Map()
+
+  val vectorOpsMethods: mutable.Map[(BigInt, String, Type[Post]), Function[Post]] = mutable.Map()
+
+
   val vLocMethods: mutable.Map[BigInt, Function[Post]] = mutable.Map()
 
   def vlocMake(size: BigInt): Function[Post] = {
@@ -89,8 +93,43 @@ case class ImportVector[Pre <: Generation](importer: ImportADTImporter) extends 
     }))
   }
 
+  def makeVectorOp(size: BigInt, elementType: Type[Post], operator: (Expr[Post], Expr[Post]) => BinExpr[Post], operatorName: String ): Function[Post] = {
+    implicit val o: Origin = Origin(Seq(LabelContext("vector creation method")))
+    /* for instance for size 4:
+     decreases;
+     ensures vloc<T>(\result, 0) == vloc<T>(x, 0) `op` vloc<T>(y, 0);
+     ensures vloc<T>(\result, 1) == vloc<T>(x, 1) `op` vloc<T>(y, 1);
+     ensures vloc<T>(\result, 2) == vloc<T>(x, 2) `op` vloc<T>(y, 2);
+     ensures vloc<T>(\result, 3) == vloc<T>(x, 3) `op` vloc<T>(y, 3);
+    pure `vector`<T> op<T>(`vector`<T> x, `vector`<T> y);
+    */
+    globalDeclarations.declare(withResult((result: Result[Post]) => {
+      val vectorType = TAxiomatic[Post](vectorAdt.ref, Seq(elementType))
+
+      val x = new Variable[Post](vectorType)(o.where(name= f"x"))
+      val y = new Variable[Post](vectorType)(o.where(name= f"y"))
+      val ensures: Seq[Expr[Post]] = Seq.tabulate(size.toInt)(i => Eq(
+        makeSubScript(result, const[Post](i), elementType, size, PanicBlame("Cannot Fail"), o), // \result[i]
+          operator(
+            makeSubScript(x.get, const[Post](i), elementType, size, PanicBlame("Cannot Fail"), o), // x[i]
+            makeSubScript(y.get, const[Post](i), elementType, size, PanicBlame("Cannot Fail"), o)  // y[i]
+          )
+      ))
+
+      function(
+        blame = AbstractApplicable,
+        contractBlame = TrueSatisfiable,
+        typeArgs = Nil,
+        returnType = TAxiomatic[Post](vectorAdt.ref, Seq(elementType)),
+        args = Seq(x, y),
+        requires = UnitAccountedPredicate(tt),
+        ensures = UnitAccountedPredicate(foldAnd(ensures))
+      )(o.where(name= f"${operatorName}_v" + size.toString))
+    }))
+  }
+
   override def postCoerce(t: Type[Pre]): Type[Post] = t match {
-    case TVector(inner, size) => TAxiomatic[Post](vectorAdt.ref, Seq(dispatch(inner)))(t.o)
+    case TVector(size, inner) => TAxiomatic[Post](vectorAdt.ref, Seq(dispatch(inner)))(t.o)
     case other => other.rewriteDefault()
   }
 
@@ -123,12 +162,40 @@ case class ImportVector[Pre <: Generation](importer: ImportADTImporter) extends 
         yields = Nil
       )(PanicBlame("No requires"))(e.o)
     case sub@VectorSubscript(vec, index) =>
-      val (elementT, size) = vec.t match {
-        case TVector(inner, size) => (inner, size)
+      val (size, elementT) = vec.t match {
+        case TVector(size, inner) => (size, inner)
         case _ => ???
       }
       makeSubScript(dispatch(vec), dispatch(index), dispatch(elementT), size,
         NoContext(VectorBoundsPreconditionFailed(sub.blame, sub)), e.o)
+    case e: VectorBinExpr[Pre] =>
+      val (size, elementTold) = e.t match {
+        case TVector(size, inner) => (size, inner)
+        case _ => ???
+      }
+      val elementT = dispatch(elementTold)
+
+
+      val vectorOpFunction =
+        e match {
+          case _: VectorMult[Pre] =>
+            val o: Origin = Origin(Seq(LabelContext("vector mult method")))
+            vectorOpsMethods.getOrElseUpdate((size, "mult", elementT), makeVectorOp(size, elementT, (l,r) => Mult[Post](l, r)(o), "mult"))
+          case _: VectorPlus[Pre] =>
+            val o: Origin = Origin(Seq(LabelContext("vector plus method")))
+            vectorOpsMethods.getOrElseUpdate((size, "plus", elementT), makeVectorOp(size, elementT, (l,r) => Plus[Post](l, r)(o), "plus"))
+          case _: VectorMinus[Pre] =>
+            val o: Origin = Origin(Seq(LabelContext("vector minus method")))
+            vectorOpsMethods.getOrElseUpdate((size, "minus", elementT), makeVectorOp(size, elementT, (l,r) => Minus[Post](l, r)(o), "minus"))
+        }
+
+      FunctionInvocation[Post](
+        typeArgs = Nil,
+        ref = vectorOpFunction.ref,
+        args = Seq(dispatch(e.left), dispatch(e.right)),
+        givenMap = Nil,
+        yields = Nil
+      )(PanicBlame("No requires"))(e.o)
 
     case other => other.rewriteDefault()
   }

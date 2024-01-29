@@ -39,7 +39,7 @@ trait AmbiguousPlusImpl[G] extends AmbiguousPlusOps[G] { this: AmbiguousPlus[G] 
 
   override lazy val t: Type[G] = {
     if(isProcessOp) TProcess()
-    else if(isSeqOp || isBagOp || isSetOp) Types.leastCommonSuperType(left.t, right.t)
+    else if(isSeqOp || isBagOp || isSetOp || isVectorOp) Types.leastCommonSuperType(left.t, right.t)
     else if(isPointerOp) left.t
     else if(isStringOp) TString()
     else if(getCustomPlusOpType().isDefined) getCustomPlusOpType().get

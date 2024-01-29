@@ -132,6 +132,7 @@ class FeatureRainbow[G] {
     case node: CoerceMapSet[G] => Coercions
     case node: CoerceMapTuple[G] => Coercions
     case node: CoerceMapType[G] => Coercions
+    case node: CoerceMapVector[G] => Coercions
     case node: CoerceNothingSomething[G] => Coercions
     case node: CoerceNullAnyClass[G] => Coercions
     case node: CoerceNullArray[G] => Coercions

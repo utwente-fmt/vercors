@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.ast.`type`.typeclass.TFloats
+import vct.col.ast.lang.c.CTVector.WrongVectorType
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.origin._
@@ -278,11 +279,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def getBaseType(t: Type[Pre]): Type[Pre] = t match {
     case CPrimitiveType(specs) =>
-//      val typeSpecs = specs.collect { case spec: CTypeSpecifier[Pre] => spec }
-//      typeSpecs match {
-//        case Seq(defn @ CStructSpecifier(_)) => t
-//        case other => CPrimitiveType(other)
-//      }
       C.getPrimitiveType(specs)
     case _ => t
   }
@@ -748,7 +744,22 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     )
   }
 
-  def rewriteArrayDeclaration(decl: CLocalDeclaration[Pre]): Statement[Post] = {
+  def rewriteVectorDeclaration(decl: CLocalDeclaration[Pre], t: CTVector[Pre], init: CInit[Pre]): Statement[Post] = {
+    // LangTypesToCol makes it so that each declaration only has one init
+    val info = C.getDeclaratorInfo(init.decl)
+    implicit val o: Origin = init.o
+    val v = new Variable[Post](rw.dispatch(t))(init.o.sourceName(info.name))
+    cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
+    val size = t.intSize
+    init.init.get match {
+      case CLiteralArray(exprs) if exprs.size == size =>
+        Block(Seq(LocalDecl(v),
+          assignLocal(v.get, LiteralVector[Post](rw.dispatch(t.innerType), exprs.map(rw.dispatch)))))
+      case _ => throw WrongCType(decl)
+    }
+  }
+
+  def rewriteArrayDeclaration(decl: CLocalDeclaration[Pre], cta: CTArray[Pre]): Statement[Post] = {
     // LangTypesToCol makes it so that each declaration only has one init
     val init = decl.decl.inits.head
     val info = C.getDeclaratorInfo(init.decl)
@@ -779,14 +790,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     }
   }
 
-  def rewriteStructDeclaration(decl: CLocalDeclaration[Pre]): Statement[Post] = {
+  def rewriteStructDeclaration(decl: CLocalDeclaration[Pre], cts: CTStruct[Pre]): Statement[Post] = {
     val init = decl.decl.inits.head
     val info = C.getDeclaratorInfo(init.decl)
-
-    val ref = decl.decl.specs match {
-      case Seq(CSpecificationType(structSpec: CTStruct[Pre])) => structSpec.ref
-      case _ => throw WrongStructType(decl)
-    }
+    val ref = cts.ref
 
     implicit val o: Origin = init.o
     val targetClass: Class[Post] = cStructSuccessor(ref.decl)
@@ -806,17 +813,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def rewriteLocal(decl: CLocalDeclaration[Pre]): Statement[Post] = {
     decl.drop()
-    val isArray = decl.decl.specs.collectFirst { case CSpecificationType(_: CTArray[Pre]) => () }.isDefined
-    if(isArray){
-      return rewriteArrayDeclaration(decl)
-    }
-
-    val isStruct = decl.decl.specs.collectFirst { case CSpecificationType(_: CTStruct[Pre]) => () }.isDefined
-    if (isStruct) {
-      return rewriteStructDeclaration(decl)
-    }
-
-    val t = decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.get
     decl.decl.specs.foreach {
       case _: CSpecificationType[Pre] =>
       case _ => throw WrongCType(decl)
@@ -824,6 +820,15 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
     // LangTypesToCol makes it so that each declaration only has one init
     val init = decl.decl.inits.head
+
+    val t = decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => t.t }.get match {
+      case t: CTVector[Pre] if init.init.isDefined => return rewriteVectorDeclaration(decl, t, init)
+      case t: CTArray[Pre] => return rewriteArrayDeclaration(decl, t)
+      case t: CTStruct[Pre] => return rewriteStructDeclaration(decl, t)
+      case t => rw.dispatch(t)
+    }
+
+
 
     val info = C.getDeclaratorInfo(init.decl)
     val v = new Variable[Post](t)(init.o.sourceName(info.name))
@@ -1048,7 +1053,62 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     }
   }
 
-  def isCPointer(t: Type[_]) = t match {
+  def createUpdateVectorFunction(size: Int): Function[Post] = {
+    implicit val o: Origin = Origin(Seq(LabelContext("vector update method")))
+    /* for instance for size 4:
+    requires i >= 0 && i < 4;
+    pure vector<T,4> updateVector(vector<T,4> x, int i, T v) =
+        (i == 0) ? vector<T>{v, x[1], x[2], x[3]} :
+        (i == 1) ? vector<T>{x[0], v, x[2], x[3]} :
+        (i == 2) ? vector<T>{x[0], x[1], v, x[3]} :
+        vector<T>{x[0], x[1], x[2], v};
+    */
+    if(size<=0) ???
+
+    rw.globalDeclarations.declare({
+      val elementTypeVar = new Variable[Post](TType(TAnyValue()))(o.where(name= "T"))
+      val elementType = TVar[Post](elementTypeVar.ref)
+      val vectorT = TVector(size, elementType)
+
+      val x = new Variable[Post](vectorT)(o.where(name = "x"))
+      val i = new Variable[Post](TCInt())(o.where(name = "i"))
+      val v = new Variable[Post](elementType)(o.where(name = "v"))
+      val req = c_const[Post](0) <= i.get && i.get < c_const[Post](size)
+
+      val vals: Seq[Expr[Post]] = Seq.range(0, size).map(j => AmbiguousSubscript(x.get, c_const[Post](j))(PanicBlame("Checked")))
+      def f: Int => Expr[Post] = j => LiteralVector(elementType, vals.updated(j, v.get))
+      val body = Seq.range(0, size-1).foldRight(f(size-1))((j: Int, res: Expr[Post]) => Select(i.get === c_const[Post](j), f(j), res))
+
+      function(
+        blame = AbstractApplicable,
+        contractBlame = PanicBlame("Can be satisfiable"),
+        returnType = vectorT,
+        args = Seq(x, i, v),
+        typeArgs = Seq(elementTypeVar),
+        body = Some(body),
+        requires = UnitAccountedPredicate(req)
+      )
+    }
+    )
+  }
+
+  val updateVectorFunction: mutable.Map[Int, Function[Post]] = mutable.Map()
+
+  def assignSubscriptVector(assign: PreAssignExpression[Pre]): Expr[Post] = {
+    val AmbiguousSubscript(v, i) = assign.target
+    val t = v.t match {
+      case CPrimitiveType(Seq(CSpecificationType(t: CTVector[Pre]))) => t
+      case _ => ???
+    }
+    val newV = rw.dispatch(v)
+    val f = updateVectorFunction.getOrElseUpdate(t.intSize.toInt, createUpdateVectorFunction(t.intSize.toInt))
+    val update = functionInvocation[Post](PanicBlame("TODO: vectorSize"),
+      f.ref, Seq(newV, rw.dispatch(i), rw.dispatch(assign.value)), Seq(rw.dispatch(t.innerType)))(assign.o)
+
+    PreAssignExpression(newV, update)(assign.blame)(assign.o)
+  }
+
+  def isCPointer(t: Type[_]): Boolean = t match {
     case CTPointer(_) => true
     case CPrimitiveType(Seq(CSpecificationType(CTPointer(_)))) => true
     case _ => false
@@ -1219,6 +1279,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def pointerType(t: CTPointer[Pre]): Type[Post] = {
     TPointer(rw.dispatch(t.innerType))
+  }
+
+  def vectorType(t: CTVector[Pre]): Type[Post] = rw.dispatch(t.innerType) match {
+      case innerType@(TCInt() | TCFloat(_,_)) => TVector(t.intSize, innerType)(t.o)
+      case _ => throw WrongVectorType(t)
   }
 
   def arrayType(t: CTArray[Pre]): Type[Post] = {

@@ -409,7 +409,8 @@ gccAttributeListNonEmpty
     ;
 
 gccAttribute
-    :   ~(',' | '(' | ')') // relaxed def for "identifier or reserved word"
+//    :   ~(',' | '(' | ')') // relaxed def for "identifier or reserved word"
+    : clangIdentifier // LvdH: No clue how to get the above working, the parser crashes for my examples
         parenthesizedArgumentExpressionList?
     |   // empty
     ;

@@ -3,6 +3,7 @@ package vct.col.resolve.lang
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.ast.`type`.typeclass.TFloats.{C_ieee754_32bit, C_ieee754_64bit}
+import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.origin._
 import vct.col.resolve._
 import vct.col.resolve.ctx._
@@ -28,17 +29,17 @@ case object C {
     Seq(CSigned()),
   )
 
-  val INTEGER_LIKE_TYPES: Seq[Seq[CDeclarationSpecifier[_]]] = Seq(
-    Seq(CInt()),
-    Seq(CLong()),
-    Seq(CLong(), CInt()),
-    Seq(CLong(), CLong()),
-    Seq(CLong(), CLong(), CInt()),
+  // We assume Data model LP64, which Unix uses and give back number of bits
+  // https://en.wikipedia.org/wiki/64-bit_computing#64-bit_data_models
+  val INTEGER_LIKE_TYPES_64bit: Map[Seq[CDeclarationSpecifier[_]], Int] = Map(
+    (Seq(CShort()) -> 16),
+    (Seq(CShort(), CInt()) -> 16),
+    (Seq(CInt()) ->32),
+    (Seq(CLong()) -> 64),
+    (Seq(CLong(), CInt()) -> 64),
+    (Seq(CLong(), CLong()) -> 64),
+    (Seq(CLong(), CLong(), CInt()) -> 64),
   )
-
-  val INTEGER_LIKE_SPECIFIERS: Seq[Seq[CDeclarationSpecifier[_]]] =
-    for (prefix <- NUMBER_LIKE_PREFIXES; t <- INTEGER_LIKE_TYPES)
-      yield prefix ++ t
 
   case class DeclaratorInfo[G](params: Option[Seq[CParam[G]]], typeOrReturnType: Type[G] => Type[G], name: String)
 
@@ -52,6 +53,19 @@ case object C {
     case c @ CArrayDeclarator(_, size, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(innerInfo.params, t => innerInfo.typeOrReturnType(CTArray(size, t)(c.blame)), innerInfo.name)
+    case CPointerDeclarator(pointers, inner) =>
+      val innerInfo = getDeclaratorInfo(inner)
+      DeclaratorInfo(
+        innerInfo.params,
+        t => innerInfo.typeOrReturnType(FuncTools.repeat[Type[G]](CTPointer(_), pointers.size, t)),
+        innerInfo.name)
+    case CTypeExtensionDeclarator(Seq(CTypeAttribute(name, Seq(size))), inner) if name == "vector_size" || name == "__vector_size__" =>
+      val innerInfo = getDeclaratorInfo(inner)
+      DeclaratorInfo(
+        innerInfo.params,
+        t => CTVector(size, innerInfo.typeOrReturnType(t))(decl.o),
+        innerInfo.name)
+    case typeExtension@CTypeExtensionDeclarator(_, _) => throw CTypeNotSupported(Some(typeExtension))
     case CTypedFunctionDeclarator(params, _, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(params=Some(params), typeOrReturnType=(t => t), innerInfo.name)
@@ -63,22 +77,57 @@ case object C {
     case CName(name) => DeclaratorInfo(params=None, typeOrReturnType=(t => t), name)
   }
 
+  def getSpecs[G](decl: CDeclarator[G], acc: Seq[CDeclarationSpecifier[G]] = Nil): Seq[CDeclarationSpecifier[G]] = decl match {
+    case CTypeExtensionDeclarator(extensions, inner) => getSpecs(inner, acc :+ CFunctionTypeExtensionModifier(extensions))
+    case _ => acc
+  }
 
-  def getPrimitiveType[G](specs: Seq[CDeclarationSpecifier[G]], context: Option[Node[G]] = None): Type[G] =
-    specs.collect { case spec: CTypeSpecifier[G] => spec } match {
+  def getTypeFromTypeDef[G](decl: CDeclaration[G], context: Option[Node[G]] = None): Type[G] = {
+    val specs: Seq[CDeclarationSpecifier[G]] = decl.specs match {
+      case CTypedef() +: remaining => remaining
+      case _ => ???
+    }
+
+    // Need to get specifications from the init (can only have one init as typedef), since it can contain GCC Type extensions
+    getPrimitiveType(getSpecs(decl.inits.head.decl) ++ specs, context)
+  }
+
+
+  def getPrimitiveType[G](specs: Seq[CDeclarationSpecifier[G]], context: Option[Node[G]] = None): Type[G] = {
+    val vectorSize: Option[Expr[G]] = specs.collect { case ext: CFunctionTypeExtensionModifier[G] => ext.extensions} match {
+      case Seq(Seq(CTypeAttribute(name, Seq(size: Expr[G])))) if name == "__vector_size__" || name == "vector_size" => Some(size)
+      case Seq() => None
+      case _ => throw CTypeNotSupported(context)
+    }
+
+    val filteredSpecs = specs.filter { case _: CFunctionTypeExtensionModifier[G] => false; case _ => true }
+      .collect { case spec: CTypeSpecifier[G] => spec }
+
+    val t: Type[G] = filteredSpecs match {
       case Seq(CVoid()) => TVoid()
       case Seq(CChar()) => TChar()
-      case t if C.INTEGER_LIKE_SPECIFIERS.contains(t) => TCInt()
+      case CUnsigned() +: t if INTEGER_LIKE_TYPES_64bit.contains(t) => TCInt()
+      case CSigned() +: t if INTEGER_LIKE_TYPES_64bit.contains(t) => TCInt()
+      case t if C.INTEGER_LIKE_TYPES_64bit.contains(t) => TCInt()
       case Seq(CFloat()) => C_ieee754_32bit()
       case Seq(CDouble()) => C_ieee754_64bit()
       case Seq(CLong(), CDouble()) => C_ieee754_64bit()
       case Seq(CBool()) => TBool()
-      case Seq(defn @ CTypedefName(_)) => Types.notAValue(defn.ref.get)
+      case Seq(defn @ CTypedefName(_)) =>
+        defn.ref.get match {
+          case RefTypeDef(decl) => getTypeFromTypeDef(decl.decl)
+          case _ => ???
+        }
       case Seq(CSpecificationType(typ)) => typ
       case Seq(defn @ CStructSpecifier(_)) => CTStruct(defn.ref.get.decl.ref)
       case spec +: _ => throw CTypeNotSupported(context.orElse(Some(spec)))
       case _ => throw CTypeNotSupported(context)
     }
+    vectorSize match {
+      case None => t
+      case Some(size) => CTVector(size, t)
+    }
+  }
 
   def nameFromDeclarator(declarator: CDeclarator[_]): String =
     getDeclaratorInfo(declarator).name

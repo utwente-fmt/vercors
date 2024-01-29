@@ -35,6 +35,9 @@ sealed trait Referrable[G] {
       case _ => ???
     }
     case RefCStruct(_) => ???
+    case RefTypeDef(decl: CGlobalDeclaration[_]) =>
+      C.nameFromDeclarator(decl.decl.inits.head.decl)
+    case RefTypeDef(_) => ???
     case RefCStructField(decls, idx) => C.nameFromDeclarator(decls.decls(idx))
     case RefJavaClass(decl) => decl.name
     case RefSilverField(decl) => Referrable.originName(decl)
@@ -122,6 +125,7 @@ case object Referrable {
     case decl: CStructMemberDeclarator[G] => return decl.decls.indices.map(RefCStructField(decl, _))
     case decl: CGlobalDeclaration[G] => decl.decl match {
       case CDeclaration(_, _, Seq(_ :CStructDeclaration[G]), Seq()) => RefCStruct(decl)
+      case CDeclaration(_, _, CTypedef() +: _, _) => RefTypeDef(decl)
       case _ => return decl.decl.inits.indices.map(RefCGlobalDeclaration(decl, _))
     }
     case decl: CPPTranslationUnit[G] => RefCPPTranslationUnit(decl)
@@ -268,6 +272,7 @@ case class RefSYCLAccessMode[G](decl: SYCLAccessMode[G]) extends Referrable[G] w
 case class RefSYCLConstructorDefinition[G](typ: SYCLTConstructableClass[G]) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G]
 case class RefJavaNamespace[G](decl: JavaNamespace[G]) extends Referrable[G]
 case class RefUnloadedJavaNamespace[G](names: Seq[String]) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
+case class RefTypeDef[G](decl: CGlobalDeclaration[G]) extends Referrable[G] with CTypeNameTarget[G] with CNameTarget[G]
 case class RefCStruct[G](decl: CGlobalDeclaration[G]) extends Referrable[G] with CStructTarget[G] with CNameTarget[G] with CDerefTarget[G]
 case class RefCStructField[G](decls: CStructMemberDeclarator[G], idx: Int) extends Referrable[G] with CNameTarget[G] with CDerefTarget[G]
 case class RefJavaClass[G](decl: JavaClassOrInterface[G]) extends Referrable[G] with JavaTypeNameTarget[G] with JavaNameTarget[G] with JavaDerefTarget[G] with ThisTarget[G]

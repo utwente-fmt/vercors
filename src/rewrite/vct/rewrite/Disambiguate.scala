@@ -69,6 +69,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         if(op.isProcessOp) ProcessSeq(dispatch(left), dispatch(right))
         else if(op.isSetOp) SetIntersection(dispatch(left), dispatch(right))
         else if(op.isBagOp) BagLargestCommon(dispatch(left), dispatch(right))
+        else if (op.isVectorOp) VectorMult(dispatch(left), dispatch(right))
         else Mult(dispatch(left), dispatch(right))
       case op @ AmbiguousPlus(left, right) =>
         if(op.isProcessOp) ProcessChoice(dispatch(left), dispatch(right))
@@ -79,11 +80,13 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else if(op.isStringOp) StringConcat(dispatch(left), dispatch(right))
         else if(op.getCustomPlusType(OperatorLeftPlus[Pre]()).isDefined) rewritePlusOf(OperatorLeftPlus[Pre](), op)
         else if(op.getCustomPlusType(OperatorRightPlus[Pre]()).isDefined) rewritePlusOf(OperatorRightPlus[Pre](), op)
+        else if (op.isVectorOp) VectorPlus(dispatch(left), dispatch(right))
         else Plus(dispatch(left), dispatch(right))
       case op @ AmbiguousMinus(left, right) =>
         if(op.isSetOp) SetMinus(dispatch(left), dispatch(right))
         else if(op.isPointerOp) PointerAdd(dispatch(left), dispatch(UMinus(right)))(op.blame)
         else if(op.isBagOp) BagMinus(dispatch(left), dispatch(right))
+        else if (op.isVectorOp) VectorMinus(dispatch(left), dispatch(right))
         else Minus(dispatch(left), dispatch(right))
       case op @ AmbiguousOr(left, right) =>
         if(op.isProcessOp) ProcessPar(dispatch(left), dispatch(right))
