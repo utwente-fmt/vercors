@@ -1,12 +1,13 @@
 package vct.rewrite.runtime
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers.{RewriteInstanceMethod, RewriteScope}
+import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
+import vct.rewrite.runtime.util.LedgerHelper._
 import vct.rewrite.runtime.util.{PermissionRewriter, TransferPermissionRewriter}
 import vct.rewrite.runtime.util.Util._
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
@@ -24,13 +25,19 @@ object ForkJoinPermissionTransfer extends RewriterBuilder {
 case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre] {
 
   implicit var program: Program[Pre] = _
+  implicit var ledger: LedgerMethodBuilderHelper[Post] = _
+
   private val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
   private val postJoinTokens: ScopedStack[mutable.ArrayBuffer[RuntimePostJoin[Post]]] = new ScopedStack()
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     this.program = program
-    val test = super.dispatch(program)
-    test
+    lazy val newDecl: Seq[GlobalDeclaration[Post]] = globalDeclarations.collect {
+      val (ledgerHelper, ledgerClass, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
+      ledger = ledgerHelper
+      otherDeclarations.foreach(dispatch)
+    }._1
+    program.rewrite(declarations = newDecl)
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
@@ -58,7 +65,7 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
   private def collectTransferPermissionStatementsFromRunMethod(i: InstanceMethod[Pre]): Block[Post] = {
     if (!isExtendingThread(currentClass.top) || !isMethod(i, "run")) return Block[Post](Seq.empty)(i.o)
     val predicate = unfoldPredicate(i.contract.requires).head
-    val pd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top)
+    val pd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger)
     TransferPermissionRewriter(pd).addPermissions(predicate)
   }
 
@@ -82,9 +89,12 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     val dispatchedOffset: Expr[Post] = getDispatchedOffset(dispatchedStatement)
     val postfactor: Expr[Post] = postJoinTokens.top.find(rpj => rpj.obj == dispatchedOffset).get.arg
     val factor = PermissionRewriter.permissionToRuntimeValue(postfactor)
-    val pdAdd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setFactor(factor)
+    val pdAdd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger)
+//      .setFactor(factor)
     val newAddStatements = TransferPermissionRewriter(pdAdd).addPermissions(predicate)
-    val pdRemove: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setFactor(factor).setOffset(dispatchedOffset).setThreadId(dispatchedOffset)
+    val pdRemove: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger)     //TODO fix that the remove statements should be at the join method itself
+//      .setThreadId(dispatchedOffset)
+//      .setFactor(factor).setOffset(dispatchedOffset)
     val removeStatements = TransferPermissionRewriter(pdRemove).removePermissions(predicate)
 //    val removeStatements = TransferPermissionRewriter(this, currentClass.top, (Some(mi.obj), None),(Some(mi.obj), None), factor, Seq(mi.obj.asInstanceOf[Local[Pre]].ref.decl)).removePermissions(predicate)
     Block[Post](Seq(dispatchedStatement, newAddStatements, removeStatements))
@@ -101,7 +111,7 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     val runMethod: InstanceMethod[Pre] = getRunMethod(mi)
     val predicate: Expr[Pre] = unfoldPredicate(runMethod.contract.requires).head
     val dispatchedStatement: Eval[Post] = super.dispatch(e).asInstanceOf[Eval[Post]]
-    val pdRemove: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top)
+    val pdRemove: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger)
     val removeStatements = TransferPermissionRewriter(pdRemove).removePermissions(predicate)
     Block[Post](Seq(removeStatements, dispatchedStatement))
   }

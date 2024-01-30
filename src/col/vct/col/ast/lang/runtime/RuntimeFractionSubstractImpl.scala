@@ -3,12 +3,12 @@ package vct.col.ast.lang.runtime
 import vct.col.ast._
 import vct.col.print._
 
-trait RuntimeFractionOneImpl[G] {
-  this: RuntimeFractionOne[G] =>
+trait RuntimeFractionSubstractImpl[G] {
+  this: RuntimeFractionSubstract[G] =>
 
   override def t: Type[G] = TRuntimeFraction[G]()
   override def precedence: Int = Precedence.ATOMIC
 
   override def layout(implicit ctx: Ctx): Doc =
-    Text("Fraction.ONE")
+    left.show <> Text(".subtract(") <> right <> Text(")")
 }

@@ -2,10 +2,11 @@ package vct.rewrite.runtime
 
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
-import vct.col.ast._
+import vct.col.ast.{PrimitiveType, _}
 import vct.col.util.AstBuildHelpers._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
+import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, LedgerRewriter}
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 import vct.rewrite.runtime.util.{RewriteContractExpr, TransferPermissionRewriter}
 
@@ -22,6 +23,9 @@ case class AddPermissionsOnCreate[Pre <: Generation]() extends Rewriter[Pre] {
 
   implicit var program: Program[Pre] = _
 
+  def ledger: LedgerMethodBuilderHelper[Pre] = LedgerMethodBuilderHelper[Pre](program)
+
+
   /**
    * Dispatch of the program for debugging and using the program everywhere to look up specific instancefields
    *
@@ -37,24 +41,23 @@ case class AddPermissionsOnCreate[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case jc: JavaConstructor[Pre] => dispatchJC(jc)
-      case cls: Class[Pre] => currentClass.having(cls) {super.dispatch(cls)}
+      case cls: Class[Pre] => currentClass.having(cls) {
+        super.dispatch(cls)
+      }
       case _ => super.dispatch(decl)
     }
   }
 
-  private def dispatchJC(jc: JavaConstructor[Pre]) = {
+  private def dispatchJC(jc: JavaConstructor[Pre]): JavaConstructor[Post] = {
     implicit val origin: Origin = jc.o
-    val instanceFields = currentClass.top.declarations.collect{case i: InstanceField[Pre] => i}
+    val instanceFields = currentClass.top.declarations.collect {
+      case i: InstanceField[Pre] if i.t.isInstanceOf[PrimitiveType[Pre]] => i
+    }
+    val size = instanceFields.size
     val obj = ThisObject[Pre](currentClass.top.ref)
-    val permissions : Expr[Pre] = instanceFields
-      .map(i => Deref[Pre](obj, i.ref)(null))
-      .map(d => AmbiguousLocation(d)(null))
-      .map(a => Perm[Pre](a, const(1)))
-      .foldLeft[Expr[Pre]](tt[Pre])((acc, elem) => acc &* elem)
-
-    val pd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top)
-    val addPermissions: Block[Post] = TransferPermissionRewriter[Pre](pd).addPermissions(permissions)
-    val newBody = Block[Post](Seq(addPermissions, dispatch(jc.body)))
+    val initInstanceFieldsExpr: MethodInvocation[Pre] = if(size == 0) ledger.miInitiatePermission(obj).get else ledger.miInitiatePermission(obj, const(size)).get
+    val initInstanceFieldsPerm = Eval[Post](dispatch(initInstanceFieldsExpr))
+    val newBody = Block[Post](Seq(dispatch(jc.body), initInstanceFieldsPerm))
     classDeclarations.succeed(jc, jc.rewrite(body = newBody))
   }
 }

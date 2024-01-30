@@ -7,13 +7,17 @@ import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.CreatePredicates
 import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
+import vct.rewrite.runtime.util.LedgerHelper.LedgerMethodBuilderHelper
 import vct.rewrite.runtime.util.PermissionRewriter._
 import vct.rewrite.runtime.util.Util.{InstancePredicateData, findInstancePredicateClass, findInstancePredicateData, findInstancePredicateFunction}
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
 case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](pd) {
+  override val allScopes = pd.outer.allScopes
 
   implicit var add: Boolean = _
+
+  val ledger: LedgerMethodBuilderHelper[Post] = pd.ledger.get
 
   def addPermissions(predicate: Expr[Pre]): Block[Post] = {
     add = true
@@ -45,7 +49,7 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
     }
   }
 
-  private def op(a: Expr[Post], b: Expr[Post])(implicit origin: Origin): Expr[Post] = if (add) a + b else a - b
+  private def op(a: Expr[Post], b: Expr[Post])(implicit origin: Origin): Expr[Post] = if (add) a r_+ b else a r_- b
 
   private def unfoldPredicate(predicate: Expr[Pre]): Seq[Expr[Pre]] =
     unfoldStar(predicate).collect { case p@(_: Perm[Pre] | _: Starall[Pre] | _: InstancePredicateApply[Pre]) => p }
@@ -56,10 +60,25 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
   }
 
   private def dispatchPerm(p: Perm[Pre])(implicit origin: Origin): Expr[Post] = {
-    val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](pd).getPermission(p)(origin)
-    val newValue = pd.factored(permissionToRuntimeValueRewrite(p))
-    val getPermission = permissionLocation.get()
-    permissionLocation.put(op(getPermission, newValue))
+    val newValue: Expr[Post] = pd.factored(permissionToRuntimeValueRewrite(p))
+    val pt: Option[Expr[Post]] = p match {
+      case Perm(AmbiguousLocation(d@Deref(t@ThisObject(_), _)), _) if d.t.isInstanceOf[PrimitiveType[Pre]]
+      => ledger.miSetPermission(pd.getOffset(t), op(ledger.miGetPermission(pd.getOffset(t)).get, newValue)) //TODO fix primitive type location
+      case Perm(AmbiguousLocation(d@Deref(t@ThisObject(_), _)), _)
+      => ledger.miSetPermission(pd.getOffset(t), op(ledger.miGetPermission(pd.getOffset(t)).get, newValue))
+
+      case Perm(AmbiguousLocation(d@Deref(l@Local(_), _)), _) if d.t.isInstanceOf[PrimitiveType[Pre]]
+      => ledger.miSetPermission(dispatch(l), op(ledger.miGetPermission(dispatch(l)).get, newValue))                    //TODO fix primitive type location
+      case Perm(AmbiguousLocation(d@Deref(l@Local(_), _)), _)
+      => ledger.miSetPermission(dispatch(l), op(ledger.miGetPermission(dispatch(l)).get, newValue))
+
+      case Perm(AmbiguousLocation(AmbiguousSubscript(Deref(t@ThisObject(_), _), index)), _)
+      => ledger.miSetPermission(pd.getOffset(t), dispatch(index), op(ledger.miGetPermission(pd.getOffset(t), dispatch(index)).get, newValue))
+      case Perm(AmbiguousLocation(AmbiguousSubscript(Deref(l@Local(_), _), index)), _)
+      => ledger.miSetPermission(dispatch(l), dispatch(index), op(ledger.miGetPermission(dispatch(l), dispatch(index)).get, newValue))
+      case _ => throw Unreachable(s"This type of permissions transfer is not yet supported: ${p}")
+    }
+    pt.getOrElse(tt)
   }
 
 

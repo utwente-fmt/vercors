@@ -1189,6 +1189,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Not(bool(arg))
       case Null() =>
         Null()
+      case ObjectIsArray(i) => e
+      case ObjectGetLength(i) => e
+      case CreateObjectArray(a) => e
       case old @ Old(expr, at) =>
         Old(expr, at)(old.blame)
       case OptEmpty(opt) =>
@@ -1289,6 +1292,15 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case RuntimeFractionDiff(l, r) => e
       case RuntimeFractionZero() => e
       case RuntimeFractionOne() => e
+      case RuntimeConcurrentHashMapGet(h, k) => e
+      case RuntimeConcurrentHashMapContainsKey(h, k) => e
+      case RuntimeConcurrentHashMapGetOrDefault(h, k, v) => e
+      case RuntimeConcurrentHashMapPut(h, k, v) => e
+      case RuntimeNewConcurrentHashMap(t) => e
+      case RuntimeFractionAdd(l, r) => e
+      case RuntimeFractionSubstract(l, r) => e
+      case RuntimeFractionMultiply(l, r) => e
+      case RuntimeFractionCompare(l, r) => e
       case s @ Scale(scale, r) =>
         Scale(rat(scale), res(r))(s.blame)
       case ScaleByParBlock(ref, r) =>
@@ -1487,6 +1499,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Sum(bindings, bool(condition), int(main))
       case SuperType(left, right) =>
         SuperType(left, right)
+      case StaticClassRef(r) => e
       case Tail(xs) =>
         Tail(seq(xs)._1)
       case Take(xs, count) =>
@@ -1653,6 +1666,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Recv(ref) => Recv(ref)
       case r @ Refute(assn) => Refute(res(assn))(r.blame)
       case Return(result) => Return(result) // TODO coerce return, make AmbiguousReturn?
+      case r@RuntimeAssert(res, m) => RuntimeAssert(res, m)(r.blame)
       case r@RuntimePostJoin(obj, args) => RuntimePostJoin(obj, args)(r.blame)
       case Scope(locals, body) => Scope(locals, body)
       case send @ Send(decl, offset, resource) => Send(decl, offset, res(resource))(send.blame)

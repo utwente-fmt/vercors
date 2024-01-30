@@ -2,9 +2,10 @@ package vct.rewrite.runtime
 
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
-import vct.col.ast.{AccountedPredicate, Block, Branch, Class, Declaration, InstanceMethod, Loop, Program, Return, RewriteHelpers, Scope, Statement, UnitAccountedPredicate}
+import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
+import vct.rewrite.runtime.util.LedgerHelper._
 import vct.rewrite.runtime.util.RewriteContractExpr
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
@@ -27,12 +28,17 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
   val currentContract: ScopedStack[AccountedPredicate[Pre]] = new ScopedStack()
 
   implicit var program: Program[Pre] = null
+  implicit var ledger: LedgerMethodBuilderHelper[Post] = _
 
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     this.program = program
-    val test = super.dispatch(program)
-    test
+    lazy val newDecl: Seq[GlobalDeclaration[Post]] = globalDeclarations.collect {
+      val (ledgerHelper, ledgerClass, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
+      ledger = ledgerHelper
+      otherDeclarations.foreach(dispatch)
+    }._1
+    program.rewrite(declarations = newDecl)
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
@@ -72,7 +78,7 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     ap match {
       case uni: UnitAccountedPredicate[Pre] => {
         currentContract.having(ap) {
-          val pd = PermissionData().setOuter(this).setCls(currentClass.top)
+          val pd = PermissionData().setOuter(this).setCls(currentClass.top).setLedger(ledger)
           val stat = new RewriteContractExpr[Pre](pd)(program).createAssertions(uni.pred)
           dispatch(ap)
           stat

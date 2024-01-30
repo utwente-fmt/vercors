@@ -10,6 +10,7 @@ import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.util.FindPermissionLocation
 import vct.rewrite.runtime.util.PermissionRewriter.permissionToRuntimeValue
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
+import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, LedgerRewriter}
 
 import scala.collection.mutable
 
@@ -28,15 +29,21 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
   var hasInvocation: Boolean = false
 
   implicit var program: Program[Pre] = _
+  implicit var ledger: LedgerMethodBuilderHelper[Post] = _
+
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     this.program = program
-    isTarget.having(false) {
-      val test = super.dispatch(program)
-      test
-    }
-
+    lazy val newDecl: Seq[GlobalDeclaration[Post]] = globalDeclarations.collect {
+      val (ledgerHelper, ledgerClass, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
+      ledger = ledgerHelper
+      isTarget.having(false) {
+        otherDeclarations.foreach(dispatch)
+      }
+    }._1
+    program.rewrite(declarations = newDecl)
   }
+
 
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
     stat match {
@@ -69,15 +76,16 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
 
   private def generatePermissionChecksStatements(l: Expr[Pre], write: Boolean): Statement[Post] = {
     implicit val origin: Origin = l.o
-    val locator = FindPermissionLocation(PermissionData().setOuter(this))
+
     val location: Expr[Post] = l match {
-      case d: Deref[Pre] => locator.getPermission(d).get()
-      case AmbiguousSubscript(_: Local[Pre], _) => return Block[Post](Seq.empty)
-      case a: AmbiguousSubscript[Pre] => locator.getPermission(a).get()
-      case _ => throw Unreachable("Only Deref and AmbiguousSubscript allowed")
+      case d: Deref[Pre] if d.t.isInstanceOf[PrimitiveType[Pre]] => ledger.miGetPermission(dispatch(d.obj)).get //TODO fix the primitive type
+      case d: Deref[Pre] => ledger.miGetPermission(dispatch(d.obj)).get
+      case AmbiguousSubscript(coll, index) => ledger.miGetPermission(dispatch(coll), dispatch(index)).get
+      case _ => throw Unreachable(s"This location type is not supported yet: ${l}")
     }
-    val check = if (write) location === permissionToRuntimeValue[Post](const[Post](1)) else location > permissionToRuntimeValue[Post](const[Post](0))
-    Assert[Post](check)(null)
+    val check = if(write) (location r_<=> RuntimeFractionOne[Post]()) === const(0) else (location r_<=> RuntimeFractionZero[Post]()) === const(1)
+    val message = if(write) s"Permission should have been write but was not: ${l.toString}" else s"Permission should have been read but there was not enough permission: ${l.toString}"
+    RuntimeAssert[Post](check, message)(null)
   }
 
   private def dispatchLoop(loop: Loop[Pre]): Loop[Post] = {

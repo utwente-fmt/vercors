@@ -1,11 +1,12 @@
 package vct.rewrite.runtime
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers.{RewriteBlock, RewriteLoop}
+import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers.tt
+import vct.rewrite.runtime.util.LedgerHelper._
 import vct.rewrite.runtime.util.RewriteContractExpr
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
@@ -20,13 +21,18 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
 
 
   implicit var program: Program[Pre] = _
+  implicit var ledger: LedgerMethodBuilderHelper[Post] = _
   val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
 
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     this.program = program
-    val test = super.dispatch(program)
-    test
+    lazy val newDecl: Seq[GlobalDeclaration[Post]] = globalDeclarations.collect {
+      val (ledgerHelper, ledgerClass, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
+      ledger = ledgerHelper
+      otherDeclarations.foreach(dispatch)
+    }._1
+    program.rewrite(declarations = newDecl)
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
@@ -43,7 +49,7 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
     lc match {
       case li: LoopInvariant[Pre] => {
         val contract = li.invariant
-        val pd: PermissionData[Pre] = PermissionData().setOuter(this).setCls(currentClass.top)
+        val pd: PermissionData[Pre] = PermissionData().setOuter(this).setCls(currentClass.top).setLedger(ledger)
         RewriteContractExpr[Pre](pd).createAssertions(contract)
       }
       case _ => Block[Post](Seq.empty)(lc.o)

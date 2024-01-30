@@ -7,7 +7,7 @@ trait ThreadIdImpl[G] {
   this: ThreadId[G] =>
 
 
-  override def t: Type[G] = TInt()
+  override def t: Type[G] = TLong[G]()
 
   def objectLayout(implicit ctx: Ctx) : Doc = {
     obj match {

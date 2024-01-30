@@ -148,6 +148,8 @@ case object CoercionUtils {
           case None => return None
         }
 
+      case (a@TArray(TAnyClass()), TAnyClass()) => CoerceTArrayAnyClass()
+
       // Something with TVar?
 
       // Unsafe coercions

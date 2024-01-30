@@ -6,7 +6,7 @@ import vct.col.print._
 trait RuntimeFractionZeroImpl[G] {
   this: RuntimeFractionZero[G] =>
 
-  override def t: Type[G] = TFraction[G]()
+  override def t: Type[G] = TRuntimeFraction[G]()
   override def precedence: Int = Precedence.ATOMIC
 
   override def layout(implicit ctx: Ctx): Doc =

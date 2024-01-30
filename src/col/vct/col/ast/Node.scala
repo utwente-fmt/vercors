@@ -57,7 +57,7 @@ import vct.col.ast.family.parregion._
 import vct.col.ast.family.pvlcommunicate.{PVLCommunicateAccessImpl, PVLCommunicateImpl, PVLCommunicateSubjectImpl, PVLEndpointNameImpl, PVLFamilyRangeImpl, PVLIndexedFamilyNameImpl}
 import vct.col.ast.family.signals._
 import vct.col.ast.lang._
-import vct.col.ast.lang.runtime._
+import vct.col.ast.lang.runtime.{RuntimeFractionDiffImpl, _}
 import vct.col.ast.lang.smt._
 import vct.col.ast.node._
 import vct.col.ast.statement._
@@ -73,6 +73,7 @@ import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.C.o
 import vct.col.resolve.lang.JavaAnnotationData
+import vct.col.util.AstBuildHelpers.tt
 
 import scala.collection.immutable.Seq
 import scala.collection.mutable.ArrayBuffer
@@ -336,9 +337,9 @@ final case class ApplicableContract[G](requires: AccountedPredicate[G], ensures:
 object ApplicableContract {
   def createEmptyContract[G](implicit o: Origin): ApplicableContract[G] = {
     ApplicableContract[G](
-      UnitAccountedPredicate[G](BooleanValue(true)(o))(o),
-      UnitAccountedPredicate[G](BooleanValue(true)(o))(o),
-      BooleanValue(true)(o),
+      UnitAccountedPredicate[G](tt),
+      UnitAccountedPredicate[G](tt),
+      tt,
       Seq.empty,
       Seq.empty,
       Seq.empty,
@@ -353,6 +354,7 @@ case class SplitAccountedPredicate[G](left: AccountedPredicate[G], right: Accoun
 
 sealed trait FieldFlag[G] extends NodeFamily[G] with FieldFlagImpl[G]
 final case class Final[G]()(implicit val o: Origin) extends FieldFlag[G] with FinalImpl[G]
+final case class Static[G]()(implicit val o: Origin) extends FieldFlag[G] with StaticImpl[G]
 
 sealed trait Coercion[G] extends NodeFamily[G] with CoercionImpl[G]
 final case class CoerceIdentity[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceIdentityImpl[G]
@@ -1357,12 +1359,46 @@ final case class GetArrayPermission[G](objectLocation: Expr[G], id: Int, locatio
 final case class PutPermission[G](objectLocation: Expr[G], id: Int, permission: Expr[G], threadId: Expr[G])(implicit val o: Origin) extends Expr[G] with PutPermissionImpl[G]
 final case class PutArrayPermission[G](objectLocation: Expr[G], id: Int, location: Expr[G], permission: Expr[G], threadId: Expr[G])(implicit val o: Origin) extends Expr[G] with PutArrayPermissionImpl[G]
 final case class RuntimePermission[G](permission: Expr[G])(implicit val o: Origin) extends Expr[G] with RuntimePermissionImpl[G]
-sealed trait RuntimeFraction[G] extends Expr[G]
-final case class RuntimeFractionDiff[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends RuntimeFraction[G] with RuntimeFractionDiffImpl[G]
-final case class RuntimeFractionZero[G]()(implicit val o: Origin) extends RuntimeFraction[G] with RuntimeFractionZeroImpl[G]
-final case class RuntimeFractionOne[G]()(implicit val o: Origin) extends RuntimeFraction[G] with RuntimeFractionOneImpl[G]
+
+
+final case class TRuntimeFraction[G]()(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TRuntimeFractionImpl[G]
+
+sealed trait RuntimeFractionExpression[G] extends Expr[G]
+
+sealed trait RuntimeFractionCreation[G] extends RuntimeFractionExpression[G]
+final case class RuntimeFractionDiff[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends RuntimeFractionCreation[G] with RuntimeFractionDiffImpl[G]
+final case class RuntimeFractionZero[G]()(implicit val o: Origin) extends RuntimeFractionCreation[G] with RuntimeFractionZeroImpl[G]
+final case class RuntimeFractionOne[G]()(implicit val o: Origin) extends RuntimeFractionCreation[G] with RuntimeFractionOneImpl[G]
+
+sealed trait RuntimeFractionOperations[G] extends RuntimeFractionExpression[G]
+final case class RuntimeFractionAdd[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends RuntimeFractionOperations[G] with RuntimeFractionAddImpl[G]
+final case class RuntimeFractionSubstract[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends RuntimeFractionOperations[G] with RuntimeFractionSubstractImpl[G]
+final case class RuntimeFractionMultiply[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends RuntimeFractionOperations[G] with RuntimeFractionMultiplyImpl[G]
+final case class RuntimeFractionCompare[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends RuntimeFractionOperations[G] with RuntimeFractionCompareImpl[G]
 
 final case class RuntimePostJoin[G](obj: Expr[G], arg: Expr[G])(val blame: Blame[AssertFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with RuntimePostJoinImpl[G]
 final case class ThreadId[G](obj: Option[Expr[G]])(implicit val o: Origin) extends Expr[G] with ThreadIdImpl[G]
 
 final case class StaticClassRef[G](cls: Ref[G, Class[G]])(implicit val o: Origin) extends Expr[G] with StaticClassRefImpl[G]
+
+final case class RuntimeAssert[G](res: Expr[G], message: String)(val blame: Blame[AssertFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with RuntimeAssertImpl[G]
+
+final case class TLong[G]()(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TLongImpl[G]
+final case class TLongObject[G]()(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TLongObjectImpl[G]
+final case class TIntObject[G]()(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TIntObjectImpl[G]
+
+//Hashmap:
+final case class RuntimeConcurrentHashMap[G](keyType: Type[G], valueType: Type[G])(implicit val o: Origin) extends DeclaredType[G] with RuntimeConcurrentHashMapImpl[G]
+final case class RuntimeNewConcurrentHashMap[G](t: Type[G])(implicit val o: Origin) extends Expr[G] with RuntimeNewConcurrentHashMapImpl[G]
+sealed trait RuntimeConcurrentHashMapFunctions[G] extends Expr[G]
+final case class RuntimeConcurrentHashMapGet[G](hm: Expr[G], key: Expr[G])(implicit val o: Origin) extends RuntimeConcurrentHashMapFunctions[G] with RuntimeConcurrentHashMapGetImpl[G]
+final case class RuntimeConcurrentHashMapGetOrDefault[G](hm: Expr[G], key: Expr[G], default: Expr[G])(implicit val o: Origin) extends RuntimeConcurrentHashMapFunctions[G] with RuntimeConcurrentHashMapGetOrDefaultImpl[G]
+final case class RuntimeConcurrentHashMapPut[G](hm: Expr[G], key: Expr[G], value: Expr[G])(implicit val o: Origin) extends RuntimeConcurrentHashMapFunctions[G] with RuntimeConcurrentHashMapPutImpl[G]
+final case class RuntimeConcurrentHashMapContainsKey[G](hm: Expr[G], key: Expr[G])(implicit val o: Origin) extends RuntimeConcurrentHashMapFunctions[G] with RuntimeConcurrentHashMapContainsKeyImpl[G]
+
+//Object Functions:
+final case class ObjectIsArray[G](input: Expr[G])(implicit val o: Origin) extends Expr[G] with ObjectIsArrayImpl[G]
+final case class ObjectGetLength[G](input: Expr[G])(implicit val o: Origin) extends Expr[G] with ObjectGetLengthImpl[G]
+final case class CreateObjectArray[G](args: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with CreateObjectArrayImpl[G]
+
+final case class CoerceTArrayAnyClass[G]()(implicit val o: Origin) extends Coercion[G] with CoerceTArrayAnyClassImpl[G]

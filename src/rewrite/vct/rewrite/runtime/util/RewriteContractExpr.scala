@@ -1,6 +1,7 @@
 package vct.rewrite.runtime.util
 
 import hre.util.ScopedStack
+import vct.col.ast.RewriteHelpers.RewriteDeref
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
@@ -9,6 +10,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.CreatePredicates
 import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
+import vct.rewrite.runtime.util.LedgerHelper.LedgerMethodBuilderHelper
 import vct.rewrite.runtime.util.PermissionRewriter.permissionToRuntimeValueRewrite
 import vct.rewrite.runtime.util.Util._
 
@@ -20,10 +22,21 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
 
   override def dispatchLoopBody(loopBodyContent: LoopBodyContent[Pre])(implicit origin: Origin): Block[Post] = createAssertions(loopBodyContent.expr)
 
+  val ledger: LedgerMethodBuilderHelper[Post] = pd.ledger.get
+
+
   def createAssertions(expr: Expr[Pre]): Block[Post] = {
     implicit val origin: Origin = expr.o
     val unfoldedExpr = unfoldStar(expr)
     Block[Post](unfoldedExpr.map(dispatchExpr))
+  }
+
+
+  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
+    e match {
+      case d@Deref(t@ThisObject(_), i) => d.rewrite(obj = pd.getOffset(t))
+      case _ => super.dispatch(e)
+    }
   }
 
   private def dispatchExpr(e: Expr[Pre]): Statement[Post] = {
@@ -40,9 +53,27 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
   }
 
   private def dispatchPermission(p: Perm[Pre])(implicit origin: Origin = p.o): Block[Post] = {
-    val permissionLocation: PermissionLocation[Pre] = FindPermissionLocation[Pre](pd).getPermission(p)(origin)
     val cond = permissionToRuntimeValueRewrite(p)
-    val assertion = Assert[Post](permissionLocation.get() === cond)(null)
+    val pt: Option[Expr[Post]] = p match {
+      case Perm(AmbiguousLocation(d@Deref(t@ThisObject(_), _)), _) if d.t.isInstanceOf[PrimitiveType[Pre]]
+      => ledger.miGetPermission(pd.getOffset(t)) //TODO fix primitive type location
+      case Perm(AmbiguousLocation(d@Deref(t@ThisObject(_), _)), _)
+      => ledger.miGetPermission(pd.getOffset(d))
+
+      case Perm(AmbiguousLocation(d@Deref(l@Local(_), _)), _) if d.t.isInstanceOf[PrimitiveType[Pre]]
+      => ledger.miGetPermission(dispatch(l)) //TODO fix primitive type location
+      case Perm(AmbiguousLocation(d@Deref(l@Local(_), _)), _)
+      => ledger.miGetPermission(dispatch(d))
+
+      case Perm(AmbiguousLocation(AmbiguousSubscript(Deref(t@ThisObject(_), _), index)), _)
+      => ledger.miGetPermission(pd.getOffset(t), dispatch(index))
+      case Perm(AmbiguousLocation(AmbiguousSubscript(Deref(l@Local(_), _), index)), _)
+      => ledger.miGetPermission(dispatch(l), dispatch(index))
+      case _ => throw Unreachable(s"This type of permissions transfer is not yet supported: ${p}")
+    }
+    val check: Option[Expr[Post]] = pt.map(e => (e r_<=> cond) === const(1))
+    val assert: Expr[Post] = check.getOrElse(tt)
+    val assertion = RuntimeAssert[Post](assert, s"Permission is not enough")(null)
     Block[Post](Seq(assertion))
   }
 

@@ -9,6 +9,7 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.Unreachable
+import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, LedgerRewriter}
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 import vct.rewrite.runtime.util.{RewriteContractExpr, TransferPermissionRewriter}
 
@@ -39,6 +40,8 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   val helperMethods: ScopedStack[ArrayBuffer[InstanceMethod[Post]]] = new ScopedStack()
 
   implicit var program: Program[Pre] = _
+  implicit var ledger: LedgerMethodBuilderHelper[Post] = _
+
 
   /**
    * Dispatch of the program for debugging and using the program everywhere to look up specific instancefields
@@ -48,8 +51,12 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
    */
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     this.program = program
-    val test = super.dispatch(program)
-    test
+    lazy val newDecl: Seq[GlobalDeclaration[Post]] = globalDeclarations.collect{
+        val (ledgerHelper, ledgerClass, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
+        ledger = ledgerHelper
+        otherDeclarations.foreach(dispatch)
+    }._1
+    program.rewrite(declarations = newDecl)
   }
 
   /**
@@ -414,9 +421,10 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     //We know that tmpPredicate is now not null
     val getThreadSpecificPredicateStore = PredicateStoreGet[Post](mbi.clsRef, ThreadId[Post](None))
     val removePredicate = Assert[Post](CopyOnWriteArrayListRemove[Post](getThreadSpecificPredicateStore, tmpPredicate.get))(null) //Inside an assert, because it should remove it, if it does not remove it something went wrong
-    val pd: PermissionData[Pre] = PermissionData()
+    val pd: PermissionData[Pre] = PermissionData[Pre]()
       .setOuter(this)
       .setCls(currentClass.top)
+      .setLedger(ledger)
       .setOffset(mbi.argsLocals.last)
     val addPermissions: Block[Post] = TransferPermissionRewriter(pd).addPermissions(mbi.ip.body.getOrElse(tt[Pre]))
     val methodBody = Block[Post](Seq(assignTmp, nullCheck, removePredicate, addPermissions))
@@ -431,9 +439,11 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
    * @return
    */
   private def createMethodBodyFold(mbi: MethodBodyInputs)(implicit origin: Origin): MethodBodyResult = {
-    val assertPD: PermissionData[Pre] = PermissionData().setOuter(this).setCls(currentClass.top).setOffset(mbi.argsLocals.last)
+    val assertPD: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger)
+      .setOffset(mbi.argsLocals.last)
     val assertion: Block[Post] = RewriteContractExpr[Pre](assertPD).createAssertions(mbi.ip.body.getOrElse(tt))
-    val removePD: PermissionData[Pre] = PermissionData().setOuter(this).setCls(currentClass.top).setOffset(mbi.argsLocals.last)
+    val removePD: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger)
+      .setOffset(mbi.argsLocals.last)
     val removePermissions: Block[Post] = TransferPermissionRewriter(removePD).removePermissions(mbi.ip.body.getOrElse(tt))
     val newRuntimePredicate: RuntimeNewPredicate[Post] = RuntimeNewPredicate[Post](mbi.clsRef, mbi.argsLocals)
     val getThreadSpecificPredicateStore = PredicateStoreGet[Post](mbi.clsRef, ThreadId[Post](None))

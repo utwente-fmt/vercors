@@ -64,6 +64,12 @@ object AstBuildHelpers {
     def ~>(field: SilverField[G])(implicit blame: Blame[InsufficientPermission], origin: Origin): SilverDeref[G] = SilverDeref[G](left, field.ref)(blame)
 
     def @@(index: Expr[G])(implicit blame: Blame[SeqBoundFailure], origin: Origin): SeqSubscript[G] = SeqSubscript(left, index)(blame)
+
+
+    def r_+(right: Expr[G])(implicit origin: Origin): RuntimeFractionAdd[G] = RuntimeFractionAdd(left, right)
+    def r_-(right: Expr[G])(implicit origin: Origin): RuntimeFractionSubstract[G] = RuntimeFractionSubstract(left, right)
+    def r_*(right: Expr[G])(implicit origin: Origin): RuntimeFractionMultiply[G] = RuntimeFractionMultiply(left, right)
+    def r_<=>(right: Expr[G])(implicit origin: Origin): RuntimeFractionCompare[G] = RuntimeFractionCompare(left, right)
   }
 
   implicit class VarBuildHelpers[G](left: Variable[G]) {
