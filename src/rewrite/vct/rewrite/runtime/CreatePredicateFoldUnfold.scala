@@ -13,11 +13,7 @@ object CreatePredicateFoldUnfold extends RewriterBuilder {
   override def desc: String = "When a fold or unfold predicate is found replace it with a method call to the correct instancePredicate class"
 }
 
-
-
-
 case class CreatePredicateFoldUnfold[Pre <: Generation]() extends Rewriter[Pre] {
-
 
   implicit var program: Program[Pre] = _
   implicit var ledger: LedgerMethodBuilderHelper[Post] = _

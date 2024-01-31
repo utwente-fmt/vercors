@@ -15,6 +15,10 @@ case class ExprFinder[Pre <: Generation, ExprType <: Expr[Pre]]()(implicit tag: 
     dereferences.toSeq
   }
 
+  def collect(s: Statement[Pre]) : Seq[ExprType] = {
+    this.dispatch(s)
+    dereferences.toSeq
+  }
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {

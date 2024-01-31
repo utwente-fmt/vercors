@@ -1,36 +1,34 @@
 public class PredicateTest {
+    int a;
+    int b;
 
-    //@ requires c != null ** c.state(0);
-    //@ ensures c.state(2);
-    void foo(Counter c) {
-        c.increment(2);
+    public void test() {
+
     }
 
 
     public void main() {
-        Counter c = new Counter();
-        //@ fold c.state(0);
-        Counter c2 = new Counter();
-        //@ fold c2.state(0);
 
-        foo(c);
-        foo(c2);
+
+        //needs write for b and read for a
+        int c = a + b;
+        int d = c + b;
+        b = a + c;
+
+        //needs read for b
+        if(d > b) {
+            //needs read for a and b
+            if(a < b){
+                //needs write for a and read for b
+                int e = a + b;
+                a = e + b;
+            }
+        }
+
+        //needs read for b
+        for (int i = 0; i < b; i++) {
+            a = b + 1;
+        }
     }
 }
 
-
-class Counter {
-    int count;
-
-    int test = 5;
-
-    //@ resource state(int val) = Perm(count, write) ** count == val;
-
-    //@ requires state(count);
-    //@ ensures state(\old(count) + n);
-    void increment(int n) {
-        //@ unfold state(count);
-        count += n;
-        //@ fold state(count);
-    };
-}

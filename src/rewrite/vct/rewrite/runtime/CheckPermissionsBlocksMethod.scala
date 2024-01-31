@@ -7,9 +7,6 @@ import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
-import vct.rewrite.runtime.util.FindPermissionLocation
-import vct.rewrite.runtime.util.PermissionRewriter.permissionToRuntimeValue
-import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, LedgerRewriter, findNumberPrimitiveInstanceField}
 
 import scala.collection.mutable
@@ -58,8 +55,12 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
       case inv@(_: MethodInvocation[Pre] | _: ProcedureInvocation[Pre]) => hasInvocation = true; super.dispatch(inv)
-      case preExpr: PreAssignExpression[Pre] => preExpr.rewrite(isTarget.having(true) {dispatch(preExpr.target)})
-      case postExpr: PostAssignExpression[Pre] => postExpr.rewrite(isTarget.having(true) {dispatch(postExpr.target)})
+      case preExpr: PreAssignExpression[Pre] => preExpr.rewrite(isTarget.having(true) {
+        dispatch(preExpr.target)
+      })
+      case postExpr: PostAssignExpression[Pre] => postExpr.rewrite(isTarget.having(true) {
+        dispatch(postExpr.target)
+      })
       case d@(_: Deref[Pre] | _: AmbiguousSubscript[Pre]) => {
         val newD = super.dispatch(d)
         if (dereferences.isEmpty) return newD
@@ -83,14 +84,14 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
       case AmbiguousSubscript(coll, index) => ledger.miGetPermission(dispatch(coll), dispatch(index)).get
       case _ => throw Unreachable(s"This location type is not supported yet: ${l}")
     }
-    val check = if(write) (location r_<=> RuntimeFractionOne[Post]()) === const(0) else (location r_<=> RuntimeFractionZero[Post]()) === const(1)
-    val message = if(write) s"Permission should have been write but was not: ${l.toString}" else s"Permission should have been read but there was not enough permission: ${l.toString}"
+    val check = if (write) (location r_<=> RuntimeFractionOne[Post]()) === const(0) else (location r_<=> RuntimeFractionZero[Post]()) === const(1)
+    val message = if (write) s"Permission should have been write but was not: ${l.toString}" else s"Permission should have been read but there was not enough permission: ${l.toString}"
     RuntimeAssert[Post](check, message)(null)
   }
 
   private def dispatchLoop(loop: Loop[Pre]): Loop[Post] = {
     lazy val newBody = dereferences.collect(determineNewBlockStructure(loop.body.asInstanceOf[Block[Pre]]))._2
-    val contract = dereferences.collect(dispatch(loop.contract))._2     //Any dereference in the contract should not be checked by the permission checker so putting it in its own scope
+    val contract = dereferences.collect(dispatch(loop.contract))._2 //Any dereference in the contract should not be checked by the permission checker so putting it in its own scope
     loop.rewrite(init = dispatch(loop.init), cond = dispatch(loop.cond), update = dispatch(loop.update), body = newBody, contract = contract)
   }
 
@@ -120,7 +121,7 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     val newStatement = dispatch(statement)
     if (hasInvocation) {
       hasInvocation = false
-      (blockFold._1 :+ Block[Post](retrieveDereferences ++ blockFold._2.statements) :+ Block[Post](Seq(newStatement)), Block[Post](Seq.empty))
+      (blockFold._1 :+ Block[Post](retrieveDereferences ++ blockFold._2.statements) :+ Block[Post](Seq(newStatement)), Block[Post](Nil))
     } else {
       (blockFold._1, Block[Post](blockFold._2.statements :+ newStatement))
     }
@@ -128,18 +129,19 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
 
   private def dispatchStatementWrapper[T[Pre] <: Statement[Pre]](preBlock: Block[Pre], blockFold: (Seq[Block[Post]], Block[Post]), statement: T[Pre], dispatchFunc: T[Pre] => T[Post])(implicit origin: Origin): (Seq[Block[Post]], Block[Post]) = {
     val newStat = dispatchFunc(statement)
-    (blockFold._1 :+ Block[Post](retrieveDereferences ++ blockFold._2.statements :+ newStat), Block[Post](Seq.empty))
+    (blockFold._1 :+ Block[Post](retrieveDereferences ++ blockFold._2.statements :+ newStat), Block[Post](Nil))
   }
 
   private def determineNewBlockStructure(b: Block[Pre]): Block[Post] = {
     implicit val origin: Origin = b.o
     dereferences.collect {
-      val newBlocks = b.statements.foldLeft((Seq.empty[Block[Post]], Block[Post](Seq()))) {
+      val newBlocks = b.statements.foldLeft((Seq.empty[Block[Post]], Block[Post](Nil))) {
         case (blockFold, branch: Branch[Pre]) => dispatchStatementWrapper(b, blockFold, branch, dispatchBranch)
         case (blockFold, loop: Loop[Pre]) => dispatchStatementWrapper(b, blockFold, loop, dispatchLoop)
         case (blockFold, sync: Synchronized[Pre]) => dispatchStatementWrapper(b, blockFold, sync, dispatchSynchronized)
         case (blockFold, statement) => defaultStatementNewMethodStructure(b, blockFold, statement)
       }
+      hasInvocation = false
       val finalBlock: Block[Post] = Block[Post](retrieveDereferences ++ newBlocks._2.statements)
       Block[Post](newBlocks._1 :+ finalBlock)
     }._2

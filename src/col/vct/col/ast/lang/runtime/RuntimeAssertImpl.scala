@@ -7,5 +7,5 @@ trait RuntimeAssertImpl[G] {
   this: RuntimeAssert[G] =>
 
 
-  override def layout(implicit ctx: Ctx): Doc = Text("assert (") <> res.show <> ")" <+> ": \"" <> message <> "\";"
+  override def layout(implicit ctx: Ctx): Doc = Group(Group(Text("assert (") <> res.show <> ")" ) <> Group(Text(": \"") <> message <> "\";"))
 }
