@@ -10,7 +10,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.CreatePredicates
 import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
-import vct.rewrite.runtime.util.LedgerHelper.LedgerMethodBuilderHelper
+import vct.rewrite.runtime.util.LedgerHelper._
 import vct.rewrite.runtime.util.PermissionRewriter.permissionToRuntimeValueRewrite
 import vct.rewrite.runtime.util.Util._
 
@@ -56,18 +56,20 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
     val cond = permissionToRuntimeValueRewrite(p)
     val pt: Option[Expr[Post]] = p match {
       case Perm(AmbiguousLocation(d@Deref(t@ThisObject(_), _)), _) if d.t.isInstanceOf[PrimitiveType[Pre]]
-      => ledger.miGetPermission(pd.getOffset(t)) //TODO fix primitive type location
+      => ledger.miGetPermission(pd.getOffset(t), dispatch(const[Pre](findNumberPrimitiveInstanceField(program, d.ref.decl).get)))
       case Perm(AmbiguousLocation(d@Deref(t@ThisObject(_), _)), _)
       => ledger.miGetPermission(pd.getOffset(d))
 
       case Perm(AmbiguousLocation(d@Deref(l@Local(_), _)), _) if d.t.isInstanceOf[PrimitiveType[Pre]]
-      => ledger.miGetPermission(dispatch(l)) //TODO fix primitive type location
+      => ledger.miGetPermission(dispatch(l), dispatch(const[Pre](findNumberPrimitiveInstanceField(program, d.ref.decl).get)))
       case Perm(AmbiguousLocation(d@Deref(l@Local(_), _)), _)
       => ledger.miGetPermission(dispatch(d))
 
       case Perm(AmbiguousLocation(AmbiguousSubscript(Deref(t@ThisObject(_), _), index)), _)
       => ledger.miGetPermission(pd.getOffset(t), dispatch(index))
       case Perm(AmbiguousLocation(AmbiguousSubscript(Deref(l@Local(_), _), index)), _)
+      => ledger.miGetPermission(dispatch(l), dispatch(index))
+      case Perm(AmbiguousLocation(AmbiguousSubscript(l@Local(_), index)), _)
       => ledger.miGetPermission(dispatch(l), dispatch(index))
       case _ => throw Unreachable(s"This type of permissions transfer is not yet supported: ${p}")
     }

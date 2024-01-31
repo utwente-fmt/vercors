@@ -24,7 +24,6 @@ case class FindPermissionLocation[Pre <: Generation](pd: PermissionData[Pre])(im
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
-      //TODO fix possible change in location (when in a predicate)
       case t: ThisObject[Pre] => pd.getOffset(t)
       case _ => pd.outer.dispatch(e)
     }

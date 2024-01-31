@@ -3,6 +3,7 @@ package vct.parsers.transform.systemctocol.engine;
 import de.tub.pes.syscir.sc_model.SCVariable;
 import de.tub.pes.syscir.sc_model.variables.SCArray;
 import de.tub.pes.syscir.sc_model.variables.SCClassInstance;
+import scala.Option;
 import vct.col.ast.InstanceField;
 import vct.col.ast.TArray;
 import vct.col.ast.Type;
@@ -61,7 +62,7 @@ public class VariableTransformer<T> {
         if (result == null) {
             // If no such field exists, create a new one
             Origin o = OriGen.create((fun_name.isEmpty()) ? sc_var.getName() : sc_var.getName() + "_" + fun_name);
-            result = new InstanceField<>(get_type(sc_var), col_system.NO_FLAGS, o);
+            result = new InstanceField<>(get_type(sc_var), col_system.NO_FLAGS, Option.empty(), o);
             col_system.add_instance_field_mapping(sc_inst, sc_var, result);
         }
 

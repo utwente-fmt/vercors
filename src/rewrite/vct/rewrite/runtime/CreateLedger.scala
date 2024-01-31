@@ -51,11 +51,11 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
         public static ConcurrentHashMap<Long, ConcurrentHashMap<Object, Double>> __runtime__ = new ConcurrentHashMap<Long, ConcurrentHashMap<Object, Double>>();
    */
   def createObjectLedger(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
-    //TODO fix the assign of the field
     val fieldFlags: Set[FieldFlag[Post]] = Set(Static[Post]()(DiagnosticOrigin))
     val newInstanceField: InstanceField[Post] = new InstanceField[Post](
       mbh.ledgerProperties.outerHM,
-      fieldFlags
+      fieldFlags,
+      Some(mbh.ledgerProperties.newOuterMap)
     )(DiagnosticOrigin.addPrefName("__runtime__"))
     classDeclarations.declare(newInstanceField)
   }
@@ -64,11 +64,11 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
       public static ConcurrentHashMap<Object, ConcurrentHashMap<Integer, Object>> __array_locations__ = new ConcurrentHashMap<Object, ConcurrentHashMap<Integer, Object>>();
    */
   def createLocationLedger(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
-    //TODO fix the assign of the field
     val fieldFlags: Set[FieldFlag[Post]] = Set(Static[Post]()(DiagnosticOrigin))
     val newInstanceField: InstanceField[Post] = new InstanceField[Post](
       mbh.ledgerLocationProperties.outerHM,
-      fieldFlags
+      fieldFlags,
+      Some(mbh.ledgerLocationProperties.newOuterMap)
     )(DiagnosticOrigin.addPrefName("__array_locations__"))
     classDeclarations.declare(newInstanceField)
   }
@@ -84,7 +84,9 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = DiagnosticOrigin
     val containsKey: Expr[Post] = mbh.ledgerProperties.containsKey(mbh.threadId)
     val putNewMap: Expr[Post] = mbh.ledgerProperties.put(mbh.threadId, mbh.ledgerProperties.newInnerMap)
-    val newBlock: Block[Post] = Block[Post](Seq(Branch[Post](Seq((!containsKey, Eval[Post](putNewMap))))))
+    val keyBranch: Branch[Post] = Branch[Post](Seq((!containsKey, Eval[Post](putNewMap))))
+
+    val newBlock: Block[Post] = Block[Post](Seq(keyBranch))
     val body = Scope[Post](Seq.empty, newBlock)
     classDeclarations.declare(mbh.createMethod(TVoid(), Nil, Some(body), "createHashMap"))
   }

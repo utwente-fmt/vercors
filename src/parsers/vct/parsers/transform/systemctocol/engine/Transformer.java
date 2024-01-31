@@ -8,6 +8,7 @@ import de.tub.pes.syscir.sc_model.variables.SCClassInstance;
 import de.tub.pes.syscir.sc_model.variables.SCEvent;
 import de.tub.pes.syscir.sc_model.variables.SCKnownType;
 import de.tub.pes.syscir.sc_model.variables.SCTIMEUNIT;
+import scala.Option;
 import vct.col.ast.Class;
 import vct.col.ast.InstanceField;
 import vct.parsers.transform.systemctocol.exceptions.SystemCFormatException;
@@ -253,9 +254,9 @@ public class Transformer<T> {
 	 * Main class itself.
 	 */
 	private void create_minimal_main() {
-		col_system.set_process_state(new InstanceField<>(col_system.T_SEQ_INT, col_system.NO_FLAGS, OriGen.create("process_state")));
-		col_system.set_event_state(new InstanceField<>(col_system.T_SEQ_INT, col_system.NO_FLAGS, OriGen.create("event_state")));
-		col_system.set_primitive_channel_update(new InstanceField<>(col_system.T_SEQ_BOOL, col_system.NO_FLAGS, OriGen.create("primitive_channel_update")));
+		col_system.set_process_state(new InstanceField<>(col_system.T_SEQ_INT, col_system.NO_FLAGS, Option.empty(), OriGen.create("process_state")));
+		col_system.set_event_state(new InstanceField<>(col_system.T_SEQ_INT, col_system.NO_FLAGS, Option.empty(), OriGen.create("event_state")));
+		col_system.set_primitive_channel_update(new InstanceField<>(col_system.T_SEQ_BOOL, col_system.NO_FLAGS, Option.empty(), OriGen.create("primitive_channel_update")));
 	}
 
 	/**
@@ -267,7 +268,7 @@ public class Transformer<T> {
 			// System parameters are declared as global const int fields		TODO: Discuss this encoding
 			if (global_variable.isConst() && col_system.parse_type(global_variable.getType()).equals(col_system.T_INT)) {
 				String var_name = "PARAM_" + global_variable.getName().toUpperCase();
-				InstanceField<T> parameter_field = new InstanceField<>(col_system.T_INT, col_system.NO_FLAGS, OriGen.create(var_name));
+				InstanceField<T> parameter_field = new InstanceField<>(col_system.T_INT, col_system.NO_FLAGS, Option.empty(), OriGen.create(var_name));
 				col_system.add_parameter(global_variable, parameter_field);
 			}
 		}
@@ -276,7 +277,7 @@ public class Transformer<T> {
 		for (SCClassInstance sc_inst : sc_system.getInstances()) {
 			// Check if any instance is a FIFO queue, add the parameter
 			if (sc_inst.getType().equals(Constants.CLASS_FIFO_INT) || sc_inst.getType().equals(Constants.CLASS_FIFO_BOOL)) {
-				InstanceField<T> buffer_size = new InstanceField<>(col_system.T_INT, col_system.NO_FLAGS, OriGen.create("BUFFER_SIZE"));
+				InstanceField<T> buffer_size = new InstanceField<>(col_system.T_INT, col_system.NO_FLAGS, Option.empty(), OriGen.create("BUFFER_SIZE"));
 				col_system.set_fifo_size_parameter(buffer_size);
 				break;
 			}

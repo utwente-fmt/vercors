@@ -10,7 +10,7 @@ import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.util.FindPermissionLocation
 import vct.rewrite.runtime.util.PermissionRewriter.permissionToRuntimeValue
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
-import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, LedgerRewriter}
+import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, LedgerRewriter, findNumberPrimitiveInstanceField}
 
 import scala.collection.mutable
 
@@ -78,7 +78,7 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     implicit val origin: Origin = l.o
 
     val location: Expr[Post] = l match {
-      case d: Deref[Pre] if d.t.isInstanceOf[PrimitiveType[Pre]] => ledger.miGetPermission(dispatch(d.obj)).get //TODO fix the primitive type
+      case d: Deref[Pre] if d.t.isInstanceOf[PrimitiveType[Pre]] => ledger.miGetPermission(dispatch(d.obj), dispatch(const[Pre](findNumberPrimitiveInstanceField(program, d.ref.decl).get))).get
       case d: Deref[Pre] => ledger.miGetPermission(dispatch(d.obj)).get
       case AmbiguousSubscript(coll, index) => ledger.miGetPermission(dispatch(coll), dispatch(index)).get
       case _ => throw Unreachable(s"This location type is not supported yet: ${l}")

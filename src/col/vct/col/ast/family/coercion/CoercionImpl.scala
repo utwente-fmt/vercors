@@ -19,6 +19,7 @@ trait CoercionImpl[G] { this: Coercion[G] =>
     case CoerceNullClass(_) => true
     case CoerceNullJavaClass(_) => true
     case CoerceNullAnyClass() => true
+    case CoerceTArrayAnyClass() => true
     case CoerceNullPointer(_) => true
     case CoerceNullEnum(_) => true
     case CoerceFracZFrac() => true

@@ -49,7 +49,7 @@ public class ClassTransformer<T> {
 
         // Transform class attributes
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
+        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, Option.empty(), OriGen.create("m"));
         declarations.add(m);
         col_system.add_class_main_ref(process, m);
         java.util.Map<SCVariable, InstanceField<T>> fields = create_fields(process.get_generating_function(), process.get_methods(),
@@ -89,7 +89,7 @@ public class ClassTransformer<T> {
 
         // Transform class attributes
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
+        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, Option.empty(), OriGen.create("m"));
         declarations.add(m);
         col_system.add_class_main_ref(state_class, m);
         java.util.Map<SCVariable, InstanceField<T>> fields = create_fields(null, state_class.get_methods(),

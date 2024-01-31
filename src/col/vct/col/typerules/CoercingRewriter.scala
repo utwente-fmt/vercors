@@ -65,6 +65,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     */
   def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = {
     coercion match {
+      case CoerceTArrayAnyClass() => e
       case CoerceIdentity(_) => e
       case CoercionSequence(cs) => cs.foldLeft(e) { case (e, c) => applyCoercion(e, c) }
       case CoerceNothingSomething(_) => e
@@ -1935,6 +1936,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     implicit val o: Origin = node.o
     node match {
       case value: Final[_] => value
+      case s: Static[_] => s
     }
   }
 

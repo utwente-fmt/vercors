@@ -191,7 +191,7 @@ public class MainTransformer<T> {
                         Type<T> t = new TClass<>(ref_to_class, OriGen.create());
 
                         // Generate instance field
-                        InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create(create_instance_name(process_class)));
+                        InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, Option.empty(), OriGen.create(create_instance_name(process_class)));
                         col_system.add_instance_mapping(process_class, inst);
                         processes.add(inst);
                         class_by_field.put(inst, process_class);
@@ -206,7 +206,7 @@ public class MainTransformer<T> {
                     Type<T> t = new TClass<>(ref_to_class, OriGen.create());
 
                     // Generate instance field
-                    InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create(create_instance_name(state_class)));
+                    InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, Option.empty(), OriGen.create(create_instance_name(state_class)));
                     col_system.add_instance_mapping(state_class, inst);
                     state_classes.add(inst);
                     class_by_field.put(inst, state_class);

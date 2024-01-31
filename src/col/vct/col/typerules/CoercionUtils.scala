@@ -148,7 +148,7 @@ case object CoercionUtils {
           case None => return None
         }
 
-      case (a@TArray(TAnyClass()), TAnyClass()) => CoerceTArrayAnyClass()
+      case (a@TArray(_), TAnyClass()) => CoerceTArrayAnyClass()
 
       // Something with TVar?
 

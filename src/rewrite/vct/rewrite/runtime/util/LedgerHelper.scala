@@ -11,6 +11,18 @@ import scala.collection.immutable.Nil
 object LedgerHelper {
 
 
+
+  def findNumberPrimitiveInstanceField[G](program: Program[G], instanceField: InstanceField[G]): Option[Int] = {
+    program
+      .declarations
+      .collect{case cls: Class[G] => cls}
+      .map(cls => cls.declarations)
+      .map(decls => decls.collect{case ifd: InstanceField[G] if ifd.t.isInstanceOf[PrimitiveType[G]] => ifd})
+      .map(ifs => ifs.indexOf(instanceField))
+      .find(i => i >= 0)
+  }
+
+
   case class LedgerRewriter[Pre <: Generation](outer: Rewriter[Pre]) extends Rewriter[Pre] {
     override val allScopes = outer.allScopes
 
@@ -64,7 +76,7 @@ object LedgerHelper {
 
     def ledgerProperties: LedgerProperties[G] = LedgerProperties[G](
       RuntimeConcurrentHashMap[G](TAnyClass[G](), TRuntimeFraction[G]())(DiagnosticOrigin),
-      RuntimeConcurrentHashMap[G](TLong[G](), RuntimeConcurrentHashMap[G](TAnyClass[G](), TRuntimeFraction[G]())(DiagnosticOrigin))(DiagnosticOrigin),
+      RuntimeConcurrentHashMap[G](TLongObject[G](), RuntimeConcurrentHashMap[G](TAnyClass[G](), TRuntimeFraction[G]())(DiagnosticOrigin))(DiagnosticOrigin),
       refCls,
       findInstanceField("__runtime__")
     )

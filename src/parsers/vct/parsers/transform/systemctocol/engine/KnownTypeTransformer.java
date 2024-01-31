@@ -91,7 +91,7 @@ public class KnownTypeTransformer<T> {
 
         // Add channel field to COL system
         Ref<T, Class<T>> ref_to_cls = new DirectRef<>(cls, ClassTag$.MODULE$.apply(Class.class));
-        col_system.add_primitive_channel(sc_inst, new InstanceField<>(new TClass<>(ref_to_cls, OriGen.create()), col_system.NO_FLAGS,
+        col_system.add_primitive_channel(sc_inst, new InstanceField<>(new TClass<>(ref_to_cls, OriGen.create()), col_system.NO_FLAGS, Option.empty(),
                 OriGen.create(name.toLowerCase())));
     }
 
@@ -118,10 +118,10 @@ public class KnownTypeTransformer<T> {
     private Class<T> transform_fifo(Origin o, Type<T> t) {
         // Class fields
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
-        InstanceField<T> buf = new InstanceField<>(new TSeq<>(t, OriGen.create()), col_system.NO_FLAGS, OriGen.create("buffer"));
-        InstanceField<T> nr_read = new InstanceField<>(col_system.T_INT, col_system.NO_FLAGS, OriGen.create("num_read"));
-        InstanceField<T> written = new InstanceField<>(new TSeq<>(t, OriGen.create()), col_system.NO_FLAGS, OriGen.create("written"));
+        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, Option.empty(), OriGen.create("m"));
+        InstanceField<T> buf = new InstanceField<>(new TSeq<>(t, OriGen.create()), col_system.NO_FLAGS, Option.empty(), OriGen.create("buffer"));
+        InstanceField<T> nr_read = new InstanceField<>(col_system.T_INT, col_system.NO_FLAGS, Option.empty(), OriGen.create("num_read"));
+        InstanceField<T> written = new InstanceField<>(new TSeq<>(t, OriGen.create()), col_system.NO_FLAGS, Option.empty(), OriGen.create("written"));
         col_system.add_primitive_instance_field(sc_inst, Constants.FIFO_BUFFER, buf);
         col_system.add_primitive_instance_field(sc_inst, Constants.FIFO_NUM_READ, nr_read);
         col_system.add_primitive_instance_field(sc_inst, Constants.FIFO_WRITTEN, written);
@@ -523,9 +523,9 @@ public class KnownTypeTransformer<T> {
     private Class<T> transform_signal(Origin o, Type<T> t) {
         // Class fields
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
-        InstanceField<T> val = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create("val"));
-        InstanceField<T> _val = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create("_val"));
+        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, Option.empty(), OriGen.create("m"));
+        InstanceField<T> val = new InstanceField<>(t, col_system.NO_FLAGS, Option.empty(), OriGen.create("val"));
+        InstanceField<T> _val = new InstanceField<>(t, col_system.NO_FLAGS, Option.empty(), OriGen.create("_val"));
 
         // Permission invariant for the Main class
         InstancePredicate<T> inv = create_signal_permission_invariant(m, val, _val);

@@ -22,6 +22,8 @@ public class PredicateTest {
 class Counter {
     int count;
 
+    int test = 5;
+
     //@ resource state(int val) = Perm(count, write) ** count == val;
 
     //@ requires state(count);

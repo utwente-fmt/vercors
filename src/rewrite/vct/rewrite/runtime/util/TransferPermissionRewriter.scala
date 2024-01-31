@@ -7,7 +7,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.CreatePredicates
 import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
-import vct.rewrite.runtime.util.LedgerHelper.LedgerMethodBuilderHelper
+import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, findNumberPrimitiveInstanceField}
 import vct.rewrite.runtime.util.PermissionRewriter._
 import vct.rewrite.runtime.util.Util.{InstancePredicateData, findInstancePredicateClass, findInstancePredicateData, findInstancePredicateFunction}
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
@@ -63,12 +63,12 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
     val newValue: Expr[Post] = pd.factored(permissionToRuntimeValueRewrite(p))
     val pt: Option[Expr[Post]] = p match {
       case Perm(AmbiguousLocation(d@Deref(t@ThisObject(_), _)), _) if d.t.isInstanceOf[PrimitiveType[Pre]]
-      => ledger.miSetPermission(pd.getOffset(t), op(ledger.miGetPermission(pd.getOffset(t)).get, newValue)) //TODO fix primitive type location
+      => ledger.miSetPermission(pd.getOffset(t), locationExpression(d.ref.decl), op(ledger.miGetPermission(pd.getOffset(t), locationExpression(d.ref.decl)).get, newValue))
       case Perm(AmbiguousLocation(d@Deref(t@ThisObject(_), _)), _)
       => ledger.miSetPermission(pd.getOffset(t), op(ledger.miGetPermission(pd.getOffset(t)).get, newValue))
 
       case Perm(AmbiguousLocation(d@Deref(l@Local(_), _)), _) if d.t.isInstanceOf[PrimitiveType[Pre]]
-      => ledger.miSetPermission(dispatch(l), op(ledger.miGetPermission(dispatch(l)).get, newValue))                    //TODO fix primitive type location
+      => ledger.miSetPermission(dispatch(l), locationExpression(d.ref.decl), op(ledger.miGetPermission(dispatch(l), locationExpression(d.ref.decl)).get, newValue))
       case Perm(AmbiguousLocation(d@Deref(l@Local(_), _)), _)
       => ledger.miSetPermission(dispatch(l), op(ledger.miGetPermission(dispatch(l)).get, newValue))
 
@@ -79,6 +79,10 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
       case _ => throw Unreachable(s"This type of permissions transfer is not yet supported: ${p}")
     }
     pt.getOrElse(tt)
+  }
+
+  private def locationExpression(instanceField: InstanceField[Pre])(implicit origin: Origin): Expr[Post] = {
+    dispatch(const[Pre](findNumberPrimitiveInstanceField(program, instanceField).get))
   }
 
 

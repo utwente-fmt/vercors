@@ -4,7 +4,7 @@ class Program {
 
 
     /*@
-        requires (\forall int i; 0 <= i && i < a.length; Perm(a[i], write));
+        requires (\forall* int i; 0 <= i && i < a.length; Perm(a[i], write));
      */
     public void setA(int[] a) {
         this.a = a;
