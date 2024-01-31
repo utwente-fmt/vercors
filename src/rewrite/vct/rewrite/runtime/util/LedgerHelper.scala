@@ -88,12 +88,25 @@ object LedgerHelper {
       findInstanceField("__array_locations__")
     )
 
+    def ledgerJoinTokensProperites: LedgerProperties[G] = LedgerProperties[G](
+      TRuntimeFraction[G](),
+      RuntimeConcurrentHashMap[G](TAnyClass[G](), TRuntimeFraction[G]())(DiagnosticOrigin),
+      refCls,
+      findInstanceField("__join_tokens__")
+    )
+
     def createHashMaps: Option[InstanceMethod[G]] = findMethod("createHashMap")
     def miCreateHashMaps: Option[MethodInvocation[G]] = createMethodInvocation(createHashMaps, Nil)
 
     def getPermission(params: Int): Option[InstanceMethod[G]] = findMethod("getPermission", params)
     def miGetPermission(input: Expr[G]): Option[MethodInvocation[G]] = createMethodInvocation(getPermission(1), Seq(input))
     def miGetPermission(input: Expr[G], location: Expr[G]): Option[MethodInvocation[G]] = createMethodInvocation(getPermission(2), Seq(input, location))
+
+    def getJoinToken: Option[InstanceMethod[G]] = findMethod("getJoinToken")
+    def miGetJoinToken(input: Expr[G]): Option[MethodInvocation[G]] = createMethodInvocation(getJoinToken, Seq(input))
+
+    def setJoinToken: Option[InstanceMethod[G]] = findMethod("setJoinToken")
+    def miSetJoinToken(input: Expr[G], value: Expr[G]): Option[MethodInvocation[G]] = createMethodInvocation(setJoinToken, Seq(input, value))
 
     def setPermission(params: Int): Option[InstanceMethod[G]] = findMethod("setPermission", params)
     def miSetPermission(input: Expr[G], value: Expr[G]): Option[MethodInvocation[G]] = createMethodInvocation(setPermission(2), Seq(input, value))

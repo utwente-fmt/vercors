@@ -39,13 +39,12 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
   def createLedger: Class[Post] = {
     implicit val classOrigin: Origin = Origin(Seq.empty).addLedgerClass().addPrefName("LedgerRuntime")
     val newDeclarations: Seq[ClassDeclaration[Post]] = classDeclarations.collect {
-      val creatorMethods: Seq[LedgerMethodBuilderHelper[Post] => Unit] = Seq(createObjectLedger, createLocationLedger, createHashMapMethod, createGetPermission, createGetPermissionWithLocation, createSetPermission, createSetPermissionWithLocation, createInitiatePermissionWithSize, createInitiatePermission)
+      val creatorMethods: Seq[LedgerMethodBuilderHelper[Post] => Unit] = Seq(createObjectLedger, createLocationLedger,createJoinTokensLedger, createHashMapMethod, createGetPermission, createGetPermissionWithLocation, createGetJoinToken, createSetJoinToken, createSetPermission, createSetPermissionWithLocation, createInitiatePermissionWithSize, createInitiatePermission)
       creatorMethods.map(m => m(LedgerMethodBuilderHelper[Post](new LazyRef[Post, Class[Post]](getNewClass), classDeclarations.freezeBuffer)))
     }._1
     newClass = new Class[Post](newDeclarations, Seq.empty, tt)
     globalDeclarations.declare(newClass)
   }
-
 
   /*
         public static ConcurrentHashMap<Long, ConcurrentHashMap<Object, Double>> __runtime__ = new ConcurrentHashMap<Long, ConcurrentHashMap<Object, Double>>();
@@ -70,6 +69,19 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
       fieldFlags,
       Some(mbh.ledgerLocationProperties.newOuterMap)
     )(DiagnosticOrigin.addPrefName("__array_locations__"))
+    classDeclarations.declare(newInstanceField)
+  }
+
+  /*
+      public static ConcurrentHashMap<Object, Fraction> __join_tokens__ = new ConcurrentHashMap<Object, Fraction>();
+   */
+  def createJoinTokensLedger(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
+    val fieldFlags: Set[FieldFlag[Post]] = Set(Static[Post]()(DiagnosticOrigin))
+    val newInstanceField: InstanceField[Post] = new InstanceField[Post](
+      mbh.ledgerJoinTokensProperites.outerHM,
+      fieldFlags,
+      Some(mbh.ledgerJoinTokensProperites.newOuterMap)
+    )(DiagnosticOrigin.addPrefName("__join_tokens__"))
     classDeclarations.declare(newInstanceField)
   }
 
@@ -128,6 +140,38 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   /*
+        public static Fraction getPermission(Object input) {
+            __runtime__.get(Thread.currentThread().getId()).put(input, value);
+        }
+   */
+  def createGetJoinToken(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
+    implicit val o: Origin = DiagnosticOrigin
+    val input = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
+    val returnStat = Return[Post](mbh.ledgerJoinTokensProperites.get(input.get))
+    val newBlock: Block[Post] = Block[Post](Seq(returnStat))
+    val body = Scope[Post](Nil, newBlock)
+    classDeclarations.declare(mbh.createMethod(TRuntimeFraction[Post](), Seq(input), Some(body), "getJoinToken"))
+  }
+
+
+  /*
+        public static void setPermission(Object input, Fraction value) {
+            assert (value >= 0 && value <= 1) : "value is not between bounds 0 and 1: " + value;
+            __runtime__.get(Thread.currentThread().getId()).put(input, value);
+        }
+   */
+  def createSetJoinToken(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
+    implicit val o: Origin = DiagnosticOrigin
+    val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
+    val valueParam: Variable[Post] = new Variable[Post](TRuntimeFraction[Post]())(o.addPrefName("value"))
+    val newAssert: RuntimeAssert[Post] = RuntimeAssert[Post]((valueParam.get r_<=> RuntimeFractionZero[Post]()) !== const(-1), "Join token cannot be below 0")(null)
+    val putPermission: Eval[Post] = Eval[Post](mbh.ledgerJoinTokensProperites.put(inputParam.get, valueParam.get))
+    val newBlock: Block[Post] = Block[Post](Seq(newAssert, putPermission))
+    val body = Scope[Post](Nil, newBlock)
+    classDeclarations.declare(mbh.createMethod(TVoid(), Seq(inputParam, valueParam), Some(body), "setJoinToken"))
+  }
+
+  /*
         public static void setPermission(Object input, Double value) {
             assert (value >= 0 && value <= 1) : "value is not between bounds 0 and 1: " + value;
             createHashMap();
@@ -138,10 +182,13 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = DiagnosticOrigin
     val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
     val valueParam: Variable[Post] = new Variable[Post](TRuntimeFraction[Post]())(o.addPrefName("value"))
+    val newAssertLowerBound: RuntimeAssert[Post] = RuntimeAssert[Post]((valueParam.get r_<=> RuntimeFractionZero[Post]()) !== const(-1), "Permission cannot be below 0")(null)
+    val newAssertUpperBound: RuntimeAssert[Post] = RuntimeAssert[Post]((valueParam.get r_<=> RuntimeFractionOne[Post]()) !== const(1), "Permisison cannot exceed 1")(null)
+
     //    val newAssert: RuntimeAssert[Post] = RuntimeAssert[Post](valueParam.get >= RuntimeFractionZero[Post]() && valueParam.get <= RuntimeFractionOne[Post](), "\"value is not between bounds 0 and 1\"")(null)
     val chm: Eval[Post] = Eval[Post](mbh.miCreateHashMaps.get)
     val putPermission: Eval[Post] = Eval[Post](mbh.ledgerProperties.put(mbh.ledgerProperties.get(mbh.threadId), inputParam.get, valueParam.get))
-    val newBlock: Block[Post] = Block[Post](Seq(chm, putPermission))
+    val newBlock: Block[Post] = Block[Post](Seq(newAssertLowerBound, newAssertUpperBound, chm, putPermission))
     val body = Scope[Post](Nil, newBlock)
     classDeclarations.declare(mbh.createMethod(TVoid(), Seq(inputParam, valueParam), Some(body), "setPermission"))
   }
@@ -225,6 +272,8 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     val body = Scope[Post](Nil, newBlock)
     classDeclarations.declare(mbh.createMethod(TVoid(), Seq(inputParam), Some(body), "initiatePermission"))
   }
+
+
 
 
 }
