@@ -4,7 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast.{PrimitiveType, _}
 import vct.col.util.AstBuildHelpers._
-import vct.col.origin.Origin
+import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, LedgerRewriter}
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
@@ -23,7 +23,7 @@ case class AddPermissionsOnCreate[Pre <: Generation]() extends Rewriter[Pre] {
 
   implicit var program: Program[Pre] = _
 
-  def ledger: LedgerMethodBuilderHelper[Pre] = LedgerMethodBuilderHelper[Pre](program)
+  implicit var ledger: LedgerMethodBuilderHelper[Post] = _
 
 
   /**
@@ -34,7 +34,13 @@ case class AddPermissionsOnCreate[Pre <: Generation]() extends Rewriter[Pre] {
    */
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     this.program = program
-    val test = super.dispatch(program)
+    lazy val newDecl: Seq[GlobalDeclaration[Post]] = globalDeclarations.collect {
+      val (ledgerHelper, ledgerClass, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
+      ledger = ledgerHelper
+      otherDeclarations.foreach(dispatch)
+
+    }._1
+    val test = program.rewrite(declarations = newDecl)
     test
   }
 
@@ -54,10 +60,31 @@ case class AddPermissionsOnCreate[Pre <: Generation]() extends Rewriter[Pre] {
       case i: InstanceField[Pre] if i.t.isInstanceOf[PrimitiveType[Pre]] => i
     }
     val size = instanceFields.size
-    val obj = ThisObject[Pre](currentClass.top.ref)
-    val initInstanceFieldsExpr: MethodInvocation[Pre] = if(size == 0) ledger.miInitiatePermission(obj).get else ledger.miInitiatePermission(obj, const(size)).get
-    val initInstanceFieldsPerm = Eval[Post](dispatch(initInstanceFieldsExpr))
+    val obj = ThisObject[Post](this.anySucc(currentClass.top))
+    val initInstanceFieldsExpr: MethodInvocation[Post] = if (size == 0) ledger.miInitiatePermission(obj).get else ledger.miInitiatePermission(obj, const(size)).get
+    val initInstanceFieldsPerm = Eval[Post](initInstanceFieldsExpr)
     val newBody = Block[Post](Seq(dispatch(jc.body), initInstanceFieldsPerm))
     classDeclarations.succeed(jc, jc.rewrite(body = newBody))
+  }
+
+  override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
+    stat match {
+      case a@Assign(location, na@NewArray(elem, dims, moreDims)) => {
+        val dispatchedAssign = super.dispatch(a)
+        val initPermissionArray = Eval[Post](ledger.miInitiatePermission(dispatch(location), dispatch(dims.head)).get)(DiagnosticOrigin)
+        Block[Post](Seq(dispatchedAssign, initPermissionArray))(DiagnosticOrigin)
+      }
+      case a@Eval(PreAssignExpression(location, na@NewArray(elem, dims, moreDims))) => {
+        val dispatchedAssign = super.dispatch(a)
+        val initPermissionArray = Eval[Post](ledger.miInitiatePermission(dispatch(location), dispatch(dims.head)).get)(DiagnosticOrigin)
+        Block[Post](Seq(dispatchedAssign, initPermissionArray))(DiagnosticOrigin)
+      }
+      case a@Eval(PostAssignExpression(location, na@NewArray(elem, dims, moreDims))) => {
+        val dispatchedAssign = super.dispatch(a)
+        val initPermissionArray = Eval[Post](ledger.miInitiatePermission(dispatch(location), dispatch(dims.head)).get)(DiagnosticOrigin)
+        Block[Post](Seq(dispatchedAssign, initPermissionArray))(DiagnosticOrigin)
+      }
+      case _ => super.dispatch(stat)
+    }
   }
 }
