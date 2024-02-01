@@ -10,9 +10,9 @@ public class Generator<T> {
 
     private final List<AbstractProcess<T>> processes;
 
-    private final Set<ExecutableState<T>> active_branches;
+    private final List<ExecutableState<T>> active_branches;
 
-    private final AbstractState<T> considered_state;
+    private final Set<ExecutableState<T>> considered_branches;
 
     public Generator(ParseResult<T> parse_result,
                      Map<ConcreteVariable<T>, Integer> considered_variables,
@@ -22,19 +22,24 @@ public class Generator<T> {
         initialize_processes();
 
         // Initialize active branches
-        active_branches = new HashSet<>();
+        active_branches = new ArrayList<>();
 
-        // Set initial state
-        considered_state = new AbstractState<>();
+        // Initialize considered branches to empty list
+        considered_branches = new HashSet<>();
     }
 
     public void execute() {
-
         initialize_branches();
-    }
 
-    private void execute_step() {
-
+        while (!active_branches.isEmpty()) {
+            ExecutableState<T> exploring = active_branches.remove(0);
+            List<ExecutableState<T>> new_possibilities = exploring.execute_step(processes)
+                                                                  .stream()
+                                                                  .filter((state) -> !considered_branches.contains(state))
+                                                                  .toList();
+            considered_branches.addAll(new_possibilities);
+            active_branches.addAll(new_possibilities);
+        }
     }
 
     private void initialize_processes() {
@@ -42,6 +47,6 @@ public class Generator<T> {
     }
 
     private void initialize_branches() {
-
+        AbstractState<T> initial_state = new AbstractState<>();
     }
 }

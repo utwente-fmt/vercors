@@ -13,7 +13,7 @@ public class AbstractProcess<T> {
         this.process_method = method;
     }
 
-    public List<AbstractState<T>> simulate(int[] program_counter) {
+    public List<ExecutionState<T>> simulate(int[] program_counter, AbstractState<T> starting_state) {
         return null;
     }
 
