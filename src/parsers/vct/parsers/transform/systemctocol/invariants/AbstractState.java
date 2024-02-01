@@ -1,5 +1,6 @@
 package vct.parsers.transform.systemctocol.invariants;
 
+import vct.col.ast.Expr;
 import vct.parsers.transform.systemctocol.invariants.variables.ConcreteVariable;
 
 import java.util.HashMap;
@@ -16,12 +17,22 @@ public class AbstractState<T> {
         this.valuations = new HashMap<>(previous.valuations);
     }
 
+    public boolean contains_variable(Expr<T> variable_expression) {
+        return valuations.keySet().stream().anyMatch((var) -> var.is(variable_expression));
+    }
+
     public void set_valuation(ConcreteVariable<T> var, int value) {
         valuations.put(var, value);
     }
 
-    public Integer get_valuation(ConcreteVariable<T> var) {
+    public int get_valuation(ConcreteVariable<T> var) {
         return valuations.get(var);
+    }
+
+    public int get_valuation(Expr<T> variable_expression) {
+        return valuations.entrySet().stream()
+                         .filter((entry) -> entry.getKey().is(variable_expression))
+                         .findFirst().orElseThrow().getValue();
     }
 
     public boolean equals(AbstractState<T> other) {

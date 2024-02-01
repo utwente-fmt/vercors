@@ -14,7 +14,13 @@ public class AbstractProcess<T> {
     }
 
     public List<ExecutionState<T>> simulate(int[] program_counter, AbstractState<T> starting_state) {
-        return null;
+        List<ExecutionState<T>> final_result = new ArrayList<>();
+
+        List<ResolvedExecutionState<T>> current_branches = new ArrayList<>();
+        List<Statement<T>> current_stack = resolve(program_counter);
+        current_branches.add(new ResolvedExecutionState<>(starting_state, program_counter, current_stack));
+
+        return final_result;
     }
 
     private List<ExecutionState<T>> small_step() {
