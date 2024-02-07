@@ -9,7 +9,6 @@ class Source extends Thread {
         i = 42;
     }
 
-
     public void join(){}
     public void start(){}
 }
@@ -24,10 +23,12 @@ class Sink extends Thread {
     /*@
        requires Perm(source, 1);
        ensures Perm(source, 1);
+       ensures Perm(source.i, 1/2);
     */
     public void run() {
         //@ source.postJoin(1\2);
         source.join();
+        source.i = 1;
     }
 
     public void join(){}
@@ -45,7 +46,7 @@ class Main{
         sink.start();
         //@ source.postJoin(1\2);
         source.join();
-        //@ sink.postJoin(1\2);
+        //@ sink.postJoin(1);
         sink.join();
         source.i = 1988;
     }

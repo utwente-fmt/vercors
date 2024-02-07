@@ -112,6 +112,10 @@ object Util {
     cls.declarations.collectFirst{case im: InstanceMethod[G] if im.o.getPreferredNameOrElse() == name => im}.get
   }
 
-
-
+  def findAllDerefs[G](d: Deref[G]) : Seq[Deref[G]] = {
+    d.obj match {
+      case d2: Deref[G] => Seq(d) ++ findAllDerefs(d2)
+      case _ => Seq(d)
+    }
+  }
 }

@@ -53,20 +53,22 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
   protected def dispatchInstanceMethod(i: InstanceMethod[Pre])(implicit o: Origin = i.o): Unit = {
     postJoinTokens.collect {
       variables.collectScoped {
-        val transferPermissionsStatements: Block[Post] = collectTransferPermissionStatementsFromRunMethod(i)
+        val (preStatements, postStatements): (Block[Post], Block[Post]) = collectTransferPermissionStatementsFromRunMethod(i)
         val scope = collectMethodBody(i)
         val scopeBlock = collectBlockScope(scope)
-        val newScope = scope.rewrite(body = Block[Post](Seq(transferPermissionsStatements, dispatch(scopeBlock))))
+        val newScope = scope.rewrite(body = Block[Post](Seq(preStatements, dispatch(scopeBlock), postStatements)))
         classDeclarations.succeed(i, i.rewrite(body = Some(newScope)))
       }
     }
   }
 
-  private def collectTransferPermissionStatementsFromRunMethod(i: InstanceMethod[Pre]): Block[Post] = {
-    if (!isExtendingThread(currentClass.top) || !isMethod(i, "run")) return Block[Post](Seq.empty)(i.o)
-    val predicate = unfoldPredicate(i.contract.requires).head
+  private def collectTransferPermissionStatementsFromRunMethod(i: InstanceMethod[Pre]): (Block[Post], Block[Post]) = {
+    implicit val o: Origin = i.o
+    if (!isExtendingThread(currentClass.top) || !isMethod(i, "run")) return (EMPTY, EMPTY)
     val pd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger)
-    TransferPermissionRewriter(pd).addPermissions(predicate)
+    val trans = TransferPermissionRewriter(pd)
+    val (prePredicate, postPredicate) = (unfoldPredicate(i.contract.requires).head, unfoldPredicate(i.contract.ensures).head)
+    (trans.addPermissions(prePredicate), trans.removePermissions(postPredicate))
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
@@ -89,15 +91,10 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     val dispatchedOffset: Expr[Post] = getDispatchedOffset(dispatchedStatement)
     val postfactor: Expr[Post] = postJoinTokens.top.find(rpj => rpj.obj == dispatchedOffset).get.arg
     val factor = PermissionRewriter.permissionToRuntimeValue(postfactor)
-    val pdAdd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger)
+    val pdAdd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger).setOffset(dispatch(mi.obj)).setFactor(factor)
 //      .setFactor(factor)
     val newAddStatements = TransferPermissionRewriter(pdAdd).addPermissions(predicate)
-    val pdRemove: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger)     //TODO fix that the remove statements should be at the join method itself
-//      .setThreadId(dispatchedOffset)
-//      .setFactor(factor).setOffset(dispatchedOffset)
-    val removeStatements = TransferPermissionRewriter(pdRemove).removePermissions(predicate)
-//    val removeStatements = TransferPermissionRewriter(this, currentClass.top, (Some(mi.obj), None),(Some(mi.obj), None), factor, Seq(mi.obj.asInstanceOf[Local[Pre]].ref.decl)).removePermissions(predicate)
-    Block[Post](Seq(dispatchedStatement, newAddStatements, removeStatements))
+    Block[Post](Seq(dispatchedStatement, newAddStatements))
   }
 
   private def getDispatchedOffset(e: Eval[Post]): Expr[Post] = {
@@ -111,7 +108,7 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     val runMethod: InstanceMethod[Pre] = getRunMethod(mi)
     val predicate: Expr[Pre] = unfoldPredicate(runMethod.contract.requires).head
     val dispatchedStatement: Eval[Post] = super.dispatch(e).asInstanceOf[Eval[Post]]
-    val pdRemove: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger)
+    val pdRemove: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger).setOffset(dispatch(mi.obj))
     val removeStatements = TransferPermissionRewriter(pdRemove).removePermissions(predicate)
     Block[Post](Seq(removeStatements, dispatchedStatement))
   }

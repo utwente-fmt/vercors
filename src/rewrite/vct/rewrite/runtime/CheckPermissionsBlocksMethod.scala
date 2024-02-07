@@ -82,7 +82,7 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
 
     val location: Expr[Post] = l match {
       case d: Deref[Pre] if d.t.isInstanceOf[PrimitiveType[Pre]] => ledger.miGetPermission(dispatch(d.obj), dispatch(const[Pre](findNumberPrimitiveInstanceField(program, d.ref.decl).get))).get
-      case d: Deref[Pre] => ledger.miGetPermission(dispatch(d.obj)).get
+      case d: Deref[Pre] => ledger.miGetPermission(dispatch(d)).get
       case AmbiguousSubscript(coll, index) => ledger.miGetPermission(dispatch(coll), dispatch(index)).get
       case _ => throw Unreachable(s"This location type is not supported yet: ${l}")
     }

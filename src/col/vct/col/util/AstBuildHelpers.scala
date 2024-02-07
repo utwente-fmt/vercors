@@ -475,10 +475,5 @@ object AstBuildHelpers {
   def foldOr[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(Or(_, _)).getOrElse(ff)
 
-  def findAllDerefs[G](d: Deref[G]) : Seq[Deref[G]] = {
-    d.obj match {
-      case d2: Deref[G] => Seq(d) ++ findAllDerefs(d2)
-      case _ => Seq(d)
-    }
-  }
+  def EMPTY[G](implicit origin: Origin):Block[G] = Block[G](Nil)
 }

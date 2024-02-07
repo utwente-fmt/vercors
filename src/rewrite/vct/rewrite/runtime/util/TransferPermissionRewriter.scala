@@ -1,7 +1,9 @@
 package vct.rewrite.runtime.util
 
+import vct.col.ast.RewriteHelpers.RewriteDeref
 import vct.col.ast._
 import vct.col.origin.Origin
+import vct.col.ref.Ref
 import vct.col.rewrite.Generation
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
@@ -61,24 +63,31 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
 
   private def dispatchPerm(p: Perm[Pre])(implicit origin: Origin): Expr[Post] = {
     val newValue: Expr[Post] = pd.factored(permissionToRuntimeValueRewrite(p))
-    val pt: Option[Expr[Post]] = p match {
-      case Perm(AmbiguousLocation(d@Deref(t@ThisObject(_), _)), _) if d.t.isInstanceOf[PrimitiveType[Pre]]
-      => ledger.miSetPermission(pd.getOffset(t), locationExpression(d.ref.decl), op(ledger.miGetPermission(pd.getOffset(t), locationExpression(d.ref.decl)).get, newValue))
-      case Perm(AmbiguousLocation(d@Deref(t@ThisObject(_), _)), _)
-      => ledger.miSetPermission(pd.getOffset(t), op(ledger.miGetPermission(pd.getOffset(t)).get, newValue))
 
-      case Perm(AmbiguousLocation(d@Deref(l@Local(_), _)), _) if d.t.isInstanceOf[PrimitiveType[Pre]]
-      => ledger.miSetPermission(dispatch(l), locationExpression(d.ref.decl), op(ledger.miGetPermission(dispatch(l), locationExpression(d.ref.decl)).get, newValue))
-      case Perm(AmbiguousLocation(d@Deref(l@Local(_), _)), _)
-      => ledger.miSetPermission(dispatch(l), op(ledger.miGetPermission(dispatch(l)).get, newValue))
-
-      case Perm(AmbiguousLocation(AmbiguousSubscript(Deref(t@ThisObject(_), _), index)), _)
-      => ledger.miSetPermission(pd.getOffset(t), dispatch(index), op(ledger.miGetPermission(pd.getOffset(t), dispatch(index)).get, newValue))
-      case Perm(AmbiguousLocation(AmbiguousSubscript(Deref(l@Local(_), _), index)), _)
-      => ledger.miSetPermission(dispatch(l), dispatch(index), op(ledger.miGetPermission(dispatch(l), dispatch(index)).get, newValue))
+    val pt: Option[Expr[Post]] = p.loc.asInstanceOf[AmbiguousLocation[Pre]].expr match {
+      case d@Deref(o, _) if d.t.isInstanceOf[PrimitiveType[Pre]] => {
+        val getPerm = ledger.miGetPermission(getNewExpr(o), locationExpression(d.ref.decl)).get
+        ledger.miSetPermission(getNewExpr(o), locationExpression(d.ref.decl), op(getPerm, newValue))
+      }
+      case d@Deref(_, _) => {
+        val getPerm = ledger.miGetPermission(getNewExpr(d)).get
+        ledger.miSetPermission(getNewExpr(d), op(getPerm, newValue))
+      }
+      case AmbiguousSubscript(coll, index) => {
+        val getPerm = ledger.miGetPermission(getNewExpr(coll), dispatch(index)).get
+        ledger.miSetPermission(getNewExpr(coll), dispatch(index), op(getPerm, newValue))
+      }
       case _ => throw Unreachable(s"This type of permissions transfer is not yet supported: ${p}")
     }
     pt.getOrElse(tt)
+  }
+
+  private def getNewExpr(e: Expr[Pre]): Expr[Post] = {
+    e match {
+      case d: Deref[Pre] => d.rewrite(obj = getNewExpr(d.obj))
+      case t: ThisObject[Pre] => pd.getOffset(t)
+      case _ => dispatch(e)
+    }
   }
 
   private def locationExpression(instanceField: InstanceField[Pre])(implicit origin: Origin): Expr[Post] = {

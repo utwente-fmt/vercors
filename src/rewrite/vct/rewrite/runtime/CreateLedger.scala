@@ -113,7 +113,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = DiagnosticOrigin
     val chm: Eval[Post] = Eval[Post](mbh.miCreateHashMaps.get)
     val input = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
-    val returnStat = Return[Post](mbh.ledgerProperties.getOrDefault(mbh.ledgerProperties.get(mbh.threadId), input.get, RuntimeFractionOne[Post]()))
+    val returnStat = Return[Post](mbh.ledgerProperties.getOrDefault(mbh.ledgerProperties.get(mbh.threadId), input.get, RuntimeFractionZero[Post]()))
     val newBlock: Block[Post] = Block[Post](Seq(chm, returnStat))
     val body = Scope[Post](Nil, newBlock)
     classDeclarations.declare(mbh.createMethod(TRuntimeFraction[Post](), Seq(input), Some(body), "getPermission"))

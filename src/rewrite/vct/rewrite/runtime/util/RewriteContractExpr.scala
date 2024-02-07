@@ -52,29 +52,25 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
 
   private def dispatchPermission(p: Perm[Pre])(implicit origin: Origin = p.o): Block[Post] = {
     val cond = permissionToRuntimeValueRewrite(p)
-    val pt: Option[Expr[Post]] = p match {
-      case Perm(AmbiguousLocation(d@Deref(t@ThisObject(_), _)), _) if d.t.isInstanceOf[PrimitiveType[Pre]]
-      => ledger.miGetPermission(pd.getOffset(t), dispatch(const[Pre](findNumberPrimitiveInstanceField(program, d.ref.decl).get)))
-      case Perm(AmbiguousLocation(d@Deref(t@ThisObject(_), _)), _)
-      => ledger.miGetPermission(pd.getOffset(d))
-
-      case Perm(AmbiguousLocation(d@Deref(l@Local(_), _)), _) if d.t.isInstanceOf[PrimitiveType[Pre]]
-      => ledger.miGetPermission(dispatch(l), dispatch(const[Pre](findNumberPrimitiveInstanceField(program, d.ref.decl).get)))
-      case Perm(AmbiguousLocation(d@Deref(l@Local(_), _)), _)
-      => ledger.miGetPermission(dispatch(d))
-
-      case Perm(AmbiguousLocation(AmbiguousSubscript(Deref(t@ThisObject(_), _), index)), _)
-      => ledger.miGetPermission(pd.getOffset(t), dispatch(index))
-      case Perm(AmbiguousLocation(AmbiguousSubscript(Deref(l@Local(_), _), index)), _)
-      => ledger.miGetPermission(dispatch(l), dispatch(index))
-      case Perm(AmbiguousLocation(AmbiguousSubscript(l@Local(_), index)), _)
-      => ledger.miGetPermission(dispatch(l), dispatch(index))
+    val pt: Option[Expr[Post]] = p.loc.asInstanceOf[AmbiguousLocation[Pre]].expr match {
+      case d@Deref(o, _) if d.t.isInstanceOf[PrimitiveType[Pre]] => ledger.miGetPermission(getNewExpr(o), dispatch(const[Pre](findNumberPrimitiveInstanceField(program, d.ref.decl).get)))
+      case d@Deref(_, _) => ledger.miGetPermission(getNewExpr(d))
+      case AmbiguousSubscript(coll, index) => ledger.miGetPermission(getNewExpr(coll), dispatch(index))
       case _ => throw Unreachable(s"This type of permissions transfer is not yet supported: ${p}")
     }
-    val check: Option[Expr[Post]] = pt.map(e => (e r_<=> cond) === const(1))
+
+    val check: Option[Expr[Post]] = pt.map(e => (e r_<=> cond) !== const(-1)) // test if the value is equal or bigger than the required permission
     val assert: Expr[Post] = check.getOrElse(tt)
     val assertion = RuntimeAssert[Post](assert, s"Permission is not enough")(null)
     Block[Post](Seq(assertion))
+  }
+
+  private def getNewExpr(e: Expr[Pre]): Expr[Post] = {
+    e match {
+      case d: Deref[Pre] => d.rewrite(obj = getNewExpr(d.obj))
+      case t: ThisObject[Pre] => pd.getOffset(t)
+      case _ => dispatch(e)
+    }
   }
 
   private def dispatchInstancePredicateApply(ipa: InstancePredicateApply[Pre]) : Block[Post] = {
