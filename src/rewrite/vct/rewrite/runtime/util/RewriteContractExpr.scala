@@ -14,8 +14,6 @@ import vct.rewrite.runtime.util.LedgerHelper._
 import vct.rewrite.runtime.util.PermissionRewriter.permissionToRuntimeValueRewrite
 import vct.rewrite.runtime.util.Util._
 
-import scala.collection.mutable
-
 
 case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](pd) {
   override val allScopes = pd.outer.allScopes
