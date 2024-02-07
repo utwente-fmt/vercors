@@ -12,6 +12,14 @@ case object ScopedStack {
     }
   }
 
+  implicit class ScopedSetStack[T](stack: ScopedStack[mutable.Set[T]]) {
+    def collect[R](f: => R): (mutable.Set[T], R) = {
+      val buf = mutable.Set[T]()
+      val res = stack.having(buf)(f)
+      (buf, res)
+    }
+  }
+
   implicit class ScopedHashMapStack[K, V](stack: ScopedStack[HashMap[K,V]]){
     def collect[R](f: => R): (HashMap[K,V], R) = {
       val map = HashMap[K,V]()
