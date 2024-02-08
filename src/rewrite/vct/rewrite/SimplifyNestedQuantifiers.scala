@@ -57,22 +57,28 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     e match {
-      case e: Binder[Pre] =>
-        rewriteLinearArray(e) match {
-          case None =>
-            val res = rewriteDefault(e)
-            res match {
-              case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
-                logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
-              case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
-                logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
-              case _ =>
-            }
-            res
-          case Some(newE)
-            => newE
+      case e: Forall[Pre] =>
+        mapUnfoldedStar(e.body, (b: Expr[Pre]) => rewriteBinder(Forall(e.bindings, e.triggers, b)(e.o)))
+      case e: Starall[Pre] =>
+        mapUnfoldedStar(e.body, (b: Expr[Pre]) => rewriteBinder(Starall(e.bindings, e.triggers, b)(e.blame)(e.o)))
+      case other => other.rewriteDefault()
+    }
+  }
+
+  def rewriteBinder(e: Binder[Pre]): Expr[Post] = {
+    rewriteLinearArray(e) match {
+      case None =>
+        val res = e.rewriteDefault()
+        res match {
+          case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
+            logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
+          case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
+            logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
+          case _ =>
         }
-      case other => rewriteDefault(other)
+        res
+      case Some(newE)
+      => newE
     }
   }
 
@@ -80,13 +86,13 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     val e = stat match {
       case Exhale(e) => e
       case Inhale(e) => e
-      case _ => return rewriteDefault(stat)
+      case _ => return stat.rewriteDefault()
     }
 
     val conditions = getConditions(e)
     val infoGetter = new AnnotationVariableInfoGetter[Pre]()
     equalityChecker = ExpressionEqualityCheck(Some(infoGetter.getInfo(conditions)))
-    val result = rewriteDefault(stat)
+    val result = stat.rewriteDefault()
     equalityChecker = ExpressionEqualityCheck()
     result
   }
@@ -311,6 +317,13 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       }
     }
 
+    def testPairs[A](xs: Iterable[A], ys: Iterable[A], f: (A,A) => Boolean): Boolean = {
+      for(x <- xs)
+        for(y<-ys)
+          if(f(x,y)) return true
+      false
+    }
+
     /** We check if there now any binding variables which resolve to just a single value, which happens if it
       * has equal lower and upper bounds.
       * E.g. forall(int i,j; i == 0 && i <= j && j < 5; xs[j+i]) ==> forall(int j; 0 <= j < 5; xs[j])
@@ -320,11 +333,15 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       * */
     def checkSingleValueVariables(): Unit = {
       for (name <- bindings) {
-        val equalBounds = lowerBounds(name).intersect(upperBounds(name))
-        if (equalBounds.nonEmpty) {
+        val equalBounds =
+          lowerBounds(name).
+            flatMap(x => upperBounds(name)
+              .map(y => (x, y)))
+            .collectFirst { case (x, y) if equalityChecker.equalExpressions(x, y) => x}
+        if (equalBounds.isDefined) {
           // We will put out a new quantifier
           newBinder = true
-          val newValue = equalBounds.head
+          val newValue = equalBounds.get
           val nameVar: Expr[Pre] = Local(name.ref)
           val sub = Substitute[Pre](Map(nameVar -> newValue))
           val replacer = sub.dispatch(_: Expr[Pre])
@@ -436,7 +453,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
         case expr if expr == indexReplacement._1  => indexReplacement._2
         case v: Local[Pre] if subs.contains(v.ref.decl) => subs(v.ref.decl)
-        case other => rewriteDefault(other)
+        case other => other.rewriteDefault()
       }
     }
 
