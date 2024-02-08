@@ -1,6 +1,6 @@
 package vct.col.ast.lang.c
 
-import vct.col.ast.{AmbiguousMult, CTVector, Node, SizeOf}
+import vct.col.ast.{AmbiguousMult, CTVector, Mult, Node, SizeOf}
 import vct.col.ast.ops.CTVectorOps
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.print.{Ctx, Doc, Text}
@@ -22,6 +22,8 @@ trait CTVectorImpl[G] extends CTVectorOps[G] { this: CTVector[G] =>
   lazy val intSize = size match {
     case AmbiguousMult(SizeOf(ts), e) if ts == innerType && isConstantInt(e).isDefined => isConstantInt(e).get
     case AmbiguousMult(e, SizeOf(ts)) if ts == innerType && isConstantInt(e).isDefined => isConstantInt(e).get
+    case Mult(e, SizeOf(ts)) if ts == innerType && isConstantInt(e).isDefined => isConstantInt(e).get
+    case Mult(SizeOf(ts), e) if ts == innerType && isConstantInt(e).isDefined => isConstantInt(e).get
     case _ => throw CTVector.WrongVectorType(this)
   }
 }

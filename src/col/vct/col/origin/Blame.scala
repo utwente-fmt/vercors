@@ -297,11 +297,20 @@ case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_]) exten
 
   override def position: String = resource.o.shortPositionText
 }
-case class DivByZero(node: DividingExpr[_]) extends NodeVerificationFailure {
+sealed trait DivByZero extends NodeVerificationFailure
+
+case class ScalarDivByZero(node: DividingExpr[_]) extends DivByZero {
   override def code: String = "divByZero"
   override def descInContext: String = "The divisor may be zero."
   override def inlineDescWithSource(source: String): String = s"The divisor in `$source` may be zero."
 }
+
+case class VectorDivByZero(node: DividingExpr[_], i: Int) extends DivByZero {
+  override def code: String = "vectorDivByZero"
+  override def descInContext: String = f"Element $i of the divisor vector may be zero."
+  override def inlineDescWithSource(source: String): String = s"Element $i of the divisor vector in `$source` may be zero."
+}
+
 sealed trait FrontendDerefError extends VerificationFailure
 sealed trait FrontendAdditiveError extends VerificationFailure
 sealed trait FrontendSubscriptError extends VerificationFailure

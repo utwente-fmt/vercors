@@ -822,7 +822,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val init = decl.decl.inits.head
 
     val t = decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => t.t }.get match {
-      case t: CTVector[Pre] if init.init.isDefined => return rewriteVectorDeclaration(decl, t, init)
+      case t: CTVector[Pre] if init.init.collect({case _: CLiteralArray[Pre] => true}).isDefined => return rewriteVectorDeclaration(decl, t, init)
       case t: CTArray[Pre] => return rewriteArrayDeclaration(decl, t)
       case t: CTStruct[Pre] => return rewriteStructDeclaration(decl, t)
       case t => rw.dispatch(t)
@@ -874,11 +874,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     )(KernelBarrierFailure(barrier))
   }
 
-  def isPointer(t: Type[Pre]) : Boolean = t match {
-    case TPointer(_) => true
+  def isPointer(t: Type[Pre]): Boolean = getPointer(t).isDefined
+
+  def getPointer(t: Type[Pre]) : Option[TPointer[Pre]] = t match {
+    case t@TPointer(_) => Some(t)
     case CPrimitiveType(specs) =>
-      specs.collectFirst{case CSpecificationType(TPointer(_)) => }.nonEmpty
-    case _ => false
+      specs.collectFirst{case CSpecificationType(t@TPointer(_)) => t}
+    case _ => None
   }
 
   def isNumeric(t: Type[Pre]): Boolean = t match{

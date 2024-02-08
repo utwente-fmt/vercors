@@ -191,7 +191,6 @@ case class SilverTransformation
     FilterSpecIgnore,
 
     // Normalize AST
-    TruncDivMod,
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
     EncodeRangedFor,
@@ -291,6 +290,9 @@ case class SilverTransformation
     ImportNull.withArg(adtImporter),
     ImportAny.withArg(adtImporter),
     ImportViperOrder.withArg(adtImporter),
+
+    // After Disambiguate and  ImportVector
+    TruncDivMod,
 
     // All locations with a value should now be SilverField
     EncodeForPermWithValue,

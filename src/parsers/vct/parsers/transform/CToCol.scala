@@ -154,15 +154,15 @@ case class CToCol[G](override val baseOrigin: Origin,
       case "_Bool" => CBool()
       case _ => ??(typeSpec)
     }
-    case TypeSpecifier1(_, _, _, _) => ??(typeSpec)
-    case TypeSpecifier2(valType) => CSpecificationType(convert(valType))
-    case TypeSpecifier3(_) => ??(typeSpec)
-    case TypeSpecifier4(struct) => convert(struct)
-    case TypeSpecifier5(_) => ??(typeSpec)
-    case TypeSpecifier6(name) => name match {
+//    case TypeSpecifier1(_, _, _, _) => ??(typeSpec)
+    case TypeSpecifier1(valType) => CSpecificationType(convert(valType))
+    case TypeSpecifier2(_) => ??(typeSpec)
+    case TypeSpecifier3(struct) => convert(struct)
+    case TypeSpecifier4(_) => ??(typeSpec)
+    case TypeSpecifier5(name) => name match {
       case TypedefName0(name) => CTypedefName(convert(name))
     }
-    case TypeSpecifier7(_, _, _, _) => ??(typeSpec)
+    case TypeSpecifier6(_, _, _, _) => ??(typeSpec)
   }
 
   def convert(implicit struct: StructOrUnionSpecifierContext): CTypeSpecifier[G] = struct match {
@@ -439,8 +439,8 @@ case class CToCol[G](override val baseOrigin: Origin,
       val e = PreAssignExpression(target, op match {
         case "=" => value
         case "*=" => AmbiguousMult(target, value)
-        case "/=" => TruncDiv(target, value)(blame(expr))
-        case "%=" => TruncMod(target, value)(blame(expr))
+        case "/=" => AmbiguousTruncDiv(target, value)(blame(expr))
+        case "%=" => AmbiguousTruncMod(target, value)(blame(expr))
         case "+=" => col.AmbiguousPlus(target, value)(blame(valueNode))
         case "-=" => col.AmbiguousMinus(target, value)((blame(valueNode)))
         case "<<=" => BitShl(target, value)
@@ -527,8 +527,8 @@ case class CToCol[G](override val baseOrigin: Origin,
     case MultiplicativeExpression0(inner) => convert(inner)
     case MultiplicativeExpression1(left, op, right) => op match {
       case MultiplicativeOp0(_) => AmbiguousMult(convert(left), convert(right))
-      case MultiplicativeOp1(_) => TruncDiv(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp2(_) => TruncMod(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp1(_) => AmbiguousTruncDiv(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp2(_) => AmbiguousTruncMod(convert(left), convert(right))(blame(expr))
       case MultiplicativeOp3(_) => col.RatDiv(convert(left), convert(right))(blame(expr))
     }
   }
@@ -1274,8 +1274,8 @@ case class CToCol[G](override val baseOrigin: Origin,
       val allIndices = convert(indices)
       NdPartialIndex(allIndices.init, allIndices.last, convert(dims))
     case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
-    case ValEuclideanDiv(_, _, left, _, right, _) => FloorDiv(convert(left), convert(right))(blame(e))
-    case ValEuclideanMod(_, _, left, _, right, _) => col.Mod(convert(left), convert(right))(blame(e))
+    case ValEuclideanDiv(_, _, left, _, right, _) => AmbiguousDiv(convert(left), convert(right))(blame(e))
+    case ValEuclideanMod(_, _, left, _, right, _) => AmbiguousMod(convert(left), convert(right))(blame(e))
     case ValPow(_, _, left, _, right, _) => SmtlibPow(convert(left), convert(right))
     case ValIsInt(_, _, arg, _) => SmtlibIsInt(convert(arg))
   }

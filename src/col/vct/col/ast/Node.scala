@@ -576,15 +576,21 @@ final case class Mult[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) 
 final case class RatDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends BinExpr[G] with DividingExpr[G] with RatDivImpl[G]
 final case class FloatDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends BinExpr[G] with DividingExpr[G] with FloatDivImpl[G]
 final case class FloorDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends BinExpr[G] with DividingExpr[G] with FloorDivImpl[G]
-final case class Mod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr[G] with DividingExpr[G] with ModImpl[G]
-final case class TruncDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr[G] with DividingExpr[G] with TruncDivImpl[G]
-final case class TruncMod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr[G] with DividingExpr[G] with TruncModImpl[G]
+final case class Mod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends BinExpr[G] with DividingExpr[G] with ModImpl[G]
+final case class TruncDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends BinExpr[G] with DividingExpr[G] with TruncDivImpl[G]
+final case class TruncMod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends BinExpr[G] with DividingExpr[G] with TruncModImpl[G]
 
 sealed trait VectorBinExpr[G] extends BinExpr[G] with VectorBinExprImpl[G]
 final case class VectorPlus[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends VectorBinExpr[G] with VectorPlusImpl[G]
 final case class VectorMinus[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends VectorBinExpr[G] with VectorMinusImpl[G]
 final case class VectorMult[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends VectorBinExpr[G] with VectorMultImpl[G]
-final case class VectorDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends VectorBinExpr[G] with DividingExpr[G] with VectorDivImpl[G]
+
+sealed trait DividingVectorBinExpr[G] extends VectorBinExpr[G] with DividingExpr[G]
+final case class VectorFloorDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends DividingVectorBinExpr[G] with VectorFloorDivImpl[G]
+final case class VectorFloatDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends DividingVectorBinExpr[G] with VectorFloatDivImpl[G]
+final case class VectorTruncDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends DividingVectorBinExpr[G] with VectorTruncDivImpl[G]
+final case class VectorMod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends DividingVectorBinExpr[G] with VectorModImpl[G]
+final case class VectorTruncMod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends DividingVectorBinExpr[G] with VectorTruncModImpl[G]
 
 final case class StringConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with StringConcatImpl[G]
 

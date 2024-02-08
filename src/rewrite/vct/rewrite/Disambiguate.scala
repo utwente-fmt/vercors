@@ -65,6 +65,22 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
+      case op @ AmbiguousDiv(left, right) =>
+        if (op.isVectorIntOp) VectorFloorDiv(dispatch(left), dispatch(right))(op.blame)
+        else if (op.isVectorOp) VectorFloatDiv(dispatch(left), dispatch(right))(op.blame)
+        else if (op.isIntOp) FloorDiv(dispatch(left), dispatch(right))(op.blame)
+        else FloatDiv(dispatch(left), dispatch(right))(op.blame)
+      case op @ AmbiguousTruncDiv(left, right) =>
+        if (op.isVectorIntOp) VectorTruncDiv(dispatch(left), dispatch(right))(op.blame)
+        else if (op.isVectorOp) VectorFloatDiv(dispatch(left), dispatch(right))(op.blame)
+        else if (op.isIntOp) TruncDiv(dispatch(left), dispatch(right))(op.blame)
+        else FloatDiv(dispatch(left), dispatch(right))(op.blame)
+      case op @ AmbiguousMod(left, right) =>
+        if (op.isVectorOp) VectorMod(dispatch(left), dispatch(right))(op.blame)
+        else Mod(dispatch(left), dispatch(right))(op.blame)
+      case op @ AmbiguousTruncMod(left, right) =>
+        if (op.isVectorOp) VectorTruncMod(dispatch(left), dispatch(right))(op.blame)
+        else TruncMod(dispatch(left), dispatch(right))(op.blame)
       case op @ AmbiguousMult(left, right) =>
         if(op.isProcessOp) ProcessSeq(dispatch(left), dispatch(right))
         else if(op.isSetOp) SetIntersection(dispatch(left), dispatch(right))

@@ -12,7 +12,7 @@ import scala.collection.mutable
 case class DivFailed(div:  DividingExpr[_]) extends Blame[InvocationFailure] {
   override def blame(error: InvocationFailure): Unit = error match {
     case PreconditionFailed(_, _, _) =>
-      div.blame.blame(DivByZero(div))
+      div.blame.blame(ScalarDivByZero(div))
     case other => throw Unreachable(s"Invalid invocation failure: $other")
   }
 }
@@ -44,11 +44,6 @@ case class TruncDivMod[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def truncDiv(div: TruncDiv[Pre]): Expr[Post] = {
-    div.t match {
-      case _: TFloat[Pre] => return FloatDiv[Post](dispatch(div.left), dispatch(div.right))(div.blame)(div.o)
-      case _ =>
-    }
-
     val truncDiv_func = truncDivFunctions.getOrElseUpdate((), makeTruncDivFunction())
     FunctionInvocation[Post](truncDiv_func.ref, Seq(dispatch(div.left), dispatch(div.right)), Nil, Nil, Nil)(DivFailed(div))(div.o)
   }

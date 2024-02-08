@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op
 
 import vct.col.ast.`type`.typeclass.TFloats.getFloatMax
-import vct.col.ast.{BinExpr, Expr, IntType, TBool, TCInt, TInt, TProcess, TRational, TString, Type}
+import vct.col.ast.{BinExpr, Expr, IntType, TBool, TCInt, TInt, TProcess, TRational, TString, TVector, Type}
 import vct.col.origin.Origin
 import vct.col.typerules.{CoercionUtils, Types}
 import vct.result.VerificationError
@@ -30,6 +30,22 @@ object BinOperatorTypes {
   def isSeqOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getAnySeqCoercion(lt).isDefined
   def isSetOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getAnySetCoercion(lt).isDefined
   def isVectorOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getAnyVectorCoercion(lt).isDefined
+
+  def isVectorIntOp[G](lt: Type[G], rt: Type[G]): Boolean = {
+    (for{
+      (_, TVector(sizeL, eL)) <- CoercionUtils.getAnyVectorCoercion(lt)
+      (_, TVector(sizeR, eR)) <- CoercionUtils.getAnyVectorCoercion(rt)
+    } yield if(sizeL!=sizeR) ??? else isIntOp(eL, eR))
+    .getOrElse(false)
+  }
+
+  def getVectorType[G](lt: Type[G], rt: Type[G], o: Origin): Type[G] = {
+    (for{
+      (_, TVector(sizeL, eL)) <- CoercionUtils.getAnyVectorCoercion(lt)
+      (_, TVector(sizeR, eR)) <- CoercionUtils.getAnyVectorCoercion(rt)
+    } yield if(sizeL!=sizeR) ??? else TVector[G](sizeL, getNumericType(eL, eR, o)))
+      .get
+  }
 
   def getIntType[G](lt: Type[G], rt: Type[G]): IntType[G] = if(isCIntOp(lt, rt)) TCInt() else TInt()
 
@@ -68,8 +84,11 @@ trait BinExprImpl[G] { this: BinExpr[G] =>
   def isSeqOp: Boolean = BinOperatorTypes.isSeqOp(left.t, right.t)
   def isSetOp: Boolean = BinOperatorTypes.isSetOp(left.t, right.t)
   def isVectorOp: Boolean = BinOperatorTypes.isVectorOp(left.t, right.t)
+  def isVectorIntOp: Boolean = BinOperatorTypes.isVectorIntOp(left.t, right.t)
 
   def getIntType: IntType[G] = BinOperatorTypes.getIntType(left.t, right.t)
 
   def getNumericType: Type[G] = BinOperatorTypes.getNumericType(left.t, right.t, o)
+
+  def getVectorType: Type[G] = BinOperatorTypes.getVectorType(left.t, right.t, o)
 }

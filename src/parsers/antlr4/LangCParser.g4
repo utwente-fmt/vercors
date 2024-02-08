@@ -280,10 +280,7 @@ typeSpecifier
     |   'unsigned'
     |   '_Bool'
     |   '_Complex'
-    |   '__m128'
-    |   '__m128d'
-    |   '__m128i')
-    |   '__extension__' '(' ('__m128' | '__m128d' | '__m128i') ')'
+    )
     |   {specLevel>0}? valType
     |   atomicTypeSpecifier
     |   structOrUnionSpecifier
