@@ -802,13 +802,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val v = new Variable[Post](t)(o.sourceName(info.name))
     cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
 
-    val copy = init.init.map( v =>
-      Eval(createStructCopy(rw.dispatch(v), ref.decl, (f: InstanceField[_]) => PanicBlame("Cannot fail due to insufficient perm")))
-    )
+    val initialVal = init.init
+      .map(i =>
+        createStructCopy(rw.dispatch(i), ref.decl, (f: InstanceField[_]) => PanicBlame("Cannot fail due to insufficient perm"))
+      )
+      .getOrElse(NewObject[Post](targetClass.ref))
 
-    val stats = Seq(LocalDecl(v), assignLocal(v.get, NewObject[Post](targetClass.ref))) ++
-      copy.toSeq
-    Block(stats)
+    Block(Seq(LocalDecl(v), assignLocal(v.get, initialVal)))
   }
 
   def rewriteLocal(decl: CLocalDeclaration[Pre]): Statement[Post] = {
@@ -1029,25 +1029,33 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
 
-  def createStructCopy(a: Expr[Post], target: CGlobalDeclaration[Pre], blame: InstanceField[_] => Blame[InsufficientPermission]): Expr[Post] = {
-    implicit val o: Origin = a.o
-    val targetClass: Class[Post] = cStructSuccessor(target)
-    val t = TClass[Post](targetClass.ref)
+  def createStructCopy(value: Expr[Post], struct: CGlobalDeclaration[Pre], blame: InstanceField[_] => Blame[InsufficientPermission])(implicit o: Origin): Expr[Post] = {
+    val structClass: Class[Post] = cStructSuccessor(struct)
+    val t = TClass[Post](structClass.ref)
 
-    val v = new Variable[Post](t)
-    val fieldAssigns = targetClass.declarations.collect {
+    // Assign a new variable towards the value, such that methods do not get executed multiple times.
+    val vValue = new Variable[Post](t)
+    // The copy of the value
+    val vCopy = new Variable[Post](t)
+
+    val fieldAssigns = structClass.declarations.collect {
       case field: InstanceField[Post] =>
         val ref: Ref[Post, InstanceField[Post]] = field.ref
-        assignField(v.get, ref, Deref[Post](a, field.ref)(blame(field)), PanicBlame("Assignment should work"))
+        assignField(vCopy.get, ref, Deref[Post](vValue.get, field.ref)(blame(field)), PanicBlame("Assignment should work"))
     }
 
-    With(Block(Seq(LocalDecl(v), assignLocal(v.get, NewObject[Post](targetClass.ref))) ++ fieldAssigns), v.get)
+    With(Block(Seq(
+      LocalDecl(vCopy),
+      LocalDecl(vValue),
+      assignLocal(vValue.get, value),
+      assignLocal(vCopy.get, NewObject[Post](structClass.ref))
+    ) ++ fieldAssigns), vCopy.get)
   }
 
   def assignStruct(assign: PreAssignExpression[Pre]): Expr[Post] = {
     assign.target.t match {
       case CPrimitiveType(Seq(CSpecificationType(CTStruct(ref)))) =>
-        val copy = createStructCopy(rw.dispatch(assign.value), ref.decl, (f: InstanceField[_]) => StructCopyFailed(assign, f))
+        val copy = createStructCopy(rw.dispatch(assign.value), ref.decl, (f: InstanceField[_]) => StructCopyFailed(assign, f))(assign.o)
         PreAssignExpression(rw.dispatch(assign.target), copy)(AssignLocalOk)(assign.o)
       case _ => throw WrongStructType(assign.target)
     }
@@ -1122,7 +1130,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       a.t match {
         case CPrimitiveType(specs) if specs.collectFirst { case CSpecificationType(_: CTStruct[Pre]) => () }.isDefined =>
           specs match {
-            case Seq(CSpecificationType(CTStruct(ref))) => createStructCopy(rw.dispatch(a), ref.decl, (f: InstanceField[_]) => StructCopyBeforeCallFailed(inv, f))
+            case Seq(CSpecificationType(CTStruct(ref))) => createStructCopy(rw.dispatch(a), ref.decl, (f: InstanceField[_]) => StructCopyBeforeCallFailed(inv, f))(a.o)
             case _ => throw WrongStructType(a)
           }
         case _ => rw.dispatch(a)
