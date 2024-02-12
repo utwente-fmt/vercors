@@ -4,26 +4,32 @@ import vct.col.ast._
 
 case class GlobalIndex[G](indices: List[Index[G]]) {
 
-  def enter_scope(statement: Statement[G], index: Int = 0): GlobalIndex[G] =
-    GlobalIndex(Index[G](statement, index) :: indices)
+  def enter_scope(node: Node[G], index: Int = 0): GlobalIndex[G] =
+    GlobalIndex(Index[G](node, index) :: indices)
 
-  def leave_scope(): GlobalIndex[G] =
-    GlobalIndex(indices.tail).make_step()
-
-  def make_step(): GlobalIndex[G] = indices.head.make_step() match {
-    case Some(idx) => GlobalIndex(idx :: indices.tail)
-    case None => GlobalIndex(indices.tail).make_step()
+  def make_step(): Set[GlobalIndex[G]] = {
+    if (indices.isEmpty) return Set[GlobalIndex[G]]()
+    val steps: Set[Option[Index[G]]] = indices.head.make_step()
+    var res = Set[GlobalIndex[G]]()
+    for (step <- steps) {
+      step match {
+        case Some(index) => res = res ++ GlobalIndex(index +: indices.tail)
+        case None => res = res ++ GlobalIndex(indices.tail).make_step()
+      }
+    }
+    res
   }
 
   def resolve(): Statement[G] = indices.head.resolve()
 }
 
 sealed trait Index[G] {
-  def make_step(): Option[Index[G]]
+  def make_step(): Set[Option[Index[G]]]
   def resolve(): Statement[G]
 }
 
 object Index {
+  def apply[G](run_method: RunMethod[G], index: Int): Index[G] = RunMethodIndex(run_method)
   def apply[G](pvl_branch: PVLBranch[G], index: Int): Index[G] = PVLBranchIndex(pvl_branch, index)
   def apply[G](pvl_loop: PVLLoop[G], index: Int): Index[G] = PVLLoopIndex(pvl_loop, index)
   def apply[G](label: Label[G], index: Int): Index[G] = LabelIndex(label)
@@ -57,15 +63,22 @@ object Index {
   def apply[G](communicatex: CommunicateX[G], index: Int): Index[G] = CommunicateXIndex(communicatex)
 }
 
+case class RunMethodIndex[G](run_method: RunMethod[G]) extends Index[G] {
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def resolve(): Statement[G] = run_method.body.get
+}
+
 case class PVLBranchIndex[G](pvl_branch: PVLBranch[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = pvl_branch.branches.apply(index)._2  // TODO: Handle expressions in branch conditions
 }
 
 case class PVLLoopIndex[G](pvl_loop: PVLLoop[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = {
-    if (index < 3) Some(PVLLoopIndex(pvl_loop, index + 1))
-    else None
+  override def make_step(): Set[Option[Index[G]]] = index match {
+    case 0 => Set(Some(PVLLoopIndex(pvl_loop, 1)))
+    case 1 => Set(Some(PVLLoopIndex(pvl_loop, 2)), None)
+    case 2 => Set(Some(PVLLoopIndex(pvl_loop, 3)))
+    case 3 => Set(Some(PVLLoopIndex(pvl_loop, 1)))
   }
   override def resolve(): Statement[G] = index match {
     case 0 => pvl_loop.init
@@ -76,29 +89,29 @@ case class PVLLoopIndex[G](pvl_loop: PVLLoop[G], index: Int) extends Index[G] {
 }
 
 case class LabelIndex[G](label: Label[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = label.stat
 }
 
 case class FramedProofIndex[G](framed_proof: FramedProof[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = framed_proof.body
 }
 
 case class ExtractIndex[G](extract: Extract[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = extract.contractedStatement
 }
 
 case class EvalIndex[G](eval: Eval[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None  // TODO: Implement expressions!
+  override def make_step(): Set[Option[Index[G]]] = Set(None)  // TODO: Implement expressions!
   override def resolve(): Statement[G] = ??? // TODO: Implement expressions!
 }
 
 case class InvokeProcedureIndex[G](invoke_procedure: InvokeProcedure[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = {
-    if (index < invoke_procedure.args.size) Some(InvokeProcedureIndex(invoke_procedure, index + 1))
-    else None
+  override def make_step(): Set[Option[Index[G]]] = {
+    if (index < invoke_procedure.args.size) Set(Some(InvokeProcedureIndex(invoke_procedure, index + 1)))
+    else Set(None)
   }
   override def resolve(): Statement[G] = {
     if (index < invoke_procedure.args.size) Eval(invoke_procedure.args.apply(index))(invoke_procedure.args.apply(index).o)
@@ -107,9 +120,9 @@ case class InvokeProcedureIndex[G](invoke_procedure: InvokeProcedure[G], index: 
 }
 
 case class InvokeConstructorIndex[G](invoke_constructor: InvokeConstructor[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = {
-    if (index < invoke_constructor.args.size) Some(InvokeConstructorIndex(invoke_constructor, index + 1))
-    else None
+  override def make_step(): Set[Option[Index[G]]] = {
+    if (index < invoke_constructor.args.size) Set(Some(InvokeConstructorIndex(invoke_constructor, index + 1)))
+    else Set(None)
   }
   override def resolve(): Statement[G] = {
     if (index < invoke_constructor.args.size) Eval(invoke_constructor.args.apply(index))(invoke_constructor.args.apply(index).o)
@@ -118,9 +131,9 @@ case class InvokeConstructorIndex[G](invoke_constructor: InvokeConstructor[G], i
 }
 
 case class InvokeMethodIndex[G](invoke_method: InvokeMethod[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = {
-    if (index < invoke_method.args.size) Some(InvokeMethodIndex(invoke_method, index + 1))
-    else None
+  override def make_step(): Set[Option[Index[G]]] = {
+    if (index < invoke_method.args.size) Set(Some(InvokeMethodIndex(invoke_method, index + 1)))
+    else Set(None)
   }
   override def resolve(): Statement[G] = {
     if (index < invoke_method.args.size) Eval(invoke_method.args.apply(index))(invoke_method.args.apply(index).o)
@@ -129,37 +142,39 @@ case class InvokeMethodIndex[G](invoke_method: InvokeMethod[G], index: Int) exte
 }
 
 case class BlockIndex[G](block: Block[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = {
-    if (index < block.statements.size - 1) Some(BlockIndex(block, index + 1))
-    else None
+  override def make_step(): Set[Option[Index[G]]] = {
+    if (index < block.statements.size - 1) Set(Some(BlockIndex(block, index + 1)))
+    else Set(None)
   }
   override def resolve(): Statement[G] = block.statements.apply(index)
 }
 
 case class ScopeIndex[G](scope: Scope[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = scope.body
 }
 
 case class BranchIndex[G](branch: Branch[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = branch.branches.apply(index)._2
 }
 
 case class IndetBranchIndex[G](indet_branch: IndetBranch[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = indet_branch.branches.apply(index)
 }
 
 case class SwitchIndex[G](switch: Switch[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = switch.body
 }
 
 case class LoopIndex[G](loop: Loop[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = {
-    if (index < 3) Some(LoopIndex(loop, index + 1))
-    else None
+  override def make_step(): Set[Option[Index[G]]] = index match {
+    case 0 => Set(Some(LoopIndex(loop, 1)))
+    case 1 => Set(Some(LoopIndex(loop, 2)), None)
+    case 2 => Set(Some(LoopIndex(loop, 3)))
+    case 3 => Set(Some(LoopIndex(loop, 1)))
   }
   override def resolve(): Statement[G] = index match {
     case 0 => loop.init
@@ -170,70 +185,71 @@ case class LoopIndex[G](loop: Loop[G], index: Int) extends Index[G] {
 }
 
 case class RangedForIndex[G](ranged_for: RangedFor[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = ranged_for.body
 }
 
 case class TryCatchFinallyIndex[G](try_catch_finally: TryCatchFinally[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = {
-    if (index == 0) Some(TryCatchFinallyIndex(try_catch_finally, 1))
-    else None
+  override def make_step(): Set[Option[Index[G]]] = {
+    if (index != 1) Set(Some(TryCatchFinallyIndex(try_catch_finally, 1)))
+    else Set(None)
   }
   override def resolve(): Statement[G] = index match {
     case 0 => try_catch_finally.body
     case 1 => try_catch_finally.after
+    case _ => try_catch_finally.catches.apply(index - 2).body
   }
 }
 
 case class SynchronizedIndex[G](synchronized: Synchronized[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = synchronized.body
 }
 
 case class ParInvariantIndex[G](par_invariant: ParInvariant[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = par_invariant.content
 }
 
 case class ParAtomicIndex[G](par_atomic: ParAtomic[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = par_atomic.content
 }
 
 case class ParBarrierIndex[G](par_barrier: ParBarrier[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = par_barrier.content
 }
 
 case class VecBlockIndex[G](vec_block: VecBlock[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = vec_block.content
 }
 
 case class WandPackageIndex[G](wand_package: WandPackage[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = wand_package.proof
 }
 
 case class ModelDoIndex[G](model_do: ModelDo[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = model_do.impl
 }
 
 case class CPPLifetimeScopeIndex[G](cpp_lifetime_scope: CPPLifetimeScope[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = cpp_lifetime_scope.body
 }
 
 case class UnresolvedSeqBranchIndex[G](unresolved_seq_branch: UnresolvedSeqBranch[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = unresolved_seq_branch.branches.apply(index)._2
 }
 
 case class UnresolvedSeqLoopIndex[G](unresolved_seq_loop: UnresolvedSeqLoop[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = {
-    if (index == 0) Some(UnresolvedSeqLoopIndex(unresolved_seq_loop, 1))
-    else None
+  override def make_step(): Set[Option[Index[G]]] = index match {
+    case 0 => Set(Some(UnresolvedSeqLoopIndex(unresolved_seq_loop, 1)), None)
+    case 1 => Set(Some(UnresolvedSeqLoopIndex(unresolved_seq_loop, 0)))
   }
   override def resolve(): Statement[G] = index match {
     case 0 => Eval(unresolved_seq_loop.cond)(unresolved_seq_loop.cond.o)
@@ -242,7 +258,7 @@ case class UnresolvedSeqLoopIndex[G](unresolved_seq_loop: UnresolvedSeqLoop[G], 
 }
 
 case class SeqBranchIndex[G](seq_branch: SeqBranch[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = index match {
     case 0 => seq_branch.yes
     case 1 => seq_branch.no.get
@@ -250,16 +266,16 @@ case class SeqBranchIndex[G](seq_branch: SeqBranch[G], index: Int) extends Index
 }
 
 case class SeqLoopIndex[G](seq_loop: SeqLoop[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = seq_loop.body
 }
 
 case class VeyMontAssignExpressionIndex[G](veymont_assign_expression: VeyMontAssignExpression[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = veymont_assign_expression.assign
 }
 
 case class CommunicateXIndex[G](communicatex: CommunicateX[G]) extends Index[G] {
-  override def make_step(): Option[Index[G]] = None
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = communicatex.assign
 }
