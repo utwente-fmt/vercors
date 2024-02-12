@@ -101,7 +101,7 @@ case class InvokeProcedureIndex[G](invoke_procedure: InvokeProcedure[G], index: 
     else None
   }
   override def resolve(): Statement[G] = {
-    if (index < invoke_procedure.args.size) Eval(invoke_procedure.args.apply(index))(invoke_proecedure.args.apply(index).o)
+    if (index < invoke_procedure.args.size) Eval(invoke_procedure.args.apply(index))(invoke_procedure.args.apply(index).o)
     else invoke_procedure.ref.decl.body.get
   }
 }
