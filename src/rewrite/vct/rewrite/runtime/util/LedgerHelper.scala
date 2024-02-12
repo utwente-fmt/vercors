@@ -133,7 +133,8 @@ object LedgerHelper {
         Nil,
         Nil,
         body,
-        ApplicableContract.createEmptyContract
+        ApplicableContract.createEmptyContract,
+        static = true
       )(null)(DiagnosticOrigin.addPrefName(methodName).addLedgerClass())
     }
   }
