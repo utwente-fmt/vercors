@@ -10,5 +10,5 @@ trait RuntimeFractionDiffImpl[G] {
   override def precedence: Int = Precedence.ATOMIC
 
   override def layout(implicit ctx: Ctx): Doc =
-    Text("Fraction.getFraction(") <> left <> Text(",") <> right <> Text(")")
+    Text("new Fraction(") <> left <> Text(",") <> right <> Text(")")
 }

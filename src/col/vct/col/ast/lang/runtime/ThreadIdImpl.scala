@@ -11,8 +11,8 @@ trait ThreadIdImpl[G] {
 
   def objectLayout(implicit ctx: Ctx) : Doc = {
     obj match {
-      case Some(value) => value.show <> Text(".threadId()")
-      case None => Text("Thread.currentThread().threadId()")
+      case Some(value) => value.show <> Text(".getId()")
+      case None => Text("Thread.currentThread().getId()")
     }
   }
 

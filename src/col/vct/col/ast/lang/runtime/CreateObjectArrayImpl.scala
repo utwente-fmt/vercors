@@ -10,5 +10,5 @@ trait CreateObjectArrayImpl[G] {
   override def precedence: Int = Precedence.ATOMIC
 
 
-  override def layout(implicit ctx: Ctx): Doc = Text("{") <> Doc.args(args) <> "}"
+  override def layout(implicit ctx: Ctx): Doc = Text("new Object[]{") <> Doc.args(args) <> "}"
 }
