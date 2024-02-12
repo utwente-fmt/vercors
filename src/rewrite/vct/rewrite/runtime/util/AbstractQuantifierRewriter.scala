@@ -1,9 +1,9 @@
 package vct.rewrite.runtime.util
 
-import vct.col.ast.RewriteHelpers.RewriteVariable
+import vct.col.ast.RewriteHelpers.{RewriteDeref, RewriteVariable}
 import vct.col.ast._
 import vct.col.origin.Origin
-import vct.col.rewrite.{Generation, Rewriter}
+import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
 import vct.rewrite.runtime.util.permissionTransfer._
@@ -50,7 +50,7 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](pd: PermissionData[
 
   private final def createBodyQuantifier(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre]): Statement[Post] = {
     implicit val origin: Origin = expr.o
-    val bounds: ArrayBuffer[(Variable[Pre], Option[Expr[Post]], Option[Expr[Post]])] = FindBoundsQuantifier[Pre](this).findBounds(expr)
+    val bounds: ArrayBuffer[(Variable[Pre], Option[Expr[Pre]], Option[Expr[Pre]])] = FindBoundsQuantifier[Pre](this).findBounds(expr)
     val loopCondition = Branch[Post](Seq((!dispatch(left), Continue[Post](None))))
     val loopOperation: Block[Post] = dispatchLoopBody(LoopBodyContent(right, expr))
     if(loopOperation.statements.isEmpty) {
@@ -62,19 +62,39 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](pd: PermissionData[
     )
   }
 
-  private final def createQuantifier(expr: Expr[Pre], acc: Statement[Post], element: Variable[Pre], filteredBounds: ArrayBuffer[(Variable[Pre], Option[Expr[Post]], Option[Expr[Post]])]): Loop[Post] = {
+  private final def createQuantifier(expr: Expr[Pre], acc: Statement[Post], element: Variable[Pre], filteredBounds: ArrayBuffer[(Variable[Pre], Option[Expr[Pre]], Option[Expr[Pre]])]): Loop[Post] = {
     implicit val origin: Origin = expr.o
-    val minValue = filteredBounds.map(i => i._2).collectFirst { case Some(value: Expr[Post]) => value }.getOrElse(IntegerValue[Post](MinValue))
-    val maxValue = filteredBounds.map(i => i._3).collectFirst { case Some(value: Expr[Post]) => value }.getOrElse(IntegerValue[Post](MaxValue))
+    val minValue: Expr[Pre] = filteredBounds.map(i => i._2)
+      .collectFirst { case Some(value: Expr[Pre]) => value }
+      .getOrElse(const(MinValue))
+    val maxValue: Expr[Pre] = filteredBounds.map(i => i._3)
+      .collectFirst { case Some(value: Expr[Pre]) => value }
+      .getOrElse(const(MaxValue))
     val localBinding = Local[Post](variables.freeze.succ(element))
     Loop[Post](
-      Assign[Post](localBinding, minValue)(null),
-      localBinding < maxValue,
+      Assign[Post](localBinding, dispatch(minValue))(null),
+      localBinding < dispatch(maxValue),
       Assign[Post](localBinding, localBinding + const(1))(null),
       LoopInvariant[Post](tt, None)(null),
       acc
     )
   }
 
+
+  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
+    e match {
+      case d: Deref[Pre] => getNewExpr(d)
+      case t: ThisObject[Pre] => getNewExpr(t)
+      case _ => super.dispatch(e)
+    }
+  }
+
+  def getNewExpr(e: Expr[Pre]): Expr[Post] = {
+    e match {
+      case d: Deref[Pre] => d.rewrite(obj = getNewExpr(d.obj))
+      case t: ThisObject[Pre] => pd.getOffset(t)
+      case _ => dispatch(e)
+    }
+  }
 
 }

@@ -65,7 +65,7 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
     Block[Post](Seq(assertion))
   }
 
-  private def getNewExpr(e: Expr[Pre]): Expr[Post] = {
+  override def getNewExpr(e: Expr[Pre]): Expr[Post] = {
     e match {
       case d: Deref[Pre] => d.rewrite(obj = getNewExpr(d.obj))
       case t: ThisObject[Pre] => pd.getOffset(t)

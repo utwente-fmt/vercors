@@ -3,7 +3,9 @@ package vct.rewrite.runtime.util
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
+import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter}
+import vct.col.util.AstBuildHelpers._
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -12,10 +14,10 @@ case class FindBoundsQuantifier[Pre <: Generation](outer: AbstractQuantifierRewr
   override val allScopes = outer.allScopes
 
 
-  val bounds: ScopedStack[ArrayBuffer[(Variable[Pre], Option[Expr[Post]], Option[Expr[Post]])]] = new ScopedStack()
+  val bounds: ScopedStack[ArrayBuffer[(Variable[Pre], Option[Expr[Pre]], Option[Expr[Pre]])]] = new ScopedStack()
 
 
-  def findBounds(expr: Expr[Pre]): ArrayBuffer[(Variable[Pre], Option[Expr[Post]], Option[Expr[Post]])] = {
+  def findBounds(expr: Expr[Pre]): ArrayBuffer[(Variable[Pre], Option[Expr[Pre]], Option[Expr[Pre]])] = {
     bounds.having(new ArrayBuffer()) {
       this.dispatch(expr)
       bounds.top
@@ -46,31 +48,32 @@ case class FindBoundsQuantifier[Pre <: Generation](outer: AbstractQuantifierRewr
   }
 
 
-  def dispatchAmbiguousGreater(expr: (Expr[Pre], Expr[Pre])): Unit = {
+  def dispatchAmbiguousGreater(expr: (Expr[Pre], Expr[Pre]))(implicit origin: Origin): Unit = {
+    implicit val origin: Origin = expr._1.o
     expr match {
       case (local: Local[Pre], local2: Local[Pre]) => {
-        bounds.top.addOne((local.ref.decl, Some(AmbiguousPlus[Post](dispatch(local2), IntegerValue[Post](1)(local.o))(null)(local.o)), None))
-        bounds.top.addOne((local2.ref.decl, None, Some(dispatch(local))))
+        bounds.top.addOne((local.ref.decl, Some(local2 + const(1)), None))
+        bounds.top.addOne((local2.ref.decl, None, Some(local)))
       }
-      case (local: Local[Pre], e: Expr[Pre]) => bounds.top.addOne((local.ref.decl, Some(AmbiguousPlus[Post](dispatch(e), IntegerValue[Post](1)(local.o))(null)(local.o)), None))
-      case (e: Expr[Pre], local: Local[Pre]) => bounds.top.addOne((local.ref.decl, None, Some(dispatch(e))))
+      case (local: Local[Pre], e: Expr[Pre]) => bounds.top.addOne((local.ref.decl, Some(e + const(1)), None))
+      case (e: Expr[Pre], local: Local[Pre]) => bounds.top.addOne((local.ref.decl, None, Some(e)))
       case _ =>
     }
   }
 
-  def dispatchAmbiguousGreaterEqual(expr: (Expr[Pre], Expr[Pre])): Unit = {
+  def dispatchAmbiguousGreaterEqual(expr: (Expr[Pre], Expr[Pre]))(implicit origin: Origin): Unit = {
     expr match {
       case (local: Local[Pre], local2: Local[Pre]) => {
-        bounds.top.addOne((local.ref.decl, Some(dispatch(local2)), None))
-        bounds.top.addOne((local2.ref.decl, None, Some(AmbiguousPlus[Post](dispatch(local), IntegerValue[Post](1)(local.o))(null)(local.o))))
+        bounds.top.addOne((local.ref.decl, Some(local2), None))
+        bounds.top.addOne((local2.ref.decl, None, Some(local + const(1))))
       }
-      case (local: Local[Pre], e: Expr[Pre]) => bounds.top.addOne((local.ref.decl, Some(dispatch(e)), None))
-      case (e: Expr[Pre], local: Local[Pre]) => bounds.top.addOne((local.ref.decl, None, Some(AmbiguousPlus[Post](dispatch(e), IntegerValue[Post](1)(local.o))(null)(local.o))))
+      case (local: Local[Pre], e: Expr[Pre]) => bounds.top.addOne((local.ref.decl, Some(e), None))
+      case (e: Expr[Pre], local: Local[Pre]) => bounds.top.addOne((local.ref.decl, None, Some(e + const(1))))
       case _ =>
     }
   }
 
-  def dispatchAmbiguous(expr: Expr[Pre]): Expr[Post] = {
+  def dispatchAmbiguous(expr: Expr[Pre])(implicit origin: Origin): Expr[Post] = {
     expr match {
       case ag: AmbiguousGreater[Pre] => dispatchAmbiguousGreater((ag.left, ag.right))
       case al: AmbiguousLess[Pre] => dispatchAmbiguousGreater((al.right, al.left))
@@ -82,6 +85,7 @@ case class FindBoundsQuantifier[Pre <: Generation](outer: AbstractQuantifierRewr
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
+    implicit val origin: Origin = e.o
     e match {
       case starAll: Starall[Pre] => dispatchStarAll(starAll)
       case exists: Exists[Pre] => dispatchExists(exists)
