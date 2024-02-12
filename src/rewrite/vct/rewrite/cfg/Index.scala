@@ -7,13 +7,11 @@ case class GlobalIndex[G](indices: List[Index[G]]) {
   def enter_scope(statement: Statement[G], index: Int = 0): GlobalIndex[G] =
     GlobalIndex(Index[G](statement, index) :: indices)
 
-
   def leave_scope(): GlobalIndex[G] =
     GlobalIndex(indices.tail).make_step()
 
-
   def make_step(): GlobalIndex[G] = indices.head.make_step() match {
-    case Some(index) => GlobalIndex(index :: indices.tail)
+    case Some(idx) => GlobalIndex(idx :: indices.tail)
     case None => GlobalIndex(indices.tail).make_step()
   }
 
@@ -63,6 +61,7 @@ case class PVLBranchIndex[G](pvl_branch: PVLBranch[G], index: Int) extends Index
   override def make_step(): Option[Index[G]] = None
   override def resolve(): Statement[G] = pvl_branch.branches.apply(index)._2  // TODO: Handle expressions in branch conditions
 }
+
 case class PVLLoopIndex[G](pvl_loop: PVLLoop[G], index: Int) extends Index[G] {
   override def make_step(): Option[Index[G]] = {
     if (index < 3) Some(PVLLoopIndex(pvl_loop, index + 1))
@@ -97,18 +96,36 @@ case class EvalIndex[G](eval: Eval[G], index: Int) extends Index[G] {
 }
 
 case class InvokeProcedureIndex[G](invoke_procedure: InvokeProcedure[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = ???
-  override def resolve(): Statement[G] = ???
+  override def make_step(): Option[Index[G]] = {
+    if (index < invoke_procedure.args.size) Some(InvokeProcedureIndex(invoke_procedure, index + 1))
+    else None
+  }
+  override def resolve(): Statement[G] = {
+    if (index < invoke_procedure.args.size) Eval(invoke_procedure.args.apply(index))(invoke_proecedure.args.apply(index).o)
+    else invoke_procedure.ref.decl.body.get
+  }
 }
 
 case class InvokeConstructorIndex[G](invoke_constructor: InvokeConstructor[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = ???
-  override def resolve(): Statement[G] = ???
+  override def make_step(): Option[Index[G]] = {
+    if (index < invoke_constructor.args.size) Some(InvokeConstructorIndex(invoke_constructor, index + 1))
+    else None
+  }
+  override def resolve(): Statement[G] = {
+    if (index < invoke_constructor.args.size) Eval(invoke_constructor.args.apply(index))(invoke_constructor.args.apply(index).o)
+    else invoke_constructor.ref.decl.body.get
+  }
 }
 
 case class InvokeMethodIndex[G](invoke_method: InvokeMethod[G], index: Int) extends Index[G] {
-  override def make_step(): Option[Index[G]] = ???
-  override def resolve(): Statement[G] = ???
+  override def make_step(): Option[Index[G]] = {
+    if (index < invoke_method.args.size) Some(InvokeMethodIndex(invoke_method, index + 1))
+    else None
+  }
+  override def resolve(): Statement[G] = {
+    if (index < invoke_method.args.size) Eval(invoke_method.args.apply(index))(invoke_method.args.apply(index).o)
+    else invoke_method.ref.decl.body.get
+  }
 }
 
 case class BlockIndex[G](block: Block[G], index: Int) extends Index[G] {
