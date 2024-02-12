@@ -90,7 +90,7 @@ public class FunctionTransformer<T> {
 
         // Create method
         InstanceMethod<T> new_method = new InstanceMethod<>(return_type, parameters, col_system.NO_VARS, col_system.NO_VARS,
-                Option.apply(body), contract, false, pure, new GeneratedBlame<>(), OriGen.create(function.getName()));
+                Option.apply(body), contract, false, pure, false, new GeneratedBlame<>(), OriGen.create(function.getName()));
 
         // Register method in COL system context and return
         col_system.add_instance_method(function, sc_inst, process, new_method);
