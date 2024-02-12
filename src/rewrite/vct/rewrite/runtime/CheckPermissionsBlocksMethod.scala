@@ -9,7 +9,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.util.PermissionRewriter.permissionToRuntimeValue
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
-import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, LedgerRewriter, findNumberPrimitiveInstanceField}
+import vct.rewrite.runtime.util.LedgerHelper._
 
 import scala.collection.mutable
 
@@ -81,13 +81,13 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     implicit val origin: Origin = l.o
 
     val location: Expr[Post] = l match {
-      case d: Deref[Pre] if d.t.isInstanceOf[PrimitiveType[Pre]] => ledger.miGetPermission(dispatch(d.obj), dispatch(const[Pre](findNumberPrimitiveInstanceField(program, d.ref.decl).get))).get
-      case d: Deref[Pre] => ledger.miGetPermission(dispatch(d)).get
+      case d: Deref[Pre] => ledger.miGetPermission(dispatch(d.obj), dispatch(const[Pre](findNumberInstanceField(program, d.ref.decl).get))).get
+//      case d: Deref[Pre] => ledger.miGetPermission(dispatch(d)).get
       case AmbiguousSubscript(coll, index) => ledger.miGetPermission(dispatch(coll), dispatch(index)).get
       case _ => throw Unreachable(s"This location type is not supported yet: ${l}")
     }
     val check = if (write) (location r_<=> RuntimeFractionOne[Post]()) === const(0) else (location r_<=> RuntimeFractionZero[Post]()) === const(1)
-    val message = if (write) s"Permission should have been write but was not: ${l.toString}" else s"Permission should have been read but there was not enough permission: ${l.toString}"
+    val message = if (write) s"Permission should have been write but was not: ${l.toString}" else s"Permission should have been read but there was no permission: ${l.toString}"
     RuntimeAssert[Post](check, message)(null)
   }
 

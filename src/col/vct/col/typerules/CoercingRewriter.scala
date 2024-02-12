@@ -1668,6 +1668,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case r @ Refute(assn) => Refute(res(assn))(r.blame)
       case Return(result) => Return(result) // TODO coerce return, make AmbiguousReturn?
       case r@RuntimeAssert(res, m) => RuntimeAssert(res, m)(r.blame)
+      case r@RuntimeAssertExpected(res, ex, received, m) => RuntimeAssertExpected(res, ex, received, m)(r.blame)
       case r@RuntimePostJoin(obj, args) => RuntimePostJoin(obj, args)(r.blame)
       case Scope(locals, body) => Scope(locals, body)
       case send @ Send(decl, offset, resource) => Send(decl, offset, res(resource))(send.blame)

@@ -12,12 +12,12 @@ object LedgerHelper {
 
 
 
-  def findNumberPrimitiveInstanceField[G](program: Program[G], instanceField: InstanceField[G]): Option[Int] = {
+  def findNumberInstanceField[G](program: Program[G], instanceField: InstanceField[G]): Option[Int] = {
     program
       .declarations
       .collect{case cls: Class[G] => cls}
       .map(cls => cls.declarations)
-      .map(decls => decls.collect{case ifd: InstanceField[G] if ifd.t.isInstanceOf[PrimitiveType[G]] => ifd})
+      .map(decls => decls.collect{case ifd: InstanceField[G] => ifd})
       .map(ifs => ifs.indexOf(instanceField))
       .find(i => i >= 0)
   }

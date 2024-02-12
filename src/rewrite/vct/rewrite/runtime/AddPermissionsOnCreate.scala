@@ -7,6 +7,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, LedgerRewriter}
+import vct.rewrite.runtime.util.Util.isExtendingThread
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 import vct.rewrite.runtime.util.{RewriteContractExpr, TransferPermissionRewriter}
 
@@ -56,15 +57,22 @@ case class AddPermissionsOnCreate[Pre <: Generation]() extends Rewriter[Pre] {
 
   private def dispatchJC(jc: JavaConstructor[Pre]): JavaConstructor[Post] = {
     implicit val origin: Origin = jc.o
-    val instanceFields = currentClass.top.declarations.collect {
-      case i: InstanceField[Pre] if i.t.isInstanceOf[PrimitiveType[Pre]] => i
-    }
+    val instanceFields = currentClass.top.declarations.collect { case i: InstanceField[Pre] => i }
     val size = instanceFields.size
     val obj = ThisObject[Post](this.anySucc(currentClass.top))
     val initInstanceFieldsExpr: MethodInvocation[Post] = if (size == 0) ledger.miInitiatePermission(obj).get else ledger.miInitiatePermission(obj, const(size)).get
     val initInstanceFieldsPerm = Eval[Post](initInstanceFieldsExpr)
-    val newBody = Block[Post](Seq(dispatch(jc.body), initInstanceFieldsPerm))
+    val newBody = Block[Post](Seq(dispatch(jc.body), initInstanceFieldsPerm, createJoinTokenCall))
     classDeclarations.succeed(jc, jc.rewrite(body = newBody))
+  }
+
+  def createJoinTokenCall : Block[Post] = {
+    implicit val origin: Origin = DiagnosticOrigin
+    if (!isExtendingThread(currentClass.top)) {
+      return Block(Nil)
+    }
+    val mi = ledger.miSetJoinToken(ThisObject[Post](this.anySucc(currentClass.top)), RuntimeFractionOne[Post]()).get
+    Block[Post](Seq(Eval[Post](mi)))
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {

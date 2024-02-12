@@ -1,11 +1,9 @@
 package vct.rewrite.runtime.util
 
-import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.RewriteDeref
 import vct.col.ast._
 import vct.col.origin.Origin
-import vct.col.rewrite.{Generation, Rewriter, Rewritten}
-import vct.rewrite.runtime.util.permissionTransfer.PermissionData
+import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.CreatePredicates
@@ -13,6 +11,7 @@ import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
 import vct.rewrite.runtime.util.LedgerHelper._
 import vct.rewrite.runtime.util.PermissionRewriter.permissionToRuntimeValueRewrite
 import vct.rewrite.runtime.util.Util._
+import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
 
 case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](pd) {
@@ -53,15 +52,15 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
   private def dispatchPermission(p: Perm[Pre])(implicit origin: Origin = p.o): Block[Post] = {
     val cond = permissionToRuntimeValueRewrite(p)
     val pt: Option[Expr[Post]] = p.loc.asInstanceOf[AmbiguousLocation[Pre]].expr match {
-      case d@Deref(o, _) if d.t.isInstanceOf[PrimitiveType[Pre]] => ledger.miGetPermission(getNewExpr(o), dispatch(const[Pre](findNumberPrimitiveInstanceField(program, d.ref.decl).get)))
-      case d@Deref(_, _) => ledger.miGetPermission(getNewExpr(d))
+      case d@Deref(o, _) => ledger.miGetPermission(getNewExpr(o), dispatch(const[Pre](findNumberInstanceField(program, d.ref.decl).get)))
+      //      case d@Deref(_, _) => ledger.miGetPermission(getNewExpr(d))
       case AmbiguousSubscript(coll, index) => ledger.miGetPermission(getNewExpr(coll), dispatch(index))
       case _ => throw Unreachable(s"This type of permissions transfer is not yet supported: ${p}")
     }
 
     val check: Option[Expr[Post]] = pt.map(e => (e r_<=> cond) !== const(-1)) // test if the value is equal or bigger than the required permission
     val assert: Expr[Post] = check.getOrElse(tt)
-    val assertion = RuntimeAssert[Post](assert, s"Permission is not enough")(null)
+    val assertion = RuntimeAssertExpected[Post](assert, cond, pt.getOrElse(tt), s"Permission is not enough")(null)
     Block[Post](Seq(assertion))
   }
 
@@ -73,7 +72,7 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
     }
   }
 
-  private def dispatchInstancePredicateApply(ipa: InstancePredicateApply[Pre]) : Block[Post] = {
+  private def dispatchInstancePredicateApply(ipa: InstancePredicateApply[Pre]): Block[Post] = {
     implicit val origin: Origin = ipa.o
     val ipd: InstancePredicateData[Pre] = findInstancePredicateData(ipa)
     val mi = ipd.createMethodInvocation(CreatePredicates.GETPREDICATE)

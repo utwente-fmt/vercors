@@ -9,7 +9,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.CreatePredicates
 import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
-import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, findNumberPrimitiveInstanceField}
+import vct.rewrite.runtime.util.LedgerHelper._
 import vct.rewrite.runtime.util.PermissionRewriter._
 import vct.rewrite.runtime.util.Util.{InstancePredicateData, findInstancePredicateClass, findInstancePredicateData, findInstancePredicateFunction}
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
@@ -65,14 +65,14 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
     val newValue: Expr[Post] = pd.factored(permissionToRuntimeValueRewrite(p))
 
     val pt: Option[Expr[Post]] = p.loc.asInstanceOf[AmbiguousLocation[Pre]].expr match {
-      case d@Deref(o, _) if d.t.isInstanceOf[PrimitiveType[Pre]] => {
+      case d@Deref(o, _) => {
         val getPerm = ledger.miGetPermission(getNewExpr(o), locationExpression(d.ref.decl)).get
         ledger.miSetPermission(getNewExpr(o), locationExpression(d.ref.decl), op(getPerm, newValue))
       }
-      case d@Deref(_, _) => {
-        val getPerm = ledger.miGetPermission(getNewExpr(d)).get
-        ledger.miSetPermission(getNewExpr(d), op(getPerm, newValue))
-      }
+//      case d@Deref(_, _) => {
+//        val getPerm = ledger.miGetPermission(getNewExpr(d)).get
+//        ledger.miSetPermission(getNewExpr(d), op(getPerm, newValue))
+//      }
       case AmbiguousSubscript(coll, index) => {
         val getPerm = ledger.miGetPermission(getNewExpr(coll), dispatch(index)).get
         ledger.miSetPermission(getNewExpr(coll), dispatch(index), op(getPerm, newValue))
@@ -91,7 +91,7 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
   }
 
   private def locationExpression(instanceField: InstanceField[Pre])(implicit origin: Origin): Expr[Post] = {
-    dispatch(const[Pre](findNumberPrimitiveInstanceField(program, instanceField).get))
+    dispatch(const[Pre](findNumberInstanceField(program, instanceField).get))
   }
 
 

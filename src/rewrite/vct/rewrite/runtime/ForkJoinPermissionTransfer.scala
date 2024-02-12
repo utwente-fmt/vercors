@@ -91,10 +91,10 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     val dispatchedOffset: Expr[Post] = getDispatchedOffset(dispatchedStatement)
     val postfactor: Expr[Post] = postJoinTokens.top.find(rpj => rpj.obj == dispatchedOffset).get.arg
     val factor = PermissionRewriter.permissionToRuntimeValue(postfactor)
+    val removePostJoinToken: Eval[Post] = Eval[Post](ledger.miSetJoinToken(dispatchedOffset, ledger.miGetJoinToken(dispatchedOffset).get r_- factor).get)
     val pdAdd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger).setOffset(dispatch(mi.obj)).setFactor(factor)
-//      .setFactor(factor)
     val newAddStatements = TransferPermissionRewriter(pdAdd).addPermissions(predicate)
-    Block[Post](Seq(dispatchedStatement, newAddStatements))
+    Block[Post](Seq(dispatchedStatement, removePostJoinToken, newAddStatements))
   }
 
   private def getDispatchedOffset(e: Eval[Post]): Expr[Post] = {

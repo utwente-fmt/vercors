@@ -1387,6 +1387,7 @@ final case class ThreadId[G](obj: Option[Expr[G]])(implicit val o: Origin) exten
 final case class StaticClassRef[G](cls: Ref[G, Class[G]])(implicit val o: Origin) extends Expr[G] with StaticClassRefImpl[G]
 
 final case class RuntimeAssert[G](res: Expr[G], message: String)(val blame: Blame[AssertFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with RuntimeAssertImpl[G]
+final case class RuntimeAssertExpected[G](res: Expr[G], expected: Expr[G], received: Expr[G], message: String)(val blame: Blame[AssertFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with RuntimeAssertExpectedImpl[G]
 
 final case class TLong[G]()(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TLongImpl[G]
 final case class TLongObject[G]()(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TLongObjectImpl[G]
