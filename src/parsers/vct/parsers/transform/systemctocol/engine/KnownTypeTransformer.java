@@ -335,7 +335,7 @@ public class KnownTypeTransformer<T> {
         // Finishing the method
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS, col_system.NO_VARS,
                 col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        return new InstanceMethod<>(t, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract, false, false,
+        return new InstanceMethod<>(t, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract, false, false, false,
                 new GeneratedBlame<>(), OriGen.create("fifo_read"));
     }
 
@@ -406,7 +406,7 @@ public class KnownTypeTransformer<T> {
         // Finishing the method
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS, col_system.NO_VARS,
                 col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        return new InstanceMethod<>(col_system.T_VOID, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract, false, false,
+        return new InstanceMethod<>(col_system.T_VOID, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract, false, false,false,
                 new GeneratedBlame<>(), OriGen.create("fifo_write"));
     }
 
@@ -510,7 +510,7 @@ public class KnownTypeTransformer<T> {
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS,
                 col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         return new InstanceMethod<>(col_system.T_VOID, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(),
-                contract, false, false, new GeneratedBlame<>(), OriGen.create("fifo_update"));
+                contract, false, false,false, new GeneratedBlame<>(), OriGen.create("fifo_update"));
     }
 
     /**
@@ -667,7 +667,7 @@ public class KnownTypeTransformer<T> {
         // Finishing the method
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS, col_system.NO_VARS,
                 col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        return new InstanceMethod<>(t, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract, false, false,
+        return new InstanceMethod<>(t, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract, false, false,false,
                 new GeneratedBlame<>(), OriGen.create("signal_read"));
     }
 
@@ -725,7 +725,7 @@ public class KnownTypeTransformer<T> {
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS,
                 col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         return new InstanceMethod<>(col_system.T_VOID, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract,
-                false, false, new GeneratedBlame<>(), OriGen.create("signal_write"));
+                false, false,false, new GeneratedBlame<>(), OriGen.create("signal_write"));
     }
 
     /**
@@ -798,7 +798,7 @@ public class KnownTypeTransformer<T> {
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS,
                 col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         return new InstanceMethod<>(col_system.T_VOID, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(),
-                contract, false, false, new GeneratedBlame<>(), OriGen.create("signal_update"));
+                contract, false, false,false, new GeneratedBlame<>(), OriGen.create("signal_update"));
     }
 
     /**

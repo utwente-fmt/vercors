@@ -264,10 +264,15 @@ final class InstanceFunction[G](val returnType: Type[G], val args: Seq[Variable[
                       (val blame: Blame[ContractedFailure])(implicit val o: Origin)
   extends ClassDeclaration[G] with AbstractFunction[G] with InstanceFunctionImpl[G]
 final class InstanceMethod[G](val returnType: Type[G],
-                              val args: Seq[Variable[G]], val outArgs: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
+                              val args: Seq[Variable[G]],
+                              val outArgs: Seq[Variable[G]],
+                              val typeArgs: Seq[Variable[G]],
                               val body: Option[Statement[G]],
                               val contract: ApplicableContract[G],
-                              val inline: Boolean = false, val pure: Boolean = false)
+                              val inline: Boolean = false,
+                              val pure: Boolean = false,
+                              val static: Boolean = false
+                             )
                              (val blame: Blame[CallableFailure])(implicit val o: Origin)
   extends ClassDeclaration[G] with AbstractMethod[G] with InstanceMethodImpl[G]
 final class InstancePredicate[G](val args: Seq[Variable[G]], val body: Option[Expr[G]],
