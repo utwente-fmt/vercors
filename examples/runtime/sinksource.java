@@ -26,6 +26,7 @@ class Sink extends Thread {
        ensures Perm(source.i, 1/2);
     */
     public void run() {
+
         //@ source.postJoin(1\2);
         source.join();
         source.i = 1;

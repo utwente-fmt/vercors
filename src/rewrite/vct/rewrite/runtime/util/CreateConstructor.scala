@@ -3,7 +3,9 @@ package vct.rewrite.runtime.util
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.{RewriteApplicableContract, RewriteDeref}
 import vct.col.ast._
+import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
+import vct.col.util.AstBuildHelpers.tt
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.Unreachable
 
@@ -23,21 +25,23 @@ case class CreateConstructor[Pre <: Generation](outer: Rewriter[Pre], val givenC
     case other => rewriteDefault(other)
   }
 
-  def createClassConstructor(p: Procedure[Pre]): JavaConstructor[Post] =
-    new JavaConstructor[Post](Seq(JavaPublic[Post]()(p.o)),
+  def createClassConstructor(p: Procedure[Pre]): JavaConstructor[Post] = {
+    implicit val origin: Origin = DiagnosticOrigin
+    new JavaConstructor[Post](Seq(JavaPublic[Post]()),
       rewritingConstr.top._2.cls.decl.o.getPreferredNameOrElse(),
       p.args.map(createJavaParam),
       variables.dispatch(p.typeArgs),
       Seq.empty,
       p.body match {
         case Some(s: Scope[Pre]) => s.body match {
-          case b: Block[Pre] => dispatch(Block(b.statements.tail.dropRight(1))(p.o))
+          case b: Block[Pre] => dispatch(Block(b.statements.tail.dropRight(1)))
           case other => dispatch(other)
         }
         case Some(_) => throw Unreachable("The body of a procedure always starts with a Scope.")
-        case None => Block(Seq.empty)(p.o)
+        case None => Block(Seq.empty)
       },
-      p.contract.rewrite(ensures = UnitAccountedPredicate[Post](BooleanValue(true)(p.o))(p.o)))(null)(p.o)
+      p.contract.rewrite(ensures = UnitAccountedPredicate[Post](tt)))(null)
+  }
 
   def createJavaParam(v: Variable[Pre]): JavaParam[Post] =
     new JavaParam[Post](Seq.empty, v.o.getPreferredNameOrElse(), dispatch(v.t))(v.o)

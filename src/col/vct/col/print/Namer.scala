@@ -84,6 +84,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
     var (baseName, index) = unpackName(decl.o.getPreferredNameOrElse())
 
     while(keys.exists(key => names.contains((key, baseName, index)))) {
+      val similar_keys = keys.collect(key => names.get((key, baseName, index)))
       index += 1
     }
 

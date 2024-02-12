@@ -1,6 +1,7 @@
 package vct.rewrite.runtime
 
-import vct.col.ast.{Class, ClassDeclaration, Declaration, JavaClass, Procedure, Program}
+import vct.col.ast.RewriteHelpers._
+import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 
 object GenerateJava extends RewriterBuilder {
@@ -11,34 +12,27 @@ object GenerateJava extends RewriterBuilder {
 
 
 case class GenerateJava[Pre <: Generation]() extends Rewriter[Pre] {
+
+
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     super.dispatch(program)
   }
 
-//  override def dispatch(decl: Declaration[Pre]): Unit = {
-//    decl match {
-//      case cls: Class[Pre] => {
-//        val nd = dispatchClass(cls)
-//        new JavaClass[Post](
-//          cls.o.getPreferredNameOrElse(),
-//          Seq.empty,
-//          Seq.empty,
-//          dispatch(cls.intrinsicLockInvariant),
-//          null,
-//          null,
-//          nd)(null)(cls.o)
-//      }
-//      case p: Procedure[Pre] => dispatchProcedure(p)
-//    }
-//  }
-//
-//  def dispatchClass(cls: Class[Pre]): Seq[ClassDeclaration[Rewritten[Pre]]] = {
-//    classDeclarations.collect {
-//      cls.declarations.foreach(d => dispatch(d))
-//    }._1
-//  }
-//
-//  def dispatchProcedure(p: Procedure[Pre]): Unit = {
-//
-//  }
+  override def dispatch(decl: Declaration[Pre]): Unit = {
+    decl match {
+      case p:Procedure[Pre] => p.drop()
+      case _ => super.dispatch(decl)
+    }
+  }
+
+  override def dispatch(node: Statement[Pre]): Statement[Post] = {
+    node match {
+      case a@Assign(_, p: ProcedureInvocation[Pre]) => {
+        val classDecl: Class[Pre] = a.target.t.asInstanceOf[TClass[Pre]].cls.decl
+        val newClassObject: NewObject[Post] = NewObject[Post](this.anySucc(classDecl))(classDecl.o)
+        a.rewrite(value = newClassObject)
+      }
+      case _ => super.dispatch(node)
+    }
+  }
 }
