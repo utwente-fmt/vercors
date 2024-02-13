@@ -50,8 +50,8 @@ case class CFGGenerator[G]() {
     case Assign(target, value) => sequential_successor(context)  // TODO: Implement support for statements in expressions
     case Send(_, _, res) => sequential_successor(context)   // TODO: Implement support for statements in expressions
     case Recv(_) => sequential_successor(context)
-    case DefaultCase() => ???   // TODO: Ask Pieter about switch statements
-    case Case(pattern) => ???
+    case DefaultCase() => sequential_successor(context)
+    case Case(pattern) => sequential_successor(context)
     case Label(_, stat) =>
       mutable.Set(convert(stat, context.enter_scope(node)))
     case Goto(lbl) => {
@@ -71,7 +71,7 @@ case class CFGGenerator[G]() {
     case Notify(_) => sequential_successor(context)
     case Fork(obj) => {
       val run_method: RunMethod[G] = obj.t.asClass.get.cls.decl.declarations.collect { case r: RunMethod[G] => r }.head
-      val run_inv: MethodInvocation[G] =
+      sequential_successor(context).addOne(convert(run_method.body.get, context.enter_scope(run_method)))
     }
     case Join(_) => sequential_successor(context)
     case Lock(_) => sequential_successor(context)
@@ -86,7 +86,7 @@ case class CFGGenerator[G]() {
     case Extract(contractedStatement) =>
       mutable.Set(convert(contractedStatement, context.enter_scope(node)))
     // ExceptionalStatement
-    case Eval(expr) => ??? // TODO: Resolve expression statements!
+    case Eval(expr) => ???  // TODO: Implement side effects in expressions (see ResolveExpressionSideEffects.scala)
     // InvocationStatement
     case InvokeProcedure(ref, args, _, _, givenMap, _) => {
       if (args.nonEmpty) mutable.Set(convert(Eval(args.head)(args.head.o), context.enter_scope(node)))
@@ -122,7 +122,10 @@ case class CFGGenerator[G]() {
       mutable.Set(branches.zipWithIndex.map(b => convert(b._1._2, context.enter_scope(node, b._2))))   // TODO: Handle statements in condition expressions!
     case IndetBranch(branches) =>
       mutable.Set(branches.zipWithIndex.map(b => convert(b._1, context.enter_scope(node, b._2))))
-    case Switch(expr, body) => ??? // TODO: Ask Pieter about switch statements
+    case Switch(expr, body) => {  // TODO: Handle expressions
+      val cases: mutable.Set[(SwitchCase[G], GlobalIndex[G])] = find_all_cases(body, context)
+      cases.map(t => convert(t._1, t._2))
+    }
     case Loop(init, _, _, _, _) =>
       mutable.Set(convert(init, context.enter_scope(node)))
     case RangedFor(_, _, body) =>
@@ -177,22 +180,30 @@ case class CFGGenerator[G]() {
       mutable.Set(convert(assign, context.enter_scope(node)))
   }
 
-  def sequential_successor(index: GlobalIndex[G]): mutable.Set[CFGNode[G]] =
+  private def sequential_successor(index: GlobalIndex[G]): mutable.Set[CFGNode[G]] =
     mutable.Set(index.make_step().map(i => convert(i.resolve(), i)))
 
-  def return_successor(index: GlobalIndex[G]): CFGNode[G] = {
-    ???   // TODO: Implement!
+  private def return_successor(index: GlobalIndex[G]): CFGNode[G] = {
+    val new_index: GlobalIndex[G] = index.return_from_call()
+    convert(new_index.resolve(), new_index)
   }
 
-  def exception_successor(exception: Expr[G], index: GlobalIndex[G]): CFGNode[G] = {
-    ???   // TODO: Implement!
+  private def exception_successor(exception: Expr[G], index: GlobalIndex[G]): CFGNode[G] = {
+    val new_index = index.handle_exception(exception)
+    convert(new_index.resolve(), new_index)
   }
 
-  def break_successor(index: GlobalIndex[G]): CFGNode[G] = {
-    ???   // TODO: Implement!
+  private def break_successor(index: GlobalIndex[G]): CFGNode[G] = {
+    val new_index = index.handle_break()
+    convert(new_index.resolve(), new_index)
   }
 
-  def continue_successor(index: GlobalIndex[G]): CFGNode[G] = {
-    ???   // TODO: Implement!
+  private def continue_successor(index: GlobalIndex[G]): CFGNode[G] = {
+    val new_index = index.continue_innermost_loop()
+    convert(new_index.resolve(), new_index)
+  }
+
+  private def find_all_cases(switch_body: Statement[G], index: GlobalIndex[G]): mutable.Set[(SwitchCase[G], GlobalIndex[G])] = {
+    ???
   }
 }

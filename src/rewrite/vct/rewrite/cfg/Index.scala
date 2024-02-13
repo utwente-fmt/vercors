@@ -21,6 +21,58 @@ case class GlobalIndex[G](indices: List[Index[G]]) {
   }
 
   def resolve(): Statement[G] = indices.head.resolve()
+
+  def return_from_call(): GlobalIndex[G] = {
+    // Find innermost subroutine call
+    val stack: List[Index[G]] = indices.dropWhile {
+      case InvokeProcedureIndex(_, _) | InvokeMethodIndex(_, _) => false
+      case _ => true
+    }
+    // Find the next statement
+    // TODO: Does this always return exactly one next step?
+    GlobalIndex(stack.tail).make_step().head
+  }
+
+  def handle_exception(e: Expr[G]): GlobalIndex[G] = {
+    // Find innermost try-catch block of appropriate type
+    val stack: List[Index[G]] = indices.dropWhile {
+      case TryCatchFinallyIndex(stmt, _) => !stmt.catches.exists(c => c.decl.t.equals(e.t))
+      case _ => true
+    }
+    // Unhandled exception
+    if (stack.isEmpty) return GlobalIndex(stack)
+    // Return to exception handler and go to catch block
+    stack.head match {
+      case TryCatchFinallyIndex(stmt, _) => GlobalIndex(TryCatchFinallyIndex(stmt, stmt.catches.indexWhere(c => c.decl.t.equals(e.t)) + 2) +: stack.tail)
+    }
+  }
+
+  def handle_break(): GlobalIndex[G] = {
+    // Find innermost occurrence of either a loop or a switch statement
+    val stack: List[Index[G]] = indices.dropWhile {
+      case PVLLoopIndex(_, 0) | LoopIndex(_, 0) => true
+      case PVLLoopIndex(_, _) | LoopIndex(_, _) | RangedForIndex(_) | UnresolvedSeqLoopIndex(_, _) | SeqLoopIndex(_) | SwitchIndex(_) => false
+      case _ => true
+    }
+    // Find the next statement
+    // TODO: Does this always return exactly one next step?
+    GlobalIndex(stack.tail).make_step().head
+  }
+
+  def continue_innermost_loop(): GlobalIndex[G] = {
+    // Find innermost loop that could be the target of continue
+    val stack: List[Index[G]] = indices.dropWhile {
+      case PVLLoopIndex(_, 0) | LoopIndex(_, 0) => true      // If some godless heathen calls break in the init of a loop, don't consider that loop
+      case PVLLoopIndex(_, _) | LoopIndex(_, _) | RangedForIndex(_) | UnresolvedSeqLoopIndex(_, _) | SeqLoopIndex(_) => false
+      case _ => true
+    }
+    stack.head match {
+      case PVLLoopIndex(pvl_loop, _) => GlobalIndex(PVLLoopIndex(pvl_loop, 1) +: stack.tail)
+      case LoopIndex(loop, _) => GlobalIndex(LoopIndex(loop, 1) +: stack.tail)
+      case UnresolvedSeqLoopIndex(unresolved_seq_loop, _) => GlobalIndex(UnresolvedSeqLoopIndex(unresolved_seq_loop, 0) +: stack.tail)
+      case RangedForIndex(_) | SeqLoopIndex(_) => GlobalIndex(stack)
+    }
+  }
 }
 
 sealed trait Index[G] {
