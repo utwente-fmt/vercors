@@ -40,20 +40,22 @@ case class CFGGenerator[G]() {
   }
 
   def find_successors(node: Statement[G], context: GlobalIndex[G]): mutable.Set[CFGNode[G]] = node match {
-    case PVLBranch(branches) =>
-      mutable.Set(branches.zipWithIndex.map(b => convert(b._1._2, context.enter_scope(node, b._2))))   // TODO: Implement support for statements in expressions
+    case PVLBranch(branches) => {
+      val eval: Eval[G] = Eval(branches.head._1)(branches.head._1.o)
+      mutable.Set(convert(eval, context.enter_scope(node)))
+    }
     case PVLLoop(init, _, _, _, _) =>
       mutable.Set(convert(init, context.enter_scope(node)))
     // NonExecutableStatement
     case LocalDecl(_) => sequential_successor(context)
-    case SpecIgnoreStart() => sequential_successor(context)    // What is this?
+    case SpecIgnoreStart() => sequential_successor(context)     // TODO: What is this?
     case SpecIgnoreEnd() => sequential_successor(context)
     // NormallyCompletingStatement
-    case Assign(target, value) => sequential_successor(context)  // TODO: Implement support for statements in expressions
-    case Send(_, _, res) => sequential_successor(context)   // TODO: Implement support for statements in expressions
+    case Assign(target, value) => sequential_successor(context)  // TODO: Implement support for multiple expressions in container statement
+    case Send(_, _, res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
     case Recv(_) => sequential_successor(context)
     case DefaultCase() => sequential_successor(context)
-    case Case(pattern) => sequential_successor(context)
+    case Case(pattern) => sequential_successor(context)   // TODO: Handle expression side effects in switch case conditions
     case Label(_, stat) =>
       mutable.Set(convert(stat, context.enter_scope(node)))
     case Goto(lbl) => {
@@ -63,12 +65,12 @@ case class CFGGenerator[G]() {
         case None => mutable.Set()
       }
     }
-    case Exhale(res) => sequential_successor(context)  // TODO: Can expressions in specifications be ignored?
-    case Assert(res) => sequential_successor(context)
-    case Refute(assn) => sequential_successor(context)
-    case Inhale(res) => sequential_successor(context)
-    case Assume(assn) => sequential_successor(context)  // <--
-    case Instantiate(_, out) => sequential_successor(context)
+    case Exhale(res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
+    case Assert(res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
+    case Refute(assn) => handle_expression_container(node, Eval(assn)(assn.o), context, sequential_successor(context))
+    case Inhale(res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
+    case Assume(assn) => handle_expression_container(node, Eval(assn)(assn.o), context, sequential_successor(context))
+    case Instantiate(_, out) => handle_expression_container(node, Eval(out)(out.o), context, sequential_successor(context))
     case Wait(_) => sequential_successor(context)
     case Notify(_) => sequential_successor(context)
     case Fork(obj) => {
@@ -79,17 +81,17 @@ case class CFGGenerator[G]() {
     case Lock(_) => sequential_successor(context)
     case Unlock(_) => sequential_successor(context)
     case Commit(_) => sequential_successor(context)
-    case Fold(res) => sequential_successor(context)   // TODO: Can expressions in specifications be ignored?
-    case Unfold(res) => sequential_successor(context)
-    case WandApply(res) => sequential_successor(context)   // <--
+    case Fold(res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
+    case Unfold(res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
+    case WandApply(res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
     case Havoc(_) => sequential_successor(context)
     case FramedProof(pre, body, post) =>
-      mutable.Set(convert(body, context.enter_scope(node)))     // TODO: Can expressions in specifications be ignored?
+      ???   // TODO: Support multiple expressions in a container statement
     case Extract(contractedStatement) =>
       mutable.Set(convert(contractedStatement, context.enter_scope(node)))
     // ExceptionalStatement
-    case Eval(expr) => ???  // TODO: Implement side effects in expressions (see ResolveExpressionSideEffects.scala)
-    case Return(result) => mutable.Set(return_successor(context))
+    case Eval(_) => sequential_successor(context.enter_scope(node))   // TODO: Is this correct?
+    case Return(result) => handle_expression_container(node, Eval(result)(result.o), context, mutable.Set(return_successor(context)))
     case Throw(obj) => mutable.Set(exception_successor(obj, context))
     case Break(label) => label match {
       case Some(ref) => ???  // TODO: Handle break label!
@@ -100,7 +102,7 @@ case class CFGGenerator[G]() {
       case None => mutable.Set(continue_successor(context))
     }
     // InvocationStatement
-    case InvokeProcedure(ref, args, _, _, givenMap, _) => {
+    case InvokeProcedure(ref, args, _, _, _, _) => {
       if (args.nonEmpty) mutable.Set(convert(Eval(args.head)(args.head.o), context.enter_scope(node)))
       else if (ref.decl.body.nonEmpty) mutable.Set(convert(ref.decl.body.get, context.enter_scope(node)))
       else sequential_successor(context)
@@ -120,13 +122,15 @@ case class CFGGenerator[G]() {
       mutable.Set(convert(statements.head, context.enter_scope(node)))
     case Scope(_, body) =>
       mutable.Set(convert(body, context.enter_scope(node)))
-    case Branch(branches) =>
-      mutable.Set(branches.zipWithIndex.map(b => convert(b._1._2, context.enter_scope(node, b._2))))   // TODO: Handle statements in condition expressions!
+    case Branch(branches) => {
+      val eval: Eval[G] = Eval(branches.head._1)(branches.head._1.o)
+      mutable.Set(convert(eval, context.enter_scope(node)))
+    }
     case IndetBranch(branches) =>
       mutable.Set(branches.zipWithIndex.map(b => convert(b._1, context.enter_scope(node, b._2))))
-    case Switch(expr, body) => {  // TODO: Handle expressions
-      val cases: mutable.Set[(SwitchCase[G], GlobalIndex[G])] = find_all_cases(body, context)
-      cases.map(t => convert(t._1, t._2))
+    case Switch(expr, body) => {
+      val cases: mutable.Set[(SwitchCase[G], GlobalIndex[G])] = Utils.find_all_cases(body, context.enter_scope(node))
+      cases.map(t => convert(t._1, t._2))   // TODO: Handle side effects in switch statement conditions
     }
     case Loop(init, _, _, _, _) =>
       mutable.Set(convert(init, context.enter_scope(node)))
@@ -151,7 +155,7 @@ case class CFGGenerator[G]() {
       ???   // TODO
     // CStatement
     case CDeclarationStatement(_) => sequential_successor(context)
-    case CGoto(label) => ???
+    case CGoto(label) => ???    // I'm not dealing with string labels
     // CPPStatement
     case CPPDeclarationStatement(_) => sequential_successor(context)
     case CPPLifetimeScope(body) =>
@@ -159,13 +163,13 @@ case class CFGGenerator[G]() {
     case JavaLocalDeclarationStatement(_) => sequential_successor(context)
     // SilverStatement
     case SilverNewRef(_, _) => sequential_successor(context)
-    case SilverFieldAssign(_, _, value) => sequential_successor(context)   // TODO: Statements in expressions
-    case SilverLocalAssign(_, value) => sequential_successor(context)   // TODO: Statements in expressions
+    case SilverFieldAssign(_, _, value) => handle_expression_container(node, Eval(value)(value.o), context, sequential_successor(context))
+    case SilverLocalAssign(_, value) => handle_expression_container(node, Eval(value)(value.o), context, sequential_successor(context))
     // OTHER
     case PVLCommunicate(_, _) => sequential_successor(context)
-    case PVLSeqAssign(_, _, value) => sequential_successor(context)   // TODO: Statements in expressions
+    case PVLSeqAssign(_, _, value) => handle_expression_container(node, Eval(value)(value.o), context, sequential_successor(context))
     case Communicate(_, _) => sequential_successor(context)
-    case SeqAssign(_, _, value) => sequential_successor(context)      // TODO: Statements in expressions
+    case SeqAssign(_, _, value) => handle_expression_container(node, Eval(value)(value.o), context, sequential_successor(context))
     case UnresolvedSeqBranch(branches) =>
       mutable.Set(branches.zipWithIndex.map(b => convert(b._1._2, context.enter_scope(node, b._2))))
     case UnresolvedSeqLoop(cond, _, _) =>
@@ -180,6 +184,16 @@ case class CFGGenerator[G]() {
       mutable.Set(convert(assign, context.enter_scope(node)))
     case CommunicateX(_, _, _, assign) =>
       mutable.Set(convert(assign, context.enter_scope(node)))
+  }
+
+  private def handle_expression_container(statement: Statement[G],
+                                          expression: Eval[G],
+                                          context: GlobalIndex[G],
+                                          successors_to_statement: mutable.Set[CFGNode[G]]): mutable.Set[CFGNode[G]] = {
+    context.indices.head match {
+      case ExpressionContainerIndex(stmt, 1) if stmt == statement => successors_to_statement
+      case _ => mutable.Set(convert(expression, context.enter_scope(expression)))     // TODO: Handle containers with multiple expressions
+    }
   }
 
   private def sequential_successor(index: GlobalIndex[G]): mutable.Set[CFGNode[G]] =
@@ -206,16 +220,4 @@ case class CFGGenerator[G]() {
     val new_index = index.continue_innermost_loop()
     convert(new_index.resolve(), new_index)
   }
-
-  private def find_all_cases(body: Statement[G], index: GlobalIndex[G]): mutable.Set[(SwitchCase[G], GlobalIndex[G])] = body match {
-    // Recursion on statements that can contain case statements
-    case Label(_, stmt) => find_all_cases(stmt, index.enter_scope(body))
-    case Block(stmts) => mutable.Set(stmts.zipWithIndex.flatMap(t => find_all_cases(t._1, index.enter_scope(body, t._2))))
-    case Scope(_, stmt) => find_all_cases(stmt, index.enter_scope(body))
-    // Recursion end
-    case c: SwitchCase[G] => mutable.Set((c, index))
-    case _ => mutable.Set()   // TODO: Assuming that there are no cases in deeper structures (branches, loops etc.)
-  }
-
-  private def handle_expression_successor(expr: Expr[G], index: GlobalIndex[G]): Option[CFGNode[G]] = ???
 }

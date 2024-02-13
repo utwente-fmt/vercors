@@ -56,6 +56,7 @@ case class GlobalIndex[G](indices: List[Index[G]]) {
     }
     // Find the next statement
     // TODO: Does this always return exactly one next step?
+    //  No, e.g.: another loop in the update statement of a loop
     GlobalIndex(stack.tail).make_step().head
   }
 
@@ -76,7 +77,20 @@ case class GlobalIndex[G](indices: List[Index[G]]) {
 }
 
 sealed trait Index[G] {
+  /**
+   * Defines the set of possible next steps. An index in the returned set indicates that this index can replace the
+   * previous index at the top level of the index stack. A None value indicates that a step is possible, but it reaches
+   * outside the scope of this index to the index below.
+   *
+   * @return A set of all steps possible from the current index
+   */
   def make_step(): Set[Option[Index[G]]]
+
+  /**
+   * Returns the statement that corresponds to the current index.
+   *
+   * @return The statement at the current index
+   */
   def resolve(): Statement[G]
 }
 
@@ -86,7 +100,7 @@ object Index {
   def apply[G](pvl_branch: PVLBranch[G], index: Int): Index[G] = PVLBranchIndex(pvl_branch, index)
   def apply[G](pvl_loop: PVLLoop[G], index: Int): Index[G] = PVLLoopIndex(pvl_loop, index)
   def apply[G](label: Label[G], index: Int): Index[G] = LabelIndex(label)
-  def apply[G](framed_proof: FramedProof[G], index: Int): Index[G] = FramedProofIndex(framed_proof)
+  def apply[G](framed_proof: FramedProof[G], index: Int): Index[G] = FramedProofIndex(framed_proof, index)
   def apply[G](extract: Extract[G], index: Int): Index[G] = ExtractIndex(extract)
   def apply[G](eval: Eval[G], index: Int): Index[G] = EvalIndex(eval, index)
   def apply[G](invoke_procedure: InvokeProcedure[G], index: Int): Index[G] = InvokeProcedureIndex(invoke_procedure, index)
@@ -114,6 +128,8 @@ object Index {
   def apply[G](seq_loop: SeqLoop[G], index: Int): Index[G] = SeqLoopIndex(seq_loop)
   def apply[G](veymont_assign_expression: VeyMontAssignExpression[G], index: Int): Index[G] = VeyMontAssignExpressionIndex(veymont_assign_expression)
   def apply[G](communicatex: CommunicateX[G], index: Int): Index[G] = CommunicateXIndex(communicatex)
+  def apply[G](assign: Assign[G], index: Int): Index[G] = AssignmentIndex(assign, index)
+  def apply[G](statement: Statement[G], index: Int): Index[G] = ExpressionContainerIndex(statement, index)
 }
 
 case class InitialIndex[G](instance_method: InstanceMethod[G]) extends Index[G] {
@@ -126,9 +142,33 @@ case class RunMethodIndex[G](run_method: RunMethod[G]) extends Index[G] {
   override def resolve(): Statement[G] = run_method.body.get
 }
 
+case class ExpressionContainerIndex[G](statement: Statement[G], index: Int) extends Index[G] {
+  override def make_step(): Set[Option[Index[G]]] = {
+    if (index == 0) Set(Some(ExpressionContainerIndex(statement, 1)))
+    else Set(None)
+  }
+  override def resolve(): Statement[G] = statement
+}
+
+// TODO: Is this really a good idea?
+case class AssignmentIndex[G](assign: Assign[G], index: Int) extends Index[G] {
+  override def make_step(): Set[Option[Index[G]]] = ???
+  override def resolve(): Statement[G] = ???
+}
+
 case class PVLBranchIndex[G](pvl_branch: PVLBranch[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
-  override def resolve(): Statement[G] = pvl_branch.branches.apply(index)._2  // TODO: Handle expressions in branch conditions
+  override def make_step(): Set[Option[Index[G]]] = {
+    // Indices 0, 2, 4, ... are the conditions, indices 1, 3, 5, ... are the branch bodies
+    if (index % 2 == 0 && index < 2 * (pvl_branch.branches.size - 1))
+      Set(Some(PVLBranchIndex(pvl_branch, index + 2)), Some(PVLBranchIndex(pvl_branch, index + 1)))
+    else if (index == 2 * (pvl_branch.branches.size - 1))
+      Set(Some(PVLBranchIndex(pvl_branch, index + 1)), None)
+    else Set(None)
+  }
+  override def resolve(): Statement[G] = {
+    if (index % 2 == 0) Eval(pvl_branch.branches.apply(index / 2)._1)(pvl_branch.branches.apply(index / 2)._1.o)
+    else pvl_branch.branches.apply((index - 1) / 2)._2
+  }
 }
 
 case class PVLLoopIndex[G](pvl_loop: PVLLoop[G], index: Int) extends Index[G] {
@@ -151,9 +191,16 @@ case class LabelIndex[G](label: Label[G]) extends Index[G] {
   override def resolve(): Statement[G] = label.stat
 }
 
-case class FramedProofIndex[G](framed_proof: FramedProof[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
-  override def resolve(): Statement[G] = framed_proof.body
+case class FramedProofIndex[G](framed_proof: FramedProof[G], index: Int) extends Index[G] {
+  override def make_step(): Set[Option[Index[G]]] = {
+    if (index < 2) Set(Some(FramedProofIndex(framed_proof, index + 1)))
+    else Set(None)
+  }
+  override def resolve(): Statement[G] = index match {
+    case 0 => Eval(framed_proof.pre)(framed_proof.pre.o)
+    case 1 => Eval(framed_proof.post)(framed_proof.post.o)
+    case 2 => framed_proof.body
+  }
 }
 
 case class ExtractIndex[G](extract: Extract[G]) extends Index[G] {
@@ -220,8 +267,18 @@ case class ScopeIndex[G](scope: Scope[G]) extends Index[G] {
 }
 
 case class BranchIndex[G](branch: Branch[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
-  override def resolve(): Statement[G] = branch.branches.apply(index)._2
+  override def make_step(): Set[Option[Index[G]]] = {
+    // Indices 0, 2, 4, ... are the conditions, indices 1, 3, 5, ... are the branch bodies
+    if (index % 2 == 0 && index < 2 * (branch.branches.size - 1))
+      Set(Some(BranchIndex(branch, index + 2)), Some(BranchIndex(branch, index + 1)))
+    else if (index == 2 * (branch.branches.size - 1))
+      Set(Some(BranchIndex(branch, index + 1)), None)
+    else Set(None)
+  }
+  override def resolve(): Statement[G] = {
+    if (index % 2 == 0) Eval(branch.branches.apply(index / 2)._1)(branch.branches.apply(index / 2)._1.o)
+    else branch.branches.apply((index - 1) / 2)._2
+  }
 }
 
 case class IndetBranchIndex[G](indet_branch: IndetBranch[G], index: Int) extends Index[G] {
