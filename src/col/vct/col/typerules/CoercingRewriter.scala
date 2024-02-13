@@ -861,6 +861,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         And(bool(left), bool(right))
       case any @ Any() =>
         Any()(any.blame)
+      case ae@ArraysEquals(o,t) => e
+      case ae@ArraysHashCode(o) => e
       case a @ ArraySubscript(arr, index) =>
         ArraySubscript(array(arr)._1, int(index))(a.blame)
       case BagAdd(xs, ys) =>
@@ -926,6 +928,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
       case CopyOnWriteArrayListAdd(o, a) => e
       case CopyOnWriteArrayListRemove(o, a) => e
+      case CopyOnWriteArrayListNew(t) => e
+      case CopyOnWriteArrayListContains(o, a) => e
       case CPPClassInstanceLocal(_, _) => e
       case defn@CPPLambdaDefinition(contract, declarator, body) =>
         CPPLambdaDefinition(contract, declarator, body)(defn.blame)
@@ -993,6 +997,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ForPermWithValue(binding, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
         FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
+      case g@GetClassCall(o) => e
       case get @ GetLeft(e) =>
         GetLeft(either(e)._1)(get.blame)
       case GetPermission(o, i, t) => e

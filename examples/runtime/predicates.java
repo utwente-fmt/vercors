@@ -1,4 +1,4 @@
-public class PredicateTest {
+public class Main {
 
     //@ requires c != null ** c.state(0);
     //@ ensures c.state(2);
@@ -6,8 +6,7 @@ public class PredicateTest {
         c.increment(2);
     }
 
-
-    public void main() {
+    public void start() {
         Counter c = new Counter();
         //@ fold c.state(0);
         Counter c2 = new Counter();
@@ -15,6 +14,11 @@ public class PredicateTest {
 
         foo(c);
         foo(c2);
+    }
+
+    public void main() {
+        Main m = new Main();
+        m.start();
     }
 }
 
@@ -25,7 +29,7 @@ class Counter {
     //@ resource state(int val) = Perm(count, write) ** count == val;
 
     //@ requires state(count);
-    //@ ensures state(\old(count) + n);
+    //@ ensures state(count);
     void increment(int n) {
         //@ unfold state(count);
         count += n;

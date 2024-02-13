@@ -11,7 +11,7 @@ import vct.rewrite.runtime.CreatePredicates
 import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
 import vct.rewrite.runtime.util.LedgerHelper._
 import vct.rewrite.runtime.util.PermissionRewriter._
-import vct.rewrite.runtime.util.Util.{InstancePredicateData, findInstancePredicateClass, findInstancePredicateData, findInstancePredicateFunction}
+import vct.rewrite.runtime.util.Util.{InstancePredicateData, findInstancePredicateFunction}
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
 case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](pd) {
@@ -44,8 +44,8 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
     implicit val origin: Origin = e.o
     e match {
       case p: Perm[Pre] => Eval[Post](dispatchPerm(p))
-      case ipa: InstancePredicateApply[Pre] if add => dispatchInstancePredicateApplyAdd(ipa)
-      case ipa: InstancePredicateApply[Pre] if !add => dispatchInstancePredicateApplyRemove(ipa)
+//      case ipa: InstancePredicateApply[Pre] if add => dispatchInstancePredicateApplyAdd(ipa)
+//      case ipa: InstancePredicateApply[Pre] if !add => dispatchInstancePredicateApplyRemove(ipa)
       case s: Starall[Pre] => super.dispatchQuantifier(s) //Let the AbstractQuantifier rewrite the StarAll, since it is the only one that can hold permissions
       case _ => Block[Post](Seq.empty)
     }
@@ -96,21 +96,21 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
 
 
 
-  private def dispatchInstancePredicateApplyAdd(ipa: InstancePredicateApply[Pre]) : Block[Post] = {
-    implicit val origin: Origin = ipa.o
-    val ipd: InstancePredicateData[Pre] = findInstancePredicateData(ipa)
-    val addPermissions: Block[Post] = TransferPermissionRewriter(pd).addPermissions(ipa.ref.decl.body.get)
-    val foldPredicateMI = ipd.createMethodInvocation(CreatePredicates.FOLD)
-    val evalMI = Eval[Post](super.dispatch(foldPredicateMI))
-    Block[Post](Seq(addPermissions, evalMI))
-  }
-
-  private def dispatchInstancePredicateApplyRemove(ipa: InstancePredicateApply[Pre]) : Block[Post] = {
-    implicit val origin: Origin = ipa.o
-    val ipd: InstancePredicateData[Pre] = findInstancePredicateData(ipa)
-    val foldPredicateMI = ipd.createMethodInvocation(CreatePredicates.UNFOLD)
-    val evalMI = Eval[Post](super.dispatch(foldPredicateMI))
-    val removePermissions: Block[Post] = TransferPermissionRewriter(pd).removePermissions(ipa.ref.decl.body.get)
-    Block[Post](Seq(removePermissions, evalMI))
-  }
+//  private def dispatchInstancePredicateApplyAdd(ipa: InstancePredicateApply[Pre]) : Block[Post] = {
+//    implicit val origin: Origin = ipa.o
+////    val ipd: InstancePredicateData[Pre] = findInstancePredicateData(ipa)
+////    val addPermissions: Block[Post] = TransferPermissionRewriter(pd).addPermissions(ipa.ref.decl.body.get)
+////    val foldPredicateMI = ipd.createMethodInvocation(CreatePredicates.FOLD)
+////    val evalMI = Eval[Post](super.dispatch(foldPredicateMI))
+////    Block[Post](Seq(addPermissions, evalMI))
+//  }
+//
+//  private def dispatchInstancePredicateApplyRemove(ipa: InstancePredicateApply[Pre]) : Block[Post] = {
+//    implicit val origin: Origin = ipa.o
+////    val ipd: InstancePredicateData[Pre] = findInstancePredicateData(ipa)
+//    val foldPredicateMI = ipd.createMethodInvocation(CreatePredicates.UNFOLD)
+//    val evalMI = Eval[Post](super.dispatch(foldPredicateMI))
+//    val removePermissions: Block[Post] = TransferPermissionRewriter(pd).removePermissions(ipa.ref.decl.body.get)
+//    Block[Post](Seq(removePermissions, evalMI))
+//  }
 }

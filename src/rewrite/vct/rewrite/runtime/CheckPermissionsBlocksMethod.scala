@@ -34,7 +34,7 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     this.program = program
     lazy val newDecl: Seq[GlobalDeclaration[Post]] = globalDeclarations.collect {
-      val (ledgerHelper, ledgerClass, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
+      val (ledgerHelper, _, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
       ledger = ledgerHelper
       isTarget.having(false) {
         otherDeclarations.foreach(dispatch)
@@ -50,12 +50,17 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
         dispatch(a.target)
       })
       case s@Scope(_, b@Block(_)) => s.rewrite(body = determineNewBlockStructure(b))
+      case _: Unfold[Pre] | _: Fold[Pre] => dereferences.collect(super.dispatch(stat))._2
       case _ => super.dispatch(stat)
     }
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
+      case mi: MethodInvocation[Pre] if mi.o.getLedgerClassRuntime.nonEmpty => {
+        hasInvocation = true
+        dereferences.collect(super.dispatch(mi))._2
+      }
       case inv@(_: MethodInvocation[Pre] | _: ProcedureInvocation[Pre]) => hasInvocation = true; super.dispatch(inv)
       case preExpr: PreAssignExpression[Pre] => preExpr.rewrite(isTarget.having(true) {
         dispatch(preExpr.target)

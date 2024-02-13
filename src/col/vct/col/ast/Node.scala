@@ -1348,10 +1348,9 @@ final class CodeStringPredicateConstructor[G](val args: Seq[Variable[G]], val bo
 
 final case class JavaLocalRuntime[G](ref: Ref[G, JavaParam[G]])(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends JavaExpr[G] with JavaLocalRuntimeImpl[G]
 
-final case class PredicateStore[G](storeType: Type[G])(implicit val o: Origin) extends ClassDeclaration[G] with PredicateStoreImpl[G]
-final case class PredicateStoreGet[G](cls: Ref[G, Class[G]], threadId: Expr[G])(implicit val o: Origin) extends Expr[G] with PredicateStoreGetImpl[G]
-final case class CopyOnWriteArrayListAdd[G](obj: Expr[G], arg: Expr[G])(implicit val o: Origin) extends Expr[G] with CopyOnWriteArrayListAddImpl[G]
-final case class CopyOnWriteArrayListRemove[G](obj: Expr[G], arg: Expr[G])(implicit val o: Origin) extends Expr[G] with CopyOnWriteArrayListRemoveImpl[G]
+
+
+
 
 //final case class PredicateStoreCall[G](threadId: Expr[G])
 final case class CodeStringGetPredicate[G](args: Seq[Expr[G]], cls: Ref[G, Class[G]])(implicit val o: Origin) extends Statement[G] with CodeStringGetPredicateImpl[G]
@@ -1402,9 +1401,26 @@ final case class RuntimeConcurrentHashMapGetOrDefault[G](hm: Expr[G], key: Expr[
 final case class RuntimeConcurrentHashMapPut[G](hm: Expr[G], key: Expr[G], value: Expr[G])(implicit val o: Origin) extends RuntimeConcurrentHashMapFunctions[G] with RuntimeConcurrentHashMapPutImpl[G]
 final case class RuntimeConcurrentHashMapContainsKey[G](hm: Expr[G], key: Expr[G])(implicit val o: Origin) extends RuntimeConcurrentHashMapFunctions[G] with RuntimeConcurrentHashMapContainsKeyImpl[G]
 
+//CopyOnWriteArrayList
+final case class CopyOnWriteArrayList[G](listType: Type[G])(implicit val o: Origin) extends DeclaredType[G] with CopyOnWriteArrayListImpl[G]
+final case class CopyOnWriteArrayListNew[G](t: Type[G])(implicit val o: Origin) extends Expr[G] with CopyOnWriteArrayListNewImpl[G]
+final case class CopyOnWriteArrayListAdd[G](obj: Expr[G], arg: Expr[G])(implicit val o: Origin) extends Expr[G] with CopyOnWriteArrayListAddImpl[G]
+final case class CopyOnWriteArrayListRemove[G](obj: Expr[G], arg: Expr[G])(implicit val o: Origin) extends Expr[G] with CopyOnWriteArrayListRemoveImpl[G]
+final case class CopyOnWriteArrayListContains[G](obj: Expr[G], arg: Expr[G])(implicit val o: Origin) extends Expr[G] with CopyOnWriteArrayListContainsImpl[G]
+
+
+final case class PredicateStore[G](storeType: Type[G])(implicit val o: Origin) extends ClassDeclaration[G] with PredicateStoreImpl[G]
+final case class PredicateStoreGet[G](cls: Ref[G, Class[G]], threadId: Expr[G])(implicit val o: Origin) extends Expr[G] with PredicateStoreGetImpl[G]
+
+
 //Object Functions:
 final case class ObjectIsArray[G](input: Expr[G])(implicit val o: Origin) extends Expr[G] with ObjectIsArrayImpl[G]
 final case class ObjectGetLength[G](input: Expr[G])(implicit val o: Origin) extends Expr[G] with ObjectGetLengthImpl[G]
 final case class CreateObjectArray[G](args: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with CreateObjectArrayImpl[G]
 
 final case class CoerceTArrayAnyClass[G]()(implicit val o: Origin) extends Coercion[G] with CoerceTArrayAnyClassImpl[G]
+
+final case class ArraysEquals[G](obj: Expr[G], target: Expr[G])(implicit val o: Origin) extends Expr[G] with ArraysEqualsImpl[G]
+final case class ArraysHashCode[G](obj: Expr[G])(implicit val o: Origin) extends Expr[G] with ArraysHashCodeImpl[G]
+
+final case class GetClassCall[G](obj: Option[Expr[G]])(implicit val o: Origin) extends Expr[G] with GetClassCallImpl[G]

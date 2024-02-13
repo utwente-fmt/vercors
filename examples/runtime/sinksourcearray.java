@@ -32,11 +32,13 @@ class Sink extends Thread {
        requires Perm(source, 1);
        ensures Perm(source, 1);
        ensures Perm(source.i, 1/2);
-       ensures (\forall* int j; 0 <= j && j < source.i.length ==> Perm(source.i[j], 3\4));
+       ensures (\forall* int j; 0 <= j && j < source.i.length ==> Perm(source.i[j], 1/2));
     */
     public void run() {
         //@ source.postJoin(1\2);
         source.join();
+
+        source.i[0] = 33;   //should throw an error
     }
 
     public void join(){}

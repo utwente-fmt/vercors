@@ -2,7 +2,7 @@ package vct.rewrite.runtime.util
 
 
 import vct.col.ast._
-import vct.col.origin.{InstancePredicateClassRuntime, Origin}
+import vct.col.origin.{Origin}
 import vct.col.rewrite.{Rewritten, Generation}
 import vct.result.VerificationError.Unreachable
 
@@ -92,21 +92,21 @@ object Util {
     }
   }
 
-  def findInstancePredicateData[G](ipa: InstancePredicateApply[G])(implicit program: Program[G]) : InstancePredicateData[G] = {
-    val cls: Class[G] = ipa.obj.t.asInstanceOf[TClass[G]].cls.decl
-    val ip: InstancePredicate[G] = ipa.ref.decl
-    val predicateClass: Class[G] = findInstancePredicateClass[G](cls, ip)
-    val args: Seq[Expr[G]] = ipa.args :+ ipa.obj
-    InstancePredicateData[G](ipa, cls, ip, predicateClass, args)
-  }
+//  def findInstancePredicateData[G](ipa: InstancePredicateApply[G])(implicit program: Program[G]) : InstancePredicateData[G] = {
+//    val cls: Class[G] = ipa.obj.t.asInstanceOf[TClass[G]].cls.decl
+//    val ip: InstancePredicate[G] = ipa.ref.decl
+//    val predicateClass: Class[G] = findInstancePredicateClass[G](cls, ip)
+//    val args: Seq[Expr[G]] = ipa.args :+ ipa.obj
+//    InstancePredicateData[G](ipa, cls, ip, predicateClass, args)
+//  }
 
-  def findInstancePredicateClass[G](cls: Class[G], ip: InstancePredicate[G])(implicit program: Program[G]) : Class[G] = {
-    val allClasses = program.declarations.collect{case c: Class[G] => c}
-    val allOrigins = allClasses.map(c => c.o.getInstancePredicateClassRuntime)
-    allClasses.zip(allOrigins).collectFirst{
-      case (c: Class[G], Some(InstancePredicateClassRuntime(a, b))) if a == cls.o.getPreferredNameOrElse() && b == ip.o.getPreferredNameOrElse() => c
-    }.get
-  }
+//  def findInstancePredicateClass[G](cls: Class[G], ip: InstancePredicate[G])(implicit program: Program[G]) : Class[G] = {
+//    val allClasses = program.declarations.collect{case c: Class[G] => c}
+//    val allOrigins = allClasses.map(c => c.o.getInstancePredicateClassRuntime)
+//    allClasses.zip(allOrigins).collectFirst{
+//      case (c: Class[G], Some(InstancePredicateClassRuntime(a, b))) if a == cls.o.getPreferredNameOrElse() && b == ip.o.getPreferredNameOrElse() => c
+//    }.get
+//  }
 
   def findInstancePredicateFunction[G](cls: Class[G], name: String)(implicit program: Program[G]) : InstanceMethod[G] = {
     cls.declarations.collectFirst{case im: InstanceMethod[G] if im.o.getPreferredNameOrElse() == name => im}.get

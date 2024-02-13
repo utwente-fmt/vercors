@@ -28,7 +28,7 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     this.program = program
     lazy val newDecl: Seq[GlobalDeclaration[Post]] = globalDeclarations.collect {
-      val (ledgerHelper, ledgerClass, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
+      val (ledgerHelper, _, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
       ledger = ledgerHelper
       otherDeclarations.foreach(dispatch)
     }._1

@@ -52,7 +52,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     this.program = program
     lazy val newDecl: Seq[GlobalDeclaration[Post]] = globalDeclarations.collect{
-        val (ledgerHelper, ledgerClass, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
+      val (ledgerHelper, _, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
         ledger = ledgerHelper
         otherDeclarations.foreach(dispatch)
     }._1
@@ -92,7 +92,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   def dispatchIP(ip: InstancePredicate[Pre]): Unit = {
     implicit val origin: Origin = Origin(Seq.empty)
       .addPrefName("RuntimePredicate" + ip.o.getPreferredNameOrElse().capitalize)
-      .addInstancePredicateClassRuntime(currentClass.top.o.getPreferredNameOrElse(), ip.o.getPreferredNameOrElse())
+//      .addInstancePredicateClassRuntime(currentClass.top.o.getPreferredNameOrElse(), ip.o.getPreferredNameOrElse())
     super.dispatch(ip)
     val arguments: Seq[Variable[Pre]] = ip.args
     val decl: Seq[ClassDeclaration[Post]] = classDeclarations.collect {
@@ -310,7 +310,8 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
         Seq(),
         Seq(),
         Some(body),
-        ApplicableContract.createEmptyContract
+        ApplicableContract.createEmptyContract,
+        static = true
       )(null)
       helperMethods.top.addOne(newMethod)
       classDeclarations.declare(newMethod)
@@ -415,7 +416,7 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
   private def createMethodBodyUnfold(mbi: MethodBodyInputs)(implicit origin: Origin): MethodBodyResult = {
     val tmpPredicate = variables.declare(new Variable[Post](TClass[Post](mbi.clsRef))(Origin(Seq()).addPrefName("predicate")))
     val getPredicateInstanceMethod: InstanceMethod[Post] = helperMethods.top.find(p => p.o.getPreferredNameOrElse() == "getPredicate").get
-    val getPredicateCall = MethodInvocation[Post](ThisObject[Post](mbi.clsRef), getPredicateInstanceMethod.ref, mbi.argsLocals, Seq.empty, Seq.empty, Seq.empty, Seq.empty)(null)
+    val getPredicateCall = MethodInvocation[Post](StaticClassRef[Post](mbi.clsRef), getPredicateInstanceMethod.ref, mbi.argsLocals, Seq.empty, Seq.empty, Seq.empty, Seq.empty)(null)
     val assignTmp = Eval[Post](PostAssignExpression[Post](tmpPredicate.get, getPredicateCall)(null))
     val nullCheck = Assert[Post](tmpPredicate.get !== Null[Post]())(null)
     //We know that tmpPredicate is now not null
@@ -451,4 +452,12 @@ case class CreatePredicates[Pre <: Generation]() extends Rewriter[Pre] {
     val methodBody: Block[Post] = Block(Seq(assertion, removePermissions, addPredicateToStore))
     MethodBodyResult(mbi.newArgs, TVoid[Post](), methodBody)
   }
+
+//  /**
+//   * Creates helper method to check if the thread already has a copy on write arraylist in the predicate store
+//   *
+//   */
+//  private def createMethodCreateList(mbi: MethodBodyInputs)(implicit origin: Origin): MethodBodyResult = {
+//
+//  }
 }

@@ -74,11 +74,11 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
 
   private def dispatchInstancePredicateApply(ipa: InstancePredicateApply[Pre]): Block[Post] = {
     implicit val origin: Origin = ipa.o
-    val ipd: InstancePredicateData[Pre] = findInstancePredicateData(ipa)
-    val mi = ipd.createMethodInvocation(CreatePredicates.GETPREDICATE)
-    val dispatchedMI = super.dispatch(mi)
-    val newAssign = Assert[Post](dispatchedMI !== Null[Post]())(null)
-    Block[Post](Seq(newAssign))
+    val allArgs: Seq[Expr[Pre]] = ipa.args :+ ipa.obj :+ StringValue(ipa.ref.decl.o.getPreferredNameOrElse())
+    val dispatchedArgs: Seq[Expr[Post]] = allArgs.map(dispatch)
+    val newObject = CreateObjectArray[Post](dispatchedArgs)
+    val mi: MethodInvocation[Post] = ledger.miHasPredicateCheck(newObject).get
+    Block[Post](Seq(Eval[Post](mi)))
   }
 
 }

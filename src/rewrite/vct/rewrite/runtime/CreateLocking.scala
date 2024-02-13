@@ -33,7 +33,7 @@ case class CreateLocking[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     this.program = program
     lazy val newDecl: Seq[GlobalDeclaration[Post]] = globalDeclarations.collect {
-      val (ledgerHelper, ledgerClass, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
+      val (ledgerHelper, _, otherDeclarations) = LedgerRewriter[Pre](this).rewriteLedger(program)
       ledger = ledgerHelper
       otherDeclarations.foreach(dispatch)
     }._1
@@ -42,7 +42,7 @@ case class CreateLocking[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
-      case jc: JavaConstructor[Pre] if currentClass.top.o.getInstancePredicateClassRuntime.isEmpty => dispatchJC(jc)
+      case jc: JavaConstructor[Pre] => dispatchJC(jc)
       case cls: Class[Pre] => currentClass.having(cls) {super.dispatch(cls)}
       case _ => super.dispatch(decl)
     }
