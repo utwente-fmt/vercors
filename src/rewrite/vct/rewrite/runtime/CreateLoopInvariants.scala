@@ -23,6 +23,8 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
   implicit var program: Program[Pre] = _
   implicit var ledger: LedgerMethodBuilderHelper[Post] = _
   val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
+  val loopContract: ScopedStack[LoopContract[Pre]] = new ScopedStack()
+
 
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
@@ -60,7 +62,7 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = l.o
     val loopContractPre: Statement[Post] = dispatchLoopContract(l.contract)
     val loopContractPost: Statement[Post] = dispatchLoopContract(l.contract)
-    val rewrittenBody: Statement[Rewritten[Pre]] = dispatch(l.body)
+    val rewrittenBody: Statement[Rewritten[Pre]] = loopContract.having(l.contract){dispatch(l.body)}
     val newBody = Block[Post](Seq(loopContractPre, rewrittenBody, loopContractPost))
     l.rewrite(body = newBody, contract = LoopInvariant[Post](tt[Post], None)(null))
   }
@@ -69,6 +71,7 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
     stat match {
       case l: Loop[Pre] => dispatchLoop(l)
       case b: Block[Pre] => dispatchBlock(b)
+      case r: Return[Pre] if loopContract.nonEmpty => Block[Post](Seq(dispatchLoopContract(loopContract.top), super.dispatch(stat)))(r.o)
       case _ => super.dispatch(stat)
     }
   }

@@ -3,15 +3,12 @@ package vct.rewrite.runtime.util
 import vct.col.ast.RewriteHelpers.RewriteDeref
 import vct.col.ast._
 import vct.col.origin.Origin
-import vct.col.ref.Ref
 import vct.col.rewrite.Generation
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
-import vct.rewrite.runtime.CreatePredicates
 import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
 import vct.rewrite.runtime.util.LedgerHelper._
 import vct.rewrite.runtime.util.PermissionRewriter._
-import vct.rewrite.runtime.util.Util.{InstancePredicateData, findInstancePredicateFunction}
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
 case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](pd) {
@@ -44,8 +41,6 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
     implicit val origin: Origin = e.o
     e match {
       case p: Perm[Pre] => Eval[Post](dispatchPerm(p))
-//      case ipa: InstancePredicateApply[Pre] if add => dispatchInstancePredicateApplyAdd(ipa)
-//      case ipa: InstancePredicateApply[Pre] if !add => dispatchInstancePredicateApplyRemove(ipa)
       case s: Starall[Pre] => super.dispatchQuantifier(s) //Let the AbstractQuantifier rewrite the StarAll, since it is the only one that can hold permissions
       case _ => Block[Post](Seq.empty)
     }
@@ -69,10 +64,6 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
         val getPerm = ledger.miGetPermission(getNewExpr(o), locationExpression(d.ref.decl)).get
         ledger.miSetPermission(getNewExpr(o), locationExpression(d.ref.decl), op(getPerm, newValue))
       }
-//      case d@Deref(_, _) => {
-//        val getPerm = ledger.miGetPermission(getNewExpr(d)).get
-//        ledger.miSetPermission(getNewExpr(d), op(getPerm, newValue))
-//      }
       case AmbiguousSubscript(coll, index) => {
         val getPerm = ledger.miGetPermission(getNewExpr(coll), dispatch(index)).get
         ledger.miSetPermission(getNewExpr(coll), dispatch(index), op(getPerm, newValue))

@@ -6,11 +6,9 @@ import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
-import vct.rewrite.runtime.CreatePredicates
 import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
 import vct.rewrite.runtime.util.LedgerHelper._
 import vct.rewrite.runtime.util.PermissionRewriter.permissionToRuntimeValueRewrite
-import vct.rewrite.runtime.util.Util._
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
 
