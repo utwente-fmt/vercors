@@ -1,6 +1,8 @@
 package vct.rewrite.cfg
 
 import vct.col.ast._
+import vct.col.origin.Origin
+import vct.col.ref.{Ref, DirectRef}
 
 import scala.collection.mutable
 
@@ -87,6 +89,16 @@ case class CFGGenerator[G]() {
       mutable.Set(convert(contractedStatement, context.enter_scope(node)))
     // ExceptionalStatement
     case Eval(expr) => ???  // TODO: Implement side effects in expressions (see ResolveExpressionSideEffects.scala)
+    case Return(result) => mutable.Set(return_successor(context))
+    case Throw(obj) => mutable.Set(exception_successor(obj, context))
+    case Break(label) => label match {
+      case Some(ref) => ???  // TODO: Handle break label!
+      case None => mutable.Set(break_successor(context))
+    }
+    case Continue(label) => label match {
+      case Some(ref) => ???  // TODO: Handle continue label!
+      case None => mutable.Set(continue_successor(context))
+    }
     // InvocationStatement
     case InvokeProcedure(ref, args, _, _, givenMap, _) => {
       if (args.nonEmpty) mutable.Set(convert(Eval(args.head)(args.head.o), context.enter_scope(node)))
@@ -102,16 +114,6 @@ case class CFGGenerator[G]() {
       if (args.nonEmpty) mutable.Set(convert(Eval(args.head)(args.head.o), context.enter_scope(node)))
       else if (ref.decl.body.nonEmpty) mutable.Set(convert(ref.decl.body.get, context.enter_scope(node)))
       else sequential_successor(context)
-    }
-    case Return(result) => mutable.Set(return_successor(context))
-    case Throw(obj) => mutable.Set(exception_successor(obj, context))
-    case Break(label) => label match {
-      case Some(ref) => ???  // TODO: Handle break label!
-      case None => mutable.Set(break_successor(context))
-    }
-    case Continue(label) => label match {
-      case Some(ref) => ???  // TODO: Handle continue label!
-      case None => mutable.Set(continue_successor(context))
     }
     // CompositeStatement
     case Block(statements) =>
@@ -190,6 +192,8 @@ case class CFGGenerator[G]() {
 
   private def exception_successor(exception: Expr[G], index: GlobalIndex[G]): CFGNode[G] = {
     val new_index = index.handle_exception(exception)
+    // Terminate on unhandled exception
+    if (new_index.indices.isEmpty) return CFGNode(exception, mutable.Set())
     convert(new_index.resolve(), new_index)
   }
 
@@ -203,7 +207,15 @@ case class CFGGenerator[G]() {
     convert(new_index.resolve(), new_index)
   }
 
-  private def find_all_cases(switch_body: Statement[G], index: GlobalIndex[G]): mutable.Set[(SwitchCase[G], GlobalIndex[G])] = {
-    ???
+  private def find_all_cases(body: Statement[G], index: GlobalIndex[G]): mutable.Set[(SwitchCase[G], GlobalIndex[G])] = body match {
+    // Recursion on statements that can contain case statements
+    case Label(_, stmt) => find_all_cases(stmt, index.enter_scope(body))
+    case Block(stmts) => mutable.Set(stmts.zipWithIndex.flatMap(t => find_all_cases(t._1, index.enter_scope(body, t._2))))
+    case Scope(_, stmt) => find_all_cases(stmt, index.enter_scope(body))
+    // Recursion end
+    case c: SwitchCase[G] => mutable.Set((c, index))
+    case _ => mutable.Set()   // TODO: Assuming that there are no cases in deeper structures (branches, loops etc.)
   }
+
+  private def handle_expression_successor(expr: Expr[G], index: GlobalIndex[G]): Option[CFGNode[G]] = ???
 }

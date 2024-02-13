@@ -36,7 +36,7 @@ case class GlobalIndex[G](indices: List[Index[G]]) {
   def handle_exception(e: Expr[G]): GlobalIndex[G] = {
     // Find innermost try-catch block of appropriate type
     val stack: List[Index[G]] = indices.dropWhile {
-      case TryCatchFinallyIndex(stmt, _) => !stmt.catches.exists(c => c.decl.t.equals(e.t))
+      case TryCatchFinallyIndex(stmt, 0) => !stmt.catches.exists(c => c.decl.t.equals(e.t))
       case _ => true
     }
     // Unhandled exception
@@ -50,7 +50,7 @@ case class GlobalIndex[G](indices: List[Index[G]]) {
   def handle_break(): GlobalIndex[G] = {
     // Find innermost occurrence of either a loop or a switch statement
     val stack: List[Index[G]] = indices.dropWhile {
-      case PVLLoopIndex(_, 0) | LoopIndex(_, 0) => true
+      case PVLLoopIndex(_, 0) | LoopIndex(_, 0) => true    // If some godless heathen calls break in the init of a loop, don't consider that loop
       case PVLLoopIndex(_, _) | LoopIndex(_, _) | RangedForIndex(_) | UnresolvedSeqLoopIndex(_, _) | SeqLoopIndex(_) | SwitchIndex(_) => false
       case _ => true
     }
@@ -62,7 +62,7 @@ case class GlobalIndex[G](indices: List[Index[G]]) {
   def continue_innermost_loop(): GlobalIndex[G] = {
     // Find innermost loop that could be the target of continue
     val stack: List[Index[G]] = indices.dropWhile {
-      case PVLLoopIndex(_, 0) | LoopIndex(_, 0) => true      // If some godless heathen calls break in the init of a loop, don't consider that loop
+      case PVLLoopIndex(_, 0) | LoopIndex(_, 0) => true
       case PVLLoopIndex(_, _) | LoopIndex(_, _) | RangedForIndex(_) | UnresolvedSeqLoopIndex(_, _) | SeqLoopIndex(_) => false
       case _ => true
     }
@@ -81,6 +81,7 @@ sealed trait Index[G] {
 }
 
 object Index {
+  def apply[G](instance_method: InstanceMethod[G], index: Int): Index[G] = InitialIndex(instance_method)
   def apply[G](run_method: RunMethod[G], index: Int): Index[G] = RunMethodIndex(run_method)
   def apply[G](pvl_branch: PVLBranch[G], index: Int): Index[G] = PVLBranchIndex(pvl_branch, index)
   def apply[G](pvl_loop: PVLLoop[G], index: Int): Index[G] = PVLLoopIndex(pvl_loop, index)
@@ -113,6 +114,11 @@ object Index {
   def apply[G](seq_loop: SeqLoop[G], index: Int): Index[G] = SeqLoopIndex(seq_loop)
   def apply[G](veymont_assign_expression: VeyMontAssignExpression[G], index: Int): Index[G] = VeyMontAssignExpressionIndex(veymont_assign_expression)
   def apply[G](communicatex: CommunicateX[G], index: Int): Index[G] = CommunicateXIndex(communicatex)
+}
+
+case class InitialIndex[G](instance_method: InstanceMethod[G]) extends Index[G] {
+  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def resolve(): Statement[G] = instance_method.body.get
 }
 
 case class RunMethodIndex[G](run_method: RunMethod[G]) extends Index[G] {
@@ -155,9 +161,16 @@ case class ExtractIndex[G](extract: Extract[G]) extends Index[G] {
   override def resolve(): Statement[G] = extract.contractedStatement
 }
 
-case class EvalIndex[G](eval: Eval[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)  // TODO: Implement expressions!
-  override def resolve(): Statement[G] = ??? // TODO: Implement expressions!
+case class EvalIndex[G](eval: Eval[G], index: Int, subexpressions: Seq[Statement[G]]) extends Index[G] {
+  def this(eval: Eval[G], index: Int) = this(eval, index, Utils.find_all_subexpressions(eval.expr))
+  override def make_step(): Set[Option[Index[G]]] = {
+    if (index < subexpressions.size - 1) Set(Some(EvalIndex(eval, index + 1)))
+    else Set(None)
+  }
+  override def resolve(): Statement[G] = subexpressions.apply(index)
+}
+object EvalIndex {
+  def apply[G](eval: Eval[G], index: Int): EvalIndex[G] = new EvalIndex(eval, index)
 }
 
 case class InvokeProcedureIndex[G](invoke_procedure: InvokeProcedure[G], index: Int) extends Index[G] {
