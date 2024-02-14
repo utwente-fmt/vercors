@@ -1,13 +1,14 @@
 package vct.rewrite.cfg
 
 import vct.col.ast._
+import vct.col.ref.Ref
 
 import scala.collection.mutable
 
-case class GlobalIndex[G](indices: List[Index[G]]) {
+case class GlobalIndex[G](indices: mutable.Seq[Index[G]]) {
 
   def enter_scope(node: Node[G], index: Int = 0): GlobalIndex[G] =
-    GlobalIndex(Index[G](node, index) :: indices)
+    GlobalIndex(indices.prepended(Index[G](node, index)))
 
   def make_step(): mutable.Set[GlobalIndex[G]] = {
     if (indices.isEmpty) return mutable.Set[GlobalIndex[G]]()
@@ -22,13 +23,13 @@ case class GlobalIndex[G](indices: List[Index[G]]) {
     res
   }
 
-  def resolve(): Statement[G] = indices.head.resolve()
+  def resolve(): Statement[G] = indices.dropWhile(i => !i.has_statement()).head.resolve()
 
   def has_statement(): Boolean = indices.head.has_statement()
 
   def return_from_call(): GlobalIndex[G] = {
     // Find innermost subroutine call
-    val stack: List[Index[G]] = indices.dropWhile {
+    val stack: mutable.Seq[Index[G]] = indices.dropWhile {
       case InvokeProcedureIndex(_, _) | InvokeMethodIndex(_, _) => false
       case _ => true
     }
@@ -39,7 +40,7 @@ case class GlobalIndex[G](indices: List[Index[G]]) {
 
   def handle_exception(e: Expr[G]): GlobalIndex[G] = {
     // Find innermost try-catch block of appropriate type
-    val stack: List[Index[G]] = indices.dropWhile {
+    val stack: mutable.Seq[Index[G]] = indices.dropWhile {
       case TryCatchFinallyIndex(stmt, 0) => !stmt.catches.exists(c => c.decl.t.equals(e.t))
       case _ => true
     }
@@ -53,7 +54,7 @@ case class GlobalIndex[G](indices: List[Index[G]]) {
 
   def handle_break(): GlobalIndex[G] = {
     // Find innermost occurrence of either a loop or a switch statement
-    val stack: List[Index[G]] = indices.dropWhile {
+    val stack: mutable.Seq[Index[G]] = indices.dropWhile {
       case PVLLoopIndex(_, 0) | LoopIndex(_, 0) => true    // If some godless heathen calls break in the init of a loop, don't consider that loop
       case PVLLoopIndex(_, _) | LoopIndex(_, _) | RangedForIndex(_) | UnresolvedSeqLoopIndex(_, _) | SeqLoopIndex(_) | SwitchIndex(_) => false
       case _ => true
@@ -65,7 +66,7 @@ case class GlobalIndex[G](indices: List[Index[G]]) {
 
   def continue_innermost_loop(): GlobalIndex[G] = {
     // Find innermost loop that could be the target of continue
-    val stack: List[Index[G]] = indices.dropWhile {
+    val stack: mutable.Seq[Index[G]] = indices.dropWhile {
       case PVLLoopIndex(_, 0) | LoopIndex(_, 0) => true
       case PVLLoopIndex(_, _) | LoopIndex(_, _) | RangedForIndex(_) | UnresolvedSeqLoopIndex(_, _) | SeqLoopIndex(_) => false
       case _ => true
@@ -243,35 +244,128 @@ object EvalIndex {
 }
 
 case class InvokeProcedureIndex[G](invoke_procedure: InvokeProcedure[G], index: Int) extends Index[G] {
+  // Order of operations:
+  // 1. args
+  // 2. given
+  // 3. outArgs
+  // 4. yields
+  // 5. procedure body
   override def make_step(): Set[Option[Index[G]]] = {
-    if (index < invoke_procedure.args.size) Set(Some(InvokeProcedureIndex(invoke_procedure, index + 1)))
+    val args: Seq[Expr[G]] = invoke_procedure.args
+    val givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = invoke_procedure.givenMap
+    val outArgs: Seq[Expr[G]] = invoke_procedure.outArgs
+    val yields: Seq[(Expr[G], Ref[G, Variable[G]])] = invoke_procedure.yields
+    if (index < args.size + givenMap.size + outArgs.size + yields.size - 1 ||
+        index == args.size + givenMap.size + outArgs.size + yields.size - 1 && invoke_procedure.ref.decl.body.nonEmpty)
+      Set(Some(InvokeProcedureIndex(invoke_procedure, index + 1)))
     else Set(None)
   }
   override def resolve(): Statement[G] = {
-    if (index < invoke_procedure.args.size) Eval(invoke_procedure.args.apply(index))(invoke_procedure.args.apply(index).o)
-    else invoke_procedure.ref.decl.body.get
+    val args: Seq[Expr[G]] = invoke_procedure.args
+    val givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = invoke_procedure.givenMap
+    val outArgs: Seq[Expr[G]] = invoke_procedure.outArgs
+    val yields: Seq[(Expr[G], Ref[G, Variable[G]])] = invoke_procedure.yields
+    if (index < args.size) {
+      val expr: Expr[G] = args.apply(index)
+      Eval(expr)(expr.o)
+    } else if (index < args.size + givenMap.size) {
+      val expr: Expr[G] = givenMap.apply(index - args.size)._2
+      Eval(expr)(expr.o)
+    } else if (index < args.size + givenMap.size + outArgs.size) {
+      val expr: Expr[G] = outArgs.apply(index - args.size - givenMap.size)
+      Eval(expr)(expr.o)
+    } else if (index < args.size + givenMap.size + outArgs.size + yields.size) {
+      val expr: Expr[G] = yields.apply(index - args.size - givenMap.size - outArgs.size)._1
+      Eval(expr)(expr.o)
+    } else invoke_procedure.ref.decl.body.get
   }
+  override def has_statement(): Boolean =
+    invoke_procedure.args.nonEmpty ||
+      invoke_procedure.givenMap.nonEmpty ||
+      invoke_procedure.outArgs.nonEmpty ||
+      invoke_procedure.yields.nonEmpty ||
+      invoke_procedure.ref.decl.body.nonEmpty
 }
 
 case class InvokeConstructorIndex[G](invoke_constructor: InvokeConstructor[G], index: Int) extends Index[G] {
+  // Order of operations:
+  // 1. args
+  // 2. given
+  // 3. outArgs
+  // 4. yields
+  // 5. out
+  // 6. constructor body
   override def make_step(): Set[Option[Index[G]]] = {
-    if (index < invoke_constructor.args.size) Set(Some(InvokeConstructorIndex(invoke_constructor, index + 1)))
+    val args: Seq[Expr[G]] = invoke_constructor.args
+    val givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = invoke_constructor.givenMap
+    val outArgs: Seq[Expr[G]] = invoke_constructor.outArgs
+    val yields: Seq[(Expr[G], Ref[G, Variable[G]])] = invoke_constructor.yields
+    if (index < args.size + givenMap.size + outArgs.size + yields.size ||
+      index == args.size + givenMap.size + outArgs.size + yields.size && invoke_constructor.ref.decl.body.nonEmpty)
+      Set(Some(InvokeConstructorIndex(invoke_constructor, index + 1)))
     else Set(None)
   }
   override def resolve(): Statement[G] = {
-    if (index < invoke_constructor.args.size) Eval(invoke_constructor.args.apply(index))(invoke_constructor.args.apply(index).o)
-    else invoke_constructor.ref.decl.body.get
+    val args: Seq[Expr[G]] = invoke_constructor.args
+    val givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = invoke_constructor.givenMap
+    val outArgs: Seq[Expr[G]] = invoke_constructor.outArgs
+    val yields: Seq[(Expr[G], Ref[G, Variable[G]])] = invoke_constructor.yields
+    if (index < args.size) {
+      val expr: Expr[G] = args.apply(index)
+      Eval(expr)(expr.o)
+    } else if (index < args.size + givenMap.size) {
+      val expr: Expr[G] = givenMap.apply(index - args.size)._2
+      Eval(expr)(expr.o)
+    } else if (index < args.size + givenMap.size + outArgs.size) {
+      val expr: Expr[G] = outArgs.apply(index - args.size - givenMap.size)
+      Eval(expr)(expr.o)
+    } else if (index < args.size + givenMap.size + outArgs.size + yields.size) {
+      val expr: Expr[G] = yields.apply(index - args.size - givenMap.size - outArgs.size)._1
+      Eval(expr)(expr.o)
+    } else if (index == args.size + givenMap.size + outArgs.size + yields.size) {
+      Eval(invoke_constructor.out)(invoke_constructor.out.o)
+    } else invoke_constructor.ref.decl.body.get
   }
 }
 
 case class InvokeMethodIndex[G](invoke_method: InvokeMethod[G], index: Int) extends Index[G] {
+  // Order of operations:
+  // 1. obj
+  // 2. args
+  // 3. given
+  // 4. outArgs
+  // 5. yields
+  // 6. method body
   override def make_step(): Set[Option[Index[G]]] = {
-    if (index < invoke_method.args.size) Set(Some(InvokeMethodIndex(invoke_method, index + 1)))
+    val args: Seq[Expr[G]] = invoke_method.args
+    val givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = invoke_method.givenMap
+    val outArgs: Seq[Expr[G]] = invoke_method.outArgs
+    val yields: Seq[(Expr[G], Ref[G, Variable[G]])] = invoke_method.yields
+    if (index < args.size + givenMap.size + outArgs.size + yields.size ||
+      index == args.size + givenMap.size + outArgs.size + yields.size && invoke_method.ref.decl.body.nonEmpty)
+      Set(Some(InvokeMethodIndex(invoke_method, index + 1)))
     else Set(None)
   }
   override def resolve(): Statement[G] = {
-    if (index < invoke_method.args.size) Eval(invoke_method.args.apply(index))(invoke_method.args.apply(index).o)
-    else invoke_method.ref.decl.body.get
+    val args: Seq[Expr[G]] = invoke_method.args
+    val givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = invoke_method.givenMap
+    val outArgs: Seq[Expr[G]] = invoke_method.outArgs
+    val yields: Seq[(Expr[G], Ref[G, Variable[G]])] = invoke_method.yields
+    if (index == 0) {
+      Eval(invoke_method.obj)(invoke_method.obj.o)
+    } else if (index < args.size + 1) {
+      val expr: Expr[G] = args.apply(index - 1)
+      Eval(expr)(expr.o)
+    } else if (index < args.size + givenMap.size + 1) {
+      val expr: Expr[G] = givenMap.apply(index - args.size - 1)._2
+      Eval(expr)(expr.o)
+    } else if (index < args.size + givenMap.size + outArgs.size + 1) {
+      val expr: Expr[G] = outArgs.apply(index - args.size - givenMap.size - 1)
+      Eval(expr)(expr.o)
+    } else if (index < args.size + givenMap.size + outArgs.size + yields.size + 1) {
+      val expr: Expr[G] = yields.apply(index - args.size - givenMap.size - outArgs.size - 1)._1
+      Eval(expr)(expr.o)
+    } else invoke_method.ref.decl.body.get
   }
 }
 

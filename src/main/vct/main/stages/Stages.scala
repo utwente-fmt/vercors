@@ -71,8 +71,8 @@ case object Stages {
       .thenRun(Output.vesuvOfOptions(options))
   }
 
-  def cfgTransformationOfOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
+  /*def cfgTransformationOfOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
     Parsing.ofOptions(options, blameProvider)
       .thenRun()
-  }
+  }*/
 }

@@ -98,7 +98,7 @@ case object Main extends LazyLogging {
           logger.info("Starting transformation")
           Transform.runOptions(options)
         }
-        case Mode.CFG =>
+        case Mode.CFG => ???
         case Mode.BatchTest => ???
       }
     } finally {

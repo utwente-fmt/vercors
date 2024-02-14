@@ -2,7 +2,6 @@ package vct.rewrite.cfg
 
 import vct.col.ast._
 
-import scala.collection.IterableOnce.iterableOnceExtensionMethods
 import scala.collection.mutable
 
 case class CFGGenerator[G]() {
@@ -11,7 +10,7 @@ case class CFGGenerator[G]() {
   private val converted_nodes: mutable.Map[GlobalIndex[G], CFGNode[G]] = mutable.HashMap[GlobalIndex[G], CFGNode[G]]()
 
   def generate(entry: InstanceMethod[G]): CFGNode[G] = {
-    convert(entry.body.get, GlobalIndex[G](List(InitialIndex(entry))))
+    convert(entry.body.get, GlobalIndex[G](mutable.Seq(InitialIndex(entry))))
   }
 
   private def convert(node: Statement[G], context: GlobalIndex[G]): CFGNode[G] = {
@@ -98,22 +97,9 @@ case class CFGGenerator[G]() {
       case None => mutable.Set(CFGEdge(continue_successor(context), None))
     }
     // InvocationStatement
-    // TODO: Handle all the other possible expressions in invocations!
-    case InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) => {
-      if (args.nonEmpty) mutable.Set(CFGEdge(convert(Eval(args.head)(args.head.o), context.enter_scope(node)), None))
-      else if (ref.decl.body.nonEmpty) mutable.Set(CFGEdge(convert(ref.decl.body.get, context.enter_scope(node)), None))
-      else sequential_successor(context)
-    }
-    case InvokeConstructor(ref, out, args, outArgs, typeArgs, givenMap, yields) => {
-      if (args.nonEmpty) mutable.Set(CFGEdge(convert(Eval(args.head)(args.head.o), context.enter_scope(node)), None))
-      else if (ref.decl.body.nonEmpty) mutable.Set(CFGEdge(convert(ref.decl.body.get, context.enter_scope(node)), None))
-      else sequential_successor(context)
-    }
-    case InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) => {
-      if (args.nonEmpty) mutable.Set(CFGEdge(convert(Eval(args.head)(args.head.o), context.enter_scope(node)), None))
-      else if (ref.decl.body.nonEmpty) mutable.Set(CFGEdge(convert(ref.decl.body.get, context.enter_scope(node)), None))
-      else sequential_successor(context)
-    }
+    case InvokeProcedure(_, _, _, _, _, _) => evaluate_first(context.enter_scope(node))
+    case InvokeConstructor(_, _, _, _, _, _, _) => evaluate_first(context.enter_scope(node))
+    case InvokeMethod(_, _, _, _, _, _, _) => evaluate_first(context.enter_scope(node))
     // CompositeStatement
     case Block(statements) =>
       mutable.Set(CFGEdge(convert(statements.head, context.enter_scope(node)), None))
