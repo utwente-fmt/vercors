@@ -14,7 +14,7 @@ case class Printer[G]() {
   private var node_index: Int = 0
 
   private def print_cfg(writer: Writer): Unit = {
-    writer.append("digraph {")
+    writer.append("digraph {\n")
     // Write all nodes
     node_names.foreach(naming => writer.append(naming._2)
                                        .append(s" [label=${"\""}")

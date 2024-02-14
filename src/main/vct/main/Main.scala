@@ -94,9 +94,11 @@ case object Main extends LazyLogging {
           }
           EXIT_CODE_SUCCESS
         case Mode.VeyMont => VeyMont.runOptions(options)
-        case Mode.VeSUV =>
+        case Mode.VeSUV => {
           logger.info("Starting transformation")
           Transform.runOptions(options)
+        }
+        case Mode.CFG =>
         case Mode.BatchTest => ???
       }
     } finally {

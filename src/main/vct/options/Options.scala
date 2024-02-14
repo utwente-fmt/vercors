@@ -269,6 +269,16 @@ case object Options {
         ),
 
       note(""),
+      note("Control flow graph"),
+      opt[Unit]("build-cfg")
+        .action((_, c) => c.copy(mode = Mode.CFG))
+        .text("Instead of verifying a program, build its control flow graph for further analysis")
+        .children(
+          opt[Path]("cfg-output").required().valueName("<path>")
+            .action((path, c) => c.copy(cfgOutput = path))
+        ),
+
+      note(""),
       note("Batch Testing Mode"),
       opt[Unit]("test")
         .action((_, c) => c.copy(mode = Mode.BatchTest))
@@ -402,6 +412,9 @@ case class Options
 
   // VeSUV options
   vesuvOutput: Path = null,
+
+  // Control flow graph options
+  cfgOutput: Path = null,
 
   // Batch test options
   testDir: Path = null, // required
