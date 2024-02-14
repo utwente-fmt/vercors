@@ -22,6 +22,8 @@ case class GlobalIndex[G](indices: List[Index[G]]) {
 
   def resolve(): Statement[G] = indices.head.resolve()
 
+  def has_statement(): Boolean = indices.head.has_statement()
+
   def return_from_call(): GlobalIndex[G] = {
     // Find innermost subroutine call
     val stack: List[Index[G]] = indices.dropWhile {
@@ -56,7 +58,6 @@ case class GlobalIndex[G](indices: List[Index[G]]) {
     }
     // Find the next statement
     // TODO: Does this always return exactly one next step?
-    //  No, e.g.: another loop in the update statement of a loop
     GlobalIndex(stack.tail).make_step().head
   }
 
@@ -92,6 +93,13 @@ sealed trait Index[G] {
    * @return The statement at the current index
    */
   def resolve(): Statement[G]
+
+  /**
+   * Determines whether the index contains a statement.
+   *
+   * @return true if the index contains at least one statement, false otherwise
+   */
+  def has_statement(): Boolean = true
 }
 
 object Index {
@@ -150,10 +158,16 @@ case class ExpressionContainerIndex[G](statement: Statement[G], index: Int) exte
   override def resolve(): Statement[G] = statement
 }
 
-// TODO: Is this really a good idea?
 case class AssignmentIndex[G](assign: Assign[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = ???
-  override def resolve(): Statement[G] = ???
+  override def make_step(): Set[Option[Index[G]]] = {
+    if (index < 2) Set(Some(AssignmentIndex(assign, index + 1)))
+    else Set(None)
+  }
+  override def resolve(): Statement[G] = index match {
+    case 0 => Eval(assign.target)(assign.target.o)
+    case 1 => Eval(assign.value)(assign.value.o)
+    case 2 => assign
+  }
 }
 
 case class PVLBranchIndex[G](pvl_branch: PVLBranch[G], index: Int) extends Index[G] {
@@ -215,6 +229,7 @@ case class EvalIndex[G](eval: Eval[G], index: Int, subexpressions: Seq[Statement
     else Set(None)
   }
   override def resolve(): Statement[G] = subexpressions.apply(index)
+  override def has_statement(): Boolean = subexpressions.nonEmpty
 }
 object EvalIndex {
   def apply[G](eval: Eval[G], index: Int): EvalIndex[G] = new EvalIndex(eval, index)
@@ -286,6 +301,7 @@ case class IndetBranchIndex[G](indet_branch: IndetBranch[G], index: Int) extends
   override def resolve(): Statement[G] = indet_branch.branches.apply(index)
 }
 
+// TODO: Switch cases could be multiple context indices deep; this does not work with the single index for make_step()
 case class SwitchIndex[G](switch: Switch[G]) extends Index[G] {
   override def make_step(): Set[Option[Index[G]]] = Set(None)
   override def resolve(): Statement[G] = switch.body
