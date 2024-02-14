@@ -197,7 +197,7 @@ case class CFGGenerator[G]() {
   }
 
   private def sequential_successor(index: GlobalIndex[G]): mutable.Set[CFGEdge[G]] =
-    mutable.LinkedHashSet.from(index.make_step().map(i => CFGEdge(convert(i.resolve(), i), None)))
+    index.make_step().map(i => CFGEdge(convert(i.resolve(), i), None))
 
   private def return_successor(index: GlobalIndex[G]): CFGNode[G] = {
     val new_index: GlobalIndex[G] = index.return_from_call()

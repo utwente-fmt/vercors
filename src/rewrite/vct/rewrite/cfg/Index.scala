@@ -2,19 +2,21 @@ package vct.rewrite.cfg
 
 import vct.col.ast._
 
+import scala.collection.mutable
+
 case class GlobalIndex[G](indices: List[Index[G]]) {
 
   def enter_scope(node: Node[G], index: Int = 0): GlobalIndex[G] =
     GlobalIndex(Index[G](node, index) :: indices)
 
-  def make_step(): Set[GlobalIndex[G]] = {
-    if (indices.isEmpty) return Set[GlobalIndex[G]]()
+  def make_step(): mutable.Set[GlobalIndex[G]] = {
+    if (indices.isEmpty) return mutable.Set[GlobalIndex[G]]()
     val steps: Set[Option[Index[G]]] = indices.head.make_step()
-    var res = Set[GlobalIndex[G]]()
+    val res = mutable.Set[GlobalIndex[G]]()
     for (step <- steps) {
       step match {
-        case Some(index) => res = res ++ GlobalIndex(index +: indices.tail)
-        case None => res = res ++ GlobalIndex(indices.tail).make_step()
+        case Some(index) => res.addOne(GlobalIndex(index +: indices.tail))
+        case None => res.addAll(GlobalIndex(indices.tail).make_step())
       }
     }
     res
@@ -103,41 +105,46 @@ sealed trait Index[G] {
 }
 
 object Index {
-  def apply[G](instance_method: InstanceMethod[G], index: Int): Index[G] = InitialIndex(instance_method)
-  def apply[G](run_method: RunMethod[G], index: Int): Index[G] = RunMethodIndex(run_method)
-  def apply[G](pvl_branch: PVLBranch[G], index: Int): Index[G] = PVLBranchIndex(pvl_branch, index)
-  def apply[G](pvl_loop: PVLLoop[G], index: Int): Index[G] = PVLLoopIndex(pvl_loop, index)
-  def apply[G](label: Label[G], index: Int): Index[G] = LabelIndex(label)
-  def apply[G](framed_proof: FramedProof[G], index: Int): Index[G] = FramedProofIndex(framed_proof, index)
-  def apply[G](extract: Extract[G], index: Int): Index[G] = ExtractIndex(extract)
-  def apply[G](eval: Eval[G], index: Int): Index[G] = EvalIndex(eval, index)
-  def apply[G](invoke_procedure: InvokeProcedure[G], index: Int): Index[G] = InvokeProcedureIndex(invoke_procedure, index)
-  def apply[G](invoke_constructor: InvokeConstructor[G], index: Int): Index[G] = InvokeConstructorIndex(invoke_constructor, index)
-  def apply[G](invoke_method: InvokeMethod[G], index: Int): Index[G] = InvokeMethodIndex(invoke_method, index)
-  def apply[G](block: Block[G], index: Int): Index[G] = BlockIndex(block, index)
-  def apply[G](scope: Scope[G], index: Int): Index[G] = ScopeIndex(scope)
-  def apply[G](branch: Branch[G], index: Int): Index[G] = BranchIndex(branch, index)
-  def apply[G](indet_branch: IndetBranch[G], index: Int): Index[G] = IndetBranchIndex(indet_branch, index)
-  def apply[G](switch: Switch[G], index: Int): Index[G] = SwitchIndex(switch)
-  def apply[G](loop: Loop[G], index: Int): Index[G] = LoopIndex(loop, index)
-  def apply[G](ranged_for: RangedFor[G], index: Int): Index[G] = RangedForIndex(ranged_for)
-  def apply[G](try_catch_finally: TryCatchFinally[G], index: Int): Index[G] = TryCatchFinallyIndex(try_catch_finally, index)
-  def apply[G](synchronized: Synchronized[G], index: Int): Index[G] = SynchronizedIndex(synchronized)
-  def apply[G](par_invariant: ParInvariant[G], index: Int): Index[G] = ParInvariantIndex(par_invariant)
-  def apply[G](par_atomic: ParAtomic[G], index: Int): Index[G] = ParAtomicIndex(par_atomic)
-  def apply[G](par_barrier: ParBarrier[G], index: Int): Index[G] = ParBarrierIndex(par_barrier)
-  def apply[G](vec_block: VecBlock[G], index: Int): Index[G] = VecBlockIndex(vec_block)
-  def apply[G](wand_package: WandPackage[G], index: Int): Index[G] = WandPackageIndex(wand_package)
-  def apply[G](model_do: ModelDo[G], index: Int): Index[G] = ModelDoIndex(model_do)
-  def apply[G](cpp_lifetime_scope: CPPLifetimeScope[G], index: Int): Index[G] = CPPLifetimeScopeIndex(cpp_lifetime_scope)
-  def apply[G](unresolved_seq_branch: UnresolvedSeqBranch[G], index: Int): Index[G] = UnresolvedSeqBranchIndex(unresolved_seq_branch, index)
-  def apply[G](unresolved_seq_loop: UnresolvedSeqLoop[G], index: Int): Index[G] = UnresolvedSeqLoopIndex(unresolved_seq_loop, index)
-  def apply[G](seq_branch: SeqBranch[G], index: Int): Index[G] = SeqBranchIndex(seq_branch, index)
-  def apply[G](seq_loop: SeqLoop[G], index: Int): Index[G] = SeqLoopIndex(seq_loop)
-  def apply[G](veymont_assign_expression: VeyMontAssignExpression[G], index: Int): Index[G] = VeyMontAssignExpressionIndex(veymont_assign_expression)
-  def apply[G](communicatex: CommunicateX[G], index: Int): Index[G] = CommunicateXIndex(communicatex)
-  def apply[G](assign: Assign[G], index: Int): Index[G] = AssignmentIndex(assign, index)
-  def apply[G](statement: Statement[G], index: Int): Index[G] = ExpressionContainerIndex(statement, index)
+  def from[G](node: Node[G], index: Int): Index[G] = node match {
+    case instance_method: InstanceMethod[G] => InitialIndex(instance_method)
+    case run_method: RunMethod[G] => RunMethodIndex(run_method)
+    case assign: Assign[G] => AssignmentIndex(assign, index)
+    case pvl_branch: PVLBranch[G] => PVLBranchIndex(pvl_branch, index)
+    case pvl_loop: PVLLoop[G] => PVLLoopIndex(pvl_loop, index)
+    case label: Label[G] => LabelIndex(label)
+    case framed_proof: FramedProof[G] => FramedProofIndex(framed_proof, index)
+    case extract: Extract[G] => ExtractIndex(extract)
+    case eval: Eval[G] => EvalIndex(eval, index)
+    case invoke_procedure: InvokeProcedure[G] => InvokeProcedureIndex(invoke_procedure, index)
+    case invoke_constructor: InvokeConstructor[G] => InvokeConstructorIndex(invoke_constructor, index)
+    case invoke_method: InvokeMethod[G] => InvokeMethodIndex(invoke_method, index)
+    case block: Block[G] => BlockIndex(block, index)
+    case scope: Scope[G] => ScopeIndex(scope)
+    case branch: Branch[G] => BranchIndex(branch, index)
+    case indet_branch: IndetBranch[G] => IndetBranchIndex(indet_branch, index)
+    case switch: Switch[G] => SwitchIndex(switch)
+    case loop: Loop[G] => LoopIndex(loop, index)
+    case ranged_for: RangedFor[G] => RangedForIndex(ranged_for)
+    case try_catch_finally: TryCatchFinally[G] => TryCatchFinallyIndex(try_catch_finally, index)
+    case synchronized: Synchronized[G] => SynchronizedIndex(synchronized)
+    case par_invariant: ParInvariant[G] => ParInvariantIndex(par_invariant)
+    case par_atomic: ParAtomic[G] => ParAtomicIndex(par_atomic)
+    case par_barrier: ParBarrier[G] => ParBarrierIndex(par_barrier)
+    case vec_block: VecBlock[G] => VecBlockIndex(vec_block)
+    case wand_package: WandPackage[G] => WandPackageIndex(wand_package)
+    case model_do: ModelDo[G] => ModelDoIndex(model_do)
+    case cpp_lifetime_scope: CPPLifetimeScope[G] => CPPLifetimeScopeIndex(cpp_lifetime_scope)
+    case unresolved_seq_branch: UnresolvedSeqBranch[G] => UnresolvedSeqBranchIndex(unresolved_seq_branch, index)
+    case unresolved_seq_loop: UnresolvedSeqLoop[G] => UnresolvedSeqLoopIndex(unresolved_seq_loop, index)
+    case seq_branch: SeqBranch[G] => SeqBranchIndex(seq_branch, index)
+    case seq_loop: SeqLoop[G] => SeqLoopIndex(seq_loop)
+    case veymont_assign_expression: VeyMontAssignExpression[G] => VeyMontAssignExpressionIndex(veymont_assign_expression)
+    case communicatex: CommunicateX[G] => CommunicateXIndex(communicatex)
+    case statement: Statement[G] => ExpressionContainerIndex(statement, index)
+    case _ => ???
+  }
+
+  def apply[G](node: Node[G], index: Int): Index[G] = from(node, index)
 }
 
 case class InitialIndex[G](instance_method: InstanceMethod[G]) extends Index[G] {
