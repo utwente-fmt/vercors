@@ -31,6 +31,7 @@ case class CFGGenerator[G]() {
           if (searched_labels.contains(goto.lbl.decl)) searched_labels(goto.lbl.decl).addOne(cfg_node)
           else searched_labels.addOne((goto.lbl.decl, mutable.Set(cfg_node)))
         }
+      case _ =>
     }
     converted_nodes.addOne((context, cfg_node))
     cfg_node
