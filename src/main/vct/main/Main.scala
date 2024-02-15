@@ -7,9 +7,7 @@ import hre.progress.Progress
 import org.slf4j.LoggerFactory
 import scopt.OParser
 import vct.col.ast.Node
-import vct.main.modes.Verify
-import vct.main.modes.VeyMont
-import vct.main.modes.Transform
+import vct.main.modes.{VeSUV, Verify, VeyMont}
 import vct.main.stages.Transformation
 import vct.options.types.{Mode, Verbosity}
 import vct.options.Options
@@ -96,7 +94,7 @@ case object Main extends LazyLogging {
         case Mode.VeyMont => VeyMont.runOptions(options)
         case Mode.VeSUV => {
           logger.info("Starting transformation")
-          Transform.runOptions(options)
+          VeSUV.runOptions(options)
         }
         case Mode.CFG => ???
         case Mode.BatchTest => ???
