@@ -22,9 +22,8 @@ case class PrintCFG(out: Path) extends Stage[Node[_ <: Generation], Unit] {
   override def progressWeight: Int = 0
 
   override def run(in1: Node[_ <: Generation]): Unit = {
-    // TODO: Burn this and do it properly
-    //  if m.o.getPreferredName.getOrElse(Name()).toString.equals("main")
-    val main_method = in1.transSubnodes.collectFirst{ case m: InstanceMethod[_] => m }.get
+    // TODO: Is there a better way to find a "main" method?
+    val main_method = in1.transSubnodes.collectFirst{ case m: InstanceMethod[_] if m.o.getPreferredName.get.snake.equals("main") => m }.get
     CFGPrinter().print_ast_as_cfg(main_method, out)
   }
 }

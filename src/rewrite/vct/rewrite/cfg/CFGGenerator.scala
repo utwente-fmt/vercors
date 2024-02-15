@@ -40,25 +40,22 @@ case class CFGGenerator[G]() {
 
   private def find_successors(node: Statement[G], context: GlobalIndex[G]): mutable.Set[CFGEdge[G]] = node match {
     // TODO: Can these be simplified using evaluate_first()?
-    case PVLBranch(branches) =>
-      mutable.Set(CFGEdge(convert(Eval(branches.head._1)(branches.head._1.o), context.enter_scope(node)), None))
-    case PVLLoop(init, _, _, _, _) =>
-      mutable.Set(CFGEdge(convert(init, context.enter_scope(node)), None))
+    case PVLBranch(_) => evaluate_first(context.enter_scope(node))
+    case PVLLoop(_, _, _, _, _) => evaluate_first(context.enter_scope(node))
     // NonExecutableStatement
     case LocalDecl(_) => sequential_successor(context)
     case SpecIgnoreStart() => sequential_successor(context)     // TODO: What is this?
     case SpecIgnoreEnd() => sequential_successor(context)
     // NormallyCompletingStatement
-    case Assign(target, _) => context.indices.head match {
+    case Assign(_, _) => context.indices.head match {
       case AssignmentIndex(a, _) if a == node => sequential_successor(context)
-      case _ => mutable.Set(CFGEdge(convert(Eval(target)(target.o), context.enter_scope(node)), None))
+      case _ => evaluate_first(context.enter_scope(node))
     }
     case Send(_, _, res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
     case Recv(_) => sequential_successor(context)
     case DefaultCase() => sequential_successor(context)
     case Case(pattern) => sequential_successor(context)   // TODO: Handle expression side effects in switch case conditions
-    case Label(_, stat) =>
-      mutable.Set(CFGEdge(convert(stat, context.enter_scope(node)), None))
+    case Label(_, _) => evaluate_first(context.enter_scope(node))
     case Goto(lbl) => found_labels.get(lbl.decl) match {
       case Some(node) => mutable.Set(CFGEdge(node, None))
       case None => mutable.Set()
@@ -83,10 +80,8 @@ case class CFGGenerator[G]() {
     case Unfold(res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
     case WandApply(res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
     case Havoc(_) => sequential_successor(context)
-    case FramedProof(pre, _, _) =>
-      mutable.Set(CFGEdge(convert(Eval(pre)(pre.o), context.enter_scope(node)), None))
-    case Extract(contractedStatement) =>
-      mutable.Set(CFGEdge(convert(contractedStatement, context.enter_scope(node)), None))
+    case FramedProof(_, _, _) => evaluate_first(context.enter_scope(node))
+    case Extract(_) => evaluate_first(context.enter_scope(node))
     // ExceptionalStatement
     case Eval(_) => evaluate_first(context.enter_scope(node))
     case Return(result) => handle_expression_container(node, Eval(result)(result.o), context, mutable.Set(CFGEdge(return_successor(context), None)))
@@ -104,46 +99,30 @@ case class CFGGenerator[G]() {
     case InvokeConstructor(_, _, _, _, _, _, _) => evaluate_first(context.enter_scope(node))
     case InvokeMethod(_, _, _, _, _, _, _) => evaluate_first(context.enter_scope(node))
     // CompositeStatement
-    case Block(statements) =>
-      mutable.Set(CFGEdge(convert(statements.head, context.enter_scope(node)), None))
-    case Scope(_, body) =>
-      mutable.Set(CFGEdge(convert(body, context.enter_scope(node)), None))
-    case Branch(branches) => {
-      val eval: Eval[G] = Eval(branches.head._1)(branches.head._1.o)
-      mutable.Set(CFGEdge(convert(eval, context.enter_scope(node)), None))
-    }
+    case Block(_) => evaluate_first(context.enter_scope(node))
+    case Scope(_, _) => evaluate_first(context.enter_scope(node))
+    case Branch(_) => evaluate_first(context.enter_scope(node))
     case IndetBranch(branches) =>
       mutable.LinkedHashSet.from(branches.zipWithIndex.map(b => CFGEdge(convert(b._1, context.enter_scope(node, b._2)), None)))
     case Switch(expr, body) =>    // TODO: Add conditions to switch statement transitions
       Utils.find_all_cases(body, context.enter_scope(node)).map(t => CFGEdge(convert(t._1, t._2), None))   // TODO: Handle side effects in switch statement conditions
-    case Loop(init, _, _, _, _) =>
-      mutable.Set(CFGEdge(convert(init, context.enter_scope(node)), None))
-    case RangedFor(_, _, body) =>
-      mutable.Set(CFGEdge(convert(body, context.enter_scope(node)), None))
-    case TryCatchFinally(body, _, _) =>
-      mutable.Set(CFGEdge(convert(body, context.enter_scope(node)), None))
-    case Synchronized(_, body) =>
-      mutable.Set(CFGEdge(convert(body, context.enter_scope(node)), None))
-    case ParInvariant(_, _, content) =>
-      mutable.Set(CFGEdge(convert(content, context.enter_scope(node)), None))   // TODO: Expression side effects
-    case ParAtomic(_, content) =>
-      mutable.Set(CFGEdge(convert(content, context.enter_scope(node)), None))   // TODO: Expression side effects
-    case ParBarrier(_, _, _, _, content) =>
-      mutable.Set(CFGEdge(convert(content, context.enter_scope(node)), None))   // TODO: Expression side effects
+    case Loop(_, _, _, _, _) => evaluate_first(context.enter_scope(node))
+    case RangedFor(_, _, _) => evaluate_first(context.enter_scope(node))
+    case TryCatchFinally(_, _, _) => evaluate_first(context.enter_scope(node))
+    case Synchronized(_, _) => evaluate_first(context.enter_scope(node))
+    case ParInvariant(_, _, _) => evaluate_first(context.enter_scope(node))       // TODO: Expression side effects
+    case ParAtomic(_, _) => evaluate_first(context.enter_scope(node))             // TODO: Expression side effects
+    case ParBarrier(_, _, _, _, _) => evaluate_first(context.enter_scope(node))   // TODO: Expression side effects
     case ParStatement(_) => sequential_successor(context)
-    case VecBlock(_, _, _, content) =>
-      mutable.Set(CFGEdge(convert(content, context.enter_scope(node)), None))   // TODO: Expression side effects
-    case WandPackage(_, proof) =>
-      mutable.Set(CFGEdge(convert(proof, context.enter_scope(node)), None))     // TODO: Expression side effects
-    case ModelDo(_, _, _, _, impl) =>
-      mutable.Set(CFGEdge(convert(impl, context.enter_scope(node)), None))      // TODO: Expression side effects
+    case VecBlock(_, _, _, _) => evaluate_first(context.enter_scope(node))        // TODO: Expression side effects
+    case WandPackage(_, _) => evaluate_first(context.enter_scope(node))           // TODO: Expression side effects
+    case ModelDo(_, _, _, _, _) => evaluate_first(context.enter_scope(node))      // TODO: Expression side effects
     // CStatement
     case CDeclarationStatement(_) => sequential_successor(context)
     case CGoto(label) => ???    // I'm not dealing with string labels
     // CPPStatement
     case CPPDeclarationStatement(_) => sequential_successor(context)
-    case CPPLifetimeScope(body) =>
-      mutable.Set(CFGEdge(convert(body, context.enter_scope(node)), None))
+    case CPPLifetimeScope(_) => evaluate_first(context.enter_scope(node))
     case JavaLocalDeclarationStatement(_) => sequential_successor(context)
     // SilverStatement
     case SilverNewRef(_, _) => sequential_successor(context)
@@ -154,20 +133,16 @@ case class CFGGenerator[G]() {
     case PVLSeqAssign(_, _, value) => handle_expression_container(node, Eval(value)(value.o), context, sequential_successor(context))
     case Communicate(_, _) => sequential_successor(context)
     case SeqAssign(_, _, value) => handle_expression_container(node, Eval(value)(value.o), context, sequential_successor(context))
-    case UnresolvedSeqBranch(branches) =>       // TODO: Consider branch conditions
+    case UnresolvedSeqBranch(branches) =>
       mutable.LinkedHashSet.from(branches.zipWithIndex.map(b => CFGEdge(convert(b._1._2, context.enter_scope(node, b._2)), None)))
-    case UnresolvedSeqLoop(cond, _, _) =>
-      mutable.Set(CFGEdge(convert(Eval(cond)(cond.o), context.enter_scope(node)), None))
-    case SeqBranch(_, yes, no) => no match {    // TODO: What are the conditions here?
+    case UnresolvedSeqLoop(_, _, _) => evaluate_first(context.enter_scope(node))
+    case SeqBranch(_, yes, no) => no match {                                        // TODO: What are the conditions here?
       case Some(stmt) => mutable.Set(CFGEdge(convert(yes, context.enter_scope(node, 0)), None), CFGEdge(convert(stmt, context.enter_scope(node, 1)), None))
       case None => mutable.Set(CFGEdge(convert(yes, context.enter_scope(node)), None))
     }
-    case SeqLoop(_, _, body) =>                 // TODO: What are the conditions here?
-      mutable.Set(CFGEdge(convert(body, context.enter_scope(node)), None))
-    case VeyMontAssignExpression(_, assign) =>
-      mutable.Set(CFGEdge(convert(assign, context.enter_scope(node)), None))
-    case CommunicateX(_, _, _, assign) =>
-      mutable.Set(CFGEdge(convert(assign, context.enter_scope(node)), None))
+    case SeqLoop(_, _, _) => evaluate_first(context.enter_scope(node))              // TODO: What are the conditions here?
+    case VeyMontAssignExpression(_, _) => evaluate_first(context.enter_scope(node))
+    case CommunicateX(_, _, _, _) => evaluate_first(context.enter_scope(node))
   }
 
   private def handle_expression_container(statement: Statement[G],

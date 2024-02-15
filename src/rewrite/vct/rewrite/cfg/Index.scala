@@ -608,8 +608,20 @@ case class CPPLifetimeScopeIndex[G](cpp_lifetime_scope: CPPLifetimeScope[G]) ext
 }
 
 case class UnresolvedSeqBranchIndex[G](unresolved_seq_branch: UnresolvedSeqBranch[G], index: Int) extends Index[G] {
-  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
-  override def resolve(): Statement[G] = unresolved_seq_branch.branches.apply(index)._2
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = {
+    // Indices 0, 2, 4, ... are the conditions, indices 1, 3, 5, ... are the branch bodies
+    if (index % 2 == 0 && index < 2 * (unresolved_seq_branch.branches.size - 1))
+      Set((Some(UnresolvedSeqBranchIndex(unresolved_seq_branch, index + 2)), Some(Utils.negate(unresolved_seq_branch.branches.apply(index / 2)._1))),
+        (Some(UnresolvedSeqBranchIndex(unresolved_seq_branch, index + 1)), Some(unresolved_seq_branch.branches.apply(index / 2)._1)))
+    else if (index == 2 * (unresolved_seq_branch.branches.size - 1))
+      Set((Some(UnresolvedSeqBranchIndex(unresolved_seq_branch, index + 1)), Some(unresolved_seq_branch.branches.apply(index / 2)._1)),
+        (None, Some(Utils.negate(unresolved_seq_branch.branches.apply(index / 2)._1))))
+    else Set((None, None))
+  }
+  override def resolve(): Statement[G] = {
+    if (index % 2 == 0) Eval(unresolved_seq_branch.branches.apply(index / 2)._1)(unresolved_seq_branch.branches.apply(index / 2)._1.o)
+    else unresolved_seq_branch.branches.apply((index - 1) / 2)._2
+  }
   override def equals(obj: scala.Any): Boolean = obj match {
     case UnresolvedSeqBranchIndex(u, i) => i == index && u.equals(unresolved_seq_branch)
     case _ => false
@@ -645,7 +657,7 @@ case class SeqBranchIndex[G](seq_branch: SeqBranch[G], index: Int) extends Index
 }
 
 case class SeqLoopIndex[G](seq_loop: SeqLoop[G]) extends Index[G] {
-  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((Some(this), None), (None, None))
   override def resolve(): Statement[G] = seq_loop.body
   override def equals(obj: scala.Any): Boolean = obj match {
     case SeqLoopIndex(s) => s.equals(seq_loop)
