@@ -17,7 +17,9 @@ case class CFGGenerator[G]() {
     // If a node has already been visited, then it should not be created again
     if (converted_nodes.contains(context)) return converted_nodes(context)
     // Create new node with its successors (if possible)
-    val cfg_node: CFGNode[G] = CFGNode(node, find_successors(node, context))
+    val cfg_node: CFGNode[G] = CFGNode(node, mutable.Set())
+    converted_nodes.addOne((context, cfg_node))
+    cfg_node.successors.addAll(find_successors(node, context))
     // Handle labels and goto statements
     node match {
       case label: Label[G] => {
@@ -33,7 +35,6 @@ case class CFGGenerator[G]() {
         }
       case _ =>
     }
-    converted_nodes.addOne((context, cfg_node))
     cfg_node
   }
 
