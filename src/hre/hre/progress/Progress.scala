@@ -20,6 +20,7 @@ case object Progress {
     blockLayoutUpdateTimer.purge()
     blockLayoutUpdateTimer.cancel()
     TaskRegistry.finish()
+    Layout.update()
     Profile.finish()
   }
 
@@ -28,6 +29,7 @@ case object Progress {
     blockLayoutUpdateTimer.purge()
     blockLayoutUpdateTimer.cancel()
     TaskRegistry.abort()
+    Layout.update()
     Profile.finish()
   }
 
