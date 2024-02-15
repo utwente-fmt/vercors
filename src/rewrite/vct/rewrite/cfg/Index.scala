@@ -15,14 +15,14 @@ case class GlobalIndex[G](indices: mutable.Seq[Index[G]]) {
   def enter_scope(node: Node[G], index: Int = 0): GlobalIndex[G] =
     GlobalIndex(indices.prepended(Index[G](node, index)))
 
-  def make_step(): mutable.Set[GlobalIndex[G]] = {
-    if (indices.isEmpty) return mutable.Set[GlobalIndex[G]]()
-    val steps: Set[Option[Index[G]]] = indices.head.make_step()
-    val res = mutable.Set[GlobalIndex[G]]()
+  def make_step(): mutable.Set[(GlobalIndex[G], Option[Expr[G]])] = {
+    if (indices.isEmpty) return mutable.Set()
+    val steps: Set[(Option[Index[G]], Option[Expr[G]])] = indices.head.make_step()
+    val res = mutable.Set[(GlobalIndex[G], Option[Expr[G]])]()
     for (step <- steps) {
       step match {
-        case Some(index) => res.addOne(GlobalIndex(index +: indices.tail))
-        case None => res.addAll(GlobalIndex(indices.tail).make_step())
+        case (Some(index), cond) => res.addOne((GlobalIndex(index +: indices.tail), cond))
+        case (None, cond) => res.addAll(GlobalIndex(indices.tail).make_step().map(tup => (tup._1, Utils.and(tup._2, cond))))
       }
     }
     res
@@ -40,7 +40,7 @@ case class GlobalIndex[G](indices: mutable.Seq[Index[G]]) {
     }
     // Find the next statement
     // TODO: Does this always return exactly one next step?
-    GlobalIndex(stack.tail).make_step().head
+    GlobalIndex(stack.tail).make_step().head._1
   }
 
   def handle_exception(e: Expr[G]): GlobalIndex[G] = {
@@ -66,7 +66,7 @@ case class GlobalIndex[G](indices: mutable.Seq[Index[G]]) {
     }
     // Find the next statement
     // TODO: Does this always return exactly one next step?
-    GlobalIndex(stack.tail).make_step().head
+    GlobalIndex(stack.tail).make_step().head._1
   }
 
   def continue_innermost_loop(): GlobalIndex[G] = {
@@ -89,11 +89,12 @@ sealed trait Index[G] {
   /**
    * Defines the set of possible next steps. An index in the returned set indicates that this index can replace the
    * previous index at the top level of the index stack. A None value indicates that a step is possible, but it reaches
-   * outside the scope of this index to the index below.
+   * outside the scope of this index to the index below. Along with these steps, this method returns the conditions for
+   * such a step in the form of a boolean expression, or None if a transition is certain to occur.
    *
-   * @return A set of all steps possible from the current index
+   * @return A set of all steps possible from the current index, along with conditions for taking them
    */
-  def make_step(): Set[Option[Index[G]]]
+  def make_step(): Set[(Option[Index[G]], Option[Expr[G]])]
 
   /**
    * Returns the statement that corresponds to the current index.
@@ -153,7 +154,7 @@ object Index {
 }
 
 case class InitialIndex[G](instance_method: InstanceMethod[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = instance_method.body.get
   override def equals(obj: scala.Any): Boolean = obj match {
     case InitialIndex(m) => m.equals(instance_method)
@@ -162,8 +163,9 @@ case class InitialIndex[G](instance_method: InstanceMethod[G]) extends Index[G] 
 }
 
 case class RunMethodIndex[G](run_method: RunMethod[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = run_method.body.get
+  override def has_statement(): Boolean = run_method.body.nonEmpty
   override def equals(obj: scala.Any): Boolean = obj match {
     case RunMethodIndex(m) => m.equals(run_method)
     case _ => false
@@ -171,9 +173,9 @@ case class RunMethodIndex[G](run_method: RunMethod[G]) extends Index[G] {
 }
 
 case class ExpressionContainerIndex[G](statement: Statement[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = {
-    if (index == 0) Set(Some(ExpressionContainerIndex(statement, 1)))
-    else Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = {
+    if (index == 0) Set((Some(ExpressionContainerIndex(statement, 1)), None))
+    else Set((None, None))
   }
   override def resolve(): Statement[G] = statement
   override def equals(obj: scala.Any): Boolean = obj match {
@@ -183,9 +185,9 @@ case class ExpressionContainerIndex[G](statement: Statement[G], index: Int) exte
 }
 
 case class AssignmentIndex[G](assign: Assign[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = {
-    if (index < 2) Set(Some(AssignmentIndex(assign, index + 1)))
-    else Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = {
+    if (index < 2) Set((Some(AssignmentIndex(assign, index + 1)), None))
+    else Set((None, None))
   }
   override def resolve(): Statement[G] = index match {
     case 0 => Eval(assign.target)(assign.target.o)
@@ -199,13 +201,15 @@ case class AssignmentIndex[G](assign: Assign[G], index: Int) extends Index[G] {
 }
 
 case class PVLBranchIndex[G](pvl_branch: PVLBranch[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = {
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = {
     // Indices 0, 2, 4, ... are the conditions, indices 1, 3, 5, ... are the branch bodies
     if (index % 2 == 0 && index < 2 * (pvl_branch.branches.size - 1))
-      Set(Some(PVLBranchIndex(pvl_branch, index + 2)), Some(PVLBranchIndex(pvl_branch, index + 1)))
+      Set((Some(PVLBranchIndex(pvl_branch, index + 2)), Some(Utils.negate(pvl_branch.branches.apply(index / 2)._1))),
+          (Some(PVLBranchIndex(pvl_branch, index + 1)), Some(pvl_branch.branches.apply(index / 2)._1)))
     else if (index == 2 * (pvl_branch.branches.size - 1))
-      Set(Some(PVLBranchIndex(pvl_branch, index + 1)), None)
-    else Set(None)
+      Set((Some(PVLBranchIndex(pvl_branch, index + 1)), Some(pvl_branch.branches.apply(index / 2)._1)),
+          (None, Some(Utils.negate(pvl_branch.branches.apply(index / 2)._1))))
+    else Set((None, None))
   }
   override def resolve(): Statement[G] = {
     if (index % 2 == 0) Eval(pvl_branch.branches.apply(index / 2)._1)(pvl_branch.branches.apply(index / 2)._1.o)
@@ -218,11 +222,11 @@ case class PVLBranchIndex[G](pvl_branch: PVLBranch[G], index: Int) extends Index
 }
 
 case class PVLLoopIndex[G](pvl_loop: PVLLoop[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = index match {
-    case 0 => Set(Some(PVLLoopIndex(pvl_loop, 1)))
-    case 1 => Set(Some(PVLLoopIndex(pvl_loop, 2)), None)
-    case 2 => Set(Some(PVLLoopIndex(pvl_loop, 3)))
-    case 3 => Set(Some(PVLLoopIndex(pvl_loop, 1)))
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = index match {
+    case 0 => Set((Some(PVLLoopIndex(pvl_loop, 1)), None))
+    case 1 => Set((Some(PVLLoopIndex(pvl_loop, 2)), Some(pvl_loop.cond)), (None, Some(Utils.negate(pvl_loop.cond))))
+    case 2 => Set((Some(PVLLoopIndex(pvl_loop, 3)), None))
+    case 3 => Set((Some(PVLLoopIndex(pvl_loop, 1)), None))
   }
   override def resolve(): Statement[G] = index match {
     case 0 => pvl_loop.init
@@ -237,7 +241,7 @@ case class PVLLoopIndex[G](pvl_loop: PVLLoop[G], index: Int) extends Index[G] {
 }
 
 case class LabelIndex[G](label: Label[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = label.stat
   override def equals(obj: scala.Any): Boolean = obj match {
     case LabelIndex(l) => l.equals(label)
@@ -246,9 +250,9 @@ case class LabelIndex[G](label: Label[G]) extends Index[G] {
 }
 
 case class FramedProofIndex[G](framed_proof: FramedProof[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = {
-    if (index < 2) Set(Some(FramedProofIndex(framed_proof, index + 1)))
-    else Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = {
+    if (index < 2) Set((Some(FramedProofIndex(framed_proof, index + 1)), None))
+    else Set((None, None))
   }
   override def resolve(): Statement[G] = index match {
     case 0 => Eval(framed_proof.pre)(framed_proof.pre.o)
@@ -262,7 +266,7 @@ case class FramedProofIndex[G](framed_proof: FramedProof[G], index: Int) extends
 }
 
 case class ExtractIndex[G](extract: Extract[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = extract.contractedStatement
   override def equals(obj: scala.Any): Boolean = obj match {
     case ExtractIndex(e) => e.equals(extract)
@@ -272,9 +276,10 @@ case class ExtractIndex[G](extract: Extract[G]) extends Index[G] {
 
 case class EvalIndex[G](eval: Eval[G], index: Int, subexpressions: Seq[Statement[G]]) extends Index[G] {
   def this(eval: Eval[G], index: Int) = this(eval, index, Utils.find_all_subexpressions(eval.expr))
-  override def make_step(): Set[Option[Index[G]]] = {
-    if (index < subexpressions.size - 1) Set(Some(EvalIndex(eval, index + 1)))
-    else Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = {
+    // TODO: Consider conditions in expressions, too
+    if (index < subexpressions.size - 1) Set((Some(EvalIndex(eval, index + 1)), None))
+    else Set((None, None))
   }
   override def resolve(): Statement[G] = subexpressions.apply(index)
   override def has_statement(): Boolean = subexpressions.nonEmpty
@@ -294,15 +299,15 @@ case class InvokeProcedureIndex[G](invoke_procedure: InvokeProcedure[G], index: 
   // 3. outArgs
   // 4. yields
   // 5. procedure body
-  override def make_step(): Set[Option[Index[G]]] = {
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = {
     val args: Seq[Expr[G]] = invoke_procedure.args
     val givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = invoke_procedure.givenMap
     val outArgs: Seq[Expr[G]] = invoke_procedure.outArgs
     val yields: Seq[(Expr[G], Ref[G, Variable[G]])] = invoke_procedure.yields
     if (index < args.size + givenMap.size + outArgs.size + yields.size - 1 ||
         index == args.size + givenMap.size + outArgs.size + yields.size - 1 && invoke_procedure.ref.decl.body.nonEmpty)
-      Set(Some(InvokeProcedureIndex(invoke_procedure, index + 1)))
-    else Set(None)
+      Set((Some(InvokeProcedureIndex(invoke_procedure, index + 1)), None))
+    else Set((None, None))
   }
   override def resolve(): Statement[G] = {
     val args: Seq[Expr[G]] = invoke_procedure.args
@@ -343,15 +348,15 @@ case class InvokeConstructorIndex[G](invoke_constructor: InvokeConstructor[G], i
   // 4. yields
   // 5. out
   // 6. constructor body
-  override def make_step(): Set[Option[Index[G]]] = {
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = {
     val args: Seq[Expr[G]] = invoke_constructor.args
     val givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = invoke_constructor.givenMap
     val outArgs: Seq[Expr[G]] = invoke_constructor.outArgs
     val yields: Seq[(Expr[G], Ref[G, Variable[G]])] = invoke_constructor.yields
     if (index < args.size + givenMap.size + outArgs.size + yields.size ||
       index == args.size + givenMap.size + outArgs.size + yields.size && invoke_constructor.ref.decl.body.nonEmpty)
-      Set(Some(InvokeConstructorIndex(invoke_constructor, index + 1)))
-    else Set(None)
+      Set((Some(InvokeConstructorIndex(invoke_constructor, index + 1)), None))
+    else Set((None, None))
   }
   override def resolve(): Statement[G] = {
     val args: Seq[Expr[G]] = invoke_constructor.args
@@ -388,15 +393,15 @@ case class InvokeMethodIndex[G](invoke_method: InvokeMethod[G], index: Int) exte
   // 4. outArgs
   // 5. yields
   // 6. method body
-  override def make_step(): Set[Option[Index[G]]] = {
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = {
     val args: Seq[Expr[G]] = invoke_method.args
     val givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = invoke_method.givenMap
     val outArgs: Seq[Expr[G]] = invoke_method.outArgs
     val yields: Seq[(Expr[G], Ref[G, Variable[G]])] = invoke_method.yields
     if (index < args.size + givenMap.size + outArgs.size + yields.size ||
       index == args.size + givenMap.size + outArgs.size + yields.size && invoke_method.ref.decl.body.nonEmpty)
-      Set(Some(InvokeMethodIndex(invoke_method, index + 1)))
-    else Set(None)
+      Set((Some(InvokeMethodIndex(invoke_method, index + 1)), None))
+    else Set((None, None))
   }
   override def resolve(): Statement[G] = {
     val args: Seq[Expr[G]] = invoke_method.args
@@ -426,9 +431,9 @@ case class InvokeMethodIndex[G](invoke_method: InvokeMethod[G], index: Int) exte
 }
 
 case class BlockIndex[G](block: Block[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = {
-    if (index < block.statements.size - 1) Set(Some(BlockIndex(block, index + 1)))
-    else Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = {
+    if (index < block.statements.size - 1) Set((Some(BlockIndex(block, index + 1)), None))
+    else Set((None, None))
   }
   override def resolve(): Statement[G] = block.statements.apply(index)
   override def equals(obj: scala.Any): Boolean = obj match {
@@ -438,7 +443,7 @@ case class BlockIndex[G](block: Block[G], index: Int) extends Index[G] {
 }
 
 case class ScopeIndex[G](scope: Scope[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = scope.body
   override def equals(obj: scala.Any): Boolean = obj match {
     case ScopeIndex(s) => s.equals(scope)
@@ -447,13 +452,15 @@ case class ScopeIndex[G](scope: Scope[G]) extends Index[G] {
 }
 
 case class BranchIndex[G](branch: Branch[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = {
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = {
     // Indices 0, 2, 4, ... are the conditions, indices 1, 3, 5, ... are the branch bodies
     if (index % 2 == 0 && index < 2 * (branch.branches.size - 1))
-      Set(Some(BranchIndex(branch, index + 2)), Some(BranchIndex(branch, index + 1)))
+      Set((Some(BranchIndex(branch, index + 2)), Some(Utils.negate(branch.branches.apply(index / 2)._1))),
+          (Some(BranchIndex(branch, index + 1)), Some(branch.branches.apply(index / 2)._1)))
     else if (index == 2 * (branch.branches.size - 1))
-      Set(Some(BranchIndex(branch, index + 1)), None)
-    else Set(None)
+      Set((Some(BranchIndex(branch, index + 1)), Some(branch.branches.apply(index / 2)._1)),
+          (None, Some(Utils.negate(branch.branches.apply(index / 2)._1))))
+    else Set((None, None))
   }
   override def resolve(): Statement[G] = {
     if (index % 2 == 0) Eval(branch.branches.apply(index / 2)._1)(branch.branches.apply(index / 2)._1.o)
@@ -466,7 +473,7 @@ case class BranchIndex[G](branch: Branch[G], index: Int) extends Index[G] {
 }
 
 case class IndetBranchIndex[G](indet_branch: IndetBranch[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = indet_branch.branches.apply(index)
   override def equals(obj: scala.Any): Boolean = obj match {
     case IndetBranchIndex(b, i) => i == index && b.equals(indet_branch)
@@ -476,7 +483,7 @@ case class IndetBranchIndex[G](indet_branch: IndetBranch[G], index: Int) extends
 
 // TODO: Switch cases could be multiple context indices deep; this does not work with the single index for make_step()
 case class SwitchIndex[G](switch: Switch[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = switch.body
   override def equals(obj: scala.Any): Boolean = obj match {
     case SwitchIndex(s) => s.equals(switch)
@@ -485,11 +492,11 @@ case class SwitchIndex[G](switch: Switch[G]) extends Index[G] {
 }
 
 case class LoopIndex[G](loop: Loop[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = index match {
-    case 0 => Set(Some(LoopIndex(loop, 1)))
-    case 1 => Set(Some(LoopIndex(loop, 2)), None)
-    case 2 => Set(Some(LoopIndex(loop, 3)))
-    case 3 => Set(Some(LoopIndex(loop, 1)))
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = index match {
+    case 0 => Set((Some(LoopIndex(loop, 1)), None))
+    case 1 => Set((Some(LoopIndex(loop, 2)), Some(loop.cond)), (None, Some(Utils.negate(loop.cond))))
+    case 2 => Set((Some(LoopIndex(loop, 3)), None))
+    case 3 => Set((Some(LoopIndex(loop, 1)), None))
   }
   override def resolve(): Statement[G] = index match {
     case 0 => loop.init
@@ -504,7 +511,7 @@ case class LoopIndex[G](loop: Loop[G], index: Int) extends Index[G] {
 }
 
 case class RangedForIndex[G](ranged_for: RangedFor[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((Some(this), None), (None, None))
   override def resolve(): Statement[G] = ranged_for.body
   override def equals(obj: scala.Any): Boolean = obj match {
     case RangedForIndex(r) => r.equals(ranged_for)
@@ -513,9 +520,9 @@ case class RangedForIndex[G](ranged_for: RangedFor[G]) extends Index[G] {
 }
 
 case class TryCatchFinallyIndex[G](try_catch_finally: TryCatchFinally[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = {
-    if (index != 1) Set(Some(TryCatchFinallyIndex(try_catch_finally, 1)))
-    else Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = {
+    if (index != 1) Set((Some(TryCatchFinallyIndex(try_catch_finally, 1)), None))
+    else Set((None, None))
   }
   override def resolve(): Statement[G] = index match {
     case 0 => try_catch_finally.body
@@ -529,7 +536,7 @@ case class TryCatchFinallyIndex[G](try_catch_finally: TryCatchFinally[G], index:
 }
 
 case class SynchronizedIndex[G](synchronized: Synchronized[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = synchronized.body
   override def equals(obj: scala.Any): Boolean = obj match {
     case SynchronizedIndex(s) => s.equals(synchronized)
@@ -538,7 +545,7 @@ case class SynchronizedIndex[G](synchronized: Synchronized[G]) extends Index[G] 
 }
 
 case class ParInvariantIndex[G](par_invariant: ParInvariant[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = par_invariant.content
   override def equals(obj: scala.Any): Boolean = obj match {
     case ParInvariantIndex(p) => p.equals(par_invariant)
@@ -547,7 +554,7 @@ case class ParInvariantIndex[G](par_invariant: ParInvariant[G]) extends Index[G]
 }
 
 case class ParAtomicIndex[G](par_atomic: ParAtomic[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = par_atomic.content
   override def equals(obj: scala.Any): Boolean = obj match {
     case ParAtomicIndex(p) => p.equals(par_atomic)
@@ -556,7 +563,7 @@ case class ParAtomicIndex[G](par_atomic: ParAtomic[G]) extends Index[G] {
 }
 
 case class ParBarrierIndex[G](par_barrier: ParBarrier[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = par_barrier.content
   override def equals(obj: scala.Any): Boolean = obj match {
     case ParBarrierIndex(p) => p.equals(par_barrier)
@@ -565,7 +572,7 @@ case class ParBarrierIndex[G](par_barrier: ParBarrier[G]) extends Index[G] {
 }
 
 case class VecBlockIndex[G](vec_block: VecBlock[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = vec_block.content
   override def equals(obj: scala.Any): Boolean = obj match {
     case VecBlockIndex(v) => v.equals(vec_block)
@@ -574,7 +581,7 @@ case class VecBlockIndex[G](vec_block: VecBlock[G]) extends Index[G] {
 }
 
 case class WandPackageIndex[G](wand_package: WandPackage[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = wand_package.proof
   override def equals(obj: scala.Any): Boolean = obj match {
     case WandPackageIndex(w) => w.equals(wand_package)
@@ -583,7 +590,7 @@ case class WandPackageIndex[G](wand_package: WandPackage[G]) extends Index[G] {
 }
 
 case class ModelDoIndex[G](model_do: ModelDo[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = model_do.impl
   override def equals(obj: scala.Any): Boolean = obj match {
     case ModelDoIndex(m) => m.equals(model_do)
@@ -592,7 +599,7 @@ case class ModelDoIndex[G](model_do: ModelDo[G]) extends Index[G] {
 }
 
 case class CPPLifetimeScopeIndex[G](cpp_lifetime_scope: CPPLifetimeScope[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = cpp_lifetime_scope.body
   override def equals(obj: scala.Any): Boolean = obj match {
     case CPPLifetimeScopeIndex(c) => c.equals(cpp_lifetime_scope)
@@ -601,7 +608,7 @@ case class CPPLifetimeScopeIndex[G](cpp_lifetime_scope: CPPLifetimeScope[G]) ext
 }
 
 case class UnresolvedSeqBranchIndex[G](unresolved_seq_branch: UnresolvedSeqBranch[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = unresolved_seq_branch.branches.apply(index)._2
   override def equals(obj: scala.Any): Boolean = obj match {
     case UnresolvedSeqBranchIndex(u, i) => i == index && u.equals(unresolved_seq_branch)
@@ -610,9 +617,10 @@ case class UnresolvedSeqBranchIndex[G](unresolved_seq_branch: UnresolvedSeqBranc
 }
 
 case class UnresolvedSeqLoopIndex[G](unresolved_seq_loop: UnresolvedSeqLoop[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = index match {
-    case 0 => Set(Some(UnresolvedSeqLoopIndex(unresolved_seq_loop, 1)), None)
-    case 1 => Set(Some(UnresolvedSeqLoopIndex(unresolved_seq_loop, 0)))
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = index match {
+    case 0 => Set((Some(UnresolvedSeqLoopIndex(unresolved_seq_loop, 1)), Some(unresolved_seq_loop.cond)),
+                  (None, Some(Utils.negate(unresolved_seq_loop.cond))))
+    case 1 => Set((Some(UnresolvedSeqLoopIndex(unresolved_seq_loop, 0)), None))
   }
   override def resolve(): Statement[G] = index match {
     case 0 => Eval(unresolved_seq_loop.cond)(unresolved_seq_loop.cond.o)
@@ -625,7 +633,7 @@ case class UnresolvedSeqLoopIndex[G](unresolved_seq_loop: UnresolvedSeqLoop[G], 
 }
 
 case class SeqBranchIndex[G](seq_branch: SeqBranch[G], index: Int) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = index match {
     case 0 => seq_branch.yes
     case 1 => seq_branch.no.get
@@ -637,7 +645,7 @@ case class SeqBranchIndex[G](seq_branch: SeqBranch[G], index: Int) extends Index
 }
 
 case class SeqLoopIndex[G](seq_loop: SeqLoop[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = seq_loop.body
   override def equals(obj: scala.Any): Boolean = obj match {
     case SeqLoopIndex(s) => s.equals(seq_loop)
@@ -646,7 +654,7 @@ case class SeqLoopIndex[G](seq_loop: SeqLoop[G]) extends Index[G] {
 }
 
 case class VeyMontAssignExpressionIndex[G](veymont_assign_expression: VeyMontAssignExpression[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = veymont_assign_expression.assign
   override def equals(obj: scala.Any): Boolean = obj match {
     case VeyMontAssignExpressionIndex(v) => v.equals(veymont_assign_expression)
@@ -655,7 +663,7 @@ case class VeyMontAssignExpressionIndex[G](veymont_assign_expression: VeyMontAss
 }
 
 case class CommunicateXIndex[G](communicatex: CommunicateX[G]) extends Index[G] {
-  override def make_step(): Set[Option[Index[G]]] = Set(None)
+  override def make_step(): Set[(Option[Index[G]], Option[Expr[G]])] = Set((None, None))
   override def resolve(): Statement[G] = communicatex.assign
   override def equals(obj: scala.Any): Boolean = obj match {
     case CommunicateXIndex(c) => c.equals(communicatex)

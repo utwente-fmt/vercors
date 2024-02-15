@@ -39,6 +39,7 @@ case class CFGGenerator[G]() {
   }
 
   private def find_successors(node: Statement[G], context: GlobalIndex[G]): mutable.Set[CFGEdge[G]] = node match {
+    // TODO: Can these be simplified using evaluate_first()?
     case PVLBranch(branches) =>
       mutable.Set(CFGEdge(convert(Eval(branches.head._1)(branches.head._1.o), context.enter_scope(node)), None))
     case PVLLoop(init, _, _, _, _) =>
@@ -113,7 +114,7 @@ case class CFGGenerator[G]() {
     }
     case IndetBranch(branches) =>
       mutable.LinkedHashSet.from(branches.zipWithIndex.map(b => CFGEdge(convert(b._1, context.enter_scope(node, b._2)), None)))
-    case Switch(expr, body) =>
+    case Switch(expr, body) =>    // TODO: Add conditions to switch statement transitions
       Utils.find_all_cases(body, context.enter_scope(node)).map(t => CFGEdge(convert(t._1, t._2), None))   // TODO: Handle side effects in switch statement conditions
     case Loop(init, _, _, _, _) =>
       mutable.Set(CFGEdge(convert(init, context.enter_scope(node)), None))
@@ -153,15 +154,15 @@ case class CFGGenerator[G]() {
     case PVLSeqAssign(_, _, value) => handle_expression_container(node, Eval(value)(value.o), context, sequential_successor(context))
     case Communicate(_, _) => sequential_successor(context)
     case SeqAssign(_, _, value) => handle_expression_container(node, Eval(value)(value.o), context, sequential_successor(context))
-    case UnresolvedSeqBranch(branches) =>
+    case UnresolvedSeqBranch(branches) =>       // TODO: Consider branch conditions
       mutable.LinkedHashSet.from(branches.zipWithIndex.map(b => CFGEdge(convert(b._1._2, context.enter_scope(node, b._2)), None)))
     case UnresolvedSeqLoop(cond, _, _) =>
       mutable.Set(CFGEdge(convert(Eval(cond)(cond.o), context.enter_scope(node)), None))
-    case SeqBranch(_, yes, no) => no match {
+    case SeqBranch(_, yes, no) => no match {    // TODO: What are the conditions here?
       case Some(stmt) => mutable.Set(CFGEdge(convert(yes, context.enter_scope(node, 0)), None), CFGEdge(convert(stmt, context.enter_scope(node, 1)), None))
       case None => mutable.Set(CFGEdge(convert(yes, context.enter_scope(node)), None))
     }
-    case SeqLoop(_, _, body) =>
+    case SeqLoop(_, _, body) =>                 // TODO: What are the conditions here?
       mutable.Set(CFGEdge(convert(body, context.enter_scope(node)), None))
     case VeyMontAssignExpression(_, assign) =>
       mutable.Set(CFGEdge(convert(assign, context.enter_scope(node)), None))
@@ -185,7 +186,7 @@ case class CFGGenerator[G]() {
   }
 
   private def sequential_successor(index: GlobalIndex[G]): mutable.Set[CFGEdge[G]] =
-    index.make_step().map(i => CFGEdge(convert(i.resolve(), i), None))
+    index.make_step().map(i => CFGEdge(convert(i._1.resolve(), i._1), i._2))
 
   private def return_successor(index: GlobalIndex[G]): CFGNode[G] = {
     val new_index: GlobalIndex[G] = index.return_from_call()

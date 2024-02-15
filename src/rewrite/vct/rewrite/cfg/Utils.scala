@@ -9,6 +9,7 @@ import scala.collection.mutable
 object Utils {
 
   def find_all_subexpressions[G](expr: Expr[G]): Seq[Statement[G]] = expr match {
+    // Expressions causing side effects
     case pae @ PreAssignExpression(target, value) => Seq(Assign(target, value)(pae.blame)(pae.o))
     case pae @ PostAssignExpression(target, value) => Seq(Assign(target, value)(pae.blame)(pae.o))
     case With(pre, value) => ???
@@ -20,12 +21,13 @@ object Utils {
     case pi @ ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
       Seq(InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields)(pi.blame)(pi.o))
     case no @ NewObject(cls) => Seq(Instantiate(cls, get_out_variable(cls, no.o))(no.o))
+    // Expressions that affect the edge condition
     // TODO: Consider conditions for control flow graph
     case Select(condition, whenTrue, whenFalse) => Seq(condition, whenTrue, whenFalse).flatMap(e => find_all_subexpressions(e))
     case Implies(left, right) => Seq(left, right).flatMap(e => find_all_subexpressions(e))
     case And(left, right) => Seq(left, right).flatMap(e => find_all_subexpressions(e))
     case Or(left, right) => Seq(left, right).flatMap(e => find_all_subexpressions(e))
-    //
+    // General recursion case
     case _ => expr.subnodes.collect{ case ex: Expr[G] => ex }.flatMap(e => find_all_subexpressions(e))
   }
 
@@ -39,5 +41,18 @@ object Utils {
     // Recursion end
     case c: SwitchCase[G] => mutable.Set((c, index))
     case _ => mutable.Set()   // TODO: Assuming that there are no cases in deeper structures (branches, loops etc.)
+  }
+
+  def negate[G](expr: Expr[G]): Expr[G] = expr match {
+    case Not(inner) => inner
+    case _ => Not(expr)(expr.o)
+  }
+
+  def and[G](expr1: Option[Expr[G]], expr2: Option[Expr[G]]): Option[Expr[G]] = expr1 match {
+    case None => expr2
+    case Some(e1) => expr2 match {
+      case None => expr1
+      case Some(e2) => Some(And(e1, e2)(e1.o))  // TODO: Ignore origin of e2?
+    }
   }
 }
