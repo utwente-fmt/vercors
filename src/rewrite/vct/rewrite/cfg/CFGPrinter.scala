@@ -8,7 +8,7 @@ import java.io.Writer
 import java.nio.file.Path
 import scala.collection.mutable
 
-case class Printer[G]() {
+case class CFGPrinter[G]() {
   private val node_names: mutable.Map[CFGNode[G], String] = mutable.HashMap[CFGNode[G], String]()
   private val no_condition: Expr[G] = BooleanValue(value = true)(Origin(Seq()))
   private var node_index: Int = 0
