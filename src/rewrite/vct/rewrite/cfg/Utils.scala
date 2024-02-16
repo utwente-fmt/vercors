@@ -22,11 +22,34 @@ object Utils {
       Seq(InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields)(pi.blame)(pi.o))
     case no @ NewObject(cls) => Seq(Instantiate(cls, get_out_variable(cls, no.o))(no.o))
     // Expressions that affect the edge condition
-    // TODO: Consider conditions for control flow graph
-    case Select(condition, whenTrue, whenFalse) => Seq(condition, whenTrue, whenFalse).flatMap(e => find_all_subexpressions(e))
-    case Implies(left, right) => Seq(left, right).flatMap(e => find_all_subexpressions(e))
-    case And(left, right) => Seq(left, right).flatMap(e => find_all_subexpressions(e))
-    case Or(left, right) => Seq(left, right).flatMap(e => find_all_subexpressions(e))
+    case Select(condition, whenTrue, whenFalse) => {
+      val statements: Seq[Statement[G]] = find_all_subexpressions(condition)
+      val true_stmts: Seq[Statement[G]] = find_all_subexpressions(whenTrue)
+      val false_stmts: Seq[Statement[G]] = find_all_subexpressions(whenFalse)
+      var branches: Seq[(Expr[G], Statement[G])] = Seq()
+      if (true_stmts.nonEmpty) branches = branches.appended((condition, Block(true_stmts)(whenTrue.o)))
+      if (false_stmts.nonEmpty) branches = branches.appended((negate(condition), Block(false_stmts)(whenFalse.o)))
+      if (branches.nonEmpty) statements ++ Seq(Branch(branches)(expr.o))
+      else statements
+    }
+    case Implies(left, right) => {
+      val left_stmts: Seq[Statement[G]] = find_all_subexpressions(left)
+      val right_stmts: Seq[Statement[G]] = find_all_subexpressions(right)
+      if (right_stmts.nonEmpty) left_stmts ++ Seq(Branch(Seq((left, Block(right_stmts)(right.o))))(expr.o))
+      else left_stmts
+    }
+    case And(left, right) => {
+      val left_stmts: Seq[Statement[G]] = find_all_subexpressions(left)
+      val right_stmts: Seq[Statement[G]] = find_all_subexpressions(right)
+      if (right_stmts.nonEmpty) left_stmts ++ Seq(Branch(Seq((left, Block(right_stmts)(right.o))))(expr.o))
+      else left_stmts
+    }
+    case Or(left, right) => {
+      val left_stmts: Seq[Statement[G]] = find_all_subexpressions(left)
+      val right_stmts: Seq[Statement[G]] = find_all_subexpressions(right)
+      if (right_stmts.nonEmpty) left_stmts ++ Seq(Branch(Seq((negate(left), Block(right_stmts)(right.o))))(expr.o))
+      else left_stmts
+    }
     // General recursion case
     case _ => expr.subnodes.collect{ case ex: Expr[G] => ex }.flatMap(e => find_all_subexpressions(e))
   }
@@ -52,7 +75,7 @@ object Utils {
     case None => expr2
     case Some(e1) => expr2 match {
       case None => expr1
-      case Some(e2) => Some(And(e1, e2)(e1.o))  // TODO: Ignore origin of e2?
+      case Some(e2) => Some(And(e1, e2)(e1.o))  // TODO: Is the origin important?
     }
   }
 }
