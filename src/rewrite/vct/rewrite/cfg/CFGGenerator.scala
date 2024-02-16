@@ -157,34 +157,29 @@ case class CFGGenerator[G]() {
   }
 
   private def evaluate_first(index: GlobalIndex[G]): mutable.Set[CFGEdge[G]] = {
-    if (index.has_statement()) mutable.Set(CFGEdge(convert(index.resolve(), index), None))
+    if (index.has_statement()) mutable.Set(CFGEdge(resolve_index(index), None))
     else sequential_successor(index)
   }
 
   private def sequential_successor(index: GlobalIndex[G]): mutable.Set[CFGEdge[G]] = {
-    if (index.indices.nonEmpty) index.make_step().map(i => CFGEdge(convert(i._1.resolve(), i._1), i._2))
+    if (index.indices.nonEmpty) index.make_step().map(i => CFGEdge(resolve_index(i._1), i._2))
     else mutable.Set(CFGEdge(CFGTerminal(), None))
   }
 
-  private def return_successor(index: GlobalIndex[G]): CFGEntry[G] = {
-    val new_index: GlobalIndex[G] = index.return_from_call()
-    convert(new_index.resolve(), new_index)
-  }
+  private def return_successor(index: GlobalIndex[G]): CFGEntry[G] =
+    resolve_index(index.return_from_call())
 
-  private def exception_successor(exception: Expr[G], index: GlobalIndex[G]): CFGEntry[G] = {
-    val new_index = index.handle_exception(exception)
-    // Terminate on unhandled exception
-    if (new_index.indices.isEmpty) return CFGTerminal()
-    convert(new_index.resolve(), new_index)
-  }
+  private def exception_successor(exception: Expr[G], index: GlobalIndex[G]): CFGEntry[G] =
+    resolve_index(index.handle_exception(exception))
 
-  private def break_successor(index: GlobalIndex[G]): CFGEntry[G] = {
-    val new_index = index.handle_break()
-    convert(new_index.resolve(), new_index)
-  }
+  private def break_successor(index: GlobalIndex[G]): CFGEntry[G] =
+    resolve_index(index.handle_break())
 
-  private def continue_successor(index: GlobalIndex[G]): CFGEntry[G] = {
-    val new_index = index.continue_innermost_loop()
-    convert(new_index.resolve(), new_index)
+  private def continue_successor(index: GlobalIndex[G]): CFGEntry[G] =
+    resolve_index(index.continue_innermost_loop())
+
+  private def resolve_index(index: GlobalIndex[G]): CFGEntry[G] = index.resolve() match {
+    case Some(stmt) => convert(stmt, index)
+    case None => CFGTerminal()
   }
 }

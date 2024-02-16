@@ -16,7 +16,7 @@ case class GlobalIndex[G](indices: mutable.Seq[Index[G]]) {
     GlobalIndex(indices.prepended(Index[G](node, index)))
 
   def make_step(): mutable.Set[(GlobalIndex[G], Option[Expr[G]])] = {
-    if (indices.isEmpty) return mutable.Set()
+    if (indices.isEmpty) return mutable.Set((this, None))
     val steps: Set[(Option[Index[G]], Option[Expr[G]])] = indices.head.make_step()
     val res = mutable.Set[(GlobalIndex[G], Option[Expr[G]])]()
     for (step <- steps) {
@@ -28,9 +28,12 @@ case class GlobalIndex[G](indices: mutable.Seq[Index[G]]) {
     res
   }
 
-  def resolve(): Statement[G] = indices.dropWhile(i => !i.has_statement()).head.resolve()
+  def resolve(): Option[Statement[G]] = indices.dropWhile(i => !i.has_statement()).headOption match{
+    case Some(idx) => Some(idx.resolve())
+    case None => None
+  }
 
-  def has_statement(): Boolean = indices.head.has_statement()
+  def has_statement(): Boolean = indices.nonEmpty && indices.head.has_statement()
 
   def return_from_call(): GlobalIndex[G] = {
     // Find innermost subroutine call
