@@ -9,7 +9,7 @@ import java.nio.file.Path
 import scala.collection.mutable
 
 case class CFGPrinter[G]() {
-  private val node_names: mutable.Map[CFGNode[G], String] = mutable.HashMap[CFGNode[G], String]()
+  private val node_names: mutable.Map[CFGEntry[G], String] = mutable.HashMap[CFGEntry[G], String]()
   private val no_condition: Expr[G] = BooleanValue(value = true)(Origin(Seq()))
   private var node_index: Int = 0
 
@@ -18,15 +18,15 @@ case class CFGPrinter[G]() {
     // Write all nodes
     node_names.foreach(naming => writer.append(naming._2)
                                        .append(s" [label=${"\""}")
-                                       .append(naming._1.ast_node.toInlineString)
+                                       .append(naming._1.toString)
                                        .append(s"${"\""}];\n"))
     // Write all edges
-    node_names.foreach(naming => naming._1.successors.foreach(edge => writer.append(naming._2)
-                                                                            .append(" -> ")
-                                                                            .append(node_names(edge.target))
-                                                                            .append(s" [label=${"\""}")
-                                                                            .append(edge.condition.getOrElse(no_condition).toInlineString)
-                                                                            .append(s"${"\""}];\n")))
+    node_names.foreach(naming => naming._1.get_successors.foreach(edge => writer.append(naming._2)
+                                                                                .append(" -> ")
+                                                                                .append(node_names(edge.target))
+                                                                                .append(s" [label=${"\""}")
+                                                                                .append(edge.condition.getOrElse(no_condition).toInlineString)
+                                                                                .append(s"${"\""}];\n")))
     writer.append("}")
   }
 
@@ -36,7 +36,7 @@ case class CFGPrinter[G]() {
     RWFile(path.toFile).write(w => print_cfg(w))
   }
 
-  private def find_all_nodes(node: CFGNode[G]): Unit = {
+  private def find_all_nodes(node: CFGEntry[G]): Unit = {
     if (!node_names.contains(node)) {
       // Give new name to node
       val node_name: String = s"n$node_index"
@@ -44,7 +44,7 @@ case class CFGPrinter[G]() {
       node_names.addOne((node, node_name))
 
       // Recursively call for successors
-      node.successors.foreach(e => find_all_nodes(e.target))
+      node.get_successors.foreach(e => find_all_nodes(e.target))
     }
   }
 }

@@ -70,7 +70,8 @@ case class CFGGenerator[G]() {
     case Notify(_) => sequential_successor(context)
     case Fork(obj) => {
       val run_method: RunMethod[G] = obj.t.asClass.get.cls.decl.declarations.collect{ case r: RunMethod[G] => r }.head
-      sequential_successor(context).addOne(CFGEdge(convert(run_method.body.get, context.enter_scope(run_method)), None))
+      // Get the successor(s) of the fork statement as well as the new thread, starting with the run method
+      sequential_successor(context).addOne(CFGEdge(convert(run_method.body.get, GlobalIndex[G](mutable.Seq()).enter_scope(run_method)), None))
     }
     case Join(_) => sequential_successor(context)
     case Lock(_) => sequential_successor(context)
@@ -160,27 +161,29 @@ case class CFGGenerator[G]() {
     else sequential_successor(index)
   }
 
-  private def sequential_successor(index: GlobalIndex[G]): mutable.Set[CFGEdge[G]] =
-    index.make_step().map(i => CFGEdge(convert(i._1.resolve(), i._1), i._2))
+  private def sequential_successor(index: GlobalIndex[G]): mutable.Set[CFGEdge[G]] = {
+    if (index.indices.nonEmpty) index.make_step().map(i => CFGEdge(convert(i._1.resolve(), i._1), i._2))
+    else mutable.Set(CFGEdge(CFGTerminal(), None))
+  }
 
-  private def return_successor(index: GlobalIndex[G]): CFGNode[G] = {
+  private def return_successor(index: GlobalIndex[G]): CFGEntry[G] = {
     val new_index: GlobalIndex[G] = index.return_from_call()
     convert(new_index.resolve(), new_index)
   }
 
-  private def exception_successor(exception: Expr[G], index: GlobalIndex[G]): CFGNode[G] = {
+  private def exception_successor(exception: Expr[G], index: GlobalIndex[G]): CFGEntry[G] = {
     val new_index = index.handle_exception(exception)
     // Terminate on unhandled exception
-    if (new_index.indices.isEmpty) return CFGNode(exception, mutable.Set())
+    if (new_index.indices.isEmpty) return CFGTerminal()
     convert(new_index.resolve(), new_index)
   }
 
-  private def break_successor(index: GlobalIndex[G]): CFGNode[G] = {
+  private def break_successor(index: GlobalIndex[G]): CFGEntry[G] = {
     val new_index = index.handle_break()
     convert(new_index.resolve(), new_index)
   }
 
-  private def continue_successor(index: GlobalIndex[G]): CFGNode[G] = {
+  private def continue_successor(index: GlobalIndex[G]): CFGEntry[G] = {
     val new_index = index.continue_innermost_loop()
     convert(new_index.resolve(), new_index)
   }
