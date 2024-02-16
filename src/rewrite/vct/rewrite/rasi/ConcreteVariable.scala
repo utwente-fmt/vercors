@@ -8,10 +8,12 @@ trait ConcreteVariable[G] {
     // TODO: Need to also consider the object!
     case Deref(obj, ref) => ref.decl
   }
+  def to_expression(): Expr[G]
 }
 
 case class FieldVariable[G](field: Field[G]) extends ConcreteVariable[G] {
   override def is(expr: Expr[G]): Boolean = field.equals(extract_from_expression(expr))
+  override def to_expression(): Expr[G] = ???
 }
 
 case class IndexedVariable[G](field: Field[G], i: Int) extends ConcreteVariable[G] {
@@ -21,4 +23,5 @@ case class IndexedVariable[G](field: Field[G], i: Int) extends ConcreteVariable[
     case ArraySubscript(arr, index) => field.equals(extract_from_expression(arr)) && i == Utils.resolve_integer_expression(index)
     case PointerSubscript(pointer, index) => field.equals(extract_from_expression(pointer)) && i == Utils.resolve_integer_expression(index)
   }
+  override def to_expression(): Expr[G] = ???
 }
