@@ -364,9 +364,10 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = DiagnosticOrigin
     val map: Variable[Post] = mbh.createNewInjectivityMap
     val key: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("key"))
-    val value: Expr[Post] = mbh.injectivityMap.get(map.get, key.get)
+    val valueLeft: Expr[Post] = mbh.injectivityMap.get(map.get, key.get)
+    val valueRight: Expr[Post] = mbh.miGetPermission(key.get).get
     val assertCheck: RuntimeAssert[Post] = RuntimeAssert[Post](
-      (value r_<=> RuntimeFractionOne[Post]()) !== const(1),
+      (valueLeft r_<=> valueRight) !== const(1),
       "Permission cannot exceed 1 due to injectivity")(null)
 
 
