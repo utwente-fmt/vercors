@@ -34,6 +34,5 @@ class Counter {
         //@ unfold state(count);
         count += n;
         //@ fold state(count);
-        int b = count;
     };
 }
