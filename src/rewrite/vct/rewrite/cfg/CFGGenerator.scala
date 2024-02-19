@@ -39,7 +39,6 @@ case class CFGGenerator[G]() {
   }
 
   private def find_successors(node: Statement[G], context: GlobalIndex[G]): mutable.Set[CFGEdge[G]] = node match {
-    // TODO: Can these be simplified using evaluate_first()?
     case PVLBranch(_) => evaluate_first(context.enter_scope(node))
     case PVLLoop(_, _, _, _, _) => evaluate_first(context.enter_scope(node))
     // NonExecutableStatement

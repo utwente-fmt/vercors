@@ -12,8 +12,8 @@ object Utils {
     // Expressions causing side effects
     case pae @ PreAssignExpression(target, value) => Seq(Assign(target, value)(pae.blame)(pae.o))
     case pae @ PostAssignExpression(target, value) => Seq(Assign(target, value)(pae.blame)(pae.o))
-    case With(pre, value) => ???
-    case Then(value, post) => ???
+    case With(pre, value) => pre +: find_all_subexpressions(value)
+    case Then(value, post) => find_all_subexpressions(value) :+ post
     case mi @ MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
       Seq(InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields)(mi.blame)(mi.o))
     case ci @ ConstructorInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
@@ -35,19 +35,19 @@ object Utils {
     case Implies(left, right) => {
       val left_stmts: Seq[Statement[G]] = find_all_subexpressions(left)
       val right_stmts: Seq[Statement[G]] = find_all_subexpressions(right)
-      if (right_stmts.nonEmpty) left_stmts ++ Seq(Branch(Seq((left, Block(right_stmts)(right.o))))(expr.o))
+      if (right_stmts.nonEmpty) left_stmts :+ Branch(Seq((left, Block(right_stmts)(right.o))))(expr.o)
       else left_stmts
     }
     case And(left, right) => {
       val left_stmts: Seq[Statement[G]] = find_all_subexpressions(left)
       val right_stmts: Seq[Statement[G]] = find_all_subexpressions(right)
-      if (right_stmts.nonEmpty) left_stmts ++ Seq(Branch(Seq((left, Block(right_stmts)(right.o))))(expr.o))
+      if (right_stmts.nonEmpty) left_stmts :+ Branch(Seq((left, Block(right_stmts)(right.o))))(expr.o)
       else left_stmts
     }
     case Or(left, right) => {
       val left_stmts: Seq[Statement[G]] = find_all_subexpressions(left)
       val right_stmts: Seq[Statement[G]] = find_all_subexpressions(right)
-      if (right_stmts.nonEmpty) left_stmts ++ Seq(Branch(Seq((negate(left), Block(right_stmts)(right.o))))(expr.o))
+      if (right_stmts.nonEmpty) left_stmts :+ Branch(Seq((negate(left), Block(right_stmts)(right.o))))(expr.o)
       else left_stmts
     }
     // General recursion case
@@ -57,6 +57,7 @@ object Utils {
   private def get_out_variable[G](cls: Ref[G, Class[G]],  o: Origin): Local[G] = Local(new DirectRef[G, Variable[G]](new Variable(TClass(cls))(o)))(o)
 
   def find_all_cases[G](body: Statement[G], index: GlobalIndex[G]): mutable.Set[(SwitchCase[G], GlobalIndex[G])] = body match {
+    case Switch(_, _) => mutable.Set()
     // Recursion on statements that can contain case statements
     case Label(_, stmt) => find_all_cases(stmt, index.enter_scope(body))
     case Block(stmts) => mutable.LinkedHashSet.from(stmts.zipWithIndex.flatMap(t => find_all_cases(t._1, index.enter_scope(body, t._2))))
