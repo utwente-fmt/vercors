@@ -6,7 +6,7 @@ import vct.rewrite.cfg.{CFGEdge, CFGEntry, CFGNode, CFGTerminal}
 case class AbstractProcess[G](name: String) {
   def get_next(node: CFGEntry[G], state: AbstractState[G]): Set[AbstractState[G]] = node match {
     case CFGTerminal() => Set()
-    case CFGNode(n, succ) => succ.filter(e => e.condition.isEmpty || state.resolve_boolean_expression(e.condition.get))
+    case CFGNode(n, succ) => succ.filter(e => e.condition.isEmpty || state.resolve_boolean_expression(e.condition.get).can_be_true)
                                  .flatMap (e => process_cfg_edge(e, n)).toSet
   }
 

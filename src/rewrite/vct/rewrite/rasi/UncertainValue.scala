@@ -16,21 +16,72 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
     case _ => true
   }
 
+  def union(other: UncertainBooleanValue): UncertainBooleanValue =
+    UncertainBooleanValue(can_be_true || other.can_be_true, can_be_false || other.can_be_false)
+
+  def &(other: UncertainBooleanValue): UncertainBooleanValue = this && other
+
   def &&(other: UncertainBooleanValue): UncertainBooleanValue =
     UncertainBooleanValue(can_be_true && other.can_be_true, can_be_false || other.can_be_false)
+
+  def |(other: UncertainBooleanValue): UncertainBooleanValue = this || other
 
   def ||(other: UncertainBooleanValue): UncertainBooleanValue =
     UncertainBooleanValue(can_be_true || other.can_be_true, can_be_false && other.can_be_false)
 
-  def !(): UncertainBooleanValue =
+  def unary_! : UncertainBooleanValue =
     UncertainBooleanValue(can_be_false, can_be_true)
 
   def ^(other: UncertainBooleanValue): UncertainBooleanValue =
     UncertainBooleanValue(can_be_true && other.can_be_false || can_be_false && other.can_be_true, can_be_true && other.can_be_true || can_be_false && other.can_be_false)
+
+  def ==(other: UncertainBooleanValue): UncertainBooleanValue =
+    UncertainBooleanValue(can_be_true && other.can_be_true || can_be_false && other.can_be_false, can_be_true && other.can_be_false || can_be_false && other.can_be_true)
+
+  def !=(other: UncertainBooleanValue): UncertainBooleanValue = this ^ other
 }
 
-case class UncertainIntegerValue() extends UncertainValue {
-  override def can_be_equal(other: UncertainValue): Boolean = ???
+case class UncertainIntegerValue(value: Interval) extends UncertainValue {
+  override def can_be_equal(other: UncertainValue): Boolean = other match {
+    case UncertainIntegerValue(v) => value.intersection(v).non_empty()
+    case _ => false
+  }
 
-  override def can_be_unequal(other: UncertainValue): Boolean = ???
+  override def can_be_unequal(other: UncertainValue): Boolean = other match {
+    case UncertainIntegerValue(v) => value.intersection(v).complement().non_empty()
+    case _ => true
+  }
+
+  def union(other: UncertainIntegerValue): UncertainIntegerValue =
+    UncertainIntegerValue(value.union(other.value))
+
+  def ==(other: UncertainIntegerValue): UncertainBooleanValue =
+    UncertainBooleanValue(can_be_equal(other), can_be_unequal(other))
+  def !=(other: UncertainIntegerValue): UncertainBooleanValue =
+    UncertainBooleanValue(can_be_unequal(other), can_be_equal(other))
+  def >=(other: UncertainIntegerValue): UncertainBooleanValue = ???
+  def <=(other: UncertainIntegerValue): UncertainBooleanValue = ???
+  def >(other: UncertainIntegerValue): UncertainBooleanValue = ???
+  def <(other: UncertainIntegerValue): UncertainBooleanValue = ???
+
+  def unary_- : UncertainIntegerValue =
+    UncertainIntegerValue(-value)
+  def +(other: UncertainIntegerValue): UncertainIntegerValue =
+    UncertainIntegerValue(value + other.value)
+  def -(other: UncertainIntegerValue): UncertainIntegerValue =
+    UncertainIntegerValue(value - other.value)
+  def *(other: UncertainIntegerValue): UncertainIntegerValue =
+    UncertainIntegerValue(value * other.value)
+  def /(other: UncertainIntegerValue): UncertainIntegerValue =
+    UncertainIntegerValue(value / other.value)
+  def %(other: UncertainIntegerValue): UncertainIntegerValue =
+    UncertainIntegerValue(value % other.value)
+  def pow(other: UncertainIntegerValue): UncertainIntegerValue =
+    UncertainIntegerValue(value.pow(other.value))
+}
+case object UncertainIntegerValue {
+  def empty(): UncertainIntegerValue = UncertainIntegerValue(EmptyInterval)
+  def uncertain(): UncertainIntegerValue = UncertainIntegerValue(UnboundedInterval)
+  def above(int: Int): UncertainIntegerValue = UncertainIntegerValue(LowerBoundedInterval(int))
+  def single(int: Int): UncertainIntegerValue = UncertainIntegerValue(BoundedInterval(int, int))
 }

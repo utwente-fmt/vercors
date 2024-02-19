@@ -4,44 +4,49 @@ import vct.col.ast._
 import vct.col.origin.{LabelContext, Origin}
 import vct.rewrite.cfg.CFGEntry
 
-case class AbstractState[G](valuations: Map[ConcreteVariable[G], Int], processes: Map[AbstractProcess[G], CFGEntry[G]]) {
+import scala.collection.immutable.HashMap
+
+case class AbstractState[G](valuations: Map[ConcreteVariable[G], Int], processes: HashMap[AbstractProcess[G], CFGEntry[G]]) {
   def successors(): Set[AbstractState[G]] =
     processes.flatMap(p => p._1.get_next(p._2, this)).toSet
 
-  def resolve_integer_expression(expr: Expr[G]): Int = expr match {
-    case CIntegerValue(value) => value.intValue
-    case IntegerValue(value) => value.intValue
+  def resolve_integer_expression(expr: Expr[G]): UncertainIntegerValue = expr match {
+    case CIntegerValue(value) => UncertainIntegerValue.single(value.intValue)
+    case IntegerValue(value) => UncertainIntegerValue.single(value.intValue)
     case Local(ref) => ???
     case DerefHeapVariable(ref) => ???
     case Deref(obj, ref) => ???
     case DerefPointer(pointer) => ???
     case SizeOf(tname) => ???
     case UMinus(arg) => -resolve_integer_expression(arg)
-    case BitNot(arg) => ~resolve_integer_expression(arg)
     case AmbiguousMult(left, right) => resolve_integer_expression(left) * resolve_integer_expression(right)
     case AmbiguousPlus(left, right) => resolve_integer_expression(left) + resolve_integer_expression(right)
     case AmbiguousMinus(left, right) => resolve_integer_expression(left) - resolve_integer_expression(right)
-    case AmbiguousComputationalOr(left, right) => resolve_integer_expression(left) | resolve_integer_expression(right)
-    case AmbiguousComputationalXor(left, right) => resolve_integer_expression(left) ^ resolve_integer_expression(right)
-    case AmbiguousComputationalAnd(left, right) => resolve_integer_expression(left) & resolve_integer_expression(right)
-    case ComputationalOr(left, right) => resolve_integer_expression(left) | resolve_integer_expression(right)
-    case ComputationalXor(left, right) => resolve_integer_expression(left) ^ resolve_integer_expression(right)
-    case ComputationalAnd(left, right) => resolve_integer_expression(left) & resolve_integer_expression(right)
-    case Exp(left, right) => scala.math.pow(resolve_integer_expression(left), resolve_integer_expression(right)).intValue()
+    case Exp(left, right) => resolve_integer_expression(left).pow(resolve_integer_expression(right))
     case Plus(left, right) => resolve_integer_expression(left) + resolve_integer_expression(right)
     case Minus(left, right) => resolve_integer_expression(left) - resolve_integer_expression(right)
     case Mult(left, right) => resolve_integer_expression(left) * resolve_integer_expression(right)
     case FloorDiv(left, right) => resolve_integer_expression(left) / resolve_integer_expression(right)
     case Mod(left, right) => resolve_integer_expression(left) % resolve_integer_expression(right)
-    case BitAnd(left, right) => resolve_integer_expression(left) & resolve_integer_expression(right)
-    case BitOr(left, right) => resolve_integer_expression(left) | resolve_integer_expression(right)
-    case BitXor(left, right) => resolve_integer_expression(left) ^ resolve_integer_expression(right)
-    case BitShl(left, right) => resolve_integer_expression(left) << resolve_integer_expression(right)
-    case BitShr(left, right) => resolve_integer_expression(left) >> resolve_integer_expression(right)
-    case BitUShr(left, right) => resolve_integer_expression(left) >>> resolve_integer_expression(right)
+    // TODO: Support bit operations
+    case BitNot(arg) => ??? // ~resolve_integer_expression(arg)
+    case AmbiguousComputationalOr(left, right) => ??? // resolve_integer_expression(left) | resolve_integer_expression(right)
+    case AmbiguousComputationalXor(left, right) => ??? // resolve_integer_expression(left) ^ resolve_integer_expression(right)
+    case AmbiguousComputationalAnd(left, right) => ??? // resolve_integer_expression(left) & resolve_integer_expression(right)
+    case ComputationalOr(left, right) => ??? // resolve_integer_expression(left) | resolve_integer_expression(right)
+    case ComputationalXor(left, right) => ??? // resolve_integer_expression(left) ^ resolve_integer_expression(right)
+    case ComputationalAnd(left, right) => ??? // resolve_integer_expression(left) & resolve_integer_expression(right)
+    case BitAnd(left, right) => ??? // resolve_integer_expression(left) & resolve_integer_expression(right)
+    case BitOr(left, right) => ??? // resolve_integer_expression(left) | resolve_integer_expression(right)
+    case BitXor(left, right) => ??? // resolve_integer_expression(left) ^ resolve_integer_expression(right)
+    case BitShl(left, right) => ??? // resolve_integer_expression(left) << resolve_integer_expression(right)
+    case BitShr(left, right) => ??? // resolve_integer_expression(left) >> resolve_integer_expression(right)
+    case BitUShr(left, right) => ??? // resolve_integer_expression(left) >>> resolve_integer_expression(right)
     case Select(cond, ift, iff) => {
-      if (resolve_boolean_expression(cond)) resolve_integer_expression(ift)
-      else resolve_integer_expression(iff)
+      var value: UncertainIntegerValue = UncertainIntegerValue.empty()
+      if (resolve_boolean_expression(cond).can_be_true) value = value.union(resolve_integer_expression(ift))
+      if (resolve_boolean_expression(cond).can_be_false) value = value.union(resolve_integer_expression(iff))
+      value
     }
     case AmbiguousSubscript(collection, index) => ???
     case SeqSubscript(seq, index) => ???
@@ -74,8 +79,10 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], Int], processes
     case LessEq(left, right) => resolve_integer_expression(left) <= resolve_integer_expression(right)
     case c: SetComparison[G] => ???
     case Select(cond, ift, iff) => {
-      if (resolve_boolean_expression(cond)) resolve_boolean_expression(ift)
-      else resolve_boolean_expression(iff)
+      var value: UncertainBooleanValue = UncertainBooleanValue(can_be_true = false, can_be_false = false)
+      if (resolve_boolean_expression(cond).can_be_true) value = value.union(resolve_boolean_expression(ift))
+      if (resolve_boolean_expression(cond).can_be_false) value = value.union(resolve_boolean_expression(iff))
+      value
     }
     case AmbiguousSubscript(collection, index) => ???
     case SeqSubscript(seq, index) => ???

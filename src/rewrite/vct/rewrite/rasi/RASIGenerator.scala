@@ -4,6 +4,7 @@ import vct.col.ast.{BooleanValue, Expr, Or}
 import vct.col.origin.{LabelContext, Origin}
 import vct.rewrite.cfg.CFGNode
 
+import scala.collection.immutable.HashMap
 import scala.collection.mutable
 
 case class RASIGenerator[G]() {
@@ -17,7 +18,7 @@ case class RASIGenerator[G]() {
   }
 
   private def explore(node: CFGNode[G], vars: Set[ConcreteVariable[G]]): Unit = {
-    val initial_state = AbstractState(get_initial_values(vars), Map((AbstractProcess("main"), node)))
+    val initial_state = AbstractState(get_initial_values(vars), HashMap((AbstractProcess[G]("main"), node)))
     found_states.addOne(initial_state)
     current_branches.addOne(initial_state)
 
