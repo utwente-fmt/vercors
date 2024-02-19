@@ -51,8 +51,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], Int], processes
     case Size(obj) => ???
   }
 
-  def resolve_boolean_expression(expr: Expr[G]): Boolean = expr match {
-    case BooleanValue(value) => value
+  def resolve_boolean_expression(expr: Expr[G]): UncertainBooleanValue = expr match {
+    case BooleanValue(value) => UncertainBooleanValue(value, !value)
     case Local(ref) => ???
     case DerefHeapVariable(ref) => ???
     case Deref(obj, ref) => ???
