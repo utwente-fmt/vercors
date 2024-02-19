@@ -1301,6 +1301,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case RuntimeConcurrentHashMapGet(h, k) => e
       case RuntimeConcurrentHashMapContainsKey(h, k) => e
       case RuntimeConcurrentHashMapGetOrDefault(h, k, v) => e
+      case RuntimeConcurrentHashMapKeySet(h) => e
       case RuntimeConcurrentHashMapPut(h, k, v) => e
       case RuntimeNewConcurrentHashMap(t) => e
       case RuntimeFractionAdd(l, r) => e

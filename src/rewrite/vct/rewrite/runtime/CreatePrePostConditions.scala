@@ -27,6 +27,8 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
   val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
   val currentContract: ScopedStack[AccountedPredicate[Pre]] = new ScopedStack()
 
+  val injectivityMap: ScopedStack[Variable[Post]] = new ScopedStack();
+
   implicit var program: Program[Pre] = null
   implicit var ledger: LedgerMethodBuilderHelper[Post] = _
 
@@ -54,7 +56,16 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
   def dispatchInstanceMethod(im: InstanceMethod[Pre]): Unit = {
     im.body match {
       case Some(sc: Scope[Pre]) => sc.body match {
-        case block: Block[Pre] => classDeclarations.succeed(im, im.rewrite(body = Some(sc.rewrite(body = dispatchMethodBlock(block, im)))))
+        case block: Block[Pre] => {
+          injectivityMap.having(ledger.createNewInjectivityMap){
+            val (newVariables, newBody) = variables.collectScoped{
+              sc.locals.foreach(dispatch)
+              variables.declare(injectivityMap.top)
+              dispatchMethodBlock(block, im)
+            }
+            classDeclarations.succeed(im, im.rewrite(body = Some(sc.rewrite(locals = newVariables, body = newBody))))
+          }
+        }
         case _ => ???
       }
       case _ => super.dispatch(im)
@@ -78,7 +89,7 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     ap match {
       case uni: UnitAccountedPredicate[Pre] => {
         currentContract.having(ap) {
-          val pd = PermissionData().setOuter(this).setCls(currentClass.top).setLedger(ledger)
+          val pd = PermissionData().setOuter(this).setCls(currentClass.top).setLedger(ledger).setInjectivityMap(injectivityMap.top)
           val stat = new RewriteContractExpr[Pre](pd)(program).createAssertions(uni.pred)
           dispatch(ap)
           stat

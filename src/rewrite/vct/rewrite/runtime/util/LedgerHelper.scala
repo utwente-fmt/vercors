@@ -37,7 +37,7 @@ object LedgerHelper {
       }
 
       val (Seq(predicateClass: Class[Pre]), otherDeclarations: Seq[GlobalDeclaration[Pre]]) = od.partition {
-        case cls: Class[Pre] if cls.o.getPredicateObjectClassRuntime.nonEmpty => true
+        case cls: Class[Pre] if cls.o.getDataObjectClassRuntime.nonEmpty => true
         case _ => false
       }
 
@@ -49,7 +49,7 @@ object LedgerHelper {
       val ledgerRef: Ref[Post, Class[Post]] = this.anySucc(ledgerClass)
       val predicateRef: Ref[Post, Class[Post]] = this.anySucc(predicateClass)
       val newClass = ledgerRef.decl
-      val pmbh = PredicateMethodBuilderHelper[Post](predicateRef, predicateRef.decl.declarations)
+      val pmbh = DataMethodBuilderHelper[Post](predicateRef, predicateRef.decl.declarations)
 
       (LedgerMethodBuilderHelper[Post](ledgerRef, newClass.declarations, pmbh),
         Seq(ledgerRef.decl, predicateRef.decl),
@@ -76,6 +76,9 @@ object LedgerHelper {
 
     def containsKey(key: Expr[G]): RuntimeConcurrentHashMapContainsKey[G] = RuntimeConcurrentHashMapContainsKey[G](deref.get, key)
 
+    def keySet(hm: Expr[G]): RuntimeConcurrentHashMapKeySet[G] = RuntimeConcurrentHashMapKeySet[G](hm);
+    def keySet(): RuntimeConcurrentHashMapKeySet[G] = RuntimeConcurrentHashMapKeySet[G](deref.get);
+
     def newInner: Expr[G] = {
       inner match {
         case _: RuntimeConcurrentHashMap[G] => RuntimeNewConcurrentHashMap[G](inner)
@@ -96,12 +99,12 @@ object LedgerHelper {
   object LedgerMethodBuilderHelper {
     def apply[G](program: Program[G]): LedgerMethodBuilderHelper[G] = {
       val cls = program.declarations.collectFirst { case cls: Class[G] if cls.o.getLedgerClassRuntime.nonEmpty => cls }.get
-      val predicatecls = program.declarations.collectFirst { case cls: Class[G] if cls.o.getPredicateObjectClassRuntime.nonEmpty => cls }.get
-      LedgerMethodBuilderHelper[G](cls.ref, cls.declarations, PredicateMethodBuilderHelper[G](predicatecls.ref, predicatecls.declarations))
+      val predicatecls = program.declarations.collectFirst { case cls: Class[G] if cls.o.getDataObjectClassRuntime.nonEmpty => cls }.get
+      LedgerMethodBuilderHelper[G](cls.ref, cls.declarations, DataMethodBuilderHelper[G](predicatecls.ref, predicatecls.declarations))
     }
   }
 
-  case class LedgerMethodBuilderHelper[G](refCls: Ref[G, Class[G]], clsDeclarations: Seq[ClassDeclaration[G]], pmbh: PredicateMethodBuilderHelper[G])(implicit origin: Origin = DiagnosticOrigin) {
+  case class LedgerMethodBuilderHelper[G](refCls: Ref[G, Class[G]], clsDeclarations: Seq[ClassDeclaration[G]], pmbh: DataMethodBuilderHelper[G])(implicit origin: Origin = DiagnosticOrigin) {
     def threadId: ThreadId[G] = ThreadId[G](None)(DiagnosticOrigin)
 
     private def findAllMethods(methodName: String): Seq[InstanceMethod[G]] = clsDeclarations.collect { case i: InstanceMethod[G] if i.o.getPreferredNameOrElse() == methodName => i }
@@ -119,13 +122,6 @@ object LedgerHelper {
       findInstanceField("__runtime__")
     )
 
-    def ledgerLocationProperties: LedgerProperties[G] = LedgerProperties[G](
-      RuntimeConcurrentHashMap[G](TIntObject[G](), TAnyClass[G]())(DiagnosticOrigin),
-      RuntimeConcurrentHashMap[G](TAnyClass[G](), RuntimeConcurrentHashMap[G](TIntObject[G](), TAnyClass[G]())(DiagnosticOrigin))(DiagnosticOrigin),
-      refCls,
-      findInstanceField("__array_locations__")
-    )
-
     def ledgerJoinTokensProperites: LedgerProperties[G] = LedgerProperties[G](
       TRuntimeFraction[G](),
       RuntimeConcurrentHashMap[G](TAnyClass[G](), TRuntimeFraction[G]())(DiagnosticOrigin),
@@ -135,10 +131,21 @@ object LedgerHelper {
 
     def ledgerPredicateStore: LedgerProperties[G] = LedgerProperties[G](
       CopyOnWriteArrayList[G](TClass[G](pmbh.refCls)),
-      RuntimeConcurrentHashMap[G](TAnyClass[G](), CopyOnWriteArrayList[G](TClass[G](pmbh.refCls)))(DiagnosticOrigin),
+      RuntimeConcurrentHashMap[G](TLongObject[G](), CopyOnWriteArrayList[G](TClass[G](pmbh.refCls)))(DiagnosticOrigin),
       refCls,
       findInstanceField("__predicate_store__")
     )
+
+
+    def injectivityMap: LedgerProperties[G] = LedgerProperties[G](
+      TRuntimeFraction[G](),
+      RuntimeConcurrentHashMap[G](TAnyClass[G](), TRuntimeFraction[G]())(DiagnosticOrigin),
+      refCls,
+      None
+    )
+
+    def createNewInjectivityMap: Variable[G] = new Variable[G](injectivityMap.outerHM)(DiagnosticOrigin.addPrefName("injectivityMap"))
+
 
     def createHashMaps: Option[InstanceMethod[G]] = findMethod("createHashMap")
 
@@ -147,8 +154,6 @@ object LedgerHelper {
     def getPermission(params: Int): Option[InstanceMethod[G]] = findMethod("getPermission", params)
 
     def miGetPermission(input: Expr[G]): Option[MethodInvocation[G]] = createMethodInvocation(getPermission(1), Seq(input))
-
-    def miGetPermission(input: Expr[G], location: Expr[G]): Option[MethodInvocation[G]] = createMethodInvocation(getPermission(2), Seq(input, location))
 
     def getJoinToken: Option[InstanceMethod[G]] = findMethod("getJoinToken")
 
@@ -161,8 +166,6 @@ object LedgerHelper {
     def setPermission(params: Int): Option[InstanceMethod[G]] = findMethod("setPermission", params)
 
     def miSetPermission(input: Expr[G], value: Expr[G]): Option[MethodInvocation[G]] = createMethodInvocation(setPermission(2), Seq(input, value))
-
-    def miSetPermission(input: Expr[G], location: Expr[G], value: Expr[G]): Option[MethodInvocation[G]] = createMethodInvocation(setPermission(3), Seq(input, location, value))
 
     def initiatePermission: Option[InstanceMethod[G]] = findMethod("initiatePermission", 2)
 
@@ -182,9 +185,8 @@ object LedgerHelper {
     def unfoldPredicate: Option[InstanceMethod[G]] = findMethod("unfoldPredicate")
     def miUnfoldPredicate(input: Expr[G]): Option[MethodInvocation[G]] = createMethodInvocation(unfoldPredicate, Seq(input))
 
-
-
-
+    def checkForInjectivity: Option[InstanceMethod[G]] = findMethod("checkForInjectivity")
+    def miCheckForInjectivity(input: Expr[G]): Option[MethodInvocation[G]] = createMethodInvocation(checkForInjectivity, Seq(input))
 
     def createMethodInvocation(imo: Option[InstanceMethod[G]], args: Seq[Expr[G]]): Option[MethodInvocation[G]] = imo.map(im => MethodInvocation[G](
       StaticClassRef[G](refCls),
@@ -209,7 +211,7 @@ object LedgerHelper {
   }
 
 
-  case class PredicateMethodBuilderHelper[G](refCls: Ref[G, Class[G]], clsDeclarations: Seq[ClassDeclaration[G]])(implicit origin: Origin = DiagnosticOrigin) {
+  case class DataMethodBuilderHelper[G](refCls: Ref[G, Class[G]], clsDeclarations: Seq[ClassDeclaration[G]])(implicit origin: Origin = DiagnosticOrigin) {
 
     private def findAllMethods(methodName: String): Seq[InstanceMethod[G]] = clsDeclarations.collect { case i: InstanceMethod[G] if i.o.getPreferredNameOrElse() == methodName => i }
 

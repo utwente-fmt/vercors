@@ -18,6 +18,7 @@ case class FactorContent[G <: Generation](factor: Expr[Rewritten[G]]) extends Pe
 case class TreadIdContent[G <: Generation](threadId: Expr[Rewritten[G]]) extends PermissionContent[G]
 case class Offset[G <: Generation](offset: Expr[Rewritten[G]]) extends PermissionContent[G]
 case class Ledger[G <: Generation](ledger: LedgerMethodBuilderHelper[Rewritten[G]]) extends PermissionContent[G]
+case class InjectivityMap[G <: Generation](map: Variable[Rewritten[G]]) extends PermissionContent[G]
 
 object PermissionData {
   def apply[Pre <: Generation](): PermissionData[Pre] = {
@@ -34,6 +35,7 @@ case class PermissionData[Pre <: Generation](permissionContent: Seq[PermissionCo
   lazy val threadId: ThreadId[Post] = ThreadId[Post](permissionContent.collectFirst { case o: TreadIdContent[Pre] => o }.map(t => t.threadId))(Origin(Seq.empty))
   lazy val offset: Option[Expr[Post]] = permissionContent.collectFirst { case o: Offset[Pre] => o }.map(o => o.offset)
   lazy val ledger: Option[LedgerMethodBuilderHelper[Post]] = permissionContent.collectFirst { case o: Ledger[Pre] => o }.map(o => o.ledger)
+  lazy val injectivityMap: Option[Variable[Post]] = permissionContent.collectFirst { case o: InjectivityMap[Pre] => o }.map(o => o.map)
 
 
   def factored(e: Expr[Post])(implicit origin: Origin = e.o): Expr[Post] = factor match {
@@ -88,6 +90,13 @@ case class PermissionData[Pre <: Generation](permissionContent: Seq[PermissionCo
       case ea: Ledger[Pre] => Nil
       case o => Seq(o)
     } :+ Ledger[Pre](newArg))
+  }
+
+  def setInjectivityMap(newArg: Variable[Post]): PermissionData[Pre] = {
+    PermissionData[Pre](permissionContent.flatMap {
+      case ea: InjectivityMap[Pre] => Nil
+      case o => Seq(o)
+    } :+ InjectivityMap[Pre](newArg))
   }
 }
 

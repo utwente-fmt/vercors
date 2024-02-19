@@ -7,6 +7,7 @@ import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, LedgerRewriter}
+import vct.rewrite.runtime.util.Util.findClosestInjectivityMap
 import vct.rewrite.runtime.util.{RewriteContractExpr, TransferPermissionRewriter}
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
@@ -65,13 +66,14 @@ case class CreateLocking[Pre <: Generation]() extends Rewriter[Pre] {
 
   private def dispatchSynchronized(s: Synchronized[Pre]): Synchronized[Post] = {
     implicit val origin: Origin = s.o
+    val injectivityMap = findClosestInjectivityMap(variables.freeze)
     val lockInvariant: Expr[Pre] = s.obj.t.asInstanceOf[TClass[Pre]].cls.decl.intrinsicLockInvariant
-//    val pd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setOffset(dispatch(s.obj))
-    val pd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger)
-//      .setOffset(s.obj)
+    //    val pd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setOffset(dispatch(s.obj))
+    val pd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger).setInjectivityMap(injectivityMap)
+    //      .setOffset(s.obj)
     val transferrer = TransferPermissionRewriter[Pre](pd)
     val addPermissions: Block[Post] = transferrer.addPermissions(lockInvariant)
-    val check: Block[Post] = RewriteContractExpr[Pre](pd).createAssertions(lockInvariant)
+    val check: Statement[Post] = RewriteContractExpr[Pre](pd).createAssertions(lockInvariant)
     val removePermissions: Block[Post] = transferrer.removePermissions(lockInvariant)
     val newBody = Block[Post](Seq(addPermissions, dispatch(s.body), check, removePermissions))
     s.rewrite(body = newBody)

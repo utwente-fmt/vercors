@@ -25,14 +25,24 @@ case class GenerateJava[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
+    e match {
+      case pe@PreAssignExpression(_, p: ProcedureInvocation[Pre]) => pe.rewrite(value = procedureInvocationToNewObject(p))
+      case pe@PostAssignExpression(_, p: ProcedureInvocation[Pre]) => pe.rewrite(value = procedureInvocationToNewObject(p))
+      case _ => super.dispatch(e)
+    }
+  }
+
   override def dispatch(node: Statement[Pre]): Statement[Post] = {
     node match {
-      case a@Assign(_, p: ProcedureInvocation[Pre]) => {
-        val classDecl: Class[Pre] = a.target.t.asInstanceOf[TClass[Pre]].cls.decl
-        val newClassObject: NewObject[Post] = NewObject[Post](this.anySucc(classDecl))(classDecl.o)
-        a.rewrite(value = newClassObject)
-      }
+      case a@Assign(_, p: ProcedureInvocation[Pre]) => a.rewrite(value = procedureInvocationToNewObject(p))
       case _ => super.dispatch(node)
     }
   }
+
+  private def procedureInvocationToNewObject(p: ProcedureInvocation[Pre]): NewObject[Post]= {
+    val classDecl: Class[Pre] = p.ref.decl.returnType.asClass.get.cls.decl
+    NewObject[Post](this.anySucc(classDecl))(classDecl.o)
+  }
+
 }

@@ -8,7 +8,7 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.util.LedgerHelper._
-import vct.rewrite.runtime.util.{PermissionRewriter, TransferPermissionRewriter}
+import vct.rewrite.runtime.util.TransferPermissionRewriter
 import vct.rewrite.runtime.util.Util._
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
@@ -90,7 +90,7 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     val dispatchedStatement: Eval[Post] = super.dispatch(e).asInstanceOf[Eval[Post]]
     val dispatchedOffset: Expr[Post] = getDispatchedOffset(dispatchedStatement)
     val postfactor: Expr[Post] = postJoinTokens.top.find(rpj => rpj.obj == dispatchedOffset).get.arg
-    val factor = PermissionRewriter.permissionToRuntimeValue(postfactor)
+    val factor = permissionToRuntimeValue(postfactor)
     val removePostJoinToken: Eval[Post] = Eval[Post](ledger.miSetJoinToken(dispatchedOffset, ledger.miGetJoinToken(dispatchedOffset).get r_- factor).get)
     val pdAdd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger).setOffset(dispatch(mi.obj)).setFactor(factor)
     val newAddStatements = TransferPermissionRewriter(pdAdd).addPermissions(predicate)

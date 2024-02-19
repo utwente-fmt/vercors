@@ -2,28 +2,40 @@ package vct.rewrite.runtime.util
 
 import vct.col.ast.RewriteHelpers.RewriteDeref
 import vct.col.ast._
-import vct.col.origin.Origin
+import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
 import vct.rewrite.runtime.util.LedgerHelper._
-import vct.rewrite.runtime.util.PermissionRewriter.permissionToRuntimeValueRewrite
+import vct.rewrite.runtime.util.Util.permissionToRuntimeValueRewrite
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
 
 case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](pd) {
   override val allScopes = pd.outer.allScopes
 
-  override def dispatchLoopBody(loopBodyContent: LoopBodyContent[Pre])(implicit origin: Origin): Block[Post] = createAssertions(loopBodyContent.expr)
+  override def dispatchLoopBody(loopBodyContent: LoopBodyContent[Pre])(implicit origin: Origin): Block[Post] = Block[Post](unfoldStar(loopBodyContent.expr).map(dispatchExpr))
 
   val ledger: LedgerMethodBuilderHelper[Post] = pd.ledger.get
+  var injectivityMap: Variable[Post] = pd.injectivityMap.get
 
-
-  def createAssertions(expr: Expr[Pre]): Block[Post] = {
+  def createAssertions(expr: Expr[Pre]): Statement[Post] = {
     implicit val origin: Origin = expr.o
+    val (initInjectivityMap, checkInjectivtyMap) = createInjectivityMap
     val unfoldedExpr = unfoldStar(expr)
-    Block[Post](unfoldedExpr.map(dispatchExpr))
+    val assertionChecks = unfoldedExpr.map(dispatchExpr)
+    assertionChecks match {
+      case Nil => Block[Post](Nil)
+      case _ => Block[Post](initInjectivityMap +: assertionChecks :+ checkInjectivtyMap)
+    }
+  }
+
+  private def createInjectivityMap: (Statement[Post], Statement[Post]) = {
+    implicit val origin: Origin = DiagnosticOrigin
+    val assignInjectivtyMap = Assign[Post](injectivityMap.get, ledger.injectivityMap.newOuterMap)(null)
+    val checkInjectivityMap = Eval[Post](ledger.miCheckForInjectivity(injectivityMap.get).get)
+    (assignInjectivtyMap, checkInjectivityMap)
   }
 
 
@@ -49,17 +61,27 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
 
   private def dispatchPermission(p: Perm[Pre])(implicit origin: Origin = p.o): Block[Post] = {
     val cond = permissionToRuntimeValueRewrite(p)
-    val pt: Option[Expr[Post]] = p.loc.asInstanceOf[AmbiguousLocation[Pre]].expr match {
-      case d@Deref(o, _) => ledger.miGetPermission(getNewExpr(o), dispatch(const[Pre](findNumberInstanceField(program, d.ref.decl).get)))
-      //      case d@Deref(_, _) => ledger.miGetPermission(getNewExpr(d))
-      case AmbiguousSubscript(coll, index) => ledger.miGetPermission(getNewExpr(coll), dispatch(index))
+    val dataObject: Expr[Post] = p.loc.asInstanceOf[AmbiguousLocation[Pre]].expr match {
+      case d@Deref(o, _) => {
+        ledger.pmbh.miCreate(CreateObjectArray[Post](
+          Seq(getNewExpr(o),
+            dispatch(const[Pre](findNumberInstanceField(program, d.ref.decl).get)))
+        )).get
+      }
+      case AmbiguousSubscript(coll, index) => {
+        ledger.pmbh.miCreate(CreateObjectArray[Post](Seq(getNewExpr(coll), dispatch(index)))).get
+      }
       case _ => throw Unreachable(s"This type of permissions transfer is not yet supported: ${p}")
     }
 
-    val check: Option[Expr[Post]] = pt.map(e => (e r_<=> cond) !== const(-1)) // test if the value is equal or bigger than the required permission
-    val assert: Expr[Post] = check.getOrElse(tt)
-    val assertion = RuntimeAssertExpected[Post](assert, cond, pt.getOrElse(tt), s"Permission is not enough")(null)
-    Block[Post](Seq(assertion))
+    val getPermission = ledger.miGetPermission(dataObject).get
+    val getOrDefaultPerm = ledger.injectivityMap.getOrDefault(injectivityMap.get, dataObject, RuntimeFractionZero[Post]())
+    val putPermissionInjectivity = ledger.injectivityMap.put(injectivityMap.get, dataObject, getOrDefaultPerm r_+ getPermission)
+    val evalPut = Eval[Post](putPermissionInjectivity)
+
+    val check: Expr[Post] = (getPermission r_<=> cond) !== const(-1) // test if the value is equal or bigger than the required permission
+    val assertion = RuntimeAssertExpected[Post](check, cond, getPermission, s"Permission is not enough")(null)
+    Block[Post](Seq(evalPut, assertion))
   }
 
   override def getNewExpr(e: Expr[Pre]): Expr[Post] = {

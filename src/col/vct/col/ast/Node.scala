@@ -1400,6 +1400,7 @@ final case class RuntimeConcurrentHashMapGet[G](hm: Expr[G], key: Expr[G])(impli
 final case class RuntimeConcurrentHashMapGetOrDefault[G](hm: Expr[G], key: Expr[G], default: Expr[G])(implicit val o: Origin) extends RuntimeConcurrentHashMapFunctions[G] with RuntimeConcurrentHashMapGetOrDefaultImpl[G]
 final case class RuntimeConcurrentHashMapPut[G](hm: Expr[G], key: Expr[G], value: Expr[G])(implicit val o: Origin) extends RuntimeConcurrentHashMapFunctions[G] with RuntimeConcurrentHashMapPutImpl[G]
 final case class RuntimeConcurrentHashMapContainsKey[G](hm: Expr[G], key: Expr[G])(implicit val o: Origin) extends RuntimeConcurrentHashMapFunctions[G] with RuntimeConcurrentHashMapContainsKeyImpl[G]
+final case class RuntimeConcurrentHashMapKeySet[G](hm: Expr[G])(implicit val o: Origin) extends RuntimeConcurrentHashMapFunctions[G] with RuntimeConcurrentHashMapKeySetImpl[G]
 
 //CopyOnWriteArrayList
 final case class CopyOnWriteArrayList[G](listType: Type[G])(implicit val o: Origin) extends DeclaredType[G] with CopyOnWriteArrayListImpl[G]

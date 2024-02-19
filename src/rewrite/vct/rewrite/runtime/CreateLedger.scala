@@ -6,7 +6,7 @@ import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.LazyRef
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
-import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, PredicateMethodBuilderHelper}
+import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, DataMethodBuilderHelper}
 
 object CreateLedger extends RewriterBuilder {
   override def key: String = "createLedger"
@@ -22,9 +22,9 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
 
   def getLedgerNewClass: Class[Post] = newLedgerClass
 
-  var newPredicateClass: Class[Post] = _
+  var newDataClass: Class[Post] = _
 
-  def getPredicateNewClass: Class[Post] = newPredicateClass
+  def getDataNewClass: Class[Post] = newDataClass
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     lazy val declarations = globalDeclarations.dispatch(program.declarations)
@@ -40,16 +40,16 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     }
    */
   def createPredicateObject: Class[Post] = {
-    implicit val classOrigin: Origin = Origin(Seq.empty).addPrefName("PredicateObject").addPredicateObjectClass()
+    implicit val classOrigin: Origin = Origin(Seq.empty).addPrefName("DataObject").addDataObjectClass()
     val newDeclarations = classDeclarations.collect {
-      val creatorMethods: Seq[PredicateMethodBuilderHelper[Post] => Unit] = Seq(createPredicateDataInstanceField, createSetData, createPredicateObject, createPredicateEquals, createPredicateHashCode)
-      creatorMethods.map(m => m(PredicateMethodBuilderHelper[Post](new LazyRef[Post, Class[Post]](getPredicateNewClass), classDeclarations.freezeBuffer)))
+      val creatorMethods: Seq[DataMethodBuilderHelper[Post] => Unit] = Seq(createPredicateDataInstanceField, createSetData, createPredicateObject, createPredicateEquals, createPredicateHashCode)
+      creatorMethods.map(m => m(DataMethodBuilderHelper[Post](new LazyRef[Post, Class[Post]](getDataNewClass), classDeclarations.freezeBuffer)))
     }._1
-    newPredicateClass = new Class[Post](newDeclarations, Seq.empty, tt)
-    globalDeclarations.declare(newPredicateClass)
+    newDataClass = new Class[Post](newDeclarations, Seq.empty, tt)
+    globalDeclarations.declare(newDataClass)
   }
 
-  def createPredicateDataInstanceField(mbh: PredicateMethodBuilderHelper[Post]): Unit = {
+  def createPredicateDataInstanceField(mbh: DataMethodBuilderHelper[Post]): Unit = {
     val newInstanceField: InstanceField[Post] = new InstanceField[Post](
       TArray(TAnyClass()),
       Set.empty
@@ -57,7 +57,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     classDeclarations.declare(newInstanceField)
   }
 
-  def createSetData(mbh: PredicateMethodBuilderHelper[Post]): Unit = {
+  def createSetData(mbh: DataMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
     val input = new Variable[Post](TArray[Post](TAnyClass[Post]()))(o.addPrefName("data"))
     val assign = Assign[Post](Deref[Post](ThisObject[Post](mbh.refCls), mbh.dataField.get.ref)(null), input.get)(null)
@@ -65,7 +65,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     classDeclarations.declare(mbh.createMethod(TVoid(), Seq(input), Some(body), "setData", false))
   }
 
-  def createPredicateObject(mbh: PredicateMethodBuilderHelper[Post]): Unit = {
+  def createPredicateObject(mbh: DataMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
     val input = new Variable[Post](TArray[Post](TAnyClass[Post]()))(o.addPrefName("data"))
     val newObject = new Variable[Post](TClass[Post](mbh.refCls))(o.addPrefName("object"))
@@ -76,7 +76,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     classDeclarations.declare(mbh.createMethod(TClass[Post](mbh.refCls), Seq(input), Some(body), "create"))
   }
 
-  def createPredicateEquals(mbh: PredicateMethodBuilderHelper[Post]): Unit = {
+  def createPredicateEquals(mbh: DataMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
     val input = new Variable[Post](TAnyClass[Post]())(o.addPrefName("obj"))
     val otherObject = new Variable[Post](TClass[Post](mbh.refCls))(o.addPrefName("otherObject"))
@@ -91,7 +91,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     classDeclarations.declare(mbh.createMethod(TBool[Post](), Seq(input), Some(body), "equals", false))
   }
 
-  def createPredicateHashCode(mbh: PredicateMethodBuilderHelper[Post]): Unit = {
+  def createPredicateHashCode(mbh: DataMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
     val ownDeref = Deref[Post](ThisObject[Post](mbh.refCls), mbh.dataField.get.ref)(null)
     val returnStat = Return[Post](ArraysHashCode[Post](ownDeref))
@@ -107,8 +107,8 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
   def createLedger: Class[Post] = {
     implicit val classOrigin: Origin = Origin(Seq.empty).addLedgerClass().addPrefName("LedgerRuntime")
     val newDeclarations: Seq[ClassDeclaration[Post]] = classDeclarations.collect {
-      val creatorMethods: Seq[LedgerMethodBuilderHelper[Post] => Unit] = Seq(createObjectLedger, createLocationLedger, createJoinTokensLedger, createPredicateLedger, createHashMapMethod, createGetPermission, createGetPermissionWithLocation, createGetJoinToken, createSetJoinToken, createSetPermission, createSetPermissionWithLocation, createInitiatePermissionWithSize, createInitiatePermission, createHasPredicateCheck,createFoldPredicate ,createUnfoldPredicate)
-      creatorMethods.map(m => m(LedgerMethodBuilderHelper[Post](new LazyRef[Post, Class[Post]](getLedgerNewClass), classDeclarations.freezeBuffer, PredicateMethodBuilderHelper[Post](new LazyRef[Post, Class[Post]](getPredicateNewClass), getPredicateNewClass.declarations))))
+      val creatorMethods: Seq[LedgerMethodBuilderHelper[Post] => Unit] = Seq(createObjectLedger, createJoinTokensLedger, createPredicateLedger, createHashMapMethod, createGetPermission, createGetJoinToken, createSetJoinToken, createSetPermission, createInitiatePermissionWithSize, createInitiatePermission, createHasPredicateCheck,createFoldPredicate ,createUnfoldPredicate, createCheckForInjectivity)
+      creatorMethods.map(m => m(LedgerMethodBuilderHelper[Post](new LazyRef[Post, Class[Post]](getLedgerNewClass), classDeclarations.freezeBuffer, DataMethodBuilderHelper[Post](new LazyRef[Post, Class[Post]](getDataNewClass), getDataNewClass.declarations))))
     }._1
     newLedgerClass = new Class[Post](newDeclarations, Seq.empty, tt)
     globalDeclarations.declare(newLedgerClass)
@@ -124,19 +124,6 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
       fieldFlags,
       Some(mbh.ledgerProperties.newOuterMap)
     )(DiagnosticOrigin.addPrefName("__runtime__"))
-    classDeclarations.declare(newInstanceField)
-  }
-
-  /*
-      public static ConcurrentHashMap<Object, ConcurrentHashMap<Integer, Object>> __array_locations__ = new ConcurrentHashMap<Object, ConcurrentHashMap<Integer, Object>>();
-   */
-  def createLocationLedger(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
-    val fieldFlags: Set[FieldFlag[Post]] = Set(Static[Post]()(DiagnosticOrigin))
-    val newInstanceField: InstanceField[Post] = new InstanceField[Post](
-      mbh.ledgerLocationProperties.outerHM,
-      fieldFlags,
-      Some(mbh.ledgerLocationProperties.newOuterMap)
-    )(DiagnosticOrigin.addPrefName("__array_locations__"))
     classDeclarations.declare(newInstanceField)
   }
 
@@ -209,26 +196,6 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   /*
-      public static Double getPermission(Object input, int location) {
-          createHashMap();
-          Object permLoc = __array_locations.get(input).get(location);
-          return getPermission(permLoc);
-      }
-   */
-  def createGetPermissionWithLocation(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
-    implicit val o: Origin = DiagnosticOrigin
-    val chm: Eval[Post] = Eval[Post](mbh.miCreateHashMaps.get)
-    val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
-    val locationParam: Variable[Post] = new Variable[Post](TInt[Post]())(o.addPrefName("location"))
-    val permLoc: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("permLoc"))
-    val assignPermLoc = Assign[Post](permLoc.get, mbh.ledgerLocationProperties.get(mbh.ledgerLocationProperties.get(inputParam.get), locationParam.get))(null)
-    val returnStat: Return[Post] = Return[Post](mbh.miGetPermission(permLoc.get).get)
-    val newBlock: Block[Post] = Block[Post](Seq(chm, assignPermLoc, returnStat))
-    val body = Scope[Post](Seq(permLoc), newBlock)
-    classDeclarations.declare(mbh.createMethod(TRuntimeFraction[Post](), Seq(inputParam, locationParam), Some(body), "getPermission"))
-  }
-
-  /*
         public static Fraction getPermission(Object input) {
             __runtime__.get(Thread.currentThread().getId()).put(input, value);
         }
@@ -283,25 +250,6 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   /*
-        public static void setPermission(Object input, int location, Double value) {
-            Object permLoc = __array_locations.get(input).get(location);
-            setPermission(permLoc, value);
-        }
-   */
-  def createSetPermissionWithLocation(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
-    implicit val o: Origin = DiagnosticOrigin
-    val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
-    val locationParam: Variable[Post] = new Variable[Post](TInt[Post]())(o.addPrefName("location"))
-    val valueParam: Variable[Post] = new Variable[Post](TRuntimeFraction[Post]())(o.addPrefName("value"))
-    val permLoc: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("permLoc"))
-    val assignPermLoc = Assign[Post](permLoc.get, mbh.ledgerLocationProperties.get(mbh.ledgerLocationProperties.get(inputParam.get), locationParam.get))(null)
-    val setPermission = Eval[Post](mbh.miSetPermission(permLoc.get, valueParam.get).get)
-    val newBlock: Block[Post] = Block[Post](Seq(assignPermLoc, setPermission))
-    val body = Scope[Post](Seq(permLoc), newBlock)
-    classDeclarations.declare(mbh.createMethod(TVoid(), Seq(inputParam, locationParam, valueParam), Some(body), "setPermission"))
-  }
-
-  /*
         public static void initiatePermission(Object input, int size) {
             createHashMap();
             setPermission(input, 1.0);
@@ -317,26 +265,23 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = DiagnosticOrigin
     val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
     val sizeParam: Variable[Post] = new Variable[Post](TInt[Post]())(o.addPrefName("size"))
-    val chm: Eval[Post] = Eval[Post](mbh.miCreateHashMaps.get)
     val setPermissionOuter = Eval[Post](mbh.miSetPermission(inputParam.get, RuntimeFractionOne[Post]()).get)
-    val createNewConcurrentHashMap = Eval[Post](mbh.ledgerLocationProperties.put(inputParam.get, mbh.ledgerLocationProperties.newInner))
 
     //Loop statements:
-    val permLoc: Variable[Post] = new Variable[Post](TArray[Post](TAnyClass[Post]()))(o.addPrefName("permLoc"))
     val i: Variable[Post] = new Variable[Post](TInt[Post]())(o.addPrefName("i"))
-    val assignPermLoc = Eval[Post](PostAssignExpression[Post](permLoc.get, CreateObjectArray[Post](Seq(inputParam.get, i.get)))(null))
-    val pushPermLoc = Eval[Post](mbh.ledgerLocationProperties.put(mbh.ledgerLocationProperties.get(inputParam.get), i.get, permLoc.get))
-    val setPermission = Eval[Post](mbh.miSetPermission(permLoc.get, RuntimeFractionOne[Post]()).get)
-    val loopBody = Block[Post](Seq(assignPermLoc, pushPermLoc, setPermission))
+    val newDataObject: MethodInvocation[Post] = mbh.pmbh.miCreate(
+      CreateObjectArray[Post](Seq(inputParam.get, i.get))).get
+
+    val setPermission = Eval[Post](mbh.miSetPermission(newDataObject, RuntimeFractionOne[Post]()).get)
     val newLoop = Loop[Post](
       Assign[Post](i.get, const(0))(null),
       i.get < sizeParam.get,
       Assign[Post](i.get, i.get + const(1))(null),
       LoopInvariant[Post](tt, None)(null),
-      loopBody
+      Block[Post](Seq(setPermission))
     )
-    val newBlock: Block[Post] = Block[Post](Seq(chm, setPermissionOuter, createNewConcurrentHashMap, newLoop))
-    val body = Scope[Post](Seq(permLoc, i), newBlock)
+    val newBlock: Block[Post] = Block[Post](Seq(setPermissionOuter, newLoop))
+    val body = Scope[Post](Seq(i), newBlock)
     classDeclarations.declare(mbh.createMethod(TVoid(), Seq(inputParam, sizeParam), Some(body), "initiatePermission"))
   }
 
@@ -352,13 +297,8 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
   def createInitiatePermission(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
     val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
-    val chm: Eval[Post] = Eval[Post](mbh.miCreateHashMaps.get)
-    val setPermissionOuter = Eval[Post](mbh.miSetPermission(inputParam.get, RuntimeFractionOne[Post]()).get)
-    val branchExpr = ObjectIsArray[Post](inputParam.get)
-    val branchBody = Block[Post](Seq(Eval[Post](mbh.miInitiatePermission(inputParam.get, ObjectGetLength[Post](inputParam.get)).get)))
-    val branch: Branch[Post] = Branch[Post](Seq((branchExpr, branchBody)))
-    val newBlock: Block[Post] = Block[Post](Seq(chm, setPermissionOuter, branch))
-    val body = Scope[Post](Nil, newBlock)
+    val miInitiate = Eval[Post](mbh.miInitiatePermission(inputParam.get, const(0)).get)
+    val body = Scope[Post](Nil, Block[Post](Seq(miInitiate)))
     classDeclarations.declare(mbh.createMethod(TVoid(), Seq(inputParam), Some(body), "initiatePermission"))
   }
 
@@ -417,6 +357,30 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     val newBlock: Block[Post] = Block[Post](Seq(chm, checkCall, removePred))
     val body = Scope[Post](Nil, newBlock)
     classDeclarations.declare(mbh.createMethod(TVoid(), Seq(inputParam), Some(body), "unfoldPredicate"))
+  }
+
+
+  def createCheckForInjectivity(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
+    implicit val o: Origin = DiagnosticOrigin
+    val map: Variable[Post] = mbh.createNewInjectivityMap
+    val key: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("key"))
+    val value: Expr[Post] = mbh.injectivityMap.get(map.get, key.get)
+    val assertCheck: RuntimeAssert[Post] = RuntimeAssert[Post](
+      (value r_<=> RuntimeFractionOne[Post]()) !== const(1),
+      "Permission cannot exceed 1 due to injectivity")(null)
+
+
+    //TODO fix so that the injectivity permission cannot be more than the permission that the thread actually has
+
+    val newLoop: EnhancedLoop[Post] = EnhancedLoop[Post](
+      key,
+      mbh.injectivityMap.keySet(map.get),
+      Block[Post](Seq(assertCheck))
+    )
+    val newBlock: Block[Post] = Block[Post](Seq(newLoop))
+    val body = Scope[Post](Nil, newBlock)
+    classDeclarations.declare(mbh.createMethod(TVoid(), Seq(map), Some(body), "checkForInjectivity"))
+
   }
 
 

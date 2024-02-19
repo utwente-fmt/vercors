@@ -8,7 +8,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.util.AbstractQuantifierRewriter.LoopBodyContent
 import vct.rewrite.runtime.util.LedgerHelper._
-import vct.rewrite.runtime.util.PermissionRewriter._
+import vct.rewrite.runtime.util.Util._
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
 case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](pd) {
@@ -61,12 +61,19 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
 
     val pt: Option[Expr[Post]] = p.loc.asInstanceOf[AmbiguousLocation[Pre]].expr match {
       case d@Deref(o, _) => {
-        val getPerm = ledger.miGetPermission(getNewExpr(o), locationExpression(d.ref.decl)).get
-        ledger.miSetPermission(getNewExpr(o), locationExpression(d.ref.decl), op(getPerm, newValue))
+        val newDataObject: MethodInvocation[Post] = ledger.pmbh.miCreate(
+          CreateObjectArray[Post](
+            Seq(getNewExpr(o),locationExpression(d.ref.decl))
+          )).get
+
+        val getPerm = ledger.miGetPermission(newDataObject).get
+        ledger.miSetPermission(newDataObject, op(getPerm, newValue))
       }
-      case AmbiguousSubscript(coll, index) => {
-        val getPerm = ledger.miGetPermission(getNewExpr(coll), dispatch(index)).get
-        ledger.miSetPermission(getNewExpr(coll), dispatch(index), op(getPerm, newValue))
+      case AmbiguousSubscript(coll, index)  => {
+        val newDataObject: MethodInvocation[Post] = ledger.pmbh.miCreate(
+          CreateObjectArray[Post](Seq(getNewExpr(coll), dispatch(index)))).get
+        val getPerm = ledger.miGetPermission(newDataObject).get
+        ledger.miSetPermission(newDataObject, op(getPerm, newValue))
       }
       case _ => throw Unreachable(s"This type of permissions transfer is not yet supported: ${p}")
     }

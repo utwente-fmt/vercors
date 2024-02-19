@@ -6,6 +6,6 @@ import vct.col.print._
 trait CopyOnWriteArrayListImpl[G] {
   this: CopyOnWriteArrayList[G] =>
 
-  override def layout(implicit ctx: Ctx): Doc = Text("CopyOnWriteArrayList<") <> listType.show <> ">"
+  override def layout(implicit ctx: Ctx): Doc = Text("ArrayList<") <> listType.show <> ">"
 
 }

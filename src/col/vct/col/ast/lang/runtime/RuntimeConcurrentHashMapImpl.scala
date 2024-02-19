@@ -6,5 +6,5 @@ import vct.col.print._
 trait RuntimeConcurrentHashMapImpl[G] {
   this: RuntimeConcurrentHashMap[G] =>
 
-  override def layout(implicit ctx: Ctx): Doc = Text("ConcurrentHashMap<") <> keyType.show <> "," <+> valueType.show <> ">"
+  override def layout(implicit ctx: Ctx): Doc = Text("WeakHashMap<") <> keyType.show <> "," <+> valueType.show <> ">"
 }

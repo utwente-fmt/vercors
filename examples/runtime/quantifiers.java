@@ -34,8 +34,6 @@ class Program {
         tmp[0] = 2;
         tmp[1] = 4;
         tmp[2] = 6;
-
-        tmp = new int[4];
         program.setA(tmp);
         program.indexOf(4);
     }

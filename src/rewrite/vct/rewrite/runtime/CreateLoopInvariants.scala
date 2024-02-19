@@ -8,6 +8,7 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.runtime.util.LedgerHelper._
 import vct.rewrite.runtime.util.RewriteContractExpr
+import vct.rewrite.runtime.util.Util.findClosestInjectivityMap
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
 object CreateLoopInvariants extends RewriterBuilder {
@@ -50,8 +51,9 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
   def dispatchLoopContract(lc: LoopContract[Pre]): Statement[Post] = {
     lc match {
       case li: LoopInvariant[Pre] => {
+        val injectivityMap = findClosestInjectivityMap(variables.freeze)
         val contract = li.invariant
-        val pd: PermissionData[Pre] = PermissionData().setOuter(this).setCls(currentClass.top).setLedger(ledger)
+        val pd: PermissionData[Pre] = PermissionData().setOuter(this).setCls(currentClass.top).setLedger(ledger).setInjectivityMap(injectivityMap)
         RewriteContractExpr[Pre](pd).createAssertions(contract)
       }
       case _ => Block[Post](Seq.empty)(lc.o)

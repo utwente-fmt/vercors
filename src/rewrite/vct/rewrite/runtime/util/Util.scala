@@ -2,8 +2,10 @@ package vct.rewrite.runtime.util
 
 
 import vct.col.ast._
-import vct.col.origin.{Origin}
-import vct.col.rewrite.{Rewritten, Generation}
+import vct.col.origin.Origin
+import vct.col.rewrite.{Generation, Rewriter, Rewritten}
+import vct.col.util.AstBuildHelpers._
+import vct.col.util.FrozenScopes
 import vct.result.VerificationError.Unreachable
 
 object Util {
@@ -118,4 +120,48 @@ object Util {
       case _ => Seq(d)
     }
   }
+
+
+  def permissionToRuntimeValue[G](perm: Perm[G])(implicit origin: Origin): Expr[G] = {
+    permissionToRuntimeValue(perm.perm)
+  }
+
+  def permissionToRuntimeValue[G](expr: Expr[G])(implicit origin: Origin): Expr[G] = {
+    expr match {
+      case _: WritePerm[G] => RuntimeFractionOne()
+      case _: ReadPerm[G] => RuntimeFractionZero()
+      case d: Div[G] => RuntimeFractionDiff[G](d.left, d.right)
+      case d: FloorDiv[G] => RuntimeFractionDiff[G](d.left, d.right)
+      case IntegerValue(n: BigInt) if n == 1 => RuntimeFractionOne()
+      case _ => expr
+    }
+  }
+
+  def createCheckPermission[Pre <: Generation](retrievedPermission: Expr[Rewritten[Pre]], permission: Perm[Pre])(implicit origin: Origin): Expr[Rewritten[Pre]] = {
+    val newValue = permissionToRuntimeValueRewrite(permission)
+    permission.perm match {
+      case _: ReadPerm[Pre] => retrievedPermission > newValue
+      case _ => retrievedPermission === newValue
+    }
+  }
+
+  def permissionToRuntimeValueRewrite[Pre <: Generation](permission: Perm[Pre])(implicit origin: Origin): Expr[Rewritten[Pre]] = {
+    type Post = Rewritten[Pre]
+    val rw = new Rewriter[Pre]()
+    permission.perm match {
+      case _: WritePerm[Pre] => RuntimeFractionOne()
+      case _: ReadPerm[Pre] => RuntimeFractionZero()
+      case d: Div[Pre] => RuntimeFractionDiff[Post](rw.dispatch(d.left), rw.dispatch(d.right))
+      case d: FloorDiv[Pre] => RuntimeFractionDiff[Post](rw.dispatch(d.left), rw.dispatch(d.right))
+      case IntegerValue(n: BigInt) if n == 1 => RuntimeFractionOne()
+      case _ => rw.dispatch(permission.perm)
+    }
+  }
+
+  def findClosestInjectivityMap[Pre <: Generation](sc: FrozenScopes[Pre, Rewritten[Pre], Variable[Pre], Variable[Rewritten[Pre]]]): Variable[Rewritten[Pre]] = {
+    sc.scopes.collectFirst{
+      case m if m.values.exists(v => v.o.getPreferredNameOrElse() == "injectivityMap") => m.values.find(v => v.o.getPreferredNameOrElse() == "injectivityMap").get
+    }.get
+  }
+
 }

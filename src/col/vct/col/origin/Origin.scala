@@ -38,7 +38,7 @@ case class OriginCols(cols: Option[(Int, Int)]) extends OriginContent
 case class OriginFilename(filename: String) extends OriginContent
 case class InlineBipContext(bipContext: String) extends OriginContent
 case class LedgerClassRuntime() extends OriginContent
-case class PredicateObjectClassRuntime() extends OriginContent
+case class DataObjectClassRuntime() extends OriginContent
 
 /**
  * A sequence of OriginContents. This sequence can be mutated (add, remove, replace) for convenience.
@@ -108,8 +108,8 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     Origin(originContents :+ LedgerClassRuntime())
   }
 
-  def addPredicateObjectClass(): Origin = {
-    Origin(originContents :+ PredicateObjectClassRuntime())
+  def addDataObjectClass(): Origin = {
+    Origin(originContents :+ DataObjectClassRuntime())
   }
 
   def getReadable: Option[ReadableOrigin] = {
@@ -231,12 +231,12 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     }
   }
 
-  def getPredicateObjectClassRuntime: Option[PredicateObjectClassRuntime] = {
+  def getDataObjectClassRuntime: Option[DataObjectClassRuntime] = {
     originContents.flatMap {
-      case PredicateObjectClassRuntime() => Seq(PredicateObjectClassRuntime())
+      case DataObjectClassRuntime() => Seq(DataObjectClassRuntime())
       case _ => Nil
     } match {
-      case Seq(i@PredicateObjectClassRuntime()) => Some(i)
+      case Seq(i@DataObjectClassRuntime()) => Some(i)
       case _ => None
     }
   }

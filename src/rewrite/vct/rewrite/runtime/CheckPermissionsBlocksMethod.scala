@@ -7,7 +7,6 @@ import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
-import vct.rewrite.runtime.util.PermissionRewriter.permissionToRuntimeValue
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 import vct.rewrite.runtime.util.LedgerHelper._
 
@@ -25,7 +24,7 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
 
   val isTarget: ScopedStack[Boolean] = ScopedStack()
   private val dereferences: ScopedStack[mutable.HashMap[Expr[Pre], Boolean]] = ScopedStack()
-  var hasInvocation: Boolean = false
+  var heapChange: Boolean = false
 
   implicit var program: Program[Pre] = _
   implicit var ledger: LedgerMethodBuilderHelper[Post] = _
@@ -47,6 +46,9 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
     stat match {
       case a: Assign[Pre] => a.rewrite(target = isTarget.having(true) {
+        if(a.target.t.isInstanceOf[PrimitiveType[Pre]]){
+          heapChange = true
+        }
         dispatch(a.target)
       })
       case s@Scope(_, b@Block(_)) => s.rewrite(body = determineNewBlockStructure(b))
@@ -58,14 +60,20 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
       case mi: MethodInvocation[Pre] if mi.o.getLedgerClassRuntime.nonEmpty => {
-        hasInvocation = true
+        heapChange = true
         dereferences.collect(super.dispatch(mi))._2
       }
-      case inv@(_: MethodInvocation[Pre] | _: ProcedureInvocation[Pre]) => hasInvocation = true; super.dispatch(inv)
+      case inv@(_: MethodInvocation[Pre] | _: ProcedureInvocation[Pre]) => heapChange = true; super.dispatch(inv)
       case preExpr: PreAssignExpression[Pre] => preExpr.rewrite(isTarget.having(true) {
+        if(preExpr.target.t.isInstanceOf[PrimitiveType[Pre]]){
+          heapChange = true
+        }
         dispatch(preExpr.target)
       })
       case postExpr: PostAssignExpression[Pre] => postExpr.rewrite(isTarget.having(true) {
+        if(postExpr.target.t.isInstanceOf[PrimitiveType[Pre]]){
+          heapChange = true
+        }
         dispatch(postExpr.target)
       })
       case d@(_: Deref[Pre] | _: AmbiguousSubscript[Pre]) => {
@@ -86,9 +94,20 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     implicit val origin: Origin = l.o
 
     val location: Expr[Post] = l match {
-      case d: Deref[Pre] => ledger.miGetPermission(dispatch(d.obj), dispatch(const[Pre](findNumberInstanceField(program, d.ref.decl).get))).get
+      case d: Deref[Pre] => {
+        val newDataObject: MethodInvocation[Post] = ledger.pmbh.miCreate(
+          CreateObjectArray[Post](
+            Seq(dispatch(d.obj),
+            dispatch(const[Pre](findNumberInstanceField(program, d.ref.decl).get)))
+          )).get
+        ledger.miGetPermission(newDataObject).get
+      }
 //      case d: Deref[Pre] => ledger.miGetPermission(dispatch(d)).get
-      case AmbiguousSubscript(coll, index) => ledger.miGetPermission(dispatch(coll), dispatch(index)).get
+      case AmbiguousSubscript(coll, index) => {
+        val newDataObject: MethodInvocation[Post] = ledger.pmbh.miCreate(
+          CreateObjectArray[Post](Seq(dispatch(coll), dispatch(index)))).get
+        ledger.miGetPermission(newDataObject).get
+      }
       case _ => throw Unreachable(s"This location type is not supported yet: ${l}")
     }
     val check = if (write) (location r_<=> RuntimeFractionOne[Post]()) === const(0) else (location r_<=> RuntimeFractionZero[Post]()) === const(1)
@@ -126,8 +145,8 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
 
   private def defaultStatementNewMethodStructure(b: Block[Pre], blockFold: (Seq[Block[Post]], Block[Post]), statement: Statement[Pre])(implicit origin: Origin): (Seq[Block[Post]], Block[Post]) = {
     val newStatement = dispatch(statement)
-    if (hasInvocation) {
-      hasInvocation = false
+    if (heapChange) {
+      heapChange = false
       (blockFold._1 :+ Block[Post](retrieveDereferences ++ blockFold._2.statements) :+ Block[Post](Seq(newStatement)), Block[Post](Nil))
     } else {
       (blockFold._1, Block[Post](blockFold._2.statements :+ newStatement))
@@ -148,7 +167,7 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
         case (blockFold, sync: Synchronized[Pre]) => dispatchStatementWrapper(b, blockFold, sync, dispatchSynchronized)
         case (blockFold, statement) => defaultStatementNewMethodStructure(b, blockFold, statement)
       }
-      hasInvocation = false
+      heapChange = false
       val finalBlock: Block[Post] = Block[Post](retrieveDereferences ++ newBlocks._2.statements)
       Block[Post](newBlocks._1 :+ finalBlock)
     }._2
