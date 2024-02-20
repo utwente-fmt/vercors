@@ -65,21 +65,21 @@ case class CFGGenerator[G]() {
     case Inhale(res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
     case Assume(assn) => handle_expression_container(node, Eval(assn)(assn.o), context, sequential_successor(context))
     case Instantiate(_, out) => handle_expression_container(node, Eval(out)(out.o), context, sequential_successor(context))
-    case Wait(_) => sequential_successor(context)
-    case Notify(_) => sequential_successor(context)
+    case Wait(obj) => handle_expression_container(node, Eval(obj)(obj.o), context, sequential_successor(context))
+    case Notify(obj) => handle_expression_container(node, Eval(obj)(obj.o), context, sequential_successor(context))
     case Fork(obj) => {
       val run_method: RunMethod[G] = obj.t.asClass.get.cls.decl.declarations.collect{ case r: RunMethod[G] => r }.head
       // Get the successor(s) of the fork statement as well as the new thread, starting with the run method
       sequential_successor(context).addOne(CFGEdge(convert(run_method.body.get, GlobalIndex[G](mutable.Seq()).enter_scope(run_method)), None))
     }
-    case Join(_) => sequential_successor(context)
-    case Lock(_) => sequential_successor(context)
-    case Unlock(_) => sequential_successor(context)
-    case Commit(_) => sequential_successor(context)
+    case Join(obj) => handle_expression_container(node, Eval(obj)(obj.o), context, sequential_successor(context))
+    case Lock(obj) => handle_expression_container(node, Eval(obj)(obj.o), context, sequential_successor(context))
+    case Unlock(obj) => handle_expression_container(node, Eval(obj)(obj.o), context, sequential_successor(context))
+    case Commit(obj) => handle_expression_container(node, Eval(obj)(obj.o), context, sequential_successor(context))
     case Fold(res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
     case Unfold(res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
     case WandApply(res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
-    case Havoc(_) => sequential_successor(context)
+    case Havoc(loc) => handle_expression_container(node, Eval(loc)(loc.o), context, sequential_successor(context))
     case FramedProof(_, _, _) => evaluate_first(context.enter_scope(node))
     case Extract(_) => evaluate_first(context.enter_scope(node))
     // ExceptionalStatement
