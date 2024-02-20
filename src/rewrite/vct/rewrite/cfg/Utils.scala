@@ -56,15 +56,42 @@ object Utils {
 
   private def get_out_variable[G](cls: Ref[G, Class[G]],  o: Origin): Local[G] = Local(new DirectRef[G, Variable[G]](new Variable(TClass(cls))(o)))(o)
 
-  def find_all_cases[G](body: Statement[G], index: GlobalIndex[G]): mutable.Set[(SwitchCase[G], GlobalIndex[G])] = body match {
-    case Switch(_, _) => mutable.Set()
+  def find_all_cases[G](body: Statement[G], index: GlobalIndex[G]): Seq[(SwitchCase[G], GlobalIndex[G])] = body match {
+    case Switch(_, _) => Seq()
     // Recursion on statements that can contain case statements
-    case Label(_, stmt) => find_all_cases(stmt, index.enter_scope(body))
-    case Block(stmts) => mutable.LinkedHashSet.from(stmts.zipWithIndex.flatMap(t => find_all_cases(t._1, index.enter_scope(body, t._2))))
-    case Scope(_, stmt) => find_all_cases(stmt, index.enter_scope(body))
+    case Label(_, stat) => find_all_cases(stat, index.enter_scope(body))
+    case Block(statements) => statements.zipWithIndex.flatMap(t => find_all_cases(t._1, index.enter_scope(body, t._2)))
+    case Scope(_, bod) => find_all_cases(bod, index.enter_scope(body))
+    case PVLBranch(branches) => branches.zipWithIndex.flatMap(t => find_all_cases(t._1._2, index.enter_scope(body, t._2 * 2 + 1)))
+    case PVLLoop(init, _, update, _, bod) => Seq((init, 0), (bod, 2), (update, 3)).flatMap(t => find_all_cases(t._1, index.enter_scope(body, t._2)))
+    case FramedProof(_, bod, _) => find_all_cases(bod, index.enter_scope(body))
+    case Extract(contractedStatement) => find_all_cases(contractedStatement, index.enter_scope(body))
+    case Branch(branches) => branches.zipWithIndex.flatMap(t => find_all_cases(t._1._2, index.enter_scope(body, t._2 * 2 + 1)))
+    case IndetBranch(branches) => branches.zipWithIndex.flatMap(t => find_all_cases(t._1, index.enter_scope(body, t._2)))
+    case Loop(init, _, update, _, bod) => Seq((init, 0), (bod, 2), (update, 3)).flatMap(t => find_all_cases(t._1, index.enter_scope(body, t._2)))
+    case RangedFor(_, _, bod) => find_all_cases(bod, index.enter_scope(body))
+    case TryCatchFinally(bod, after, catches) => Seq((bod, 0), (after, 1)).concat(catches.zipWithIndex.map(t => (t._1.body, t._2 + 2)))
+                                                                          .flatMap(t => find_all_cases(t._1, index.enter_scope(body, t._2)))
+    case Synchronized(_, bod) => find_all_cases(bod, index.enter_scope(body))
+    case ParInvariant(_, _, content) => find_all_cases(content, index.enter_scope(body))
+    case ParAtomic(_, content) => find_all_cases(content, index.enter_scope(body))
+    case ParBarrier(_, _, _, _, content) => find_all_cases(content, index.enter_scope(body))
+    case VecBlock(_, _, _, content) => find_all_cases(content, index.enter_scope(body))
+    case WandPackage(_, proof) => find_all_cases(proof, index.enter_scope(body))
+    case ModelDo(_, _, _, _, impl) => find_all_cases(impl, index.enter_scope(body))
+    case CPPLifetimeScope(bod) => find_all_cases(bod, index.enter_scope(body))
+    case UnresolvedSeqBranch(branches) => branches.zipWithIndex.flatMap(t => find_all_cases(t._1._2, index.enter_scope(body, t._2 * 2 + 1)))
+    case UnresolvedSeqLoop(_, _, bod) => find_all_cases(bod, index.enter_scope(body))
+    case SeqBranch(_, yes, no) => no match {
+      case Some(stmt) => Seq((yes, 0), (stmt, 1)).flatMap(t => find_all_cases(t._1, index.enter_scope(body)))
+      case None => find_all_cases(yes, index.enter_scope(body))
+    }
+    case SeqLoop(_, _, bod) => find_all_cases(bod, index.enter_scope(body))
+    case VeyMontAssignExpression(_, assign) => find_all_cases(assign, index.enter_scope(body))
+    case CommunicateX(_, _, _, assign) => find_all_cases(assign, index.enter_scope(body))
     // Recursion end
-    case c: SwitchCase[G] => mutable.Set((c, index))
-    case _ => mutable.Set()   // TODO: Assuming that there are no cases in deeper structures (branches, loops etc.)
+    case c: SwitchCase[G] => Seq((c, index))
+    case _ => Seq()
   }
 
   def negate[G](expr: Expr[G]): Expr[G] = expr match {
