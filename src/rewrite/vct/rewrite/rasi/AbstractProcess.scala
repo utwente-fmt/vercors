@@ -12,7 +12,7 @@ case class AbstractProcess[G](name: String) {
 
   private def process_cfg_edge(edge: CFGEdge[G], ast_node: Node[G], state: AbstractState[G]): AbstractState[G] = ast_node match {
     // TODO: Implement!
-    case Assign(target, value) => state.with_valuation(target, state.resolve_integer_expression(value).try_to_resolve().get)
+    case Assign(target, value) => state.with_valuation(target, state.resolve_expression(value))
     case Exhale(res) => ???
     case Assert(res) => ???
     case Refute(assn) => ???

@@ -1,8 +1,11 @@
 package vct.rewrite.rasi
 
+import vct.col.ast.{BooleanValue, Expr, Not}
+
 trait UncertainValue {
   def can_be_equal(other: UncertainValue): Boolean
   def can_be_unequal(other: UncertainValue): Boolean
+  def to_expression[G](variable: Expr[G]): Expr[G]
 }
 
 case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) extends UncertainValue {
@@ -16,6 +19,13 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
     case _ => true
   }
 
+  override def to_expression[G](variable: Expr[G]): Expr[G] = {
+    if (can_be_true && can_be_false) BooleanValue(value = true)(variable.o)
+    else if (can_be_true) variable
+    else if (can_be_false) Not(variable)(variable.o)
+    else BooleanValue(value = false)(variable.o)
+  }
+
   def try_to_resolve(): Option[Boolean] = {
     if (can_be_true && !can_be_false) Some(true)
     else if (can_be_false && !can_be_true) Some(false)
@@ -25,10 +35,8 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
   def union(other: UncertainBooleanValue): UncertainBooleanValue =
     UncertainBooleanValue(can_be_true || other.can_be_true, can_be_false || other.can_be_false)
 
-  def &(other: UncertainBooleanValue): UncertainBooleanValue = this && other
   def &&(other: UncertainBooleanValue): UncertainBooleanValue =
     UncertainBooleanValue(can_be_true && other.can_be_true, can_be_false || other.can_be_false)
-  def |(other: UncertainBooleanValue): UncertainBooleanValue = this || other
   def ||(other: UncertainBooleanValue): UncertainBooleanValue =
     UncertainBooleanValue(can_be_true || other.can_be_true, can_be_false && other.can_be_false)
   def unary_! : UncertainBooleanValue =
@@ -53,6 +61,8 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
     case _ => true
   }
 
+  override def to_expression[G](variable: Expr[G]): Expr[G] = value.to_expression(variable)
+
   def try_to_resolve(): Option[Int] = value.try_to_resolve()
 
   def union(other: UncertainIntegerValue): UncertainIntegerValue =
@@ -71,20 +81,13 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
   def >(other: UncertainIntegerValue): UncertainBooleanValue = !(this <= other)
   def <(other: UncertainIntegerValue): UncertainBooleanValue = !(this >= other)
 
-  def unary_- : UncertainIntegerValue =
-    UncertainIntegerValue(-value)
-  def +(other: UncertainIntegerValue): UncertainIntegerValue =
-    UncertainIntegerValue(value + other.value)
-  def -(other: UncertainIntegerValue): UncertainIntegerValue =
-    UncertainIntegerValue(value - other.value)
-  def *(other: UncertainIntegerValue): UncertainIntegerValue =
-    UncertainIntegerValue(value * other.value)
-  def /(other: UncertainIntegerValue): UncertainIntegerValue =
-    UncertainIntegerValue(value / other.value)
-  def %(other: UncertainIntegerValue): UncertainIntegerValue =
-    UncertainIntegerValue(value % other.value)
-  def pow(other: UncertainIntegerValue): UncertainIntegerValue =
-    UncertainIntegerValue(value.pow(other.value))
+  def unary_- : UncertainIntegerValue = UncertainIntegerValue(-value)
+  def +(other: UncertainIntegerValue): UncertainIntegerValue = UncertainIntegerValue(value + other.value)
+  def -(other: UncertainIntegerValue): UncertainIntegerValue = UncertainIntegerValue(value - other.value)
+  def *(other: UncertainIntegerValue): UncertainIntegerValue = UncertainIntegerValue(value * other.value)
+  def /(other: UncertainIntegerValue): UncertainIntegerValue = UncertainIntegerValue.uncertain() // TODO: UncertainIntegerValue(value / other.value)
+  def %(other: UncertainIntegerValue): UncertainIntegerValue = UncertainIntegerValue.uncertain() // TODO: UncertainIntegerValue(value % other.value)
+  def pow(other: UncertainIntegerValue): UncertainIntegerValue = UncertainIntegerValue.uncertain() // TODO: UncertainIntegerValue(value.pow(other.value))
 }
 case object UncertainIntegerValue {
   def empty(): UncertainIntegerValue = UncertainIntegerValue(EmptyInterval)

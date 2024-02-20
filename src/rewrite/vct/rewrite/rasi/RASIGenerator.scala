@@ -23,12 +23,12 @@ case class RASIGenerator[G]() {
     current_branches.addOne(initial_state)
 
     while (current_branches.nonEmpty) {
-      val curr = current_branches.head
+      val curr: AbstractState[G] = current_branches.head
       current_branches.remove(curr)
 
       curr.successors().foreach(s => if (!found_states.contains(s)) {found_states.addOne(curr); current_branches.addOne(curr)})
     }
   }
 
-  private def get_initial_values(vars: Set[ConcreteVariable[G]]): Map[ConcreteVariable[G], Int] = ???
+  private def get_initial_values(vars: Set[ConcreteVariable[G]]): Map[ConcreteVariable[G], UncertainValue] = ???
 }
