@@ -10,6 +10,14 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], Int], processes
   def successors(): Set[AbstractState[G]] =
     processes.flatMap(p => p._1.get_next(p._2, this)).toSet
 
+  def with_process_at(process: AbstractProcess[G], position: CFGEntry[G]): AbstractState[G] =
+    AbstractState(valuations, processes + (process -> position))
+
+  def with_valuation(variable: Expr[G], value: Int): AbstractState[G] = variable_from_expr(variable) match {
+    case Some(concrete_variable) => AbstractState(valuations + (concrete_variable -> value), processes)
+    case None => this
+  }
+
   def resolve_integer_expression(expr: Expr[G]): UncertainIntegerValue = expr match {
     case CIntegerValue(value) => UncertainIntegerValue.single(value.intValue)
     case IntegerValue(value) => UncertainIntegerValue.single(value.intValue)
@@ -17,7 +25,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], Int], processes
     case DerefHeapVariable(ref) => ???
     case Deref(obj, ref) => ???
     case DerefPointer(pointer) => ???
-    case SizeOf(tname) => ???
+    case SizeOf(tname) => UncertainIntegerValue.above(0)    // TODO: Can we use more information about sizeof?
     case UMinus(arg) => -resolve_integer_expression(arg)
     case AmbiguousMult(left, right) => resolve_integer_expression(left) * resolve_integer_expression(right)
     case AmbiguousPlus(left, right) => resolve_integer_expression(left) + resolve_integer_expression(right)
@@ -52,8 +60,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], Int], processes
     case SeqSubscript(seq, index) => ???
     case ArraySubscript(arr, index) => ???
     case PointerSubscript(pointer, index) => ???
-    case Length(arr) => ???
-    case Size(obj) => ???
+    case Length(arr) => UncertainIntegerValue.above(0)    // TODO: Use contextual information from the global invariant
+    case Size(obj) => UncertainIntegerValue.above(0)      //  here as well
   }
 
   def resolve_boolean_expression(expr: Expr[G]): UncertainBooleanValue = expr match {
@@ -89,6 +97,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], Int], processes
     case ArraySubscript(arr, index) => ???
     case PointerSubscript(pointer, index) => ???
   }
+
+  private def variable_from_expr(variable: Expr[G]): Option[ConcreteVariable[G]] = ???
 
   private def neutral_element: Expr[G] = BooleanValue(value = true)(Origin(Seq(LabelContext("neutral element for and"))))
   def to_expression(): Expr[G] = {

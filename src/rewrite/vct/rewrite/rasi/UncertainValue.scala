@@ -16,28 +16,29 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
     case _ => true
   }
 
+  def try_to_resolve(): Option[Boolean] = {
+    if (can_be_true && !can_be_false) Some(true)
+    else if (can_be_false && !can_be_true) Some(false)
+    else None
+  }
+
   def union(other: UncertainBooleanValue): UncertainBooleanValue =
     UncertainBooleanValue(can_be_true || other.can_be_true, can_be_false || other.can_be_false)
 
   def &(other: UncertainBooleanValue): UncertainBooleanValue = this && other
-
   def &&(other: UncertainBooleanValue): UncertainBooleanValue =
     UncertainBooleanValue(can_be_true && other.can_be_true, can_be_false || other.can_be_false)
-
   def |(other: UncertainBooleanValue): UncertainBooleanValue = this || other
-
   def ||(other: UncertainBooleanValue): UncertainBooleanValue =
     UncertainBooleanValue(can_be_true || other.can_be_true, can_be_false && other.can_be_false)
-
   def unary_! : UncertainBooleanValue =
     UncertainBooleanValue(can_be_false, can_be_true)
-
   def ^(other: UncertainBooleanValue): UncertainBooleanValue =
-    UncertainBooleanValue(can_be_true && other.can_be_false || can_be_false && other.can_be_true, can_be_true && other.can_be_true || can_be_false && other.can_be_false)
-
+    UncertainBooleanValue(can_be_true && other.can_be_false || can_be_false && other.can_be_true,
+                          can_be_true && other.can_be_true || can_be_false && other.can_be_false)
   def ==(other: UncertainBooleanValue): UncertainBooleanValue =
-    UncertainBooleanValue(can_be_true && other.can_be_true || can_be_false && other.can_be_false, can_be_true && other.can_be_false || can_be_false && other.can_be_true)
-
+    UncertainBooleanValue(can_be_true && other.can_be_true || can_be_false && other.can_be_false,
+                          can_be_true && other.can_be_false || can_be_false && other.can_be_true)
   def !=(other: UncertainBooleanValue): UncertainBooleanValue = this ^ other
 }
 
@@ -52,6 +53,8 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
     case _ => true
   }
 
+  def try_to_resolve(): Option[Int] = value.try_to_resolve()
+
   def union(other: UncertainIntegerValue): UncertainIntegerValue =
     UncertainIntegerValue(value.union(other.value))
 
@@ -59,10 +62,14 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
     UncertainBooleanValue(can_be_equal(other), can_be_unequal(other))
   def !=(other: UncertainIntegerValue): UncertainBooleanValue =
     UncertainBooleanValue(can_be_unequal(other), can_be_equal(other))
-  def >=(other: UncertainIntegerValue): UncertainBooleanValue = ???
-  def <=(other: UncertainIntegerValue): UncertainBooleanValue = ???
-  def >(other: UncertainIntegerValue): UncertainBooleanValue = ???
-  def <(other: UncertainIntegerValue): UncertainBooleanValue = ???
+  def >=(other: UncertainIntegerValue): UncertainBooleanValue =
+    UncertainBooleanValue(value.below_max().intersection(other.value).non_empty(),
+                          value.above_min().intersection(other.value).size() >= Finite(1))
+  def <=(other: UncertainIntegerValue): UncertainBooleanValue =
+    UncertainBooleanValue(value.above_min().intersection(other.value).non_empty(),
+                          value.below_max().intersection(other.value).size() >= Finite(1))
+  def >(other: UncertainIntegerValue): UncertainBooleanValue = !(this <= other)
+  def <(other: UncertainIntegerValue): UncertainBooleanValue = !(this >= other)
 
   def unary_- : UncertainIntegerValue =
     UncertainIntegerValue(-value)
