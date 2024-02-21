@@ -77,9 +77,9 @@ case class MultiInterval(intervals: Set[Interval]) extends Interval {
     if (new_intervals.size > 1) MultiInterval(new_intervals)
     else new_intervals.head
   }
-  override def complement(): Interval = intervals.fold(UnboundedInterval)((i1, i2) => i1.intersection(i2.complement()))
-  override def below_max(): Interval = intervals.fold(EmptyInterval)((i1, i2) => i1.union(i2.below_max()))
-  override def above_min(): Interval = intervals.fold(EmptyInterval)((i1, i2) => i1.union(i2.above_min()))
+  override def complement(): Interval = intervals.foldLeft[Interval](UnboundedInterval)((i1, i2) => i1.intersection(i2.complement()))
+  override def below_max(): Interval = intervals.foldLeft[Interval](EmptyInterval)((i1, i2) => i1.union(i2.below_max()))
+  override def above_min(): Interval = intervals.foldLeft[Interval](EmptyInterval)((i1, i2) => i1.union(i2.above_min()))
   override def +(other: Interval): Interval = {
     val new_intervals = intervals.map(i => i + other)
     // It could be that all intervals are now connected into one
@@ -113,16 +113,15 @@ case class MultiInterval(intervals: Set[Interval]) extends Interval {
     if (new_intervals.size > 1) MultiInterval(new_intervals)
     else new_intervals.head
   }
+  private def merge_intersecting(is: Set[Interval]): Set[Interval] = MultiInterval(is).flatten().complement().complement().sub_intervals()
   override def sub_intervals(): Set[Interval] = intervals.flatMap(i => i.sub_intervals())
+  private def flatten(): MultiInterval = MultiInterval(this.sub_intervals())
   override def try_to_resolve(): Option[Int] = {
     if (intervals.count(i => i != EmptyInterval) == 1) intervals.filter(i => i != EmptyInterval).head.try_to_resolve()
     else None
   }
-  override def to_expression[G](variable: Expr[G]): Expr[G] =
+  override def to_expression[G](variable: Expr[G]): Expr[G] = {
     intervals.map(i => i.to_expression(variable)).fold(BooleanValue[G](value = false)(variable.o))((e1, e2) => Or(e1, e2)(variable.o))
-
-  private def merge_intersecting(is: Set[Interval]): Set[Interval] = {
-    ???
   }
 }
 
@@ -189,7 +188,16 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
     case UpperBoundedInterval(up) => ???
     case UnboundedInterval => BoundedInterval(-Utils.abs_max(lower, upper), Utils.abs_max(lower, upper))
   }
-  override def %(other: Interval): Interval = ???
+  override def %(other: Interval): Interval = other match {
+    case EmptyInterval => other
+    case MultiInterval(intervals) => ???
+    case BoundedInterval(low, up) => ???
+    case LowerBoundedInterval(low) => ???
+    case UpperBoundedInterval(up) => ???
+    case UnboundedInterval =>
+      if (lower < 0) BoundedInterval(lower, scala.math.max(0, upper))
+      else BoundedInterval(0, upper)
+  }
   override def unary_- : Interval = BoundedInterval(-upper, -lower)
   override def pow(other: Interval): Interval = other match {
     case EmptyInterval => other
