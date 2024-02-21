@@ -15,7 +15,7 @@ trait PVLLocalImpl[G] extends PVLLocalOps[G] { this: PVLLocal[G] =>
     case ref: RefField[G] => ref.decl.t
     case ref: RefModelField[G] => ref.decl.t
     case ref: RefEndpoint[G] => ref.decl.t
-    case ref: RefPVLEndpoint[G] => TClass[G](ref.decl.cls.decl.ref)
+    case ref: RefPVLEndpoint[G] => TClass[G](ref.decl.cls.decl.ref, Seq())
     case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
   }
 

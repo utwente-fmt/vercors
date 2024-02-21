@@ -12,7 +12,7 @@ trait AmbiguousPlusImpl[G] extends AmbiguousPlusOps[G] { this: AmbiguousPlus[G] 
   def getValidOperatorsOf(operator: Operator[G]): Option[Seq[ContractApplicable[G]]] = {
     val subject = if(operator == OperatorLeftPlus[G]()) left else right
     val decls = subject.t match {
-      case TClass(Ref(cls)) => cls.decls
+      case TClass(Ref(cls), _) => cls.decls
       case JavaTClass(Ref(cls), _) => cls.decls
       case _ => return None
     }

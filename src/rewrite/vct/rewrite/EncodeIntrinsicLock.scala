@@ -70,7 +70,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
   val needsCommitted: mutable.Set[Class[Pre]] = mutable.Set()
 
   def getClass(obj: Expr[Pre]): Class[Pre] = obj.t match {
-    case TClass(Ref(cls)) => cls
+    case TClass(Ref(cls), Seq()) => cls
     case _ => throw UnreachableAfterTypeCheck("This argument is not a class type.", obj)
   }
 

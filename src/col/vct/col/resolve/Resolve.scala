@@ -141,7 +141,7 @@ case object ResolveTypes {
         throw NoSuchNameError("class", name, t)))
     case t @ TModel(ref) =>
       ref.tryResolve(name => Spec.findModel(name, ctx).getOrElse(throw NoSuchNameError("model", name, t)))
-    case t @ TClass(ref) =>
+    case t @ TClass(ref, _) =>
       ref.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, t)))
     case t @ TAxiomatic(ref, _) =>
       ref.tryResolve(name => Spec.findAdt(name, ctx).getOrElse(throw NoSuchNameError("adt", name, t)))
@@ -411,7 +411,8 @@ case object ResolveReferences extends LazyLogging {
     case access@PVLAccess(subject, field) =>
         access.ref = Some(PVL.findDerefOfClass(subject.cls, field).getOrElse(throw NoSuchNameError("field", field, access)))
     case endpoint: PVLEndpoint[G] =>
-      endpoint.ref = Some(PVL.findConstructor(TClass(endpoint.cls.decl.ref[Class[G]]), endpoint.args).getOrElse(throw ConstructorNotFound(endpoint)))
+      // TODO (RR): Integrate generics
+      endpoint.ref = Some(PVL.findConstructor(TClass(endpoint.cls.decl.ref[Class[G]], Seq()), endpoint.args).getOrElse(throw ConstructorNotFound(endpoint)))
     case parAssign: PVLSeqAssign[G] =>
       parAssign.receiver.tryResolve(receiver => PVL.findName(receiver, ctx) match {
         case Some(RefPVLEndpoint(decl)) => decl

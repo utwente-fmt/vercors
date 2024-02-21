@@ -286,7 +286,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     case deref @ Deref(obj, Ref(field)) =>
       SilverDeref[Post](dispatch(obj), fieldSucc.ref(field))(deref.blame)(deref.o)
     case TypeValue(t) => t match {
-      case TClass(Ref(cls)) => const(typeNumber(cls))(e.o)
+      case TClass(Ref(cls), Seq()) => const(typeNumber(cls))(e.o)
       case other => ???
     }
     case TypeOf(value) => FunctionInvocation[Post](typeOf.ref(()), Seq(dispatch(value)), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing"))(e.o)
@@ -311,7 +311,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(t: Type[Pre]): Type[Post] = t match {
-    case TClass(_) => TRef()
+    case TClass(_, _) => TRef()
     case TAnyClass() => TRef()
     case t => rewriteDefault(t)
   }

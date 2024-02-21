@@ -51,7 +51,8 @@ object Types {
     case (TType(left), TType(right)) =>
       TType(leastCommonSuperType(left, right))
 
-    case (TClass(left), TClass(right)) =>
+    case (TClass(left, Seq()), TClass(right, Seq())) =>
+      // TODO (RR): Not sure how generics factor into this part... See also: next match statement
       val leftArrows = left.decl.transSupportArrows
       val rightArrows = right.decl.transSupportArrows
       // Shared support are classes where there is an incoming left-arrow and right-arrow
@@ -63,11 +64,11 @@ object Types {
       val classes = (shared.toSet -- nonBottom.toSet).toSeq
       classes match {
         case Nil => TAnyClass()
-        case Seq(t) => TClass(t.ref)
-        case other => TUnion(other.map(cls => TClass(cls.ref)))
+        case Seq(t) => TClass(t.ref, Seq())
+        case other => TUnion(other.map(cls => TClass(cls.ref, Seq())))
       }
 
-    case (TClass(_), TAnyClass()) | (TAnyClass(), TClass(_)) =>
+    case (TClass(_, _), TAnyClass()) | (TAnyClass(), TClass(_, _)) =>
       TAnyClass()
 
     // TODO similar stuff for JavaClass

@@ -179,7 +179,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case CoerceSelectUnion(inner, _, _, _) => applyCoercion(e, inner)
 
       case CoerceSupports(_, _) => e
-      case CoerceClassAnyClass(_) => e
+      case CoerceClassAnyClass(_, _) => e
       case CoerceJavaSupports(_, _) => e
       case CoerceJavaClassAnyClass(_) => e
       case CoerceCPrimitiveToCol(_, _) => e
@@ -188,7 +188,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case CoerceColToCPPPrimitive(_, _) => e
       case CoerceNullRef() => e
       case CoerceNullArray(_) => e
-      case CoerceNullClass(_) => e
+      case CoerceNullClass(_, _) => e
       case CoerceNullJavaClass(_) => e
       case CoerceNullAnyClass() => e
       case CoerceNullPointer(_) => e
