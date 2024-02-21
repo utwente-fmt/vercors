@@ -1,0 +1,7 @@
+package vct.test.integration.examples
+
+import vct.test.integration.helper.VercorsSpec
+
+class GenericsExamplesSpec() extends VercorsSpec {
+  vercors should verify using silicon example "concepts/generics/genericProcedure.pvl"
+}

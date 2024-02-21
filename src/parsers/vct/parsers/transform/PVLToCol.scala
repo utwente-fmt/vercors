@@ -73,19 +73,31 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convertProcedure(implicit method: MethodContext): Procedure[G] = method match {
-    case Method0(contract, modifiers, returnType, name, _, args, _, body) =>
+    case Method0(contract, modifiers, returnType, name, typeArgs, _, args, _, body) =>
       withModifiers(modifiers, mods => withContract(contract, contract => {
         new Procedure(
           convert(returnType),
           args.map(convert(_)).getOrElse(Nil),
           outArgs = Nil,
-          typeArgs = Nil,
+          typeArgs = typeArgs.map(convert(_)).getOrElse(Nil),
           convert(body),
           contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
           pure = mods.consume(mods.pure),
         )(blame(method))(origin(method).sourceName(convert(name)))
       }))
+  }
+
+  def convert(implicit names: TypeVarsContext): Seq[Variable[G]] = names match {
+    case TypeVars0(_, names, _) => convertVars(names)
+  }
+
+  def typeVar(identifier: IdentifierContext): Variable[G] =
+    new Variable(TType(TAnyValue()))(origin(identifier).sourceName(convert(identifier)))
+
+  def convertVars(implicit ids: IdentifierListContext): Seq[Variable[G]] = ids match {
+    case IdentifierList0(identifier) => Seq(typeVar(identifier))
+    case IdentifierList1(identifier, _, identifiers) => typeVar(identifier) +: convertVars(identifiers)
   }
 
   def convert(implicit cls: DeclClassContext): GlobalDeclaration[G] = cls match {
@@ -108,7 +120,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit method: MethodContext): InstanceMethod[G] = method match {
-    case Method0(contract, modifiers, returnType, name, _, args, _, body) =>
+    case Method0(contract, modifiers, returnType, name, None, _, args, _, body) =>
       withModifiers(modifiers, mods => withContract(contract, contract => {
         new InstanceMethod(
           convert(returnType),
@@ -121,6 +133,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
           pure = mods.consume(mods.pure),
         )(blame(method))(origin(method).sourceName(convert(name)))
       }))
+    case Method0(contract, modifiers, returnType, name, Some(_), _, args, _, body) => ??(method)
   }
 
   def convert(implicit body: MethodBodyContext): Option[Statement[G]] = body match {
