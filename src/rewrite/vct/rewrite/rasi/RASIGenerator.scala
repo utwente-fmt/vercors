@@ -40,10 +40,7 @@ case class RASIGenerator[G]() {
 
   private def get_initial_values(vars: Set[ConcreteVariable[G]]): Map[ConcreteVariable[G], UncertainValue] = {
     // TODO: Should this be uncertain or should it be defined (e.g. 0/false)?
-    Map.from(vars.map(v => (v, v.t match {
-      case _: IntType[_] => UncertainIntegerValue.uncertain()
-      case _: TBool[_] => UncertainIntegerValue.uncertain()
-    })))
+    Map.from(vars.map(v => (v, UncertainValue.uncertain_of(v.t))))
   }
 
   private def reduce_redundant_states(): (Seq[AbstractState[G]], Seq[(AbstractState[G], AbstractState[G])]) = {

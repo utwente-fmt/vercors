@@ -1,6 +1,7 @@
 package vct.rewrite.rasi
 
 import vct.col.ast._
+import vct.col.util.AstBuildHelpers
 import vct.rewrite.cfg.CFGEntry
 
 import scala.collection.immutable.HashMap
@@ -15,14 +16,21 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   def without_process(process: AbstractProcess[G]): AbstractState[G] =
     AbstractState(valuations, processes.removed(process), lock)
 
+  def locked_by(process: AbstractProcess[G]): AbstractState[G] = AbstractState(valuations, processes, Some(process))
+
+  def unlocked(): AbstractState[G] = AbstractState(valuations, processes, None)
+
   def with_valuation(variable: Expr[G], value: UncertainValue): AbstractState[G] = variable_from_expr(variable) match {
     case Some(concrete_variable) => AbstractState(valuations + (concrete_variable -> value), processes, lock)
     case None => this
   }
 
-  def locked_by(process: AbstractProcess[G]): AbstractState[G] = AbstractState(valuations, processes, Some(process))
+  def with_assumption(assumption: Expr[G]): AbstractState[G] = ???    // TODO: Implement!
 
-  def unlocked(): AbstractState[G] = AbstractState(valuations, processes, None)
+  def with_postcondition(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]]): AbstractState[G] =
+    with_assumption(unify_expression(AstBuildHelpers.unfoldPredicate(post).reduce((e1, e2) => Star(e1, e2)(e1.o)), args))
+
+  private def unify_expression(cond: Expr[G], args: Map[Variable[G], Expr[G]]): Expr[G] = cond   // TODO: Consider arguments!
 
   def resolve_expression(expr: Expr[G]): UncertainValue = expr.t match {
     case _: IntType[_] => resolve_integer_expression(expr)

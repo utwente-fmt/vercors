@@ -1,6 +1,6 @@
 package vct.rewrite.rasi
 
-import vct.col.ast.{BooleanValue, Expr, Not}
+import vct.col.ast.{BooleanValue, Expr, IntType, Not, TBool, Type}
 
 trait UncertainValue {
   def can_be_equal(other: UncertainValue): Boolean
@@ -8,6 +8,12 @@ trait UncertainValue {
   def to_expression[G](variable: Expr[G]): Expr[G]
   def ==(other: UncertainValue): UncertainBooleanValue
   def !=(other: UncertainValue): UncertainBooleanValue
+}
+case object UncertainValue {
+  def uncertain_of(t: Type[_]): UncertainValue = t match {
+    case _: IntType[_] => UncertainIntegerValue.uncertain()
+    case _: TBool[_] => UncertainBooleanValue.uncertain()
+  }
 }
 
 case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) extends UncertainValue {
