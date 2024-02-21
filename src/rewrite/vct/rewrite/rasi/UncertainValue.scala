@@ -49,6 +49,10 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
                           can_be_true && other.can_be_false || can_be_false && other.can_be_true)
   def !=(other: UncertainBooleanValue): UncertainBooleanValue = this ^ other
 }
+case object UncertainBooleanValue {
+  def from(bool: Boolean): UncertainBooleanValue = UncertainBooleanValue(bool, !bool)
+  def uncertain(): UncertainBooleanValue = UncertainBooleanValue(can_be_true = true, can_be_false = true)
+}
 
 case class UncertainIntegerValue(value: Interval) extends UncertainValue {
   override def can_be_equal(other: UncertainValue): Boolean = other match {

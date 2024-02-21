@@ -3,73 +3,54 @@ package vct.rewrite.rasi
 import vct.col.ast._
 import vct.rewrite.cfg.{CFGEdge, CFGEntry, CFGNode, CFGTerminal}
 
+import scala.collection.mutable
+
 case class AbstractProcess[G](name: String) {
   def get_next(node: CFGEntry[G], state: AbstractState[G]): Set[AbstractState[G]] = node match {
-    case CFGTerminal() => Set()
-    case CFGNode(n, succ) => succ.filter(e => e.condition.isEmpty || state.resolve_boolean_expression(e.condition.get).can_be_true)
-                                 .map(e => process_cfg_edge(e, n, state)).toSet
+    case CFGTerminal() => Set(state.without_process(this))
+    case CFGNode(n, succ) => n match {
+      // Assign statements change the state of variables directly (if they appear in the valuation)
+      case Assign(target, value) => viable_edges(succ, state).map(e => take_edge(e, state.with_valuation(target, state.resolve_expression(value))))
+      case Havoc(loc) => viable_edges(succ, state).map(e => take_edge(e, state.with_valuation(loc, loc.t match {
+        case _: IntType[_] => UncertainIntegerValue.uncertain()
+        case _: TBool[_] => UncertainBooleanValue.uncertain()
+      })))
+      // TODO: Consider state changes by specifications
+      case Assume(assn) => viable_edges(succ, state).map(e => take_edge(e, state))
+      case Inhale(res) => viable_edges(succ, state).map(e => take_edge(e, state))
+      case InvokeProcedure(ref, _, _, _, _, _) => viable_edges(succ, state).map(e => take_edge(e, state))
+      case InvokeConstructor(ref, _, _, _, _, _, _) => viable_edges(succ, state).map(e => take_edge(e, state))
+      case InvokeMethod(_, ref, _, _, _, _, _) => viable_edges(succ, state).map(e => take_edge(e, state))
+      // TODO: What do wait and notify do?
+      case Wait(obj) => viable_edges(succ, state).map(e => take_edge(e, state))
+      case Notify(obj) => viable_edges(succ, state).map(e => take_edge(e, state))
+      // Lock and Unlock manipulate the global lock and are potentially blocking      TODO: Differentiate between locks!
+      case Lock(_) => state.lock match {
+        case Some(proc) => if (!proc.equals(this)) Set(state)
+                           else throw new IllegalStateException("Trying to lock already acquired lock")
+        case None => viable_edges(succ, state).map(e => take_edge(e, state).locked_by(this))
+      }
+      case Unlock(_) => state.lock match {
+        case Some(proc) => if (proc.equals(this)) viable_edges(succ, state).map(e => take_edge(e, state).unlocked())
+                           else throw new IllegalStateException("Trying to unlock lock owned by other process")
+        case None => throw new IllegalStateException("Trying to unlock unlocked lock")
+      }
+      // When forking a new process, make the step of creating it simultaneously to the normal steps    TODO: consider join
+      case Fork(obj) =>
+        val edges: (Set[CFGEdge[G]], Set[CFGEdge[G]]) = viable_edges(succ, state).partition(e => e.target match {
+          case CFGTerminal() => false
+          case CFGNode(t, _) => t.equals(obj.t.asClass.get.cls.decl.declarations.collect{ case r: RunMethod[G] => r }.head.body.get)
+        })
+        edges._2.map(e => take_edge(e, state.with_process_at(AbstractProcess(s"${name}_${obj.toInlineString}"), edges._1.head.target)))
+      case Join(obj) => viable_edges(succ, state).map(e => take_edge(e, state))
+      // Everything else does not affect the state, so simply go to the next step
+      case _ => viable_edges(succ, state).map(e => take_edge(e, state))
+    }
   }
 
-  private def process_cfg_edge(edge: CFGEdge[G], ast_node: Node[G], state: AbstractState[G]): AbstractState[G] = ast_node match {
-    // TODO: Implement!
-    case Assign(target, value) => state.with_valuation(target, state.resolve_expression(value))
-    case Exhale(res) => ???
-    case Assert(res) => ???
-    case Refute(assn) => ???
-    case Inhale(res) => ???
-    case Assume(assn) => ???
-    case Instantiate(_, out) => ???
-    case Wait(_) => ???
-    case Notify(_) => ???
-    case Fork(obj) => ???   // TODO: This needs to be decided in the outer method...
-    case Join(_) => ???
-    case Lock(_) => ???
-    case Unlock(_) => ???
-    case Commit(_) => ???
-    case Fold(res) => ???
-    case Unfold(res) => ???
-    case WandApply(res) => ???
-    case Havoc(_) => ???
-    case FramedProof(_, _, _) => ???
-    case Extract(_) => ???
-    case Eval(_) => ???
-    case Return(result) => ???
-    case Throw(obj) => ???
-    case Break(label) => ???
-    case Continue(label) => ???
-    case InvokeProcedure(_, _, _, _, _, _) => ???
-    case InvokeConstructor(_, _, _, _, _, _, _) => ???
-    case InvokeMethod(_, _, _, _, _, _, _) => ???
-    case Block(_) => ???
-    case Scope(_, _) => ???
-    case Branch(_) => ???
-    case IndetBranch(branches) => ???
-    case Switch(expr, body) => ???
-    case Loop(_, _, _, _, _) => ???
-    case RangedFor(_, _, _) => ???
-    case TryCatchFinally(_, _, _) => ???
-    case Synchronized(_, _) => ???
-    case ParInvariant(_, _, _) => ???
-    case ParAtomic(_, _) => ???
-    case ParBarrier(_, _, _, _, _) => ???
-    case ParStatement(_) => ???
-    case VecBlock(_, _, _, _) => ???
-    case WandPackage(_, _) => ???
-    case ModelDo(_, _, _, _, _) => ???
-    case CDeclarationStatement(_) => ???
-    case CGoto(label) => ???
-    case CPPDeclarationStatement(_) => ???
-    case CPPLifetimeScope(_) => ???
-    case JavaLocalDeclarationStatement(_) => ???
-    case SilverNewRef(_, _) => ???
-    case SilverFieldAssign(_, _, value) => ???
-    case SilverLocalAssign(_, value) => ???
-    case PVLCommunicate(_, _) => ???
-    case PVLSeqAssign(_, _, value) => ???
-    case Communicate(_, _) => ???
-    case SeqAssign(_, _, value) => ???
-    case UnresolvedSeqBranch(branches) => ???
-    case UnresolvedSeqLoop(_, _, _) => ???
-    case _ => state.with_process_at(this, edge.target)
-  }
+  private def viable_edges(edges: mutable.Set[CFGEdge[G]], state: AbstractState[G]): Set[CFGEdge[G]] =
+    edges.filter(e => e.condition.isEmpty || state.resolve_boolean_expression(e.condition.get).can_be_true).toSet
+
+  private def take_edge(edge: CFGEdge[G], state: AbstractState[G]): AbstractState[G] =
+    state.with_process_at(this, edge.target)
 }
