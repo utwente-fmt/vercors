@@ -1,6 +1,6 @@
 package vct.col.ast.declaration.global
 
-import vct.col.ast.Class
+import vct.col.ast.{Class, Declaration}
 import vct.col.ast.util.Declarator
 import vct.col.print._
 import vct.col.util.AstBuildHelpers.tt
@@ -14,6 +14,8 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] { this: Class[G] =>
       supports.flatMap(other => other.decl.transSupportArrows(Set(this) ++ seen))
 
   def transSupportArrows: Seq[(Class[G], Class[G])] = transSupportArrows(Set.empty)
+
+  override def declarations: Seq[Declaration[G]] = decls ++ typeArgs
 
   def layoutLockInvariant(implicit ctx: Ctx): Doc =
     Text("lock_invariant") <+> intrinsicLockInvariant <+/> Empty

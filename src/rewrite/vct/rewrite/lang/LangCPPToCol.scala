@@ -891,7 +891,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Create the surrounding class
     val postEventClass = new Class[Post](
       typeArgs = Seq(),
-      declarations = currentKernelType.get.getRangeFields ++ accessors.flatMap(acc => acc.instanceField +: acc.rangeIndexFields) ++ Seq(kernelRunner),
+      decls = currentKernelType.get.getRangeFields ++ accessors.flatMap(acc => acc.instanceField +: acc.rangeIndexFields) ++ Seq(kernelRunner),
       supports = Seq(),
       intrinsicLockInvariant = tt
     )(commandGroup.o.where(name = "SYCL_EVENT_CLASS"))

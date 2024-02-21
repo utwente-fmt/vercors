@@ -128,11 +128,11 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
       currentClass.having(cls) {
         currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {
           val decls = classDeclarations.collect {
-            cls.declarations.foreach(dispatch)
+            cls.decls.foreach(dispatch)
             pvl.maybeDeclareDefaultConstructor(cls)
           }._1
 
-          globalDeclarations.succeed(cls, cls.rewrite(declarations = decls))
+          globalDeclarations.succeed(cls, cls.rewrite(decls = decls))
         }
       }
 

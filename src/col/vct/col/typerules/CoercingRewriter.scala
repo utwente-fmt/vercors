@@ -1572,7 +1572,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case dataType: AxiomaticDataType[Pre] =>
         dataType
       case clazz: Class[Pre] =>
-        new Class[Pre](clazz.typeArgs, clazz.declarations, clazz.supports, res(clazz.intrinsicLockInvariant))
+        new Class[Pre](clazz.typeArgs, clazz.decls, clazz.supports, res(clazz.intrinsicLockInvariant))
       case enum: Enum[Pre] =>
         enum
       case enumConstant: EnumConstant[Pre] =>

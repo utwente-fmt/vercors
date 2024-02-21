@@ -104,7 +104,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case DeclClass0(contract, _, name, typeArgs, _, decls, _) =>
       withContract(contract, contract => {
         new Class(
-          declarations = decls.flatMap(convert(_)),
+          decls = decls.flatMap(convert(_)),
           supports = Nil,
           intrinsicLockInvariant = AstBuildHelpers.foldStar(contract.consume(contract.lock_invariant)),
           typeArgs = typeArgs.map(convert(_)).getOrElse(Nil)

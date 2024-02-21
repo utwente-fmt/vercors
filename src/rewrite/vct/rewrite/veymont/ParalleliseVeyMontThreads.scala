@@ -86,7 +86,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
   private def dispatchGivenClass(c: Class[Pre]): Class[Post] = {
     val rw = GivenClassRewriter()
     val gc = c.rewrite(
-      declarations = classDeclarations.collect {
+      decls = classDeclarations.collect {
         (givenClassConstrSucc.get(TClass(c.ref)).get +: c.declarations).foreach(d => rw.dispatch(d))
       }._1
     )(rw)

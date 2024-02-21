@@ -112,9 +112,11 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] =>
+      if(cls.typeArgs.nonEmpty) throw vct.result.VerificationError.Unreachable("Class type parameters should be encoded using monomorphization earlier")
+
       typeNumber(cls)
       cls.drop()
-      cls.declarations.foreach {
+      cls.decls.foreach {
         case function: InstanceFunction[Pre] =>
           implicit val o: Origin = function.o
           val thisVar = new Variable[Post](TRef())(This)
@@ -220,7 +222,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   def instantiate(cls: Class[Pre], target: Ref[Post, Variable[Post]])(implicit o: Origin): Statement[Post] = {
     Block(Seq(
-      SilverNewRef[Post](target, cls.declarations.collect { case field: InstanceField[Pre] => fieldSucc.ref(field) }),
+      SilverNewRef[Post](target, cls.decls.collect { case field: InstanceField[Pre] => fieldSucc.ref(field) }),
       Inhale(FunctionInvocation[Post](typeOf.ref(()), Seq(Local(target)), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing.")) === const(typeNumber(cls))),
     ))
   }

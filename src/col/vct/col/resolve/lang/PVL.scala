@@ -10,7 +10,7 @@ case object PVL {
   def findConstructor[G](t: Type[G], args: Seq[Expr[G]]): Option[PVLConstructorTarget[G]] =
     t match {
       case TClass(Ref(cls)) =>
-        val resolvedCons = cls.declarations.collectFirst {
+        val resolvedCons = cls.decls.collectFirst {
           case cons: PVLConstructor[G] if Util.compat(args, cons.args) => RefPVLConstructor(cons)
         }
 

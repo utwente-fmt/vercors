@@ -83,7 +83,7 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
 
     case NewObject(Ref(cls)) =>
       implicit val o: Origin = e.o
-      cls.declarations.collectFirst {
+      cls.decls.collectFirst {
         case run: RunMethod[Pre] => run
       } match {
         case Some(_) =>

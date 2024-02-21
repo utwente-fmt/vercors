@@ -51,13 +51,13 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
   }
 
   def maybeDeclareDefaultConstructor(cls: Class[Pre]): Unit = {
-    if (cls.declarations.collectFirst { case _: PVLConstructor[Pre] => () }.isEmpty) {
+    if (cls.decls.collectFirst { case _: PVLConstructor[Pre] => () }.isEmpty) {
       implicit val o: Origin = cls.o
       val t = TClass[Post](rw.succ(cls))
       val `this` = ThisObject(rw.succ[Class[Post]](cls))
       val defaultBlame = PanicBlame("The postcondition of a default constructor cannot fail.")
 
-      val checkRunnable = cls.declarations.collectFirst {
+      val checkRunnable = cls.decls.collectFirst {
         case _: RunMethod[Pre] => ()
       }.nonEmpty
 
@@ -67,7 +67,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
         Some(Scope(Nil, Block(Nil))),
         ApplicableContract(
           UnitAccountedPredicate(tt),
-          UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.declarations.collect {
+          UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.decls.collect {
             case field: InstanceField[Pre] if field.flags.collectFirst { case _: Final[Pre] => () }.isEmpty && !veymontGeneratePermissions =>
               fieldPerm[Post](`this`, rw.succ(field), WritePerm())
           }) &* (if (checkRunnable) IdleToken(`this`) else tt)), tt, Nil, Nil, Nil, None,
