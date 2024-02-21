@@ -63,6 +63,11 @@ case object LangJavaToCol {
     override def code: String = decl.o.messageInContext("This declaration is not supported in the java.lang.String class")
     override def text: String = "notSupportedInStringClass"
   }
+
+  case class GenericJavaNotSupported(decl: JavaClassOrInterface[_]) extends UserError {
+    override def code: String = decl.o.messageInContext("Generic Java classes not supported")
+    override def text: String = "genericJavaClass"
+  }
 }
 
 case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -280,6 +285,10 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
 
+    if (cls.typeParams.nonEmpty) {
+      throw new GenericJavaNotSupported(cls)
+    }
+
     cls.decls.collect({
       case decl: JavaClassDeclaration[Pre] =>
         javaClassDeclToJavaClass(decl) = cls
@@ -301,7 +310,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       }
 
       val instanceClass = rw.currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {
-        new Class[Post](rw.classDeclarations.collect {
+        new Class[Post](Seq(), rw.classDeclarations.collect {
           makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
           cls match {
             case cls: JavaClass[Pre] if BipComponent.get(cls).isDefined =>
@@ -315,7 +324,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       javaInstanceClassSuccessor(cls) = instanceClass
 
       if(staticDecls.nonEmpty) {
-        val staticsClass = new Class[Post](rw.classDeclarations.collect {
+        val staticsClass = new Class[Post](Seq(), rw.classDeclarations.collect {
           rw.currentThis.having(ThisObject(javaStaticsClassSuccessor.ref(cls))) {
             makeJavaClass(cls.name + "Statics", staticDecls, javaStaticsClassSuccessor.ref(cls), isStaticPart = true)
           }

@@ -132,7 +132,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
             pvl.maybeDeclareDefaultConstructor(cls)
           }._1
 
-          globalDeclarations.succeed(cls, cls.rewrite(decls))
+          globalDeclarations.succeed(cls, cls.rewrite(declarations = decls))
         }
       }
 

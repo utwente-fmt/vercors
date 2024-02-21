@@ -11,7 +11,7 @@ programDecl : valGlobalDeclaration | declClass | enumDecl | method | declVeyMont
 enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
 
 declClass
- : contract 'class' identifier '{' classDecl* '}'
+ : contract 'class' identifier typeVars? '{' classDecl* '}'
  ;
 
 declVeyMontSeqProg : contract 'seq_program' identifier '(' args? ')' '{' seqProgDecl* '}';

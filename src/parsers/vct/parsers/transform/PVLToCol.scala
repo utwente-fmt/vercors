@@ -101,12 +101,13 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit cls: DeclClassContext): GlobalDeclaration[G] = cls match {
-    case DeclClass0(contract, _, name, _, decls, _) =>
+    case DeclClass0(contract, _, name, typeArgs, _, decls, _) =>
       withContract(contract, contract => {
         new Class(
           declarations = decls.flatMap(convert(_)),
           supports = Nil,
           intrinsicLockInvariant = AstBuildHelpers.foldStar(contract.consume(contract.lock_invariant)),
+          typeArgs = typeArgs.map(convert(_)).getOrElse(Nil)
         )(origin(cls).sourceName(convert(name)))
       })
   }
@@ -120,20 +121,19 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit method: MethodContext): InstanceMethod[G] = method match {
-    case Method0(contract, modifiers, returnType, name, None, _, args, _, body) =>
+    case Method0(contract, modifiers, returnType, name, typeArgs, _, args, _, body) =>
       withModifiers(modifiers, mods => withContract(contract, contract => {
         new InstanceMethod(
           convert(returnType),
           args.map(convert(_)).getOrElse(Nil),
           outArgs = Nil,
-          typeArgs = Nil,
+          typeArgs = typeArgs.map(convert(_)).getOrElse(Nil),
           convert(body),
           contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
           pure = mods.consume(mods.pure),
         )(blame(method))(origin(method).sourceName(convert(name)))
       }))
-    case Method0(contract, modifiers, returnType, name, Some(_), _, args, _, body) => ??(method)
   }
 
   def convert(implicit body: MethodBodyContext): Option[Statement[G]] = body match {

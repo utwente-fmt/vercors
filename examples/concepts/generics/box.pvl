@@ -1,0 +1,8 @@
+class Box<T> {
+  T t;
+  context Perm(t, 1\2);
+  ensures \result == t;
+  T get() {
+    return t;
+  }
+}

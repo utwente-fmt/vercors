@@ -827,7 +827,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     // Create a class that can be used to create a 'this' object
     // It will be linked to the class made near the end of this method.
-    val preEventClass: Class[Pre] = new Class(Nil, Nil, tt)(commandGroup.o)
+    val preEventClass: Class[Pre] = new Class(Nil, Nil, Nil, tt)(commandGroup.o)
     this.currentThis = Some(rw.dispatch(ThisObject[Pre](preEventClass.ref)(preEventClass.o)))
 
     // Generate conditions and accessor objects for each accessor declared in the command group
@@ -890,6 +890,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     // Create the surrounding class
     val postEventClass = new Class[Post](
+      typeArgs = Seq(),
       declarations = currentKernelType.get.getRangeFields ++ accessors.flatMap(acc => acc.instanceField +: acc.rangeIndexFields) ++ Seq(kernelRunner),
       supports = Seq(),
       intrinsicLockInvariant = tt

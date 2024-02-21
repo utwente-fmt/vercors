@@ -170,7 +170,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
     val threadConstr = createThreadClassConstructor(thread,threadRes.threadField)
     val threadRun = getThreadRunMethod(threadRes.runMethod)
     classDeclarations.scope {
-      val threadClass = new Class[Post](
+      val threadClass = new Class[Post](Seq(),
         (threadRes.threadField +: threadRes.channelFields.values.toSeq) ++ (threadConstr +: threadRun +: threadMethods), Seq(), BooleanValue(true)(thread.o))(ThreadClassOrigin(thread))
       globalDeclarations.declare(threadClass)
       threadClassSucc.update(thread, threadClass)

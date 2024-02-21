@@ -143,7 +143,8 @@ public class KnownTypeTransformer<T> {
 
         // Create the class
         java.util.List<ClassDeclaration<T>> declarations = java.util.List.of(m, buf, nr_read, written, constructor, fifo_read, fifo_write, fifo_update);
-        return new Class<>(List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE, o);
+        return new Class<>(List.from(CollectionConverters.asScala(new java.util.ArrayList(0))),
+                List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE, o);
     }
 
     /**
@@ -544,7 +545,8 @@ public class KnownTypeTransformer<T> {
 
         // Create the class
         java.util.List<ClassDeclaration<T>> class_content = java.util.List.of(m, val, _val, constructor, signal_read, signal_write, signal_update);
-        return new Class<>(List.from(CollectionConverters.asScala(class_content)), col_system.NO_CLS_REFS, col_system.TRUE, o);
+        return new Class<>(List.from(CollectionConverters.asScala(new java.util.ArrayList(0))),
+                List.from(CollectionConverters.asScala(class_content)), col_system.NO_CLS_REFS, col_system.TRUE, o);
     }
 
     /**

@@ -689,7 +689,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case CDeclaration(_, _, Seq(sdecl@CStructDeclaration(Some(_), decls)), Seq()) => (decls, sdecl)
       case _ => throw WrongStructType(decl)
     }
-    val newStruct = new Class[Post](rw.classDeclarations.collect {
+    val newStruct = new Class[Post](Seq(), rw.classDeclarations.collect {
         decls.foreach { fieldDecl =>
           val CStructMemberDeclarator(specs: Seq[CDeclarationSpecifier[Pre]], Seq(x)) = fieldDecl
           fieldDecl.drop()

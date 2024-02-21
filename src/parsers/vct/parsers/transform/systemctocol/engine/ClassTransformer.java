@@ -74,7 +74,8 @@ public class ClassTransformer<T> {
         // Add all newly generated methods to the declarations as well
         declarations.addAll(generated_instance_methods);
 
-        return new Class<>(List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE,
+        return new Class<>(List.from(CollectionConverters.asScala(new java.util.ArrayList(0))),
+                List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE,
                 OriGen.create(create_name(process.get_generating_instance(), process.get_generating_function())));
     }
 
@@ -124,7 +125,8 @@ public class ClassTransformer<T> {
         // Add newly generated methods to declaration list
         declarations.addAll(generated_instance_methods);
 
-        return new Class<>(List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE,
+        return new Class<>(List.from(CollectionConverters.asScala(new java.util.ArrayList(0))),
+                List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE,
                 OriGen.create(create_name(state_class.get_generating_instance())));
     }
 
