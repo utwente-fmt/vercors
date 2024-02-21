@@ -70,8 +70,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     }
     case Length(arr) => UncertainIntegerValue.above(0)    // TODO: Use contextual information from the global invariant
     case Size(obj) => UncertainIntegerValue.above(0)      //  here as well
-    case InvokeProcedure(_, _, _, _, _, _) => UncertainIntegerValue.uncertain()   // TODO: return value from procedure/method?
-    case InvokeMethod(_, _, _, _, _, _, _) => UncertainIntegerValue.uncertain()
+    case ProcedureInvocation(_, _, _, _, _, _) => UncertainIntegerValue.uncertain()   // TODO: return value from procedure/method?
+    case MethodInvocation(_, _, _, _, _, _, _) => UncertainIntegerValue.uncertain()
   }
 
   def resolve_boolean_expression(expr: Expr[G]): UncertainBooleanValue = expr match {
@@ -81,8 +81,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case And(left, right) => resolve_boolean_expression(left) && resolve_boolean_expression(right)
     case Or(left, right) => resolve_boolean_expression(left) || resolve_boolean_expression(right)
     case Implies(left, right) => (!resolve_boolean_expression(left)) || resolve_boolean_expression(right)
-    case Eq(left, right) => resolve_integer_expression(left) == resolve_integer_expression(right)
-    case Neq(left, right) => resolve_integer_expression(left) != resolve_integer_expression(right)
+    case Eq(left, right) => resolve_expression(left) == resolve_expression(right)
+    case Neq(left, right) => resolve_expression(left) != resolve_expression(right)
     case AmbiguousGreater(left, right) => resolve_integer_expression(left) > resolve_integer_expression(right)
     case AmbiguousLess(left, right) => resolve_integer_expression(left) < resolve_integer_expression(right)
     case AmbiguousGreaterEq(left, right) => resolve_integer_expression(left) >= resolve_integer_expression(right)
@@ -102,8 +102,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
       case Some(v) => valuations(v).asInstanceOf[UncertainBooleanValue]
       case None => UncertainBooleanValue.uncertain()
     }
-    case InvokeProcedure(_, _, _, _, _, _) => UncertainBooleanValue.uncertain()   // TODO: return value from procedure/method?
-    case InvokeMethod(_, _, _, _, _, _, _) => UncertainBooleanValue.uncertain()
+    case ProcedureInvocation(_, _, _, _, _, _) => UncertainBooleanValue.uncertain()   // TODO: return value from procedure/method?
+    case MethodInvocation(_, _, _, _, _, _, _) => UncertainBooleanValue.uncertain()
   }
 
   private def variable_from_expr(variable: Expr[G]): Option[ConcreteVariable[G]] = {

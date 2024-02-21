@@ -6,6 +6,8 @@ trait UncertainValue {
   def can_be_equal(other: UncertainValue): Boolean
   def can_be_unequal(other: UncertainValue): Boolean
   def to_expression[G](variable: Expr[G]): Expr[G]
+  def ==(other: UncertainValue): UncertainBooleanValue
+  def !=(other: UncertainValue): UncertainBooleanValue
 }
 
 case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) extends UncertainValue {
@@ -24,6 +26,16 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
     else if (can_be_true) variable
     else if (can_be_false) Not(variable)(variable.o)
     else BooleanValue(value = false)(variable.o)
+  }
+
+  override def ==(other: UncertainValue): UncertainBooleanValue = other match {
+    case b: UncertainBooleanValue => this == b
+    case _ => UncertainBooleanValue.from(false)
+  }
+
+  override def !=(other: UncertainValue): UncertainBooleanValue = other match {
+    case b: UncertainBooleanValue => this != b
+    case _ => UncertainBooleanValue.from(true)
   }
 
   def try_to_resolve(): Option[Boolean] = {
@@ -66,6 +78,16 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
   }
 
   override def to_expression[G](variable: Expr[G]): Expr[G] = value.to_expression(variable)
+
+  override def ==(other: UncertainValue): UncertainBooleanValue = other match {
+    case i: UncertainIntegerValue => this == i
+    case _ => UncertainBooleanValue.from(false)
+  }
+
+  override def !=(other: UncertainValue): UncertainBooleanValue = other match {
+    case i: UncertainIntegerValue => this != i
+    case _ => UncertainBooleanValue.from(true)
+  }
 
   def try_to_resolve(): Option[Int] = value.try_to_resolve()
 
