@@ -76,6 +76,7 @@ case object Stages {
     Parsing.ofOptions(options, blameProvider)
       .thenRun(Resolution.ofOptions(options, blameProvider))
       .thenRun(Transformation.runtimeTransformationOfOptions(options))
+      .thenRun(CodeGeneration.runtimeGenerationOfOptions(options))
       .thenRun(Output.runtimeOfOptions(options))
   }
 

@@ -53,12 +53,12 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     val newInstanceField: InstanceField[Post] = new InstanceField[Post](
       TArray(TAnyClass()),
       Set.empty
-    )(DiagnosticOrigin.addPrefName("data"))
+    )(DiagnosticOrigin.addPrefName("data").addDataObjectClass())
     classDeclarations.declare(newInstanceField)
   }
 
   def createSetData(mbh: DataMethodBuilderHelper[Post]): Unit = {
-    implicit val o: Origin = DiagnosticOrigin
+    implicit val o: Origin = DiagnosticOrigin.addDataObjectClass()
     val input = new Variable[Post](TArray[Post](TAnyClass[Post]()))(o.addPrefName("data"))
     val assign = Assign[Post](Deref[Post](ThisObject[Post](mbh.refCls), mbh.dataField.get.ref)(null), input.get)(null)
     val body = Scope[Post](Nil, Block[Post](Seq(assign)))
@@ -66,7 +66,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def createPredicateObject(mbh: DataMethodBuilderHelper[Post]): Unit = {
-    implicit val o: Origin = DiagnosticOrigin
+    implicit val o: Origin = DiagnosticOrigin.addDataObjectClass()
     val input = new Variable[Post](TArray[Post](TAnyClass[Post]()))(o.addPrefName("data"))
     val newObject = new Variable[Post](TClass[Post](mbh.refCls))(o.addPrefName("object"))
     val assign = Assign[Post](newObject.get, NewObject(mbh.refCls))(null)
@@ -77,7 +77,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def createPredicateEquals(mbh: DataMethodBuilderHelper[Post]): Unit = {
-    implicit val o: Origin = DiagnosticOrigin
+    implicit val o: Origin = DiagnosticOrigin.addDataObjectClass()
     val input = new Variable[Post](TAnyClass[Post]())(o.addPrefName("obj"))
     val otherObject = new Variable[Post](TClass[Post](mbh.refCls))(o.addPrefName("otherObject"))
     val checkOne = Branch[Post](Seq((ThisObject[Post](mbh.refCls) === input.get, Return[Post](tt))))
@@ -92,7 +92,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def createPredicateHashCode(mbh: DataMethodBuilderHelper[Post]): Unit = {
-    implicit val o: Origin = DiagnosticOrigin
+    implicit val o: Origin = DiagnosticOrigin.addDataObjectClass()
     val ownDeref = Deref[Post](ThisObject[Post](mbh.refCls), mbh.dataField.get.ref)(null)
     val returnStat = Return[Post](ArraysHashCode[Post](ownDeref))
     val body = Scope[Post](Nil, Block[Post](Seq(returnStat)))

@@ -333,5 +333,5 @@ case class RuntimeTransformation(override val onBeforePassKey: Seq[(String, Veri
     CreateLocking,                //Create predicate instance for the Lock and use the constructor and synchronize keyword to check it
     CreateLoopInvariants,         //Create pre and post inside loop for all the specified conditions (maybe we can reuse code from the previous assertion checks) by making use of the RewriteContractExpr
     ForkJoinPermissionTransfer,   //Creates the permission transfer when a fork method occurs (when a start method is called)
-    GenerateJava                  //Generates valid java code so that it can be executed properly
+//    GenerateJava                  //Generates valid java code so that it can be executed properly
   ))

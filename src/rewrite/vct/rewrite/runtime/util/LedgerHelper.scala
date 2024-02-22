@@ -10,12 +10,6 @@ import scala.collection.mutable.ArrayBuffer
 
 object LedgerHelper {
 
-  val predicateBuffer = new ArrayBuffer[String]
-  def registerPredicate(ip: InstancePredicate[_]) : Unit = predicateBuffer.addOne(ip.o.getPreferredNameOrElse())
-  def predicateId(ip: InstancePredicate[_]): Int = predicateBuffer.indexOf(ip.o.getPreferredNameOrElse())
-
-
-
   def findNumberInstanceField[G](program: Program[G], instanceField: InstanceField[G]): Option[Int] = {
     program
       .declarations
@@ -249,7 +243,7 @@ object LedgerHelper {
         body,
         ApplicableContract.createEmptyContract,
         static = static
-      )(null)(DiagnosticOrigin.addPrefName(methodName).addLedgerClass())
+      )(null)(DiagnosticOrigin.addPrefName(methodName).addDataObjectClass())
     }
   }
 

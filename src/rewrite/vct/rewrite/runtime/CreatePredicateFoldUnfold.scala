@@ -7,7 +7,6 @@ import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, LedgerRewriter}
 import vct.rewrite.runtime.util.TransferPermissionRewriter
-import vct.rewrite.runtime.util.Util.{InstancePredicateData}
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
 
@@ -76,7 +75,7 @@ case class CreatePredicateFoldUnfold[Pre <: Generation]() extends Rewriter[Pre] 
     val dispatchedArgs: Seq[Expr[Post]] = allArgs.map(dispatch)
     val newObject = CreateObjectArray[Post](dispatchedArgs)
     val mi: Eval[Post] = Eval[Post](ledger.miUnfoldPredicate(newObject).get)
-    Block[Post](Seq(addStatements, mi))
+    Block[Post](Seq(mi, addStatements))
   }
 
 }

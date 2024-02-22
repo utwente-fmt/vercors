@@ -24,7 +24,7 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
   implicit var program: Program[Pre] = _
   implicit var ledger: LedgerMethodBuilderHelper[Post] = _
   val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
-  val loopContract: ScopedStack[LoopContract[Pre]] = new ScopedStack()
+  val loopContract: ScopedStack[() => Statement[Post]] = new ScopedStack()
 
 
 
@@ -49,37 +49,25 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
 
 
   def dispatchLoopContract(lc: LoopContract[Pre]): Statement[Post] = {
-    lc match {
-      case li: LoopInvariant[Pre] => {
-        val injectivityMap = findClosestInjectivityMap(variables.freeze)
-        val contract = li.invariant
-        val pd: PermissionData[Pre] = PermissionData().setOuter(this).setCls(currentClass.top).setLedger(ledger).setInjectivityMap(injectivityMap)
-        RewriteContractExpr[Pre](pd).createAssertions(contract)
-      }
-      case _ => Block[Post](Seq.empty)(lc.o)
-    }
+    val injectivityMap = findClosestInjectivityMap(variables.freeze)
+    val pd: PermissionData[Pre] = PermissionData().setOuter(this).setCls(currentClass.top).setLedger(ledger).setInjectivityMap(injectivityMap)
+    RewriteContractExpr[Pre](pd).createAssertions(lc.asInstanceOf[LoopInvariant[Pre]].invariant)
   }
 
   def dispatchLoop(l: Loop[Pre]): Statement[Post] = {
     implicit val o: Origin = l.o
-    val loopContractPre: Statement[Post] = dispatchLoopContract(l.contract)
-    val loopContractPost: Statement[Post] = dispatchLoopContract(l.contract)
-    val rewrittenBody: Statement[Rewritten[Pre]] = loopContract.having(l.contract){dispatch(l.body)}
-    val newBody = Block[Post](Seq(loopContractPre, rewrittenBody, loopContractPost))
-    l.rewrite(body = newBody, contract = LoopInvariant[Post](tt[Post], None)(null))
+    loopContract.having(() => dispatchLoopContract(l.contract)) {
+      val newBody = Block[Post](Seq(loopContract.top(), dispatch(l.body), loopContract.top()))
+      l.rewrite(body = newBody, contract = LoopInvariant[Post](tt[Post], None)(null))
+    }
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
     stat match {
       case l: Loop[Pre] => dispatchLoop(l)
-      case b: Block[Pre] => dispatchBlock(b)
-      case r: Return[Pre] if loopContract.nonEmpty => Block[Post](Seq(dispatchLoopContract(loopContract.top), super.dispatch(stat)))(r.o)
+      case r@(_:Return[Pre] | _:Continue[Pre] | _:Break[Pre] ) if loopContract.nonEmpty => Block[Post](Seq(loopContract.top(), super.dispatch(stat)))(r.o)
       case _ => super.dispatch(stat)
     }
   }
 
-
-  def dispatchBlock(b: Block[Pre]): Block[Post] = {
-    b.rewrite()
-  }
 }

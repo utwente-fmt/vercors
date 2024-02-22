@@ -77,51 +77,6 @@ object Util {
     }
   }
 
-
-  case class InstancePredicateData[G](ipa: InstancePredicateApply[G], cls: Class[G], ip: InstancePredicate[G], predicateClass: Class[G], args: Seq[Expr[G]])(implicit program: Program[G]) {
-    def createMethodInvocation(methodName: String)(implicit origin: Origin): MethodInvocation[G] = {
-      val instanceMethod: InstanceMethod[G] = findInstancePredicateFunction[G](predicateClass, methodName)
-      val staticRef = StaticClassRef[G](predicateClass.ref)(predicateClass.o)
-      MethodInvocation[G](
-        staticRef,
-        instanceMethod.ref,
-        args,
-        Seq.empty,
-        Seq.empty,
-        Seq.empty,
-        Seq.empty
-      )(null)
-    }
-  }
-
-//  def findInstancePredicateData[G](ipa: InstancePredicateApply[G])(implicit program: Program[G]) : InstancePredicateData[G] = {
-//    val cls: Class[G] = ipa.obj.t.asInstanceOf[TClass[G]].cls.decl
-//    val ip: InstancePredicate[G] = ipa.ref.decl
-//    val predicateClass: Class[G] = findInstancePredicateClass[G](cls, ip)
-//    val args: Seq[Expr[G]] = ipa.args :+ ipa.obj
-//    InstancePredicateData[G](ipa, cls, ip, predicateClass, args)
-//  }
-
-//  def findInstancePredicateClass[G](cls: Class[G], ip: InstancePredicate[G])(implicit program: Program[G]) : Class[G] = {
-//    val allClasses = program.declarations.collect{case c: Class[G] => c}
-//    val allOrigins = allClasses.map(c => c.o.getInstancePredicateClassRuntime)
-//    allClasses.zip(allOrigins).collectFirst{
-//      case (c: Class[G], Some(InstancePredicateClassRuntime(a, b))) if a == cls.o.getPreferredNameOrElse() && b == ip.o.getPreferredNameOrElse() => c
-//    }.get
-//  }
-
-  def findInstancePredicateFunction[G](cls: Class[G], name: String)(implicit program: Program[G]) : InstanceMethod[G] = {
-    cls.declarations.collectFirst{case im: InstanceMethod[G] if im.o.getPreferredNameOrElse() == name => im}.get
-  }
-
-  def findAllDerefs[G](d: Deref[G]) : Seq[Deref[G]] = {
-    d.obj match {
-      case d2: Deref[G] => Seq(d) ++ findAllDerefs(d2)
-      case _ => Seq(d)
-    }
-  }
-
-
   def permissionToRuntimeValue[G](perm: Perm[G])(implicit origin: Origin): Expr[G] = {
     permissionToRuntimeValue(perm.perm)
   }
@@ -134,14 +89,6 @@ object Util {
       case d: FloorDiv[G] => RuntimeFractionDiff[G](d.left, d.right)
       case IntegerValue(n: BigInt) if n == 1 => RuntimeFractionOne()
       case _ => expr
-    }
-  }
-
-  def createCheckPermission[Pre <: Generation](retrievedPermission: Expr[Rewritten[Pre]], permission: Perm[Pre])(implicit origin: Origin): Expr[Rewritten[Pre]] = {
-    val newValue = permissionToRuntimeValueRewrite(permission)
-    permission.perm match {
-      case _: ReadPerm[Pre] => retrievedPermission > newValue
-      case _ => retrievedPermission === newValue
     }
   }
 

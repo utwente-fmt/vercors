@@ -271,7 +271,9 @@ final class InstanceMethod[G](val returnType: Type[G],
                               val contract: ApplicableContract[G],
                               val inline: Boolean = false,
                               val pure: Boolean = false,
-                              val static: Boolean = false
+                              val static: Boolean = false,
+//                              val public: Boolean = false,
+//                              val overriding: Boolean = false
                              )
                              (val blame: Blame[CallableFailure])(implicit val o: Origin)
   extends ClassDeclaration[G] with AbstractMethod[G] with InstanceMethodImpl[G]

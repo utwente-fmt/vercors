@@ -26,6 +26,8 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
   val givenStatementBuffer: mutable.Buffer[Statement[Rewritten[Pre]]] = new ArrayBuffer()
   val currentClass: ScopedStack[Class[Pre]] = new ScopedStack()
   val currentContract: ScopedStack[AccountedPredicate[Pre]] = new ScopedStack()
+  val postConditions: ScopedStack[() =>  Statement[Post]] = new ScopedStack()
+
 
   val injectivityMap: ScopedStack[Variable[Post]] = new ScopedStack();
 
@@ -73,15 +75,15 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def dispatchMethodBlock(block: Block[Pre], im: InstanceMethod[Pre]): Block[Post] = {
-    val preConditionStatements = dispatchApplicableContractToAssert(im.contract.requires)
-    val postConditionStatements: () => Statement[Post] = () => dispatchApplicableContractToAssert(im.contract.ensures)
-    val originalStatements: Seq[Statement[Post]] = block.statements.map(dispatch)
-    val lastStatement: Option[Statement[Post]] = originalStatements.lastOption
-    implicit val origin: Origin = im.contract.ensures.o
-    val insertedPostConditions: Statement[Post] = addPostConditions(postConditionStatements, originalStatements)
-    lastStatement match {
-      case Some(_: Return[Post]) => Block[Post](Seq(preConditionStatements, insertedPostConditions))(block.o)
-      case _ => Block[Post](Seq(preConditionStatements, insertedPostConditions, postConditionStatements()))(block.o)
+    implicit val origin: Origin = block.o
+    val preConditionStatements: Statement[Post] = dispatchApplicableContractToAssert(im.contract.requires)
+    postConditions.having(() => dispatchApplicableContractToAssert(im.contract.ensures)){
+      val originalStatements: Seq[Statement[Post]] = block.statements.map(dispatch)
+      val lastStatement: Option[Statement[Post]] = originalStatements.lastOption
+      lastStatement match {
+        case Some(_: Return[Post]) => Block[Post](preConditionStatements +: originalStatements)
+        case _ => Block[Post](preConditionStatements +: originalStatements :+ postConditions.top())(block.o)
+      }
     }
   }
 
@@ -97,37 +99,15 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
       }
       case _ => ???
     }
-
   }
 
-  private def addPostConditions(postConditionStatement: () => Statement[Post], originalStatements: Seq[Statement[Post]])(implicit origin: Origin): Block[Post] = {
-    val newStatements = originalStatements.foldLeft[Seq[Statement[Post]]](Seq.empty[Statement[Post]]) {
-      case (statements: Seq[Statement[Post]], currentStatement: Return[Post]) => statements :+ postConditionStatement() :+ currentStatement
-      case (statements: Seq[Statement[Post]], loop: Loop[Post]) => statements :+ addPostConditionsLoop(postConditionStatement, loop)
-      case (statements: Seq[Statement[Post]], branch: Branch[Post]) => statements :+ addPostConditionsBranch(postConditionStatement, branch)
-      case (statements: Seq[Statement[Post]], currentStatement: Statement[Post]) => statements :+ currentStatement
-    }
-    Block[Post](newStatements)
-  }
-
-  private def addPostConditionsLoop(postConditionStatements: () => Statement[Post], loop: Loop[Post])(implicit origin: Origin): Loop[Post] = {
-    loop.body match {
-      case block: Block[Post] => {
-        val newBlock = addPostConditions(postConditionStatements, block.statements)
-        Loop[Post](loop.init, loop.cond, loop.update, loop.contract, newBlock)(loop.o)
-      }
-      case _ => ???
+  override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
+    val dispatched = super.dispatch(stat)
+    stat match {
+      case _:Return[Pre] if postConditions.nonEmpty => Block[Post](Seq(postConditions.top(), dispatched))(stat.o)
+      case _ => dispatched
     }
   }
 
-  private def addPostConditionsBranch(postConditionStatements: () => Statement[Post], branch: Branch[Post])(implicit origin: Origin): Branch[Post] = {
-    val updatedBranches = branch.branches.map(b => {
-      b._2 match {
-        case block: Block[Post] => (b._1, addPostConditions(postConditionStatements, block.statements))
-        case _ => b
-      }
-    })
-    Branch[Post](updatedBranches)(branch.o)
-  }
 }
 

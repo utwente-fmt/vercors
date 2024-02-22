@@ -6,5 +6,5 @@ import vct.col.print._
 trait RuntimeNewConcurrentHashMapImpl[G] {
   this: RuntimeNewConcurrentHashMap[G] =>
 
-  override def layout(implicit ctx: Ctx): Doc = Text("new") <+> t.show <> "()"
+  override def layout(implicit ctx: Ctx): Doc = Text("Collections.synchronizedMap(new WeakHashMap<>())")
 }
