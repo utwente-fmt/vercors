@@ -122,22 +122,15 @@ class Transformation
           case (key, action) => if (pass.key == key) action(result)
         }
 
-        println(s"Doing: ${pass.key}")
-
-        val old = result
         result = pass().dispatch(result)
-
-        println(s"Finished: ${pass.key}")
-
-        onAfterPassKey.foreach {
-          case (key, action) => if (pass.key == key) action(result)
-        }
-        val k = pass.key
-        println("ok")
 
         result.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
           case Nil => // ok
           case errors => throw TransformationCheckError(pass, errors)
+        }
+
+        onAfterPassKey.foreach {
+          case (key, action) => if (pass.key == key) action(result)
         }
 
         result = PrettifyBlocks().dispatch(result)

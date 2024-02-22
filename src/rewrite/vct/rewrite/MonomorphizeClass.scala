@@ -20,7 +20,7 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
   type Key = (Class[Pre], Seq[Type[Pre]])
   case class InstantiationContext(cls: Class[Pre],
                                   typeValues: Seq[Type[Pre]],
-                                  removeBodies: Boolean,
+                                  keepBodies: Boolean,
                                   substitutions: Map[TVar[Pre], Type[Pre]]
                                   ) {
     def key = (cls, typeValues)
@@ -28,14 +28,15 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
 
     def evalType(t: Type[Pre]): Type[Pre] = substitute.dispatch(t)
     def evalTypes(ts: Seq[Type[Pre]]): Seq[Type[Pre]] = ts.map(evalType)
-
   }
   val ctx: ScopedStack[InstantiationContext] = ScopedStack()
+
+  def keepBodies: Boolean = ctx.topOption.map { ctx => ctx.keepBodies }.getOrElse(true)
 
   // key: generically instantiated type in pre
   val genericSucc: SuccessionMap[(Key, Declaration[Pre]), Declaration[Post]] = SuccessionMap()
 
-  def instantiate(cls: Class[Pre], typeValues: Seq[Type[Pre]]): Unit = {
+  def instantiate(cls: Class[Pre], typeValues: Seq[Type[Pre]], keepBodies: Boolean): Unit = {
     val key = (cls, typeValues)
     genericSucc.get((key, cls)) match {
       case Some(_) => // Done
@@ -43,7 +44,7 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
         val newCtx = InstantiationContext(
           cls,
           typeValues,
-          removeBodies = false,
+          keepBodies = keepBodies,
           substitutions = cls.typeArgs.map { v: Variable[Pre] => TVar(v.ref[Variable[Pre]]) }.zip(typeValues).toMap
         )
         genericSucc((key, cls)) = ctx.having(newCtx) {
@@ -62,14 +63,15 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] if cls.typeArgs.nonEmpty =>
       cls.typeArgs.foreach(_.drop())
-      instantiate(cls, cls.typeArgs.map(v => v.t.asInstanceOf[TType[Pre]].t))
+      instantiate(cls, cls.typeArgs.map(v => v.t.asInstanceOf[TType[Pre]].t), true)
     case method: InstanceMethod[Pre] if ctx.nonEmpty =>
-      val newMethod = method.rewriteDefault()
+      val newMethod: InstanceMethod[Post] =
+        method.rewrite(body = if(keepBodies) method.body.map(dispatch) else None)
       genericSucc((ctx.top.key, method)) = newMethod
       classDeclarations.declare(newMethod)
       classDeclarations.succeedOnly(method, newMethod)
     case cons: Constructor[Pre] if ctx.nonEmpty =>
-      val newCons = cons.rewriteDefault()
+      val newCons = cons.rewrite(body = if(keepBodies) cons.body.map(dispatch) else None)
       genericSucc((ctx.top.key, cons)) = newCons
       classDeclarations.declare(newCons)
       classDeclarations.succeedOnly(cons, newCons)
@@ -83,7 +85,7 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
         case Some(ctx) => typeArgs.map(ctx.substitute.dispatch)
         case None => typeArgs
       }
-      instantiate(cls, typeValues)
+      instantiate(cls, typeValues, false)
       TClass[Post](genericSucc.ref[Post, Class[Post]](((cls, typeValues), cls)), Seq())
     case (tvar @ TVar(_), Some(ctx)) =>
       dispatch(ctx.substitutions(tvar))
@@ -94,7 +96,7 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
     case inv: InvokeConstructor[Pre] if inv.classTypeArgs.nonEmpty =>
       val cls = inv.ref.decl.cls.decl
       val typeValues = ctx.topOption.map(_.evalTypes(inv.classTypeArgs)).getOrElse(inv.classTypeArgs)
-      instantiate(cls, typeValues)
+      instantiate(cls, typeValues, false)
       inv.rewrite(
         ref = genericSucc.ref[Post, Constructor[Post]](((cls, typeValues), inv.ref.decl))
       )
@@ -102,7 +104,7 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
       inv.obj.t match {
         case TClass(Ref(cls), typeArgs) if typeArgs.nonEmpty =>
           val typeValues = ctx.topOption.map(_.evalTypes(typeArgs)).getOrElse(typeArgs)
-          instantiate(cls, typeValues)
+          instantiate(cls, typeValues, false)
           inv.rewrite(
             ref = genericSucc.ref[Post, InstanceMethod[Post]](((cls, typeValues), inv.ref.decl))
           )
