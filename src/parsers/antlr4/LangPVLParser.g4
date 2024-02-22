@@ -34,7 +34,7 @@ field : finalFlag? type identifierList ';' ;
 method : contract valModifier* type identifier typeVars? '(' args? ')' methodBody ;
 methodBody : ';' | block ;
 
-constructor : contract 'constructor' '(' args? ')' methodBody ;
+constructor : contract 'constructor' typeVars? '(' args? ')' methodBody ;
 
 runMethod : contract 'run' methodBody ;
 

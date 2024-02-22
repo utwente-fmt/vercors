@@ -272,7 +272,7 @@ public class KnownTypeTransformer<T> {
                 new UnitAccountedPredicate<>(col_system.fold_star(conds), OriGen.create()), col_system.TRUE, col_system.NO_SIGNALS,
                 col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
 
-        return new PVLConstructor<>(contract, params, Option.apply(body), new GeneratedBlame<>(), o);
+        return new PVLConstructor<>(contract, Seqs.empty(), params, Option.apply(body), new GeneratedBlame<>(), o);
     }
 
     /**
@@ -627,7 +627,7 @@ public class KnownTypeTransformer<T> {
         ApplicableContract<T> contract = new ApplicableContract<>(new UnitAccountedPredicate<>(col_system.TRUE, OriGen.create()),
                 new UnitAccountedPredicate<>(col_system.fold_star(conditions), OriGen.create()), col_system.TRUE, col_system.NO_SIGNALS,
                 col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        return new PVLConstructor<>(contract, params, Option.apply(body), new GeneratedBlame<>(), o);
+        return new PVLConstructor<>(contract, Seqs.empty(), params, Option.apply(body), new GeneratedBlame<>(), o);
     }
 
     /**

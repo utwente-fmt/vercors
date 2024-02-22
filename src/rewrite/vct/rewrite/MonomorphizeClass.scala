@@ -25,6 +25,10 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
                                   ) {
     def key = (cls, typeValues)
     def substitute = Substitute(Map.empty[Expr[Pre], Expr[Pre]], typeSubs = substitutions)
+
+    def evalType(t: Type[Pre]): Type[Pre] = substitute.dispatch(t)
+    def evalTypes(ts: Seq[Type[Pre]]): Seq[Type[Pre]] = ts.map(evalType)
+
   }
   val ctx: ScopedStack[InstantiationContext] = ScopedStack()
 
@@ -34,7 +38,7 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
   def instantiate(cls: Class[Pre], typeValues: Seq[Type[Pre]]): Unit = {
     val key = (cls, typeValues)
     genericSucc.get((key, cls)) match {
-      case Some(ref) => // Done
+      case Some(_) => // Done
       case None =>
         val newCtx = InstantiationContext(
           cls,
@@ -59,42 +63,51 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
     case cls: Class[Pre] if cls.typeArgs.nonEmpty =>
       cls.typeArgs.foreach(_.drop())
       instantiate(cls, cls.typeArgs.map(v => v.t.asInstanceOf[TType[Pre]].t))
-    case m: InstanceMethod[Pre] if ctx.nonEmpty =>
-      val `m'` = classDeclarations.collect(super.dispatch(m))._1.head
-      genericSucc((ctx.top.key, m)) = `m'`
+    case method: InstanceMethod[Pre] if ctx.nonEmpty =>
+      val newMethod = method.rewriteDefault()
+      genericSucc((ctx.top.key, method)) = newMethod
+      classDeclarations.declare(newMethod)
+      classDeclarations.succeedOnly(method, newMethod)
+    case cons: Constructor[Pre] if ctx.nonEmpty =>
+      val newCons = cons.rewriteDefault()
+      genericSucc((ctx.top.key, cons)) = newCons
+      classDeclarations.declare(newCons)
+      classDeclarations.succeedOnly(cons, newCons)
     case other =>
       allScopes.anySucceed(other, other.rewriteDefault())
   }
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
-    case TClass(Ref(cls), typeArgs) if typeArgs.nonEmpty =>
-      val typeValues = typeArgs.map(ctx.top.substitute.dispatch)
+  override def dispatch(t: Type[Pre]): Type[Post] = (t, ctx.topOption) match {
+    case (TClass(Ref(cls), typeArgs), ctx) if typeArgs.nonEmpty =>
+      val typeValues = ctx match {
+        case Some(ctx) => typeArgs.map(ctx.substitute.dispatch)
+        case None => typeArgs
+      }
       instantiate(cls, typeValues)
-      TClass[Post](genericSucc.ref(((cls, typeValues), cls)).asInstanceOf, Seq())
-    case TVar(Ref(v)) =>
-      ??? // Don't think this should occur anymore?
-//      currentSubstitutions.top(v)
+      TClass[Post](genericSucc.ref[Post, Class[Post]](((cls, typeValues), cls)), Seq())
+    case (tvar @ TVar(_), Some(ctx)) =>
+      dispatch(ctx.substitutions(tvar))
     case _ => t.rewriteDefault()
   }
 
-  def evalType(t: Type[Pre]): Type[Pre] = ctx.top.substitute.dispatch(t)
-
-  def evalTypes(ts: Seq[Type[Pre]]): Seq[Type[Pre]] = ts.map(evalType)
-
-  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = e match {
-    case inv: MethodInvocation[Pre] =>
+  override def dispatch(stmt: Statement[Pre]): Statement[Post] = stmt match {
+    case inv: InvokeConstructor[Pre] if inv.classTypeArgs.nonEmpty =>
+      val cls = inv.ref.decl.cls.decl
+      val typeValues = ctx.topOption.map(_.evalTypes(inv.classTypeArgs)).getOrElse(inv.classTypeArgs)
+      instantiate(cls, typeValues)
+      inv.rewrite(
+        ref = genericSucc.ref[Post, Constructor[Post]](((cls, typeValues), inv.ref.decl))
+      )
+    case inv: InvokeMethod[Pre]  =>
       inv.obj.t match {
         case TClass(Ref(cls), typeArgs) if typeArgs.nonEmpty =>
-          val typeValues = evalTypes(typeArgs)
+          val typeValues = ctx.topOption.map(_.evalTypes(typeArgs)).getOrElse(typeArgs)
           instantiate(cls, typeValues)
           inv.rewrite(
-            ref = genericSucc.ref(((cls, typeValues), inv.ref.decl)).asInstanceOf
+            ref = genericSucc.ref[Post, InstanceMethod[Post]](((cls, typeValues), inv.ref.decl))
           )
         case _ => inv.rewriteDefault()
       }
-    case inv: ConstructorInvocation[Pre] => ???
-    case inv: InstanceFunctionInvocation[Pre] => ???
-    case inv: InstancePredicateApply[Pre] => ???
     case other => other.rewriteDefault()
   }
 }

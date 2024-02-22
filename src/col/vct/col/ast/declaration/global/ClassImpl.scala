@@ -24,9 +24,10 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] { this: Class[G] =>
     (if(intrinsicLockInvariant == tt[G]) Empty else Doc.spec(Show.lazily(layoutLockInvariant(_)))) <>
       Group(
         Text("class") <+> ctx.name(this) <>
+          (if (typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs) <> ">" else Empty) <>
         (if(supports.isEmpty) Empty else Text(" implements") <+> Doc.args(supports.map(ctx.name).map(Text))) <+>
         "{"
       ) <>>
-      Doc.stack(declarations) <+/>
+      Doc.stack(decls) <+/>
     "}"
 }

@@ -7,13 +7,11 @@ import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 
 case object PVL {
-  // TODO (RR): Is more logic required here in the case of generic arguments? Probably for all methods here...? See also: Spec.scala
-
-  def findConstructor[G](t: Type[G], args: Seq[Expr[G]]): Option[PVLConstructorTarget[G]] = {
+  def findConstructor[G](t: Type[G], typeArgs: Seq[Type[G]], args: Seq[Expr[G]]): Option[PVLConstructorTarget[G]] = {
     t match {
-      case TClass(Ref(cls), _) =>
+      case t @ TClass(Ref(cls), _) =>
         val resolvedCons = cls.decls.collectFirst {
-          case cons: PVLConstructor[G] if Util.compat(args, cons.args) => RefPVLConstructor(cons)
+          case cons: PVLConstructor[G] if Util.compat(args, cons.args, cons.typeArgs.zip(typeArgs).toMap ++ t.typeEnv) => RefPVLConstructor(cons)
         }
 
         args match {

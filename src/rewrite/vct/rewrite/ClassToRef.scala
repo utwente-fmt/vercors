@@ -239,7 +239,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
         yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
       )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), PreBlameSplit.left(PanicBlame("incorrect instance method type?"), inv.blame)))(inv.o)
-    case inv @ InvokeConstructor(Ref(cons), out, args, outArgs, typeArgs, givenMap, yields) =>
+    case inv @ InvokeConstructor(Ref(cons), _, out, args, outArgs, typeArgs, givenMap, yields) =>
       InvokeProcedure[Post](
         ref = consSucc.ref(cons),
         args = args.map(dispatch),

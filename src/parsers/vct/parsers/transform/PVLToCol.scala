@@ -142,9 +142,10 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit constructor: ConstructorContext): Seq[ClassDeclaration[G]] = constructor match {
-    case Constructor0(contract, _, _, args, _, body) =>
+    case Constructor0(contract, _, typeVars, _, args, _, body) =>
       Seq(withContract(contract, contract =>
-        new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), args.map(convert(_)).getOrElse(Nil), convert(body)
+        new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), typeVars.map(convert(_)).getOrElse(Seq()),
+          args.map(convert(_)).getOrElse(Nil), convert(body)
         )(blame(constructor))))
   }
 
@@ -273,7 +274,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit expr: NewExprContext): Expr[G] = expr match {
     case NewExpr0(_, name, Call0(typeArgs, args, given, yields)) =>
-      PVLNew(convert(name), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
+      PVLNew(convert(name), typeArgs.map(convert(_)).getOrElse(Seq()), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
     case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0, true)(blame(expr))
     case NewExpr2(inner) => convert(inner)
   }

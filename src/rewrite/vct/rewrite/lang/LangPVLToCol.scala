@@ -104,16 +104,22 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
   }
 
   def newClass(inv: PVLNew[Pre]): Expr[Post] = {
-    val PVLNew(t, args, givenMap, yields) = inv
+    val PVLNew(t, typeArgs, args, givenMap, yields) = inv
+    val classTypeArgs = t match {
+      case TClass(_, typeArgs) => typeArgs
+      case _ => Seq()
+    }
     implicit val o: Origin = inv.o
     inv.ref.get match {
       case RefModel(decl) => ModelNew[Post](rw.succ(decl))
       case RefPVLConstructor(decl) =>
-        ConstructorInvocation[Post](pvlConstructor.ref(decl), args.map(rw.dispatch), Nil, Nil,
+        ConstructorInvocation[Post](pvlConstructor.ref(decl), classTypeArgs.map(rw.dispatch), args.map(rw.dispatch),
+          Nil, typeArgs.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultPVLConstructor(_) =>
-        ConstructorInvocation[Post](pvlDefaultConstructor.ref(t.asInstanceOf[TClass[Pre]].cls.decl), args.map(rw.dispatch), Nil, Nil,
+        ConstructorInvocation[Post](pvlDefaultConstructor.ref(t.asInstanceOf[TClass[Pre]].cls.decl), classTypeArgs.map(rw.dispatch),
+          args.map(rw.dispatch), Nil, typeArgs.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
     }

@@ -473,7 +473,7 @@ public class MainTransformer<T> {
         Expr<T> ensures = create_scheduler_contract();
         ApplicableContract<T> contract = col_system.to_applicable_contract(col_system.TRUE, ensures);
 
-        main_constructor = new PVLConstructor<>(contract, col_system.NO_VARS, Option.apply(body), new GeneratedBlame<>(), OriGen.create());
+        main_constructor = new PVLConstructor<>(contract, Seqs.empty(), col_system.NO_VARS, Option.apply(body), new GeneratedBlame<>(), OriGen.create());
     }
 
     /**
@@ -596,7 +596,7 @@ public class MainTransformer<T> {
         }
 
         // Create the new expression and return the assignment
-        PVLNew<T> new_expr = new PVLNew<>(field.t(), List.from(CollectionConverters.asScala(parameters)), col_system.NO_GIVEN,
+        PVLNew<T> new_expr = new PVLNew<>(field.t(), Seqs.empty(), List.from(CollectionConverters.asScala(parameters)), col_system.NO_GIVEN,
                 col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
         return new Assign<>(field_deref, new_expr, new GeneratedBlame<>(), OriGen.create());
     }
