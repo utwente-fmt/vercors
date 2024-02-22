@@ -126,7 +126,7 @@ object AstBuildHelpers {
         case function: ADTFunction[Pre] => function.rewrite(args = args)
         case process: ModelProcess[Pre] => process.rewrite(args = args)
         case action: ModelAction[Pre] => action.rewrite(args = args)
-        case llvm: LlvmFunctionDefinition[Pre] => llvm.rewrite(args = args)
+        case llvm: LLVMFunctionDefinition[Pre] => llvm.rewrite(args = args)
         case prover: ProverFunction[Pre] => prover.rewrite(args = args)
       }
   }
@@ -185,7 +185,7 @@ object AstBuildHelpers {
             inline = Some(inline),
             contract = contract,
           )
-        case function: LlvmSpecFunction[Pre] =>
+        case function: LLVMSpecFunction[Pre] =>
           function.rewrite(
             args = args,
             returnType = returnType,
@@ -319,7 +319,7 @@ object AstBuildHelpers {
             threadLocal = Some(threadLocal),
             blame = blame,
           )
-        case function: LlvmSpecFunction[Pre] =>
+        case function: LLVMSpecFunction[Pre] =>
           function.rewrite(
             returnType = returnType,
             args = args,
@@ -366,7 +366,7 @@ object AstBuildHelpers {
       apply match {
         case inv: ADTFunctionInvocation[Pre] => inv.rewrite(args = args)
         case inv: ProverFunctionInvocation[Pre] => inv.rewrite(args = args)
-        case inv: LlvmFunctionInvocation[Pre] => inv.rewrite(args = args)
+        case inv: LLVMFunctionInvocation[Pre] => inv.rewrite(args = args)
         case apply: ApplyAnyPredicate[Pre] =>
           new ApplyAnyPredicateBuildHelpers(apply).rewrite(args = args)
         case inv: Invocation[Pre] =>

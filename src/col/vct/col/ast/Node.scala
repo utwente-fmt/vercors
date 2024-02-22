@@ -1128,6 +1128,15 @@ final case class CoerceRatZFrac[G]()(implicit val o: Origin)
 final case class CoerceZFracFrac[G]()(implicit val o: Origin)
     extends Coercion[G] with CoerceZFracFracImpl[G]
 
+final case class CoerceLLVMIntInt[G]()(implicit val o: Origin)
+    extends Coercion[G] with CoerceLLVMIntIntImpl[G]
+final case class CoerceLLVMPointer[G](from: Option[Type[G]], to: Type[G])(
+    implicit val o: Origin
+) extends Coercion[G] with CoerceLLVMPointerImpl[G]
+final case class CoerceLLVMArray[G](source: Type[G], target: Type[G])(
+    implicit val o: Origin
+) extends Coercion[G] with CoerceLLVMArrayImpl[G]
+
 @family
 sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 
@@ -3422,28 +3431,37 @@ final case class BipTransitionSynchronization[G](
     extends GlobalDeclaration[G] with BipTransitionSynchronizationImpl[G]
 
 @family
-final class LlvmFunctionContract[G](
+final class LLVMFunctionContract[G](
+    val name: String,
     val value: String,
     val variableRefs: Seq[(String, Ref[G, Variable[G]])],
-    val invokableRefs: Seq[(String, Ref[G, LlvmCallable[G]])],
+    val invokableRefs: Seq[(String, Ref[G, LLVMCallable[G]])],
 )(val blame: Blame[NontrivialUnsatisfiable])(implicit val o: Origin)
-    extends NodeFamily[G] with LlvmFunctionContractImpl[G] {
+    extends NodeFamily[G] with LLVMFunctionContractImpl[G] {
   var data: Option[ApplicableContract[G]] = None
 }
-sealed trait LlvmCallable[G] extends GlobalDeclaration[G]
+
+final case class LLVMGlobalVariable[G](
+    variableType: Type[G],
+    value: Option[Expr[G]],
+    constant: Boolean,
+)(implicit val o: Origin)
+    extends GlobalDeclaration[G] with LLVMGlobalVariableImpl[G]
+
+sealed trait LLVMCallable[G] extends GlobalDeclaration[G]
 @scopes[LabelDecl]
-final class LlvmFunctionDefinition[G](
+final class LLVMFunctionDefinition[G](
     val returnType: Type[G],
     val args: Seq[Variable[G]],
-    val functionBody: Statement[G],
-    val contract: LlvmFunctionContract[G],
+    val functionBody: Option[Statement[G]],
+    val contract: LLVMFunctionContract[G],
     val pure: Boolean = false,
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
-    extends LlvmCallable[G]
+    extends LLVMCallable[G]
     with Applicable[G]
-    with LlvmFunctionDefinitionImpl[G]
+    with LLVMFunctionDefinitionImpl[G]
 @scopes[LabelDecl]
-final class LlvmSpecFunction[G](
+final class LLVMSpecFunction[G](
     val name: String,
     val returnType: Type[G],
     val args: Seq[Variable[G]],
@@ -3453,51 +3471,179 @@ final class LlvmSpecFunction[G](
     val inline: Boolean = false,
     val threadLocal: Boolean = false,
 )(val blame: Blame[ContractedFailure])(implicit val o: Origin)
-    extends LlvmCallable[G]
+    extends LLVMCallable[G]
     with AbstractFunction[G]
-    with LlvmSpecFunctionImpl[G]
-final case class LlvmFunctionInvocation[G](
-    ref: Ref[G, LlvmFunctionDefinition[G]],
+    with LLVMSpecFunctionImpl[G]
+final case class LLVMFunctionInvocation[G](
+    ref: Ref[G, LLVMFunctionDefinition[G]],
     args: Seq[Expr[G]],
     givenMap: Seq[(Ref[G, Variable[G]], Expr[G])],
     yields: Seq[(Expr[G], Ref[G, Variable[G]])],
 )(val blame: Blame[InvocationFailure])(implicit val o: Origin)
-    extends Apply[G] with LlvmFunctionInvocationImpl[G]
-final case class LlvmLoop[G](
+    extends Apply[G] with LLVMFunctionInvocationImpl[G]
+
+final case class LLVMLoop[G](
     cond: Expr[G],
-    contract: LlvmLoopContract[G],
+    contract: LLVMLoopContract[G],
     body: Statement[G],
 )(implicit val o: Origin)
-    extends CompositeStatement[G] with LlvmLoopImpl[G]
+    extends CompositeStatement[G] with LLVMLoopImpl[G]
+
 @family
-sealed trait LlvmLoopContract[G]
-    extends NodeFamily[G] with LlvmLoopContractImpl[G]
-final case class LlvmLoopInvariant[G](
+sealed trait LLVMLoopContract[G]
+    extends NodeFamily[G] with LLVMLoopContractImpl[G]
+
+final case class LLVMLoopInvariant[G](
     value: String,
     references: Seq[(String, Ref[G, Declaration[G]])],
 )(val blame: Blame[LoopInvariantFailure])(implicit val o: Origin)
-    extends LlvmLoopContract[G] with LlvmLoopInvariantImpl[G]
-sealed trait LlvmExpr[G] extends Expr[G] with LlvmExprImpl[G]
-final case class LlvmLocal[G](name: String)(
+    extends LLVMLoopContract[G] with LLVMLoopInvariantImpl[G]
+
+sealed trait LLVMStatement[G] extends Statement[G] with LLVMStatementImpl[G]
+
+sealed trait LLVMExpr[G] extends Expr[G] with LLVMExprImpl[G]
+
+final case class LLVMLocal[G](name: String)(
     val blame: Blame[DerefInsufficientPermission]
 )(implicit val o: Origin)
-    extends LlvmExpr[G] with LlvmLocalImpl[G] {
+    extends LLVMExpr[G] with LLVMLocalImpl[G] {
   var ref: Option[Ref[G, Variable[G]]] = None
 }
-final case class LlvmAmbiguousFunctionInvocation[G](
+final case class LLVMAmbiguousFunctionInvocation[G](
     name: String,
     args: Seq[Expr[G]],
     givenMap: Seq[(Ref[G, Variable[G]], Expr[G])],
     yields: Seq[(Expr[G], Ref[G, Variable[G]])],
 )(val blame: Blame[InvocationFailure])(implicit val o: Origin)
-    extends LlvmExpr[G] with LlvmAmbiguousFunctionInvocationImpl[G] {
-  var ref: Option[Ref[G, LlvmCallable[G]]] = None
+    extends LLVMExpr[G] with LLVMAmbiguousFunctionInvocationImpl[G] {
+  var ref: Option[Ref[G, LLVMCallable[G]]] = None
 }
 
-final class LlvmGlobal[G](val value: String)(implicit val o: Origin)
-    extends GlobalDeclaration[G] with LlvmGlobalImpl[G] {
+final case class LLVMAllocA[G](allocationType: Type[G], numElements: Expr[G])(
+    implicit val o: Origin
+) extends LLVMExpr[G] with LLVMAllocAImpl[G]
+
+final case class LLVMLoad[G](
+    loadType: Type[G],
+    pointer: Expr[G],
+    ordering: LLVMMemoryOrdering[G],
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMLoadImpl[G]
+
+final case class LLVMStore[G](
+    value: Expr[G],
+    pointer: Expr[G],
+    ordering: LLVMMemoryOrdering[G],
+)(implicit val o: Origin)
+    extends LLVMStatement[G] with LLVMStoreImpl[G]
+
+final case class LLVMGetElementPointer[G](
+    structureType: Type[G],
+    resultType: Type[G],
+    pointer: Expr[G],
+    indices: Seq[Expr[G]],
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMGetElementPointerImpl[G]
+
+final case class LLVMSignExtend[G](
+    inputType: Type[G],
+    outputType: Type[G],
+    value: Expr[G],
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSignExtendImpl[G]
+
+final case class LLVMZeroExtend[G](
+    inputType: Type[G],
+    outputType: Type[G],
+    value: Expr[G],
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMZeroExtendImpl[G]
+
+final case class LLVMTruncate[G](
+    inputType: Type[G],
+    outputType: Type[G],
+    value: Expr[G],
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMTruncateImpl[G]
+
+final class LLVMGlobalSpecification[G](val value: String)(
+    implicit val o: Origin
+) extends GlobalDeclaration[G] with LLVMGlobalSpecificationImpl[G] {
   var data: Option[Seq[GlobalDeclaration[G]]] = None
 }
+
+@family
+sealed trait LLVMMemoryOrdering[G]
+    extends NodeFamily[G] with LLVMMemoryOrderingImpl[G]
+
+final case class LLVMMemoryNotAtomic[G]()(implicit val o: Origin)
+    extends LLVMMemoryOrdering[G] with LLVMMemoryNotAtomicImpl[G]
+final case class LLVMMemoryUnordered[G]()(implicit val o: Origin)
+    extends LLVMMemoryOrdering[G] with LLVMMemoryUnorderedImpl[G]
+final case class LLVMMemoryMonotonic[G]()(implicit val o: Origin)
+    extends LLVMMemoryOrdering[G] with LLVMMemoryMonotonicImpl[G]
+final case class LLVMMemoryAcquire[G]()(implicit val o: Origin)
+    extends LLVMMemoryOrdering[G] with LLVMMemoryAcquireImpl[G]
+final case class LLVMMemoryRelease[G]()(implicit val o: Origin)
+    extends LLVMMemoryOrdering[G] with LLVMMemoryReleaseImpl[G]
+final case class LLVMMemoryAcquireRelease[G]()(implicit val o: Origin)
+    extends LLVMMemoryOrdering[G] with LLVMMemoryAcquireReleaseImpl[G]
+final case class LLVMMemorySequentiallyConsistent[G]()(implicit val o: Origin)
+    extends LLVMMemoryOrdering[G] with LLVMMemorySequentiallyConsistentImpl[G]
+
+final case class LLVMIntegerValue[G](value: BigInt, integerType: Type[G])(
+    implicit val o: Origin
+) extends ConstantInt[G] with LLVMExpr[G] with LLVMIntegerValueImpl[G]
+final case class LLVMPointerValue[G](value: Ref[G, Declaration[G]])(
+    implicit val o: Origin
+) extends Constant[G] with LLVMExpr[G] with LLVMPointerValueImpl[G]
+// TODO: The LLVMFunctionPointerValue references a GlobalDeclaration instead of an LLVMFunctionDefinition because there is no other COL node we can use as a function pointer literal
+final case class LLVMFunctionPointerValue[G](
+    value: Ref[G, GlobalDeclaration[G]]
+)(implicit val o: Origin)
+    extends Constant[G] with LLVMExpr[G] with LLVMFunctionPointerValueImpl[G]
+final case class LLVMStructValue[G](value: Seq[Expr[G]], structType: Type[G])(
+    implicit val o: Origin
+) extends Constant[G] with LLVMExpr[G] with LLVMStructValueImpl[G]
+final case class LLVMArrayValue[G](value: Seq[Expr[G]], arrayType: Type[G])(
+    implicit val o: Origin
+) extends Constant[G] with LLVMExpr[G] with LLVMArrayValueImpl[G]
+final case class LLVMRawArrayValue[G](value: String, arrayType: Type[G])(
+    implicit val o: Origin
+) extends Constant[G] with LLVMExpr[G] with LLVMRawArrayValueImpl[G]
+final case class LLVMVectorValue[G](value: Seq[Expr[G]], vectorType: Type[G])(
+    implicit val o: Origin
+) extends Constant[G] with LLVMExpr[G] with LLVMVectorValueImpl[G]
+final case class LLVMRawVectorValue[G](value: String, vectorType: Type[G])(
+    implicit val o: Origin
+) extends Constant[G] with LLVMExpr[G] with LLVMRawVectorValueImpl[G]
+final case class LLVMZeroedAggregateValue[G](aggregateType: Type[G])(
+    implicit val o: Origin
+) extends Constant[G] with LLVMExpr[G] with LLVMZeroedAggregateValueImpl[G]
+
+final case class LLVMTInt[G](bitWidth: Int)(
+    implicit val o: Origin = DiagnosticOrigin
+) extends IntType[G] with LLVMTIntImpl[G]
+final case class LLVMTFunction[G]()(implicit val o: Origin = DiagnosticOrigin)
+    extends Type[G] with LLVMTFunctionImpl[G]
+final case class LLVMTPointer[G](innerType: Option[Type[G]])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends Type[G] with LLVMTPointerImpl[G]
+final case class LLVMTMetadata[G]()(implicit val o: Origin = DiagnosticOrigin)
+    extends Type[G] with LLVMTMetadataImpl[G]
+final case class LLVMTStruct[G](
+    name: Option[String],
+    packed: Boolean,
+    elements: Seq[Type[G]],
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends Type[G] with LLVMTStructImpl[G]
+final case class LLVMTArray[G](numElements: Long, elementType: Type[G])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends Type[G] with LLVMTArrayImpl[G]
+final case class LLVMTVector[G](numElements: Long, elementType: Type[G])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends Type[G] with LLVMTVectorImpl[G]
+
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(
     implicit val o: Origin = DiagnosticOrigin

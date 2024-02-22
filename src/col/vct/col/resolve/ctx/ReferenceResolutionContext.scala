@@ -12,6 +12,7 @@ import scala.collection.mutable
 case class ReferenceResolutionContext[G](
     javaParser: SpecExprParser,
     llvmSpecParser: SpecContractParser,
+    importedDeclarations: Seq[GlobalDeclaration[G]],
     stack: Seq[Seq[Referrable[G]]] = Nil,
     topLevelJavaDeref: Option[JavaDeref[G]] = None,
     externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] =

@@ -6,6 +6,8 @@ import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.resolve.lang.{C, CPP}
 import vct.col.resolve.lang.CPP.getBaseTypeFromSpecs
 
+import scala.annotation.tailrec
+
 case object CoercionUtils {
   private implicit val o: Origin = DiagnosticOrigin
 
@@ -123,6 +125,8 @@ case object CoercionUtils {
       case (TNull(), TAnyClass()) => CoerceNullAnyClass()
       case (TNull(), TPointer(target)) => CoerceNullPointer(target)
       case (TNull(), CTPointer(target)) => CoerceNullPointer(target)
+      case (TNull(), LLVMTPointer(Some(target))) => CoerceNullPointer(target)
+      case (TNull(), LLVMTPointer(None)) => CoerceNullPointer(TAny())
       case (TNull(), TEnum(target)) => CoerceNullEnum(target)
 
       case (CTArray(_, innerType), TArray(element)) if element == innerType =>
@@ -193,6 +197,7 @@ case object CoercionUtils {
           CoerceCFloatFloat(coercedCFloat, target),
         ))
       case (TCInt(), TInt()) => CoerceCIntInt()
+      case (LLVMTInt(_), TInt()) => CoerceLLVMIntInt()
 
       case (TBoundedInt(gte, lt), TFraction()) if gte >= 1 && lt <= 2 =>
         CoerceBoundIntFrac()
@@ -299,6 +304,26 @@ case object CoercionUtils {
             ))
           case None => return None
         }
+
+      // TODO: Back and forth should not be needed...
+      case (LLVMTPointer(Some(_)), LLVMTPointer(None)) =>
+        CoerceIdentity(LLVMTPointer(None))
+      case (LLVMTPointer(None), LLVMTPointer(Some(innerType))) =>
+        CoerceIdentity(LLVMTPointer(Some(innerType)))
+      case (TPointer(_), LLVMTPointer(None)) =>
+        CoerceIdentity(LLVMTPointer(None))
+      case (LLVMTPointer(None), TPointer(innerType)) =>
+        CoerceLLVMPointer(None, innerType)
+      case (
+            LLVMTPointer(Some(LLVMTArray(numElements, elementType))),
+            TPointer(innerType),
+          ) if numElements > 0 =>
+        getAnyCoercion(elementType, innerType).getOrElse(return None)
+      case (LLVMTPointer(Some(leftInner)), TPointer(rightInner)) =>
+        getAnyCoercion(leftInner, rightInner).getOrElse(return None)
+
+      case (TPointer(TAny()), TPointer(any)) => CoerceIdentity(TPointer(any))
+      case (TPointer(any), TPointer(TAny())) => CoerceIdentity(TPointer(any))
 
       // Something with TVar?
 
@@ -436,9 +461,51 @@ case object CoercionUtils {
       case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyPointerCoercion)
       case t: CPPTArray[G] =>
         Some((CoerceCPPArrayPointer(t.innerType), TPointer(t.innerType)))
+      case LLVMTPointer(None) =>
+        Some((CoerceIdentity(source), TPointer[G](TAnyValue())))
+      case LLVMTPointer(Some(innerType)) =>
+        Some((CoerceIdentity(source), TPointer(innerType)))
+      case LLVMTArray(numElements, innerType) if numElements > 0 =>
+        Some((CoerceIdentity(source), TPointer(innerType)))
       case _: TNull[G] =>
         val t = TPointer[G](TAnyValue())
         Some((CoerceNullPointer(t), t))
+      case _ => None
+    }
+
+  @tailrec
+  def firstElementIsType[G](aggregate: Type[G], innerType: Type[G]): Boolean =
+    aggregate match {
+      case aggregate if getAnyCoercion(aggregate, innerType).isDefined => true
+      case clazz: TClass[G] =>
+        firstElementIsType(
+          clazz.cls.decl.declarations.head.asInstanceOf[InstanceField[G]].t,
+          innerType,
+        )
+      case TArray(element) => firstElementIsType(element, innerType)
+      case LLVMTStruct(_, _, elements) =>
+        firstElementIsType(elements.head, innerType)
+      case LLVMTArray(numElements, elementType) =>
+        numElements > 0 && firstElementIsType(elementType, innerType)
+      case LLVMTVector(_, _) => false // TODO: Should this be possible?
+      case _ => false
+    }
+
+  def getAnyLLVMPointerCoercion[G](
+      source: Type[G],
+      innerType: Type[G],
+  ): Option[(Coercion[G], TPointer[G])] =
+    source match {
+      case LLVMTPointer(None) =>
+        Some((CoerceLLVMPointer(None, innerType), TPointer[G](innerType)))
+      case LLVMTPointer(Some(t)) if firstElementIsType(t, innerType) =>
+        Some(CoerceLLVMPointer(Some(t), innerType), TPointer[G](innerType))
+      case TPointer(TAny()) =>
+        Some((CoerceLLVMPointer(None, innerType), TPointer[G](innerType)))
+      case TPointer(t) if firstElementIsType(t, innerType) =>
+        Some(CoerceLLVMPointer(Some(t), innerType), TPointer[G](innerType))
+      case _: TNull[G] =>
+        Some((CoerceLLVMPointer(None, innerType), TPointer[G](innerType)))
       case _ => None
     }
 
@@ -479,6 +546,21 @@ case object CoercionUtils {
             .asInstanceOf[TArray[G]],
         ))
       case t: TArray[G] => Some((CoerceIdentity(source), t))
+      case t: LLVMTArray[G] => {
+        val t2 = TArray[G](t.elementType)
+        Some(CoerceLLVMArray(t, t2), t2)
+      }
+      case LLVMTPointer(None) =>
+        Some(CoerceIdentity(source), TArray[G](TAnyValue()))
+      case LLVMTPointer(Some(t)) =>
+        getAnyArrayCoercion(t) match {
+          case Some(inner) =>
+            Some(
+              CoercionSequence(Seq(inner._1, CoerceIdentity(source))),
+              inner._2,
+            )
+          case None => None
+        }
       case _: TNull[G] =>
         val t = TArray[G](TAnyValue())
         Some((CoerceNullArray(t), t))

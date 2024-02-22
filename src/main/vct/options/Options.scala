@@ -295,6 +295,9 @@ case object Options {
       opt[Path]("path-c-preprocessor").valueName("<path>")
         .action((path, c) => c.copy(cPreprocessorPath = path))
         .text("Set the location of the C preprocessor binary"),
+      opt[PathOrStd]("contract-import-file").valueName("<path>")
+        .action((path, c) => c.copy(contractImportFile = Some(path)))
+        .text("Load function contracts from the specified file"),
       note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont").action((_, c) => c.copy(mode = Mode.VeyMont)).text(
@@ -448,6 +451,9 @@ case class Options(
 
     // Control flow graph options
     cfgOutput: Path = null,
+
+    // Pallas options
+    contractImportFile: Option[PathOrStd] = None,
 ) {
   def getParserDebugOptions: vct.parsers.debug.DebugOptions =
     vct.parsers.debug.DebugOptions(

@@ -433,15 +433,14 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
         case proof: FramedProof[Pre] => rewriteDefault(proof)
         case extract: Extract[Pre] => rewriteDefault(extract)
         case branch: IndetBranch[Pre] => rewriteDefault(branch)
-        case LlvmLoop(cond, contract, body) =>
+        case LLVMLoop(cond, contract, body) =>
           evaluateOne(cond) match {
             case (Nil, Nil, cond) =>
-              LlvmLoop(cond, dispatch(contract), dispatch(body))
+              LLVMLoop(cond, dispatch(contract), dispatch(body))
             case (variables, sideEffects, cond) =>
               val break = new LabelDecl[Post]()(BreakOrigin)
-
               Block(Seq(
-                LlvmLoop(
+                LLVMLoop(
                   tt,
                   dispatch(contract),
                   Block(Seq(
@@ -471,6 +470,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
         case _: CStatement[Pre] => throw ExtraNode
         case _: CPPStatement[Pre] => throw ExtraNode
         case _: JavaStatement[Pre] => throw ExtraNode
+        case _: LLVMStatement[Pre] => throw ExtraNode
       }
     }
 

@@ -460,9 +460,9 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               "Instance operator methods are already compiled away",
               Some(method),
             )
-          case function: LlvmSpecFunction[Pre] =>
+          case function: LLVMSpecFunction[Pre] =>
             throw ExcludedByPassOrder(
-              "Llvm spec functions are already compiled away",
+              "LLVM spec functions are already compiled away",
               Some(function),
             )
         }

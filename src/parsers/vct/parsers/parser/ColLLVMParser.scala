@@ -1,18 +1,21 @@
 package vct.parsers.parser
 
+import com.google.protobuf.InvalidProtocolBufferException
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.Readable
 import org.antlr.v4.runtime.{CharStream, CommonTokenStream}
 import vct.antlr4.generated.{LLVMSpecParser, LangLLVMSpecLexer}
-import vct.col.ast.Deserialize
 import vct.col.ast.serialize.Program
+import vct.col.ast.{Declaration, Deserialize, LLVMFunctionDefinition}
 import vct.col.origin.{ExpectedError, Origin}
+import vct.col.ref.Ref
+import vct.parsers.transform.{BlameProvider, LLVMContractToCol, OriginProvider}
+import vct.result.VerificationError.{SystemError, Unreachable, UserError}
+import vct.parsers.{Parser, ParseResult}
 import vct.parsers.debug.DebugOptions
-import vct.parsers.transform.{BlameProvider, LLVMContractToCol}
-import vct.parsers.{ParseResult, Parser}
-import vct.result.VerificationError.{Unreachable, UserError}
 
 import java.io.{IOException, Reader}
+import java.nio.file.Path
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import scala.util.{Failure, Using}
@@ -20,26 +23,38 @@ import scala.util.{Failure, Using}
 case class ColLLVMParser(
     debugOptions: DebugOptions,
     blameProvider: BlameProvider,
-    vcllvm: Path,
+    pallas: Path,
 ) extends Parser with LazyLogging {
-  case class LLVMParseError(fileName: String, errorCode: Int, error: String)
-      extends UserError {
+  private case class LLVMParseError(
+      fileName: String,
+      errorCode: Int,
+      error: String,
+  ) extends UserError {
     override def code: String = "LLVMParseError"
 
     override def text: String =
-      s"[ERROR] Parsing file $fileName failed with exit code $errorCode:\n$error"
+      messageContext(
+        s"[ERROR] Parsing file $fileName failed with exit code $errorCode:\n$error"
+      )
   }
 
   override def parse[G](
       readable: Readable,
       baseOrigin: Origin = Origin(Nil),
   ): ParseResult[G] = {
-    if (vcllvm == null) {
+    if (pallas == null) {
       throw Unreachable(
-        "The COLLVMParser needs to be provided with the path to vcllvm to parse LLVM-IR files"
+        "The ColLLVMParser needs to be provided with the path to pallas to parse LLVM-IR files"
       )
     }
-    val command = Seq(vcllvm.toString, readable.fileName)
+    val command = Seq(
+      "opt-17",
+      s"--load-pass-plugin=$pallas",
+      "--passes=module(pallas-declare-variables,pallas-collect-module-spec),function(pallas-declare-function,pallas-assign-pure,pallas-declare-function-contract,pallas-transform-function-body),module(pallas-print-protobuf)",
+      readable.fileName,
+      "--disable-output",
+    )
+
     val process = new ProcessBuilder(command: _*).start()
 
     val protoProgram =
@@ -51,7 +66,7 @@ case class ColLLVMParser(
             new String(
               process.getErrorStream.readAllBytes(),
               StandardCharsets.UTF_8,
-            ),
+            ).indent(8),
           ))
         }.get
 
@@ -63,7 +78,7 @@ case class ColLLVMParser(
         new String(
           process.getErrorStream.readAllBytes(),
           StandardCharsets.UTF_8,
-        ),
+        ).indent(8),
       )
     }
 

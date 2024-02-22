@@ -35,6 +35,7 @@ import vct.rewrite.{
   HeapVariableToRef,
   MonomorphizeClass,
   SmtlibToProverTypes,
+  VariableToPointer,
 }
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont.{
@@ -325,6 +326,7 @@ case class SilverTransformation(
         EncodeString, // Encode spec string as seq<int>
         EncodeChar,
         CollectLocalDeclarations, // all decls in Scope
+        VariableToPointer, // should happen before ParBlockEncoder so it can distinguish between variables which can and can't altered in a parallel block
         DesugarPermissionOperators, // no PointsTo, \pointer, etc.
         ReadToValue, // resolve wildcard into fractional permission
         TrivialAddrOf,

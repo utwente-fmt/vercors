@@ -91,6 +91,9 @@ object Types {
       case (TBoundedInt(leftGte, leftLt), TBoundedInt(rightGte, rightLt)) =>
         TBoundedInt(leftGte.min(rightGte), leftLt.max(rightLt))
 
+      case (LLVMTInt(leftWidth), LLVMTInt(rightWidth)) =>
+        LLVMTInt(leftWidth.max(rightWidth))
+
       // Unrelated types below rational are simply a rational
       case (left, right)
           if TRational().superTypeOf(left) && TRational().superTypeOf(right) =>

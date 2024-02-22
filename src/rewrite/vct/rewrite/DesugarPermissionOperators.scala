@@ -171,7 +171,7 @@ case class DesugarPermissionOperators[Pre <: Generation]()
             )(FramedPtrOffset),
             dispatch(perm),
           )
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
   }
 }

@@ -13,6 +13,7 @@ import vct.col.rewrite.{
   Rewriter,
   RewriterBuilderArg,
   RewriterBuilderArg2,
+  Rewritten,
 }
 import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangSpecificToCol.NotAValue
@@ -21,6 +22,12 @@ case object LangSpecificToCol extends RewriterBuilderArg2[Boolean, Boolean] {
   override def key: String = "langSpecific"
   override def desc: String =
     "Translate language-specific constructs to a common subset of nodes."
+
+  override def apply[Pre <: Generation](
+      veymontGeneratePermissions: Boolean,
+      veymontAllowAssign: Boolean,
+  ): AbstractRewriter[Pre, _ <: Generation] =
+    LangSpecificToCol(veymontGeneratePermissions, veymontAllowAssign, Seq())
 
   def ThisVar(): Origin =
     Origin(Seq(PreferredName(Seq("this")), LabelContext("constructor this")))
@@ -35,6 +42,7 @@ case object LangSpecificToCol extends RewriterBuilderArg2[Boolean, Boolean] {
 case class LangSpecificToCol[Pre <: Generation](
     veymontGeneratePermissions: Boolean = false,
     veymontAllowAssign: Boolean = false,
+    importedDeclarations: Seq[GlobalDeclaration[Pre]] = Seq(),
 ) extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
   val bip: LangBipToCol[Pre] = LangBipToCol(this)
@@ -194,8 +202,9 @@ case class LangSpecificToCol[Pre <: Generation](
         cpp.storeIfSYCLFunction(func)
       }
 
-      case func: LlvmFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
-      case global: LlvmGlobal[Pre] => llvm.rewriteGlobal(global)
+      case func: LLVMFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
+      case global: LLVMGlobalSpecification[Pre] => llvm.rewriteGlobal(global)
+      case global: LLVMGlobalVariable[Pre] => llvm.rewriteGlobalVariable(global)
 
       case cls: Class[Pre] =>
         currentClass.having(cls) {
@@ -265,6 +274,7 @@ case class LangSpecificToCol[Pre <: Generation](
         rewriteDefault(unfold)
       }
 
+      case store: LLVMStore[Pre] => llvm.rewriteStore(store)
       case other => rewriteDefault(other)
     }
 
@@ -281,7 +291,7 @@ case class LangSpecificToCol[Pre <: Generation](
           case ref: RefCGlobalDeclaration[Pre] => c.result(ref)
           case ref: RefCPPFunctionDefinition[Pre] => cpp.result(ref)
           case ref: RefCPPGlobalDeclaration[Pre] => cpp.result(ref)
-          case ref: RefLlvmFunctionDefinition[Pre] => llvm.result(ref)
+          case ref: RefLLVMFunctionDefinition[Pre] => llvm.result(ref)
           case RefFunction(decl) => Result[Post](anySucc(decl))
           case RefProcedure(decl) => Result[Post](anySucc(decl))
           case RefJavaMethod(decl) => Result[Post](java.javaMethod.ref(decl))
@@ -290,7 +300,7 @@ case class LangSpecificToCol[Pre <: Generation](
           case RefInstanceMethod(decl) => Result[Post](anySucc(decl))
           case RefInstanceOperatorFunction(decl) => Result[Post](anySucc(decl))
           case RefInstanceOperatorMethod(decl) => Result[Post](anySucc(decl))
-          case RefLlvmSpecFunction(decl) => Result[Post](anySucc(decl))
+          case RefLLVMSpecFunction(decl) => Result[Post](anySucc(decl))
         }
 
       case diz @ AmbiguousThis() => currentThis.top
@@ -381,11 +391,18 @@ case class LangSpecificToCol[Pre <: Generation](
         silver.adtInvocation(inv)
       case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
 
-      case inv: LlvmFunctionInvocation[Pre] =>
+      case inv: LLVMFunctionInvocation[Pre] =>
         llvm.rewriteFunctionInvocation(inv)
-      case inv: LlvmAmbiguousFunctionInvocation[Pre] =>
+      case inv: LLVMAmbiguousFunctionInvocation[Pre] =>
         llvm.rewriteAmbiguousFunctionInvocation(inv)
-      case local: LlvmLocal[Pre] => llvm.rewriteLocal(local)
+      case local: LLVMLocal[Pre] => llvm.rewriteLocal(local)
+      case pointer: LLVMFunctionPointerValue[Pre] =>
+        llvm.rewriteFunctionPointer(pointer)
+      case pointer: LLVMPointerValue[Pre] => llvm.rewritePointerValue(pointer)
+      case gep: LLVMGetElementPointer[Pre] => llvm.rewriteGetElementPointer(gep)
+      case load: LLVMLoad[Pre] => llvm.rewriteLoad(load)
+      case alloc: LLVMAllocA[Pre] => llvm.rewriteAllocA(alloc)
+      case int: LLVMIntegerValue[Pre] => IntegerValue(int.value)(int.o)
 
       case other => rewriteDefault(other)
     }
@@ -398,6 +415,15 @@ case class LangSpecificToCol[Pre <: Generation](
       case t: TOpenCLVector[Pre] => c.vectorType(t)
       case t: CTArray[Pre] => c.arrayType(t)
       case t: CTStruct[Pre] => c.structType(t)
+      case t: LLVMTInt[Pre] => TInt()(t.o)
+      case t: LLVMTStruct[Pre] => llvm.structType(t)
+      case t: LLVMTPointer[Pre] => llvm.pointerType(t)
+      case t: LLVMTArray[Pre] => llvm.arrayType(t)
+      case t: LLVMTVector[Pre] => llvm.vectorType(t)
+      case t: LLVMTMetadata[Pre] =>
+        TInt()(
+          t.o
+        ) // TODO: Ignore these by just assuming they're integers... or could we do TVoid?
       case t: CPPTArray[Pre] => cpp.arrayType(t)
       case other => rewriteDefault(other)
     }

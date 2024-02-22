@@ -54,7 +54,7 @@ case class DeserializedContext(
     (context, tail)
   override protected def inlineContextHere(
       tail: Origin,
-      compress: Boolean,
+      compress: Boolean = true,
   ): (String, Origin) = (inlineContext, tail)
   override protected def shortPositionHere(tail: Origin): (String, Origin) =
     (shortPosition, tail)

@@ -32,11 +32,16 @@ case object TrivialAddrOf extends RewriterBuilder {
 case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     e match {
+      case DerefPointer(PointerAdd(AddrOf(pointer), offset))
+          if offset.isInstanceOf[ConstantInt[Pre]] &&
+            offset.asInstanceOf[ConstantInt[Pre]].value.signum == 0 =>
+        dispatch(pointer)
       case AddrOf(DerefPointer(p)) => dispatch(p)
 
       case AddrOf(sub @ PointerSubscript(p, i)) =>
         PointerAdd(dispatch(p), dispatch(i))(SubscriptErrorAddError(sub))(e.o)
 
+      case AddrOf(other) if other.t.isInstanceOf[TClass[Pre]] => dispatch(other)
       case AddrOf(other) => throw UnsupportedLocation(other)
       case assign @ PreAssignExpression(target, AddrOf(value))
           if value.t.isInstanceOf[TClass[Pre]] =>
@@ -55,7 +60,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
             newValue,
           )(assign.blame)
         With(newPointer, newAssign)
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
 
   override def dispatch(s: Statement[Pre]): Statement[Post] =
@@ -77,7 +82,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
             newValue,
           )(assign.blame)
         Block(Seq(newPointer, newAssign))
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
 
   // TODO: AddressOff needs a more structured approach. Now you could assign a local structure to a pointer, and that pointer

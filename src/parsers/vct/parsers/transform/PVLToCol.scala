@@ -408,8 +408,10 @@ case class PVLToCol[G](
     expr match {
       case UnaryExpr0(_, inner) => Not(convert(inner))
       case UnaryExpr1(_, inner) => UMinus(convert(inner))
-      case UnaryExpr2(op, inner) => convert(expr, op, convert(inner))
-      case UnaryExpr3(inner) => convert(inner)
+      case UnaryExpr2(_, inner) => DerefPointer(convert(inner))(blame(expr))
+      case UnaryExpr3(_, inner) => AddrOf(convert(inner))
+      case UnaryExpr4(op, inner) => convert(expr, op, convert(inner))
+      case UnaryExpr5(inner) => convert(inner)
     }
 
   def convert(implicit expr: NewExprContext): Expr[G] =

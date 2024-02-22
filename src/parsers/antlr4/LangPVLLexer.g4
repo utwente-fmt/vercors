@@ -45,6 +45,7 @@ PERCENT: '%';
 INC: '++';
 DEC: '--';
 CONS: '::';
+AMPERSAND: '&';
 
 ENUM: 'enum';
 CLASS: 'class';
