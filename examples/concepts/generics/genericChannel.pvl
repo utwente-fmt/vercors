@@ -1,0 +1,40 @@
+lock_invariant Perm(transfering, 1) ** Perm(exchangeValue,1);
+class IntegerChannel<T> {
+  boolean transfering;
+  T exchangeValue;
+
+  constructor() {
+    transfering = false;
+  }
+ 
+  void writeValue(T v) {
+    lock this;
+
+    loop_invariant Perm(transfering, 1) ** Perm(exchangeValue,1);
+    loop_invariant held(this);
+    while (!transfering) {
+      unlock this;
+      lock this;
+    }
+
+    transfering = false;
+    exchangeValue = v;
+    unlock this;
+  }
+ 
+  T readValue() {
+    lock this;
+
+    loop_invariant Perm(transfering, 1) ** Perm(exchangeValue,1);
+    loop_invariant held(this);
+    while (transfering) {
+      wait this;
+    }
+
+    T m = exchangeValue;
+    transfering = false;
+    unlock this;
+
+    return m;
+  }
+}
