@@ -370,9 +370,6 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
       (valueLeft r_<=> valueRight) !== const(1),
       "Permission cannot exceed 1 due to injectivity")(null)
 
-
-    //TODO fix so that the injectivity permission cannot be more than the permission that the thread actually has
-
     val newLoop: EnhancedLoop[Post] = EnhancedLoop[Post](
       key,
       mbh.injectivityMap.keySet(map.get),
