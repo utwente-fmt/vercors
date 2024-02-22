@@ -13,20 +13,20 @@ case class AbstractProcess[G](name: String) {
       case Assign(target, value) => viable_edges(succ, state).map(e => take_edge(e, state.with_valuation(target, state.resolve_expression(value))))
       case Havoc(loc) => viable_edges(succ, state).map(e => take_edge(e, state.with_valuation(loc, UncertainValue.uncertain_of(loc.t))))
       // Statements that induce assumptions about the state, such as assume, inhale, or a method's postcondition, might change the state implicitly
-      case Assume(assn) => viable_edges(succ, state).map(e => take_edge(e, state.with_assumption(assn)))
-      case Inhale(res) => viable_edges(succ, state).map(e => take_edge(e, state.with_assumption(res)))
+      case Assume(assn) => viable_edges(succ, state).flatMap(e => state.with_assumption(assn).map(s => take_edge(e, s)))
+      case Inhale(res) => viable_edges(succ, state).flatMap(e => state.with_assumption(res).map(s => take_edge(e, s)))
       // Abstract procedures, constructors and methods are defined by their postconditions
       case InvokeProcedure(ref, args, _, _, _, _) => ref.decl.body match {
         case Some(_) => viable_edges(succ, state).map(e => take_edge(e, state))
-        case None => viable_edges(succ, state).map(e => take_edge(e, state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)))))
+        case None => viable_edges(succ, state).flatMap(e => state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args))).map(s => take_edge(e, s)))
       }
       case InvokeConstructor(ref, _, args, _, _, _, _) => ref.decl.body match {
         case Some(_) => viable_edges(succ, state).map(e => take_edge(e, state))
-        case None => viable_edges(succ, state).map(e => take_edge(e, state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)))))
+        case None => viable_edges(succ, state).flatMap(e => state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args))).map(s => take_edge(e, s)))
       }
       case InvokeMethod(_, ref, args, _, _, _, _) => ref.decl.body match {
         case Some(_) => viable_edges(succ, state).map(e => take_edge(e, state))
-        case None => viable_edges(succ, state).map(e => take_edge(e, state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)))))
+        case None => viable_edges(succ, state).flatMap(e => state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args))).map(s => take_edge(e, s)))
       }
       // TODO: What do wait and notify do?
       case Wait(obj) => viable_edges(succ, state).map(e => take_edge(e, state))

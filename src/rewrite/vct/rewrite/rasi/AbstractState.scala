@@ -1,7 +1,7 @@
 package vct.rewrite.rasi
 
 import vct.col.ast._
-import vct.col.util.AstBuildHelpers
+import vct.col.util.{AstBuildHelpers, Substitute}
 import vct.rewrite.cfg.CFGEntry
 
 import scala.collection.immutable.HashMap
@@ -21,16 +21,94 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   def unlocked(): AbstractState[G] = AbstractState(valuations, processes, None)
 
   def with_valuation(variable: Expr[G], value: UncertainValue): AbstractState[G] = variable_from_expr(variable) match {
-    case Some(concrete_variable) => AbstractState(valuations + (concrete_variable -> value), processes, lock)
+    case Some(concrete_variable) => val_updated(concrete_variable, value)
     case None => this
   }
+  private def val_updated(variable: ConcreteVariable[G], value: UncertainValue): AbstractState[G] =
+    AbstractState(valuations + (variable -> value), processes, lock)
 
-  def with_assumption(assumption: Expr[G]): AbstractState[G] = ???    // TODO: Implement!
+  def with_assumption(assumption: Expr[G]): Set[AbstractState[G]] = resolve_effect(assumption, negate = false)
 
-  def with_postcondition(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]]): AbstractState[G] =
+  private def resolve_effect(assumption: Expr[G], negate: Boolean): Set[AbstractState[G]] = assumption match {
+    // Consider boolean/separation logic operators
+    case Not(arg) => this.resolve_effect(arg, !negate)
+    case Star(left, right) => if (!negate) handle_and(left, right) else handle_or(left, right, neg_left = true, neg_right = true)
+    case And(left, right) => if (!negate) handle_and(left, right) else handle_or(left, right, neg_left = true, neg_right = true)
+    case Or(left, right) => if (!negate) handle_or(left, right) else handle_and(left, right, neg_left = true, neg_right = true)
+    case Implies(left, right) => if (!negate) handle_or(left, right, neg_left = true) else handle_and(left, right, neg_right = true)
+    // Atomic comparisons, if they contain a concrete variable, can actually affect the state
+    case c: Comparison[G] => handle_update(c, negate)
+    // Boolean variables could appear in the assumption without any comparison
+    case e: Expr[G] if valuations.keys.exists(v => v.is(e, this)) => Set(this.val_updated(variable_from_expr(e).get, UncertainBooleanValue.from(!negate)))
+    case _ => throw new IllegalArgumentException(s"Effect of contract expression ${assumption.toInlineString} is not implemented")
+  }
+
+  private def handle_and(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[AbstractState[G]] =
+    this.resolve_effect(left, neg_left).flatMap(s => s.resolve_effect(right, neg_right))
+
+  private def handle_or(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[AbstractState[G]] = {
+    val pure_left = is_pure(left)
+    val pure_right = is_pure(right)
+    // If one side is pure and the other has an effect on the state, treat this "or" as an implication. If both sides
+    // update the state, treat it as a split in the state space instead
+    if (pure_left && pure_right) Set(this)
+    else if (pure_left) handle_implies(left, right, !neg_left, neg_right)
+    else if (pure_right) handle_implies(right, left, !neg_right, neg_left)
+    else this.resolve_effect(left, neg_left) ++ this.resolve_effect(right, neg_right)
+  }
+
+  private def handle_implies(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[AbstractState[G]] = {
+    val resolve_left: UncertainBooleanValue = resolve_boolean_expression(left)
+    var res: Set[AbstractState[G]] = Set()
+    if (neg_left && resolve_left.can_be_false || (!neg_left) && resolve_left.can_be_true) res = res ++ resolve_effect(right, neg_right)
+    if (neg_left && resolve_left.can_be_true || (!neg_left) && resolve_left.can_be_false) res = res ++ Set(this)
+    res
+  }
+
+  private def handle_update(comp: Comparison[G], negate: Boolean): Set[AbstractState[G]] = {
+    val pure_left = is_pure(comp.left)
+    val pure_right = is_pure(comp.right)
+    if (pure_left == pure_right) return Set(this)
+    // Now, exactly one side is pure, and the other contains a concrete variable
+    // Resolve the variable and the other side of the equation    TODO: Reduce the side with the variable if it contains anything else as well
+    val variable: ConcreteVariable[G] = if (pure_left) variable_from_expr(comp.right).get else variable_from_expr(comp.left).get
+    val value: UncertainValue = if (pure_left) resolve_expression(comp.left) else resolve_expression(comp.right)
+
+    comp match {
+      case _: Eq[_] => Set(if (!negate) this.val_updated(variable, value) else this.val_updated(variable, value.complement()))
+      case _: Neq[_] => Set(if (!negate) this.val_updated(variable, value.complement()) else this.val_updated(variable, value))
+      case AmbiguousGreater(_, _) | Greater(_, _) => bound_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, negate)
+      case AmbiguousGreaterEq(_, _) | GreaterEq(_, _) => bound_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, !negate)
+      case AmbiguousLessEq(_, _) | LessEq(_, _) => bound_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, !negate)
+      case AmbiguousLess(_, _) | Less(_, _) => bound_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, negate)
+    }
+  }
+
+  private def bound_variable(v: ConcreteVariable[G], b: UncertainIntegerValue, var_greater: Boolean, can_be_equal: Boolean): Set[AbstractState[G]] = {
+    if (var_greater) {
+      if (can_be_equal) Set(this.val_updated(v, b.above_eq()))
+      else Set(this.val_updated(v, b.above()))
+    }
+    else {
+      if (can_be_equal) Set(this.val_updated(v, b.below_eq()))
+      else Set(this.val_updated(v, b.below()))
+    }
+  }
+
+  private def is_pure(node: Node[G]): Boolean = node match {
+    // The old value of a variable is always pure, since it cannot be updated
+    case _: Old[_] => true
+    case e: UnExpr[_] => e.subnodes.forall(n => is_pure(n))
+    case e: BinExpr[_] => e.subnodes.forall(n => is_pure(n))
+    case e: Expr[_] => if (valuations.keys.exists(v => v.is(e, this))) false else e.subnodes.forall(n => is_pure(n))
+    case _ => true
+  }
+
+  def with_postcondition(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]]): Set[AbstractState[G]] =
     with_assumption(unify_expression(AstBuildHelpers.unfoldPredicate(post).reduce((e1, e2) => Star(e1, e2)(e1.o)), args))
 
-  private def unify_expression(cond: Expr[G], args: Map[Variable[G], Expr[G]]): Expr[G] = cond   // TODO: Consider arguments!
+  private def unify_expression(cond: Expr[G], args: Map[Variable[G], Expr[G]]): Expr[G] =
+    Substitute(args.map[Expr[G], Expr[G]]{ case (v, e) => Local[G](v.ref)(v.o) -> e }).dispatch(cond)
 
   def resolve_expression(expr: Expr[G]): UncertainValue = expr.t match {
     case _: IntType[_] => resolve_integer_expression(expr)
@@ -72,6 +150,10 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
       if (resolve_boolean_expression(cond).can_be_false) value = value.union(resolve_integer_expression(iff))
       value
     }
+    case Old(exp, at) => at match {
+      case Some(_) => throw new IllegalArgumentException(s"Cannot resolve labelled old expression ${expr.toInlineString}")
+      case None => resolve_integer_expression(exp)
+    }
     case Local(_) | DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) | AmbiguousSubscript(_, _) | SeqSubscript(_, _) | ArraySubscript(_, _) | PointerSubscript(_, _) => variable_from_expr(expr) match {
       case Some(v) => valuations(v).asInstanceOf[UncertainIntegerValue]
       case None => UncertainIntegerValue.uncertain()
@@ -105,6 +187,10 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
       if (resolve_boolean_expression(cond).can_be_true) value = value.union(resolve_boolean_expression(ift))
       if (resolve_boolean_expression(cond).can_be_false) value = value.union(resolve_boolean_expression(iff))
       value
+    }
+    case Old(exp, at) => at match {
+      case Some(_) => throw new IllegalArgumentException(s"Cannot resolve labelled old expression ${expr.toInlineString}")
+      case None => resolve_boolean_expression(exp)
     }
     case Local(_) | DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) | AmbiguousSubscript(_, _) | SeqSubscript(_, _) | ArraySubscript(_, _) | PointerSubscript(_, _) => variable_from_expr(expr) match {
       case Some(v) => valuations(v).asInstanceOf[UncertainBooleanValue]

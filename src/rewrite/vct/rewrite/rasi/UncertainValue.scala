@@ -5,6 +5,7 @@ import vct.col.ast.{BooleanValue, Expr, IntType, Not, TBool, Type}
 trait UncertainValue {
   def can_be_equal(other: UncertainValue): Boolean
   def can_be_unequal(other: UncertainValue): Boolean
+  def complement(): UncertainValue
   def to_expression[G](variable: Expr[G]): Expr[G]
   def ==(other: UncertainValue): UncertainBooleanValue
   def !=(other: UncertainValue): UncertainBooleanValue
@@ -26,6 +27,8 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
     case UncertainBooleanValue(t, f) => can_be_true && f || can_be_false && t
     case _ => true
   }
+
+  override def complement(): UncertainValue = !this
 
   override def to_expression[G](variable: Expr[G]): Expr[G] = {
     if (can_be_true && can_be_false) BooleanValue(value = true)(variable.o)
@@ -83,6 +86,11 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
     case _ => true
   }
 
+  override def complement(): UncertainValue = value match {
+    case BoundedInterval(lower, upper) if lower == upper => UncertainIntegerValue(value.complement())
+    case _ => UncertainIntegerValue.uncertain()
+  }
+
   override def to_expression[G](variable: Expr[G]): Expr[G] = value.to_expression(variable)
 
   override def ==(other: UncertainValue): UncertainBooleanValue = other match {
@@ -99,6 +107,11 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
 
   def union(other: UncertainIntegerValue): UncertainIntegerValue =
     UncertainIntegerValue(value.union(other.value))
+
+  def below_eq(): UncertainIntegerValue = UncertainIntegerValue(value.below_max())
+  def below(): UncertainIntegerValue = below_eq() + UncertainIntegerValue.single(-1)
+  def above_eq(): UncertainIntegerValue = UncertainIntegerValue(value.above_min())
+  def above(): UncertainIntegerValue = above_eq() + UncertainIntegerValue.single(1)
 
   def ==(other: UncertainIntegerValue): UncertainBooleanValue =
     UncertainBooleanValue(can_be_equal(other), can_be_unequal(other))
