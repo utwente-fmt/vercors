@@ -6,3 +6,8 @@ class Box<T> {
     return t;
   }
 }
+
+void m() {
+  Box<int> b = new Box<int>();
+  int t = b.get();
+}

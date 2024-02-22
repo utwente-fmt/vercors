@@ -262,7 +262,7 @@ case class SilverTransformation
     EncodeTryThrowSignals,
 
     ResolveScale,
-//    MonomorphizeClass,
+    MonomorphizeClass,
     // No more classes
     ClassToRef,
     HeapVariableToRef,
