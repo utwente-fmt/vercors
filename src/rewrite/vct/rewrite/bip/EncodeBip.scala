@@ -292,7 +292,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
       results.declare(component)
       implicit val o = DiagnosticOrigin
       val ref = succ[Class[Post]](classOf(constructor))
-      val t = TClass[Post](ref)
+      val t = TClass[Post](ref, Seq())
       rewritingBipConstructorBody.having(component) {
         constructorSucc(constructor) = globalDeclarations.declare(
           new Procedure[Post](
@@ -370,7 +370,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
          We define those variables/arguments here.
        */
       val varOf: Map[Declaration[Pre], Local[Post]] = transitions.flatMap { transition =>
-        val v = new Variable[Post](TClass(succ[Class[Post]](classOf(transition))))(
+        val v = new Variable[Post](TClass(succ[Class[Post]](classOf(transition)), Seq()))(
           SynchronizationComponentVariableOrigin(synchronization, componentOf(transition)))
         Seq((transition, v.get), (classOf(transition), v.get))
       }.toMap

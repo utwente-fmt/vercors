@@ -35,8 +35,6 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
 
   def rewriteConstructor(cons: PVLConstructor[Pre]): Unit = {
     implicit val o: Origin = cons.o
-    val t = TClass[Post](rw.succ(rw.currentClass.top))
-    val resVar = new Variable(t)
     pvlConstructor(cons) =
       rw.currentThis.having(ThisObject(rw.succ(rw.currentClass.top))) {
         rw.classDeclarations.declare(new Constructor[Post](
@@ -53,7 +51,6 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
   def maybeDeclareDefaultConstructor(cls: Class[Pre]): Unit = {
     if (cls.decls.collectFirst { case _: PVLConstructor[Pre] => () }.isEmpty) {
       implicit val o: Origin = cls.o
-      val t = TClass[Post](rw.succ(cls))
       val `this` = ThisObject(rw.succ[Class[Post]](cls))
       val defaultBlame = PanicBlame("The postcondition of a default constructor cannot fail.")
 

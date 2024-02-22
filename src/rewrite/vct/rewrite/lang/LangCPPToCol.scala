@@ -898,7 +898,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     rw.globalDeclarations.succeed(preEventClass, postEventClass)
 
     // Create a variable to refer to the class instance
-    val eventClassRef = new Variable[Post](TClass(postEventClass.ref))(commandGroup.o.where(name = "sycl_event_ref"))
+    val eventClassRef = new Variable[Post](TClass(postEventClass.ref, Seq()))(commandGroup.o.where(name = "sycl_event_ref"))
     // Store the class ref and read-write accessors to be used when the kernel is done running
     currentlyRunningKernels.put(eventClassRef.get(commandGroup.o), accessors.filter(acc => acc.accessMode.isInstanceOf[SYCLReadWriteAccess[Post]]))
 
@@ -1133,7 +1133,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   private def createEventClassConstructor(accessors: Seq[SYCLAccessor[Post]], preClass: Class[Pre], commandGroupO: Origin): Procedure[Post] = {
-    val t = rw.dispatch(TClass[Pre](preClass.ref))
+    val t = rw.dispatch(TClass[Pre](preClass.ref, Seq()))
     rw.globalDeclarations.declare(withResult((result: Result[Post]) => {
       val constructorPostConditions: mutable.Buffer[Expr[Post]] = mutable.Buffer.empty
       val constructorArgs: mutable.Buffer[Variable[Post]] = mutable.Buffer.empty

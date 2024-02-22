@@ -19,6 +19,7 @@ import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.util.Constants;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
 import vct.parsers.transform.systemctocol.util.OriGen;
+import vct.parsers.transform.systemctocol.util.Seqs;
 
 /**
  * Transforms an SCKnownType (i.e. a SystemC-predefined primitive channel instance) into a COL class. We currently
@@ -91,7 +92,7 @@ public class KnownTypeTransformer<T> {
 
         // Add channel field to COL system
         Ref<T, Class<T>> ref_to_cls = new DirectRef<>(cls, ClassTag$.MODULE$.apply(Class.class));
-        col_system.add_primitive_channel(sc_inst, new InstanceField<>(new TClass<>(ref_to_cls, OriGen.create()), col_system.NO_FLAGS,
+        col_system.add_primitive_channel(sc_inst, new InstanceField<>(new TClass<>(ref_to_cls, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS,
                 OriGen.create(name.toLowerCase())));
     }
 
@@ -118,7 +119,7 @@ public class KnownTypeTransformer<T> {
     private Class<T> transform_fifo(Origin o, Type<T> t) {
         // Class fields
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
+        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         InstanceField<T> buf = new InstanceField<>(new TSeq<>(t, OriGen.create()), col_system.NO_FLAGS, OriGen.create("buffer"));
         InstanceField<T> nr_read = new InstanceField<>(col_system.T_INT, col_system.NO_FLAGS, OriGen.create("num_read"));
         InstanceField<T> written = new InstanceField<>(new TSeq<>(t, OriGen.create()), col_system.NO_FLAGS, OriGen.create("written"));
@@ -524,7 +525,7 @@ public class KnownTypeTransformer<T> {
     private Class<T> transform_signal(Origin o, Type<T> t) {
         // Class fields
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
+        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         InstanceField<T> val = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create("val"));
         InstanceField<T> _val = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create("_val"));
 

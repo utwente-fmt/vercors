@@ -5,6 +5,7 @@ import vct.col.ast._
 import vct.col.ast.expr.apply.FunctionInvocationImpl
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
+import vct.col.rewrite.Rewritten
 import vct.result.VerificationError.UserError
 
 /**

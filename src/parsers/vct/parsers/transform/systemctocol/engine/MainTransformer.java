@@ -189,7 +189,7 @@ public class MainTransformer<T> {
                         // Get field type
                         Class<T> transformed_class = col_system.get_col_class_translation(process_class);
                         Ref<T, Class<T>> ref_to_class = new DirectRef<>(transformed_class, ClassTag$.MODULE$.apply(Class.class));
-                        Type<T> t = new TClass<>(ref_to_class, OriGen.create());
+                        Type<T> t = new TClass<>(ref_to_class, Seqs.empty(), OriGen.create());
 
                         // Generate instance field
                         InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create(create_instance_name(process_class)));
@@ -204,7 +204,7 @@ public class MainTransformer<T> {
                     // Get field type
                     Class<T> transformed_class = col_system.get_col_class_translation(state_class);
                     Ref<T, Class<T>> ref_to_class = new DirectRef<>(transformed_class, ClassTag$.MODULE$.apply(Class.class));
-                    Type<T> t = new TClass<>(ref_to_class, OriGen.create());
+                    Type<T> t = new TClass<>(ref_to_class, Seqs.empty(), OriGen.create());
 
                     // Generate instance field
                     InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create(create_instance_name(state_class)));
