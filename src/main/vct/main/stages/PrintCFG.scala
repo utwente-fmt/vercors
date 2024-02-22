@@ -1,7 +1,6 @@
 package vct.main.stages
 
 import hre.stages.Stage
-import sourcecode.Name
 import vct.col.ast.{InstanceMethod, Node}
 import vct.col.rewrite.Generation
 import vct.options.Options

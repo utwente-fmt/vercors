@@ -264,8 +264,12 @@ case object Options {
         .action((_, c) => c.copy(mode = Mode.VeSUV))
         .text("Enable VeSUV mode: transform SystemC designs to PVL to be deductively verified")
         .children(
-          opt[Path]("vesuv-output").required().valueName("<path>")   // TODO: Give option for default location?
-            .action((path, c) => c.copy(vesuvOutput = path))
+          opt[Path]("vesuv-output").required().valueName("<path>")
+            .action((path, c) => c.copy(vesuvOutput = path)),
+          opt[Unit]("generate-rasi").action((_, c) => c.copy(vesuvGenerateRasi = true)).children(
+            opt[Seq[String]]("rasi-vars").required().valueName("<var1>,...")
+              .action((vars, c) => c.copy(vesuvRasiVariables = Some(vars)))
+          )
         ),
 
       note(""),
@@ -412,6 +416,8 @@ case class Options
 
   // VeSUV options
   vesuvOutput: Path = null,
+  vesuvGenerateRasi: Boolean = false,
+  vesuvRasiVariables: Option[Seq[String]] = None,
 
   // Control flow graph options
   cfgOutput: Path = null,

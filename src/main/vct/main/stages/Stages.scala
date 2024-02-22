@@ -67,8 +67,15 @@ case object Stages {
   }
 
   def vesuvOfOptions(options: Options, blameProvider: BlameProvider) : Stages[Seq[Readable], Unit] = {
-    Parsing.ofOptions(options, blameProvider)
-      .thenRun(Output.vesuvOfOptions(options))
+    if (options.vesuvGenerateRasi) {
+      Parsing.ofOptions(options, blameProvider)
+        .thenRun(Resolution.ofOptions(options, blameProvider))
+        .thenRun(GenerateRASI.ofOptions(options))
+    }
+    else {
+      Parsing.ofOptions(options, blameProvider)
+        .thenRun(Output.vesuvOfOptions(options))
+    }
   }
 
   def cfgTransformationOfOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {

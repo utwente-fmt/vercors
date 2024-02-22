@@ -1,7 +1,7 @@
 package vct.rewrite.rasi
 
-import vct.col.ast.{Expr, IntType, Or, TBool}
-import vct.rewrite.cfg.CFGNode
+import vct.col.ast.{Expr, InstanceMethod, Or}
+import vct.rewrite.cfg.{CFGEntry, CFGGenerator}
 
 import java.nio.file.Path
 import scala.collection.immutable.HashMap
@@ -12,18 +12,23 @@ case class RASIGenerator[G]() {
   private val found_edges: mutable.ArrayBuffer[(AbstractState[G], AbstractState[G])] = mutable.ArrayBuffer()
   private val current_branches: mutable.ArrayBuffer[AbstractState[G]] = mutable.ArrayBuffer()
 
-  def generate_rasi(node: CFGNode[G], vars: Set[ConcreteVariable[G]]): Expr[G] = {
+  def execute(entry_point: InstanceMethod[G], vars: Set[ConcreteVariable[G]]): Expr[G] =
+    generate_rasi(CFGGenerator().generate(entry_point), vars)
+  def test(entry_point: InstanceMethod[G], vars: Set[ConcreteVariable[G]], out_path: Path): Unit =
+    print_state_space(CFGGenerator().generate(entry_point), vars, out_path)
+
+  private def generate_rasi(node: CFGEntry[G], vars: Set[ConcreteVariable[G]]): Expr[G] = {
     explore(node, vars)
     found_states.distinctBy(s => s.valuations).map(s => s.to_expression).reduce((e1, e2) => Or(e1, e2)(e1.o))
   }
 
-  def print_state_space(node: CFGNode[G], vars: Set[ConcreteVariable[G]], out_path: Path): Unit = {
+  private def print_state_space(node: CFGEntry[G], vars: Set[ConcreteVariable[G]], out_path: Path): Unit = {
     explore(node, vars)
     val (ns, es) = reduce_redundant_states()
     Utils.print(ns, es, out_path)
   }
 
-  private def explore(node: CFGNode[G], vars: Set[ConcreteVariable[G]]): Unit = {
+  private def explore(node: CFGEntry[G], vars: Set[ConcreteVariable[G]]): Unit = {
     val initial_state = AbstractState(get_initial_values(vars), HashMap((AbstractProcess[G]("main"), node)), None)
     found_states += initial_state
     current_branches += initial_state
