@@ -13,6 +13,5 @@ namespace llvm2Col {
     std::string deriveTypePreferredName(llvm::Type &llvmType);
 
     std::string deriveArgumentPreferredName(llvm::Argument &llvmArgument);
-
 }
 #endif //VCLLVM_PREFERREDNAMEDERIVER_H

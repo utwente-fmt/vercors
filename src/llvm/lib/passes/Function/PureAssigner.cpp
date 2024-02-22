@@ -9,9 +9,6 @@ namespace vcllvm {
 
     using namespace llvm;
 
-    PureAssignerPass::PureAssignerPass(std::shared_ptr<col::Program> pProgram) :
-            pProgram(std::move(pProgram)) {}
-
     PreservedAnalyses PureAssignerPass::run(Function &F, FunctionAnalysisManager &FAM) {
         std::ostringstream errorStream;
         FDResult result = FAM.getResult<FunctionDeclarer>(F);

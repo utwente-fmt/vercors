@@ -1,4 +1,3 @@
-#include <sstream>
 #include "Passes/Function/FunctionContractDeclarer.h"
 
 #include "Passes/Function/FunctionDeclarer.h"
@@ -16,7 +15,7 @@ namespace vcllvm {
      * Function Contract Declarer Result
      */
 
-    FDCResult::FDCResult(vct::col::serialize::LlvmFunctionContract &colFuncContract) :
+    FDCResult::FDCResult(vct::col::ast::LlvmFunctionContract &colFuncContract) :
             associatedColFuncContract(colFuncContract) {}
 
     col::LlvmFunctionContract &FDCResult::getAssociatedColFuncContract() {
@@ -29,10 +28,6 @@ namespace vcllvm {
 
     AnalysisKey FunctionContractDeclarer::Key;
 
-
-    FunctionContractDeclarer::FunctionContractDeclarer(std::shared_ptr<col::Program> pProgram) :
-            pProgram(std::move(pProgram)) {}
-
     FunctionContractDeclarer::Result FunctionContractDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
         // fetch relevant function from the Function Declarer
         FDResult fdResult = FAM.getResult<FunctionDeclarer>(F);
@@ -44,19 +39,17 @@ namespace vcllvm {
     /*
      * Function Contract Declarer Pass
      */
-
-    FunctionContractDeclarerPass::FunctionContractDeclarerPass(std::shared_ptr<col::Program> pProgram) :
-            pProgram(std::move(pProgram)) {}
-
     PreservedAnalyses FunctionContractDeclarerPass::run(Function &F, FunctionAnalysisManager &FAM) {
         // get col contract
         FDCResult result = FAM.getResult<FunctionContractDeclarer>(F);
         col::LlvmFunctionContract &colContract = result.getAssociatedColFuncContract();
+        colContract.set_allocated_blame(new col::Blame());
         // check if contract keyword is present
         if (!F.hasMetadata(vcllvm::constants::METADATA_CONTRACT_KEYWORD)) {
             // set contract to a tautology
             colContract.set_value("requires true;");
-            colContract.set_origin("{}");
+            colContract.set_allocated_origin(new col::Origin());
+            colContract.CheckInitialized();
             return PreservedAnalyses::all();
         }
         // concatenate all contract lines with new lines
@@ -73,15 +66,17 @@ namespace vcllvm {
             contractStream << contractLine->getString().str() << '\n';
         }
         colContract.set_value(contractStream.str());
-        colContract.set_origin(llvm2Col::generateFunctionContractOrigin(F, contractStream.str()));
+        colContract.set_allocated_origin(llvm2Col::generateFunctionContractOrigin(F, contractStream.str()));
         // add all callable functions to the contracts invokables
         for(auto &moduleF : F.getParent()->functions()) {
             std::string fName = '@' + moduleF.getName().str();
             int64_t fId = FAM.getResult<FunctionDeclarer>(moduleF).getFunctionId();
-            col::StringRef *invokeRef = colContract.add_invokable_refs();
+            col::Tuple2_String_Ref_VctColAstLlvmCallable *invokeRef = colContract.add_invokable_refs();
             invokeRef->set_v1(fName);
-            invokeRef->mutable_v2()->set_index(fId);
+            invokeRef->mutable_v2()->set_id(fId);
+            invokeRef->CheckInitialized();
         }
+        colContract.CheckInitialized();
         return PreservedAnalyses::all();
     }
 }

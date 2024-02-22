@@ -3,7 +3,7 @@ package vct.col.ast.helpers.generator
 import vct.col.ast.helpers.defn.Proto
 import vct.col.ast.structure.{AllNodesGenerator, NodeDefinition}
 
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, Paths}
 import scala.util.Using
 
 class MegaCol extends AllNodesGenerator {
@@ -19,7 +19,8 @@ class MegaCol extends AllNodesGenerator {
         families.flatMap(family => genFamily.message(family._1, family._2.map(_.name)).toSeq) ++
         genAux.messages(definitions)
 
-    Using(Files.newBufferedWriter(out.resolve("col.proto"))) { writer =>
+    Files.createDirectories(out.resolve(Paths.get("vct", "col", "ast")))
+    Using(Files.newBufferedWriter(out.resolve(Paths.get("vct", "col", "ast", "col.proto")))) { writer =>
       Proto.Source(
         messages.flatMap(_.namedTypes.collect { case t: Proto.StandardType => t.fqName }).distinct,
         options = "",

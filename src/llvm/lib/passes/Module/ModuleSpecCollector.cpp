@@ -1,19 +1,17 @@
-#include <sstream>
 #include "Passes/Module/ModuleSpecCollector.h"
+#include "Passes/Module/RootContainer.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
 #include "Origin/OriginProvider.h"
 #include "Transform/Transform.h"
 
 namespace vcllvm {
-    const std::string SOURCE_LOC = "Passes::Module::GlobalSpecCollector";
+    const std::string SOURCE_LOC = "Passes::Module::ModuleSpecCollector";
 
     using namespace llvm;
 
-    ModuleSpecCollectorPass::ModuleSpecCollectorPass(std::shared_ptr<col::Program> pProgram) :
-            pProgram(std::move(pProgram)) {}
-
     PreservedAnalyses ModuleSpecCollectorPass::run(Module &M, ModuleAnalysisManager &MAM) {
+        auto pProgram = MAM.getResult<RootContainer>(M).program;
         NamedMDNode *globalMDNode = M.getNamedMetadata(vcllvm::constants::METADATA_GLOBAL_KEYWORD);
         if(globalMDNode == nullptr) {
             return PreservedAnalyses::all();
@@ -28,10 +26,10 @@ namespace vcllvm {
                     break;
                 }
                 col::GlobalDeclaration *globDecl = pProgram->add_declarations();
-                llvm2Col::setColNodeId(globDecl);
                 col::LlvmGlobal *colGlobal = globDecl->mutable_llvm_global();
+                llvm2Col::setColNodeId(colGlobal);
                 colGlobal->set_value(globVal->getString().str());
-                colGlobal->set_origin(llvm2Col::generateGlobalValOrigin(M, globVal->getString().str()));
+                colGlobal->set_allocated_origin(llvm2Col::generateGlobalValOrigin(M, globVal->getString().str()));
             }
         }
         return PreservedAnalyses::all();

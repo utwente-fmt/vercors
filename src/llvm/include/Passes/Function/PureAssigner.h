@@ -2,20 +2,16 @@
 #define VCLLVM_PUREASSIGNER_H
 
 #include <llvm/IR/PassManager.h>
-#include "col.pb.h"
+#include "vct/col/ast/col.pb.h"
 /**
  * The PureAssignerPass checks if a LLVM function is pure (i.e. whether the !VC.pure metadata node is set)
  */
 namespace vcllvm {
     using namespace llvm;
-    namespace col = vct::col::serialize;
+    namespace col = vct::col::ast;
 
     class PureAssignerPass : public PassInfoMixin<PureAssignerPass> {
-    private:
-        std::shared_ptr<col::Program> pProgram;
     public:
-        explicit PureAssignerPass(std::shared_ptr<col::Program> pProgram);
-
         PreservedAnalyses run(Function &F, FunctionAnalysisManager &FAM);
     };
     /**

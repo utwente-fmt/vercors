@@ -2,7 +2,7 @@
 #define VCLLVM_FUNCTIONCONTRACTDECLARER_H
 
 #include <llvm/IR/PassManager.h>
-#include "col.pb.h"
+#include "vct/col/ast/col.pb.h"
 
 /**
  * Pass that adds an LLVMFunctionContract to its corresponding LLVMFunctionDefinition in the presence
@@ -19,7 +19,7 @@
  */
 namespace vcllvm {
     using namespace llvm;
-    namespace col = vct::col::serialize;
+    namespace col = vct::col::ast;
 
     class FDCResult {
     private:
@@ -33,12 +33,8 @@ namespace vcllvm {
     class FunctionContractDeclarer : public AnalysisInfoMixin<FunctionContractDeclarer> {
         friend AnalysisInfoMixin<FunctionContractDeclarer>;
         static AnalysisKey Key;
-    private:
-        std::shared_ptr<col::Program> pProgram;
     public:
         using Result = FDCResult;
-
-        explicit FunctionContractDeclarer(std::shared_ptr<col::Program> pProgram);
 
         /**
          * Merely creates a COL LlvmFunctionDefinition object in the buffer and sets it in a FDCResult object.
@@ -50,11 +46,7 @@ namespace vcllvm {
     };
 
     class FunctionContractDeclarerPass : public AnalysisInfoMixin<FunctionContractDeclarerPass> {
-    private:
-        std::shared_ptr<col::Program> pProgram;
     public:
-        explicit FunctionContractDeclarerPass(std::shared_ptr<col::Program> pProgram);
-
         /**
          * Retrieves the LlvmFunctionDefinition object in the buffer from the FDCResult object and sets the origin and
          * string value of the contract.

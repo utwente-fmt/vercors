@@ -1,5 +1,6 @@
 package vct.parsers
 
+import com.google.protobuf.InvalidProtocolBufferException
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.Readable
 import org.antlr.v4.runtime.{CharStream, CommonTokenStream}
@@ -29,11 +30,15 @@ case class ColLLVMParser(override val origin: Origin, override val blameProvider
   }
 
   override def parse[G](readable: Readable): ParseResult[G] = {
-    val command = Seq("VCLLVM", readable.fileName)
+    val command = Seq("opt-17", "--load-pass-plugin=/home/alexander/VCLLVM-Artifact/.build/lib/libVCLLVM.so", "--passes=module(vcllvm-collect-module-spec),function(vcllvm-declare-function,vcllvm-assign-pure,vcllvm-declare-function-contract,vcllvm-transform-function-body),module(vcllvm-print-protobuf)", readable.fileName, "--disable-output")
+
     val process = new ProcessBuilder(command: _*).start()
 
     val protoProgram = Using(process.getInputStream) { is => Program.parseFrom(is) }.recoverWith {
-      case _: IOException => Failure(LLVMParseError(readable.fileName, process.exitValue(), new String(process.getErrorStream.readAllBytes(), StandardCharsets.UTF_8)))
+      case e: IOException => {
+        e.printStackTrace()
+        Failure(LLVMParseError(readable.fileName, process.exitValue(), new String(process.getErrorStream.readAllBytes(), StandardCharsets.UTF_8)))
+      }
     }.get
 
     process.waitFor()
@@ -42,6 +47,7 @@ case class ColLLVMParser(override val origin: Origin, override val blameProvider
     }
 
     val COLProgram = Deserialize.deserializeProgram[G](protoProgram, readable.fileName)
+    println(COLProgram)
     ParseResult(COLProgram.declarations, Seq.empty)
   }
 

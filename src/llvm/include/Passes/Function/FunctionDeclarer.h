@@ -2,7 +2,7 @@
 #define VCLLVM_FUNCTIONDECLARER_H
 
 #include <llvm/IR/PassManager.h>
-#include "col.pb.h"
+#include "vct/col/ast/col.pb.h"
 
 /**
  * Pass that creates a signature for a LLVMFunctionDefinition in COL and exposes an FDResult object that
@@ -18,7 +18,7 @@
  */
 namespace vcllvm {
     using namespace llvm;
-    namespace col = vct::col::serialize;
+    namespace col = vct::col::ast;
 
     /// wrapper struct for a COL scope and block. Intended use is the block to be declared in the scope.
     struct ColScopedFuncBody {
@@ -56,12 +56,8 @@ namespace vcllvm {
     class FunctionDeclarer : public AnalysisInfoMixin<FunctionDeclarer> {
         friend AnalysisInfoMixin<FunctionDeclarer>;
         static AnalysisKey Key;
-    private:
-        std::shared_ptr<col::Program> pProgram;
     public:
         using Result = FDResult;
-
-        explicit FunctionDeclarer(std::shared_ptr<col::Program> pProgram);
 
         /**
          * Creates a COL LlvmFunctionDefinition in the buffer, including a function scope and body and their origins.
@@ -79,10 +75,7 @@ namespace vcllvm {
     };
 
     class FunctionDeclarerPass : public AnalysisInfoMixin<FunctionDeclarerPass> {
-    private:
-        std::shared_ptr<col::Program> pProgram;
     public:
-        explicit FunctionDeclarerPass(std::shared_ptr<col::Program> pProgram);
         /**
          * Completes the function definition transformation by adding a return type to the COL LLVMFunctionDefinition
          *
