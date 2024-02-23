@@ -284,6 +284,7 @@ case object Options {
         .children(
           opt[Path]("cfg-output").required().valueName("<path>")
             .action((path, c) => c.copy(cfgOutput = path))
+            .text("Output file for the control flow graph in .dot format")
         ),
 
       note(""),
