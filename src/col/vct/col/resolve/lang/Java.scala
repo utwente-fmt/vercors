@@ -19,7 +19,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import java.io.File
-import java.lang.reflect.{Modifier, Parameter}
+import java.lang.reflect.{Modifier, Parameter, TypeVariable}
 import java.nio.file.Path
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -151,6 +151,15 @@ case object Java extends LazyLogging {
     new JavaParam(Seq(), param.getName, translateRuntimeType(param.getType))(o.where(name = param.getName))
   }
 
+  def translateTypeParameter[G](param: TypeVariable[_])(implicit o: Origin, ctx: TypeResolutionContext[G]): Variable[G] = {
+    // Guess that bound 0 is the one we want
+    val bound = param.getBounds()(0) match {
+      case cls: Class[_] => JavaTClass(translateRuntimeClass(cls).ref[JavaClassOrInterface[G]], Seq()) // Pretty sure the seq is not always empty here
+      case typeVar: TypeVariable[_] => ??? // We need some extra state here to find where this type var comes from
+    }
+    new Variable(bound)(o.where(name = param.getName))
+  }
+
   def translateRuntimeClass[G](cls: Class[_])(implicit o: Origin, ctx: TypeResolutionContext[G]): JavaClassOrInterface[G] = {
     val cons = cls.getConstructors.map(cons => {
       new JavaConstructor(
@@ -188,6 +197,8 @@ case object Java extends LazyLogging {
       )
     })
 
+    val typeParameters = cls.getTypeParameters.map(translateTypeParameter(_)(o, ctx))
+
     if(cls.isAnnotation) {
       new JavaAnnotationInterface[G](
         name = cls.getName.split('.').last,
@@ -199,7 +210,7 @@ case object Java extends LazyLogging {
       new JavaInterface[G](
         name = cls.getName.split('.').last,
         modifiers = Nil,
-        typeParams = Nil,
+        typeParams = typeParameters,
         ext = cls.getInterfaces.toIndexedSeq.map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)),
         decls = fields.toIndexedSeq ++ cons.toIndexedSeq ++ methods.toIndexedSeq,
       )(o.where(name = cls.getName.split('.').last))
@@ -207,7 +218,7 @@ case object Java extends LazyLogging {
       new JavaClass[G](
         name = cls.getName.split('.').last,
         modifiers = Nil,
-        typeParams = Nil,
+        typeParams = typeParameters,
         intrinsicLockInvariant = `tt`,
         ext = Option(cls.getSuperclass).map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)).getOrElse(JAVA_LANG_OBJECT),
         imp = cls.getInterfaces.toIndexedSeq.map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)),
