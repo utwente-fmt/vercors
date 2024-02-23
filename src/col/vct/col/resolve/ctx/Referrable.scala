@@ -39,6 +39,11 @@ sealed trait Referrable[G] {
       C.nameFromDeclarator(decl.decl.inits.head.decl)
     case RefTypeDef(_) => ???
     case RefCStructField(decls, idx) => C.nameFromDeclarator(decls.decls(idx))
+    case RefOpenCLVectorMembers(idxs) => "s" ++ idxs.map {
+      case i if i >= 0 && i < 9 => i.toString
+      case i if i >= 10 && i < 16 => ('a'.toInt + (i-10)).toChar
+      case _ => ???
+    }.mkString
     case RefJavaClass(decl) => decl.name
     case RefSilverField(decl) => Referrable.originName(decl)
     case RefSimplificationRule(decl) => Referrable.originName(decl)
@@ -258,6 +263,7 @@ sealed trait JavaBipStatePredicateTarget[G] extends Referrable[G]
 
 case class RefCTranslationUnit[G](decl: CTranslationUnit[G]) extends Referrable[G]
 case class RefCParam[G](decl: CParam[G]) extends Referrable[G] with CNameTarget[G]
+case class RefOpenCLVectorLiteralCInvocationTarget[G](size: BigInt, innerType: Type[G]) extends CInvocationTarget[G]
 case class RefCFunctionDefinition[G](decl: CFunctionDefinition[G]) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G] with ResultTarget[G]
 case class RefCGlobalDeclaration[G](decls: CGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G] with ResultTarget[G]
 case class RefCLocalDeclaration[G](decls: CLocalDeclaration[G], initIdx: Int) extends Referrable[G] with CNameTarget[G]
@@ -275,6 +281,7 @@ case class RefUnloadedJavaNamespace[G](names: Seq[String]) extends Referrable[G]
 case class RefTypeDef[G](decl: CGlobalDeclaration[G]) extends Referrable[G] with CTypeNameTarget[G] with CNameTarget[G]
 case class RefCStruct[G](decl: CGlobalDeclaration[G]) extends Referrable[G] with CStructTarget[G] with CNameTarget[G] with CDerefTarget[G]
 case class RefCStructField[G](decls: CStructMemberDeclarator[G], idx: Int) extends Referrable[G] with CNameTarget[G] with CDerefTarget[G]
+case class RefOpenCLVectorMembers[G](idx: Seq[BigInt]) extends Referrable[G] with CDerefTarget[G]
 case class RefJavaClass[G](decl: JavaClassOrInterface[G]) extends Referrable[G] with JavaTypeNameTarget[G] with JavaNameTarget[G] with JavaDerefTarget[G] with ThisTarget[G]
 case class RefSilverField[G](decl: SilverField[G]) extends Referrable[G]
 case class RefSimplificationRule[G](decl: SimplificationRule[G]) extends Referrable[G]

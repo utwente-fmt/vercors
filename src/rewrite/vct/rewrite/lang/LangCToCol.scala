@@ -61,6 +61,13 @@ case object LangCToCol {
       decl.o.messageInContext(s"This has a struct type that is not supported.")
   }
 
+  case class WrongOpenCLLiteralVector(e: Node[_]) extends UserError {
+    override def code: String = "wrongOpenCLLiteralVector"
+
+    override def text: String =
+      e.o.messageInContext(s"This OpenCL literal vector is not supported.")
+  }
+
   case class TypeUsedAsValue(decl: Node[_]) extends UserError {
     override def code: String = "typeUsedAsValue"
 
@@ -156,6 +163,17 @@ case object LangCToCol {
   case class StructCopyBeforeCallFailed(inv: CInvocation[_], field: InstanceField[_]) extends Blame[InsufficientPermission] {
     override def blame(error: InsufficientPermission): Unit = {
       inv.blame.blame(CopyStructFailedBeforeCall(inv, Referrable.originName(field)))
+    }
+  }
+
+  case class VectorBoundFailed(subscript:  AmbiguousSubscript[_]) extends Blame[InvocationFailure] {
+    override def blame(error: InvocationFailure): Unit = error match {
+      case PreconditionFailed(path, _, _) => path match {
+        case FailLeft +: _ => subscript.blame.blame(VectorBoundNegative(subscript))
+        case FailRight +: _ => subscript.blame.blame(VectorBoundExceedsLength(subscript))
+        case _ => PanicBlame("Should not occur")
+      }
+      case other => throw Unreachable(s"Invalid invocation failure: $other")
     }
   }
 
@@ -960,7 +978,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     }
   }
 
-  def deref(deref: CStructAccess[Pre]): Expr[Post] = {
+  def deref(deref: CFieldAccess[Pre]): Expr[Post] = {
     implicit val o: Origin = deref.o
 
     def getCuda(dim: RefCudaVecDim[Pre]): Expr[Post] = dim.vec match {
@@ -970,18 +988,30 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case RefCudaGridDim() => cudaCurrentGridDim.top.indices(dim).get
     }
 
+    def getVector(i: BigInt): Expr[Post] = AmbiguousSubscript(rw.dispatch(deref.obj), const(i))(PanicBlame("Should be okay"))
+
     deref.ref.get match {
-      case spec: SpecDerefTarget[Pre] => rw.specDeref(deref.struct, spec, deref, deref.blame)
+      case spec: SpecDerefTarget[Pre] => rw.specDeref(deref.obj, spec, deref, deref.blame)
       case target: SpecInvocationTarget[Pre] => ???
       case dim: RefCudaVecDim[Pre] => getCuda(dim)
+      case mem: RefOpenCLVectorMembers[Pre] =>
+        if(mem.idx.size == 1) getVector(mem.idx.head)
+        else {
+          val elementType = deref.obj.t match {
+            case CPrimitiveType(Seq(CSpecificationType(v: TOpenCLVector[Pre]))) => v.innerType
+            case v: TOpenCLVector[Pre] => v.innerType
+            case _ => ???
+          }
+          LiteralVector[Post](rw.dispatch(elementType), mem.idx.map(getVector))
+        }
       case struct: RefCStruct[Pre] => ???
       case struct: RefCStructField[Pre] =>
-        val struct_ref = getBaseType(deref.struct.t) match {
+        val struct_ref = getBaseType(deref.obj.t) match {
           case CTStruct(struct_ref) => struct_ref
-          case _: TNotAValue[Pre] => throw TypeUsedAsValue(deref.struct)
+          case _: TNotAValue[Pre] => throw TypeUsedAsValue(deref.obj)
           case _ => ???
         }
-        Deref[Post](rw.dispatch(deref.struct), cStructFieldsSuccessor.ref((struct_ref.decl, struct.decls)))(deref.blame)
+        Deref[Post](rw.dispatch(deref.obj), cStructFieldsSuccessor.ref((struct_ref.decl, struct.decls)))(deref.blame)
     }
   }
 
@@ -1083,7 +1113,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       val x = new Variable[Post](vectorT)(o.where(name = "x"))
       val i = new Variable[Post](TCInt())(o.where(name = "i"))
       val v = new Variable[Post](elementType)(o.where(name = "v"))
-      val req = c_const[Post](0) <= i.get && i.get < c_const[Post](size)
+      val req = Seq(c_const[Post](0) <= i.get, i.get < c_const[Post](size))
 
       val vals: Seq[Expr[Post]] = Seq.range(0, size).map(j => AmbiguousSubscript(x.get, c_const[Post](j))(PanicBlame("Checked")))
       def f: Int => Expr[Post] = j => LiteralVector(elementType, vals.updated(j, v.get))
@@ -1096,7 +1126,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         args = Seq(x, i, v),
         typeArgs = Seq(elementTypeVar),
         body = Some(body),
-        requires = UnitAccountedPredicate(req)
+        requires = SplitAccountedPredicate(UnitAccountedPredicate(req(0)), UnitAccountedPredicate(req(1)))
       )
     }
     )
@@ -1105,17 +1135,75 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   val updateVectorFunction: mutable.Map[Int, Function[Post]] = mutable.Map()
 
   def assignSubscriptVector(assign: PreAssignExpression[Pre]): Expr[Post] = {
-    val AmbiguousSubscript(v, i) = assign.target
+
+    val sub@AmbiguousSubscript(v, i) = assign.target
     val t = v.t match {
       case CPrimitiveType(Seq(CSpecificationType(t: CTVector[Pre]))) => t
       case _ => ???
     }
+
+    val size = t.intSize.toInt
+    val index = rw.dispatch(i)
+    val innerType = t.innerType
+
     val newV = rw.dispatch(v)
-    val f = updateVectorFunction.getOrElseUpdate(t.intSize.toInt, createUpdateVectorFunction(t.intSize.toInt))
-    val update = functionInvocation[Post](PanicBlame("TODO: vectorSize"),
-      f.ref, Seq(newV, rw.dispatch(i), rw.dispatch(assign.value)), Seq(rw.dispatch(t.innerType)))(assign.o)
+    val f = updateVectorFunction.getOrElseUpdate(size, createUpdateVectorFunction(size))
+    val update = functionInvocation[Post](VectorBoundFailed(sub),
+      f.ref, Seq(newV, index, rw.dispatch(assign.value)), Seq(rw.dispatch(innerType)))(assign.o)
 
     PreAssignExpression(newV, update)(assign.blame)(assign.o)
+  }
+
+  // If we have vector<int, 4> v; v.xwy = vector<int>{0, 1, 2}
+  // We want to get v = vector<int>{0, 2, v[2], 1};
+  def assignOpenCLVector(assign: PreAssignExpression[Pre]): Expr[Post] = {
+    val CFieldAccess(obj, idxs) = assign.target
+    val t = obj.t match {
+      case CPrimitiveType(Seq(CSpecificationType(t: TOpenCLVector[Pre]))) => t
+      case _ => ???
+    }
+
+    val intIdxs = C.openCLVectorAccessString(idxs, t.size).getOrElse(throw WrongOpenCLLiteralVector(assign))
+
+    val lhs_vec = rw.dispatch(obj)
+    val rhs = rw.dispatch(assign.value)
+    val innerType = rw.dispatch(t.innerType)
+
+    if(intIdxs.length == 1){
+      // Only one index needs to change
+      val vals: Seq[Expr[Post]] = Seq.tabulate(t.size.toInt)(
+        (i: Int) => {
+          val c = intIdxs.count(j => j == i)
+          if (c==0) AmbiguousSubscript(lhs_vec, c_const[Post](i)(assign.target.o))(PanicBlame("Type checked"))(assign.o)
+          else rhs
+        }
+      )
+
+      return PreAssignExpression(lhs_vec, LiteralVector(innerType, vals)(assign.o))(assign.blame)(assign.o)
+    }
+
+    // Store the rhs in a variable, it might be a method call that alters the state
+    val vectorT = TVector[Post](intIdxs.length, innerType)
+    val rhs_val = new Variable[Post](vectorT)(assign.value.o)
+    val before: Statement[Post] = Block[Post](Seq(
+      LocalDecl(rhs_val)(rhs.o),
+      assignLocal(rhs_val.get(rhs.o), rhs)(rhs.o),
+    ))(assign.o)
+
+    // Assign the correct values
+    val vals: Seq[Expr[Post]] = Seq.tabulate(t.size.toInt)(
+      (i: Int) => {
+        val c = intIdxs.count(j => j == i)
+        if(c> 1) throw WrongOpenCLLiteralVector(assign)
+        else if (c==0) AmbiguousSubscript(lhs_vec, c_const[Post](i)(assign.target.o))(PanicBlame("Type checked"))(assign.o)
+        else {
+          val j = intIdxs.indexOf(i)
+          AmbiguousSubscript(rhs_val.get(rhs.o), c_const[Post](j)(assign.target.o))(PanicBlame("Type checked"))(assign.o)
+        }
+      }
+    )
+
+    With(before, PreAssignExpression(lhs_vec, LiteralVector(innerType, vals)(assign.o))(assign.blame)(assign.o))(assign.o)
   }
 
   def isCPointer(t: Type[_]): Boolean = t match {
@@ -1124,8 +1212,52 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     case _ => false
   }
 
+  def indexVectors(e: Expr[Post], askedType: Type[Post], inv: CInvocation[Pre]): Seq[Expr[Post]] = e.t match {
+    case t if t == askedType => Seq(e)
+    case t: TVector[Post] =>
+      Seq.tabulate(t.size.toInt)(i => i)
+        .flatMap(i => indexVectors(AmbiguousSubscript(e, c_const(i)(e.o))(PanicBlame("Type Checked"))(e.o), askedType, inv))
+    case _ => throw WrongOpenCLLiteralVector(inv)
+  }
+
+  def unwrapVectorArg(e: Expr[Post], askedType: Type[Post], inv: CInvocation[Pre]): (Seq[Statement[Post]], Seq[Expr[Post]]) = e.t match {
+    case t if t == askedType => (Nil, Seq(e))
+    case _: TVector[Post] =>
+      implicit val o: Origin = e.o
+      val (befores, varE) = e match {
+        case v: Local[Post] => (Nil, v)
+        case _ =>
+          val v = new Variable[Post](e.t)
+          val befores: Seq[Statement[Post]] = Seq(
+            LocalDecl(v),
+            assignLocal(v.get, e))
+          (befores, v.get)
+      }
+      (befores, indexVectors(varE, askedType, inv))
+    case _ => throw WrongOpenCLLiteralVector(inv)
+  }
+
+  def createOpenCLLiteralVector(size: BigInt, innerType: Type[Pre], inv: CInvocation[Pre]): Expr[Post] = {
+    implicit val o: Origin = inv.o
+    val (befores: Seq[Statement[Post]], newArgs: Seq[Expr[Post]])
+      = inv.args.map(a => unwrapVectorArg(rw.dispatch(a), rw.dispatch(innerType), inv))
+        .foldLeft[(Seq[Statement[Post]], Seq[Expr[Post]])](Nil, Nil)(
+          (base, extra) => (base._1 ++ extra._1, base._2 ++ extra._2))
+    if(newArgs.length != size) throw WrongOpenCLLiteralVector(inv)
+    val result = LiteralVector[Post](rw.dispatch(innerType), newArgs)
+    if(befores.nonEmpty) With(Block(befores), result)
+    else result
+  }
+
   def invocation(inv: CInvocation[Pre]): Expr[Post] = {
     val CInvocation(applicable, args, givenMap, yields) = inv
+
+    inv.ref.get match {
+      case RefOpenCLVectorLiteralCInvocationTarget(size, t) if givenMap.isEmpty && yields.isEmpty =>
+        return createOpenCLLiteralVector(size, t, inv)
+      case RefOpenCLVectorLiteralCInvocationTarget(size, t) => throw WrongOpenCLLiteralVector(inv)
+      case _ =>
+    }
 
     // Create copy for any direct structure arguments
     val newArgs = args.map(a =>
@@ -1279,8 +1411,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case ("get_local_id", Some(i)) => getCudaLocalThread(i, o)
       case ("get_group_id", Some(i)) => getCudaGroupThread(i, o)
       case ("get_local_size", Some(i)) => getCudaLocalSize(i, o)
-      case ("get_global_size", Some(i)) => getCudaGroupSize(i, o)
+      case ("get_global_size", Some(i)) => getCudaGroupSize(i, o) * getCudaLocalSize(i, o)
       case ("get_num_groups", Some(i)) => getCudaGroupSize(i, o)
+      case ("get_global_id", Some(i)) => getCudaLocalSize(i, o) * getCudaGroupThread(i, o) + getCudaLocalThread(i, o)
       case _ => ProcedureInvocation[Post](cFunctionDeclSuccessor.ref((decls, initIdx)), rewrittenArgs, Nil, Nil,
         givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
         yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
@@ -1291,9 +1424,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     TPointer(rw.dispatch(t.innerType))
   }
 
-  def vectorType(t: CTVector[Pre]): Type[Post] = rw.dispatch(t.innerType) match {
-      case innerType@(TCInt() | TCFloat(_,_)) => TVector(t.intSize, innerType)(t.o)
+  def vectorType(t: CType[Pre]): Type[Post] = {
+    val (intSize, innerType) = t match {
+      case t: CTVector[Pre] => (t.intSize, t.innerType)
+      case t: TOpenCLVector[Pre] => (t.size, t.innerType)
       case _ => throw WrongVectorType(t)
+    }
+    rw.dispatch(innerType) match {
+      case innerType@(TCInt() | TCFloat(_,_)) => TVector(intSize, innerType)(t.o)
+      case _ => throw WrongVectorType(t)
+    }
   }
 
   def arrayType(t: CTArray[Pre]): Type[Post] = {

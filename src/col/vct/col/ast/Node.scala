@@ -584,6 +584,8 @@ sealed trait VectorBinExpr[G] extends BinExpr[G] with VectorBinExprImpl[G]
 final case class VectorPlus[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends VectorBinExpr[G] with VectorPlusImpl[G]
 final case class VectorMinus[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends VectorBinExpr[G] with VectorMinusImpl[G]
 final case class VectorMult[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends VectorBinExpr[G] with VectorMultImpl[G]
+final case class VectorEq[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends VectorBinExpr[G] with VectorEqImpl[G]
+final case class VectorNeq[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends VectorBinExpr[G] with VectorNeqImpl[G]
 
 sealed trait DividingVectorBinExpr[G] extends VectorBinExpr[G] with DividingExpr[G]
 final case class VectorFloorDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends DividingVectorBinExpr[G] with VectorFloorDivImpl[G]
@@ -639,6 +641,10 @@ final case class ResourceOfResourceValue[G](res: Expr[G])(implicit val o: Origin
 final case class ResourceValue[G](res: Expr[G])(implicit val o: Origin) extends Expr[G] with ResourceValueImpl[G]
 
 sealed trait Comparison[G] extends BinExpr[G] with ComparisonImpl[G]
+sealed trait AmbiguousComparison[G] extends Comparison[G] with AmbiguousComparisonImpl[G]
+final case class AmbiguousEq[G](left: Expr[G], right: Expr[G], vectorInnerType: Type[G])(implicit val o: Origin) extends AmbiguousComparison[G] with AmbiguousEqImpl[G]
+final case class AmbiguousNeq[G](left: Expr[G], right: Expr[G], vectorInnerType: Type[G])(implicit val o: Origin) extends AmbiguousComparison[G] with AmbiguousNeqImpl[G]
+
 final case class Eq[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Comparison[G] with EqImpl[G]
 final case class Neq[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Comparison[G] with NeqImpl[G]
 
@@ -1021,7 +1027,7 @@ final case class CLocal[G](name: String)(val blame: Blame[DerefInsufficientPermi
 final case class CInvocation[G](applicable: Expr[G], args: Seq[Expr[G]], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Expr[G], Ref[G, Variable[G]])])(val blame: Blame[FrontendInvocationError])(implicit val o: Origin) extends CExpr[G] with CInvocationImpl[G] {
   var ref: Option[CInvocationTarget[G]] = None
 }
-final case class CStructAccess[G](struct: Expr[G], field: String)(val blame: Blame[FrontendDerefError])(implicit val o: Origin) extends CExpr[G] with CStructAccessImpl[G] {
+final case class CFieldAccess[G](obj: Expr[G], field: String)(val blame: Blame[FrontendDerefError])(implicit val o: Origin) extends CExpr[G] with CFieldAccessImpl[G] {
   var ref: Option[CDerefTarget[G]] = None
 }
 final case class CStructDeref[G](struct: Expr[G], field: String)(val blame: Blame[FrontendDerefError])(implicit val o: Origin) extends CExpr[G] with CStructDerefImpl[G] {
@@ -1044,6 +1050,7 @@ final case class CTPointer[G](innerType: Type[G])(implicit val o: Origin = Diagn
 final case class CTArray[G](size: Option[Expr[G]], innerType: Type[G])(val blame: Blame[ArraySizeError])(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CTArrayImpl[G]
 final case class CTStruct[G](ref: Ref[G, CGlobalDeclaration[G]])(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CTStructImpl[G]
 final case class CTVector[G](size: Expr[G], innerType: Type[G])(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CTVectorImpl[G]
+final case class TOpenCLVector[G](size: BigInt, innerType: Type[G])(implicit val o: Origin = DiagnosticOrigin) extends CType[G]  with TOpenCLVectorImpl[G]
 final case class CTCudaVec[G]()(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CTCudaVecImpl[G]
 
 @family sealed trait CPPDeclarationSpecifier[G] extends NodeFamily[G] with CPPDeclarationSpecifierImpl[G]

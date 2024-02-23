@@ -189,7 +189,7 @@ class FeatureRainbow[G] {
     case node: CSigned[G] => CSpecific
     case node: CSpecificationType[G] => CSpecific
     case node: CStatic[G] => CSpecific
-    case node: CStructAccess[G] => CSpecific
+    case node: CFieldAccess[G] => CSpecific
     case node: CStructDeref[G] => CSpecific
     case node: CTCudaVec[G] => CSpecific
     case node: CTranslationUnit[G] => CSpecific

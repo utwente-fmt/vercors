@@ -568,6 +568,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
           AmbiguousComputationalXor(int(left), int(right)),
           AmbiguousComputationalXor(bool(left), bool(right)),
         )
+      case AmbiguousEq(left, right, vectorInnerType) =>
+        val sharedType = Types.leastCommonSuperType(left.t, right.t)
+        AmbiguousEq(coerce(left, sharedType), coerce(right, sharedType), vectorInnerType)
       case AmbiguousGreater(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           AmbiguousGreater(int(left), int(right)),
@@ -687,6 +690,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
             AmbiguousMult(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
           }
         )
+      case AmbiguousNeq(left, right, vectorInnerType) =>
+        val sharedType = Types.leastCommonSuperType(left.t, right.t)
+        AmbiguousNeq(coerce(left, sharedType), coerce(right, sharedType), vectorInnerType)
       case AmbiguousOr(left, right) =>
         firstOk(e, s"Expected both operands to be boolean or a process, but got ${left.t} and ${right.t}.",
           AmbiguousOr(bool(left), bool(right)),
@@ -838,8 +844,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case SYCLNDRange(globalRange, localRange) => SYCLNDRange(globalRange, localRange)
       case StringConcat(left, right) =>
         StringConcat(string(left), string(right))
-      case acc @ CStructAccess(struct, field) =>
-        CStructAccess(struct, field)(acc.blame)
+      case acc @ CFieldAccess(obj, field) =>
+        CFieldAccess(obj, field)(acc.blame)
       case deref @ CStructDeref(struct, field) =>
         CStructDeref(struct, field)(deref.blame)
       case CurPerm(loc) =>
@@ -1453,6 +1459,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         val sharedType = Types.leastCommonSuperType(leftType.element, rightType.element)
         val seqType = TSeq(sharedType)
         VectorCompare(coerce(coercedLeft, seqType), coerce(coercedRight, seqType))
+      case VectorEq(left, right) =>
+        val sharedType = Types.leastCommonSuperType(left.t, right.t)
+        VectorEq(coerce(left, sharedType), coerce(right, sharedType))
       case div @ VectorFloatDiv(_, _) => vectorFloatOp2(div, (l,r) => VectorFloatDiv(l,r)(div.blame))
       case div @ VectorFloorDiv(_, _) => vectorIntOp2(div, (l,r) => VectorFloorDiv(l,r)(div.blame))
       case minus @ VectorMinus(_, _) =>
@@ -1460,6 +1469,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case mod@ VectorMod(_, _) => vectorIntOp2(mod, (l,r) => VectorMod(l,r)(mod.blame))
       case mult @ VectorMult(_, _) =>
         vectorOp2(mult, (l,r) => VectorMult(l,r))
+      case VectorNeq(left, right) =>
+        val sharedType = Types.leastCommonSuperType(left.t, right.t)
+        VectorNeq(coerce(left, sharedType), coerce(right, sharedType))
       case plus @ VectorPlus(_, _) =>
         vectorOp2(plus, (l,r) => VectorPlus(l,r))
       case VectorRepeat(e) =>

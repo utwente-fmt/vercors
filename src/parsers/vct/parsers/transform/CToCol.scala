@@ -163,6 +163,7 @@ case class CToCol[G](override val baseOrigin: Origin,
       case TypedefName0(name) => CTypedefName(convert(name))
     }
     case TypeSpecifier6(_, _, _, _) => ??(typeSpec)
+    case TypeSpecifier7(_, _, t, _, size, _) => CSpecificationType(TOpenCLVector(BigInt(size), convert(t)))
   }
 
   def convert(implicit struct: StructOrUnionSpecifierContext): CTypeSpecifier[G] = struct match {
@@ -495,8 +496,8 @@ case class CToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit expr: EqualityExpressionContext): Expr[G] = expr match {
     case EqualityExpression0(inner) => convert(inner)
-    case EqualityExpression1(left, _, right) => Eq(convert(left), convert(right))
-    case EqualityExpression2(left, _, right) => Neq(convert(left), convert(right))
+    case EqualityExpression1(left, _, right) => AmbiguousEq(convert(left), convert(right), TCInt())
+    case EqualityExpression2(left, _, right) => AmbiguousNeq(convert(left), convert(right), TCInt())
   }
 
   def convert(implicit expr: RelationalExpressionContext): Expr[G] = expr match {
@@ -593,7 +594,7 @@ case class CToCol[G](override val baseOrigin: Origin,
     case PostfixExpression2(f, _, args, _, given, yields) =>
       CInvocation(convert(f), args.map(convert(_)) getOrElse Nil,
         convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
-    case PostfixExpression3(struct, _, field) => CStructAccess(convert(struct), convert(field))(blame(expr))
+    case PostfixExpression3(struct, _, field) => CFieldAccess(convert(struct), convert(field))(blame(expr))
     case PostfixExpression4(struct, _, field) => CStructDeref(convert(struct), convert(field))(blame(expr))
     case PostfixExpression5(targetNode, _) =>
       val target = convert(targetNode)

@@ -642,8 +642,8 @@ case class JavaToCol[G](override val baseOrigin: Origin,
     }
     case JavaInstanceOf(obj, _, t) => InstanceOf(convert(obj), TypeValue(convert(t)))
     case JavaEquals(left, eq, right) => eq match {
-      case "==" => Eq(convert(left), convert(right))
-      case "!=" => Neq(convert(left), convert(right))
+      case "==" => AmbiguousEq(convert(left), convert(right), TInt())
+      case "!=" => AmbiguousNeq(convert(left), convert(right), TInt())
     }
     case JavaBitAnd(left, _, right) => AmbiguousComputationalAnd(convert(left), convert(right))
     case JavaBitXor(left, _, right) => AmbiguousComputationalXor(convert(left), convert(right))

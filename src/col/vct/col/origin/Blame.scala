@@ -419,12 +419,12 @@ case class SeqBoundExceedsLength(node: SeqSubscript[_]) extends SeqBoundFailure 
 }
 
 sealed trait VectorBoundFailure extends FrontendSubscriptError with BuiltinError
-case class VectorBoundNegative(node: VectorSubscript[_]) extends VectorBoundFailure with NodeVerificationFailure {
+case class VectorBoundNegative(node: Expr[_]) extends VectorBoundFailure with NodeVerificationFailure {
   override def code: String = "vecIndexNegative"
   override def descInContext: String = "The index in this vector subscript may be negative."
   override def inlineDescWithSource(source: String): String = s"The index in `$source` may be negative."
 }
-case class VectorBoundExceedsLength(node: VectorSubscript[_]) extends VectorBoundFailure with NodeVerificationFailure {
+case class VectorBoundExceedsLength(node: Expr[_]) extends VectorBoundFailure with NodeVerificationFailure {
   override def code: String = "vecIndexExceedsLength"
   override def descInContext: String = "The index in this vector subscript may exceed the length of the vector."
   override def inlineDescWithSource(source: String): String = s"The index in `$source` may exceed the length of the vector."

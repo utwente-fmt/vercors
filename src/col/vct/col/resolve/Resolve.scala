@@ -425,7 +425,7 @@ case object ResolveReferences extends LazyLogging {
       })
     case deref@CStructDeref(struct, field) =>
       deref.ref = Some(C.findPointerDeref(struct, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
-    case deref@CStructAccess(obj, field) =>
+    case deref@CFieldAccess(obj, field) =>
       deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref@CPPClassMethodOrFieldAccess(obj, methodOrFieldName) =>
       deref.ref = Some(CPP.findDeref(obj, methodOrFieldName, ctx, deref.blame).headOption.getOrElse(throw NoSuchNameError("field or instance method", methodOrFieldName, deref)))

@@ -287,6 +287,7 @@ typeSpecifier
     |   enumSpecifier
     |   typedefName
     |   '__typeof__' '(' constantExpression ')' // GCC extension
+    |   OPENCL_VECTOR_TYPE '(' typeName ',' Constant  ')'
     ;
 
 structOrUnionSpecifier

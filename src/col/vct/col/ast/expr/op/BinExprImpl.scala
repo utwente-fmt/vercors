@@ -39,7 +39,7 @@ object BinOperatorTypes {
     .getOrElse(false)
   }
 
-  def getVectorType[G](lt: Type[G], rt: Type[G], o: Origin): Type[G] = {
+  def getVectorType[G](lt: Type[G], rt: Type[G], o: Origin): TVector[G] = {
     (for{
       (_, TVector(sizeL, eL)) <- CoercionUtils.getAnyVectorCoercion(lt)
       (_, TVector(sizeR, eR)) <- CoercionUtils.getAnyVectorCoercion(rt)
@@ -90,5 +90,5 @@ trait BinExprImpl[G] { this: BinExpr[G] =>
 
   def getNumericType: Type[G] = BinOperatorTypes.getNumericType(left.t, right.t, o)
 
-  def getVectorType: Type[G] = BinOperatorTypes.getVectorType(left.t, right.t, o)
+  def getVectorType: TVector[G] = BinOperatorTypes.getVectorType(left.t, right.t, o)
 }

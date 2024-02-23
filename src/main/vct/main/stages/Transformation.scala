@@ -191,6 +191,7 @@ case class SilverTransformation
     FilterSpecIgnore,
 
     // Normalize AST
+    // Make sure Disambiguate comes after CFloatIntCoercion, so CInts are gone
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
     EncodeRangedFor,

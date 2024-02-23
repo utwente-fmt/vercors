@@ -205,8 +205,8 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit expr: EqExprContext): Expr[G] = expr match {
-    case EqExpr0(left, _, right) => Eq(convert(left), convert(right))
-    case EqExpr1(left, _, right) => Neq(convert(left), convert(right))
+    case EqExpr0(left, _, right) => AmbiguousEq(convert(left), convert(right), TInt())
+    case EqExpr1(left, _, right) => AmbiguousNeq(convert(left), convert(right), TInt())
     case EqExpr2(inner) => convert(inner)
   }
 

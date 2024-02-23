@@ -195,6 +195,38 @@ case object C {
       case _ => None
     }
 
+  def openCLVectorAccessString[G](access: String, typeSize: BigInt): Option[Seq[BigInt]] = access match {
+    case "lo" if typeSize % 2 == 0 => Some(Seq.tabulate(typeSize.toInt/2)(i => i))
+    case "hi" if typeSize % 2 == 0 => Some(Seq.tabulate(typeSize.toInt/2)(i => i + typeSize/2))
+    case "even" if typeSize % 2 == 0 => Some(Seq.tabulate(typeSize.toInt/2)(i => 2*i))
+    case "odd" if typeSize % 2 == 0 => Some(Seq.tabulate(typeSize.toInt/2)(i => 2*i+1))
+    case s if s.head == 's' && s.tail.nonEmpty =>
+      val hexToInt = (i: Char) => i match {
+        case i if i.isDigit => BigInt(i - '0'.toInt)
+        case i if i >= 'a' && i <= 'f' => BigInt(i.toInt - 'a'.toInt + 10)
+        case i if i >= 'A' && i <= 'F' => BigInt(i.toInt - 'A'.toInt + 10)
+        case _ => return None
+      }
+      val res = access.tail.map(hexToInt)
+      if(res.forall(p => p < typeSize))
+        Some(res)
+      else
+        None
+    case _ =>
+      val xyzwToInt = (i: Char) => i match {
+        case 'x' => BigInt(0)
+        case 'y' => BigInt(1)
+        case 'z' => BigInt(2)
+        case 'w' => BigInt(3)
+        case _ => return None
+      }
+      val res = access.map(xyzwToInt)
+      if(res.forall(p => p < typeSize))
+        Some(res)
+      else
+        None
+  }
+
   def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[CDerefTarget[G]] =
     (obj.t match {
       case t: TNotAValue[G] => t.decl.get match {
@@ -216,6 +248,8 @@ case object C {
           case "z" => Some(RefCudaVecZ(ref))
           case _ => None
         }
+      case CPrimitiveType(Seq(CSpecificationType(v: TOpenCLVector[G]))) =>
+        openCLVectorAccessString(name, v.size).map(RefOpenCLVectorMembers[G])
       case _ => None
     }).orElse(Spec.builtinField(obj, name, blame))
 
@@ -225,6 +259,8 @@ case object C {
         case target: CInvocationTarget[G] => target
         case _ => throw NotApplicable(obj)
       }
+      // OpenCL overloads vector literals as function invocations..
+      case CPrimitiveType(CSpecificationType(v: TOpenCLVector[G]) +: _) => RefOpenCLVectorLiteralCInvocationTarget[G](v.size, v.innerType)
       case _ => throw NotApplicable(obj)
     }
 }

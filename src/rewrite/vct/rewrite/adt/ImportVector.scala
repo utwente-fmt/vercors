@@ -107,7 +107,7 @@ case class ImportVector[Pre <: Generation](importer: ImportADTImporter) extends 
     }))
   }
 
-  def makeVectorOp(size: BigInt, elementType: Type[Post], isDivOp: Boolean, operator: (Expr[Post], Expr[Post]) => BinExpr[Post], operatorName: String ): Function[Post] = {
+  def makeVectorOp(size: BigInt, elementType: Type[Post], isDivOp: Boolean, isCompareOp: Boolean, operator: (Expr[Post], Expr[Post]) => Expr[Post], operatorName: String ): Function[Post] = {
     implicit val o: Origin = Origin(Seq(LabelContext(f"vector $operatorName method")))
     /* for instance for size 4 and is a division operator
      decreases;
@@ -141,7 +141,7 @@ case class ImportVector[Pre <: Generation](importer: ImportADTImporter) extends 
         blame = AbstractApplicable,
         contractBlame = TrueSatisfiable,
         typeArgs = Nil,
-        returnType = TAxiomatic[Post](vectorAdt.ref, Seq(elementType)),
+        returnType = TAxiomatic[Post](vectorAdt.ref, Seq(if(isCompareOp) TInt() else elementType)),
         args = Seq(x, y),
         requires = requires,
         ensures = UnitAccountedPredicate(foldAnd(ensures))
@@ -201,30 +201,36 @@ case class ImportVector[Pre <: Generation](importer: ImportADTImporter) extends 
 
       val vectorOpFunction =
         e match {
+          case _: VectorEq[Pre] =>
+            val o: Origin = Origin(Seq(LabelContext("vector eq method")))
+            vectorOpsMethods.getOrElseUpdate((size, "eq", elementT), makeVectorOp(size, elementT, isDivOp=divOp, isCompareOp=true, (l,r) => Select(Eq[Post](l, r)(o), const(1)(o), const(0)(o))(o) , "eq"))
+          case _: VectorNeq[Pre] =>
+            val o: Origin = Origin(Seq(LabelContext("vector neq method")))
+            vectorOpsMethods.getOrElseUpdate((size, "neq", elementT), makeVectorOp(size, elementT, isDivOp=divOp, isCompareOp=true, (l,r) => Neq[Post](l, r)(o), "neq"))
           case _: VectorMult[Pre] =>
             val o: Origin = Origin(Seq(LabelContext("vector mult method")))
-            vectorOpsMethods.getOrElseUpdate((size, "mult", elementT), makeVectorOp(size, elementT, isDivOp=divOp, (l,r) => Mult[Post](l, r)(o), "mult"))
+            vectorOpsMethods.getOrElseUpdate((size, "mult", elementT), makeVectorOp(size, elementT, isDivOp=divOp, isCompareOp=false, (l,r) => Mult[Post](l, r)(o), "mult"))
           case _: VectorPlus[Pre] =>
             val o: Origin = Origin(Seq(LabelContext("vector plus method")))
-            vectorOpsMethods.getOrElseUpdate((size, "plus", elementT), makeVectorOp(size, elementT, isDivOp=divOp, (l,r) => Plus[Post](l, r)(o), "plus"))
+            vectorOpsMethods.getOrElseUpdate((size, "plus", elementT), makeVectorOp(size, elementT, isDivOp=divOp, isCompareOp=false, (l,r) => Plus[Post](l, r)(o), "plus"))
           case _: VectorMinus[Pre] =>
             val o: Origin = Origin(Seq(LabelContext("vector minus method")))
-            vectorOpsMethods.getOrElseUpdate((size, "minus", elementT), makeVectorOp(size, elementT, isDivOp=divOp, (l,r) => Minus[Post](l, r)(o), "minus"))
+            vectorOpsMethods.getOrElseUpdate((size, "minus", elementT), makeVectorOp(size, elementT, isDivOp=divOp, isCompareOp=false, (l,r) => Minus[Post](l, r)(o), "minus"))
           case div: VectorTruncDiv[Pre] =>
             val o: Origin = Origin(Seq(LabelContext("vector div method")))
-            vectorOpsMethods.getOrElseUpdate((size, "truncDiv", elementT), makeVectorOp(size, elementT, isDivOp=divOp, (l,r) => TruncDiv[Post](l, r)(div.blame)(o), "div"))
+            vectorOpsMethods.getOrElseUpdate((size, "truncDiv", elementT), makeVectorOp(size, elementT, isDivOp=divOp, isCompareOp=false, (l,r) => TruncDiv[Post](l, r)(div.blame)(o), "div"))
           case div: VectorFloorDiv[Pre] =>
             val o: Origin = Origin(Seq(LabelContext("vector div method")))
-            vectorOpsMethods.getOrElseUpdate((size, "floorDiv", elementT), makeVectorOp(size, elementT, isDivOp=divOp, (l,r) => FloorDiv[Post](l, r)(div.blame)(o), "div"))
+            vectorOpsMethods.getOrElseUpdate((size, "floorDiv", elementT), makeVectorOp(size, elementT, isDivOp=divOp, isCompareOp=false, (l,r) => FloorDiv[Post](l, r)(div.blame)(o), "div"))
           case div: VectorFloatDiv[Pre] =>
             val o: Origin = Origin(Seq(LabelContext("vector div method")))
-            vectorOpsMethods.getOrElseUpdate((size, "floatDiv", elementT), makeVectorOp(size, elementT, isDivOp=divOp, (l,r) => FloatDiv[Post](l, r)(div.blame)(o), "div"))
+            vectorOpsMethods.getOrElseUpdate((size, "floatDiv", elementT), makeVectorOp(size, elementT, isDivOp=divOp, isCompareOp=false, (l,r) => FloatDiv[Post](l, r)(div.blame)(o), "div"))
           case mod: VectorMod[Pre] =>
             val o: Origin = Origin(Seq(LabelContext("vector mod method")))
-            vectorOpsMethods.getOrElseUpdate((size, "mod", elementT), makeVectorOp(size, elementT, isDivOp=divOp, (l,r) => Mod[Post](l, r)(mod.blame)(o), "mod"))
+            vectorOpsMethods.getOrElseUpdate((size, "mod", elementT), makeVectorOp(size, elementT, isDivOp=divOp, isCompareOp=false, (l,r) => Mod[Post](l, r)(mod.blame)(o), "mod"))
           case mod: VectorTruncMod[Pre] =>
             val o: Origin = Origin(Seq(LabelContext("vector mod method")))
-            vectorOpsMethods.getOrElseUpdate((size, "truncMod", elementT), makeVectorOp(size, elementT, isDivOp=divOp, (l,r) => TruncMod[Post](l, r)(mod.blame)(o), "mod"))
+            vectorOpsMethods.getOrElseUpdate((size, "truncMod", elementT), makeVectorOp(size, elementT, isDivOp=divOp, isCompareOp=false, (l,r) => TruncMod[Post](l, r)(mod.blame)(o), "mod"))
         }
 
       val blame = divOpBlame match {
