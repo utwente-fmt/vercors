@@ -30,7 +30,6 @@ case class Name(parts: Seq[String]) {
 
 object Name {
   implicit val rw: RW[Name] = macroRW
-  implicit val segments: mill.define.Cross.ToSegments[Name] = new mill.define.Cross.ToSegments(n => n.parts.toList)
 }
 
 /**

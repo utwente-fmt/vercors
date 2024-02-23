@@ -8,4 +8,4 @@ else
   Z3="$ROOT/res/universal/deps/unix/z3/bin/z3"
 fi
 
-$ROOT/out/vercors/main/runScript.dest/silicon --z3Exe $Z3 "$@"
+$ROOT/out/vercors/main/runScript.dest/silicon --logLevel ERROR --z3Exe $Z3 "$@"

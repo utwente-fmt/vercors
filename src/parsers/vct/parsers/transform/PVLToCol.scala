@@ -55,7 +55,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       new PVLEndpoint(
         convert(name),
         new UnresolvedRef[G, Class[G]](convert(endpointType)),
-        args.map(convert(_)).getOrElse(Nil))(origin(decl).sourceName(convert(name))
+        args.map(convert(_)).getOrElse(Nil))(blame(decl))(origin(decl).sourceName(convert(name))
       )
     case PvlEndpoint(_, name, _, t@ClassType0(_, Some(_)), _, args, _, _) => ??(t)
   }
@@ -131,7 +131,8 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   def convert(implicit constructor: ConstructorContext): Seq[ClassDeclaration[G]] = constructor match {
     case Constructor0(contract, _, _, args, _, body) =>
       Seq(withContract(contract, contract =>
-        new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), args.map(convert(_)).getOrElse(Nil), convert(body))(blame(constructor))))
+        new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), args.map(convert(_)).getOrElse(Nil), convert(body)
+        )(blame(constructor))))
   }
 
   def convert(implicit finalFlag: FinalFlagContext): FieldFlag[G] = finalFlag match {
@@ -357,14 +358,9 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlLabel(_, label, _) => Label(new LabelDecl()(origin(stat).sourceName(convert(label))), Block(Nil))
     case PvlForStatement(inner, _) => convert(inner)
     case PvlCommunicateStatement(_, receiver, Direction0("<-"), sender, _) =>
-      PVLCommunicate(convert(sender), convert(receiver))
+      PVLCommunicate(convert(sender), convert(receiver))(blame(stat))
     case PvlCommunicateStatement(_, sender, Direction1("->"), receiver, _) =>
-      PVLCommunicate(convert(sender), convert(receiver))
-    case PvlSeqAssign(endpoint, _, field, _, _, expr, _) =>
-      PVLSeqAssign(
-        new UnresolvedRef[G, PVLEndpoint[G]](convert(endpoint)),
-        new UnresolvedRef[G, InstanceField[G]](convert(field)),
-        convert(expr))(blame(stat))
+      PVLCommunicate(convert(sender), convert(receiver))(blame(stat))
   }
 
   def convert(implicit stat: ForStatementListContext): Statement[G] =
@@ -386,6 +382,11 @@ case class PVLToCol[G](override val baseOrigin: Origin,
         case "--" => PostAssignExpression[G](target, target - const(1))(blame(stat))
       })
     case PvlAssign(target, _, value) => Assign(convert(target), convert(value))(blame(stat))
+    case PvlSeqAssign(endpoint, _, field, _, _, expr) =>
+      PVLSeqAssign(
+        new UnresolvedRef[G, PVLEndpoint[G]](convert(endpoint)),
+        new UnresolvedRef[G, InstanceField[G]](convert(field)),
+        convert(expr))(blame(stat))
   }
 
   def convert(implicit acc: AccessContext): PVLAccess[G] = acc match {

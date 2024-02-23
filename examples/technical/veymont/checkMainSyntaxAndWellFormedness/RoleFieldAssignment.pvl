@@ -1,0 +1,11 @@
+seq_program Main() {
+    endpoint a = Role();
+
+	seq_run {
+		a = new Role(); // Should error! Cannot reassign roles
+	}
+}
+
+class Role {
+
+}

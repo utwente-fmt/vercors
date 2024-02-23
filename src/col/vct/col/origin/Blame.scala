@@ -232,7 +232,6 @@ case class SYCLItemMethodPreconditionFailed(node: InvokingNode[_]) extends NodeV
 
 sealed trait CallableFailure extends ConstructorFailure with JavaConstructorFailure
 sealed trait ContractedFailure extends CallableFailure
-sealed trait SeqCallableFailure extends CallableFailure
 case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with SeqCallableFailure with WithContractFailure {
   override def baseCode: String = "postFailed"
   override def descInContext: String = "Postcondition may not hold, since"
@@ -263,6 +262,16 @@ case class ExceptionNotInSignals(node: AbstractMethod[_]) extends CallableFailur
   override def code: String = "extraExc"
   override def descInContext: String = "Method may throw exception not included in signals clauses."
   override def inlineDescWithSource(source: String): String = s"Method `$source` may throw exception not included in signals clauses."
+}
+case class SeqRunPreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: SeqRun[_]) extends SeqRunFailure with WithContractFailure {
+  override def baseCode: String = "seqRunPreFailed"
+  override def descInContext: String = "Precondition may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Precondition of `$node` may not hold, since $failure."
+}
+case class SeqRunContextEverywhereFailedInPre(failure: ContractFailure, node: SeqRun[_]) extends SeqRunFailure with WithContractFailure {
+  override def baseCode: String = "seqRunContextPreFailed"
+  override def descInContext: String = "Context may not hold in precondition, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
 }
 case class SYCLKernelLambdaFailure(kernelFailure: KernelFailure) extends VerificationFailure {
   override def code: String = "syclKernelLambda" + kernelFailure.code.capitalize
@@ -330,6 +339,21 @@ case class PlusProviderInvocationFailed(innerFailure: WithContractFailure) exten
   override def inlineDescWithSource(node: String, failure: String): String = innerFailure.inlineDescWithSource(node, failure)
 }
 
+sealed trait SeqCallableFailure extends VerificationFailure
+sealed trait SeqRunFailure extends SeqCallableFailure
+
+sealed trait EndpointFailure extends VerificationFailure
+case class EndpointPreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: Endpoint[_]) extends EndpointFailure with WithContractFailure {
+  override def baseCode: String = "endpointPreFailed"
+  override def descInContext: String = "Precondition of constructor of this endpoint may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Precondition of `$node` may not hold, since $failure."
+}
+case class EndpointContextEverywhereFailedInPre(failure: ContractFailure, node: Endpoint[_]) extends EndpointFailure with WithContractFailure {
+  override def baseCode: String = "endpointContextPreFailed"
+  override def descInContext: String = "Context may not hold in precondition of endpoint constructor, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
+}
+
 sealed trait FrontendIfFailure extends VerificationFailure
 sealed trait SeqBranchFailure extends FrontendIfFailure
 
@@ -388,6 +412,15 @@ case class SeqAssignInsufficientPermission(node: SeqAssign[_]) extends SeqAssign
   override def code: String = "seqAssignPerm"
   override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
   override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
+}
+
+sealed trait PVLCommunicateFailure extends VerificationFailure
+sealed trait CommunicateFailure extends PVLCommunicateFailure
+
+case class ParticipantsNotDistinct(node: Communicate[_]) extends CommunicateFailure with NodeVerificationFailure {
+  override def code: String = "participantsNotDistinct"
+  override def descInContext: String = "The participants in this communicate statement might not be distinct."
+  override def inlineDescWithSource(source: String): String = s"The participants of `$source` might not be distinct."
 }
 
 sealed trait DerefInsufficientPermission extends FrontendDerefError

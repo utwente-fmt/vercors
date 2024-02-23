@@ -34,3 +34,21 @@ trait RewriterBuilderArg[T] {
       override def desc: String = RewriterBuilderArg.this.desc
     }
 }
+
+/**
+ * As RewriterBuilderArg, but with 2 parameters.
+ * @tparam T
+ * @tparam U
+ */
+trait RewriterBuilderArg2[T, U] {
+  def apply[Pre <: Generation](t: T, u: U): AbstractRewriter[Pre, _ <: Generation]
+  def key: String
+  def desc: String
+
+  def withArg(t: T, u: U): RewriterBuilder =
+    new RewriterBuilder {
+      override def apply[Pre <: Generation](): AbstractRewriter[Pre, _ <: Generation] = RewriterBuilderArg2.this.apply(t, u)
+      override def key: String = RewriterBuilderArg2.this.key
+      override def desc: String = RewriterBuilderArg2.this.desc
+    }
+}

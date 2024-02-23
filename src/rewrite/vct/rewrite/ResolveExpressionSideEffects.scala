@@ -363,6 +363,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case cons: Constructor[Pre] => rewriteDefault(cons)
     case method: AbstractMethod[Pre] =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
       currentResultVar.having(Local[Post](res.ref)(ResultVar)) {
@@ -505,6 +506,25 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
       )(inv.blame)(e.o))
       stored(res.get(SideEffectOrigin), method.returnType)
+    case inv @ ConstructorInvocation(Ref(cons), args, outArgs, typeArgs, givenMap, yields) =>
+      val typ = TClass[Post](succ(cons.cls.decl))
+      val res = new Variable[Post](typ)(ResultVar)
+      variables.succeed(res.asInstanceOf[Variable[Pre]], res)
+      effect(InvokeConstructor[Post](
+        ref = succ(cons),
+        out = res.get(ResultVar),
+        args = args.map(inlined),
+        outArgs = outArgs.map(dispatch),
+        typeArgs = typeArgs.map(dispatch),
+        givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
+        yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
+      )(inv.blame)(e.o))
+      stored(res.get(SideEffectOrigin), TClass(cons.cls))
+    case NewObject(Ref(cls)) =>
+      val res = new Variable[Post](TClass(succ(cls)))(ResultVar)
+      variables.succeed(res.asInstanceOf[Variable[Pre]], res)
+      effect(Instantiate[Post](succ(cls), res.get(ResultVar))(e.o))
+      stored(res.get(SideEffectOrigin), TClass(cls.ref))
     case other =>
       stored(ReInliner().dispatch(rewriteDefault(other)), other.t)
   }

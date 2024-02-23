@@ -7,8 +7,6 @@ case object ExampleFiles {
   val IGNORE_DIRS: Seq[String] = Seq(
     "examples/private/",
     "examples/archive/",
-    "examples/technical/veymont-check/",
-    "examples/technical/veymont-seq-progs/",
     "examples/concepts/resourceValues",
   ).map(_.replaceAll("/", File.separator))
 

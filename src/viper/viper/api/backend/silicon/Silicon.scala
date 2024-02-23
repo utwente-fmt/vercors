@@ -201,6 +201,7 @@ case class Silicon(
   override def stopVerifier(verifier: Verifier): Unit = {
     verifier.stop()
     SiliconLogListener.logs.foreach(_.done())
+    SiliconLogListener.logs.clear()
     // SymbExLogger.reset()
 
     if (printQuantifierStatistics) {

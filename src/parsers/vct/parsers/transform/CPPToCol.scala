@@ -397,10 +397,15 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case CastExpression1(_, _, _, expr) => ??(expr)
   }
 
-  // Do not support bracedInitList
   def convert(implicit initClause: InitializerClauseContext): Expr[G] = initClause match {
-    case InitializerClause0(expr) => ??(expr)
+    case InitializerClause0(expr) => convert(expr)
     case InitializerClause1(expr) => convert(expr)
+  }
+
+  def convert(implicit bracedInitList: BracedInitListContext): Expr[G] = bracedInitList match {
+    case BracedInitList0(_, _) => ??(bracedInitList)
+    case BracedInitList1(_, initList, _) => CPPLiteralArray(convert(initList))
+    case BracedInitList2(_, initList, _, _) => CPPLiteralArray(convert(initList))
   }
 
   // Do not support '...'
@@ -794,7 +799,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case PointerOperator2(_, _, _, _) => ??(pointerOp)
   }
 
-  // Do not support attributeSpeciefierSeq
+  // Do not support attributeSpecifierSeq
   def convert(noPointerDeclarator: NoPointerDeclaratorContext)(implicit o: Origin): CPPDeclarator[G] = noPointerDeclarator match {
     case NoPointerDeclarator0(declaratorId, None) => convert(declaratorId)
     case NoPointerDeclarator0(_, _) => ??(noPointerDeclarator)
@@ -802,15 +807,9 @@ case class CPPToCol[G](override val baseOrigin: Origin,
       val (params, varargs) = convert(paramsAndQuals)
       CPPTypedFunctionDeclarator[G](params, varargs, convert(innerDeclarator))
     case NoPointerDeclarator2(innerDeclarator, _, None, _, None) =>
-      convert(innerDeclarator) match {
-        case CPPArrayDeclarator(_, _) => ??(noPointerDeclarator) // Do not support > 1 dimensions
-        case inner => CPPArrayDeclarator(inner, None)(blame(noPointerDeclarator))
-      }
+      CPPArrayDeclarator(None, convert(innerDeclarator))(blame(noPointerDeclarator))
     case NoPointerDeclarator2(innerDeclarator, _, Some(constExpr), _, None) =>
-      convert(innerDeclarator) match {
-        case CPPArrayDeclarator(_, _) => ??(noPointerDeclarator) // Do not support > 1 dimensions
-        case inner => CPPArrayDeclarator(inner, Some(convert(constExpr)))(blame(noPointerDeclarator))
-      }
+      CPPArrayDeclarator(Some(convert(constExpr)), convert(innerDeclarator))(blame(noPointerDeclarator))
     case NoPointerDeclarator2(_, _, _, _, _) => ??(noPointerDeclarator)
     case NoPointerDeclarator3(_, _, _) => ??(noPointerDeclarator)
   }

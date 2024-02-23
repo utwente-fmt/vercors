@@ -12,29 +12,30 @@ case object TaskRegistry {
 
   def enabled: Boolean = mainThreadRootTask.isDefined
 
-  def install(): Unit = {
+  def install(): Unit = synchronized {
     mainThreadId = Thread.currentThread().getId
     mainThreadRootTask = Some(RootTask())
     getRootTask.start()
   }
 
-  def finish(): Unit = {
+  def finish(): Unit = synchronized {
     getRootTask.end()
     mainThreadRootTask = None
   }
 
-  def abort(): Unit = {
+  def abort(): Unit = synchronized {
     mainThreadRootTask.foreach(_.abort())
     mainThreadRootTask = None
   }
 
   def isMainThread: Boolean = Thread.currentThread().getId == mainThreadId
-  def getRootTask: RootTask = mainThreadRootTask.get
+  def rootTask: Option[RootTask] = mainThreadRootTask
+  def getRootTask: RootTask = rootTask.get
 
   /**
    * SAFETY: If called from a non-main thread, a task with an explicit superTask must be started first. This is for
    * example the case when a thread is started as Progress.{foreach,map}(xs.par, _) { ... }: the superTask is
-   * establised in the thread setting up the parallel run.
+   * established in the thread setting up the parallel run.
    */
   def currentTaskInThread: AbstractTask =
     threadTaskStack.get().last

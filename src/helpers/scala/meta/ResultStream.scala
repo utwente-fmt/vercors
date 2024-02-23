@@ -10,14 +10,18 @@ import scala.util.Using
 
 object ResultStream {
   /**
-   * Forwards all writes to the inner Appenable, but stores the two last written
+   * Forwards all writes to the inner Appendable, but stores the two last written
    * characters.
    */
   class MiniContextAppendable(inner: Appendable) extends Appendable {
     private var last: Char = ' '
     private var prelast: Char = ' '
+    private var _position: Long = 0
+
+    def position: Long = _position
 
     override def append(cs: CharSequence): Appendable = {
+      _position += cs.length()
       inner.append(cs)
 
       if(cs.length() > 1) {
@@ -31,6 +35,8 @@ object ResultStream {
     }
 
     override def append(cs: CharSequence, start: Int, end: Int): Appendable = {
+      if(end > start)
+        _position += end - start
       inner.append(cs, start, end)
 
       if(end - start > 1) {
@@ -45,6 +51,7 @@ object ResultStream {
     }
 
     override def append(c: Char): Appendable = {
+      _position += 1
       inner.append(c)
       prelast = last
       last = c
@@ -93,11 +100,11 @@ object ResultStream {
         write(out, res, indentation)
       case Meta(_, res) =>
         write(out, res, indentation)
-      case Wrap(prefix, res, suffix, cond) =>
-        val s_res = res.toString
-        if (cond(s_res)) out.append(prefix)
-        out.append(s_res)
-        if (cond(s_res)) out.append(suffix)
+      case Wrap(prefix, res, suffix) =>
+        val text = res.toString
+        if(text.nonEmpty) {
+          out.append(prefix).append(text).append(suffix)
+        }
       case Function(fn) =>
         if(fn.getClass.getName.startsWith("scala.meta.internal.prettyprinters.TreeSyntax$SyntaxInstances$$Lambda$")) {
           // Currently the only instance: prepends a space if the surrounding output is dangerous.

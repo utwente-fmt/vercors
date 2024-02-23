@@ -89,7 +89,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
               Options.parse((Seq("--backend", "silicon") ++ flags).toArray).get,
               inputs
             )
-          case types.Backend.Carbon => Verify.verifyWithCarbon(inputs)
+          case types.Backend.Carbon =>
             Verify.verifyWithOptions(
               Options.parse((Seq("--backend", "carbon") ++ flags).toArray).get,
               inputs
@@ -198,8 +198,8 @@ abstract class VercorsSpec extends AnyFlatSpec {
 
     def in(desc: String): DescPhrase = new DescPhrase(verdict, backends, desc, _flags)
 
-    def flags(args: Seq[String]): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, args)
-    def flag(arg: String): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, Seq(arg))
+    def flags(args: String*): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, _flags ++ args.toSeq)
+    def flag(arg: String): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, _flags :+ arg)
   }
 
   class DescPhrase(val verdict: Verdict, val backends: Seq[Backend], val desc: String, val flags: Seq[String]) {

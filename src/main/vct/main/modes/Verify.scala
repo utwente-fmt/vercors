@@ -3,6 +3,7 @@ package vct.main.modes
 import com.typesafe.scalalogging.LazyLogging
 import vct.options.Options
 import hre.io.{CollectString, Readable}
+import hre.util.Time
 import sun.misc.{Signal, SignalHandler}
 import vct.col.origin.{BlameCollector, TableEntry, VerificationFailure}
 import vct.col.rewrite.bip.BIP
@@ -14,6 +15,8 @@ import vct.parsers.transform.ConstantBlameProvider
 import vct.result.VerificationError
 import viper.api.backend.silicon.SiliconLogListener
 import viper.silicon.logger.SymbExLogger
+
+import java.time.Duration
 
 case object Verify extends LazyLogging {
   def verifyWithSilicon(inputs: Seq[Readable]): Either[VerificationError, (Seq[VerificationFailure], VerificationReport)] = {
@@ -71,25 +74,31 @@ case object Verify extends LazyLogging {
       case _: IllegalArgumentException =>
     }
 
-    verifyWithOptions(options, options.inputs) match {
-      case Left(err: VerificationError.UserError) =>
-        logger.error(err.text)
-        EXIT_CODE_ERROR
-      case Left(err: VerificationError.SystemError) =>
-        logger.error(CollectString(s => err.printStackTrace(s)))
-        EXIT_CODE_ERROR
-      case Right((Nil, report)) =>
-        logger.info("Verification completed successfully.")
-        friendlyHandleBipReport(report, options.bipReportFile)
-        EXIT_CODE_SUCCESS
-      case Right((fails, report)) =>
-        if(options.more || fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
-        else {
-          logger.info("Printing verification results as a compressed table. Run with `--more` for verbose verification results.")
-          logger.error(TableEntry.render(fails.map(_.asTableEntry)))
-        }
-        friendlyHandleBipReport(report, options.bipReportFile)
-        EXIT_CODE_VERIFICATION_FAILURE
+    val start = java.time.Instant.now()
+
+    try {
+      verifyWithOptions(options, options.inputs) match {
+        case Left(err: VerificationError.UserError) =>
+          logger.error(err.text)
+          EXIT_CODE_ERROR
+        case Left(err: VerificationError.SystemError) =>
+          logger.error(CollectString(s => err.printStackTrace(s)))
+          EXIT_CODE_ERROR
+        case Right((Nil, report)) =>
+          logger.info("Verification completed successfully.")
+          friendlyHandleBipReport(report, options.bipReportFile)
+          EXIT_CODE_SUCCESS
+        case Right((fails, report)) =>
+          if (options.more || fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
+          else {
+            logger.info("Printing verification results as a compressed table. Run with `--more` for verbose verification results.")
+            logger.error(TableEntry.render(fails.map(_.asTableEntry)))
+          }
+          friendlyHandleBipReport(report, options.bipReportFile)
+          EXIT_CODE_VERIFICATION_FAILURE
+      }
+    } finally {
+      logger.info(s"Finished verification at ${Time.formatTime()} (duration: ${Time.formatDuration(Duration.between(start, java.time.Instant.now()))})")
     }
   }
 

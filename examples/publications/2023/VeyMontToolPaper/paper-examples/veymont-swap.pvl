@@ -1,0 +1,25 @@
+class Storage {
+  int v;
+  int temp;
+
+  constructor(int v) {
+    this.v = v;
+  }
+}
+
+seq_program Swap(int x, int y) {
+    endpoint alex = Storage(x);
+    endpoint bobby = Storage(y);
+
+    ensures alex.v == \old(bobby.v);
+    ensures bobby.v == \old(alex.v);
+    seq_run {
+        // First save the previous values
+        alex.temp := alex.v;
+        bobby.temp := bobby.v;
+        // Then send them to the other
+        communicate alex.v <- bobby.temp;
+        communicate bobby.v <- alex.temp;
+    }
+}
+

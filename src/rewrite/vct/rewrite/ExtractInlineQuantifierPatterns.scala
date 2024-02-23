@@ -2,6 +2,7 @@ package vct.col.rewrite
 
 import vct.col.ast._
 import hre.util.ScopedStack
+import vct.col.ast.RewriteHelpers.RewriteProgram
 import vct.col.ref.Ref
 import vct.col.rewrite.ExtractInlineQuantifierPatterns.NotAllowedInTrigger
 import vct.result.VerificationError.UserError
@@ -25,8 +26,10 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
     def make(): Expr[Post] = MakePattern(this).dispatch(pattern)
   }
 
+  type LetBinding = (Variable[Pre], Expr[Pre])
+
   val patterns: ScopedStack[ArrayBuffer[Pattern]] = ScopedStack()
-  val letBindings: ScopedStack[(Variable[Pre], Expr[Pre])] = ScopedStack()
+  val letBindings: ScopedStack[ScopedStack[LetBinding]] = ScopedStack()
 
   case class MakePattern(pattern: Pattern) extends Rewriter[Pre] {
     override val allScopes = outer.allScopes
@@ -57,20 +60,34 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
     }
   }
 
+  override def dispatch(p: Program[Pre]): Program[Post] =
+    letBindings.having(ScopedStack()) { p.rewrite() }
+
+  override def dispatch(loc: Location[Pre]): Location[Post] = loc match {
+    case InLinePatternLocation(loc, pat) =>
+      dispatch(pat)
+      dispatch(loc)
+    case other => rewriteDefault(other)
+  }
+
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case Let(binding, value, _) =>
-      letBindings.having(binding -> value) { rewriteDefault(e) }
+      letBindings.top.having(binding -> value) { rewriteDefault(e) }
 
     case i: InlinePattern[Pre] =>
       if(patterns.toSeq.isDefinedAt(i.parent)) {
-        patterns.toSeq(i.parent) += Pattern(i.group, i.inner, letBindings.toSeq.toMap)
+        // We only inline let bindings defined inside the current quantifier
+        patterns.toSeq(i.parent) += Pattern(i.group, i.inner, letBindings.top.toSeq.toMap)
       }
       dispatch(i.inner)
 
     case f: Forall[Pre] =>
       variables.scope {
         val (patternsHere, body) = patterns.collect {
-          dispatch(f.body)
+          // We only want to inline lets that are defined inside the quantifier
+          letBindings.having(ScopedStack()) {
+            dispatch(f.body)
+          }
         }
         val unsortedGroups = patternsHere.groupBy(_.group)
         val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
@@ -85,7 +102,10 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
     case f: Starall[Pre] =>
       variables.scope {
         val (patternsHere, body) = patterns.collect {
-          dispatch(f.body)
+          // We only want to inline lets that are defined inside the quantifier
+          letBindings.having(ScopedStack()) {
+            dispatch(f.body)
+          }
         }
         val unsortedGroups = patternsHere.groupBy(_.group)
         val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
@@ -102,7 +122,10 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
     case f: Exists[Pre] =>
       variables.scope {
         val (patternsHere, body) = patterns.collect {
-          dispatch(f.body)
+          // We only want to inline lets that are defined inside the quantifier
+          letBindings.having(ScopedStack()) {
+            dispatch(f.body)
+          }
         }
         val unsortedGroups = patternsHere.groupBy(_.group)
         val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)

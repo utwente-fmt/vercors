@@ -3,7 +3,7 @@ package vct.main.stages
 import hre.io.{RWFile, Writeable}
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.cache.VerificationCache
+import vct.cache.Caches
 import vct.col.ast.{Program, Serialize, Verification, VerificationContext}
 import vct.col.origin.ExpectedError
 import vct.col.rewrite.Generation
@@ -50,7 +50,7 @@ case object Backend {
         traceBranchConditions = options.devSiliconTraceBranchConditions,
         branchConditionReportInterval = options.devSiliconBranchConditionReportInterval,
         options = options.backendFlags,
-      ), options.backendFile, if(options.devCache) Some(VerificationCache.getSiliconDirectory) else None)
+      ), options.backendFile, if(options.devCache) Some(Caches.getSiliconDirectory) else None)
 
     case types.Backend.Carbon => SilverBackend(Carbon(
       z3Path = options.z3Path,
@@ -58,7 +58,7 @@ case object Backend {
       printFile = options.devViperProverLogFile,
       proverLogFile = options.devCarbonBoogieLogFile,
       options = options.backendFlags,
-    ), options.backendFile, Some(VerificationCache.getCarbonDirectory))
+    ), options.backendFile, if(options.devCache) Some(Caches.getSiliconDirectory) else None)
   }
 }
 

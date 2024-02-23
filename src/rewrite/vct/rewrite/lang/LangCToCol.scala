@@ -322,6 +322,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       }
       NewPointerArray(rw.dispatch(t1), size)(ArrayMallocFailed(inv))(c.o)
     case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _), _) => throw UnsupportedMalloc(c)
+    case CCast(n@Null(), t) if t.asPointer.isDefined => rw.dispatch(n)
     case _ => throw UnsupportedCast(c)
   }
 
