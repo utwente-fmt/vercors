@@ -123,7 +123,6 @@ class Transformation
           case (key, action) => if (pass.key == key) action(result)
         }
 
-        val oldResult = result
         try {
           result = pass().dispatch(result)
         } catch {
@@ -131,8 +130,6 @@ class Transformation
             logger.error(s"An error occurred in pass ${pass.key}")
             throw c
         }
-
-        logger.info(s"Done: ${pass.key}")
 
         result.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
           case Nil => // ok

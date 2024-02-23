@@ -1,5 +1,6 @@
 package vct.rewrite
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.ref.{LazyRef, Ref}
@@ -14,7 +15,7 @@ case object MonomorphizeClass extends RewriterBuilder {
   override def desc: String = "Monomorphize generic classes"
 }
 
-case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
+case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   val currentSubstitutions: ScopedStack[Map[Variable[Pre], Type[Pre]]] = ScopedStack()
 
   type Key = (Class[Pre], Seq[Type[Pre]])
@@ -47,6 +48,10 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
           keepBodies = keepBodies,
           substitutions = cls.typeArgs.map { v: Variable[Pre] => TVar(v.ref[Variable[Pre]]) }.zip(typeValues).toMap
         )
+        // TODO: See below problem
+        // The entry in genericSucc is only updated after finishing rewriting the generic class.
+        // So if the generic class is mentioned inside, it will also be instantiated abstractly.
+        // So the "filler" entry in genericSucc is missing for now. How to resolve?
         genericSucc((key, cls)) = ctx.having(newCtx) {
           globalDeclarations.scope {
             classDeclarations.scope {
@@ -63,6 +68,7 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] if cls.typeArgs.nonEmpty =>
       cls.typeArgs.foreach(_.drop())
+      logger.info(s"Instantiating abstract type: ${cls.o.debugName()}")
       instantiate(cls, cls.typeArgs.map(v => v.t.asInstanceOf[TType[Pre]].t), true)
     case method: InstanceMethod[Pre] if ctx.nonEmpty =>
       val newMethod: InstanceMethod[Post] =
@@ -85,6 +91,7 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] {
         case Some(ctx) => typeArgs.map(ctx.substitute.dispatch)
         case None => typeArgs
       }
+      logger.info(s"Instantiating concrete type: ${cls.o.debugName()}")
       instantiate(cls, typeValues, false)
       TClass[Post](genericSucc.ref[Post, Class[Post]](((cls, typeValues), cls)), Seq())
     case (tvar @ TVar(_), Some(ctx)) =>

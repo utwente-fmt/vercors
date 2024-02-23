@@ -511,6 +511,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   }
 
   def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
-    case classOrInterface: JavaClassOrInterface[Pre] => TClass(javaInstanceClassSuccessor.ref(classOrInterface), Seq())
+    case classOrInterface: JavaClassOrInterface[Pre] =>
+      TClass(javaInstanceClassSuccessor.ref(classOrInterface), t.typeArgs.map(rw.dispatch))
   }
 }
