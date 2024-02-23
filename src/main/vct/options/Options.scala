@@ -265,10 +265,14 @@ case object Options {
         .text("Enable VeSUV mode: transform SystemC designs to PVL to be deductively verified")
         .children(
           opt[Path]("vesuv-output").required().valueName("<path>")
-            .action((path, c) => c.copy(vesuvOutput = path)),
-          opt[Unit]("generate-rasi").action((_, c) => c.copy(vesuvGenerateRasi = true)).children(
+            .action((path, c) => c.copy(vesuvOutput = path))
+            .text("Output file for the result of the transformation"),
+          opt[Unit]("generate-rasi").action((_, c) => c.copy(vesuvGenerateRasi = true))
+            .text("Instead of transforming a SystemC design to PVL, generate a global invariant for a PVL program")
+            .children(
             opt[Seq[String]]("rasi-vars").required().valueName("<var1>,...")
               .action((vars, c) => c.copy(vesuvRasiVariables = Some(vars)))
+              .text("[WIP] Preliminary selection mechanism for RASI variables; might be replaced later")
           )
         ),
 
