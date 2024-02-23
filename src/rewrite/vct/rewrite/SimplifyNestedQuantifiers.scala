@@ -1,7 +1,7 @@
 package vct.col.rewrite
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.{ArraySubscript, _}
+import vct.col.ast._
 import vct.col.ast.util.{AnnotationVariableInfoGetter, ExpressionEqualityCheck}
 import vct.col.rewrite.util.Comparison
 import vct.col.origin.{ArrayInsufficientPermission, DiagnosticOrigin, LabelContext, Origin, PanicBlame, PointerBounds, PreferredName}
@@ -70,9 +70,9 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       case None =>
         val res = e.rewriteDefault()
         res match {
-          case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) | InlinePatternLocation(_, _) => true } =>
+          case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true } =>
             logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
-          case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) | InlinePatternLocation(_, _) => true } =>
+          case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true } =>
             logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
           case _ =>
         }
