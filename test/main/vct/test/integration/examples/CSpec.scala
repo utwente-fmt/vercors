@@ -9,6 +9,8 @@ class CSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/c/math.c"
   vercors should verify using silicon example "concepts/c/mod_div.c"
   vercors should verify using silicon example "concepts/c/structs.c"
+  vercors should verify using silicon example "concepts/c/vector_add.c"
+  vercors should verify using silicon example "concepts/c/vector_type.c"
 
   vercors should error withCode "resolutionError:type" in "float should not be demoted" c
   """
@@ -386,6 +388,178 @@ class CSpec extends VercorsSpec {
       np = (struct nested*) malloc(sizeof(struct nested));
       np->inner = NULL;
       np->inner = (struct nested*) NULL;         
+    }
+    """
+
+    vercors should error withCode "wrongCType" in "Vector wrongly initialized" c
+    """
+    // wrongCType
+    #include <immintrin.h>
+
+    void test(){
+        __m128i x = {0,1,2,3};
+    }
+    """
+
+    vercors should error withCode "type" in "Vector literal with wrong types" c
+    """
+    // type
+    #include <immintrin.h>
+
+    void test(){
+        __m128i x = {0.1, 0.1};
+    }
+    """
+
+    vercors should error withCode "wrongVectorType" in "Vector wrongly initialized" c
+    """
+    // type
+    #include <immintrin.h>
+
+    void test(){
+        __m128i x = {0.1, 0.1};
+    }
+    """
+
+    vercors should error withCode "wrongVectorType" in "Vector type wrong declaration" c
+    """
+    typedef int v4si __attribute__ ((vector_size (sizeof(float)*4)));
+
+    void test(){
+        v4si x = {0, 1, 2, 3};
+    }
+    """
+
+    vercors should error withCode "wrongVectorType" in "Vector type wrong declaration 2" c
+    """
+    typedef int v4si __attribute__ ((vector_size (16)));
+
+    void test(){
+        v4si x = {0, 1, 2, 3};
+    }
+    """
+
+    vercors should fail withCode "vecIndexExceedsLength" using silicon in "Vector index exceeds length" c
+    """
+    // vecIndexExceedsLength
+    typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
+
+    void test(){
+        v4si x = {0, 1, 2, 3};
+        x[5] = 3;
+    }
+    """
+
+    vercors should fail withCode "vecIndexNegative" using silicon in "Vector negative indexed" c
+    """
+    // vecIndexNegative
+    typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
+
+    void test(){
+        v4si x = {0, 1, 2, 3};
+        x[-1] = 3;
+    }
+    """
+
+    vercors should fail withCode "vecIndexNegative" using silicon in "Vector value negative indexed" c
+    """
+    // vecIndexNegative
+    typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
+
+    void test(){
+        v4si x = {0, 1, 2, 3};
+        int y = x[-1];
+    }
+    """
+
+    vercors should fail withCode "vectorDivByZero" using silicon in "Vector divide by zero" c
+    """
+    // vecIndexNegative
+    typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
+
+    void test(){
+        v4si x = {0, 1, 2, 3};
+        v4si y = {1, 0, 1, 1};
+        y = x / y;
+    }
+    """
+
+  vercors should error withCode "type" in "OpenCL Vector wrong type initializer" c
+    """
+    // type
+    #include <opencl.h>
+
+    __kernel void test(__global bool* a) {
+        int2 x = (int4)(0, 0, 0, 0);
+        return;
+    }
+    """
+
+  vercors should error withCode "fieldError" in "OpenCL Vector wrong field name" c
+    """
+    // field not found
+    #include <opencl.h>
+
+    __kernel void test(__global bool* a) {
+        int4 x = (int4)(0, 0, 0, 0);
+        int y = x.s5;
+        return;
+    }
+    """
+
+  vercors should error withCode "fieldError" in "OpenCL Vector wrong field name letter" c
+    """
+    // field not found
+    #include <opencl.h>
+
+    __kernel void test(__global bool* a) {
+        int2 x = (int2)(0, 0);
+        int y = x.w;
+        return;
+    }
+    """
+
+  vercors should error withCode "wrongOpenCLLiteralVector" in "OpenCL Vector field assign" c
+    """
+    // wrongOpenCLLiteralVector
+    #include <opencl.h>
+
+    __kernel void test(__global bool* a) {
+        int2 x = (int2)(0, 0);
+        x.xx = x;
+        return;
+    }
+    """
+
+  vercors should error withCode "wrongOpenCLLiteralVector" in "OpenCL Vector initialize wrong type" c
+    """
+    // wrongOpenCLLiteralVector
+    #include <opencl.h>
+
+    __kernel void test(__global bool* a) {
+        int4 x = (int4)((int2)(0,1), 0.0f, 0);
+        return;
+    }
+    """
+
+  vercors should verify using silicon in "OpenCL vector initializer correctly uses statefull function" c
+    """
+   // pass
+    #include <opencl.h>
+
+    /*@ context y != NULL && \pointer_length(y) == 1 ** Perm(&*y, write);
+      ensures \old(*y)+1 == *y && \result.x == *y && \result.y == *y;
+    @*/
+    int2 alter_state(int* y){
+        *y = *y+1;
+        return (int2)(*y,*y);
+    }
+
+    __kernel void test(__global bool* a) {
+        int y[1] = {0};
+        int4 x = (int4)(alter_state(y), alter_state(y));
+        //@ assert x.x == 1 && x.y == 1 && x.z == 2 && x.w == 2;
+        return;
     }
     """
 }
