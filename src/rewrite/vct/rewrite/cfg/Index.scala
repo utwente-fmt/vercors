@@ -290,7 +290,6 @@ case class ExtractIndex[G](extract: Extract[G]) extends Index[G] {
 case class EvalIndex[G](eval: Eval[G], index: Int, subexpressions: Seq[Statement[G]]) extends Index[G] {
   def this(eval: Eval[G], index: Int) = this(eval, index, Utils.find_all_subexpressions(eval.expr))
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = {
-    // TODO: Consider conditions in expressions, too
     if (index < subexpressions.size - 1) Set((Step(EvalIndex(eval, index + 1)), None))
     else Set((Outgoing(), None))
   }
@@ -494,7 +493,6 @@ case class IndetBranchIndex[G](indet_branch: IndetBranch[G], index: Int) extends
   }
 }
 
-// TODO: Switch cases could be multiple context indices deep; this does not work with the single index for make_step()
 case class SwitchIndex[G](switch: Switch[G]) extends Index[G] {
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = Set((Outgoing(), None))
   override def resolve(): Statement[G] = switch.body

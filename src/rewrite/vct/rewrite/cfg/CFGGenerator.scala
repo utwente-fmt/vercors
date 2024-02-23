@@ -22,12 +22,11 @@ case class CFGGenerator[G]() {
     cfg_node.successors.addAll(find_successors(node, context))
     // Handle labels and goto statements
     node match {
-      case label: Label[G] => {
+      case label: Label[_] =>
         // For labels, add them to the label map and add them to any goto statements going to that label
         found_labels.addOne((label.decl, cfg_node))
         searched_labels.getOrElse(label.decl, mutable.Set()).map(g => g.successors.addOne(CFGEdge(cfg_node, None)))
-      }
-      case goto: Goto[G] =>
+      case goto: Goto[_] =>
         // For goto statements, if the label could not be resolved, add the statement to the waiting list for the right label
         if (cfg_node.successors.isEmpty) {
           if (searched_labels.contains(goto.lbl.decl)) searched_labels(goto.lbl.decl).addOne(cfg_node)
@@ -53,7 +52,7 @@ case class CFGGenerator[G]() {
     case Send(_, _, res) => handle_expression_container(node, Eval(res)(res.o), context, sequential_successor(context))
     case Recv(_) => sequential_successor(context)
     case DefaultCase() => sequential_successor(context)
-    case Case(pattern) => sequential_successor(context)   // TODO: Handle expression side effects in switch case conditions
+    case Case(_) => sequential_successor(context)
     case Label(_, _) => evaluate_first(context.enter_scope(node))
     case Goto(lbl) => found_labels.get(lbl.decl) match {
       case Some(node) => mutable.Set(CFGEdge(node, None))
@@ -104,7 +103,7 @@ case class CFGGenerator[G]() {
     case Branch(_) => evaluate_first(context.enter_scope(node))
     case IndetBranch(branches) =>
       mutable.LinkedHashSet.from(branches.zipWithIndex.map(b => CFGEdge(convert(b._1, context.enter_scope(node, b._2)), None)))
-    case s: Switch[G] => handle_switch_statement(s, context)
+    case s: Switch[_] => handle_switch_statement(s, context.enter_scope(node))
     case Loop(_, _, _, _, _) => evaluate_first(context.enter_scope(node))
     case RangedFor(_, _, _) => evaluate_first(context.enter_scope(node))
     case TryCatchFinally(_, _, _) => evaluate_first(context.enter_scope(node))
@@ -159,27 +158,39 @@ case class CFGGenerator[G]() {
     else sequential_successor(index)
   }
 
-  private def sequential_successor(index: GlobalIndex[G]): mutable.Set[CFGEdge[G]] = {
-    if (index.indices.nonEmpty) index.make_step().map(i => CFGEdge(resolve_index(i._1), i._2))
-    else mutable.Set(CFGEdge(CFGTerminal(), None))
+  private def sequential_successor(index: GlobalIndex[G], cond: Option[Expr[G]] = None): mutable.Set[CFGEdge[G]] = {
+    if (index.indices.nonEmpty) index.make_step().map(i => CFGEdge(resolve_index(i._1), Utils.and(i._2, cond)))
+    else mutable.Set(CFGEdge(CFGTerminal(), cond))
   }
 
   private def handle_switch_statement(switch: Switch[G], context: GlobalIndex[G]): mutable.Set[CFGEdge[G]] = {
     val switches: Seq[(SwitchCase[G], GlobalIndex[G])] = Utils.find_all_cases(switch.body, context.enter_scope(switch))
-    var conds: Seq[(Eval[G], GlobalIndex[G])] = Seq()
+    var conds: Seq[(Case[G], Eval[G], GlobalIndex[G])] = Seq()
     var default: Option[(DefaultCase[G], GlobalIndex[G])] = None
     for (s <- switches) {
       s._1 match {
-        case c @ Case(pattern) => {
+        case c @ Case(pattern) =>
           val cond = Eq(switch.expr, pattern)(c.o)
           // Collect only up to default case
-          if (default.isEmpty) conds = conds :+ (Eval(cond)(cond.o), s._2)
-        }
+          if (default.isEmpty) conds = conds :+ (c, Eval(cond)(cond.o), s._2)
         case c @ DefaultCase() => default = Some((c, s._2))
       }
     }
-    // TODO: Finish implementation
-    ???
+    conds = conds.reverse
+
+    var previous_cond: Option[Expr[G]] = Some(Utils.negate(conds.head._2.expr))
+    var successor_to_previous: mutable.Set[CFGEdge[G]] = default match {
+      case Some(t) => mutable.Set(CFGEdge(convert(t._1, t._2), previous_cond))
+      case None => sequential_successor(context, previous_cond)
+    }
+
+    for (c <- conds) {
+      successor_to_previous.addOne(CFGEdge(convert(c._1, c._3), Some(c._2.expr)))
+      val node = CFGNode(c._2, successor_to_previous)
+      // TODO: Enter node at appropriate index in converted_nodes!
+      successor_to_previous = mutable.Set(CFGEdge(node, None))   // TODO: Add edge condition here!
+    }
+    successor_to_previous
   }
 
   private def return_successor(index: GlobalIndex[G]): CFGEntry[G] =
