@@ -3,10 +3,13 @@ class IntegerChannel<T> {
   boolean transfering;
   T exchangeValue;
 
+  ensures committed(this);
   constructor() {
     transfering = false;
+    commit this;
   }
- 
+
+  context committed(this);
   void writeValue(T v) {
     lock this;
 
@@ -21,14 +24,16 @@ class IntegerChannel<T> {
     exchangeValue = v;
     unlock this;
   }
- 
+
+  context committed(this);
   T readValue() {
     lock this;
 
     loop_invariant Perm(transfering, 1) ** Perm(exchangeValue,1);
     loop_invariant held(this);
     while (transfering) {
-      wait this;
+      unlock this;
+      lock this;
     }
 
     T m = exchangeValue;
