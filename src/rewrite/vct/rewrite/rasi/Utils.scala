@@ -18,13 +18,15 @@ case object Utils {
   }
 
   private def print_state_space[G](names: Map[AbstractState[G], String], edges: Seq[(AbstractState[G], AbstractState[G])], writer: Writer): Unit = {
+    writer.append("digraph {\n")
     names.foreach(t => writer.append(t._2)
                              .append(s"[label=${"\""}")
                              .append(t._1.to_expression.toInlineString)
-                             .append(s"${"\""}];"))
+                             .append(s"${"\""}];\n"))
     edges.foreach(t => writer.append(names(t._1))
                              .append(" -> ")
                              .append(names(t._2))
-                             .append(";"))
+                             .append(";\n"))
+    writer.append("}")
   }
 }

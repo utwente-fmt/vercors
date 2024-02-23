@@ -26,6 +26,49 @@ case class Infinite() extends IntervalSize {
   override def get: Int = throw new NoSuchElementException("Accessing infinite interval size element")
 }
 
+/**
+ * An interval represents a set of integers. It can be empty (type <code>EmptyInterval</code>), unbounded (type
+ * <code>UnboundedInterval</code>), bounded by two integers (type <code>BoundedInterval</code>), below an upper bound
+ * (type <code>UpperBoundedInterval</code>), above a lower bound (type <code>LowerBoundedInterval</code>) or a union of
+ * a finite set of other intervals (type <code>MultiInterval</code>). If it is bounded, then the bounds are contained in
+ * the interval.
+ *
+ * An interval supports the following operations:
+ *
+ * SIZE OPERATIONS
+ *   - <code>empty()</code> returns <code>true</code> if the interval is empty and <code>false</code> otherwise
+ *   - <code>non_empty()</code> returns <code>false</code> if the interval is empty and <code>true</code> otherwise
+ *   - <code>size()</code> returns the size of the interval in the form of <code>Finite(n)</code> if the interval is
+ *   finite and of size <code>n</code>, or <code>Infinite()</code> otherwise
+ *
+ * SET OPERATIONS
+ *   - <code>intersection(Interval)</code> returns the intersection between this interval and the argument
+ *   - <code>union(Interval)</code> returns the union of this interval and the argument
+ *   - <code>complement()</code> returns the interval representing all integers that are not contained in this interval
+ *
+ * ARITHMETIC OPERATIONS
+ *   - <code>below_max()</code> returns an interval whose upper bound is the maximum entry in this interval, or an
+ *   unbounded interval if there is no maximum
+ *   - <code>above_min()</code> returns an interval whose lower bound is the minimum entry in this interval, or an
+ *   unbounded interval if there is no minimum
+ *   - <code>+</code> returns the interval representing the set of sums of entries in both intervals
+ *   - <code>-</code> returns the interval representing the set of subtractions of entries of the second interval from
+ *   entries in the first
+ *   - <code>*</code> returns the interval overapproximating the set of products from both intervals. Since this is not
+ *   generally a contiguous interval, this overapproximates to the interval between the minimum and maximum product or,
+ *   if multiple such intervals can be defined, to the union of these intervals
+ *   - <code>unary_-</code> returns the element-wise negation of this interval
+ *   - <code>/</code> NOT IMPLEMENTED
+ *   - <code>%</code> NOT IMPLEMENTED
+ *   - <code>pow</code> NOT IMPLEMENTED
+ *
+ * ADMINISTRATIVE OPERATIONS
+ *   - <code>sub_intervals()</code> returns the minimum set of contiguous intervals this interval is a union of
+ *   - <code>try_to_resolve()</code> if this interval contains exactly one integer, returns this integer, otherwise
+ *   returns <code>None</code>
+ *   - <code>to_expression(Variable)</code> returns an expression indicating that the given variable is within this
+ *   interval
+ */
 sealed abstract class Interval {
   def empty(): Boolean
   def non_empty(): Boolean = !empty()
@@ -113,7 +156,7 @@ case class MultiInterval(intervals: Set[Interval]) extends Interval {
     if (new_intervals.size > 1) MultiInterval(new_intervals)
     else new_intervals.head
   }
-  private def merge_intersecting(is: Set[Interval]): Set[Interval] = MultiInterval(is).flatten().complement().complement().sub_intervals()
+  private def merge_intersecting(is: Set[Interval]): Set[Interval] = MultiInterval(is).sub_intervals().reduce((i1, i2) => i1.union(i2)).sub_intervals()
   override def sub_intervals(): Set[Interval] = intervals.flatMap(i => i.sub_intervals())
   private def flatten(): MultiInterval = MultiInterval(this.sub_intervals())
   override def try_to_resolve(): Option[Int] = {
@@ -146,13 +189,13 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
     case EmptyInterval => this
     case mi: MultiInterval => mi.union(this)
     case BoundedInterval(low, up) =>
-      if (up <= upper && up >= lower || low <= upper && low >= lower) BoundedInterval(scala.math.min(low, lower), scala.math.max(up, upper))
+      if (up <= upper + 1 && up >= lower - 1 || low <= upper + 1 && low >= lower - 1) BoundedInterval(scala.math.min(low, lower), scala.math.max(up, upper))
       else MultiInterval(Set(this, other))
     case LowerBoundedInterval(low) =>
-      if (upper >= low) LowerBoundedInterval(scala.math.min(low, lower))
+      if (upper + 1 >= low) LowerBoundedInterval(scala.math.min(low, lower))
       else MultiInterval(Set(this, other))
     case UpperBoundedInterval(up) =>
-      if (lower <= up) UpperBoundedInterval(scala.math.max(up, upper))
+      if (lower - 1 <= up) UpperBoundedInterval(scala.math.max(up, upper))
       else MultiInterval(Set(this, other))
     case UnboundedInterval => other
   }
@@ -206,7 +249,8 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
     case LowerBoundedInterval(low) => ???
     case UpperBoundedInterval(up) => ???
     case UnboundedInterval =>
-      if (lower < 0) other
+      if (lower < -1) other
+      else if (lower == -1) LowerBoundedInterval(-1)
       else LowerBoundedInterval(0)
   }
   override def try_to_resolve(): Option[Int] = {
@@ -238,11 +282,11 @@ case class LowerBoundedInterval(lower: Int) extends Interval {
     case EmptyInterval => this
     case mi: MultiInterval => mi.union(this)
     case BoundedInterval(low, up) =>
-      if (up >= lower) LowerBoundedInterval(scala.math.min(low, lower))
+      if (up + 1 >= lower) LowerBoundedInterval(scala.math.min(low, lower))
       else MultiInterval(Set(other, this))
     case LowerBoundedInterval(low) => LowerBoundedInterval(scala.math.min(low, lower))
     case UpperBoundedInterval(up) =>
-      if (up >= lower) UnboundedInterval
+      if (up + 1 >= lower) UnboundedInterval
       else MultiInterval(Set(other, this))
     case UnboundedInterval => other
   }
@@ -294,10 +338,10 @@ case class UpperBoundedInterval(upper: Int) extends Interval {
     case EmptyInterval => this
     case mi: MultiInterval => mi.union(this)
     case BoundedInterval(low, up) =>
-      if (low <= upper) UpperBoundedInterval(scala.math.max(upper, up))
+      if (low - 1 <= upper) UpperBoundedInterval(scala.math.max(upper, up))
       else MultiInterval(Set(this, other))
     case LowerBoundedInterval(low) =>
-      if (low <= upper) UnboundedInterval
+      if (low - 1 <= upper) UnboundedInterval
       else MultiInterval(Set(this, other))
     case UpperBoundedInterval(up) => UpperBoundedInterval(scala.math.max(upper, up))
     case UnboundedInterval => other

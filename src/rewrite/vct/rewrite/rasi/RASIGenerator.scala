@@ -1,6 +1,7 @@
 package vct.rewrite.rasi
 
-import vct.col.ast.{Expr, InstanceMethod, Or}
+import vct.col.ast.{Expr, InstanceMethod, Null, Or}
+import vct.col.origin.Origin
 import vct.rewrite.cfg.{CFGEntry, CFGGenerator}
 
 import java.nio.file.Path
@@ -29,7 +30,7 @@ case class RASIGenerator[G]() {
   }
 
   private def explore(node: CFGEntry[G], vars: Set[ConcreteVariable[G]]): Unit = {
-    val initial_state = AbstractState(get_initial_values(vars), HashMap((AbstractProcess[G]("main"), node)), None)
+    val initial_state = AbstractState(get_initial_values(vars), HashMap((AbstractProcess[G](Null()(Origin(Seq()))), node)), None)
     found_states += initial_state
     current_branches += initial_state
 
@@ -39,7 +40,7 @@ case class RASIGenerator[G]() {
 
       val successors: Set[AbstractState[G]] = curr.successors()
       found_edges.addAll(successors.map(s => (curr, s)))
-      successors.foreach(s => if (!found_states.contains(s)) {found_states += curr; current_branches += curr})
+      successors.foreach(s => if (!found_states.contains(s)) {found_states += s; current_branches += s})
     }
   }
 
@@ -51,6 +52,6 @@ case class RASIGenerator[G]() {
   private def reduce_redundant_states(): (Seq[AbstractState[G]], Seq[(AbstractState[G], AbstractState[G])]) = {
     val state_groups: Map[AbstractState[G], AbstractState[G]] = found_states.groupBy(s => s.valuations).flatMap(t => t._2.map(s => (s, t._2.head)))
     val edge_groups: Seq[(AbstractState[G], AbstractState[G])] = Seq.from(found_edges.map(t => (state_groups(t._1), state_groups(t._2))).distinct)
-    (state_groups.keySet.toSeq, edge_groups)
+    (state_groups.values.toSeq.distinct, edge_groups)
   }
 }

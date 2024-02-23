@@ -16,7 +16,7 @@ case object GenerateRASI {
 
 case class GenerateRASI(vars: Option[Seq[String]], out: Path) extends Stage[Node[_ <: Generation], Unit] {
 
-  override def friendlyName: String = "Printing control flow graph"
+  override def friendlyName: String = "Generate reachable abstract states invariant"
 
   override def progressWeight: Int = 0
 

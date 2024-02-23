@@ -11,7 +11,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     processes.flatMap(p => p._1.get_next(p._2, this)).toSet
 
   def with_process_at(process: AbstractProcess[G], position: CFGEntry[G]): AbstractState[G] =
-    AbstractState(valuations, processes + (process -> position), lock)
+    AbstractState(valuations, processes.removed(process) + (process -> position), lock)
 
   def without_process(process: AbstractProcess[G]): AbstractState[G] =
     AbstractState(valuations, processes.removed(process), lock)

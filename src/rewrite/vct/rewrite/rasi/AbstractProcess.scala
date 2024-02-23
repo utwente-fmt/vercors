@@ -5,12 +5,15 @@ import vct.rewrite.cfg.{CFGEdge, CFGEntry, CFGNode, CFGTerminal}
 
 import scala.collection.mutable
 
-case class AbstractProcess[G](name: String) {
+case class AbstractProcess[G](obj: Expr[G]) {
   def get_next(node: CFGEntry[G], state: AbstractState[G]): Set[AbstractState[G]] = node match {
     case CFGTerminal() => Set(state.without_process(this))
     case CFGNode(n, succ) => n match {
       // Assign statements change the state of variables directly (if they appear in the valuation)
-      case Assign(target, value) => viable_edges(succ, state).map(e => take_edge(e, state.with_valuation(target, state.resolve_expression(value))))
+      case Assign(target, value) => target.t match {
+        case _: IntType[_] | TBool() => viable_edges(succ, state).map(e => take_edge(e, state.with_valuation(target, state.resolve_expression(value))))
+        case _ => viable_edges(succ, state).map(e => take_edge(e, state))
+      }
       case Havoc(loc) => viable_edges(succ, state).map(e => take_edge(e, state.with_valuation(loc, UncertainValue.uncertain_of(loc.t))))
       // Statements that induce assumptions about the state, such as assume, inhale, or a method's postcondition, might change the state implicitly
       case Assume(assn) => viable_edges(succ, state).flatMap(e => state.with_assumption(assn).map(s => take_edge(e, s)))
@@ -42,14 +45,16 @@ case class AbstractProcess[G](name: String) {
                            else throw new IllegalStateException("Trying to unlock lock owned by other process")
         case None => throw new IllegalStateException("Trying to unlock unlocked lock")
       }
-      // When forking a new process, make the step of creating it simultaneously to the normal steps    TODO: consider join
+      // When forking a new process, make the step of creating it simultaneously to the normal steps
       case Fork(obj) =>
         val edges: (Set[CFGEdge[G]], Set[CFGEdge[G]]) = viable_edges(succ, state).partition(e => e.target match {
           case CFGTerminal() => false
           case CFGNode(t, _) => t.equals(obj.t.asClass.get.cls.decl.declarations.collect{ case r: RunMethod[G] => r }.head.body.get)
         })
-        edges._2.map(e => take_edge(e, state.with_process_at(AbstractProcess(s"${name}_${obj.toInlineString}"), edges._1.head.target)))
-      case Join(obj) => viable_edges(succ, state).map(e => take_edge(e, state))
+        edges._2.map(e => take_edge(e, state.with_process_at(AbstractProcess(obj), edges._1.head.target)))    // TODO: Can only one thread per class instance be launched?
+      case Join(obj) =>
+        if (state.processes.keys.forall(p => p.obj != obj)) viable_edges(succ, state).map(e => take_edge(e, state))
+        else Set(state)
       // Everything else does not affect the state, so simply go to the next step
       case _ => viable_edges(succ, state).map(e => take_edge(e, state))
     }
