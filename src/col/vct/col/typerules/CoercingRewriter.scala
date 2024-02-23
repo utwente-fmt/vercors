@@ -26,6 +26,7 @@ case object CoercingRewriter {
           case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
           case IncoercibleExplanation(e, message) => s"At `$e`: $message"
           case WrongType(n, expectedType, actualType) => s"$n was expected to have type $expectedType, but turned out to have type $actualType"
+          case WrongNumberOfTypeArguments(n, expectedLength, actualLength) => s"$n was expected to have $expectedLength number of type arguments, but it actually has $actualLength"
         })
       )
   }
@@ -39,6 +40,8 @@ case object CoercingRewriter {
   case class IncoercibleExplanation(blame: Node[_], message: String) extends CoercionError
 
   case class WrongType(n: Node[_], expectedType: Type[_], actualType: Type[_]) extends CoercionError
+
+  case class WrongNumberOfTypeArguments(n: Node[_], expectedLength: Int, actualLength: Int) extends CoercionError
 
   private def coercionOrigin(of: Expr[_]): Origin = of.o.where(name = "unknown")
 }
@@ -1736,8 +1739,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
   }
 
   // PB: types may very well contain expressions eventually, but for now they don't.
-  def coerce(node: Type[Pre]): Type[Pre] =
-    node
+  def coerce(node: Type[Pre]): Type[Pre] = node match {
+    case t @ TClass(r @ Ref(cls), args) =>
+      if (cls.typeArgs.length == args.length) node
+      else throw WrongNumberOfTypeArguments(t, cls.typeArgs.length, args.length)
+    case _ => node
+  }
 
   def coerce(node: LoopContract[Pre]): LoopContract[Pre] = {
     implicit val o: Origin = node.o

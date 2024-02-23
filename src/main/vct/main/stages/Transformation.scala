@@ -2,6 +2,7 @@ package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
+import hre.debug.TimeTravel.CauseWithBadEffect
 import hre.progress.Progress
 import hre.stages.Stage
 import vct.col.ast.{Program, SimplificationRule, Verification}
@@ -122,7 +123,16 @@ class Transformation
           case (key, action) => if (pass.key == key) action(result)
         }
 
-        result = pass().dispatch(result)
+        val oldResult = result
+        try {
+          result = pass().dispatch(result)
+        } catch {
+          case c @ CauseWithBadEffect(effect) =>
+            logger.error(s"An error occurred in pass ${pass.key}")
+            throw c
+        }
+
+        logger.info(s"Done: ${pass.key}")
 
         result.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
           case Nil => // ok

@@ -285,10 +285,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
 
-    if (cls.typeParams.nonEmpty) {
-      throw new GenericJavaNotSupported(cls)
-    }
-
     cls.decls.collect({
       case decl: JavaClassDeclaration[Pre] =>
         javaClassDeclToJavaClass(decl) = cls
@@ -310,7 +306,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       }
 
       val instanceClass = rw.currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {
-        new Class[Post](Seq(), rw.classDeclarations.collect {
+        new Class[Post](
+          rw.variables.dispatch(cls.typeParams)(rw),
+          rw.classDeclarations.collect {
           makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
           cls match {
             case cls: JavaClass[Pre] if BipComponent.get(cls).isDefined =>
