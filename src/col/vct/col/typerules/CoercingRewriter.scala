@@ -568,6 +568,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
           AmbiguousComputationalXor(int(left), int(right)),
           AmbiguousComputationalXor(bool(left), bool(right)),
         )
+      case div@AmbiguousDiv(left, right) =>
+        firstOk(e, s"Expected both operands to be int, float, vector[int] or vector[float], but got ${left.t} and ${right.t}.",
+          AmbiguousDiv(int(left), int(right))(div.blame),
+          AmbiguousDiv(float(left), float(right))(div.blame),
+          vectorIntOp2(div, (l,r) => AmbiguousDiv(l ,r)(div.blame)),
+          vectorFloatOp2(div, (l,r) => AmbiguousDiv(l ,r)(div.blame)),
+        )
       case AmbiguousEq(left, right, vectorInnerType) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         AmbiguousEq(coerce(left, sharedType), coerce(right, sharedType), vectorInnerType)
@@ -671,6 +678,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
           val (coercedXs, TMap(element, _)) = map(xs)
           AmbiguousMember(coerce(x, element), coercedXs)
         })
+      case mod@AmbiguousMod(left, right) =>
+        firstOk(e, s"Expected both operands to be ints or vector[int], but got ${left.t} and ${right.t}.",
+          AmbiguousMod(int(left), int(right))(mod.blame),
+          vectorIntOp2(mod, (l,r) => AmbiguousMod(l ,r)(mod.blame))
+        )
       case mult@AmbiguousMult(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a numeric vector, a process, a set or a bag but got ${left.t} and ${right.t}.",
           AmbiguousMult(int(left), int(right)),
