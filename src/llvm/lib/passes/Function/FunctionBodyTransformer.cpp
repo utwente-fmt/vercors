@@ -27,7 +27,6 @@ namespace vcllvm {
         col::Tuple2_String_Ref_VctColAstVariable *ref = FAM.getResult<FunctionContractDeclarer>(llvmFunction).getAssociatedColFuncContract().add_variable_refs();
         ref->set_v1(llvm2Col::getValueName(llvmValue));
         ref->mutable_v2()->set_id(colVar.id());
-        ref->CheckInitialized();
     }
 
     col::Variable &FunctionCursor::getVariableMapEntry(Value &llvmValue) {
@@ -64,7 +63,6 @@ namespace vcllvm {
             // add labeled block to the block2block lut
             LabeledColBlock labeledColBlock = {*label, *block};
             llvmBlock2LabeledColBlock.insert({&llvmBlock, labeledColBlock});
-            label->CheckInitialized();
         }
         return llvmBlock2LabeledColBlock.at(&llvmBlock);
     }
@@ -102,7 +100,6 @@ namespace vcllvm {
         varDecl->set_allocated_origin(llvm2Col::generateSingleStatementOrigin(llvmInstruction));
         // add to the variable lut
         this->addVariableMapEntry(llvmInstruction, *varDecl);
-        varDecl->CheckInitialized();
         return *varDecl;
     }
 

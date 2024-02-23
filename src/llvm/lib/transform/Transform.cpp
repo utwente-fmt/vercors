@@ -29,10 +29,15 @@ namespace llvm2Col {
                     colType.mutable_t_int()->set_allocated_origin(generateTypeOrigin(llvmType));
                 }
                 break;
+            case llvm::Type::PointerTyID:
+                colType.mutable_llvm_t_pointer()->set_allocated_origin(generateTypeOrigin(llvmType));
+                break;
+            case llvm::Type::MetadataTyID:
+                colType.mutable_llvm_t_metadata()->set_allocated_origin(generateTypeOrigin(llvmType));
+                break;
             default:
                 throw vcllvm::UnsupportedTypeException();
         }
-        colType.CheckInitialized();
     }
 
 

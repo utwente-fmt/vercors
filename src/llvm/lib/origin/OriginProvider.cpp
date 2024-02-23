@@ -21,7 +21,6 @@ namespace llvm2Col {
         context->set_short_position(deriveModuleShortPosition(llvmModule));
         contextContent->set_allocated_context(context);
 
-        origin->CheckInitialized();
         return origin;
     }
 
@@ -39,7 +38,6 @@ namespace llvm2Col {
         context->set_short_position(deriveFunctionShortPosition(llvmFunction));
         contextContent->set_allocated_context(context);
 
-        origin->CheckInitialized();
         return origin;
     }
 
@@ -52,7 +50,6 @@ namespace llvm2Col {
         context->set_short_position(deriveFunctionShortPosition(llvmFunction));
         contextContent->set_allocated_context(context);
 
-        origin->CheckInitialized();
         return origin;
     }
 
@@ -65,7 +62,6 @@ namespace llvm2Col {
         context->set_short_position(deriveModuleShortPosition(llvmModule));
         contextContent->set_allocated_context(context);
 
-        origin->CheckInitialized();
         return origin;
     }
 
@@ -83,7 +79,6 @@ namespace llvm2Col {
         context->set_short_position(deriveFunctionShortPosition(*llvmArgument.getParent()));
         contextContent->set_allocated_context(context);
 
-        origin->CheckInitialized();
         return origin;
     }
 
@@ -101,7 +96,6 @@ namespace llvm2Col {
         context->set_short_position(deriveBlockShortPosition(llvmBlock));
         contextContent->set_allocated_context(context);
 
-        origin->CheckInitialized();
         return origin;
     }
 
@@ -119,7 +113,6 @@ namespace llvm2Col {
         context->set_short_position(deriveBlockShortPosition(llvmBlock));
         contextContent->set_allocated_context(context);
 
-        origin->CheckInitialized();
         return origin;
     }
 
@@ -132,7 +125,6 @@ namespace llvm2Col {
         context->set_short_position(deriveInstructionShortPosition(llvmInstruction));
         contextContent->set_allocated_context(context);
 
-        origin->CheckInitialized();
         return origin;
     }
 
@@ -150,7 +142,6 @@ namespace llvm2Col {
         context->set_short_position(deriveInstructionShortPosition(llvmInstruction));
         contextContent->set_allocated_context(context);
 
-        origin->CheckInitialized();
         return origin;
     }
 
@@ -163,7 +154,6 @@ namespace llvm2Col {
         context->set_short_position(deriveInstructionShortPosition(llvmInstruction));
         contextContent->set_allocated_context(context);
 
-        origin->CheckInitialized();
         return origin;
     }
 
@@ -181,7 +171,6 @@ namespace llvm2Col {
         context->set_short_position(deriveInstructionShortPosition(callInstruction));
         contextContent->set_allocated_context(context);
 
-        origin->CheckInitialized();
         return origin;
     }
 
@@ -199,7 +188,6 @@ namespace llvm2Col {
         context->set_short_position(deriveInstructionShortPosition(llvmInstruction));
         contextContent->set_allocated_context(context);
 
-        origin->CheckInitialized();
         return origin;
     }
 
@@ -210,7 +198,6 @@ namespace llvm2Col {
         preferredName->add_preferred_name(deriveTypePreferredName(llvmType));
         preferredNameContent->set_allocated_preferred_name(preferredName);
 
-        origin->CheckInitialized();
         return origin;
     }
 }

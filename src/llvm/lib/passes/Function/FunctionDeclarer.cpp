@@ -92,7 +92,6 @@ namespace vcllvm {
             }
             // add args mapping to result
             result.addFuncArgMapEntry(llvmArg, *colArg);
-            colArg->CheckInitialized();
         }
         return result;
     }

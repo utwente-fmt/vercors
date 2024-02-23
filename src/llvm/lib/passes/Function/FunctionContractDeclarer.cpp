@@ -49,7 +49,6 @@ namespace vcllvm {
             // set contract to a tautology
             colContract.set_value("requires true;");
             colContract.set_allocated_origin(new col::Origin());
-            colContract.CheckInitialized();
             return PreservedAnalyses::all();
         }
         // concatenate all contract lines with new lines
@@ -74,9 +73,7 @@ namespace vcllvm {
             col::Tuple2_String_Ref_VctColAstLlvmCallable *invokeRef = colContract.add_invokable_refs();
             invokeRef->set_v1(fName);
             invokeRef->mutable_v2()->set_id(fId);
-            invokeRef->CheckInitialized();
         }
-        colContract.CheckInitialized();
         return PreservedAnalyses::all();
     }
 }

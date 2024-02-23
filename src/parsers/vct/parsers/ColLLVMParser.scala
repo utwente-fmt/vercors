@@ -14,40 +14,39 @@ import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 
 import java.io.IOException
 import java.nio.charset.StandardCharsets
+import java.nio.file.Path
 import scala.util.{Failure, Using}
 
-case class ColLLVMParser(override val origin: Origin, override val blameProvider: BlameProvider)
-                                                    extends Parser(origin, blameProvider) with LazyLogging {
-  case class LLVMParseError(fileName: String, errorCode: Int, error: String) extends UserError {
+case class ColLLVMParser(override val origin: Origin, override val blameProvider: BlameProvider, vcllvm: Path)
+  extends Parser(origin, blameProvider) with LazyLogging {
+  private case class LLVMParseError(fileName: String, errorCode: Int, error: String) extends UserError {
     override def code: String = "LLVMParseError"
 
-    override def text: String =
-      s"[ERROR] Parsing file $fileName failed with exit code $errorCode:\n$error"
+    override def text: String = messageContext(s"[ERROR] Parsing file $fileName failed with exit code $errorCode:\n$error")
   }
-
   override def parse[G](stream: CharStream): ParseResult[G] = {
     throw Unreachable("LLVM IR files shouldn't be parsed from an ANTLR CharStream, use VCLLVM instead!")
   }
 
   override def parse[G](readable: Readable): ParseResult[G] = {
-    val command = Seq("opt-17", "--load-pass-plugin=/home/alexander/VCLLVM-Artifact/.build/lib/libVCLLVM.so", "--passes=module(vcllvm-collect-module-spec),function(vcllvm-declare-function,vcllvm-assign-pure,vcllvm-declare-function-contract,vcllvm-transform-function-body),module(vcllvm-print-protobuf)", readable.fileName, "--disable-output")
+    if (vcllvm == null) {
+      throw Unreachable("The COLLVMParser needs to be provided with the path to vcllvm to parse LLVM-IR files")
+    }
+    val command = Seq("opt-17", s"--load-pass-plugin=$vcllvm", "--passes=module(vcllvm-collect-module-spec),function(vcllvm-declare-function,vcllvm-assign-pure,vcllvm-declare-function-contract,vcllvm-transform-function-body),module(vcllvm-print-protobuf)", readable.fileName, "--disable-output")
 
     val process = new ProcessBuilder(command: _*).start()
 
     val protoProgram = Using(process.getInputStream) { is => Program.parseFrom(is) }.recoverWith {
-      case e: IOException => {
-        e.printStackTrace()
-        Failure(LLVMParseError(readable.fileName, process.exitValue(), new String(process.getErrorStream.readAllBytes(), StandardCharsets.UTF_8)))
-      }
+      case _: IOException =>
+        Failure(LLVMParseError(readable.fileName, process.exitValue(), new String(process.getErrorStream.readAllBytes(), StandardCharsets.UTF_8).indent(8)))
     }.get
 
     process.waitFor()
     if (process.exitValue() != 0) {
-      throw LLVMParseError(readable.fileName, process.exitValue(), new String(process.getErrorStream.readAllBytes(), StandardCharsets.UTF_8))
+      throw LLVMParseError(readable.fileName, process.exitValue(), new String(process.getErrorStream.readAllBytes(), StandardCharsets.UTF_8).indent(8))
     }
 
     val COLProgram = Deserialize.deserializeProgram[G](protoProgram, readable.fileName)
-    println(COLProgram)
     ParseResult(COLProgram.declarations, Seq.empty)
   }
 

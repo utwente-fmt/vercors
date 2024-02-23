@@ -431,6 +431,7 @@ object vercors extends Module {
       ivy"org.antlr:antlr4-runtime:4.8"
     )
     override def moduleDeps = Seq(hre, col, serialize)
+    override def unmanagedClasspath = super.unmanagedClasspath() ++ Agg(PathRef(vcllvm.compile().path / os.up))
 
     trait GenModule extends Module {
       def base = T { settings.src / "parsers" / "antlr4" }
@@ -689,7 +690,7 @@ object vercors extends Module {
         override def jobs = T { 2 }
 
         override def cMakeBuild: T[PathRef] = T {
-          os.proc("cmake", "-B", T.dest, "-D", "CMAKE_POSITION_INDEPENDENT_CODE=ON", "-D", "CMAKE_CXX_FLAGS=-fPIC", "-D", "CMAKE_C_FLAGS=-fPIC", "-S", root().path).call(cwd = T.dest)
+          os.proc("cmake", "-B", T.dest, "-D", "protobuf_BUILD_TESTS=OFF", "-D", "ABSL_PROPAGATE_CXX_STD=ON", "-D", "CMAKE_POSITION_INDEPENDENT_CODE=ON", "-D", "CMAKE_CXX_FLAGS=-fPIC", "-D", "CMAKE_C_FLAGS=-fPIC", "-S", root().path).call(cwd = T.dest)
           os.proc("make", "-j", jobs(), "all").call(cwd = T.dest)
           PathRef(T.dest)
         }

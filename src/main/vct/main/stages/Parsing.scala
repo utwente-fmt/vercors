@@ -92,7 +92,7 @@ case class Parsing[G <: Generation]
         case Language.PVL => ColPVLParser(origin, blameProvider)
         case Language.Silver => ColSilverParser(origin, blameProvider)
         case Language.SystemC => new ColSystemCParser(origin, blameProvider, Resources.getSystemCConfig)
-        case Language.LLVM => ColLLVMParser(origin, blameProvider)
+        case Language.LLVM => ColLLVMParser(origin, blameProvider, Resources.getVCLLVM)
       }
 
       parser.parse[G](readable)

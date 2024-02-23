@@ -11,6 +11,10 @@ namespace vcllvm {
     using namespace llvm;
 
     PreservedAnalyses ProtobufPrinter::run(Module &M, ModuleAnalysisManager &MAM) {
+        if (ErrorReporter::hasErrors()) {
+            llvm::errs() << "[VCLLVM] Conversion failed with " << ErrorReporter::getErrorCount() << " errors\n";
+            return PreservedAnalyses::all();
+        }
         auto pProgram = MAM.getResult<RootContainer>(M).program;
         pProgram->CheckInitialized();
         std::cout << pProgram->SerializeAsString();
