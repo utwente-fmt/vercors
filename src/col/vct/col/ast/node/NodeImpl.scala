@@ -157,11 +157,6 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
     Group(show).toStringWithContext
   }
 
-  def toInlineStringWithoutHash: String = {
-    implicit val ctx = Ctx(withoutHash=true).namesIn(this).copy(width = Int.MaxValue)
-    Group(show).toStringWithContext
-  }
-
   def highlight(node: Node[_]): HasContext =
     new HasContext {
       def contextText: String = {
