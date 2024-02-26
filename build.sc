@@ -512,6 +512,26 @@ object vercors extends Module {
 
   object main extends VercorsModule {
     def key = "main"
+    def name = "VerCors"
+    def maintainer = "Pieter Bos <p.h.bos@utwente.nl>"
+    def homepage = Some("https://utwente.nl/vercors")
+    def executableName = "vercors"
+    def version = T { buildInfo.gitVersion() }
+    def summary = "A deductive verifier for concurrent and parallel software."
+    def description =
+      """The VerCors verifier is a tool for deductive verification of concurrent
+        |and parallel software. VerCors can reason about programs written in
+        |different programming languages, such as Java, C and OpenCL, where
+        |the specifications are written in terms of pre-post-condition
+        |contracts using permission-based separation logic.""".stripMargin
+
+    def githubReleaseOutputs = T.command {
+      System.out.println(s"TAG_NAME=${buildInfo.gitVersionTag().get}")
+      System.out.println(s"RELEASE_NAME=${name()} ${version()}")
+      System.out.println(s"BODY=${if(buildInfo.gitIsPrerelease()) "Nightly Build" else "..."}")
+      System.out.println(s"PRERELEASE=${if(buildInfo.gitIsPrerelease()) "true" else "false"}")
+    }
+
     def deps = Agg(
       ivy"com.github.scopt::scopt:4.0.1",
     )
@@ -546,11 +566,28 @@ object vercors extends Module {
       def gitShortCommit = T.input { callOrElse("git", "rev-parse", "--short=8", "HEAD")("unknown") }
       def gitHasChanges = T.input { callOrElse("git", "diff-index", "--name-only", "HEAD")("dummyChanges").nonEmpty }
 
+      def gitVersionTag = T.input {
+        val tags = callOrElse("git", "tag", "--points-at", "HEAD")("").split("\n")
+        tags.collectFirst {
+          case tag if tag.matches("^v[0-9]") => tag
+          case "dev-prerelease" => "dev-prerelease"
+        }
+      }
+
+      def gitIsPrerelease = T.input { gitVersionTag().contains("dev-prerelease") }
+
+      def gitVersion = T.input {
+        gitVersionTag() match {
+          case Some(tag) if tag.startsWith("v") => tag.substring(1)
+          case _ => "9999.9.9-SNAPSHOT"
+        }
+      }
+
       def buildInfoPackageName = "vct.main"
       override def buildInfoMembers = T {
         Seq(
           BuildInfo.Value("name", "VerCors"),
-          BuildInfo.Value("version", "2.0.0"),
+          BuildInfo.Value("version", gitVersion()),
           BuildInfo.Value("scalaVersion", main.scalaVersion()),
           BuildInfo.Value("sbtVersion", "-"),
           BuildInfo.Value("currentBranch", gitBranch()),
