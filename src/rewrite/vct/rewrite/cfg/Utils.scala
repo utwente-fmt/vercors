@@ -4,8 +4,6 @@ import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.ref.{DirectRef, Ref}
 
-import scala.collection.mutable
-
 object Utils {
 
   def find_all_subexpressions[G](expr: Expr[G]): Seq[Statement[G]] = expr match {
@@ -96,6 +94,7 @@ object Utils {
 
   def negate[G](expr: Expr[G]): Expr[G] = expr match {
     case Not(inner) => inner
+    case BooleanValue(value) => BooleanValue(!value)(expr.o)
     case _ => Not(expr)(expr.o)
   }
 

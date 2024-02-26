@@ -16,43 +16,61 @@ case class CFGGenerator[G]() {
   private def convert(node: Statement[G], context: GlobalIndex[G]): CFGNode[G] = {
     // If a node has already been visited, then it should not be created again
     if (converted_nodes.contains(context)) return converted_nodes(context)
-    // Create new node with its successors (if possible)
-    val cfg_node: CFGNode[G] = CFGNode(node, mutable.Set())
-    converted_nodes.addOne((context, cfg_node))
-    cfg_node.successors.addAll(find_successors(node, context))
-    // Handle labels and goto statements
+    // Convert to CFG node depending on type of statement
     node match {
+      case assign: Assign[_] => assign_to_cfg(assign, context)
+      case stmt: ExpressionContainerStatement[_] => expression_container_to_cfg(stmt, context)
       case label: Label[_] =>
+        val cfg_node: CFGNode[G] = statement_to_cfg(node, context)
         // For labels, add them to the label map and add them to any goto statements going to that label
         found_labels.addOne((label.decl, cfg_node))
-        searched_labels.getOrElse(label.decl, mutable.Set()).map(g => g.successors.addOne(CFGEdge(cfg_node, None)))
+        searched_labels.getOrElse(label.decl, mutable.Set()).foreach(g => g.successors.addOne(CFGEdge(cfg_node, None)))
+        cfg_node
       case goto: Goto[_] =>
+        val cfg_node: CFGNode[G] = statement_to_cfg(node, context)
         // For goto statements, if the label could not be resolved, add the statement to the waiting list for the right label
         if (cfg_node.successors.isEmpty) {
           if (searched_labels.contains(goto.lbl.decl)) searched_labels(goto.lbl.decl).addOne(cfg_node)
           else searched_labels.addOne((goto.lbl.decl, mutable.Set(cfg_node)))
         }
-      case _ =>
+        cfg_node
+      case _ => statement_to_cfg(node, context)
     }
+  }
+
+  private def statement_to_cfg(stmt: Statement[G], context: GlobalIndex[G]): CFGNode[G] = {
+    val cfg_node: CFGNode[G] = CFGNode(stmt, mutable.Set())
+    converted_nodes.addOne((context, cfg_node))
+    cfg_node.successors.addAll(find_successors(stmt, context))
     cfg_node
+  }
+
+  private def assign_to_cfg(assign: Assign[G], context: GlobalIndex[G]): CFGNode[G] = context.indices.head match {
+    case AssignmentIndex(a, _) if a == assign => statement_to_cfg(assign, context)
+    case _ => convert(Eval(assign.target)(assign.target.o), context.enter_scope(assign))
+  }
+
+  private def expression_container_to_cfg(stmt: ExpressionContainerStatement[G], context: GlobalIndex[G]): CFGNode[G] = context.indices.head match {
+    case ExpressionContainerIndex(s, _) if s == stmt => statement_to_cfg(stmt, context)
+    case _ => convert(Eval(stmt.expr)(stmt.expr.o), context.enter_scope(stmt))
   }
 
   private def find_successors(node: Statement[G], context: GlobalIndex[G]): mutable.Set[CFGEdge[G]] = node match {
     // Exceptional statements
-    case Assign(_, _) => context.indices.head match {
-      case AssignmentIndex(a, _) if a == node => sequential_successor(context)
-      case _ => evaluate_first(context.enter_scope(node))
-    }
+    // Statements that can jump to another part of the program
     case Goto(lbl) => found_labels.get(lbl.decl) match {
       case Some(node) => mutable.Set(CFGEdge(node, None))
       case None => mutable.Set()
     }
-    case Fork(obj) =>   // TODO: Evaluate the obj expression before executing fork
+    case CGoto(label) => ???
+    // Statements that simultaneously affect other threads
+    case Fork(obj) =>
       val run_method: RunMethod[G] = obj.t.asClass.get.cls.decl.declarations.collect{ case r: RunMethod[G] => r }.head
       // Get the successor(s) of the fork statement as well as the new thread, starting with the run method
       sequential_successor(context).addOne(CFGEdge(convert(run_method.body.get, GlobalIndex[G](mutable.Seq()).enter_scope(run_method)), None))
-    case Return(result) => handle_expression_container(node, Eval(result)(result.o), context, mutable.Set(CFGEdge(return_successor(context), None)))
-    case Throw(obj) => handle_expression_container(node, Eval(obj)(obj.o), context, mutable.Set(CFGEdge(exception_successor(obj, context), None)))
+    // Statements that jump out of the current control flow context
+    case Return(_) => mutable.Set(CFGEdge(return_successor(context), None))
+    case Throw(obj) => mutable.Set(CFGEdge(exception_successor(obj, context), None))
     case Break(label) => label match {
       case Some(ref) => ???  // TODO: Handle break label!
       case None => mutable.Set(CFGEdge(break_successor(context), None))
@@ -61,29 +79,18 @@ case class CFGGenerator[G]() {
       case Some(ref) => ???  // TODO: Handle continue label!
       case None => mutable.Set(CFGEdge(continue_successor(context), None))
     }
+    // Irregular control container statements
     case IndetBranch(branches) =>
       mutable.LinkedHashSet.from(branches.zipWithIndex.map(b => CFGEdge(convert(b._1, context.enter_scope(node, b._2)), None)))
     case s: Switch[_] => handle_switch_statement(s, context.enter_scope(node))
-    case CGoto(label) => ???
-    case SeqBranch(_, yes, no) => no match {                                        // TODO: What are the conditions here?
+    case SeqBranch(_, yes, no) => no match {
       case Some(stmt) => mutable.Set(CFGEdge(convert(yes, context.enter_scope(node, 0)), None), CFGEdge(convert(stmt, context.enter_scope(node, 1)), None))
       case None => mutable.Set(CFGEdge(convert(yes, context.enter_scope(node)), None))
     }
-    case SeqLoop(_, _, _) => evaluate_first(context.enter_scope(node))              // TODO: What are the conditions here?
-    // Statements that can be categorized into a broader role for control flow analysis
-    case ecs: ExpressionContainerStatement[_] => handle_expression_container(node, Eval(ecs.expr)(ecs.o), context, sequential_successor(context))
+    // Other statements that can be categorized into a broader role for control flow analysis
+    case _: ExpressionContainerStatement[_] => sequential_successor(context)
     case _: ControlContainerStatement[_] => evaluate_first(context.enter_scope(node))
     case _: PurelySequentialStatement[_] => sequential_successor(context)
-  }
-
-  private def handle_expression_container(statement: Statement[G],
-                                          expression: Eval[G],
-                                          context: GlobalIndex[G],
-                                          successors_to_statement: mutable.Set[CFGEdge[G]]): mutable.Set[CFGEdge[G]] = {
-    context.indices.head match {
-      case ExpressionContainerIndex(stmt, 1) if stmt == statement => successors_to_statement
-      case _ => mutable.Set(CFGEdge(convert(expression, context.enter_scope(expression)), None))
-    }
   }
 
   private def evaluate_first(index: GlobalIndex[G]): mutable.Set[CFGEdge[G]] = {

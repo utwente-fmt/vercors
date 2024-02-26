@@ -160,7 +160,7 @@ object Index {
     case seq_loop: SeqLoop[G] => SeqLoopIndex(seq_loop)
     case veymont_assign_expression: VeyMontAssignExpression[G] => VeyMontAssignExpressionIndex(veymont_assign_expression)
     case communicatex: CommunicateX[G] => CommunicateXIndex(communicatex)
-    case statement: Statement[G] => ExpressionContainerIndex(statement, index)
+    case statement: ExpressionContainerStatement[G] => ExpressionContainerIndex(statement, index)
   }
 
   def apply[G](node: Node[G], index: Int): Index[G] = from(node, index)
@@ -185,12 +185,15 @@ case class RunMethodIndex[G](run_method: RunMethod[G]) extends Index[G] {
   }
 }
 
-case class ExpressionContainerIndex[G](statement: Statement[G], index: Int) extends Index[G] {
+case class ExpressionContainerIndex[G](statement: ExpressionContainerStatement[G], index: Int) extends Index[G] {
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = {
     if (index == 0) Set((Step(ExpressionContainerIndex(statement, 1)), None))
     else Set((Outgoing(), None))
   }
-  override def resolve(): Statement[G] = statement
+  override def resolve(): Statement[G] = index match {
+    case 0 => Eval(statement.expr)(statement.expr.o)
+    case 1 => statement
+  }
   override def equals(obj: scala.Any): Boolean = obj match {
     case ExpressionContainerIndex(s, i) => i == index && s.equals(statement)
     case _ => false
@@ -656,7 +659,7 @@ case class UnresolvedSeqLoopIndex[G](unresolved_seq_loop: UnresolvedSeqLoop[G], 
 }
 
 case class SeqBranchIndex[G](seq_branch: SeqBranch[G], index: Int) extends Index[G] {
-  override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = Set((Outgoing(), None))
+  override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = Set((Outgoing(), None))      // TODO: What are the conditions?
   override def resolve(): Statement[G] = index match {
     case 0 => seq_branch.yes
     case 1 => seq_branch.no.get
@@ -668,7 +671,7 @@ case class SeqBranchIndex[G](seq_branch: SeqBranch[G], index: Int) extends Index
 }
 
 case class SeqLoopIndex[G](seq_loop: SeqLoop[G]) extends Index[G] {
-  override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = Set((Step(this), None), (Outgoing(), None))
+  override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = Set((Step(this), None), (Outgoing(), None))    // TODO: What are the conditions?
   override def resolve(): Statement[G] = seq_loop.body
   override def equals(obj: scala.Any): Boolean = obj match {
     case SeqLoopIndex(s) => s.equals(seq_loop)
