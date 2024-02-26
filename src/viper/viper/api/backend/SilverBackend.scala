@@ -56,7 +56,7 @@ trait SilverBackend extends Backend with LazyLogging {
   private def path(node: silver.Node): Seq[AccountedDirection] =
     info(node.asInstanceOf[silver.Infoed]).predicatePath.get
 
-  override def submit(colProgram: col.Program[_], output: Option[Path]): Boolean = {
+  override def submit(colProgram: col.Program[_], output: Option[Path], skipVerification: Boolean): Boolean = {
     val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
 
     val silverProgramString =
@@ -96,6 +96,8 @@ trait SilverBackend extends Backend with LazyLogging {
             }
         }
     }
+    // Early out of verification
+    if(skipVerification) return true
 
     val (verifier, plugins) = createVerifier(NopViperReporter, nodeFromUniqueId)
 

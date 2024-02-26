@@ -44,13 +44,15 @@ case object Backend {
         z3Path = options.z3Path,
         numberOfParallelVerifiers = numberOfParallelVerifiers,
         timeoutValue = options.devSiliconAssertTimeout,
+        totalTimeOut = options.devSiliconTotalTimeout,
         proverLogFile = options.devViperProverLogFile,
         printQuantifierStatistics = options.siliconPrintQuantifierStats.isDefined,
         reportOnNoProgress = options.devSiliconReportOnNoProgress,
         traceBranchConditions = options.devSiliconTraceBranchConditions,
         branchConditionReportInterval = options.devSiliconBranchConditionReportInterval,
         options = options.backendFlags,
-      ), options.backendFile, if(options.devCache) Some(Caches.getSiliconDirectory) else None)
+      ), options.backendFile, if(options.devCache) Some(Caches.getSiliconDirectory) else None
+       , options.skipBackend)
 
     case types.Backend.Carbon => SilverBackend(Carbon(
       z3Path = options.z3Path,
@@ -58,13 +60,16 @@ case object Backend {
       printFile = options.devViperProverLogFile,
       proverLogFile = options.devCarbonBoogieLogFile,
       options = options.backendFlags,
-    ), options.backendFile, if(options.devCache) Some(Caches.getSiliconDirectory) else None)
+    ), options.backendFile, if(options.devCache) Some(Caches.getSiliconDirectory) else None
+     , options.skipBackend)
   }
 }
 
 trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
   override def friendlyName: String = "Verification"
   override def progressWeight: Int = 5
+
+  val skipVerification = false
 
   def cacheDirectory: Option[Path]
 
@@ -107,14 +112,14 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
     Progress.foreach[(VerificationContext[_ <: Generation], Int)](in.tasks.zipWithIndex.par, t => s"Task ${t._2 + 1}") { case (task, idx) =>
       cachedDefinitelyVerifiesOrElseUpdate(task.program, verify(task.program, idx))
     }
-
+    if(skipVerification) return Seq()
     in.expectedErrors
   }
 
   def verify(program: Program[_ <: Generation], idx: Int): Boolean
 }
 
-case class SilverBackend(backend: viper.SilverBackend, output: Option[Path] = None, cacheDirectory: Option[Path] = None) extends Backend {
+case class SilverBackend(backend: viper.SilverBackend, output: Option[Path] = None, cacheDirectory: Option[Path] = None, override val skipVerification: Boolean = false) extends Backend {
   override def verify(program: Program[_ <: Generation], idx: Int): Boolean =
-    backend.submit(program, output.map(p => p.resolveSibling(p.getFileName.toString + s"-$idx.vpr")))
+    backend.submit(program, output.map(p => p.resolveSibling(p.getFileName.toString + s"-$idx.vpr")), skipVerification)
 }

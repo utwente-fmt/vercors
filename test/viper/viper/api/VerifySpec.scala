@@ -25,7 +25,7 @@ abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
 
   def program(program: => Program[G]): Unit = {
     _registry = Some(new ExpectedErrorsRegistry())
-    backend.submit(program, None)
+    backend.submit(program, None, false)
     _registry.get.check()
     _registry = None
   }

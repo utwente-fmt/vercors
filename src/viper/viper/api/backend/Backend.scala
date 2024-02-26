@@ -5,5 +5,5 @@ import vct.col.ast.Program
 import java.nio.file.Path
 
 trait Backend {
-  def submit(program: Program[_], output: Option[Path]): Boolean
+  def submit(program: Program[_], output: Option[Path], skipVerification: Boolean): Boolean
 }

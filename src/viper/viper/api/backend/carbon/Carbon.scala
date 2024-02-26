@@ -18,7 +18,7 @@ case class Carbon(
   proverLogFile: Option[Path] = None,
   options: Seq[String] = Nil,
 ) extends SilverBackend {
-  override def submit(colProgram: Program[_], output: Option[Path]): Boolean = synchronized { super.submit(colProgram, output) }
+  override def submit(colProgram: Program[_], output: Option[Path], skipVerification: Boolean): Boolean = synchronized { super.submit(colProgram, output, skipVerification) }
 
   override def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, col.Node[_]]): (viper.carbon.CarbonVerifier, SilverPluginManager) = {
     val carbon = viper.carbon.CarbonVerifier(reporter)

@@ -85,7 +85,11 @@ case object Verify extends LazyLogging {
           logger.error(CollectString(s => err.printStackTrace(s)))
           EXIT_CODE_ERROR
         case Right((Nil, report)) =>
-          logger.info("Verification completed successfully.")
+          if(options.skipBackend){
+            logger.info("Verification skipped.")
+          } else {
+            logger.info("Verification completed successfully.")
+          }
           friendlyHandleBipReport(report, options.bipReportFile)
           EXIT_CODE_SUCCESS
         case Right((fails, report)) =>

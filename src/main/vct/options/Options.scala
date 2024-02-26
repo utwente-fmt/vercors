@@ -192,6 +192,11 @@ case object Options {
         .text("Indicate, in seconds, the timeout value for a single assert statement. If the verification gets stuck " +
           "on a single SMT check for longer than this timeout, the verification will fail."),
 
+      opt[Int]("dev-total-timeout").maybeHidden()
+        .action((amount, c) => c.copy(devSiliconTotalTimeout = amount))
+        .text("Indicate, in seconds, the timeout value for the backend verification. If the verification gets stuck " +
+          "for longer than this timeout, the verification will timeout."),
+
       opt[Path]("dev-silicon-z3-log-file").maybeHidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),
@@ -386,6 +391,7 @@ case class Options
   devSiliconNumVerifiers: Option[Int] = None,
   devSiliconZ3LogFile: Option[Path] = None,
   devSiliconAssertTimeout: Int = 30,
+  devSiliconTotalTimeout: Int = 0,
   devSiliconReportOnNoProgress: Boolean = true,
   devSiliconBranchConditionReportInterval: Option[Int] = Some(1000),
   devSiliconTraceBranchConditions: Boolean = false,
