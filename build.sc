@@ -525,7 +525,7 @@ object vercors extends Module {
         |the specifications are written in terms of pre-post-condition
         |contracts using permission-based separation logic.""".stripMargin
 
-    def githubReleaseOutputs = T.command {
+    def githubReleaseOutputs() = T.command {
       System.out.println(s"TAG_NAME=${buildInfo.gitVersionTag().get}")
       System.out.println(s"RELEASE_NAME=${name()} ${version()}")
       System.out.println(s"BODY=${if(buildInfo.gitIsPrerelease()) "Nightly Build" else "..."}")
@@ -569,7 +569,7 @@ object vercors extends Module {
       def gitVersionTag = T.input {
         val tags = callOrElse("git", "tag", "--points-at", "HEAD")("").split("\n")
         tags.collectFirst {
-          case tag if tag.matches("^v[0-9]") => tag
+          case tag if tag.matches("^v[0-9].*") => tag
           case "dev-prerelease" => "dev-prerelease"
         }
       }
