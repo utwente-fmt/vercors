@@ -62,10 +62,12 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           case None =>
             val res = rewriteDefault(e)
             res match {
-              case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
-                logger.warn(f"The binder `${e.o.shortPositionText}`:`${e.toInlineStringWithoutHash}` contains no triggers")
-              case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
-                logger.warn(f"The binder `${e.o.shortPositionText}`:`${e.toInlineStringWithoutHash}` contains no triggers")
+              case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true} =>
+                val trigger = e.o.inlineContext(false).map(_.head).getOrElse("unknown context")
+                logger.warn(f"The binder `${e.o.shortPositionText}`:`${trigger} contains no triggers`")
+              case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true } =>
+                val trigger = e.o.inlineContext(false).map(_.head).getOrElse("unknown context")
+                logger.warn(f"The binder `${e.o.shortPositionText}`:`${trigger} contains no triggers`")
               case _ =>
             }
             res
@@ -150,7 +152,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     if (e.bindings.exists(_.t != TInt())) return None
 
     // PB: do not attempt to reshape quantifiers that already have patterns
-    if (originalBody.exists { case _: InlinePattern[Pre] => true }) {
+    if (originalBody.exists { case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true }) {
       logger.debug(s"Not rewriting $e because it contains patterns")
       return None
     }

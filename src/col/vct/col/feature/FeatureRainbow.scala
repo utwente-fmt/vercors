@@ -703,6 +703,7 @@ class FeatureRainbow[G] {
     case node: CGoto[G] => return Seq(CSpecific, Gotos)
     case node: CPointer[G] => return Seq(CSpecific, Pointers)
     case node: CPointerDeclarator[G] => return Seq(CSpecific, Pointers)
+    case node: CPPLiteralArray[G] => return Seq(CPPSpecific, Arrays)
     case node: CPPChar[G] => return Seq(CPPSpecific, TextTypes)
     case node: CPPDeclarationStatement[G] => return Seq(CPPSpecific, UnscopedDeclaration)
     case node: CPPPointer[G] => return Seq(CPPSpecific, Pointers)

@@ -11,7 +11,7 @@ import vct.result.VerificationError.UserError
 case object CPP {
   implicit private val o: Origin = DiagnosticOrigin
 
-  private case class CPPTypeNotSupported(node: Option[Node[_]]) extends UserError {
+  case class CPPTypeNotSupported(node: Option[Node[_]]) extends UserError {
     override def code: String = "cppTypeNotSupported"
 
     override def text: String = {
@@ -40,7 +40,7 @@ case object CPP {
     for (prefix <- NUMBER_LIKE_PREFIXES; t <- NUMBER_LIKE_TYPES)
       yield prefix ++ t
 
-  case class DeclaratorInfo[G](params: Option[Seq[CPPParam[G]]], typeOrReturnType: Type[G] => Type[G], name: String)
+  case class DeclaratorInfo[G](params: Option[Seq[CPPParam[G]]], typeOrReturnType: Type[G] => Type[G], name: String, isReference: Boolean = false)
 
   def getDeclaratorInfo[G](decl: CPPDeclarator[G], isParam: Boolean = false): DeclaratorInfo[G] = decl match {
     case CPPAddressingDeclarator(operators, inner) =>
@@ -50,7 +50,9 @@ case object CPP {
         DeclaratorInfo(
           innerInfo.params,
           t => innerInfo.typeOrReturnType(t),
-          innerInfo.name)
+          innerInfo.name,
+          isReference = true
+        )
       } else if (operators.collectFirst({ case x: CPPReference[G] => x }).isDefined) {
         // Do not support multiple &, or & later in the sequence
         throw CPPTypeNotSupported(Some(decl))
@@ -60,7 +62,7 @@ case object CPP {
           t => innerInfo.typeOrReturnType(FuncTools.repeat[Type[G]](TPointer(_), operators.size, t)),
           innerInfo.name)
       }
-    case array@CPPArrayDeclarator(inner, size) =>
+    case array@CPPArrayDeclarator(size, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(innerInfo.params, t => innerInfo.typeOrReturnType(CPPTArray(size, t)(array.blame)), innerInfo.name)
     case CPPTypedFunctionDeclarator(params, _, inner) =>
@@ -96,6 +98,13 @@ case object CPP {
           case "buffer" => SYCLTBuffer(baseType, dim.intValue)
           case "accessor" => SYCLTAccessor(baseType, dim.intValue)
           case "local_accessor" => SYCLTLocalAccessor(baseType, dim.intValue)
+          case _ => throw CPPTypeNotSupported(context)
+        }
+      case Seq(SYCLClassDefName("accessor", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None), CPPExprOrTypeSpecifier(None, Some(SYCLClassDefName(accessMode, Nil)))))) =>
+        val baseType = getBaseTypeFromSpecs(Seq(typ))
+        accessMode match {
+          case "access_mode::read_write" => SYCLTAccessor(baseType, dim.intValue)
+          case "access_mode::read" => SYCLTAccessor(baseType, dim.intValue, readOnly = true)
           case _ => throw CPPTypeNotSupported(context)
         }
       case Seq(CPPTypedefName("VERCORS::LAMBDA", _)) => CPPTLambda()

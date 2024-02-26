@@ -43,7 +43,8 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre]  {
     case InstancePredicateApply(obj, ref, args, WritePerm()) =>
       InstancePredicateLocation(succ(ref.decl), dispatch(obj), args.map(dispatch))
 
-    case InlinePattern(inner, _, _) => exprToLoc(inner, blame)
+    case InlinePattern(inner, pattern, group) =>
+      InLinePatternLocation(exprToLoc(inner, blame), InlinePattern(dispatch(inner), pattern, group)(expr.o))(expr.o)
 
     case default =>
       throw NotALocation(default)

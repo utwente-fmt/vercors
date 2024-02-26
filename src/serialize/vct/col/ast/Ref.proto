@@ -1,0 +1,16 @@
+syntax = "proto2";
+
+package vct.col.ast;
+
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  lenses: false
+  getters: false
+  no_default_values_in_constructor: true
+  package_name: "vct.col.ast.serialize"
+};
+
+message Ref {
+  required int64 id = 1;
+}

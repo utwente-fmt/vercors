@@ -53,7 +53,7 @@ case class TruncDivMod[Pre <: Generation]() extends Rewriter[Pre] {
     FunctionInvocation[Post](truncDiv_func.ref, Seq(dispatch(div.left), dispatch(div.right)), Nil, Nil, Nil)(DivFailed(div))(div.o)
   }
 
-  def truncFunctionOrigin(operator: String) = Origin(Seq(LabelContext("generated at `" + operator + "` operator\"")))
+  def truncFunctionOrigin(operator: String) = Origin(Seq(LabelContext(s"generated at `$operator` operator")))
 
   /* Make a truncated modulo function.
      It should be equivalent to

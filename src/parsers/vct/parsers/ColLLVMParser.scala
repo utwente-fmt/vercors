@@ -11,7 +11,9 @@ import vct.col.ref.Ref
 import vct.parsers.transform.{BlameProvider, LLVMContractToCol, OriginProvider}
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 
-import java.io.{InputStreamReader, StringWriter}
+import java.io.IOException
+import java.nio.charset.StandardCharsets
+import scala.util.{Failure, Using}
 
 case class ColLLVMParser(override val origin: Origin, override val blameProvider: BlameProvider)
                                                     extends Parser(origin, blameProvider) with LazyLogging {
@@ -29,15 +31,16 @@ case class ColLLVMParser(override val origin: Origin, override val blameProvider
   override def parse[G](readable: Readable): ParseResult[G] = {
     val command = Seq("VCLLVM", readable.fileName)
     val process = new ProcessBuilder(command: _*).start()
+
+    val protoProgram = Using(process.getInputStream) { is => Program.parseFrom(is) }.recoverWith {
+      case _: IOException => Failure(LLVMParseError(readable.fileName, process.exitValue(), new String(process.getErrorStream.readAllBytes(), StandardCharsets.UTF_8)))
+    }.get
+
     process.waitFor()
     if (process.exitValue() != 0) {
-      val writer = new StringWriter()
-      new InputStreamReader(process.getInputStream).transferTo(writer)
-      new InputStreamReader(process.getErrorStream).transferTo(writer)
-      writer.close()
-      throw LLVMParseError(readable.fileName, process.exitValue(), writer.toString)
+      throw LLVMParseError(readable.fileName, process.exitValue(), new String(process.getErrorStream.readAllBytes(), StandardCharsets.UTF_8))
     }
-    val protoProgram = Program.parseFrom(process.getInputStream)
+
     val COLProgram = Deserialize.deserializeProgram[G](protoProgram, readable.fileName)
     ParseResult(COLProgram.declarations, Seq.empty)
   }

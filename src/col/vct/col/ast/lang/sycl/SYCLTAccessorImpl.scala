@@ -2,21 +2,42 @@ package vct.col.ast.lang.sycl
 
 import vct.col.ast._
 import vct.col.print.{Ctx, Doc, Group, Text}
-import vct.col.resolve.ctx.{CPPInvocationTarget, RefSYCLConstructorDefinition}
+import vct.col.resolve.ctx.{CPPInvocationTarget, RefSYCLAccessMode, RefSYCLConstructorDefinition}
 import vct.col.resolve.lang.{CPP, Util}
 import vct.col.ast.ops.SYCLTAccessorOps
 
 trait SYCLTAccessorImpl[G] extends SYCLTAccessorOps[G] { this: SYCLTAccessor[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("sycl::accessor") <> "<" <> typ <> ", " <> Text(dimCount.toString) <> ">")
+    Group(Text("sycl::accessor") <> "<" <> typ <> ", " <> Text(dimCount.toString) <> ", " <> Text(if (readOnly) "sycl::access_mode::read" else "sycl::access_mode::read_write") <> ">")
 
   override val namespacePath = "sycl::accessor"
 
-  def findConstructor(genericArgs: Seq[CPPExprOrTypeSpecifier[G]], args: Seq[Expr[G]]): Option[CPPInvocationTarget[G]] = genericArgs match {
-    case Nil if args.nonEmpty => CPP.unwrappedType(args.head.t) match {
-      case SYCLTBuffer(typ, dimCount) if Util.compatTypes(args.tail, Seq(SYCLTHandler[G](), SYCLTAccessMode[G]())) => Some(RefSYCLConstructorDefinition(SYCLTAccessor(typ, dimCount)))
+  def findConstructor(genericArgs: Seq[CPPExprOrTypeSpecifier[G]], args: Seq[Expr[G]]): Option[CPPInvocationTarget[G]] = {
+    if (args.nonEmpty) CPP.unwrappedType(args.head.t) match {
+      case SYCLTBuffer(typ, dimCount) => genericArgs match {
+        case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None), CPPExprOrTypeSpecifier(None, Some(SYCLClassDefName("access_mode::read_write", Nil)))) if dim > 0 && dim <= 3 &&
+          Util.compatTypes[G](args, Seq(SYCLTBuffer(CPP.getBaseTypeFromSpecs(Seq(typeSpec)), dim.toInt), SYCLTHandler[G](), SYCLTAccessMode[G]())) && isAccessMode(args(2), SYCLReadWriteAccess[G]()) =>
+          Some(RefSYCLConstructorDefinition(SYCLTAccessor(typ, dimCount)))
+        case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None), CPPExprOrTypeSpecifier(None, Some(SYCLClassDefName("access_mode::read", Nil)))) if dim > 0 && dim <= 3 &&
+          Util.compatTypes[G](args, Seq(SYCLTBuffer(CPP.getBaseTypeFromSpecs(Seq(typeSpec)), dim.toInt), SYCLTHandler[G](), SYCLTAccessMode[G]())) && isAccessMode(args(2), SYCLReadOnlyAccess[G]()) =>
+          Some(RefSYCLConstructorDefinition(SYCLTAccessor(typ, dimCount, readOnly = true)))
+        case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)) if dim > 0 && dim <= 3 &&
+          Util.compatTypes[G](args, Seq(SYCLTBuffer(CPP.getBaseTypeFromSpecs(Seq(typeSpec)), dim.toInt), SYCLTHandler[G](), SYCLTAccessMode[G]())) && isAccessMode(args(2), SYCLReadWriteAccess[G]()) =>
+          Some(RefSYCLConstructorDefinition(SYCLTAccessor(typ, dimCount)))
+        case Seq(CPPExprOrTypeSpecifier(None, Some(typeSpec))) if dimCount == 1 &&
+          Util.compatTypes[G](args, Seq(SYCLTBuffer(CPP.getBaseTypeFromSpecs(Seq(typeSpec))), SYCLTHandler[G](), SYCLTAccessMode[G]())) && isAccessMode(args(2), SYCLReadWriteAccess[G]()) =>
+          Some(RefSYCLConstructorDefinition(SYCLTAccessor(typ, dimCount)))
+        case Nil => Some(RefSYCLConstructorDefinition(SYCLTAccessor(typ, dimCount, isAccessMode(args(2), SYCLReadOnlyAccess[G]()))))
+        case _ => None
+      }
       case _ => None
+    } else {
+      None
     }
-    case _ => None
+  }
+
+  private def isAccessMode(e: Expr[G], accessMode: SYCLAccessMode[G]): Boolean = e match {
+    case local: CPPLocal[G] if local.ref.get.equals(RefSYCLAccessMode(accessMode)) => true
+    case _ => false
   }
 }

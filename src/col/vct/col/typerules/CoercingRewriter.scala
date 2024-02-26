@@ -765,6 +765,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case CPPLambdaRef() => e
       case inv@CPPInvocation(applicable, args, givenArgs, yields) =>
         CPPInvocation(applicable, args, givenArgs, yields)(inv.blame)
+      case CPPLiteralArray(exprs) =>
+        CPPLiteralArray(exprs)
       case CPPLocal(_, _) => e
       case SYCLReadWriteAccess() => e
       case SYCLReadOnlyAccess() => e
@@ -772,6 +774,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case SYCLNDRange(globalRange, localRange) => SYCLNDRange(globalRange, localRange)
       case StringConcat(left, right) =>
         StringConcat(string(left), string(right))
+      case inv @ ConstructorInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
+        ConstructorInvocation(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
       case acc @ CStructAccess(struct, field) =>
         CStructAccess(struct, field)(acc.blame)
       case deref @ CStructDeref(struct, field) =>
@@ -1486,6 +1490,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case Havoc(loc) => Havoc(loc)
       case IndetBranch(branches) => IndetBranch(branches)
       case Inhale(assn) => Inhale(res(assn))
+      case Instantiate(cls, dest) => Instantiate(cls, dest)
+      case inv @ InvokeConstructor(ref, out, args, outArgs, typeArgs, givenMap, yields) =>
+        InvokeConstructor(ref, out, coerceArgs(args, ref.decl, typeArgs, canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
         InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
@@ -1526,9 +1533,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
       case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
-      case c @ PVLCommunicate(s, r) if r.fieldType == s.fieldType => PVLCommunicate(s, r)
+      case c @ PVLCommunicate(s, r) if r.fieldType == s.fieldType => PVLCommunicate(s, r)(c.blame)
       case comm@PVLCommunicate(s, r) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.fieldType}, but actually has type ${r.fieldType}.")
-      case c @ Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)
+      case c @ Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)(c.blame)
       case comm@Communicate(r, s) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.field.decl.t}, but actually has type ${r.field.decl.t}.")
       case a @ PVLSeqAssign(r, f, v) =>
         try { PVLSeqAssign(r, f, coerce(v, f.decl.t))(a.blame) } catch {
@@ -1584,6 +1591,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         declaration
       case declaration: CStructMemberDeclarator[Pre] =>
         declaration
+      case cons: Constructor[Pre] =>
+        cons
       case definition: CPPFunctionDefinition[Pre] =>
         definition
       case declaration: CPPGlobalDeclaration[Pre] =>
@@ -1665,7 +1674,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
       case seqProg: SeqProg[Pre] => seqProg
-      case thread: Endpoint[Pre] => new Endpoint(thread.cls, thread.constructor, thread.args)
+      case endpoint: Endpoint[Pre] => new Endpoint(endpoint.cls, endpoint.constructor, endpoint.args)(endpoint.blame)
       case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body, bc.requires)(bc.blame)
       case bc: BipComponent[Pre] =>
         new BipComponent(bc.fqn, res(bc.invariant), bc.initial)
@@ -1815,6 +1824,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         InstancePredicateLocation(predicate, cls(obj), coerceArgs(args, predicate.decl))
       case al @ AmbiguousLocation(expr) =>
         AmbiguousLocation(expr)(al.blame)
+      case patLoc @ InLinePatternLocation(loc, pat) =>
+        InLinePatternLocation(loc, pat)
     }
   }
 
@@ -1915,8 +1926,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
     node match {
       case CPPAddressingDeclarator(pointers, inner) =>
         CPPAddressingDeclarator(pointers, inner)
-      case array @ CPPArrayDeclarator(inner, size) =>
-        CPPArrayDeclarator(inner, size.map(int))(array.blame)
+      case array @ CPPArrayDeclarator(size, inner) =>
+        CPPArrayDeclarator(size.map(int), inner)(array.blame)
       case CPPTypedFunctionDeclarator(params, varargs, inner) =>
         CPPTypedFunctionDeclarator(params, varargs, inner)
       case CPPLambdaDeclarator(params) =>

@@ -27,6 +27,7 @@ trait StatementImpl[G] extends NodeFamilyImpl[G] with StatementFamilyOps[G] { th
         _: Block[G] |
         _: Eval[G] |
         _: Assert[G] |
+        _: Assume[G] |
         _: UnresolvedSeqBranch[G] |
         _: UnresolvedSeqLoop[G] |
         _: SeqBranch[G] |

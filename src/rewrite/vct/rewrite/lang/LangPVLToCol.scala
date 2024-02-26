@@ -24,10 +24,10 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
-  val pvlDefaultConstructor: SuccessionMap[Class[Pre], Procedure[Post]] = SuccessionMap()
-  val pvlConstructor: SuccessionMap[PVLConstructor[Pre], Procedure[Post]] = SuccessionMap()
+  val pvlDefaultConstructor: SuccessionMap[Class[Pre], Constructor[Post]] = SuccessionMap()
+  val pvlConstructor: SuccessionMap[PVLConstructor[Pre], Constructor[Post]] = SuccessionMap()
 
-  def constructorSucc(ref: PVLConstructorTarget[Pre]): Ref[Post, Procedure[Post]] = ref match {
+  def constructorSucc(ref: PVLConstructorTarget[Pre]): Ref[Post, Constructor[Post]] = ref match {
     case ImplicitDefaultPVLConstructor(cls) => pvlDefaultConstructor.ref(cls)
     case RefPVLConstructor(cons) => pvlConstructor.ref(cons)
     case RefModel(_) => throw new ModelConstructorNotSupported()
@@ -37,52 +37,42 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
     implicit val o: Origin = cons.o
     val t = TClass[Post](rw.succ(rw.currentClass.top))
     val resVar = new Variable(t)
-    pvlConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) => new Procedure[Post](
-      returnType = t,
-      args = rw.variables.dispatch(cons.args),
-      outArgs = Nil,
-      typeArgs = Nil,
-      body = rw.currentThis.having(resVar.get) { cons.body.map(body => Scope(Seq(resVar), Block(Seq(
-        assignLocal(resVar.get, NewObject[Post](rw.succ(rw.currentClass.top))),
-        rw.dispatch(body),
-        Return(resVar.get),
-      )))) },
-      contract = rw.currentThis.having(result) { cons.contract.rewrite(
-        ensures = SplitAccountedPredicate(
-          left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
-          right = rw.dispatch(cons.contract.ensures),
-        )
-      ) },
-    )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))))
+    pvlConstructor(cons) =
+      rw.currentThis.having(ThisObject(rw.succ(rw.currentClass.top))) {
+        rw.classDeclarations.declare(new Constructor[Post](
+          cls = rw.succ(rw.currentClass.top),
+          args = rw.variables.dispatch(cons.args),
+          outArgs = Nil,
+          typeArgs = Nil,
+          body = cons.body.map(rw.dispatch),
+          contract = rw.dispatch(cons.contract),
+        )(cons.blame)(cons.o.where(name = s"constructor${rw.currentClass.top.o.getPreferredNameOrElse().ucamel}")))
+      }
   }
 
   def maybeDeclareDefaultConstructor(cls: Class[Pre]): Unit = {
     if (cls.declarations.collectFirst { case _: PVLConstructor[Pre] => () }.isEmpty) {
       implicit val o: Origin = cls.o
       val t = TClass[Post](rw.succ(cls))
-      val resVar = new Variable[Post](t)
-      val res = Local[Post](resVar.ref)(ThisVar())
+      val `this` = ThisObject(rw.succ[Class[Post]](cls))
       val defaultBlame = PanicBlame("The postcondition of a default constructor cannot fail.")
 
       val checkRunnable = cls.declarations.collectFirst {
         case _: RunMethod[Pre] => ()
       }.nonEmpty
 
-      pvlDefaultConstructor(cls) = rw.globalDeclarations.declare(withResult((result: Result[Post]) => new Procedure(
-        t,
+      pvlDefaultConstructor(cls) = rw.classDeclarations.declare(new Constructor[Post](
+        rw.succ(cls),
         Nil, Nil, Nil,
-        Some(Scope(Seq(resVar), Block(Seq(
-          assignLocal(res, NewObject[Post](rw.succ(cls))),
-          Return(res),
-        )))),
+        Some(Scope(Nil, Block(Nil))),
         ApplicableContract(
           UnitAccountedPredicate(tt),
           UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.declarations.collect {
             case field: InstanceField[Pre] if field.flags.collectFirst { case _: Final[Pre] => () }.isEmpty && !veymontGeneratePermissions =>
-              fieldPerm[Post](result, rw.succ(field), WritePerm())
-          }) &* (if (checkRunnable) IdleToken(result) else tt)), tt, Nil, Nil, Nil, None,
+              fieldPerm[Post](`this`, rw.succ(field), WritePerm())
+          }) &* (if (checkRunnable) IdleToken(`this`) else tt)), tt, Nil, Nil, Nil, None,
         )(TrueSatisfiable)
-      )(defaultBlame)))
+      )(defaultBlame))
     }
   }
 
@@ -122,11 +112,11 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
     inv.ref.get match {
       case RefModel(decl) => ModelNew[Post](rw.succ(decl))
       case RefPVLConstructor(decl) =>
-        ProcedureInvocation[Post](pvlConstructor.ref(decl), args.map(rw.dispatch), Nil, Nil,
+        ConstructorInvocation[Post](pvlConstructor.ref(decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultPVLConstructor(_) =>
-        ProcedureInvocation[Post](pvlDefaultConstructor.ref(t.asInstanceOf[TClass[Pre]].cls.decl), args.map(rw.dispatch), Nil, Nil,
+        ConstructorInvocation[Post](pvlDefaultConstructor.ref(t.asInstanceOf[TClass[Pre]].cls.decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
     }
@@ -145,4 +135,11 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
     case PVLLoop(init, cond, update, contract, body) =>
       Loop(rw.dispatch(init), rw.dispatch(cond), rw.dispatch(update), rw.dispatch(contract), rw.dispatch(body))(loop.o)
   }
+
+  def assign(assign: Assign[Pre]): Statement[Post] =
+    if (rw.veymont.currentProg.nonEmpty)
+      rw.veymont.rewriteAssign(assign)
+    else
+      assign.rewriteDefault()
+
 }

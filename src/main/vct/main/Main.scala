@@ -84,7 +84,7 @@ case object Main extends LazyLogging {
     try {
       options.mode match {
         case Mode.Verify =>
-          logger.info("Starting verification")
+          logger.info(s"Starting verification at ${hre.util.Time.formatTime()}")
           Verify.runOptions(options)
         case Mode.HelpVerifyPasses =>
           logger.info("Available passes:")

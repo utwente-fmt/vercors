@@ -5,6 +5,9 @@ on:
       - '**'
     tags-ignore:
       - dev-prerelease
+  pull_request:
+    branches:
+      - '**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -12,6 +15,7 @@ concurrency:
 
 jobs:
   Compile:
+    if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout VerCors
