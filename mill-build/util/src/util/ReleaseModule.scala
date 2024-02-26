@@ -7,7 +7,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
   def name: T[String] = T { this.getClass.getSimpleName.replace("$", "").capitalize }
   def executableName: T[String] = T { name().toLowerCase }
   def version: T[String] = T { "0.1-SNAPSHOT" }
-  def maintainer: T[String] = T { "Pieter Bos <p.h.bos@utwente.nl>" }
+  def maintainer: T[String] = T { "Unknown <unknown@example.com>" }
   def summary: T[String] = T { s"${name()} test build" }
   def description: T[String] = T { s"${name()} test build" }
   def homepage: T[Option[String]] = T { None }
@@ -101,7 +101,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
   }
 
   def deb = T {
-    val outName = s"${debianPackageName()}-debian-${version()}"
+    val outName = s"${debianPackageName()}-${version()}-debian"
     val root = T.dest / outName
     os.makeDir(root)
     val dest = root / "usr" / "share" / debianPackageName()
