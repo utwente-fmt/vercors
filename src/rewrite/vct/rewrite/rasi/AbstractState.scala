@@ -119,7 +119,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   def resolve_integer_expression(expr: Expr[G]): UncertainIntegerValue = expr match {
     case CIntegerValue(value) => UncertainIntegerValue.single(value.intValue)
     case IntegerValue(value) => UncertainIntegerValue.single(value.intValue)
-    case SizeOf(tname) => UncertainIntegerValue.above(0)    // TODO: Can we use more information about sizeof?
+    case SizeOf(tname) => UncertainIntegerValue.above(1)    // TODO: Can we use more information about sizeof?
     case UMinus(arg) => -resolve_integer_expression(arg)
     case AmbiguousMult(left, right) => resolve_integer_expression(left) * resolve_integer_expression(right)
     case AmbiguousPlus(left, right) => resolve_integer_expression(left) + resolve_integer_expression(right)
