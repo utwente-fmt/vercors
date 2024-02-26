@@ -45,15 +45,14 @@ case class GlobalIndex[G](indices: mutable.Seq[Index[G]]) {
 
   def has_statement(): Boolean = indices.nonEmpty && indices.head.has_statement()
 
-  def return_from_call(): GlobalIndex[G] = {
+  def return_from_call(): mutable.Set[(GlobalIndex[G], Option[Expr[G]])] = {
     // Find innermost subroutine call
     val stack: mutable.Seq[Index[G]] = indices.dropWhile {
       case InvokeProcedureIndex(_, _) | InvokeMethodIndex(_, _) => false
       case _ => true
     }
-    // Find the next statement
-    // TODO: Does this always return exactly one next step?
-    GlobalIndex(stack.tail).make_step().head._1
+    // Find the possible next statements
+    GlobalIndex(stack.tail).make_step()
   }
 
   def handle_exception(e: Expr[G]): GlobalIndex[G] = {

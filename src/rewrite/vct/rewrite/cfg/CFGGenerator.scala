@@ -18,8 +18,10 @@ case class CFGGenerator[G]() {
     if (converted_nodes.contains(context)) return converted_nodes(context)
     // Convert to CFG node depending on type of statement
     node match {
+      // If a statement contains an expression, the expression(s) must be evaluated before the statement
       case assign: Assign[_] => assign_to_cfg(assign, context)
       case stmt: ExpressionContainerStatement[_] => expression_container_to_cfg(stmt, context)
+      // Handle labels and gotos, since those can occur in arbitrary order
       case label: Label[_] =>
         val cfg_node: CFGNode[G] = statement_to_cfg(node, context)
         // For labels, add them to the label map and add them to any goto statements going to that label
@@ -34,6 +36,13 @@ case class CFGGenerator[G]() {
           else searched_labels.addOne((goto.lbl.decl, mutable.Set(cfg_node)))
         }
         cfg_node
+      // Leave all container statements except for invocations out of the CFG
+      case _: InvocationStatement[_] => statement_to_cfg(node, context)
+      case c: ControlContainerStatement[_] =>
+        val new_context = context.enter_scope(c)
+        if (!new_context.has_statement()) statement_to_cfg(c, context)
+        else convert(new_context.resolve().get, new_context)
+      // Any non-special statement is simply converted to a CFG node
       case _ => statement_to_cfg(node, context)
     }
   }
@@ -69,7 +78,7 @@ case class CFGGenerator[G]() {
       // Get the successor(s) of the fork statement as well as the new thread, starting with the run method
       sequential_successor(context).addOne(CFGEdge(convert(run_method.body.get, GlobalIndex[G](mutable.Seq()).enter_scope(run_method)), None))
     // Statements that jump out of the current control flow context
-    case Return(_) => mutable.Set(CFGEdge(return_successor(context), None))
+    case Return(_) => return_successors(context)
     case Throw(obj) => mutable.Set(CFGEdge(exception_successor(obj, context), None))
     case Break(label) => label match {
       case Some(ref) => ???  // TODO: Handle break label!
@@ -87,6 +96,8 @@ case class CFGGenerator[G]() {
       case Some(stmt) => mutable.Set(CFGEdge(convert(yes, context.enter_scope(node, 0)), None), CFGEdge(convert(stmt, context.enter_scope(node, 1)), None))
       case None => mutable.Set(CFGEdge(convert(yes, context.enter_scope(node)), None))
     }
+    // Assign statements cannot be easily categorized because they contain two expressions
+    case Assign(_, _) => sequential_successor(context)
     // Other statements that can be categorized into a broader role for control flow analysis
     case _: ExpressionContainerStatement[_] => sequential_successor(context)
     case _: ControlContainerStatement[_] => evaluate_first(context.enter_scope(node))
@@ -133,8 +144,8 @@ case class CFGGenerator[G]() {
     successor_to_previous
   }
 
-  private def return_successor(index: GlobalIndex[G]): CFGEntry[G] =
-    resolve_index(index.return_from_call())
+  private def return_successors(index: GlobalIndex[G]): mutable.Set[CFGEdge[G]] =
+    index.return_from_call().map(t => CFGEdge(resolve_index(t._1), t._2))
 
   private def exception_successor(exception: Expr[G], index: GlobalIndex[G]): CFGEntry[G] =
     resolve_index(index.handle_exception(exception))
