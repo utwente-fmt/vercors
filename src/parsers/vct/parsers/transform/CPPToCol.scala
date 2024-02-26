@@ -284,8 +284,8 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     PreAssignExpression(target, op match {
       case AssignmentOperator0(_) => value
       case AssignmentOperator1(_) => AmbiguousMult(target, value)
-      case AssignmentOperator2(_) => TruncDiv(target, value)(blame(expr))
-      case AssignmentOperator3(_) => TruncMod(target, value)(blame(expr))
+      case AssignmentOperator2(_) => AmbiguousTruncDiv(target, value)(blame(expr))
+      case AssignmentOperator3(_) => AmbiguousTruncMod(target, value)(blame(expr))
       case AssignmentOperator4(_) => col.AmbiguousPlus(target, value)(blame(valueNode))
       case AssignmentOperator5(_) => col.AmbiguousMinus(target, value)(blame(valueNode))
       case _ => ??(op)
@@ -373,8 +373,8 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case MultiplicativeExpression0(inner) => convert(inner)
     case MultiplicativeExpression1(left, op, right) => op match {
       case MultiplicativeOp0(_) => AmbiguousMult(convert(left), convert(right))
-      case MultiplicativeOp1(_) => TruncDiv(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp2(_) => TruncMod(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp1(_) => AmbiguousTruncDiv(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp2(_) => AmbiguousTruncMod(convert(left), convert(right))(blame(expr))
       case MultiplicativeOp3(_) => col.RatDiv(convert(left), convert(right))(blame(expr))
     }
   }

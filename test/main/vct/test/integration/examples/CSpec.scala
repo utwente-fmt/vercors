@@ -391,7 +391,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-    vercors should error withCode "wrongCType" in "Vector wrongly initialized" c
+    vercors should error withCode "wrongCType" in "Vector initialized with to much arguments" c
     """
     // wrongCType
     #include <immintrin.h>
@@ -401,7 +401,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-    vercors should error withCode "type" in "Vector literal with wrong types" c
+    vercors should error withCode "resolutionError:type" in "Vector literal with wrong types" c
     """
     // type
     #include <immintrin.h>
@@ -411,7 +411,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-    vercors should error withCode "wrongVectorType" in "Vector wrongly initialized" c
+    vercors should error withCode "resolutionError:type" in "Vector initialized with wrong type" c
     """
     // type
     #include <immintrin.h>
@@ -484,7 +484,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should error withCode "type" in "OpenCL Vector wrong type initializer" c
+  vercors should error withCode "resolutionError:type" in "OpenCL Vector wrong type initializer" c
     """
     // type
     #include <opencl.h>
@@ -495,7 +495,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should error withCode "fieldError" in "OpenCL Vector wrong field name" c
+  vercors should error withCode "noSuchName" in "OpenCL Vector wrong field name" c
     """
     // field not found
     #include <opencl.h>
@@ -507,7 +507,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should error withCode "fieldError" in "OpenCL Vector wrong field name letter" c
+  vercors should error withCode "noSuchName" in "OpenCL Vector wrong field name letter" c
     """
     // field not found
     #include <opencl.h>

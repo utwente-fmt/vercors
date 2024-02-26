@@ -619,8 +619,8 @@ case class JavaToCol[G](override val baseOrigin: Origin,
       mul match {
         case MulOp0(op) => op match {
           case "*" => AmbiguousMult(left, right)
-          case "/" => TruncDiv(left, right)(blame(expr))
-          case "%" => TruncMod(left, right)(blame(expr))
+          case "/" => AmbiguousTruncDiv(left, right)(blame(expr))
+          case "%" => AmbiguousTruncMod(left, right)(blame(expr))
         }
         case MulOp1(specOp) => convert(expr, specOp, left, right)
       }
@@ -666,14 +666,14 @@ case class JavaToCol[G](override val baseOrigin: Origin,
         case "+=" => AmbiguousPlus(target, value)(blame(right))
         case "-=" => AmbiguousMinus(target, value)(blame(right))
         case "*=" => AmbiguousMult(target,  value)
-        case "/=" => TruncDiv(target,  value)(blame(expr))
+        case "/=" => AmbiguousTruncDiv(target,  value)(blame(expr))
         case "&=" => AmbiguousComputationalAnd(target, value)
         case "|=" => BitOr(target, value)
         case "^=" => BitXor(target, value)
         case ">>=" => BitShr(target, value)
         case ">>>=" => BitUShr(target, value)
         case "<<=" => BitShl(target, value)
-        case "%=" => TruncMod(target, value)(blame(expr))
+        case "%=" => AmbiguousTruncMod(target, value)(blame(expr))
       })(blame(expr))
   }
 

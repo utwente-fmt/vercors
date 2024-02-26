@@ -21,8 +21,8 @@
 }
 
 /*@
-  context get_local_size(0) > 0 && get_local_size(1) == 0 && get_local_size(2) == 0;
-  context get_num_groups(0) > 0 && get_num_groups(1) == 0 && get_num_groups(2) == 0;
+  context get_local_size(0) > 0 && get_local_size(1) == 1 && get_local_size(2) == 1;
+  context get_num_groups(0) > 0 && get_num_groups(1) == 1 && get_num_groups(2) == 1;
   context a != NULL && \pointer_length(a) >= 1;
   context (\gtid < 1 ==> Perm(&a[\gtid], write));
 @*/

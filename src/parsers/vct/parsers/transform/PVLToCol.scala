@@ -233,8 +233,8 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit expr: MultExprContext): Expr[G] = expr match {
     case MultExpr0(left, _, right) => AmbiguousMult(convert(left), convert(right))
-    case MultExpr1(left, _, right) => FloorDiv(convert(left), convert(right))(blame(expr))
-    case MultExpr2(left, _, right) => Mod(convert(left), convert(right))(blame(expr))
+    case MultExpr1(left, _, right) => AmbiguousDiv(convert(left), convert(right))(blame(expr))
+    case MultExpr2(left, _, right) => AmbiguousMod(convert(left), convert(right))(blame(expr))
     case MultExpr3(left, specOp, right) => convert(expr, specOp, convert(left), convert(right))
     case MultExpr4(inner) => convert(inner)
   }

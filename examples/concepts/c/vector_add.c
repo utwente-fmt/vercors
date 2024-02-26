@@ -1,3 +1,4 @@
+// Compile with
 // gcc -mavx -o vector_add vector_add.c
 
 #include <assert.h>
@@ -19,7 +20,6 @@ void vector_add(int *a, int *b, int *c, int n){
         loop_invariant 0<=i && i<=n && i%4 == 0;
         loop_invariant (\forall int j; 0 <= j && j<i; {:c[j]:} == a[j] + b[j]);
     @*/
-    __m128i a4;
     for(int i = 0; i < n; i+=4){
         // Normally this should be:
         // a4 = _mm_load_si128((__m128i*)(a + i));
