@@ -27,6 +27,11 @@ jobs:
       - name: Set Properties
         id: props
         run: ./mill vercors.main.githubReleaseOutputs >> "$GITHUB_OUTPUT"
+      - name: Delete Previous Pre-release
+        uses: liudonghua123/delete-release-action@v1
+        with:
+          suppress_errors: true
+          release_id: 'dev-prerelease'
       - name: Create Release
         id: release
         uses: softprops/action-gh-release@v1
