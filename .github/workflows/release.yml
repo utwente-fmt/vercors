@@ -30,6 +30,8 @@ jobs:
       - name: Delete Previous Pre-release
         uses: liudonghua123/delete-release-action@v1
         if: github.ref_name == 'dev'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           suppress_errors: true
           release_name: 'dev-prerelease'
