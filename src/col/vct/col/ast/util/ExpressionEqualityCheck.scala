@@ -433,7 +433,7 @@ class AnnotationVariableInfoGetter[G]() {
       case SeqMember(e1, Range(from, to)) => isSimpleExpr(e1) && isSimpleExpr(from) && isSimpleExpr(to)
       case e: BinExpr[G] => isSimpleExpr(e.left) && isSimpleExpr(e.right)
       case _: Local[G] => true
-      case _: Constant[G, _] => true
+      case _: Constant[G] => true
       case _ => false
     }
   }
