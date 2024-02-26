@@ -34,7 +34,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           suppress_errors: true
-          release_name: 'dev-prerelease'
+          release_name: 'VerCors Nightly'
       - name: Create Release
         id: release
         uses: softprops/action-gh-release@v1

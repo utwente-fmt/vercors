@@ -527,7 +527,8 @@ object vercors extends Module {
 
     def githubReleaseOutputs() = T.command {
       System.out.println(s"TAG_NAME=${buildInfo.gitVersionTag().get}")
-      System.out.println(s"RELEASE_NAME=${name()} ${version()}")
+      val name = if(buildInfo.gitIsPrerelease()) "VerCors Nightly" else s"${name()} ${version()}"
+      System.out.println(s"RELEASE_NAME=$name")
       System.out.println(s"BODY=${if(buildInfo.gitIsPrerelease()) "Nightly Build" else "..."}")
       System.out.println(s"PRERELEASE=${if(buildInfo.gitIsPrerelease()) "true" else "false"}")
     }
