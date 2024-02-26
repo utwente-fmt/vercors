@@ -9,7 +9,7 @@ class ZeroArrayIC {
 	
   context (\forall* int i;0 <= i && i < N ; Perm(ar[i],write));
   ensures (\forall int i;0 <= i && i < N ; ar[i]==0);
-  void vector(int N, int[N] ar){
+  void vectorZero(int N, int[N] ar){
     par main(int i = 0 .. N)
       context Perm(ar[i],write);
       ensures ar[i]==0;

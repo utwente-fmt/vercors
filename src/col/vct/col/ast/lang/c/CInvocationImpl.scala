@@ -1,7 +1,7 @@
 package vct.col.ast.lang.c
 
 import vct.col.ast.ops.CInvocationOps
-import vct.col.ast.{CInvocation, CStructAccess, Type}
+import vct.col.ast.{CFieldAccess, CInvocation, TOpenCLVector, Type}
 import vct.col.print._
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.C
@@ -15,6 +15,7 @@ trait CInvocationImpl[G] extends CInvocationOps[G] { this: CInvocation[G] =>
     case RefADTFunction(decl) => decl.returnType
     case RefModelProcess(decl) => decl.returnType
     case RefModelAction(decl) => decl.returnType
+    case RefOpenCLVectorLiteralCInvocationTarget(size, t) => TOpenCLVector(size, t)
     case RefCFunctionDefinition(decl) => C.typeOrReturnTypeFromDeclaration(decl.specs, decl.declarator)
     case RefCGlobalDeclaration(decls, initIdx) => C.typeOrReturnTypeFromDeclaration(decls.decl.specs, decls.decl.inits(initIdx).decl)
     case RefProverFunction(decl) => decl.returnType
@@ -22,7 +23,7 @@ trait CInvocationImpl[G] extends CInvocationOps[G] { this: CInvocation[G] =>
     case RefInstanceFunction(decl) => decl.returnType
     case RefInstancePredicate(decl) => decl.returnType
     case BuiltinInstanceMethod(f) => applicable match {
-      case CStructAccess(obj, _) => f(obj)(args).t
+      case CFieldAccess(obj, _) => f(obj)(args).t
       case other => throw Unreachable("BuiltinInstanceMethod resolution of CInvocation must invoke a CStructAccess.")
     }
   }

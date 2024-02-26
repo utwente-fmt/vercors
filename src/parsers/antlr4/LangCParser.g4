@@ -280,16 +280,14 @@ typeSpecifier
     |   'unsigned'
     |   '_Bool'
     |   '_Complex'
-    |   '__m128'
-    |   '__m128d'
-    |   '__m128i')
-    |   '__extension__' '(' ('__m128' | '__m128d' | '__m128i') ')'
+    )
     |   {specLevel>0}? valType
     |   atomicTypeSpecifier
     |   structOrUnionSpecifier
     |   enumSpecifier
     |   typedefName
     |   '__typeof__' '(' constantExpression ')' // GCC extension
+    |   OPENCL_VECTOR_TYPE '(' typeName ',' Constant  ')'
     ;
 
 structOrUnionSpecifier
@@ -409,7 +407,8 @@ gccAttributeListNonEmpty
     ;
 
 gccAttribute
-    :   ~(',' | '(' | ')') // relaxed def for "identifier or reserved word"
+//    :   ~(',' | '(' | ')') // relaxed def for "identifier or reserved word"
+    : clangIdentifier // LvdH: No clue how to get the above working, the parser crashes for my examples
         parenthesizedArgumentExpressionList?
     |   // empty
     ;

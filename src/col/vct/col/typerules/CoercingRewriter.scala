@@ -168,6 +168,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         LiteralTuple(targetTypes.map(dispatch), inner.zipWithIndex.map { case (c, i) => applyCoercion(TupGet(e, i), c) })
       case CoerceMapType(inner, source, target) =>
         ???
+      case _: CoerceMapVector[Pre] => e
 
       case CoerceBoolResource() => e
       case CoerceResourceResourceVal() => e
@@ -200,6 +201,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case CoerceUnboundInt(_, _) => e
       case CoerceCArrayPointer(_) => e
       case CoerceCPPArrayPointer(_) => e
+      case CoerceCVectorVector(_, _) => e
       case CoerceNullEnum(_) => e
 
       case CoerceIntRat() => e
@@ -233,6 +235,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
     case node: CDeclaration[Pre] => node
     case node: CDeclarator[Pre] => node
     case node: CDeclarationSpecifier[Pre] => node
+    case node: CTypeExtensions[Pre] => node
     case node: CTypeQualifier[Pre] => node
     case node: CPointer[Pre] => node
     case node: CInit[Pre] => node
@@ -340,6 +343,25 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"set")
     }
+  def vector(e: Expr[Pre]): (Expr[Pre], TVector[Pre]) =
+    CoercionUtils.getAnyVectorCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
+      case None => throw IncoercibleText(e, s"vector")
+    }
+  def vectorType(e: Expr[Pre], elementType: Type[Pre], typeName: String): (Expr[Pre], TVector[Pre]) =
+    CoercionUtils.getAnyVectorCoercion(e.t) match {
+      case Some((coercionOuter, t)) =>
+        CoercionUtils.getAnyCoercion(t.element, elementType) match {
+          case Some(coercionInner) =>
+            val c = CoerceMapVector(coercionInner, t.element, elementType, t.size)(coercionOrigin(e))
+            (ApplyCoercion(e, c)(coercionOrigin(e)), TVector(t.size, elementType))
+          case None => throw IncoercibleText(e, s"$typeName vector")
+        }
+      case None => throw IncoercibleText(e, s"$typeName vector")
+    }
+  def vectorInt(e: Expr[Pre]): (Expr[Pre], TVector[Pre]) = vectorType(e, TInt(), "int")
+  def vectorFloat(e: Expr[Pre]): (Expr[Pre], TVector[Pre]) = vectorType(e, TFloats.ieee754_64bit[Pre], "float")
+  def vectorRational(e: Expr[Pre]): (Expr[Pre], TVector[Pre]) = vectorType(e, TRational(), "rational")
   def bag(e: Expr[Pre]): (Expr[Pre], TBag[Pre]) =
     CoercionUtils.getAnyBagCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
@@ -394,6 +416,29 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
     val (e1c, t) = bitvec(e1)
     val e2c = coerce(e2, t)
     f(e1c, e2c)
+  }
+  def vectorIntOp2[T](e: BinExpr[Pre], f: (Expr[Pre], Expr[Pre]) => T): T = {
+    implicit val o: Origin = e.o
+    val (left, right) = (vectorInt(e.left), vectorInt(e.right))
+    if (left._2.size != right._2.size) throw IncoercibleText(e, "This expression does not have a matching vector lengths")
+    f(left._1, right._1)
+  }
+  def vectorFloatOp2[T](e: BinExpr[Pre], f: (Expr[Pre], Expr[Pre]) => T): T = {
+    implicit val o: Origin = e.o
+    val (left, right) = (vectorFloat(e.left), vectorFloat(e.right))
+    if (left._2.size != right._2.size) throw IncoercibleText(e, "This expression does not have a matching vector lengths")
+    f(left._1, right._1)
+  }
+  def vectorOp2[T](e: BinExpr[Pre], f: (Expr[Pre], Expr[Pre]) => T): T = {
+    implicit val o: Origin = e.o
+    val (left, right) =
+      firstOk(e, s"Expected both operands to be of type vector[integer or float or rational], but got ${e.left.t} and ${e.right.t}.",
+        (vectorInt(e.left), vectorInt(e.right)),
+        (vectorFloat(e.left), vectorFloat(e.right)),
+        (vectorRational(e.left), vectorRational(e.right)),
+      )
+    if (left._2.size != right._2.size) throw IncoercibleText(e, "This expression does not have a matching vector lengths")
+    f(left._1, right._1)
   }
   def fp(e: Expr[Pre]): (Expr[Pre], TSmtlibFloatingPoint[Pre]) =
     CoercionUtils.getAnySmtlibFloatCoercion(e.t) match {
@@ -451,7 +496,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
                   alt8: => T = throw IncoercibleDummy,
                   alt9: => T = throw IncoercibleDummy,
                   alt10: => T = throw IncoercibleDummy,
-                  alt11: => T = throw IncoercibleDummy) : T = {
+                  alt11: => T = throw IncoercibleDummy,
+                  alt12: => T = throw IncoercibleDummy) : T = {
     Left(Nil)
       .onCoercionError(alt1)
       .onCoercionError(alt2)
@@ -464,6 +510,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       .onCoercionError(alt9)
       .onCoercionError(alt10)
       .onCoercionError(alt11)
+      .onCoercionError(alt12)
     match {
       case Left(errs) =>
         for(err <- errs) {
@@ -521,6 +568,16 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
           AmbiguousComputationalXor(int(left), int(right)),
           AmbiguousComputationalXor(bool(left), bool(right)),
         )
+      case div@AmbiguousDiv(left, right) =>
+        firstOk(e, s"Expected both operands to be int, float, vector[int] or vector[float], but got ${left.t} and ${right.t}.",
+          AmbiguousDiv(int(left), int(right))(div.blame),
+          AmbiguousDiv(float(left), float(right))(div.blame),
+          vectorIntOp2(div, (l,r) => AmbiguousDiv(l ,r)(div.blame)),
+          vectorFloatOp2(div, (l,r) => AmbiguousDiv(l ,r)(div.blame)),
+        )
+      case AmbiguousEq(left, right, vectorInnerType) =>
+        val sharedType = Types.leastCommonSuperType(left.t, right.t)
+        AmbiguousEq(coerce(left, sharedType), coerce(right, sharedType), vectorInnerType)
       case AmbiguousGreater(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           AmbiguousGreater(int(left), int(right)),
@@ -586,10 +643,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
           },
         )
       case minus @ AmbiguousMinus(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a set or a bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected both operands to be numeric, a numeric vector, a set or a bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
           Minus(float(left), float(right)),
-          Minus(rat(left), rat(right)),
+          Minus(rat(left), rat(right)), {
+            vectorOp2(minus, (l,r) => AmbiguousMinus(l,r)(minus.blame))
+          },
           AmbiguousMinus(pointer(left)._1, int(right))(minus.blame), {
             val (coercedLeft, TSet(elementLeft)) = set(left)
             val (coercedRight, TSet(elementRight)) = set(right)
@@ -619,11 +678,18 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
           val (coercedXs, TMap(element, _)) = map(xs)
           AmbiguousMember(coerce(x, element), coercedXs)
         })
-      case AmbiguousMult(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a process, a set or a bag but got ${left.t} and ${right.t}.",
+      case mod@AmbiguousMod(left, right) =>
+        firstOk(e, s"Expected both operands to be ints or vector[int], but got ${left.t} and ${right.t}.",
+          AmbiguousMod(int(left), int(right))(mod.blame),
+          vectorIntOp2(mod, (l,r) => AmbiguousMod(l ,r)(mod.blame))
+        )
+      case mult@AmbiguousMult(left, right) =>
+        firstOk(e, s"Expected both operands to be numeric, a numeric vector, a process, a set or a bag but got ${left.t} and ${right.t}.",
           AmbiguousMult(int(left), int(right)),
           AmbiguousMult(float(left), float(right)),
-          AmbiguousMult(rat(left), rat(right)),
+          AmbiguousMult(rat(left), rat(right)), {
+            vectorOp2(mult, (l,r) => AmbiguousMult(l,r))
+          },
           AmbiguousMult(process(left), process(right)), {
             val (coercedLeft, TSet(elementLeft)) = set(left)
             val (coercedRight, TSet(elementRight)) = set(right)
@@ -636,13 +702,16 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
             AmbiguousMult(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
           }
         )
+      case AmbiguousNeq(left, right, vectorInnerType) =>
+        val sharedType = Types.leastCommonSuperType(left.t, right.t)
+        AmbiguousNeq(coerce(left, sharedType), coerce(right, sharedType), vectorInnerType)
       case AmbiguousOr(left, right) =>
         firstOk(e, s"Expected both operands to be boolean or a process, but got ${left.t} and ${right.t}.",
           AmbiguousOr(bool(left), bool(right)),
           AmbiguousOr(process(left), process(right)),
         )
       case plus @ AmbiguousPlus(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, bag, or string; or a pointer and integer, but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, bag, numeric vector, or string; or a pointer and integer, but got ${left.t} and ${right.t}.",
           AmbiguousPlus(int(left), int(right))(plus.blame),
           AmbiguousPlus(float(left), float(right))(plus.blame),
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
@@ -664,6 +733,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
           }, {
+            vectorOp2(plus, (l,r) => AmbiguousPlus(l,r)(plus.blame))
+          }, {
             val validOperators = plus.getValidOperatorsOf(OperatorLeftPlus())
             validOperators match {
               case Some(Seq(op)) => AmbiguousPlus(cls(left), coerce(right, op.args.head.t))(plus.blame)
@@ -680,13 +751,26 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         )
       case AmbiguousResult() => e
       case sub @ AmbiguousSubscript(collection, index) =>
-        firstOk(e, s"Expected collection to be a sequence, array, pointer or map, but got ${collection.t}.",
+        firstOk(e, s"Expected collection to be a sequence, vector, array, pointer or map, but got ${collection.t}.",
           AmbiguousSubscript(seq(collection)._1, int(index))(sub.blame),
+          AmbiguousSubscript(vector(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(array(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(pointer(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(map(collection)._1, coerce(index, map(collection)._2.key))(sub.blame),
         )
       case AmbiguousThis() => e
+      case div@AmbiguousTruncDiv(left, right) =>
+        firstOk(e, s"Expected both operands to be int, float, vector[int] or vector[float], but got ${left.t} and ${right.t}.",
+          AmbiguousTruncDiv(int(left), int(right))(div.blame),
+          AmbiguousTruncDiv(float(left), float(right))(div.blame),
+          vectorIntOp2(div, (l,r) => AmbiguousTruncDiv(l ,r)(div.blame)),
+          vectorFloatOp2(div, (l,r) => AmbiguousTruncDiv(l ,r)(div.blame)),
+        )
+      case mod@AmbiguousTruncMod(left, right) =>
+        firstOk(e, s"Expected both operands to be ints or vector[int], but got ${left.t} and ${right.t}.",
+          AmbiguousTruncMod(int(left), int(right))(mod.blame),
+          vectorIntOp2(mod, (l,r) => AmbiguousTruncMod(l ,r)(mod.blame))
+        )
       case And(left, right) =>
         And(bool(left), bool(right))
       case any @ Any() =>
@@ -776,8 +860,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         StringConcat(string(left), string(right))
       case inv @ ConstructorInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
         ConstructorInvocation(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
-      case acc @ CStructAccess(struct, field) =>
-        CStructAccess(struct, field)(acc.blame)
+      case acc @ CFieldAccess(obj, field) =>
+        CFieldAccess(obj, field)(acc.blame)
       case deref @ CStructDeref(struct, field) =>
         CStructDeref(struct, field)(deref.blame)
       case CurPerm(loc) =>
@@ -909,6 +993,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         LiteralSeq(element, values.map(coerce(_, element)))
       case LiteralSet(element, values) =>
         LiteralSet(element, values.map(coerce(_, element)))
+      case LiteralVector(element, values) =>
+        LiteralVector(element, values.map(coerce(_, element)))
       case LiteralTuple(ts, values) =>
         LiteralTuple(ts, values.zip(ts).map {
           case (v, t) => coerce(v, t)
@@ -975,18 +1061,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
           Minus(float(left), float(right)),
           Minus(rat(left), rat(right)),
         )
-      case div @ Mod(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
-          Mod(int(left), int(right))(div.blame),
-          Mod(float(left), float(right))(div.blame),
-          Mod(rat(left), rat(right))(div.blame),
-        )
-      case div@TruncMod(left, right) => TruncMod(int(left), int(right))(div.blame)
-      case div@TruncDiv(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
-          TruncDiv(int(left), int(right))(div.blame),
-          TruncDiv(float(left), float(right))(div.blame),
-        )
+      case div @ Mod(left, right) => Mod(int(left), int(right))(div.blame)
       case ModelAbstractState(m, state) =>
         ModelAbstractState(model(m)._1, bool(state))
       case ModelChoose(m, perm, totalProcess, choice) =>
@@ -1357,6 +1432,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         ThisSeqProg(ref)
       case ThisObject(ref) =>
         ThisObject(ref)
+      case div@TruncMod(left, right) => TruncMod(int(left), int(right))(div.blame)
+      case div@TruncDiv(left, right) => TruncDiv(int(left), int(right))(div.blame)
       case TupGet(tup, index) =>
         TupGet(tuple(tup)._1, index)
       case TypeOf(expr) =>
@@ -1398,10 +1475,29 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         val sharedType = Types.leastCommonSuperType(leftType.element, rightType.element)
         val seqType = TSeq(sharedType)
         VectorCompare(coerce(coercedLeft, seqType), coerce(coercedRight, seqType))
+      case VectorEq(left, right) =>
+        val sharedType = Types.leastCommonSuperType(left.t, right.t)
+        VectorEq(coerce(left, sharedType), coerce(right, sharedType))
+      case div @ VectorFloatDiv(_, _) => vectorFloatOp2(div, (l,r) => VectorFloatDiv(l,r)(div.blame))
+      case div @ VectorFloorDiv(_, _) => vectorIntOp2(div, (l,r) => VectorFloorDiv(l,r)(div.blame))
+      case minus @ VectorMinus(_, _) =>
+        vectorOp2(minus, (l,r) => VectorMinus(l,r))
+      case mod@ VectorMod(_, _) => vectorIntOp2(mod, (l,r) => VectorMod(l,r)(mod.blame))
+      case mult @ VectorMult(_, _) =>
+        vectorOp2(mult, (l,r) => VectorMult(l,r))
+      case VectorNeq(left, right) =>
+        val sharedType = Types.leastCommonSuperType(left.t, right.t)
+        VectorNeq(coerce(left, sharedType), coerce(right, sharedType))
+      case plus @ VectorPlus(_, _) =>
+        vectorOp2(plus, (l,r) => VectorPlus(l,r))
       case VectorRepeat(e) =>
         VectorRepeat(e)
+      case get @ VectorSubscript(xs, index) =>
+        VectorSubscript(vector(xs)._1, int(index))(get.blame)
       case VectorSum(indices, vec) =>
         VectorSum(coerce(indices, TSeq[Pre](TInt())), coerce(vec, TSeq[Pre](TRational())))
+      case div @ VectorTruncDiv(_, _) => vectorIntOp2(div, (l,r) => VectorTruncDiv(l,r)(div.blame))
+      case mod @ VectorTruncMod(_, _) => vectorIntOp2(mod, (l,r) => VectorTruncMod(l,r)(mod.blame))
       case Void() =>
         Void()
       case Wand(left, right) =>
@@ -1882,6 +1978,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
     implicit val o: Origin = node.o
     val CPointer(qualifiers) = node
     CPointer(qualifiers)
+  }
+
+  def coerce(node: CTypeExtensions[Pre]): CTypeExtensions[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case CTypeAttribute(name, args) =>
+        CTypeAttribute(name, args)
+    }
   }
 
   def coerce(node: CDeclarator[Pre]): CDeclarator[Pre] = {

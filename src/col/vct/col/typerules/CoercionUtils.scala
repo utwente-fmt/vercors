@@ -51,6 +51,8 @@ case object CoercionUtils {
         CoerceMapSeq(getAnyCoercion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
       case (TSet(innerSource), TSet(innerTarget)) =>
         CoerceMapSet(getPromotion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
+      case (TVector(sizeSource, innerSource), TVector(sizeTarget, innerTarget)) if sizeSource == sizeTarget =>
+        CoerceMapVector(getPromotion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget, sizeTarget)
       case (TBag(innerSource), TBag(innerTarget)) =>
         CoerceMapBag(getPromotion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
       case (TMatrix(innerSource), TMatrix(innerTarget)) =>
@@ -73,6 +75,10 @@ case object CoercionUtils {
         CoerceCArrayPointer(element)
       case (CPPTArray(_, innerType), TArray(element)) if element == innerType =>
         CoerceCPPArrayPointer(element)
+      case (source@CTVector(_, innerType), TVector(rSize, element)) if element == innerType && source.intSize == rSize =>
+        CoerceCVectorVector(rSize, element)
+      case (source@TOpenCLVector(lSize, innerType), TVector(rSize, element)) if element == innerType && lSize == rSize =>
+        CoerceCVectorVector(rSize, element)
       case (CTPointer(innerType), TPointer(element)) => //if element == innerType =>
         getAnyCoercion(element, innerType).getOrElse(return None)
       case (TPointer(element), CTPointer(innerType)) => //if element == innerType =>
@@ -254,6 +260,15 @@ case object CoercionUtils {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnySetCoercion)
     case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnySetCoercion)
     case t: TSet[G] => Some((CoerceIdentity(source), t))
+    case _ => None
+  }
+
+  def getAnyVectorCoercion[G](source: Type[G]): Option[(Coercion[G], TVector[G])] = source match {
+    case t: CPrimitiveType[G] => chainCCoercion(t, getAnyVectorCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyVectorCoercion)
+    case t: CTVector[G] => Some((CoerceCVectorVector(t.intSize, t.innerType), TVector(t.intSize, t.innerType)()))
+    case t: TOpenCLVector[G] => Some((CoerceCVectorVector(t.size, t.innerType), TVector(t.size, t.innerType)()))
+    case t: TVector[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 

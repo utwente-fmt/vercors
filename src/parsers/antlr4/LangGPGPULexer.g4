@@ -11,3 +11,5 @@ GPGPU_LOCAL_MEMORY: '__vercors_local_memory__';
 
 GPGPU_CUDA_OPEN_EXEC_CONFIG: '<<<';
 GPGPU_CUDA_CLOSE_EXEC_CONFIG: '>>>';
+
+OPENCL_VECTOR_TYPE: '__opencl_vector_type__';

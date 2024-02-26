@@ -8,7 +8,7 @@ import vct.col.ast.ops.AmbiguousMinusOps
 trait AmbiguousMinusImpl[G] extends AmbiguousMinusOps[G] { this: AmbiguousMinus[G] =>
 
   override lazy val t: Type[G] = {
-    if(isSetOp || isBagOp) Types.leastCommonSuperType(left.t, right.t)
+    if(isSetOp || isBagOp || isVectorOp) Types.leastCommonSuperType(left.t, right.t)
     else if(isPointerOp) left.t
     else getNumericType
   }

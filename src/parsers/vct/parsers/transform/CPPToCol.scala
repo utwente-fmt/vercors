@@ -284,8 +284,8 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     PreAssignExpression(target, op match {
       case AssignmentOperator0(_) => value
       case AssignmentOperator1(_) => AmbiguousMult(target, value)
-      case AssignmentOperator2(_) => TruncDiv(target, value)(blame(expr))
-      case AssignmentOperator3(_) => TruncMod(target, value)(blame(expr))
+      case AssignmentOperator2(_) => AmbiguousTruncDiv(target, value)(blame(expr))
+      case AssignmentOperator3(_) => AmbiguousTruncMod(target, value)(blame(expr))
       case AssignmentOperator4(_) => col.AmbiguousPlus(target, value)(blame(valueNode))
       case AssignmentOperator5(_) => col.AmbiguousMinus(target, value)(blame(valueNode))
       case _ => ??(op)
@@ -341,8 +341,8 @@ case class CPPToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit expr: EqualityExpressionContext): Expr[G] = expr match {
     case EqualityExpression0(inner) => convert(inner)
-    case EqualityExpression1(left, _, right) => Eq(convert(left), convert(right))
-    case EqualityExpression2(left, _, right) => Neq(convert(left), convert(right))
+    case EqualityExpression1(left, _, right) => AmbiguousEq(convert(left), convert(right), TCInt())
+    case EqualityExpression2(left, _, right) => AmbiguousNeq(convert(left), convert(right), TCInt())
   }
 
   def convert(implicit expr: RelationalExpressionContext): Expr[G] = expr match {
@@ -373,8 +373,8 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case MultiplicativeExpression0(inner) => convert(inner)
     case MultiplicativeExpression1(left, op, right) => op match {
       case MultiplicativeOp0(_) => AmbiguousMult(convert(left), convert(right))
-      case MultiplicativeOp1(_) => TruncDiv(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp2(_) => TruncMod(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp1(_) => AmbiguousTruncDiv(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp2(_) => AmbiguousTruncMod(convert(left), convert(right))(blame(expr))
       case MultiplicativeOp3(_) => col.RatDiv(convert(left), convert(right))(blame(expr))
     }
   }
@@ -1351,6 +1351,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     }
     case ValSeqType(_, _, element, _) => TSeq(convert(element))
     case ValSetType(_, _, element, _) => TSet(convert(element))
+    case ValVectorType(_, _, element, _, size, _) => TVector(convert(size), convert(element))()
     case ValBagType(_, _, element, _) => TBag(convert(element))
     case ValOptionType(_, _, element, _) => TOption(convert(element))
     case ValMapType(_, _, key, _, value, _) => TMap(convert(key), convert(value))
@@ -1383,6 +1384,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   def convert(implicit e: ValPrimaryCollectionConstructorContext): Expr[G] = e match {
     case ValTypedLiteralSeq(_, _, t, _, _, exprs, _) => LiteralSeq(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralSet(_, _, t, _, _, exprs, _) => LiteralSet(convert(t), exprs.map(convert(_)).getOrElse(Nil))
+    case ValTypedLiteralVector(_, _, t, _, _, exprs, _) => LiteralVector(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValSetComprehension(_, _, t, _, _, value, _, selectors, _, something, _) => ??(e)
     case ValTypedLiteralBag(_, _, t, _, _, exprs, _) => LiteralBag(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => LiteralMap(convert(key), convert(value), pairs.map(convert(_)).getOrElse(Nil))
