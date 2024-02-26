@@ -32,7 +32,6 @@ class Sink extends Thread {
 
         //@ source.postJoin(1\2);
         source.join();
-        source.i = 1;
     }
 
     public void join(){}
