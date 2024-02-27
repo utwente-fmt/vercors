@@ -17,12 +17,8 @@ trait MethodInvocationImpl[G] extends MethodInvocationOps[G] with InvocationImpl
       ) <> Doc.args(args ++ outArgs) <> ")" <> DocUtil.givenYields(givenMap, yields)
     )
 
-  override def t: Type[G] = {
-    val returnType = super.t
-    obj.t match {
-      case TClass(Ref(cls), typeArgs) if typeArgs.nonEmpty =>
-        returnType.particularize(cls.typeArgs.zip(typeArgs).toMap)
-      case _ => returnType
-    }
+  override def t: Type[G] = obj.t match {
+    case t: TClass[G] => t.instantiate(super.t)
+    case _ => super.t
   }
 }

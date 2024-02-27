@@ -6,9 +6,9 @@ class Role<T> {
   int toInt(T t);
 }
 
-adt A { }
+class A { }
 
-adt B { }
+class B { }
 
 seq_program genericTest() {
   endpoint a = Role<A>();

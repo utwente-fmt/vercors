@@ -102,7 +102,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
       implicit val o = prog.o
       prog.endpoints.foreach(_.drop())
       for (endpoint <- prog.endpoints) {
-        endpointSucc((mode, endpoint)) = new Variable(TClass(succ[Class[Post]](endpoint.cls.decl), Seq()))(endpoint.o)
+        endpointSucc((mode, endpoint)) = new Variable(dispatch(endpoint.t))(endpoint.o)
       }
 
       // Maintain successor for seq_prog argument variables manually, as two contexts are maintained
@@ -116,6 +116,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
       val endpointsInit = prog.endpoints.map { endpoint =>
         Assign(Local[Post](endpointSucc((mode, endpoint)).ref),
           constructorInvocation[Post](
+            classTypeArgs = endpoint.typeArgs.map(dispatch),
             ref = succ(endpoint.constructor.decl),
             args = endpoint.args.map(dispatch),
             blame = InvocationFailureToEndpointFailure(endpoint)
@@ -172,7 +173,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
 
     currentRun.having(run) {
       for (endpoint <- prog.endpoints) {
-        endpointSucc((mode, endpoint)) = new Variable(TClass(succ[Class[Post]](endpoint.cls.decl), Seq()))(endpoint.o)
+        endpointSucc((mode, endpoint)) = new Variable(dispatch(endpoint.t))(endpoint.o)
       }
 
       for (arg <- prog.args) {

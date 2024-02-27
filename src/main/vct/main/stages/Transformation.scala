@@ -131,13 +131,13 @@ class Transformation
             throw c
         }
 
+        onAfterPassKey.foreach {
+          case (key, action) => if (pass.key == key) action(result)
+        }
+
         result.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
           case Nil => // ok
           case errors => throw TransformationCheckError(pass, errors)
-        }
-
-        onAfterPassKey.foreach {
-          case (key, action) => if (pass.key == key) action(result)
         }
 
         result = PrettifyBlocks().dispatch(result)

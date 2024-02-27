@@ -47,11 +47,11 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] with Laz
      */
     val key = (cls, typeValues)
     if (knownInstantiations.contains(key)) {
-      logger.info(s"Class ${cls.o.debugName()} with type args $typeValues is already instantiated, so skipping instantiation")
+      logger.debug(s"Class ${cls.o.debugName()} with type args $typeValues is already instantiated, so skipping instantiation")
       return
     }
     val mode = if (keepBodies) { "concretely" } else { "abstractly" }
-    logger.info(s"Instantiating class ${cls.o.debugName()} $mode, args: $typeValues")
+    logger.debug(s"Instantiating class ${cls.o.debugName()} $mode, args: $typeValues")
     val newCtx = InstantiationContext(
       cls,
       typeValues,
@@ -128,6 +128,20 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case other => other.rewriteDefault()
   }
 
+  override def dispatch(loc: Location[Pre]): Location[Post] = loc match {
+    case loc @ FieldLocation(obj, Ref(field)) =>
+      obj.t match {
+        case TClass(Ref(cls), typeArgs) if typeArgs.nonEmpty =>
+          val typeArgs1 = ctx.topOption.map(_.evalTypes(typeArgs)).getOrElse(typeArgs)
+          instantiate(cls, typeArgs1, false)
+          loc.rewrite(
+            field = genericSucc.ref[Post, InstanceField[Post]](((cls, typeArgs1), field))
+          )
+        case _ => loc.rewriteDefault()
+      }
+    case _ => loc.rewriteDefault()
+  }
+
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
     case deref @ Deref(obj, Ref(field)) =>
       obj.t match {
@@ -137,7 +151,7 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] with Laz
           deref.rewrite(
             ref = genericSucc.ref[Post, InstanceField[Post]](((cls, typeArgs1), field))
           )
-        case _ => expr.rewriteDefault()
+        case _ => deref.rewriteDefault()
       }
     case _ => expr.rewriteDefault()
   }
