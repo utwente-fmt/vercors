@@ -34,41 +34,45 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
   def keepBodies: Boolean = ctx.topOption.map { ctx => ctx.keepBodies }.getOrElse(true)
 
+  val knownInstantiations: mutable.LinkedHashSet[Key] = mutable.LinkedHashSet()
   // key: generically instantiated type in pre
   val genericSucc: SuccessionMap[(Key, Declaration[Pre]), Declaration[Post]] = SuccessionMap()
 
   def instantiate(cls: Class[Pre], typeValues: Seq[Type[Pre]], keepBodies: Boolean): Unit = {
+    /* Known limitation: the knownInstantations set does not take into account how a class was instantiated.
+    A class can be instantiated both abstractly (without method bodies) and concretely (with method bodies)
+    for the same sequence of type arguments, maybe. If that's the case, the knownInstantiations should take the
+    "mode" of instantiation into account. But as this difference is at the moment also not encoded in genericSucc,
+    it's not taken into account for knowInstantiations either
+     */
     val key = (cls, typeValues)
-    genericSucc.get((key, cls)) match {
-      case Some(_) => // Done
-      case None =>
-        val newCtx = InstantiationContext(
-          cls,
-          typeValues,
-          keepBodies = keepBodies,
-          substitutions = cls.typeArgs.map { v: Variable[Pre] => TVar(v.ref[Variable[Pre]]) }.zip(typeValues).toMap
-        )
-        // TODO: See below problem
-        // The entry in genericSucc is only updated after finishing rewriting the generic class.
-        // So if the generic class is mentioned inside, it will also be instantiated abstractly.
-        // So the "filler" entry in genericSucc is missing for now. How to resolve?
-        genericSucc((key, cls)) = ctx.having(newCtx) {
-          globalDeclarations.scope {
-            classDeclarations.scope {
-              variables.scope {
-                allScopes.anyDeclare(allScopes.anySucceedOnly(cls, cls.rewrite(typeArgs = Seq())))
-              }
-            }
+    if (knownInstantiations.contains(key)) {
+      logger.info(s"Class ${cls.o.debugName()} with type args $typeValues is already instantiated, so skipping instantiation")
+      return
+    }
+    val mode = if (keepBodies) { "concretely" } else { "abstractly" }
+    logger.info(s"Instantiating class ${cls.o.debugName()} $mode, args: $typeValues")
+    val newCtx = InstantiationContext(
+      cls,
+      typeValues,
+      keepBodies = keepBodies,
+      substitutions = cls.typeArgs.map { v: Variable[Pre] => TVar(v.ref[Variable[Pre]]) }.zip(typeValues).toMap
+    )
+    knownInstantiations.add(key)
+    genericSucc((key, cls)) = ctx.having(newCtx) {
+      globalDeclarations.scope {
+        classDeclarations.scope {
+          variables.scope {
+            allScopes.anyDeclare(allScopes.anySucceedOnly(cls, cls.rewrite(typeArgs = Seq())))
           }
         }
+      }
     }
   }
-
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] if cls.typeArgs.nonEmpty =>
       cls.typeArgs.foreach(_.drop())
-      logger.info(s"Instantiating abstract type: ${cls.o.debugName()}")
       instantiate(cls, cls.typeArgs.map(v => v.t.asInstanceOf[TType[Pre]].t), true)
     case method: InstanceMethod[Pre] if ctx.nonEmpty =>
       val newMethod: InstanceMethod[Post] =
@@ -81,6 +85,11 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] with Laz
       genericSucc((ctx.top.key, cons)) = newCons
       classDeclarations.declare(newCons)
       classDeclarations.succeedOnly(cons, newCons)
+    case field: InstanceField[Pre] if ctx.nonEmpty =>
+      val newField = field.rewrite()
+      genericSucc((ctx.top.key, field)) = newField
+      classDeclarations.declare(newField)
+      classDeclarations.succeedOnly(field, newField)
     case other =>
       allScopes.anySucceed(other, other.rewriteDefault())
   }
@@ -91,7 +100,6 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] with Laz
         case Some(ctx) => typeArgs.map(ctx.substitute.dispatch)
         case None => typeArgs
       }
-      logger.info(s"Instantiating concrete type: ${cls.o.debugName()}")
       instantiate(cls, typeValues, false)
       TClass[Post](genericSucc.ref[Post, Class[Post]](((cls, typeValues), cls)), Seq())
     case (tvar @ TVar(_), Some(ctx)) =>
@@ -118,5 +126,19 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] with Laz
         case _ => inv.rewriteDefault()
       }
     case other => other.rewriteDefault()
+  }
+
+  override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
+    case deref @ Deref(obj, Ref(field)) =>
+      obj.t match {
+        case TClass(Ref(cls), typeArgs) if typeArgs.nonEmpty =>
+          val typeArgs1 = ctx.topOption.map(_.evalTypes(typeArgs)).getOrElse(typeArgs)
+          instantiate(cls, typeArgs1, false)
+          deref.rewrite(
+            ref = genericSucc.ref[Post, InstanceField[Post]](((cls, typeArgs1), field))
+          )
+        case _ => expr.rewriteDefault()
+      }
+    case _ => expr.rewriteDefault()
   }
 }

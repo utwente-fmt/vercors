@@ -56,6 +56,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
   def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit =
     endpointSucc(endpoint) = rw.endpoints.declare(new Endpoint(
       rw.succ[Class[Post]](endpoint.cls.decl),
+      endpoint.typeArgs.map(rw.dispatch),
       rw.pvl.constructorSucc(endpoint.ref.get),
       endpoint.args.map(rw.dispatch)
     )(endpoint.blame)(endpoint.o))

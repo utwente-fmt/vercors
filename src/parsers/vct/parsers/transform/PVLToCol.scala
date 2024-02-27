@@ -51,10 +51,11 @@ case class PVLToCol[G](override val baseOrigin: Origin,
           convert(body),
           contract.consumeApplicableContract(blame(decl))
         )(blame(decl))(origin(decl).where(name = "run")))
-    case PvlEndpoint(_, name, _, ClassType0(endpointType, None), _, args, _, _) =>
+    case PvlEndpoint(_, name, _, ClassType0(endpointType, typeArgs), _, args, _, _) =>
       new PVLEndpoint(
         convert(name),
         new UnresolvedRef[G, Class[G]](convert(endpointType)),
+        typeArgs.map(convert(_)).getOrElse(Seq()),
         args.map(convert(_)).getOrElse(Nil))(blame(decl))(origin(decl).sourceName(convert(name))
       )
     case PvlEndpoint(_, name, _, t@ClassType0(_, Some(_)), _, args, _, _) => ??(t)

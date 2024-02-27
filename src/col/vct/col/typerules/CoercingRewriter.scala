@@ -1677,7 +1677,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
       case seqProg: SeqProg[Pre] => seqProg
-      case endpoint: Endpoint[Pre] => new Endpoint(endpoint.cls, endpoint.constructor, endpoint.args)(endpoint.blame)
+      case endpoint: Endpoint[Pre] => new Endpoint(endpoint.cls, endpoint.typeArgs, endpoint.constructor, endpoint.args)(endpoint.blame)
       case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body, bc.requires)(bc.blame)
       case bc: BipComponent[Pre] =>
         new BipComponent(bc.fqn, res(bc.invariant), bc.initial)

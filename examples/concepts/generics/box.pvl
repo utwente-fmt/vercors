@@ -10,4 +10,5 @@ class Box<T> {
 void m() {
   Box<int> b = new Box<int>();
   int t = b.get();
+  int t = b.t;
 }

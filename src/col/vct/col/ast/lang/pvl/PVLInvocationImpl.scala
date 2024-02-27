@@ -1,6 +1,6 @@
 package vct.col.ast.lang.pvl
 
-import vct.col.ast.{PVLInvocation, TClass, TProcess, TResource, Type}
+import vct.col.ast.{Applicable, PVLInvocation, TClass, TProcess, TResource, Type}
 import vct.col.print.{Ctx, Doc, DocUtil, Empty, Group, Text}
 import vct.col.resolve.ctx._
 import vct.col.ast.ops.PVLInvocationOps
@@ -11,17 +11,20 @@ trait PVLInvocationImpl[G] extends PVLInvocationOps[G] { this: PVLInvocation[G] 
     case RefFunction(decl) => decl.returnType.particularize(decl.typeArgs.zip(typeArgs).toMap)
     case RefProcedure(decl) => decl.returnType
     case RefPredicate(_) => TResource()
-    case RefInstanceFunction(decl) => decl.returnType.particularize(decl.typeArgs.zip(typeArgs).toMap)
+    case RefInstanceFunction(decl) =>
+      val returnType = decl.returnType.particularize(decl.typeArgs.zip(typeArgs).toMap)
+      obj.flatMap { e =>
+        e.t.asClass.map { tcls =>
+          tcls.instantiate(returnType)
+        }
+      }.getOrElse(returnType)
     case RefInstanceMethod(decl) =>
       val returnType = decl.returnType.particularize(decl.typeArgs.zip(typeArgs).toMap)
-      obj match {
-        case None => returnType
-        case Some(e) => e.t match {
-          case TClass(Ref(cls), typeValues) if typeValues.nonEmpty =>
-            returnType.particularize(cls.typeArgs.zip(typeValues).toMap)
-          case _ => returnType
+      obj.flatMap { e =>
+        e.t.asClass.map { tcls =>
+          tcls.instantiate(returnType)
         }
-      }
+      }.getOrElse(returnType)
     case RefInstancePredicate(_) => TResource()
     case RefADTFunction(decl) => decl.returnType
     case RefModelProcess(_) => TProcess()
