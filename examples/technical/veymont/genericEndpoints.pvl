@@ -1,8 +1,8 @@
 class Role<T> {
-  T x;
-  int v;
+  T t;
+  int i;
 
-  T fromInt(int x);
+  T fromInt(int i);
   int toInt(T t);
 }
 
@@ -15,8 +15,8 @@ seq_program genericTest() {
   endpoint b = Role<B>();
 
   seq_run {
-    a.v := a.toInt(a.x);
-    communicate a.v -> b.v;
-    b.x := b.fromInt(b.x);
+    a.i := a.toInt(a.t);
+    communicate a.i -> b.i;
+    b.t := b.fromInt(b.i);
   }
 }
