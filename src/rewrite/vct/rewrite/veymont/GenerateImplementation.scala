@@ -8,11 +8,9 @@ import vct.col.resolve.ctx.RefJavaMethod
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
-import vct.rewrite.veymont.ParalleliseEndpoints.{ChannelFieldOrigin, ParalleliseEndpointsError, RunMethodOrigin, ThreadClassOrigin, getChannelClassName, getThreadClassName, getVarName}
+import vct.rewrite.veymont.GenerateImplementation.{ChannelFieldOrigin, ParalleliseEndpointsError, RunMethodOrigin, ThreadClassOrigin, getChannelClassName, getThreadClassName, getVarName}
 
-import java.lang
-
-object ParalleliseEndpoints extends RewriterBuilderArg[JavaClass[_]] {
+object GenerateImplementation extends RewriterBuilderArg[JavaClass[_]] {
   override def key: String = "ParalleliseEndpoints"
 
   override def desc: String = "Generate classes for VeyMont threads in parallel program"
@@ -43,7 +41,7 @@ object ParalleliseEndpoints extends RewriterBuilderArg[JavaClass[_]] {
     runMethod.o.where(name = "run")
 }
 
-case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) extends Rewriter[Pre] { outer =>
+case class GenerateImplementation[Pre <: Generation](channelClass: JavaClass[_]) extends Rewriter[Pre] { outer =>
 
   private val threadBuildingBlocks: ScopedStack[ThreadBuildingBlocks[Pre]] = ScopedStack()
   private val threadClassSucc: SuccessionMap[Endpoint[Pre],Class[Post]] = SuccessionMap()

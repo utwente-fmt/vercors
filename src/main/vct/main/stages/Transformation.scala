@@ -25,7 +25,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, MonomorphizeClass, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateSeqProgPermissions, SplitSeqGuards}
+import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateSeqProgPermissions, GenerateImplementation, SplitSeqGuards}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
@@ -72,14 +72,11 @@ object Transformation {
         )
     }
 
-  def veymontTransformationOfOptions(options: Options): Transformation =
-    options.backend match {
-      case Backend.Silicon | Backend.Carbon =>
-        VeyMontTransformation(
-          onBeforePassKey = writeOutFunctions(options.outputBeforePass),
-          onAfterPassKey = writeOutFunctions(options.outputAfterPass),
-        )
-    }
+  def veymontImplementationGenerationOfOptions(options: Options): Transformation =
+    VeyMontImplementationGeneration(
+      onBeforePassKey = writeOutFunctions(options.outputBeforePass),
+      onAfterPassKey = writeOutFunctions(options.outputAfterPass),
+    )
 }
 
 /**
@@ -321,12 +318,10 @@ case class SilverTransformation
     Explode.withArg(splitVerificationByProcedure),
   ))
 
-case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
-                                 override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
+case class VeyMontImplementationGeneration(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
+                                           override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
   extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
-    // AddVeyMontAssignmentNodes,
-//    AddVeyMontConditionNodes,
-    StructureCheck,
+    GenerateImplementation.withArg(???)
   ))
 
 

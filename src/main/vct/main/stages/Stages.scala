@@ -1,14 +1,17 @@
 package vct.main.stages
 
 import hre.progress.Progress
-import vct.col.ast.{Program, Verification, BipTransition}
+import vct.col.ast.{BipTransition, Program, Verification}
 import vct.col.rewrite.Generation
 import vct.options.Options
 import vct.parsers.transform.BlameProvider
 import vct.result.VerificationError
 import hre.io.Readable
-import hre.stages.Stages
+import hre.stages.{Stage, Stages}
+import vct.col.origin.VerificationFailure
 import vct.col.rewrite.bip.BIP
+import vct.main.stages.veymont.CodeGeneration
+import vct.parsers.ParseResult
 import viper.api.backend.carbon.Carbon
 import viper.api.backend.silicon.Silicon
 
@@ -61,7 +64,7 @@ case object Stages {
   def veymontTransformationOfOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
     Parsing.ofOptions(options, blameProvider)
       .thenRun(Resolution.ofOptions(options, blameProvider))
-      .thenRun(Transformation.veymontTransformationOfOptions(options))
+      .thenRun(Transformation.veymontImplementationGenerationOfOptions(options))
       .thenRun(CodeGeneration.veymontGenerationOfOptions(options))
       .thenRun(Output.veymontOfOptions(options))
   }

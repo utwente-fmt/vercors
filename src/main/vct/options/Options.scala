@@ -254,7 +254,7 @@ case object Options {
         .action((_, c) => c.copy(mode = Mode.VeyMont))
         .text("Enable VeyMont mode: decompose the global program from the input files into several local programs that can be executed in parallel")
         .children(
-          opt[Path]("veymont-output").required().valueName("<path>")
+          opt[Path]("veymont-output").valueName("<path>")
             .action((path, c) => c.copy(veymontOutput = path))
         ),
 

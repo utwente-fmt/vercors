@@ -1,15 +1,14 @@
-package vct.main.stages
+package vct.main.stages.veymont
 
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{JavaClass, Node, Verification}
+import vct.col.ast.{JavaClass, Verification}
 import vct.col.print.Ctx
 import vct.col.rewrite.{Generation, PrettifyBlocks, RewriterBuilder}
 import vct.importer.Util
-import vct.main.stages.Transformation.writeOutFunctions
 import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
-import vct.rewrite.veymont.ParalleliseEndpoints
+import vct.rewrite.veymont.GenerateImplementation
 
 object CodeGeneration {
 
@@ -63,5 +62,5 @@ case class VeyMontGeneration(override val onBeforePassKey: Seq[(String, Verifica
                              override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
                              channelClass: JavaClass[_])
   extends CodeGeneration(onBeforePassKey, onAfterPassKey, Seq(
-    ParalleliseEndpoints.withArg(channelClass),
+    GenerateImplementation.withArg(channelClass),
   ))
