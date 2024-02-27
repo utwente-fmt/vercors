@@ -63,7 +63,11 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
       case _: Starall[Pre] | _: Exists[Pre] | _: Forall[Pre] => {
         super.dispatchQuantifier(e)
       }
-      case _ => Assert[Post](super.dispatch(e))(null)
+      case _ => {
+        val linenum: Int = if (e.o.getStartEndLines.nonEmpty) e.o.getStartEndLines.get.startEndLineIdx._1 + 1 else -1
+        val lineDetails: String = if (e.o.getStartEndLines.nonEmpty) e.o.getReadable.get.readable.readLines()(linenum -1).replaceAll("\\\\", "").trim() else "unknown line"
+        RuntimeAssert[Post](super.dispatch(e), s"Assertion failed on line: ${linenum}\\n${lineDetails}")(null)
+      }
     }
   }
 
@@ -82,11 +86,12 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
       case _ => throw Unreachable(s"This type of permissions transfer is not yet supported: ${p}")
     }
 
-    val linenum = if(p.o.getStartEndLines.nonEmpty) p.o.getStartEndLines.get.startEndLineIdx._1 else -1
+    val linenum: Int = if (p.o.getStartEndLines.nonEmpty) p.o.getStartEndLines.get.startEndLineIdx._1 + 1 else -1
+    val lineDetails: String = if (p.o.getStartEndLines.nonEmpty) p.o.getReadable.get.readable.readLines()(linenum -1).replaceAll("\\\\", "").trim() else "unknown line"
     val getPermission = ledger.miGetPermission(dataObject).get
     val injectivityMapFunctionality: Statement[Post] = if(inQuantifier.top){
-      val containsInMap = ledger.injectivityMap.contains(injectivityMap.get, dataObject)
-      val checkDuplicates = RuntimeAssert[Post](!containsInMap, "Permission cannot be checked twice for the same object in a quantifier, line: ${linenum}")(null)
+      val containsInMap = ledger.injectivityMap.containsKey(injectivityMap.get, dataObject)
+      val checkDuplicates = RuntimeAssert[Post](!containsInMap, s"Permission cannot be checked twice for the same object in a quantifier, line: ${linenum}\\n ${lineDetails}")(null)
       val putInjectivity = Eval[Post](ledger.injectivityMap.put(injectivityMap.get, dataObject, cond))
       Block[Post](Seq(checkDuplicates, putInjectivity))
     }else{
@@ -95,7 +100,7 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
       Eval[Post](putPermissionInjectivity)
     }
     val check: Expr[Post] = (getPermission r_<=> cond) !== const(-1) // test if the value is equal or bigger than the required permission
-    val assertion = RuntimeAssertExpected[Post](check, cond, getPermission, s"Permission is not enough, line: ${linenum}.")(null)
+    val assertion = RuntimeAssertExpected[Post](check, cond, getPermission, s"Permission is not enough, line: ${linenum}\\n ${lineDetails}")(null)
     Block[Post](Seq(injectivityMapFunctionality, assertion))
   }
 

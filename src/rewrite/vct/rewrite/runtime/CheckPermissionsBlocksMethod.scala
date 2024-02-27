@@ -110,8 +110,10 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
       }
       case _ => throw Unreachable(s"This location type is not supported yet: ${l}")
     }
+    val linenum = if (l.o.getStartEndLines.nonEmpty) l.o.getStartEndLines.get.startEndLineIdx._1 + 1 else -1
+    val lineDetails: String = if (l.o.getStartEndLines.nonEmpty) l.o.getReadable.get.readable.readLines()(linenum - 1).trim() else "unknown line"
     val check = if (write) (location r_<=> RuntimeFractionOne[Post]()) === const(0) else (location r_<=> RuntimeFractionZero[Post]()) === const(1)
-    val message = if (write) s"Permission should have been write but was not: ${l.toString}, line: ${if(l.o.getStartEndLines.nonEmpty) l.o.getStartEndLines.get.startEndLineIdx._1 else -1}" else s"Permission should have been read but there was no permission: ${l.toString}, line: ${if(l.o.getStartEndLines.nonEmpty) l.o.getStartEndLines.get.startEndLineIdx._1 else -1}"
+    val message = if (write) s"Permission should have been write but was not: ${l.toString}, line: ${linenum}\\n${lineDetails}" else s"Permission should have been read but there was no permission: ${l.toString}, line: ${linenum}\\n ${lineDetails}"
     RuntimeAssert[Post](check, message)(null)
   }
 

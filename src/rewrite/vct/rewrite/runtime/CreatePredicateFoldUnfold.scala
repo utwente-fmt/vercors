@@ -5,8 +5,10 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.ast.{Block, _}
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
+import vct.col.util.AstBuildHelpers._
 import vct.rewrite.runtime.util.LedgerHelper.{LedgerMethodBuilderHelper, LedgerRewriter}
-import vct.rewrite.runtime.util.TransferPermissionRewriter
+import vct.rewrite.runtime.util.Util.findClosestInjectivityMap
+import vct.rewrite.runtime.util.{RewriteContractExpr, TransferPermissionRewriter}
 import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 
 
@@ -38,7 +40,8 @@ case class CreatePredicateFoldUnfold[Pre <: Generation]() extends Rewriter[Pre] 
       ledger = ledgerHelper
       otherDeclarations.foreach(dispatch)
     }._1
-    program.rewrite(declarations = newDecl)
+    val test = program.rewrite(declarations = newDecl)
+    test
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
@@ -51,17 +54,25 @@ case class CreatePredicateFoldUnfold[Pre <: Generation]() extends Rewriter[Pre] 
   }
 
   def dispatchFold(ipa: InstancePredicateApply[Pre])(implicit origin: Origin): Statement[Rewritten[Pre]] = {
+    val injectivityMap = findClosestInjectivityMap(variables.freeze)
     val permissionExpr = ipa.ref.decl.body
-    val pdRemove: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top)
-      .setLedger(ledger).setOffset(dispatch(ipa.obj))
-    val removeStatements = if(permissionExpr.isEmpty) Block[Post](Nil) else TransferPermissionRewriter(pdRemove).removePermissions(permissionExpr.get)
+    variables.collectScoped {
+      val newVars = variables.dispatch(ipa.ref.decl.args)
+      val newVarsAssignments: Seq[Statement[Post]] = newVars
+        .zip(ipa.args)
+        .map{case (v: Variable[Post], e: Expr[Pre]) => Assign[Post](v.get, dispatch(e))(null)}
+      val nvAssignmentsBlock = Block[Post](newVarsAssignments)
 
-    val allArgs: Seq[Expr[Pre]] = ipa.args :+ ipa.obj :+ StringValue(ipa.ref.decl.o.getPreferredNameOrElse())
-    val dispatchedArgs: Seq[Expr[Post]] = allArgs.map(dispatch)
-    val newObject = CreateObjectArray[Post](dispatchedArgs)
-    val mi: Eval[Post] = Eval[Post](ledger.miFoldPredicate(newObject).get)
+      val pd = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger).setInjectivityMap(injectivityMap).setOffset(dispatch(ipa.obj))
+      val predCheck: Statement[Post] = if (permissionExpr.isEmpty) Block[Post](Nil) else RewriteContractExpr(pd).createAssertions(permissionExpr.get)
+      val removeStatements = if (permissionExpr.isEmpty) Block[Post](Nil) else TransferPermissionRewriter(pd).removePermissions(permissionExpr.get)
 
-    Block[Post](Seq(removeStatements, mi))
+      val allArgs: Seq[Expr[Pre]] = ipa.args :+ ipa.obj :+ StringValue(ipa.ref.decl.o.getPreferredNameOrElse())
+      val dispatchedArgs: Seq[Expr[Post]] = allArgs.map(dispatch)
+      val newObject = CreateObjectArray[Post](dispatchedArgs)
+      val mi: Eval[Post] = Eval[Post](ledger.miFoldPredicate(newObject).get)
+      Scope[Post](newVars, Block[Post](Seq(nvAssignmentsBlock, predCheck, removeStatements, mi)))
+    }._2
   }
 
   def dispatchUnfold(ipa: InstancePredicateApply[Pre])(implicit origin: Origin): Statement[Rewritten[Pre]] = {

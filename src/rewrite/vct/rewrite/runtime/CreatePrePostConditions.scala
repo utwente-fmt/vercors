@@ -79,9 +79,9 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     val preConditionStatements: Statement[Post] = dispatchApplicableContractToAssert(im.contract.requires)
     postConditions.having(() => dispatchApplicableContractToAssert(im.contract.ensures)){
       val originalStatements: Seq[Statement[Post]] = block.statements.map(dispatch)
-      val lastStatement: Option[Statement[Post]] = originalStatements.lastOption
+      val lastStatement: Option[Statement[Pre]] = block.statements.lastOption
       lastStatement match {
-        case Some(_: Return[Post]) => Block[Post](preConditionStatements +: originalStatements)
+        case Some(_: Return[Pre]) => Block[Post](preConditionStatements +: originalStatements)
         case _ => Block[Post](preConditionStatements +: originalStatements :+ postConditions.top())(block.o)
       }
     }

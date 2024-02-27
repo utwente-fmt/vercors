@@ -6,7 +6,7 @@ public class Main {
         c.increment(2);
     }
 
-    public void start() {
+    public void execute() {
         Counter c = new Counter();
         //@ fold c.state(0);
         Counter c2 = new Counter();
@@ -18,7 +18,7 @@ public class Main {
 
     public void main() {
         Main m = new Main();
-        m.start();
+        m.execute();
     }
 }
 
@@ -31,6 +31,7 @@ class Counter {
     //@ requires state(count);
     //@ ensures state(count);
     void increment(int n) {
+        int z = count;
         //@ unfold state(count);
         count += n;
         //@ fold state(count);

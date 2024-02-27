@@ -14,7 +14,7 @@ class Program {
         requires a.length > 0;
         requires (\forall* int x; 0 <= x && x < a.length; Perm(a[x], write));
         requires (\forall int x; 0 <= x && x < a.length; a[x] > 0);
-        requires (\forall int x; 0 <= x && x < a.length; (\forall int j; 0 <= j && j < x; a[j] <= a[x]));
+        requires (\forall int x; 0 <= x && x < a.length; (\forall int j; 0 <= j && j < x; a[j] >= a[x]));
         ensures (\forall* int x; 0 <= x && x < a.length; Perm(a[x], write));
         ensures (\exists int x; 0 <= x && x < a.length; a[x] > 0);
      */

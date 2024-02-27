@@ -10,7 +10,11 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Seq
 
 
-
+/**
+ * PermissionData is a data structure that holds the permission content
+ * to be used in the permission rewriters
+ * @tparam G
+ */
 sealed trait PermissionContent[G <: Generation]
 case class ClassArg[G <: Generation](cls: Class[G]) extends PermissionContent[G]
 case class Outer[G <: Generation](outer: Rewriter[G]) extends PermissionContent[G]

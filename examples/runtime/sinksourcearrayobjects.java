@@ -18,13 +18,13 @@ class Source {
         ensures Perm(this.i, 1);
         ensures (\forall* int j; 0 <= j && j < i.length; Perm(i[j].val, write));
      */
-    public void run() {
+    public void test() {
 
     }
 
     public void main(){
         Source source = new Source();
         source.createI();
-        source.run();
+        source.test();
     }
 }
