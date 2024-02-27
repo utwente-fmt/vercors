@@ -46,6 +46,7 @@ class Main{
         Sink sink = new Sink();
         sink.setSource(source);
 
+        sink.source.i = 1;
         source.start();
         sink.start();
         //@ source.postJoin(1\2);

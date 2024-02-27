@@ -15,6 +15,10 @@ object RemoveSelfLoops extends RewriterBuilder {
 case class RemoveSelfLoops[Pre <: Generation]() extends Rewriter[Pre] {
 
 
+  /**
+   * Removes the extra Object class from all classes
+   * @param decl
+   */
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case p: Procedure[Pre] => {
@@ -38,6 +42,11 @@ case class RemoveSelfLoops[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  /**
+   * Recreates classes and removes the Object class as extension
+   * @param c
+   * @return
+   */
   def dispatchGivenClass(c: Class[Pre]): GlobalDeclaration[Post] = {
     val newClass = new RewriteClass[Pre, Post](c).rewrite(
       supports = createClassSupports(c)
@@ -45,6 +54,11 @@ case class RemoveSelfLoops[Pre <: Generation]() extends Rewriter[Pre] {
     newClass
   }
 
+  /**
+   * Filters the Object class from the supports list and returns the rest
+   * @param c
+   * @return
+   */
   def createClassSupports(c: Class[Pre]): Seq[Ref[Post, Class[Post]]] = {
     c.supports.filter(ref => ref.decl.o.getPreferredNameOrElse() != "Object").map(
       element => {

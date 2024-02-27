@@ -14,7 +14,10 @@ case class CreateConstructor[Pre <: Generation](outer: Rewriter[Pre], val givenC
 
   val rewritingConstr: ScopedStack[(Seq[Variable[Pre]], TClass[Pre])] = ScopedStack()
 
-
+  /**
+   * Dispatches the declarations and converts a procedure with a class return type to a constructor
+   * @param decl
+   */
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case p: Procedure[Pre] => p.returnType match {
       case tc: TClass[Pre] => rewritingConstr.having(p.args, tc) {
@@ -25,6 +28,11 @@ case class CreateConstructor[Pre <: Generation](outer: Rewriter[Pre], val givenC
     case other => rewriteDefault(other)
   }
 
+  /**
+   * Creates a constructor from a procedure
+   * @param p
+   * @return
+   */
   def createClassConstructor(p: Procedure[Pre]): JavaConstructor[Post] = {
     implicit val origin: Origin = DiagnosticOrigin
     new JavaConstructor[Post](Seq(JavaPublic[Post]()),
@@ -43,9 +51,19 @@ case class CreateConstructor[Pre <: Generation](outer: Rewriter[Pre], val givenC
       p.contract.rewrite(ensures = UnitAccountedPredicate[Post](tt)))(null)
   }
 
+  /**
+   * Converts a variable to a Java parameter
+   * @param v
+   * @return
+   */
   def createJavaParam(v: Variable[Pre]): JavaParam[Post] =
     new JavaParam[Post](Seq.empty, v.o.getPreferredNameOrElse(), dispatch(v.t))(v.o)
 
+  /**
+   * Converts expressions to Java expressions
+   * @param e
+   * @return
+   */
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case l: Local[Pre] =>
       if (rewritingConstr.nonEmpty && rewritingConstr.top._1.contains(l.ref.decl))

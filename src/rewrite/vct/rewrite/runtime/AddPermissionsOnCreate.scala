@@ -45,6 +45,12 @@ case class AddPermissionsOnCreate[Pre <: Generation]() extends Rewriter[Pre] {
     test
   }
 
+  /**
+   * Dispatches declarations
+   * The java constructor is dispatched and so that permissions are initialized for each instance field
+   * the class is dispatched to keep track of the current class
+   * @param decl
+   */
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case jc: JavaConstructor[Pre] => dispatchJC(jc)
@@ -55,6 +61,12 @@ case class AddPermissionsOnCreate[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  /**
+   * Dispatches the java constructor so that it initializes the permissions for each instance field
+   * if the thread extends the thread class also a join token is set
+   * @param jc
+   * @return
+   */
   private def dispatchJC(jc: JavaConstructor[Pre]): JavaConstructor[Post] = {
     implicit val origin: Origin = jc.o
     val instanceFields = currentClass.top.declarations.collect { case i: InstanceField[Pre] => i }
@@ -66,6 +78,10 @@ case class AddPermissionsOnCreate[Pre <: Generation]() extends Rewriter[Pre] {
     classDeclarations.succeed(jc, jc.rewrite(body = newBody))
   }
 
+  /**
+   * Creates a join token for the thread if the class extends the thread class
+   * @return
+   */
   def createJoinTokenCall : Block[Post] = {
     implicit val origin: Origin = DiagnosticOrigin
     if (!isExtendingThread(currentClass.top)) {
@@ -75,6 +91,11 @@ case class AddPermissionsOnCreate[Pre <: Generation]() extends Rewriter[Pre] {
     Block[Post](Seq(Eval[Post](mi)))
   }
 
+  /**
+   * When a new array is created the permissions are initialized for the array
+   * @param stat
+   * @return
+   */
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
     stat match {
       case a@Assign(location, na@NewArray(elem, dims, moreDims)) => {

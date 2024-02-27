@@ -10,6 +10,13 @@ import scala.collection.mutable.ArrayBuffer
 
 object LedgerHelper {
 
+  /**
+   * Searches for the index of the instance field in the program
+   * @param program
+   * @param instanceField
+   * @tparam G
+   * @return
+   */
   def findNumberInstanceField[G](program: Program[G], instanceField: InstanceField[G]): Option[Int] = {
     program
       .declarations
@@ -20,10 +27,19 @@ object LedgerHelper {
       .find(i => i >= 0)
   }
 
-
+  /**
+   * Rewrites the ledger class and the dataobject class and returns a ledgermethodbuilder
+   * @param outer
+   * @tparam Pre
+   */
   case class LedgerRewriter[Pre <: Generation](outer: Rewriter[Pre]) extends Rewriter[Pre] {
     override val allScopes = outer.allScopes
 
+    /**
+     * rewrites the ledger and dataobject
+     * @param program
+     * @return
+     */
     def rewriteLedger(program: Program[Pre]): (LedgerMethodBuilderHelper[Post], Seq[Class[Post]], Seq[GlobalDeclaration[Pre]]) = {
       val (Seq(ledgerClass: Class[Pre]), od: Seq[GlobalDeclaration[Pre]]) = program.declarations.partition {
         case cls: Class[Pre] if cls.o.getLedgerClassRuntime.nonEmpty => true
@@ -51,6 +67,15 @@ object LedgerHelper {
     }
   }
 
+  /**
+   * Ledger properties that can be used to find certain properties of the fields in the ledger
+   * @param inner
+   * @param outerHM
+   * @param refCls
+   * @param ledger
+   * @param origin
+   * @tparam G
+   */
   case class LedgerProperties[G](inner: Type[G], outerHM: Type[G], refCls: Ref[G, Class[G]], ledger: Option[InstanceField[G]])(implicit origin: Origin = DiagnosticOrigin) {
     def deref: Option[Deref[G]] = ledger.map(l => Deref[G](StaticClassRef[G](refCls), l.ref)(null)(l.o))
 
@@ -98,6 +123,15 @@ object LedgerHelper {
     }
   }
 
+  /**
+   * Ledger method builder helper that can be used to find certain methods/fields in the ledger and make
+   * method invocations to those methods
+   * @param refCls
+   * @param clsDeclarations
+   * @param pmbh
+   * @param origin
+   * @tparam G
+   */
   case class LedgerMethodBuilderHelper[G](refCls: Ref[G, Class[G]], clsDeclarations: Seq[ClassDeclaration[G]], pmbh: DataMethodBuilderHelper[G])(implicit origin: Origin = DiagnosticOrigin) {
     def threadId: ThreadId[G] = ThreadId[G](None)(DiagnosticOrigin)
 
@@ -204,7 +238,14 @@ object LedgerHelper {
     }
   }
 
-
+  /**
+   * Data method builder helper that can be used to find certain methods/fields in the DataObject and make
+   * method invocations to those methods
+   * @param refCls
+   * @param clsDeclarations
+   * @param origin
+   * @tparam G
+   */
   case class DataMethodBuilderHelper[G](refCls: Ref[G, Class[G]], clsDeclarations: Seq[ClassDeclaration[G]])(implicit origin: Origin = DiagnosticOrigin) {
 
     private def findAllMethods(methodName: String): Seq[InstanceMethod[G]] = clsDeclarations.collect { case i: InstanceMethod[G] if i.o.getPreferredNameOrElse() == methodName => i }

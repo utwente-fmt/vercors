@@ -17,11 +17,28 @@ object AbstractQuantifierRewriter{
 }
 
 
+/**
+ * Abstract class for rewriting quantifiers
+ * @param pd
+ * @param program
+ * @tparam Pre
+ */
 abstract class AbstractQuantifierRewriter[Pre <: Generation](pd: PermissionData[Pre])(implicit program: Program[Pre]) extends Rewriter[Pre] {
   override val allScopes: AllScopes[Pre, Post] = pd.outer.allScopes
 
+  /**
+   * Dispatches the loop body, can be overridden by other rewriters
+   * @param loopBodyContent
+   * @param origin
+   * @return
+   */
   def dispatchLoopBody(loopBodyContent: LoopBodyContent[Pre])(implicit origin: Origin): Block[Post] = Block[Post](Seq())
 
+  /**
+   * Dispatches the quantifier expression
+   * @param quantifier
+   * @return
+   */
   final def dispatchQuantifier(quantifier: Expr[Pre]): Scope[Post] = {
     variables.collectScoped{
       quantifier match {
@@ -33,6 +50,14 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](pd: PermissionData[
     }._2
   }
 
+  /**
+   * Dispatches the quantifier expression, with its bindings and body.
+   * It unfolds the body and calls the createQuantifierStatement method to create a new quantifier
+   * @param quantifier
+   * @param bindings
+   * @param body
+   * @return
+   */
   private final def dispatchQuantifier(quantifier: Expr[Pre], bindings: Seq[Variable[Pre]], body: Expr[Pre]): Scope[Post] = {
     body match {
       case imp: Implies[Pre] => createQuantifierStatement(quantifier, bindings, imp.left, imp.right)
@@ -41,6 +66,14 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](pd: PermissionData[
     }
   }
 
+  /**
+   * createQuantifierStatement creates a new quantifier statement based on the bindings
+   * @param expr
+   * @param bindings
+   * @param left
+   * @param right
+   * @return
+   */
   private final def createQuantifierStatement(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre]): Scope[Post] = {
     implicit val origin: Origin = expr.o
     val newBindings = bindings.map(b => variables.succeed(b, b.rewrite()))
@@ -48,6 +81,14 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](pd: PermissionData[
     Scope(newBindings, bodyLoop)
   }
 
+  /**
+   * Creates the quantifier body and starts folding the quantifiers into loops
+   * @param expr
+   * @param bindings
+   * @param left
+   * @param right
+   * @return
+   */
   private final def createBodyQuantifier(expr: Expr[Pre], bindings: Seq[Variable[Pre]], left: Expr[Pre], right: Expr[Pre]): Statement[Post] = {
     implicit val origin: Origin = expr.o
     val bounds: ArrayBuffer[(Variable[Pre], Option[Expr[Pre]], Option[Expr[Pre]])] = FindBoundsQuantifier[Pre](this).findBounds(expr)
@@ -62,6 +103,14 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](pd: PermissionData[
     )
   }
 
+  /**
+   * Creates the quantifier statement using the bounds
+   * @param expr
+   * @param acc
+   * @param element
+   * @param filteredBounds
+   * @return
+   */
   private final def createQuantifier(expr: Expr[Pre], acc: Statement[Post], element: Variable[Pre], filteredBounds: ArrayBuffer[(Variable[Pre], Option[Expr[Pre]], Option[Expr[Pre]])]): Loop[Post] = {
     implicit val origin: Origin = expr.o
     val minValue: Expr[Pre] = filteredBounds.map(i => i._2)
@@ -80,7 +129,11 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](pd: PermissionData[
     )
   }
 
-
+  /**
+   * Dispatches the expression and changes the dereferences and thisObjects
+   * @param e
+   * @return
+   */
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
       case d: Deref[Pre] => getNewExpr(d)
@@ -89,6 +142,11 @@ abstract class AbstractQuantifierRewriter[Pre <: Generation](pd: PermissionData[
     }
   }
 
+  /**
+   * Creates a new expression for the dereferences and thisObjects
+   * @param e
+   * @return
+   */
   def getNewExpr(e: Expr[Pre]): Expr[Post] = {
     e match {
       case d: Deref[Pre] => d.rewrite(obj = getNewExpr(d.obj))

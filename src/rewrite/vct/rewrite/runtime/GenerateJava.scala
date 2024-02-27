@@ -15,19 +15,30 @@ object GenerateJava extends RewriterBuilder {
 
 case class GenerateJava[Pre <: Generation]() extends Rewriter[Pre] {
 
-
+  /**
+   * Create a new namespace for the program including java imports that are required by the runtime checker
+   * @param program
+   * @return
+   */
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     lazy val newNameSpace = createNewNamespace
-   program.rewrite(declarations = globalDeclarations.collectScoped{
-     newNameSpace
-     program.declarations.foreach(dispatch)
-   }._1)
+    program.rewrite(declarations = globalDeclarations.collectScoped {
+      newNameSpace
+      program.declarations.foreach(dispatch)
+    }._1)
   }
 
-  def createNewNamespace: JavaNamespace[Post] ={
+  /**
+   * Create a new namespace for the program including java imports that are required by the runtime checker
+   * the java.util.* and the org.apache.commons.math3.fraction.Fraction classes are used by the program and thus be imported
+   * The namespace is set to org.example
+   * the namespace is declared to the globaldeclarations
+   * @return
+   */
+  def createNewNamespace: JavaNamespace[Post] = {
     implicit val origin: Origin = DiagnosticOrigin
     val importUtil = JavaImport[Post](false, JavaName(Seq("java", "util")), true)
-//    val importArray = JavaImport(false, JavaName(Seq("java", "lang", "reflect", "Array")), false)
+    //    val importArray = JavaImport(false, JavaName(Seq("java", "lang", "reflect", "Array")), false)
     val importFraction = JavaImport[Post](false, JavaName(Seq("org", "apache", "commons", "math3", "fraction", "Fraction")), false)
     val newNameSpace = new JavaNamespace[Post](
       Some(JavaName[Post](Seq("org", "example"))),
@@ -38,10 +49,17 @@ case class GenerateJava[Pre <: Generation]() extends Rewriter[Pre] {
     newNameSpace
   }
 
+  /**
+   * Remove all procedures from the program
+   * Remove all start and join methods from the program
+   * Transform the main method to a public static void main method
+   * Transform the run, equals and hashcode methods to be public methods
+   * @param decl
+   */
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
-      case p:Procedure[Pre] => p.drop()
-//      case im: InstanceMethod[Pre] if isMethod(im, "run") => im.rewrite(overriding = true, public = true)
+      case p: Procedure[Pre] => p.drop()
+      //      case im: InstanceMethod[Pre] if isMethod(im, "run") => im.rewrite(overriding = true, public = true)
       case im: InstanceMethod[Pre] if isMethod(im, "start") || isMethod(im, "join") => im.drop()
       case im: InstanceMethod[Pre] if isMethod(im, "main") => createMainMethod(im)
       case im: InstanceMethod[Pre] if isMethod(im, "run") => makeMethodPublic(im)
@@ -51,6 +69,13 @@ case class GenerateJava[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  /**
+   * Change the procedureInvocation to a new object node since all procedures are removed
+   * Change the methodInvocations to work with the JavaMethod node and thus create a JavaMethodInvocation node
+   * Change the local variables to be JavaLocal nodes if they do not exists yet in the variables buffer
+   * @param e
+   * @return
+   */
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
       case pe@PreAssignExpression(_, p: ProcedureInvocation[Pre]) => pe.rewrite(value = procedureInvocationToNewObject(p))
@@ -64,6 +89,12 @@ case class GenerateJava[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  /**
+   * Create a JavaInvocation node for the methodInvocation
+   * @param mi
+   * @param name
+   * @return
+   */
   def generateThreadMethodCall(mi: MethodInvocation[Pre], name: String): JavaInvocation[Post] = {
     JavaInvocation[Post](
       Some(dispatch(mi.obj)),
@@ -75,6 +106,10 @@ case class GenerateJava[Pre <: Generation]() extends Rewriter[Pre] {
     )(null)(mi.o)
   }
 
+  /**
+   * Converts a main method to a public static void main method (JavaMethod)
+   * @param im
+   */
   def createMainMethod(im: InstanceMethod[Pre]): Unit = {
     implicit val origin: Origin = im.o
     val modifiers: Seq[JavaModifier[Post]] = Seq(JavaPublic[Post](), JavaStatic())
@@ -96,6 +131,10 @@ case class GenerateJava[Pre <: Generation]() extends Rewriter[Pre] {
     classDeclarations.succeed(im, newMethod)
   }
 
+  /**
+   * Transforms an InstanceMethod to a JavaMethod that is public
+   * @param im
+   */
   def makeMethodPublic(im: InstanceMethod[Pre]): Unit = {
     implicit val origin: Origin = im.o
     val modifiers: Seq[JavaModifier[Post]] = Seq(JavaPublic[Post]())
@@ -118,6 +157,11 @@ case class GenerateJava[Pre <: Generation]() extends Rewriter[Pre] {
     classDeclarations.succeed(im, newMethod)
   }
 
+  /**
+   * Create a new object node for the procedureInvocation since all procedures are removed
+   * @param p
+   * @return
+   */
   override def dispatch(node: Statement[Pre]): Statement[Post] = {
     node match {
       case a@Assign(_, p: ProcedureInvocation[Pre]) => a.rewrite(value = procedureInvocationToNewObject(p))
@@ -125,7 +169,12 @@ case class GenerateJava[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
-  private def procedureInvocationToNewObject(p: ProcedureInvocation[Pre]): NewObject[Post]= {
+  /**
+   * Convert the procedureInvocation to a NewObject node
+   * @param p
+   * @return
+   */
+  private def procedureInvocationToNewObject(p: ProcedureInvocation[Pre]): NewObject[Post] = {
     val classDecl: Class[Pre] = p.ref.decl.returnType.asClass.get.cls.decl
     NewObject[Post](this.anySucc(classDecl))(classDecl.o)
   }

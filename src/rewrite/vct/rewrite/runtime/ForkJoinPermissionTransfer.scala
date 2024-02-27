@@ -50,7 +50,12 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     }
   }
 
-  protected def dispatchInstanceMethod(i: InstanceMethod[Pre])(implicit o: Origin = i.o): Unit = {
+  /**
+   * Dispatches the instance method to the method with transferring permission statements
+   * @param i
+   * @param o
+   */
+  private def dispatchInstanceMethod(i: InstanceMethod[Pre])(implicit o: Origin = i.o): Unit = {
     postJoinTokens.collect {
       variables.collectScoped {
         val (preStatements, postStatements): (Block[Post], Block[Post]) = collectTransferPermissionStatementsFromRunMethod(i)
@@ -62,6 +67,13 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     }
   }
 
+  /**
+   * Collects the transfer permission statements from the run method
+   * where the pre and post conditions will be used to add and remove permissions from the thread
+   * @param i
+   * @param o
+   * @return
+   */
   private def collectTransferPermissionStatementsFromRunMethod(i: InstanceMethod[Pre]): (Block[Post], Block[Post]) = {
     implicit val o: Origin = i.o
     if (!isExtendingThread(currentClass.top) || !isMethod(i, "run")) return (EMPTY, EMPTY)
@@ -71,6 +83,12 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     (trans.addPermissions(prePredicate), trans.removePermissions(postPredicate))
   }
 
+  /**
+   * When a post join token is found, store the token in the buffer
+   * When an join or start methodinvocation is found dispatch the method invocation to the also transfer permissions
+   * @param stat
+   * @return
+   */
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
     stat match {
       case rpj: RuntimePostJoin[Pre] if postJoinTokens.nonEmpty => {
@@ -84,11 +102,19 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     }
   }
 
+  /**
+   * Dispatches the join method invocation to the method with adding permission statements for the joined thread
+   * Using the join token as a factor to remove the permissions from the thread
+   * @param e
+   * @param mi
+   * @param o
+   * @return
+   */
   private def dispatchJoinInvocation(e: Eval[Pre], mi: MethodInvocation[Pre])(implicit o: Origin = e.o): Statement[Rewritten[Pre]] = {
     val runMethod: InstanceMethod[Pre] = getRunMethod(mi)
     val predicate: Expr[Pre] = unfoldPredicate(runMethod.contract.ensures).head
     val dispatchedStatement: Eval[Post] = super.dispatch(e).asInstanceOf[Eval[Post]]
-    val dispatchedOffset: Expr[Post] = getDispatchedOffset(dispatchedStatement)
+    val dispatchedOffset: Expr[Post] = e.expr.asInstanceOf[MethodInvocation[Post]].obj
     val postfactor: Expr[Post] = postJoinTokens.top.find(rpj => rpj.obj == dispatchedOffset).get.arg
     val factor = permissionToRuntimeValue(postfactor)
     val removePostJoinToken: Eval[Post] = Eval[Post](ledger.miSetJoinToken(dispatchedOffset, ledger.miGetJoinToken(dispatchedOffset).get r_- factor).get)
@@ -97,13 +123,13 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     Block[Post](Seq(dispatchedStatement, removePostJoinToken, newAddStatements))
   }
 
-  private def getDispatchedOffset(e: Eval[Post]): Expr[Post] = {
-    e.expr match {
-      case mi: MethodInvocation[Post] => mi.obj
-      case _ => throw Unreachable("Only method invocations are expected")
-    }
-  }
-
+  /**
+   * Dispatches the start method invocation to the method with removing permission statements of the starting thread
+   * @param e
+   * @param mi
+   * @param o
+   * @return
+   */
   private def dispatchStartInvocation(e: Eval[Pre], mi: MethodInvocation[Pre])(implicit o: Origin = e.o): Statement[Rewritten[Pre]] = {
     val runMethod: InstanceMethod[Pre] = getRunMethod(mi)
     val predicate: Expr[Pre] = unfoldPredicate(runMethod.contract.requires).head

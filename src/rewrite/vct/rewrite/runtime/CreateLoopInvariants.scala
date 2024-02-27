@@ -38,6 +38,10 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
     program.rewrite(declarations = newDecl)
   }
 
+  /**
+   * Dispatches the class declaration to keep track of the current class during the transformation
+   * @param decl
+   */
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case cls: Class[Pre] => currentClass.having(cls) {
@@ -47,13 +51,24 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
-
+  /**
+   * dispatched the loop contract to create the loop invariant
+   * @param lc
+   * @return
+   */
   def dispatchLoopContract(lc: LoopContract[Pre]): Statement[Post] = {
     val injectivityMap = findClosestInjectivityMap(variables.freeze)
     val pd: PermissionData[Pre] = PermissionData().setOuter(this).setCls(currentClass.top).setLedger(ledger).setInjectivityMap(injectivityMap)
     RewriteContractExpr[Pre](pd).createAssertions(lc.asInstanceOf[LoopInvariant[Pre]].invariant)
   }
 
+  /**
+   * Dispatches the loop to create the loop invariant
+   * by storing the function of the loop contract in the stack, other methods can make use of the same function with the correct
+   * paramaters
+   * @param l
+   * @return
+   */
   def dispatchLoop(l: Loop[Pre]): Statement[Post] = {
     implicit val o: Origin = l.o
     loopContract.having(() => dispatchLoopContract(l.contract)) {
@@ -62,6 +77,11 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  /**
+   * Dispatches the statement, if the loop iteration will stop also check the loop contract again
+   * @param stat
+   * @return
+   */
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
     stat match {
       case l: Loop[Pre] => dispatchLoop(l)

@@ -16,6 +16,13 @@ import vct.rewrite.runtime.util.permissionTransfer.PermissionData
 case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(implicit program: Program[Pre]) extends AbstractQuantifierRewriter[Pre](pd) {
   override val allScopes = pd.outer.allScopes
 
+  /**
+   * Dispatches the loop body content
+   * defines that we are in a quantifier and unfolds the content of the loopbodyexpr
+   * @param loopBodyContent
+   * @param origin
+   *  @return
+   */
   override def dispatchLoopBody(loopBodyContent: LoopBodyContent[Pre])(implicit origin: Origin): Block[Post] = {
     inQuantifier.having(true){
       Block[Post](unfoldStar(loopBodyContent.expr).map(dispatchExpr))
@@ -28,6 +35,12 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
   val ledger: LedgerMethodBuilderHelper[Post] = pd.ledger.get
   var injectivityMap: Variable[Post] = pd.injectivityMap.get
 
+
+  /**
+   * Creates assertions for a given contract expression
+   * @param expr
+   * @return
+   */
   def createAssertions(expr: Expr[Pre]): Statement[Post] = {
     implicit val origin: Origin = expr.o
     val (initInjectivityMap, checkInjectivtyMap) = createInjectivityMap
@@ -39,6 +52,10 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
     }
   }
 
+  /**
+   * Creates a map for the injectivity map and creates a method invocation for checking the injectivity
+   * @return
+   */
   private def createInjectivityMap: (Statement[Post], Statement[Post]) = {
     implicit val origin: Origin = DiagnosticOrigin
     val assignInjectivtyMap = Assign[Post](injectivityMap.get, ledger.injectivityMap.newOuterMap)(null)
@@ -46,14 +63,25 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
     (assignInjectivtyMap, checkInjectivityMap)
   }
 
-
+  /**
+   * Dispatches the expression and transform dereferences using the ThisObject by using the offset of the PermissionData
+   * class
+   * @param e
+   *  @return
+   */
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
-      case d@Deref(t@ThisObject(_), i) => d.rewrite(obj = pd.getOffset(t))
+      case d@Deref(t@ThisObject(_), _) => d.rewrite(obj = pd.getOffset(t))
       case _ => super.dispatch(e)
     }
   }
 
+  /**
+   * Dispatches the contract expression and determines what kind of assertions are needed to be created
+   * @param
+   * @param e
+   * @return
+   */
   private def dispatchExpr(e: Expr[Pre]): Statement[Post] = {
     implicit val origin: Origin = e.o
     e match {
@@ -71,6 +99,12 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
     }
   }
 
+  /**
+   * Creates a permission assertion for array permissions and normal permissions
+   * @param p
+   * @param origin
+   * @return
+   */
   private def dispatchPermission(p: Perm[Pre])(implicit origin: Origin = p.o): Block[Post] = {
     val cond = permissionToRuntimeValueRewrite(p)
     val dataObject: Expr[Post] = p.loc.asInstanceOf[AmbiguousLocation[Pre]].expr match {
@@ -104,6 +138,11 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
     Block[Post](Seq(injectivityMapFunctionality, assertion))
   }
 
+  /**
+   * Dispatches the expression and transform dereferences using the ThisObject by using the offset of the PermissionData
+   * @param e
+   *  @return
+   */
   override def getNewExpr(e: Expr[Pre]): Expr[Post] = {
     e match {
       case d: Deref[Pre] => d.rewrite(obj = getNewExpr(d.obj))
@@ -112,6 +151,11 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
     }
   }
 
+  /**
+   * dispatches the instance predicate apply and creates a method invocation to the ledger to check if the thread has the predicate
+   * @param ipa
+   * @return
+   */
   private def dispatchInstancePredicateApply(ipa: InstancePredicateApply[Pre]): Block[Post] = {
     implicit val origin: Origin = ipa.o
     val allArgs: Seq[Expr[Pre]] = ipa.args :+ ipa.obj :+ StringValue(ipa.ref.decl.o.getPreferredNameOrElse())

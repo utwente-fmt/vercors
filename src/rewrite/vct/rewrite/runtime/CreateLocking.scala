@@ -41,6 +41,10 @@ case class CreateLocking[Pre <: Generation]() extends Rewriter[Pre] {
     program.rewrite(declarations = newDecl)
   }
 
+  /**
+   * Transform the constructor to remove the permissions of the lock invariant
+   * @param decl
+   */
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case jc: JavaConstructor[Pre] => dispatchJC(jc)
@@ -49,6 +53,10 @@ case class CreateLocking[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  /**
+   * Change the constructor to remove the permissions of the lock invariant
+   * @param jc
+   */
   private def dispatchJC(jc: JavaConstructor[Pre]) : Unit = {
     implicit val origin: Origin = jc.o
     val pd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger)
@@ -57,6 +65,11 @@ case class CreateLocking[Pre <: Generation]() extends Rewriter[Pre] {
     classDeclarations.succeed(jc, jc.rewrite(body = newBody))
   }
 
+  /**
+   * Dispatch the synchronized statement to add and remove the permissions of the lock invariant inside the synchronized statement
+   * @param stat
+   * @return
+   */
   override def dispatch(stat: Statement[Pre]): Statement[Post] = {
     stat match {
       case s: Synchronized[Pre] => dispatchSynchronized(s)
@@ -64,13 +77,17 @@ case class CreateLocking[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  /**
+   * Transforms the synchronized block to transfer the permissions of the lock invariant
+   * At the end of the block the permissions are removed and the lock invariant is checked
+   * @param s
+   * @return
+   */
   private def dispatchSynchronized(s: Synchronized[Pre]): Synchronized[Post] = {
     implicit val origin: Origin = s.o
     val injectivityMap = findClosestInjectivityMap(variables.freeze)
     val lockInvariant: Expr[Pre] = s.obj.t.asInstanceOf[TClass[Pre]].cls.decl.intrinsicLockInvariant
-    //    val pd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setOffset(dispatch(s.obj))
-    val pd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger).setInjectivityMap(injectivityMap)
-    //      .setOffset(s.obj)
+    val pd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger).setInjectivityMap(injectivityMap).setOffset(dispatch(s.obj))
     val transferrer = TransferPermissionRewriter[Pre](pd)
     val addPermissions: Block[Post] = transferrer.addPermissions(lockInvariant)
     val check: Statement[Post] = RewriteContractExpr[Pre](pd).createAssertions(lockInvariant)
@@ -79,6 +96,11 @@ case class CreateLocking[Pre <: Generation]() extends Rewriter[Pre] {
     s.rewrite(body = newBody)
   }
 
+  /**
+   * Dispatch committed expression to be changed to true
+   * @param lc
+   * @return
+   */
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
       case c: Committed[Pre] => tt[Post]

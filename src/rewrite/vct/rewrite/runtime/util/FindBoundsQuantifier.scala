@@ -13,10 +13,16 @@ import scala.collection.mutable.ArrayBuffer
 case class FindBoundsQuantifier[Pre <: Generation](outer: AbstractQuantifierRewriter[Pre]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
-
+  /**
+   * Bounds stack for the variables
+   */
   val bounds: ScopedStack[ArrayBuffer[(Variable[Pre], Option[Expr[Pre]], Option[Expr[Pre]])]] = new ScopedStack()
 
-
+  /**
+   * Find the bounds for the quantifier
+   * @param expr
+   * @return
+   */
   def findBounds(expr: Expr[Pre]): ArrayBuffer[(Variable[Pre], Option[Expr[Pre]], Option[Expr[Pre]])] = {
     bounds.having(new ArrayBuffer()) {
       this.dispatch(expr)
@@ -24,6 +30,10 @@ case class FindBoundsQuantifier[Pre <: Generation](outer: AbstractQuantifierRewr
     }
   }
 
+  /**
+   * Dispatches the quantifier body
+   * @param expr
+   */
   def dispatchQuantifierBody(expr: Expr[Pre]): Unit = {
     expr match {
       case imp: Implies[Pre] => dispatch(imp.left)
@@ -31,23 +41,41 @@ case class FindBoundsQuantifier[Pre <: Generation](outer: AbstractQuantifierRewr
     }
   }
 
-
+  /**
+   * Dispatches the starall
+   * @param starAll
+   * @return
+   */
   def dispatchStarAll(starAll: Starall[Pre]): Starall[Post] = {
     dispatchQuantifierBody(starAll.body)
     starAll.rewrite()
   }
 
+  /**
+   * Dispatches the exists
+   * @param exists
+   * @return
+   */
   def dispatchExists(exists: Exists[Pre]): Exists[Post] = {
     dispatchQuantifierBody(exists.body)
     exists.rewrite()
   }
 
+  /**
+   * Dispatches the forall
+   * @param forAll
+   * @return
+   */
   def dispatchForAll(forAll: Forall[Pre]): Forall[Post] = {
     dispatchQuantifierBody(forAll.body)
     forAll.rewrite()
   }
 
-
+  /**
+   * Dispatches the ambiguous greater expressions and stores the bounds in the bounds stack
+   * @param expr
+   * @param origin
+   */
   def dispatchAmbiguousGreater(expr: (Expr[Pre], Expr[Pre]))(implicit origin: Origin): Unit = {
     implicit val origin: Origin = expr._1.o
     expr match {
@@ -61,6 +89,11 @@ case class FindBoundsQuantifier[Pre <: Generation](outer: AbstractQuantifierRewr
     }
   }
 
+  /**
+   * Dispatches the ambiguous greater equal expressions and stores the bounds in the bounds stack
+   * @param expr
+   * @param origin
+   */
   def dispatchAmbiguousGreaterEqual(expr: (Expr[Pre], Expr[Pre]))(implicit origin: Origin): Unit = {
     expr match {
       case (local: Local[Pre], local2: Local[Pre]) => {
@@ -73,6 +106,13 @@ case class FindBoundsQuantifier[Pre <: Generation](outer: AbstractQuantifierRewr
     }
   }
 
+  /**
+   * Dispatches the ambiguous expressions using the dispatchAmbiguousGreater and dispatchAmbiguousGreaterEqual we can determine how to store
+   * them in the bounds stack
+   * @param expr
+   * @param origin
+   * @return
+   */
   def dispatchAmbiguous(expr: Expr[Pre])(implicit origin: Origin): Expr[Post] = {
     expr match {
       case ag: AmbiguousGreater[Pre] => dispatchAmbiguousGreater((ag.left, ag.right))
@@ -84,6 +124,11 @@ case class FindBoundsQuantifier[Pre <: Generation](outer: AbstractQuantifierRewr
     super.dispatch(expr)
   }
 
+  /**
+   * Dispatches the expressions
+   * @param e
+   * @return
+   */
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val origin: Origin = e.o
     e match {

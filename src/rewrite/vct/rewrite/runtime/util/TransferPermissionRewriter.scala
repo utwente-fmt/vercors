@@ -18,16 +18,32 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
 
   val ledger: LedgerMethodBuilderHelper[Post] = pd.ledger.get
 
+  /**
+   * Adds the permissions to the thread
+   * @param predicate
+   * @return
+   */
   def addPermissions(predicate: Expr[Pre]): Block[Post] = {
     add = true
     transferPermissions(predicate)
   }
 
+  /**
+   * Removes the permissions from the thread
+   * @param predicate
+   * @return
+   */
   def removePermissions(predicate: Expr[Pre]): Block[Post] = {
     add = false
     transferPermissions(predicate)
   }
 
+  /**
+   * Dispatches the loop body content
+   * @param loopBodyContent
+   * @param origin
+   * @return the block returns by the addPermissions or removePermissions
+   */
   override def dispatchLoopBody(loopBodyContent: LoopBodyContent[Pre])(implicit origin: Origin): Block[Post] = {
     if (add) {
       TransferPermissionRewriter(pd).addPermissions(loopBodyContent.expr)
@@ -36,7 +52,12 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
     }
   }
 
-
+  /**
+   * Dispatches the expression and only permissions and starall are dispatched to a block, the rest is dispatched to a empty block
+   * @param e
+   * @param origin
+   * @return the transferring statement block
+   */
   def dispatchExpr(e: Expr[Pre]): Statement[Post] = {
     implicit val origin: Origin = e.o
     e match {
@@ -46,16 +67,39 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
     }
   }
 
+  /**
+   * If the class needs to add use the + operator, otherwise use the - operator
+   * @param a
+   * @param b
+   * @param origin
+   * @return the function of the operator
+   */
   private def op(a: Expr[Post], b: Expr[Post])(implicit origin: Origin): Expr[Post] = if (add) a r_+ b else a r_- b
 
+  /**
+   * Unfolds the predicate expression and collects the permissions
+   * @param predicate
+   * @return the permissions
+   */
   private def unfoldPredicate(predicate: Expr[Pre]): Seq[Expr[Pre]] =
     unfoldStar(predicate).collect { case p@(_: Perm[Pre] | _: Starall[Pre] | _: InstancePredicateApply[Pre]) => p }
 
+  /**
+   * transforms the predicate expression to a block of statements that add/remove permissions of a thread
+   * @param predicate
+   * @return
+   */
   private def transferPermissions(predicate: Expr[Pre]): Block[Post] = {
     implicit val origin: Origin = predicate.o
     Block[Post](unfoldPredicate(predicate).map(dispatchExpr))
   }
 
+  /**
+   * Dispatches the permission and adds/removes the permission to the thread for normal permissions/ array permissions
+   * @param p
+   * @param origin
+   * @return the transferm permission statement
+   */
   private def dispatchPerm(p: Perm[Pre])(implicit origin: Origin): Expr[Post] = {
     val newValue: Expr[Post] = pd.factored(permissionToRuntimeValueRewrite(p))
 
@@ -92,23 +136,4 @@ case class TransferPermissionRewriter[Pre <: Generation](pd: PermissionData[Pre]
     dispatch(const[Pre](findNumberInstanceField(program, instanceField).get))
   }
 
-
-
-//  private def dispatchInstancePredicateApplyAdd(ipa: InstancePredicateApply[Pre]) : Block[Post] = {
-//    implicit val origin: Origin = ipa.o
-////    val ipd: InstancePredicateData[Pre] = findInstancePredicateData(ipa)
-////    val addPermissions: Block[Post] = TransferPermissionRewriter(pd).addPermissions(ipa.ref.decl.body.get)
-////    val foldPredicateMI = ipd.createMethodInvocation(CreatePredicates.FOLD)
-////    val evalMI = Eval[Post](super.dispatch(foldPredicateMI))
-////    Block[Post](Seq(addPermissions, evalMI))
-//  }
-//
-//  private def dispatchInstancePredicateApplyRemove(ipa: InstancePredicateApply[Pre]) : Block[Post] = {
-//    implicit val origin: Origin = ipa.o
-////    val ipd: InstancePredicateData[Pre] = findInstancePredicateData(ipa)
-//    val foldPredicateMI = ipd.createMethodInvocation(CreatePredicates.UNFOLD)
-//    val evalMI = Eval[Post](super.dispatch(foldPredicateMI))
-//    val removePermissions: Block[Post] = TransferPermissionRewriter(pd).removePermissions(ipa.ref.decl.body.get)
-//    Block[Post](Seq(removePermissions, evalMI))
-//  }
 }

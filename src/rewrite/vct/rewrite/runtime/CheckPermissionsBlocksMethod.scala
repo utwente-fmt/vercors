@@ -30,6 +30,11 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
   implicit var ledger: LedgerMethodBuilderHelper[Post] = _
 
 
+  /**
+   * Basic part of rewriting the program to retrieve ledger helper and rewrite the other declarations
+   * @param program
+   * @return
+   */
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     this.program = program
     lazy val newDecl: Seq[GlobalDeclaration[Post]] = globalDeclarations.collect {
@@ -43,10 +48,17 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
   }
 
 
+  /**
+   * If the statement is an assignment keep track of the target and if it is not a primitive type set the heapChange to true
+   * If there is scope with a block in it , change the block structure of the block
+   * if it is an unfold/fold create a new dereferences map so that there are no permission checks in the contract
+   * @param stat
+   * @return
+   */
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
     stat match {
       case a: Assign[Pre] => a.rewrite(target = isTarget.having(true) {
-        if(a.target.t.isInstanceOf[PrimitiveType[Pre]]){
+        if(!a.target.t.isInstanceOf[PrimitiveType[Pre]]){
           heapChange = true
         }
         dispatch(a.target)
@@ -57,6 +69,12 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     }
   }
 
+  /**
+   * When a dereference is found check if it is a target and if it is not already in the dereferences map
+   * when there is a change in the heap set the value of heapChange to true
+   * @param e
+   * @return
+   */
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
       case mi: MethodInvocation[Pre] if mi.o.getLedgerClassRuntime.nonEmpty => {
@@ -77,7 +95,7 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
         dispatch(postExpr.target)
       })
       case d@(_: Deref[Pre] | _: AmbiguousSubscript[Pre]) => {
-        val newD = super.dispatch(d)
+        val newD = isTarget.having(false){ super.dispatch(d) }
         if (dereferences.isEmpty) return newD
         if (isTarget.top) {
           dereferences.top += (d -> true)
@@ -90,6 +108,12 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     }
   }
 
+  /**
+   * Create new statements for the permission checks using the found dereferences
+   * @param l
+   * @param write
+   * @return
+   */
   private def generatePermissionChecksStatements(l: Expr[Pre], write: Boolean): Statement[Post] = {
     implicit val origin: Origin = l.o
 
@@ -102,7 +126,6 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
           )).get
         ledger.miGetPermission(newDataObject).get
       }
-//      case d: Deref[Pre] => ledger.miGetPermission(dispatch(d)).get
       case AmbiguousSubscript(coll, index) => {
         val newDataObject: MethodInvocation[Post] = ledger.pmbh.miCreate(
           CreateObjectArray[Post](Seq(dispatch(coll), dispatch(index)))).get
@@ -117,17 +140,32 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     RuntimeAssert[Post](check, message)(null)
   }
 
+  /**
+   * Dispatch the loop and create new block structure for the loops body
+   * @param loop
+   * @return
+   */
   private def dispatchLoop(loop: Loop[Pre]): Loop[Post] = {
     lazy val newBody = dereferences.collect(determineNewBlockStructure(loop.body.asInstanceOf[Block[Pre]]))._2
     val contract = dereferences.collect(dispatch(loop.contract))._2 //Any dereference in the contract should not be checked by the permission checker so putting it in its own scope
     loop.rewrite(init = dispatch(loop.init), cond = dispatch(loop.cond), update = dispatch(loop.update), body = newBody, contract = contract)
   }
 
+  /**
+   * Dispatch the synchronized block and create new block structure for the synchronized blocks body
+   * @param s
+   * @return
+   */
   private def dispatchSynchronized(s: Synchronized[Pre]): Synchronized[Post] = {
     lazy val newBody = dereferences.collect(determineNewBlockStructure(s.body.asInstanceOf[Block[Pre]]))._2
     s.rewrite(body = newBody)
   }
 
+  /**
+   * Dispatch the branch and create new block structure for the branches body
+   * @param branch
+   * @return
+   */
   private def dispatchBranch(branch: Branch[Pre]): Branch[Post] = {
     val gatheredConditions = branch.branches.map(b => dispatch(b._1))
     val gatheredBlocks = branch.branches
@@ -139,12 +177,24 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     Branch[Post](gatheredConditions.zip(gatheredBlocks))(branch.o)
   }
 
+  /**
+   * retrieves the top dereferences from the dereferences stack and clears the buffer
+   * @return
+   */
   private def retrieveDereferences: Seq[Statement[Post]] = {
     val newAssertions: Seq[Statement[Post]] = dereferences.top.map(pair => generatePermissionChecksStatements(pair._1, pair._2)).toSeq
     dereferences.top.clear()
     newAssertions
   }
 
+  /**
+   * normal method to fold the statements of a block
+   * @param b
+   * @param blockFold
+   * @param statement
+   * @param origin
+   * @return
+   */
   private def defaultStatementNewMethodStructure(b: Block[Pre], blockFold: (Seq[Block[Post]], Block[Post]), statement: Statement[Pre])(implicit origin: Origin): (Seq[Block[Post]], Block[Post]) = {
     val newStatement = dispatch(statement)
     if (heapChange) {
@@ -155,11 +205,27 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     }
   }
 
+  /**
+   * Wrapper method to also fold the statements of other block types, like loops, branches and synchronized blocks
+   * @param preBlock
+   * @param blockFold
+   * @param statement
+   * @param dispatchFunc
+   * @param origin
+   * @tparam T
+   * @return
+   */
   private def dispatchStatementWrapper[T[Pre] <: Statement[Pre]](preBlock: Block[Pre], blockFold: (Seq[Block[Post]], Block[Post]), statement: T[Pre], dispatchFunc: T[Pre] => T[Post])(implicit origin: Origin): (Seq[Block[Post]], Block[Post]) = {
     val newStat = dispatchFunc(statement)
     (blockFold._1 :+ Block[Post](retrieveDereferences ++ blockFold._2.statements :+ newStat), Block[Post](Nil))
   }
 
+  /**
+   * Method that transforms a block to a new block structure and uses the defaultStatementNewMethodStructure to fold the statements
+   * If it is not a default statement it will use the dispatchStatementWrapper to fold the statements
+   * @param b
+   * @return
+   */
   private def determineNewBlockStructure(b: Block[Pre]): Block[Post] = {
     implicit val origin: Origin = b.o
     dereferences.collect {

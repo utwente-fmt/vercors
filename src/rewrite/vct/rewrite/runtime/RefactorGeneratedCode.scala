@@ -25,6 +25,11 @@ case class RefactorGeneratedCode[Pre <: Generation]() extends Rewriter[Pre] {
     test
   }
 
+  /**
+   * Searches for the constructor in the procedure and restores it into a java constructor.
+   * If the class is an interface do not recreate a java constructor
+   * @param decl
+   */
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case p: Procedure[Pre] => {
@@ -43,6 +48,11 @@ case class RefactorGeneratedCode[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  /**
+   * Dispatches the class to the rewriter and create the new constructor
+   * @param c
+   * @return
+   */
   def dispatchGivenClass(c: Class[Pre]): GlobalDeclaration[Rewritten[Pre]] = {
     val rw = CreateConstructor[Pre](this, givenClassSucc)
     val newClass = new RewriteClass[Pre, Post](c)(rw).rewrite(
@@ -52,6 +62,12 @@ case class RefactorGeneratedCode[Pre <: Generation]() extends Rewriter[Pre] {
     newClass
   }
 
+  /**
+   * Create the new classDeclarations including the newly created constructor
+   * @param c
+   * @param rw
+   * @return
+   */
   def createClassDeclarations(c: Class[Pre], rw: Rewriter[Pre]): Seq[ClassDeclaration[Rewritten[Pre]]] = {
     classDeclarations.collect {
       (givenClassConstrSucc.get(TClass(c.ref)).get +: c.declarations).foreach(d => rw.dispatch(d))

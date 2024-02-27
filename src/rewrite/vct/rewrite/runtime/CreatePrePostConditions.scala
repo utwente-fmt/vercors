@@ -55,6 +55,10 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  /**
+   * Dispatches the instance method and creates a new injectivity map for the method
+   * @param im
+   */
   def dispatchInstanceMethod(im: InstanceMethod[Pre]): Unit = {
     im.body match {
       case Some(sc: Scope[Pre]) => sc.body match {
@@ -74,6 +78,13 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  /**
+   * Collects the pre and postcondtions
+   * It store te postConditions in a function so that it can be called later and thus the postconditions can be generated later on as well
+   * @param block
+   * @param im
+   * @return
+   */
   def dispatchMethodBlock(block: Block[Pre], im: InstanceMethod[Pre]): Block[Post] = {
     implicit val origin: Origin = block.o
     val preConditionStatements: Statement[Post] = dispatchApplicableContractToAssert(im.contract.requires)
@@ -87,6 +98,11 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  /**
+   * Changes a contract to assert statements
+   * @param ap
+   * @return
+   */
   private def dispatchApplicableContractToAssert(ap: AccountedPredicate[Pre]): Statement[Post] = {
     ap match {
       case uni: UnitAccountedPredicate[Pre] => {
@@ -101,6 +117,11 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  /**
+   * When a return statement is found, the postconditions are added to the block
+   * @param stat
+   * @return
+   */
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
     val dispatched = super.dispatch(stat)
     stat match {

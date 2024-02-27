@@ -44,6 +44,11 @@ case class CreatePredicateFoldUnfold[Pre <: Generation]() extends Rewriter[Pre] 
     test
   }
 
+  /**
+   * Dispatches the statement and if it is a fold or unfold predicate it will call the correct method to rewrite it
+   * @param stat
+   * @return
+   */
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
     implicit val origin: Origin = stat.o
     stat match {
@@ -53,6 +58,13 @@ case class CreatePredicateFoldUnfold[Pre <: Generation]() extends Rewriter[Pre] 
     }
   }
 
+  /**
+   * When it is a fold method it will first check if the predicate condition is met by the thread
+   * After that it will remove the permissions and call the method fold of the ledger
+   * @param ipa
+   * @param origin
+   * @return
+   */
   def dispatchFold(ipa: InstancePredicateApply[Pre])(implicit origin: Origin): Statement[Rewritten[Pre]] = {
     val injectivityMap = findClosestInjectivityMap(variables.freeze)
     val permissionExpr = ipa.ref.decl.body
@@ -75,6 +87,13 @@ case class CreatePredicateFoldUnfold[Pre <: Generation]() extends Rewriter[Pre] 
     }._2
   }
 
+  /**
+   * When it is a unfold method it will first check if the predicate is hold by the thread in the ledger
+   * After that it will add the permissions and call the method unfold of the ledger
+   * @param ipa
+   * @param origin
+   * @return
+   */
   def dispatchUnfold(ipa: InstancePredicateApply[Pre])(implicit origin: Origin): Statement[Rewritten[Pre]] = {
     val permissionExpr = ipa.ref.decl.body
     val pdAdd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top)
