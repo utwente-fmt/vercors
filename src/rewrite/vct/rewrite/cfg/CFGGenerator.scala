@@ -36,10 +36,13 @@ case class CFGGenerator[G]() {
           else searched_labels.addOne((goto.lbl.decl, mutable.Set(cfg_node)))
         }
         cfg_node
-      // Leave all container statements except for invocations out of the CFG
+      // Leave all container statements except for invocations out of the CFG with two exceptions: Expressions and the
+      // first scope of a run method must remain so that the run method can later still be identified
       case _: InvocationStatement[_] => statement_to_cfg(node, context)
-      case c: ControlContainerStatement[_] =>
+      case c: ControlContainerStatement[_] if !context.indices.head.isInstanceOf[RunMethodIndex[_]] =>
         val new_context = context.enter_scope(c)
+        // If the new scope is empty (e.g. expression evaluation with no contained statements), transform it normally,
+        // since this is the only node that can represent this part of the CFG
         if (!new_context.has_statement()) statement_to_cfg(c, context)
         else convert(new_context.resolve().get, new_context)
       // Any non-special statement is simply converted to a CFG node

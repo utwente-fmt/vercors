@@ -18,7 +18,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
       // Statements that induce assumptions about the state, such as assume, inhale, or a method's postcondition, might change the state implicitly
       case Assume(assn) => viable_edges(succ, state).flatMap(e => state.with_assumption(assn).map(s => take_edge(e, s)))
       case Inhale(res) => viable_edges(succ, state).flatMap(e => state.with_assumption(res).map(s => take_edge(e, s)))
-      // Abstract procedures, constructors and methods are defined by their postconditions
+      // Abstract procedures, constructors and methods are defined by their postconditions      TODO: Temporarily add parameter to state if it is assigned to a tracked variable
       case InvokeProcedure(ref, args, _, _, _, _) => ref.decl.body match {
         case Some(_) => viable_edges(succ, state).map(e => take_edge(e, state))
         case None => viable_edges(succ, state).flatMap(e => state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args))).map(s => take_edge(e, s)))
@@ -31,6 +31,8 @@ case class AbstractProcess[G](obj: Expr[G]) {
         case Some(_) => viable_edges(succ, state).map(e => take_edge(e, state))
         case None => viable_edges(succ, state).flatMap(e => state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args))).map(s => take_edge(e, s)))
       }
+      // TODO: Remove temporary parameter from state after method return
+      case Return(result) => viable_edges(succ, state).map(e => take_edge(e, state))
       // TODO: What do wait and notify do?
       case Wait(obj) => viable_edges(succ, state).map(e => take_edge(e, state))
       case Notify(obj) => viable_edges(succ, state).map(e => take_edge(e, state))
