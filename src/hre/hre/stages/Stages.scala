@@ -16,6 +16,20 @@ trait Stage[-Input, +Output] {
     UnitStages(this).thenRun(stages)
 
   def saveInput: Stages[Input, (_ >: Input, Output)] = SaveInputStage(UnitStages(this))
+
+  def transform[Output2](f: Output => Output2): Stages[Input, Output2] = {
+    UnitStages(this).thenRun(FunctionStage(f))
+  }
+
+  def preprocess[Input2](f: Input2 => Input): Stages[Input2, Output] =
+    UnitStages(FunctionStage(f)).thenRun(UnitStages(this))
+}
+
+object Stages {
+  def saveInput[Input, Output](stages: Stages[Input, Output]): Stages[Input, (Input, Output)] = SaveInputStage(stages)
+
+  def preprocess[Input2, Input, Output](f: Input2 => Input, stages: Stages[Input, Output]): Stages[Input2, Output] =
+    UnitStages(FunctionStage(f)).thenRun(stages)
 }
 
 trait Stages[-Input, +Output] {
@@ -46,15 +60,14 @@ trait Stages[-Input, +Output] {
   def thenRun[NewOutput](stages: Stages[Output, NewOutput]): Stages[Input, NewOutput] =
     StagesPair(this, stages)
 
-  def saveInput: Stages[Input, (_ >: Input, Output)] =
-    SaveInputStage(this)
+  def transform[Output2](f: Output => Output2): Stages[Input, Output2] =
+    thenRun(FunctionStage(f))
 }
 
-object StagesHelpers {
-  implicit class StagesDropSaved[Input, Output](stages: Stages[Input, (Input, Output)]) {
-    def dropOutput: Stages[Input, Input] = DropOutputStage(stages)
-    def dropInput: Stages[Input, Output] = DropInputStage(stages)
-  }
+case class FunctionStage[T, S](f: T => S) extends Stage[T, S] {
+  override def friendlyName: String = "..."
+  override def progressWeight: Int = 1
+  override def run(in: T): S = f(in)
 }
 
 case class UnitStages[-Input, +Output](stage: Stage[Input, Output]) extends Stages[Input, Output] {
@@ -71,14 +84,4 @@ case class SaveInputStage[Input, Output](stage: Stages[Input, Output]) extends S
   }
 
   override def collect: Seq[Stage[Nothing, Any]] = stage.collect
-}
-
-case class DropOutputStage[Input, Output](stage: Stages[Input, (Input, Output)]) extends Stages[Input, Input] {
-  override def collect: Seq[Stage[Nothing, Any]] = stage.collect
-  override def run(in: Input): Either[VerificationError, Input] = stage.run(in).map(_._1)
-}
-
-case class DropInputStage[Input, Output](stage: Stages[Input, (Input, Output)]) extends Stages[Input, Output] {
-  override def collect: Seq[Stage[Nothing, Any]] = stage.collect
-  override def run(in: Input): Either[VerificationError, Output] = stage.run(in).map(_._2)
 }

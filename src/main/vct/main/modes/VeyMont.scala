@@ -2,7 +2,7 @@ package vct.main.modes
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.stages.{Stage, Stages}
-import hre.stages.StagesHelpers._
+import hre.stages.Stages.saveInput
 import hre.io.Readable
 import vct.col.ast.Verification
 import vct.col.origin.{BlameCollector, VerificationFailure}
@@ -49,45 +49,25 @@ object VeyMont extends LazyLogging {
       }
   }
 
-  object VerificationStore {
-    var v: Verification[_] = null
-  }
-
-  case class SetVerification() extends Stage[Verification[_ <: Generation], Verification[_ <: Generation]] {
-    override def friendlyName: String = "setVerification"
-    override def progressWeight: Int = 1
-    override def run(in: Verification[_ <: Generation]): Verification[_ <: Generation] = {
-      VerificationStore.v = in
-      in
-    }
-  }
-
-  case class GetVerification() extends Stage[Unit, Verification[_ <: Generation]] {
-    override def friendlyName: String = "getVerification"
-    override def progressWeight: Int = 1
-    override def run(in: Unit): Verification[_ <: Generation] = VerificationStore.v.asInstanceOf
-  }
-
   def verifyWithOptions(options: Options, inputs: Seq[PathOrStd]) = {
-    // TODO (RR): Refactor with FunctionStage
-
-    val choreographyStage: Stages[Seq[Readable], Unit] = {
+    val choreographyStage: Stages[Seq[Readable], Verification[_ <: Generation]] = {
       val collector = BlameCollector()
       val bipResults = BIP.VerificationResults()
       val blameProvider = ConstantBlameProvider(collector)
 
       Parsing.ofOptions(options, blameProvider)
         .thenRun(Resolution.ofOptions(options, blameProvider))
-        .thenRun(SetVerification())
-        .thenRun(Transformation.ofOptions(options, bipResults))
-        .thenRun(Backend.ofOptions(options))
-        .thenRun(ExpectedErrors.ofOptions(options))
-        .thenRun(NoVerificationFailures(collector, ChoreographyVerificationError))
+        .thenRun(saveInput(
+          Transformation.ofOptions(options, bipResults)
+            .thenRun(Backend.ofOptions(options))
+            .thenRun(ExpectedErrors.ofOptions(options))
+            .thenRun(NoVerificationFailures(collector, ChoreographyVerificationError)))
+        ).transform(_._1)
     }
 
-    val generationStage: Stages[Unit, Seq[StringReadable]] = GetVerification()
-      .thenRun(Transformation.veymontImplementationGenerationOfOptions(options))
-      .thenRun(Output.veymontOfOptions(options))
+    val generationStage: Stages[Verification[_ <: Generation], Seq[StringReadable]] =
+      Transformation.veymontImplementationGenerationOfOptions(options)
+        .thenRun(Output.veymontOfOptions(options))
 
     val implementationVerificationStage = {
       val collector = BlameCollector()

@@ -30,15 +30,15 @@ case class Output(out: Path, syntax: Ctx.Syntax) extends Stage[Verification[_ <:
   override def progressWeight: Int = 1
 
   override def run(in: Verification[_ <: Generation]): Seq[StringReadable] = {
-    val namer = Namer[G](syntax)
-    namer.name(in)
+    val namer = Namer[InitialGeneration](syntax)
+    namer.name(in.asInstanceOf)
     val names = namer.finish
     val ctx = Ctx(syntax = syntax, names = names.asInstanceOf[Map[Declaration[_], String]])
 
     // If possible (if a directory is given as output), print all classes to separate files
-    if (in.isInstanceOf[Program[G]] && Files.isDirectory(out)) {
-      in.asInstanceOf[Program[G]].declarations.zipWithIndex.foreach { case (decl, i) =>
-        val name = names.getOrElse(decl, s"unknown$i")
+    if (in.isInstanceOf[Program[_]] && Files.isDirectory(out)) {
+      in.asInstanceOf[Program[_]].declarations.zipWithIndex.foreach { case (decl, i) =>
+        val name = names.getOrElse(decl.asInstanceOf, s"unknown$i")
         val f = out.resolve(name + ".pvl")
         hre.io.RWFile(f.toFile).write(w => decl.write(w)(ctx))
       }

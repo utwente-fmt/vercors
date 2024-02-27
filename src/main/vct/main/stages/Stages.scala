@@ -67,6 +67,7 @@ case object Stages {
       .thenRun(Transformation.veymontImplementationGenerationOfOptions(options))
       .thenRun(CodeGeneration.veymontGenerationOfOptions(options))
       .thenRun(Output.veymontOfOptions(options))
+    ???
   }
 
   def vesuvOfOptions(options: Options, blameProvider: BlameProvider) : Stages[Seq[Readable], Unit] = {
