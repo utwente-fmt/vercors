@@ -1,12 +1,11 @@
-#ifndef VCLLVM_CASTOPTRANSFORM_H
-#define VCLLVM_CASTOPTRANSFORM_H
+#ifndef PALLAS_CASTOPTRANSFORM_H
+#define PALLAS_CASTOPTRANSFORM_H
 #include "Passes/Function/FunctionBodyTransformer.h"
 
-namespace llvm2Col {
-    namespace col = vct::col::ast;
+namespace llvm2col {
+namespace col = vct::col::ast;
 
-    void convertCastOp(llvm::Instruction &llvmInstruction,
-                       col::Block &colBlock,
-                       vcllvm::FunctionCursor &funcCursor);
-}
-#endif //VCLLVM_CASTOPTRANSFORM_H
+void convertCastOp(llvm::Instruction &llvmInstruction, col::Block &colBlock,
+                   pallas::FunctionCursor &funcCursor);
+} // namespace llvm2col
+#endif // PALLAS_CASTOPTRANSFORM_H

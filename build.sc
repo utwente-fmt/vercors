@@ -431,7 +431,7 @@ object vercors extends Module {
       ivy"org.antlr:antlr4-runtime:4.8"
     )
     override def moduleDeps = Seq(hre, col, serialize)
-    override def unmanagedClasspath = super.unmanagedClasspath() ++ Agg(PathRef(vcllvm.compile().path / os.up))
+    override def unmanagedClasspath = super.unmanagedClasspath() ++ Agg(PathRef(pallas.compile().path / os.up))
 
     trait GenModule extends Module {
       def base = T { settings.src / "parsers" / "antlr4" }
@@ -634,7 +634,7 @@ object vercors extends Module {
   }
 
 
-  object vcllvm extends CppSharedModule { outer =>
+  object pallas extends CppSharedModule { outer =>
     def root: T[os.Path] = T { settings.src / "llvm" }
 
     object llvm extends LinkableModule {
@@ -650,32 +650,32 @@ object vercors extends Module {
 
     object origin extends CppModule {
       override def moduleDeps = Seq(llvm, proto, proto.protobuf.libprotobuf)
-      override def sources = T.sources(vcllvm.root() / "lib" / "origin")
-      override def includePaths = T.sources(vcllvm.root() / "include")
+      override def sources = T.sources(pallas.root() / "lib" / "Origin")
+      override def includePaths = T.sources(pallas.root() / "include")
       override def compileOptions: T[Seq[String]] = Seq("-fPIC")
     }
     object passes extends CppModule {
       override def moduleDeps = Seq(llvm, proto, util, origin, transform, proto.protobuf.libprotobuf)
-      override def sources = T.sources(vcllvm.root() / "lib" / "passes")
-      override def includePaths = T.sources(vcllvm.root() / "include")
+      override def sources = T.sources(pallas.root() / "lib" / "Passes")
+      override def includePaths = T.sources(pallas.root() / "include")
       override def compileOptions: T[Seq[String]] = Seq("-fPIC")
     }
     object transform extends CppModule {
       override def moduleDeps = Seq(llvm, proto, util, origin, proto.protobuf.libprotobuf)
-      override def sources = T.sources(vcllvm.root() / "lib" / "transform")
-      override def includePaths = T.sources(vcllvm.root() / "include")
+      override def sources = T.sources(pallas.root() / "lib" / "Transform")
+      override def includePaths = T.sources(pallas.root() / "include")
       override def compileOptions: T[Seq[String]] = Seq("-fPIC")
     }
     object util extends CppModule {
       override def moduleDeps = Seq(llvm, proto, origin, proto.protobuf.libprotobuf)
-      override def sources = T.sources(vcllvm.root() / "lib" / "util")
-      override def includePaths = T.sources(vcllvm.root() / "include")
+      override def sources = T.sources(pallas.root() / "lib" / "Util")
+      override def includePaths = T.sources(pallas.root() / "include")
       override def compileOptions: T[Seq[String]] = Seq("-fPIC")
     }
     object plugin extends CppModule {
       override def moduleDeps = Seq(llvm, proto, passes, transform, proto.protobuf.libprotobuf)
-      override def sources = T.sources(vcllvm.root() / "lib" / "Plugin.cpp")
-      override def includePaths = T.sources(vcllvm.root() / "include")
+      override def sources = T.sources(pallas.root() / "lib" / "Plugin.cpp")
+      override def includePaths = T.sources(pallas.root() / "include")
       override def compileOptions: T[Seq[String]] = Seq("-fPIC")
     }
 
@@ -726,7 +726,6 @@ object vercors extends Module {
     }
 
     override def moduleDeps = Seq(origin, passes, transform, util, llvm, plugin, proto, proto.protobuf.libprotobuf)
-//    override def compileOptions: T[Seq[String]] = T { super.compileOptions() ++ os.proc(os.Path("/usr/bin/pkg-config"), "--libs", "--cflags", "protobuf").call().out.text().split(" ") }
     override def compileOptions: T[Seq[String]] = T { Seq("-fPIC") }
   }
 

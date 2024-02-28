@@ -17,7 +17,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import scala.util.{Failure, Using}
 
-case class ColLLVMParser(override val origin: Origin, override val blameProvider: BlameProvider, vcllvm: Path)
+case class ColLLVMParser(override val origin: Origin, override val blameProvider: BlameProvider, pallas: Path)
   extends Parser(origin, blameProvider) with LazyLogging {
   private case class LLVMParseError(fileName: String, errorCode: Int, error: String) extends UserError {
     override def code: String = "LLVMParseError"
@@ -25,14 +25,14 @@ case class ColLLVMParser(override val origin: Origin, override val blameProvider
     override def text: String = messageContext(s"[ERROR] Parsing file $fileName failed with exit code $errorCode:\n$error")
   }
   override def parse[G](stream: CharStream): ParseResult[G] = {
-    throw Unreachable("LLVM IR files shouldn't be parsed from an ANTLR CharStream, use VCLLVM instead!")
+    throw Unreachable("LLVM IR files shouldn't be parsed from an ANTLR CharStream, use pallas instead!")
   }
 
   override def parse[G](readable: Readable): ParseResult[G] = {
-    if (vcllvm == null) {
-      throw Unreachable("The COLLVMParser needs to be provided with the path to vcllvm to parse LLVM-IR files")
+    if (pallas == null) {
+      throw Unreachable("The COLLVMParser needs to be provided with the path to pallas to parse LLVM-IR files")
     }
-    val command = Seq("opt-17", s"--load-pass-plugin=$vcllvm", "--passes=module(vcllvm-collect-module-spec),function(vcllvm-declare-function,vcllvm-assign-pure,vcllvm-declare-function-contract,vcllvm-transform-function-body),module(vcllvm-print-protobuf)", readable.fileName, "--disable-output")
+    val command = Seq("opt-17", s"--load-pass-plugin=$pallas", "--passes=module(pallas-collect-module-spec),function(pallas-declare-function,pallas-assign-pure,pallas-declare-function-contract,pallas-transform-function-body),module(pallas-print-protobuf)", readable.fileName, "--disable-output")
 
     val process = new ProcessBuilder(command: _*).start()
 

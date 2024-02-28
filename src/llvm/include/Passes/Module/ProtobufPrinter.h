@@ -1,16 +1,16 @@
-#ifndef VCLLVM_PROTOBUFPRINTER_H
-#define VCLLVM_PROTOBUFPRINTER_H
+#ifndef PALLAS_PROTOBUFPRINTER_H
+#define PALLAS_PROTOBUFPRINTER_H
 
-#include <llvm/IR/PassManager.h>
 #include "vct/col/ast/col.pb.h"
+#include <llvm/IR/PassManager.h>
 
-namespace vcllvm {
-    using namespace llvm;
-    namespace col = vct::col::ast;
+namespace pallas {
+using namespace llvm;
+namespace col = vct::col::ast;
 
-    class ProtobufPrinter : public AnalysisInfoMixin<ProtobufPrinter> {
-    public:
-        PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM);
-    };
-}
-#endif // VCLLVM_PROTOBUFPRINTER_H
+class ProtobufPrinter : public AnalysisInfoMixin<ProtobufPrinter> {
+  public:
+    PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM);
+};
+} // namespace pallas
+#endif // PALLAS_PROTOBUFPRINTER_H

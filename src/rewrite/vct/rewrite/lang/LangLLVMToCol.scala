@@ -4,14 +4,14 @@ import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.ctx.RefLlvmFunctionDefinition
+import vct.col.resolve.ctx.RefLLVMFunctionDefinition
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.{CurrentProgramContext, SuccessionMap}
 import vct.result.VerificationError.SystemError
-import vct.rewrite.lang.LangLLVMToCol.UnexpectedLlvmNode
+import vct.rewrite.lang.LangLLVMToCol.UnexpectedLLVMNode
 
 case object LangLLVMToCol {
-  case class UnexpectedLlvmNode(node: Node[_]) extends SystemError {
+  case class UnexpectedLLVMNode(node: Node[_]) extends SystemError {
     override def text: String =
       context[CurrentProgramContext]
         .map(_.highlight(node))
@@ -24,16 +24,16 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
-  private val llvmFunctionMap: SuccessionMap[LlvmFunctionDefinition[Pre], Procedure[Post]] = SuccessionMap()
-  private val specFunctionMap: SuccessionMap[LlvmSpecFunction[Pre], Function[Post]] = SuccessionMap()
+  private val llvmFunctionMap: SuccessionMap[LLVMFunctionDefinition[Pre], Procedure[Post]] = SuccessionMap()
+  private val specFunctionMap: SuccessionMap[LLVMSpecFunction[Pre], Function[Post]] = SuccessionMap()
 
 
-  def rewriteLocal(local: LlvmLocal[Pre]): Expr[Post] = {
+  def rewriteLocal(local: LLVMLocal[Pre]): Expr[Post] = {
     implicit val o: Origin = local.o
     Local(rw.succ(local.ref.get.decl))
   }
 
-  def rewriteFunctionDef(func: LlvmFunctionDefinition[Pre]): Unit = {
+  def rewriteFunctionDef(func: LLVMFunctionDefinition[Pre]): Unit = {
     implicit val o: Origin = func.o
     val procedure = rw.labelDecls.scope {
       rw.globalDeclarations.declare(
@@ -44,7 +44,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           }._1,
           outArgs = Nil,
           typeArgs = Nil,
-          body = if (func.pure) Some(GotoEliminator(func.functionBody match { case scope: Scope[Pre] => scope; case other => throw UnexpectedLlvmNode(other) }).eliminate()) else Some(rw.dispatch(func.functionBody)),
+          body = if (func.pure) Some(GotoEliminator(func.functionBody match { case scope: Scope[Pre] => scope; case other => throw UnexpectedLLVMNode(other) }).eliminate()) else Some(rw.dispatch(func.functionBody)),
           contract = rw.dispatch(func.contract.data.get),
           pure = func.pure
         )(func.blame)
@@ -53,10 +53,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     llvmFunctionMap.update(func, procedure)
   }
 
-  def rewriteAmbiguousFunctionInvocation(inv: LlvmAmbiguousFunctionInvocation[Pre]): Invocation[Post] = {
+  def rewriteAmbiguousFunctionInvocation(inv: LLVMAmbiguousFunctionInvocation[Pre]): Invocation[Post] = {
     implicit val o: Origin = inv.o
     inv.ref.get.decl match {
-      case func: LlvmFunctionDefinition[Pre] => new ProcedureInvocation[Post](
+      case func: LLVMFunctionDefinition[Pre] => new ProcedureInvocation[Post](
         ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(func)),
         args = inv.args.map(rw.dispatch),
         givenMap = inv.givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
@@ -64,7 +64,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         outArgs = Seq.empty,
         typeArgs = Seq.empty
       )(inv.blame)
-      case func: LlvmSpecFunction[Pre] => new FunctionInvocation[Post](
+      case func: LLVMSpecFunction[Pre] => new FunctionInvocation[Post](
         ref = new LazyRef[Post, Function[Post]](specFunctionMap(func)),
         args = inv.args.map(rw.dispatch),
         givenMap = inv.givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
@@ -75,7 +75,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   }
 
-  def rewriteFunctionInvocation(inv: LlvmFunctionInvocation[Pre]): ProcedureInvocation[Post] = {
+  def rewriteFunctionInvocation(inv: LLVMFunctionInvocation[Pre]): ProcedureInvocation[Post] = {
     implicit val o: Origin = inv.o
     new ProcedureInvocation[Post](
       ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(inv.ref.decl)),
@@ -87,11 +87,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     )(inv.blame)
   }
 
-  def rewriteGlobal(decl: LlvmGlobal[Pre]): Unit = {
+  def rewriteGlobal(decl: LLVMGlobal[Pre]): Unit = {
     implicit val o: Origin = decl.o
     rw.globalDeclarations.declare(
       decl.data.get match {
-        case function: LlvmSpecFunction[Pre] =>
+        case function: LLVMSpecFunction[Pre] =>
           val rwFunction = new Function[Post](
             rw.dispatch(function.returnType),
             rw.variables.collect {
@@ -110,12 +110,12 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           )(function.blame)
           specFunctionMap.update(function, rwFunction)
           rwFunction
-        case other => throw UnexpectedLlvmNode(other)
+        case other => throw UnexpectedLLVMNode(other)
       }
     )
   }
 
-  def result(ref: RefLlvmFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =
+  def result(ref: RefLLVMFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =
     Result[Post](llvmFunctionMap.ref(ref.decl))
 
   /*
@@ -123,7 +123,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   effectively transforming the CFG into a tree. More efficient restructuring algorithms but this works for now.
 
   This of course only works for acyclic CFGs as otherwise replacement would be infinitely recursive.
-  Loop restructuring should be handled by VCLLVM as it has much more analytical and contextual information about
+  Loop restructuring should be handled by pallas as it has much more analytical and contextual information about
   the program.
   */
   case class GotoEliminator(bodyScope: Scope[Pre]) extends LazyLogging {
@@ -131,9 +131,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case block: Block[Pre] =>
         block.statements.map {
           case label: Label[Pre] => (label.decl, label)
-          case other => throw UnexpectedLlvmNode(other)
+          case other => throw UnexpectedLLVMNode(other)
         }.toMap
-      case other => throw UnexpectedLlvmNode(other)
+      case other => throw UnexpectedLLVMNode(other)
     }
 
     def eliminate(): Scope[Post] = {
@@ -146,13 +146,13 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             case bodyBlock: Block[Pre] => Block[Post](
               bodyBlock.statements.head match {
                 case label: Label[Pre] => Seq(eliminate(label))
-                case other => throw UnexpectedLlvmNode(other)
+                case other => throw UnexpectedLLVMNode(other)
               }
             )(scope.body.o)
-            case other => throw UnexpectedLlvmNode(other)
+            case other => throw UnexpectedLLVMNode(other)
           }
         )(scope.o)
-        case other => throw UnexpectedLlvmNode(other)
+        case other => throw UnexpectedLLVMNode(other)
       }
     }
 
@@ -164,12 +164,12 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             case goto: Goto[Pre] => Block[Post](block.statements.dropRight(1).map(rw.dispatch) ++ eliminate(labelDeclMap(goto.lbl.decl)).statements)
             case _: Return[Pre] => rw.dispatch(block) match {
               case block: Block[Post] => block
-              case other => throw UnexpectedLlvmNode(other)
+              case other => throw UnexpectedLLVMNode(other)
             }
             case branch: Branch[Pre] => Block[Post](block.statements.dropRight(1).map(rw.dispatch) :+ eliminate(branch))
-            case other => throw UnexpectedLlvmNode(other)
+            case other => throw UnexpectedLLVMNode(other)
           }
-        case other => throw UnexpectedLlvmNode(other)
+        case other => throw UnexpectedLLVMNode(other)
       }
     }
 
@@ -179,7 +179,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         branch.branches.map(
           bs => (rw.dispatch(bs._1), bs._2 match {
             case goto: Goto[Pre] => eliminate(labelDeclMap(goto.lbl.decl))
-            case other => throw UnexpectedLlvmNode(other)
+            case other => throw UnexpectedLLVMNode(other)
           })
         ))
     }
