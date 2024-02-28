@@ -1,6 +1,7 @@
 #include "Transform/BlockTransform.h"
 
 #include "Transform/Instruction/BinaryOpTransform.h"
+#include "Transform/Instruction/CastOpTransform.h"
 #include "Transform/Instruction/FuncletPadOpTransform.h"
 #include "Transform/Instruction/MemoryOpTransform.h"
 #include "Transform/Instruction/OtherOpTransform.h"
@@ -44,6 +45,9 @@ void llvm2col::transformInstruction(pallas::FunctionCursor &funcCursor,
     } else if (llvm::Instruction::MemoryOpsBegin <= opCode &&
                opCode < llvm::Instruction::MemoryOpsEnd) {
         llvm2col::transformMemoryOp(llvmInstruction, colBodyBlock, funcCursor);
+    } else if (llvm::Instruction::CastOpsBegin <= opCode &&
+               opCode < llvm::Instruction::CastOpsEnd) {
+        llvm2col::transformCastOp(llvmInstruction, colBodyBlock, funcCursor);
     } else if (llvm::Instruction::FuncletPadOpsBegin <= opCode &&
                opCode < llvm::Instruction::FuncletPadOpsEnd) {
         llvm2col::transformFuncletPadOp(llvmInstruction, colBodyBlock,

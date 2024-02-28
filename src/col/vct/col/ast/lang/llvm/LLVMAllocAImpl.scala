@@ -4,5 +4,5 @@ import vct.col.ast.ops.LLVMAllocAOps
 import vct.col.ast.{LLVMAllocA, Type}
 
 trait LLVMAllocAImpl[G] extends LLVMAllocAOps[G] { this: LLVMAllocA[G] =>
-  override lazy val t: Type[G] = this.allocation_type
+  override val t: Type[G] = this.allocationType
 }

@@ -5,7 +5,16 @@
 namespace llvm2col {
 namespace col = vct::col::ast;
 
-void convertCastOp(llvm::Instruction &llvmInstruction, col::Block &colBlock,
+void transformCastOp(llvm::Instruction &llvmInstruction, col::Block &colBlock,
+                     pallas::FunctionCursor &funcCursor);
+
+void transformSExt(llvm::SExtInst &sextInstruction, col::Block &colBlock,
                    pallas::FunctionCursor &funcCursor);
+
+void transformZExt(llvm::ZExtInst &sextInstruction, col::Block &colBlock,
+                   pallas::FunctionCursor &funcCursor);
+
+void transformTrunc(llvm::TruncInst &truncInstruction, col::Block &colBlock,
+                    pallas::FunctionCursor &funcCursor);
 } // namespace llvm2col
 #endif // PALLAS_CASTOPTRANSFORM_H
