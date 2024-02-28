@@ -25,6 +25,18 @@ trait Stage[-Input, +Output] {
     UnitStages(FunctionStage(f)).thenRun(UnitStages(this))
 }
 
+abstract class WrapStage[InnerInput, InnerOutput, OuterInput, OuterOutput](stage: Stage[InnerInput, InnerOutput])
+  extends Stage[OuterInput, OuterOutput] {
+  override def friendlyName: String = stage.friendlyName
+
+  override def progressWeight: Int = stage.progressWeight
+
+  override def run(in: OuterInput): OuterOutput = zoomOut(stage.run(zoomIn(in)))
+
+  def zoomIn(in: OuterInput): InnerInput
+  def zoomOut(out: InnerOutput): OuterOutput
+}
+
 object Stages {
   def saveInput[Input, Output](stages: Stages[Input, Output]): Stages[Input, (Input, Output)] = SaveInputStage(stages)
 
@@ -78,10 +90,29 @@ case class StagesPair[-Input, Mid, +Output](left: Stages[Input, Mid], right: Sta
   override def collect: Seq[Stage[Nothing, Any]] = left.collect ++ right.collect
 }
 
-case class SaveInputStage[Input, Output](stage: Stages[Input, Output]) extends Stages[Input, (Input, Output)] {
-  override def run(in: Input): Either[VerificationError, (Input, Output)] = {
-    stage.run(in).map { out => (in, out) }
+case class SaveInputStage[Input, Output](stages: Stages[Input, Output]) extends Stages[Input, (Input, Output)] {
+  case class RetainInput[Input, Output](stage: Stage[Input, Output]) extends WrapStage[Input, Output, Input, (Input, Output)](stage) {
+    var in: Option[Input] = None
+    override def zoomIn(in: Input): Input = {
+      this.in = Some(in)
+      in
+    }
+    override def zoomOut(out: Output): (Input, Output) = (in.get, out)
   }
 
-  override def collect: Seq[Stage[Nothing, Any]] = stage.collect
+  case class Map_2[Left, Input, Output](stage: Stage[Input, Output]) extends WrapStage[Input, Output, (Left, Input), (Left, Output)](stage) {
+    var left: Option[Left] = None
+    override def zoomIn(in: (Left, Input)): Input = {
+      left = Some(in._1)
+      in._2
+    }
+    override def zoomOut(out: Output): (Left, Output) = (left.get, out)
+  }
+
+  override def collect: Seq[Stage[Nothing, Any]] = stages.collect match {
+    case Seq() => Seq()
+    case Seq(stage) => Seq(RetainInput[Nothing, Any](stage).asInstanceOf[Stage[Nothing, Any]])
+    case stage +: stages =>
+      RetainInput[Nothing, Any](stage).asInstanceOf[Stage[Nothing, Any]] +: stages.map(Map_2[Nothing, Nothing, Any])
+  }
 }

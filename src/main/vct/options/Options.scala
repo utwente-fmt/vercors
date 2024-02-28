@@ -6,7 +6,6 @@ import vct.main.BuildInfo
 import vct.main.stages.Parsing.Language
 import vct.options.types._
 import vct.resources.Resources
-import vct.resources.Resources.getVeymontChannel
 
 import java.nio.file.{Path, Paths}
 import scala.collection.mutable
@@ -240,14 +239,6 @@ case object Options {
         .action((path, c) => c.copy(cPreprocessorPath = path))
         .text("Set the location of the C preprocessor binary"),
 
-      opt[Unit]("veymont-generate-permissions")
-        .action((_, c) => c.copy(veymontGeneratePermissions = true))
-        .text("Generate permissions for the entire sequential program in the style of VeyMont 1.4"),
-
-      opt[Unit]("dev-veymont-allow-assign").maybeHidden()
-        .action((p, c) => c.copy(devVeymontAllowAssign = true))
-        .text("Do not error when plain assignment is used in seq_programs"),
-
       note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont")
@@ -255,8 +246,17 @@ case object Options {
         .text("Enable VeyMont mode: decompose the global program from the input files into several local programs that can be executed in parallel")
         .children(
           opt[Path]("veymont-output").valueName("<path>")
-            .action((path, c) => c.copy(veymontOutput = path))
+            .action((path, c) => c.copy(veymontOutput = Some(path))),
+          opt[Path]("veymont-resource-path").valueName("<path>")
+            .action((path, c) => c.copy(veymontResourcePath = path))
         ),
+      opt[Unit]("veymont-generate-permissions")
+        .action((_, c) => c.copy(veymontGeneratePermissions = true))
+        .text("Generate permissions for the entire sequential program in the style of VeyMont 1.4"),
+      opt[Unit]("dev-veymont-allow-assign").maybeHidden()
+        .action((p, c) => c.copy(devVeymontAllowAssign = true))
+        .text("Do not error when plain assignment is used in seq_programs"),
+
 
       note(""),
       note("VeSUV Mode"),
@@ -395,8 +395,8 @@ case class Options
   devViperProverLogFile: Option[Path] = None,
 
   // VeyMont options
-  veymontOutput: Path = null, // required
-  veymontChannel: PathOrStd = PathOrStd.Path(getVeymontChannel),
+  veymontOutput: Option[Path] = None,
+  veymontResourcePath: Path = Resources.getVeymontPath,
   veymontGeneratePermissions: Boolean = false,
   devVeymontAllowAssign: Boolean = false,
 

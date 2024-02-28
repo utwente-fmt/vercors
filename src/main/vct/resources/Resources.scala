@@ -15,5 +15,5 @@ case object Resources {
   def getCcPath: Path = Paths.get("clang")
   def getCPPcPath: Path = Paths.get("clang++")
   def getSystemCConfig: Path = getResource("/systemc/config")
-  def getVeymontChannel: Path = getResource("/include/IntegerChannel.java")
+  def getVeymontPath: Path = getResource("/veymont")
 }

@@ -62,7 +62,7 @@ object VeyMont extends LazyLogging {
             .thenRun(Backend.ofOptions(options))
             .thenRun(ExpectedErrors.ofOptions(options))
             .thenRun(NoVerificationFailures(collector, ChoreographyVerificationError)))
-        ).transform(_._1)
+        ).transform((t: (Verification[_ <: Generation], Unit)) => t._1)
     }
 
     val generationStage: Stages[Verification[_ <: Generation], Seq[StringReadable]] =

@@ -3,8 +3,10 @@ class IntegerChannel<T> {
   boolean transfering;
   T exchangeValue;
 
+  ensures committed(this);
   constructor() {
     transfering = false;
+    commit this;
   }
  
   void writeValue(T v) {

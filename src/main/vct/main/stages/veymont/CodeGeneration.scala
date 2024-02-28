@@ -25,7 +25,7 @@ object CodeGeneration {
         VeyMontGeneration(
           onBeforePassKey = writeOutFunctions(options.outputBeforePass),
           onAfterPassKey = writeOutFunctions(options.outputAfterPass),
-          channelClass = Util.loadJavaClass(options.veymontChannel),
+          channelClass = /* Util.loadJavaClass(options.veymontChannel) */ ???,
         )
     }
 }
@@ -62,5 +62,5 @@ case class VeyMontGeneration(override val onBeforePassKey: Seq[(String, Verifica
                              override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
                              channelClass: JavaClass[_])
   extends CodeGeneration(onBeforePassKey, onAfterPassKey, Seq(
-    GenerateImplementation.withArg(channelClass),
+    GenerateImplementation
   ))

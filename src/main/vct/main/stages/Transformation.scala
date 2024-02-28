@@ -25,7 +25,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, MonomorphizeClass, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateSeqProgPermissions, GenerateImplementation, SplitSeqGuards}
+import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeChannels, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateImplementation, GenerateSeqProgPermissions, SplitSeqGuards}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
@@ -74,6 +74,7 @@ object Transformation {
 
   def veymontImplementationGenerationOfOptions(options: Options): Transformation =
     VeyMontImplementationGeneration(
+      importer = PathAdtImporter(options.veymontResourcePath),
       onBeforePassKey = writeOutFunctions(options.outputBeforePass),
       onAfterPassKey = writeOutFunctions(options.outputAfterPass),
     )
@@ -318,10 +319,12 @@ case class SilverTransformation
     Explode.withArg(splitVerificationByProcedure),
   ))
 
-case class VeyMontImplementationGeneration(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
+case class VeyMontImplementationGeneration(importer: ImportADTImporter = PathAdtImporter(Resources.getVeymontPath),
+                                           override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
                                            override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
   extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
-    GenerateImplementation.withArg(???)
+    EncodeChannels.withArg(importer),
+    GenerateImplementation
   ))
 
 

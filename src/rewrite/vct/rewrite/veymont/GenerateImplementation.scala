@@ -1,16 +1,16 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers.{RewriteApplicableContract, RewriteClass, RewriteDeref, RewriteJavaClass, RewriteJavaConstructor, RewriteMethodInvocation}
 import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, CommunicateX, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.resolve.ctx.RefJavaMethod
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
+import vct.col.rewrite.adt.ImportADTImporter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
 import vct.rewrite.veymont.GenerateImplementation.{ChannelFieldOrigin, ParalleliseEndpointsError, RunMethodOrigin, ThreadClassOrigin, getChannelClassName, getThreadClassName, getVarName}
 
-object GenerateImplementation extends RewriterBuilderArg[JavaClass[_]] {
+object GenerateImplementation extends RewriterBuilder {
   override def key: String = "ParalleliseEndpoints"
 
   override def desc: String = "Generate classes for VeyMont threads in parallel program"
@@ -41,7 +41,7 @@ object GenerateImplementation extends RewriterBuilderArg[JavaClass[_]] {
     runMethod.o.where(name = "run")
 }
 
-case class GenerateImplementation[Pre <: Generation](channelClass: JavaClass[_]) extends Rewriter[Pre] { outer =>
+case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] { outer =>
 
   private val threadBuildingBlocks: ScopedStack[ThreadBuildingBlocks[Pre]] = ScopedStack()
   private val threadClassSucc: SuccessionMap[Endpoint[Pre],Class[Post]] = SuccessionMap()
@@ -225,7 +225,7 @@ case class GenerateImplementation[Pre <: Generation](channelClass: JavaClass[_])
     val channelTypes = channelInfo.map(_.channelType).toSet
     channelTypes.map(channelType =>
       channelType -> {
-        val chanClassPre = channelClass.asInstanceOf[JavaClass[Pre]]
+        val chanClassPre = (/* channelClass */ ???).asInstanceOf[JavaClass[Pre]]
         val rw = ChannelClassGenerator(channelType)
         chanClassPre.rewrite(
           name = getChannelClassName(channelType),
