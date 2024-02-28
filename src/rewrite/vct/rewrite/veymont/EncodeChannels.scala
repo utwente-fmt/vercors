@@ -1,7 +1,7 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Communicate, CommunicateX, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -22,8 +22,9 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
   private lazy val channelFile = parse("genericChannel")
 
   private lazy val genericChannelClass = find[Class[Post]](channelFile, "Channel")
-  private lazy val genericWrite = find[InstanceMethod[Post]](channelFile, "writeValue")
-  private lazy val genericRead = find[InstanceMethod[Post]](channelFile, "readValue")
+  private lazy val genericChannelDecls = genericChannelClass.decls
+  private lazy val genericWrite = find[InstanceMethod[Post]](genericChannelDecls, "writeValue")
+  private lazy val genericRead = find[InstanceMethod[Post]](genericChannelDecls, "readValue")
 
   def channelType(t: Type[Post]): TClass[Post] = TClass[Post](genericChannelClass.ref, Seq(t))
 
@@ -35,7 +36,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
 
   val currentChoreography = ScopedStack[SeqProg[Pre]]()
 
-  val classOfCommunicate = SuccessionMap[Endpoint[Pre], Class[Post]]()
+  val classOfEndpoint = SuccessionMap[Endpoint[Pre], Class[Post]]()
   val fieldOfCommunicate = SuccessionMap[(Endpoint[Pre], Communicate[Pre]), InstanceField[Post]]()
   val implFieldOfEndpoint = SuccessionMap[Endpoint[Pre], InstanceField[Post]]()
 
@@ -58,17 +59,36 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
       implicit val o = endpoint.o
 
       val commFields = communicates(currentChoreography.top).map { comm =>
-        val f = new InstanceField[Post](comm.msgType, Seq())
+        val f = new InstanceField[Post](postCoerce(comm.msgType), Seq())
         fieldOfCommunicate((endpoint, comm)) = f
         f
       }
-      val implField = new InstanceField[Post](postCoerce(endpoint.t))
+      val implField = new InstanceField[Post](postCoerce(endpoint.t), Seq())
+
+      val constructor: Constructor[Post] = {
+        val implArg = new Variable(postCoerce(endpoint.t))
+        val `this` = new ThisObject[Post](classOfEndpoint.ref(endpoint))
+        new Constructor[Post](
+          cls = classOfEndpoint.ref(endpoint),
+          args = Seq(implArg),
+          contract = contract[Post](
+            blame = PanicBlame("TODO"),
+            ensures = UnitAccountedPredicate(
+              foldStar[Post]((implField +: commFields).map { f => fieldPerm[Post](`this`, f.ref, WritePerm()) }) &*
+                (Deref[Post](`this`, implField.ref)(PanicBlame("Deref cannot fail")) === implArg.get))
+          ),
+          outArgs = Seq(), typeArgs = Seq(), body = None
+        )(PanicBlame("Postcondition cannot fail"))
+      }
 
       val wrapperClass = new Class[Post](
         typeArgs = Seq(), supports = Seq(), intrinsicLockInvariant = tt,
-        decls = Seq(),
+        decls = Seq(
+          implField,
+          constructor
+        ) ++ commFields,
       )
-
+      classOfEndpoint(endpoint) = wrapperClass
     case _ =>
       super.postCoerce(decl)
   }
@@ -76,7 +96,9 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
   override def postCoerce(stmt: Statement[Pre]): Statement[Post] = stmt match {
     case comm: Communicate[Pre] =>
       implicit val o = comm.o
-      Block[Post](Seq(sendOf(comm), receiveOf(comm)))(comm.o)
+      Block[Post](Seq(sendOf(comm),
+//        receiveOf(comm)
+      ))(comm.o)
     case _ => stmt.rewriteDefault()
   }
 
@@ -96,7 +118,10 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
   def receiveOf(comm: Communicate[Pre]): Assign[Post] = ???
 
   override def postCoerce(expr: Expr[Pre]): Expr[Post] = expr match {
-    case EndpointUse(_) => ???
+    case deref @ Deref(use @ EndpointUse(Ref(endpoint)), f) =>
+      implicit val o = deref.o
+      val innerDeref = Deref[Post](postCoerce(use), implFieldOfEndpoint.ref(endpoint))(PanicBlame("Should be safe"))
+      deref.rewrite(obj = innerDeref)
     case _ => expr.rewriteDefault()
   }
 }

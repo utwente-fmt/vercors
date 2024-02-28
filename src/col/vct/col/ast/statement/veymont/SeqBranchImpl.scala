@@ -43,7 +43,7 @@ trait SeqBranchImpl[G] extends StatementImpl[G] with SeqBranchOps[G] { this: Seq
   def participants: Set[Endpoint[G]] =
     ListSet.from(subnodes.collect {
       case Communicate(Access(EndpointName(Ref(receiver)), _), Access(EndpointName(Ref(sender)), _)) => Seq(receiver, sender)
-      case SeqAssign(Ref(receiver), _, _) => Seq(receiver)
+      case SeqAssign(Ref(receiver), _,  _, _) => Seq(receiver)
       case branch: SeqBranch[G] => branch.explicitParticipants
     }.flatten)
 }

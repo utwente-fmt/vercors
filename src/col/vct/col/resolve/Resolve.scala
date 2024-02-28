@@ -413,16 +413,17 @@ case object ResolveReferences extends LazyLogging {
     case endpoint: PVLEndpoint[G] =>
       endpoint.ref = Some(PVL.findConstructor(TClass(endpoint.cls.decl.ref[Class[G]], Seq()), Seq(), endpoint.args).getOrElse(throw ConstructorNotFound(endpoint)))
     case parAssign: PVLSeqAssign[G] =>
-      parAssign.receiver.tryResolve(receiver => PVL.findName(receiver, ctx) match {
-        case Some(RefPVLEndpoint(decl)) => decl
-        case Some(_) => throw ForbiddenEndpointNameType(parAssign)
-        case None => throw NoSuchNameError("endpoint", receiver, parAssign)
-      })
-      parAssign.field.tryResolve(field => PVL.findDerefOfClass[G](parAssign.receiver.decl.cls.decl, field) match {
-        case Some(RefField(field)) => field
-        case Some(_) => throw UnassignableField(parAssign)
-        case None => throw NoSuchNameError("field", field, parAssign)
-      })
+      // TODO (RR): The code here can probably be deleted as the receiver is now resolved as a plain expr/deref
+//      parAssign.receiver.tryResolve(receiver => PVL.findName(receiver, ctx) match {
+//        case Some(RefPVLEndpoint(decl)) => decl
+//        case Some(_) => throw ForbiddenEndpointNameType(parAssign)
+//        case None => throw NoSuchNameError("endpoint", receiver, parAssign)
+//      })
+//      parAssign.field.tryResolve(field => PVL.findDerefOfClass[G](parAssign.receiver.decl.cls.decl, field) match {
+//        case Some(RefField(field)) => field
+//        case Some(_) => throw UnassignableField(parAssign)
+//        case None => throw NoSuchNameError("field", field, parAssign)
+//      })
     case deref@CStructDeref(struct, field) =>
       deref.ref = Some(C.findPointerDeref(struct, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref@CStructAccess(obj, field) =>

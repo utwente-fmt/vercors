@@ -192,11 +192,13 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case assign@SeqAssign(Ref(endpoint), Ref(field), e) =>
+    case assign@SeqAssign(Ref(endpoint), obj, Ref(field), e) =>
       implicit val o = assign.o
       Assign(
         Deref[Post](
-          Local(endpointSucc((mode, endpoint)).ref),
+          // TODO (RR): The endpoint will become relevant again when implementing stratification
+//          Local(endpointSucc((mode, endpoint)).ref),
+          dispatch(obj),
           succ(field)
         )(PanicBlame("Unused by Silver encoding")),
         dispatch(e)

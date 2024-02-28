@@ -5,7 +5,7 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.RewriteAssign
 import vct.col.ast._
 import vct.col.origin.Origin
-import vct.col.resolve.ctx.RefPVLEndpoint
+import vct.col.resolve.ctx.{RefField, RefPVLEndpoint}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
@@ -99,8 +99,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
       SeqRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
   }
 
-  def rewriteSeqAssign(assign: PVLSeqAssign[Pre]): SeqAssign[Post] =
-    SeqAssign[Post](endpointSucc.ref(assign.receiver.decl), rw.succ(assign.field.decl), rw.dispatch(assign.value))(assign.blame)(assign.o)
+  def rewriteSeqAssign(assign: PVLSeqAssign[Pre]): SeqAssign[Post] = {
+    val deref @ PVLDeref(obj, _) = assign.expr
+    val Some(RefField(f)) = deref.ref
+    SeqAssign[Post](endpointSucc.ref(assign.endpoint.get), rw.dispatch(obj), rw.succ(f), rw.dispatch(assign.value))(assign.blame)(assign.o)
+  }
 
   def rewriteAssign(assign: Assign[Pre]): Statement[Post] = {
     if (allowAssign) assign.rewriteDefault()

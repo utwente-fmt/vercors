@@ -2,7 +2,7 @@ package vct.main.modes
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.stages.{Stage, Stages}
-import hre.stages.Stages.saveInput
+import hre.stages.Stages.{saveInput, skipIf}
 import hre.io.Readable
 import vct.col.ast.Verification
 import vct.col.origin.{BlameCollector, VerificationFailure}
@@ -57,11 +57,13 @@ object VeyMont extends LazyLogging {
 
       Parsing.ofOptions(options, blameProvider)
         .thenRun(Resolution.ofOptions(options, blameProvider))
-        .thenRun(saveInput(
-          Transformation.ofOptions(options, bipResults)
-            .thenRun(Backend.ofOptions(options))
-            .thenRun(ExpectedErrors.ofOptions(options))
-            .thenRun(NoVerificationFailures(collector, ChoreographyVerificationError)))
+        .thenRun(
+          saveInput(
+            skipIf(options.veymontSkipChoreographyVerification, // TODO (RR): Would like to print a warning log if this part is skipped...!
+              Transformation.ofOptions(options, bipResults)
+                .thenRun(Backend.ofOptions(options))
+                .thenRun(ExpectedErrors.ofOptions(options))
+                .thenRun(NoVerificationFailures(collector, ChoreographyVerificationError))))
         ).transform(_._1)
     }
 

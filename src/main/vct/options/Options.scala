@@ -248,7 +248,9 @@ case object Options {
           opt[Path]("veymont-output").valueName("<path>")
             .action((path, c) => c.copy(veymontOutput = Some(path))),
           opt[Path]("veymont-resource-path").valueName("<path>")
-            .action((path, c) => c.copy(veymontResourcePath = path))
+            .action((path, c) => c.copy(veymontResourcePath = path)),
+          opt[Unit]("veymont-skip-choreography-verification")
+            .action((_, c) => c.copy(veymontSkipChoreographyVerification = true))
         ),
       opt[Unit]("veymont-generate-permissions")
         .action((_, c) => c.copy(veymontGeneratePermissions = true))
@@ -398,6 +400,7 @@ case class Options
   veymontOutput: Option[Path] = None,
   veymontResourcePath: Path = Resources.getVeymontPath,
   veymontGeneratePermissions: Boolean = false,
+  veymontSkipChoreographyVerification: Boolean = false,
   devVeymontAllowAssign: Boolean = false,
 
   // VeSUV options

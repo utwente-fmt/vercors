@@ -15,7 +15,7 @@ object SeqProgImpl {
   def participants[G](node: Node[G]): ListSet[Endpoint[G]] =
     ListSet.from(node.collect {
       case EndpointGuard(Ref(endpoint), _) => endpoint
-      case SeqAssign(Ref(endpoint), _, _) => endpoint
+      case SeqAssign(Ref(endpoint), _, _, _) => endpoint
       case EndpointName(Ref(endpoint)) => endpoint
     })
 }

@@ -1544,18 +1544,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case comm@PVLCommunicate(s, r) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.fieldType}, but actually has type ${r.fieldType}.")
       case c @ Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)(c.blame)
       case comm@Communicate(r, s) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.field.decl.t}, but actually has type ${r.field.decl.t}.")
-      case a @ PVLSeqAssign(r, f, v) =>
-        try { PVLSeqAssign(r, f, coerce(v, f.decl.t))(a.blame) } catch {
-          case err: Incoercible =>
-            println(err.text)
-            throw err
-        }
-      case a @ SeqAssign(r, f, v) =>
-        try { SeqAssign(r, f, coerce(v, r.decl.t.instantiate(f.decl.t)))(a.blame) } catch {
-          case err: Incoercible =>
-            println(err.text)
-            throw err
-        }
+      case a @ PVLSeqAssign(r, v) => PVLSeqAssign(r, coerce(v, r.t))(a.blame)
+      case a @ SeqAssign(r, obj, f, v) => SeqAssign(r, obj, f, coerce(v, r.decl.t.instantiate(f.decl.t)))(a.blame)
       case s: SeqBranch[Pre] => s
       case s: SeqLoop[Pre] => s
       case branch@UnresolvedSeqBranch(branches) => UnresolvedSeqBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)

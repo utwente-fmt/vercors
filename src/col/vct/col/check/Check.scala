@@ -69,6 +69,8 @@ sealed trait CheckError {
         Seq(context(ret) -> "return may only occur in methods and procedures.")
       case FinalPermission(loc) =>
         Seq(context(loc) -> "Specifying permission over final fields is not allowed, since they are treated as constants.")
+      case PVLSeqAssignEndpoint(a) =>
+        Seq(context(a) -> "This dereference does not take place on one of the endpoints in the surrounding `seq_prog`.")
       case SeqProgStatement(s) =>
         Seq(context(s) -> "This statement is not allowed in `seq_prog`.")
       case SeqProgInstanceMethodArgs(m) =>
@@ -142,6 +144,9 @@ case class ReturnOutsideMethod(ret: Return[_]) extends CheckError {
 }
 case class FinalPermission(loc: FieldLocation[_]) extends CheckError {
   override def subcode: String = "finalPerm"
+}
+case class PVLSeqAssignEndpoint(assign: PVLSeqAssign[_]) extends CheckError {
+  val subcode = "pvlSeqAssignEndpoint"
 }
 case class SeqProgInstanceMethodNonVoid(m: InstanceMethod[_]) extends CheckError {
   val subcode = "seqProgInstanceMethodNonVoid"

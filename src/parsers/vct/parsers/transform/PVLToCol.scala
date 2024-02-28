@@ -397,11 +397,12 @@ case class PVLToCol[G](override val baseOrigin: Origin,
         case "--" => PostAssignExpression[G](target, target - const(1))(blame(stat))
       })
     case PvlAssign(target, _, value) => Assign(convert(target), convert(value))(blame(stat))
-    case PvlSeqAssign(endpoint, _, field, _, _, expr) =>
+    case PvlSeqAssign(receiver, _, _, value) =>
       PVLSeqAssign(
-        new UnresolvedRef[G, PVLEndpoint[G]](convert(endpoint)),
-        new UnresolvedRef[G, InstanceField[G]](convert(field)),
-        convert(expr))(blame(stat))
+        // TODO (RR): Will become relevant again when implementing permission stratification
+//        new UnresolvedRef[G, PVLEndpoint[G]](convert(endpoint)),
+//        new UnresolvedRef[G, InstanceField[G]](convert(field)),
+        convert(receiver), convert(value))(blame(stat))
   }
 
   def convert(implicit acc: AccessContext): PVLAccess[G] = acc match {

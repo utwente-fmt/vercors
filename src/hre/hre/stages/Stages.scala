@@ -40,6 +40,8 @@ abstract class WrapStage[InnerInput, InnerOutput, OuterInput, OuterOutput](stage
 object Stages {
   def saveInput[Input, Output](stages: Stages[Input, Output]): Stages[Input, (Input, Output)] = SaveInputStage(stages)
 
+  def skipIf[Input](condition: Boolean, stages: Stages[Input, Unit]): Stages[Input, Unit] = SkipIf(condition, stages)
+
   def preprocess[Input2, Input, Output](f: Input2 => Input, stages: Stages[Input, Output]): Stages[Input2, Output] =
     UnitStages(FunctionStage(f)).thenRun(stages)
 }
@@ -116,3 +118,9 @@ case class SaveInputStage[Input, Output](stages: Stages[Input, Output]) extends 
       RetainInput[Nothing, Any](stage).asInstanceOf[Stage[Nothing, Any]] +: stages.map(Map_2[Nothing, Nothing, Any])
   }
 }
+ case class SkipIf[Input](condition: Boolean, stages: Stages[Input, Unit]) extends Stages[Input, Unit] {
+   override def collect: Seq[Stage[Nothing, Any]] =
+     if(condition)
+       Seq(FunctionStage((_: Input) => ()))
+     else stages.collect
+ }

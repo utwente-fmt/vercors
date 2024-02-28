@@ -1,0 +1,18 @@
+class Box {
+  int x;
+}
+
+class Role {
+  Box b;
+
+  constructor() {
+    b = new Box();
+  }
+}
+
+seq_program assign() {
+  endpoint r = Role();
+  seq_run {
+    r.b.x := 3;
+  }
+}
