@@ -1294,7 +1294,10 @@ final case class LLVMLoad[G](load_type: Type[G], pointer: Expr[G], ordering: LLV
                             (implicit val o: Origin) extends LLVMExpr[G] with LLVMLoadImpl[G]
 
 final case class LLVMStore[G](store_type: Type[G], pointer: Expr[G], ordering: LLVMMemoryOrdering[G])
-                            (implicit val o: Origin) extends LLVMExpr[G] with LLVMStoreImpl[G]
+                             (implicit val o: Origin) extends LLVMExpr[G] with LLVMStoreImpl[G]
+
+final case class LLVMGetElementPointer[G](structure_type: Type[G], result_type: Type[G], pointer: Expr[G], indices: Seq[Expr[G]])
+                                         (implicit val o: Origin) extends LLVMExpr[G] with LLVMGetElementPointerImpl[G]
 
 final class LLVMGlobal[G](val value: String)(implicit val o: Origin) extends GlobalDeclaration[G] with LLVMGlobalImpl[G] {
   var data: Option[GlobalDeclaration[G]] = None
@@ -1311,9 +1314,11 @@ final case class LLVMMemoryAcquireRelease[G]()(implicit val o:Origin) extends LL
 final case class LLVMMemorySequentiallyConsistent[G]()(implicit val o:Origin) extends LLVMMemoryOrdering[G] with LLVMMemorySequentiallyConsistentImpl[G]
 
 
+final case class LLVMIntegerValue[G](value: BigInt, integer_type: Type[G])(implicit val o: Origin) extends ConstantInt[G] with Expr[G] with LLVMIntegerValueImpl[G]
 final case class LLVMPointerValue[G](value: BigInt)(implicit val o: Origin) extends ConstantInt[G] with Expr[G] with LLVMPointerValueImpl[G]
 final case class LLVMFunctionPointerValue[G](value: Ref[G, LLVMFunctionDefinition[G]])(implicit val o: Origin) extends Constant[G] with Expr[G] with LLVMFunctionPointerValueImpl[G]
 
+final case class LLVMTInt[G](bit_width: Int)(implicit val o: Origin = DiagnosticOrigin) extends Type[G] with LLVMTIntImpl[G]
 final case class LLVMTFunction[G]()(implicit val o: Origin = DiagnosticOrigin) extends Type[G] with LLVMTFunctionImpl[G]
 final case class LLVMTPointer[G]()(implicit val o: Origin = DiagnosticOrigin) extends Type[G] with LLVMTPointerImpl[G]
 final case class LLVMTMetadata[G]()(implicit val o: Origin = DiagnosticOrigin) extends Type[G] with LLVMTMetadataImpl[G]

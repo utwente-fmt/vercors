@@ -22,8 +22,9 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType) {
             colType.mutable_t_bool()->set_allocated_origin(
                 generateTypeOrigin(llvmType));
         } else {
-            colType.mutable_t_int()->set_allocated_origin(
-                generateTypeOrigin(llvmType));
+            col::LlvmtInt *colInt = colType.mutable_llvmt_int();
+            colInt->set_bit_width(llvmType.getIntegerBitWidth());
+            colInt->set_allocated_origin(generateTypeOrigin(llvmType));
         }
         break;
     case llvm::Type::VoidTyID:
@@ -81,11 +82,16 @@ void llvm2col::transformAndSetConstExpr(pallas::FunctionCursor &functionCursor,
                 generateOperandOrigin(llvmInstruction, llvmConstant));
             boolValue->set_value(llvmConstant.isOneValue());
         } else {
-            col::IntegerValue *integerValue = colExpr.mutable_integer_value();
+            col::LlvmIntegerValue *integerValue =
+                colExpr.mutable_llvm_integer_value();
             integerValue->set_allocated_origin(
                 generateOperandOrigin(llvmInstruction, llvmConstant));
             llvm::APInt apInt = llvmConstant.getUniqueInteger();
             transformAndSetBigInt(apInt, *integerValue->mutable_value());
+            col::LlvmtInt *colInt =
+                integerValue->mutable_integer_type()->mutable_llvmt_int();
+            colInt->set_bit_width(constType->getIntegerBitWidth());
+            colInt->set_allocated_origin(generateTypeOrigin(*constType));
         }
         break;
     case llvm::Type::PointerTyID: {

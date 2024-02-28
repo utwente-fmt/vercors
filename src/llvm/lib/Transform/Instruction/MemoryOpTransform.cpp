@@ -23,6 +23,11 @@ void llvm2col::transformMemoryOp(llvm::Instruction &llvmInstruction,
         transformStore(llvm::cast<llvm::StoreInst>(llvmInstruction), colBlock,
                        funcCursor);
         break;
+    case llvm::Instruction::GetElementPtr:
+        transformGetElementPtr(
+            llvm::cast<llvm::GetElementPtrInst>(llvmInstruction), colBlock,
+            funcCursor);
+        break;
     default:
         reportUnsupportedOperatorError(SOURCE_LOC, llvmInstruction);
     }
@@ -107,4 +112,28 @@ void llvm2col::transformStore(llvm::StoreInst &storeInstruction,
                                   *store->mutable_pointer());
     llvm2col::transformAtomicOrdering(storeInstruction.getOrdering(),
                                       store->mutable_ordering());
+}
+
+void llvm2col::transformGetElementPtr(llvm::GetElementPtrInst &gepInstruction,
+                                      col::Block &colBlock,
+                                      pallas::FunctionCursor &funcCursor) {
+
+    col::Assign &assignment =
+        funcCursor.createAssignmentAndDeclaration(gepInstruction, colBlock);
+    col::Expr *gepExpr = assignment.mutable_value();
+    col::LlvmGetElementPointer *gep =
+        gepExpr->mutable_llvm_get_element_pointer();
+    gep->set_allocated_origin(
+        llvm2col::generateSingleStatementOrigin(gepInstruction));
+    llvm2col::transformAndSetType(*gepInstruction.getSourceElementType(),
+                                  *gep->mutable_structure_type());
+    llvm2col::transformAndSetType(*gepInstruction.getResultElementType(),
+                                  *gep->mutable_result_type());
+    llvm2col::transformAndSetExpr(funcCursor, gepInstruction,
+                                  *gepInstruction.getPointerOperand(),
+                                  *gep->mutable_pointer());
+    for (auto &index : gepInstruction.indices()) {
+        llvm2col::transformAndSetExpr(funcCursor, gepInstruction, *index.get(),
+                                      *gep->add_indices());
+    }
 }

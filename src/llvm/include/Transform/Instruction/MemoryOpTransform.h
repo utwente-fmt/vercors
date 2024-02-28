@@ -19,5 +19,9 @@ void transformLoad(llvm::LoadInst &loadInstruction, col::Block &colBlock,
 
 void transformStore(llvm::StoreInst &storeInstruction, col::Block &colBlock,
                     pallas::FunctionCursor &funcCursor);
+
+void transformGetElementPtr(llvm::GetElementPtrInst &gepInstruction,
+                            col::Block &colBlock,
+                            pallas::FunctionCursor &funcCursor);
 } // namespace llvm2col
 #endif // PALLAS_MEMORYOPTRANSFORM_H
