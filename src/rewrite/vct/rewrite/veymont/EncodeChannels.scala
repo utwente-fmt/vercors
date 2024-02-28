@@ -64,6 +64,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
         f
       }
       val implField = new InstanceField[Post](postCoerce(endpoint.t), Seq())
+      implFieldOfEndpoint(endpoint) = implField
 
       val constructor: Constructor[Post] = {
         val implArg = new Variable(postCoerce(endpoint.t))
@@ -89,6 +90,13 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
         ) ++ commFields,
       )
       classOfEndpoint(endpoint) = wrapperClass
+      globalDeclarations.declare(wrapperClass)
+
+      // TODO: Still need to propagate the result of the old constructor call, add an init area to seqprog to initialize
+      //  all the channels and set them on all fields (oof m x n...), and declare the endpoint with the new wrapper type
+      //  instead of the old type.
+
+      allScopes.anySucceed(decl, decl.rewriteDefault())
     case _ =>
       super.postCoerce(decl)
   }
@@ -118,10 +126,9 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
   def receiveOf(comm: Communicate[Pre]): Assign[Post] = ???
 
   override def postCoerce(expr: Expr[Pre]): Expr[Post] = expr match {
-    case deref @ Deref(use @ EndpointUse(Ref(endpoint)), f) =>
-      implicit val o = deref.o
-      val innerDeref = Deref[Post](postCoerce(use), implFieldOfEndpoint.ref(endpoint))(PanicBlame("Should be safe"))
-      deref.rewrite(obj = innerDeref)
+    case use @ EndpointUse(Ref(endpoint)) =>
+      implicit val o = use.o
+      Deref[Post](super.postCoerce(use), implFieldOfEndpoint.ref(endpoint))(PanicBlame("Should be safe"))
     case _ => expr.rewriteDefault()
   }
 }

@@ -12,7 +12,7 @@ trait SeqAssignImpl[G] extends StatementImpl[G] with SeqAssignOps[G] { this: Seq
     Some(receiver.decl)
 
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text(ctx.name(receiver)) <> "." <> ctx.name(field) <+> ":=" <+> value.show)
+    Group(Text(ctx.name(receiver.decl)) <> ":" <+> obj.show <> "." <> ctx.name(field) <+> ":=" <+> value.show)
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
     if (!context.currentParticipatingEndpoints.get.contains(this.receiver.decl))
