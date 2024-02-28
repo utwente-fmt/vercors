@@ -1322,6 +1322,7 @@ final case class LLVMTInt[G](bit_width: Int)(implicit val o: Origin = Diagnostic
 final case class LLVMTFunction[G]()(implicit val o: Origin = DiagnosticOrigin) extends Type[G] with LLVMTFunctionImpl[G]
 final case class LLVMTPointer[G]()(implicit val o: Origin = DiagnosticOrigin) extends Type[G] with LLVMTPointerImpl[G]
 final case class LLVMTMetadata[G]()(implicit val o: Origin = DiagnosticOrigin) extends Type[G] with LLVMTMetadataImpl[G]
+final case class LLVMTStruct[G](name: Option[String], packed: Boolean, elements: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends Type[G] with LLVMTStructImpl[G]
 
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {

@@ -39,6 +39,23 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType) {
         colType.mutable_llvmt_metadata()->set_allocated_origin(
             generateTypeOrigin(llvmType));
         break;
+    case llvm::Type::StructTyID: {
+        llvm::StructType &structType = llvm::cast<llvm::StructType>(llvmType);
+        col::LlvmtStruct *colStruct = colType.mutable_llvmt_struct();
+        colStruct->set_allocated_origin(generateTypeOrigin(llvmType));
+        if (!structType.isLiteral()) {
+            // TODO: Instead of storing the name do we want keep only a single
+            // instance of the col::LLVMTStruct per non-literal struct type?
+            // XXX: This name can be the empty string for unnamed types, and it
+            // won't be set for literal types
+            colStruct->set_name(structType.getName().str());
+        }
+        colStruct->set_packed(structType.isPacked());
+        for (llvm::Type *element : structType.elements()) {
+            llvm2col::transformAndSetType(*element, *colStruct->add_elements());
+        }
+        break;
+    }
     default:
         throw pallas::UnsupportedTypeException(llvmType);
     }
