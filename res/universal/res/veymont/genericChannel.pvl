@@ -1,5 +1,5 @@
 lock_invariant Perm(transfering, 1) ** Perm(exchangeValue,1);
-class IntegerChannel<T> {
+class Channel<T> {
   boolean transfering;
   T exchangeValue;
 

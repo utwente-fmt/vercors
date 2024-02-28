@@ -323,6 +323,9 @@ case class VeyMontImplementationGeneration(importer: ImportADTImporter = PathAdt
                                            override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
                                            override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
   extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    SplitSeqGuards,
+    EncodeUnpointedGuard,
+    DeduplicateSeqGuards,
     EncodeChannels.withArg(importer),
     GenerateImplementation
   ))
