@@ -1,6 +1,6 @@
 package vct.col.ast.statement.veymont
 
-import vct.col.ast.{Access, Communicate, EndpointName}
+import vct.col.ast.{Access, Communicate, EndpointName, Type}
 import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.print.{Ctx, Doc, Text}
 import vct.col.ref.Ref
@@ -17,4 +17,7 @@ trait CommunicateImpl[G] extends CommunicateOps[G] { this: Communicate[G] =>
       Seq(SeqProgParticipant(name))
     case _ => Nil
   }
+
+  def msgType: Type[G] =
+    sender.field.decl.t
 }
