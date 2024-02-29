@@ -77,7 +77,7 @@ sealed trait Referrable[G] {
     case RefProverFunction(decl) => Referrable.originName(decl)
     case RefJavaBipGuard(decl) => Referrable.originName(decl)
     case RefLLVMFunctionDefinition(decl) => Referrable.originName(decl)
-    case RefLLVMGlobal(decl) => Referrable.originName(decl)
+    case RefLLVMGlobalSpecification(decl) => Referrable.originName(decl)
     case RefLLVMSpecFunction(decl) => Referrable.originName(decl)
     case RefBipComponent(decl) => Referrable.originName(decl)
     case RefBipGlue(decl) => ""
@@ -172,7 +172,7 @@ case object Referrable {
     case decl: SeqProg[G] => RefSeqProg(decl)
     case decl: Endpoint[G] => RefEndpoint(decl)
     case decl: LLVMFunctionDefinition[G] => RefLLVMFunctionDefinition(decl)
-    case decl: LLVMGlobal[G] => RefLLVMGlobal(decl)
+    case decl: LLVMGlobalSpecification[G] => RefLLVMGlobalSpecification(decl)
     case decl: LLVMSpecFunction[G] => RefLLVMSpecFunction(decl)
     case decl: ProverType[G] => RefProverType(decl)
     case decl: ProverFunction[G] => RefProverFunction(decl)
@@ -310,7 +310,7 @@ case class RefJavaBipStatePredicate[G](state: String, decl: JavaAnnotation[G]) e
 case class RefJavaBipGuard[G](decl: JavaMethod[G]) extends Referrable[G] with JavaNameTarget[G]
 case class RefJavaBipGlueContainer[G]() extends Referrable[G] // Bip glue jobs are not actually referrable
 case class RefLLVMFunctionDefinition[G](decl: LLVMFunctionDefinition[G]) extends Referrable[G] with LLVMInvocationTarget[G] with ResultTarget[G]
-case class RefLLVMGlobal[G](decl: LLVMGlobal[G]) extends Referrable[G]
+case class RefLLVMGlobalSpecification[G](decl: LLVMGlobalSpecification[G]) extends Referrable[G]
 case class RefBipComponent[G](decl: BipComponent[G]) extends Referrable[G]
 case class RefBipGlue[G](decl: BipGlue[G]) extends Referrable[G]
 case class RefBipGuard[G](decl: BipGuard[G]) extends Referrable[G]

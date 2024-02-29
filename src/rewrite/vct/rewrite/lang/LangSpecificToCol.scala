@@ -122,7 +122,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     }
 
     case func: LLVMFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
-    case global: LLVMGlobal[Pre] => llvm.rewriteGlobal(global)
+    case global: LLVMGlobalSpecification[Pre] => llvm.rewriteGlobal(global)
 
     case cls: Class[Pre] =>
       currentClass.having(cls) {

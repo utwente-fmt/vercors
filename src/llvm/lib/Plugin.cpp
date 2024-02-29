@@ -5,6 +5,7 @@
 #include "Passes/Function/FunctionContractDeclarer.h"
 #include "Passes/Function/FunctionDeclarer.h"
 #include "Passes/Function/PureAssigner.h"
+#include "Passes/Module/GlobalVariableDeclarer.h"
 #include "Passes/Module/ModuleSpecCollector.h"
 #include "Passes/Module/ProtobufPrinter.h"
 #include "Passes/Module/RootContainer.h"
@@ -31,6 +32,9 @@ llvm::PassPluginLibraryInfo getPallasPluginInfo() {
                        ArrayRef<llvm::PassBuilder::PipelineElement>) {
                         if (Name == "pallas-collect-module-spec") {
                             MPM.addPass(pallas::ModuleSpecCollectorPass());
+                            return true;
+                        } else if (Name == "pallas-declare-variables") {
+                            MPM.addPass(pallas::GlobalVariableDeclarerPass());
                             return true;
                         } else if (Name == "pallas-print-protobuf") {
                             MPM.addPass(pallas::ProtobufPrinter());

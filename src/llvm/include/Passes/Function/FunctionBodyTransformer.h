@@ -115,14 +115,7 @@ class FunctionCursor {
     LabeledColBlock &
     getOrSetLLVMBlock2LabeledColBlockEntry(BasicBlock &llvmBlock);
 
-    /**
-     * Request the given function's COL LlvmFunctionDefinition from a
-     * FunctionDeclarer analysis pass using the function analysis manager.
-     *
-     * @param F the other function whose definition we are querying
-     * @return The LlvmFunctionDefinition corresponding to the given function F
-     */
-    col::LlvmFunctionDefinition &getOtherFunction(Function &F);
+    llvm::FunctionAnalysisManager &getFunctionAnalysisManager();
 
     /**
      * Indicates whether a LLVM block has been visited (i.e. whether a mapping

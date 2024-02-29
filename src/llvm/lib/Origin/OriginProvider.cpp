@@ -209,6 +209,43 @@ col::Origin *llvm2col::generateOperandOrigin(llvm::Instruction &llvmInstruction,
     return origin;
 }
 
+col::Origin *llvm2col::generateGlobalVariableOrigin(
+    llvm::Module &llvmModule, llvm::GlobalVariable &llvmGlobalVariable) {
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name(llvmGlobalVariable.getName().str());
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    col::OriginContent *contextContent = origin->add_content();
+    col::Context *context = new col::Context();
+    context->set_context(deriveGlobalVariableContext(llvmGlobalVariable));
+    context->set_short_position(deriveModuleShortPosition(llvmModule));
+    contextContent->set_allocated_context(context);
+
+    return origin;
+}
+
+col::Origin *llvm2col::generateGlobalVariableInitializerOrigin(
+    llvm::Module &llvmModule, llvm::GlobalVariable &llvmGlobalVariable,
+    llvm::Value &llvmInitializer) {
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name(
+        deriveOperandPreferredName(llvmInitializer));
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    col::OriginContent *contextContent = origin->add_content();
+    col::Context *context = new col::Context();
+    context->set_context(deriveGlobalVariableContext(llvmGlobalVariable));
+    context->set_inline_context(deriveOperandContext(llvmInitializer));
+    context->set_short_position(deriveModuleShortPosition(llvmModule));
+    contextContent->set_allocated_context(context);
+
+    return origin;
+}
+
 col::Origin *
 llvm2col::generateVoidOperandOrigin(llvm::Instruction &llvmInstruction) {
     col::Origin *origin = new col::Origin();
@@ -236,4 +273,52 @@ col::Origin *llvm2col::generateTypeOrigin(llvm::Type &llvmType) {
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
     return origin;
+}
+
+std::string llvm2col::extractShortPosition(const col::Origin &origin) {
+    for (const col::OriginContent &content : origin.content()) {
+        if (content.has_context()) {
+            return content.context().short_position();
+        }
+    }
+    return "unknown";
+}
+
+col::Origin *llvm2col::deepenOperandOrigin(const col::Origin &origin,
+                                           llvm::Value &llvmOperand) {
+    col::Origin *newOrigin = new col::Origin(origin);
+
+    bool foundName = false;
+    bool foundContext = false;
+    for (col::OriginContent &content : *newOrigin->mutable_content()) {
+        if (content.has_preferred_name()) {
+            col::PreferredName *preferredName =
+                content.mutable_preferred_name();
+            preferredName->clear_preferred_name();
+            preferredName->add_preferred_name(
+                deriveOperandPreferredName(llvmOperand));
+            foundName = true;
+        } else if (content.has_context()) {
+            content.mutable_context()->set_inline_context(
+                deriveOperandContext(llvmOperand));
+            foundContext = true;
+        }
+    }
+
+    if (!foundName) {
+        col::PreferredName *preferredName =
+            newOrigin->add_content()->mutable_preferred_name();
+        preferredName->clear_preferred_name();
+        preferredName->add_preferred_name(
+            deriveOperandPreferredName(llvmOperand));
+    }
+
+    if (!foundContext) {
+        col::Context *context = newOrigin->add_content()->mutable_context();
+        context->set_context("unknown");
+        context->set_inline_context(deriveOperandContext(llvmOperand));
+        context->set_short_position("unknown");
+    }
+
+    return newOrigin;
 }

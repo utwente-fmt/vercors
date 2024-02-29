@@ -1701,7 +1701,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case func: ProverFunction[Pre] => func
       case function: LLVMSpecFunction[Pre] =>
         new LLVMSpecFunction[Pre](function.name, function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.blame)
-      case glob: LLVMGlobal[Pre] => glob
+      case glob: LLVMGlobalSpecification[Pre] => glob
       case endpoint: PVLEndpoint[Pre] => endpoint
       case seqProg: PVLSeqProg[Pre] => seqProg
       case seqRun: PVLSeqRun[Pre] => seqRun

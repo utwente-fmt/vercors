@@ -56,6 +56,13 @@ llvm2col::deriveInstructionContext(llvm::Instruction &llvmInstruction) {
     return context;
 }
 
+std::string llvm2col::deriveGlobalVariableContext(
+    llvm::GlobalVariable &llvmGlobalVariable) {
+    std::string context;
+    llvm::raw_string_ostream(context) << llvmGlobalVariable;
+    return context;
+}
+
 std::string llvm2col::deriveInstructionLhs(llvm::Instruction &llvmInstruction) {
     std::string fullContext = deriveInstructionContext(llvmInstruction);
     return fullContext.substr(0, fullContext.find('='));

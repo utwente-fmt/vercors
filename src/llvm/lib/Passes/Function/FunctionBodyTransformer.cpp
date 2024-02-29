@@ -151,8 +151,8 @@ col::Assign &FunctionCursor::createAssignment(Instruction &llvmInstruction,
     return *assignment;
 }
 
-col::LlvmFunctionDefinition &FunctionCursor::getOtherFunction(Function &F) {
-    return FAM.getResult<FunctionDeclarer>(F).getAssociatedColFuncDef();
+llvm::FunctionAnalysisManager &FunctionCursor::getFunctionAnalysisManager() {
+    return FAM;
 }
 
 PreservedAnalyses

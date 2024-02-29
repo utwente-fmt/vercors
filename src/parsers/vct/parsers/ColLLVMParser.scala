@@ -30,9 +30,9 @@ case class ColLLVMParser(override val origin: Origin, override val blameProvider
 
   override def parse[G](readable: Readable): ParseResult[G] = {
     if (pallas == null) {
-      throw Unreachable("The COLLVMParser needs to be provided with the path to pallas to parse LLVM-IR files")
+      throw Unreachable("The ColLLVMParser needs to be provided with the path to pallas to parse LLVM-IR files")
     }
-    val command = Seq("opt-17", s"--load-pass-plugin=$pallas", "--passes=module(pallas-collect-module-spec),function(pallas-declare-function,pallas-assign-pure,pallas-declare-function-contract,pallas-transform-function-body),module(pallas-print-protobuf)", readable.fileName, "--disable-output")
+    val command = Seq("opt-17", s"--load-pass-plugin=$pallas", "--passes=module(pallas-declare-variables,pallas-collect-module-spec),function(pallas-declare-function,pallas-assign-pure,pallas-declare-function-contract,pallas-transform-function-body),module(pallas-print-protobuf)", readable.fileName, "--disable-output")
 
     val process = new ProcessBuilder(command: _*).start()
 

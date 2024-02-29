@@ -1250,6 +1250,10 @@ final case class BipTransitionSynchronization[G](transitions: Seq[Ref[G, BipTran
                                    (implicit val o: Origin) extends NodeFamily[G] with LLVMFunctionContractImpl[G] {
   var data: Option[ApplicableContract[G]] = None
 }
+
+final case class LLVMGlobalVariable[G](variable_type: Type[G], value: Option[Expr[G]], constant: Boolean)
+                                      (implicit val o: Origin) extends GlobalDeclaration[G] with LLVMGlobalVariableImpl[G]
+
 sealed trait LLVMCallable[G] extends GlobalDeclaration[G]
 @scopes[LabelDecl] final class LLVMFunctionDefinition[G](val returnType: Type[G],
                                       val args: Seq[Variable[G]],
@@ -1308,7 +1312,7 @@ final case class LLVMZeroExtend[G](inputType: Type[G], outputType: Type[G], valu
 final case class LLVMTruncate[G](inputType: Type[G], outputType: Type[G], value: Expr[G])
                                 (implicit val o: Origin) extends LLVMExpr[G] with LLVMTruncateImpl[G]
 
-final class LLVMGlobal[G](val value: String)(implicit val o: Origin) extends GlobalDeclaration[G] with LLVMGlobalImpl[G] {
+final class LLVMGlobalSpecification[G](val value: String)(implicit val o: Origin) extends GlobalDeclaration[G] with LLVMGlobalSpecificationImpl[G] {
   var data: Option[GlobalDeclaration[G]] = None
 }
 
@@ -1323,9 +1327,10 @@ final case class LLVMMemoryAcquireRelease[G]()(implicit val o:Origin) extends LL
 final case class LLVMMemorySequentiallyConsistent[G]()(implicit val o:Origin) extends LLVMMemoryOrdering[G] with LLVMMemorySequentiallyConsistentImpl[G]
 
 
-final case class LLVMIntegerValue[G](value: BigInt, integerType: Type[G])(implicit val o: Origin) extends ConstantInt[G] with Expr[G] with LLVMIntegerValueImpl[G]
-final case class LLVMPointerValue[G](value: BigInt)(implicit val o: Origin) extends ConstantInt[G] with Expr[G] with LLVMPointerValueImpl[G]
-final case class LLVMFunctionPointerValue[G](value: Ref[G, LLVMFunctionDefinition[G]])(implicit val o: Origin) extends Constant[G] with Expr[G] with LLVMFunctionPointerValueImpl[G]
+final case class LLVMIntegerValue[G](value: BigInt, integerType: Type[G])(implicit val o: Origin) extends ConstantInt[G] with LLVMExpr[G] with LLVMIntegerValueImpl[G]
+final case class LLVMPointerValue[G](value: BigInt)(implicit val o: Origin) extends ConstantInt[G] with LLVMExpr[G] with LLVMPointerValueImpl[G]
+final case class LLVMFunctionPointerValue[G](value: Ref[G, LLVMFunctionDefinition[G]])(implicit val o: Origin) extends Constant[G] with LLVMExpr[G] with LLVMFunctionPointerValueImpl[G]
+final case class LLVMStructValue[G](value: Seq[Expr[G]], structType: Type[G])(implicit val o: Origin) extends Constant[G] with LLVMExpr[G] with LLVMStructValueImpl[G]
 
 final case class LLVMTInt[G](bitWidth: Int)(implicit val o: Origin = DiagnosticOrigin) extends Type[G] with LLVMTIntImpl[G]
 final case class LLVMTFunction[G]()(implicit val o: Origin = DiagnosticOrigin) extends Type[G] with LLVMTFunctionImpl[G]

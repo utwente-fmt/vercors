@@ -41,9 +41,22 @@ col::Origin *generateFunctionCallOrigin(llvm::CallInst &callInstruction);
 col::Origin *generateOperandOrigin(llvm::Instruction &llvmInstruction,
                                    llvm::Value &llvmOperand);
 
+col::Origin *
+generateGlobalVariableOrigin(llvm::Module &llvmModule,
+                             llvm::GlobalVariable &llvmGlobalVariable);
+
+col::Origin *generateGlobalVariableInitializerOrigin(
+    llvm::Module &llvmModule, llvm::GlobalVariable &llvmGlobalVariable,
+    llvm::Value &llvmInitializer);
+
 col::Origin *generateVoidOperandOrigin(llvm::Instruction &llvmInstruction);
 
 col::Origin *generateTypeOrigin(llvm::Type &llvmType);
+
+std::string extractShortPosition(const col::Origin &origin);
+
+col::Origin *deepenOperandOrigin(const col::Origin &origin,
+                                 llvm::Value &llvmOperand);
 
 } // namespace llvm2col
 #endif // PALLAS_ORIGINPROVIDER_H

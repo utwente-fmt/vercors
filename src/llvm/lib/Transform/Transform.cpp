@@ -65,29 +65,28 @@ void llvm2col::transformAndSetExpr(pallas::FunctionCursor &functionCursor,
                                    llvm::Instruction &llvmInstruction,
                                    llvm::Value &llvmOperand,
                                    col::Expr &colExpr) {
+    col::Origin *origin = generateOperandOrigin(llvmInstruction, llvmOperand);
     if (llvm::isa<llvm::Constant>(llvmOperand)) {
-        transformAndSetConstExpr(functionCursor, llvmInstruction,
-                                 llvm::cast<llvm::Constant>(llvmOperand),
-                                 colExpr);
+        transformAndSetConstExpr(
+            functionCursor.getFunctionAnalysisManager(), origin,
+            llvm::cast<llvm::Constant>(llvmOperand), colExpr);
     } else {
-        transformAndSetVarExpr(functionCursor, llvmInstruction, llvmOperand,
-                               colExpr);
+        transformAndSetVarExpr(functionCursor, origin, llvmOperand, colExpr);
     }
 }
 
 void llvm2col::transformAndSetVarExpr(pallas::FunctionCursor &functionCursor,
-                                      llvm::Instruction &llvmInstruction,
+                                      col::Origin *origin,
                                       llvm::Value &llvmOperand,
                                       col::Expr &colExpr) {
     col::Variable colVar = functionCursor.getVariableMapEntry(llvmOperand);
     col::Local *colLocal = colExpr.mutable_local();
-    colLocal->set_allocated_origin(
-        generateOperandOrigin(llvmInstruction, llvmOperand));
+    colLocal->set_allocated_origin(origin);
     colLocal->mutable_ref()->set_id(colVar.id());
 }
 
-void llvm2col::transformAndSetConstExpr(pallas::FunctionCursor &functionCursor,
-                                        llvm::Instruction &llvmInstruction,
+void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
+                                        col::Origin *origin,
                                         llvm::Constant &llvmConstant,
                                         col::Expr &colExpr) {
     llvm::Type *constType = llvmConstant.getType();
@@ -95,14 +94,12 @@ void llvm2col::transformAndSetConstExpr(pallas::FunctionCursor &functionCursor,
     case llvm::Type::IntegerTyID:
         if (constType->getIntegerBitWidth() == 1) {
             col::BooleanValue *boolValue = colExpr.mutable_boolean_value();
-            boolValue->set_allocated_origin(
-                generateOperandOrigin(llvmInstruction, llvmConstant));
+            boolValue->set_allocated_origin(origin);
             boolValue->set_value(llvmConstant.isOneValue());
         } else {
             col::LlvmIntegerValue *integerValue =
                 colExpr.mutable_llvm_integer_value();
-            integerValue->set_allocated_origin(
-                generateOperandOrigin(llvmInstruction, llvmConstant));
+            integerValue->set_allocated_origin(origin);
             llvm::APInt apInt = llvmConstant.getUniqueInteger();
             transformAndSetBigInt(apInt, *integerValue->mutable_value());
             col::LlvmtInt *colInt =
@@ -112,24 +109,49 @@ void llvm2col::transformAndSetConstExpr(pallas::FunctionCursor &functionCursor,
         }
         break;
     case llvm::Type::PointerTyID: {
+        // Can't be a function since we caught that in transformAndSetExpr
         llvm::Value *stripped = llvmConstant.stripPointerCastsAndAliases();
         if (llvm::isa<llvm::Function>(stripped)) {
             col::LlvmFunctionPointerValue *funcPointer =
                 colExpr.mutable_llvm_function_pointer_value();
-            funcPointer->set_allocated_origin(
-                generateOperandOrigin(llvmInstruction, *stripped));
+            funcPointer->set_allocated_origin(origin);
             funcPointer->mutable_value()->set_id(
-                functionCursor
-                    .getOtherFunction(llvm::cast<llvm::Function>(*stripped))
+                FAM.getResult<pallas::FunctionDeclarer>(
+                       llvm::cast<llvm::Function>(*stripped))
+                    .getAssociatedColFuncDef()
                     .id());
         } else {
             std::string errCtx;
             llvm::raw_string_ostream(errCtx) << llvmConstant;
             std::stringstream errorStream;
-            errorStream << "Unknown constant pointer '" << errCtx << "'";
-            pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(),
-                                            llvmInstruction);
+            errorStream << "Unknown constant pointer '" << errCtx << "' "
+                        << llvm::isa<llvm::ConstantStruct>(stripped) << ", "
+                        << llvm::isa<llvm::ConstantVector>(stripped) << ", "
+                        << llvm::isa<llvm::ConstantArray>(stripped) << ", "
+                        << llvm::isa<llvm::ConstantDataArray>(stripped) << ", "
+                        << llvm::isa<llvm::ConstantDataVector>(stripped) << ", "
+                        << llvm::isa<llvm::GlobalVariable>(stripped);
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC, errorStream.str(),
+                llvm2col::extractShortPosition(*origin));
         }
+        break;
+    }
+    case llvm::Type::StructTyID: {
+        llvm::ConstantStruct &llvmStruct =
+            llvm::cast<llvm::ConstantStruct>(llvmConstant);
+        col::LlvmStructValue *colStruct = colExpr.mutable_llvm_struct_value();
+
+        for (auto &operand : llvmStruct.operands()) {
+            llvm2col::transformAndSetConstExpr(
+                FAM, llvm2col::deepenOperandOrigin(*origin, *operand.get()),
+                llvm::cast<llvm::Constant>(*operand.get()),
+                *colStruct->add_value());
+        }
+        colStruct->set_allocated_origin(origin);
+        llvm2col::transformAndSetType(*llvmStruct.getType(),
+                                      *colStruct->mutable_struct_type());
+
         break;
     }
     default:
@@ -138,8 +160,9 @@ void llvm2col::transformAndSetConstExpr(pallas::FunctionCursor &functionCursor,
         std::stringstream errorStream;
         errorStream << "Unknown constant '" << errCtx << "' of type '"
                     << constType->getTypeID() << "'";
-        pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(),
-                                        llvmInstruction);
+        pallas::ErrorReporter::addError(
+            SOURCE_LOC, errorStream.str(),
+            llvm2col::extractShortPosition(*origin));
     }
 }
 

@@ -87,7 +87,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     )(inv.blame)
   }
 
-  def rewriteGlobal(decl: LLVMGlobal[Pre]): Unit = {
+  def rewriteGlobal(decl: LLVMGlobalSpecification[Pre]): Unit = {
     implicit val o: Origin = decl.o
     rw.globalDeclarations.declare(
       decl.data.get match {

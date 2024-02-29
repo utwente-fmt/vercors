@@ -39,9 +39,9 @@ void transformAndSetExpr(pallas::FunctionCursor &functionCursor,
  * @param llvmConstant
  * @param colExpr
  */
-void transformAndSetConstExpr(pallas::FunctionCursor &functionCursor,
-                              llvm::Instruction &llvmInstruction,
-                              llvm::Constant &llvmConstant, col::Expr &colExpr);
+void transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
+                              col::Origin *origin, llvm::Constant &llvmConstant,
+                              col::Expr &colExpr);
 
 /**
  * Used by TransformAndSetExpr
@@ -51,8 +51,8 @@ void transformAndSetConstExpr(pallas::FunctionCursor &functionCursor,
  * @param colExpr
  */
 void transformAndSetVarExpr(pallas::FunctionCursor &functionCursor,
-                            llvm::Instruction &llvmInstruction,
-                            llvm::Value &llvmOperand, col::Expr &colExpr);
+                            col::Origin *origin, llvm::Value &llvmOperand,
+                            col::Expr &colExpr);
 template <class ColBinExpr>
 void transformBinExpr(llvm::Instruction &llvmInstruction,
                       ColBinExpr &colBinExpr,

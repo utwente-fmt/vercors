@@ -32,7 +32,8 @@ PreservedAnalyses ModuleSpecCollectorPass::run(Module &M,
                 break;
             }
             col::GlobalDeclaration *globDecl = pProgram->add_declarations();
-            col::LlvmGlobal *colGlobal = globDecl->mutable_llvm_global();
+            col::LlvmGlobalSpecification *colGlobal =
+                globDecl->mutable_llvm_global_specification();
             llvm2col::setColNodeId(colGlobal);
             colGlobal->set_value(globVal->getString().str());
             colGlobal->set_allocated_origin(llvm2col::generateGlobalValOrigin(

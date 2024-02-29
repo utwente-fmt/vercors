@@ -28,6 +28,9 @@ deriveSurroundingInstructionContext(llvm::Instruction &llvmInstruction);
 
 std::string deriveInstructionContext(llvm::Instruction &llvmInstruction);
 
+std::string
+deriveGlobalVariableContext(llvm::GlobalVariable &llvmGlobalVariable);
+
 std::string deriveInstructionLhs(llvm::Instruction &llvmInstruction);
 
 std::string deriveInstructionRhs(llvm::Instruction &llvmInstruction);
