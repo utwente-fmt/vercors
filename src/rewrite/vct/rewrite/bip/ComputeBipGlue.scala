@@ -182,19 +182,19 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
 
     // Collect all relevant components. It is assumed that if a component is not mentioned in the glue, we can ignore it for computing glue
     val classes = program.collect {
-      case cls: Class[Pre] if cls.declarations.exists(relevantDecls.contains) => cls
+      case cls: Class[Pre] if cls.decls.exists(relevantDecls.contains) => cls
     }.toIndexedSeq
-    val ports = classes.flatMap { cls => cls.declarations.collect { // TODO: Use common one for ports
+    val ports = classes.flatMap { cls => cls.decls.collect { // TODO: Use common one for ports
       case port: BipPort[Pre] => port
     }}
 
     val portEnablesInputsOutputs: Seq[Constraint] = classes.flatMap { cls =>
-      val ports = cls.declarations.collect { case p: BipPort[Pre] => p }
+      val ports = cls.decls.collect { case p: BipPort[Pre] => p }
       // There might actually be multiple transitions given a port. However, these should be guaranteed to all have the same input datas.
       // This is because you can put multiple @Transition annotations on a method given a port, but not @Transition annotations for one
       // specific port on many different methods. (According to Larisa)
-      val transitions = cls.declarations.collect { case t: BipTransition[Pre] => t.port.decl -> t }.toMap
-      val outgoingDatas = cls.declarations.collect { case d: BipOutgoingData[Pre] => d }
+      val transitions = cls.decls.collect { case t: BipTransition[Pre] => t.port.decl -> t }.toMap
+      val outgoingDatas = cls.decls.collect { case d: BipOutgoingData[Pre] => d }
       ports.map { port =>
         val incomingDatas = transitions(port).data.map(_.decl)
         PortEnablesInputsOutputs(port, outgoingDatas ++ incomingDatas)
@@ -202,13 +202,13 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
     }
 
     val outputDataNeedsPort: Seq[Constraint] = classes.flatMap { cls =>
-      val datas = cls.declarations.collect { case d: BipOutgoingData[Pre] => d }
-      val ports = cls.declarations.collect { case p: BipPort[Pre] => p }
+      val datas = cls.decls.collect { case d: BipOutgoingData[Pre] => d }
+      val ports = cls.decls.collect { case p: BipPort[Pre] => p }
       // TODO: We ignore that some datas can only be output in the case of a few specific ports, instead of all ports in the class
       datas.map(OutputDataNeedsPort(_, ports))
     }
     val inputDataNeedsPort: Seq[Constraint] = classes.flatMap { cls =>
-      val transitions = cls.declarations.collect { case t: BipTransition[Pre] => t }
+      val transitions = cls.decls.collect { case t: BipTransition[Pre] => t }
       val inDatas = transitions.flatMap(_.data.map(_.decl))
       inDatas.map { data =>
         val ports = transitions.collect { case t if t.data.map(_.decl).contains(data) => t.port.decl }

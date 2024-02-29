@@ -70,7 +70,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
   val needsCommitted: mutable.Set[Class[Pre]] = mutable.Set()
 
   def getClass(obj: Expr[Pre]): Class[Pre] = obj.t match {
-    case TClass(Ref(cls)) => cls
+    case TClass(Ref(cls), _) => cls
     case _ => throw UnreachableAfterTypeCheck("This argument is not a class type.", obj)
   }
 
@@ -112,7 +112,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] =>
-      globalDeclarations.succeed(cls, cls.rewrite(declarations = classDeclarations.collect {
+      globalDeclarations.succeed(cls, cls.rewrite(decls = classDeclarations.collect {
         if(needsInvariant(cls)) {
           invariant(cls) = classDeclarations.declare(
             new InstancePredicate(Nil, Some(dispatch(cls.intrinsicLockInvariant)))(LockInvariantOrigin(cls)))
@@ -127,7 +127,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
           committed(cls) = classDeclarations.declare(new InstanceFunction(TBool(), Nil, Nil, None, contract(PanicBlame("empty contract"), decreases = Some(DecreasesClauseAssume[Post]())), false)(AbstractApplicable))
         }
 
-        cls.declarations.foreach(dispatch)
+        cls.decls.foreach(dispatch)
       }._1, intrinsicLockInvariant = tt))
     case other => rewriteDefault(other)
   }

@@ -2,6 +2,7 @@ package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
+import hre.debug.TimeTravel.CauseWithBadEffect
 import hre.progress.Progress
 import hre.stages.Stage
 import vct.col.ast.{Program, SimplificationRule, Verification}
@@ -22,9 +23,9 @@ import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
-import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, SmtlibToProverTypes}
+import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, MonomorphizeClass, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, GenerateSeqProgPermissions, EncodeUnpointedGuard, SplitSeqGuards}
+import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateSeqProgPermissions, SplitSeqGuards}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
@@ -122,15 +123,21 @@ class Transformation
           case (key, action) => if (pass.key == key) action(result)
         }
 
-        result = pass().dispatch(result)
-
-        result.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
-          case Nil => // ok
-          case errors => throw TransformationCheckError(pass, errors)
+        try {
+          result = pass().dispatch(result)
+        } catch {
+          case c @ CauseWithBadEffect(effect) =>
+            logger.error(s"An error occurred in pass ${pass.key}")
+            throw c
         }
 
         onAfterPassKey.foreach {
           case (key, action) => if (pass.key == key) action(result)
+        }
+
+        result.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
+          case Nil => // ok
+          case errors => throw TransformationCheckError(pass, errors)
         }
 
         result = PrettifyBlocks().dispatch(result)
@@ -263,6 +270,7 @@ case class SilverTransformation
     EncodeTryThrowSignals,
 
     ResolveScale,
+    MonomorphizeClass,
     // No more classes
     ClassToRef,
     HeapVariableToRef,

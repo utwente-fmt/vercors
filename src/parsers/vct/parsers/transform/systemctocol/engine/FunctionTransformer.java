@@ -19,6 +19,7 @@ import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
 import vct.parsers.transform.systemctocol.util.OriGen;
+import vct.parsers.transform.systemctocol.util.Seqs;
 
 /**
  * Transforms given SystemC functions into either constructors, run methods or regular methods in the COL system.
@@ -195,7 +196,7 @@ public class FunctionTransformer<T> {
         // Create constructor contract
         ApplicableContract<T> contract = generate_constructor_specifications(fields, m_param);
         
-        return new PVLConstructor<>(contract, List.from(CollectionConverters.asScala(parameters)), Option.apply(body),
+        return new PVLConstructor<>(contract, Seqs.empty(), List.from(CollectionConverters.asScala(parameters)), Option.apply(body),
                 new GeneratedBlame<>(), OriGen.create());
     }
 

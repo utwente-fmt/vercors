@@ -51,10 +51,11 @@ case class PVLToCol[G](override val baseOrigin: Origin,
           convert(body),
           contract.consumeApplicableContract(blame(decl))
         )(blame(decl))(origin(decl).where(name = "run")))
-    case PvlEndpoint(_, name, _, ClassType0(endpointType, None), _, args, _, _) =>
+    case PvlEndpoint(_, name, _, ClassType0(endpointType, typeArgs), _, args, _, _) =>
       new PVLEndpoint(
         convert(name),
         new UnresolvedRef[G, Class[G]](convert(endpointType)),
+        typeArgs.map(convert(_)).getOrElse(Seq()),
         args.map(convert(_)).getOrElse(Nil))(blame(decl))(origin(decl).sourceName(convert(name))
       )
     case PvlEndpoint(_, name, _, t@ClassType0(_, Some(_)), _, args, _, _) => ??(t)
@@ -73,13 +74,13 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convertProcedure(implicit method: MethodContext): Procedure[G] = method match {
-    case Method0(contract, modifiers, returnType, name, _, args, _, body) =>
+    case Method0(contract, modifiers, returnType, name, typeArgs, _, args, _, body) =>
       withModifiers(modifiers, mods => withContract(contract, contract => {
         new Procedure(
           convert(returnType),
           args.map(convert(_)).getOrElse(Nil),
           outArgs = Nil,
-          typeArgs = Nil,
+          typeArgs = typeArgs.map(convert(_)).getOrElse(Nil),
           convert(body),
           contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
@@ -88,13 +89,26 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       }))
   }
 
+  def convert(implicit names: TypeVarsContext): Seq[Variable[G]] = names match {
+    case TypeVars0(_, names, _) => convertVars(names)
+  }
+
+  def typeVar(identifier: IdentifierContext): Variable[G] =
+    new Variable(TType(TAnyValue()))(origin(identifier).sourceName(convert(identifier)))
+
+  def convertVars(implicit ids: IdentifierListContext): Seq[Variable[G]] = ids match {
+    case IdentifierList0(identifier) => Seq(typeVar(identifier))
+    case IdentifierList1(identifier, _, identifiers) => typeVar(identifier) +: convertVars(identifiers)
+  }
+
   def convert(implicit cls: DeclClassContext): GlobalDeclaration[G] = cls match {
-    case DeclClass0(contract, _, name, _, decls, _) =>
+    case DeclClass0(contract, _, name, typeArgs, _, decls, _) =>
       withContract(contract, contract => {
         new Class(
-          declarations = decls.flatMap(convert(_)),
+          decls = decls.flatMap(convert(_)),
           supports = Nil,
           intrinsicLockInvariant = AstBuildHelpers.foldStar(contract.consume(contract.lock_invariant)),
+          typeArgs = typeArgs.map(convert(_)).getOrElse(Nil)
         )(origin(cls).sourceName(convert(name)))
       })
   }
@@ -108,13 +122,13 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit method: MethodContext): InstanceMethod[G] = method match {
-    case Method0(contract, modifiers, returnType, name, _, args, _, body) =>
+    case Method0(contract, modifiers, returnType, name, typeArgs, _, args, _, body) =>
       withModifiers(modifiers, mods => withContract(contract, contract => {
         new InstanceMethod(
           convert(returnType),
           args.map(convert(_)).getOrElse(Nil),
           outArgs = Nil,
-          typeArgs = Nil,
+          typeArgs = typeArgs.map(convert(_)).getOrElse(Nil),
           convert(body),
           contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
@@ -129,9 +143,10 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit constructor: ConstructorContext): Seq[ClassDeclaration[G]] = constructor match {
-    case Constructor0(contract, _, _, args, _, body) =>
+    case Constructor0(contract, _, typeVars, _, args, _, body) =>
       Seq(withContract(contract, contract =>
-        new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), args.map(convert(_)).getOrElse(Nil), convert(body)
+        new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), typeVars.map(convert(_)).getOrElse(Seq()),
+          args.map(convert(_)).getOrElse(Nil), convert(body)
         )(blame(constructor))))
   }
 
@@ -260,7 +275,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit expr: NewExprContext): Expr[G] = expr match {
     case NewExpr0(_, name, Call0(typeArgs, args, given, yields)) =>
-      PVLNew(convert(name), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
+      PVLNew(convert(name), typeArgs.map(convert(_)).getOrElse(Seq()), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
     case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0, true)(blame(expr))
     case NewExpr2(inner) => convert(inner)
   }

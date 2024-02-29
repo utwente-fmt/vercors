@@ -266,7 +266,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = origin
 
     val fields = structType match {
-      case TClass(ref) => ref.decl.declarations.collect { case field: InstanceField[Post] => field }
+      case TClass(ref, _) => ref.decl.declarations.collect { case field: InstanceField[Post] => field }
       case _ => Seq()
     }
     val newFieldPerms = fields.map(member => {

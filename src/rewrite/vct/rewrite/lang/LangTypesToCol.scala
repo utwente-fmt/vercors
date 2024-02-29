@@ -65,7 +65,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       case t @ PVLNamedType(_, typeArgs) =>
         t.ref.get match {
           case spec: SpecTypeNameTarget[Pre] => specType(spec, typeArgs)
-          case RefClass(decl) => TClass(succ(decl))
+          case RefClass(decl) => TClass(succ(decl), typeArgs.map(dispatch))
         }
       case t @ CPrimitiveType(specs) =>
         dispatch(C.getPrimitiveType(specs, context = Some(t)))

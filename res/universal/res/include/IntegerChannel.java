@@ -1,5 +1,4 @@
 public final class Channel {
-
     private boolean transfering;
 
     private MessageType exchangeValue;

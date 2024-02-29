@@ -141,7 +141,7 @@ case object ResolveTypes {
         throw NoSuchNameError("class", name, t)))
     case t @ TModel(ref) =>
       ref.tryResolve(name => Spec.findModel(name, ctx).getOrElse(throw NoSuchNameError("model", name, t)))
-    case t @ TClass(ref) =>
+    case t @ TClass(ref, _) =>
       ref.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, t)))
     case t @ TAxiomatic(ref, _) =>
       ref.tryResolve(name => Spec.findAdt(name, ctx).getOrElse(throw NoSuchNameError("adt", name, t)))
@@ -411,7 +411,7 @@ case object ResolveReferences extends LazyLogging {
     case access@PVLAccess(subject, field) =>
         access.ref = Some(PVL.findDerefOfClass(subject.cls, field).getOrElse(throw NoSuchNameError("field", field, access)))
     case endpoint: PVLEndpoint[G] =>
-      endpoint.ref = Some(PVL.findConstructor(TClass(endpoint.cls.decl.ref[Class[G]]), endpoint.args).getOrElse(throw ConstructorNotFound(endpoint)))
+      endpoint.ref = Some(PVL.findConstructor(TClass(endpoint.cls.decl.ref[Class[G]], Seq()), Seq(), endpoint.args).getOrElse(throw ConstructorNotFound(endpoint)))
     case parAssign: PVLSeqAssign[G] =>
       parAssign.receiver.tryResolve(receiver => PVL.findName(receiver, ctx) match {
         case Some(RefPVLEndpoint(decl)) => decl
@@ -485,8 +485,8 @@ case object ResolveReferences extends LazyLogging {
       inv.ref = Some(PVL.findInstanceMethod(obj, method, args, typeArgs, inv.blame).getOrElse(throw NoSuchNameError("method", method, inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
-    case inv@PVLNew(t, args, givenMap, yields) =>
-      inv.ref = Some(PVL.findConstructor(t, args).getOrElse(throw NoSuchConstructor(inv)))
+    case inv@PVLNew(t, typeArgs, args, givenMap, yields) =>
+      inv.ref = Some(PVL.findConstructor(t, typeArgs, args).getOrElse(throw NoSuchConstructor(inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case n@NewObject(ref) =>

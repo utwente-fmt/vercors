@@ -117,7 +117,8 @@ case class Resolution[G <: Generation]
     val typedProgram = LangTypesToCol().dispatch(joinedProgram)
     ResolveReferences.resolve(typedProgram, MyLocalJavaParser(blameProvider), MyLocalLLVMSpecParser(blameProvider)) match {
       case Nil => // ok
-      case some => throw InputResolutionError(some)
+      case some =>
+        throw InputResolutionError(some)
     }
     val resolvedProgram = LangSpecificToCol(veymontGeneratePermissions, veymontAllowAssign).dispatch(typedProgram)
     resolvedProgram.check match {

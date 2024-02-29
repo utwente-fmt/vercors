@@ -1,0 +1,14 @@
+class Box<T> {
+  T t;
+  context Perm(t, 1\2);
+  ensures \result == t;
+  T get() {
+    return t;
+  }
+}
+
+void m() {
+  Box<int> b = new Box<int>();
+  int t = b.get();
+  int t = b.t;
+}

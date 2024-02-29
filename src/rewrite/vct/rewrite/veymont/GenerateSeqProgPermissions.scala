@@ -152,7 +152,7 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
     }
 
   def endpointPerm(endpoint: Endpoint[Pre])(implicit o: Origin): Expr[Post] =
-    transitivePerm(EndpointUse[Post](succ(endpoint)), TClass(endpoint.cls))
+    transitivePerm(EndpointUse[Post](succ(endpoint)), TClass(endpoint.cls, Seq()))
 
   def endpointsPerm(endpoints: Seq[Endpoint[Pre]])(implicit o: Origin): Expr[Post] =
     foldStar(endpoints.map(endpointPerm))
@@ -167,7 +167,7 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
     transitivePerm(Result[Post](anySucc(app)), app.returnType)
 
   def classPerm(cls: Class[Pre]): Expr[Post] =
-    transitivePerm(ThisObject[Post](succ(cls))(cls.o), TClass(cls.ref))(cls.o)
+    transitivePerm(ThisObject[Post](succ(cls))(cls.o), TClass(cls.ref, Seq()))(cls.o)
 
   /*
 
@@ -198,11 +198,11 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
             (Perm(ArrayLocation(e, i)(PanicBlame("Encoding guarantees well-formedness")), WritePerm()) &*
               transitivePerm(ArraySubscript(e, i)(PanicBlame("Encoding guarantees well-formedness")), u))
       )
-    case TClass(Ref(cls)) if !generatingClasses.contains(cls) =>
+    case TClass(Ref(cls), _) if !generatingClasses.contains(cls) =>
       generatingClasses.having(cls) {
         foldStar(cls.collect { case f: InstanceField[Pre] => fieldTransitivePerm(e, f)(f.o) })
       }
-    case TClass(Ref(cls)) =>
+    case TClass(Ref(cls), _) =>
       // The class we are generating permission for has already been encountered when going through the chain
       // of fields. So we cut off the computation
       logger.warn(s"Not generating permissions for recursive occurrence of ${cls.o.debugName()}. Circular datastructures are not supported by permission generation")

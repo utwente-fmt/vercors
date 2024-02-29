@@ -4,5 +4,5 @@ import vct.col.ast.{CoerceNullClass, TClass}
 import vct.col.ast.ops.CoerceNullClassOps
 
 trait CoerceNullClassImpl[G] extends CoerceNullClassOps[G] { this: CoerceNullClass[G] => 
-  override def target: TClass[G] = TClass(targetClass)
+  override def target: TClass[G] = TClass(targetClass, typeArgs)
 }

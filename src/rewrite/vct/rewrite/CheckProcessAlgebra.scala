@@ -77,6 +77,7 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] with L
 
       val newClass = currentModel.having(model) {
         new Class(
+          Seq(),
           classDeclarations.collect {
             model.declarations.foreach(dispatch(_))
           }._1, Nil, tt,
