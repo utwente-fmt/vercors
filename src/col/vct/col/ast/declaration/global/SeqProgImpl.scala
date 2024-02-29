@@ -27,7 +27,7 @@ trait SeqProgImpl[G] extends DeclarationImpl[G] with Declarator[G] with SeqProgO
     Doc.stack(Seq(
       contract,
       Group(Text("seq_program") <+> ctx.name(this) <> "(" <> Doc.args(args) <> ")") <+> "{" <>>
-        Doc.stack(endpoints ++ decls :+ run) <+/>
+        Doc.stack(endpoints ++ decls :+ preRun.map(_.show).getOrElse(Empty) :+ run) <+/>
       "}"
     ))
 
