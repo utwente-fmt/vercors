@@ -8,6 +8,7 @@ import viper.api.backend.SilverBackend
 import viper.silver.plugin.SilverPluginManager
 import viper.silver.reporter.Reporter
 import viper.silver.verifier.Verifier
+import viper.silver.{ast => silver}
 
 import java.nio.file.Path
 
@@ -18,7 +19,7 @@ case class Carbon(
   proverLogFile: Option[Path] = None,
   options: Seq[String] = Nil,
 ) extends SilverBackend {
-  override def submit(colProgram: Program[_], output: Option[Path], skipVerification: Boolean): Boolean = synchronized { super.submit(colProgram, output, skipVerification) }
+  override def submit(intermediateProgram: (silver.Program, Map[Int, col.Node[_]])): Boolean = synchronized { super.submit(intermediateProgram) }
 
   override def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, col.Node[_]]): (viper.carbon.CarbonVerifier, SilverPluginManager) = {
     val carbon = viper.carbon.CarbonVerifier(reporter)

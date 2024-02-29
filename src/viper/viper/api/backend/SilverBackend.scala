@@ -20,7 +20,7 @@ import java.nio.file.Path
 import scala.reflect.ClassTag
 import scala.util.{Try, Using}
 
-trait SilverBackend extends Backend with LazyLogging {
+trait SilverBackend extends Backend[(silver.Program, Map[Int, col.Node[_]])] with LazyLogging {
   case class NotSupported(text: String) extends SystemError
   case class ViperCrashed(text: String) extends SystemError
 
@@ -56,7 +56,7 @@ trait SilverBackend extends Backend with LazyLogging {
   private def path(node: silver.Node): Seq[AccountedDirection] =
     info(node.asInstanceOf[silver.Infoed]).predicatePath.get
 
-  override def submit(colProgram: col.Program[_], output: Option[Path], skipVerification: Boolean): Boolean = {
+  def transform(colProgram: col.Program[_], output: Option[Path]): (silver.Program, Map[Int, col.Node[_]]) = {
     val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
 
     val silverProgramString =
@@ -96,9 +96,12 @@ trait SilverBackend extends Backend with LazyLogging {
             }
         }
     }
-    // Early out of verification
-    if(skipVerification) return true
 
+    (silverProgram, nodeFromUniqueId)
+  }
+
+  override def submit(intermediateProgram: (silver.Program, Map[Int, col.Node[_]])): Boolean = {
+    val (silverProgram, nodeFromUniqueId) = intermediateProgram
     val (verifier, plugins) = createVerifier(NopViperReporter, nodeFromUniqueId)
 
     try {
