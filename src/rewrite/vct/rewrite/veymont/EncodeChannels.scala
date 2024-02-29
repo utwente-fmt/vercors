@@ -60,6 +60,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
         f
       }
       val implField = new InstanceField[Post](postCoerce(endpoint.t), Seq())
+      logger.info(s"Setting endpoint: ${endpoint.hashCode()} -> ${implField.hashCode()}")
       implFieldOfEndpoint(endpoint) = implField
 
       val constructor: Constructor[Post] = {
@@ -84,7 +85,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
           implField,
           constructor
         ) ++ commFields,
-      )(o.where(name = endpoint.o.getPreferredNameOrElse(Seq("Endpoint"))))
+      )(o.where(name = endpoint.o.debugName("Endpoint")))
       classOfEndpoint(endpoint) = wrapperClass
       globalDeclarations.declare(wrapperClass)
 
@@ -135,6 +136,8 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
   override def postCoerce(expr: Expr[Pre]): Expr[Post] = expr match {
     case use @ EndpointUse(Ref(endpoint)) =>
       implicit val o = use.o
+      logger.info(s"Requesting impl field for: ${endpoint.hashCode()}")
+      // TODO (RR): hashcode changes here, because of coercingrewriter, how to deal with it?
       Deref[Post](super.postCoerce(use), implFieldOfEndpoint.ref(endpoint))(PanicBlame("Should be safe"))
     case _ => expr.rewriteDefault()
   }
