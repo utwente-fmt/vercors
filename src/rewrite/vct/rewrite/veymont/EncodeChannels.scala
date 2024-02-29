@@ -1,8 +1,10 @@
 package vct.rewrite.veymont
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
-import vct.col.origin.{Origin, PanicBlame}
+import vct.col.ast.util.Declarator
+import vct.col.ast.{AbstractRewriter, Access, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
+import vct.col.origin.{Origin, PanicBlame, SourceName}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
 import vct.col.rewrite.adt.{ImportADT, ImportADTImporter}
@@ -12,19 +14,36 @@ import vct.result.VerificationError.{Unreachable, UserError}
 import vct.col.util.AstBuildHelpers._
 
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 object EncodeChannels extends RewriterBuilderArg[ImportADTImporter] {
   override def key: String = "encodeChannels"
   override def desc: String = "Encodes VeyMont channels as fields on endpoints, and communicate statements as method invocations on endpoints."
 }
 
-case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extends ImportADT[Pre](importer) {
+case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extends Rewriter[Pre] with LazyLogging {
   private lazy val channelFile = parse("genericChannel")
 
   private lazy val genericChannelClass = find[Class[Post]](channelFile, "Channel")
   private lazy val genericChannelDecls = genericChannelClass.decls
   private lazy val genericWrite = find[InstanceMethod[Post]](genericChannelDecls, "writeValue")
   private lazy val genericRead = find[InstanceMethod[Post]](genericChannelDecls, "readValue")
+
+  protected def parse(name: String): Seq[GlobalDeclaration[Post]] = {
+    val program = importer.loadAdt[Pre](name)
+    program.declarations.foreach(dispatch)
+    program.declarations.map(succProvider.computeSucc).map(_.get)
+  }
+
+  protected def find[T](decls: Seq[Declaration[Post]], name: String)(implicit tag: ClassTag[T]): T =
+    decls.collectFirst {
+      case decl: T if decl.o.find[SourceName].contains(SourceName(name)) =>
+        decl
+    }.get
+
+  protected def find[T](decls: Declarator[Post], name: String)(implicit tag: ClassTag[T]): T =
+    find(decls.declarations, name)(tag)
+
 
   def channelType(t: Type[Post]): TClass[Post] = TClass[Post](genericChannelClass.ref, Seq(t))
 
@@ -40,14 +59,14 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
   val fieldOfCommunicate = SuccessionMap[(Endpoint[Pre], Communicate[Pre]), InstanceField[Post]]()
   val implFieldOfEndpoint = SuccessionMap[Endpoint[Pre], InstanceField[Post]]()
 
-  override def postCoerce(p: Program[Pre]): Program[Post] = {
+  override def dispatch(p: Program[Pre]): Program[Post] = {
     program = p
-    super.postCoerce(p)
+    p.rewriteDefault()
   }
 
-  override def postCoerce(decl: Declaration[Pre]): Unit = decl match {
+  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case prog: SeqProg[Pre] =>
-      currentChoreography.having(prog) { super.postCoerce(prog) }
+      currentChoreography.having(prog) { super.dispatch(prog) }
       // TODO (RR): Initialize all channels here...!
     case endpoint: Endpoint[Pre] =>
       // Replace with endpoint with specialized class. Has members: impl of old type, and field for each communciate
@@ -55,16 +74,19 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
       implicit val o = endpoint.o
 
       val commFields = communicates(currentChoreography.top).map { comm =>
-        val f = new InstanceField[Post](postCoerce(comm.msgType), Seq())
+        val EndpointName(Ref(sender)) = comm.sender.subject
+        val EndpointName(Ref(receiver)) = comm.receiver.subject
+        val f = new InstanceField[Post](channelType(dispatch(comm.msgType)), Seq())(
+          o.where(name = s"${sender.o.debugName()}_${receiver.o.debugName()}")
+        )
         fieldOfCommunicate((endpoint, comm)) = f
         f
       }
-      val implField = new InstanceField[Post](postCoerce(endpoint.t), Seq())
-      logger.info(s"Setting endpoint: ${endpoint.hashCode()} -> ${implField.hashCode()}")
+      val implField = new InstanceField[Post](dispatch(endpoint.t), Seq())
       implFieldOfEndpoint(endpoint) = implField
 
       val constructor: Constructor[Post] = {
-        val implArg = new Variable(postCoerce(endpoint.t))
+        val implArg = new Variable(dispatch(endpoint.t))
         val `this` = new ThisObject[Post](classOfEndpoint.ref(endpoint))
         new Constructor[Post](
           cls = classOfEndpoint.ref(endpoint),
@@ -106,39 +128,53 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
         blame = PanicBlame("Unreachable")
       ))
     case _ =>
-      super.postCoerce(decl)
+      super.dispatch(decl)
   }
 
-  override def postCoerce(stmt: Statement[Pre]): Statement[Post] = stmt match {
+  override def dispatch(stmt: Statement[Pre]): Statement[Post] = stmt match {
     case comm: Communicate[Pre] =>
       implicit val o = comm.o
-      Block[Post](Seq(sendOf(comm),
-//        receiveOf(comm)
-      ))(comm.o)
+      Block[Post](Seq(sendOf(comm), receiveOf(comm)))(comm.o)
     case _ => stmt.rewriteDefault()
   }
 
   def sendOf(comm: Communicate[Pre]): Eval[Post] = {
     implicit val o = comm.o
-    val EndpointName(Ref(sender)) = comm.sender.subject
+    val Access(EndpointName(Ref(sender)), Ref(field)) = comm.sender
     Eval(methodInvocation(
       obj = Deref(
         EndpointUse(succ[Endpoint[Post]](sender)),
         fieldOfCommunicate.ref[Post, InstanceField[Post]]((sender, comm)))(PanicBlame("Permission for fields should be propagated in entire choreography")),
       ref = genericWrite.ref[InstanceMethod[Post]],
-      args = Seq(),
-      blame = PanicBlame("TODO")
+      args = Seq(
+        Deref[Post](
+          Deref[Post](EndpointUse[Post](succ(sender)), implFieldOfEndpoint.ref(sender))(PanicBlame("Should be safe")),
+          succ(field)
+        )(PanicBlame("TODO: translate to blame from communicate"))
+      ),
+      blame = PanicBlame("TODO 1")
     ))
   }
 
-  def receiveOf(comm: Communicate[Pre]): Assign[Post] = ???
+  def receiveOf(comm: Communicate[Pre]): Assign[Post] = {
+    implicit val o = comm.o
+    val Access(EndpointName(Ref(receiver)), Ref(field)) = comm.receiver
+    assignField[Post](
+      obj = Deref[Post](EndpointUse[Post](succ(receiver)), implFieldOfEndpoint.ref(receiver))(PanicBlame("Should be safe")),
+      field = succ(field),
+      value = methodInvocation(
+        obj = Deref[Post](EndpointUse(succ(receiver)), fieldOfCommunicate.ref((receiver, comm)))(PanicBlame("Should be safe")),
+        ref = genericRead.ref,
+        blame = PanicBlame("Should be safe"),
+      ),
+      blame = PanicBlame("TODO 2")
+    )
+  }
 
-  override def postCoerce(expr: Expr[Pre]): Expr[Post] = expr match {
+  override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
     case use @ EndpointUse(Ref(endpoint)) =>
       implicit val o = use.o
-      logger.info(s"Requesting impl field for: ${endpoint.hashCode()}")
-      // TODO (RR): hashcode changes here, because of coercingrewriter, how to deal with it?
-      Deref[Post](super.postCoerce(use), implFieldOfEndpoint.ref(endpoint))(PanicBlame("Should be safe"))
+      Deref[Post](use.rewriteDefault(), implFieldOfEndpoint.ref(endpoint))(PanicBlame("Should be safe"))
     case _ => expr.rewriteDefault()
   }
 }

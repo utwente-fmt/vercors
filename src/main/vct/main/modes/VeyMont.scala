@@ -3,7 +3,7 @@ package vct.main.modes
 import com.typesafe.scalalogging.LazyLogging
 import hre.stages.{Stage, Stages}
 import hre.stages.Stages.{saveInput, skipIf}
-import hre.io.Readable
+import hre.io.{CollectString, Readable}
 import vct.col.ast.Verification
 import vct.col.origin.{BlameCollector, VerificationFailure}
 import vct.col.rewrite.{Generation, InitialGeneration}
@@ -89,8 +89,15 @@ object VeyMont extends LazyLogging {
       .thenRun(implementationVerificationStage)
 
     stages.run(inputs) match {
-      case Left(value) => logger.error(value.text)
-      case Right(()) => logger.info("VeyMont success")
+      case Left(err: VerificationError.UserError) =>
+        logger.error(err.text)
+        EXIT_CODE_ERROR
+      case Left(err: VerificationError.SystemError) =>
+        logger.error(CollectString(s => err.printStackTrace(s)))
+        EXIT_CODE_ERROR
+      case Right(()) =>
+        logger.info("VeyMont success")
+        EXIT_CODE_SUCCESS
     }
   }
 

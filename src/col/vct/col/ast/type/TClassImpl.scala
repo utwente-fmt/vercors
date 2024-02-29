@@ -9,8 +9,8 @@ import vct.result.VerificationError.Unreachable
 trait TClassImpl[G] extends TClassOps[G] { this: TClass[G] =>
   def transSupportArrows: Seq[(Class[G], Class[G])] = cls.decl.transSupportArrows
 
-  override def layout(implicit ctx: Ctx): Doc = Text(ctx.name(cls)) <> (
-    if (typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs) <> ">" else Empty)
+  override def layout(implicit ctx: Ctx): Doc = Group(Text(ctx.name(cls)) <> (
+    if (typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs) <> ">" else Empty))
 
   def typeEnv: Map[Variable[G], Type[G]] = cls.decl.typeArgs.zip(typeArgs).toMap
 

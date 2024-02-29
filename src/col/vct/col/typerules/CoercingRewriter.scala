@@ -974,6 +974,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case MatrixSum(indices, mat) =>
         MatrixSum(coerce(indices, TSeq[Pre](TInt())), coerce(mat, TSeq[Pre](TRational())))
       case inv @ MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
+        if (ref.decl.typeArgs.length != typeArgs.length) throw WrongNumberOfTypeArguments(inv, ref.decl.typeArgs.length, typeArgs.length)
         MethodInvocation(obj, ref, coerceArgs(args, ref.decl, typeArgs, obj.t.asClass, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case Minus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
