@@ -107,8 +107,8 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
 
       // Maintain successor for seq_prog argument variables manually, as two contexts are maintained
       // The main procedure context and run procedure contex
-      prog.args.foreach(_.drop())
-      for(arg <- prog.args) {
+      prog.params.foreach(_.drop())
+      for(arg <- prog.params) {
         variableSucc((mode, arg)) = new Variable(dispatch(arg.t))(arg.o)
       }
 
@@ -127,7 +127,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
       // Invoke the run procedure with the seq_program arguments, as well as all the endpoints
       val invokeRun = Eval(procedureInvocation[Post](
         ref = runSucc(prog.run).ref,
-        args = prog.args.map(arg => Local[Post](variableSucc((mode, arg)).ref)) ++
+        args = prog.params.map(arg => Local[Post](variableSucc((mode, arg)).ref)) ++
           prog.endpoints.map(endpoint => Local[Post](endpointSucc((mode, endpoint)).ref)),
         blame = ToSeqRunFailure(prog.run)
       ))
@@ -140,7 +140,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
 
       progSucc(prog) = globalDeclarations.declare(new Procedure(
         returnType = TVoid(), outArgs = Seq(), typeArgs = Seq(),
-        args = prog.args.map(arg => variableSucc((mode, arg))),
+        args = prog.params.map(arg => variableSucc((mode, arg))),
         contract = dispatch(prog.contract),
         body = Some(body)
       )(CallableFailureToSeqCallableFailure(prog.blame)))
@@ -151,13 +151,13 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         endpointSucc((mode, endpoint)) = new Variable(TClass(succ[Class[Post]](endpoint.cls.decl), Seq()))(endpoint.o)
       }
 
-      prog.args.foreach(_.drop())
-      for (arg <- prog.args) {
+      prog.params.foreach(_.drop())
+      for (arg <- prog.params) {
         variableSucc((mode, arg)) = new Variable(dispatch(arg.t))(arg.o)
       }
 
       methodSucc(method) = globalDeclarations.declare(new Procedure(
-        args = prog.args.map(arg => variableSucc((mode, arg))) ++
+        args = prog.params.map(arg => variableSucc((mode, arg))) ++
           prog.endpoints.map(endpoint => endpointSucc((mode, endpoint))),
         body = method.body.map(dispatch),
         outArgs = Nil, typeArgs = Nil, returnType = dispatch(method.returnType), contract = dispatch(method.contract)
@@ -176,12 +176,12 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         endpointSucc((mode, endpoint)) = new Variable(dispatch(endpoint.t))(endpoint.o)
       }
 
-      for (arg <- prog.args) {
+      for (arg <- prog.params) {
         variableSucc((mode, arg)) = new Variable(dispatch(arg.t))(arg.o)
       }
 
       runSucc(run) = globalDeclarations.declare(new Procedure(
-        args = prog.args.map(arg => variableSucc((mode, arg))) ++
+        args = prog.params.map(arg => variableSucc((mode, arg))) ++
           prog.endpoints.map(endpoint => endpointSucc((mode, endpoint))),
         contract = dispatch(run.contract),
         body = Some(dispatch(run.body)),
@@ -233,7 +233,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
   override def dispatch(expr: Expr[Pre]): Expr[Post] = (mode, expr) match {
     case (mode, EndpointUse(Ref(endpoint))) =>
       Local[Post](endpointSucc((mode, endpoint)).ref)(expr.o)
-    case (mode, Local(Ref(v))) if mode != Top && currentProg.top.args.contains(v) =>
+    case (mode, Local(Ref(v))) if mode != Top && currentProg.top.params.contains(v) =>
       Local[Post](variableSucc((mode, v)).ref)(expr.o)
     case (mode, invocation @ MethodInvocation(ThisSeqProg(_), Ref(method), args, _, _, _, _)) if mode != Top =>
       implicit val o = invocation.o
@@ -241,7 +241,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
       assert(args.isEmpty)
       procedureInvocation(
         ref = methodSucc.ref(method),
-        args = prog.args.map(arg => Local[Post](variableSucc.ref((mode, arg)))(arg.o)) ++
+        args = prog.params.map(arg => Local[Post](variableSucc.ref((mode, arg)))(arg.o)) ++
           prog.endpoints.map(endpoint => Local[Post](endpointSucc.ref((mode, endpoint)))(invocation.o)),
         blame = invocation.blame
       )

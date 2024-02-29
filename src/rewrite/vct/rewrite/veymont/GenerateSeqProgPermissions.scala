@@ -101,8 +101,8 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
         globalDeclarations.succeed(prog, prog.rewrite(
           contract = prependContract(
             prog.contract,
-            variablesPerm(prog.args)(prog.o),
-            variablesPerm(prog.args)(prog.o)
+            variablesPerm(prog.params)(prog.o),
+            variablesPerm(prog.params)(prog.o)
           )(prog.o),
           run = run.rewrite(
             contract = prependContract(

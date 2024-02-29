@@ -144,7 +144,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
         typeArgs = Seq(),
         constructor = constructor.ref,
         args = Seq(constructorInvocation[Post](
-          ref = constructor.ref,
+          ref = succ(endpoint.constructor.decl),
           classTypeArgs = endpoint.typeArgs.map(dispatch),
           args = endpoint.args.map(dispatch),
           blame = PanicBlame("Not implemented")

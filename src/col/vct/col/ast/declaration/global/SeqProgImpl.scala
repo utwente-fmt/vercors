@@ -21,12 +21,12 @@ object SeqProgImpl {
 }
 
 trait SeqProgImpl[G] extends DeclarationImpl[G] with Declarator[G] with SeqProgOps[G] { this: SeqProg[G] =>
-  override def declarations: Seq[Declaration[G]] = args ++ endpoints ++ decls
+  override def declarations: Seq[Declaration[G]] = params ++ endpoints ++ decls
 
   override def layout(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
       contract,
-      Group(Text("seq_program") <+> ctx.name(this) <> "(" <> Doc.args(args) <> ")") <+> "{" <>>
+      Group(Text("seq_program") <+> ctx.name(this) <> "(" <> Doc.args(params) <> ")") <+> "{" <>>
         Doc.stack(endpoints ++ decls :+ preRun.map(preRun => Text("/* preRun */") <+> preRun.show).getOrElse(Empty) :+ run) <+/>
       "}"
     ))

@@ -291,7 +291,7 @@ case object ResolveReferences extends LazyLogging {
       .copy(currentThis = Some(RefSeqProg(seqProg)))
       .declare(seqProg.decls)
       .declare(seqProg.endpoints)
-      .declare(seqProg.args)
+      .declare(seqProg.params)
     case seqProg: PVLSeqProg[G] => ctx
       .copy(currentThis = Some(RefPVLSeqProg(seqProg)))
       .declare(seqProg.args)
