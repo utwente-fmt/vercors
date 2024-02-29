@@ -5,6 +5,6 @@ import vct.col.ast.ops.LLVMPointerValueOps
 import vct.col.print._
 
 trait LLVMPointerValueImpl[G] extends LLVMPointerValueOps[G] { this: LLVMPointerValue[G] =>
-  override def t: Type[G] = LLVMTPointer()
+  override lazy val t: Type[G] = LLVMTPointer(Some(value.decl.variableType))
   // override def layout(implicit ctx: Ctx): Doc = ???
 }

@@ -6,6 +6,6 @@ import vct.col.print._
 
 trait LLVMFunctionPointerValueImpl[G] extends LLVMFunctionPointerValueOps[G] { this: LLVMFunctionPointerValue[G] =>
   // TODO: Do we want a separate type for function pointers? For now we don't support function pointers anyway
-  override def t: Type[G] = LLVMTPointer()
+  override def t: Type[G] = LLVMTPointer(None)
   // override def layout(implicit ctx: Ctx): Doc = ???
 }

@@ -29,6 +29,7 @@ PreservedAnalyses GlobalVariableDeclarerPass::run(Module &M,
         colGlobal->set_constant(global.isConstant());
         colGlobal->set_allocated_origin(
             llvm2col::generateGlobalVariableOrigin(M, global));
+        llvm2col::setColNodeId(colGlobal);
     }
 
     return PreservedAnalyses::all();

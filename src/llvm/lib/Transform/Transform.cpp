@@ -56,6 +56,13 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType) {
         }
         break;
     }
+    case llvm::Type::ArrayTyID: {
+        llvm::ArrayType &arrayType = llvm::cast<llvm::ArrayType>(llvmType);
+        col::LlvmtArray *colArray = colType.mutable_llvmt_array();
+        colArray->set_allocated_origin(generateTypeOrigin(llvmType));
+        llvm2col::transformAndSetType(*arrayType.getElementType(), *colArray->mutable_element_type());
+        break;
+    }
     default:
         throw pallas::UnsupportedTypeException(llvmType);
     }
@@ -89,6 +96,14 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
                                         col::Origin *origin,
                                         llvm::Constant &llvmConstant,
                                         col::Expr &colExpr) {
+    if (llvm::isa<llvm::ConstantAggregateZero>(llvmConstant)) {
+        col::LlvmZeroedAggregateValue *colZero = colExpr.mutable_llvm_zeroed_aggregate_value();
+
+        colZero->set_allocated_origin(origin);
+        llvm2col::transformAndSetType(*llvmConstant.getType(),
+                *colZero->mutable_aggregate_type());
+        return;
+    }
     llvm::Type *constType = llvmConstant.getType();
     switch (llvmConstant.getType()->getTypeID()) {
     case llvm::Type::IntegerTyID:
@@ -120,6 +135,12 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
                        llvm::cast<llvm::Function>(*stripped))
                     .getAssociatedColFuncDef()
                     .id());
+        } else if (llvm::isa<llvm::GlobalVariable>(stripped)) {
+            // XXX: To avoid having a map of GlobalVariables to their COL nodes we break with the convention and use the memory location of the LLVM value instead of the memory location of the COL node as the id
+            auto id = reinterpret_cast<int64_t>(stripped);
+            col::LlvmPointerValue *pointer = colExpr.mutable_llvm_pointer_value();
+            pointer->set_allocated_origin(origin);
+            pointer->mutable_value()->set_id(id);
         } else {
             std::string errCtx;
             llvm::raw_string_ostream(errCtx) << llvmConstant;
@@ -151,6 +172,35 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
         colStruct->set_allocated_origin(origin);
         llvm2col::transformAndSetType(*llvmStruct.getType(),
                                       *colStruct->mutable_struct_type());
+
+        break;
+    }
+    case llvm::Type::ArrayTyID: {
+        if (llvm::isa<llvm::ConstantArray>(llvmConstant)) {
+            llvm::ConstantArray &llvmArray =
+                llvm::cast<llvm::ConstantArray>(llvmConstant);
+            col::LlvmArrayValue *colArray = colExpr.mutable_llvm_array_value();
+
+            for (auto &operand : llvmArray.operands()) {
+                llvm2col::transformAndSetConstExpr(
+                    FAM, llvm2col::deepenOperandOrigin(*origin, *operand.get()),
+                    llvm::cast<llvm::Constant>(*operand.get()),
+                    *colArray->add_value());
+            }
+            colArray->set_allocated_origin(origin);
+            llvm2col::transformAndSetType(*llvmArray.getType(),
+                                        *colArray->mutable_array_type());
+        } else {
+            llvm::ConstantDataArray &llvmArray =
+                llvm::cast<llvm::ConstantDataArray>(llvmConstant);
+            col::LlvmRawArrayValue *colArray = colExpr.mutable_llvm_raw_array_value();
+
+            // TODO: This is not a very useful format. Ideally we detect the type and get elements individually as integers or floats or something
+            colArray->set_value(llvmArray.getRawDataValues().str());
+            colArray->set_allocated_origin(origin);
+            llvm2col::transformAndSetType(*llvmArray.getType(),
+                                        *colArray->mutable_array_type());
+        }
 
         break;
     }

@@ -19,10 +19,10 @@ void llvm2col::transformLLVMBlock(llvm::BasicBlock &llvmBlock,
         if (!functionCursor.isVisited(*B))
             return;
     }
-    if (functionCursor.getLoopInfo().isLoopHeader(&llvmBlock)) {
-        transformLoop(llvmBlock, functionCursor);
-        return;
-    }
+    /* if (functionCursor.getLoopInfo().isLoopHeader(&llvmBlock)) { */
+    /*     transformLoop(llvmBlock, functionCursor); */
+    /*     return; */
+    /* } */
     for (auto &I : llvmBlock) {
         transformInstruction(functionCursor, I, colBlock);
     }
