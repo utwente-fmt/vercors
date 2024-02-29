@@ -1,7 +1,7 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -45,14 +45,10 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
     super.postCoerce(p)
   }
 
-  // probably don't need to transform the seqprog itself?
   override def postCoerce(decl: Declaration[Pre]): Unit = decl match {
     case prog: SeqProg[Pre] =>
       currentChoreography.having(prog) { super.postCoerce(prog) }
-//      val endpoints = prog.endpoints
-//      val communicates = prog.collect { case comm: Communicate[Pre] => comm }
-//
-//      ???
+      // TODO (RR): Initialize all channels here...!
     case endpoint: Endpoint[Pre] =>
       // Replace with endpoint with specialized class. Has members: impl of old type, and field for each communciate
       // leading to channel of proper type
@@ -88,15 +84,26 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
           implField,
           constructor
         ) ++ commFields,
-      )
+      )(o.where(name = endpoint.o.getPreferredNameOrElse(Seq("Endpoint"))))
       classOfEndpoint(endpoint) = wrapperClass
       globalDeclarations.declare(wrapperClass)
 
-      // TODO: Still need to propagate the result of the old constructor call, add an init area to seqprog to initialize
-      //  all the channels and set them on all fields (oof m x n...), and declare the endpoint with the new wrapper type
-      //  instead of the old type.
+      // TODO: [x] Still need to propagate the result of the old constructor call
+      // TODO: [x] declare the endpoint with the new wrapper type instead of the old type.
+      // TODO: add an init area to seqprog to initialize  all the channels and set them on all fields (oof m x n...)
 
-      allScopes.anySucceed(decl, decl.rewriteDefault())
+      allScopes.anySucceed(endpoint, endpoint.rewrite[Post](
+        cls = wrapperClass.ref,
+        typeArgs = Seq(),
+        constructor = constructor.ref,
+        args = Seq(constructorInvocation[Post](
+          ref = constructor.ref,
+          classTypeArgs = endpoint.typeArgs.map(dispatch),
+          args = endpoint.args.map(dispatch),
+          blame = PanicBlame("Not implemented")
+        )),
+        blame = PanicBlame("Unreachable")
+      ))
     case _ =>
       super.postCoerce(decl)
   }
