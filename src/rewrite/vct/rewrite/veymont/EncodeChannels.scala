@@ -65,20 +65,21 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
     case prog: SeqProg[Pre] =>
       implicit val o = prog.o
       currentChoreography.having(prog) {
-        def instantiateComm(comm: Communicate[Pre]): Seq[Statement[Post]] = {
+        def commVar(comm: Communicate[Pre]): Variable[Post] = {
           val t = channelType(dispatch(comm.msgType))
           val v = new Variable(t)
           localOfCommunicate(comm) = v
-          Seq(
-           LocalDecl(v),
-           assignLocal(
-             local = Local[Post](v.ref),
-             value = ConstructorInvocation[Post](
-               ref = genericConstructor.ref,
-               classTypeArgs = Seq(dispatch(comm.msgType)),
-               args = Seq(), outArgs = Seq(), typeArgs = Seq(), givenMap = Seq(), yields = Seq()
-             )(PanicBlame("Should be safe"))
-         ))
+          v
+        }
+        def instantiateComm(comm: Communicate[Pre]): Statement[Post] = {
+          val v = localOfCommunicate(comm)
+          assignLocal(
+            local = Local[Post](v.ref),
+            value = ConstructorInvocation[Post](
+              ref = genericConstructor.ref,
+              classTypeArgs = Seq(dispatch(comm.msgType)),
+              args = Seq(), outArgs = Seq(), typeArgs = Seq(), givenMap = Seq(), yields = Seq()
+            )(PanicBlame("Should be safe")))
         }
         def assignComm(comm: Communicate[Pre], endpoint: Endpoint[Pre]): Statement[Post] = {
           assignField(
@@ -89,9 +90,10 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
           )
         }
         allScopes.anySucceed(prog, prog.rewrite(preRun = {
-          val instantiatedComms: Seq[Statement[Post]] = communicates(prog).flatMap(instantiateComm)
+          val vars = communicates(prog).map(commVar)
+          val instantiatedComms: Seq[Statement[Post]] = communicates(prog).map(instantiateComm)
           val assignComms: Seq[Statement[Post]] = prog.endpoints.flatMap { endpoint => communicates(prog).map { comm => assignComm(comm, endpoint) } }
-          Some(Block(instantiatedComms ++ assignComms))
+          Some(Scope(vars, Block(instantiatedComms ++ assignComms)))
         }))
       }
     case endpoint: Endpoint[Pre] =>
