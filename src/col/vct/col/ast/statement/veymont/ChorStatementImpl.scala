@@ -49,6 +49,7 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] { t
       case ThisSeqProg(_) => Seq()
       case _ => Seq(SeqProgInvocation(inner))
     }
+    case Eval(_) => Seq(SeqProgInvocation(inner))
     case _ => Seq(SeqProgStatement(this))
   })
 }

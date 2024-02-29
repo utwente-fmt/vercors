@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Access, Assert, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, ThisSeqProg, Variable}
+import vct.col.ast.{Access, Assert, Assign, Block, ChorStatement, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, ThisSeqProg, Variable}
 import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssertFailed, AssignFailed, AssignLocalOk, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, ParticipantsNotDistinct, PostconditionFailed, PreconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -219,6 +219,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
           rewriteAccess(sender)
         )(InsufficientPermissionToAccessFailure(receiver))
       ))
+    case ChorStatement(stat) => dispatch(stat)
     case stat => rewriteDefault(stat)
   }
 
