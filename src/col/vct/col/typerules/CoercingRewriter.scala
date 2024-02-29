@@ -1549,6 +1549,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case a @ SeqAssign(r, obj, f, v) => SeqAssign(r, obj, f, coerce(v, r.decl.t.instantiate(f.decl.t)))(a.blame)
       case s: SeqBranch[Pre] => s
       case s: SeqLoop[Pre] => s
+      case c: ChorStatement[Pre] => c
       case branch@UnresolvedSeqBranch(branches) => UnresolvedSeqBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
       case branch@PVLBranch(branches) => PVLBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
       case loop@UnresolvedSeqLoop(cond, contract, body) => UnresolvedSeqLoop(bool(cond), contract, body)(loop.blame)

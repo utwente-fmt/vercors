@@ -144,6 +144,8 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
+    case stmt if veymont.currentProg.nonEmpty && !veymont.currentStatement.topOption.contains(stmt) =>
+      veymont.rewriteStatement(stmt)
     case scope @ Scope(locals, body) =>
       def scanScope(node: Node[Pre]): Unit = node match {
         case Scope(_, _) =>

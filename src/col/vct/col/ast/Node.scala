@@ -1338,7 +1338,7 @@ case class PVLCommunicate[G](sender: PVLAccess[G], receiver: PVLAccess[G])(val b
 final case class PVLSeqAssign[G](expr: Expr[G], value: Expr[G])(val blame: Blame[PVLSeqAssignFailure])(implicit val o: Origin) extends Statement[G] with PVLSeqAssignImpl[G]
 
 @family final class Endpoint[G](val cls: Ref[G, Class[G]], val typeArgs: Seq[Type[G]], val constructor: Ref[G, Constructor[G]], val args: Seq[Expr[G]])(val blame: Blame[EndpointFailure])(implicit val o: Origin) extends Declaration[G] with EndpointImpl[G]
-@scopes[Endpoint] @scopes[Variable] final class SeqProg[G](val contract: ApplicableContract[G], val args : Seq[Variable[G]], val endpoints: Seq[Endpoint[G]], val preRun: Option[Statement[G]], val run: SeqRun[G], val decls: Seq[ClassDeclaration[G]])(val blame: Blame[SeqCallableFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with SeqProgImpl[G]
+@scopes[Endpoint] final class SeqProg[G](val contract: ApplicableContract[G], val args : Seq[Variable[G]], val endpoints: Seq[Endpoint[G]], val preRun: Option[Statement[G]], val run: SeqRun[G], val decls: Seq[ClassDeclaration[G]])(val blame: Blame[SeqCallableFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with SeqProgImpl[G]
 @family final case class SeqRun[G](body: Statement[G], contract: ApplicableContract[G])(val blame: Blame[SeqCallableFailure])(implicit val o: Origin) extends NodeFamily[G] with SeqRunImpl[G]
 @family sealed trait Subject[G] extends NodeFamily[G] with SubjectImpl[G]
 final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Subject[G] with EndpointNameImpl[G]
@@ -1350,6 +1350,8 @@ final case class EndpointUse[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin
 
 final case class UnresolvedSeqBranch[G](branches: Seq[(Expr[G], Statement[G])])(val blame: Blame[SeqBranchFailure])(implicit val o: Origin) extends Statement[G] with UnresolvedSeqBranchImpl[G]
 final case class UnresolvedSeqLoop[G](cond: Expr[G], contract: LoopContract[G], body: Statement[G])(val blame: Blame[SeqLoopFailure])(implicit val o: Origin) extends Statement[G] with UnresolvedSeqLoopImpl[G]
+
+final case class ChorStatement[G](inner: Statement[G])(implicit val o: Origin) extends Statement[G] with ChorStatementImpl[G]
 
 @family sealed trait SeqGuard[G] extends NodeFamily[G] with SeqGuardImpl[G]
 final case class EndpointGuard[G](endpoint: Ref[G, Endpoint[G]], condition: Expr[G])(implicit val o: Origin) extends SeqGuard[G] with EndpointGuardImpl[G]

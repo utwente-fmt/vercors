@@ -40,6 +40,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
   val endpointSucc: SuccessionMap[PVLEndpoint[Pre], Endpoint[Post]] = SuccessionMap()
 
   val currentProg: ScopedStack[PVLSeqProg[Pre]] = ScopedStack()
+  val currentStatement: ScopedStack[Statement[Pre]] = ScopedStack()
 
   def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] =
     Communicate(rewriteAccess(comm.receiver), rewriteAccess(comm.sender))(comm.blame)(comm.o)
@@ -116,5 +117,10 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
 
   def rewriteLoop(loop: PVLLoop[Pre]): UnresolvedSeqLoop[Post] =
     UnresolvedSeqLoop(rw.dispatch(loop.cond), rw.dispatch(loop.contract), rw.dispatch(loop.body))(loop.blame)(loop.o)
+
+  def rewriteStatement(statement: Statement[Pre]): Statement[Post] =
+    currentStatement.having(statement) {
+      ChorStatement(rw.dispatch(statement))(statement.o)
+    }
 
 }
