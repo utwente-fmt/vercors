@@ -12,6 +12,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
       // Assign statements change the state of variables directly (if they appear in the valuation)
       case Assign(target, value) => target.t match {
         case _: IntType[_] | TBool() => viable_edges(succ, state).map(e => take_edge(e, state.with_valuation(target, state.resolve_expression(value))))
+        case _: TArray[_] | TSeq(_) => viable_edges(succ, state).map(e => take_edge(e, state.with_updated_collection(target, value)))
         case _ => viable_edges(succ, state).map(e => take_edge(e, state))
       }
       case Havoc(loc) => viable_edges(succ, state).map(e => take_edge(e, state.with_valuation(loc, UncertainValue.uncertain_of(loc.t))))

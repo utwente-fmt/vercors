@@ -24,8 +24,55 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case Some(concrete_variable) => val_updated(concrete_variable, value)
     case None => this
   }
+
   private def val_updated(variable: ConcreteVariable[G], value: UncertainValue): AbstractState[G] =
     AbstractState(valuations + (variable -> value), processes, lock)
+
+  def with_updated_collection(variable: Expr[G], assigned: Expr[G]): AbstractState[G] = {
+    val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(variable, this)).collect{ case v: IndexedVariable[_] => v }
+    if (affected.isEmpty) return this
+    val by_index: Map[Int, IndexedVariable[G]] = Map.from(affected.map(v => (v.i, v)))
+    val new_values = get_collection_value(assigned)
+    var vals = valuations
+    by_index.foreach(t => vals = vals + (t._2 -> new_values(t._1)))
+    AbstractState(vals, processes, lock)
+  }
+
+  private def get_collection_value(lit: Expr[G]): Seq[UncertainValue] = lit match {
+    case LiteralSeq(_, values) => values.map(e => resolve_expression(e))
+    case UntypedLiteralSeq(values) => values.map(e => resolve_expression(e))
+    case Cons(x, xs) => resolve_expression(x) +: get_collection_value(xs)
+    case Concat(xs, ys) => get_collection_value(xs) ++ get_collection_value(ys)
+    // TODO: Store size of variables
+    case d: Deref[_] => ???
+    // TODO: Ask about array semantics
+    case Values(arr, from, to) => ???
+    case NewArray(element, dims, moreDims, initialize) => ???
+    // TODO: Handle cases in which index is not perfectly apparent
+    case Drop(xs, count) => resolve_integer_expression(count).try_to_resolve() match {
+      case None => ???
+      case Some(i) => get_collection_value(xs).drop(i)
+    }
+    case Take(xs, count) => resolve_integer_expression(count).try_to_resolve() match {
+      case None => ???
+      case Some(i) => get_collection_value(xs).take(i)
+    }
+    case SeqUpdate(xs, i, x) => resolve_integer_expression(i).try_to_resolve() match {
+      case None => ???
+      case Some(index) => get_collection_value(xs).updated(index, resolve_expression(x))
+    }
+    case RemoveAt(xs, i) => resolve_integer_expression(i).try_to_resolve() match {
+      case None => ???
+      case Some(index) => get_collection_value(xs).zipWithIndex.filter(_._2 != index).map(_._1)
+    }
+    case Slice(xs, from, to) => resolve_integer_expression(from).try_to_resolve() match {
+      case None => ???
+      case Some(f) => resolve_integer_expression(to).try_to_resolve() match {
+        case None => ???
+        case Some(t) => get_collection_value(xs).slice(f, t)
+      }
+    }
+  }
 
   def with_assumption(assumption: Expr[G]): Set[AbstractState[G]] = resolve_effect(assumption, negate = false)
 

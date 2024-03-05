@@ -140,7 +140,7 @@ case class CFGGenerator[G]() {
     for ((c, i) <- conds.zipWithIndex) {
       successor_to_previous.addOne(CFGEdge(convert(c._1, c._3), Some(c._2.expr)))
       val node = CFGNode(c._2, successor_to_previous)
-      // TODO: Enter node at appropriate index in converted_nodes!
+      // TODO: Should this node be added to the explored nodes? Probably not, as it is a generated node?
       if (i == conds.size - 1) successor_to_previous = mutable.Set(CFGEdge(node, None))
       else successor_to_previous = mutable.Set(CFGEdge(node, Some(Utils.negate(conds(i + 1)._2.expr))))
     }
