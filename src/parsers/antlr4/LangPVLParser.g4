@@ -6,7 +6,7 @@ parser grammar LangPVLParser;
 
 program  : programDecl* EOF EOF ;
 
-programDecl : valGlobalDeclaration | declClass | enumDecl | method | declVeyMontSeqProg;
+programDecl : valGlobalDeclaration | declClass | enumDecl | method | declVeyMontSeqProg | vesuvEntry;
 
 enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
 
@@ -37,6 +37,8 @@ methodBody : ';' | block ;
 constructor : contract 'constructor' '(' args? ')' methodBody ;
 
 runMethod : contract 'run' methodBody ;
+
+vesuvEntry : 'vesuv_entry' methodBody ;
 
 contract : valContractClause* ;
 

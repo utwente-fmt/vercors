@@ -151,6 +151,11 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       )
   }
 
+  def convert(implicit method: VesuvEntryContext): Seq[MainMethod[G]] = method match {
+    case VesuvEntry0(_, maybeBody) =>
+      Seq(new MainMethod(convert(maybeBody))(blame(method)))
+  }
+
   def convert(implicit args: ArgsContext): Seq[Variable[G]] = args match {
     case Args0(t, name) => Seq(new Variable(convert(t))(origin(name).sourceName(convert(name))))
     case Args1(t, name, _, args) =>
