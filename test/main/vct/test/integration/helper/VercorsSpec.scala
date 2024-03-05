@@ -181,6 +181,10 @@ abstract class VercorsSpec extends AnyFlatSpec {
 
   class VerdictPhrase(val verdict: Verdict, val reportPath: Option[Path]) {
     def using(backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, reportPath, backend, Nil)
+
+    def usingFlags(flags: Seq[String], backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, reportPath, backend, flags)
+
+    def usingFlags(flag: String, backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, reportPath, backend, Seq(flag))
   }
 
   class BackendPhrase(val verdict: Verdict, val reportPath: Option[Path], val backends: Seq[Backend], val _flags: Seq[String]) {
