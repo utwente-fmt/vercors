@@ -266,6 +266,7 @@ final class Model[G](val declarations: Seq[ModelDeclaration[G]])(implicit val o:
                 val inline: Boolean = false, val pure: Boolean = false)
                         (val blame: Blame[CallableFailure])(implicit val o: Origin)
   extends GlobalDeclaration[G] with AbstractMethod[G] with ProcedureImpl[G]
+final class MainMethod[G](val body: Option[Statement[G]])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with MainMethodImpl[G]
 @scopes[Variable] final class Predicate[G](val args: Seq[Variable[G]], val body: Option[Expr[G]],
                 val threadLocal: Boolean = false, val inline: Boolean = false)(implicit val o: Origin)
   extends GlobalDeclaration[G] with AbstractPredicate[G] with PredicateImpl[G]
@@ -297,7 +298,6 @@ case class Boogie[G]()(implicit val o: Origin) extends ProverLanguage[G] with Bo
   extends ClassDeclaration[G] with AbstractPredicate[G] with InstancePredicateImpl[G]
 final class InstanceField[G](val t: Type[G], val flags: Seq[FieldFlag[G]])(implicit val o: Origin) extends ClassDeclaration[G] with Field[G] with InstanceFieldImpl[G]
 final class RunMethod[G](val body: Option[Statement[G]], val contract: ApplicableContract[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G] with RunMethodImpl[G]
-final class MainMethod[G](val body: Option[Statement[G]])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G] with MainMethodImpl[G]
 final class InstanceOperatorFunction[G](val returnType: Type[G], val operator: Operator[G], val args: Seq[Variable[G]],
                                         val body: Option[Expr[G]], val contract: ApplicableContract[G],
                                         val inline: Boolean, val threadLocal: Boolean = false)
