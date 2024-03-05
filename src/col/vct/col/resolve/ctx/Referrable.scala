@@ -39,11 +39,7 @@ sealed trait Referrable[G] {
       C.nameFromDeclarator(decl.decl.inits.head.decl)
     case RefTypeDef(_) => ???
     case RefCStructField(decls, idx) => C.nameFromDeclarator(decls.decls(idx))
-    case RefOpenCLVectorMembers(idxs) => "s" ++ idxs.map {
-      case i if i >= 0 && i < 9 => i.toString
-      case i if i >= 10 && i < 16 => ('a'.toInt + (i-10)).toChar
-      case _ => ???
-    }.mkString
+    case RefOpenCLVectorMembers(idxs) => "s" ++ idxs.map { i => f"$i%x"}.mkString
     case RefJavaClass(decl) => decl.name
     case RefSilverField(decl) => Referrable.originName(decl)
     case RefSimplificationRule(decl) => Referrable.originName(decl)

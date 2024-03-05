@@ -25,6 +25,7 @@ object BinOperatorTypes {
   def isStringOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getCoercion(lt, TString()).isDefined
 
   def isBagOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getAnyBagCoercion(lt).isDefined
+  def isMapOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getAnyMapCoercion(lt).isDefined
   def isPointerOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getAnyPointerCoercion(lt).isDefined
   def isProcessOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getCoercion(lt, TProcess()).isDefined
   def isSeqOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getAnySeqCoercion(lt).isDefined
@@ -79,6 +80,7 @@ trait BinExprImpl[G] { this: BinExpr[G] =>
   def isStringOp: Boolean = BinOperatorTypes.isStringOp(left.t, right.t)
 
   def isBagOp: Boolean = BinOperatorTypes.isBagOp(left.t, right.t)
+  def isMapOp: Boolean = BinOperatorTypes.isMapOp(left.t, right.t)
   def isPointerOp: Boolean = BinOperatorTypes.isPointerOp(left.t, right.t)
   def isProcessOp: Boolean = BinOperatorTypes.isProcessOp(left.t, right.t)
   def isSeqOp: Boolean = BinOperatorTypes.isSeqOp(left.t, right.t)

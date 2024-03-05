@@ -29,14 +29,28 @@ case object C {
     Seq(CSigned()),
   )
 
-  // We assume Data model LP64, which Unix uses and give back number of bits
-  // https://en.wikipedia.org/wiki/64-bit_computing#64-bit_data_models
-  val INTEGER_LIKE_TYPES_64bit: Map[Seq[CDeclarationSpecifier[_]], Int] = Map(
+  val INTEGER_LIKE_TYPES: Seq[Seq[CDeclarationSpecifier[_]]] = Seq(
+    Seq(CShort()),
+    Seq(CShort(), CInt()),
+    Seq(CInt()),
+    Seq(CLong()),
+    Seq(CLong(), CInt()),
+    Seq(CLong(), CLong()),
+    Seq(CLong(), CLong(), CInt()),
+  )
+
+  // See here for more discussion https://github.com/utwente-fmt/vercors/discussions/1018#discussioncomment-5966388
+  sealed trait DataModel
+  case object ILP32 extends DataModel
+  case object LP64 extends DataModel
+  case object LLP64 extends DataModel
+
+  def INT_TYPE_TO_SIZE(dm: DataModel): Map[Seq[CDeclarationSpecifier[_]], Int] = Map(
     (Seq(CShort()) -> 16),
     (Seq(CShort(), CInt()) -> 16),
-    (Seq(CInt()) ->32),
+    (Seq(CInt()) -> 32),
     (Seq(CLong()) -> 64),
-    (Seq(CLong(), CInt()) -> 64),
+    (Seq(CLong(), CInt()) -> (if(dm == LP64) 64 else 32)),
     (Seq(CLong(), CLong()) -> 64),
     (Seq(CLong(), CLong(), CInt()) -> 64),
   )
@@ -106,9 +120,9 @@ case object C {
     val t: Type[G] = filteredSpecs match {
       case Seq(CVoid()) => TVoid()
       case Seq(CChar()) => TChar()
-      case CUnsigned() +: t if INTEGER_LIKE_TYPES_64bit.contains(t) => TCInt()
-      case CSigned() +: t if INTEGER_LIKE_TYPES_64bit.contains(t) => TCInt()
-      case t if C.INTEGER_LIKE_TYPES_64bit.contains(t) => TCInt()
+      case CUnsigned() +: t if INTEGER_LIKE_TYPES.contains(t) => TCInt()
+      case CSigned() +: t if INTEGER_LIKE_TYPES.contains(t) => TCInt()
+      case t if C.INTEGER_LIKE_TYPES.contains(t) => TCInt()
       case Seq(CFloat()) => C_ieee754_32bit()
       case Seq(CDouble()) => C_ieee754_64bit()
       case Seq(CLong(), CDouble()) => C_ieee754_64bit()

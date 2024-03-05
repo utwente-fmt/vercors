@@ -973,6 +973,7 @@ case class PanicBlame(message: String) extends Blame[VerificationFailure] {
 object NeverNone extends PanicBlame("get in `opt == none ? _ : get(opt)` should always be ok.")
 object FramedSeqIndex extends PanicBlame("access in `∀i. 0 <= i < |xs| ==> ...xs[i]...` should never be out of bounds")
 object FramedArrIndex extends PanicBlame("access in `∀i. 0 <= i < xs.length ==> Perm(xs[i], read) ** ...xs[i]...` should always be ok")
+object FramedVectorIndex extends PanicBlame("access in `∀i. 0 <= i < xs.length ==> ...xs[i]...` should never be out of bounds")
 object IteratedArrayInjective extends PanicBlame("access in `∀*i. 0 <= i < xs.length ==> Perm(xs[i], _)` should always be injective")
 object IteratedPtrInjective extends PanicBlame("access in `∀*i. Perm(xs[i], _)` should always be injective")
 object FramedArrLoc extends PanicBlame("Bounds and non-nullness are ensured.")

@@ -168,7 +168,28 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         LiteralTuple(targetTypes.map(dispatch), inner.zipWithIndex.map { case (c, i) => applyCoercion(TupGet(e, i), c) })
       case CoerceMapType(inner, source, target) =>
         ???
-      case _: CoerceMapVector[Pre] => e
+      case CoerceMapVector(inner, sourceVectorElement, targetVectorElement, size) =>
+        val f: Function[Post] = withResult((result: Result[Post]) => {
+          val v = new Variable[Post](TVector(size, dispatch(sourceVectorElement)))
+          val i = new Variable[Post](TInt())
+          val result_i = VectorSubscript(result, i.get)(FramedVectorIndex)
+          val v_i = VectorSubscript(v.get, i.get)(FramedVectorIndex)
+
+          function(
+            blame = AbstractApplicable,
+            contractBlame = TrueSatisfiable,
+            returnType = TVector(size, dispatch(targetVectorElement)),
+            args = Seq(v),
+            ensures = UnitAccountedPredicate(
+                Forall(Seq(i), Seq(Seq(result_i)),
+                  (const[Post](0) <= i.get && i.get < const(size)) ==>
+                    (result_i === applyCoercion(v_i, inner)))
+            ),
+          )
+        })
+
+        globalDeclarations.declare(f)
+        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("default coercion for vector<_> requires nothing."))
 
       case CoerceBoolResource() => e
       case CoerceResourceResourceVal() => e
@@ -1476,8 +1497,16 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         val seqType = TSeq(sharedType)
         VectorCompare(coerce(coercedLeft, seqType), coerce(coercedRight, seqType))
       case VectorEq(left, right) =>
-        val sharedType = Types.leastCommonSuperType(left.t, right.t)
-        VectorEq(coerce(left, sharedType), coerce(right, sharedType))
+        val (coercedLeft, leftType) = vector(left)
+        val (coercedRight, rightType) = vector(right)
+
+        if(leftType.size != rightType.size)
+          throw IncoercibleExplanation(e, s"Expected both operands to have a vector type of equal size, " +
+            s"but got ${leftType} and ${rightType}")
+
+        val sharedType = Types.leastCommonSuperType(leftType.element, rightType.element)
+        val vectorType = TVector(leftType.size, sharedType)
+        VectorEq(coerce(left, vectorType), coerce(right, vectorType))
       case div @ VectorFloatDiv(_, _) => vectorFloatOp2(div, (l,r) => VectorFloatDiv(l,r)(div.blame))
       case div @ VectorFloorDiv(_, _) => vectorIntOp2(div, (l,r) => VectorFloorDiv(l,r)(div.blame))
       case minus @ VectorMinus(_, _) =>

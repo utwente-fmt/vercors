@@ -133,7 +133,10 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else if(op.isSeqOp) SeqMember(dispatch(x), dispatch(xs))
         else throw Unreachable("AmbiguousMember must query a map, set, bag, or seq because of the type check.")
       case cmp: AmbiguousComparison[Pre] =>
-        if(cmp.isVectorOp) cmp match {
+        if(cmp.isMapOp) cmp match {
+          case AmbiguousEq(left, right, _) => MapEq(dispatch(left), dispatch(right))
+          case AmbiguousNeq(left, right, _) => Not(MapEq(dispatch(left), dispatch(right)))
+        } else if(cmp.isVectorOp) cmp match {
           case AmbiguousEq(left, right, _) => VectorEq(dispatch(left), dispatch(right))
           case AmbiguousNeq(left, right, _) => VectorNeq(dispatch(left), dispatch(right))
         } else cmp match {
