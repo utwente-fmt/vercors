@@ -99,7 +99,7 @@ case object InlineApplicables extends RewriterBuilder {
       val sub = Substitute[Pre](replacements.map(r => r.replacing -> r.withVariable.get).toMap)
       val replaced = sub.labelDecls.scope { sub.dispatch(e) }
       replacements.foldRight(replaced) {
-        case (replacement, e) => Let(replacement.withVariable, replacement.binding, e)
+        case (replacement, e) => Let(replacement.withVariable, replacement.binding, e)(e.o)
       }
     }
 

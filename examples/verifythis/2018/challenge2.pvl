@@ -8,11 +8,16 @@
 // The failing loop invariant succeeds when verified with silicon master
 //:: verdict Fail
 
+adt Int {
+    pure int pred(int i);
+    axiom (\forall int i; pred(i) == i - 1);
+}
+
 class ColoredTiles {
 
   pure boolean validSequence(seq<boolean> s, int n)
    = (s.size == n)
-   && (\forall int i;0<=i && i<n;s[i]==>
+   && (\forall int i; 0 <= i && i < n; {: s[i] :} ==>
             (i >= 2            && s[i-2] && s[i-1])
          || (i >= 1 && i < n-1 && s[i-1] && s[i+1])
          || (i < n - 2        && s[i+1] && s[i+2])
@@ -42,9 +47,9 @@ class ColoredTiles {
   }
   
   requires l <= k && 0 <= l;
-  requires (\forall int z;0<=z && z<|last|; 0<=l && l<|last[z]|);
-  requires (\forall int z;0<=z && z<|last|;last[z][l]==false);
-  ensures (\forall int z;0<=z && z<|last|;has_false_in_prefix(last[z],k));
+  requires (\forall int z;0<=z && z < |last|; 0<=l && l < |last[z]|);
+  requires (\forall int z;0<=z && z < |last|;last[z][l]==false);
+  ensures (\forall int z;0<=z && z < |last|;has_false_in_prefix(last[z],k));
   void lemma_existence_of_l (seq<seq <boolean>> last,int k,int l) {
     par exf (int z=0..|last|)
       requires 0<=l && l<|last[z]| && last[z][l]==false && l<=k && 0 <= l;
@@ -131,17 +136,19 @@ class ColoredTiles {
       loop_invariant (\forall* int z;0<=z && z<i;Perm(count[z],write));
       loop_invariant (\forall int z;0<=z && z<n;|res[z]| == count[z]);
       loop_invariant count[n] == count[n-1];
-      loop_invariant (\forall int y;0<=y && y <j;validSequence(last[y],n));
+      loop_invariant (\forall int y; 0<=y && y <j; validSequence(last[y],n));
       loop_invariant (\forall int z;0<=z && z <j;|last[z]|>0);
       loop_invariant (\forall int z;0<=z && z <j;last[z][0]==false);
       loop_invariant (\forall int z;0<=z && z<|res|;unique(res[z]));
-      loop_invariant (\forall int z;0<=z && z<j;(last[z] == seq <boolean> {false} + res[n-1][z]));
+      loop_invariant (\let int predN = n - 1; (\forall int z;0<=z && z<j;(last[z] == seq <boolean> {false} + res[predN][z])));
       loop_invariant (\forall int z;0<=z && z<j;last[z][0]==false);
       loop_invariant unique(last);
       while (j < |res[n-1]|){
-        lemma_uniqueness_implies_unequal(res[n-1],j,seq <boolean> {false});
-        assert (\forall int y;0<=y && y <|last|;!(seq <boolean> {false} + res[n-1][y] == seq <boolean> {false} + res[n-1][j]));
-        last = last + seq<seq <boolean>> { seq <boolean> {false} + res[n-1][j] };
+        lemma_uniqueness_implies_unequal(res[n - 1],j,seq <boolean> {false});
+        assert (\let int predN = n - 1;
+            (\forall int y; 0 <= y && y < |last|; !(seq<boolean>{ false } + res[predN][y] == seq<boolean>{ false } + res[predN][j]))
+            );
+        last = last + seq<seq<boolean>>{ seq<boolean>{ false } + res[n - 1][j] };
         j = j + 1;
       }
       int k = 3;
@@ -178,7 +185,7 @@ class ColoredTiles {
           assert has_false_in_prefix(nxtelm,k);
           lemma_unique_add_one(nxtblock,nxtelm);
           nxtblock = nxtblock + seq<seq <boolean>> { nxtelm };
-          assert (\forall int y;0<=y && y <|nxtblock|;(nxtblock[y] == nxtelm)==>y==|nxtblock|-1);
+          assert (\forall int y; 0 <= y && y < |nxtblock|; (nxtblock[y] == nxtelm) ==> y == |nxtblock| - 1);
           j = j + 1;
         }
         count[n] = count[n]+count[n-k-1];
@@ -196,7 +203,9 @@ class ColoredTiles {
     }
     
     assert |res[i-1]| == count[i-1]; // algorithm computed the number corresponding to our ghost variable
-    assert (\forall int y;0<=y && y <|res[i-1]|;validSequence(res[i-1][y],i-1)); // all sequences are valid
+    assert (\let int predI = i - 1;
+        (\forall int y; 0<=y && y <|res[i-1]|;validSequence(res[predI][y],i-1)) // all sequences are valid
+        );
     assert unique(res[i-1]); // all sequences are unique
     return count[i-1];
   }

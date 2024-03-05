@@ -77,7 +77,7 @@ class Test {
 		int k = 0;
 
 		loop_invariant 0 <= k && k <= |xs|;
-		loop_invariant (\forall int l; l>=0 && l<k; counter(xs + ys, xs[l]) == counter(xs, xs[l]) + counter(ys, xs[l]));
+		loop_invariant (\forall int l; l>=0 && l<k; {: counter(xs + ys, xs[l]) :} == counter(xs, xs[l]) + counter(ys, xs[l]));
 		while(k < |xs|)
 		{
 			lemma_count_app(xs, ys, xs[k]);
@@ -154,7 +154,7 @@ class Test {
 		int k = 0;
 
 		loop_invariant 0 <= k && k <= |xs|;
-		loop_invariant (\forall int l; l>=0 && l<k; counter(xs, xs[l]) == counter(ys, xs[l]));
+		loop_invariant (\forall int l; l>=0 && l<k; {: counter(xs, xs[l]) :} == counter(ys, xs[l]));
 		while(k < |xs|)
 		{
 			lemma_swap_permutation(xs, ys, i, j, xs[k]);
