@@ -144,7 +144,7 @@ public class COLSystem<T> {
      * @return A single expression with all given expressions connected by stars
      */
     private Expr<T> _fold_star(java.util.ArrayList<Expr<T>> expressions) {
-        if (expressions == null || expressions.isEmpty()) return TRUE;
+        if (expressions == null || expressions.size() == 0) return TRUE;
         if (expressions.size() == 1) return expressions.get(0);
         Expr<T> first = expressions.remove(0);
         return new Star<>(first, _fold_star(expressions), OriGen.create());
@@ -168,7 +168,7 @@ public class COLSystem<T> {
      * @return A conjunction of all given expressions
      */
     private Expr<T> _fold_and(java.util.ArrayList<Expr<T>> expressions) {
-        if (expressions == null || expressions.isEmpty()) return TRUE;
+        if (expressions == null || expressions.size() == 0) return TRUE;
         if (expressions.size() == 1) return expressions.get(0);
         Expr<T> first = expressions.remove(0);
         return new And<>(first, _fold_and(expressions), OriGen.create());
@@ -192,7 +192,7 @@ public class COLSystem<T> {
      * @return A disjunction of all given expressions
      */
     private Expr<T> _fold_or(java.util.ArrayList<Expr<T>> expressions) {
-        if (expressions == null || expressions.isEmpty()) return FALSE;
+        if (expressions == null || expressions.size() == 0) return FALSE;
         if (expressions.size() == 1) return expressions.get(0);
         Expr<T> first = expressions.remove(0);
         return new Or<>(first, _fold_or(expressions), OriGen.create());
@@ -325,24 +325,19 @@ public class COLSystem<T> {
     private final java.util.Map<SCKnownType, InstancePredicate<T>> prim_channel_perms;
 
     /**
-     * Fields for the <code>process_state</code> encoding.
+     * Field for the <code>process_state</code> sequence.
      */
-    private final java.util.Map<Integer, InstanceField<T>> process_state;
+    private InstanceField<T> process_state;
 
     /**
-     * Fields for the <code>event_state</code> encoding.
+     * Field for the <code>event_state</code> sequence.
      */
-    private final java.util.Map<Integer, InstanceField<T>> event_state;
+    private InstanceField<T> event_state;
 
     /**
-     * Fields for the <code>primitive_channel_update</code> encoding.
+     * Field for the <code>primitive_channel_update</code> sequence.
      */
-    private final java.util.Map<Integer, InstanceField<T>> primitive_channel_update;
-
-    /**
-     * A mapping from known types to their respective ID in <code>primitive_channel_update</code>.
-     */
-    private final java.util.Map<SCKnownType, Integer> primitive_channel_ids;
+    private InstanceField<T> primitive_channel_update;
 
     /**
      * A list of all global declarations (e.g. classes) in the system; represents the top-level AST node during
@@ -486,10 +481,6 @@ public class COLSystem<T> {
     public COLSystem() {
         this.enums = new java.util.ArrayList<>();
         this.prim_channel_perms = new java.util.HashMap<>();
-        this.process_state = new java.util.HashMap<>();
-        this.event_state = new java.util.HashMap<>();
-        this.primitive_channel_update = new java.util.HashMap<>();
-        this.primitive_channel_ids = new java.util.HashMap<>();
         this.primitive_channels = new java.util.HashMap<>();
         this.global_declarations = new java.util.ArrayList<>();
         this.process_mapping = new java.util.HashMap<>();
@@ -683,80 +674,57 @@ public class COLSystem<T> {
     }
 
     /**
-     * Returns the <code>process_state</code> field for the given process ID. Creates a new field if it doesn't exist.
+     * Registers the field for the process state sequence.
      *
-     * @param id Process ID the field should represent
+     * @param new_proc_state Process state sequence field
+     */
+    public void set_process_state(InstanceField<T> new_proc_state) {
+        this.process_state = new_proc_state;
+    }
+
+    /**
+     * Returns the <code>process_state</code> sequence field.
+     *
      * @return An instance field of the Main class containing the process state
      */
-    public InstanceField<T> get_process_state(int id) {
-        if (process_state.containsKey(id)) return process_state.get(id);
-        InstanceField<T> new_process_state = new InstanceField<>(T_INT, NO_FLAGS, OriGen.create("process_state_" + id));
-        process_state.put(id, new_process_state);
-        return new_process_state;
+    public InstanceField<T> get_process_state() {
+        return process_state;
     }
 
     /**
-     * Returns the value set of all process states.
+     * Registers the field for the event state sequence.
      *
-     * @return A collection containing all process state variables
+     * @param new_event_state Event state sequence field
      */
-    public java.util.Collection<InstanceField<T>> get_all_process_states() {
-        return process_state.values();
+    public void set_event_state(InstanceField<T> new_event_state) {
+        this.event_state = new_event_state;
     }
 
     /**
-     * Returns the <code>event_state</code> field for the given event ID. Creates a new field if it doesn't exist.
+     * Returns the <code>event_state</code> sequence field.
      *
-     * @param id Event ID the field should represent
      * @return An instance field of the Main class containing the event state
      */
-    public InstanceField<T> get_event_state(int id) {
-        if (event_state.containsKey(id)) return event_state.get(id);
-        InstanceField<T> new_event_state = new InstanceField<>(T_INT, NO_FLAGS, OriGen.create("event_state_" + id));
-        event_state.put(id, new_event_state);
-        return new_event_state;
+    public InstanceField<T> get_event_state() {
+        return event_state;
     }
 
     /**
-     * Returns the value set of all event states.
+     * Registers the field for the primitive channel update sequence.
      *
-     * @return A collection containing all event state variables
+     * @param new_prim_update Primitive channel update sequence field
      */
-    public java.util.Collection<InstanceField<T>> get_all_event_states() {
-        return event_state.values();
+    public void set_primitive_channel_update(InstanceField<T> new_prim_update) {
+        this.primitive_channel_update = new_prim_update;
     }
 
     /**
-     * Returns the <code>primitive_channel_update</code> field for the given primitive channel ID. Creates a new field
-     * if it doesn't exist.
+     * Returns the <code>primitive_channel_update</code> sequence field.
      *
-     * @param id Primitive channel ID the field should represent
      * @return An instance field of the Main class containing the primitive channel updates
      */
-    public InstanceField<T> get_primitive_channel_update(int id) {
-        if (primitive_channel_update.containsKey(id)) return primitive_channel_update.get(id);
-        InstanceField<T> new_prim_channel = new InstanceField<>(T_BOOL, NO_FLAGS, OriGen.create("primitive_channel_update_" + id));
-        primitive_channel_update.put(id, new_prim_channel);
-        return new_prim_channel;
-    }
-
-    /**
-     * Returns the value set of all primitive channel updates.
-     *
-     * @return A collection containing all primitive channel update variables
-     */
-    public java.util.Collection<InstanceField<T>> get_all_primitive_channel_updates() {
-        return primitive_channel_update.values();
-    }
-
-    public void register_primitive_channel(SCKnownType sc_inst) {
-        primitive_channel_ids.put(sc_inst, total_nr_primitive_channels);
-        InstanceField<T> update_field = new InstanceField<>(T_BOOL, NO_FLAGS, OriGen.create("primitive_channel_update_" + total_nr_primitive_channels++))
-        primitive_channel_update.put(total_nr_primitive_channels, update_field);
-    }
-
-    public int get_primitive_channel_id(SCKnownType sc_inst) {
-        return primitive_channel_ids.get(sc_inst);
+    public InstanceField<T> get_primitive_channel_update() {
+        return primitive_channel_update;
     }
 
     /**
@@ -1155,6 +1123,7 @@ public class COLSystem<T> {
      */
     public void add_primitive_channel(SCKnownType sc_inst, InstanceField<T> main_field) {
         this.primitive_channels.put(sc_inst, main_field);
+        total_nr_primitive_channels += 1;
     }
 
     /**
@@ -1289,5 +1258,14 @@ public class COLSystem<T> {
      */
     public int get_total_nr_events() {
         return total_nr_events;
+    }
+
+    /**
+     * Returns the number of primitive channels in the COL system.
+     *
+     * @return Number of primitive channel instances in the COL system
+     */
+    public int get_nr_primitive_channels() {
+        return total_nr_primitive_channels;
     }
 }

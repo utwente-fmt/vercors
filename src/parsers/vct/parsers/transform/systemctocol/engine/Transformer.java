@@ -61,16 +61,16 @@ public class Transformer<T> {
 		scan_port_connections();
 		// Register enums to be translated to integer values
 		scan_enums();
-		// Register events and channel IDs for primitive channels
-		scan_primitive_channels();
+		// Create references to necessary Main class attributes
+		create_minimal_main();
 		// Translate system parameters
 		translate_system_parameters();
+		// Transform known types
+		transform_known_types();
 		// Transform shared event variables to event IDs
 		handle_shared_events();
 		// Transform all regular classes
 		transform_classes();
-		// Transform known types
-		transform_known_types();
 		// Finish the Main class
 		create_main_class();
 	}
@@ -160,7 +160,7 @@ public class Transformer<T> {
 					// Multiple threads are declared -> one thread class for each thread and possibly a state class for shared functionality
 					default -> {
 						// Create state class if at least one member function or attribute is declared
-						if (!member_functions.isEmpty() || !members.isEmpty()) {
+						if (member_functions.size() > 0 || members.size() > 0) {
 							StateClass state_class = new StateClass(inst);
 							state_class.set_constructor(constructor);
 							state_class.add_attributes(members);
@@ -226,11 +226,11 @@ public class Transformer<T> {
 					java.util.List<SCClassInstance> hierarchical = sc_port_inst.getModuleInstances();
 
 					// If there is a SystemC-internal channel, register it in the COL system context
-					if (!primitive.isEmpty()) {
+					if (primitive.size() > 0) {
 						col_system.add_primitive_port_connection(sc_inst, sc_port, primitive.get(0));
 					}
 					// If there is a user-defined channel, register it in the COL system context
-					else if (!hierarchical.isEmpty()) {
+					else if (hierarchical.size() > 0) {
 						col_system.add_hierarchical_port_connection(sc_inst, sc_port, hierarchical.get(0));
 					}
 					else throw new SystemCFormatException("Port " + sc_port + " has no bound primitive or hierarchical channels!");
@@ -249,26 +249,13 @@ public class Transformer<T> {
 	}
 
 	/**
-	 * Scans the SystemC system for primitive channels and creates the necessary event and primitive update fields.
+	 * Creates the Main class's instance fields for the process and event state sequences. Does not yet instantiate the
+	 * Main class itself.
 	 */
-	private void scan_primitive_channels() {
-		for (SCClassInstance instance : sc_system.getInstances()) {
-			if (instance instanceof SCKnownType sc_inst) {
-				java.util.ArrayList<Integer> events = switch (sc_inst.getSCClass().getName()) {
-					case Constants.CLASS_FIFO_INT, Constants.CLASS_FIFO_BOOL ->
-							new java.util.ArrayList<>(java.util.List.of(col_system.get_total_nr_events() + Constants.FIFO_READ_EVENT,
-											  		  					col_system.get_total_nr_events() + Constants.FIFO_WRITE_EVENT));
-					case Constants.CLASS_SIGNAL_INT, Constants.CLASS_SIGNAL_BOOL ->
-							new java.util.ArrayList<>(java.util.List.of(col_system.get_total_nr_events() + Constants.SIGNAL_WRITE_EVENT));
-					default -> throw new UnsupportedException("Known type " + sc_inst.getSCClass().getName() + " is not supported.");
-				};
-				// Register events
-				java.util.Collections.sort(events);
-				col_system.add_channel_events(sc_inst, events);
-				// Register primitive channel
-				col_system.register_primitive_channel(sc_inst);
-			}
-		}
+	private void create_minimal_main() {
+		col_system.set_process_state(new InstanceField<>(col_system.T_SEQ_INT, col_system.NO_FLAGS, OriGen.create("process_state")));
+		col_system.set_event_state(new InstanceField<>(col_system.T_SEQ_INT, col_system.NO_FLAGS, OriGen.create("event_state")));
+		col_system.set_primitive_channel_update(new InstanceField<>(col_system.T_SEQ_BOOL, col_system.NO_FLAGS, OriGen.create("primitive_channel_update")));
 	}
 
 	/**
@@ -292,6 +279,18 @@ public class Transformer<T> {
 				InstanceField<T> buffer_size = new InstanceField<>(col_system.T_INT, col_system.NO_FLAGS, OriGen.create("BUFFER_SIZE"));
 				col_system.set_fifo_size_parameter(buffer_size);
 				break;
+			}
+		}
+	}
+
+	/**
+	 * Transforms known types, i.e. SystemC-internal primitive channels, to their respective abstract encoding.
+	 */
+	private void transform_known_types() {
+		for (SCClassInstance instance : sc_system.getInstances()) {
+			if (instance instanceof SCKnownType inst) {
+				KnownTypeTransformer<T> transformer = new KnownTypeTransformer<>(inst, col_system);
+				transformer.transform();
 			}
 		}
 	}
@@ -334,18 +333,6 @@ public class Transformer<T> {
 					col_system.add_global_declaration(process_class);
 					col_system.add_col_class_translation(process, process_class);
 				}
-			}
-		}
-	}
-
-	/**
-	 * Transforms known types, i.e. SystemC-internal primitive channels, to their respective abstract encoding.
-	 */
-	private void transform_known_types() {
-		for (SCClassInstance instance : sc_system.getInstances()) {
-			if (instance instanceof SCKnownType inst) {
-				KnownTypeTransformer<T> transformer = new KnownTypeTransformer<>(inst, col_system);
-				transformer.transform();
 			}
 		}
 	}

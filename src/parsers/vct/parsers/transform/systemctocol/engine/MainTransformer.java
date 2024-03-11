@@ -232,8 +232,24 @@ public class MainTransformer<T> {
      * variable <code>primitive_channel_update</code>.
      */
     private void create_update_invariant() {
-        Option<Expr<T>> conds = Option.apply(col_system.fold_star(col_system.get_all_primitive_channel_updates().stream().map(this::write_perm_to_field).toList()));
-        update_permission_invariant = new InstancePredicate<>(col_system.NO_VARS, conds, false, true, OriGen.create("update_permission_invariant"));
+        // Create reference to primitive_channel_update
+        InstanceField<T> prim_channel_update = col_system.get_primitive_channel_update();
+        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(prim_channel_update, ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> update_deref = new Deref<>(col_system.THIS, update_ref, new GeneratedBlame<>(), OriGen.create());
+        FieldLocation<T> update_loc = new FieldLocation<>(col_system.THIS, update_ref, OriGen.create());
+
+        // Create some auxiliary values
+        Size<T> update_size = new Size<>(update_deref, OriGen.create());
+        IntegerValue<T> nr_prim_channels = new IntegerValue<>(BigInt.apply(col_system.get_nr_primitive_channels()), OriGen.create());
+
+        // Create predicate conditions
+        Perm<T> update_perm = new Perm<>(update_loc, new WritePerm<>(OriGen.create()), OriGen.create());
+        Eq<T> update_length = new Eq<>(update_size, nr_prim_channels, OriGen.create());
+
+        // Put it all together and register the predicate in the COL system
+        java.util.List<Expr<T>> conditions = java.util.List.of(update_perm, update_length);
+        update_permission_invariant = new InstancePredicate<>(col_system.NO_VARS, Option.apply(col_system.fold_star(conditions)),
+                false, true, OriGen.create("update_permission_invariant"));
         col_system.set_update_perms(update_permission_invariant);
     }
 
@@ -243,28 +259,54 @@ public class MainTransformer<T> {
      * for <code>event_state</code>.
      */
     private void create_scheduler_invariant() {
-        java.util.List<Expr<T>> conditions = new java.util.ArrayList<>();
+        // Create references to the scheduling variables
+        Ref<T, InstanceField<T>> proc_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> proc_state_deref = new Deref<>(col_system.THIS, proc_state_ref, new GeneratedBlame<>(), OriGen.create());
+        FieldLocation<T> proc_state_loc = new FieldLocation<>(col_system.THIS, proc_state_ref, OriGen.create());
+        Ref<T, InstanceField<T>> ev_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> ev_state_deref = new Deref<>(col_system.THIS, ev_state_ref, new GeneratedBlame<>(), OriGen.create());
+        FieldLocation<T> ev_state_loc = new FieldLocation<>(col_system.THIS, ev_state_ref, OriGen.create());
+
+        // Create some auxiliary values
+        Size<T> proc_size = new Size<>(proc_state_deref, OriGen.create());
+        IntegerValue<T> nr_procs = new IntegerValue<>(BigInt.apply(ProcessClass.get_nr_processes()), OriGen.create());
+        Size<T> ev_size = new Size<>(ev_state_deref, OriGen.create());
+        IntegerValue<T> nr_events = new IntegerValue<>(BigInt.apply(col_system.get_total_nr_events()), OriGen.create());
 
         // Apply update permission invariant
         Ref<T, InstancePredicate<T>> ref_update_invariant = new DirectRef<>(update_permission_invariant, ClassTag$.MODULE$.apply(InstancePredicate.class));
-        conditions.add(new InstancePredicateApply<>(col_system.THIS, ref_update_invariant, col_system.NO_EXPRS, new WritePerm<>(OriGen.create()), OriGen.create()));
+        InstancePredicateApply<T> apply_update_perms = new InstancePredicateApply<>(col_system.THIS, ref_update_invariant,
+                col_system.NO_EXPRS, new WritePerm<>(OriGen.create()), OriGen.create());
 
-        IntegerValue<T> ev_size = new IntegerValue<>(BigInt.apply(col_system.get_total_nr_events()), OriGen.create());
+        // Create conditions
+        Perm<T> perm_to_proc = new Perm<>(proc_state_loc, new WritePerm<>(OriGen.create()), OriGen.create());
+        Eq<T> proc_length = new Eq<>(proc_size, nr_procs, OriGen.create());
+        Perm<T> perm_to_ev = new Perm<>(ev_state_loc, new WritePerm<>(OriGen.create()), OriGen.create());
+        Eq<T> ev_length = new Eq<>(ev_size, nr_events, OriGen.create());
 
-        // Create permissions
-        for (InstanceField<T> field : col_system.get_all_process_states()) {
-            conditions.add(write_perm_to_field(field));
-            Deref<T> f_deref = new Deref<>(col_system.THIS, new DirectRef<>(field, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), OriGen.create());
-            Eq<T> ready = new Eq<>(f_deref, col_system.MINUS_ONE, OriGen.create());
-            Less<T> below_ev = new Less<>(f_deref, ev_size, OriGen.create());
-            LessEq<T> non_negative = new LessEq<>(col_system.ZERO, f_deref, OriGen.create());
-            conditions.add(new Or<>(ready, new And<>(below_ev, non_negative, OriGen.create()), OriGen.create()));
-        }
-        for (InstanceField<T> field : col_system.get_all_event_states()) {
-            conditions.add(write_perm_to_field(field));
-        }
+        // Create forall statement variable
+        Variable<T> i = new Variable<>(col_system.T_INT, OriGen.create("i"));
+        Local<T> i_loc = new Local<>(new DirectRef<>(i, ClassTag$.MODULE$.apply(Variable.class)), OriGen.create());
+        GreaterEq<T> i_lower = new GreaterEq<>(i_loc, col_system.ZERO, OriGen.create());
+        Less<T> i_upper = new Less<>(i_loc, proc_size, OriGen.create());
+        And<T> i_bounds = new And<>(i_lower, i_upper, OriGen.create());
+
+        // Create forall body
+        SeqSubscript<T> proc_i = new SeqSubscript<>(proc_state_deref, i_loc, new GeneratedBlame<>(), OriGen.create());
+        InlinePattern<T> trigger = new InlinePattern<>(proc_i, 0, 0, OriGen.create());
+        Eq<T> proc_ready = new Eq<>(trigger, col_system.MINUS_ONE, OriGen.create());
+        LessEq<T> proc_lower = new LessEq<>(col_system.ZERO, proc_i, OriGen.create());
+        Less<T> proc_upper = new Less<>(proc_i, ev_size, OriGen.create());
+        And<T> proc_bounds = new And<>(proc_lower, proc_upper, OriGen.create());
+        Or<T> body = new Or<>(proc_ready, proc_bounds, OriGen.create());
+
+        // Create forall statement
+        Implies<T> forall_body = new Implies<>(i_bounds, body, OriGen.create());
+        List<Variable<T>> bindings = List.from(CollectionConverters.asScala(java.util.List.of(i)));
+        Forall<T> forall = new Forall<>(bindings, col_system.NO_TRIGGERS, forall_body, OriGen.create());
 
         // Put it all together and register the invariant in the COL system context
+        java.util.List<Expr<T>> conditions = java.util.List.of(apply_update_perms, perm_to_proc, proc_length, perm_to_ev, ev_length, forall);
         scheduler_invariant = new InstancePredicate<>(col_system.NO_VARS, Option.apply(col_system.fold_star(conditions)),
                 false, true, OriGen.create("scheduler_invariant"));
         col_system.set_scheduler_perms(scheduler_invariant);
@@ -407,9 +449,9 @@ public class MainTransformer<T> {
         java.util.List<Statement<T>> initializations = new java.util.ArrayList<>();
 
         // Create initializations for the scheduling variables
-        initializations.addAll(create_process_state_initialization());
-        initializations.addAll(create_event_state_initialization());
-        initializations.addAll(create_primitive_channel_update_initialization());
+        initializations.add(create_process_state_initialization());
+        initializations.add(create_event_state_initialization());
+        initializations.add(create_primitive_channel_update_initialization());
 
         // Create initializations for all instance fields
         for (InstanceField<T> channel : channels) {
@@ -435,31 +477,70 @@ public class MainTransformer<T> {
     }
 
     /**
-     * Generates the initialization of the <code>process_state</code> scheduling variables. Every entry is set to -1.
+     * Generates the initialization of the <code>process_state</code> scheduling variable. Every entry is set to -1.
      *
-     * @return Assignments for the process state initialization
+     * @return An assignment for the process state initialization
      */
-    private java.util.List<Assign<T>> create_process_state_initialization() {
-        return col_system.get_all_process_states().stream().map((f) -> assign_to_field(f, col_system.MINUS_ONE)).toList();
+    private Statement<T> create_process_state_initialization() {
+        // Get reference to process state field
+        InstanceField<T> process_state = col_system.get_process_state();
+        Ref<T, InstanceField<T>> state_ref = new DirectRef<>(process_state, ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> state_deref = new Deref<>(col_system.THIS, state_ref, new GeneratedBlame<>(), OriGen.create());
+
+        // Construct the literal sequence it should be initialized as ([-1] * #processes)
+        java.util.List<Expr<T>> literal_values = new java.util.ArrayList<>();
+        for (int i = 0; i < ProcessClass.get_nr_processes(); i++) {
+            literal_values.add(col_system.MINUS_ONE);
+        }
+        LiteralSeq<T> literal = new LiteralSeq<>(col_system.T_INT, List.from(CollectionConverters.asScala(literal_values)), OriGen.create());
+
+        // Assign the literal to the field
+        return new Assign<>(state_deref, literal, new GeneratedBlame<>(), OriGen.create());
     }
 
     /**
-     * Generates the initialization of the <code>event_state</code> scheduling variables. Every entry is set to -3.
+     * Generates the initialization of the <code>event_state</code> scheduling variable. Every entry is set to -3.
      *
-     * @return Assignments for the event state initialization
+     * @return An assignment for the event state initialization
      */
-    private java.util.List<Assign<T>> create_event_state_initialization() {
-        return col_system.get_all_event_states().stream().map((f) -> assign_to_field(f, col_system.MINUS_THREE)).toList();
+    private Statement<T> create_event_state_initialization() {
+        // Get reference to the event state field
+        InstanceField<T> event_state = col_system.get_event_state();
+        Ref<T, InstanceField<T>> state_ref = new DirectRef<>(event_state, ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> state_deref = new Deref<>(col_system.THIS, state_ref, new GeneratedBlame<>(), OriGen.create());
+
+        // Construct the literal sequence it should be initialized as ([-3] * #events)
+        java.util.List<Expr<T>> literal_values = new java.util.ArrayList<>();
+        for (int i = 0; i < col_system.get_total_nr_events(); i++) {
+            literal_values.add(col_system.MINUS_THREE);
+        }
+        LiteralSeq<T> literal = new LiteralSeq<>(col_system.T_INT, List.from(CollectionConverters.asScala(literal_values)), OriGen.create());
+
+        // Assign the literal to the field
+        return new Assign<>(state_deref, literal, new GeneratedBlame<>(), OriGen.create());
     }
 
     /**
-     * Generates the initialization of the <code>primitive_channel_update</code> scheduling variables. Every entry is
-     * set to <code>false</code>.
+     * Generates the initialization of the <code>primitive_channel_update</code> scheduling variable. Every entry is set
+     * to <code>false</code>.
      *
-     * @return Assignments for the primitive channel update initialization
+     * @return An assignment for the primitive channel update initialization
      */
-    private java.util.List<Assign<T>> create_primitive_channel_update_initialization() {
-        return col_system.get_all_primitive_channel_updates().stream().map((f) -> assign_to_field(f, col_system.FALSE)).toList();
+    private Statement<T> create_primitive_channel_update_initialization() {
+        // Get reference to the primitive channel update field
+        InstanceField<T> prim_channel_update = col_system.get_primitive_channel_update();
+        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(prim_channel_update, ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> update_deref = new Deref<>(col_system.THIS, update_ref, new GeneratedBlame<>(), OriGen.create());
+
+        // Construct the literal sequence it should be initialized as ([false] * #primitive channels)
+        java.util.List<Expr<T>> literal_values = new java.util.ArrayList<>();
+        for (int i = 0; i < col_system.get_nr_primitive_channels(); i++) {
+            literal_values.add(col_system.FALSE);
+        }
+        LiteralSeq<T> literal = new LiteralSeq<>(col_system.T_BOOL, List.from(CollectionConverters.asScala(literal_values)), OriGen.create());
+
+        // Assign the literal to the field
+        return new Assign<>(update_deref, literal, new GeneratedBlame<>(), OriGen.create());
     }
 
     /**
@@ -493,7 +574,7 @@ public class MainTransformer<T> {
         SCVariableDeclarationExpression declaration = sc_inst.getDeclaration();
         if (declaration != null) {
             java.util.List<Expression> params = declaration.getInitialValues();
-            if (params != null && !params.isEmpty()) {
+            if (params != null && params.size() > 0) {
 
                 // The first parameter is the name - ignore it
                 params.remove(0);
@@ -1120,9 +1201,9 @@ public class MainTransformer<T> {
         java.util.List<ClassDeclaration<T>> declarations = new java.util.ArrayList<>();
 
         // Add all fields to the class
-        declarations.addAll(col_system.get_all_process_states());
-        declarations.addAll(col_system.get_all_event_states());
-        declarations.addAll(col_system.get_all_primitive_channel_updates());
+        declarations.add(col_system.get_process_state());
+        declarations.add(col_system.get_event_state());
+        declarations.add(col_system.get_primitive_channel_update());
         declarations.addAll(processes);
         declarations.addAll(state_classes);
         declarations.addAll(channels);
@@ -1159,17 +1240,5 @@ public class MainTransformer<T> {
         // Register Main class in COL system context
         col_system.add_global_declaration(main_class);
         col_system.set_main(main_class);
-    }
-
-    private Expr<T> write_perm_to_field(InstanceField<T> field) {
-        Ref<T, InstanceField<T>> field_ref = new DirectRef<>(field, ClassTag$.MODULE$.apply(InstanceField.class));
-        FieldLocation<T> field_loc = new FieldLocation<>(col_system.THIS, field_ref, OriGen.create());
-        return new Perm<>(field_loc, new WritePerm<>(OriGen.create()), OriGen.create());
-    }
-
-    private Assign<T> assign_to_field(InstanceField<T> field, Expr<T> value) {
-        Ref<T, InstanceField<T>> field_ref = new DirectRef<>(field, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> field_deref = new Deref<>(col_system.THIS, field_ref, new GeneratedBlame<>(), OriGen.create());
-        return new Assign<>(field_deref, value, new GeneratedBlame<>(), OriGen.create());
     }
 }
