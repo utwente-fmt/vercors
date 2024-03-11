@@ -43,16 +43,6 @@ public class KnownTypeTransformer<T> {
     private final COLSystem<T> col_system;
 
     /**
-     * Event IDs used by the generated channel.
-     */
-    private final java.util.List<Integer> event_ids;
-
-    /**
-     * Index of the primitive channel.
-     */
-    private int prim_channel_index;
-
-    /**
      * Constructor.
      *
      * @param sc_inst SystemC primitive channel instance to be transformed
@@ -61,7 +51,6 @@ public class KnownTypeTransformer<T> {
     public KnownTypeTransformer(SCKnownType sc_inst, COLSystem<T> col_system) {
         this.sc_inst = sc_inst;
         this.col_system = col_system;
-        this.event_ids = new java.util.ArrayList<>();
     }
 
     /**
@@ -72,9 +61,6 @@ public class KnownTypeTransformer<T> {
         SCClass sc_class = sc_inst.getSCClass();
         String name = generate_class_name();
 
-        // Find index of this channel
-        prim_channel_index = col_system.get_nr_primitive_channels();
-
         // Transform the primitive channel
         Class<T> cls = switch (sc_class.getName()) {
             case Constants.CLASS_FIFO_INT -> transform_fifo(OriGen.create(name), col_system.T_INT);
@@ -84,9 +70,7 @@ public class KnownTypeTransformer<T> {
             default -> throw new UnsupportedException("The known type " + sc_class.getName() + " is not supported.");
         };
 
-        // Add channel class and events to COL system
-        java.util.Collections.sort(event_ids);
-        col_system.add_channel_events(sc_inst, event_ids);
+        // Add channel class to COL system
         col_system.add_global_declaration(cls);
 
         // Add channel field to COL system
@@ -299,37 +283,43 @@ public class KnownTypeTransformer<T> {
         Deref<T> written_deref = new Deref<>(col_system.THIS, written_ref, new GeneratedBlame<>(), written.o());
 
         // Get scheduling variable references
-        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
+        InstanceField<T> update = col_system.get_primitive_channel_update(col_system.get_primitive_channel_id(sc_inst));
+        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(update, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Create precondition
         Less<T> not_all_read = new Less<>(read_deref, buf_size, OriGen.create());
         AccountedPredicate<T> precondition = new UnitAccountedPredicate<>(new Star<>(perms, not_all_read, OriGen.create()), OriGen.create());
 
+        // Collect conditions
+        java.util.List<Expr<T>> conditions = new java.util.ArrayList<>();
+        conditions.add(perms);
+
         // Unchanged variables
-        Eq<T> written_is_old = new Eq<>(written_deref, new Old<>(written_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> buffer_is_old = new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        conditions.add(new Eq<>(written_deref, new Old<>(written_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create()));
+        conditions.add(new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create()));
 
         // Return value
-        Ref<T, ContractApplicable<T>> ref = new LazyRef<T, ContractApplicable<T>>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.FIFO_READ_METHOD),
+        Ref<T, ContractApplicable<T>> ref = new LazyRef<>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.FIFO_READ_METHOD),
                 Option.empty(), ClassTag$.MODULE$.apply(ContractApplicable.class));
         Result<T> ret = new Result<>(ref, OriGen.create());
         SeqSubscript<T> access = new SeqSubscript<>(buf_deref, read_deref, new GeneratedBlame<>(), OriGen.create());
-        Eq<T> result = new Eq<>(ret, new Old<>(access, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        conditions.add(new Eq<>(ret, new Old<>(access, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create()));
 
         // Update to num_read
         Old<T> old_read = new Old<>(read_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         Plus<T> incr_old = new Plus<>(old_read, col_system.ONE, OriGen.create());
-        Eq<T> incr_read = new Eq<>(read_deref, incr_old, OriGen.create());
+        conditions.add(new Eq<>(read_deref, incr_old, OriGen.create()));
 
         // Update to primitive_channel_update
-        IntegerValue<T> update_index = new IntegerValue<>(BigInt.apply(prim_channel_index), OriGen.create());
-        Old<T> old_update = new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        SeqUpdate<T> update_update = new SeqUpdate<>(old_update, update_index, col_system.TRUE, OriGen.create());
-        Eq<T> new_update = new Eq<>(update_deref, update_update, OriGen.create());
+        conditions.add(new Eq<>(update_deref, col_system.TRUE, OriGen.create()));
+        for (InstanceField<T> field : col_system.get_all_primitive_channel_updates()) {
+            if (!field.equals(update)) {
+                conditions.add(unchanged_field(m_deref, field));
+            }
+        }
 
         // Create postcondition
-        java.util.List<Expr<T>> conditions = java.util.List.of(perms, written_is_old, buffer_is_old, result, incr_read, new_update);
         AccountedPredicate<T> postcondition = new UnitAccountedPredicate<>(col_system.fold_star(conditions), OriGen.create());
 
         // Finishing the method
@@ -370,7 +360,8 @@ public class KnownTypeTransformer<T> {
         Size<T> written_size = new Size<>(written_deref, OriGen.create());
 
         // Get scheduling variable references
-        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
+        InstanceField<T> update = col_system.get_primitive_channel_update(col_system.get_primitive_channel_id(sc_inst));
+        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(update, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Get parameter references
@@ -382,25 +373,30 @@ public class KnownTypeTransformer<T> {
         Less<T> within_bound = new Less<>(total_size, fifo_size_deref, OriGen.create());
         AccountedPredicate<T> precondition = new UnitAccountedPredicate<>(new Star<>(perms, within_bound, OriGen.create()), OriGen.create());
 
+        // Collect conditions
+        java.util.List<Expr<T>> conditions = new java.util.ArrayList<>();
+        conditions.add(perms);
+
         // Unchanged variables
-        Eq<T> read_is_old = new Eq<>(read_deref, new Old<>(read_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> buffer_is_old = new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        conditions.add(new Eq<>(read_deref, new Old<>(read_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create()));
+        conditions.add(new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create()));
 
         // Update to written
         Ref<T, Variable<T>> ref_to_new_val = new DirectRef<>(new_val, ClassTag$.MODULE$.apply(Variable.class));
         Seq<Expr<T>> literal_vals = List.from(CollectionConverters.asScala(java.util.List.of(new Local<>(ref_to_new_val, new_val.o()))));
         LiteralSeq<T> new_vals = new LiteralSeq<>(t, literal_vals, OriGen.create());
         Concat<T> concat = new Concat<>(written_deref, new_vals, OriGen.create());
-        Eq<T> new_written = new Eq<>(written_deref, new Old<>(concat, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        conditions.add(new Eq<>(written_deref, new Old<>(concat, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create()));
 
         // Update to primitive_channel_update
-        IntegerValue<T> update_index = new IntegerValue<>(BigInt.apply(prim_channel_index), OriGen.create());
-        Old<T> old_update = new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        SeqUpdate<T> update_update = new SeqUpdate<>(old_update, update_index, col_system.TRUE, OriGen.create());
-        Eq<T> new_update = new Eq<>(update_deref, update_update, OriGen.create());
+        conditions.add(new Eq<>(update_deref, col_system.TRUE, OriGen.create()));
+        for (InstanceField<T> field : col_system.get_all_primitive_channel_updates()) {
+            if (!field.equals(update)) {
+                conditions.add(unchanged_field(m_deref, field));
+            }
+        }
 
         // Create postcondition
-        java.util.List<Expr<T>> conditions = java.util.List.of(perms, read_is_old, buffer_is_old, new_written, new_update);
         AccountedPredicate<T> postcondition = new UnitAccountedPredicate<>(col_system.fold_star(conditions), OriGen.create());
 
         // Finishing the method
@@ -436,74 +432,69 @@ public class KnownTypeTransformer<T> {
         Size<T> written_size = new Size<>(written_deref, OriGen.create());
         Old<T> old_wr_size = new Old<>(written_size, Option.empty(), new GeneratedBlame<>(), OriGen.create());
 
-        // Get scheduling variable references
-        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> proc_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> ev_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> ev_deref = new Deref<>(m_deref, ev_ref, new GeneratedBlame<>(), OriGen.create());
-        Size<T> ev_size = new Size<>(ev_deref, OriGen.create());
-
         // Create precondition
         AccountedPredicate<T> precondition = new UnitAccountedPredicate<>(perms, OriGen.create());
+        java.util.List<Expr<T>> conditions = new java.util.ArrayList<>();
+        conditions.add(perms);
 
         // Unchanged variables
-        Eq<T> proc_is_old = new Eq<>(proc_deref, new Old<>(proc_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> update_is_old = new Eq<>(update_deref, new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        for (InstanceField<T> field : col_system.get_all_process_states()) {
+            conditions.add(unchanged_field(m_deref, field));
+        }
+        for (InstanceField<T> field : col_system.get_all_primitive_channel_updates()) {
+            conditions.add(unchanged_field(m_deref, field));
+        }
 
         // Access update sequence
-        IntegerValue<T> update_index = new IntegerValue<>(BigInt.apply(prim_channel_index), OriGen.create());
-        SeqSubscript<T> u_i = new SeqSubscript<>(update_deref, update_index, new GeneratedBlame<>(), OriGen.create());
+        InstanceField<T> this_update = col_system.get_primitive_channel_update(col_system.get_primitive_channel_id(sc_inst));
+        Ref<T, InstanceField<T>> this_update_ref = new DirectRef<>(this_update, ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> u_i = new Deref<>(m_deref, this_update_ref, new GeneratedBlame<>(), OriGen.create());
         Not<T> n_u_i = new Not<>(u_i, OriGen.create());
 
         // CASE 1: Everything is unchanged
-        Eq<T> read_is_old = new Eq<>(read_deref, new Old<>(read_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> written_is_old = new Eq<>(written_deref, new Old<>(written_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> buf_is_old = new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> ev_is_old = new Eq<>(ev_deref, new Old<>(ev_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Expr<T> everything_is_old = col_system.fold_and(java.util.List.of(read_is_old, written_is_old, buf_is_old, ev_is_old));
-        Implies<T> not_updated = new Implies<>(n_u_i, everything_is_old, OriGen.create());
-
-        // Get read and write events
-        int curr_ev_id = col_system.get_total_nr_events();
-        int read_event = curr_ev_id + Constants.FIFO_READ_EVENT;
-        event_ids.add(read_event);
-        int write_event = curr_ev_id + Constants.FIFO_WRITE_EVENT;
-        event_ids.add(write_event);
-        IntegerValue<T> min_ev = new IntegerValue<>(BigInt.apply(curr_ev_id), OriGen.create());
-        IntegerValue<T> r_ev = new IntegerValue<>(BigInt.apply(read_event), OriGen.create());
-        IntegerValue<T> w_ev = new IntegerValue<>(BigInt.apply(write_event), OriGen.create());
-        IntegerValue<T> next_ev = new IntegerValue<>(BigInt.apply(curr_ev_id + event_ids.size()), OriGen.create());
+        java.util.List<Expr<T>> case_1_effects = new java.util.ArrayList<>();
+        case_1_effects.add(new Eq<>(read_deref, new Old<>(read_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create()));
+        case_1_effects.add(new Eq<>(written_deref, new Old<>(written_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create()));
+        case_1_effects.add(new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create()));
+        for (InstanceField<T> field : col_system.get_all_event_states()) {
+            case_1_effects.add(unchanged_field(m_deref, field));
+        }
+        conditions.add(new Implies<>(n_u_i, col_system.fold_and(case_1_effects), OriGen.create()));
 
         // Preparations for CASE 2
+        // Read event
+        InstanceField<T> read_event_state = col_system.get_event_state(col_system.get_channel_events(sc_inst).get(Constants.FIFO_READ_EVENT));
+        Ref<T, InstanceField<T>> read_event_state_ref = new DirectRef<>(read_event_state, ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> read_event_state_deref = new Deref<>(m_deref, read_event_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_read_event_state = new Old<>(read_event_state_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Greater<T> has_been_read = new Greater<>(old_read, col_system.ZERO, OriGen.create());
+        Select<T> new_read_status = new Select<>(has_been_read, col_system.MINUS_ONE, old_read_event_state, OriGen.create());
+        // Write event
+        InstanceField<T> write_event_state = col_system.get_event_state(col_system.get_channel_events(sc_inst).get(Constants.FIFO_WRITE_EVENT));
+        Ref<T, InstanceField<T>> write_event_state_ref = new DirectRef<>(write_event_state, ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> write_event_state_deref = new Deref<>(m_deref, write_event_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_write_event_state = new Old<>(write_event_state_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Greater<T> has_been_written = new Greater<>(old_wr_size, col_system.ZERO, OriGen.create());
+        Select<T> new_write_status = new Select<>(has_been_written, col_system.MINUS_ONE, old_write_event_state, OriGen.create());
+        // Buffer
         Slice<T> buf_slice = new Slice<>(buf_deref, read_deref, buf_size, OriGen.create());
         Concat<T> buf_written = new Concat<>(buf_slice, written_deref, OriGen.create());
-        Take<T> prev_evs = new Take<>(ev_deref, min_ev, OriGen.create());
-        Drop<T> next_evs = new Drop<>(ev_deref, next_ev, OriGen.create());
-        Greater<T> has_been_read = new Greater<>(old_read, col_system.ZERO, OriGen.create());
-        SeqSubscript<T> read_ev_status = new SeqSubscript<>(ev_deref, r_ev, new GeneratedBlame<>(), OriGen.create());
-        Old<T> old_r_status = new Old<>(read_ev_status, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Select<T> new_r_status = new Select<>(has_been_read, col_system.MINUS_ONE, old_r_status, OriGen.create());
-        Greater<T> has_been_written = new Greater<>(old_wr_size, col_system.ZERO, OriGen.create());
-        SeqSubscript<T> write_ev_status = new SeqSubscript<>(ev_deref, w_ev, new GeneratedBlame<>(), OriGen.create());
-        Old<T> old_w_status = new Old<>(write_ev_status, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Select<T> new_w_status = new Select<>(has_been_written, col_system.MINUS_ONE, old_w_status, OriGen.create());
 
         // CASE 2: Update is executed
-        Eq<T> read_is_zero = new Eq<>(read_deref, col_system.ZERO, OriGen.create());
-        Eq<T> written_is_empty = new Eq<>(written_size, col_system.ZERO, OriGen.create());
-        Eq<T> buf_update = new Eq<>(buf_deref, new Old<>(buf_written, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> prev_evs_unchanged = new Eq<>(prev_evs, new Old<>(prev_evs, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> read_ev_changed = new Eq<>(read_ev_status, new_r_status, OriGen.create());
-        Eq<T> write_ev_changed = new Eq<>(write_ev_status, new_w_status, OriGen.create());
-        Eq<T> next_evs_unchanged = new Eq<>(next_evs, new Old<>(next_evs, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        java.util.List<Expr<T>> changes = java.util.List.of(read_is_zero, written_is_empty, buf_update, prev_evs_unchanged,
-                read_ev_changed, write_ev_changed, next_evs_unchanged);
-        Implies<T> updated = new Implies<>(u_i, col_system.fold_and(changes), OriGen.create());
+        java.util.List<Expr<T>> case_2_effects = new java.util.ArrayList<>();
+        case_2_effects.add(new Eq<>(read_deref, col_system.ZERO, OriGen.create()));
+        case_2_effects.add(new Eq<>(written_size, col_system.ZERO, OriGen.create()));
+        case_2_effects.add(new Eq<>(buf_deref, new Old<>(buf_written, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create()));
+        for (InstanceField<T> field : col_system.get_all_event_states()) {
+            if (!field.equals(read_event_state) && !field.equals(write_event_state)) {
+                case_2_effects.add(unchanged_field(m_deref, field));
+            }
+        }
+        case_2_effects.add(new Eq<>(read_event_state_deref, new_read_status, OriGen.create()));
+        case_2_effects.add(new Eq<>(write_event_state_deref, new_write_status, OriGen.create()));
+        conditions.add(new Implies<>(u_i, col_system.fold_and(case_2_effects), OriGen.create()));
 
         // Create postcondition
-        java.util.List<Expr<T>> conditions = java.util.List.of(perms, proc_is_old, update_is_old, not_updated, updated);
         AccountedPredicate<T> postcondition = new UnitAccountedPredicate<>(col_system.fold_star(conditions), OriGen.create());
 
         // Finish the method
@@ -646,22 +637,25 @@ public class KnownTypeTransformer<T> {
         Deref<T> m_deref = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), m.o());
         Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), val.o());
         Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), _val.o());
-        Ref<T, InstanceField<T>> ref_to_update = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> update_deref = new Deref<>(m_deref, ref_to_update, new GeneratedBlame<>(), col_system.get_process_state().o());
+
+        // Collect conditions
+        java.util.List<Expr<T>> conditions = new java.util.ArrayList<>();
+        conditions.add(perms);
 
         // Unchanged variables
-        Eq<T> update_is_old = new Eq<>(update_deref, new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> val_is_old = new Eq<>(val_deref, new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> _val_is_old = new Eq<>(_val_deref, new Old<>(_val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        for (InstanceField<T> field : col_system.get_all_primitive_channel_updates()) {
+            conditions.add(unchanged_field(m_deref, field));
+        }
+        conditions.add(new Eq<>(val_deref, new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create()));
+        conditions.add(new Eq<>(_val_deref, new Old<>(_val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create()));
 
         // Method return value
         Ref<T, ContractApplicable<T>> ref = new LazyRef<>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.SIGNAL_READ_METHOD),
                 Option.empty(), ClassTag$.MODULE$.apply(ContractApplicable.class));
         Result<T> ret = new Result<>(ref, OriGen.create());
-        Eq<T> result = new Eq<>(ret, new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        conditions.add(new Eq<>(ret, new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create()));
 
         // Postcondition
-        java.util.List<Expr<T>> conditions = java.util.List.of(perms, update_is_old, val_is_old, _val_is_old, result);
         AccountedPredicate<T> postcondition = new UnitAccountedPredicate<>(col_system.fold_star(conditions), OriGen.create());
 
         // Finishing the method
@@ -684,7 +678,7 @@ public class KnownTypeTransformer<T> {
         Expr<T> perms = create_general_contract(m, false);
 
         // Parameters
-        Variable<T> new_val = new Variable<>(t, OriGen.create("newVal"));
+        Variable<T> new_val = new Variable<>(t, OriGen.create("new_val"));
         List<Variable<T>> params = List.from(CollectionConverters.asScala(java.util.List.of(new_val)));
 
         // Precondition
@@ -695,30 +689,37 @@ public class KnownTypeTransformer<T> {
         Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), val.o());
         Old<T> old_val = new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), _val.o());
-        Ref<T, InstanceField<T>> ref_to_update = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> update_deref = new Deref<>(m_deref, ref_to_update, new GeneratedBlame<>(), col_system.get_process_state().o());
-        Old<T> old_update = new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         Local<T> new_val_local = new Local<>(new DirectRef<>(new_val, ClassTag$.MODULE$.apply(Variable.class)), new_val.o());
 
+        // Collect conditions
+        java.util.List<Expr<T>> conditions = new java.util.ArrayList<>();
+        conditions.add(perms);
+
         // Unchanged variables
-        Eq<T> val_is_old = new Eq<>(val_deref, old_val, OriGen.create());
+        conditions.add(new Eq<>(val_deref, old_val, OriGen.create()));
 
         // Changed _val
-        Eq<T> changed_val = new Eq<>(_val_deref, new_val_local, OriGen.create());
+        conditions.add(new Eq<>(_val_deref, new_val_local, OriGen.create()));
 
-        // primitive_channel_update is set if the stored value changed
+        // Prepare for update
+        InstanceField<T> update = col_system.get_primitive_channel_update(col_system.get_primitive_channel_id(sc_inst));
+        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(update, ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
+        Eq<T> updated = new Eq<>(update_deref, col_system.TRUE, OriGen.create());
+        Eq<T> not_updated = new Eq<>(update_deref, new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
         Neq<T> val_changed = new Neq<>(new_val_local, old_val, OriGen.create());
         Eq<T> val_not_changed = new Eq<>(new_val_local, old_val, OriGen.create());
-        IntegerValue<T> prim_index = new IntegerValue<>(BigInt.apply(prim_channel_index), OriGen.create());
-        SeqUpdate<T> update_update = new SeqUpdate<>(update_deref, prim_index, col_system.TRUE, OriGen.create());
-        Old<T> old_update_update = new Old<>(update_update, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Eq<T> update_changed = new Eq<>(update_deref, old_update_update, OriGen.create());
-        Eq<T> update_unchanged = new Eq<>(update_deref, old_update, OriGen.create());
-        Implies<T> updated = new Implies<>(val_changed, update_changed, OriGen.create());
-        Implies<T> not_updated = new Implies<>(val_not_changed, update_unchanged, OriGen.create());
+
+        // primitive_channel_update is set if the stored value changed
+        for (InstanceField<T> field : col_system.get_all_primitive_channel_updates()) {
+            if (!field.equals(update)) {
+                conditions.add(unchanged_field(m_deref, field));
+            }
+        }
+        conditions.add(new Implies<>(val_changed, updated, OriGen.create()));
+        conditions.add(new Implies<>(val_not_changed, not_updated, OriGen.create()));
 
         // Postcondition
-        java.util.List<Expr<T>> conditions = java.util.List.of(perms, val_is_old, changed_val, updated, not_updated);
         AccountedPredicate<T> postcondition = new UnitAccountedPredicate<>(col_system.fold_star(conditions), OriGen.create());
 
         // Finishing the method
@@ -746,52 +747,52 @@ public class KnownTypeTransformer<T> {
         Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), _val.o());
         Old<T> old__val = new Old<>(_val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
 
-        // Get scheduling variable references
-        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
-        Old<T> old_update = new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> proc_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
-        Old<T> old_proc = new Old<>(proc_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> ev_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> ev_deref = new Deref<>(m_deref, ev_ref, new GeneratedBlame<>(), OriGen.create());
-        Old<T> old_ev = new Old<>(ev_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-
         // Precondition
         AccountedPredicate<T> precondition = new UnitAccountedPredicate<>(perms, OriGen.create());
 
-        // Unchanged fields
-        Eq<T> process_is_old = new Eq<>(proc_deref, old_proc, OriGen.create());
-        Eq<T> update_is_old = new Eq<>(update_deref, old_update, OriGen.create());
-        Eq<T> _val_is_old = new Eq<>(_val_deref, old__val, OriGen.create());
+        java.util.List<Expr<T>> conditions = new java.util.ArrayList<>();
+        conditions.add(perms);
 
-        // Access update sequence
-        IntegerValue<T> prim_index = new IntegerValue<>(BigInt.apply(prim_channel_index), OriGen.create());
-        SeqSubscript<T> u_i = new SeqSubscript<>(update_deref, prim_index, new GeneratedBlame<>(), OriGen.create());
+        // Unchanged fields
+        for (InstanceField<T> field : col_system.get_all_process_states()) {
+            conditions.add(unchanged_field(m_deref, field));
+        }
+        for (InstanceField<T> field : col_system.get_all_primitive_channel_updates()) {
+            conditions.add(unchanged_field(m_deref, field));
+        }
+        conditions.add(new Eq<>(_val_deref, old__val, OriGen.create()));
+
+        // Access update field
+        InstanceField<T> this_update = col_system.get_primitive_channel_update(col_system.get_primitive_channel_id(sc_inst));
+        Ref<T, InstanceField<T>> this_update_ref = new DirectRef<>(this_update, ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> u_i = new Deref<>(m_deref, this_update_ref, new GeneratedBlame<>(), OriGen.create());
         Not<T> n_u_i = new Not<>(u_i, OriGen.create());
 
         // CASE 1: Everything is unchanged
-        Eq<T> ev_is_old = new Eq<>(ev_deref, old_ev, OriGen.create());
-        Eq<T> val_is_old = new Eq<>(val_deref, old_val, OriGen.create());
-        And<T> everything_unchanged = new And<>(ev_is_old, val_is_old, OriGen.create());
-        Implies<T> not_updated = new Implies<>(n_u_i, everything_unchanged, OriGen.create());
+        java.util.List<Expr<T>> case_1_changes = new java.util.ArrayList<>();
+        for (InstanceField<T> field : col_system.get_all_event_states()) {
+            case_1_changes.add(unchanged_field(m_deref, field));
+        }
+        case_1_changes.add(new Eq<>(val_deref, old_val, OriGen.create()));
+        conditions.add(new Implies<>(n_u_i, col_system.fold_and(case_1_changes), OriGen.create()));
 
         // Get write event
-        int curr_ev_id = col_system.get_total_nr_events();
-        int write_event = curr_ev_id + Constants.SIGNAL_WRITE_EVENT;
-        event_ids.add(write_event);
-        IntegerValue<T> w_ev = new IntegerValue<>(BigInt.apply(write_event), OriGen.create());
+        InstanceField<T> write_event_state = col_system.get_event_state(col_system.get_channel_events(sc_inst).get(Constants.SIGNAL_WRITE_EVENT));
+        Ref<T, InstanceField<T>> write_event_state_ref = new DirectRef<>(write_event_state, ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> write_event_state_deref = new Deref<>(m_deref, write_event_state_ref, new GeneratedBlame<>(), OriGen.create());
 
         // CASE 2: Value changed and write event notified
-        SeqUpdate<T> ev_update = new SeqUpdate<>(ev_deref, w_ev, col_system.MINUS_ONE, OriGen.create());
-        Old<T> old_ev_update = new Old<>(ev_update, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Eq<T> write_event_notified = new Eq<>(ev_deref, old_ev_update, OriGen.create());
-        Eq<T> val_is_hidden_val = new Eq<>(val_deref, old__val, OriGen.create());
-        And<T> both_changed = new And<>(write_event_notified, val_is_hidden_val, OriGen.create());
-        Implies<T> updated = new Implies<>(u_i, both_changed, OriGen.create());
+        java.util.List<Expr<T>> case_2_changes = new java.util.ArrayList<>();
+        for (InstanceField<T> field : col_system.get_all_event_states()) {
+            if (!field.equals(write_event_state)) {
+                case_2_changes.add(unchanged_field(m_deref, field));
+            }
+        }
+        case_2_changes.add(new Eq<>(write_event_state_deref, col_system.MINUS_ONE, OriGen.create()));
+        case_2_changes.add(new Eq<>(val_deref, old__val, OriGen.create()));
+        conditions.add(new Implies<>(u_i, col_system.fold_and(case_2_changes), OriGen.create()));
 
         // Postcondition
-        java.util.List<Expr<T>> conditions = java.util.List.of(perms, process_is_old, update_is_old, _val_is_old, not_updated, updated);
         AccountedPredicate<T> postcondition = new UnitAccountedPredicate<>(col_system.fold_star(conditions), OriGen.create());
 
         // Finish the method
@@ -846,5 +847,20 @@ public class KnownTypeTransformer<T> {
 
         // Connect the individual conditions with stars and return
         return col_system.fold_star(java.util.List.of(perm_m, m_not_null, held_m, scheduler_perms, parameter_perms, channel_perms, this_is_self));
+    }
+
+    /**
+     * Helper method that returns the equation to indicate that a field is unchanged by a method, i.e. is equal to its
+     * \old value.
+     *
+     * @param m_deref Expression that references the main instance
+     * @param field Field that should be unchanged
+     * @return Equation of the form <code>m.field == \old(m.field)</code>
+     */
+    private Eq<T> unchanged_field(Deref<T> m_deref, InstanceField<T> field) {
+        Ref<T, InstanceField<T>> f_ref = new DirectRef<>(field, ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> f_deref = new Deref<>(m_deref, f_ref, new GeneratedBlame<>(), OriGen.create());
+        Old<T> f_old = new Old<>(f_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        return new Eq<>(f_deref, f_old, OriGen.create());
     }
 }

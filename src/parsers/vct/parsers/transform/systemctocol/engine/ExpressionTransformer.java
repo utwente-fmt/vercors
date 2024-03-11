@@ -413,7 +413,7 @@ public class ExpressionTransformer<T> {
         if (expr.getEvent() instanceof SCVariableExpression var_expr) {
             if (var_expr.getVar() instanceof SCEvent event) {
                 // Find corresponding event ID
-                Expr<T> event_id = new IntegerValue<>(BigInt.apply(col_system.get_shared_event(sc_inst, event)), OriGen.create());
+                int event_id = col_system.get_shared_event(sc_inst, event);
 
                 // Find wait time
                 Expr<T> wait_time;
@@ -432,12 +432,11 @@ public class ExpressionTransformer<T> {
                 // Create reference to event sequence
                 Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
                 Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
-                Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
+                Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(event_id), ClassTag$.MODULE$.apply(InstanceField.class));
                 Deref<T> events_deref = new Deref<>(m_deref, event_ref, new GeneratedBlame<>(), OriGen.create());
 
                 // Create sequence update
-                SeqUpdate<T> update_event = new SeqUpdate<>(events_deref, event_id, wait_time, OriGen.create());
-                Statement<T> result = new Assign<>(events_deref, update_event, new GeneratedBlame<>(), OriGen.create());
+                Statement<T> result = new Assign<>(events_deref, wait_time, new GeneratedBlame<>(), OriGen.create());
 
                 // Handle label
                 return append_label(result, expr);
@@ -807,14 +806,9 @@ public class ExpressionTransformer<T> {
     private Statement<T> transform_wait_expression(FunctionCallExpression expr, SCClassInstance sc_inst, Expr<T> obj) {
         java.util.List<Statement<T>> statements = new java.util.ArrayList<>();
 
-        // Process and event field refs
+        // Find main field
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
-
-        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> procs_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
-        Deref<T> events_deref = new Deref<>(m_deref, event_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Get parameters of wait call
         java.util.List<Expression> params = expr.getParameters();
@@ -838,9 +832,14 @@ public class ExpressionTransformer<T> {
         }
         IntegerValue<T> ev_id = new IntegerValue<>(BigInt.apply(event_id), OriGen.create());
 
+        // Find references to relevant process and event state fields
+        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(process_id), ClassTag$.MODULE$.apply(InstanceField.class));
+        Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(event_id), ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> proc_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> event_deref = new Deref<>(m_deref, event_ref, new GeneratedBlame<>(), OriGen.create());
+
         // Create process state update
-        SeqUpdate<T> update_proc = new SeqUpdate<>(procs_deref, proc_id, ev_id, OriGen.create());
-        statements.add(new Assign<>(procs_deref, update_proc, new GeneratedBlame<>(), OriGen.create()));
+        statements.add(new Assign<>(proc_deref, ev_id, new GeneratedBlame<>(), OriGen.create()));
 
         // If the wait is waiting for time, also notify the event
         if (params.size() == 2) {
@@ -871,12 +870,11 @@ public class ExpressionTransformer<T> {
             }
 
             // Create event state update
-            SeqUpdate<T> update_event = new SeqUpdate<>(events_deref, ev_id, wait_time, OriGen.create());
-            statements.add(new Assign<>(events_deref, update_event, new GeneratedBlame<>(), OriGen.create()));
+            statements.add(new Assign<>(event_deref, wait_time, new GeneratedBlame<>(), OriGen.create()));
         }
 
         // Add wait loop and finish block
-        statements.add(create_wait_loop(proc_id, ev_id));
+        statements.add(create_wait_loop(process_id, event_id));
         Statement<T> result = new Block<>(List.from(CollectionConverters.asScala(statements)), OriGen.create());
 
         // Handle label
@@ -905,23 +903,21 @@ public class ExpressionTransformer<T> {
         // Process field reference
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> procs_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Decode the fifo queue
         SCPort sc_port = fifo.getSCPortSCSocket();
         SCKnownType channel = col_system.get_primitive_port_connection(sc_inst, sc_port);
         Expr<T> fifo_queue = transform_sc_port_sc_socket_expression(fifo, sc_inst);
-        InstanceField<T> fifo_buffer = col_system.get_primitive_instance_field(channel, Constants.FIFO_BUFFER);
-        Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(fifo_buffer, ClassTag$.MODULE$.apply(InstanceField.class));
+        Ref<T, InstanceField<T>> buf_ref = new LazyRef<>(() -> col_system.get_primitive_instance_field(channel, Constants.FIFO_BUFFER),
+                Option.empty(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> buf_deref = new Deref<>(fifo_queue, buf_ref, new GeneratedBlame<>(), OriGen.create());
         Size<T> buf_size = new Size<>(buf_deref, OriGen.create());
-        InstanceField<T> fifo_written = col_system.get_primitive_instance_field(channel, Constants.FIFO_WRITTEN);
-        Ref<T, InstanceField<T>> written_ref = new DirectRef<>(fifo_written, ClassTag$.MODULE$.apply(InstanceField.class));
+        Ref<T, InstanceField<T>> written_ref = new LazyRef<>(() -> col_system.get_primitive_instance_field(channel, Constants.FIFO_WRITTEN),
+                Option.empty(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> written_deref = new Deref<>(fifo_queue, written_ref, new GeneratedBlame<>(), OriGen.create());
         Size<T> written_size = new Size<>(written_deref, OriGen.create());
-        InstanceField<T> fifo_num_read = col_system.get_primitive_instance_field(channel, Constants.FIFO_NUM_READ);
-        Ref<T, InstanceField<T>> read_ref = new DirectRef<>(fifo_num_read, ClassTag$.MODULE$.apply(InstanceField.class));
+        Ref<T, InstanceField<T>> read_ref = new LazyRef<>(() -> col_system.get_primitive_instance_field(channel, Constants.FIFO_NUM_READ),
+                Option.empty(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> read_deref = new Deref<>(fifo_queue, read_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Get a reference to the FIFO size parameter
@@ -946,8 +942,8 @@ public class ExpressionTransformer<T> {
             }
             default -> throw new UnsupportedException("FIFO method " + fun.getFunction().getName() + " is not supported.");
         }
-        InstanceMethod<T> fifo_method = col_system.get_primitive_instance_method(channel, method_index);
-        Ref<T, InstanceMethod<T>> method_ref = new DirectRef<>(fifo_method, ClassTag$.MODULE$.apply(InstanceMethod.class));
+        Ref<T, InstanceMethod<T>> method_ref = new LazyRef<>(() -> col_system.get_primitive_instance_method(channel, method_index),
+                Option.empty(), ClassTag$.MODULE$.apply(InstanceMethod.class));
 
         // Decode function call parameters
         java.util.List<Expr<T>> args = new java.util.ArrayList<>();
@@ -958,16 +954,19 @@ public class ExpressionTransformer<T> {
         }
 
         // Create process and event id
-        IntegerValue<T> proc_id = new IntegerValue<>(BigInt.apply(corr_proc.get_process_id()), OriGen.create());
+        int proc_id = corr_proc.get_process_id();
         int event_id = col_system.get_channel_events(channel).get(wait_event_index);
         IntegerValue<T> ev_id = new IntegerValue<>(BigInt.apply(event_id), OriGen.create());
 
+        // Find process state variable
+        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(proc_id), ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> procs_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
+
         // Create wait statement
-        SeqUpdate<T> new_process_state = new SeqUpdate<>(procs_deref, proc_id, ev_id, OriGen.create());
-        Assign<T> update_process_state = new Assign<>(procs_deref, new_process_state, new GeneratedBlame<>(), OriGen.create());
+        Assign<T> update_process_state = new Assign<>(procs_deref, ev_id, new GeneratedBlame<>(), OriGen.create());
 
         // Create wait loop
-        Loop<T> wait_loop = create_wait_loop(proc_id, ev_id);
+        Loop<T> wait_loop = create_wait_loop(proc_id, event_id);
 
         // Create loop invariant for the big loop
         SpecificationTransformer<T> specification_transformer = new SpecificationTransformer<>(col_class, col_system, m);
@@ -1021,8 +1020,8 @@ public class ExpressionTransformer<T> {
             case "read" -> Constants.SIGNAL_READ_METHOD;
             default -> throw new UnsupportedException("Signal method " + sc_fun.getName() + " is not supported!");
         };
-        InstanceMethod<T> signal_method = col_system.get_primitive_instance_method(channel, method_index);
-        Ref<T, InstanceMethod<T>> method_ref = new DirectRef<>(signal_method, ClassTag$.MODULE$.apply(InstanceMethod.class));
+        Ref<T, InstanceMethod<T>> method_ref = new LazyRef<>(() -> col_system.get_primitive_instance_method(channel, method_index),
+                Option.empty(), ClassTag$.MODULE$.apply(InstanceMethod.class));
 
         // Decode function call parameters
         java.util.List<Expr<T>> args = new java.util.ArrayList<>();
@@ -1079,15 +1078,15 @@ public class ExpressionTransformer<T> {
      * @param event_id ID of the event it should wait on
      * @return A loop that unlocks the global lock until the event occurred and the process is woken up
      */
-    private Loop<T> create_wait_loop(IntegerValue<T> process_id, IntegerValue<T> event_id) {
+    private Loop<T> create_wait_loop(int process_id, int event_id) {
         // Process and event field refs
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
 
-        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> procs_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
-        Deref<T> events_deref = new Deref<>(m_deref, event_ref, new GeneratedBlame<>(), OriGen.create());
+        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(process_id), ClassTag$.MODULE$.apply(InstanceField.class));
+        Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(event_id), ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> proc_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> event_deref = new Deref<>(m_deref, event_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Create waiting loop body
         Unlock<T> unlock_m = new Unlock<>(m_deref, new GeneratedBlame<>(), OriGen.create());
@@ -1096,10 +1095,8 @@ public class ExpressionTransformer<T> {
         Block<T> loop_body = new Block<>(List.from(CollectionConverters.asScala(loop_body_statements)), OriGen.create());
 
         // Create loop condition
-        SeqSubscript<T> proc_index = new SeqSubscript<>(procs_deref, process_id, new GeneratedBlame<>(), OriGen.create());
-        Neq<T> proc_ready = new Neq<>(proc_index, col_system.MINUS_ONE, OriGen.create());
-        SeqSubscript<T> ev_index = new SeqSubscript<>(events_deref, event_id, new GeneratedBlame<>(), OriGen.create());
-        Neq<T> ev_notified = new Neq<>(ev_index, col_system.MINUS_TWO, OriGen.create());
+        Neq<T> proc_ready = new Neq<>(proc_deref, col_system.MINUS_ONE, OriGen.create());
+        Neq<T> ev_notified = new Neq<>(event_deref, col_system.MINUS_TWO, OriGen.create());
         Or<T> loop_cond = new Or<>(proc_ready, ev_notified, OriGen.create());
 
         // Create loop contract
@@ -1556,7 +1553,7 @@ public class ExpressionTransformer<T> {
         // Find the corresponding field in the Main class
         Ref<T, InstanceField<T>> channel_ref;
         if (prim_channel != null) {
-            channel_ref = new DirectRef<>(col_system.get_primitive_channel(prim_channel), ClassTag$.MODULE$.apply(InstanceField.class));
+            channel_ref = new LazyRef<>(() -> col_system.get_primitive_channel(prim_channel), Option.empty(), ClassTag$.MODULE$.apply(InstanceField.class));
         }
         else if (hier_channel != null) {
             channel_ref = new LazyRef<>(() -> col_system.get_instance_by_class(col_system.get_state_class(hier_channel)), Option.empty(),
