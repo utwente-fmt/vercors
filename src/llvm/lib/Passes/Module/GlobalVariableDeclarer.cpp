@@ -25,11 +25,22 @@ PreservedAnalyses GlobalVariableDeclarerPass::run(Module &M,
                 llvm2col::generateGlobalVariableInitializerOrigin(
                     M, global, *global.getInitializer()),
                 *global.getInitializer(), *colGlobal->mutable_value());
+
+            llvm2col::transformAndSetType(*global.getInitializer()->getType(),
+                                          *colGlobal->mutable_variable_type());
+        } else {
+            // We don't know more about the type because we don't have an
+            // initializer
+            // TODO: This breaks the assumption that the type of the global
+            // declaration type is the inner type of the pointer. We should
+            // instead set the type to be TAny maybe?
+            llvm2col::transformAndSetType(*global.getType(),
+                                          *colGlobal->mutable_variable_type());
         }
         colGlobal->set_constant(global.isConstant());
         colGlobal->set_allocated_origin(
             llvm2col::generateGlobalVariableOrigin(M, global));
-        llvm2col::setColNodeId(colGlobal);
+        colGlobal->set_id(reinterpret_cast<int64_t>(&global));
     }
 
     return PreservedAnalyses::all();

@@ -13,6 +13,8 @@ const std::string SOURCE_LOC = "Transform::BlockTransform";
 
 void llvm2col::transformLLVMBlock(llvm::BasicBlock &llvmBlock,
                                   pallas::FunctionCursor &functionCursor) {
+    if (functionCursor.isVisited(llvmBlock))
+        return;
     col::Block &colBlock =
         functionCursor.getOrSetLLVMBlock2LabeledColBlockEntry(llvmBlock).block;
     for (auto *B : llvm::predecessors(&llvmBlock)) {

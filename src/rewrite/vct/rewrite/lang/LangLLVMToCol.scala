@@ -115,6 +115,13 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     )
   }
 
+  def rewriteFunctionPointer(pointer: LLVMFunctionPointerValue[Pre]): LLVMFunctionPointerValue[Post] = {
+    implicit val o: Origin = pointer.o
+    new LLVMFunctionPointerValue[Post](
+      value = new LazyRef[Post, GlobalDeclaration[Post]](llvmFunctionMap(pointer.value.decl.asInstanceOf[LLVMFunctionDefinition[Pre]]))
+    )
+  }
+
   def result(ref: RefLLVMFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =
     Result[Post](llvmFunctionMap.ref(ref.decl))
 

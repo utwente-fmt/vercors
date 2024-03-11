@@ -220,6 +220,7 @@ col::Origin *llvm2col::generateGlobalVariableOrigin(
     col::OriginContent *contextContent = origin->add_content();
     col::Context *context = new col::Context();
     context->set_context(deriveGlobalVariableContext(llvmGlobalVariable));
+    context->set_inline_context("unknown");
     context->set_short_position(deriveModuleShortPosition(llvmModule));
     contextContent->set_allocated_context(context);
 
@@ -270,6 +271,18 @@ col::Origin *llvm2col::generateTypeOrigin(llvm::Type &llvmType) {
     col::OriginContent *preferredNameContent = origin->add_content();
     col::PreferredName *preferredName = new col::PreferredName();
     preferredName->add_preferred_name(deriveTypePreferredName(llvmType));
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    return origin;
+}
+
+col::Origin *
+llvm2col::generateMemoryOrderingOrigin(llvm::AtomicOrdering &llvmOrdering) {
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name(
+        deriveMemoryOrderingPreferredName(llvmOrdering));
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
     return origin;

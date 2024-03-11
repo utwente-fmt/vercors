@@ -22,6 +22,7 @@ PreservedAnalyses ProtobufPrinter::run(Module &M, ModuleAnalysisManager &MAM) {
     } else {
         llvm::errs() << "[ERROR] [pallas] Internal error, invalid protobuf "
                         "construction\n";
+        pProgram->CheckInitialized();
     }
     return PreservedAnalyses::all();
 }

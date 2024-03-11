@@ -97,7 +97,7 @@ class FunctionCursor {
     col::Assign &createAssignment(Instruction &llvmInstruction,
                                   col::Block &colBlock, col::Variable &varDecl);
 
-    col::Variable &getVariableMapEntry(llvm::Value &llvmValue);
+    col::Variable &getVariableMapEntry(llvm::Value &llvmValue, bool inPhiNode);
 
     /**
      * In many cases during transformation, it is not possible to derive whether

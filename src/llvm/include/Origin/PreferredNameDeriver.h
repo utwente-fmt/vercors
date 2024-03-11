@@ -2,6 +2,7 @@
 #define PALLAS_PREFERREDNAMEDERIVER_H
 
 #include <llvm/IR/Value.h>
+#include <llvm/Support/AtomicOrdering.h>
 /**
  * Generators for VerCors origin objects preferredName fields for various LLVM
  * Value types.
@@ -13,6 +14,9 @@ namespace llvm2col {
 std::string deriveOperandPreferredName(llvm::Value &llvmOperand);
 
 std::string deriveTypePreferredName(llvm::Type &llvmType);
+
+std::string
+deriveMemoryOrderingPreferredName(llvm::AtomicOrdering &llvmOrdering);
 
 std::string deriveArgumentPreferredName(llvm::Argument &llvmArgument);
 } // namespace llvm2col

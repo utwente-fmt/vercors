@@ -66,6 +66,27 @@ std::string llvm2col::deriveTypePreferredName(llvm::Type &llvmType) {
     return "UNKNOWN";
 }
 
+std::string llvm2col::deriveMemoryOrderingPreferredName(
+    llvm::AtomicOrdering &llvmOrdering) {
+    switch (llvmOrdering) {
+    case llvm::AtomicOrdering::NotAtomic:
+        return "NotAtomic";
+    case llvm::AtomicOrdering::Unordered:
+        return "Unordered";
+    case llvm::AtomicOrdering::Monotonic:
+        return "Monotonic";
+    case llvm::AtomicOrdering::Acquire:
+        return "Acquire";
+    case llvm::AtomicOrdering::Release:
+        return "Release";
+    case llvm::AtomicOrdering::AcquireRelease:
+        return "AcquireRelease";
+    case llvm::AtomicOrdering::SequentiallyConsistent:
+        return "SequentiallyConsistent";
+    }
+    return "UNKNOWN";
+}
+
 std::string
 llvm2col::deriveArgumentPreferredName(llvm::Argument &llvmArgument) {
     std::string preferredName;

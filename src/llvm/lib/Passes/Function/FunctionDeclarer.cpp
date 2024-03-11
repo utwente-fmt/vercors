@@ -96,6 +96,29 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
         // add args mapping to result
         result.addFuncArgMapEntry(llvmArg, *colArg);
     }
+    llvmFuncDef->set_allocated_blame(new col::Blame());
+    // complete the function declaration in proto buffer
+    // set return type in protobuf of function
+    try {
+        llvm2col::transformAndSetType(*F.getReturnType(),
+                                      *llvmFuncDef->mutable_return_type());
+    } catch (pallas::UnsupportedTypeException &e) {
+        std::stringstream errorStream;
+        errorStream << e.what() << " in return signature";
+        pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(), F);
+    }
+
+    if (F.isDeclaration()) {
+        // Defined outside of this module so we don't know if it's pure or what
+        // its contract is
+        col::LlvmFunctionContract *colContract =
+            llvmFuncDef->mutable_contract();
+        colContract->set_allocated_blame(new col::Blame());
+        colContract->set_value("requires true;");
+        colContract->set_allocated_origin(new col::Origin());
+
+        llvmFuncDef->set_pure(false);
+    }
     return result;
 }
 
@@ -105,18 +128,7 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
 PreservedAnalyses FunctionDeclarerPass::run(Function &F,
                                             FunctionAnalysisManager &FAM) {
     FDResult result = FAM.getResult<FunctionDeclarer>(F);
-    col::LlvmFunctionDefinition &colFunction = result.getAssociatedColFuncDef();
-    colFunction.set_allocated_blame(new col::Blame());
-    // complete the function declaration in proto buffer
-    // set return type in protobuf of function
-    try {
-        llvm2col::transformAndSetType(*F.getReturnType(),
-                                      *colFunction.mutable_return_type());
-    } catch (pallas::UnsupportedTypeException &e) {
-        std::stringstream errorStream;
-        errorStream << e.what() << " in return signature";
-        pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(), F);
-    }
+    // Just makes sure we analyse every function
     return PreservedAnalyses::all();
 }
 } // namespace pallas

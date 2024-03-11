@@ -53,25 +53,34 @@ void llvm2col::transformAtomicOrdering(llvm::AtomicOrdering ordering,
                                        col::LlvmMemoryOrdering *colOrdering) {
     switch (ordering) {
     case llvm::AtomicOrdering::NotAtomic:
-        colOrdering->mutable_llvm_memory_not_atomic();
+        colOrdering->mutable_llvm_memory_not_atomic()->set_allocated_origin(
+            llvm2col::generateMemoryOrderingOrigin(ordering));
         break;
     case llvm::AtomicOrdering::Unordered:
-        colOrdering->mutable_llvm_memory_unordered();
+        colOrdering->mutable_llvm_memory_unordered()->set_allocated_origin(
+            llvm2col::generateMemoryOrderingOrigin(ordering));
         break;
     case llvm::AtomicOrdering::Monotonic:
-        colOrdering->mutable_llvm_memory_monotonic();
+        colOrdering->mutable_llvm_memory_monotonic()->set_allocated_origin(
+            llvm2col::generateMemoryOrderingOrigin(ordering));
         break;
     case llvm::AtomicOrdering::Acquire:
-        colOrdering->mutable_llvm_memory_acquire();
+        colOrdering->mutable_llvm_memory_acquire()->set_allocated_origin(
+            llvm2col::generateMemoryOrderingOrigin(ordering));
         break;
     case llvm::AtomicOrdering::Release:
-        colOrdering->mutable_llvm_memory_release();
+        colOrdering->mutable_llvm_memory_release()->set_allocated_origin(
+            llvm2col::generateMemoryOrderingOrigin(ordering));
         break;
     case llvm::AtomicOrdering::AcquireRelease:
-        colOrdering->mutable_llvm_memory_acquire_release();
+        colOrdering->mutable_llvm_memory_acquire_release()
+            ->set_allocated_origin(
+                llvm2col::generateMemoryOrderingOrigin(ordering));
         break;
     case llvm::AtomicOrdering::SequentiallyConsistent:
-        colOrdering->mutable_llvm_memory_sequentially_consistent();
+        colOrdering->mutable_llvm_memory_sequentially_consistent()
+            ->set_allocated_origin(
+                llvm2col::generateMemoryOrderingOrigin(ordering));
         break;
     }
 }
@@ -86,7 +95,9 @@ void llvm2col::transformLoad(llvm::LoadInst &loadInstruction,
     col::LlvmLoad *load = loadExpr->mutable_llvm_load();
     load->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(loadInstruction));
-    llvm2col::transformAndSetType(*loadInstruction.getPointerOperandType(),
+    llvm::errs() << "Working on " << loadInstruction << " has type "
+                 << *loadInstruction.getType() << "\n";
+    llvm2col::transformAndSetType(*loadInstruction.getType(),
                                   *load->mutable_load_type());
     llvm2col::transformAndSetExpr(funcCursor, loadInstruction,
                                   *loadInstruction.getPointerOperand(),
@@ -99,14 +110,12 @@ void llvm2col::transformStore(llvm::StoreInst &storeInstruction,
                               col::Block &colBlock,
                               pallas::FunctionCursor &funcCursor) {
     // We are not storing isVolatile and getAlign
-    col::Assign &assignment =
-        funcCursor.createAssignmentAndDeclaration(storeInstruction, colBlock);
-    col::Expr *storeExpr = assignment.mutable_value();
-    col::LlvmStore *store = storeExpr->mutable_llvm_store();
+    col::LlvmStore *store = colBlock.add_statements()->mutable_llvm_store();
     store->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(storeInstruction));
-    llvm2col::transformAndSetType(*storeInstruction.getPointerOperandType(),
-                                  *store->mutable_store_type());
+    llvm2col::transformAndSetExpr(funcCursor, storeInstruction,
+                                  *storeInstruction.getValueOperand(),
+                                  *store->mutable_value());
     llvm2col::transformAndSetExpr(funcCursor, storeInstruction,
                                   *storeInstruction.getPointerOperand(),
                                   *store->mutable_pointer());

@@ -60,9 +60,23 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType) {
         llvm::ArrayType &arrayType = llvm::cast<llvm::ArrayType>(llvmType);
         col::LlvmtArray *colArray = colType.mutable_llvmt_array();
         colArray->set_allocated_origin(generateTypeOrigin(llvmType));
-        llvm2col::transformAndSetType(*arrayType.getElementType(), *colArray->mutable_element_type());
+        llvm2col::transformAndSetType(*arrayType.getElementType(),
+                                      *colArray->mutable_element_type());
+        colArray->set_num_elements(arrayType.getNumElements());
         break;
     }
+    case llvm::Type::FixedVectorTyID:
+    case llvm::Type::ScalableVectorTyID: {
+        llvm::VectorType &vectorType = llvm::cast<llvm::VectorType>(llvmType);
+        col::LlvmtVector *colVector = colType.mutable_llvmt_vector();
+        colVector->set_allocated_origin(generateTypeOrigin(llvmType));
+        llvm2col::transformAndSetType(*vectorType.getElementType(),
+                                      *colVector->mutable_element_type());
+        colVector->set_num_elements(
+            vectorType.getElementCount().getKnownMinValue());
+        break;
+    }
+
     default:
         throw pallas::UnsupportedTypeException(llvmType);
     }
@@ -78,15 +92,19 @@ void llvm2col::transformAndSetExpr(pallas::FunctionCursor &functionCursor,
             functionCursor.getFunctionAnalysisManager(), origin,
             llvm::cast<llvm::Constant>(llvmOperand), colExpr);
     } else {
-        transformAndSetVarExpr(functionCursor, origin, llvmOperand, colExpr);
+        transformAndSetVarExpr(functionCursor, origin,
+                               llvmInstruction.getOpcode() ==
+                                   llvm::Instruction::PHI,
+                               llvmOperand, colExpr);
     }
 }
 
 void llvm2col::transformAndSetVarExpr(pallas::FunctionCursor &functionCursor,
-                                      col::Origin *origin,
+                                      col::Origin *origin, bool inPhiNode,
                                       llvm::Value &llvmOperand,
                                       col::Expr &colExpr) {
-    col::Variable colVar = functionCursor.getVariableMapEntry(llvmOperand);
+    col::Variable colVar =
+        functionCursor.getVariableMapEntry(llvmOperand, inPhiNode);
     col::Local *colLocal = colExpr.mutable_local();
     colLocal->set_allocated_origin(origin);
     colLocal->mutable_ref()->set_id(colVar.id());
@@ -97,11 +115,12 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
                                         llvm::Constant &llvmConstant,
                                         col::Expr &colExpr) {
     if (llvm::isa<llvm::ConstantAggregateZero>(llvmConstant)) {
-        col::LlvmZeroedAggregateValue *colZero = colExpr.mutable_llvm_zeroed_aggregate_value();
+        col::LlvmZeroedAggregateValue *colZero =
+            colExpr.mutable_llvm_zeroed_aggregate_value();
 
         colZero->set_allocated_origin(origin);
         llvm2col::transformAndSetType(*llvmConstant.getType(),
-                *colZero->mutable_aggregate_type());
+                                      *colZero->mutable_aggregate_type());
         return;
     }
     llvm::Type *constType = llvmConstant.getType();
@@ -136,11 +155,19 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
                     .getAssociatedColFuncDef()
                     .id());
         } else if (llvm::isa<llvm::GlobalVariable>(stripped)) {
-            // XXX: To avoid having a map of GlobalVariables to their COL nodes we break with the convention and use the memory location of the LLVM value instead of the memory location of the COL node as the id
+            // XXX: To avoid having a map of GlobalVariables to their COL nodes
+            // we break with the convention and use the memory location of the
+            // LLVM value instead of the memory location of the COL node as the
+            // id
+            llvm::errs() << "Stripped: " << *stripped << "\n";
             auto id = reinterpret_cast<int64_t>(stripped);
-            col::LlvmPointerValue *pointer = colExpr.mutable_llvm_pointer_value();
+            col::LlvmPointerValue *pointer =
+                colExpr.mutable_llvm_pointer_value();
             pointer->set_allocated_origin(origin);
             pointer->mutable_value()->set_id(id);
+        } else if (llvm::isa<llvm::ConstantPointerNull>(stripped)) {
+            col::Null *pointer = colExpr.mutable_null();
+            pointer->set_allocated_origin(origin);
         } else {
             std::string errCtx;
             llvm::raw_string_ostream(errCtx) << llvmConstant;
@@ -189,17 +216,55 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
             }
             colArray->set_allocated_origin(origin);
             llvm2col::transformAndSetType(*llvmArray.getType(),
-                                        *colArray->mutable_array_type());
+                                          *colArray->mutable_array_type());
         } else {
             llvm::ConstantDataArray &llvmArray =
                 llvm::cast<llvm::ConstantDataArray>(llvmConstant);
-            col::LlvmRawArrayValue *colArray = colExpr.mutable_llvm_raw_array_value();
+            col::LlvmRawArrayValue *colArray =
+                colExpr.mutable_llvm_raw_array_value();
 
-            // TODO: This is not a very useful format. Ideally we detect the type and get elements individually as integers or floats or something
+            // TODO: This is not a very useful format. Ideally we detect the
+            // type and get elements individually as integers or floats or
+            // something
             colArray->set_value(llvmArray.getRawDataValues().str());
             colArray->set_allocated_origin(origin);
+            llvm::errs() << "Array constant " << llvmArray << " has type "
+                         << *llvmArray.getType() << "\n";
             llvm2col::transformAndSetType(*llvmArray.getType(),
-                                        *colArray->mutable_array_type());
+                                          *colArray->mutable_array_type());
+        }
+
+        break;
+    }
+    case llvm::Type::FixedVectorTyID: {
+        if (llvm::isa<llvm::ConstantVector>(llvmConstant)) {
+            llvm::ConstantVector &llvmVector =
+                llvm::cast<llvm::ConstantVector>(llvmConstant);
+            col::LlvmVectorValue *colVector =
+                colExpr.mutable_llvm_vector_value();
+
+            for (auto &operand : llvmVector.operands()) {
+                llvm2col::transformAndSetConstExpr(
+                    FAM, llvm2col::deepenOperandOrigin(*origin, *operand.get()),
+                    llvm::cast<llvm::Constant>(*operand.get()),
+                    *colVector->add_value());
+            }
+            colVector->set_allocated_origin(origin);
+            llvm2col::transformAndSetType(*llvmVector.getType(),
+                                          *colVector->mutable_vector_type());
+        } else {
+            llvm::ConstantDataVector &llvmVector =
+                llvm::cast<llvm::ConstantDataVector>(llvmConstant);
+            col::LlvmRawVectorValue *colVector =
+                colExpr.mutable_llvm_raw_vector_value();
+
+            // TODO: This is not a very useful format. Ideally we detect the
+            // type and get elements individually as integers or floats or
+            // something
+            colVector->set_value(llvmVector.getRawDataValues().str());
+            colVector->set_allocated_origin(origin);
+            llvm2col::transformAndSetType(*llvmVector.getType(),
+                                          *colVector->mutable_vector_type());
         }
 
         break;

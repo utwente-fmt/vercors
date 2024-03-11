@@ -51,8 +51,8 @@ void transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
  * @param colExpr
  */
 void transformAndSetVarExpr(pallas::FunctionCursor &functionCursor,
-                            col::Origin *origin, llvm::Value &llvmOperand,
-                            col::Expr &colExpr);
+                            col::Origin *origin, bool inPhiNode,
+                            llvm::Value &llvmOperand, col::Expr &colExpr);
 template <class ColBinExpr>
 void transformBinExpr(llvm::Instruction &llvmInstruction,
                       ColBinExpr &colBinExpr,

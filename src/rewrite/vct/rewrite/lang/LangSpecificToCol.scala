@@ -266,6 +266,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     case inv: LLVMFunctionInvocation[Pre] => llvm.rewriteFunctionInvocation(inv)
     case inv: LLVMAmbiguousFunctionInvocation[Pre] => llvm.rewriteAmbiguousFunctionInvocation(inv)
     case local: LLVMLocal[Pre] => llvm.rewriteLocal(local)
+    case pointer: LLVMFunctionPointerValue[Pre] => llvm.rewriteFunctionPointer(pointer)
 
     case other => rewriteDefault(other)
   }

@@ -32,16 +32,22 @@ void FunctionCursor::addVariableMapEntry(Value &llvmValue,
     ref->mutable_v2()->set_id(colVar.id());
 }
 
-col::Variable &FunctionCursor::getVariableMapEntry(Value &llvmValue) {
+col::Variable &FunctionCursor::getVariableMapEntry(Value &llvmValue,
+                                                   bool inPhiNode) {
     if (auto variablePair = variableMap.find(&llvmValue);
         variablePair != variableMap.end()) {
         return *variablePair->second;
     } else {
-        std::string str;
-        llvm::raw_string_ostream output(str);
-        output << "Use of undeclared variable: '" << llvmValue << "'";
-        ErrorReporter::addError(SOURCE_LOC, str);
-        return *new col::Variable();
+        if (!inPhiNode) {
+            std::string str;
+            llvm::raw_string_ostream output(str);
+            output << "Use of undeclared variable: '" << llvmValue << "'";
+            ErrorReporter::addError(SOURCE_LOC, str);
+        }
+
+        col::Variable *colVar = new col::Variable();
+        addVariableMapEntry(llvmValue, *colVar);
+        return *colVar;
     }
 }
 

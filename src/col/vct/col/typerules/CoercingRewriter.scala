@@ -211,6 +211,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case CoerceCIntCFloat(_) => e
       case CoerceCIntInt() => e
       case CoerceCFloatFloat(_, _) => e
+
+      case CoerceLLVMIntInt() => e
+      case CoerceLLVMPointer(_, _) => e
     }
   }
 
@@ -370,6 +373,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
     CoercionUtils.getAnyPointerCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"pointer")
+    }
+  def llvmPointer(e: Expr[Pre], innerType: Type[Pre]): (Expr[Pre], LLVMTPointer[Pre]) =
+    CoercionUtils.getAnyLLVMPointerCoercion(e.t, innerType) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
+      case None => throw IncoercibleText(e, s"llvm pointer of $innerType")
     }
   def matrix(e: Expr[Pre]): (Expr[Pre], TMatrix[Pre]) =
     CoercionUtils.getAnyMatrixCoercion(e.t) match {
@@ -1454,6 +1462,21 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case localIncoming: BipLocalIncomingData[Pre] => localIncoming
       case glue: JavaBipGlue[Pre] => glue
       case LLVMLocal(name) => e
+      case LLVMAllocA(allocationType, numElements) => e
+      case LLVMLoad(loadType, p, ordering) => LLVMLoad(loadType, p, ordering)
+      case LLVMGetElementPointer(structureType, resultType, pointer, indices) => e
+      case LLVMSignExtend(inputType, outputType, value) => e
+      case LLVMZeroExtend(inputType, outputType, value) => e
+      case LLVMTruncate(inputType, outputType, value) => e
+      case LLVMIntegerValue(value, integerType) => e
+      case LLVMPointerValue(value) => e
+      case LLVMFunctionPointerValue(value) => e
+      case LLVMStructValue(value, structType) => e
+      case LLVMArrayValue(value, arrayType) => e
+      case LLVMRawArrayValue(value, arrayType) => e
+      case LLVMVectorValue(value, vectorType) => e
+      case LLVMRawVectorValue(value, vectorType) => e
+      case LLVMZeroedAggregateValue(aggregateType) => e
     }
   }
 
@@ -1505,6 +1528,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case l @ Lock(obj) => Lock(cls(obj))(l.blame)
       case Loop(init, cond, update, contract, body) => Loop(init, bool(cond), update, contract, body)
       case LLVMLoop(cond, contract, body) => LLVMLoop(bool(cond), contract, body)
+      case LLVMStore(value, p, ordering) => LLVMStore(value, p, ordering)
       case ModelDo(model, perm, after, action, impl) => ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)
       case at @ ParAtomic(inv, content) => ParAtomic(inv, content)(at.blame)
@@ -1702,6 +1726,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case function: LLVMSpecFunction[Pre] =>
         new LLVMSpecFunction[Pre](function.name, function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.blame)
       case glob: LLVMGlobalSpecification[Pre] => glob
+      case glob: LLVMGlobalVariable[Pre] => glob
       case endpoint: PVLEndpoint[Pre] => endpoint
       case seqProg: PVLSeqProg[Pre] => seqProg
       case seqRun: PVLSeqRun[Pre] => seqRun
