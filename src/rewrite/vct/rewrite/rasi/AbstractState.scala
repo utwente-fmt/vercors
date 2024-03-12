@@ -9,19 +9,55 @@ import scala.collection.immutable.HashMap
 case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue],
                             processes: HashMap[AbstractProcess[G], CFGEntry[G]],
                             lock: Option[AbstractProcess[G]]) {
+  /**
+   * Main function of the abstract state. For all processes that could potentially run, execute all possible next steps.
+   *
+   * @return The set of possible successor states
+   */
   def successors(): Set[AbstractState[G]] =
     processes.flatMap(p => p._1.get_next(p._2, this)).toSet
 
+  /**
+   * Updates the state by changing the program counter for a process.
+   *
+   * @param process Process to update
+   * @param position New position of the process
+   * @return An abstract state that is a copy of this one with the updated process location
+   */
   def with_process_at(process: AbstractProcess[G], position: CFGEntry[G]): AbstractState[G] =
     AbstractState(valuations, processes.removed(process) + (process -> position), lock)
 
+  /**
+   * Updates the state by removing a process from the active list.
+   *
+   * @param process Process to remove
+   * @return An abstract state that is a copy of this one without the given process
+   */
   def without_process(process: AbstractProcess[G]): AbstractState[G] =
     AbstractState(valuations, processes.removed(process), lock)
 
+  /**
+   * Updates the state by locking the global lock.
+   *
+   * @param process Process that should hold the global lock
+   * @return An abstract state that is a copy of this one with the lock held by the given process
+   */
   def locked_by(process: AbstractProcess[G]): AbstractState[G] = AbstractState(valuations, processes, Some(process))
 
+  /**
+   * Updates the state by unlocking the global lock.
+   *
+   * @return An abstract state that is a copy of this one with the global lock unlocked
+   */
   def unlocked(): AbstractState[G] = AbstractState(valuations, processes, None)
 
+  /**
+   * Updates the state by updating the value of a certain variable.
+   *
+   * @param variable Variable to update
+   * @param value New value for the variable
+   * @return An abstract state that is a copy of this one with the valuation for the given variable changed
+   */
   def with_valuation(variable: Expr[G], value: UncertainValue): AbstractState[G] = variable_from_expr(variable) match {
     case Some(concrete_variable) => val_updated(concrete_variable, value)
     case None => this
@@ -34,6 +70,14 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     val_updated(variable, valuations(variable).intersection(value))
   }
 
+  /**
+   * Updates the state by updating all variables that are affected by an update to a collection.
+   *
+   * @param variable The collection that should be updated
+   * @param assigned New value for the collection
+   * @return An abstract state that is a copy of this one with the values of all variables that are affected by the
+   *         collection updated accordingly
+   */
   def with_updated_collection(variable: Expr[G], assigned: Expr[G]): AbstractState[G] = {
     val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(variable, this)).collect{ case v: IndexedVariable[_] => v }
     if (affected.isEmpty) return this
@@ -56,7 +100,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
                         values.head.t)
     // Variables
     case d: Deref[_] => collection_from_variable(d)
-    // TODO: Ask about array semantics
+    // TODO: Implement array semantics
     case Values(arr, from, to) => ???
     case NewArray(element, dims, moreDims, initialize) => ???
     // Sequence operations
@@ -83,6 +127,12 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
                       t)
   }
 
+  /**
+   * Updates the state by taking a specification in the form of an assumption into account.
+   *
+   * @param assumption Boolean expression expressing a state update
+   * @return A set of abstract states that are a copy of this one, updated according to the given assumption
+   */
   def with_assumption(assumption: Expr[G]): Set[AbstractState[G]] = resolve_effect(assumption, negate = false)
 
   private def resolve_effect(assumption: Expr[G], negate: Boolean): Set[AbstractState[G]] = assumption match {
@@ -99,8 +149,10 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case _ => throw new IllegalArgumentException(s"Effect of contract expression ${assumption.toInlineString} is not implemented")
   }
 
-  private def handle_and(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[AbstractState[G]] =
+  private def handle_and(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[AbstractState[G]] = {
+    // TODO: This is wrong for contracts that mention the same variable multiple times
     this.resolve_effect(left, neg_left).flatMap(s => s.resolve_effect(right, neg_right))
+  }
 
   private def handle_or(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[AbstractState[G]] = {
     val pure_left = is_pure(left)
@@ -127,20 +179,21 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     if (pure_left == pure_right) return Set(this)
     // Now, exactly one side is pure, and the other contains a concrete variable
     // Resolve the variable and the other side of the equation    TODO: Reduce the side with the variable if it contains anything else as well
+    // TODO: Handle sequences that are assigned in contracts
     val variable: ConcreteVariable[G] = if (pure_left) variable_from_expr(comp.right).get else variable_from_expr(comp.left).get
     val value: UncertainValue = if (pure_left) resolve_expression(comp.left) else resolve_expression(comp.right)
 
     comp match {
       case _: Eq[_] => Set(if (!negate) this.val_updated(variable, value) else this.val_updated(variable, value.complement()))
       case _: Neq[_] => Set(if (!negate) this.val_updated(variable, value.complement()) else this.val_updated(variable, value))
-      case AmbiguousGreater(_, _) | Greater(_, _) => bound_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, negate)
-      case AmbiguousGreaterEq(_, _) | GreaterEq(_, _) => bound_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, !negate)
-      case AmbiguousLessEq(_, _) | LessEq(_, _) => bound_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, !negate)
-      case AmbiguousLess(_, _) | Less(_, _) => bound_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, negate)
+      case AmbiguousGreater(_, _) | Greater(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, negate)
+      case AmbiguousGreaterEq(_, _) | GreaterEq(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, !negate)
+      case AmbiguousLessEq(_, _) | LessEq(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, !negate)
+      case AmbiguousLess(_, _) | Less(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, negate)
     }
   }
 
-  private def bound_variable(v: ConcreteVariable[G], b: UncertainIntegerValue, var_greater: Boolean, can_be_equal: Boolean): Set[AbstractState[G]] = {
+  private def limit_variable(v: ConcreteVariable[G], b: UncertainIntegerValue, var_greater: Boolean, can_be_equal: Boolean): Set[AbstractState[G]] = {
     if (var_greater) {
       if (can_be_equal) Set(this.val_updated(v, b.above_eq()))
       else Set(this.val_updated(v, b.above()))
@@ -156,22 +209,43 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case _: Old[_] => true
     case e: UnExpr[_] => e.subnodes.forall(n => is_pure(n))
     case e: BinExpr[_] => e.subnodes.forall(n => is_pure(n))
-    case e: Expr[_] => if (valuations.keys.exists(v => v.is(e, this))) false else e.subnodes.forall(n => is_pure(n))
+    case e: Expr[_] => if (valuations.keys.exists(v => v.is_contained_by(e, this))) false else e.subnodes.forall(n => is_pure(n))
     case _ => true
   }
 
+  /**
+   * Updates the state by assuming a postcondition.
+   *
+   * @param post Postcondition that alters the state
+   * @param args A map from the method parameters to the given arguments, to be textually replaced
+   * @return A set of abstract states that are a copy of this one after assuming the given postcondition with the given
+   *         arguments
+   */
   def with_postcondition(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]]): Set[AbstractState[G]] =
     with_assumption(unify_expression(AstBuildHelpers.unfoldPredicate(post).reduce((e1, e2) => Star(e1, e2)(e1.o)), args))
 
   private def unify_expression(cond: Expr[G], args: Map[Variable[G], Expr[G]]): Expr[G] =
     Substitute(args.map[Expr[G], Expr[G]]{ case (v, e) => Local[G](v.ref)(v.o) -> e }).dispatch(cond)
 
+  /**
+   * Evaluates an expression and returns an uncertain value, depending on the type of expression and the values it can
+   * take with the given level of abstraction.
+   *
+   * @param expr COL expression to resolve
+   * @return An uncertain value of the correct type
+   */
   def resolve_expression(expr: Expr[G]): UncertainValue = expr.t match {
     case _: IntType[_] => resolve_integer_expression(expr)
     case _: TBool[_] => resolve_boolean_expression(expr)
     case _ => throw new IllegalArgumentException(s"Type ${expr.t.toInlineString} is not supported")
   }
 
+  /**
+   * Evaluates an integer expression and returns an uncertain integer value.
+   *
+   * @param expr integer-type COL expression
+   * @return An uncertain value that represents all possible valuations of the given expression
+   */
   def resolve_integer_expression(expr: Expr[G]): UncertainIntegerValue = expr match {
     case CIntegerValue(value) => UncertainIntegerValue.single(value.intValue)
     case IntegerValue(value) => UncertainIntegerValue.single(value.intValue)
@@ -220,6 +294,12 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case MethodInvocation(_, _, _, _, _, _, _) => UncertainIntegerValue.uncertain()
   }
 
+  /**
+   * Evaluates a boolean expression and returns an uncertain boolean value.
+   *
+   * @param expr boolean-type COL expression
+   * @return An uncertain boolean value that represents all possible values that the given expression can take on
+   */
   def resolve_boolean_expression(expr: Expr[G]): UncertainBooleanValue = expr match {
     case BooleanValue(value) => UncertainBooleanValue.from(value)
     case Not(arg) => !resolve_boolean_expression(arg)
@@ -260,5 +340,10 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     valuations.keys.collectFirst{ case c: ConcreteVariable[G] if c.is(variable, this) => c }
   }
 
+  /**
+   * Returns an expression to represent this state of the form <code>variable1 == value1 && variable2 == value2 && ...</code>
+   *
+   * @return An expression that encodes this state
+   */
   def to_expression: Expr[G] = valuations.map(v => v._2.to_expression(v._1.to_expression)).reduce((e1, e2) => And(e1, e2)(e1.o))
 }
