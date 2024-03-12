@@ -6,7 +6,9 @@ import vct.rewrite.cfg.CFGEntry
 
 import scala.collection.immutable.HashMap
 
-case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue], processes: HashMap[AbstractProcess[G], CFGEntry[G]], lock: Option[AbstractProcess[G]]) {
+case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue],
+                            processes: HashMap[AbstractProcess[G], CFGEntry[G]],
+                            lock: Option[AbstractProcess[G]]) {
   def successors(): Set[AbstractState[G]] =
     processes.flatMap(p => p._1.get_next(p._2, this)).toSet
 
@@ -28,50 +30,57 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   private def val_updated(variable: ConcreteVariable[G], value: UncertainValue): AbstractState[G] =
     AbstractState(valuations + (variable -> value), processes, lock)
 
+  private def refined_valuation(variable: ConcreteVariable[G], value: UncertainValue): AbstractState[G] = {
+    val_updated(variable, valuations(variable).intersection(value))
+  }
+
   def with_updated_collection(variable: Expr[G], assigned: Expr[G]): AbstractState[G] = {
     val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(variable, this)).collect{ case v: IndexedVariable[_] => v }
     if (affected.isEmpty) return this
     val by_index: Map[Int, IndexedVariable[G]] = Map.from(affected.map(v => (v.i, v)))
-    val new_values = get_collection_value(assigned)
-    var vals = valuations
-    by_index.foreach(t => vals = vals + (t._2 -> new_values(t._1)))
+    val new_values: UncertainSequence = get_collection_value(assigned)
+    var vals: Map[ConcreteVariable[G], UncertainValue] = valuations
+    by_index.foreach(t => vals = vals + (t._2 -> new_values.get(t._1)))
     AbstractState(vals, processes, lock)
   }
 
-  private def get_collection_value(lit: Expr[G]): Seq[UncertainValue] = lit match {
-    case LiteralSeq(_, values) => values.map(e => resolve_expression(e))
-    case UntypedLiteralSeq(values) => values.map(e => resolve_expression(e))
-    case Cons(x, xs) => resolve_expression(x) +: get_collection_value(xs)
-    case Concat(xs, ys) => get_collection_value(xs) ++ get_collection_value(ys)
-    // TODO: Store size of variables
-    case d: Deref[_] => ???
+  private def get_collection_value(lit: Expr[G]): UncertainSequence = lit match {
+    // Literals
+    case LiteralSeq(element, values) =>
+      UncertainSequence(UncertainIntegerValue.single(values.size),
+                        values.zipWithIndex.map(t => UncertainIntegerValue.single(t._2) -> resolve_expression(t._1)),
+                        element)
+    case UntypedLiteralSeq(values) =>
+      UncertainSequence(UncertainIntegerValue.single(values.size),
+                        values.zipWithIndex.map(t => UncertainIntegerValue.single(t._2) -> resolve_expression(t._1)),
+                        values.head.t)
+    // Variables
+    case d: Deref[_] => collection_from_variable(d)
     // TODO: Ask about array semantics
     case Values(arr, from, to) => ???
     case NewArray(element, dims, moreDims, initialize) => ???
-    // TODO: Handle cases in which index is not perfectly apparent
-    case Drop(xs, count) => resolve_integer_expression(count).try_to_resolve() match {
-      case None => ???
-      case Some(i) => get_collection_value(xs).drop(i)
+    // Sequence operations
+    case Cons(x, xs) => get_collection_value(xs).prepend(resolve_expression(x))
+    case Concat(xs, ys) => get_collection_value(xs).concat(get_collection_value(ys))
+    case Drop(xs, count) => get_collection_value(xs).drop(resolve_integer_expression(count))
+    case Take(xs, count) => get_collection_value(xs).take(resolve_integer_expression(count))
+    case SeqUpdate(xs, i, x) => get_collection_value(xs).updated(resolve_integer_expression(i), resolve_expression(x))
+    case RemoveAt(xs, i) => get_collection_value(xs).remove(resolve_integer_expression(i))
+    case Slice(xs, from, to) => get_collection_value(xs).slice(resolve_integer_expression(from), resolve_integer_expression(to))
+    // Other expressions that can evaluate to a collection
+    case Old(expr, _) => get_collection_value(expr)
+  }
+
+  private def collection_from_variable(deref: Deref[G]): UncertainSequence = {
+    val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(deref, this)).collect { case v: IndexedVariable[_] => v }
+    val t: Type[G] = deref.ref.decl.t match {
+      case TArray(element) => element
+      case TSeq(element) => element
+      case _ => throw new IllegalArgumentException(s"Unsupported collection type ${deref.ref.decl.t.toInlineString}")
     }
-    case Take(xs, count) => resolve_integer_expression(count).try_to_resolve() match {
-      case None => ???
-      case Some(i) => get_collection_value(xs).take(i)
-    }
-    case SeqUpdate(xs, i, x) => resolve_integer_expression(i).try_to_resolve() match {
-      case None => ???
-      case Some(index) => get_collection_value(xs).updated(index, resolve_expression(x))
-    }
-    case RemoveAt(xs, i) => resolve_integer_expression(i).try_to_resolve() match {
-      case None => ???
-      case Some(index) => get_collection_value(xs).zipWithIndex.filter(_._2 != index).map(_._1)
-    }
-    case Slice(xs, from, to) => resolve_integer_expression(from).try_to_resolve() match {
-      case None => ???
-      case Some(f) => resolve_integer_expression(to).try_to_resolve() match {
-        case None => ???
-        case Some(t) => get_collection_value(xs).slice(f, t)
-      }
-    }
+    UncertainSequence(UncertainIntegerValue.above(affected.map(v => v.i).max),
+                      affected.map(v => UncertainIntegerValue.single(v.i) -> valuations(v)).toSeq,
+                      t)
   }
 
   def with_assumption(assumption: Expr[G]): Set[AbstractState[G]] = resolve_effect(assumption, negate = false)
@@ -206,7 +215,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
       case None => UncertainIntegerValue.uncertain()
     }
     case Length(arr) => UncertainIntegerValue.above(0)    // TODO: Use contextual information from the global invariant
-    case Size(obj) => UncertainIntegerValue.above(0)      //  here as well
+    case Size(obj) => get_collection_value(obj).len
     case ProcedureInvocation(_, _, _, _, _, _) => UncertainIntegerValue.uncertain()   // TODO: return value from procedure/method?
     case MethodInvocation(_, _, _, _, _, _, _) => UncertainIntegerValue.uncertain()
   }

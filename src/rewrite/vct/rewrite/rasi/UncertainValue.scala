@@ -6,6 +6,7 @@ trait UncertainValue {
   def can_be_equal(other: UncertainValue): Boolean
   def can_be_unequal(other: UncertainValue): Boolean
   def complement(): UncertainValue
+  def intersection(other: UncertainValue): UncertainValue
   def to_expression[G](variable: Expr[G]): Expr[G]
   def ==(other: UncertainValue): UncertainBooleanValue
   def !=(other: UncertainValue): UncertainBooleanValue
@@ -29,6 +30,11 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
   }
 
   override def complement(): UncertainValue = !this
+
+  override def intersection(other: UncertainValue): UncertainValue = other match {
+    case UncertainBooleanValue(t, f) => UncertainBooleanValue(can_be_true && t, can_be_false && f)
+    case _ => throw new IllegalArgumentException("Trying to intersect boolean with a different type")
+  }
 
   override def to_expression[G](variable: Expr[G]): Expr[G] = {
     if (can_be_true && can_be_false) BooleanValue(value = true)(variable.o)
@@ -91,6 +97,11 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
     case _ => UncertainIntegerValue.uncertain()
   }
 
+  override def intersection(other: UncertainValue): UncertainValue = other match {
+    case UncertainIntegerValue(v) => UncertainIntegerValue(value.intersection(v))
+    case _ => throw new IllegalArgumentException("Trying to intersect integer with different type")
+  }
+
   override def to_expression[G](variable: Expr[G]): Expr[G] = value.to_expression(variable)
 
   override def ==(other: UncertainValue): UncertainBooleanValue = other match {
@@ -139,4 +150,36 @@ case object UncertainIntegerValue {
   def uncertain(): UncertainIntegerValue = UncertainIntegerValue(UnboundedInterval)
   def above(int: Int): UncertainIntegerValue = UncertainIntegerValue(LowerBoundedInterval(int))
   def single(int: Int): UncertainIntegerValue = UncertainIntegerValue(BoundedInterval(int, int))
+}
+
+case class UncertainSequence(len: UncertainIntegerValue, values: Seq[(UncertainIntegerValue, UncertainValue)], t: Type[_]) {
+  def concat(other: UncertainSequence): UncertainSequence =
+    UncertainSequence(len + other.len, values ++ other.values.map(t => (t._1 + len) -> t._2), t)
+
+  def prepend(value: UncertainValue): UncertainSequence =
+    UncertainSequence(len + UncertainIntegerValue.single(1), (UncertainIntegerValue.single(0) -> value) +: values, t)
+
+  def updated(index: UncertainIntegerValue, value: UncertainValue): UncertainSequence =
+    UncertainSequence(len, values.filter(t => !t._1.can_be_equal(index)) :+ index -> value, t)
+
+  def remove(index: UncertainIntegerValue): UncertainSequence =
+    UncertainSequence(len - UncertainIntegerValue.single(1), values.filter(t => !t._1.can_be_equal(index)), t)
+
+  def take(num: UncertainIntegerValue): UncertainSequence =
+    UncertainSequence(num, values.filter(t => t._1.<(num).can_be_true).map(t => t._1.intersection(num.below()).asInstanceOf[UncertainIntegerValue] -> t._2), t)
+
+  def drop(num: UncertainIntegerValue): UncertainSequence = {
+    val red: UncertainIntegerValue = num.intersection(len.below()).asInstanceOf[UncertainIntegerValue]
+    UncertainSequence(len - red, values.filter(t => t._1.>=(red).can_be_true).map(t => t._1.intersection(red.above_eq()).asInstanceOf[UncertainIntegerValue] -> t._2), t)
+  }
+
+  def slice(lower: UncertainIntegerValue, upper: UncertainIntegerValue): UncertainSequence =
+    take(upper).drop(lower)
+
+  def get(index: Int): UncertainValue = {
+    if (index < 0) throw new IllegalArgumentException(s"Trying to access negative index $index")
+    val i = values.indexWhere(t => t._1.try_to_resolve().getOrElse(-1) == index)
+    if (i >= 0) values(i)._2
+    else UncertainValue.uncertain_of(t)
+  }
 }

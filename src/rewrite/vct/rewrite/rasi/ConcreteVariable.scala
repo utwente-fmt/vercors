@@ -16,7 +16,7 @@ trait ConcreteVariable[G] {
 
 case class FieldVariable[G](field: InstanceField[G]) extends ConcreteVariable[G] {
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean = field_equals(expr, field)
-  override def is_contained_by(expr: Expr[G], state: AbstractState[G]): Boolean = field_equals(expr, field)
+  override def is_contained_by(expr: Expr[G], state: AbstractState[G]): Boolean = is(expr, state)
   override def to_expression: Expr[G] = Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o)
   override def t: Type[G] = field.t
 }

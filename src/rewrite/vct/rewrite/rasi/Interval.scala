@@ -158,7 +158,6 @@ case class MultiInterval(intervals: Set[Interval]) extends Interval {
   }
   private def merge_intersecting(is: Set[Interval]): Set[Interval] = MultiInterval(is).sub_intervals().reduce((i1, i2) => i1.union(i2)).sub_intervals()
   override def sub_intervals(): Set[Interval] = intervals.flatMap(i => i.sub_intervals())
-  private def flatten(): MultiInterval = MultiInterval(this.sub_intervals())
   override def try_to_resolve(): Option[Int] = {
     if (intervals.count(i => i != EmptyInterval) == 1) intervals.filter(i => i != EmptyInterval).head.try_to_resolve()
     else None
@@ -227,7 +226,9 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
     case EmptyInterval => other
     case MultiInterval(intervals) => ???
     case BoundedInterval(low, up) => ???
-    case LowerBoundedInterval(low) => ???
+    case LowerBoundedInterval(low) =>
+      if (low < 0) BoundedInterval(-Utils.abs_max(lower, upper), Utils.abs_max(lower, upper))
+      else BoundedInterval(scala.math.min(lower / low, 0), scala.math.max(upper / low, 0))
     case UpperBoundedInterval(up) => ???
     case UnboundedInterval => BoundedInterval(-Utils.abs_max(lower, upper), Utils.abs_max(lower, upper))
   }
