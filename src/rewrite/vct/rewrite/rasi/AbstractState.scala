@@ -8,7 +8,8 @@ import scala.collection.immutable.HashMap
 
 case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue],
                             processes: HashMap[AbstractProcess[G], CFGEntry[G]],
-                            lock: Option[AbstractProcess[G]]) {
+                            lock: Option[AbstractProcess[G]],
+                            seq_lengths: Map[InstanceField[G], UncertainIntegerValue]) {
   /**
    * Main function of the abstract state. For all processes that could potentially run, execute all possible next steps.
    *
@@ -25,7 +26,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return An abstract state that is a copy of this one with the updated process location
    */
   def with_process_at(process: AbstractProcess[G], position: CFGEntry[G]): AbstractState[G] =
-    AbstractState(valuations, processes.removed(process) + (process -> position), lock)
+    AbstractState(valuations, processes.removed(process) + (process -> position), lock, seq_lengths)
 
   /**
    * Updates the state by removing a process from the active list.
@@ -34,7 +35,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return An abstract state that is a copy of this one without the given process
    */
   def without_process(process: AbstractProcess[G]): AbstractState[G] =
-    AbstractState(valuations, processes.removed(process), lock)
+    AbstractState(valuations, processes.removed(process), lock, seq_lengths)
 
   /**
    * Updates the state by locking the global lock.
@@ -42,14 +43,14 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @param process Process that should hold the global lock
    * @return An abstract state that is a copy of this one with the lock held by the given process
    */
-  def locked_by(process: AbstractProcess[G]): AbstractState[G] = AbstractState(valuations, processes, Some(process))
+  def locked_by(process: AbstractProcess[G]): AbstractState[G] = AbstractState(valuations, processes, Some(process), seq_lengths)
 
   /**
    * Updates the state by unlocking the global lock.
    *
    * @return An abstract state that is a copy of this one with the global lock unlocked
    */
-  def unlocked(): AbstractState[G] = AbstractState(valuations, processes, None)
+  def unlocked(): AbstractState[G] = AbstractState(valuations, processes, None, seq_lengths)
 
   /**
    * Updates the state by updating the value of a certain variable.
@@ -64,11 +65,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   }
 
   private def val_updated(variable: ConcreteVariable[G], value: UncertainValue): AbstractState[G] =
-    AbstractState(valuations + (variable -> value), processes, lock)
-
-  private def refined_valuation(variable: ConcreteVariable[G], value: UncertainValue): AbstractState[G] = {
-    val_updated(variable, valuations(variable).intersection(value))
-  }
+    AbstractState(valuations + (variable -> value), processes, lock, seq_lengths)
 
   /**
    * Updates the state by updating all variables that are affected by an update to a collection.
@@ -85,7 +82,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     val new_values: UncertainSequence = get_collection_value(assigned)
     var vals: Map[ConcreteVariable[G], UncertainValue] = valuations
     by_index.foreach(t => vals = vals + (t._2 -> new_values.get(t._1)))
-    AbstractState(vals, processes, lock)
+    AbstractState(vals, processes, lock, seq_lengths + (affected.head.field -> new_values.len))
   }
 
   private def get_collection_value(lit: Expr[G]): UncertainSequence = lit match {
@@ -117,12 +114,13 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
 
   private def collection_from_variable(deref: Deref[G]): UncertainSequence = {
     val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(deref, this)).collect { case v: IndexedVariable[_] => v }
+    val len: Option[UncertainIntegerValue] = seq_lengths.get(deref.ref.decl)
     val t: Type[G] = deref.ref.decl.t match {
       case TArray(element) => element
       case TSeq(element) => element
       case _ => throw new IllegalArgumentException(s"Unsupported collection type ${deref.ref.decl.t.toInlineString}")
     }
-    UncertainSequence(UncertainIntegerValue.above(affected.map(v => v.i).max),
+    UncertainSequence(len.getOrElse(UncertainIntegerValue.above(affected.map(v => v.i).max)),
                       affected.map(v => UncertainIntegerValue.single(v.i) -> valuations(v)).toSeq,
                       t)
   }
@@ -133,75 +131,67 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @param assumption Boolean expression expressing a state update
    * @return A set of abstract states that are a copy of this one, updated according to the given assumption
    */
-  def with_assumption(assumption: Expr[G]): Set[AbstractState[G]] = resolve_effect(assumption, negate = false)
+  def with_assumption(assumption: Expr[G]): Set[AbstractState[G]] =
+    resolve_effect(assumption, negate = false).map(m => AbstractState(valuations ++ m.resolve, processes, lock, seq_lengths))
 
-  private def resolve_effect(assumption: Expr[G], negate: Boolean): Set[AbstractState[G]] = assumption match {
+  private def resolve_effect(assumption: Expr[G], negate: Boolean): Set[ConstraintMap[G]] = assumption match {
     // Consider boolean/separation logic operators
     case Not(arg) => this.resolve_effect(arg, !negate)
-    case Star(left, right) => if (!negate) handle_and(left, right) else handle_or(left, right, neg_left = true, neg_right = true)
-    case And(left, right) => if (!negate) handle_and(left, right) else handle_or(left, right, neg_left = true, neg_right = true)
-    case Or(left, right) => if (!negate) handle_or(left, right) else handle_and(left, right, neg_left = true, neg_right = true)
-    case Implies(left, right) => if (!negate) handle_or(left, right, neg_left = true) else handle_and(left, right, neg_right = true)
+    case AmbiguousOr(left, right) =>
+      if (!negate) handle_or(left, right)
+      else handle_and(left, right, neg_left = true, neg_right = true)
+    case Star(left, right) =>
+      if (!negate) handle_and(left, right)
+      else handle_or(left, right, neg_left = true, neg_right = true)
+    case And(left, right) =>
+      if (!negate) handle_and(left, right)
+      else handle_or(left, right, neg_left = true, neg_right = true)
+    case Or(left, right) =>
+      if (!negate) handle_or(left, right)
+      else handle_and(left, right, neg_left = true, neg_right = true)
+    case Implies(left, right) =>
+      if (!negate) handle_or(left, right, neg_left = true)
+      else handle_and(left, right, neg_right = true)
     // Atomic comparisons, if they contain a concrete variable, can actually affect the state
     case c: Comparison[G] => handle_update(c, negate)
     // Boolean variables could appear in the assumption without any comparison
-    case e: Expr[G] if valuations.keys.exists(v => v.is(e, this)) => Set(this.val_updated(variable_from_expr(e).get, UncertainBooleanValue.from(!negate)))
+    case e: Expr[G] if valuations.keys.exists(v => v.is(e, this)) => Set(ConstraintMap.from(variable_from_expr(e).get, UncertainBooleanValue.from(!negate)))
     case _ => throw new IllegalArgumentException(s"Effect of contract expression ${assumption.toInlineString} is not implemented")
   }
 
-  private def handle_and(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[AbstractState[G]] = {
-    // TODO: This is wrong for contracts that mention the same variable multiple times
-    this.resolve_effect(left, neg_left).flatMap(s => s.resolve_effect(right, neg_right))
+  private def handle_and(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
+    val left_constraints = resolve_effect(left, neg_left)
+    val right_constraints = resolve_effect(right, neg_right)
+    left_constraints.flatMap(m1 => right_constraints.map(m2 => m1 ++ m2))
   }
 
-  private def handle_or(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[AbstractState[G]] = {
+  private def handle_or(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
     val pure_left = is_pure(left)
     val pure_right = is_pure(right)
     // If one side is pure and the other has an effect on the state, treat this "or" as an implication. If both sides
     // update the state, treat it as a split in the state space instead
-    if (pure_left && pure_right) Set(this)
+    if (pure_left && pure_right) Set(ConstraintMap.empty[G])
     else if (pure_left) handle_implies(left, right, !neg_left, neg_right)
     else if (pure_right) handle_implies(right, left, !neg_right, neg_left)
     else this.resolve_effect(left, neg_left) ++ this.resolve_effect(right, neg_right)
   }
 
-  private def handle_implies(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[AbstractState[G]] = {
+  private def handle_implies(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
     val resolve_left: UncertainBooleanValue = resolve_boolean_expression(left)
-    var res: Set[AbstractState[G]] = Set()
+    var res: Set[ConstraintMap[G]] = Set()
     if (neg_left && resolve_left.can_be_false || (!neg_left) && resolve_left.can_be_true) res = res ++ resolve_effect(right, neg_right)
-    if (neg_left && resolve_left.can_be_true || (!neg_left) && resolve_left.can_be_false) res = res ++ Set(this)
+    if (neg_left && resolve_left.can_be_true || (!neg_left) && resolve_left.can_be_false) res = res ++ Set(ConstraintMap.empty[G])
     res
   }
 
-  private def handle_update(comp: Comparison[G], negate: Boolean): Set[AbstractState[G]] = {
+  private def handle_update(comp: Comparison[G], negate: Boolean): Set[ConstraintMap[G]] = {
     val pure_left = is_pure(comp.left)
     val pure_right = is_pure(comp.right)
-    if (pure_left == pure_right) return Set(this)
+    if (pure_left == pure_right) return Set(ConstraintMap.empty[G])
     // Now, exactly one side is pure, and the other contains a concrete variable
     // Resolve the variable and the other side of the equation    TODO: Reduce the side with the variable if it contains anything else as well
-    // TODO: Handle sequences that are assigned in contracts
-    val variable: ConcreteVariable[G] = if (pure_left) variable_from_expr(comp.right).get else variable_from_expr(comp.left).get
-    val value: UncertainValue = if (pure_left) resolve_expression(comp.left) else resolve_expression(comp.right)
-
-    comp match {
-      case _: Eq[_] => Set(if (!negate) this.val_updated(variable, value) else this.val_updated(variable, value.complement()))
-      case _: Neq[_] => Set(if (!negate) this.val_updated(variable, value.complement()) else this.val_updated(variable, value))
-      case AmbiguousGreater(_, _) | Greater(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, negate)
-      case AmbiguousGreaterEq(_, _) | GreaterEq(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, !negate)
-      case AmbiguousLessEq(_, _) | LessEq(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, !negate)
-      case AmbiguousLess(_, _) | Less(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, negate)
-    }
-  }
-
-  private def limit_variable(v: ConcreteVariable[G], b: UncertainIntegerValue, var_greater: Boolean, can_be_equal: Boolean): Set[AbstractState[G]] = {
-    if (var_greater) {
-      if (can_be_equal) Set(this.val_updated(v, b.above_eq()))
-      else Set(this.val_updated(v, b.above()))
-    }
-    else {
-      if (can_be_equal) Set(this.val_updated(v, b.below_eq()))
-      else Set(this.val_updated(v, b.below()))
-    }
+    if (valuations.exists(v => v._1.is(if (pure_left) comp.right else comp.left, this))) handle_single_update(comp, pure_left, negate)
+    else handle_collection_update(comp, pure_left, negate)
   }
 
   private def is_pure(node: Node[G]): Boolean = node match {
@@ -211,6 +201,43 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case e: BinExpr[_] => e.subnodes.forall(n => is_pure(n))
     case e: Expr[_] => if (valuations.keys.exists(v => v.is_contained_by(e, this))) false else e.subnodes.forall(n => is_pure(n))
     case _ => true
+  }
+
+  private def handle_single_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): Set[ConstraintMap[G]] = {
+    val variable: ConcreteVariable[G] = if (pure_left) variable_from_expr(comp.right).get else variable_from_expr(comp.left).get
+    val value: UncertainValue = if (pure_left) resolve_expression(comp.left) else resolve_expression(comp.right)
+
+    comp match {
+      case _: Eq[_] => Set(if (!negate) ConstraintMap.from(variable, value) else ConstraintMap.from(variable, value.complement()))
+      case _: Neq[_] => Set(if (!negate) ConstraintMap.from(variable, value.complement()) else ConstraintMap.from(variable, value))
+      case AmbiguousGreater(_, _) | Greater(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, negate)
+      case AmbiguousGreaterEq(_, _) | GreaterEq(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, !negate)
+      case AmbiguousLessEq(_, _) | LessEq(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, !negate)
+      case AmbiguousLess(_, _) | Less(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, negate)
+    }
+  }
+
+  private def limit_variable(v: ConcreteVariable[G], b: UncertainIntegerValue, var_greater: Boolean, can_be_equal: Boolean): Set[ConstraintMap[G]] = {
+    if (var_greater) {
+      if (can_be_equal) Set(ConstraintMap.from(v, b.above_eq()))
+      else Set(ConstraintMap.from(v, b.above()))
+    }
+    else {
+      if (can_be_equal) Set(ConstraintMap.from(v, b.below_eq()))
+      else Set(ConstraintMap.from(v, b.below()))
+    }
+  }
+
+  private def handle_collection_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): Set[ConstraintMap[G]] = {
+    val variable: Expr[G] = if (pure_left) comp.right else comp.left
+    val value: UncertainSequence = get_collection_value(if (pure_left) comp.left else comp.right)
+    val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(variable, this)).collect{ case v: IndexedVariable[_] => v }
+
+    comp match {
+      case _: Eq[_] if !negate => Set(ConstraintMap.from_cons(affected.map(v => v -> value.get(v.i))))
+      case _: Neq[_] if negate => Set(ConstraintMap.from_cons(affected.map(v => v -> value.get(v.i))))
+      case _ => throw new IllegalArgumentException(s"The operator ${comp.toInlineString} is not supported for collections")
+    }
   }
 
   /**
@@ -225,7 +252,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     with_assumption(unify_expression(AstBuildHelpers.unfoldPredicate(post).reduce((e1, e2) => Star(e1, e2)(e1.o)), args))
 
   private def unify_expression(cond: Expr[G], args: Map[Variable[G], Expr[G]]): Expr[G] =
-    Substitute(args.map[Expr[G], Expr[G]]{ case (v, e) => Local[G](v.ref)(v.o) -> e }).dispatch(cond)
+    Substitute(args.map[Expr[G], Expr[G]]{ case (v, e) => Local[G](v.ref)(v.o) -> Old(e, None)(e.o)(e.o) }).dispatch(cond)
 
   /**
    * Evaluates an expression and returns an uncertain value, depending on the type of expression and the values it can

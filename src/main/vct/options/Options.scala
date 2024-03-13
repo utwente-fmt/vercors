@@ -270,7 +270,7 @@ case object Options {
           opt[Unit]("generate-rasi").action((_, c) => c.copy(vesuvGenerateRasi = true))
             .text("Instead of transforming a SystemC design to PVL, generate a global invariant for a PVL program")
             .children(
-            opt[Seq[String]]("rasi-vars").required().valueName("<var1>,...")
+            opt[Seq[String]]("rasi-vars").valueName("<var1>,...")
               .action((vars, c) => c.copy(vesuvRasiVariables = Some(vars)))
               .text("[WIP] Preliminary selection mechanism for RASI variables; might be replaced later")
           )

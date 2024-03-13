@@ -1,6 +1,6 @@
 package vct.rewrite.rasi
 
-import vct.col.ast.{Expr, InstanceMethod, Null, Or}
+import vct.col.ast.{Expr, InstanceField, InstanceMethod, Null, Or}
 import vct.col.origin.Origin
 import vct.rewrite.cfg.{CFGEntry, CFGGenerator}
 
@@ -30,7 +30,10 @@ case class RASIGenerator[G]() {
   }
 
   private def explore(node: CFGEntry[G], vars: Set[ConcreteVariable[G]]): Unit = {
-    val initial_state = AbstractState(get_initial_values(vars), HashMap((AbstractProcess[G](Null()(Origin(Seq()))), node)), None)
+    val initial_state = AbstractState(get_initial_values(vars),
+                                      HashMap((AbstractProcess[G](Null()(Origin(Seq()))), node)),
+                                      None,
+                                      Map.empty[InstanceField[G], UncertainIntegerValue])
     found_states += initial_state
     current_branches += initial_state
 
