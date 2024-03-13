@@ -1,11 +1,12 @@
 package util
 
-import mill.{PathRef, T, pathReadWrite}
+import mill.{PathRef, T, Task, pathReadWrite}
 import os.Path
 
 trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
   def name: T[String] = T { this.getClass.getSimpleName.replace("$", "").capitalize }
   def executableName: T[String] = T { name().toLowerCase }
+  override def artifactName: T[String] = T { name().toLowerCase }
   def version: T[String] = T { "0.1-SNAPSHOT" }
   def maintainer: T[String] = T { "Unknown <unknown@example.com>" }
   def summary: T[String] = T { s"${name()} test build" }
@@ -29,7 +30,56 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
       "macos" -> macosTar().path,
       "win" -> winZip().path,
       "deb" -> deb().path,
+      "docker" -> dockerTar().path,
     )
+  }
+
+  def dockerExtra: T[String] = ""
+
+  private def dockerBuildDo: Task[String] = T.task {
+    val dest = T.dest / "dest"
+
+    val jar = copy(assembly().path, dest / s"${executableName()}.jar")
+    val res = bareClasspath().map(res => copy(res, dest / res.last))
+
+    os.walk(dest / "deps" / "win", preOrder = false).foreach(os.remove)
+    os.walk(dest / "deps" / "darwin", preOrder = false).foreach(os.remove)
+
+    os.write(dest / ".classpath", "-cp " + (jar +: res).map(_.relativeTo(dest)).map(_.toString).mkString(":"))
+
+    val entryPoint =
+      Seq("java") ++ forkArgs() ++ Seq(s"@/.classpath", finalMainClass())
+
+    os.write(T.dest / "Dockerfile",
+      s"""FROM alpine:3.19
+         |RUN apk add --no-cache openjdk17 gcompat libstdc++ libgcc
+         |COPY dest /
+         |${dockerExtra()}
+         |ENTRYPOINT ${upickle.default.write(entryPoint)}
+         |""".stripMargin)
+
+    os.proc("docker", "build", "--file", T.dest / "Dockerfile", "--iidfile", T.dest / "id", ".").call(cwd = T.dest)
+    os.read(T.dest / "id")
+  }
+
+  def dockerBuild(tags: String*) = T.command {
+    require(tags.nonEmpty)
+
+    val id = dockerBuildDo()
+    for(tag <- tags) {
+      os.proc("docker", "tag", id, tag).call()
+    }
+  }
+
+  def dockerTar = T {
+    val id = dockerBuildDo()
+    try {
+      val out = T.dest / s"${executableName()}-${version()}-docker.tar"
+      os.proc("docker", "save", "-o", out, id).call(cwd = T.dest)
+      PathRef(out)
+    } finally {
+      os.proc("docker", "rmi", id).call(cwd = T.dest)
+    }
   }
 
   def unixTar = T {
