@@ -9,6 +9,7 @@ case class ConstraintMap[G](constraints: Map[ConcreteVariable[G], Set[UncertainV
     ConstraintMap(map)
   }
   def resolve: Map[ConcreteVariable[G], UncertainValue] = constraints.map(e => e._1 -> e._2.reduce((v1, v2) => v1.intersection(v2)))
+  def is_impossible: Boolean = resolve.exists(t => t._2.is_impossible)
 }
 case object ConstraintMap {
   def from[G](variable: ConcreteVariable[G], value: UncertainValue): ConstraintMap[G] = ConstraintMap(Map.from(Seq(variable -> Set(value))))

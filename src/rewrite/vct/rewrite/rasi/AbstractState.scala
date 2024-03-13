@@ -132,7 +132,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return A set of abstract states that are a copy of this one, updated according to the given assumption
    */
   def with_assumption(assumption: Expr[G]): Set[AbstractState[G]] =
-    resolve_effect(assumption, negate = false).map(m => AbstractState(valuations ++ m.resolve, processes, lock, seq_lengths))
+    resolve_effect(assumption, negate = false).filter(m => !m.is_impossible).map(m => AbstractState(valuations ++ m.resolve, processes, lock, seq_lengths))
 
   private def resolve_effect(assumption: Expr[G], negate: Boolean): Set[ConstraintMap[G]] = assumption match {
     // Consider boolean/separation logic operators
