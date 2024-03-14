@@ -123,6 +123,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
 
     case func: LLVMFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
     case global: LLVMGlobalSpecification[Pre] => llvm.rewriteGlobal(global)
+    case global: LLVMGlobalVariable[Pre] => llvm.rewriteGlobalVariable(global)
 
     case cls: Class[Pre] =>
       currentClass.having(cls) {
@@ -267,6 +268,8 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     case inv: LLVMAmbiguousFunctionInvocation[Pre] => llvm.rewriteAmbiguousFunctionInvocation(inv)
     case local: LLVMLocal[Pre] => llvm.rewriteLocal(local)
     case pointer: LLVMFunctionPointerValue[Pre] => llvm.rewriteFunctionPointer(pointer)
+    case pointer: LLVMPointerValue[Pre] => llvm.rewritePointerValue(pointer)
+    case gep: LLVMGetElementPointer[Pre] => llvm.rewriteGetElementPointer(gep)
 
     case other => rewriteDefault(other)
   }

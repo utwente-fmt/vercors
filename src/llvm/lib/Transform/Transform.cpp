@@ -15,6 +15,13 @@ const std::string SOURCE_LOC = "Transform::Transform";
 
 namespace col = vct::col::ast;
 
+void llvm2col::transformAndSetPointerType(llvm::Type &llvmType,
+                                          col::Type &colType) {
+    col::LlvmtPointer *pointerType = colType.mutable_llvmt_pointer();
+    pointerType->set_allocated_origin(generateTypeOrigin(llvmType));
+    llvm2col::transformAndSetType(llvmType, *pointerType->mutable_inner_type());
+}
+
 void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType) {
     switch (llvmType.getTypeID()) {
     case llvm::Type::IntegerTyID:

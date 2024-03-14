@@ -103,13 +103,19 @@ FDResult &FunctionCursor::getFDResult(Function &otherLLVMFunction) {
     return FAM.getResult<FunctionDeclarer>(otherLLVMFunction);
 }
 
-col::Variable &FunctionCursor::declareVariable(Instruction &llvmInstruction) {
+col::Variable &FunctionCursor::declareVariable(Instruction &llvmInstruction,
+                                               Type *llvmPointerType) {
     // create declaration in buffer
     col::Variable *varDecl = functionScope.add_locals();
     // set type of declaration
     try {
-        llvm2col::transformAndSetType(*llvmInstruction.getType(),
-                                      *varDecl->mutable_t());
+        if (llvmPointerType == nullptr) {
+            llvm2col::transformAndSetType(*llvmInstruction.getType(),
+                                          *varDecl->mutable_t());
+        } else {
+            llvm2col::transformAndSetPointerType(*llvmPointerType,
+                                                 *varDecl->mutable_t());
+        }
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;
         errorStream << e.what() << " in variable declaration.";
@@ -125,10 +131,9 @@ col::Variable &FunctionCursor::declareVariable(Instruction &llvmInstruction) {
     return *varDecl;
 }
 
-col::Assign &
-FunctionCursor::createAssignmentAndDeclaration(Instruction &llvmInstruction,
-                                               col::Block &colBlock) {
-    col::Variable &varDecl = declareVariable(llvmInstruction);
+col::Assign &FunctionCursor::createAssignmentAndDeclaration(
+    Instruction &llvmInstruction, col::Block &colBlock, Type *llvmPointerType) {
+    col::Variable &varDecl = declareVariable(llvmInstruction, llvmPointerType);
     return createAssignment(llvmInstruction, colBlock, varDecl);
 }
 

@@ -70,7 +70,8 @@ class FunctionCursor {
      * @param llvmInstruction
      * @return the created variable declaration
      */
-    col::Variable &declareVariable(Instruction &llvmInstruction);
+    col::Variable &declareVariable(Instruction &llvmInstruction,
+                                   Type *llvmPointerType = nullptr);
 
     /**
      * Functionality is twofold:
@@ -82,8 +83,10 @@ class FunctionCursor {
      * @param colBlock
      * @return The created col assignment
      */
-    col::Assign &createAssignmentAndDeclaration(Instruction &llvmInstruction,
-                                                col::Block &colBlock);
+    col::Assign &
+    createAssignmentAndDeclaration(Instruction &llvmInstruction,
+                                   col::Block &colBlock,
+                                   Type *llvmPointerType = nullptr);
 
     /**
      * Creates an assignment in the provided colBlock referencing the provided

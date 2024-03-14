@@ -36,13 +36,14 @@ void llvm2col::transformMemoryOp(llvm::Instruction &llvmInstruction,
 void llvm2col::transformAllocA(llvm::AllocaInst &allocAInstruction,
                                col::Block &colBlock,
                                pallas::FunctionCursor &funcCursor) {
-    col::Assign &assignment =
-        funcCursor.createAssignmentAndDeclaration(allocAInstruction, colBlock);
+    col::Assign &assignment = funcCursor.createAssignmentAndDeclaration(
+        allocAInstruction, colBlock,
+        /* pointer type*/ allocAInstruction.getAllocatedType());
     col::Expr *allocAExpr = assignment.mutable_value();
     col::LlvmAllocA *allocA = allocAExpr->mutable_llvm_alloc_a();
     allocA->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(allocAInstruction));
-    llvm2col::transformAndSetType(*allocAInstruction.getType(),
+    llvm2col::transformAndSetType(*allocAInstruction.getAllocatedType(),
                                   *allocA->mutable_allocation_type());
     llvm2col::transformAndSetExpr(funcCursor, allocAInstruction,
                                   *allocAInstruction.getArraySize(),

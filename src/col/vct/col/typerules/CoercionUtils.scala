@@ -6,6 +6,8 @@ import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.resolve.lang.{C, CPP}
 import vct.col.resolve.lang.CPP.getBaseTypeFromSpecs
 
+import scala.annotation.tailrec
+
 case object CoercionUtils {
   private implicit val o: Origin = DiagnosticOrigin
 
@@ -200,6 +202,8 @@ case object CoercionUtils {
       case (LLVMTPointer(Some(leftInner)), LLVMTPointer(Some(rightInner))) =>
         getAnyCoercion(leftInner, rightInner).getOrElse(return None)
 
+
+
       // Something with TVar?
 
       // Unsafe coercions
@@ -299,11 +303,20 @@ case object CoercionUtils {
     case _ => None
   }
 
+  @tailrec
+  def firstElementIsType[G](aggregate: Type[G], innerType: Type[G]): Boolean = aggregate match {
+    case aggregate if getAnyCoercion(aggregate, innerType).isDefined => true
+    case LLVMTStruct(_, _, elements) => firstElementIsType(elements.head, innerType)
+    case LLVMTArray(numElements, elementType) => numElements > 0 && firstElementIsType(elementType, innerType)
+    case LLVMTVector(_, _) => false // TODO: Should this be possible?
+    case _ => false
+  }
+
   def getAnyLLVMPointerCoercion[G](source: Type[G], innerType: Type[G]): Option[(Coercion[G], LLVMTPointer[G])] = source match {
       case LLVMTPointer(None) =>
         Some((CoerceLLVMPointer(None, Some(innerType)), LLVMTPointer[G](Some(innerType))))
-      case LLVMTPointer(Some(t)) if t == innerType =>
-        Some((CoerceLLVMPointer(Some(t), Some(innerType)), LLVMTPointer[G](Some(innerType))))
+      case LLVMTPointer(Some(t)) if firstElementIsType(t, innerType) =>
+        Some(CoerceLLVMPointer(Some(t), Some(innerType)), LLVMTPointer[G](Some(innerType)))
       case _: TNull[G] =>
         Some((CoerceLLVMPointer(None, Some(innerType)), LLVMTPointer[G](Some(innerType))))
       case _ => None

@@ -353,6 +353,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case _: CStatement[Pre] => throw ExtraNode
       case _: CPPStatement[Pre] => throw ExtraNode
       case _: JavaStatement[Pre] => throw ExtraNode
+      case _: LLVMStatement[Pre] => throw ExtraNode
     }
   }
 

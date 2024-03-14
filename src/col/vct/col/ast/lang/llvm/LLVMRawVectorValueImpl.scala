@@ -1,4 +1,4 @@
-package vct.col.ast.unsorted
+package vct.col.ast.lang.llvm
 
 import vct.col.ast.{Type, LLVMRawVectorValue}
 import vct.col.ast.ops.LLVMRawVectorValueOps

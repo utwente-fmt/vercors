@@ -12,6 +12,8 @@ namespace llvm2col {
 namespace col = vct::col::ast;
 
 // type transformers
+void transformAndSetPointerType(llvm::Type &llvmType, col::Type &colType);
+
 void transformAndSetType(llvm::Type &llvmType, col::Type &colType);
 
 /**

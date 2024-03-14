@@ -1463,8 +1463,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case glue: JavaBipGlue[Pre] => glue
       case LLVMLocal(name) => e
       case LLVMAllocA(allocationType, numElements) => e
-      case LLVMLoad(loadType, p, ordering) => LLVMLoad(loadType, p, ordering)
-      case LLVMGetElementPointer(structureType, resultType, pointer, indices) => e
+      case LLVMLoad(loadType, p, ordering) => LLVMLoad(loadType, llvmPointer(p, loadType)._1, ordering)
+      case LLVMGetElementPointer(structureType, resultType, pointer, indices) => LLVMGetElementPointer(structureType, resultType, llvmPointer(pointer, structureType)._1, indices)
       case LLVMSignExtend(inputType, outputType, value) => e
       case LLVMZeroExtend(inputType, outputType, value) => e
       case LLVMTruncate(inputType, outputType, value) => e
@@ -1528,7 +1528,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case l @ Lock(obj) => Lock(cls(obj))(l.blame)
       case Loop(init, cond, update, contract, body) => Loop(init, bool(cond), update, contract, body)
       case LLVMLoop(cond, contract, body) => LLVMLoop(bool(cond), contract, body)
-      case LLVMStore(value, p, ordering) => LLVMStore(value, p, ordering)
+      case LLVMStore(value, p, ordering) => LLVMStore(value, llvmPointer(p, value.t)._1, ordering)
       case ModelDo(model, perm, after, action, impl) => ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)
       case at @ ParAtomic(inv, content) => ParAtomic(inv, content)(at.blame)

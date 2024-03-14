@@ -3,12 +3,12 @@ package vct.rewrite.lang
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.origin.Origin
-import vct.col.ref.{LazyRef, Ref}
+import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.resolve.ctx.RefLLVMFunctionDefinition
 import vct.col.rewrite.{Generation, Rewritten}
+import vct.col.util.AstBuildHelpers.tt
 import vct.col.util.{CurrentProgramContext, SuccessionMap}
-import vct.result.VerificationError.SystemError
-import vct.rewrite.lang.LangLLVMToCol.UnexpectedLLVMNode
+import vct.result.VerificationError.{SystemError, UserError}
 
 case object LangLLVMToCol {
   case class UnexpectedLLVMNode(node: Node[_]) extends SystemError {
@@ -18,14 +18,25 @@ case object LangLLVMToCol {
         .getOrElse(node.o)
         .messageInContext("VerCors assumes this node does not occur here in llvm input.")
   }
+
+  case class NonConstantStructIndex(origin: Origin) extends UserError {
+    override def code: String = "nonConstantStructIndex"
+
+    override def text: String =
+      origin.messageInContext(s"This struct indexing operation (getelementptr) uses a non-constant struct index which we do not support.")
+  }
 }
 
 case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
+  import LangLLVMToCol._
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
   private val llvmFunctionMap: SuccessionMap[LLVMFunctionDefinition[Pre], Procedure[Post]] = SuccessionMap()
   private val specFunctionMap: SuccessionMap[LLVMSpecFunction[Pre], Function[Post]] = SuccessionMap()
+  private val globalVariableMap: SuccessionMap[LLVMGlobalVariable[Pre], HeapVariable[Post]] = SuccessionMap()
+  private val structMap: SuccessionMap[LLVMTStruct[Pre], Class[Post]] = SuccessionMap()
+  private val structFieldMap: SuccessionMap[(LLVMTStruct[Pre], Int), InstanceField[Post]] = SuccessionMap()
 
 
   def rewriteLocal(local: LLVMLocal[Pre]): Expr[Post] = {
@@ -120,6 +131,82 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     new LLVMFunctionPointerValue[Post](
       value = new LazyRef[Post, GlobalDeclaration[Post]](llvmFunctionMap(pointer.value.decl.asInstanceOf[LLVMFunctionDefinition[Pre]]))
     )
+  }
+
+  def rewriteStruct(t: LLVMTStruct[Pre]): Unit = {
+    val LLVMTStruct(name, packed, elements) = t
+    val newStruct = new Class[Post](rw.classDeclarations.collect {
+      elements.zipWithIndex.foreach { case (fieldType, idx) =>
+        structFieldMap((t, idx)) =
+          new InstanceField(rw.dispatch(fieldType), flags = Nil)(fieldType.o)
+        rw.classDeclarations.declare(structFieldMap((t, idx)))
+      }
+    }._1, Seq(), tt[Post])(t.o)
+
+    rw.globalDeclarations.declare(newStruct)
+    structMap(t) = newStruct
+  }
+
+  def rewriteGlobalVariable(decl: LLVMGlobalVariable[Pre]): Unit = {
+    // TODO: Handle the initializer
+    // TODO: Include array and vector bounds somehow
+    decl.variableType match {
+      case struct: LLVMTStruct[Pre] => {
+        rewriteStruct(struct)
+        globalVariableMap.update(decl, rw.globalDeclarations.declare(new HeapVariable[Post](new TClass[Post](new DirectRef[Post, Class[Post]](structMap(struct)))(struct.o))(decl.o)))
+      }
+      case array: LLVMTArray[Pre] => {
+        globalVariableMap.update(decl, rw.globalDeclarations.declare(new HeapVariable[Post](new TArray[Post](rw.dispatch(array.elementType))(array.o))(decl.o)))
+      }
+      case vector: LLVMTVector[Pre] => {
+        globalVariableMap.update(decl, rw.globalDeclarations.declare(new HeapVariable[Post](new TArray[Post](rw.dispatch(vector.elementType))(vector.o))(decl.o)))
+      }
+      case _ => {
+        ???
+      }
+    }
+  }
+
+  def rewritePointerChain(pointer: Expr[Post], t: Type[Pre], indices: Seq[Expr[Pre]])(implicit o: Origin): Expr[Post] = {
+    if (indices.isEmpty) {
+      return pointer
+    }
+    t match {
+      case struct: LLVMTStruct[Pre] => {
+        indices.head match {
+          // TODO: This doesn't quite work because struct types are not uniqued
+          case value: LLVMIntegerValue[Pre] =>
+            rewritePointerChain(Deref[Post](pointer, structFieldMap.ref((struct, value.value.intValue)))(o), struct.elements(value.value.intValue), indices.tail)
+          case _ => throw NonConstantStructIndex(o)
+        }
+      }
+      case array: LLVMTArray[Pre] => ???
+      case vector: LLVMTVector[Pre] => ???
+    }
+  }
+
+  def rewriteGetElementPointer(gep: LLVMGetElementPointer[Pre]): Expr[Post] = {
+    implicit val o: Origin = gep.o
+    val t = gep.structureType
+    t match {
+      case struct: LLVMTStruct[Pre] => {
+        // TODO: We don't support variables in GEP yet and this just assumes all the indices are integer constants
+        // TODO: Use an actual Blame
+
+        // Acquire the actual struct through a PointerAdd
+        // TODO: Can we somehow wrap the rw.dispatch(gep.pointer) to add the known type structureType?
+        val structPointer = DerefPointer(PointerAdd(rw.dispatch(gep.pointer), rw.dispatch(gep.indices.head))(o))(o)
+
+        rewritePointerChain(structPointer, struct, gep.indices.tail)
+      }
+      case array: LLVMTArray[Pre] => ???
+      case vector: LLVMTVector[Pre] => ???
+    }
+    // Deref might not be the correct thing to use here since technically the pointer is only dereferenced in the load or store instruction
+  }
+
+  def rewritePointerValue(pointer: LLVMPointerValue[Pre]): Expr[Post] = {
+    new LLVMPointerValue[Post](globalVariableMap.ref(pointer.value.decl.asInstanceOf[LLVMGlobalVariable[Pre]]))(pointer.o)
   }
 
   def result(ref: RefLLVMFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =

@@ -1,4 +1,4 @@
-package vct.col.ast.unsorted
+package vct.col.ast.lang.llvm
 
 import vct.col.ast.{LLVMGetElementPointer, LLVMTPointer, Type}
 import vct.col.ast.ops.LLVMGetElementPointerOps

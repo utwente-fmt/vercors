@@ -1278,14 +1278,21 @@ final case class LLVMFunctionInvocation[G](ref: Ref[G, LLVMFunctionDefinition[G]
 
 final case class LLVMLoop[G](cond:Expr[G], contract:LLVMLoopContract[G], body:Statement[G])
                        (implicit val o: Origin) extends CompositeStatement[G] with LLVMLoopImpl[G]
+
 @family sealed trait LLVMLoopContract[G] extends NodeFamily[G] with LLVMLoopContractImpl[G]
+
 final case class LLVMLoopInvariant[G](value:String, references:Seq[(String, Ref[G, Declaration[G]])])
                                      (val blame: Blame[LoopInvariantFailure])
                                      (implicit val o: Origin) extends LLVMLoopContract[G] with LLVMLoopInvariantImpl[G]
+
+sealed trait LLVMStatement[G] extends Statement[G] with LLVMStatementImpl[G]
+
 sealed trait LLVMExpr[G] extends Expr[G] with LLVMExprImpl[G]
+
 final case class LLVMLocal[G](name: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends LLVMExpr[G] with LLVMLocalImpl[G] {
   var ref: Option[Ref[G, Variable[G]]] = None
 }
+
 final case class LLVMAmbiguousFunctionInvocation[G](name: String,
                                                     args: Seq[Expr[G]],
                                                     givenMap: Seq[(Ref[G, Variable[G]], Expr[G])],
@@ -1301,7 +1308,7 @@ final case class LLVMLoad[G](loadType: Type[G], pointer: Expr[G], ordering: LLVM
                             (implicit val o: Origin) extends LLVMExpr[G] with LLVMLoadImpl[G]
 
 final case class LLVMStore[G](value: Expr[G], pointer: Expr[G], ordering: LLVMMemoryOrdering[G])
-                             (implicit val o: Origin) extends Statement[G] with LLVMStoreImpl[G]
+                             (implicit val o: Origin) extends LLVMStatement[G] with LLVMStoreImpl[G]
 
 final case class LLVMGetElementPointer[G](structureType: Type[G], resultType: Type[G], pointer: Expr[G], indices: Seq[Expr[G]])
                                          (implicit val o: Origin) extends LLVMExpr[G] with LLVMGetElementPointerImpl[G]
@@ -1331,7 +1338,7 @@ final case class LLVMMemorySequentiallyConsistent[G]()(implicit val o:Origin) ex
 
 
 final case class LLVMIntegerValue[G](value: BigInt, integerType: Type[G])(implicit val o: Origin) extends ConstantInt[G] with LLVMExpr[G] with LLVMIntegerValueImpl[G]
-final case class LLVMPointerValue[G](value: Ref[G, LLVMGlobalVariable[G]])(implicit val o: Origin) extends Constant[G] with LLVMExpr[G] with LLVMPointerValueImpl[G]
+final case class LLVMPointerValue[G](value: Ref[G, Declaration[G]])(implicit val o: Origin) extends Constant[G] with LLVMExpr[G] with LLVMPointerValueImpl[G]
 // TODO: The LLVMFunctionPointerValue references a GlobalDeclaration instead of an LLVMFunctionDefinition because there is no other COL node we can use as a function pointer literal
 final case class LLVMFunctionPointerValue[G](value: Ref[G, GlobalDeclaration[G]])(implicit val o: Origin) extends Constant[G] with LLVMExpr[G] with LLVMFunctionPointerValueImpl[G]
 final case class LLVMStructValue[G](value: Seq[Expr[G]], structType: Type[G])(implicit val o: Origin) extends Constant[G] with LLVMExpr[G] with LLVMStructValueImpl[G]
