@@ -30,7 +30,7 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path) extends Stage[Node
   private def resolve_variable(in: Node[Generation], name: String): ConcreteVariable[Generation] = {
     val name_len = name.indexOf("[")
     val var_name = if (name_len == -1) name else name.substring(0, name_len)
-    val index: Option[Integer] = if (name_len == -1) None else Some(Integer.valueOf(name.substring(name_len + 2, name.length - 1)))
+    val index: Option[Integer] = if (name_len == -1) None else Some(Integer.valueOf(name.substring(name_len + 1, name.length - 1)))
     val instance_field = in.transSubnodes.collectFirst{ case f: InstanceField[_] if f.o.getPreferredName.get.snake.equals(var_name) => f }.get
     index match {
       case Some(i) => IndexedVariable(instance_field, i)

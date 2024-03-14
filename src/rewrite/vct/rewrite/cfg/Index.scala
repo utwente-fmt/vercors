@@ -168,6 +168,7 @@ object Index {
 case class InitialIndex[G](instance_method: InstanceMethod[G]) extends Index[G] {
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = Set((Outgoing(), None))
   override def resolve(): Statement[G] = instance_method.body.get
+  override def has_statement(): Boolean = instance_method.body.nonEmpty
   override def equals(obj: scala.Any): Boolean = obj match {
     case InitialIndex(m) => m.equals(instance_method)
     case _ => false
@@ -230,6 +231,7 @@ case class PVLBranchIndex[G](pvl_branch: PVLBranch[G], index: Int) extends Index
     if (index % 2 == 0) Eval(pvl_branch.branches.apply(index / 2)._1)(pvl_branch.branches.apply(index / 2)._1.o)
     else pvl_branch.branches.apply((index - 1) / 2)._2
   }
+  override def has_statement(): Boolean = pvl_branch.branches.nonEmpty
   override def equals(obj: scala.Any): Boolean = obj match {
     case PVLBranchIndex(b, i) => i == index && b.equals(pvl_branch)
     case _ => false
@@ -450,6 +452,7 @@ case class BlockIndex[G](block: Block[G], index: Int) extends Index[G] {
     else Set((Outgoing(), None))
   }
   override def resolve(): Statement[G] = block.statements.apply(index)
+  override def has_statement(): Boolean = block.statements.nonEmpty
   override def equals(obj: scala.Any): Boolean = obj match {
     case BlockIndex(b, i) => i == index && b.equals(block)
     case _ => false
@@ -480,6 +483,7 @@ case class BranchIndex[G](branch: Branch[G], index: Int) extends Index[G] {
     if (index % 2 == 0) Eval(branch.branches.apply(index / 2)._1)(branch.branches.apply(index / 2)._1.o)
     else branch.branches.apply((index - 1) / 2)._2
   }
+  override def has_statement(): Boolean = branch.branches.nonEmpty
   override def equals(obj: scala.Any): Boolean = obj match {
     case BranchIndex(b, i) => i == index && b.equals(branch)
     case _ => false
@@ -489,6 +493,7 @@ case class BranchIndex[G](branch: Branch[G], index: Int) extends Index[G] {
 case class IndetBranchIndex[G](indet_branch: IndetBranch[G], index: Int) extends Index[G] {
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = Set((Outgoing(), None))
   override def resolve(): Statement[G] = indet_branch.branches.apply(index)
+  override def has_statement(): Boolean = indet_branch.branches.nonEmpty
   override def equals(obj: scala.Any): Boolean = obj match {
     case IndetBranchIndex(b, i) => i == index && b.equals(indet_branch)
     case _ => false
@@ -635,6 +640,7 @@ case class UnresolvedSeqBranchIndex[G](unresolved_seq_branch: UnresolvedSeqBranc
     if (index % 2 == 0) Eval(unresolved_seq_branch.branches.apply(index / 2)._1)(unresolved_seq_branch.branches.apply(index / 2)._1.o)
     else unresolved_seq_branch.branches.apply((index - 1) / 2)._2
   }
+  override def has_statement(): Boolean = unresolved_seq_branch.branches.nonEmpty
   override def equals(obj: scala.Any): Boolean = obj match {
     case UnresolvedSeqBranchIndex(u, i) => i == index && u.equals(unresolved_seq_branch)
     case _ => false
