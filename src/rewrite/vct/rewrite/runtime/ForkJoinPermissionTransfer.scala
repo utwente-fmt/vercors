@@ -114,8 +114,12 @@ case class ForkJoinPermissionTransfer[Pre <: Generation]() extends Rewriter[Pre]
     val runMethod: InstanceMethod[Pre] = getRunMethod(mi)
     val predicate: Expr[Pre] = unfoldPredicate(runMethod.contract.ensures).head
     val dispatchedStatement: Eval[Post] = super.dispatch(e).asInstanceOf[Eval[Post]]
-    val dispatchedOffset: Expr[Post] = e.expr.asInstanceOf[MethodInvocation[Post]].obj
-    val postfactor: Expr[Post] = postJoinTokens.top.find(rpj => rpj.obj == dispatchedOffset).get.arg
+    val dispatchedOffset: Expr[Post] = dispatchedStatement.expr.asInstanceOf[MethodInvocation[Post]].obj
+    val pst = postJoinTokens.top
+    val postfactor: Expr[Post] = postJoinTokens.top
+      .find(rpj => rpj.obj == dispatchedOffset)
+      .get.arg
+
     val factor = permissionToRuntimeValue(postfactor)
     val removePostJoinToken: Eval[Post] = Eval[Post](ledger.miSetJoinToken(dispatchedOffset, ledger.miGetJoinToken(dispatchedOffset).get r_- factor).get)
     val pdAdd: PermissionData[Pre] = PermissionData[Pre]().setOuter(this).setCls(currentClass.top).setLedger(ledger).setOffset(dispatch(mi.obj)).setFactor(factor)
