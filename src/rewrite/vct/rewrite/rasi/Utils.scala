@@ -12,6 +12,17 @@ case object Utils {
 
   def prod_min(a1: Int, a2: Int, b1: Int, b2: Int): Int = Seq(a1 * b1, a1 * b2, a2 * b1, a2 * b2).min
 
+  def combine_values(v1: Seq[(UncertainIntegerValue, UncertainValue)], v2: Seq[(UncertainIntegerValue, UncertainValue)]): Seq[(UncertainIntegerValue, UncertainValue)] = {
+    var res: Seq[(UncertainIntegerValue, UncertainValue)] = Seq()
+    for (v <- v1) {
+      for (comp <- v2) {
+        if (v._1.is_subset_of(comp._1) && v._2.is_subset_of(comp._2)) res :+= comp
+        else if (comp._1.is_subset_of(v._1) && comp._2.is_subset_of(v._2)) res :+= v
+      }
+    }
+    res.distinct
+  }
+
   def print[G](states: Seq[AbstractState[G]], edges: Seq[(AbstractState[G], AbstractState[G])], out: Path): Unit = {
     val node_names: Map[AbstractState[G], String] = Map.from(states.zipWithIndex.map(t => (t._1, s"n${t._2}")))
     RWFile(out.toFile).write(w => print_state_space(node_names, edges, w))

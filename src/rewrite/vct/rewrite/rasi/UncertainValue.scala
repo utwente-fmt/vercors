@@ -7,6 +7,7 @@ trait UncertainValue {
   def can_be_unequal(other: UncertainValue): Boolean
   def is_impossible: Boolean
   def complement(): UncertainValue
+  def is_subset_of(other: UncertainValue): Boolean
   def intersection(other: UncertainValue): UncertainValue
   def to_expression[G](variable: Expr[G]): Expr[G]
   def ==(other: UncertainValue): UncertainBooleanValue
@@ -33,6 +34,11 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
   override def is_impossible: Boolean = !can_be_true && !can_be_false
 
   override def complement(): UncertainValue = !this
+
+  override def is_subset_of(other: UncertainValue): Boolean = other match {
+    case UncertainBooleanValue(t, f) => (t || !can_be_true) && (f || !can_be_false)
+    case _ => false
+  }
 
   override def intersection(other: UncertainValue): UncertainValue = other match {
     case UncertainBooleanValue(t, f) => UncertainBooleanValue(can_be_true && t, can_be_false && f)
@@ -102,6 +108,11 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
     case _ => UncertainIntegerValue.uncertain()
   }
 
+  override def is_subset_of(other: UncertainValue): Boolean = other match {
+    case UncertainIntegerValue(v) => value.is_subset_of(v)
+    case _ => false
+  }
+
   override def intersection(other: UncertainValue): UncertainValue = other match {
     case UncertainIntegerValue(v) => UncertainIntegerValue(value.intersection(v))
     case _ => throw new IllegalArgumentException("Trying to intersect integer with different type")
@@ -158,6 +169,11 @@ case object UncertainIntegerValue {
 }
 
 case class UncertainSequence(len: UncertainIntegerValue, values: Seq[(UncertainIntegerValue, UncertainValue)], t: Type[_]) {
+  def union(other: UncertainSequence): UncertainSequence = {
+    if (t != other.t) throw new IllegalArgumentException("Unioning sequences of different types")
+    UncertainSequence(len.union(other.len), Utils.combine_values(values, other.values), t)
+  }
+
   def concat(other: UncertainSequence): UncertainSequence =
     UncertainSequence(len + other.len, values ++ other.values.map(t => (t._1 + len) -> t._2), t)
 
@@ -187,4 +203,7 @@ case class UncertainSequence(len: UncertainIntegerValue, values: Seq[(UncertainI
     if (i >= 0) values(i)._2
     else UncertainValue.uncertain_of(t)
   }
+}
+case object UncertainSequence {
+  def empty(t: Type[_]): UncertainSequence = UncertainSequence(UncertainIntegerValue.empty(), Seq(), t)
 }

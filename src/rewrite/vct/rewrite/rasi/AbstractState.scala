@@ -109,6 +109,14 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case RemoveAt(xs, i) => get_collection_value(xs).remove(resolve_integer_expression(i))
     case Slice(xs, from, to) => get_collection_value(xs).slice(resolve_integer_expression(from), resolve_integer_expression(to))
     // Other expressions that can evaluate to a collection
+    case Select(cond, ift, iff) =>
+      val condition: UncertainBooleanValue = resolve_boolean_expression(cond)
+      val ift_seq: UncertainSequence = get_collection_value(ift)
+      val iff_seq: UncertainSequence = get_collection_value(iff)
+      if (condition.can_be_true && condition.can_be_false) ift_seq.union(iff_seq)
+      else if (condition.can_be_true) ift_seq
+      else if (condition.can_be_false) iff_seq
+      else UncertainSequence.empty(ift_seq.t)
     case Old(expr, _) => get_collection_value(expr)
   }
 
@@ -156,7 +164,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case c: Comparison[G] => handle_update(c, negate)
     // Boolean variables could appear in the assumption without any comparison
     case e: Expr[G] if valuations.keys.exists(v => v.is(e, this)) => Set(ConstraintMap.from(variable_from_expr(e).get, UncertainBooleanValue.from(!negate)))
-    case _ => throw new IllegalArgumentException(s"Effect of contract expression ${assumption.toInlineString} is not implemented")
+    // TODO: What other expressions could affect the state?
+    case _ => Set(ConstraintMap.empty[G])
   }
 
   private def handle_and(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
@@ -315,10 +324,12 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
       case Some(v) => valuations(v).asInstanceOf[UncertainIntegerValue]
       case None => UncertainIntegerValue.uncertain()
     }
-    case Length(arr) => UncertainIntegerValue.above(0)    // TODO: Use contextual information from the global invariant
+    case Length(arr) => UncertainIntegerValue.above(0)    // TODO: Implement array semantics
     case Size(obj) => get_collection_value(obj).len
     case ProcedureInvocation(_, _, _, _, _, _) => UncertainIntegerValue.uncertain()   // TODO: return value from procedure/method?
     case MethodInvocation(_, _, _, _, _, _, _) => UncertainIntegerValue.uncertain()
+    case FunctionInvocation(_, _, _, _, _) => UncertainIntegerValue.uncertain()
+    case InstanceFunctionInvocation(_, _, _, _, _, _) => UncertainIntegerValue.uncertain()
   }
 
   /**
