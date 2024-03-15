@@ -2,7 +2,7 @@ package vct.rewrite.rasi
 
 import vct.col.ast._
 
-class ConstraintSolver[G](state: AbstractState[G], vars: Set[ResolvableVariable[G]]) {
+class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVariable[G]]) {
   def resolve_assumption(expr: Expr[G]): Set[ConstraintMap[G]] = resolve(expr)
 
   private def resolve(expr: Expr[G], negate: Boolean = false): Set[ConstraintMap[G]] = expr match {
@@ -103,7 +103,7 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[ResolvableVariable[
   private def handle_collection_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): Set[ConstraintMap[G]] = {
     val variable: Expr[G] = if (pure_left) comp.right else comp.left
     val value: UncertainSequence = state.resolve_collection_expression(if (pure_left) comp.left else comp.right)
-    val affected: Set[IndexedVariable[G]] = vars.filter(v => v.is_contained_by(variable, state)).collect{ case v: IndexedVariable[_] => v }
+    val affected: Set[IndexedVariable[G]] = vars.filter(v => v.is_contained_by(variable, state)).collect{ case v: IndexedVariable[G] => v }
 
     comp match {
       case _: Eq[_] if !negate => Set(ConstraintMap.from_cons(affected.map(v => v -> value.get(v.i))))

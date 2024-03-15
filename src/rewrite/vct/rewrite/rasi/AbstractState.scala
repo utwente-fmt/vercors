@@ -60,7 +60,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return An abstract state that is a copy of this one with the valuation for the given variable changed
    */
   def with_valuation(variable: Expr[G], value: UncertainValue): AbstractState[G] = variable_from_expr(variable) match {
-    case Some(concrete_variable) => AbstractState(valuations + (variable -> value), processes, lock, seq_lengths)
+    case Some(concrete_variable) => AbstractState(valuations + (concrete_variable -> value), processes, lock, seq_lengths)
     case None => this
   }
 
@@ -286,7 +286,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
 
   private def get_return(contract: Expr[G], return_type: Type[G]): UncertainValue = {
     val result_var: ResultVariable[G] = ResultVariable()
-    val constraints: Set[ConstraintMap[G]] = new ConstraintSolver(this, Set(result_var)).resolve_assumption(contract).filter(m => !m.is_impossible)
+    val result_set: Set[ResolvableVariable[G]] = Set(result_var)
+    val constraints: Set[ConstraintMap[G]] = new ConstraintSolver(this, result_set).resolve_assumption(contract).filter(m => !m.is_impossible)
     val possible_vals: Set[UncertainValue] = constraints.map(m => m.resolve.getOrElse(result_var, UncertainValue.uncertain_of(return_type)))
     possible_vals.reduce((v1, v2) => v1.union(v2))
   }
