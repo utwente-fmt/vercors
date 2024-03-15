@@ -118,7 +118,7 @@ public class SpecificationTransformer<T> {
             }
         }
 
-        conds.add(new IdleToken<>(col_system.THIS, OriGen.create()));
+        if (col_class instanceof ProcessClass) conds.add(new IdleToken<>(col_system.THIS, OriGen.create()));
 
         // TODO: Add specifications for variables that are set by parameters or by constants
 
