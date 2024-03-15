@@ -6,9 +6,10 @@ trait UncertainValue {
   def can_be_equal(other: UncertainValue): Boolean
   def can_be_unequal(other: UncertainValue): Boolean
   def is_impossible: Boolean
-  def complement(): UncertainValue
   def is_subset_of(other: UncertainValue): Boolean
+  def complement(): UncertainValue
   def intersection(other: UncertainValue): UncertainValue
+  def union(other: UncertainValue): UncertainValue
   def to_expression[G](variable: Expr[G]): Expr[G]
   def ==(other: UncertainValue): UncertainBooleanValue
   def !=(other: UncertainValue): UncertainBooleanValue
@@ -33,16 +34,21 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
 
   override def is_impossible: Boolean = !can_be_true && !can_be_false
 
-  override def complement(): UncertainValue = !this
-
   override def is_subset_of(other: UncertainValue): Boolean = other match {
     case UncertainBooleanValue(t, f) => (t || !can_be_true) && (f || !can_be_false)
     case _ => false
   }
 
+  override def complement(): UncertainValue = !this
+
   override def intersection(other: UncertainValue): UncertainValue = other match {
     case UncertainBooleanValue(t, f) => UncertainBooleanValue(can_be_true && t, can_be_false && f)
     case _ => throw new IllegalArgumentException("Trying to intersect boolean with a different type")
+  }
+
+  override def union(other: UncertainValue): UncertainValue = other match {
+    case UncertainBooleanValue(t, f) => UncertainBooleanValue(can_be_true || t, can_be_false || f)
+    case _ => throw new IllegalArgumentException("Trying to union boolean with a different type")
   }
 
   override def to_expression[G](variable: Expr[G]): Expr[G] = {
@@ -67,9 +73,6 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
     else if (can_be_false && !can_be_true) Some(false)
     else None
   }
-
-  def union(other: UncertainBooleanValue): UncertainBooleanValue =
-    UncertainBooleanValue(can_be_true || other.can_be_true, can_be_false || other.can_be_false)
 
   def &&(other: UncertainBooleanValue): UncertainBooleanValue =
     UncertainBooleanValue(can_be_true && other.can_be_true, can_be_false || other.can_be_false)
@@ -103,19 +106,24 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
 
   override def is_impossible: Boolean = value.empty()
 
-  override def complement(): UncertainValue = value match {
-    case BoundedInterval(lower, upper) if lower == upper => UncertainIntegerValue(value.complement())
-    case _ => UncertainIntegerValue.uncertain()
-  }
-
   override def is_subset_of(other: UncertainValue): Boolean = other match {
     case UncertainIntegerValue(v) => value.is_subset_of(v)
     case _ => false
   }
 
+  override def complement(): UncertainValue = value match {
+    case BoundedInterval(lower, upper) if lower == upper => UncertainIntegerValue(value.complement())
+    case _ => UncertainIntegerValue.uncertain()
+  }
+
   override def intersection(other: UncertainValue): UncertainValue = other match {
     case UncertainIntegerValue(v) => UncertainIntegerValue(value.intersection(v))
     case _ => throw new IllegalArgumentException("Trying to intersect integer with different type")
+  }
+
+  override def union(other: UncertainValue): UncertainValue = other match {
+    case UncertainIntegerValue(v) => UncertainIntegerValue(value.union(v))
+    case _ => throw new IllegalArgumentException("Trying to union integer with different type")
   }
 
   override def to_expression[G](variable: Expr[G]): Expr[G] = value.to_expression(variable)
@@ -131,9 +139,6 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
   }
 
   def try_to_resolve(): Option[Int] = value.try_to_resolve()
-
-  def union(other: UncertainIntegerValue): UncertainIntegerValue =
-    UncertainIntegerValue(value.union(other.value))
 
   def below_eq(): UncertainIntegerValue = UncertainIntegerValue(value.below_max())
   def below(): UncertainIntegerValue = below_eq() + UncertainIntegerValue.single(-1)
@@ -171,7 +176,7 @@ case object UncertainIntegerValue {
 case class UncertainSequence(len: UncertainIntegerValue, values: Seq[(UncertainIntegerValue, UncertainValue)], t: Type[_]) {
   def union(other: UncertainSequence): UncertainSequence = {
     if (t != other.t) throw new IllegalArgumentException("Unioning sequences of different types")
-    UncertainSequence(len.union(other.len), Utils.combine_values(values, other.values), t)
+    UncertainSequence(len.union(other.len).asInstanceOf[UncertainIntegerValue], Utils.combine_values(values, other.values), t)
   }
 
   def concat(other: UncertainSequence): UncertainSequence =

@@ -60,12 +60,9 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return An abstract state that is a copy of this one with the valuation for the given variable changed
    */
   def with_valuation(variable: Expr[G], value: UncertainValue): AbstractState[G] = variable_from_expr(variable) match {
-    case Some(concrete_variable) => val_updated(concrete_variable, value)
+    case Some(concrete_variable) => AbstractState(valuations + (variable -> value), processes, lock, seq_lengths)
     case None => this
   }
-
-  private def val_updated(variable: ConcreteVariable[G], value: UncertainValue): AbstractState[G] =
-    AbstractState(valuations + (variable -> value), processes, lock, seq_lengths)
 
   /**
    * Updates the state by updating all variables that are affected by an update to a collection.
@@ -79,59 +76,12 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(variable, this)).collect{ case v: IndexedVariable[_] => v }
     if (affected.isEmpty) return this
     val by_index: Map[Int, IndexedVariable[G]] = Map.from(affected.map(v => (v.i, v)))
-    val new_values: UncertainSequence = get_collection_value(assigned)
+    val new_values: UncertainSequence = resolve_collection_expression(assigned)
     var vals: Map[ConcreteVariable[G], UncertainValue] = valuations
     by_index.foreach(t => vals = vals + (t._2 -> new_values.get(t._1)))
     AbstractState(vals, processes, lock, seq_lengths + (affected.head.field -> new_values.len))
   }
 
-  private def get_collection_value(lit: Expr[G]): UncertainSequence = lit match {
-    // Literals
-    case LiteralSeq(element, values) =>
-      UncertainSequence(UncertainIntegerValue.single(values.size),
-                        values.zipWithIndex.map(t => UncertainIntegerValue.single(t._2) -> resolve_expression(t._1)),
-                        element)
-    case UntypedLiteralSeq(values) =>
-      UncertainSequence(UncertainIntegerValue.single(values.size),
-                        values.zipWithIndex.map(t => UncertainIntegerValue.single(t._2) -> resolve_expression(t._1)),
-                        values.head.t)
-    // Variables
-    case d: Deref[_] => collection_from_variable(d)
-    // TODO: Implement array semantics
-    case Values(arr, from, to) => ???
-    case NewArray(element, dims, moreDims, initialize) => ???
-    // Sequence operations
-    case Cons(x, xs) => get_collection_value(xs).prepend(resolve_expression(x))
-    case Concat(xs, ys) => get_collection_value(xs).concat(get_collection_value(ys))
-    case Drop(xs, count) => get_collection_value(xs).drop(resolve_integer_expression(count))
-    case Take(xs, count) => get_collection_value(xs).take(resolve_integer_expression(count))
-    case SeqUpdate(xs, i, x) => get_collection_value(xs).updated(resolve_integer_expression(i), resolve_expression(x))
-    case RemoveAt(xs, i) => get_collection_value(xs).remove(resolve_integer_expression(i))
-    case Slice(xs, from, to) => get_collection_value(xs).slice(resolve_integer_expression(from), resolve_integer_expression(to))
-    // Other expressions that can evaluate to a collection
-    case Select(cond, ift, iff) =>
-      val condition: UncertainBooleanValue = resolve_boolean_expression(cond)
-      val ift_seq: UncertainSequence = get_collection_value(ift)
-      val iff_seq: UncertainSequence = get_collection_value(iff)
-      if (condition.can_be_true && condition.can_be_false) ift_seq.union(iff_seq)
-      else if (condition.can_be_true) ift_seq
-      else if (condition.can_be_false) iff_seq
-      else UncertainSequence.empty(ift_seq.t)
-    case Old(expr, _) => get_collection_value(expr)
-  }
-
-  private def collection_from_variable(deref: Deref[G]): UncertainSequence = {
-    val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(deref, this)).collect { case v: IndexedVariable[_] => v }
-    val len: Option[UncertainIntegerValue] = seq_lengths.get(deref.ref.decl)
-    val t: Type[G] = deref.ref.decl.t match {
-      case TArray(element) => element
-      case TSeq(element) => element
-      case _ => throw new IllegalArgumentException(s"Unsupported collection type ${deref.ref.decl.t.toInlineString}")
-    }
-    UncertainSequence(len.getOrElse(UncertainIntegerValue.above(affected.map(v => v.i).max)),
-                      affected.map(v => UncertainIntegerValue.single(v.i) -> valuations(v)).toSeq,
-                      t)
-  }
 
   /**
    * Updates the state by taking a specification in the form of an assumption into account.
@@ -139,114 +89,9 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @param assumption Boolean expression expressing a state update
    * @return A set of abstract states that are a copy of this one, updated according to the given assumption
    */
-  def with_assumption(assumption: Expr[G]): Set[AbstractState[G]] =
-    resolve_effect(assumption, negate = false).filter(m => !m.is_impossible).map(m => AbstractState(valuations ++ m.resolve, processes, lock, seq_lengths))
-
-  private def resolve_effect(assumption: Expr[G], negate: Boolean): Set[ConstraintMap[G]] = assumption match {
-    // Consider boolean/separation logic operators
-    case Not(arg) => this.resolve_effect(arg, !negate)
-    case AmbiguousOr(left, right) =>
-      if (!negate) handle_or(left, right)
-      else handle_and(left, right, neg_left = true, neg_right = true)
-    case Star(left, right) =>
-      if (!negate) handle_and(left, right)
-      else handle_or(left, right, neg_left = true, neg_right = true)
-    case And(left, right) =>
-      if (!negate) handle_and(left, right)
-      else handle_or(left, right, neg_left = true, neg_right = true)
-    case Or(left, right) =>
-      if (!negate) handle_or(left, right)
-      else handle_and(left, right, neg_left = true, neg_right = true)
-    case Implies(left, right) =>
-      if (!negate) handle_or(left, right, neg_left = true)
-      else handle_and(left, right, neg_right = true)
-    // Atomic comparisons, if they contain a concrete variable, can actually affect the state
-    case c: Comparison[G] => handle_update(c, negate)
-    // Boolean variables could appear in the assumption without any comparison
-    case e: Expr[G] if valuations.keys.exists(v => v.is(e, this)) => Set(ConstraintMap.from(variable_from_expr(e).get, UncertainBooleanValue.from(!negate)))
-    // TODO: What other expressions could affect the state?
-    case _ => Set(ConstraintMap.empty[G])
-  }
-
-  private def handle_and(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
-    val left_constraints = resolve_effect(left, neg_left)
-    val right_constraints = resolve_effect(right, neg_right)
-    left_constraints.flatMap(m1 => right_constraints.map(m2 => m1 ++ m2))
-  }
-
-  private def handle_or(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
-    val pure_left = is_pure(left)
-    val pure_right = is_pure(right)
-    // If one side is pure and the other has an effect on the state, treat this "or" as an implication. If both sides
-    // update the state, treat it as a split in the state space instead
-    if (pure_left && pure_right) Set(ConstraintMap.empty[G])
-    else if (pure_left) handle_implies(left, right, !neg_left, neg_right)
-    else if (pure_right) handle_implies(right, left, !neg_right, neg_left)
-    else this.resolve_effect(left, neg_left) ++ this.resolve_effect(right, neg_right)
-  }
-
-  private def handle_implies(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
-    val resolve_left: UncertainBooleanValue = resolve_boolean_expression(left)
-    var res: Set[ConstraintMap[G]] = Set()
-    if (neg_left && resolve_left.can_be_false || (!neg_left) && resolve_left.can_be_true) res = res ++ resolve_effect(right, neg_right)
-    if (neg_left && resolve_left.can_be_true || (!neg_left) && resolve_left.can_be_false) res = res ++ Set(ConstraintMap.empty[G])
-    res
-  }
-
-  private def handle_update(comp: Comparison[G], negate: Boolean): Set[ConstraintMap[G]] = {
-    val pure_left = is_pure(comp.left)
-    val pure_right = is_pure(comp.right)
-    if (pure_left == pure_right) return Set(ConstraintMap.empty[G])
-    // Now, exactly one side is pure, and the other contains a concrete variable
-    // Resolve the variable and the other side of the equation    TODO: Reduce the side with the variable if it contains anything else as well
-    if (valuations.exists(v => v._1.is(if (pure_left) comp.right else comp.left, this))) handle_single_update(comp, pure_left, negate)
-    else handle_collection_update(comp, pure_left, negate)
-  }
-
-  private def is_pure(node: Node[G]): Boolean = node match {
-    // The old value of a variable is always pure, since it cannot be updated
-    case _: Old[_] => true
-    case e: UnExpr[_] => e.subnodes.forall(n => is_pure(n))
-    case e: BinExpr[_] => e.subnodes.forall(n => is_pure(n))
-    case e: Expr[_] => if (valuations.keys.exists(v => v.is_contained_by(e, this))) false else e.subnodes.forall(n => is_pure(n))
-    case _ => true
-  }
-
-  private def handle_single_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): Set[ConstraintMap[G]] = {
-    val variable: ConcreteVariable[G] = if (pure_left) variable_from_expr(comp.right).get else variable_from_expr(comp.left).get
-    val value: UncertainValue = if (pure_left) resolve_expression(comp.left) else resolve_expression(comp.right)
-
-    comp match {
-      case _: Eq[_] => Set(if (!negate) ConstraintMap.from(variable, value) else ConstraintMap.from(variable, value.complement()))
-      case _: Neq[_] => Set(if (!negate) ConstraintMap.from(variable, value.complement()) else ConstraintMap.from(variable, value))
-      case AmbiguousGreater(_, _) | Greater(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, negate)
-      case AmbiguousGreaterEq(_, _) | GreaterEq(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, !negate)
-      case AmbiguousLessEq(_, _) | LessEq(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, !negate)
-      case AmbiguousLess(_, _) | Less(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, negate)
-    }
-  }
-
-  private def limit_variable(v: ConcreteVariable[G], b: UncertainIntegerValue, var_greater: Boolean, can_be_equal: Boolean): Set[ConstraintMap[G]] = {
-    if (var_greater) {
-      if (can_be_equal) Set(ConstraintMap.from(v, b.above_eq()))
-      else Set(ConstraintMap.from(v, b.above()))
-    }
-    else {
-      if (can_be_equal) Set(ConstraintMap.from(v, b.below_eq()))
-      else Set(ConstraintMap.from(v, b.below()))
-    }
-  }
-
-  private def handle_collection_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): Set[ConstraintMap[G]] = {
-    val variable: Expr[G] = if (pure_left) comp.right else comp.left
-    val value: UncertainSequence = get_collection_value(if (pure_left) comp.left else comp.right)
-    val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(variable, this)).collect{ case v: IndexedVariable[_] => v }
-
-    comp match {
-      case _: Eq[_] if !negate => Set(ConstraintMap.from_cons(affected.map(v => v -> value.get(v.i))))
-      case _: Neq[_] if negate => Set(ConstraintMap.from_cons(affected.map(v => v -> value.get(v.i))))
-      case _ => throw new IllegalArgumentException(s"The operator ${comp.toInlineString} is not supported for collections")
-    }
+  def with_assumption(assumption: Expr[G]): Set[AbstractState[G]] = {
+    val constraints: Set[ConstraintMap[G]] = new ConstraintSolver(this, valuations.keySet).resolve_assumption(assumption).filter(m => !m.is_impossible)
+    constraints.map(m => m.resolve).map(m => AbstractState(valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)), processes, lock, seq_lengths))
   }
 
   /**
@@ -260,12 +105,9 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   def with_postcondition(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]]): Set[AbstractState[G]] =
     with_assumption(unify_expression(AstBuildHelpers.unfoldPredicate(post).reduce((e1, e2) => Star(e1, e2)(e1.o)), args))
 
-  private def unify_expression(cond: Expr[G], args: Map[Variable[G], Expr[G]]): Expr[G] =
-    Substitute(args.map[Expr[G], Expr[G]]{ case (v, e) => Local[G](v.ref)(v.o) -> Old(e, None)(e.o)(e.o) }).dispatch(cond)
-
   /**
    * Evaluates an expression and returns an uncertain value, depending on the type of expression and the values it can
-   * take with the given level of abstraction.
+   * take with the given level of abstraction. This method can only handle single-value types, not collections.
    *
    * @param expr COL expression to resolve
    * @return An uncertain value of the correct type
@@ -312,8 +154,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case BitUShr(_, _) => UncertainIntegerValue.uncertain()
     case Select(cond, ift, iff) => {
       var value: UncertainIntegerValue = UncertainIntegerValue.empty()
-      if (resolve_boolean_expression(cond).can_be_true) value = value.union(resolve_integer_expression(ift))
-      if (resolve_boolean_expression(cond).can_be_false) value = value.union(resolve_integer_expression(iff))
+      if (resolve_boolean_expression(cond).can_be_true) value = value.union(resolve_integer_expression(ift)).asInstanceOf[UncertainIntegerValue]
+      if (resolve_boolean_expression(cond).can_be_false) value = value.union(resolve_integer_expression(iff)).asInstanceOf[UncertainIntegerValue]
       value
     }
     case Old(exp, at) => at match {
@@ -325,11 +167,15 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
       case None => UncertainIntegerValue.uncertain()
     }
     case Length(arr) => UncertainIntegerValue.above(0)    // TODO: Implement array semantics
-    case Size(obj) => get_collection_value(obj).len
-    case ProcedureInvocation(_, _, _, _, _, _) => UncertainIntegerValue.uncertain()   // TODO: return value from procedure/method?
-    case MethodInvocation(_, _, _, _, _, _, _) => UncertainIntegerValue.uncertain()
-    case FunctionInvocation(_, _, _, _, _) => UncertainIntegerValue.uncertain()
-    case InstanceFunctionInvocation(_, _, _, _, _, _) => UncertainIntegerValue.uncertain()
+    case Size(obj) => resolve_collection_expression(obj).len
+    case ProcedureInvocation(ref, args, _, _, _, _) =>
+      get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainIntegerValue]
+    case MethodInvocation(_, ref, args, _, _, _, _) =>
+      get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainIntegerValue]
+    case FunctionInvocation(ref, args, _, _, _) =>
+      get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainIntegerValue]
+    case InstanceFunctionInvocation(_, ref, args, _, _, _) =>
+      get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainIntegerValue]
   }
 
   /**
@@ -358,8 +204,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case c: SetComparison[G] => UncertainBooleanValue.uncertain()   // TODO: Implement?
     case Select(cond, ift, iff) => {
       var value: UncertainBooleanValue = UncertainBooleanValue(can_be_true = false, can_be_false = false)
-      if (resolve_boolean_expression(cond).can_be_true) value = value.union(resolve_boolean_expression(ift))
-      if (resolve_boolean_expression(cond).can_be_false) value = value.union(resolve_boolean_expression(iff))
+      if (resolve_boolean_expression(cond).can_be_true) value = value.union(resolve_boolean_expression(ift)).asInstanceOf[UncertainBooleanValue]
+      if (resolve_boolean_expression(cond).can_be_false) value = value.union(resolve_boolean_expression(iff)).asInstanceOf[UncertainBooleanValue]
       value
     }
     case Old(exp, at) => at match {
@@ -370,13 +216,86 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
       case Some(v) => valuations(v).asInstanceOf[UncertainBooleanValue]
       case None => UncertainBooleanValue.uncertain()
     }
-    case ProcedureInvocation(_, _, _, _, _, _) => UncertainBooleanValue.uncertain()   // TODO: return value from procedure/method?
-    case MethodInvocation(_, _, _, _, _, _, _) => UncertainBooleanValue.uncertain()
+    case ProcedureInvocation(ref, args, _, _, _, _) =>
+      get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainBooleanValue]
+    case MethodInvocation(_, ref, args, _, _, _, _) =>
+      get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainBooleanValue]
+    case FunctionInvocation(ref, args, _, _, _) =>
+      get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainBooleanValue]
+    case InstanceFunctionInvocation(_, ref, args, _, _, _) =>
+      get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainBooleanValue]
   }
 
-  private def variable_from_expr(variable: Expr[G]): Option[ConcreteVariable[G]] = {
-    valuations.keys.collectFirst{ case c: ConcreteVariable[G] if c.is(variable, this) => c }
+  /**
+   * Evaluates a collection expression and returns an uncertain collection value.
+   *
+   * @param expr collection-type COL expression
+   * @return An uncertain collection value that represents all possible values that the given expression can take on,
+   *         possibly of uncertain length and with uncertain values at uncertain indices
+   */
+  def resolve_collection_expression(expr: Expr[G]): UncertainSequence = expr match {
+    // Literals
+    case LiteralSeq(element, values) =>
+      UncertainSequence(UncertainIntegerValue.single(values.size),
+        values.zipWithIndex.map(t => UncertainIntegerValue.single(t._2) -> resolve_expression(t._1)),
+        element)
+    case UntypedLiteralSeq(values) =>
+      UncertainSequence(UncertainIntegerValue.single(values.size),
+        values.zipWithIndex.map(t => UncertainIntegerValue.single(t._2) -> resolve_expression(t._1)),
+        values.head.t)
+    // Variables
+    case d: Deref[_] => collection_from_variable(d)
+    // TODO: Implement array semantics
+    case Values(arr, from, to) => ???
+    case NewArray(element, dims, moreDims, initialize) => ???
+    // Sequence operations
+    case Cons(x, xs) => resolve_collection_expression(xs).prepend(resolve_expression(x))
+    case Concat(xs, ys) => resolve_collection_expression(xs).concat(resolve_collection_expression(ys))
+    case Drop(xs, count) => resolve_collection_expression(xs).drop(resolve_integer_expression(count))
+    case Take(xs, count) => resolve_collection_expression(xs).take(resolve_integer_expression(count))
+    case SeqUpdate(xs, i, x) => resolve_collection_expression(xs).updated(resolve_integer_expression(i), resolve_expression(x))
+    case RemoveAt(xs, i) => resolve_collection_expression(xs).remove(resolve_integer_expression(i))
+    case Slice(xs, from, to) => resolve_collection_expression(xs).slice(resolve_integer_expression(from), resolve_integer_expression(to))
+    // Other expressions that can evaluate to a collection
+    case Select(cond, ift, iff) =>
+      val condition: UncertainBooleanValue = resolve_boolean_expression(cond)
+      val ift_seq: UncertainSequence = resolve_collection_expression(ift)
+      val iff_seq: UncertainSequence = resolve_collection_expression(iff)
+      if (condition.can_be_true && condition.can_be_false) ift_seq.union(iff_seq)
+      else if (condition.can_be_true) ift_seq
+      else if (condition.can_be_false) iff_seq
+      else UncertainSequence.empty(ift_seq.t)
+    case Old(expr, _) => resolve_collection_expression(expr)
   }
+
+  private def collection_from_variable(deref: Deref[G]): UncertainSequence = {
+    val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(deref, this)).collect { case v: IndexedVariable[_] => v }
+    val len: Option[UncertainIntegerValue] = seq_lengths.get(deref.ref.decl)
+    val t: Type[G] = deref.ref.decl.t match {
+      case TArray(element) => element
+      case TSeq(element) => element
+      case _ => throw new IllegalArgumentException(s"Unsupported collection type ${deref.ref.decl.t.toInlineString}")
+    }
+    UncertainSequence(len.getOrElse(UncertainIntegerValue.above(affected.map(v => v.i).max)),
+      affected.map(v => UncertainIntegerValue.single(v.i) -> valuations(v)).toSeq,
+      t)
+  }
+
+  private def get_subroutine_return(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]], return_type: Type[G]): UncertainValue =
+    get_return(unify_expression(AstBuildHelpers.unfoldPredicate(post).reduce((e1, e2) => Star(e1, e2)(e1.o)), args), return_type)
+
+  private def get_return(contract: Expr[G], return_type: Type[G]): UncertainValue = {
+    val result_var: ResultVariable[G] = ResultVariable()
+    val constraints: Set[ConstraintMap[G]] = new ConstraintSolver(this, Set(result_var)).resolve_assumption(contract).filter(m => !m.is_impossible)
+    val possible_vals: Set[UncertainValue] = constraints.map(m => m.resolve.getOrElse(result_var, UncertainValue.uncertain_of(return_type)))
+    possible_vals.reduce((v1, v2) => v1.union(v2))
+  }
+
+  private def unify_expression(cond: Expr[G], args: Map[Variable[G], Expr[G]]): Expr[G] =
+    Substitute(args.map[Expr[G], Expr[G]]{ case (v, e) => Local[G](v.ref)(v.o) -> Old(e, None)(e.o)(e.o) }).dispatch(cond)
+
+  private def variable_from_expr(variable: Expr[G]): Option[ConcreteVariable[G]] =
+    valuations.keys.collectFirst{ case c: ConcreteVariable[G] if c.is(variable, this) => c }
 
   /**
    * Returns an expression to represent this state of the form <code>variable1 == value1 && variable2 == value2 && ...</code>

@@ -2,9 +2,20 @@ package vct.rewrite.rasi
 
 import vct.col.ast._
 
-trait ConcreteVariable[G] {
+sealed trait ResolvableVariable[G] {
   def is(expr: Expr[G], state: AbstractState[G]): Boolean
   def is_contained_by(expr: Expr[G], state: AbstractState[G]): Boolean
+}
+
+case class ResultVariable[G]() extends ResolvableVariable[G] {
+  override def is(expr: Expr[G], state: AbstractState[G]): Boolean = expr match {
+    case AmbiguousResult() | Result(_) => true
+    case _ => false
+  }
+  override def is_contained_by(expr: Expr[G], state: AbstractState[G]): Boolean = is(expr, state)
+}
+
+sealed trait ConcreteVariable[G] extends ResolvableVariable[G] {
   def to_expression: Expr[G]
   def t: Type[G]
   def field_equals(expr: Expr[G], field: InstanceField[G]): Boolean = expr match {
