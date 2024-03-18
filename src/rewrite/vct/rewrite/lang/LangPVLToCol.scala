@@ -142,4 +142,17 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
     else
       assign.rewriteDefault()
 
+  def rewriteMainMethod(main: VeSUVMainMethod[Pre]): Unit = {
+    implicit val o: Origin = main.o
+    main.drop()
+    val body: Option[Statement[Post]] = main.body match {
+      case None => None
+      case Some(s) => Some(s.rewriteDefault())
+    }
+    val empty_pred: AccountedPredicate[Post] = UnitAccountedPredicate(BooleanValue(value = true))
+    // TODO: Where does the blame come from?
+    val contract: ApplicableContract[Post] = ApplicableContract(empty_pred, empty_pred, BooleanValue(value = true), Seq(), Seq(), Seq(), None)(o)
+    val new_main: Procedure[Post] = new Procedure(TVoid(), Seq(), Seq(), Seq(), body, contract, false, false, true)(main.blame)
+    new_main.declare()
+  }
 }
