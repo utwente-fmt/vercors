@@ -110,19 +110,24 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
   }
 
   override def run(in: Verification[_ <: Generation]): Seq[ExpectedError] = {
+    val stages = Seq("Translation" -> 1, "Proving" -> 10)
 
-    val intermediates: Seq[(Program[_ <: Generation], Intermediate)] =
-      Progress.map[(VerificationContext[_ <: Generation], Int), (Program[_ <: Generation], Intermediate)](
-        in.tasks.zipWithIndex.par, t => s"Transform task ${t._2 + 1}") {  case (task, idx) =>
+    Progress.stages(if(skipVerification) stages.init else stages) { next =>
+      val intermediates: Seq[(Program[_ <: Generation], Intermediate)] =
+        Progress.map[(VerificationContext[_ <: Generation], Int), (Program[_ <: Generation], Intermediate)](
+          in.tasks.zipWithIndex.par, t => s"Task ${t._2 + 1}") {  case (task, idx) =>
           (task.program, transform(task.program, idx))}.iterator.to(Seq)
 
-    if(skipVerification) return Seq()
+      if(skipVerification) return Seq()
 
-    Progress.foreach[((Program[_ <: Generation], Intermediate), Int)](intermediates.zipWithIndex.par, t => s"Task ${t._2 + 1}") { case (intermediate, _) =>
-      cachedDefinitelyVerifiesOrElseUpdate(intermediate._1, verify(intermediate._2))
+      next()
+
+      Progress.foreach[((Program[_ <: Generation], Intermediate), Int)](intermediates.zipWithIndex.par, t => s"Task ${t._2 + 1}") { case (intermediate, _) =>
+        cachedDefinitelyVerifiesOrElseUpdate(intermediate._1, verify(intermediate._2))
+      }
+
+      in.expectedErrors
     }
-
-    in.expectedErrors
   }
 
   def transform(program: Program[_ <: Generation], idx: Int): Intermediate
