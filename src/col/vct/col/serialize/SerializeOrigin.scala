@@ -24,6 +24,6 @@ object SerializeOrigin {
 
 case class DeserializedContext(context: String, inlineContext: String, shortPosition: String) extends Context {
   override protected def contextHere(tail: Origin): (String, Origin) = (context, tail)
-  override protected def inlineContextHere(tail: Origin): (String, Origin) = (inlineContext, tail)
+  override protected def inlineContextHere(tail: Origin, compress: Boolean = true): (String, Origin) = (inlineContext, tail)
   override protected def shortPositionHere(tail: Origin): (String, Origin) = (shortPosition, tail)
 }

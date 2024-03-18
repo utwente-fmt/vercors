@@ -429,7 +429,8 @@ final case class CoerceRatZFrac[G]()(implicit val o: Origin) extends Coercion[G]
 final case class CoerceZFracFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceZFracFracImpl[G]
 
 final case class CoerceLLVMIntInt[G]()(implicit val o: Origin) extends Coercion[G] with CoerceLLVMIntIntImpl[G]
-final case class CoerceLLVMPointer[G](from: Option[Type[G]], to: Option[Type[G]])(implicit val o: Origin) extends Coercion[G] with CoerceLLVMPointerImpl[G]
+final case class CoerceLLVMPointer[G](from: Option[Type[G]], to: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceLLVMPointerImpl[G]
+final case class CoerceLLVMArray[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceLLVMArrayImpl[G]
 
 @family sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 

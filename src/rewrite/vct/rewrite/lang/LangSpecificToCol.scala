@@ -279,6 +279,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     case t: CTPointer[Pre] => c.pointerType(t)
     case t: CTArray[Pre] => c.arrayType(t)
     case t: CTStruct[Pre] => c.structType(t)
+    case t: LLVMTStruct[Pre] => llvm.structType(t)
     case t: CPPTArray[Pre] => cpp.arrayType(t)
     case other => rewriteDefault(other)
   }

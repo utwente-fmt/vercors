@@ -10,6 +10,8 @@ import vct.col.util.AstBuildHelpers.tt
 import vct.col.util.{CurrentProgramContext, SuccessionMap}
 import vct.result.VerificationError.{SystemError, UserError}
 
+import scala.annotation.tailrec
+
 case object LangLLVMToCol {
   case class UnexpectedLLVMNode(node: Node[_]) extends SystemError {
     override def text: String =
@@ -173,15 +175,36 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     }
     t match {
       case struct: LLVMTStruct[Pre] => {
+        if (!structMap.contains(struct)) {
+          rewriteStruct(struct)
+        }
         indices.head match {
           // TODO: This doesn't quite work because struct types are not uniqued
           case value: LLVMIntegerValue[Pre] =>
+            rewritePointerChain(Deref[Post](pointer, structFieldMap.ref((struct, value.value.intValue)))(o), struct.elements(value.value.intValue), indices.tail)
+          case value: IntegerValue[Pre] =>
             rewritePointerChain(Deref[Post](pointer, structFieldMap.ref((struct, value.value.intValue)))(o), struct.elements(value.value.intValue), indices.tail)
           case _ => throw NonConstantStructIndex(o)
         }
       }
       case array: LLVMTArray[Pre] => ???
       case vector: LLVMTVector[Pre] => ???
+    }
+  }
+
+  def derefUntil(pointer: Expr[Post], currentType: Type[Pre], untilType: Type[Pre]): Expr[Post] = {
+    implicit val o: Origin = pointer.o
+    // TODO: We probably need to use Deref for structs DerefPointer for pointers, DerefArray for arrays, etc. (vectors)
+    currentType match {
+      case _ if currentType == untilType => AddrOf(pointer)
+      case LLVMTPointer(None) => pointer
+      case LLVMTPointer(Some(inner)) if inner == untilType => pointer
+      case LLVMTPointer(Some(LLVMTArray(_, elementType))) => derefUntil(ArraySubscript[Post](pointer, IntegerValue(BigInt(0)))(pointer.o), elementType, untilType)
+      case LLVMTArray(_, elementType) => derefUntil(ArraySubscript[Post](pointer, IntegerValue(BigInt(0)))(pointer.o), elementType, untilType)
+      case LLVMTPointer(Some(LLVMTVector(_, elementType))) => derefUntil(ArraySubscript[Post](pointer, IntegerValue(BigInt(0)))(pointer.o), elementType, untilType)
+      case LLVMTVector(_, elementType) => derefUntil(ArraySubscript[Post](pointer, IntegerValue(BigInt(0)))(pointer.o), elementType, untilType)
+      case LLVMTPointer(Some(struct@LLVMTStruct(_, _, elements))) => derefUntil(Deref[Post](pointer, structFieldMap.ref((struct, 0)))(pointer.o), elements.head, untilType)
+      case struct@LLVMTStruct(_, _, elements) => derefUntil(Deref[Post](pointer, structFieldMap.ref((struct, 0)))(pointer.o), elements.head, untilType)
     }
   }
 
@@ -195,9 +218,18 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
         // Acquire the actual struct through a PointerAdd
         // TODO: Can we somehow wrap the rw.dispatch(gep.pointer) to add the known type structureType?
-        val structPointer = DerefPointer(PointerAdd(rw.dispatch(gep.pointer), rw.dispatch(gep.indices.head))(o))(o)
-
-        rewritePointerChain(structPointer, struct, gep.indices.tail)
+        gep.pointer.t match {
+          case LLVMTPointer(None) =>
+            val structPointer = DerefPointer(PointerAdd(rw.dispatch(gep.pointer), rw.dispatch(gep.indices.head))(o))(o)
+            AddrOf(rewritePointerChain(structPointer, struct, gep.indices.tail))
+          case LLVMTPointer(Some(inner)) if inner == t =>
+            val structPointer = DerefPointer(PointerAdd(rw.dispatch(gep.pointer), rw.dispatch(gep.indices.head))(o))(o)
+            AddrOf(rewritePointerChain(structPointer, struct, gep.indices.tail))
+          case LLVMTPointer(Some(_)) =>
+            val structPointer = DerefPointer(PointerAdd(derefUntil(rw.dispatch(gep.pointer), gep.pointer.t, t), rw.dispatch(gep.indices.head))(o))(o)
+            val ret = AddrOf(rewritePointerChain(structPointer, struct, gep.indices.tail))
+            ret
+        }
       }
       case array: LLVMTArray[Pre] => ???
       case vector: LLVMTVector[Pre] => ???
@@ -277,5 +309,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           })
         ))
     }
+  }
+
+  def structType(t: LLVMTStruct[Pre]): Type[Post] = {
+    val targetClass = new LazyRef[Post, Class[Post]](structMap(t))
+    TClass[Post](targetClass)(t.o)
   }
 }

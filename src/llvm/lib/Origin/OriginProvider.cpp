@@ -126,6 +126,13 @@ col::Origin *llvm2col::generateLabelOrigin(llvm::BasicBlock &llvmBlock) {
 col::Origin *
 llvm2col::generateSingleStatementOrigin(llvm::Instruction &llvmInstruction) {
     col::Origin *origin = new col::Origin();
+    if (llvmInstruction.hasName()) {
+        col::OriginContent *preferredNameContent = origin->add_content();
+        col::PreferredName *preferredName = new col::PreferredName();
+        preferredName->add_preferred_name(deriveOperandPreferredName(llvmInstruction));
+        preferredNameContent->set_allocated_preferred_name(preferredName);
+    }
+
     col::OriginContent *contextContent = origin->add_content();
     col::Context *context = new col::Context();
     context->set_context(deriveSurroundingInstructionContext(llvmInstruction));
@@ -133,6 +140,7 @@ llvm2col::generateSingleStatementOrigin(llvm::Instruction &llvmInstruction) {
     context->set_short_position(
         deriveInstructionShortPosition(llvmInstruction));
     contextContent->set_allocated_context(context);
+
 
     return origin;
 }

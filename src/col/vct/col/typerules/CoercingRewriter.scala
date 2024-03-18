@@ -374,7 +374,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"pointer")
     }
-  def llvmPointer(e: Expr[Pre], innerType: Type[Pre]): (Expr[Pre], LLVMTPointer[Pre]) =
+  def llvmPointer(e: Expr[Pre], innerType: Type[Pre]): (Expr[Pre], TPointer[Pre]) =
     CoercionUtils.getAnyLLVMPointerCoercion(e.t, innerType) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"llvm pointer of $innerType")
