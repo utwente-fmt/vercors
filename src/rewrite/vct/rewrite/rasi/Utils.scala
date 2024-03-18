@@ -36,7 +36,8 @@ case object Utils {
     Substitute(args.map[Expr[G], Expr[G]]{ case (v, e) => Local[G](v.ref)(v.o) -> Old(e, None)(e.o)(e.o) }).dispatch(cond)
 
   def contains_global_invariant[G](node: Node[G]): Boolean = node match {
-    case PredicateApply(ref, _, _) => ref.decl.o.getPreferredName.get.snake.equals("global_invariant")    // TODO: This must be possible to do better
+    case PredicateApply(ref, _, _) => ref.decl.o.getPreferredName.get.snake.equals("global_invariant") ||    // TODO: This must be possible to do better
+                                      contains_global_invariant(ref.decl.body.getOrElse(BooleanValue(value = true)(node.o)))
     case e: Expr[G] => e.subnodes.exists(n => contains_global_invariant(n))
     case _ => false
   }
