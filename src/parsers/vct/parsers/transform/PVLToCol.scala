@@ -31,6 +31,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case ProgramDecl2(enum) => Seq(convert(enum))
     case ProgramDecl3(method) => Seq(convertProcedure(method))
     case ProgramDecl4(seqProg) => Seq(convertSeqProg(seqProg))
+    case ProgramDecl5(vesuv_entry) => convert(vesuv_entry)
   }
 
   def convert(implicit enum: EnumDeclContext): Enum[G] = enum match {
