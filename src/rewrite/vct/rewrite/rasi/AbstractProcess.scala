@@ -6,7 +6,23 @@ import vct.rewrite.cfg.{CFGEdge, CFGEntry, CFGNode, CFGTerminal}
 import scala.collection.mutable
 
 case class AbstractProcess[G](obj: Expr[G]) {
-  def get_next(node: CFGEntry[G], state: AbstractState[G]): Set[AbstractState[G]] = node match {
+  def atomic_step(starting_state: AbstractState[G]): Set[AbstractState[G]] = {
+    var states: Set[AbstractState[G]] = small_step(starting_state.processes(this), starting_state)
+    var atomic: Boolean = true
+    while (atomic) {
+      val next: Set[(Boolean, Set[AbstractState[G]])] = states.map(s => small_step_if_atomic(s))
+      states = next.flatMap(t => t._2)
+      atomic = next.exists(t => t._1)
+    }
+    states
+  }
+
+  private def small_step_if_atomic(state: AbstractState[G]): (Boolean, Set[AbstractState[G]]) = {
+    if (!state.processes.contains(this) || !is_atomic(state.processes(this))) (false, Set(state))
+    else (true, small_step(state.processes(this), state))
+  }
+
+  private def small_step(node: CFGEntry[G], state: AbstractState[G]): Set[AbstractState[G]] = node match {
     case CFGTerminal() => Set(state.without_process(this))
     case CFGNode(n, succ) => n match {
       // Assign statements change the state of variables directly (if they appear in the valuation)
@@ -19,7 +35,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
       // Statements that induce assumptions about the state, such as assume, inhale, or a method's postcondition, might change the state implicitly
       case Assume(assn) => viable_edges(succ, state).flatMap(e => state.with_assumption(assn).map(s => take_edge(e, s)))
       case Inhale(res) => viable_edges(succ, state).flatMap(e => state.with_assumption(res).map(s => take_edge(e, s)))
-      // Abstract procedures, constructors and methods are defined by their postconditions      TODO: Temporarily add parameter to state if it is assigned to a tracked variable
+      // Abstract procedures, constructors and methods are defined by their postconditions      TODO: Handle local variables
       case InvokeProcedure(ref, args, _, _, _, _) => ref.decl.body match {
         case Some(_) => viable_edges(succ, state).map(e => take_edge(e, state))
         case None => viable_edges(succ, state).flatMap(e => state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args))).map(s => take_edge(e, s)))
@@ -32,7 +48,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
         case Some(_) => viable_edges(succ, state).map(e => take_edge(e, state))
         case None => viable_edges(succ, state).flatMap(e => state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args))).map(s => take_edge(e, s)))
       }
-      // TODO: Remove temporary parameter from state after method return
+      // TODO: Handle local variables
       case Return(result) => viable_edges(succ, state).map(e => take_edge(e, state))
       // TODO: What do wait and notify do?
       case Wait(obj) => viable_edges(succ, state).map(e => take_edge(e, state))
@@ -68,4 +84,17 @@ case class AbstractProcess[G](obj: Expr[G]) {
 
   private def take_edge(edge: CFGEdge[G], state: AbstractState[G]): AbstractState[G] =
     state.with_process_at(this, edge.target)
+
+  private def is_atomic(node: CFGEntry[G]): Boolean = node match {
+    case CFGTerminal() => true
+    case CFGNode(n, _) => n match {
+      case Unlock(_) => false
+      case InvokeMethod(_, ref, _, _, _, _, _) => Utils.contains_global_invariant(Utils.contract_to_expression(ref.decl.contract.requires))
+      case InvokeProcedure(ref, _, _, _, _, _) => Utils.contains_global_invariant(Utils.contract_to_expression(ref.decl.contract.requires))
+      case Loop(_, _, _, contract, _) => Utils.contains_global_invariant(Utils.loop_contract_to_expression(contract))
+      case PVLLoop(_, _, _, contract, _) => Utils.contains_global_invariant(Utils.loop_contract_to_expression(contract))
+      case Assert(res) => Utils.contains_global_invariant(res)
+      case _ => true    // TODO: What about end of a method/loop?
+    }
+  }
 }

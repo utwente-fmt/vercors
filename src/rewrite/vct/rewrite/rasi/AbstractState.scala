@@ -1,7 +1,6 @@
 package vct.rewrite.rasi
 
 import vct.col.ast._
-import vct.col.util.{AstBuildHelpers, Substitute}
 import vct.rewrite.cfg.CFGEntry
 
 import scala.collection.immutable.HashMap
@@ -16,7 +15,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return The set of possible successor states
    */
   def successors(): Set[AbstractState[G]] =
-    processes.flatMap(p => p._1.get_next(p._2, this)).toSet
+    processes.keySet.flatMap(p => p.atomic_step(this))
 
   /**
    * Updates the state by changing the program counter for a process.
@@ -103,7 +102,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    *         arguments
    */
   def with_postcondition(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]]): Set[AbstractState[G]] =
-    with_assumption(unify_expression(AstBuildHelpers.unfoldPredicate(post).reduce((e1, e2) => Star(e1, e2)(e1.o)), args))
+    with_assumption(Utils.unify_expression(Utils.contract_to_expression(post), args))
 
   /**
    * Evaluates an expression and returns an uncertain value, depending on the type of expression and the values it can
@@ -282,7 +281,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   }
 
   private def get_subroutine_return(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]], return_type: Type[G]): UncertainValue =
-    get_return(unify_expression(AstBuildHelpers.unfoldPredicate(post).reduce((e1, e2) => Star(e1, e2)(e1.o)), args), return_type)
+    get_return(Utils.unify_expression(Utils.contract_to_expression(post), args), return_type)
 
   private def get_return(contract: Expr[G], return_type: Type[G]): UncertainValue = {
     val result_var: ResultVariable[G] = ResultVariable()
@@ -291,9 +290,6 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     val possible_vals: Set[UncertainValue] = constraints.map(m => m.resolve.getOrElse(result_var, UncertainValue.uncertain_of(return_type)))
     possible_vals.reduce((v1, v2) => v1.union(v2))
   }
-
-  private def unify_expression(cond: Expr[G], args: Map[Variable[G], Expr[G]]): Expr[G] =
-    Substitute(args.map[Expr[G], Expr[G]]{ case (v, e) => Local[G](v.ref)(v.o) -> Old(e, None)(e.o)(e.o) }).dispatch(cond)
 
   private def variable_from_expr(variable: Expr[G]): Option[ConcreteVariable[G]] =
     valuations.keys.collectFirst{ case c: ConcreteVariable[G] if c.is(variable, this) => c }
