@@ -83,12 +83,12 @@ abstract class AbstractTask {
         }
     }
 
+    TaskRegistry.pop(this)
+    Progress.update()
+
     usageReported = ResourceUsage.zero
     startUsage = None
     ownerThread = -1L
-
-    TaskRegistry.pop(this)
-    Progress.update()
   }
 
   def abort(): Unit = {
@@ -139,9 +139,11 @@ abstract class AbstractTask {
 
   def frame[T](f: => T): T = {
     start()
-    val res = f
-    end()
-    res
+    try {
+      f
+    } finally {
+      end()
+    }
   }
 
   def frame1[I, O](f: I => O): I => O =
