@@ -4,7 +4,7 @@ import vct.col.ast._
 
 import scala.collection.mutable
 
-case class CFGGenerator[G](hide_composite_statements: Boolean = true) {
+case class CFGGenerator[G]() {
   private val found_labels: mutable.Map[LabelDecl[G], CFGNode[G]] = mutable.HashMap[LabelDecl[G], CFGNode[G]]()
   private val searched_labels: mutable.Map[LabelDecl[G], mutable.Set[CFGNode[G]]] = mutable.HashMap[LabelDecl[G], mutable.Set[CFGNode[G]]]()
   private val converted_nodes: mutable.Map[GlobalIndex[G], CFGNode[G]] = mutable.HashMap[GlobalIndex[G], CFGNode[G]]()
@@ -39,7 +39,7 @@ case class CFGGenerator[G](hide_composite_statements: Boolean = true) {
       // Leave all container statements except for invocations out of the CFG with two exceptions: Expressions and the
       // first scope of a run method must remain so that the run method can later still be identified
       case _: InvocationStatement[_] => statement_to_cfg(node, context)
-      case c: ControlContainerStatement[_] if hide_composite_statements && !context.indices.head.isInstanceOf[RunMethodIndex[_]] =>
+      case c: ControlContainerStatement[_] if !context.indices.head.isInstanceOf[RunMethodIndex[_]] =>
         val new_context = context.enter_scope(c)
         // If the new scope is empty (e.g. expression evaluation with no contained statements), transform it normally,
         // since this is the only node that can represent this part of the CFG

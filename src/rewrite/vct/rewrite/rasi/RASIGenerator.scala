@@ -15,10 +15,10 @@ case class RASIGenerator[G]() {
   private val current_branches: mutable.ArrayBuffer[AbstractState[G]] = mutable.ArrayBuffer()
 
   def execute(entry_point: InstanceMethod[G], vars: Set[ConcreteVariable[G]]): Expr[G] =
-    generate_rasi(CFGGenerator(false).generate(entry_point), vars)
+    generate_rasi(CFGGenerator().generate(entry_point), vars)
 
   def test(entry_point: InstanceMethod[G], vars: Set[ConcreteVariable[G]], out_path: Path): Unit =
-    print_state_space(CFGGenerator(false).generate(entry_point), vars, out_path)
+    print_state_space(CFGGenerator().generate(entry_point), vars, out_path)
 
   private def generate_rasi(node: CFGEntry[G], vars: Set[ConcreteVariable[G]]): Expr[G] = {
     explore(node, vars)

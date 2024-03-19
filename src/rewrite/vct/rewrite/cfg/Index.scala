@@ -52,7 +52,7 @@ case class GlobalIndex[G](indices: mutable.Seq[Index[G]]) {
       case _ => true
     }
     // Find the possible next statements
-    GlobalIndex(stack.tail).make_step()
+    GlobalIndex(stack).make_step()
   }
 
   def handle_exception(e: Expr[G]): GlobalIndex[G] = {
@@ -165,6 +165,8 @@ object Index {
   def apply[G](node: Node[G], index: Int): Index[G] = from(node, index)
 }
 
+// TODO: Handle contract assertions for InitialIndex, RunMethodIndex, FramedProof, RangedForIndex, ???
+
 case class InitialIndex[G](instance_method: InstanceMethod[G]) extends Index[G] {
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = Set((Outgoing(), None))
   override def resolve(): Statement[G] = instance_method.body.get
@@ -241,15 +243,17 @@ case class PVLBranchIndex[G](pvl_branch: PVLBranch[G], index: Int) extends Index
 case class PVLLoopIndex[G](pvl_loop: PVLLoop[G], index: Int) extends Index[G] {
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = index match {
     case 0 => Set((Step(PVLLoopIndex(pvl_loop, 1)), None))
-    case 1 => Set((Step(PVLLoopIndex(pvl_loop, 2)), Some(pvl_loop.cond)), (Outgoing(), Some(Utils.negate(pvl_loop.cond))))
-    case 2 => Set((Step(PVLLoopIndex(pvl_loop, 3)), None))
-    case 3 => Set((Step(PVLLoopIndex(pvl_loop, 1)), None))
+    case 1 => Set((Step(PVLLoopIndex(pvl_loop, 2)), None))
+    case 2 => Set((Step(PVLLoopIndex(pvl_loop, 3)), Some(pvl_loop.cond)), (Outgoing(), Some(Utils.negate(pvl_loop.cond))))
+    case 3 => Set((Step(PVLLoopIndex(pvl_loop, 4)), None))
+    case 4 => Set((Step(PVLLoopIndex(pvl_loop, 1)), None))
   }
   override def resolve(): Statement[G] = index match {
     case 0 => pvl_loop.init
-    case 1 => Eval(pvl_loop.cond)(pvl_loop.cond.o)
-    case 2 => pvl_loop.body
-    case 3 => pvl_loop.update
+    case 1 => Assert(Utils.loop_contract_to_expression(pvl_loop.contract))(pvl_loop.o)(pvl_loop.o)
+    case 2 => Eval(pvl_loop.cond)(pvl_loop.cond.o)
+    case 3 => pvl_loop.body
+    case 4 => pvl_loop.update
   }
   override def equals(obj: scala.Any): Boolean = obj match {
     case PVLLoopIndex(l, i) => i == index && l.equals(pvl_loop)
@@ -314,14 +318,16 @@ case class InvokeProcedureIndex[G](invoke_procedure: InvokeProcedure[G], index: 
   // 2. given
   // 3. outArgs
   // 4. yields
-  // 5. procedure body
+  // 5. precondition
+  // 6. procedure body
+  // 7. postcondition
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = {
     val args: Seq[Expr[G]] = invoke_procedure.args
     val givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = invoke_procedure.givenMap
     val outArgs: Seq[Expr[G]] = invoke_procedure.outArgs
     val yields: Seq[(Expr[G], Ref[G, Variable[G]])] = invoke_procedure.yields
-    if (index < args.size + givenMap.size + outArgs.size + yields.size - 1 ||
-        index == args.size + givenMap.size + outArgs.size + yields.size - 1 && invoke_procedure.ref.decl.body.nonEmpty)
+    if (index < args.size + givenMap.size + outArgs.size + yields.size + 1 ||
+        index == args.size + givenMap.size + outArgs.size + yields.size + 1 && invoke_procedure.ref.decl.body.nonEmpty)
       Set((Step(InvokeProcedureIndex(invoke_procedure, index + 1)), None))
     else Set((Outgoing(), None))
   }
@@ -342,14 +348,16 @@ case class InvokeProcedureIndex[G](invoke_procedure: InvokeProcedure[G], index: 
     } else if (index < args.size + givenMap.size + outArgs.size + yields.size) {
       val expr: Expr[G] = yields.apply(index - args.size - givenMap.size - outArgs.size)._1
       Eval(expr)(expr.o)
-    } else invoke_procedure.ref.decl.body.get
+    } else if (index == args.size + givenMap.size + outArgs.size + yields.size) {
+      val expr: Expr[G] = Star(Utils.contract_to_expression(invoke_procedure.ref.decl.contract.requires), invoke_procedure.ref.decl.contract.contextEverywhere)(invoke_procedure.o)
+      Assert(expr)(expr.o)(expr.o)
+    } else if (index == args.size + givenMap.size + outArgs.size + yields.size + 1 && invoke_procedure.ref.decl.body.nonEmpty) {
+      invoke_procedure.ref.decl.body.get
+    } else {
+      val expr: Expr[G] = Star(Utils.contract_to_expression(invoke_procedure.ref.decl.contract.ensures), invoke_procedure.ref.decl.contract.contextEverywhere)(invoke_procedure.o)
+      Assert(expr)(expr.o)(expr.o)
+    }
   }
-  override def has_statement(): Boolean =
-    invoke_procedure.args.nonEmpty ||
-      invoke_procedure.givenMap.nonEmpty ||
-      invoke_procedure.outArgs.nonEmpty ||
-      invoke_procedure.yields.nonEmpty ||
-      invoke_procedure.ref.decl.body.nonEmpty
   override def equals(obj: scala.Any): Boolean = obj match {
     case InvokeProcedureIndex(p, i) => i == index && p.equals(invoke_procedure)
     case _ => false
@@ -369,8 +377,8 @@ case class InvokeConstructorIndex[G](invoke_constructor: InvokeConstructor[G], i
     val givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = invoke_constructor.givenMap
     val outArgs: Seq[Expr[G]] = invoke_constructor.outArgs
     val yields: Seq[(Expr[G], Ref[G, Variable[G]])] = invoke_constructor.yields
-    if (index < args.size + givenMap.size + outArgs.size + yields.size ||
-      index == args.size + givenMap.size + outArgs.size + yields.size && invoke_constructor.ref.decl.body.nonEmpty)
+    if (index < args.size + givenMap.size + outArgs.size + yields.size + 2 ||
+      index == args.size + givenMap.size + outArgs.size + yields.size + 2 && invoke_constructor.ref.decl.body.nonEmpty)
       Set((Step(InvokeConstructorIndex(invoke_constructor, index + 1)), None))
     else Set((Outgoing(), None))
   }
@@ -393,7 +401,15 @@ case class InvokeConstructorIndex[G](invoke_constructor: InvokeConstructor[G], i
       Eval(expr)(expr.o)
     } else if (index == args.size + givenMap.size + outArgs.size + yields.size) {
       Eval(invoke_constructor.out)(invoke_constructor.out.o)
-    } else invoke_constructor.ref.decl.body.get
+    } else if (index == args.size + givenMap.size + outArgs.size + yields.size + 1) {
+      val expr: Expr[G] = Star(Utils.contract_to_expression(invoke_constructor.ref.decl.contract.requires), invoke_constructor.ref.decl.contract.contextEverywhere)(invoke_constructor.o)
+      Assert(expr)(expr.o)(expr.o)
+    } else if (index == args.size + givenMap.size + outArgs.size + yields.size + 2 && invoke_constructor.ref.decl.body.nonEmpty) {
+      invoke_constructor.ref.decl.body.get
+    } else {
+      val expr: Expr[G] = Star(Utils.contract_to_expression(invoke_constructor.ref.decl.contract.ensures), invoke_constructor.ref.decl.contract.contextEverywhere)(invoke_constructor.o)
+      Assert(expr)(expr.o)(expr.o)
+    }
   }
   override def equals(obj: scala.Any): Boolean = obj match {
     case InvokeConstructorIndex(c, i) => i == index && c.equals(invoke_constructor)
@@ -414,8 +430,8 @@ case class InvokeMethodIndex[G](invoke_method: InvokeMethod[G], index: Int) exte
     val givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = invoke_method.givenMap
     val outArgs: Seq[Expr[G]] = invoke_method.outArgs
     val yields: Seq[(Expr[G], Ref[G, Variable[G]])] = invoke_method.yields
-    if (index < args.size + givenMap.size + outArgs.size + yields.size ||
-      index == args.size + givenMap.size + outArgs.size + yields.size && invoke_method.ref.decl.body.nonEmpty)
+    if (index < args.size + givenMap.size + outArgs.size + yields.size + 2 ||
+      index == args.size + givenMap.size + outArgs.size + yields.size + 2 && invoke_method.ref.decl.body.nonEmpty)
       Set((Step(InvokeMethodIndex(invoke_method, index + 1)), None))
     else Set((Outgoing(), None))
   }
@@ -438,7 +454,15 @@ case class InvokeMethodIndex[G](invoke_method: InvokeMethod[G], index: Int) exte
     } else if (index < args.size + givenMap.size + outArgs.size + yields.size + 1) {
       val expr: Expr[G] = yields.apply(index - args.size - givenMap.size - outArgs.size - 1)._1
       Eval(expr)(expr.o)
-    } else invoke_method.ref.decl.body.get
+    } else if (index == args.size + givenMap.size + outArgs.size + yields.size + 1) {
+      val expr: Expr[G] = Star(Utils.contract_to_expression(invoke_method.ref.decl.contract.requires), invoke_method.ref.decl.contract.contextEverywhere)(invoke_method.o)
+      Assert(expr)(expr.o)(expr.o)
+    } else if (index == args.size + givenMap.size + outArgs.size + yields.size + 2 && invoke_method.ref.decl.body.nonEmpty) {
+      invoke_method.ref.decl.body.get
+    } else {
+      val expr: Expr[G] = Star(Utils.contract_to_expression(invoke_method.ref.decl.contract.ensures), invoke_method.ref.decl.contract.contextEverywhere)(invoke_method.o)
+      Assert(expr)(expr.o)(expr.o)
+    }
   }
   override def equals(obj: scala.Any): Boolean = obj match {
     case InvokeMethodIndex(m, i) => i == index && m.equals(invoke_method)
@@ -512,15 +536,17 @@ case class SwitchIndex[G](switch: Switch[G]) extends Index[G] {
 case class LoopIndex[G](loop: Loop[G], index: Int) extends Index[G] {
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = index match {
     case 0 => Set((Step(LoopIndex(loop, 1)), None))
-    case 1 => Set((Step(LoopIndex(loop, 2)), Some(loop.cond)), (Outgoing(), Some(Utils.negate(loop.cond))))
-    case 2 => Set((Step(LoopIndex(loop, 3)), None))
-    case 3 => Set((Step(LoopIndex(loop, 1)), None))
+    case 1 => Set((Step(LoopIndex(loop, 2)), None))
+    case 2 => Set((Step(LoopIndex(loop, 3)), Some(loop.cond)), (Outgoing(), Some(Utils.negate(loop.cond))))
+    case 3 => Set((Step(LoopIndex(loop, 4)), None))
+    case 4 => Set((Step(LoopIndex(loop, 1)), None))
   }
   override def resolve(): Statement[G] = index match {
     case 0 => loop.init
-    case 1 => Eval(loop.cond)(loop.cond.o)
-    case 2 => loop.body
-    case 3 => loop.update
+    case 1 => Assert(Utils.loop_contract_to_expression(loop.contract))(loop.o)(loop.o)
+    case 2 => Eval(loop.cond)(loop.cond.o)
+    case 3 => loop.body
+    case 4 => loop.update
   }
   override def equals(obj: scala.Any): Boolean = obj match {
     case LoopIndex(l, i) => i == index && l.equals(loop)

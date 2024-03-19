@@ -3,6 +3,7 @@ package vct.rewrite.cfg
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.ref.{DirectRef, Ref}
+import vct.col.util.AstBuildHelpers
 
 object Utils {
 
@@ -105,4 +106,11 @@ object Utils {
       case Some(e2) => Some(And(e1, e2)(e1.o))  // TODO: Is the origin important?
     }
   }
+
+  def loop_contract_to_expression[G](contract: LoopContract[G]): Expr[G] = contract match {
+    case LoopInvariant(inv, _) => inv
+  }
+
+  def contract_to_expression[G](contract: AccountedPredicate[G]): Expr[G] =
+    AstBuildHelpers.unfoldPredicate(contract).reduce((e1, e2) => Star(e1, e2)(e1.o))
 }
