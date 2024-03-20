@@ -3,9 +3,9 @@ package vct.rewrite.rasi
 import vct.col.ast._
 
 class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVariable[G]]) {
-  def resolve_assumption(expr: Expr[G]): ConstraintMap[G] = resolve(expr)
+  def resolve_assumption(expr: Expr[G]): Set[ConstraintMap[G]] = resolve(expr)
 
-  private def resolve(expr: Expr[G], negate: Boolean = false): ConstraintMap[G] = expr match {
+  private def resolve(expr: Expr[G], negate: Boolean = false): Set[ConstraintMap[G]] = expr match {
     // Consider boolean/separation logic operators
     case Not(arg) => this.resolve(arg, !negate)
     case AmbiguousOr(left, right) =>
@@ -31,13 +31,13 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
     case _ => Set(ConstraintMap.empty[G])
   }
 
-  private def handle_and(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): ConstraintMap[G] = {
+  private def handle_and(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
     val left_constraints = resolve(left, neg_left)
     val right_constraints = resolve(right, neg_right)
-    left_constraints.flatMap(m1 => right_constraints.map(m2 => m1 && m2))
+    left_constraints.flatMap(m1 => right_constraints.map(m2 => m1 ++ m2))
   }
 
-  private def handle_or(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): ConstraintMap[G] = {
+  private def handle_or(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
     val pure_left = is_pure(left)
     val pure_right = is_pure(right)
     // If one side is pure and the other has an effect on the state, treat this "or" as an implication. If both sides
@@ -48,18 +48,18 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
     else this.resolve(left, neg_left) ++ this.resolve(right, neg_right)
   }
 
-  private def handle_implies(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): ConstraintMap[G] = {
+  private def handle_implies(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
     val resolve_left: UncertainBooleanValue = state.resolve_boolean_expression(left)
-    var res: ConstraintMap[G] = ConstraintMap.impossible(vars)
-    if (neg_left && resolve_left.can_be_false || (!neg_left) && resolve_left.can_be_true) res = res || resolve(right, neg_right)
-    if (neg_left && resolve_left.can_be_true || (!neg_left) && resolve_left.can_be_false) res = res || ConstraintMap.empty[G]
+    var res: Set[ConstraintMap[G]] = Set()
+    if (neg_left && resolve_left.can_be_false || (!neg_left) && resolve_left.can_be_true) res = res ++ resolve(right, neg_right)
+    if (neg_left && resolve_left.can_be_true || (!neg_left) && resolve_left.can_be_false) res = res ++ Set(ConstraintMap.empty[G])
     res
   }
 
-  private def handle_update(comp: Comparison[G], negate: Boolean): ConstraintMap[G] = {
+  private def handle_update(comp: Comparison[G], negate: Boolean): Set[ConstraintMap[G]] = {
     val pure_left = is_pure(comp.left)
     val pure_right = is_pure(comp.right)
-    if (pure_left == pure_right) return ConstraintMap.empty[G]
+    if (pure_left == pure_right) return Set(ConstraintMap.empty[G])
     // Now, exactly one side is pure, and the other contains a concrete variable
     // Resolve the variable and the other side of the equation    TODO: Reduce the side with the variable if it contains anything else as well
     if (vars.exists(v => v.is(if (pure_left) comp.right else comp.left, state))) handle_single_update(comp, pure_left, negate)
@@ -75,13 +75,13 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
     case _ => true
   }
 
-  private def handle_single_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): ConstraintMap[G] = {
+  private def handle_single_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): Set[ConstraintMap[G]] = {
     val variable: ResolvableVariable[G] = if (pure_left) get_var(comp.right).get else get_var(comp.left).get
     val value: UncertainValue = if (pure_left) state.resolve_expression(comp.left) else state.resolve_expression(comp.right)
 
     comp match {
-      case _: Eq[_] => if (!negate) ConstraintMap.from(variable, value) else ConstraintMap.from(variable, value.complement())
-      case _: Neq[_] => if (!negate) ConstraintMap.from(variable, value.complement()) else ConstraintMap.from(variable, value)
+      case _: Eq[_] => Set(if (!negate) ConstraintMap.from(variable, value) else ConstraintMap.from(variable, value.complement()))
+      case _: Neq[_] => Set(if (!negate) ConstraintMap.from(variable, value.complement()) else ConstraintMap.from(variable, value))
       case AmbiguousGreater(_, _) | Greater(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, negate)
       case AmbiguousGreaterEq(_, _) | GreaterEq(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, !negate)
       case AmbiguousLessEq(_, _) | LessEq(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, !negate)
@@ -89,25 +89,25 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
     }
   }
 
-  private def limit_variable(v: ResolvableVariable[G], b: UncertainIntegerValue, var_greater: Boolean, can_be_equal: Boolean): ConstraintMap[G] = {
+  private def limit_variable(v: ResolvableVariable[G], b: UncertainIntegerValue, var_greater: Boolean, can_be_equal: Boolean): Set[ConstraintMap[G]] = {
     if (var_greater) {
-      if (can_be_equal) ConstraintMap.from(v, b.above_eq())
-      else ConstraintMap.from(v, b.above())
+      if (can_be_equal) Set(ConstraintMap.from(v, b.above_eq()))
+      else Set(ConstraintMap.from(v, b.above()))
     }
     else {
-      if (can_be_equal) ConstraintMap.from(v, b.below_eq())
-      else ConstraintMap.from(v, b.below())
+      if (can_be_equal) Set(ConstraintMap.from(v, b.below_eq()))
+      else Set(ConstraintMap.from(v, b.below()))
     }
   }
 
-  private def handle_collection_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): ConstraintMap[G] = {
+  private def handle_collection_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): Set[ConstraintMap[G]] = {
     val variable: Expr[G] = if (pure_left) comp.right else comp.left
     val value: UncertainSequence = state.resolve_collection_expression(if (pure_left) comp.left else comp.right)
     val affected: Set[IndexedVariable[G]] = vars.filter(v => v.is_contained_by(variable, state)).collect{ case v: IndexedVariable[G] => v }
 
     comp match {
-      case _: Eq[_] if !negate => ConstraintMap.from_cons(affected.map(v => v -> value.get(v.i)))
-      case _: Neq[_] if negate => ConstraintMap.from_cons(affected.map(v => v -> value.get(v.i)))
+      case _: Eq[_] if !negate => Set(ConstraintMap.from_cons(affected.map(v => v -> value.get(v.i))))
+      case _: Neq[_] if negate => Set(ConstraintMap.from_cons(affected.map(v => v -> value.get(v.i))))
       case _ => throw new IllegalArgumentException(s"The operator ${comp.toInlineString} is not supported for collections")
     }
   }
