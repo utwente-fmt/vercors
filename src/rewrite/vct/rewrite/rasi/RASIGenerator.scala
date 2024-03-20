@@ -50,7 +50,6 @@ case class RASIGenerator[G]() {
   }
 
   private def get_initial_values(vars: Set[ConcreteVariable[G]]): Map[ConcreteVariable[G], UncertainValue] = {
-    // TODO: Should this be uncertain or should it be defined (e.g. 0/false)?
     Map.from(vars.map(v => (v, UncertainValue.uncertain_of(v.t))))
   }
 
