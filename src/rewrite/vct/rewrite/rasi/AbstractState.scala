@@ -15,6 +15,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return The set of possible successor states
    */
   def successors(): Set[AbstractState[G]] =
+    // TODO: Only consider the state that holds the global lock if it is locked?
     processes.keySet.flatMap(p => p.atomic_step(this))
 
   /**

@@ -130,8 +130,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
   private def is_atomic(node: CFGEntry[G]): Boolean = node match {
     case CFGTerminal() => true
     case CFGNode(n, _) => n match {
-      case Unlock(_) => false
-      case Assert(res) => Utils.contains_global_invariant(res)
+      case Assert(res) => !Utils.contains_global_invariant(res)
       case _ => true
     }
   }
