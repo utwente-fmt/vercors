@@ -151,12 +151,11 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case BitShl(_, _) => UncertainIntegerValue.uncertain()
     case BitShr(_, _) => UncertainIntegerValue.uncertain()
     case BitUShr(_, _) => UncertainIntegerValue.uncertain()
-    case Select(cond, ift, iff) => {
+    case Select(cond, ift, iff) =>
       var value: UncertainIntegerValue = UncertainIntegerValue.empty()
       if (resolve_boolean_expression(cond).can_be_true) value = value.union(resolve_integer_expression(ift)).asInstanceOf[UncertainIntegerValue]
       if (resolve_boolean_expression(cond).can_be_false) value = value.union(resolve_integer_expression(iff)).asInstanceOf[UncertainIntegerValue]
       value
-    }
     case Old(exp, at) => at match {
       case Some(_) => throw new IllegalArgumentException(s"Cannot resolve labelled old expression ${expr.toInlineString}")
       case None => resolve_integer_expression(exp)
@@ -175,6 +174,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
       get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainIntegerValue]
     case InstanceFunctionInvocation(_, ref, args, _, _, _) =>
       get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainIntegerValue]
+    case Result(_) => UncertainIntegerValue.uncertain()
+    case AmbiguousResult() => UncertainIntegerValue.uncertain()
   }
 
   /**
@@ -187,11 +188,12 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case BooleanValue(value) => UncertainBooleanValue.from(value)
     case Not(arg) => !resolve_boolean_expression(arg)
     case AmbiguousOr(left, right) => resolve_boolean_expression(left) || resolve_boolean_expression(right)
+    case Star(left, right) => resolve_boolean_expression(left) && resolve_boolean_expression(right)
     case And(left, right) => resolve_boolean_expression(left) && resolve_boolean_expression(right)
     case Or(left, right) => resolve_boolean_expression(left) || resolve_boolean_expression(right)
     case Implies(left, right) => (!resolve_boolean_expression(left)) || resolve_boolean_expression(right)
-    case Eq(left, right) => resolve_expression(left) == resolve_expression(right)
-    case Neq(left, right) => resolve_expression(left) != resolve_expression(right)
+    case Eq(left, right) => handle_equality(left, right)
+    case Neq(left, right) => !handle_equality(left, right)
     case AmbiguousGreater(left, right) => resolve_integer_expression(left) > resolve_integer_expression(right)
     case AmbiguousLess(left, right) => resolve_integer_expression(left) < resolve_integer_expression(right)
     case AmbiguousGreaterEq(left, right) => resolve_integer_expression(left) >= resolve_integer_expression(right)
@@ -200,13 +202,11 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case Less(left, right) => resolve_integer_expression(left) < resolve_integer_expression(right)
     case GreaterEq(left, right) => resolve_integer_expression(left) >= resolve_integer_expression(right)
     case LessEq(left, right) => resolve_integer_expression(left) <= resolve_integer_expression(right)
-    case c: SetComparison[G] => UncertainBooleanValue.uncertain()   // TODO: Implement?
-    case Select(cond, ift, iff) => {
+    case Select(cond, ift, iff) =>
       var value: UncertainBooleanValue = UncertainBooleanValue(can_be_true = false, can_be_false = false)
       if (resolve_boolean_expression(cond).can_be_true) value = value.union(resolve_boolean_expression(ift)).asInstanceOf[UncertainBooleanValue]
       if (resolve_boolean_expression(cond).can_be_false) value = value.union(resolve_boolean_expression(iff)).asInstanceOf[UncertainBooleanValue]
       value
-    }
     case Old(exp, at) => at match {
       case Some(_) => throw new IllegalArgumentException(s"Cannot resolve labelled old expression ${expr.toInlineString}")
       case None => resolve_boolean_expression(exp)
@@ -223,6 +223,18 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
       get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainBooleanValue]
     case InstanceFunctionInvocation(_, ref, args, _, _, _) =>
       get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainBooleanValue]
+    case Held(_) => UncertainBooleanValue.from(lock.nonEmpty)   // TODO: This means that ANY process holds the lock!
+    case Scale(_, res) => resolve_boolean_expression(res)   // TODO: Do anything with permission fraction?
+    case PredicateApply(ref, args, _) =>                    // TODO: Do anything with permission fraction?
+      if (ref.decl.body.nonEmpty) UncertainBooleanValue.from(true)   //resolve_boolean_expression(Utils.unify_expression(ref.decl.body.get, Map.from(ref.decl.args.zip(args))))
+      else ???    // TODO: Track resource ownership?
+    case InstancePredicateApply(_, ref, args, _) =>         // TODO: Do anything with permission fraction?
+      if (ref.decl.body.nonEmpty) UncertainBooleanValue.from(true)   //resolve_boolean_expression(Utils.unify_expression(ref.decl.body.get, Map.from(ref.decl.args.zip(args))))
+      else ???    // TODO: Track resource ownership?
+    case Perm(_, _) => UncertainBooleanValue.from(true)     // TODO: Do anything with permissions/resources?
+    case _: Binder[_] => UncertainBooleanValue.from(true)   // TODO: How to handle quantifiers?!
+    case Result(_) => UncertainBooleanValue.uncertain()
+    case AmbiguousResult() => UncertainBooleanValue.uncertain()
   }
 
   /**
@@ -275,7 +287,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
       case TSeq(element) => element
       case _ => throw new IllegalArgumentException(s"Unsupported collection type ${deref.ref.decl.t.toInlineString}")
     }
-    UncertainSequence(len.getOrElse(UncertainIntegerValue.above(affected.map(v => v.i).max)),
+    UncertainSequence(len.getOrElse(UncertainIntegerValue.above(if (affected.isEmpty) 0 else affected.map(v => v.i).max)),
       affected.map(v => UncertainIntegerValue.single(v.i) -> valuations(v)).toSeq,
       t)
   }
@@ -289,6 +301,11 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     val constraints: Set[ConstraintMap[G]] = new ConstraintSolver(this, result_set).resolve_assumption(contract).filter(m => !m.is_impossible)
     val possible_vals: Set[UncertainValue] = constraints.map(m => m.resolve.getOrElse(result_var, UncertainValue.uncertain_of(return_type)))
     possible_vals.reduce((v1, v2) => v1.union(v2))
+  }
+
+  private def handle_equality(left: Expr[G], right: Expr[G]): UncertainBooleanValue = left.t match {
+    case _: IntType[_] | TBool() => resolve_expression(left) == resolve_expression(right)
+    case _ => resolve_collection_expression(left) == resolve_collection_expression(right)
   }
 
   private def variable_from_expr(variable: Expr[G]): Option[ConcreteVariable[G]] =

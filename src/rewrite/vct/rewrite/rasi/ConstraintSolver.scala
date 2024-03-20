@@ -32,20 +32,39 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
   }
 
   private def handle_and(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
-    val left_constraints = resolve(left, neg_left)
-    val right_constraints = resolve(right, neg_right)
-    left_constraints.flatMap(m1 => right_constraints.map(m2 => m1 ++ m2))
+    val left_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(left)
+    val right_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(right)
+    val possible_left: Boolean = (neg_left && left_is_possible.can_be_false) || (!neg_left && left_is_possible.can_be_true)
+    val possible_right: Boolean = (neg_right && right_is_possible.can_be_false) || (!neg_right && right_is_possible.can_be_true)
+
+    if (!possible_left || !possible_right) Set(ConstraintMap.impossible(vars))
+    else {
+      val left_constraints: Set[ConstraintMap[G]] = resolve(left, neg_left)
+      val right_constraints: Set[ConstraintMap[G]] = resolve(right, neg_right)
+      left_constraints.flatMap(m1 => right_constraints.map(m2 => m1 ++ m2))
+    }
   }
 
   private def handle_or(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
-    val pure_left = is_pure(left)
-    val pure_right = is_pure(right)
-    // If one side is pure and the other has an effect on the state, treat this "or" as an implication. If both sides
-    // update the state, treat it as a split in the state space instead
-    if (pure_left && pure_right) Set(ConstraintMap.empty[G])
-    else if (pure_left) handle_implies(left, right, !neg_left, neg_right)
-    else if (pure_right) handle_implies(right, left, !neg_right, neg_left)
-    else this.resolve(left, neg_left) ++ this.resolve(right, neg_right)
+    val left_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(left)
+    val right_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(right)
+    val possible_left: Boolean = (neg_left && left_is_possible.can_be_false) || (!neg_left && left_is_possible.can_be_true)
+    val possible_right: Boolean = (neg_right && right_is_possible.can_be_false) || (!neg_right && right_is_possible.can_be_true)
+
+    if (!possible_left && !possible_right) Set(ConstraintMap.impossible(vars))
+    else if (!possible_left) resolve(right, neg_right)
+    else if (!possible_right) resolve(left, neg_left)
+    else {
+      // Both branches are viable
+      val pure_left: Boolean = is_pure(left)
+      val pure_right: Boolean = is_pure(right)
+      // If one side is pure and the other has an effect on the state, treat this "or" as an implication. If both sides
+      // update the state, treat it as a split in the state space instead
+      if (pure_left && pure_right) Set(ConstraintMap.empty[G])
+      else if (pure_left) handle_implies(left, right, !neg_left, neg_right)
+      else if (pure_right) handle_implies(right, left, !neg_right, neg_left)
+      else resolve(left, neg_left) ++ resolve(right, neg_right)
+    }
   }
 
   private def handle_implies(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {

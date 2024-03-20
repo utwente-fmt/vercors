@@ -2,6 +2,7 @@ package vct.rewrite.rasi
 
 import vct.col.ast.{BooleanValue, Expr, IntType, Not, TBool, Type}
 
+// TODO: Factor out into uncertain single value and uncertain collection value
 trait UncertainValue {
   def can_be_equal(other: UncertainValue): Boolean
   def can_be_unequal(other: UncertainValue): Boolean
@@ -105,7 +106,7 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
   }
 
   override def can_be_unequal(other: UncertainValue): Boolean = other match {
-    case UncertainIntegerValue(v) => value.intersection(v).complement().non_empty()
+    case UncertainIntegerValue(v) => value.intersection(v.complement()).non_empty()
     case _ => true
   }
 
@@ -179,9 +180,34 @@ case object UncertainIntegerValue {
 }
 
 case class UncertainSequence(len: UncertainIntegerValue, values: Seq[(UncertainIntegerValue, UncertainValue)], t: Type[_]) {
+  def ==(other: UncertainSequence): UncertainBooleanValue = {
+    if (len.intersection(other.len).is_impossible) return UncertainBooleanValue.from(false)
+    if (values.exists(t1 => t1._1.try_to_resolve().nonEmpty && other.values.exists(t2 => !t2._1.intersection(t1._1).is_impossible && t2._2.can_be_unequal(t1._2))))
+      return UncertainBooleanValue.from(false)
+    val length: Option[Int] = len.try_to_resolve()
+    val other_length: Option[Int] = other.len.try_to_resolve()
+    if (length.nonEmpty && other_length.nonEmpty && length.get == other_length.get) {
+      for (i <- Range(0, length.get)) {
+        val values_index: Int = values.indexWhere(t => t._1.try_to_resolve().getOrElse(-1) == i)
+        val other_values_index: Int = other.values.indexWhere(t => t._1.try_to_resolve().getOrElse(-1) == i)
+        if (values_index >= 0 && other_values_index >= 0) {
+          val value = values(values_index)._2
+          val other_value = other.values(other_values_index)._2
+          if (!value.can_be_unequal(other_value)) return UncertainBooleanValue.uncertain()
+        }
+        else return UncertainBooleanValue.uncertain()
+      }
+    }
+    else return UncertainBooleanValue.uncertain()
+    // Only if the lengths are exactly the same and perfectly certain,
+    // and every value in between is defined in both sequences and perfectly certain and equal,
+    // only then are two uncertain sequences definitely equal
+    UncertainBooleanValue.from(true)
+  }
+
   def union(other: UncertainSequence): UncertainSequence = {
     if (t != other.t) throw new IllegalArgumentException("Unioning sequences of different types")
-    UncertainSequence(len.union(other.len).asInstanceOf[UncertainIntegerValue], Utils.combine_values(values, other.values), t)
+    UncertainSequence(len.union(other.len).asInstanceOf[UncertainIntegerValue], combine_values(values, other.values), t)
   }
 
   def concat(other: UncertainSequence): UncertainSequence =
@@ -212,6 +238,17 @@ case class UncertainSequence(len: UncertainIntegerValue, values: Seq[(UncertainI
     val i = values.indexWhere(t => t._1.try_to_resolve().getOrElse(-1) == index)
     if (i >= 0) values(i)._2
     else UncertainValue.uncertain_of(t)
+  }
+
+  private def combine_values(v1: Seq[(UncertainIntegerValue, UncertainValue)], v2: Seq[(UncertainIntegerValue, UncertainValue)]): Seq[(UncertainIntegerValue, UncertainValue)] = {
+    var res: Seq[(UncertainIntegerValue, UncertainValue)] = Seq()
+    for (v <- v1) {
+      for (comp <- v2) {
+        if (v._1.is_subset_of(comp._1) && v._2.is_subset_of(comp._2)) res :+= comp
+        else if (comp._1.is_subset_of(v._1) && comp._2.is_subset_of(v._2)) res :+= v
+      }
+    }
+    res.distinct
   }
 }
 case object UncertainSequence {
