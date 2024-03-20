@@ -19,6 +19,10 @@ case object UncertainValue {
     case _: IntType[_] => UncertainIntegerValue.uncertain()
     case _: TBool[_] => UncertainBooleanValue.uncertain()
   }
+  def empty_of(t: Type[_]): UncertainValue = t match {
+    case _: IntType[_] => UncertainIntegerValue.empty()
+    case _: TBool[_] => UncertainBooleanValue.empty()
+  }
 }
 
 case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) extends UncertainValue {
@@ -89,6 +93,7 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
   def !=(other: UncertainBooleanValue): UncertainBooleanValue = this ^ other
 }
 case object UncertainBooleanValue {
+  def empty(): UncertainBooleanValue = UncertainBooleanValue(can_be_true = false, can_be_false = false)
   def from(bool: Boolean): UncertainBooleanValue = UncertainBooleanValue(bool, !bool)
   def uncertain(): UncertainBooleanValue = UncertainBooleanValue(can_be_true = true, can_be_false = true)
 }

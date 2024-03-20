@@ -6,6 +6,13 @@ import vct.rewrite.cfg.{CFGEdge, CFGEntry, CFGNode, CFGTerminal}
 import scala.collection.mutable
 
 case class AbstractProcess[G](obj: Expr[G]) {
+
+  /**
+   * Simulates an atomic execution step for this process on the given abstract state.
+   *
+   * @param starting_state Abstract starting state
+   * @return A set of all successor states
+   */
   def atomic_step(starting_state: AbstractState[G]): Set[AbstractState[G]] = {
     var (atomic, states): (Boolean, Set[AbstractState[G]]) = small_step(starting_state.processes(this), starting_state)
     while (atomic) {
@@ -16,11 +23,26 @@ case class AbstractProcess[G](obj: Expr[G]) {
     states
   }
 
+  /**
+   * Tests if another small step can be executed without breaking the current atomic block, and if so, executes the next
+   * small step.
+   *
+   * @param state Current abstract state
+   * @return A tuple of a boolean indicating whether atomic progress could be made and a set of all successor states
+   */
   private def small_step_if_atomic(state: AbstractState[G]): (Boolean, Set[AbstractState[G]]) = {
     if (!state.processes.contains(this) || !is_atomic(state.processes(this))) (false, Set(state))
     else small_step(state.processes(this), state)
   }
 
+  /**
+   * Makes a small step in the symbolic execution. Executes the effect of the given CFG node on the given abstract state
+   * and returns a tuple of a boolean indicating whether progress was made and a set of all possible successor states.
+   *
+   * @param node CFG node to simulate
+   * @param state Current abstract state
+   * @return A tuple of a boolean indicating whether progress was made and a set of all successor states.
+   */
   private def small_step(node: CFGEntry[G], state: AbstractState[G]): (Boolean, Set[AbstractState[G]]) = node match {
     case CFGTerminal() => (false, Set(state.without_process(this)))
     case CFGNode(n, succ) => n match {
@@ -58,8 +80,8 @@ case class AbstractProcess[G](obj: Expr[G]) {
                            else throw new IllegalStateException("Trying to lock already acquired lock")
         case None => (true, viable_edges(succ, state).map(e => take_edge(e, state).locked_by(this)))
       }
-      case Unlock(_) => state.lock match {
-        case Some(proc) => if (proc.equals(this)) (true, viable_edges(succ, state).map(e => take_edge(e, state).unlocked()))
+      case Unlock(_) => state.lock match {    // TODO: Progress was made, but this is still false to allow other processes to execute
+        case Some(proc) => if (proc.equals(this)) (false, viable_edges(succ, state).map(e => take_edge(e, state).unlocked()))
                            else throw new IllegalStateException("Trying to unlock lock owned by other process")
         case None => throw new IllegalStateException("Trying to unlock unlocked lock")
       }
@@ -78,12 +100,33 @@ case class AbstractProcess[G](obj: Expr[G]) {
     }
   }
 
+  /**
+   * Filters out CFG edges from a given set based on whether they would be viable in the given abstract state.
+   *
+   * @param edges A set of CFG edges
+   * @param state Current abstract state
+   * @return A set of those entries of <code>edges</code> whose conditions could evaluate to <code>true</code> in the
+   *         given abstract state
+   */
   private def viable_edges(edges: mutable.Set[CFGEdge[G]], state: AbstractState[G]): Set[CFGEdge[G]] =
     edges.filter(e => e.condition.isEmpty || state.resolve_boolean_expression(e.condition.get).can_be_true).toSet
 
+  /**
+   * Returns the abstract state that results in this process taking a transition in the CFG.
+   *
+   * @param edge CFG transition edge to take
+   * @param state Current abstract state
+   * @return Copy of <code>state</code> with this process at the target node of the CFG transition
+   */
   private def take_edge(edge: CFGEdge[G], state: AbstractState[G]): AbstractState[G] =
     state.with_process_at(this, edge.target)
 
+  /**
+   * Checks whether the considered block is still atomic when adding the next node.
+   *
+   * @param node CFG node that might be considered next
+   * @return <code>false</code> if the node checks the global invariant, <code>true</code> otherwise
+   */
   private def is_atomic(node: CFGEntry[G]): Boolean = node match {
     case CFGTerminal() => true
     case CFGNode(n, _) => n match {

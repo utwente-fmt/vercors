@@ -284,7 +284,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     get_return(Utils.unify_expression(Utils.contract_to_expression(post), args), return_type)
 
   private def get_return(contract: Expr[G], return_type: Type[G]): UncertainValue = {
-    val result_var: ResultVariable[G] = ResultVariable()
+    val result_var: ResultVariable[G] = ResultVariable(return_type)
     val result_set: Set[ResolvableVariable[G]] = Set(result_var)
     val constraints: Set[ConstraintMap[G]] = new ConstraintSolver(this, result_set).resolve_assumption(contract).filter(m => !m.is_impossible)
     val possible_vals: Set[UncertainValue] = constraints.map(m => m.resolve.getOrElse(result_var, UncertainValue.uncertain_of(return_type)))

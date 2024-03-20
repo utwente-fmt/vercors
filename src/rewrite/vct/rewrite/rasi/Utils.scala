@@ -33,7 +33,7 @@ case object Utils {
     AstBuildHelpers.unfoldPredicate(contract).reduce((e1, e2) => Star(e1, e2)(e1.o))
 
   def unify_expression[G](cond: Expr[G], args: Map[Variable[G], Expr[G]]): Expr[G] =
-    Substitute(args.map[Expr[G], Expr[G]]{ case (v, e) => Local[G](v.ref)(v.o) -> Old(e, None)(e.o)(e.o) }).dispatch(cond)
+    Substitute(args.map[Expr[G], Expr[G]]{ case (v, e) => Local[G](v.ref)(v.o) -> e }).dispatch(cond)
 
   def contains_global_invariant[G](node: Node[G]): Boolean = node match {
     case PredicateApply(ref, _, _) => ref.decl.o.getPreferredName.get.snake.equals("global_invariant") ||    // TODO: This must be possible to do better

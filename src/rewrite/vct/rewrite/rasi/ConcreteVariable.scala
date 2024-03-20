@@ -5,19 +5,20 @@ import vct.col.ast._
 sealed trait ResolvableVariable[G] {
   def is(expr: Expr[G], state: AbstractState[G]): Boolean
   def is_contained_by(expr: Expr[G], state: AbstractState[G]): Boolean
+  def t: Type[G]
 }
 
-case class ResultVariable[G]() extends ResolvableVariable[G] {
+case class ResultVariable[G](return_type: Type[G]) extends ResolvableVariable[G] {
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean = expr match {
     case AmbiguousResult() | Result(_) => true
     case _ => false
   }
   override def is_contained_by(expr: Expr[G], state: AbstractState[G]): Boolean = is(expr, state)
+  override def t: Type[G] = return_type
 }
 
 sealed trait ConcreteVariable[G] extends ResolvableVariable[G] {
   def to_expression: Expr[G]
-  def t: Type[G]
   def field_equals(expr: Expr[G], field: InstanceField[G]): Boolean = expr match {
     // TODO: Support other types of expressions? Take object into account?
     case Deref(_, f) => f.decl.equals(field)
