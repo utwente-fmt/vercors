@@ -89,8 +89,9 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @param assumption Boolean expression expressing a state update
    * @return A set of abstract states that are a copy of this one, updated according to the given assumption
    */
-  def with_assumption(assumption: Expr[G]): Set[AbstractState[G]] = {
-    val constraints: Set[ConstraintMap[G]] = new ConstraintSolver(this, valuations.keySet).resolve_assumption(assumption).filter(m => !m.is_impossible)
+  def with_assumption(assumption: Expr[G], is_contract: Boolean = false): Set[AbstractState[G]] = {
+    // TODO: An assumption adds constraints to the existing state! A postcondition first havocs all variables for which it has permission.
+    val constraints: Set[ConstraintMap[G]] = new ConstraintSolver(this, valuations.keySet, is_contract).resolve_assumption(assumption).filter(m => !m.is_impossible)
     constraints.map(m => m.resolve).map(m => AbstractState(valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)), processes, lock, seq_lengths))
   }
 
@@ -103,7 +104,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    *         arguments
    */
   def with_postcondition(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]]): Set[AbstractState[G]] =
-    with_assumption(Utils.unify_expression(Utils.contract_to_expression(post), args))
+    with_assumption(Utils.unify_expression(Utils.contract_to_expression(post), args), is_contract = true)
 
   /**
    * Evaluates an expression and returns an uncertain value, depending on the type of expression and the values it can
@@ -112,9 +113,9 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @param expr COL expression to resolve
    * @return An uncertain value of the correct type
    */
-  def resolve_expression(expr: Expr[G]): UncertainValue = expr.t match {
-    case _: IntType[_] => resolve_integer_expression(expr)
-    case _: TBool[_] => resolve_boolean_expression(expr)
+  def resolve_expression(expr: Expr[G], is_old: Boolean = false, is_contract: Boolean = false): UncertainValue = expr.t match {
+    case _: IntType[_] => resolve_integer_expression(expr, is_old, is_contract)
+    case _: TBool[_] => resolve_boolean_expression(expr, is_old, is_contract)
     case _ => throw new IllegalArgumentException(s"Type ${expr.t.toInlineString} is not supported")
   }
 
@@ -124,21 +125,21 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @param expr integer-type COL expression
    * @return An uncertain value that represents all possible valuations of the given expression
    */
-  def resolve_integer_expression(expr: Expr[G]): UncertainIntegerValue = expr match {
+  def resolve_integer_expression(expr: Expr[G], is_old: Boolean = false, is_contract: Boolean = false): UncertainIntegerValue = expr match {
     case CIntegerValue(value) => UncertainIntegerValue.single(value.intValue)
     case IntegerValue(value) => UncertainIntegerValue.single(value.intValue)
     case SizeOf(tname) => UncertainIntegerValue.above(1)    // TODO: Can we use more information about sizeof?
-    case UMinus(arg) => -resolve_integer_expression(arg)
-    case AmbiguousMult(left, right) => resolve_integer_expression(left) * resolve_integer_expression(right)
-    case AmbiguousPlus(left, right) => resolve_integer_expression(left) + resolve_integer_expression(right)
-    case AmbiguousMinus(left, right) => resolve_integer_expression(left) - resolve_integer_expression(right)
-    case Exp(left, right) => resolve_integer_expression(left).pow(resolve_integer_expression(right))
-    case Plus(left, right) => resolve_integer_expression(left) + resolve_integer_expression(right)
-    case Minus(left, right) => resolve_integer_expression(left) - resolve_integer_expression(right)
-    case Mult(left, right) => resolve_integer_expression(left) * resolve_integer_expression(right)
-    case FloorDiv(left, right) => resolve_integer_expression(left) / resolve_integer_expression(right)
-    case Mod(left, right) => resolve_integer_expression(left) % resolve_integer_expression(right)
-    // Bit operations destroy any knowledge of integer state       TODO: Support bit operations
+    case UMinus(arg) => -resolve_integer_expression(arg, is_old, is_contract)
+    case AmbiguousMult(left, right) => resolve_integer_expression(left, is_old, is_contract) * resolve_integer_expression(right, is_old, is_contract)
+    case AmbiguousPlus(left, right) => resolve_integer_expression(left, is_old, is_contract) + resolve_integer_expression(right, is_old, is_contract)
+    case AmbiguousMinus(left, right) => resolve_integer_expression(left, is_old, is_contract) - resolve_integer_expression(right, is_old, is_contract)
+    case Exp(left, right) => resolve_integer_expression(left, is_old, is_contract).pow(resolve_integer_expression(right, is_old, is_contract))
+    case Plus(left, right) => resolve_integer_expression(left, is_old, is_contract) + resolve_integer_expression(right, is_old, is_contract)
+    case Minus(left, right) => resolve_integer_expression(left, is_old, is_contract) - resolve_integer_expression(right, is_old, is_contract)
+    case Mult(left, right) => resolve_integer_expression(left, is_old, is_contract) * resolve_integer_expression(right, is_old, is_contract)
+    case FloorDiv(left, right) => resolve_integer_expression(left, is_old, is_contract) / resolve_integer_expression(right, is_old, is_contract)
+    case Mod(left, right) => resolve_integer_expression(left, is_old, is_contract) % resolve_integer_expression(right, is_old, is_contract)
+    // Bit operations destroy any knowledge of integer state       TODO: Support bit operations?
     case BitNot(_) => UncertainIntegerValue.uncertain()
     case AmbiguousComputationalOr(_, _) => UncertainIntegerValue.uncertain()
     case AmbiguousComputationalXor(_, _) => UncertainIntegerValue.uncertain()
@@ -154,17 +155,24 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case BitUShr(_, _) => UncertainIntegerValue.uncertain()
     case Select(cond, ift, iff) =>
       var value: UncertainIntegerValue = UncertainIntegerValue.empty()
-      if (resolve_boolean_expression(cond).can_be_true) value = value.union(resolve_integer_expression(ift)).asInstanceOf[UncertainIntegerValue]
-      if (resolve_boolean_expression(cond).can_be_false) value = value.union(resolve_integer_expression(iff)).asInstanceOf[UncertainIntegerValue]
+      if (resolve_boolean_expression(cond, is_old, is_contract).can_be_true) {
+        value = value.union(resolve_integer_expression(ift, is_old, is_contract)).asInstanceOf[UncertainIntegerValue]
+      }
+      if (resolve_boolean_expression(cond, is_old, is_contract).can_be_false) {
+        value = value.union(resolve_integer_expression(iff, is_old, is_contract)).asInstanceOf[UncertainIntegerValue]
+      }
       value
     case Old(exp, at) => at match {
       case Some(_) => throw new IllegalArgumentException(s"Cannot resolve labelled old expression ${expr.toInlineString}")
-      case None => resolve_integer_expression(exp)
+      case None => resolve_integer_expression(exp, is_old = true, is_contract)
     }
-    case Local(_) | DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) | AmbiguousSubscript(_, _) | SeqSubscript(_, _) | ArraySubscript(_, _) | PointerSubscript(_, _) => variable_from_expr(expr) match {
-      case Some(v) => valuations(v).asInstanceOf[UncertainIntegerValue]
-      case None => UncertainIntegerValue.uncertain()
-    }
+    case Local(_) | DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) | AmbiguousSubscript(_, _) | SeqSubscript(_, _) | ArraySubscript(_, _) | PointerSubscript(_, _) =>
+      variable_from_expr(expr) match {
+        case Some(v) =>
+          if (is_contract && !is_old) UncertainIntegerValue.uncertain()
+          else valuations(v).asInstanceOf[UncertainIntegerValue]
+        case None => UncertainIntegerValue.uncertain()
+      }
     case Length(arr) => UncertainIntegerValue.above(0)    // TODO: Implement array semantics
     case Size(obj) => resolve_collection_expression(obj).len
     case ProcedureInvocation(ref, args, _, _, _, _) =>
@@ -185,37 +193,44 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @param expr boolean-type COL expression
    * @return An uncertain boolean value that represents all possible values that the given expression can take on
    */
-  def resolve_boolean_expression(expr: Expr[G]): UncertainBooleanValue = expr match {
+  def resolve_boolean_expression(expr: Expr[G], is_old: Boolean = false, is_contract: Boolean = false): UncertainBooleanValue = expr match {
     case BooleanValue(value) => UncertainBooleanValue.from(value)
     case Not(arg) => !resolve_boolean_expression(arg)
-    case AmbiguousOr(left, right) => resolve_boolean_expression(left) || resolve_boolean_expression(right)
-    case Star(left, right) => resolve_boolean_expression(left) && resolve_boolean_expression(right)
-    case And(left, right) => resolve_boolean_expression(left) && resolve_boolean_expression(right)
-    case Or(left, right) => resolve_boolean_expression(left) || resolve_boolean_expression(right)
-    case Implies(left, right) => (!resolve_boolean_expression(left)) || resolve_boolean_expression(right)
-    case Eq(left, right) => handle_equality(left, right)
-    case Neq(left, right) => !handle_equality(left, right)
-    case AmbiguousGreater(left, right) => resolve_integer_expression(left) > resolve_integer_expression(right)
-    case AmbiguousLess(left, right) => resolve_integer_expression(left) < resolve_integer_expression(right)
-    case AmbiguousGreaterEq(left, right) => resolve_integer_expression(left) >= resolve_integer_expression(right)
-    case AmbiguousLessEq(left, right) => resolve_integer_expression(left) <= resolve_integer_expression(right)
-    case Greater(left, right) => resolve_integer_expression(left) > resolve_integer_expression(right)
-    case Less(left, right) => resolve_integer_expression(left) < resolve_integer_expression(right)
-    case GreaterEq(left, right) => resolve_integer_expression(left) >= resolve_integer_expression(right)
-    case LessEq(left, right) => resolve_integer_expression(left) <= resolve_integer_expression(right)
+    case AmbiguousOr(left, right) => resolve_boolean_expression(left, is_old, is_contract) || resolve_boolean_expression(right, is_old, is_contract)
+    case Star(left, right) => resolve_boolean_expression(left, is_old, is_contract) && resolve_boolean_expression(right, is_old, is_contract)
+    case And(left, right) => resolve_boolean_expression(left, is_old, is_contract) && resolve_boolean_expression(right, is_old, is_contract)
+    case Or(left, right) => resolve_boolean_expression(left, is_old, is_contract) || resolve_boolean_expression(right, is_old, is_contract)
+    case Implies(left, right) => (!resolve_boolean_expression(left, is_old, is_contract)) || resolve_boolean_expression(right, is_old, is_contract)
+    case Eq(left, right) => handle_equality(left, right, is_old, is_contract)
+    case Neq(left, right) => !handle_equality(left, right, is_old, is_contract)
+    case AmbiguousGreater(left, right) => resolve_integer_expression(left, is_old, is_contract) > resolve_integer_expression(right, is_old, is_contract)
+    case AmbiguousLess(left, right) => resolve_integer_expression(left, is_old, is_contract) < resolve_integer_expression(right, is_old, is_contract)
+    case AmbiguousGreaterEq(left, right) => resolve_integer_expression(left, is_old, is_contract) >= resolve_integer_expression(right, is_old, is_contract)
+    case AmbiguousLessEq(left, right) => resolve_integer_expression(left, is_old, is_contract) <= resolve_integer_expression(right, is_old, is_contract)
+    case Greater(left, right) => resolve_integer_expression(left, is_old, is_contract) > resolve_integer_expression(right, is_old, is_contract)
+    case Less(left, right) => resolve_integer_expression(left, is_old, is_contract) < resolve_integer_expression(right, is_old, is_contract)
+    case GreaterEq(left, right) => resolve_integer_expression(left, is_old, is_contract) >= resolve_integer_expression(right, is_old, is_contract)
+    case LessEq(left, right) => resolve_integer_expression(left, is_old, is_contract) <= resolve_integer_expression(right, is_old, is_contract)
     case Select(cond, ift, iff) =>
-      var value: UncertainBooleanValue = UncertainBooleanValue(can_be_true = false, can_be_false = false)
-      if (resolve_boolean_expression(cond).can_be_true) value = value.union(resolve_boolean_expression(ift)).asInstanceOf[UncertainBooleanValue]
-      if (resolve_boolean_expression(cond).can_be_false) value = value.union(resolve_boolean_expression(iff)).asInstanceOf[UncertainBooleanValue]
+      var value: UncertainBooleanValue = UncertainBooleanValue.empty()
+      if (resolve_boolean_expression(cond, is_old, is_contract).can_be_true) {
+        value = value.union(resolve_boolean_expression(ift, is_old, is_contract)).asInstanceOf[UncertainBooleanValue]
+      }
+      if (resolve_boolean_expression(cond, is_old, is_contract).can_be_false) {
+        value = value.union(resolve_boolean_expression(iff, is_old, is_contract)).asInstanceOf[UncertainBooleanValue]
+      }
       value
     case Old(exp, at) => at match {
       case Some(_) => throw new IllegalArgumentException(s"Cannot resolve labelled old expression ${expr.toInlineString}")
-      case None => resolve_boolean_expression(exp)
+      case None => resolve_boolean_expression(exp, is_old = true, is_contract)
     }
-    case Local(_) | DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) | AmbiguousSubscript(_, _) | SeqSubscript(_, _) | ArraySubscript(_, _) | PointerSubscript(_, _) => variable_from_expr(expr) match {
-      case Some(v) => valuations(v).asInstanceOf[UncertainBooleanValue]
-      case None => UncertainBooleanValue.uncertain()
-    }
+    case Local(_) | DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) | AmbiguousSubscript(_, _) | SeqSubscript(_, _) | ArraySubscript(_, _) | PointerSubscript(_, _) =>
+      variable_from_expr(expr) match {
+        case Some(v) =>
+          if (is_contract && !is_old) UncertainBooleanValue.uncertain()
+          else valuations(v).asInstanceOf[UncertainBooleanValue]
+        case None => UncertainBooleanValue.uncertain()
+      }
     case ProcedureInvocation(ref, args, _, _, _, _) =>
       get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainBooleanValue]
     case MethodInvocation(_, ref, args, _, _, _, _) =>
@@ -225,7 +240,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case InstanceFunctionInvocation(_, ref, args, _, _, _) =>
       get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainBooleanValue]
     case Held(_) => UncertainBooleanValue.from(lock.nonEmpty)   // TODO: This means that ANY process holds the lock!
-    case Scale(_, res) => resolve_boolean_expression(res)   // TODO: Do anything with permission fraction?
+    case Scale(_, res) => resolve_boolean_expression(res, is_old, is_contract)   // TODO: Do anything with permission fraction?
     case PredicateApply(ref, args, _) =>                    // TODO: Do anything with permission fraction?
       if (ref.decl.body.nonEmpty) UncertainBooleanValue.from(true)   //resolve_boolean_expression(Utils.unify_expression(ref.decl.body.get, Map.from(ref.decl.args.zip(args))))
       else ???    // TODO: Track resource ownership?
@@ -245,42 +260,51 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return An uncertain collection value that represents all possible values that the given expression can take on,
    *         possibly of uncertain length and with uncertain values at uncertain indices
    */
-  def resolve_collection_expression(expr: Expr[G]): UncertainSequence = expr match {
+  def resolve_collection_expression(expr: Expr[G], is_old: Boolean = false, is_contract: Boolean = false): UncertainSequence = expr match {
     // Literals
     case LiteralSeq(element, values) =>
       UncertainSequence(UncertainIntegerValue.single(values.size),
-        values.zipWithIndex.map(t => UncertainIntegerValue.single(t._2) -> resolve_expression(t._1)),
+        values.zipWithIndex.map(t => UncertainIntegerValue.single(t._2) -> resolve_expression(t._1, is_old, is_contract)),
         element)
     case UntypedLiteralSeq(values) =>
       UncertainSequence(UncertainIntegerValue.single(values.size),
-        values.zipWithIndex.map(t => UncertainIntegerValue.single(t._2) -> resolve_expression(t._1)),
+        values.zipWithIndex.map(t => UncertainIntegerValue.single(t._2) -> resolve_expression(t._1, is_old, is_contract)),
         values.head.t)
     // Variables
-    case d: Deref[_] => collection_from_variable(d)
+    case d: Deref[_] => collection_from_variable(d, is_old, is_contract)
     // TODO: Implement array semantics
     case Values(arr, from, to) => ???
     case NewArray(element, dims, moreDims, initialize) => ???
     // Sequence operations
-    case Cons(x, xs) => resolve_collection_expression(xs).prepend(resolve_expression(x))
-    case Concat(xs, ys) => resolve_collection_expression(xs).concat(resolve_collection_expression(ys))
-    case Drop(xs, count) => resolve_collection_expression(xs).drop(resolve_integer_expression(count))
-    case Take(xs, count) => resolve_collection_expression(xs).take(resolve_integer_expression(count))
-    case SeqUpdate(xs, i, x) => resolve_collection_expression(xs).updated(resolve_integer_expression(i), resolve_expression(x))
-    case RemoveAt(xs, i) => resolve_collection_expression(xs).remove(resolve_integer_expression(i))
-    case Slice(xs, from, to) => resolve_collection_expression(xs).slice(resolve_integer_expression(from), resolve_integer_expression(to))
+    case Cons(x, xs) =>
+      resolve_collection_expression(xs, is_old, is_contract).prepend(resolve_expression(x, is_old, is_contract))
+    case Concat(xs, ys) =>
+      resolve_collection_expression(xs, is_old, is_contract).concat(resolve_collection_expression(ys, is_old, is_contract))
+    case Drop(xs, count) =>
+      resolve_collection_expression(xs, is_old, is_contract).drop(resolve_integer_expression(count, is_old, is_contract))
+    case Take(xs, count) =>
+      resolve_collection_expression(xs, is_old, is_contract).take(resolve_integer_expression(count, is_old, is_contract))
+    case SeqUpdate(xs, i, x) =>
+      resolve_collection_expression(xs, is_old, is_contract).updated(resolve_integer_expression(i, is_old, is_contract),
+                                                                     resolve_expression(x, is_old, is_contract))
+    case RemoveAt(xs, i) =>
+      resolve_collection_expression(xs, is_old, is_contract).remove(resolve_integer_expression(i, is_old, is_contract))
+    case Slice(xs, from, to) =>
+      resolve_collection_expression(xs, is_old, is_contract).slice(resolve_integer_expression(from, is_old, is_contract),
+                                                                   resolve_integer_expression(to, is_old, is_contract))
     // Other expressions that can evaluate to a collection
     case Select(cond, ift, iff) =>
-      val condition: UncertainBooleanValue = resolve_boolean_expression(cond)
-      val ift_seq: UncertainSequence = resolve_collection_expression(ift)
-      val iff_seq: UncertainSequence = resolve_collection_expression(iff)
+      val condition: UncertainBooleanValue = resolve_boolean_expression(cond, is_old, is_contract)
+      val ift_seq: UncertainSequence = resolve_collection_expression(ift, is_old, is_contract)
+      val iff_seq: UncertainSequence = resolve_collection_expression(iff, is_old, is_contract)
       if (condition.can_be_true && condition.can_be_false) ift_seq.union(iff_seq)
       else if (condition.can_be_true) ift_seq
       else if (condition.can_be_false) iff_seq
       else UncertainSequence.empty(ift_seq.t)
-    case Old(expr, _) => resolve_collection_expression(expr)
+    case Old(expr, _) => resolve_collection_expression(expr, is_old = true, is_contract)
   }
 
-  private def collection_from_variable(deref: Deref[G]): UncertainSequence = {
+  private def collection_from_variable(deref: Deref[G], is_old: Boolean, is_contract: Boolean): UncertainSequence = {
     val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(deref, this)).collect { case v: IndexedVariable[_] => v }
     val len: Option[UncertainIntegerValue] = seq_lengths.get(deref.ref.decl)
     val t: Type[G] = deref.ref.decl.t match {
@@ -288,9 +312,10 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
       case TSeq(element) => element
       case _ => throw new IllegalArgumentException(s"Unsupported collection type ${deref.ref.decl.t.toInlineString}")
     }
-    UncertainSequence(len.getOrElse(UncertainIntegerValue.above(if (affected.isEmpty) 0 else affected.map(v => v.i).max)),
-      affected.map(v => UncertainIntegerValue.single(v.i) -> valuations(v)).toSeq,
-      t)
+    if (is_contract && !is_old) UncertainSequence.empty(t)
+    else UncertainSequence(len.getOrElse(UncertainIntegerValue.above(if (affected.isEmpty) 0 else affected.map(v => v.i).max)),
+                           affected.map(v => UncertainIntegerValue.single(v.i) -> valuations(v)).toSeq,
+                           t)
   }
 
   private def get_subroutine_return(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]], return_type: Type[G]): UncertainValue =
@@ -299,14 +324,14 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   private def get_return(contract: Expr[G], return_type: Type[G]): UncertainValue = {
     val result_var: ResultVariable[G] = ResultVariable(return_type)
     val result_set: Set[ResolvableVariable[G]] = Set(result_var)
-    val constraints: Set[ConstraintMap[G]] = new ConstraintSolver(this, result_set).resolve_assumption(contract).filter(m => !m.is_impossible)
+    val constraints: Set[ConstraintMap[G]] = new ConstraintSolver(this, result_set, true).resolve_assumption(contract).filter(m => !m.is_impossible)
     val possible_vals: Set[UncertainValue] = constraints.map(m => m.resolve.getOrElse(result_var, UncertainValue.uncertain_of(return_type)))
     possible_vals.reduce((v1, v2) => v1.union(v2))
   }
 
-  private def handle_equality(left: Expr[G], right: Expr[G]): UncertainBooleanValue = left.t match {
-    case _: IntType[_] | TBool() => resolve_expression(left) == resolve_expression(right)
-    case _ => resolve_collection_expression(left) == resolve_collection_expression(right)
+  private def handle_equality(left: Expr[G], right: Expr[G], is_old: Boolean, is_contract: Boolean): UncertainBooleanValue = left.t match {
+    case _: IntType[_] | TBool() => resolve_expression(left, is_old, is_contract) == resolve_expression(right, is_old, is_contract)
+    case _ => resolve_collection_expression(left, is_old, is_contract) == resolve_collection_expression(right, is_old, is_contract)
   }
 
   private def variable_from_expr(variable: Expr[G]): Option[ConcreteVariable[G]] =

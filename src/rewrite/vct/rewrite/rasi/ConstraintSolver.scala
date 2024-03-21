@@ -2,7 +2,7 @@ package vct.rewrite.rasi
 
 import vct.col.ast._
 
-class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVariable[G]]) {
+class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVariable[G]], is_contract: Boolean) {
   def resolve_assumption(expr: Expr[G]): Set[ConstraintMap[G]] = resolve(expr)
 
   private def resolve(expr: Expr[G], negate: Boolean = false): Set[ConstraintMap[G]] = expr match {
@@ -32,8 +32,8 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
   }
 
   private def handle_and(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
-    val left_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(left)
-    val right_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(right)
+    val left_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(left, is_old = false, is_contract)
+    val right_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(right, is_old = false, is_contract)
     val possible_left: Boolean = (neg_left && left_is_possible.can_be_false) || (!neg_left && left_is_possible.can_be_true)
     val possible_right: Boolean = (neg_right && right_is_possible.can_be_false) || (!neg_right && right_is_possible.can_be_true)
 
@@ -46,8 +46,8 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
   }
 
   private def handle_or(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
-    val left_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(left)
-    val right_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(right)
+    val left_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(left, is_old = false, is_contract)
+    val right_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(right, is_old = false, is_contract)
     val possible_left: Boolean = (neg_left && left_is_possible.can_be_false) || (!neg_left && left_is_possible.can_be_true)
     val possible_right: Boolean = (neg_right && right_is_possible.can_be_false) || (!neg_right && right_is_possible.can_be_true)
 
@@ -68,7 +68,7 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
   }
 
   private def handle_implies(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
-    val resolve_left: UncertainBooleanValue = state.resolve_boolean_expression(left)
+    val resolve_left: UncertainBooleanValue = state.resolve_boolean_expression(left, is_old = false, is_contract)
     var res: Set[ConstraintMap[G]] = Set()
     if (neg_left && resolve_left.can_be_false || (!neg_left) && resolve_left.can_be_true) res = res ++ resolve(right, neg_right)
     if (neg_left && resolve_left.can_be_true || (!neg_left) && resolve_left.can_be_false) res = res ++ Set(ConstraintMap.empty[G])
@@ -96,7 +96,8 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
 
   private def handle_single_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): Set[ConstraintMap[G]] = {
     val variable: ResolvableVariable[G] = if (pure_left) get_var(comp.right).get else get_var(comp.left).get
-    val value: UncertainValue = if (pure_left) state.resolve_expression(comp.left) else state.resolve_expression(comp.right)
+    val value: UncertainValue = if (pure_left) state.resolve_expression(comp.left, is_old = false, is_contract)
+                                else state.resolve_expression(comp.right, is_old = false, is_contract)
 
     comp match {
       case _: Eq[_] => Set(if (!negate) ConstraintMap.from(variable, value) else ConstraintMap.from(variable, value.complement()))
