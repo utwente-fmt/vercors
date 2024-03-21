@@ -90,6 +90,11 @@ case object CoercionUtils {
       case (TFraction(), TRational()) => CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat()))
       case (TZFraction(), TRational()) => CoerceZFracRat()
       case (source: FloatType[G], TRational()) => CoerceFloatRat(source)
+      case (TBool(), TCInt()) => CoerceBoolCInt()
+      case (TCInt(), TBool()) => CoerceCIntBool()
+      case (TCInt(), TResource()) => CoerceCIntBool()
+      case (TPointer(_), TBool()) => CoercePointerBool()
+      case (CTPointer(_), TBool()) => CoercePointerBool()
 
       case (source @ TFloat(exponentL, mantissaL), target @ TFloat(exponentR, mantissaR)) if exponentL <= exponentR && mantissaL <= mantissaR =>
         CoerceIncreasePrecision(source, target)

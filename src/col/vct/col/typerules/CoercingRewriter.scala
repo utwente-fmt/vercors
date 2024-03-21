@@ -206,6 +206,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case CoerceRatZFrac() => e
       case CoerceZFracFrac() => e
 
+      case CoerceBoolCInt() => e
+      case CoerceCIntBool() => e
+      case CoercePointerBool() => e
       case CoerceDecreasePrecision(_, _) => e
       case CoerceCFloatCInt(_) => e
       case CoerceCIntCFloat(_) => e
