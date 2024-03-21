@@ -96,8 +96,8 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
 
   private def handle_single_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): Set[ConstraintMap[G]] = {
     val variable: ResolvableVariable[G] = if (pure_left) get_var(comp.right).get else get_var(comp.left).get
-    val value: UncertainValue = if (pure_left) state.resolve_expression(comp.left, is_old = false, is_contract)
-                                else state.resolve_expression(comp.right, is_old = false, is_contract)
+    val value: UncertainValue = if (pure_left) state.resolve_expression(comp.left)
+                                else state.resolve_expression(comp.right)
 
     comp match {
       case _: Eq[_] => Set(if (!negate) ConstraintMap.from(variable, value) else ConstraintMap.from(variable, value.complement()))

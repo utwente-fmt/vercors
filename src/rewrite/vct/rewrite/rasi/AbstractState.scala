@@ -312,7 +312,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
       case TSeq(element) => element
       case _ => throw new IllegalArgumentException(s"Unsupported collection type ${deref.ref.decl.t.toInlineString}")
     }
-    if (is_contract && !is_old) UncertainSequence.empty(t)
+    if (is_contract && !is_old) UncertainSequence.uncertain(t)
     else UncertainSequence(len.getOrElse(UncertainIntegerValue.above(if (affected.isEmpty) 0 else affected.map(v => v.i).max)),
                            affected.map(v => UncertainIntegerValue.single(v.i) -> valuations(v)).toSeq,
                            t)

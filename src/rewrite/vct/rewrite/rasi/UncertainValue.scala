@@ -157,10 +157,10 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
     UncertainBooleanValue(can_be_unequal(other), can_be_equal(other))
   def >=(other: UncertainIntegerValue): UncertainBooleanValue =
     UncertainBooleanValue(value.below_max().intersection(other.value).non_empty(),
-                          value.above_min().intersection(other.value).size() >= Finite(1))
+                          value.above_min().intersection(other.value.below_max()).size() >= Finite(2))
   def <=(other: UncertainIntegerValue): UncertainBooleanValue =
     UncertainBooleanValue(value.above_min().intersection(other.value).non_empty(),
-                          value.below_max().intersection(other.value).size() >= Finite(1))
+                          value.below_max().intersection(other.value.above_min()).size() >= Finite(2))
   def >(other: UncertainIntegerValue): UncertainBooleanValue = !(this <= other)
   def <(other: UncertainIntegerValue): UncertainBooleanValue = !(this >= other)
 
@@ -252,5 +252,6 @@ case class UncertainSequence(len: UncertainIntegerValue, values: Seq[(UncertainI
   }
 }
 case object UncertainSequence {
+  def uncertain(t: Type[_]): UncertainSequence = UncertainSequence(UncertainIntegerValue.above(0), Seq(), t)
   def empty(t: Type[_]): UncertainSequence = UncertainSequence(UncertainIntegerValue.empty(), Seq(), t)
 }

@@ -47,6 +47,10 @@ case class RASIGenerator[G]() {
       found_edges.addAll(successors.map(s => (curr, s)))
       successors.foreach(s => if (!found_states.contains(s)) {found_states += s; current_branches += s})
     }
+
+    // The initial state converts to simply "true", so it would make the RASI trivial
+    found_states.filterInPlace(s => s.valuations != initial_state.valuations)
+    found_edges.filterInPlace(t => t._1.valuations != initial_state.valuations && t._2.valuations != initial_state.valuations)
   }
 
   private def get_initial_values(vars: Set[ConcreteVariable[G]]): Map[ConcreteVariable[G], UncertainValue] = {
@@ -56,6 +60,6 @@ case class RASIGenerator[G]() {
   private def reduce_redundant_states(): (Seq[AbstractState[G]], Seq[(AbstractState[G], AbstractState[G])]) = {
     val state_groups: Map[Map[ConcreteVariable[G], UncertainValue], ArrayBuffer[AbstractState[G]]] = Map.from(found_states.groupBy(s => s.valuations))
     val edge_groups: Seq[(AbstractState[G], AbstractState[G])] = Seq.from(found_edges.map(t => (state_groups(t._1.valuations).head, state_groups(t._2.valuations).head)).distinct)
-    (state_groups.values.toSeq.map(v => v.head), edge_groups)
+    (state_groups.values.toSeq.map(v => v.head), edge_groups.filter(t => t._1 != t._2))
   }
 }
