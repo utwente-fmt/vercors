@@ -749,20 +749,20 @@ public class MainTransformer<T> {
      */
     private InstanceMethod<T> create_find_minimum_advance() {
         // Create parameters
-        Variable<T> vals = new Variable<>(col_system.T_SEQ_INT, OriGen.create("vals"));
-        List<Variable<T>> params = List.from(CollectionConverters.asScala(java.util.List.of(vals)));
+        java.util.List<Variable<T>> parameters = new java.util.ArrayList<>();
+        java.util.List<Local<T>> locals = new java.util.ArrayList<>();
+        for (int i = 0; i < col_system.get_total_nr_events(); i++) {
+            Variable<T> param_i = new Variable<>(col_system.T_INT, OriGen.create("val" + i));
+            Ref<T, Variable<T>> param_i_ref = new DirectRef<>(param_i, ClassTag$.MODULE$.apply(Variable.class));
+            parameters.add(param_i);
+            locals.add(new Local<>(param_i_ref, OriGen.create()));
+        }
+        List<Variable<T>> params = List.from(CollectionConverters.asScala(parameters));
 
-        // Create appropriate references to the parameter and the method result
-        Ref<T, Variable<T>> vals_ref = new DirectRef<>(vals, ClassTag$.MODULE$.apply(Variable.class));
-        Local<T> vals_local = new Local<>(vals_ref, OriGen.create());
+        // Create appropriate references to the method and its result
         Ref<T, ContractApplicable<T>> this_method = new LazyRef<>(() -> find_minimum_advance, Option.empty(),
                 ClassTag$.MODULE$.apply(ContractApplicable.class));
         Result<T> result = new Result<>(this_method, OriGen.create());
-
-        // Create precondition
-        Size<T> vals_size = new Size<>(vals_local, OriGen.create());
-        IntegerValue<T> size_value = new IntegerValue<>(BigInt.apply(col_system.get_total_nr_events()), OriGen.create());
-        Eq<T> requires = new Eq<>(vals_size, size_value, OriGen.create());
 
         // Start collecting postconditions
         java.util.List<Expr<T>> ensures = new java.util.ArrayList<>();
@@ -772,11 +772,8 @@ public class MainTransformer<T> {
         java.util.List<Expr<T>> none_exists = new java.util.ArrayList<>();
         java.util.List<Expr<T>> result_equals_timeout_left = new java.util.ArrayList<>();
         java.util.List<Expr<T>> result_equals_timeout_right = new java.util.ArrayList<>();
-        for (int i = 0; i < col_system.get_total_nr_events(); i++) {
-            // Prepare sequence access
-            SeqSubscript<T> vals_i = new SeqSubscript<>(vals_local, new IntegerValue<>(BigInt.apply(i), OriGen.create()),
-                    new GeneratedBlame<>(), OriGen.create());
 
+        for (Local<T> vals_i : locals) {
             // Create condition that result is a lower bound
             LessEq<T> bound = new LessEq<>(result, vals_i, OriGen.create());
             Less<T> except = new Less<>(vals_i, col_system.MINUS_ONE, OriGen.create());
@@ -807,7 +804,7 @@ public class MainTransformer<T> {
         ensures.add(new And<>(first_implies, second_implies, OriGen.create()));
 
         // Generate contract and method and return
-        ApplicableContract<T> contract = col_system.to_applicable_contract(requires, col_system.fold_star(ensures));
+        ApplicableContract<T> contract = col_system.to_applicable_contract(col_system.TRUE, col_system.fold_star(ensures));
         return new InstanceMethod<>(col_system.T_INT, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract,
                 false, true, new GeneratedBlame<>(), OriGen.create("find_minimum_advance"));
     }
@@ -1090,8 +1087,12 @@ public class MainTransformer<T> {
 
         // Assign to min_advance
         Ref<T, InstanceMethod<T>> fma_ref = new DirectRef<>(find_minimum_advance, ClassTag$.MODULE$.apply(InstanceMethod.class));
-        java.util.List<Expr<T>> params = java.util.List.of(event_state_deref);
-        MethodInvocation<T> fma_invoke = new MethodInvocation<>(col_system.THIS, fma_ref, List.from(CollectionConverters.asScala(params)),
+        java.util.List<Expr<T>> event_entries = new java.util.ArrayList<>();
+        for (int i = 0; i < col_system.get_total_nr_events(); i++) {
+            IntegerValue<T> i_val = new IntegerValue<>(BigInt.apply(i), OriGen.create());
+            event_entries.add(new SeqSubscript<>(event_state_deref, i_val, new GeneratedBlame<>(), OriGen.create()));
+        }
+        MethodInvocation<T> fma_invoke = new MethodInvocation<>(col_system.THIS, fma_ref, List.from(CollectionConverters.asScala(event_entries)),
                 col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
         Assign<T> assign_ma = new Assign<>(ma_local, fma_invoke, new GeneratedBlame<>(), OriGen.create());
 
@@ -1103,9 +1104,7 @@ public class MainTransformer<T> {
 
         // Advance delays in event_state
         java.util.List<Expr<T>> literal_values = new java.util.ArrayList<>();
-        for (int i = 0; i < col_system.get_total_nr_events(); i++) {
-            IntegerValue<T> i_val = new IntegerValue<>(BigInt.apply(i), OriGen.create());
-            SeqSubscript<T> ev_i = new SeqSubscript<>(event_state_deref, i_val, new GeneratedBlame<>(), OriGen.create());
+        for (Expr<T> ev_i : event_entries) {
             Less<T> condition = new Less<>(ev_i, col_system.MINUS_ONE, OriGen.create());
             Minus<T> minus = new Minus<>(ev_i, ma_local, OriGen.create());
             literal_values.add(new Select<>(condition, col_system.MINUS_THREE, minus, OriGen.create()));
