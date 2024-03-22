@@ -200,8 +200,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case And(left, right) => resolve_boolean_expression(left, is_old, is_contract) && resolve_boolean_expression(right, is_old, is_contract)
     case Or(left, right) => resolve_boolean_expression(left, is_old, is_contract) || resolve_boolean_expression(right, is_old, is_contract)
     case Implies(left, right) => (!resolve_boolean_expression(left, is_old, is_contract)) || resolve_boolean_expression(right, is_old, is_contract)
-    case Eq(left, right) => handle_equality(left, right, is_old, is_contract)
-    case Neq(left, right) => !handle_equality(left, right, is_old, is_contract)
+    case Eq(left, right) => handle_equality(left, right, is_old, is_contract, negate = false)
+    case Neq(left, right) => handle_equality(left, right, is_old, is_contract, negate = true)
     case AmbiguousGreater(left, right) => resolve_integer_expression(left, is_old, is_contract) > resolve_integer_expression(right, is_old, is_contract)
     case AmbiguousLess(left, right) => resolve_integer_expression(left, is_old, is_contract) < resolve_integer_expression(right, is_old, is_contract)
     case AmbiguousGreaterEq(left, right) => resolve_integer_expression(left, is_old, is_contract) >= resolve_integer_expression(right, is_old, is_contract)
@@ -330,9 +330,16 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     possible_vals.reduce((v1, v2) => v1.union(v2))
   }
 
-  private def handle_equality(left: Expr[G], right: Expr[G], is_old: Boolean, is_contract: Boolean): UncertainBooleanValue = left.t match {
-    case _: IntType[_] | TBool() => resolve_expression(left, is_old, is_contract) == resolve_expression(right, is_old, is_contract)
-    case _: TSeq[_] | TArray(_) => resolve_collection_expression(left, is_old, is_contract) == resolve_collection_expression(right, is_old, is_contract)
+  private def handle_equality(left: Expr[G], right: Expr[G], is_old: Boolean, is_contract: Boolean, negate: Boolean): UncertainBooleanValue = left.t match {
+    case _: IntType[_] | TBool() =>
+      val left_val: UncertainValue = resolve_expression(left, is_old, is_contract)
+      val right_val: UncertainValue = resolve_expression(right, is_old, is_contract)
+      if (!negate) left_val == right_val else left_val != right_val
+    case _: TSeq[_] | TArray(_) =>
+      val left_coll: UncertainSequence = resolve_collection_expression(left, is_old, is_contract)
+      val right_coll: UncertainSequence = resolve_collection_expression(right, is_old, is_contract)
+      val equals: UncertainBooleanValue = left_coll == right_coll
+      if (!negate) equals else !equals
     case _ => UncertainBooleanValue.from(true)    // TODO: The justification for this is that the program will be verified anyway,
                                                   //  so object equality does not need to be considered; does that make sense?
   }
