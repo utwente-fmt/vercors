@@ -42,6 +42,7 @@ sealed trait Referrable[G] {
     case RefAxiomaticDataType(decl) => Referrable.originName(decl)
     case RefFunction(decl) => Referrable.originName(decl)
     case RefProcedure(decl) => Referrable.originName(decl)
+    case RefVeSUVMainMethod(_) => ""
     case RefPredicate(decl) => Referrable.originName(decl)
     case RefClass(decl) => Referrable.originName(decl)
     case RefModel(decl) => Referrable.originName(decl)
@@ -137,6 +138,7 @@ case object Referrable {
     case decl: AxiomaticDataType[G] => RefAxiomaticDataType(decl)
     case decl: Function[G] => RefFunction(decl)
     case decl: Procedure[G] => RefProcedure(decl)
+    case decl: VeSUVMainMethod[G] => RefVeSUVMainMethod(decl)
     case decl: Predicate[G] => RefPredicate(decl)
     case decl: Class[G] => RefClass(decl)
     case decl: Model[G] => RefModel(decl)
@@ -276,6 +278,7 @@ case class RefSimplificationRule[G](decl: SimplificationRule[G]) extends Referra
 case class RefAxiomaticDataType[G](decl: AxiomaticDataType[G]) extends Referrable[G] with SpecTypeNameTarget[G] with SpecNameTarget[G] with JavaDerefTarget[G]
 case class RefFunction[G](decl: Function[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
 case class RefProcedure[G](decl: Procedure[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
+case class RefVeSUVMainMethod[G](decl: VeSUVMainMethod[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
 case class RefPredicate[G](decl: Predicate[G]) extends Referrable[G] with SpecInvocationTarget[G]
 case class RefClass[G](decl: Class[G]) extends Referrable[G] with PVLTypeNameTarget[G] with SpecNameTarget[G] with ThisTarget[G]
 case class RefModel[G](decl: Model[G]) extends Referrable[G] with SpecTypeNameTarget[G] with ThisTarget[G] with PVLConstructorTarget[G] with JavaConstructorTarget[G]

@@ -15,6 +15,6 @@ trait InstancePredicateImpl[G] extends ClassDeclarationImpl[G] with AbstractPred
 
   override def layout(implicit ctx: Ctx): Doc = Group(
     Doc.rspread(layoutModifiers) <> "resource" <+> ctx.name(this) <> "(" <> Doc.args(args) <> ")" <>
-      body.map(Text(" =") <>> _).getOrElse(Text(";"))
+      body.map(Text(" =") <>> _ <> ";").getOrElse(Text(";"))
   )
 }

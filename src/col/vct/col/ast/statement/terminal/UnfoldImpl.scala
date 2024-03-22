@@ -1,6 +1,6 @@
 package vct.col.ast.statement.terminal
 
-import vct.col.ast.Unfold
+import vct.col.ast.{Expr, Unfold}
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.util.CheckFoldUnfoldTarget
 import vct.col.print.{Ctx, Doc, Show, Text}
@@ -17,4 +17,6 @@ trait UnfoldImpl[G] extends NodeFamilyImpl[G] with CheckFoldUnfoldTarget[G] with
     case Ctx.Silver => layoutSilver
     case _ => Doc.inlineSpec(Show.lazily(layoutSpec(_)))
   }
+
+  override def expr: Expr[G] = this.res
 }

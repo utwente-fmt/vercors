@@ -101,6 +101,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     case p: JavaParam[Pre] => java.rewriteParameter(p)
 
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)
+    case main: VeSUVMainMethod[Pre] => pvl.rewriteMainMethod(main)
 
     case method: JavaMethod[Pre] => java.rewriteMethod(method)
 

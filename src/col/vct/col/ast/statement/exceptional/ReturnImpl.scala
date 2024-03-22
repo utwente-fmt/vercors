@@ -18,4 +18,6 @@ trait ReturnImpl[G] extends ExceptionalStatementImpl[G] with ReturnOps[G] { this
 
   override def layout(implicit ctx: Ctx): Doc =
     Text("return") <> (if(result == Void[G]()) Text(";") else Empty <+> result <> ";")
+
+  override def expr: Expr[G] = this.result
 }
