@@ -15,8 +15,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return The set of possible successor states
    */
   def successors(): Set[AbstractState[G]] =
-    // TODO: Only consider the state that holds the global lock if it is locked?
-    processes.keySet.flatMap(p => p.atomic_step(this))
+    processes.keySet.filter(p => lock.isEmpty || lock.get.equals(p)).flatMap(p => p.atomic_step(this))
 
   /**
    * Updates the state by changing the program counter for a process.
@@ -278,6 +277,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     // Sequence operations
     case Cons(x, xs) =>
       resolve_collection_expression(xs, is_old, is_contract).prepend(resolve_expression(x, is_old, is_contract))
+    case AmbiguousPlus(xs, ys) =>
+      resolve_collection_expression(xs, is_old, is_contract).concat(resolve_collection_expression(ys, is_old, is_contract))
     case Concat(xs, ys) =>
       resolve_collection_expression(xs, is_old, is_contract).concat(resolve_collection_expression(ys, is_old, is_contract))
     case Drop(xs, count) =>
@@ -331,7 +332,9 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
 
   private def handle_equality(left: Expr[G], right: Expr[G], is_old: Boolean, is_contract: Boolean): UncertainBooleanValue = left.t match {
     case _: IntType[_] | TBool() => resolve_expression(left, is_old, is_contract) == resolve_expression(right, is_old, is_contract)
-    case _ => resolve_collection_expression(left, is_old, is_contract) == resolve_collection_expression(right, is_old, is_contract)
+    case _: TSeq[_] | TArray(_) => resolve_collection_expression(left, is_old, is_contract) == resolve_collection_expression(right, is_old, is_contract)
+    case _ => UncertainBooleanValue.from(true)    // TODO: The justification for this is that the program will be verified anyway,
+                                                  //  so object equality does not need to be considered; does that make sense?
   }
 
   private def variable_from_expr(variable: Expr[G]): Option[ConcreteVariable[G]] =

@@ -34,15 +34,18 @@ case object Utils {
 
   def print[G](states: Seq[AbstractState[G]], edges: Seq[(AbstractState[G], AbstractState[G])], out: Path): Unit = {
     val node_names: Map[AbstractState[G], String] = Map.from(states.zipWithIndex.map(t => (t._1, s"n${t._2}")))
-    RWFile(out.toFile).write(w => print_state_space(node_names, edges, w))
+    RWFile(out.toFile).write(w => print_state_space(node_names, edges, w, states.head.to_expression.toInlineString.length > 50))
   }
 
-  private def print_state_space[G](names: Map[AbstractState[G], String], edges: Seq[(AbstractState[G], AbstractState[G])], writer: Writer): Unit = {
+  private def print_state_space[G](names: Map[AbstractState[G], String],
+                                   edges: Seq[(AbstractState[G], AbstractState[G])],
+                                   writer: Writer,
+                                   shorten_labels: Boolean = false): Unit = {
     writer.append("digraph {\n")
     names.foreach(t => writer.append(t._2)
                              .append(s"[label=${"\""}")
-                             .append(t._1.to_expression.toInlineString)
-                             .append(s"${"\""}];\n"))
+                             .append(if (shorten_labels) t._2 else t._1.to_expression.toInlineString)
+                             .append(s"${"\""}];${if (shorten_labels) s" /* ${t._1.to_expression.toInlineString} */" else ""}\n"))
     edges.foreach(t => writer.append(names(t._1))
                              .append(" -> ")
                              .append(names(t._2))
