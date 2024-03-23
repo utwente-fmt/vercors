@@ -1,6 +1,7 @@
 package vct.rewrite.rasi
 
 import vct.col.ast._
+import vct.col.origin.Origin
 
 sealed trait ResolvableVariable[G] {
   def is(expr: Expr[G], state: AbstractState[G]): Boolean
@@ -31,6 +32,16 @@ case class FieldVariable[G](field: InstanceField[G]) extends ConcreteVariable[G]
   override def is_contained_by(expr: Expr[G], state: AbstractState[G]): Boolean = is(expr, state)
   override def to_expression: Expr[G] = Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o)
   override def t: Type[G] = field.t
+}
+
+case class SizeVariable[G](field: InstanceField[G]) extends ConcreteVariable[G] {
+  override def is(expr: Expr[G], state: AbstractState[G]): Boolean = expr match {
+    case Size(obj) => field_equals(obj, field)
+    case _ => false
+  }
+  override def is_contained_by(expr: Expr[G], state: AbstractState[G]): Boolean = field_equals(expr, field)
+  override def to_expression: Expr[G] = Size(Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o))(field.o)
+  override def t: Type[G] = TInt()(field.o)
 }
 
 case class IndexedVariable[G](field: InstanceField[G], i: Int) extends ConcreteVariable[G] {

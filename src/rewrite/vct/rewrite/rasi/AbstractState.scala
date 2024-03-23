@@ -72,13 +72,16 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    *         collection updated accordingly
    */
   def with_updated_collection(variable: Expr[G], assigned: Expr[G]): AbstractState[G] = {
-    val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(variable, this)).collect{ case v: IndexedVariable[_] => v }
+    val affected: Set[ConcreteVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(variable, this))
+    val indexed: Set[IndexedVariable[G]] = affected.collect{ case v: IndexedVariable[G] => v }
+    val size: Set[SizeVariable[G]] = affected.collect{ case v: SizeVariable[G] => v }
     if (affected.isEmpty) return this
-    val by_index: Map[Int, IndexedVariable[G]] = Map.from(affected.map(v => (v.i, v)))
+    val by_index: Map[Int, IndexedVariable[G]] = Map.from(indexed.map(v => (v.i, v)))
     val new_values: UncertainSequence = resolve_collection_expression(assigned)
     var vals: Map[ConcreteVariable[G], UncertainValue] = valuations
     by_index.foreach(t => vals = vals + (t._2 -> new_values.get(t._1)))
-    AbstractState(vals, processes, lock, seq_lengths + (affected.head.field -> new_values.len))
+    size.foreach(t => vals = vals + (t -> new_values.len))
+    AbstractState(vals, processes, lock, seq_lengths + (indexed.head.field -> new_values.len))
   }
 
 
@@ -172,8 +175,14 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
           else valuations(v).asInstanceOf[UncertainIntegerValue]
         case None => UncertainIntegerValue.uncertain()
       }
-    case Length(arr) => UncertainIntegerValue.above(0)    // TODO: Implement array semantics
-    case Size(obj) => resolve_collection_expression(obj).len
+    case Length(arr) => variable_from_expr(expr) match {
+      case Some(v) => valuations(v).asInstanceOf[UncertainIntegerValue]
+      case None => resolve_collection_expression(arr).len
+    }
+    case Size(obj) => variable_from_expr(expr) match {
+      case Some(v) => valuations(v).asInstanceOf[UncertainIntegerValue]
+      case None => resolve_collection_expression(obj).len
+    }
     case ProcedureInvocation(ref, args, _, _, _, _) =>
       get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainIntegerValue]
     case MethodInvocation(_, ref, args, _, _, _, _) =>
@@ -271,9 +280,12 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
         values.head.t)
     // Variables
     case d: Deref[_] => collection_from_variable(d, is_old, is_contract)
+    // Array operations
+    case Values(arr, from, to) =>
+      resolve_collection_expression(arr, is_old, is_contract).slice(resolve_integer_expression(from, is_old, is_contract),
+                                                                    resolve_integer_expression(to, is_old, is_contract))
     // TODO: Implement array semantics
-    case Values(arr, from, to) => ???
-    case NewArray(element, dims, moreDims, initialize) => ???
+    case NewArray(element, dims, moreDims, initialize) => UncertainSequence.uncertain(element)
     // Sequence operations
     case Cons(x, xs) =>
       resolve_collection_expression(xs, is_old, is_contract).prepend(resolve_expression(x, is_old, is_contract))

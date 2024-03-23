@@ -4,7 +4,7 @@ import hre.stages.Stage
 import vct.col.ast.{InstanceField, InstanceMethod, Node}
 import vct.col.rewrite.Generation
 import vct.options.Options
-import vct.rewrite.rasi.{ConcreteVariable, FieldVariable, IndexedVariable, RASIGenerator}
+import vct.rewrite.rasi.{ConcreteVariable, FieldVariable, IndexedVariable, RASIGenerator, SizeVariable}
 
 import java.nio.file.Path
 
@@ -28,6 +28,10 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path) extends Stage[Node
   }
 
   private def resolve_variable(in: Node[Generation], name: String): ConcreteVariable[Generation] = {
+    if (name.contains("|")) {
+      val var_name = name.substring(1, name.length - 1)
+      return SizeVariable(in.transSubnodes.collectFirst{ case f: InstanceField[_] if f.o.getPreferredName.get.snake.equals(var_name) => f }.get)
+    }
     val name_len = name.indexOf("[")
     val var_name = if (name_len == -1) name else name.substring(0, name_len)
     val index: Option[Integer] = if (name_len == -1) None else Some(Integer.valueOf(name.substring(name_len + 1, name.length - 1)))
