@@ -123,13 +123,48 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
   private def handle_collection_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): Set[ConstraintMap[G]] = {
     val variable: Expr[G] = if (pure_left) comp.right else comp.left
     val value: UncertainSequence = state.resolve_collection_expression(if (pure_left) comp.left else comp.right)
-    val affected: Set[IndexedVariable[G]] = vars.filter(v => v.is_contained_by(variable, state)).collect{ case v: IndexedVariable[G] => v }
+    val affected: Set[(IndexedVariable[G], Int)] = get_contained_vars(variable)
 
     comp match {
-      case _: Eq[_] if !negate => Set(ConstraintMap.from_cons(affected.map(v => v -> value.get(v.i))))
-      case _: Neq[_] if negate => Set(ConstraintMap.from_cons(affected.map(v => v -> value.get(v.i))))
+      case _: Eq[_] if !negate => Set(ConstraintMap.from_cons(affected.map(t => t._1 -> value.get(t._2))))
+      case _: Neq[_] if negate => Set(ConstraintMap.from_cons(affected.map(t => t._1 -> value.get(t._2))))
       case _ => throw new IllegalArgumentException(s"The operator ${comp.toInlineString} is not supported for collections")
     }
+  }
+
+  private def get_contained_vars(variable: Expr[G]): Set[(IndexedVariable[G], Int)] = variable match {
+    case LiteralSeq(_, _) | UntypedLiteralSeq(_) | Old(_, _) => Set()
+    case d: Deref[_] =>
+      val variables: Set[IndexedVariable[G]] = vars.filter(v => v.is_contained_by(d, state)).collect{ case v: IndexedVariable[G] => v }
+      variables.map(v => (v, v.i))
+    case Take(xs, count) => state.resolve_integer_expression(count).try_to_resolve() match {
+      case None => ???
+      case Some(i) => get_contained_vars(xs).filter(t => t._2 < i)
+    }
+    case Drop(xs, count) => state.resolve_integer_expression(count).try_to_resolve() match {
+      case None => ???
+      case Some(i) => get_contained_vars(xs).filter(t => t._2 >= i).map(t => (t._1, t._2 - i))
+    }
+    case Slice(xs, from, to) => state.resolve_integer_expression(from).try_to_resolve() match {
+      case None => ???
+      case Some(l) => state.resolve_integer_expression(to).try_to_resolve() match {
+        case None => ???
+        case Some(u) => get_contained_vars(xs).filter(t => l <= t._2 && t._2 < u).map(t => (t._1, t._2 - l))
+      }
+    }
+    case Concat(left, right) => state.resolve_collection_expression(left).len.try_to_resolve() match {
+      case None => ???
+      case Some(i) => get_contained_vars(left) ++ get_contained_vars(right).map(t => (t._1, t._2 + i))
+    }
+    case AmbiguousPlus(left, right) => state.resolve_collection_expression(left).len.try_to_resolve() match {
+      case None => ???
+      case Some(i) => get_contained_vars(left) ++ get_contained_vars(right).map(t => (t._1, t._2 + i))
+    }
+    case Select(cond, ift, iff) =>
+      val condition = state.resolve_boolean_expression(cond)
+      if (condition.can_be_true && !condition.can_be_false) get_contained_vars(ift)
+      else if (condition.can_be_false && !condition.can_be_true) get_contained_vars(iff)
+      else ???
   }
 
   private def get_var(expr: Expr[G]): Option[ResolvableVariable[G]] = vars.collectFirst{ case v: ResolvableVariable[G] if v.is(expr, state) => v }
