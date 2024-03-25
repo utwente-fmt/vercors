@@ -23,7 +23,7 @@ import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
-import vct.rewrite.{EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, SmtlibToProverTypes}
+import vct.rewrite.{EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, SmtlibToProverTypes, VariableToPointer}
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateSeqProgPermissions, SplitSeqGuards}
 
@@ -211,6 +211,7 @@ case class SilverTransformation
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.
     ReadToValue, // resolve wildcard into fractional permission
+    VariableToPointer,
     TrivialAddrOf,
     DesugarCoalescingOperators, // no ?.
     PinCollectionTypes, // no anonymous sequences, sets, etc.
