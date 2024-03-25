@@ -129,11 +129,11 @@ class Transformation
           case errors => throw TransformationCheckError(pass, errors)
         }
 
+        result = PrettifyBlocks().dispatch(result)
+
         onAfterPassKey.foreach {
           case (key, action) => if (pass.key == key) action(result)
         }
-
-        result = PrettifyBlocks().dispatch(result)
       }
 
       for ((feature, examples) <- Feature.examples(result)) {
