@@ -85,7 +85,8 @@ case class CreateLoopInvariants[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
     stat match {
       case l: Loop[Pre] => dispatchLoop(l)
-      case r@(_:Return[Pre] | _:Continue[Pre] | _:Break[Pre] ) if loopContract.nonEmpty => Block[Post](Seq(loopContract.top(), super.dispatch(stat)))(r.o)
+//      case r@(_:Return[Pre] | _:Continue[Pre] | _:Break[Pre] ) if loopContract.nonEmpty => Block[Post](Seq(loopContract.top(), super.dispatch(stat)))(r.o)
+      case r@(_:Continue[Pre]) if loopContract.nonEmpty => Block[Post](Seq(loopContract.top(), super.dispatch(stat)))(r.o)
       case _ => super.dispatch(stat)
     }
   }
