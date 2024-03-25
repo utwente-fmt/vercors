@@ -46,14 +46,25 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
 
   def dockerBuild: T[(String, PathRef)] = T {
     val dest = T.dest / "dest"
+    val data = dest / "opt" / artifactName()
+    val bin = dest / "usr" / "bin"
 
-    val jar = copy(assembly().path, dest / s"${executableName()}.jar")
-    val res = bareClasspath().map(res => copy(res, dest / res.last))
+    os.makeDir.all(data)
+    os.makeDir.all(bin)
 
-    os.walk(dest / "deps" / "win", preOrder = false).foreach(os.remove)
-    os.walk(dest / "deps" / "darwin", preOrder = false).foreach(os.remove)
+    val jar = copy(assembly().path, data / s"${executableName()}.jar")
+    val res = bareClasspath().map(res => copy(res, data / res.last))
 
-    os.write(dest / ".classpath", "-cp " + (jar +: res).map(_.relativeTo(dest)).map(os.root / _).map(_.toString).mkString(":"))
+    os.walk(data / "deps" / "win", preOrder = false).foreach(os.remove)
+    os.walk(data / "deps" / "darwin", preOrder = false).foreach(os.remove)
+
+    os.write(data / ".classpath", "-cp " + (jar +: res).map(_.relativeTo(dest)).map(os.root / _).map(_.toString).mkString(":"))
+
+    os.write(bin / executableName(),
+      s"""#!/bin/sh
+         |java ${forkArgs().mkString(" ")} @/opt/${artifactName()}/.classpath ${finalMainClass()} "$$@"
+         |""".stripMargin)
+    os.perms.set(bin / executableName(), os.PermSet.fromString("rwxrwxr-x"))
 
     val entryPoint =
       Seq("java") ++ forkArgs() ++ Seq(s"@/.classpath", finalMainClass())
@@ -63,7 +74,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
          |RUN apk add --no-cache openjdk17 gcompat libstdc++ libgcc
          |COPY dest /
          |${dockerExtra()}
-         |ENTRYPOINT ${upickle.default.write(entryPoint)}
+         |ENTRYPOINT ${executableName()}
          |""".stripMargin)
 
     os.proc("docker", "build", "--file", T.dest / "Dockerfile", "--iidfile", T.dest / "id", ".").call(cwd = T.dest)
