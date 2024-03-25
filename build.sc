@@ -513,10 +513,12 @@ object vercors extends Module {
   object main extends VercorsModule {
     def key = "main"
     def name = "VerCors"
+    def dockerName = DockerImageName.Public("utwentefmt", "vercors")
     def maintainer = "Pieter Bos <p.h.bos@utwente.nl>"
     def homepage = Some("https://utwente.nl/vercors")
     def executableName = "vercors"
     def version = T { buildInfo.gitVersion() }
+    def dockerVersion = T { Some(buildInfo.gitDockerVersion()) }
     def summary = "A deductive verifier for concurrent and parallel software."
     def description =
       """The VerCors verifier is a tool for deductive verification of concurrent
@@ -581,6 +583,13 @@ object vercors extends Module {
         gitVersionTag() match {
           case Some(tag) if tag.startsWith("v") => tag.substring(1)
           case _ => "9999.9.9-SNAPSHOT"
+        }
+      }
+
+      def gitDockerVersion: T[String] = T.input {
+        gitVersionTag() match {
+          case Some(tag) if tag.startsWith("v") => tag.substring(1)
+          case _ => "latest"
         }
       }
 
