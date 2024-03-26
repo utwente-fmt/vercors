@@ -301,6 +301,10 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlFork(_, obj, _) => Fork(convert(obj))(blame(stat))
     case PvlJoin(_, obj, _) => Join(convert(obj))(blame(stat))
     case PvlValStatement(inner) => convert(inner)
+    case PvlIndetBranch(_, _, _, _, body, None) =>
+      IndetBranch(Seq(convert(body), Block(Nil)))
+    case PvlIndetBranch(_, _, _, _, body, Some(ElseBlock0(_, otherwise))) =>
+      IndetBranch(Seq(convert(body), convert(otherwise)))
     case PvlIf(_, _, cond, _, body, None) =>
       PVLBranch(Seq((convert(cond), convert(body))))(blame(stat))
     case PvlIf(_, _, cond, _, body, Some(ElseBlock0(_, otherwise))) =>
