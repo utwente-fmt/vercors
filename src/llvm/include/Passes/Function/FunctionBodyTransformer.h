@@ -3,14 +3,14 @@
 
 #include <llvm/Analysis/LoopInfo.h>
 
-#include "col.pb.h"
+#include "vct/col/ast/col.pb.h"
 #include "FunctionDeclarer.h"
 /**
  * The FunctionBodyTransformer that transforms LLVM blocks and instructions into suitable VerCors COL abstractions.
  */
 namespace vcllvm {
     using namespace llvm;
-    namespace col = vct::col::serialize;
+    namespace col = vct::col::ast;
 
     struct LabeledColBlock {
         col::Label &label;

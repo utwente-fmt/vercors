@@ -255,8 +255,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         returnType = FuncTools.repeat[Type[Post]](TArray(_), definedDims + undefinedDims, dispatch(elementType)),
         args = dimArgs,
         requires = UnitAccountedPredicate(requires),
-        ensures = UnitAccountedPredicate(ensures),
-        decreases = Some(DecreasesClauseNoRecursion[Post]()),
+        ensures = UnitAccountedPredicate(ensures)
       )(o.where(name = if(initialize) "make_array_initialized" else "make_array"))
     }))
   }

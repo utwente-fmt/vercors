@@ -29,7 +29,8 @@ namespace llvm2Col {
         std::string instructionPosition = deriveBlockShortPosition(*llvmInstruction.getParent());
         llvm::raw_string_ostream instructionPosStream = llvm::raw_string_ostream(instructionPosition);
         int pos = 0;
-        for (auto &I: llvmInstruction.getParent()->getInstList()) {
+        llvm::BasicBlock *bb = llvmInstruction.getParent();
+        for (auto &I: *bb) {
             pos++;
             if (&I == &llvmInstruction) {
                 break;

@@ -28,10 +28,10 @@ namespace vcllvm {
                     break;
                 }
                 col::GlobalDeclaration *globDecl = pProgram->add_declarations();
-                llvm2Col::setColNodeId(globDecl);
                 col::LlvmGlobal *colGlobal = globDecl->mutable_llvm_global();
+                llvm2Col::setColNodeId(colGlobal);
                 colGlobal->set_value(globVal->getString().str());
-                colGlobal->set_origin(llvm2Col::generateGlobalValOrigin(M, globVal->getString().str()));
+                colGlobal->set_allocated_origin(llvm2Col::generateGlobalValOrigin(M, globVal->getString().str()));
             }
         }
         return PreservedAnalyses::all();

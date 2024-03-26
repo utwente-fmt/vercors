@@ -56,8 +56,6 @@ namespace llvm2Col {
                 return prefix + "fixedvector";
             case llvm::Type::ScalableVectorTyID:
                 return prefix + "scalevector";
-            case llvm::Type::DXILPointerTyID:
-                return prefix + "dxilptr";
         }
     }
         std::string deriveArgumentPreferredName(llvm::Argument &llvmArgument) {
