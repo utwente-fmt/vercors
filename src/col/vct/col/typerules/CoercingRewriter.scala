@@ -739,6 +739,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case c @ CharValue(_) => c
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
+      case choose @ Choose(xs) =>
+        Choose(set(xs)._1)(choose.blame)
+      case choose @ ChooseFresh(xs) =>
+        ChooseFresh(set(xs)._1)(choose.blame)
       case CLiteralArray(exprs) =>
         CLiteralArray(exprs)
       case CLocal(name) => e
@@ -1117,6 +1121,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case PVLNew(t, args, givenMap, yields) => e
       case Range(from, to) =>
         Range(int(from), int(to))
+      case RangeSet(from, to) =>
+        RangeSet(int(from), int(to))
       case div@RatDiv(left, right) =>
         firstOk(e, s"Expected both operands to be rational.",
           // PB: horrible hack: Div ends up being silver.PermDiv, which expects an integer divisor. In other cases,

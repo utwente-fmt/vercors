@@ -31,7 +31,7 @@ classDecl : valClassDeclaration | constructor | method | field | runMethod;
 finalFlag: 'final';
 field : finalFlag? type identifierList ';' ;
 
-method : contract valModifier* type identifier '(' args? ')' methodBody ;
+method : contract valModifier* type identifier declaredTypeArgs? '(' args? ')' methodBody ;
 methodBody : ';' | block ;
 
 constructor : contract 'constructor' '(' args? ')' methodBody ;
@@ -267,6 +267,7 @@ quantifiedDim : '[' expr ']' ;
 anonDim : '[' ']' ;
 classType : identifier typeArgs?;
 typeArgs : '<' typeList '>';
+declaredTypeArgs: '<' identifierList '>';
 
 identifierList
  : identifier

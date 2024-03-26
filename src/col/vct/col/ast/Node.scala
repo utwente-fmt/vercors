@@ -455,6 +455,7 @@ final case class OptSomeTyped[G](element: Type[G], e: Expr[G])(implicit val o: O
 final case class OptNone[G]()(implicit val o: Origin) extends Expr[G] with OptNoneImpl[G]
 final case class OptNoneTyped[G](element: Type[G])(implicit val o: Origin) extends Expr[G] with OptNoneTypedImpl[G]
 final case class Range[G](from: Expr[G], to: Expr[G])(implicit val o: Origin) extends Expr[G] with RangeImpl[G]
+final case class RangeSet[G](from: Expr[G], to: Expr[G])(implicit val o: Origin) extends Expr[G] with RangeSetImpl[G]
 final case class EitherLeft[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with EitherLeftImpl[G]
 final case class EitherRight[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with EitherRightImpl[G]
 final case class MapCons[G](map: Expr[G], k: Expr[G], v: Expr[G])(implicit val o: Origin) extends Expr[G] with MapConsImpl[G]
@@ -680,6 +681,8 @@ final case class SetMinus[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) e
 final case class BagMinus[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) extends Expr[G] with BagMinusImpl[G]
 final case class SetUnion[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) extends Expr[G] with SetUnionImpl[G]
 final case class BagAdd[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) extends Expr[G] with BagAddImpl[G]
+final case class Choose[G](xs: Expr[G])(val blame: Blame[SetEmpty])(implicit val o: Origin) extends Expr[G] with ChooseImpl[G]
+final case class ChooseFresh[G](xs: Expr[G])(val blame: Blame[SetEmpty])(implicit val o: Origin) extends Expr[G] with ChooseFreshImpl[G]
 
 final case class AmbiguousMember[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) extends Expr[G] with AmbiguousMemberImpl[G]
 final case class SetMember[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) extends Expr[G] with SetMemberImpl[G]
