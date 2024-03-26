@@ -97,7 +97,7 @@ object AstBuildHelpers {
         process.rewrite(args = args)
       case action: ModelAction[Pre] =>
         action.rewrite(args = args)
-      case llvm: LlvmFunctionDefinition[Pre] =>
+      case llvm: LLVMFunctionDefinition[Pre] =>
         llvm.rewrite(args = args)
       case prover: ProverFunction[Pre] =>
         prover.rewrite(args = args)
@@ -128,7 +128,7 @@ object AstBuildHelpers {
         function.rewrite(args = args, returnType = returnType, typeArgs = typeArgs, inline = Some(inline), contract = contract)
       case function: InstanceOperatorFunction[Pre] =>
         function.rewrite(args = args, returnType = returnType, inline = Some(inline), contract = contract)
-      case function: LlvmSpecFunction[Pre] =>
+      case function: LLVMSpecFunction[Pre] =>
         function.rewrite(args = args, returnType = returnType, typeArgs = typeArgs, inline = Some(inline), contract = contract)
       case method: AbstractMethod[Pre] =>
         new MethodBuildHelpers(method).rewrite(args = args, returnType = returnType, typeArgs = typeArgs, inline = inline, contract = contract)
@@ -173,7 +173,7 @@ object AstBuildHelpers {
         function.rewrite(args = args, returnType = returnType, body = body, inline = Some(inline), threadLocal = Some(threadLocal), contract = contract, typeArgs = typeArgs, blame = blame)
       case function: InstanceOperatorFunction[Pre] =>
         function.rewrite(returnType = returnType, args = args, body = body, contract = contract, inline = Some(inline), threadLocal = Some(threadLocal), blame = blame)
-      case function: LlvmSpecFunction[Pre] =>
+      case function: LLVMSpecFunction[Pre] =>
         function.rewrite(returnType = returnType, args = args, body = body, contract = contract, inline = Some(inline), threadLocal = Some(threadLocal), blame = blame)
     }
   }
@@ -196,7 +196,7 @@ object AstBuildHelpers {
         inv.rewrite(args = args)
       case inv: ProverFunctionInvocation[Pre] =>
         inv.rewrite(args = args)
-      case inv: LlvmFunctionInvocation[Pre] =>
+      case inv: LLVMFunctionInvocation[Pre] =>
         inv.rewrite(args = args)
       case apply: ApplyAnyPredicate[Pre] =>
         new ApplyAnyPredicateBuildHelpers(apply).rewrite(args = args)

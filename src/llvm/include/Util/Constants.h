@@ -1,15 +1,15 @@
-#ifndef VCLLVM_CONSTANTS_H
-#define VCLLVM_CONSTANTS_H
+#ifndef PALLAS_CONSTANTS_H
+#define PALLAS_CONSTANTS_H
 #include <string>
 /**
  * Useful string constants to use for searching out metadata nodes
  */
-namespace vcllvm::constants {
-    const std::string VC_PREFIX = "VC.";
+namespace pallas::constants {
+const std::string VC_PREFIX = "VC.";
 
-    const std::string METADATA_PURE_KEYWORD = VC_PREFIX + "pure";
-    const std::string METADATA_CONTRACT_KEYWORD = VC_PREFIX + "contract";
-    const std::string METADATA_GLOBAL_KEYWORD = VC_PREFIX + "global";
-}
+const std::string METADATA_PURE_KEYWORD = VC_PREFIX + "pure";
+const std::string METADATA_CONTRACT_KEYWORD = VC_PREFIX + "contract";
+const std::string METADATA_GLOBAL_KEYWORD = VC_PREFIX + "global";
+} // namespace pallas::constants
 
-#endif //VCLLVM_CONSTANTS_H
+#endif // PALLAS_CONSTANTS_H

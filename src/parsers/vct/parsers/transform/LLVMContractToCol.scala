@@ -22,7 +22,7 @@ case class LLVMContractToCol[G](override val baseOrigin: Origin,
   extends ToCol(baseOrigin, blameProvider, errors) {
 
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
-    LlvmLocal(name)(blame(ctx))(origin(ctx))
+    LLVMLocal(name)(blame(ctx))(origin(ctx))
 
   def createVariable(ctx: ParserRuleContext, id: LangIdContext, t: LangTypeContext): Variable[G] = {
     val varId = convert(id)
@@ -117,7 +117,7 @@ case class LLVMContractToCol[G](override val baseOrigin: Origin,
   def convert(implicit callOp: CallInstructionContext): Expr[G] = callOp match {
     case CallInstruction0(_, id, _, exprList, _) =>
       val args: Seq[Expr[G]] = convert(exprList)
-      LlvmAmbiguousFunctionInvocation(id, args, Nil, Nil)(blame(callOp))
+      LLVMAmbiguousFunctionInvocation(id, args, Nil, Nil)(blame(callOp))
   }
 
   def convert(implicit binOp: BinOpInstructionContext): Expr[G] = binOp match {
@@ -393,7 +393,7 @@ case class LLVMContractToCol[G](override val baseOrigin: Origin,
       modifiers.foreach(convert(_, modifierCollector))
 
       val namedOrigin = origin(decl).sourceName(convert(name))
-      new LlvmSpecFunction(
+      new LLVMSpecFunction(
         convert(name),
         convert(t),
         args.map(convert(_)).getOrElse(Nil),

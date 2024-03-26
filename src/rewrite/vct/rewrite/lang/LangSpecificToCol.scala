@@ -121,8 +121,9 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
       cpp.storeIfSYCLFunction(func)
     }
 
-    case func: LlvmFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
-    case global: LlvmGlobal[Pre] => llvm.rewriteGlobal(global)
+    case func: LLVMFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
+    case global: LLVMGlobalSpecification[Pre] => llvm.rewriteGlobal(global)
+    case global: LLVMGlobalVariable[Pre] => llvm.rewriteGlobalVariable(global)
 
     case cls: Class[Pre] =>
       currentClass.having(cls) {
@@ -193,7 +194,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
         case ref: RefCGlobalDeclaration[Pre] => c.result(ref)
         case ref: RefCPPFunctionDefinition[Pre] => cpp.result(ref)
         case ref: RefCPPGlobalDeclaration[Pre] => cpp.result(ref)
-        case ref: RefLlvmFunctionDefinition[Pre] => llvm.result(ref)
+        case ref: RefLLVMFunctionDefinition[Pre] => llvm.result(ref)
         case RefFunction(decl) => Result[Post](anySucc(decl))
         case RefProcedure(decl) => Result[Post](anySucc(decl))
         case RefJavaMethod(decl) => Result[Post](java.javaMethod.ref(decl))
@@ -202,7 +203,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
         case RefInstanceMethod(decl) => Result[Post](anySucc(decl))
         case RefInstanceOperatorFunction(decl) => Result[Post](anySucc(decl))
         case RefInstanceOperatorMethod(decl) => Result[Post](anySucc(decl))
-        case RefLlvmSpecFunction(decl) => Result[Post](anySucc(decl))
+        case RefLLVMSpecFunction(decl) => Result[Post](anySucc(decl))
       }
 
     case diz @ AmbiguousThis() =>
@@ -263,9 +264,12 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
 
-    case inv: LlvmFunctionInvocation[Pre] => llvm.rewriteFunctionInvocation(inv)
-    case inv: LlvmAmbiguousFunctionInvocation[Pre] => llvm.rewriteAmbiguousFunctionInvocation(inv)
-    case local: LlvmLocal[Pre] => llvm.rewriteLocal(local)
+    case inv: LLVMFunctionInvocation[Pre] => llvm.rewriteFunctionInvocation(inv)
+    case inv: LLVMAmbiguousFunctionInvocation[Pre] => llvm.rewriteAmbiguousFunctionInvocation(inv)
+    case local: LLVMLocal[Pre] => llvm.rewriteLocal(local)
+    case pointer: LLVMFunctionPointerValue[Pre] => llvm.rewriteFunctionPointer(pointer)
+    case pointer: LLVMPointerValue[Pre] => llvm.rewritePointerValue(pointer)
+    case gep: LLVMGetElementPointer[Pre] => llvm.rewriteGetElementPointer(gep)
 
     case other => rewriteDefault(other)
   }
@@ -275,6 +279,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     case t: CTPointer[Pre] => c.pointerType(t)
     case t: CTArray[Pre] => c.arrayType(t)
     case t: CTStruct[Pre] => c.structType(t)
+    case t: LLVMTStruct[Pre] => llvm.structType(t)
     case t: CPPTArray[Pre] => cpp.arrayType(t)
     case other => rewriteDefault(other)
   }

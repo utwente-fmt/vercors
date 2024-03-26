@@ -2,7 +2,7 @@ package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.stages.Stage
-import vct.col.ast.{AddrOf, ApplicableContract, CGlobalDeclaration, Expr, GlobalDeclaration, LlvmFunctionContract, LlvmGlobal, Program, Refute, Verification, VerificationContext}
+import vct.col.ast.{AddrOf, ApplicableContract, CGlobalDeclaration, Expr, GlobalDeclaration, LLVMFunctionContract, LLVMGlobalSpecification, Program, Refute, Verification, VerificationContext}
 import org.antlr.v4.runtime.CharStreams
 import vct.col.ast._
 import vct.col.check.CheckError
@@ -72,23 +72,23 @@ case class MyLocalJavaParser(blameProvider: BlameProvider) extends Resolve.SpecE
 }
 
 case class MyLocalLLVMSpecParser(blameProvider: BlameProvider) extends Resolve.SpecContractParser {
-  override def parse[G](input: LlvmFunctionContract[G], o: Origin): ApplicableContract[G] = {
+  override def parse[G](input: LLVMFunctionContract[G], o: Origin): ApplicableContract[G] = {
     val originProvider = Origin(Seq(ReadableOrigin(input.o.find[OriginFilename] match {
       case Some(OriginFilename(filename)) => StringReadable(input.value, filename)
       case _ => StringReadable(input.value)
     })))
     val charStream = CharStreams.fromString(input.value)
-    ColLLVMParser(originProvider, blameProvider)
+    ColLLVMParser(originProvider, blameProvider, null)
       .parseFunctionContract[G](charStream)._1
   }
 
-  override def parse[G](input: LlvmGlobal[G], o: Origin): GlobalDeclaration[G] = {
+  override def parse[G](input: LLVMGlobalSpecification[G], o: Origin): GlobalDeclaration[G] = {
     val originProvider = Origin(Seq(ReadableOrigin(input.o.find[OriginFilename] match {
       case Some(OriginFilename(filename)) => StringReadable(input.value, filename)
       case _ => StringReadable(input.value)
     })))
     val charStream = CharStreams.fromString(input.value)
-    ColLLVMParser(originProvider, blameProvider)
+    ColLLVMParser(originProvider, blameProvider, null)
       .parseGlobal(charStream)._1
   }
 }

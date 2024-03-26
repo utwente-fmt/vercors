@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op
 
 import vct.col.ast.`type`.typeclass.TFloats.getFloatMax
-import vct.col.ast.{BinExpr, Expr, IntType, TBool, TCInt, TInt, TProcess, TRational, TString, Type}
+import vct.col.ast.{BinExpr, Expr, IntType, TBool, TCInt, LLVMTInt, TInt, TProcess, TRational, TString, Type}
 import vct.col.typerules.{CoercionUtils, Types}
 import vct.result.VerificationError
 
@@ -17,6 +17,11 @@ trait BinExprImpl[G] { this: BinExpr[G] =>
   def isCIntOp: Boolean =
     CoercionUtils.getCoercion(left.t, TCInt()).isDefined &&
       CoercionUtils.getCoercion(right.t, TCInt()).isDefined
+
+  def isLLVMIntOp: Boolean = (left.t, right.t) match {
+    case (LLVMTInt(_), LLVMTInt(_)) => true
+    case _ => false
+  }
 
   def isIntOp: Boolean =
     CoercionUtils.getCoercion(left.t, TInt()).isDefined &&
@@ -37,11 +42,13 @@ trait BinExprImpl[G] { this: BinExpr[G] =>
   def isSeqOp: Boolean = CoercionUtils.getAnySeqCoercion(left.t).isDefined
   def isSetOp: Boolean = CoercionUtils.getAnySetCoercion(left.t).isDefined
 
-  def getIntType: IntType[G] = if(isCIntOp) TCInt() else TInt()
+  def getIntType: IntType[G] = if(isCIntOp) TCInt() else
+                               if(isLLVMIntOp) Types.leastCommonSuperType(left.t, right.t).asInstanceOf[LLVMTInt[G]] else TInt()
 
 
   def getNumericType: Type[G] = {
     if (isCIntOp) TCInt[G]() else
+    if (isLLVMIntOp) Types.leastCommonSuperType(left.t, right.t) else
     if(isIntOp) TInt[G]() else
       getFloatMax[G](left.t, right.t) getOrElse (
         if(isRationalOp) TRational[G]()
