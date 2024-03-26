@@ -25,9 +25,9 @@ namespace vcllvm {
     void FunctionCursor::addVariableMapEntry(Value &llvmValue, col::Variable &colVar) {
         variableMap.insert({&llvmValue, &colVar});
         // add reference to reference lut of function contract
-        col::StringRef *ref = FAM.getResult<FunctionContractDeclarer>(llvmFunction).getAssociatedColFuncContract().add_variable_refs();
+        col::Tuple2_String_Ref_VctColAstVariable *ref = FAM.getResult<FunctionContractDeclarer>(llvmFunction).getAssociatedColFuncContract().add_variable_refs();
         ref->set_v1(llvm2Col::getValueName(llvmValue));
-        ref->mutable_v2()->set_index(colVar.id());
+        ref->mutable_v2()->set_id(colVar.id());
     }
 
     col::Variable &FunctionCursor::getVariableMapEntry(Value &llvmValue) {
@@ -50,17 +50,17 @@ namespace vcllvm {
             // create label in buffer
             col::Label *label = functionBody.add_statements()->mutable_label();
             // set label origin
-            label->set_origin(llvm2Col::generateLabelOrigin(llvmBlock));
+            label->set_allocated_origin(llvm2Col::generateLabelOrigin(llvmBlock));
             // create label declaration in buffer
             col::LabelDecl *labelDecl = label->mutable_decl();
             // set label decl origin
-            labelDecl->set_origin(llvm2Col::generateLabelOrigin(llvmBlock));
+            labelDecl->set_allocated_origin(llvm2Col::generateLabelOrigin(llvmBlock));
             // set label decl id
             llvm2Col::setColNodeId(labelDecl);
             // create block inside label statement
             col::Block *block = label->mutable_stat()->mutable_block();
             // set block origin
-            block->set_origin(llvm2Col::generateBlockOrigin(llvmBlock));
+            block->set_allocated_origin(llvm2Col::generateBlockOrigin(llvmBlock));
             // add labeled block to the block2block lut
             LabeledColBlock labeledColBlock = {*label, *block};
             llvmBlock2LabeledColBlock.insert({&llvmBlock, labeledColBlock});
@@ -98,7 +98,7 @@ namespace vcllvm {
         // set id
         llvm2Col::setColNodeId(varDecl);
         // set origin
-        varDecl->set_origin(llvm2Col::generateSingleStatementOrigin(llvmInstruction));
+        varDecl->set_allocated_origin(llvm2Col::generateSingleStatementOrigin(llvmInstruction));
         // add to the variable lut
         this->addVariableMapEntry(llvmInstruction, *varDecl);
         return *varDecl;
@@ -113,12 +113,12 @@ namespace vcllvm {
                                                   col::Block &colBlock,
                                                   col::Variable &varDecl) {
         col::Assign *assignment = colBlock.add_statements()->mutable_assign();
-        assignment->set_origin(llvm2Col::generateSingleStatementOrigin(llvmInstruction));
+        assignment->set_allocated_origin(llvm2Col::generateSingleStatementOrigin(llvmInstruction));
         // create local target in buffer and set origin
         col::Local *colLocal = assignment->mutable_target()->mutable_local();
-        colLocal->set_origin(llvm2Col::generateAssignTargetOrigin(llvmInstruction));
+        colLocal->set_allocated_origin(llvm2Col::generateAssignTargetOrigin(llvmInstruction));
         // set target to refer to var decl
-        colLocal->mutable_ref()->set_index(varDecl.id());
+        colLocal->mutable_ref()->set_id(varDecl.id());
         if(isComplete(colBlock)) {
             // if the colBlock is completed, the assignment will be inserted after the goto/branch statement
             // this can occur due to e.g. phi nodes back tracking assignments in their origin blocks.

@@ -6,7 +6,10 @@ import os._
 import mill.{util => _, _}
 import scalalib.{JavaModule => _, ScalaModule => _, _}
 import contrib.buildinfo.BuildInfo
+import me.pieterbos.mill.cpp.options.implicits._
+import me.pieterbos.mill.cpp.options.CppExecutableOptions
 import me.pieterbos.mill.cpp.{CMakeModule, LinkableModule}
+import me.pieterbos.mill.cpp.toolchain.GccCompatible
 import mill.util.Jvm
 import vct.col.ast.structure
 import vct.col.ast.structure.{AllFamilies, FamilyDefinition, Name, NodeDefinition}
@@ -358,11 +361,11 @@ object vercors extends Module {
           global.generate()
       }
 
-      def megacol: T[PathRef] = T.source(global.generate().path / "col.proto")
+      def megacol: T[PathRef] = T.source(global.generate().path / "vct" / "col" / "ast" / "col.proto")
 
       def sources: T[PathRef] = T.persistent {
         util.quickCopy(T.dest, generatedSources())
-        os.remove(T.dest / "col.proto")
+        os.remove(T.dest / "vct" / "col" / "ast" / "col.proto")
         PathRef(T.dest, quick = true)
       }
     }
@@ -609,6 +612,186 @@ object vercors extends Module {
           BuildInfo.Value("carbonCommit", viper.carbon.repo.commitish()),
         )
       }
+    }
+  }
+
+  object vcllvm extends CppExecutableModule {
+    outer =>
+    def root: T[os.Path] = T {
+      settings.src / "llvm"
+    }
+
+
+    override def executableOptions = T {
+      CppExecutableOptions(
+        transitiveDynamicObjects().map(_.path),
+        transitiveSystemLibraryDeps(),
+        Nil,
+        Seq("-L/usr/local/opt/llvm@15/lib"),
+      )
+    }
+
+    object llvm extends LinkableModule {
+      def moduleDeps = Nil
+
+      def systemLibraryDeps = T {
+        Seq("LLVM-15")
+      }
+
+      def staticObjects = T {
+        Seq.empty[PathRef]
+      }
+
+      def dynamicObjects = T {
+        Seq.empty[PathRef]
+      }
+
+      def exportIncludePaths = T.sources(
+        os.Path("/usr/include/llvm-15"),
+        os.Path("/usr/include/llvm-c-15"),
+        os.Path("/usr/local/opt/llvm/include")
+      )
+    }
+
+    object json extends LinkableModule {
+      def moduleDeps = Nil
+
+      def systemLibraryDeps = T {
+        Seq.empty[String]
+      }
+
+      def staticObjects = T {
+        Seq.empty[PathRef]
+      }
+
+      def dynamicObjects = T {
+        Seq.empty[PathRef]
+      }
+
+      def exportIncludePaths = T {
+        os.write(T.dest / "json.tar.xz", requests.get.stream("https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz"))
+        os.proc("tar", "-xf", T.dest / "json.tar.xz").call(cwd = T.dest)
+        Seq(PathRef(T.dest / "json" / "include"))
+      }
+    }
+
+    object origin extends CppModule {
+      def moduleDeps = Seq(llvm, json, proto, proto.protobuf.libprotobuf)
+
+      def sources = T.sources(vcllvm.root() / "lib" / "origin")
+
+      def includePaths = T.sources(vcllvm.root() / "include")
+
+      override def unixToolchain = GccCompatible("g++", "ar")
+
+    }
+
+    object passes extends CppModule {
+      def moduleDeps = Seq(llvm, proto, proto.protobuf.libprotobuf)
+
+      def sources = T.sources(vcllvm.root() / "lib" / "passes")
+
+      def includePaths = T.sources(vcllvm.root() / "include")
+
+      override def unixToolchain = GccCompatible("g++", "ar")
+
+    }
+
+    object transform extends CppModule {
+      def moduleDeps = Seq(llvm, proto, proto.protobuf.libprotobuf)
+
+      def sources = T.sources(vcllvm.root() / "lib" / "transform")
+
+      def includePaths = T.sources(vcllvm.root() / "include")
+
+      override def unixToolchain = GccCompatible("g++", "ar")
+
+    }
+
+    object util extends CppModule {
+      def moduleDeps = Seq(llvm, proto, proto.protobuf.libprotobuf)
+
+      def sources = T.sources(vcllvm.root() / "lib" / "util")
+
+      def includePaths = T.sources(vcllvm.root() / "include")
+
+      override def unixToolchain = GccCompatible("g++", "ar")
+
+    }
+
+    override def unixToolchain = GccCompatible("g++", "ar")
+
+    def moduleDeps = Seq(origin, passes, transform, util, llvm, proto, proto.protobuf.libprotobuf)
+
+    def sources = T.sources(vcllvm.root() / "tools" / "vcllvm")
+
+    def includePaths = T.sources(vcllvm.root() / "include")
+
+
+    object proto extends CppModule {
+      object protobuf extends CMakeModule {
+        object protobufGit extends GitModule {
+          override def url: T[String] = "https://github.com/protocolbuffers/protobuf"
+
+          override def commitish: T[String] = "v25.2"
+
+          override def fetchSubmodulesRecursively = true
+        }
+
+        override def root = T.source(protobufGit.repo())
+
+        override def jobs = T {
+          2
+        }
+
+        override def cMakeBuild: T[PathRef] = T {
+          os.proc("cmake", "-B", T.dest, "-DCMAKE_CXX_STANDARD=14", "-S", root().path).call(cwd = T.dest)
+          os.proc("make", "-j", jobs(), "all").call(cwd = T.dest)
+          PathRef(T.dest)
+        }
+
+        object libprotobuf extends CMakeLibrary {
+          def target = T {
+            "libprotobuf"
+          }
+        }
+
+        object protoc extends CMakeExecutable {
+          def target = T {
+            "protoc"
+          }
+        }
+      }
+
+      def protoPath = T.sources(
+        vercors.col.helpers.megacol().path / os.up / os.up / os.up / os.up,
+        settings.src / "serialize",
+        serialize.scalaPBUnpackProto().path
+      )
+
+      def generate = T {
+        os.proc(protobuf.protoc.executable().path,
+          protoPath().map(p => "-I=" + p.path.toString),
+          "--cpp_out=" + T.dest.toString,
+          (Seq(vercors.col.helpers.megacol()) ++
+            os.walk(serialize.scalaPBUnpackProto().path).filter(path => !path.startsWith(serialize.scalaPBUnpackProto().path / "google") && path.ext == "proto").map(PathRef(_)) ++
+            os.walk(settings.src / "serialize").filter(_.ext == "proto").map(PathRef(_))).map(_.path)
+        ).call()
+        T.dest
+      }
+
+      override def moduleDeps = Seq(protobuf.libprotobuf)
+
+      override def sources = T {
+        Seq(PathRef(generate()))
+      }
+
+      override def includePaths = T {
+        Seq(PathRef(generate()))
+      }
+
+      override def unixToolchain = GccCompatible("g++", "ar")
+
     }
   }
 

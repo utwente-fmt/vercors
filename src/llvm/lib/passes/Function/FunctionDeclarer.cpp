@@ -65,23 +65,23 @@ namespace vcllvm {
         // create llvmFuncDef declaration in buffer
         col::GlobalDeclaration *llvmFuncDefDecl = pProgram->add_declarations();
         // generate id
-        int64_t functionId = llvm2Col::setColNodeId(llvmFuncDefDecl);
         col::LlvmFunctionDefinition *llvmFuncDef = llvmFuncDefDecl->mutable_llvm_function_definition();
+        int64_t functionId = llvm2Col::setColNodeId(llvmFuncDef);
         // add body block + scope + origin
         // set origin
-        llvmFuncDef->set_origin(llvm2Col::generateFuncDefOrigin(F));
+        llvmFuncDef->set_allocated_origin(llvm2Col::generateFuncDefOrigin(F));
         ColScopedFuncBody funcScopedBody{};
         funcScopedBody.scope = llvmFuncDef->mutable_function_body()->mutable_scope();
-        funcScopedBody.scope->set_origin(llvm2Col::generateFuncDefOrigin(F));
+        funcScopedBody.scope->set_allocated_origin(llvm2Col::generateFuncDefOrigin(F));
         funcScopedBody.block = funcScopedBody.scope->mutable_body()->mutable_block();
-        funcScopedBody.block->set_origin(llvm2Col::generateFuncDefOrigin(F));
+        funcScopedBody.block->set_allocated_origin(llvm2Col::generateFuncDefOrigin(F));
         FDResult result = FDResult(*llvmFuncDef, funcScopedBody, functionId);
         // set args (if present)
         for (llvm::Argument &llvmArg: F.args()) {
             // set in buffer
             col::Variable *colArg = llvmFuncDef->add_args();
             // set origin
-            colArg->set_origin(llvm2Col::generateArgumentOrigin(llvmArg));
+            colArg->set_allocated_origin(llvm2Col::generateArgumentOrigin(llvmArg));
             llvm2Col::setColNodeId(colArg);
             try {
                 llvm2Col::transformAndSetType(*llvmArg.getType(), *colArg->mutable_t());

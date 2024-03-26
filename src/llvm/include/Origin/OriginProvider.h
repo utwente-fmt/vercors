@@ -3,6 +3,7 @@
 
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Instructions.h>
+#include "vct/col/ast/Origin.pb.h"
 
 /**
  * Generators for VerCors origin objects for various LLVM Value types.
@@ -10,32 +11,33 @@
  * For more info on VerCors origins see: https://github.com/utwente-fmt/vercors/discussions/884
  */
 namespace llvm2Col {
+    namespace col = vct::col::ast;
 
-    std::string generateProgramOrigin(llvm::Module &llvmModule);
+    col::Origin *generateProgramOrigin(llvm::Module &llvmModule);
 
-    std::string generateFuncDefOrigin(llvm::Function &llvmFunction);
+    col::Origin *generateFuncDefOrigin(llvm::Function &llvmFunction);
 
-    std::string generateFunctionContractOrigin(llvm::Function &llvmFunction, const std::string& contract);
+    col::Origin *generateFunctionContractOrigin(llvm::Function &llvmFunction, const std::string& contract);
 
-    std::string generateGlobalValOrigin(llvm::Module &llvmModule, const std::string &globVal);
+    col::Origin *generateGlobalValOrigin(llvm::Module &llvmModule, const std::string &globVal);
 
-    std::string generateArgumentOrigin(llvm::Argument &llvmArgument);
+    col::Origin *generateArgumentOrigin(llvm::Argument &llvmArgument);
 
-    std::string generateBlockOrigin(llvm::BasicBlock &llvmBlock);
+    col::Origin *generateBlockOrigin(llvm::BasicBlock &llvmBlock);
 
-    std::string generateLabelOrigin(llvm::BasicBlock &llvmBlock);
+    col::Origin *generateLabelOrigin(llvm::BasicBlock &llvmBlock);
 
-    std::string generateSingleStatementOrigin(llvm::Instruction &llvmInstruction);
+    col::Origin *generateSingleStatementOrigin(llvm::Instruction &llvmInstruction);
 
-    std::string generateAssignTargetOrigin(llvm::Instruction &llvmInstruction);
+    col::Origin *generateAssignTargetOrigin(llvm::Instruction &llvmInstruction);
 
-    std::string generateBinExprOrigin(llvm::Instruction &llvmInstruction);
+    col::Origin *generateBinExprOrigin(llvm::Instruction &llvmInstruction);
 
-    std::string generateFunctionCallOrigin(llvm::CallInst &callInstruction);
+    col::Origin *generateFunctionCallOrigin(llvm::CallInst &callInstruction);
 
-    std::string generateOperandOrigin(llvm::Instruction &llvmInstruction, llvm::Value &llvmOperand);
+    col::Origin *generateOperandOrigin(llvm::Instruction &llvmInstruction, llvm::Value &llvmOperand);
 
-    std::string generateTypeOrigin(llvm::Type &llvmType);
+    col::Origin *generateTypeOrigin(llvm::Type &llvmType);
 
 }
 #endif //VCLLVM_ORIGINPROVIDER_H

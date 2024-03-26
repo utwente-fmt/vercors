@@ -128,7 +128,7 @@ namespace llvm2Col {
         // if void function add an eval expression
         if (callInstruction.getType()->isVoidTy()) {
             col::Eval *eval = colBlock.add_statements()->mutable_eval();
-            eval->set_origin(llvm2Col::generateSingleStatementOrigin(callInstruction));
+            eval->set_allocated_origin(llvm2Col::generateSingleStatementOrigin(callInstruction));
             functionCallExpr = eval->mutable_expr();
         } else { // else create an assignment
             col::Assign &assignment = funcCursor.createAssignmentAndDeclaration(callInstruction, colBlock);
@@ -137,9 +137,9 @@ namespace llvm2Col {
         // create actual invocation
         col::LlvmFunctionInvocation *invocation = functionCallExpr->mutable_llvm_function_invocation();
         // set origin
-        invocation->set_origin(llvm2Col::generateFunctionCallOrigin(callInstruction));
+        invocation->set_allocated_origin(llvm2Col::generateFunctionCallOrigin(callInstruction));
         // set function reference
-        invocation->mutable_ref()->set_index(
+        invocation->mutable_ref()->set_id(
                 funcCursor.getFDResult(*callInstruction.getCalledFunction()).getFunctionId()
         );
         // process function arguments
