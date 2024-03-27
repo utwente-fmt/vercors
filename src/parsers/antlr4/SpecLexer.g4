@@ -136,6 +136,7 @@ FORALL_STAR: '\\forall*';
 FORALL: '\\forall';
 EXISTS: '\\exists';
 FORPERM: '\\forperm';
+FORPERMWITHVALUE: '\\forpermwithvalue';
 FORALL_UNICODE: '\u2200';
 FORALL_STAR_UNICODE: '\u2200*';
 EXISTS_UNICODE: '\u2203';

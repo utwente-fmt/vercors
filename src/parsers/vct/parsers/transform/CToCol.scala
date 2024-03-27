@@ -1173,6 +1173,8 @@ case class CToCol[G](override val baseOrigin: Origin,
       Let(new Variable(convert(t))(origin(id).sourceName(convert(id))), convert(v), convert(body))
     case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
       ForPerm(convert(bindings), AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)), convert(body))
+    case ValForPermWithValue(_, _, _, id, _, body, _) =>
+      ForPermWithValue(new Variable(TAny())(origin(id).sourceName(convert(id))), convert(body))
   }
 
   def convert(implicit e: ValPrimaryVectorContext): Expr[G] = e match {
