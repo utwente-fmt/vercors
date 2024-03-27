@@ -18,6 +18,7 @@ class SiliconVerifier[O](o:OriginFactory[O]) extends SilverImplementation[O](o) 
     var siliconConfig = Seq(
       "--z3Exe", z3Path.toString,
       "--z3ConfigArgs", z3KeyValues,
+      "--numberOfParallelVerifiers", Configuration.silicon_num_verifiers.get().toString,
     )
 
     if(Configuration.debugBackend.get()) {

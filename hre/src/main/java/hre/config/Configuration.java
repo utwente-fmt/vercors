@@ -114,6 +114,10 @@ public class Configuration {
     public static final ChoiceSetting veymont = new ChoiceSetting(new String[]{veymont_check, veymont_decompose}, null);
     public static final BooleanSetting veymont_fork_join_threading = new BooleanSetting(true);
 
+    public static final BooleanSetting trigger_generation = new BooleanSetting(true);
+
+    public static final IntegerSetting silicon_num_verifiers = new IntegerSetting(Runtime.getRuntime().availableProcessors());
+
     /**
      * Add the VCT library options to the given option parser.
      * @param clops Option parser.
@@ -147,6 +151,8 @@ public class Configuration {
                         "This implies that all functional properties proven (with VerCors) for the global program also hold for the local program."),Configuration.veymont_decompose);
         clops.add(veymont_fork_join_threading.getAssign("Default value true will provide a decomposition with threads being forked and joined. " +
                 "Value false will provide a decomposition with threads being run via a thread pool."),"veymont-threading");
+        clops.add(trigger_generation.getDisable("Do not generate triggers automatically"), "no-trigger-generation");
+        clops.add(silicon_num_verifiers.getAssign("Number of parallel verifier threads for the silicon backend"), "silicon-num-verifiers");
     }
 
     public static IntegerSetting profiling=new IntegerSetting(1000);

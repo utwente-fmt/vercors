@@ -917,7 +917,7 @@ object Passes {
         features.NoExcVar,
         features.NoTypeADT,
         features.Extern,
-      )
+      ) ++ (if(Configuration.trigger_generation.get()) Set() else Set(features.QuantifierWithoutTriggers))
     },
     new AbstractPass("applyCarbon", "verify input with Carbon") {
       override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, "carbon", Main.backend_option.get())

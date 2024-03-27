@@ -99,6 +99,8 @@ public class PVLSyntax extends Syntax {
 
       syntax.addFunction(TupleFst, "getFst");
       syntax.addFunction(TupleSnd, "getSnd");
+      syntax.addFunction(SubSetEq, "<=");
+      syntax.addFunction(SeqUpdate, "seqUpdate");  //TODO is this correct?
 
       syntax.addOperator(Size,-1,"|","|");
       syntax.addOperator(Member,45,"","in","");

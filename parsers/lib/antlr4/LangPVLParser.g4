@@ -324,4 +324,4 @@ identifierList
     | identifier ',' identifierList
     ;
 
-identifier : Identifier | valReserved ;
+identifier : (Identifier|'R'|'C') | valReserved ;
