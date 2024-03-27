@@ -621,16 +621,6 @@ object vercors extends Module {
       settings.src / "llvm"
     }
 
-
-    override def executableOptions = T {
-      CppExecutableOptions(
-        transitiveDynamicObjects().map(_.path),
-        transitiveSystemLibraryDeps(),
-        Nil,
-        Seq("-L/usr/local/opt/llvm@15/lib"),
-      )
-    }
-
     object llvm extends LinkableModule {
       def moduleDeps = Nil
 
@@ -745,7 +735,7 @@ object vercors extends Module {
         }
 
         override def cMakeBuild: T[PathRef] = T {
-          os.proc("cmake", "-B", T.dest, "-DCMAKE_CXX_STANDARD=14", "-S", root().path).call(cwd = T.dest)
+          os.proc("cmake", "-B", T.dest, "-DABSL_PROPAGATE_CXX_STD=ON", "-S", root().path).call(cwd = T.dest)
           os.proc("make", "-j", jobs(), "all").call(cwd = T.dest)
           PathRef(T.dest)
         }

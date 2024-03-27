@@ -99,6 +99,7 @@ int main(int argc, char **argv) {
     auto pProgram = std::make_shared<col::Program>();
     // set program origin
     pProgram->set_allocated_origin(llvm2Col::generateProgramOrigin(*module));
+    pProgram->set_allocated_blame(new col::Blame());
     // Create the analysis managers.
     vcllvm::LoopAnalysisManager LAM;
     vcllvm::FunctionAnalysisManager FAM;

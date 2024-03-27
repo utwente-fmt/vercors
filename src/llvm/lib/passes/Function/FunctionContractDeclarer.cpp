@@ -52,6 +52,7 @@ namespace vcllvm {
         // get col contract
         FDCResult result = FAM.getResult<FunctionContractDeclarer>(F);
         col::LlvmFunctionContract &colContract = result.getAssociatedColFuncContract();
+        colContract.set_allocated_blame(new col::Blame());
         // check if contract keyword is present
         if (!F.hasMetadata(vcllvm::constants::METADATA_CONTRACT_KEYWORD)) {
             // set contract to a tautology

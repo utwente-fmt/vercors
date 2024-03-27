@@ -70,6 +70,7 @@ namespace vcllvm {
         // add body block + scope + origin
         // set origin
         llvmFuncDef->set_allocated_origin(llvm2Col::generateFuncDefOrigin(F));
+        llvmFuncDef->set_allocated_blame(new col::Blame());
         ColScopedFuncBody funcScopedBody{};
         funcScopedBody.scope = llvmFuncDef->mutable_function_body()->mutable_scope();
         funcScopedBody.scope->set_allocated_origin(llvm2Col::generateFuncDefOrigin(F));

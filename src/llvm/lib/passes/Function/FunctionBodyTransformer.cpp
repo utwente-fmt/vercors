@@ -114,6 +114,7 @@ namespace vcllvm {
                                                   col::Variable &varDecl) {
         col::Assign *assignment = colBlock.add_statements()->mutable_assign();
         assignment->set_allocated_origin(llvm2Col::generateSingleStatementOrigin(llvmInstruction));
+        assignment->set_allocated_blame(new col::Blame());
         // create local target in buffer and set origin
         col::Local *colLocal = assignment->mutable_target()->mutable_local();
         colLocal->set_allocated_origin(llvm2Col::generateAssignTargetOrigin(llvmInstruction));

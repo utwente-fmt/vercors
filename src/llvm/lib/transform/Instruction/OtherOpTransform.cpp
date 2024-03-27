@@ -138,6 +138,7 @@ namespace llvm2Col {
         col::LlvmFunctionInvocation *invocation = functionCallExpr->mutable_llvm_function_invocation();
         // set origin
         invocation->set_allocated_origin(llvm2Col::generateFunctionCallOrigin(callInstruction));
+        invocation->set_allocated_blame(new col::Blame());
         // set function reference
         invocation->mutable_ref()->set_id(
                 funcCursor.getFDResult(*callInstruction.getCalledFunction()).getFunctionId()
