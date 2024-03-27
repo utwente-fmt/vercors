@@ -153,9 +153,25 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       quantify(block, block.context_everywhere &* block.ensures, nonEmpty)
   }
 
+  // A variable of this type cannot be altered in a parallel block
+  def isConstType(t: Type[_]): Boolean = t match {
+    case _: NumericType[_] => true
+    case _: TBool[_] => true
+    case _: TChar[_] => true
+    case TSeq(e) => isConstType(e)
+    case TSet(e) => isConstType(e)
+    case TBag(e) => isConstType(e)
+    case TMap(e, v) => isConstType(e) && isConstType(v)
+    case TOption(e) => isConstType(e)
+    case TTuple(es) => es.forall(isConstType)
+    case TEither(l, r) => isConstType(l) && isConstType(r)
+    case _ => false
+  }
+
   def constantExpression[A](e: Expr[A], nonConstVars: Set[Variable[A]]): Boolean = e match {
     case _: Constant[_] => true
     case op: BinExpr[_] => constantExpression(op.left, nonConstVars) && constantExpression(op.right, nonConstVars)
+    case l@Local(v) if isConstType(l.t) => true
     case Local(v) => !nonConstVars.contains(v.decl)
     case _ => false
   }
@@ -243,8 +259,8 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
   def isConstant(e: Expr[Post]): Boolean = e match {
     case _ : Constant[Post] => true
-    // TODO: Is this true??
-//    case _: Local[Post] => true
+    case l: Local[_] if isConstType(l.t) => true
+    case _: Constant[_] => true
     case op: BinExpr[Post] => isConstant(op.left) && isConstant(op.right)
     case _ => false
   }
