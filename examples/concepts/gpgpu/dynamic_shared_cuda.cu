@@ -1,4 +1,4 @@
-//:: cases StaticSharedCuda
+//:: cases DynamicSharedCuda
 //:: tool silicon
 //:: verdict Pass
 
@@ -16,12 +16,13 @@
   context Perm(&in[0], write \ (blockDim.x * gridDim.x));
   context \gtid<n ==> Perm(&out[\gtid], write);
 
+  context \shared_mem_size(s) == 1;
   requires \ltid == 0 ==> Perm(&s[0], write);
 
   ensures \gtid<n ==> out[\gtid] == \old(out[\gtid]) + in[0];
 @*/
 __global__ void blur_x(int* in, int* out, int n) {
-  __shared__ int s[1];
+  extern __shared__ int s[];
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if(threadIdx.x == 0) {
     s[threadIdx.x] = in[0];
