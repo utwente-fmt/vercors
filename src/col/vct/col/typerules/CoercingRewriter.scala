@@ -859,8 +859,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case FunctionOf(e, ref) =>
         FunctionOf(e, ref)
       case f @ FreePointer(p) => FreePointer(pointer(p)._1)(f.blame)
-      case IndeterminateInteger(min, max) =>
-        IndeterminateInteger(int(min), int(max))
       case InlinePattern(inner, parent, group) =>
         InlinePattern(inner, parent, group)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>

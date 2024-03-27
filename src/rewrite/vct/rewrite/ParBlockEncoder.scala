@@ -298,13 +298,18 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       })(region.o)
     case block@ParBlock(decl, iters, context_everywhere, requires, ensures, content) =>
       implicit val o: Origin = region.o
-      val (vars, init) = variables.collect {
-        Block(iters.map { v =>
+      val (vars, (init, blockNonEmpty)) = variables.collect {
+        val initsAndConds = iters.map { v =>
           dispatch(v.variable)
-          assignLocal(Local[Post](succ(v.variable)), IndeterminateInteger(from(v.variable), to(v.variable)))
-        })
+          val cond = from(v.variable) < to(v.variable)
+          val init = assignLocal(Local[Post](succ(v.variable)), ChooseFresh(RangeSet(from(v.variable), to(v.variable)))(PanicBlame("under branch from < to")))
+          (init, cond)
+        }
+
+        (Block(initsAndConds.map(_._1)), foldAnd(initsAndConds.map(_._2)))
       }
-      Scope(vars, Block(Seq(
+
+      val proof = Scope(vars, Block(Seq(
         init,
         FramedProof(
           pre = dispatch(context_everywhere) &* dispatch(requires),
@@ -312,6 +317,8 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
           post = dispatch(context_everywhere) &* dispatch(ensures),
         )(ParBlockProofFailed(block)),
       )))
+
+      Branch(Seq(blockNonEmpty -> proof))
   }
 
   def isParBlock(stat: ParRegion[Pre]): Boolean = stat match {
