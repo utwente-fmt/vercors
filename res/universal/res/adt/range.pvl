@@ -1,0 +1,8 @@
+ensures (\forall int i; {:i \in \result:} == (l <= i && i < r));
+ensures l <= r ? \result.size == r - l : \result.size == 0;
+pure set<int> set_range(int l, int r);
+
+ensures (\forall int i; {:i \in \result:} == (l >= i && i < r));
+ensures l <= r ? \result.size == r - l : \result.size == 0;
+ensures (\forall int i=l..r; {:\result[i]:} == l + i);
+pure seq<int> seq_range(int l, int r);

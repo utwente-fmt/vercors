@@ -1,7 +1,7 @@
-Before merging this PR, please check the following:
+Checklist: <!-- Please first submit your pull request, you can check the checkboxes later. Feel free to ask for help if you don't know how/where to make changes. -->
 
-- [ ] I made sure the wiki is updated in accordance with the changes in this PR. For example, syntax changes, semantics changes, VerCors flags changes, etc.
+- [ ] The wiki is updated in accordance with the changes in this PR. For example: syntax changes, semantics changes, VerCors flags changes, etc.
 
 # PR description
 
-_Describe the motivation of the PR and the changes it introduces. Why is it needed, and what does it change?_
+<!-- Describe the motivation of the PR and the changes it introduces. Why is it needed, and what does it change? -->

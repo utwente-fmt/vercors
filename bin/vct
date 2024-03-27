@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+set -e
 ROOT=$(dirname $(dirname $(readlink -f $0)))
-(cd $ROOT; ./mill vercors.main.runScript)
+(cd $ROOT; ./mill -j 0 vercors.main.runScript)
 $ROOT/out/vercors/main/runScript.dest/vercors "$@"
