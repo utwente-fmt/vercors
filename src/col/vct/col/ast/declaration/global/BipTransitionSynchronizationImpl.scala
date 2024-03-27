@@ -7,7 +7,7 @@ import vct.col.ast.ops.BipTransitionSynchronizationOps
 trait BipTransitionSynchronizationImpl[G] extends BipTransitionSynchronizationOps[G] { this: BipTransitionSynchronization[G] =>
   def summarize: String = {
     val portsTxt = if (transitions.isEmpty) "No transitions" else transitions.map("- " + _.decl.signature.shortSignature).mkString("\n")
-    val wiresTxt = if (wires.isEmpty) "No wires" else wires.map("- " + _.o.getPreferredNameOrElse()).mkString("\n")
+    val wiresTxt = if (wires.isEmpty) "No wires" else wires.map("- " + _.o.getPreferredNameOrElse().camel).mkString("\n")
 
     s"""=== Transition synchronization ===
        |Transition:

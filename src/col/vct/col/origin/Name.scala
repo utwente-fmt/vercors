@@ -5,6 +5,9 @@ sealed trait Name {
   def usnake: String
   def camel: String
   def ucamel: String
+
+  override def toString: String =
+    throw new UnsupportedOperationException()
 }
 
 object Name {
