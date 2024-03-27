@@ -264,11 +264,11 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
         }
       case None => bound match {
         // If we do not have a simple comparison, we support one special case: i \in {a..b}
-        case SeqMember(Local(Ref(v)), Range(from, to))
+        case SetMember(Local(Ref(v)), RangeSet(from, to))
           if bindings.contains(v) && indepOf(bindings, from) && indepOf(bindings, to) =>
           addSingleBound(v, from, Comparison.GREATER_EQ)
           addSingleBound(v, to, Comparison.LESS)
-        case SeqMember(left, Range(from, to)) =>
+        case SetMember(left, RangeSet(from, to)) =>
           getSingleBound(Comparison.GREATER_EQ.make(left, from))
           getSingleBound(Comparison.LESS.make(left, to))
         case _ => dependentConditions.addOne(bound)

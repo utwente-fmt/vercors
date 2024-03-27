@@ -5,6 +5,13 @@ import vct.col.ast._
 
 import scala.collection.mutable
 
+object Namer {
+  val KEYWORDS =
+    Set(
+
+    )
+}
+
 case class Namer[G](syntax: Ctx.Syntax) {
   private val stack = ScopedStack[Node[G]]()
   private val names = mutable.Map[(scala.Any, String, Int), Declaration[G]]()
