@@ -214,6 +214,7 @@ valPrimaryBinder
  : '(' valBinderSymbol valBindings ';' langExpr valBinderCont? ')' # valQuantifier
  | '(' '\\let' langType langId '=' langExpr ';' langExpr ')' # valLet
  | '(' '\\forperm' valArgList '\\in' langExpr ';' langExpr ')' #valForPerm
+ | '(' '\\forpermwithvalue' 'any' langId ';' langExpr ')' #valForPermWithValue
  ;
 
 valPrimaryVector
