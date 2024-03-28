@@ -60,7 +60,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       case e: Binder[Pre] =>
         rewriteLinearArray(e) match {
           case None =>
-            val res = rewriteDefault(e)
+            val res = e.rewriteDefault()
             res match {
               case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true} =>
                 val trigger = e.o.inlineContext(false).map(_.last).getOrElse("unknown context")
@@ -74,7 +74,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           case Some(newE)
             => newE
         }
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
   }
 
@@ -83,13 +83,13 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       case Exhale(e) => e
       case Inhale(e) => e
       case proof: FramedProof[Pre] => return checkFramedProof(proof)
-      case _ => return rewriteDefault(stat)
+      case _ => return stat.rewriteDefault()
     }
 
     val conditions = getConditions(e)
     val infoGetter = new AnnotationVariableInfoGetter[Pre]()
     equalityChecker = ExpressionEqualityCheck(Some(infoGetter.getInfo(conditions)))
-    val result = rewriteDefault(stat)
+    val result = stat.rewriteDefault()
     equalityChecker = ExpressionEqualityCheck()
     result
   }
@@ -98,14 +98,14 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     val conditions_pre = getConditions(proof.pre)
     val infoGetter_pre = new AnnotationVariableInfoGetter[Pre]()
     equalityChecker = ExpressionEqualityCheck(Some(infoGetter_pre.getInfo(conditions_pre)))
-    val pre = proof.pre.rewriteDefault()
+    val pre = dispatch(proof.pre)
 
     val conditions_post = getConditions(proof.post)
     val infoGetter_post = new AnnotationVariableInfoGetter[Pre]()
     ExpressionEqualityCheck(Some(infoGetter_post.getInfo(conditions_post)))
-    val post = proof.post.rewriteDefault()
+    val post = dispatch(proof.post)
     equalityChecker = ExpressionEqualityCheck()
-    val body = proof.body.rewriteDefault()
+    val body = dispatch(proof.body)
 
     FramedProof[Post](pre, body, post)(proof.blame)(proof.o)
   }
@@ -466,7 +466,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
         case expr if expr == indexReplacement._1  => indexReplacement._2
         case v: Local[Pre] if subs.contains(v.ref.decl) => subs(v.ref.decl)
-        case other => rewriteDefault(other)
+        case other => other.rewriteDefault()
       }
     }
 
@@ -533,7 +533,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
         None
       }
 
-      res.map(mainRewriter.rewriteDefault)
+      res.map(mainRewriter.dispatch)
     }
   }
 
