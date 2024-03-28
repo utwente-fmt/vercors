@@ -2,162 +2,215 @@
 
 #include <llvm/IR/Module.h>
 
-#include "nlohmann/json.hpp"
-
 #include "Origin/PreferredNameDeriver.h"
 #include "Origin/ContextDeriver.h"
 #include "Origin/ShortPositionDeriver.h"
 
 namespace llvm2Col {
-    using json = nlohmann::json;
+    col::Origin *generateProgramOrigin(llvm::Module &llvmModule) {
+        col::Origin *origin = new col::Origin();
+        col::OriginContent *preferredNameContent = origin->add_content();
+        col::PreferredName *preferredName = new col::PreferredName();
+        preferredName->add_preferred_name("program:" + llvmModule.getName().str());
+        preferredNameContent->set_allocated_preferred_name(preferredName);
 
-    const std::string PREFERRED_NAME = "preferredName";
-    const std::string CONTEXT = "context";
-    const std::string INLINE_CONTEXT = "inlineContext";
-    const std::string SHORT_POSITION = "shortPosition";
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveModuleContext(llvmModule));
+        context->set_inline_context(deriveModuleContext(llvmModule));
+        context->set_short_position(deriveModuleShortPosition(llvmModule));
+        contextContent->set_allocated_context(context);
 
-    std::string generateProgramOrigin(llvm::Module &llvmModule) {
-        std::unordered_map<std::string, std::string> originMap;
-
-        originMap.insert({PREFERRED_NAME, "program:" + llvmModule.getName().str()});
-        originMap.insert({CONTEXT, deriveModuleContext(llvmModule)});
-        originMap.insert({INLINE_CONTEXT, deriveModuleContext(llvmModule)});
-        originMap.insert({SHORT_POSITION, deriveModuleShortPosition(llvmModule)});
-
-        return json(originMap).dump();
+        origin->CheckInitialized();
+        return origin;
     }
 
-    std::string generateFuncDefOrigin(llvm::Function &llvmFunction) {
-        std::unordered_map<std::string, std::string> originMap;
+    col::Origin *generateFuncDefOrigin(llvm::Function &llvmFunction) {
+        col::Origin *origin = new col::Origin();
+        col::OriginContent *preferredNameContent = origin->add_content();
+        col::PreferredName *preferredName = new col::PreferredName();
+        preferredName->add_preferred_name(llvmFunction.getName().str());
+        preferredNameContent->set_allocated_preferred_name(preferredName);
 
-        originMap.insert({PREFERRED_NAME, llvmFunction.getName().str()});
-        originMap.insert({CONTEXT, deriveFunctionContext(llvmFunction)});
-        originMap.insert({INLINE_CONTEXT, deriveFunctionContext(llvmFunction)});
-        originMap.insert({SHORT_POSITION, deriveFunctionShortPosition(llvmFunction)});
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveFunctionContext(llvmFunction));
+        context->set_inline_context(deriveFunctionContext(llvmFunction));
+        context->set_short_position(deriveFunctionShortPosition(llvmFunction));
+        contextContent->set_allocated_context(context);
 
-        return json(originMap).dump();
+        origin->CheckInitialized();
+        return origin;
     }
 
-    std::string generateFunctionContractOrigin(llvm::Function &llvmFunction, const std::string& contract) {
-        std::unordered_map<std::string, std::string> originMap;
+    col::Origin *generateFunctionContractOrigin(llvm::Function &llvmFunction, const std::string& contract) {
+        col::Origin *origin = new col::Origin();
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(contract);
+        context->set_inline_context(contract);
+        context->set_short_position(deriveFunctionShortPosition(llvmFunction));
+        contextContent->set_allocated_context(context);
 
-        // no prefered name
-        originMap.insert({CONTEXT, contract});
-        originMap.insert({INLINE_CONTEXT, contract});
-        originMap.insert({SHORT_POSITION, deriveFunctionShortPosition(llvmFunction)});
-
-
-        return json(originMap).dump();
+        origin->CheckInitialized();
+        return origin;
     }
 
-    std::string generateGlobalValOrigin(llvm::Module &llvmModule, const std::string &globVal) {
-        std::unordered_map<std::string, std::string> originMap;
+    col::Origin *generateGlobalValOrigin(llvm::Module &llvmModule, const std::string &globVal) {
+        col::Origin *origin = new col::Origin();
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(globVal);
+        context->set_inline_context(globVal);
+        context->set_short_position(deriveModuleShortPosition(llvmModule));
+        contextContent->set_allocated_context(context);
 
-        // no prefered name
-        originMap.insert({CONTEXT, globVal});
-        originMap.insert({INLINE_CONTEXT, globVal});
-        originMap.insert({SHORT_POSITION, deriveModuleShortPosition(llvmModule)});
-
-        return json(originMap).dump();
-
+        origin->CheckInitialized();
+        return origin;
     }
 
-    std::string generateArgumentOrigin(llvm::Argument &llvmArgument) {
-        std::unordered_map<std::string, std::string> originMap;
+    col::Origin *generateArgumentOrigin(llvm::Argument &llvmArgument) {
+        col::Origin *origin = new col::Origin();
+        col::OriginContent *preferredNameContent = origin->add_content();
+        col::PreferredName *preferredName = new col::PreferredName();
+        preferredName->add_preferred_name(deriveArgumentPreferredName(llvmArgument));
+        preferredNameContent->set_allocated_preferred_name(preferredName);
 
-        originMap.insert({PREFERRED_NAME, deriveArgumentPreferredName(llvmArgument)});
-        originMap.insert({CONTEXT, deriveFunctionContext(*llvmArgument.getParent())});
-        originMap.insert({INLINE_CONTEXT, deriveFunctionContext(*llvmArgument.getParent())});
-        originMap.insert({SHORT_POSITION, deriveFunctionShortPosition(*llvmArgument.getParent())});
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveFunctionContext(*llvmArgument.getParent()));
+        context->set_inline_context(deriveFunctionContext(*llvmArgument.getParent()));
+        context->set_short_position(deriveFunctionShortPosition(*llvmArgument.getParent()));
+        contextContent->set_allocated_context(context);
 
-        return json(originMap).dump();
+        origin->CheckInitialized();
+        return origin;
     }
 
-    std::string generateBlockOrigin(llvm::BasicBlock &llvmBlock) {
-        std::unordered_map<std::string, std::string> originMap;
+    col::Origin *generateBlockOrigin(llvm::BasicBlock &llvmBlock) {
+        col::Origin *origin = new col::Origin();
+        col::OriginContent *preferredNameContent = origin->add_content();
+        col::PreferredName *preferredName = new col::PreferredName();
+        preferredName->add_preferred_name("block");
+        preferredNameContent->set_allocated_preferred_name(preferredName);
 
-        originMap.insert({PREFERRED_NAME, "block"});
-        originMap.insert({CONTEXT, deriveBlockContext(llvmBlock)});
-        originMap.insert({INLINE_CONTEXT, deriveBlockContext(llvmBlock)});
-        originMap.insert({SHORT_POSITION, deriveBlockShortPosition(llvmBlock)});
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveBlockContext(llvmBlock));
+        context->set_inline_context(deriveBlockContext(llvmBlock));
+        context->set_short_position(deriveBlockShortPosition(llvmBlock));
+        contextContent->set_allocated_context(context);
 
-        return json(originMap).dump();
+        origin->CheckInitialized();
+        return origin;
     }
 
-    std::string generateLabelOrigin(llvm::BasicBlock &llvmBlock) {
-        std::unordered_map<std::string, std::string> originMap;
+    col::Origin *generateLabelOrigin(llvm::BasicBlock &llvmBlock) {
+        col::Origin *origin = new col::Origin();
+        col::OriginContent *preferredNameContent = origin->add_content();
+        col::PreferredName *preferredName = new col::PreferredName();
+        preferredName->add_preferred_name("label");
+        preferredNameContent->set_allocated_preferred_name(preferredName);
 
-        originMap.insert({PREFERRED_NAME, "label"});
-        originMap.insert({CONTEXT, deriveLabelContext(llvmBlock)});
-        originMap.insert({INLINE_CONTEXT, deriveLabelContext(llvmBlock)});
-        originMap.insert({SHORT_POSITION, deriveBlockShortPosition(llvmBlock)});
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveLabelContext(llvmBlock));
+        context->set_inline_context(deriveLabelContext(llvmBlock));
+        context->set_short_position(deriveBlockShortPosition(llvmBlock));
+        contextContent->set_allocated_context(context);
 
-        return json(originMap).dump();
+        origin->CheckInitialized();
+        return origin;
     }
 
-    std::string generateSingleStatementOrigin(llvm::Instruction &llvmInstruction) {
-        std::unordered_map<std::string, std::string> originMap;
+    col::Origin *generateSingleStatementOrigin(llvm::Instruction &llvmInstruction) {
+        col::Origin *origin = new col::Origin();
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveSurroundingInstructionContext(llvmInstruction));
+        context->set_inline_context(deriveInstructionContext(llvmInstruction));
+        context->set_short_position(deriveInstructionShortPosition(llvmInstruction));
+        contextContent->set_allocated_context(context);
 
-        // omit preferred name
-        originMap.insert({CONTEXT, deriveSurroundingInstructionContext(llvmInstruction)});
-        originMap.insert({INLINE_CONTEXT, deriveInstructionContext(llvmInstruction)});
-        originMap.insert({SHORT_POSITION, deriveInstructionShortPosition(llvmInstruction)});
-
-        return json(originMap).dump();
+        origin->CheckInitialized();
+        return origin;
     }
 
-    std::string generateAssignTargetOrigin(llvm::Instruction &llvmInstruction) {
-        std::unordered_map<std::string, std::string> originMap;
+    col::Origin *generateAssignTargetOrigin(llvm::Instruction &llvmInstruction) {
+        col::Origin *origin = new col::Origin();
+        col::OriginContent *preferredNameContent = origin->add_content();
+        col::PreferredName *preferredName = new col::PreferredName();
+        preferredName->add_preferred_name("var");
+        preferredNameContent->set_allocated_preferred_name(preferredName);
 
-        originMap.insert({PREFERRED_NAME, "var"});
-        originMap.insert({CONTEXT, deriveInstructionContext(llvmInstruction)});
-        originMap.insert({INLINE_CONTEXT, deriveInstructionLhs(llvmInstruction)});
-        originMap.insert({SHORT_POSITION, deriveInstructionShortPosition(llvmInstruction)});
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveInstructionContext(llvmInstruction));
+        context->set_inline_context(deriveInstructionLhs(llvmInstruction));
+        context->set_short_position(deriveInstructionShortPosition(llvmInstruction));
+        contextContent->set_allocated_context(context);
 
-        return json(originMap).dump();
+        origin->CheckInitialized();
+        return origin;
     }
 
-    std::string generateBinExprOrigin(llvm::Instruction &llvmInstruction) {
-        std::unordered_map<std::string, std::string> originMap;
+    col::Origin *generateBinExprOrigin(llvm::Instruction &llvmInstruction) {
+        col::Origin *origin = new col::Origin();
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveSurroundingInstructionContext(llvmInstruction));
+        context->set_inline_context(deriveInstructionContext(llvmInstruction));
+        context->set_short_position(deriveInstructionShortPosition(llvmInstruction));
+        contextContent->set_allocated_context(context);
 
-        // omit preferred name
-        originMap.insert({CONTEXT, deriveSurroundingInstructionContext(llvmInstruction)});
-        originMap.insert({INLINE_CONTEXT, deriveInstructionRhs(llvmInstruction)});
-        originMap.insert({SHORT_POSITION, deriveInstructionShortPosition(llvmInstruction)});
-
-        return json(originMap).dump();
+        origin->CheckInitialized();
+        return origin;
     }
 
-    std::string generateFunctionCallOrigin(llvm::CallInst &callInstruction) {
-        std::unordered_map<std::string, std::string> originMap;
+    col::Origin *generateFunctionCallOrigin(llvm::CallInst &callInstruction) {
+        col::Origin *origin = new col::Origin();
+        col::OriginContent *preferredNameContent = origin->add_content();
+        col::PreferredName *preferredName = new col::PreferredName();
+        preferredName->add_preferred_name(callInstruction.getCalledFunction()->getName().str());
+        preferredNameContent->set_allocated_preferred_name(preferredName);
 
-        originMap.insert({PREFERRED_NAME, callInstruction.getCalledFunction()->getName().str()});
-        originMap.insert({CONTEXT, deriveSurroundingInstructionContext(callInstruction)});
-        originMap.insert({INLINE_CONTEXT, deriveInstructionRhs(callInstruction)});
-        originMap.insert({SHORT_POSITION, deriveInstructionShortPosition(callInstruction)});
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveSurroundingInstructionContext(callInstruction));
+        context->set_inline_context(deriveInstructionRhs(callInstruction));
+        context->set_short_position(deriveInstructionShortPosition(callInstruction));
+        contextContent->set_allocated_context(context);
 
-        return json(originMap).dump();
-
+        origin->CheckInitialized();
+        return origin;
     }
 
-    std::string generateOperandOrigin(llvm::Instruction &llvmInstruction, llvm::Value &llvmOperand) {
-        std::unordered_map<std::string, std::string> originMap;
+    col::Origin *generateOperandOrigin(llvm::Instruction &llvmInstruction, llvm::Value &llvmOperand) {
+        col::Origin *origin = new col::Origin();
+        col::OriginContent *preferredNameContent = origin->add_content();
+        col::PreferredName *preferredName = new col::PreferredName();
+        preferredName->add_preferred_name(deriveOperandPreferredName(llvmOperand));
+        preferredNameContent->set_allocated_preferred_name(preferredName);
 
-        originMap.insert({PREFERRED_NAME, deriveOperandPreferredName(llvmOperand)});
-        originMap.insert({CONTEXT, deriveInstructionContext(llvmInstruction)});
-        originMap.insert({INLINE_CONTEXT, deriveOperandContext(llvmOperand)});
-        originMap.insert({SHORT_POSITION, deriveInstructionShortPosition(llvmInstruction)});
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveInstructionContext(llvmInstruction));
+        context->set_inline_context(deriveOperandContext(llvmOperand));
+        context->set_short_position(deriveInstructionShortPosition(llvmInstruction));
+        contextContent->set_allocated_context(context);
 
-        return json(originMap).dump();
+        origin->CheckInitialized();
+        return origin;
     }
 
-    std::string generateTypeOrigin(llvm::Type &llvmType) {
-        std::unordered_map<std::string, std::string> originMap;
+    col::Origin *generateTypeOrigin(llvm::Type &llvmType) {
+        col::Origin *origin = new col::Origin();
+        col::OriginContent *preferredNameContent = origin->add_content();
+        col::PreferredName *preferredName = new col::PreferredName();
+        preferredName->add_preferred_name(deriveTypePreferredName(llvmType));
+        preferredNameContent->set_allocated_preferred_name(preferredName);
 
-        originMap.insert({PREFERRED_NAME, deriveTypePreferredName(llvmType)});
-
-        return json(originMap).dump();
+        origin->CheckInitialized();
+        return origin;
     }
-
-
 }

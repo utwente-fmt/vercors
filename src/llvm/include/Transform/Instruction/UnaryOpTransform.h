@@ -4,7 +4,7 @@
 #include "Passes/Function/FunctionBodyTransformer.h"
 
 namespace llvm2Col {
-    namespace col = vct::col::serialize;
+    namespace col = vct::col::ast;
 
     void transformUnaryOp(llvm::Instruction &llvmInstruction,
                           col::Block &colBlock,

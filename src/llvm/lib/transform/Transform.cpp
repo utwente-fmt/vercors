@@ -17,16 +17,16 @@
 namespace llvm2Col {
     const std::string SOURCE_LOC = "Transform::Transform";
 
-    namespace col = vct::col::serialize;
+    namespace col = vct::col::ast;
 
     void transformAndSetType(llvm::Type &llvmType,
                              col::Type &colType) {
         switch (llvmType.getTypeID()) {
             case llvm::Type::IntegerTyID:
                 if (llvmType.getIntegerBitWidth() == 1) {
-                    colType.mutable_t_bool()->set_origin(generateTypeOrigin(llvmType));
+                    colType.mutable_t_bool()->set_allocated_origin(generateTypeOrigin(llvmType));
                 } else {
-                    colType.mutable_t_int()->set_origin(generateTypeOrigin(llvmType));
+                    colType.mutable_t_int()->set_allocated_origin(generateTypeOrigin(llvmType));
                 }
                 break;
             default:
@@ -52,8 +52,8 @@ namespace llvm2Col {
                                 col::Expr &colExpr) {
         col::Variable colVar = functionCursor.getVariableMapEntry(llvmOperand);
         col::Local *colLocal = colExpr.mutable_local();
-        colLocal->set_origin(generateOperandOrigin(llvmInstruction, llvmOperand));
-        colLocal->mutable_ref()->set_index(colVar.id());
+        colLocal->set_allocated_origin(generateOperandOrigin(llvmInstruction, llvmOperand));
+        colLocal->mutable_ref()->set_id(colVar.id());
     }
 
     void transformAndSetConstExpr(llvm::Instruction &llvmInstruction,
@@ -64,11 +64,11 @@ namespace llvm2Col {
             case llvm::Type::IntegerTyID:
                 if (constType->getIntegerBitWidth() == 1) {
                     col::BooleanValue *boolValue = colExpr.mutable_boolean_value();
-                    boolValue->set_origin(generateOperandOrigin(llvmInstruction, llvmConstant));
+                    boolValue->set_allocated_origin(generateOperandOrigin(llvmInstruction, llvmConstant));
                     boolValue->set_value(llvmConstant.isOneValue());
                 } else {
                     col::IntegerValue *integerValue = colExpr.mutable_integer_value();
-                    integerValue->set_origin(generateOperandOrigin(llvmInstruction, llvmConstant));
+                    integerValue->set_allocated_origin(generateOperandOrigin(llvmInstruction, llvmConstant));
                     llvm::APInt apInt = llvmConstant.getUniqueInteger();
                     transformAndSetIntegerValue(apInt, *integerValue);
                 }
