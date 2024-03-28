@@ -178,6 +178,7 @@ case class SilverTransformation
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     // Replace leftover SYCL types
     ReplaceSYCLTypes,
+    CIntBoolCoercion,
     CFloatIntCoercion,
 
     ComputeBipGlue,
