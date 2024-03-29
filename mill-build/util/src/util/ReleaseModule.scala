@@ -38,13 +38,14 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
       "macos" -> macosTar().path,
       "win" -> winZip().path,
       "deb" -> deb().path,
-      "docker" -> dockerBuild()._2.path,
+      "docker" -> dockerBuild().apply(0)._2.path,
+      "docker-ubuntu" -> dockerBuild().apply(1)._2.path
     )
   }
 
   def dockerExtra: T[String] = ""
 
-  def dockerBuild: T[(String, PathRef)] = T {
+  def dockerBuild: T[Seq[(String, PathRef)]] = T {
     val dest = T.dest / "dest"
     val data = dest / "opt" / artifactName()
     val bin = dest / "usr" / "bin"
@@ -69,7 +70,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
     val entryPoint =
       Seq("java") ++ forkArgs() ++ Seq(s"@/.classpath", finalMainClass())
 
-    os.write(T.dest / "Dockerfile",
+    os.write(T.dest / "Dockerfile-alpine",
       s"""FROM alpine:3.19
          |RUN apk add --no-cache openjdk17 gcompat libstdc++ libgcc
          |COPY dest /
@@ -77,7 +78,16 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
          |ENTRYPOINT ${executableName()}
          |""".stripMargin)
 
-    os.proc("docker", "build", "--file", T.dest / "Dockerfile", "--iidfile", T.dest / "id", ".").call(cwd = T.dest)
+    os.write(T.dest / "Dockerfile-ubuntu",
+      s"""FROM ubuntu:jammy-20240227
+         |RUN apt-get update
+         |RUN apt-get install --no-install-recommends -y openjdk-17-jre-headless clang
+         |COPY dest /
+         |${dockerExtra()}
+         |ENTRYPOINT ${executableName()}
+         |""".stripMargin)
+
+    os.proc("docker", "build", "--file", T.dest / "Dockerfile-alpine", "--iidfile", T.dest / "id", ".").call(cwd = T.dest)
     val id = os.read(T.dest / "id")
     val tempTag = s"mill-build-${id.replace(":", "-")}"
     os.proc("docker", "tag", id, tempTag).call(cwd = T.dest)
@@ -85,38 +95,44 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
     val out = T.dest / s"${executableName()}-${version()}-docker.tar"
     os.proc("docker", "save", "-o", out, id).call(cwd = T.dest)
 
+    os.proc("docker", "build", "--file", T.dest / "Dockerfile-ubuntu", "--iidfile", T.dest / "id_ubuntu", ".").call(cwd = T.dest)
+    val idUbuntu = os.read(T.dest / "id_ubuntu")
+    val tempTagUbuntu = s"mill-build-${idUbuntu.replace(":", "-")}-ubuntu"
+    os.proc("docker", "tag", idUbuntu, tempTagUbuntu).call(cwd = T.dest)
+
+    val outUbuntu = T.dest / s"${executableName()}-${version()}-ubuntu-docker.tar"
+    os.proc("docker", "save", "-o", outUbuntu, idUbuntu).call(cwd = T.dest)
+
     // Clean up the image unless it is tagged another way
     os.proc("docker", "rmi", tempTag).call(cwd = T.dest)
+    os.proc("docker", "rmi", tempTagUbuntu).call(cwd = T.dest)
 
-    (id, PathRef(out, quick = true))
+    Seq((id, PathRef(out, quick = true)), (idUbuntu, PathRef(outUbuntu, quick = true)))
   }
 
   def dockerPublishLocal() = T.command {
-    val (id, file) = dockerBuild()
-
-    os.proc("docker", "load", "-i", file.path).call(cwd = T.dest)
-    os.proc("docker", "tag", id, dockerTag()).call(cwd = T.dest)
-
-    ()
+    dockerBuild().foreach({ case (id, file) =>
+      os.proc("docker", "load", "-i", file.path).call(cwd = T.dest)
+      os.proc("docker", "tag", id, dockerTag()).call(cwd = T.dest)
+    })
   }
 
   def dockerTar = T {
-    val (id, file) = dockerBuild()
+    dockerBuild().map({ case (id, file) =>
+      val tag = dockerTag()
 
-    val tag = dockerTag()
+      val exists = os.proc("docker", "image", "inspect", tag).call(cwd = T.dest, check = false).exitCode == 0
 
-    val exists = os.proc("docker", "image", "inspect", tag).call(cwd = T.dest, check = false).exitCode == 0
+      os.proc("docker", "load", "-i", file.path).call(cwd = T.dest)
+      os.proc("docker", "tag", id, dockerTag()).call(cwd = T.dest)
+      val out = T.dest / s"${executableName()}-${version}-docker.tar"
+      os.proc("docker", "save", "-o", out, tag).call(cwd = T.dest)
 
-    os.proc("docker", "load", "-i", file.path).call(cwd = T.dest)
-    os.proc("docker", "tag", id, dockerTag()).call(cwd = T.dest)
-    val out = T.dest / s"${executableName()}-${version}-docker.tar"
-    os.proc("docker", "save", "-o", out, tag).call(cwd = T.dest)
-
-    if(!exists) {
-      os.proc("docker", "rmi", tag).call(cwd = T.dest)
-    }
-
-    PathRef(out, quick = true)
+      if(!exists) {
+        os.proc("docker", "rmi", tag).call(cwd = T.dest)
+      }
+      PathRef(out, quick = true)
+    })
   }
 
   def unixTar = T {
