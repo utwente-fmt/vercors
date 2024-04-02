@@ -209,9 +209,9 @@ case class SilverTransformation
     EncodeChar,
 
     CollectLocalDeclarations, // all decls in Scope
+    VariableToPointer, // should happen before ParBlockEncoder so it can distinguish between variables which can and can't altered in a parallel block
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.
     ReadToValue, // resolve wildcard into fractional permission
-    VariableToPointer,
     TrivialAddrOf,
     DesugarCoalescingOperators, // no ?.
     PinCollectionTypes, // no anonymous sequences, sets, etc.

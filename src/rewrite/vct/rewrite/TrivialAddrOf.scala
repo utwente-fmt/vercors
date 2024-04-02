@@ -30,6 +30,12 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
     case AddrOf(sub @ PointerSubscript(p, i)) =>
       PointerAdd(dispatch(p), dispatch(i))(SubscriptErrorAddError(sub))(e.o)
 
+    case Eq(left, AddrOf(right)) if left.t.isInstanceOf[TPointer[Pre]] =>
+      Eq(PointerSubscript(dispatch(left), const[Post](0)(left.o))(PanicBlame("Size is > 0"))(left.o), dispatch(right))(e.o)
+
+    case Neq(left, AddrOf(right)) if left.t.isInstanceOf[TPointer[Pre]] =>
+      Neq(PointerSubscript(dispatch(left), const[Post](0)(left.o))(PanicBlame("Size is > 0"))(left.o), dispatch(right))(e.o)
+
     case AddrOf(other) =>
       throw UnsupportedLocation(other)
     case assign@PreAssignExpression(target, AddrOf(value)) if value.t.isInstanceOf[TClass[Pre]] =>
@@ -37,7 +43,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
       val (newPointer, newTarget, newValue) = rewriteAssign(target, value, assign.blame, assign.o)
       val newAssign = PreAssignExpression(PointerSubscript(newTarget, const[Post](0))(PanicBlame("Should always be accessible")), newValue)(assign.blame)
       With(newPointer, newAssign)
-    case other => rewriteDefault(other)
+    case other => other.rewriteDefault()
   }
 
   override def dispatch(s: Statement[Pre]): Statement[Post] = s match {
@@ -46,7 +52,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
       val (newPointer, newTarget, newValue) = rewriteAssign(target, value, assign.blame, assign.o)
       val newAssign = Assign(PointerSubscript(newTarget, const[Post](0))(PanicBlame("Should always be accessible")), newValue)(assign.blame)
       Block(Seq(newPointer, newAssign))
-    case other => rewriteDefault(other)
+    case other => other.rewriteDefault()
   }
 
   // TODO: AddressOff needs a more structured approach. Now you could assign a local structure to a pointer, and that pointer
