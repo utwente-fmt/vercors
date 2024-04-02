@@ -80,7 +80,7 @@ lazy val vercors: Project = (project in file("."))
   .settings(
     name := "Vercors1",
     organization := "University of Twente",
-    version := "1.4.1-SNAPSHOT",
+    version := "1.4.1",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=
