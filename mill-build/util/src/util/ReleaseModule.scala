@@ -27,6 +27,8 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
 
   def winExecutableName: T[String] = T { executableName() + ".bat" }
 
+  def dockerAptDependencies: T[Seq[String]] = T { Seq.empty[String] }
+
   private def copy(from: Path, to: Path): Path = {
     os.copy(from, to, followLinks = true, replaceExisting = false, createFolders = true, mergeFolders = true)
     to
@@ -70,8 +72,9 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
       Seq("java") ++ forkArgs() ++ Seq(s"@/.classpath", finalMainClass())
 
     os.write(T.dest / "Dockerfile",
-      s"""FROM alpine:3.19
-         |RUN apk add --no-cache openjdk17 gcompat libstdc++ libgcc
+      s"""FROM ubuntu:jammy
+         |RUN apt update && \\
+         |    apt install --no-install-recommends -y openjdk-17-jre-headless ${dockerAptDependencies().mkString(" ")}
          |COPY dest /
          |${dockerExtra()}
          |ENTRYPOINT ${executableName()}

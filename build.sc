@@ -405,7 +405,7 @@ object vercors extends Module {
       ivy"org.antlr:antlr4-runtime:4.8"
     )
     override def moduleDeps = Seq(hre, col, serialize)
-    override def unmanagedClasspath = super.unmanagedClasspath() ++ Agg(PathRef(vcllvm.compile().path / os.up))
+    override def bareResourcePaths = T { Seq(vcllvm.compile().path / os.up) }
 
     trait GenModule extends Module {
       def base = T { settings.src / "parsers" / "antlr4" }
@@ -524,6 +524,7 @@ object vercors extends Module {
     def version = T { buildInfo.gitVersion() }
     def dockerVersion = T { Some(buildInfo.gitDockerVersion()) }
     def summary = "A deductive verifier for concurrent and parallel software."
+    def dockerAptDependencies = Seq("clang", "libllvm15")
     def description =
       """The VerCors verifier is a tool for deductive verification of concurrent
         |and parallel software. VerCors can reason about programs written in
