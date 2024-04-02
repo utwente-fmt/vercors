@@ -30,12 +30,6 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
     case AddrOf(sub @ PointerSubscript(p, i)) =>
       PointerAdd(dispatch(p), dispatch(i))(SubscriptErrorAddError(sub))(e.o)
 
-    case Eq(left, AddrOf(right)) if left.t.isInstanceOf[TPointer[Pre]] =>
-      Eq(PointerSubscript(dispatch(left), const[Post](0)(left.o))(PanicBlame("Size is > 0"))(left.o), dispatch(right))(e.o)
-
-    case Neq(left, AddrOf(right)) if left.t.isInstanceOf[TPointer[Pre]] =>
-      Neq(PointerSubscript(dispatch(left), const[Post](0)(left.o))(PanicBlame("Size is > 0"))(left.o), dispatch(right))(e.o)
-
     case AddrOf(other) =>
       throw UnsupportedLocation(other)
     case assign@PreAssignExpression(target, AddrOf(value)) if value.t.isInstanceOf[TClass[Pre]] =>

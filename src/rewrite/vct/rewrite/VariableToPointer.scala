@@ -56,8 +56,17 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
       } ++ Seq(dispatch(s.body))))
       case i@Instantiate(cls, out) =>
         Block(Seq(i.rewriteDefault()) ++ cls.decl.declarations.flatMap {
-          case f: InstanceField[Pre] if addressedSet.contains(f) =>
-            Seq(Assign(Deref[Post](dispatch(out), fieldMap.ref(f))(PanicBlame("Initialisation should always succeed")), NewPointerArray(fieldMap(f).t.asPointer.get.element, const(1))(PanicBlame("Size is > 0")))(PanicBlame("Initialisation should always succeed")))
+          case f: InstanceField[Pre]  =>
+            if (f.t.asClass.isDefined) {
+              Seq(
+                Assign(Deref[Post](dispatch(out), fieldMap.ref(f))(PanicBlame("Initialisation should always succeed")), NewPointerArray(fieldMap(f).t.asPointer.get.element, const(1))(PanicBlame("Size is > 0")))(PanicBlame("Initialisation should always succeed")),
+                Assign(PointerSubscript(Deref[Post](dispatch(out), fieldMap.ref(f))(PanicBlame("Initialisation should always succeed")), const[Post](0))(PanicBlame("Size is > 0")), dispatch(NewObject[Pre](f.t.asClass.get.cls)))(PanicBlame("Initialisation should always succeed"))
+              )
+            } else if (addressedSet.contains(f)) {
+              Seq(Assign(Deref[Post](dispatch(out), fieldMap.ref(f))(PanicBlame("Initialisation should always succeed")), NewPointerArray(fieldMap(f).t.asPointer.get.element, const(1))(PanicBlame("Size is > 0")))(PanicBlame("Initialisation should always succeed")))
+            } else {
+              Seq()
+            }
           case _ => Seq()
         })
       case other => other.rewriteDefault()
@@ -77,8 +86,16 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
         val obj = new Variable[Post](TClass(succ(cls)))
         ScopedExpr(Seq(obj), With(Block(
           Seq(assignLocal(obj.get, newObject.rewriteDefault())) ++ cls.declarations.flatMap {
-            case f: InstanceField[Pre] if addressedSet.contains(f) =>
-              Seq(Assign(Deref[Post](obj.get, fieldMap.ref(f))(PanicBlame("Initialisation should always succeed")), NewPointerArray(fieldMap(f).t.asPointer.get.element, const(1))(PanicBlame("Size is > 0")))(PanicBlame("Initialisation should always succeed")))
+            case f: InstanceField[Pre] =>
+              if (f.t.asClass.isDefined) {
+                Seq(
+                  Assign(Deref[Post](obj.get, anySucc(f))(PanicBlame("Initialisation should always succeed")), dispatch(NewObject[Pre](f.t.asClass.get.cls)))(PanicBlame("Initialisation should always succeed"))
+                )
+              } else if (addressedSet.contains(f)) {
+                Seq(Assign(Deref[Post](obj.get, fieldMap.ref(f))(PanicBlame("Initialisation should always succeed")), NewPointerArray(fieldMap(f).t.asPointer.get.element, const(1))(PanicBlame("Size is > 0")))(PanicBlame("Initialisation should always succeed")))
+              } else {
+                Seq()
+              }
             case _ => Seq()
           }), obj.get))
       case other => other.rewriteDefault()
@@ -90,6 +107,9 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
     loc match {
       case HeapVariableLocation(Ref(v)) if addressedSet.contains(v) => PointerLocation(DerefHeapVariable[Post](heapVariableMap.ref(v))(PanicBlame("Should always be accessible")))(PanicBlame("Should always be accessible"))
       case FieldLocation(obj, Ref(f)) if addressedSet.contains(f) => PointerLocation(Deref[Post](dispatch(obj), fieldMap.ref(f))(PanicBlame("Should always be accessible")))(PanicBlame("Should always be accessible"))
+      case PointerLocation(AddrOf(Deref(obj, Ref(f)))) /* if addressedSet.contains(f) always true */ => FieldLocation[Post](dispatch(obj), fieldMap.ref(f))
+      case PointerLocation(AddrOf(DerefHeapVariable(Ref(v)))) /* if addressedSet.contains(v) always true */ => HeapVariableLocation[Post](heapVariableMap.ref(v))
+      case PointerLocation(AddrOf(local@Local(_))) => throw UnsupportedAddrOf(local)
       case other => other.rewriteDefault()
     }
   }

@@ -54,21 +54,6 @@ case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre]
     }
   }
 
-  def makeClassPerm(e: Expr[Post], cls: TClass[Pre], perm: Expr[Post]): Expr[Post] = {
-    implicit val o: Origin = e.o
-    cls.cls.decl.declarations.collect {
-      case f: InstanceField[Pre] =>
-        if (f.t.asClass.isDefined) {
-          Perm(FieldLocation[Post](e, succ(f)), perm) &*
-            makeClassPerm(Deref[Post](e, succ(f))(FramedPtrOffset), f.t.asClass.get, perm)
-        } else {
-          Perm[Post](FieldLocation(e, succ(f)), perm)
-        }
-    }.reduce {
-      (a,b) => a &* b
-    }
-  }
-
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
@@ -94,26 +79,13 @@ case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre]
             (const(0) <= row0 && row0 < dim0 && const(0) <= row1 && row1 < dim0) ==>
               ((ArraySubscript(mat, row0)(FramedArrIndex) === ArraySubscript(mat, row1)(FramedArrIndex)) ==> (row0 === row1))
           ))
-      case PermPointer(p, len, perm) if p.t.asPointer.get.element.asClass.isDefined =>
+      case PermPointer(p, len, perm) =>
         (dispatch(p) !== Null()) &*
           const(0) <= PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(len) &*
           PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(len) <= PointerBlockLength(dispatch(p))(FramedPtrBlockLength) &*
           starall(IteratedPtrInjective, TInt(), i =>
-            (const(0) <= i && i < dispatch(len)) ==> (
-              Perm(PointerLocation(PointerAdd(dispatch(p), i)(FramedPtrOffset))(FramedPtrOffset), dispatch(perm)) &* makeClassPerm(DerefPointer(PointerAdd(dispatch(p), i)(FramedPtrOffset))(FramedPtrOffset), p.t.asPointer.get.element.asClass.get, dispatch(perm)) ))
-      case PermPointer(p, len, perm) =>
-        (dispatch(p) !== Null()) &*
-        const(0) <= PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(len) &*
-        PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(len) <= PointerBlockLength(dispatch(p))(FramedPtrBlockLength) &*
-        starall(IteratedPtrInjective, TInt(), i =>
-        (const(0) <= i && i < dispatch(len)) ==>
-        Perm(PointerLocation(PointerAdd(dispatch(p), i)(FramedPtrOffset))(FramedPtrOffset), dispatch(perm)))
-      case PermPointerIndex(p, idx, perm) if p.t.asPointer.get.element.asClass.isDefined =>
-        (dispatch(p) !== Null()) &*
-        const(0) <= PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(idx) &*
-        PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(idx) < PointerBlockLength(dispatch(p))(FramedPtrBlockLength) &*
-        Perm(PointerLocation(PointerAdd(dispatch(p), dispatch(idx))(FramedPtrOffset))(FramedPtrOffset), dispatch(perm)) &*
-        makeClassPerm(DerefPointer(PointerAdd(dispatch(p), dispatch(idx))(FramedPtrOffset))(FramedPtrOffset), p.t.asPointer.get.element.asClass.get, dispatch(perm))
+            (const(0) <= i && i < dispatch(len)) ==>
+              Perm(PointerLocation(PointerAdd(dispatch(p), i)(FramedPtrOffset))(FramedPtrOffset), dispatch(perm)))
       case PermPointerIndex(p, idx, perm) =>
         (dispatch(p) !== Null()) &*
           const(0) <= PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(idx) &*
