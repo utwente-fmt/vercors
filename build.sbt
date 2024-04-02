@@ -78,9 +78,9 @@ lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, viper_api, parsers)
   .aggregate(hre, col, viper_api, parsers)
   .settings(
-    name := "Vercors",
+    name := "Vercors1",
     organization := "University of Twente",
-    version := "1.4.0-SNAPSHOT",
+    version := "1.4.1-SNAPSHOT",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=
@@ -155,7 +155,7 @@ lazy val vercors: Project = (project in file("."))
     scriptClasspath := Seq("*", "../res"),
 
     // Force the main classes, as we have some extra main classes that we don't want to generate run scripts for.
-    Compile / discoveredMainClasses := Seq("vct.main.Vercors","vct.main.Alpinist"),
+    Compile / discoveredMainClasses := Seq("vct.main.Vercors1","vct.main.Alpinist"),
 //    Compile / mainClass := Some("vct.main.Main"),
 
     // Add options to run scripts produced by sbt-native-packager. See: https://www.scala-sbt.org/sbt-native-packager/archetypes/java_app/customize.html#via-build-sbt
