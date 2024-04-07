@@ -402,7 +402,8 @@ object vercors extends Module {
       )
     }
     def deps = Agg(
-      ivy"org.antlr:antlr4-runtime:4.8"
+      ivy"org.antlr:antlr4-runtime:4.8",
+      ivy"org.apache.logging.log4j:log4j-to-slf4j:2.23.1",
     )
     override def moduleDeps = Seq(hre, col, serialize)
     override def bareResourcePaths = T { Seq(vcllvm.compile().path / os.up) }

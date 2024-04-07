@@ -55,6 +55,7 @@ BARRIER: 'barrier';
 INVARIANT: 'invariant';
 CONSTRUCTOR: 'constructor';
 RUN: 'run';
+VESUV_ENTRY: 'vesuv_entry';
 THREAD: 'thread';
 ENDPOINT: 'endpoint';
 

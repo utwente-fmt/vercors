@@ -1587,6 +1587,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         new Function[Pre](function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.blame)
       case procedure: Procedure[Pre] =>
         procedure
+      case main_method: VeSUVMainMethod[Pre] =>
+        main_method
       case predicate: Predicate[Pre] =>
         new Predicate[Pre](predicate.args, predicate.body.map(res), predicate.threadLocal, predicate.inline)
       case definition: CFunctionDefinition[Pre] =>

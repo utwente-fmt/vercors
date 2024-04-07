@@ -269,8 +269,27 @@ case object Options {
         .action((_, c) => c.copy(mode = Mode.VeSUV))
         .text("Enable VeSUV mode: transform SystemC designs to PVL to be deductively verified")
         .children(
-          opt[Path]("vesuv-output").required().valueName("<path>")   // TODO: Give option for default location?
+          opt[Path]("vesuv-output").required().valueName("<path>")
             .action((path, c) => c.copy(vesuvOutput = path))
+            .text("Output file for the result of the transformation"),
+          opt[Unit]("generate-rasi").action((_, c) => c.copy(vesuvGenerateRasi = true))
+            .text("Instead of transforming a SystemC design to PVL, generate a global invariant for a PVL program")
+            .children(
+            opt[Seq[String]]("rasi-vars").valueName("<var1>,...")
+              .action((vars, c) => c.copy(vesuvRasiVariables = Some(vars)))
+              .text("[WIP] Preliminary selection mechanism for RASI variables; might be replaced later")
+          )
+        ),
+
+      note(""),
+      note("Control flow graph"),
+      opt[Unit]("build-cfg")
+        .action((_, c) => c.copy(mode = Mode.CFG))
+        .text("Instead of verifying a program, build its control flow graph for further analysis")
+        .children(
+          opt[Path]("cfg-output").required().valueName("<path>")
+            .action((path, c) => c.copy(cfgOutput = path))
+            .text("Output file for the control flow graph in .dot format")
         ),
 
       note(""),
@@ -408,6 +427,11 @@ case class Options
 
   // VeSUV options
   vesuvOutput: Path = null,
+  vesuvGenerateRasi: Boolean = false,
+  vesuvRasiVariables: Option[Seq[String]] = None,
+
+  // Control flow graph options
+  cfgOutput: Path = null,
 
   // Batch test options
   testDir: Path = null, // required
