@@ -59,34 +59,36 @@ class System {
     @*/
     public static /*native*/ void arraycopy(Object[] src,  int  srcPos,
                                         Object[] dest, int destPos,
-                                        int length) {
-        if (dest == null || src == null) throw new NullPointerException();
-        // left out type checks for src and dest arrays
-        if (srcPos < 0 || srcPos + length > src.length || 
-            destPos < 0 || destPos + length > dest.length ||
-            length < 0) { 
-            throw new IndexOutOfBoundsException();
-        }
-        // left out conversion checks for individual array elements
+                                        int length)
+    ;
+    // {
+    //     if (dest == null || src == null) throw new NullPointerException();
+    //     // left out type checks for src and dest arrays
+    //     if (srcPos < 0 || srcPos + length > src.length || 
+    //         destPos < 0 || destPos + length > dest.length ||
+    //         length < 0) { 
+    //         throw new IndexOutOfBoundsException();
+    //     }
+    //     // left out conversion checks for individual array elements
         
-        if (srcPos >= destPos) {
-            /*@
-            loop_invariant 0 <= i && i <= length;
-            loop_invariant (\forall int j = srcPos + i .. srcPos + length; src[j] == \old(src[j]));
-            loop_invariant (\forall int j = destPos .. destPos + i; {:dest[j]:} == \old(src[srcPos + (j - destPos)]));
-            @*/
-            for (int i = 0; i < length; i++) {
-                dest[destPos + i] = src[srcPos + i];
-            }
-        } else {
-            /*@
-            loop_invariant -1 <= i && i < length;
-            loop_invariant (\forall int j = srcPos .. srcPos + i + 1; src[j] == \old(src[j]));
-            loop_invariant (\forall int j = destPos + i + 1 .. destPos + length; {:dest[j]:} == \old(src[srcPos + (j - destPos)]));
-            @*/
-            for (int i = length - 1; i >= 0; i--) {
-                dest[destPos + i] = src[srcPos + i];
-            }
-        }
-    }
+    //     if (srcPos >= destPos) {
+    //         /*@
+    //         loop_invariant 0 <= i && i <= length;
+    //         loop_invariant (\forall int j = srcPos + i .. srcPos + length; src[j] == \old(src[j]));
+    //         loop_invariant (\forall int j = destPos .. destPos + i; {:dest[j]:} == \old(src[srcPos + (j - destPos)]));
+    //         */
+    //         for (int i = 0; i < length; i++) {
+    //             dest[destPos + i] = src[srcPos + i];
+    //         }
+    //     } else {
+    //         /*@
+    //         loop_invariant -1 <= i && i < length;
+    //         loop_invariant (\forall int j = srcPos .. srcPos + i + 1; src[j] == \old(src[j]));
+    //         loop_invariant (\forall int j = destPos + i + 1 .. destPos + length; {:dest[j]:} == \old(src[srcPos + (j - destPos)]));
+    //         */
+    //         for (int i = length - 1; i >= 0; i--) {
+    //             dest[destPos + i] = src[srcPos + i];
+    //         }
+    //     }
+    // }
 }
