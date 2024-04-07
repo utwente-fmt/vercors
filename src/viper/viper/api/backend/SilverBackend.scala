@@ -2,6 +2,7 @@ package viper.api.backend
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.RWFile
+import hre.progress.Progress
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
@@ -20,7 +21,7 @@ import java.nio.file.Path
 import scala.reflect.ClassTag
 import scala.util.{Try, Using}
 
-trait SilverBackend extends Backend with LazyLogging {
+trait SilverBackend extends Backend[(silver.Program, Map[Int, col.Node[_]])] with LazyLogging {
   case class NotSupported(text: String) extends SystemError
   case class ViperCrashed(text: String) extends SystemError
 
@@ -56,47 +57,60 @@ trait SilverBackend extends Backend with LazyLogging {
   private def path(node: silver.Node): Seq[AccountedDirection] =
     info(node.asInstanceOf[silver.Infoed]).predicatePath.get
 
-  override def submit(colProgram: col.Program[_], output: Option[Path]): Boolean = {
-    val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
+  def transform(colProgram: col.Program[_], output: Option[Path]): (silver.Program, Map[Int, col.Node[_]]) = {
+    Progress.stages(Seq("Translation" -> 2, "Diagnostic Output" -> 2, "Check" -> 7, "Check Idempotency" -> 9)) { next =>
+      val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
 
-    val silverProgramString =
-      silverProgram
-        .toString()
-        .replace("requires decreases", "decreases")
-        .replace("invariant decreases", "decreases")
+      next()
 
-    output.map(_.toFile).map(RWFile).foreach(_.write { writer =>
-      writer.write(silverProgramString)
-    })
+      val silverProgramString =
+        silverProgram
+          .toString()
+          .replace("requires decreases", "decreases")
+          .replace("invariant decreases", "decreases")
 
-    silverProgram.checkTransitively match {
-      case Nil =>
-      case some => throw ConsistencyErrors(some)
+      output.map(_.toFile).map(RWFile).foreach(_.write { writer =>
+        writer.write(silverProgramString)
+      })
+
+      next()
+
+      silverProgram.checkTransitively match {
+        case Nil =>
+        case some => throw ConsistencyErrors(some)
+      }
+
+      next()
+
+      val f = File.createTempFile("vercors-", ".sil")
+      f.deleteOnExit()
+      Using(new FileOutputStream(f)) { out =>
+        out.write(silverProgramString.getBytes())
+      }
+      SilverParserDummyFrontend().parse(f.toPath) match {
+        case Left(errors) =>
+          logger.warn("Possible viper bug: silver AST does not reparse when printing as text")
+          for(error <- errors) {
+            logger.warn(error.toString)
+          }
+        case Right(reparsedProgram) =>
+          SilverTreeCompare.compare(silverProgram, reparsedProgram) match {
+            case Nil =>
+            case diffs =>
+              logger.debug("Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:")
+              for((left, right) <- diffs) {
+                logger.debug(s" - Left: ${left.getClass.getSimpleName}: $left")
+                logger.debug(s" - Right: ${right.getClass.getSimpleName}: $right")
+              }
+          }
+      }
+
+      (silverProgram, nodeFromUniqueId)
     }
+  }
 
-    val f = File.createTempFile("vercors-", ".sil")
-    f.deleteOnExit()
-    Using(new FileOutputStream(f)) { out =>
-      out.write(silverProgramString.getBytes())
-    }
-    SilverParserDummyFrontend().parse(f.toPath) match {
-      case Left(errors) =>
-        logger.warn("Possible viper bug: silver AST does not reparse when printing as text")
-        for(error <- errors) {
-          logger.warn(error.toString)
-        }
-      case Right(reparsedProgram) =>
-        SilverTreeCompare.compare(silverProgram, reparsedProgram) match {
-          case Nil =>
-          case diffs =>
-            logger.debug("Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:")
-            for((left, right) <- diffs) {
-              logger.debug(s" - Left: ${left.getClass.getSimpleName}: $left")
-              logger.debug(s" - Right: ${right.getClass.getSimpleName}: $right")
-            }
-        }
-    }
-
+  override def submit(intermediateProgram: (silver.Program, Map[Int, col.Node[_]])): Boolean = {
+    val (silverProgram, nodeFromUniqueId) = intermediateProgram
     val (verifier, plugins) = createVerifier(NopViperReporter, nodeFromUniqueId)
 
     try {

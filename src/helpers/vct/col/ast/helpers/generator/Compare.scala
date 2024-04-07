@@ -6,8 +6,10 @@ import vct.col.ast.helpers.defn.Simplify.simplify
 import vct.col.ast.structure
 import vct.col.ast.structure.{DeclaredNode, NodeDefinition, NodeGenerator}
 
-import java.nio.file.Path
+import java.nio.file.{Files, Path, Paths}
 import scala.meta._
+import scala.reflect.internal.util.ScalaClassLoader.URLClassLoader
+import scala.util.Using
 
 class Compare extends NodeGenerator {
   override def generate(out: Path, node: NodeDefinition): Unit =

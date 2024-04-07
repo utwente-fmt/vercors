@@ -22,9 +22,10 @@ import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
-import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, SmtlibToProverTypes}
+import vct.rewrite.adt.ImportSetCompat
+import vct.rewrite.{EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, GenerateSeqProgPermissions, EncodeUnpointedGuard, SplitSeqGuards}
+import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateSeqProgPermissions, SplitSeqGuards}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
@@ -129,11 +130,11 @@ class Transformation
           case errors => throw TransformationCheckError(pass, errors)
         }
 
+        result = PrettifyBlocks().dispatch(result)
+
         onAfterPassKey.foreach {
           case (key, action) => if (pass.key == key) action(result)
         }
-
-        result = PrettifyBlocks().dispatch(result)
       }
 
       for ((feature, examples) <- Feature.examples(result)) {
@@ -251,6 +252,7 @@ case class SilverTransformation
 
     // Encode proof helpers
     EncodeProofHelpers.withArg(inferHeapContextIntoFrame),
+    ImportSetCompat.withArg(adtImporter),
 
     // Make final fields constant functions. Explicitly before ResolveExpressionSideEffects, because that pass will
     // flatten out functions in the rhs of assignments, making it harder to detect final field assignments where the
@@ -258,6 +260,7 @@ case class SilverTransformation
     ConstantifyFinalFields,
 
     // Resolve side effects including method invocations, for encodetrythrowsignals.
+    ResolveExpressionSideChecks,
     ResolveExpressionSideEffects,
     EncodeTryThrowSignals,
 
@@ -267,8 +270,6 @@ case class SilverTransformation
     HeapVariableToRef,
 
     CheckContractSatisfiability.withArg(checkSat),
-
-    ResolveExpressionSideChecks,
 
     DesugarCollectionOperators,
     EncodeNdIndex,
@@ -290,6 +291,7 @@ case class SilverTransformation
     ImportNull.withArg(adtImporter),
     ImportAny.withArg(adtImporter),
     ImportViperOrder.withArg(adtImporter),
+    EncodeRange.withArg(adtImporter),
 
     // All locations with a value should now be SilverField
     EncodeForPermWithValue,

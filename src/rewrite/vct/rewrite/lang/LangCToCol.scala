@@ -308,6 +308,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       }
       NewPointerArray(rw.dispatch(t1), size)(ArrayMallocFailed(inv))(c.o)
     case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _), _) => throw UnsupportedMalloc(c)
+    case CCast(n@Null(), t) if t.asPointer.isDefined => rw.dispatch(n)
     case _ => throw UnsupportedCast(c)
   }
 
@@ -457,8 +458,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     case _ => throw Unreachable("Already checked on pointer or array type")
   }
 
-  def declareSharedMemory(): (Seq[Variable[Post]], Seq[Statement[Post]]) = rw.variables.collect {
-    var result: Seq[Statement[Post]] = Seq()
+  def declareSharedMemory(): (Seq[Variable[Post]], (Seq[Variable[Post]], Seq[Statement[Post]])) =
+    rw.variables.collect {
+    var declarations: Seq[Variable[Post]] = Seq()
+    var inits: Seq[Statement[Post]] = Seq()
     dynamicSharedMemNames.foreach(d =>
     {
       implicit val o: Origin = getCDecl(d).o
@@ -466,21 +469,23 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       val v = new Variable[Post](TCInt())(varO)
       dynamicSharedMemLengthVar(d) = v
       rw.variables.declare(v)
-      val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
+//      val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
         NewPointerArray[Post](getInnerType(cNameSuccessor(d).t), Local(v.ref))(PanicBlame("Shared memory sizes cannot be negative.")))
-      result ++= Seq(decl, assign)
+      declarations ++= Seq(cNameSuccessor(d))
+      inits ++= Seq(assign)
     })
     staticSharedMemNames.foreach{case (d,(size, blame)) =>
     implicit val o: Origin = getCDecl(d).o
-      val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
+//      val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
         // Since we set the size and blame together, we can assume the blame is not None
         NewPointerArray[Post](getInnerType(cNameSuccessor(d).t), CIntegerValue(size))(blame.get))
-      result ++= Seq(decl, assign)
+      declarations ++= Seq(cNameSuccessor(d))
+      inits ++= Seq(assign)
     }
 
-    result
+    (declarations, inits)
   }
 
   def kernelProcedure(o: Origin, contract: ApplicableContract[Pre], info: C.DeclaratorInfo[Pre], body: Option[Statement[Pre]]
@@ -494,10 +499,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     cudaCurrentBlockDim.having(blockDim) {
       cudaCurrentGridDim.having(gridDim) {
         val args = rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
+        val implFiltered = body.map(init => filterSharedDecl(init))
+
         rw.variables.collect { dynamicSharedMemNames.foreach(d => rw.variables.declare(cNameSuccessor(d)) ) }
         rw.variables.collect { staticSharedMemNames.foreach(d => rw.variables.declare(cNameSuccessor(d._1)) ) }
-        val implFiltered = body.map(init => filterSharedDecl(init))
-        val (sharedMemSizes, sharedMemInit: Seq[Statement[Post]]) = declareSharedMemory()
+        val (sharedMemSizes, (sharedMemDecls: Seq[Variable[Post]], sharedMemInits: Seq[Statement[Post]])) = declareSharedMemory()
 
         val newArgs = blockDim.indices.values.toSeq ++ gridDim.indices.values.toSeq ++ args ++ sharedMemSizes
         val newGivenArgs = rw.variables.dispatch(contract.givenArgs)
@@ -556,7 +562,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
                             .map(allThreadsInBlock(KernelNotInjective(kernelSpec)))) )
                       ),
                     // Add shared memory initialization before beginning of inner parallel block
-                    content = Block[Post](sharedMemInit ++ Seq(innerContent))
+                    content =  Scope[Post](sharedMemDecls, Block[Post](sharedMemInits ++ Seq(innerContent)))
                   )(KernelParFailure(kernelSpec)))
                 }
               }
@@ -625,24 +631,25 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def addDynamicShared(cRef: CNameTarget[Pre], t: Type[Pre], o: Origin): Unit = {
     dynamicSharedMemNames.add(cRef)
-    val v = new Variable[Post](TArray[Post](rw.dispatch(t)))(o)
+    val v = new Variable[Post](TPointer[Post](rw.dispatch(t)))(o)
     cNameSuccessor(cRef) = v
   }
 
   def addStaticShared(decl:  CDeclarator[Pre], cRef: CNameTarget[Pre], t: Type[Pre], o: Origin,
                       declStatement: CLocalDeclaration[Pre], arraySize: Option[Expr[Pre]], sizeBlame: Option[Blame[ArraySizeError]]): Unit = arraySize match {
       case Some(CIntegerValue(size)) =>
-        val v = new Variable[Post](TArray[Post](rw.dispatch(t)))(o)
+        val v = new Variable[Post](TPointer[Post](rw.dispatch(t)))(o)
         staticSharedMemNames(cRef) = (size, sizeBlame)
         cNameSuccessor(cRef) = v
       case _ => throw WrongGPULocalType(declStatement)
   }
 
   def isShared(s: Statement[Pre]): Boolean = {
-    if(!s.isInstanceOf[CDeclarationStatement[Pre]])
-      return false
-
-    val CDeclarationStatement(decl) = s
+    val decl = s match {
+      case CDeclarationStatement(decl) => decl
+      case Block(Seq(s_inner)) => return isShared(s_inner)
+      case _ => return false
+    }
 
     if (decl.decl.inits.size != 1)
       throw MultipleSharedMemoryDeclaration(decl)
@@ -888,6 +895,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     case PointerAdd(arr : CLocal[Pre], _) => Seq(arr.ref.get)
     case AmbiguousSubscript(arr : CLocal[Pre], _) => Seq(arr.ref.get)
     case AmbiguousPlus(l, r) if isPointer(l.t) && isNumeric(r.t) => searchNames(l, original)
+    case AddrOf(inner) => searchNames(inner, original)
     case _ => throw UnsupportedBarrierPermission(original)
   }
 
@@ -1176,14 +1184,18 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     */
   def cudaGlobalThreadId(global: GlobalThreadId[Pre]): Expr[Post] = {
     implicit val o: Origin = global.o
-    Plus(
-      Plus(
-        Mult(
-          Mult(getCudaGroupThread(2, o), getCudaGroupSize(1, o)),   // (get_global_id(2) * get_global_size(1)
-          getCudaGroupSize(0, o)),                                         //   * get_global_size(0)
-        Mult(getCudaGroupThread(1, o), getCudaGroupSize(0, o))),    //   + get_global_id(1) * get_global_size(0)
-      getCudaGroupThread(0, o)                                             //   + get_global_id(0)
-    )
+    val res =
+      (getGlobalId(2)*getGlobalSize(1)*getGlobalSize(0)) +
+        getGlobalId(1)*getGlobalSize(0) + getGlobalId(0)
+    return res;
+  }
+
+  def getGlobalId(idx: Int)(implicit o: Origin): Expr[Post] = {
+    getCudaGroupThread(idx, o) * getCudaLocalSize(idx, o) + getCudaLocalThread(idx, o)
+  }
+
+  def getGlobalSize(idx: Int)(implicit o: Origin): Expr[Post] = {
+    getCudaLocalSize(idx, o)*getCudaGroupSize(idx, o)
   }
 
   def globalInvocation(e: RefCGlobalDeclaration[Pre], inv: CInvocation[Pre], rewrittenArgs: Seq[Expr[Post]]): Expr[Post] = {

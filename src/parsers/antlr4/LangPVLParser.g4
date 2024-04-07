@@ -31,7 +31,7 @@ classDecl : valClassDeclaration | constructor | method | field | runMethod;
 finalFlag: 'final';
 field : finalFlag? type identifierList ';' ;
 
-method : contract valModifier* type identifier '(' args? ')' methodBody ;
+method : contract valModifier* type identifier declaredTypeArgs? '(' args? ')' methodBody ;
 methodBody : ';' | block ;
 
 constructor : contract 'constructor' '(' args? ')' methodBody ;
@@ -176,6 +176,7 @@ statement
  | 'fork' expr ';' # pvlFork
  | 'join' expr ';' # pvlJoin
  | valStatement # pvlValStatement
+ | 'communicate' '(' '*' ')' statement elseBlock? # pvlIndetBranch
  | 'if' '(' expr ')' statement elseBlock? # pvlIf
  | 'barrier' '(' identifier barrierTags? ')' barrierBody # pvlBarrier
  | parRegion # pvlPar
@@ -268,6 +269,7 @@ quantifiedDim : '[' expr ']' ;
 anonDim : '[' ']' ;
 classType : identifier typeArgs?;
 typeArgs : '<' typeList '>';
+declaredTypeArgs: '<' identifierList '>';
 
 identifierList
  : identifier

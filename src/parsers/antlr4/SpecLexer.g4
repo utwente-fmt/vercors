@@ -29,6 +29,8 @@ VAL_FALSE: 'false';
 VAL_PACKAGE: 'package';
 */
 
+NEVER: EOF '=';
+
 // Must be able to contain identifiers from any frontend, so it's fine to over-approximate valid identifiers a bit.
 LANG_ID_ESCAPE: '`' ~[`]+ '`';
 
@@ -134,11 +136,14 @@ FORALL_STAR: '\\forall*';
 FORALL: '\\forall';
 EXISTS: '\\exists';
 FORPERM: '\\forperm';
+FORPERMWITHVALUE: '\\forpermwithvalue';
 FORALL_UNICODE: '\u2200';
 FORALL_STAR_UNICODE: '\u2200*';
 EXISTS_UNICODE: '\u2203';
 LET: '\\let';
 SUM: '\\sum';
+CHOOSE: '\\choose';
+CHOOSE_FRESH: '\\choose_fresh';
 LENGTH: '\\length';
 OLD: '\\old';
 TYPEOF: '\\typeof';

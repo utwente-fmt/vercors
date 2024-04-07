@@ -74,7 +74,7 @@ When building VerCors, you additionally need these dependencies:
 - Git (on Windows you need Git Bash, see <https://git-scm.com/downloads>)
 
 1. Clone the VerCors repository using `git clone https://github.com/utwente-fmt/vercors.git` and move into the cloned directory, `cd vercors`.
-2. Run `./mill vercors.compile` to compile VerCors.
+2. Run `./mill vercors.main.compile` to compile VerCors.
 3. Test whether the build was successful by running `./bin/vct examples/concepts/basic/induction-lemma.pvl`.
 
 # Running VerCors

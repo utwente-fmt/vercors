@@ -1,0 +1,51 @@
+name: '(Pre)-Release'
+on:
+  push:
+    branches:
+      - 'master'
+      - 'dev'
+    tags:
+      - 'v[0-9]*'
+
+jobs:
+  Release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout VerCors
+        uses: actions/checkout@v2
+      - name: Set Pre-release Tag
+        if: github.ref_name == 'dev'
+        run: |
+          git tag -f dev-prerelease
+          git push origin --tags --force
+      - name: Install Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 17
+      - name: Build Release
+        run: ./mill -j 0 vercors.main.release
+      - name: Set Properties
+        id: props
+        run: ./mill vercors.main.githubReleaseOutputs >> "$GITHUB_OUTPUT"
+      - name: Delete Previous Pre-release
+        uses: liudonghua123/delete-release-action@v1
+        if: github.ref_name == 'dev'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          suppress_errors: true
+          release_name: 'VerCors Nightly'
+      - name: Create Release
+        id: release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ steps.props.outputs.RELEASE_NAME }}
+          tag_name: ${{ steps.props.outputs.TAG_NAME }}
+          body: ${{ steps.props.outputs.BODY }}
+          draft: false
+          prerelease: ${{ steps.props.output.PRERELEASE }}
+          files: |
+            out/vercors/main/unixTar.dest/*.tar.xz
+            out/vercors/main/macosTar.dest/*.tar.xz
+            out/vercors/main/winZip.dest/*.zip
+            out/vercors/main/deb.dest/*.deb
