@@ -73,6 +73,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
 
     os.write(T.dest / "Dockerfile",
       s"""FROM ubuntu:jammy
+         |RUN echo "export LANG=\"C.UTF-8\"" >> /root/.bashrc
          |RUN apt update && \\
          |    apt install --no-install-recommends -y openjdk-17-jre-headless ${dockerAptDependencies().mkString(" ")}
          |COPY dest /

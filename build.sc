@@ -406,7 +406,25 @@ object vercors extends Module {
       ivy"org.apache.logging.log4j:log4j-to-slf4j:2.23.1",
     )
     override def moduleDeps = Seq(hre, col, serialize)
-    override def bareResourcePaths = T { Seq(vcllvm.compile().path / os.up) }
+
+    val includeVcllvmCross = interp.watchValue { 
+      if(os.exists(settings.root / ".include-vcllvm")) {
+        Seq("vcllvm")
+      } else {
+        Seq.empty[String]
+      }
+    }
+    
+    object vcllvmDep extends Cross[VcllvmDep](includeVcllvmCross)
+    trait VcllvmDep extends Cross.Module[String] {
+      def path = T {
+        vcllvm.compile().path / os.up
+      }
+    }
+
+    override def bareResourcePaths = T {
+      T.traverse(includeVcllvmCross.map(vcllvmDep(_)))(_.path)()
+    }
 
     trait GenModule extends Module {
       def base = T { settings.src / "parsers" / "antlr4" }
