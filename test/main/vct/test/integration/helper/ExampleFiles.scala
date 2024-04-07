@@ -21,6 +21,7 @@ case object ExampleFiles {
     "package-info.java",
     "Makefile",
     "README",
+    "LICENSE.txt",
   )
 
   val MAIN_FILES: Set[String] = Set(
