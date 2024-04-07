@@ -35,7 +35,7 @@ jobs:
       - name: Enable VCLLVM compilation
         run: touch .include-vcllvm
       - name: Compile
-        run: ./mill -j 0 vercors.allTests.assembly
+        run: ./mill -j 0 vercors.allTests.assembly vercors.vcllvm.compile
       - name: Upload VerCors
         uses: actions/upload-artifact@v3
         with:
