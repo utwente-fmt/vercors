@@ -36,11 +36,16 @@ jobs:
         run: touch .include-vcllvm
       - name: Compile
         run: ./mill -j 0 vercors.allTests.assembly
-      - name: Upload
+      - name: Upload VerCors
         uses: actions/upload-artifact@v3
         with:
           name: allTests
           path: out/vercors/allTests/assembly.dest/out.jar
+      - name: Upload VCLLVM
+        uses: actions/upload-artifact@v3
+        with:
+          name: vcllvm
+          path: out/vercors/vcllvm/compile.dest/vcllvm
       - name: Delete Uncached Files
         run: |
           find out -type f -name upstreamAssembly.json -print -exec rm -rf {} +
@@ -138,10 +143,15 @@ jobs:
         with:
           name: allTests
           path: '.'
+      - name: Download VCLLVM
+        uses: actions/download-artifact@v3
+        with:
+          name: vcllvm
+          path: '.'
       - name: ls
         run: ls -lasFhR
       - name: Run scalatest
-        run: java -Xss32m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -R out.jar -o -u report -w vct ${{matrix.batch}}
+        run: java -Xss32m -cp out.jar:res/universal/deps:res/universal/res:. org.scalatest.tools.Runner -R out.jar -o -u report -w vct ${{matrix.batch}}
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3
