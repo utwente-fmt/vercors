@@ -32,6 +32,8 @@ jobs:
           restore-keys: |
             vercors-ci-ubuntu-${{ hashFiles('build.sc') }}
             vercors-ci-ubuntu
+      - name: Enable VCLLVM compilation
+        run: touch .include-vcllvm
       - name: Compile
         run: ./mill -j 0 vercors.allTests.assembly
       - name: Upload
