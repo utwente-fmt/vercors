@@ -148,6 +148,8 @@ jobs:
         with:
           name: vcllvm
           path: '.'
+      - name: Make VCLLVM executable
+        run: chmod +x vcllvm
       - name: ls
         run: ls -lasFhR
       - name: Run scalatest
