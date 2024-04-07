@@ -81,7 +81,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     var vals: Map[ConcreteVariable[G], UncertainValue] = valuations
     by_index.foreach(t => vals = vals + (t._2 -> new_values.get(t._1)))
     size.foreach(t => vals = vals + (t -> new_values.len))
-    AbstractState(vals, processes, lock, seq_lengths + (indexed.head.field -> new_values.len))
+    AbstractState(vals, processes, lock, seq_lengths + ((if (indexed.nonEmpty) indexed.head.field else size.head.field) -> new_values.len))
   }
 
 
