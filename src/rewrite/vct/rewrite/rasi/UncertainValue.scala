@@ -106,7 +106,10 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
   }
 
   override def can_be_unequal(other: UncertainValue): Boolean = other match {
-    case UncertainIntegerValue(v) => value.intersection(v.complement()).non_empty()
+    case UncertainIntegerValue(v) => value.empty() || v.empty() || (value.union(v).size() match {
+        case Infinite() => true
+        case Finite(size) => size != 1
+      })
     case _ => true
   }
 

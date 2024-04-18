@@ -113,7 +113,7 @@ case object EmptyInterval extends Interval {
 case class MultiInterval(intervals: Set[Interval]) extends Interval {
   override def empty(): Boolean = intervals.isEmpty || intervals.forall(i => i.empty())
 
-  override def size(): IntervalSize = intervals.map(i => i.size()).fold(Finite(0))((s1, s2) => s1 + s2)
+  override def size(): IntervalSize = intervals.toSeq.map(i => i.size()).reduce((s1, s2) => s1 + s2)
 
   override def intersection(other: Interval): Interval = MultiInterval(MultiInterval(intervals.map(i => i.intersection(other))).sub_intervals())
 
