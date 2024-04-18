@@ -431,6 +431,7 @@ class AnnotationVariableInfoGetter[G]() {
     e match {
       case e if(!isInt(e) && !isBool(e)) => false
       case SeqMember(e1, Range(from, to)) => isSimpleExpr(e1) && isSimpleExpr(from) && isSimpleExpr(to)
+      case SetMember(e1, RangeSet(from, to)) => isSimpleExpr(e1) && isSimpleExpr(from) && isSimpleExpr(to)
       case e: BinExpr[G] => isSimpleExpr(e.left) && isSimpleExpr(e.right)
       case _: Local[G] => true
       case _: Constant[G] => true
@@ -456,6 +457,9 @@ class AnnotationVariableInfoGetter[G]() {
       case Greater(e1, e2) => lt(e2, e1, equal = true)
       case GreaterEq(e1, e2) => lt(e2, e1, equal = false)
       case SeqMember(e1, Range(from, to)) =>
+        lt(from, e1, equal = true)
+        lt(e1, to, equal = false)
+      case SetMember(e1, RangeSet(from, to)) =>
         lt(from, e1, equal = true)
         lt(e1, to, equal = false)
       // n == m + 1 then m < n

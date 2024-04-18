@@ -129,7 +129,7 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
 
   private def ImplCheckBipTransitionOrigin(c: BipComponent[_], t: BipTransition[_]): Origin = {
     t.o.where(name = s"transitionImplementationCheck__${c.fqn.mkString("_")}__${
-      t.o.getPreferredNameOrElse()}_${t.signature.asciiSignature}")
+      t.o.getPreferredNameOrElse().camel}_${t.signature.asciiSignature}")
   }
 }
 

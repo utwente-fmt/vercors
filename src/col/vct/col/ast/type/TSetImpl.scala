@@ -6,5 +6,5 @@ import vct.col.ast.ops.TSetOps
 
 trait TSetImpl[G] extends TSetOps[G] { this: TSet[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("seq") <> open <> Doc.arg(element) <> close)
+    Group(Text("set") <> open <> Doc.arg(element) <> close)
 }

@@ -5,7 +5,7 @@ on:
       - 'master'
       - 'dev'
     tags:
-      - 'v[0-9]*'
+      - 'v[0-9].*'
 
 jobs:
   Release:
@@ -22,6 +22,8 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 17
+      - name: Enable VCLLVM compilation
+        run: touch .include-vcllvm
       - name: Build Release
         run: ./mill -j 0 vercors.main.release
       - name: Set Properties
