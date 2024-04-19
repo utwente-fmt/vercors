@@ -1,16 +1,20 @@
 package vct.rewrite.cfg
 
+import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 
 import scala.collection.mutable
 
-case class CFGGenerator[G]() {
+case class CFGGenerator[G]() extends LazyLogging {
   private val found_labels: mutable.Map[LabelDecl[G], CFGNode[G]] = mutable.HashMap[LabelDecl[G], CFGNode[G]]()
   private val searched_labels: mutable.Map[LabelDecl[G], mutable.Set[CFGNode[G]]] = mutable.HashMap[LabelDecl[G], mutable.Set[CFGNode[G]]]()
   private val converted_nodes: mutable.Map[GlobalIndex[G], CFGNode[G]] = mutable.HashMap[GlobalIndex[G], CFGNode[G]]()
 
   def generate(entry: InstanceMethod[G]): CFGNode[G] = {
-    convert(entry.body.get, GlobalIndex[G](mutable.Seq(InitialIndex(entry))))
+    logger.info("Generating control flow graph")
+    val res = convert(entry.body.get, GlobalIndex[G](mutable.Seq(InitialIndex(entry))))
+    logger.info("Control flow graph generation complete")
+    res
   }
 
   private def convert(node: Statement[G], context: GlobalIndex[G]): CFGNode[G] = {
