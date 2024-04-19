@@ -224,7 +224,7 @@ case class UncertainSequence(len: UncertainIntegerValue, values: Seq[(UncertainI
 
   def remove(index: UncertainIntegerValue): UncertainSequence = {
     val (before, after) = values.filter(e => !e._1.can_be_equal(index)).partition(e => (e._1 < index).can_be_true)
-    UncertainSequence(len - UncertainIntegerValue.single(1), before ++ shift(after, -UncertainIntegerValue.single(1)), t)
+    UncertainSequence(len - UncertainIntegerValue.single(1), before ++ shift(after, UncertainIntegerValue.single(-1)), t)
   }
 
   def take(num: UncertainIntegerValue): UncertainSequence =
@@ -233,7 +233,7 @@ case class UncertainSequence(len: UncertainIntegerValue, values: Seq[(UncertainI
   def drop(num: UncertainIntegerValue): UncertainSequence = {
     val red: UncertainIntegerValue = num.intersection(len.below()).asInstanceOf[UncertainIntegerValue]
     val remaining: Seq[(UncertainIntegerValue, UncertainValue)] = values.filter(t => t._1.>=(red).can_be_true).map(t => t._1.intersection(red.above_eq()).asInstanceOf[UncertainIntegerValue] -> t._2)
-    UncertainSequence(len - red, shift(remaining, -red), t)
+    UncertainSequence(if (red.value.non_empty()) len - red else UncertainIntegerValue.single(0), shift(remaining, -red), t)
   }
 
   def slice(lower: UncertainIntegerValue, upper: UncertainIntegerValue): UncertainSequence =
