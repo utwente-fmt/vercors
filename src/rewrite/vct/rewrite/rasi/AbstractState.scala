@@ -364,5 +364,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    *
    * @return An expression that encodes this state
    */
-  def to_expression: Expr[G] = valuations.map(v => v._2.to_expression(v._1.to_expression)).reduce((e1, e2) => And(e1, e2)(e1.o))
+  def to_expression: Expr[G] = {
+    val sorted_valuations = valuations.toSeq.sortWith((t1, t2) => t1._1.compare(t2._1))
+    sorted_valuations.map(v => v._2.to_expression(v._1.to_expression)).reduce((e1, e2) => And(e1, e2)(e1.o))
+  }
 }

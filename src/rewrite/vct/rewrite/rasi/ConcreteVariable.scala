@@ -25,6 +25,7 @@ sealed trait ConcreteVariable[G] extends ResolvableVariable[G] {
     case Deref(_, f) => f.decl.equals(field)
     case _ => false
   }
+  def compare(other: ConcreteVariable[G]): Boolean
 }
 
 case class FieldVariable[G](field: InstanceField[G]) extends ConcreteVariable[G] {
@@ -32,6 +33,11 @@ case class FieldVariable[G](field: InstanceField[G]) extends ConcreteVariable[G]
   override def is_contained_by(expr: Expr[G], state: AbstractState[G]): Boolean = is(expr, state)
   override def to_expression: Expr[G] = Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o)
   override def t: Type[G] = field.t
+  override def compare(other: ConcreteVariable[G]): Boolean = other match {
+    case FieldVariable(f) => f.toInlineString > field.toInlineString
+    case SizeVariable(_) => false
+    case IndexedVariable(_, _) => false
+  }
 }
 
 case class SizeVariable[G](field: InstanceField[G]) extends ConcreteVariable[G] {
@@ -42,6 +48,11 @@ case class SizeVariable[G](field: InstanceField[G]) extends ConcreteVariable[G] 
   override def is_contained_by(expr: Expr[G], state: AbstractState[G]): Boolean = field_equals(expr, field)
   override def to_expression: Expr[G] = Size(Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o))(field.o)
   override def t: Type[G] = TInt()(field.o)
+  override def compare(other: ConcreteVariable[G]): Boolean = other match {
+    case FieldVariable(_) => true
+    case SizeVariable(f) => f.toInlineString > field.toInlineString
+    case IndexedVariable(_, _) => false
+  }
 }
 
 case class IndexedVariable[G](field: InstanceField[G], i: Int) extends ConcreteVariable[G] {
@@ -65,5 +76,12 @@ case class IndexedVariable[G](field: InstanceField[G], i: Int) extends ConcreteV
     case TSeq(element) => element
     case TArray(element) => element
     case TPointer(element) => element
+  }
+  override def compare(other: ConcreteVariable[G]): Boolean = other match {
+    case FieldVariable(_) => true
+    case SizeVariable(_) => true
+    case IndexedVariable(f, ind) =>
+      if (f != field) f.toInlineString > field.toInlineString
+      else ind > i
   }
 }
