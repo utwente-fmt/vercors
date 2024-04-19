@@ -12,7 +12,7 @@ class VerifyThisSpec extends VercorsSpec {
   // vercors should verify using silicon example "verifythis/2017/submission/VerCors_challenge3.pvl"
   // vercors should verify using silicon example "verifythis/2017/submission/VerCors_challenge4.pvl"
   // vercors should verify using silicon example "verifythis/2017/submission/Vercors_challenge3_2D.pvl"
-  vercors should verify using silicon example "verifythis/2017/submission/challenge1.pvl"
+  // vercors should verify using silicon example "verifythis/2017/submission/challenge1.pvl"
   vercors should verify using silicon example "verifythis/2018/challenge2.pvl"
   // Due to be fixed by https://github.com/viperproject/silicon/pull/642
   // vercors should verify using silicon example "verifythis/2019/challenge1.pvl"

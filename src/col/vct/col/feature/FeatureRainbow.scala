@@ -433,7 +433,6 @@ class FeatureRainbow[G] {
 
     case node: Extract[G] => ProofHelpers
     case node: FramedProof[G] => ProofHelpers
-    case node: IndeterminateInteger[G] => ProofHelpers
     case node: Refute[G] => ProofHelpers
 
     case node: PVLConstructor[G] => PvlSpecific

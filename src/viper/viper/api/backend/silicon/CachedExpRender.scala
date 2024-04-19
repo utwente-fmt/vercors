@@ -5,16 +5,8 @@ import viper.silver.ast.Node
 import scala.collection.mutable
 
 case object CachedExpRender {
-  private val cache: mutable.WeakHashMap[Node, String] = mutable.WeakHashMap()
+  private val cache: ThreadLocal[mutable.WeakHashMap[Node, String]] = ThreadLocal.withInitial(() => mutable.WeakHashMap())
 
-  def apply(e: Node): String = {
-    val x = cache.getOrElseUpdate(e, e.toString())
-    if (x == null) {
-      val repr = e.toString()
-      cache(e) = repr
-      repr
-    } else {
-      x
-    }
-  }
+  def apply(e: Node): String =
+    cache.get().getOrElseUpdate(e, e.toString())
 }

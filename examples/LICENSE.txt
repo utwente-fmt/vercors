@@ -1,0 +1,1 @@
+The files in this directory ("examples") are dedicated to the public domain. This is explained further in the CC0 1.0 license, obtainable at https://creativecommons.org/publicdomain/zero/1.0

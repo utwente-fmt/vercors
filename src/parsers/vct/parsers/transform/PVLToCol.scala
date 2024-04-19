@@ -74,13 +74,13 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convertProcedure(implicit method: MethodContext): Procedure[G] = method match {
-    case Method0(contract, modifiers, returnType, name, _, args, _, body) =>
+    case Method0(contract, modifiers, returnType, name, typeArgs, _, args, _, body) =>
       withModifiers(modifiers, mods => withContract(contract, contract => {
         new Procedure(
           convert(returnType),
           args.map(convert(_)).getOrElse(Nil),
           outArgs = Nil,
-          typeArgs = Nil,
+          typeArgs = typeArgs.map(convert(_)).getOrElse(Nil),
           convert(body),
           contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
@@ -109,13 +109,13 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit method: MethodContext): InstanceMethod[G] = method match {
-    case Method0(contract, modifiers, returnType, name, _, args, _, body) =>
+    case Method0(contract, modifiers, returnType, name, typeArgs, _, args, _, body) =>
       withModifiers(modifiers, mods => withContract(contract, contract => {
         new InstanceMethod(
           convert(returnType),
           args.map(convert(_)).getOrElse(Nil),
           outArgs = Nil,
-          typeArgs = Nil,
+          typeArgs = typeArgs.map(convert(_)).getOrElse(Nil),
           convert(body),
           contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
@@ -307,6 +307,10 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlFork(_, obj, _) => Fork(convert(obj))(blame(stat))
     case PvlJoin(_, obj, _) => Join(convert(obj))(blame(stat))
     case PvlValStatement(inner) => convert(inner)
+    case PvlIndetBranch(_, _, _, _, body, None) =>
+      IndetBranch(Seq(convert(body), Block(Nil)))
+    case PvlIndetBranch(_, _, _, _, body, Some(ElseBlock0(_, otherwise))) =>
+      IndetBranch(Seq(convert(body), convert(otherwise)))
     case PvlIf(_, _, cond, _, body, None) =>
       PVLBranch(Seq((convert(cond), convert(body))))(blame(stat))
     case PvlIf(_, _, cond, _, body, Some(ElseBlock0(_, otherwise))) =>
@@ -507,6 +511,11 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit ts: TypeArgsContext): Seq[Type[G]] = ts match {
     case TypeArgs0(_, ts, _) => convert(ts)
+  }
+
+  def convert(implicit ts: DeclaredTypeArgsContext): Seq[Variable[G]] = ts match {
+    case DeclaredTypeArgs0(_, names, _) =>
+      convert(names).map(name => new Variable(TType(TAnyValue()))(origin(ts).sourceName(name)))
   }
 
   def convert(implicit ids: IdentifierListContext): Seq[String] = ids match {
@@ -1060,6 +1069,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case ValEmptySet(_, t, _) => LiteralSet(convert(t), Nil)
     case ValEmptyBag(_, t, _) => LiteralBag(convert(t), Nil)
     case ValRange(_, from, _, to, _) => Range(convert(from), convert(to))
+    case ValRangeSet(_, from, _, to, _) => RangeSet(convert(from), convert(to))
   }
 
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] = e match {
@@ -1116,6 +1126,8 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       Let(new Variable(convert(t))(origin(id).sourceName(convert(id))), convert(v), convert(body))
     case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
       ForPerm(convert(bindings), AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)), convert(body))
+    case ValForPermWithValue(_, _, _, id, _, body, _) =>
+      ForPermWithValue(new Variable(TAny())(origin(id).sourceName(convert(id))), convert(body))
   }
 
   def convert(implicit e: ValPrimaryVectorContext): Expr[G] = e match {
@@ -1178,6 +1190,8 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       val allIndices = convert(indices)
       NdPartialIndex(allIndices.init, allIndices.last, convert(dims))
     case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
+    case ValChoose(_, _, xs, _) => Choose(convert(xs))(blame(e))
+    case ValChooseFresh(_, _, xs, _) => ChooseFresh(convert(xs))(blame(e))
   }
 
   def convert(implicit e: ValExprPairContext): (Expr[G], Expr[G]) = e match {

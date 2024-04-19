@@ -369,4 +369,23 @@ class CSpec extends VercorsSpec {
         assert(sum[2] == 2);
     }
     """
+
+    vercors should verify using silicon in "Casting null to pointers" c
+    """
+    #include <stdlib.h>
+
+    struct nested {
+      struct nested *inner;  
+    };
+
+    void main() {
+      int *ip = NULL;                              
+      double *dp = NULL;                           
+      struct nested *np = NULL;                    
+      np = (struct nested*) NULL;               
+      np = (struct nested*) malloc(sizeof(struct nested));
+      np->inner = NULL;
+      np->inner = (struct nested*) NULL;         
+    }
+    """
 }

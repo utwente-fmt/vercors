@@ -13,7 +13,7 @@ trait StarallImpl[G] extends StarallOps[G] { this: Starall[G] =>
     })(_ <> _)
 
   def layoutSpec(implicit ctx: Ctx): Doc =
-    Group(Text("(\\forall*") <+> Doc.fold(bindings)(_ <> "," <+> _) <> ";" <> layoutTriggers <>> body </> ")")
+    Group(Text("(\\forall*") <+> Doc.fold(bindings)(_ <> "," <+> _) <> ";" <>> body </> ")")
 
   def layoutSilver(implicit ctx: Ctx): Doc =
     Group(Text("(forall") <+> Doc.fold(bindings)(_ <> "," <+> _) <+> "::" <> layoutTriggers <>> body </> ")")

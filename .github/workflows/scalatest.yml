@@ -5,6 +5,9 @@ on:
       - '**'
     tags-ignore:
       - dev-prerelease
+  pull_request:
+    branches:
+      - '**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -12,6 +15,7 @@ concurrency:
 
 jobs:
   Compile:
+    if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout VerCors
@@ -28,13 +32,20 @@ jobs:
           restore-keys: |
             vercors-ci-ubuntu-${{ hashFiles('build.sc') }}
             vercors-ci-ubuntu
+      - name: Enable VCLLVM compilation
+        run: touch .include-vcllvm
       - name: Compile
-        run: ./mill -j 0 vercors.allTests.assembly
-      - name: Upload
+        run: ./mill -j 0 vercors.allTests.assembly + vercors.vcllvm.compile
+      - name: Upload VerCors
         uses: actions/upload-artifact@v3
         with:
           name: allTests
           path: out/vercors/allTests/assembly.dest/out.jar
+      - name: Upload VCLLVM
+        uses: actions/upload-artifact@v3
+        with:
+          name: vcllvm
+          path: out/vercors/vcllvm/compile.dest/vcllvm
       - name: Delete Uncached Files
         run: |
           find out -type f -name upstreamAssembly.json -print -exec rm -rf {} +
@@ -132,10 +143,17 @@ jobs:
         with:
           name: allTests
           path: '.'
+      - name: Download VCLLVM
+        uses: actions/download-artifact@v3
+        with:
+          name: vcllvm
+          path: '.'
+      - name: Make VCLLVM executable
+        run: chmod +x vcllvm
       - name: ls
         run: ls -lasFhR
       - name: Run scalatest
-        run: java -Xss32m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -R out.jar -o -u report -w vct ${{matrix.batch}}
+        run: java -Xss32m -cp out.jar:res/universal/deps:res/universal/res:. org.scalatest.tools.Runner -R out.jar -o -u report -w vct ${{matrix.batch}}
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3

@@ -40,7 +40,7 @@ trait OriginContent {
    * The part must not contain newlines. Consumers of the inline context should make sure to shorten breadcrumbs and
    * add an ellipsis where approriate, whereas the definition should not try to shorten the breadcrumb (within reason).
    */
-  def inlineContext(tail: Origin): Option[Seq[String]] = None
+  def inlineContext(tail: Origin, compress: Boolean = true): Option[Seq[String]] = None
 
   /**
    * Short description of the source position indicated by this origin. This should refer to the oldest cq original
@@ -54,15 +54,6 @@ trait OriginContent {
  * Leaf name provider, should consider modifiers like NamePrefix that follow it.
  */
 trait NameStrategy extends OriginContent
-
-case class SimpleSourceName(name: String) extends NameStrategy {
-  override def name(tail: Origin): Option[Name] =
-    Some(Name.Preferred(
-      tail.span[NameStrategy]._1.originContents.collect {
-        case NamePrefix(prefix) => prefix
-      }.reverse :+ name
-    ))
-}
 
 case class PreferredName(preferredName: Seq[String]) extends NameStrategy {
   override def name(tail: Origin): Option[Name] =
@@ -105,7 +96,7 @@ case class SourceName(name: String) extends NameStrategy {
  */
 trait Context extends OriginContent {
   protected def contextHere(tail: Origin): (String, Origin)
-  protected def inlineContextHere(tail: Origin): (String, Origin)
+  protected def inlineContextHere(tail: Origin, compress: Boolean): (String, Origin)
   protected def shortPositionHere(tail: Origin): (String, Origin)
 
   override def context(tail: Origin): Option[Seq[String]] = {
@@ -113,9 +104,9 @@ trait Context extends OriginContent {
     Some(head +: tailAfterContext.context.getOrElse(Nil))
   }
 
-  override def inlineContext(tail: Origin): Option[Seq[String]] = {
-    val (head, tailAfterContext) = inlineContextHere(tail)
-    Some(head +: tailAfterContext.inlineContext.getOrElse(Nil))
+  override def inlineContext(tail: Origin, compress: Boolean = true): Option[Seq[String]] = {
+    val (head, tailAfterContext) = inlineContextHere(tail, compress)
+    Some(head +: tailAfterContext.inlineContext(compress).getOrElse(Nil))
   }
 
   override def shortPosition(tail: Origin): Option[String] = {
@@ -130,26 +121,26 @@ trait Context extends OriginContent {
  */
 case class LabelContext(label: String) extends Context {
   override protected def contextHere(tail: Origin): (String, Origin) = (s"At $label:", tail)
-  override protected def inlineContextHere(tail: Origin): (String, Origin) = (label, tail)
+  override protected def inlineContextHere(tail: Origin, compress: Boolean): (String, Origin) = (label, tail)
   override protected def shortPositionHere(tail: Origin): (String, Origin) = (label, tail)
 }
 
 trait Source extends Context {
   def positionContext(position: PositionRange): String
-  def inlinePositionContext(position: PositionRange): String
+  def inlinePositionContext(position: PositionRange, compress: Boolean = true): String
   protected def genericContext: String
   protected def genericInlineContext: String
   def genericShortPosition: String
 
   override protected def contextHere(tail: Origin): (String, Origin) = (genericContext, tail)
-  override protected def inlineContextHere(tail: Origin): (String, Origin) = (genericInlineContext, tail)
+  override protected def inlineContextHere(tail: Origin, compress: Boolean): (String, Origin) = (genericInlineContext, tail)
   override protected def shortPositionHere(tail: Origin): (String, Origin) = (genericShortPosition, tail)
 }
 
 case class ReadableOrigin(readable: Readable) extends Source {
   def positionContext(position: PositionRange): String =
     genericContext + "\n" + HR + InputOrigin.contextLines(readable, position)
-  def inlinePositionContext(position: PositionRange): String = InputOrigin.inlineContext(readable, position)
+  def inlinePositionContext(position: PositionRange, compress: Boolean): String = InputOrigin.inlineContext(readable, position, compress)
   override def genericContext: String = s"At ${readable.fileName}"
   override def genericInlineContext: String = s"${readable.fileName}"
   override def genericShortPosition: String = s"${readable.fileName}"
@@ -157,7 +148,7 @@ case class ReadableOrigin(readable: Readable) extends Source {
 
 case class OriginFilename(filename: String) extends Source {
   def positionContext(position: PositionRange): String = genericContext
-  def inlinePositionContext(position: PositionRange): String = genericInlineContext
+  def inlinePositionContext(position: PositionRange, compress: Boolean): String = genericInlineContext
   override def genericContext: String = s"At $filename"
   override def genericInlineContext: String = s"$filename"
   override def genericShortPosition: String = s"$filename"
@@ -165,7 +156,7 @@ case class OriginFilename(filename: String) extends Source {
 
 case class InlineBipContext(bipContext: String) extends Source {
   def positionContext(position: PositionRange): String = InputOrigin.contextLines(LiteralReadable("literal", bipContext), position)
-  def inlinePositionContext(position: PositionRange): String = InputOrigin.inlineContext(LiteralReadable("literal", bipContext), position)
+  def inlinePositionContext(position: PositionRange, compress: Boolean): String = InputOrigin.inlineContext(LiteralReadable("literal", bipContext), position)
   override def genericContext: String = s"From literal"
   override def genericInlineContext: String = "literal"
   override def genericShortPosition: String = "literal"
@@ -186,9 +177,9 @@ case class PositionRange(startLineIdx: Int, endLineIdx: Int, startEndColIdx: Opt
       case (_, None) => ("At broken position", tail)
     }
 
-  override protected def inlineContextHere(tail: Origin): (String, Origin) =
+  override protected def inlineContextHere(tail: Origin, compress: Boolean): (String, Origin) =
     tail.spanFind[Source] match {
-      case (_, Some((source, tail))) => (source.inlinePositionContext(this), tail)
+      case (_, Some((source, tail))) => (source.inlinePositionContext(this, compress), tail)
       case (_, None) => ("broken position", tail)
     }
 
@@ -280,11 +271,11 @@ final case class Origin(originContents: Seq[OriginContent]) extends Blame[Verifi
   def contextText: String =
     context.map(_.mkString("\n" + HR)).getOrElse("[unknown context]")
 
-  def inlineContext: Option[Seq[String]] =
-    originContents.headOption.flatMap(_.inlineContext(tail).orElse(tail.inlineContext))
+  def inlineContext(compress: Boolean = true): Option[Seq[String]] =
+    originContents.headOption.flatMap(_.inlineContext(tail, compress).orElse(tail.inlineContext(compress)))
 
   def inlineContextText: String =
-    inlineContext.map(_.mkString(" > ")).getOrElse("[unknown context]")
+    inlineContext(true).map(_.mkString(" > ")).getOrElse("[unknown context]")
 
   def shortPosition: Option[String] =
     originContents.headOption.flatMap(_.shortPosition(tail).orElse(tail.shortPosition))
@@ -444,20 +435,22 @@ object InputOrigin {
     }
   }
 
-  def inlineContext(readable: Readable, position: PositionRange): String =
-    readable.readLines().slice(position.startLineIdx, position.endLineIdx+1) match {
+  def inlineContext(readable: Readable, position: PositionRange, compress: Boolean = true): String = {
+    def compressF: String => String = if(compress) compressInlineText else identity[String]
+    readable.readLines().slice(position.startLineIdx, position.endLineIdx + 1) match {
       case Nil => "(empty source region)"
       case line +: Nil => position.startEndColIdx match {
-        case None => compressInlineText(line)
-        case Some((start, end)) => compressInlineText(line.slice(start, end))
+        case None => compressF(line)
+        case Some((start, end)) => compressF(line.slice(start, end))
       }
       case first +: moreLines =>
         val (context, last) = (moreLines.init, moreLines.last)
         position.startEndColIdx match {
-          case None => compressInlineText((first +: context :+ last).mkString("\n"))
-          case Some((start, end)) => compressInlineText((first.drop(start) +: context :+ last.take(end)).mkString("\n"))
+          case None => compressF((first +: context :+ last).mkString("\n"))
+          case Some((start, end)) => compressF((first.drop(start) +: context :+ last.take(end)).mkString("\n"))
         }
     }
+  }
 }
 
 case class BlameCollector() extends Blame[VerificationFailure] {
