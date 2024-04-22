@@ -119,7 +119,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
    * @return Copy of <code>state</code> with this process at the target node of the CFG transition
    */
   private def take_edge(edge: CFGEdge[G], state: AbstractState[G]): AbstractState[G] =
-    state.with_process_at(this, edge.target)
+    state.with_process_at(this, edge.target).with_condition(edge.condition)
 
   /**
    * Checks whether the considered block is still atomic when adding the next node.

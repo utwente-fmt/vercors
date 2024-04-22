@@ -1,7 +1,7 @@
 package vct.main.stages
 
 import hre.stages.Stage
-import vct.col.ast.{InstanceField, InstanceMethod, Node}
+import vct.col.ast.{InstanceField, InstanceMethod, InstancePredicate, Node}
 import vct.col.rewrite.Generation
 import vct.options.Options
 import vct.rewrite.rasi.{ConcreteVariable, FieldVariable, IndexedVariable, RASIGenerator, SizeVariable}
@@ -24,7 +24,8 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path) extends Stage[Node
     val in = in1.asInstanceOf[Node[Generation]]
     val main_method = in.transSubnodes.collectFirst{ case m: InstanceMethod[_] if m.o.getPreferredName.get.snake.equals("main") => m }.get
     val variables: Set[ConcreteVariable[Generation]] = vars.getOrElse(Seq()).map(s => resolve_variable(in, s)).toSet
-    RASIGenerator().test(main_method, variables, out)
+    val parameter_invariant: InstancePredicate[Generation] = get_parameter_invariant(in)
+    RASIGenerator().test(main_method, variables, parameter_invariant, out)
   }
 
   private def resolve_variable(in: Node[Generation], name: String): ConcreteVariable[Generation] = {
@@ -40,5 +41,9 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path) extends Stage[Node
       case Some(i) => IndexedVariable(instance_field, i)
       case None => FieldVariable(instance_field)
     }
+  }
+
+  private def get_parameter_invariant(in: Node[Generation]): InstancePredicate[Generation] = {
+    in.transSubnodes.collectFirst{ case p: InstancePredicate[_] if p.o.getPreferredName.get.snake.equals("parameter_invariant") => p }.get
   }
 }
