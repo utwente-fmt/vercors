@@ -309,6 +309,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       NewPointerArray(rw.dispatch(t1), size)(ArrayMallocFailed(inv))(c.o)
     case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _), _) => throw UnsupportedMalloc(c)
     case CCast(n@Null(), t) if t.asPointer.isDefined => rw.dispatch(n)
+    case CCast(e, t) if getBaseType(e.t)==TBool[Pre]() && getBaseType(t)==TCInt[Pre]() =>
+      val zero = new CIntegerValue[Post](0)(e.o)
+      val one = new CIntegerValue[Post](1)(e.o)
+      new Select[Post](rw.dispatch(e), one, zero)(e.o)
+    case CCast(e, t) if getBaseType(t)==TBool[Pre]() && getBaseType(e.t)==TCInt[Pre]() =>
+      val zero = new CIntegerValue[Post](0)(e.o)
+      new Neq[Post](rw.dispatch(e), zero)(e.o)
     case _ => throw UnsupportedCast(c)
   }
 
