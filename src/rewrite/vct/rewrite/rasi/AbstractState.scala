@@ -200,11 +200,15 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
         }
       }
     case Length(arr) => variable_from_expr(expr) match {
-      case Some(v) => valuations(v).asInstanceOf[UncertainIntegerValue]
+      case Some(v) =>
+        if (is_contract && !is_old) UncertainIntegerValue.above(0)
+        else valuations(v).asInstanceOf[UncertainIntegerValue]
       case None => resolve_collection_expression(arr).len
     }
     case Size(obj) => variable_from_expr(expr) match {
-      case Some(v) => valuations(v).asInstanceOf[UncertainIntegerValue]
+      case Some(v) =>
+        if (is_contract && !is_old) UncertainIntegerValue.above(0)
+        else valuations(v).asInstanceOf[UncertainIntegerValue]
       case None => resolve_collection_expression(obj).len
     }
     case ProcedureInvocation(ref, args, _, _, _, _) =>
