@@ -8,7 +8,6 @@ import scala.collection.immutable.HashMap
 case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue],
                             processes: HashMap[AbstractProcess[G], CFGEntry[G]],
                             lock: Option[AbstractProcess[G]],
-                            seq_lengths: Map[InstanceField[G], UncertainIntegerValue],
                             parameters: Map[FieldVariable[G], UncertainValue]) {
   /**
    * Main function of the abstract state. For all processes that could potentially run, execute all possible next steps.
@@ -26,7 +25,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return An abstract state that is a copy of this one with the updated process location
    */
   def with_process_at(process: AbstractProcess[G], position: CFGEntry[G]): AbstractState[G] =
-    AbstractState(valuations, processes.removed(process) + (process -> position), lock, seq_lengths, parameters)
+    AbstractState(valuations, processes.removed(process) + (process -> position), lock, parameters)
 
   /**
    * Updates the state by removing a process from the active list.
@@ -35,7 +34,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return An abstract state that is a copy of this one without the given process
    */
   def without_process(process: AbstractProcess[G]): AbstractState[G] =
-    AbstractState(valuations, processes.removed(process), lock, seq_lengths, parameters)
+    AbstractState(valuations, processes.removed(process), lock, parameters)
 
   /**
    * Updates the state by locking the global lock.
@@ -44,7 +43,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return An abstract state that is a copy of this one with the lock held by the given process
    */
   def locked_by(process: AbstractProcess[G]): AbstractState[G] =
-    AbstractState(valuations, processes, Some(process), seq_lengths, parameters)
+    AbstractState(valuations, processes, Some(process), parameters)
 
   /**
    * Updates the state by unlocking the global lock.
@@ -52,7 +51,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return An abstract state that is a copy of this one with the global lock unlocked
    */
   def unlocked(): AbstractState[G] =
-    AbstractState(valuations, processes, None, seq_lengths, parameters)
+    AbstractState(valuations, processes, None, parameters)
 
   /**
    * Updates the state by adding a path condition to its knowledge of parameters (to avoid infeasible assumptions about
@@ -69,7 +68,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
       val filtered = resolved.filter(m => !m.is_impossible)
       val reduced = filtered.reduce((m1, m2) => m1 || m2)
       val c = reduced.resolve
-      AbstractState(valuations, processes, lock, seq_lengths, parameters.map(v => v._1 -> (if (c.contains(v._1)) c(v._1) else v._2)))
+      AbstractState(valuations, processes, lock, parameters.map(v => v._1 -> (if (c.contains(v._1)) c(v._1) else v._2)))
   }
 
   /**
@@ -80,7 +79,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return An abstract state that is a copy of this one with the valuation for the given variable changed
    */
   def with_valuation(variable: Expr[G], value: UncertainValue): AbstractState[G] = variable_from_expr(variable) match {
-    case Some(concrete_variable) => AbstractState(valuations + (concrete_variable -> value), processes, lock, seq_lengths, parameters)
+    case Some(concrete_variable) => AbstractState(valuations + (concrete_variable -> value), processes, lock, parameters)
     case None => this
   }
 
@@ -102,7 +101,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     var vals: Map[ConcreteVariable[G], UncertainValue] = valuations
     by_index.foreach(t => vals = vals + (t._2 -> new_values.get(t._1)))
     size.foreach(t => vals = vals + (t -> new_values.len))
-    AbstractState(vals, processes, lock, seq_lengths + ((if (indexed.nonEmpty) indexed.head.field else size.head.field) -> new_values.len), parameters)
+    AbstractState(vals, processes, lock, parameters)
   }
 
 
@@ -115,7 +114,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   def with_assumption(assumption: Expr[G], is_contract: Boolean = false): Set[AbstractState[G]] = {
     // TODO: An assumption adds constraints to the existing state! A postcondition first havocs all variables for which it has permission.
     val constraints: Set[ConstraintMap[G]] = new ConstraintSolver(this, valuations.keySet, is_contract).resolve_assumption(assumption).filter(m => !m.is_impossible)
-    constraints.map(m => m.resolve).map(m => AbstractState(valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)), processes, lock, seq_lengths, parameters))
+    constraints.map(m => m.resolve).map(m => AbstractState(valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)), processes, lock, parameters))
   }
 
   /**
@@ -349,8 +348,9 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   }
 
   private def collection_from_variable(deref: Deref[G], is_old: Boolean, is_contract: Boolean): UncertainSequence = {
-    val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(deref, this)).collect { case v: IndexedVariable[_] => v }
-    val len: Option[UncertainIntegerValue] = seq_lengths.get(deref.ref.decl)
+    val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(deref, this)).collect{ case v: IndexedVariable[_] => v }
+    val size_var: Option[SizeVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(deref, this)).collectFirst{ case v: SizeVariable[_] => v }
+    val len: Option[UncertainIntegerValue] = size_var.map(v => valuations(v).asInstanceOf[UncertainIntegerValue])
     val t: Type[G] = deref.ref.decl.t match {
       case TArray(element) => element
       case TSeq(element) => element

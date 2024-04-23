@@ -40,7 +40,6 @@ case class RASIGenerator[G]() extends LazyLogging {
     val initial_state = AbstractState(get_initial_values(vars),
                                       HashMap((AbstractProcess[G](Null()(Origin(Seq()))), node)),
                                       None,
-                                      Map.empty[InstanceField[G], UncertainIntegerValue],
                                       get_parameter_constraints(parameter_invariant))
                           .with_condition(parameter_invariant.body)
 
