@@ -92,7 +92,7 @@ case object CoercionUtils {
       case (source: FloatType[G], TRational()) => CoerceFloatRat(source)
       case (TBool(), TCInt()) => CoerceBoolCInt()
       case (TCInt(), TBool()) => CoerceCIntBool()
-      case (TCInt(), TResource()) => CoerceCIntBool()
+      case (TCInt(), TResource()) => CoercionSequence(Seq(CoerceCIntBool(), CoerceBoolResource()))
       case (TPointer(_), TBool()) => CoercePointerBool()
       case (CTPointer(_), TBool()) => CoercePointerBool()
 
