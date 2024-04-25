@@ -32,6 +32,12 @@ case object Utils {
     case _ => false
   }
 
+  def resolvable_to_concrete[G](m: Map[ResolvableVariable[G], UncertainValue]): Map[ConcreteVariable[G], UncertainValue] =
+    m.filter(t => t._1.isInstanceOf[ConcreteVariable[G]]).map(t => t._1.asInstanceOf[ConcreteVariable[G]] -> t._2)
+
+  def val_intersect[G](v1: Map[ConcreteVariable[G], UncertainValue], v2: Map[ConcreteVariable[G], UncertainValue]): Map[ConcreteVariable[G], UncertainValue] =
+    v1 ++ v2.map{ case (k, v) => k -> v.intersection(v1.getOrElse(k, UncertainValue.uncertain_of(v.t[G]))) }
+
   def print[G](states: Seq[AbstractState[G]], edges: Seq[(AbstractState[G], AbstractState[G])], out: Path): Unit = {
     val node_names: Map[AbstractState[G], String] = Map.from(states.zipWithIndex.map(t => (t._1, s"n${t._2}")))
     RWFile(out.toFile).write(w => print_state_space(node_names, edges, w, states.head.to_expression.toInlineString.length > 100))

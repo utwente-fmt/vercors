@@ -1,6 +1,6 @@
 package vct.rewrite.rasi
 
-import vct.col.ast.{BooleanValue, Expr, IntType, Not, TBool, Type}
+import vct.col.ast.{BooleanValue, Expr, IntType, Not, TBool, TInt, Type}
 
 // TODO: Factor out into uncertain single value and uncertain collection value
 trait UncertainValue {
@@ -14,6 +14,7 @@ trait UncertainValue {
   def to_expression[G](variable: Expr[G]): Expr[G]
   def ==(other: UncertainValue): UncertainBooleanValue
   def !=(other: UncertainValue): UncertainBooleanValue
+  def t[G]: Type[G]
 }
 case object UncertainValue {
   def uncertain_of(t: Type[_]): UncertainValue = t match {
@@ -72,6 +73,8 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
     case b: UncertainBooleanValue => this != b
     case _ => UncertainBooleanValue.from(true)
   }
+
+  override def t[G]: Type[G] = TBool[G]()
 
   def try_to_resolve(): Option[Boolean] = {
     if (can_be_true && !can_be_false) Some(true)
@@ -146,6 +149,8 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
     case i: UncertainIntegerValue => this != i
     case _ => UncertainBooleanValue.from(true)
   }
+
+  override def t[G]: Type[G] = TInt[G]()
 
   def try_to_resolve(): Option[Int] = value.try_to_resolve()
 

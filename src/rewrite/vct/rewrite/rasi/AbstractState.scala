@@ -14,9 +14,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    *
    * @return The set of possible successor states
    */
-  def successors(): Set[AbstractState[G]] = {
-    // TODO: This should be RASISuccessors as well!
-    processes.keySet.filter(p => lock.isEmpty || lock.get.equals(p)).flatMap(p => p.atomic_step(this).successors)
+  def successors(): RASISuccessor[G] = {
+    RASISuccessor.from(processes.keySet.filter(p => lock.isEmpty || lock.get.equals(p)).map(p => p.atomic_step(this)))
   }
 
   /**
@@ -123,10 +122,15 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @param assumption Boolean expression expressing a state update
    * @return A set of abstract states that are a copy of this one, updated according to the given assumption
    */
-  def with_assumption(assumption: Expr[G], is_contract: Boolean = false): Set[AbstractState[G]] = {
-    // TODO: An assumption adds constraints to the existing state! A postcondition first havocs all variables for which it has permission.
-    val constraints: Set[ConstraintMap[G]] = new ConstraintSolver(this, valuations.keySet, is_contract).resolve_assumption(assumption).filter(m => !m.is_impossible)
-    constraints.map(m => m.resolve).map(m => AbstractState(valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)), processes, lock, parameters))
+  def with_assumption(assumption: Expr[G]): RASISuccessor[G] = {
+    val constraints: Set[Map[ResolvableVariable[G], UncertainValue]] = new ConstraintSolver(this, valuations.keySet, is_contract = false)
+                                                                                .resolve_assumption(assumption)
+                                                                                .filter(m => !m.is_impossible)
+                                                                                .map(m => m.resolve)
+    val variables: Set[ConcreteVariable[G]] = Set()   // TODO: Implement!
+
+    RASISuccessor(variables,                         // For an assumption, the added conditions don't overwrite the previous state
+                  constraints.map(m => AbstractState(Utils.val_intersect(valuations, Utils.resolvable_to_concrete(m)), processes, lock, parameters)))
   }
 
   /**
@@ -137,8 +141,16 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return A set of abstract states that are a copy of this one after assuming the given postcondition with the given
    *         arguments
    */
-  def with_postcondition(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]]): Set[AbstractState[G]] =
-    with_assumption(Utils.unify_expression(Utils.contract_to_expression(post), args), is_contract = true)
+  def with_postcondition(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]]): RASISuccessor[G] = {
+    val constraints: Set[Map[ResolvableVariable[G], UncertainValue]] = new ConstraintSolver(this, valuations.keySet, is_contract = true)
+                                                                                  .resolve_assumption(Utils.unify_expression(Utils.contract_to_expression(post), args))
+                                                                                  .filter(m => !m.is_impossible)
+                                                                                  .map(m => m.resolve)
+    val variables: Set[ConcreteVariable[G]] = Set() // TODO: Implement!
+
+    RASISuccessor(variables,                        // A postcondition simply overwrites the values it specifies
+                  constraints.map(m => AbstractState(valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)), processes, lock, parameters)))
+  }
 
   /**
    * Evaluates an expression and returns an uncertain value, depending on the type of expression and the values it can

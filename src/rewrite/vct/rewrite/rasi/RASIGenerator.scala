@@ -11,7 +11,7 @@ import scala.collection.mutable
 
 case class RASIGenerator[G]() extends LazyLogging {
   private val found_states: mutable.ArrayBuffer[AbstractState[G]] = mutable.ArrayBuffer()
-  private val found_edges: mutable.ArrayBuffer[(AbstractState[G], AbstractState[G])] = mutable.ArrayBuffer()
+  private val found_edges: mutable.ArrayBuffer[RASIEdge[G]] = mutable.ArrayBuffer()
   private val current_branches: mutable.ArrayBuffer[AbstractState[G]] = mutable.ArrayBuffer()
 
   def execute(entry_point: InstanceMethod[G], vars: Set[ConcreteVariable[G]], parameter_invariant: InstancePredicate[G]): Expr[G] =
@@ -51,9 +51,9 @@ case class RASIGenerator[G]() extends LazyLogging {
       val curr: AbstractState[G] = current_branches.head
       current_branches -= curr
 
-      val successors: Set[AbstractState[G]] = curr.successors()
-      found_edges.addAll(successors.map(s => (curr, s)))
-      successors.foreach(s => if (!found_states.contains(s)) {found_states += s; current_branches += s})
+      val successor: RASISuccessor[G] = curr.successors()
+      found_edges.addAll(successor.edges(curr))
+      successor.successors.foreach(s => if (!found_states.contains(s)) {found_states += s; current_branches += s})
       i = i + 1
       if (i % 100 == 0) logger.debug(s"Iteration $i: ${found_states.size} states found, ${current_branches.size} yet to explore")
     }
@@ -62,7 +62,7 @@ case class RASIGenerator[G]() extends LazyLogging {
 
     // The initial state converts to simply "true", so it would make the RASI trivial
     found_states.filterInPlace(s => s.valuations != initial_state.valuations)
-    found_edges.filterInPlace(t => t._1.valuations != initial_state.valuations && t._2.valuations != initial_state.valuations)
+    found_edges.filterInPlace(e => e.from.valuations != initial_state.valuations && e.to.valuations != initial_state.valuations)
   }
 
   private def get_initial_values(vars: Set[ConcreteVariable[G]]): Map[ConcreteVariable[G], UncertainValue] = {
@@ -77,7 +77,7 @@ case class RASIGenerator[G]() extends LazyLogging {
 
   private def reduce_redundant_states(): (Seq[AbstractState[G]], Seq[(AbstractState[G], AbstractState[G])]) = {
     val state_groups: Map[Map[ConcreteVariable[G], UncertainValue], mutable.ArrayBuffer[AbstractState[G]]] = Map.from(found_states.groupBy(s => s.valuations))
-    val edge_groups: Seq[(AbstractState[G], AbstractState[G])] = Seq.from(found_edges.map(t => (state_groups(t._1.valuations).head, state_groups(t._2.valuations).head)).distinct)
-    (state_groups.values.toSeq.map(v => v.head), edge_groups.filter(t => t._1 != t._2))
+    val edge_groups: Seq[(AbstractState[G], AbstractState[G])] = Seq.from(found_edges.map(e => (state_groups(e.from.valuations).head, state_groups(e.to.valuations).head)))
+    (state_groups.values.toSeq.map(v => v.head), edge_groups.distinct.filter(t => t._1 != t._2))
   }
 }
