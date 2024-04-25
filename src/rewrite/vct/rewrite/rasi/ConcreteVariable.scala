@@ -1,7 +1,6 @@
 package vct.rewrite.rasi
 
 import vct.col.ast._
-import vct.col.origin.Origin
 
 sealed trait ResolvableVariable[G] {
   def is(expr: Expr[G], state: AbstractState[G]): Boolean
@@ -25,7 +24,23 @@ sealed trait ConcreteVariable[G] extends ResolvableVariable[G] {
     case Deref(_, f) => f.decl.equals(field)
     case _ => false
   }
+  def variable_equals(expr: Expr[G], variable: Variable[G]): Boolean = expr match {
+    // TODO: Are there other ways to refer to variables?
+    case Local(ref) => ref.decl.equals(variable)
+    case _ => false
+  }
   def compare(other: ConcreteVariable[G]): Boolean
+}
+
+case class LocalVariable[G](variable: Variable[G]) extends ConcreteVariable[G] {
+  override def is(expr: Expr[G], state: AbstractState[G]): Boolean = variable_equals(expr, variable)
+  override def is_contained_by(expr: Expr[G], state: AbstractState[G]): Boolean = is(expr, state)
+  override def to_expression: Expr[G] = Local[G](variable.ref)(variable.o)
+  override def t: Type[G] = variable.t
+  override def compare(other: ConcreteVariable[G]): Boolean = other match {
+    case LocalVariable(v) => v.toInlineString > variable.toInlineString
+    case _ => false
+  }
 }
 
 case class FieldVariable[G](field: InstanceField[G]) extends ConcreteVariable[G] {
@@ -34,6 +49,7 @@ case class FieldVariable[G](field: InstanceField[G]) extends ConcreteVariable[G]
   override def to_expression: Expr[G] = Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o)
   override def t: Type[G] = field.t
   override def compare(other: ConcreteVariable[G]): Boolean = other match {
+    case LocalVariable(_) => true
     case FieldVariable(f) => f.toInlineString > field.toInlineString
     case SizeVariable(_) => false
     case IndexedVariable(_, _) => false
@@ -49,6 +65,7 @@ case class SizeVariable[G](field: InstanceField[G]) extends ConcreteVariable[G] 
   override def to_expression: Expr[G] = Size(Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o))(field.o)
   override def t: Type[G] = TInt()(field.o)
   override def compare(other: ConcreteVariable[G]): Boolean = other match {
+    case LocalVariable(_) => true
     case FieldVariable(_) => true
     case SizeVariable(f) => f.toInlineString > field.toInlineString
     case IndexedVariable(_, _) => false
@@ -78,6 +95,7 @@ case class IndexedVariable[G](field: InstanceField[G], i: Int) extends ConcreteV
     case TPointer(element) => element
   }
   override def compare(other: ConcreteVariable[G]): Boolean = other match {
+    case LocalVariable(_) => true
     case FieldVariable(_) => true
     case SizeVariable(_) => true
     case IndexedVariable(f, ind) =>

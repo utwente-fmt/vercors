@@ -14,8 +14,10 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    *
    * @return The set of possible successor states
    */
-  def successors(): Set[AbstractState[G]] =
-    processes.keySet.filter(p => lock.isEmpty || lock.get.equals(p)).flatMap(p => p.atomic_step(this))
+  def successors(): Set[AbstractState[G]] = {
+    // TODO: This should be RASISuccessors as well!
+    processes.keySet.filter(p => lock.isEmpty || lock.get.equals(p)).flatMap(p => p.atomic_step(this).successors)
+  }
 
   /**
    * Updates the state by changing the program counter for a process.
@@ -63,11 +65,11 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   def with_condition(cond: Option[Expr[G]]): AbstractState[G] = cond match {
     case None => this
     case Some(expr) =>
-      val solver = new ConstraintSolver(this, parameters.keySet, false)
-      val resolved = solver.resolve_assumption(expr)
-      val filtered = resolved.filter(m => !m.is_impossible)
-      val reduced = filtered.reduce((m1, m2) => m1 || m2)
-      val c = reduced.resolve
+      val c = new ConstraintSolver(this, parameters.keySet, false)
+                                  .resolve_assumption(expr)
+                                  .filter(m => !m.is_impossible)
+                                  .reduce((m1, m2) => m1 || m2)
+                                  .resolve
       AbstractState(valuations, processes, lock, parameters.map(v => v._1 -> (if (c.contains(v._1)) c(v._1) else v._2)))
   }
 
@@ -82,6 +84,16 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case Some(concrete_variable) => AbstractState(valuations + (concrete_variable -> value), processes, lock, parameters)
     case None => this
   }
+
+  /**
+   * Updates the state by adding a different valuation map to override or expand the valuations of this state. This is
+   * equivalent to calling <code>with_valuation</code> repeatedly with the entries of the new map.
+   *
+   * @param vals A new valuation map
+   * @return An abstract state that is a copy of this one with the updated valuation
+   */
+  def with_new_valuation(vals: Map[ConcreteVariable[G], UncertainValue]): AbstractState[G] =
+    AbstractState(valuations ++ vals, processes, lock, parameters)
 
   /**
    * Updates the state by updating all variables that are affected by an update to a collection.
@@ -137,7 +149,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    */
   def resolve_expression(expr: Expr[G], is_old: Boolean = false, is_contract: Boolean = false): UncertainValue = expr.t match {
     case _: IntType[_] => resolve_integer_expression(expr, is_old, is_contract)
-    case _: TBool[_] => resolve_boolean_expression(expr, is_old, is_contract)
+    case _: TBool[_] | _: TResource[_] => resolve_boolean_expression(expr, is_old, is_contract)
     case _ => throw new IllegalArgumentException(s"Type ${expr.t.toInlineString} is not supported")
   }
 

@@ -8,7 +8,6 @@ import vct.rewrite.cfg.{CFGEntry, CFGGenerator}
 import java.nio.file.Path
 import scala.collection.immutable.HashMap
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 case class RASIGenerator[G]() extends LazyLogging {
   private val found_states: mutable.ArrayBuffer[AbstractState[G]] = mutable.ArrayBuffer()
@@ -77,7 +76,7 @@ case class RASIGenerator[G]() extends LazyLogging {
   }
 
   private def reduce_redundant_states(): (Seq[AbstractState[G]], Seq[(AbstractState[G], AbstractState[G])]) = {
-    val state_groups: Map[Map[ConcreteVariable[G], UncertainValue], ArrayBuffer[AbstractState[G]]] = Map.from(found_states.groupBy(s => s.valuations))
+    val state_groups: Map[Map[ConcreteVariable[G], UncertainValue], mutable.ArrayBuffer[AbstractState[G]]] = Map.from(found_states.groupBy(s => s.valuations))
     val edge_groups: Seq[(AbstractState[G], AbstractState[G])] = Seq.from(found_edges.map(t => (state_groups(t._1.valuations).head, state_groups(t._2.valuations).head)).distinct)
     (state_groups.values.toSeq.map(v => v.head), edge_groups.filter(t => t._1 != t._2))
   }
