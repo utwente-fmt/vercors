@@ -127,10 +127,12 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
                                                                                 .resolve_assumption(assumption)
                                                                                 .filter(m => !m.is_impossible)
                                                                                 .map(m => m.resolve)
-    val variables: Set[ConcreteVariable[G]] = Set()   // TODO: Implement!
+    val concrete_constraints: Set[Map[ConcreteVariable[G], UncertainValue]] = constraints.map(m => Utils.resolvable_to_concrete(m))
 
-    RASISuccessor(variables,                         // For an assumption, the added conditions don't overwrite the previous state
-                  constraints.map(m => AbstractState(Utils.val_intersect(valuations, Utils.resolvable_to_concrete(m)), processes, lock, parameters)))
+    val variables: Set[ConcreteVariable[G]] = new VariableSelector(this).distinguishing_variables(concrete_constraints, Some(assumption))
+
+    RASISuccessor(variables,                // For an assumption, the added conditions don't overwrite the previous state
+                  concrete_constraints.map(m => AbstractState(Utils.val_intersect(valuations, m), processes, lock, parameters)))
   }
 
   /**
@@ -142,14 +144,17 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    *         arguments
    */
   def with_postcondition(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]]): RASISuccessor[G] = {
+    val assumption: Expr[G] = Utils.unify_expression(Utils.contract_to_expression(post), args)
     val constraints: Set[Map[ResolvableVariable[G], UncertainValue]] = new ConstraintSolver(this, valuations.keySet, is_contract = true)
-                                                                                  .resolve_assumption(Utils.unify_expression(Utils.contract_to_expression(post), args))
+                                                                                  .resolve_assumption(assumption)
                                                                                   .filter(m => !m.is_impossible)
                                                                                   .map(m => m.resolve)
-    val variables: Set[ConcreteVariable[G]] = Set() // TODO: Implement!
+    val concrete_constraints: Set[Map[ConcreteVariable[G], UncertainValue]] = constraints.map(m => Utils.resolvable_to_concrete(m))
 
-    RASISuccessor(variables,                        // A postcondition simply overwrites the values it specifies
-                  constraints.map(m => AbstractState(valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)), processes, lock, parameters)))
+    val variables: Set[ConcreteVariable[G]] = new VariableSelector(this).distinguishing_variables(concrete_constraints, Some(assumption))
+
+    RASISuccessor(variables,                              // A postcondition simply overwrites the values it specifies
+                  concrete_constraints.map(m => AbstractState(valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)), processes, lock, parameters)))
   }
 
   /**

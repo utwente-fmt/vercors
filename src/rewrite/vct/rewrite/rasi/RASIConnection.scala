@@ -4,10 +4,8 @@ case class RASISuccessor[G](deciding_variables: Set[ConcreteVariable[G]], succes
   def edges(start: AbstractState[G]): Set[RASIEdge[G]] = successors.map(s => RASIEdge(start, deciding_variables, s))
 }
 case object RASISuccessor {
-  def from[G](succs: Iterable[RASISuccessor[G]]): RASISuccessor[G] = RASISuccessor(
-    succs.flatMap(s => s.deciding_variables).toSet,
-    succs.flatMap(s => s.successors).toSet
-  )
+  def from[G](successors: Iterable[RASISuccessor[G]]): RASISuccessor[G] =
+    RASISuccessor(successors.flatMap(s => s.deciding_variables).toSet, successors.flatMap(s => s.successors).toSet)
 }
 
 case class RASIEdge[G](from: AbstractState[G], vars: Set[ConcreteVariable[G]], to: AbstractState[G])
