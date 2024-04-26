@@ -42,6 +42,12 @@ class Chan<T> {
 
     return m;
   }
+
+  context committed(this);
+  T noop(T t) {
+    writeValue(t);
+    return readValue();
+  }
 }
 
 void main() {

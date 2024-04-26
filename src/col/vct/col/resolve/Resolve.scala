@@ -284,6 +284,12 @@ case object ResolveReferences extends LazyLogging {
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
+      // Ensure occurrences of type variables within the class that defines them are ignored when substituting
+      .appendTypeEnv(cls.typeArgs.map(v => (v, TVar[G](v.ref))).toMap)
+    case adt: AxiomaticDataType[G] => ctx
+      // Ensure occurrences of type variables within the adt that defines them are ignored when substituting
+      .declare(adt.declarations)
+      .appendTypeEnv(adt.typeArgs.map(v => (v, TVar[G](v.ref))).toMap)
     case seqProg: SeqProg[G] => ctx
       .copy(currentThis = Some(RefSeqProg(seqProg)))
       .declare(seqProg.decls)

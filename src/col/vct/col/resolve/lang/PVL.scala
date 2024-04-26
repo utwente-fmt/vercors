@@ -73,16 +73,16 @@ case object PVL {
 
   def findMethod[G](method: String, args: Seq[Expr[G]], typeArgs: Seq[Type[G]], ctx: ReferenceResolutionContext[G]): Option[PVLInvocationTarget[G]] =
     ctx.stack.flatten.collectFirst {
-      case ref: RefFunction[G] if ref.name == method && Util.compat(args, typeArgs, ref.decl) => ref
-      case ref: RefProcedure[G] if ref.name == method && Util.compat(args, typeArgs, ref.decl) => ref
-      case ref: RefPredicate[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
-      case ref: RefInstanceFunction[G] if ref.name == method && Util.compat(args, typeArgs, ref.decl) => ref
-      case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(args, typeArgs, ref.decl) => ref
-      case ref: RefInstancePredicate[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
-      case ref: RefADTFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
-      case ref: RefModelProcess[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
-      case ref: RefModelAction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
-      case ref: RefProverFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefFunction[G] if ref.name == method && Util.compat(ctx.typeEnv, args, typeArgs, ref.decl) => ref
+      case ref: RefProcedure[G] if ref.name == method && Util.compat(ctx.typeEnv, args, typeArgs, ref.decl) => ref
+      case ref: RefPredicate[G] if ref.name == method && Util.compat(ctx.typeEnv, args, ref.decl.args) => ref
+      case ref: RefInstanceFunction[G] if ref.name == method && Util.compat(ctx.typeEnv, args, typeArgs, ref.decl) => ref
+      case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(ctx.typeEnv, args, typeArgs, ref.decl) => ref
+      case ref: RefInstancePredicate[G] if ref.name == method && Util.compat(ctx.typeEnv, args, ref.decl.args) => ref
+      case ref: RefADTFunction[G] if ref.name == method && Util.compat(ctx.typeEnv, args, ref.decl.args) => ref
+      case ref: RefModelProcess[G] if ref.name == method && Util.compat(ctx.typeEnv, args, ref.decl.args) => ref
+      case ref: RefModelAction[G] if ref.name == method && Util.compat(ctx.typeEnv, args, ref.decl.args) => ref
+      case ref: RefProverFunction[G] if ref.name == method && Util.compat(ctx.typeEnv, args, ref.decl.args) => ref
     }
 
   def builtinInstanceMethod[G](obj: Expr[G], method: String, args: Seq[Expr[G]]): Option[PVLBuiltinInstanceMethod[G]] = {
