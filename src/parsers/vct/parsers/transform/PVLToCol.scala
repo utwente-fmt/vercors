@@ -90,10 +90,6 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       }))
   }
 
-  def convert(implicit names: TypeVarsContext): Seq[Variable[G]] = names match {
-    case TypeVars0(_, names, _) => convertVars(names)
-  }
-
   def typeVar(identifier: IdentifierContext): Variable[G] =
     new Variable(TType(TAnyValue()))(origin(identifier).sourceName(convert(identifier)))
 
