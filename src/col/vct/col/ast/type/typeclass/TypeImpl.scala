@@ -44,7 +44,7 @@ trait TypeImpl[G] extends TypeFamilyOps[G] { this: Type[G] =>
       override def succProvider: SuccessorsProvider[G, G] = IdentitySuccessorsProvider
 
       override def dispatch(t: Type[G]): Type[G] = t match {
-        case t @ TVar(Ref(v)) => substitutions.get(v).getOrElse(t)
+        case TVar(Ref(v)) => substitutions(v)
         case other => rewriteDefault(other)
       }
     }
