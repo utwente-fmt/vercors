@@ -76,7 +76,7 @@ public class ClassTransformer<T> {
         declarations.addAll(generated_instance_methods);
 
         return new Class<>(Seqs.empty(),
-                List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE,
+                List.from(CollectionConverters.asScala(declarations)), Seqs.empty(), col_system.TRUE,
                 OriGen.create(create_name(process.get_generating_instance(), process.get_generating_function())));
     }
 
@@ -127,7 +127,7 @@ public class ClassTransformer<T> {
         declarations.addAll(generated_instance_methods);
 
         return new Class<>(Seqs.empty(),
-                List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE,
+                List.from(CollectionConverters.asScala(declarations)), Seqs.empty(), col_system.TRUE,
                 OriGen.create(create_name(state_class.get_generating_instance())));
     }
 

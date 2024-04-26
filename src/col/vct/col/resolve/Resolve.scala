@@ -148,9 +148,6 @@ case object ResolveTypes {
     case t @ SilverPartialTAxiomatic(ref, partialTypeArgs) =>
       ref.tryResolve(name => Spec.findAdt(name, ctx).getOrElse(throw NoSuchNameError("adt", name, t)))
       partialTypeArgs.foreach(mapping => mapping._1.tryResolve(name => Spec.findAdtTypeArg(ref.decl, name).getOrElse(throw NoSuchNameError("type variable", name, t))))
-    case cls: Class[G] =>
-      // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
-      cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
     case local: JavaLocal[G] =>
       Java.findJavaName(local.name, fromStaticContext = false, ctx) match {
         case Some(

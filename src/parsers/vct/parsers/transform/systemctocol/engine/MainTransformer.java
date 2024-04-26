@@ -1234,10 +1234,8 @@ public class MainTransformer<T> {
                 new WritePerm<>(OriGen.create()), OriGen.create());
 
         // Assemble class
-        Class<T> main_class = new Class<>(
-                List.from(CollectionConverters.asScala(new java.util.ArrayList(0))),
-                List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS,
-                lock_invariant, OriGen.create("Main"));
+        Class<T> main_class = new Class<>(Seqs.empty(), List.from(CollectionConverters.asScala(declarations)),
+                Seqs.empty(), lock_invariant, OriGen.create("Main"));
 
         // Register Main class in COL system context
         col_system.add_global_declaration(main_class);

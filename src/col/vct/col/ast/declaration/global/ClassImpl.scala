@@ -1,6 +1,6 @@
 package vct.col.ast.declaration.global
 
-import vct.col.ast.{Class, Declaration}
+import vct.col.ast.{Class, Declaration, TClass}
 import vct.col.ast.util.Declarator
 import vct.col.print._
 import vct.col.util.AstBuildHelpers.tt
@@ -10,8 +10,8 @@ import vct.col.ast.ops.ClassOps
 trait ClassImpl[G] extends Declarator[G] with ClassOps[G] { this: Class[G] =>
   protected def transSupportArrows(seen: Set[Class[G]]): Seq[(Class[G], Class[G])] =
     if(seen.contains(this)) Nil
-    else supports.map(other => (this, other.decl)) ++
-      supports.flatMap(other => other.decl.transSupportArrows(Set(this) ++ seen))
+    else supports.map(other => (this, other.asClass.get.cls.decl)) ++
+      supports.flatMap(other => other.asClass.get.cls.decl.transSupportArrows(Set(this) ++ seen))
 
   def transSupportArrows: Seq[(Class[G], Class[G])] = transSupportArrows(Set.empty)
 
@@ -25,7 +25,8 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] { this: Class[G] =>
       Group(
         Text("class") <+> ctx.name(this) <>
           (if (typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs) <> ">" else Empty) <>
-        (if(supports.isEmpty) Empty else Text(" implements") <+> Doc.args(supports.map(ctx.name).map(Text))) <+>
+        (if(supports.isEmpty) Empty else Text(" implements") <+>
+          Doc.args(supports.map(supp => ctx.name(supp.asClass.get.cls)).map(Text))) <+>
         "{"
       ) <>>
       Doc.stack(decls) <+/>
