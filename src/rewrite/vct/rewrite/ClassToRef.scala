@@ -93,7 +93,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         ((sub.get === const(0)) ==> tt) &&
           foldAnd(typeNumberStore.map {
             case (cls, subNum) =>
-              val supNums = (cls +: cls.transSupportArrows.map(_._2)).distinct.map(typeNumber)
+              val supNums = (cls +: cls.transSupportArrows.map(_._2.cls.decl)).distinct.map(typeNumber)
               (sub.get === const(subNum)) ==> foldOr(supNums.map(supNum => sup.get === const(supNum)))
           }.toSeq)
       ),
