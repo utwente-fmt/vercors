@@ -169,7 +169,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
     val typeInst = mutable.Map[Variable[Rule], Type[Pre]]()
     val bindingInst = mutable.Map[Variable[Rule], Variable[Pre]]()
 
-    lazy val debugHeader: String = s"Expression `$subject` does not match rule ${ruleOrigin.getPreferredNameOrElse()}, since"
+    lazy val debugHeader: String = s"Expression `$subject` does not match rule ${ruleOrigin.getPreferredNameOrElse().snake}, since"
 
     def declareTypeInst(left: Variable[Rule], right: Type[Pre]): Boolean =
       typeInst.get(left) match {

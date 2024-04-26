@@ -22,7 +22,7 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] { this: Class[G] =>
   override def declarations: Seq[Declaration[G]] = decls ++ typeArgs
 
   def layoutLockInvariant(implicit ctx: Ctx): Doc =
-    Text("lock_invariant") <+> intrinsicLockInvariant <+/> Empty
+    Text("lock_invariant") <+> intrinsicLockInvariant <> ";" <+/> Empty
 
   override def layout(implicit ctx: Ctx): Doc =
     (if(intrinsicLockInvariant == tt[G]) Empty else Doc.spec(Show.lazily(layoutLockInvariant(_)))) <>

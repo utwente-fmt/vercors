@@ -65,6 +65,8 @@ case class ColToSilver(program: col.Program[_]) {
 
 
   def sanitize(name: String): String = {
+    if(name.isEmpty) return "_"
+
     val sanitized = name.flatMap {
       case '$' => "$"
       case '_' => "_"

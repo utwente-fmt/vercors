@@ -62,6 +62,18 @@ case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter
     case other => rewriteDefault(other)
   }
 
+  override def dispatch(s: Statement[Pre]): Statement[Post] = s match {
+    case inv: InvocationStatement[Pre] if inv.ref.decl.typeArgs.nonEmpty =>
+      val typeValues = inv.typeArgs.map(dispatch)
+      val ref = getOrBuild(inv.ref.decl, typeValues)
+
+      inv match {
+        case inv: InvokeProcedure[Pre] => inv.rewrite(ref = ref.asInstanceOf[Ref[Post, Procedure[Post]]], typeArgs = Nil)
+        case inv: InvokeMethod[Pre] => inv.rewrite(ref = ref.asInstanceOf[Ref[Post, InstanceMethod[Post]]], typeArgs = Nil)
+      }
+    case other => other.rewriteDefault()
+  }
+
   override def dispatch(t: Type[Pre]): Type[Rewritten[Pre]] = t match {
     case TVar(Ref(v)) =>
       currentSubstitutions.topOption.getOrElse(Map.empty[Variable[Pre], Type[Post]]).getOrElse(v, TVar(succ(v)))

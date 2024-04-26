@@ -6,7 +6,7 @@ parser grammar LangPVLParser;
 
 program  : programDecl* EOF EOF ;
 
-programDecl : valGlobalDeclaration | declClass | enumDecl | method | declVeyMontSeqProg;
+programDecl : valGlobalDeclaration | declClass | enumDecl | method | declVeyMontSeqProg | vesuvEntry ;
 
 enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
 
@@ -31,12 +31,14 @@ classDecl : valClassDeclaration | constructor | method | field | runMethod;
 finalFlag: 'final';
 field : finalFlag? type identifierList ';' ;
 
-method : contract valModifier* type identifier typeVars? '(' args? ')' methodBody ;
+method : contract valModifier* type identifier declaredTypeArgs? '(' args? ')' methodBody ;
 methodBody : ';' | block ;
 
 constructor : contract 'constructor' typeVars? '(' args? ')' methodBody ;
 
 runMethod : contract 'run' methodBody ;
+
+vesuvEntry : 'vesuv_entry' methodBody ;
 
 contract : valContractClause* ;
 
@@ -174,6 +176,7 @@ statement
  | 'fork' expr ';' # pvlFork
  | 'join' expr ';' # pvlJoin
  | valStatement # pvlValStatement
+ | 'communicate' '(' '*' ')' statement elseBlock? # pvlIndetBranch
  | 'if' '(' expr ')' statement elseBlock? # pvlIf
  | 'barrier' '(' identifier barrierTags? ')' barrierBody # pvlBarrier
  | parRegion # pvlPar
@@ -266,7 +269,7 @@ quantifiedDim : '[' expr ']' ;
 anonDim : '[' ']' ;
 classType : identifier typeArgs?;
 typeArgs : '<' typeList '>';
-typeVars : '<' identifierList '>';
+declaredTypeArgs: '<' identifierList '>';
 
 identifierList
  : identifier

@@ -34,7 +34,7 @@ case object Java extends LazyLogging {
 
   object JRESource extends Source {
     override def positionContext(position: PositionRange): String = genericContext
-    override def inlinePositionContext(position: PositionRange): String = genericInlineContext
+    override def inlinePositionContext(position: PositionRange, compress: Boolean): String = genericInlineContext
     override protected def genericContext: String = "At node loaded reflectively from the JRE"
     override protected def genericInlineContext: String = "JRE"
     override def genericShortPosition: String = "JRE"

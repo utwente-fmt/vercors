@@ -31,6 +31,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case ProgramDecl2(enum) => Seq(convert(enum))
     case ProgramDecl3(method) => Seq(convertProcedure(method))
     case ProgramDecl4(seqProg) => Seq(convertSeqProg(seqProg))
+    case ProgramDecl5(vesuv_entry) => convert(vesuv_entry)
   }
 
   def convert(implicit enum: EnumDeclContext): Enum[G] = enum match {
@@ -164,6 +165,11 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       withContract(contract, contract =>
         Seq(new RunMethod(convert(maybeBody), contract.consumeApplicableContract(blame(method)))(blame(method)))
       )
+  }
+
+  def convert(implicit method: VesuvEntryContext): Seq[VeSUVMainMethod[G]] = method match {
+    case VesuvEntry0(_, maybeBody) =>
+      Seq(new VeSUVMainMethod(convert(maybeBody))(blame(method)))
   }
 
   def convert(implicit args: ArgsContext): Seq[Variable[G]] = args match {
@@ -316,6 +322,10 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlFork(_, obj, _) => Fork(convert(obj))(blame(stat))
     case PvlJoin(_, obj, _) => Join(convert(obj))(blame(stat))
     case PvlValStatement(inner) => convert(inner)
+    case PvlIndetBranch(_, _, _, _, body, None) =>
+      IndetBranch(Seq(convert(body), Block(Nil)))
+    case PvlIndetBranch(_, _, _, _, body, Some(ElseBlock0(_, otherwise))) =>
+      IndetBranch(Seq(convert(body), convert(otherwise)))
     case PvlIf(_, _, cond, _, body, None) =>
       PVLBranch(Seq((convert(cond), convert(body))))(blame(stat))
     case PvlIf(_, _, cond, _, body, Some(ElseBlock0(_, otherwise))) =>
@@ -516,6 +526,11 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit ts: TypeArgsContext): Seq[Type[G]] = ts match {
     case TypeArgs0(_, ts, _) => convert(ts)
+  }
+
+  def convert(implicit ts: DeclaredTypeArgsContext): Seq[Variable[G]] = ts match {
+    case DeclaredTypeArgs0(_, names, _) =>
+      convert(names).map(name => new Variable(TType(TAnyValue()))(origin(ts).sourceName(name)))
   }
 
   def convert(implicit ids: IdentifierListContext): Seq[String] = ids match {
@@ -1069,6 +1084,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case ValEmptySet(_, t, _) => LiteralSet(convert(t), Nil)
     case ValEmptyBag(_, t, _) => LiteralBag(convert(t), Nil)
     case ValRange(_, from, _, to, _) => Range(convert(from), convert(to))
+    case ValRangeSet(_, from, _, to, _) => RangeSet(convert(from), convert(to))
   }
 
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] = e match {
@@ -1125,6 +1141,8 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       Let(new Variable(convert(t))(origin(id).sourceName(convert(id))), convert(v), convert(body))
     case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
       ForPerm(convert(bindings), AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)), convert(body))
+    case ValForPermWithValue(_, _, _, id, _, body, _) =>
+      ForPermWithValue(new Variable(TAny())(origin(id).sourceName(convert(id))), convert(body))
   }
 
   def convert(implicit e: ValPrimaryVectorContext): Expr[G] = e match {
@@ -1187,6 +1205,8 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       val allIndices = convert(indices)
       NdPartialIndex(allIndices.init, allIndices.last, convert(dims))
     case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
+    case ValChoose(_, _, xs, _) => Choose(convert(xs))(blame(e))
+    case ValChooseFresh(_, _, xs, _) => ChooseFresh(convert(xs))(blame(e))
   }
 
   def convert(implicit e: ValExprPairContext): (Expr[G], Expr[G]) = e match {

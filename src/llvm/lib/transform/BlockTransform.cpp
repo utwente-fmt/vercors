@@ -20,7 +20,7 @@ namespace llvm2Col {
             transformLoop(llvmBlock, functionCursor);
             return;
         }
-        for (auto &I: llvmBlock.getInstList()) {
+        for (auto &I: llvmBlock) {
             transformInstruction(functionCursor, I, colBlock);
         }
         functionCursor.complete(colBlock);

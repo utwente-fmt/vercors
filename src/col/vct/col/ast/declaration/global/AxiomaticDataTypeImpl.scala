@@ -12,14 +12,14 @@ trait AxiomaticDataTypeImpl[G] extends Declarator[G] with AxiomaticDataTypeOps[G
     Group(Text("domain") <+> ctx.name(this) <>
       (if(typeArgs.nonEmpty) Text("[") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> "]" else Empty) <+>
       "{") <>>
-      { Doc.stack(declarations) } <+/>
+      { Doc.stack(decls) } <+/>
     "}"
 
   def layoutSpec(implicit ctx: Ctx): Doc =
     Group(Text("adt") <+> ctx.name(this) <>
       (if(typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> ">" else Empty) <+>
       "{") <>>
-      { Doc.stack(declarations) } <+/>
+      { Doc.stack(decls) } <+/>
     "}"
 
   override def layout(implicit ctx: Ctx): Doc = ctx.syntax match {
