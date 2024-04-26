@@ -7,10 +7,12 @@ import vct.col.ref.Ref
 import vct.result.VerificationError.Unreachable
 
 trait TClassImpl[G] extends TClassOps[G] { this: TClass[G] =>
-  def transSupportArrows: Seq[(TClass[G], TClass[G])] = cls.decl.transSupportArrows.map {
-    // TODO (RR): To implement this, cls.supports needs to be TClass instead of Class
-    case (clsA, clsB) => (TClass(clsA.ref, Seq()), TClass(clsB.ref, Seq()))
-  }
+  def transSupportArrowsHelper(seen: Set[TClass[G]]): Seq[(TClass[G], TClass[G])] =
+    cls.decl.transSupportArrowsHelper(seen).map {
+      case (clsA, clsB) => (instantiate(clsA).asClass.get, instantiate(clsB).asClass.get)
+    }
+
+  def transSupportArrows(): Seq[(TClass[G], TClass[G])] = transSupportArrowsHelper(Set.empty)
 
   override def layout(implicit ctx: Ctx): Doc = Text(ctx.name(cls)) <> (
     if (typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs) <> ">" else Empty)
