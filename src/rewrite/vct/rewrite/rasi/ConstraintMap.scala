@@ -8,7 +8,7 @@ case class ConstraintMap[G](constraints: Map[ResolvableVariable[G], Set[Uncertai
    * @param other Constraint map to concatenate this one with
    * @return A new constraint map representing the conjunction of the arguments
    */
-  def ++(other: ConstraintMap[G]): ConstraintMap[G] = {
+  def &&(other: ConstraintMap[G]): ConstraintMap[G] = {
     var map: Map[ResolvableVariable[G], Set[UncertainValue]] = constraints
     for (e <- other.constraints) {
       map = map + (e._1 -> (map.getOrElse(e._1, Set()) ++ e._2))

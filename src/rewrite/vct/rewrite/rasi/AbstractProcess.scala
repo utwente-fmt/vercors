@@ -130,7 +130,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
    */
   private def viable_edges(edges: mutable.Set[CFGEdge[G]], state: AbstractState[G]): (Set[CFGEdge[G]], Set[ConcreteVariable[G]]) = {
     val viable: Set[CFGEdge[G]] = edges.filter(e => e.condition.isEmpty || state.resolve_boolean_expression(e.condition.get).can_be_true).toSet
-    val variables: Set[ConcreteVariable[G]] = Set()   // TODO: Implement!
+    val variables: Set[ConcreteVariable[G]] = new VariableSelector(state).deciding_variables(viable.map(e => e.condition))
     (viable, variables)
   }
 

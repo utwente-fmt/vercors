@@ -41,7 +41,7 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
     else {
       val left_constraints: Set[ConstraintMap[G]] = resolve(left, neg_left)
       val right_constraints: Set[ConstraintMap[G]] = resolve(right, neg_right)
-      left_constraints.flatMap(m1 => right_constraints.map(m2 => m1 ++ m2))
+      left_constraints.flatMap(m1 => right_constraints.map(m2 => m1 && m2))
     }
   }
 
