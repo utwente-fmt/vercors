@@ -3,6 +3,14 @@ package vct.rewrite.rasi
 import vct.col.ast._
 
 class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVariable[G]], is_contract: Boolean) {
+
+  /**
+   * Resolves the constraints necessary to make the given assumption true. If there are multiple disjoint possibilities
+   * to make it true, returns one constraint for each possibility separately.
+   *
+   * @param expr Boolean formula to be resolved to a constraint
+   * @return A set of constraint maps mapping variables to possible values
+   */
   def resolve_assumption(expr: Expr[G]): Set[ConstraintMap[G]] = resolve(expr)
 
   private def resolve(expr: Expr[G], negate: Boolean = false): Set[ConstraintMap[G]] = expr match {

@@ -11,7 +11,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
    * Simulates an atomic execution step for this process on the given abstract state.
    *
    * @param starting_state Abstract starting state
-   * @return A set of all successor states
+   * @return A description of all reachable post-states
    */
   def atomic_step(starting_state: AbstractState[G]): RASISuccessor[G] = {
     var (atomic, states): (Boolean, RASISuccessor[G]) = small_step(starting_state.processes(this), starting_state)
@@ -31,7 +31,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
    * small step.
    *
    * @param state Current abstract state
-   * @return A tuple of a boolean indicating whether atomic progress could be made and a set of all successor states
+   * @return A tuple of a boolean indicating if atomic progress could be made and a descriptor of all successor states
    */
   private def small_step_if_atomic(state: AbstractState[G]): (Boolean, RASISuccessor[G]) = {
     if (!state.processes.contains(this) || !is_atomic(state.processes(this))) (false, RASISuccessor(Set(), Set(state)))
@@ -44,7 +44,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
    *
    * @param node CFG node to simulate
    * @param state Current abstract state
-   * @return A tuple of a boolean indicating whether progress was made and a set of all successor states.
+   * @return A tuple of a boolean indicating whether progress was made and a descriptor of all successor states
    */
   private def small_step(node: CFGEntry[G], state: AbstractState[G]): (Boolean, RASISuccessor[G]) = node match {
     case CFGTerminal() => (false, RASISuccessor(Set(), Set(state.without_process(this))))
@@ -103,6 +103,9 @@ case class AbstractProcess[G](obj: Expr[G]) {
     }
   }
 
+  /**
+   * Helper function for <code>take_viable_edges</code> if there is no other change to the state.
+   */
   private def take_viable_edges_from_state(edges: mutable.Set[CFGEdge[G]], state: AbstractState[G]): RASISuccessor[G] =
     take_viable_edges(edges, state, RASISuccessor(Set(), Set(state)))
   /**
@@ -111,8 +114,8 @@ case class AbstractProcess[G](obj: Expr[G]) {
    *
    * @param edges Edges that are possible to take (might not be enabled)
    * @param starting_state Starting state for the step
-   * @param new_states Set of states possibly updated by the explored statement on which the steps are taken. If the
-   *                   explored statement does not change the state, then <code>new_state == {starting_state}</code>
+   * @param new_states A descriptor containing possible initial states for the transition, in case another operation has
+   *                   been conducted on <code>starting_state</code>, e.g. changed variable valuations
    * @return A successor object that contains all possible successor states
    */
   private def take_viable_edges(edges: mutable.Set[CFGEdge[G]], starting_state: AbstractState[G], new_states: RASISuccessor[G]): RASISuccessor[G] = {
@@ -121,12 +124,14 @@ case class AbstractProcess[G](obj: Expr[G]) {
   }
 
   /**
-   * Filters out CFG edges from a given set based on whether they would be viable in the given abstract state.
+   * Filters out CFG edges from a given set based on whether they would be viable in the given abstract state. Also
+   * returns the set of variables that can cause nondeterministic overapproximation in this step.
    *
    * @param edges A set of CFG edges
    * @param state Current abstract state
-   * @return A set of those entries of <code>edges</code> whose conditions could evaluate to <code>true</code> in the
-   *         given abstract state
+   * @return A tuple with a set of those entries of <code>edges</code> whose conditions could evaluate to
+   *         <code>true</code> in the given <code>state</code> and a set of variables that caused overapproximation in
+   *         this step
    */
   private def viable_edges(edges: mutable.Set[CFGEdge[G]], state: AbstractState[G]): (Set[CFGEdge[G]], Set[ConcreteVariable[G]]) = {
     val viable: Set[CFGEdge[G]] = edges.filter(e => e.condition.isEmpty || state.resolve_boolean_expression(e.condition.get).can_be_true).toSet

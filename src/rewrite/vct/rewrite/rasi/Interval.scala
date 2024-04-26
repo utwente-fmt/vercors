@@ -475,18 +475,16 @@ case object UnboundedInterval extends Interval {
   override def /(other: Interval): Interval = this
   override def %(other: Interval): Interval = other match {
     case UnboundedInterval | EmptyInterval => other
-    case mi: MultiInterval => {
+    case mi: MultiInterval =>
       val intvs = mi.sub_intervals()
       if (intvs.collect{case LowerBoundedInterval(_) | UpperBoundedInterval(_) | UnboundedInterval => 0}.nonEmpty)
         return this
       val max = intvs.map{case EmptyInterval => 0; case BoundedInterval(lower, upper) => Utils.abs_max(lower, upper)}.max - 1
       if (max <= 0) EmptyInterval
       else BoundedInterval(-max, max)
-    }
-    case BoundedInterval(lower, upper) => {
+    case BoundedInterval(lower, upper) =>
       val max = Utils.abs_max(lower, upper) - 1
       BoundedInterval(-max, max)
-    }
     case LowerBoundedInterval(_) => this
     case UpperBoundedInterval(_) => this
   }

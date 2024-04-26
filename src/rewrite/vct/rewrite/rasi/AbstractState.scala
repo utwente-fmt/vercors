@@ -117,10 +117,11 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
 
 
   /**
-   * Updates the state by taking a specification in the form of an assumption into account.
+   * Updates the state by taking a specification in the form of an assumption into account. Also returns the variables
+   * that could cause nondeterministic overapproximation in this operation.
    *
    * @param assumption Boolean expression expressing a state update
-   * @return A set of abstract states that are a copy of this one, updated according to the given assumption
+   * @return A descriptor for states that comply with the given assumption, given this state as the pre-state
    */
   def with_assumption(assumption: Expr[G]): RASISuccessor[G] = {
     val constraints: Set[Map[ConcreteVariable[G], UncertainValue]] = new ConstraintSolver(this, valuations.keySet, is_contract = false)
@@ -136,12 +137,12 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   }
 
   /**
-   * Updates the state by assuming a postcondition.
+   * Updates the state by assuming a postcondition. Also returns the variables that could cause nondeterministic
+   * overapproximation in this operation
    *
    * @param post Postcondition that alters the state
    * @param args A map from the method parameters to the given arguments, to be textually replaced
-   * @return A set of abstract states that are a copy of this one after assuming the given postcondition with the given
-   *         arguments
+   * @return A descriptor for states that comply with the given postcondition, given this state as the pre-state
    */
   def with_postcondition(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]]): RASISuccessor[G] = {
     val assumption: Expr[G] = Utils.unify_expression(Utils.contract_to_expression(post), args)
