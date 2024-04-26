@@ -54,6 +54,6 @@ void main() {
   intChanChan.writeValue(intChan);
 
   int i = intChan.readValue();
-  int b = boolChan.readValue();
-  int c = intChanChan.readValue();
+  boolean b = boolChan.readValue();
+  Chan<int> c = intChanChan.readValue();
 }

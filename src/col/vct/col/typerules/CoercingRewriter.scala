@@ -295,11 +295,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case (value, arg) => coerce(value, arg.t)
     }
 
-  def coerceArgs(args: Seq[Expr[Pre]], app: ContractApplicable[Pre], tArgs: Seq[Type[Pre]], tCls: Option[TClass[Pre]] = None, canCDemote: Boolean = false): Seq[Expr[Pre]] =
+  def coerceArgs(args: Seq[Expr[Pre]], app: ContractApplicable[Pre], typeEnv: Map[Variable[Pre], Type[Pre]] = Map.empty, canCDemote: Boolean = false): Seq[Expr[Pre]] =
     args.zip(app.args).map {
-      case (value, arg) =>
-        val t = arg.t.particularize(app.typeArgs.zip(tArgs).toMap)
-        coerce(value, tCls.map(_.instantiate(t)).getOrElse(t), canCDemote)
+      case (value, arg) => coerce(value, arg.t.particularize(typeEnv), canCDemote)
     }
 
   def coerceGiven(givenMap: Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])], canCDemote: Boolean = false): Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])] =
@@ -780,8 +778,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case StringConcat(left, right) =>
         StringConcat(string(left), string(right))
       case inv @ ConstructorInvocation(ref, classTypeArgs, args, outArgs, typeArgs, givenMap, yields) =>
-        val tCls = TClass(ref.decl.cls, classTypeArgs)
-        ConstructorInvocation(ref, classTypeArgs, coerceArgs(args, ref.decl, typeArgs, Some(tCls), canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
+        ConstructorInvocation(ref, classTypeArgs, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
       case acc @ CStructAccess(struct, field) =>
         CStructAccess(struct, field)(acc.blame)
       case deref @ CStructDeref(struct, field) =>
@@ -829,7 +826,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case ForPermWithValue(binding, body) =>
         ForPermWithValue(binding, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
-        FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
+        FunctionInvocation(ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case get @ GetLeft(e) =>
         GetLeft(either(e)._1)(get.blame)
       case get @ GetRight(e) =>
@@ -866,7 +863,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case InlinePattern(inner, parent, group) =>
         InlinePattern(inner, parent, group)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
-        InstanceFunctionInvocation(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs, obj.t.asClass, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
+        InstanceFunctionInvocation(cls(obj), ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case InstanceOf(value, typeValue) =>
         InstanceOf(value, typeValue)
       case InstancePredicateApply(obj, ref, args, perm) =>
@@ -974,7 +971,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case MatrixSum(indices, mat) =>
         MatrixSum(coerce(indices, TSeq[Pre](TInt())), coerce(mat, TSeq[Pre](TRational())))
       case inv @ MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-        MethodInvocation(obj, ref, coerceArgs(args, ref.decl, typeArgs, obj.t.asClass, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
+        MethodInvocation(obj, ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case Minus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
@@ -1098,7 +1095,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case PredicateApply(ref, args, perm) =>
         PredicateApply(ref, coerceArgs(args, ref.decl), rat(perm))
       case inv @ ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
-        ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
+        ProcedureInvocation(ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case inv @ LlvmFunctionInvocation(ref, args, givenMap, yields) =>
         LlvmFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
       case inv @ LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields) =>
@@ -1499,11 +1496,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case Instantiate(cls, dest) => Instantiate(cls, dest)
       case inv @ InvokeConstructor(ref, classTypeArgs, out, args, outArgs, typeArgs, givenMap, yields) =>
         val cls = TClass(ref.decl.cls, classTypeArgs)
-        InvokeConstructor(ref, classTypeArgs, out, coerceArgs(args, ref.decl, typeArgs, Some(cls), canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
+        InvokeConstructor(ref, classTypeArgs, out, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
-        InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
+        InvokeProcedure(ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-        InvokeMethod(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs, obj.t.asClass, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
+        InvokeMethod(cls(obj), ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
       case JavaLocalDeclarationStatement(decl) => JavaLocalDeclarationStatement(decl)
       case j @ Join(obj) => Join(cls(obj))(j.blame)
       case Label(decl, stat) => Label(decl, stat)
