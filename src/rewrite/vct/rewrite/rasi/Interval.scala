@@ -225,7 +225,7 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
   override def complement(): Interval =
     MultiInterval(Set(UpperBoundedInterval(lower - 1), LowerBoundedInterval(upper + 1)))
 
-  override def is_subset_of(other: Interval): Boolean = empty || (other match {
+  override def is_subset_of(other: Interval): Boolean = empty() || (other match {
     case EmptyInterval => false
     case MultiInterval(intervals) => intervals.exists(p => is_subset_of(p))
     case BoundedInterval(low, up) => low <= lower && up >= upper
