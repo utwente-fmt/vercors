@@ -1546,7 +1546,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case c @ Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)(c.blame)
       case comm@Communicate(r, s) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.field.decl.t}, but actually has type ${r.field.decl.t}.")
       case a @ PVLSeqAssign(r, f, v) =>
-        try { PVLSeqAssign(r, f, coerce(v, f.decl.t))(a.blame) } catch {
+        try { PVLSeqAssign(r, f, coerce(v, r.decl.t.instantiate(f.decl.t)))(a.blame) } catch {
           case err: Incoercible =>
             println(err.text)
             throw err

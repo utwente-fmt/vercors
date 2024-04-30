@@ -8,8 +8,8 @@ import vct.col.ref.Ref
 
 trait PVLInvocationImpl[G] extends PVLInvocationOps[G] { this: PVLInvocation[G] =>
   override lazy val t: Type[G] = ref.get match {
-    case RefFunction(decl) => decl.returnType.particularize(decl.typeArgs.zip(typeArgs).toMap)
-    case RefProcedure(decl) => decl.returnType
+    case RefFunction(decl) => returnType(decl)
+    case RefProcedure(decl) => returnType(decl)
     case RefPredicate(_) => TResource()
     case RefInstanceFunction(decl) => returnType(decl)
     case RefInstanceMethod(decl) => returnType(decl)
