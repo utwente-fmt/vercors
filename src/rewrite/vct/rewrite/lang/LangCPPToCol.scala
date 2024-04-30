@@ -1449,14 +1449,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   private def removeKernelClassInstancePermissions(e: Expr[Post]): Expr[Post] = {
     implicit val o = e.o
     e match {
-      case _ if e.t != TResource[Post]() => e
       case s@Starall(bindings, triggers, body) => Starall(bindings, triggers, removeKernelClassInstancePermissions(body))(s.blame)
       case ModelAbstractState(model, state) => ModelAbstractState(removeKernelClassInstancePermissions(model), removeKernelClassInstancePermissions(state))
       case ModelState(model, perm, state) => ModelState(removeKernelClassInstancePermissions(model), removeKernelClassInstancePermissions(perm), removeKernelClassInstancePermissions(state))
       case s@Scale(expr, res) => Scale(removeKernelClassInstancePermissions(expr), removeKernelClassInstancePermissions(res))(s.blame)
       case Star(left, right) => Star(removeKernelClassInstancePermissions(left), removeKernelClassInstancePermissions(right))
       case Wand(left, right) => Wand(removeKernelClassInstancePermissions(left), removeKernelClassInstancePermissions(right))
-      case Implies(left, right) => Implies(removeKernelClassInstancePermissions(left), removeKernelClassInstancePermissions(right))
 
       case ActionPerm(Deref(obj, _), _) if obj.equals(this.currentThis.get) => tt
       case ModelPerm(Deref(obj, _), _) if obj.equals(this.currentThis.get) => tt
@@ -1466,6 +1464,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case Perm(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)), _) if obj.equals(this.currentThis.get) => tt
       case PointsTo(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)), _, _) if obj.equals(this.currentThis.get) => tt
       case Value(AmbiguousLocation(ArraySubscript(Deref(obj, _), _))) if obj.equals(this.currentThis.get) => tt
+
+      // Inspecting the type of Expr[Post] is normally dangerous, as you might need to dereference LazyRefs. However,
+      // the type system here should guarantee e.t is either a TResource or a TBool, so it's safe to inspect it.
+      case Implies(left, right) if e.t == TResource[Post]() => Implies(removeKernelClassInstancePermissions(left), removeKernelClassInstancePermissions(right))
+
       case e => e
     }
   }
