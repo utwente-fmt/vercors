@@ -888,4 +888,6 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       }
     }
     """)
+
+  vercors should verify using silicon example "technical/veymont/genericEndpoints.pvl"
 }
