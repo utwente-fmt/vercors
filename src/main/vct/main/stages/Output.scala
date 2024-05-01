@@ -67,8 +67,10 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean) ex
         logger.warn("Output stage was executed without any declarations to print")
         Files.write(p, "".getBytes(StandardCharsets.UTF_8))
       case (Some(p), Seq(txt)) =>
+        logger.info(s"Writing ${txt.fileName} to $p")
         Files.write(p, txt.data.getBytes(StandardCharsets.UTF_8))
       case (Some(p), txts) => txts.foreach { txt =>
+        logger.info(s"Writing ${txt.fileName} to $p")
         Files.write(p.resolve(txt.fileName), txt.data.getBytes(StandardCharsets.UTF_8))
       }
       case _ =>
