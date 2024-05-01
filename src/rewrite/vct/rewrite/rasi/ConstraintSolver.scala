@@ -35,6 +35,11 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
     case c: Comparison[G] => handle_update(c, negate)
     // Boolean variables could appear in the assumption without any comparison
     case e: Expr[G] if vars.exists(v => v.is(e, state)) => Set(ConstraintMap.from(get_var(e).get, UncertainBooleanValue.from(!negate)))
+    // If there are variables in the state that are not tracked that make this valuation impossible, make an impossible constraint
+    case e: Expr[G] if state.valuations.exists(v => v._1.is(e, state)) =>
+      val state_entry: Option[(ConcreteVariable[G], UncertainValue)] = state.valuations.collectFirst{ case (k, v) if k.is(e, state) => (k, v) }
+      if (state_entry.get._2.can_be_equal(UncertainBooleanValue.from(!negate))) Set(ConstraintMap.empty[G])
+      else Set(ConstraintMap.impossible(Set(state_entry.get._1)))
     // TODO: What other expressions could affect the state?
     case _ => Set(ConstraintMap.empty[G])
   }
@@ -88,9 +93,11 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
     val pure_right = is_pure(comp.right)
     if (pure_left == pure_right) return Set(ConstraintMap.empty[G])
     // Now, exactly one side is pure, and the other contains a concrete variable
-    // Resolve the variable and the other side of the equation    TODO: Reduce the side with the variable if it contains anything else as well
-    if (vars.exists(v => v.is(if (pure_left) comp.right else comp.left, state))) handle_single_update(comp, pure_left, negate)
-    else handle_collection_update(comp, pure_left, negate)
+    // Resolve the variable and the other side of the equation
+    comp.left.t match {
+      case _: TSeq[_] | _: TArray[_] => handle_collection_update(comp, pure_left, negate)
+      case _ => handle_single_update(comp, pure_left, negate)
+    }
   }
 
   private def is_pure(node: Node[G]): Boolean = node match {
@@ -103,29 +110,47 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
   }
 
   private def handle_single_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): Set[ConstraintMap[G]] = {
-    val variable: ResolvableVariable[G] = if (pure_left) get_var(comp.right).get else get_var(comp.left).get
-    val value: UncertainValue = if (pure_left) state.resolve_expression(comp.left)
-                                else state.resolve_expression(comp.right)
+    val expr: Expr[G] = if (pure_left) comp.right else comp.left
+    val value: UncertainValue = if (pure_left) state.resolve_expression(comp.left) else state.resolve_expression(comp.right)
 
     comp match {
-      case _: Eq[_] => Set(if (!negate) ConstraintMap.from(variable, value) else ConstraintMap.from(variable, value.complement()))
-      case _: Neq[_] => Set(if (!negate) ConstraintMap.from(variable, value.complement()) else ConstraintMap.from(variable, value))
-      case AmbiguousGreater(_, _) | Greater(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, negate)
-      case AmbiguousGreaterEq(_, _) | GreaterEq(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, !negate)
-      case AmbiguousLessEq(_, _) | LessEq(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, !negate)
-      case AmbiguousLess(_, _) | Less(_, _) => limit_variable(variable, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, negate)
+      case _: Eq[_] => Set(if (!negate) expr_equals(expr, value) else expr_equals(expr, value.complement()))
+      case _: Neq[_] => Set(if (!negate) expr_equals(expr, value.complement()) else expr_equals(expr, value))
+      case AmbiguousGreater(_, _) | Greater(_, _) => limit_variable(expr, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, negate)
+      case AmbiguousGreaterEq(_, _) | GreaterEq(_, _) => limit_variable(expr, value.asInstanceOf[UncertainIntegerValue], pure_left == negate, !negate)
+      case AmbiguousLessEq(_, _) | LessEq(_, _) => limit_variable(expr, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, !negate)
+      case AmbiguousLess(_, _) | Less(_, _) => limit_variable(expr, value.asInstanceOf[UncertainIntegerValue], pure_left != negate, negate)
     }
   }
 
-  private def limit_variable(v: ResolvableVariable[G], b: UncertainIntegerValue, var_greater: Boolean, can_be_equal: Boolean): Set[ConstraintMap[G]] = {
+  private def limit_variable(expr: Expr[G], b: UncertainIntegerValue, var_greater: Boolean, can_be_equal: Boolean): Set[ConstraintMap[G]] = {
     if (var_greater) {
-      if (can_be_equal) Set(ConstraintMap.from(v, b.above_eq()))
-      else Set(ConstraintMap.from(v, b.above()))
+      if (can_be_equal) Set(expr_equals(expr, b.above_eq()))
+      else Set(expr_equals(expr, b.above()))
     }
     else {
-      if (can_be_equal) Set(ConstraintMap.from(v, b.below_eq()))
-      else Set(ConstraintMap.from(v, b.below()))
+      if (can_be_equal) Set(expr_equals(expr, b.below_eq()))
+      else Set(expr_equals(expr, b.below()))
     }
+  }
+
+  private def expr_equals(expr: Expr[G], value: UncertainValue): ConstraintMap[G] = {
+    if (get_var(expr).nonEmpty) ConstraintMap.from(get_var(expr).get, value)
+    else expr match {
+      case UMinus(arg) => expr_equals(arg, -value.asInstanceOf[UncertainIntegerValue])
+      case AmbiguousPlus(left, right) => plus_equals(left, right, value.asInstanceOf[UncertainIntegerValue])
+      case Plus(left, right) => plus_equals(left, right, value.asInstanceOf[UncertainIntegerValue])
+      case AmbiguousMinus(left, right) => minus_equals(left, right, value.asInstanceOf[UncertainIntegerValue])
+      case Minus(left, right) => minus_equals(left, right, value.asInstanceOf[UncertainIntegerValue])
+      case _ => ConstraintMap.empty[G]
+    }
+  }
+
+  private def plus_equals(left: Expr[G], right: Expr[G], value: UncertainIntegerValue): ConstraintMap[G] =
+    expr_equals(left, value - state.resolve_integer_expression(right)) && expr_equals(right, value - state.resolve_integer_expression(left))
+
+  private def minus_equals(left: Expr[G], right: Expr[G], value: UncertainIntegerValue): ConstraintMap[G] = {
+    expr_equals(left, value + state.resolve_integer_expression(right)) && expr_equals(right, state.resolve_integer_expression(right) - value)
   }
 
   private def handle_collection_update(comp: Comparison[G], pure_left: Boolean, negate: Boolean): Set[ConstraintMap[G]] = {

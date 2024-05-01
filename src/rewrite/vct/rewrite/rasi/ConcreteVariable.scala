@@ -113,6 +113,9 @@ case class FieldVariable[G](field: InstanceField[G]) extends ConcreteVariable[G]
 }
 
 
+// TODO: Generalize size and indexed variables for local variables
+
+
 /**
  * A variable representing the size of a collection.
  */
@@ -121,7 +124,7 @@ case class SizeVariable[G](field: InstanceField[G]) extends ConcreteVariable[G] 
     case Size(obj) => field_equals(obj, field)
     case _ => false
   }
-  override def is_contained_by(expr: Expr[G], state: AbstractState[G]): Boolean = field_equals(expr, field)
+  override def is_contained_by(expr: Expr[G], state: AbstractState[G]): Boolean = is(expr, state) || field_equals(expr, field)
   override def to_expression: Expr[G] = Size(Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o))(field.o)
   override def t: Type[G] = TInt()(field.o)
   override def compare(other: ConcreteVariable[G]): Boolean = other match {
