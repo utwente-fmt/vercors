@@ -63,6 +63,9 @@ case class RASIGenerator[G]() extends LazyLogging {
     // The initial state converts to simply "true", so it would make the RASI trivial
     found_states.filterInPlace(s => s.valuations != initial_state.valuations)
     found_edges.filterInPlace(e => e.from.valuations != initial_state.valuations && e.to.valuations != initial_state.valuations)
+
+    logger.debug(s"In total, ${found_states.size} states and ${found_edges.size} edges were found")
+    logger.debug(s"${found_edges.count(e => e.vars.nonEmpty)} edges have variable annotations")
   }
 
   private def get_initial_values(vars: Set[ConcreteVariable[G]]): Map[ConcreteVariable[G], UncertainValue] = {

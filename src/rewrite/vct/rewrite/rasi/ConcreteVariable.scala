@@ -154,7 +154,7 @@ case class IndexedVariable[G](field: InstanceField[G], i: Int) extends ConcreteV
     case Slice(xs, from, to) => field_equals(xs, field) &&
                                 state.resolve_integer_expression(from).try_to_resolve().getOrElse(i + 1) < i &&
                                 state.resolve_integer_expression(to).try_to_resolve().getOrElse(i - 1) >= i
-    case _ => field_equals(expr, field)
+    case _ => field_equals(expr, field) || is(expr, state)
   }
   override def to_expression: Expr[G] = field.t match {
     case TSeq(_) => SeqSubscript(Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o), IntegerValue(i)(field.o))(field.o)(field.o)

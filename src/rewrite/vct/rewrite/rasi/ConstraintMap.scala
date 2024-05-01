@@ -37,6 +37,15 @@ case class ConstraintMap[G](constraints: Map[ResolvableVariable[G], UncertainVal
    * @return <code>true</code> if any variable is mapped to an impossible value, <code>false</code> otherwise
    */
   def is_impossible: Boolean = resolve.exists(t => t._2.is_impossible)
+
+  /**
+   * Checks whether the constraint map is empty. An empty map represents the constraint of all variables to the
+   * uncertain value of their respective type. As such, a map containing only perfectly uncertain valuations is also
+   * considered empty.
+   *
+   * @return <code>true</code> if the map does not constrain any variable, <code>false</code> otherwise
+   */
+  def is_empty: Boolean = resolve.forall(t => t._2 == UncertainValue.uncertain_of(t._1.t))
 }
 case object ConstraintMap {
   def from[G](variable: ResolvableVariable[G], value: UncertainValue): ConstraintMap[G] =

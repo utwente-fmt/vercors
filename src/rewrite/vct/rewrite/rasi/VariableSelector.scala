@@ -18,8 +18,9 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
     if (valuations.size <= 1) return Set.empty[ConcreteVariable[G]]
 
     val states: Seq[AbstractState[G]] = valuations.toSeq.map(v => initial_state.with_new_valuation(v))
-    val constraints: Seq[Set[ConstraintMap[G]]] = states.map(s => satisfying_valuations(s, expr))
-    var_differences(constraints)
+    val constraints: Seq[Set[ConstraintMap[G]]] = states.map(s => satisfying_valuations(s, expr)).filter(s => s.exists(m => !m.is_empty))
+    if (constraints.isEmpty) Set.empty[ConcreteVariable[G]]
+    else var_differences(constraints)
   }
 
   /**
@@ -34,8 +35,9 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
   def deciding_variables(conditions: Set[Option[Expr[G]]]): Set[ConcreteVariable[G]] = {
     if (conditions.size <= 1) return Set.empty[ConcreteVariable[G]]
 
-    val constraints: Seq[Set[ConstraintMap[G]]] = conditions.toSeq.map(e => satisfying_valuations(initial_state, e))
-    var_differences(constraints)
+    val constraints: Seq[Set[ConstraintMap[G]]] = conditions.toSeq.map(e => satisfying_valuations(initial_state, e)).filter(s => s.exists(m => !m.is_empty))
+    if (constraints.isEmpty) Set.empty[ConcreteVariable[G]]
+    else var_differences(constraints)
   }
 
   private def satisfying_valuations(state: AbstractState[G], expr: Option[Expr[G]]): Set[ConstraintMap[G]] = expr match {
@@ -49,8 +51,9 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
   }
 
   private def free_variables(state: AbstractState[G], expr: Expr[G]): Set[ResolvableVariable[G]] = expr match {
-    case d @ Deref(_, ref) => if (state.valuations.exists(t => t._1.is(d, state))) Set() else Set(FieldVariable(ref.decl))
+    case d @ Deref(_, ref) => if (state.valuations.exists(t => t._1.is_contained_by(d, state))) Set() else Set(FieldVariable(ref.decl))
     case l @ Local(ref) => if (state.valuations.exists(t => t._1.is(l, state))) Set() else Set(LocalVariable(ref.decl))
+    case a @ AmbiguousSubscript(collection, index) => create_indexed_var_if_needed(state, a, collection, index)
     case s @ SeqSubscript(seq, index) => create_indexed_var_if_needed(state, s, seq, index)
     case a @ ArraySubscript(arr, index) => create_indexed_var_if_needed(state, a, arr, index)
     case s @ Size(obj) =>
@@ -69,8 +72,8 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
         case _ => throw new IllegalStateException("Collection value is not dereferenced instance field!")
       }
       val index: Option[Int] = state.resolve_integer_expression(subscript).try_to_resolve()
-      if (index.isEmpty) throw new IllegalStateException("Cannot resolve collection subscript!")
-      Set(IndexedVariable(field, index.get))
+      if (index.isEmpty) Set()
+      else Set(IndexedVariable(field, index.get))
     }
   }
 
@@ -83,7 +86,7 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
     var s: Set[ConcreteVariable[G]] = Set()
     for (v <- vars) {
       val t: Seq[UncertainValue] = c.filter(m => m.contains(v)).map(m => m(v))
-      if (t.forall(_ == t.head)) s += v
+      if (t.exists(_ != t.head)) s += v
     }
     s
   }
