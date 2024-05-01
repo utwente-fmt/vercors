@@ -291,11 +291,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     })
 
     currentJavaClass.having(cls) {
-      val supports = cls.supports.map(rw.dispatch).flatMap {
-        case TClass(ref, Seq()) => Seq(ref)
-        case _ => ???
-      }
-
       val instDecls = cls.decls.filter(!isJavaStatic(_))
       val staticDecls = cls.decls.filter(isJavaStatic)
 
@@ -309,13 +304,16 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         new Class[Post](
           rw.variables.dispatch(cls.typeParams)(rw),
           rw.classDeclarations.collect {
-          makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
-          cls match {
-            case cls: JavaClass[Pre] if BipComponent.get(cls).isDefined =>
-              rw.bip.generateComponent(cls)
-            case _ =>
-          }
-        }._1, supports, rw.dispatch(lockInvariant))(JavaInstanceClassOrigin(cls))
+            makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
+            cls match {
+              case cls: JavaClass[Pre] if BipComponent.get(cls).isDefined =>
+                rw.bip.generateComponent(cls)
+              case _ =>
+            }
+          }._1,
+          cls.supports.map(rw.dispatch),
+          rw.dispatch(lockInvariant)
+        )(JavaInstanceClassOrigin(cls))
       }
 
       rw.globalDeclarations.declare(instanceClass)

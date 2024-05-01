@@ -13,7 +13,7 @@ trait ExistsImpl[G] extends ExistsOps[G] { this: Exists[G] =>
     })(_ <> _)
 
   def layoutSpec(implicit ctx: Ctx): Doc =
-    Group(Text("(\\exists") <+> Doc.fold(bindings)(_ <> "," <+> _) <> ";" <> layoutTriggers <>> body </> ")")
+    Group(Text("(\\exists") <+> Doc.fold(bindings)(_ <> "," <+> _) <> ";" <>> body </> ")")
 
   def layoutSilver(implicit ctx: Ctx): Doc =
     Group(Text("(exists") <+> Doc.fold(bindings)(_ <> "," <+> _) <+> "::" <> layoutTriggers <>> body </> ")")

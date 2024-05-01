@@ -148,9 +148,6 @@ case object ResolveTypes {
     case t @ SilverPartialTAxiomatic(ref, partialTypeArgs) =>
       ref.tryResolve(name => Spec.findAdt(name, ctx).getOrElse(throw NoSuchNameError("adt", name, t)))
       partialTypeArgs.foreach(mapping => mapping._1.tryResolve(name => Spec.findAdtTypeArg(ref.decl, name).getOrElse(throw NoSuchNameError("type variable", name, t))))
-    case cls: Class[G] =>
-      // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
-      cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
     case local: JavaLocal[G] =>
       Java.findJavaName(local.name, fromStaticContext = false, ctx) match {
         case Some(
@@ -287,6 +284,12 @@ case object ResolveReferences extends LazyLogging {
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
+      // Ensure occurrences of type variables within the class that defines them are ignored when substituting
+      .appendTypeEnv(cls.typeArgs.map(v => (v, TVar[G](v.ref))).toMap)
+    case adt: AxiomaticDataType[G] => ctx
+      // Ensure occurrences of type variables within the adt that defines them are ignored when substituting
+      .declare(adt.declarations)
+      .appendTypeEnv(adt.typeArgs.map(v => (v, TVar[G](v.ref))).toMap)
     case seqProg: SeqProg[G] => ctx
       .copy(currentThis = Some(RefSeqProg(seqProg)))
       .declare(seqProg.decls)

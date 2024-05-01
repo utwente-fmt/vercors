@@ -227,7 +227,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] { o
     }
     val threadConstrBody = {
       Assign(getThisVeyMontDeref(thread,ThreadClassOrigin(thread),threadField),
-      JavaInvocation[Post](None, Seq.empty, "new " + threadTypeName, passedArgs, Seq.empty, Seq.empty)(null)(ThreadClassOrigin(thread)))(null)(ThreadClassOrigin(thread))
+      JavaInvocation[Post](None, Seq.empty, "new " + threadTypeName.ucamel, passedArgs, Seq.empty, Seq.empty)(null)(ThreadClassOrigin(thread)))(null)(ThreadClassOrigin(thread))
     }
     val threadConstrContract = new ApplicableContract[Post](
       UnitAccountedPredicate[Post](BooleanValue(true)(ThreadClassOrigin(thread)))(ThreadClassOrigin(thread)),

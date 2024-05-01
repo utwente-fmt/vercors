@@ -48,7 +48,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
       case _ => ???
     }
 
-    def unique(n: Node[Pre]): String = uniqueName(prefix(n) + n.o.getPreferredNameOrElse())
+    def unique(n: Node[Pre]): String = uniqueName(prefix(n) + n.o.getPreferredNameOrElse().camel)
 
     def uniqueName(candidate: String): String = {
       var count: Option[Int] = None

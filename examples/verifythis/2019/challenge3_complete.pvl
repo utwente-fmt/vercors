@@ -1,0 +1,594 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases VerifyThis19ThreeComplete
+//:: tools silicon
+//:: suite medium
+//:: option --no-infer-heap-context-into-frame
+//:: verdict Pass
+
+  context N >= 0 && M >= 0;
+
+  context m_perm(m, N, M, 1\2);
+  context x_perm(x, N, 1\2);
+  context boundAndSorted(m, N, M);
+
+  given seq<tuple<tuple<int, int>, int>> m_;
+  context |m_| == m.length && (\forall int i=0..m.length; {:m_[i]:} == m[i]);
+  given seq<int> x_;
+  context |x_| == x.length && (\forall int i=0..x.length; {:x_[i]:} == x[i]);
+  
+  // The full matrix
+  given seq<seq<int>> m_full;
+  requires |m_full| == N;
+  requires (\forall int i=0..N; {:|m_full[i]|:} == M);
+
+  requires (\forall int x=0..M, int y=0..N; {:1:lookup(x, y, m_, N, M).fst:} == {:m_full[y][x]:});
+  requires (\forall int i=0..|m_|; {:m_full[r(m_[i])][c(m_[i])]:} == v(m_[i]));
+  // I think the below condition is not per se needed. The sparse matrix is in theory allowed members that are zero.
+  // Furthermore, I do not use this anywhere in my proof
+  // requires (\forall int i=0..|m_|, int x=0..M, int y=0..N;
+  //  {:m_full[y][x]:} == 0 ==> !({:r(m_[i]):} == y && {:c(m_[i]):} == x));
+
+  ensures \array(\result, M);
+  ensures (\forall* int i=0..M; Perm({:\result[i]:}, write));
+  ensures (\forall int i=0..M; {:SparseXxMcol(m_, x_, i, N, M):} == \result[i]);
+  ensures (\forall int i=0..M; {:XxMcol(m_full, x_, i, N, M):} == \result[i]);
+
+  decreases;
+int[] parallel_sum(tuple<tuple<int, int>, int>[] m, int[] x, int N, int M){
+  
+  int len = m.length;
+  Ghost g = newGhost(len);
+  // Ghost g = new Ghost();
+  // g.written_ = create(len, false);
+  // g.written = new bool[len];
+
+  // int[] y = new int[M];
+  int [] y = newInt(M);
+  lemma_sum_init_zero_all(m_, x_, g.written_, N, M);
+  
+
+  invariant sumInv(
+    (\forall* int j=0..y.length; Perm({:y[j]:}, write)) ** Perm(g.written_, write) ** |g.written_| == len 
+    ** (\forall int i=0..M; {:SparseXxMcolPartial(m_, x_, g.written_, i, N, M):} == y[i])
+    ** Perm(g.written, 1\2) ** \array(g.written, len)
+    ** (\forall* int i=0..len; Perm({:g.written[i]:}, 1\2))
+    ** (\forall int i=0..len; g.written[i] == {:g.written_[i]:})
+  )
+  {
+    par (int tid = 0 .. len)
+      context len == m.length;
+      context tid >= 0 && tid < len;
+      context y != null && y.length == M;
+      context m_perm(m, N, M, 1\(2*len));
+      context x_perm(x, N, 1\(2*len));
+      context boundAndSorted(m, N, M);
+      context Perm(g.written, 1\(2*len)) ** \array(g.written, len) ** Perm(g.written[tid], 1\2);
+      context |m_| == m.length && (\forall int i=0..m.length; {:m_[i]:} == m[i]);
+      context |x_| == x.length && (\forall int i=0..x.length; {:x_[i]:} == x[i]);
+      requires !g.written[tid];
+      ensures g.written[tid];
+    {
+      int r = r(m[tid]);
+      int c = c(m[tid]);
+      int v = v(m[tid]);
+      int add = x[r]*v;
+
+      atomic(sumInv){
+        lemma_sum_upd(m_, x_, g.written_, N, M, tid);
+        assert (\forall int i=0..M; i!=c(m[tid]); {:SparseXxMcolPartial(m_, x_, g.written_, i, N, M):} == 
+          SparseXxMcolPartial(m_, x_, update(g.written_, tid, true), i, N, M));
+
+        y[c] = y[c] + add;
+        g.written_ = update(g.written_, tid, true);
+        g.written[tid] = true;
+      }
+    }
+  }
+  lemma_sum_final_all(m_, x_, g.written_, N, M);
+
+  lemma_sparse_full(m_, m_full, x_, N, M);
+  return y;
+}
+
+//-----------------------------------------------
+// Definitions for the implementation
+//-----------------------------------------------
+inline resource m_perm(tuple<tuple<int, int>, int>[] m, int N, int M, rational r) = 
+  (m != null && m.length < M * N) ** (\forall* int i; 0<=i && i<m.length; Perm({:m[i]:}, r));
+
+inline resource x_perm(int[] x, int N, rational r) = 
+  (x != null && x.length == N) ** (\forall* int i; 0<=i && i<x.length; Perm({:x[i]:}, r));
+
+inline pure bool boundAndSorted(tuple<tuple<int, int>, int>[] m, int N, int M) = 
+  // The matrix is bound
+  (\forall int i; 0<=i && i<m.length; 0 <= {:r(m[i]):} && r(m[i]) < N) &&
+  (\forall int i; 0<=i && i<m.length; 0 <= {:c(m[i]):} && c(m[i]) < M) &&
+  // The matrix is sorted by row and column
+  (\forall int i=0..m.length, int j=0..i; {:r(m[j]):} < {:r(m[i]):} || (r(m[j]) == r(m[i]) && c(m[j]) < c(m[i])));
+
+  requires 0 <= j && j < |xs|;
+	ensures |\result| == |xs|;
+	ensures \result[j] == v;
+	ensures (\forall int i; 0 <= i && i < |\result| && i != j; {:\result[i]:} == xs[i]);
+  decreases j;
+pure seq<bool> update(seq<bool> xs, int j, bool v) =
+  0 < j ? xs.head :: update(xs.tail, j - 1, v) : v :: xs.tail;
+
+  requires N >= 0;
+  ensures |\result| == N;
+  ensures (\forall int i=0..N; {:\result[i]:} == init);
+  decreases N;
+pure seq<bool> create(int N, bool init) = N > 0 ? init :: create(N-1, init) : [t:bool];
+
+  context_everywhere M >= 0;
+  context_everywhere |mask| == |m|;
+  context_everywhere |x| == N;
+  context_everywhere (\forall int i=0..|mask|; {:mask[i]:} == false);
+  context_everywhere boundAndSorted(m, N, M);
+
+  ensures (\forall int i=0..M; {:SparseXxMcolPartial(m, x, mask, i, N, M):} == 0);
+
+  decreases;
+void lemma_sum_init_zero_all(seq<tuple<tuple<int, int>, int>> m, seq<int> x, seq<bool> mask, int N, int M){
+    loop_invariant 0 <= j && j <= M;
+		loop_invariant (\forall int i; 0 <= i && i < j; {:SparseXxMcolPartial(m, x, mask, i, N, M):} == 0);
+    decreases M-j;
+  for(int j=0; j<M; j++){
+    lemma_sum_init_zero(m, x, mask, j, N, M);
+  }
+}
+
+  requires |mask| == |m|;
+  requires |x| == N;
+  requires (\forall int i=0..|mask|; {:mask[i]:} == false);
+  requires boundAndSorted(m, N, M);
+  requires col >= 0 && col < M;
+
+  ensures SparseXxMcolPartial(m, x, mask, col, N, M) == 0;
+
+  decreases |m|;
+void lemma_sum_init_zero(seq<tuple<tuple<int, int>, int>> m, seq<int> x, seq<bool> mask, int col, int N, int M){
+  if(|m| > 0){
+    lemma_sum_init_zero(m.tail, x, mask.tail, col, N, M);
+  }
+}
+
+	context_everywhere 0 <= tid && tid < |m|;
+	context_everywhere |m| == |mask|;
+	context_everywhere !mask[tid];
+  context_everywhere boundAndSorted(m, N, M);
+  context_everywhere |x| == N;
+  ensures (\forall int i; 0 <= i && i < M && i != c(m[tid]);
+    {:1:SparseXxMcolPartial(m, x, update(mask, tid, true), i, N, M):} == 
+      {:SparseXxMcolPartial(m, x, mask, i, N, M):});
+  ensures SparseXxMcolPartial(m, x, update(mask, tid, true), c(m[tid]), N, M) ==
+    SparseXxMcolPartial(m, x, mask, c(m[tid]), N, M) + x[r(m[tid])]*v(m[tid]);
+  
+  decreases |m|;
+void lemma_sum_upd(seq<tuple<tuple<int, int>, int>> m, seq<int> x, seq<bool> mask, int N, int M, int tid){
+  if(tid > 0){
+    lemma_sum_upd(m.tail, x, mask.tail, N, M, tid - 1);
+    assert update(mask, tid, true).tail == update(mask.tail, tid-1, true);
+  } else {
+    assert (\forall int i; 0 <= i && i < M;
+      {:SparseXxMcolPartial(m, x, mask, i, N, M):} == SparseXxMcolPartial(m.tail, x, mask.tail, i, N, M));
+    assert update(mask, tid, true).tail == mask.tail;
+  }
+}
+
+	requires |m| == |mask|;
+  requires boundAndSorted(m, N, M);
+  requires |x| == N;
+  requires col >= 0 && col < M;
+
+  requires (\forall int i=0..|mask|; {:mask[i]:} == true);
+  ensures (\let int i=col; SparseXxMcolPartial(m, x, mask, i, N, M) == SparseXxMcol(m, x, i, N, M));
+
+  decreases |m|;
+void lemma_sum_final(seq<tuple<tuple<int, int>, int>> m, seq<int> x, seq<bool> mask, int col, int N, int M){
+  if(|m|>0){
+    lemma_sum_final(m.tail, x, mask.tail, col, N, M);
+  }
+}
+
+	context_everywhere |m| == |mask|;
+  context_everywhere boundAndSorted(m, N, M);
+  context_everywhere |x| == N;
+  context_everywhere M >= 0;
+
+  requires (\forall int i=0..|mask|; {:mask[i]:} == true);
+  ensures (\forall int i=0..M; {:SparseXxMcolPartial(m, x, mask, i, N, M):} == SparseXxMcol(m, x, i, N, M));
+
+  decreases;
+void lemma_sum_final_all(seq<tuple<tuple<int, int>, int>> m, seq<int> x, seq<bool> mask, int N, int M){
+  int k = 0;
+		loop_invariant 0 <= k && k <= M;
+		loop_invariant (\forall int i; 0 <= i && i < k; {:SparseXxMcolPartial(m, x, mask, i, N, M):} == SparseXxMcol(m, x, i, N, M));
+    decreases M-k;
+  while (k < M) {
+    lemma_sum_final(m, x, mask, k, N, M);
+    k = k + 1;
+  }
+}
+
+  requires boundAndSorted(m, N, M);
+  requires col >= 0 && col < M;
+  requires |x| == N;
+  requires |mask| == |m|;
+  decreases |m|;
+pure int SparseXxMcolPartial(seq<tuple<tuple<int, int>, int>> m, seq<int> x, seq<bool> mask, int col, int N, int M) = 
+  |m| > 0 
+    ? (!mask.head ? 0 : (c(m.head) == col ? x[r(m.head)] * v(m.head) : 0))
+      + SparseXxMcolPartial(m.tail, x, mask.tail, col, N, M) 
+    : 0;
+
+class Ghost {
+  seq<bool> written_;
+  bool[] written;
+}
+
+  requires len >= 0;
+  ensures \result != null ** Perm(\result.written, 1) ** Perm(\result.written_, 1);
+  ensures |\result.written_| == len;
+  ensures (\forall int i=0..len; {:\result.written_[i]:} == false);
+  ensures \array(\result.written, len);
+  ensures (\forall* int i=0..len; Perm({:\result.written[i]:}, 1) );
+  ensures (\forall int i=0..len; {:\result.written[i]:} == false);
+  // decreases // // Need proof that new Ghost() and new bool[] decrease
+  decreases assume;
+Ghost newGhost(int len){
+  Ghost g = new Ghost();
+  g.written = new bool[len];
+  g.written_ = create(len, false);
+  return g;
+}
+
+  requires len >= 0;
+  ensures \array(\result, len);
+  ensures (\forall* int i=0..len; Perm({:\result[i]:}, 1) );
+  ensures (\forall int i=0..len; {:\result[i]:} == 0);
+  // decreases // // Need proof that new int[] decrease
+  decreases assume;
+int[] newInt(int len){
+  int[] res = new int[len];
+  return res;
+}
+
+//-----------------------------------------------
+// Function definitions for the proof that
+// Sparse multiplication === Full multiplication
+//-----------------------------------------------
+
+  decreases;
+pure int r(tuple<tuple<int, int>, int> i) = i.fst.fst;
+  decreases;
+pure int c(tuple<tuple<int, int>, int> i) = i.fst.snd;
+  decreases;
+pure int v(tuple<tuple<int, int>, int> i) = i.snd;
+
+inline pure bool boundAndSorted(seq<tuple<tuple<int, int>, int>> m, int N, int M) = 
+  // The matrix is bound
+  (\forall int i; 0<=i && i<|m|; 0 <= {:r(m[i]):} && {:r(m[i]):} < N) &&
+  (\forall int i; 0<=i && i<|m|; 0 <= {:c(m[i]):} && {:c(m[i]):} < M) &&
+  // The matrix is sorted by row and column
+  (\forall int i=0..|m|, int j=0..i; {:r(m[j]):} < {:r(m[i]):} || (r(m[j]) == r(m[i]) && c(m[j]) < c(m[i])));
+
+  requires boundAndSorted(m, N, M);
+  ensures (\result.snd >= -1 && \result.snd < |m|);
+  ensures \result.snd == -1 ==> \result.fst == 0;
+  ensures \result.snd != -1 ==> \result.fst == (v(m[\result.snd]));
+  decreases;
+pure tuple<int, int> lookup(int x, int y, seq<tuple<tuple<int, int>, int>> m, int N, int M) =
+ lookupH(x, y, m, N, M, 0);
+
+  requires boundAndSorted(m, N, M);
+  requires k >= 0 && k <= |m|;
+  ensures (\result.snd >= -1 && \result.snd < |m|);
+  ensures \result.snd == -1 ==> \result.fst == 0;
+  ensures \result.snd != -1 ==> \result.fst == (v(m[\result.snd]));
+  decreases |m|-k;
+pure tuple<int, int> lookupH(int x, int y, seq<tuple<tuple<int, int>, int>> m, int N, int M, int k) =
+  k == |m| ? tuple<int, int>{0, -1} : 
+    (r(m[k]) == y && c(m[k]) == x ? tuple<int, int>{v(m[k]), k} :
+      (r(m[k]) > y ? tuple<int, int>{0, -1} : 
+        r(m[k]) == y && c(m[k]) > x ? tuple<int, int>{0, -1} :
+          lookupH(x, y, m, N, M, k+1)));
+
+  requires boundAndSorted(m, N, M);
+  requires |x| == N;
+  requires col >= 0 && col < M;
+  decreases |m|;
+pure int SparseXxMcol(seq<tuple<tuple<int, int>, int>> m, seq<int> x, int col, int N, int M) = 
+  |m| > 0 ? 
+    (c(m.head) == col ? x[r(m.head)] * v(m.head) : 0) + SparseXxMcol(m.tail, x, col, N, M) 
+    : 0;
+
+  requires boundAndSorted(m, N, M);
+  requires |x| == N;
+  requires col >= 0 && col < M;
+  decreases;
+pure int SparseXxMcol2(seq<tuple<tuple<int, int>, int>> m, seq<int> x, int col, int N, int M) = 
+  SparseXxMcol2H(m, x, col, N, M, 0);
+
+  requires boundAndSorted(m, N, M);
+  requires |x| == N;
+  requires col >= 0 && col < M;
+  requires k >= 0 && k <= |m|;
+  decreases |m|-k;
+pure int SparseXxMcol2H(seq<tuple<tuple<int, int>, int>> m, seq<int> x, int col, int N, int M, int k) = 
+  k < |m| ? 
+    (c(m[k]) == col ? x[r(m[k])] * v(m[k]) : 0) + SparseXxMcol2H(m, x, col, N, M, k+1) 
+    : 0;
+
+  requires |x| == N;
+  requires |m| == N;
+  requires (\forall int i=0..N; {:|m[i]|:} == M);
+  requires col >= 0 && col < M;
+  decreases |m|;
+pure int XxMcol(seq<seq<int>> m, seq<int> x, int col, int N, int M) = 
+  |m| > 0 ?
+    (m.head[col] * x.head) + XxMcol(m.tail, x.tail, col, N-1, M)
+    : 0;
+
+  requires |x| == N;
+  requires |m| == N;
+  requires (\forall int i=0..N; {:|m[i]|:} == M);
+  requires col >= 0 && col < M;
+  decreases;
+pure int XxMcol2(seq<seq<int>> m, seq<int> x, int col, int N, int M) = 
+  XxMcol2H(m, x, col, N, M, 0);
+
+  requires |x| == N;
+  requires |m| == N;
+  requires (\forall int i=0..N; {:|m[i]|:} == M);
+  requires col >= 0 && col < M;
+  requires k >= 0 && k <= N;
+  decreases |m|-k;
+pure int XxMcol2H(seq<seq<int>> m, seq<int> x, int col, int N, int M, int k) = 
+  k < |m| ?
+    (m[k][col] * x[k]) + XxMcol2H(m, x, col, N, M, k+1)
+    : 0;
+  
+//-----------------------------------------------
+// Lemma's
+//-----------------------------------------------
+
+//-----------------------------------------------
+// Different multiplication definitions are equivalent
+//-----------------------------------------------
+
+  requires boundAndSorted(m, N, M);
+  requires |x| == N;
+  requires col >= 0 && col < M;
+  requires k >= 0 && k <= |m|;
+  ensures SparseXxMcol2H(m, x, col, N, M, k) == SparseXxMcol(m.slice(k, |m|), x, col, N, M);
+  ensures k==0 ==> SparseXxMcol2(m, x, col, N, M) == SparseXxMcol(m, x, col, N, M);
+  decreases |m| - k;
+void lemma_sparseXxM_equiv(seq<tuple<tuple<int, int>, int>> m, seq<int> x, int col, int N, int M, int k){
+  if(k<|m|){
+    lemma_sparseXxM_equiv(m, x, col, N, M, k+1);
+    assert m[k] == m.slice(k, |m|).head;
+    assert m.slice(k, |m|).tail == m.slice(k+1, |m|);
+  }
+  if(k==0){
+    assert m.slice(k, |m|) == m;
+  }
+}
+
+  requires |x| == N;
+  requires |m| == N;
+  requires (\forall int i=0..N; {:|m[i]|:} == M);
+  requires col >= 0 && col < M;
+  requires k >= 0 && k <= N;
+  ensures XxMcol2H(m, x, col, N, M, k) == XxMcol(m.slice(k, N), x.slice(k, N), col, N-k, M);
+  ensures k == 0 ==> XxMcol2(m, x, col, N, M) == XxMcol(m, x, col, N, M);
+  decreases |m|-k;
+void lemma_XxM_equiv(seq<seq<int>> m, seq<int> x, int col, int N, int M, int k){
+  if(k<|m|){
+    lemma_XxM_equiv(m, x, col, N, M, k+1);
+    assert m[k] == m.slice(k, N).head;
+    assert x[k] == x.slice(k, N).head;
+    assert m.slice(k, N).tail == m.slice(k+1, N);
+    assert x.slice(k, N).tail == x.slice(k+1, N);
+  }
+  if(k==0){
+    assert m.slice(k, N) == m;
+    assert x.slice(k, N) == x;
+  }
+}
+
+//-----------------------------------------------------------
+// Proof that sparse matrix and normal multiplication are the same
+//-----------------------------------------------------------
+
+  requires M > 0;
+  requires |x| == N;
+  requires boundAndSorted(m_s, N, M);
+  requires (\forall int i; 0<=i && i<|m_s|; 0 < {:c(m_s[i]):} && {:c(m_s[i]):} < M);
+  ensures SparseXxMcol(m_s, x, 0, N, M) == 0;
+  decreases |m_s|;
+void lemma_zero(seq<tuple<tuple<int, int>, int>> m_s, seq<int> x, int N, int M){
+  if(|m_s| > 0){
+    assert 0 < {:c(m_s[0]):} && {:c(m_s[0]):} < M;
+    lemma_zero(m_s.tail, x, N, M);
+    assert SparseXxMcol(m_s, x, 0, N, M) == 0;
+  }
+}
+
+
+/*
+  The idea of this method is that we cross every x (column), y (row) of the matrix `m`, and that
+  we keep track on which element `k` of `m_s` we are. We note that m_s is sorted.
+  Originally we require that the `lookup` function of `m_s` is equivalent to `m`.
+
+  Each time we pass the `(x,y)` for which `c(m_s(k)), r(m_s(k))` is the same, we increase `k`.
+  After that we do not say that `m` and `m_s` are equivalent anymore, but that they still are
+  everywhere after `(x,y)` and we use the `lookupH` function but only consider `m_s` after index `k`.
+  Since `m_s` was sorted, any values after `(x,y)` are can only be found after index `k`.
+
+  The post-condition also keeps track of the value of `m[y][col]*xv[y]`, since if `x` already is
+  passed, we don't know if `m[y][col]` was present in `m_s`.
+*/
+  requires M > 0;
+  requires |xv| == N;
+  requires |m| == N;
+  requires (\forall int i=0..N; {:|m[i]|:} == M);
+  requires boundAndSorted(m_s, N, M);
+  requires 0 <= col && col < M;
+  requires 0 <= y && y < N && -1 <= x && x < M;
+  requires 0 <= k && k<|m_s|;
+
+  requires y < r(m_s[k]) || (y == r(m_s[k]) && x < c(m_s[k]));
+
+  requires (\forall int x_=(x+1)..M, int y_=y..(y+1); {:1:lookupH(x_, y_, m_s, N, M, k).fst:} == {:m[y_][x_]:});
+  requires (\forall int x_=0..M, int y_=(y+1)..N; {:1:lookupH(x_, y_, m_s, N, M, k).fst:} == {:m[y_][x_]:});
+
+  requires (\forall int i=0..|m_s|; {:m[r(m_s[i])][c(m_s[i])]:} == v(m_s[i]));
+
+  ensures SparseXxMcol2H(m_s, xv, col, N, M, k) + (x >= col ? m[y][col]*xv[y] : 0) == XxMcol2H(m, xv, col, N, M, y);
+  decreases N-y, M-x;
+void lemma_tail(seq<tuple<tuple<int, int>, int>> m_s, seq<seq<int>> m, seq<int> xv, int N, int M, int col, int y, int x, int k){
+  if(y == r(m_s[k])){ // We are on the same row
+    assert x<c(m_s[k]); // So x should be smaller than the next value of c(m_s[k])
+    if(x+1 < c(m_s[k])){
+      lemma_tail(m_s, m, xv, N, M, col, y, x+1, k); // The next value is still smaller, so we can continue
+      if(x+1 == col){ // If the next value of x is the col, we know that m[y][col] is zero, since it is not in m_s.
+        assert lookupH(x+1, y, m_s, N, M, k).fst == 0;
+        assert m[y][col] == 0;
+      }
+      assert SparseXxMcol2H(m_s, xv, col, N, M, k) + (x >= col ? m[y][col]*xv[y] : 0) == XxMcol2H(m, xv, col, N, M, y);
+      // DONE
+    } else {
+      assert x+1 == c(m_s[k]);
+      if(k+1<|m_s|){
+        lemma_tail(m_s, m, xv, N, M, col, y, x+1, k+1);
+        if(x+1 == col){
+          assert SparseXxMcol2H(m_s, xv, col, N, M, k) == SparseXxMcol2H(m_s, xv, col, N, M, k+1) + m[y][col]*xv[y];
+        }
+
+        assert SparseXxMcol2H(m_s, xv, col, N, M, k) + (x >= col ? m[y][col]*xv[y] : 0) == XxMcol2H(m, xv, col, N, M, y);
+        // DONE
+      } else {
+        assert k+1 == |m_s|;
+        assert SparseXxMcol2H(m_s, xv, col, N, M, k+1) == 0;
+        lemma_remaining(m_s, m, xv, N, M, col, y, x, k, y);
+
+        if(x+1 == col){
+          assert SparseXxMcol2H(m_s, xv, col, N, M, k) == m[y][col]*xv[y];
+          assert XxMcol2H(m, xv, col, N, M, y) == m[y][col]*xv[y] + XxMcol2H(m, xv, col, N, M, y+1);
+
+          assert SparseXxMcol2H(m_s, xv, col, N, M, k) + (x >= col ? m[y][col]*xv[y] : 0) == XxMcol2H(m, xv, col, N, M, y);
+          // DONE
+        } else {
+          assert SparseXxMcol2H(m_s, xv, col, N, M, k) == 0;
+          if(x < col){
+            lookupH(col, y, m_s, N, M, k+1).fst == 0;
+            assert col != c(m_s[k]);
+            assert lookupH(col, y, m_s, N, M, k).fst == 0;
+            assert m[y][col]*xv[y] == 0;
+          }
+
+          assert SparseXxMcol2H(m_s, xv, col, N, M, k) + (x >= col ? m[y][col]*xv[y] : 0) == XxMcol2H(m, xv, col, N, M, y);
+          // DONE
+        }// DONE
+      } // DONE
+    } // DONE
+    assert SparseXxMcol2H(m_s, xv, col, N, M, k) + (x >= col ? m[y][col]*xv[y] : 0) == XxMcol2H(m, xv, col, N, M, y);
+  } else {
+    assert y < r(m_s[k]);
+    if(x+1<M){
+      lemma_tail(m_s, m, xv, N, M, col, y, x+1, k);
+      assert SparseXxMcol2H(m_s, xv, col, N, M, k) + (x >= col ? m[y][col]*xv[y] : 0) == XxMcol2H(m, xv, col, N, M, y);
+      // DONE
+    } else {
+      lemma_tail(m_s, m, xv, N, M, col, y+1, -1, k);
+      assert SparseXxMcol2H(m_s, xv, col, N, M, k) + (x >= col ? m[y][col]*xv[y] : 0) == XxMcol2H(m, xv, col, N, M, y);
+      // DONE
+    }
+    assert SparseXxMcol2H(m_s, xv, col, N, M, k) + (x >= col ? m[y][col]*xv[y] : 0) == XxMcol2H(m, xv, col, N, M, y);
+    //DONE
+  }
+  // QED
+}
+  requires M > 0;
+  requires |xv| == N;
+  requires |m| == N;
+  requires (\forall int i=0..N; {:|m[i]|:} == M);
+  requires boundAndSorted(m_s, N, M);
+  requires 0 <= col && col < M;
+  requires k>=0 && k+1 == |m_s|;
+  requires (y == r(m_s[k]) &&  x < c(m_s[k]));
+  requires x+1 == c(m_s[k]);
+  requires y_ >= y && y_ < |m|;
+
+  requires (\forall int x_=(x+1)..M, int y_=y..(y+1); {:1:lookupH(x_, y_, m_s, N, M, k).fst:} == {:m[y_][x_]:});
+  requires (\forall int x_=0..M, int y_=(y+1)..N; {:1:lookupH(x_, y_, m_s, N, M, k).fst:} == {:m[y_][x_]:});
+
+  ensures XxMcol2H(m, xv, col, N, M, y_+1) == 0;
+
+  decreases |m|-y_;
+void lemma_remaining(seq<tuple<tuple<int, int>, int>> m_s, seq<seq<int>> m, seq<int> xv, int N, int M, int col, int y, int x, int k, int y_){
+  if(y_+1 < |m|){
+    lemma_remaining(m_s, m, xv, N, M, col, y, x, k, y_+1);
+    assert XxMcol2H(m, xv, col, N, M, y_+2) == 0;
+    assert lookupH(col, y_+1, m_s, N, M, k+1).fst == 0;
+    assert lookupH(col, y_+1, m_s, N, M, k).fst == 0;
+    assert m[y_+1][col] == 0;
+  }
+}
+
+  requires M > 0;
+  requires |x| == N;
+  requires |m| == N;
+  requires (\forall int i=0..N; {:|m[i]|:} == M);
+  requires boundAndSorted(m_s, N, M);
+  requires (\forall int x=0..M, int y=0..N; {:1:lookup(x, y, m_s, N, M).fst:} == {:m[y][x]:});
+  requires |m_s| == 0;
+  requires 0 <= col && col < M;
+  requires r >= 0 && r <= N;
+  ensures XxMcol2H(m, x, col, N, M, r) == 0;
+
+  decreases N - r;
+void lemma_empty_matrix(seq<tuple<tuple<int, int>, int>> m_s, seq<seq<int>> m, seq<int> x, int N, int M, int col, int r){
+  if(r < N){
+    lemma_empty_matrix(m_s, m, x, N, M, col, r+1);
+    assert lookup(col, r, m_s, N, M).fst == 0;
+  }
+}
+
+  context_everywhere |x| == N;
+  context_everywhere |m| == N;
+  context_everywhere (\forall int i=0..N; {:|m[i]|:} == M);
+  context_everywhere boundAndSorted(m_s, N, M);
+
+  context_everywhere (\forall int x=0..M, int y=0..N; {:1:lookup(x, y, m_s, N, M).fst:} == {:m[y][x]:});
+  context_everywhere (\forall int i=0..|m_s|; {:m[r(m_s[i])][c(m_s[i])]:} == v(m_s[i]));
+
+  ensures (\forall int col=0..M; {:XxMcol2(m, x, col, N, M):} == SparseXxMcol2(m_s, x, col, N, M));
+  ensures (\forall int col=0..M; {:XxMcol(m, x, col, N, M):} == SparseXxMcol(m_s, x, col, N, M));
+  decreases;
+void lemma_sparse_full(seq<tuple<tuple<int, int>, int>> m_s, seq<seq<int>> m, seq<int> x, int N, int M){
+  if(M>0){
+      loop_invariant i >= 0 && i <= M;
+      loop_invariant (\forall int col=0..i; {:XxMcol2(m, x, col, N, M):} == SparseXxMcol2(m_s, x, col, N, M));
+      loop_invariant (\forall int col=0..i; {:XxMcol(m, x, col, N, M):} == SparseXxMcol(m_s, x, col, N, M));
+      decreases M-i;
+    for(int i=0; i<M; i++){
+      if(M > 0 && N>0 && |m_s| > 0){
+        lemma_tail(m_s, m, x, N, M, i, 0, -1, 0);
+      } else if(M>0) {
+        if(|m_s| == 0){
+          lemma_empty_matrix(m_s, m, x, N, M, i, 0);
+          assert XxMcol2(m, x, i, N, M) == 0;
+          assert SparseXxMcol2(m_s, x, i, N, M) == 0;
+        }
+        if(N == 0){
+          assert XxMcol2(m, x, i, N, M) == 0;
+          assert SparseXxMcol2(m_s, x, i, N, M) == 0;
+        }
+      }
+      lemma_XxM_equiv(m, x, i, N, M, 0);
+      lemma_sparseXxM_equiv(m_s, x, i, N, M, 0);
+    }
+  }
+}

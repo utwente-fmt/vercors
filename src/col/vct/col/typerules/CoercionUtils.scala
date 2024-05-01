@@ -119,7 +119,7 @@ case object CoercionUtils {
       case (_: IntType[G], TRational()) => CoerceIntRat()
 
       case (source @ TClass(sourceClass, Seq()), target @ TClass(targetClass, Seq()))
-        if source.transSupportArrows.exists { case (_, supp) => supp == targetClass.decl } =>
+        if source.transSupportArrows.exists { case (_, supp) => supp.cls.decl == targetClass.decl } =>
         CoerceSupports(sourceClass, targetClass)
 
       case (source @ TClass(sourceClass, typeArgs), TAnyClass()) =>

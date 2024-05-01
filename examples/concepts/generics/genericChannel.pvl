@@ -1,5 +1,5 @@
 lock_invariant Perm(transfering, 1) ** Perm(exchangeValue,1);
-class IntegerChannel<T> {
+class Chan<T> {
   boolean transfering;
   T exchangeValue;
 
@@ -42,4 +42,24 @@ class IntegerChannel<T> {
 
     return m;
   }
+
+  context committed(this);
+  T noop(T t) {
+    writeValue(t);
+    return readValue();
+  }
+}
+
+void main() {
+  Chan<int> intChan = new Chan<int>();
+  Chan<boolean> boolChan = new Chan<boolean>();
+  Chan<Chan<int>> intChanChan = new Chan<Chan<int>>();
+
+  intChan.writeValue(5);
+  boolChan.writeValue(true);
+  intChanChan.writeValue(intChan);
+
+  int i = intChan.readValue();
+  boolean b = boolChan.readValue();
+  Chan<int> c = intChanChan.readValue();
 }

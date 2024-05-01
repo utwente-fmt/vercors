@@ -50,7 +50,8 @@ case class Extract[G]() {
   def getOrElseUpdate(free: FreeVariables.FreeVariable[G], update: => Variable[G]): Variable[G] =
     if(map.contains(free)) map(free)
     else {
-      map += free -> update
+      val newVariable = update
+      map += free -> newVariable
       map(free)
     }
 

@@ -295,11 +295,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case (value, arg) => coerce(value, arg.t)
     }
 
-  def coerceArgs(args: Seq[Expr[Pre]], app: ContractApplicable[Pre], tArgs: Seq[Type[Pre]], tCls: Option[TClass[Pre]] = None, canCDemote: Boolean = false): Seq[Expr[Pre]] =
+  def coerceArgs(args: Seq[Expr[Pre]], app: ContractApplicable[Pre], typeEnv: Map[Variable[Pre], Type[Pre]] = Map.empty, canCDemote: Boolean = false): Seq[Expr[Pre]] =
     args.zip(app.args).map {
-      case (value, arg) =>
-        val t = arg.t.particularize(app.typeArgs.zip(tArgs).toMap)
-        coerce(value, tCls.map(_.instantiate(t)).getOrElse(t), canCDemote)
+      case (value, arg) => coerce(value, arg.t.particularize(typeEnv), canCDemote)
     }
 
   def coerceGiven(givenMap: Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])], canCDemote: Boolean = false): Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])] =
@@ -744,6 +742,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case c @ CharValue(_) => c
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
+      case choose @ Choose(xs) =>
+        Choose(set(xs)._1)(choose.blame)
+      case choose @ ChooseFresh(xs) =>
+        ChooseFresh(set(xs)._1)(choose.blame)
       case CLiteralArray(exprs) =>
         CLiteralArray(exprs)
       case CLocal(name) => e
@@ -780,8 +782,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case StringConcat(left, right) =>
         StringConcat(string(left), string(right))
       case inv @ ConstructorInvocation(ref, classTypeArgs, args, outArgs, typeArgs, givenMap, yields) =>
-        val tCls = TClass(ref.decl.cls, classTypeArgs)
-        ConstructorInvocation(ref, classTypeArgs, coerceArgs(args, ref.decl, typeArgs, Some(tCls), canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
+        ConstructorInvocation(ref, classTypeArgs, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
       case acc @ CStructAccess(struct, field) =>
         CStructAccess(struct, field)(acc.blame)
       case deref @ CStructDeref(struct, field) =>
@@ -829,7 +830,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case ForPermWithValue(binding, body) =>
         ForPermWithValue(binding, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
-        FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
+        FunctionInvocation(ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case get @ GetLeft(e) =>
         GetLeft(either(e)._1)(get.blame)
       case get @ GetRight(e) =>
@@ -861,12 +862,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case FunctionOf(e, ref) =>
         FunctionOf(e, ref)
       case f @ FreePointer(p) => FreePointer(pointer(p)._1)(f.blame)
-      case IndeterminateInteger(min, max) =>
-        IndeterminateInteger(int(min), int(max))
       case InlinePattern(inner, parent, group) =>
         InlinePattern(inner, parent, group)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
-        InstanceFunctionInvocation(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs, obj.t.asClass, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
+        InstanceFunctionInvocation(cls(obj), ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case InstanceOf(value, typeValue) =>
         InstanceOf(value, typeValue)
       case InstancePredicateApply(obj, ref, args, perm) =>
@@ -975,7 +974,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         MatrixSum(coerce(indices, TSeq[Pre](TInt())), coerce(mat, TSeq[Pre](TRational())))
       case inv @ MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
         if (ref.decl.typeArgs.length != typeArgs.length) throw WrongNumberOfTypeArguments(inv, ref.decl.typeArgs.length, typeArgs.length)
-        MethodInvocation(obj, ref, coerceArgs(args, ref.decl, typeArgs, obj.t.asClass, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
+        MethodInvocation(obj, ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case Minus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
@@ -1099,7 +1098,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case PredicateApply(ref, args, perm) =>
         PredicateApply(ref, coerceArgs(args, ref.decl), rat(perm))
       case inv @ ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
-        ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
+        ProcedureInvocation(ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case inv @ LlvmFunctionInvocation(ref, args, givenMap, yields) =>
         LlvmFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
       case inv @ LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields) =>
@@ -1124,6 +1123,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case PVLNew(t, typeArgs, args, givenMap, yields) => e
       case Range(from, to) =>
         Range(int(from), int(to))
+      case RangeSet(from, to) =>
+        RangeSet(int(from), int(to))
       case div@RatDiv(left, right) =>
         firstOk(e, s"Expected both operands to be rational.",
           // PB: horrible hack: Div ends up being silver.PermDiv, which expects an integer divisor. In other cases,
@@ -1500,11 +1501,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case Instantiate(cls, dest) => Instantiate(cls, dest)
       case inv @ InvokeConstructor(ref, classTypeArgs, out, args, outArgs, typeArgs, givenMap, yields) =>
         val cls = TClass(ref.decl.cls, classTypeArgs)
-        InvokeConstructor(ref, classTypeArgs, out, coerceArgs(args, ref.decl, typeArgs, Some(cls), canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
+        InvokeConstructor(ref, classTypeArgs, out, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
-        InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
+        InvokeProcedure(ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-        InvokeMethod(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs, obj.t.asClass, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
+        InvokeMethod(cls(obj), ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
       case JavaLocalDeclarationStatement(decl) => JavaLocalDeclarationStatement(decl)
       case j @ Join(obj) => Join(cls(obj))(j.blame)
       case Label(decl, stat) => Label(decl, stat)
@@ -1545,8 +1546,18 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case comm@PVLCommunicate(s, r) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.fieldType}, but actually has type ${r.fieldType}.")
       case c @ Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)(c.blame)
       case comm@Communicate(r, s) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.field.decl.t}, but actually has type ${r.field.decl.t}.")
-      case a @ PVLSeqAssign(r, v) => PVLSeqAssign(r, coerce(v, r.t))(a.blame)
-      case a @ SeqAssign(r, obj, f, v) => SeqAssign(r, obj, f, coerce(v, r.decl.t.instantiate(f.decl.t)))(a.blame)
+      case a @ PVLSeqAssign(r, v) =>
+        try { PVLSeqAssign(r, coerce(v, r.t))(a.blame) } catch {
+          case err: Incoercible =>
+            println(err.text)
+            throw err
+        }
+      case a @ SeqAssign(r, obj, f, v) =>
+        try { SeqAssign(r, obj, f, coerce(v, r.decl.t.instantiate(f.decl.t)))(a.blame) } catch {
+          case err: Incoercible =>
+            println(err.text)
+            throw err
+        }
       case s: SeqBranch[Pre] => s
       case s: SeqLoop[Pre] => s
       case c: ChorStatement[Pre] => c
@@ -1582,6 +1593,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         new Function[Pre](function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.blame)
       case procedure: Procedure[Pre] =>
         procedure
+      case main_method: VeSUVMainMethod[Pre] =>
+        main_method
       case predicate: Predicate[Pre] =>
         new Predicate[Pre](predicate.args, predicate.body.map(res), predicate.threadLocal, predicate.inline)
       case definition: CFunctionDefinition[Pre] =>

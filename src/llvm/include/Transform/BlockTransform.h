@@ -3,7 +3,7 @@
 #include "Passes/Function/FunctionBodyTransformer.h"
 
 namespace llvm2Col {
-    namespace col = vct::col::serialize;
+    namespace col = vct::col::ast;
 
     /**
      * Entry point for each block transformation. It performs the following steps:

@@ -191,6 +191,11 @@ case object Options {
         .text("Indicate, in seconds, the timeout value for a single assert statement. If the verification gets stuck " +
           "on a single SMT check for longer than this timeout, the verification will fail."),
 
+      opt[Int]("dev-total-timeout").maybeHidden()
+        .action((amount, c) => c.copy(devSiliconTotalTimeout = amount))
+        .text("Indicate, in seconds, the timeout value for the backend verification. If the verification gets stuck " +
+          "for longer than this timeout, the verification will timeout."),
+
       opt[Path]("dev-silicon-z3-log-file").maybeHidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),
@@ -266,8 +271,27 @@ case object Options {
         .action((_, c) => c.copy(mode = Mode.VeSUV))
         .text("Enable VeSUV mode: transform SystemC designs to PVL to be deductively verified")
         .children(
-          opt[Path]("vesuv-output").required().valueName("<path>")   // TODO: Give option for default location?
+          opt[Path]("vesuv-output").required().valueName("<path>")
             .action((path, c) => c.copy(vesuvOutput = path))
+            .text("Output file for the result of the transformation"),
+          opt[Unit]("generate-rasi").action((_, c) => c.copy(vesuvGenerateRasi = true))
+            .text("Instead of transforming a SystemC design to PVL, generate a global invariant for a PVL program")
+            .children(
+            opt[Seq[String]]("rasi-vars").valueName("<var1>,...")
+              .action((vars, c) => c.copy(vesuvRasiVariables = Some(vars)))
+              .text("[WIP] Preliminary selection mechanism for RASI variables; might be replaced later")
+          )
+        ),
+
+      note(""),
+      note("Control flow graph"),
+      opt[Unit]("build-cfg")
+        .action((_, c) => c.copy(mode = Mode.CFG))
+        .text("Instead of verifying a program, build its control flow graph for further analysis")
+        .children(
+          opt[Path]("cfg-output").required().valueName("<path>")
+            .action((path, c) => c.copy(cfgOutput = path))
+            .text("Output file for the control flow graph in .dot format")
         ),
 
       note(""),
@@ -388,6 +412,7 @@ case class Options
   devSiliconNumVerifiers: Option[Int] = None,
   devSiliconZ3LogFile: Option[Path] = None,
   devSiliconAssertTimeout: Int = 30,
+  devSiliconTotalTimeout: Int = 0,
   devSiliconReportOnNoProgress: Boolean = true,
   devSiliconBranchConditionReportInterval: Option[Int] = Some(1000),
   devSiliconTraceBranchConditions: Boolean = false,
@@ -405,6 +430,11 @@ case class Options
 
   // VeSUV options
   vesuvOutput: Path = null,
+  vesuvGenerateRasi: Boolean = false,
+  vesuvRasiVariables: Option[Seq[String]] = None,
+
+  // Control flow graph options
+  cfgOutput: Path = null,
 
   // Batch test options
   testDir: Path = null, // required

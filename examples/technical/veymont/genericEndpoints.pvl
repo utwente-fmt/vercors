@@ -14,6 +14,7 @@ seq_program genericTest() {
   endpoint a = Role<A>();
   endpoint b = Role<B>();
 
+  requires a != b;
   seq_run {
     a.i := a.toInt(a.t);
     communicate a.i -> b.i;

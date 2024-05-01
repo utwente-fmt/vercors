@@ -60,8 +60,8 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] with L
                 if (compositeMap.contains(parallelCompositionElems)) {
                   logger.warn(
                     "Collision detected: %s vs. %s have same set of process elements composed in parallel",
-                    process.o.getPreferredNameOrElse(),
-                    compositeMap(parallelCompositionElems).o.getPreferredNameOrElse()
+                    process.o.getPreferredNameOrElse().camel,
+                    compositeMap(parallelCompositionElems).o.getPreferredNameOrElse().camel
                   )
                 } else {
                   compositeMap.put(parallelCompositionElems, process)
