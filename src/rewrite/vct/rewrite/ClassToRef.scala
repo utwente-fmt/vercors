@@ -93,7 +93,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         ((sub.get === const(0)) ==> tt) &&
           foldAnd(typeNumberStore.map {
             case (cls, subNum) =>
-              val supNums = (cls +: cls.transSupportArrows.map(_._2)).distinct.map(typeNumber)
+              val supNums = (cls +: cls.transSupportArrows.map(_._2.cls.decl)).distinct.map(typeNumber)
               (sub.get === const(subNum)) ==> foldOr(supNums.map(supNum => sup.get === const(supNum)))
           }.toSeq)
       ),
@@ -112,9 +112,11 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] =>
+      if(cls.typeArgs.nonEmpty) throw vct.result.VerificationError.Unreachable("Class type parameters should be encoded using monomorphization earlier")
+
       typeNumber(cls)
       cls.drop()
-      cls.declarations.foreach {
+      cls.decls.foreach {
         case function: InstanceFunction[Pre] =>
           implicit val o: Origin = function.o
           val thisVar = new Variable[Post](TRef())(This)
@@ -220,7 +222,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   def instantiate(cls: Class[Pre], target: Ref[Post, Variable[Post]])(implicit o: Origin): Statement[Post] = {
     Block(Seq(
-      SilverNewRef[Post](target, cls.declarations.collect { case field: InstanceField[Pre] => fieldSucc.ref(field) }),
+      SilverNewRef[Post](target, cls.decls.collect { case field: InstanceField[Pre] => fieldSucc.ref(field) }),
       Inhale(FunctionInvocation[Post](typeOf.ref(()), Seq(Local(target)), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing.")) === const(typeNumber(cls))),
     ))
   }
@@ -237,7 +239,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
         yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
       )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), PreBlameSplit.left(PanicBlame("incorrect instance method type?"), inv.blame)))(inv.o)
-    case inv @ InvokeConstructor(Ref(cons), out, args, outArgs, typeArgs, givenMap, yields) =>
+    case inv @ InvokeConstructor(Ref(cons), _, out, args, outArgs, typeArgs, givenMap, yields) =>
       InvokeProcedure[Post](
         ref = consSucc.ref(cons),
         args = args.map(dispatch),
@@ -284,7 +286,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     case deref @ Deref(obj, Ref(field)) =>
       SilverDeref[Post](dispatch(obj), fieldSucc.ref(field))(deref.blame)(deref.o)
     case TypeValue(t) => t match {
-      case TClass(Ref(cls)) => const(typeNumber(cls))(e.o)
+      case TClass(Ref(cls), Seq()) => const(typeNumber(cls))(e.o)
       case other => ???
     }
     case TypeOf(value) => FunctionInvocation[Post](typeOf.ref(()), Seq(dispatch(value)), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing"))(e.o)
@@ -309,7 +311,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(t: Type[Pre]): Type[Post] = t match {
-    case TClass(_) => TRef()
+    case TClass(_, _) => TRef()
     case TAnyClass() => TRef()
     case t => rewriteDefault(t)
   }

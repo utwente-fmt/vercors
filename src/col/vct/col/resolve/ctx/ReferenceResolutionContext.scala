@@ -27,6 +27,7 @@ case class ReferenceResolutionContext[G]
   javaBipGuards: ListMap[Expr[G], JavaMethod[G]] = ListMap[Expr[G], JavaMethod[G]](),
   // When true and resolving a local, guard names should also be considered
   javaBipGuardsEnabled: Boolean = false,
+  typeEnv: Map[Variable[G], Type[G]] = Map.empty[Variable[G], Type[G]],
 ) {
   def asTypeResolutionContext: TypeResolutionContext[G] =
     TypeResolutionContext(stack, currentJavaNamespace, None, Nil, externallyLoadedElements)
@@ -58,4 +59,7 @@ case class ReferenceResolutionContext[G]
 
   def currentPkg: Option[JavaName[G]] = currentJavaNamespace.flatMap(_.pkg)
   def currentFqn: Option[JavaName[G]] = currentPkg.map(pkg => JavaName(pkg.names ++ currentJavaClass.map(cls => Seq(cls.name)).getOrElse(Seq()))(DiagnosticOrigin))
+
+  def appendTypeEnv(typeEnv: Map[Variable[G], Type[G]]): ReferenceResolutionContext[G] =
+    copy(typeEnv = this.typeEnv ++ typeEnv)
 }

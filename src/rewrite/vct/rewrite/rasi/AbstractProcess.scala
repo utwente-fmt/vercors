@@ -61,7 +61,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
         case Some(_) => viable_edges(succ, state).map(e => take_edge(e, state))
         case None => viable_edges(succ, state).flatMap(e => state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args))).map(s => take_edge(e, s)))
       })
-      case InvokeConstructor(ref, _, args, _, _, _, _) => (true, ref.decl.body match {
+      case InvokeConstructor(ref, _, _, args, _, _, _, _) => (true, ref.decl.body match {
         case Some(_) => viable_edges(succ, state).map(e => take_edge(e, state))
         case None => viable_edges(succ, state).flatMap(e => state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args))).map(s => take_edge(e, s)))
       })

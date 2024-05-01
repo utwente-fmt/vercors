@@ -63,6 +63,11 @@ case object LangJavaToCol {
     override def code: String = decl.o.messageInContext("This declaration is not supported in the java.lang.String class")
     override def text: String = "notSupportedInStringClass"
   }
+
+  case class GenericJavaNotSupported(decl: JavaClassOrInterface[_]) extends UserError {
+    override def code: String = decl.o.messageInContext("Generic Java classes not supported")
+    override def text: String = "genericJavaClass"
+  }
 }
 
 case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -190,7 +195,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case cons: JavaConstructor[Pre] =>
         logger.debug(s"Constructor for ${cons.o.inlineContextText}")
         implicit val o: Origin = cons.o
-        val t = TClass(ref)
+        val t = TClass(ref, Seq())
         val `this` = ThisObject(ref)
 
         val results = currentJavaClass.top.modifiers.collect {
@@ -286,11 +291,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     })
 
     currentJavaClass.having(cls) {
-      val supports = cls.supports.map(rw.dispatch).flatMap {
-        case TClass(ref) => Seq(ref)
-        case _ => ???
-      }
-
       val instDecls = cls.decls.filter(!isJavaStatic(_))
       val staticDecls = cls.decls.filter(isJavaStatic)
 
@@ -301,28 +301,33 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       }
 
       val instanceClass = rw.currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {
-        new Class[Post](rw.classDeclarations.collect {
-          makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
-          cls match {
-            case cls: JavaClass[Pre] if BipComponent.get(cls).isDefined =>
-              rw.bip.generateComponent(cls)
-            case _ =>
-          }
-        }._1, supports, rw.dispatch(lockInvariant))(JavaInstanceClassOrigin(cls))
+        new Class[Post](
+          rw.variables.dispatch(cls.typeParams)(rw),
+          rw.classDeclarations.collect {
+            makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
+            cls match {
+              case cls: JavaClass[Pre] if BipComponent.get(cls).isDefined =>
+                rw.bip.generateComponent(cls)
+              case _ =>
+            }
+          }._1,
+          cls.supports.map(rw.dispatch),
+          rw.dispatch(lockInvariant)
+        )(JavaInstanceClassOrigin(cls))
       }
 
       rw.globalDeclarations.declare(instanceClass)
       javaInstanceClassSuccessor(cls) = instanceClass
 
       if(staticDecls.nonEmpty) {
-        val staticsClass = new Class[Post](rw.classDeclarations.collect {
+        val staticsClass = new Class[Post](Seq(), rw.classDeclarations.collect {
           rw.currentThis.having(ThisObject(javaStaticsClassSuccessor.ref(cls))) {
             makeJavaClass(cls.name + "Statics", staticDecls, javaStaticsClassSuccessor.ref(cls), isStaticPart = true)
           }
         }._1, Nil, tt)(JavaStaticsClassOrigin(cls))
 
         rw.globalDeclarations.declare(staticsClass)
-        val t = TClass[Post](staticsClass.ref)
+        val t = TClass[Post](staticsClass.ref, Seq())
         val singleton = withResult((res: Result[Post]) =>
           function(AbstractApplicable, TrueSatisfiable, returnType = t,
             ensures = UnitAccountedPredicate((res !== Null()) && (TypeOf(res) === TypeValue(t))))(JavaStaticsClassSingletonOrigin(cls)))
@@ -456,13 +461,13 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     inv.ref.get match {
       case RefModel(decl) => ModelNew[Post](rw.succ(decl))
       case RefJavaConstructor(cons) =>
-        ConstructorInvocation[Post](javaConstructor.ref(cons), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
+        ConstructorInvocation[Post](javaConstructor.ref(cons), Seq(), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultJavaConstructor(_) =>
         val cls = t.asInstanceOf[JavaTClass[Pre]].ref.decl
         val ref = new LazyRef[Post, Constructor[Post]](javaConstructor(javaDefaultConstructor(cls)))
-        ConstructorInvocation[Post](ref,
+        ConstructorInvocation[Post](ref, Seq(),
           args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
@@ -504,6 +509,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   }
 
   def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
-    case classOrInterface: JavaClassOrInterface[Pre] => TClass(javaInstanceClassSuccessor.ref(classOrInterface))
+    case classOrInterface: JavaClassOrInterface[Pre] =>
+      TClass(javaInstanceClassSuccessor.ref(classOrInterface), t.typeArgs.map(rw.dispatch))
   }
 }

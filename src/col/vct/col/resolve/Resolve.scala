@@ -141,16 +141,13 @@ case object ResolveTypes {
         throw NoSuchNameError("class", name, t)))
     case t @ TModel(ref) =>
       ref.tryResolve(name => Spec.findModel(name, ctx).getOrElse(throw NoSuchNameError("model", name, t)))
-    case t @ TClass(ref) =>
+    case t @ TClass(ref, _) =>
       ref.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, t)))
     case t @ TAxiomatic(ref, _) =>
       ref.tryResolve(name => Spec.findAdt(name, ctx).getOrElse(throw NoSuchNameError("adt", name, t)))
     case t @ SilverPartialTAxiomatic(ref, partialTypeArgs) =>
       ref.tryResolve(name => Spec.findAdt(name, ctx).getOrElse(throw NoSuchNameError("adt", name, t)))
       partialTypeArgs.foreach(mapping => mapping._1.tryResolve(name => Spec.findAdtTypeArg(ref.decl, name).getOrElse(throw NoSuchNameError("type variable", name, t))))
-    case cls: Class[G] =>
-      // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
-      cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
     case local: JavaLocal[G] =>
       Java.findJavaName(local.name, fromStaticContext = false, ctx) match {
         case Some(
@@ -287,6 +284,12 @@ case object ResolveReferences extends LazyLogging {
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
+      // Ensure occurrences of type variables within the class that defines them are ignored when substituting
+      .appendTypeEnv(cls.typeArgs.map(v => (v, TVar[G](v.ref))).toMap)
+    case adt: AxiomaticDataType[G] => ctx
+      // Ensure occurrences of type variables within the adt that defines them are ignored when substituting
+      .declare(adt.declarations)
+      .appendTypeEnv(adt.typeArgs.map(v => (v, TVar[G](v.ref))).toMap)
     case seqProg: SeqProg[G] => ctx
       .copy(currentThis = Some(RefSeqProg(seqProg)))
       .declare(seqProg.decls)
@@ -411,7 +414,7 @@ case object ResolveReferences extends LazyLogging {
     case access@PVLAccess(subject, field) =>
         access.ref = Some(PVL.findDerefOfClass(subject.cls, field).getOrElse(throw NoSuchNameError("field", field, access)))
     case endpoint: PVLEndpoint[G] =>
-      endpoint.ref = Some(PVL.findConstructor(TClass(endpoint.cls.decl.ref[Class[G]]), endpoint.args).getOrElse(throw ConstructorNotFound(endpoint)))
+      endpoint.ref = Some(PVL.findConstructor(TClass(endpoint.cls.decl.ref[Class[G]], Seq()), Seq(), endpoint.args).getOrElse(throw ConstructorNotFound(endpoint)))
     case parAssign: PVLSeqAssign[G] =>
       parAssign.receiver.tryResolve(receiver => PVL.findName(receiver, ctx) match {
         case Some(RefPVLEndpoint(decl)) => decl
@@ -485,8 +488,8 @@ case object ResolveReferences extends LazyLogging {
       inv.ref = Some(PVL.findInstanceMethod(obj, method, args, typeArgs, inv.blame).getOrElse(throw NoSuchNameError("method", method, inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
-    case inv@PVLNew(t, args, givenMap, yields) =>
-      inv.ref = Some(PVL.findConstructor(t, args).getOrElse(throw NoSuchConstructor(inv)))
+    case inv@PVLNew(t, typeArgs, args, givenMap, yields) =>
+      inv.ref = Some(PVL.findConstructor(t, typeArgs, args).getOrElse(throw NoSuchConstructor(inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case n@NewObject(ref) =>
