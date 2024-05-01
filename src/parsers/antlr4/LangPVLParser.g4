@@ -14,11 +14,11 @@ declClass
  : contract 'class' identifier declaredTypeArgs? '{' classDecl* '}'
  ;
 
-declVeyMontSeqProg : contract 'seq_program' identifier '(' args? ')' '{' seqProgDecl* '}';
+declVeyMontSeqProg : contract 'choreography' identifier '(' args? ')' '{' seqProgDecl* '}';
 
 seqProgDecl
  : 'endpoint' identifier '=' classType '(' exprList? ')' ';' # pvlEndpoint
- | contract 'seq_run' block # pvlSeqRun
+ | contract 'run' block # pvlSeqRun
  | method # seqProgMethod
  ;
 

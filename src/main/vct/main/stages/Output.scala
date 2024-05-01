@@ -23,7 +23,7 @@ case object Output {
   }
 
   def veymontOfOptions(options: Options): Stage[Verification[_ <: Generation], Seq[StringReadable]] =
-    Output(options.veymontOutput, Ctx.Java, false)
+    Output(options.veymontOutput, Ctx.PVL, false)
 }
 
 case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean) extends Stage[Verification[_ <: Generation], Seq[StringReadable]] with LazyLogging {
@@ -42,8 +42,8 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean) ex
   }
 
   override def run(in: Verification[_ <: Generation]): Seq[StringReadable] = {
-    val namer = Namer[InitialGeneration](syntax)
-    namer.name(in.asInstanceOf)
+    val namer = Namer[Generation](syntax)
+    in.tasks.foreach(t => namer.name(t.program.asInstanceOf[Program[Generation]]))
     val names = namer.finish
     val ctx = Ctx(syntax = syntax, names = names.asInstanceOf[Map[Declaration[_], String]])
 

@@ -48,8 +48,7 @@ CONS: '::';
 
 ENUM: 'enum';
 CLASS: 'class';
-SEQ_PROGRAM: 'seq_program';
-SEQ_RUN: 'seq_run';
+SEQ_PROGRAM: 'choreography';
 KERNEL: 'kernel';
 BARRIER: 'barrier';
 INVARIANT: 'invariant';

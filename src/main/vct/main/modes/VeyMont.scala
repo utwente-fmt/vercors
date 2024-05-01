@@ -1,8 +1,8 @@
 package vct.main.modes
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.stages.{Stage, Stages}
-import hre.stages.Stages.{saveInput, skipIf}
+import hre.stages.{FunctionStage, IdentityStage, Stage, Stages}
+import hre.stages.Stages.{branch, saveInput}
 import hre.io.{CollectString, Readable}
 import vct.col.ast.Verification
 import vct.col.origin.{BlameCollector, VerificationFailure}
@@ -55,21 +55,27 @@ object VeyMont extends LazyLogging {
       val bipResults = BIP.VerificationResults()
       val blameProvider = ConstantBlameProvider(collector)
 
-      Parsing.ofOptions(options, blameProvider)
+      IdentityStage().also(logger.info("VeyMont choreography verifier & code generator"))
+        .thenRun(Parsing.ofOptions(options, blameProvider).also(logger.info("Finished parsing")))
         .thenRun(Resolution.ofOptions(options, blameProvider))
         .thenRun(
-          saveInput(
-            skipIf(options.veymontSkipChoreographyVerification, // TODO (RR): Would like to print a warning log if this part is skipped...!
-              Transformation.ofOptions(options, bipResults)
+          saveInput[Verification[_ <: Generation], Any](
+            branch(!options.veymontSkipChoreographyVerification,
+              IdentityStage().also(logger.info("Verifying choreography with VerCors"))
+                .thenRun(Transformation.ofOptions(options, bipResults))
                 .thenRun(Backend.ofOptions(options))
                 .thenRun(ExpectedErrors.ofOptions(options))
-                .thenRun(NoVerificationFailures(collector, ChoreographyVerificationError))))
+                .thenRun(NoVerificationFailures(collector, ChoreographyVerificationError)),
+              IdentityStage().also(logger.warn("Skipping verifying choreography with VerCors"))
+            ))
         ).transform(_._1)
     }
 
-    val generationStage: Stages[Verification[_ <: Generation], Seq[StringReadable]] =
-      Transformation.veymontImplementationGenerationOfOptions(options)
+    val generationStage: Stages[Verification[_ <: Generation], Seq[StringReadable]] = {
+      IdentityStage().also(logger.info("Generating endpoint implementations"))
+        .thenRun(Transformation.veymontImplementationGenerationOfOptions(options))
         .thenRun(Output.veymontOfOptions(options))
+    }
 
     val implementationVerificationStage = {
       val collector = BlameCollector()

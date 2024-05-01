@@ -2,11 +2,11 @@ class Role {
   int v, temp;
 }
 
-seq_program swap(int x, int y) {
+choreography swap(int x, int y) {
   endpoint a = Role();
   endpoint b = Role();
 
-  seq_run {
+  run {
     a.v := x;
     b.v := y;
     communicate a.v -> b.temp;
