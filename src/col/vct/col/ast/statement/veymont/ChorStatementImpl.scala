@@ -1,6 +1,6 @@
 package vct.col.ast.statement.veymont
 
-import vct.col.ast.{Assert, Assign, Assume, Block, Branch, ChorStatement, Communicate, CommunicateX, Deref, Endpoint, EndpointUse, Eval, Expr, Loop, MethodInvocation, Scope, SeqAssign, SeqBranch, SeqLoop, ThisSeqProg, UnresolvedSeqBranch, UnresolvedSeqLoop, VeyMontAssignExpression}
+import vct.col.ast.{Assert, Assign, Assume, Block, Branch, ChorStatement, Communicate, CommunicateX, Deref, Endpoint, EndpointUse, Eval, Expr, Loop, MethodInvocation, Scope, SeqBranch, SeqLoop, ThisSeqProg, UnresolvedSeqBranch, UnresolvedSeqLoop, VeyMontAssignExpression}
 import vct.col.ast.ops.ChorStatementOps
 import vct.col.ast.statement.StatementImpl
 import vct.col.check.{CheckContext, CheckError, SeqProgInvocation, SeqProgStatement}
@@ -32,7 +32,6 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] { t
       _: Communicate[G] |
       _: VeyMontAssignExpression[G] |
       _: Assign[G] |
-      _: SeqAssign[G] |
       _: Branch[G] |
       _: Loop[G] |
       _: Scope[G] |

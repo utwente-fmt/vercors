@@ -1552,12 +1552,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
             println(err.text)
             throw err
         }
-      case a @ SeqAssign(r, obj, f, v) =>
-        try { SeqAssign(r, obj, f, coerce(v, r.decl.t.instantiate(f.decl.t)))(a.blame) } catch {
-          case err: Incoercible =>
-            println(err.text)
-            throw err
-        }
       case s: SeqBranch[Pre] => s
       case s: SeqLoop[Pre] => s
       case c: ChorStatement[Pre] => c

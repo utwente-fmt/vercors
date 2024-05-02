@@ -120,7 +120,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
 
   def rewriteStatement(statement: Statement[Pre]): Statement[Post] =
     currentStatement.having(statement) {
-      ChorStatement(rw.dispatch(statement))(statement.o)
+      ChorStatement(None, rw.dispatch(statement))(statement.o)
     }
 
 }

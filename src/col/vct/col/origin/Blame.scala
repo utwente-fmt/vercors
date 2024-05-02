@@ -399,7 +399,7 @@ case class AccessInsufficientPermission(node: Access[_]) extends AccessFailure w
 sealed trait PVLSeqAssignFailure extends VerificationFailure
 sealed trait SeqAssignFailure extends PVLSeqAssignFailure
 
-case class SeqAssignInsufficientPermission(node: SeqAssign[_]) extends SeqAssignFailure with NodeVerificationFailure {
+case class SeqAssignInsufficientPermission(node: ChorStatement[_]) extends SeqAssignFailure with NodeVerificationFailure {
   override def code: String = "seqAssignPerm"
   override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
   override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."

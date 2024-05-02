@@ -1,7 +1,7 @@
 package vct.col.ast.declaration.global
 
 import vct.col.ast.declaration.DeclarationImpl
-import vct.col.ast.{Class, Declaration, Endpoint, EndpointGuard, EndpointName, Node, SeqAssign, SeqProg}
+import vct.col.ast.{Assign, ChorStatement, Class, Declaration, Endpoint, EndpointGuard, EndpointName, Node, SeqProg}
 import vct.col.ast.util.Declarator
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.origin.Origin
@@ -15,7 +15,7 @@ object SeqProgImpl {
   def participants[G](node: Node[G]): ListSet[Endpoint[G]] =
     ListSet.from(node.collect {
       case EndpointGuard(Ref(endpoint), _) => endpoint
-      case SeqAssign(Ref(endpoint), _, _, _) => endpoint
+      case ChorStatement(Some(Ref(endpoint)), Assign(_, _)) => endpoint
       case EndpointName(Ref(endpoint)) => endpoint
     })
 }

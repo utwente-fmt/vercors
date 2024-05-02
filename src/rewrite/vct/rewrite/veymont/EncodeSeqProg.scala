@@ -219,7 +219,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
           rewriteAccess(sender)
         )(InsufficientPermissionToAccessFailure(receiver))
       ))
-    case ChorStatement(stat) => dispatch(stat)
+    case ChorStatement(_, stat) => dispatch(stat)
     case stat => rewriteDefault(stat)
   }
 

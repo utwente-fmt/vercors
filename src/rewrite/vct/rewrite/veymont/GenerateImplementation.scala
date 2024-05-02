@@ -147,7 +147,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] { o
     case assign: SeqAssign[Pre] => Block(Seq())(statement.o)
     case assign: Assign[Pre] => Block(Seq())(statement.o)
     case Eval(MethodInvocation(obj, Ref(method), args, outArgs, _, _, _)) => Block(Seq())(statement.o)
-    case ChorStatement(s) => dispatch(s)
+    case ChorStatement(_, s) => dispatch(s)
     case block: Block[Pre] => block.rewriteDefault()
     case s => throw new Exception(s"Unsupported: $s")
   }

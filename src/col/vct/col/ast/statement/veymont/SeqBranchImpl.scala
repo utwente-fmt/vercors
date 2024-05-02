@@ -1,6 +1,6 @@
 package vct.col.ast.statement.veymont
 
-import vct.col.ast.{Access, Communicate, Endpoint, EndpointGuard, EndpointName, SeqAssign, SeqBranch, UnpointedGuard}
+import vct.col.ast.{Access, Assign, ChorStatement, Communicate, Endpoint, EndpointGuard, EndpointName, SeqBranch, UnpointedGuard}
 import vct.col.ast.statement.StatementImpl
 import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.ref.Ref
@@ -43,7 +43,7 @@ trait SeqBranchImpl[G] extends StatementImpl[G] with SeqBranchOps[G] { this: Seq
   def participants: Set[Endpoint[G]] =
     ListSet.from(subnodes.collect {
       case Communicate(Access(EndpointName(Ref(receiver)), _), Access(EndpointName(Ref(sender)), _)) => Seq(receiver, sender)
-      case SeqAssign(Ref(receiver), _,  _, _) => Seq(receiver)
+      case ChorStatement(Some(Ref(endpoint)), Assign(_, _)) => Seq(endpoint)
       case branch: SeqBranch[G] => branch.explicitParticipants
     }.flatten)
 }
