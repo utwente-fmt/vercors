@@ -1,8 +1,9 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqAssign, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
 import vct.col.origin.{AssignLocalOk, Origin, PanicBlame}
+import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
 import vct.col.rewrite.adt.ImportADTImporter
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
@@ -46,18 +47,44 @@ object GenerateImplementation extends RewriterBuilder {
 
 case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] { outer =>
 
-  private val threadBuildingBlocks: ScopedStack[ThreadBuildingBlocks[Pre]] = ScopedStack()
-  private val threadClassSucc: SuccessionMap[Endpoint[Pre],Class[Post]] = SuccessionMap()
-  private val threadMethodSucc: SuccessionMap[(Endpoint[Pre],ClassDeclaration[Pre]),InstanceMethod[Post]] = SuccessionMap()
+  val threadBuildingBlocks: ScopedStack[ThreadBuildingBlocks[Pre]] = ScopedStack()
+  val threadClassSucc: SuccessionMap[Endpoint[Pre],Class[Post]] = SuccessionMap()
+  val threadMethodSucc: SuccessionMap[(Endpoint[Pre],ClassDeclaration[Pre]),InstanceMethod[Post]] = SuccessionMap()
+  val runSucc: mutable.LinkedHashMap[SeqProg[Pre], Procedure[Post]] = mutable.LinkedHashMap()
   private val givenClassSucc: SuccessionMap[Type[Pre],Class[Post]] = SuccessionMap()
   private val givenClassConstrSucc: SuccessionMap[Type[Pre],Procedure[Pre]] = SuccessionMap()
 
-  val currentChoreography = ScopedStack[SeqProg[Pre]]()
+  var program: Program[Pre] = null
+  lazy val choreographies: Seq[SeqProg[Pre]] = program.declarations.collect { case chor: SeqProg[Pre] => chor }
+  lazy val endpointToChoreography: Map[Endpoint[Pre], SeqProg[Pre]] =
+    choreographies.flatMap { chor => chor.endpoints.map(ep => (ep, chor)) }.toMap
+  lazy val endpointClassToEndpoint: Map[Class[Pre], Endpoint[Pre]] =
+    choreographies.flatMap { chor => chor.endpoints.map(endpoint => (endpoint.cls.decl, endpoint)) }.toMap
 
-  override def dispatch(decl : Declaration[Pre]) : Unit = {
+  def isEndpointClass(c: Class[Pre]): Boolean = endpointClassToEndpoint.contains(c)
+  def choreographyOf(c: Class[Pre]): SeqProg[Pre] = endpointToChoreography(endpointClassToEndpoint(c))
+  def endpointOf(c: Class[Pre]): Endpoint[Pre] = endpointClassToEndpoint(c)
+
+  val currentChoreography = ScopedStack[SeqProg[Pre]]()
+  val currentEndpoint = ScopedStack[Endpoint[Pre]]()
+
+  override def dispatch(program: Program[Pre]): Program[Post] = {
+    this.program = program
+    super.dispatch(program)
+  }
+
+  override def dispatch(decl: Declaration[Pre]) : Unit = {
     decl match {
       case p: Procedure[Pre] => super.dispatch(p) // givenClassConstrSucc.update(p.returnType,p)
-      case c : Class[Pre] => super.dispatch(c) // globalDeclarations.succeed(c, dispatchGivenClass(c))
+      case c: Class[Pre] if isEndpointClass(c) =>
+        val chor = choreographyOf(c)
+        globalDeclarations.succeed(c, c.rewrite(
+          decls = classDeclarations.collect {
+            c.decls.foreach(dispatch)
+            generateRunMethod(chor, endpointOf(c))
+          }._1
+        ))
+      case c: Class[Pre] => super.dispatch(c)
       case chor: SeqProg[Pre] =>
         currentChoreography.having(chor) {
           chor.drop()
@@ -78,7 +105,9 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] { o
                   outArgs = Seq(), typeArgs = Seq(), givenMap = Seq(), yields = Seq()
                 )(PanicBlame("Should be safe"))
               )
-            }
+            } ++
+              chor.endpoints.map { endpoint => Fork[Post](endpointLocals(endpoint).get)(PanicBlame("")) } ++
+              chor.endpoints.map { endpoint => Join[Post](endpointLocals(endpoint).get)(PanicBlame("")) }
           )
 
           val mainBody = Scope(endpointLocals.values.toIndexedSeq, initEndpoints)
@@ -90,11 +119,40 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] { o
             contractBlame = PanicBlame("TODO: Procedure contract"),
           )(chor.o))
         }
-      case endpoint: Endpoint[Pre] => ???
-//        dispatchThread(thread)
       case other => rewriteDefault(other)
     }
   }
+
+  def generateRunMethod(chor: SeqProg[Pre], endpoint: Endpoint[Pre]): Unit = {
+    val run = chor.run
+    implicit val o = run.o
+    val body = currentChoreography.having(chor) {
+      currentEndpoint.having(endpoint) {
+        dispatch(run.body)
+      }
+    }
+    classDeclarations.declare(new RunMethod(
+      body = Some(body),
+      contract = dispatch(run.contract)
+    )(PanicBlame("")))
+  }
+
+  override def dispatch(statement: Statement[Pre]): Statement[Post] = {
+    if (currentEndpoint.nonEmpty) projectStatement(statement)
+    else super.dispatch(statement)
+  }
+
+  def projectStatement(statement: Statement[Pre]): Statement[Post] = statement match {
+    case branch: Branch[Pre] => Block(Seq())(statement.o)
+    case assign: SeqAssign[Pre] => Block(Seq())(statement.o)
+    case assign: Assign[Pre] => Block(Seq())(statement.o)
+    case Eval(MethodInvocation(obj, Ref(method), args, outArgs, _, _, _)) => Block(Seq())(statement.o)
+    case ChorStatement(s) => dispatch(s)
+    case block: Block[Pre] => block.rewriteDefault()
+    case s => throw new Exception(s"Unsupported: $s")
+  }
+
+  // Old code after this
 
   private def dispatchThread(thread: Endpoint[Pre]): Unit = {
     if (threadBuildingBlocks.nonEmpty) {
@@ -324,7 +382,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] { o
       dispatch(run.contract))(PanicBlame("TODO: Convert InstanceMethod blame to SeqRun blame")/* run.blame */)(RunMethodOrigin(run))
   }
 
-  override def dispatch(node: Expr[Pre]): Expr[Post] = {
+  def dispatchExpr(node: Expr[Pre]): Expr[Post] = {
     if(threadBuildingBlocks.nonEmpty) {
       val thread = threadBuildingBlocks.top.thread
       node match {
@@ -379,7 +437,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] { o
     Deref(ThisObject(threadClassSucc.ref[Post, Class[Post]](thread))(thread.o), threadField.ref[InstanceField[Post]])(null)(o)
   }
 
-  override def dispatch(st : Statement[Pre]) : Statement[Post] = {
+  def dispatchStatement(st : Statement[Pre]) : Statement[Post] = {
       if (threadBuildingBlocks.nonEmpty) {
         val thread = threadBuildingBlocks.top.thread
         st match {
