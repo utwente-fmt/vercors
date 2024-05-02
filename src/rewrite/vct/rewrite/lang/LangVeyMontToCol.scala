@@ -101,10 +101,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
       SeqRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
   }
 
-  def rewriteSeqAssign(assign: PVLSeqAssign[Pre]): SeqAssign[Post] = {
+  def rewriteSeqAssign(assign: PVLSeqAssign[Pre]): ChorStatement[Post] = {
     val deref @ PVLDeref(obj, _) = assign.expr
     val Some(RefField(f)) = deref.ref
-    SeqAssign[Post](endpointSucc.ref(assign.endpoint.get), rw.dispatch(obj), rw.succ(f), rw.dispatch(assign.value))(assign.blame)(assign.o)
+    ChorStatement(Some(endpointSucc.ref(assign.endpoint.get)), ???)(assign.o)
+//    SeqAssign[Post](endpointSucc.ref(assign.endpoint.get), rw.dispatch(obj), rw.succ(f), rw.dispatch(assign.value))(assign.blame)(assign.o)
   }
 
   def rewriteAssign(assign: Assign[Pre]): Statement[Post] = {
