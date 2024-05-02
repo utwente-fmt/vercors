@@ -5,7 +5,6 @@ import vct.col.ast.ops.ConstructorInvocationOps
 import vct.col.print._
 
 trait ConstructorInvocationImpl[G] extends ConstructorInvocationOps[G] { this: ConstructorInvocation[G] =>
-  // override def layout(implicit ctx: Ctx): Doc = ???
 
   def cls: Class[G] = ref.decl.cls.decl
 
@@ -13,5 +12,13 @@ trait ConstructorInvocationImpl[G] extends ConstructorInvocationOps[G] { this: C
   override def typeEnv: Map[Variable[G], Type[G]] =
     (cls.typeArgs.zip(classTypeArgs) ++ ref.decl.typeArgs.zip(typeArgs)).toMap
 
-
+   override def layout(implicit ctx: Ctx): Doc = {
+     Doc.spread(Seq(
+       Text("new"),
+       DocUtil.javaGenericArgs(typeArgs),
+       Text(ctx.name(cls)) <> DocUtil.javaGenericArgs(classTypeArgs) <>
+         "(" <> DocUtil.argsOutArgs(args, outArgs) <> ")" <>
+         DocUtil.givenYields(givenMap, yields)
+     ))
+   }
 }

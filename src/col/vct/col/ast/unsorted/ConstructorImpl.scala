@@ -9,10 +9,11 @@ trait ConstructorImpl[G] extends ConstructorOps[G] { this: Constructor[G] =>
   override def returnType: TClass[G] = TClass(cls, cls.decl.typeArgs.map((v: Variable[G]) => TVar(v.ref)))
 
    override def layout(implicit ctx: Ctx): Doc = {
-     Text("/*") <+> ("Constructor of " + cls.decl.o.getPreferredNameOrElse().ucamel) <+> "*/" </>
-       contract </>
-       Text("constructor") <> "<" <> Doc.args(typeArgs) <> ">" <> "(" <> Doc.args(args) <> ")" <+>
-       body.getOrElse(Text(";"))
+     Doc.stack(Seq(
+       contract,
+       Group(Text("constructor") <> DocUtil.javaGenericParams(typeArgs) <> "(" <> Doc.args(args) <> ")") <>
+         body.map(Text(" ") <> _).getOrElse(Text(";"))
+     ))
    }
 
 }
