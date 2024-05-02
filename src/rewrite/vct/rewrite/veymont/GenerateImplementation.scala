@@ -65,7 +65,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] { o
           implicit val o = chor.o
 
           val endpointLocals: mutable.LinkedHashMap[Endpoint[Pre], Variable[Post]] = mutable.LinkedHashMap.from(
-            chor.endpoints.map(endpoint => (endpoint, new Variable(dispatch(endpoint.t)))))
+            chor.endpoints.map(endpoint => (endpoint, new Variable(dispatch(endpoint.t))(endpoint.o))))
 
           val initEndpoints = Block(
             chor.endpoints.map { endpoint =>

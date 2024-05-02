@@ -71,11 +71,14 @@ case class RequiredName(requiredName: String) extends NameStrategy {
 }
 
 case class IndirectName(name: Name) extends NameStrategy {
-  override def name(tail: Origin): Option[Name] = {
-    Some(Seq(Name.Preferred(
-      tail.span[NameStrategy]._1.originContents.collect {
-        case NamePrefix(prefix) => prefix
-      }.reverse), name).reduce(Name.Join))
+  override def name(tail: Origin): Option[Name] =
+    Some((prefix(tail).map(Seq(_)).getOrElse(Seq()) ++ Seq(name)).reduce(Name.Join))
+
+  def prefix(tail: Origin): Option[Name] = {
+    val prefix = tail.span[NameStrategy]._1.originContents.collect {
+      case NamePrefix(prefix) => prefix
+    }.reverse
+    if(prefix.isEmpty) None else Some(Name.Preferred(prefix))
   }
 }
 
