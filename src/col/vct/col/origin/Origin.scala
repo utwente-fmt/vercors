@@ -65,10 +65,18 @@ case class PreferredName(preferredName: Seq[String]) extends NameStrategy {
 }
 
 case class NamePrefix(prefix: String) extends OriginContent
-case class NameSuffix(suffix: String) extends OriginContent
 
 case class RequiredName(requiredName: String) extends NameStrategy {
   override def name(tail: Origin): Option[Name] = Some(Name.Required(requiredName))
+}
+
+case class IndirectName(name: Name) extends NameStrategy {
+  override def name(tail: Origin): Option[Name] = {
+    Some(Seq(Name.Preferred(
+      tail.span[NameStrategy]._1.originContents.collect {
+        case NamePrefix(prefix) => prefix
+      }.reverse), name).reduce(Name.Join))
+  }
 }
 
 object SourceName {
@@ -235,9 +243,11 @@ final case class Origin(originContents: Seq[OriginContent]) extends Blame[Verifi
     context: String = null,
     name: String = null,
     prefix: String = null,
+    indirect: Name = null,
   ): Origin = Origin(
     Option(context).map(LabelContext).toSeq ++
       Option(name).map(name => PreferredName(Seq(name))).toSeq ++
+      Option(indirect).map(name => IndirectName(name)).toSeq ++
       Option(prefix).map(NamePrefix).to(Seq) ++
       originContents
   )
@@ -248,9 +258,6 @@ final case class Origin(originContents: Seq[OriginContent]) extends Blame[Verifi
    */
   def sourceName(name: String): Origin =
     withContent(SourceName(name))
-
-  def debugName(name: String = "unknown"): String =
-    find[SourceName].map(_.name).getOrElse(getPreferredNameOrElse(Seq(name)).camel)
 
 //  def addStartEndLines(startIdx: Int, endIdx: Int): Origin =
 //    withContent(StartEndLines(startIdx, endIdx))

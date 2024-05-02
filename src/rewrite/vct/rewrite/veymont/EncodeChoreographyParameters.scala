@@ -3,7 +3,7 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{Block, Class, Declaration, Endpoint, EndpointUse, InstanceField, Local, Program, SeqProg, Variable}
-import vct.col.origin.PanicBlame
+import vct.col.origin.{Name, PanicBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.SuccessionMap
 import vct.col.util.AstBuildHelpers._
@@ -61,7 +61,9 @@ case class EncodeChoreographyParameters[Pre <: Generation]() extends Rewriter[Pr
       val chor = choreographyOfEndpoint(endpoint)
       implicit val o = chor.o
       val additionFields = chor.params.map { param =>
-        val f = new InstanceField(dispatch(param.t), Seq())(param.o.where(name = s"${chor.o.debugName()}_${param.o.debugName()}"))
+        val f = new InstanceField(dispatch(param.t), Seq())(param.o.where(
+          indirect = Name.names(chor.o.getPreferredNameOrElse(), Name("p"), param.o.getPreferredNameOrElse())
+        ))
         endpointParamFields((endpoint, param)) = f
         f
       }

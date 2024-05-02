@@ -205,7 +205,7 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
     case TClass(Ref(cls), _) =>
       // The class we are generating permission for has already been encountered when going through the chain
       // of fields. So we cut off the computation
-      logger.warn(s"Not generating permissions for recursive occurrence of ${cls.o.debugName()}. Circular datastructures are not supported by permission generation")
+      logger.warn(s"Not generating permissions for recursive occurrence of ${cls.o.getPreferredNameOrElse().ucamel}. Circular datastructures are not supported by permission generation")
       tt
     case _ => tt
   }

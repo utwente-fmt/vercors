@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.util.Declarator
 import vct.col.ast.{AbstractRewriter, Access, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
-import vct.col.origin.{Origin, PanicBlame, SourceName}
+import vct.col.origin.{Name, Origin, PanicBlame, SourceName}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
 import vct.col.rewrite.adt.{ImportADT, ImportADTImporter}
@@ -105,7 +105,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
         val EndpointName(Ref(sender)) = comm.sender.subject
         val EndpointName(Ref(receiver)) = comm.receiver.subject
         val f = new InstanceField[Post](channelType(dispatch(comm.msgType)), Seq())(
-          o.where(name = s"${sender.o.debugName()}_${receiver.o.debugName()}")
+          o.where(indirect = Name.names(sender.o.getPreferredNameOrElse(), receiver.o.getPreferredNameOrElse()))
         )
         fieldOfCommunicate((endpoint, comm)) = f
         f
@@ -135,7 +135,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
           implField,
           constructor
         ) ++ commFields,
-      )(o.where(name = endpoint.o.debugName("Endpoint")))
+      )(endpoint.o.where(indirect = Name.names(Name("Endpoint"), endpoint.o.getPreferredNameOrElse())))
       classOfEndpoint(endpoint) = wrapperClass
       globalDeclarations.declare(wrapperClass)
 

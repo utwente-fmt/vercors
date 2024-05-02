@@ -47,11 +47,11 @@ case class MonomorphizeClass[Pre <: Generation]() extends Rewriter[Pre] with Laz
      */
     val key = (cls, typeValues)
     if (knownInstantiations.contains(key)) {
-      logger.debug(s"Class ${cls.o.debugName()} with type args $typeValues is already instantiated, so skipping instantiation")
+      logger.debug(s"Class ${cls.o.getPreferredNameOrElse().ucamel} with type args $typeValues is already instantiated, so skipping instantiation")
       return
     }
     val mode = if (keepBodies) { "concretely" } else { "abstractly" }
-    logger.debug(s"Instantiating class ${cls.o.debugName()} $mode, args: $typeValues")
+    logger.debug(s"Instantiating class ${cls.o.getPreferredNameOrElse().ucamel} $mode, args: $typeValues")
     val newCtx = InstantiationContext(
       cls,
       typeValues,
