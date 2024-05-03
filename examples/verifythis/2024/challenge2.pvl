@@ -1,0 +1,345 @@
+ensures \result > 0;
+decreases;
+pure int n();
+
+decreases; pure int NOT_WAITING() = -3;
+decreases; pure int WAITING() = -2;
+decreases; pure int NO_TASK() = -1;
+decreases; pure int ROOT_TASK() = 0;
+
+ensures |\result| == n();
+ensures (\forall int i=0..n(); |{:\result[i]:}| == 2);
+// Everything is NO_TASK or a valid task (thus: a graph)
+ensures (\forall int i=0..n(), int j=0..2; {:\result[i][j]:} == NO_TASK() || (0 <= \result[i][j] && \result[i][j] < n()));
+// The graph contains no cycles:
+ensures (\forall int i=0..n(); height(\result, i, set<int>{}) != -1);
+// The children of every node are unique:
+ensures (\forall int i=0..n(); {:\result[i]:}[0] == NO_TASK() || \result[i][0] != \result[i][1]);
+// The graph is a tree (not just a DAG):
+ensures (\forall int i=0..n(); i == ROOT_TASK() ? parentGraph(\result, i) == -1 : parentGraph(\result, i) != -1);
+// Every node is the parent of its children (this one should be possible to infer from the above, but was quite hard to prove)
+ensures (\forall int i=0..n(), int j=0..2; {:\result[i][j]:} == NO_TASK() || parentGraph(\result, \result[i][j]) == i);
+decreases;
+pure seq<seq<int>> subtask();
+
+requires (\forall int i; i \in xs; 0 <= i && i < n);
+requires n >= 0;
+ensures |xs| <= n;
+ensures \result == xs;
+decreases n;
+pure set<int> pigeon(set<int> xs, int n) =
+    (n == 0)
+    ? xs :
+    ((n - 1 \in xs)
+    ? pigeon(xs - {n-1}, n-1) + {n-1}
+    : pigeon(xs, n-1));
+
+// -1 when a cycle occurs, in [0, n) otherwise
+requires |graph| == n() && (\forall int i=0..n(); |{:graph[i]:}| == 2);
+requires (\forall int i; i \in seen; 0 <= i && i < n());
+decreases n() - |seen|;
+pure int height(seq<seq<int>> graph, int pos, set<int> seen) =
+    pos \in seen
+    ? -1
+    : (0 <= pos && pos < n())
+    ? (\let int h1 = height(graph, graph[pos][0], pigeon(seen + {pos}, n()));
+        (\let int h2 = height(graph, graph[pos][1], pigeon(seen + {pos}, n()));
+        (h1 == -1 || h2 == -1)
+        ? -1
+        : (h1 > h2 ? 1+h1 : 1+h2)
+    ))
+    : 0
+    ;
+
+decreases;
+requires 0 <= pos && pos < n();
+requires |graph| == n() && (\forall int i=0..n(); |{:graph[i]:}| == 2);
+ensures \result == -1 || (0 <= \result && \result < n());
+ensures \result == -1 ==> (\forall int i=0..n(), int j=0..2; {:graph[i][j]:} != pos);
+ensures \result != -1 ==> (graph[\result][0] == pos || graph[\result][1] == pos);
+pure int parentGraph(seq<seq<int>> graph, int pos) =
+    parentAux(graph, pos, 0);
+
+requires 0 <= pos && pos < n();
+requires 0 <= i && i <= n();
+requires |graph| == n() && (\forall int i=0..n(); |{:graph[i]:}| == 2);
+ensures \result == -1 || (0 <= \result && \result < n());
+ensures \result == -1 ==> (\forall int j=i..n(), int k=0..2; {:graph[j][k]:} != pos);
+ensures \result != -1 ==> (graph[\result][0] == pos || graph[\result][1] == pos);
+decreases n() - i;
+pure int parentAux(seq<seq<int>> graph, int pos, int i) =
+    i == n()
+    ? -1
+    : graph[i][0] == pos
+    ? i
+    : graph[i][1] == pos
+    ? i
+    : parentAux(graph, pos, i+1)
+    ;
+
+requires 0 <= pos && pos < n();
+ensures \result == -1 || (0 <= \result && \result < n());
+ensures \result == -1 ==> (\forall int i=0..n(), int j=0..2; {:subtask()[i][j]:} != pos);
+ensures \result != -1 ==> (subtask()[\result][0] == pos || subtask()[\result][1] == pos);
+decreases;
+pure int parent(int pos) = parentGraph(subtask(), pos);
+
+
+requires 0 <= task && task < n();
+ensures subtask()[task][0] != task;
+ensures subtask()[task][1] != task;
+ensures parent(task) != task;
+void noSelfLoop(int task) {
+    assert height(subtask(), task, set<int>{task}) == -1;
+    assert height(subtask(), task, set<int>{}) != -1;
+    set<int> seen = set<int>{};
+    assert height(subtask(), task, seen) ==
+        (task \in seen
+        ? -1
+        : (0 <= task && task < n())
+        ? (\let int h1 = height(subtask(), subtask()[task][0], pigeon(seen + {task}, n()));
+            (\let int h2 = height(subtask(), subtask()[task][1], pigeon(seen + {task}, n()));
+            (h1 == -1 || h2 == -1)
+            ? -1
+            : (h1 > h2 ? 1+h1 : 1+h2)
+        ))
+        : 0)
+    ;
+    if (subtask()[task][0] == task || subtask()[task][1] == task) {
+        assert height(subtask(), subtask()[task][0], pigeon(seen + {task}, n())) == -1;
+        assert false;
+    }
+}
+
+ensures \result >= 0 && \result < p();
+ensures \result != i;
+int randomWorkerExcept(int i);
+
+class Q {
+    seq<int> tasks;
+
+    context Perm(tasks, 1\2);
+    ensures \result == tasks.isEmpty;
+    ensures tasks == \old(tasks);
+    boolean isEmpty() {
+        return |tasks| == 0;
+    }
+
+    context Perm(tasks, 1\2);
+    requires !tasks.isEmpty;
+    ensures tasks == \old(tasks);
+    ensures \result == tasks.head;
+    int peek_top() {
+        return tasks.head;
+    }
+
+    context Perm(tasks, write);
+    ensures tasks == \old(tasks) + [task];
+    void push_bot(int task) {
+        tasks = tasks + [task];
+    }
+
+    context Perm(tasks, write);
+    requires !tasks.isEmpty;
+    ensures tasks == \old(tasks).tail;
+    ensures \result == \old(tasks.head);
+    int pop_top() {
+        int ret = tasks.head;
+        tasks = tasks.tail;
+        return ret;
+    }
+
+    context Perm(tasks, write);
+    requires !tasks.isEmpty;
+    ensures tasks == \old(tasks[0..|tasks|-1]);
+    ensures \result == \old(tasks[|tasks|-1]);
+    int pop_bot() {
+        int ret = tasks[|tasks|-1];
+        tasks = tasks[0..|tasks|-1];
+        return ret;
+    }
+}
+
+ensures \result > 0;
+pure int p();
+
+lock_invariant li();
+class Main {
+    final boolean[] executed;
+    final seq<Q> q;
+    final int[] task_owner;
+    final int[] communication_cells;
+    final boolean[] is_waiting;
+
+    inline resource li() =
+        this != null **
+        executed != null ** executed.length == n() **
+        |q| == p() **
+        // Each worker has a unique queue
+        (\forall int i=0..p(), int j=0..p(); {:q[i]:} == {:q[j]:} ==> i == j) **
+        (\forall* int i=0..p(); {:q[i]:} != null ** Perm({:q[i].tasks:}, 1\2)) **
+        (\forall* int i=0..n(); Perm({:executed[i]:}, 1\2)) **
+        // Every task in a queue is in subtask()
+        (\forall int i=0..p(), int j=0..|q[i].tasks|; 0 <= {:q[i].tasks[j]:} && {:q[i].tasks[j]:} < n()) **
+        task_owner != null ** task_owner.length == n() **
+        (\forall* int i=0..n(); Perm({:task_owner[i]:}, write)) **
+        // Every task owned by a worker is in subtask()
+        (\forall int i=0..n(); task_owner[i] != -1; 0 <= {:task_owner[i]:} && {:task_owner[i]:} < p()) **
+        // Every task in a queue has not been executed yet
+        (\forall int i=0..p(), int j=0..|q[i].tasks|; !executed[{:q[i].tasks[j]:}]) **
+        // Every task owned by a worker has not been executed yet
+        (\forall int i=0..n(); task_owner[i] != -1; !{:executed[i]:}) **
+        (\forall* int i=0..n(); task_owner[i] == -1; Perm({:executed[i]:}, 1\2)) **
+        // If a task has been executed then its parent must've also been executed
+        (\forall int i=0..n(), int s=0..n(); parent(s) == i; {:executed[s]:} ==> {:executed[i]:}) **
+        // If a task is in a queue then its parent must've been executed
+        (\forall int i=0..p(), int j=0..|q[i].tasks|, int p=0..n(); parent({:q[i].tasks[j]:}) == p; {:executed[p]:}) **
+        // If a task is owned by a worker then its parent must've been executed
+        (\forall int i=0..n(), int p=0..n(); {:task_owner[i]:} != -1 && i != p && parent(i) == p; {:executed[p]:}) **
+        // All the tasks in the worker queues are distinct
+        (\forall int i0=0..p(), int i1=0..p(), int j0=0..|q[i0].tasks|, int j1=0..|q[i1].tasks|; {:q[i0].tasks[j0]:} == {:q[i1].tasks[j1]:} ==> i0 == i1 && j0 == j1) **
+        // If a task is owned by a worker it cannot be in a queue
+        (\forall int i=0..p(), int j=0..|q[i].tasks|, int k=0..n(); {:task_owner[k]:} != -1; {:q[i].tasks[j]:} != k) **
+        communication_cells != null ** communication_cells.length == p() **
+        Perm(communication_cells[*], write) **
+        is_waiting != null ** is_waiting.length == p() **
+        Perm(is_waiting[*], 1\2) **
+        // If a worker is waiting no other worker may set that worker's communication cell to NOT_WAITING
+        (\forall int i=0..p(); is_waiting[i] ==> {:communication_cells[i]:} != NOT_WAITING()) **
+        // Every task in a communication cell: is a valid task in subtask()
+        (\forall int i=0..p(); communication_cells[i] != NOT_WAITING() && communication_cells[i] != WAITING(); 0 <= {:communication_cells[i]:} && {:communication_cells[i]:} < n()) **
+        // Every task in a communication cell: has not been executed
+        (\forall int i=0..p(); communication_cells[i] != NOT_WAITING() && communication_cells[i] != WAITING(); !executed[{:communication_cells[i]:}]) **
+        // Every task in a communication cell: is not in a queue
+        (\forall int i=0..p(); communication_cells[i] != NOT_WAITING() && {:communication_cells[i]:} != WAITING(); (\forall int j=0..p(), int k=0..|q[j].tasks|; {:q[j].tasks[k]:} != communication_cells[i])) **
+        // Every task in a communication cell: is not owned by any worker
+        (\forall int i=0..p(); communication_cells[i] != NOT_WAITING() && communication_cells[i] != WAITING(); task_owner[{:communication_cells[i]:}] == -1) **
+        // Every task in a communication cell: its parent has been executed
+        (\forall int i=0..p(); communication_cells[i] != NOT_WAITING() && communication_cells[i] != WAITING(); ({:communication_cells[i]:} == ROOT_TASK() || executed[parent(communication_cells[i])])) **
+        // Every task in a communication cell: is distinct
+        (\forall int i0=0..p(), int i1=0..p(); communication_cells[i0] != NOT_WAITING() && communication_cells[i0] != WAITING(); {:communication_cells[i0]:} == {:communication_cells[i1]:} ==> i0 == i1)
+        ;
+
+    requires committed(this);
+    requires 0 <= i && i < p();
+    requires task == NO_TASK() || (0 <= task && task < n());
+    requires this != null ** executed != null ** executed.length == n() ** |q| == p();
+    context Perm(q[i].tasks, write);
+    ensures task != NO_TASK() ==> q[i].tasks == \old(q[i].tasks) + [task];
+    ensures task == NO_TASK() ==> q[i].tasks == \old(q[i].tasks);
+    context task != NO_TASK() ==> Perm(executed[task], 1\4) ** !executed[task];
+    void add_task(int i, int task) {
+        if(task != NO_TASK()) {
+            q[i].push_bot(task);
+        }
+    }
+
+    // Execute a task, requires the task to not have been executed yet
+    requires committed(this);
+    requires 0 <= i && i < p();
+    requires 0 <= task && task < n();
+    requires this != null ** executed != null ** executed.length == n() ** |q| == p();
+    context Perm(q[i].tasks, 1\2);
+    requires (\forall int j=0..|q[i].tasks|; {:q[i].tasks[j]:} != task);
+    requires Perm(executed[task], 1\2) ** !executed[task];
+    void execute(int i, int task) {
+        lock this;
+        noSelfLoop(task);
+        executed[task] = true;
+        task_owner[task] = -1;
+
+        add_task(i, subtask()[task][0]);
+        add_task(i, subtask()[task][1]);
+
+        unlock this;
+    }
+
+    // Since this method never terminates we cannot prove that something eventually happens
+    requires committed(this);
+    requires 0 <= i && i < p();
+    requires this != null ** executed != null ** executed.length == n() ** |q| == p();
+    requires Perm(q[i].tasks, 1\2);
+    requires is_waiting != null && is_waiting.length == p();
+    requires Perm(is_waiting[i], 1\2);
+    requires i == 0 ==> held(this) ** li() ** (\forall int i=0..n(); !{:executed[i]:}) **
+                                              (\forall int i=0..p(); {:q[i].tasks:}.isEmpty) **
+                                              (\forall int i=0..n(); {:task_owner[i]:} == -1) **
+                                              (\forall int i=0..p(); {:communication_cells[i]:} == NOT_WAITING()) **
+                                              (\forall int i=0..p(); !{:is_waiting[i]:});
+    void main(int i) {
+        if(i == 0) {
+            q[i].push_bot(ROOT_TASK());
+            assert (\forall int i=0..n(); !{:executed[i]:});
+            unlock this;
+        }
+
+        loop_invariant Perm(q[i].tasks, 1\2);
+        loop_invariant Perm(is_waiting[i], 1\2);
+        while(true) {
+            if(q[i].isEmpty()) {
+                acquire(i);
+            } else {
+                lock this;
+                int t = q[i].pop_bot();
+                ghost { task_owner[t] = i; }
+                unlock this;
+                assert (\forall int j=0..|q[i].tasks|; {:q[i].tasks[j]:} != t);
+                label before;
+                comm(i);
+                /* assert (\forall int j=0..|q[i].tasks|; {:q[i].tasks[j]:} == \old[before](q[i].tasks[j])); */
+                /* assert (\forall int j=0..|q[i].tasks|; {:\old[before](q[i].tasks[j]):} != t); */
+                assert (\forall int j=0..|q[i].tasks|; {:q[i].tasks[j]:} != t);
+                execute(i, t);
+            }
+        }
+    }
+
+    requires committed(this);
+    context_everywhere 0 <= i && i < p();
+    context_everywhere this != null ** executed != null ** executed.length == n() ** |q| == p();
+    context_everywhere Perm(q[i].tasks, 1\2);
+    context_everywhere is_waiting != null && is_waiting.length == p();
+    context_everywhere Perm(is_waiting[i], 1\2);
+    void acquire(int i) {
+        lock this;
+        communication_cells[i] = WAITING();
+        ghost { is_waiting[i] = true; }
+        loop_invariant li();
+        loop_invariant held(this);
+        loop_invariant is_waiting[i];
+        while (communication_cells[i] == WAITING()) {
+            unlock this;
+            // yield
+            lock this;
+        }
+
+        add_task(i, communication_cells[i]);
+        communication_cells[i] = NOT_WAITING();
+
+        ghost { is_waiting[i] = false; }
+        unlock this;
+    }
+
+    requires committed(this);
+    requires 0 <= i && i < p();
+    requires this != null ** executed != null ** executed.length == n() ** |q| == p();
+    context Perm(q[i].tasks, 1\2);
+    ensures |q[i].tasks| <= \old(|q[i].tasks|);
+    ensures (\forall int j=0..|q[i].tasks|; {:q[i].tasks[j]:} == \old(q[i].tasks[j]));
+    void comm(int i) {
+        if (q[i].isEmpty()) {
+            return;
+        }
+        int j = randomWorkerExcept(i);
+        lock this;
+        if (communication_cells[j] != WAITING()) {
+            unlock this;
+            return;
+        }
+        // We have no compare_and_swap support so this simply happens inside a lock
+        int t = q[i].pop_bot();
+        assert t == ROOT_TASK() || executed[parent(t)];
+        communication_cells[j] = t;
+        unlock this;
+    }
+}
