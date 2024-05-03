@@ -12,7 +12,7 @@ class Role {
 		(x != y && y != z && z != x);
 }
 
-seq_program paperScissorsRock() {
+choreography paperScissorsRock() {
 	endpoint a = Role(0);
 	endpoint b = Role(1);
 	endpoint c = Role(0);
@@ -20,7 +20,7 @@ seq_program paperScissorsRock() {
 	requires a.i == 0 && b.i == 1;
 	requires a.draw() && b.draw() && c.draw();
 	ensures a.i == -2 && b.i == 3;
-	seq_run {
+	run {
 		loop_invariant a.i <= 0 && b.i >= 1;
 		loop_invariant a.i == 0 && b.i == 1 ==> a.draw() && b.draw() && c.draw();
 		loop_invariant a.i == b.i*(-1) + 1;

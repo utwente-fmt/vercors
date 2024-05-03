@@ -106,7 +106,7 @@ class Calculator {
     //compute vBv and vv from v and u
 }
 
-seq_program spectralNorm() {
+choreography spectralNorm() {
     endpoint t0 = Times(false);
     endpoint t1 = Times(false);
     endpoint t2 = Times(false);
@@ -115,7 +115,7 @@ seq_program spectralNorm() {
     endpoint cal = Calculator();
 
     context t0.inv() ** t1.inv() ** t2.inv() ** c.inv();
-    seq_run {
+    run {
         t0.initu();
         t1.initu();
         t2.initu();

@@ -20,7 +20,7 @@ class Node {
 	pure int maxVal(int a, int b, int c, int d);
 }
 
-seq_program leaderElectRing() {
+choreography leaderElectRing() {
     endpoint a = Node(0);
     endpoint b = Node(8);
     endpoint c = Node(4);
@@ -32,7 +32,7 @@ seq_program leaderElectRing() {
 	ensures c.maxVal == a.maxVal && c.maxVal == b.maxVal && c.maxVal == d.maxVal;
 	ensures c.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank);
 	ensures c.maxVal == a.rank || c.maxVal == b.rank || c.maxVal == c.rank || c.maxVal == d.rank;
-	seq_run {
+	run {
 	    loop_invariant a.rank == \old(a.rank) ** b.rank == \old(b.rank) ** c.rank == \old(c.rank) ** d.rank == \old(d.rank);
 		loop_invariant a.rank != b.rank && a.rank != c.rank && a.rank != d.rank && b.rank != c.rank && b.rank != d.rank && c.rank != d.rank;
 		loop_invariant 0 <= c.n && c.n <= 3;

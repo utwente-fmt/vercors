@@ -3,7 +3,7 @@ package vct.test.integration.examples
 import vct.test.integration.helper.VercorsSpec
 
 class VeyMontExamplesSpec extends VercorsSpec {
-  val wd = "concepts/veymont"
+  val wd = "concepts/veymont/generatedPermissions"
   vercors should verify using silicon flags "--veymont-generate-permissions" examples(
     s"$wd/TicTacToe/Player.pvl",
     s"$wd/TicTacToe/Move.pvl",

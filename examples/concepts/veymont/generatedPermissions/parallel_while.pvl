@@ -8,7 +8,7 @@ class Role {
 }
 
 requires vb - vc == vc - va;
-seq_program parallelWhile(int va, int vb, int vc) {
+choreography parallelWhile(int va, int vb, int vc) {
 	
 	endpoint a = Role(va);
 	endpoint b = Role(vb);
@@ -16,7 +16,7 @@ seq_program parallelWhile(int va, int vb, int vc) {
 
 	requires b.x - c.x == c.x - a.x;
 	ensures a.x == b.x && b.x == c.x; 
-	seq_run {
+	run {
         communicate b.left <- a.x;
         communicate c.left <- b.x;
         communicate a.left <- c.x;
