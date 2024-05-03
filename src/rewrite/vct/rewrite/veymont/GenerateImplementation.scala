@@ -146,13 +146,18 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
   def projectStatement(statement: Statement[Pre]): Statement[Post] = statement match {
     case ChorStatement(None, statement) =>
       logger.warn("Keeping statement without endpoint")
-      projectStatement(statement)
-    case ChorStatement(Some(Ref(endpoint)), inner) if endpoint == currentEndpoint.top => projectStatement(inner)
+      statement.rewriteDefault()
+    case ChorStatement(Some(Ref(endpoint)), inner) if endpoint == currentEndpoint.top => inner match {
+      case assign: Assign[Pre] => assign.rewriteDefault()
+      case eval: Eval[Pre] => eval.rewriteDefault()
+    }
     case ChorStatement(_, _) => Block(Seq())(statement.o)
-    case branch: Branch[Pre] => Block(Seq())(statement.o)
-    case Eval(MethodInvocation(obj, Ref(method), args, outArgs, _, _, _)) => Block(Seq())(statement.o)
+    case branch: Branch[Pre] =>
+      logger.warn("Dropping branch")
+      Block(Seq())(statement.o)
     case block: Block[Pre] => block.rewriteDefault()
-    case s => throw new Exception(s"Unsupported: $s")
+    case s =>
+      throw new Exception(s"Unsupported: $s")
   }
 
   // Old code after this
