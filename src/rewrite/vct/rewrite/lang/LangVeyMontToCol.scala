@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.RewriteAssign
 import vct.col.ast._
-import vct.col.origin.Origin
+import vct.col.origin.{Origin, PanicBlame}
 import vct.col.resolve.ctx.{RefField, RefPVLEndpoint}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.SuccessionMap
@@ -101,12 +101,18 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
       SeqRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
   }
 
-  def rewriteSeqAssign(assign: PVLSeqAssign[Pre]): ChorStatement[Post] = {
-    val deref @ PVLDeref(obj, _) = assign.expr
-    val Some(RefField(f)) = deref.ref
-    ChorStatement(Some(endpointSucc.ref(assign.endpoint.get)), ???)(assign.o)
-//    SeqAssign[Post](endpointSucc.ref(assign.endpoint.get), rw.dispatch(obj), rw.succ(f), rw.dispatch(assign.value))(assign.blame)(assign.o)
+  def rewriteChorStatement(s: PVLChorStatement[Pre]): ChorStatement[Post] = s.inner match {
+    case assign: Assign[Pre] =>
+      ChorStatement[Post](Some(endpointSucc.ref(s.assign.endpoint.get)), assign.rewriteDefault())(s.blame)(s.o)
+    case _ => ChorStatement(None, s.inner.rewriteDefault())(s.blame)(s.o)
   }
+
+//  def rewriteChorAssign(s: PVLChorStatement[Pre]): ChorStatement[Post] = {
+//    val deref @ PVLDeref(obj, _) = s.assign().target
+//    val Some(RefField(f)) = deref.ref
+//    ChorStatement[Post](Some(endpointSucc.ref(s.assign.endpoint.get)), ???)(s.blame)(s.o)
+////    SeqAssign[Post](endpointSucc.ref(assign.endpoint.get), rw.dispatch(obj), rw.succ(f), rw.dispatch(assign.value))(assign.blame)(assign.o)
+//  }
 
   def rewriteAssign(assign: Assign[Pre]): Statement[Post] = {
     if (allowAssign) assign.rewriteDefault()
@@ -121,7 +127,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
 
   def rewriteStatement(statement: Statement[Pre]): Statement[Post] =
     currentStatement.having(statement) {
-      ChorStatement(None, rw.dispatch(statement))(statement.o)
+      ChorStatement(None, rw.dispatch(statement))(PanicBlame("ChorStatement error should not trigger on plain statement"))(statement.o)
     }
 
 }

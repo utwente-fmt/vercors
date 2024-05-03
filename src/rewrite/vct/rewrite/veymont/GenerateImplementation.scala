@@ -1,7 +1,8 @@
 package vct.rewrite.veymont
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqAssign, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
 import vct.col.origin.{AssignLocalOk, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -45,7 +46,7 @@ object GenerateImplementation extends RewriterBuilder {
     runMethod.o.where(name = "run")
 }
 
-case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] { outer =>
+case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging { outer =>
 
   val threadBuildingBlocks: ScopedStack[ThreadBuildingBlocks[Pre]] = ScopedStack()
   val threadClassSucc: SuccessionMap[Endpoint[Pre],Class[Post]] = SuccessionMap()
@@ -143,11 +144,13 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] { o
   }
 
   def projectStatement(statement: Statement[Pre]): Statement[Post] = statement match {
+    case ChorStatement(None, statement) =>
+      logger.warn("Keeping statement without endpoint")
+      projectStatement(statement)
+    case ChorStatement(Some(Ref(endpoint)), inner) if endpoint == currentEndpoint.top => projectStatement(inner)
+    case ChorStatement(_, _) => Block(Seq())(statement.o)
     case branch: Branch[Pre] => Block(Seq())(statement.o)
-    case assign: SeqAssign[Pre] => Block(Seq())(statement.o)
-    case assign: Assign[Pre] => Block(Seq())(statement.o)
     case Eval(MethodInvocation(obj, Ref(method), args, outArgs, _, _, _)) => Block(Seq())(statement.o)
-    case ChorStatement(_, s) => dispatch(s)
     case block: Block[Pre] => block.rewriteDefault()
     case s => throw new Exception(s"Unsupported: $s")
   }

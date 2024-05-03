@@ -17,11 +17,11 @@ class TechnicalVeyMontSpec extends VercorsSpec {
        class Storage {
           int x;
        }
-       seq_program Example() {
+       choreography Example() {
           endpoint alice = Storage();
           endpoint bob = Storage();
 
-          seq_run {
+          run {
             communicate alice.x <- bob.x;
             communicate bob.x -> alice.x;
             assert alice.x == bob.x;
@@ -40,10 +40,10 @@ class TechnicalVeyMontSpec extends VercorsSpec {
        class Storage {
           int x;
        }
-       seq_program Example() {
+       choreography Example() {
           endpoint alice = Storage();
 
-          seq_run {
+          run {
             assert alice.x == 0;
           }
        }
@@ -51,8 +51,8 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 
   vercors should error withCode "noSuchName" in "non-existent thread name in communicate fails" pvl
     """
-  seq_program Example() {
-     seq_run {
+  choreography Example() {
+     run {
        communicate charlie.x <- charlie.x;
      }
   }
@@ -61,9 +61,9 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   vercors should error withCode "noSuchName" in "non-existent field in communicate fails" pvl
     """
   class Storage { int x; }
-  seq_program Example() {
+  choreography Example() {
      endpoint charlie = Storage();
-     seq_run {
+     run {
        communicate charlie.nonExistent <- charlie.nonExistent;
      }
   }
@@ -72,10 +72,10 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   vercors should error withCode "parseError" in "parameterized sends not yet supported " pvl
     """
     class Storage { int x; }
-    seq_program Example() {
+    choreography Example() {
       endpoint alice[10] = Storage();
       endpoint bob[10] = Storage();
-      seq_run {
+      run {
         communicate alice[i: 0 .. 9].x <- bob[i + 1].y;
       }
     }
@@ -83,12 +83,12 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 
   vercors should error withCode "noRunMethod" in "run method should always be present" pvl
     """
-  seq_program Example() { }
+  choreography Example() { }
   """
 
   vercors should error withCode "parseError" in "endpoints can only have class types" pvl
     """
-  seq_program Example() {
+  choreography Example() {
     endpoint alice = int();
   }
   """
@@ -101,47 +101,47 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     pvl
     """
     class Storage { int x; int y; }
-    seq_program Example() {
+    choreography Example() {
       endpoint alice = Storage();
 
-      seq_run {
+      run {
         alice.x := alice.y;
       }
     }
     """)
 
-  vercors should error withCode "resolutionError:seqProgInstanceMethodArgs" in "instance method in seq_program cannot have arguments" pvl
+  vercors should error withCode "resolutionError:seqProgInstanceMethodArgs" in "instance method in choreography cannot have arguments" pvl
     """
-  seq_program Example() {
+  choreography Example() {
     void m(int x) { }
 
-    seq_run { }
+    run { }
   }
   """
 
-  vercors should error withCode "resolutionError:seqProgInstanceMethodBody" in "instance method in seq_program must have a body" pvl
+  vercors should error withCode "resolutionError:seqProgInstanceMethodBody" in "instance method in choreography must have a body" pvl
     """
-  seq_program Example() {
+  choreography Example() {
     void m();
 
-    seq_run { }
+    run { }
   }
   """
 
-  vercors should error withCode "resolutionError:seqProgInstanceMethodNonVoid" in "instance method in seq_program must have void return type" pvl
+  vercors should error withCode "resolutionError:seqProgInstanceMethodNonVoid" in "instance method in choreography must have void return type" pvl
     """
-  seq_program Example() {
+  choreography Example() {
     int m() { }
 
-    seq_run { }
+    run { }
   }
   """
 
   vercors should error withCode "resolutionError:seqProgStatement" in "seq_prog excludes certain statements" pvl
     """
   class C { }
-  seq_program Example(C c) {
-    seq_run {
+  choreography Example(C c) {
+    run {
       lock c;
     }
   }
@@ -150,30 +150,30 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   vercors should error withCode "resolutionError:seqProgReceivingEndpoint" in "Dereferencing anything other than the receiving endpoint in the arguments of a endpoint method invocation is not supported yet" pvl
     """
   class C { C d; void foo(int x); int x; }
-  seq_program Example(C c) {
+  choreography Example(C c) {
     endpoint c = C();
     endpoint d = C();
-    seq_run {
+    run {
       c.foo(d.x);
     }
   }
   """
 
-  vercors should error withCode "resolutionError:seqProgInvocation" in "Only method calls on endpoints or seq_program are allowed within seq_program" pvl
+  vercors should error withCode "resolutionError:seqProgInvocation" in "Only method calls on endpoints or choreography are allowed within choreography" pvl
     """
   class C { C d; void foo(); }
-  seq_program Example(C c) {
+  choreography Example(C c) {
     endpoint c = C();
-    seq_run {
+    run {
       c.d.foo();
     }
   }
   """
 
-  vercors should verify using silicon in "Empty seq_program must verify" pvl
+  vercors should verify using silicon in "Empty choreography must verify" pvl
     """
-  seq_program C() {
-    seq_run {
+  choreography C() {
+    run {
 
     }
   }
@@ -182,9 +182,9 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   vercors should error withCode "resolutionError:type" in "Assign must be well-typed" pvl
     """
   class C { int x; }
-  seq_program C() {
+  choreography C() {
     endpoint charlie = C();
-    seq_run {
+    run {
       charlie.x := true;
     }
   }
@@ -194,10 +194,10 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     """
   class C { int c; }
   class A { bool a; }
-  seq_program C() {
+  choreography C() {
     endpoint alice = A();
     endpoint charlie = C();
-    seq_run {
+    run {
       communicate charlie.c <- alice.a;
     }
   }
@@ -218,12 +218,12 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         x = 0;
       }
     }
-    seq_program Example() {
+    choreography Example() {
        endpoint alice = Storage();
 
        requires alice.x == 0;
        ensures alice.x == 0;
-       seq_run {
+       run {
          assert alice.x == 0;
        }
     }
@@ -234,17 +234,17 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     withCode "postFailed:false"
     using silicon
     flag "--veymont-generate-permissions"
-    in "Postcondition of seq_run can fail"
+    in "Postcondition of run can fail"
     pvl
     """
     class Storage {
        int x;
     }
-    seq_program Example() {
+    choreography Example() {
        endpoint alice = Storage();
 
        ensures alice.x == 0;
-       seq_run {
+       run {
        }
     }
     """)
@@ -254,7 +254,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     withCode "postFailed:false"
     using silicon
     flag "--veymont-generate-permissions"
-    in "Postcondition of seq_program can fail"
+    in "Postcondition of choreography can fail"
     pvl
     """
     class Storage {
@@ -262,10 +262,10 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     }
 
     ensures 1 == 0;
-    seq_program Example() {
+    choreography Example() {
        endpoint alice = Storage();
 
-       seq_run {
+       run {
        }
     }
     """)
@@ -275,11 +275,11 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   class Storage {
      int x;
   }
-  seq_program Example() {
+  choreography Example() {
      endpoint alice = Storage();
      endpoint bob = Storage();
 
-     seq_run {
+     run {
        alice.x := bob.x;
      }
   }
@@ -296,11 +296,11 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     class Storage {
        int x;
     }
-    seq_program Example() {
+    choreography Example() {
        endpoint alice = Storage();
        endpoint bob = Storage();
 
-       seq_run {
+       run {
           if (alice.x == 0 && bob.x == 0) {
             // Alice might go here, bob might not: error
           }
@@ -322,11 +322,11 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 
     pure int f() = 3;
 
-    seq_program Example() {
+    choreography Example() {
        endpoint alice = Storage();
        endpoint bob = Storage();
 
-       seq_run {
+       run {
           if (alice.x == 0 && f() == 3) {
             // Alice might go here, bob will definitely, because of the second expression: error
           }
@@ -347,10 +347,10 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 
     pure int f() = 3;
 
-    seq_program Example() {
+    choreography Example() {
        endpoint alice = Storage();
 
-       seq_run {
+       run {
           if (alice.x == 0 && f() == 3) {
             // Alice might go here, bob will definitely, because of the second expression: error
           }
@@ -363,11 +363,11 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   class Storage {
     int x;
   }
-  seq_program Example() {
+  choreography Example() {
      endpoint alice = Storage();
      endpoint bob = Storage();
 
-     seq_run {
+     run {
         if (alice.x == 0) {
           if (bob.x == 0) {
             // Error
@@ -382,11 +382,11 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   class Storage {
     int x;
   }
-  seq_program Example() {
+  choreography Example() {
      endpoint alice = Storage();
      endpoint bob = Storage();
 
-     seq_run {
+     run {
         if (alice.x == 0) {
           communicate alice.x <- bob.x;
         }
@@ -399,11 +399,11 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   class Storage {
     int x;
   }
-  seq_program Example() {
+  choreography Example() {
      endpoint alice = Storage();
      endpoint bob = Storage();
 
-     seq_run {
+     run {
         if (alice.x == 0) {
           bob.x := 3;
         }
@@ -421,11 +421,11 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     class Storage {
        bool x;
     }
-    seq_program Example() {
+    choreography Example() {
        endpoint alice = Storage();
        endpoint bob = Storage();
 
-       seq_run {
+       run {
          alice.x := true;
          bob.x := true;
          while (alice.x && bob.x) {
@@ -447,11 +447,11 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     class Storage {
        bool x;
     }
-    seq_program Example() {
+    choreography Example() {
        endpoint alice = Storage();
        endpoint bob = Storage();
 
-       seq_run {
+       run {
          while (alice.x && bob.x) {
 
          }
@@ -470,11 +470,11 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     class Storage {
        bool x;
     }
-    seq_program Example() {
+    choreography Example() {
        endpoint alice = Storage();
        endpoint bob = Storage();
 
-       seq_run {
+       run {
          alice.x := true;
          bob.x := true;
          while (alice.x && bob.x) {
@@ -489,12 +489,12 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   class Storage {
      bool x;
   }
-  seq_program Example() {
+  choreography Example() {
      endpoint alice = Storage();
      endpoint bob = Storage();
      endpoint charlie = Storage();
 
-     seq_run {
+     run {
        alice.x := true;
        bob.x := true;
        while (alice.x && bob.x) {
@@ -515,12 +515,12 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     class Storage {
        bool x;
     }
-    seq_program Example() {
+    choreography Example() {
        endpoint alice = Storage();
        endpoint bob = Storage();
        endpoint charlie = Storage();
 
-       seq_run {
+       run {
          alice.x := true;
          bob.x := true;
          while (alice.x && bob.x) {
@@ -538,12 +538,12 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   class Storage {
      bool x;
   }
-  seq_program Example() {
+  choreography Example() {
      endpoint alice = Storage();
      endpoint bob = Storage();
      endpoint charlie = Storage();
 
-     seq_run {
+     run {
        alice.x := true;
        bob.x := true;
        while (alice.x && bob.x) {
@@ -571,9 +571,9 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       }
     }
 
-    seq_program Example() {
+    choreography Example() {
       endpoint alice = Storage();
-      seq_run {
+      run {
         alice.m();
         assert alice.x == 2;
       }
@@ -591,10 +591,10 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       int x;
     }
 
-    seq_program Example() {
+    choreography Example() {
       endpoint alice = Storage();
       endpoint bob = Storage();
-      seq_run {
+      run {
         assume alice != bob;
         communicate alice.x <- bob.x;
       }
@@ -612,9 +612,9 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       int x;
     }
 
-    seq_program Example() {
+    choreography Example() {
       endpoint alice = Storage();
-      seq_run {
+      run {
         alice.x := 3;
       }
     }
@@ -655,10 +655,10 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     ensures \result == s.x;
     pure int fx(Storage s) = s.x;
 
-    seq_program Example(int N) {
+    choreography Example(int N) {
       endpoint alice = Storage();
       ensures alice.x == 10;
-      seq_run {
+      run {
         alice.x := 0;
         loop_invariant 0 <= alice.x && alice.x <= 10;
         while(alice.x < 10) {
@@ -681,10 +681,10 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       int x;
     }
 
-    seq_program Example() {
+    choreography Example() {
       endpoint alice = Storage();
       endpoint bob = Storage();
-      seq_run {
+      run {
         alice.x := 0;
         bob.x := 3;
         loop_invariant 0 <= alice.x && alice.x <= 10;
@@ -707,7 +707,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       int x;
     }
 
-    seq_program Example(int N) {
+    choreography Example(int N) {
       endpoint alice = Storage();
 
       ensures alice.x == \old(alice.x) + 1;
@@ -716,7 +716,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       }
 
       ensures alice.x == \old(alice.x + 1);
-      seq_run {
+      run {
         step();
       }
     }
@@ -733,7 +733,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       int x;
     }
 
-    seq_program Example(int N) {
+    choreography Example(int N) {
       endpoint alice = Storage();
       endpoint bob = Storage();
 
@@ -743,7 +743,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       }
 
       ensures alice.x == \old(alice.x + 1);
-      seq_run {
+      run {
         bob.x := 3;
         step();
         assert bob.x == 3;
@@ -763,7 +763,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       int x;
     }
 
-    seq_program Example(int N) {
+    choreography Example(int N) {
       endpoint alice = Storage();
       endpoint bob = Storage();
 
@@ -774,7 +774,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       }
 
       ensures alice.x == \old(alice.x + 1);
-      seq_run {
+      run {
         bob.x := 3;
         step();
         assert bob.x == 3;
@@ -786,12 +786,12 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     should fail
     withCode "seqRunPreFailed:false"
     using silicon
-    in "Precondition of seq_run should be checked"
+    in "Precondition of run should be checked"
     pvl
     """
-    seq_program Example(int x) {
+    choreography Example(int x) {
       requires x == 0;
-      seq_run {
+      run {
       }
     }
     """)
@@ -800,12 +800,12 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     should fail
     withCode "seqRunContextPreFailed:false"
     using silicon
-    in "Context everywhere of seq_run should be checked"
+    in "Context everywhere of run should be checked"
     pvl
     """
-    seq_program Example(int x) {
+    choreography Example(int x) {
       context_everywhere x == 0;
-      seq_run {
+      run {
       }
     }
     """)
@@ -822,10 +822,10 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       constructor (int x) { }
     }
 
-    seq_program Example() {
+    choreography Example() {
       endpoint alice = Storage(1);
 
-      seq_run {
+      run {
       }
     }
     """)
@@ -834,16 +834,16 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     should error
     withCode "assignNotAllowed"
     flag "--veymont-generate-permissions"
-    in "Assignment should be disallowed in seq_program"
+    in "Assignment should be disallowed in choreography"
     pvl
     """
     class Storage {
       int x;
     }
 
-    seq_program Example() {
+    choreography Example() {
       endpoint alice = Storage();
-      seq_run {
+      run {
         alice.x = 0;
       }
     }
@@ -861,9 +861,9 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       int x;
     }
 
-    seq_program Example() {
+    choreography Example() {
       endpoint alice = Storage();
-      seq_run {
+      run {
         alice.x = 0;
       }
     }
@@ -881,9 +881,9 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       int x;
     }
 
-    seq_program Example() {
+    choreography Example() {
       endpoint alice = Storage();
-      seq_run {
+      run {
         communicate alice.x <- alice.x;
       }
     }

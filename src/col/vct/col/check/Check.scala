@@ -85,6 +85,8 @@ sealed trait CheckError {
         Seq(context(e) -> s"Can only refer to the receiving endpoint of this statement.")
       case SeqProgParticipant(s) =>
         Seq(context(s) -> s"An endpoint is used in this branch which is not allowed to participate at this point in the program because of earlier branches.")
+      case SeqProgNoParticipant(s) =>
+        Seq(context(s) -> s"Unclear what the participating endpoint is in this statement")
       case SeqProgEndpointAssign(a) =>
         Seq(context(a) -> s"Raw assignment to an endpoint is not allowed.")
       case SeqProgInstanceMethodPure(m) =>
@@ -145,7 +147,7 @@ case class ReturnOutsideMethod(ret: Return[_]) extends CheckError {
 case class FinalPermission(loc: FieldLocation[_]) extends CheckError {
   override def subcode: String = "finalPerm"
 }
-case class PVLSeqAssignEndpoint(assign: PVLSeqAssign[_]) extends CheckError {
+case class PVLSeqAssignEndpoint(assign: PVLChorStatement[_]) extends CheckError {
   val subcode = "pvlSeqAssignEndpoint"
 }
 case class SeqProgInstanceMethodNonVoid(m: InstanceMethod[_]) extends CheckError {
@@ -168,6 +170,9 @@ case class SeqProgReceivingEndpoint(e: Expr[_]) extends CheckError {
 }
 case class SeqProgParticipant(s: Node[_]) extends CheckError {
   val subcode = "seqProgParticipant"
+}
+case class SeqProgNoParticipant(s: Node[_]) extends CheckError {
+  val subcode = "seqProgNoParticipant"
 }
 case class SeqProgEndpointAssign(a: Assign[_]) extends CheckError {
   val subcode = "seqProgEndpointAssign"

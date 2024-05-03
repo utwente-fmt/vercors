@@ -2,8 +2,8 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Access, Assert, Assign, Block, ChorStatement, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, ThisSeqProg, Variable}
-import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssertFailed, AssignFailed, AssignLocalOk, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, ParticipantsNotDistinct, PostconditionFailed, PreconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
+import vct.col.ast.{Access, Assert, Assign, Block, ChorStatement, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, ThisSeqProg, Variable}
+import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssertFailed, AssignFailed, AssignLocalOk, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, ParticipantsNotDistinct, PostconditionFailed, PreconditionFailed, ChorAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -37,7 +37,7 @@ object EncodeSeqProg extends RewriterBuilder {
     }
   }
 
-  case class AssignFailedToSeqAssignFailure(assign: SeqAssign[_]) extends Blame[AssignFailed] {
+  case class AssignFailedToSeqAssignFailure(assign: ChorStatement[_]) extends Blame[AssignFailed] {
     override def blame(error: AssignFailed): Unit =
       assign.blame.blame(SeqAssignInsufficientPermission(assign))
   }
@@ -192,17 +192,11 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case assign@SeqAssign(Ref(endpoint), obj, Ref(field), e) =>
+    case assign@ChorStatement(endpoint, Assign(target, e)) =>
+      // TODO (RR): The endpoint will become relevant again when implementing stratification
+      logger.warn("Ignoring endpoint annotation on chor assign statement")
       implicit val o = assign.o
-      Assign(
-        Deref[Post](
-          // TODO (RR): The endpoint will become relevant again when implementing stratification
-//          Local(endpointSucc((mode, endpoint)).ref),
-          dispatch(obj),
-          succ(field)
-        )(PanicBlame("Unused by Silver encoding")),
-        dispatch(e)
-      )(AssignFailedToSeqAssignFailure(assign))
+      Assign(dispatch(target), dispatch(e))(AssignFailedToSeqAssignFailure(assign))
     case comm @ Communicate(receiver, sender) =>
       implicit val o = comm.o
       val equalityTest: Statement[Post] = if(receiver.subject.cls == sender.subject.cls)
