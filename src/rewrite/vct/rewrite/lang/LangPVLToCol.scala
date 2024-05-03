@@ -139,12 +139,6 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
       Loop(rw.dispatch(init), rw.dispatch(cond), rw.dispatch(update), rw.dispatch(contract), rw.dispatch(body))(loop.o)
   }
 
-  def assign(assign: Assign[Pre]): Statement[Post] =
-    if (rw.veymont.currentProg.nonEmpty)
-      rw.veymont.rewriteAssign(assign)
-    else
-      assign.rewriteDefault()
-
   def rewriteMainMethod(main: VeSUVMainMethod[Pre]): Unit = {
     implicit val o: Origin = main.o
     main.drop()

@@ -3,7 +3,7 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.util.Declarator
-import vct.col.ast.{AbstractRewriter, Access, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
+import vct.col.ast.{AbstractRewriter, Access, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
 import vct.col.origin.{Name, Origin, PanicBlame, SourceName}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -162,37 +162,40 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
     case _ => stmt.rewriteDefault()
   }
 
-  def sendOf(comm: Communicate[Pre]): Eval[Post] = {
+  def sendOf(comm: Communicate[Pre]): Statement[Post] = {
     implicit val o = comm.o
     val Access(EndpointName(Ref(sender)), Ref(field)) = comm.sender
-    Eval(methodInvocation(
-      obj = Deref(
-        EndpointUse(succ[Endpoint[Post]](sender)),
-        fieldOfCommunicate.ref[Post, InstanceField[Post]]((sender, comm)))(PanicBlame("Permission for fields should be propagated in entire choreography")),
-      ref = genericWrite.ref[InstanceMethod[Post]],
-      args = Seq(
-        Deref[Post](
-          Deref[Post](EndpointUse[Post](succ(sender)), implFieldOfEndpoint.ref(sender))(PanicBlame("Should be safe")),
-          succ(field)
-        )(PanicBlame("TODO: translate to blame from communicate"))
-      ),
-      blame = PanicBlame("TODO 1")
-    ))
+    ChorStatement[Post](Some(succ(sender)),
+      Eval(methodInvocation(
+        obj = Deref(
+          EndpointUse[Post](succ(sender)),
+          fieldOfCommunicate.ref[Post, InstanceField[Post]]((sender, comm)))(PanicBlame("Permission for fields should be propagated in entire choreography")),
+        ref = genericWrite.ref[InstanceMethod[Post]],
+        args = Seq(
+          Deref[Post](
+            Deref[Post](EndpointUse[Post](succ(sender)), implFieldOfEndpoint.ref(sender))(PanicBlame("Should be safe")),
+            succ(field)
+          )(PanicBlame("TODO: translate to blame from communicate"))
+        ),
+        blame = PanicBlame("TODO 1")
+      ))
+    )(PanicBlame("TODO: ChorStatement blame?"))
   }
 
-  def receiveOf(comm: Communicate[Pre]): Assign[Post] = {
+  def receiveOf(comm: Communicate[Pre]): Statement[Post] = {
     implicit val o = comm.o
     val Access(EndpointName(Ref(receiver)), Ref(field)) = comm.receiver
-    assignField[Post](
-      obj = Deref[Post](EndpointUse[Post](succ(receiver)), implFieldOfEndpoint.ref(receiver))(PanicBlame("Should be safe")),
-      field = succ(field),
-      value = methodInvocation(
-        obj = Deref[Post](EndpointUse(succ(receiver)), fieldOfCommunicate.ref((receiver, comm)))(PanicBlame("Should be safe")),
-        ref = genericRead.ref,
-        blame = PanicBlame("Should be safe"),
-      ),
-      blame = PanicBlame("TODO 2")
-    )
+    ChorStatement[Post](Some(succ(receiver)),
+      assignField[Post](
+        obj = Deref[Post](EndpointUse[Post](succ(receiver)), implFieldOfEndpoint.ref(receiver))(PanicBlame("Should be safe")),
+        field = succ(field),
+        value = methodInvocation(
+          obj = Deref[Post](EndpointUse(succ(receiver)), fieldOfCommunicate.ref((receiver, comm)))(PanicBlame("Should be safe")),
+          ref = genericRead.ref,
+          blame = PanicBlame("Should be safe"),
+        ),
+        blame = PanicBlame("TODO 2")
+      ))(PanicBlame("TODO: ChorStatement blame?"))
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {

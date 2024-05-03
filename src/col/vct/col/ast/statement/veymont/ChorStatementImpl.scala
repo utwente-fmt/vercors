@@ -4,41 +4,44 @@ import vct.col.ast.{Assert, Assign, Assume, Block, Branch, ChorStatement, Commun
 import vct.col.ast.ops.ChorStatementOps
 import vct.col.ast.statement.StatementImpl
 import vct.col.check.{CheckContext, CheckError, SeqProgInvocation, SeqProgNoParticipant, SeqProgParticipant, SeqProgStatement}
-import vct.col.print.{Ctx, Doc, Text}
+import vct.col.print.{Ctx, Doc, Line, Text}
 import vct.col.ref.Ref
 
 trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] { this: ChorStatement[G] =>
+  assert(!inner.isInstanceOf[ChorStatement[_]])
+
   override def layout(implicit ctx: Ctx): Doc =
-    Text("/* choreographic statement */") <+> inner.show
+    (endpoint match {
+      case Some(Ref(endpoint)) => Text(ctx.name(endpoint)) <> ":" <> " "
+      case None => Text("/* unlabeled choreographic statement */") <> Line
+    }) <> inner
 
   object eval {
     def enterCheckContextCurrentReceiverEndpoint(chorStmt: ChorStatement[G], node: Eval[G], context: CheckContext[G]): Option[Endpoint[G]] =
       (chorStmt.endpoint, node) match {
         case (Some(Ref(endpoint)), Eval(MethodInvocation(_, _, _, _, _, _, _))) => Some(endpoint)
-        case (None, Eval(MethodInvocation(EndpointUse(Ref(endpoint)), _, _, _, _, _, _))) => Some(endpoint)
+        case (None, Eval(MethodInvocation(e, _, _, _, _, _, _))) if rootEndpoint(e).isDefined => Some(rootEndpoint(e).get)
         case _ => context.currentReceiverEndpoint
       }
 
     def check(chorStmt: ChorStatement[G], node: Eval[G], context: CheckContext[G]): Seq[CheckError] = (context.currentSeqProg, node.expr) match {
       case (None, _) => Seq()
-      case (Some(_), MethodInvocation(EndpointUse(_), _, _, _, _, _, _)) => Seq()
       case (Some(_), MethodInvocation(ThisSeqProg(_), _, _, _, _, _, _)) => Seq()
+      case (Some(_), MethodInvocation(e, _, _, _, _, _, _)) if rootEndpoint(e).isDefined => Seq()
       case _ => Seq(SeqProgInvocation(node))
     }
   }
 
-  object assign {
-    def root(expr: Expr[G]): Expr[G] = expr match {
-      case MethodInvocation(e, _, _, _, _, _, _) => root(e)
-      case Deref(obj, _) => root(obj)
-      case e => e
-    }
+  def rootEndpoint(expr: Expr[G]): Option[Endpoint[G]] = expr match {
+    case MethodInvocation(e, _, _, _, _, _, _) => rootEndpoint(e)
+    case Deref(obj, _) => rootEndpoint(obj)
+    case EndpointUse(Ref(e)) => Some(e)
+    case _ => None
+  }
 
+  object assign {
     def receiver(chorStmt: ChorStatement[G], node: Assign[G]): Option[Endpoint[G]] =
-      chorStmt.endpoint.map(_.decl).orElse(root(node.target) match {
-        case EndpointUse(Ref(endpoint)) => Some(endpoint)
-        case _ => None
-      })
+      chorStmt.endpoint.map(_.decl).orElse(rootEndpoint(node.target))
 
     def enterCheckContextCurrentReceiverEndpoint(chorStmt: ChorStatement[G], node: Assign[G], context: CheckContext[G]): Option[Endpoint[G]] =
       receiver(chorStmt, node)

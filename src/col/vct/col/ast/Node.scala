@@ -1341,7 +1341,7 @@ case class PVLFamilyRange[G](family: String, binder: String, start: Expr[G], end
   var ref: Option[RefField[G]] = None
 }
 final case class PVLCommunicate[G](sender: PVLAccess[G], receiver: PVLAccess[G])(val blame: Blame[PVLCommunicateFailure])(implicit val o: Origin) extends Statement[G] with PurelySequentialStatement[G] with PVLCommunicateImpl[G]
-final case class PVLChorStatement[G](endpoint: Option[Expr[G]], inner: Statement[G])(val blame: Blame[ChorStatementFailure])(implicit val o: Origin) extends Statement[G] with PVLChorStatementImpl[G] {
+final case class PVLChorStatement[G](endpoint: Option[String], inner: Statement[G])(val blame: Blame[ChorStatementFailure])(implicit val o: Origin) extends Statement[G] with PVLChorStatementImpl[G] {
   var ref: Option[RefPVLEndpoint[G]] = None
 }
 

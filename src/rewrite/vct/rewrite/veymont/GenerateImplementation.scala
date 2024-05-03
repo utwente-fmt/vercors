@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
 import vct.col.origin.{AssignLocalOk, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -54,6 +54,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
   val runSucc: mutable.LinkedHashMap[SeqProg[Pre], Procedure[Post]] = mutable.LinkedHashMap()
   private val givenClassSucc: SuccessionMap[Type[Pre],Class[Post]] = SuccessionMap()
   private val givenClassConstrSucc: SuccessionMap[Type[Pre],Procedure[Pre]] = SuccessionMap()
+  val endpointLocals: SuccessionMap[Endpoint[Pre], Variable[Post]] = SuccessionMap()
 
   var program: Program[Pre] = null
   lazy val choreographies: Seq[SeqProg[Pre]] = program.declarations.collect { case chor: SeqProg[Pre] => chor }
@@ -76,7 +77,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
 
   override def dispatch(decl: Declaration[Pre]) : Unit = {
     decl match {
-      case p: Procedure[Pre] => super.dispatch(p) // givenClassConstrSucc.update(p.returnType,p)
+      case p: Procedure[Pre] => super.dispatch(p)
       case c: Class[Pre] if isEndpointClass(c) =>
         val chor = choreographyOf(c)
         globalDeclarations.succeed(c, c.rewrite(
@@ -92,10 +93,10 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
           chor.endpoints.foreach(_.drop())
           implicit val o = chor.o
 
-          val endpointLocals: mutable.LinkedHashMap[Endpoint[Pre], Variable[Post]] = mutable.LinkedHashMap.from(
-            chor.endpoints.map(endpoint => (endpoint, new Variable(dispatch(endpoint.t))(endpoint.o))))
+          chor.endpoints.foreach(endpoint => endpointLocals(endpoint) = new Variable(dispatch(endpoint.t))(endpoint.o))
 
           val initEndpoints = Block(
+            Seq(dispatch(chor.preRun.get)) ++
             chor.endpoints.map { endpoint =>
               assignLocal[Post](
                 Local[Post](endpointLocals(endpoint).ref),
@@ -107,11 +108,11 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
                 )(PanicBlame("Should be safe"))
               )
             } ++
-              chor.endpoints.map { endpoint => Fork[Post](endpointLocals(endpoint).get)(PanicBlame("")) } ++
-              chor.endpoints.map { endpoint => Join[Post](endpointLocals(endpoint).get)(PanicBlame("")) }
+            chor.endpoints.map { endpoint => Fork[Post](endpointLocals(endpoint).get)(PanicBlame("")) } ++
+            chor.endpoints.map { endpoint => Join[Post](endpointLocals(endpoint).get)(PanicBlame("")) }
           )
 
-          val mainBody = Scope(endpointLocals.values.toIndexedSeq, initEndpoints)
+          val mainBody = Scope(chor.endpoints.map(endpointLocals(_)), initEndpoints)
 
           globalDeclarations.declare(procedure(
             args = variables.dispatch(chor.params),
@@ -145,6 +146,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
 
   def projectStatement(statement: Statement[Pre]): Statement[Post] = statement match {
     case ChorStatement(None, statement) =>
+//      throw new Exception("Something smart needs to happen here. Probably infer and don't leave any none's in the final choreography!")
       logger.warn("Keeping statement without endpoint")
       statement.rewriteDefault()
     case ChorStatement(Some(Ref(endpoint)), inner) if endpoint == currentEndpoint.top => inner match {
@@ -158,6 +160,18 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
     case block: Block[Pre] => block.rewriteDefault()
     case s =>
       throw new Exception(s"Unsupported: $s")
+  }
+
+  override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
+    case EndpointUse(Ref(endpoint)) if currentChoreography.nonEmpty && currentEndpoint.isEmpty =>
+      Local[Post](endpointLocals.ref(endpoint))(expr.o)
+    case EndpointUse(Ref(endpoint)) if currentChoreography.nonEmpty && currentEndpoint.nonEmpty =>
+      if (endpoint != currentEndpoint.top) {
+//        throw new Exception("Cannot refer to other endpoints yet")
+        return Null()(expr.o)
+      }
+      ThisObject[Post](succ(endpoint.cls.decl))(expr.o)
+    case _ => expr.rewriteDefault()
   }
 
   // Old code after this

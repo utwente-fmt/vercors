@@ -5,6 +5,7 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.RewriteAssign
 import vct.col.ast._
 import vct.col.origin.{Origin, PanicBlame}
+import vct.col.ref.Ref
 import vct.col.resolve.ctx.{RefField, RefPVLEndpoint}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.SuccessionMap
@@ -107,13 +108,6 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
     case _ => ChorStatement(None, s.inner.rewriteDefault())(s.blame)(s.o)
   }
 
-//  def rewriteChorAssign(s: PVLChorStatement[Pre]): ChorStatement[Post] = {
-//    val deref @ PVLDeref(obj, _) = s.assign().target
-//    val Some(RefField(f)) = deref.ref
-//    ChorStatement[Post](Some(endpointSucc.ref(s.assign.endpoint.get)), ???)(s.blame)(s.o)
-////    SeqAssign[Post](endpointSucc.ref(assign.endpoint.get), rw.dispatch(obj), rw.succ(f), rw.dispatch(assign.value))(assign.blame)(assign.o)
-//  }
-
   def rewriteAssign(assign: Assign[Pre]): Statement[Post] = {
     if (allowAssign) assign.rewriteDefault()
     else throw AssignNotAllowed(assign)
@@ -125,9 +119,18 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
   def rewriteLoop(loop: PVLLoop[Pre]): UnresolvedSeqLoop[Post] =
     UnresolvedSeqLoop(rw.dispatch(loop.cond), rw.dispatch(loop.contract), rw.dispatch(loop.body))(loop.blame)(loop.o)
 
-  def rewriteStatement(statement: Statement[Pre]): Statement[Post] =
-    currentStatement.having(statement) {
-      ChorStatement(None, rw.dispatch(statement))(PanicBlame("ChorStatement error should not trigger on plain statement"))(statement.o)
+  def rewriteStatement(stmt: Statement[Pre]): Statement[Post] = stmt match {
+    case assign: Assign[Pre] =>
+      ChorStatement[Post](None, assign.rewriteDefault())(PanicBlame("Assign blame missing?"))(stmt.o)
+    case stmt @ PVLChorStatement(endpointName, inner) =>
+      val endpoint: Option[Ref[Post, Endpoint[Post]]] = endpointName.map(_ => endpointSucc.ref(stmt.ref.get.decl))
+      val innerNew = inner match {
+        case assign: Assign[Pre] => assign.rewriteDefault()
+        case node => rw.dispatch(node)
+      }
+      ChorStatement(endpoint, innerNew)(PanicBlame("ChorStmt fail?"))(stmt.o)
+    case stmt => currentStatement.having(stmt) {
+      rw.dispatch(stmt)
     }
-
+  }
 }

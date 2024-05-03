@@ -183,7 +183,6 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
 
     case communicate: PVLCommunicate[Pre] => veymont.rewriteCommunicate(communicate)
     case s: PVLChorStatement[Pre] => veymont.rewriteChorStatement(s)
-    case assign: Assign[Pre] => pvl.assign(assign)
 
     case other => rewriteDefault(other)
   }
