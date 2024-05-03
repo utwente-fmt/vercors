@@ -15,6 +15,7 @@ import vct.col.typerules.Types
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{Unreachable, UserError}
 
+import java.lang.reflect
 import java.lang.reflect.{Modifier, Parameter, TypeVariable}
 import java.nio.file.Path
 import scala.annotation.tailrec
