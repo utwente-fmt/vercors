@@ -163,6 +163,16 @@ class Q {
 ensures \result > 0;
 pure int p();
 
+// This is version 1 of the challenge where acquire and comm implement sender-initiated work stealing
+// The lock is used primarily for updating the ghost variables task_owner, and is_waiting
+// but it is also used for updating the shared executed and communication_cells arrays. In an actual
+// implementation separate locks could be used for access to the executed array and the communication_cells
+// array.
+// Tasks go through 4 states unqueued, queued, owned, and executed. Tasks can only become queued if their
+// parents have been executed. The owned state is used to keep track of the state of the task to be executed
+// when we have to release the lock between it being removed from the queue and it being executed.
+// The is_waiting boolean array is used to keep track of the fact that a worker is currently waiting and unlike
+// the communications_cells array only the corresponding worker thread may update the value.
 lock_invariant li();
 class Main {
     final boolean[] executed;
@@ -220,7 +230,6 @@ class Main {
         (\forall int i0=0..p(), int i1=0..p(); communication_cells[i0] != NOT_WAITING() && communication_cells[i0] != WAITING(); {:communication_cells[i0]:} == {:communication_cells[i1]:} ==> i0 == i1)
         ;
 
-    requires committed(this);
     requires 0 <= i && i < p();
     requires task == NO_TASK() || (0 <= task && task < n());
     requires this != null ** executed != null ** executed.length == n() ** |q| == p();
@@ -258,9 +267,12 @@ class Main {
     requires committed(this);
     requires 0 <= i && i < p();
     requires this != null ** executed != null ** executed.length == n() ** |q| == p();
+    // Only the corresponding worker thread may write to its own queue
     requires Perm(q[i].tasks, 1\2);
     requires is_waiting != null && is_waiting.length == p();
+    // Only the corresponding worker thread may write to its is_waiting state
     requires Perm(is_waiting[i], 1\2);
+    // The first worker starts while holding the lock
     requires i == 0 ==> held(this) ** li() ** (\forall int i=0..n(); !{:executed[i]:}) **
                                               (\forall int i=0..p(); {:q[i].tasks:}.isEmpty) **
                                               (\forall int i=0..n(); {:task_owner[i]:} == -1) **
@@ -286,8 +298,6 @@ class Main {
                 assert (\forall int j=0..|q[i].tasks|; {:q[i].tasks[j]:} != t);
                 label before;
                 comm(i);
-                /* assert (\forall int j=0..|q[i].tasks|; {:q[i].tasks[j]:} == \old[before](q[i].tasks[j])); */
-                /* assert (\forall int j=0..|q[i].tasks|; {:\old[before](q[i].tasks[j]):} != t); */
                 assert (\forall int j=0..|q[i].tasks|; {:q[i].tasks[j]:} != t);
                 execute(i, t);
             }
