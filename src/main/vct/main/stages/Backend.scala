@@ -13,10 +13,10 @@ import viper.api.{backend => viper}
 import viper.carbon.Carbon
 import viper.silicon.Silicon
 
-import java.io.{FileInputStream, FileOutputStream}
 import java.nio.file.{Files, Path}
 import scala.collection.parallel.CollectionConverters.seqIsParallelizable
 import scala.runtime.ScalaRunTime
+import scala.util.Using
 
 case object Backend {
 
@@ -88,13 +88,13 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
     // it just means the cache will not work very well.
 
     val path = baseDir.resolve("%02x" format program.hashCode())
-    val programFile = path.resolve("program.colpb").toFile
+    val programFile = path.resolve("program.colpb")
 
     if(Files.exists(path)) {
       // The result is potentially cached in programFile
-      val f = new FileInputStream(programFile)
-      val cachedProgram = vct.col.ast.serialize.Program.parseFrom(f)
-      f.close()
+      val cachedProgram = Using(Files.newInputStream(programFile)) { is =>
+        vct.col.ast.serialize.Program.parseFrom(is)
+      }
 
       if(cachedProgram != program) {
         // Unlikely: in case of a hash collision, just run the verification (permanently unlucky)
@@ -103,9 +103,9 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
     } else if (update) {
       // If the result is not even potentially cached, run update, and if the program definitely verifies, store the result.
       path.toFile.mkdirs()
-      val f = new FileOutputStream(programFile)
-      program.writeTo(f)
-      f.close()
+      Using(Files.newOutputStream(programFile)) { os =>
+        program.writeTo(os)
+      }
     }
   }
 

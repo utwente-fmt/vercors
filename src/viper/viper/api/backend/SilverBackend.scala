@@ -16,7 +16,6 @@ import viper.silver.verifier._
 import viper.silver.verifier.errors._
 import viper.silver.{ast => silver}
 
-import java.io.{File, FileOutputStream}
 import java.nio.file.Path
 import scala.reflect.ClassTag
 import scala.util.{Try, Using}
@@ -69,7 +68,7 @@ trait SilverBackend extends Backend[(silver.Program, Map[Int, col.Node[_]])] wit
           .replace("requires decreases", "decreases")
           .replace("invariant decreases", "decreases")
 
-      output.map(_.toFile).map(RWFile).foreach(_.write { writer =>
+      output.map(RWFile).foreach(_.write { writer =>
         writer.write(silverProgramString)
       })
 

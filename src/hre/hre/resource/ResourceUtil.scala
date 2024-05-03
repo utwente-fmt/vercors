@@ -3,9 +3,8 @@ package hre.resource
 import hre.platform.Platform
 import vct.result.VerificationError.SystemError
 
-import java.io.File
 import java.net.URISyntaxException
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 
 case object ResourceUtil {
   case class NoSuchResource(path: String) extends SystemError {
@@ -14,7 +13,7 @@ case object ResourceUtil {
 
   def getResource(path: String): Path = try {
     Option(getClass.getResource(path)) match {
-      case Some(url) => new File(url.toURI).toPath
+      case Some(url) => Paths.get(url.toURI)
       case None => throw NoSuchResource(path)
     }
   } catch {
