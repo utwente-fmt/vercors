@@ -152,7 +152,7 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
     }
 
   def endpointPerm(endpoint: Endpoint[Pre])(implicit o: Origin): Expr[Post] =
-    transitivePerm(EndpointUse[Post](succ(endpoint)), TClass(endpoint.cls, Seq()))
+    transitivePerm(EndpointUse[Post](succ(endpoint)), endpoint.t)
 
   def endpointsPerm(endpoints: Seq[Endpoint[Pre]])(implicit o: Origin): Expr[Post] =
     foldStar(endpoints.map(endpointPerm))
