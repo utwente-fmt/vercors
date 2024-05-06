@@ -16,7 +16,7 @@ import viper.silver.verifier._
 import viper.silver.verifier.errors._
 import viper.silver.{ast => silver}
 
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 import scala.reflect.ClassTag
 import scala.util.{Try, Using}
 
@@ -81,12 +81,13 @@ trait SilverBackend extends Backend[(silver.Program, Map[Int, col.Node[_]])] wit
 
       next()
 
-      val f = File.createTempFile("vercors-", ".sil")
-      f.deleteOnExit()
-      Using(new FileOutputStream(f)) { out =>
-        out.write(silverProgramString.getBytes())
+      val f = Files.createTempFile("vercors-", ".sil")
+      try {
+        Using(Files.newBufferedWriter(f))(_.write(silverProgramString))
+      } finally {
+        Files.delete(f)
       }
-      SilverParserDummyFrontend().parse(f.toPath) match {
+      SilverParserDummyFrontend().parse(f) match {
         case Left(errors) =>
           logger.warn("Possible viper bug: silver AST does not reparse when printing as text")
           for(error <- errors) {

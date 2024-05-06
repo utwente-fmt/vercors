@@ -8,7 +8,7 @@ import java.nio.file.{Files, Path}
 
 sealed trait PathOrStd extends InMemoryCachedReadable with Writeable {
   override def underlyingFile: Option[Path] = this match {
-    case PathOrStd.Path(path) => Some(path.toFile)
+    case PathOrStd.Path(path) => Some(path)
     case PathOrStd.StdInOrOut => None
   }
 
