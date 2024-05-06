@@ -71,7 +71,7 @@ case class ResolveScale[Pre <: Generation]() extends Rewriter[Pre] {
       case s: Starall[Pre] => s.rewrite(body = scale(s.body, amount))
 
       case l: Let[Pre] => l.rewrite(main = scale(l.main, amount))
-
+      case InlinePattern(inner, parent, group) => InlinePattern(scale(inner, amount), parent, group)
       case other => throw WrongScale(other)
     }
   }

@@ -33,12 +33,14 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
 
   case class MakePattern(pattern: Pattern) extends Rewriter[Pre] {
     override val allScopes = outer.allScopes
+    var inScale: Boolean = false
 
     override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
       // PB: don't add nodes here just to be conservative: in general all terms are allowable in patterns, *except*
       // that z3 disallows all Bool-related operators, and Viper additionally disallows all arithmetic operators. Any
       // other operators is necessarily encoded as an smt function (allowed), or banned due to being a side effect
       // (later dealt with rigorously).
+      case e if inScale => e.rewriteDefault()
 
       case And(_, _) | Or(_, _) | Implies(_, _) | Star(_, _) | Wand(_, _) | PolarityDependent(_, _) =>
         throw NotAllowedInTrigger(e)
@@ -55,6 +57,12 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
       case InlinePattern(inner, _, _) => dispatch(inner)
 
       case Local(Ref(v)) if pattern.letBindingsHere.contains(v) => dispatch(pattern.letBindingsHere(v))
+
+      case p@PredicateApply(ref, args, perm) =>
+        inScale = true
+        val newPerm = dispatch(perm)
+        inScale = false
+        PredicateApply(succ[Predicate[Post]](ref.decl), args.map(dispatch), newPerm)(e.o)
 
       case e => rewriteDefault(e)
     }
