@@ -9,6 +9,12 @@ pure double M_PI() = 3.14159265358979323846;
 @*/
 
 /*@
+  ensures \result == (x >= 0 ? x : -x);
+  decreases;
+@*/
+float /*@ pure @*/ fabsf(float x);
+
+/*@
   requires x>= 0;
   ensures \result == \pow(x, 0.5);
   decreases;
@@ -117,6 +123,12 @@ float /*@ pure @*/ ceilf(float x);
   decreases;
 @*/
 float /*@ pure @*/ roundf(float x);
+
+/*@
+  ensures \result == (x >= 0 ? x : -x);
+  decreases;
+@*/
+double /*@ pure @*/ fabs(double x);
 
 /*@
   requires x>= 0;
