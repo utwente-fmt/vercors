@@ -12,6 +12,7 @@ trait Readable {
   def isRereadable: Boolean
   protected def getReader: Reader
   def enroll(watch: Watch): Unit
+  def invalidate(): Unit = {}
 
   def read[T](f: Reader => T): T = {
     Watch.enroll(this)

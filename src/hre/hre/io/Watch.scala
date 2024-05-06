@@ -55,6 +55,8 @@ object Watch {
 class Watch(val mainThread: Thread) extends LazyLogging { watch =>
   private var fileWatchService = FileSystems.getDefault.newWatchService()
 
+  private var toInvalidate: Seq[Readable] = Nil
+
   private var triggered: Boolean = false
 
   private var threads: Seq[Thread] = Nil
@@ -68,6 +70,10 @@ class Watch(val mainThread: Thread) extends LazyLogging { watch =>
       StandardWatchEventKinds.ENTRY_DELETE,
       StandardWatchEventKinds.ENTRY_MODIFY,
     )
+  }
+
+  def invalidate(readable: Readable): Unit = {
+    toInvalidate = readable +: toInvalidate
   }
 
   private def fileWatchThread() = new Thread {
@@ -110,6 +116,12 @@ class Watch(val mainThread: Thread) extends LazyLogging { watch =>
   private def reset(): Unit = {
     fileWatchService.close()
     fileWatchService = FileSystems.getDefault.newWatchService()
+
+    for(inv <- toInvalidate) {
+      inv.invalidate()
+    }
+
+    toInvalidate = Nil
 
     for(thread <- threads) {
       thread.interrupt()

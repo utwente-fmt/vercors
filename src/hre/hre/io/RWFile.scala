@@ -20,5 +20,6 @@ case class RWFile(file: Path) extends InMemoryCachedReadable with Writeable {
 
   override def enroll(watch: Watch): Unit = {
     watch.enroll(file)
+    watch.invalidate(this)
   }
 }

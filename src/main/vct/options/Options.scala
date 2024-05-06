@@ -71,7 +71,7 @@ case object Options {
       opt[Unit]("profile")
         .action((_, c) => c.copy(profile = true))
         .text("Output profiling information in the current directory in the pprof format (https://github.com/google/pprof)"),
-      opt[Unit]("watch")
+      opt[Unit]("watch").abbr("w")
         .action((_, c) => c.copy(watch = true))
         .text("Run VerCors in an infinite loop, waiting for external changes between each run."),
 

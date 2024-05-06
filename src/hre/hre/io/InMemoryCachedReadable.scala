@@ -34,7 +34,7 @@ trait InMemoryCachedReadable extends Readable {
     linesCache.get
   }
 
-  protected def invalidate(): Unit = {
+  override def invalidate(): Unit = {
     cache = None
     linesCache = None
   }

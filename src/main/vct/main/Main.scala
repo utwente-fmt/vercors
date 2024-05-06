@@ -78,40 +78,41 @@ case object Main extends LazyLogging {
     // This causes data read between the start of reading and the interrupt to be lost.
     System.setIn(new InterruptibleInputStream(System.in))
 
-    Progress.install(options.progress, options.profile)
-
     Runtime.getRuntime.addShutdownHook(new Thread("[VerCors] Shutdown hook to abort progress on exit") {
       override def run(): Unit = Progress.abort()
     })
 
     try {
       Watch.booleanWithWatch(options.watch, default = EXIT_CODE_SUCCESS) {
-        options.mode match {
-          case Mode.Verify =>
-            logger.info(s"Starting verification at ${hre.util.Time.formatTime()}")
-            Verify.runOptions(options)
-          case Mode.HelpVerifyPasses =>
-            logger.info("Available passes:")
-            Transformation.ofOptions(options).passes.foreach { pass =>
-              logger.info(s" - ${pass.key}")
-              logger.info(s"    ${pass.desc}")
+        Progress.install(options.progress, options.profile)
+        try {
+          options.mode match {
+            case Mode.Verify =>
+              logger.info(s"Starting verification at ${hre.util.Time.formatTime()}")
+              Verify.runOptions(options)
+            case Mode.HelpVerifyPasses =>
+              logger.info("Available passes:")
+              Transformation.ofOptions(options).passes.foreach { pass =>
+                logger.info(s" - ${pass.key}")
+                logger.info(s"    ${pass.desc}")
+              }
+              EXIT_CODE_SUCCESS
+            case Mode.VeyMont => VeyMont.runOptions(options)
+            case Mode.VeSUV => {
+              logger.info("Starting transformation")
+              VeSUV.runOptions(options)
             }
-            EXIT_CODE_SUCCESS
-          case Mode.VeyMont => VeyMont.runOptions(options)
-          case Mode.VeSUV => {
-            logger.info("Starting transformation")
-            VeSUV.runOptions(options)
+            case Mode.CFG => {
+              logger.info("Starting control flow graph transformation")
+              CFG.runOptions(options)
+            }
+            case Mode.BatchTest => ???
           }
-          case Mode.CFG => {
-            logger.info("Starting control flow graph transformation")
-            CFG.runOptions(options)
-          }
-          case Mode.BatchTest => ???
+        } finally {
+          Progress.finish()
         }
       }
     } finally {
-      Progress.finish()
-
       val thisThread = Thread.currentThread()
       Thread.getAllStackTraces.keySet()
         .stream()
