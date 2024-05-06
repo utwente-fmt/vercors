@@ -22,6 +22,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.UserError
 
 import java.io.{FileNotFoundException, Reader}
+import java.nio.file.NoSuchFileException
 
 case object Resolution {
   case class InputResolutionError(errors: Seq[CheckError]) extends UserError {
@@ -57,7 +58,7 @@ case class MyLocalJavaParser(blameProvider: BlameProvider) extends Resolve.SpecE
         cjp.parseExpr[G](CharStreams.fromReader(reader, sr.fileName), false)
       }
     } catch {
-      case _: FileNotFoundException => throw FileNotFound(sr.fileName)
+      case _: FileNotFoundException | _: NoSuchFileException => throw FileNotFound(sr.fileName)
     }
     if (x._2.nonEmpty) {
       throw SpecExprParseError("...")

@@ -9,7 +9,7 @@ import vct.result.VerificationError.{Unreachable, UserError}
 
 import java.io.{FileNotFoundException, InputStreamReader, OutputStreamWriter, StringWriter}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, NoSuchFileException, Path, Paths}
 
 case object CParser {
   case class PreprocessorError(fileName: String, errorCode: Int, error: String) extends UserError {
@@ -84,6 +84,6 @@ case class ColCParser(override val origin: Origin,
         Files.delete(interpreted)
       }
     } catch {
-      case _: FileNotFoundException => throw FileNotFound(readable.fileName)
+      case _: FileNotFoundException | _: NoSuchFileException => throw FileNotFound(readable.fileName)
     }
 }
