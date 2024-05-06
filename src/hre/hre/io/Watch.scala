@@ -61,7 +61,7 @@ class Watch(val mainThread: Thread) extends LazyLogging { watch =>
 
   private var threads: Seq[Thread] = Nil
 
-  private var interrupts = 0
+  private var debounceInterrupt = true
 
   def enroll(path: Path): Unit = {
     path.getParent.register(
@@ -102,6 +102,15 @@ class Watch(val mainThread: Thread) extends LazyLogging { watch =>
     }
   }
 
+  private def disableDebounceThread() = new Thread {
+    override def run(): Unit = try {
+      Thread.sleep(1000)
+      debounceInterrupt = false
+    } catch {
+      case _: InterruptedException => // do nothing
+    }
+  }
+
   private def addThread(t: Thread): Unit = {
     threads = t +: threads
     t.setDaemon(true)
@@ -135,12 +144,14 @@ class Watch(val mainThread: Thread) extends LazyLogging { watch =>
 
     triggered = false
 
-    interrupts = 0
+    debounceInterrupt = true
   }
 
   def await(): Unit = synchronized {
     addThread(fileWatchThread())
     addThread(stdinWatchThread())
+
+    addThread(disableDebounceThread())
 
     logger.info(s"[Waiting for input files to change - press ENTER to run again manually]")
 
@@ -149,9 +160,9 @@ class Watch(val mainThread: Thread) extends LazyLogging { watch =>
         wait()
       } catch {
         case _: InterruptedException =>
-          if(interrupts == 0) {
+          if(debounceInterrupt) {
             logger.info(s"[Press Ctrl+C again to exit VerCors]")
-            interrupts = 1
+            debounceInterrupt = false
           } else {
             throw new InterruptedException()
           }

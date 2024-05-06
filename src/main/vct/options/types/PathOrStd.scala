@@ -36,7 +36,9 @@ sealed trait PathOrStd extends InMemoryCachedReadable with Writeable {
   }
 
   override def enroll(watch: Watch): Unit = this match {
-    case PathOrStd.Path(path) => watch.enroll(path)
+    case PathOrStd.Path(path) =>
+      watch.enroll(path)
+      watch.invalidate(this)
     case PathOrStd.StdInOrOut => // do nothing
   }
 }
