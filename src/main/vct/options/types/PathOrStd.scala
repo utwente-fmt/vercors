@@ -1,6 +1,6 @@
 package vct.options.types
 
-import hre.io.{InMemoryCachedReadable, Writeable}
+import hre.io.{InMemoryCachedReadable, Watch, Writeable}
 
 import java.io.{InputStreamReader, OutputStreamWriter, Reader, Writer}
 import java.nio.charset.StandardCharsets
@@ -33,6 +33,11 @@ sealed trait PathOrStd extends InMemoryCachedReadable with Writeable {
       case PathOrStd.Path(path) => Files.newBufferedWriter(path, StandardCharsets.UTF_8)
       case PathOrStd.StdInOrOut => new OutputStreamWriter(System.out, StandardCharsets.UTF_8)
     }
+  }
+
+  override def enroll(watch: Watch): Unit = this match {
+    case PathOrStd.Path(path) => watch.enroll(path)
+    case PathOrStd.StdInOrOut => // do nothing
   }
 }
 

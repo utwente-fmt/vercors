@@ -17,4 +17,8 @@ case class RWFile(file: Path) extends InMemoryCachedReadable with Writeable {
   override protected def getReaderImpl: Reader = {
     Files.newBufferedReader(file, StandardCharsets.UTF_8)
   }
+
+  override def enroll(watch: Watch): Unit = {
+    watch.enroll(file)
+  }
 }

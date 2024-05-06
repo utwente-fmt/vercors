@@ -1,6 +1,7 @@
 package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
+import hre.io.LiteralReadable
 import hre.stages.Stage
 import vct.col.ast.{AddrOf, ApplicableContract, CGlobalDeclaration, Expr, GlobalDeclaration, LlvmFunctionContract, LlvmGlobal, Program, Refute, Verification, VerificationContext}
 import org.antlr.v4.runtime.CharStreams
@@ -8,7 +9,7 @@ import vct.col.ast._
 import vct.col.check.CheckError
 import vct.col.origin.{FileSpanningOrigin, InlineBipContext, Origin, OriginFilename, ReadableOrigin}
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
-import vct.col.rewrite.{Generation}
+import vct.col.rewrite.Generation
 import vct.col.rewrite.bip.IsolateBipGlue
 import vct.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.importer.JavaLibraryLoader
@@ -41,12 +42,6 @@ case object Resolution {
     )
 }
 
-case class StringReadable(data: String, fileName: String = "<unknown>") extends hre.io.Readable {
-  override def isRereadable: Boolean = true
-
-  override protected def getReader: Reader = new java.io.StringReader(data)
-}
-
 case class SpecExprParseError(msg: String) extends UserError {
   override def code: String = "specExprParseError"
 
@@ -55,7 +50,7 @@ case class SpecExprParseError(msg: String) extends UserError {
 
 case class MyLocalJavaParser(blameProvider: BlameProvider) extends Resolve.SpecExprParser {
   override def parse[G](input: String, o: Origin): Expr[G] = {
-    val sr = StringReadable(input)
+    val sr = LiteralReadable("<string data>", input)
     val cjp = ColJavaParser(o.withContent(InlineBipContext(input)), blameProvider)
     val x = try {
       sr.read { reader =>
@@ -74,8 +69,8 @@ case class MyLocalJavaParser(blameProvider: BlameProvider) extends Resolve.SpecE
 case class MyLocalLLVMSpecParser(blameProvider: BlameProvider) extends Resolve.SpecContractParser {
   override def parse[G](input: LlvmFunctionContract[G], o: Origin): ApplicableContract[G] = {
     val originProvider = Origin(Seq(ReadableOrigin(input.o.find[OriginFilename] match {
-      case Some(OriginFilename(filename)) => StringReadable(input.value, filename)
-      case _ => StringReadable(input.value)
+      case Some(OriginFilename(filename)) => LiteralReadable(filename, input.value)
+      case _ => LiteralReadable("<unknown>", input.value)
     })))
     val charStream = CharStreams.fromString(input.value)
     ColLLVMParser(originProvider, blameProvider, null)
@@ -84,8 +79,8 @@ case class MyLocalLLVMSpecParser(blameProvider: BlameProvider) extends Resolve.S
 
   override def parse[G](input: LlvmGlobal[G], o: Origin): GlobalDeclaration[G] = {
     val originProvider = Origin(Seq(ReadableOrigin(input.o.find[OriginFilename] match {
-      case Some(OriginFilename(filename)) => StringReadable(input.value, filename)
-      case _ => StringReadable(input.value)
+      case Some(OriginFilename(filename)) => LiteralReadable(filename, input.value)
+      case _ => LiteralReadable("<unknown>", input.value)
     })))
     val charStream = CharStreams.fromString(input.value)
     ColLLVMParser(originProvider, blameProvider, null)

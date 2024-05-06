@@ -2,6 +2,7 @@ package vct.main
 
 import ch.qos.logback.classic.{Level, Logger}
 import com.typesafe.scalalogging.LazyLogging
+import hre.io.InterruptibleInputStream
 import hre.perf.Profile
 import hre.progress.Progress
 import org.slf4j.LoggerFactory
@@ -72,6 +73,10 @@ case object Main extends LazyLogging {
         case Verbosity.All => Level.ALL
       })
     }
+
+    // Make it so read calls to System.in may be interrupted with Thread.interrupt()
+    // This causes data read between the start of reading and the interrupt to be lost.
+    System.setIn(new InterruptibleInputStream(System.in))
 
     Progress.install(options.progress, options.profile)
 

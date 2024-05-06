@@ -11,6 +11,7 @@ trait Readable {
   def underlyingFile: Option[Path] = None
   def isRereadable: Boolean
   protected def getReader: Reader
+  def enroll(watch: Watch): Unit
 
   def read[T](f: Reader => T): T = {
     val r = getReader
