@@ -14,6 +14,7 @@ trait Readable {
   def enroll(watch: Watch): Unit
 
   def read[T](f: Reader => T): T = {
+    Watch.enroll(this)
     val r = getReader
     try {
       f(r)

@@ -2,7 +2,7 @@ package vct.main
 
 import ch.qos.logback.classic.{Level, Logger}
 import com.typesafe.scalalogging.LazyLogging
-import hre.io.InterruptibleInputStream
+import hre.io.{InterruptibleInputStream, Watch}
 import hre.perf.Profile
 import hre.progress.Progress
 import org.slf4j.LoggerFactory
@@ -85,27 +85,29 @@ case object Main extends LazyLogging {
     })
 
     try {
-      options.mode match {
-        case Mode.Verify =>
-          logger.info(s"Starting verification at ${hre.util.Time.formatTime()}")
-          Verify.runOptions(options)
-        case Mode.HelpVerifyPasses =>
-          logger.info("Available passes:")
-          Transformation.ofOptions(options).passes.foreach { pass =>
-            logger.info(s" - ${pass.key}")
-            logger.info(s"    ${pass.desc}")
+      Watch.booleanWithWatch(options.watch, default = EXIT_CODE_SUCCESS) {
+        options.mode match {
+          case Mode.Verify =>
+            logger.info(s"Starting verification at ${hre.util.Time.formatTime()}")
+            Verify.runOptions(options)
+          case Mode.HelpVerifyPasses =>
+            logger.info("Available passes:")
+            Transformation.ofOptions(options).passes.foreach { pass =>
+              logger.info(s" - ${pass.key}")
+              logger.info(s"    ${pass.desc}")
+            }
+            EXIT_CODE_SUCCESS
+          case Mode.VeyMont => VeyMont.runOptions(options)
+          case Mode.VeSUV => {
+            logger.info("Starting transformation")
+            VeSUV.runOptions(options)
           }
-          EXIT_CODE_SUCCESS
-        case Mode.VeyMont => VeyMont.runOptions(options)
-        case Mode.VeSUV => {
-          logger.info("Starting transformation")
-          VeSUV.runOptions(options)
+          case Mode.CFG => {
+            logger.info("Starting control flow graph transformation")
+            CFG.runOptions(options)
+          }
+          case Mode.BatchTest => ???
         }
-        case Mode.CFG => {
-          logger.info("Starting control flow graph transformation")
-          CFG.runOptions(options)
-        }
-        case Mode.BatchTest => ???
       }
     } finally {
       Progress.finish()

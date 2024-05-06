@@ -84,25 +84,26 @@ trait SilverBackend extends Backend[(silver.Program, Map[Int, col.Node[_]])] wit
       val f = Files.createTempFile("vercors-", ".sil")
       try {
         Using(Files.newBufferedWriter(f))(_.write(silverProgramString))
+
+        SilverParserDummyFrontend().parse(f) match {
+          case Left(errors) =>
+            logger.warn("Possible viper bug: silver AST does not reparse when printing as text")
+            for(error <- errors) {
+              logger.warn(error.toString)
+            }
+          case Right(reparsedProgram) =>
+            SilverTreeCompare.compare(silverProgram, reparsedProgram) match {
+              case Nil =>
+              case diffs =>
+                logger.debug("Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:")
+                for((left, right) <- diffs) {
+                  logger.debug(s" - Left: ${left.getClass.getSimpleName}: $left")
+                  logger.debug(s" - Right: ${right.getClass.getSimpleName}: $right")
+                }
+            }
+        }
       } finally {
         Files.delete(f)
-      }
-      SilverParserDummyFrontend().parse(f) match {
-        case Left(errors) =>
-          logger.warn("Possible viper bug: silver AST does not reparse when printing as text")
-          for(error <- errors) {
-            logger.warn(error.toString)
-          }
-        case Right(reparsedProgram) =>
-          SilverTreeCompare.compare(silverProgram, reparsedProgram) match {
-            case Nil =>
-            case diffs =>
-              logger.debug("Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:")
-              for((left, right) <- diffs) {
-                logger.debug(s" - Left: ${left.getClass.getSimpleName}: $left")
-                logger.debug(s" - Right: ${right.getClass.getSimpleName}: $right")
-              }
-          }
       }
 
       (silverProgram, nodeFromUniqueId)
