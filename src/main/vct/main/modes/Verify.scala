@@ -82,8 +82,7 @@ case object Verify extends LazyLogging {
           logger.error(err.text)
           EXIT_CODE_ERROR
         case Left(err: VerificationError.SystemError) =>
-          logger.error(CollectString(s => err.printStackTrace(s)))
-          EXIT_CODE_ERROR
+          throw err
         case Right((Nil, report)) =>
           if(options.skipBackend){
             logger.info("Verification skipped.")

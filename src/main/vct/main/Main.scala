@@ -8,11 +8,14 @@ import hre.progress.{Layout, Progress}
 import org.slf4j.LoggerFactory
 import scopt.OParser
 import vct.col.ast.Node
+import vct.debug.CrashReport
 import vct.main.modes.{CFG, VeSUV, Verify, VeyMont}
 import vct.main.stages.Transformation
 import vct.options.types.{Mode, Verbosity}
 import vct.options.Options
 import vct.result.VerificationError.UserError
+
+import scala.util.control.NonFatal
 
 case object Main extends LazyLogging {
   val EXIT_CODE_SUCCESS = 0
@@ -37,7 +40,20 @@ case object Main extends LazyLogging {
   def main(args: Array[String]): Unit = try {
     Options.parse(args) match {
       case None => System.exit(EXIT_CODE_ERROR)
-      case Some(options) => System.exit(runOptions(options))
+      case Some(options) =>
+        try {
+          System.exit(runOptions(options))
+        } catch {
+          case NonFatal(err) =>
+            logger.error(err.getMessage)
+            logger.error("!*!*!*!*!*!*!*!*!*!*!*!")
+            logger.error("! VerCors has crashed !")
+            logger.error("!*!*!*!*!*!*!*!*!*!*!*!")
+            logger.error("")
+            logger.error("Please report this as a bug here:")
+            logger.error(CrashReport.makeGithubLink(err, args, options))
+            System.exit(EXIT_CODE_ERROR)
+        }
     }
   } catch {
     case t: Throwable =>
@@ -99,16 +115,14 @@ case object Main extends LazyLogging {
                 logger.info(s"    ${pass.desc}")
               }
               EXIT_CODE_SUCCESS
-            case Mode.VeyMont => VeyMont.runOptions(options)
-            case Mode.VeSUV => {
+            case Mode.VeyMont =>
+              VeyMont.runOptions(options)
+            case Mode.VeSUV =>
               logger.info("Starting transformation")
               VeSUV.runOptions(options)
-            }
-            case Mode.CFG => {
+            case Mode.CFG =>
               logger.info("Starting control flow graph transformation")
               CFG.runOptions(options)
-            }
-            case Mode.BatchTest => ???
           }
         } finally {
           Progress.finish()
