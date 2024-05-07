@@ -117,13 +117,10 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
 
   def rewriteStatement(stmt: Statement[Pre]): Statement[Post] = stmt match {
     case stmt @ PVLChorStatement(endpointName, inner) =>
-      val endpoint: Option[Ref[Post, Endpoint[Post]]] = endpointName.map(_ => endpointSucc.ref(stmt.ref.get.decl))
-      // TODO: this inner block looks  a bit weird. Why is it needed?
-      val innerNew = inner match {
-        case assign: Assign[Pre] => assign.rewriteDefault()
-        case node => rw.dispatch(node)
-      }
-      ChorStatement(endpoint, innerNew)(PanicBlame("ChorStmt fail?"))(stmt.o)
+      ChorStatement[Post](
+        endpointName.map(_ => endpointSucc.ref(stmt.ref.get.decl)),
+        inner.rewriteDefault()
+      )(stmt.blame)(stmt.o)
     case _: Block[Pre] | _: Scope[Pre] => currentStatement.having(stmt) { rw.dispatch(stmt) }
     case branch: PVLBranch[Pre] => rewriteBranch(branch)
     case loop: PVLLoop[Pre] => rewriteLoop(loop)
