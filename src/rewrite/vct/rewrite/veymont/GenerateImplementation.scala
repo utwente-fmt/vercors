@@ -3,7 +3,7 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
-import vct.col.origin.{AssignLocalOk, Origin, PanicBlame}
+import vct.col.origin.{AssignLocalOk, Name, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
 import vct.col.rewrite.adt.ImportADTImporter
@@ -56,8 +56,14 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
   private val givenClassConstrSucc: SuccessionMap[Type[Pre],Procedure[Pre]] = SuccessionMap()
   val endpointLocals: SuccessionMap[Endpoint[Pre], Variable[Post]] = SuccessionMap()
 
+  // For each endpoint and input variable, there is a unique instance field (on the class of the endpoint)
+  val endpointParamFields = SuccessionMap[(Endpoint[Pre], Variable[Pre]), InstanceField[Post]]()
+  // For each endpoint and another endpoint, there is a unique instance field (on the class of the endpoint) with a reference to the second endpoint
+  val endpointPeerFields = SuccessionMap[(Endpoint[Pre], Endpoint[Pre]), InstanceField[Post]]()
+
   var program: Program[Pre] = null
   lazy val choreographies: Seq[SeqProg[Pre]] = program.declarations.collect { case chor: SeqProg[Pre] => chor }
+  lazy val allEndpoints = choreographies.flatMap { _.endpoints }
   lazy val endpointToChoreography: Map[Endpoint[Pre], SeqProg[Pre]] =
     choreographies.flatMap { chor => chor.endpoints.map(ep => (ep, chor)) }.toMap
   lazy val endpointClassToEndpoint: Map[Class[Pre], Endpoint[Pre]] =
@@ -78,15 +84,18 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
   override def dispatch(decl: Declaration[Pre]) : Unit = {
     decl match {
       case p: Procedure[Pre] => super.dispatch(p)
-      case c: Class[Pre] if isEndpointClass(c) =>
-        val chor = choreographyOf(c)
-        globalDeclarations.succeed(c, c.rewrite(
+      case cls: Class[Pre] if isEndpointClass(cls) =>
+        val chor = choreographyOf(cls)
+        val endpoint = endpointOf(cls)
+        globalDeclarations.succeed(cls, cls.rewrite(
           decls = classDeclarations.collect {
-            c.decls.foreach(dispatch)
-            generateRunMethod(chor, endpointOf(c))
+            cls.decls.foreach(dispatch)
+            generateRunMethod(chor, endpointOf(cls))
+            generateParamFields(chor)
+            generatePeerFields(chor)
           }._1
         ))
-      case c: Class[Pre] => super.dispatch(c)
+      case cls: Class[Pre] => super.dispatch(cls)
       case chor: SeqProg[Pre] =>
         currentChoreography.having(chor) {
           chor.drop()
@@ -95,11 +104,10 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
 
           chor.endpoints.foreach(endpoint => endpointLocals(endpoint) = new Variable(dispatch(endpoint.t))(endpoint.o))
 
-          val initEndpoints = Block(
-            Seq(dispatch(chor.preRun.get)) ++
+          val initEndpoints =
             chor.endpoints.map { endpoint =>
               assignLocal[Post](
-                Local[Post](endpointLocals(endpoint).ref),
+                endpointLocals(endpoint).get,
                 ConstructorInvocation[Post](
                   ref = succ(endpoint.constructor.decl),
                   classTypeArgs = endpoint.typeArgs.map(dispatch),
@@ -107,12 +115,37 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
                   outArgs = Seq(), typeArgs = Seq(), givenMap = Seq(), yields = Seq()
                 )(PanicBlame("Should be safe"))
               )
-            } ++
-            chor.endpoints.map { endpoint => Fork[Post](endpointLocals(endpoint).get)(PanicBlame("")) } ++
-            chor.endpoints.map { endpoint => Join[Post](endpointLocals(endpoint).get)(PanicBlame("")) }
-          )
+            }
 
-          val mainBody = Scope(chor.endpoints.map(endpointLocals(_)), initEndpoints)
+          // Initialize the fields on each endpoint class, representing the parameters of the choreography, and other endpoints
+          val auxFieldAssigns = chor.endpoints.flatMap { endpoint =>
+            chor.params.map { param =>
+              assignField[Post](
+                endpointLocals(endpoint).get,
+                endpointParamFields.ref((endpoint, param)),
+                Local(succ(param)),
+                blame = PanicBlame("Should be safe")
+              )
+            } ++ chor.endpoints.map { peer =>
+              assignField[Post](
+                endpointLocals(endpoint).get,
+                endpointPeerFields.ref((endpoint, peer)),
+                endpointLocals(peer).get,
+                blame = PanicBlame("Should be safe")
+              )
+            }
+          }
+
+          val forkJoins = chor.endpoints.map {
+            endpoint => Fork[Post](endpointLocals(endpoint).get)(PanicBlame(""))
+          } ++ chor.endpoints.map {
+            endpoint => Join[Post](endpointLocals(endpoint).get)(PanicBlame(""))
+          }
+
+          val mainBody = Scope(
+            chor.endpoints.map(endpointLocals(_)),
+            Block(initEndpoints ++ auxFieldAssigns ++ forkJoins)(chor.o)
+          )
 
           globalDeclarations.declare(procedure(
             args = variables.dispatch(chor.params),
@@ -138,6 +171,24 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
       contract = dispatch(run.contract)
     )(PanicBlame("")))
   }
+
+  def generateParamFields(chor: SeqProg[Pre], endpoint: Endpoint[Pre]): Unit =
+    chor.params.foreach { param =>
+      val f = new InstanceField(dispatch(param.t), Seq())(param.o.where(
+        indirect = Name.names(chor.o.getPreferredNameOrElse(), Name("p"), param.o.getPreferredNameOrElse())
+      ))
+      classDeclarations.declare(f)
+      endpointParamFields((endpoint, param)) = f
+    }
+
+  def generatePeerFields(chor: SeqProg[Pre], endpoint: Endpoint[Pre]): Unit =
+    chor.endpoints.foreach { peer =>
+      val f = new InstanceField(dispatch(peer.t), Seq())(endpoint.o.where(
+        indirect = Name.names(peer.o.getPreferredNameOrElse())
+      ))
+      classDeclarations.declare(f)
+      endpointPeerFields((endpoint, peer)) = f
+    }
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = {
     if (currentEndpoint.nonEmpty) projectStatement(statement)
@@ -166,13 +217,13 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
     case EndpointUse(Ref(endpoint)) if currentChoreography.nonEmpty && currentEndpoint.isEmpty =>
       Local[Post](endpointLocals.ref(endpoint))(expr.o)
-    case EndpointUse(Ref(endpoint)) if currentChoreography.nonEmpty && currentEndpoint.nonEmpty =>
-      if (endpoint != currentEndpoint.top) {
-//        throw new Exception("Cannot refer to other endpoints yet")
-        logger.warn("Replacing valid endpoint reference with `null`")
-        return Null()(expr.o)
-      }
-      ThisObject[Post](succ(endpoint.cls.decl))(expr.o)
+    case EndpointUse(Ref(peer)) if currentChoreography.nonEmpty && currentEndpoint.nonEmpty =>
+      val endpoint = currentEndpoint.top
+      implicit val o = expr.o
+      // TODO (RR): Also need to generate (read) permissions for all these fields!
+      Deref[Post](
+        ThisObject(succ(endpoint.cls.decl)),
+        endpointPeerFields.ref((endpoint, peer)))(PanicBlame("Shouldn't happen"))
     case _ => expr.rewriteDefault()
   }
 

@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Block, Class, Declaration, Endpoint, EndpointUse, InstanceField, Local, Program, SeqProg, Variable}
+import vct.col.ast.{Block, Class, Declaration, Endpoint, EndpointUse, Expr, InstanceField, Local, Program, SeqProg, Variable}
 import vct.col.origin.{Name, PanicBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.SuccessionMap
@@ -70,4 +70,6 @@ case class EncodeChoreographyParameters[Pre <: Generation]() extends Rewriter[Pr
       allScopes.anySucceed(cls, cls.rewrite(decls = classDeclarations.dispatch(cls.decls) ++ additionFields))
     case _ => super.dispatch(decl)
   }
+
+  override def dispatch(expr: Expr[Pre]): Expr[Post] = ???
 }
