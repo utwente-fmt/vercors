@@ -68,7 +68,7 @@ trait SilverBackend extends Backend[(silver.Program, Map[Int, col.Node[_]])] wit
           .replace("requires decreases", "decreases")
           .replace("invariant decreases", "decreases")
 
-      output.map(RWFile).foreach(_.write { writer =>
+      output.map(RWFile(_)).foreach(_.write { writer =>
         writer.write(silverProgramString)
       })
 
@@ -85,7 +85,7 @@ trait SilverBackend extends Backend[(silver.Program, Map[Int, col.Node[_]])] wit
       try {
         Using(Files.newBufferedWriter(f))(_.write(silverProgramString))
 
-        SilverParserDummyFrontend().parse(f) match {
+        SilverParserDummyFrontend().parse(RWFile(f, doWatch = false)) match {
           case Left(errors) =>
             logger.warn("Possible viper bug: silver AST does not reparse when printing as text")
             for(error <- errors) {

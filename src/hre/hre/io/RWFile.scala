@@ -4,7 +4,7 @@ import java.io.{Reader, Writer}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
-case class RWFile(file: Path) extends InMemoryCachedReadable with Writeable {
+case class RWFile(file: Path, doWatch: Boolean = true) extends InMemoryCachedReadable with Writeable {
   override def underlyingFile: Option[Path] = Some(file)
   override def fileName: String = file.toString
   override def isRereadable: Boolean = true
@@ -19,7 +19,7 @@ case class RWFile(file: Path) extends InMemoryCachedReadable with Writeable {
   }
 
   override def enroll(watch: Watch): Unit = {
-    watch.enroll(file)
+    if(doWatch) watch.enroll(file)
     watch.invalidate(this)
   }
 }

@@ -101,9 +101,11 @@ class Watch(val mainThread: Thread) extends LazyLogging { watch =>
     key.reset()
     for(event <- events) {
       val relPath = event.context().asInstanceOf[Path]
-
-      if(watchedFiles.contains(parent.resolve(relPath)) || watchedFiles.contains(parent))
+      val path = parent.resolve(relPath)
+      if(watchedFiles.contains(path) || watchedFiles.contains(parent)) {
+        logger.info(s"Path $path changed")
         return true
+      }
     }
 
     false
