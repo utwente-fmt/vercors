@@ -33,7 +33,12 @@ abstract class JavaBipSpecHelper extends VercorsSpec {
         case (expectedErr, actualErr) => s"Expected ${expectedErr.mkString(", ")}, but got ${actualErr.mkString(", ")}."
       }
 
-      val strReport = try { Right(reportPath.readToCompletion()) } catch { case e: FileNotFoundException | _: NoSuchFileException => Left(e) }
+      val strReport = try {
+        Right(reportPath.readToCompletion())
+      } catch {
+        case e: FileNotFoundException => Left(e)
+        case e: NoSuchFileException => Left(e)
+      }
       val expectedReport = strReport.flatMap(strReport => VerificationReport.fromJson(strReport)) // getOrElse(fail(s"Parse error, or could not find report at $reportPath"))
       val reportCheck = (report, expectedReport) match {
         case (_, Left(err)) => s"The expected report could not be parsed, since ${err.getMessage()}"
