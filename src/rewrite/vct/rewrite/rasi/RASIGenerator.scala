@@ -36,6 +36,8 @@ case class RASIGenerator[G]() extends LazyLogging {
 
   private def explore(node: CFGEntry[G], vars: Set[ConcreteVariable[G]], parameter_invariant: InstancePredicate[G]): Unit = {
     logger.info("Starting RASI generation")
+    val start_time: Long = System.nanoTime()
+
     val initial_state = AbstractState(get_initial_values(vars),
                                       HashMap((AbstractProcess[G](Null()(Origin(Seq()))), node)),
                                       None,
@@ -47,7 +49,7 @@ case class RASIGenerator[G]() extends LazyLogging {
 
     var i = 0
 
-    while (current_branches.nonEmpty) {
+    while (current_branches.nonEmpty /* TODO */ && i < 1000) {
       val curr: AbstractState[G] = current_branches.head
       current_branches -= curr
 
@@ -58,7 +60,10 @@ case class RASIGenerator[G]() extends LazyLogging {
       if (i % 100 == 0) logger.debug(s"Iteration $i: ${found_states.size} states found, ${current_branches.size} yet to explore")
     }
 
-    logger.info("RASI generation complete")
+    val end_time: Long = System.nanoTime()
+    logger.info(s"RASI generation complete [in ${(end_time - start_time) / 1_000_000}ms]")
+
+    // TODO: Detect which variable overapproximations are detrimental to the state space and which are not
 
     // The initial state converts to simply "true", so it would make the RASI trivial
     found_states.filterInPlace(s => s.valuations != initial_state.valuations)

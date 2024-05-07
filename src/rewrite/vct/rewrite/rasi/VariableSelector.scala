@@ -50,18 +50,22 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
       }
   }
 
-  private def free_variables(state: AbstractState[G], expr: Expr[G]): Set[ResolvableVariable[G]] = expr match {
-    case d @ Deref(_, ref) => if (state.valuations.exists(t => t._1.is_contained_by(d, state))) Set() else Set(FieldVariable(ref.decl))
-    case l @ Local(ref) => if (state.valuations.exists(t => t._1.is(l, state))) Set() else Set(LocalVariable(ref.decl))
-    case a @ AmbiguousSubscript(collection, index) => create_indexed_var_if_needed(state, a, collection, index)
-    case s @ SeqSubscript(seq, index) => create_indexed_var_if_needed(state, s, seq, index)
-    case a @ ArraySubscript(arr, index) => create_indexed_var_if_needed(state, a, arr, index)
-    case s @ Size(obj) =>
-      if (state.valuations.exists(t => t._1.is(s, state))) Set()
-      else obj match {
-        case Deref(_, ref) => Set(SizeVariable(ref.decl))
+  private def free_variables(state: AbstractState[G], expr: Expr[G]): Set[ResolvableVariable[G]] = expr.t match {
+    case _: IntType[_] | _: TBool[_] | _: TResource[_] =>
+      expr match {
+        case d @ Deref(_, ref) => if (state.valuations.exists(t => t._1.is_contained_by(d, state))) Set() else Set(FieldVariable(ref.decl))
+        case l @ Local(ref) => if (state.valuations.exists(t => t._1.is(l, state))) Set () else Set(LocalVariable(ref.decl))
+        case a @ AmbiguousSubscript(collection, index) => create_indexed_var_if_needed(state, a, collection, index)
+        case s @ SeqSubscript(seq, index) => create_indexed_var_if_needed(state, s, seq, index)
+        case a @ ArraySubscript(arr, index) => create_indexed_var_if_needed(state, a, arr, index)
+        case s @ Size(obj) =>
+          if (state.valuations.exists(t => t._1.is(s, state))) Set()
+          else obj match {
+            case Deref(_, ref) => Set(SizeVariable(ref.decl))
+          }
+        case _ => expr.subnodes.toSet[Node[G]].collect[Expr[G]]{ case e: Expr[_] => e }.flatMap(e => free_variables(state, e))
       }
-    case _ => expr.subnodes.toSet[Node[G]].collect[Expr[G]]{ case e: Expr[_] => e }.flatMap(e => free_variables(state, e))
+    case _ => Set()
   }
 
   private def create_indexed_var_if_needed(state: AbstractState[G], expr: Expr[G], collection: Expr[G], subscript: Expr[G]): Set[ResolvableVariable[G]] = {

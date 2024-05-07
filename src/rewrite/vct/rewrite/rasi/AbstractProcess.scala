@@ -14,16 +14,22 @@ case class AbstractProcess[G](obj: Expr[G]) {
    * @return A description of all reachable post-states
    */
   def atomic_step(starting_state: AbstractState[G]): RASISuccessor[G] = {
-    var (atomic, states): (Boolean, RASISuccessor[G]) = small_step(starting_state.processes(this), starting_state)
-    while (atomic) {
-      val next: Set[(Boolean, RASISuccessor[G])] = states.successors.map(s => small_step_if_atomic(s))
-      atomic = next.exists(t => t._1)
-      val next_states: Set[RASISuccessor[G]] = next.map(s => s._2)
-      val variables: Set[ConcreteVariable[G]] = states.deciding_variables ++ next_states.flatMap(s => s.deciding_variables)
-      val successors: Set[AbstractState[G]] = next_states.flatMap(s => s.successors)
-      states = RASISuccessor(variables, successors)
+    val (atomic, successor): (Boolean, RASISuccessor[G]) = small_step(starting_state.processes(this), starting_state)
+
+    var end_states: Set[AbstractState[G]] = if (!atomic) successor.successors else Set.empty[AbstractState[G]]
+    var intermediate: Set[AbstractState[G]] = if (atomic) successor.successors else Set.empty[AbstractState[G]]
+
+    var variables: Set[ConcreteVariable[G]] = successor.deciding_variables
+
+    while (intermediate.nonEmpty) {
+      val next: Set[(Boolean, RASISuccessor[G])] = intermediate.map(s => small_step_if_atomic(s))
+
+      variables ++= next.map(s => s._2).flatMap(s => s.deciding_variables)
+      end_states ++= next.filter(s => !s._1).map(s => s._2).flatMap(s => s.successors)
+      intermediate = next.filter(s => s._1).map(s => s._2).flatMap(s => s.successors)
     }
-    states
+
+    RASISuccessor(variables, end_states)
   }
 
   /**
