@@ -3,7 +3,11 @@ package hre.io
 import com.typesafe.scalalogging.LazyLogging
 import sun.misc.{Signal, SignalHandler}
 
-import java.nio.file.{ClosedWatchServiceException, FileSystem, FileSystems, Path, StandardWatchEventKinds, WatchEvent, WatchService}
+import java.nio.file.{ClosedWatchServiceException, FileSystem, FileSystems, Path, StandardWatchEventKinds, WatchEvent, WatchKey, WatchService}
+import java.util.concurrent.TimeUnit
+import scala.collection.mutable
+import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.util.control.Breaks.{break, breakable}
 
 /**
  * Watch facilitates that VerCors can automatically re-run when external input
@@ -53,7 +57,9 @@ object Watch {
 }
 
 class Watch(val mainThread: Thread) extends LazyLogging { watch =>
-  private var fileWatchService = FileSystems.getDefault.newWatchService()
+  private val watchServices = mutable.Map[FileSystem, WatchService]()
+  private val watchedDirs = mutable.Set[Path]()
+  private val watchedFiles = mutable.Set[Path]()
 
   private var toInvalidate: Seq[Readable] = Nil
 
@@ -63,22 +69,68 @@ class Watch(val mainThread: Thread) extends LazyLogging { watch =>
 
   private var debounceInterrupt = true
 
-  def enroll(path: Path): Unit = {
-    path.getParent.register(
-      fileWatchService,
-      StandardWatchEventKinds.ENTRY_CREATE,
-      StandardWatchEventKinds.ENTRY_DELETE,
-      StandardWatchEventKinds.ENTRY_MODIFY,
-    )
+  def watchCount: Int =
+    watchedFiles.size
+
+  def enroll(dirtyPath: Path): Unit = {
+    val path = dirtyPath.toAbsolutePath.normalize()
+    val parent = Option(path.getParent).getOrElse(path)
+    if(!watchedDirs.contains(parent)) {
+      watchedDirs += parent
+      val fs = parent.getFileSystem
+      val ws = watchServices.getOrElseUpdate(fs, fs.newWatchService())
+      parent.register(
+        ws,
+        StandardWatchEventKinds.ENTRY_CREATE,
+        StandardWatchEventKinds.ENTRY_DELETE,
+        StandardWatchEventKinds.ENTRY_MODIFY,
+      )
+    }
+
+    watchedFiles += path
   }
 
   def invalidate(readable: Readable): Unit = {
     toInvalidate = readable +: toInvalidate
   }
 
+  private def isWatchedFile(key: WatchKey): Boolean = {
+    val parent = key.watchable().asInstanceOf[Path]
+    val events = key.pollEvents().asScala.toSeq
+    logger.warn(s"Events: ${events.map(_.context()).mkString(", ")}")
+    key.reset()
+    for(event <- events) {
+      val relPath = event.context().asInstanceOf[Path]
+
+      if(watchedFiles.contains(parent.resolve(relPath)) || watchedFiles.contains(parent))
+        return true
+    }
+
+    false
+  }
+
   private def fileWatchThread() = new Thread {
     override def run(): Unit = try {
-      fileWatchService.take()
+      watchServices.values.toSeq match {
+        case Nil => return
+        case Seq(ws) =>
+          // Typical: normally all plain files belong to one file system.
+          while(!isWatchedFile(ws.take())) {}
+        case watchServices =>
+          breakable {
+            while (true) {
+              // We spend approximately 0.1s per pass over all [[WatchService]]s
+              for (ws <- watchServices) {
+                val key = Option(ws.poll(100_000 / watchServices.size, TimeUnit.MICROSECONDS))
+
+                key match {
+                  case Some(key) if isWatchedFile(key) => break()
+                  case _ => // continue
+                }
+              }
+            }
+          }
+      }
       watch.signal()
     } catch {
       case _: InterruptedException => // do nothing
@@ -113,6 +165,7 @@ class Watch(val mainThread: Thread) extends LazyLogging { watch =>
 
   private def addThread(t: Thread): Unit = {
     threads = t +: threads
+    t.setName("[VerCors] Watch loop")
     t.setDaemon(true)
     t.start()
   }
@@ -123,8 +176,13 @@ class Watch(val mainThread: Thread) extends LazyLogging { watch =>
   }
 
   private def reset(): Unit = {
-    fileWatchService.close()
-    fileWatchService = FileSystems.getDefault.newWatchService()
+    for(ws <- watchServices.values) {
+      ws.close()
+    }
+
+    watchServices.clear()
+    watchedDirs.clear()
+    watchedFiles.clear()
 
     for(inv <- toInvalidate) {
       inv.invalidate()
@@ -153,7 +211,7 @@ class Watch(val mainThread: Thread) extends LazyLogging { watch =>
 
     addThread(disableDebounceThread())
 
-    logger.info(s"[Waiting for input files to change - press ENTER to run again manually]")
+    logger.info(s"[Waiting for ${watchedFiles.mkString("[", ", ", "]")} to change - press ENTER to run again manually]")
 
     while(!triggered) {
       try {
