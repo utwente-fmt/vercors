@@ -3,7 +3,7 @@ package hre.perf
 import com.google.perftools
 import com.google.perftools.profiles.{Sample, ValueType}
 
-import java.io.FileOutputStream
+import java.nio.file.{Files, Paths}
 import java.util.zip.GZIPOutputStream
 import scala.collection.mutable
 
@@ -16,8 +16,10 @@ case object Profile {
   def update(stack: Seq[String], ownUsage: ResourceUsage, doUpdateChildUsage: Boolean): Unit =
     currentProfile.foreach(_.update(stack, ownUsage, doUpdateChildUsage))
 
-  def finish(): Unit =
+  def finish(): Unit = {
     currentProfile.foreach(_.finish())
+    currentProfile = None
+  }
 }
 
 case class Profile() {
@@ -82,7 +84,7 @@ case class Profile() {
       timeNanos = epochStartNanos,
       defaultSampleType = builder.str("agg"),
     )
-    val out = new GZIPOutputStream(new FileOutputStream("profile.pprof.gz"))
+    val out = new GZIPOutputStream(Files.newOutputStream(Paths.get("profile.pprof.gz")))
     result.writeTo(out)
     out.close()
   }

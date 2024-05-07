@@ -34,7 +34,7 @@ case object Utils {
 
   def print[G](states: Seq[AbstractState[G]], edges: Seq[(AbstractState[G], AbstractState[G])], out: Path): Unit = {
     val node_names: Map[AbstractState[G], String] = Map.from(states.zipWithIndex.map(t => (t._1, s"n${t._2}")))
-    RWFile(out.toFile).write(w => print_state_space(node_names, edges, w, states.head.to_expression.toInlineString.length > 50))
+    RWFile(out).write(w => print_state_space(node_names, edges, w, states.head.to_expression.toInlineString.length > 50))
   }
 
   private def print_state_space[G](names: Map[AbstractState[G], String],

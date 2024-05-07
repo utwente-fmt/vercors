@@ -1,14 +1,13 @@
 package viper.api.transform
 
-import hre.io.Readable
+import hre.io.{RWFile, Readable}
 import viper.silver.ast.Program
 import viper.silver.frontend.{DefaultStates, SilFrontend, SilFrontendConfig}
 import viper.silver.reporter.Reporter
 import viper.silver.verifier.{AbstractError, Verifier}
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Path, Paths}
 import scala.annotation.nowarn
-import scala.io.Source
 
 // We can only refactor this once silver starts using trait parameters (or the suggested workaround)
 // So we silence the warning because it is not useful.
@@ -43,7 +42,7 @@ case class SilverParserDummyFrontend() extends {
   }
 
   def parse(path: Path): Either[Seq[AbstractError], Program] =
-    parse(Source.fromInputStream(Files.newInputStream(path)).mkString, path)
+    parse(RWFile(path).readToCompletion(), path)
 
   def parse(readable: Readable): Either[Seq[AbstractError], Program] =
     parse(readable.readToCompletion(), Paths.get(readable.fileName))

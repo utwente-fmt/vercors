@@ -1,26 +1,22 @@
 package vct.col.resolve.lang
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.io.RWFile
 import hre.util.FuncTools
-import vct.col.ast.lang.java.JavaAnnotationEx
 import vct.col.ast.`type`.typeclass.TFloats
-import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, BipPortType, Block, CType, EmptyProcess, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaModifier, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, JavaWildcard, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Node, Null, OptNone, PVLType, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TProverType, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
+import vct.col.ast.lang.java.JavaAnnotationEx
+import vct.col.ast.{ApplicableContract, AxiomaticDataType, BipPortType, Block, EmptyProcess, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaModifier, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaVariableDeclaration, JavaWildcard, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Node, Null, OptNone, TAnyClass, TArray, TBag, TBool, TChar, TClass, TEnum, TFloat, TInt, TMap, TModel, TNotAValue, TNull, TOption, TPointer, TProcess, TRational, TRef, TSeq, TSet, TString, TUnion, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
 import vct.col.origin._
 import vct.col.ref.Ref
+import vct.col.resolve.Resolve.{getLit, isBip}
 import vct.col.resolve.ResolveTypes.JavaClassPathEntry
 import vct.col.resolve._
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
-import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipTransition}
-import vct.col.resolve.Resolve.{getLit, isBip}
-import vct.result.VerificationError.{Unreachable, UserError}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{Unreachable, UserError}
 
-import java.io.File
-import java.lang.reflect.{Modifier, Parameter, TypeVariable}
 import java.lang.reflect
+import java.lang.reflect.{Modifier, Parameter, TypeVariable}
 import java.nio.file.Path
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -273,11 +269,11 @@ case object Java extends LazyLogging {
               ns <- ctx.namespace
               readable <- Some(ns.o.find[ReadableOrigin].get.readable)
               file <- readable.underlyingFile
-              baseFile <- ns.pkg.getOrElse(JavaName(Nil)).names.foldRight[Option[File]](Option(file.getParentFile)) {
-                case (name, Some(file)) if file.getName == name => Option(file.getParentFile)
+              baseFile <- ns.pkg.getOrElse(JavaName(Nil)).names.foldRight[Option[Path]](Option(file.getParent)) {
+                case (name, Some(file)) if file.getFileName.toString == name => Option(file.getParent)
                 case _ => None
               }
-            } yield baseFile.toPath
+            } yield baseFile
           case JavaClassPathEntry.Path(root) => Some(root)
         }
 

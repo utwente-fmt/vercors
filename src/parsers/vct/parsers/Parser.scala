@@ -8,6 +8,7 @@ import vct.parsers.transform.{BlameProvider, OriginProvider}
 import vct.result.VerificationError.UserError
 
 import java.io.FileNotFoundException
+import java.nio.file.NoSuchFileException
 import scala.jdk.CollectionConverters._
 
 abstract class Parser(val origin: Origin, val blameProvider: BlameProvider) {
@@ -74,6 +75,6 @@ abstract class Parser(val origin: Origin, val blameProvider: BlameProvider) {
         parse(CharStreams.fromReader(reader, readable.fileName))
       }
     } catch {
-      case _: FileNotFoundException => throw FileNotFound(readable.fileName)
+      case _: FileNotFoundException | _: NoSuchFileException => throw FileNotFound(readable.fileName)
     }
 }

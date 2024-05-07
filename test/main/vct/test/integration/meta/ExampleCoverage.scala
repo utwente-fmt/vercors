@@ -64,7 +64,7 @@ class ExampleCoverage extends AnyFlatSpec {
       new WandSpec(),
     )
 
-    val testedFiles = specs.flatMap(_.coveredExamples).map(_.toFile).toSet
+    val testedFiles = specs.flatMap(_.coveredExamples).toSet
 
     var shouldFail = false
 

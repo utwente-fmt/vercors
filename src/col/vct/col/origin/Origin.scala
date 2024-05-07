@@ -5,12 +5,8 @@ import hre.io.{LiteralReadable, Readable}
 import vct.result.HasContext
 import vct.result.Message.HR
 
-import java.io.{Reader, StringReader}
-import java.nio.file.Paths
-import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
-import scala.util.Try
 
 case object Origin {
 
@@ -458,14 +454,4 @@ case class BlameCollector() extends Blame[VerificationFailure] {
 
   override def blame(error: VerificationFailure): Unit =
     errs += error
-}
-
-case object RedirectOrigin {
-  case class StringReadable(data: String, fileName:String="<unknown filename>") extends Readable {
-    override def isRereadable: Boolean = true
-
-    override protected def getReader: Reader =
-      new StringReader(data)
-  }
-
 }
