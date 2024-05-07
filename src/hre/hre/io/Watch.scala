@@ -97,13 +97,11 @@ class Watch(val mainThread: Thread) extends LazyLogging { watch =>
   private def isWatchedFile(key: WatchKey): Boolean = {
     val parent = key.watchable().asInstanceOf[Path]
     val events = key.pollEvents().asScala.toSeq
-    logger.warn(s"Events: ${events.map(_.context()).mkString(", ")}")
     key.reset()
     for(event <- events) {
       val relPath = event.context().asInstanceOf[Path]
       val path = parent.resolve(relPath)
       if(watchedFiles.contains(path) || watchedFiles.contains(parent)) {
-        logger.info(s"Path $path changed")
         return true
       }
     }
@@ -213,7 +211,7 @@ class Watch(val mainThread: Thread) extends LazyLogging { watch =>
 
     addThread(disableDebounceThread())
 
-    logger.info(s"[Waiting for ${watchedFiles.mkString("[", ", ", "]")} to change - press ENTER to run again manually]")
+    logger.info(s"[Waiting for $watchCount external inputs to change - press ENTER to run again manually]")
 
     while(!triggered) {
       try {
