@@ -145,10 +145,11 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
   }
 
   def projectStatement(statement: Statement[Pre]): Statement[Post] = statement match {
-    case ChorStatement(None, statement) =>
-//      throw new Exception("Something smart needs to happen here. Probably infer and don't leave any none's in the final choreography!")
-      logger.warn("Keeping statement without endpoint")
-      statement.rewriteDefault()
+    // Whitelist statements that do not need an endpoint context
+    case ChorStatement(None, statement) => statement match {
+      case _: Branch[Pre] | _: Loop[Pre] => projectStatement(statement)
+      case _ => throw new Exception("Encountered ChorStatement without endpoint context")
+    }
     case ChorStatement(Some(Ref(endpoint)), inner) if endpoint == currentEndpoint.top => inner match {
       case assign: Assign[Pre] => assign.rewriteDefault()
       case eval: Eval[Pre] => eval.rewriteDefault()
@@ -168,13 +169,16 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
     case EndpointUse(Ref(endpoint)) if currentChoreography.nonEmpty && currentEndpoint.nonEmpty =>
       if (endpoint != currentEndpoint.top) {
 //        throw new Exception("Cannot refer to other endpoints yet")
+        logger.warn("Replacing valid endpoint reference with `null`")
         return Null()(expr.o)
       }
       ThisObject[Post](succ(endpoint.cls.decl))(expr.o)
     case _ => expr.rewriteDefault()
   }
 
+  //
   // Old code after this
+  //
 
   private def dispatchThread(thread: Endpoint[Pre]): Unit = {
     if (threadBuildingBlocks.nonEmpty) {

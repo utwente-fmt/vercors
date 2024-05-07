@@ -8,7 +8,16 @@ import vct.col.print.{Ctx, Doc, Line, Text}
 import vct.col.ref.Ref
 
 trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] { this: ChorStatement[G] =>
-  assert(!inner.isInstanceOf[ChorStatement[_]])
+  assert(wellformed)
+  def wellformed: Boolean = inner match {
+    // ChorStatement should not be nested, and is transparent w.r.t some statements.
+    // Proper encoding & filtering of this should happen in LangVeymontToCol
+    case _: Block[G] | _: Scope[G] | _: Branch[G] | _: Loop[G] | _: ChorStatement[G] => false
+    // Communicate consists of two statements (send & receive) for which each should easily resolve to an endpoint,
+    // so it also shouldn't be put in a chorstmt
+    case _: Communicate[G] => false
+    case _ => true
+  }
 
   override def layout(implicit ctx: Ctx): Doc =
     (endpoint match {

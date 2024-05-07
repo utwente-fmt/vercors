@@ -102,16 +102,12 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
       SeqRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
   }
 
-  def rewriteChorStatement(s: PVLChorStatement[Pre]): ChorStatement[Post] = s.inner match {
-    case assign: Assign[Pre] =>
-      ChorStatement[Post](Some(endpointSucc.ref(s.assign.endpoint.get)), assign.rewriteDefault())(s.blame)(s.o)
-    case _ => ChorStatement(None, s.inner.rewriteDefault())(s.blame)(s.o)
-  }
-
-  def rewriteAssign(assign: Assign[Pre]): Statement[Post] = {
-    if (allowAssign) assign.rewriteDefault()
-    else throw AssignNotAllowed(assign)
-  }
+  // TODO: This is now done by inferendpointctxs, but some tests might break I think... Might need it later?
+//  def rewriteChorStatement(s: PVLChorStatement[Pre]): ChorStatement[Post] = s.inner match {
+//    case assign: Assign[Pre] =>
+//      ChorStatement[Post](Some(endpointSucc.ref(s.assign.endpoint.get)), assign.rewriteDefault())(s.blame)(s.o)
+//    case _ => ChorStatement(None, s.inner.rewriteDefault())(s.blame)(s.o)
+//  }
 
   def rewriteBranch(branch: PVLBranch[Pre]): UnresolvedSeqBranch[Post] =
     UnresolvedSeqBranch(branch.branches.map { case (e, s) => (rw.dispatch(e), rw.dispatch(s)) })(branch.blame)(branch.o)
@@ -120,17 +116,20 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
     UnresolvedSeqLoop(rw.dispatch(loop.cond), rw.dispatch(loop.contract), rw.dispatch(loop.body))(loop.blame)(loop.o)
 
   def rewriteStatement(stmt: Statement[Pre]): Statement[Post] = stmt match {
-    case assign: Assign[Pre] =>
-      ChorStatement[Post](None, assign.rewriteDefault())(PanicBlame("Assign blame missing?"))(stmt.o)
     case stmt @ PVLChorStatement(endpointName, inner) =>
       val endpoint: Option[Ref[Post, Endpoint[Post]]] = endpointName.map(_ => endpointSucc.ref(stmt.ref.get.decl))
+      // TODO: this inner block looks  a bit weird. Why is it needed?
       val innerNew = inner match {
         case assign: Assign[Pre] => assign.rewriteDefault()
         case node => rw.dispatch(node)
       }
       ChorStatement(endpoint, innerNew)(PanicBlame("ChorStmt fail?"))(stmt.o)
+    case _: Block[Pre] | _: Scope[Pre] => currentStatement.having(stmt) { rw.dispatch(stmt) }
+    case branch: PVLBranch[Pre] => rewriteBranch(branch)
+    case loop: PVLLoop[Pre] => rewriteLoop(loop)
+    case comm: PVLCommunicate[Pre] => rewriteCommunicate(comm)
     case stmt => currentStatement.having(stmt) {
-      rw.dispatch(stmt)
+      ChorStatement(None, rw.dispatch(stmt))(PanicBlame("Arbitratry statement blame missing"))(stmt.o)
     }
   }
 }

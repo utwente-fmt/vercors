@@ -26,7 +26,7 @@ import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
 import vct.rewrite.{EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, MonomorphizeClass, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeChannels, EncodeChoreographyParameters, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateImplementation, GenerateSeqProgPermissions, SplitSeqGuards}
+import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeChannels, EncodeChoreographyParameters, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateImplementation, GenerateSeqProgPermissions, InferEndpointContexts, SplitSeqGuards}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
@@ -122,8 +122,8 @@ class Transformation
           case (key, action) => if (pass.key == key) action(result)
         }
 
-        try {
-          result = pass().dispatch(result)
+        val nextResult = try {
+          pass().dispatch(result)
         } catch {
           case c @ CauseWithBadEffect(effect) =>
             logger.error(s"An error occurred in pass ${pass.key}")
@@ -131,15 +131,17 @@ class Transformation
         }
 
         onAfterPassKey.foreach {
-          case (key, action) => if (pass.key == key) action(result)
+          case (key, action) => if (pass.key == key) action(nextResult)
         }
 
-        result.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
+        nextResult.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
           case Nil => // ok
           case errors => throw TransformationCheckError(pass, errors)
         }
 
-        result = PrettifyBlocks().dispatch(result)
+        val nextNextResult = PrettifyBlocks().dispatch(nextResult)
+
+        result = nextNextResult
       }
 
       for ((feature, examples) <- Feature.examples(result)) {
@@ -206,6 +208,7 @@ case class SilverTransformation
     SplitSeqGuards,
     EncodeUnpointedGuard,
     DeduplicateSeqGuards,
+    InferEndpointContexts,
     GenerateSeqProgPermissions.withArg(veymontGeneratePermissions),
     EncodeSeqBranchUnanimity,
     EncodeSeqProg,
@@ -330,6 +333,7 @@ case class VeyMontImplementationGeneration(importer: ImportADTImporter = PathAdt
     DeduplicateSeqGuards,
     EncodeChannels.withArg(importer),
     EncodeChoreographyParameters,
+    InferEndpointContexts,
     GenerateImplementation
   ))
 

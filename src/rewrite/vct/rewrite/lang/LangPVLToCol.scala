@@ -126,15 +126,9 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
   }
 
   def branch(branch: PVLBranch[Pre]): Statement[Post] =
-    if (rw.veymont.currentProg.nonEmpty) {
-      rw.veymont.rewriteBranch(branch)
-    } else {
-      Branch(branch.branches.map { case (e, s) => (rw.dispatch(e), rw.dispatch(s)) })(branch.o)
-    }
+    Branch(branch.branches.map { case (e, s) => (rw.dispatch(e), rw.dispatch(s)) })(branch.o)
 
   def loop(loop: PVLLoop[Pre]): Statement[Post] = loop match {
-    case PVLLoop(Block(Nil), _, Block(Nil), _, _) if rw.veymont.currentProg.nonEmpty =>
-      rw.veymont.rewriteLoop(loop)
     case PVLLoop(init, cond, update, contract, body) =>
       Loop(rw.dispatch(init), rw.dispatch(cond), rw.dispatch(update), rw.dispatch(contract), rw.dispatch(body))(loop.o)
   }
