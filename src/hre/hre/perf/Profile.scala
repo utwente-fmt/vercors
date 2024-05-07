@@ -16,8 +16,10 @@ case object Profile {
   def update(stack: Seq[String], ownUsage: ResourceUsage, doUpdateChildUsage: Boolean): Unit =
     currentProfile.foreach(_.update(stack, ownUsage, doUpdateChildUsage))
 
-  def finish(): Unit =
+  def finish(): Unit = {
     currentProfile.foreach(_.finish())
+    currentProfile = None
+  }
 }
 
 case class Profile() {

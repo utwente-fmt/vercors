@@ -4,7 +4,7 @@ import ch.qos.logback.classic.{Level, Logger}
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.{InterruptibleInputStream, Watch}
 import hre.perf.Profile
-import hre.progress.Progress
+import hre.progress.{Layout, Progress}
 import org.slf4j.LoggerFactory
 import scopt.OParser
 import vct.col.ast.Node
@@ -74,6 +74,8 @@ case object Main extends LazyLogging {
       })
     }
 
+    Layout.install(options.progress)
+
     // Make it so read calls to System.in may be interrupted with Thread.interrupt()
     // This causes data read between the start of reading and the interrupt to be lost.
     System.setIn(new InterruptibleInputStream(System.in))
@@ -84,7 +86,7 @@ case object Main extends LazyLogging {
 
     try {
       Watch.booleanWithWatch(options.watch, default = EXIT_CODE_SUCCESS) {
-        Progress.install(options.progress, options.profile)
+        Progress.install(options.profile)
         try {
           options.mode match {
             case Mode.Verify =>
