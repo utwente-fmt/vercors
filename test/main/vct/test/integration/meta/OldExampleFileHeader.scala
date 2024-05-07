@@ -9,7 +9,7 @@ class OldExampleFileHeader extends AnyFlatSpec {
     // PB TODO: We should clean up the example description at some point, but it's not a big priority.
     cancel()
 
-    val wrongFiles = ExampleFiles.FILES.map(RWFile).filter(_.readLines().exists(_.stripLeading().startsWith("//::")))
+    val wrongFiles = ExampleFiles.FILES.map(RWFile(_)).filter(_.readLines().exists(_.stripLeading().startsWith("//::")))
 
     for(f <- wrongFiles) {
       println(s"File ${f.fileName} contains a line starting with `//::`. This is the old syntax to enter a file into the test suite, but this is no longer used.")
