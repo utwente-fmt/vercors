@@ -78,7 +78,7 @@ case class ColCPPParser(override val origin: Origin,
           throw PreprocessorError(readable.fileName, process.exitValue(), writer.toString)
         }
 
-        val ireadable = RWFile(interpreted)
+        val ireadable = RWFile(interpreted, doWatch = false)
         val result = ColIPPParser(Origin(Seq(ReadableOrigin(ireadable))), blameProvider, Some(origin)).parse[G](ireadable)
         result
       } finally {
