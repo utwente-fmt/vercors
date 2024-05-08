@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Access, Assert, Assign, Block, ChorStatement, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, Choreography, ChorRun, Statement, Subject, TClass, TVoid, ThisSeqProg, Variable}
+import vct.col.ast.{Access, Assert, Assign, Block, ChorStatement, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, Choreography, ChorRun, Statement, Subject, TClass, TVoid, ThisChoreography, Variable}
 import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssertFailed, AssignFailed, AssignLocalOk, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, ParticipantsNotDistinct, PostconditionFailed, PreconditionFailed, ChorAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -229,7 +229,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
       Local[Post](endpointSucc((mode, endpoint)).ref)(expr.o)
     case (mode, Local(Ref(v))) if mode != Top && currentProg.top.params.contains(v) =>
       Local[Post](variableSucc((mode, v)).ref)(expr.o)
-    case (mode, invocation @ MethodInvocation(ThisSeqProg(_), Ref(method), args, _, _, _, _)) if mode != Top =>
+    case (mode, invocation @ MethodInvocation(ThisChoreography(_), Ref(method), args, _, _, _, _)) if mode != Top =>
       implicit val o = invocation.o
       val prog = currentProg.top
       assert(args.isEmpty)

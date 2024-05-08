@@ -1361,8 +1361,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         Then(value, post)
       case ThisModel(ref) =>
         ThisModel(ref)
-      case ThisSeqProg(ref) =>
-        ThisSeqProg(ref)
+      case ThisChoreography(ref) =>
+        ThisChoreography(ref)
       case ThisObject(ref) =>
         ThisObject(ref)
       case TupGet(tup, index) =>

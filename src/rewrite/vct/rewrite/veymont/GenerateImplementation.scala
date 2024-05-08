@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, ChorGuard, Choreography, ChorRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, ChorGuard, Choreography, ChorRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisChoreography, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
 import vct.col.origin.{AssignLocalOk, Name, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -567,7 +567,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
   private def paralleliseMethodInvocation(st: Statement[Pre], thread: Endpoint[Pre], expr: Expr[Pre]): Statement[Post] = {
     expr match {
       case m: MethodInvocation[Pre] => m.obj match {
-        case _: ThisSeqProg[Pre] => Eval(m.rewrite(obj = ThisObject(threadClassSucc.ref[Post, Class[Post]](thread))(thread.o), ref = threadMethodSucc.ref[Post, InstanceMethod[Post]]((thread, m.ref.decl))))(st.o)
+        case _: ThisChoreography[Pre] => Eval(m.rewrite(obj = ThisObject(threadClassSucc.ref[Post, Class[Post]](thread))(thread.o), ref = threadMethodSucc.ref[Post, InstanceMethod[Post]]((thread, m.ref.decl))))(st.o)
         case d: EndpointUse[Pre] => if (d.ref.decl == thread) Eval(dispatch(expr))(st.o) else Block(Seq.empty)(st.o)
         case _ => throw ParalleliseEndpointsError(st, "Statement not allowed in seq_program")
       }

@@ -1,6 +1,6 @@
 package vct.col.ast.statement.veymont
 
-import vct.col.ast.{Assert, Assign, Assume, Block, Branch, ChorStatement, Communicate, CommunicateX, Deref, Endpoint, EndpointUse, Eval, Expr, Loop, MethodInvocation, Scope, ChorBranch, ChorLoop, ThisSeqProg, UnresolvedChorBranch, UnresolvedChorLoop, VeyMontAssignExpression}
+import vct.col.ast.{Assert, Assign, Assume, Block, Branch, ChorStatement, Communicate, CommunicateX, Deref, Endpoint, EndpointUse, Eval, Expr, Loop, MethodInvocation, Scope, ChorBranch, ChorLoop, ThisChoreography, UnresolvedChorBranch, UnresolvedChorLoop, VeyMontAssignExpression}
 import vct.col.ast.ops.ChorStatementOps
 import vct.col.ast.statement.StatementImpl
 import vct.col.check.{CheckContext, CheckError, SeqProgInvocation, SeqProgNoParticipant, SeqProgParticipant, SeqProgStatement}
@@ -35,7 +35,7 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] { t
 
     def check(chorStmt: ChorStatement[G], node: Eval[G], context: CheckContext[G]): Seq[CheckError] = (context.currentSeqProg, node.expr) match {
       case (None, _) => Seq()
-      case (Some(_), MethodInvocation(ThisSeqProg(_), _, _, _, _, _, _)) => Seq()
+      case (Some(_), MethodInvocation(ThisChoreography(_), _, _, _, _, _, _)) => Seq()
       case (Some(_), MethodInvocation(e, _, _, _, _, _, _)) if rootEndpoint(e).isDefined => Seq()
       case _ => Seq(SeqProgInvocation(node))
     }

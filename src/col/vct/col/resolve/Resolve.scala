@@ -291,12 +291,12 @@ case object ResolveReferences extends LazyLogging {
       .declare(adt.declarations)
       .appendTypeEnv(adt.typeArgs.map(v => (v, TVar[G](v.ref))).toMap)
     case seqProg: Choreography[G] => ctx
-      .copy(currentThis = Some(RefSeqProg(seqProg)))
+      .copy(currentThis = Some(RefChoreography(seqProg)))
       .declare(seqProg.decls)
       .declare(seqProg.endpoints)
       .declare(seqProg.params)
     case seqProg: PVLChoreography[G] => ctx
-      .copy(currentThis = Some(RefPVLSeqProg(seqProg)))
+      .copy(currentThis = Some(RefPVLChoreography(seqProg)))
       .declare(seqProg.args)
       .declare(seqProg.declarations)
     case method: JavaMethod[G] => ctx

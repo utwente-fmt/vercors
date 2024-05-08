@@ -75,7 +75,7 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
   private def checkMethodCall(st: Statement[Pre], expr: Expr[Pre]): Statement[Post] = {
     expr match {
       case MethodInvocation(obj, _, args, _, _, _, _) => obj match {
-        case ThisSeqProg(_) =>
+        case ThisChoreography(_) =>
           if (args.isEmpty) rewriteDefault(st)
           else throw VeyMontStructCheckError(st, "Calls to methods in seq_program cannot have any arguments!")
         case EndpointUse(thread) => ???

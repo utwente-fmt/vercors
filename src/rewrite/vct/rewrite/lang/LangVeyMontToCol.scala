@@ -65,7 +65,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
 
   def rewriteSeqProg(prog: PVLChoreography[Pre]): Unit = {
     implicit val o: Origin = prog.o
-    rw.currentThis.having(ThisSeqProg[Post](seqProgSucc.ref(prog))) {
+    rw.currentThis.having(ThisChoreography[Post](seqProgSucc.ref(prog))) {
       currentProg.having(prog) {
         seqProgSucc(prog) = rw.globalDeclarations.declare(
           new Choreography(
