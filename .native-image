@@ -3,9 +3,11 @@ out/vercors/main/assembly.dest/out.jar
 -o
 vercors-native
 --no-fallback
+-H:+StaticExecutableWithDynamicLibC
 --parallelism=8
 --initialize-at-build-time=
 
+-H:JNIConfigurationFiles=conf/jni-config.json
 -H:ReflectionConfigurationFiles=conf/reflect-config.json
 --initialize-at-run-time=com.sun.jna.platform.win32
 --initialize-at-run-time=scala.util.Random$
@@ -14,4 +16,3 @@ vercors-native
 
 --initialize-at-run-time=viper.silicon.state.terms.predef$
 --initialize-at-run-time=viper.silicon.rules.moreCompleteExhaleSupporter$
---trace-object-instantiation=com.sun.jna.internal.Cleaner$CleanerThread
