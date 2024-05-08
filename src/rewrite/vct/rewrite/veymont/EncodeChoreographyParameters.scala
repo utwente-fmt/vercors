@@ -14,6 +14,14 @@ object EncodeChoreographyParameters extends RewriterBuilder {
   override def desc: String = "Encode choreography parameters as fields on all endpoint types."
 }
 
+/**
+ * This is a rewrite that encodes choreography parameters as endpoint fields in a separate class. It was abandoned because
+ * the connection between parameters and the respective fields in each endpoint class is lost between this pass and the generateImplementation pass.
+ * For that reason I decided to move this concern into the GenerateImplementation pass, as all information necessary
+ * is available there, at the cost of additional complexity in the rewrite.
+ *
+ * Can probably be deleted once the veymont artefact is in a finished state.
+ */
 case class EncodeChoreographyParameters[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   val currentSeqProg = ScopedStack[SeqProg[Pre]]()
 

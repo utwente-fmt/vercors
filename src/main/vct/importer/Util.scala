@@ -1,5 +1,6 @@
 package vct.importer
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.io.{RWFile, Readable}
 import vct.cache.Caches
 import vct.col.ast.{Deserialize, JavaClass, JavaNamespace, Program, Serialize}
@@ -13,7 +14,7 @@ import vct.result.VerificationError.UserError
 import java.nio.file.Files
 import scala.util.Using
 
-case object Util {
+case object Util extends LazyLogging {
   case object LibraryFileBlame extends Blame[VerificationFailure] {
     override def blame(error: VerificationFailure): Unit =
       throw LibraryFileError(error)
@@ -26,6 +27,8 @@ case object Util {
   }
 
   def loadPVLLibraryFile[G](readable: Readable): Program[G] = {
+    logger.debug("Loading PVL library file: " + readable.fileName)
+
     val text = readable.readToCompletion()
     val cacheDir = Caches.getLibraryCache.resolve("%02x" format text.hashCode())
     val pinnedLibrary = cacheDir.resolve("library.in")

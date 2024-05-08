@@ -125,7 +125,8 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
               foldStar[Post]((implField +: commFields).map { f => fieldPerm[Post](`this`, f.ref, WritePerm()) }) &*
                 (Deref[Post](`this`, implField.ref)(PanicBlame("Deref cannot fail")) === implArg.get))
           ),
-          outArgs = Seq(), typeArgs = Seq(), body = None
+          body = Some(assignField[Post](ThisObject(classOfEndpoint.ref(endpoint)), implField.ref, implArg.get, PanicBlame("Cannot fail"))),
+          outArgs = Seq(), typeArgs = Seq(),
         )(PanicBlame("Postcondition cannot fail"))
       }
 

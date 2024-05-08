@@ -72,9 +72,11 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
   def isEndpointClass(c: Class[Pre]): Boolean = endpointClassToEndpoint.contains(c)
   def choreographyOf(c: Class[Pre]): SeqProg[Pre] = endpointToChoreography(endpointClassToEndpoint(c))
   def endpointOf(c: Class[Pre]): Endpoint[Pre] = endpointClassToEndpoint(c)
+  def isChoreographyParam(v: Variable[Pre]): Boolean = choreographies.exists { chor => chor.params.contains(v) }
 
   val currentChoreography = ScopedStack[SeqProg[Pre]]()
   val currentEndpoint = ScopedStack[Endpoint[Pre]]()
+  val currentThis = ScopedStack[ThisObject[Post]]()
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     this.program = program
@@ -87,14 +89,16 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
       case cls: Class[Pre] if isEndpointClass(cls) =>
         val chor = choreographyOf(cls)
         val endpoint = endpointOf(cls)
-        globalDeclarations.succeed(cls, cls.rewrite(
-          decls = classDeclarations.collect {
-            cls.decls.foreach(dispatch)
-            generateRunMethod(chor, endpointOf(cls))
-            generateParamFields(chor)
-            generatePeerFields(chor)
-          }._1
-        ))
+        currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {
+          globalDeclarations.succeed(cls, cls.rewrite(
+            decls = classDeclarations.collect {
+              cls.decls.foreach(dispatch)
+              generateRunMethod(chor, endpointOf(cls))
+              generateParamFields(chor, endpoint)
+              generatePeerFields(chor, endpoint)
+            }._1
+          ))
+        }
       case cls: Class[Pre] => super.dispatch(cls)
       case chor: SeqProg[Pre] =>
         currentChoreography.having(chor) {
@@ -221,9 +225,11 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
       val endpoint = currentEndpoint.top
       implicit val o = expr.o
       // TODO (RR): Also need to generate (read) permissions for all these fields!
-      Deref[Post](
-        ThisObject(succ(endpoint.cls.decl)),
-        endpointPeerFields.ref((endpoint, peer)))(PanicBlame("Shouldn't happen"))
+      Deref[Post](currentThis.top, endpointPeerFields.ref((endpoint, peer)))(PanicBlame("Shouldn't happen"))
+    case Local(Ref(v)) if currentChoreography.nonEmpty && currentEndpoint.nonEmpty && isChoreographyParam(v) =>
+      val endpoint = currentEndpoint.top
+      implicit val o = expr.o
+      Deref[Post](currentThis.top, endpointParamFields.ref((currentEndpoint.top, v)))(PanicBlame("Shouldn't happen"))
     case _ => expr.rewriteDefault()
   }
 
