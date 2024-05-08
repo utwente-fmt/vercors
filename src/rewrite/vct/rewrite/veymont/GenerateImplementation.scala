@@ -76,6 +76,22 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
 
   val currentChoreography = ScopedStack[SeqProg[Pre]]()
   val currentEndpoint = ScopedStack[Endpoint[Pre]]()
+
+  def inChoreography: Boolean = currentChoreography.nonEmpty && currentEndpoint.isEmpty
+  def inEndpoint: Boolean = currentChoreography.nonEmpty && currentEndpoint.nonEmpty
+
+  object InChor {
+    def unapply[T](t: T): Option[(SeqProg[Pre], T)] =
+      if(inChoreography) Some((currentChoreography.top, t)) else None
+    def unapply: Option[SeqProg[Pre]] = if(inChoreography) currentChoreography.topOption else None
+  }
+
+  object InEndpoint {
+    def unapply[T](t: T): Option[(SeqProg[Pre], Endpoint[Pre], T)] =
+      if(inEndpoint) Some((currentChoreography.top, currentEndpoint.top, t)) else None
+    def unapply: Option[SeqProg[Pre]] = if(inEndpoint) Some((currentChoreography.top, currentEndpoint.top)) else None
+  }
+
   val currentThis = ScopedStack[ThisObject[Post]]()
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
@@ -219,17 +235,15 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case EndpointUse(Ref(endpoint)) if currentChoreography.nonEmpty && currentEndpoint.isEmpty =>
+    case InChor(_, EndpointUse(Ref(endpoint))) =>
       Local[Post](endpointLocals.ref(endpoint))(expr.o)
-    case EndpointUse(Ref(peer)) if currentChoreography.nonEmpty && currentEndpoint.nonEmpty =>
-      val endpoint = currentEndpoint.top
+    case InEndpoint(_, endpoint, EndpointUse(Ref(peer))) =>
       implicit val o = expr.o
       // TODO (RR): Also need to generate (read) permissions for all these fields!
       Deref[Post](currentThis.top, endpointPeerFields.ref((endpoint, peer)))(PanicBlame("Shouldn't happen"))
-    case Local(Ref(v)) if currentChoreography.nonEmpty && currentEndpoint.nonEmpty && isChoreographyParam(v) =>
-      val endpoint = currentEndpoint.top
+    case InEndpoint(_, endpoint, Local(Ref(v))) if currentChoreography.nonEmpty && currentEndpoint.nonEmpty && isChoreographyParam(v) =>
       implicit val o = expr.o
-      Deref[Post](currentThis.top, endpointParamFields.ref((currentEndpoint.top, v)))(PanicBlame("Shouldn't happen"))
+      Deref[Post](currentThis.top, endpointParamFields.ref((endpoint, v)))(PanicBlame("Shouldn't happen"))
     case _ => expr.rewriteDefault()
   }
 
