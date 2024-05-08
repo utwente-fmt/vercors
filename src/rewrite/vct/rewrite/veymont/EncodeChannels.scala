@@ -3,7 +3,7 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.util.Declarator
-import vct.col.ast.{AbstractRewriter, Access, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
+import vct.col.ast.{AbstractRewriter, Access, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, ChorGuard, Choreography, ChorRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
 import vct.col.origin.{Name, Origin, PanicBlame, SourceName}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -45,12 +45,12 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
   def channelType(t: Type[Post]): TClass[Post] = TClass[Post](genericChannelClass.ref, Seq(t))
 
   var program: Program[Pre] = null
-  lazy val choreographies: Seq[SeqProg[Pre]] = program.collect { case c: SeqProg[Pre] => c }.toIndexedSeq
-  lazy val communicates: Map[SeqProg[Pre], Seq[Communicate[Pre]]] = choreographies.map { c =>
+  lazy val choreographies: Seq[Choreography[Pre]] = program.collect { case c: Choreography[Pre] => c }.toIndexedSeq
+  lazy val communicates: Map[Choreography[Pre], Seq[Communicate[Pre]]] = choreographies.map { c =>
     (c, c.collect { case comm: Communicate[Pre] => comm }.toIndexedSeq)
   }.toMap
 
-  val currentChoreography = ScopedStack[SeqProg[Pre]]()
+  val currentChoreography = ScopedStack[Choreography[Pre]]()
 
   val classOfEndpoint = SuccessionMap[Endpoint[Pre], Class[Post]]()
   val fieldOfCommunicate = SuccessionMap[(Endpoint[Pre], Communicate[Pre]), InstanceField[Post]]()
@@ -62,7 +62,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
     p.rewriteDefault()
   }
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case prog: SeqProg[Pre] =>
+    case prog: Choreography[Pre] =>
       implicit val o = prog.o
       currentChoreography.having(prog) {
         def commVar(comm: Communicate[Pre]): Variable[Post] = {

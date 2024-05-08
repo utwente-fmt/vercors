@@ -32,7 +32,7 @@ object SplitSeqGuards extends RewriterBuilder {
 }
 
 case class SplitSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
-  val currentProg: ScopedStack[SeqProg[Pre]] = ScopedStack()
+  val currentProg: ScopedStack[Choreography[Pre]] = ScopedStack()
   val currentParticipants: ScopedStack[ListSet[Pre]] = ScopedStack()
 
   override def dispatch(prog: Program[Pre]): Program[Post] = {
@@ -48,7 +48,7 @@ case class SplitSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case prog: SeqProg[Pre] =>
+    case prog: Choreography[Pre] =>
       currentProg.having(prog) {
         rewriteDefault(prog)
       }
@@ -56,12 +56,12 @@ case class SplitSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = statement match {
-    case branch: UnresolvedSeqBranch[Pre] =>
+    case branch: UnresolvedChorBranch[Pre] =>
       assert(branch.branches.nonEmpty)
       unfoldBranch(branch.branches)(branch.blame, branch.o)
 
-    case loop: UnresolvedSeqLoop[Pre] if currentProg.nonEmpty =>
-      SeqLoop(
+    case loop: UnresolvedChorLoop[Pre] if currentProg.nonEmpty =>
+      ChorLoop(
         inferSeqGuard(loop.cond),
         dispatch(loop.contract),
         dispatch(loop.body)
@@ -70,16 +70,16 @@ case class SplitSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
     case statement => rewriteDefault(statement)
   }
 
-  def unfoldBranch(branches: Seq[(Expr[Pre], Statement[Pre])])(implicit blame: Blame[SeqBranchFailure], o: Origin): SeqBranch[Post] = branches match {
-    case Seq((e, s)) => SeqBranch(inferSeqGuard(e), dispatch(s), None)(blame)
+  def unfoldBranch(branches: Seq[(Expr[Pre], Statement[Pre])])(implicit blame: Blame[SeqBranchFailure], o: Origin): ChorBranch[Post] = branches match {
+    case Seq((e, s)) => ChorBranch(inferSeqGuard(e), dispatch(s), None)(blame)
     case (e, s) +: (otherYes +: branches) =>
-      SeqBranch(inferSeqGuard(e), dispatch(s), Some(unfoldBranch(otherYes +: branches)))(blame)
+      ChorBranch(inferSeqGuard(e), dispatch(s), Some(unfoldBranch(otherYes +: branches)))(blame)
     case _ => ???
   }
 
   // Infer guard conditions based on the classic syntactical restrictions - endpoint dereferences determine which
   // endpoint is evaluating the expression.
-  def inferSeqGuard(e: Expr[Pre]): Seq[SeqGuard[Post]] = {
+  def inferSeqGuard(e: Expr[Pre]): Seq[ChorGuard[Post]] = {
     val exprs = unfoldStar(e)
     val pointed = exprs.map(point)
     pointed.map {

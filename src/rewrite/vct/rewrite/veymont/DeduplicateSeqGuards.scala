@@ -19,14 +19,14 @@ object DeduplicateSeqGuards extends RewriterBuilder {
 
 case class DeduplicateSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(statement: Statement[Pre]): Statement[Post] = statement match {
-    case branch: SeqBranch[Pre] =>
+    case branch: ChorBranch[Pre] =>
       val guards: Seq[EndpointGuard[Pre]] = branch.guards.map {
         case guard: EndpointGuard[Pre] => guard
         case guard: UnpointedGuard[Pre] => ??? // Excluded by RemoveUnpointedGuard
       }
       branch.rewrite(guards = dedup(guards))
 
-    case loop: SeqLoop[Pre] =>
+    case loop: ChorLoop[Pre] =>
       val guards: Seq[EndpointGuard[Pre]] = loop.guards.map {
         case guard: EndpointGuard[Pre] => guard
         case guard: UnpointedGuard[Pre] => ??? // Excluded by RemoveUnpointedGuard

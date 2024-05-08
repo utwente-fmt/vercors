@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Block, Class, Declaration, Endpoint, EndpointUse, Expr, InstanceField, Local, Program, SeqProg, Variable}
+import vct.col.ast.{Block, Class, Declaration, Endpoint, EndpointUse, Expr, InstanceField, Local, Program, Choreography, Variable}
 import vct.col.origin.{Name, PanicBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.SuccessionMap
@@ -23,14 +23,14 @@ object EncodeChoreographyParameters extends RewriterBuilder {
  * Can probably be deleted once the veymont artefact is in a finished state.
  */
 case class EncodeChoreographyParameters[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
-  val currentSeqProg = ScopedStack[SeqProg[Pre]]()
+  val currentSeqProg = ScopedStack[Choreography[Pre]]()
 
   var program: Program[Pre] = null
-  lazy val choreographies = program.declarations.collect { case p: SeqProg[Pre] => p }
+  lazy val choreographies = program.declarations.collect { case p: Choreography[Pre] => p }
   lazy val allEndpoints = choreographies.flatMap { _.endpoints }
   lazy val endpointOfClass: Map[Class[Pre], Endpoint[Pre]] =
     allEndpoints.map { endpoint => (endpoint.cls.decl, endpoint) }.toMap
-  lazy val choreographyOfEndpoint: Map[Endpoint[Pre], SeqProg[Pre]] = choreographies.flatMap { chor =>
+  lazy val choreographyOfEndpoint: Map[Endpoint[Pre], Choreography[Pre]] = choreographies.flatMap { chor =>
     chor.endpoints.map { ep => (ep, chor) }
   }.toMap
 
@@ -43,7 +43,7 @@ case class EncodeChoreographyParameters[Pre <: Generation]() extends Rewriter[Pr
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case p: SeqProg[Pre] =>
+    case p: Choreography[Pre] =>
       implicit val o = p.o
       currentSeqProg.having(p) {
         allScopes.anySucceed(p, p.rewrite(

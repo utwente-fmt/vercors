@@ -266,10 +266,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
     case node: SmtlibFunctionSymbol[Pre] => node
     case node: PVLAccess[Pre] => node
     case node: PVLSubject[Pre] => node
-    case node: SeqRun[Pre] => node
+    case node: ChorRun[Pre] => node
     case node: Access[Pre] => node
     case node: Subject[Pre] => node
-    case node: SeqGuard[Pre] => coerce(node)
+    case node: ChorGuard[Pre] => coerce(node)
   }
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
@@ -1547,12 +1547,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case c @ Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)(c.blame)
       case comm@Communicate(r, s) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.field.decl.t}, but actually has type ${r.field.decl.t}.")
       case s: PVLChorStatement[Pre] => s
-      case s: SeqBranch[Pre] => s
-      case s: SeqLoop[Pre] => s
+      case s: ChorBranch[Pre] => s
+      case s: ChorLoop[Pre] => s
       case c: ChorStatement[Pre] => c
-      case branch@UnresolvedSeqBranch(branches) => UnresolvedSeqBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
+      case branch@UnresolvedChorBranch(branches) => UnresolvedChorBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
       case branch@PVLBranch(branches) => PVLBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
-      case loop@UnresolvedSeqLoop(cond, contract, body) => UnresolvedSeqLoop(bool(cond), contract, body)(loop.blame)
+      case loop@UnresolvedChorLoop(cond, contract, body) => UnresolvedChorLoop(bool(cond), contract, body)(loop.blame)
       case loop@PVLLoop(init, cond, update, contract, body) => PVLLoop(init, bool(cond), update, contract, body)(loop.blame)
     }
   }
@@ -1674,7 +1674,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
           case JavaVariableDeclaration(name, dims, Some(v)) =>
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
-      case seqProg: SeqProg[Pre] => seqProg
+      case seqProg: Choreography[Pre] => seqProg
       case endpoint: Endpoint[Pre] => new Endpoint(endpoint.cls, endpoint.typeArgs, endpoint.constructor, endpoint.args)(endpoint.blame)
       case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body, bc.requires)(bc.blame)
       case bc: BipComponent[Pre] =>
@@ -1703,8 +1703,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         new LlvmSpecFunction[Pre](function.name, function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.blame)
       case glob: LlvmGlobal[Pre] => glob
       case endpoint: PVLEndpoint[Pre] => endpoint
-      case seqProg: PVLSeqProg[Pre] => seqProg
-      case seqRun: PVLSeqRun[Pre] => seqRun
+      case seqProg: PVLChoreography[Pre] => seqProg
+      case seqRun: PVLChorRun[Pre] => seqRun
       }
   }
 
@@ -2059,10 +2059,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
 
   def coerce(node: PVLAccess[Pre]): PVLAccess[Pre] = node
   def coerce(node: PVLSubject[Pre]): PVLSubject[Pre] = node
-  def coerce(node: SeqRun[Pre]): SeqRun[Pre] = node
+  def coerce(node: ChorRun[Pre]): ChorRun[Pre] = node
   def coerce(node: Access[Pre]): Access[Pre] = node
   def coerce(node: Subject[Pre]): Subject[Pre] = node
-  def coerce(node: SeqGuard[Pre]): SeqGuard[Pre] = node match {
+  def coerce(node: ChorGuard[Pre]): ChorGuard[Pre] = node match {
     case EndpointGuard(endpoint, cond) => EndpointGuard(endpoint, bool(cond))(node.o)
     case UnpointedGuard(cond) => UnpointedGuard(bool(cond))(node.o)
   }

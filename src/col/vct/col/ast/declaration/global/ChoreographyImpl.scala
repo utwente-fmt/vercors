@@ -1,7 +1,7 @@
 package vct.col.ast.declaration.global
 
 import vct.col.ast.declaration.DeclarationImpl
-import vct.col.ast.{Assign, ChorStatement, Class, Declaration, Endpoint, EndpointGuard, EndpointName, Node, SeqProg}
+import vct.col.ast.{Assign, ChorStatement, Class, Declaration, Endpoint, EndpointGuard, EndpointName, Node, Choreography}
 import vct.col.ast.util.Declarator
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.origin.Origin
@@ -9,9 +9,9 @@ import vct.col.print._
 import vct.col.ref.Ref
 
 import scala.collection.immutable.ListSet
-import vct.col.ast.ops.SeqProgOps
+import vct.col.ast.ops.ChoreographyOps
 
-object SeqProgImpl {
+object ChoreographyImpl {
   def participants[G](node: Node[G]): ListSet[Endpoint[G]] =
     ListSet.from(node.collect {
       case EndpointGuard(Ref(endpoint), _) => endpoint
@@ -20,7 +20,7 @@ object SeqProgImpl {
     })
 }
 
-trait SeqProgImpl[G] extends DeclarationImpl[G] with Declarator[G] with SeqProgOps[G] { this: SeqProg[G] =>
+trait ChoreographyImpl[G] extends DeclarationImpl[G] with Declarator[G] with ChoreographyOps[G] { this: Choreography[G] =>
   override def declarations: Seq[Declaration[G]] = params ++ endpoints ++ decls
 
   override def layout(implicit ctx: Ctx): Doc =
@@ -34,6 +34,6 @@ trait SeqProgImpl[G] extends DeclarationImpl[G] with Declarator[G] with SeqProgO
   override def enterCheckContextCurrentParticipatingEndpoints(context: CheckContext[G]): Option[Set[Endpoint[G]]] =
     context.withCurrentParticipatingEndpoints(endpoints)
 
-  override def enterCheckContextCurrentSeqProg(context: CheckContext[G]): Option[SeqProg[G]] =
+  override def enterCheckContextCurrentSeqProg(context: CheckContext[G]): Option[Choreography[G]] =
     Some(this)
 }

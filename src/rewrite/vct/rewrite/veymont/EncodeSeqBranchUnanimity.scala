@@ -16,17 +16,17 @@ object EncodeSeqBranchUnanimity  extends RewriterBuilder {
   override def key: String = "encodeSeqBranchUnanimity"
   override def desc: String = "Encodes the branch unanimity requirement imposed by VeyMont on branches and loops in seq_program nodes."
 
-  case class ForwardBranchUnanimity(branch: SeqBranch[_], c1: SeqGuard[_], c2: SeqGuard[_]) extends Blame[AssertFailed] {
+  case class ForwardBranchUnanimity(branch: ChorBranch[_], c1: ChorGuard[_], c2: ChorGuard[_]) extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
       branch.blame.blame(BranchUnanimityFailed(c1, c2))
   }
 
-  case class ForwardLoopUnanimityNotEstablished(loop: SeqLoop[_], c1: SeqGuard[_], c2: SeqGuard[_]) extends Blame[AssertFailed] {
+  case class ForwardLoopUnanimityNotEstablished(loop: ChorLoop[_], c1: ChorGuard[_], c2: ChorGuard[_]) extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
       loop.blame.blame(LoopUnanimityNotEstablished(c1, c2))
   }
 
-  case class ForwardLoopUnanimityNotMaintained(loop: SeqLoop[_], c1: SeqGuard[_], c2: SeqGuard[_]) extends Blame[AssertFailed] {
+  case class ForwardLoopUnanimityNotMaintained(loop: ChorLoop[_], c1: ChorGuard[_], c2: ChorGuard[_]) extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
       loop.blame.blame(LoopUnanimityNotMaintained(c1, c2))
   }
@@ -34,10 +34,10 @@ object EncodeSeqBranchUnanimity  extends RewriterBuilder {
 
 case class EncodeSeqBranchUnanimity[Pre <: Generation]() extends Rewriter[Pre] {
 
-  val currentLoop = ScopedStack[SeqLoop[Pre]]()
+  val currentLoop = ScopedStack[ChorLoop[Pre]]()
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = statement match {
-    case branch @ SeqBranch(guards, yes, no) =>
+    case branch @ ChorBranch(guards, yes, no) =>
       implicit val o = statement.o
 
       val assertions: Block[Post] = Block(guards.indices.init.map { i =>
@@ -52,7 +52,7 @@ case class EncodeSeqBranchUnanimity[Pre <: Generation]() extends Rewriter[Pre] {
             no.map { no => Seq((tt[Post], dispatch(no))) }.getOrElse(Nil))
       ))
 
-    case loop @ SeqLoop(guards, contract, body) =>
+    case loop @ ChorLoop(guards, contract, body) =>
       implicit val o = statement.o
 
       val establishAssertions: Statement[Post] = Block(guards.indices.init.map { i =>
@@ -80,7 +80,7 @@ case class EncodeSeqBranchUnanimity[Pre <: Generation]() extends Rewriter[Pre] {
     case statement => rewriteDefault(statement)
   }
 
-  def rewriteGuard(guard: SeqGuard[Pre]): Expr[Post] = dispatch(guard.condition)
+  def rewriteGuard(guard: ChorGuard[Pre]): Expr[Post] = dispatch(guard.condition)
 
   def allEqual[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     foldAnd[G](exprs.indices.init.map(i => exprs(i) === exprs(i + 1)))

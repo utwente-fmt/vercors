@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, ChorGuard, Choreography, ChorRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
 import vct.col.origin.{AssignLocalOk, Name, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -42,7 +42,7 @@ object GenerateImplementation extends RewriterBuilder {
   private def ChannelFieldOrigin(channelName: String, assign: Statement[_]): Origin =
     assign.o.where(name = channelName)
 
-  private def RunMethodOrigin(runMethod: SeqRun[_]): Origin =
+  private def RunMethodOrigin(runMethod: ChorRun[_]): Origin =
     runMethod.o.where(name = "run")
 }
 
@@ -51,7 +51,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
   val threadBuildingBlocks: ScopedStack[ThreadBuildingBlocks[Pre]] = ScopedStack()
   val threadClassSucc: SuccessionMap[Endpoint[Pre],Class[Post]] = SuccessionMap()
   val threadMethodSucc: SuccessionMap[(Endpoint[Pre],ClassDeclaration[Pre]),InstanceMethod[Post]] = SuccessionMap()
-  val runSucc: mutable.LinkedHashMap[SeqProg[Pre], Procedure[Post]] = mutable.LinkedHashMap()
+  val runSucc: mutable.LinkedHashMap[Choreography[Pre], Procedure[Post]] = mutable.LinkedHashMap()
   private val givenClassSucc: SuccessionMap[Type[Pre],Class[Post]] = SuccessionMap()
   private val givenClassConstrSucc: SuccessionMap[Type[Pre],Procedure[Pre]] = SuccessionMap()
   val endpointLocals: SuccessionMap[Endpoint[Pre], Variable[Post]] = SuccessionMap()
@@ -62,34 +62,34 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
   val endpointPeerFields = SuccessionMap[(Endpoint[Pre], Endpoint[Pre]), InstanceField[Post]]()
 
   var program: Program[Pre] = null
-  lazy val choreographies: Seq[SeqProg[Pre]] = program.declarations.collect { case chor: SeqProg[Pre] => chor }
+  lazy val choreographies: Seq[Choreography[Pre]] = program.declarations.collect { case chor: Choreography[Pre] => chor }
   lazy val allEndpoints = choreographies.flatMap { _.endpoints }
-  lazy val endpointToChoreography: Map[Endpoint[Pre], SeqProg[Pre]] =
+  lazy val endpointToChoreography: Map[Endpoint[Pre], Choreography[Pre]] =
     choreographies.flatMap { chor => chor.endpoints.map(ep => (ep, chor)) }.toMap
   lazy val endpointClassToEndpoint: Map[Class[Pre], Endpoint[Pre]] =
     choreographies.flatMap { chor => chor.endpoints.map(endpoint => (endpoint.cls.decl, endpoint)) }.toMap
 
   def isEndpointClass(c: Class[Pre]): Boolean = endpointClassToEndpoint.contains(c)
-  def choreographyOf(c: Class[Pre]): SeqProg[Pre] = endpointToChoreography(endpointClassToEndpoint(c))
+  def choreographyOf(c: Class[Pre]): Choreography[Pre] = endpointToChoreography(endpointClassToEndpoint(c))
   def endpointOf(c: Class[Pre]): Endpoint[Pre] = endpointClassToEndpoint(c)
   def isChoreographyParam(v: Variable[Pre]): Boolean = choreographies.exists { chor => chor.params.contains(v) }
 
-  val currentChoreography = ScopedStack[SeqProg[Pre]]()
+  val currentChoreography = ScopedStack[Choreography[Pre]]()
   val currentEndpoint = ScopedStack[Endpoint[Pre]]()
 
   def inChoreography: Boolean = currentChoreography.nonEmpty && currentEndpoint.isEmpty
   def inEndpoint: Boolean = currentChoreography.nonEmpty && currentEndpoint.nonEmpty
 
   object InChor {
-    def unapply[T](t: T): Option[(SeqProg[Pre], T)] =
+    def unapply[T](t: T): Option[(Choreography[Pre], T)] =
       if(inChoreography) Some((currentChoreography.top, t)) else None
-    def unapply: Option[SeqProg[Pre]] = if(inChoreography) currentChoreography.topOption else None
+    def unapply: Option[Choreography[Pre]] = if(inChoreography) currentChoreography.topOption else None
   }
 
   object InEndpoint {
-    def unapply[T](t: T): Option[(SeqProg[Pre], Endpoint[Pre], T)] =
+    def unapply[T](t: T): Option[(Choreography[Pre], Endpoint[Pre], T)] =
       if(inEndpoint) Some((currentChoreography.top, currentEndpoint.top, t)) else None
-    def unapply: Option[SeqProg[Pre]] = if(inEndpoint) Some((currentChoreography.top, currentEndpoint.top)) else None
+    def unapply: Option[(Choreography[Pre], Endpoint[Pre])] = if(inEndpoint) Some((currentChoreography.top, currentEndpoint.top)) else None
   }
 
   val currentThis = ScopedStack[ThisObject[Post]]()
@@ -116,7 +116,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
           ))
         }
       case cls: Class[Pre] => super.dispatch(cls)
-      case chor: SeqProg[Pre] =>
+      case chor: Choreography[Pre] =>
         currentChoreography.having(chor) {
           chor.drop()
           chor.endpoints.foreach(_.drop())
@@ -178,7 +178,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
     }
   }
 
-  def generateRunMethod(chor: SeqProg[Pre], endpoint: Endpoint[Pre]): Unit = {
+  def generateRunMethod(chor: Choreography[Pre], endpoint: Endpoint[Pre]): Unit = {
     val run = chor.run
     implicit val o = run.o
     val body = currentChoreography.having(chor) {
@@ -192,7 +192,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
     )(PanicBlame("")))
   }
 
-  def generateParamFields(chor: SeqProg[Pre], endpoint: Endpoint[Pre]): Unit =
+  def generateParamFields(chor: Choreography[Pre], endpoint: Endpoint[Pre]): Unit =
     chor.params.foreach { param =>
       val f = new InstanceField(dispatch(param.t), Seq())(param.o.where(
         indirect = Name.names(chor.o.getPreferredNameOrElse(), Name("p"), param.o.getPreferredNameOrElse())
@@ -201,7 +201,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
       endpointParamFields((endpoint, param)) = f
     }
 
-  def generatePeerFields(chor: SeqProg[Pre], endpoint: Endpoint[Pre]): Unit =
+  def generatePeerFields(chor: Choreography[Pre], endpoint: Endpoint[Pre]): Unit =
     chor.endpoints.foreach { peer =>
       val f = new InstanceField(dispatch(peer.t), Seq())(endpoint.o.where(
         indirect = Name.names(peer.o.getPreferredNameOrElse())
@@ -259,7 +259,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
     } else rewriteDefault(thread)
   }
 
-  private def dispatchThreads(seqProg: SeqProg[Pre]): Unit = {
+  private def dispatchThreads(seqProg: Choreography[Pre]): Unit = {
     val (channelClasses,indexedChannelInfo) = extractChannelInfo(seqProg)
     channelClasses.foreach{ case (t,c) =>
       globalDeclarations.declare(c)
@@ -339,7 +339,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
     }
   }
 
-  private def extractChannelInfo(seqProg: SeqProg[Pre]): (Map[Type[Pre], JavaClass[Post]], Seq[ChannelInfo[Pre]]) = {
+  private def extractChannelInfo(seqProg: Choreography[Pre]): (Map[Type[Pre], JavaClass[Post]], Seq[ChannelInfo[Pre]]) = {
     val channelInfo = getChannelNamesAndTypes(seqProg.run.body) ++ collectChannelsFromMethods(seqProg)
     val indexedChannelInfo: Seq[ChannelInfo[Pre]] = channelInfo.groupBy(_.channelName).values.flatMap(chanInfoSeq =>
       if (chanInfoSeq.size <= 1) chanInfoSeq
@@ -447,7 +447,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
     }
   }
 
-  private def collectChannelsFromMethods(seqProg: SeqProg[Pre]) =
+  private def collectChannelsFromMethods(seqProg: Choreography[Pre]) =
     seqProg.decls.flatMap {
       case m: InstanceMethod[Pre] =>
         m.body.map(getChannelNamesAndTypes).getOrElse(throw ParalleliseEndpointsError(m, "Abstract methods are not supported inside `seq_prog`."))
@@ -471,7 +471,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
         dispatch(method.contract))(method.blame)(method.o)
   }
 
-  private def getThreadRunMethod(run: SeqRun[Pre]): InstanceMethod[Post] = {
+  private def getThreadRunMethod(run: ChorRun[Pre]): InstanceMethod[Post] = {
     new InstanceMethod[Post](
       TVoid[Post](),
       Seq.empty,Seq.empty,Seq.empty,
@@ -519,7 +519,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
     }
   }
 
-  private def paralleliseThreadCondition(node: Expr[Pre], thread: Endpoint[Pre], c: SeqGuard[Pre]) = {
+  private def paralleliseThreadCondition(node: Expr[Pre], thread: Endpoint[Pre], c: ChorGuard[Pre]) = {
     ???
     // TODO: Broke this because AST changed, repair
 //    c.conditions.find { case (threadRef, _) =>

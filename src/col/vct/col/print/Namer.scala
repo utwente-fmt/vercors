@@ -23,7 +23,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
     stack.toSeq.filter(n => f.isDefinedAt(n))
 
   private def nearestClass = nearest {
-    case _: Class[G] | _: JavaClass[G] | _: SeqProg[G] | _: JavaInterface[G] | _: JavaAnnotationInterface[G] => ()
+    case _: Class[G] | _: JavaClass[G] | _: Choreography[G] | _: JavaInterface[G] | _: JavaAnnotationInterface[G] => ()
   }
 
   private def nearestVariableScope = nearest {
@@ -132,7 +132,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
       case decl: CPPLocalDeclaration[G] => nameKeyed(nearestVariableScope, decl)
       case decl: CPPParam[G] => nameKeyed(nearestCallable, decl)
       case decl: JavaLocalDeclaration[G] => nameKeyed(nearestCallable, decl)
-      case decl: Endpoint[G] => nameKeyed(nearest { case _: SeqProg[G] => () }, decl)
+      case decl: Endpoint[G] => nameKeyed(nearest { case _: Choreography[G] => () }, decl)
       case decl: JavaParam[G] => nameKeyed(nearestCallable, decl)
       case _ =>
     }

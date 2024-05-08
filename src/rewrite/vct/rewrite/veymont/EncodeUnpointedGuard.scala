@@ -21,7 +21,7 @@ case class EncodeUnpointedGuard[Pre <: Generation]() extends Rewriter[Pre] {
   val currentParticipants: ScopedStack[ListSet[Endpoint[Pre]]] = ScopedStack()
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case prog: SeqProg[Pre] => currentParticipants.having(ListSet.from(prog.endpoints)) {
+    case prog: Choreography[Pre] => currentParticipants.having(ListSet.from(prog.endpoints)) {
       rewriteDefault(prog)
     }
 
@@ -29,7 +29,7 @@ case class EncodeUnpointedGuard[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = statement match {
-    case branch: SeqBranch[Pre] =>
+    case branch: ChorBranch[Pre] =>
       val newParticipants = if (branch.hasUnpointed) {
         currentParticipants.top
       } else {
@@ -39,7 +39,7 @@ case class EncodeUnpointedGuard[Pre <: Generation]() extends Rewriter[Pre] {
         branch.rewrite(guards = branch.guards.flatMap(rewriteGuard))
       }
 
-    case loop: SeqLoop[Pre] =>
+    case loop: ChorLoop[Pre] =>
       val newParticipants = if (loop.hasUnpointed) {
         currentParticipants.top
       } else {
@@ -52,7 +52,7 @@ case class EncodeUnpointedGuard[Pre <: Generation]() extends Rewriter[Pre] {
     case statement => rewriteDefault(statement)
   }
 
-  def rewriteGuard(guard: SeqGuard[Pre]): Seq[SeqGuard[Post]] = guard match {
+  def rewriteGuard(guard: ChorGuard[Pre]): Seq[ChorGuard[Post]] = guard match {
     case guard: EndpointGuard[Pre] => Seq(guard.rewriteDefault())
     case UnpointedGuard(expr) => currentParticipants.top.map { endpoint =>
       EndpointGuard[Post](succ(endpoint), dispatch(expr))(guard.o)

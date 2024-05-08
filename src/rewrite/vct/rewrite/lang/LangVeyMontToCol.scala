@@ -18,7 +18,7 @@ case object LangVeyMontToCol {
     override def text: String = "Referencing of endpoints is not yet supported"
   }
 
-  case class NoRunMethod(prog: PVLSeqProg[_]) extends UserError {
+  case class NoRunMethod(prog: PVLChoreography[_]) extends UserError {
     override def code: String = "noRunMethod"
     override def text: String = prog.o.messageInContext(
       s"This `seq_program` has no `run` method."
@@ -37,10 +37,10 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
-  val seqProgSucc: SuccessionMap[PVLSeqProg[Pre], SeqProg[Post]] = SuccessionMap()
+  val seqProgSucc: SuccessionMap[PVLChoreography[Pre], Choreography[Post]] = SuccessionMap()
   val endpointSucc: SuccessionMap[PVLEndpoint[Pre], Endpoint[Post]] = SuccessionMap()
 
-  val currentProg: ScopedStack[PVLSeqProg[Pre]] = ScopedStack()
+  val currentProg: ScopedStack[PVLChoreography[Pre]] = ScopedStack()
   val currentStatement: ScopedStack[Statement[Pre]] = ScopedStack()
 
   def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] =
@@ -63,12 +63,12 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
       endpoint.args.map(rw.dispatch)
     )(endpoint.blame)(endpoint.o))
 
-  def rewriteSeqProg(prog: PVLSeqProg[Pre]): Unit = {
+  def rewriteSeqProg(prog: PVLChoreography[Pre]): Unit = {
     implicit val o: Origin = prog.o
     rw.currentThis.having(ThisSeqProg[Post](seqProgSucc.ref(prog))) {
       currentProg.having(prog) {
         seqProgSucc(prog) = rw.globalDeclarations.declare(
-          new SeqProg(
+          new Choreography(
             rw.dispatch(prog.contract),
             rw.variables.collect(prog.args.map(rw.dispatch(_)))._1,
             rw.endpoints.collect(
@@ -79,11 +79,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
             )._1,
             None,
             prog.declarations.collectFirst {
-              case run: PVLSeqRun[Pre] => rewriteRun(run)
+              case run: PVLChorRun[Pre] => rewriteRun(run)
             }.getOrElse(throw NoRunMethod(prog)),
             rw.classDeclarations.collect(
               prog.declarations.foreach {
-                case _: PVLSeqRun[Pre] =>
+                case _: PVLChorRun[Pre] =>
                 case _: PVLEndpoint[Pre] =>
                 case decl => rw.dispatch(decl)
               }
@@ -97,9 +97,9 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
   def rewriteEndpointUse(endpoint: RefPVLEndpoint[Pre], local: PVLLocal[Pre]): EndpointUse[Post] =
     EndpointUse[Post](endpointSucc.ref(endpoint.decl))(local.o)
 
-  def rewriteRun(run: PVLSeqRun[Pre]): SeqRun[Post]  = {
+  def rewriteRun(run: PVLChorRun[Pre]): ChorRun[Post]  = {
       run.drop()
-      SeqRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
+      ChorRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
   }
 
   // TODO: This is now done by inferendpointctxs, but some tests might break I think... Might need it later?
@@ -109,11 +109,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
 //    case _ => ChorStatement(None, s.inner.rewriteDefault())(s.blame)(s.o)
 //  }
 
-  def rewriteBranch(branch: PVLBranch[Pre]): UnresolvedSeqBranch[Post] =
-    UnresolvedSeqBranch(branch.branches.map { case (e, s) => (rw.dispatch(e), rw.dispatch(s)) })(branch.blame)(branch.o)
+  def rewriteBranch(branch: PVLBranch[Pre]): UnresolvedChorBranch[Post] =
+    UnresolvedChorBranch(branch.branches.map { case (e, s) => (rw.dispatch(e), rw.dispatch(s)) })(branch.blame)(branch.o)
 
-  def rewriteLoop(loop: PVLLoop[Pre]): UnresolvedSeqLoop[Post] =
-    UnresolvedSeqLoop(rw.dispatch(loop.cond), rw.dispatch(loop.contract), rw.dispatch(loop.body))(loop.blame)(loop.o)
+  def rewriteLoop(loop: PVLLoop[Pre]): UnresolvedChorLoop[Post] =
+    UnresolvedChorLoop(rw.dispatch(loop.cond), rw.dispatch(loop.contract), rw.dispatch(loop.body))(loop.blame)(loop.o)
 
   def rewriteStatement(stmt: Statement[Pre]): Statement[Post] = stmt match {
     case stmt @ PVLChorStatement(endpointName, inner) =>

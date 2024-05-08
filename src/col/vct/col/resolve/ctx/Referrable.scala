@@ -171,7 +171,7 @@ case object Referrable {
     case decl: CPPLocalDeclaration[G] => return decl.decl.inits.indices.map(RefCPPLocalDeclaration(decl, _))
     case decl: JavaLocalDeclaration[G] => return decl.decls.indices.map(RefJavaLocalDeclaration(decl, _))
     case decl: PVLConstructor[G] => RefPVLConstructor(decl)
-    case decl: SeqProg[G] => RefSeqProg(decl)
+    case decl: Choreography[G] => RefSeqProg(decl)
     case decl: Endpoint[G] => RefEndpoint(decl)
     case decl: LlvmFunctionDefinition[G] => RefLlvmFunctionDefinition(decl)
     case decl: LlvmGlobal[G] => RefLlvmGlobal(decl)
@@ -192,8 +192,8 @@ case object Referrable {
     case decl: BipConstructor[G] => RefBipConstructor(decl)
     case decl: HeapVariable[G] => RefHeapVariable(decl)
     case decl: PVLEndpoint[G] => RefPVLEndpoint(decl)
-    case decl: PVLSeqProg[G] => RefPVLSeqProg(decl)
-    case decl: PVLSeqRun[G] => RefPVLSeqRun(decl)
+    case decl: PVLChoreography[G] => RefPVLSeqProg(decl)
+    case decl: PVLChorRun[G] => RefPVLSeqRun(decl)
   })
 
   def originName(decl: Declaration[_]): String = decl.o.find[SourceName] match {
@@ -327,11 +327,11 @@ case class RefBipTransitionSynchronization[G](decl: BipTransitionSynchronization
 case class RefBipConstructor[G](decl: BipConstructor[G]) extends Referrable[G]
 case class RefHeapVariable[G](decl: HeapVariable[G]) extends Referrable[G]
 case class RefPVLEndpoint[G](decl: PVLEndpoint[G]) extends Referrable[G] with PVLNameTarget[G]
-case class RefPVLSeqProg[G](decl: PVLSeqProg[G]) extends Referrable[G] with ThisTarget[G]
-case class RefPVLSeqRun[G](decl: PVLSeqRun[G]) extends Referrable[G]
+case class RefPVLSeqProg[G](decl: PVLChoreography[G]) extends Referrable[G] with ThisTarget[G]
+case class RefPVLSeqRun[G](decl: PVLChorRun[G]) extends Referrable[G]
 
 case class RefLlvmSpecFunction[G](decl: LlvmSpecFunction[G]) extends Referrable[G] with LlvmInvocationTarget[G] with ResultTarget[G]
-case class RefSeqProg[G](decl: SeqProg[G]) extends Referrable[G] with ThisTarget[G]
+case class RefSeqProg[G](decl: Choreography[G]) extends Referrable[G] with ThisTarget[G]
 case class RefEndpoint[G](decl: Endpoint[G]) extends Referrable[G]
 case class RefProverType[G](decl: ProverType[G]) extends Referrable[G] with SpecTypeNameTarget[G]
 case class RefProverFunction[G](decl: ProverFunction[G]) extends Referrable[G] with SpecInvocationTarget[G]

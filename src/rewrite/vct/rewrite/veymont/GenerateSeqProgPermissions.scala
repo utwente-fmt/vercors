@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
-import vct.col.ast.declaration.global.SeqProgImpl.participants
+import vct.col.ast.declaration.global.ChoreographyImpl.participants
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.Referrable
@@ -20,7 +20,7 @@ object GenerateSeqProgPermissions extends RewriterBuilderArg[Boolean] {
 case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = false) extends Rewriter[Pre] with LazyLogging {
 
   val currentPerm: ScopedStack[Expr[Post]] = ScopedStack()
-  val currentProg: ScopedStack[SeqProg[Pre]] = ScopedStack()
+  val currentProg: ScopedStack[Choreography[Pre]] = ScopedStack()
   val generatingClasses: ScopedStack[Class[Pre]] = ScopedStack()
   val generatingOrigin: ScopedStack[Node[Pre]] = ScopedStack()
 
@@ -95,7 +95,7 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
         )
       ))
 
-    case prog: SeqProg[Pre] if enabled =>
+    case prog: Choreography[Pre] if enabled =>
       val run = prog.run
       currentProg.having(prog) {
         globalDeclarations.succeed(prog, prog.rewrite(
@@ -131,7 +131,7 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
     )
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = statement match {
-    case loop: SeqLoop[Pre] =>
+    case loop: ChorLoop[Pre] =>
       currentPerm.having(endpointsPerm(participants(statement).toSeq)(loop.contract.o)) {
         loop.rewriteDefault()
       }

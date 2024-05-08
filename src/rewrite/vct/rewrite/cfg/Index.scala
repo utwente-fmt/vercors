@@ -153,10 +153,10 @@ object Index {
     case wand_package: WandPackage[G] => WandPackageIndex(wand_package)
     case model_do: ModelDo[G] => ModelDoIndex(model_do)
     case cpp_lifetime_scope: CPPLifetimeScope[G] => CPPLifetimeScopeIndex(cpp_lifetime_scope)
-    case unresolved_seq_branch: UnresolvedSeqBranch[G] => UnresolvedSeqBranchIndex(unresolved_seq_branch, index)
-    case unresolved_seq_loop: UnresolvedSeqLoop[G] => UnresolvedSeqLoopIndex(unresolved_seq_loop, index)
-    case seq_branch: SeqBranch[G] => SeqBranchIndex(seq_branch, index)
-    case seq_loop: SeqLoop[G] => SeqLoopIndex(seq_loop)
+    case unresolved_seq_branch: UnresolvedChorBranch[G] => UnresolvedSeqBranchIndex(unresolved_seq_branch, index)
+    case unresolved_seq_loop: UnresolvedChorLoop[G] => UnresolvedSeqLoopIndex(unresolved_seq_loop, index)
+    case seq_branch: ChorBranch[G] => SeqBranchIndex(seq_branch, index)
+    case seq_loop: ChorLoop[G] => SeqLoopIndex(seq_loop)
     case veymont_assign_expression: VeyMontAssignExpression[G] => VeyMontAssignExpressionIndex(veymont_assign_expression)
     case communicatex: CommunicateX[G] => CommunicateXIndex(communicatex)
     case statement: ExpressionContainerStatement[G] => ExpressionContainerIndex(statement, index)
@@ -651,7 +651,7 @@ case class CPPLifetimeScopeIndex[G](cpp_lifetime_scope: CPPLifetimeScope[G]) ext
   }
 }
 
-case class UnresolvedSeqBranchIndex[G](unresolved_seq_branch: UnresolvedSeqBranch[G], index: Int) extends Index[G] {
+case class UnresolvedSeqBranchIndex[G](unresolved_seq_branch: UnresolvedChorBranch[G], index: Int) extends Index[G] {
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = {
     // Indices 0, 2, 4, ... are the conditions, indices 1, 3, 5, ... are the branch bodies
     if (index % 2 == 0 && index < 2 * (unresolved_seq_branch.branches.size - 1))
@@ -673,7 +673,7 @@ case class UnresolvedSeqBranchIndex[G](unresolved_seq_branch: UnresolvedSeqBranc
   }
 }
 
-case class UnresolvedSeqLoopIndex[G](unresolved_seq_loop: UnresolvedSeqLoop[G], index: Int) extends Index[G] {
+case class UnresolvedSeqLoopIndex[G](unresolved_seq_loop: UnresolvedChorLoop[G], index: Int) extends Index[G] {
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = index match {
     case 0 => Set((Step(UnresolvedSeqLoopIndex(unresolved_seq_loop, 1)), Some(unresolved_seq_loop.cond)),
                   (Outgoing(), Some(Utils.negate(unresolved_seq_loop.cond))))
@@ -689,7 +689,7 @@ case class UnresolvedSeqLoopIndex[G](unresolved_seq_loop: UnresolvedSeqLoop[G], 
   }
 }
 
-case class SeqBranchIndex[G](seq_branch: SeqBranch[G], index: Int) extends Index[G] {
+case class SeqBranchIndex[G](seq_branch: ChorBranch[G], index: Int) extends Index[G] {
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = Set((Outgoing(), None))      // TODO: What are the conditions?
   override def resolve(): Statement[G] = index match {
     case 0 => seq_branch.yes
@@ -701,7 +701,7 @@ case class SeqBranchIndex[G](seq_branch: SeqBranch[G], index: Int) extends Index
   }
 }
 
-case class SeqLoopIndex[G](seq_loop: SeqLoop[G]) extends Index[G] {
+case class SeqLoopIndex[G](seq_loop: ChorLoop[G]) extends Index[G] {
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = Set((Step(this), None), (Outgoing(), None))    // TODO: What are the conditions?
   override def resolve(): Statement[G] = seq_loop.body
   override def equals(obj: scala.Any): Boolean = obj match {

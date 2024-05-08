@@ -290,12 +290,12 @@ case object ResolveReferences extends LazyLogging {
       // Ensure occurrences of type variables within the adt that defines them are ignored when substituting
       .declare(adt.declarations)
       .appendTypeEnv(adt.typeArgs.map(v => (v, TVar[G](v.ref))).toMap)
-    case seqProg: SeqProg[G] => ctx
+    case seqProg: Choreography[G] => ctx
       .copy(currentThis = Some(RefSeqProg(seqProg)))
       .declare(seqProg.decls)
       .declare(seqProg.endpoints)
       .declare(seqProg.params)
-    case seqProg: PVLSeqProg[G] => ctx
+    case seqProg: PVLChoreography[G] => ctx
       .copy(currentThis = Some(RefPVLSeqProg(seqProg)))
       .declare(seqProg.args)
       .declare(seqProg.declarations)

@@ -48,7 +48,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case SeqProgMethod(method) => convert(method)
     case PvlSeqRun(contract, _, body) =>
       withContract(contract, contract =>
-        PVLSeqRun(
+        PVLChorRun(
           convert(body),
           contract.consumeApplicableContract(blame(decl))
         )(blame(decl))(origin(decl).where(name = "run")))
@@ -62,10 +62,10 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlEndpoint(_, name, _, t@ClassType0(_, Some(_)), _, args, _, _) => ??(t)
   }
 
-  def convertSeqProg(implicit decl: DeclVeyMontSeqProgContext): PVLSeqProg[G] = decl match {
+  def convertSeqProg(implicit decl: DeclVeyMontSeqProgContext): PVLChoreography[G] = decl match {
     case DeclVeyMontSeqProg0(contract, _, name, _, args, _, _, decls, _) =>
       withContract(contract, contract => {
-        new PVLSeqProg(
+        new PVLChoreography(
           convert(name),
           decls.map(convert(_)),
           contract.consumeApplicableContract(blame(decl)),

@@ -263,12 +263,12 @@ case class ExceptionNotInSignals(node: AbstractMethod[_]) extends CallableFailur
   override def descInContext: String = "Method may throw exception not included in signals clauses."
   override def inlineDescWithSource(source: String): String = s"Method `$source` may throw exception not included in signals clauses."
 }
-case class SeqRunPreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: SeqRun[_]) extends SeqRunFailure with WithContractFailure {
+case class SeqRunPreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ChorRun[_]) extends SeqRunFailure with WithContractFailure {
   override def baseCode: String = "seqRunPreFailed"
   override def descInContext: String = "Precondition may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Precondition of `$node` may not hold, since $failure."
 }
-case class SeqRunContextEverywhereFailedInPre(failure: ContractFailure, node: SeqRun[_]) extends SeqRunFailure with WithContractFailure {
+case class SeqRunContextEverywhereFailedInPre(failure: ContractFailure, node: ChorRun[_]) extends SeqRunFailure with WithContractFailure {
   override def baseCode: String = "seqRunContextPreFailed"
   override def descInContext: String = "Context may not hold in precondition, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."

@@ -1,14 +1,14 @@
 package vct.col.ast.statement.veymont
 
-import vct.col.ast.{Access, Assign, ChorStatement, Communicate, Endpoint, EndpointGuard, EndpointName, SeqBranch, UnpointedGuard}
+import vct.col.ast.{Access, Assign, ChorStatement, Communicate, Endpoint, EndpointGuard, EndpointName, ChorBranch, UnpointedGuard}
 import vct.col.ast.statement.StatementImpl
 import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.ref.Ref
 
 import scala.collection.immutable.ListSet
-import vct.col.ast.ops.SeqBranchOps
+import vct.col.ast.ops.ChorBranchOps
 
-trait SeqBranchImpl[G] extends StatementImpl[G] with SeqBranchOps[G] { this: SeqBranch[G] =>
+trait ChorBranchImpl[G] extends StatementImpl[G] with ChorBranchOps[G] { this: ChorBranch[G] =>
   def hasUnpointed: Boolean = guards.exists { case _: UnpointedGuard[G] => true; case _ => false }
   def explicitParticipants: Seq[Endpoint[G]] = guards.collect { case EndpointGuard(Ref(endpoint), condition) => endpoint }
 
@@ -44,6 +44,6 @@ trait SeqBranchImpl[G] extends StatementImpl[G] with SeqBranchOps[G] { this: Seq
     ListSet.from(subnodes.collect {
       case Communicate(Access(EndpointName(Ref(receiver)), _), Access(EndpointName(Ref(sender)), _)) => Seq(receiver, sender)
       case ChorStatement(Some(Ref(endpoint)), Assign(_, _)) => Seq(endpoint)
-      case branch: SeqBranch[G] => branch.explicitParticipants
+      case branch: ChorBranch[G] => branch.explicitParticipants
     }.flatten)
 }
