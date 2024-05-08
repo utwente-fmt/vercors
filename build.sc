@@ -144,7 +144,7 @@ object vercors extends Module {
     def deps = Agg(
       ivy"org.fusesource.jansi:jansi:2.4.0",
       ivy"net.harawata:appdirs:1.2.1",
-      ivy"net.java.dev.jna:jna:5.13.0",
+      ivy"net.java.dev.jna:jna:5.14.0",
     )
     override def moduleDeps = Seq(pprofProto)
 

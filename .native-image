@@ -1,0 +1,17 @@
+-jar
+out/vercors/main/assembly.dest/out.jar
+-o
+vercors-native
+--no-fallback
+--parallelism=8
+--initialize-at-build-time=
+
+-H:ReflectionConfigurationFiles=conf/reflect-config.json
+--initialize-at-run-time=com.sun.jna.platform.win32
+--initialize-at-run-time=scala.util.Random$
+--initialize-at-run-time=com.microsoft.z3.Native
+--initialize-at-run-time=com.google.protobuf.UnsafeUtil
+
+--initialize-at-run-time=viper.silicon.state.terms.predef$
+--initialize-at-run-time=viper.silicon.rules.moreCompleteExhaleSupporter$
+--trace-object-instantiation=com.sun.jna.internal.Cleaner$CleanerThread
