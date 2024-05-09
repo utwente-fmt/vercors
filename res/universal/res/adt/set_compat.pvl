@@ -1,7 +1,9 @@
 requires !xs.isEmpty;
 ensures \result \in xs;
+decreases;
 pure T set_choose<T>(set<T> xs);
 
 requires !xs.isEmpty;
 ensures \result \in xs;
+decreases;
 T set_choose_fresh<T>(set<T> xs);

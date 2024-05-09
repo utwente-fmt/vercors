@@ -7,9 +7,9 @@ import vct.parsers.CParser.PreprocessorError
 import vct.parsers.transform.BlameProvider
 import vct.result.VerificationError.{Unreachable, UserError}
 
-import java.io.{File, FileNotFoundException, InputStreamReader, OutputStreamWriter, StringWriter}
+import java.io.{FileNotFoundException, InputStreamReader, OutputStreamWriter, StringWriter}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Path, Paths}
+import java.nio.file.{Files, NoSuchFileException, Path, Paths}
 
 case object CParser {
   case class PreprocessorError(fileName: String, errorCode: Int, error: String) extends UserError {
@@ -48,39 +48,42 @@ case class ColCParser(override val origin: Origin,
 
   override def parse[G](readable: Readable): ParseResult[G] =
     try {
-      val interpreted = File.createTempFile("vercors-interpreted-", ".i")
-      interpreted.deleteOnExit()
+      val interpreted = Files.createTempFile("vercors-interpreted-", ".i")
 
-      val process = interpret(
-        localInclude=Option(Paths.get(readable.fileName).getParent).toSeq,
-        input="-",
-        output=interpreted.toString
-      )
-      new Thread(() => {
-        val writer = new OutputStreamWriter(process.getOutputStream, StandardCharsets.UTF_8)
-        try {
-          readable.read { reader =>
-            val written = reader.transferTo(writer)
-            logger.debug(s"Wrote $written bytes to clang")
+      try {
+        val process = interpret(
+          localInclude = Option(Paths.get(readable.fileName).getParent).toSeq,
+          input = "-",
+          output = interpreted.toString
+        )
+        new Thread(() => {
+          val writer = new OutputStreamWriter(process.getOutputStream, StandardCharsets.UTF_8)
+          try {
+            readable.read { reader =>
+              val written = reader.transferTo(writer)
+              logger.debug(s"Wrote $written bytes to clang")
+            }
+          } finally {
+            writer.close()
           }
-        } finally {
+        }, "[VerCors] clang stdout writer").start()
+        process.waitFor()
+
+        if (process.exitValue() != 0) {
+          val writer = new StringWriter()
+          new InputStreamReader(process.getInputStream).transferTo(writer)
+          new InputStreamReader(process.getErrorStream).transferTo(writer)
           writer.close()
+          throw PreprocessorError(readable.fileName, process.exitValue(), writer.toString)
         }
-      }, "[VerCors] clang stdout writer").start()
-      process.waitFor()
 
-      if(process.exitValue() != 0) {
-        val writer = new StringWriter()
-        new InputStreamReader(process.getInputStream).transferTo(writer)
-        new InputStreamReader(process.getErrorStream).transferTo(writer)
-        writer.close()
-        throw PreprocessorError(readable.fileName, process.exitValue(), writer.toString)
+        val ireadable = RWFile(interpreted, doWatch = false)
+        val result = ColIParser(Origin(Seq(ReadableOrigin(ireadable))), blameProvider, Some(origin)).parse[G](ireadable)
+        result
+      } finally {
+        Files.delete(interpreted)
       }
-
-      val ireadable = RWFile(interpreted)
-      val result = ColIParser(Origin(Seq(ReadableOrigin(ireadable))), blameProvider, Some(origin)).parse[G](ireadable)
-      result
     } catch {
-      case _: FileNotFoundException => throw FileNotFound(readable.fileName)
+      case _: FileNotFoundException | _: NoSuchFileException => throw FileNotFound(readable.fileName)
     }
 }

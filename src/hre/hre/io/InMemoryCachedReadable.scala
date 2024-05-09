@@ -10,6 +10,7 @@ trait InMemoryCachedReadable extends Readable {
 
   private def ensureCache(): Unit =
     if (cache.isEmpty) {
+      Watch.enroll(this)
       val scanner = new Scanner(getReaderImpl)
       scanner.useDelimiter("\\A")
       cache = Some(if (scanner.hasNext()) scanner.next() else "")
@@ -34,7 +35,7 @@ trait InMemoryCachedReadable extends Readable {
     linesCache.get
   }
 
-  protected def invalidate(): Unit = {
+  override def invalidate(): Unit = {
     cache = None
     linesCache = None
   }

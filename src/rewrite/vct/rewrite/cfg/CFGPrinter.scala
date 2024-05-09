@@ -33,7 +33,7 @@ case class CFGPrinter[G]() {
   def print_ast_as_cfg(entry_point: InstanceMethod[G], path: Path): Unit = {
     val cfg_root: CFGNode[G] = CFGGenerator().generate(entry_point)
     find_all_nodes(cfg_root)
-    RWFile(path.toFile).write(w => print_cfg(w))
+    RWFile(path).write(w => print_cfg(w))
   }
 
   private def find_all_nodes(node: CFGEntry[G]): Unit = {

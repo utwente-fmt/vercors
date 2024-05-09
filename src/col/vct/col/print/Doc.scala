@@ -122,8 +122,20 @@ sealed trait Doc extends Show {
   }
   case class EText(text: String) extends Elem
   case class ELine(indent: Int) extends Elem
-  case class EStart(node: Node[_]) extends Elem
-  case class EEnd(node: Node[_]) extends Elem
+  case class EStart(node: Node[_]) extends Elem {
+    override def hashCode(): Int = System.identityHashCode(node)
+    override def equals(obj: Any): Boolean = obj match {
+      case EStart(other) => node.eq(other)
+      case _ => false
+    }
+  }
+  case class EEnd(node: Node[_]) extends Elem {
+    override def hashCode(): Int = System.identityHashCode(node) ^ 1
+    override def equals(obj: Any): Boolean = obj match {
+      case EEnd(other) => node.eq(other)
+      case _ => false
+    }
+  }
 
 
   def lazyListLen(list: LazyList[Elem]): Int = list match {

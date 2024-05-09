@@ -11,7 +11,7 @@ programDecl : valGlobalDeclaration | declClass | enumDecl | method | declVeyMont
 enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
 
 declClass
- : contract 'class' identifier '{' classDecl* '}'
+ : contract 'class' identifier declaredTypeArgs? '{' classDecl* '}'
  ;
 
 declVeyMontSeqProg : contract 'seq_program' identifier '(' args? ')' '{' seqProgDecl* '}';
@@ -34,7 +34,7 @@ field : finalFlag? type identifierList ';' ;
 method : contract valModifier* type identifier declaredTypeArgs? '(' args? ')' methodBody ;
 methodBody : ';' | block ;
 
-constructor : contract 'constructor' '(' args? ')' methodBody ;
+constructor : contract 'constructor' declaredTypeArgs? '(' args? ')' methodBody ;
 
 runMethod : contract 'run' methodBody ;
 

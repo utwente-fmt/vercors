@@ -83,11 +83,11 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
 
     case NewObject(Ref(cls)) =>
       implicit val o: Origin = e.o
-      cls.declarations.collectFirst {
+      cls.decls.collectFirst {
         case run: RunMethod[Pre] => run
       } match {
         case Some(_) =>
-          val obj = new Variable[Post](TClass(succ(cls)))
+          val obj = new Variable[Post](TClass(succ(cls), Seq()))
           ScopedExpr(Seq(obj), With(Block(Seq(
             assignLocal(obj.get, NewObject(succ(cls))),
             Inhale(InstancePredicateApply[Post](obj.get, idleToken.ref(cls), Nil, WritePerm()))

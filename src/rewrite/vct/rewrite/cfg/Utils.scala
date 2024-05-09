@@ -15,8 +15,8 @@ object Utils {
     case Then(value, post) => find_all_subexpressions(value) :+ post
     case mi @ MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
       Seq(InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields)(mi.blame)(mi.o))
-    case ci @ ConstructorInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
-      Seq(InvokeConstructor(ref, get_out_variable(ref.decl.cls, ci.o), args, outArgs, typeArgs, givenMap, yields)(ci.blame)(ci.o))
+    case ci @ ConstructorInvocation(ref, classTypeArgs, args, outArgs, typeArgs, givenMap, yields) =>
+      Seq(InvokeConstructor(ref, classTypeArgs, get_out_variable(ref.decl.cls, ci.o), args, outArgs, typeArgs, givenMap, yields)(ci.blame)(ci.o))
     case pi @ ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
       Seq(InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields)(pi.blame)(pi.o))
     case no @ NewObject(cls) => Seq(Instantiate(cls, get_out_variable(cls, no.o))(no.o))
@@ -53,7 +53,7 @@ object Utils {
     case _ => expr.subnodes.collect{ case ex: Expr[G] => ex }.flatMap(e => find_all_subexpressions(e))
   }
 
-  private def get_out_variable[G](cls: Ref[G, Class[G]],  o: Origin): Local[G] = Local(new DirectRef[G, Variable[G]](new Variable(TClass(cls))(o)))(o)
+  private def get_out_variable[G](cls: Ref[G, Class[G]],  o: Origin): Local[G] = Local(new DirectRef[G, Variable[G]](new Variable(TClass(cls, Seq()))(o)))(o)
 
   def find_all_cases[G](body: Statement[G], index: GlobalIndex[G]): Seq[(SwitchCase[G], GlobalIndex[G])] = body match {
     case Switch(_, _) => Seq()

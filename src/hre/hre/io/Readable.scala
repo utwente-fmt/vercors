@@ -1,17 +1,21 @@
 package hre.io
 
-import java.io.{File, Reader}
+import java.io.Reader
 import java.nio.CharBuffer
+import java.nio.file.{Files, Path}
 import java.util.Scanner
 import scala.collection.mutable
 
 trait Readable {
   def fileName: String
-  def underlyingFile: Option[File] = None
+  def underlyingFile: Option[Path] = None
   def isRereadable: Boolean
   protected def getReader: Reader
+  def enroll(watch: Watch): Unit
+  def invalidate(): Unit = {}
 
   def read[T](f: Reader => T): T = {
+    Watch.enroll(this)
     val r = getReader
     try {
       f(r)

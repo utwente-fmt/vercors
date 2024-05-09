@@ -1,6 +1,6 @@
 package vct.col.ast.expr.apply
 
-import vct.col.ast.FunctionInvocation
+import vct.col.ast.{FunctionInvocation, Variable, Type}
 import vct.col.print._
 import vct.col.ast.ops.FunctionInvocationOps
 
@@ -22,4 +22,6 @@ trait FunctionInvocationImpl[G] extends FunctionInvocationOps[G] { this: Functio
     case Ctx.Silver => layoutSilver
     case _ => layoutSpec
   }
+
+  override def typeEnv: Map[Variable[G], Type[G]] = ref.decl.typeArgs.zip(typeArgs).toMap
 }

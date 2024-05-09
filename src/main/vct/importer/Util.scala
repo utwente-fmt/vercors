@@ -31,7 +31,7 @@ case object Util {
     val pinnedLibrary = cacheDir.resolve("library.in")
     val result = cacheDir.resolve("library.colpb")
 
-    if(!Files.exists(cacheDir) || RWFile(pinnedLibrary.toFile).readToCompletion() != text) {
+    if(!Files.exists(cacheDir) || RWFile(pinnedLibrary, doWatch = false).readToCompletion() != text) {
       val res = ColPVLParser(Origin(Seq(ReadableOrigin(readable))), ConstantBlameProvider(LibraryFileBlame)).parse(readable)
       val context = Resolution(ConstantBlameProvider(LibraryFileBlame)).run(res)
       val unambiguousProgram: Program[_] = Disambiguate().dispatch(context.tasks.head.program)
