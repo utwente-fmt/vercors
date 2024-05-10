@@ -2,8 +2,10 @@ package vct.parsers
 
 import hre.io.Readable
 import org.antlr.v4.runtime
+import org.antlr.v4.runtime.atn.PredictionMode
 import org.antlr.v4.runtime.{CharStreams, CommonTokenStream, Token}
 import vct.col.origin.{ExpectedError, Origin}
+import vct.parsers.debug.ATNTools
 import vct.parsers.transform.{BlameProvider, OriginProvider}
 import vct.result.VerificationError.UserError
 
@@ -46,6 +48,7 @@ abstract class Parser(val origin: Origin, val blameProvider: BlameProvider) {
   }
 
   protected def getErrorsFor[T](origin: Origin, parser: runtime.Parser, lexer: runtime.Lexer)(f: => T): Either[Seq[ParseError], T] = {
+    parser.getInterpreter.setPredictionMode(PredictionMode.LL_EXACT_AMBIG_DETECTION)
     parser.setErrorHandler(ParseErrorStrategy())
     parser.removeErrorListeners()
     lexer.removeErrorListeners()
