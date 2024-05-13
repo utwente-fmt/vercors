@@ -26,7 +26,7 @@ import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
 import vct.rewrite.{EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, MonomorphizeClass, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeChannels, EncodeChoreographyParameters, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateImplementation, GenerateSeqProgPermissions, InferEndpointContexts, SpecializeEndpointClasses, SplitSeqGuards}
+import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeChannels, EncodeChoreographyParameters, EncodeEndpointInequalities, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateImplementation, GenerateSeqProgPermissions, InferEndpointContexts, SpecializeEndpointClasses, SplitSeqGuards}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
@@ -211,6 +211,7 @@ case class SilverTransformation
     InferEndpointContexts,
     GenerateSeqProgPermissions.withArg(veymontGeneratePermissions),
     EncodeSeqBranchUnanimity,
+    EncodeEndpointInequalities,
     EncodeSeqProg,
 
     EncodeString, // Encode spec string as seq<int>
