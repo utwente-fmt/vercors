@@ -806,8 +806,6 @@ object vercors extends Module {
     }
   }
 
-
-
   object allTests extends ScalaModule with ReleaseModule {
     def packedResources = T.sources()
     override def moduleDeps: Seq[JavaModule] = Seq(col.test, viperApi.test, main.test)
