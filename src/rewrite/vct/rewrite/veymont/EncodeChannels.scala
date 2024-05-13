@@ -21,7 +21,7 @@ object EncodeChannels extends RewriterBuilderArg[ImportADTImporter] {
   override def desc: String = "Encodes VeyMont channels as fields on endpoints, and communicate statements as method invocations on endpoints."
 }
 
-case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extends Rewriter[Pre] with LazyLogging {
+case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extends Rewriter[Pre] with LazyLogging with VeymontContext[Pre] {
   private lazy val channelFile = parse("genericChannel")
 
   private lazy val genericChannelClass = find[Class[Post]](channelFile, "Channel")
@@ -44,27 +44,18 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
 
   def channelType(t: Type[Post]): TClass[Post] = TClass[Post](genericChannelClass.ref, Seq(t))
 
-  var program: Program[Pre] = null
-  lazy val choreographies: Seq[Choreography[Pre]] = program.collect { case c: Choreography[Pre] => c }.toIndexedSeq
-  lazy val communicates: Map[Choreography[Pre], Seq[Communicate[Pre]]] = choreographies.map { c =>
-    (c, c.collect { case comm: Communicate[Pre] => comm }.toIndexedSeq)
-  }.toMap
-
-  val currentChoreography = ScopedStack[Choreography[Pre]]()
-
-  val classOfEndpoint = SuccessionMap[Endpoint[Pre], Class[Post]]()
   val fieldOfCommunicate = SuccessionMap[(Endpoint[Pre], Communicate[Pre]), InstanceField[Post]]()
-  val implFieldOfEndpoint = SuccessionMap[Endpoint[Pre], InstanceField[Post]]()
   val localOfCommunicate = mutable.LinkedHashMap[Communicate[Pre], Variable[Post]]()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
-    program = p
+    mappings.program = p
     p.rewriteDefault()
   }
+
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case prog: Choreography[Pre] =>
-      implicit val o = prog.o
-      currentChoreography.having(prog) {
+    case chor: Choreography[Pre] =>
+      implicit val o = chor.o
+      currentChoreography.having(chor) {
         def commVar(comm: Communicate[Pre]): Variable[Post] = {
           val t = channelType(dispatch(comm.msgType))
           val v = new Variable(t)
@@ -89,71 +80,31 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
             blame = PanicBlame("Should be safe")
           )
         }
-        allScopes.anySucceed(prog, prog.rewrite(preRun = {
-          val vars = communicates(prog).map(commVar)
-          val instantiatedComms: Seq[Statement[Post]] = communicates(prog).map(instantiateComm)
-          val assignComms: Seq[Statement[Post]] = prog.endpoints.flatMap { endpoint => communicates(prog).map { comm => assignComm(comm, endpoint) } }
+        allScopes.anySucceed(chor, chor.rewrite(preRun = {
+          val vars = communicatesOf(chor).map(commVar)
+          val instantiatedComms: Seq[Statement[Post]] = communicatesOf(chor).map(instantiateComm)
+          val assignComms: Seq[Statement[Post]] = chor.endpoints.flatMap { endpoint => communicatesOf(chor).map { comm => assignComm(comm, endpoint) } }
           Some(Scope(vars, Block(instantiatedComms ++ assignComms)))
         }))
       }
-    case endpoint: Endpoint[Pre] =>
-      // Replace with endpoint with specialized class. Has members: impl of old type, and field for each communciate
-      // leading to channel of proper type
-      implicit val o = endpoint.o
+    case cls: Class[Pre] if isEndpointClass(cls) =>
+      val endpoint = endpointOf(cls)
+      cls.rewrite(
+        decls = classDeclarations.collect {
+          cls.decls.foreach(dispatch)
+          communicatesOf(currentChoreography.top).foreach { comm =>
+            val EndpointName(Ref(sender)) = comm.sender.subject
+            val EndpointName(Ref(receiver)) = comm.receiver.subject
+            val f = new InstanceField[Post](channelType(dispatch(comm.msgType)), Seq())(
+              comm.o.where(indirect = Name.names(sender.o.getPreferredNameOrElse(), receiver.o.getPreferredNameOrElse()))
+            )
+            fieldOfCommunicate((endpoint, comm)) = f
+            f.declare()
+          }
+        }._1
+      )
 
-      val commFields = communicates(currentChoreography.top).map { comm =>
-        val EndpointName(Ref(sender)) = comm.sender.subject
-        val EndpointName(Ref(receiver)) = comm.receiver.subject
-        val f = new InstanceField[Post](channelType(dispatch(comm.msgType)), Seq())(
-          o.where(indirect = Name.names(sender.o.getPreferredNameOrElse(), receiver.o.getPreferredNameOrElse()))
-        )
-        fieldOfCommunicate((endpoint, comm)) = f
-        f
-      }
-      val implField = new InstanceField[Post](dispatch(endpoint.t), Seq())
-      implFieldOfEndpoint(endpoint) = implField
-
-      val constructor: Constructor[Post] = {
-        val implArg = new Variable(dispatch(endpoint.t))
-        val `this` = new ThisObject[Post](classOfEndpoint.ref(endpoint))
-        new Constructor[Post](
-          cls = classOfEndpoint.ref(endpoint),
-          args = Seq(implArg),
-          contract = contract[Post](
-            blame = PanicBlame("TODO"),
-            ensures = UnitAccountedPredicate(
-              foldStar[Post]((implField +: commFields).map { f => fieldPerm[Post](`this`, f.ref, WritePerm()) }) &*
-                (Deref[Post](`this`, implField.ref)(PanicBlame("Deref cannot fail")) === implArg.get))
-          ),
-          body = Some(assignField[Post](ThisObject(classOfEndpoint.ref(endpoint)), implField.ref, implArg.get, PanicBlame("Cannot fail"))),
-          outArgs = Seq(), typeArgs = Seq(),
-        )(PanicBlame("Postcondition cannot fail"))
-      }
-
-      val wrapperClass = new Class[Post](
-        typeArgs = Seq(), supports = Seq(), intrinsicLockInvariant = tt,
-        decls = Seq(
-          implField,
-          constructor
-        ) ++ commFields,
-      )(endpoint.o.where(indirect = Name.names(Name("Endpoint"), endpoint.o.getPreferredNameOrElse())))
-      classOfEndpoint(endpoint) = wrapperClass
-      globalDeclarations.declare(wrapperClass)
-
-      allScopes.anySucceed(endpoint, endpoint.rewrite[Post](
-        cls = wrapperClass.ref,
-        typeArgs = Seq(),
-        constructor = constructor.ref,
-        args = Seq(constructorInvocation[Post](
-          ref = succ(endpoint.constructor.decl),
-          classTypeArgs = endpoint.typeArgs.map(dispatch),
-          args = endpoint.args.map(dispatch),
-          blame = PanicBlame("Not implemented")
-        )),
-        blame = PanicBlame("Unreachable")
-      ))
-    case _ =>
-      super.dispatch(decl)
+    case _ => super.dispatch(decl)
   }
 
   override def dispatch(stmt: Statement[Pre]): Statement[Post] = stmt match {
@@ -165,6 +116,9 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
 
   def sendOf(comm: Communicate[Pre]): Statement[Post] = {
     implicit val o = comm.o
+    /* TODO (RR): The Access here should be replaced with a general expression, as this will usually be a nested
+        dereference. As soon as that refactor is done, this refactor here can be finished.
+     */
     val Access(EndpointName(Ref(sender)), Ref(field)) = comm.sender
     ChorStatement[Post](Some(succ(sender)),
       Eval(methodInvocation(
@@ -173,10 +127,8 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
           fieldOfCommunicate.ref[Post, InstanceField[Post]]((sender, comm)))(PanicBlame("Permission for fields should be propagated in entire choreography")),
         ref = genericWrite.ref[InstanceMethod[Post]],
         args = Seq(
-          Deref[Post](
-            Deref[Post](EndpointUse[Post](succ(sender)), implFieldOfEndpoint.ref(sender))(PanicBlame("Should be safe")),
-            succ(field)
-          )(PanicBlame("TODO: translate to blame from communicate"))
+          ???
+//          Deref[Post](EndpointUse[Post](succ(sender)), succ(field))(PanicBlame("TODO: translate to blame from communicate"))
         ),
         blame = PanicBlame("TODO 1")
       ))
@@ -188,8 +140,8 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
     val Access(EndpointName(Ref(receiver)), Ref(field)) = comm.receiver
     ChorStatement[Post](Some(succ(receiver)),
       assignField[Post](
-        obj = Deref[Post](EndpointUse[Post](succ(receiver)), implFieldOfEndpoint.ref(receiver))(PanicBlame("Should be safe")),
-        field = succ(field),
+        obj = ???, // Deref[Post](EndpointUse[Post](succ(receiver)), implFieldOfEndpoint.ref(receiver))(PanicBlame("Should be safe")),
+        field = ???, // succ(field),
         value = methodInvocation(
           obj = Deref[Post](EndpointUse(succ(receiver)), fieldOfCommunicate.ref((receiver, comm)))(PanicBlame("Should be safe")),
           ref = genericRead.ref,
@@ -197,12 +149,5 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
         ),
         blame = PanicBlame("TODO 2")
       ))(PanicBlame("TODO: ChorStatement blame?"))
-  }
-
-  override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case use @ EndpointUse(Ref(endpoint)) =>
-      implicit val o = use.o
-      Deref[Post](use.rewriteDefault(), implFieldOfEndpoint.ref(endpoint))(PanicBlame("Should be safe"))
-    case _ => expr.rewriteDefault()
   }
 }
