@@ -12,12 +12,12 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 
 import scala.collection.immutable.ListSet
 
-object GenerateSeqProgPermissions extends RewriterBuilderArg[Boolean] {
-  override def key: String = "generateSeqProgPermissions"
+object GenerateChoreographyPermissions extends RewriterBuilderArg[Boolean] {
+  override def key: String = "generateChoreographyPermissions"
   override def desc: String = "Generates permissions for fields of some types (classes, int, bool, and arrays of these) for constructs used inside seq_program."
 }
 
-case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = false) extends Rewriter[Pre] with LazyLogging {
+case class GenerateChoreographyPermissions[Pre <: Generation](enabled: Boolean = false) extends Rewriter[Pre] with LazyLogging {
 
   val currentPerm: ScopedStack[Expr[Post]] = ScopedStack()
   val currentProg: ScopedStack[Choreography[Pre]] = ScopedStack()

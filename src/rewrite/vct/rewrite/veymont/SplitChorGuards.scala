@@ -9,12 +9,12 @@ import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.SplitSeqGuards.{MultipleEndpoints, SeqProgParticipantErrors}
+import vct.rewrite.veymont.SplitChorGuards.{MultipleEndpoints, SeqProgParticipantErrors}
 
 import scala.collection.immutable.ListSet
 import scala.collection.mutable
 
-object SplitSeqGuards extends RewriterBuilder {
+object SplitChorGuards extends RewriterBuilder {
   override def key: String = "splitSeqGuards"
   override def desc: String = "Lifts conditions in loops and conditionals into the SeqGuard AST node, stratifying the condition per endpoint."
 
@@ -31,7 +31,7 @@ object SplitSeqGuards extends RewriterBuilder {
   }
 }
 
-case class SplitSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
+case class SplitChorGuards[Pre <: Generation]() extends Rewriter[Pre] {
   val currentProg: ScopedStack[Choreography[Pre]] = ScopedStack()
   val currentParticipants: ScopedStack[ListSet[Pre]] = ScopedStack()
 

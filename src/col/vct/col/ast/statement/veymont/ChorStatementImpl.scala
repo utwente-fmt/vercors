@@ -33,7 +33,7 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] { t
         case _ => context.currentReceiverEndpoint
       }
 
-    def check(chorStmt: ChorStatement[G], node: Eval[G], context: CheckContext[G]): Seq[CheckError] = (context.currentSeqProg, node.expr) match {
+    def check(chorStmt: ChorStatement[G], node: Eval[G], context: CheckContext[G]): Seq[CheckError] = (context.currentChoreography, node.expr) match {
       case (None, _) => Seq()
       case (Some(_), MethodInvocation(ThisChoreography(_), _, _, _, _, _, _)) => Seq()
       case (Some(_), MethodInvocation(e, _, _, _, _, _, _)) if rootEndpoint(e).isDefined => Seq()

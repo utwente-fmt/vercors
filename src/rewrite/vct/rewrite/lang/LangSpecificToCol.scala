@@ -139,7 +139,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
 
     case glue: JavaBipGlueContainer[Pre] => bip.rewriteGlue(glue)
 
-    case seqProg: PVLChoreography[Pre] => veymont.rewriteSeqProg(seqProg)
+    case chor: PVLChoreography[Pre] => veymont.rewriteChoreography(chor)
 
     case other => rewriteDefault(other)
   }

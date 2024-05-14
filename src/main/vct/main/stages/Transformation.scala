@@ -26,7 +26,7 @@ import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
 import vct.rewrite.{EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, MonomorphizeClass, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeChannels, EncodeChoreographyParameters, EncodeEndpointInequalities, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateImplementation, GenerateSeqProgPermissions, InferEndpointContexts, SpecializeEndpointClasses, SplitSeqGuards}
+import vct.rewrite.veymont.{DeduplicateChorGuards, EncodeChannels, EncodeChoreographyParameters, EncodeEndpointInequalities, EncodeChorBranchUnanimity, EncodeChoreography, EncodeUnpointedGuard, GenerateImplementation, GenerateChoreographyPermissions, InferEndpointContexts, SpecializeEndpointClasses, SplitChorGuards}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
@@ -205,14 +205,14 @@ case class SilverTransformation
     EncodeRangedFor,
 
     // VeyMont sequential program encoding
-    SplitSeqGuards,
+    SplitChorGuards,
     EncodeUnpointedGuard,
-    DeduplicateSeqGuards,
+    DeduplicateChorGuards,
     InferEndpointContexts,
-    GenerateSeqProgPermissions.withArg(veymontGeneratePermissions),
-    EncodeSeqBranchUnanimity,
+    GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
+    EncodeChorBranchUnanimity,
     EncodeEndpointInequalities,
-    EncodeSeqProg,
+    EncodeChoreography,
 
     EncodeString, // Encode spec string as seq<int>
     EncodeChar,
@@ -329,9 +329,9 @@ case class VeyMontImplementationGeneration(importer: ImportADTImporter = PathAdt
                                            override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
                                            override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
   extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
-    SplitSeqGuards,
+    SplitChorGuards,
     EncodeUnpointedGuard,
-    DeduplicateSeqGuards,
+    DeduplicateChorGuards,
     SpecializeEndpointClasses,
     EncodeChannels.withArg(importer),
 //    EncodeChoreographyParameters,

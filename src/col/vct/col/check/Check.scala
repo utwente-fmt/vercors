@@ -199,7 +199,7 @@ case class CheckContext[G]
   currentApplicable: Option[Applicable[G]] = None,
   inPreCondition: Boolean = false,
   inPostCondition: Boolean = false,
-  currentSeqProg: Option[Choreography[G]] = None,
+  currentChoreography: Option[Choreography[G]] = None,
   currentReceiverEndpoint: Option[Endpoint[G]] = None,
   currentParticipatingEndpoints: Option[Set[Endpoint[G]]] = None,
   declarationStack: Seq[Declaration[G]] = Nil,
@@ -230,8 +230,8 @@ case class CheckContext[G]
   def withUndeclared(decls: Seq[Declaration[G]]): CheckContext[G] =
     copy(undeclared = undeclared :+ decls)
 
-  def withSeqProg(prog: Choreography[G]): CheckContext[G] =
-    copy(currentSeqProg = Some(prog))
+  def withChoreography(prog: Choreography[G]): CheckContext[G] =
+    copy(currentChoreography = Some(prog))
 
   def withReceiverEndpoint(endpoint: Endpoint[G]): CheckContext[G] =
     copy(currentReceiverEndpoint = Some(endpoint))

@@ -8,16 +8,16 @@ import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.SplitSeqGuards.MultipleEndpoints
+import vct.rewrite.veymont.SplitChorGuards.MultipleEndpoints
 
 import scala.collection.mutable
 
-object DeduplicateSeqGuards extends RewriterBuilder {
+object DeduplicateChorGuards extends RewriterBuilder {
   override def key: String = "deduplicateSeqGuards"
   override def desc: String = "Deduplicates SeqGuard nodes with syntactically identical endpoints"
 }
 
-case class DeduplicateSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
+case class DeduplicateChorGuards[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(statement: Statement[Pre]): Statement[Post] = statement match {
     case branch: ChorBranch[Pre] =>
       val guards: Seq[EndpointGuard[Pre]] = branch.guards.map {

@@ -37,7 +37,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
-  val seqProgSucc: SuccessionMap[PVLChoreography[Pre], Choreography[Post]] = SuccessionMap()
+  val chorSucc: SuccessionMap[PVLChoreography[Pre], Choreography[Post]] = SuccessionMap()
   val endpointSucc: SuccessionMap[PVLEndpoint[Pre], Endpoint[Post]] = SuccessionMap()
 
   val currentProg: ScopedStack[PVLChoreography[Pre]] = ScopedStack()
@@ -63,11 +63,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
       endpoint.args.map(rw.dispatch)
     )(endpoint.blame)(endpoint.o))
 
-  def rewriteSeqProg(prog: PVLChoreography[Pre]): Unit = {
+  def rewriteChoreography(prog: PVLChoreography[Pre]): Unit = {
     implicit val o: Origin = prog.o
-    rw.currentThis.having(ThisChoreography[Post](seqProgSucc.ref(prog))) {
+    rw.currentThis.having(ThisChoreography[Post](chorSucc.ref(prog))) {
       currentProg.having(prog) {
-        seqProgSucc(prog) = rw.globalDeclarations.declare(
+        chorSucc(prog) = rw.globalDeclarations.declare(
           new Choreography(
             rw.dispatch(prog.contract),
             rw.variables.collect(prog.args.map(rw.dispatch(_)))._1,

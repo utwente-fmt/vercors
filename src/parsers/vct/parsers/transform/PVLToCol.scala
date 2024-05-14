@@ -30,7 +30,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case ProgramDecl1(cls) => Seq(convert(cls))
     case ProgramDecl2(enum) => Seq(convert(enum))
     case ProgramDecl3(method) => Seq(convertProcedure(method))
-    case ProgramDecl4(choreography) => Seq(convertSeqProg(choreography))
+    case ProgramDecl4(choreography) => Seq(convertChoreography(choreography))
     case ProgramDecl5(vesuv_entry) => convert(vesuv_entry)
   }
 
@@ -62,7 +62,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlEndpoint(_, name, _, t@ClassType0(_, Some(_)), _, args, _, _) => ??(t)
   }
 
-  def convertSeqProg(implicit decl: DeclVeyMontSeqProgContext): PVLChoreography[G] = decl match {
+  def convertChoreography(implicit decl: DeclVeyMontSeqProgContext): PVLChoreography[G] = decl match {
     case DeclVeyMontSeqProg0(contract, _, name, _, args, _, _, decls, _) =>
       withContract(contract, contract => {
         new PVLChoreography(

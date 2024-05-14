@@ -8,11 +8,11 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.EncodeSeqBranchUnanimity.{ForwardBranchUnanimity, ForwardLoopUnanimityNotEstablished, ForwardLoopUnanimityNotMaintained}
+import vct.rewrite.veymont.EncodeChorBranchUnanimity.{ForwardBranchUnanimity, ForwardLoopUnanimityNotEstablished, ForwardLoopUnanimityNotMaintained}
 
 import scala.collection.mutable
 
-object EncodeSeqBranchUnanimity  extends RewriterBuilder {
+object EncodeChorBranchUnanimity  extends RewriterBuilder {
   override def key: String = "encodeSeqBranchUnanimity"
   override def desc: String = "Encodes the branch unanimity requirement imposed by VeyMont on branches and loops in seq_program nodes."
 
@@ -32,7 +32,7 @@ object EncodeSeqBranchUnanimity  extends RewriterBuilder {
   }
 }
 
-case class EncodeSeqBranchUnanimity[Pre <: Generation]() extends Rewriter[Pre] {
+case class EncodeChorBranchUnanimity[Pre <: Generation]() extends Rewriter[Pre] {
 
   val currentLoop = ScopedStack[ChorLoop[Pre]]()
 

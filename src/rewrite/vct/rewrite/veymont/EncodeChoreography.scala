@@ -8,14 +8,14 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
-import EncodeSeqProg.{AssertFailedToParticipantsNotDistinct, AssignFailedToSeqAssignFailure, CallableFailureToSeqCallableFailure, InsufficientPermissionToAccessFailure}
+import EncodeChoreography.{AssertFailedToParticipantsNotDistinct, AssignFailedToSeqAssignFailure, CallableFailureToSeqCallableFailure, InsufficientPermissionToAccessFailure}
 import vct.col.ref.Ref
 
 import scala.collection.{mutable => mut}
 
-object EncodeSeqProg extends RewriterBuilder {
-  override def key: String = "encodeSeqProg"
-  override def desc: String = "Encodes the semantics of a parallel VeyMont program."
+object EncodeChoreography extends RewriterBuilder {
+  override def key: String = "encodeChoreography"
+  override def desc: String = "Encodes the semantics of a VeyMont choreography."
 
   object SignalsAlwaysEmpty extends PanicBlame("signals always empty")
 
@@ -61,8 +61,8 @@ object EncodeSeqProg extends RewriterBuilder {
   }
 }
 
-case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
-  import EncodeSeqProg._
+case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+  import EncodeChoreography._
 
   val currentProg: ScopedStack[Choreography[Pre]] = ScopedStack()
   val currentRun: ScopedStack[ChorRun[Pre]] = ScopedStack()

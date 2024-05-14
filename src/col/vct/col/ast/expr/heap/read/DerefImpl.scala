@@ -28,7 +28,7 @@ trait DerefImpl[G] extends ExprImpl[G] with DerefOps[G] { this: Deref[G] =>
   }
 
   def currentEndpointCheck(context: CheckContext[G]): Seq[CheckError] =
-    (context.currentSeqProg, context.currentReceiverEndpoint) match {
+    (context.currentChoreography, context.currentReceiverEndpoint) match {
     case (Some(_), Some(currentReceiver)) => root() match {
       case EndpointUse(Ref(receiver)) if currentReceiver != receiver =>
         Seq(SeqProgReceivingEndpoint(this))

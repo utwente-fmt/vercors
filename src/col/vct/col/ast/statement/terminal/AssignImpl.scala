@@ -9,7 +9,7 @@ trait AssignImpl[G] extends NormallyCompletingStatementImpl[G] with AssignOps[G]
   override def check(context: CheckContext[G]): Seq[CheckError] =
     super.check(context) ++ (target match {
       case Local(ref) => context.checkInWriteScope(context.roScopeReason, this, ref)
-      case EndpointUse(_) if context.currentSeqProg.isDefined => Seq(SeqProgEndpointAssign(this))
+      case EndpointUse(_) if context.currentChoreography.isDefined => Seq(SeqProgEndpointAssign(this))
       case _ => Nil
     })
 

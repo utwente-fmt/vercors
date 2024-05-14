@@ -34,6 +34,6 @@ trait ChoreographyImpl[G] extends DeclarationImpl[G] with Declarator[G] with Cho
   override def enterCheckContextCurrentParticipatingEndpoints(context: CheckContext[G]): Option[Set[Endpoint[G]]] =
     context.withCurrentParticipatingEndpoints(endpoints)
 
-  override def enterCheckContextCurrentSeqProg(context: CheckContext[G]): Option[Choreography[G]] =
+  override def enterCheckContextCurrentChoreography(context: CheckContext[G]): Option[Choreography[G]] =
     Some(this)
 }
