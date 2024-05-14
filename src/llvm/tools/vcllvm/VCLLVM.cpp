@@ -26,12 +26,12 @@ col::Program sampleCol(bool returnBool) {
 
     // class
     col::GlobalDeclaration *classDeclaration = program.add_declarations();
-    col::VctClass *vctClass = classDeclaration->mutable_vct_class();
-    llvm2Col::setColNodeId(vctClass);
-    col::BooleanValue *lockInvariant = vctClass->mutable_intrinsic_lock_invariant()->mutable_boolean_value();
+    col::ByReferenceClass *clazz = classDeclaration->mutable_by_reference_class();
+    llvm2Col::setColNodeId(clazz);
+    col::BooleanValue *lockInvariant = clazz->mutable_intrinsic_lock_invariant()->mutable_boolean_value();
     lockInvariant->set_value(true);
     // class>method
-    col::ClassDeclaration *methodDeclaration = vctClass->add_decls();
+    col::ClassDeclaration *methodDeclaration = clazz->add_decls();
     col::InstanceMethod *method = methodDeclaration->mutable_instance_method();
     llvm2Col::setColNodeId(method);
     // class>method>return_type

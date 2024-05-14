@@ -5,6 +5,7 @@ import hre.util.ScopedStack
 import vct.col.ast.{
   Assign,
   Block,
+  ByValueClass,
   ChorStatement,
   Choreography,
   Class,
@@ -23,6 +24,7 @@ import vct.col.ast.{
   Program,
   Scope,
   Statement,
+  TByValueClass,
   TClass,
   TVar,
   Type,
@@ -81,7 +83,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter)
     }.get
 
   def channelType(comm: Communicate[Pre]): Type[Post] =
-    TClass[Post](channelClassSucc.ref(comm), Seq())
+    TByValueClass[Post](channelClassSucc.ref(comm), Seq())
 
   val currentCommunicate = ScopedStack[Communicate[Pre]]()
   val currentMsgTVar = ScopedStack[Variable[Pre]]()
@@ -159,7 +161,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter)
           }).succeed(chor)
         }
 
-      case cls: Class[Pre] if isEndpointClass(cls) =>
+      case cls: ByValueClass[Pre] if isEndpointClass(cls) =>
         cls.rewrite(decls =
           classDeclarations.collect {
             cls.decls.foreach(dispatch)
@@ -174,13 +176,15 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter)
           }._1
         ).succeed(cls)
 
-      case cls: Class[Pre] if cls == genericChannelClass =>
+      case cls: ByValueClass[Pre] if cls == genericChannelClass =>
         globalDeclarations.scope {
           classDeclarations.scope {
             variables.scope {
-              currentMsgTVar.having(cls.typeArgs.head) {
-                channelClassSucc(currentCommunicate.top) = cls
-                  .rewrite(typeArgs = Seq()).succeed(cls)
+              localHeapVariables.scope {
+                currentMsgTVar.having(cls.typeArgs.head) {
+                  channelClassSucc(currentCommunicate.top) = cls
+                    .rewrite(typeArgs = Seq()).succeed(cls)
+                }
               }
             }
           }

@@ -423,8 +423,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
 
     val fields =
       structType match {
-        case TClass(ref, _) =>
-          ref.decl.declarations.collect { case field: InstanceField[Post] =>
+        case t: TClass[Post] =>
+          t.cls.decl.declarations.collect { case field: InstanceField[Post] =>
             field
           }
         case _ => Seq()

@@ -46,9 +46,11 @@ case class MonomorphizeContractApplicables[Pre <: Generation]()
             globalDeclarations.scope {
               classDeclarations.scope {
                 variables.scope {
-                  allScopes.anyDeclare(
-                    allScopes.anySucceedOnly(app, app.rewrite(typeArgs = Nil))
-                  )
+                  localHeapVariables.scope {
+                    allScopes.anyDeclare(
+                      allScopes.anySucceedOnly(app, app.rewrite(typeArgs = Nil))
+                    )
+                  }
                 }
               }
             }

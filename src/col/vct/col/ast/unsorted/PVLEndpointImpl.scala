@@ -8,5 +8,5 @@ trait PVLEndpointImpl[G] extends PVLEndpointOps[G] {
   this: PVLEndpoint[G] =>
   // override def layout(implicit ctx: Ctx): Doc = ???
 
-  def t: TClass[G] = TClass(cls, typeArgs)
+  def t: TClass[G] = cls.decl.classType(typeArgs)
 }

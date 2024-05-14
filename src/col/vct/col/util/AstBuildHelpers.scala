@@ -105,6 +105,10 @@ object AstBuildHelpers {
       SilverLocalAssign(new DirectRef(left), right)
   }
 
+  implicit class LocalHeapVarBuildHelpers[G](left: LocalHeapVariable[G]) {
+    def get(implicit origin: Origin): HeapLocal[G] = HeapLocal(new DirectRef(left))
+  }
+
   implicit class FieldBuildHelpers[G](left: SilverDeref[G]) {
     def <~(right: Expr[G])(
         implicit blame: Blame[AssignFailed],
@@ -761,6 +765,10 @@ object AstBuildHelpers {
   }
 
   def assignLocal[G](local: Local[G], value: Expr[G])(
+      implicit o: Origin
+  ): Assign[G] = Assign(local, value)(AssignLocalOk)
+
+  def assignHeapLocal[G](local: HeapLocal[G], value: Expr[G])(
       implicit o: Origin
   ): Assign[G] = Assign(local, value)(AssignLocalOk)
 

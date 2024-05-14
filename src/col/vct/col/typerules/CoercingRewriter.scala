@@ -1417,6 +1417,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case LiteralTuple(ts, values) =>
         LiteralTuple(ts, values.zip(ts).map { case (v, t) => coerce(v, t) })
       case Local(ref) => Local(ref)
+      case HeapLocal(ref) => HeapLocal(ref)
       case LocalThreadId() => LocalThreadId()
       case MapCons(m, k, v) =>
         val (coercedMap, mapType) = map(m)
@@ -2187,7 +2188,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
             givenMap,
             yields,
           ) =>
-        val cls = TClass(ref.decl.cls, classTypeArgs)
         InvokeConstructor(
           ref,
           classTypeArgs,
@@ -2237,6 +2237,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case j @ Join(obj) => Join(cls(obj))(j.blame)
       case Label(decl, stat) => Label(decl, stat)
       case LocalDecl(local) => LocalDecl(local)
+      case HeapLocalDecl(local) => HeapLocalDecl(local)
       case l @ Lock(obj) => Lock(cls(obj))(l.blame)
       case Loop(init, cond, update, contract, body) =>
         Loop(init, bool(cond), update, contract, body)
@@ -2322,13 +2323,14 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case rule: SimplificationRule[Pre] =>
         new SimplificationRule[Pre](bool(rule.axiom))
       case dataType: AxiomaticDataType[Pre] => dataType
-      case clazz: Class[Pre] =>
-        new Class[Pre](
+      case clazz: ByReferenceClass[Pre] =>
+        new ByReferenceClass[Pre](
           clazz.typeArgs,
           clazz.decls,
           clazz.supports,
           res(clazz.intrinsicLockInvariant),
         )
+      case clazz: ByValueClass[Pre] => clazz
       case enum: Enum[Pre] => enum
       case enumConstant: EnumConstant[Pre] => enumConstant
       case model: Model[Pre] => model
@@ -2447,6 +2449,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case axiom: ADTAxiom[Pre] => new ADTAxiom[Pre](bool(axiom.axiom))
       case function: ADTFunction[Pre] => function
       case variable: Variable[Pre] => variable
+      case variable: LocalHeapVariable[Pre] => variable
       case decl: LabelDecl[Pre] => decl
       case decl: SendDecl[Pre] => decl
       case decl: ParBlockDecl[Pre] => decl
@@ -2587,7 +2590,9 @@ abstract class CoercingRewriter[Pre <: Generation]()
   // PB: types may very well contain expressions eventually, but for now they don't.
   def coerce(node: Type[Pre]): Type[Pre] =
     node match {
-      case t @ TClass(cls, args) => arity(TClass(cls, args))
+      case t @ TByReferenceClass(cls, args) =>
+        arity(TByReferenceClass(cls, args))
+      case t @ TByValueClass(cls, args) => arity(TByValueClass(cls, args))
       case _ => node
     }
 

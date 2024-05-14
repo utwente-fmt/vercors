@@ -2,13 +2,12 @@ package vct.col.rewrite
 
 import vct.col.ast._
 import vct.col.origin._
+import vct.result.VerificationError
 import vct.col.util.AstBuildHelpers._
 import hre.util.ScopedStack
 import vct.col.rewrite.error.{ExcludedByPassOrder, ExtraNode}
 import vct.col.ref.Ref
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
-import RewriteHelpers._
 
 import scala.collection.mutable
 
@@ -30,6 +29,7 @@ case object ClassToRef extends RewriterBuilder {
     override def blame(error: PreconditionFailed): Unit =
       inner.blame(InstanceNull(inv))
   }
+
 }
 
 case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
@@ -75,6 +75,27 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     )
   }
 
+  def transitiveByValuePermissions(
+      obj: Expr[Pre],
+      t: TByValueClass[Pre],
+      amount: Expr[Pre],
+  )(implicit o: Origin): Expr[Pre] = {
+    t.cls.decl.decls.collect[Expr[Pre]] { case field: InstanceField[Pre] =>
+      field.t match {
+        case field_t: TByValueClass[Pre] =>
+          fieldPerm[Pre](obj, field.ref, amount) &*
+            transitiveByValuePermissions(
+              Deref[Pre](obj, field.ref)(PanicBlame(
+                "Permission should already be ensured"
+              )),
+              field_t,
+              amount,
+            )
+        case _ => fieldPerm(obj, field.ref, amount)
+      }
+    }.reduce[Expr[Pre]] { (a, b) => a &* b }
+  }
+
   def makeInstanceOf: Function[Post] = {
     implicit val o: Origin = InstanceOfOrigin
     val sub = new Variable[Post](TInt())
@@ -117,7 +138,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     decl match {
       case cls: Class[Pre] =>
         if (cls.typeArgs.nonEmpty)
-          throw vct.result.VerificationError.Unreachable(
+          throw VerificationError.Unreachable(
             "Class type parameters should be encoded using monomorphization earlier"
           )
 
@@ -407,7 +428,8 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         )
       case TypeValue(t) =>
         t match {
-          case TClass(Ref(cls), Seq()) => const(typeNumber(cls))(e.o)
+          case t: TClass[Pre] if t.typeArgs.isEmpty =>
+            const(typeNumber(t.cls.decl))(e.o)
           case other => ???
         }
       case TypeOf(value) =>
@@ -471,7 +493,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(t: Type[Pre]): Type[Post] =
     t match {
-      case TClass(_, _) => TRef()
+      case _: TClass[Pre] => TRef()
       case TAnyClass() => TRef()
       case t => rewriteDefault(t)
     }

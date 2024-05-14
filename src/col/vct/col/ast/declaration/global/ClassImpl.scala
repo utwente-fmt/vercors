@@ -1,18 +1,36 @@
 package vct.col.ast.declaration.global
 
-import vct.col.ast.{Class, Declaration, TClass, TVar}
+import vct.col.ast.{
+  Class,
+  ClassDeclaration,
+  Declaration,
+  Expr,
+  TByReferenceClass,
+  TClass,
+  TVar,
+  Type,
+  Variable,
+}
 import vct.col.ast.util.Declarator
 import vct.col.print._
 import vct.col.util.AstBuildHelpers.tt
-import vct.result.VerificationError.Unreachable
-import vct.col.ast.ops.ClassOps
 
-trait ClassImpl[G] extends Declarator[G] with ClassOps[G] {
+trait ClassImpl[G] extends Declarator[G] {
   this: Class[G] =>
+  def typeArgs: Seq[Variable[G]]
+  def decls: Seq[ClassDeclaration[G]]
+  def supports: Seq[Type[G]]
+  def intrinsicLockInvariant: Expr[G]
+
+  def classType(typeArgs: Seq[Type[G]]): TClass[G]
+
   def transSupportArrowsHelper(
       seen: Set[TClass[G]]
   ): Seq[(TClass[G], TClass[G])] = {
-    val t: TClass[G] = TClass(this.ref, typeArgs.map(v => TVar(v.ref)))
+    // TODO: Does this break things if we have a ByValueClass with supers?
+    val t: TClass[G] = classType(
+      typeArgs.map((v: Variable[G]) => TVar(v.ref[Variable[G]]))
+    )
     if (seen.contains(t))
       Nil
     else

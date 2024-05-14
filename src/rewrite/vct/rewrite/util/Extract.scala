@@ -84,7 +84,9 @@ case class Extract[G]() {
         t -> Local(
           getOrElseUpdate(
             free,
-            new Variable(extract(TClass(t.cls, Seq())))(ExtractOrigin("this")),
+            new Variable(extract(t.cls.decl.classType(Seq())))(ExtractOrigin(
+              "this"
+            )),
           ).ref[Variable[G]]
         )(ExtractOrigin(""))
       case free @ FreeThisModel(t) =>

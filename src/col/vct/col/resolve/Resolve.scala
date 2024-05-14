@@ -220,7 +220,12 @@ case object ResolveTypes {
           Spec.findModel(name, ctx)
             .getOrElse(throw NoSuchNameError("model", name, t))
         )
-      case t @ TClass(ref, _) =>
+      case t @ TByReferenceClass(ref, _) =>
+        ref.tryResolve(name =>
+          Spec.findClass(name, ctx)
+            .getOrElse(throw NoSuchNameError("class", name, t))
+        )
+      case t @ TByValueClass(ref, _) =>
         ref.tryResolve(name =>
           Spec.findClass(name, ctx)
             .getOrElse(throw NoSuchNameError("class", name, t))
@@ -643,7 +648,7 @@ case object ResolveReferences extends LazyLogging {
       case endpoint: PVLEndpoint[G] =>
         endpoint.ref = Some(
           PVL.findConstructor(
-            TClass(endpoint.cls.decl.ref[Class[G]], Seq()),
+            TByReferenceClass(endpoint.cls.decl.ref[Class[G]], Seq()),
             Seq(),
             endpoint.args,
           ).getOrElse(throw ConstructorNotFound(endpoint))

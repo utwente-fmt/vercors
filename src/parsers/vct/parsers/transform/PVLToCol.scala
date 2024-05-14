@@ -159,7 +159,7 @@ case class PVLToCol[G](
         withContract(
           contract,
           contract => {
-            new Class(
+            new ByReferenceClass(
               decls = decls.flatMap(convert(_)),
               supports = Nil,
               intrinsicLockInvariant = AstBuildHelpers

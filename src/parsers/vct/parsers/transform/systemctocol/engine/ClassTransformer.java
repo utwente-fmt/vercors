@@ -50,7 +50,7 @@ public class ClassTransformer<T> {
 
         // Transform class attributes
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
+        InstanceField<T> m = new InstanceField<>(new TByReferenceClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         declarations.add(m);
         col_system.add_class_main_ref(process, m);
         java.util.Map<SCVariable, InstanceField<T>> fields = create_fields(process.get_generating_function(), process.get_methods(),
@@ -75,7 +75,7 @@ public class ClassTransformer<T> {
         // Add all newly generated methods to the declarations as well
         declarations.addAll(generated_instance_methods);
 
-        return new Class<>(Seqs.empty(),
+        return new ByReferenceClass<>(Seqs.empty(),
                 List.from(CollectionConverters.asScala(declarations)), Seqs.empty(), col_system.TRUE,
                 OriGen.create(create_name(process.get_generating_instance(), process.get_generating_function())));
     }
@@ -91,7 +91,7 @@ public class ClassTransformer<T> {
 
         // Transform class attributes
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
+        InstanceField<T> m = new InstanceField<>(new TByReferenceClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         declarations.add(m);
         col_system.add_class_main_ref(state_class, m);
         java.util.Map<SCVariable, InstanceField<T>> fields = create_fields(null, state_class.get_methods(),
@@ -126,7 +126,7 @@ public class ClassTransformer<T> {
         // Add newly generated methods to declaration list
         declarations.addAll(generated_instance_methods);
 
-        return new Class<>(Seqs.empty(),
+        return new ByReferenceClass<>(Seqs.empty(),
                 List.from(CollectionConverters.asScala(declarations)), Seqs.empty(), col_system.TRUE,
                 OriGen.create(create_name(state_class.get_generating_instance())));
     }

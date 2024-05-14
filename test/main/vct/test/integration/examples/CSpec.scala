@@ -310,7 +310,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "copyStructFailedBeforeCall" using silicon in "Insufficient permission for field x to copy struct before call" c
+  vercors should fail withCode "copyClassFailedBeforeCall" using silicon in "Insufficient permission for field x to copy struct before call" c
     """
     struct d {
         int x;
@@ -328,7 +328,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "copyStructFailed" using silicon in "Insufficient permission for field x to copy struct" c
+  vercors should fail withCode "copyClassFailed" using silicon in "Insufficient permission for field x to copy struct" c
     """
     struct d {
         int x;

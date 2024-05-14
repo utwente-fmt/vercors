@@ -85,7 +85,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
 
   def getClass(obj: Expr[Pre]): Class[Pre] =
     obj.t match {
-      case TClass(Ref(cls), _) => cls
+      case t: TClass[Pre] => t.cls.decl
       case _ =>
         throw UnreachableAfterTypeCheck(
           "This argument is not a class type.",
@@ -153,7 +153,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
-      case cls: Class[Pre] =>
+      case cls: ByReferenceClass[Pre] =>
         globalDeclarations.succeed(
           cls,
           cls.rewrite(

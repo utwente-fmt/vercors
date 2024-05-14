@@ -107,6 +107,7 @@ final case class VerificationContext[G](program: Program[G])(
 @scopes[ModelDeclaration]
 @scopes[EnumConstant]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Program[G](declarations: Seq[GlobalDeclaration[G]])(
     val blame: Blame[UnsafeCoercion]
 )(implicit val o: Origin)
@@ -218,9 +219,17 @@ sealed trait DeclaredType[G] extends Type[G] with DeclaredTypeImpl[G]
 final case class TModel[G](model: Ref[G, Model[G]])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends DeclaredType[G] with TModelImpl[G]
-final case class TClass[G](cls: Ref[G, Class[G]], typeArgs: Seq[Type[G]])(
-    implicit val o: Origin = DiagnosticOrigin
-) extends DeclaredType[G] with TClassImpl[G]
+sealed trait TClass[G] extends DeclaredType[G] with TClassImpl[G]
+final case class TByReferenceClass[G](
+    cls: Ref[G, Class[G]],
+    typeArgs: Seq[Type[G]],
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends TClass[G] with TByReferenceClassImpl[G]
+final case class TByValueClass[G](
+    cls: Ref[G, Class[G]],
+    typeArgs: Seq[Type[G]],
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends TClass[G] with TByValueClassImpl[G]
 final case class TAnyClass[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends DeclaredType[G] with TAnyClassImpl[G]
 final case class TAxiomatic[G](
@@ -249,6 +258,7 @@ final case class ParSequential[G](regions: Seq[ParRegion[G]])(
 )(implicit val o: Origin)
     extends ParRegion[G] with ParSequentialImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 @scopes[SendDecl]
 @scopes[ParBlockDecl]
 final case class ParBlock[G](
@@ -276,6 +286,7 @@ final case class IterationContract[G](
     extends LoopContract[G] with IterationContractImpl[G]
 
 @family @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class CatchClause[G](decl: Variable[G], body: Statement[G])(
     implicit val o: Origin
 ) extends NodeFamily[G] with CatchClauseImpl[G]
@@ -314,6 +325,10 @@ final case class LocalDecl[G](local: Variable[G])(implicit val o: Origin)
     extends NonExecutableStatement[G]
     with PurelySequentialStatement[G]
     with LocalDeclImpl[G]
+final case class HeapLocalDecl[G](local: LocalHeapVariable[G])(implicit val o: Origin)
+    extends NonExecutableStatement[G]
+    with PurelySequentialStatement[G]
+    with HeapLocalDeclImpl[G]
 final case class SpecIgnoreStart[G]()(implicit val o: Origin)
     extends NonExecutableStatement[G]
     with PurelySequentialStatement[G]
@@ -520,6 +535,7 @@ final case class Block[G](statements: Seq[Statement[G]])(implicit val o: Origin)
     with ControlContainerStatement[G]
     with BlockImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 @scopes[CLocalDeclaration]
 @scopes[CPPLocalDeclaration]
 @scopes[JavaLocalDeclaration]
@@ -555,6 +571,7 @@ final case class Loop[G](
     with ControlContainerStatement[G]
     with LoopImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class RangedFor[G](
     iter: IterVariable[G],
     contract: LoopContract[G],
@@ -609,6 +626,7 @@ final case class ParStatement[G](impl: ParRegion[G])(implicit val o: Origin)
     with PurelySequentialStatement[G]
     with ParStatementImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class VecBlock[G](
     iters: Seq[IterVariable[G]],
     requires: Expr[G],
@@ -643,18 +661,26 @@ final class HeapVariable[G](val t: Type[G])(implicit val o: Origin)
 final class SimplificationRule[G](val axiom: Expr[G])(implicit val o: Origin)
     extends GlobalDeclaration[G] with SimplificationRuleImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class AxiomaticDataType[G](
     val decls: Seq[ADTDeclaration[G]],
     val typeArgs: Seq[Variable[G]],
 )(implicit val o: Origin)
     extends GlobalDeclaration[G] with AxiomaticDataTypeImpl[G]
-final class Class[G](
+sealed trait Class[G] extends GlobalDeclaration[G] with ClassImpl[G]
+final class ByReferenceClass[G](
     val typeArgs: Seq[Variable[G]],
     val decls: Seq[ClassDeclaration[G]],
     val supports: Seq[Type[G]],
     val intrinsicLockInvariant: Expr[G],
 )(implicit val o: Origin)
-    extends GlobalDeclaration[G] with ClassImpl[G]
+    extends Class[G] with ByReferenceClassImpl[G]
+final class ByValueClass[G](
+    val typeArgs: Seq[Variable[G]],
+    val decls: Seq[ClassDeclaration[G]],
+    val supports: Seq[Type[G]],
+)(implicit val o: Origin)
+    extends Class[G] with ByValueClassImpl[G]
 final class Model[G](val declarations: Seq[ModelDeclaration[G]])(
     implicit val o: Origin
 ) extends GlobalDeclaration[G] with Declarator[G] with ModelImpl[G]
@@ -687,6 +713,7 @@ final class VeSUVMainMethod[G](val body: Option[Statement[G]])(
 )(implicit val o: Origin)
     extends GlobalDeclaration[G] with VeSUVMainMethodImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class Predicate[G](
     val args: Seq[Variable[G]],
     val body: Option[Expr[G]],
@@ -759,6 +786,7 @@ final class InstanceMethod[G](
     with AbstractMethod[G]
     with InstanceMethodImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class InstancePredicate[G](
     val args: Seq[Variable[G]],
     val body: Option[Expr[G]],
@@ -814,6 +842,7 @@ sealed trait ModelDeclaration[G]
 final class ModelField[G](val t: Type[G])(implicit val o: Origin)
     extends ModelDeclaration[G] with Field[G] with ModelFieldImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class ModelProcess[G](
     val args: Seq[Variable[G]],
     val impl: Expr[G],
@@ -824,6 +853,7 @@ final class ModelProcess[G](
 )(val blame: Blame[PostconditionFailed])(implicit val o: Origin)
     extends ModelDeclaration[G] with Applicable[G] with ModelProcessImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class ModelAction[G](
     val args: Seq[Variable[G]],
     val requires: Expr[G],
@@ -838,6 +868,7 @@ sealed trait ADTDeclaration[G] extends Declaration[G] with ADTDeclarationImpl[G]
 final class ADTAxiom[G](val axiom: Expr[G])(implicit val o: Origin)
     extends ADTDeclaration[G] with ADTAxiomImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class ADTFunction[G](val args: Seq[Variable[G]], val returnType: Type[G])(
     implicit val o: Origin
 ) extends Applicable[G] with ADTDeclaration[G] with ADTFunctionImpl[G]
@@ -845,6 +876,9 @@ final class ADTFunction[G](val args: Seq[Variable[G]], val returnType: Type[G])(
 @family
 final class Variable[G](val t: Type[G])(implicit val o: Origin)
     extends Declaration[G] with VariableImpl[G]
+@family
+final class LocalHeapVariable[G](val t: Type[G])(implicit val o: Origin)
+    extends Declaration[G] with LocalHeapVariableImpl[G]
 @family
 final class LabelDecl[G]()(implicit val o: Origin)
     extends Declaration[G] with LabelDeclImpl[G]
@@ -872,6 +906,7 @@ sealed trait AbstractMethod[G]
 sealed trait Field[G] extends FieldImpl[G]
 
 @family @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class SignalsClause[G](binding: Variable[G], assn: Expr[G])(
     implicit val o: Origin
 ) extends NodeFamily[G] with SignalsClauseImpl[G]
@@ -1260,6 +1295,7 @@ final case class MapRemove[G](map: Expr[G], k: Expr[G])(implicit val o: Origin)
 
 sealed trait Binder[G] extends Expr[G] with BinderImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Forall[G](
     bindings: Seq[Variable[G]],
     triggers: Seq[Seq[Expr[G]]],
@@ -1267,6 +1303,7 @@ final case class Forall[G](
 )(implicit val o: Origin)
     extends Binder[G] with ForallImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Starall[G](
     bindings: Seq[Variable[G]],
     triggers: Seq[Seq[Expr[G]]],
@@ -1274,6 +1311,7 @@ final case class Starall[G](
 )(val blame: Blame[ReceiverNotInjective])(implicit val o: Origin)
     extends Binder[G] with StarallImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Exists[G](
     bindings: Seq[Variable[G]],
     triggers: Seq[Seq[Expr[G]]],
@@ -1281,6 +1319,7 @@ final case class Exists[G](
 )(implicit val o: Origin)
     extends Binder[G] with ExistsImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Sum[G](
     bindings: Seq[Variable[G]],
     condition: Expr[G],
@@ -1288,6 +1327,7 @@ final case class Sum[G](
 )(implicit val o: Origin)
     extends Binder[G] with SumImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Product[G](
     bindings: Seq[Variable[G]],
     condition: Expr[G],
@@ -1295,6 +1335,7 @@ final case class Product[G](
 )(implicit val o: Origin)
     extends Binder[G] with ProductImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class ForPerm[G](
     bindings: Seq[Variable[G]],
     loc: Location[G],
@@ -1302,10 +1343,12 @@ final case class ForPerm[G](
 )(implicit val o: Origin)
     extends Binder[G] with ForPermImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class ForPermWithValue[G](binding: Variable[G], body: Expr[G])(
     implicit val o: Origin
 ) extends Binder[G] with ForPermWithValueImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Let[G](binding: Variable[G], value: Expr[G], main: Expr[G])(
     implicit val o: Origin
 ) extends Binder[G] with LetImpl[G]
@@ -1317,12 +1360,16 @@ final case class InlinePattern[G](
     extends Expr[G] with InlinePatternImpl[G]
 
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class ScopedExpr[G](declarations: Seq[Variable[G]], body: Expr[G])(
     implicit val o: Origin
 ) extends Declarator[G] with Expr[G] with ScopedExprImpl[G]
 
 final case class Local[G](ref: Ref[G, Variable[G]])(implicit val o: Origin)
     extends Expr[G] with LocalImpl[G]
+final case class HeapLocal[G](ref: Ref[G, LocalHeapVariable[G]])(implicit val o: Origin)
+    extends Expr[G] with HeapLocalImpl[G]
+
 final case class EnumUse[G](
     enum: Ref[G, Enum[G]],
     const: Ref[G, EnumConstant[G]],
@@ -3106,6 +3153,7 @@ sealed trait JavaClassOrInterface[G]
     with Declarator[G]
     with JavaClassOrInterfaceImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class JavaClass[G](
     val name: String,
     val modifiers: Seq[JavaModifier[G]],
@@ -3117,6 +3165,7 @@ final class JavaClass[G](
 )(val blame: Blame[JavaImplicitConstructorFailure])(implicit val o: Origin)
     extends JavaClassOrInterface[G] with JavaClassImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class JavaInterface[G](
     val name: String,
     val modifiers: Seq[JavaModifier[G]],

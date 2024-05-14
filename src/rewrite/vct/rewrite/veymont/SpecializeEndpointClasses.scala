@@ -11,6 +11,7 @@ import vct.col.ast.{
   Block,
   BooleanValue,
   Branch,
+  ByReferenceClass,
   ChorGuard,
   ChorRun,
   ChorStatement,
@@ -140,7 +141,7 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
         }
 
         val wrapperClass =
-          new Class[Post](
+          new ByReferenceClass[Post](
             typeArgs = Seq(),
             supports = Seq(),
             intrinsicLockInvariant = tt,

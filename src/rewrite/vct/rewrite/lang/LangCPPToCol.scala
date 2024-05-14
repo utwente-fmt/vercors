@@ -1348,7 +1348,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     // Create a class that can be used to create a 'this' object
     // It will be linked to the class made near the end of this method.
-    val preEventClass: Class[Pre] = new Class(Nil, Nil, Nil, tt)(commandGroup.o)
+    val preEventClass: Class[Pre] =
+      new ByValueClass(Nil, Nil, Nil)(commandGroup.o)
     this.currentThis = Some(
       rw.dispatch(ThisObject[Pre](preEventClass.ref)(preEventClass.o))
     )
@@ -1475,8 +1476,9 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       )(KernelLambdaRunMethodBlame(kernelDeclaration))(commandGroup.o)
 
     // Create the surrounding class
+    // cl::sycl::event has a default copy constructor hence a ByValueClass
     val postEventClass =
-      new Class[Post](
+      new ByValueClass[Post](
         typeArgs = Seq(),
         decls =
           currentKernelType.get.getRangeFields ++
@@ -1484,13 +1486,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               .flatMap(acc => acc.instanceField +: acc.rangeIndexFields) ++
             Seq(kernelRunner),
         supports = Seq(),
-        intrinsicLockInvariant = tt,
       )(commandGroup.o.where(name = "SYCL_EVENT_CLASS"))
     rw.globalDeclarations.succeed(preEventClass, postEventClass)
 
     // Create a variable to refer to the class instance
     val eventClassRef =
-      new Variable[Post](TClass(postEventClass.ref, Seq()))(
+      new Variable[Post](TByValueClass(postEventClass.ref, Seq()))(
         commandGroup.o.where(name = "sycl_event_ref")
       )
     // Store the class ref and read-write accessors to be used when the kernel is done running
@@ -1976,7 +1977,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       preClass: Class[Pre],
       commandGroupO: Origin,
   ): Procedure[Post] = {
-    val t = rw.dispatch(TClass[Pre](preClass.ref, Seq()))
+    val t = rw.dispatch(TByValueClass[Pre](preClass.ref, Seq()))
     rw.globalDeclarations.declare(
       withResult((result: Result[Post]) => {
         val constructorPostConditions: mutable.Buffer[Expr[Post]] =
@@ -2142,22 +2143,24 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         scale(cond)
       else
         rw.variables.scope {
-          val range = quantVars.map(v =>
-            rangesMap(v)._1 <= Local[Post](v.ref) &&
-              Local[Post](v.ref) < rangesMap(v)._2
-          ).reduceOption[Expr[Post]](And(_, _)).getOrElse(tt)
+          rw.localHeapVariables.scope {
+            val range = quantVars.map(v =>
+              rangesMap(v)._1 <= Local[Post](v.ref) &&
+                Local[Post](v.ref) < rangesMap(v)._2
+            ).reduceOption[Expr[Post]](And(_, _)).getOrElse(tt)
 
-          cond match {
-            case Forall(bindings, Nil, body) =>
-              Forall(bindings ++ quantVars, Nil, range ==> scale(body))
-            case s @ Starall(bindings, Nil, body) =>
-              Starall(bindings ++ quantVars, Nil, range ==> scale(body))(
-                s.blame
-              )
-            case other =>
-              Starall(quantVars.toSeq, Nil, range ==> scale(other))(
-                ParBlockNotInjective(block, other)
-              )
+            cond match {
+              case Forall(bindings, Nil, body) =>
+                Forall(bindings ++ quantVars, Nil, range ==> scale(body))
+              case s @ Starall(bindings, Nil, body) =>
+                Starall(bindings ++ quantVars, Nil, range ==> scale(body))(
+                  s.blame
+                )
+              case other =>
+                Starall(quantVars.toSeq, Nil, range ==> scale(other))(
+                  ParBlockNotInjective(block, other)
+                )
+            }
           }
         }
     })

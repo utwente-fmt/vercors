@@ -10,6 +10,7 @@ import vct.col.ast.{
   Block,
   BooleanValue,
   Branch,
+  ByReferenceClass,
   ChorBranch,
   ChorGuard,
   ChorLoop,
@@ -55,6 +56,7 @@ import vct.col.ast.{
   Star,
   Statement,
   TClass,
+  TByReferenceClass,
   TVeyMontChannel,
   TVoid,
   ThisChoreography,
@@ -211,7 +213,7 @@ case class GenerateImplementation[Pre <: Generation]()
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case p: Procedure[Pre] => super.dispatch(p)
-      case cls: Class[Pre] if isEndpointClass(cls) =>
+      case cls: ByReferenceClass[Pre] if isEndpointClass(cls) =>
         val chor = choreographyOf(cls)
         val endpoint = endpointOf(cls)
         currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {
@@ -457,7 +459,7 @@ case class GenerateImplementation[Pre <: Generation]()
     seqProg.endpoints.foreach(thread => {
       val threadField =
         new InstanceField[Post](
-          TClass(givenClassSucc.ref(thread.t), Seq()),
+          TByReferenceClass(givenClassSucc.ref(thread.t), Seq()),
           Nil,
         )(thread.o)
       val channelFields = getChannelFields(
@@ -476,16 +478,16 @@ case class GenerateImplementation[Pre <: Generation]()
     })
   }
 
-  private def dispatchGivenClass(c: Class[Pre]): Class[Post] = {
+  private def dispatchGivenClass(c: ByReferenceClass[Pre]): Class[Post] = {
     val rw = GivenClassRewriter()
     val gc =
       c.rewrite(decls =
         classDeclarations.collect {
-          (givenClassConstrSucc.get(TClass(c.ref, Seq())).get +: c.declarations)
-            .foreach(d => rw.dispatch(d))
+          (givenClassConstrSucc.get(TByReferenceClass(c.ref, Seq())).get +:
+            c.declarations).foreach(d => rw.dispatch(d))
         }._1
       )(rw)
-    givenClassSucc.update(TClass(c.ref, Seq()), gc)
+    givenClassSucc.update(TByReferenceClass(c.ref, Seq()), gc)
     gc
   }
 
@@ -550,7 +552,7 @@ case class GenerateImplementation[Pre <: Generation]()
           else
             rewriteDefault(l)
         case t: ThisObject[Pre] =>
-          val thisClassType = TClass(t.cls, Seq())
+          val thisClassType = TByReferenceClass(t.cls, Seq())
           if (
             rewritingConstr.nonEmpty && rewritingConstr.top._2 == thisClassType
           )
@@ -623,7 +625,7 @@ case class GenerateImplementation[Pre <: Generation]()
     val threadRun = getThreadRunMethod(threadRes.runMethod)
     classDeclarations.scope {
       val threadClass =
-        new Class[Post](
+        new ByReferenceClass[Post](
           Seq(),
           (threadRes.threadField +: threadRes.channelFields.values.toSeq) ++
             (threadConstr +: threadRun +: threadMethods),

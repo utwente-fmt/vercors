@@ -192,25 +192,6 @@ case object LangCToCol {
       }
   }
 
-  case class StructCopyFailed(
-      assign: PreAssignExpression[_],
-      field: InstanceField[_],
-  ) extends Blame[InsufficientPermission] {
-    override def blame(error: InsufficientPermission): Unit = {
-      assign.blame.blame(CopyStructFailed(assign, Referrable.originName(field)))
-    }
-  }
-
-  case class StructCopyBeforeCallFailed(
-      inv: CInvocation[_],
-      field: InstanceField[_],
-  ) extends Blame[InsufficientPermission] {
-    override def blame(error: InsufficientPermission): Unit = {
-      inv.blame
-        .blame(CopyStructFailedBeforeCall(inv, Referrable.originName(field)))
-    }
-  }
-
   case class VectorBoundFailed(subscript: AmbiguousSubscript[_])
       extends Blame[InvocationFailure] {
     override def blame(error: InvocationFailure): Unit =
@@ -273,6 +254,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     SuccessionMap()
   val cNameSuccessor: SuccessionMap[CNameTarget[Pre], Variable[Post]] =
     SuccessionMap()
+  val cLocalHeapNameSuccessor: SuccessionMap[CNameTarget[Pre], LocalHeapVariable[Post]] =
+    SuccessionMap()
   val cGlobalNameSuccessor
       : SuccessionMap[CNameTarget[Pre], HeapVariable[Post]] = SuccessionMap()
   val cStructSuccessor: SuccessionMap[CGlobalDeclaration[Pre], Class[Post]] =
@@ -303,7 +286,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   private var kernelSpecifier: Option[CGpgpuKernelSpecifier[Pre]] = None
 
   private def CStructOrigin(sdecl: CStructDeclaration[_]): Origin =
-    sdecl.o.sourceName(sdecl.name.get)
+    sdecl.o.sourceName(sdecl.name.get).withContent(TypeName("struct"))
 
   private def CStructFieldOrigin(cdecl: CDeclarator[_]): Origin =
     cdecl.o.sourceName(nameFromDeclarator(cdecl))
@@ -999,7 +982,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         case _ => throw WrongStructType(decl)
       }
     val newStruct =
-      new Class[Post](
+      new ByValueClass[Post](
         Seq(),
         rw.classDeclarations.collect {
           decls.foreach { fieldDecl =>
@@ -1019,7 +1002,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           }
         }._1,
         Seq(),
-        tt[Post],
       )(CStructOrigin(sdecl))
 
     rw.globalDeclarations.declare(newStruct)
@@ -1163,21 +1145,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     implicit val o: Origin = init.o
     val targetClass: Class[Post] = cStructSuccessor(ref.decl)
-    val t = TClass[Post](targetClass.ref, Seq())
+    val t = TByValueClass[Post](targetClass.ref, Seq())
 
-    val v = new Variable[Post](t)(o.sourceName(info.name))
-    cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
+    val v = new LocalHeapVariable[Post](t)(o.sourceName(info.name))
+    cLocalHeapNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
 
-    val initialVal = init.init.map(i =>
-      createStructCopy(
-        rw.dispatch(i),
-        ref.decl,
-        (f: InstanceField[_]) =>
-          PanicBlame("Cannot fail due to insufficient perm"),
-      )
-    ).getOrElse(NewObject[Post](targetClass.ref))
-
-    Block(Seq(LocalDecl(v), assignLocal(v.get, initialVal)))
+    if (init.init.isDefined) {
+      Block(Seq(HeapLocalDecl(v), assignHeapLocal(v.get, rw.dispatch(init.init.get))))
+    } else { HeapLocalDecl(v) }
   }
 
   def rewriteLocal(decl: CLocalDeclaration[Pre]): Statement[Post] = {
@@ -1340,6 +1315,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(local.blame)
           case Some(_) => throw NotAValue(local)
         }
+      case ref: RefCLocalDeclaration[Pre] if cLocalHeapNameSuccessor.contains(ref) => HeapLocal(cLocalHeapNameSuccessor.ref(ref))
       case ref: RefCLocalDeclaration[Pre] => Local(cNameSuccessor.ref(ref))
       case _: RefCudaVec[Pre] => throw NotAValue(local)
     }
@@ -1458,59 +1434,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     })
 
     foldStar(newFieldPerms)
-  }
-
-  def createStructCopy(
-      value: Expr[Post],
-      struct: CGlobalDeclaration[Pre],
-      blame: InstanceField[_] => Blame[InsufficientPermission],
-  )(implicit o: Origin): Expr[Post] = {
-    val targetClass: Class[Post] = cStructSuccessor(struct)
-    val t = TClass[Post](targetClass.ref, Seq())
-
-    // Assign a new variable towards the value, such that methods do not get executed multiple times.
-    val vValue = new Variable[Post](t)
-    // The copy of the value
-    val vCopy = new Variable[Post](t)
-
-    val fieldAssigns = targetClass.declarations.collect {
-      case field: InstanceField[Post] =>
-        val ref: Ref[Post, InstanceField[Post]] = field.ref
-        assignField(
-          vCopy.get,
-          ref,
-          Deref[Post](vValue.get, field.ref)(blame(field)),
-          PanicBlame("Assignment should work"),
-        )
-    }
-
-    With(
-      Block(
-        Seq(
-          LocalDecl(vCopy),
-          LocalDecl(vValue),
-          assignLocal(vValue.get, value),
-          assignLocal(vCopy.get, NewObject[Post](targetClass.ref)),
-        ) ++ fieldAssigns
-      ),
-      vCopy.get,
-    )
-  }
-
-  def assignStruct(assign: PreAssignExpression[Pre]): Expr[Post] = {
-    getBaseType(assign.target.t) match {
-      case CTStruct(ref) =>
-        val copy =
-          createStructCopy(
-            rw.dispatch(assign.value),
-            ref.decl,
-            (f: InstanceField[_]) => StructCopyFailed(assign, f),
-          )(assign.o)
-        PreAssignExpression(rw.dispatch(assign.target), copy)(AssignLocalOk)(
-          assign.o
-        )
-      case _ => throw WrongStructType(assign.target)
-    }
   }
 
   def createUpdateVectorFunction(size: Int): Function[Post] = {
@@ -1748,18 +1671,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case _ =>
     }
 
-    // Create copy for any direct structure arguments
-    val newArgs = args.map(a =>
-      getBaseType(a.t) match {
-        case CTStruct(ref) =>
-          createStructCopy(
-            rw.dispatch(a),
-            ref.decl,
-            (f: InstanceField[_]) => StructCopyBeforeCallFailed(inv, f),
-          )(a.o)
-        case _ => rw.dispatch(a)
-      }
-    )
+    val newArgs = args.map(a => rw.dispatch(a))
 
     implicit val o: Origin = inv.o
     inv.ref.get match {
@@ -1998,6 +1910,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def structType(t: CTStruct[Pre]): Type[Post] = {
     val targetClass =
       new LazyRef[Post, Class[Post]](cStructSuccessor(t.ref.decl))
-    TClass[Post](targetClass, Seq())(t.o)
+    TByValueClass[Post](targetClass, Seq())(t.o)
   }
 }

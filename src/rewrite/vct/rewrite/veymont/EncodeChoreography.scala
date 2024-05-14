@@ -31,7 +31,7 @@ import vct.col.ast.{
   Scope,
   Sender,
   Statement,
-  TClass,
+  TByReferenceClass,
   TVoid,
   ThisChoreography,
   Variable,
@@ -257,9 +257,9 @@ case class EncodeChoreography[Pre <: Generation]()
         currentInstanceMethod.having(method) {
           for (endpoint <- prog.endpoints) {
             endpointSucc((mode, endpoint)) =
-              new Variable(TClass(succ[Class[Post]](endpoint.cls.decl), Seq()))(
-                endpoint.o
-              )
+              new Variable(
+                TByReferenceClass(succ[Class[Post]](endpoint.cls.decl), Seq())
+              )(endpoint.o)
           }
 
           prog.params.foreach(_.drop())

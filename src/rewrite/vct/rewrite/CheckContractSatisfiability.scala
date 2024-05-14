@@ -97,23 +97,25 @@ case class CheckContractSatisfiability[Pre <: Generation](
         val result = extractObj.extract(pred)
         val extractObj.Data(ts, in, _, _, _) = extractObj.finish()
         variables.scope {
-          globalDeclarations.declare(procedure(
-            blame = PanicBlame(
-              "The postcondition of a method checking satisfiability is empty"
-            ),
-            contractBlame = UnsafeDontCare.Satisfiability(
-              "the precondition of a check-sat method is only there to check it."
-            ),
-            requires =
-              UnitAccountedPredicate(
-                wellFormednessBlame.having(NotWellFormedIgnoreCheckSat(err)) {
-                  dispatch(result)
-                }
-              )(result.o),
-            typeArgs = variables.dispatch(ts.keys),
-            args = variables.dispatch(in.keys),
-            body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame))),
-          ))
+          localHeapVariables.scope {
+            globalDeclarations.declare(procedure(
+              blame = PanicBlame(
+                "The postcondition of a method checking satisfiability is empty"
+              ),
+              contractBlame = UnsafeDontCare.Satisfiability(
+                "the precondition of a check-sat method is only there to check it."
+              ),
+              requires =
+                UnitAccountedPredicate(
+                  wellFormednessBlame.having(NotWellFormedIgnoreCheckSat(err)) {
+                    dispatch(result)
+                  }
+                )(result.o),
+              typeArgs = variables.dispatch(ts.keys),
+              args = variables.dispatch(in.keys),
+              body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame))),
+            ))
+          }
         }
     }
   }

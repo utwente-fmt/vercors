@@ -130,7 +130,9 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
               after = Block(Nil),
               catches = Seq(CatchClause(
                 decl =
-                  new Variable(TClass(breakLabelException.ref(decl), Seq())),
+                  new Variable(
+                    TByReferenceClass(breakLabelException.ref(decl), Seq())
+                  ),
                 body = Block(Nil),
               )),
             )
@@ -147,8 +149,9 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
         case Break(Some(Ref(label))) =>
           val cls = breakLabelException.getOrElseUpdate(
             label,
-            globalDeclarations
-              .declare(new Class[Post](Nil, Nil, Nil, tt)(BreakException)),
+            globalDeclarations.declare(
+              new ByReferenceClass[Post](Nil, Nil, Nil, tt)(BreakException)
+            ),
           )
 
           Throw(NewObject[Post](cls.ref))(PanicBlame(
@@ -156,7 +159,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
           ))
 
         case Return(result) =>
-          val exc = new Variable[Post](TClass(returnClass.get.ref, Seq()))
+          val exc = new Variable[Post](returnClass.get.classType(Seq()))
           Scope(
             Seq(exc),
             Block(Seq(
@@ -196,13 +199,16 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
                         ReturnField
                       )
                     val returnClass =
-                      new Class[Post](Nil, Seq(returnField), Nil, tt)(
-                        ReturnClass
-                      )
+                      new ByReferenceClass[Post](
+                        Nil,
+                        Seq(returnField),
+                        Nil,
+                        tt,
+                      )(ReturnClass)
                     globalDeclarations.declare(returnClass)
 
                     val caughtReturn =
-                      new Variable[Post](TClass(returnClass.ref, Seq()))
+                      new Variable[Post](returnClass.classType(Seq()))
 
                     TryCatchFinally(
                       body = BreakReturnToException(

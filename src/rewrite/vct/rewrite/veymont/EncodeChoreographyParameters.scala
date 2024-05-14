@@ -4,8 +4,8 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
   Block,
+  ByReferenceClass,
   Choreography,
-  Class,
   Declaration,
   Endpoint,
   EndpointName,
@@ -44,8 +44,10 @@ case class EncodeChoreographyParameters[Pre <: Generation]()
     case p: Choreography[Pre] => p
   }
   lazy val allEndpoints = choreographies.flatMap { _.endpoints }
-  lazy val endpointOfClass: Map[Class[Pre], Endpoint[Pre]] =
-    allEndpoints.map { endpoint => (endpoint.cls.decl, endpoint) }.toMap
+  lazy val endpointOfClass: Map[ByReferenceClass[Pre], Endpoint[Pre]] =
+    allEndpoints.map { endpoint =>
+      (endpoint.cls.decl.asInstanceOf[ByReferenceClass[Pre]], endpoint)
+    }.toMap
   lazy val choreographyOfEndpoint: Map[Endpoint[Pre], Choreography[Pre]] =
     choreographies.flatMap { chor => chor.endpoints.map { ep => (ep, chor) } }
       .toMap
@@ -83,7 +85,7 @@ case class EncodeChoreographyParameters[Pre <: Generation]()
             }),
           )
         }
-      case cls: Class[Pre] if endpointOfClass.contains(cls) =>
+      case cls: ByReferenceClass[Pre] if endpointOfClass.contains(cls) =>
         val endpoint = endpointOfClass(cls)
         val chor = choreographyOfEndpoint(endpoint)
         implicit val o = chor.o

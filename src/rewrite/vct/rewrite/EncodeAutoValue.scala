@@ -179,31 +179,33 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
         }
         case Let(binding, value, main) =>
           variables.scope {
-            val top = conditionContext.pop()
-            val (b, v) =
-              try { (variables.dispatch(binding), dispatch(value)) }
-              finally { conditionContext.push(top) }
-            val mMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
-            val m =
-              conditionContext.having((conditionContext.top._1, mMap)) {
-                dispatch(main)
-              }
-            if (mMap.isEmpty) { Let(b, v, m) }
-            else {
-              mMap.foreach(postM =>
-                conditionContext.top._2
-                  .append((Let(binding, value, postM._1), Let(b, v, postM._2)))
-              )
-              conditionContext.top._1 match {
-                case InPrecondition() => Let(b, v, m)
-                case InPostcondition() =>
-                  Let(
-                    b,
-                    Old(v, None)(PanicBlame(
-                      "Old should always be valid in a postcondition"
-                    )),
-                    m,
-                  )
+            localHeapVariables.scope {
+              val top = conditionContext.pop()
+              val (b, v) =
+                try { (variables.dispatch(binding), dispatch(value)) }
+                finally { conditionContext.push(top) }
+              val mMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
+              val m =
+                conditionContext.having((conditionContext.top._1, mMap)) {
+                  dispatch(main)
+                }
+              if (mMap.isEmpty) { Let(b, v, m) }
+              else {
+                mMap.foreach(postM =>
+                  conditionContext.top._2
+                    .append((Let(binding, value, postM._1), Let(b, v, postM._2)))
+                )
+                conditionContext.top._1 match {
+                  case InPrecondition() => Let(b, v, m)
+                  case InPostcondition() =>
+                    Let(
+                      b,
+                      Old(v, None)(PanicBlame(
+                        "Old should always be valid in a postcondition"
+                      )),
+                      m,
+                    )
+                }
               }
             }
           }

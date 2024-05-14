@@ -7,5 +7,7 @@ trait CoerceSupportsImpl[G] extends CoerceSupportsOps[G] {
   this: CoerceSupports[G] =>
   // TODO (RR): Integrate coercions with generics?
   override def target: TClass[G] =
-    TClass(targetClass, { assert(sourceClass.decl.typeArgs.isEmpty); Seq() })
+    targetClass.decl.classType({
+      assert(sourceClass.decl.typeArgs.isEmpty); Seq()
+    })
 }
