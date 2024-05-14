@@ -1,6 +1,6 @@
 package vct.parsers.debug
 
-import org.antlr.v4.runtime.{Recognizer => ANTLRRecognizer}
+import org.antlr.v4.runtime.{Parser, TokenStream, Recognizer => ANTLRRecognizer}
 import org.antlr.v4.runtime.atn._
 
 import java.nio.file.{Files, Path, Paths}
@@ -166,4 +166,21 @@ object ATNTools {
 
   def language(recognizer: Recognizer, from: ATNState, accept: ATNState): RegLang =
     new LanguageGraph(recognizer, from, accept, getEdges(recognizer, from)).asRegLang()
+
+  /**
+   * Reconstructs an ATN graph as a dot file for a given parse rule
+   * Argument 1: class of the parser to analyze (e.g. vct.antlr4.generated.CParser)
+   * Argument 2: parse rule to derive the ATN of (e.g. initializerList)
+   * Argument 3: output file in DOT/graphviz format (e.g. initializerList.dot)
+   */
+  def main(args: Array[String]): Unit = {
+    val parserClass = getClass.getClassLoader.loadClass(args(0))
+    val parser = parserClass.getConstructor(classOf[TokenStream]).newInstance(null).asInstanceOf[Recognizer]
+    val ruleIndex = parser.getRuleIndexMap.get(args(1))
+    val state = parser.getATN.ruleToStartState(ruleIndex)
+    val edges = getEdges(parser, state)
+    Using(Files.newBufferedWriter(Paths.get(args(2)))) { w =>
+      outputGraph(parser, edges, w)
+    }
+  }
 }

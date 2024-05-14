@@ -24,6 +24,8 @@ case class CollectingErrorListener(baseOrigin: Origin) extends ANTLRErrorListene
       case _ =>
         errors :+= ParseError(OriginProvider(baseOrigin, line-1, line-1, Some((charPositionInLine-1, charPositionInLine-1))), message)
     }
+
+    currentFullContext = None
   }
 
   case class FullContext(
@@ -31,6 +33,8 @@ case class CollectingErrorListener(baseOrigin: Origin) extends ANTLRErrorListene
     dfa: DFA,
     startIndex: Int,
   ) {
+    var startTime: Long = -1
+    var stopTime: Long = -1
     var stopIndex: Int = -1
     var ruleIndex: Int = -1
     var decisionState: ATNState = null
@@ -49,15 +53,17 @@ case class CollectingErrorListener(baseOrigin: Origin) extends ANTLRErrorListene
 
 
     def report(): Unit = {
+      val time = f"${(stopTime - startTime) / 1_000_000_000.0}%.2f"
+
       val message = new StringBuilder
-      message ++= s"Prediction of rule ${parser.getRuleNames()(ruleIndex)} required full context:\n"
+      message ++= s"Prediction of rule ${parser.getRuleNames()(ruleIndex)} required full context and took ${time}s:\n"
 
       val ruleState = parser.getATN.ruleToStartState(ruleIndex)
 
       for((trans, alt) <- decisionState.getTransitions.zipWithIndex) {
-        if(!conflictingBeforeFullContext.get(alt))
+        if(!conflictingBeforeFullContext.get(alt+1))
           message ++= "    "
-        else if(!conflictingAfterFullContext.get(alt))
+        else if(!conflictingAfterFullContext.get(alt+1))
           message ++= "[x] "
         else
           message ++= " >  "
@@ -66,6 +72,8 @@ case class CollectingErrorListener(baseOrigin: Origin) extends ANTLRErrorListene
         message ++= lang.toString
         message ++= "\n"
       }
+
+      message.setLength(message.length() - 1)
 
       logger.warn(origin.messageInContext(message.toString()))
     }
@@ -91,6 +99,7 @@ case class CollectingErrorListener(baseOrigin: Origin) extends ANTLRErrorListene
 
     currentFullContext.get.ruleIndex = parser.getRuleContext.getRuleIndex
     currentFullContext.get.conflictingBeforeFullContext = conflictingAlts
+    currentFullContext.get.startTime = System.nanoTime()
   }
 
   override def reportAmbiguity(
@@ -112,6 +121,7 @@ case class CollectingErrorListener(baseOrigin: Origin) extends ANTLRErrorListene
     currentFullContext.get.decisionState = dfa.atnStartState
     currentFullContext.get.conflictingAfterFullContext = ambigAlts
     currentFullContext.get.stopIndex = stopIndex
+    currentFullContext.get.stopTime = System.nanoTime()
     currentFullContext.get.report()
 
     currentFullContext = None
@@ -131,9 +141,11 @@ case class CollectingErrorListener(baseOrigin: Origin) extends ANTLRErrorListene
       startIndex,
     )))
 
+    currentFullContext.get.decisionState = dfa.atnStartState
     currentFullContext.get.conflictingAfterFullContext = new util.BitSet()
     currentFullContext.get.conflictingAfterFullContext.set(prediction)
     currentFullContext.get.stopIndex = stopIndex
+    currentFullContext.get.stopTime = System.nanoTime()
 //    currentFullContext.get.report()
 
     currentFullContext = None
