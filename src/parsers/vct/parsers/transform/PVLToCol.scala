@@ -407,16 +407,6 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       PVLChorStatement(None, Assign(convert(receiver), convert(value))(blame(stat)))(blame(stat))
   }
 
-  def convert(implicit acc: AccessContext): PVLAccess[G] = acc match {
-    case Access0(subject, _, field) => PVLAccess(convert(subject), convert(field))(blame(acc))
-  }
-
-  def convert(implicit subject: SubjectContext): PVLSubject[G] = subject match {
-    case Subject0(name) => PVLEndpointName(convert(name))(origin(subject).sourceName(convert(name)))
-    case Subject1(family, _, expr, _) => ??(subject)
-    case Subject2(family, _, binder, _, start, _, end, _) => ??(subject)
-  }
-
   def convert(implicit region: ParRegionContext): ParRegion[G] = region match {
     case PvlParallel(_, _, regions, _) => ParParallel(regions.map(convert(_)))(blame(region))
     case PvlSequential(_, _, regions, _) => ParSequential(regions.map(convert(_)))(blame(region))

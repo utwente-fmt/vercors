@@ -45,10 +45,13 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
 
   def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] =
     Communicate(
-      comm.receiver.map(rw.dispatch),
+      comm.receiver.map(rewriteEndpointName),
       rw.dispatch(comm.target),
-      comm.sender.map(rw.dispatch),
+      comm.sender.map(rewriteEndpointName),
       rw.dispatch(comm.msg))(comm.blame)(comm.o)
+
+  def rewriteEndpointName(name: PVLEndpointName[Pre]): EndpointName[Post] =
+    EndpointName[Post](endpointSucc.ref(name.ref.get.decl))(name.o)
 
   def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit =
     endpointSucc(endpoint) = rw.endpoints.declare(new Endpoint(

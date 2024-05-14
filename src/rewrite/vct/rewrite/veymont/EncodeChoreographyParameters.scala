@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Block, Class, Declaration, Endpoint, EndpointName, Expr, InstanceField, Local, Program, Choreography, Variable}
+import vct.col.ast.{Block, Choreography, Class, Declaration, Endpoint, EndpointName, EndpointNameExpr, Expr, InstanceField, Local, Program, Variable}
 import vct.col.origin.{Name, PanicBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.SuccessionMap
@@ -51,7 +51,7 @@ case class EncodeChoreographyParameters[Pre <: Generation]() extends Rewriter[Pr
             val paramAssigns = p.endpoints.flatMap { endpoint =>
               p.params.map { param =>
                 assignField[Post](
-                  EndpointName[Post](succ(endpoint)),
+                  EndpointNameExpr(EndpointName[Post](succ(endpoint))),
                   endpointParamFields.ref((endpoint, param)),
                   Local(succ(param)),
                   blame = PanicBlame("Should be safe")

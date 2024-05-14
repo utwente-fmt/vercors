@@ -2,13 +2,13 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Access, Assert, Assign, Block, ChorStatement, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointName, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, Choreography, ChorRun, Statement, Subject, TClass, TVoid, ThisChoreography, Variable}
-import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssertFailed, AssignFailed, AssignLocalOk, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, ParticipantsNotDistinct, PostconditionFailed, PreconditionFailed, ChorAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
+import vct.col.ast.{Assert, Assign, Block, ChorRun, ChorStatement, Choreography, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointNameExpr, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, Statement, TClass, TVoid, ThisChoreography, Variable}
+import vct.col.origin.{AssertFailed, AssignFailed, AssignLocalOk, Blame, CallableFailure, ChorAssignFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, ParticipantsNotDistinct, PostconditionFailed, PreconditionFailed, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
-import EncodeChoreography.{AssertFailedToParticipantsNotDistinct, AssignFailedToSeqAssignFailure, CallableFailureToSeqCallableFailure, InsufficientPermissionToAccessFailure}
+import EncodeChoreography.{AssertFailedToParticipantsNotDistinct, AssignFailedToSeqAssignFailure, CallableFailureToSeqCallableFailure}
 import vct.col.ref.Ref
 
 import scala.collection.{mutable => mut}
@@ -27,15 +27,16 @@ object EncodeChoreography extends RewriterBuilder {
     }
   }
 
-  case class InsufficientPermissionToAccessFailure(access: Access[_]) extends Blame[VerificationFailure] {
-    override def blame(error: VerificationFailure): Unit = error match {
-      case _: AssignFailed =>
-        access.blame.blame(AccessInsufficientPermission(access))
-      case _: InsufficientPermission =>
-        access.blame.blame(AccessInsufficientPermission(access))
-      case _ => PanicBlame("Error should either be AssignFailed or InsufficientPermission").blame(error)
-    }
-  }
+  // TODO (RR): No longer necessary?
+//  case class InsufficientPermissionToAccessFailure(access: Access[_]) extends Blame[VerificationFailure] {
+//    override def blame(error: VerificationFailure): Unit = error match {
+//      case _: AssignFailed =>
+//        access.blame.blame(AccessInsufficientPermission(access))
+//      case _: InsufficientPermission =>
+//        access.blame.blame(AccessInsufficientPermission(access))
+//      case _ => PanicBlame("Error should either be AssignFailed or InsufficientPermission").blame(error)
+//    }
+//  }
 
   case class AssignFailedToSeqAssignFailure(assign: ChorStatement[_]) extends Blame[AssignFailed] {
     override def blame(error: AssignFailed): Unit =
@@ -219,15 +220,15 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
     case stat => rewriteDefault(stat)
   }
 
-  def rewriteAccess(access: Access[Pre]): Expr[Post] =
-    Deref[Post](rewriteSubject(access.subject), succ(access.field.decl))(InsufficientPermissionToAccessFailure(access))(access.o)
+//  def rewriteAccess(access: Access[Pre]): Expr[Post] =
+//    Deref[Post](rewriteSubject(access.subject), succ(access.field.decl))(InsufficientPermissionToAccessFailure(access))(access.o)
 
-  def rewriteSubject(subject: Subject[Pre]): Expr[Post] = subject match {
-    case EndpointName(Ref(endpoint)) => Local[Post](endpointSucc((mode, endpoint)).ref)(subject.o)
-  }
+//  def rewriteSubject(subject: Subject[Pre]): Expr[Post] = subject match {
+//    case EndpointName(Ref(endpoint)) => Local[Post](endpointSucc((mode, endpoint)).ref)(subject.o)
+//  }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = (mode, expr) match {
-    case (mode, EndpointName(Ref(endpoint))) =>
+    case (mode, EndpointNameExpr(EndpointName(Ref(endpoint)))) =>
       Local[Post](endpointSucc((mode, endpoint)).ref)(expr.o)
     case (mode, Local(Ref(v))) if mode != Top && currentProg.top.params.contains(v) =>
       Local[Post](variableSucc((mode, v)).ref)(expr.o)
