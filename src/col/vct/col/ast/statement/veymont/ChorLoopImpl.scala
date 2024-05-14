@@ -1,7 +1,7 @@
 package vct.col.ast.statement.veymont
 
 import vct.col.ast.statement.StatementImpl
-import vct.col.ast.{Access, Assign, ChorStatement, Communicate, Endpoint, EndpointGuard, EndpointName, ChorBranch, ChorLoop, UnpointedGuard}
+import vct.col.ast.{Assign, ChorStatement, Communicate, Endpoint, EndpointGuard, EndpointName, ChorBranch, ChorLoop, UnpointedGuard}
 import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.ref.Ref
 
@@ -40,7 +40,7 @@ trait ChorLoopImpl[G] extends StatementImpl[G] with ChorLoopOps[G] { this: ChorL
 
   def participants: Set[Endpoint[G]] =
     ListSet.from(subnodes.collect {
-      case Communicate(Access(EndpointName(Ref(receiver)), _), Access(EndpointName(Ref(sender)), _)) => Seq(receiver, sender)
+      case comm: Communicate[G] => comm.participants
       case ChorStatement(Some(Ref(endpoint)), Assign(_, _)) => Seq(endpoint)
       case branch: ChorBranch[G] => branch.explicitParticipants
     }.flatten)

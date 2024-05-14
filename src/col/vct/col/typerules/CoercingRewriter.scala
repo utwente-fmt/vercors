@@ -264,11 +264,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
     case node: LlvmLoopContract[Pre] => node
     case node: ProverLanguage[Pre] => node
     case node: SmtlibFunctionSymbol[Pre] => node
-    case node: PVLAccess[Pre] => node
-    case node: PVLSubject[Pre] => node
     case node: ChorRun[Pre] => node
-    case node: Access[Pre] => node
-    case node: Subject[Pre] => node
     case node: ChorGuard[Pre] => coerce(node)
   }
 
@@ -799,7 +795,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         DerefHeapVariable(ref)(deref.blame)
       case deref @ DerefPointer(p) =>
         DerefPointer(pointer(p)._1)(deref.blame)
-      case deref @ EndpointUse(_) => deref
+      case expr @ EndpointNameExpr(_) => expr
       case Drop(xs, count) =>
         Drop(seq(xs)._1, int(count))
       case Empty(obj) =>
@@ -1542,10 +1538,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
       case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
-      case c @ PVLCommunicate(s, r) if r.fieldType == s.fieldType => PVLCommunicate(s, r)(c.blame)
-      case comm@PVLCommunicate(s, r) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.fieldType}, but actually has type ${r.fieldType}.")
-      case c @ Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)(c.blame)
-      case comm@Communicate(r, s) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.field.decl.t}, but actually has type ${r.field.decl.t}.")
+      case c @ PVLCommunicate(receiver, target, sender, msg) if target.t == msg.t => PVLCommunicate(receiver, target, sender, msg)(c.blame)
+      case comm@PVLCommunicate(receiver, target, sender, msg) => throw IncoercibleExplanation(comm, s"The message should have type ${target.t}, but actually has type ${msg.t}.")
+      case c @ Communicate(receiver, target, sender, msg) if target.t == msg.t => Communicate(receiver, target, sender, msg)(c.blame)
+      case comm@Communicate(receiver, target, sender, msg) => throw IncoercibleExplanation(comm, s"The message should have type ${target.t}, but actually has type ${msg.t}.")
       case s: PVLChorStatement[Pre] => s
       case s: ChorBranch[Pre] => s
       case s: ChorLoop[Pre] => s
@@ -2057,14 +2053,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node
   def coerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node
 
-  def coerce(node: PVLAccess[Pre]): PVLAccess[Pre] = node
-  def coerce(node: PVLSubject[Pre]): PVLSubject[Pre] = node
   def coerce(node: ChorRun[Pre]): ChorRun[Pre] = node
-  def coerce(node: Access[Pre]): Access[Pre] = node
-  def coerce(node: Subject[Pre]): Subject[Pre] = node
   def coerce(node: ChorGuard[Pre]): ChorGuard[Pre] = node match {
     case EndpointGuard(endpoint, cond) => EndpointGuard(endpoint, bool(cond))(node.o)
     case UnpointedGuard(cond) => UnpointedGuard(bool(cond))(node.o)
   }
+
+  def coerce(node: PVLEndpointName[Pre]): PVLEndpointName[Pre] = node
+  def coerce(node: EndpointName[Pre]): EndpointName[Pre] = node
 
 }

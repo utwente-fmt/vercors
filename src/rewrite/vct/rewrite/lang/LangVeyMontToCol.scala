@@ -44,16 +44,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
   val currentStatement: ScopedStack[Statement[Pre]] = ScopedStack()
 
   def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] =
-    Communicate(rewriteAccess(comm.receiver), rewriteAccess(comm.sender))(comm.blame)(comm.o)
-
-  def rewriteAccess(access: PVLAccess[Pre]): Access[Post] =
-    Access[Post](rewriteSubject(access.subject), rw.succ(access.ref.get.decl))(access.blame)(access.o)
-
-  def rewriteSubject(subject: PVLSubject[Pre]): Subject[Post] = subject match {
-    case subject@PVLEndpointName(name) => EndpointName[Post](endpointSucc.ref(subject.ref.get.decl))(subject.o)
-    case PVLIndexedFamilyName(family, index) => ???
-    case PVLFamilyRange(family, binder, start, end) => ???
-  }
+    Communicate(
+      comm.receiver.map(rw.dispatch),
+      rw.dispatch(comm.target),
+      comm.sender.map(rw.dispatch),
+      rw.dispatch(comm.msg))(comm.blame)(comm.o)
 
   def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit =
     endpointSucc(endpoint) = rw.endpoints.declare(new Endpoint(
@@ -94,8 +89,8 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
     }
   }
 
-  def rewriteEndpointUse(endpoint: RefPVLEndpoint[Pre], local: PVLLocal[Pre]): EndpointUse[Post] =
-    EndpointUse[Post](endpointSucc.ref(endpoint.decl))(local.o)
+  def rewriteEndpointUse(endpoint: RefPVLEndpoint[Pre], local: PVLLocal[Pre]): EndpointName[Post] =
+    EndpointName[Post](endpointSucc.ref(endpoint.decl))(local.o)
 
   def rewriteRun(run: PVLChorRun[Pre]): ChorRun[Post]  = {
       run.drop()

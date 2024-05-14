@@ -198,11 +198,8 @@ direction
  | '->'
  ;
 
-access: subject '.' identifier;
-subject
- : identifier
- | identifier '[' expr ']'
- | identifier '[' identifier ':' expr '..' expr ']';
+access: subject? expr;
+subject: identifier ':';
 
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;

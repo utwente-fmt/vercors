@@ -39,7 +39,6 @@ import vct.col.ast.expr.op.tuple._
 import vct.col.ast.expr.op.vec._
 import vct.col.ast.expr.resource._
 import vct.col.ast.expr.sideeffect._
-import vct.col.ast.family.access._
 import vct.col.ast.family.accountedpredicate._
 import vct.col.ast.family.bipdata._
 import vct.col.ast.family.bipglueelement._
@@ -60,7 +59,6 @@ import vct.col.ast.family.pvlcommunicate._
 import vct.col.ast.family.seqguard._
 import vct.col.ast.family.seqrun._
 import vct.col.ast.family.signals._
-import vct.col.ast.family.subject._
 import vct.col.ast.lang.c._
 import vct.col.ast.lang.cpp._
 import vct.col.ast.lang.gpgpu._
@@ -1327,20 +1325,10 @@ final class PVLEndpoint[G](val name: String, val cls: Ref[G, Class[G]], val type
 final class PVLChoreography[G](val name: String, val declarations: Seq[ClassDeclaration[G]], val contract: ApplicableContract[G], val args: Seq[Variable[G]])(val blame: Blame[SeqCallableFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with PVLChoreographyImpl[G] with Declarator[G]
 final case class PVLChorRun[G](body: Statement[G], contract: ApplicableContract[G])(val blame: Blame[SeqCallableFailure])(implicit val o: Origin) extends ClassDeclaration[G] with PVLChorRunImpl[G]
 
-@family sealed trait PVLSubject[G] extends NodeFamily[G] with PVLSubjectImpl[G]
-case class PVLEndpointName[G](name: String)(implicit val o: Origin) extends PVLSubject[G] with PVLEndpointNameImpl[G] {
+@family case class PVLEndpointName[G](name: String)(implicit val o: Origin) extends PVLEndpointNameImpl[G] with NodeFamily[G] {
   var ref: Option[RefPVLEndpoint[G]] = None
 }
-case class PVLIndexedFamilyName[G](family: String, index: Expr[G])(implicit val o: Origin) extends PVLSubject[G] with PVLIndexedFamilyNameImpl[G] {
-  var ref: Option[RefPVLEndpoint[G]] = None
-}
-case class PVLFamilyRange[G](family: String, binder: String, start: Expr[G], end: Expr[G])(implicit val o: Origin) extends PVLSubject[G] with PVLFamilyRangeImpl[G] {
-  var ref: Option[RefPVLEndpoint[G]] = None
-}
-@family case class PVLAccess[G](subject: PVLSubject[G], field: String)(val blame: Blame[PVLAccessFailure])(implicit val o: Origin) extends NodeFamily[G] with PVLAccessImpl[G] {
-  var ref: Option[RefField[G]] = None
-}
-final case class PVLCommunicate[G](sender: PVLAccess[G], receiver: PVLAccess[G])(val blame: Blame[PVLCommunicateFailure])(implicit val o: Origin) extends Statement[G] with PurelySequentialStatement[G] with PVLCommunicateImpl[G]
+final case class PVLCommunicate[G](sender: Option[PVLEndpointName[G]], target: Expr[G], receiver: Option[PVLEndpointName[G]], msg: Expr[G])(val blame: Blame[PVLCommunicateFailure])(implicit val o: Origin) extends Statement[G] with PurelySequentialStatement[G] with PVLCommunicateImpl[G]
 final case class PVLChorStatement[G](endpoint: Option[String], inner: Statement[G])(val blame: Blame[ChorStatementFailure])(implicit val o: Origin) extends Statement[G] with PVLChorStatementImpl[G] {
   var ref: Option[RefPVLEndpoint[G]] = None
 }
@@ -1348,12 +1336,10 @@ final case class PVLChorStatement[G](endpoint: Option[String], inner: Statement[
 @family final class Endpoint[G](val cls: Ref[G, Class[G]], val typeArgs: Seq[Type[G]], val constructor: Ref[G, Constructor[G]], val args: Seq[Expr[G]])(val blame: Blame[EndpointFailure])(implicit val o: Origin) extends Declaration[G] with EndpointImpl[G]
 @scopes[Endpoint] final class Choreography[G](val contract: ApplicableContract[G], val params : Seq[Variable[G]], val endpoints: Seq[Endpoint[G]], val preRun: Option[Statement[G]], val run: ChorRun[G], val decls: Seq[ClassDeclaration[G]])(val blame: Blame[SeqCallableFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with ChoreographyImpl[G]
 @family final case class ChorRun[G](body: Statement[G], contract: ApplicableContract[G])(val blame: Blame[SeqCallableFailure])(implicit val o: Origin) extends NodeFamily[G] with ChorRunImpl[G]
-@family sealed trait Subject[G] extends NodeFamily[G] with SubjectImpl[G]
-final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Subject[G] with EndpointNameImpl[G]
-@family case class Access[G](subject: Subject[G], field: Ref[G, InstanceField[G]])(val blame: Blame[AccessFailure])(implicit val o: Origin) extends NodeFamily[G] with AccessImpl[G]
-final case class Communicate[G](receiver: Access[G], sender: Access[G])(val blame: Blame[CommunicateFailure])(implicit val o: Origin) extends Statement[G] with PurelySequentialStatement[G] with CommunicateImpl[G]
+final case class Communicate[G](receiver: Option[EndpointName[G]], target: Expr[G], sender: Option[EndpointName[G]], msg: Expr[G])(val blame: Blame[CommunicateFailure])(implicit val o: Origin) extends Statement[G] with PurelySequentialStatement[G] with CommunicateImpl[G]
 
-final case class EndpointUse[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Expr[G] with EndpointUseImpl[G]
+@family final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends EndpointNameImpl[G] with NodeFamily[G]
+final case class EndpointNameExpr[G](name: EndpointName[G])(implicit val o: Origin) extends Expr[G] with EndpointNameExprImpl[G]
 
 final case class UnresolvedChorBranch[G](branches: Seq[(Expr[G], Statement[G])])(val blame: Blame[SeqBranchFailure])(implicit val o: Origin) extends Statement[G] with ControlContainerStatement[G] with UnresolvedChorBranchImpl[G]
 final case class UnresolvedChorLoop[G](cond: Expr[G], contract: LoopContract[G], body: Statement[G])(val blame: Blame[SeqLoopFailure])(implicit val o: Origin) extends Statement[G] with ControlContainerStatement[G] with UnresolvedChorLoopImpl[G]

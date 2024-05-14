@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{ApplicableContract, Choreography, Declaration, Endpoint, EndpointUse, Expr, IterationContract, LoopContract, LoopInvariant, Program, SplitAccountedPredicate, UnitAccountedPredicate}
+import vct.col.ast.{ApplicableContract, Choreography, Declaration, Endpoint, EndpointName, Expr, IterationContract, LoopContract, LoopInvariant, Program, SplitAccountedPredicate, UnitAccountedPredicate}
 import vct.col.origin.{AssertFailed, Blame, BranchUnanimityFailed, LoopUnanimityNotEstablished, LoopUnanimityNotMaintained, Origin}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -35,7 +35,7 @@ case class EncodeEndpointInequalities[Pre <: Generation]() extends Rewriter[Pre]
     implicit val o = chor.o
     foldStar(makeInequalitySets(chor.endpoints).flatMap { case (endpoint, others) =>
       others.map { other =>
-        EndpointUse[Post](succ(endpoint)) !== EndpointUse[Post](succ(other))
+        EndpointName[Post](succ(endpoint)) !== EndpointName[Post](succ(other))
       }
     })
   }

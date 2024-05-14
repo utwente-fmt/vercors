@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Access, Assert, Assign, Block, ChorStatement, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, Choreography, ChorRun, Statement, Subject, TClass, TVoid, ThisChoreography, Variable}
+import vct.col.ast.{Access, Assert, Assign, Block, ChorStatement, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointName, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, Choreography, ChorRun, Statement, Subject, TClass, TVoid, ThisChoreography, Variable}
 import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssertFailed, AssignFailed, AssignLocalOk, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, ParticipantsNotDistinct, PostconditionFailed, PreconditionFailed, ChorAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -197,22 +197,24 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
       logger.warn("Ignoring endpoint annotation on chor assign statement")
       implicit val o = assign.o
       Assign(dispatch(target), dispatch(e))(AssignFailedToSeqAssignFailure(assign))
-    case comm @ Communicate(receiver, sender) =>
+    case comm @ Communicate(Some(receiver), target, Some(sender), msg) =>
       implicit val o = comm.o
-      val equalityTest: Statement[Post] = if(receiver.subject.cls == sender.subject.cls)
-        Assert(
-          rewriteSubject(receiver.subject) !== rewriteSubject(sender.subject)
-        )(AssertFailedToParticipantsNotDistinct(comm))
-      else
-        Block(Nil)
-
-      Block(Seq(
-        equalityTest,
-        Assign[Post](
-          rewriteAccess(receiver),
-          rewriteAccess(sender)
-        )(InsufficientPermissionToAccessFailure(receiver))
-      ))
+      ???
+      // TODO (RR): Clean this up
+//      val equalityTest: Statement[Post] = if(receiver.subject.cls == sender.subject.cls)
+//        Assert(
+//          rewriteSubject(receiver.subject) !== rewriteSubject(sender.subject)
+//        )(AssertFailedToParticipantsNotDistinct(comm))
+//      else
+//        Block(Nil)
+//
+//      Block(Seq(
+//        equalityTest,
+//        Assign[Post](
+//          rewriteAccess(receiver),
+//          rewriteAccess(sender)
+//        )(InsufficientPermissionToAccessFailure(receiver))
+//      ))
     case ChorStatement(_, stat) => dispatch(stat)
     case stat => rewriteDefault(stat)
   }
@@ -225,7 +227,7 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = (mode, expr) match {
-    case (mode, EndpointUse(Ref(endpoint))) =>
+    case (mode, EndpointName(Ref(endpoint))) =>
       Local[Post](endpointSucc((mode, endpoint)).ref)(expr.o)
     case (mode, Local(Ref(v))) if mode != Top && currentProg.top.params.contains(v) =>
       Local[Post](variableSucc((mode, v)).ref)(expr.o)

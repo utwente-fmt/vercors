@@ -3,7 +3,7 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.util.Declarator
-import vct.col.ast.{AbstractRewriter, Access, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
+import vct.col.ast.{AbstractRewriter, Access, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointName, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
 import vct.col.origin.{Name, Origin, PanicBlame, SourceName}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -24,10 +24,8 @@ case class SpecializeEndpointClasses[Pre <: Generation]() extends Rewriter[Pre] 
   val implFieldOfEndpoint = SuccessionMap[Endpoint[Pre], InstanceField[Post]]()
   val classOfEndpoint = SuccessionMap[Endpoint[Pre], Class[Post]]()
 
-  val currentInequalities = ScopedStack[Expr[Pre]]()
-
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case use @ EndpointUse(Ref(endpoint)) =>
+    case use @ EndpointName(Ref(endpoint)) =>
       implicit val o = use.o
       Deref[Post](use.rewriteDefault(), implFieldOfEndpoint.ref(endpoint))(PanicBlame("Should be safe"))
     case _ => expr.rewriteDefault()
@@ -35,30 +33,8 @@ case class SpecializeEndpointClasses[Pre <: Generation]() extends Rewriter[Pre] 
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case chor: Choreography[Pre] => currentChoreography.having(chor) {
-      // TODO (RR): Probably would be nice to have these constraints in all generated (ghost code) implementations. But incomplete, and hence not enabled for now.
-//      def makeInequalitySets(endpoints: Seq[Endpoint[Pre]]): Seq[(Endpoint[Pre], Seq[Endpoint[Pre]])] = endpoints match {
-//        case Seq(endpoint) => Seq()
-//        case Seq() => throw VerificationError.Unreachable("")
-//        case endpoint :: target :: targets =>
-//          (endpoint, target +: targets) +: makeInequalitySets(target +: targets)
-//      }
-
-//      val inequalities: Expr[Pre] = makeInequalitySets(chor.endpoints).map { case (endpoint, others) =>
-//        others.map { other =>
-//          EndpointUse[Post](succ(endpoint)) !== EndpointUse[Post](succ(other))
-//        }
-//      }
-
-//      currentInequalities.having(inequalities) {
-        super.dispatch(chor)
-//      }
+      super.dispatch(chor)
     }
-
-//    case run: ChorRun[Pre] =>
-//      implicit val o = currentChoreography.top
-//      run.rewriteDefault(
-//        contract = run.contract.rewrite(requires = currentInequalities.top &* dispatch(run.contract.requires))
-//      )
 
     case endpoint: Endpoint[Pre] =>
       implicit val o = endpoint.o

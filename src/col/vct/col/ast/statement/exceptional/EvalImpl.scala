@@ -1,7 +1,7 @@
 package vct.col.ast.statement.exceptional
 
 import vct.col.ast.statement.StatementImpl
-import vct.col.ast.{Deref, Endpoint, EndpointUse, Eval, Expr, MethodInvocation, PVLDeref, PVLEndpoint, PVLLocal, Statement, ThisChoreography}
+import vct.col.ast.{Deref, Endpoint, EndpointName, Eval, Expr, MethodInvocation, PVLDeref, PVLEndpoint, PVLLocal, Statement, ThisChoreography}
 import vct.col.check.{CheckContext, CheckError, SeqProgInvocation}
 import vct.col.print.{Ctx, Doc}
 import vct.col.ast.ops.EvalOps

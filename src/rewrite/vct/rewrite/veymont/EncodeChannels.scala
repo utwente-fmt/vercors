@@ -3,7 +3,7 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.util.Declarator
-import vct.col.ast.{AbstractRewriter, Access, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, ChorGuard, Choreography, ChorRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisChoreography, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
+import vct.col.ast.{AbstractRewriter, Access, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointName, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, ChorGuard, Choreography, ChorRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisChoreography, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
 import vct.col.origin.{Name, Origin, PanicBlame, SourceName}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -74,7 +74,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
         }
         def assignComm(comm: Communicate[Pre], endpoint: Endpoint[Pre]): Statement[Post] = {
           assignField(
-            obj = EndpointUse[Post](succ(endpoint)),
+            obj = EndpointName[Post](succ(endpoint)),
             field = fieldOfCommunicate.ref((endpoint, comm)),
             value = localOfCommunicate(comm).get,
             blame = PanicBlame("Should be safe")
@@ -123,7 +123,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
     ChorStatement[Post](Some(succ(sender)),
       Eval(methodInvocation(
         obj = Deref(
-          EndpointUse[Post](succ(sender)),
+          EndpointName[Post](succ(sender)),
           fieldOfCommunicate.ref[Post, InstanceField[Post]]((sender, comm)))(PanicBlame("Permission for fields should be propagated in entire choreography")),
         ref = genericWrite.ref[InstanceMethod[Post]],
         args = Seq(
@@ -143,7 +143,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
         obj = ???, // Deref[Post](EndpointUse[Post](succ(receiver)), implFieldOfEndpoint.ref(receiver))(PanicBlame("Should be safe")),
         field = ???, // succ(field),
         value = methodInvocation(
-          obj = Deref[Post](EndpointUse(succ(receiver)), fieldOfCommunicate.ref((receiver, comm)))(PanicBlame("Should be safe")),
+          obj = Deref[Post](EndpointName(succ(receiver)), fieldOfCommunicate.ref((receiver, comm)))(PanicBlame("Should be safe")),
           ref = genericRead.ref,
           blame = PanicBlame("Should be safe"),
         ),

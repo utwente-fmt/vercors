@@ -13,7 +13,11 @@ import vct.parsers.ParseResult
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
-// TODO (RR): I messed this up for VeyMont, need to coordinate with Philip to get it in a nice shape
+/* TODO (RR): I messed this up for VeyMont & VeSUV, need to coordinate with Philip to get it in a nice shape
+      Philip does use the splitting up feature, so I'd need to rework that either into Output or into a separate stage
+      Also the writing to file feature he relies on.
+*/
+
 
 case object Output {
   def vesuvOfOptions[G <: Generation](options: Options): Stages[ParseResult[G], Unit] = {

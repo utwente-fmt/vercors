@@ -1,6 +1,6 @@
 package vct.col.ast.statement.veymont
 
-import vct.col.ast.{Access, Communicate, EndpointName, Type}
+import vct.col.ast.{Communicate, Endpoint, EndpointName, Type}
 import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.print.{Ctx, Doc, Text}
 import vct.col.ref.Ref
@@ -8,16 +8,16 @@ import vct.col.ast.ops.CommunicateOps
 
 trait CommunicateImpl[G] extends CommunicateOps[G] { this: Communicate[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Text("communicate") <+> receiver.show <+> "<-" <+> sender.show <> ";"
+    Text("communicate ???") // <+> receiver.show <+> "<-" <+> sender.show <> ";" // TODO
 
   override def check(context: CheckContext[G]): Seq[CheckError] = this match {
-    case Communicate(Access(name@EndpointName(Ref(receiver)), _), _) if !context.currentParticipatingEndpoints.get.contains(receiver) =>
-      Seq(SeqProgParticipant(name))
-    case Communicate(_, Access(name@EndpointName(Ref(sender)), _)) if !context.currentParticipatingEndpoints.get.contains(sender) =>
-      Seq(SeqProgParticipant(name))
+    case comm: Communicate[G] if sender.isDefined && !context.currentParticipatingEndpoints.get.contains(sender.get.ref.decl) =>
+      Seq(SeqProgParticipant(sender.get))
+    case comm: Communicate[G] if receiver.isDefined && !context.currentParticipatingEndpoints.get.contains(receiver.get.ref.decl) =>
+      Seq(SeqProgParticipant(receiver.get))
     case _ => Nil
   }
 
-  def msgType: Type[G] =
-    sender.field.decl.t
+  def participants: Seq[Endpoint[G]] =
+    (sender.toSeq ++ receiver.toSeq).map(_.ref.decl)
 }

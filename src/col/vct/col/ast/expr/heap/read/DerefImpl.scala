@@ -1,7 +1,7 @@
 package vct.col.ast.expr.heap.read
 
 import vct.col.ast.expr.ExprImpl
-import vct.col.ast.{Deref, EndpointUse, Expr, TClass, Type}
+import vct.col.ast.{Deref, EndpointName, EndpointNameExpr, Expr, TClass, Type}
 import vct.col.check.{Check, CheckContext, CheckError, SeqProgReceivingEndpoint}
 import vct.col.print.{Ctx, Doc, Group, Precedence}
 import vct.col.ref.Ref
@@ -30,7 +30,7 @@ trait DerefImpl[G] extends ExprImpl[G] with DerefOps[G] { this: Deref[G] =>
   def currentEndpointCheck(context: CheckContext[G]): Seq[CheckError] =
     (context.currentChoreography, context.currentReceiverEndpoint) match {
     case (Some(_), Some(currentReceiver)) => root() match {
-      case EndpointUse(Ref(receiver)) if currentReceiver != receiver =>
+      case EndpointNameExpr(EndpointName(Ref(receiver))) if currentReceiver != receiver =>
         Seq(SeqProgReceivingEndpoint(this))
       case _ => Seq()
     }

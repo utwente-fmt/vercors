@@ -387,14 +387,15 @@ case class LoopUnanimityNotMaintained(guard1: Node[_], guard2: Node[_]) extends 
   override def inlineDesc: String = "The agreement of two conditions in this branch could not be maintained for an arbitrary loop iteration."
 }
 
-sealed trait PVLAccessFailure extends VerificationFailure
-sealed trait AccessFailure extends PVLAccessFailure
+//sealed trait PVLAccessFailure extends VerificationFailure
+//sealed trait AccessFailure extends PVLAccessFailure
 
-case class AccessInsufficientPermission(node: Access[_]) extends AccessFailure with NodeVerificationFailure {
-  override def code: String = "accessPerm"
-  override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
-  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
-}
+// TODO (RR): Can probably be removed
+//case class AccessInsufficientPermission(node: Access[_]) extends AccessFailure with NodeVerificationFailure {
+//  override def code: String = "accessPerm"
+//  override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
+//  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
+//}
 
 sealed trait ChorStatementFailure extends VerificationFailure
 sealed trait ChorAssignFailure extends ChorStatementFailure

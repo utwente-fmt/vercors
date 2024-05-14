@@ -152,7 +152,7 @@ case class GenerateChoreographyPermissions[Pre <: Generation](enabled: Boolean =
     }
 
   def endpointPerm(endpoint: Endpoint[Pre])(implicit o: Origin): Expr[Post] =
-    transitivePerm(EndpointUse[Post](succ(endpoint)), endpoint.t)
+    transitivePerm(EndpointName[Post](succ(endpoint)), endpoint.t)
 
   def endpointsPerm(endpoints: Seq[Endpoint[Pre]])(implicit o: Origin): Expr[Post] =
     foldStar(endpoints.map(endpointPerm))

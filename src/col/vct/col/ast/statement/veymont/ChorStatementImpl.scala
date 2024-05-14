@@ -1,6 +1,6 @@
 package vct.col.ast.statement.veymont
 
-import vct.col.ast.{Assert, Assign, Assume, Block, Branch, ChorStatement, Communicate, CommunicateX, Deref, Endpoint, EndpointUse, Eval, Expr, Loop, MethodInvocation, Scope, ChorBranch, ChorLoop, ThisChoreography, UnresolvedChorBranch, UnresolvedChorLoop, VeyMontAssignExpression}
+import vct.col.ast.{Assert, Assign, Assume, Block, Branch, ChorBranch, ChorLoop, ChorStatement, Communicate, CommunicateX, Deref, Endpoint, EndpointName, EndpointNameExpr, Eval, Expr, Loop, MethodInvocation, Scope, ThisChoreography, UnresolvedChorBranch, UnresolvedChorLoop, VeyMontAssignExpression}
 import vct.col.ast.ops.ChorStatementOps
 import vct.col.ast.statement.StatementImpl
 import vct.col.check.{CheckContext, CheckError, SeqProgInvocation, SeqProgNoParticipant, SeqProgParticipant, SeqProgStatement}
@@ -44,7 +44,7 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] { t
   def rootEndpoint(expr: Expr[G]): Option[Endpoint[G]] = expr match {
     case MethodInvocation(e, _, _, _, _, _, _) => rootEndpoint(e)
     case Deref(obj, _) => rootEndpoint(obj)
-    case EndpointUse(Ref(e)) => Some(e)
+    case EndpointNameExpr(EndpointName(Ref(e))) => Some(e)
     case _ => None
   }
 
