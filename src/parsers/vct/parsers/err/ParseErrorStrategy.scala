@@ -1,4 +1,4 @@
-package vct.parsers
+package vct.parsers.err
 
 import org.antlr.v4.runtime
 import org.antlr.v4.runtime.DefaultErrorStrategy

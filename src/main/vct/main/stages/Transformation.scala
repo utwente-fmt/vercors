@@ -45,7 +45,7 @@ object Transformation {
 
   def simplifierFor(path: PathOrStd, options: Options): RewriterBuilder =
     ApplyTermRewriter.BuilderFor(
-      ruleNodes = Util.loadPVLLibraryFile[InitialGeneration](path).declarations.collect {
+      ruleNodes = Util.loadPVLLibraryFile[InitialGeneration](path, options.getParserDebugOptions).declarations.collect {
         case rule: SimplificationRule[InitialGeneration] => rule
       },
       debugIn = options.devSimplifyDebugIn,
@@ -60,7 +60,7 @@ object Transformation {
     options.backend match {
       case Backend.Silicon | Backend.Carbon =>
         SilverTransformation(
-          adtImporter = PathAdtImporter(options.adtPath),
+          adtImporter = PathAdtImporter(options.adtPath, options.getParserDebugOptions),
           onBeforePassKey = writeOutFunctions(options.outputBeforePass),
           onAfterPassKey = writeOutFunctions(options.outputAfterPass),
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
@@ -172,7 +172,7 @@ class Transformation
  */
 case class SilverTransformation
 (
-  adtImporter: ImportADTImporter = PathAdtImporter(Resources.getAdtPath),
+  adtImporter: ImportADTImporter = PathAdtImporter(Resources.getAdtPath, vct.parsers.debug.DebugOptions.NONE),
   override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
   override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),

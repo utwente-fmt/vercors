@@ -1,8 +1,6 @@
-package vct.parsers
+package vct.parsers.err
 
 import vct.result.VerificationError.UserError
-
-import java.nio.file.Path
 
 case class FileNotFound(path: String) extends UserError {
   override def code: String = "404"

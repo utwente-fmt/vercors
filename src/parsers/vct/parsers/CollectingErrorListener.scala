@@ -6,14 +6,15 @@ import org.antlr.v4.runtime.atn.{ATNConfigSet, ATNState, SingletonPredictionCont
 import org.antlr.v4.runtime.dfa.DFA
 import org.antlr.v4.runtime.{ANTLRErrorListener, RecognitionException, Recognizer, Token}
 import vct.col.origin.{Origin, PositionRange}
-import vct.parsers.debug.ATNTools
+import vct.parsers.debug.{ATNTools, DebugOptions}
+import vct.parsers.err.ParseError
 import vct.parsers.transform.OriginProvider
 
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.StreamConverters._
 
-case class CollectingErrorListener(baseOrigin: Origin) extends ANTLRErrorListener with LazyLogging {
+case class CollectingErrorListener(baseOrigin: Origin, debugOptions: DebugOptions) extends ANTLRErrorListener with LazyLogging {
   var errors: Seq[ParseError] = Nil
 
   override def syntaxError(recognizer: Recognizer[_, _], anyToken: Any,
@@ -39,7 +40,7 @@ case class CollectingErrorListener(baseOrigin: Origin) extends ANTLRErrorListene
     var ruleIndex: Int = -1
     var decisionState: ATNState = null
     var conflictingBeforeFullContext: util.BitSet = new util.BitSet
-    var conflictingAfterFullContext: util.BitSet = conflictingAfterFullContext
+    var conflictingAfterFullContext: util.BitSet = conflictingBeforeFullContext
 
     def origin: Origin = {
       val start = parser.getTokenStream.get(startIndex)
@@ -89,7 +90,7 @@ case class CollectingErrorListener(baseOrigin: Origin) extends ANTLRErrorListene
       conflictingAlts: util.BitSet,
       configs: ATNConfigSet
   ): Unit = {
-    assert(currentFullContext.isEmpty)
+    if(!debugOptions.fullContextEnabled) return
 
     currentFullContext = Some(FullContext(
       parser,
@@ -111,18 +112,15 @@ case class CollectingErrorListener(baseOrigin: Origin) extends ANTLRErrorListene
       ambigAlts: util.BitSet,
       configs: ATNConfigSet
   ): Unit = {
-    assert(currentFullContext.contains(FullContext(
-      parser,
-      dfa,
-      startIndex,
-    )))
-    assert(exact)
+    if(!debugOptions.fullContextEnabled) return
 
     currentFullContext.get.decisionState = dfa.atnStartState
     currentFullContext.get.conflictingAfterFullContext = ambigAlts
     currentFullContext.get.stopIndex = stopIndex
     currentFullContext.get.stopTime = System.nanoTime()
-    currentFullContext.get.report()
+
+    if(debugOptions.reportAmbiguities)
+      currentFullContext.get.report()
 
     currentFullContext = None
   }
@@ -135,18 +133,16 @@ case class CollectingErrorListener(baseOrigin: Origin) extends ANTLRErrorListene
       prediction: Int,
       configs: ATNConfigSet
   ): Unit = {
-    assert(currentFullContext.contains(FullContext(
-      parser,
-      dfa,
-      startIndex,
-    )))
+    if(!debugOptions.fullContextEnabled) return
 
     currentFullContext.get.decisionState = dfa.atnStartState
     currentFullContext.get.conflictingAfterFullContext = new util.BitSet()
     currentFullContext.get.conflictingAfterFullContext.set(prediction)
     currentFullContext.get.stopIndex = stopIndex
     currentFullContext.get.stopTime = System.nanoTime()
-//    currentFullContext.get.report()
+
+    if(debugOptions.reportContextSensitivity)
+      currentFullContext.get.report()
 
     currentFullContext = None
   }

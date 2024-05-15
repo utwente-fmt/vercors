@@ -27,7 +27,7 @@ case object Resolve {
   trait SpecContractParser {
     def parse[G](input: LlvmFunctionContract[G], o: Origin): ApplicableContract[G]
 
-    def parse[G](input: LlvmGlobal[G], o: Origin): GlobalDeclaration[G]
+    def parse[G](input: LlvmGlobal[G], o: Origin): Seq[GlobalDeclaration[G]]
   }
 
   def extractLiteral(e: Expr[_]): Option[String] = e match {
@@ -690,9 +690,9 @@ case object ResolveReferences extends LazyLogging {
         case None => throw NoSuchNameError("function", inv.name, inv)
       }
     case glob: LlvmGlobal[G] =>
-      val decl = ctx.llvmSpecParser.parse(glob, glob.o)
-      glob.data = Some(decl)
-      resolve(decl, ctx)
+      val decls = ctx.llvmSpecParser.parse(glob, glob.o)
+      glob.data = Some(decls)
+      decls.foreach(resolve(_, ctx))
     case _ =>
   }
 }

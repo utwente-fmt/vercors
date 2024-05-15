@@ -10,7 +10,7 @@ object LLVM {
   def findCallable[G](name: String, ctx: ReferenceResolutionContext[G]): Option[LlvmCallable[G]] = {
     // look in context
     val callable = ctx.stack.flatten.map {
-      case RefLlvmGlobal(decl) => decl.data.get match {
+      case RefLlvmGlobal(decl, i) => decl.data.get(i) match {
         case f: LlvmSpecFunction[G] if f.name == name => Some(f)
         case _ => None
       }

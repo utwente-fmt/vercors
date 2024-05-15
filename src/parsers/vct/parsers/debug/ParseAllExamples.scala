@@ -16,7 +16,7 @@ object ParseAllExamples {
   def track[T <: Parser](read: hre.io.Readable, recognizer: T): T = {
     recognizer.getInterpreter.setPredictionMode(PredictionMode.LL_EXACT_AMBIG_DETECTION)
     recognizer.removeErrorListeners()
-    recognizer.addErrorListener(CollectingErrorListener(Origin(Seq(ReadableOrigin(read)))))
+    recognizer.addErrorListener(CollectingErrorListener(Origin(Seq(ReadableOrigin(read))), DebugOptions.ALL))
     recognizer
   }
 
