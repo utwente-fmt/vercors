@@ -378,10 +378,25 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlGoto(_, label, _) => Goto(new UnresolvedRef[G, LabelDecl[G]](convert(label)))
     case PvlLabel(_, label, _) => Label(new LabelDecl()(origin(stat).sourceName(convert(label))), Block(Nil))
     case PvlForStatement(inner, _) => convert(inner)
-    case PvlCommunicateStatement(_, receiver, Direction0("<-"), sender, _) =>
-      PVLCommunicate(convert(sender), convert(receiver))(blame(stat))
-    case PvlCommunicateStatement(_, sender, Direction1("->"), receiver, _) =>
-      PVLCommunicate(convert(sender), convert(receiver))(blame(stat))
+    case comm @ PvlCommunicateStatement(_, to, Direction0("<-"), from, _) =>
+      convertCommunicate(to, from)(comm)
+    case comm @ PvlCommunicateStatement(_, from, Direction1("->"), to, _) =>
+      convertCommunicate(to, from)(comm)
+  }
+
+  def convertCommunicate(to: AccessContext, from: AccessContext)(implicit comm: PvlCommunicateStatementContext): PVLCommunicate[G] = {
+    val Access0(sender, target) = to
+    val Access0(receiver, msg) = from
+    PVLCommunicate(
+      sender.map(convertParticipant(_)),
+      convert(target),
+      receiver.map(convertParticipant(_)),
+      convert(msg)
+    )(blame(comm))
+  }
+
+  def convertParticipant(implicit participant: ParticipantContext): PVLEndpointName[G] = participant match {
+    case Participant0(name, _) => PVLEndpointName(convert(name))
   }
 
   def convert(implicit stat: ForStatementListContext): Statement[G] =

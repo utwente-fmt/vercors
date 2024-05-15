@@ -74,35 +74,37 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
             )(PanicBlame("Should be safe")))
         }
 
-        def assignComm(comm: Communicate[Pre], endpoint: Endpoint[Pre]): Statement[Post] = assignField(
-          obj = EndpointNameExpr(EndpointName[Post](succ(endpoint))),
-          field = fieldOfCommunicate.ref((endpoint, comm)),
-          value = localOfCommunicate(comm).get,
-          blame = PanicBlame("Should be safe")
-        )
+        def assignComm(comm: Communicate[Pre], endpoint: Endpoint[Pre]): Statement[Post] = {
+          assignField(
+            obj = EndpointNameExpr(EndpointName[Post](succ(endpoint))),
+            field = fieldOfCommunicate.ref((endpoint, comm)),
+            value = localOfCommunicate(comm).get,
+            blame = PanicBlame("Should be safe")
+          )
+        }
 
-        allScopes.anySucceed(chor, chor.rewrite(preRun = {
+        chor.rewrite(preRun = {
           val vars = communicatesOf(chor).map(commVar)
           val instantiatedComms: Seq[Statement[Post]] = communicatesOf(chor).map(instantiateComm)
           val assignComms: Seq[Statement[Post]] = chor.endpoints.flatMap { endpoint => communicatesOf(chor).map { comm => assignComm(comm, endpoint) } }
           Some(Scope(vars, Block(instantiatedComms ++ assignComms)))
-        }))
+        }).succeed(chor)
       }
+
     case cls: Class[Pre] if isEndpointClass(cls) =>
-      val endpoint = endpointOf(cls)
       cls.rewrite(
         decls = classDeclarations.collect {
           cls.decls.foreach(dispatch)
-          communicatesOf(currentChoreography.top).foreach {
+          communicatesOf(choreographyOf(cls)).foreach {
             case comm @ Communicate(Some(EndpointName(Ref(receiver))), _, Some(EndpointName(Ref(sender))), msg) =>
               val f = new InstanceField[Post](channelType(dispatch(msg.t)), Seq())(
                 comm.o.where(indirect = Name.names(sender.o.getPreferredNameOrElse(), receiver.o.getPreferredNameOrElse()))
               )
-              fieldOfCommunicate((endpoint, comm)) = f
+              fieldOfCommunicate((endpointOf(cls), comm)) = f
               f.declare()
           }
         }._1
-      )
+      ).succeed(cls)
 
     case _ => super.dispatch(decl)
   }

@@ -188,7 +188,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
     }
     classDeclarations.declare(new RunMethod(
       body = Some(body),
-      contract = dispatch(run.contract)
+      contract = contract(PanicBlame("Trivial contract")) // , dispatch(run.contract)
     )(PanicBlame("")))
   }
 

@@ -15,8 +15,7 @@ trait DerefImpl[G] extends ExprImpl[G] with DerefOps[G] { this: Deref[G] =>
     Check.inOrder(
       super.check(context),
       Check.inOrder(obj.t.asClass.get.cls.decl.checkDefines(ref.decl, this),
-        currentEndpointCheck(context))
-    )
+        currentEndpointCheck(context)))
 
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =

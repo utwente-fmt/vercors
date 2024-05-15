@@ -100,13 +100,6 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
       ChorRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
   }
 
-  // TODO: This is now done by inferendpointctxs, but some tests might break I think... Might need it later?
-//  def rewriteChorStatement(s: PVLChorStatement[Pre]): ChorStatement[Post] = s.inner match {
-//    case assign: Assign[Pre] =>
-//      ChorStatement[Post](Some(endpointSucc.ref(s.assign.endpoint.get)), assign.rewriteDefault())(s.blame)(s.o)
-//    case _ => ChorStatement(None, s.inner.rewriteDefault())(s.blame)(s.o)
-//  }
-
   def rewriteBranch(branch: PVLBranch[Pre]): UnresolvedChorBranch[Post] =
     UnresolvedChorBranch(branch.branches.map { case (e, s) => (rw.dispatch(e), rw.dispatch(s)) })(branch.blame)(branch.o)
 

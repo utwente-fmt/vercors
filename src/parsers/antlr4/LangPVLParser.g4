@@ -176,7 +176,7 @@ statement
  | 'fork' expr ';' # pvlFork
  | 'join' expr ';' # pvlJoin
  | valStatement # pvlValStatement
- | 'communicate' '(' '*' ')' statement elseBlock? # pvlIndetBranch
+ | 'if' '(' '*' ')' statement elseBlock? # pvlIndetBranch
  | 'if' '(' expr ')' statement elseBlock? # pvlIf
  | 'barrier' '(' identifier barrierTags? ')' barrierBody # pvlBarrier
  | parRegion # pvlPar
@@ -198,8 +198,8 @@ direction
  | '->'
  ;
 
-access: subject? expr;
-subject: identifier ':';
+access: participant? expr;
+participant: identifier ':';
 
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;

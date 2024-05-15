@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorStatement, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, ChorGuard, Choreography, ChorRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisChoreography, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
 import vct.col.origin.{AssignLocalOk, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -37,14 +37,14 @@ object InferEndpointContexts extends RewriterBuilder {
 
 case class InferEndpointContexts[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   def getEndpoints(expr: Expr[Pre]): Seq[Endpoint[Pre]] =
-    expr.collect {
+    mutable.LinkedHashSet.from(expr.collect {
       case EndpointName(Ref(endpoint)) => endpoint
-    }
+    }).toSeq
 
   def getEndpoint(expr: Expr[Pre]): Endpoint[Pre] = getEndpoints(expr) match {
     case Seq(endpoint) => endpoint
     case Seq() => throw NoImplicitEndpointError(expr)
-    case endpoints => throw MultipleImplicitEndpointsError(expr)
+    case _ => throw MultipleImplicitEndpointsError(expr)
   }
 
   override def dispatch(stmt: Statement[Pre]): Statement[Post] = stmt match {
@@ -59,6 +59,12 @@ case class InferEndpointContexts[Pre <: Generation]() extends Rewriter[Pre] with
       val endpoint: Endpoint[Pre] = getEndpoint(invoke.obj) // Infer endpoint
       s.rewrite(endpoint = Some(succ(endpoint)))
     case s @ ChorStatement(None, _) => throw EndpointInferenceUndefined(s)
+    case comm: Communicate[Pre] =>
+      implicit val o = comm.o
+      comm.rewrite(
+        receiver = comm.receiver.map(dispatch).orElse(Some(EndpointName[Post](succ(getEndpoint(comm.target))))),
+        sender = comm.sender.map(dispatch).orElse(Some(EndpointName[Post](succ(getEndpoint(comm.msg)))))
+      )
     case s => s.rewriteDefault()
   }
 }

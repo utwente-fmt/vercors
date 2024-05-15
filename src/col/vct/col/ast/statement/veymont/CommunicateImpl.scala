@@ -2,13 +2,16 @@ package vct.col.ast.statement.veymont
 
 import vct.col.ast.{Communicate, Endpoint, EndpointName, Type}
 import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
-import vct.col.print.{Ctx, Doc, Text}
+import vct.col.print.{Ctx, Doc, Group, Text}
 import vct.col.ref.Ref
 import vct.col.ast.ops.CommunicateOps
 
 trait CommunicateImpl[G] extends CommunicateOps[G] { this: Communicate[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Text("communicate ???") // <+> receiver.show <+> "<-" <+> sender.show <> ";" // TODO
+    Group(Text("communicate") <+> layoutReceiver <> target.show <+> "<-" <+> layoutSender <> msg.show <> ";")
+
+  def layoutSender(implicit ctx: Ctx) = sender.map(_.show <> ": ").getOrElse(Text(""))
+  def layoutReceiver(implicit ctx: Ctx) = receiver.map(_.show <> ": ").getOrElse(Text(""))
 
   override def check(context: CheckContext[G]): Seq[CheckError] = this match {
     case comm: Communicate[G] if sender.isDefined && !context.currentParticipatingEndpoints.get.contains(sender.get.ref.decl) =>
