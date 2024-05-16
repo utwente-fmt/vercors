@@ -125,5 +125,5 @@ abstract class AntlrParser extends Parser {
   }
 
   override def parseReader[G](reader: Reader, baseOrigin: Origin = Origin(Nil)): ParseResult[G] =
-    parseAntlrStream(CharStreams.fromReader(reader))
+    parseAntlrStream(CharStreams.fromReader(reader), baseOrigin)
 }
