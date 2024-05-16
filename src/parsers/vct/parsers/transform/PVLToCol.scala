@@ -385,8 +385,8 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convertCommunicate(to: AccessContext, from: AccessContext)(implicit comm: PvlCommunicateStatementContext): PVLCommunicate[G] = {
-    val Access0(sender, target) = to
-    val Access0(receiver, msg) = from
+    val Access0(receiver, target) = to
+    val Access0(sender, msg) = from
     PVLCommunicate(
       sender.map(convertParticipant(_)),
       convert(target),

@@ -266,6 +266,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
     case node: SmtlibFunctionSymbol[Pre] => node
     case node: ChorRun[Pre] => node
     case node: ChorGuard[Pre] => coerce(node)
+    case node: PVLEndpointName[Pre] => coerce(node)
     case node: EndpointName[Pre] => coerce(node)
   }
 

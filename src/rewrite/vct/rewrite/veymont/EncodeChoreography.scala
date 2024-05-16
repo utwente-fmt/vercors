@@ -10,6 +10,7 @@ import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
 import EncodeChoreography.{AssertFailedToParticipantsNotDistinct, AssignFailedToSeqAssignFailure, CallableFailureToSeqCallableFailure}
 import vct.col.ref.Ref
+import vct.rewrite.veymont
 
 import scala.collection.{mutable => mut}
 
@@ -193,13 +194,22 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case assign@ChorStatement(endpoint, Assign(target, e)) =>
-      // TODO (RR): The endpoint will become relevant again when implementing stratification
-      logger.warn("Ignoring endpoint annotation on chor assign statement")
+    case assign@ChorStatement(None, Assign(target, e)) =>
+      throw new Exception(assign.o.messageInContext("ChorStatement with None!"))
+    case assign@ChorStatement(Some(Ref(endpoint)), Assign(target, e)) =>
+      logger.warn(s"Ignoring endpoint annotation on chor assign statement ${assign.o.shortPosition.map("at " + _).getOrElse("")}")
       implicit val o = assign.o
+      if (endpoint != InferEndpointContexts.getEndpoint(e) || endpoint != InferEndpointContexts.getEndpoint(target)) {
+        throw new Exception(assign.o.messageInContext("Assign endpoint in value does not match endpoint that was annotated or inferred"))
+      }
       Assign(dispatch(target), dispatch(e))(AssignFailedToSeqAssignFailure(assign))
-    case comm @ Communicate(Some(receiver), target, Some(sender), msg) =>
+    case comm @ Communicate(
+        Some(EndpointName(Ref(receiver))), target,
+        Some(EndpointName(Ref(sender))), msg) =>
       implicit val o = comm.o
+      if (InferEndpointContexts.getEndpoint(target) != receiver || InferEndpointContexts.getEndpoint(msg) != sender) {
+        throw new Exception(comm.o.messageInContext("sender/receiver does not match message/target"))
+      }
       ???
       // TODO (RR): Clean this up
 //      val equalityTest: Statement[Post] = if(receiver.subject.cls == sender.subject.cls)
@@ -216,16 +226,11 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
 //          rewriteAccess(sender)
 //        )(InsufficientPermissionToAccessFailure(receiver))
 //      ))
+    case comm @ Communicate(receiver, target, sender, msg) =>
+      throw new Exception(comm.o.messageInContext("Either the sender or receiver was not annotated for or not inferred!"))
     case ChorStatement(_, stat) => dispatch(stat)
     case stat => rewriteDefault(stat)
   }
-
-//  def rewriteAccess(access: Access[Pre]): Expr[Post] =
-//    Deref[Post](rewriteSubject(access.subject), succ(access.field.decl))(InsufficientPermissionToAccessFailure(access))(access.o)
-
-//  def rewriteSubject(subject: Subject[Pre]): Expr[Post] = subject match {
-//    case EndpointName(Ref(endpoint)) => Local[Post](endpointSucc((mode, endpoint)).ref)(subject.o)
-//  }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = (mode, expr) match {
     case (mode, EndpointNameExpr(EndpointName(Ref(endpoint)))) =>

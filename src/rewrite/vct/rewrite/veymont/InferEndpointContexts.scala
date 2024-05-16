@@ -12,7 +12,7 @@ import vct.col.util.SuccessionMap
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 import vct.rewrite.veymont.GenerateImplementation.{ChannelFieldOrigin, ParalleliseEndpointsError, RunMethodOrigin, ThreadClassOrigin, getChannelClassName, getThreadClassName, getVarName}
-import vct.rewrite.veymont.InferEndpointContexts.{EndpointInferenceUndefined, MultipleImplicitEndpointsError, NoImplicitEndpointError}
+import vct.rewrite.veymont.InferEndpointContexts.{EndpointInferenceUndefined, MultipleImplicitEndpointsError, NoImplicitEndpointError, getEndpoint}
 
 import scala.collection.mutable
 
@@ -33,20 +33,20 @@ object InferEndpointContexts extends RewriterBuilder {
   case class EndpointInferenceUndefined(stmt: Statement[_]) extends SystemError {
     override def text: String = stmt.o.messageInContext("It is not defined whether an endpoint context should be inferred for this statement")
   }
-}
 
-case class InferEndpointContexts[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
-  def getEndpoints(expr: Expr[Pre]): Seq[Endpoint[Pre]] =
+  def getEndpoints[G](expr: Expr[G]): Seq[Endpoint[G]] =
     mutable.LinkedHashSet.from(expr.collect {
       case EndpointName(Ref(endpoint)) => endpoint
     }).toSeq
 
-  def getEndpoint(expr: Expr[Pre]): Endpoint[Pre] = getEndpoints(expr) match {
+  def getEndpoint[G](expr: Expr[G]): Endpoint[G] = getEndpoints(expr) match {
     case Seq(endpoint) => endpoint
     case Seq() => throw NoImplicitEndpointError(expr)
     case _ => throw MultipleImplicitEndpointsError(expr)
   }
+}
 
+case class InferEndpointContexts[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   override def dispatch(stmt: Statement[Pre]): Statement[Post] = stmt match {
     // Whitelist statements that do not need a context
     case s @ ChorStatement(None, assign: Assign[Pre]) =>
