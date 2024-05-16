@@ -39,7 +39,7 @@ trait ChorLoopImpl[G] extends StatementImpl[G] with ChorLoopOps[G] { this: ChorL
   }
 
   def participants: Set[Endpoint[G]] =
-    ListSet.from(subnodes.collect {
+    ListSet.from(collect {
       case comm: Communicate[G] => comm.participants
       case ChorStatement(Some(Ref(endpoint)), Assign(_, _)) => Seq(endpoint)
       case branch: ChorBranch[G] => branch.explicitParticipants

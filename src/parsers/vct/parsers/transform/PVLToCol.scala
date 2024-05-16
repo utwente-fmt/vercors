@@ -325,10 +325,10 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlIf(_, _, cond, _, body, None) =>
       PVLBranch(Seq((convert(cond), convert(body))))(blame(stat))
     case PvlIf(_, _, cond, _, body, Some(ElseBlock0(_, otherwise))) =>
-      Branch(Seq(
+      PVLBranch(Seq(
         (convert(cond), convert(body)),
-        (tt, convert(otherwise)),
-      ))
+        (tt[G], convert(otherwise)),
+      ))(blame(stat))
     case PvlBarrier(_, _, block, tags, _, body) =>
       val (contract, content: Statement[G]) = body match {
         case BarrierBody0(_, contract, _) => (contract, Block[G](Nil))

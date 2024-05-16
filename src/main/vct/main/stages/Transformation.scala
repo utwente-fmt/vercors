@@ -336,7 +336,8 @@ case class VeyMontImplementationGeneration(importer: ImportADTImporter = PathAdt
     InferEndpointContexts,
     EncodeChannels.withArg(importer),
 //    EncodeChoreographyParameters,
-    GenerateImplementation
+    GenerateImplementation,
+    PrettifyBlocks,
   ))
 
 

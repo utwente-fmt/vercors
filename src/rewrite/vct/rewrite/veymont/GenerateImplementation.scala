@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorBranch, ChorGuard, ChorLoop, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointGuard, EndpointName, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
 import vct.col.origin.{AssignLocalOk, Name, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -215,6 +215,10 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
     else super.dispatch(statement)
   }
 
+  def projectExpression(guards: Seq[ChorGuard[Pre]])(implicit o: Origin): Expr[Post] = foldStar(guards.collect {
+    case EndpointGuard(Ref(endpoint), cond) if endpoint == currentEndpoint.top => dispatch(cond)
+  })
+
   def projectStatement(statement: Statement[Pre]): Statement[Post] = statement match {
     // Whitelist statements that do not need an endpoint context
     case ChorStatement(None, statement) => statement match {
@@ -227,9 +231,20 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
     }
     // Ignore statements that do not match the current endpoint
     case ChorStatement(_, _) => Block(Seq())(statement.o)
-    case branch: Branch[Pre] =>
-      logger.warn("Dropping branch")
-      Block(Seq())(statement.o)
+    case branch: ChorBranch[Pre] if branch.guards.map(_.endpointOpt.get).contains(currentEndpoint.top) =>
+      implicit val o = branch.o
+      Branch[Post](
+        Seq((projectExpression(branch.guards)(branch.o), dispatch(branch.yes)))
+        ++ (branch.no.map(no => Seq((tt[Post], dispatch(no)))).getOrElse(Seq())
+      ))
+    case chorLoop: ChorLoop[Pre] if chorLoop.guards.map(_.endpointOpt.get).contains(currentEndpoint.top) =>
+      implicit val o = chorLoop.o
+      loop(
+        cond = projectExpression(chorLoop.guards)(chorLoop.o),
+        body = dispatch(chorLoop.body),
+        contract = dispatch(chorLoop.contract)
+      )
+    case _: ChorBranch[Pre] | _: ChorLoop[Pre] => Block(Seq())(statement.o)
     case block: Block[Pre] => block.rewriteDefault()
     case s =>
       throw new Exception(s"Unsupported: $s")

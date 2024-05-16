@@ -39,7 +39,7 @@ case class SpecializeEndpointClasses[Pre <: Generation]() extends Rewriter[Pre] 
     case endpoint: Endpoint[Pre] =>
       implicit val o = endpoint.o
 
-      val implField = new InstanceField[Post](dispatch(endpoint.t), Seq())
+      val implField = new InstanceField[Post](dispatch(endpoint.t), Seq())(o.where(name = "impl"))
       implFieldOfEndpoint(endpoint) = implField
 
       val constructor: Constructor[Post] = {

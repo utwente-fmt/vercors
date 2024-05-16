@@ -9,6 +9,8 @@ import scala.collection.immutable.ListSet
 import vct.col.ast.ops.ChorBranchOps
 
 trait ChorBranchImpl[G] extends StatementImpl[G] with ChorBranchOps[G] { this: ChorBranch[G] =>
+  assert(guards.nonEmpty)
+
   def hasUnpointed: Boolean = guards.exists { case _: UnpointedGuard[G] => true; case _ => false }
   def explicitParticipants: Seq[Endpoint[G]] = guards.collect { case EndpointGuard(Ref(endpoint), condition) => endpoint }
 
@@ -41,7 +43,7 @@ trait ChorBranchImpl[G] extends StatementImpl[G] with ChorBranchOps[G] { this: C
   // All participants that concretely participate in the branch by being named explicitly through the condition,
   // an assignment, or a communicate.
   def participants: Set[Endpoint[G]] =
-    ListSet.from(subnodes.collect {
+    ListSet.from(collect {
       case comm: Communicate[G] => comm.participants
       case ChorStatement(Some(Ref(endpoint)), Assign(_, _)) => Seq(endpoint)
       case branch: ChorBranch[G] => branch.explicitParticipants

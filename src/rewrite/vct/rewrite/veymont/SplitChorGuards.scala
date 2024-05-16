@@ -15,8 +15,8 @@ import scala.collection.immutable.ListSet
 import scala.collection.mutable
 
 object SplitChorGuards extends RewriterBuilder {
-  override def key: String = "splitSeqGuards"
-  override def desc: String = "Lifts conditions in loops and conditionals into the SeqGuard AST node, stratifying the condition per endpoint."
+  override def key: String = "splitChorGuards"
+  override def desc: String = "Lifts conditions in loops and conditionals into the ChorGuard AST node, stratifying the condition per endpoint."
 
   case class MultipleEndpoints(e: Expr[_]) extends UserError {
     override def code: String = "multipleEndpoints"
@@ -80,7 +80,11 @@ case class SplitChorGuards[Pre <: Generation]() extends Rewriter[Pre] {
   // Infer guard conditions based on the classic syntactical restrictions - endpoint dereferences determine which
   // endpoint is evaluating the expression.
   def inferSeqGuard(e: Expr[Pre]): Seq[ChorGuard[Post]] = {
-    val exprs = unfoldStar(e)
+    val exprs = {
+      // Ensure the "true" expression is kept
+      val es = unfoldStar(e)
+      if (es.isEmpty) Seq(e) else es
+    }
     val pointed = exprs.map(point)
     pointed.map {
       case (Some(endpoint), expr) => EndpointGuard[Post](succ(endpoint), dispatch(expr))(expr.o)
@@ -90,16 +94,11 @@ case class SplitChorGuards[Pre <: Generation]() extends Rewriter[Pre] {
 
   // "Points" an expression in the direction of an endpoint if possible
   def point(e: Expr[Pre]): (Option[Endpoint[Pre]], Expr[Pre]) = {
-    val endpoints: Set[Endpoint[Pre]] =
-      e.collect {
-        case Deref(EndpointName(Ref(endpoint)), _) => endpoint
-        case MethodInvocation(EndpointName(Ref(endpoint)), _, _, _, _, _, _) => endpoint
-      }.toSet
-    endpoints.size match {
-      case 1 =>
+    InferEndpointContexts.getEndpoints(e) match {
+      case Seq(endpoint) =>
         // expr is totally in context of one endpoint and whatever else is in scope
-        (Some(endpoints.toSeq.head), e)
-      case 0 => (None, e)
+        (Some(endpoint), e)
+      case Seq() => (None, e)
       case _ => throw MultipleEndpoints(e) // Expr uses multiple endpoints - for now we should disallow that.
     }
   }
