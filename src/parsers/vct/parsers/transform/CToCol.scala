@@ -592,7 +592,13 @@ case class CToCol[G](override val baseOrigin: Origin,
 
   def parseInt(i: String)(implicit o: Origin): Option[Expr[G]] =
     try {
-      Some(CIntegerValue(BigInt(i)))
+      if(i.startsWith("0x") || i.startsWith("0X")) {
+        Some(CIntegerValue(BigInt(i.drop(2), 16)))
+      } else if(i.startsWith("0")) {
+        Some(CIntegerValue(BigInt(i.drop(1), 8)))
+      } else {
+        Some(CIntegerValue(BigInt(i)))
+      }
     } catch {
       case e: NumberFormatException => None
     }
