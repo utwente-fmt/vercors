@@ -50,8 +50,8 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
       comm.sender.map(rewriteEndpointName),
       rw.dispatch(comm.msg))(comm.blame)(comm.o)
 
-  def rewriteEndpointName(name: PVLEndpointName[Pre]): EndpointName[Post] =
-    EndpointName[Post](endpointSucc.ref(name.ref.get.decl))(name.o)
+  def rewriteEndpointName(name: PVLEndpointName[Pre]): Ref[Post, Endpoint[Post]] =
+    endpointSucc.ref(name.ref.get.decl)
 
   def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit =
     endpointSucc(endpoint) = rw.endpoints.declare(new Endpoint(
@@ -109,7 +109,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
   def rewriteStatement(stmt: Statement[Pre]): Statement[Post] = stmt match {
     case stmt @ PVLChorStatement(endpointName, inner) =>
       ChorStatement[Post](
-        endpointName.map(_ => endpointSucc.ref(stmt.ref.get.decl)),
+        endpointName.map(rewriteEndpointName),
         inner.rewriteDefault()
       )(stmt.blame)(stmt.o)
     case _: Block[Pre] | _: Scope[Pre] => currentStatement.having(stmt) { rw.dispatch(stmt) }

@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Assert, Assign, Block, ChorRun, ChorStatement, Choreography, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointNameExpr, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, Statement, TClass, TVoid, ThisChoreography, Variable}
+import vct.col.ast.{Assert, Assign, Block, ChorRun, ChorStatement, Choreography, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, Statement, TClass, TVoid, ThisChoreography, Variable}
 import vct.col.origin.{AssertFailed, AssignFailed, AssignLocalOk, Blame, CallableFailure, ChorAssignFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, ParticipantsNotDistinct, PostconditionFailed, PreconditionFailed, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -204,8 +204,8 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
       }
       Assign(dispatch(target), dispatch(e))(AssignFailedToSeqAssignFailure(assign))
     case comm @ Communicate(
-        Some(EndpointName(Ref(receiver))), target,
-        Some(EndpointName(Ref(sender))), msg) =>
+        Some(Ref(receiver)), target,
+        Some(Ref(sender)), msg) =>
       implicit val o = comm.o
       if (InferEndpointContexts.getEndpoint(target) != receiver || InferEndpointContexts.getEndpoint(msg) != sender) {
         throw new Exception(comm.o.messageInContext("sender/receiver does not match message/target"))
@@ -233,7 +233,7 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = (mode, expr) match {
-    case (mode, EndpointNameExpr(EndpointName(Ref(endpoint)))) =>
+    case (mode, EndpointName(Ref(endpoint))) =>
       Local[Post](endpointSucc((mode, endpoint)).ref)(expr.o)
     case (mode, Local(Ref(v))) if mode != Top && currentProg.top.params.contains(v) =>
       Local[Post](variableSucc((mode, v)).ref)(expr.o)

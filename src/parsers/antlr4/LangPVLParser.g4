@@ -210,7 +210,7 @@ allowedForStatement
  | expr # pvlEval
  | identifier ('++'|'--') # pvlIncDec
  | expr '=' expr # pvlAssign
- | expr ':' '=' expr # pvlSeqAssign
+ | participant? expr ':' '=' expr # pvlSeqAssign
  ;
 
 forStatementList

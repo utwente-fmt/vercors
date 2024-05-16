@@ -79,7 +79,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
     local.ref.get match {
       case spec: SpecNameTarget[Pre] => rw.specLocal(spec, local, local.blame)
       case RefField(decl) => Deref[Post](rw.currentThis.top, rw.succ(decl))(local.blame)
-      case endpoint: RefPVLEndpoint[Pre] => EndpointNameExpr(rw.veymont.rewriteEndpointUse(endpoint, local))
+      case endpoint: RefPVLEndpoint[Pre] => rw.veymont.rewriteEndpointUse(endpoint, local)
     }
   }
 

@@ -418,8 +418,8 @@ case class PVLToCol[G](override val baseOrigin: Origin,
         case "--" => PostAssignExpression[G](target, target - const(1))(blame(stat))
       })
     case PvlAssign(target, _, value) => Assign(convert(target), convert(value))(blame(stat))
-    case PvlSeqAssign(receiver, _, _, value) =>
-      PVLChorStatement(None, Assign(convert(receiver), convert(value))(blame(stat)))(blame(stat))
+    case PvlSeqAssign(participant, receiver, _, _, value) =>
+      PVLChorStatement(participant.map(convertParticipant(_)), Assign(convert(receiver), convert(value))(blame(stat)))(blame(stat))
   }
 
   def convert(implicit region: ParRegionContext): ParRegion[G] = region match {

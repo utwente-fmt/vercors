@@ -3,7 +3,7 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.util.Declarator
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointNameExpr, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
 import vct.col.origin.{Name, Origin, PanicBlame, SourceName}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -52,13 +52,18 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
     p.rewriteDefault()
   }
 
+  def channelName(comm: Communicate[_]): Name =
+    Name.names(comm.sender.get.decl.o.getPreferredNameOrElse(),
+      comm.receiver.get.decl.o.getPreferredNameOrElse())
+
+
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case chor: Choreography[Pre] =>
       implicit val o = chor.o
       currentChoreography.having(chor) {
         def commVar(comm: Communicate[Pre]): Variable[Post] = {
           val t = channelType(dispatch(comm.msg.t))
-          val v = new Variable(t)
+          val v = new Variable(t)(chor.o.where(indirect = channelName(comm)))
           localOfCommunicate(comm) = v
           v
         }
@@ -76,7 +81,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
 
         def assignComm(comm: Communicate[Pre], endpoint: Endpoint[Pre]): Statement[Post] = {
           assignField(
-            obj = EndpointNameExpr(EndpointName[Post](succ(endpoint))),
+            obj = EndpointName[Post](succ(endpoint)),
             field = fieldOfCommunicate.ref((endpoint, comm)),
             value = localOfCommunicate(comm).get,
             blame = PanicBlame("Should be safe")
@@ -95,13 +100,12 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
       cls.rewrite(
         decls = classDeclarations.collect {
           cls.decls.foreach(dispatch)
-          communicatesOf(choreographyOf(cls)).foreach {
-            case comm @ Communicate(Some(EndpointName(Ref(receiver))), _, Some(EndpointName(Ref(sender))), msg) =>
-              val f = new InstanceField[Post](channelType(dispatch(msg.t)), Seq())(
-                comm.o.where(indirect = Name.names(sender.o.getPreferredNameOrElse(), receiver.o.getPreferredNameOrElse()))
-              )
-              fieldOfCommunicate((endpointOf(cls), comm)) = f
-              f.declare()
+          communicatesOf(choreographyOf(cls)).foreach { comm =>
+            val f = new InstanceField[Post](channelType(dispatch(comm.msg.t)), Seq())(
+              comm.o.where(indirect = channelName(comm))
+            )
+            fieldOfCommunicate((endpointOf(cls), comm)) = f
+            f.declare()
           }
         }._1
       ).succeed(cls)
@@ -118,12 +122,12 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
 
   def sendOf(comm: Communicate[Pre]): Statement[Post] = {
     implicit val o = comm.o
-    val Communicate(_, _, Some(EndpointName(Ref(sender))), msg) = comm
+    val Communicate(_, _, Some(Ref(sender)), msg) = comm
     ChorStatement[Post](
       Some(succ(sender)),
       Eval(methodInvocation[Post](
         obj = Deref[Post](
-          EndpointNameExpr(EndpointName(succ(sender))),
+          EndpointName(succ(sender)),
           fieldOfCommunicate.ref[Post, InstanceField[Post]]((sender, comm)))(PanicBlame("Permission for fields should be propagated in entire choreography")),
         ref = genericWrite.ref[InstanceMethod[Post]],
         args = Seq(dispatch(msg)),
@@ -133,13 +137,13 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
 
   def receiveOf(comm: Communicate[Pre]): Statement[Post] = {
     implicit val o = comm.o
-    val Communicate(Some(EndpointName(Ref(receiver))), target, _, _) = comm
+    val Communicate(Some(Ref(receiver)), target, _, _) = comm
     ChorStatement[Post](Some(succ[Endpoint[Post]](receiver)),
       Assign(
         dispatch(target),
         methodInvocation[Post](
           obj = Deref[Post](
-            EndpointNameExpr(EndpointName[Post](succ(receiver))),
+            EndpointName[Post](succ(receiver)),
             fieldOfCommunicate.ref((receiver, comm)))(PanicBlame("Should be safe")),
           ref = genericRead.ref[InstanceMethod[Post]],
           blame = PanicBlame("Should be safe")),

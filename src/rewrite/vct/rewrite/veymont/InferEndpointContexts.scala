@@ -62,8 +62,8 @@ case class InferEndpointContexts[Pre <: Generation]() extends Rewriter[Pre] with
     case comm: Communicate[Pre] =>
       implicit val o = comm.o
       comm.rewrite(
-        receiver = comm.receiver.map(dispatch).orElse(Some(EndpointName[Post](succ(getEndpoint(comm.target))))),
-        sender = comm.sender.map(dispatch).orElse(Some(EndpointName[Post](succ(getEndpoint(comm.msg)))))
+        receiver = comm.receiver.map(_.decl).orElse(Some(getEndpoint(comm.target))).map(succ(_)),
+        sender = comm.sender.map(_.decl).orElse(Some(getEndpoint(comm.msg))).map(succ(_)),
       )
     case s => s.rewriteDefault()
   }

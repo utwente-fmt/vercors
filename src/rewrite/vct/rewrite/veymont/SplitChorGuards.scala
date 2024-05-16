@@ -92,8 +92,8 @@ case class SplitChorGuards[Pre <: Generation]() extends Rewriter[Pre] {
   def point(e: Expr[Pre]): (Option[Endpoint[Pre]], Expr[Pre]) = {
     val endpoints: Set[Endpoint[Pre]] =
       e.collect {
-        case Deref(EndpointNameExpr(EndpointName(Ref(endpoint))), _) => endpoint
-        case MethodInvocation(EndpointNameExpr(EndpointName(Ref(endpoint))), _, _, _, _, _, _) => endpoint
+        case Deref(EndpointName(Ref(endpoint)), _) => endpoint
+        case MethodInvocation(EndpointName(Ref(endpoint)), _, _, _, _, _, _) => endpoint
       }.toSet
     endpoints.size match {
       case 1 =>

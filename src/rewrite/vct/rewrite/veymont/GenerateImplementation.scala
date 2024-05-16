@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, EndpointNameExpr, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
 import vct.col.origin.{AssignLocalOk, Name, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -225,6 +225,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
       case assign: Assign[Pre] => assign.rewriteDefault()
       case eval: Eval[Pre] => eval.rewriteDefault()
     }
+    // Ignore statements that do not match the current endpoint
     case ChorStatement(_, _) => Block(Seq())(statement.o)
     case branch: Branch[Pre] =>
       logger.warn("Dropping branch")
@@ -235,9 +236,9 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case InChor(_, EndpointNameExpr(EndpointName(Ref(endpoint))))=>
+    case InChor(_, EndpointName(Ref(endpoint)))=>
       Local[Post](endpointLocals.ref(endpoint))(expr.o)
-    case InEndpoint(_, endpoint, EndpointNameExpr(EndpointName(Ref(peer)))) =>
+    case InEndpoint(_, endpoint, EndpointName(Ref(peer))) =>
       implicit val o = expr.o
       // TODO (RR): Also need to generate (read) permissions for all these fields!
       Deref[Post](currentThis.top, endpointPeerFields.ref((endpoint, peer)))(PanicBlame("Shouldn't happen"))
@@ -487,7 +488,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
         // case c: SeqGuard[Pre] => paralleliseThreadCondition(node, thread, c)
         case m: MethodInvocation[Pre] => updateThreadRefMethodInvoc(thread, m)
         case d: Deref[Pre] => updateThreadRefInDeref(node, thread, d)
-        case EndpointNameExpr(t: EndpointName[Pre]) => updateThreadRefVeyMontDeref(node, thread, t)
+        case t: EndpointName[Pre] => updateThreadRefVeyMontDeref(node, thread, t)
         case _ => rewriteDefault(node)
       }
     } else rewriteDefault(node)
@@ -501,7 +502,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
 
   private def updateThreadRefInDeref(node: Expr[Pre], thread: Endpoint[Pre], d: Deref[Pre]) = {
     d.obj match {
-      case EndpointNameExpr(t: EndpointName[Pre]) if t.ref.decl == thread =>
+      case t: EndpointName[Pre] if t.ref.decl == thread =>
         d.rewrite(
           obj = getThisVeyMontDeref(thread, d.o, threadBuildingBlocks.top.threadField)
         )
@@ -511,7 +512,7 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
 
   private def updateThreadRefMethodInvoc(thread: Endpoint[Pre], m: MethodInvocation[Pre]) = {
     m.obj match {
-      case EndpointNameExpr(threadRef: EndpointName[Pre]) => ??? // m.rewrite(obj = EndpointNameExpr(dispatch(threadRef)))
+      case threadRef: EndpointName[Pre] => ??? // m.rewrite(obj = EndpointNameExpr(dispatch(threadRef)))
       case _ => threadMethodSucc.get((thread, m.ref.decl)) match {
         case Some(postMethod) => m.rewrite(obj = dispatch(m.obj), ref = postMethod.ref[InstanceMethod[Post]], m.args.map(dispatch))
         case None => throw ParalleliseEndpointsError(m, "No successor for this method found")

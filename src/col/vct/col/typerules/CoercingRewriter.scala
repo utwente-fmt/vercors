@@ -797,7 +797,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         DerefHeapVariable(ref)(deref.blame)
       case deref @ DerefPointer(p) =>
         DerefPointer(pointer(p)._1)(deref.blame)
-      case expr @ EndpointNameExpr(_) => expr
       case Drop(xs, count) =>
         Drop(seq(xs)._1, int(count))
       case Empty(obj) =>
@@ -811,6 +810,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         EitherLeft(e)
       case EitherRight(e) =>
         EitherRight(e)
+      case EndpointName(ref) => EndpointName(ref)
       case Exists(bindings, triggers, body) =>
         Exists(bindings, triggers, bool(body))
       case Exp(left, right) =>

@@ -1,6 +1,6 @@
 package vct.col.ast.statement.veymont
 
-import vct.col.ast.{Assert, Assign, Assume, Block, Branch, ChorBranch, ChorLoop, ChorStatement, Communicate, CommunicateX, Deref, Endpoint, EndpointName, EndpointNameExpr, Eval, Expr, Loop, MethodInvocation, Scope, ThisChoreography, UnresolvedChorBranch, UnresolvedChorLoop, VeyMontAssignExpression}
+import vct.col.ast.{Assert, Assign, Assume, Block, Branch, ChorBranch, ChorLoop, ChorStatement, Communicate, CommunicateX, Deref, Endpoint, EndpointName, Eval, Expr, Loop, MethodInvocation, Scope, ThisChoreography, UnresolvedChorBranch, UnresolvedChorLoop, VeyMontAssignExpression}
 import vct.col.ast.ops.ChorStatementOps
 import vct.col.ast.statement.StatementImpl
 import vct.col.check.{CheckContext, CheckError, SeqProgInvocation, SeqProgNoParticipant, SeqProgParticipant, SeqProgStatement}
@@ -44,13 +44,13 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] { t
   def rootEndpoint(expr: Expr[G]): Option[Endpoint[G]] = expr match {
     case MethodInvocation(e, _, _, _, _, _, _) => rootEndpoint(e)
     case Deref(obj, _) => rootEndpoint(obj)
-    case EndpointNameExpr(EndpointName(Ref(e))) => Some(e)
+    case EndpointName(Ref(e)) => Some(e)
     case _ => None
   }
 
   object assign {
     def receiver(chorStmt: ChorStatement[G], node: Assign[G]): Option[Endpoint[G]] =
-      chorStmt.endpoint.map(_.decl).orElse(rootEndpoint(node.target))
+      chorStmt.endpoint.map(_.decl)
 
     def enterCheckContextCurrentReceiverEndpoint(chorStmt: ChorStatement[G], node: Assign[G], context: CheckContext[G]): Option[Endpoint[G]] =
       receiver(chorStmt, node)
@@ -59,8 +59,6 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] { t
       receiver(chorStmt, node) match {
         case Some(endpoint) if !context.currentParticipatingEndpoints.get.contains(endpoint) =>
           Seq(SeqProgParticipant(chorStmt))
-        case None =>
-          Seq(SeqProgNoParticipant(chorStmt))
         case _ => Nil
       }
     }
