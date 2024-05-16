@@ -888,4 +888,6 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       }
     }
     """)
+
+  vercors should verify using silicon flag "--veymont-generate-permissions" example "technical/veymont/genericEndpoints.pvl"
 }

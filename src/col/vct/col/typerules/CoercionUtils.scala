@@ -62,7 +62,7 @@ case object CoercionUtils {
 
       case (TNull(), TRef()) => CoerceNullRef()
       case (TNull(), TArray(target)) => CoerceNullArray(target)
-      case (TNull(), TClass(target)) => CoerceNullClass(target)
+      case (TNull(), TClass(target, typeArgs)) => CoerceNullClass(target, typeArgs)
       case (TNull(), JavaTClass(target, _)) => CoerceNullJavaClass(target)
       case (TNull(), TAnyClass()) => CoerceNullAnyClass()
       case (TNull(), TPointer(target)) => CoerceNullPointer(target)
@@ -123,12 +123,12 @@ case object CoercionUtils {
       case (source: TBoundedInt[G], TRational()) => CoercionSequence(Seq(CoerceUnboundInt(source, TInt()), CoerceIntRat()))
       case (_: IntType[G], TRational()) => CoerceIntRat()
 
-      case (source @ TClass(sourceClass), target @ TClass(targetClass))
-        if source.transSupportArrows.exists { case (_, supp) => supp == targetClass.decl } =>
+      case (source @ TClass(sourceClass, Seq()), target @ TClass(targetClass, Seq()))
+        if source.transSupportArrows.exists { case (_, supp) => supp.cls.decl == targetClass.decl } =>
         CoerceSupports(sourceClass, targetClass)
 
-      case (source @ TClass(sourceClass), TAnyClass()) =>
-        CoerceClassAnyClass(sourceClass)
+      case (source @ TClass(sourceClass, typeArgs), TAnyClass()) =>
+        CoerceClassAnyClass(sourceClass, typeArgs)
 
       case (source @ JavaTClass(sourceClass, Nil), target @ JavaTClass(targetClass, Nil))
         if sourceClass.decl.transSupportArrows(Set.empty).exists { case (_, supp) => supp == targetClass.decl } =>

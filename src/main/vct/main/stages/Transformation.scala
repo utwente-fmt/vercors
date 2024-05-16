@@ -2,6 +2,7 @@ package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
+import hre.debug.TimeTravel.CauseWithBadEffect
 import hre.progress.Progress
 import hre.stages.Stage
 import vct.col.ast.{Program, SimplificationRule, Verification}
@@ -23,7 +24,7 @@ import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
-import vct.rewrite.{EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, SmtlibToProverTypes}
+import vct.rewrite.{EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, MonomorphizeClass, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateSeqProgPermissions, SplitSeqGuards}
 
@@ -123,7 +124,13 @@ class Transformation
           case (key, action) => if (pass.key == key) action(result)
         }
 
-        result = pass().dispatch(result)
+        try {
+          result = pass().dispatch(result)
+        } catch {
+          case c @ CauseWithBadEffect(effect) =>
+            logger.error(s"An error occurred in pass ${pass.key}")
+            throw c
+        }
 
         result.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
           case Nil => // ok
@@ -266,6 +273,7 @@ case class SilverTransformation
     EncodeTryThrowSignals,
 
     ResolveScale,
+    MonomorphizeClass,
     // No more classes
     ClassToRef,
     HeapVariableToRef,

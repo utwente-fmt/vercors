@@ -31,7 +31,7 @@ col::Program sampleCol(bool returnBool) {
     col::BooleanValue *lockInvariant = vctClass->mutable_intrinsic_lock_invariant()->mutable_boolean_value();
     lockInvariant->set_value(true);
     // class>method
-    col::ClassDeclaration *methodDeclaration = vctClass->add_declarations();
+    col::ClassDeclaration *methodDeclaration = vctClass->add_decls();
     col::InstanceMethod *method = methodDeclaration->mutable_instance_method();
     llvm2Col::setColNodeId(method);
     // class>method>return_type

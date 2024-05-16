@@ -37,12 +37,12 @@ case class Output(out: Path, syntax: Ctx.Syntax) extends Stage[Node[_ <: Generat
       in.asInstanceOf[Program[G]].declarations.zipWithIndex.foreach { case (decl, i) =>
         val name = names.getOrElse(decl, s"unknown$i")
         val f = out.resolve(name + ".pvl")
-        hre.io.RWFile(f.toFile).write(w => decl.write(w)(ctx))
+        hre.io.RWFile(f).write(w => decl.write(w)(ctx))
       }
     }
     // Otherwise create one big program from the parse result and write it to the provided file directly
     else {
-      hre.io.RWFile(out.toFile).write(w => in.write(w)(ctx))
+      hre.io.RWFile(out).write(w => in.write(w)(ctx))
     }
   }
 }

@@ -71,6 +71,9 @@ case object Options {
       opt[Unit]("profile")
         .action((_, c) => c.copy(profile = true))
         .text("Output profiling information in the current directory in the pprof format (https://github.com/google/pprof)"),
+      opt[Unit]("watch").abbr("w")
+        .action((_, c) => c.copy(watch = true))
+        .text("Run VerCors in an infinite loop, waiting for external changes between each run."),
 
       opt[(String, Verbosity)]("dev-log-verbosity").unbounded().maybeHidden().keyValueName("<loggerKey>", "<verbosity>")
         .action((tup, c) => c.copy(logLevels = c.logLevels :+ tup))
@@ -293,38 +296,6 @@ case object Options {
         ),
 
       note(""),
-      note("Batch Testing Mode"),
-      opt[Unit]("test")
-        .action((_, c) => c.copy(mode = Mode.BatchTest))
-        .text("Enable batch testing mode: execute all tests in a directory")
-        .children(
-          opt[Path]("test-dir").required().valueName("<path>")
-            .action((path, c) => c.copy(testDir = path))
-            .text("The directory from which to run all tests"),
-          opt[Seq[Backend]]("test-filter-backend").valueName("<backend>,...")
-            .action((backends, c) => c.copy(testFilterBackend = Some(backends))),
-          opt[Seq[String]]("test-filter-include-suite").valueName("<suite>,...")
-            .action((suites, c) => c.copy(testFilterIncludeOnlySuites = Some(suites))),
-          opt[Seq[String]]("test-filter-exclude-suite").valueName("<suite>,...")
-            .action((suites, c) => c.copy(testFilterExcludeSuites = Some(suites))),
-          opt[Int]("test-workers")
-            .action((n, c) => c.copy(testWorkers = n))
-            .text("Number of threads to start to run tests (default: 1)"),
-          opt[Unit]("test-coverage")
-            .action((_, c) => c.copy(testCoverage = true))
-            .text("Generate a coverage report"),
-          opt[Unit]("test-failing-first")
-            .action((_, c) => c.copy(testFailingFirst = true))
-            .text("When run twice with this option, VerCors will run the tests that failed the previous time first (cancelling a run is safe)"),
-          opt[Unit]("test-generate-failing-run-configs")
-            .action((_, c) => c.copy(testGenerateFailingRunConfigs = true))
-            .text("Generates Intellij IDEA run configurations for tests that fail (and deletes recovered tests, cancelling a run is safe)"),
-          opt[Unit]("test-ci-output")
-            .action((_, c) => c.copy(testCIOutput = true))
-            .text("Tailor the logging output for a CI run")
-        ),
-
-      note(""),
       note(""),
       arg[PathOrStd]("<path>...").unbounded().optional()
         .action((path, c) => c.copy(inputs = c.inputs :+ path))
@@ -359,6 +330,7 @@ case class Options
   ),
   progress: Boolean = false,
   profile: Boolean = false,
+  watch: Boolean = false,
   more: Boolean = false,
 
   // Verify Options
@@ -432,15 +404,4 @@ case class Options
 
   // Control flow graph options
   cfgOutput: Path = null,
-
-  // Batch test options
-  testDir: Path = null, // required
-  testFilterBackend: Option[Seq[Backend]] = None,
-  testFilterIncludeOnlySuites: Option[Seq[String]] = None,
-  testFilterExcludeSuites: Option[Seq[String]] = None,
-  testWorkers: Int = 1,
-  testCoverage: Boolean = false,
-  testFailingFirst: Boolean = false,
-  testGenerateFailingRunConfigs: Boolean = false,
-  testCIOutput: Boolean = false,
 )

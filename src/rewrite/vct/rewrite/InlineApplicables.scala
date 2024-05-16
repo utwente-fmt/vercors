@@ -142,7 +142,7 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     program.declarations.collect { case cls: Class[Pre] => cls }.foreach { cls =>
-      cls.declarations.foreach(classOwner(_) = cls)
+      cls.decls.foreach(classOwner(_) = cls)
     }
     rewriteDefault(program)
   }

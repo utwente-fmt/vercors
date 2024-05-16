@@ -178,7 +178,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
     os.walk(dest / "deps" / "unix", preOrder = false).foreach(os.remove)
     os.walk(dest / "deps" / "darwin", preOrder = false).foreach(os.remove)
 
-    os.write(dest / ".classpath", "-cp " + (jar +: res).map(_.relativeTo(dest)).map(_.toString).mkString(":"))
+    os.write(dest / ".classpath", "-cp " + (jar +: res).map(_.relativeTo(dest)).map(_.toString).mkString(";"))
 
     os.write(dest / winExecutableName(),
       s"""@echo off

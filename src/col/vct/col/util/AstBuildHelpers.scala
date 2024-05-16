@@ -5,6 +5,7 @@ import vct.col.ast._
 import vct.col.ast.expr.apply.FunctionInvocationImpl
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
+import vct.col.rewrite.Rewritten
 import vct.result.VerificationError.UserError
 
 /**
@@ -361,12 +362,13 @@ object AstBuildHelpers {
   def constructorInvocation[G]
                          (blame: Blame[InvocationFailure],
                           ref: Ref[G, Constructor[G]],
+                          classTypeArgs: Seq[Type[G]] = Nil,
                           args: Seq[Expr[G]] = Nil,
                           outArgs: Seq[Expr[G]] = Nil,
                           typeArgs: Seq[Type[G]] = Nil,
                           givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
                           yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): ConstructorInvocation[G] =
-    ConstructorInvocation(ref, args, outArgs, typeArgs, givenMap, yields)(blame)
+    ConstructorInvocation(ref, classTypeArgs, args, outArgs, typeArgs, givenMap, yields)(blame)
 
   private def GeneratedQuantifier: Origin = Origin(
     Seq(

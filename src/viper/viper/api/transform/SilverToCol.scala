@@ -24,12 +24,12 @@ case object SilverToCol {
         val end = position.end.getOrElse(start)
         Origin(Seq(
           PositionRange(start.line-1, end.line-1, Some((start.column-1, end.column-1))),
-          ReadableOrigin(RWFile(position.file.toFile)),
+          ReadableOrigin(RWFile(position.file)),
         ))
       case FilePosition(file, vline, col) =>
         Origin(Seq(
           PositionRange(vline, vline, Some((col, col))),
-          ReadableOrigin(RWFile(file.toFile)),
+          ReadableOrigin(RWFile(file)),
         ))
       case LineColumnPosition(line, column) =>
         Origin(Seq(

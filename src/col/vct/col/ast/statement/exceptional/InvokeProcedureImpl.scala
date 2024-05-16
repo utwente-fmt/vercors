@@ -1,6 +1,6 @@
 package vct.col.ast.statement.exceptional
 
-import vct.col.ast.InvokeProcedure
+import vct.col.ast.{InvokeProcedure, Variable, Type}
 import vct.col.print.{Ctx, Doc, DocUtil, Empty, Group, Text}
 import vct.col.ast.ops.InvokeProcedureOps
 
@@ -21,4 +21,6 @@ trait InvokeProcedureImpl[G] extends InvokeProcedureOps[G] { this: InvokeProcedu
     case Ctx.Silver => layoutSilver
     case _ => layoutGeneric
   }
+
+  def typeEnv: Map[Variable[G], Type[G]] = ref.decl.typeArgs.zip(typeArgs).toMap
 }
