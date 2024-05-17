@@ -174,7 +174,10 @@ case object Referrable {
     case decl: SeqProg[G] => RefSeqProg(decl)
     case decl: Endpoint[G] => RefEndpoint(decl)
     case decl: LlvmFunctionDefinition[G] => RefLlvmFunctionDefinition(decl)
-    case decl: LlvmGlobal[G] => return decl.data.get.indices.map(RefLlvmGlobal(decl, _))
+    case decl: LlvmGlobal[G] => decl.data match {
+      case Some(data) => return data.indices.map(RefLlvmGlobal(decl, _))
+      case None => RefLlvmGlobal(decl, -1)
+    }
     case decl: LlvmSpecFunction[G] => RefLlvmSpecFunction(decl)
     case decl: ProverType[G] => RefProverType(decl)
     case decl: ProverFunction[G] => RefProverFunction(decl)

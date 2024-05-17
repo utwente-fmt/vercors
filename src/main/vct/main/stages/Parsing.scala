@@ -15,7 +15,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.UserError
 import viper.api.transform.ColSilverParser
 
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 
 case object Parsing {
   sealed trait Language
@@ -89,9 +89,9 @@ case class Parsing[G <: Generation]
       val origin = Origin(Seq(ReadableOrigin(readable)))
 
       val parser = language match {
-        case Language.C => ColCParser(debugOptions, blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines)
+        case Language.C => ColCParser(debugOptions, blameProvider, cc, cSystemInclude, Option(Paths.get(readable.fileName).getParent).toSeq ++ cOtherIncludes, cDefines)
         case Language.InterpretedC => ColIParser(debugOptions, blameProvider, cOrigin = None)
-        case Language.CPP => ColCPPParser(debugOptions, blameProvider, ccpp, cppSystemInclude, cppOtherIncludes, cppDefines)
+        case Language.CPP => ColCPPParser(debugOptions, blameProvider, ccpp, cppSystemInclude, Option(Paths.get(readable.fileName).getParent).toSeq ++ cppOtherIncludes, cppDefines)
         case Language.InterpretedCPP => ColIPPParser(debugOptions, blameProvider, cppOrigin = None)
         case Language.Java => ColJavaParser(debugOptions, blameProvider)
         case Language.PVL => ColPVLParser(debugOptions, blameProvider)
