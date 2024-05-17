@@ -105,9 +105,9 @@ case object Options {
         .text("Print the AST before a pass key"),
       opt[Unit]("output-intermediate-programs")
         .abbr("explode")
-        .action((_, c) => c.copy(outputIntermediatePrograms = Some(PathOrStd.Path(Paths.get("tmp", "cols")))))
+        .action((_, c) => c.copy(outputIntermediatePrograms = Some(Paths.get("tmp", "cols"))))
         .text("Writes all intermediate ASTs, labeled by pass, to tmp/cols/"),
-      opt[PathOrStd]("output-intermediate-programs-in")
+      opt[Path]("output-intermediate-programs-in")
         .action((p, c) => c.copy(outputIntermediatePrograms = Some(p)))
         .text("Writes all intermediate ASTs, labeled by pass, to a given folder"),
 
@@ -377,7 +377,7 @@ case class Options
 
   outputAfterPass: Map[String, PathOrStd] = Map.empty,
   outputBeforePass: Map[String, PathOrStd] = Map.empty,
-  outputIntermediatePrograms: Option[PathOrStd] = None,
+  outputIntermediatePrograms: Option[Path] = None,
 
   backendFlags: Seq[String] = Nil,
   skipBackend: Boolean = false,

@@ -18,16 +18,17 @@ import vct.rewrite.lang.NoSupportSelfLoop
 import vct.col.rewrite.veymont.StructureCheck
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
-import vct.main.stages.Transformation.TransformationCheckError
+import vct.main.stages.Transformation.{PassEventHandler, TransformationCheckError}
 import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
-import vct.options.types.PathOrStd.Path
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
 import vct.rewrite.{EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, MonomorphizeClass, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{DeduplicateChorGuards, EncodeChannels, EncodeChoreographyParameters, EncodeEndpointInequalities, EncodeChorBranchUnanimity, EncodeChoreography, EncodeUnpointedGuard, GenerateImplementation, GenerateChoreographyPermissions, InferEndpointContexts, SpecializeEndpointClasses, SplitChorGuards}
+import vct.rewrite.veymont.{DeduplicateChorGuards, EncodeChannels, EncodeChorBranchUnanimity, EncodeChoreography, EncodeChoreographyParameters, EncodeEndpointInequalities, EncodeUnpointedGuard, GenerateChoreographyPermissions, GenerateImplementation, InferEndpointContexts, SpecializeEndpointClasses, SplitChorGuards}
+
+import java.nio.file.Path
 
 object Transformation extends LazyLogging {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
@@ -37,30 +38,23 @@ object Transformation extends LazyLogging {
       }.mkString("\n")
   }
 
-  private def writeOutFunctions(m: Map[String, PathOrStd]): Seq[PassProc] =
-    m.toSeq.map {
-      case (key, out) => (currentKey, program: Verification[_ <: Generation]) =>
-        if (key == currentKey) {
-          out.write { writer =>
-            program.write(writer)(Ctx().namesIn(program))
-          }
+  private def writeOutFunctions(event: TransformationEvent, m: Map[String, PathOrStd]): Seq[PassEventHandler] = m.toSeq.map { case (key, out) =>
+    (passes, currentEvent, currentKey, program: Verification[_ <: Generation]) => {
+      if (key == currentKey && event == currentEvent) {
+        out.write { writer =>
+          program.write(writer)(Ctx().namesIn(program))
         }
+      }
     }
+  }
 
-  private def intermediateProgramsWriteOutFunctions(out: Path): (PassProc, PassProc) = {
-    out.mkDir()
-    object state {
-      var x = 0
+  private def reportIntermediateProgram(out: Path): PassEventHandler = {
+    out.toFile.mkdirs()
+    (passes, event, pass, program) => {
+      val i = passes.map(_.key).indexOf(pass) * 2 + (if(event == before) 0 else 1)
+      val target = PathOrStd.Path(out.resolve(f"$i%03d-$event-$pass.col"))
+      target.write { writer => program.write(writer)(Ctx().namesIn(program)) }
     }
-    ((pass, program) => {
-      val target = out.resolve(f"${state.x}%03d-before-$pass.col")
-      target.write { writer => program.write(writer)(Ctx().namesIn(program)) }
-      state.x += 1
-    }, (pass, program) => {
-      val target = out.resolve(f"${state.x}%03d-after-$pass.col")
-      target.write { writer => program.write(writer)(Ctx().namesIn(program)) }
-      state.x += 1
-    })
   }
 
   def simplifierFor(path: PathOrStd, options: Options): RewriterBuilder =
@@ -79,15 +73,11 @@ object Transformation extends LazyLogging {
   def ofOptions(options: Options, bipResults: BIP.VerificationResults = BIP.VerificationResults()): Transformation =
     options.backend match {
       case Backend.Silicon | Backend.Carbon =>
-        val (beforeProc, afterProc) = options.outputIntermediatePrograms.collect { case out: Path =>
-          val (beforeProc, afterProc) = intermediateProgramsWriteOutFunctions(out)
-          (Seq(beforeProc), Seq(afterProc))
-        }.getOrElse((Seq(), Seq()))
-
         SilverTransformation(
           adtImporter = PathAdtImporter(options.adtPath),
-          onBeforePass = beforeProc ++ writeOutFunctions(options.outputBeforePass),
-          onAfterPass = afterProc ++ writeOutFunctions(options.outputAfterPass),
+          onPassEvent = options.outputIntermediatePrograms.map(reportIntermediateProgram).toSeq ++
+            writeOutFunctions(Transformation.before, options.outputBeforePass) ++
+            writeOutFunctions(Transformation.after, options.outputAfterPass),
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
           simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
           checkSat = options.devCheckSat,
@@ -101,11 +91,14 @@ object Transformation extends LazyLogging {
   def veymontImplementationGenerationOfOptions(options: Options): Transformation =
     VeyMontImplementationGeneration(
       importer = PathAdtImporter(options.veymontResourcePath),
-      onBeforePass = writeOutFunctions(options.outputBeforePass),
-      onAfterPass = writeOutFunctions(options.outputAfterPass),
+      onPassEvent = writeOutFunctions(before, options.outputBeforePass) ++
+        writeOutFunctions(after, options.outputAfterPass),
     )
 
-  type PassProc = (String, Verification[_ <: Generation]) => Unit
+  sealed trait TransformationEvent
+  case object before extends TransformationEvent
+  case object after extends TransformationEvent
+  type PassEventHandler = (Seq[RewriterBuilder], TransformationEvent, String, Verification[_ <: Generation]) => Unit
 }
 
 /**
@@ -114,15 +107,12 @@ object Transformation extends LazyLogging {
  * Refer to [[RewriterBuilder]] and [[RewriterBuilderArg]] for information on how to use a [[Rewriter]] in the
  * pass chain.
  *
- * @param onBeforePassKey Execute a side effect just before a rewrite pass is executed.
- * @param onAfterPassKey Execute a side effect just after a rewrite pass is executed. The consistency check is done
- *                       before the side effect is performed.
+ * @param onPassEvent Execute a handler before/after a pass is executed.
  * @param passes The list of rewrite passes to execute.
  */
 class Transformation
 (
-  val onBeforePass: Seq[Transformation.PassProc],
-  val onAfterPass: Seq[Transformation.PassProc],
+  val onPassEvent: Seq[PassEventHandler],
   val passes: Seq[RewriterBuilder],
 ) extends Stage[Verification[_ <: Generation], Verification[_ <: Generation]] with LazyLogging {
   override def friendlyName: String = "Transformation"
@@ -141,15 +131,11 @@ class Transformation
       case (_, _) =>
     }
 
-    var firstRun = true
-
     TimeTravel.safelyRepeatable {
       var result: Verification[_ <: Generation] = input
 
-      try Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
-        if (firstRun) {
-          onBeforePass.foreach { action => action(pass.key, result) }
-        }
+      Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
+        onPassEvent.foreach { action => action(passes, Transformation.before, pass.key, result) }
 
         val nextResult = try {
           pass().dispatch(result)
@@ -159,9 +145,7 @@ class Transformation
             throw c
         }
 
-        if (firstRun) {
-          onAfterPass.foreach { action => action(pass.key, nextResult) }
-        }
+        onPassEvent.foreach { action => action(passes, Transformation.after, pass.key, nextResult) }
 
         nextResult.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
           case Nil => // ok
@@ -171,10 +155,6 @@ class Transformation
         val nextNextResult = PrettifyBlocks().dispatch(nextResult)
 
         result = nextNextResult
-      } catch {
-        case e: Exception =>
-          firstRun = false
-          throw e
       }
 
       for ((feature, examples) <- Feature.examples(result)) {
@@ -206,8 +186,7 @@ class Transformation
 case class SilverTransformation
 (
   adtImporter: ImportADTImporter = PathAdtImporter(Resources.getAdtPath),
-  override val onBeforePass: Seq[Transformation.PassProc] = Nil,
-  override val onAfterPass: Seq[Transformation.PassProc] = Nil,
+  override val onPassEvent: Seq[PassEventHandler] = Nil,
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
   inferHeapContextIntoFrame: Boolean = true,
@@ -215,7 +194,7 @@ case class SilverTransformation
   checkSat: Boolean = true,
   splitVerificationByProcedure: Boolean = false,
   veymontGeneratePermissions: Boolean = false,
-) extends Transformation(onBeforePass, onAfterPass, Seq(
+) extends Transformation(onPassEvent, Seq(
     // Replace leftover SYCL types
     ReplaceSYCLTypes,
     CFloatIntCoercion,
@@ -359,9 +338,8 @@ case class SilverTransformation
   ))
 
 case class VeyMontImplementationGeneration(importer: ImportADTImporter = PathAdtImporter(Resources.getVeymontPath),
-                                           override val onBeforePass: Seq[Transformation.PassProc] = Nil,
-                                           override val onAfterPass: Seq[Transformation.PassProc] = Nil)
-  extends Transformation(onBeforePass, onAfterPass, Seq(
+                                           override val onPassEvent: Seq[PassEventHandler] = Nil)
+  extends Transformation(onPassEvent, Seq(
     SplitChorGuards,
     EncodeUnpointedGuard,
     DeduplicateChorGuards,
