@@ -116,11 +116,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
     }
   }
 
-  def rewriteExpr(expr: Expr[Pre]): Expr[Post] = {
+  def rewriteExpr(expr: Expr[Pre]): Expr[Post] = expr match {
     case PVLChorPerm(endpoint, loc, perm) =>
-      ChorPerm(Some(rewriteEndpointName(endpoint)), rw.dispatch(loc), rw.dispatch(perm))(expr.o)
+      ChorPerm[Post](Some(rewriteEndpointName(endpoint)), rw.dispatch(loc), rw.dispatch(perm))(expr.o)
     case Perm(loc, perm) =>
-      ChorPerm(None, rw.dispatch(loc), rw.dispatch(perm))(expr.o)
-    case expr => rw.dispatch(expr)
+      ChorPerm[Post](None, rw.dispatch(loc), rw.dispatch(perm))(expr.o)
+    case expr => currentExpr.having(expr) { rw.dispatch(expr) }
   }
 }

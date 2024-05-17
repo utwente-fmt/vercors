@@ -744,6 +744,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         Choose(set(xs)._1)(choose.blame)
       case choose @ ChooseFresh(xs) =>
         ChooseFresh(set(xs)._1)(choose.blame)
+      case p @ ChorPerm(endpoint, loc, perm) => ChorPerm(endpoint, loc, rat(perm))
       case CLiteralArray(exprs) =>
         CLiteralArray(exprs)
       case CLocal(name) => e
@@ -1115,6 +1116,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         Product(bindings, bool(condition), int(main))
       case ProverFunctionInvocation(ref, args) =>
         ProverFunctionInvocation(ref, coerceArgs(args, ref.decl))
+      case p @ PVLChorPerm(endpoint, loc, perm) => PVLChorPerm(endpoint, loc, rat(perm))
       case PVLDeref(obj, field) => e
       case PVLInvocation(obj, method, args, typeArgs, givenArgs, yields) => e
       case PVLLocal(name) => e

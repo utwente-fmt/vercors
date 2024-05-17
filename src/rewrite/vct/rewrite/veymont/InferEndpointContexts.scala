@@ -74,7 +74,7 @@ case class InferEndpointContexts[Pre <: Generation]() extends Rewriter[Pre] with
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case p @ ChorPerm(None, loc, perm) => p.rewrite(endpoint = Some(getEndpoint(loc)))
+    case p @ ChorPerm(None, loc, perm) => p.rewrite(endpoint = Some(succ(getEndpoint(loc))))
     case _ => expr.rewriteDefault()
   }
 }
