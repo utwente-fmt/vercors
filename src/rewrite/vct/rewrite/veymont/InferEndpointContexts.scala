@@ -66,13 +66,13 @@ case class InferEndpointContexts[Pre <: Generation]() extends Rewriter[Pre] with
   override def dispatch(stmt: Statement[Pre]): Statement[Post] = stmt match {
     // Whitelist statements that do not need a context
     case s @ ChorStatement(None, assign: Assign[Pre]) =>
-      val endpoint: Endpoint[Pre] = getEndpoint(assign.target) // Infer endpoint
+      val endpoint: Endpoint[Pre] = getEndpoint(assign.target)
       s.rewrite(endpoint = Some(succ(endpoint)))
     case s @ ChorStatement(None, assert: Assert[Pre]) =>
-      val endpoint: Endpoint[Pre] = getEndpoint(assert.expr) // Infer endpoint
+      val endpoint: Endpoint[Pre] = getEndpoint(assert.expr)
       s.rewrite(endpoint = Some(succ(endpoint)))
     case s @ ChorStatement(None, Eval(invoke: MethodInvocation[Pre])) =>
-      val endpoint: Endpoint[Pre] = getEndpoint(invoke.obj) // Infer endpoint
+      val endpoint: Endpoint[Pre] = getEndpoint(invoke.obj)
       s.rewrite(endpoint = Some(succ(endpoint)))
     case s @ ChorStatement(None, _) => throw EndpointInferenceUndefined(s)
     case comm: Communicate[Pre] =>

@@ -28,7 +28,6 @@ object EncodeChoreography extends RewriterBuilder {
     }
   }
 
-  // TODO (RR): No longer necessary?
 //  case class InsufficientPermissionToAccessFailure(access: Access[_]) extends Blame[VerificationFailure] {
 //    override def blame(error: VerificationFailure): Unit = error match {
 //      case _: AssignFailed =>
@@ -210,22 +209,18 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
       if (InferEndpointContexts.getEndpoint(target) != receiver || InferEndpointContexts.getEndpoint(msg) != sender) {
         throw new Exception(comm.o.messageInContext("sender/receiver does not match message/target"))
       }
-      ???
-      // TODO (RR): Clean this up
-//      val equalityTest: Statement[Post] = if(receiver.subject.cls == sender.subject.cls)
-//        Assert(
-//          rewriteSubject(receiver.subject) !== rewriteSubject(sender.subject)
-//        )(AssertFailedToParticipantsNotDistinct(comm))
-//      else
-//        Block(Nil)
-//
-//      Block(Seq(
-//        equalityTest,
-//        Assign[Post](
-//          rewriteAccess(receiver),
-//          rewriteAccess(sender)
-//        )(InsufficientPermissionToAccessFailure(receiver))
-//      ))
+
+      val equalityTest: Statement[Post] =
+        if(receiver.t == sender.t)
+          Assert[Post](endpointSucc((mode, receiver)).get !== endpointSucc((mode, sender)).get
+            )(AssertFailedToParticipantsNotDistinct(comm))
+        else
+          Block(Nil)
+
+      Block(Seq(
+        equalityTest,
+        Assign[Post](dispatch(target), dispatch(msg))(PanicBlame("TODO: Assignment from communicate failed"))
+      ))
     case comm @ Communicate(receiver, target, sender, msg) =>
       throw new Exception(comm.o.messageInContext("Either the sender or receiver was not annotated for or not inferred!"))
     case ChorStatement(_, stat) => dispatch(stat)
@@ -234,9 +229,9 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = (mode, expr) match {
     case (mode, EndpointName(Ref(endpoint))) =>
-      Local[Post](endpointSucc((mode, endpoint)).ref)(expr.o)
+      endpointSucc((mode, endpoint)).get(expr.o)
     case (mode, Local(Ref(v))) if mode != Top && currentProg.top.params.contains(v) =>
-      Local[Post](variableSucc((mode, v)).ref)(expr.o)
+      variableSucc((mode, v)).get(expr.o)
     case (mode, invocation @ MethodInvocation(ThisChoreography(_), Ref(method), args, _, _, _, _)) if mode != Top =>
       implicit val o = invocation.o
       val prog = currentProg.top

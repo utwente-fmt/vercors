@@ -21,6 +21,7 @@ import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.TransformationCheckError
 import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
+import vct.options.types.PathOrStd.Path
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
@@ -28,7 +29,7 @@ import vct.rewrite.{EncodeRange, EncodeResourceValues, ExplicitResourceValues, H
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont.{DeduplicateChorGuards, EncodeChannels, EncodeChoreographyParameters, EncodeEndpointInequalities, EncodeChorBranchUnanimity, EncodeChoreography, EncodeUnpointedGuard, GenerateImplementation, GenerateChoreographyPermissions, InferEndpointContexts, SpecializeEndpointClasses, SplitChorGuards}
 
-object Transformation {
+object Transformation with LazyLogging {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
     override def text: String =
       s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map {
@@ -42,6 +43,23 @@ object Transformation {
         program.write(writer)(Ctx().namesIn(program))
       })
     }
+
+  private def intermediateProgramsWriteOutFunctions(out: Path):
+      (Seq[(String, Verification[_ <: Generation]) => Unit], (String, Verification[_ <: Generation]) => Unit) = {
+    if (!out.isDir) {
+      logger.warn("Intermediate programs out path is not a directory, ignoring")
+    }
+    out.mkDir()
+    object state {
+      var x = 0
+    }
+    ({ case (pass, ast) =>
+      val target = out.resolve(s"")
+      out.resolve
+    }, { case (pass, ast) => ???
+
+    })
+  }
 
   def simplifierFor(path: PathOrStd, options: Options): RewriterBuilder =
     ApplyTermRewriter.BuilderFor(
@@ -96,7 +114,9 @@ class Transformation
 (
   val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
   val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
-  val passes: Seq[RewriterBuilder]
+  val passes: Seq[RewriterBuilder],
+  val onBeforeKey: Seq[(String, Verification[_ <: Generation]) => Unit] = Seq(),
+  val onAfterKey: Seq[(String, Verification[_ <: Generation]) => Unit] = Seq(),
 ) extends Stage[Verification[_ <: Generation], Verification[_ <: Generation]] with LazyLogging {
   override def friendlyName: String = "Transformation"
   override def progressWeight: Int = 10
@@ -122,6 +142,8 @@ class Transformation
           case (key, action) => if (pass.key == key) action(result)
         }
 
+        onBeforeKey.foreach { action => action(pass.key, result) }
+
         val nextResult = try {
           pass().dispatch(result)
         } catch {
@@ -133,6 +155,8 @@ class Transformation
         onAfterPassKey.foreach {
           case (key, action) => if (pass.key == key) action(nextResult)
         }
+
+        onAfterKey.foreach { action => action(pass.key, result) }
 
         nextResult.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
           case Nil => // ok

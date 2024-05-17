@@ -36,6 +36,15 @@ sealed trait PathOrStd extends InMemoryCachedReadable with Writeable {
 }
 
 case object PathOrStd {
-  case class Path(path: java.nio.file.Path) extends PathOrStd
+  case class Path(path: java.nio.file.Path) extends PathOrStd {
+    def isDir: Boolean = underlyingFile.exists(_.isDirectory)
+    def mkDir() = {
+      assert(isDir)
+      val dir = underlyingFile.get
+      dir.mkdirs()
+    }
+
+    def resolve(elem: String): Path = Path(path.resolve(elem))
+  }
   case object StdInOrOut extends PathOrStd
 }
