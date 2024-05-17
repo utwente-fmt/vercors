@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorPerm, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, FieldLocation, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Location, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorPerm, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, FieldLocation, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Location, Loop, MethodInvocation, NewObject, Node, Null, Perm, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
 import vct.col.origin.{AssignLocalOk, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -52,6 +52,17 @@ object InferEndpointContexts extends RewriterBuilder {
 }
 
 case class InferEndpointContexts[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+  val inChor = ScopedStack[Boolean]()
+
+  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case chor: Choreography[Pre] =>
+      chor.rewrite(
+        preRun = inChor.having(true) { chor.preRun.map(dispatch) },
+        run = inChor.having(true) { dispatch(chor.run) }
+      ).succeed(chor)
+    case _ => super.dispatch(decl)
+  }
+
   override def dispatch(stmt: Statement[Pre]): Statement[Post] = stmt match {
     // Whitelist statements that do not need a context
     case s @ ChorStatement(None, assign: Assign[Pre]) =>
@@ -74,7 +85,8 @@ case class InferEndpointContexts[Pre <: Generation]() extends Rewriter[Pre] with
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case p @ ChorPerm(None, loc, perm) => p.rewrite(endpoint = Some(succ(getEndpoint(loc))))
+    case p @ Perm(loc, perm) if inChor.topOption.contains(true) =>
+      ChorPerm[Post](succ(getEndpoint(loc)), dispatch(loc), dispatch(perm))(p.o)
     case _ => expr.rewriteDefault()
   }
 }

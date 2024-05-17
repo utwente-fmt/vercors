@@ -1338,7 +1338,7 @@ final case class PVLChorPerm[G](endpoint: PVLEndpointName[G], loc: Location[G], 
 final case class Communicate[G](receiver: Option[Ref[G, Endpoint[G]]], target: Expr[G], sender: Option[Ref[G, Endpoint[G]]], msg: Expr[G])(val blame: Blame[CommunicateFailure])(implicit val o: Origin) extends Statement[G] with PurelySequentialStatement[G] with CommunicateImpl[G]
 
 final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Expr[G] with EndpointNameImpl[G]
-final case class ChorPerm[G](endpoint: Option[Ref[G, Endpoint[G]]], loc: Location[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with ChorPermImpl[G]
+final case class ChorPerm[G](endpoint: Ref[G, Endpoint[G]], loc: Location[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with ChorPermImpl[G]
 
 final case class UnresolvedChorBranch[G](branches: Seq[(Expr[G], Statement[G])])(val blame: Blame[SeqBranchFailure])(implicit val o: Origin) extends Statement[G] with ControlContainerStatement[G] with UnresolvedChorBranchImpl[G]
 final case class UnresolvedChorLoop[G](cond: Expr[G], contract: LoopContract[G], body: Statement[G])(val blame: Blame[SeqLoopFailure])(implicit val o: Origin) extends Statement[G] with ControlContainerStatement[G] with UnresolvedChorLoopImpl[G]
