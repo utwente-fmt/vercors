@@ -2,7 +2,6 @@ package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers.RewriteAssign
 import vct.col.ast._
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
@@ -13,11 +12,6 @@ import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangVeyMontToCol.{AssignNotAllowed, NoRunMethod}
 
 case object LangVeyMontToCol {
-  case object EndpointUseNotSupported extends UserError {
-    override def code: String = "endpointUseNotSupported"
-    override def text: String = "Referencing of endpoints is not yet supported"
-  }
-
   case class NoRunMethod(prog: PVLChoreography[_]) extends UserError {
     override def code: String = "noRunMethod"
     override def text: String = prog.o.messageInContext(
@@ -42,6 +36,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
 
   val currentProg: ScopedStack[PVLChoreography[Pre]] = ScopedStack()
   val currentStatement: ScopedStack[Statement[Pre]] = ScopedStack()
+  val currentExpr: ScopedStack[Expr[Pre]] = ScopedStack()
 
   def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] =
     Communicate(
@@ -119,5 +114,13 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
     case stmt => currentStatement.having(stmt) {
       ChorStatement(None, rw.dispatch(stmt))(PanicBlame("Arbitratry statement blame missing"))(stmt.o)
     }
+  }
+
+  def rewriteExpr(expr: Expr[Pre]): Expr[Post] = {
+    case PVLChorPerm(endpoint, loc, perm) =>
+      ChorPerm(Some(rewriteEndpointName(endpoint)), rw.dispatch(loc), rw.dispatch(perm))(expr.o)
+    case Perm(loc, perm) =>
+      ChorPerm(None, rw.dispatch(loc), rw.dispatch(perm))(expr.o)
+    case expr => rw.dispatch(expr)
   }
 }

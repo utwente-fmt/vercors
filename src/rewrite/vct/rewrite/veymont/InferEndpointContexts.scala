@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorPerm, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, FieldLocation, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Location, Loop, MethodInvocation, NewObject, Node, Null, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
 import vct.col.origin.{AssignLocalOk, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -30,8 +30,8 @@ object InferEndpointContexts extends RewriterBuilder {
     override def text: String = expr.o.messageInContext("This expression references multiple distinct endpoints, whereas only one is expected.")
   }
 
-  case class EndpointInferenceUndefined(stmt: Statement[_]) extends SystemError {
-    override def text: String = stmt.o.messageInContext("It is not defined whether an endpoint context should be inferred for this statement")
+  case class EndpointInferenceUndefined(stmt: Node[_]) extends SystemError {
+    override def text: String = stmt.o.messageInContext("It is not defined whether an endpoint context should be inferred for this node")
   }
 
   def getEndpoints[G](expr: Expr[G]): Seq[Endpoint[G]] =
@@ -43,6 +43,11 @@ object InferEndpointContexts extends RewriterBuilder {
     case Seq(endpoint) => endpoint
     case Seq() => throw NoImplicitEndpointError(expr)
     case _ => throw MultipleImplicitEndpointsError(expr)
+  }
+
+  def getEndpoint[G](loc: Location[G]): Endpoint[G] = loc match {
+    case FieldLocation(obj, _) => getEndpoint(obj)
+    case _ => throw EndpointInferenceUndefined(loc)
   }
 }
 
@@ -66,5 +71,10 @@ case class InferEndpointContexts[Pre <: Generation]() extends Rewriter[Pre] with
         sender = comm.sender.map(_.decl).orElse(Some(getEndpoint(comm.msg))).map(succ(_)),
       )
     case s => s.rewriteDefault()
+  }
+
+  override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
+    case p @ ChorPerm(None, loc, perm) => p.rewrite(endpoint = Some(getEndpoint(loc)))
+    case _ => expr.rewriteDefault()
   }
 }

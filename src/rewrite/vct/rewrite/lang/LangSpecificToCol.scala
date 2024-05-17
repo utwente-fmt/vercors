@@ -185,6 +185,8 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
+    case stmt if veymont.currentProg.nonEmpty && !veymont.currentExpr.topOption.contains(e) =>
+      veymont.rewriteExpr(e)
     case result @ AmbiguousResult() =>
       implicit val o: Origin = result.o
       result.ref.get match {

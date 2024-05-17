@@ -235,8 +235,8 @@ case class GenerateImplementation[Pre <: Generation]() extends Rewriter[Pre] wit
       implicit val o = branch.o
       Branch[Post](
         Seq((projectExpression(branch.guards)(branch.o), dispatch(branch.yes)))
-        ++ (branch.no.map(no => Seq((tt[Post], dispatch(no)))).getOrElse(Seq())
-      ))
+        ++ branch.no.map(no => Seq((tt[Post], dispatch(no)))).getOrElse(Seq())
+      )
     case chorLoop: ChorLoop[Pre] if chorLoop.guards.map(_.endpointOpt.get).contains(currentEndpoint.top) =>
       implicit val o = chorLoop.o
       loop(

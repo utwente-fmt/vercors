@@ -149,17 +149,18 @@ postfixExpr
  ;
 
 unit
- : valExpr
- | 'this'
- | 'null'
- | NUMBER
- | DECIMAL_NUMBER
- | DECIMAL_NUMBER_F
- | STRING_LITERAL
- | CHARACTER_LITERAL
- | '(' expr ')'
- | identifier call?
- | valGenericAdtInvocation
+ : valExpr # pvlValExpr
+ | 'Perm' '[' identifier ']' '(' expr ',' expr ')' # pvlChorPerm
+ | 'this' # pvlThis
+ | 'null' # pvlNull
+ | NUMBER # pvlNumber
+ | DECIMAL_NUMBER # pvlDecimal
+ | DECIMAL_NUMBER_F # pvlDecimalF
+ | STRING_LITERAL # pvlString
+ | CHARACTER_LITERAL # pvlChar
+ | '(' expr ')' # pvlParens
+ | identifier call? # pvlInvocation
+ | valGenericAdtInvocation # pvlValAdtInvocation
  ;
 
 call : typeArgs? tuple valGiven? valYields?;

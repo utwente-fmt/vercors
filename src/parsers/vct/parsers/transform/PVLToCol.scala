@@ -293,20 +293,26 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit expr: UnitContext): Expr[G] = expr match {
-    case Unit0(inner) => convert(inner)
-    case Unit1(_) => AmbiguousThis()
-    case Unit2(_) => Null()
-    case Unit3(n) => const(BigInt(n))
-    case Unit4(n) => FloatValue(BigDecimal(n), PVL.float64)
-    case Unit5(s"${n}f") /* take off final "f" */ => FloatValue(BigDecimal(n), PVL.float32)
-    case Unit6(data) => StringValue(data.substring(1, data.length - 1))
-    case Unit7(s"'$data'") => CharValue(data.codePointAt(0))
-    case Unit8(_, inner, _) => convert(inner)
-    case Unit9(id, None) => local(id, convert(id))
-    case Unit9(id, Some(Call0(typeArgs, args, given, yields))) =>
+    case PvlValExpr(inner) => convert(inner)
+    case PvlChorPerm(_, _, endpoint, _, _, loc, _, perm, _) =>
+      PVLChorPerm(
+        PVLEndpointName(convert(endpoint))(origin(endpoint)),
+        AmbiguousLocation(convert(loc))(blame(expr)),
+        convert(perm)
+      )
+    case PvlThis(_) => AmbiguousThis()
+    case PvlNull(_) => Null()
+    case PvlNumber(n) => const(BigInt(n))
+    case PvlDecimal(n) => FloatValue(BigDecimal(n), PVL.float64)
+    case PvlDecimalF(s"${n}f") /* take off final "f" */ => FloatValue(BigDecimal(n), PVL.float32)
+    case PvlString(data) => StringValue(data.substring(1, data.length - 1))
+    case PvlChar(s"'$data'") => CharValue(data.codePointAt(0))
+    case PvlParens(_, inner, _) => convert(inner)
+    case PvlInvocation(id, None) => local(id, convert(id))
+    case PvlInvocation(id, Some(Call0(typeArgs, args, given, yields))) =>
       PVLInvocation(None, convert(id), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
-    case Unit10(inner) => convert(inner)
+    case PvlValAdtInvocation(inner) => convert(inner)
   }
 
   def convert(implicit stat: StatementContext): Statement[G] = stat match {
