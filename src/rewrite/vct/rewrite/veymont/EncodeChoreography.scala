@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Assert, Assign, Block, ChorRun, ChorStatement, Choreography, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, Statement, TClass, TVoid, ThisChoreography, Variable}
+import vct.col.ast.{Assert, Assign, Block, ChorPerm, ChorRun, ChorStatement, Choreography, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Perm, Procedure, Scope, Statement, TClass, TVoid, ThisChoreography, Variable}
 import vct.col.origin.{AssertFailed, AssignFailed, AssignLocalOk, Blame, CallableFailure, ChorAssignFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, ParticipantsNotDistinct, PostconditionFailed, PreconditionFailed, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -242,6 +242,11 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
           prog.endpoints.map(endpoint => Local[Post](endpointSucc.ref((mode, endpoint)))(invocation.o)),
         blame = invocation.blame
       )
+    case (mode, p @ ChorPerm(Ref(endpoint), loc, perm)) =>
+      if (endpoint != InferEndpointContexts.getEndpoint(loc)) {
+        throw new Exception(p.o.messageInContext("Endpoint in obj does not match inferred/annotated endpoint"))
+      }
+      Perm(dispatch(loc), dispatch(perm))(p.o)
     case (_, expr) => rewriteDefault(expr)
   }
 }
