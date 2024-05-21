@@ -71,6 +71,9 @@ case object Options {
       opt[Unit]("profile")
         .action((_, c) => c.copy(profile = true))
         .text("Output profiling information in the current directory in the pprof format (https://github.com/google/pprof)"),
+      opt[Unit]("watch").abbr("w")
+        .action((_, c) => c.copy(watch = true))
+        .text("Run VerCors in an infinite loop, waiting for external changes between each run."),
 
       opt[(String, Verbosity)]("dev-log-verbosity").unbounded().maybeHidden().keyValueName("<loggerKey>", "<verbosity>")
         .action((tup, c) => c.copy(logLevels = c.logLevels :+ tup))
@@ -139,6 +142,13 @@ case object Options {
         .action((_, c) => c.copy(inferHeapContextIntoFrame = false))
         .text("Disables smart inference of contextual heap into frame statements using `forperm`"),
 
+      opt[Unit]("dev-parsing-ambiguities").maybeHidden()
+        .action((_, c) => c.copy(devParserReportAmbiguities = true))
+        .text("Report instances of ambiguities in the parsed inputs"),
+      opt[Unit]("dev-parsing-sensitivities").maybeHidden()
+        .action((_, c) => c.copy(devParserReportContextSensitivities = true))
+        .text("Report instances of context sensitivities in the parsed inputs"),
+
       opt[Unit]("dev-abrupt-exc").maybeHidden()
         .action((_, c) => c.copy(devAbruptExc = true))
         .text("Encode all abrupt control flow using exception, even when not necessary"),
@@ -192,6 +202,11 @@ case object Options {
         .text("Indicate, in seconds, the timeout value for a single assert statement. If the verification gets stuck " +
           "on a single SMT check for longer than this timeout, the verification will fail."),
 
+      opt[Int]("dev-total-timeout").maybeHidden()
+        .action((amount, c) => c.copy(devSiliconTotalTimeout = amount))
+        .text("Indicate, in seconds, the timeout value for the backend verification. If the verification gets stuck " +
+          "for longer than this timeout, the verification will timeout."),
+
       opt[Path]("dev-silicon-z3-log-file").maybeHidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),
@@ -240,6 +255,14 @@ case object Options {
         .action((path, c) => c.copy(cPreprocessorPath = path))
         .text("Set the location of the C preprocessor binary"),
 
+      opt[Unit]("veymont-generate-permissions")
+        .action((_, c) => c.copy(veymontGeneratePermissions = true))
+        .text("Generate permissions for the entire sequential program in the style of VeyMont 1.4"),
+
+      opt[Unit]("dev-veymont-allow-assign").maybeHidden()
+        .action((p, c) => c.copy(devVeymontAllowAssign = true))
+        .text("Do not error when plain assignment is used in seq_programs"),
+
       note(""),
       note("Runtime Verification Mode"),
       opt[Unit]("runtime")
@@ -269,40 +292,27 @@ case object Options {
         .action((_, c) => c.copy(mode = Mode.VeSUV))
         .text("Enable VeSUV mode: transform SystemC designs to PVL to be deductively verified")
         .children(
-          opt[Path]("vesuv-output").required().valueName("<path>")   // TODO: Give option for default location?
+          opt[Path]("vesuv-output").required().valueName("<path>")
             .action((path, c) => c.copy(vesuvOutput = path))
+            .text("Output file for the result of the transformation"),
+          opt[Unit]("generate-rasi").action((_, c) => c.copy(vesuvGenerateRasi = true))
+            .text("Instead of transforming a SystemC design to PVL, generate a global invariant for a PVL program")
+            .children(
+            opt[Seq[String]]("rasi-vars").valueName("<var1>,...")
+              .action((vars, c) => c.copy(vesuvRasiVariables = Some(vars)))
+              .text("[WIP] Preliminary selection mechanism for RASI variables; might be replaced later")
+          )
         ),
 
       note(""),
-      note("Batch Testing Mode"),
-      opt[Unit]("test")
-        .action((_, c) => c.copy(mode = Mode.BatchTest))
-        .text("Enable batch testing mode: execute all tests in a directory")
+      note("Control flow graph"),
+      opt[Unit]("build-cfg")
+        .action((_, c) => c.copy(mode = Mode.CFG))
+        .text("Instead of verifying a program, build its control flow graph for further analysis")
         .children(
-          opt[Path]("test-dir").required().valueName("<path>")
-            .action((path, c) => c.copy(testDir = path))
-            .text("The directory from which to run all tests"),
-          opt[Seq[Backend]]("test-filter-backend").valueName("<backend>,...")
-            .action((backends, c) => c.copy(testFilterBackend = Some(backends))),
-          opt[Seq[String]]("test-filter-include-suite").valueName("<suite>,...")
-            .action((suites, c) => c.copy(testFilterIncludeOnlySuites = Some(suites))),
-          opt[Seq[String]]("test-filter-exclude-suite").valueName("<suite>,...")
-            .action((suites, c) => c.copy(testFilterExcludeSuites = Some(suites))),
-          opt[Int]("test-workers")
-            .action((n, c) => c.copy(testWorkers = n))
-            .text("Number of threads to start to run tests (default: 1)"),
-          opt[Unit]("test-coverage")
-            .action((_, c) => c.copy(testCoverage = true))
-            .text("Generate a coverage report"),
-          opt[Unit]("test-failing-first")
-            .action((_, c) => c.copy(testFailingFirst = true))
-            .text("When run twice with this option, VerCors will run the tests that failed the previous time first (cancelling a run is safe)"),
-          opt[Unit]("test-generate-failing-run-configs")
-            .action((_, c) => c.copy(testGenerateFailingRunConfigs = true))
-            .text("Generates Intellij IDEA run configurations for tests that fail (and deletes recovered tests, cancelling a run is safe)"),
-          opt[Unit]("test-ci-output")
-            .action((_, c) => c.copy(testCIOutput = true))
-            .text("Tailor the logging output for a CI run")
+          opt[Path]("cfg-output").required().valueName("<path>")
+            .action((path, c) => c.copy(cfgOutput = path))
+            .text("Output file for the control flow graph in .dot format")
         ),
 
       note(""),
@@ -340,6 +350,7 @@ case class Options
   ),
   progress: Boolean = false,
   profile: Boolean = false,
+  watch: Boolean = false,
   more: Boolean = false,
 
   // Verify Options
@@ -377,6 +388,8 @@ case class Options
   inferHeapContextIntoFrame: Boolean = true,
 
   // Verify options - hidden
+  devParserReportAmbiguities: Boolean = false,
+  devParserReportContextSensitivities: Boolean = false,
   devAbruptExc: Boolean = false,
   devCheckSat: Boolean = true,
   devSimplifyDebugIn: Seq[String] = Nil,
@@ -391,6 +404,7 @@ case class Options
   devSiliconNumVerifiers: Option[Int] = None,
   devSiliconZ3LogFile: Option[Path] = None,
   devSiliconAssertTimeout: Int = 30,
+  devSiliconTotalTimeout: Int = 0,
   devSiliconReportOnNoProgress: Boolean = true,
   devSiliconBranchConditionReportInterval: Option[Int] = Some(1000),
   devSiliconTraceBranchConditions: Boolean = false,
@@ -406,18 +420,20 @@ case class Options
   // VeyMont options
   veymontOutput: Path = null, // required
   veymontChannel: PathOrStd = PathOrStd.Path(getVeymontChannel),
+  veymontGeneratePermissions: Boolean = false,
+  devVeymontAllowAssign: Boolean = false,
 
   // VeSUV options
   vesuvOutput: Path = null,
+  vesuvGenerateRasi: Boolean = false,
+  vesuvRasiVariables: Option[Seq[String]] = None,
 
-  // Batch test options
-  testDir: Path = null, // required
-  testFilterBackend: Option[Seq[Backend]] = None,
-  testFilterIncludeOnlySuites: Option[Seq[String]] = None,
-  testFilterExcludeSuites: Option[Seq[String]] = None,
-  testWorkers: Int = 1,
-  testCoverage: Boolean = false,
-  testFailingFirst: Boolean = false,
-  testGenerateFailingRunConfigs: Boolean = false,
-  testCIOutput: Boolean = false,
-)
+  // Control flow graph options
+  cfgOutput: Path = null,
+) {
+  def getParserDebugOptions: vct.parsers.debug.DebugOptions =
+    vct.parsers.debug.DebugOptions(
+      reportAmbiguities = devParserReportAmbiguities,
+      reportContextSensitivity = devParserReportContextSensitivities,
+    )
+}

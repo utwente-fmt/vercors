@@ -15,7 +15,7 @@ case object TupledQuantifiers extends RewriterBuilder {
   case class CollectedBindingsOrigin(vs: Seq[Variable[_]]) extends OriginContent
 
   def vsToString(vs: Seq[Variable[_]]): String = {
-    vs.map(_.o.getPreferredNameOrElse()).mkString("_")
+    vs.map(_.o.getPreferredNameOrElse().camel).mkString("_")
   }
 }
 
@@ -23,8 +23,8 @@ case class TupledQuantifiers[Pre <: Generation]() extends Rewriter[Pre] {
   val tupledVar: mutable.Map[Variable[Pre], (Variable[Post], Int)] = mutable.Map()
 
   def collect(bindings: Seq[Variable[Pre]])(implicit o: Origin): Variable[Post] = {
-    val collectedBinding = new Variable[Post](TTuple(bindings.map(_.t).map(dispatch)))(Origin(
-      o.replacePrefName(vsToString(bindings)).originContents :+ CollectedBindingsOrigin(bindings)))
+    val collectedBinding = new Variable[Post](TTuple(bindings.map(_.t).map(dispatch)))(
+      o.where(name = vsToString(bindings)).withContent(CollectedBindingsOrigin(bindings)))
     for ((binding, i) <- bindings.zipWithIndex) {
       tupledVar(binding) = (collectedBinding, i)
     }

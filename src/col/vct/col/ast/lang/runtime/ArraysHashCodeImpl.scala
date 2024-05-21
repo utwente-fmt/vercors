@@ -2,8 +2,9 @@ package vct.col.ast.lang.runtime
 
 import vct.col.ast._
 import vct.col.print._
+import vct.col.ast.ops.ArraysHashCodeOps
 
-trait ArraysHashCodeImpl[G] {
+trait ArraysHashCodeImpl[G] extends ArraysHashCodeOps[G] {
   this: ArraysHashCode[G] =>
   override def precedence: Int = Precedence.ATOMIC
 

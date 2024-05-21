@@ -3,6 +3,7 @@ package vct.rewrite.runtime.util
 
 import vct.col.ast._
 import vct.col.origin.Origin
+import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.FrozenScopes
@@ -66,7 +67,7 @@ object Util {
    * @return
    */
   def isExtendingThread[G](cls: Class[G]): Boolean = {
-    cls.supports.map(s => s.decl.o.getPreferredNameOrElse()).contains("Thread")
+    cls.supports.collectFirst { case TClass(Ref(cls), _) if cls.o.getPreferredNameOrElse().ucamel.contains("Thread") => () }.nonEmpty
   }
 
   /**
@@ -142,7 +143,7 @@ object Util {
     expr match {
       case _: WritePerm[G] => RuntimeFractionOne()
       case _: ReadPerm[G] => RuntimeFractionZero()
-      case d: Div[G] => RuntimeFractionDiff[G](d.left, d.right)
+      case d: RatDiv[G] => RuntimeFractionDiff[G](d.left, d.right)
       case d: FloorDiv[G] => RuntimeFractionDiff[G](d.left, d.right)
       case IntegerValue(n: BigInt) if n == 1 => RuntimeFractionOne()
       case _ => expr

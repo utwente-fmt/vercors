@@ -98,21 +98,18 @@ case class AddPermissionsOnCreate[Pre <: Generation]() extends Rewriter[Pre] {
    */
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
     stat match {
-      case a@Assign(location, na@NewArray(elem, dims, moreDims)) => {
+      case a@Assign(location, na@NewArray(_, dims, _, _)) =>
         val dispatchedAssign = super.dispatch(a)
         val initPermissionArray = Eval[Post](ledger.miInitiatePermission(dispatch(location), dispatch(dims.head)).get)(DiagnosticOrigin)
         Block[Post](Seq(dispatchedAssign, initPermissionArray))(DiagnosticOrigin)
-      }
-      case a@Eval(PreAssignExpression(location, na@NewArray(elem, dims, moreDims))) => {
+      case a@Eval(PreAssignExpression(location, na@NewArray(_, dims, _, _))) =>
         val dispatchedAssign = super.dispatch(a)
         val initPermissionArray = Eval[Post](ledger.miInitiatePermission(dispatch(location), dispatch(dims.head)).get)(DiagnosticOrigin)
         Block[Post](Seq(dispatchedAssign, initPermissionArray))(DiagnosticOrigin)
-      }
-      case a@Eval(PostAssignExpression(location, na@NewArray(elem, dims, moreDims))) => {
+      case a@Eval(PostAssignExpression(location, na@NewArray(_, dims, _, _))) =>
         val dispatchedAssign = super.dispatch(a)
         val initPermissionArray = Eval[Post](ledger.miInitiatePermission(dispatch(location), dispatch(dims.head)).get)(DiagnosticOrigin)
         Block[Post](Seq(dispatchedAssign, initPermissionArray))(DiagnosticOrigin)
-      }
       case _ => super.dispatch(stat)
     }
   }

@@ -47,7 +47,7 @@ case class SiliconLogListener(
 }
 
 class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: PathConditionStack, superTask: Option[AbstractTask]) extends MemberSymbExLogger(log, member, pcs) with LazyLogging {
-  var openScopeFrames: List[mutable.Map[Int, DataRecord]] = List(mutable.Map())
+  var openScopeFrames: List[mutable.LinkedHashMap[Int, DataRecord]] = List(mutable.LinkedHashMap())
   var branchScopeCloseRecords: List[mutable.Set[Int]] = List(mutable.Set())
   var branchConditions: List[BranchCondition] = List()
   var branchUpdates: Int = 0
@@ -79,12 +79,12 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
   def done(): Unit = {
     timer.cancel()
     if(superTask.nonEmpty)
-      currentTaskStack = updateTaskStack(currentTaskStack, superTask.get, Nil, Nil)
+      currentTaskStack = updateTaskStack(currentTaskStack, superTask.get, Nil, Nil, Nil)
   }
 
-  def where(node: Node): Option[String] = Util.getOrigin(node).map(_.getShortPositionOrElse())
+  def where(node: Node): Option[String] = Util.getOrigin(node).map(_.shortPositionText)
 
-  def printRecords(records: mutable.Map[Int, DataRecord], excludedBy: Map[Int, Int]): Unit = {
+  def printRecords(records: mutable.LinkedHashMap[Int, DataRecord], excludedBy: Map[Int, Int]): Unit = {
     for(record <- records.values.toSeq.sortBy(_.id)) {
       val at = record match {
         case member: MemberRecord => where(member.value)
@@ -133,37 +133,50 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
 
   var currentTaskStack: Seq[Task] = Nil
 
-  def updateTaskStack(taskStack: Seq[Task], superTask: AbstractTask, records: Seq[DataRecord], branches: Seq[BranchCondition]): Seq[Task] =
-    (taskStack, records, branches) match {
-      case (Nil, Nil, Nil) => Nil
-      case (tasks, Nil, Nil) =>
+  def updateTaskStack(taskStack: Seq[Task], superTask: AbstractTask, records: Seq[DataRecord], branches: Seq[BranchCondition], finalAsserts: Seq[DataRecord]): Seq[Task] =
+    (taskStack, records, branches, finalAsserts) match {
+      case (Nil, Nil, Nil, Nil) => Nil
+      case (tasks, Nil, Nil, Nil) =>
         tasks.reverse.foreach(_.end())
         Nil
 
-      case (Nil, Nil, branch +: branches) =>
-        val task = BranchRecordTask(superTask, branch)
+      case (Nil, Nil, Nil, finalAssert +: finalAsserts) =>
+        val task = DataRecordTask(superTask, finalAssert)
         task.start()
-        task +: updateTaskStack(Nil, task, Nil, branches)
-      case (task +: tasks, Nil, branch +: branches) =>
-        if(task == BranchRecordTask(superTask, branch)) {
-          task +: updateTaskStack(tasks, task, Nil, branches)
+        task +: updateTaskStack(Nil, task, records, branches, finalAsserts)
+      case (task +: tasks, Nil, Nil, finalAssert +: finalAsserts) =>
+        if (task.superTask == superTask && task == DataRecordTask(superTask, finalAssert)) {
+          task +: updateTaskStack(tasks, task, records, branches, finalAsserts)
         } else {
           tasks.reverse.foreach(_.end())
           task.end()
-          updateTaskStack(Nil, superTask, Nil, branch +: branches)
+          updateTaskStack(Nil, superTask, records, branches, finalAssert +: finalAsserts)
         }
 
-      case (Nil, record +: records, _) =>
-        val task = DataRecordTask(superTask, record)
+      case (Nil, Nil, branch +: branches, _) =>
+        val task = BranchRecordTask(superTask, branch)
         task.start()
-        task +: updateTaskStack(Nil, task, records, branches)
-      case (task +: tasks, record +: records, _) =>
-        if(task.superTask == superTask && task == DataRecordTask(superTask, record)) {
-          task +: updateTaskStack(tasks, task, records, branches)
+        task +: updateTaskStack(Nil, task, Nil, branches, finalAsserts)
+      case (task +: tasks, Nil, branch +: branches, _) =>
+        if(task == BranchRecordTask(superTask, branch)) {
+          task +: updateTaskStack(tasks, task, Nil, branches, finalAsserts)
         } else {
           tasks.reverse.foreach(_.end())
           task.end()
-          updateTaskStack(Nil, superTask, record +: records, branches)
+          updateTaskStack(Nil, superTask, Nil, branch +: branches, finalAsserts)
+        }
+
+      case (Nil, record +: records, _, _) =>
+        val task = DataRecordTask(superTask, record)
+        task.start()
+        task +: updateTaskStack(Nil, task, records, branches, finalAsserts)
+      case (task +: tasks, record +: records, _, _) =>
+        if(task.superTask == superTask && task == DataRecordTask(superTask, record)) {
+          task +: updateTaskStack(tasks, task, records, branches, finalAsserts)
+        } else {
+          tasks.reverse.foreach(_.end())
+          task.end()
+          updateTaskStack(Nil, superTask, record +: records, branches, finalAsserts)
         }
     }
 
@@ -178,19 +191,25 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
         .reverse
         .flatMap(_.values)
         .filter(r => !branchScopeCloseRecords.exists(_.contains(r.id)))
-        .collect {
-          case r: MemberRecord => r
-          case r: ExecuteRecord => r
-          case r: ConsumeRecord => r
-          case r: ProduceRecord => r
-          case r: CommentRecord if !BANNED_COMMENTS.contains(r.comment) => r
-        }
 
-    val conditions = branchConditions.collect {
+    val primaryTaskRecords = records.collect {
+      case r: MemberRecord => r
+      case r: ExecuteRecord => r
+      case r: ConsumeRecord => r
+      case r: ProduceRecord => r
+      case r: CommentRecord if !BANNED_COMMENTS.contains(r.comment) => r
+    }
+
+    val conditions = branchConditions.reverse.collect {
       case BranchConditionExp(e) => BranchConditionExp(e)
     }
 
-    currentTaskStack = updateTaskStack(currentTaskStack, superTask, records, conditions)
+    val finalAsserts = records.collectFirst {
+      case r: DeciderAssertRecord => r
+      case r: ProverAssertRecord => r
+    }
+
+    currentTaskStack = updateTaskStack(currentTaskStack, superTask, primaryTaskRecords, conditions, finalAsserts.toSeq)
   }
 
   def updateBranch(indicator: String): Unit = {
@@ -248,7 +267,7 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
   }
 
   override def appendBranchingRecord(r: BranchingRecord): Unit = {
-    openScopeFrames +:= mutable.Map()
+    openScopeFrames +:= mutable.LinkedHashMap()
     branchScopeCloseRecords +:= mutable.Set()
 
     if(r.getBranchInfos.size == 2) {

@@ -1,9 +1,10 @@
 package vct.col.ast.statement.terminal
 
-import vct.col.ast.Exhale
+import vct.col.ast.{Exhale, Expr}
 import vct.col.print.{Ctx, Doc, Show, Text}
+import vct.col.ast.ops.ExhaleOps
 
-trait ExhaleImpl[G] { this: Exhale[G] =>
+trait ExhaleImpl[G] extends ExhaleOps[G] { this: Exhale[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc =
     Text("exhale") <+> res <> ";"
 
@@ -14,4 +15,6 @@ trait ExhaleImpl[G] { this: Exhale[G] =>
     case Ctx.Silver => layoutSilver
     case _ => Doc.inlineSpec(Show.lazily(layoutSpec(_)))
   }
+
+  override def expr: Expr[G] = this.res
 }

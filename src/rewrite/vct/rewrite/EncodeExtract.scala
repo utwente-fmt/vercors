@@ -5,6 +5,7 @@ import vct.col.ref.Ref
 import vct.col.rewrite.EncodeExtract.{ExtractMayNotJumpOut, ExtractMayNotReturn, ExtractedOnlyPost, FramedProofPostconditionFailed, FramedProofPreconditionFailed, LoopInvariantPreconditionFailed, WrongExtractNode}
 import vct.col.util.AstBuildHelpers.contract
 import vct.col.util.Substitute
+import vct.result.Message
 import vct.result.VerificationError.UserError
 
 case object EncodeExtract extends RewriterBuilder {
@@ -48,20 +49,20 @@ case object EncodeExtract extends RewriterBuilder {
   case class ExtractMayNotReturn(extract: Extract[_], ret: Return[_]) extends UserError {
     override def code: String = "extractReturn"
     override def text: String =
-      Origin.messagesInContext(Seq(
+      Message.messagesInContext(
         ret.o -> "This return statement ...",
         extract.o -> "... crosses this extracted region",
-      ))
+      )
   }
 
   case class ExtractMayNotJumpOut(extract: Extract[_], jump: Statement[_], to: LabelDecl[_]) extends UserError {
     override def code: String = "extractGoto"
     override def text: String =
-      Origin.messagesInContext(Seq(
+      Message.messagesInContext(
         jump.o -> "This statement ...",
         to.o -> "... may jump to this label ...",
         extract.o -> "... which crosses this extracted region",
-      ))
+      )
   }
 }
 

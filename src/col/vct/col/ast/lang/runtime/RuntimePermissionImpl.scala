@@ -2,8 +2,9 @@ package vct.col.ast.lang.runtime
 
 import vct.col.ast._
 import vct.col.print.{Empty, _}
+import vct.col.ast.ops.RuntimePermissionOps
 
-trait RuntimePermissionImpl[G] {
+trait RuntimePermissionImpl[G] extends RuntimePermissionOps[G] {
   this: RuntimePermission[G] =>
 
   override def t: Type[G] = TFraction[G]()
@@ -12,7 +13,7 @@ trait RuntimePermissionImpl[G] {
     permission match {
       case _: WritePerm[G] => Text("1")
       case _: ReadPerm[G] => Text("0")
-      case d : Div[G] => Text("Fraction.getFraction(") <> d.left.show <> "," <+> d.right.show <> ")"
+      case d : RatDiv[G] => Text("Fraction.getFraction(") <> d.left.show <> "," <+> d.right.show <> ")"
       case _ => Empty
     }
   }

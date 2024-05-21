@@ -5,6 +5,7 @@ import vct.col.origin._
 import vct.col.rewrite.util.FreeVariables.{FreeThisModel, FreeThisObject, ReadFreeVar, ReadTypeVar, WriteFreeVar}
 import vct.col.util.AstBuildHelpers.{VarBuildHelpers, assignLocal}
 import vct.col.util.Substitute
+import vct.result.VerificationError.UserError
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
@@ -15,10 +16,8 @@ import scala.collection.mutable
 case object Extract {
   private def ExtractOrigin(name: String): Origin = Origin(
     Seq(
-      PreferredName(name),
-      ShortPosition("generated"),
-      Context("[At extracted expression]"),
-      InlineContext("[Extracted expression]"),
+      PreferredName(Seq(name)),
+      LabelContext("extracted"),
     )
   )
 
@@ -34,6 +33,11 @@ case object Extract {
     require(out.isEmpty)
     (result, in)
   }
+
+  case class GenericsNotSupported(n: Node[_]) extends UserError {
+    override def code: String = "genericsNotSupported"
+    override def text: String = n.o.messageInContext("Generics not supported")
+  }
 }
 
 case class Extract[G]() {
@@ -46,7 +50,8 @@ case class Extract[G]() {
   def getOrElseUpdate(free: FreeVariables.FreeVariable[G], update: => Variable[G]): Variable[G] =
     if(map.contains(free)) map(free)
     else {
-      map += free -> update
+      val newVariable = update
+      map += free -> newVariable
       map(free)
     }
 
@@ -59,7 +64,8 @@ case class Extract[G]() {
         write += v
         v -> Local(getOrElseUpdate(ReadFreeVar(v), new Variable(extract(v.t))(v.ref.decl.o)).ref[Variable[G]])(ExtractOrigin(""))
       case free @ FreeThisObject(t) =>
-        t -> Local(getOrElseUpdate(free, new Variable(extract(TClass(t.cls)))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
+        if (t.cls.decl.typeArgs.nonEmpty) throw GenericsNotSupported(t.cls.decl)
+        t -> Local(getOrElseUpdate(free, new Variable(extract(TClass(t.cls, Seq())))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
       case free @ FreeThisModel(t) =>
         t -> Local(getOrElseUpdate(free, new Variable(extract(TModel(t.cls)))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
     }.to(ListMap)

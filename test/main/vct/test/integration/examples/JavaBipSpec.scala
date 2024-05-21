@@ -3,6 +3,7 @@ package vct.test.integration.examples
 import vct.test.integration.helper.JavaBipSpecHelper
 
 class JavaBipSpec extends JavaBipSpecHelper {
+  val base = "publications/2023/JavaBIP"
   failingTest(Seq(
       "bipComponentInvariantNotMaintained:false",
       "bipComponentInvariantNotMaintained:false",
@@ -10,19 +11,19 @@ class JavaBipSpec extends JavaBipSpecHelper {
       "bipStateInvariantNotMaintained:false",
       "bipComponentInvariantNotMaintained:false"
     ),
-    "concepts/javabip/casinoBroken/casinoBroken.json",
-    "concepts/javabip/casinoBroken/Main.java",
-    "concepts/javabip/casinoBroken/Constants.java",
-    "concepts/javabip/casinoBroken/Player.java",
-    "concepts/javabip/casinoBroken/Casino.java",
-    "concepts/javabip/casinoBroken/Operator.java",
+    s"$base/casinoBroken/casinoBroken.json",
+    s"$base/casinoBroken/Main.java",
+    s"$base/casinoBroken/Constants.java",
+    s"$base/casinoBroken/Player.java",
+    s"$base/casinoBroken/Casino.java",
+    s"$base/casinoBroken/Operator.java",
   )
 
-  passingTest("concepts/javabip/casinoAdjusted/casinoAdjusted.json",
-    "concepts/javabip/casinoAdjusted/Main.java",
-    "concepts/javabip/casinoAdjusted/Constants.java",
-    "concepts/javabip/casinoAdjusted/Player.java",
-    "concepts/javabip/casinoAdjusted/Casino.java",
-    "concepts/javabip/casinoAdjusted/Operator.java",
+  passingTest(s"$base/casinoAdjusted/casinoAdjusted.json",
+    s"$base/casinoAdjusted/Main.java",
+    s"$base/casinoAdjusted/Constants.java",
+    s"$base/casinoAdjusted/Player.java",
+    s"$base/casinoAdjusted/Casino.java",
+    s"$base/casinoAdjusted/Operator.java",
   )
 }

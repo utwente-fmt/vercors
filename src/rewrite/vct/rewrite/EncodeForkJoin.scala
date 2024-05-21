@@ -20,13 +20,13 @@ object EncodeForkJoin extends RewriterBuilder {
   override def key: String = "forkJoin"
   override def desc: String = "Encode fork and join statements with the contract of the run method it refers to."
 
-  private def IdleToken(cls: Class[_]): Origin = cls.o.replacePrefName(cls.o.getPreferredNameOrElse() + "Idle")
+  private def IdleToken(cls: Class[_]): Origin = cls.o.where(prefix = "idle")
 
-  private def RunningToken(cls: Class[_]): Origin = cls.o.replacePrefName(cls.o.getPreferredNameOrElse() + "Running")
+  private def RunningToken(cls: Class[_]): Origin = cls.o.where(prefix = "running")
 
-  private def ForkMethod(cls: Class[_]): Origin = cls.o.replacePrefName("fork" + cls.o.getPreferredNameOrElse())
+  private def ForkMethod(cls: Class[_]): Origin = cls.o.where(prefix = "fork")
 
-  private def JoinMethod(cls: Class[_]): Origin = cls.o.replacePrefName("join" + cls.o.getPreferredNameOrElse())
+  private def JoinMethod(cls: Class[_]): Origin = cls.o.where(prefix = "join")
 
   case class ForkInstanceInvocation(fork: Fork[_]) extends Blame[InstanceInvocationFailure] {
     override def blame(error: InstanceInvocationFailure): Unit = error match {
@@ -83,11 +83,11 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
 
     case NewObject(Ref(cls)) =>
       implicit val o: Origin = e.o
-      cls.declarations.collectFirst {
+      cls.decls.collectFirst {
         case run: RunMethod[Pre] => run
       } match {
         case Some(_) =>
-          val obj = new Variable[Post](TClass(succ(cls)))
+          val obj = new Variable[Post](TClass(succ(cls), Seq()))
           ScopedExpr(Seq(obj), With(Block(Seq(
             assignLocal(obj.get, NewObject(succ(cls))),
             Inhale(InstancePredicateApply[Post](obj.get, idleToken.ref(cls), Nil, WritePerm()))
@@ -100,6 +100,12 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] => currentClass.having(cls) { rewriteDefault(cls) }
+    case cons: Constructor[Pre] if currentClass.top.collectFirst { case _: RunMethod[Pre] => () }.nonEmpty =>
+      implicit val o: Origin = cons.o
+      cons.rewrite(body = cons.body.map(body => Block(Seq(
+        Inhale(InstancePredicateApply[Post](ThisObject(succ(cons.cls.decl)), idleToken.ref(cons.cls.decl), Nil, WritePerm())),
+        dispatch(body),
+      )))).succeed(cons)
     case m: RunMethod[Pre] =>
       implicit val o: Origin = m.o
       val cls = currentClass.top

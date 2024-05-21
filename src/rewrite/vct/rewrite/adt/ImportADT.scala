@@ -2,12 +2,12 @@ package vct.col.rewrite.adt
 
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.RewriteProgram
-import vct.col.ast.`type`.TFloats
+import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.ast.util.Declarator
 import vct.col.ast._
 import vct.col.typerules.CoercingRewriter
 import vct.col.rewrite.error.ExtraNode
-import vct.col.origin.{Blame, UnsafeCoercion}
+import vct.col.origin.{Blame, SourceName, UnsafeCoercion}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, RewriterBuilderArg}
 
@@ -36,10 +36,10 @@ case object ImportADT {
     case TArray(element) => "arr_" + typeText(element)
     case TPointer(element) => "ptr_" + typeText(element)
     case TProcess() => "proc"
-    case TModel(Ref(model)) => model.o.getPreferredNameOrElse()
+    case TModel(Ref(model)) => model.o.getPreferredNameOrElse().camel
     case TAxiomatic(Ref(adt), args) => args match {
-      case Nil => adt.o.getPreferredNameOrElse()
-      case ts => adt.o.getPreferredNameOrElse() + "$" + ts.map(typeText).mkString("__") + "$"
+      case Nil => adt.o.getPreferredNameOrElse().camel
+      case ts => adt.o.getPreferredNameOrElse().camel + "$" + ts.map(typeText).mkString("__") + "$"
     }
     case TOption(element) => "opt_" + typeText(element)
     case TTuple(elements) => "tup$" + elements.map(typeText).mkString("__") + "$"
@@ -60,15 +60,15 @@ case object ImportADT {
     case TFraction() => "fract"
     case TZFraction() => "zfract"
     case TMap(key, value) => "map$" + typeText(key) + "__" + typeText(value) + "$"
-    case TClass(Ref(cls)) => cls.o.getPreferredNameOrElse()
-    case TVar(Ref(v)) => v.o.getPreferredNameOrElse()
+    case TClass(Ref(cls), _) => cls.o.getPreferredNameOrElse().camel
+    case TVar(Ref(v)) => v.o.getPreferredNameOrElse().camel
     case TUnion(ts) => "union" + ts.map(typeText).mkString("$", "__", "$")
-    case SilverPartialTAxiomatic(Ref(adt), _) => adt.o.getPreferredNameOrElse()
+    case SilverPartialTAxiomatic(Ref(adt), _) => adt.o.getPreferredNameOrElse().camel
     case TAnyClass() => "cls"
-    case TEnum(Ref(enum)) => enum.o.getPreferredNameOrElse()
-    case TProverType(Ref(t)) => t.o.getPreferredNameOrElse()
-    case TSeqProg(Ref(prog)) => prog.o.getPreferredNameOrElse()
-    case TPVLSeqProg(Ref(prog)) => prog.o.getPreferredNameOrElse()
+    case TEnum(Ref(enum)) => enum.o.getPreferredNameOrElse().camel
+    case TProverType(Ref(t)) => t.o.getPreferredNameOrElse().camel
+    case TSeqProg(Ref(prog)) => prog.o.getPreferredNameOrElse().camel
+    case TPVLSeqProg(Ref(prog)) => prog.o.getPreferredNameOrElse().camel
     case TSmtlibArray(index, value) => "smtarr" + (index :+ value).map(typeText).mkString("$" , "__", "$")
     case TSmtlibBitVector(size) => s"bitvec$size"
     case TSmtlibFloatingPoint(e, m) => s"fp_${e}_$m"
@@ -77,11 +77,13 @@ case object ImportADT {
     case TSmtlibSeq(t) => "smtseq$" + typeText(t) + "$"
     case TSmtlibString() => "smtstr"
     case TVeyMontChannel(t) => "veymontchan$" + t + "$"
-    case TEndpoint(Ref(thread)) => thread.o.getPreferredNameOrElse()
+    case TEndpoint(Ref(thread)) => thread.o.getPreferredNameOrElse().camel
+    case TResourceVal() => "resource"
     case _: JavaType[_] => throw ExtraNode
     case _: CType[_] => throw ExtraNode
     case _: CPPType[_] => throw ExtraNode
     case _: PVLType[_] => throw ExtraNode
+    case _: SYCLTClass[_] => throw ExtraNode
   }
 }
 
@@ -104,7 +106,7 @@ abstract class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends
 
   protected def find[T](decls: Seq[Declaration[Post]], name: String)(implicit tag: ClassTag[T]): T =
     decls.collectFirst {
-      case decl: T if decl.o.getPreferredName.isDefined && decl.o.getPreferredNameOrElse() == name =>
+      case decl: T if decl.o.find[SourceName].contains(SourceName(name)) =>
         decl
     }.get
 

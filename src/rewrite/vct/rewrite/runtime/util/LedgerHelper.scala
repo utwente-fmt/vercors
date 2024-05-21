@@ -4,6 +4,7 @@ import vct.col.ast._
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter}
+import vct.col.util.AstBuildHelpers
 import vct.result.VerificationError.Unreachable
 
 import scala.collection.mutable.ArrayBuffer
@@ -59,9 +60,9 @@ object LedgerHelper {
       val ledgerRef: Ref[Post, Class[Post]] = this.anySucc(ledgerClass)
       val predicateRef: Ref[Post, Class[Post]] = this.anySucc(predicateClass)
       val newClass = ledgerRef.decl
-      val pmbh = DataMethodBuilderHelper[Post](predicateRef, predicateRef.decl.declarations)
+      val pmbh = DataMethodBuilderHelper[Post](predicateRef, predicateRef.decl.decls)
 
-      (LedgerMethodBuilderHelper[Post](ledgerRef, newClass.declarations, pmbh),
+      (LedgerMethodBuilderHelper[Post](ledgerRef, newClass.decls, pmbh),
         Seq(ledgerRef.decl, predicateRef.decl),
         otherDeclarations)
     }
@@ -119,7 +120,7 @@ object LedgerHelper {
     def apply[G](program: Program[G]): LedgerMethodBuilderHelper[G] = {
       val cls = program.declarations.collectFirst { case cls: Class[G] if cls.o.getLedgerClassRuntime.nonEmpty => cls }.get
       val predicatecls = program.declarations.collectFirst { case cls: Class[G] if cls.o.getDataObjectClassRuntime.nonEmpty => cls }.get
-      LedgerMethodBuilderHelper[G](cls.ref, cls.declarations, DataMethodBuilderHelper[G](predicatecls.ref, predicatecls.declarations))
+      LedgerMethodBuilderHelper[G](cls.ref, cls.decls, DataMethodBuilderHelper[G](predicatecls.ref, predicatecls.decls))
     }
   }
 
@@ -158,8 +159,8 @@ object LedgerHelper {
     )
 
     def ledgerPredicateStore: LedgerProperties[G] = LedgerProperties[G](
-      CopyOnWriteArrayList[G](TClass[G](pmbh.refCls)),
-      RuntimeConcurrentHashMap[G](TLongObject[G](), CopyOnWriteArrayList[G](TClass[G](pmbh.refCls)))(DiagnosticOrigin),
+      CopyOnWriteArrayList[G](TClass[G](pmbh.refCls, Nil)),
+      RuntimeConcurrentHashMap[G](TLongObject[G](), CopyOnWriteArrayList[G](TClass[G](pmbh.refCls, Nil)))(DiagnosticOrigin),
       refCls,
       findInstanceField("__predicate_store__")
     )
@@ -172,7 +173,7 @@ object LedgerHelper {
       None
     )
 
-    def createNewInjectivityMap: Variable[G] = new Variable[G](injectivityMap.outerHM)(DiagnosticOrigin.addPrefName("injectivityMap"))
+    def createNewInjectivityMap: Variable[G] = new Variable[G](injectivityMap.outerHM)(DiagnosticOrigin.where(name = "injectivityMap"))
 
 
     def createHashMaps: Option[InstanceMethod[G]] = findMethod("createHashMap")
@@ -232,9 +233,9 @@ object LedgerHelper {
         Nil,
         Nil,
         body,
-        ApplicableContract.createEmptyContract,
+        AstBuildHelpers.contract(null),
         static = true
-      )(null)(DiagnosticOrigin.addPrefName(methodName).addLedgerClass())
+      )(null)(DiagnosticOrigin.where(name = methodName).addLedgerClass())
     }
   }
 
@@ -282,9 +283,9 @@ object LedgerHelper {
         Nil,
         Nil,
         body,
-        ApplicableContract.createEmptyContract,
+        AstBuildHelpers.contract(null),
         static = static
-      )(null)(DiagnosticOrigin.addPrefName(methodName).addDataObjectClass())
+      )(null)(DiagnosticOrigin.where(name = methodName).addDataObjectClass())
     }
   }
 

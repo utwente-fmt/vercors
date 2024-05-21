@@ -14,7 +14,7 @@ import vct.col.resolve.lang.{C, CPP, Java, LLVM, PVL, Spec}
 import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecContractParser, SpecExprParser, getLit, isBip}
 import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipPort, BipPure, BipStatePredicate, BipTransition}
 import vct.col.rewrite.InitialGeneration
-import vct.result.VerificationError.UserError
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.immutable.{AbstractSeq, LinearSeq}
 
@@ -27,7 +27,7 @@ case object Resolve {
   trait SpecContractParser {
     def parse[G](input: LlvmFunctionContract[G], o: Origin): ApplicableContract[G]
 
-    def parse[G](input: LlvmGlobal[G], o: Origin): GlobalDeclaration[G]
+    def parse[G](input: LlvmGlobal[G], o: Origin): Seq[GlobalDeclaration[G]]
   }
 
   def extractLiteral(e: Expr[_]): Option[String] = e match {
@@ -111,7 +111,7 @@ case object ResolveTypes {
       val ctxWithNs = ctx.copy(namespace=Some(ns))
       ctxWithNs.copy(stack=(ns.declarations.flatMap(Referrable.from) ++ ns.imports.flatMap(scanImport(_, ctxWithNs))) +: ctx.stack)
     case Scope(locals, body) => ctx
-      .copy(stack = ((locals ++ scanScope(body, /* inGPUkernel = */false)).flatMap(Referrable.from)) +: ctx.stack)
+      .copy(stack = ((locals ++ scanScope(ctx)(body)).flatMap(Referrable.from)) +: ctx.stack)
     case decl: Declarator[G] =>
       ctx.copy(stack=decl.declarations.flatMap(Referrable.from) +: ctx.stack)
     case _ => ctx
@@ -128,6 +128,10 @@ case object ResolveTypes {
       t.ref = Some(C.findCTypeName(name, ctx).getOrElse(
         throw NoSuchNameError("struct", name, t)
       ))
+    case t@CStructSpecifier(name) =>
+      t.ref = Some(C.findCStruct(name, ctx).getOrElse(
+        throw NoSuchNameError("struct", name, t)
+      ))
     case t@CPPTypedefName(nestedName, _) =>
       t.ref = Some(CPP.findCPPTypeName(nestedName, ctx).getOrElse(
         throw NoSuchNameError("class, struct, or namespace", nestedName, t)
@@ -137,16 +141,13 @@ case object ResolveTypes {
         throw NoSuchNameError("class", name, t)))
     case t @ TModel(ref) =>
       ref.tryResolve(name => Spec.findModel(name, ctx).getOrElse(throw NoSuchNameError("model", name, t)))
-    case t @ TClass(ref) =>
+    case t @ TClass(ref, _) =>
       ref.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, t)))
     case t @ TAxiomatic(ref, _) =>
       ref.tryResolve(name => Spec.findAdt(name, ctx).getOrElse(throw NoSuchNameError("adt", name, t)))
     case t @ SilverPartialTAxiomatic(ref, partialTypeArgs) =>
       ref.tryResolve(name => Spec.findAdt(name, ctx).getOrElse(throw NoSuchNameError("adt", name, t)))
       partialTypeArgs.foreach(mapping => mapping._1.tryResolve(name => Spec.findAdtTypeArg(ref.decl, name).getOrElse(throw NoSuchNameError("type variable", name, t))))
-    case cls: Class[G] =>
-      // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
-      cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
     case local: JavaLocal[G] =>
       Java.findJavaName(local.name, fromStaticContext = false, ctx) match {
         case Some(
@@ -176,6 +177,12 @@ case object ResolveTypes {
           }
         case _ => // we did not find a package so we don't do anything
       }
+    case endpoint: PVLEndpoint[G] =>
+      endpoint.cls.tryResolve(name => PVL.findTypeName(name, ctx) match {
+        case Some(RefClass(cls: Class[G])) => cls
+        case Some(_) => throw ForbiddenEndpointType(endpoint)
+        case None => throw NoSuchNameError("class", name, endpoint)
+      })
 
     case _ =>
   }
@@ -186,22 +193,22 @@ case object ResolveReferences extends LazyLogging {
     resolve(program, ReferenceResolutionContext[G](jp, lsp))
   }
 
-  def resolve[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean=false): Seq[CheckError] = {
-    val inGPU = inGPUKernel || (node match {
-      case f: CFunctionDefinition[G] => f.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined
-      case _ => false
-    })
+  def resolve[G](node: Node[G], ctxIn: ReferenceResolutionContext[G]): Seq[CheckError] = {
+    val ctx = resolveFlatlyTopDown(node, ctxIn) match {
+      case Left(errs) => return errs
+      case Right(ctx) => ctx
+    }
 
     val childErrors = node match {
       case l @ Let(binding, value, main) =>
-        val innerCtx = enterContext(node, ctx, inGPU).withCheckContext(l.enterCheckContext(ctx.checkContext))
+        val innerCtx = enterContext(node, ctx).withCheckContext(l.enterCheckContext(ctx.checkContext))
         resolve(binding, innerCtx) ++
         resolve(value, ctx) ++
         resolve(main, innerCtx)
       case _ =>
-        val innerCtx = enterContext(node, ctx, inGPU)
+        val innerCtx = enterContext(node, ctx)
         node.checkContextRecursor(ctx.checkContext, { (ctx, node) =>
-          resolve(node, innerCtx.withCheckContext(ctx), inGPU)
+          resolve(node, innerCtx.withCheckContext(ctx))
         }).flatten
     }
 
@@ -212,15 +219,30 @@ case object ResolveReferences extends LazyLogging {
     }
   }
 
-  def scanScope[G](node: Node[G], inGPUKernel: Boolean): Seq[Declaration[G]] = node match {
+  def resolveFlatlyTopDown[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Either[Seq[CheckError], ReferenceResolutionContext[G]] = node match {
+    case f: CFunctionDefinition[G] if f.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined =>
+      Right(ctx.copy(inGpuKernel = true))
+    case p: Program[G] =>
+      p.declarations.foreach {
+        case glob: LlvmGlobal[G] =>
+          val decls = ctx.llvmSpecParser.parse(glob, glob.o)
+          glob.data = Some(decls)
+        case _ =>
+      }
+      Right(ctx)
+
+    case _ => Right(ctx)
+  }
+
+  def scanScope[G](ctx: TypeResolutionContext[G])(node: Node[G]): Seq[Declaration[G]] = node match {
     case _: Scope[G] => Nil
     // Remove shared memory locations from the body level of a GPU kernel, we want to reason about them at the top level
-    case CDeclarationStatement(decl) if !(inGPUKernel && decl.decl.specs.collectFirst{case GPULocal() => ()}.isDefined)
+    case CDeclarationStatement(decl) if !(ctx.inGpuKernel && decl.decl.specs.collectFirst{case GPULocal() => ()}.isDefined)
     => Seq(decl)
     case CPPDeclarationStatement(decl) => Seq(decl)
     case JavaLocalDeclarationStatement(decl) => Seq(decl)
     case LocalDecl(v) => Seq(v)
-    case other => other.subnodes.flatMap(scanScope(_, inGPUKernel))
+    case other => other.subnodes.flatMap(scanScope(ctx))
   }
 
   def scanLabels[G](node: Node[G]): Seq[Declaration[G]] = node.transSubnodes.collect {
@@ -277,13 +299,20 @@ case object ResolveReferences extends LazyLogging {
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
+      // Ensure occurrences of type variables within the class that defines them are ignored when substituting
+      .appendTypeEnv(cls.typeArgs.map(v => (v, TVar[G](v.ref))).toMap)
+    case adt: AxiomaticDataType[G] => ctx
+      // Ensure occurrences of type variables within the adt that defines them are ignored when substituting
+      .declare(adt.declarations)
+      .appendTypeEnv(adt.typeArgs.map(v => (v, TVar[G](v.ref))).toMap)
     case seqProg: SeqProg[G] => ctx
       .copy(currentThis = Some(RefSeqProg(seqProg)))
       .declare(seqProg.decls)
-      .declare(seqProg.threads)
+      .declare(seqProg.endpoints)
       .declare(seqProg.args)
     case seqProg: PVLSeqProg[G] => ctx
       .copy(currentThis = Some(RefPVLSeqProg(seqProg)))
+      .declare(seqProg.args)
       .declare(seqProg.declarations)
     case method: JavaMethod[G] => ctx
       .copy(currentResult=Some(RefJavaMethod(method)))
@@ -352,7 +381,7 @@ case object ResolveReferences extends LazyLogging {
     case par: ParStatement[G] => ctx
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
-      .declare(locals ++ scanScope(body, inGPUKernel))
+      .declare(locals ++ scanScope(ctx.asTypeResolutionContext)(body))
     case app: ContractApplicable[G] => ctx
       .copy(currentResult = Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))
       .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
@@ -367,12 +396,7 @@ case object ResolveReferences extends LazyLogging {
     case local@CLocal(name) =>
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@CPPLocal(name, arg) =>
-      local.ref = Some(CPP.findCPPName(name, arg, ctx).headOption.getOrElse(throw NoSuchNameError("local", name, local)))
-    case local@CPPClassInstanceLocal(classInstanceRefName, classLocalName) =>
-      local.classInstanceRef = Some(CPP.findCPPName(classInstanceRefName, None, ctx).headOption.
-        getOrElse(throw NoSuchNameError("class", classInstanceRefName, local)))
-      local.classLocalRef = Some(CPP.findCPPClassLocalName(local.classInstanceRef.get, classLocalName, ctx).headOption.
-        getOrElse(throw NoSuchNameError("class instance local", classInstanceRefName + "." + classLocalName, local)))
+      local.ref = Some(CPP.findCPPName(name, ctx).headOption.getOrElse(throw NoSuchNameError("local", name, local)))
     case local @ JavaLocal(name) =>
       val start: Option[JavaNameTarget[G]] = if (ctx.javaBipGuardsEnabled) {
         Java.findJavaBipGuard(ctx, name).map(RefJavaBipGuard(_))
@@ -390,8 +414,6 @@ case object ResolveReferences extends LazyLogging {
       local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@Local(ref) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-    case local@PVLEndpointName(name) =>
-      local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("endpoint", name, local)))
     case local@TVar(ref) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("type variable", name, local)))
     case funcOf@FunctionOf(v, vars) =>
@@ -399,10 +421,32 @@ case object ResolveReferences extends LazyLogging {
       vars.foreach(v => v.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, funcOf))))
     case local@SilverLocalAssign(ref, _) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-    case access@PVLCommunicateAccess(subject, field) =>
-      access.ref = Some(null /* PVL.findDerefOfClass(subject.threadType.cls.decl, field).getOrElse(throw NoSuchNameError("field", field, access)) */)
+    case local@PVLEndpointName(name) => PVL.findName(name, ctx) match {
+      case Some(ref: RefPVLEndpoint[G]) => local.ref = Some(ref)
+      case Some(_) => throw ForbiddenEndpointNameType(local)
+      case None => throw NoSuchNameError("endpoint", name, local)
+    }
+    case access@PVLAccess(subject, field) =>
+        access.ref = Some(PVL.findDerefOfClass(subject.cls, field).getOrElse(throw NoSuchNameError("field", field, access)))
+    case endpoint: PVLEndpoint[G] =>
+      endpoint.ref = Some(PVL.findConstructor(TClass(endpoint.cls.decl.ref[Class[G]], Seq()), Seq(), endpoint.args).getOrElse(throw ConstructorNotFound(endpoint)))
+    case parAssign: PVLSeqAssign[G] =>
+      parAssign.receiver.tryResolve(receiver => PVL.findName(receiver, ctx) match {
+        case Some(RefPVLEndpoint(decl)) => decl
+        case Some(_) => throw ForbiddenEndpointNameType(parAssign)
+        case None => throw NoSuchNameError("endpoint", receiver, parAssign)
+      })
+      parAssign.field.tryResolve(field => PVL.findDerefOfClass[G](parAssign.receiver.decl.cls.decl, field) match {
+        case Some(RefField(field)) => field
+        case Some(_) => throw UnassignableField(parAssign)
+        case None => throw NoSuchNameError("field", field, parAssign)
+      })
+    case deref@CStructDeref(struct, field) =>
+      deref.ref = Some(C.findPointerDeref(struct, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref@CStructAccess(obj, field) =>
       deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
+    case deref@CPPClassMethodOrFieldAccess(obj, methodOrFieldName) =>
+      deref.ref = Some(CPP.findDeref(obj, methodOrFieldName, ctx, deref.blame).headOption.getOrElse(throw NoSuchNameError("field or instance method", methodOrFieldName, deref)))
     case deref@JavaDeref(obj, field) =>
       deref.ref = Some(Java.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
       if (ctx.topLevelJavaDeref.contains(deref) && (deref.ref match {
@@ -416,6 +460,8 @@ case object ResolveReferences extends LazyLogging {
     case deref@ModelDeref(obj, field) =>
       field.tryResolve(name => Spec.findModelField(obj, name).getOrElse(throw NoSuchNameError("field", name, deref)))
     case deref@SilverDeref(_, field) =>
+      field.tryResolve(name => Spec.findSilverField(name, ctx).getOrElse(throw NoSuchNameError("field", name, deref)))
+    case deref@SilverFieldLocation(_, field) =>
       field.tryResolve(name => Spec.findSilverField(name, ctx).getOrElse(throw NoSuchNameError("field", name, deref)))
     case deref@SilverCurFieldPerm(_, field) =>
       field.tryResolve(name => Spec.findSilverField(name, ctx).getOrElse(throw NoSuchNameError("field", name, deref)))
@@ -457,8 +503,8 @@ case object ResolveReferences extends LazyLogging {
       inv.ref = Some(PVL.findInstanceMethod(obj, method, args, typeArgs, inv.blame).getOrElse(throw NoSuchNameError("method", method, inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
-    case inv@PVLNew(t, args, givenMap, yields) =>
-      inv.ref = Some(PVL.findConstructor(t, args).getOrElse(throw NoSuchConstructor(inv)))
+    case inv@PVLNew(t, typeArgs, args, givenMap, yields) =>
+      inv.ref = Some(PVL.findConstructor(t, typeArgs, args).getOrElse(throw NoSuchConstructor(inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case n@NewObject(ref) =>
@@ -659,9 +705,7 @@ case object ResolveReferences extends LazyLogging {
         case None => throw NoSuchNameError("function", inv.name, inv)
       }
     case glob: LlvmGlobal[G] =>
-      val decl = ctx.llvmSpecParser.parse(glob, glob.o)
-      glob.data = Some(decl)
-      resolve(decl, ctx)
+      glob.data.get.foreach(resolve(_, ctx))
     case _ =>
   }
 }

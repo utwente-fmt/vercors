@@ -9,29 +9,39 @@ case object Progress {
   val UPDATE_INTERVAL_MS: Int = 100
   val UPDATE_INTERAL_LONG_MS: Int = 700
 
-  def install(forceProgress: Boolean, profile: Boolean): Unit = {
+  def install(profile: Boolean): Unit = {
+    blockLayoutUpdateTimer = Some(new Timer("[VerCors] Block layout updates"))
+    blockLayoutUpdate = false
+    newLayoutAfterTimeout = false
     TaskRegistry.install()
-    Layout.install(forceProgress)
     Profile.install(profile)
   }
 
-  def finish(): Unit = {
+  def finish(): Unit = synchronized {
     blockLayoutUpdateTask.foreach(_.cancel())
-    blockLayoutUpdateTimer.purge()
-    blockLayoutUpdateTimer.cancel()
+    blockLayoutUpdateTimer.foreach { timer =>
+      timer.purge()
+      timer.cancel()
+    }
+    blockLayoutUpdateTimer = None
     TaskRegistry.finish()
+    Layout.update()
     Profile.finish()
   }
 
-  def abort(): Unit = {
+  def abort(): Unit = synchronized {
     blockLayoutUpdateTask.foreach(_.cancel())
-    blockLayoutUpdateTimer.purge()
-    blockLayoutUpdateTimer.cancel()
+    blockLayoutUpdateTimer.foreach { timer =>
+      timer.purge()
+      timer.cancel()
+    }
+    blockLayoutUpdateTimer = None
     TaskRegistry.abort()
+    Layout.update()
     Profile.finish()
   }
 
-  private val blockLayoutUpdateTimer = new Timer("[VerCors] Block layout updates")
+  private var blockLayoutUpdateTimer: Option[Timer] = None
   private var blockLayoutUpdateTask: Option[TimerTask] = None
   private var blockLayoutUpdate = false
   private var newLayoutAfterTimeout = false
@@ -39,7 +49,7 @@ case object Progress {
   private def delayNextUpdate(longDelay: Boolean): Unit = {
     blockLayoutUpdate = true
     blockLayoutUpdateTask.foreach(_.cancel())
-    blockLayoutUpdateTimer.purge()
+    blockLayoutUpdateTimer.get.purge()
     blockLayoutUpdateTask = Some(new TimerTask {
       override def run(): Unit = Progress.synchronized {
         if (newLayoutAfterTimeout) {
@@ -52,7 +62,7 @@ case object Progress {
       }
     })
     val updateInterval = if(longDelay) UPDATE_INTERAL_LONG_MS else UPDATE_INTERVAL_MS
-    blockLayoutUpdateTimer.schedule(blockLayoutUpdateTask.get, updateInterval)
+    blockLayoutUpdateTimer.get.schedule(blockLayoutUpdateTask.get, updateInterval)
   }
 
   def update(): Unit = Progress.synchronized {

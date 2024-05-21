@@ -5,8 +5,7 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.util.Comparison
-import vct.col.origin.Origin
-import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
+import vct.col.origin.{DiagnosticOrigin, LabelContext, Origin, PreferredName}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers
@@ -20,12 +19,10 @@ case object SimplifyQuantifiedRelations extends RewriterBuilder {
 }
 
 case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre] {
-  object SimplifyQuantifiedRelationsOrigin extends Origin(
+  val SimplifyQuantifiedRelationsOrigin: Origin = Origin(
     Seq(
-      PreferredName("unknown"),
-      ShortPosition("generated"),
-      Context("[At generated expression for the simplification of quantified integer relations]"),
-      InlineContext("[Simplified expression]"),
+      PreferredName(Seq("unknown")),
+      LabelContext("simplification"),
     )
   )
 
@@ -74,7 +71,7 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
             min(left) * max(right),
             min(left) * min(right)
           ).distinct, maximizing)
-        case Div(left, right) =>
+        case RatDiv(left, right) =>
           extremeValue(Seq(
             max(left) /:/ max(right),
             max(left) /:/ min(right),
@@ -82,6 +79,13 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
             min(left) /:/ min(right)
           ).distinct, maximizing)
         case FloorDiv(left, right) =>
+          extremeValue(Seq(
+            max(left) / max(right),
+            max(left) / min(right),
+            min(left) / max(right),
+            min(left) / min(right)
+          ).distinct, maximizing)
+        case FloatDiv(left, right) =>
           extremeValue(Seq(
             max(left) / max(right),
             max(left) / min(right),
@@ -134,7 +138,7 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
           } else return None
         case None => bound match {
           // If we do not have a simple comparison, we support one special case: i \in {a..b}
-          case SeqMember(Local(Ref(v)), Range(from, to))
+          case SetMember(Local(Ref(v)), RangeSet(from, to))
             if bindings.contains(v) && indepOf(bindings, from) && indepOf(bindings, to) =>
             inclusiveLowerBound(v) += from
             exclusiveUpperBound(v) += to

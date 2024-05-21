@@ -10,7 +10,6 @@ case object ReplaceSYCLTypes extends RewriterBuilder {
 
 case class ReplaceSYCLTypes[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(t: Type[Pre]): Type[Post] = t match {
-    case _: CPPTLambda[Pre] => TRef()
     case _: SYCLTClass[Pre] => TRef()
     case _ => rewriteDefault(t)
   }

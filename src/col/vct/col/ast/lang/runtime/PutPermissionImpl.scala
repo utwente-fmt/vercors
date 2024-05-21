@@ -2,8 +2,9 @@ package vct.col.ast.lang.runtime
 
 import vct.col.ast._
 import vct.col.print._
+import vct.col.ast.ops.PutPermissionOps
 
-trait PutPermissionImpl[G] {
+trait PutPermissionImpl[G] extends PutPermissionOps[G] {
   this: PutPermission[G] =>
 
   override def t: Type[G] = TFraction[G]()

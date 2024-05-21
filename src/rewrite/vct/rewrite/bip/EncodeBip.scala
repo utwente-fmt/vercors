@@ -11,6 +11,7 @@ import vct.col.util.AstBuildHelpers.{contract, _}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 import BIP._
+import vct.result.Message
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
@@ -21,7 +22,7 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
 
   object ClassBipComponent {
     def unapply[G](cls: Class[G]): Option[(Class[G], BipComponent[G])] = {
-      cls.declarations.collectFirst({
+      cls.decls.collectFirst({
         case bc: BipComponent[G] => (cls, bc)
       })
     }
@@ -91,10 +92,10 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     // Guard at POS needs data that transition at POS is not supplying!
     override def code: String = "bipMissingData"
     override def text: String = {
-      Origin.messagesInContext(Seq(
+      Message.messagesInContext(
         (guard.o, "Data required by this guard..."),
         (transition.o, "... is not supplied by this transition")
-      ))
+      )
     }
   }
 
@@ -107,16 +108,16 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
   }
 
   private def DataWireValueCarrierOrigin(wire: BipGlueDataWire[_]): Origin = {
-    wire.o.replacePrefName(wire.o.getPreferredNameOrElse() + "_result")
+    wire.o.where(prefix = "result")
   }
 
   private def BipSynchronizationOrigin(s: BipTransitionSynchronization[_]): Origin = {
-    s.o.replacePrefName("synchron___" +
+    s.o.where(name = "synchron___" +
       s.transitions.map { case Ref(t) => "transition_" + t.signature.asciiSignature }.mkString("_$_"))
   }
 
   private def SynchronizationComponentVariableOrigin(s: BipTransitionSynchronization[_], c: BipComponent[_]): Origin = {
-    s.o.replacePrefName(c.fqn.mkString("."))
+    s.o.where(name = c.fqn.mkString("."))
   }
 
   case class ExhalingTransitionPreconditionFailed(results: BIP.VerificationResults, s: BipTransitionSynchronization[_], t: BipTransition[_]) extends Blame[ExhaleFailed] {
@@ -127,8 +128,8 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
   }
 
   private def ImplCheckBipTransitionOrigin(c: BipComponent[_], t: BipTransition[_]): Origin = {
-    t.o.replacePrefName(s"transitionImplementationCheck__${c.fqn.mkString("_")}__${
-      t.o.getPreferredNameOrElse()}_${t.signature.asciiSignature}")
+    t.o.where(name = s"transitionImplementationCheck__${c.fqn.mkString("_")}__${
+      t.o.getPreferredNameOrElse().camel}_${t.signature.asciiSignature}")
   }
 }
 
@@ -154,17 +155,17 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
 
   lazy val classes = program.transSubnodes.collect { case c: Class[Pre] => c }.toIndexedSeq
   lazy val components = classes.collect { case ClassBipComponent(cls, component) => component }
-  lazy val allPorts = classes.flatMap { cls => cls.declarations.collect { case port: BipPort[Pre] => port } }
+  lazy val allPorts = classes.flatMap { cls => cls.decls.collect { case port: BipPort[Pre] => port } }
   lazy val transitionToClassComponent: Map[BipTransition[Pre], (Class[Pre], BipComponent[Pre])] = classes.collect {
     case ClassBipComponent(cls, component) =>
-      cls.declarations.collect { case transition: BipTransition[Pre] => (transition, (cls, component)) }
+      cls.decls.collect { case transition: BipTransition[Pre] => (transition, (cls, component)) }
   }.flatten.toMap
   lazy val dataToClassComponent: Map[BipData[Pre], (Class[Pre], BipComponent[Pre])] = classes.collect {
     case ClassBipComponent(cls, component) =>
-      cls.declarations.collect { case data: BipData[Pre] => (data, (cls, component)) }
+      cls.decls.collect { case data: BipData[Pre] => (data, (cls, component)) }
   }.flatten.toMap
   lazy val guardToClass: Map[BipGuard[Pre], Class[Pre]] = classes.flatMap { cls =>
-    cls.declarations.collect { case guard: BipGuard[Pre] => (guard, cls) }
+    cls.decls.collect { case guard: BipGuard[Pre] => (guard, cls) }
   }.toMap
   lazy val componentToClass: Map[BipComponent[Pre], Class[Pre]] = classes.collect {
     case ClassBipComponent(cls, component) => (component, cls)
@@ -175,7 +176,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
     }
   }.flatten.toMap
   lazy val portToComponent: Map[BipPort[Pre], BipComponent[Pre]] = components.flatMap { component =>
-    classOf(component).declarations.collect { case p: BipPort[Pre] => (p, component) }
+    classOf(component).decls.collect { case p: BipPort[Pre] => (p, component) }
   }.toMap
 
   def classOf(c: BipComponent[Pre]): Class[Pre] = componentToClass(c)
@@ -291,7 +292,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
       results.declare(component)
       implicit val o = DiagnosticOrigin
       val ref = succ[Class[Post]](classOf(constructor))
-      val t = TClass[Post](ref)
+      val t = TClass[Post](ref, Seq())
       rewritingBipConstructorBody.having(component) {
         constructorSucc(constructor) = globalDeclarations.declare(
           new Procedure[Post](
@@ -369,7 +370,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
          We define those variables/arguments here.
        */
       val varOf: Map[Declaration[Pre], Local[Post]] = transitions.flatMap { transition =>
-        val v = new Variable[Post](TClass(succ[Class[Post]](classOf(transition))))(
+        val v = new Variable[Post](TClass(succ[Class[Post]](classOf(transition)), Seq()))(
           SynchronizationComponentVariableOrigin(synchronization, componentOf(transition)))
         Seq((transition, v.get), (classOf(transition), v.get))
       }.toMap

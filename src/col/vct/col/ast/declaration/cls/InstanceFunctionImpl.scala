@@ -4,8 +4,9 @@ import vct.col.ast.InstanceFunction
 import vct.col.print._
 
 import scala.collection.immutable.ListMap
+import vct.col.ast.ops.InstanceFunctionOps
 
-trait InstanceFunctionImpl[G] { this: InstanceFunction[G] =>
+trait InstanceFunctionImpl[G] extends InstanceFunctionOps[G] { this: InstanceFunction[G] =>
   def layoutModifiers(implicit ctx: Ctx): Seq[Doc] = ListMap(
     inline -> "inline",
     threadLocal -> "thread_local",

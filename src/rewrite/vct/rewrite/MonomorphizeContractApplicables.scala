@@ -13,8 +13,8 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case object MonomorphizeContractApplicables extends RewriterBuilder {
-  override def key: String = "monomorphize"
-  override def desc: String = "Monomorphize generic declarations with their usages where Silver does not support generics."
+  override def key: String = "monomorphizeApplicables"
+  override def desc: String = "Monomorphize generic applicable declarations with their usages where Silver does not support generics."
 }
 
 case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter[Pre] {
@@ -60,6 +60,18 @@ case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter
         case inv: InstanceFunctionInvocation[Pre] => inv.rewrite(ref = ref.asInstanceOf[Ref[Post, InstanceFunction[Post]]], typeArgs = Nil)
       }
     case other => rewriteDefault(other)
+  }
+
+  override def dispatch(s: Statement[Pre]): Statement[Post] = s match {
+    case inv: InvocationStatement[Pre] if inv.ref.decl.typeArgs.nonEmpty =>
+      val typeValues = inv.typeArgs.map(dispatch)
+      val ref = getOrBuild(inv.ref.decl, typeValues)
+
+      inv match {
+        case inv: InvokeProcedure[Pre] => inv.rewrite(ref = ref.asInstanceOf[Ref[Post, Procedure[Post]]], typeArgs = Nil)
+        case inv: InvokeMethod[Pre] => inv.rewrite(ref = ref.asInstanceOf[Ref[Post, InstanceMethod[Post]]], typeArgs = Nil)
+      }
+    case other => other.rewriteDefault()
   }
 
   override def dispatch(t: Type[Pre]): Type[Rewritten[Pre]] = t match {

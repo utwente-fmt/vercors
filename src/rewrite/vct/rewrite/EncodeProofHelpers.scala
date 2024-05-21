@@ -11,37 +11,29 @@ case object EncodeProofHelpers extends RewriterBuilderArg[Boolean] {
 
   private def Once: Origin = Origin(
     Seq(
-      PreferredName("once"),
-      Context("[At node generated to execute a while loop once]"),
-      InlineContext("Node generated to execute a while loop once"),
-      ShortPosition("generated"),
+      PreferredName(Seq("once")),
+      LabelContext("frame while"),
     )
   )
 
   private def Indet: Origin = Origin(
     Seq(
-      PreferredName("indet"),
-      Context("[At node generated to contain an indeterminate integer]"),
-      InlineContext("Node generated to contain an indeterminate integer"),
-      ShortPosition("generated"),
+      PreferredName(Seq("indet")),
+      LabelContext("indeterminate branch"),
     )
   )
 
   private def Before: Origin = Origin(
     Seq(
-      PreferredName("beforeFrame"),
-      Context("[At node generated to indicate the point before a proof frame]"),
-      InlineContext("Node generated to indicate the point before a proof frame"),
-      ShortPosition("generated"),
+      PreferredName(Seq("beforeFrame")),
+      LabelContext("before frame"),
     )
   )
 
   private def BeforeVar(preferredName: String): Origin = Origin(
     Seq(
-      PreferredName(preferredName),
-      Context("[At variable generated for forperm]"),
-      InlineContext("Variable generated for forperm"),
-      ShortPosition("generated"),
+      PreferredName(Seq(preferredName)),
+      LabelContext("frame forperm"),
     )
   )
 
@@ -101,18 +93,6 @@ case class EncodeProofHelpers[Pre <: Generation](inferHeapContextIntoFrame: Bool
         }
       )))
 
-    case other => rewriteDefault(other)
-  }
-
-  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case IndeterminateInteger(min, max) =>
-      // PB: note that if max <= min, this is the same as `inhale false`. This is intended.
-      implicit val o: Origin = e.o
-      val v = new Variable[Post](TInt())(Indet)
-      ScopedExpr(Seq(v), With(Block(Seq(
-        Inhale(v.get >= dispatch(min)),
-        Inhale(v.get < dispatch(max)),
-      )), v.get))
     case other => rewriteDefault(other)
   }
 }

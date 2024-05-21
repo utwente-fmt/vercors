@@ -40,26 +40,26 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     }
    */
   def createPredicateObject: Class[Post] = {
-    implicit val classOrigin: Origin = Origin(Seq.empty).addPrefName("DataObject").addDataObjectClass()
+    implicit val classOrigin: Origin = Origin(Nil).where(name = "DataObject").addDataObjectClass()
     val newDeclarations = classDeclarations.collect {
       val creatorMethods: Seq[DataMethodBuilderHelper[Post] => Unit] = Seq(createPredicateDataInstanceField, createSetData, createPredicateObject, createPredicateEquals, createPredicateHashCode)
       creatorMethods.map(m => m(DataMethodBuilderHelper[Post](new LazyRef[Post, Class[Post]](getDataNewClass), classDeclarations.freezeBuffer)))
     }._1
-    newDataClass = new Class[Post](newDeclarations, Seq.empty, tt)
+    newDataClass = new Class[Post](Nil, newDeclarations, Seq.empty, tt)
     globalDeclarations.declare(newDataClass)
   }
 
   def createPredicateDataInstanceField(mbh: DataMethodBuilderHelper[Post]): Unit = {
     val newInstanceField: InstanceField[Post] = new InstanceField[Post](
       TArray(TAnyClass()),
-      Set.empty
-    )(DiagnosticOrigin.addPrefName("data").addDataObjectClass())
+      Nil
+    )(DiagnosticOrigin.where(name = "data").addDataObjectClass())
     classDeclarations.declare(newInstanceField)
   }
 
   def createSetData(mbh: DataMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin.addDataObjectClass()
-    val input = new Variable[Post](TArray[Post](TAnyClass[Post]()))(o.addPrefName("data"))
+    val input = new Variable[Post](TArray[Post](TAnyClass[Post]()))(o.where(name = "data"))
     val assign = Assign[Post](Deref[Post](ThisObject[Post](mbh.refCls), mbh.dataField.get.ref)(null), input.get)(null)
     val body = Scope[Post](Nil, Block[Post](Seq(assign)))
     classDeclarations.declare(mbh.createMethod(TVoid(), Seq(input), Some(body), "setData", false))
@@ -67,19 +67,19 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
 
   def createPredicateObject(mbh: DataMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin.addDataObjectClass()
-    val input = new Variable[Post](TArray[Post](TAnyClass[Post]()))(o.addPrefName("data"))
-    val newObject = new Variable[Post](TClass[Post](mbh.refCls))(o.addPrefName("object"))
+    val input = new Variable[Post](TArray[Post](TAnyClass[Post]()))(o.where(name = "data"))
+    val newObject = new Variable[Post](TClass[Post](mbh.refCls, Nil))(o.where(name = "object"))
     val assign = Assign[Post](newObject.get, NewObject(mbh.refCls))(null)
     val miSetData = Eval[Post](mbh.miSetData(newObject.get, input.get).get)
     val returnObject = Return[Post](newObject.get)
     val body = Scope[Post](Seq(newObject), Block[Post](Seq(assign, miSetData, returnObject)))
-    classDeclarations.declare(mbh.createMethod(TClass[Post](mbh.refCls), Seq(input), Some(body), "create"))
+    classDeclarations.declare(mbh.createMethod(TClass[Post](mbh.refCls, Nil), Seq(input), Some(body), "create"))
   }
 
   def createPredicateEquals(mbh: DataMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin.addDataObjectClass()
-    val input = new Variable[Post](TAnyClass[Post]())(o.addPrefName("obj"))
-    val otherObject = new Variable[Post](TClass[Post](mbh.refCls))(o.addPrefName("otherObject"))
+    val input = new Variable[Post](TAnyClass[Post]())(o.where(name = "obj"))
+    val otherObject = new Variable[Post](TClass[Post](mbh.refCls, Nil))(o.where(name = "otherObject"))
     val checkOne = Branch[Post](Seq((ThisObject[Post](mbh.refCls) === input.get, Return[Post](tt))))
     val checkTwo = Branch[Post](Seq((input.get === Null[Post]() || (GetClassCall[Post](None) !== GetClassCall[Post](Some(input.get))), Return[Post](ff))))
     val cast = Assign[Post](otherObject.get, Cast[Post](input.get, StaticClassRef[Post](mbh.refCls)))(null)
@@ -105,12 +105,12 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     }
    */
   def createLedger: Class[Post] = {
-    implicit val classOrigin: Origin = Origin(Seq.empty).addLedgerClass().addPrefName("LedgerRuntime")
+    implicit val classOrigin: Origin = Origin(Seq.empty).addLedgerClass().where(name = "LedgerRuntime")
     val newDeclarations: Seq[ClassDeclaration[Post]] = classDeclarations.collect {
       val creatorMethods: Seq[LedgerMethodBuilderHelper[Post] => Unit] = Seq(createObjectLedger, createJoinTokensLedger, createPredicateLedger, createHashMapMethod, createGetPermission, createGetJoinToken, createSetJoinToken, createSetPermission, createInitiatePermissionWithSize, createInitiatePermission, createHasPredicateCheck,createFoldPredicate ,createUnfoldPredicate, createCheckForInjectivity)
-      creatorMethods.map(m => m(LedgerMethodBuilderHelper[Post](new LazyRef[Post, Class[Post]](getLedgerNewClass), classDeclarations.freezeBuffer, DataMethodBuilderHelper[Post](new LazyRef[Post, Class[Post]](getDataNewClass), getDataNewClass.declarations))))
+      creatorMethods.map(m => m(LedgerMethodBuilderHelper[Post](new LazyRef[Post, Class[Post]](getLedgerNewClass), classDeclarations.freezeBuffer, DataMethodBuilderHelper[Post](new LazyRef[Post, Class[Post]](getDataNewClass), getDataNewClass.decls))))
     }._1
-    newLedgerClass = new Class[Post](newDeclarations, Seq.empty, tt)
+    newLedgerClass = new Class[Post](Nil, newDeclarations, Seq.empty, tt)
     globalDeclarations.declare(newLedgerClass)
   }
 
@@ -118,12 +118,12 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
         public static ConcurrentHashMap<Long, ConcurrentHashMap<Object, Double>> __runtime__ = new ConcurrentHashMap<Long, ConcurrentHashMap<Object, Double>>();
    */
   def createObjectLedger(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
-    val fieldFlags: Set[FieldFlag[Post]] = Set(Static[Post]()(DiagnosticOrigin))
+    val fieldFlags: Seq[FieldFlag[Post]] = Seq(Static[Post]()(DiagnosticOrigin))
     val newInstanceField: InstanceField[Post] = new InstanceField[Post](
       mbh.ledgerProperties.outerHM,
       fieldFlags,
       Some(mbh.ledgerProperties.newOuterMap)
-    )(DiagnosticOrigin.addPrefName("__runtime__"))
+    )(DiagnosticOrigin.where(name = "__runtime__"))
     classDeclarations.declare(newInstanceField)
   }
 
@@ -131,12 +131,12 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
       public static ConcurrentHashMap<Object, Fraction> __join_tokens__ = new ConcurrentHashMap<Object, Fraction>();
    */
   def createJoinTokensLedger(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
-    val fieldFlags: Set[FieldFlag[Post]] = Set(Static[Post]()(DiagnosticOrigin))
+    val fieldFlags: Seq[FieldFlag[Post]] = Seq(Static[Post]()(DiagnosticOrigin))
     val newInstanceField: InstanceField[Post] = new InstanceField[Post](
       mbh.ledgerJoinTokensProperites.outerHM,
       fieldFlags,
       Some(mbh.ledgerJoinTokensProperites.newOuterMap)
-    )(DiagnosticOrigin.addPrefName("__join_tokens__"))
+    )(DiagnosticOrigin.where(name = "__join_tokens__"))
     classDeclarations.declare(newInstanceField)
   }
 
@@ -144,12 +144,12 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
     public static ConcurrentHashMap<Object, CopyOnWriteArrayList<PredicateObject>> __predicate_store__ = new ConcurrentHashMap<Object, CopyOnWriteArrayList<PredicateObject>>();
    */
   def createPredicateLedger(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
-    val fieldFlags: Set[FieldFlag[Post]] = Set(Static[Post]()(DiagnosticOrigin))
+    val fieldFlags: Seq[FieldFlag[Post]] = Seq(Static[Post]()(DiagnosticOrigin))
     val newInstanceField: InstanceField[Post] = new InstanceField[Post](
       mbh.ledgerPredicateStore.outerHM,
       fieldFlags,
       Some(mbh.ledgerPredicateStore.newOuterMap)
-    )(DiagnosticOrigin.addPrefName("__predicate_store__"))
+    )(DiagnosticOrigin.where(name = "__predicate_store__"))
     classDeclarations.declare(newInstanceField)
   }
 
@@ -188,7 +188,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
   def createGetPermission(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
     val chm: Eval[Post] = Eval[Post](mbh.miCreateHashMaps.get)
-    val input = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
+    val input = new Variable[Post](TAnyClass[Post]())(o.where(name = "input"))
     val returnStat = Return[Post](mbh.ledgerProperties.getOrDefault(mbh.ledgerProperties.get(mbh.threadId), input.get, RuntimeFractionZero[Post]()))
     val newBlock: Block[Post] = Block[Post](Seq(chm, returnStat))
     val body = Scope[Post](Nil, newBlock)
@@ -202,7 +202,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
    */
   def createGetJoinToken(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
-    val input = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
+    val input = new Variable[Post](TAnyClass[Post]())(o.where(name = "input"))
     val returnStat = Return[Post](mbh.ledgerJoinTokensProperites.get(input.get))
     val newBlock: Block[Post] = Block[Post](Seq(returnStat))
     val body = Scope[Post](Nil, newBlock)
@@ -218,8 +218,8 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
    */
   def createSetJoinToken(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
-    val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
-    val valueParam: Variable[Post] = new Variable[Post](TRuntimeFraction[Post]())(o.addPrefName("value"))
+    val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.where(name = "input"))
+    val valueParam: Variable[Post] = new Variable[Post](TRuntimeFraction[Post]())(o.where(name = "value"))
     val newAssert: RuntimeAssert[Post] = RuntimeAssert[Post]((valueParam.get r_<=> RuntimeFractionZero[Post]()) !== const(-1), "Join token cannot be below 0")(null)
     val putPermission: Eval[Post] = Eval[Post](mbh.ledgerJoinTokensProperites.put(inputParam.get, valueParam.get))
     val newBlock: Block[Post] = Block[Post](Seq(newAssert, putPermission))
@@ -236,8 +236,8 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
    */
   def createSetPermission(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
-    val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
-    val valueParam: Variable[Post] = new Variable[Post](TRuntimeFraction[Post]())(o.addPrefName("value"))
+    val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.where(name = "input"))
+    val valueParam: Variable[Post] = new Variable[Post](TRuntimeFraction[Post]())(o.where(name = "value"))
     val newAssertLowerBound: RuntimeAssert[Post] = RuntimeAssert[Post]((valueParam.get r_<=> RuntimeFractionZero[Post]()) !== const(-1), "Permission cannot be below 0")(null)
     val newAssertUpperBound: RuntimeAssert[Post] = RuntimeAssert[Post]((valueParam.get r_<=> RuntimeFractionOne[Post]()) !== const(1), "Permisison cannot exceed 1")(null)
 
@@ -263,12 +263,12 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
    */
   def createInitiatePermissionWithSize(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
-    val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
-    val sizeParam: Variable[Post] = new Variable[Post](TInt[Post]())(o.addPrefName("size"))
+    val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.where(name = "input"))
+    val sizeParam: Variable[Post] = new Variable[Post](TInt[Post]())(o.where(name = "size"))
     val setPermissionOuter = Eval[Post](mbh.miSetPermission(inputParam.get, RuntimeFractionOne[Post]()).get)
 
     //Loop statements:
-    val i: Variable[Post] = new Variable[Post](TInt[Post]())(o.addPrefName("i"))
+    val i: Variable[Post] = new Variable[Post](TInt[Post]())(o.where(name = "i"))
     val newDataObject: MethodInvocation[Post] = mbh.pmbh.miCreate(
       CreateObjectArray[Post](Seq(inputParam.get, i.get))).get
 
@@ -296,7 +296,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
    */
   def createInitiatePermission(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
-    val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("input"))
+    val inputParam: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.where(name = "input"))
     val miInitiate = Eval[Post](mbh.miInitiatePermission(inputParam.get, const(0)).get)
     val body = Scope[Post](Nil, Block[Post](Seq(miInitiate)))
     classDeclarations.declare(mbh.createMethod(TVoid(), Seq(inputParam), Some(body), "initiatePermission"))
@@ -311,7 +311,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
 
   def createHasPredicateCheck(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
-    val inputParam: Variable[Post] = new Variable[Post](TArray(TAnyClass[Post]()))(o.addPrefName("input"))
+    val inputParam: Variable[Post] = new Variable[Post](TArray(TAnyClass[Post]()))(o.where(name = "input"))
     val newAssert: RuntimeAssert[Post] = RuntimeAssert[Post](
       CopyOnWriteArrayListContains[Post](mbh.ledgerPredicateStore.get(mbh.threadId), mbh.pmbh.miCreate(inputParam.get).get), "Thread does not own the predicate")(null)
     val newBlock: Block[Post] = Block[Post](Seq(newAssert))
@@ -327,7 +327,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
  */
   def createFoldPredicate(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
-    val inputParam: Variable[Post] = new Variable[Post](TArray(TAnyClass[Post]()))(o.addPrefName("input"))
+    val inputParam: Variable[Post] = new Variable[Post](TArray(TAnyClass[Post]()))(o.where(name = "input"))
     val chm: Eval[Post] = Eval[Post](mbh.miCreateHashMaps.get)
     val addPred = Eval[Post](CopyOnWriteArrayListAdd[Post](
       mbh.ledgerPredicateStore.get(mbh.threadId),
@@ -347,7 +347,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
  */
   def createUnfoldPredicate(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
-    val inputParam: Variable[Post] = new Variable[Post](TArray(TAnyClass[Post]()))(o.addPrefName("input"))
+    val inputParam: Variable[Post] = new Variable[Post](TArray(TAnyClass[Post]()))(o.where(name = "input"))
     val chm: Eval[Post] = Eval[Post](mbh.miCreateHashMaps.get)
     val checkCall: Eval[Post] = Eval[Post](mbh.miHasPredicateCheck(inputParam.get).get)
     val removePred = Eval[Post](CopyOnWriteArrayListRemove[Post](
@@ -363,7 +363,7 @@ case class CreateLedger[Pre <: Generation]() extends Rewriter[Pre] {
   def createCheckForInjectivity(mbh: LedgerMethodBuilderHelper[Post]): Unit = {
     implicit val o: Origin = DiagnosticOrigin
     val map: Variable[Post] = mbh.createNewInjectivityMap
-    val key: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.addPrefName("key"))
+    val key: Variable[Post] = new Variable[Post](TAnyClass[Post]())(o.where(name = "key"))
     val valueLeft: Expr[Post] = mbh.injectivityMap.get(map.get, key.get)
     val valueRight: Expr[Post] = mbh.miGetPermission(key.get).get
     val assertCheck: RuntimeAssert[Post] = RuntimeAssert[Post](

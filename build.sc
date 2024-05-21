@@ -1,393 +1,20 @@
+import $meta._
 import $ivy.`com.lihaoyi::mill-contrib-buildinfo:`
-import $ivy.`com.lihaoyi::mill-contrib-scalapblib:`
-
-import os._
-import mill._
-import scalalib.{JavaModule => BaseJavaModule, ScalaModule => BaseScalaModule, _}
-import contrib.scalapblib.{ScalaPBModule => BaseScalaPBModule, _}
-import contrib.buildinfo.BuildInfo
-import mill.util.Jvm
-
-object settings {
-  val root = implicitly[define.Ctx].millSourcePath
-  val src = root / "src"
-  val test = root / "test"
-  val res = root / "res"
-  val lib = root / "lib"
-  val docs = root / "docs"
-
-  object deps {
-    val log = Agg(
-      ivy"com.typesafe.scala-logging::scala-logging:3.9.5",
-      ivy"ch.qos.logback:logback-classic:1.4.5",
-    )
-
-    val common = log ++ Agg(
-      ivy"org.scala-lang.modules::scala-parallel-collections:1.0.4",
-      ivy"io.spray::spray-json:1.3.6"
-    )
-  }
-}
-
-object util {
-  trait JavaModule extends BaseJavaModule {
-    // https://github.com/viperproject/silicon/issues/748
-    // 32MB is enough stack space for silicon, a 100% marco guarantee
-    override def forkArgs = Seq("-Xmx2G", "-Xss32m")
-
-    def classPathFileElements = T { runClasspath().map(_.path.toString) }
-
-    def unixClassPathArgumentFile = T {
-      val cpString = classPathFileElements().mkString(":")
-      val cpArg = "-cp " + cpString
-      os.write(T.dest / "classpath", cpArg)
-      T.dest / "classpath"
-    }
-
-    def strictOptionsFile = T.source {
-      settings.root / ".compile-strict"
-    }
-
-    def strictOptions: T[Boolean] = T {
-      os.exists(strictOptionsFile().path)
-    }
-
-    override def javacOptions = T {
-      val shared = Seq(
-        "--release", "17",
-        "-deprecation",
-      )
-
-      if(strictOptions()) {
-        Seq(
-          "-Werror",
-        ) ++ shared
-      } else {
-        Seq (
-          // nothing here yet
-        ) ++ shared
-      }
-    }
-
-    def windowsClassPathArgumentFile = T {
-      val cpString = classPathFileElements().mkString(";")
-      val cpArg = "-cp " + cpString
-      os.write(T.dest / "classpath", cpArg)
-      T.dest / "classpath"
-    }
-
-    def runScriptClasses = T {
-      Map(
-        "run" -> finalMainClass(),
-      )
-    }
-
-    def runScript = T {
-      // PB: this is nearly just Jvm.createLauncher, but you cannot set the filename, and uses a literal classpath instead of a file.
-      for((name, mainClass) <- runScriptClasses()) {
-        // thanks https://gist.github.com/lhns/ee821a5cd1b2031856b21a0e78e1ecc9
-        val header = "@ 2>/dev/null # 2>nul & echo off & goto BOF"
-        val unix = Seq(
-          ":",
-          s"java ${forkArgs().mkString(" ")} @${unixClassPathArgumentFile()} $mainClass \"$$@\"",
-          "exit",
-        )
-        val batch = Seq(
-          ":BOF",
-          s"java ${forkArgs().mkString(" ")} @${windowsClassPathArgumentFile()} $mainClass %*",
-          "exit /B %errorlevel%",
-        )
-        val script = header + "\r\n" + unix.mkString("\n") + "\n\r\n" + batch.mkString("\r\n") + "\r\n"
-        val isWin = scala.util.Properties.isWin
-        val wantBatch = isWin && !org.jline.utils.OSUtils.IS_CYGWIN && !org.jline.utils.OSUtils.IS_MSYSTEM
-        val fileName = if(wantBatch) name + ".bat" else name
-        os.write(T.dest / fileName, script)
-        if(!isWin) os.perms.set(T.dest / name, os.PermSet.fromString("rwxrwxr-x"))
-      }
-      T.dest
-    }
-  }
-
-  trait ScalaModule extends BaseScalaModule with JavaModule {
-    def scalaVersion = "2.13.5"
-
-    override def scalacOptions = T {
-      val shared = Seq(
-        "-deprecation",
-        "-feature",
-      )
-
-      if (strictOptions()) {
-        Seq(
-          "-Ypatmat-exhaust-depth", "off",
-          "-Werror",
-        ) ++ shared
-      } else {
-        Seq(
-          "-Ypatmat-exhaust-depth", "40",
-        ) ++ shared
-      }
-    }
-  }
-
-  trait ScalaPBModule extends BaseScalaPBModule with ScalaModule {
-    def scalaPBVersion = "0.11.11"
-
-    override def scalaPBClasspath: T[mill.api.Loose.Agg[PathRef]] = T {
-      mill.scalalib.Lib.resolveDependencies(
-        Seq(
-          coursier.LocalRepositories.ivy2Local,
-          coursier.MavenRepository("https://repo1.maven.org/maven2")
-        ),
-        Seq(ivy"com.thesamet.scalapb::scalapbc:${scalaPBVersion()}")
-          .map(Lib.depToBoundDep(_, "2.13.1"))
-      ).map(_.map(_.withRevalidateOnce))
-    }
-  }
-
-  trait SeparatePackedResourcesModule extends JavaModule {
-    def bareResourcePaths: T[Seq[Path]] = T { Seq.empty[Path] }
-    def bareResources = T.sources { bareResourcePaths().map(PathRef(_, quick = true)) }
-
-    def packedResources: T[Seq[PathRef]]
-
-    override final def resources = T.sources {
-      bareResources() ++ packedResources()
-    }
-
-    private def nilTask: T[Seq[Path]] = T { Seq.empty[Path] }
-
-    def transitiveBareResourcePaths = T {
-      T.traverse(
-        (moduleDeps ++ compileModuleDeps).flatMap(_.transitiveModuleDeps).distinct
-      ) {
-        case module: SeparatePackedResourcesModule => module.bareResourcePaths
-        case other => nilTask
-      }().flatten
-    }
-
-    def bareClasspath = T {
-      bareResourcePaths() ++ transitiveBareResourcePaths()
-    }
-
-    def localPackedClasspath = T {
-      localCompileClasspath().toSeq ++ packedResources() ++ Agg(compile().classes)
-    }
-
-    def transitiveLocalPackedClasspath = T {
-      (T.traverse(
-        (moduleDeps ++ compileModuleDeps).flatMap(_.transitiveModuleDeps).distinct
-      ) {
-        case module: SeparatePackedResourcesModule => module.localPackedClasspath
-        case m => m.localClasspath
-      })().flatten
-    }
-
-    override def upstreamAssembly = T {
-      Assembly.createAssembly(
-        (transitiveLocalPackedClasspath() ++
-          unmanagedClasspath() ++
-          resolvedRunIvyDeps()
-        ).map(_.path),
-        manifest(),
-        assemblyRules = assemblyRules
-      )
-    }
-
-    override def assembly = T {
-      Assembly.createAssembly(
-        Agg.from(localPackedClasspath().map(_.path)),
-        manifest(),
-        prependShellScript(),
-        Some(upstreamAssembly().path),
-        assemblyRules
-      )
-    }
-  }
-
-  trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
-    def name: T[String] = T { this.getClass.getSimpleName.replace("$", "").capitalize }
-    def executableName: T[String] = T { name().toLowerCase }
-    def version: T[String] = T { "0.1-SNAPSHOT" }
-    def maintainer: T[String] = T { "Pieter Bos <p.h.bos@utwente.nl>" }
-    def summary: T[String] = T { s"${name()} test build" }
-    def description: T[String] = T { s"${name()} test build" }
-    def homepage: T[Option[String]] = T { None }
-
-    def debianPackageName: T[String] = T { name().toLowerCase }
-    def debianSection: T[String] = T { "java" }
-    def debianArchitecture: T[String] = T { "all" }
-
-    def winExecutableName: T[String] = T { executableName() + ".bat" }
-
-    private def copy(from: Path, to: Path): Path = {
-      os.copy(from, to, followLinks = true, replaceExisting = false, createFolders = true, mergeFolders = true)
-      to
-    }
-
-    def release() = T.command {
-      Map(
-        "unix" -> unixTar().path,
-        "macos" -> macosTar().path,
-        "win" -> winZip().path,
-        "deb" -> deb().path,
-      )
-    }
-
-    def unixTar = T {
-      val dest = T.dest / "dest"
-
-      val jar = copy(assembly().path, dest / s"${executableName()}.jar")
-      val res = bareClasspath().map(res => copy(res, dest / res.last))
-
-      os.walk(dest / "deps" / "win", preOrder = false).foreach(os.remove)
-      os.walk(dest / "deps" / "darwin", preOrder = false).foreach(os.remove)
-
-      os.write(dest / ".classpath", "-cp " + (jar +: res).map(_.relativeTo(dest)).map(_.toString).mkString(":"))
-
-      os.write(dest / executableName(),
-        s"""#!/bin/sh
-           |HERE=$$(dirname $$(readlink -f $$0))
-           |(cd $$HERE; java ${forkArgs().mkString(" ")} @${os.rel / ".classpath"} ${finalMainClass()} "$$@")
-           |""".stripMargin)
-      os.perms.set(dest / executableName(), os.PermSet.fromString("rwxrwxr-x"))
-
-      val out = T.dest / s"${executableName()}-${version()}-unix.tar.xz"
-      os.proc("tar", "-cJf", out, os.list(dest).map(_.relativeTo(dest))).call(cwd=dest)
-      PathRef(out)
-    }
-
-    def macosTar = T {
-      val dest = T.dest / "dest"
-
-      val jar = copy(assembly().path, dest / s"${executableName()}.jar")
-      val res = bareClasspath().map(res => copy(res, dest / res.last))
-
-      os.walk(dest / "deps" / "unix", preOrder = false).foreach(os.remove)
-      os.walk(dest / "deps" / "win", preOrder = false).foreach(os.remove)
-
-      os.write(dest / ".classpath", "-cp " + (jar +: res).map(_.relativeTo(dest)).map(_.toString).mkString(":"))
-
-      os.write(dest / executableName(),
-        s"""#!/bin/sh
-           |HERE=$$(dirname $$(readlink -f $$0))
-           |(cd $$HERE; java ${forkArgs().mkString(" ")} @${os.rel / ".classpath"} ${finalMainClass()} "$$@")
-           |""".stripMargin)
-      os.perms.set(dest / executableName(), os.PermSet.fromString("rwxrwxr-x"))
-
-      val out = T.dest / s"${executableName()}-${version()}-macos.tar.xz"
-      os.proc("tar", "-cJf", out, os.list(dest).map(_.relativeTo(dest))).call(cwd = dest)
-      PathRef(out)
-    }
-
-    def winZip = T {
-      val dest = T.dest / "dest"
-
-      val jar = copy(assembly().path, dest / s"${executableName()}.jar")
-      val res = bareClasspath().map(res => copy(res, dest / res.last))
-
-      os.walk(dest / "deps" / "unix", preOrder = false).foreach(os.remove)
-      os.walk(dest / "deps" / "darwin", preOrder = false).foreach(os.remove)
-
-      os.write(dest / ".classpath", "-cp " + (jar +: res).map(_.relativeTo(dest)).map(_.toString).mkString(":"))
-
-      os.write(dest / winExecutableName(),
-        s"""@echo off
-           |cd /D "%~dp0"
-           |java ${forkArgs().mkString(" ")} @${(os.rel / ".classpath").toString} ${finalMainClass()} %*
-           |""".stripMargin)
-
-      val out = T.dest / s"${executableName()}-${version()}-win.zip"
-      os.proc("zip", out, "-r", os.list(dest).map(_.relativeTo(dest))).call(cwd = dest)
-      PathRef(out)
-    }
-
-    def deb = T {
-      val outName = s"${debianPackageName()}-debian-${version()}"
-      val root = T.dest / outName
-      os.makeDir(root)
-      val dest = root / "usr" / "share" / debianPackageName()
-      val fromDebRoot = (p: Path) => os.root / p.relativeTo(root)
-
-      val jar = copy(assembly().path, dest / s"${executableName()}.jar")
-      val res = bareClasspath().map(res => copy(res, dest / res.last))
-
-      os.walk(dest / "deps" / "win", preOrder = false).foreach(os.remove)
-      os.walk(dest / "deps" / "darwin", preOrder = false).foreach(os.remove)
-
-      os.write(dest / ".classpath", "-cp " + (jar +: res).map(fromDebRoot).map(_.toString).mkString(":"))
-
-      os.write(dest / executableName(),
-        s"""#!/bin/sh
-           |java ${forkArgs().mkString(" ")} @${fromDebRoot(dest / ".classpath")} ${finalMainClass()} "$$@"
-           |""".stripMargin)
-      os.perms.set(dest / executableName(), os.PermSet.fromString("rwxrwxr-x"))
-
-      os.makeDir(root / "usr" / "bin")
-      os.symlink(root / "usr" / "bin" / executableName(), fromDebRoot(dest / executableName()))
-
-      os.makeDir(root / "DEBIAN")
-      os.write(root / "DEBIAN" / "control",
-        s"""Package: ${debianPackageName()}
-           |Version: ${version()}
-           |Section: ${debianSection()}
-           |Architecture: ${debianArchitecture()}
-           |Maintainer: ${maintainer()}${homepage().map(homepage => s"\nHomepage: $homepage").getOrElse("")}
-           |Description: ${summary()}
-           |${description().split('\n').mkString(" ", "\n ", "")}
-           |""".stripMargin)
-
-      os.proc("dpkg-deb", "--root-owner-group", "-Zxz", "--build", root.relativeTo(T.dest)).call(cwd = T.dest)
-      PathRef(T.dest / s"$outName.deb")
-    }
-  }
-
-  trait VercorsJavaModule extends JavaModule with ReleaseModule { outer =>
-    def key: String
-    def deps: T[Agg[Dep]]
-    def sourcesDir = T { settings.src / key }
-    override def sources = T.sources { sourcesDir() }
-    def packedResources = T.sources { settings.res / key }
-    override def docResources = T.sources { settings.docs / key }
-    override def unmanagedClasspath = T {
-      if(os.exists(settings.lib / key))
-        Agg.from(os.list(settings.lib / key).filter(_.ext == "jar").map(PathRef(_)))
-      else Agg.empty
-    }
-    override def ivyDeps = settings.deps.common ++ deps()
-
-    override def classPathFileElements = T { runClasspath().map(_.path.toString) }
-  }
-
-  trait VercorsModule extends ScalaModule with VercorsJavaModule { outer =>
-    trait Tests extends ScalaTests with TestModule.ScalaTest with VercorsJavaModule {
-      def key = outer.key
-      override def sourcesDir = T { settings.test / key }
-      override def sources = T.sources { sourcesDir() }
-      def deps = T { Agg.empty }
-      override def ivyDeps = settings.deps.common ++ Agg(ivy"org.scalatest::scalatest:3.2.7") ++ outer.deps() ++ deps()
-    }
-  }
-
-  trait GitModule extends Module {
-    def url: T[String]
-
-    def commitish: T[String]
-
-    def repo = T {
-      os.proc("git", "init", "-q").call(cwd = T.dest)
-      os.proc("git", "remote", "add", "origin", url()).call(cwd = T.dest)
-      os.proc("git", "fetch", "--depth", "1", "origin", commitish()).call(cwd = T.dest)
-      os.proc("git", "config", "advice.detachedHead", "false").call(cwd = T.dest)
-      os.proc("git", "checkout", "FETCH_HEAD").call(cwd = T.dest)
-      os.walk(T.dest).foreach(_.toIO.setWritable(true))
-      os.remove.all(T.dest / ".git")
-      T.dest
-    }
-  }
-}
 
 import util._
+import os._
+import mill.{util => _, _}
+import scalalib.{JavaModule => _, ScalaModule => _, _}
+import contrib.buildinfo.BuildInfo
+import me.pieterbos.mill.cpp.options.implicits._
+import me.pieterbos.mill.cpp.options.{CppCompileOptions, CppExecutableOptions}
+import me.pieterbos.mill.cpp.{CMakeModule, LinkableModule}
+import me.pieterbos.mill.cpp.toolchain.GccCompatible
+import mill.util.Jvm
+import vct.col.ast.structure
+import vct.col.ast.structure.{AllFamilies, FamilyDefinition, Name, NodeDefinition}
+
+import scala.util.control.NonFatal
 
 object external extends Module {
   object z3 extends Module {
@@ -414,7 +41,7 @@ object external extends Module {
 object viper extends ScalaModule {
   object silverGit extends GitModule {
     def url = T { "https://github.com/viperproject/silver.git" }
-    def commitish = T { "ae4a12399cd0b42bedabf01be2cda93700244bd6" }
+    def commitish = T { "31c94df4f9792046618d9b4db52444ffe9c7c988" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -424,7 +51,7 @@ object viper extends ScalaModule {
 
   object siliconGit extends GitModule {
     def url = T { "https://github.com/viperproject/silicon.git" }
-    def commitish = T { "a60324dd46923b861bae7b4a40f807227d693fc3" }
+    def commitish = T { "529d2a49108b954d2b0749356faf985d622f54f0" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -434,7 +61,7 @@ object viper extends ScalaModule {
 
   object carbonGit extends GitModule {
     def url = T { "https://github.com/viperproject/carbon.git" }
-    def commitish = T { "ba130077713a427213a331a3dc1d92898b4bdf9e" }
+    def commitish = T { "d7ac8b000e1123a72cbdda0c7679ab88ca8a52d4" }
   }
 
   object silver extends ScalaModule {
@@ -442,6 +69,7 @@ object viper extends ScalaModule {
     override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
     def repo = silverGit
     override def sources = T.sources { repo.filteredRepo() / "src" / "main" / "scala" }
+    override def resources = T.sources { repo.filteredRepo() / "src" / "main" / "resources" }
     override def ivyDeps = settings.deps.log ++ Agg(
       ivy"org.scala-lang:scala-reflect:2.13.10",
       ivy"org.scalatest::scalatest:3.1.2",
@@ -461,7 +89,7 @@ object viper extends ScalaModule {
         Seq(
           BuildInfo.Value("projectName", "silicon"),
           BuildInfo.Value("projectVersion", "1.1-SNAPSHOT"),
-          BuildInfo.Value("scalaVersion", scalaVersion()),
+          BuildInfo.Value("scalaVersion", silicon.scalaVersion()),
           BuildInfo.Value("sbtVersion", "-"),
           BuildInfo.Value("gitRevision", silicon.repo.commitish()),
           BuildInfo.Value("gitBranch", "(detached)"),
@@ -505,35 +133,11 @@ object viper extends ScalaModule {
 }
 
 object vercors extends Module {
-  object meta extends VercorsModule {
-    def key = "colhelper"
-    def deps = Agg(
-      ivy"org.scalameta::scalameta:4.4.9",
-      ivy"com.google.protobuf:protobuf-java:3.19.6",
-    )
+  def read[T: upickle.default.ReadWriter](p: PathRef): T =
+    upickle.default.read[T](p.path.toNIO)
 
-    def nodeDefinitions = T.sources { settings.src / "col" / "vct" / "col" / "ast" / "Node.scala" }
-
-    def helperSources = T {
-      Jvm.runSubprocess(
-        mainClass = "ColHelper",
-        classPath = runClasspath().map(_.path),
-        mainArgs = Seq(
-          T.dest.toString,
-        ) ++ nodeDefinitions().map(_.path.toString),
-      )
-
-      T.dest
-    }
-
-    def helpers = T.sources { helperSources() / "java" }
-    def protobuf = T.sources { helperSources() / "protobuf" }
-  }
-
-  object proto extends ScalaPBModule {
-    override def scalaPBSources = meta.protobuf
-    override def scalaPBFlatPackage = true
-  }
+  def readAndWatch[T: upickle.default.ReadWriter](p: Path): T =
+    upickle.default.read[T](interp.watch(p).toNIO)
 
   object hre extends VercorsModule {
     def key = "hre"
@@ -551,12 +155,239 @@ object vercors extends Module {
   }
 
   object col extends VercorsModule {
+    object helpers extends Module {
+      import upickle.default.write
+
+      def analysis: Path = settings.meta / "analyseNodeDeclarations.dest"
+      def structureClasspathDir: Path = settings.meta / "structureClassPath.dest"
+
+      val familyCross = readAndWatch[Seq[Name]](analysis / "cross-family.json")
+      val nodeCross = readAndWatch[Seq[Name]](analysis / "cross-node.json")
+
+      def allFamiliesSource = T.source(analysis / "all-families.json")
+      def allFamilies = T { read[AllFamilies](allFamiliesSource()) }
+      def allDefinitionsSource = T.source(analysis / "all-definitions.json")
+      def allDefinitions = T { read[Seq[NodeDefinition]](allDefinitionsSource()) }
+
+      // Step 1: compile
+      object generators extends VercorsModule {
+        def key = "helpers"
+        def deps: T[Agg[Dep]] = T {
+          Agg(
+            ivy"org.scalameta::scalameta:4.8.15",
+          )
+        }
+        def structureClasspath = T.source(structureClasspathDir / "classpath.json")
+        def unmanagedClasspath = T { read[Seq[Path]](structureClasspath()).map(PathRef(_)) }
+      }
+
+      def instantiate[T](name: String): Task[T] = T.task {
+        mill.api.ClassLoader
+          .create(
+            generators.runClasspath().map(_.path.toIO.toURI.toURL),
+            parent = null,
+            sharedLoader = generators.getClass.getClassLoader,
+            sharedPrefixes = Seq("vct.col.ast.structure.api"),
+          )
+          .loadClass(s"vct.col.ast.helpers.generator.$name")
+          .asInstanceOf[Class[T]]
+          .getDeclaredConstructor()
+          .newInstance()
+      }
+
+      object implTraits extends Module {
+        val root = settings.src / "col" / "vct" / "col" / "ast"
+
+        def inputs = T.sources(os.walk(root).filter(_.last.endsWith("Impl.scala")).map(PathRef(_)))
+
+        private def nodeName(p: PathRef): String =
+          p.path.last.dropRight("Impl.scala".length)
+
+        def generator = T.worker(instantiate[structure.api.ImplTraitGeneratorApi]("ImplTrait"))
+
+        def allDefinitionsSet = T {
+          allDefinitions().map(_.name.base).toSet
+        }
+
+        def allFamiliesSet = T {
+          val allFamiliesVal = allFamilies()
+          (allFamiliesVal.declaredFamilies ++ allFamiliesVal.structuralFamilies)
+            .map(_.base).toSet
+        }
+
+        def fix = T {
+          val gen = generator()
+          val defnSet = allDefinitionsSet()
+          val familySet = allFamiliesSet()
+          inputs().foreach { input =>
+            val name = nodeName(input)
+            val opsNames =
+              (if(defnSet.contains(name)) Seq(name + "Ops") else Nil) ++
+                (if(familySet.contains(name)) Seq(name + "FamilyOps") else Nil)
+
+            try {
+              gen.fix(input.path.toNIO, write(opsNames))
+            } catch {
+              case NonFatal(_) => // ok, it's best effort.
+            }
+          }
+        }
+
+        def generate: T[Unit] = T {
+          val gen = generator()
+          val defnSet = allDefinitionsSet()
+          val familySet = allFamiliesSet()
+          val ungenerated = (defnSet ++ familySet) -- inputs().map(nodeName)
+          ungenerated.foreach { node =>
+            os.makeDir.all(root / "unsorted")
+            gen.generate(
+              p = (root / "unsorted" / (node + "Impl.scala")).toNIO,
+              node = node,
+              concrete = defnSet.contains(node),
+              family = familySet.contains(node),
+            )
+          }
+
+          if(ungenerated.nonEmpty)
+            T.log.error({
+              val items = ungenerated.map(name => s" - ${name}Impl").mkString("\n")
+              s"""
+                 |New {Node}Impl stubs have been generated for these nodes:
+                 |$items
+                 |Please make sure that the appropriate {Node} extends its corresponding {Node}Impl - you can do that before it exists.
+                 |If not, compilation will fail after this message.""".stripMargin
+            })
+
+          ()
+        }
+
+        def run = T {
+          fix()
+          generate()
+        }
+      }
+
+      def protoAuxTypes = T.worker {
+        Seq(
+          instantiate[structure.api.AllNodesGeneratorApi]("ProtoAuxTypes")(),
+          instantiate[structure.api.AllNodesGeneratorApi]("RewriteHelpers")(),
+          instantiate[structure.api.AllNodesGeneratorApi]("MegaCol")(),
+        )
+      }
+
+      def allFamiliesGenerators = T.worker {
+        Seq(
+          instantiate[structure.api.AllFamiliesGeneratorApi]("AbstractRewriter")(),
+          instantiate[structure.api.AllFamiliesGeneratorApi]("AllScopes")(),
+          instantiate[structure.api.AllFamiliesGeneratorApi]("AllFrozenScopes")(),
+          instantiate[structure.api.AllFamiliesGeneratorApi]("BaseCoercingRewriter")(),
+          instantiate[structure.api.AllFamiliesGeneratorApi]("BaseNonLatchingRewriter")(),
+          instantiate[structure.api.AllFamiliesGeneratorApi]("SuccessorsProvider")(),
+        )
+      }
+
+      def familyGenerators = T.worker {
+        Seq(
+          instantiate[structure.api.FamilyGeneratorApi]("DeserializeFamily")(),
+          instantiate[structure.api.FamilyGeneratorApi]("DeclareFamily")(),
+          instantiate[structure.api.FamilyGeneratorApi]("OpsFamily")(),
+
+          instantiate[structure.api.FamilyGeneratorApi]("ProtoFamily")(),
+        )
+      }
+
+      def nodeGenerators = T.worker {
+        Seq(
+          instantiate[structure.api.NodeGeneratorApi]("Compare")(),
+          instantiate[structure.api.NodeGeneratorApi]("Rewrite")(),
+          instantiate[structure.api.NodeGeneratorApi]("Serialize")(),
+          instantiate[structure.api.NodeGeneratorApi]("Subnodes")(),
+          instantiate[structure.api.NodeGeneratorApi]("Ops")(),
+
+          instantiate[structure.api.NodeGeneratorApi]("Deserialize")(),
+          instantiate[structure.api.NodeGeneratorApi]("ProtoNode")(),
+        )
+      }
+
+      object global extends Module {
+        def generate = T {
+          val allFamiliesVal = allFamilies()
+          val declarationFamilies = allFamiliesVal.declaredFamilies
+          val structuralFamilies = allFamiliesVal.structuralFamilies
+          val definitions = allDefinitions()
+          allFamiliesGenerators().foreach { gen =>
+            T.log.debug(s"Generating ${gen.getClass.getSimpleName}")
+            gen.generate(T.dest.toNIO, write(declarationFamilies), write(structuralFamilies))
+          }
+          protoAuxTypes().foreach(_.generate(T.dest.toNIO, write(definitions)))
+          PathRef(T.dest, quick = true)
+        }
+      }
+
+      implicit object NameSegments extends Cross.ToSegments[structure.Name](v => v.parts.toList)
+      implicit object FamilySegments extends Cross.ToSegments[(structure.Name, structure.NodeKind, Seq[structure.Name])](v => implicitly[Cross.ToSegments[structure.Name]].convert(v._1))
+
+      object family extends Cross[FamilyCross](familyCross)
+      trait FamilyCross extends Cross.Module[Name] {
+        def source = T.source(PathRef(analysis / "cross-family" / crossValue.path / "family.json", quick = true))
+        def sourceDefn = T { read[FamilyDefinition](source()) }
+        def generate = T {
+          val defn = sourceDefn()
+          familyGenerators().foreach { gen =>
+            T.log.debug(s"Generating ${gen.getClass.getSimpleName} for ${defn.name.base}")
+            gen.generate(T.dest.toNIO, write(defn.name), write(defn.kind), write(defn.nodes))
+          }
+          PathRef(T.dest, quick = true)
+        }
+      }
+
+      object node extends Cross[NodeCross](nodeCross)
+      trait NodeCross extends Cross.Module[Name] {
+        def source = T.source(PathRef(analysis / "cross-node" / crossValue.path / "node.json", quick = true))
+        def sourceDefn = T { read[NodeDefinition](source()) }
+        def generate = T {
+          val defn = sourceDefn()
+          nodeGenerators().foreach { gen =>
+            T.log.debug(s"Generating ${gen.getClass.getSimpleName} for ${defn.name.base}")
+            gen.generate(T.dest.toNIO, write(defn))
+          }
+          PathRef(T.dest, quick = true)
+        }
+      }
+
+      def generatedSources: T[Seq[PathRef]] = T {
+        T.traverse(nodeCross)(node(_).generate)() ++
+          T.traverse(familyCross)(family(_).generate)() :+
+          global.generate()
+      }
+
+      def megacol: T[PathRef] = T.source(global.generate().path / "vct" / "col" / "ast" / "col.proto")
+
+      def sources: T[PathRef] = T.persistent {
+        util.quickCopy(T.dest, generatedSources())
+        os.remove(T.dest / "vct" / "col" / "ast" / "col.proto")
+        PathRef(T.dest, quick = true)
+      }
+    }
+
     def key = "col"
     def deps = T { Agg.empty }
-    override def generatedSources = T { meta.helpers() }
-    override def moduleDeps = Seq(hre, proto)
+    override def sources = T {
+      helpers.implTraits.run()
+      super.sources()
+    }
+    override def generatedSources = T { Seq(helpers.sources()) }
+    override def moduleDeps = Seq(hre, serialize)
 
     object test extends Tests
+  }
+
+  object serialize extends VercorsModule with ScalaPBModule {
+    override def scalaPBSources = T {
+      col.helpers.sources() +: this.sources()
+    }
+    override def key: String = "serialize"
+    override def deps: T[Agg[Dep]] = T { Agg.empty }
   }
 
   object parsers extends VercorsModule {
@@ -571,9 +402,29 @@ object vercors extends Module {
       )
     }
     def deps = Agg(
-      ivy"org.antlr:antlr4-runtime:4.8"
+      ivy"org.antlr:antlr4-runtime:4.8",
+      ivy"org.apache.logging.log4j:log4j-to-slf4j:2.23.1",
     )
-    override def moduleDeps = Seq(hre, col)
+    override def moduleDeps = Seq(hre, col, serialize)
+
+    val includeVcllvmCross = interp.watchValue { 
+      if(os.exists(settings.root / ".include-vcllvm")) {
+        Seq("vcllvm")
+      } else {
+        Seq.empty[String]
+      }
+    }
+    
+    object vcllvmDep extends Cross[VcllvmDep](includeVcllvmCross)
+    trait VcllvmDep extends Cross.Module[String] {
+      def path = T {
+        vcllvm.compile().path / os.up
+      }
+    }
+
+    override def bareResourcePaths = T {
+      T.traverse(includeVcllvmCross.map(vcllvmDep(_)))(_.path)()
+    }
 
     trait GenModule extends Module {
       def base = T { settings.src / "parsers" / "antlr4" }
@@ -684,6 +535,30 @@ object vercors extends Module {
 
   object main extends VercorsModule {
     def key = "main"
+    def name = "VerCors"
+    def dockerName = DockerImageName.Public("utwentefmt", "vercors")
+    def maintainer = "Pieter Bos <p.h.bos@utwente.nl>"
+    def homepage = Some("https://utwente.nl/vercors")
+    def executableName = "vercors"
+    def version = T { buildInfo.gitVersion() }
+    def dockerVersion = T { Some(buildInfo.gitDockerVersion()) }
+    def summary = "A deductive verifier for concurrent and parallel software."
+    def dockerAptDependencies = Seq("clang", "libllvm15")
+    def description =
+      """The VerCors verifier is a tool for deductive verification of concurrent
+        |and parallel software. VerCors can reason about programs written in
+        |different programming languages, such as Java, C and OpenCL, where
+        |the specifications are written in terms of pre-post-condition
+        |contracts using permission-based separation logic.""".stripMargin
+
+    def githubReleaseOutputs() = T.command {
+      System.out.println(s"TAG_NAME=${buildInfo.gitVersionTag().get}")
+      val releaseName = if(buildInfo.gitIsPrerelease()) "VerCors Nightly" else s"${name()} ${version()}"
+      System.out.println(s"RELEASE_NAME=$releaseName")
+      System.out.println(s"BODY=${if(buildInfo.gitIsPrerelease()) "Nightly Build" else "..."}")
+      System.out.println(s"PRERELEASE=${if(buildInfo.gitIsPrerelease()) "true" else "false"}")
+    }
+
     def deps = Agg(
       ivy"com.github.scopt::scopt:4.0.1",
     )
@@ -706,27 +581,264 @@ object vercors extends Module {
     object test extends Tests
 
     object buildInfo extends BuildInfo with ScalaModule {
-      def gitBranch() = T.command { os.proc("git", "rev-parse", "--abbrev", "HEAD").call().out.text() }
-      def gitCommit() = T.command { os.proc("git", "rev-parse", "HEAD").call().out.text() }
-      def gitShortCommit() = T.command { os.proc("git", "rev-parse", "--short=8", "HEAD").call().out.text() }
-      def gitHasChanges() = T.command { os.proc("git", "diff-index", "--name-only", "HEAD").call().out.text().nonEmpty }
+      def callOrElse(command: Shellable*)(alt: => String): String =
+        try {
+          os.proc(command: _*).call().out.text().trim
+        } catch {
+          case _: SubprocessException => alt
+        }
+
+      def gitBranch = T.input { callOrElse("git", "rev-parse", "--abbrev-ref=strict", "HEAD")("unknown") }
+      def gitCommit = T.input { callOrElse("git", "rev-parse", "HEAD")("unknown") }
+      def gitShortCommit = T.input { callOrElse("git", "rev-parse", "--short=8", "HEAD")("unknown") }
+      def gitHasChanges = T.input { callOrElse("git", "diff-index", "--name-only", "HEAD")("dummyChanges").nonEmpty }
+
+      def gitVersionTag = T.input {
+        val tags = callOrElse("git", "tag", "--points-at", "HEAD")("").split("\n")
+        tags.collectFirst {
+          case tag if tag.matches("^v[0-9].*") => tag
+          case "dev-prerelease" => "dev-prerelease"
+        }
+      }
+
+      def gitIsPrerelease = T.input { gitVersionTag().contains("dev-prerelease") }
+
+      def gitVersion = T.input {
+        gitVersionTag() match {
+          case Some(tag) if tag.startsWith("v") => tag.substring(1)
+          case _ => "9999.9.9-SNAPSHOT"
+        }
+      }
+
+      def gitDockerVersion: T[String] = T.input {
+        gitVersionTag() match {
+          case Some(tag) if tag.startsWith("v") => tag.substring(1)
+          case _ => "latest"
+        }
+      }
 
       def buildInfoPackageName = "vct.main"
       override def buildInfoMembers = T {
         Seq(
           BuildInfo.Value("name", "VerCors"),
-          BuildInfo.Value("version", "2.0.0"),
-          BuildInfo.Value("scalaVersion", scalaVersion()),
+          BuildInfo.Value("version", gitVersion()),
+          BuildInfo.Value("scalaVersion", main.scalaVersion()),
           BuildInfo.Value("sbtVersion", "-"),
-          BuildInfo.Value("currentBranch", gitBranch()()),
-          BuildInfo.Value("currentCommit", gitCommit()()),
-          BuildInfo.Value("currentShortCommit", gitShortCommit()()),
-          BuildInfo.Value("gitHasChanges", gitHasChanges()().toString),
+          BuildInfo.Value("currentBranch", gitBranch()),
+          BuildInfo.Value("currentCommit", gitCommit()),
+          BuildInfo.Value("currentShortCommit", gitShortCommit()),
+          BuildInfo.Value("gitHasChanges", gitHasChanges().toString),
           BuildInfo.Value("silverCommit", viper.silver.repo.commitish()),
           BuildInfo.Value("siliconCommit", viper.silicon.repo.commitish()),
           BuildInfo.Value("carbonCommit", viper.carbon.repo.commitish()),
         )
       }
+    }
+  }
+
+  object vcllvm extends CppExecutableModule {
+    outer =>
+    def root: T[os.Path] = T {
+      settings.src / "llvm"
+    }
+
+    object llvm extends LinkableModule {
+      def moduleDeps = Nil
+
+      def systemLibraryDeps = T {
+        Seq("LLVM-15")
+      }
+
+      def staticObjects = T {
+        Seq.empty[PathRef]
+      }
+
+      def dynamicObjects = T {
+        Seq.empty[PathRef]
+      }
+
+      def exportIncludePaths = T.sources(
+        os.Path("/usr/include/llvm-15"),
+        os.Path("/usr/include/llvm-c-15"),
+        os.Path("/usr/local/opt/llvm/include")
+      )
+    }
+
+    object json extends LinkableModule {
+      def moduleDeps = Nil
+
+      def systemLibraryDeps = T {
+        Seq.empty[String]
+      }
+
+      def staticObjects = T {
+        Seq.empty[PathRef]
+      }
+
+      def dynamicObjects = T {
+        Seq.empty[PathRef]
+      }
+
+      def exportIncludePaths = T {
+        os.write(T.dest / "json.tar.xz", requests.get.stream("https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz"))
+        os.proc("tar", "-xf", T.dest / "json.tar.xz").call(cwd = T.dest)
+        Seq(PathRef(T.dest / "json" / "include"))
+      }
+    }
+
+    object origin extends CppModule {
+      def moduleDeps = Seq(llvm, json, proto, protobuf.libprotobuf)
+
+      def sources = T.sources(vcllvm.root() / "lib" / "origin")
+
+      def includePaths = T.sources(vcllvm.root() / "include")
+
+      override def unixToolchain = GccCompatible("g++", "ar")
+
+    }
+
+    object passes extends CppModule {
+      def moduleDeps = Seq(llvm, proto, protobuf.libprotobuf)
+
+      def sources = T.sources(vcllvm.root() / "lib" / "passes")
+
+      def includePaths = T.sources(vcllvm.root() / "include")
+
+      override def unixToolchain = GccCompatible("g++", "ar")
+
+    }
+
+    object transform extends CppModule {
+      def moduleDeps = Seq(llvm, proto, protobuf.libprotobuf)
+
+      def sources = T.sources(vcllvm.root() / "lib" / "transform")
+
+      def includePaths = T.sources(vcllvm.root() / "include")
+
+      override def unixToolchain = GccCompatible("g++", "ar")
+
+    }
+
+    object util extends CppModule {
+      def moduleDeps = Seq(llvm, proto, protobuf.libprotobuf)
+
+      def sources = T.sources(vcllvm.root() / "lib" / "util")
+
+      def includePaths = T.sources(vcllvm.root() / "include")
+
+      override def unixToolchain = GccCompatible("g++", "ar")
+
+    }
+
+    override def unixToolchain = GccCompatible("g++", "ar")
+
+    def moduleDeps = Seq(origin, passes, transform, util, llvm, proto, protobuf.libprotobuf)
+
+    def sources = T.sources(vcllvm.root() / "tools" / "vcllvm")
+
+    def includePaths = T.sources(vcllvm.root() / "include")
+
+    object protobuf extends CMakeModule {
+      object protobufGit extends GitModule {
+        override def url: T[String] = "https://github.com/protocolbuffers/protobuf"
+
+        override def commitish: T[String] = "v25.2"
+
+        override def fetchSubmodulesRecursively = true
+      }
+
+      override def root = T.source(protobufGit.repo())
+
+      override def jobs = T {
+        2
+      }
+
+      override def cMakeBuild: T[PathRef] = T {
+        os.proc("cmake", "-B", T.dest, "-Dprotobuf_BUILD_TESTS=OFF", "-DABSL_PROPAGATE_CXX_STD=ON", "-S", root().path).call(cwd = T.dest)
+        os.proc("make", "-j", jobs(), "all").call(cwd = T.dest)
+        PathRef(T.dest)
+      }
+
+      object libprotobuf extends CMakeLibrary {
+        def target = T {
+          "libprotobuf"
+        }
+      }
+
+      object protoc extends CMakeExecutable {
+        def target = T {
+          "protoc"
+        }
+      }
+    }
+
+    object proto extends CppModule {
+      def protoPath = T.sources(
+        vercors.col.helpers.megacol().path / os.up / os.up / os.up / os.up,
+        settings.src / "serialize",
+        serialize.scalaPBUnpackProto().path
+      )
+
+      def generate = T {
+        os.proc(protobuf.protoc.executable().path,
+          protoPath().map(p => "-I=" + p.path.toString),
+          "--cpp_out=" + T.dest.toString,
+          (Seq(vercors.col.helpers.megacol()) ++
+            os.walk(serialize.scalaPBUnpackProto().path).filter(path => !path.startsWith(serialize.scalaPBUnpackProto().path / "google") && path.ext == "proto").map(PathRef(_)) ++
+            os.walk(settings.src / "serialize").filter(_.ext == "proto").map(PathRef(_))).map(_.path)
+        ).call()
+        T.dest
+      }
+
+      override def moduleDeps = Seq(protobuf.libprotobuf)
+
+      override def sources = T {
+        Seq(PathRef(generate()))
+      }
+
+      override def includePaths = T {
+        Seq(PathRef(generate()))
+      }
+
+      def precompileHeaders: T[PathRef] = T {
+        def isHiddenFile(path: os.Path): Boolean = path.last.startsWith(".")
+
+        val headers = for {
+          root <- allSources()
+          if os.exists(root.path)
+          path <- if(os.isDir(root.path)) os.walk(root.path) else Seq(root.path)
+          if os.isFile(path)
+          if !isHiddenFile(path)
+          if Seq("h", "hpp").contains(path.ext.toLowerCase)
+        } yield (root.path, path.relativeTo(root.path))
+
+        val options = CppCompileOptions(
+          allIncludePaths().map(_.path),
+          defines(),
+          includes().map(_.path),
+          standard(),
+          optimization(),
+          compileOptions(),
+          compileEarlyOptions(),
+        )
+
+        for((base, header) <- headers) {
+          val compileOut = toolchain.compile(base / header, T.dest, options)
+          val outDir = T.dest / header / os.up
+          val out = outDir / (header.last + ".gch")
+          os.makeDir.all(outDir)
+          os.move(compileOut, out)
+          os.copy(base / header, T.dest / header)
+        }
+
+        PathRef(T.dest)
+      }
+
+      override def exportIncludePaths: T[Seq[PathRef]] = T {
+        Seq(precompileHeaders())
+      }
+
+      override def unixToolchain = GccCompatible("g++", "ar")
     }
   }
 

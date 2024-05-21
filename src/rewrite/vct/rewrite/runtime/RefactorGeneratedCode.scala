@@ -55,10 +55,8 @@ case class RefactorGeneratedCode[Pre <: Generation]() extends Rewriter[Pre] {
    */
   def dispatchGivenClass(c: Class[Pre]): GlobalDeclaration[Rewritten[Pre]] = {
     val rw = CreateConstructor[Pre](this, givenClassSucc)
-    val newClass = new RewriteClass[Pre, Post](c)(rw).rewrite(
-      declarations = createClassDeclarations(c, rw),
-    )
-    givenClassSucc.update(TClass(c.ref), newClass)
+    val newClass = c.rewrite(decls = createClassDeclarations(c, rw))(rw)
+    givenClassSucc.update(TClass(c.ref, Nil), newClass)
     newClass
   }
 
@@ -70,7 +68,7 @@ case class RefactorGeneratedCode[Pre <: Generation]() extends Rewriter[Pre] {
    */
   def createClassDeclarations(c: Class[Pre], rw: Rewriter[Pre]): Seq[ClassDeclaration[Rewritten[Pre]]] = {
     classDeclarations.collect {
-      (givenClassConstrSucc.get(TClass(c.ref)).get +: c.declarations).foreach(d => rw.dispatch(d))
+      (givenClassConstrSucc.get(TClass(c.ref, Nil)).get +: c.declarations).foreach(d => rw.dispatch(d))
     }._1
   }
 }

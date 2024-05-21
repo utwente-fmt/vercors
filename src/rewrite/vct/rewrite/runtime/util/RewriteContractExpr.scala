@@ -3,7 +3,7 @@ package vct.rewrite.runtime.util
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.RewriteDeref
 import vct.col.ast._
-import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.origin.{DiagnosticOrigin, Origin, PositionRange}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
@@ -92,8 +92,15 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
         super.dispatchQuantifier(e)
       }
       case _ => {
-        val linenum: Int = if (e.o.getStartEndLines.nonEmpty) e.o.getStartEndLines.get.startEndLineIdx._1 + 1 else -1
-        val lineDetails: String = if (e.o.getStartEndLines.nonEmpty) e.o.getReadable.get.readable.readLines()(linenum -1).replaceAll("\\\\", "").trim() else "unknown line"
+        val rangeContent = e.o.find[PositionRange]
+        val readableContent = e.o.getReadable
+
+        val linenum = rangeContent.map(_.startLineIdx).getOrElse(-1)
+        val lineDetails: String = (rangeContent, readableContent) match {
+          case Some(range) -> Some(readable) => readable.readable.readLines()(range.startLineIdx-1).replaceAll("\\\\", "").trim
+          case _ => "unknown line"
+        }
+
         RuntimeAssert[Post](super.dispatch(e), s"Assertion failed on line: ${linenum}\\n${lineDetails}")(null)
       }
     }
@@ -120,8 +127,15 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
       case _ => throw Unreachable(s"This type of permissions transfer is not yet supported: ${p}")
     }
 
-    val linenum: Int = if (p.o.getStartEndLines.nonEmpty) p.o.getStartEndLines.get.startEndLineIdx._1 + 1 else -1
-    val lineDetails: String = if (p.o.getStartEndLines.nonEmpty) p.o.getReadable.get.readable.readLines()(linenum -1).replaceAll("\\\\", "").trim() else "unknown line"
+    val rangeContent = p.o.find[PositionRange]
+    val readableContent = p.o.getReadable
+
+    val linenum = rangeContent.map(_.startLineIdx).getOrElse(-1)
+    val lineDetails: String = (rangeContent, readableContent) match {
+      case Some(range) -> Some(readable) => readable.readable.readLines()(range.startLineIdx-1).replaceAll("\\\\", "").trim
+      case _ => "unknown line"
+    }
+
     val getPermission = ledger.miGetPermission(dataObject).get
     val injectivityMapFunctionality: Statement[Post] = if(inQuantifier.top){
       val containsInMap = ledger.injectivityMap.containsKey(injectivityMap.get, dataObject)
@@ -158,7 +172,7 @@ case class RewriteContractExpr[Pre <: Generation](pd: PermissionData[Pre])(impli
    */
   private def dispatchInstancePredicateApply(ipa: InstancePredicateApply[Pre]): Block[Post] = {
     implicit val origin: Origin = ipa.o
-    val allArgs: Seq[Expr[Pre]] = ipa.args :+ ipa.obj :+ StringValue(ipa.ref.decl.o.getPreferredNameOrElse())
+    val allArgs: Seq[Expr[Pre]] = ipa.args :+ ipa.obj :+ StringValue(ipa.ref.decl.o.getPreferredNameOrElse().camel)
     val dispatchedArgs: Seq[Expr[Post]] = allArgs.map(dispatch)
     val newObject = CreateObjectArray[Post](dispatchedArgs)
     val mi: MethodInvocation[Post] = ledger.miHasPredicateCheck(newObject).get

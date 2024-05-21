@@ -36,7 +36,7 @@ case class CreateConstructor[Pre <: Generation](outer: Rewriter[Pre], val givenC
   def createClassConstructor(p: Procedure[Pre]): JavaConstructor[Post] = {
     implicit val origin: Origin = DiagnosticOrigin
     new JavaConstructor[Post](Seq(JavaPublic[Post]()),
-      rewritingConstr.top._2.cls.decl.o.getPreferredNameOrElse(),
+      rewritingConstr.top._2.cls.decl.o.getPreferredNameOrElse().ucamel,
       p.args.map(createJavaParam),
       variables.dispatch(p.typeArgs),
       Seq.empty,
@@ -57,7 +57,7 @@ case class CreateConstructor[Pre <: Generation](outer: Rewriter[Pre], val givenC
    * @return
    */
   def createJavaParam(v: Variable[Pre]): JavaParam[Post] =
-    new JavaParam[Post](Seq.empty, v.o.getPreferredNameOrElse(), dispatch(v.t))(v.o)
+    new JavaParam[Post](Seq.empty, v.o.getPreferredNameOrElse().camel, dispatch(v.t))(v.o)
 
   /**
    * Converts expressions to Java expressions
@@ -67,10 +67,10 @@ case class CreateConstructor[Pre <: Generation](outer: Rewriter[Pre], val givenC
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case l: Local[Pre] =>
       if (rewritingConstr.nonEmpty && rewritingConstr.top._1.contains(l.ref.decl))
-        JavaLocal[Post](l.ref.decl.o.getPreferredNameOrElse())(null)(e.o)
+        JavaLocal[Post](l.ref.decl.o.getPreferredNameOrElse().camel)(null)(e.o)
       else rewriteDefault(l)
     case t: ThisObject[Pre] =>
-      val thisClassType = TClass(t.cls)
+      val thisClassType = TClass(t.cls, Nil)
       if (rewritingConstr.nonEmpty && rewritingConstr.top._2 == thisClassType)
         ThisObject(givenClassSucc.ref[Post, Class[Post]](thisClassType))(t.o)
       else rewriteDefault(t)

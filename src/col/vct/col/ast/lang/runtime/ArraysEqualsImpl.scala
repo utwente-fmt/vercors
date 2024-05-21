@@ -2,8 +2,9 @@ package vct.col.ast.lang.runtime
 
 import vct.col.ast._
 import vct.col.print._
+import vct.col.ast.ops.ArraysEqualsOps
 
-trait ArraysEqualsImpl[G] {
+trait ArraysEqualsImpl[G] extends ArraysEqualsOps[G] {
   this: ArraysEquals[G] =>
   override def precedence: Int = Precedence.ATOMIC
 

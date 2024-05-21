@@ -30,8 +30,11 @@ case class Ctx(
       namer.finish.asInstanceOf[Map[Declaration[_], String]]
     })
 
-  def name(decl: Declaration[_]): String =
-    names.getOrElse(decl, s"${decl.o.getPreferredNameOrElse()}_${decl.hashCode()}")
+  def name(decl: Declaration[_]): String = {
+    val name = names.getOrElse(decl, s"${decl.o.getPreferredNameOrElse().ucamel}_${decl.hashCode()}")
+    if((inSpec || syntax == Ctx.PVL) && Keywords.SPEC.contains(name)) "`" + name + "`"
+    else name
+  }
 
   def name(ref: Ref[_, _ <: Declaration[_]]): String =
     name(Try(ref.decl).getOrElse(return "?brokenref?"))

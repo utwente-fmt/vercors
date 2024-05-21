@@ -12,6 +12,7 @@ case class NodeInfo[T <: Node[_]](node: T) extends Info {
   var starall: Option[Starall[_]] = None
   var unfolding: Option[Unfolding[_]] = None
   var mapGet: Option[MapGet[_]] = None
+  var dividingExpr: Option[DividingExpr[_]] = None
 
   override def comment: Seq[String] = Nil
   override def isCached: Boolean = false

@@ -2,8 +2,9 @@ package vct.col.ast.lang.runtime
 
 import vct.col.ast._
 import vct.col.print._
+import vct.col.ast.ops.RuntimeFractionOneOps
 
-trait RuntimeFractionOneImpl[G] {
+trait RuntimeFractionOneImpl[G] extends RuntimeFractionOneOps[G] {
   this: RuntimeFractionOne[G] =>
 
   override def t: Type[G] = TRuntimeFraction[G]()

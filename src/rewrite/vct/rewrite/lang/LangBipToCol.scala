@@ -1,17 +1,18 @@
-package vct.col.lang
+package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
-import vct.col.lang.LangBipToCol._
+import vct.rewrite.lang.LangBipToCol._
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.origin.{BipComponentInvariantNotEstablished, BipConstructorFailure, BipStateInvariantNotEstablished, Blame, DiagnosticOrigin, NontrivialUnsatisfiable, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{ImplicitDefaultJavaBipStatePredicate, JavaBipStatePredicateTarget, RefJavaBipGuard, RefJavaBipStatePredicate}
 import vct.col.resolve.lang.{JavaAnnotationData => jad}
-import vct.col.rewrite.lang.LangSpecificToCol
+import vct.rewrite.lang.LangSpecificToCol
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
+import vct.result.Message
 import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
@@ -44,32 +45,32 @@ case object LangBipToCol {
 
   case class BipIncomingDataInconsistentType(data: BipData[_], param: JavaParam[_]) extends UserError {
     override def code: String = "bipInconsistentDataType"
-    override def text: String = Origin.messagesInContext(Seq(
+    override def text: String = Message.messagesInContext(
       (data.o, s"The data defined here..."),
       (param.o, s"... is expected to have type ${param.t} by the usage here")
-    ))
+    )
   }
 
   private def BipPortOrigin(ns: JavaNamespace[_], cls: JavaClass[_], port: jad.BipPort[_]): Origin = {
-    port.o.replacePrefName {
+    port.o.where(name = {
       val fqn = (ns.name.map (Seq (_) ).getOrElse (Seq () ) :+ cls.name).mkString (".")
       s"($fqn,${port.name})"
-    }
+    })
   }
 
   private def BipDataWireOrigin(cls0: JavaClass[_], port0: String, cls1: JavaClass[_], port1: String, o: Origin): Origin = {
-    o.replacePrefName(s"(${cls0.name},$port0)->(${cls1.name},$port1)")
+    o.where(name = s"(${cls0.name},$port0)->(${cls1.name},$port1)")
   }
 
   private def BipDataOrigin(ns: JavaNamespace[_], cls: JavaClass[_], data: jad.BipData[_]): Origin = {
-    data.o.replacePrefName {
+    data.o.where(name = {
       val fqn = (ns.name.map(Seq(_)).getOrElse(Seq()) :+ cls.name).mkString(".")
       s"($fqn,${data.name})"
-    }
+    })
   }
 
   private def BipConstructorOrigin(cls: JavaClassOrInterface[_], c: JavaConstructor[_]): Origin = {
-    c.o.replacePrefName(s"${cls.o.getPreferredNameOrElse("[unknown]")}_constructor")
+    c.o.where(prefix = "constructor")
   }
 
   case class UntangleBipConstructorFailure(constructor: JavaConstructor[_]) extends Blame[BipConstructorFailure] {
@@ -150,7 +151,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       guard.map(rw.dispatch).getOrElse(tt),
       rw.dispatch(requires),
       rw.dispatch(ensures),
-      rw.dispatch(m.body.get))(annotation.blame)(m.o.addPrefName(m.name))
+      rw.dispatch(m.body.get))(annotation.blame)(m.o.where(name = m.name))
 
     javaMethodSuccTransition((m, transition)) = rw.classDeclarations.declare(trans)
   }
@@ -176,7 +177,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       throw ImproperConstructor(constructor, "Only precondition is allowed on JavaBIP component constructors")
     }
 
-    logger.debug(s"JavaBIP component constructor for ${constructor.o.getInlineContextOrElse("[unknown context]")}")
+    logger.debug(s"JavaBIP component constructor for ${constructor.o.inlineContextText}")
     rw.currentThis.having(ThisObject(rw.java.javaInstanceClassSuccessor.ref(rw.java.currentJavaClass.top))) {
       rw.labelDecls.scope {
         rw.classDeclarations.declare(
@@ -199,7 +200,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       method.parameters.map(rewriteParameter),
       rw.dispatch(method.body.get),
       true
-    )(annotation.blame)(method.o.addPrefName(method.name)))
+    )(annotation.blame)(method.o.where(name = method.name)))
   }
 
   def rewriteOutgoingData(method: JavaMethod[Pre], annotation: JavaAnnotation[Pre], data: jad.BipData[Pre]): Unit = {
@@ -235,7 +236,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Create bip state predicates
     jad.BipStatePredicate.getAll(cls).foreach { case bspData @ jad.BipStatePredicate(name, expr) =>
       val bspNode = rw.classDeclarations.declare(
-        new BipStatePredicate[Post](rw.dispatch(expr))(bspData.o.addPrefName(name)))
+        new BipStatePredicate[Post](rw.dispatch(expr))(bspData.o.where(name = name)))
       statePredicates(bspData) = bspNode
     }
 

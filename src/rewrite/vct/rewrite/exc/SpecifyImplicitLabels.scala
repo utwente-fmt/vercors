@@ -13,7 +13,7 @@ case object SpecifyImplicitLabels extends RewriterBuilder {
 }
 
 case class SpecifyImplicitLabels[Pre <: Generation]() extends Rewriter[Pre] {
-  def ImplicitLabelOrigin(inner: Origin): Origin = inner.replacePrefName("loop")
+  def ImplicitLabelOrigin(inner: Origin): Origin = inner.where(name = "loop")
 
   val labelStack = new ScopedStack[LabelDecl[Post]]()
 

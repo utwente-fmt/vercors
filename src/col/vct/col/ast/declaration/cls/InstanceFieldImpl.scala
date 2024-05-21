@@ -2,8 +2,9 @@ package vct.col.ast.declaration.cls
 
 import vct.col.ast.{Expr, Final, InstanceField}
 import vct.col.print._
+import vct.col.ast.ops.InstanceFieldOps
 
-trait InstanceFieldImpl[G] { this: InstanceField[G] =>
+trait InstanceFieldImpl[G] extends InstanceFieldOps[G] { this: InstanceField[G] =>
   def isFinal = flags.collectFirst { case _: Final[G] => () }.isDefined
 
   def getValue(implicit ctx: Ctx): Doc = {

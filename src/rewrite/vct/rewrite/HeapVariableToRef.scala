@@ -1,7 +1,7 @@
 package vct.rewrite
 
 import vct.col.ast._
-import vct.col.origin.{AbstractApplicable, Context, InlineContext, Origin, PanicBlame, PreferredName, ShortPosition, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, LabelContext, Origin, PanicBlame, PreferredName, TrueSatisfiable}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers.{function, functionInvocation}
@@ -13,10 +13,8 @@ case object HeapVariableToRef extends RewriterBuilder {
 
   private def GlobalsOrigin: Origin = Origin(
     Seq(
-      PreferredName("globals"),
-      Context("At: [globals]"),
-      InlineContext("[globals]"),
-      ShortPosition("generated"),
+      PreferredName(Seq("globals")),
+      LabelContext("globals"),
     )
   )
 }

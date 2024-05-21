@@ -4,8 +4,9 @@ import vct.col.ast.{InstanceOperatorFunction, Variable}
 import vct.col.print._
 
 import scala.collection.immutable.ListMap
+import vct.col.ast.ops.InstanceOperatorFunctionOps
 
-trait InstanceOperatorFunctionImpl[G] { this: InstanceOperatorFunction[G] =>
+trait InstanceOperatorFunctionImpl[G] extends InstanceOperatorFunctionOps[G] { this: InstanceOperatorFunction[G] =>
   def typeArgs: Seq[Variable[G]] = Nil
 
   def layoutModifiers(implicit ctx: Ctx): Seq[Doc] = ListMap(

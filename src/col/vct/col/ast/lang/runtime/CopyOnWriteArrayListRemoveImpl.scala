@@ -2,8 +2,9 @@ package vct.col.ast.lang.runtime
 
 import vct.col.ast._
 import vct.col.print._
+import vct.col.ast.ops.CopyOnWriteArrayListRemoveOps
 
-trait CopyOnWriteArrayListRemoveImpl[G] {
+trait CopyOnWriteArrayListRemoveImpl[G] extends CopyOnWriteArrayListRemoveOps[G] {
   this: CopyOnWriteArrayListRemove[G] =>
 
   override def t: Type[G] = TBool[G]()

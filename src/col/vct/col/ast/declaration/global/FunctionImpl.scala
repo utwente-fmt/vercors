@@ -5,8 +5,9 @@ import vct.col.ast.declaration.category.AbstractFunctionImpl
 import vct.col.print._
 
 import scala.collection.immutable.ListMap
+import vct.col.ast.ops.FunctionOps
 
-trait FunctionImpl[G] extends GlobalDeclarationImpl[G] with AbstractFunctionImpl[G] { this: Function[G] =>
+trait FunctionImpl[G] extends GlobalDeclarationImpl[G] with AbstractFunctionImpl[G] with FunctionOps[G] { this: Function[G] =>
   def layoutSilver(implicit ctx: Ctx): Doc =
     Group(Text("function") <+> ctx.name(this) <>
       "(" <> Doc.args(args) <> "):" <+> returnType) <+/>

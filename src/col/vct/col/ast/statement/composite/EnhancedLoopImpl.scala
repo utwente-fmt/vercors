@@ -8,10 +8,11 @@ import vct.col.print._
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
+import vct.col.ast.ops.EnhancedLoopOps
 
-trait EnhancedLoopImpl[G] { this: EnhancedLoop[G] =>
+trait EnhancedLoopImpl[G] extends EnhancedLoopOps[G] { this: EnhancedLoop[G] =>
 
-  override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
+  override def enterCheckContextScopes(context: CheckContext[G]): Seq[CheckContext.ScopeFrame[G]] =
     context.withScope(Seq(arg), toScan = Seq(body))
 
   override def layout(implicit ctx: Ctx): Doc = {

@@ -79,7 +79,7 @@ case class CreatePredicateFoldUnfold[Pre <: Generation]() extends Rewriter[Pre] 
       val predCheck: Statement[Post] = if (permissionExpr.isEmpty) Block[Post](Nil) else RewriteContractExpr(pd).createAssertions(permissionExpr.get)
       val removeStatements = if (permissionExpr.isEmpty) Block[Post](Nil) else TransferPermissionRewriter(pd).removePermissions(permissionExpr.get)
 
-      val allArgs: Seq[Expr[Pre]] = ipa.args :+ ipa.obj :+ StringValue(ipa.ref.decl.o.getPreferredNameOrElse())
+      val allArgs: Seq[Expr[Pre]] = ipa.args :+ ipa.obj :+ StringValue(ipa.ref.decl.o.getPreferredNameOrElse().camel)
       val dispatchedArgs: Seq[Expr[Post]] = allArgs.map(dispatch)
       val newObject = CreateObjectArray[Post](dispatchedArgs)
       val mi: Eval[Post] = Eval[Post](ledger.miFoldPredicate(newObject).get)
@@ -101,7 +101,7 @@ case class CreatePredicateFoldUnfold[Pre <: Generation]() extends Rewriter[Pre] 
     val addStatements = if(permissionExpr.isEmpty) Block[Post](Nil) else TransferPermissionRewriter(pdAdd).addPermissions(permissionExpr.get)
 
 
-    val allArgs: Seq[Expr[Pre]] = ipa.args :+ ipa.obj :+ StringValue(ipa.ref.decl.o.getPreferredNameOrElse())
+    val allArgs: Seq[Expr[Pre]] = ipa.args :+ ipa.obj :+ StringValue(ipa.ref.decl.o.getPreferredNameOrElse().camel)
     val dispatchedArgs: Seq[Expr[Post]] = allArgs.map(dispatch)
     val newObject = CreateObjectArray[Post](dispatchedArgs)
     val mi: Eval[Post] = Eval[Post](ledger.miUnfoldPredicate(newObject).get)

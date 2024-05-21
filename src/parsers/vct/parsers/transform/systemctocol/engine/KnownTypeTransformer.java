@@ -19,6 +19,7 @@ import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.util.Constants;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
 import vct.parsers.transform.systemctocol.util.OriGen;
+import vct.parsers.transform.systemctocol.util.Seqs;
 
 /**
  * Transforms an SCKnownType (i.e. a SystemC-predefined primitive channel instance) into a COL class. We currently
@@ -91,7 +92,7 @@ public class KnownTypeTransformer<T> {
 
         // Add channel field to COL system
         Ref<T, Class<T>> ref_to_cls = new DirectRef<>(cls, ClassTag$.MODULE$.apply(Class.class));
-        col_system.add_primitive_channel(sc_inst, new InstanceField<>(new TClass<>(ref_to_cls, OriGen.create()), col_system.NO_FLAGS, Option.empty(),
+        col_system.add_primitive_channel(sc_inst, new InstanceField<>(new TClass<>(ref_to_cls, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, Option.empty(),
                 OriGen.create(name.toLowerCase())));
     }
 
@@ -118,7 +119,7 @@ public class KnownTypeTransformer<T> {
     private Class<T> transform_fifo(Origin o, Type<T> t) {
         // Class fields
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, Option.empty(), OriGen.create("m"));
+        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, Option.empty(), OriGen.create("m"));
         InstanceField<T> buf = new InstanceField<>(new TSeq<>(t, OriGen.create()), col_system.NO_FLAGS, Option.empty(), OriGen.create("buffer"));
         InstanceField<T> nr_read = new InstanceField<>(col_system.T_INT, col_system.NO_FLAGS, Option.empty(), OriGen.create("num_read"));
         InstanceField<T> written = new InstanceField<>(new TSeq<>(t, OriGen.create()), col_system.NO_FLAGS, Option.empty(), OriGen.create("written"));
@@ -143,7 +144,7 @@ public class KnownTypeTransformer<T> {
 
         // Create the class
         java.util.List<ClassDeclaration<T>> declarations = java.util.List.of(m, buf, nr_read, written, constructor, fifo_read, fifo_write, fifo_update);
-        return new Class<>(List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE, o);
+        return new Class<>(Seqs.empty(), List.from(CollectionConverters.asScala(declarations)), Seqs.empty(), col_system.TRUE, o);
     }
 
     /**
@@ -270,7 +271,7 @@ public class KnownTypeTransformer<T> {
                 new UnitAccountedPredicate<>(col_system.fold_star(conds), OriGen.create()), col_system.TRUE, col_system.NO_SIGNALS,
                 col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
 
-        return new PVLConstructor<>(contract, params, Option.apply(body), new GeneratedBlame<>(), o);
+        return new PVLConstructor<>(contract, Seqs.empty(), params, Option.apply(body), new GeneratedBlame<>(), o);
     }
 
     /**
@@ -523,7 +524,7 @@ public class KnownTypeTransformer<T> {
     private Class<T> transform_signal(Origin o, Type<T> t) {
         // Class fields
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, Option.empty(), OriGen.create("m"));
+        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, Option.empty(), OriGen.create("m"));
         InstanceField<T> val = new InstanceField<>(t, col_system.NO_FLAGS, Option.empty(), OriGen.create("val"));
         InstanceField<T> _val = new InstanceField<>(t, col_system.NO_FLAGS, Option.empty(), OriGen.create("_val"));
 
@@ -544,7 +545,8 @@ public class KnownTypeTransformer<T> {
 
         // Create the class
         java.util.List<ClassDeclaration<T>> class_content = java.util.List.of(m, val, _val, constructor, signal_read, signal_write, signal_update);
-        return new Class<>(List.from(CollectionConverters.asScala(class_content)), col_system.NO_CLS_REFS, col_system.TRUE, o);
+        return new Class<>(Seqs.empty(),
+                List.from(CollectionConverters.asScala(class_content)), Seqs.empty(), col_system.TRUE, o);
     }
 
     /**
@@ -624,7 +626,7 @@ public class KnownTypeTransformer<T> {
         ApplicableContract<T> contract = new ApplicableContract<>(new UnitAccountedPredicate<>(col_system.TRUE, OriGen.create()),
                 new UnitAccountedPredicate<>(col_system.fold_star(conditions), OriGen.create()), col_system.TRUE, col_system.NO_SIGNALS,
                 col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        return new PVLConstructor<>(contract, params, Option.apply(body), new GeneratedBlame<>(), o);
+        return new PVLConstructor<>(contract, Seqs.empty(), params, Option.apply(body), new GeneratedBlame<>(), o);
     }
 
     /**

@@ -2,8 +2,9 @@ package vct.col.ast.lang.runtime
 
 import vct.col.ast._
 import vct.col.print._
+import vct.col.ast.ops.RuntimeFractionDiffOps
 
-trait RuntimeFractionDiffImpl[G] {
+trait RuntimeFractionDiffImpl[G] extends RuntimeFractionDiffOps[G] {
   this: RuntimeFractionDiff[G] =>
 
   override def t: Type[G] = TRuntimeFraction[G]()

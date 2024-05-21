@@ -1,6 +1,7 @@
 package vct.col.ast.statement.composite
 
 import vct.col.ast._
+import vct.col.ast.ops.LoopOps
 import vct.col.origin.Origin
 import vct.col.print
 import vct.col.print._
@@ -18,7 +19,7 @@ object LoopImpl {
   case class IterationContractData[G](v: Variable[G], lowerBound: Expr[G], upperBound: Expr[G])
 }
 
-trait LoopImpl[G] { this: Loop[G] =>
+trait LoopImpl[G] extends LoopOps[G] { this: Loop[G] =>
   import LoopImpl._
 
   def getVariableAndLowerBound(implicit o: Origin): Option[(Variable[G], Expr[G])] =
@@ -81,7 +82,7 @@ trait LoopImpl[G] { this: Loop[G] =>
     case Eval(e) => Some(e.show)
     case a: Assign[G] => Some(a.layoutAsExpr)
     case e: VeyMontAssignExpression[G] => simpleControlElements(e.assign)
-    case e: VeyMontCommExpression[G] => simpleControlElements(e.assign)
+    case e: CommunicateX[G] => simpleControlElements(e.assign)
     case LocalDecl(local) => Some(local.show)
     case JavaLocalDeclarationStatement(local) => Some(local.show)
 
@@ -93,6 +94,8 @@ trait LoopImpl[G] { this: Loop[G] =>
           case (_, _) => None
         }
         .map(elems => NodeDoc(stat, Doc.fold(elems)(_ <> "," <+/> _)))
+
+    case _ => None
   }
 
   def layoutControl(stat: Statement[G])(implicit ctx: Ctx): Doc =

@@ -2,6 +2,7 @@ package viper.api.backend
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.RWFile
+import hre.progress.Progress
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
@@ -15,12 +16,11 @@ import viper.silver.verifier._
 import viper.silver.verifier.errors._
 import viper.silver.{ast => silver}
 
-import java.io.{File, FileOutputStream}
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 import scala.reflect.ClassTag
 import scala.util.{Try, Using}
 
-trait SilverBackend extends Backend with LazyLogging {
+trait SilverBackend extends Backend[(silver.Program, Map[Int, col.Node[_]])] with LazyLogging {
   case class NotSupported(text: String) extends SystemError
   case class ViperCrashed(text: String) extends SystemError
 
@@ -56,47 +56,62 @@ trait SilverBackend extends Backend with LazyLogging {
   private def path(node: silver.Node): Seq[AccountedDirection] =
     info(node.asInstanceOf[silver.Infoed]).predicatePath.get
 
-  override def submit(colProgram: col.Program[_], output: Option[Path]): Boolean = {
-    val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
+  def transform(colProgram: col.Program[_], output: Option[Path]): (silver.Program, Map[Int, col.Node[_]]) = {
+    Progress.stages(Seq("Translation" -> 2, "Diagnostic Output" -> 2, "Check" -> 7, "Check Idempotency" -> 9)) { next =>
+      val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
 
-    val silverProgramString =
-      silverProgram
-        .toString()
-        .replace("requires decreases", "decreases")
-        .replace("invariant decreases", "decreases")
+      next()
 
-    output.map(_.toFile).map(RWFile).foreach(_.write { writer =>
-      writer.write(silverProgramString)
-    })
+      val silverProgramString =
+        silverProgram
+          .toString()
+          .replace("requires decreases", "decreases")
+          .replace("invariant decreases", "decreases")
 
-    silverProgram.checkTransitively match {
-      case Nil =>
-      case some => throw ConsistencyErrors(some)
-    }
+      output.map(RWFile(_)).foreach(_.write { writer =>
+        writer.write(silverProgramString)
+      })
 
-    val f = File.createTempFile("vercors-", ".sil")
-    f.deleteOnExit()
-    Using(new FileOutputStream(f)) { out =>
-      out.write(silverProgramString.getBytes())
-    }
-    SilverParserDummyFrontend().parse(f.toPath) match {
-      case Left(errors) =>
-        logger.warn("Possible viper bug: silver AST does not reparse when printing as text")
-        for(error <- errors) {
-          logger.warn(error.toString)
-        }
-      case Right(reparsedProgram) =>
-        SilverTreeCompare.compare(silverProgram, reparsedProgram) match {
-          case Nil =>
-          case diffs =>
-            logger.debug("Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:")
-            for((left, right) <- diffs) {
-              logger.debug(s" - Left: ${left.getClass.getSimpleName}: $left")
-              logger.debug(s" - Right: ${right.getClass.getSimpleName}: $right")
+      next()
+
+      silverProgram.checkTransitively match {
+        case Nil =>
+        case some => throw ConsistencyErrors(some)
+      }
+
+      next()
+
+      val f = Files.createTempFile("vercors-", ".sil")
+      try {
+        Using(Files.newBufferedWriter(f))(_.write(silverProgramString))
+
+        SilverParserDummyFrontend().parse(RWFile(f, doWatch = false)) match {
+          case Left(errors) =>
+            logger.warn("Possible viper bug: silver AST does not reparse when printing as text")
+            for(error <- errors) {
+              logger.warn(error.toString)
+            }
+          case Right(reparsedProgram) =>
+            SilverTreeCompare.compare(silverProgram, reparsedProgram) match {
+              case Nil =>
+              case diffs =>
+                logger.debug("Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:")
+                for((left, right) <- diffs) {
+                  logger.debug(s" - Left: ${left.getClass.getSimpleName}: $left")
+                  logger.debug(s" - Right: ${right.getClass.getSimpleName}: $right")
+                }
             }
         }
-    }
+      } finally {
+        Files.delete(f)
+      }
 
+      (silverProgram, nodeFromUniqueId)
+    }
+  }
+
+  override def submit(intermediateProgram: (silver.Program, Map[Int, col.Node[_]])): Boolean = {
+    val (silverProgram, nodeFromUniqueId) = intermediateProgram
     val (verifier, plugins) = createVerifier(NopViperReporter, nodeFromUniqueId)
 
     try {
@@ -129,7 +144,7 @@ trait SilverBackend extends Backend with LazyLogging {
           case fieldAssign@col.SilverFieldAssign(_, _, _) =>
             reason match {
               case reasons.InsufficientPermission(access) if get[col.Node[_]](access) == fieldAssign =>
-                fieldAssign.blame.blame(blame.AssignFailed(fieldAssign))
+                fieldAssign.blame.blame(blame.AssignFieldFailed(fieldAssign))
               case otherReason =>
                 defer(otherReason)
             }
@@ -273,6 +288,8 @@ trait SilverBackend extends Backend with LazyLogging {
         throw NotSupported(s"Vercors does not support counterexamples from Viper")
       case VerificationErrorWithCounterexample(_, _, _, _, _) =>
         throw NotSupported(s"Vercors does not support counterexamples from Viper")
+      case other =>
+        throw NotSupported(s"Viper returned an error that VerCors does not recognize: $other")
     }
     case AbortedExceptionally(throwable) =>
       throwable.printStackTrace()
@@ -286,6 +303,7 @@ trait SilverBackend extends Backend with LazyLogging {
     case reasons.InsufficientPermission(access) => blame.InsufficientPermissionToExhale(get[col.Expr[_]](access))
     case reasons.MagicWandChunkNotFound(wand) => blame.InsufficientPermissionToExhale(get[col.Expr[_]](wand))
     case reasons.NegativePermission(p) => blame.NegativePermissionValue(info(p).permissionValuePermissionNode.get) // need to fetch access
+    case _ => ???
   }
 
   def getDecreasesClause(reason: ErrorReason): col.DecreasesClause[_] = reason match {
@@ -306,7 +324,7 @@ trait SilverBackend extends Backend with LazyLogging {
 
   def defer(reason: ErrorReason): Unit = reason match {
     case reasons.DivisionByZero(e) =>
-      val division = get[col.DividingExpr[_]](e)
+      val division = info(e).dividingExpr.get
       division.blame.blame(blame.DivByZero(division))
     case reasons.InsufficientPermission(f@silver.FieldAccess(_, _)) =>
       val deref = get[col.SilverDeref[_]](f)

@@ -1,0 +1,7 @@
+seq_program Main() {
+    seq_run {
+		foo(); // Error: cannot call static pure methods (after making foo a pure global func)
+	}
+}
+
+pure boolean foo() = true;

@@ -1,0 +1,21 @@
+seq_program Main() {
+    endpoint a = Role(5);
+    endpoint a = Role(6);
+    endpoint a = Role(7);
+
+	seq_run {
+		foo();
+	}
+	
+	void foo(){
+		a.x := 7;
+	}
+}
+
+class Role {
+	int x;
+
+	constructor(int v) {
+		x = v;
+	}
+}

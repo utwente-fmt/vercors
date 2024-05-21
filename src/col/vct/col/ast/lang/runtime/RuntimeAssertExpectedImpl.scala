@@ -2,8 +2,9 @@ package vct.col.ast.lang.runtime
 
 import vct.col.ast._
 import vct.col.print._
+import vct.col.ast.ops.RuntimeAssertExpectedOps
 
-trait RuntimeAssertExpectedImpl[G] {
+trait RuntimeAssertExpectedImpl[G] extends RuntimeAssertExpectedOps[G] {
   this: RuntimeAssertExpected[G] =>
 
 

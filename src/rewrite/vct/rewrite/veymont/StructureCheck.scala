@@ -2,7 +2,6 @@ package vct.col.rewrite.veymont
 
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.rewrite.veymont.AddVeyMontAssignmentNodes.{getDerefsFromExpr,getThreadDeref}
 import vct.col.rewrite.veymont.StructureCheck.VeyMontStructCheckError
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
@@ -46,7 +45,7 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(prog : Program[Pre]) : Program[Post] = {
     if(!prog.declarations.exists {
       case dcl: SeqProg[Pre] =>
-        if(dcl.threads.isEmpty)
+        if(dcl.endpoints.isEmpty)
           throw VeyMontStructCheckError(dcl,"A seq_program needs to have at least 1 thread, but none was found!")
         else true
       case _ => false
@@ -58,7 +57,7 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(st : Statement[Pre]) : Statement[Post] = {
     if(inSeqProg.nonEmpty)
       st match {
-        case VeyMontCommExpression(_,_,_,_) => rewriteDefault(st)
+        case CommunicateX(_,_,_,_) => rewriteDefault(st)
         case VeyMontAssignExpression(_,_) => rewriteDefault (st)
         case Assign(_,_) => rewriteDefault (st)
         case Branch(_) => rewriteDefault(st)
@@ -79,13 +78,12 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
         case ThisSeqProg(_) =>
           if (args.isEmpty) rewriteDefault(st)
           else throw VeyMontStructCheckError(st, "Calls to methods in seq_program cannot have any arguments!")
-        case DerefEndpoint(thread) =>
-          val argderefs = args.flatMap(getDerefsFromExpr)
-          val argthreads = argderefs.map(d => getThreadDeref(d,
-            VeyMontStructCheckError(st, "A method call on a thread object may only refer to a thread in its arguments!")))
-          if (argthreads.forall(_ == thread.decl))
-            rewriteDefault(st)
-          else throw VeyMontStructCheckError(st, "A method call on a thread object may only refer to same thread in its arguments!")
+        case EndpointUse(thread) => ???
+          // val argderefs = ??? // args.flatMap(getDerefsFromExpr)
+          // val argthreads = argderefs.map(d => ???) // getThreadDeref(d, VeyMontStructCheckError(st, "A method call on a thread object may only refer to a thread in its arguments!")))
+          // if (argthreads.forall(_ == thread.decl))
+          //   rewriteDefault(st)
+          // else throw VeyMontStructCheckError(st, "A method call on a thread object may only refer to same thread in its arguments!")
         case _ => throw VeyMontStructCheckError(st, "This kind of method call is not allowed in seq_program")
       }
       case _ => throw VeyMontStructCheckError(st, "This is not a method call")

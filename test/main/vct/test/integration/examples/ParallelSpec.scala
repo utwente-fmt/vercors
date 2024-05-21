@@ -18,10 +18,10 @@ class ParallelSpec extends VercorsSpec {
   // vercors should verify using silicon example "concepts/parallel/monotonicBool.pvl"
   vercors should verify using silicon example "concepts/parallel/parallel-example1.pvl"
   vercors should verify using silicon example "concepts/parallel/ParBothRead.pvl"
-  vercors should error withCode "resolutionError" example "concepts/parallel/ParBothWrite.pvl"
-  vercors should error withCode "resolutionError" example "concepts/parallel/ParIterWrite.pvl"
+  vercors should error withCode "resolutionError:outOfWriteScope,outOfWriteScope" example "concepts/parallel/ParBothWrite.pvl"
+  vercors should error withCode "resolutionError:outOfWriteScope" example "concepts/parallel/ParIterWrite.pvl"
   vercors should verify using silicon example "concepts/parallel/ParNestedInvariant.pvl"
-  vercors should error withCode "resolutionError" example "concepts/parallel/ParNestedInvariantWrite.pvl"
+  vercors should error withCode "resolutionError:outOfWriteScope" example "concepts/parallel/ParNestedInvariantWrite.pvl"
   // https://github.com/utwente-fmt/vercors/issues/815
   // vercors should verify using silicon example "concepts/parallel/summation-kernel-0.pvl"
   // vercors should verify using silicon example "concepts/parallel/summation-kernel-1.pvl"

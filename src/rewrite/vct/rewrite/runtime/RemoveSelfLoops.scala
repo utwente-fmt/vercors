@@ -1,7 +1,7 @@
 package vct.rewrite.runtime
 
 import vct.col.ast.RewriteHelpers.RewriteClass
-import vct.col.ast.{Class, Declaration, GlobalDeclaration, Procedure, TClass}
+import vct.col.ast.{Class, Declaration, GlobalDeclaration, Procedure, TClass, Type}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
@@ -23,7 +23,7 @@ case class RemoveSelfLoops[Pre <: Generation]() extends Rewriter[Pre] {
     decl match {
       case p: Procedure[Pre] => {
         p.returnType match {
-          case c: TClass[Pre] => c.cls.decl.o.getPreferredNameOrElse() match {
+          case c: TClass[Pre] => c.cls.decl.o.getPreferredNameOrElse().ucamel match {
             case "Object" =>
             case _ => rewriteDefault(p)
           }
@@ -31,7 +31,7 @@ case class RemoveSelfLoops[Pre <: Generation]() extends Rewriter[Pre] {
         }
       }
       case c: Class[Pre] =>
-        val preferredName = c.o.getPreferredNameOrElse()
+        val preferredName = c.o.getPreferredNameOrElse().ucamel
         preferredName match {
           case "Object" =>
           case _ => globalDeclarations.succeed(c, dispatchGivenClass(c))
@@ -48,7 +48,7 @@ case class RemoveSelfLoops[Pre <: Generation]() extends Rewriter[Pre] {
    * @return
    */
   def dispatchGivenClass(c: Class[Pre]): GlobalDeclaration[Post] = {
-    val newClass = new RewriteClass[Pre, Post](c).rewrite(
+    val newClass = c.rewrite(
       supports = createClassSupports(c)
     )
     newClass
@@ -59,11 +59,9 @@ case class RemoveSelfLoops[Pre <: Generation]() extends Rewriter[Pre] {
    * @param c
    * @return
    */
-  def createClassSupports(c: Class[Pre]): Seq[Ref[Post, Class[Post]]] = {
-    c.supports.filter(ref => ref.decl.o.getPreferredNameOrElse() != "Object").map(
-      element => {
-        rewriter.porcelainRefSucc[Class[Post]](element).getOrElse(rewriter.succ[Class[Post]](element.decl))
-      }
-    )
-  }
+  def createClassSupports(c: Class[Pre]): Seq[Type[Post]] =
+    c.supports.filter {
+      case TClass(Ref(cls), _) if cls.o.getPreferredNameOrElse().ucamel == "Object" => false
+      case _ => true
+    }.map(dispatch)
 }

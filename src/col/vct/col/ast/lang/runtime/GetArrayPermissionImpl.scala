@@ -2,8 +2,9 @@ package vct.col.ast.lang.runtime
 
 import vct.col.ast._
 import vct.col.print._
+import vct.col.ast.ops.GetArrayPermissionOps
 
-trait GetArrayPermissionImpl[G] {
+trait GetArrayPermissionImpl[G] extends GetArrayPermissionOps[G] {
   this: GetArrayPermission[G] =>
 
   override def precedence: Int = Precedence.ATOMIC

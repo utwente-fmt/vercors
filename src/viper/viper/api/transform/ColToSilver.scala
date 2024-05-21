@@ -2,7 +2,7 @@ package viper.api.transform
 
 import hre.util.ScopedStack
 import vct.col.ast.{PredicateLocation, SilverFieldLocation}
-import vct.col.origin.{AccountedDirection, FailLeft, FailRight, ShortPosition}
+import vct.col.origin.{AccountedDirection, FailLeft, FailRight, Name}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.unfoldStar
 import vct.col.{ast => col}
@@ -37,10 +37,13 @@ case class ColToSilver(program: col.Program[_]) {
   val currentStarall: ScopedStack[col.Starall[_]] = ScopedStack()
   val currentUnfolding: ScopedStack[col.Unfolding[_]] = ScopedStack()
   val currentMapGet: ScopedStack[col.MapGet[_]] = ScopedStack()
+  val currentDividingExpr: ScopedStack[col.DividingExpr[_]] = ScopedStack()
+
+  val inTriggers: ScopedStack[Unit] = ScopedStack()
 
   case class NotSupported(node: col.Node[_]) extends SystemError {
     override def text: String =
-      program.messageInContext(node, s"This kind of node (${node.getClass.getSimpleName}) is not supported by silver directly. Is there a rewrite missing?")
+      program.highlight(node).messageInContext(s"This kind of node (${node.getClass.getSimpleName}) is not supported by silver directly. Is there a rewrite missing?")
   }
 
   def ??(node: col.Node[_]): Nothing =
@@ -64,6 +67,8 @@ case class ColToSilver(program: col.Program[_]) {
 
 
   def sanitize(name: String): String = {
+    if(name.isEmpty) return "_"
+
     val sanitized = name.flatMap {
       case '$' => "$"
       case '_' => "_"
@@ -88,11 +93,11 @@ case class ColToSilver(program: col.Program[_]) {
   /**
    * Give the declaration a silver-appropriate name that is as close as possible to the preferred name
    */
-  def name(decl: col.Declaration[_]): String =
+  def name(decl: col.Declaration[_], nameF: Name => String): String =
     if(names.contains(decl)) {
       ???
     } else {
-      var (name, index) = unpackName(decl.o.getPreferredNameOrElse())
+      var (name, index) = unpackName(nameF(decl.o.getPreferredNameOrElse()))
       name = sanitize(name)
       while(names.values.exists(_ == (name, index)) || silver.utility.Consistency.reservedNames.contains(packName(name, index))) {
         index += 1
@@ -114,8 +119,8 @@ case class ColToSilver(program: col.Program[_]) {
   /**
    * Name decl in the current scope, then evaluate f within a new scopegroupCount
    */
-  def scoped[T](decl: col.Declaration[_])(f: => T): T = {
-    name(decl)
+  def scoped[T](decl: col.Declaration[_], nameF: Name => String)(f: => T): T = {
+    name(decl, nameF)
     scoped(f)
   }
 
@@ -142,13 +147,17 @@ case class ColToSilver(program: col.Program[_]) {
     uniquePosId += 1
     nodeFromUniqueId(uniquePosId) = node
     // Replace : with -, as the colon interferes with z3's quantifier statistics output, which uses a colon as a separator
-    silver.VirtualPosition(s"${node.o.getShortPosition.getOrElse(ShortPosition("unknown")).shortPosition.replace(':', '-')};unique_id=$uniquePosId")
+    silver.VirtualPosition(s"${node.o.shortPositionText.replace(':', '-')};unique_id=$uniquePosId")
   }
 
   def transform(): silver.Program = {
-    program.declarations.foreach(name)
-    program.declarations.collect { case adt: col.AxiomaticDataType[_] => adt }.flatMap(_.typeArgs).foreach(name)
-    program.declarations.collect { case adt: col.AxiomaticDataType[_] => adt }.flatMap(_.decls).collect { case func: col.ADTFunction[_] => func }.foreach(name)
+    program.declarations.foreach {
+      case decl: col.AxiomaticDataType[_] => name(decl, _.ucamel)
+      case decl: col.ProverType[_] => name(decl, _.ucamel)
+      case decl => name(decl, _.camel)
+    }
+    program.declarations.collect { case adt: col.AxiomaticDataType[_] => adt }.flatMap(_.typeArgs).foreach(name(_, _.usnake))
+    program.declarations.collect { case adt: col.AxiomaticDataType[_] => adt }.flatMap(_.decls).collect { case func: col.ADTFunction[_] => func }.foreach(name(_, _.snake))
     program.declarations.collect { case field: col.SilverField[_] => field }.foreach(field => fields(field) = silver.Field(ref(field), typ(field.t))(pos=pos(field), info=NodeInfo(field)))
     program.declarations.foreach(collect)
     silver.Program(domains.toSeq, fields.values.toSeq, functions.toSeq, predicates.toSeq, methods.toSeq, extensions=Seq())()
@@ -195,7 +204,7 @@ case class ColToSilver(program: col.Program[_]) {
     case procedure: col.Procedure[_] if procedure.returnType == col.TVoid() && !procedure.inline && !procedure.pure && procedure.typeArgs.isEmpty =>
       scoped {
         val labelDecls = procedure.body.toSeq.flatMap(_.transSubnodes.collect {
-          case l: col.LabelDecl[_] => silver.Label(name(l), Seq())(pos=pos(l), info=NodeInfo(l))
+          case l: col.LabelDecl[_] => silver.Label(name(l, _.usnake), Seq())(pos=pos(l), info=NodeInfo(l))
         })
         methods += silver.Method(
           ref(procedure),
@@ -245,7 +254,7 @@ case class ColToSilver(program: col.Program[_]) {
     }.to(ListMap)
 
   def variable(v: col.Variable[_]): silver.LocalVarDecl =
-    silver.LocalVarDecl(name(v), typ(v.t))(pos=pos(v), info=NodeInfo(v))
+    silver.LocalVarDecl(name(v, _.camel), typ(v.t))(pos=pos(v), info=NodeInfo(v))
 
   def adtTypeArgs(adt: col.AxiomaticDataType[_]): Seq[TypeVar] =
     adt.typeArgs.map(v => silver.TypeVar(ref(v)))
@@ -280,6 +289,7 @@ case class ColToSilver(program: col.Program[_]) {
     result.starall = currentStarall.topOption
     result.unfolding = currentUnfolding.topOption
     result.mapGet = currentMapGet.topOption
+    result.dividingExpr = currentDividingExpr.topOption
     result
   }
 
@@ -313,8 +323,12 @@ case class ColToSilver(program: col.Program[_]) {
     case starall @ col.Starall(bindings, triggers, body) =>
       scoped {
         currentStarall.having(starall) {
+          val newBindings = bindings.map(variable)
+          val newTriggers = inTriggers.having(()) {
+             triggers.map(trigger)
+          }
           val foralls: Seq[silver.Forall] = silver.utility.QuantifiedPermissions.desugarSourceQuantifiedPermissionSyntax(
-            silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(pos=pos(e), info=expInfo(e))
+            silver.Forall(newBindings, newTriggers, exp(body))(pos=pos(e), info=expInfo(e))
           )
 
           foralls.reduce[silver.Exp] { case (l, r) => silver.And(l, r)(pos=pos(e), info=expInfo(e)) }
@@ -342,6 +356,9 @@ case class ColToSilver(program: col.Program[_]) {
       permValue.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(res)
       silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field))(pos=pos(res), info=expInfo(res)), permValue)(pos=pos(res), info=expInfo(res))
     case res: col.PredicateApply[_] =>
+      if(inTriggers.nonEmpty){
+        return predInTrigger(res)
+      }
       val silver = pred(res)
       silver.perm.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(res)
       silver
@@ -382,15 +399,28 @@ case class ColToSilver(program: col.Program[_]) {
     case op @ col.Plus(left, right) if op.isIntOp => silver.Add(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Minus(left, right) if op.isIntOp => silver.Sub(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Mult(left, right) if op.isIntOp => silver.Mul(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
-    case op @ col.Mod(left, right) if op.isIntOp => silver.Mod(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+    case op @ col.Mod(left, right) if op.isIntOp =>
+      currentDividingExpr.having(op) {
+        silver.Mod(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+      }
 
     case op @ col.Plus(left, right) if !op.isIntOp => silver.PermAdd(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Minus(left, right) if !op.isIntOp => silver.PermSub(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Mult(left, right) if !op.isIntOp => silver.PermMul(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Mod(left, right) if !op.isIntOp => ??(op)
 
-    case col.Div(left, right) => silver.PermDiv(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
-    case col.FloorDiv(left, right) => silver.Div(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+    case div @ col.RatDiv(left, right) if right.t.isInstanceOf[col.TRational[_]] =>
+      currentDividingExpr.having(div) {
+        silver.PermPermDiv(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+      }
+    case div @ col.RatDiv(left, right) =>
+      currentDividingExpr.having(div) {
+        silver.PermDiv(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+      }
+    case div @ col.FloorDiv(left, right) =>
+      currentDividingExpr.having(div) {
+        silver.Div(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+      }
 
     case col.SilverIntToRat(col.NoPerm()) => silver.NoPerm()(pos=pos(e), info=expInfo(e))
     case col.SilverIntToRat(col.WritePerm()) => silver.FullPerm()(pos=pos(e), info=expInfo(e))
@@ -446,6 +476,9 @@ case class ColToSilver(program: col.Program[_]) {
 
   def pred(p: col.PredicateApply[_]): silver.PredicateAccessPredicate =
     silver.PredicateAccessPredicate(silver.PredicateAccess(p.args.map(exp), ref(p.ref))(pos=pos(p), info=expInfo(p)), exp(p.perm))(pos=pos(p), info=expInfo(p))
+
+  def predInTrigger(p: col.PredicateApply[_]): silver.PredicateAccess =
+    silver.PredicateAccess(p.args.map(exp), ref(p.ref))(pos=pos(p), info=expInfo(p))
 
   def acc(e: col.Expr[_]): silver.LocationAccess = e match {
     case col.PredicateApply(Ref(pred), args, _) => silver.PredicateAccess(args.map(exp), ref(pred))(pos=pos(pred), info=expInfo(pred))

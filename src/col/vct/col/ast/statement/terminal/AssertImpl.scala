@@ -1,9 +1,10 @@
 package vct.col.ast.statement.terminal
 
-import vct.col.ast.Assert
+import vct.col.ast.{Assert, Expr}
 import vct.col.print.{Ctx, Doc, Show, Text}
+import vct.col.ast.ops.AssertOps
 
-trait AssertImpl[G] { this: Assert[G] =>
+trait AssertImpl[G] extends AssertOps[G] { this: Assert[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc =
     Text("assert") <+> res <> ";"
 
@@ -19,4 +20,6 @@ trait AssertImpl[G] { this: Assert[G] =>
     case Ctx.Java => layoutJava
     case _ => Doc.inlineSpec(Show.lazily(layoutSpec(_)))
   }
+
+  override def expr: Expr[G] = this.res
 }

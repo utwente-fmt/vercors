@@ -50,6 +50,7 @@ case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre]
       case PredicateLocation(predicate, args) => throw PredicateValueError(loc)
       case InstancePredicateLocation(predicate, obj, args) => throw PredicateValueError(loc)
       case AmbiguousLocation(expr) => expr
+      case InLinePatternLocation(loc, _) => extractValueFromLocation(loc)
     }
   }
 

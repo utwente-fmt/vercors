@@ -2,8 +2,9 @@ package vct.col.ast.lang.runtime
 
 import vct.col.ast._
 import vct.col.print._
+import vct.col.ast.ops.ThreadIdOps
 
-trait ThreadIdImpl[G] {
+trait ThreadIdImpl[G] extends ThreadIdOps[G] {
   this: ThreadId[G] =>
 
 

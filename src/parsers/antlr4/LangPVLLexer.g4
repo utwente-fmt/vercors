@@ -49,11 +49,13 @@ CONS: '::';
 ENUM: 'enum';
 CLASS: 'class';
 SEQ_PROGRAM: 'seq_program';
+SEQ_RUN: 'seq_run';
 KERNEL: 'kernel';
 BARRIER: 'barrier';
 INVARIANT: 'invariant';
 CONSTRUCTOR: 'constructor';
 RUN: 'run';
+VESUV_ENTRY: 'vesuv_entry';
 THREAD: 'thread';
 ENDPOINT: 'endpoint';
 

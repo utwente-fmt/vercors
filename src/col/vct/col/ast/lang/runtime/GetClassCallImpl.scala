@@ -2,8 +2,9 @@ package vct.col.ast.lang.runtime
 
 import vct.col.ast._
 import vct.col.print._
+import vct.col.ast.ops.GetClassCallOps
 
-trait GetClassCallImpl[G] {
+trait GetClassCallImpl[G] extends GetClassCallOps[G] {
   this: GetClassCall[G] =>
   override def precedence: Int = Precedence.ATOMIC
 

@@ -3,7 +3,7 @@ package vct.rewrite.runtime
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.Origin
+import vct.col.origin.{Origin, PositionRange}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.Unreachable
@@ -133,8 +133,14 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
       }
       case _ => throw Unreachable(s"This location type is not supported yet: ${l}")
     }
-    val linenum = if (l.o.getStartEndLines.nonEmpty) l.o.getStartEndLines.get.startEndLineIdx._1 + 1 else -1
-    val lineDetails: String = if (l.o.getStartEndLines.nonEmpty) l.o.getReadable.get.readable.readLines()(linenum - 1).trim() else "unknown line"
+    val rangeContent = l.o.find[PositionRange]
+    val readableContent = l.o.getReadable
+
+    val linenum = rangeContent.map(_.startLineIdx).getOrElse(-1)
+    val lineDetails: String = (rangeContent, readableContent) match {
+      case Some(range) -> Some(readable) => readable.readable.readLines()(range.startLineIdx-1).trim
+      case _ => "unknown line"
+    }
     val check = if (write) (location r_<=> RuntimeFractionOne[Post]()) === const(0) else (location r_<=> RuntimeFractionZero[Post]()) === const(1)
     val message = if (write) s"Permission should have been write but was not: ${l.toString}, line: ${linenum}\\n${lineDetails}" else s"Permission should have been read but there was no permission: ${l.toString}, line: ${linenum}\\n ${lineDetails}"
     RuntimeAssert[Post](check, message)(null)

@@ -82,7 +82,7 @@ case class GenerateJava[Pre <: Generation]() extends Rewriter[Pre] {
       case pe@PostAssignExpression(_, p: ProcedureInvocation[Pre]) => pe.rewrite(value = procedureInvocationToNewObject(p))
       case mi: MethodInvocation[Pre] if isThreadMethod(mi, "start") => generateThreadMethodCall(mi, "start")
       case mi: MethodInvocation[Pre] if isThreadMethod(mi, "join") => generateThreadMethodCall(mi, "join")
-      case l: Local[Pre] if variables.freeze.computeSucc(l.ref.decl).isEmpty => JavaLocal[Post](l.ref.decl.o.getPreferredNameOrElse())(null)(l.o)
+      case l: Local[Pre] if variables.freeze.computeSucc(l.ref.decl).isEmpty => JavaLocal[Post](l.ref.decl.o.getPreferredNameOrElse().camel)(null)(l.o)
       //      case mi: MethodInvocation[Pre] if isMethod(mi.ref.decl, "equals") => generateThreadMethodCall(mi, "join")
 
       case _ => super.dispatch(e)
@@ -141,13 +141,13 @@ case class GenerateJava[Pre <: Generation]() extends Rewriter[Pre] {
     val newBody: Option[Statement[Post]] = im.body.map(dispatch)
     val contract = dispatch(im.contract)
     val params: Seq[JavaParam[Post]] = im.args.map(v => {
-      new JavaParam[Post](Nil, v.o.getPreferredNameOrElse(), dispatch(v.t))
+      new JavaParam[Post](Nil, v.o.getPreferredNameOrElse().camel, dispatch(v.t))
     })
     val newMethod = new JavaMethod(
       modifiers,
       dispatch(im.returnType),
       0,
-      im.o.getPreferredNameOrElse(),
+      im.o.getPreferredNameOrElse().camel,
       params,
       Nil,
       Nil,

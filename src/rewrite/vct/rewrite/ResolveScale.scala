@@ -2,8 +2,7 @@ package vct.col.rewrite
 
 import vct.col.ast._
 import vct.col.rewrite.ResolveScale.{CheckScale, ScaleNegativePreconditionFailed, WrongScale}
-import vct.col.origin.{Blame, NoContext, Origin, PanicBlame, PreconditionFailed, PreferredName, ScaleNegative}
-import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
+import vct.col.origin.{Blame, DiagnosticOrigin, LabelContext, NoContext, Origin, PanicBlame, PreconditionFailed, PreferredName, ScaleNegative}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
@@ -19,12 +18,10 @@ case object ResolveScale extends RewriterBuilder {
       scale.o.messageInContext("This kind of expression cannot be scaled.")
   }
 
-  private def CheckScale(preferredName: String = ""): Origin = Origin(
+  private def CheckScale(preferredName: String = "unknown"): Origin = Origin(
     Seq(
-      PreferredName(preferredName),
-      ShortPosition("generated"),
-      Context("[At function generated to check that scale values are non-negative]"),
-      InlineContext("[Function generated to check that scale values are non-negative]"),
+      PreferredName(Seq(preferredName)),
+      LabelContext("scale check"),
     )
   )
 
@@ -40,14 +37,16 @@ case class ResolveScale[Pre <: Generation]() extends Rewriter[Pre] {
 
     val v = new Variable[Post](TRational())(CheckScale("amount"))
 
-    globalDeclarations.declare(function[Post](
+    globalDeclarations.declare(withResult((result: Result[Post]) => {
+      function[Post](
       blame = PanicBlame("scale ensures nothing"),
       contractBlame = PanicBlame("scale only requires a positive rational"),
       args = Seq(v),
       returnType = TRational(),
       body = Some(v.get),
       requires = UnitAccountedPredicate(v.get >= const(0)),
-    )(CheckScale("scale")))
+      ensures = UnitAccountedPredicate(result >= const(0)),
+    )(CheckScale("scale"))}))
   }
 
   def scaleValue(e: Scale[Pre]): Expr[Post] =
@@ -72,7 +71,7 @@ case class ResolveScale[Pre <: Generation]() extends Rewriter[Pre] {
       case s: Starall[Pre] => s.rewrite(body = scale(s.body, amount))
 
       case l: Let[Pre] => l.rewrite(main = scale(l.main, amount))
-
+      case InlinePattern(inner, parent, group) => InlinePattern(scale(inner, amount), parent, group)
       case other => throw WrongScale(other)
     }
   }

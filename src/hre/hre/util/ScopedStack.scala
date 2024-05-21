@@ -44,6 +44,7 @@ case class ScopedStack[T]() {
   def exists(f: T => Boolean): Boolean = stack.exists(f)
   def foreach(f: T => Unit): Unit = stack.foreach(f)
   def toSeq: Seq[T] = stack.toSeq
+  def contains(t: T): Boolean = find(_ == t).isDefined
 
   def having[R](x: T)(f: => R): R = {
     stack.push(x)
