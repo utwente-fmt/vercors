@@ -1,8 +1,8 @@
 #ifndef VCLLVM_PUREASSIGNER_H
 #define VCLLVM_PUREASSIGNER_H
 
-#include <llvm/IR/PassManager.h>
 #include "vct/col/ast/col.pb.h"
+#include <llvm/IR/PassManager.h>
 /**
  * The PureAssignerPass checks if a LLVM function is pure (i.e. whether the !VC.pure metadata node is set)
  */

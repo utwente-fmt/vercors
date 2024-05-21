@@ -23,6 +23,7 @@ case class ReferenceResolutionContext[G]
   currentResult: Option[ResultTarget[G]] = None,
   currentInitializerType: Option[Type[G]] = None,
   inStaticJavaContext: Boolean = false,
+  inGpuKernel: Boolean = false,
   javaBipStatePredicates: ListMap[Expr[G], JavaAnnotation[G]] = ListMap[Expr[G], JavaAnnotation[G]](),
   javaBipGuards: ListMap[Expr[G], JavaMethod[G]] = ListMap[Expr[G], JavaMethod[G]](),
   // When true and resolving a local, guard names should also be considered
@@ -30,7 +31,7 @@ case class ReferenceResolutionContext[G]
   typeEnv: Map[Variable[G], Type[G]] = Map.empty[Variable[G], Type[G]],
 ) {
   def asTypeResolutionContext: TypeResolutionContext[G] =
-    TypeResolutionContext(stack, currentJavaNamespace, None, Nil, externallyLoadedElements)
+    TypeResolutionContext(stack, currentJavaNamespace, None, Nil, inGpuKernel, externallyLoadedElements)
 
   def declare(decls: Seq[Declaration[G]]): ReferenceResolutionContext[G] =
     copy(stack = decls.flatMap(Referrable.from) +: stack)

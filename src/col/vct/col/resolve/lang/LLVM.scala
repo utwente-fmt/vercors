@@ -10,10 +10,11 @@ object LLVM {
   def findCallable[G](name: String, ctx: ReferenceResolutionContext[G]): Option[LlvmCallable[G]] = {
     // look in context
     val callable = ctx.stack.flatten.map {
-      case RefLlvmGlobal(decl, i) => decl.data.get(i) match {
-        case f: LlvmSpecFunction[G] if f.name == name => Some(f)
-        case _ => None
-      }
+      case RefLlvmGlobal(decl, i) =>
+        decl.data.get(i) match {
+          case f: LlvmSpecFunction[G] if f.name == name => Some(f)
+          case _ => None
+        }
       case _ => None
     }.collectFirst { case Some(f) => f }
     // if not present in context, might find it in the call site of the current function definition

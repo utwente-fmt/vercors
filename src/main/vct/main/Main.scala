@@ -2,7 +2,7 @@ package vct.main
 
 import ch.qos.logback.classic.{Level, Logger}
 import com.typesafe.scalalogging.LazyLogging
-import hre.io.{InterruptibleInputStream, Watch}
+import hre.io.{CollectString, InterruptibleInputStream, Watch}
 import hre.perf.Profile
 import hre.progress.{Layout, Progress}
 import org.slf4j.LoggerFactory
@@ -45,7 +45,7 @@ case object Main extends LazyLogging {
           System.exit(runOptions(options))
         } catch {
           case NonFatal(err) =>
-            logger.error(err.getMessage)
+            logger.error(CollectString(stream => err.printStackTrace(stream)))
             logger.error("!*!*!*!*!*!*!*!*!*!*!*!")
             logger.error("! VerCors has crashed !")
             logger.error("!*!*!*!*!*!*!*!*!*!*!*!")

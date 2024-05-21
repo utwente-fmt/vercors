@@ -1,8 +1,8 @@
-#include <sstream>
 #include "Passes/Function/FunctionBodyTransformer.h"
+#include "Passes/Function/FunctionContractDeclarer.h"
+#include <sstream>
 
 #include "Passes/Function/FunctionDeclarer.h"
-#include "Passes/Function/FunctionContractDeclarer.h"
 #include "Transform/BlockTransform.h"
 #include "Transform/Transform.h"
 #include "Origin/OriginProvider.h"
