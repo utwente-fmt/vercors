@@ -341,7 +341,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case assign: VeyMontAssignExpression[Pre] => rewriteDefault(assign)
       case comm: CommunicateX[Pre] => rewriteDefault(comm)
       case comm: PVLCommunicate[Pre] => rewriteDefault(comm)
-      case comm: Communicate[Pre] => rewriteDefault(comm)
+      case comm: CommunicateStatement[Pre] => rewriteDefault(comm)
       case _: PVLBranch[Pre] => throw ExtraNode
       case _: PVLLoop[Pre] => throw ExtraNode
       case _: UnresolvedChorBranch[Pre] => throw ExtraNode

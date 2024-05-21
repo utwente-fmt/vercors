@@ -1328,29 +1328,32 @@ final case class PVLChorRun[G](body: Statement[G], contract: ApplicableContract[
 @family case class PVLEndpointName[G](name: String)(implicit val o: Origin) extends PVLEndpointNameImpl[G] with NodeFamily[G] {
   var ref: Option[RefPVLEndpoint[G]] = None
 }
-final case class PVLCommunicate[G](invariant: Expr[G], sender: Option[PVLEndpointName[G]], target: Expr[G], receiver: Option[PVLEndpointName[G]], msg: Expr[G])(val blame: Blame[PVLCommunicateFailure])(implicit val o: Origin) extends Statement[G] with PurelySequentialStatement[G] with PVLCommunicateImpl[G]
+final case class PVLCommunicate[G](invariant: Option[Expr[G]], sender: Option[PVLEndpointName[G]], target: Expr[G], receiver: Option[PVLEndpointName[G]], msg: Expr[G])(val blame: Blame[PVLCommunicateFailure])(implicit val o: Origin) extends Statement[G] with PurelySequentialStatement[G] with PVLCommunicateImpl[G]
 final case class PVLChorStatement[G](endpoint: Option[PVLEndpointName[G]], inner: Statement[G])(val blame: Blame[ChorStatementFailure])(implicit val o: Origin) extends Statement[G] with PVLChorStatementImpl[G]
 final case class PVLChorPerm[G](endpoint: PVLEndpointName[G], loc: Location[G], perm: Expr[G])(implicit val o: Origin) extends PVLExpr[G] with PVLChorPermImpl[G]
 final case class PVLSender[G]()(implicit val o: Origin) extends Expr[G] with PVLSenderImpl[G] {
-  var ref: Option[PVLEndpoint[G]]
+  var ref: Option[PVLCommunicate[G]] = None
 }
 final case class PVLReceiver[G]()(implicit val o: Origin) extends Expr[G] with PVLReceiverImpl[G] {
-  var ref: Option[PVLEndpoint[G]]
+  var ref: Option[PVLCommunicate[G]] = None
 }
 final case class PVLMessage[G]()(implicit val o: Origin) extends Expr[G] with PVLMessageImpl[G] {
-  var ref: Option[Expr[G]]
+  var ref: Option[PVLCommunicate[G]] = None
 }
 
 
-// Comm: nested statement, inner is decl kind with @family, @scopes for outer. message refers to that
 @family final class Endpoint[G](val cls: Ref[G, Class[G]], val typeArgs: Seq[Type[G]], val constructor: Ref[G, Constructor[G]], val args: Seq[Expr[G]])(val blame: Blame[EndpointFailure])(implicit val o: Origin) extends Declaration[G] with EndpointImpl[G]
 @scopes[Endpoint] final class Choreography[G](val contract: ApplicableContract[G], val params : Seq[Variable[G]], val endpoints: Seq[Endpoint[G]], val preRun: Option[Statement[G]], val run: ChorRun[G], val decls: Seq[ClassDeclaration[G]])(val blame: Blame[SeqCallableFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with ChoreographyImpl[G]
 @family final case class ChorRun[G](body: Statement[G], contract: ApplicableContract[G])(val blame: Blame[SeqCallableFailure])(implicit val o: Origin) extends NodeFamily[G] with ChorRunImpl[G]
-@family final class Communicate[G](invariant: Expr[G], receiver: Option[Ref[G, Endpoint[G]]], target: Expr[G], sender: Option[Ref[G, Endpoint[G]]], msg: Expr[G])(val blame: Blame[CommunicateFailure])(implicit val o: Origin) extends Declaration[G] with PurelySequentialStatement[G] with CommunicateImpl[G]
-@scopes[Communicate] final case class CommunicateStatement[G](inner: Communicate[G]) extends Statement[G] with CommunicateStatementImpl[G]
+
+@family final class Communicate[G](val invariant: Expr[G], val receiver: Option[Ref[G, Endpoint[G]]], val target: Expr[G], val sender: Option[Ref[G, Endpoint[G]]], val msg: Expr[G])(val blame: Blame[CommunicateFailure])(implicit val o: Origin) extends Declaration[G] with CommunicateImpl[G]
+@scopes[Communicate] final case class CommunicateStatement[G](inner: Communicate[G])(implicit val o: Origin) extends PurelySequentialStatement[G] with CommunicateStatementImpl[G]
 
 final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Expr[G] with EndpointNameImpl[G]
 final case class ChorPerm[G](endpoint: Ref[G, Endpoint[G]], loc: Location[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with ChorPermImpl[G]
+final case class Sender[G](ref: Ref[G, Communicate[G]])(implicit val o: Origin) extends Expr[G] with SenderImpl[G]
+final case class Receiver[G](ref: Ref[G, Communicate[G]])(implicit val o: Origin) extends Expr[G] with ReceiverImpl[G]
+final case class Message[G](ref: Ref[G, Communicate[G]])(implicit val o: Origin) extends Expr[G] with MessageImpl[G]
 
 final case class UnresolvedChorBranch[G](branches: Seq[(Expr[G], Statement[G])])(val blame: Blame[SeqBranchFailure])(implicit val o: Origin) extends Statement[G] with ControlContainerStatement[G] with UnresolvedChorBranchImpl[G]
 final case class UnresolvedChorLoop[G](cond: Expr[G], contract: LoopContract[G], body: Statement[G])(val blame: Blame[SeqLoopFailure])(implicit val o: Origin) extends Statement[G] with ControlContainerStatement[G] with UnresolvedChorLoopImpl[G]

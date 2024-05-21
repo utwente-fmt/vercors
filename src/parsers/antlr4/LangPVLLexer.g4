@@ -78,7 +78,11 @@ NOTIFY: 'notify';
 FORK: 'fork';
 JOIN: 'join';
 
+CHANNEL_INV: 'channel_invariant';
 COMMUNICATE: 'communicate';
+SENDER: '\\sender';
+RECEIVER: '\\receiver';
+MESSAGE: '\\msg';
 
 THIS: 'this';
 NULL: 'null';

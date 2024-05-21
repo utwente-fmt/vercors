@@ -1,6 +1,6 @@
 package vct.col.ast.statement.veymont
 
-import vct.col.ast.{Assert, Assign, Assume, Block, Branch, ChorBranch, ChorLoop, ChorStatement, Communicate, CommunicateX, Deref, Endpoint, EndpointName, Eval, Expr, Loop, MethodInvocation, Scope, ThisChoreography, UnresolvedChorBranch, UnresolvedChorLoop, VeyMontAssignExpression}
+import vct.col.ast.{Assert, Assign, Assume, Block, Branch, ChorBranch, ChorLoop, ChorStatement, Communicate, CommunicateStatement, CommunicateX, Deref, Endpoint, EndpointName, Eval, Expr, Loop, MethodInvocation, Scope, ThisChoreography, UnresolvedChorBranch, UnresolvedChorLoop, VeyMontAssignExpression}
 import vct.col.ast.ops.ChorStatementOps
 import vct.col.ast.statement.StatementImpl
 import vct.col.check.{CheckContext, CheckError, SeqProgInvocation, SeqProgNoParticipant, SeqProgParticipant, SeqProgStatement}
@@ -15,7 +15,7 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] { t
     case _: Block[G] | _: Scope[G] | _: Branch[G] | _: Loop[G] | _: ChorStatement[G] => false
     // Communicate consists of two statements (send & receive) for which each should easily resolve to an endpoint,
     // so it also shouldn't be put in a chorstmt
-    case _: Communicate[G] => false
+    case _: CommunicateStatement[G] => false
     case _ => true
   }
 
@@ -75,7 +75,7 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] { t
     case node: Assign[G] => assign.check(this, node, context)
     case
       _: CommunicateX[G] |
-      _: Communicate[G] |
+      _: CommunicateStatement[G] |
       _: VeyMontAssignExpression[G] |
       _: Branch[G] |
       _: Loop[G] |

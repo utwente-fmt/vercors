@@ -153,6 +153,9 @@ unit
  | 'Perm' '[' identifier ']' '(' expr ',' expr ')' # pvlChorPerm
  | 'this' # pvlThis
  | 'null' # pvlNull
+ | '\\sender' # pvlSender
+ | '\\receiver' # pvlReceiver
+ | '\\msg' # pvlMessage
  | NUMBER # pvlNumber
  | DECIMAL_NUMBER # pvlDecimal
  | DECIMAL_NUMBER_F # pvlDecimalF
@@ -192,6 +195,7 @@ statement
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
  | 'communicate' access direction access ';' # pvlCommunicateStatement
+ | 'channel_invariant' expr ';' 'communicate' access direction access ';' # pvlInvariantCommunicateStatement
  ;
 
 direction

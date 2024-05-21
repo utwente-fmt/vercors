@@ -300,6 +300,9 @@ case class PVLToCol[G](override val baseOrigin: Origin,
         AmbiguousLocation(convert(loc))(blame(expr)),
         convert(perm)
       )
+    case PvlSender(_) => PVLSender()
+    case PvlReceiver(_) => PVLReceiver()
+    case PvlMessage(_) => PVLMessage()
     case PvlThis(_) => AmbiguousThis()
     case PvlNull(_) => Null()
     case PvlNumber(n) => const(BigInt(n))
@@ -385,15 +388,20 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlLabel(_, label, _) => Label(new LabelDecl()(origin(stat).sourceName(convert(label))), Block(Nil))
     case PvlForStatement(inner, _) => convert(inner)
     case comm @ PvlCommunicateStatement(_, to, Direction0("<-"), from, _) =>
-      convertCommunicate(to, from)(comm)
+      convertCommunicate(None, to, from)(comm)
     case comm @ PvlCommunicateStatement(_, from, Direction1("->"), to, _) =>
-      convertCommunicate(to, from)(comm)
+      convertCommunicate(None, to, from)(comm)
+    case comm @ PvlInvariantCommunicateStatement(_, inv, _, _, to, Direction0("<-"), from, _) =>
+      convertCommunicate(Some(inv), to, from)(comm)
+    case comm @ PvlInvariantCommunicateStatement(_, inv, _, _, from, Direction1("->"), to, _) =>
+      convertCommunicate(Some(inv), to, from)(comm)
   }
 
-  def convertCommunicate(to: AccessContext, from: AccessContext)(implicit comm: PvlCommunicateStatementContext): PVLCommunicate[G] = {
+  def convertCommunicate(inv: Option[ExprContext], to: AccessContext, from: AccessContext)(implicit comm: ParserRuleContext): PVLCommunicate[G] = {
     val Access0(receiver, target) = to
     val Access0(sender, msg) = from
     PVLCommunicate(
+      inv.map(convert(_)),
       sender.map(convertParticipant(_)),
       convert(target),
       receiver.map(convertParticipant(_)),

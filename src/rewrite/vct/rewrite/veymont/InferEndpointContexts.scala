@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorPerm, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, FieldLocation, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Location, Loop, MethodInvocation, NewObject, Node, Null, Perm, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorPerm, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateStatement, CommunicateX, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, FieldLocation, Fork, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Join, Local, Location, Loop, MethodInvocation, NewObject, Node, Null, Perm, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
 import vct.col.origin.{AssignLocalOk, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -60,6 +60,12 @@ case class InferEndpointContexts[Pre <: Generation]() extends Rewriter[Pre] with
         preRun = inChor.having(true) { chor.preRun.map(dispatch) },
         run = inChor.having(true) { dispatch(chor.run) }
       ).succeed(chor)
+    case comm: Communicate[Pre] =>
+      implicit val o = comm.o
+      comm.rewrite(
+        receiver = comm.receiver.map(_.decl).orElse(Some(getEndpoint[Pre](comm.target))).map(succ[Endpoint[Post]](_)),
+        sender = comm.sender.map(_.decl).orElse(Some(getEndpoint[Pre](comm.msg))).map(succ[Endpoint[Post]](_)),
+      ).succeed(comm)
     case _ => super.dispatch(decl)
   }
 
@@ -75,12 +81,6 @@ case class InferEndpointContexts[Pre <: Generation]() extends Rewriter[Pre] with
       val endpoint: Endpoint[Pre] = getEndpoint(invoke.obj)
       s.rewrite(endpoint = Some(succ(endpoint)))
     case s @ ChorStatement(None, _) => throw EndpointInferenceUndefined(s)
-    case comm: Communicate[Pre] =>
-      implicit val o = comm.o
-      comm.rewrite(
-        receiver = comm.receiver.map(_.decl).orElse(Some(getEndpoint(comm.target))).map(succ(_)),
-        sender = comm.sender.map(_.decl).orElse(Some(getEndpoint(comm.msg))).map(succ(_)),
-      )
     case s => s.rewriteDefault()
   }
 

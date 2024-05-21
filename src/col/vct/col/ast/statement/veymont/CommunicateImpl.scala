@@ -5,8 +5,9 @@ import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.print.{Ctx, Doc, Group, Text}
 import vct.col.ref.Ref
 import vct.col.ast.ops.CommunicateOps
+import vct.col.ast.ops.{CommunicateOps, CommunicateFamilyOps}
 
-trait CommunicateImpl[G] extends CommunicateOps[G] { this: Communicate[G] =>
+trait CommunicateImpl[G] extends CommunicateOps[G] with CommunicateFamilyOps[G] { this: Communicate[G] =>
   override def layout(implicit ctx: Ctx): Doc =
     Group(Text("communicate") <+> layoutParticipant(receiver) <> target.show <+> "<-" <+> layoutParticipant(sender) <> msg.show <> ";")
 

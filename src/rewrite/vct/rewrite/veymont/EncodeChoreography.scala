@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Assert, Assign, Block, ChorPerm, ChorRun, ChorStatement, Choreography, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Perm, Procedure, Scope, Statement, TClass, TVoid, ThisChoreography, Variable}
+import vct.col.ast.{Assert, Assign, Block, ChorPerm, ChorRun, ChorStatement, Choreography, Class, Communicate, CommunicateStatement, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Perm, Procedure, Scope, Statement, TClass, TVoid, ThisChoreography, Variable}
 import vct.col.origin.{AssertFailed, AssignFailed, AssignLocalOk, Blame, CallableFailure, ChorAssignFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, ParticipantsNotDistinct, PostconditionFailed, PreconditionFailed, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -202,11 +202,11 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
         throw new Exception(assign.o.messageInContext("Assign endpoint in value does not match endpoint that was annotated or inferred"))
       }
       Assign(dispatch(target), dispatch(e))(AssignFailedToSeqAssignFailure(assign))
-    case comm @ Communicate(
-        Some(Ref(receiver)), target,
-        Some(Ref(sender)), msg) =>
+    case CommunicateStatement(comm: Communicate[Pre]) =>
       implicit val o = comm.o
-      if (InferEndpointContexts.getEndpoint(target) != receiver || InferEndpointContexts.getEndpoint(msg) != sender) {
+      val Some(Ref(receiver)) = comm.receiver
+      val Some(Ref(sender)) = comm.sender
+      if (InferEndpointContexts.getEndpoint(comm.target) != receiver || InferEndpointContexts.getEndpoint(comm.msg) != sender) {
         throw new Exception(comm.o.messageInContext("sender/receiver does not match message/target"))
       }
 
@@ -219,9 +219,9 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
 
       Block(Seq(
         equalityTest,
-        Assign[Post](dispatch(target), dispatch(msg))(PanicBlame("TODO: Assignment from communicate failed"))
+        Assign[Post](dispatch(comm.target), dispatch(comm.msg))(PanicBlame("TODO: Assignment from communicate failed"))
       ))
-    case comm @ Communicate(receiver, target, sender, msg) =>
+    case CommunicateStatement(comm: Communicate[Pre]) =>
       throw new Exception(comm.o.messageInContext("Either the sender or receiver was not annotated for or not inferred!"))
     case ChorStatement(_, stat) => dispatch(stat)
     case stat => rewriteDefault(stat)

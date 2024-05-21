@@ -25,8 +25,6 @@ case object CoercingRewriter {
           case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
           case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
           case IncoercibleExplanation(e, message) => s"At `$e`: $message"
-          case WrongType(n, expectedType, actualType) => s"$n was expected to have type $expectedType, but turned out to have type $actualType"
-          case WrongNumberOfTypeArguments(n, expectedLength, actualLength) => s"$n was expected to have $expectedLength number of type arguments, but it actually has $actualLength"
         })
       )
   }
@@ -38,10 +36,6 @@ case object CoercingRewriter {
   case class IncoercibleText(e: Expr[_], targetText: String) extends CoercionError
 
   case class IncoercibleExplanation(blame: Node[_], message: String) extends CoercionError
-
-  case class WrongType(n: Node[_], expectedType: Type[_], actualType: Type[_]) extends CoercionError
-
-  case class WrongNumberOfTypeArguments(n: Node[_], expectedLength: Int, actualLength: Int) extends CoercionError
 
   private def coercionOrigin(of: Expr[_]): Origin = of.o.where(name = "unknown")
 }
@@ -419,6 +413,20 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case None => throw IncoercibleText(e, s"(Seq ?)")
     }
 
+  def arity(t: TClass[Pre]): TClass[Pre] =
+    if (t.cls.decl.typeArgs.length == t.typeArgs.length) t
+    else throw IncoercibleExplanation(t, s"type has ${t.typeArgs.length} type arguments, but class definition has ${t.cls.decl.typeArgs.length} type arguments")
+
+  def arity(inv: Invocation[Pre]): Invocation[Pre] = {
+    if (inv.ref.decl.typeArgs.length != inv.typeArgs.length) {
+      throw IncoercibleExplanation(inv, s"expected ${inv.ref.decl.typeArgs.length} type arguments, got ${inv.typeArgs.length} type arguments")
+    }
+    if (inv.ref.decl.args.length != inv.args.length) {
+      throw IncoercibleExplanation(inv, s"expected ${inv.ref.decl.typeArgs.length} type arguments, got ${inv.typeArgs.length} type arguments")
+    }
+    inv
+  }
+
   def firstOkHelper[T](thing: Either[Seq[CoercionError], T], onError: => T): Either[Seq[CoercionError], T] =
     thing match {
       case Left(errs) => try {
@@ -781,7 +789,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case StringConcat(left, right) =>
         StringConcat(string(left), string(right))
       case inv @ ConstructorInvocation(ref, classTypeArgs, args, outArgs, typeArgs, givenMap, yields) =>
-        ConstructorInvocation(ref, classTypeArgs, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
+        arity(ConstructorInvocation(ref, classTypeArgs, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame))
       case acc @ CStructAccess(struct, field) =>
         CStructAccess(struct, field)(acc.blame)
       case deref @ CStructDeref(struct, field) =>
@@ -829,7 +837,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case ForPermWithValue(binding, body) =>
         ForPermWithValue(binding, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
-        FunctionInvocation(ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
+        arity(FunctionInvocation(ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame))
       case get @ GetLeft(e) =>
         GetLeft(either(e)._1)(get.blame)
       case get @ GetRight(e) =>
@@ -864,7 +872,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case InlinePattern(inner, parent, group) =>
         InlinePattern(inner, parent, group)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
-        InstanceFunctionInvocation(cls(obj), ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
+        arity(InstanceFunctionInvocation(cls(obj), ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame))
       case InstanceOf(value, typeValue) =>
         InstanceOf(value, typeValue)
       case InstancePredicateApply(obj, ref, args, perm) =>
@@ -972,8 +980,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case MatrixSum(indices, mat) =>
         MatrixSum(coerce(indices, TSeq[Pre](TInt())), coerce(mat, TSeq[Pre](TRational())))
       case inv @ MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-        if (ref.decl.typeArgs.length != typeArgs.length) throw WrongNumberOfTypeArguments(inv, ref.decl.typeArgs.length, typeArgs.length)
-        MethodInvocation(obj, ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
+        arity(MethodInvocation(obj, ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame))
       case Minus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
@@ -1097,7 +1104,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case PredicateApply(ref, args, perm) =>
         PredicateApply(ref, coerceArgs(args, ref.decl), rat(perm))
       case inv @ ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
-        ProcedureInvocation(ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
+        arity(ProcedureInvocation(ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame))
       case inv @ LlvmFunctionInvocation(ref, args, givenMap, yields) =>
         LlvmFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
       case inv @ LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields) =>
@@ -1461,6 +1468,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case localIncoming: BipLocalIncomingData[Pre] => localIncoming
       case glue: JavaBipGlue[Pre] => glue
       case LlvmLocal(name) => e
+      case PVLSender() => e
+      case PVLReceiver() => e
+      case PVLMessage() => e
+      case Sender(_) => e
+      case Receiver(_) => e
+      case Message(_) => e
     }
   }
 
@@ -1542,10 +1555,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
       case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
-      case c @ PVLCommunicate(receiver, target, sender, msg) if target.t == msg.t => PVLCommunicate(receiver, target, sender, msg)(c.blame)
-      case comm@PVLCommunicate(receiver, target, sender, msg) => throw IncoercibleExplanation(comm, s"The message should have type ${target.t}, but actually has type ${msg.t}.")
-      case c @ Communicate(receiver, target, sender, msg) if target.t == msg.t => Communicate(receiver, target, sender, msg)(c.blame)
-      case comm@Communicate(receiver, target, sender, msg) => throw IncoercibleExplanation(comm, s"The message should have type ${target.t}, but actually has type ${msg.t}.")
+      case c @ PVLCommunicate(invariant, receiver, target, sender, msg) if target.t == msg.t => PVLCommunicate(invariant.map(res(_)), receiver, target, sender, msg)(c.blame)
+      case comm@PVLCommunicate(_, receiver, target, sender, msg) => throw IncoercibleExplanation(comm, s"The message should have type ${target.t}, but actually has type ${msg.t}.")
       case s: PVLChorStatement[Pre] => s
       case s: ChorBranch[Pre] => s
       case s: ChorLoop[Pre] => s
@@ -1705,6 +1716,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case endpoint: PVLEndpoint[Pre] => endpoint
       case seqProg: PVLChoreography[Pre] => seqProg
       case seqRun: PVLChorRun[Pre] => seqRun
+      case c: Communicate[Pre] if c.target.t == c.msg.t => new Communicate(res(c.invariant), c.receiver, c.target, c.sender, c.msg)(c.blame)
+      case c: Communicate[Pre] => throw IncoercibleExplanation(c, s"The message should have type ${c.target.t}, but actually has type ${c.msg.t}.")
       }
   }
 
@@ -1738,9 +1751,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
 
   // PB: types may very well contain expressions eventually, but for now they don't.
   def coerce(node: Type[Pre]): Type[Pre] = node match {
-    case t @ TClass(r @ Ref(cls), args) =>
-      if (cls.typeArgs.length == args.length) node
-      else throw WrongNumberOfTypeArguments(t, cls.typeArgs.length, args.length)
+    case t @ TClass(cls, args) => arity(TClass(cls, args))
     case _ => node
   }
 

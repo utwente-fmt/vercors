@@ -3,6 +3,7 @@ package vct.rewrite.lang
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
+import vct.col.util.AstBuildHelpers._
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{RefField, RefPVLEndpoint}
@@ -10,6 +11,7 @@ import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangVeyMontToCol.{AssignNotAllowed, NoRunMethod}
+import vct.rewrite.veymont.InferEndpointContexts
 
 case object LangVeyMontToCol {
   case class NoRunMethod(prog: PVLChoreography[_]) extends UserError {
@@ -33,17 +35,22 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
 
   val chorSucc: SuccessionMap[PVLChoreography[Pre], Choreography[Post]] = SuccessionMap()
   val endpointSucc: SuccessionMap[PVLEndpoint[Pre], Endpoint[Post]] = SuccessionMap()
+  val commSucc: SuccessionMap[PVLCommunicate[Pre], Communicate[Post]] = SuccessionMap()
 
   val currentProg: ScopedStack[PVLChoreography[Pre]] = ScopedStack()
   val currentStatement: ScopedStack[Statement[Pre]] = ScopedStack()
   val currentExpr: ScopedStack[Expr[Pre]] = ScopedStack()
 
-  def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] =
-    Communicate(
-      comm.receiver.map(rewriteEndpointName),
-      rw.dispatch(comm.target),
-      comm.sender.map(rewriteEndpointName),
-      rw.dispatch(comm.msg))(comm.blame)(comm.o)
+  def rewriteCommunicate(comm: PVLCommunicate[Pre]): CommunicateStatement[Post] = {
+    val newComm = new Communicate[Post](
+        comm.invariant.map(rw.dispatch).getOrElse(tt),
+        comm.receiver.map(rewriteEndpointName).orElse(Some(rw.succ[Endpoint[Post]](InferEndpointContexts.getEndpoint(comm.target)))),
+        rw.dispatch(comm.target),
+        comm.sender.map(rewriteEndpointName).orElse(Some(rw.succ[Endpoint[Post]](InferEndpointContexts.getEndpoint(comm.target)))),
+        rw.dispatch(comm.msg))(comm.blame)(comm.o)
+    commSucc(comm) = newComm
+    CommunicateStatement(newComm)(comm.o)
+  }
 
   def rewriteEndpointName(name: PVLEndpointName[Pre]): Ref[Post, Endpoint[Post]] =
     endpointSucc.ref(name.ref.get.decl)
@@ -119,6 +126,9 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
   def rewriteExpr(expr: Expr[Pre]): Expr[Post] = expr match {
     case PVLChorPerm(endpoint, loc, perm) =>
       ChorPerm[Post](rewriteEndpointName(endpoint), rw.dispatch(loc), rw.dispatch(perm))(expr.o)
+    case expr @ PVLSender() => Sender[Post](commSucc.ref(expr.ref.get))(expr.o)
+    case expr @ PVLReceiver() => Receiver[Post](commSucc.ref(expr.ref.get))(expr.o)
+    case expr @ PVLMessage() => Message[Post](commSucc.ref(expr.ref.get))(expr.o)
     case expr => currentExpr.having(expr) { rw.dispatch(expr) }
   }
 }
