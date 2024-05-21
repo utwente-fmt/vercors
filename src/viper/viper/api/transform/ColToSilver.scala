@@ -39,7 +39,7 @@ case class ColToSilver(program: col.Program[_]) {
   val currentMapGet: ScopedStack[col.MapGet[_]] = ScopedStack()
   val currentDividingExpr: ScopedStack[col.DividingExpr[_]] = ScopedStack()
 
-  var inTriggers = false
+  val inTriggers: ScopedStack[Unit] = ScopedStack()
 
   case class NotSupported(node: col.Node[_]) extends SystemError {
     override def text: String =
@@ -324,9 +324,9 @@ case class ColToSilver(program: col.Program[_]) {
       scoped {
         currentStarall.having(starall) {
           val newBindings = bindings.map(variable)
-          inTriggers = true
-          val newTriggers = triggers.map(trigger)
-          inTriggers = false
+          val newTriggers = inTriggers.having(()) {
+             triggers.map(trigger)
+          }
           val foralls: Seq[silver.Forall] = silver.utility.QuantifiedPermissions.desugarSourceQuantifiedPermissionSyntax(
             silver.Forall(newBindings, newTriggers, exp(body))(pos=pos(e), info=expInfo(e))
           )
@@ -356,7 +356,7 @@ case class ColToSilver(program: col.Program[_]) {
       permValue.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(res)
       silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field))(pos=pos(res), info=expInfo(res)), permValue)(pos=pos(res), info=expInfo(res))
     case res: col.PredicateApply[_] =>
-      if(inTriggers){
+      if(inTriggers.nonEmpty){
         return predInTrigger(res)
       }
       val silver = pred(res)
