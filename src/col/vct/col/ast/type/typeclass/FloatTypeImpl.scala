@@ -5,6 +5,7 @@ import vct.col.ast.{CPrimitiveType, CSpecificationType, FloatType, TCFloat, TFlo
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.print.{Ctx, Doc, Text}
 import vct.col.typerules.CoercionUtils
+import vct.col.resolve.lang.C
 
 // https://en.wikipedia.org/wiki/Single-precision_floating-point_format#IEEE_754_standard:_binary32
 // https://en.wikipedia.org/wiki/Double-precision_floating-point_format#IEEE_754_double-precision_binary_floating-point_format:_binary64
@@ -17,7 +18,9 @@ object TFloats {
 
   // Only returns a float, when one of the types is floating itself
   // Returns to biggest float, e.g. (float32, float64) should return float64
-  def getFloatMax[G](l: Type[G], r: Type[G]): Option[FloatType[G]] = {
+  def getFloatMax[G](ll: Type[G], rr: Type[G]): Option[FloatType[G]] = {
+    val l = C.stripCPrimitiveType(ll)
+    val r = C.stripCPrimitiveType(rr)
     val promote = (l, r) match {
       case (_: TFloat[G], _) => true
       case (_, _: TFloat[G]) => true
@@ -29,9 +32,6 @@ object TFloats {
     }
 
     (l, r) match {
-      // Work for CPrimitive Types
-      case (CPrimitiveType(Seq(CSpecificationType(innerL))), r) => getFloatMax(innerL, r)
-      case (l, CPrimitiveType(Seq(CSpecificationType(innerR)))) => getFloatMax(l, innerR)
       case (l: FloatType[G], r: FloatType[G]) if r.exponent == l.exponent && r.mantissa == l.mantissa => Some(promoting(l))
       case (l: FloatType[G], r: FloatType[G]) if l.exponent < r.exponent && l.mantissa < r.mantissa => Some(promoting(r))
       case (l: FloatType[G], r: FloatType[G]) if r.exponent < l.exponent && r.mantissa < l.mantissa => Some(promoting(l))
