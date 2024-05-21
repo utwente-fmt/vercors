@@ -103,11 +103,10 @@ case object Options {
       opt[(String, PathOrStd)]("output-before-pass").unbounded().keyValueName("<pass>", "<path>")
         .action((output, c) => c.copy(outputBeforePass = c.outputBeforePass ++ Map(output)))
         .text("Print the AST before a pass key"),
-      opt[Unit]("output-intermediate-programs")
-        .abbr("explode")
+      opt[Unit]("trace-col")
         .action((_, c) => c.copy(outputIntermediatePrograms = Some(Paths.get("tmp", "cols"))))
         .text("Writes all intermediate ASTs, labeled by pass, to tmp/cols/"),
-      opt[Path]("output-intermediate-programs-in")
+      opt[Path]("trace-col-in")
         .action((p, c) => c.copy(outputIntermediatePrograms = Some(p)))
         .text("Writes all intermediate ASTs, labeled by pass, to a given folder"),
 
