@@ -17,11 +17,7 @@ case object Util {
 
     o match {
       case None => ProgressRender(message)
-      case Some(o) if short =>
-        ProgressRender(s"$message `${o.inlineContextText}`")
-      case Some(o) =>
-        val lines = o.messageInContext(message).split("\n").toSeq
-        ProgressRender(lines, lines.size - 2)
+      case Some(o) => o.renderProgress(message, short)
     }
   }
 }

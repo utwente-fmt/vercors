@@ -1,5 +1,5 @@
-#include <sstream>
 #include "Passes/Module/ModuleSpecCollector.h"
+#include <sstream>
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
 #include "Origin/OriginProvider.h"

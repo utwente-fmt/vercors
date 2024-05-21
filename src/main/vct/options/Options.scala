@@ -142,6 +142,13 @@ case object Options {
         .action((_, c) => c.copy(inferHeapContextIntoFrame = false))
         .text("Disables smart inference of contextual heap into frame statements using `forperm`"),
 
+      opt[Unit]("dev-parsing-ambiguities").maybeHidden()
+        .action((_, c) => c.copy(devParserReportAmbiguities = true))
+        .text("Report instances of ambiguities in the parsed inputs"),
+      opt[Unit]("dev-parsing-sensitivities").maybeHidden()
+        .action((_, c) => c.copy(devParserReportContextSensitivities = true))
+        .text("Report instances of context sensitivities in the parsed inputs"),
+
       opt[Unit]("dev-abrupt-exc").maybeHidden()
         .action((_, c) => c.copy(devAbruptExc = true))
         .text("Encode all abrupt control flow using exception, even when not necessary"),
@@ -368,6 +375,8 @@ case class Options
   inferHeapContextIntoFrame: Boolean = true,
 
   // Verify options - hidden
+  devParserReportAmbiguities: Boolean = false,
+  devParserReportContextSensitivities: Boolean = false,
   devAbruptExc: Boolean = false,
   devCheckSat: Boolean = true,
   devSimplifyDebugIn: Seq[String] = Nil,
@@ -404,4 +413,10 @@ case class Options
 
   // Control flow graph options
   cfgOutput: Path = null,
-)
+) {
+  def getParserDebugOptions: vct.parsers.debug.DebugOptions =
+    vct.parsers.debug.DebugOptions(
+      reportAmbiguities = devParserReportAmbiguities,
+      reportContextSensitivity = devParserReportContextSensitivities,
+    )
+}

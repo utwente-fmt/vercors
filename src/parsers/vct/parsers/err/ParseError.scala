@@ -1,4 +1,4 @@
-package vct.parsers
+package vct.parsers.err
 
 import vct.col.origin._
 import vct.result.{Message, VerificationError}

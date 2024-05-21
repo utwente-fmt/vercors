@@ -1,8 +1,8 @@
 #ifndef VCLLVM_FUNCTIONDECLARER_H
 #define VCLLVM_FUNCTIONDECLARER_H
 
-#include <llvm/IR/PassManager.h>
 #include "vct/col/ast/col.pb.h"
+#include <llvm/IR/PassManager.h>
 
 /**
  * Pass that creates a signature for a LLVMFunctionDefinition in COL and exposes an FDResult object that

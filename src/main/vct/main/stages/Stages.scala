@@ -17,7 +17,7 @@ import scala.collection.mutable
 case object Stages {
   def silicon(blameProvider: BlameProvider, bipResults: BIP.VerificationResults): Stages[Seq[Readable], Unit] = {
     Parsing(blameProvider)
-      .thenRun(Resolution(blameProvider))
+      .thenRun(Resolution(blameProvider, vct.parsers.debug.DebugOptions.NONE))
       .thenRun(SilverTransformation(bipResults = bipResults))
       .thenRun(SilverBackend(Silicon()))
       .thenRun(ExpectedErrors())
@@ -25,7 +25,7 @@ case object Stages {
 
   def carbon(blameProvider: BlameProvider, bipResults: BIP.VerificationResults): Stages[Seq[Readable], Unit] = {
     Parsing(blameProvider)
-      .thenRun(Resolution(blameProvider))
+      .thenRun(Resolution(blameProvider, vct.parsers.debug.DebugOptions.NONE))
       .thenRun(SilverTransformation(bipResults = bipResults))
       .thenRun(SilverBackend(Carbon()))
       .thenRun(ExpectedErrors())

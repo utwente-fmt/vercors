@@ -6,6 +6,7 @@ import vct.col.err.ASTStateError
 import vct.col.origin.Origin
 import vct.col.ref.Ref
 import vct.col.resolve.ResolveReferences
+import vct.col.resolve.ctx.TypeResolutionContext
 import vct.result.{HasContext, Message}
 
 import scala.collection.immutable.ListSet
@@ -174,7 +175,7 @@ case class SeqProgInstanceMethodPure(m: InstanceMethod[_]) extends CheckError {
 case object CheckContext {
   case class ScopeFrame[G](decls: Seq[Declaration[G]], scanLazily: Seq[Node[G]]) {
     private lazy val declSet = decls.toSet
-    private lazy val scannedDeclSet = scanLazily.flatMap(ResolveReferences.scanScope(_, inGPUKernel = false)).toSet
+    private lazy val scannedDeclSet = scanLazily.flatMap(ResolveReferences.scanScope(TypeResolutionContext())).toSet
 
     def contains(decl: Declaration[G]): Boolean =
       declSet.contains(decl) || (scanLazily.nonEmpty && scannedDeclSet.contains(decl))

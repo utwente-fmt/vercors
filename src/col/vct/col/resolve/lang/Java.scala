@@ -267,7 +267,8 @@ case object Java extends LazyLogging {
             // E.g. /root/pkg/a/Cls.java declaring package pkg.a; -> /root
             for {
               ns <- ctx.namespace
-              readable <- Some(ns.o.find[ReadableOrigin].get.readable)
+              readableOrigin <- ns.o.find[ReadableOrigin]
+              readable <- Some(readableOrigin.readable)
               file <- readable.underlyingFile
               baseFile <- ns.pkg.getOrElse(JavaName(Nil)).names.foldRight[Option[Path]](Option(file.getParent)) {
                 case (name, Some(file)) if file.getFileName.toString == name => Option(file.getParent)

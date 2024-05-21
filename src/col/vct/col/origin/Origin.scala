@@ -2,6 +2,7 @@ package vct.col.origin
 
 import com.typesafe.scalalogging.Logger
 import hre.io.{LiteralReadable, Readable}
+import hre.progress.ProgressRender
 import vct.result.HasContext
 import vct.result.Message.HR
 
@@ -282,6 +283,14 @@ final case class Origin(originContents: Seq[OriginContent]) extends Blame[Verifi
   override def blame(error: VerificationFailure): Unit = {
     Logger("vct").error(error.toString)
   }
+
+  def renderProgress(message: String, short: Boolean): ProgressRender =
+    if(short)
+      ProgressRender(s"$message `$inlineContextText`")
+    else {
+      val lines = messageInContext(message).split("\n").toSeq
+      ProgressRender(lines, lines.size - 2)
+    }
 }
 
 object InputOrigin {

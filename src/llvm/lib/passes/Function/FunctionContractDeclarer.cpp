@@ -1,5 +1,5 @@
-#include <sstream>
 #include "Passes/Function/FunctionContractDeclarer.h"
+#include <sstream>
 
 #include "Passes/Function/FunctionDeclarer.h"
 #include "Util/Constants.h"
