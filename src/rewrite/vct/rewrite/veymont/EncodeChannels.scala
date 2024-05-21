@@ -56,7 +56,6 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
     Name.names(comm.sender.get.decl.o.getPreferredNameOrElse(),
       comm.receiver.get.decl.o.getPreferredNameOrElse())
 
-
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case chor: Choreography[Pre] =>
       implicit val o = chor.o
