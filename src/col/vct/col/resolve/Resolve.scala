@@ -17,6 +17,7 @@ import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.immutable.{AbstractSeq, LinearSeq}
+import scala.collection.mutable
 
 case object Resolve {
   trait SpecExprParser {
@@ -295,10 +296,12 @@ case object ResolveReferences extends LazyLogging {
       .declare(chor.decls)
       .declare(chor.endpoints)
       .declare(chor.params)
-    case seqProg: PVLChoreography[G] => ctx
-      .copy(currentThis = Some(RefPVLChoreography(seqProg)))
-      .declare(seqProg.args)
-      .declare(seqProg.declarations)
+    case chor: PVLChoreography[G] => ctx
+      .copy(currentThis = Some(RefPVLChoreography(chor)))
+      .declare(chor.args)
+      .declare(chor.declarations)
+    case channelInv: PVLChannelInvariant[G] => ctx
+      .copy(currentCommunicate = Some(channelInv.comm.asInstanceOf[PVLCommunicate[G]]))
     case method: JavaMethod[G] => ctx
       .copy(currentResult=Some(RefJavaMethod(method)))
       .copy(inStaticJavaContext=method.modifiers.collectFirst { case _: JavaStatic[_] => () }.nonEmpty)
@@ -680,6 +683,23 @@ case object ResolveReferences extends LazyLogging {
       val decl = ctx.llvmSpecParser.parse(glob, glob.o)
       glob.data = Some(decl)
       resolve(decl, ctx)
+    case comm: PVLCommunicate[G] =>
+      /* Endpoint contexts for communicate are resolved early, because otherwise \sender, \receiver, \msg cannot be typed.
+       */
+      def getEndpoints[G](expr: Expr[G]): Seq[PVLEndpoint[G]] =
+        mutable.LinkedHashSet.from(expr.collect { case name: PVLLocal[G] => name.ref.get }.collect { case RefPVLEndpoint(endpoint) => endpoint }).toSeq
+
+      def getEndpoint[G](expr: Expr[G]): PVLEndpoint[G] = getEndpoints(expr) match {
+        case Seq(endpoint) => endpoint
+        // TODO (RR): Proper error
+        case Seq() => throw new Exception(expr.o.messageInContext("No endpoints in expr"))
+        case _ => throw new Exception(expr.o.messageInContext("Too many endpoints possible"))
+      }
+      comm.inferredSender = comm.sender.map(_.ref.get.decl).orElse(Some(getEndpoint(comm.msg)))
+      comm.inferredReceiver = comm.receiver.map(_.ref.get.decl).orElse(Some(getEndpoint(comm.target)))
+    case sender: PVLSender[G] => sender.ref = Some(ctx.currentCommunicate.get)
+    case receiver: PVLReceiver[G] => receiver.ref = Some(ctx.currentCommunicate.get)
+    case msg: PVLMessage[G] => msg.ref = Some(ctx.currentCommunicate.get)
     case _ =>
   }
 }

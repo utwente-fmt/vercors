@@ -68,6 +68,7 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
   val currentProg: ScopedStack[Choreography[Pre]] = ScopedStack()
   val currentRun: ScopedStack[ChorRun[Pre]] = ScopedStack()
   val currentInstanceMethod: ScopedStack[InstanceMethod[Pre]] = ScopedStack()
+  val currentCommunicate: ScopedStack[Communicate[Pre]] = ScopedStack()
 
   sealed trait Mode
   case object Top extends Mode
@@ -216,6 +217,9 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
             )(AssertFailedToParticipantsNotDistinct(comm))
         else
           Block(Nil)
+
+      // TODO: Assign to msg, replace msg inside, assign to target. Done
+      val channelInvariant = currentCommunicate.having(comm) { dispatch(comm.invariant) }
 
       Block(Seq(
         equalityTest,

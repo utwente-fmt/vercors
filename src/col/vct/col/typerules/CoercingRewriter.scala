@@ -1555,12 +1555,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
       case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
-      case c @ PVLCommunicate(invariant, receiver, target, sender, msg) if target.t == msg.t => PVLCommunicate(invariant.map(res(_)), receiver, target, sender, msg)(c.blame)
-      case comm@PVLCommunicate(_, receiver, target, sender, msg) => throw IncoercibleExplanation(comm, s"The message should have type ${target.t}, but actually has type ${msg.t}.")
+      case c @ PVLCommunicate(receiver, target, sender, msg) if target.t == msg.t => PVLCommunicate(receiver, target, sender, msg)(c.blame)
+      case comm@PVLCommunicate(receiver, target, sender, msg) => throw IncoercibleExplanation(comm, s"The message should have type ${target.t}, but actually has type ${msg.t}.")
+      case PVLChannelInvariant(comm, inv) => PVLChannelInvariant(comm, res(inv))
       case s: PVLChorStatement[Pre] => s
       case s: ChorBranch[Pre] => s
       case s: ChorLoop[Pre] => s
       case c: ChorStatement[Pre] => c
+      case c: CommunicateStatement[Pre] => c
       case branch@UnresolvedChorBranch(branches) => UnresolvedChorBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
       case branch@PVLBranch(branches) => PVLBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
       case loop@UnresolvedChorLoop(cond, contract, body) => UnresolvedChorLoop(bool(cond), contract, body)(loop.blame)

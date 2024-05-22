@@ -1328,7 +1328,14 @@ final case class PVLChorRun[G](body: Statement[G], contract: ApplicableContract[
 @family case class PVLEndpointName[G](name: String)(implicit val o: Origin) extends PVLEndpointNameImpl[G] with NodeFamily[G] {
   var ref: Option[RefPVLEndpoint[G]] = None
 }
-final case class PVLCommunicate[G](invariant: Option[Expr[G]], sender: Option[PVLEndpointName[G]], target: Expr[G], receiver: Option[PVLEndpointName[G]], msg: Expr[G])(val blame: Blame[PVLCommunicateFailure])(implicit val o: Origin) extends Statement[G] with PurelySequentialStatement[G] with PVLCommunicateImpl[G]
+
+// Resolution of invariant can depend on communicate's target/msg through \sender, \receiver, \msg. Therefore, definitions are nested like this,
+// to ensure that PVLCommunicate is fully resolved before the invariant is typechecked.
+final case class PVLChannelInvariant[G](comm: Statement[G], inv: Expr[G])(implicit val o: Origin) extends Statement[G] with PVLChannelInvariantImpl[G]
+final case class PVLCommunicate[G](receiver: Option[PVLEndpointName[G]], target: Expr[G], sender: Option[PVLEndpointName[G]], msg: Expr[G])(val blame: Blame[PVLCommunicateFailure])(implicit val o: Origin) extends Statement[G] with PurelySequentialStatement[G] with PVLCommunicateImpl[G] {
+  var inferredSender: Option[PVLEndpoint[G]] = None
+  var inferredReceiver: Option[PVLEndpoint[G]] = None
+}
 final case class PVLChorStatement[G](endpoint: Option[PVLEndpointName[G]], inner: Statement[G])(val blame: Blame[ChorStatementFailure])(implicit val o: Origin) extends Statement[G] with PVLChorStatementImpl[G]
 final case class PVLChorPerm[G](endpoint: PVLEndpointName[G], loc: Location[G], perm: Expr[G])(implicit val o: Origin) extends PVLExpr[G] with PVLChorPermImpl[G]
 final case class PVLSender[G]()(implicit val o: Origin) extends Expr[G] with PVLSenderImpl[G] {

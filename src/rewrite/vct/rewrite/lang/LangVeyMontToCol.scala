@@ -41,16 +41,24 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
   val currentStatement: ScopedStack[Statement[Pre]] = ScopedStack()
   val currentExpr: ScopedStack[Expr[Pre]] = ScopedStack()
 
-  def rewriteCommunicate(comm: PVLCommunicate[Pre]): CommunicateStatement[Post] = {
+  def rewriteCommunicate(comm: PVLCommunicate[Pre], inv: Expr[Pre]): CommunicateStatement[Post] = {
     val newComm = new Communicate[Post](
-        comm.invariant.map(rw.dispatch).getOrElse(tt),
-        comm.receiver.map(rewriteEndpointName).orElse(Some(rw.succ[Endpoint[Post]](InferEndpointContexts.getEndpoint(comm.target)))),
+        rw.dispatch(inv),
+//        Some(rw.succ[Endpoint[Post]](comm.inferredSender.get)),
+        Some(endpointSucc.ref(comm.inferredReceiver.get)),
         rw.dispatch(comm.target),
-        comm.sender.map(rewriteEndpointName).orElse(Some(rw.succ[Endpoint[Post]](InferEndpointContexts.getEndpoint(comm.target)))),
+//        Some(rw.succ[Endpoint[Post]](comm.inferredReceiver.get)),
+        Some(endpointSucc.ref(comm.inferredSender.get)),
         rw.dispatch(comm.msg))(comm.blame)(comm.o)
     commSucc(comm) = newComm
     CommunicateStatement(newComm)(comm.o)
   }
+
+  def rewriteCommunicate(comm: PVLCommunicate[Pre]): CommunicateStatement[Post] =
+    rewriteCommunicate(comm, tt)
+
+  def rewriteChannelInv(inv: PVLChannelInvariant[Pre]): CommunicateStatement[Post] =
+    rewriteCommunicate(inv.comm.asInstanceOf[PVLCommunicate[Pre]], inv.inv)
 
   def rewriteEndpointName(name: PVLEndpointName[Pre]): Ref[Post, Endpoint[Post]] =
     endpointSucc.ref(name.ref.get.decl)
@@ -118,6 +126,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
     case branch: PVLBranch[Pre] => rewriteBranch(branch)
     case loop: PVLLoop[Pre] => rewriteLoop(loop)
     case comm: PVLCommunicate[Pre] => rewriteCommunicate(comm)
+    case inv: PVLChannelInvariant[Pre] => rewriteChannelInv(inv)
     case stmt => currentStatement.having(stmt) {
       ChorStatement(None, rw.dispatch(stmt))(PanicBlame("Arbitratry statement blame missing"))(stmt.o)
     }

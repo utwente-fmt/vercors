@@ -387,26 +387,25 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlGoto(_, label, _) => Goto(new UnresolvedRef[G, LabelDecl[G]](convert(label)))
     case PvlLabel(_, label, _) => Label(new LabelDecl()(origin(stat).sourceName(convert(label))), Block(Nil))
     case PvlForStatement(inner, _) => convert(inner)
-    case comm @ PvlCommunicateStatement(_, to, Direction0("<-"), from, _) =>
-      convertCommunicate(None, to, from)(comm)
-    case comm @ PvlCommunicateStatement(_, from, Direction1("->"), to, _) =>
-      convertCommunicate(None, to, from)(comm)
-    case comm @ PvlInvariantCommunicateStatement(_, inv, _, _, to, Direction0("<-"), from, _) =>
-      convertCommunicate(Some(inv), to, from)(comm)
-    case comm @ PvlInvariantCommunicateStatement(_, inv, _, _, from, Direction1("->"), to, _) =>
-      convertCommunicate(Some(inv), to, from)(comm)
+    case comm @ PvlCommunicateStatement(inv, _, to, Direction0("<-"), from, _) =>
+      convertCommunicate(inv, to, from)(comm)
+    case comm @ PvlCommunicateStatement(inv, _, from, Direction1("->"), to, _) =>
+      convertCommunicate(inv, to, from)(comm)
   }
 
-  def convertCommunicate(inv: Option[ExprContext], to: AccessContext, from: AccessContext)(implicit comm: ParserRuleContext): PVLCommunicate[G] = {
+  def convertCommunicate(inv: Option[ChannelInvariantContext], to: AccessContext, from: AccessContext)(implicit node: ParserRuleContext): Statement[G] = {
     val Access0(receiver, target) = to
     val Access0(sender, msg) = from
-    PVLCommunicate(
-      inv.map(convert(_)),
-      sender.map(convertParticipant(_)),
-      convert(target),
+    val comm = PVLCommunicate[G](
       receiver.map(convertParticipant(_)),
+      convert(target),
+      sender.map(convertParticipant(_)),
       convert(msg)
-    )(blame(comm))
+    )(blame(node))
+    inv match {
+      case Some(node @ ChannelInvariant0(_, inv, _)) => PVLChannelInvariant[G](comm, convert(inv))(origin(node))
+      case None => comm
+    }
   }
 
   def convertParticipant(implicit participant: ParticipantContext): PVLEndpointName[G] = participant match {

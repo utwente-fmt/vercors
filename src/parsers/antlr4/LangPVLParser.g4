@@ -194,8 +194,11 @@ statement
  | 'goto' identifier ';' # pvlGoto
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
- | 'communicate' access direction access ';' # pvlCommunicateStatement
- | 'channel_invariant' expr ';' 'communicate' access direction access ';' # pvlInvariantCommunicateStatement
+ | channelInvariant? 'communicate' access direction access ';' # pvlCommunicateStatement
+ ;
+
+ channelInvariant
+ : 'channel_invariant' expr ';'
  ;
 
 direction

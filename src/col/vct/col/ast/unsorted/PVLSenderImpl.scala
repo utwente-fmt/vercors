@@ -6,5 +6,5 @@ import vct.col.print._
 
 trait PVLSenderImpl[G] extends PVLSenderOps[G] { this: PVLSender[G] =>
   override def layout(implicit ctx: Ctx): Doc = Text("/* PVL */ \\sender")
-  override def t: Type[G] = ref.get.sender.get.ref.get.decl.t
+  override def t: Type[G] = ref.get.inferredSender.get.t
 }
