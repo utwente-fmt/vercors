@@ -7,7 +7,7 @@ import vct.col.ast.ops.RuntimeConcurrentHashMapGetOrDefaultOps
 trait RuntimeConcurrentHashMapGetOrDefaultImpl[G] extends RuntimeConcurrentHashMapGetOrDefaultOps[G] {
   this: RuntimeConcurrentHashMapGetOrDefault[G] =>
 
-  override val t: Type[G] = hm.t.asInstanceOf[RuntimeConcurrentHashMap[G]].valueType
+  override lazy val t: Type[G] = hm.t.asInstanceOf[RuntimeConcurrentHashMap[G]].valueType
 
   override def layout(implicit ctx: Ctx): Doc = hm.show <> ".getOrDefault(" <> key.show <> "," <+> default.show <> ")"
 }

@@ -2,6 +2,7 @@ package vct.rewrite.runtime
 
 import vct.col.ast.RewriteHelpers.RewriteClass
 import vct.col.ast.{Class, Declaration, GlobalDeclaration, Procedure, TClass, Type}
+import vct.col.origin.PreferredName
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
@@ -61,7 +62,7 @@ case class RemoveSelfLoops[Pre <: Generation]() extends Rewriter[Pre] {
    */
   def createClassSupports(c: Class[Pre]): Seq[Type[Post]] =
     c.supports.filter {
-      case TClass(Ref(cls), _) if cls.o.getPreferredNameOrElse().ucamel == "Object" => false
+      case TClass(Ref(cls), _) if cls.o.find[PreferredName].contains(PreferredName(Seq("Object"))) => false
       case _ => true
     }.map(dispatch)
 }

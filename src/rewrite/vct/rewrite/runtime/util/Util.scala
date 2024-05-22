@@ -2,7 +2,7 @@ package vct.rewrite.runtime.util
 
 
 import vct.col.ast._
-import vct.col.origin.Origin
+import vct.col.origin.{Origin, PreferredName}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers._
@@ -57,7 +57,7 @@ object Util {
    * @return
    */
   def isMethod[G](i: InstanceMethod[G], methodName: String): Boolean = {
-    i.o.getPreferredNameOrElse() == methodName
+    i.o.find[PreferredName].contains(PreferredName(Seq(methodName)))
   }
 
   /**
@@ -172,7 +172,8 @@ object Util {
    */
   def findClosestInjectivityMap[Pre <: Generation](sc: FrozenScopes[Pre, Rewritten[Pre], Variable[Pre], Variable[Rewritten[Pre]]]): Variable[Rewritten[Pre]] = {
     sc.scopes.collectFirst{
-      case m if m.values.exists(v => v.o.getPreferredNameOrElse() == "injectivityMap") => m.values.find(v => v.o.getPreferredNameOrElse() == "injectivityMap").get
+      case m if m.values.exists(v => v.o.find[PreferredName].contains(PreferredName(Seq("injectivityMap")))) =>
+        m.values.find(v => v.o.find[PreferredName].contains(PreferredName(Seq("injectivityMap")))).get
     }.get
   }
 

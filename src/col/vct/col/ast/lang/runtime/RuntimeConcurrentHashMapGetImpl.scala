@@ -7,7 +7,7 @@ import vct.col.ast.ops.RuntimeConcurrentHashMapGetOps
 trait RuntimeConcurrentHashMapGetImpl[G] extends RuntimeConcurrentHashMapGetOps[G] {
   this: RuntimeConcurrentHashMapGet[G] =>
 
-  override val t: Type[G] = hm.t.asInstanceOf[RuntimeConcurrentHashMap[G]].valueType
+  override lazy val t: Type[G] = hm.t.asInstanceOf[RuntimeConcurrentHashMap[G]].valueType
 
   override def layout(implicit ctx: Ctx): Doc = hm.show <> ".get(" <> key.show <> ")"
 }

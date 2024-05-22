@@ -1,7 +1,7 @@
 package vct.rewrite.runtime.util
 
 import vct.col.ast._
-import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.origin.{DiagnosticOrigin, Origin, PreferredName}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter}
 import vct.col.util.AstBuildHelpers
@@ -136,13 +136,13 @@ object LedgerHelper {
   case class LedgerMethodBuilderHelper[G](refCls: Ref[G, Class[G]], clsDeclarations: Seq[ClassDeclaration[G]], pmbh: DataMethodBuilderHelper[G])(implicit origin: Origin = DiagnosticOrigin) {
     def threadId: ThreadId[G] = ThreadId[G](None)(DiagnosticOrigin)
 
-    private def findAllMethods(methodName: String): Seq[InstanceMethod[G]] = clsDeclarations.collect { case i: InstanceMethod[G] if i.o.getPreferredNameOrElse() == methodName => i }
+    private def findAllMethods(methodName: String): Seq[InstanceMethod[G]] = clsDeclarations.collect { case i: InstanceMethod[G] if i.o.find[PreferredName].contains(PreferredName(Seq(methodName))) => i }
 
     private def findMethod(methodName: String): Option[InstanceMethod[G]] = findAllMethods(methodName).headOption
 
     private def findMethod(methodName: String, params: Int): Option[InstanceMethod[G]] = findAllMethods(methodName).find(i => i.args.size == params)
 
-    private def findInstanceField(instanceFieldName: String): Option[InstanceField[G]] = clsDeclarations.collectFirst { case i: InstanceField[G] if i.o.getPreferredNameOrElse() == instanceFieldName => i }
+    private def findInstanceField(instanceFieldName: String): Option[InstanceField[G]] = clsDeclarations.collectFirst { case i: InstanceField[G] if i.o.find[PreferredName].contains(PreferredName(Seq(instanceFieldName))) => i }
 
     def ledgerProperties: LedgerProperties[G] = LedgerProperties[G](
       RuntimeConcurrentHashMap[G](TAnyClass[G](), TRuntimeFraction[G]())(DiagnosticOrigin),
@@ -249,13 +249,13 @@ object LedgerHelper {
    */
   case class DataMethodBuilderHelper[G](refCls: Ref[G, Class[G]], clsDeclarations: Seq[ClassDeclaration[G]])(implicit origin: Origin = DiagnosticOrigin) {
 
-    private def findAllMethods(methodName: String): Seq[InstanceMethod[G]] = clsDeclarations.collect { case i: InstanceMethod[G] if i.o.getPreferredNameOrElse() == methodName => i }
+    private def findAllMethods(methodName: String): Seq[InstanceMethod[G]] = clsDeclarations.collect { case i: InstanceMethod[G] if i.o.find[PreferredName].contains(PreferredName(Seq(methodName))) => i }
 
     private def findMethod(methodName: String): Option[InstanceMethod[G]] = findAllMethods(methodName).headOption
 
     private def findMethod(methodName: String, params: Int): Option[InstanceMethod[G]] = findAllMethods(methodName).find(i => i.args.size == params)
 
-    private def findInstanceField(instanceFieldName: String): Option[InstanceField[G]] = clsDeclarations.collectFirst { case i: InstanceField[G] if i.o.getPreferredNameOrElse() == instanceFieldName => i }
+    private def findInstanceField(instanceFieldName: String): Option[InstanceField[G]] = clsDeclarations.collectFirst { case i: InstanceField[G] if i.o.find[PreferredName].contains(PreferredName(Seq(instanceFieldName))) => i }
 
     def dataField: Option[InstanceField[G]] = findInstanceField("data")
 
