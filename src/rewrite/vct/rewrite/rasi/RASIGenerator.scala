@@ -58,7 +58,7 @@ case class RASIGenerator[G]() extends LazyLogging {
       found_edges.addAll(successor.edges(curr))
       successor.successors.foreach(s => if (!found_states.contains(s)) {found_states += s; current_branches += s})
       i = i + 1
-      if (System.nanoTime() - last_measurement > 10_000_000_000L) {
+      if (System.nanoTime() - last_measurement > 5_000_000_000L) {
         last_measurement = System.nanoTime()
         val time = (last_measurement - start_time) / 1_000_000L
         logger.debug(s"[Runtime ${time}ms] Iteration $i: ${found_states.size} states found, ${current_branches.size} yet to explore")

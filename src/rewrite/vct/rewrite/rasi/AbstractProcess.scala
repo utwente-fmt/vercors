@@ -24,7 +24,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
     var variables: Set[ConcreteVariable[G]] = successor.deciding_variables
 
     while (intermediate.nonEmpty) {
-      val next: Set[(Boolean, RASISuccessor[G])] = intermediate.map(s => small_step_if_atomic(s))
+      val next: Set[(Boolean, RASISuccessor[G])] = intermediate.map(s => small_step_if_atomic(s, starting_state))
 
       variables ++= next.map(s => s._2).flatMap(s => s.deciding_variables)
       end_states ++= next.filter(s => !s._1).map(s => s._2).flatMap(s => s.successors)
@@ -39,10 +39,12 @@ case class AbstractProcess[G](obj: Expr[G]) {
    * small step.
    *
    * @param state Current abstract state
+   * @param initial_state State before the atomic step
    * @return A tuple of a boolean indicating if atomic progress could be made and a descriptor of all successor states
    */
-  private def small_step_if_atomic(state: AbstractState[G]): (Boolean, RASISuccessor[G]) = {
-    if (!state.processes.contains(this) || !is_atomic(state.processes(this))) (false, RASISuccessor(Set(), Set(state)))
+  private def small_step_if_atomic(state: AbstractState[G], initial_state: AbstractState[G]): (Boolean, RASISuccessor[G]) = {
+    val vars_changed: Boolean = state.valuations != initial_state.valuations
+    if (!state.processes.contains(this) || (vars_changed && !is_atomic(state.processes(this)))) (false, RASISuccessor(Set(), Set(state)))
     else small_step(state.processes(this), state)
   }
 
