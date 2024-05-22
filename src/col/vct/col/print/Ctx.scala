@@ -38,4 +38,8 @@ case class Ctx(
 
   def name(ref: Ref[_, _ <: Declaration[_]]): String =
     name(Try(ref.decl).getOrElse(return "?brokenref?"))
+
+  def deref[Decl <: Declaration[_]](ref: Ref[_, Decl]): Either[String, Decl] =
+    Try(ref.decl).toEither.left.map(_ => "?brokenref?")
+
 }

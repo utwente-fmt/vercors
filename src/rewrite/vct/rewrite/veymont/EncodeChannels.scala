@@ -3,7 +3,7 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.util.Declarator
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateStatement, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateStatement, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVar, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
 import vct.col.origin.{Name, Origin, PanicBlame, SourceName}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -22,27 +22,44 @@ object EncodeChannels extends RewriterBuilderArg[ImportADTImporter] {
 }
 
 case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extends Rewriter[Pre] with LazyLogging with VeymontContext[Pre] {
-  private lazy val channelFile = parse("genericChannel")
 
-  private lazy val genericChannelClass = find[Class[Post]](channelFile, "Channel")
-  private lazy val genericChannelDecls = genericChannelClass.decls
-  private lazy val genericConstructor = find[Constructor[Post]](genericChannelDecls)
-  private lazy val genericWrite = find[InstanceMethod[Post]](genericChannelDecls, "writeValue")
-  private lazy val genericRead = find[InstanceMethod[Post]](genericChannelDecls, "readValue")
+  private lazy val channelPre = importer.loadAdt[Pre]("genericChannel").declarations
+//  private lazy val channelPost = {
+//    channelPre.foreach(dispatch)
+//    channelPre.map(succProvider.computeSucc).map(_.get)
+//  }
 
-  protected def parse(name: String): Seq[GlobalDeclaration[Post]] = {
-    val program = importer.loadAdt[Pre](name)
-    program.declarations.foreach(dispatch)
-    program.declarations.map(succProvider.computeSucc).map(_.get)
-  }
+  lazy val genericChannelClass = find[Pre, Class[Pre]](channelPre, "Channel")
+  lazy val genericChannelDecls = genericChannelClass.decls
+  lazy val genericChannelConstructor = find[Pre, Constructor[Pre]](genericChannelDecls)
+  lazy val genericChannelWrite = find[Pre, InstanceMethod[Pre]](genericChannelDecls, "writeValue")
+  lazy val genericChannelRead = find[Pre, InstanceMethod[Pre]](genericChannelDecls, "readValue")
 
-  protected def find[T](decls: Seq[Declaration[Post]], name: String = null)(implicit tag: ClassTag[T]): T =
+  val channelClassSucc = SuccessionMap[Communicate[Pre], Class[Post]]()
+  val channelConstructorSucc = SuccessionMap[Communicate[Pre], Constructor[Post]]()
+  val channelWriteSucc = SuccessionMap[Communicate[Pre], InstanceMethod[Post]]()
+  val channelReadSucc = SuccessionMap[Communicate[Pre], InstanceMethod[Post]]()
+
+//  private lazy val genericChannelClass = find[Post, Class[Post]](channelPost, "Channel")
+//  private lazy val genericChannelDecls = genericChannelClass.decls
+//  private lazy val genericConstructor = find[Post, Constructor[Post]](genericChannelDecls)
+//  private lazy val genericWrite = find[Post, InstanceMethod[Post]](genericChannelDecls, "writeValue")
+//  private lazy val genericRead = find[Post, InstanceMethod[Post]](genericChannelDecls, "readValue")
+
+  protected def find[G, T](decls: Seq[Declaration[G]], name: String = null)(implicit tag: ClassTag[T]): T =
     decls.collectFirst {
       case decl: T if name == null || decl.o.find[SourceName].contains(SourceName(name)) =>
         decl
     }.get
 
-  def channelType(t: Type[Post]): TClass[Post] = TClass[Post](genericChannelClass.ref, Seq(t))
+  def channelType(comm: Communicate[Pre]): Type[Post] =
+    TClass[Post](channelClassSucc.ref(comm), Seq())
+
+  val currentCommunicate = ScopedStack[Communicate[Pre]]()
+  val currentMsgTVar = ScopedStack[Variable[Pre]]()
+
+  def generateChannel(comm: Communicate[Pre]): Unit =
+    currentCommunicate.having(comm) { dispatch(genericChannelClass) }
 
   val fieldOfCommunicate = SuccessionMap[(Endpoint[Pre], Communicate[Pre]), InstanceField[Post]]()
   val localOfCommunicate = mutable.LinkedHashMap[Communicate[Pre], Variable[Post]]()
@@ -61,7 +78,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
       implicit val o = chor.o
       currentChoreography.having(chor) {
         def commVar(comm: Communicate[Pre]): Variable[Post] = {
-          val t = channelType(dispatch(comm.msg.t))
+          val t = channelType(comm)
           val v = new Variable(t)(chor.o.where(indirect = channelName(comm)))
           localOfCommunicate(comm) = v
           v
@@ -72,7 +89,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
           assignLocal(
             local = Local[Post](v.ref),
             value = ConstructorInvocation[Post](
-              ref = genericConstructor.ref,
+              ref = channelConstructorSucc(comm).ref,
               classTypeArgs = Seq(dispatch(comm.msg.t)),
               args = Seq(), outArgs = Seq(), typeArgs = Seq(), givenMap = Seq(), yields = Seq()
             )(PanicBlame("Should be safe")))
@@ -88,6 +105,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
         }
 
         chor.rewrite(preRun = {
+          communicatesOf(chor).foreach(generateChannel)
           val vars = communicatesOf(chor).map(commVar)
           val instantiatedComms: Seq[Statement[Post]] = communicatesOf(chor).map(instantiateComm)
           val assignComms: Seq[Statement[Post]] = chor.endpoints.flatMap { endpoint => communicatesOf(chor).map { comm => assignComm(comm, endpoint) } }
@@ -100,16 +118,36 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
         decls = classDeclarations.collect {
           cls.decls.foreach(dispatch)
           communicatesOf(choreographyOf(cls)).foreach { comm =>
-            val f = new InstanceField[Post](channelType(dispatch(comm.msg.t)), Seq())(
-              comm.o.where(indirect = channelName(comm))
-            )
+            val f = new InstanceField[Post](channelType(comm), Seq())(comm.o.where(indirect = channelName(comm)))
             fieldOfCommunicate((endpointOf(cls), comm)) = f
             f.declare()
           }
         }._1
       ).succeed(cls)
 
+    case cls: Class[Pre] if cls == genericChannelClass =>
+//      globalDeclarations.scope {
+        classDeclarations.scope {
+          variables.scope {
+            currentMsgTVar.having(cls.typeArgs.head) {
+              channelClassSucc(currentCommunicate.top) = cls.rewrite(typeArgs = Seq()) // .succeed(cls)
+            }
+          }
+        }
+//      }
+    case cons: Constructor[Pre] if cons == genericChannelConstructor =>
+      channelConstructorSucc(currentCommunicate.top) = cons.rewriteDefault().succeed(cons)
+    case m: InstanceMethod[Pre] if m == genericChannelWrite =>
+      channelWriteSucc(currentCommunicate.top) = m.rewriteDefault().succeed(m)
+    case m: InstanceMethod[Pre] if m == genericChannelRead =>
+      channelReadSucc(currentCommunicate.top) = m.rewriteDefault().succeed(m)
+
     case _ => super.dispatch(decl)
+  }
+
+  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+    case TVar(Ref(v)) if currentMsgTVar.topOption.contains(v) => dispatch(currentCommunicate.top.msg.t)
+    case _ => t.rewriteDefault()
   }
 
   override def dispatch(stmt: Statement[Pre]): Statement[Post] = stmt match {
@@ -128,7 +166,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
         obj = Deref[Post](
           EndpointName(succ(sender)),
           fieldOfCommunicate.ref[Post, InstanceField[Post]]((sender, comm)))(PanicBlame("Permission for fields should be propagated in entire choreography")),
-        ref = genericWrite.ref[InstanceMethod[Post]],
+        ref = channelWriteSucc.ref[Post, InstanceMethod[Post]](comm),
         args = Seq(dispatch(comm.msg)),
         blame = PanicBlame("TODO: sending should be safe")
       )))(PanicBlame("TODO: ChorStatement blame?"))
@@ -144,7 +182,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
           obj = Deref[Post](
             EndpointName[Post](succ(receiver)),
             fieldOfCommunicate.ref((receiver, comm)))(PanicBlame("Should be safe")),
-          ref = genericRead.ref[InstanceMethod[Post]],
+          ref = channelReadSucc.ref[Post, InstanceMethod[Post]](comm),
           blame = PanicBlame("Should be safe")),
       )(PanicBlame("TODO 2"))
     )(PanicBlame("TODO: ChorStatement blame?"))

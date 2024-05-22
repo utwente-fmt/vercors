@@ -8,7 +8,6 @@ trait ConstructorInvocationImpl[G] extends ConstructorInvocationOps[G] { this: C
 
   def cls: Class[G] = ref.decl.cls.decl
 
-//  override def t: Type[G] = TClass(ref.decl.cls, classTypeArgs)
   override def typeEnv: Map[Variable[G], Type[G]] =
     (cls.typeArgs.zip(classTypeArgs) ++ ref.decl.typeArgs.zip(typeArgs)).toMap
 
@@ -16,7 +15,7 @@ trait ConstructorInvocationImpl[G] extends ConstructorInvocationOps[G] { this: C
      Doc.spread(Seq(
        Text("new"),
        DocUtil.javaGenericArgs(typeArgs),
-       Text(ctx.name(cls)) <> DocUtil.javaGenericArgs(classTypeArgs) <>
+       Text(ctx.deref(ref).map(_.cls).map(ctx.deref).flatten.map(ctx.name(_)).merge) <> DocUtil.javaGenericArgs(classTypeArgs) <>
          "(" <> DocUtil.argsOutArgs(args, outArgs) <> ")" <>
          DocUtil.givenYields(givenMap, yields)
      ))

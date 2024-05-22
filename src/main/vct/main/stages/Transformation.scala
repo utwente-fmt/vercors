@@ -91,7 +91,8 @@ object Transformation extends LazyLogging {
   def veymontImplementationGenerationOfOptions(options: Options): Transformation =
     VeyMontImplementationGeneration(
       importer = PathAdtImporter(options.veymontResourcePath),
-      onPassEvent = writeOutFunctions(before, options.outputBeforePass) ++
+      onPassEvent = options.outputIntermediatePrograms.map(reportIntermediateProgram).toSeq ++
+        writeOutFunctions(before, options.outputBeforePass) ++
         writeOutFunctions(after, options.outputAfterPass),
     )
 
