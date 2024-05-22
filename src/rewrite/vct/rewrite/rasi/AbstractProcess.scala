@@ -5,6 +5,8 @@ import vct.rewrite.cfg.{CFGEdge, CFGEntry, CFGNode, CFGTerminal}
 
 import scala.collection.mutable
 
+
+// TODO: Can only one thread per class instance be launched?
 case class AbstractProcess[G](obj: Expr[G]) {
 
   /**
@@ -99,8 +101,12 @@ case class AbstractProcess[G](obj: Expr[G]) {
         val edges: (mutable.Set[CFGEdge[G]], mutable.Set[CFGEdge[G]]) = succ.partition(e => e.target match {
           case CFGTerminal() => false
           case CFGNode(t, _) => t.equals(obj.t.asClass.get.cls.decl.declarations.collect{ case r: RunMethod[G] => r }.head.body.get)
-        })                // TODO: Can only one thread per class instance be launched?
-        (true, take_viable_edges(edges._2, state, RASISuccessor(Set(), Set(state.with_process_at(AbstractProcess(obj), edges._1.head.target)))))
+        })
+        val relevant: Boolean = edges._1.size == 1 && (edges._1.head.target match {
+          case CFGTerminal() => false
+          case target: CFGNode[G] => new StaticScanner(target, state).scan_can_change_variables()
+        })
+        (true, take_viable_edges(edges._2, state, RASISuccessor(Set(), Set(if (relevant) state.with_process_at(AbstractProcess(obj), edges._1.head.target) else state))))
       case Join(obj) =>
         if (state.processes.keys.forall(p => p.obj != obj)) (true, take_viable_edges_from_state(succ, state))
         else (false, RASISuccessor(Set(), Set(state)))
