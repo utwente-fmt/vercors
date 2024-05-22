@@ -23,4 +23,23 @@ void forArrayLoop(bool arr[], int size) {
 	for(int i = 0; i < size; i++) {
 		sum = sum && arr[i];
 	}
+
+  sum = true;
+  //@ loop_invariant i >= 0 && i <= size;
+  //@ loop_invariant sum == (\forall int j; j >= 0 && j < i; arr[j]);
+	for(int i = 0; i < size;) {
+    sum = sum && arr[i];
+    i++;
+  }
+
+  for(int i = 0; ;) {
+    i++;
+    if (i >= size) break;
+  }
+
+  int i = 0;
+  for(; ;) {
+    i++;
+    if (i >= size) break;
+  }
 }

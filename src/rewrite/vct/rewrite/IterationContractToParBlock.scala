@@ -5,7 +5,7 @@ import vct.col.util.AstBuildHelpers._
 import RewriteHelpers._
 import hre.util.ScopedStack
 import vct.col.ast.statement.composite.LoopImpl.IterationContractData
-import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.origin.{DiagnosticOrigin, LabelContext, Origin}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.result.VerificationError.UserError
@@ -14,12 +14,7 @@ case object IterationContractToParBlock extends RewriterBuilder {
   override def key: String = "iterationContract"
   override def desc: String = "Translate loops with an iteration-style contract to a parallel block."
 
-  case object IterationContractOrigin extends Origin {
-    override def preferredName: String = ???
-    override def shortPosition: String = "generated"
-    override def context: String = ???
-    override def inlineContext: String = ???
-  }
+  val IterationContractOrigin: Origin = Origin(Seq(LabelContext("generated")))
 
   case class VariableReadOutsideParLoop(e: Local[_]) extends UserError {
     override def code: String = "localOutsideParLoop"
@@ -56,6 +51,11 @@ case class IterationContractToParBlock[Pre <: Generation]() extends Rewriter[Pre
       implicit val o: Origin = loop.o
       currentIterationVariables.having(v) {
         sendDecls.scope {
+          val (newVars, newBody) = variables.collect {
+            dispatch(body)
+          }
+          val bodyScope = Scope[Post](newVars, newBody)(body.o)
+
           ParStatement(
             ParBlock(
               decl = new ParBlockDecl(),
@@ -63,7 +63,8 @@ case class IterationContractToParBlock[Pre <: Generation]() extends Rewriter[Pre
               requires = dispatch(requires),
               ensures = dispatch(ensures),
               context_everywhere = dispatch(context_everywhere),
-              content = dispatch(body),
+              content =
+                bodyScope,
             )(contract.blame)
           )
         }

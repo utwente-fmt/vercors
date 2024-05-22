@@ -3,11 +3,12 @@ package vct.col.rewrite
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.{AssertFailed, Blame, FoldFailed, Origin, UnfoldFailed}
+import vct.col.origin.{AssertFailed, Blame, FoldFailed, LabelContext, Origin, PreferredName, UnfoldFailed}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
+import vct.result.Message
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.annotation.tailrec
@@ -24,10 +25,11 @@ case object InlineApplicables extends RewriterBuilder {
       applications match {
         case Seq(app) => app.o.messageInContext("This application cannot be inlined, since the applicable refers to itself.")
         case first +: more =>
-          Origin.messagesInContext(
+          Message.messagesInContext(
             (first.o, "This application cannot be inlined, since it requires inlining ...") +:
               more.map(apply => (apply.o, "... this application, which requires inlining ...")) :+
               (first.o, "... this application: a cycle.")
+            : _*
           )
       }
   }
@@ -35,10 +37,10 @@ case object InlineApplicables extends RewriterBuilder {
   case class AbstractInlineable(use: Apply[_], inlineable: InlineableApplicable[_]) extends UserError {
     override def code: String = "abstractInlined"
     override def text: String =
-      Origin.messagesInContext(Seq(
+      Message.messagesInContext(
         use.o -> "This application cannot be inlined, since ...",
         inlineable.o -> "... the definition is abstract.",
-      ))
+      )
   }
 
   case class WrongPredicateLocation(use: Location[_]) extends UserError {
@@ -61,27 +63,18 @@ case object InlineApplicables extends RewriterBuilder {
     }
   }
 
-  case class InlinedOrigin(definition: Origin, usages: Seq[Apply[_]]) extends Origin {
-    override def preferredName: String = definition.preferredName
-    override def shortPosition: String = usages.head.o.shortPosition
-    override def context: String =
-      usages.map(_.o.context).mkString(
-        start = " Inlined from:\n" + Origin.HR,
-        sep = Origin.HR + " ...Then inlined from:\n" + Origin.HR,
-        end = "",
-      ) + Origin.HR +
-        " In definition:\n" + Origin.HR +
-        definition.context
+  private def InlinedOrigin(definition: Origin, usages: Seq[Apply[_]]): Origin =
+    Origin(
+      usages.flatMap(usage => LabelContext("inlined from") +: usage.o.originContents) ++
+        (LabelContext("definition") +: definition.originContents)
+    )
 
-    override def inlineContext: String = s"${definition.inlineContext} [inlined from] ${usages.head.o.inlineContext}"
-  }
-
-  case object InlineLetThisOrigin extends Origin {
-    override def preferredName: String = "self"
-    override def context: String = "[At let binding for `this`]"
-    override def inlineContext: String = "[Let binding for `this`]"
-    override def shortPosition: String = "generated"
-  }
+  private def InlineLetThisOrigin: Origin = Origin(
+    Seq(
+      PreferredName(Seq("self")),
+      LabelContext("this"),
+    )
+  )
 
   case class InlineFoldAssertFailed(fold: Fold[_]) extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
@@ -149,7 +142,7 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     program.declarations.collect { case cls: Class[Pre] => cls }.foreach { cls =>
-      cls.declarations.foreach(classOwner(_) = cls)
+      cls.decls.foreach(classOwner(_) = cls)
     }
     rewriteDefault(program)
   }
@@ -241,6 +234,14 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
           case InstancePredicateApply(_, Ref(pred), _, WritePerm()) =>
             dispatch((obj + args).expr(pred.body.getOrElse(throw AbstractInlineable(apply, pred))))
           case InstancePredicateApply(_, Ref(pred), _, _) => ???
+          case CoalesceInstancePredicateApply(_, Ref(pred), _, WritePerm()) =>
+            dispatch((obj + args).expr(
+              Implies(
+                Neq(obj.replacing, Null()),
+                pred.body.getOrElse(throw AbstractInlineable(apply, pred)),
+              )
+            ))
+          case CoalesceInstancePredicateApply(_, Ref(pred), _, _) => ???
         }
       }
 
@@ -259,6 +260,12 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case Perm(loc @ InstancePredicateLocation(pred, obj, args), WritePerm()) if pred.decl.inline =>
       dispatch(InstancePredicateApply(obj, pred, args, WritePerm()(loc.o))(loc.o))
+
+    case Perm(InLinePatternLocation(loc @ PredicateLocation(pred, args), pat), WritePerm()) if pred.decl.inline =>
+      dispatch(InlinePattern(PredicateApply(pred, args, WritePerm()(loc.o))(loc.o))(loc.o))
+
+    case Perm(InLinePatternLocation(loc @ InstancePredicateLocation(pred, obj, args), pat), WritePerm()) if pred.decl.inline =>
+      dispatch(InlinePattern(InstancePredicateApply(obj, pred, args, WritePerm()(loc.o))(loc.o))(loc.o))
 
     case other => rewriteDefault(other)
   }

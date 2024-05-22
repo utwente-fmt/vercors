@@ -2,10 +2,15 @@ package vct.col.rewrite.bip
 
 import upickle.default._
 import vct.col.ast.{BipComponent, BipTransition}
+import vct.result.VerificationError
+import vct.result.VerificationError.SystemError
 
+import scala.language.implicitConversions
 import scala.collection.{mutable => mut}
 
 case object BIP {
+  case class UnexpectedVerificationResult(text: String) extends SystemError
+
   case class VerificationResults() {
     val preconditionResults:  mut.Map[BipTransition[_], BipVerificationResult] = mut.LinkedHashMap()
     val transitionResults: mut.Map[BipTransition[_], BipVerificationResult] = mut.LinkedHashMap()
@@ -56,6 +61,7 @@ case object BIP {
       val preconditionResult: ProofResult = preconditionResults(transition) match {
         case Success => true
         case PreconditionNotVerified => false
+        case r => throw UnexpectedVerificationResult(s"Result $r should not occur here")
       }
 
       TransitionEntry(TransitionSignature(sig.portName, sig.sourceStateName, sig.targetStateName, sig.textualGuard),
@@ -65,6 +71,7 @@ case object BIP {
           case StateInvariantNotMaintained =>     TransitionResults(preconditionResult, true, false, false)
           case PostconditionNotVerified =>        TransitionResults(preconditionResult, true, true, false)
           case Success =>                         TransitionResults(preconditionResult, true, true, true)
+          case r => throw UnexpectedVerificationResult(s"Result $r should not occur here")
         })
     }
 
@@ -73,10 +80,7 @@ case object BIP {
       case ComponentInvariantNotMaintained => ConstructorReport(false, false)
       case StateInvariantNotMaintained => ConstructorReport(true, false)
       case Success => ConstructorReport(true, true)
-
-      // The following cases should not appear in a constructor context
-      case PostconditionNotVerified => ???
-      case UpdateFunctionFailure => ???
+      case r => throw UnexpectedVerificationResult(s"Result $r should not occur here")
     }
 
     def toStandalone(): VerificationReport = {

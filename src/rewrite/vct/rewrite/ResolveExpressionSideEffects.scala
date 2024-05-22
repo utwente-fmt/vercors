@@ -5,7 +5,7 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
 import vct.col.rewrite.error.ExtraNode
-import vct.col.origin.{DerefAssignTarget, Origin, SubscriptAssignTarget}
+import vct.col.origin.{DerefAssignTarget, DiagnosticOrigin, LabelContext, Origin, PreferredName, SubscriptAssignTarget}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.{Unreachable, UserError}
@@ -18,19 +18,19 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
   override def key: String = "sideEffects"
   override def desc: String = "Discharge side effects from expression evaluation into its surrounding context."
 
-  case object SideEffectOrigin extends Origin {
-    override def preferredName: String = "flatten"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At node generated to collect side effects]"
-    override def inlineContext: String = "[Extracted expression]"
-  }
+  val SideEffectOrigin: Origin = Origin(
+    Seq(
+      PreferredName(Seq("flatten")),
+      LabelContext("side effect"),
+    )
+  )
 
-  case object ResultVar extends Origin {
-    override def preferredName: String = "res"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At node generated to contain the result of a method]"
-    override def inlineContext: String = "[Method return value]"
-  }
+  val ResultVar: Origin = Origin(
+    Seq(
+      PreferredName(Seq("res")),
+      LabelContext("return value"),
+    )
+  )
 
   case class DisallowedSideEffect(effector: Expr[_]) extends UserError {
     override def code: String = "sideEffect"
@@ -44,12 +44,12 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
       proofExpression.o.messageInContext("Cannot evaluate this kind of expression here when combined with expressions that have a side effect.")
   }
 
-  case object BreakOrigin extends Origin {
-    override def preferredName: String = "condition_false"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At label generated to jump to when the side-effectful condition is false]"
-    override def inlineContext: String = "[Label: condition false]"
-  }
+  val BreakOrigin: Origin = Origin(
+    Seq(
+      PreferredName(Seq("condition_false")),
+      LabelContext("loop exit"),
+    )
+  )
 }
 
 case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pre] {
@@ -234,7 +234,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     stat match {
       case Eval(e) => frame(e, Eval(_))
       case inv @ InvokeMethod(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
-        val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
+        val res = new Variable[Post](dispatch(method.returnType.particularize(method.typeArgs.zip(typeArgs).toMap)))(ResultVar)
         frameAll(obj +: args, {
           case obj +: args => Scope(Seq(res),
             InvokeMethod[Post](
@@ -244,7 +244,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
               yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame))
         })
       case inv @ InvokeProcedure(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
-        val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
+        val res = new Variable[Post](dispatch(method.returnType.particularize(method.typeArgs.zip(typeArgs).toMap)))(ResultVar)
         frameAll(args, args => Scope(Seq(res),
           InvokeProcedure[Post](succ(method), args,
             res.get(inv.o) +: outArgs.map(dispatch), typeArgs.map(dispatch),
@@ -319,6 +319,37 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case assn: SilverFieldAssign[Pre] => rewriteDefault(assn)
       case assn: SilverLocalAssign[Pre] => rewriteDefault(assn)
       case proof: FramedProof[Pre] => rewriteDefault(proof)
+      case extract: Extract[Pre] => rewriteDefault(extract)
+      case branch: IndetBranch[Pre] => rewriteDefault(branch)
+      case LlvmLoop(cond, contract, body) =>
+        evaluateOne(cond) match {
+          case (Nil, Nil, cond) =>
+            LlvmLoop(cond, dispatch(contract), dispatch(body))
+          case (variables, sideEffects, cond) =>
+            val break = new LabelDecl[Post]()(BreakOrigin)
+
+            Block(Seq(
+              LlvmLoop(tt, dispatch(contract), Block(Seq(
+                Scope(variables,
+                  Block(sideEffects :+ Branch(Seq(Not(cond) -> Goto(break.ref))))),
+                dispatch(body),
+              ))),
+              Label(break, Block(Nil)),
+            ))
+        }
+      case rangedFor: RangedFor[Pre] => rewriteDefault(rangedFor)
+      case assign: VeyMontAssignExpression[Pre] => rewriteDefault(assign)
+      case assign: PVLSeqAssign[Pre] => rewriteDefault(assign)
+      case assign: SeqAssign[Pre] => rewriteDefault(assign)
+      case comm: CommunicateX[Pre] => rewriteDefault(comm)
+      case comm: PVLCommunicate[Pre] => rewriteDefault(comm)
+      case comm: Communicate[Pre] => rewriteDefault(comm)
+      case _: PVLBranch[Pre] => throw ExtraNode
+      case _: PVLLoop[Pre] => throw ExtraNode
+      case _: UnresolvedSeqBranch[Pre] => throw ExtraNode
+      case _: UnresolvedSeqLoop[Pre] => throw ExtraNode
+      case _: SeqBranch[Pre] => throw ExtraNode
+      case _: SeqLoop[Pre] => throw ExtraNode
       case _: CStatement[Pre] => throw ExtraNode
       case _: CPPStatement[Pre] => throw ExtraNode
       case _: JavaStatement[Pre] => throw ExtraNode
@@ -326,6 +357,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case cons: Constructor[Pre] => rewriteDefault(cons)
     case method: AbstractMethod[Pre] =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
       currentResultVar.having(Local[Post](res.ref)(ResultVar)) {
@@ -374,6 +406,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case Local(Ref(v)) => Local[Post](succ(v))(target.o)
       case deref @ DerefHeapVariable(Ref(v)) => DerefHeapVariable[Post](succ(v))(deref.blame)(target.o)
       case Deref(obj, Ref(f)) => Deref[Post](notInlined(obj), succ(f))(DerefAssignTarget)(target.o)
+      case SilverDeref(obj, Ref(f)) => SilverDeref[Post](notInlined(obj), succ(f))(DerefAssignTarget)(target.o)
       case ArraySubscript(arr, index) => ArraySubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
       case PointerSubscript(arr, index) => PointerSubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
       case deref @ DerefPointer(ptr) => DerefPointer[Post](notInlined(ptr))(deref.blame)(target.o)
@@ -441,7 +474,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       effect(dispatch(post))
       stored(value, oldValue.t)
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
-      val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
+      val res = new Variable[Post](dispatch(inv.t))(ResultVar)
       variables.succeed(res.asInstanceOf[Variable[Pre]], res)
       effect(InvokeMethod[Post](
         obj = inlined(obj),
@@ -452,9 +485,9 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
         yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
       )(inv.blame)(e.o))
-      stored(res.get(SideEffectOrigin), method.returnType)
+      stored(res.get(SideEffectOrigin), inv.t)
     case inv @ ProcedureInvocation(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
-      val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
+      val res = new Variable[Post](dispatch(method.returnType.particularize(method.typeArgs.zip(typeArgs).toMap)))(ResultVar)
       variables.succeed(res.asInstanceOf[Variable[Pre]], res)
       effect(InvokeProcedure[Post](
         ref = succ(method),
@@ -464,7 +497,27 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
         yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
       )(inv.blame)(e.o))
-      stored(res.get(SideEffectOrigin), method.returnType)
+      stored(res.get(SideEffectOrigin), method.returnType.particularize(inv.typeEnv))
+    case inv @ ConstructorInvocation(Ref(cons), classTypeArgs, args, outArgs, typeArgs, givenMap, yields) =>
+      val typ = TClass[Post](succ(cons.cls.decl), classTypeArgs.map(dispatch))
+      val res = new Variable[Post](typ)(ResultVar)
+      variables.succeed(res.asInstanceOf[Variable[Pre]], res)
+      effect(InvokeConstructor[Post](
+        ref = succ(cons),
+        classTypeArgs = classTypeArgs.map(dispatch),
+        out = res.get(ResultVar),
+        args = args.map(inlined),
+        outArgs = outArgs.map(dispatch),
+        typeArgs = typeArgs.map(dispatch),
+        givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
+        yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
+      )(inv.blame)(e.o))
+      stored(res.get(SideEffectOrigin), TClass(cons.cls, classTypeArgs))
+    case NewObject(Ref(cls)) =>
+      val res = new Variable[Post](TClass(succ(cls), Seq()))(ResultVar)
+      variables.succeed(res.asInstanceOf[Variable[Pre]], res)
+      effect(Instantiate[Post](succ(cls), res.get(ResultVar))(e.o))
+      stored(res.get(SideEffectOrigin), TClass(cls.ref, Seq()))
     case other =>
       stored(ReInliner().dispatch(rewriteDefault(other)), other.t)
   }

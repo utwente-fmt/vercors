@@ -25,7 +25,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "resolutionError" in "constructor using `this`" pvl """
+  vercors should error withCode "resolutionError:thisInConsPre" in "constructor using `this`" pvl """
     class err {
       int x;
 
@@ -57,7 +57,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "resolutionError" in "example quantifying a resource with \\forall" pvl """
+  vercors should error withCode "resolutionError:type" in "example quantifying a resource with \\forall" pvl """
     class Test {
       int x;
       void test() {
@@ -66,7 +66,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "resolutionError" in "example unfolding abstract predicate" pvl """
+  vercors should error withCode "resolutionError:abstractPredicate" in "example unfolding abstract predicate" pvl """
     resource p();
 
     requires p();
@@ -75,7 +75,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "resolutionError" in "example unfolding abstract predicate inline" pvl """
+  vercors should error withCode "resolutionError:abstractPredicate" in "example unfolding abstract predicate inline" pvl """
     resource p();
 
     requires p();
@@ -159,7 +159,7 @@ class TechnicalSpec extends VercorsSpec {
 
   vercors should verify using anyBackend example "technical/keywords/allowed-c.c"
   vercors should verify using anyBackend example "technical/keywords/allowed-java.java"
-  vercors should error withCode "parseError" example "technical/keywords/disallowed-c-inline.c"
+  vercors should error withCode "emptyInlineDecl" example "technical/keywords/disallowed-c-inline.c"
   vercors should error withCode "parseError" example "technical/keywords/disallowed-java-assert.java"
 
   vercors should verify using silicon example "technical/array-item-access.pvl"
@@ -292,7 +292,7 @@ class TechnicalSpec extends VercorsSpec {
   vercors should verify using silicon example "technical/TestFuturePermsFail.pvl"
   vercors should verify using silicon example "technical/TestFuturePermsPass.pvl"
 
-  vercors should error withCode "resolutionError" in "example writing to variable within par-block" pvl """
+  vercors should error withCode "resolutionError:outOfWriteScope" in "example writing to variable within par-block" pvl """
     void test() {
       int x = 0;
       par {

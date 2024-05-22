@@ -4,11 +4,11 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
+import vct.col.compare._
 import vct.col.rewrite.util.FreeVariables
-import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.origin.{DiagnosticOrigin, Name, Origin, SourceName}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite._
-import vct.col.util.Compare
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.annotation.tailrec
@@ -161,15 +161,15 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
     val (free, pattern, substitute, ruleOrigin) = rule
 
     val debugFilter =
-      debugFilterRule.map(_ == ruleOrigin.preferredName).getOrElse(true) &&
-        debugFilterInputKind.map(_ == subject.getClass.getSimpleName).getOrElse(true) &&
+      debugFilterRule.forall(SourceName.stringToName(_) == ruleOrigin.getPreferredNameOrElse()) &&
+        debugFilterInputKind.forall(_ == subject.getClass.getSimpleName) &&
         (debugIn.isEmpty || debugIn.exists(name => debugNameStack.exists(_ == name)))
 
     val inst = mutable.Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])]()
     val typeInst = mutable.Map[Variable[Rule], Type[Pre]]()
     val bindingInst = mutable.Map[Variable[Rule], Variable[Pre]]()
 
-    lazy val debugHeader: String = s"Expression `$subject` does not match rule ${ruleOrigin.preferredName}, since"
+    lazy val debugHeader: String = s"Expression `$subject` does not match rule ${ruleOrigin.getPreferredNameOrElse().snake}, since"
 
     def declareTypeInst(left: Variable[Rule], right: Type[Pre]): Boolean =
       typeInst.get(left) match {
@@ -233,12 +233,12 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
       // SAFETY: the result of a match arm MUST NOT again match a case.
       case _ if false => ???
     } foreach {
-      case Comparator.MatchingDeclaration(left: Variable[Rule], right: Variable[Pre]) =>
+      case MatchingDeclaration(left: Variable[Rule], right: Variable[Pre]) =>
         bindingInst(left) = right
-      case Comparator.MatchingDeclaration(_, _) =>
+      case MatchingDeclaration(_, _) =>
         throw Unreachable("Simplification rules do not declare anything other than variables from binders.")
 
-      case Comparator.MatchingReference(left: Variable[Rule], right: Variable[Pre]) =>
+      case MatchingReference(left: Variable[Rule], right: Variable[Pre]) =>
         if(free.contains(left)) {
           if(!(left.t match {
             case TType(_) => declareTypeInst(left, TVar(right.ref))
@@ -251,19 +251,19 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
             return None
           }
         }
-      case Comparator.MatchingReference(_, _) =>
+      case MatchingReference(_, _) =>
         throw Unreachable("Simplification rules do not refer to anything other than variables.")
 
-      case Comparator.StructuralDifference(Local(Ref(v)), right: Expr[Pre]) if free.contains(v) =>
+      case StructuralDifference(Local(Ref(v)), right: Expr[Pre]) if free.contains(v) =>
         if(!declareInst(v, right, Nil)) return None
 
-      case Comparator.StructuralDifference(FunctionOf(Ref(v), bindings), right: Expr[Pre]) if free.contains(v) =>
+      case StructuralDifference(FunctionOf(Ref(v), bindings), right: Expr[Pre]) if free.contains(v) =>
         if(!declareInst(v, right, bindings.map(_.decl))) return None
 
-      case Comparator.StructuralDifference(TVar(Ref(v)), right: Type[Pre]) if free.contains(v) =>
+      case StructuralDifference(TVar(Ref(v)), right: Type[Pre]) if free.contains(v) =>
         if(!declareTypeInst(v, right)) return None
 
-      case Comparator.StructuralDifference(left, right) =>
+      case StructuralDifference(left, right) =>
         if(debugNoMatch && debugFilter)
           logger.debug(s"$debugHeader $left cannot be matched to $right.")
         return None
@@ -280,7 +280,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
         logger.debug(s"Matches:          $pattern")
         if (inst.nonEmpty) {
           logger.debug("With bindings:")
-          inst.toSeq.sortBy { case (k, _) => k.o.preferredName }.foreach {
+          inst.toSeq.sortBy { case (k, _) => k.o.getPreferredNameOrElse().camel }.foreach {
             case (rule, (binding, over)) =>
               if (over.isEmpty)
                 logger.debug(s"  $rule = $binding")
@@ -370,7 +370,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
     }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
-    debugNameStack.having(decl.o.preferredName) {
+    debugNameStack.having(decl.o.getPreferredNameOrElse().ucamel) {
       rewriteDefault(decl)
     }
 

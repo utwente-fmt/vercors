@@ -2,59 +2,50 @@ package vct.col.util
 
 import hre.util.ScopedStack
 import vct.col.ast.{AbstractRewriter, Declaration}
-import vct.col.origin.Origin
-import vct.col.print.{Ctx, Doc}
-import vct.col.ref.{LazyRef, Ref}
-import vct.col.rewrite.{Generation, SuccessorProvider}
-import vct.col.serialize.Program
+import vct.col.ref.Ref
 import vct.col.util.Scopes._
+import vct.result.Message
 import vct.result.VerificationError.SystemError
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
+import scala.util.Try
 
 object Scopes {
   case class WrongDeclarationCount(kind: ClassTag[_], count: Int) extends SystemError {
     override def text: String =
-      s"Expected exactly one declaration of kind ${kind.runtimeClass.getSimpleName}, but got $count."
+      messageContext(s"Expected exactly one declaration of kind ${kind.runtimeClass.getSimpleName}, but got $count.")
   }
 
   case class NoScope(kind: ClassTag[_]) extends SystemError {
     override def text: String =
-      s"There is no scope to place a declaration of kind ${kind.runtimeClass.getSimpleName} in."
+      messageContext(s"There is no scope to place a declaration of kind ${kind.runtimeClass.getSimpleName} in.")
   }
 
   case class DuplicateSuccessor(pre: Declaration[_], firstPost: Declaration[_], secondPost: Declaration[_]) extends SystemError {
     override def text: String =
-      Origin.messagesInContext(Seq(
-        firstPost.o -> "This declaration already succeeds ...",
-        pre.o -> "... this declaration, but is additionally succeeded by ...",
-        secondPost.o -> "... this declaration.",
-      ))
+      Message.messagesInContext(
+        firstPost.highlight(firstPost) -> "This declaration already succeeds ...",
+        context[CurrentProgramContext].map(_.program).getOrElse(pre).highlight(pre) -> "... this declaration, but is additionally succeeded by ...",
+        secondPost.highlight(secondPost) -> "... this declaration.",
+      )
   }
 
   case class NoSuccessor(pre: Declaration[_]) extends SystemError {
     override def text: String = {
-      (
-        getContext[CurrentProgramCheckContext],
-        getContext[CurrentCheckNodeContext],
-        getContext[CurrentProgramRewriteContext],
-        getContext[ConstructingSuccessorOfContext],
-      ) match {
-        case (
-          Some(CurrentProgramCheckContext(useProgram)),
-          Some(CurrentCheckNodeContext(useNode)),
-          Some(CurrentProgramRewriteContext(predProgram)),
-          Some(ConstructingSuccessorOfContext(predDecl)),
-        ) =>
-          Doc.messagesInContext(Seq(
-            (predProgram, predDecl, "A reference to the successor of this declaration was made, ..."),
-            (useProgram, useNode, "... but it has no successor in this position.")
-          ))
-        case _ => pre.o.messageInContext("A reference to the successor of this declaration was made, but it has no successor.")
+      Try {
+        val useProgram = getContext[CurrentCheckProgramContext].program
+        val useNode = getContext[CurrentCheckNodeContext].node
+        val predProgram = getContext[CurrentRewriteProgramContext].program
+        val predDecl = getContext[ConstructingSuccessorOfContext].decl
+        Message.messagesInContext(
+          (predProgram.highlight(predDecl), "A reference to the successor of this declaration was made, ..."),
+          (useProgram.highlight(useNode), "... but it has no successor in this position.")
+        )
+      } getOrElse {
+        pre.o.messageInContext("A reference to the successor of this declaration was made, but it has no successor.")
       }
-
     }
   }
 }

@@ -1,0 +1,130 @@
+// Unspecified but constant global variables
+ensures \result > 0; decreases; pure int q();
+ensures \result > 0; decreases; pure int r();
+ensures \result > 0; decreases; pure int k();
+ensures \result > 0; decreases; pure int l();
+
+ensures \result > 0; decreases; pure int m() = k() * l();
+ensures \result > 0; decreases; pure int size() = q() * m() + r();
+
+requires 0 <= i && i < q();
+requires 0 <= j && j < l();
+requires 0 <= k && k < k();
+ensures 0 <= \result;
+decreases;
+pure int index(int i, int j, int k) = i * k() * l() + j * k() + k;
+
+requires 0 <= idx && idx < q() * l() * k();
+ensures 0 <= \result && \result < q();
+decreases;
+pure int getI(int idx) = idx / (l() * k());
+
+requires 0 <= idx && idx < q() * l() * k();
+ensures 0 <= \result && \result < l();
+decreases;
+pure int getJ(int idx) = (idx % (l() * k())) / k();
+
+requires 0 <= idx && idx < q() * l() * k();
+ensures 0 <= \result && \result < k();
+decreases;
+pure int getK(int idx) = idx % k();
+
+inline resource indexLemma() =
+    // Result of the index function cannot exceed q() * m()
+    (\forall int i=0..q(), int j=0..l(), int k=0..k(); {:index(i, j, k):} < q() * k() * l()) &&
+    // The index function is injective
+    (\forall
+       int i0=0..q(), int i1=0..q(),
+       int j0=0..l(), int j1=0..l(),
+       int k0=0..k(), int k1=0..k()
+       ;
+       {:index(i0, j0, k0):} == {:index(i1, j1, k1):} ==>
+       i0 == i1 && j0 == j1 && k0 == k1
+    ) &&
+    // The index function is surjective on the range 0..q()*m()
+    (\forall int i=0..(q()*l()*k()); i == {:index(getI(i), getJ(i), getK(i)):});
+
+ensures indexLemma();
+decreases;
+void getIndexLemma(); // ASSUMPTION! (non-linear arithmetic is hard to prove automatically)
+
+requires indexLemma();
+requires src != null ** src.length == size();
+requires dst != null ** dst.length == size();
+context Perm(src[*], 1\2) ** Perm(dst[*], 1\2);
+requires (\forall int i=0..q(), int j=0..l(), int k=0..k(); dst[{:index(i, j, k):}] == src[index(i, j, k)]);
+ensures (\forall int i=0..(q() * m()); dst[i] == src[i]);
+decreases;
+void invIndexLemma(int[] src, int[] dst) {
+    assert (\forall int i=0..(q() * m()); dst[index(getI(i), getJ(i), getK(i))] == dst[i]);
+}
+
+
+// Returns some permutation and its inverse
+requires n > 0;
+ensures |\result| == n;
+ensures (\forall int i=0..n; 0 <= {:\result[i]:} && {:\result[i]:} < n);
+ensures (\forall int i=0..n, int j=0..n; {:\result[i]:} == {:\result[j]:} ==> i == j);
+yields seq<int> inv_perm;
+ensures |inv_perm| == n;
+ensures (\forall int i=0..n; 0 <= {:inv_perm[i]:} && {:inv_perm[i]:} < n);
+ensures (\forall int i=0..n, int j=0..n; {:inv_perm[i]:} == {:inv_perm[j]:} ==> i == j);
+ensures (\forall int i=0..n; {:\result[inv_perm[i]]:} == i);
+decreases;
+seq<int> permute(int n);
+
+
+// Smart Array Copy Version 0
+requires src != null ** src.length == size();
+requires dst != null ** dst.length == size();
+context Perm(src[*], 1\2) ** Perm(dst[*], write);
+ensures (\forall int i=0..size(); {:1:src[i]:} == {:2:dst[i]:});
+decreases;
+void smartCopy0(int[] src, int[] dst) {
+    getIndexLemma();
+
+    // For loops can be translated to parallel blocks since every iteration can be executed independently
+    context (\forall* int j=0..l(), int k=0..k(); Perm(src[{:index(seg, j, k):}], 1\2) ** Perm(dst[{:index(seg, j, k):}], write));
+    ensures (\forall int j=0..l(), int k=0..k(); dst[{:index(seg, j, k):}] == src[index(seg, j, k)]);
+    for(int seg = 0; seg < q(); seg++) {
+        ghost seq<int> inv_perm;
+        seq<int> subsegment_perm = permute(l()) yields { inv_perm = inv_perm };
+
+        context (\forall* int k=0..k();
+            Perm(src[{:index(seg, subsegment_perm[ssegPerm], k):}], 1\2) **
+            Perm(dst[{:index(seg, subsegment_perm[ssegPerm], k):}], write)
+        );
+        ensures (\forall int k=0..k(); dst[{:index(seg, subsegment_perm[ssegPerm], k):}] == src[index(seg, subsegment_perm[ssegPerm], k)]);
+        for(int ssegPerm = 0; ssegPerm < l(); ssegPerm++) {
+            int sseg = subsegment_perm[ssegPerm];
+
+            // Simple copy of subsegment sseg from src to dst
+            context Perm({:src[index(seg, sseg, offset)]:}, 1\2);
+            context Perm({:dst[index(seg, sseg, offset)]:}, write);
+            ensures dst[{:index(seg, sseg, offset):}] == src[index(seg, sseg, offset)];
+            for(int offset = 0; offset < k(); offset++) {
+                int idx = index(seg, sseg, offset);
+                dst[idx] = src[idx];
+            }
+        }
+
+        assert (\forall int j=0..l(), int k=0..k(); (\let int j0 = subsegment_perm[inv_perm[j]];
+            index(seg, j, k) == index(seg, j0, k) &&
+            {:dst[index(seg, j0, k)]:} == src[index(seg, j0, k)]
+        ));
+
+        assert (\forall* int j=0..l(), int k=0..k(); (\let int j0 = subsegment_perm[inv_perm[j]];
+            index(seg, j, k) == index(seg, j0, k) ==>
+            Perm({:src[index(seg, j, k)]:}, 1\2) ** Perm({:dst[index(seg, j, k)]:}, write)
+        ));
+    }
+
+    // Get rid of the index function
+    invIndexLemma(src, dst);
+
+    context Perm(src[i], 1\2) ** Perm(dst[i], write);
+    ensures dst[i] == src[i];
+    for(int i = q() * m(); i < size(); i++) {
+        dst[i] = src[i];
+    }
+}

@@ -15,6 +15,8 @@ langStatement: EOF EOF;
 langStatic: EOF EOF;
 langGlobalDecl: EOF EOF;
 langClassDecl: EOF EOF;
+specTrue: 'true';
+specFalse: 'false';
 
 startSpec: StartSpec {specLevel++;};
 endSpec: EndSpec {specLevel--;};

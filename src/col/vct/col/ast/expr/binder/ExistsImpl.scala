@@ -2,8 +2,9 @@ package vct.col.ast.expr.binder
 
 import vct.col.ast.{Exists, TBool, Type}
 import vct.col.print._
+import vct.col.ast.ops.ExistsOps
 
-trait ExistsImpl[G] { this: Exists[G] =>
+trait ExistsImpl[G] extends ExistsOps[G] { this: Exists[G] =>
   override def t: Type[G] = TBool()
 
   def layoutTriggers(implicit ctx: Ctx): Doc =
@@ -12,7 +13,7 @@ trait ExistsImpl[G] { this: Exists[G] =>
     })(_ <> _)
 
   def layoutSpec(implicit ctx: Ctx): Doc =
-    Group(Text("(\\exists") <+> Doc.fold(bindings)(_ <> "," <+> _) <> ";" <> layoutTriggers <>> body </> ")")
+    Group(Text("(\\exists") <+> Doc.fold(bindings)(_ <> "," <+> _) <> ";" <>> body </> ")")
 
   def layoutSilver(implicit ctx: Ctx): Doc =
     Group(Text("(exists") <+> Doc.fold(bindings)(_ <> "," <+> _) <+> "::" <> layoutTriggers <>> body </> ")")

@@ -2,18 +2,18 @@ package vct.rewrite.veymont
 
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.{RewriteApplicableContract, RewriteClass, RewriteDeref, RewriteJavaClass, RewriteJavaConstructor, RewriteMethodInvocation}
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Deref, DerefVeyMontThread, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, VeyMontCommExpression, VeyMontCondition, VeyMontSeqProg, VeyMontThread}
-import vct.col.origin.Origin
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, CommunicateX, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqGuard, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression}
+import vct.col.origin.{Origin, PanicBlame}
 import vct.col.resolve.ctx.RefJavaMethod
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
-import vct.rewrite.veymont.ParalleliseVeyMontThreads.{ChannelFieldOrigin, ParalliseVeyMontThreadsError, RunMethodOrigin, ThreadClassOrigin, getChannelClassName, getThreadClassName, getVarName}
+import vct.rewrite.veymont.ParalleliseEndpoints.{ChannelFieldOrigin, ParalleliseEndpointsError, RunMethodOrigin, ThreadClassOrigin, getChannelClassName, getThreadClassName, getVarName}
 
 import java.lang
 
-object ParalleliseVeyMontThreads extends RewriterBuilderArg[JavaClass[_]] {
-  override def key: String = "ParalleliseVeyMontThreads"
+object ParalleliseEndpoints extends RewriterBuilderArg[JavaClass[_]] {
+  override def key: String = "ParalleliseEndpoints"
 
   override def desc: String = "Generate classes for VeyMont threads in parallel program"
 
@@ -23,53 +23,31 @@ object ParalleliseVeyMontThreads extends RewriterBuilderArg[JavaClass[_]] {
   def getChannelClassName(channelType: Type[_]): String =
     channelType.toString.capitalize + channelClassName
 
-  def getThreadClassName(thread: VeyMontThread[_]) : String =
-    thread.o.preferredName.capitalize + threadClassName
+  def getThreadClassName(thread: Endpoint[_]) : String =
+    thread.o.getPreferredNameOrElse().ucamel + threadClassName
 
-  def getVarName(v: Variable[_]) = v.o.preferredName
+  def getVarName(v: Variable[_]) = v.o.getPreferredNameOrElse()
 
-  case class ParalliseVeyMontThreadsError(node : Node[_], msg: String) extends UserError {
-    override def code: String = "ParalleliseVeyMontThreadsError"
-
+  case class ParalleliseEndpointsError(node : Node[_], msg: String) extends UserError {
+    override def code: String = "paralleliseEndpointsError"
     override def text: String = node.o.messageInContext(msg)
   }
 
-  case class ThreadClassOrigin(thread: VeyMontThread[_]) extends Origin {
-    override def preferredName: String = getThreadClassName(thread)
+  private def ThreadClassOrigin(thread: Endpoint[_]): Origin =
+    thread.o.where(name = getThreadClassName(thread))
 
-    override def context: String = thread.o.context
+  private def ChannelFieldOrigin(channelName: String, assign: Statement[_]): Origin =
+    assign.o.where(name = channelName)
 
-    override def inlineContext: String = thread.o.inlineContext
-
-    override def shortPosition: String = thread.o.shortPosition
-  }
-
-  case class ChannelFieldOrigin(channelName: String, assign: Statement[_]) extends Origin {
-    override def preferredName: String = channelName
-
-    override def context: String = assign.o.context
-
-    override def inlineContext: String = assign.o.inlineContext
-
-    override def shortPosition: String = assign.o.shortPosition
-  }
-
-  case class RunMethodOrigin(runMethod: RunMethod[_]) extends Origin {
-    override def preferredName: String = "run"
-
-    override def context: String = runMethod.o.context
-
-    override def inlineContext: String = runMethod.o.inlineContext
-
-    override def shortPosition: String = runMethod.o.shortPosition
-  }
+  private def RunMethodOrigin(runMethod: SeqRun[_]): Origin =
+    runMethod.o.where(name = "run")
 }
 
-case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[_]) extends Rewriter[Pre] { outer =>
+case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) extends Rewriter[Pre] { outer =>
 
   private val threadBuildingBlocks: ScopedStack[ThreadBuildingBlocks[Pre]] = ScopedStack()
-  private val threadClassSucc: SuccessionMap[VeyMontThread[Pre],Class[Post]] = SuccessionMap()
-  private val threadMethodSucc: SuccessionMap[(VeyMontThread[Pre],ClassDeclaration[Pre]),InstanceMethod[Post]] = SuccessionMap()
+  private val threadClassSucc: SuccessionMap[Endpoint[Pre],Class[Post]] = SuccessionMap()
+  private val threadMethodSucc: SuccessionMap[(Endpoint[Pre],ClassDeclaration[Pre]),InstanceMethod[Post]] = SuccessionMap()
   private val givenClassSucc: SuccessionMap[Type[Pre],Class[Post]] = SuccessionMap()
   private val givenClassConstrSucc: SuccessionMap[Type[Pre],Procedure[Pre]] = SuccessionMap()
 
@@ -77,13 +55,13 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     decl match {
       case p: Procedure[Pre] => givenClassConstrSucc.update(p.returnType,p)
       case c : Class[Pre] => globalDeclarations.succeed(c, dispatchGivenClass(c))
-      case seqProg: VeyMontSeqProg[Pre] => dispatchThreads(seqProg)
-      case thread: VeyMontThread[Pre] => dispatchThread(thread)
+      case seqProg: SeqProg[Pre] => dispatchThreads(seqProg)
+      case thread: Endpoint[Pre] => dispatchThread(thread)
       case other => rewriteDefault(other)
     }
   }
 
-  private def dispatchThread(thread: VeyMontThread[Pre]): Unit = {
+  private def dispatchThread(thread: Endpoint[Pre]): Unit = {
     if (threadBuildingBlocks.nonEmpty) {
       val threadRes: ThreadBuildingBlocks[Pre] = threadBuildingBlocks.top
       val threadMethods: Seq[ClassDeclaration[Post]] = createThreadMethod(thread, threadRes)
@@ -91,15 +69,15 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     } else rewriteDefault(thread)
   }
 
-  private def dispatchThreads(seqProg: VeyMontSeqProg[Pre]): Unit = {
+  private def dispatchThreads(seqProg: SeqProg[Pre]): Unit = {
     val (channelClasses,indexedChannelInfo) = extractChannelInfo(seqProg)
     channelClasses.foreach{ case (t,c) =>
       globalDeclarations.declare(c)
     }
-    seqProg.threads.foreach(thread => {
-      val threadField = new InstanceField[Post](TClass(givenClassSucc.ref(thread.threadType)), Set.empty)(thread.o)
+    seqProg.endpoints.foreach(thread => {
+      val threadField = new InstanceField[Post](TClass(givenClassSucc.ref(thread.t), Seq()), Nil)(thread.o)
       val channelFields = getChannelFields(thread, indexedChannelInfo, channelClasses)
-      threadBuildingBlocks.having(new ThreadBuildingBlocks(seqProg.runMethod, seqProg.methods, channelFields, channelClasses, thread, threadField)) {
+      threadBuildingBlocks.having(new ThreadBuildingBlocks(seqProg.run, seqProg.decls, channelFields, channelClasses, thread, threadField)) {
         dispatch(thread)
       }
     })
@@ -107,11 +85,12 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
 
   private def dispatchGivenClass(c: Class[Pre]): Class[Post] = {
     val rw = GivenClassRewriter()
-    val gc = new RewriteClass[Pre, Post](c)(rw).rewrite(
-      declarations = classDeclarations.collect {
-        (givenClassConstrSucc.get(TClass(c.ref)).get +: c.declarations).foreach(d => rw.dispatch(d))
-      }._1)
-    givenClassSucc.update(TClass(c.ref),gc)
+    val gc = c.rewrite(
+      decls = classDeclarations.collect {
+        (givenClassConstrSucc.get(TClass(c.ref, Seq())).get +: c.declarations).foreach(d => rw.dispatch(d))
+      }._1
+    )(rw)
+    givenClassSucc.update(TClass(c.ref, Seq()),gc)
     gc
   }
 
@@ -132,7 +111,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     // once we make constructors first class.
     def createClassConstructor(p: Procedure[Pre]): JavaConstructor[Post] =
       new JavaConstructor[Post](Seq(JavaPublic[Post]()(p.o)),
-        rewritingConstr.top._2.cls.decl.o.preferredName,
+        rewritingConstr.top._2.cls.decl.o.getPreferredNameOrElse().ucamel,
         p.args.map(createJavaParam),
         variables.dispatch(p.typeArgs),
         Seq.empty,
@@ -147,15 +126,15 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
         p.contract.rewrite(ensures = UnitAccountedPredicate[Post](BooleanValue(true)(p.o))(p.o)))(null)(p.o)
 
     def createJavaParam(v: Variable[Pre]): JavaParam[Post] =
-      new JavaParam[Post](Seq.empty, getVarName(v), dispatch(v.t))(v.o)
+      new JavaParam[Post](Seq.empty, getVarName(v).camel, dispatch(v.t))(v.o)
 
     override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
       case l: Local[Pre] =>
         if(rewritingConstr.nonEmpty && rewritingConstr.top._1.contains(l.ref.decl))
-          JavaLocal[Post](getVarName(l.ref.decl))(null)(e.o)
+          JavaLocal[Post](getVarName(l.ref.decl).camel)(null)(e.o)
         else rewriteDefault(l)
       case t: ThisObject[Pre] =>
-        val thisClassType = TClass(t.cls)
+        val thisClassType = TClass(t.cls, Seq())
         if(rewritingConstr.nonEmpty && rewritingConstr.top._2 == thisClassType)
           ThisObject(givenClassSucc.ref[Post,Class[Post]](thisClassType))(t.o)
         else rewriteDefault(t)
@@ -170,8 +149,8 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     }
   }
 
-  private def extractChannelInfo(seqProg: VeyMontSeqProg[Pre]): (Map[Type[Pre], JavaClass[Post]], Seq[ChannelInfo[Pre]]) = {
-    val channelInfo = collectChannelsFromRun(seqProg) ++ collectChannelsFromMethods(seqProg)
+  private def extractChannelInfo(seqProg: SeqProg[Pre]): (Map[Type[Pre], JavaClass[Post]], Seq[ChannelInfo[Pre]]) = {
+    val channelInfo = getChannelNamesAndTypes(seqProg.run.body) ++ collectChannelsFromMethods(seqProg)
     val indexedChannelInfo: Seq[ChannelInfo[Pre]] = channelInfo.groupBy(_.channelName).values.flatMap(chanInfoSeq =>
       if (chanInfoSeq.size <= 1) chanInfoSeq
       else chanInfoSeq.zipWithIndex.map { case (chanInfo, index) => new ChannelInfo(chanInfo.comExpr, chanInfo.channelType, chanInfo.channelName + index) }).toSeq
@@ -179,7 +158,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     (channelClasses, indexedChannelInfo)
   }
 
-  private def createThreadMethod(thread: VeyMontThread[Pre], threadRes: ThreadBuildingBlocks[Pre]) = {
+  private def createThreadMethod(thread: Endpoint[Pre], threadRes: ThreadBuildingBlocks[Pre]) = {
     threadRes.methods.map { preMethod =>
       val postMethod = getThreadMethodFromDecl(thread)(preMethod)
       threadMethodSucc.update((thread, preMethod), postMethod)
@@ -187,32 +166,33 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     }
   }
 
-  private def createThreadClass(thread: VeyMontThread[Pre], threadRes: ThreadBuildingBlocks[Pre], threadMethods: Seq[ClassDeclaration[Post]]): Unit = {
+  private def createThreadClass(thread: Endpoint[Pre], threadRes: ThreadBuildingBlocks[Pre], threadMethods: Seq[ClassDeclaration[Post]]): Unit = {
     val threadConstr = createThreadClassConstructor(thread,threadRes.threadField)
-    val threadRun = getThreadRunFromDecl(thread, threadRes.runMethod)
+    val threadRun = getThreadRunMethod(threadRes.runMethod)
     classDeclarations.scope {
-      val threadClass = new Class[Post](
+      val threadClass = new Class[Post](Seq(),
         (threadRes.threadField +: threadRes.channelFields.values.toSeq) ++ (threadConstr +: threadRun +: threadMethods), Seq(), BooleanValue(true)(thread.o))(ThreadClassOrigin(thread))
       globalDeclarations.declare(threadClass)
       threadClassSucc.update(thread, threadClass)
     }
   }
 
-  private def createThreadClassConstructor(thread: VeyMontThread[Pre], threadField: InstanceField[Post]): JavaConstructor[Post] = {
+  private def createThreadClassConstructor(thread: Endpoint[Pre], threadField: InstanceField[Post]): JavaConstructor[Post] = {
     val threadConstrArgBlocks = thread.args.map{
-      case l: Local[Pre] => (l.ref.decl.o.preferredName,dispatch(l.t))
-      case other => throw ParalliseVeyMontThreadsError(other,"This node is expected to be an argument of seq_prog, and have type Local")
+      case l: Local[Pre] => (l.ref.decl.o.getPreferredNameOrElse(),dispatch(l.t))
+      case other => throw ParalleliseEndpointsError(other,"This node is expected to be an argument of seq_prog, and have type Local")
     }
     val threadConstrArgs: Seq[JavaParam[Post]] =
-      threadConstrArgBlocks.map{ case (a,t) => new JavaParam[Post](Seq.empty, a, t)(ThreadClassOrigin(thread)) }
+      threadConstrArgBlocks.map{ case (a,t) => new JavaParam[Post](Seq.empty, a.camel, t)(ThreadClassOrigin(thread)) }
     val passedArgs = threadConstrArgs.map(a => JavaLocal[Post](a.name)(null)(ThreadClassOrigin(thread)))
-    val threadTypeName = thread.threadType match { //TODO: replace by using givenClassSucc
-      case tc: TClass[Pre] => tc.cls.decl.o.preferredName
-      case _ => throw ParalliseVeyMontThreadsError(thread.threadType,"This type is expected to be a class")
+    // TODO: The next check cannot fail anymore
+    val threadTypeName = thread.t match { //TODO: replace by using givenClassSucc
+      case tc: TClass[Pre] => tc.cls.decl.o.getPreferredNameOrElse()
+      case _ => throw ParalleliseEndpointsError(thread, "This type is expected to be a class")
     }
     val threadConstrBody = {
       Assign(getThisVeyMontDeref(thread,ThreadClassOrigin(thread),threadField),
-      JavaInvocation[Post](None, Seq.empty, "new " + threadTypeName, passedArgs, Seq.empty, Seq.empty)(null)(ThreadClassOrigin(thread)))(null)(ThreadClassOrigin(thread))
+      JavaInvocation[Post](None, Seq.empty, "new " + threadTypeName.ucamel, passedArgs, Seq.empty, Seq.empty)(null)(ThreadClassOrigin(thread)))(null)(ThreadClassOrigin(thread))
     }
     val threadConstrContract = new ApplicableContract[Post](
       UnitAccountedPredicate[Post](BooleanValue(true)(ThreadClassOrigin(thread)))(ThreadClassOrigin(thread)),
@@ -228,22 +208,17 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
       threadConstrContract)(ThreadClassOrigin(thread))(ThreadClassOrigin(thread))
   }
 
-  private def getThreadMethodFromDecl(thread: VeyMontThread[Pre])(decl: ClassDeclaration[Pre]): InstanceMethod[Post]  = decl match {
+  private def getThreadMethodFromDecl(thread: Endpoint[Pre])(decl: ClassDeclaration[Pre]): InstanceMethod[Post]  = decl match {
     case m: InstanceMethod[Pre] => getThreadMethod(m)
-    case _ => throw ParalliseVeyMontThreadsError(thread, "Methods of seq_program need to be of type InstanceMethod")
+    case _ => throw ParalleliseEndpointsError(thread, "Methods of seq_program need to be of type InstanceMethod")
   }
 
-  private def getThreadRunFromDecl(thread: VeyMontThread[Pre], decl: ClassDeclaration[Pre]): InstanceMethod[Post] = decl match {
-    case m: RunMethod[Pre] => getThreadRunMethod(m)
-    case _ => throw ParalliseVeyMontThreadsError(thread, "RunMethod expected in seq_program")
-  }
-
-  private def getChannelFields(thread: VeyMontThread[Pre], channelInfo: Seq[ChannelInfo[Pre]], channelClasses: Map[Type[Pre],JavaClass[Post]]): Map[(VeyMontCommExpression[Pre],Origin),InstanceField[Post]] = {
+  private def getChannelFields(thread: Endpoint[Pre], channelInfo: Seq[ChannelInfo[Pre]], channelClasses: Map[Type[Pre],JavaClass[Post]]): Map[(CommunicateX[Pre],Origin),InstanceField[Post]] = {
     channelInfo
       .filter( chanInfo => chanInfo.comExpr.receiver.decl == thread || chanInfo.comExpr.sender.decl == thread)
       .map { chanInfo =>
         val chanFieldOrigin = ChannelFieldOrigin(chanInfo.channelName,chanInfo.comExpr.assign)
-        val chanField = new InstanceField[Post](TVeyMontChannel(getChannelClassName(chanInfo.channelType)), Set.empty)(chanFieldOrigin)
+        val chanField = new InstanceField[Post](TVeyMontChannel(getChannelClassName(chanInfo.channelType)), Nil)(chanFieldOrigin)
         ((chanInfo.comExpr, chanInfo.comExpr.o), chanField)
       }.toMap
   }
@@ -254,12 +229,13 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
       channelType -> {
         val chanClassPre = channelClass.asInstanceOf[JavaClass[Pre]]
         val rw = ChannelClassGenerator(channelType)
-        new RewriteJavaClass[Pre, Post](chanClassPre)(rw).rewrite(
+        chanClassPre.rewrite(
           name = getChannelClassName(channelType),
           modifiers = Seq.empty,
           decls = classDeclarations.collect {
             chanClassPre.decls.foreach(d => rw.dispatch(d))
-          }._1)
+          }._1
+        )(rw)
       }
     ).toMap
   }
@@ -281,28 +257,17 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     }
   }
 
-  private def collectChannelsFromRun(seqProg: VeyMontSeqProg[Pre]) =
-    seqProg.runMethod match {
-      case r: RunMethod[Pre] => getChannelsFromBody(r.body, r)
-      case other => throw ParalliseVeyMontThreadsError(other, "seq_program run method expected")
+  private def collectChannelsFromMethods(seqProg: SeqProg[Pre]) =
+    seqProg.decls.flatMap {
+      case m: InstanceMethod[Pre] =>
+        m.body.map(getChannelNamesAndTypes).getOrElse(throw ParalleliseEndpointsError(m, "Abstract methods are not supported inside `seq_prog`."))
+      case other => throw ParalleliseEndpointsError(other, "seq_program method expected")
     }
-
-  private def collectChannelsFromMethods(seqProg: VeyMontSeqProg[Pre]) =
-    seqProg.methods.flatMap {
-      case m: InstanceMethod[Pre] => getChannelsFromBody(m.body, m)
-      case other => throw ParalliseVeyMontThreadsError(other, "seq_program method expected")
-    }
-
-  private def getChannelsFromBody(body: Option[Statement[Pre]], method: ClassDeclaration[Pre]) = {
-    body match {
-      case None => throw ParalliseVeyMontThreadsError(method, "Method in seq_program needs to have non-empty body")
-      case Some(b) => getChannelNamesAndTypes(b)
-    }
-  }
 
   private def getChannelNamesAndTypes(s: Statement[Pre]): Seq[ChannelInfo[Pre]] = {
-    s.collect { case e@VeyMontCommExpression(recv, sender, chanType, assign) =>
-      new ChannelInfo(e,chanType, recv.decl.o.preferredName + sender.decl.o.preferredName + "Channel")
+    s.collect { case e@CommunicateX(recv, sender, chanType, assign) =>
+      new ChannelInfo(e,chanType, recv.decl.o.getPreferredNameOrElse().ucamel
+        + sender.decl.o.getPreferredNameOrElse().camel + "Channel")
     }
   }
 
@@ -316,36 +281,37 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
         dispatch(method.contract))(method.blame)(method.o)
   }
 
-  private def getThreadRunMethod(run: RunMethod[Pre]): InstanceMethod[Post] = {
+  private def getThreadRunMethod(run: SeqRun[Pre]): InstanceMethod[Post] = {
     new InstanceMethod[Post](
       TVoid[Post](),
       Seq.empty,Seq.empty,Seq.empty,
-      run.body.map(dispatch),
-      dispatch(run.contract))(run.blame)(RunMethodOrigin(run))
+      Some(dispatch(run.body)),
+      dispatch(run.contract))(PanicBlame("TODO: Convert InstanceMethod blame to SeqRun blame")/* run.blame */)(RunMethodOrigin(run))
   }
 
   override def dispatch(node: Expr[Pre]): Expr[Post] = {
     if(threadBuildingBlocks.nonEmpty) {
       val thread = threadBuildingBlocks.top.thread
       node match {
-        case c: VeyMontCondition[Pre] => paralleliseThreadCondition(node, thread, c)
+        // TODO: Disabled this because the AST changed, repair
+        // case c: SeqGuard[Pre] => paralleliseThreadCondition(node, thread, c)
         case m: MethodInvocation[Pre] => updateThreadRefMethodInvoc(thread, m)
         case d: Deref[Pre] => updateThreadRefInDeref(node, thread, d)
-        case t: DerefVeyMontThread[Pre] => updateThreadRefVeyMontDeref(node, thread, t)
+        case t: EndpointUse[Pre] => updateThreadRefVeyMontDeref(node, thread, t)
         case _ => rewriteDefault(node)
       }
     } else rewriteDefault(node)
   }
 
-  private def updateThreadRefVeyMontDeref(node: Expr[Pre], thread: VeyMontThread[Pre], t: DerefVeyMontThread[Pre]) = {
+  private def updateThreadRefVeyMontDeref(node: Expr[Pre], thread: Endpoint[Pre], t: EndpointUse[Pre]) = {
     if (t.ref.decl == thread) {
       getThisVeyMontDeref(thread, t.o, threadBuildingBlocks.top.threadField)
     } else rewriteDefault(node)
   }
 
-  private def updateThreadRefInDeref(node: Expr[Pre], thread: VeyMontThread[Pre], d: Deref[Pre]) = {
+  private def updateThreadRefInDeref(node: Expr[Pre], thread: Endpoint[Pre], d: Deref[Pre]) = {
     d.obj match {
-      case t: DerefVeyMontThread[Pre] if t.ref.decl == thread =>
+      case t: EndpointUse[Pre] if t.ref.decl == thread =>
         d.rewrite(
           obj = getThisVeyMontDeref(thread, d.o, threadBuildingBlocks.top.threadField)
         )
@@ -353,26 +319,28 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     }
   }
 
-  private def updateThreadRefMethodInvoc(thread: VeyMontThread[Pre], m: MethodInvocation[Pre]) = {
+  private def updateThreadRefMethodInvoc(thread: Endpoint[Pre], m: MethodInvocation[Pre]) = {
     m.obj match {
-      case threadRef: DerefVeyMontThread[Pre] => m.rewrite(obj = dispatch(threadRef))
+      case threadRef: EndpointUse[Pre] => m.rewrite(obj = dispatch(threadRef))
       case _ => threadMethodSucc.get((thread, m.ref.decl)) match {
-        case Some(postMethod) => m.rewrite(obj = dispatch(m.obj), ref = postMethod.ref, m.args.map(dispatch))
-        case None => throw ParalliseVeyMontThreadsError(m, "No successor for this method found")
+        case Some(postMethod) => m.rewrite(obj = dispatch(m.obj), ref = postMethod.ref[InstanceMethod[Post]], m.args.map(dispatch))
+        case None => throw ParalleliseEndpointsError(m, "No successor for this method found")
       }
     }
   }
 
-  private def paralleliseThreadCondition(node: Expr[Pre], thread: VeyMontThread[Pre], c: VeyMontCondition[Pre]) = {
-    c.condition.find { case (threadRef, _) =>
-      threadRef.decl == thread
-    } match {
-      case Some((_, threadExpr)) => dispatch(threadExpr)
-      case _ => throw ParalliseVeyMontThreadsError(node, "Condition of if statement or while loop must contain an expression for every thread")
-    }
+  private def paralleliseThreadCondition(node: Expr[Pre], thread: Endpoint[Pre], c: SeqGuard[Pre]) = {
+    ???
+    // TODO: Broke this because AST changed, repair
+//    c.conditions.find { case (threadRef, _) =>
+//      threadRef.decl == thread
+//    } match {
+//      case Some((_, threadExpr)) => dispatch(threadExpr)
+//      case _ => throw ParalleliseEndpointsError(node, "Condition of if statement or while loop must contain an expression for every thread")
+//    }
   }
 
-  private def getThisVeyMontDeref(thread: VeyMontThread[Pre], o: Origin, threadField: InstanceField[Rewritten[Pre]]) = {
+  private def getThisVeyMontDeref(thread: Endpoint[Pre], o: Origin, threadField: InstanceField[Rewritten[Pre]]) = {
     Deref(ThisObject(threadClassSucc.ref[Post, Class[Post]](thread))(thread.o), threadField.ref[InstanceField[Post]])(null)(o)
   }
 
@@ -380,7 +348,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
       if (threadBuildingBlocks.nonEmpty) {
         val thread = threadBuildingBlocks.top.thread
         st match {
-          case v: VeyMontCommExpression[Pre] =>
+          case v: CommunicateX[Pre] =>
             paralleliseVeyMontCommExpr(thread, v, createParComBlocks(thread, v))
           case v@VeyMontAssignExpression(threadRef, assign) =>
             if (threadRef.decl == thread)
@@ -393,12 +361,12 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
           case Block(_) => rewriteDefault(st)
           case Eval(expr) => paralleliseMethodInvocation(st, thread, expr)
           case _: Assert[Pre] => Block(Seq.empty)(st.o)
-          case _ => throw ParalliseVeyMontThreadsError(st, "Statement not allowed in seq_program")
+          case _ => throw ParalleliseEndpointsError(st, "Statement not allowed in seq_program")
         }
       } else rewriteDefault(st)
     }
 
-  private def createParComBlocks(thread: VeyMontThread[Pre], v: VeyMontCommExpression[Pre]): ParallelCommExprBuildingBlocks[Pre] = {
+  private def createParComBlocks(thread: Endpoint[Pre], v: CommunicateX[Pre]): ParallelCommExprBuildingBlocks[Pre] = {
     val channelField = threadBuildingBlocks.top.channelFields((v, v.o))
     val channelClass = threadBuildingBlocks.top.channelClasses(v.chanType)
     val thisChanField = Deref(ThisObject(threadClassSucc.ref[Post, Class[Post]](thread))(thread.o), channelField.ref[InstanceField[Post]])(null)(v.assign.o)
@@ -406,18 +374,18 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     new ParallelCommExprBuildingBlocks(channelField, channelClass, thisChanField, assignment)
   }
 
-  private def paralleliseMethodInvocation(st: Statement[Pre], thread: VeyMontThread[Pre], expr: Expr[Pre]): Statement[Post] = {
+  private def paralleliseMethodInvocation(st: Statement[Pre], thread: Endpoint[Pre], expr: Expr[Pre]): Statement[Post] = {
     expr match {
       case m: MethodInvocation[Pre] => m.obj match {
-        case _: ThisSeqProg[Pre] => Eval(m.rewrite(obj = ThisObject(threadClassSucc.ref[Post, Class[Post]](thread))(thread.o), ref = threadMethodSucc.ref((thread, m.ref.decl))))(st.o)
-        case d: DerefVeyMontThread[Pre] => if (d.ref.decl == thread) Eval(dispatch(expr))(st.o) else Block(Seq.empty)(st.o)
-        case _ => throw ParalliseVeyMontThreadsError(st, "Statement not allowed in seq_program")
+        case _: ThisSeqProg[Pre] => Eval(m.rewrite(obj = ThisObject(threadClassSucc.ref[Post, Class[Post]](thread))(thread.o), ref = threadMethodSucc.ref[Post, InstanceMethod[Post]]((thread, m.ref.decl))))(st.o)
+        case d: EndpointUse[Pre] => if (d.ref.decl == thread) Eval(dispatch(expr))(st.o) else Block(Seq.empty)(st.o)
+        case _ => throw ParalleliseEndpointsError(st, "Statement not allowed in seq_program")
       }
-      case _ => throw ParalliseVeyMontThreadsError(st, "Statement not allowed in seq_program")
+      case _ => throw ParalleliseEndpointsError(st, "Statement not allowed in seq_program")
     }
   }
 
-  private def paralleliseVeyMontCommExpr(thread: VeyMontThread[Pre], v: VeyMontCommExpression[Pre], blocks: ParallelCommExprBuildingBlocks[Pre]): Statement[Post] = {
+  private def paralleliseVeyMontCommExpr(thread: Endpoint[Pre], v: CommunicateX[Pre], blocks: ParallelCommExprBuildingBlocks[Pre]): Statement[Post] = {
     if (v.receiver.decl == thread) {
       val readMethod = findChannelClassMethod(v, blocks.channelClass, "readValue")
       val assignValue = JavaInvocation(Some(blocks.thisChanField), Seq.empty, "readValue", Seq.empty, Seq.empty, Seq.empty)(null)(v.o)
@@ -432,14 +400,14 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     else Block(Seq.empty)(blocks.assign.o)
   }
 
-  private def findChannelClassMethod(v: VeyMontCommExpression[Pre], channelClass: JavaClass[Post], methodName: String): JavaMethod[Post] = {
+  private def findChannelClassMethod(v: CommunicateX[Pre], channelClass: JavaClass[Post], methodName: String): JavaMethod[Post] = {
     val method = channelClass.decls.find {
       case jm: JavaMethod[Post] => jm.name == methodName
       case _ => false
     }
     method match {
       case Some(m : JavaMethod[Post]) => m
-      case _ => throw ParalliseVeyMontThreadsError(v, "Could not find method `" + methodName + "' for channel class " + channelClass.name)
+      case _ => throw ParalleliseEndpointsError(v, "Could not find method `" + methodName + "' for channel class " + channelClass.name)
     }
   }
 

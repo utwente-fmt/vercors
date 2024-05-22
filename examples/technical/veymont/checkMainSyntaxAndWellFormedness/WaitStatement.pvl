@@ -1,0 +1,5 @@
+seq_program Main() {
+	seq_run {
+		wait null; // Not allowed
+	}
+}

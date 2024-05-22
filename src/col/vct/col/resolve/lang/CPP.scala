@@ -40,117 +40,137 @@ case object CPP {
     for (prefix <- NUMBER_LIKE_PREFIXES; t <- NUMBER_LIKE_TYPES)
       yield prefix ++ t
 
-  case class DeclaratorInfo[G](params: Option[Seq[CPPParam[G]]], typeOrReturnType: Type[G] => Type[G], name: String)
+  case class DeclaratorInfo[G](params: Option[Seq[CPPParam[G]]], typeOrReturnType: Type[G] => Type[G], name: String, isReference: Boolean = false)
 
-  def getDeclaratorInfo[G](decl: CPPDeclarator[G]): DeclaratorInfo[G] = decl match {
-    case CPPPointerDeclarator(pointers, inner) =>
+  def getDeclaratorInfo[G](decl: CPPDeclarator[G], isParam: Boolean = false): DeclaratorInfo[G] = decl match {
+    case CPPAddressingDeclarator(operators, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
-      DeclaratorInfo(
-        innerInfo.params,
-        t => innerInfo.typeOrReturnType(FuncTools.repeat[Type[G]](TPointer(_), pointers.size, t)),
-        innerInfo.name)
-    case array @ CPPArrayDeclarator(inner, size) =>
+      if (isParam && operators.size == 1 && operators.head.isInstanceOf[CPPReference[G]]) {
+        // Pass by reference parameter, so & can be ignored
+        DeclaratorInfo(
+          innerInfo.params,
+          t => innerInfo.typeOrReturnType(t),
+          innerInfo.name,
+          isReference = true
+        )
+      } else if (operators.collectFirst({ case x: CPPReference[G] => x }).isDefined) {
+        // Do not support multiple &, or & later in the sequence
+        throw CPPTypeNotSupported(Some(decl))
+      } else {
+        DeclaratorInfo(
+          innerInfo.params,
+          t => innerInfo.typeOrReturnType(FuncTools.repeat[Type[G]](TPointer(_), operators.size, t)),
+          innerInfo.name)
+      }
+    case array@CPPArrayDeclarator(size, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(innerInfo.params, t => innerInfo.typeOrReturnType(CPPTArray(size, t)(array.blame)), innerInfo.name)
     case CPPTypedFunctionDeclarator(params, _, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
-      DeclaratorInfo(params = Some(params), typeOrReturnType = (t => t), innerInfo.name)
-    case CPPName(name) => DeclaratorInfo(params = None, typeOrReturnType = (t => t), name)
+      DeclaratorInfo(params = Some(params), typeOrReturnType = t => t, innerInfo.name)
+    case CPPLambdaDeclarator(params) =>
+      DeclaratorInfo(params = Some(params), typeOrReturnType = t => t, "")
+    case CPPName(name) =>
+      DeclaratorInfo(params = None, typeOrReturnType = t => t, name)
   }
 
-  def getPrimitiveType[G](specs: Seq[CPPDeclarationSpecifier[G]], context: Option[Node[G]] = None): Type[G] =
+  def getBaseTypeFromSpecs[G](specs: Seq[CPPDeclarationSpecifier[G]], context: Option[Node[G]] = None): Type[G] =
     specs.collect { case spec: CPPTypeSpecifier[G] => spec } match {
       case Seq(CPPVoid()) => TVoid()
       case Seq(CPPChar()) => TChar()
-      case t if CPP.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
-      case Seq(CPPSpecificationType(t@TFloat(_, _))) => t
+      case t if CPP.NUMBER_LIKE_SPECIFIERS.contains(t) => TCInt()
+      case Seq(CPPSpecificationType(t@TCFloat(_, _))) => t
       case Seq(CPPBool()) => TBool()
-      case Seq(SYCLQueue()) => TSYCLQueue()
-      case Seq(defn@CPPTypedefName(_)) => Types.notAValue(defn.ref.get)
+      case Seq(SYCLClassDefName("event", Seq())) => SYCLTEvent()
+      case Seq(SYCLClassDefName("handler", Seq())) => SYCLTHandler()
+      case Seq(SYCLClassDefName("queue", Seq())) => SYCLTQueue()
+      case Seq(SYCLClassDefName(name, Seq(CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)))) =>
+        name match {
+          case "item" => SYCLTItem(dim.intValue)
+          case "nd_item" => SYCLTNDItem(dim.intValue)
+          case "range" => SYCLTRange(dim.intValue)
+          case "nd_range" => SYCLTNDRange(dim.intValue)
+          case _ => throw CPPTypeNotSupported(context)
+        }
+      case Seq(SYCLClassDefName(name, Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)))) =>
+        val baseType = getBaseTypeFromSpecs(Seq(typ))
+        name match {
+          case "buffer" => SYCLTBuffer(baseType, dim.intValue)
+          case "accessor" => SYCLTAccessor(baseType, dim.intValue)
+          case "local_accessor" => SYCLTLocalAccessor(baseType, dim.intValue)
+          case _ => throw CPPTypeNotSupported(context)
+        }
+      case Seq(SYCLClassDefName("accessor", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None), CPPExprOrTypeSpecifier(None, Some(SYCLClassDefName(accessMode, Nil)))))) =>
+        val baseType = getBaseTypeFromSpecs(Seq(typ))
+        accessMode match {
+          case "access_mode::read_write" => SYCLTAccessor(baseType, dim.intValue)
+          case "access_mode::read" => SYCLTAccessor(baseType, dim.intValue, readOnly = true)
+          case _ => throw CPPTypeNotSupported(context)
+        }
+      case Seq(CPPTypedefName("VERCORS::LAMBDA", _)) => CPPTLambda()
+      case Seq(defn@CPPTypedefName(_, _)) => Types.notAValue(defn.ref.get)
       case Seq(CPPSpecificationType(typ)) => typ
       case spec +: _ => throw CPPTypeNotSupported(context.orElse(Some(spec)))
       case _ => throw CPPTypeNotSupported(context)
     }
 
+  def unwrappedType[G](t: Type[G]): Type[G] = t match {
+    case CPPPrimitiveType(specs) => getBaseTypeFromSpecs(specs)
+    case _ => t
+  }
+
   def nameFromDeclarator(declarator: CPPDeclarator[_]): String =
     getDeclaratorInfo(declarator).name
 
-  def typeOrReturnTypeFromDeclaration[G](specs: Seq[CPPDeclarationSpecifier[G]], decl: CPPDeclarator[G]): Type[G] =
-    getDeclaratorInfo(decl).typeOrReturnType(CPPPrimitiveType(specs))
+  def typeOrReturnTypeFromDeclarator[G](specs: Seq[CPPDeclarationSpecifier[G]], decl: CPPDeclarator[G]): Type[G] = {
+    getDeclaratorInfo(decl).typeOrReturnType(CPPPrimitiveType(specs)) match {
+      case CPPPrimitiveType(returnedSpecs) => getBaseTypeFromSpecs(returnedSpecs)
+      case x => x
+    }
+
+  }
 
   def paramsFromDeclarator[G](declarator: CPPDeclarator[G]): Seq[CPPParam[G]] =
     getDeclaratorInfo(declarator).params.get
 
-  def findCPPTypeName[G](name: String, ctx: TypeResolutionContext[G]): Option[CPPTypeNameTarget[G]] =
-    ctx.stack.flatten.collectFirst {
+  def findCPPTypeName[G](name: String, ctx: TypeResolutionContext[G]): Option[CPPTypeNameTarget[G]] = name match {
+    case "VERCORS::LAMBDA" | "VERCORS::ARRAY" => Some(RefCPPCustomType(name))
+    case _ => ctx.stack.flatten.collectFirst {
       case target: CPPTypeNameTarget[G] if target.name == name => target
     }
-
-  def replacePotentialSYCLClassInstance[G](name: String, ctx: ReferenceResolutionContext[G]): String = {
-    if (name.contains('.') && name.count(x => x == '.') == 1) {
-      // Class method, replace with SYCL equivalent
-      val classVarName = name.split('.').head
-      val methodName = name.split('.').last
-
-      // Get type (so class) of variable (instance)
-      val classTarget = ctx.stack.flatten.collectFirst {
-        case target: CPPNameTarget[G] if target.name == classVarName => target
-      }
-      val className = classTarget match {
-        case Some(RefCPPLocalDeclaration(decl, _)) => Some(getPrimitiveType(decl.decl.specs))
-        case Some(RefCPPGlobalDeclaration(decl, _)) => Some(getPrimitiveType(decl.decl.specs))
-        case _ => None
-      }
-      // Replace class reference name to a namespace name
-      if (className.isDefined) {
-        return name.replace(classVarName + ".", "VERCORS::" + className.get.toString + "::VERCORS__")
-      }
-    }
-    name
   }
 
-  def findCPPName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[CPPNameTarget[G]] = {
-    val targetName: String = replacePotentialSYCLClassInstance(name, ctx)
+  def findCPPName[G](name: String, ctx: ReferenceResolutionContext[G]): Seq[CPPNameTarget[G]] = {
+    val targets = ctx.stack.flatten.collect {
+      case target: CPPNameTarget[G] if target.name == name => target
+    }
+    if (targets.nonEmpty) return targets
 
-    var nameSeq = targetName.split("::")
-    if (nameSeq.length == 1) {
-      ctx.stack.flatten.collectFirst {
-        case target: CPPNameTarget[G] if target.name == targetName => target
-      }
-    } else {
-      val ctxTarget: Option[RefCPPNamespaceDefinition[G]] = ctx.stack.flatten.collectFirst {
-        case namespace: RefCPPNamespaceDefinition[G] if namespace.decl.name == nameSeq.head => namespace
-      }
-
-      ctxTarget match {
-        case Some(ref) =>
-          nameSeq = nameSeq.drop(1);
-          var foundNamespace: Option[CPPNamespaceDefinition[G]] = Some(ref.decl)
-          var returnVal: Option[CPPNameTarget[G]] = None;
-          while (nameSeq.nonEmpty) {
-            if (foundNamespace.isEmpty) {
-              return None
-            }
-
-            if (nameSeq.length > 1) {
-              // Look for nested namespaces
-              foundNamespace = foundNamespace.get.declarations.collectFirst {
-                case namespace: CPPNamespaceDefinition[G] if namespace.name == nameSeq.head => namespace
-              }
-            } else {
-              // Look for final nameTarget
-              returnVal = foundNamespace.get.declarations.collectFirst {
-                case funcDef: CPPFunctionDefinition[G] if getDeclaratorInfo(funcDef.declarator).name == nameSeq.head  => RefCPPFunctionDefinition(funcDef)
-                case globalDecl: CPPGlobalDeclaration[G] if getDeclaratorInfo(globalDecl.decl.inits.head.decl).name == nameSeq.head => RefCPPGlobalDeclaration(globalDecl, 0)
-              }
-            }
-            nameSeq = nameSeq.drop(1)
-          }
-          returnVal
-        case None => None
-      }
+    name match {
+      case "sycl::read_write" => Seq(RefSYCLAccessMode(SYCLReadWriteAccess()))
+      case "sycl::read_only" => Seq(RefSYCLAccessMode(SYCLReadOnlyAccess()))
+      case "sycl::range" => Seq(RefSYCLConstructorDefinition(SYCLTRange()))
+      case "sycl::nd_range" => Seq(RefSYCLConstructorDefinition(SYCLTNDRange()))
+      case "sycl::buffer" => Seq(RefSYCLConstructorDefinition(SYCLTBuffer()))
+      case "sycl::accessor" => Seq(RefSYCLConstructorDefinition(SYCLTAccessor()))
+      case "sycl::local_accessor" => Seq(RefSYCLConstructorDefinition(SYCLTLocalAccessor()))
+      case _ => Seq()
     }
   }
+
+  def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Seq[CPPDerefTarget[G]] =
+    CPP.unwrappedType(obj.t) match {
+      case t: TNotAValue[G] => t.decl.get match {
+        case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collect {
+          case ref: RefADTFunction[G] if ref.name == name => ref
+        }
+        case _ => Nil
+      }
+      case t: SYCLTClass[G] => findCPPName(t.namespacePath + "::" + name, ctx).collect({
+        case decl: CPPDerefTarget[G] if decl.isInstanceOf[CPPInvocationTarget[G]] => decl
+      })
+      case _ => Spec.builtinField(obj, name, blame).toSeq
+    }
 
   def findForwardDeclaration[G](declarator: CPPDeclarator[G], ctx: ReferenceResolutionContext[G]): Option[RefCPPGlobalDeclaration[G]] =
     ctx.stack.flatten.collectFirst {
@@ -162,12 +182,64 @@ case object CPP {
       case target: RefCPPFunctionDefinition[G] if target.name == nameFromDeclarator(declarator) => target
     }
 
-  def resolveInvocation[G](obj: Expr[G]): CPPInvocationTarget[G] =
-    obj.t match {
-      case t: TNotAValue[G] => t.decl.get match {
-        case target: CPPInvocationTarget[G] => target
-        case _ => throw NotApplicable(obj)
+  def getParamTypes[G](ref: CPPInvocationTarget[G]): Seq[Type[G]] = ref match {
+    case globalDeclRef: RefCPPGlobalDeclaration[G] if globalDeclRef.decls.decl.inits.size == 1 =>
+      paramsFromDeclarator(globalDeclRef.decls.decl.inits.head.decl).map(param => getBaseTypeFromSpecs(param.specifiers))
+    case functionDeclRef: RefCPPFunctionDefinition[G] =>
+      paramsFromDeclarator(functionDeclRef.decl.declarator).map(param => getBaseTypeFromSpecs(param.specifiers))
+    case functionRef: RefFunction[G] => functionRef.decl.args.map(variable => variable.t)
+    case procedureRef: RefProcedure[G] => procedureRef.decl.args.map(variable => variable.t)
+    case predicateRef: RefPredicate[G] => predicateRef.decl.args.map(variable => variable.t)
+    case instanceFunctionRef: RefInstanceFunction[G] => instanceFunctionRef.decl.args.map(variable => variable.t)
+    case instanceMethodRef: RefInstanceMethod[G] => instanceMethodRef.decl.args.map(variable => variable.t)
+    case instancePredicateRef: RefInstancePredicate[G] => instancePredicateRef.decl.args.map(variable => variable.t)
+    case aDTFunctionRef: RefADTFunction[G] => aDTFunctionRef.decl.args.map(variable => variable.t)
+    case modelProcessRef: RefModelProcess[G] => modelProcessRef.decl.args.map(variable => variable.t)
+    case modelActionRef: RefModelAction[G] => modelActionRef.decl.args.map(variable => variable.t)
+    case proverFunctionRef: RefProverFunction[G] => proverFunctionRef.decl.args.map(variable => variable.t)
+    case _ => Seq()
+  }
+
+  def resolveInvocation[G](applicable: Expr[G], args: Seq[Expr[G]], ctx: ReferenceResolutionContext[G]): CPPInvocationTarget[G] =
+    applicable.t match {
+      case t: TNotAValue[G] => (t.decl.get, applicable) match {
+        // Do not check arguments for BuiltinInstanceMethods as we do not know the argument types
+        case (target: BuiltinInstanceMethod[G], _) => target
+        // Resolve the SYCL constructor
+        case (RefSYCLConstructorDefinition(typ), CPPLocal(_, genericArgs)) => typ.findConstructor(genericArgs, args) match {
+          case Some(constructorRef) => constructorRef
+          case None => throw NotApplicable(applicable)
+        }
+        // The previously found method is already the correct one
+        case (target: CPPInvocationTarget[G], _) if Util.compatTypes(args, getParamTypes(target)) => target
+        case (_, local@CPPLocal(name, genericArgs)) =>
+          // Currently linked method does not have correct params
+          // So find all declarations with correct name and see if there is
+          // an alternative whose parameters do match the arguments
+          val allDecls = findCPPName(name, ctx).collect({case decl: CPPInvocationTarget[G] => decl})
+          val foundMatch: CPPInvocationTarget[G] = findAlternativeInvocationTarget(applicable, args, allDecls)
+          local.ref = Some(foundMatch.asInstanceOf[CPPNameTarget[G]])
+          t.decl = Some(foundMatch)
+          foundMatch
+        case (_, deref@CPPClassMethodOrFieldAccess(classInstance, name)) =>
+          // Currently linked method does not have correct params
+          // So find all declarations with correct name and see if there is
+          // an alternative whose parameters do match the arguments
+          val allDecls = findDeref(classInstance, name, ctx, deref.blame).collect({
+            case target: CPPInvocationTarget[G] => target
+          })
+          val foundMatch: CPPInvocationTarget[G] = findAlternativeInvocationTarget(applicable, args, allDecls)
+          deref.ref = Some(foundMatch.asInstanceOf[CPPDerefTarget[G]])
+          t.decl = Some(foundMatch)
+          foundMatch
+        case _ => throw NotApplicable(applicable)
       }
-      case _ => throw NotApplicable(obj)
+      case _ => throw NotApplicable(applicable)
     }
+
+  private def findAlternativeInvocationTarget[G](applicable: Expr[G], args: Seq[Expr[G]], decls: Seq[CPPInvocationTarget[G]]): CPPInvocationTarget[G] = {
+    decls.find(
+      value => Util.compatTypes(args, getParamTypes(value))
+    ).getOrElse(throw NotApplicable(applicable))
+  }
 }

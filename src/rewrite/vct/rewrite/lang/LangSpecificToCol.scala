@@ -1,26 +1,27 @@
-package vct.col.rewrite.lang
+package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.lang.LangBipToCol
 import vct.col.origin._
+import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg, RewriterBuilderArg2}
 import vct.result.VerificationError.UserError
+import vct.rewrite.lang.LangSpecificToCol.NotAValue
 
-case object LangSpecificToCol extends RewriterBuilder {
+case object LangSpecificToCol extends RewriterBuilderArg2[Boolean, Boolean] {
   override def key: String = "langSpecific"
   override def desc: String = "Translate language-specific constructs to a common subset of nodes."
 
-  case object ThisVar extends Origin {
-    override def preferredName: String = "this"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At node generated to store the this value for constructors]"
-    override def inlineContext: String = "this"
-  }
+  def ThisVar(): Origin = Origin(
+    Seq(
+      PreferredName(Seq("this")),
+      LabelContext("constructor this"),
+    )
+  )
 
   case class NotAValue(value: Expr[_]) extends UserError {
     override def code: String = "notAValue"
@@ -28,17 +29,65 @@ case object LangSpecificToCol extends RewriterBuilder {
   }
 }
 
-case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Boolean = false, veymontAllowAssign: Boolean = false) extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
   val bip: LangBipToCol[Pre] = LangBipToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)
   val cpp: LangCPPToCol[Pre] = LangCPPToCol(this)
-  val pvl: LangPVLToCol[Pre] = LangPVLToCol(this)
+  val pvl: LangPVLToCol[Pre] = LangPVLToCol(this, veymontGeneratePermissions)
+  val veymont: LangVeyMontToCol[Pre] = LangVeyMontToCol(this, veymontAllowAssign)
   val silver: LangSilverToCol[Pre] = LangSilverToCol(this)
   val llvm: LangLLVMToCol[Pre] = LangLLVMToCol(this)
 
   val currentThis: ScopedStack[Expr[Post]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
+
+  def specLocal(target: SpecNameTarget[Pre], e: Expr[Pre], blame: Blame[DerefInsufficientPermission]): Expr[Post] = target match {
+    case RefAxiomaticDataType(_) => throw NotAValue(e)
+    case RefClass(_) => throw NotAValue(e)
+    case RefEnum(_) => throw NotAValue(e)
+    case RefEnumConstant(enum, decl) => EnumUse[Post](succ(enum.get), succ(decl))(e.o)
+    case RefVariable(decl) => Local[Post](succ(decl))(e.o)
+    case RefModelField(decl) => ModelDeref[Post](currentThis.top, succ(decl))(blame)(e.o)
+  }
+
+  def specDeref(obj: Expr[Pre], target: SpecDerefTarget[Pre], e: Expr[Pre], blame: Blame[DerefInsufficientPermission]): Expr[Post] = target match {
+    case RefEnumConstant(enum, decl) => EnumUse[Post](succ(enum.get), succ(decl))(e.o)
+    case RefModelField(decl) => ModelDeref[Post](dispatch(obj), succ(decl))(blame)(e.o)
+    case BuiltinField(f) => dispatch(f(obj))
+  }
+
+  def specInvocation(objPre: Option[Expr[Pre]],
+                     target: SpecInvocationTarget[Pre],
+                     typeArgs: Seq[Type[Pre]],
+                     args: Seq[Expr[Pre]],
+                     givenArgsPre: Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])],
+                     yieldsPre: Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])],
+                     e: Expr[Pre],
+                     blame: Blame[FrontendInvocationError]
+                    ): Expr[Post] = {
+    implicit val o: Origin = e.o
+    lazy val obj = objPre.map(dispatch).getOrElse(currentThis.top)
+    lazy val givenArgs = givenArgsPre.map { case (Ref(v), e) => (succ[Variable[Post]](v), dispatch(e)) }
+    lazy val yields = yieldsPre.map { case (e, Ref(v)) => (dispatch(e), succ[Variable[Post]](v)) }
+
+    target match {
+      case RefFunction(decl) => FunctionInvocation[Post](succ(decl), args.map(dispatch), typeArgs.map(dispatch), givenArgs, yields)(blame)
+      case RefProcedure(decl) => ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch), givenArgs, yields)(blame)
+      case RefPredicate(decl) => PredicateApply[Post](succ(decl), args.map(dispatch), WritePerm())
+      case RefADTFunction(decl) => ADTFunctionInvocation(None, succ(decl), args.map(dispatch))
+      case RefProverFunction(decl) => ProverFunctionInvocation(succ(decl), args.map(dispatch))
+
+      case RefInstanceFunction(decl) => InstanceFunctionInvocation[Post](obj, succ(decl), args.map(dispatch), typeArgs.map(dispatch), givenArgs, yields)(blame)
+      case RefInstanceMethod(decl) => MethodInvocation[Post](obj, succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch), givenArgs, yields)(blame)
+      case RefInstancePredicate(decl) => InstancePredicateApply[Post](obj, succ(decl), args.map(dispatch), WritePerm())
+
+      case RefModelProcess(decl) => ProcessApply[Post](succ(decl), args.map(dispatch))
+      case RefModelAction(decl) => ActionApply[Post](succ(decl), args.map(dispatch))
+
+      case BuiltinInstanceMethod(f) => dispatch(f(objPre.get)(args))
+    }
+  }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case model: Model[Pre] =>
@@ -46,17 +95,13 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
       currentThis.having(ThisModel[Post](succ(model))) {
         globalDeclarations.succeed(model, model.rewrite())
       }
-    case seqProg: VeyMontSeqProg[Pre] =>
-      implicit val o: Origin = seqProg.o
-      currentThis.having(ThisSeqProg[Post](succ(seqProg))) {
-        globalDeclarations.succeed(seqProg, seqProg.rewrite())
-      }
 
     case ns: JavaNamespace[Pre] => java.rewriteNamespace(ns)
     case cls: JavaClassOrInterface[Pre] => java.rewriteClass(cls)
     case p: JavaParam[Pre] => java.rewriteParameter(p)
 
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)
+    case main: VeSUVMainMethod[Pre] => pvl.rewriteMainMethod(main)
 
     case method: JavaMethod[Pre] => java.rewriteMethod(method)
 
@@ -69,9 +114,13 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case unit: CPPTranslationUnit[Pre] => cpp.rewriteUnit(unit)
     case cppParam: CPPParam[Pre] => cpp.rewriteParam(cppParam)
     case func: CPPFunctionDefinition[Pre] => cpp.rewriteFunctionDef(func)
-    case ns: CPPNamespaceDefinition[Pre] => cpp.rewriteNamespaceDef(ns)
-    case decl: CPPGlobalDeclaration[Pre] => cpp.rewriteGlobalDecl(decl)
+    case decl: CPPGlobalDeclaration[Pre] =>
+      cpp.rewriteGlobalDecl(decl)
     case decl: CPPLocalDeclaration[Pre] => ???
+    case func: Function[Pre] => {
+      rewriteDefault(func)
+      cpp.storeIfSYCLFunction(func)
+    }
 
     case func: LlvmFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
     case global: LlvmGlobal[Pre] => llvm.rewriteGlobal(global)
@@ -80,19 +129,20 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
       currentClass.having(cls) {
         currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {
           val decls = classDeclarations.collect {
-            cls.declarations.foreach(dispatch)
+            cls.decls.foreach(dispatch)
             pvl.maybeDeclareDefaultConstructor(cls)
           }._1
 
-          globalDeclarations.succeed(cls, cls.rewrite(decls))
+          globalDeclarations.succeed(cls, cls.rewrite(decls = decls))
         }
       }
 
     case glue: JavaBipGlueContainer[Pre] => bip.rewriteGlue(glue)
 
+    case seqProg: PVLSeqProg[Pre] => veymont.rewriteSeqProg(seqProg)
+
     case other => rewriteDefault(other)
   }
-
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case scope @ Scope(locals, body) =>
@@ -107,12 +157,31 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         scanScope(body)
       }._1)
 
+    case branch: PVLBranch[Pre] => pvl.branch(branch)
+    case loop: PVLLoop[Pre] => pvl.loop(loop)
+
     case JavaLocalDeclarationStatement(locals: JavaLocalDeclaration[Pre]) => java.initLocal(locals)
 
     case CDeclarationStatement(decl) => c.rewriteLocal(decl)
-    case CPPDeclarationStatement(decl) => cpp.rewriteLocal(decl)
+    case CPPDeclarationStatement(decl) => cpp.rewriteLocalDecl(decl)
+    case scope: CPPLifetimeScope[Pre] => cpp.rewriteLifetimeScope(scope)
     case goto: CGoto[Pre] => c.rewriteGoto(goto)
     case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
+
+    case eval@Eval(CPPInvocation(_, _, _, _)) => cpp.invocationStatement(eval)
+
+    case fold: Fold[Pre] => {
+      cpp.checkPredicateFoldingAllowed(fold.res)
+      rewriteDefault(fold)
+    }
+    case unfold: Unfold[Pre] => {
+      cpp.checkPredicateFoldingAllowed(unfold.res)
+      rewriteDefault(unfold)
+    }
+
+    case communicate: PVLCommunicate[Pre] => veymont.rewriteCommunicate(communicate)
+    case assign: PVLSeqAssign[Pre] => veymont.rewriteSeqAssign(assign)
+    case assign: Assign[Pre] => pvl.assign(assign)
 
     case other => rewriteDefault(other)
   }
@@ -159,15 +228,38 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case local: CLocal[Pre] => c.local(local)
     case deref: CStructAccess[Pre] => c.deref(deref)
+    case deref: CStructDeref[Pre] => c.deref(deref)
     case inv: CInvocation[Pre] => c.invocation(inv)
+
     case shared: SharedMemSize[Pre] => c.sharedSize(shared)
     case kernel: GpgpuCudaKernelInvocation[Pre] => c.cudaKernelInvocation(kernel)
     case local: LocalThreadId[Pre] => c.cudaLocalThreadId(local)
     case global: GlobalThreadId[Pre] => c.cudaGlobalThreadId(global)
     case cast: CCast[Pre] => c.cast(cast)
+    case sizeof: SizeOf[Pre] => throw LangCToCol.UnsupportedSizeof(sizeof)
 
+    case Perm(a@AmbiguousLocation(expr), perm)
+      if c.getBaseType(expr.t).isInstanceOf[CTStruct[Pre]] =>
+      c.getBaseType(expr.t) match {
+        case structType: CTStruct[Pre] => c.unwrapStructPerm(dispatch(a).asInstanceOf[AmbiguousLocation[Post]], perm, structType, e.o)
+      }
     case local: CPPLocal[Pre] => cpp.local(local)
+    case deref: CPPClassMethodOrFieldAccess[Pre] => cpp.deref(deref)
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)
+    case lambda: CPPLambdaDefinition[Pre] => cpp.rewriteLambdaDefinition(lambda)
+    case arrSub@AmbiguousSubscript(_, _) => cpp.rewriteSubscript(arrSub)
+    case unfolding: Unfolding[Pre] => {
+      cpp.checkPredicateFoldingAllowed(unfolding.res)
+      rewriteDefault(unfolding)
+    }
+
+    case assign: PreAssignExpression[Pre] =>
+      assign.target.t match {
+        case CPrimitiveType(specs) if specs.collectFirst { case CSpecificationType(_: CTStruct[Pre]) => () }.isDefined =>
+          c.assignStruct(assign)
+        case CPPPrimitiveType(_) => cpp.preAssignExpr(assign)
+        case _ => rewriteDefault(assign)
+      }
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
@@ -183,6 +275,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case t: JavaTClass[Pre] => java.classType(t)
     case t: CTPointer[Pre] => c.pointerType(t)
     case t: CTArray[Pre] => c.arrayType(t)
+    case t: CTStruct[Pre] => c.structType(t)
     case t: CPPTArray[Pre] => cpp.arrayType(t)
     case other => rewriteDefault(other)
   }

@@ -19,3 +19,17 @@ int sumWithLast(int a[], int size, int b) {
 void writeToArray(int a[], int size) {
 	a[2] = 5;
 }
+
+//@ ensures \pointer(\result, 2, read);
+//@ ensures \result[0] == 10 && \result[1] == 6;
+int* createLocalArray() {
+  int a[] = {4,5,6};
+  //@ assert \pointer(a, 3, read) ** a[0] == 4 ** a[1] == 5 ** a[2] == 6;
+  int b[2] = {7,a[2]};
+  //@ assert \pointer(b, 2, write) ** b[0] == 7 ** b[1] == 6;
+  int c[3];
+  //@ assert \pointer(c, 3, write);
+  c[1] = 10;
+  b[0] = c[1];
+  return b;
+}

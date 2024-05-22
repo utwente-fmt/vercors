@@ -1,0 +1,4 @@
+ensures \result == t;
+T myProcedure<T>(T t) {
+  return t;
+}

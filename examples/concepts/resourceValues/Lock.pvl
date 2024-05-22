@@ -1,0 +1,34 @@
+class Lock {
+    final resource inv;
+
+    given resource inv;
+    requires inv;
+    ensures this.inv == inv;
+    constructor() {
+        this.inv = inv;
+        exhale inv; // commit the invariant
+    }
+
+    ensures inv;
+    void getLock();
+
+    requires inv;
+    void releaseLock();
+}
+
+class Use {
+    int a;
+    int b;
+
+    requires Perm(a, write);
+    requires Perm(b, write);
+    void test() {
+        a = 4;
+        b = 6;
+        Lock l = new Lock() given { inv = Perm(a, write) ** Perm(b, write) ** a + b == 10 };
+
+        l.getLock();
+        b = 3;
+        l.releaseLock();
+    }
+}

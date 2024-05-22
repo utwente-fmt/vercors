@@ -1,8 +1,8 @@
 package vct.col.ast.`type`
 
 import vct.col.ast.TAny
-import vct.col.print.{Ctx, Doc, Text}
+import vct.col.ast.ops.TAnyOps
 
-trait TAnyImpl[G] { this: TAny[G] =>
-  override def layout(implicit ctx: Ctx): Doc = Text("any")
+trait TAnyImpl[G] extends TAnyOps[G] { this: TAny[G] =>
+
 }

@@ -1,0 +1,22 @@
+class Role {
+	int i;
+
+	constructor(int v) {
+		i = v;
+	}
+}
+
+seq_program main0(int va, int vb) {
+    endpoint a = Role(va);
+    endpoint b = Role(vb);
+
+	seq_run {
+		communicate a.i <- b.i;
+	}
+}
+
+seq_program main(Role v) {
+	endpoint a = Role(v.i);
+
+	seq_run { }
+}

@@ -34,9 +34,9 @@ clangppIdentifier:
 // Expressions
 primaryExpression:
     valExpr
-	| literal+
+	| literal // EW: Changed to match only one literal to prevent parsing errors
 	| This
-	| LeftParen expression RightParen
+	| LeftParen oneOrMoreExpressions RightParen
 	| idExpression
 	| lambdaExpression;
 
@@ -45,12 +45,12 @@ annotatedPrimaryExpression: valEmbedWith? primaryExpression valEmbedThen?;
 idExpression: unqualifiedId | qualifiedId;
 
 unqualifiedId:
-	clangppIdentifier
+	templateId
+	| clangppIdentifier
 	| operatorFunctionId
 	| conversionFunctionId
 	| literalOperatorId
-	| Tilde (className | decltypeSpecifier)
-	| templateId;
+	| Tilde (className | decltypeSpecifier);
 
 qualifiedId: nestedNameSpecifier Template? unqualifiedId;
 
@@ -63,7 +63,7 @@ nestedNameSpecifier:
 	| nestedNameSpecifier Template? simpleTemplateId Doublecolon;
 
 lambdaExpression:
-	lambdaIntroducer lambdaDeclarator? compoundStatement;
+	valEmbedContract? lambdaIntroducer lambdaDeclarator? compoundStatement;
 
 lambdaIntroducer: LeftBracket lambdaCapture? RightBracket;
 
@@ -87,7 +87,7 @@ lambdaDeclarator:
 
 postfixExpression:
 	annotatedPrimaryExpression
-	| postfixExpression LeftBracket expression RightBracket
+	| postfixExpression LeftBracket oneOrMoreExpressions RightBracket
 	| postfixExpression LeftBracket bracedInitList RightBracket
 	| postfixExpression LeftParen expressionList? RightParen valEmbedGiven? valEmbedYields?
 	| postfixExpression Dot Template? idExpression
@@ -106,8 +106,8 @@ postfixExpression:
 		| Static_cast
 		| Reinterpret_cast
 		| Const_cast
-	) Less theTypeId Greater LeftParen expression RightParen
-	| typeIdOfTheTypeId LeftParen (expression | theTypeId) RightParen;
+	) Less theTypeId Greater LeftParen oneOrMoreExpressions RightParen
+	| typeIdOfTheTypeId LeftParen (oneOrMoreExpressions | theTypeId) RightParen;
 
 specPostfix: {specLevel>0}? valPostfix;
 
@@ -160,7 +160,7 @@ newDeclarator:
 	| noPointerNewDeclarator;
 
 noPointerNewDeclarator:
-	LeftBracket expression RightBracket attributeSpecifierSeq?
+	LeftBracket oneOrMoreExpressions RightBracket attributeSpecifierSeq?
 	| noPointerNewDeclarator LeftBracket constantExpression RightBracket attributeSpecifierSeq?;
 
 newInitializer:
@@ -170,7 +170,7 @@ newInitializer:
 deleteExpression:
 	Doublecolon? Delete (LeftBracket RightBracket)? castExpression;
 
-noExceptExpression: Noexcept LeftParen expression RightParen;
+noExceptExpression: Noexcept LeftParen oneOrMoreExpressions RightParen;
 
 castExpression:
 	unaryExpression
@@ -252,12 +252,10 @@ implicationOp: {specLevel>0}? valImpOp;
 
 conditionalExpression:
 	implicationExpression
-	| implicationExpression Question expression Colon assignmentExpression;
+	| implicationExpression Question oneOrMoreExpressions Colon expression;
 
 assignmentExpression:
-	valEmbedWith? conditionalExpression valEmbedThen?
-	| valEmbedWith? logicalOrExpression assignmentOperator initializerClause valEmbedThen?
-	| throwExpression;
+  valEmbedWith? pointerMemberExpression assignmentOperator initializerClause valEmbedThen?;
 
 assignmentOperator:
 	Assign
@@ -272,17 +270,22 @@ assignmentOperator:
 	| XorAssign
 	| OrAssign;
 
+oneOrMoreExpressions:
+  expression Comma oneOrMoreExpressions
+  | expression;
+
 expression:
-    assignmentExpression
-    | expression Comma assignmentExpression;
+  valEmbedWith? conditionalExpression valEmbedThen?
+  | assignmentExpression
+  | throwExpression;
 
 constantExpression: conditionalExpression;
 
 // Statements
 statement:
-    attributeSpecifierSeq? statementTwo
-	| labeledStatement
-	| blockDeclaration;
+  attributeSpecifierSeq? statementTwo
+  | blockDeclaration
+	| labeledStatement;
 
 statementTwo:
     expressionStatement
@@ -301,7 +304,7 @@ labeledStatement:
 		| Default
 	) Colon statement;
 
-expressionStatement: expression? Semi;
+expressionStatement: oneOrMoreExpressions? Semi;
 
 compoundStatement: LeftBrace statementSeq? RightBrace;
 
@@ -318,7 +321,7 @@ ifStatement:
 switchStatement: Switch LeftParen condition RightParen statement;
 
 condition:
-	expression
+	oneOrMoreExpressions
 	| attributeSpecifierSeq? declSpecifierSeq declarator (
 		Assign initializerClause
 		| bracedInitList
@@ -326,8 +329,8 @@ condition:
 
 iterationStatement:
 	valEmbedContract? While LeftParen condition RightParen valEmbedContract? statement
-	| Do statement While LeftParen expression RightParen Semi
-	| valEmbedContract? For LeftParen forInitStatement condition? Semi expression? RightParen valEmbedContract? statement
+	| Do statement While LeftParen oneOrMoreExpressions RightParen Semi
+	| valEmbedContract? For LeftParen forInitStatement condition? Semi oneOrMoreExpressions? RightParen valEmbedContract? statement
 	| valEmbedContract? For LeftParen forRangeDeclaration Colon forRangeInitializer RightParen valEmbedContract? statement;
 
 forInitStatement: expressionStatement | simpleDeclaration;
@@ -335,12 +338,12 @@ forInitStatement: expressionStatement | simpleDeclaration;
 forRangeDeclaration:
 	attributeSpecifierSeq? declSpecifierSeq declarator;
 
-forRangeInitializer: expression | bracedInitList;
+forRangeInitializer: oneOrMoreExpressions | bracedInitList;
 
 jumpStatement:
 	Break Semi
 	| Continue Semi
-	| Return expression Semi
+	| Return oneOrMoreExpressions Semi
 	| Return bracedInitList Semi
 	| Return Semi
 	| Goto clangppIdentifier Semi;
@@ -376,8 +379,8 @@ aliasDeclaration:
 	Using clangppIdentifier attributeSpecifierSeq? Assign theTypeId Semi;
 
 simpleDeclaration:
-	valEmbedContract? declSpecifierSeq? initDeclaratorList? Semi
-	| valEmbedContract? attributeSpecifierSeq declSpecifierSeq? initDeclaratorList Semi;
+	valEmbedContract? declSpecifierSeq initDeclaratorList? Semi
+	| valEmbedContract? attributeSpecifierSeq declSpecifierSeq initDeclaratorList Semi;
 
 staticAssertDeclaration:
 	Static_assert LeftParen constantExpression Comma StringLiteral RightParen Semi;
@@ -446,19 +449,18 @@ simpleTypeSpecifier:
 	| Float
 	| simpleTypeLengthModifier? Double
 	| Void
-	| SYCLQueue // EW: Will be moved to own SYCL Parser later
 	| Auto
 	| {specLevel>0}? valType
 	| decltypeSpecifier;
 
 theTypeName:
-	className
+	simpleTemplateId
+	| className
 	| enumName
-	| typedefName
-	| simpleTemplateId;
+	| typedefName;
 
 decltypeSpecifier:
-	Decltype LeftParen (expression | Auto) RightParen;
+	Decltype LeftParen (oneOrMoreExpressions | Auto) RightParen;
 
 elaboratedTypeSpecifier:
 	classKey (
@@ -640,7 +642,7 @@ parameterDeclarationList:
 	parameterDeclaration (Comma parameterDeclaration)*;
 
 parameterDeclaration:
-    declSpecifierSeq declarator
+  declSpecifierSeq declarator
 	| attributeSpecifierSeq? declSpecifierSeq (
 		(declarator | abstractDeclarator?) (
 			Assign initializerClause
@@ -664,7 +666,7 @@ braceOrEqualInitializer:
 	| bracedInitList;
 
 // EW: Had to flip the two options to not get parsing errors
-initializerClause: bracedInitList | assignmentExpression;
+initializerClause: bracedInitList | expression;
 
 initializerList:
 	initializerClause Ellipsis?
@@ -794,7 +796,8 @@ typeParameter:
 	) ((Ellipsis? clangppIdentifier?) | (clangppIdentifier? Assign theTypeId));
 
 simpleTemplateId:
-	templateName Less templateArgumentList? Greater;
+	templateName Less templateArgument Greater
+	| templateName Less templateArgumentList? Greater;
 
 templateId:
 	simpleTemplateId
@@ -803,7 +806,8 @@ templateId:
 templateName: clangppIdentifier;
 
 templateArgumentList:
-	templateArgument Ellipsis? (Comma templateArgument Ellipsis?)*;
+	templateArgument Ellipsis? Comma templateArgumentList
+	| templateArgument Ellipsis?;
 
 templateArgument: theTypeId | constantExpression | idExpression;
 
@@ -835,7 +839,7 @@ exceptionDeclaration:
 	)?
 	| Ellipsis;
 
-throwExpression: Throw assignmentExpression?;
+throwExpression: Throw expression?;
 
 exceptionSpecification:
 	dynamicExceptionSpecification

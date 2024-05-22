@@ -6,19 +6,19 @@ parser grammar LangPVLParser;
 
 program  : programDecl* EOF EOF ;
 
-programDecl : valGlobalDeclaration | declClass | enumDecl | method | declVeyMontSeqProg;
+programDecl : valGlobalDeclaration | declClass | enumDecl | method | declVeyMontSeqProg | vesuvEntry ;
 
 enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
 
 declClass
- : contract 'class' identifier '{' classDecl* '}'
+ : contract 'class' identifier declaredTypeArgs? '{' classDecl* '}'
  ;
 
 declVeyMontSeqProg : contract 'seq_program' identifier '(' args? ')' '{' seqProgDecl* '}';
 
 seqProgDecl
- : 'thread' identifier '=' type '(' exprList? ')' ';' # seqProgThread
- | runMethod # seqProgRunMethod
+ : 'endpoint' identifier '=' classType '(' exprList? ')' ';' # pvlEndpoint
+ | contract 'seq_run' block # pvlSeqRun
  | method # seqProgMethod
  ;
 
@@ -31,12 +31,14 @@ classDecl : valClassDeclaration | constructor | method | field | runMethod;
 finalFlag: 'final';
 field : finalFlag? type identifierList ';' ;
 
-method : contract valModifier* type identifier '(' args? ')' methodBody ;
+method : contract valModifier* type identifier declaredTypeArgs? '(' args? ')' methodBody ;
 methodBody : ';' | block ;
 
-constructor : contract 'constructor' '(' args? ')' methodBody ;
+constructor : contract 'constructor' declaredTypeArgs? '(' args? ')' methodBody ;
 
 runMethod : contract 'run' methodBody ;
+
+vesuvEntry : 'vesuv_entry' methodBody ;
 
 contract : valContractClause* ;
 
@@ -174,6 +176,7 @@ statement
  | 'fork' expr ';' # pvlFork
  | 'join' expr ';' # pvlJoin
  | valStatement # pvlValStatement
+ | 'communicate' '(' '*' ')' statement elseBlock? # pvlIndetBranch
  | 'if' '(' expr ')' statement elseBlock? # pvlIf
  | 'barrier' '(' identifier barrierTags? ')' barrierBody # pvlBarrier
  | parRegion # pvlPar
@@ -187,7 +190,19 @@ statement
  | 'goto' identifier ';' # pvlGoto
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
+ | 'communicate' access direction access ';' # pvlCommunicateStatement
  ;
+
+direction
+ : '<-'
+ | '->'
+ ;
+
+access: subject '.' identifier;
+subject
+ : identifier
+ | identifier '[' expr ']'
+ | identifier '[' identifier ':' expr '..' expr ']';
 
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;
@@ -198,6 +213,7 @@ allowedForStatement
  | expr # pvlEval
  | identifier ('++'|'--') # pvlIncDec
  | expr '=' expr # pvlAssign
+ | identifier '.' identifier ':' '=' expr # pvlSeqAssign
  ;
 
 forStatementList
@@ -253,6 +269,7 @@ quantifiedDim : '[' expr ']' ;
 anonDim : '[' ']' ;
 classType : identifier typeArgs?;
 typeArgs : '<' typeList '>';
+declaredTypeArgs: '<' identifierList '>';
 
 identifierList
  : identifier

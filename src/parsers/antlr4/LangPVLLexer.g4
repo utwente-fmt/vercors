@@ -49,12 +49,15 @@ CONS: '::';
 ENUM: 'enum';
 CLASS: 'class';
 SEQ_PROGRAM: 'seq_program';
+SEQ_RUN: 'seq_run';
 KERNEL: 'kernel';
 BARRIER: 'barrier';
 INVARIANT: 'invariant';
 CONSTRUCTOR: 'constructor';
 RUN: 'run';
+VESUV_ENTRY: 'vesuv_entry';
 THREAD: 'thread';
+ENDPOINT: 'endpoint';
 
 IF: 'if';
 ELSE: 'else';
@@ -75,6 +78,8 @@ WAIT: 'wait';
 NOTIFY: 'notify';
 FORK: 'fork';
 JOIN: 'join';
+
+COMMUNICATE: 'communicate';
 
 THIS: 'this';
 NULL: 'null';

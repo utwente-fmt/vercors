@@ -9,11 +9,21 @@ case class Namer[G](syntax: Ctx.Syntax) {
   private val stack = ScopedStack[Node[G]]()
   private val names = mutable.Map[(scala.Any, String, Int), Declaration[G]]()
 
+  private val keywords: Set[String] = syntax match {
+    case Ctx.PVL => Keywords.PVL
+    case Ctx.Silver => Set()
+    case Ctx.Java => Keywords.JAVA
+    case Ctx.C => Keywords.C_CPP_GPGPU
+    case Ctx.CPP => Keywords.C_CPP_GPGPU
+    case Ctx.Cuda => Keywords.C_CPP_GPGPU
+    case Ctx.OpenCL => Keywords.C_CPP_GPGPU
+  }
+
   def nearest(f: PartialFunction[Node[G], Unit]): Seq[Node[G]] =
     stack.toSeq.filter(n => f.isDefinedAt(n))
 
   private def nearestClass = nearest {
-    case _: Class[G] | _: JavaClass[G] | _: VeyMontSeqProg[G] | _: JavaInterface[G] | _: JavaAnnotationInterface[G] => ()
+    case _: Class[G] | _: JavaClass[G] | _: SeqProg[G] | _: JavaInterface[G] | _: JavaAnnotationInterface[G] => ()
   }
 
   private def nearestVariableScope = nearest {
@@ -34,6 +44,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
     case _: Procedure[G] => ()
     case _: InstanceFunction[G] => ()
     case _: InstanceMethod[G] => ()
+    case _: Constructor[G] => ()
     case _: JavaConstructor[G] => ()
     case _: JavaMethod[G] => ()
     case _: PVLConstructor[G] => ()
@@ -52,6 +63,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
     case _: Procedure[G] => ()
     case _: InstanceFunction[G] => ()
     case _: InstanceMethod[G] => ()
+    case _: Constructor[G] => ()
     case _: JavaMethod[G] => ()
     case _: JavaAnnotationMethod[G] => ()
     case _: JavaConstructor[G] => ()
@@ -79,7 +91,20 @@ case class Namer[G](syntax: Ctx.Syntax) {
       return
     }
 
-    var (baseName, index) = unpackName(decl.o.preferredName)
+    val name = decl.o.getPreferredNameOrElse()
+    var (baseName, index) = unpackName(decl match {
+      case declaration: GlobalDeclaration[_] => declaration match {
+        case _: Applicable[_] => name.camel
+        case _ => name.ucamel
+      }
+      case constant: EnumConstant[_] => name.usnake
+      case decl: LabelDecl[_] => name.usnake
+      case _ => name.camel
+    })
+
+    if(index == 0 && keywords.contains(baseName)) {
+      index = 1
+    }
 
     while(keys.exists(key => names.contains((key, baseName, index)))) {
       index += 1
@@ -107,7 +132,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
       case decl: CPPLocalDeclaration[G] => nameKeyed(nearestVariableScope, decl)
       case decl: CPPParam[G] => nameKeyed(nearestCallable, decl)
       case decl: JavaLocalDeclaration[G] => nameKeyed(nearestCallable, decl)
-      case decl: VeyMontThread[G] => nameKeyed(nearest { case _: VeyMontSeqProg[G] => () }, decl)
+      case decl: Endpoint[G] => nameKeyed(nearest { case _: SeqProg[G] => () }, decl)
       case decl: JavaParam[G] => nameKeyed(nearestCallable, decl)
       case _ =>
     }

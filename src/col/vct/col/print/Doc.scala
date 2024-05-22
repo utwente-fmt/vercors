@@ -2,8 +2,6 @@ package vct.col.print
 
 import vct.col.ast.Node
 import vct.col.origin.InputOrigin.LINE_NUMBER_WIDTH
-import vct.col.origin.Origin
-import vct.col.origin.Origin.{BOLD_HR, HR}
 
 import java.lang
 import scala.annotation.tailrec
@@ -67,14 +65,6 @@ case object Doc {
       if (d.nonEmpty) Text("/*@") <+/> d <+/> "@*/"
       else Empty
     }
-
-  def messagesInContext(messages: Seq[(Node[_], Node[_], String)]): String = {
-    messages.zipWithIndex.map {
-      case ((outerNode, highlight, message), idx) =>
-        implicit val ctx: Ctx = Ctx().namesIn(outerNode)
-        outerNode.show.highlight(highlight) + "\n" + HR + s"[${idx + 1}/${messages.size}] $message\n"
-    }.mkString(BOLD_HR, HR, BOLD_HR)
-  }
 }
 
 /**
@@ -132,8 +122,20 @@ sealed trait Doc extends Show {
   }
   case class EText(text: String) extends Elem
   case class ELine(indent: Int) extends Elem
-  case class EStart(node: Node[_]) extends Elem
-  case class EEnd(node: Node[_]) extends Elem
+  case class EStart(node: Node[_]) extends Elem {
+    override def hashCode(): Int = System.identityHashCode(node)
+    override def equals(obj: Any): Boolean = obj match {
+      case EStart(other) => node.eq(other)
+      case _ => false
+    }
+  }
+  case class EEnd(node: Node[_]) extends Elem {
+    override def hashCode(): Int = System.identityHashCode(node) ^ 1
+    override def equals(obj: Any): Boolean = obj match {
+      case EEnd(other) => node.eq(other)
+      case _ => false
+    }
+  }
 
 
   def lazyListLen(list: LazyList[Elem]): Int = list match {

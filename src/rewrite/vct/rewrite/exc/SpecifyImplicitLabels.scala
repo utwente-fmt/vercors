@@ -6,12 +6,6 @@ import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
-case class ImplicitLabelOrigin(inner: Origin) extends Origin {
-  override def preferredName: String = "loop"
-  override def shortPosition: String = inner.shortPosition
-  override def context: String = inner.context
-  override def inlineContext: String = inner.inlineContext
-}
 
 case object SpecifyImplicitLabels extends RewriterBuilder {
   override def key: String = "implicitLabels"
@@ -19,6 +13,8 @@ case object SpecifyImplicitLabels extends RewriterBuilder {
 }
 
 case class SpecifyImplicitLabels[Pre <: Generation]() extends Rewriter[Pre] {
+  def ImplicitLabelOrigin(inner: Origin): Origin = inner.where(name = "loop")
+
   val labelStack = new ScopedStack[LabelDecl[Post]]()
 
   def isBreakable(s: Statement[_]): Boolean = s match {

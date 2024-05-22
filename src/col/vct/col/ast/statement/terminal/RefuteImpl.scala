@@ -1,9 +1,10 @@
 package vct.col.ast.statement.terminal
 
-import vct.col.ast.Refute
+import vct.col.ast.{Expr, Refute}
 import vct.col.print.{Ctx, Doc, Show, Text}
+import vct.col.ast.ops.RefuteOps
 
-trait RefuteImpl[G] { this: Refute[G] =>
+trait RefuteImpl[G] extends RefuteOps[G] { this: Refute[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc =
     Text("refute") <+> assn <> ";"
 
@@ -14,4 +15,6 @@ trait RefuteImpl[G] { this: Refute[G] =>
     case Ctx.Silver => layoutSilver
     case _ => Doc.inlineSpec(Show.lazily(layoutSpec(_)))
   }
+
+  override def expr: Expr[G] = this.assn
 }

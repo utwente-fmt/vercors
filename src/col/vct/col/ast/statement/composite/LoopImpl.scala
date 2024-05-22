@@ -1,6 +1,7 @@
 package vct.col.ast.statement.composite
 
 import vct.col.ast._
+import vct.col.ast.ops.LoopOps
 import vct.col.origin.Origin
 import vct.col.print
 import vct.col.print._
@@ -18,7 +19,7 @@ object LoopImpl {
   case class IterationContractData[G](v: Variable[G], lowerBound: Expr[G], upperBound: Expr[G])
 }
 
-trait LoopImpl[G] { this: Loop[G] =>
+trait LoopImpl[G] extends LoopOps[G] { this: Loop[G] =>
   import LoopImpl._
 
   def getVariableAndLowerBound(implicit o: Origin): Option[(Variable[G], Expr[G])] =
@@ -77,19 +78,28 @@ trait LoopImpl[G] { this: Loop[G] =>
       Group(Text("while") <+> "(" <> Doc.arg(cond) <> ")") <+> body.layoutAsBlock
     ))
 
-  def layoutControlElement(e: Show)(implicit ctx: Ctx): Option[Show] = Some(e match {
-    case Eval(e) => e.show
-    case a: Assign[G] => a.layoutAsExpr
-    case e: VeyMontAssignExpression[G] => return layoutControlElement(e.assign)
-    case e: VeyMontCommExpression[G] => return layoutControlElement(e.assign)
-    case LocalDecl(local) => local.show
-    case JavaLocalDeclarationStatement(local) => local.show
+  def simpleControlElements(stat: Statement[G])(implicit ctx: Ctx): Option[Doc] = stat match {
+    case Eval(e) => Some(e.show)
+    case a: Assign[G] => Some(a.layoutAsExpr)
+    case e: VeyMontAssignExpression[G] => simpleControlElements(e.assign)
+    case e: CommunicateX[G] => simpleControlElements(e.assign)
+    case LocalDecl(local) => Some(local.show)
+    case JavaLocalDeclarationStatement(local) => Some(local.show)
 
-    case _ => return None
-  })
+    case Block(stats) =>
+      stats
+        .map(simpleControlElements(_))
+        .foldLeft[Option[Seq[Doc]]](Some(Nil)) {
+          case (Some(acc), Some(more)) => Some(acc :+ more)
+          case (_, _) => None
+        }
+        .map(elems => NodeDoc(stat, Doc.fold(elems)(_ <> "," <+/> _)))
+
+    case _ => None
+  }
 
   def layoutControl(stat: Statement[G])(implicit ctx: Ctx): Doc =
-    Group(Doc.args(stat.blockElementsForLayout.map(layoutControlElement(_).getOrElse(return stat.show))))
+    simpleControlElements(stat).map(doc => Group(Doc.arg(doc))).getOrElse(stat.show)
 
   def layoutGenericFor(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
