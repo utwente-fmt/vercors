@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Assert, Assign, Block, ChorPerm, ChorRun, ChorStatement, Choreography, Class, Communicate, CommunicateStatement, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Perm, Procedure, Scope, Statement, TClass, TVoid, ThisChoreography, Variable}
+import vct.col.ast.{Assert, Assign, Block, ChorPerm, ChorRun, ChorStatement, Choreography, Class, Communicate, CommunicateStatement, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Message, Node, Perm, Procedure, Receiver, Scope, Sender, Statement, TClass, TVoid, ThisChoreography, Variable}
 import vct.col.origin.{AssertFailed, AssignFailed, AssignLocalOk, Blame, CallableFailure, ChorAssignFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, ParticipantsNotDistinct, PostconditionFailed, PreconditionFailed, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -90,6 +90,7 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
   val methodSucc: SuccessionMap[InstanceMethod[Pre], Procedure[Post]] = SuccessionMap()
   val endpointSucc: SuccessionMap[(Mode, Endpoint[Pre]), Variable[Post]] = SuccessionMap()
   val variableSucc: SuccessionMap[(Mode, Variable[Pre]), Variable[Post]] = SuccessionMap()
+  val msgSucc: SuccessionMap[Communicate[Pre], Variable[Post]] = SuccessionMap()
 
   override def dispatch(decl: Declaration[Pre]): Unit = (mode, decl) match {
     case (Top, prog: Choreography[Pre]) => currentProg.having(prog) {
@@ -218,13 +219,16 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
         else
           Block(Nil)
 
-      // TODO: Assign to msg, replace msg inside, assign to target. Done
-      val channelInvariant = currentCommunicate.having(comm) { dispatch(comm.invariant) }
+      msgSucc(comm) = new Variable(dispatch(comm.msg.t))(comm.o.where(name = "msg"))
 
-      Block(Seq(
+      Scope(Seq(msgSucc(comm)), Block(Seq(
         equalityTest,
-        Assign[Post](dispatch(comm.target), dispatch(comm.msg))(PanicBlame("TODO: Assignment from communicate failed"))
-      ))
+        // Assign to msg,
+        Assign(msgSucc(comm).get, dispatch(comm.msg))(PanicBlame("Should be safe")),
+        // Assert channel invariant over msg, sender, receiver
+        Assert(currentCommunicate.having(comm) { dispatch(comm.invariant) })(PanicBlame("Channel invariant assert failed")),
+        Assign[Post](dispatch(comm.target), msgSucc(comm).get)(PanicBlame("TODO: Assignment from communicate failed"))
+      )))
     case CommunicateStatement(comm: Communicate[Pre]) =>
       throw new Exception(comm.o.messageInContext("Either the sender or receiver was not annotated for or not inferred!"))
     case ChorStatement(_, stat) => dispatch(stat)
@@ -251,6 +255,15 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
         throw new Exception(p.o.messageInContext("Endpoint in obj does not match inferred/annotated endpoint"))
       }
       Perm(dispatch(loc), dispatch(perm))(p.o)
+    case (mode, Sender(Ref(comm))) =>
+      implicit val o = expr.o
+      endpointSucc((mode, comm.sender.get.decl)).get
+    case (mode, Receiver(Ref(comm))) =>
+      implicit val o = expr.o
+      endpointSucc((mode, comm.receiver.get.decl)).get
+    case (mode, Message(Ref(comm))) =>
+      implicit val o = expr.o
+      msgSucc(comm).get
     case (_, expr) => rewriteDefault(expr)
   }
 }
