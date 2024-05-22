@@ -6,3 +6,4 @@
 # Make sure you trust the hook scripts before you enable them.
 
 git config --local core.hooksPath util/githooks
+git config --local blame.ignoreRevsFile .git-blame-ignore-revs
