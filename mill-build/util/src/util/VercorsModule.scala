@@ -50,7 +50,9 @@ trait VercorsModule extends ScalaModule with ScalafmtModule with VercorsJavaModu
         scalafmtConfig().head,
       )
 
-    os.proc("git", "add", targets.map(_.path)).call()
+    if(targets.nonEmpty)
+      os.proc("git", "add", targets.map(_.path)).call()
+
     ()
   }
 
