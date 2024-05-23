@@ -20,6 +20,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
 
     var end_states: Set[AbstractState[G]] = if (!atomic) successor.successors else Set.empty[AbstractState[G]]
     var intermediate: Set[AbstractState[G]] = if (atomic) successor.successors else Set.empty[AbstractState[G]]
+    var explored: Set[AbstractState[G]] = intermediate
 
     var variables: Set[ConcreteVariable[G]] = successor.deciding_variables
 
@@ -28,7 +29,8 @@ case class AbstractProcess[G](obj: Expr[G]) {
 
       variables ++= next.map(s => s._2).flatMap(s => s.deciding_variables)
       end_states ++= next.filter(s => !s._1).map(s => s._2).flatMap(s => s.successors)
-      intermediate = next.filter(s => s._1).map(s => s._2).flatMap(s => s.successors)
+      intermediate = next.filter(s => s._1).map(s => s._2).flatMap(s => s.successors).diff(explored)
+      explored ++= intermediate
     }
 
     RASISuccessor(variables, end_states)
