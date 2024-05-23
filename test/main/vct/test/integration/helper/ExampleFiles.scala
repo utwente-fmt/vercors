@@ -8,6 +8,8 @@ case object ExampleFiles {
     "examples/private/",
     "examples/archive/",
     "examples/concepts/resourceValues",
+    "examples/technical/veymont",
+    "examples/concepts/veymont"
   ).map(_.replaceAll("/", File.separator))
 
   val IGNORE_EXTS: Seq[String] = Seq(

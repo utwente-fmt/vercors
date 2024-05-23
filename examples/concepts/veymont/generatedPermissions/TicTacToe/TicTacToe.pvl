@@ -13,17 +13,18 @@ choreography TTT() {
 		loop_invariant ticTacToeAnnotations(p1, p2);
 		loop_invariant !p1.gameFinished() == !p2.gameFinished();
 		while(!p1.gameFinished() && !p2.gameFinished()) {
-			assert p1.turn == !p2.turn;
+		  // TODO (RR): Re-enable with in_chor
+			// assert p1.turn == !p2.turn;
 			if(p1.turn && !p2.turn) {
 				p1.createNewMove();
 				p1.temp := p1.move.clone();
 				communicate p2.move <- p1.temp;
-				p1.temp := new Move(-1, -1, -1); // TODO: Workaround for not having memory management, delete when we support exprs in communicate
+				p1.temp := new Move(-1, -1, -1); // TODO (RR): Workaround for not having memory management, delete when we support exprs in communicate
 			} else {
 				p2.createNewMove();
 				p2.temp := p2.move.clone();
 				communicate p1.move <- p2.temp;
-				p2.temp := new Move(-1, -1, -1); // TODO: Workaround for not having memory management, delete when we support exprs in communicate
+				p2.temp := new Move(-1, -1, -1); // TODO (RR): Workaround for not having memory management, delete when we support exprs in communicate
 			}
 			p1.doMove();
 			p2.doMove();

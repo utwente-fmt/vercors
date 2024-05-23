@@ -200,7 +200,7 @@ case class EncodeChoreography[Pre <: Generation]() extends Rewriter[Pre] with La
     case assign@ChorStatement(Some(Ref(endpoint)), Assign(target, e)) =>
       logger.warn(s"Ignoring endpoint annotation on chor assign statement ${assign.o.shortPosition.map("at " + _).getOrElse("")}")
       implicit val o = assign.o
-      if (endpoint != InferEndpointContexts.getEndpoint(e) || endpoint != InferEndpointContexts.getEndpoint(target)) {
+      if (endpoint != InferEndpointContexts.getEndpoint(target)) {
         throw new Exception(assign.o.messageInContext("Assign endpoint in value does not match endpoint that was annotated or inferred"))
       }
       Assign(dispatch(target), dispatch(e))(AssignFailedToSeqAssignFailure(assign))

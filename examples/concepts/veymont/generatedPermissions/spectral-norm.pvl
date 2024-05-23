@@ -1,3 +1,5 @@
+// TODO (RR): Remove use of temp field in choreography
+
 pure int nrThreads() = 3;
 
 ensures \result >= nrThreads();

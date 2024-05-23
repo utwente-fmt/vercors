@@ -10,9 +10,9 @@ class Role {
   }
 }
 
-seq_program assign() {
+choreography assign() {
   endpoint r = Role();
-  seq_run {
+  run {
     r.b.x := 3;
   }
 }
