@@ -26,10 +26,6 @@ case object Util {
   def compat[G](typeEnv: Map[Variable[G], Type[G]], args: Seq[Expr[G]], typeArgs: Seq[Type[G]], genericInvokable: ContractApplicable[G]): Boolean =
     compat(typeEnv, args, typeArgs, genericInvokable.args, genericInvokable.typeArgs)
 
-  // TODO (RR): Clean up if not needed
-//  def compat[G](typeEnv: Map[Variable[G], Type[G]], args: Seq[Expr[G]], typeArgs: Seq[Type[G]], genericInvokable: ContractApplicable[G]): Boolean =
-//    compat(args, typeArgs, genericInvokable.args, genericInvokable.typeArgs)
-
   def compat[G](typeEnv: Map[Variable[G], Type[G]], args: Seq[Expr[G]], typeArgs: Seq[Type[G]], params: Seq[Variable[G]], typeParams: Seq[Variable[G]]): Boolean = {
     val env = typeEnv ++ typeParams.zip(typeArgs).toMap
     args.size == params.size && typeArgs.size == typeParams.size &&
@@ -37,12 +33,4 @@ case object Util {
         case (v, e) => v.t.particularize(env).superTypeOf(e.t)
       }
   }
-
-  // TODO (RR): Clean up if not needed
-  //  def compat[G](typeEnv: Map[Variable[G], Type[G]], args: Seq[Expr[G]], typeArgs: Seq[Type[G]], genericInvokable: ContractApplicable[G]): Boolean =
-  //  def compat[G](args: Seq[Expr[G]], params: Seq[Variable[G]], typeEnv: Map[Variable[G], Type[G]]): Boolean =
-//    args.size == params.size &&
-//      params.zip(args).forall {
-//        case (v, e) => v.t.particularize(typeEnv).superTypeOf(e.t)
-//      }
 }

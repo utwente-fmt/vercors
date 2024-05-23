@@ -15,8 +15,8 @@ trait AmbiguousThisImpl[G] extends AmbiguousThisOps[G] { this: AmbiguousThis[G] 
       case RefJavaClass(decl) => JavaTClass(decl.ref, Nil)
       case RefClass(decl) => TClass(decl.ref, decl.typeArgs.map((v: Variable[G]) => TVar(v.ref[Variable[G]])))
       case RefModel(decl) => TModel(decl.ref)
-      case RefPVLSeqProg(decl) => TPVLSeqProg(decl.ref)
-      case RefSeqProg(decl) => TSeqProg(decl.ref)
+      case RefPVLChoreography(decl) => TPVLChoreography(decl.ref)
+      case RefChoreography(decl) => TChoreography(decl.ref)
     }
 
   override def precedence: Int = Precedence.ATOMIC

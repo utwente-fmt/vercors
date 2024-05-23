@@ -10,12 +10,12 @@ class A { }
 
 class B { }
 
-seq_program genericTest() {
+choreography genericTest() {
   endpoint a = Role<A>();
   endpoint b = Role<B>();
 
   requires a != b;
-  seq_run {
+  run {
     a.i := a.toInt(a.t);
     communicate a.i -> b.i;
     b.t := b.fromInt(b.i);

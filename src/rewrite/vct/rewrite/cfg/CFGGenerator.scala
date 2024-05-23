@@ -95,7 +95,7 @@ case class CFGGenerator[G]() {
     case IndetBranch(branches) =>
       mutable.LinkedHashSet.from(branches.zipWithIndex.map(b => CFGEdge(convert(b._1, context.enter_scope(node, b._2)), None)))
     case s: Switch[_] => handle_switch_statement(s, context.enter_scope(node))
-    case SeqBranch(_, yes, no) => no match {
+    case ChorBranch(_, yes, no) => no match {
       case Some(stmt) => mutable.Set(CFGEdge(convert(yes, context.enter_scope(node, 0)), None), CFGEdge(convert(stmt, context.enter_scope(node, 1)), None))
       case None => mutable.Set(CFGEdge(convert(yes, context.enter_scope(node)), None))
     }

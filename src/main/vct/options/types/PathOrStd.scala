@@ -7,7 +7,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
 sealed trait PathOrStd extends InMemoryCachedReadable with Writeable {
-  override def underlyingFile: Option[Path] = this match {
+  override def underlyingPath: Option[Path] = this match {
     case PathOrStd.Path(path) => Some(path)
     case PathOrStd.StdInOrOut => None
   }

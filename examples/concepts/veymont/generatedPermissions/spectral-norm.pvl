@@ -1,0 +1,204 @@
+// TODO (RR): Remove use of temp field in choreography
+
+pure int nrThreads() = 3;
+
+ensures \result >= nrThreads();
+pure int n();
+
+pure int l() = n() / nrThreads();
+pure int all() = l() * nrThreads();
+
+requires `in` != null;
+ensures `in`.length == \result.length;
+ensures (\forall int i = 0 .. `in`.length; `in`[i] == \old(`in`[i]));
+ensures (\forall int i = 0 .. `in`.length; `in`[i] == \result[i]);
+int[] copy(int[] `in`) {
+    int[] out = new int[`in`.length];
+    loop_invariant Perm(out[*], 1);
+    loop_invariant (\forall int i = 0 .. `in`.length; `in`[i] == \old(`in`[i]));
+    loop_invariant (\forall int j = 0 .. i; `in`[j] == out[j]);
+    for (int i = 0 .. `in`.length) {
+        out[i] = `in`[i];
+    }
+    return out;
+}
+
+class Collector {
+    int[] t0, t1, t2;
+    int[] result, temp;
+
+    inline resource inv() =
+        result.length == all() &&
+        temp.length == all() &&
+        t0.length == all() &&
+        t1.length == all() &&
+        t2.length == all();
+
+    ensures inv();
+    constructor() {
+        t0 = new int[all()];
+        t1 = new int[all()];
+        t2 = new int[all()];
+        result = new int[all()];
+        temp = new int[all()];
+    }
+
+    context inv();
+    void flatten() {
+        result = new int[all()];
+        loop_invariant inv();
+        for (int i = 0 .. l()) {
+            result[i] = t0[i];
+            result[l() + i] = t1[i];
+            result[2*l() + i] = t2[i];
+        }
+    }
+}
+
+class Times {
+    int[] v, u, temp;
+    boolean transpose;
+
+    inline resource inv() = v.length == all() && u.length == all() && temp.length == all();
+
+    ensures inv();
+    constructor(boolean transp) {
+        v = new int[all()];
+        u = new int[all()];
+        temp = new int[all()];
+        transpose = transp;
+    }
+
+    ensures u == \old(u) && v == \old(v);
+    ensures (\forall int i = 0 .. v.length; v[i] == \old(v[i]));
+    ensures (\forall int i = 0 .. u.length; u[i] == \old(u[i]));
+    ensures (\forall int i = 0 .. u.length; u[i] == \old(u[i]));
+    void runn();
+    //assign v
+
+    context inv();
+    void initv() {
+        v = new int[all()];
+    }
+
+    context inv();
+    void initu() {
+        u = new int[all()];
+        loop_invariant inv();
+        for(int i = 0 .. l()) {
+            u[i] = 1;
+        }
+    }
+    
+}
+
+class Calculator {
+    int[] v, u; 
+    int Bv, vv;
+    
+    constructor() {
+        v = new int[0];
+        u = new int[0];
+    }
+
+    ensures v == \old(v) && u == \old(u);
+    ensures (\forall int i = 0 .. v.length; v[i] == \old(v[i]));
+    ensures (\forall int i = 0 .. u.length; u[i] == \old(u[i]));
+    void calculate();
+    //compute vBv and vv from v and u
+}
+
+choreography spectralNorm() {
+    endpoint t0 = Times(false);
+    endpoint t1 = Times(false);
+    endpoint t2 = Times(false);
+
+    endpoint c = Collector();
+    endpoint cal = Calculator();
+
+    context t0.inv() ** t1.inv() ** t2.inv() ** c.inv();
+    run {
+        t0.initu();
+        t1.initu();
+        t2.initu();
+        aTimesTransp();
+        c.temp := copy(c.result);
+        communicate t0.u <- c.temp;
+        c.temp := copy(c.result);
+        communicate t1.u <- c.temp;
+        c.temp := copy(c.result);
+        communicate t2.u <- c.temp;
+        c.temp := copy(c.result);
+        t0.transpose := true;
+        t1.transpose := true;
+        t2.transpose := true;
+        aTimesTransp();
+        t0.temp := copy(t0.u);
+        communicate cal.v <- t0.temp;
+        t0.temp := copy(t0.u);
+        c.temp := copy(c.result);
+        communicate cal.u <- c.temp;
+        c.temp := copy(c.result);
+        cal.calculate();
+    }
+    
+    context t0.inv() ** t1.inv() ** t2.inv() ** c.inv();
+    void aTimesTransp() {
+        t0.initv();
+        t0.runn();
+        t0.temp := copy(t0.v);
+        communicate c.t0 <- t0.temp;
+        t0.temp := copy(t0.v);
+
+        assert t0.v.length == all();
+        assert c.t0.length == all();
+
+        t1.initv();
+        t1.runn();
+        t1.temp := copy(t1.v);
+        communicate c.t1 <- t1.temp;
+        t1.temp := copy(t1.v);
+
+        t2.initv();
+        t2.runn();
+        t2.temp := copy(t2.v);
+        communicate c.t2 <- t2.temp;
+        t2.temp := copy(t2.v);
+
+        assert c.result.length == all() &&
+               c.temp.length == all() &&
+               c.t0.length == all() &&
+               c.t1.length == all() &&
+               c.t2.length == all();
+        c.flatten(); // x in c.result
+
+        t0.initv();
+        c.temp := copy(c.result);
+        communicate t0.u <- c.temp;
+        c.temp := copy(c.result);
+        t0.runn();
+        t0.temp := copy(t0.v);
+        communicate c.t0 <- t0.temp;
+        t0.temp := copy(t0.v);
+
+        t1.initv();
+        c.temp := copy(c.result);
+        communicate t1.u <- c.temp;
+        c.temp := copy(c.result);
+        t1.runn();
+        t1.temp := copy(t1.v);
+        communicate c.t1 <- t1.temp;
+        t1.temp := copy(t1.v);
+
+        t2.initv();
+        c.temp := copy(c.result);
+        communicate t2.u <- c.temp;
+        c.temp := copy(c.result);
+        t2.runn();
+        t2.temp := copy(t2.v);
+        communicate c.t2 <- t2.temp;
+        t2.temp := copy(t2.v);
+
+        c.flatten(); // v in c.result
+    }
+}

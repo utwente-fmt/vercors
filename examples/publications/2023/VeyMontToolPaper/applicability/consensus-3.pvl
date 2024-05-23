@@ -106,7 +106,7 @@ requires v1 == 0 || v1 == 1;
 requires v2 == 0 || v2 == 1;
 requires v3 == 0 || v3 == 1;
 requires fault1 + fault2 + fault3 <= f;
-seq_program Main(int n, int f,
+choreography Main(int n, int f,
                  int fault1, int v1,
                  int fault2, int v2,
                  int fault3, int v3) {
@@ -125,7 +125,7 @@ seq_program Main(int n, int f,
           ((p1.fault == 0 ==> p1.v == 1) &&
            (p2.fault == 0 ==> p2.v == 1) &&
            (p3.fault == 0 ==> p3.v == 1));
-  seq_run {
+  run {
     p1.v1 := p1.getValueOrFail();
     communicate p2.v1 <- p1.v;
     communicate p3.v1 <- p1.v;

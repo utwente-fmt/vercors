@@ -70,6 +70,8 @@ sealed trait CheckError {
         Seq(context(ret) -> "return may only occur in methods and procedures.")
       case FinalPermission(loc) =>
         Seq(context(loc) -> "Specifying permission over final fields is not allowed, since they are treated as constants.")
+      case PVLSeqAssignEndpoint(a) =>
+        Seq(context(a) -> "This dereference does not take place on one of the endpoints in the surrounding `seq_prog`.")
       case SeqProgStatement(s) =>
         Seq(context(s) -> "This statement is not allowed in `seq_prog`.")
       case SeqProgInstanceMethodArgs(m) =>
@@ -84,6 +86,8 @@ sealed trait CheckError {
         Seq(context(e) -> s"Can only refer to the receiving endpoint of this statement.")
       case SeqProgParticipant(s) =>
         Seq(context(s) -> s"An endpoint is used in this branch which is not allowed to participate at this point in the program because of earlier branches.")
+      case SeqProgNoParticipant(s) =>
+        Seq(context(s) -> s"Unclear what the participating endpoint is in this statement")
       case SeqProgEndpointAssign(a) =>
         Seq(context(a) -> s"Raw assignment to an endpoint is not allowed.")
       case SeqProgInstanceMethodPure(m) =>
@@ -144,6 +148,9 @@ case class ReturnOutsideMethod(ret: Return[_]) extends CheckError {
 case class FinalPermission(loc: FieldLocation[_]) extends CheckError {
   override def subcode: String = "finalPerm"
 }
+case class PVLSeqAssignEndpoint(assign: PVLChorStatement[_]) extends CheckError {
+  val subcode = "pvlSeqAssignEndpoint"
+}
 case class SeqProgInstanceMethodNonVoid(m: InstanceMethod[_]) extends CheckError {
   val subcode = "seqProgInstanceMethodNonVoid"
 }
@@ -164,6 +171,9 @@ case class SeqProgReceivingEndpoint(e: Expr[_]) extends CheckError {
 }
 case class SeqProgParticipant(s: Node[_]) extends CheckError {
   val subcode = "seqProgParticipant"
+}
+case class SeqProgNoParticipant(s: Node[_]) extends CheckError {
+  val subcode = "seqProgNoParticipant"
 }
 case class SeqProgEndpointAssign(a: Assign[_]) extends CheckError {
   val subcode = "seqProgEndpointAssign"
@@ -190,7 +200,7 @@ case class CheckContext[G]
   currentApplicable: Option[Applicable[G]] = None,
   inPreCondition: Boolean = false,
   inPostCondition: Boolean = false,
-  currentSeqProg: Option[SeqProg[G]] = None,
+  currentChoreography: Option[Choreography[G]] = None,
   currentReceiverEndpoint: Option[Endpoint[G]] = None,
   currentParticipatingEndpoints: Option[Set[Endpoint[G]]] = None,
   declarationStack: Seq[Declaration[G]] = Nil,
@@ -221,8 +231,8 @@ case class CheckContext[G]
   def withUndeclared(decls: Seq[Declaration[G]]): CheckContext[G] =
     copy(undeclared = undeclared :+ decls)
 
-  def withSeqProg(prog: SeqProg[G]): CheckContext[G] =
-    copy(currentSeqProg = Some(prog))
+  def withChoreography(prog: Choreography[G]): CheckContext[G] =
+    copy(currentChoreography = Some(prog))
 
   def withReceiverEndpoint(endpoint: Endpoint[G]): CheckContext[G] =
     copy(currentReceiverEndpoint = Some(endpoint))

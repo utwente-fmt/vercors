@@ -263,12 +263,12 @@ case class ExceptionNotInSignals(node: AbstractMethod[_]) extends CallableFailur
   override def descInContext: String = "Method may throw exception not included in signals clauses."
   override def inlineDescWithSource(source: String): String = s"Method `$source` may throw exception not included in signals clauses."
 }
-case class SeqRunPreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: SeqRun[_]) extends SeqRunFailure with WithContractFailure {
+case class SeqRunPreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ChorRun[_]) extends SeqRunFailure with WithContractFailure {
   override def baseCode: String = "seqRunPreFailed"
   override def descInContext: String = "Precondition may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Precondition of `$node` may not hold, since $failure."
 }
-case class SeqRunContextEverywhereFailedInPre(failure: ContractFailure, node: SeqRun[_]) extends SeqRunFailure with WithContractFailure {
+case class SeqRunContextEverywhereFailedInPre(failure: ContractFailure, node: ChorRun[_]) extends SeqRunFailure with WithContractFailure {
   override def baseCode: String = "seqRunContextPreFailed"
   override def descInContext: String = "Context may not hold in precondition, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
@@ -387,19 +387,10 @@ case class LoopUnanimityNotMaintained(guard1: Node[_], guard2: Node[_]) extends 
   override def inlineDesc: String = "The agreement of two conditions in this branch could not be maintained for an arbitrary loop iteration."
 }
 
-sealed trait PVLAccessFailure extends VerificationFailure
-sealed trait AccessFailure extends PVLAccessFailure
+sealed trait ChorStatementFailure extends VerificationFailure
+sealed trait ChorAssignFailure extends ChorStatementFailure
 
-case class AccessInsufficientPermission(node: Access[_]) extends AccessFailure with NodeVerificationFailure {
-  override def code: String = "accessPerm"
-  override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
-  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
-}
-
-sealed trait PVLSeqAssignFailure extends VerificationFailure
-sealed trait SeqAssignFailure extends PVLSeqAssignFailure
-
-case class SeqAssignInsufficientPermission(node: SeqAssign[_]) extends SeqAssignFailure with NodeVerificationFailure {
+case class SeqAssignInsufficientPermission(node: ChorStatement[_]) extends ChorAssignFailure with NodeVerificationFailure {
   override def code: String = "seqAssignPerm"
   override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
   override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."

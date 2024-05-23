@@ -79,13 +79,13 @@ object Utils {
     case WandPackage(_, proof) => find_all_cases(proof, index.enter_scope(body))
     case ModelDo(_, _, _, _, impl) => find_all_cases(impl, index.enter_scope(body))
     case CPPLifetimeScope(bod) => find_all_cases(bod, index.enter_scope(body))
-    case UnresolvedSeqBranch(branches) => branches.zipWithIndex.flatMap(t => find_all_cases(t._1._2, index.enter_scope(body, t._2 * 2 + 1)))
-    case UnresolvedSeqLoop(_, _, bod) => find_all_cases(bod, index.enter_scope(body))
-    case SeqBranch(_, yes, no) => no match {
+    case UnresolvedChorBranch(branches) => branches.zipWithIndex.flatMap(t => find_all_cases(t._1._2, index.enter_scope(body, t._2 * 2 + 1)))
+    case UnresolvedChorLoop(_, _, bod) => find_all_cases(bod, index.enter_scope(body))
+    case ChorBranch(_, yes, no) => no match {
       case Some(stmt) => Seq((yes, 0), (stmt, 1)).flatMap(t => find_all_cases(t._1, index.enter_scope(body)))
       case None => find_all_cases(yes, index.enter_scope(body))
     }
-    case SeqLoop(_, _, bod) => find_all_cases(bod, index.enter_scope(body))
+    case ChorLoop(_, _, bod) => find_all_cases(bod, index.enter_scope(body))
     case VeyMontAssignExpression(_, assign) => find_all_cases(assign, index.enter_scope(body))
     case CommunicateX(_, _, _, assign) => find_all_cases(assign, index.enter_scope(body))
     // Recursion end

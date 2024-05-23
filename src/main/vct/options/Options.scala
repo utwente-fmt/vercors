@@ -6,7 +6,6 @@ import vct.main.BuildInfo
 import vct.main.stages.Parsing.Language
 import vct.options.types._
 import vct.resources.Resources
-import vct.resources.Resources.getVeymontChannel
 
 import java.nio.file.{Path, Paths}
 import scala.collection.mutable
@@ -107,6 +106,12 @@ case object Options {
       opt[(String, PathOrStd)]("output-before-pass").unbounded().keyValueName("<pass>", "<path>")
         .action((output, c) => c.copy(outputBeforePass = c.outputBeforePass ++ Map(output)))
         .text("Print the AST before a pass key"),
+      opt[Unit]("trace-col")
+        .action((_, c) => c.copy(outputIntermediatePrograms = Some(Paths.get("tmp", "cols"))))
+        .text("Writes all intermediate ASTs, labeled by pass, to tmp/cols/"),
+      opt[Path]("trace-col-in")
+        .action((p, c) => c.copy(outputIntermediatePrograms = Some(p)))
+        .text("Writes all intermediate ASTs, labeled by pass, to a given folder"),
 
       opt[String]("backend-option").unbounded().keyName("<option>,...")
         .action((opt, c) => c.copy(backendFlags = c.backendFlags :+ opt))
@@ -255,23 +260,26 @@ case object Options {
         .action((path, c) => c.copy(cPreprocessorPath = path))
         .text("Set the location of the C preprocessor binary"),
 
-      opt[Unit]("veymont-generate-permissions")
-        .action((_, c) => c.copy(veymontGeneratePermissions = true))
-        .text("Generate permissions for the entire sequential program in the style of VeyMont 1.4"),
-
-      opt[Unit]("dev-veymont-allow-assign").maybeHidden()
-        .action((p, c) => c.copy(devVeymontAllowAssign = true))
-        .text("Do not error when plain assignment is used in seq_programs"),
-
       note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont")
         .action((_, c) => c.copy(mode = Mode.VeyMont))
         .text("Enable VeyMont mode: decompose the global program from the input files into several local programs that can be executed in parallel")
         .children(
-          opt[Path]("veymont-output").required().valueName("<path>")
-            .action((path, c) => c.copy(veymontOutput = path))
+          opt[Path]("veymont-output").valueName("<path>")
+            .action((path, c) => c.copy(veymontOutput = Some(path))),
+          opt[Path]("veymont-resource-path").valueName("<path>")
+            .action((path, c) => c.copy(veymontResourcePath = path)),
+          opt[Unit]("veymont-skip-choreography-verification")
+            .action((_, c) => c.copy(veymontSkipChoreographyVerification = true))
         ),
+      opt[Unit]("veymont-generate-permissions")
+        .action((_, c) => c.copy(veymontGeneratePermissions = true))
+        .text("Generate permissions for the entire sequential program in the style of VeyMont 1.4"),
+      opt[Unit]("dev-veymont-allow-assign").maybeHidden()
+        .action((p, c) => c.copy(devVeymontAllowAssign = true))
+        .text("Do not error when plain assignment is used in seq_programs"),
+
 
       note(""),
       note("VeSUV Mode"),
@@ -347,6 +355,7 @@ case class Options
 
   outputAfterPass: Map[String, PathOrStd] = Map.empty,
   outputBeforePass: Map[String, PathOrStd] = Map.empty,
+  outputIntermediatePrograms: Option[Path] = None,
 
   backendFlags: Seq[String] = Nil,
   skipBackend: Boolean = false,
@@ -401,9 +410,10 @@ case class Options
   devViperProverLogFile: Option[Path] = None,
 
   // VeyMont options
-  veymontOutput: Path = null, // required
-  veymontChannel: PathOrStd = PathOrStd.Path(getVeymontChannel),
+  veymontOutput: Option[Path] = None,
+  veymontResourcePath: Path = Resources.getVeymontPath,
   veymontGeneratePermissions: Boolean = false,
+  veymontSkipChoreographyVerification: Boolean = false,
   devVeymontAllowAssign: Boolean = false,
 
   // VeSUV options

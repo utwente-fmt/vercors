@@ -120,7 +120,7 @@ requires v3 == 0 || v3 == 1;
 requires v4 == 0 || v4 == 1;
 requires v5 == 0 || v5 == 1;
 requires fault1 + fault2 + fault3 + fault4 + fault5 <= f;
-seq_program Main(int n, int f,
+choreography Main(int n, int f,
                  int fault1, int v1,
                  int fault2, int v2,
                  int fault3, int v3,
@@ -150,7 +150,7 @@ seq_program Main(int n, int f,
            (p3.fault == 0 ==> p3.v == 1) &&
            (p4.fault == 0 ==> p4.v == 1) &&
            (p5.fault == 0 ==> p5.v == 1));
-  seq_run {
+  run {
     // Phase 1 (p1 is "king")
     p1.v1 := p1.getValueOrFail();
     communicate p2.v1 <- p1.v1;
