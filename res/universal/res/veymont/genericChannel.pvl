@@ -1,11 +1,11 @@
-lock_invariant Perm(transferring, 1) ** Perm(exchangeValue,1);
+lock_invariant Perm(hasMsg, 1) ** Perm(exchangeValue,1);
 class Channel<T> {
-  boolean transferring;
+  boolean hasMsg;
   T exchangeValue;
 
   ensures committed(this);
   constructor() {
-    transferring = false;
+    hasMsg = false;
     commit this;
   }
 
@@ -13,14 +13,14 @@ class Channel<T> {
   void writeValue(T v) {
     lock this;
 
-    loop_invariant Perm(transferring, 1) ** Perm(exchangeValue,1);
+    loop_invariant Perm(hasMsg, 1) ** Perm(exchangeValue,1);
     loop_invariant held(this);
-    while (!transferring) {
+    while (!hasMsg) {
       unlock this;
       lock this;
     }
 
-    transferring = false;
+    hasMsg = false;
     exchangeValue = v;
     unlock this;
   }
@@ -29,14 +29,14 @@ class Channel<T> {
   T readValue() {
     lock this;
 
-    loop_invariant Perm(transferring, 1) ** Perm(exchangeValue,1);
+    loop_invariant Perm(hasMsg, 1) ** Perm(exchangeValue,1);
     loop_invariant held(this);
-    while (transferring) {
+    while (hasMsg) {
       wait this;
     }
 
     T m = exchangeValue;
-    transferring = false;
+    hasMsg = false;
     unlock this;
 
     return m;

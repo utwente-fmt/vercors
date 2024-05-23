@@ -17,11 +17,18 @@ object ResourceUsage {
       case Platform.Unix | Platform.Mac =>
         try {
           val usage = new RUsage()
-          if (LibC.INSTANCE.getrusage(who, usage) != 0) return fallback()
-          ResourceUsage(usage.ru_utime.toUsec, usage.ru_stime.toUsec, usage.ru_inblock, usage.ru_oublock, usage.ru_nvcsw, usage.ru_nivcsw, System.nanoTime() / 1000L - boot)
-        } catch {
-          case _: UnsatisfiedLinkError => fallback()
-        }
+          if (LibC.INSTANCE.getrusage(who, usage) != 0)
+            return fallback()
+          ResourceUsage(
+            usage.ru_utime.toUsec,
+            usage.ru_stime.toUsec,
+            usage.ru_inblock,
+            usage.ru_oublock,
+            usage.ru_nvcsw,
+            usage.ru_nivcsw,
+            System.nanoTime() / 1000L - boot,
+          )
+        } catch { case _: UnsatisfiedLinkError => fallback() }
       case _ => fallback()
     }
   }
@@ -34,13 +41,13 @@ object ResourceUsage {
 }
 
 case class ResourceUsage(
-  userTime: Microseconds,
-  systemTime: Microseconds,
-  readBlocks: Long,
-  writtenBlocks: Long,
-  voluntaryContextSwitches: Long,
-  involuntaryContextSwitches: Long,
-  wallTime: Microseconds,
+    userTime: Microseconds,
+    systemTime: Microseconds,
+    readBlocks: Long,
+    writtenBlocks: Long,
+    voluntaryContextSwitches: Long,
+    involuntaryContextSwitches: Long,
+    wallTime: Microseconds,
 ) {
   override def toString: String =
     s"user=${userTime}μs sys=${systemTime}μs in=${readBlocks}blocks out=${writtenBlocks}blocks voluntaryYield=${voluntaryContextSwitches} involuntaryYield=${involuntaryContextSwitches}"
@@ -51,8 +58,14 @@ case class ResourceUsage(
       systemTime = op(systemTime, other.systemTime),
       readBlocks = op(readBlocks, other.readBlocks),
       writtenBlocks = op(writtenBlocks, other.writtenBlocks),
-      voluntaryContextSwitches = op(voluntaryContextSwitches, other.voluntaryContextSwitches),
-      involuntaryContextSwitches = op(involuntaryContextSwitches, other.involuntaryContextSwitches),
+      voluntaryContextSwitches = op(
+        voluntaryContextSwitches,
+        other.voluntaryContextSwitches,
+      ),
+      involuntaryContextSwitches = op(
+        involuntaryContextSwitches,
+        other.involuntaryContextSwitches,
+      ),
       wallTime = op(wallTime, other.wallTime),
     )
     assert(result.userTime >= 0)

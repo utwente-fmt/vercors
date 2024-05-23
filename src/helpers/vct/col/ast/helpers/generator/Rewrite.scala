@@ -11,7 +11,8 @@ import scala.meta._
 
 class Rewrite extends NodeGenerator {
   override def generate(out: Path, node: NodeDefinition): Unit =
-    ResultStream.write(out.resolve(s"${node.name.base}Rewrite.scala"), getTree(node))
+    ResultStream
+      .write(out.resolve(s"${node.name.base}Rewrite.scala"), getTree(node))
 
   def getTree(node: NodeDefinition): Tree =
     source"""
@@ -27,17 +28,13 @@ class Rewrite extends NodeGenerator {
     """
 
   def args(node: NodeDefinition): List[Term.Param] = {
-    val fieldParams = node.fields.map {
-      case (name, t) => arg(name, t)
-    }
+    val fieldParams = node.fields.map { case (name, t) => arg(name, t) }
 
     val originParam = param"o: $Origin = null"
 
     (node.blameType match {
-      case Some(blameType) =>
-        fieldParams :+ blameArg(blameType) :+ originParam
-      case None =>
-        fieldParams :+ originParam
+      case Some(blameType) => fieldParams :+ blameArg(blameType) :+ originParam
+      case None => fieldParams :+ originParam
     }).toList
   }
 
@@ -45,8 +42,7 @@ class Rewrite extends NodeGenerator {
     t match {
       case _: structure.Type.ValueType =>
         param"${Name(name)}: => Option[${typ(t, t"Post")}] = None"
-      case _ =>
-        param"${Name(name)}: => ${typ(t, t"Post")} = null"
+      case _ => param"${Name(name)}: => ${typ(t, t"Post")} = null"
     }
 
   def blameArg(blameType: structure.Name): Term.Param =
@@ -54,8 +50,7 @@ class Rewrite extends NodeGenerator {
 
   def scopes(node: NodeDefinition, make: Term): Term =
     node.scopes.foldLeft[Term](make) {
-      case (acc, structure.Type.Declaration(name)) =>
-        q"""
+      case (acc, structure.Type.Declaration(name)) => q"""
           `~rw`.${Naming.scopes(name.base)}.scope {
             $acc
           }
@@ -63,23 +58,29 @@ class Rewrite extends NodeGenerator {
     }
 
   def make(node: NodeDefinition): Term = {
-    val fieldValues = node.fields.map {
-      case (name, t) => makeField(name, t)
-    }
+    val fieldValues = node.fields.map { case (name, t) => makeField(name, t) }
 
-    val valuess = node.blameType match {
-      case Some(_) =>
-        List(fieldValues.toList, List(q"if(blame ne null) blame else `~rw`.dispatch(this.blame)"), List(q"if(o ne null) o else `~rw`.dispatch(this.o)"))
-      case None =>
-        List(fieldValues.toList, List(q"if(o ne null) o else `~rw`.dispatch(this.o)"))
-    }
+    val valuess =
+      node.blameType match {
+        case Some(_) =>
+          List(
+            fieldValues.toList,
+            List(q"if(blame ne null) blame else `~rw`.dispatch(this.blame)"),
+            List(q"if(o ne null) o else `~rw`.dispatch(this.o)"),
+          )
+        case None =>
+          List(
+            fieldValues.toList,
+            List(q"if(o ne null) o else `~rw`.dispatch(this.o)"),
+          )
+      }
 
     q"new ${Init(typ(node.name), Name.Anonymous(), valuess)}"
   }
 
   def makeField(fieldName: String, t: structure.Type): Term = {
     val field = Term.Name(fieldName)
-    if(t.isInstanceOf[structure.Type.ValueType])
+    if (t.isInstanceOf[structure.Type.ValueType])
       q"$field.getOrElse(${rewriteDefault(q"this.$field", t)})"
     else
       q"_root_.scala.Predef.locally({ val `~x` = $field; if(`~x` ne null) `~x` else ${rewriteDefault(q"this.$field", t)} })"
@@ -88,23 +89,27 @@ class Rewrite extends NodeGenerator {
   def rewriteDefault(term: Term, t: structure.Type): Term =
     t match {
       case structure.Type.Node(_) => q"`~rw`.dispatch($term)"
-      case structure.Type.Declaration(name) => q"`~rw`.${Naming.scopes(name.base)}.dispatch($term)"
-      case structure.Type.DeclarationSeq(name) => q"`~rw`.${Naming.scopes(name.base)}.dispatch($term)"
+      case structure.Type.Declaration(name) =>
+        q"`~rw`.${Naming.scopes(name.base)}.dispatch($term)"
+      case structure.Type.DeclarationSeq(name) =>
+        q"`~rw`.${Naming.scopes(name.base)}.dispatch($term)"
       case structure.Type.Ref(kind) =>
         q"`~rw`.porcelainRefSucc[${typ(kind.name)}[Post]]($term).getOrElse(`~rw`.succ[${typ(kind.name)}[Post]]($term.decl))"
       case structure.Type.MultiRef(kind) =>
         q"`~rw`.porcelainRefSucc[${typ(kind.name)}[Post]]($term).getOrElse(`~rw`.anySucc[${typ(kind.name)}[Post]]($term.decl))"
       case _: structure.Type.PrimitiveType => term
-      case structure.Type.Option(t) => q"$term.map(`~x` => ${rewriteDefault(q"`~x`", t)})"
+      case structure.Type.Option(t) =>
+        q"$term.map(`~x` => ${rewriteDefault(q"`~x`", t)})"
       case structure.Type.Either(l, r) =>
         q"$term.fold(`~x` => $LeftObj(${rewriteDefault(q"`~x`", l)}), `~x` => $RightObj(${rewriteDefault(q"`~x`", r)}))"
-      case structure.Type.Seq(t) => q"$term.map(`~x` => ${rewriteDefault(q"`~x`", t)})"
+      case structure.Type.Seq(t) =>
+        q"$term.map(`~x` => ${rewriteDefault(q"`~x`", t)})"
       case structure.Type.Tuple(ts) =>
-        val elems = ts.zipWithIndex.map {
-          case (t, i) =>
-            val field = Term.Name(s"_${i+1}")
+        val elems =
+          ts.zipWithIndex.map { case (t, i) =>
+            val field = Term.Name(s"_${i + 1}")
             rewriteDefault(q"$term.$field", t)
-        }.toList
+          }.toList
 
         q"(..$elems)"
     }

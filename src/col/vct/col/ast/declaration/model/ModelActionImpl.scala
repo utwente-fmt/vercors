@@ -5,7 +5,8 @@ import vct.col.check.{CheckContext, CheckError}
 import vct.col.print._
 import vct.col.ast.ops.ModelActionOps
 
-trait ModelActionImpl[G] extends ModelActionOps[G] { this: ModelAction[G] =>
+trait ModelActionImpl[G] extends ModelActionOps[G] {
+  this: ModelAction[G] =>
   override def returnType: Type[G] = TProcess()
   override def body: Option[Node[G]] = None
 
@@ -14,8 +15,15 @@ trait ModelActionImpl[G] extends ModelActionOps[G] { this: ModelAction[G] =>
 
   override def layout(implicit ctx: Ctx): Doc =
     DocUtil.clauses("requires", requires) <+/>
-      (if(modifies.nonEmpty) Text("modifies") <+> Doc.args(modifies.map(ctx.name).map(Text)) <> ";" <> Line else Empty) <>
-      (if(accessible.nonEmpty) Text("accessible") <+> Doc.args(accessible.map(ctx.name).map(Text)) <> ";" <> Line else Empty) <>
-      DocUtil.clauses("ensures", ensures) <+/>
+      (if (modifies.nonEmpty)
+         Text("modifies") <+> Doc.args(modifies.map(ctx.name).map(Text)) <>
+           ";" <> Line
+       else
+         Empty) <>
+      (if (accessible.nonEmpty)
+         Text("accessible") <+> Doc.args(accessible.map(ctx.name).map(Text)) <>
+           ";" <> Line
+       else
+         Empty) <> DocUtil.clauses("ensures", ensures) <+/>
       Group(Text("action") <+> ctx.name(this) <> "(" <> Doc.args(args) <> ");")
 }

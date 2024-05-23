@@ -5,7 +5,8 @@ import vct.col.ast.ops.UnitAccountedPredicateOps
 import vct.col.check._
 import vct.col.typerules.{CoercionUtils}
 
-trait UnitAccountedPredicateImpl[G] extends UnitAccountedPredicateOps[G] { this: UnitAccountedPredicate[G] =>
+trait UnitAccountedPredicateImpl[G] extends UnitAccountedPredicateOps[G] {
+  this: UnitAccountedPredicate[G] =>
   override def check(context: CheckContext[G]): Seq[CheckError] =
     CoercionUtils.getCoercion(pred.t, TResource()) match {
       case Some(_) => Nil

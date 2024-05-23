@@ -4,7 +4,8 @@ import vct.col.ast.{LocalThreadId, TInt}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 import vct.col.ast.ops.LocalThreadIdOps
 
-trait LocalThreadIdImpl[G] extends LocalThreadIdOps[G] { this: LocalThreadId[G] =>
+trait LocalThreadIdImpl[G] extends LocalThreadIdOps[G] {
+  this: LocalThreadId[G] =>
   override def t: TInt[G] = TInt()
 
   override def precedence: Int = Precedence.ATOMIC

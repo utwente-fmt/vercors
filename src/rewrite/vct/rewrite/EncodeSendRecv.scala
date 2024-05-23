@@ -5,8 +5,18 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.ast._
 import vct.col.ast.statement.composite.LoopImpl.IterationContractData
-import vct.col.rewrite.EncodeSendRecv.{DuplicateRecv, SendFailedExhaleFailed, WrongSendRecvPosition}
-import vct.col.origin.{Blame, DiagnosticOrigin, ExhaleFailed, Origin, SendFailed}
+import vct.col.rewrite.EncodeSendRecv.{
+  DuplicateRecv,
+  SendFailedExhaleFailed,
+  WrongSendRecvPosition,
+}
+import vct.col.origin.{
+  Blame,
+  DiagnosticOrigin,
+  ExhaleFailed,
+  Origin,
+  SendFailed,
+}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
@@ -22,20 +32,27 @@ case object EncodeSendRecv extends RewriterBuilder {
   case class WrongSendRecvPosition(stat: Statement[_]) extends UserError {
     override def code: String = "wrongSendRecv"
     override def text: String =
-      stat.o.messageInContext("Send and recv may only occur within a parallel block, or loop with an iteration contract, and must be unconditionally executed.")
+      stat.o.messageInContext(
+        "Send and recv may only occur within a parallel block, or loop with an iteration contract, and must be unconditionally executed."
+      )
   }
 
   case class IncorrectSendDependency(dependency: Local[_]) extends UserError {
     override def code: String = "sendResDep"
     override def text: String =
-      dependency.o.messageInContext("This expression may not be constant with respect to the parallel block, or loop with an iteration contract.")
+      dependency.o.messageInContext(
+        "This expression may not be constant with respect to the parallel block, or loop with an iteration contract."
+      )
   }
 
   case class DuplicateRecv(left: Recv[_], right: Recv[_]) extends UserError {
     override def code: String = "dupRecv"
     override def text: String =
       Message.messagesInContext(
-        (left.o, "There must be at most one recv statement for a given send, but there is one here ..."),
+        (
+          left.o,
+          "There must be at most one recv statement for a given send, but there is one here ...",
+        ),
         (right.o, "... and here."),
       )
   }
@@ -58,59 +75,70 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
     program.rewrite()
   }
 
-  val allowSendRecv: ScopedStack[Option[IterationContractData[Pre]]] = ScopedStack()
+  val allowSendRecv: ScopedStack[Option[IterationContractData[Pre]]] =
+    ScopedStack()
   allowSendRecv.push(None)
 
-  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case block: Block[Pre] => rewriteDefault(block)
-    case scope: Scope[Pre] => rewriteDefault(scope)
-    case label: Label[Pre] => rewriteDefault(label)
+  override def dispatch(stat: Statement[Pre]): Statement[Post] =
+    stat match {
+      case block: Block[Pre] => rewriteDefault(block)
+      case scope: Scope[Pre] => rewriteDefault(scope)
+      case label: Label[Pre] => rewriteDefault(label)
 
-    case loop @ Loop(_, _, _, IterationContract(_, _, _), _) =>
-      loop.getIterationContractData(DiagnosticOrigin) match {
-        case Left(err) => throw err
-        case Right(data) =>
-          allowSendRecv.having(Some(data)) { rewriteDefault(loop) }
-      }
+      case loop @ Loop(_, _, _, IterationContract(_, _, _), _) =>
+        loop.getIterationContractData(DiagnosticOrigin) match {
+          case Left(err) => throw err
+          case Right(data) =>
+            allowSendRecv.having(Some(data)) { rewriteDefault(loop) }
+        }
 
-    case send @ Send(decl, _, res) =>
-      decl.drop()
-      allowSendRecv.top match {
-        case None =>
-          throw WrongSendRecvPosition(stat)
-        case Some(IterationContractData(v, _, upperBound)) =>
-          implicit val o: Origin = send.o
-          Exhale((dispatch(v.get) < dispatch(upperBound) - const(send.delta)) ==> dispatch(res))(SendFailedExhaleFailed(send))(stat.o)
-      }
+      case send @ Send(decl, _, res) =>
+        decl.drop()
+        allowSendRecv.top match {
+          case None => throw WrongSendRecvPosition(stat)
+          case Some(IterationContractData(v, _, upperBound)) =>
+            implicit val o: Origin = send.o
+            Exhale(
+              (dispatch(v.get) < dispatch(upperBound) - const(send.delta)) ==>
+                dispatch(res)
+            )(SendFailedExhaleFailed(send))(stat.o)
+        }
 
-    case recv @ Recv(Ref(decl)) =>
-      val send = sendOfDecl(decl)
+      case recv @ Recv(Ref(decl)) =>
+        val send = sendOfDecl(decl)
 
-      recvOfDecl.get(decl) match {
-        case Some(value) => throw DuplicateRecv(value, recv)
-        case None => recvOfDecl(decl) = recv
-      }
+        recvOfDecl.get(decl) match {
+          case Some(value) => throw DuplicateRecv(value, recv)
+          case None => recvOfDecl(decl) = recv
+        }
 
-      allowSendRecv.top match {
-        case None =>
-          throw WrongSendRecvPosition(stat)
-        case Some(IterationContractData(v, lowerBound, _)) =>
-          implicit val o: Origin = recv.o
-          val resource = Substitute(
-            Map[Expr[Pre], Expr[Pre]](v.get -> (v.get - const(send.delta))),
-          ).dispatch(send.res)
-          Inhale((dispatch(v.get) >= dispatch(lowerBound) + const(send.delta)) ==> dispatch(resource))(stat.o)
-      }
+        allowSendRecv.top match {
+          case None => throw WrongSendRecvPosition(stat)
+          case Some(IterationContractData(v, lowerBound, _)) =>
+            implicit val o: Origin = recv.o
+            val resource = Substitute(
+              Map[Expr[Pre], Expr[Pre]](v.get -> (v.get - const(send.delta)))
+            ).dispatch(send.res)
+            Inhale(
+              (dispatch(v.get) >= dispatch(lowerBound) + const(send.delta)) ==>
+                dispatch(resource)
+            )(stat.o)
+        }
 
-    case other => allowSendRecv.having(None) { rewriteDefault(other) }
-  }
+      case other => allowSendRecv.having(None) { rewriteDefault(other) }
+    }
 
-  override def dispatch(parRegion: ParRegion[Pre]): ParRegion[Post] = parRegion match {
-    case block @ ParBlock(_, iters, _, _, _, _) =>
-      iters match {
-        case Seq(v) => allowSendRecv.having(Some(IterationContractData(v.variable, v.from, v.to))) { block.rewrite() }
-        case _ => block.rewrite()
-      }
-    case other => rewriteDefault(other)
-  }
+  override def dispatch(parRegion: ParRegion[Pre]): ParRegion[Post] =
+    parRegion match {
+      case block @ ParBlock(_, iters, _, _, _, _) =>
+        iters match {
+          case Seq(v) =>
+            allowSendRecv
+              .having(Some(IterationContractData(v.variable, v.from, v.to))) {
+                block.rewrite()
+              }
+          case _ => block.rewrite()
+        }
+      case other => rewriteDefault(other)
+    }
 }

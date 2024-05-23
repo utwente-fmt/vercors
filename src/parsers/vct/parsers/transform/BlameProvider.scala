@@ -12,28 +12,42 @@ trait PositionContextProvider[T] {
     val startLineIdx = start.getLine - 1
     val startColIdx = start.getCharPositionInLine
     val endLineIdx = stop.getLine - 1
-    val endColIdx = stop.getCharPositionInLine + stop.getStopIndex - stop.getStartIndex + 1
+    val endColIdx =
+      stop.getCharPositionInLine + stop.getStopIndex - stop.getStartIndex + 1
     apply(startLineIdx, endLineIdx, Some((startColIdx, endColIdx)))
   }
 
-  def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): T = apply()
+  def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): T =
+    apply()
 
   def apply(): T
 }
 
 object OriginProvider {
-  def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): Origin =
-    Origin(Seq(PositionRange(startLineIdx, endLineIdx, cols)))
+  def apply(
+      startLineIdx: Int,
+      endLineIdx: Int,
+      cols: Option[(Int, Int)],
+  ): Origin = Origin(Seq(PositionRange(startLineIdx, endLineIdx, cols)))
 
-  def apply(origin: Origin, startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): Origin = {
-    Origin(apply(startLineIdx, endLineIdx, cols).originContents ++ origin.originContents)
+  def apply(
+      origin: Origin,
+      startLineIdx: Int,
+      endLineIdx: Int,
+      cols: Option[(Int, Int)],
+  ): Origin = {
+    Origin(
+      apply(startLineIdx, endLineIdx, cols).originContents ++
+        origin.originContents
+    )
   }
 
-  def apply(start: Token, stop: Token): Origin =  {
+  def apply(start: Token, stop: Token): Origin = {
     val startLineIdx = start.getLine - 1
     val startColIdx = start.getCharPositionInLine
     val endLineIdx = stop.getLine - 1
-    val endColIdx = stop.getCharPositionInLine + stop.getStopIndex - stop.getStartIndex + 1
+    val endColIdx =
+      stop.getCharPositionInLine + stop.getStopIndex - stop.getStartIndex + 1
     apply(startLineIdx, endLineIdx, Some((startColIdx, endColIdx)))
   }
 
@@ -46,9 +60,9 @@ object OriginProvider {
   def apply(): Origin = Origin(Seq())
 }
 
-
 trait BlameProvider extends PositionContextProvider[Blame[VerificationFailure]]
 
-case class ConstantBlameProvider(globalBlame: Blame[VerificationFailure]) extends BlameProvider {
+case class ConstantBlameProvider(globalBlame: Blame[VerificationFailure])
+    extends BlameProvider {
   override def apply(): Blame[VerificationFailure] = globalBlame
 }

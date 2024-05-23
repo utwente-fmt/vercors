@@ -9,24 +9,27 @@ import java.nio.file.Path
 import scala.collection.mutable
 
 case class CFGPrinter[G]() {
-  private val node_names: mutable.Map[CFGEntry[G], String] = mutable.HashMap[CFGEntry[G], String]()
+  private val node_names: mutable.Map[CFGEntry[G], String] = mutable
+    .HashMap[CFGEntry[G], String]()
   private val no_condition: Expr[G] = BooleanValue(value = true)(Origin(Seq()))
   private var node_index: Int = 0
 
   private def print_cfg(writer: Writer): Unit = {
     writer.append("digraph {\n")
     // Write all nodes
-    node_names.foreach(naming => writer.append(naming._2)
-                                       .append(s" [label=${"\""}")
-                                       .append(naming._1.toString)
-                                       .append(s"${"\""}];\n"))
+    node_names.foreach(naming =>
+      writer.append(naming._2).append(s" [label=${"\""}")
+        .append(naming._1.toString).append(s"${"\""}];\n")
+    )
     // Write all edges
-    node_names.foreach(naming => naming._1.get_successors.foreach(edge => writer.append(naming._2)
-                                                                                .append(" -> ")
-                                                                                .append(node_names(edge.target))
-                                                                                .append(s" [label=${"\""}")
-                                                                                .append(edge.condition.getOrElse(no_condition).toInlineString)
-                                                                                .append(s"${"\""}];\n")))
+    node_names.foreach(naming =>
+      naming._1.get_successors.foreach(edge =>
+        writer.append(naming._2).append(" -> ").append(node_names(edge.target))
+          .append(s" [label=${"\""}")
+          .append(edge.condition.getOrElse(no_condition).toInlineString)
+          .append(s"${"\""}];\n")
+      )
+    )
     writer.append("}")
   }
 

@@ -3,7 +3,15 @@ package vct.col.rewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.{AbstractApplicable, Blame, Origin, PanicBlame, PreferredName, UnsafeDontCare, VerificationFailure}
+import vct.col.origin.{
+  AbstractApplicable,
+  Blame,
+  Origin,
+  PanicBlame,
+  PreferredName,
+  UnsafeDontCare,
+  VerificationFailure,
+}
 import vct.col.ref.Ref
 import vct.col.rewrite.Explode.{UnknownDeclaration, VerifiedElsewhereBlame}
 import vct.col.util.AstBuildHelpers._
@@ -14,11 +22,15 @@ import scala.collection.mutable.ArrayBuffer
 
 case object Explode extends RewriterBuilderArg[Boolean] {
   override def key: String = "explode"
-  override def desc: String = "Split out verifications over entities, by eliding unrelated declarations and abstracting relevant ones."
+  override def desc: String =
+    "Split out verifications over entities, by eliding unrelated declarations and abstracting relevant ones."
 
-  case class UnknownDeclaration(program: Program[_], decl: Declaration[_]) extends SystemError {
+  case class UnknownDeclaration(program: Program[_], decl: Declaration[_])
+      extends SystemError {
     override def text: String =
-      program.highlight(decl).messageInContext(s"Unknown declaration kind at this point: ${decl.getClass.getSimpleName}")
+      program.highlight(decl).messageInContext(
+        s"Unknown declaration kind at this point: ${decl.getClass.getSimpleName}"
+      )
   }
 
   case object VerifiedElsewhereBlame extends Blame[VerificationFailure] {
@@ -30,26 +42,24 @@ case object Explode extends RewriterBuilderArg[Boolean] {
 
 case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
   case class FocusedProgram(
-    adts: Seq[AxiomaticDataType[Pre]],
-    fields: Seq[SilverField[Pre]],
-    funcs: Seq[Function[Pre]],
-    predOutlines: Seq[Predicate[Pre]],
-    predBodies: Seq[Predicate[Pre]],
-    procOutlines: Seq[Procedure[Pre]],
-    procBodies: Seq[Procedure[Pre]],
+      adts: Seq[AxiomaticDataType[Pre]],
+      fields: Seq[SilverField[Pre]],
+      funcs: Seq[Function[Pre]],
+      predOutlines: Seq[Predicate[Pre]],
+      predBodies: Seq[Predicate[Pre]],
+      procOutlines: Seq[Procedure[Pre]],
+      procBodies: Seq[Procedure[Pre]],
   ) {
     require(procBodies.forall(procOutlines.contains))
     require(predBodies.forall(predOutlines.contains))
 
     lazy val scanNodes: Seq[Node[Pre]] =
-      adts ++
-        fields ++
-        funcs ++
+      adts ++ fields ++ funcs ++
         // PB: it's probably nonsense to include args, types, but for consistency: all subnodes except the body
-        predOutlines.flatMap(_.args) ++
-        predBodies.flatMap(_.body.toSeq) ++
-        procOutlines.flatMap(p => p.contract +: p.returnType +: (p.args ++ p.outArgs ++ p.typeArgs)) ++
-        procBodies.flatMap(_.body.toSeq)
+        predOutlines.flatMap(_.args) ++ predBodies.flatMap(_.body.toSeq) ++
+        procOutlines.flatMap(p =>
+          p.contract +: p.returnType +: (p.args ++ p.outArgs ++ p.typeArgs)
+        ) ++ procBodies.flatMap(_.body.toSeq)
 
     def fieldUsage: Seq[SilverField[Pre]] =
       scanNodes.flatMap(_.flatCollect {
@@ -99,8 +109,10 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
     @tailrec
     final def fixpoint: FocusedProgram = {
       val next = step
-      if(this == next) this
-      else next.fixpoint
+      if (this == next)
+        this
+      else
+        next.fixpoint
     }
 
     def sort(other: FocusedProgram): FocusedProgram =
@@ -121,8 +133,10 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
           fields.foreach(dispatch)
           funcs.foreach(dispatch)
           predOutlines.foreach { pred =>
-            if(predBodies.contains(pred)) dispatch(pred)
-            else globalDeclarations.succeed(pred, pred.rewrite(body = None))
+            if (predBodies.contains(pred))
+              dispatch(pred)
+            else
+              globalDeclarations.succeed(pred, pred.rewrite(body = None))
           }
           procOutlines.filterNot(procBodies.contains).foreach { proc =>
             globalDeclarations.succeed(proc, proc.rewrite(body = None))
@@ -132,13 +146,26 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
       }._1
 
     def focus(proc: Procedure[Pre]): Seq[GlobalDeclaration[Post]] =
-      sort(FocusedProgram(adts, Nil, funcs.filter(_.contract.decreases.isEmpty), Nil, Nil, Seq(proc), Seq(proc)).fixpoint).toDecls
+      sort(
+        FocusedProgram(
+          adts,
+          Nil,
+          funcs.filter(_.contract.decreases.isEmpty),
+          Nil,
+          Nil,
+          Seq(proc),
+          Seq(proc),
+        ).fixpoint
+      ).toDecls
   }
 
   val verifiedElsewhere: ScopedStack[Unit] = ScopedStack()
 
   override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] =
-    if(verifiedElsewhere.nonEmpty) VerifiedElsewhereBlame else blame
+    if (verifiedElsewhere.nonEmpty)
+      VerifiedElsewhereBlame
+    else
+      blame
 
   def split(program: Program[Pre]): FocusedProgram = {
     val adts: ArrayBuffer[AxiomaticDataType[Pre]] = ArrayBuffer()
@@ -156,20 +183,41 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
       case other => throw UnknownDeclaration(program, other)
     }
 
-    FocusedProgram(adts.toSeq, fields.toSeq, funcs.toSeq, preds.toSeq, preds.toSeq, procs.toSeq, procs.toSeq)
+    FocusedProgram(
+      adts.toSeq,
+      fields.toSeq,
+      funcs.toSeq,
+      preds.toSeq,
+      preds.toSeq,
+      procs.toSeq,
+      procs.toSeq,
+    )
   }
 
   override def dispatch(verification: Verification[Pre]): Verification[Post] =
-    if(enable) verification.rewrite(tasks = verification.tasks.flatMap(explode))
-    else verification.rewrite()
+    if (enable)
+      verification.rewrite(tasks = verification.tasks.flatMap(explode))
+    else
+      verification.rewrite()
 
-  def make(context: VerificationContext[Pre], decls: => Seq[GlobalDeclaration[Post]]): VerificationContext[Post] =
-    VerificationContext(context.program.rewrite(declarations = decls))(context.o)
+  def make(
+      context: VerificationContext[Pre],
+      decls: => Seq[GlobalDeclaration[Post]],
+  ): VerificationContext[Post] =
+    VerificationContext(context.program.rewrite(declarations = decls))(
+      context.o
+    )
 
-  def explode(context: VerificationContext[Pre]): Seq[VerificationContext[Post]] = {
+  def explode(
+      context: VerificationContext[Pre]
+  ): Seq[VerificationContext[Post]] = {
     val program = split(context.program)
 
-    make(context, globalDeclarations.dispatch(program.adts ++ program.fields ++ program.funcs ++ program.predBodies)) +:
-      program.procBodies.map(proc => make(context, program.focus(proc)))
+    make(
+      context,
+      globalDeclarations.dispatch(
+        program.adts ++ program.fields ++ program.funcs ++ program.predBodies
+      ),
+    ) +: program.procBodies.map(proc => make(context, program.focus(proc)))
   }
 }

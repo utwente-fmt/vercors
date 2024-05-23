@@ -28,19 +28,23 @@ object Constants {
   val LeftObj: Term = q"_root_.scala.util.Left"
   val RightObj: Term = q"_root_.scala.util.Right"
 
-  val copyByteStringFrom: Term = q"_root_.com.google.protobuf.ByteString.copyFrom"
+  val copyByteStringFrom: Term =
+    q"_root_.com.google.protobuf.ByteString.copyFrom"
 
   val Node: Type = typ(RootNodeName)
   val Declaration: Type = typ(DeclarationName)
-  val ExprName: structure.Name = structure.Name(Seq("_root_", "vct", "col", "ast", "Expr"))
+  val ExprName: structure.Name = structure
+    .Name(Seq("_root_", "vct", "col", "ast", "Expr"))
   val Expr: Type = typ(ExprName)
   val Coercion: Type = t"_root_.vct.col.ast.Coercion"
-  val ApplyCoercionPat: (Pat, Pat) => Pat = (e, c) => p"_root_.vct.col.ast.ApplyCoercion($e, $c)"
+  val ApplyCoercionPat: (Pat, Pat) => Pat =
+    (e, c) => p"_root_.vct.col.ast.ApplyCoercion($e, $c)"
   val Origin: Type = t"_root_.vct.col.origin.Origin"
   val OriginObj: Term = q"_root_.vct.col.origin.Origin"
   val Blame: Type = t"_root_.vct.col.origin.Blame"
   val VerificationFailure: Type = t"_root_.vct.col.origin.VerificationFailure"
-  val InconsistentSuccessionTypesObj: Term = q"_root_.vct.col.err.InconsistentSuccessionTypes"
+  val InconsistentSuccessionTypesObj: Term =
+    q"_root_.vct.col.err.InconsistentSuccessionTypes"
   val RefType: Type = t"_root_.vct.col.ref.Ref"
   val LazyRef: Type = t"_root_.vct.col.ref.LazyRef"
 

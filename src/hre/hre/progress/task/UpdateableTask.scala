@@ -1,25 +1,33 @@
 package hre.progress.task
 import hre.progress.ProgressRender
 
-case class UpdateableTask(superTask: AbstractTask, approxUpdates: Option[Int] = None) extends Task {
+case class UpdateableTask(
+    superTask: AbstractTask,
+    approxUpdates: Option[Int] = None,
+) extends Task {
   private var currentName: Option[String] = None
   private var updatesDone = 0
 
   override def progressWeight: Option[Double] =
-    approxUpdates.map(approxUpdates => if(updatesDone < approxUpdates) 1.0 / approxUpdates else 0.0)
+    approxUpdates.map(approxUpdates =>
+      if (updatesDone < approxUpdates)
+        1.0 / approxUpdates
+      else
+        0.0
+    )
 
   override def profilingBreadcrumb: String = currentName.get
   override def renderHere: ProgressRender = ProgressRender(currentName.get)
 
   def scope[T](f: (String => Unit) => T): T =
-    try {
-      f(update)
-    } finally {
-      if(currentName.isDefined) end()
+    try { f(update) }
+    finally {
+      if (currentName.isDefined)
+        end()
     }
 
   private def update(name: String): Unit = {
-    if(currentName.isDefined) {
+    if (currentName.isDefined) {
       end()
       progressDone = 0.0
     }

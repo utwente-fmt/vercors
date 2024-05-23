@@ -6,8 +6,7 @@ sealed trait Name {
   def camel: String
   def ucamel: String
 
-  override def toString: String =
-    throw new UnsupportedOperationException()
+  override def toString: String = throw new UnsupportedOperationException()
 }
 
 object Name {
@@ -22,7 +21,9 @@ object Name {
     assert(parts.nonEmpty)
     override def snake: String = parts.map(_.toLowerCase).mkString("_")
     override def usnake: String = parts.map(_.toUpperCase).mkString("_")
-    override def camel: String = (parts.head.toLowerCase +: parts.tail.map(_.toLowerCase.capitalize)).mkString("")
+    override def camel: String =
+      (parts.head.toLowerCase +: parts.tail.map(_.toLowerCase.capitalize))
+        .mkString("")
     override def ucamel: String = camel.capitalize
   }
 

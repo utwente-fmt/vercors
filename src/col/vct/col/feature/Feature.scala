@@ -33,9 +33,12 @@ case object Classes extends Feature // ClassToRef
 case object Pointers extends Feature // ~ImportADT?
 case object Arrays extends Feature // ~ImportADT?
 case object AmbiguousOperators extends Feature // Disambiguate
-case object SugarPermissionOperator extends Feature // DesugarPermissionOperators
-case object SugarCollectionOperator extends Feature // DesugarCollectionOperators
-case object ExpressionWithSideEffects extends Feature // ResolveExpressionSideEffects
+case object SugarPermissionOperator
+    extends Feature // DesugarPermissionOperators
+case object SugarCollectionOperator
+    extends Feature // DesugarCollectionOperators
+case object ExpressionWithSideEffects
+    extends Feature // ResolveExpressionSideEffects
 case object UnscopedDeclaration extends Feature // CollectLocalDeclarations
 case object LoopIterationContract extends Feature // IterationContractToParBlock
 case object ParallelRegion extends Feature // ParBlockEncoder
@@ -45,7 +48,8 @@ case object NonWhileLoop extends Feature // ForLoopToWhileLoop
 case object IntrinsicLocks extends Feature // EncodeIntrinsicLock
 case object WaitNotify extends Feature // EncodeIntrinsicLock
 case object Evaluation extends Feature // EvaluationTargetDummy
-case object ExceptionalLoopControl extends Feature // ContinueToBreak + EncodeBreakReturn
+case object ExceptionalLoopControl
+    extends Feature // ContinueToBreak + EncodeBreakReturn
 case object NonTrivialLabel extends Feature // EncodeBreakReturn
 case object SwitchStatement extends Feature // SwitchToGoto
 case object Exceptions extends Feature // EncodeTryThrowSignals

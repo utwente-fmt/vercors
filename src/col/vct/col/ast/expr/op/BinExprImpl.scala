@@ -1,7 +1,19 @@
 package vct.col.ast.expr.op
 
 import vct.col.ast.`type`.typeclass.TFloats.getFloatMax
-import vct.col.ast.{BinExpr, Expr, IntType, TBool, TCInt, TInt, TProcess, TRational, TString, TVector, Type}
+import vct.col.ast.{
+  BinExpr,
+  Expr,
+  IntType,
+  TBool,
+  TCInt,
+  TInt,
+  TProcess,
+  TRational,
+  TString,
+  TVector,
+  Type,
+}
 import vct.col.origin.Origin
 import vct.col.typerules.{CoercionUtils, Types}
 import vct.result.VerificationError
@@ -19,53 +31,79 @@ object BinOperatorTypes {
     CoercionUtils.getCoercion(lt, TRational()).isDefined &&
       CoercionUtils.getCoercion(rt, TRational()).isDefined
 
-  def isBoolOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getCoercion(lt, TBool()).isDefined &&
-    CoercionUtils.getCoercion(rt, TBool()).isDefined
+  def isBoolOp[G](lt: Type[G], rt: Type[G]): Boolean =
+    CoercionUtils.getCoercion(lt, TBool()).isDefined &&
+      CoercionUtils.getCoercion(rt, TBool()).isDefined
 
-  def isStringOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getCoercion(lt, TString()).isDefined
+  def isStringOp[G](lt: Type[G], rt: Type[G]): Boolean =
+    CoercionUtils.getCoercion(lt, TString()).isDefined
 
-  def isBagOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getAnyBagCoercion(lt).isDefined
-  def isMapOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getAnyMapCoercion(lt).isDefined
-  def isPointerOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getAnyPointerCoercion(lt).isDefined
-  def isProcessOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getCoercion(lt, TProcess()).isDefined
-  def isSeqOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getAnySeqCoercion(lt).isDefined
-  def isSetOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getAnySetCoercion(lt).isDefined
-  def isVectorOp[G](lt: Type[G], rt: Type[G]): Boolean = CoercionUtils.getAnyVectorCoercion(lt).isDefined
+  def isBagOp[G](lt: Type[G], rt: Type[G]): Boolean =
+    CoercionUtils.getAnyBagCoercion(lt).isDefined
+  def isMapOp[G](lt: Type[G], rt: Type[G]): Boolean =
+    CoercionUtils.getAnyMapCoercion(lt).isDefined
+  def isPointerOp[G](lt: Type[G], rt: Type[G]): Boolean =
+    CoercionUtils.getAnyPointerCoercion(lt).isDefined
+  def isProcessOp[G](lt: Type[G], rt: Type[G]): Boolean =
+    CoercionUtils.getCoercion(lt, TProcess()).isDefined
+  def isSeqOp[G](lt: Type[G], rt: Type[G]): Boolean =
+    CoercionUtils.getAnySeqCoercion(lt).isDefined
+  def isSetOp[G](lt: Type[G], rt: Type[G]): Boolean =
+    CoercionUtils.getAnySetCoercion(lt).isDefined
+  def isVectorOp[G](lt: Type[G], rt: Type[G]): Boolean =
+    CoercionUtils.getAnyVectorCoercion(lt).isDefined
 
   def isVectorIntOp[G](lt: Type[G], rt: Type[G]): Boolean = {
-    (for{
+    (for {
       (_, TVector(sizeL, eL)) <- CoercionUtils.getAnyVectorCoercion(lt)
       (_, TVector(sizeR, eR)) <- CoercionUtils.getAnyVectorCoercion(rt)
-    } yield if(sizeL!=sizeR) ??? else isIntOp(eL, eR))
-    .getOrElse(false)
+    } yield
+      if (sizeL != sizeR)
+        ???
+      else
+        isIntOp(eL, eR)).getOrElse(false)
   }
 
   def getVectorType[G](lt: Type[G], rt: Type[G], o: Origin): TVector[G] = {
-    (for{
+    (for {
       (_, TVector(sizeL, eL)) <- CoercionUtils.getAnyVectorCoercion(lt)
       (_, TVector(sizeR, eR)) <- CoercionUtils.getAnyVectorCoercion(rt)
-    } yield if(sizeL!=sizeR) ??? else TVector[G](sizeL, getNumericType(eL, eR, o)))
-      .get
+    } yield
+      if (sizeL != sizeR)
+        ???
+      else
+        TVector[G](sizeL, getNumericType(eL, eR, o))).get
   }
 
-  def getIntType[G](lt: Type[G], rt: Type[G]): IntType[G] = if(isCIntOp(lt, rt)) TCInt() else TInt()
+  def getIntType[G](lt: Type[G], rt: Type[G]): IntType[G] =
+    if (isCIntOp(lt, rt))
+      TCInt()
+    else
+      TInt()
 
-  case class NumericBinError(lt: Type[_], rt: Type[_], o: Origin) extends VerificationError.UserError {
-    override def text: String = o.messageInContext(f"Expected types to numeric, but got: ${lt} and ${rt}")
+  case class NumericBinError(lt: Type[_], rt: Type[_], o: Origin)
+      extends VerificationError.UserError {
+    override def text: String =
+      o.messageInContext(f"Expected types to numeric, but got: ${lt} and ${rt}")
     override def code: String = "numericBinError"
   }
 
   def getNumericType[G](lt: Type[G], rt: Type[G], o: Origin): Type[G] = {
-    if (isCIntOp(lt, rt)) TCInt[G]() else
-      if(isIntOp(lt, rt)) TInt[G]() else
-        getFloatMax[G](lt, rt) getOrElse (
-          if(isRationalOp(lt, rt)) TRational[G]()
-          else throw NumericBinError(lt, rt, o)
-          )
+    if (isCIntOp(lt, rt))
+      TCInt[G]()
+    else if (isIntOp(lt, rt))
+      TInt[G]()
+    else
+      getFloatMax[G](lt, rt) getOrElse
+        (if (isRationalOp(lt, rt))
+           TRational[G]()
+         else
+           throw NumericBinError(lt, rt, o))
   }
 }
 
-trait BinExprImpl[G] { this: BinExpr[G] =>
+trait BinExprImpl[G] {
+  this: BinExpr[G] =>
   def left: Expr[G]
   def right: Expr[G]
 
@@ -90,7 +128,9 @@ trait BinExprImpl[G] { this: BinExpr[G] =>
 
   lazy val getIntType: IntType[G] = BinOperatorTypes.getIntType(left.t, right.t)
 
-  lazy val getNumericType: Type[G] = BinOperatorTypes.getNumericType(left.t, right.t, o)
+  lazy val getNumericType: Type[G] = BinOperatorTypes
+    .getNumericType(left.t, right.t, o)
 
-  lazy val getVectorType: TVector[G] = BinOperatorTypes.getVectorType(left.t, right.t, o)
+  lazy val getVectorType: TVector[G] = BinOperatorTypes
+    .getVectorType(left.t, right.t, o)
 }

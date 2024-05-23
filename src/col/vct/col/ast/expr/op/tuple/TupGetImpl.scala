@@ -7,19 +7,28 @@ import vct.col.check.{CheckContext, CheckError}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.ast.ops.TupGetOps
 
-trait TupGetImpl[G] extends ExprImpl[G] with TupGetOps[G] { this: TupGet[G] =>
+trait TupGetImpl[G] extends ExprImpl[G] with TupGetOps[G] {
+  this: TupGet[G] =>
   def tupleType: TTuple[G] = tup.t.asTuple.get
   override def t: Type[G] = tupleType.elements(index)
   override def check(context: CheckContext[G]): Seq[CheckError] =
     super.check(context) match {
-      case Nil => if(0 <= index && index < tupleType.elements.size) Nil else Seq(col.check.TypeErrorExplanation(this, "Tuple getter exceeds tuple size"))
+      case Nil =>
+        if (0 <= index && index < tupleType.elements.size)
+          Nil
+        else
+          Seq(
+            col.check
+              .TypeErrorExplanation(this, "Tuple getter exceeds tuple size")
+          )
       case some => some
     }
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc = index match {
-    case 0 => assoc(tup) <> ".fst"
-    case 1 => assoc(tup) <> ".snd"
-    case other => assoc(tup) <> "." <> other.toString
-  }
+  override def layout(implicit ctx: Ctx): Doc =
+    index match {
+      case 0 => assoc(tup) <> ".fst"
+      case 1 => assoc(tup) <> ".snd"
+      case other => assoc(tup) <> "." <> other.toString
+    }
 }

@@ -4,7 +4,9 @@ import vct.col.ast.CPPDeclaration
 import vct.col.print._
 import vct.col.ast.ops.{CPPDeclarationOps, CPPDeclarationFamilyOps}
 
-trait CPPDeclarationImpl[G] extends CPPDeclarationOps[G] with CPPDeclarationFamilyOps[G] { this: CPPDeclaration[G] =>
+trait CPPDeclarationImpl[G]
+    extends CPPDeclarationOps[G] with CPPDeclarationFamilyOps[G] {
+  this: CPPDeclaration[G] =>
   // PB: Please keep in sync with ApplicableContractImpl
   def layoutContract(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
@@ -18,10 +20,5 @@ trait CPPDeclarationImpl[G] extends CPPDeclarationOps[G] with CPPDeclarationFami
     ))
 
   override def layout(implicit ctx: Ctx): Doc =
-    Doc.stack(Seq(
-      layoutContract,
-      Group(
-        Doc.spread(specs) <>> Doc.args(inits)
-      ),
-    ))
+    Doc.stack(Seq(layoutContract, Group(Doc.spread(specs) <>> Doc.args(inits))))
 }

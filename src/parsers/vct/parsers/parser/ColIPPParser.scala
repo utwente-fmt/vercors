@@ -9,22 +9,40 @@ import vct.parsers.err.ParseMatchError
 import vct.parsers.transform.{BlameProvider, CPPToCol}
 import vct.parsers.{AntlrParser, ParseResult, Parser}
 
-case class ColIPPParser(debugOptions: DebugOptions, blameProvider: BlameProvider, cppOrigin: Option[Origin]) extends AntlrParser {
+case class ColIPPParser(
+    debugOptions: DebugOptions,
+    blameProvider: BlameProvider,
+    cppOrigin: Option[Origin],
+) extends AntlrParser {
   override type Parser = CPPParser
   override type Lexer = LangCPPLexer
   override type MainContext = CPPParser.TranslationUnitContext
   override type Converter[_] = CPPToCol[_]
 
-  override def newLexer(charStream: CharStream): Lexer = new LangCPPLexer(charStream)
+  override def newLexer(charStream: CharStream): Lexer =
+    new LangCPPLexer(charStream)
   override def expectedErrorChannel: Int = LangCPPLexer.EXPECTED_ERROR_CHANNEL
   override def expectedErrorStart: Int = LangCPPLexer.VAL_EXPECT_ERROR_OPEN
   override def expectedErrorEnd: Int = LangCPPLexer.VAL_EXPECT_ERROR_CLOSE
 
-  override def newParser(tokenStream: TokenStream): Parser = new CPPParser(tokenStream)
+  override def newParser(tokenStream: TokenStream): Parser =
+    new CPPParser(tokenStream)
   override def parseMain(parser: Parser): MainContext = parser.translationUnit()
 
-  override def newConverter[G](baseOrigin: Origin, expectedErrors: Seq[(Token, Token, ExpectedError)], tokenStream: TokenStream): Converter[G] =
-    CPPToCol[G](baseOrigin, blameProvider, expectedErrors, cppOrigin.map(o => (tokenStream, o)))
+  override def newConverter[G](
+      baseOrigin: Origin,
+      expectedErrors: Seq[(Token, Token, ExpectedError)],
+      tokenStream: TokenStream,
+  ): Converter[G] =
+    CPPToCol[G](
+      baseOrigin,
+      blameProvider,
+      expectedErrors,
+      cppOrigin.map(o => (tokenStream, o)),
+    )
 
-  override def mainToResult[G](converter: Converter[G], main: MainContext): Seq[GlobalDeclaration[_]] = converter.convert(main)
+  override def mainToResult[G](
+      converter: Converter[G],
+      main: MainContext,
+  ): Seq[GlobalDeclaration[_]] = converter.convert(main)
 }

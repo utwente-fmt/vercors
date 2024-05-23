@@ -10,12 +10,13 @@ import java.nio.file.{Files, Paths}
 import java.util.regex.Pattern
 
 object Notifier {
-  def notify(title: String, message: String): Boolean = Platform.getCurrent match {
-    case Platform.Windows => notifyWindows10(title, message)
-    case Platform.Mac => notifyMacOS(title, message)
-    case Platform.Unix => notifyLibnotify(title, message)
-    case _ => false
-  }
+  def notify(title: String, message: String): Boolean =
+    Platform.getCurrent match {
+      case Platform.Windows => notifyWindows10(title, message)
+      case Platform.Mac => notifyMacOS(title, message)
+      case Platform.Unix => notifyLibnotify(title, message)
+      case _ => false
+    }
 
   def notifyLibnotify(title: String, message: String): Boolean = {
     if (commandExists("notify-send")) {
@@ -24,21 +25,21 @@ object Notifier {
         case 0 => true
         case _ => false
       }
-    } else {
-      false
-    }
+    } else { false }
   }
 
   def notifyMacOS(title: String, message: String): Boolean = {
     if (commandExists("osascript")) {
-      val cmd = Seq("osascript", "-e", s"""display notification "$message" with title "$title"""")
+      val cmd = Seq(
+        "osascript",
+        "-e",
+        s"""display notification "$message" with title "$title"""",
+      )
       cmd ! ProcessLogger(_ => (), _ => ()) match {
         case 0 => true
         case _ => false
       }
-    } else {
-      false
-    }
+    } else { false }
   }
 
   val powershellNotificationScript: String =
@@ -73,9 +74,7 @@ object Notifier {
   def notifyWindows10(title: String, message: String): Boolean = {
     // Only allow safe characters
     val ok = (x: String) => Pattern.matches("[a-zA-Z ]*", x)
-    if (!ok(title) || !ok(message)) {
-      return false
-    }
+    if (!ok(title) || !ok(message)) { return false }
 
     // Script comes from: https://gist.github.com/Windos/9aa6a684ac583e0d38a8fa68196bc2dc
     val script = powershellNotificationScript.format(title, message)
@@ -86,8 +85,7 @@ object Notifier {
   }
 
   def commandExists(cmd: String): Boolean = {
-    System.getenv().asScala.getOrElse("PATH", "")
-      .split(PATH_SEPARATOR)
+    System.getenv().asScala.getOrElse("PATH", "").split(PATH_SEPARATOR)
       .exists(path => {
         val p = Paths.get(path).resolve(cmd)
         Files.exists(p) && !Files.isDirectory(p) && Files.isExecutable(p)

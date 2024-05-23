@@ -15,15 +15,25 @@ object CTVector {
   }
 }
 
-trait CTVectorImpl[G] extends CTVectorOps[G] { this: CTVector[G] =>
+trait CTVectorImpl[G] extends CTVectorOps[G] {
+  this: CTVector[G] =>
   override def layout(implicit ctx: Ctx): Doc =
     Text("vector") <> "<" <> innerType <> "," <> size <> ">"
 
-  lazy val intSize = size match {
-    case AmbiguousMult(SizeOf(ts), e) if ts == innerType && isConstantInt(e).isDefined => isConstantInt(e).get
-    case AmbiguousMult(e, SizeOf(ts)) if ts == innerType && isConstantInt(e).isDefined => isConstantInt(e).get
-    case Mult(e, SizeOf(ts)) if ts == innerType && isConstantInt(e).isDefined => isConstantInt(e).get
-    case Mult(SizeOf(ts), e) if ts == innerType && isConstantInt(e).isDefined => isConstantInt(e).get
-    case _ => throw CTVector.WrongVectorType(this)
-  }
+  lazy val intSize =
+    size match {
+      case AmbiguousMult(SizeOf(ts), e)
+          if ts == innerType && isConstantInt(e).isDefined =>
+        isConstantInt(e).get
+      case AmbiguousMult(e, SizeOf(ts))
+          if ts == innerType && isConstantInt(e).isDefined =>
+        isConstantInt(e).get
+      case Mult(e, SizeOf(ts))
+          if ts == innerType && isConstantInt(e).isDefined =>
+        isConstantInt(e).get
+      case Mult(SizeOf(ts), e)
+          if ts == innerType && isConstantInt(e).isDefined =>
+        isConstantInt(e).get
+      case _ => throw CTVector.WrongVectorType(this)
+    }
 }

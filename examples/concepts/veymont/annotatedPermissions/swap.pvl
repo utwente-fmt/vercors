@@ -11,6 +11,7 @@ choreography swap(int x, int y) {
   run {
     a.v := x;
     b.v := y;
+    channel_invariant \sender != \receiver && \msg == \msg;
     communicate a.v -> b.temp;
     communicate b.v -> a.temp;
     a.v := a.temp;

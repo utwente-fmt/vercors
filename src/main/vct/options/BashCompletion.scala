@@ -14,7 +14,8 @@ case object BashCompletion {
   private val abbrSymbol = tOptDef.info.decl(TermName("_shortOpt")).asTerm
 
   def abbr[A, C](opt: OptionDef[A, C]): Option[String] =
-    mirror.reflect(opt).reflectField(abbrSymbol).get.asInstanceOf[Option[String]]
+    mirror.reflect(opt).reflectField(abbrSymbol).get
+      .asInstanceOf[Option[String]]
 
   def main(args: Array[String]): Unit = {
     val (parser, tags) = Options.constructParser(hide = true)
@@ -26,7 +27,7 @@ case object BashCompletion {
     var languageOpts = Seq.empty[String]
     var unknownOpts = Seq.empty[String]
 
-    for(option <- parser.toList if option.name.nonEmpty) {
+    for (option <- parser.toList if option.name.nonEmpty) {
       val opts = Seq("--" + option.name) ++ abbr(option).map("-" + _).toSeq
 
       // We only add types that have exactly one argument, and we can for sure know all the suggestions we should make.
@@ -48,7 +49,8 @@ case object BashCompletion {
       }
     }
 
-    println("""
+    println(
+      """
       |__vercors()
       |{
       |local cur prev pathOpts pathOrStdOpts stringOpts backendOpts languageOpts unknownOpts
@@ -89,7 +91,8 @@ case object BashCompletion {
         unknownOpts.mkString("|"),
         Backend.options.keys.mkString(" "),
         ReadLanguage.options.keys.mkString(" "),
-        (pathOpts ++ pathOrStdOpts ++ stringOpts ++ backendOpts ++ languageOpts ++ unknownOpts).mkString(" "),
+        (pathOpts ++ pathOrStdOpts ++ stringOpts ++ backendOpts ++
+          languageOpts ++ unknownOpts).mkString(" "),
       ).strip()
     )
   }

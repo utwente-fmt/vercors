@@ -4,20 +4,22 @@ import hre.util.ScopedStack
 import vct.result.VerificationError
 import vct.result.VerificationError.SystemError
 
-/**
- * Thread-local counter that can associate errors with counted causes.
- */
+/** Thread-local counter that can associate errors with counted causes.
+  */
 object TimeTravel {
-  case class RepeatUntilCause(causeIndex: Long, exception: VerificationError) extends SystemError {
+  case class RepeatUntilCause(causeIndex: Long, exception: VerificationError)
+      extends SystemError {
     override def text: String = exception.text
   }
 
   case class CauseWithBadEffect(effect: VerificationError) extends SystemError {
-    override def text: String = s"This trace causes an error later on: \n${effect.getMessage}"
+    override def text: String =
+      s"This trace causes an error later on: \n${effect.getMessage}"
   }
 
   private val causeIndex: ThreadLocal[Long] = ThreadLocal.withInitial(() => 0L)
-  private val repeatingUntil: ScopedStack[(Long, VerificationError)] = ScopedStack()
+  private val repeatingUntil: ScopedStack[(Long, VerificationError)] =
+    ScopedStack()
 
   private def nextIndex(): Long = {
     val index = causeIndex.get()
@@ -27,15 +29,13 @@ object TimeTravel {
 
   def safelyRepeatable[T](f: => T): T = {
     val start = causeIndex.get()
-    try {
-      f
-    } catch {
+    try { f }
+    catch {
       case r @ RepeatUntilCause(idx, t) if idx >= start =>
         t.contexts ++= r.contexts
         causeIndex.set(start)
-        try {
-          repeatingUntil.having((idx, t)) { f }
-        } catch {
+        try { repeatingUntil.having((idx, t)) { f } }
+        catch {
           case c @ CauseWithBadEffect(effect) =>
             effect.contexts ++= c.contexts
             throw c
@@ -45,17 +45,12 @@ object TimeTravel {
 
   def cause[T](f: Long => T): T = {
     val idx = nextIndex()
-    if(repeatingUntil.topOption.exists(_._1 == idx)) {
+    if (repeatingUntil.topOption.exists(_._1 == idx)) {
       throw CauseWithBadEffect(repeatingUntil.top._2)
-    } else {
-      f(idx)
-    }
+    } else { f(idx) }
   }
 
   def badEffect[T](idx: Long, f: => Nothing): Nothing =
-    try {
-      f
-    } catch {
-      case t: VerificationError => throw RepeatUntilCause(idx, t)
-    }
+    try { f }
+    catch { case t: VerificationError => throw RepeatUntilCause(idx, t) }
 }

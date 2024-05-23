@@ -1,10 +1,19 @@
 package vct.col.ast.declaration.category
 
-import vct.col.ast.{AbstractMethod, Declaration, LabelDecl, LocalDecl, Return, Statement, Variable}
+import vct.col.ast.{
+  AbstractMethod,
+  Declaration,
+  LabelDecl,
+  LocalDecl,
+  Return,
+  Statement,
+  Variable,
+}
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.origin.{Blame, CallableFailure}
 
-trait AbstractMethodImpl[G] extends ContractApplicableImpl[G] { this: AbstractMethod[G] =>
+trait AbstractMethodImpl[G] extends ContractApplicableImpl[G] {
+  this: AbstractMethod[G] =>
   override def body: Option[Statement[G]]
   override def blame: Blame[CallableFailure]
   def outArgs: Seq[Variable[G]]

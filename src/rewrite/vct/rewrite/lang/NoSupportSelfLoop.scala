@@ -6,13 +6,21 @@ import RewriteHelpers._
 
 case object NoSupportSelfLoop extends RewriterBuilder {
   override def key: String = "removeSupportSelfLoop"
-  override def desc: String = "Remove the self-loop in java.lang.Object extends java.lang.Object."
+  override def desc: String =
+    "Remove the self-loop in java.lang.Object extends java.lang.Object."
 }
 
 case class NoSupportSelfLoop[Pre <: Generation]() extends Rewriter[Pre] {
-  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case cls: Class[Pre] =>
-      globalDeclarations.succeed(cls, cls.rewrite(supports = cls.supports.filter(_.asClass.get.cls.decl != cls).map(_.rewriteDefault())))
-    case other => rewriteDefault(other)
-  }
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    decl match {
+      case cls: Class[Pre] =>
+        globalDeclarations.succeed(
+          cls,
+          cls.rewrite(supports =
+            cls.supports.filter(_.asClass.get.cls.decl != cls)
+              .map(_.rewriteDefault())
+          ),
+        )
+      case other => rewriteDefault(other)
+    }
 }

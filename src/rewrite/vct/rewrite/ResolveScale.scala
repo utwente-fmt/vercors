@@ -1,8 +1,22 @@
 package vct.col.rewrite
 
 import vct.col.ast._
-import vct.col.rewrite.ResolveScale.{CheckScale, ScaleNegativePreconditionFailed, WrongScale}
-import vct.col.origin.{Blame, DiagnosticOrigin, LabelContext, NoContext, Origin, PanicBlame, PreconditionFailed, PreferredName, ScaleNegative}
+import vct.col.rewrite.ResolveScale.{
+  CheckScale,
+  ScaleNegativePreconditionFailed,
+  WrongScale,
+}
+import vct.col.origin.{
+  Blame,
+  DiagnosticOrigin,
+  LabelContext,
+  NoContext,
+  Origin,
+  PanicBlame,
+  PreconditionFailed,
+  PreferredName,
+  ScaleNegative,
+}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
@@ -10,7 +24,8 @@ import vct.result.VerificationError.UserError
 
 case object ResolveScale extends RewriterBuilder {
   override def key: String = "scale"
-  override def desc: String = "Inline the scale operator into resource expressions."
+  override def desc: String =
+    "Inline the scale operator into resource expressions."
 
   case class WrongScale(scale: Expr[_]) extends UserError {
     override def code: String = "wrongScale"
@@ -18,14 +33,11 @@ case object ResolveScale extends RewriterBuilder {
       scale.o.messageInContext("This kind of expression cannot be scaled.")
   }
 
-  private def CheckScale(preferredName: String = "unknown"): Origin = Origin(
-    Seq(
-      PreferredName(Seq(preferredName)),
-      LabelContext("scale check"),
-    )
-  )
+  private def CheckScale(preferredName: String = "unknown"): Origin =
+    Origin(Seq(PreferredName(Seq(preferredName)), LabelContext("scale check")))
 
-  case class ScaleNegativePreconditionFailed(scale: Scale[_]) extends Blame[PreconditionFailed] {
+  case class ScaleNegativePreconditionFailed(scale: Scale[_])
+      extends Blame[PreconditionFailed] {
     override def blame(error: PreconditionFailed): Unit =
       scale.blame.blame(ScaleNegative(scale))
   }
@@ -39,19 +51,25 @@ case class ResolveScale[Pre <: Generation]() extends Rewriter[Pre] {
 
     globalDeclarations.declare(withResult((result: Result[Post]) => {
       function[Post](
-      blame = PanicBlame("scale ensures nothing"),
-      contractBlame = PanicBlame("scale only requires a positive rational"),
-      args = Seq(v),
-      returnType = TRational(),
-      body = Some(v.get),
-      requires = UnitAccountedPredicate(v.get >= const(0)),
-      ensures = UnitAccountedPredicate(result >= const(0)),
-    )(CheckScale("scale"))}))
+        blame = PanicBlame("scale ensures nothing"),
+        contractBlame = PanicBlame("scale only requires a positive rational"),
+        args = Seq(v),
+        returnType = TRational(),
+        body = Some(v.get),
+        requires = UnitAccountedPredicate(v.get >= const(0)),
+        ensures = UnitAccountedPredicate(result >= const(0)),
+      )(CheckScale("scale"))
+    }))
   }
 
   def scaleValue(e: Scale[Pre]): Expr[Post] =
-    FunctionInvocation(checkScaleFunc.ref[Function[Post]], Seq(dispatch(e.scale)), Nil, Nil, Nil)(
-      NoContext(ScaleNegativePreconditionFailed(e)))(e.scale.o)
+    FunctionInvocation(
+      checkScaleFunc.ref[Function[Post]],
+      Seq(dispatch(e.scale)),
+      Nil,
+      Nil,
+      Nil,
+    )(NoContext(ScaleNegativePreconditionFailed(e)))(e.scale.o)
 
   def scale(res: Expr[Pre], amount: Expr[Post]): Expr[Post] = {
     implicit val o: Origin = res.o
@@ -60,20 +78,26 @@ case class ResolveScale[Pre <: Generation]() extends Rewriter[Pre] {
 
       case e if TBool().superTypeOf(e.t) => dispatch(e)
       case Perm(loc, p) => Perm(dispatch(loc), amount * dispatch(p))
-      case Value(loc) =>
-        (amount > NoPerm()) ==> Value(dispatch(loc))
-      case AutoValue(loc) =>
-        (amount > NoPerm()) ==> AutoValue(dispatch(loc))
-      case apply: PredicateApply[Pre] => apply.rewrite(perm = amount * dispatch(apply.perm))
-      case apply: InstancePredicateApply[Pre] => apply.rewrite(perm = amount * dispatch(apply.perm))
+      case Value(loc) => (amount > NoPerm()) ==> Value(dispatch(loc))
+      case AutoValue(loc) => (amount > NoPerm()) ==> AutoValue(dispatch(loc))
+      case apply: PredicateApply[Pre] =>
+        apply.rewrite(perm = amount * dispatch(apply.perm))
+      case apply: InstancePredicateApply[Pre] =>
+        apply.rewrite(perm = amount * dispatch(apply.perm))
 
       case Star(left, right) => scale(left, amount) &* scale(right, amount)
       case Implies(cond, cons) => Implies(dispatch(cond), scale(cons, amount))
-      case Select(cond, whenTrue, whenFalse) => Select(dispatch(cond), scale(whenTrue, amount), scale(whenFalse, amount))
+      case Select(cond, whenTrue, whenFalse) =>
+        Select(
+          dispatch(cond),
+          scale(whenTrue, amount),
+          scale(whenFalse, amount),
+        )
       case s: Starall[Pre] => s.rewrite(body = scale(s.body, amount))
 
       case l: Let[Pre] => l.rewrite(main = scale(l.main, amount))
-      case InlinePattern(inner, parent, group) => InlinePattern(scale(inner, amount), parent, group)
+      case InlinePattern(inner, parent, group) =>
+        InlinePattern(scale(inner, amount), parent, group)
       case other => throw WrongScale(other)
     }
   }
@@ -81,8 +105,7 @@ case class ResolveScale[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     implicit val o: Origin = e.o
     e match {
-      case s: Scale[Pre] =>
-        scale(s.res, scaleValue(s))
+      case s: Scale[Pre] => scale(s.res, scaleValue(s))
       case other => rewriteDefault(other)
     }
   }
