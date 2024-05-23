@@ -64,12 +64,15 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   def with_condition(cond: Option[Expr[G]]): AbstractState[G] = cond match {
     case None => this
     case Some(expr) =>
-      val c = new ConstraintSolver(this, parameters.keySet, false)
+      val c = new ConstraintSolver(this, valuations.keySet.union(parameters.keySet.asInstanceOf[Set[ConcreteVariable[G]]]), false)
                                   .resolve_assumption(expr)
                                   .filter(m => !m.is_impossible)
                                   .reduce((m1, m2) => m1 || m2)
                                   .resolve
-      AbstractState(valuations, processes, lock, parameters.map(v => v._1 -> (if (c.contains(v._1)) c(v._1) else v._2)))
+      AbstractState(valuations.map(v => v._1 -> (if (c.contains(v._1)) v._2.intersection(c(v._1)) else v._2)),
+                    processes,
+                    lock,
+                    parameters.map(v => v._1 -> (if (c.contains(v._1)) v._2.intersection(c(v._1)) else v._2)))
   }
 
   /**

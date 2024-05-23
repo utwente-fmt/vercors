@@ -115,7 +115,7 @@ case class MultiInterval(intervals: Set[Interval]) extends Interval {
 
   override def size(): IntervalSize = intervals.toSeq.map(i => i.size()).reduce((s1, s2) => s1 + s2)
 
-  override def intersection(other: Interval): Interval = MultiInterval(MultiInterval(intervals.map(i => i.intersection(other))).sub_intervals())
+  override def intersection(other: Interval): Interval = MultiInterval(merge_intersecting(intervals.map(i => i.intersection(other))))
 
   override def union(other: Interval): Interval = {
     val (intersecting, non_intersecting) = intervals.partition(i => i.intersection(other).non_empty())
@@ -183,7 +183,7 @@ case class MultiInterval(intervals: Set[Interval]) extends Interval {
   }
 
   override def to_expression[G](variable: Expr[G]): Expr[G] = {
-    intervals.map(i => i.to_expression(variable)).fold(BooleanValue[G](value = false)(variable.o))((e1, e2) => Or(e1, e2)(variable.o))
+    intervals.map(i => i.to_expression(variable)).reduce((e1, e2) => Or(e1, e2)(variable.o))
   }
 }
 
