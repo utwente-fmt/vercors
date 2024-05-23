@@ -8,10 +8,11 @@ import vct.col.ast.ops.CastOps
 trait CastImpl[G] extends CastOps[G] { this: Cast[G] =>
   override def t: Type[G] = typeValue.t match {
     case TType(t) => t
-    case _ => throw UnreachableAfterTypeCheck("The cast type is not a type", this)
+    case t => t
+//    case _ => throw UnreachableAfterTypeCheck("The cast type is not a type", this)
   }
 
   override def precedence: Int = Precedence.PREFIX
   override def layout(implicit ctx: Ctx): Doc =
-    Text("(") <> typeValue <> ")" <> assoc(value)
+    Text("(") <> typeValue <> ")" <+> assoc(value)
 }

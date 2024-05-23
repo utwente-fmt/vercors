@@ -10,5 +10,5 @@ trait NewArrayImpl[G] extends NewArrayOps[G] { this: NewArray[G] =>
 
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
-    Text("new") <+> element <> dims.map(dim => s"[$dim]").mkString <> "[]".repeat(moreDims)
+    Text("new") <+> element <> Doc.fold(dims.map(dim => Text("[") <> dim <> "]"))(_ <> _) <> "[]".repeat(moreDims)
 }

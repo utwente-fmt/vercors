@@ -60,13 +60,14 @@ object AstBuildHelpers {
     def %(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]): Mod[G] = Mod(left, right)(blame)
 
     def ===(right: Expr[G])(implicit origin: Origin): Eq[G] = Eq(left, right)
+    def ====(right: Expr[G])(implicit origin: Origin) : Equals[G] = Equals(left, right)
     def !==(right: Expr[G])(implicit origin: Origin): Neq[G] = Neq(left, right)
     def <(right: Expr[G])(implicit origin: Origin): Less[G] = Less(left, right)
     def >(right: Expr[G])(implicit origin: Origin): Greater[G] = Greater(left, right)
     def <=(right: Expr[G])(implicit origin: Origin): LessEq[G] = LessEq(left, right)
     def >=(right: Expr[G])(implicit origin: Origin): GreaterEq[G] = GreaterEq(left, right)
 
-    def unary_!(implicit origin: Origin): Not[G] = Not(left)
+    def unary_!(implicit origin: Origin = left.o): Not[G] = Not(left)
     def &&(right: Expr[G])(implicit origin: Origin): And[G] = And(left, right)
     def ||(right: Expr[G])(implicit origin: Origin): Or[G] = Or(left, right)
     def &*(right: Expr[G])(implicit origin: Origin): Star[G] = Star(left, right)
@@ -76,6 +77,12 @@ object AstBuildHelpers {
     def ~>(field: SilverField[G])(implicit blame: Blame[InsufficientPermission], origin: Origin): SilverDeref[G] = SilverDeref[G](left, field.ref)(blame)
 
     def @@(index: Expr[G])(implicit blame: Blame[SeqBoundFailure], origin: Origin): SeqSubscript[G] = SeqSubscript(left, index)(blame)
+
+
+    def r_+(right: Expr[G])(implicit origin: Origin): RuntimeFractionAdd[G] = RuntimeFractionAdd(left, right)
+    def r_-(right: Expr[G])(implicit origin: Origin): RuntimeFractionSubstract[G] = RuntimeFractionSubstract(left, right)
+    def r_*(right: Expr[G])(implicit origin: Origin): RuntimeFractionMultiply[G] = RuntimeFractionMultiply(left, right)
+    def r_<=>(right: Expr[G])(implicit origin: Origin): RuntimeFractionCompare[G] = RuntimeFractionCompare(left, right)
   }
 
   implicit class VarBuildHelpers[G](left: Variable[G]) {
@@ -155,6 +162,8 @@ object AstBuildHelpers {
         method.rewrite(returnType = returnType, operator = rewriter.dispatch(method.operator), args = args, body = body, contract = contract, inline = Some(inline), pure = Some(pure), blame = blame)
       case cons: Constructor[Pre] =>
         cons.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, body = body, contract = contract, inline = Some(inline), blame = blame)
+      case method: CodeStringQuantifierMethod[Pre] =>
+        method.rewrite(quantifierId = method.quantifierId, args = args, body = body)
     }
   }
 
@@ -243,6 +252,8 @@ object AstBuildHelpers {
         inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
       case inv: ConstructorInvocation[Pre] =>
         inv.rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
+      case codeCall:CodeStringQuantifierCall[Pre] =>
+        codeCall.rewrite(args = args)
     }
   }
 
@@ -506,4 +517,6 @@ object AstBuildHelpers {
 
   def foldAnd[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(And(_, _)).getOrElse(tt)
+
+  def EMPTY[G](implicit origin: Origin):Block[G] = Block[G](Nil)
 }

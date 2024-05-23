@@ -26,9 +26,11 @@ import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
 import vct.rewrite.{EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, MonomorphizeClass, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
+import vct.rewrite.runtime._
 import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateSeqProgPermissions, SplitSeqGuards}
 
 object Transformation {
+
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
     override def text: String =
       s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map {
@@ -81,6 +83,13 @@ object Transformation {
           onAfterPassKey = writeOutFunctions(options.outputAfterPass),
         )
     }
+
+  def runtimeTransformationOfOptions(options: Options): Transformation =
+    RuntimeTransformation(
+      onBeforePassKey = writeOutFunctions(options.outputBeforePass),
+      onAfterPassKey = writeOutFunctions(options.outputAfterPass),
+    )
+
 }
 
 /**
@@ -90,9 +99,9 @@ object Transformation {
  * pass chain.
  *
  * @param onBeforePassKey Execute a side effect just before a rewrite pass is executed.
- * @param onAfterPassKey Execute a side effect just after a rewrite pass is executed. The consistency check is done
- *                       before the side effect is performed.
- * @param passes The list of rewrite passes to execute.
+ * @param onAfterPassKey  Execute a side effect just after a rewrite pass is executed. The consistency check is done
+ *                        before the side effect is performed.
+ * @param passes          The list of rewrite passes to execute.
  */
 class Transformation
 (
@@ -101,6 +110,7 @@ class Transformation
   val passes: Seq[RewriterBuilder]
 ) extends Stage[Verification[_ <: Generation], Verification[_ <: Generation]] with LazyLogging {
   override def friendlyName: String = "Transformation"
+
   override def progressWeight: Int = 10
 
   override def run(input: Verification[_ <: Generation]): Verification[_ <: Generation] = {
@@ -160,15 +170,15 @@ class Transformation
 /**
  * Defines the rewrite chain appropriate for the Viper backends: Silicon and Carbon.
  *
- * @param adtImporter Decides how to import the definition of the built-in axiomatically-defined datatypes.
- * @param onBeforePassKey Execute a side effect just before a rewrite pass is executed.
- * @param onAfterPassKey Execute a side effect just after a rewrite pass is executed. The consistency check is done
- *                       before the side effect is performed.
+ * @param adtImporter             Decides how to import the definition of the built-in axiomatically-defined datatypes.
+ * @param onBeforePassKey         Execute a side effect just before a rewrite pass is executed.
+ * @param onAfterPassKey          Execute a side effect just after a rewrite pass is executed. The consistency check is done
+ *                                before the side effect is performed.
  * @param simplifyBeforeRelations The list of passes to execute at the appropriate point for simplification, just before
  *                                quantified integer relations are simplified.
- * @param simplifyAfterRelations The list of passes to execute at the appropriate point for simplification, just after
- *                               quantified integer relations are simplified.
- * @param checkSat Check that non-trivial contracts are satisfiable.
+ * @param simplifyAfterRelations  The list of passes to execute at the appropriate point for simplification, just after
+ *                                quantified integer relations are simplified.
+ * @param checkSat                Check that non-trivial contracts are satisfiable.
  */
 case class SilverTransformation
 (
@@ -183,145 +193,141 @@ case class SilverTransformation
   splitVerificationByProcedure: Boolean = false,
   veymontGeneratePermissions: Boolean = false,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
-    // Replace leftover SYCL types
-    ReplaceSYCLTypes,
-    CFloatIntCoercion,
+  // Replace leftover SYCL types
+  ReplaceSYCLTypes,
+  CFloatIntCoercion,
 
-    ComputeBipGlue,
-    InstantiateBipSynchronizations,
-    EncodeBipPermissions,
-    EncodeBip.withArg(bipResults),
+  ComputeBipGlue,
+  InstantiateBipSynchronizations,
+  EncodeBipPermissions,
+  EncodeBip.withArg(bipResults),
 
-    // Remove the java.lang.Object -> java.lang.Object inheritance loop
-    NoSupportSelfLoop,
+  // Remove the java.lang.Object -> java.lang.Object inheritance loop
+  NoSupportSelfLoop,
 
-    // Delete stuff that may be declared unsupported at a later stage
-    FilterSpecIgnore,
+  // Delete stuff that may be declared unsupported at a later stage
+  FilterSpecIgnore,
 
-    // Normalize AST
-    TruncDivMod,
-    Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
-    DisambiguateLocation, // Resolve location type
-    EncodeRangedFor,
+  // Normalize AST
+  TruncDivMod,
+  Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
+  DisambiguateLocation, // Resolve location type
+  EncodeRangedFor,
 
-    // VeyMont sequential program encoding
-    SplitSeqGuards,
-    EncodeUnpointedGuard,
-    DeduplicateSeqGuards,
-    GenerateSeqProgPermissions.withArg(veymontGeneratePermissions),
-    EncodeSeqBranchUnanimity,
-    EncodeSeqProg,
+  // VeyMont sequential program encoding
+  SplitSeqGuards,
+  EncodeUnpointedGuard,
+  DeduplicateSeqGuards,
+  GenerateSeqProgPermissions.withArg(veymontGeneratePermissions),
+  EncodeSeqBranchUnanimity,
+  EncodeSeqProg,
 
-    EncodeString, // Encode spec string as seq<int>
-    EncodeChar,
+  EncodeString, // Encode spec string as seq<int>
+  EncodeChar,
 
-    CollectLocalDeclarations, // all decls in Scope
-    DesugarPermissionOperators, // no PointsTo, \pointer, etc.
-    ReadToValue, // resolve wildcard into fractional permission
-    TrivialAddrOf,
-    DesugarCoalescingOperators, // no ?.
-    PinCollectionTypes, // no anonymous sequences, sets, etc.
-    QuantifySubscriptAny, // no arr[*]
-    IterationContractToParBlock,
-    PropagateContextEverywhere, // inline context_everywhere into loop invariants
-    EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
-    GivenYieldsToArgs,
+  CollectLocalDeclarations, // all decls in Scope
+  DesugarPermissionOperators, // no PointsTo, \pointer, etc.
+  ReadToValue, // resolve wildcard into fractional permission
+  TrivialAddrOf,
+  DesugarCoalescingOperators, // no ?.
+  PinCollectionTypes, // no anonymous sequences, sets, etc.
+  QuantifySubscriptAny, // no arr[*]
+  IterationContractToParBlock,
+  PropagateContextEverywhere, // inline context_everywhere into loop invariants
+  EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
+  GivenYieldsToArgs,
 
-    CheckProcessAlgebra,
-    EncodeCurrentThread,
-    EncodeIntrinsicLock,
-    EncodeForkJoin,
-    InlineApplicables,
-    PureMethodsToFunctions,
-    RefuteToInvertedAssert,
-    ExplicitResourceValues,
-    EncodeResourceValues,
+  CheckProcessAlgebra,
+  EncodeCurrentThread,
+  EncodeIntrinsicLock,
+  EncodeForkJoin,
+  InlineApplicables,
+  PureMethodsToFunctions,
+  RefuteToInvertedAssert,
+  ExplicitResourceValues,
+  EncodeResourceValues,
 
-    // Encode parallel blocks
-    EncodeSendRecv,
-    ParBlockEncoder,
+  // Encode parallel blocks
+  EncodeSendRecv,
+  ParBlockEncoder,
 
-    // Extract explicitly extracted code sections, which ban continue/break/return/goto outside them.
-    SpecifyImplicitLabels,
-    EncodeExtract,
+  // Extract explicitly extracted code sections, which ban continue/break/return/goto outside them.
+  SpecifyImplicitLabels,
+  EncodeExtract,
 
-    // Encode exceptional behaviour (no more continue/break/return/try/throw)
-    SwitchToGoto,
-    ContinueToBreak,
-    EncodeBreakReturn,
+  // Encode exceptional behaviour (no more continue/break/return/try/throw)
+  SwitchToGoto,
+  ContinueToBreak,
+  EncodeBreakReturn,
 
-    ) ++ simplifyBeforeRelations ++ Seq(
-    SimplifyQuantifiedRelations,
-    SimplifyNestedQuantifiers,
-    TupledQuantifiers,
-    ) ++ simplifyAfterRelations ++ Seq(
-    UntupledQuantifiers,
+) ++ simplifyBeforeRelations ++ Seq(
+  SimplifyQuantifiedRelations,
+  SimplifyNestedQuantifiers,
+  TupledQuantifiers,
+) ++ simplifyAfterRelations ++ Seq(
+  UntupledQuantifiers,
 
-    // Encode proof helpers
-    EncodeProofHelpers.withArg(inferHeapContextIntoFrame),
-    ImportSetCompat.withArg(adtImporter),
+  // Encode proof helpers
+  EncodeProofHelpers.withArg(inferHeapContextIntoFrame),
+  ImportSetCompat.withArg(adtImporter),
 
-    // Make final fields constant functions. Explicitly before ResolveExpressionSideEffects, because that pass will
-    // flatten out functions in the rhs of assignments, making it harder to detect final field assignments where the
-    // value is pure and therefore be put in the contract of the constant function.
-    ConstantifyFinalFields,
+  // Make final fields constant functions. Explicitly before ResolveExpressionSideEffects, because that pass will
+  // flatten out functions in the rhs of assignments, making it harder to detect final field assignments where the
+  // value is pure and therefore be put in the contract of the constant function.
+  ConstantifyFinalFields,
 
-    // Resolve side effects including method invocations, for encodetrythrowsignals.
-    ResolveExpressionSideChecks,
-    ResolveExpressionSideEffects,
-    EncodeTryThrowSignals,
+  // Resolve side effects including method invocations, for encodetrythrowsignals.
+  ResolveExpressionSideChecks,ResolveExpressionSideEffects,
+  EncodeTryThrowSignals,
 
-    ResolveScale,
-    MonomorphizeClass,
-    // No more classes
-    ClassToRef,
-    HeapVariableToRef,
+  ResolveScale,
+  MonomorphizeClass,// No more classes
+  ClassToRef,
+  HeapVariableToRef,
 
-    CheckContractSatisfiability.withArg(checkSat),
+  CheckContractSatisfiability.withArg(checkSat),
 
-    DesugarCollectionOperators,
-    EncodeNdIndex,
+  DesugarCollectionOperators,
+  EncodeNdIndex,
 
-    ExtractInlineQuantifierPatterns,
-    // Translate internal types to domains
-    FloatToRat,
-    SmtlibToProverTypes,
-    EnumToDomain,
-    ImportArray.withArg(adtImporter),
-    ImportPointer.withArg(adtImporter),
-    ImportMapCompat.withArg(adtImporter),
-    ImportEither.withArg(adtImporter),
-    ImportTuple.withArg(adtImporter),
-    ImportOption.withArg(adtImporter),
-    ImportFrac.withArg(adtImporter),
-    ImportNothing.withArg(adtImporter),
-    ImportVoid.withArg(adtImporter),
-    ImportNull.withArg(adtImporter),
-    ImportAny.withArg(adtImporter),
-    ImportViperOrder.withArg(adtImporter),
-    EncodeRange.withArg(adtImporter),
+  ExtractInlineQuantifierPatterns,
+  // Translate internal types to domains
+  FloatToRat,
+  SmtlibToProverTypes,EnumToDomain,
+  ImportArray.withArg(adtImporter),
+  ImportPointer.withArg(adtImporter),
+  ImportMapCompat.withArg(adtImporter),
+  ImportEither.withArg(adtImporter),
+  ImportTuple.withArg(adtImporter),
+  ImportOption.withArg(adtImporter),
+  ImportFrac.withArg(adtImporter),
+  ImportNothing.withArg(adtImporter),
+  ImportVoid.withArg(adtImporter),
+  ImportNull.withArg(adtImporter),
+  ImportAny.withArg(adtImporter),
+  ImportViperOrder.withArg(adtImporter),EncodeRange.withArg(adtImporter),
 
-    // All locations with a value should now be SilverField
-    EncodeForPermWithValue,
+  // All locations with a value should now be SilverField
+  EncodeForPermWithValue,
 
-    ExtractInlineQuantifierPatterns,
-    RewriteTriggerADTFunctions,
-    MonomorphizeContractApplicables,
+  ExtractInlineQuantifierPatterns,
+  RewriteTriggerADTFunctions,
+  MonomorphizeContractApplicables,
 
-    // Silver compat (basically no new nodes)
-    FinalizeArguments,
-    ExplicitADTTypeArgs,
-    ForLoopToWhileLoop,
-    BranchToIfElse,
-    EvaluationTargetDummy,
+  // Silver compat (basically no new nodes)
+  FinalizeArguments,
+  ExplicitADTTypeArgs,
+  ForLoopToWhileLoop,
+  BranchToIfElse,
+  EvaluationTargetDummy,
 
-    // Final translation to rigid silver nodes
-    SilverIntRatCoercion,
-    // PB TODO: PinSilverNodes has now become a collection of Silver oddities, it should be more structured / split out.
-    PinSilverNodes,
+  // Final translation to rigid silver nodes
+  SilverIntRatCoercion,
+  // PB TODO: PinSilverNodes has now become a collection of Silver oddities, it should be more structured / split out.
+  PinSilverNodes,
 
-    Explode.withArg(splitVerificationByProcedure),
-  ))
+  Explode.withArg(splitVerificationByProcedure),
+))
 
 case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
                                  override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
@@ -332,4 +338,20 @@ case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Veri
   ))
 
 
-
+case class RuntimeTransformation(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
+                                 override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
+  extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    CreateLedger,
+    RemoveSelfLoops,
+    RefactorGeneratedCode,
+//    CreateFieldPermissions,
+    AddPermissionsOnCreate,
+//    CreatePredicates,               //Create predicate templates for all specified predicates -> since you only need to check the predicate condition if the predicate is folded In the pre and post conditions then we need to do the check if the thread holds a predicate
+    CheckPermissionsBlocksMethod, //Basic permission check
+    CreatePrePostConditions,      //Basic permission check for pre and post conditions by making use of the RewriteContractExpr
+    CreatePredicateFoldUnfold,
+    CreateLocking,                //Create predicate instance for the Lock and use the constructor and synchronize keyword to check it
+    CreateLoopInvariants,         //Create pre and post inside loop for all the specified conditions (maybe we can reuse code from the previous assertion checks) by making use of the RewriteContractExpr
+    ForkJoinPermissionTransfer,   //Creates the permission transfer when a fork method occurs (when a start method is called)
+//    GenerateJava                  //Generates valid java code so that it can be executed properly
+  ))

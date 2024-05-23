@@ -7,5 +7,5 @@ import vct.col.ast.ops.{JavaImportOps, JavaImportFamilyOps}
 trait JavaImportImpl[G] extends JavaImportOps[G] with JavaImportFamilyOps[G] { this: JavaImport[G] =>
   override def layout(implicit ctx: Ctx): Doc =
     Text(if(isStatic) "import static" else "import") <+>
-      name <> (if(star) Text(".*") else Empty)
+      name <> (if(star) Text(".*") else Empty) <> ";"
 }

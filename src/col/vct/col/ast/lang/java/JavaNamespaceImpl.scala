@@ -14,7 +14,7 @@ trait JavaNamespaceImpl[G] extends JavaNamespaceOps[G] { this: JavaNamespace[G] 
 
   override def layout(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
-      if(pkg.isEmpty) Empty else Text("package") <+> pkg.get,
+      if(pkg.isEmpty) Empty else Text("package") <+> pkg.get <> ";",
       Doc.stack(imports),
       Doc.stack(declarations),
     ))

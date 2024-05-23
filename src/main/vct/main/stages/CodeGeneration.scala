@@ -9,6 +9,7 @@ import vct.importer.Util
 import vct.main.stages.Transformation.writeOutFunctions
 import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
+import vct.rewrite.runtime.GenerateJava
 import vct.rewrite.veymont.ParalleliseEndpoints
 
 object CodeGeneration {
@@ -29,6 +30,12 @@ object CodeGeneration {
           channelClass = Util.loadJavaClass(options.veymontChannel, options.getParserDebugOptions),
         )
     }
+
+  def runtimeGenerationOfOptions(options: Options): RuntimeGeneration =
+    RuntimeGeneration(
+      onBeforePassKey = writeOutFunctions(options.outputBeforePass),
+      onAfterPassKey = writeOutFunctions(options.outputAfterPass)
+    )
 }
 
 class CodeGeneration(val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
@@ -64,4 +71,10 @@ case class VeyMontGeneration(override val onBeforePassKey: Seq[(String, Verifica
                              channelClass: JavaClass[_])
   extends CodeGeneration(onBeforePassKey, onAfterPassKey, Seq(
     ParalleliseEndpoints.withArg(channelClass),
+  ))
+
+case class RuntimeGeneration(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
+                             override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
+  extends CodeGeneration(onBeforePassKey, onAfterPassKey, Seq(
+    GenerateJava
   ))

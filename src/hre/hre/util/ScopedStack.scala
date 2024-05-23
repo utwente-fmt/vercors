@@ -1,7 +1,7 @@
 package hre.util
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, HashMap}
 
 case object ScopedStack {
   implicit class ScopedArrayBufferStack[T](stack: ScopedStack[ArrayBuffer[T]]) {
@@ -9,6 +9,22 @@ case object ScopedStack {
       val buf = ArrayBuffer[T]()
       val res = stack.having(buf)(f)
       (buf.toSeq, res)
+    }
+  }
+
+  implicit class ScopedSetStack[T](stack: ScopedStack[mutable.Set[T]]) {
+    def collect[R](f: => R): (mutable.Set[T], R) = {
+      val buf = mutable.Set[T]()
+      val res = stack.having(buf)(f)
+      (buf, res)
+    }
+  }
+
+  implicit class ScopedHashMapStack[K, V](stack: ScopedStack[HashMap[K,V]]){
+    def collect[R](f: => R): (HashMap[K,V], R) = {
+      val map = HashMap[K,V]()
+      val res = stack.having(map)(f)
+      (map, res)
     }
   }
 }

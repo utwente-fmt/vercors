@@ -8,8 +8,8 @@ import hre.progress.{Layout, Progress}
 import org.slf4j.LoggerFactory
 import scopt.OParser
 import vct.col.ast.Node
+import vct.main.modes.{RuntimeVerification, CFG, VeSUV, Verify, VeyMont}
 import vct.debug.CrashReport
-import vct.main.modes.{CFG, VeSUV, Verify, VeyMont}
 import vct.main.stages.Transformation
 import vct.options.types.{Mode, Verbosity}
 import vct.options.Options
@@ -123,6 +123,9 @@ case object Main extends LazyLogging {
             case Mode.CFG =>
               logger.info("Starting control flow graph transformation")
               CFG.runOptions(options)
+            case Mode.RuntimeVerification =>
+              logger.info("Starting runtime verification")
+              RuntimeVerification.runOptions(options)
           }
         } finally {
           Progress.finish()

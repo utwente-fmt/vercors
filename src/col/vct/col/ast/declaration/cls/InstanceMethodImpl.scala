@@ -12,7 +12,8 @@ trait InstanceMethodImpl[G] extends ClassDeclarationImpl[G] with AbstractMethodI
   def layoutModifiers(implicit ctx: Ctx): Seq[Doc] = ListMap(
     pure -> "pure",
     inline -> "inline",
-  ).filter(_._1).values.map(Text).map(Doc.inlineSpec).toSeq
+    static -> "static"
+  ).filter(_._1).values.map(Text).toSeq
 
   private def layoutNameAndArgs(implicit ctx: Ctx): Doc = ctx.syntax match {
     case Ctx.Java =>

@@ -127,6 +127,7 @@ VAL_LEFT: 'Left';
 VAL_RIGHT: 'Right';
 VAL_VALUE: 'Value';
 
+POSTJOIN: 'postJoin';
 UNFOLDING: '\\unfolding';
 UNFOLDING_JAVA: '\\Unfolding';
 IN: '\\in';

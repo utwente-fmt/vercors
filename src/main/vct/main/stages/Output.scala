@@ -11,6 +11,10 @@ import vct.parsers.ParseResult
 import java.nio.file.{Files, Path}
 
 case object Output {
+  def runtimeOfOptions(options: Options) = {
+    Output(options.runtimeOutput, Ctx.Java)
+  }
+
   def vesuvOfOptions(options: Options): Stages[ParseResult[_ <: Generation], Unit] =
     FunctionStage((pr: ParseResult[_ <: Generation]) => Program(pr.decls)(DiagnosticOrigin)(DiagnosticOrigin))
       .thenRun(Output(options.vesuvOutput, Ctx.PVL))
@@ -30,7 +34,7 @@ case class Output(out: Path, syntax: Ctx.Syntax) extends Stage[Node[_ <: Generat
     val namer = Namer[G](syntax)
     namer.name(in)
     val names = namer.finish
-    val ctx = Ctx(syntax = syntax, names = names.asInstanceOf[Map[Declaration[_], String]])
+    val ctx = Ctx(syntax = syntax, width=250, names = names.asInstanceOf[Map[Declaration[_], String]])
 
     // If possible (if a directory is given as output), print all classes to separate files
     if (in.isInstanceOf[Program[G]] && Files.isDirectory(out)) {

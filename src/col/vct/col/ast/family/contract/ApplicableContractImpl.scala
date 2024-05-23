@@ -55,4 +55,5 @@ trait ApplicableContractImpl[G] extends NodeFamilyImpl[G] with ApplicableContrac
     case Ctx.Silver => layoutSilver
     case _ => Doc.spec(Show.lazily(layoutSpec(_)))
   }
+
 }

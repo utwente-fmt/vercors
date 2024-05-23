@@ -187,6 +187,10 @@ case class PositionRange(startLineIdx: Int, endLineIdx: Int, startEndColIdx: Opt
     }
 }
 
+case class LedgerClassRuntime() extends OriginContent
+case class DataObjectClassRuntime() extends OriginContent
+object JavaLibrary extends OriginContent
+
 /**
  * A sequence of OriginContents. This sequence can be mutated (add, remove, replace) for convenience.
 * @param originContents The known origin contents at the time of Origin creation. Can be empty for a new Origin.
@@ -249,11 +253,23 @@ final case class Origin(originContents: Seq[OriginContent]) extends Blame[Verifi
   def debugName(name: String = "unknown"): String =
     find[SourceName].map(_.name).getOrElse(getPreferredNameOrElse(Seq(name)).camel)
 
-//  def addStartEndLines(startIdx: Int, endIdx: Int): Origin =
-//    withContent(StartEndLines(startIdx, endIdx))
-//
-//  def addOriginCols(cols: Option[(Int, Int)]): Origin =
-//    withContent(OriginCols(cols))
+  def addLedgerClass(): Origin = {
+    Origin(originContents :+ LedgerClassRuntime())
+  }
+
+  def addDataObjectClass(): Origin = {
+    Origin(originContents :+ DataObjectClassRuntime())
+  }
+
+  def getReadable: Option[ReadableOrigin] = {
+    originContents.flatMap {
+      case ReadableOrigin(any1) => Seq(ReadableOrigin(any1))
+      case _ => Nil
+    } match {
+      case Seq(ReadableOrigin(any1)) => Some(ReadableOrigin(any1))
+      case _ => None
+    }
+  }
 
   def getPreferredName: Option[Name] =
     originContents.headOption.flatMap(_.name(tail).orElse(tail.getPreferredName))
@@ -279,6 +295,36 @@ final case class Origin(originContents: Seq[OriginContent]) extends Blame[Verifi
 
   def shortPositionText: String =
     shortPosition.getOrElse("[unknown position]")
+
+  def getFilename: Option[OriginFilename] = {
+    originContents.flatMap {
+      case OriginFilename(any) => Seq(OriginFilename(any))
+      case _ => Nil
+    } match {
+      case Seq(OriginFilename(any)) => Some(OriginFilename(any))
+      case _ => None
+    }
+  }
+
+  def getLedgerClassRuntime: Option[LedgerClassRuntime] = {
+    originContents.flatMap {
+      case LedgerClassRuntime() => Seq(LedgerClassRuntime())
+      case _ => Nil
+    } match {
+      case Seq(i@LedgerClassRuntime()) => Some(i)
+      case _ => None
+    }
+  }
+
+  def getDataObjectClassRuntime: Option[DataObjectClassRuntime] = {
+    originContents.flatMap {
+      case DataObjectClassRuntime() => Seq(DataObjectClassRuntime())
+      case _ => Nil
+    } match {
+      case Seq(i@DataObjectClassRuntime()) => Some(i)
+      case _ => None
+    }
+  }
 
   override def blame(error: VerificationFailure): Unit = {
     Logger("vct").error(error.toString)

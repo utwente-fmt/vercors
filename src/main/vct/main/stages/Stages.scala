@@ -1,10 +1,10 @@
 package vct.main.stages
 
 import hre.progress.Progress
-import vct.col.ast.{Program, Verification, BipTransition}
+import vct.col.ast.{BipTransition, Program, Verification}
 import vct.col.rewrite.Generation
 import vct.options.Options
-import vct.parsers.transform.BlameProvider
+import vct.parsers.transform.{BlameProvider, ConstantBlameProvider}
 import vct.result.VerificationError
 import hre.io.Readable
 import hre.stages.Stages
@@ -15,6 +15,7 @@ import viper.api.backend.silicon.Silicon
 import scala.collection.mutable
 
 case object Stages {
+
   def silicon(blameProvider: BlameProvider, bipResults: BIP.VerificationResults): Stages[Seq[Readable], Unit] = {
     Parsing(blameProvider)
       .thenRun(Resolution(blameProvider, vct.parsers.debug.DebugOptions.NONE))
@@ -83,4 +84,13 @@ case object Stages {
       .thenRun(Resolution.ofOptions(options, blameProvider))
       .thenRun(PrintCFG.ofOptions(options))
   }
+
+  def runtimeVerificationWithOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
+    Parsing.ofOptions(options, blameProvider)
+      .thenRun(Resolution.ofOptions(options, blameProvider))
+      .thenRun(Transformation.runtimeTransformationOfOptions(options))
+      .thenRun(CodeGeneration.runtimeGenerationOfOptions(options))
+      .thenRun(Output.runtimeOfOptions(options))
+  }
+
 }

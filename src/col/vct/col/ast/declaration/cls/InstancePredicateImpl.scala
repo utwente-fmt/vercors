@@ -13,8 +13,9 @@ trait InstancePredicateImpl[G] extends ClassDeclarationImpl[G] with AbstractPred
     threadLocal -> "thread_local",
   ).filter(_._1).values.map(Text).map(Doc.inlineSpec).toSeq
 
-  override def layout(implicit ctx: Ctx): Doc = Group(
-    Doc.rspread(layoutModifiers) <> "resource" <+> ctx.name(this) <> "(" <> Doc.args(args) <> ")" <>
-      body.map(Text(" =") <>> _ <> ";").getOrElse(Text(";"))
-  )
+  override def layout(implicit ctx: Ctx): Doc =
+    Doc.spec(Group(
+      Doc.rspread(layoutModifiers) <> "resource" <+> ctx.name(this) <> "(" <> Doc.args(args) <> ")" <>
+        body.map(Text(" =") <>> _ <> ";").getOrElse(Text(";"))
+    ))
 }

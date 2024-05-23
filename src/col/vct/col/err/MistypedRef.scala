@@ -7,5 +7,5 @@ import scala.reflect.ClassTag
 case class MistypedRef(received: Declaration[_], expected: ClassTag[_]) extends ASTStateError {
   override def text: String =
     "A reference in the AST is referencing a declaration of the wrong kind.\n" +
-      s"A ${expected.runtimeClass.getSimpleName} was expected here, but we got a ${received.getClass.getSimpleName}"
+      s"A ${expected.runtimeClass.getSimpleName} was expected here, but we got a ${Option(received).map(_.getClass.getSimpleName).getOrElse("<null>")}"
 }

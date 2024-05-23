@@ -44,6 +44,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
     case _: Procedure[G] => ()
     case _: InstanceFunction[G] => ()
     case _: InstanceMethod[G] => ()
+    case _: CodeStringQuantifierMethod[G] => ()
     case _: Constructor[G] => ()
     case _: JavaConstructor[G] => ()
     case _: JavaMethod[G] => ()
@@ -63,6 +64,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
     case _: Procedure[G] => ()
     case _: InstanceFunction[G] => ()
     case _: InstanceMethod[G] => ()
+    case _: CodeStringQuantifierMethod[G] => ()
     case _: Constructor[G] => ()
     case _: JavaMethod[G] => ()
     case _: JavaAnnotationMethod[G] => ()
@@ -107,6 +109,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
     }
 
     while(keys.exists(key => names.contains((key, baseName, index)))) {
+      val similar_keys = keys.collect(key => names.get((key, baseName, index)))
       index += 1
     }
 

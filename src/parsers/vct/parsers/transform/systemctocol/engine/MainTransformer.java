@@ -192,7 +192,7 @@ public class MainTransformer<T> {
                         Type<T> t = new TClass<>(ref_to_class, Seqs.empty(), OriGen.create());
 
                         // Generate instance field
-                        InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create(create_instance_name(process_class)));
+                        InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, Option.empty(), OriGen.create(create_instance_name(process_class)));
                         col_system.add_instance_mapping(process_class, inst);
                         processes.add(inst);
                         class_by_field.put(inst, process_class);
@@ -207,7 +207,7 @@ public class MainTransformer<T> {
                     Type<T> t = new TClass<>(ref_to_class, Seqs.empty(), OriGen.create());
 
                     // Generate instance field
-                    InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create(create_instance_name(state_class)));
+                    InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, Option.empty(), OriGen.create(create_instance_name(state_class)));
                     col_system.add_instance_mapping(state_class, inst);
                     state_classes.add(inst);
                     class_by_field.put(inst, state_class);
@@ -806,7 +806,7 @@ public class MainTransformer<T> {
         // Generate contract and method and return
         ApplicableContract<T> contract = col_system.to_applicable_contract(col_system.TRUE, col_system.fold_star(ensures));
         return new InstanceMethod<>(col_system.T_INT, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract,
-                false, true, new GeneratedBlame<>(), OriGen.create("find_minimum_advance"));
+                false, true,false, new GeneratedBlame<>(), OriGen.create("find_minimum_advance"));
     }
 
     /**
@@ -973,7 +973,7 @@ public class MainTransformer<T> {
      */
     private InstanceMethod<T> create_abstract_method(ApplicableContract<T> contract, String method_name) {
         return new InstanceMethod<>(col_system.T_VOID, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(),
-                contract, false, false, new GeneratedBlame<>(), OriGen.create(method_name));
+                contract, false, false,false, new GeneratedBlame<>(), OriGen.create(method_name));
     }
 
     /**
@@ -986,7 +986,7 @@ public class MainTransformer<T> {
         Expr<T> context = create_scheduler_contract();
         ApplicableContract<T> contract = col_system.to_applicable_contract(context, context);
         scheduler = new InstanceMethod<>(col_system.T_VOID, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS,
-                Option.apply(body), contract, false, false, new GeneratedBlame<>(), OriGen.create("main"));
+                Option.apply(body), contract, false, false,false, new GeneratedBlame<>(), OriGen.create("main"));
     }
 
     /**

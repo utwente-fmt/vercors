@@ -105,4 +105,9 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaratio
 
   def dispatch[PreRefDecl <: PreDecl, PostRefDecl <: PostDecl](ref: Ref[Pre, PreRefDecl])(implicit tag: ClassTag[PostRefDecl]): Ref[Post, PostRefDecl] =
     freeze.succ(ref.decl)
+
+
+  def freezeBuffer: Seq[PostDecl] = {
+    collectionBuffer.top.toSeq
+  }
 }

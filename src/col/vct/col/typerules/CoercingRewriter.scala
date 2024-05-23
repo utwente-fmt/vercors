@@ -70,6 +70,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
     */
   def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = {
     coercion match {
+      case CoerceTArrayAnyClass() => e
       case CoerceIdentity(_) => e
       case CoercionSequence(cs) => cs.foldLeft(e) { case (e, c) => applyCoercion(e, c) }
       case CoerceNothingSomething(_) => e
@@ -694,6 +695,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         And(bool(left), bool(right))
       case any @ Any() =>
         Any()(any.blame)
+      case ae@ArraysEquals(o,t) => e
+      case ae@ArraysHashCode(o) => e
       case a @ ArraySubscript(arr, index) =>
         ArraySubscript(array(arr)._1, int(index))(a.blame)
       case BagAdd(xs, ys) =>
@@ -766,6 +769,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         val (coercedXs, TSeq(element)) = seq(xs)
         val sharedType = Types.leastCommonSuperType(x.t, element)
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
+      case CopyOnWriteArrayListAdd(o, a) => e
+      case CopyOnWriteArrayListRemove(o, a) => e
+      case CopyOnWriteArrayListNew(t) => e
+      case CopyOnWriteArrayListContains(o, a) => e
       case cfa@CPPClassMethodOrFieldAccess(classInstance, methodOrFieldName) => CPPClassMethodOrFieldAccess(classInstance, methodOrFieldName)(cfa.blame)
       case defn@CPPLambdaDefinition(contract, declarator, body) =>
         CPPLambdaDefinition(contract, declarator, body)(defn.blame)
@@ -804,6 +811,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         Drop(seq(xs)._1, int(count))
       case Empty(obj) =>
         Empty(sized(obj)._1)
+      case Equals(obj, target) => Equals(obj, target)
       case EmptyProcess() => EmptyProcess()
       case use @ EnumUse(enum, const) => use
       case Eq(left, right) =>
@@ -831,8 +839,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         ForPermWithValue(binding, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
         FunctionInvocation(ref, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
+      case g@GetClassCall(o) => e
       case get @ GetLeft(e) =>
         GetLeft(either(e)._1)(get.blame)
+      case GetPermission(o, i, t) => e
+      case GetArrayPermission(o, i,l, t) => e
       case get @ GetRight(e) =>
         GetRight(either(e)._1)(get.blame)
       case GlobalThreadId() =>
@@ -881,6 +892,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case JavaLiteralArray(exprs) =>
         JavaLiteralArray(exprs)
       case JavaLocal(name) => e
+      case JavaLocalRuntime(r) => e
       case JavaNewClass(args, typeArgs, name, givenMap, yields) => e
       case JavaNewDefaultArray(baseType, specifiedDims, moreDims) => e
       case JavaNewLiteralArray(baseType, dims, initializer) => e
@@ -1039,6 +1051,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         Not(bool(arg))
       case Null() =>
         Null()
+      case ObjectIsArray(i) => e
+      case ObjectGetLength(i) => e
+      case CreateObjectArray(a) => e
       case old @ Old(expr, at) =>
         Old(expr, at)(old.blame)
       case OptEmpty(opt) =>
@@ -1102,6 +1117,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         LlvmFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
       case inv @ LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields) =>
         LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields)(inv.blame)
+      case PredicateStoreGet(c, t) => e
       case ProcessApply(process, args) =>
         ProcessApply(process, coerceArgs(args, process.decl))
       case ProcessChoice(left, right) =>
@@ -1116,6 +1132,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         Product(bindings, bool(condition), int(main))
       case ProverFunctionInvocation(ref, args) =>
         ProverFunctionInvocation(ref, coerceArgs(args, ref.decl))
+      case PutPermission(o, i, p,t) => e
+      case PutArrayPermission(o, i, l, p,t) => e
       case PVLDeref(obj, field) => e
       case PVLInvocation(obj, method, args, typeArgs, givenArgs, yields) => e
       case PVLLocal(name) => e
@@ -1142,6 +1160,21 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         ResourceValue(res(r))
       case Result(ref) =>
         Result(ref)
+      case RuntimeNewPredicate(c, a) => e
+      case RuntimePermission(p) => e
+      case RuntimeFractionDiff(l, r) => e
+      case RuntimeFractionZero() => e
+      case RuntimeFractionOne() => e
+      case RuntimeConcurrentHashMapGet(h, k) => e
+      case RuntimeConcurrentHashMapContainsKey(h, k) => e
+      case RuntimeConcurrentHashMapGetOrDefault(h, k, v) => e
+      case RuntimeConcurrentHashMapKeySet(h) => e
+      case RuntimeConcurrentHashMapPut(h, k, v) => e
+      case RuntimeNewConcurrentHashMap(t) => e
+      case RuntimeFractionAdd(l, r) => e
+      case RuntimeFractionSubstract(l, r) => e
+      case RuntimeFractionMultiply(l, r) => e
+      case RuntimeFractionCompare(l, r) => e
       case s @ Scale(scale, r) =>
         Scale(rat(scale), res(r))(s.blame)
       case ScaleByParBlock(ref, r) =>
@@ -1326,6 +1359,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         Star(res(left), res(right))
       case starall @ Starall(bindings, triggers, body) =>
         Starall(bindings, triggers, res(body))(starall.blame)
+      case StaticClassRef(cls) => e
       case SubBag(left, right) =>
         val (coercedLeft, leftBag) = bag(left)
         val (coercedRight, rightBag) = bag(right)
@@ -1352,6 +1386,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         Sum(bindings, bool(condition), int(main))
       case SuperType(left, right) =>
         SuperType(left, right)
+      case StaticClassRef(r) => e
       case Tail(xs) =>
         Tail(seq(xs)._1)
       case Take(xs, count) =>
@@ -1364,6 +1399,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
         ThisSeqProg(ref)
       case ThisObject(ref) =>
         ThisObject(ref)
+      case ThreadId(o) => e
       case TupGet(tup, index) =>
         TupGet(tuple(tup)._1, index)
       case TypeOf(expr) =>
@@ -1460,6 +1496,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case localIncoming: BipLocalIncomingData[Pre] => localIncoming
       case glue: JavaBipGlue[Pre] => glue
       case LlvmLocal(name) => e
+      case CodeStringQuantifierCall(_,_,_,_) => e
     }
   }
 
@@ -1522,6 +1559,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case Recv(ref) => Recv(ref)
       case r @ Refute(assn) => Refute(res(assn))(r.blame)
       case Return(result) => Return(result) // TODO coerce return, make AmbiguousReturn?
+      case r@RuntimeAssert(res, m) => RuntimeAssert(res, m)(r.blame)
+      case r@RuntimeAssertExpected(res, ex, received, m) => RuntimeAssertExpected(res, ex, received, m)(r.blame)
+      case r@RuntimePostJoin(obj, args) => RuntimePostJoin(obj, args)(r.blame)
       case Scope(locals, body) => Scope(locals, body)
       case send @ Send(decl, offset, resource) => Send(decl, offset, res(resource))(send.blame)
       case ass @ SilverFieldAssign(obj, field, value) => SilverFieldAssign(ref(obj), field, coerce(value, field.decl.t))(ass.blame)
@@ -1563,6 +1603,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case branch@PVLBranch(branches) => PVLBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
       case loop@UnresolvedSeqLoop(cond, contract, body) => UnresolvedSeqLoop(bool(cond), contract, body)(loop.blame)
       case loop@PVLLoop(init, cond, update, contract, body) => PVLLoop(init, bool(cond), update, contract, body)(loop.blame)
+      case c @ PVLCommunicate(s, r) => PVLCommunicate(s, r)(c.blame)
+      case CodeStringStatement(c) => CodeStringStatement(c)
+      case CodeStringQuantifier(q, l, u, body) => CodeStringQuantifier(q, l, u, body)
+      case CodeStringGetPredicate(a, c) => CodeStringGetPredicate(a, c)
+      case EnhancedLoop(a, i, b) => EnhancedLoop(a, i, b)
     }
   }
 
@@ -1713,8 +1758,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case glob: LlvmGlobal[Pre] => glob
       case endpoint: PVLEndpoint[Pre] => endpoint
       case seqProg: PVLSeqProg[Pre] => seqProg
+      case codestring: CodeString[Pre] => decl
+      case codeStringQuantifier: CodeStringQuantifierMethod[Pre] => decl
+      case predicateStore: PredicateStore[Pre] => decl
+      case _ => decl
       case seqRun: PVLSeqRun[Pre] => seqRun
-      }
+    }
   }
 
   def coerce(region: ParRegion[Pre]): ParRegion[Pre] = {
@@ -1813,6 +1862,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
     implicit val o: Origin = node.o
     node match {
       case value: Final[_] => value
+      case s: Static[_] => s
     }
   }
 
