@@ -25,7 +25,7 @@ object CodeGeneration {
         VeyMontGeneration(
           onBeforePassKey = writeOutFunctions(options.outputBeforePass),
           onAfterPassKey = writeOutFunctions(options.outputAfterPass),
-          channelClass = /* Util.loadJavaClass(options.veymontChannel) */ ???,
+          channelClass = /* Util.loadJavaClass(options.veymontChannel, options.getParserDebugOptions) */ ???,
         )
     }
 }

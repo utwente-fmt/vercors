@@ -2,7 +2,8 @@ package hre.util
 
 import hre.platform.Platform
 
-import java.io.{ByteArrayInputStream, File}
+import java.io.{ByteArrayInputStream}
+import java.io.File.{pathSeparator => PATH_SEPARATOR}
 import sys.process._
 import scala.jdk.CollectionConverters._
 import java.nio.file.{Files, Paths}
@@ -86,7 +87,7 @@ object Notifier {
 
   def commandExists(cmd: String): Boolean = {
     System.getenv().asScala.getOrElse("PATH", "")
-      .split(File.pathSeparator)
+      .split(PATH_SEPARATOR)
       .exists(path => {
         val p = Paths.get(path).resolve(cmd)
         Files.exists(p) && !Files.isDirectory(p) && Files.isExecutable(p)

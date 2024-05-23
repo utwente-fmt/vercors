@@ -1,8 +1,8 @@
 #ifndef VCLLVM_FUNCTIONCONTRACTDECLARER_H
 #define VCLLVM_FUNCTIONCONTRACTDECLARER_H
 
-#include <llvm/IR/PassManager.h>
 #include "vct/col/ast/col.pb.h"
+#include <llvm/IR/PassManager.h>
 
 /**
  * Pass that adds an LLVMFunctionContract to its corresponding LLVMFunctionDefinition in the presence

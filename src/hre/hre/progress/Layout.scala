@@ -30,13 +30,19 @@ case object Layout extends LazyLogging {
 
   def maxHeight: Int = 32
 
-  private def esc(command: Char, args: String = ""): String =
+  def esc(command: Char, args: String = ""): String =
     "\u001b[" + args + command
 
-  private def upBy(n: Int): String = if(n==0) "" else esc('A', n.toString)
+  def osc(command: String, arg: String): String =
+    "\u001b]" + command + ";" + arg + "\u001b\\"
 
-  private def clearLine: String = esc('K')
-  private def clearToEnd: String = esc('J', "0")
+  def upBy(n: Int): String = if(n==0) "" else esc('A', n.toString)
+
+  def clearLine: String = esc('K')
+  def clearToEnd: String = esc('J', "0")
+
+  def link(uri: String, label: String): String =
+    osc("8", ";" + uri) + label + osc("8", ";")
 
   private var printedLines = 0
   private var currentProgressMessage = ""

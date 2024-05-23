@@ -40,7 +40,7 @@ trait BinExprImpl[G] { this: BinExpr[G] =>
   def getIntType: IntType[G] = if(isCIntOp) TCInt() else TInt()
 
 
-  def getNumericType: Type[G] = {
+  lazy val getNumericType: Type[G] = {
     if (isCIntOp) TCInt[G]() else
     if(isIntOp) TInt[G]() else
       getFloatMax[G](left.t, right.t) getOrElse (

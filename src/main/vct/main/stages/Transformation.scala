@@ -59,7 +59,7 @@ object Transformation extends LazyLogging {
 
   def simplifierFor(path: PathOrStd, options: Options): RewriterBuilder =
     ApplyTermRewriter.BuilderFor(
-      ruleNodes = Util.loadPVLLibraryFile[InitialGeneration](path).declarations.collect {
+      ruleNodes = Util.loadPVLLibraryFile[InitialGeneration](path, options.getParserDebugOptions).declarations.collect {
         case rule: SimplificationRule[InitialGeneration] => rule
       },
       debugIn = options.devSimplifyDebugIn,
@@ -74,7 +74,7 @@ object Transformation extends LazyLogging {
     options.backend match {
       case Backend.Silicon | Backend.Carbon =>
         SilverTransformation(
-          adtImporter = PathAdtImporter(options.adtPath),
+          adtImporter = PathAdtImporter(options.adtPath, options.getParserDebugOptions),
           onPassEvent = options.outputIntermediatePrograms.map(p => reportIntermediateProgram(p, "verify")).toSeq ++
             writeOutFunctions(Transformation.before, options.outputBeforePass) ++
             writeOutFunctions(Transformation.after, options.outputAfterPass),
@@ -186,7 +186,7 @@ class Transformation
  */
 case class SilverTransformation
 (
-  adtImporter: ImportADTImporter = PathAdtImporter(Resources.getAdtPath),
+  adtImporter: ImportADTImporter = PathAdtImporter(Resources.getAdtPath, vct.parsers.debug.DebugOptions.NONE),
   override val onPassEvent: Seq[PassEventHandler] = Nil,
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),

@@ -28,7 +28,7 @@ case object Resolve {
   trait SpecContractParser {
     def parse[G](input: LlvmFunctionContract[G], o: Origin): ApplicableContract[G]
 
-    def parse[G](input: LlvmGlobal[G], o: Origin): GlobalDeclaration[G]
+    def parse[G](input: LlvmGlobal[G], o: Origin): Seq[GlobalDeclaration[G]]
   }
 
   def extractLiteral(e: Expr[_]): Option[String] = e match {
@@ -112,7 +112,7 @@ case object ResolveTypes {
       val ctxWithNs = ctx.copy(namespace=Some(ns))
       ctxWithNs.copy(stack=(ns.declarations.flatMap(Referrable.from) ++ ns.imports.flatMap(scanImport(_, ctxWithNs))) +: ctx.stack)
     case Scope(locals, body) => ctx
-      .copy(stack = ((locals ++ scanScope(body, /* inGPUkernel = */false)).flatMap(Referrable.from)) +: ctx.stack)
+      .copy(stack = ((locals ++ scanScope(ctx)(body)).flatMap(Referrable.from)) +: ctx.stack)
     case decl: Declarator[G] =>
       ctx.copy(stack=decl.declarations.flatMap(Referrable.from) +: ctx.stack)
     case _ => ctx
@@ -194,22 +194,22 @@ case object ResolveReferences extends LazyLogging {
     resolve(program, ReferenceResolutionContext[G](jp, lsp))
   }
 
-  def resolve[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean=false): Seq[CheckError] = {
-    val inGPU = inGPUKernel || (node match {
-      case f: CFunctionDefinition[G] => f.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined
-      case _ => false
-    })
+  def resolve[G](node: Node[G], ctxIn: ReferenceResolutionContext[G]): Seq[CheckError] = {
+    val ctx = resolveFlatlyTopDown(node, ctxIn) match {
+      case Left(errs) => return errs
+      case Right(ctx) => ctx
+    }
 
     val childErrors = node match {
       case l @ Let(binding, value, main) =>
-        val innerCtx = enterContext(node, ctx, inGPU).withCheckContext(l.enterCheckContext(ctx.checkContext))
+        val innerCtx = enterContext(node, ctx).withCheckContext(l.enterCheckContext(ctx.checkContext))
         resolve(binding, innerCtx) ++
         resolve(value, ctx) ++
         resolve(main, innerCtx)
       case _ =>
-        val innerCtx = enterContext(node, ctx, inGPU)
+        val innerCtx = enterContext(node, ctx)
         node.checkContextRecursor(ctx.checkContext, { (ctx, node) =>
-          resolve(node, innerCtx.withCheckContext(ctx), inGPU)
+          resolve(node, innerCtx.withCheckContext(ctx))
         }).flatten
     }
 
@@ -220,15 +220,30 @@ case object ResolveReferences extends LazyLogging {
     }
   }
 
-  def scanScope[G](node: Node[G], inGPUKernel: Boolean): Seq[Declaration[G]] = node match {
+  def resolveFlatlyTopDown[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Either[Seq[CheckError], ReferenceResolutionContext[G]] = node match {
+    case f: CFunctionDefinition[G] if f.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined =>
+      Right(ctx.copy(inGpuKernel = true))
+    case p: Program[G] =>
+      p.declarations.foreach {
+        case glob: LlvmGlobal[G] =>
+          val decls = ctx.llvmSpecParser.parse(glob, glob.o)
+          glob.data = Some(decls)
+        case _ =>
+      }
+      Right(ctx)
+
+    case _ => Right(ctx)
+  }
+
+  def scanScope[G](ctx: TypeResolutionContext[G])(node: Node[G]): Seq[Declaration[G]] = node match {
     case _: Scope[G] => Nil
     // Remove shared memory locations from the body level of a GPU kernel, we want to reason about them at the top level
-    case CDeclarationStatement(decl) if !(inGPUKernel && decl.decl.specs.collectFirst{case GPULocal() => ()}.isDefined)
+    case CDeclarationStatement(decl) if !(ctx.inGpuKernel && decl.decl.specs.collectFirst{case GPULocal() => ()}.isDefined)
     => Seq(decl)
     case CPPDeclarationStatement(decl) => Seq(decl)
     case JavaLocalDeclarationStatement(decl) => Seq(decl)
     case LocalDecl(v) => Seq(v)
-    case other => other.subnodes.flatMap(scanScope(_, inGPUKernel))
+    case other => other.subnodes.flatMap(scanScope(ctx))
   }
 
   def scanLabels[G](node: Node[G]): Seq[Declaration[G]] = node.transSubnodes.collect {
@@ -369,7 +384,7 @@ case object ResolveReferences extends LazyLogging {
     case par: ParStatement[G] => ctx
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
-      .declare(locals ++ scanScope(body, inGPUKernel))
+      .declare(locals ++ scanScope(ctx.asTypeResolutionContext)(body))
     case app: ContractApplicable[G] => ctx
       .copy(currentResult = Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))
       .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
@@ -680,9 +695,7 @@ case object ResolveReferences extends LazyLogging {
         case None => throw NoSuchNameError("function", inv.name, inv)
       }
     case glob: LlvmGlobal[G] =>
-      val decl = ctx.llvmSpecParser.parse(glob, glob.o)
-      glob.data = Some(decl)
-      resolve(decl, ctx)
+      glob.data.get.foreach(resolve(_, ctx))
     case comm: PVLCommunicate[G] =>
       /* Endpoint contexts for communicate are resolved early, because otherwise \sender, \receiver, \msg cannot be typed.
        */

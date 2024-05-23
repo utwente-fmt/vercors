@@ -2,15 +2,12 @@ package vct.col.origin
 
 import com.typesafe.scalalogging.Logger
 import hre.io.{LiteralReadable, Readable}
+import hre.progress.ProgressRender
 import vct.result.HasContext
 import vct.result.Message.HR
 
-import java.io.{Reader, StringReader}
-import java.nio.file.Paths
-import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
-import scala.util.Try
 
 case object Origin {
 
@@ -296,6 +293,14 @@ final case class Origin(originContents: Seq[OriginContent]) extends Blame[Verifi
   override def blame(error: VerificationFailure): Unit = {
     Logger("vct").error(error.toString)
   }
+
+  def renderProgress(message: String, short: Boolean): ProgressRender =
+    if(short)
+      ProgressRender(s"$message `$inlineContextText`")
+    else {
+      val lines = messageInContext(message).split("\n").toSeq
+      ProgressRender(lines, lines.size - 2)
+    }
 }
 
 object InputOrigin {
@@ -468,14 +473,4 @@ case class BlameCollector() extends Blame[VerificationFailure] {
 
   override def blame(error: VerificationFailure): Unit =
     errs += error
-}
-
-case object RedirectOrigin {
-  case class StringReadable(data: String, fileName:String="<unknown filename>") extends Readable {
-    override def isRereadable: Boolean = true
-
-    override protected def getReader: Reader =
-      new StringReader(data)
-  }
-
 }

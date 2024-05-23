@@ -1,0 +1,5 @@
+#!/bin/bash
+echo "=== pre-commit tasks ==="
+echo "these may be skipped with git commit --no-verify"
+./mill __.reformatStaged
+echo "=== end of pre-commit tasks ==="

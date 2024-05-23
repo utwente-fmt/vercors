@@ -276,13 +276,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case _ => false
   }
 
-  def getBaseType(t: Type[Pre]): Type[Pre] = t match {
+  def getBaseType[G](t: Type[G]): Type[G] = t match {
     case CPrimitiveType(specs) =>
-//      val typeSpecs = specs.collect { case spec: CTypeSpecifier[Pre] => spec }
-//      typeSpecs match {
-//        case Seq(defn @ CStructSpecifier(_)) => t
-//        case other => CPrimitiveType(other)
-//      }
       C.getPrimitiveType(specs)
     case _ => t
   }
@@ -876,17 +871,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     )(KernelBarrierFailure(barrier))
   }
 
-  def isPointer(t: Type[Pre]) : Boolean = t match {
+  def isPointer(t: Type[Pre]) : Boolean = getBaseType(t) match {
     case TPointer(_) => true
-    case CPrimitiveType(specs) =>
-      specs.collectFirst{case CSpecificationType(TPointer(_)) => }.nonEmpty
     case _ => false
   }
 
-  def isNumeric(t: Type[Pre]): Boolean = t match{
+  def isNumeric(t: Type[Pre]): Boolean = getBaseType(t) match{
     case _: NumericType[Pre] => true
-    case CPrimitiveType(specs) =>
-      specs.collectFirst{case CSpecificationType(_ : NumericType[Pre]) =>}.nonEmpty
     case _ => false
   }
 
@@ -996,10 +987,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case struct: RefCStruct[Pre] => ???
       case struct: RefCStructField[Pre] =>
         val b: Blame[PointerDerefError] = deref.blame
-        val structRef = deref.struct.t match {
-          case t@CPrimitiveType(specs) =>
-            val struct = specs.collectFirst { case CSpecificationType(CTPointer(CTStruct(ref))) => ref }
-            struct.getOrElse(throw WrongStructType(t))
+        val structRef = getBaseType(deref.struct.t) match {
+          case CTPointer(CTStruct(struct)) => struct
           case t => throw WrongStructType(t)
         }
         Deref[Post](DerefPointer(rw.dispatch(deref.struct))(b), cStructFieldsSuccessor.ref((structRef.decl, struct.decls)))(deref.blame)(deref.o)
@@ -1048,17 +1037,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
   def assignStruct(assign: PreAssignExpression[Pre]): Expr[Post] = {
-    assign.target.t match {
-      case CPrimitiveType(Seq(CSpecificationType(CTStruct(ref)))) =>
+    getBaseType(assign.target.t) match {
+      case CTStruct(ref) =>
         val copy = createStructCopy(rw.dispatch(assign.value), ref.decl, (f: InstanceField[_]) => StructCopyFailed(assign, f))
         PreAssignExpression(rw.dispatch(assign.target), copy)(AssignLocalOk)(assign.o)
       case _ => throw WrongStructType(assign.target)
     }
   }
 
-  def isCPointer(t: Type[_]) = t match {
+  def isCPointer(t: Type[_]) = getBaseType(t) match {
     case CTPointer(_) => true
-    case CPrimitiveType(Seq(CSpecificationType(CTPointer(_)))) => true
     case _ => false
   }
 
@@ -1067,12 +1055,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
     // Create copy for any direct structure arguments
     val newArgs = args.map(a =>
-      a.t match {
-        case CPrimitiveType(specs) if specs.collectFirst { case CSpecificationType(_: CTStruct[Pre]) => () }.isDefined =>
-          specs match {
-            case Seq(CSpecificationType(CTStruct(ref))) => createStructCopy(rw.dispatch(a), ref.decl, (f: InstanceField[_]) => StructCopyBeforeCallFailed(inv, f))
-            case _ => throw WrongStructType(a)
-          }
+      getBaseType(a.t) match {
+        case CTStruct(ref) => createStructCopy(rw.dispatch(a), ref.decl, (f: InstanceField[_]) => StructCopyBeforeCallFailed(inv, f))
         case _ => rw.dispatch(a)
       }
     )

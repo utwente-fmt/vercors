@@ -1290,7 +1290,7 @@ final case class LlvmAmbiguousFunctionInvocation[G](name: String,
 }
 
 final class LlvmGlobal[G](val value: String)(implicit val o: Origin) extends GlobalDeclaration[G] with LlvmGlobalImpl[G] {
-  var data: Option[GlobalDeclaration[G]] = None
+  var data: Option[Seq[GlobalDeclaration[G]]] = None
 }
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {

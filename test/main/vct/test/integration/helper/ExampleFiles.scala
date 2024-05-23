@@ -1,7 +1,8 @@
 package vct.test.integration.helper
 
 import java.io.File
-import java.nio.file.Paths
+import java.nio.file.{Files, Path, Paths}
+import scala.jdk.StreamConverters._
 
 case object ExampleFiles {
   val IGNORE_DIRS: Seq[String] = Seq(
@@ -33,18 +34,19 @@ case object ExampleFiles {
     "examples/concepts/openmp/test-other.c",
   ).map(_.replaceAll("/", File.separator))
 
-  val EXCLUSIONS: Seq[File => Boolean] = Seq(
+  val EXCLUSIONS: Seq[Path => Boolean] = Seq(
     f => IGNORE_DIRS.exists(dir => f.toString.startsWith(dir)),
     f => MAIN_FILES.contains(f.toString),
-    f => IGNORE_FILES.contains(f.getName),
-    f => IGNORE_EXTS.exists(ext => f.getName.endsWith(ext)),
+    f => IGNORE_FILES.contains(f.getFileName.toString),
+    f => IGNORE_EXTS.exists(ext => f.getFileName.toString.endsWith(ext)),
   )
 
-  val FILES: Seq[File] = find(Paths.get("examples").toFile)
+  val FILES: Seq[Path] = find(Paths.get("examples"))
 
-  def find(directory: File): Seq[File] =
-    Option(directory.listFiles()) match {
-      case Some(files) => files.toSeq.filterNot(f => EXCLUSIONS.exists(_(f))).sortBy(_.getName).flatMap(f => if(f.isDirectory) find(f) else Seq(f))
-      case None => Nil
-    }
+  def find(directory: Path): Seq[Path] =
+    Files.list(directory)
+      .toScala(Seq)
+      .filterNot(f => EXCLUSIONS.exists(_(f)))
+      .sortBy(_.getFileName.toString)
+      .flatMap(f => if(Files.isDirectory(f)) find(f) else Seq(f))
 }

@@ -2,6 +2,7 @@ package hre.progress.task
 
 import hre.perf.ResourceUsage
 import hre.progress.{Progress, ProgressLogicError, ProgressRender, TaskRegistry}
+import hre.util.Interrupt
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -72,6 +73,7 @@ abstract class AbstractTask {
 
     TaskRegistry.push(this)
     Progress.update()
+    Interrupt.check()
   }
 
   def end(): Unit = {
@@ -94,6 +96,8 @@ abstract class AbstractTask {
     usageReported = ResourceUsage.zero
     startUsage = None
     ownerThread = -1L
+
+    Interrupt.check()
   }
 
   def abort(): Unit = {

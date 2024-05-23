@@ -16,7 +16,7 @@ import vct.main.modes.Verify
 import vct.main.modes.Verify.logger
 import vct.options.{Options, types}
 import vct.options.types.{Backend, PathOrStd}
-import vct.parsers.ParseError
+import vct.parsers.err.ParseError
 import vct.result.VerificationError
 import vct.result.VerificationError.{SystemError, UserError}
 import vct.test.integration.helper.VercorsSpec.MATRIX_COUNT
