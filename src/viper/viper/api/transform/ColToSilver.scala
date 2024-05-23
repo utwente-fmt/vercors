@@ -39,6 +39,8 @@ case class ColToSilver(program: col.Program[_]) {
   val currentMapGet: ScopedStack[col.MapGet[_]] = ScopedStack()
   val currentDividingExpr: ScopedStack[col.DividingExpr[_]] = ScopedStack()
 
+  val inTriggers: ScopedStack[Unit] = ScopedStack()
+
   case class NotSupported(node: col.Node[_]) extends SystemError {
     override def text: String =
       program.highlight(node).messageInContext(s"This kind of node (${node.getClass.getSimpleName}) is not supported by silver directly. Is there a rewrite missing?")
@@ -65,6 +67,8 @@ case class ColToSilver(program: col.Program[_]) {
 
 
   def sanitize(name: String): String = {
+    if(name.isEmpty) return "_"
+
     val sanitized = name.flatMap {
       case '$' => "$"
       case '_' => "_"
@@ -319,8 +323,12 @@ case class ColToSilver(program: col.Program[_]) {
     case starall @ col.Starall(bindings, triggers, body) =>
       scoped {
         currentStarall.having(starall) {
+          val newBindings = bindings.map(variable)
+          val newTriggers = inTriggers.having(()) {
+             triggers.map(trigger)
+          }
           val foralls: Seq[silver.Forall] = silver.utility.QuantifiedPermissions.desugarSourceQuantifiedPermissionSyntax(
-            silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(pos=pos(e), info=expInfo(e))
+            silver.Forall(newBindings, newTriggers, exp(body))(pos=pos(e), info=expInfo(e))
           )
 
           foralls.reduce[silver.Exp] { case (l, r) => silver.And(l, r)(pos=pos(e), info=expInfo(e)) }
@@ -348,6 +356,9 @@ case class ColToSilver(program: col.Program[_]) {
       permValue.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(res)
       silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field))(pos=pos(res), info=expInfo(res)), permValue)(pos=pos(res), info=expInfo(res))
     case res: col.PredicateApply[_] =>
+      if(inTriggers.nonEmpty){
+        return predInTrigger(res)
+      }
       val silver = pred(res)
       silver.perm.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(res)
       silver
@@ -465,6 +476,9 @@ case class ColToSilver(program: col.Program[_]) {
 
   def pred(p: col.PredicateApply[_]): silver.PredicateAccessPredicate =
     silver.PredicateAccessPredicate(silver.PredicateAccess(p.args.map(exp), ref(p.ref))(pos=pos(p), info=expInfo(p)), exp(p.perm))(pos=pos(p), info=expInfo(p))
+
+  def predInTrigger(p: col.PredicateApply[_]): silver.PredicateAccess =
+    silver.PredicateAccess(p.args.map(exp), ref(p.ref))(pos=pos(p), info=expInfo(p))
 
   def acc(e: col.Expr[_]): silver.LocationAccess = e match {
     case col.PredicateApply(Ref(pred), args, _) => silver.PredicateAccess(args.map(exp), ref(pred))(pos=pos(pred), info=expInfo(pred))

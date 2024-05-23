@@ -9,8 +9,8 @@ trait SilverUntypedNonemptyLiteralMapImpl[G] extends SilverUntypedNonemptyLitera
   def mapKeys: Seq[Expr[G]] = values.map(_._1)
   def mapValues: Seq[Expr[G]] = values.map(_._2)
 
-  def keyType: Type[G] = Types.leastCommonSuperType(mapKeys.map(_.t))
-  def valueType: Type[G] = Types.leastCommonSuperType(mapValues.map(_.t))
+  lazy val keyType: Type[G] = Types.leastCommonSuperType(mapKeys.map(_.t))
+  lazy val valueType: Type[G] = Types.leastCommonSuperType(mapValues.map(_.t))
 
   override def t: TMap[G] = TMap(keyType, valueType)
 

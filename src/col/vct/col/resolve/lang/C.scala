@@ -183,19 +183,25 @@ case object C {
       case target: RefCFunctionDefinition[G] if target.name == nameFromDeclarator(declarator) => target
     }
 
+  def stripCPrimitiveType[G](t: Type[G]): Type[G] = t match {
+    case CPrimitiveType(specs) => getPrimitiveType(specs)
+    case _ => t
+  }
+
+
   def findPointerDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[CDerefTarget[G]] =
-    obj.t match {
-      case CPrimitiveType(Seq(CSpecificationType(CTPointer(innerType: TNotAValue[G])))) => innerType.decl.get match {
+    stripCPrimitiveType(obj.t) match {
+      case CTPointer(innerType: TNotAValue[G]) => innerType.decl.get match {
         case RefCStruct(decl) => getCStructDeref(decl, name)
         case _ => None
       }
-      case CPrimitiveType(Seq(CSpecificationType(CTPointer(struct: CTStruct[G])))) =>
+      case CTPointer(struct: CTStruct[G]) =>
         getCStructDeref(struct.ref.decl, name)
-      case CPrimitiveType(Seq(CSpecificationType(CTArray(_, innerType: TNotAValue[G])))) => innerType.decl.get match {
+      case CTArray(_, innerType: TNotAValue[G]) => innerType.decl.get match {
         case RefCStruct(decl) => getCStructDeref(decl, name)
         case _ => None
       }
-      case CPrimitiveType(Seq(CSpecificationType(CTArray(_, struct: CTStruct[G])))) =>
+      case CTArray(_, struct: CTStruct[G]) =>
         getCStructDeref(struct.ref.decl, name)
       case _ => None
     }
@@ -242,7 +248,7 @@ case object C {
   }
 
   def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[CDerefTarget[G]] =
-    (obj.t match {
+    (stripCPrimitiveType(obj.t) match {
       case t: TNotAValue[G] => t.decl.get match {
         case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
           case ref: RefADTFunction[G] if ref.name == name => ref
@@ -250,8 +256,6 @@ case object C {
         case RefCStruct(decl: CGlobalDeclaration[G]) => getCStructDeref(decl, name)
         case _ => None
       }
-      case CPrimitiveType(Seq(CSpecificationType(struct: CTStruct[G]))) =>
-        getCStructDeref(struct.ref.decl, name)
       case struct: CTStruct[G] =>
         getCStructDeref(struct.ref.decl, name)
       case CTCudaVec() =>

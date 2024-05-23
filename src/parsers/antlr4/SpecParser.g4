@@ -168,7 +168,8 @@ valPrimaryCollectionConstructor
  | '[t:' langType ']' # valEmptySeq
  | '{t:' langType '}' # valEmptySet
  | 'b{t:' langType '}' # valEmptyBag
- | '{' langExpr '..' langExpr '}' # valRange
+ | '{' langExpr '..' langExpr '}' # valRangeSet
+ | '[' langExpr '..' langExpr ']' # valRange
  ;
 
 valPrimaryPermission
@@ -215,6 +216,7 @@ valPrimaryBinder
  : '(' valBinderSymbol valBindings ';' langExpr valBinderCont? ')' # valQuantifier
  | '(' '\\let' langType langId '=' langExpr ';' langExpr ')' # valLet
  | '(' '\\forperm' valArgList '\\in' langExpr ';' langExpr ')' #valForPerm
+ | '(' '\\forpermwithvalue' 'any' langId ';' langExpr ')' #valForPermWithValue
  ;
 
 valPrimaryVector
@@ -293,6 +295,8 @@ valPrimary
  | '\\euclidean_mod' '(' langExpr ',' langExpr ')' # valEuclideanMod
  | '\\pow' '(' langExpr ',' langExpr ')' # valPow
  | '\\is_int' '(' langExpr ')' # valIsInt
+ | '\\choose' '(' langExpr ')' # valChoose
+ | '\\choose_fresh' '(' langExpr ')' # valChooseFresh
  ;
 
 // Out spec: defined meaning: a language local

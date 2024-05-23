@@ -90,7 +90,7 @@ trait BinExprImpl[G] { this: BinExpr[G] =>
 
   def getIntType: IntType[G] = BinOperatorTypes.getIntType(left.t, right.t)
 
-  def getNumericType: Type[G] = BinOperatorTypes.getNumericType(left.t, right.t, o)
+  lazy val getNumericType: Type[G] = BinOperatorTypes.getNumericType(left.t, right.t, o)
 
   def getVectorType: TVector[G] = BinOperatorTypes.getVectorType(left.t, right.t, o)
 }

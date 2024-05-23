@@ -1,8 +1,8 @@
 #ifndef VCLLVM_FUNCTIONDECLARER_H
 #define VCLLVM_FUNCTIONDECLARER_H
 
+#include "vct/col/ast/col.pb.h"
 #include <llvm/IR/PassManager.h>
-#include "col.pb.h"
 
 /**
  * Pass that creates a signature for a LLVMFunctionDefinition in COL and exposes an FDResult object that
@@ -18,7 +18,7 @@
  */
 namespace vcllvm {
     using namespace llvm;
-    namespace col = vct::col::serialize;
+    namespace col = vct::col::ast;
 
     /// wrapper struct for a COL scope and block. Intended use is the block to be declared in the scope.
     struct ColScopedFuncBody {

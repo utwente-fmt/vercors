@@ -5,5 +5,5 @@ import vct.col.typerules.Types
 
 trait ComparisonImpl[G] { this: Comparison[G] =>
   override def t: Type[G] = TBool()
-  def comparisonType: Type[G] = Types.leastCommonSuperType(left.t, right.t)
+  lazy val comparisonType: Type[G] = Types.leastCommonSuperType(left.t, right.t)
 }

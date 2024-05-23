@@ -101,6 +101,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     case p: JavaParam[Pre] => java.rewriteParameter(p)
 
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)
+    case main: VeSUVMainMethod[Pre] => pvl.rewriteMainMethod(main)
 
     case method: JavaMethod[Pre] => java.rewriteMethod(method)
 
@@ -128,11 +129,11 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
       currentClass.having(cls) {
         currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {
           val decls = classDeclarations.collect {
-            cls.declarations.foreach(dispatch)
+            cls.decls.foreach(dispatch)
             pvl.maybeDeclareDefaultConstructor(cls)
           }._1
 
-          globalDeclarations.succeed(cls, cls.rewrite(decls))
+          globalDeclarations.succeed(cls, cls.rewrite(decls = decls))
         }
       }
 

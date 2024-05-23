@@ -8,5 +8,5 @@ trait EndpointImpl[G] extends EndpointOps[G] with EndpointFamilyOps[G] { this: E
   override def layout(implicit ctx: Ctx): Doc =
     Group(Text("endpoint") <+> ctx.name(this) <+> "=" <>> { Group(t.show <> "(" <> Doc.args(args) <> ");") })
 
-  def t: Type[G] = TClass(cls)
+  def t: TClass[G] = TClass(cls, typeArgs)
 }

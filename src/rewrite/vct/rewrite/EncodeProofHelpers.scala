@@ -95,16 +95,4 @@ case class EncodeProofHelpers[Pre <: Generation](inferHeapContextIntoFrame: Bool
 
     case other => rewriteDefault(other)
   }
-
-  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case IndeterminateInteger(min, max) =>
-      // PB: note that if max <= min, this is the same as `inhale false`. This is intended.
-      implicit val o: Origin = e.o
-      val v = new Variable[Post](TInt())(Indet)
-      ScopedExpr(Seq(v), With(Block(Seq(
-        Inhale(v.get >= dispatch(min)),
-        Inhale(v.get < dispatch(max)),
-      )), v.get))
-    case other => rewriteDefault(other)
-  }
 }

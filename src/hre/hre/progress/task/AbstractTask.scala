@@ -1,11 +1,14 @@
 package hre.progress.task
 
 import hre.perf.ResourceUsage
-import hre.progress.{Progress, ProgressRender, TaskRegistry}
+import hre.progress.{Progress, ProgressLogicError, ProgressRender, TaskRegistry}
+import hre.util.Interrupt
 
 import scala.collection.mutable.ArrayBuffer
 
 abstract class AbstractTask {
+  val EPILSON = 0.001
+
   private val subTasks = ArrayBuffer[AbstractTask]()
 
   protected var startUsage: Option[ResourceUsage] = None
@@ -23,8 +26,11 @@ abstract class AbstractTask {
       case (progress, subtaskProgress) => progress + ((1.0 - progress) * 0.1 * subtaskProgress)
     }
 
+    if(result < 0.0 - EPILSON || result > 1.0 + EPILSON) {
+      throw new ProgressLogicError(profilingTrail, result)
+    }
+
     if(result > 1.0) {
-      println(s"Discarding ${result - 1.0} from $result at $profilingBreadcrumb")
       1.0
     } else result
   }
@@ -67,6 +73,7 @@ abstract class AbstractTask {
 
     TaskRegistry.push(this)
     Progress.update()
+    Interrupt.check()
   }
 
   def end(): Unit = {
@@ -83,12 +90,14 @@ abstract class AbstractTask {
         }
     }
 
+    TaskRegistry.pop(this)
+    Progress.update()
+
     usageReported = ResourceUsage.zero
     startUsage = None
     ownerThread = -1L
 
-    TaskRegistry.pop(this)
-    Progress.update()
+    Interrupt.check()
   }
 
   def abort(): Unit = {
@@ -139,9 +148,11 @@ abstract class AbstractTask {
 
   def frame[T](f: => T): T = {
     start()
-    val res = f
-    end()
-    res
+    try {
+      f
+    } finally {
+      end()
+    }
   }
 
   def frame1[I, O](f: I => O): I => O =

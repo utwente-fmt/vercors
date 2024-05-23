@@ -9,7 +9,7 @@ import vct.col.ast._
 import vct.col.origin.{ExpectedError, Origin}
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.util.AstBuildHelpers.{ff, foldAnd, implies, tt}
-import vct.parsers.ParseError
+import vct.parsers.err.ParseError
 
 import scala.annotation.nowarn
 import scala.collection.immutable.{AbstractSeq, LinearSeq}

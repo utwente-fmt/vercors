@@ -450,6 +450,11 @@ case class SeqBoundExceedsLength(node: SeqSubscript[_]) extends SeqBoundFailure 
   override def descInContext: String = "The index in this sequence subscript may exceed the length of the sequence."
   override def inlineDescWithSource(source: String): String = s"The index in `$source` may exceed the length of the sequence."
 }
+case class SetEmpty(node: Expr[_]) extends NodeVerificationFailure {
+  override def code: String = "setEmpty"
+  override def descInContext: String = "This set may be empty."
+  override def inlineDescWithSource(source: String): String = s"`$source` may be empty."
+}
 
 sealed trait VectorBoundFailure extends FrontendSubscriptError with BuiltinError
 case class VectorBoundNegative(node: Expr[_]) extends VectorBoundFailure with NodeVerificationFailure {

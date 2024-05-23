@@ -72,10 +72,12 @@ When building VerCors, you additionally need these dependencies:
 
 - A Java _Development_ Kit, version 17 or greater, either OpenJDK or Oracle.
 - Git (on Windows you need Git Bash, see <https://git-scm.com/downloads>)
+- Optionally `cmake`, `make` and `libllvm15-dev` if you would like to build VCLLVM (this is currently restricted to linux)
 
 1. Clone the VerCors repository using `git clone https://github.com/utwente-fmt/vercors.git` and move into the cloned directory, `cd vercors`.
-2. Run `./mill vercors.compile` to compile VerCors.
+2. Run `./mill vercors.main.compile` to compile VerCors.
 3. Test whether the build was successful by running `./bin/vct examples/concepts/basic/induction-lemma.pvl`.
+4. (optional) Enable building VCLLVM with `touch .include-vcllvm`
 
 # Running VerCors
 VerCors verifies programs that are annotated with JML-style specifications (the underlying theory uses separation logic with permission accounting). Details on the specification language can be found on the VerCors [Wiki pages](https://github.com/utwente-fmt/vercors/wiki). Furthermore, a large collection of example programs can be found (and verified) in the `./examples` directory.

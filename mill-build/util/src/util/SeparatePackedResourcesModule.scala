@@ -30,7 +30,7 @@ trait SeparatePackedResourcesModule extends JavaModule {
   }
 
   def localPackedClasspath = T {
-    (Nil/*localCompileClasspath().toSeq*/) ++ packedResources() ++ Agg(compile().classes)
+    compileResources() ++ unmanagedClasspath() ++ packedResources() ++ Agg(compile().classes)
   }
 
   def transitiveLocalPackedClasspath = T {

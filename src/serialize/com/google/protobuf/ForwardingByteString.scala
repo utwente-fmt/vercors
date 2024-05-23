@@ -1,5 +1,5 @@
 package com.google.protobuf
-import java.io.{ByteArrayOutputStream, InputStream, OutputStream}
+import java.io.{InputStream, OutputStream}
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.util

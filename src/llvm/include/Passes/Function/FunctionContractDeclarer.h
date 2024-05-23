@@ -1,8 +1,8 @@
 #ifndef VCLLVM_FUNCTIONCONTRACTDECLARER_H
 #define VCLLVM_FUNCTIONCONTRACTDECLARER_H
 
+#include "vct/col/ast/col.pb.h"
 #include <llvm/IR/PassManager.h>
-#include "col.pb.h"
 
 /**
  * Pass that adds an LLVMFunctionContract to its corresponding LLVMFunctionDefinition in the presence
@@ -19,7 +19,7 @@
  */
 namespace vcllvm {
     using namespace llvm;
-    namespace col = vct::col::serialize;
+    namespace col = vct::col::ast;
 
     class FDCResult {
     private:

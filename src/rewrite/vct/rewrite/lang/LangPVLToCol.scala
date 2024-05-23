@@ -35,8 +35,6 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
 
   def rewriteConstructor(cons: PVLConstructor[Pre]): Unit = {
     implicit val o: Origin = cons.o
-    val t = TClass[Post](rw.succ(rw.currentClass.top))
-    val resVar = new Variable(t)
     pvlConstructor(cons) =
       rw.currentThis.having(ThisObject(rw.succ(rw.currentClass.top))) {
         rw.classDeclarations.declare(new Constructor[Post](
@@ -51,13 +49,12 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
   }
 
   def maybeDeclareDefaultConstructor(cls: Class[Pre]): Unit = {
-    if (cls.declarations.collectFirst { case _: PVLConstructor[Pre] => () }.isEmpty) {
+    if (cls.decls.collectFirst { case _: PVLConstructor[Pre] => () }.isEmpty) {
       implicit val o: Origin = cls.o
-      val t = TClass[Post](rw.succ(cls))
       val `this` = ThisObject(rw.succ[Class[Post]](cls))
       val defaultBlame = PanicBlame("The postcondition of a default constructor cannot fail.")
 
-      val checkRunnable = cls.declarations.collectFirst {
+      val checkRunnable = cls.decls.collectFirst {
         case _: RunMethod[Pre] => ()
       }.nonEmpty
 
@@ -67,7 +64,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
         Some(Scope(Nil, Block(Nil))),
         ApplicableContract(
           UnitAccountedPredicate(tt),
-          UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.declarations.collect {
+          UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.decls.collect {
             case field: InstanceField[Pre] if field.flags.collectFirst { case _: Final[Pre] => () }.isEmpty && !veymontGeneratePermissions =>
               fieldPerm[Post](`this`, rw.succ(field), WritePerm())
           }) &* (if (checkRunnable) IdleToken(`this`) else tt)), tt, Nil, Nil, Nil, None,
@@ -107,16 +104,22 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
   }
 
   def newClass(inv: PVLNew[Pre]): Expr[Post] = {
-    val PVLNew(t, args, givenMap, yields) = inv
+    val PVLNew(t, typeArgs, args, givenMap, yields) = inv
+    val classTypeArgs = t match {
+      case TClass(_, typeArgs) => typeArgs
+      case _ => Seq()
+    }
     implicit val o: Origin = inv.o
     inv.ref.get match {
       case RefModel(decl) => ModelNew[Post](rw.succ(decl))
       case RefPVLConstructor(decl) =>
-        ConstructorInvocation[Post](pvlConstructor.ref(decl), args.map(rw.dispatch), Nil, Nil,
+        ConstructorInvocation[Post](pvlConstructor.ref(decl), classTypeArgs.map(rw.dispatch), args.map(rw.dispatch),
+          Nil, typeArgs.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultPVLConstructor(_) =>
-        ConstructorInvocation[Post](pvlDefaultConstructor.ref(t.asInstanceOf[TClass[Pre]].cls.decl), args.map(rw.dispatch), Nil, Nil,
+        ConstructorInvocation[Post](pvlDefaultConstructor.ref(t.asInstanceOf[TClass[Pre]].cls.decl), classTypeArgs.map(rw.dispatch),
+          args.map(rw.dispatch), Nil, typeArgs.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
     }
@@ -142,4 +145,17 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
     else
       assign.rewriteDefault()
 
+  def rewriteMainMethod(main: VeSUVMainMethod[Pre]): Unit = {
+    implicit val o: Origin = main.o
+    main.drop()
+    val body: Option[Statement[Post]] = main.body match {
+      case None => None
+      case Some(s) => Some(s.rewriteDefault())
+    }
+    val empty_pred: AccountedPredicate[Post] = UnitAccountedPredicate(BooleanValue(value = true))
+    // TODO: Where does the blame come from?
+    val contract: ApplicableContract[Post] = ApplicableContract(empty_pred, empty_pred, BooleanValue(value = true), Seq(), Seq(), Seq(), None)(o)
+    val new_main: Procedure[Post] = new Procedure(TVoid(), Seq(), Seq(), Seq(), body, contract, false, false, true)(main.blame)
+    new_main.declare()
+  }
 }

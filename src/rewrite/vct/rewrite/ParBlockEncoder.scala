@@ -153,10 +153,18 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       quantify(block, block.context_everywhere &* block.ensures, nonEmpty)
   }
 
-  def constantExpression[A](e: Expr[A], nonConstVars: Set[Variable[A]]): Boolean = e match {
-    case _: Constant[_] => true
-    case op: BinExpr[_] => constantExpression(op.left, nonConstVars) && constantExpression(op.right, nonConstVars)
-    case Local(v) => !nonConstVars.contains(v.decl)
+  // A variable of this type cannot be altered in a parallel block
+  def isConstType(t: Type[_]): Boolean = t match {
+    case _: NumericType[_] => true
+    case _: TBool[_] => true
+    case _: TChar[_] => true
+    case TSeq(e) => isConstType(e)
+    case TSet(e) => isConstType(e)
+    case TBag(e) => isConstType(e)
+    case TMap(e, v) => isConstType(e) && isConstType(v)
+    case TOption(e) => isConstType(e)
+    case TTuple(es) => es.forall(isConstType)
+    case TEither(l, r) => isConstType(l) && isConstType(r)
     case _ => false
   }
 
@@ -262,8 +270,8 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
   def isConstant(e: Expr[Post]): Boolean = e match {
     case _ : Constant[Post] => true
-    // TODO: Is this true??
-//    case _: Local[Post] => true
+    case l: Local[_] if isConstType(l.t) => true
+    case _: Constant[_] => true
     case op: BinExpr[Post] => isConstant(op.left) && isConstant(op.right)
     case _ => false
   }
@@ -278,23 +286,15 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         implicit val o: Origin = v.o
         val from = dispatch(v.from)
         val to = dispatch(v.to)
-        val nonConstVars = scanForAssign(block.content)
-        if (nonConstVars.nonEmpty && constantExpression(v.from, nonConstVars.get) && constantExpression(v.to, nonConstVars.get)) {
-          rangeValues(v.variable) = (from, to)
-          res
-        } else {
-          val lo = variables.declare(new Variable[Post](TInt())(LowEvalOrigin(v)))
-          val hi = variables.declare(new Variable[Post](TInt())(HighEvalOrigin(v)))
-          val from = dispatch(v.from)
-          val to = dispatch(v.to)
-          val low = if(isConstant(from)) from else lo.get
-          val high = if(isConstant(to)) to else hi.get
-          rangeValues(v.variable) = (low, high)
-          res ++ Seq(
-            assignLocal(lo.get, from),
-            assignLocal(hi.get, to),
-          )
-        }
+        val lo = variables.declare(new Variable[Post](TInt())(LowEvalOrigin(v)))
+        val hi = variables.declare(new Variable[Post](TInt())(HighEvalOrigin(v)))
+        val low = if(isConstant(from)) from else lo.get
+        val high = if(isConstant(to)) to else hi.get
+        rangeValues(v.variable) = (low, high)
+        res ++ Seq(
+          assignLocal(lo.get, from),
+          assignLocal(hi.get, to),
+        )
       })(region.o)
   }
 
@@ -317,13 +317,18 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       })(region.o)
     case block@ParBlock(decl, iters, context_everywhere, requires, ensures, content) =>
       implicit val o: Origin = region.o
-      val (vars, init) = variables.collect {
-        Block(iters.map { v =>
+      val (vars, (init, blockNonEmpty)) = variables.collect {
+        val initsAndConds = iters.map { v =>
           dispatch(v.variable)
-          assignLocal(Local[Post](succ(v.variable)), IndeterminateInteger(from(v.variable), to(v.variable)))
-        })
+          val cond = from(v.variable) < to(v.variable)
+          val init = assignLocal(Local[Post](succ(v.variable)), ChooseFresh(RangeSet(from(v.variable), to(v.variable)))(PanicBlame("under branch from < to")))
+          (init, cond)
+        }
+
+        (Block(initsAndConds.map(_._1)), foldAnd(initsAndConds.map(_._2)))
       }
-      Scope(vars, Block(Seq(
+
+      val proof = Scope(vars, Block(Seq(
         init,
         FramedProof(
           pre = dispatch(context_everywhere) &* dispatch(requires),
@@ -331,6 +336,8 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
           post = dispatch(context_everywhere) &* dispatch(ensures),
         )(ParBlockProofFailed(block)),
       )))
+
+      Branch(Seq(blockNonEmpty -> proof))
   }
 
   def isParBlock(stat: ParRegion[Pre]): Boolean = stat match {

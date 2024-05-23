@@ -2,6 +2,7 @@ package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
+import hre.debug.TimeTravel.CauseWithBadEffect
 import hre.progress.Progress
 import hre.stages.Stage
 import vct.col.ast.{Program, SimplificationRule, Verification}
@@ -22,9 +23,10 @@ import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
-import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, SmtlibToProverTypes}
+import vct.rewrite.adt.ImportSetCompat
+import vct.rewrite.{EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, MonomorphizeClass, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, GenerateSeqProgPermissions, EncodeUnpointedGuard, SplitSeqGuards}
+import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, EncodeUnpointedGuard, GenerateSeqProgPermissions, SplitSeqGuards}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
@@ -43,7 +45,7 @@ object Transformation {
 
   def simplifierFor(path: PathOrStd, options: Options): RewriterBuilder =
     ApplyTermRewriter.BuilderFor(
-      ruleNodes = Util.loadPVLLibraryFile[InitialGeneration](path).declarations.collect {
+      ruleNodes = Util.loadPVLLibraryFile[InitialGeneration](path, options.getParserDebugOptions).declarations.collect {
         case rule: SimplificationRule[InitialGeneration] => rule
       },
       debugIn = options.devSimplifyDebugIn,
@@ -58,7 +60,7 @@ object Transformation {
     options.backend match {
       case Backend.Silicon | Backend.Carbon =>
         SilverTransformation(
-          adtImporter = PathAdtImporter(options.adtPath),
+          adtImporter = PathAdtImporter(options.adtPath, options.getParserDebugOptions),
           onBeforePassKey = writeOutFunctions(options.outputBeforePass),
           onAfterPassKey = writeOutFunctions(options.outputAfterPass),
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
@@ -122,18 +124,24 @@ class Transformation
           case (key, action) => if (pass.key == key) action(result)
         }
 
-        result = pass().dispatch(result)
+        try {
+          result = pass().dispatch(result)
+        } catch {
+          case c @ CauseWithBadEffect(effect) =>
+            logger.error(s"An error occurred in pass ${pass.key}")
+            throw c
+        }
 
         result.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
           case Nil => // ok
           case errors => throw TransformationCheckError(pass, errors)
         }
 
+        result = PrettifyBlocks().dispatch(result)
+
         onAfterPassKey.foreach {
           case (key, action) => if (pass.key == key) action(result)
         }
-
-        result = PrettifyBlocks().dispatch(result)
       }
 
       for ((feature, examples) <- Feature.examples(result)) {
@@ -164,7 +172,7 @@ class Transformation
  */
 case class SilverTransformation
 (
-  adtImporter: ImportADTImporter = PathAdtImporter(Resources.getAdtPath),
+  adtImporter: ImportADTImporter = PathAdtImporter(Resources.getAdtPath, vct.parsers.debug.DebugOptions.NONE),
   override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
   override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
@@ -251,6 +259,7 @@ case class SilverTransformation
 
     // Encode proof helpers
     EncodeProofHelpers.withArg(inferHeapContextIntoFrame),
+    ImportSetCompat.withArg(adtImporter),
 
     // Make final fields constant functions. Explicitly before ResolveExpressionSideEffects, because that pass will
     // flatten out functions in the rhs of assignments, making it harder to detect final field assignments where the
@@ -258,17 +267,17 @@ case class SilverTransformation
     ConstantifyFinalFields,
 
     // Resolve side effects including method invocations, for encodetrythrowsignals.
+    ResolveExpressionSideChecks,
     ResolveExpressionSideEffects,
     EncodeTryThrowSignals,
 
     ResolveScale,
+    MonomorphizeClass,
     // No more classes
     ClassToRef,
     HeapVariableToRef,
 
     CheckContractSatisfiability.withArg(checkSat),
-
-    ResolveExpressionSideChecks,
 
     DesugarCollectionOperators,
     EncodeNdIndex,
@@ -291,6 +300,7 @@ case class SilverTransformation
     ImportNull.withArg(adtImporter),
     ImportAny.withArg(adtImporter),
     ImportViperOrder.withArg(adtImporter),
+    EncodeRange.withArg(adtImporter),
 
     // After Disambiguate and  ImportVector
     TruncDivMod,

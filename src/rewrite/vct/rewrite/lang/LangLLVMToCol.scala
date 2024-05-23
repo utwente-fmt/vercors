@@ -89,30 +89,32 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   def rewriteGlobal(decl: LlvmGlobal[Pre]): Unit = {
     implicit val o: Origin = decl.o
-    rw.globalDeclarations.declare(
-      decl.data.get match {
-        case function: LlvmSpecFunction[Pre] =>
-          val rwFunction = new Function[Post](
-            rw.dispatch(function.returnType),
-            rw.variables.collect {
-              function.args.foreach(rw.dispatch)
-            }._1,
-            rw.variables.collect {
-              function.typeArgs.foreach(rw.dispatch)
-            }._1,
-            function.body match {
-              case Some(body) => Some(rw.dispatch(body))
-              case None => None
-            },
-            rw.dispatch(function.contract),
-            function.inline,
-            function.threadLocal
-          )(function.blame)
-          specFunctionMap.update(function, rwFunction)
-          rwFunction
-        case other => throw UnexpectedLlvmNode(other)
-      }
-    )
+    decl.data.get.foreach { decl =>
+      rw.globalDeclarations.declare(
+        decl match {
+          case function: LlvmSpecFunction[Pre] =>
+            val rwFunction = new Function[Post](
+              rw.dispatch(function.returnType),
+              rw.variables.collect {
+                function.args.foreach(rw.dispatch)
+              }._1,
+              rw.variables.collect {
+                function.typeArgs.foreach(rw.dispatch)
+              }._1,
+              function.body match {
+                case Some(body) => Some(rw.dispatch(body))
+                case None => None
+              },
+              rw.dispatch(function.contract),
+              function.inline,
+              function.threadLocal
+            )(function.blame)
+            specFunctionMap.update(function, rwFunction)
+            rwFunction
+          case other => throw UnexpectedLlvmNode(other)
+        }
+      )
+    }
   }
 
   def result(ref: RefLlvmFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =

@@ -8,7 +8,14 @@
         </encoder>
     </appender>
 
+    <appender name="HISTORY" class="hre.log.LogHistory">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{HH:mm:ss.SSS} [%p] %m%n</pattern>
+        </encoder>
+    </appender>
+
     <root level="DEBUG">
         <appender-ref ref="STDOUT" />
+        <appender-ref ref="HISTORY" />
     </root>
 </configuration>
