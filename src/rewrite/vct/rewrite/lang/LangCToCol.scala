@@ -1075,7 +1075,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     // The copy of the value
     val vCopy = new Variable[Post](t)
 
-    val fieldAssigns = structClass.declarations.collect {
+    val fieldAssigns = targetClass.declarations.collect {
       case field: InstanceField[Post] =>
         val ref: Ref[Post, InstanceField[Post]] = field.ref
         assignField(vCopy.get, ref, Deref[Post](vValue.get, field.ref)(blame(field)), PanicBlame("Assignment should work"))
@@ -1084,8 +1084,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     With(Block(Seq(
       LocalDecl(vCopy),
       LocalDecl(vValue),
-      assignLocal(vValue.get, value),
-      assignLocal(vCopy.get, NewObject[Post](structClass.ref))
+      assignLocal(vValue.get, a),
+      assignLocal(vCopy.get, NewObject[Post](targetClass.ref))
     ) ++ fieldAssigns), vCopy.get)
   }
 
