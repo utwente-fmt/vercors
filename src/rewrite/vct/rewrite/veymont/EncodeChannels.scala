@@ -126,15 +126,15 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
       ).succeed(cls)
 
     case cls: Class[Pre] if cls == genericChannelClass =>
-//      globalDeclarations.scope {
+      globalDeclarations.scope {
         classDeclarations.scope {
           variables.scope {
             currentMsgTVar.having(cls.typeArgs.head) {
-              channelClassSucc(currentCommunicate.top) = cls.rewrite(typeArgs = Seq()) // .succeed(cls)
+              channelClassSucc(currentCommunicate.top) = cls.rewrite(typeArgs = Seq()).succeed(cls)
             }
           }
         }
-//      }
+      }
     case cons: Constructor[Pre] if cons == genericChannelConstructor =>
       channelConstructorSucc(currentCommunicate.top) = cons.rewriteDefault().succeed(cons)
     case m: InstanceMethod[Pre] if m == genericChannelWrite =>

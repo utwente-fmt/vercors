@@ -48,11 +48,11 @@ object Transformation extends LazyLogging {
     }
   }
 
-  private def reportIntermediateProgram(out: Path): PassEventHandler = {
+  private def reportIntermediateProgram(out: Path, stageKey: String): PassEventHandler = {
     out.toFile.mkdirs()
     (passes, event, pass, program) => {
       val i = passes.map(_.key).indexOf(pass) * 2 + (if(event == before) 0 else 1)
-      val target = PathOrStd.Path(out.resolve(f"$i%03d-$event-$pass.col"))
+      val target = PathOrStd.Path(out.resolve(f"$stageKey-$i%03d-$event-$pass.col"))
       target.write { writer => program.write(writer)(Ctx().namesIn(program)) }
     }
   }
@@ -75,7 +75,7 @@ object Transformation extends LazyLogging {
       case Backend.Silicon | Backend.Carbon =>
         SilverTransformation(
           adtImporter = PathAdtImporter(options.adtPath),
-          onPassEvent = options.outputIntermediatePrograms.map(reportIntermediateProgram).toSeq ++
+          onPassEvent = options.outputIntermediatePrograms.map(p => reportIntermediateProgram(p, "verify")).toSeq ++
             writeOutFunctions(Transformation.before, options.outputBeforePass) ++
             writeOutFunctions(Transformation.after, options.outputAfterPass),
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
@@ -91,7 +91,7 @@ object Transformation extends LazyLogging {
   def veymontImplementationGenerationOfOptions(options: Options): Transformation =
     VeyMontImplementationGeneration(
       importer = PathAdtImporter(options.veymontResourcePath),
-      onPassEvent = options.outputIntermediatePrograms.map(reportIntermediateProgram).toSeq ++
+      onPassEvent = options.outputIntermediatePrograms.map(p => reportIntermediateProgram(p, "generate")).toSeq ++
         writeOutFunctions(before, options.outputBeforePass) ++
         writeOutFunctions(after, options.outputAfterPass),
     )

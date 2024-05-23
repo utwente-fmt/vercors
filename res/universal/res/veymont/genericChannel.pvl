@@ -8,7 +8,8 @@ class Channel<T> {
     transferring = false;
     commit this;
   }
- 
+
+  requires committed(this);
   void writeValue(T v) {
     lock this;
 
@@ -24,6 +25,7 @@ class Channel<T> {
     unlock this;
   }
  
+  requires committed(this);
   T readValue() {
     lock this;
 

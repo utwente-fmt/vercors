@@ -1,8 +1,10 @@
 package vct.col.ast.unsorted
 
-import vct.col.ast.{ConstructorInvocation, TClass, Type, Variable, Class}
+import vct.col.ast.{Class, ConstructorInvocation, TClass, Type, Variable}
 import vct.col.ast.ops.ConstructorInvocationOps
 import vct.col.print._
+
+import scala.util.Try
 
 trait ConstructorInvocationImpl[G] extends ConstructorInvocationOps[G] { this: ConstructorInvocation[G] =>
 
@@ -15,7 +17,7 @@ trait ConstructorInvocationImpl[G] extends ConstructorInvocationOps[G] { this: C
      Doc.spread(Seq(
        Text("new"),
        DocUtil.javaGenericArgs(typeArgs),
-       Text(ctx.deref(ref).map(_.cls).map(ctx.deref).flatten.map(ctx.name(_)).merge) <> DocUtil.javaGenericArgs(classTypeArgs) <>
+       Text(Try(cls).map(ctx.name(_)).getOrElse("?brokenref?")) <> DocUtil.javaGenericArgs(classTypeArgs) <>
          "(" <> DocUtil.argsOutArgs(args, outArgs) <> ")" <>
          DocUtil.givenYields(givenMap, yields)
      ))
