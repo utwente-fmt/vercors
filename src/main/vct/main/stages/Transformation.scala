@@ -90,7 +90,7 @@ object Transformation extends LazyLogging {
 
   def veymontImplementationGenerationOfOptions(options: Options): Transformation =
     VeyMontImplementationGeneration(
-      importer = PathAdtImporter(options.veymontResourcePath),
+      importer = PathAdtImporter(options.veymontResourcePath, options.getParserDebugOptions),
       onPassEvent = options.outputIntermediatePrograms.map(p => reportIntermediateProgram(p, "generate")).toSeq ++
         writeOutFunctions(before, options.outputBeforePass) ++
         writeOutFunctions(after, options.outputAfterPass),
@@ -338,7 +338,7 @@ case class SilverTransformation
     Explode.withArg(splitVerificationByProcedure),
   ))
 
-case class VeyMontImplementationGeneration(importer: ImportADTImporter = PathAdtImporter(Resources.getVeymontPath),
+case class VeyMontImplementationGeneration(importer: ImportADTImporter = PathAdtImporter(Resources.getVeymontPath, vct.parsers.debug.DebugOptions.NONE),
                                            override val onPassEvent: Seq[PassEventHandler] = Nil)
   extends Transformation(onPassEvent, Seq(
     SplitChorGuards,

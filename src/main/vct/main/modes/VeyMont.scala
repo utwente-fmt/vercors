@@ -3,7 +3,7 @@ package vct.main.modes
 import com.typesafe.scalalogging.LazyLogging
 import hre.stages.{FunctionStage, IdentityStage, Stage, Stages}
 import hre.stages.Stages.{branch, saveInput}
-import hre.io.{CollectString, Readable}
+import hre.io.{CollectString, LiteralReadable, Readable}
 import vct.col.ast.Verification
 import vct.col.origin.{BlameCollector, VerificationFailure}
 import vct.col.rewrite.{Generation, InitialGeneration}
@@ -11,7 +11,7 @@ import vct.col.rewrite.bip.BIP
 import vct.main.Main.{EXIT_CODE_ERROR, EXIT_CODE_SUCCESS, EXIT_CODE_VERIFICATION_FAILURE}
 import vct.main.modes.Verify.logger
 import vct.main.stages.veymont.CodeGeneration
-import vct.main.stages.{Backend, ExpectedErrors, Output, Parsing, Resolution, Stages, StringReadable, Transformation, VeyMontImplementationGeneration}
+import vct.main.stages.{Backend, ExpectedErrors, Output, Parsing, Resolution, Stages, Transformation, VeyMontImplementationGeneration}
 import vct.options.Options
 import vct.options.types.PathOrStd
 import vct.parsers.ParseResult
@@ -71,7 +71,7 @@ object VeyMont extends LazyLogging {
         ).transform(_._1)
     }
 
-    val generationStage: Stages[Verification[_ <: Generation], Seq[StringReadable]] = {
+    val generationStage: Stages[Verification[_ <: Generation], Seq[LiteralReadable]] = {
       IdentityStage().also(logger.info("Generating endpoint implementations"))
         .thenRun(Transformation.veymontImplementationGenerationOfOptions(options))
         .thenRun(Output.veymontOfOptions(options))

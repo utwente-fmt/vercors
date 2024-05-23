@@ -1,7 +1,7 @@
 package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.io.Readable
+import hre.io.{LiteralReadable, Readable}
 import hre.stages.{Stage, Stages}
 import vct.col.ast.{Declaration, Node, Program, Verification}
 import vct.col.origin.DiagnosticOrigin
@@ -26,11 +26,11 @@ case object Output {
     ???
   }
 
-  def veymontOfOptions(options: Options): Stage[Verification[_ <: Generation], Seq[StringReadable]] =
+  def veymontOfOptions(options: Options): Stage[Verification[_ <: Generation], Seq[LiteralReadable]] =
     Output(options.veymontOutput, Ctx.PVL, false)
 }
 
-case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean) extends Stage[Verification[_ <: Generation], Seq[StringReadable]] with LazyLogging {
+case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean) extends Stage[Verification[_ <: Generation], Seq[LiteralReadable]] with LazyLogging {
   override def friendlyName: String = "Saving Output"
 
   override def progressWeight: Int = 1
@@ -45,25 +45,25 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean) ex
     case Ctx.OpenCL => "cl"
   }
 
-  override def run(in: Verification[_ <: Generation]): Seq[StringReadable] = {
+  override def run(in: Verification[_ <: Generation]): Seq[LiteralReadable] = {
     val namer = Namer[Generation](syntax)
     in.tasks.foreach(t => namer.name(t.program.asInstanceOf[Program[Generation]]))
     val names = namer.finish
     val ctx = Ctx(syntax = syntax, names = names.asInstanceOf[Map[Declaration[_], String]])
 
-    val txts: Seq[StringReadable] = if (splitDecls) {
+    val txts: Seq[LiteralReadable] = if (splitDecls) {
       in.asInstanceOf[Program[_]].declarations.zipWithIndex.map { case (decl, i) =>
         val name = names.getOrElse(decl.asInstanceOf, s"unknown$i")
         val fileName = s"${name}.${extension(syntax)}"
         val buf = new StringBuffer()
         decl.write(buf)(ctx)
-        StringReadable(buf.toString, fileName)
+        LiteralReadable(buf.toString, fileName)
       }
     } else {
       val buf = new StringBuffer()
       in.write(buf)(ctx)
       val path = s"unknown.${extension(syntax)}"
-      Seq(StringReadable(buf.toString, path))
+      Seq(LiteralReadable(buf.toString, path))
     }
 
     (out, txts) match {

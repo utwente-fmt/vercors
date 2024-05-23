@@ -25,6 +25,7 @@ case object ExampleFiles {
     "Makefile",
     "README",
     "LICENSE.txt",
+    "veymont-tictactoemn-seq.pvl",
   )
 
   val MAIN_FILES: Set[String] = Set(

@@ -7,7 +7,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
 sealed trait PathOrStd extends InMemoryCachedReadable with Writeable {
-  override def underlyingFile: Option[Path] = this match {
+  override def underlyingPath: Option[Path] = this match {
     case PathOrStd.Path(path) => Some(path)
     case PathOrStd.StdInOrOut => None
   }
@@ -44,17 +44,6 @@ sealed trait PathOrStd extends InMemoryCachedReadable with Writeable {
 }
 
 case object PathOrStd {
-  case class Path(path: java.nio.file.Path) extends PathOrStd {
-    def exists: Boolean = underlyingFile.exists(_.exists())
-    def isDir: Boolean = underlyingFile.exists(_.isDirectory)
-    def isFile: Boolean = underlyingFile.exists(f => f.exists() && f.isFile)
-    def mkDir() = {
-      assert(!exists || isDir)
-      val dir = underlyingFile.get
-      dir.mkdirs()
-    }
-
-    def resolve(elem: String): Path = Path(path.resolve(elem))
-  }
+  case class Path(path: java.nio.file.Path) extends PathOrStd
   case object StdInOrOut extends PathOrStd
 }
