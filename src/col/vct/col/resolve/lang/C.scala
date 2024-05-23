@@ -266,7 +266,7 @@ case object C {
           case "z" => Some(RefCudaVecZ(ref))
           case _ => None
         }
-      case CPrimitiveType(Seq(CSpecificationType(v: TOpenCLVector[G]))) =>
+      case v: TOpenCLVector[G] =>
         openCLVectorAccessString(name, v.size).map(RefOpenCLVectorMembers[G])
       case _ => None
     }).orElse(Spec.builtinField(obj, name, blame))
