@@ -2,16 +2,13 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.util.Declarator
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, ChorGuard, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, Communicate, CommunicateStatement, CommunicateX, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, Expr, GlobalDeclaration, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, LocalDecl, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVar, TVeyMontChannel, TVoid, ThisChoreography, ThisObject, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, WritePerm}
-import vct.col.origin.{Name, Origin, PanicBlame, SourceName}
+import vct.col.ast.{Assign, Block, ChorStatement, Choreography, Class, Communicate, CommunicateStatement, Constructor, ConstructorInvocation, Declaration, Deref, Endpoint, EndpointName, Eval, InstanceField, InstanceMethod, Local, Program, Scope, Statement, TClass, TVar, Type, Variable}
+import vct.col.origin.{Name, PanicBlame, SourceName}
 import vct.col.ref.Ref
-import vct.col.resolve.ctx.RefJavaMethod
-import vct.col.rewrite.adt.{ImportADT, ImportADTImporter}
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
-import vct.col.util.SuccessionMap
-import vct.result.VerificationError.{Unreachable, UserError}
+import vct.col.rewrite.adt.ImportADTImporter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.SuccessionMap
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -24,10 +21,6 @@ object EncodeChannels extends RewriterBuilderArg[ImportADTImporter] {
 case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extends Rewriter[Pre] with LazyLogging with VeymontContext[Pre] {
 
   private lazy val channelPre = importer.loadAdt[Pre]("genericChannel").declarations
-//  private lazy val channelPost = {
-//    channelPre.foreach(dispatch)
-//    channelPre.map(succProvider.computeSucc).map(_.get)
-//  }
 
   lazy val genericChannelClass = find[Pre, Class[Pre]](channelPre, "Channel")
   lazy val genericChannelDecls = genericChannelClass.decls
@@ -39,12 +32,6 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter) extend
   val channelConstructorSucc = SuccessionMap[Communicate[Pre], Constructor[Post]]()
   val channelWriteSucc = SuccessionMap[Communicate[Pre], InstanceMethod[Post]]()
   val channelReadSucc = SuccessionMap[Communicate[Pre], InstanceMethod[Post]]()
-
-//  private lazy val genericChannelClass = find[Post, Class[Post]](channelPost, "Channel")
-//  private lazy val genericChannelDecls = genericChannelClass.decls
-//  private lazy val genericConstructor = find[Post, Constructor[Post]](genericChannelDecls)
-//  private lazy val genericWrite = find[Post, InstanceMethod[Post]](genericChannelDecls, "writeValue")
-//  private lazy val genericRead = find[Post, InstanceMethod[Post]](genericChannelDecls, "readValue")
 
   protected def find[G, T](decls: Seq[Declaration[G]], name: String = null)(implicit tag: ClassTag[T]): T =
     decls.collectFirst {

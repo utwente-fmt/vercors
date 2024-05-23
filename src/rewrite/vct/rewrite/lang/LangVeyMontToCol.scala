@@ -44,10 +44,8 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], allow
   def rewriteCommunicate(comm: PVLCommunicate[Pre], inv: Expr[Pre]): CommunicateStatement[Post] = {
     val newComm = new Communicate[Post](
         rw.dispatch(inv),
-//        Some(rw.succ[Endpoint[Post]](comm.inferredSender.get)),
         Some(endpointSucc.ref(comm.inferredReceiver.get)),
         rw.dispatch(comm.target),
-//        Some(rw.succ[Endpoint[Post]](comm.inferredReceiver.get)),
         Some(endpointSucc.ref(comm.inferredSender.get)),
         rw.dispatch(comm.msg))(comm.blame)(comm.o)
     commSucc(comm) = newComm
