@@ -889,7 +889,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case inv @ ConstructorInvocation(ref, classTypeArgs, args, outArgs, typeArgs, givenMap, yields) =>
         ConstructorInvocation(ref, classTypeArgs, coerceArgs(args, ref.decl, inv.typeEnv, canCDemote = true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote = true), coerceYields(yields, args.head))(inv.blame)
       case acc @ CFieldAccess(struct, field) =>
-        CStructAccess(struct, field)(acc.blame)
+        CFieldAccess(struct, field)(acc.blame)
       case deref @ CStructDeref(struct, field) =>
         CStructDeref(struct, field)(deref.blame)
       case CurPerm(loc) =>
