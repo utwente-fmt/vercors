@@ -89,8 +89,8 @@ case class RASIGenerator[G]() extends LazyLogging {
   }
 
   private def reduce_redundant_states(): (Seq[AbstractState[G]], Seq[(AbstractState[G], AbstractState[G])]) = {
-    val state_groups: Map[Map[ConcreteVariable[G], UncertainValue], mutable.ArrayBuffer[AbstractState[G]]] = Map.from(found_states.groupBy(s => s.valuations))
-    val edge_groups: Seq[(AbstractState[G], AbstractState[G])] = Seq.from(found_edges.map(e => (state_groups(e.from.valuations).head, state_groups(e.to.valuations).head)))
+    val state_groups: Map[Expr[G], mutable.ArrayBuffer[AbstractState[G]]] = Map.from(found_states.groupBy(s => s.to_expression))
+    val edge_groups: Seq[(AbstractState[G], AbstractState[G])] = Seq.from(found_edges.map(e => (state_groups(e.from.to_expression).head, state_groups(e.to.to_expression).head)))
     (state_groups.values.toSeq.map(v => v.head), edge_groups.distinct.filter(t => t._1 != t._2))
   }
 }

@@ -41,19 +41,19 @@ class StaticScanner[G](initial_node: CFGNode[G], state: AbstractState[G]) {
       case _: IntType[_] | _: TBool[_] | _: TResource[_] => true
       // If it is a collection, an update might only change other indices than those tracked
       // Therefore: evaluate the assignment explicitly to see if it affects the tracked variables      TODO: Consider arrays
-      case _: TSeq[_] => state.valuations != state.with_updated_collection(target, value).valuations
+      case _: TSeq[_] => state.to_expression != state.with_updated_collection(target, value).to_expression
     }
   }
 
   private def assumption_changes_vars(assumption: Expr[G]): Boolean = {
     val potential_successor: RASISuccessor[G] = state.with_assumption(assumption)
     if (potential_successor.successors.size != 1) true
-    else state.valuations != potential_successor.successors.head.valuations
+    else state.to_expression != potential_successor.successors.head.to_expression
   }
 
   private def postcondition_changes_vars(postcondition: AccountedPredicate[G], params: Map[Variable[G], Expr[G]]): Boolean = {
     val potential_successor: RASISuccessor[G] = state.with_postcondition(postcondition, params)
     if (potential_successor.successors.size != 1) true
-    else state.valuations != potential_successor.successors.head.valuations
+    else state.to_expression != potential_successor.successors.head.to_expression
   }
 }
