@@ -81,13 +81,10 @@ import vct.col.ast.statement.terminal._
 import vct.col.ast.statement.veymont._
 import vct.col.ast.unsorted._
 import vct.col.ast.util.Declarator
-import vct.col.check.{CheckContext, CheckError}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
-import vct.col.resolve.lang.C.o
 import vct.col.resolve.lang.JavaAnnotationData
-import vct.col.util.AstBuildHelpers.tt
 import vct.col.structure.{family, scopes}
 
 import scala.collection.mutable.ArrayBuffer
@@ -1424,28 +1421,11 @@ final case class CodeStringStatement[G](content: String)(implicit val o: Origin)
 final case class CodeStringQuantifier[G](quantifier: Expr[G], lowerBound: Expr[G], condition: Expr[G], body: Statement[G])(implicit val o: Origin) extends Statement[G] with CodeStringQuantifierImpl[G]
 final case class CodeStringQuantifierCall[G](obj: Expr[G], quantifierId: String, ref: Ref[G, CodeStringQuantifierMethod[G]], args: Seq[Expr[G]])(val blame: Blame[InstanceInvocationFailure])(implicit val o: Origin) extends AnyMethodInvocation[G] with InstanceApply[G] with CodeStringQuantifierCallImpl[G]
 final class CodeStringQuantifierMethod[G](val quantifierId: String, val args: Seq[Variable[G]], val body: Option[Statement[G]])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G] with AbstractMethod[G] with CodeStringQuantifierMethodImpl[G]
-object CodeStringQuantifierMethod{
-  private val quantifiers = new ArrayBuffer[String]
-
-  def nextId(): String = {
-    val newMethodId = quantifiers.size.toString
-    quantifiers.addOne(newMethodId)
-    newMethodId
-  }
-}
-
-//final case class CodeStringCheckPermissionExpr[G](objectLocation: Expr[G], id: Int, field: Expr[G], permission: Expr[G]) (implicit val o: Origin) extends Expr[G] with CodeStringCheckPermissionExprImpl[G]
-//final case class CodeStringCheckArrayPermissionExpr[G](objectLocation: Expr[G], id: Int, location: Expr[G], field: Expr[G], permission: Expr[G]) (implicit val o: Origin) extends Expr[G] with CodeStringCheckArrayPermissionExprImpl[G]
 
 final class CodeStringPredicateConstructor[G](val args: Seq[Variable[G]], val body: Option[Statement[G]])(implicit val o: Origin) extends ClassDeclaration[G] with CodeStringPredicateConstructorImpl[G]
 
 final case class JavaLocalRuntime[G](ref: Ref[G, JavaParam[G]])(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends JavaExpr[G] with JavaLocalRuntimeImpl[G]
 
-
-
-
-
-//final case class PredicateStoreCall[G](threadId: Expr[G])
 final case class CodeStringGetPredicate[G](args: Seq[Expr[G]], cls: Ref[G, Class[G]])(implicit val o: Origin) extends Statement[G] with CodeStringGetPredicateImpl[G]
 final case class RuntimeNewPredicate[G](cls: Ref[G, Class[G]], args: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with RuntimeNewPredicateImpl[G]
 final case class Equals[G](obj: Expr[G], target: Expr[G])(implicit val o: Origin) extends Expr[G] with EqualsImpl[G]
@@ -1485,7 +1465,6 @@ final case class TLong[G]()(implicit val o: Origin = DiagnosticOrigin) extends N
 final case class TLongObject[G]()(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TLongObjectImpl[G]
 final case class TIntObject[G]()(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TIntObjectImpl[G]
 
-//Hashmap:
 final case class RuntimeConcurrentHashMap[G](keyType: Type[G], valueType: Type[G])(implicit val o: Origin) extends DeclaredType[G] with RuntimeConcurrentHashMapImpl[G]
 final case class RuntimeNewConcurrentHashMap[G](t: Type[G])(implicit val o: Origin) extends Expr[G] with RuntimeNewConcurrentHashMapImpl[G]
 sealed trait RuntimeConcurrentHashMapFunctions[G] extends Expr[G]
@@ -1495,7 +1474,6 @@ final case class RuntimeConcurrentHashMapPut[G](hm: Expr[G], key: Expr[G], value
 final case class RuntimeConcurrentHashMapContainsKey[G](hm: Expr[G], key: Expr[G])(implicit val o: Origin) extends RuntimeConcurrentHashMapFunctions[G] with RuntimeConcurrentHashMapContainsKeyImpl[G]
 final case class RuntimeConcurrentHashMapKeySet[G](hm: Expr[G])(implicit val o: Origin) extends RuntimeConcurrentHashMapFunctions[G] with RuntimeConcurrentHashMapKeySetImpl[G]
 
-//CopyOnWriteArrayList
 final case class CopyOnWriteArrayList[G](listType: Type[G])(implicit val o: Origin) extends DeclaredType[G] with CopyOnWriteArrayListImpl[G]
 final case class CopyOnWriteArrayListNew[G](t: Type[G])(implicit val o: Origin) extends Expr[G] with CopyOnWriteArrayListNewImpl[G]
 final case class CopyOnWriteArrayListAdd[G](obj: Expr[G], arg: Expr[G])(implicit val o: Origin) extends Expr[G] with CopyOnWriteArrayListAddImpl[G]
@@ -1506,8 +1484,6 @@ final case class CopyOnWriteArrayListContains[G](obj: Expr[G], arg: Expr[G])(imp
 final case class PredicateStore[G](storeType: Type[G])(implicit val o: Origin) extends ClassDeclaration[G] with PredicateStoreImpl[G]
 final case class PredicateStoreGet[G](cls: Ref[G, Class[G]], threadId: Expr[G])(implicit val o: Origin) extends Expr[G] with PredicateStoreGetImpl[G]
 
-
-//Object Functions:
 final case class ObjectIsArray[G](input: Expr[G])(implicit val o: Origin) extends Expr[G] with ObjectIsArrayImpl[G]
 final case class ObjectGetLength[G](input: Expr[G])(implicit val o: Origin) extends Expr[G] with ObjectGetLengthImpl[G]
 final case class CreateObjectArray[G](args: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with CreateObjectArrayImpl[G]
