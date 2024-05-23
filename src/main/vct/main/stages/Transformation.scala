@@ -138,7 +138,7 @@ class Transformation
       Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
         onPassEvent.foreach { action => action(passes, Transformation.before, pass.key, result) }
 
-        val nextResult = try {
+        result = try {
           pass().dispatch(result)
         } catch {
           case c @ CauseWithBadEffect(effect) =>
@@ -146,16 +146,14 @@ class Transformation
             throw c
         }
 
-        onPassEvent.foreach { action => action(passes, Transformation.after, pass.key, nextResult) }
+        onPassEvent.foreach { action => action(passes, Transformation.after, pass.key, result) }
 
-        nextResult.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
+        result.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
           case Nil => // ok
           case errors => throw TransformationCheckError(pass, errors)
         }
 
-        val nextNextResult = PrettifyBlocks().dispatch(nextResult)
-
-        result = nextNextResult
+        result = PrettifyBlocks().dispatch(result)
       }
 
       for ((feature, examples) <- Feature.examples(result)) {
