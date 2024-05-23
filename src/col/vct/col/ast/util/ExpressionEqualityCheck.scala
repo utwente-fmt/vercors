@@ -1,10 +1,13 @@
 package vct.col.ast.util
 
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
-import vct.col.ast.{And, BinExpr, BitAnd, BitNot, BitOr, BitShl, BitShr, BitUShr, BitXor, Div, Eq, Exp, Expr, FloorDiv, Greater, GreaterEq, Implies, IntegerValue, Less, LessEq, Local, Loop, Minus, Mod, Mult, Neq, Not, Or, Plus, Range, SeqMember, Star, UMinus, Wand}
+import vct.col.ast._
+import vct.col.typerules.CoercionUtils
+import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 object ExpressionEqualityCheck {
   def apply[G](info: Option[AnnotationVariableInfo[G]] = None): ExpressionEqualityCheck[G] = new ExpressionEqualityCheck[G](info)
@@ -33,6 +36,19 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     isConstantIntRecurse(e)
   }
 
+  def eucl_mod(a: BigInt, b: BigInt): BigInt = {
+    val m = a % b
+    val absB = if(b > 0) b else -b
+    if(m <= 0) m + absB else m
+  }
+
+  def eucl_div(a: BigInt, b: BigInt): BigInt = {
+    val m = a % b
+    val d = a / b
+    val add = if (b > 0) -1 else 1
+    if (m <= 0) d + add else d
+  }
+
   def isConstantIntRecurse(e: Expr[G]): Option[BigInt] = e match {
     case e: Local[G] =>
       // Does it have a direct int value?
@@ -53,17 +69,29 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
           }
       }
 
-    case IntegerValue(value) => Some(value)
+    case i: ConstantInt[G] => Some(i.value)
     case Exp(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1.pow(i2.toInt)
     case Plus(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 + i2
+    case AmbiguousPlus(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 + i2
     case Minus(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 - i2
+    case AmbiguousMinus(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 - i2
     case Mult(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 * i2
-    case FloorDiv(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 / i2
-    case Mod(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 % i2
+    case AmbiguousMult(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 * i2
+    case FloorDiv(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield eucl_div(i1, i2)
+    case Mod(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield eucl_mod(i1, i2)
+    case TruncDiv(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 / i2
+    case TruncMod(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 % i2
+    case UMinus(e1) => for {i1 <- isConstantIntRecurse(e1)} yield -i1
 
     case BitAnd(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 & i2
+    case ComputationalAnd(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 & i2
+    case AmbiguousComputationalAnd(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 & i2
     case BitOr(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 | i2
+    case ComputationalOr(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 | i2
+    case AmbiguousComputationalOr(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 | i2
     case BitXor(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 ^ i2
+    case ComputationalXor(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 ^ i2
+    case AmbiguousComputationalXor(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 ^ i2
     case BitShl(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 << i2.toInt
     case BitShr(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 >> i2.toInt
     case BitUShr(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1.toInt >>> i2.toInt
@@ -115,6 +143,8 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
 
         normalBound(e1) . foreach{ b1 => normalBound(e2) . foreach { b2 => if(b1>0 && b2>0) return Some(b1*b2) } }
         // THe other cases are to complicated, so we do not consider them
+      case Mod(e1, e2) if isLower => return Some(0)
+      case Mod(e1, e2) => isConstantInt(e2)
       case _ =>
     }
 
@@ -145,11 +175,12 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
   def isNonZero(e: Expr[G]):Boolean = e match {
     case v: Local[G] => info.exists(_.variableNotZero.contains(v))
     case _ => isConstantInt(e).getOrElse(0) != 0
+    case _ => lessThenEq(const(1)(e.o), e).getOrElse(false)
   }
 
-  def unfoldComm[B <: BinExpr[G]](e: Expr[G], base: B): Seq[Expr[G]] = {
+  def unfoldComm[B <: BinExpr[G]](e: Expr[G])(implicit tag: ClassTag[B]): Seq[Expr[G]] = {
     e match {
-      case e: B if e.getClass == base.getClass => unfoldComm[B](e.left, base) ++ unfoldComm[B](e.right, base)
+      case e: B /* checked */ => unfoldComm[B](e.left) ++ unfoldComm[B](e.right)
       case _ => Seq(e)
     }
   }
@@ -163,7 +194,7 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
       case _ => return false
     }
 
-    def partitionOptionList[A,B](xs: Seq[A], f: Function[A,Option[B]]): (Seq[A], Seq[B]) = {
+    def partitionOptionList[A,B](xs: Seq[A], f: A => Option[B]): (Seq[A], Seq[B]) = {
       var resLeft: Seq[A] = Seq()
       var resRight: Seq[B] = Seq()
       for(x <- xs){
@@ -175,9 +206,9 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
       (resLeft, resRight)
     }
 
-    def commAssoc[B <: BinExpr[G]](e1: B, e2: B): Boolean = {
-      val e1s = unfoldComm[B](e1, e1)
-      val e2s = unfoldComm[B](e2, e2)
+    def commAssoc[B <: BinExpr[G]](e1: B, e2: B)(implicit tag: ClassTag[B]): Boolean = {
+      val e1s = unfoldComm[B](e1)
+      val e2s = unfoldComm[B](e2)
 
       val (e1rest, e1Ints) = partitionOptionList(e1s, isConstantInt)
       val (e2rest, e2Ints) = partitionOptionList(e2s, isConstantInt)
@@ -219,8 +250,8 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     (lhs, rhs) match {
       // Unsure if we could check/pattern match on this easier
       // Commutative operators
-      case (lhs@Plus(_, _), rhs@Plus(_, _)) => commAssoc(lhs, rhs)
-      case (lhs@Mult(_, _), rhs@Mult(_, _)) => commAssoc(lhs, rhs)
+      case (lhs@Plus(_, _), rhs@Plus(_, _)) => commAssoc[Plus[G]](lhs, rhs)
+      case (lhs@Mult(_, _), rhs@Mult(_, _)) => commAssoc[Mult[G]](lhs, rhs)
       case (BitAnd(lhs1, lhs2), BitAnd(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)
       case (BitOr(lhs1, lhs2), BitOr(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)
       case (BitXor(lhs1, lhs2), BitXor(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)
@@ -230,44 +261,15 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
       case (Neq(lhs1, lhs2), Neq(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)
 
       //Non commutative operators
-      case (Exp(lhs1, lhs2), Exp(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (Minus(lhs1, lhs2), Minus(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (Div(lhs1, lhs2), Div(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (FloorDiv(lhs1, lhs2), FloorDiv(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (Mod(lhs1, lhs2), Mod(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
+      case (e1: BinExpr[G], e2: BinExpr[G]) =>
+        equalExpressionsRecurse(e1.left, e2.left) && equalExpressionsRecurse(e1.right, e2.right)
 
-      case (BitShl(lhs1, lhs2), BitShl(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (BitShr(lhs1, lhs2), BitShr(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (BitUShr(lhs1, lhs2), BitUShr(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-
-      case (Implies(lhs1, lhs2), Implies(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
       case (Star(lhs1, lhs2), Star(rhs1, rhs2)) =>
         equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
       case (Wand(lhs1, lhs2), Wand(rhs1, rhs2)) =>
         equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-
-      case (Greater(lhs1, lhs2), Greater(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (Less(lhs1, lhs2), Less(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (GreaterEq(lhs1, lhs2), GreaterEq(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (LessEq(lhs1, lhs2), LessEq(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-
       // Unary expressions
-      case (UMinus(lhs), UMinus(rhs)) => equalExpressionsRecurse(lhs, rhs)
-      case (BitNot(lhs), BitNot(rhs)) => equalExpressionsRecurse(lhs, rhs)
-      case (Not(lhs), Not(rhs)) => equalExpressionsRecurse(lhs, rhs)
+      case (e1: UnExpr[G], e2: UnExpr[G]) => equalExpressionsRecurse(e1.arg, e2.arg)
 
       // Variables
       case (name1: Local[G], name2: Local[G]) =>
@@ -283,6 +285,9 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
         replaceVariable(name1, e2)
       case (e1, name2: Local[G]) =>
         replaceVariable(name2, e1)
+
+      case (inv: MethodInvocation[G], _) if !inv.ref.decl.pure => false
+      case (_, inv: MethodInvocation[G]) if !inv.ref.decl.pure => false
 
       // In the general case, we are just interested in syntactic equality
       case (e1, e2) => e1 == e2
@@ -313,7 +318,8 @@ case class AnnotationVariableInfo[G](variableEqualities: Map[Local[G], List[Expr
                                      variableSynonyms: Map[Local[G], Int], variableNotZero: Set[Local[G]],
                                      lessThanEqVars: Map[Local[G], Set[Local[G]]],
                                      upperBound: Map[Local[G], BigInt],
-                                     lowerBound: Map[Local[G], BigInt])
+                                     lowerBound: Map[Local[G], BigInt],
+                                     usefullConditions: mutable.ArrayBuffer[Expr[G]])
 
 /** This class gathers information about variables, such as:
   * `requires x == 0` and stores that x is equal to the value 0.
@@ -337,6 +343,8 @@ class AnnotationVariableInfoGetter[G]() {
   val upperBound: mutable.Map[Local[G], BigInt] = mutable.Map()
   // lowerBound(v) = 5 Captures that variable v is greater than or equal to 5
   val lowerBound: mutable.Map[Local[G], BigInt] = mutable.Map()
+
+  val usefullConditions: mutable.ArrayBuffer[Expr[G]] = mutable.ArrayBuffer()
 
   def extractEqualities(e: Expr[G]): Unit = {
     e match{
@@ -412,6 +420,25 @@ class AnnotationVariableInfoGetter[G]() {
     if(upperBound.contains(m) && upperBound(m) <= 0) lessThanEqVars.getOrElseUpdate(n, mutable.Set()).addOne(k)
   }
 
+  def isBool[G](e: Expr[G]) = {
+    CoercionUtils.getCoercion(e.t, TBool[G]()).isDefined
+  }
+
+  def isInt[G](e: Expr[G]) = {
+    CoercionUtils.getCoercion(e.t, TInt[G]()).isDefined
+  }
+  def isSimpleExpr(e: Expr[G]): Boolean = {
+    e match {
+      case e if(!isInt(e) && !isBool(e)) => false
+      case SeqMember(e1, Range(from, to)) => isSimpleExpr(e1) && isSimpleExpr(from) && isSimpleExpr(to)
+      case SetMember(e1, RangeSet(from, to)) => isSimpleExpr(e1) && isSimpleExpr(from) && isSimpleExpr(to)
+      case e: BinExpr[G] => isSimpleExpr(e.left) && isSimpleExpr(e.right)
+      case _: Local[G] => true
+      case _: Constant[G] => true
+      case _ => false
+    }
+  }
+
   def extractComparisons(e: Expr[G]): Unit = {
     e match{
       case Neq(e1, e2) =>
@@ -432,11 +459,14 @@ class AnnotationVariableInfoGetter[G]() {
       case SeqMember(e1, Range(from, to)) =>
         lt(from, e1, equal = true)
         lt(e1, to, equal = false)
+      case SetMember(e1, RangeSet(from, to)) =>
+        lt(from, e1, equal = true)
+        lt(e1, to, equal = false)
       // n == m + 1 then m < n
-      case Eq(v1: Local[G], Plus(v2: Local[G], IntegerValue(i))) => varEqVarPlusInt(v1, v2, i)
-      case Eq(v1: Local[G], Plus(IntegerValue(i), v2: Local[G])) => varEqVarPlusInt(v1, v2, i)
-      case Eq(Plus(v2: Local[G], IntegerValue(i)), v1: Local[G]) => varEqVarPlusInt(v1, v2, i)
-      case Eq(Plus(IntegerValue(i), v2: Local[G]), v1: Local[G]) => varEqVarPlusInt(v1, v2, i)
+      case Eq(v1: Local[G], Plus(v2: Local[G], i: ConstantInt[G])) => varEqVarPlusInt(v1, v2, i.value)
+      case Eq(v1: Local[G], Plus(i: ConstantInt[G], v2: Local[G])) => varEqVarPlusInt(v1, v2, i.value)
+      case Eq(Plus(v2: Local[G], i: ConstantInt[G]), v1: Local[G]) => varEqVarPlusInt(v1, v2, i.value)
+      case Eq(Plus(i: ConstantInt[G], v2: Local[G]), v1: Local[G]) => varEqVarPlusInt(v1, v2, i.value)
       case Eq(v1: Local[G], Plus(v2: Local[G], v3: Local[G])) => varEqVarPlusVar(v1, v2, v3)
       case Eq(Plus(v2: Local[G], v3: Local[G]), v1: Local[G]) => varEqVarPlusVar(v1, v2, v3)
       case _ =>
@@ -489,6 +519,7 @@ class AnnotationVariableInfoGetter[G]() {
     lessThanEqVars.clear()
     upperBound.clear()
     lowerBound.clear()
+    usefullConditions.clear()
 
     for(clause <- annotations){
       extractEqualities(clause)
@@ -496,18 +527,21 @@ class AnnotationVariableInfoGetter[G]() {
 
     val res = AnnotationVariableInfo[G](variableEqualities.view.mapValues(_.toList).toMap, variableValues.toMap,
       variableSynonyms.toMap, Set[Local[G]](), Map[Local[G], Set[Local[G]]](), Map[Local[G],BigInt](),
-      Map[Local[G],BigInt]())
+      Map[Local[G],BigInt](), usefullConditions)
     equalCheck = ExpressionEqualityCheck(Some(res))
 
     for(clause <- annotations){
-      extractComparisons(clause)
+      if(isSimpleExpr(clause)) {
+        extractComparisons(clause)
+        usefullConditions.addOne(clause)
+      }
     }
 
     distributeInfo()
 
     AnnotationVariableInfo(variableEqualities.view.mapValues(_.toList).toMap, variableValues.toMap,
       variableSynonyms.toMap, variableNotZero.toSet, lessThanEqVars.view.mapValues(_.toSet).toMap,
-      upperBound.toMap, lowerBound.toMap)
+      upperBound.toMap, lowerBound.toMap, usefullConditions)
   }
 
   def distributeInfo(): Unit = {

@@ -5,6 +5,7 @@ import vct.col.origin._
 import vct.col.rewrite.util.FreeVariables.{FreeThisModel, FreeThisObject, ReadFreeVar, ReadTypeVar, WriteFreeVar}
 import vct.col.util.AstBuildHelpers.{VarBuildHelpers, assignLocal}
 import vct.col.util.Substitute
+import vct.result.VerificationError.UserError
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
@@ -13,12 +14,12 @@ import scala.collection.mutable
  * Substitute fresh variables for values that are free under a node (or nodes)
  */
 case object Extract {
-  case class ExtractOrigin(name: String) extends Origin {
-    override def preferredName: String = name
-    override def shortPosition: String = "generated"
-    override def context: String = "[At extracted expression]"
-    override def inlineContext: String = "[Extracted expression]"
-  }
+  private def ExtractOrigin(name: String): Origin = Origin(
+    Seq(
+      PreferredName(Seq(name)),
+      LabelContext("extracted"),
+    )
+  )
 
   /**
    * Note: expressions must be free of assignments to locals (not necessarily all side effects), and type variables.
@@ -32,33 +33,47 @@ case object Extract {
     require(out.isEmpty)
     (result, in)
   }
+
+  case class GenericsNotSupported(n: Node[_]) extends UserError {
+    override def code: String = "genericsNotSupported"
+    override def text: String = n.o.messageInContext("Generics not supported")
+  }
 }
 
 case class Extract[G]() {
   import Extract._
 
-  private val map = mutable.ListMap[FreeVariables.FreeVariable[G], Variable[G]]()
+  private var map = ListMap[FreeVariables.FreeVariable[G], Variable[G]]()
   private val write = mutable.Set[Local[G]]()
   private val read = mutable.Set[Local[G]]()
+
+  def getOrElseUpdate(free: FreeVariables.FreeVariable[G], update: => Variable[G]): Variable[G] =
+    if(map.contains(free)) map(free)
+    else {
+      val newVariable = update
+      map += free -> newVariable
+      map(free)
+    }
 
   private def updateExprs(node: Node[G]): ListMap[Expr[G], Expr[G]] =
     FreeVariables.freeVariables(node).collect {
       case free @ ReadFreeVar(v) =>
         read += v
-        v -> Local(map.getOrElseUpdate(free, new Variable(extract(v.t))(v.ref.decl.o)).ref[Variable[G]])(ExtractOrigin(""))
+        v -> Local(getOrElseUpdate(free, new Variable(extract(v.t))(v.ref.decl.o)).ref[Variable[G]])(ExtractOrigin(""))
       case WriteFreeVar(v) =>
         write += v
-        v -> Local(map.getOrElseUpdate(ReadFreeVar(v), new Variable(extract(v.t))(v.ref.decl.o)).ref[Variable[G]])(ExtractOrigin(""))
+        v -> Local(getOrElseUpdate(ReadFreeVar(v), new Variable(extract(v.t))(v.ref.decl.o)).ref[Variable[G]])(ExtractOrigin(""))
       case free @ FreeThisObject(t) =>
-        t -> Local(map.getOrElseUpdate(free, new Variable(extract(TClass(t.cls)))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
+        if (t.cls.decl.typeArgs.nonEmpty) throw GenericsNotSupported(t.cls.decl)
+        t -> Local(getOrElseUpdate(free, new Variable(extract(TClass(t.cls, Seq())))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
       case free @ FreeThisModel(t) =>
-        t -> Local(map.getOrElseUpdate(free, new Variable(extract(TModel(t.cls)))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
+        t -> Local(getOrElseUpdate(free, new Variable(extract(TModel(t.cls)))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
     }.to(ListMap)
 
   private def updateTypes(node: Node[G]): ListMap[TVar[G], Type[G]] =
     FreeVariables.freeVariables(node).collect {
       case free@ReadTypeVar(v) => v ->
-        TVar(map.getOrElseUpdate(free, new Variable(v.ref.decl.t)(v.ref.decl.o)).ref[Variable[G]])(ExtractOrigin(""))
+        TVar(getOrElseUpdate(free, new Variable(v.ref.decl.t)(v.ref.decl.o)).ref[Variable[G]])(ExtractOrigin(""))
     }.to(ListMap)
 
   def extract(expr: Expr[G]): Expr[G] =

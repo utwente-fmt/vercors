@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory
 import org.slf4j.LoggerFactory.getLogger
 import vct.col.ast.{Expr, Node}
 import vct.col.origin.Origin
+import vct.result.Message
 import viper.api.Resources
 import viper.api.backend.SilverBackend
 import viper.silicon.logger.SymbExLogger
@@ -48,6 +49,7 @@ case class Silicon(
   traceBranchConditions: Boolean = false,
   branchConditionReportInterval: Option[Int] = Some(1000),
   timeoutValue: Int = 30,
+  totalTimeOut: Int = 0,
   options: Seq[String] = Nil,
 ) extends SilverBackend {
 
@@ -69,7 +71,7 @@ case class Silicon(
       l.setAdditive(false) // Prevent bubbling up
       l.addAppender(la)
 
-      intermediatePrinterTimer = new Timer()
+      intermediatePrinterTimer = new Timer("[VerCors] Silicon quantifier report timer")
       intermediatePrinterTimer.schedule(new TimerTask {
         override def run(): Unit = shortQuantifierReport()
       }, 5000, 5000)
@@ -86,6 +88,7 @@ case class Silicon(
 
     var siliconConfig = Seq(
       "--assertTimeout", (timeoutValue*1000).toString,
+      "--timeout", totalTimeOut.toString,
       "--z3Exe", z3Path.toString,
       "--z3ConfigArgs", z3Config,
       "--ideModeAdvanced",
@@ -167,9 +170,9 @@ case class Silicon(
               s"instances: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})"))
           case Left(n) =>
             logger.info(
-              s"""${Origin.BOLD_HR}Backend quantifier: $n
+              s"""${Message.BOLD_HR}Backend quantifier: $n
                  |instances: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})
-                 |${Origin.BOLD_HR}""".stripMargin
+                 |${Message.BOLD_HR}""".stripMargin
             )
         }
       }
@@ -186,7 +189,7 @@ case class Silicon(
         report.e match {
           case Right(e) =>
             val o = e.o
-            logger.info(s"${o.shortPosition}: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
+            logger.info(s"${o.shortPositionText}: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
           case Left(n) =>
             logger.info(s"$n: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
         }
@@ -199,6 +202,8 @@ case class Silicon(
 
   override def stopVerifier(verifier: Verifier): Unit = {
     verifier.stop()
+    SiliconLogListener.logs.foreach(_.done())
+    SiliconLogListener.logs.clear()
     // SymbExLogger.reset()
 
     if (printQuantifierStatistics) {

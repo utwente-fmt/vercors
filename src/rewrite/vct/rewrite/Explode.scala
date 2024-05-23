@@ -3,9 +3,9 @@ package vct.col.rewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.{AbstractApplicable, Blame, Origin, PanicBlame, UnsafeDontCare, VerificationFailure}
+import vct.col.origin.{AbstractApplicable, Blame, Origin, PanicBlame, PreferredName, UnsafeDontCare, VerificationFailure}
 import vct.col.ref.Ref
-import vct.col.rewrite.Explode.{AssumeFunction, UnknownDeclaration, VerifiedElsewhereBlame}
+import vct.col.rewrite.Explode.{UnknownDeclaration, VerifiedElsewhereBlame}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.SystemError
 
@@ -16,28 +16,15 @@ case object Explode extends RewriterBuilderArg[Boolean] {
   override def key: String = "explode"
   override def desc: String = "Split out verifications over entities, by eliding unrelated declarations and abstracting relevant ones."
 
-  case class UnknownDeclaration(decl: Declaration[_]) extends SystemError {
-    override def text: String = s"Unknown declaration kind at this point: ${decl.getClass.getSimpleName}"
-  }
-
-  case object ExplodeOrigin extends Origin {
-    override def preferredName: String = "unknown"
-    override def context: String = "At: [node generated to split out verification]"
-    override def inlineContext: String = "[Node generated to split out verification]"
-    override def shortPosition: String = "generated"
+  case class UnknownDeclaration(program: Program[_], decl: Declaration[_]) extends SystemError {
+    override def text: String =
+      program.highlight(decl).messageInContext(s"Unknown declaration kind at this point: ${decl.getClass.getSimpleName}")
   }
 
   case object VerifiedElsewhereBlame extends Blame[VerificationFailure] {
     override def blame(error: VerificationFailure): Unit = {
       // Do nothing: the error will already be reported elsewhere (or at worst nont-deterministically verified)
     }
-  }
-
-  case class AssumeFunction(inner: Origin) extends Origin {
-    override def preferredName: String = "assume" + inner.preferredName.capitalize
-    override def context: String = inner.context
-    override def inlineContext: String = inner.inlineContext
-    override def shortPosition: String = inner.shortPosition
   }
 }
 
@@ -166,7 +153,7 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
       case func: Function[Pre] => funcs += func
       case pred: Predicate[Pre] => preds += pred
       case proc: Procedure[Pre] => procs += proc
-      case other => throw UnknownDeclaration(other)
+      case other => throw UnknownDeclaration(program, other)
     }
 
     FocusedProgram(adts.toSeq, fields.toSeq, funcs.toSeq, preds.toSeq, preds.toSeq, procs.toSeq, procs.toSeq)

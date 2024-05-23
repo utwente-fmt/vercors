@@ -6,8 +6,9 @@ import vct.col.ref.Ref
 import vct.col.rewrite.NonLatchingRewriter
 import vct.col.typerules.CoercionUtils
 import vct.col.print._
+import vct.col.ast.ops.TypeFamilyOps
 
-trait TypeImpl[G] { this: Type[G] =>
+trait TypeImpl[G] extends TypeFamilyOps[G] { this: Type[G] =>
   def superTypeOf(other: Type[G]): Boolean =
     CoercionUtils.getCoercion(other, this).isDefined
 
@@ -19,6 +20,7 @@ trait TypeImpl[G] { this: Type[G] =>
   def asPointer: Option[TPointer[G]] = CoercionUtils.getAnyPointerCoercion(this).map(_._2)
   def asArray: Option[TArray[G]] = CoercionUtils.getAnyArrayCoercion(this).map(_._2)
   def asCArray: Option[CTArray[G]] = CoercionUtils.getAnyCArrayCoercion(this).map(_._2)
+  def asCPPArray: Option[CPPTArray[G]] = CoercionUtils.getAnyCPPArrayCoercion(this).map(_._2)
   def asOption: Option[TOption[G]] = CoercionUtils.getAnyOptionCoercion(this).map(_._2)
   def asMap: Option[TMap[G]] = CoercionUtils.getAnyMapCoercion(this).map(_._2)
   def asTuple: Option[TTuple[G]] = CoercionUtils.getAnyTupleCoercion(this).map(_._2)

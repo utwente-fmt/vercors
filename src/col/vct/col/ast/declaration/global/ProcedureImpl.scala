@@ -4,8 +4,9 @@ import vct.col.ast.Procedure
 import vct.col.print._
 
 import scala.collection.immutable.ListMap
+import vct.col.ast.ops.ProcedureOps
 
-trait ProcedureImpl[G] { this: Procedure[G] =>
+trait ProcedureImpl[G] extends ProcedureOps[G] { this: Procedure[G] =>
   def layoutSilver(implicit ctx: Ctx): Doc =
     Group(Text("method") <+> ctx.name(this) <> "(" <> Doc.args(args) <> ")" <>
       (if(outArgs.nonEmpty) Text(" returns (") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> ")" else Empty)) <+/>
@@ -35,7 +36,7 @@ trait ProcedureImpl[G] { this: Procedure[G] =>
 
   override def layout(implicit ctx: Ctx): Doc = ctx.syntax match {
     case Ctx.Silver => layoutSilver
-    case Ctx.C | Ctx.Cuda | Ctx.OpenCL => layoutC
+    case Ctx.C | Ctx.Cuda | Ctx.OpenCL | Ctx.CPP => layoutC
     case Ctx.PVL | Ctx.Java => Doc.spec(Show.lazily(layoutSpec(_)))
   }
 }

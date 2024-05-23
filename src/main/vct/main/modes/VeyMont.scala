@@ -8,16 +8,18 @@ import vct.main.stages.Stages
 import vct.options.Options
 import vct.options.types.PathOrStd
 import vct.parsers.transform.ConstantBlameProvider
+import vct.result.VerificationError.{SystemError, UserError}
 import viper.carbon.boogie.Implicits.lift
 
 object VeyMont extends LazyLogging {
 
   def verifyWithOptions(options: Options, inputs: Seq[PathOrStd]) = {
     val collector = BlameCollector()
-    val stages = Stages.veymontOfOptions(options, ConstantBlameProvider(collector))
+    val stages = Stages.veymontTransformationOfOptions(options, ConstantBlameProvider(collector))
     logger.debug("Stages: " ++ stages.flatNames.map(_._1).mkString(", "))
     stages.run(inputs) match {
-      case Left(value) => logger.error(value.text)
+      case Left(err: UserError) => logger.error(err.text)
+      case Left(err: SystemError) => throw err
       case Right(()) => logger.info("VeyMont terminated successfully.")
     }
 

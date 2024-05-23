@@ -18,8 +18,10 @@ import scala.annotation.nowarn
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class JavaToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol[G](originProvider, blameProvider, errors) with LazyLogging {
+case class JavaToCol[G](override val baseOrigin: Origin,
+                        override val blameProvider: BlameProvider,
+                        override val errors: Seq[(Token, Token, ExpectedError)])
+  extends ToCol[G](baseOrigin, blameProvider, errors) with LazyLogging {
   def convert(implicit unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(pkg, imports, decls, _) =>
       Seq(new JavaNamespace(pkg.map(convert(_)), imports.map(convert(_)), decls.flatMap(convert(_))))
@@ -39,14 +41,14 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         Seq(new JavaClass(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
           AstBuildHelpers.foldStar(contract.consume(contract.lock_invariant)),
           ext.map(convert(_)).getOrElse(Java.JAVA_LANG_OBJECT),
-          imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
+          imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_)))(blame(decl)))
       })
     case TypeDeclaration1(mods, EnumDeclaration0(_, name, None, _, Some(constants), _, None | Some(EnumBodyDeclarations0(_, Seq())), _)) =>
       mods.map(convert(_)).foreach {
         case JavaPublic() =>
         case _ => fail(decl, "only public modifier allowed")
       }
-      Seq(new Enum(convert(constants))(SourceNameOrigin(convert(name), origin(decl))))
+      Seq(new Enum(convert(constants))(origin(decl).sourceName(convert(name))))
     case TypeDeclaration1(mods, enum @ EnumDeclaration0(a, b, c, d, e, f, g, h)) =>
       fail(enum, "Enums with implements or class declarations, or without constants, are not supported")
     case TypeDeclaration2(mods, InterfaceDeclaration0(_, name, args, ext, InterfaceBody0(_, decls, _))) =>
@@ -64,7 +66,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit constant: EnumConstantContext): EnumConstant[G] = constant match {
-    case EnumConstant0(Nil, name, None, None) => new EnumConstant()(SourceNameOrigin(convert(name), origin(constant)))
+    case EnumConstant0(Nil, name, None, None) => new EnumConstant()(origin(constant).sourceName(convert(name)))
     case constant => fail(constant, "Arguments, annotations, or class body on enum alternatives not supported")
   }
 
@@ -136,7 +138,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit pair: ElementValuePairContext): Option[(String, Expr[G])] = pair match {
     case ElementValuePair0(name, _, ElementValue0(expr)) =>
-      logger.warn(s"Annotation array initializer at ${originProvider(pair).shortPosition} is discarded")
+      logger.warn(s"Annotation array initializer at ${OriginProvider(pair).shortPositionText} is discarded")
       None
     case ElementValuePair0(name, _, ElementValue1(expr)) => Some((convert(name), convert(expr)))
     case x => ??(x)
@@ -159,9 +161,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   def convert(implicit arg: TypeParameterContext): Variable[G] = arg match {
     case TypeParameter0(id, bound) => bound match {
       case None =>
-        new Variable(TType(Java.JAVA_LANG_OBJECT))(SourceNameOrigin(convert(id), origin(arg)))
+        new Variable(TType(Java.JAVA_LANG_OBJECT))(origin(arg).sourceName(convert(id)))
       case Some(TypeParameterBound0(_, TypeBound0(ext))) =>
-        new Variable(TType(convert(ext)))(SourceNameOrigin(convert(id), origin(arg)))
+        new Variable(TType(convert(ext)))(origin(arg).sourceName(convert(id)))
       case Some(TypeParameterBound0(_, TypeBound1(_, _, moreBounds))) =>
         fail(moreBounds, "Multiple upper type bounds are not supported")
     }
@@ -270,7 +272,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case FormalParameter0(modifiers, tNode, nameDims) =>
       val (name, dims) = convert(nameDims)
       val t = FuncTools.repeat(TArray[G](_), dims, convert(tNode))
-      new JavaParam(modifiers.map(convert(_)), name, t)(SourceNameOrigin(name, origin(param)))
+      new JavaParam(modifiers.map(convert(_)), name, t)(origin(param).sourceName(name))
   }
 
   def convert(implicit dims: DimsContext): Int = dims match {
@@ -399,14 +401,14 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case Statement16(expr, _) => Eval(convert(expr))
     case Statement17(label, _, statement) =>
       Label(
-        new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))),
+        new LabelDecl()(origin(stat).sourceName(convert(label))),
         convert(statement),
       )
     case Statement18(inner) => convert(inner)
   }
 
   def convert(implicit label: LoopLabelContext): LabelDecl[G] = label match {
-    case LoopLabel0(name, _) => new LabelDecl()(SourceNameOrigin(convert(name), origin(label)))
+    case LoopLabel0(name, _) => new LabelDecl()(origin(label).sourceName(convert(name)))
   }
 
   def convert(implicit switchBlock: SwitchBlockStatementGroupContext): Seq[Statement[G]] = switchBlock match {
@@ -435,7 +437,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit grab: CatchClauseContext): CatchClause[G] = grab match {
     case CatchClause0(_, _, _mods, ts, id, _, body) =>
-      CatchClause(new Variable(convert(ts))(SourceNameOrigin(convert(id), origin(grab))), convert(body))
+      CatchClause(new Variable(convert(ts))(origin(grab).sourceName(convert(id))), convert(body))
   }
 
   def convert(implicit ts: CatchTypeContext): TUnion[G] = ts match {
@@ -617,8 +619,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       mul match {
         case MulOp0(op) => op match {
           case "*" => AmbiguousMult(left, right)
-          case "/" => FloorDiv(left, right)(blame(expr))
-          case "%" => Mod(left, right)(blame(expr))
+          case "/" => TruncDiv(left, right)(blame(expr))
+          case "%" => TruncMod(left, right)(blame(expr))
         }
         case MulOp1(specOp) => convert(expr, specOp, left, right)
       }
@@ -664,14 +666,14 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         case "+=" => AmbiguousPlus(target, value)(blame(right))
         case "-=" => AmbiguousMinus(target, value)(blame(right))
         case "*=" => AmbiguousMult(target,  value)
-        case "/=" => FloorDiv(target,  value)(blame(expr))
+        case "/=" => TruncDiv(target,  value)(blame(expr))
         case "&=" => AmbiguousComputationalAnd(target, value)
         case "|=" => BitOr(target, value)
         case "^=" => BitXor(target, value)
         case ">>=" => BitShr(target, value)
         case ">>>=" => BitUShr(target, value)
         case "<<=" => BitShl(target, value)
-        case "%=" => Mod(target, value)(blame(expr))
+        case "%=" => TruncMod(target, value)(blame(expr))
       })(blame(expr))
   }
 
@@ -944,10 +946,10 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValContractClause2(_, exp, _) => collector.requires += ((contract, convert(exp)))
     case ValContractClause3(_, exp, _) => collector.ensures += ((contract, convert(exp)))
     case ValContractClause4(_, t, id, _) =>
-      val variable = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(contract)))
+      val variable = new Variable(convert(t))(origin(contract).sourceName(convert(id)))
       collector.given += ((contract, variable))
     case ValContractClause5(_, t, id, _) =>
-      val variable = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(contract)))
+      val variable = new Variable(convert(t))(origin(contract).sourceName(convert(id)))
       collector.yields += ((contract, variable))
     case ValContractClause6(_, exp, _) => collector.context_everywhere += ((contract, convert(exp)))
     case ValContractClause7(_, exp, _) =>
@@ -956,8 +958,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValContractClause8(_, exp, _) => collector.loop_invariant += ((contract, convert(exp)))
     case ValContractClause9(_, exp, _) => collector.kernel_invariant += ((contract, convert(exp)))
     case ValContractClause10(_, _, t, id, _, exp, _) =>
-      val variable = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(contract)))
-      collector.signals += ((contract, SignalsClause(variable, convert(exp))(originProvider(contract))))
+      val variable = new Variable(convert(t))(origin(contract).sourceName(convert(id)))
+      collector.signals += ((contract, SignalsClause(variable, convert(exp))(OriginProvider(contract))))
     case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
     case ValContractClause12(_, None, _) => collector.decreases += ((contract, DecreasesClauseNoRecursion()))
     case ValContractClause12(_, Some(clause), _) => collector.decreases += ((contract, convert(clause)))
@@ -1086,7 +1088,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit root: ParserRuleContext, mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
-    case ValMulOp0(_) => col.Div(left, right)(blame(mulOp))
+    case ValMulOp0(_) => col.RatDiv(left, right)(blame(mulOp))
   }
 
   def convert(implicit root: ParserRuleContext, prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {
@@ -1133,12 +1135,12 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValInhale(_, resource, _) => Inhale(convert(resource))
     case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
     case ValLabel(_, label, _) =>
-      Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))), Block(Nil))
+      Label(new LabelDecl()(origin(stat).sourceName(convert(label))), Block(Nil))
     case ValRefute(_, assn, _) => Refute(convert(assn))(blame(stat))
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)
     case ValSend(_, name, _, delta, _, resource, _) =>
-      Send(new SendDecl()(SourceNameOrigin(convert(name), origin(stat))), convert(delta), convert(resource))(blame(stat))
+      Send(new SendDecl()(origin(stat).sourceName(convert(name))), convert(delta), convert(resource))(blame(stat))
     case ValRecv(_, name, _) =>
       Recv(new UnresolvedRef[G, SendDecl[G]](convert(name)))
     case ValTransfer(_, _, _) => ??(stat)
@@ -1171,7 +1173,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit arg: ValArgContext): Variable[G] = arg match {
-    case ValArg0(t, id) => new Variable(convert(t))(SourceNameOrigin(convert(id), origin(arg)))
+    case ValArg0(t, id) => new Variable(convert(t))(origin(arg).sourceName(convert(id)))
   }
 
   def convert(implicit args: ValArgListContext): Seq[Variable[G]] = args match {
@@ -1186,16 +1188,16 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit decl: ValGlobalDeclarationContext): Seq[GlobalDeclaration[G]] = decl match {
     case ValAxiom(_, name, _, axiom, _) =>
-      Seq(new SimplificationRule(convert(axiom))(SourceNameOrigin(convert(name), origin(decl))))
+      Seq(new SimplificationRule(convert(axiom))(origin(decl).sourceName(convert(name))))
     case ValPredicate(modifiers, _, name, _, args, _, definition) =>
       withModifiers(modifiers, mods =>
         Seq(new Predicate(args.map(convert(_)).getOrElse(Nil), convert(definition),
           mods.consume(mods.threadLocal), mods.consume(mods.inline))
-        (SourceNameOrigin(convert(name), origin(decl)))))
+        (origin(decl).sourceName(convert(name)))))
     case ValFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
       Seq(withContract(contract, c =>
         withModifiers(modifiers, m => {
-          val namedOrigin = SourceNameOrigin(convert(name), origin(decl))
+          val namedOrigin = origin(decl).sourceName(convert(name))
           new Function(
             convert(t),
             args.map(convert(_)).getOrElse(Nil),
@@ -1206,12 +1208,12 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         })
       ))
     case ValModel(_, name, _, decls, _) =>
-      Seq(new Model(decls.flatMap(convert(_)))(SourceNameOrigin(convert(name), origin(decl))))
+      Seq(new Model(decls.flatMap(convert(_)))(origin(decl).sourceName(convert(name))))
     case ValGhostDecl(_, inner) =>
       convert(inner)
     case ValAdtDecl(_, name, typeArgs, _, decls, _) =>
       Seq(new AxiomaticDataType(decls.map(convert(_)), typeArgs.map(convert(_)).getOrElse(Nil))(
-        SourceNameOrigin(convert(name), origin(decl))))
+        origin(decl).sourceName(convert(name))))
   }
 
   def convert(implicit decl: ValEmbedClassDeclarationBlockContext): Seq[ClassDeclaration[G]] = decl match {
@@ -1224,7 +1226,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       Seq(withModifiers(modifiers, mods => {
         transform(new InstancePredicate(args.map(convert(_)).getOrElse(Nil), convert(definition),
           mods.consume(mods.threadLocal), mods.consume(mods.inline))(
-          SourceNameOrigin(convert(name), origin(decl))))
+          origin(decl).sourceName(convert(name))))
       }))
     case ValInstanceFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
       Seq(withContract(contract, c => {
@@ -1236,7 +1238,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
             convert(definition),
             c.consumeApplicableContract(blame(decl)), m.consume(m.inline))(
             blame(decl))(
-            SourceNameOrigin(convert(name), origin(decl))))
+            origin(decl).sourceName(convert(name))))
         })
       }))
     case ValInstanceGhostDecl(_, decl) => convert(decl).map(transform)
@@ -1278,34 +1280,34 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   def convert(implicit decl: ValModelDeclarationContext): Seq[ModelDeclaration[G]] = decl match {
     case ValModelField(t, name, _) =>
       convert(name).map(name => {
-        new ModelField(convert(t))(SourceNameOrigin(name, origin(decl)))
+        new ModelField(convert(t))(origin(decl).sourceName(name))
       })
     case ValModelProcess(contract, _, name, _, args, _, _, definition, _) =>
       Seq(withContract(contract, c => {
         new ModelProcess(args.map(convert(_)).getOrElse(Nil), convert(definition),
           AstBuildHelpers.foldAnd(c.consume(c.requires)), AstBuildHelpers.foldAnd(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[G, ModelField[G]](_)), c.consume(c.accessible).map(new UnresolvedRef[G, ModelField[G]](_)))(
-          blame(decl))(SourceNameOrigin(convert(name), origin(decl)))
+          blame(decl))(origin(decl).sourceName(convert(name)))
       }))
     case ValModelAction(contract, _, name, _, args, _, _) =>
       Seq(withContract(contract, c => {
         new ModelAction(args.map(convert(_)).getOrElse(Nil),
           AstBuildHelpers.foldAnd(c.consume(c.requires)), AstBuildHelpers.foldAnd(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[G, ModelField[G]](_)), c.consume(c.accessible).map(new UnresolvedRef[G, ModelField[G]](_)))(
-          SourceNameOrigin(convert(name), origin(decl)))
+          origin(decl).sourceName(convert(name)))
       }))
   }
 
   def convert(implicit ts: ValTypeVarsContext): Seq[Variable[G]] = ts match {
     case ValTypeVars0(_, names, _) =>
-      convert(names).map(name => new Variable(TType(TAny()))(SourceNameOrigin(name, origin(ts))))
+      convert(names).map(name => new Variable(TType(TAnyValue()))(origin(ts).sourceName(name)))
   }
 
   def convert(implicit decl: ValAdtDeclarationContext): ADTDeclaration[G] = decl match {
     case ValAdtAxiom(_, ax, _) => new ADTAxiom(convert(ax))
     case ValAdtFunction(_, returnType, name, _, args, _, _) =>
       new ADTFunction(args.map(convert(_)).getOrElse(Nil), convert(returnType))(
-        SourceNameOrigin(convert(name), origin(decl)))
+        origin(decl).sourceName(convert(name)))
   }
 
   def convert(implicit definition: ValPureDefContext): Option[Expr[G]] = definition match {
@@ -1320,14 +1322,14 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit t: ValTypeContext): Type[G] = t match {
     case ValPrimaryType(name) => name match {
-      case "resource" => TResource()
+      case "resource" => TResourceVal()
       case "process" => TProcess()
       case "frac" => TFraction()
       case "zfrac" => TZFraction()
       case "rational" => TRational()
       case "bool" => TBool()
       case "ref" => TRef()
-      case "any" => TAny()
+      case "any" => TAnyValue()
       case "nothing" => TNothing()
       case "string" => TString()
     }
@@ -1377,6 +1379,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValEmptySet(_, t, _) => LiteralSet(convert(t), Nil)
     case ValEmptyBag(_, t, _) => LiteralBag(convert(t), Nil)
     case ValRange(_, from, _, to, _) => Range(convert(from), convert(to))
+    case ValRangeSet(_, from, _, to, _) => RangeSet(convert(from), convert(to))
   }
 
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] = e match {
@@ -1399,7 +1402,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit v: ValBindingContext): (Variable[G], Seq[Expr[G]]) = v match {
     case ValRangeBinding(t, id, _, from, _, to) =>
-      val variable = new Variable[G](convert(t))(SourceNameOrigin(convert(id), origin(id)))
+      val variable = new Variable[G](convert(t))(origin(id).sourceName(convert(id)))
       val cond = SeqMember[G](Local(variable.ref), Range(convert(from), convert(to)))
       (variable, Seq(cond))
     case ValNormalBinding(arg) =>
@@ -1430,14 +1433,16 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         case ValExistsSymb(_) => Exists(variables, Nil, foldAnd(conds :+ body))
       }
     case ValLet(_, _, t, id, _, v, _, body, _) =>
-      Let(new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id))), convert(v), convert(body))
+      Let(new Variable(convert(t))(origin(id).sourceName(convert(id))), convert(v), convert(body))
     case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
       ForPerm(convert(bindings), AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)), convert(body))
+    case ValForPermWithValue(_, _, _, id, _, body, _) =>
+      ForPermWithValue(new Variable(TAny())(origin(id).sourceName(convert(id))), convert(body))
   }
 
   def convert(implicit e: ValPrimaryVectorContext): Expr[G] = e match {
     case ValSum(_, _, t, id, _, cond, _, body, _) =>
-      val binding = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id)))
+      val binding = new Variable(convert(t))(origin(id).sourceName(convert(id)))
       Sum(Seq(binding), convert(cond), convert(body))
     case ValVectorSum(_, _, rng, _, vec, _) => VectorSum(convert(rng), convert(vec))
     case ValVectorCmp(_, _, left, _, right, _) => VectorCompare(convert(left), convert(right))
@@ -1495,6 +1500,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       val allIndices = convert(indices)
       NdPartialIndex(allIndices.init, allIndices.last, convert(dims))
     case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
+    case ValChoose(_, _, xs, _) => Choose(convert(xs))(blame(e))
+    case ValChooseFresh(_, _, xs, _) => ChooseFresh(convert(xs))(blame(e))
   }
 
   def convert(implicit e: ValExprPairContext): (Expr[G], Expr[G]) = e match {

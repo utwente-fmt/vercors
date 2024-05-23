@@ -2,11 +2,12 @@ package vct.col.ast.declaration.global
 
 import vct.col.ast.BipTransitionSynchronization
 import vct.col.print.{Ctx, Doc, Text}
+import vct.col.ast.ops.BipTransitionSynchronizationOps
 
-trait BipTransitionSynchronizationImpl[G] { this: BipTransitionSynchronization[G] =>
+trait BipTransitionSynchronizationImpl[G] extends BipTransitionSynchronizationOps[G] { this: BipTransitionSynchronization[G] =>
   def summarize: String = {
     val portsTxt = if (transitions.isEmpty) "No transitions" else transitions.map("- " + _.decl.signature.shortSignature).mkString("\n")
-    val wiresTxt = if (wires.isEmpty) "No wires" else wires.map("- " + _.o.preferredName).mkString("\n")
+    val wiresTxt = if (wires.isEmpty) "No wires" else wires.map("- " + _.o.getPreferredNameOrElse().camel).mkString("\n")
 
     s"""=== Transition synchronization ===
        |Transition:

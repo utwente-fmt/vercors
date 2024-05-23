@@ -1,0 +1,38 @@
+syntax = "proto2";
+
+package vct.col.ast;
+
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  lenses: false
+  getters: false
+  no_default_values_in_constructor: true
+  package_name: "vct.col.ast.serialize"
+};
+
+message Origin {
+  repeated OriginContent content = 1;
+}
+
+message OriginContent {
+  oneof content {
+    SourceName source_name = 1;
+    PreferredName preferred_name = 2;
+    Context context = 3;
+  }
+}
+
+message SourceName {
+  required string name = 1;
+}
+
+message PreferredName {
+  repeated string preferred_name = 1;
+}
+
+message Context {
+  required string context = 1;
+  required string inline_context = 2;
+  required string short_position = 3;
+}

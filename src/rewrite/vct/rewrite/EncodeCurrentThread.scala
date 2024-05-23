@@ -3,7 +3,7 @@ package vct.col.rewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.Origin
+import vct.col.origin.{LabelContext, Origin, PreferredName}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
@@ -12,12 +12,12 @@ case object EncodeCurrentThread extends RewriterBuilder {
   override def key: String = "currentThread"
   override def desc: String = "Translate \\current_thread into an explicit argument to all thread-local contexts."
 
-  case object CurrentThreadIdOrigin extends Origin {
-    override def preferredName: String = "tid"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At generated variable for the current thread ID]"
-    override def inlineContext: String = "\\current_thread"
-  }
+  private val currentThreadIdOrigin: Origin = Origin(
+    Seq(
+      PreferredName(Seq("tid")),
+      LabelContext("\\current_thread"),
+    )
+  )
 
   abstract class MisplacedCurrentThreadReference extends UserError {
     override def code: String = "curThreadScope"
@@ -28,7 +28,7 @@ case object EncodeCurrentThread extends RewriterBuilder {
       node.o.messageInContext("This reference to \\current_thread is misplaced, since the surrounding declaration is not thread_local.")
   }
 
-  case class MisplacedThreadLocalInvocation(node: Apply[_]) extends MisplacedCurrentThreadReference {
+  case class MisplacedThreadLocalInvocation(node: Node[_]) extends MisplacedCurrentThreadReference {
     override def text: String =
       node.o.messageInContext("This invocation refers to an applicable that is thread local, but the surrounding context is not thread local.")
   }
@@ -46,6 +46,7 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
     // PB: although a pure method will become a function, it should really be possible to mark a pure method as thread
     // local.
     case m: AbstractMethod[Pre] => !m.pure
+    case m: LlvmFunctionDefinition[Pre] => !m.pure
 
     case _: ADTFunction[Pre] => false
     case _: ProverFunction[Pre] => false
@@ -57,13 +58,13 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
     case app: RunMethod[Pre] =>
       implicit val o: Origin = app.o
       classDeclarations.succeed(app, app.rewrite(body = app.body.map { body =>
-        val currentThreadVar = new Variable[Post](TInt())(CurrentThreadIdOrigin)
+        val currentThreadVar = new Variable[Post](TInt())(currentThreadIdOrigin)
         Scope(Seq(currentThreadVar), currentThreadId.having(currentThreadVar.get) { dispatch(body) })
       }))
     case app: Applicable[Pre] =>
       if(wantsThreadLocal(app)) {
-        val currentThreadVar = new Variable[Post](TInt())(CurrentThreadIdOrigin)
-        currentThreadId.having(Local[Post](currentThreadVar.ref)(CurrentThreadIdOrigin)) {
+        val currentThreadVar = new Variable[Post](TInt())(currentThreadIdOrigin)
+        currentThreadId.having(Local[Post](currentThreadVar.ref)(currentThreadIdOrigin)) {
           allScopes.anySucceedOnly(app, allScopes.anyDeclare(app.rewrite(args = variables.collect {
             variables.declare(currentThreadVar)
             app.args.foreach(dispatch)
@@ -91,6 +92,20 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
         }
       } else {
         apply.rewrite()
+      }
+    case other => rewriteDefault(other)
+  }
+
+  override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = stat match {
+    case invoke : InvocationStatement[Pre] =>
+      if (wantsThreadLocal(invoke.ref.decl)) {
+        if (currentThreadId.isEmpty) {
+          throw MisplacedThreadLocalInvocation(invoke)
+        } else {
+          invoke.rewrite(args = currentThreadId.top +: invoke.args.map(dispatch))
+        }
+      } else {
+        invoke.rewrite()
       }
     case other => rewriteDefault(other)
   }

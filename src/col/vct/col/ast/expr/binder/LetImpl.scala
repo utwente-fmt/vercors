@@ -2,8 +2,9 @@ package vct.col.ast.expr.binder
 
 import vct.col.ast.{Let, Type, Variable}
 import vct.col.print._
+import vct.col.ast.ops.LetOps
 
-trait LetImpl[G] { this: Let[G] =>
+trait LetImpl[G] extends LetOps[G] { this: Let[G] =>
   override def t: Type[G] = main.t
   override def bindings: Seq[Variable[G]] = Seq(binding)
 

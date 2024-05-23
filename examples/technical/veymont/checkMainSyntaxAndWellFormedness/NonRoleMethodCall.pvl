@@ -1,0 +1,7 @@
+seq_program Main() {
+	seq_run {
+	    foo(); // Error: procedure calls are not allowed
+	}
+}
+
+void foo();

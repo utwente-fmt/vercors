@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{ArraySubscript, _}
 import vct.col.ast.util.{AnnotationVariableInfoGetter, ExpressionEqualityCheck}
 import vct.col.rewrite.util.Comparison
-import vct.col.origin.{ArrayInsufficientPermission, Origin, PanicBlame, PointerBounds}
+import vct.col.origin.{ArrayInsufficientPermission, DiagnosticOrigin, LabelContext, Origin, PanicBlame, PointerBounds, PreferredName}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -35,25 +35,19 @@ case object SimplifyNestedQuantifiers extends RewriterBuilder {
 
 case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
 
-  case object SimplifyNestedQuantifiersOrigin extends Origin {
-    override def preferredName: String = "unknown"
+  val SimplifyNestedQuantifiersOrigin: Origin = Origin(
+    Seq(
+      PreferredName(Seq("unknown")),
+      LabelContext("simplification"),
+    )
+  )
 
-    override def shortPosition: String = "generated"
-
-    override def context: String = "[At generated expression for the simplification of nested quantifiers]"
-
-    override def inlineContext: String = "[Simplified expression]"
-  }
-
-  case class BinderOrigin(name: String) extends Origin {
-    override def preferredName: String = name
-
-    override def shortPosition: String = "generated"
-
-    override def context: String = "[At generated expression for the simplification of nested quantifiers]"
-
-    override def inlineContext: String = "[Simplified expression]"
-  }
+  private def BinderOrigin(name: String): Origin = Origin(
+    Seq(
+      PreferredName(Seq(name)),
+      LabelContext("simplification"),
+    )
+  )
 
   private implicit val o: Origin = SimplifyNestedQuantifiersOrigin
 
@@ -66,19 +60,21 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       case e: Binder[Pre] =>
         rewriteLinearArray(e) match {
           case None =>
-            val res = rewriteDefault(e)
+            val res = e.rewriteDefault()
             res match {
-              case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
-                logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
-              case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
-                logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
+              case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true} =>
+                val trigger = e.o.inlineContext(false).map(_.last).getOrElse("unknown context")
+                logger.warn(f"The binder `${e.o.shortPositionText}`:`${trigger} contains no triggers`")
+              case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true } =>
+                val trigger = e.o.inlineContext(false).map(_.last).getOrElse("unknown context")
+                logger.warn(f"The binder `${e.o.shortPositionText}`:`${trigger} contains no triggers`")
               case _ =>
             }
             res
           case Some(newE)
             => newE
         }
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
   }
 
@@ -86,15 +82,32 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     val e = stat match {
       case Exhale(e) => e
       case Inhale(e) => e
-      case _ => return rewriteDefault(stat)
+      case proof: FramedProof[Pre] => return checkFramedProof(proof)
+      case _ => return stat.rewriteDefault()
     }
 
     val conditions = getConditions(e)
     val infoGetter = new AnnotationVariableInfoGetter[Pre]()
     equalityChecker = ExpressionEqualityCheck(Some(infoGetter.getInfo(conditions)))
-    val result = rewriteDefault(stat)
+    val result = stat.rewriteDefault()
     equalityChecker = ExpressionEqualityCheck()
     result
+  }
+
+  def checkFramedProof(proof: FramedProof[Pre]): Statement[Post] = {
+    val conditions_pre = getConditions(proof.pre)
+    val infoGetter_pre = new AnnotationVariableInfoGetter[Pre]()
+    equalityChecker = ExpressionEqualityCheck(Some(infoGetter_pre.getInfo(conditions_pre)))
+    val pre = dispatch(proof.pre)
+
+    val conditions_post = getConditions(proof.post)
+    val infoGetter_post = new AnnotationVariableInfoGetter[Pre]()
+    ExpressionEqualityCheck(Some(infoGetter_post.getInfo(conditions_post)))
+    val post = dispatch(proof.post)
+    equalityChecker = ExpressionEqualityCheck()
+    val body = dispatch(proof.body)
+
+    FramedProof[Post](pre, body, post)(proof.blame)(proof.o)
   }
 
   def getConditions(preds: AccountedPredicate[Pre]): Seq[Expr[Pre]] = preds match {
@@ -156,7 +169,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     if (e.bindings.exists(_.t != TInt())) return None
 
     // PB: do not attempt to reshape quantifiers that already have patterns
-    if (originalBody.exists { case _: InlinePattern[Pre] => true }) {
+    if (originalBody.exists { case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true }) {
       logger.debug(s"Not rewriting $e because it contains patterns")
       return None
     }
@@ -268,6 +281,13 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
         }
       case None => bound match {
         // If we do not have a simple comparison, we support one special case: i \in {a..b}
+        case SetMember(Local(Ref(v)), RangeSet(from, to))
+          if bindings.contains(v) && indepOf(bindings, from) && indepOf(bindings, to) =>
+          addSingleBound(v, from, Comparison.GREATER_EQ)
+          addSingleBound(v, to, Comparison.LESS)
+        case SetMember(left, RangeSet(from, to)) =>
+          getSingleBound(Comparison.GREATER_EQ.make(left, from))
+          getSingleBound(Comparison.LESS.make(left, to))
         case SeqMember(Local(Ref(v)), Range(from, to))
           if bindings.contains(v) && indepOf(bindings, from) && indepOf(bindings, to) =>
           addSingleBound(v, from, Comparison.GREATER_EQ)
@@ -326,11 +346,15 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       * */
     def checkSingleValueVariables(): Unit = {
       for (name <- bindings) {
-        val equalBounds = lowerBounds(name).intersect(upperBounds(name))
-        if (equalBounds.nonEmpty) {
+        val equalBounds =
+          lowerBounds(name).
+            flatMap(x => upperBounds(name)
+              .map(y => (x, y)))
+            .collectFirst { case (x, y) if equalityChecker.equalExpressions(x, y) => x}
+        if (equalBounds.isDefined) {
           // We will put out a new quantifier
           newBinder = true
-          val newValue = equalBounds.head
+          val newValue = equalBounds.get
           val nameVar: Expr[Pre] = Local(name.ref)
           val sub = Substitute[Pre](Map(nameVar -> newValue))
           val replacer = sub.dispatch(_: Expr[Pre])
@@ -442,7 +466,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
         case expr if expr == indexReplacement._1  => indexReplacement._2
         case v: Local[Pre] if subs.contains(v.ref.decl) => subs(v.ref.decl)
-        case other => rewriteDefault(other)
+        case other => other.rewriteDefault()
       }
     }
 
@@ -509,7 +533,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
         None
       }
 
-      res.map(mainRewriter.rewriteDefault)
+      res.map(mainRewriter.dispatch)
     }
   }
 
@@ -718,7 +742,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           }
           // We found a replacement!
           // Make the variable & declaration
-          val newName = vars.map(_.o.preferredName).mkString("_")
+          val newName = vars.map(_.o.getPreferredNameOrElse().camel).mkString("_")
           val xNew = new Variable[Post](TInt())(BinderOrigin(newName))
           quantifierData.mainRewriter.variables.declare(xNew)
 
@@ -786,7 +810,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
               Seq(Seq(SeqSubscript(newGen(seqIndex.array), xNewVar)(triggerBlame)))
             case arrayIndex: Pointer[Pre] =>
               Seq(Seq(PointerSubscript(newGen(arrayIndex.array), xNewVar)(triggerBlame)),
-                Seq(PointerAdd(newGen(arrayIndex.array), xNewVar)(triggerBlame)))
+//                Seq(PointerAdd(newGen(arrayIndex.array), xNewVar)(triggerBlame))
+              )
           }
 
           for(x <- vars){

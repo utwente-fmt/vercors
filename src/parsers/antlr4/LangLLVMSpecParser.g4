@@ -5,12 +5,14 @@ expression
     | constant
     | identifier
     | valExpr
+    | <assoc=right> expression valImpOp expression
     ;
 
 instruction
     : binOpInstruction # binOpRule
     | compareInstruction # cmpOpRule
     | callInstruction # callOpRule
+    | branchInstruction #brOpRule
     ;
 
 constant
@@ -43,7 +45,7 @@ compareInstruction: compOp Lparen compPred Comma expression Comma expression Rpa
 
 callInstruction: CALL Identifier Lparen expressionList Rparen;
 
-
+branchInstruction: BR Lparen expression Comma expression Comma expression Rparen;
 
 binOp
     : ADD # add
@@ -51,6 +53,9 @@ binOp
     | MUL # mul
     | UDIV # udiv
     | SDIV # sdiv
+    | AND # and
+    | OR # or
+    | XOR # xor
     ;
 
 

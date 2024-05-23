@@ -27,6 +27,7 @@ COLON: ':';
 VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
 VAL_PACKAGE: 'package';
+CONS: '::';
 
 INC: '++';
 ARROW: '->';
@@ -78,10 +79,17 @@ SUB: 'sub';
 MUL: 'mul';
 UDIV: 'udiv';
 SDIV: 'sdiv';
+// bitwise
+AND: 'and';
+OR: 'or';
+XOR: 'xor';
 
 // operators -> other
 ICMP: 'icmp';
 CALL: 'call';
+
+// operators -> termops
+BR: 'br';
 
 // compare predicates
 EQ_pred: 'eq';

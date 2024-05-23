@@ -17,7 +17,7 @@ import scala.collection.mutable
 case object Stages {
   def silicon(blameProvider: BlameProvider, bipResults: BIP.VerificationResults): Stages[Seq[Readable], Unit] = {
     Parsing(blameProvider)
-      .thenRun(Resolution(blameProvider))
+      .thenRun(Resolution(blameProvider, vct.parsers.debug.DebugOptions.NONE))
       .thenRun(SilverTransformation(bipResults = bipResults))
       .thenRun(SilverBackend(Silicon()))
       .thenRun(ExpectedErrors())
@@ -25,7 +25,7 @@ case object Stages {
 
   def carbon(blameProvider: BlameProvider, bipResults: BIP.VerificationResults): Stages[Seq[Readable], Unit] = {
     Parsing(blameProvider)
-      .thenRun(Resolution(blameProvider))
+      .thenRun(Resolution(blameProvider, vct.parsers.debug.DebugOptions.NONE))
       .thenRun(SilverTransformation(bipResults = bipResults))
       .thenRun(SilverBackend(Carbon()))
       .thenRun(ExpectedErrors())
@@ -58,15 +58,29 @@ case object Stages {
       .thenRun(ExpectedErrors.ofOptions(options))
   }
 
-  def veymontOfOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
+  def veymontTransformationOfOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
     Parsing.ofOptions(options, blameProvider)
       .thenRun(Resolution.ofOptions(options, blameProvider))
-      .thenRun(Transformation.veymontOfOptions(options))
+      .thenRun(Transformation.veymontTransformationOfOptions(options))
+      .thenRun(CodeGeneration.veymontGenerationOfOptions(options))
       .thenRun(Output.veymontOfOptions(options))
   }
 
   def vesuvOfOptions(options: Options, blameProvider: BlameProvider) : Stages[Seq[Readable], Unit] = {
+    if (options.vesuvGenerateRasi) {
+      Parsing.ofOptions(options, blameProvider)
+        .thenRun(Resolution.ofOptions(options, blameProvider))
+        .thenRun(GenerateRASI.ofOptions(options))
+    }
+    else {
+      Parsing.ofOptions(options, blameProvider)
+        .thenRun(Output.vesuvOfOptions(options))
+    }
+  }
+
+  def cfgTransformationOfOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
     Parsing.ofOptions(options, blameProvider)
-      .thenRun(Output.vesuvOfOptions(options))
+      .thenRun(Resolution.ofOptions(options, blameProvider))
+      .thenRun(PrintCFG.ofOptions(options))
   }
 }

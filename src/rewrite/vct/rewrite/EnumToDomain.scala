@@ -3,7 +3,7 @@ package vct.col.rewrite
 import hre.util.ScopedStack
 import vct.col.ast
 import vct.col.ast._
-import vct.col.origin.{Origin, PanicBlame, PreferredNameOrigin}
+import vct.col.origin.{Origin, PanicBlame}
 import vct.col.rewrite.EnumToDomain.{EqOptOrigin, EqOrigin, ToIntOrigin}
 import vct.col.typerules.CoercingRewriter
 import vct.col.util.AstBuildHelpers._
@@ -15,17 +15,11 @@ case object EnumToDomain extends RewriterBuilder {
   override def key: String = "enumToDomain"
   override def desc: String = "Encodes COL enum as a domain"
 
-  case class EqOrigin(inner: Origin) extends PreferredNameOrigin {
-    val name: String = s"${inner.preferredName}_eq"
-  }
+  def EqOrigin(inner: Origin): Origin = inner.where(prefix = "eq")
 
-  case class EqOptOrigin(inner: Origin) extends PreferredNameOrigin {
-    val name: String = s"${inner.preferredName}_eqOpt"
-  }
+  def EqOptOrigin(inner: Origin): Origin = inner.where(prefix = "eqOpt")
 
-  case class ToIntOrigin(inner: Origin) extends PreferredNameOrigin {
-    val name: String = s"${inner.preferredName}_toInt"
-  }
+  def ToIntOrigin(inner: Origin): Origin = inner.where(prefix = "toInt")
 }
 
 case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {

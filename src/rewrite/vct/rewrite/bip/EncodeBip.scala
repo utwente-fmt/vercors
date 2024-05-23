@@ -11,6 +11,7 @@ import vct.col.util.AstBuildHelpers.{contract, _}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 import BIP._
+import vct.result.Message
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
@@ -21,7 +22,7 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
 
   object ClassBipComponent {
     def unapply[G](cls: Class[G]): Option[(Class[G], BipComponent[G])] = {
-      cls.declarations.collectFirst({
+      cls.decls.collectFirst({
         case bc: BipComponent[G] => (cls, bc)
       })
     }
@@ -39,6 +40,9 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
         case PostconditionFailed(Seq(FailRight, FailRight), failure, _) =>
           results.report(transition, PostconditionNotVerified)
           transition.blame.blame(BipTransitionPostconditionFailure(failure, transition))
+        case PostconditionFailed(_, _, _) =>
+          throw BlamePathError
+        case ctx: TerminationMeasureFailed => PanicBlame("BIP transition does not have termination measures").blame(ctx)
         case ctx: ContextEverywhereFailedInPost => PanicBlame("BIP transition does not have context everywhere").blame(ctx)
       }
       case ctx: SignalsFailed => PanicBlame("BIP transition does not have signals").blame(ctx)
@@ -46,22 +50,17 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     }
   }
 
-  case class ConstructorPostconditionFailed(results: VerificationResults, component: BipComponent[_], proc: Procedure[_]) extends Blame[CallableFailure] {
-    override def blame(error: CallableFailure): Unit = error match {
-      case cf: ContractedFailure => cf match {
-        case PostconditionFailed(Seq(FailLeft), failure, _) => // Failed establishing component invariant
-          results.report(component, ComponentInvariantNotMaintained)
-          proc.blame.blame(BipComponentInvariantNotEstablished(failure, proc))
-        case PostconditionFailed(Seq(FailRight, FailLeft), failure, _) => // Failed establishing state invariant
-          results.report(component, StateInvariantNotMaintained)
-          proc.blame.blame(BipStateInvariantNotEstablished(failure, proc))
-        case PostconditionFailed(FailRight +: FailRight +: path, failure, node) => // Failed postcondition
-          results.report(component, PostconditionNotVerified)
-          proc.blame.blame(PostconditionFailed(path, failure, node))
-        case ctx: ContextEverywhereFailedInPost => proc.blame.blame(ctx)
-      }
-      case ctx: SignalsFailed => proc.blame.blame(ctx)
-      case ctx: ExceptionNotInSignals => proc.blame.blame(ctx)
+  case class ForwardComponentInvariantFailed(results: VerificationResults, component: BipComponent[_], constructor: BipConstructor[_]) extends Blame[ExhaleFailed] {
+    override def blame(error: ExhaleFailed): Unit = {
+      results.report(component, ComponentInvariantNotMaintained)
+      constructor.blame.blame(BipComponentInvariantNotEstablished(error.failure, constructor))
+    }
+  }
+
+  case class ForwardStateInvariantFailed(results: VerificationResults, component: BipComponent[_], constructor: BipConstructor[_]) extends Blame[ExhaleFailed] {
+    override def blame(error: ExhaleFailed): Unit = {
+      results.report(component, StateInvariantNotMaintained)
+      constructor.blame.blame(BipStateInvariantNotEstablished(error.failure, constructor))
     }
   }
 
@@ -80,11 +79,12 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
 
     override def blame(error: NontrivialUnsatisfiable): Unit = node match {
       case g: BipGuard[_] => g.blame.blame(BipGuardPreconditionUnsatisfiable(g))
-      case t: BipTransition[_] =>
-        results.reportPreconditionNotVerified(t)
-        results.report(t, UpdateFunctionFailure)
-        t.blame.blame(BipTransitionPreconditionUnsatisfiable(t))
-      case t: BipOutgoingData[_] => t.blame.blame(BipOutgoingDataPreconditionUnsatisfiable(t))
+      case transition: BipTransition[_] =>
+        results.reportPreconditionNotVerified(transition)
+        results.report(transition, UpdateFunctionFailure)
+        transition.blame.blame(BipTransitionPreconditionUnsatisfiable(transition))
+      case data: BipOutgoingData[_] => data.blame.blame(BipOutgoingDataPreconditionUnsatisfiable(data))
+      case _ => throw Unreachable("This blame is not constructed for other types of node.")
     }
   }
 
@@ -92,41 +92,32 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     // Guard at POS needs data that transition at POS is not supplying!
     override def code: String = "bipMissingData"
     override def text: String = {
-      Origin.messagesInContext(Seq(
+      Message.messagesInContext(
         (guard.o, "Data required by this guard..."),
         (transition.o, "... is not supplied by this transition")
-      ))
+      )
     }
   }
 
   case class OverwritingBipResultError() extends SystemError {
-    override def text: String = "Oh no overwriting bip stuff"
+    override def text: String = messageContext("Oh no overwriting bip stuff")
   }
 
   case class UnexpectedBipResultError() extends SystemError {
-    override def text: String = "Oh no unexpected bip stuff"
+    override def text: String = messageContext("Oh no unexpected bip stuff")
   }
 
-  case class DataWireValueCarrierOrigin(wire: BipGlueDataWire[_]) extends Origin {
-    override def preferredName: String = wire.o.preferredName + "_result"
-    override def context: String = wire.o.context
-    override def inlineContext: String = wire.o.inlineContext
-    override def shortPosition: String = wire.o.shortPosition
+  private def DataWireValueCarrierOrigin(wire: BipGlueDataWire[_]): Origin = {
+    wire.o.where(prefix = "result")
   }
 
-  case class BipSynchronizationOrigin(s: BipTransitionSynchronization[_]) extends Origin {
-    override def preferredName: String = "synchron___" +
-      s.transitions.map { case Ref(t) => "transition_" + t.signature.asciiSignature }.mkString("_$_")
-    override def context: String = s.o.context
-    override def inlineContext: String = s.o.inlineContext
-    override def shortPosition: String = s.o.shortPosition
+  private def BipSynchronizationOrigin(s: BipTransitionSynchronization[_]): Origin = {
+    s.o.where(name = "synchron___" +
+      s.transitions.map { case Ref(t) => "transition_" + t.signature.asciiSignature }.mkString("_$_"))
   }
 
-  case class SynchronizationComponentVariableOrigin(s: BipTransitionSynchronization[_], c: BipComponent[_]) extends Origin {
-    override def preferredName: String = c.fqn.mkString(".")
-    override def context: String = s.o.context
-    override def inlineContext: String = s.o.inlineContext
-    override def shortPosition: String = s.o.shortPosition
+  private def SynchronizationComponentVariableOrigin(s: BipTransitionSynchronization[_], c: BipComponent[_]): Origin = {
+    s.o.where(name = c.fqn.mkString("."))
   }
 
   case class ExhalingTransitionPreconditionFailed(results: BIP.VerificationResults, s: BipTransitionSynchronization[_], t: BipTransition[_]) extends Blame[ExhaleFailed] {
@@ -136,11 +127,9 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     }
   }
 
-  case class ImplCheckBipTransitionOrigin(c: BipComponent[_], t: BipTransition[_]) extends Origin {
-    override def preferredName: String = s"transitionImplementationCheck__${c.fqn.mkString("_")}__${t.o.preferredName}_${t.signature.asciiSignature}"
-    override def context: String = t.o.context
-    override def inlineContext: String = t.o.inlineContext
-    override def shortPosition: String = t.o.shortPosition
+  private def ImplCheckBipTransitionOrigin(c: BipComponent[_], t: BipTransition[_]): Origin = {
+    t.o.where(name = s"transitionImplementationCheck__${c.fqn.mkString("_")}__${
+      t.o.getPreferredNameOrElse().camel}_${t.signature.asciiSignature}")
   }
 }
 
@@ -158,7 +147,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
 
   var program: Program[Pre] = null
 
-  var replaceThis: ScopedStack[(ThisObject[Pre], Expr[Post])] = ScopedStack()
+  var currentThis: ScopedStack[Expr[Post]] = ScopedStack()
 
   val currentComponent: ScopedStack[BipComponent[Pre]] = ScopedStack()
   val rewritingBipTransitionBody: ScopedStack[BipTransition[Pre]] = ScopedStack()
@@ -166,45 +155,45 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
 
   lazy val classes = program.transSubnodes.collect { case c: Class[Pre] => c }.toIndexedSeq
   lazy val components = classes.collect { case ClassBipComponent(cls, component) => component }
-  lazy val allPorts = classes.flatMap { cls => cls.declarations.collect { case port: BipPort[Pre] => port } }
+  lazy val allPorts = classes.flatMap { cls => cls.decls.collect { case port: BipPort[Pre] => port } }
   lazy val transitionToClassComponent: Map[BipTransition[Pre], (Class[Pre], BipComponent[Pre])] = classes.collect {
     case ClassBipComponent(cls, component) =>
-      cls.declarations.collect { case transition: BipTransition[Pre] => (transition, (cls, component)) }
+      cls.decls.collect { case transition: BipTransition[Pre] => (transition, (cls, component)) }
   }.flatten.toMap
   lazy val dataToClassComponent: Map[BipData[Pre], (Class[Pre], BipComponent[Pre])] = classes.collect {
     case ClassBipComponent(cls, component) =>
-      cls.declarations.collect { case data: BipData[Pre] => (data, (cls, component)) }
+      cls.decls.collect { case data: BipData[Pre] => (data, (cls, component)) }
   }.flatten.toMap
   lazy val guardToClass: Map[BipGuard[Pre], Class[Pre]] = classes.flatMap { cls =>
-    cls.declarations.collect { case guard: BipGuard[Pre] => (guard, cls) }
+    cls.decls.collect { case guard: BipGuard[Pre] => (guard, cls) }
   }.toMap
   lazy val componentToClass: Map[BipComponent[Pre], Class[Pre]] = classes.collect {
     case ClassBipComponent(cls, component) => (component, cls)
   }.toMap
-  lazy val procedureToClassComponent: Map[Procedure[Pre], (Class[Pre], BipComponent[Pre])] = classes.collect {
-    case ClassBipComponent(cls, component) => component.constructors.map { case Ref(constructor) =>
-      (constructor, (cls, component))
+  lazy val constructorToClassComponent: Map[BipConstructor[Pre], (Class[Pre], BipComponent[Pre])] = classes.collect {
+    case ClassBipComponent(cls, component) => cls.collect {
+      case constructor: BipConstructor[Pre] => (constructor, (cls, component))
     }
   }.flatten.toMap
   lazy val portToComponent: Map[BipPort[Pre], BipComponent[Pre]] = components.flatMap { component =>
-    classOf(component).declarations.collect { case p: BipPort[Pre] => (p, component) }
+    classOf(component).decls.collect { case p: BipPort[Pre] => (p, component) }
   }.toMap
 
   def classOf(c: BipComponent[Pre]): Class[Pre] = componentToClass(c)
   def classOf(p: BipPort[Pre]): Class[Pre] = componentToClass(portToComponent(p))
   def classOf(g: BipGuard[Pre]): Class[Pre] = guardToClass(g)
-  def classOf(p: Procedure[Pre]): Class[Pre] = procedureToClassComponent(p)._1
+  def classOf(p: BipConstructor[Pre]): Class[Pre] = constructorToClassComponent(p)._1
   def classOf(t: BipTransition[Pre]): Class[Pre] = transitionToClassComponent(t)._1
   def classOf(d: BipData[Pre]): Class[Pre] = dataToClassComponent(d)._1
-  def componentOf(p: Procedure[Pre]): BipComponent[Pre] = procedureToClassComponent(p)._2
+  def componentOf(p: BipConstructor[Pre]): BipComponent[Pre] = constructorToClassComponent(p)._2
   def componentOf(t: BipTransition[Pre]): BipComponent[Pre] = transitionToClassComponent(t)._2
   def componentOf(d: BipData[Pre]): BipComponent[Pre] = dataToClassComponent(d)._2
-  def isComponentConstructor(p: Procedure[Pre]): Boolean = procedureToClassComponent.contains(p)
 
   val guardSucc: SuccessionMap[BipGuard[Pre], InstanceMethod[Post]] = SuccessionMap()
   val transitionSucc: SuccessionMap[BipTransition[Pre], InstanceMethod[Post]] = SuccessionMap()
   val outgoingDataSucc: SuccessionMap[BipOutgoingData[Pre], InstanceMethod[Post]] = SuccessionMap()
   val synchronizationSucc: SuccessionMap[BipTransitionSynchronization[Pre], Procedure[Post]] = SuccessionMap()
+  val constructorSucc: SuccessionMap[BipConstructor[Pre], Procedure[Post]] = SuccessionMap()
 
   // References to incoming datas can be translated in two ways:
   sealed trait IncomingDataContext
@@ -222,9 +211,9 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case thisObj: ThisObject[Pre] => replaceThis.topOption match {
-      case Some((otherThis, res)) if thisObj == otherThis => res
-      case None => thisObj.rewrite()
+    case t @ ThisObject(_) => currentThis.topOption match {
+      case Some(res) => res
+      case None => t.rewrite()
     }
 
     case l @ BipLocalIncomingData(Ref(data)) => incomingDataContext.top match {
@@ -298,29 +287,34 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         rewriteDefault(cls)
       }
 
-    case proc: Procedure[Pre] if isComponentConstructor(proc) =>
-      val component = componentOf(proc)
+    case constructor: BipConstructor[Pre] =>
+      val component = componentOf(constructor)
       results.declare(component)
       implicit val o = DiagnosticOrigin
+      val ref = succ[Class[Post]](classOf(constructor))
+      val t = TClass[Post](ref, Seq())
       rewritingBipConstructorBody.having(component) {
-        withResult { res: Result[Post] =>
-          val subst = (ThisObject[Pre](classOf(proc).ref)(DiagnosticOrigin), res)
-          val contract = proc.contract.rewrite(
-            ensures =
-            // Establish component invariant
-            SplitAccountedPredicate(UnitAccountedPredicate(replaceThis.having(subst) {
-              dispatch(component.invariant)
-            }),
-            // Establish state invariant
-            SplitAccountedPredicate(UnitAccountedPredicate(replaceThis.having(subst) {
-              dispatch(component.initial.decl.expr)
-            }),
-            // Also include everything that was generated extra for the constructor
-            dispatch(proc.contract.ensures)))
-          )
-          globalDeclarations.succeed(proc,
-            proc.rewrite(contract = contract, blame = ConstructorPostconditionFailed(results, component, proc)))
-        }
+        constructorSucc(constructor) = globalDeclarations.declare(
+          new Procedure[Post](
+            returnType = TVoid(),
+            args = variables.collect { constructor.args.map(dispatch) }._1,
+            outArgs = Nil, typeArgs = Nil,
+            body = {
+              val resVar = new Variable[Post](t)
+              val res = Local[Post](resVar.ref)
+              currentThis.having(res) {
+                Some(Scope(Seq(resVar), Block(Seq(
+                  assignLocal(res, NewObject(ref)),
+                  dispatch(constructor.body),
+                  Exhale(dispatch(component.initial.decl.expr))(ForwardStateInvariantFailed(results, component, constructor)),
+                  Exhale(dispatch(component.invariant))(ForwardComponentInvariantFailed(results, component, constructor))
+                ))))
+              }
+            },
+            contract(requires = UnitAccountedPredicate(dispatch(constructor.requires)),
+              blame = constructor.blame)
+          )(PanicBlame("Unexpected error, failing precondition on JavaBIP constructor should not happen"))(constructor.o)
+        )
       }
 
     case transition: BipTransition[Pre] =>
@@ -376,7 +370,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
          We define those variables/arguments here.
        */
       val varOf: Map[Declaration[Pre], Local[Post]] = transitions.flatMap { transition =>
-        val v = new Variable[Post](TClass(succ[Class[Post]](classOf(transition))))(
+        val v = new Variable[Post](TClass(succ[Class[Post]](classOf(transition)), Seq()))(
           SynchronizationComponentVariableOrigin(synchronization, componentOf(transition)))
         Seq((transition, v.get), (classOf(transition), v.get))
       }.toMap
@@ -389,9 +383,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
              - Guard (done further down)
         */
       val preconditionComponents: Expr[Post] = foldStar(synchronization.transitions.map { case Ref(transition) =>
-        val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
-
-        replaceThis.having(clsThisSubst) {
+        currentThis.having(varOf(transition)) {
           (varOf(transition) !== Null()) &**
             dispatch(componentOf(transition).invariant) &**
             dispatch(transition.source.decl.expr)
@@ -407,8 +399,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
       })
 
       val preconditionGuards: Expr[Post] = foldStar(synchronization.transitions.map { case Ref(transition) =>
-        val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
-        replaceThis.having(clsThisSubst) {
+        currentThis.having(varOf(transition)) {
           incomingDataContext.having(RewriteToOutgoingDataContext(incomingDataTranslation)) {
             dispatch(transition.guard)
           }
@@ -436,10 +427,8 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
           - Separate so we can detect the error easily
       */
       val exhales: Seq[Exhale[Post]] = synchronization.transitions.flatMap { case Ref(transition) =>
-        val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
-
         incomingDataContext.having(RewriteToVariableContext(incomingDataToVariableContext)) {
-          val componentStateGuardExhale = Exhale(replaceThis.having(clsThisSubst) { foldStar(
+          val componentStateGuardExhale = Exhale(currentThis.having(varOf(transition)) { foldStar(
             Seq(dispatch(componentOf(transition).invariant), dispatch(transition.source.decl.expr)) :+
                 dispatch(transition.guard)
           )})(PanicBlame("Component invariant, state invariant, and transition guard should hold"))
@@ -461,7 +450,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
              We don't have to split up the component, state, guard, any further, because those are always implied
              by the precondition of the synchron.
            */
-          val preconditionExhale = Exhale(replaceThis.having(clsThisSubst) {
+          val preconditionExhale = Exhale(currentThis.having(varOf(transition)) {
                 dispatch(transition.requires)
             })(ExhalingTransitionPreconditionFailed(results, synchronization, transition))
 
@@ -476,9 +465,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
           - postcondition
       */
       val inhales: Seq[Inhale[Post]] = synchronization.transitions.map { case Ref(transition) =>
-        val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
-
-        Inhale(replaceThis.having(clsThisSubst) {
+        Inhale(currentThis.having(varOf(transition)) {
           dispatch(componentOf(transition).invariant) &**
             dispatch(transition.target.decl.expr) &**
             dispatch(transition.ensures)
@@ -492,9 +479,8 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
           - New state invariant
       */
       val postcondition: Expr[Post] = foldStar(synchronization.transitions.map { case Ref(transition) =>
-        val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
 
-        replaceThis.having(clsThisSubst) {
+        currentThis.having(varOf(transition)) {
           dispatch(componentOf(transition).invariant) &**
           dispatch(transition.target.decl.expr)
         }

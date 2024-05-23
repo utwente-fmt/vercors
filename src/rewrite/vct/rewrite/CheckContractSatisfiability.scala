@@ -2,9 +2,9 @@ package vct.col.rewrite
 
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.rewrite.CheckContractSatisfiability.{AssertPassedNontrivialUnsatisfiable, CheckSatOrigin, NotWellFormedIgnoreCheckSat}
+import vct.col.rewrite.CheckContractSatisfiability.{AssertPassedNontrivialUnsatisfiable, NotWellFormedIgnoreCheckSat}
 import vct.col.rewrite.util.Extract
-import vct.col.origin.{Blame, ExpectedError, ExpectedErrorFailure, ExpectedErrorNotTripped, ExpectedErrorTrippedTwice, FilterExpectedErrorBlame, NontrivialUnsatisfiable, Origin, PanicBlame, UnsafeDontCare, VerificationFailure}
+import vct.col.origin.{Blame, ExpectedError, ExpectedErrorFailure, ExpectedErrorNotTripped, ExpectedErrorTrippedTwice, FilterExpectedErrorBlame, NontrivialUnsatisfiable, Origin, PanicBlame, PreferredName, UnsafeDontCare, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers.{ff, foldStar, procedure, unfoldStar}
 
@@ -15,13 +15,6 @@ case object CheckContractSatisfiability extends RewriterBuilderArg[Boolean] {
   override def desc: String =
     "Prove that contracts are not internally contradictory (i.e. unsatisfiable) for methods and other contract bearers, " +
       "except for the contract `false`."
-
-  case class CheckSatOrigin(inner: Origin, n: Option[String]) extends Origin {
-    override def preferredName: String = "check_sat_" + n.getOrElse(inner.preferredName)
-    override def context: String = inner.context
-    override def inlineContext: String = inner.inlineContext
-    override def shortPosition: String = inner.shortPosition
-  }
 
   case class AssertPassedNontrivialUnsatisfiable(contract: ApplicableContract[_]) extends Blame[ExpectedErrorFailure] {
     override def blame(error: ExpectedErrorFailure): Unit = error match {
@@ -50,8 +43,8 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
     case SplitAccountedPredicate(left, right) => splitAccountedPredicate(left) ++ splitAccountedPredicate(right)
   }
 
-  def checkSatisfiability(contract: ApplicableContract[Pre], n: Option[String]): Unit = {
-    implicit val origin: Origin = CheckSatOrigin(contract.o, n)
+  def checkSatisfiability(contract: ApplicableContract[Pre], n: Option[Declaration[Pre]]): Unit = {
+    implicit val origin: Origin = n.map(_.o).getOrElse(contract.o).where(prefix = "checksat")
     foldStar(splitAccountedPredicate(contract.requires)) match {
       case BooleanValue(false) =>
         // Assume the contract is not intended to be satisfiable
@@ -88,15 +81,15 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
     Verification(tasks, errs ++ verification.expectedErrors)(verification.o)
   }
 
-  val name: ScopedStack[String] = ScopedStack()
+  val currentDeclaration: ScopedStack[Declaration[Pre]] = ScopedStack()
 
   override def dispatch(decl: Declaration[Pre]): Unit =
-    name.having(decl.o.preferredName) {
+    currentDeclaration.having(decl) {
       super.dispatch(decl)
     }
 
   override def dispatch(contract: ApplicableContract[Pre]): ApplicableContract[Post] = {
-    if(doCheck) checkSatisfiability(contract, name.topOption)
+    if(doCheck) checkSatisfiability(contract, currentDeclaration.topOption)
     rewriteDefault(contract)
   }
 }

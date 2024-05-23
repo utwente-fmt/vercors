@@ -8,7 +8,7 @@ import viper.api.backend.Backend
 
 sealed trait G
 
-abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
+abstract class VerifySpec[P](backend: Backend[P]) extends AnyFlatSpec {
   implicit val noErrors: Blame[VerificationFailure] = NoErrors
   implicit val origin: Origin = DiagnosticOrigin
   private var _registry: Option[ExpectedErrorsRegistry] = None
@@ -25,7 +25,8 @@ abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
 
   def program(program: => Program[G]): Unit = {
     _registry = Some(new ExpectedErrorsRegistry())
-    backend.submit(program, None)
+    val inter: P = backend.transform(program, None)
+    backend.submit(inter)
     _registry.get.check()
     _registry = None
   }

@@ -25,6 +25,8 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] with L
         PanicBlame("Generated methods for models do not have context_everywhere clauses.").blame(ctx)
       case _: SignalsFailed | _: ExceptionNotInSignals =>
         PanicBlame("Generated methods for models do not throw exceptions.").blame(error)
+      case _: TerminationMeasureFailed =>
+        PanicBlame("Generated methods for models do not have termination measures (yet).").blame(error)
     }
   }
 
@@ -58,8 +60,8 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] with L
                 if (compositeMap.contains(parallelCompositionElems)) {
                   logger.warn(
                     "Collision detected: %s vs. %s have same set of process elements composed in parallel",
-                    process.o.preferredName,
-                    compositeMap(parallelCompositionElems).o.preferredName
+                    process.o.getPreferredNameOrElse().camel,
+                    compositeMap(parallelCompositionElems).o.getPreferredNameOrElse().camel
                   )
                 } else {
                   compositeMap.put(parallelCompositionElems, process)
@@ -75,6 +77,7 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] with L
 
       val newClass = currentModel.having(model) {
         new Class(
+          Seq(),
           classDeclarations.collect {
             model.declarations.foreach(dispatch(_))
           }._1, Nil, tt,
@@ -117,7 +120,7 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] with L
       )(ModelPostconditionFailed(process)))
 
     case modelField: ModelField[Pre] =>
-      val instanceField = new InstanceField[Post](dispatch(modelField.t), Set())(modelField.o)
+      val instanceField = new InstanceField[Post](dispatch(modelField.t), Nil)(modelField.o)
       classDeclarations.declare(instanceField)
       modelFieldSuccessors(modelField) = instanceField
 

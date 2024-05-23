@@ -1,0 +1,15 @@
+seq_program Main() {
+    endpoint a = Role();
+
+	seq_run {
+		a.some := new Other();
+	}
+}
+
+class Role {
+	Other some;
+}
+
+class Other {
+
+}

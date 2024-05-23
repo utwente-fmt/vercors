@@ -38,10 +38,6 @@ case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case SeqMember(x, Range(from, to)) =>
-      implicit val o: Origin = e.o
-      dispatch(from) <= dispatch(x) && dispatch(x) < dispatch(to)
-
     case starall @ Starall(bindings, triggers, body) =>
       implicit val o: Origin = e.o
       val (newBindings, (conds, consequent)) = variables.collect {

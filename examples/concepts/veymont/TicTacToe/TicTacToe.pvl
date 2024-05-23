@@ -1,0 +1,34 @@
+inline resource ticTacToeAnnotations(Player p1, Player p2) =
+    p1.myToken == 0 ** p2.myToken == 1
+    ** p1.turn != p2.turn
+    ** p1.equalGrid(p2);
+
+seq_program TTT() {
+	endpoint p1 = Player(0, true);
+	endpoint p2 = Player(1, false);
+	
+	context ticTacToeAnnotations(p1, p2);
+	ensures p1.gameFinished() && p2.gameFinished();
+	seq_run {
+		loop_invariant ticTacToeAnnotations(p1, p2);
+		loop_invariant !p1.gameFinished() == !p2.gameFinished();
+		while(!p1.gameFinished() && !p2.gameFinished()) {
+			assert p1.turn == !p2.turn;
+			if(p1.turn && !p2.turn) {
+				p1.createNewMove();
+				p1.temp := p1.move.clone();
+				communicate p2.move <- p1.temp;
+				p1.temp := new Move(-1, -1, -1); // TODO: Workaround for not having memory management, delete when we support exprs in communicate
+			} else {
+				p2.createNewMove();
+				p2.temp := p2.move.clone();
+				communicate p1.move <- p2.temp;
+				p2.temp := new Move(-1, -1, -1); // TODO: Workaround for not having memory management, delete when we support exprs in communicate
+			}
+			p1.doMove();
+			p2.doMove();
+			p1.turn := !p1.turn;
+			p2.turn := !p2.turn;
+		}
+	}
+}

@@ -1,29 +1,32 @@
 package vct.parsers.transform
 
+import hre.data.BitString
 import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.antlr4.generated.LLVMSpecParser._
 import vct.antlr4.generated.LLVMSpecParserPatterns
 import vct.antlr4.generated.LLVMSpecParserPatterns._
 import vct.col.ast._
-import vct.col.origin.{ExpectedError, Origin, SourceNameOrigin}
+import vct.col.origin.{ExpectedError, Origin}
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.util.AstBuildHelpers.{ff, foldAnd, implies, tt}
+import vct.parsers.err.ParseError
 
 import scala.annotation.nowarn
+import scala.collection.immutable.{AbstractSeq, LinearSeq}
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class LLVMContractToCol[G](override val originProvider: OriginProvider,
+case class LLVMContractToCol[G](override val baseOrigin: Origin,
                                 override val blameProvider: BlameProvider,
                                 override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol(originProvider, blameProvider, errors) {
+  extends ToCol(baseOrigin, blameProvider, errors) {
 
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
     LlvmLocal(name)(blame(ctx))(origin(ctx))
 
   def createVariable(ctx: ParserRuleContext, id: LangIdContext, t: LangTypeContext): Variable[G] = {
     val varId = convert(id)
-    val variable = new Variable(convert(t))(SourceNameOrigin(varId, origin(ctx)))
+    val variable = new Variable(convert(t))(origin(ctx).sourceName(varId))
     variable
   }
 
@@ -59,7 +62,7 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
     //case ValContractClause9(_, exp, _) => collector.kernel_invariant += ((contract, convert(exp)))
     case ValContractClause10(_, _, t, id, _, exp, _) =>
       val variable = createVariable(contract, id, t)
-      collector.signals += ((contract, SignalsClause(variable, convert(exp))(originProvider(contract))))
+      collector.signals += ((contract, SignalsClause(variable, convert(exp))(OriginProvider(contract))))
     //case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
     case ValContractClause12(_, None, _) => collector.decreases += ((contract, DecreasesClauseNoRecursion()))
     case ValContractClause12(_, Some(clause), _) => collector.decreases += ((contract, convert(clause)))
@@ -93,21 +96,29 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
     case Expression1(constant) => convert(constant)
     case Expression2(identifier) => convert(identifier)
     case Expression3(valExpr) => convert(valExpr)
+    case Expression4(e1, impOp, e2) => impOp match {
+      case ValImpOp0(_) => ???
+      case ValImpOp1(_) => Implies(convert(e1), convert(e2))
+    }
   }
 
   def convert(implicit inst: InstructionContext): Expr[G] = inst match {
     case BinOpRule(binOp) => convert(binOp)
     case CmpOpRule(cmpOp) => convert(cmpOp)
     case CallOpRule(callOp) => convert(callOp)
+    case BrOpRule(brOp) => convert(brOp)
+  }
+
+  def convert(implicit brOp:BranchInstructionContext): Expr[G] = brOp match {
+    case BranchInstruction0(_, _, testExpr, _, trueExpr, _, falseExpr, _) =>
+      Select(convert(testExpr), convert(trueExpr), convert(falseExpr))
   }
 
   def convert(implicit callOp: CallInstructionContext): Expr[G] = callOp match {
-    case CallInstruction0(_, id, _, exprList, _) => {
+    case CallInstruction0(_, id, _, exprList, _) =>
       val args: Seq[Expr[G]] = convert(exprList)
       LlvmAmbiguousFunctionInvocation(id, args, Nil, Nil)(blame(callOp))
-    }
   }
-
 
   def convert(implicit binOp: BinOpInstructionContext): Expr[G] = binOp match {
     case BinOpInstruction0(op, _, lhs, _, rhs, _) => convert(op, lhs, rhs)
@@ -122,6 +133,20 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
       case Sub(_) => Minus(left, right)
       case Mul(_) => Mult(left, right)
       case Udiv(_) | Sdiv(_) => FloorDiv(left, right)(blame(op))
+      // bitwise/boolean
+      case bitOp => left.t match {
+        case TBool() => bitOp match {
+          case LLVMSpecParserPatterns.And(_) => vct.col.ast.And(left, right)
+          case LLVMSpecParserPatterns.Or(_) => vct.col.ast.Or(left, right)
+          case Xor(_) => Neq(left, right)
+        }
+        case TInt() => bitOp match {
+          case LLVMSpecParserPatterns.And(_) => BitAnd(left, right)
+          case LLVMSpecParserPatterns.Or(_) => BitOr(left, right)
+          case Xor(_) => BitXor(left, right)
+        }
+        case other => throw ParseError(left.o, s"Expected an integer or boolean expression here, but got `$other`")
+      }
     }
   }
 
@@ -358,4 +383,41 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
     case ValExpressionList0(expr) => Seq(convert(expr))
     case ValExpressionList1(head, _, tail) => convert(head) +: convert(tail)
   }
+
+  def convert(implicit decl: ValGlobalDeclarationContext): GlobalDeclaration[G] = decl match {
+    case ValFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
+      val contractCollector = new ContractCollector[G]()
+      contract.foreach(convert(_, contractCollector))
+
+      val modifierCollector = new ModifierCollector()
+      modifiers.foreach(convert(_, modifierCollector))
+
+      val namedOrigin = origin(decl).sourceName(convert(name))
+      new LlvmSpecFunction(
+        convert(name),
+        convert(t),
+        args.map(convert(_)).getOrElse(Nil),
+        Nil, // TODO implement
+        convert(definition),
+        contractCollector.consumeApplicableContract(blame(decl)),
+        modifierCollector.consume(modifierCollector.inline))(blame(decl)
+      )(namedOrigin)
+  }
+
+  def convert(implicit definition: ValPureDefContext): Option[Expr[G]] = definition match {
+    case ValPureAbstractBody(_) => None
+    case ValPureBody(_, expr, _) => Some(convert(expr))
+  }
+
+  def convert(mod: ValModifierContext, collector: ModifierCollector): Unit = mod match {
+    case ValModifier0(name) => name match {
+      case "pure" => collector.pure += mod
+      case "inline" => collector.inline += mod
+      case "thread_local" => collector.threadLocal += mod
+      case "bip_annotation" => collector.bipAnnotation += mod
+    }
+    case ValStatic(_) => collector.static += mod
+  }
+
+
 }

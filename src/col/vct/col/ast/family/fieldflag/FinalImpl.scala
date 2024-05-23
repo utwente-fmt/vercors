@@ -1,7 +1,8 @@
 package vct.col.ast.family.fieldflag
 
 import vct.col.ast.Final
+import vct.col.ast.ops.FinalOps
 
-trait FinalImpl[G] { this: Final[G] =>
+trait FinalImpl[G] extends FinalOps[G] { this: Final[G] =>
 
 }

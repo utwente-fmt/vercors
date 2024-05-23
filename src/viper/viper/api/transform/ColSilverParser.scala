@@ -1,15 +1,16 @@
 package viper.api.transform
 
-import hre.io.Readable
-import org.antlr.v4.runtime.CharStream
-import vct.parsers.transform.{BlameProvider, OriginProvider}
+import hre.io.{Readable, ReaderReadable}
+import vct.col.origin.Origin
+import vct.parsers.transform.BlameProvider
 import vct.parsers.{ParseResult, Parser}
-import vct.result.VerificationError.Unreachable
 
-case class ColSilverParser(override val originProvider: OriginProvider, override val blameProvider: BlameProvider) extends Parser(originProvider, blameProvider) {
-  override def parse[G](stream: CharStream): ParseResult[G] =
-    throw Unreachable("Should not parse silver files from CharStream: Viper is not parsed via ANTLR.")
+import java.io.Reader
 
-  override def parse[G](readable: Readable): ParseResult[G] =
+case class ColSilverParser(blameProvider: BlameProvider) extends Parser {
+  override def parse[G](readable: Readable, baseOrigin: Origin = Origin(Nil)): ParseResult[G] =
     ParseResult(SilverToCol.parse(readable, blameProvider).declarations, Nil)
+
+  override def parseReader[G](reader: Reader, baseOrigin: Origin = Origin(Nil)): ParseResult[G] =
+    ParseResult(SilverToCol.parse(ReaderReadable("<unknown>", reader), blameProvider).declarations, Nil)
 }
