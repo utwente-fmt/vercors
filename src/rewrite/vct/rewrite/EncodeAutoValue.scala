@@ -86,20 +86,6 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
     )
   }
 
-  private def handleBinOp(e: Expr[Pre], left: Expr[Pre], right: Expr[Pre], preCons: (Expr[Pre], Expr[Pre]) => Expr[Pre], postCons: (Expr[Post], Expr[Post]) => Expr[Post]): Expr[Post] = {
-    val lMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
-    val rMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
-    val l = conditionContext.having((conditionContext.top._1, lMap)) {
-      dispatch(left)
-    }
-    val r = conditionContext.having((conditionContext.top._1, rMap)) {
-      dispatch(right)
-    }
-    lMap.foreach(postL => conditionContext.top._2.append((preCons(postL._1, tt), postCons(postL._2, tt))))
-    rMap.foreach(postR => conditionContext.top._2.append((preCons(tt, postR._1), postCons(tt, postR._2))))
-    postCons(l, r)
-  }
-
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     if (conditionContext.isEmpty) {
@@ -153,7 +139,6 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
           }
         }
         // This one is probably useless since you can't use resource expressions with and...
-        case And(left, right) => handleBinOp(e, left, right, (l, r) => And(l, r), (l, r) => And(l, r))
         case Select(condition, left, right) =>
           val top = conditionContext.pop()
           val c = try {
@@ -161,9 +146,22 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
           } finally {
             conditionContext.push(top)
           }
-          conditionContext.top._1 match {
-            case InPrecondition() => handleBinOp(e, left, right, (l, r) => Select(condition, l, r), (l, r) => Select(c, l, r))
-            case InPostcondition() => handleBinOp(e, left, right, (l, r) => Select(condition, l, r), (l, r) => Select(Old(c, None)(PanicBlame("Old should always be valid in a postcondition")), l, r))
+          val lMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
+          val rMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
+          val l = conditionContext.having((conditionContext.top._1, lMap)) {
+            dispatch(left)
+          }
+          val r = conditionContext.having((conditionContext.top._1, rMap)) {
+            dispatch(right)
+          }
+          if (lMap.isEmpty && rMap.isEmpty) Select(c, l, r)
+          else {
+            lMap.foreach(postL => conditionContext.top._2.append((Select(condition, postL._1, tt), Select(Old(c, None)(PanicBlame("Old should always be valid in a postcondition")), postL._2, tt))))
+            rMap.foreach(postR => conditionContext.top._2.append((Select(condition, tt, postR._1), Select(Old(c, None)(PanicBlame("Old should always be valid in a postcondition")), tt, postR._2))))
+            conditionContext.top._1 match {
+              case InPrecondition() => Select(c, l, r)
+              case InPostcondition() => Select(Old(c, None)(PanicBlame("Old should always be valid in a postcondition")), l, r)
+            }
           }
         case Implies(left, right) =>
           val rMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
