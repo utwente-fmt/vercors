@@ -245,7 +245,8 @@ case class ImportVector[Pre <: Generation](importer: ImportADTImporter) extends 
         givenMap = Nil,
         yields = Nil
       )(blame)(e.o)
-
+    case f: FunctionInvocation[Post] =>
+      e.rewriteDefault()
     case other => other.rewriteDefault()
   }
 }

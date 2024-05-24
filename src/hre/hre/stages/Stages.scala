@@ -14,6 +14,50 @@ trait Stage[-Input, +Output] {
 
   def thenRun[NewOutput](stages: Stages[Output, NewOutput]): Stages[Input, NewOutput] =
     UnitStages(this).thenRun(stages)
+
+  def saveInput: Stages[Input, (_ >: Input, Output)] = SaveInputStage(UnitStages(this))
+
+  def transform[Output2](f: Output => Output2): Stages[Input, Output2] = {
+    UnitStages(this).thenRun(FunctionStage(f))
+  }
+
+  def also(f: => Unit): Stages[Input, Output] = {
+   UnitStages(this).thenRun(FunctionStage[Output, Output](x => { f; x }))
+  }
+
+  def preprocess[Input2](f: Input2 => Input): Stages[Input2, Output] =
+    UnitStages(FunctionStage(f)).thenRun(UnitStages(this))
+}
+
+case class IdentityStage[T]() extends Stage[T, T] {
+  def run(in: T): T = in
+
+  override def friendlyName: String = "identity stage"
+
+  override def progressWeight: Int = 0
+}
+
+abstract class WrapStage[InnerInput, InnerOutput, OuterInput, OuterOutput](stage: Stage[InnerInput, InnerOutput])
+  extends Stage[OuterInput, OuterOutput] {
+  override def friendlyName: String = stage.friendlyName
+
+  override def progressWeight: Int = stage.progressWeight
+
+  override def run(in: OuterInput): OuterOutput = zoomOut(stage.run(zoomIn(in)))
+
+  def zoomIn(in: OuterInput): InnerInput
+  def zoomOut(out: InnerOutput): OuterOutput
+}
+
+object Stages {
+  def saveInput[Input, Output](stages: Stages[Input, Output]): Stages[Input, (Input, Output)] = SaveInputStage(stages)
+
+  def skipIf[Input](condition: Boolean, stages: Stages[Input, Unit]): Stages[Input, Unit] = SkipIf(condition, stages)
+
+  def branch[Input, Output](condition: Boolean, tt: Stages[Input, Output], ff: Stages[Input, Output]): Branch[Input, Output] = Branch[Input, Output](condition, tt, ff)
+
+  def preprocess[Input2, Input, Output](f: Input2 => Input, stages: Stages[Input, Output]): Stages[Input2, Output] =
+    UnitStages(FunctionStage(f)).thenRun(stages)
 }
 
 trait Stages[-Input, +Output] {
@@ -43,6 +87,18 @@ trait Stages[-Input, +Output] {
 
   def thenRun[NewOutput](stages: Stages[Output, NewOutput]): Stages[Input, NewOutput] =
     StagesPair(this, stages)
+
+  def transform[Output2](f: Output => Output2): Stages[Input, Output2] =
+    thenRun(FunctionStage(f))
+
+  def also(f: => Unit): Stages[Input, Output] =
+    thenRun(FunctionStage[Output, Output](x => { val y = f; x }))
+}
+
+case class FunctionStage[T, S](f: T => S) extends Stage[T, S] {
+  override def friendlyName: String = "..."
+  override def progressWeight: Int = 1
+  override def run(in: T): S = f(in)
 }
 
 case class UnitStages[-Input, +Output](stage: Stage[Input, Output]) extends Stages[Input, Output] {
@@ -51,4 +107,42 @@ case class UnitStages[-Input, +Output](stage: Stage[Input, Output]) extends Stag
 
 case class StagesPair[-Input, Mid, +Output](left: Stages[Input, Mid], right: Stages[Mid, Output]) extends Stages[Input, Output] {
   override def collect: Seq[Stage[Nothing, Any]] = left.collect ++ right.collect
+}
+
+case class SaveInputStage[Input, Output](stages: Stages[Input, Output]) extends Stages[Input, (Input, Output)] {
+  case class RetainInput[Input, Output](stage: Stage[Input, Output]) extends WrapStage[Input, Output, Input, (Input, Output)](stage) {
+    var in: Option[Input] = None
+    override def zoomIn(in: Input): Input = {
+      this.in = Some(in)
+      in
+    }
+    override def zoomOut(out: Output): (Input, Output) = (in.get, out)
+  }
+
+  case class Map_2[Left, Input, Output](stage: Stage[Input, Output]) extends WrapStage[Input, Output, (Left, Input), (Left, Output)](stage) {
+    var left: Option[Left] = None
+    override def zoomIn(in: (Left, Input)): Input = {
+      left = Some(in._1)
+      in._2
+    }
+    override def zoomOut(out: Output): (Left, Output) = (left.get, out)
+  }
+
+  override def collect: Seq[Stage[Nothing, Any]] = stages.collect match {
+    case Seq() => Seq()
+    case Seq(stage) => Seq(RetainInput[Nothing, Any](stage).asInstanceOf[Stage[Nothing, Any]])
+    case stage +: stages =>
+      RetainInput[Nothing, Any](stage).asInstanceOf[Stage[Nothing, Any]] +: stages.map(Map_2[Nothing, Nothing, Any])
+  }
+}
+
+case class SkipIf[Input](condition: Boolean, stages: Stages[Input, Unit]) extends Stages[Input, Unit] {
+  override def collect: Seq[Stage[Nothing, Any]] =
+    if(condition)
+      Seq(FunctionStage((_: Input) => ()))
+    else stages.collect
+}
+
+case class Branch[Input, Output](condition: Boolean, tt: Stages[Input, Output], ff: Stages[Input, Output]) extends Stages[Input, Output] {
+  override def collect: Seq[Stage[Nothing, Any]] = if(condition) tt.collect else ff.collect
 }

@@ -17,6 +17,7 @@ import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.immutable.{AbstractSeq, LinearSeq}
+import scala.collection.mutable
 
 case object Resolve {
   trait SpecExprParser {
@@ -305,15 +306,17 @@ case object ResolveReferences extends LazyLogging {
       // Ensure occurrences of type variables within the adt that defines them are ignored when substituting
       .declare(adt.declarations)
       .appendTypeEnv(adt.typeArgs.map(v => (v, TVar[G](v.ref))).toMap)
-    case seqProg: SeqProg[G] => ctx
-      .copy(currentThis = Some(RefSeqProg(seqProg)))
-      .declare(seqProg.decls)
-      .declare(seqProg.endpoints)
-      .declare(seqProg.args)
-    case seqProg: PVLSeqProg[G] => ctx
-      .copy(currentThis = Some(RefPVLSeqProg(seqProg)))
-      .declare(seqProg.args)
-      .declare(seqProg.declarations)
+    case chor: Choreography[G] => ctx
+      .copy(currentThis = Some(RefChoreography(chor)))
+      .declare(chor.decls)
+      .declare(chor.endpoints)
+      .declare(chor.params)
+    case chor: PVLChoreography[G] => ctx
+      .copy(currentThis = Some(RefPVLChoreography(chor)))
+      .declare(chor.args)
+      .declare(chor.declarations)
+    case channelInv: PVLChannelInvariant[G] => ctx
+      .copy(currentCommunicate = Some(channelInv.comm.asInstanceOf[PVLCommunicate[G]]))
     case method: JavaMethod[G] => ctx
       .copy(currentResult=Some(RefJavaMethod(method)))
       .copy(inStaticJavaContext=method.modifiers.collectFirst { case _: JavaStatic[_] => () }.nonEmpty)
@@ -426,21 +429,8 @@ case object ResolveReferences extends LazyLogging {
       case Some(_) => throw ForbiddenEndpointNameType(local)
       case None => throw NoSuchNameError("endpoint", name, local)
     }
-    case access@PVLAccess(subject, field) =>
-        access.ref = Some(PVL.findDerefOfClass(subject.cls, field).getOrElse(throw NoSuchNameError("field", field, access)))
     case endpoint: PVLEndpoint[G] =>
       endpoint.ref = Some(PVL.findConstructor(TClass(endpoint.cls.decl.ref[Class[G]], Seq()), Seq(), endpoint.args).getOrElse(throw ConstructorNotFound(endpoint)))
-    case parAssign: PVLSeqAssign[G] =>
-      parAssign.receiver.tryResolve(receiver => PVL.findName(receiver, ctx) match {
-        case Some(RefPVLEndpoint(decl)) => decl
-        case Some(_) => throw ForbiddenEndpointNameType(parAssign)
-        case None => throw NoSuchNameError("endpoint", receiver, parAssign)
-      })
-      parAssign.field.tryResolve(field => PVL.findDerefOfClass[G](parAssign.receiver.decl.cls.decl, field) match {
-        case Some(RefField(field)) => field
-        case Some(_) => throw UnassignableField(parAssign)
-        case None => throw NoSuchNameError("field", field, parAssign)
-      })
     case deref@CStructDeref(struct, field) =>
       deref.ref = Some(C.findPointerDeref(struct, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref@CFieldAccess(obj, field) =>
@@ -706,6 +696,23 @@ case object ResolveReferences extends LazyLogging {
       }
     case glob: LlvmGlobal[G] =>
       glob.data.get.foreach(resolve(_, ctx))
+    case comm: PVLCommunicate[G] =>
+      /* Endpoint contexts for communicate are resolved early, because otherwise \sender, \receiver, \msg cannot be typed.
+       */
+      def getEndpoints[G](expr: Expr[G]): Seq[PVLEndpoint[G]] =
+        mutable.LinkedHashSet.from(expr.collect { case name: PVLLocal[G] => name.ref.get }.collect { case RefPVLEndpoint(endpoint) => endpoint }).toSeq
+
+      def getEndpoint[G](expr: Expr[G]): PVLEndpoint[G] = getEndpoints(expr) match {
+        case Seq(endpoint) => endpoint
+        // TODO (RR): Proper error
+        case Seq() => throw new Exception(expr.o.messageInContext("No endpoints in expr"))
+        case _ => throw new Exception(expr.o.messageInContext("Too many endpoints possible"))
+      }
+      comm.inferredSender = comm.sender.map(_.ref.get.decl).orElse(Some(getEndpoint(comm.msg)))
+      comm.inferredReceiver = comm.receiver.map(_.ref.get.decl).orElse(Some(getEndpoint(comm.target)))
+    case sender: PVLSender[G] => sender.ref = Some(ctx.currentCommunicate.get)
+    case receiver: PVLReceiver[G] => receiver.ref = Some(ctx.currentCommunicate.get)
+    case msg: PVLMessage[G] => msg.ref = Some(ctx.currentCommunicate.get)
     case _ =>
   }
 }

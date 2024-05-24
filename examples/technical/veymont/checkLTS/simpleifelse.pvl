@@ -10,7 +10,7 @@ class Role {
 }
 
 
-seq_program Main() {
+choreography Main() {
 	endpoint a = Role(0);
 	endpoint b = Role(8);
 	endpoint c = Role(4);
@@ -18,7 +18,7 @@ seq_program Main() {
 	requires a.x == 0 && b.x == 8 && c.x == 4;
 	requires a.left == a.x && b.left == b.x && c.left == c.x;
 	ensures a.x == b.x && b.x == c.x;
-	seq_run {
+	run {
 		if(a.left != a.x && b.left != b.x && c.left != c.x) {
 			a.x := a.x + 1;
 		}

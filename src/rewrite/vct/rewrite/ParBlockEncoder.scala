@@ -115,7 +115,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
       val scale = (x: Expr[Post]) => nonQuantVars.foldLeft(x)((body, iter) => {
         val scale = to(iter) - from(iter)
-        Scale(scale, body)(PanicBlame("Par block was checked to be non-empty"))
+        Scale(scale, body)(PanicBlame("Par block was checked to be non-empty"))(body.o)
       })
 
       if(quantVars.isEmpty) scale(dispatch(e))
@@ -127,11 +127,11 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
         e match {
           case Forall(bindings, Nil, body) =>
-            Forall(variables.dispatch(bindings ++ quantVars), Nil, range ==> scale(dispatch(body)))
+            Forall(variables.dispatch(bindings ++ quantVars), Nil, range ==> scale(dispatch(body)))(body.o)
           case s @ Starall(bindings, Nil, body) =>
-            Starall(variables.dispatch(bindings ++ quantVars), Nil, range ==> scale(dispatch(body)))(s.blame)
+            Starall(variables.dispatch(bindings ++ quantVars), Nil, range ==> scale(dispatch(body)))(s.blame)(body.o)
           case other =>
-            Starall(variables.dispatch(quantVars), Nil, range ==> scale(dispatch(other)))(ParBlockNotInjective(block, other))
+            Starall(variables.dispatch(quantVars), Nil, range ==> scale(dispatch(other)))(ParBlockNotInjective(block, other))(other.o)
         }
       }
     })
@@ -167,106 +167,6 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     case TEither(l, r) => isConstType(l) && isConstType(r)
     case _ => false
   }
-
-  def applyFunc[A, B](f: A => Option[Set[B]], xs: Iterable[A]): Option[Set[B]] =
-    xs.foldLeft(Some(Set()): Option[Set[B]]) { case (res, x) => res.flatMap(r => f(x).map(s => r ++ s)) }
-
-  def combine[A](xs: Option[Set[A]], ys: Option[Set[A]]): Option[Set[A]] =
-    xs.flatMap(xs => ys.map(ys => xs ++ ys))
-
-  def scanIter(xs: Iterable[Statement[Pre]]): Option[Set[Variable[Pre]]] =
-    applyFunc(scanForAssign, xs)
-
-  def scanIterE(xs: Iterable[Expr[Pre]]): Option[Set[Variable[Pre]]] =
-    applyFunc(scanForAssignE, xs)
-
-  /* Scans statements and returns a set of variables, which will change value. Meaning other variables, did not change value.
-  * The analysis is conservative, if we are not sure, we return None, meaning we are not sure about any variable if it
-  * is potentially constant
-   */
-  def scanForAssign(s: Statement[Pre]): Option[Set[Variable[Pre]]] = s match {
-    case Block(statements) => scanIter(statements)
-    case Scope(_, statement) => scanForAssign(statement)
-    case Branch(branches) =>
-      for {
-        set1 <- scanIter(branches.map(_._2))
-        set2 <- scanIterE(branches.map(_._1))
-      } yield set1 ++ set2
-    case IndetBranch(statements) => scanIter(statements)
-    case Switch(expr, body) => combine(scanForAssignE(expr), scanForAssign(body))
-    case Loop(init, cond, update, _, body) =>
-      scanForAssign(init).flatMap(r1 => scanForAssignE(cond).flatMap(r2 => scanForAssign(update)
-        .flatMap(r3 => scanForAssign(body).map(r4 => r1 ++ r2 ++ r3 ++ r4))))
-    case Assign(target, value) => combine(scanAssignTarget(target), scanForAssignE(value))
-    case ParStatement(par) => scanForAssignP(par)
-    case ParBarrier(_, _, _, _, content) => scanForAssign(content)
-    case Eval(e) => scanForAssignE(e)
-    case Assert(e) => scanForAssignE(e)
-    case Assume(e) => scanForAssignE(e)
-    case _ => None
-  }
-
-  def scanForAssignP(par: ParRegion[Pre]): Option[Set[Variable[Pre]]] = par match {
-    case ParParallel(pars) => applyFunc(scanForAssignP, pars)
-    case ParSequential(pars) => applyFunc(scanForAssignP, pars)
-    case ParBlock(_, _, _, _, _, content) => scanForAssign(content)
-  }
-
-  def scanForAssignE(e: Expr[Pre]): Option[Set[Variable[Pre]]] = e match {
-    case _: Constant[Pre] => Some(Set())
-    case Local(_) => Some(Set())
-    case op: BinExpr[Pre] => combine(scanForAssignE(op.left), scanForAssignE(op.right))
-    case op: UnExpr[Pre] => scanForAssignE(op.arg)
-    case ProcedureInvocation(_, args, outArgs, _, givenMap, yields) =>
-      // Primitive types cannot be changed due to a function call, so we filter them
-      // Other arguments can possibly be changed, so we collect them
-      applyFunc(scanAssignTarget, args.filterNot(e => isConstantType(e.t)))
-        .flatMap(r1 => scanIterE(givenMap.map(_._2))
-          .flatMap(r2 => scanIterE(outArgs)
-            .flatMap(r3 => scanIterE(yields.map(_._1))
-              .map(r4 => r1 ++ r2 ++ r3 ++ r4))))
-    case FunctionInvocation(_, args, _, givenMap, yields) =>
-      applyFunc(scanAssignTarget, args.filterNot(e => isConstantType(e.t)))
-        .flatMap(r1 => scanIterE(givenMap.map(_._2))
-          .flatMap(r2 => scanIterE(yields.map(_._1))
-            .map(r3 => r1 ++ r2 ++ r3)))
-    case PreAssignExpression(target, value) => combine(scanAssignTarget(target), scanForAssignE(value))
-    case PointerSubscript(pointer, index) => combine(scanForAssignE(pointer), scanForAssignE(index))
-    case ArraySubscript(pointer, index) => combine(scanForAssignE(pointer), scanForAssignE(index))
-    case SeqSubscript(seq, index) => combine(scanForAssignE(seq), scanForAssignE(index))
-    case VectorSubscript(vec, index) => combine(scanForAssignE(vec), scanForAssignE(index))
-    case NewObject(_) => Some(Set())
-    case With(pre, value) => combine(scanForAssignE(value), scanForAssign(pre))
-    case Deref(obj, _) => scanForAssignE(obj)
-    case LiteralVector(_, elements) => scanIterE(elements)
-    case _ => None
-  }
-
-  def scanAssignTarget(e: Expr[Pre]): Option[Set[Variable[Pre]]] = e match {
-    case Local(v) => Some(Set(v.decl))
-    case ArraySubscript(arr, index) => combine(scanAssignTarget(arr), scanForAssignE(index))
-    case PointerSubscript(pointer, index) => combine(scanAssignTarget(pointer), scanForAssignE(index))
-    case SeqSubscript(seq, index) => combine(scanAssignTarget(seq), scanForAssignE(index))
-    case VectorSubscript(vec, index) => combine(scanAssignTarget(vec), scanForAssignE(index))
-    case Deref(obj, _) => scanAssignTarget(obj)
-    case _ => None
-  }
-
-  // Variables of these types cannot be changed by function calls
-  def isConstantType(t: Type[_]): Boolean = t match {
-    case _: PrimitiveType[_] => true
-    case TUnion(ts) => ts.forall(isConstantType)
-    case TSeq(et) => isConstantType(et)
-    case TSet(et) => isConstantType(et)
-    case TBag(et) => isConstantType(et)
-    case TMap(kt, vt) => isConstantType(kt) && isConstantType(vt)
-    case TEither(lt, rt) => isConstantType(lt) && isConstantType(rt)
-    case TMatrix(et) => isConstantType(et)
-    case TVector(_, et) => isConstantType(et)
-    case _ => false
-  }
-
-  case class NonConstantVariables(vars: Set[Variable[Pre]])
 
   def isConstant(e: Expr[Post]): Boolean = e match {
     case _ : Constant[Post] => true

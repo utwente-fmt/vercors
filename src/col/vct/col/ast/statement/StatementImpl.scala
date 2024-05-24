@@ -12,28 +12,4 @@ trait StatementImpl[G] extends NodeFamilyImpl[G] with StatementFamilyOps[G] { th
 
   def foldBlock(f: (Doc, Doc) => Doc)(implicit ctx: Ctx): Doc = show
 
-  override def check(context: CheckContext[G]): Seq[CheckError] = super.check(context) ++ (context.currentSeqProg match {
-    case None => Seq()
-    case Some(_) => this match {
-      case
-        _: CommunicateX[G] |
-        _: Communicate[G] |
-        _: VeyMontAssignExpression[G] |
-        _: Assign[G] |
-        _: SeqAssign[G] |
-        _: Branch[G] |
-        _: Loop[G] |
-        _: Scope[G] |
-        _: Block[G] |
-        _: Eval[G] |
-        _: Assert[G] |
-        _: Assume[G] |
-        _: UnresolvedSeqBranch[G] |
-        _: UnresolvedSeqLoop[G] |
-        _: SeqBranch[G] |
-        _: SeqLoop[G]
-        => Seq()
-      case _ => Seq(SeqProgStatement(this))
-    }
-  })
 }

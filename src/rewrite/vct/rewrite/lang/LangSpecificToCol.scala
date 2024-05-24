@@ -139,12 +139,14 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
 
     case glue: JavaBipGlueContainer[Pre] => bip.rewriteGlue(glue)
 
-    case seqProg: PVLSeqProg[Pre] => veymont.rewriteSeqProg(seqProg)
+    case chor: PVLChoreography[Pre] => veymont.rewriteChoreography(chor)
 
     case other => rewriteDefault(other)
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
+    case stmt if veymont.currentProg.nonEmpty && !veymont.currentStatement.topOption.contains(stmt) =>
+      veymont.rewriteStatement(stmt)
     case scope @ Scope(locals, body) =>
       def scanScope(node: Node[Pre]): Unit = node match {
         case Scope(_, _) =>
@@ -179,14 +181,12 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
       rewriteDefault(unfold)
     }
 
-    case communicate: PVLCommunicate[Pre] => veymont.rewriteCommunicate(communicate)
-    case assign: PVLSeqAssign[Pre] => veymont.rewriteSeqAssign(assign)
-    case assign: Assign[Pre] => pvl.assign(assign)
-
     case other => rewriteDefault(other)
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
+    case stmt if veymont.currentProg.nonEmpty && !veymont.currentExpr.topOption.contains(e) =>
+      veymont.rewriteExpr(e)
     case result @ AmbiguousResult() =>
       implicit val o: Origin = result.o
       result.ref.get match {

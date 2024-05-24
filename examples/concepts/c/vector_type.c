@@ -2,6 +2,7 @@
 #include <assert.h>
 
 typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
+typedef float v4sf __attribute__ ((vector_size (sizeof(float)*4)));
 
 /*@
     requires (\forall int i; i>=0 && i<4 ==> 0<={:mask[i]:} && {:mask[i]:}<4);
@@ -45,6 +46,10 @@ int main(){
     
     assert(res[1] == x[1] && res[1] == x[1] && res[2] == x[1] && res[3] == x[3]);
     
+    v4sf z = {1,2,3,4};
+    float z2 = 5;
+    z2 = z2 + z2;
+    z = z + z;
 
     return 0;
 }

@@ -1,6 +1,6 @@
 package vct.col.ast.statement.terminal
 
-import vct.col.ast.{Assign, EndpointUse, Local}
+import vct.col.ast.{Assign, EndpointName, Local}
 import vct.col.check.{CheckContext, CheckError, SeqProgEndpointAssign}
 import vct.col.print._
 import vct.col.ast.ops.AssignOps
@@ -9,7 +9,7 @@ trait AssignImpl[G] extends NormallyCompletingStatementImpl[G] with AssignOps[G]
   override def check(context: CheckContext[G]): Seq[CheckError] =
     super.check(context) ++ (target match {
       case Local(ref) => context.checkInWriteScope(context.roScopeReason, this, ref)
-      case EndpointUse(_) if context.currentSeqProg.isDefined => Seq(SeqProgEndpointAssign(this))
+      case EndpointName(_) if context.currentChoreography.isDefined => Seq(SeqProgEndpointAssign(this))
       case _ => Nil
     })
 

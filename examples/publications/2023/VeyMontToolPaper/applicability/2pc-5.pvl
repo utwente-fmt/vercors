@@ -75,7 +75,7 @@ inline resource consistency(Client c, Server s1, Server s2, Server s3, Server s4
     (!c.flag ==> s3.isUncommitted()) &&
     (!c.flag ==> s4.isUncommitted());
 
-seq_program Main(int n) {
+choreography Main(int n) {
   endpoint c = Client(n);
   endpoint s1 = Server(n);
   endpoint s2 = Server(n);
@@ -93,7 +93,7 @@ seq_program Main(int n) {
   ensures s2.status == s2.COMMITTED();
   ensures s3.status == s3.COMMITTED();
   ensures s4.status == s4.COMMITTED();
-  seq_run {
+  run {
     loop_invariant c.query != null;
     loop_invariant s1.status == s1.INITIAL() || s1.status == s1.COMMITTED() || s1.status == s1.ABORTED();
     loop_invariant s2.status == s2.INITIAL() || s2.status == s2.COMMITTED() || s2.status == s2.ABORTED();

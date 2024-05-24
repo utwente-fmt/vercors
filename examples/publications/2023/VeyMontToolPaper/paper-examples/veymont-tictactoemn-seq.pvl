@@ -96,7 +96,7 @@ inline resource consistency(Player p1, Player p2) =
   (\forall int i = 0..p1.width, int j = 0..p1.height; {: p1.board[i][j] :} == {: p2.board[i][j] :}) **
   p1.goOn == p2.goOn;
 
-seq_program tic_tac_toe(int m, int n) {
+choreography tic_tac_toe(int m, int n) {
   endpoint p1 = Player(m, n, 1, 2);
   endpoint p2 = Player(m, n, 2, 1);
 
@@ -126,7 +126,7 @@ seq_program tic_tac_toe(int m, int n) {
   }
 
   context consistency(p1, p2);
-  seq_run {
+  run {
     loop_invariant consistency(p1, p2);
     while(p1.goOn && p2.goOn){
       turn1();

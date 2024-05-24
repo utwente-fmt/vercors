@@ -48,8 +48,7 @@ CONS: '::';
 
 ENUM: 'enum';
 CLASS: 'class';
-SEQ_PROGRAM: 'seq_program';
-SEQ_RUN: 'seq_run';
+SEQ_PROGRAM: 'choreography';
 KERNEL: 'kernel';
 BARRIER: 'barrier';
 INVARIANT: 'invariant';
@@ -79,7 +78,11 @@ NOTIFY: 'notify';
 FORK: 'fork';
 JOIN: 'join';
 
+CHANNEL_INV: 'channel_invariant';
 COMMUNICATE: 'communicate';
+SENDER: '\\sender';
+RECEIVER: '\\receiver';
+MESSAGE: '\\msg';
 
 THIS: 'this';
 NULL: 'null';

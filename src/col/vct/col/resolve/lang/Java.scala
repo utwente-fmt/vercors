@@ -269,7 +269,7 @@ case object Java extends LazyLogging {
               ns <- ctx.namespace
               readableOrigin <- ns.o.find[ReadableOrigin]
               readable <- Some(readableOrigin.readable)
-              file <- readable.underlyingFile
+              file <- readable.underlyingPath
               baseFile <- ns.pkg.getOrElse(JavaName(Nil)).names.foldRight[Option[Path]](Option(file.getParent)) {
                 case (name, Some(file)) if file.getFileName.toString == name => Option(file.getParent)
                 case _ => None

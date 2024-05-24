@@ -901,10 +901,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def isPointer(t: Type[Pre]): Boolean = getPointer(t).isDefined
 
-  def getPointer(t: Type[Pre]) : Option[TPointer[Pre]] = t match {
+  def getPointer(t: Type[Pre]) : Option[TPointer[Pre]] = getBaseType(t) match {
     case t@TPointer(_) => Some(t)
-    case CPrimitiveType(specs) =>
-      specs.collectFirst{case CSpecificationType(t@TPointer(_)) => t}
     case _ => None
   }
 
@@ -1065,9 +1063,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
 
-  def createStructCopy(a: Expr[Post], target: CGlobalDeclaration[Pre], blame: InstanceField[_] => Blame[InsufficientPermission]): Expr[Post] = {
-    implicit val o: Origin = a.o
-    val targetClass: Class[Post] = cStructSuccessor(target)
+  def createStructCopy(value: Expr[Post], struct: CGlobalDeclaration[Pre], blame: InstanceField[_] => Blame[InsufficientPermission])(implicit o: Origin): Expr[Post] = {
+    val targetClass: Class[Post] = cStructSuccessor(struct)
     val t = TClass[Post](targetClass.ref, Seq())
 
     // Assign a new variable towards the value, such that methods do not get executed multiple times.
@@ -1084,7 +1081,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     With(Block(Seq(
       LocalDecl(vCopy),
       LocalDecl(vValue),
-      assignLocal(vValue.get, a),
+      assignLocal(vValue.get, value),
       assignLocal(vCopy.get, NewObject[Post](targetClass.ref))
     ) ++ fieldAssigns), vCopy.get)
   }
@@ -1092,7 +1089,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   def assignStruct(assign: PreAssignExpression[Pre]): Expr[Post] = {
     getBaseType(assign.target.t) match {
       case CTStruct(ref) =>
-        val copy = createStructCopy(rw.dispatch(assign.value), ref.decl, (f: InstanceField[_]) => StructCopyFailed(assign, f))
+        val copy = createStructCopy(rw.dispatch(assign.value), ref.decl, (f: InstanceField[_]) => StructCopyFailed(assign, f))(assign.o)
         PreAssignExpression(rw.dispatch(assign.target), copy)(AssignLocalOk)(assign.o)
       case _ => throw WrongStructType(assign.target)
     }
@@ -1266,7 +1263,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     // Create copy for any direct structure arguments
     val newArgs = args.map(a =>
       getBaseType(a.t) match {
-        case CTStruct(ref) => createStructCopy(rw.dispatch(a), ref.decl, (f: InstanceField[_]) => StructCopyBeforeCallFailed(inv, f))
+        case CTStruct(ref) => createStructCopy(rw.dispatch(a), ref.decl, (f: InstanceField[_]) => StructCopyBeforeCallFailed(inv, f))(a.o)
         case _ => rw.dispatch(a)
       }
     )
