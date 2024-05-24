@@ -29,19 +29,6 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*	A grammar for ANTLR v4 written in ANTLR v4.
- *
- *	Modified 2015.06.16 gbr
- *	-- update for compatibility with Antlr v4.5
- *	-- add mode for channels
- *	-- moved members to LexerAdaptor
- * 	-- move fragments to imports
- */
-
-// $antlr-format alignTrailingComments on, columnLimit 130, minEmptyLines 1, maxEmptyLinesToKeep 1, reflowComments off
-// $antlr-format useTab off, allowShortRulesOnASingleLine off, allowShortBlocksOnASingleLine on, alignSemicolons hanging
-// $antlr-format alignColons hanging
-
 parser grammar ANTLRv4Parser;
 
 options {
@@ -59,13 +46,7 @@ grammarDecl
 
 grammarType
     : LEXER GRAMMAR
-    | PARSER GRAMMAR
-    | GRAMMAR
     ;
-
-// This is the list of all constructs that can be declared before
-// the set of rules that compose the grammar, and is invoked 0..n
-// times by the grammarPrequel rule.
 
 prequelConstruct
     : optionsSpec
@@ -131,7 +112,6 @@ action_
 actionScopeName
     : identifier
     | LEXER
-    | PARSER
     ;
 
 actionBlock
@@ -151,79 +131,12 @@ rules
     ;
 
 ruleSpec
-    : parserRuleSpec
-    | lexerRuleSpec
-    ;
-
-parserRuleSpec
-    : ruleModifiers? RULE_REF argActionBlock? ruleReturns? throwsSpec? localsSpec? rulePrequel* COLON ruleBlock SEMI
-        exceptionGroup
-    ;
-
-exceptionGroup
-    : exceptionHandler* finallyClause?
-    ;
-
-exceptionHandler
-    : CATCH argActionBlock actionBlock
-    ;
-
-finallyClause
-    : FINALLY actionBlock
-    ;
-
-rulePrequel
-    : optionsSpec
-    | ruleAction
-    ;
-
-ruleReturns
-    : RETURNS argActionBlock
-    ;
-
-// --------------
-// Exception spec
-throwsSpec
-    : THROWS identifier (COMMA identifier)*
-    ;
-
-localsSpec
-    : LOCALS argActionBlock
+    : lexerRuleSpec
     ;
 
 /** Match stuff like @init {int i;} */
 ruleAction
     : AT identifier actionBlock
-    ;
-
-ruleModifiers
-    : ruleModifier+
-    ;
-
-// An individual access modifier for a rule. The 'fragment' modifier
-// is an internal indication for lexer rules that they do not match
-// from the input but are like subroutines for other lexer rules to
-// reuse for certain lexical patterns. The other modifiers are passed
-// to the code generation templates and may be ignored by the template
-// if they are of no use in that language.
-
-ruleModifier
-    : PUBLIC
-    | PRIVATE
-    | PROTECTED
-    | FRAGMENT
-    ;
-
-ruleBlock
-    : ruleAltList
-    ;
-
-ruleAltList
-    : labeledAlt (OR labeledAlt)*
-    ;
-
-labeledAlt
-    : alternative (POUND identifier)?
     ;
 
 // --------------------

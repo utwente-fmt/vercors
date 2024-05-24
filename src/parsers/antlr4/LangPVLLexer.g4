@@ -1,4 +1,4 @@
-lexer grammar PVLLexer;
+lexer grammar LangPVLLexer;
 import SpecLexer;
 
 channels {

@@ -28,16 +28,6 @@
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/**
- *	A grammar for ANTLR v4 implemented using v4 syntax
- *
- *	Modified 2015.06.16 gbr
- *	-- update for compatibility with Antlr v4.5
- */
-
-// $antlr-format alignTrailingComments on, columnLimit 130, minEmptyLines 1, maxEmptyLinesToKeep 1, reflowComments off
-// $antlr-format useTab off, allowShortRulesOnASingleLine off, allowShortBlocksOnASingleLine on, alignSemicolons hanging
-// $antlr-format alignColons hanging
 
 // ======================================================
 // Lexer specification
@@ -154,44 +144,12 @@ LEXER
     : 'lexer'
     ;
 
-PARSER
-    : 'parser'
-    ;
-
 GRAMMAR
     : 'grammar'
     ;
 
-PROTECTED
-    : 'protected'
-    ;
-
-PUBLIC
-    : 'public'
-    ;
-
-PRIVATE
-    : 'private'
-    ;
-
-RETURNS
-    : 'returns'
-    ;
-
 LOCALS
     : 'locals'
-    ;
-
-THROWS
-    : 'throws'
-    ;
-
-CATCH
-    : 'catch'
-    ;
-
-FINALLY
-    : 'finally'
     ;
 
 MODE
