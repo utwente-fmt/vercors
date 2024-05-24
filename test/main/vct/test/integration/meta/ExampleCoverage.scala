@@ -62,6 +62,7 @@ class ExampleCoverage extends AnyFlatSpec {
       new VeyMontExamplesSpec(),
       new WaitNotifySpec(),
       new WandSpec(),
+      new AutoValueSpec(),
     )
 
     val testedFiles = specs.flatMap(_.coveredExamples).toSet
