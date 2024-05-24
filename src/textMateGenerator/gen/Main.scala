@@ -53,12 +53,23 @@ case object Main {
   }
 
   def processRule(rule: LexerRuleSpecContext): Unit = {
-    val LexerRuleSpec0(_, name, _, _, LexerRuleBlock0(altsRule), _) = rule
+    val LexerRuleSpec0(_, name, _, _, LexerRuleBlock0(alts), _) = rule
     val alts = altsRule.children.asScala.collect { case alt: LexerAltContext => alt }
     val set = new IntervalSet()
     set.addAll(set)
     println(name)
   }
+
+  sealed trait RegLang
+  case class CharInSet(chars: IntervalSet)
+  case class Alts(langs: Seq[RegLang]) extends RegLang
+  case class Seqn(langs: Seq[RegLang]) extends RegLang
+  case class Star(lang: RegLang, greedy: Boolean) extends RegLang
+  case class Plus(lang: RegLang, greedy: Boolean) extends RegLang
+  case class QMark(lang: RegLAng, greedy: Boolean) extends RegLang
+
+  def asRegLang(alts: LexerAltListContext): RegLang =
+
 
   def escapeAndEncloseWords(text: String): String = {
     val stringWithEscapedSymbols = text.replaceAll("([^\\w\\\\])", "\\\\$1")
