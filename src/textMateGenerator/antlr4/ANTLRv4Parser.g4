@@ -118,10 +118,6 @@ actionBlock
     : BEGIN_ACTION ACTION_CONTENT* END_ACTION
     ;
 
-argActionBlock
-    : BEGIN_ARGUMENT ARGUMENT_CONTENT* END_ARGUMENT
-    ;
-
 modeSpec
     : MODE identifier SEMI lexerRuleSpec*
     ;
@@ -132,11 +128,6 @@ rules
 
 ruleSpec
     : lexerRuleSpec
-    ;
-
-/** Match stuff like @init {int i;} */
-ruleAction
-    : AT identifier actionBlock
     ;
 
 // --------------------
@@ -199,48 +190,7 @@ lexerCommandExpr
     ;
 
 // --------------------
-// Rule Alts
-
-altList
-    : alternative (OR alternative)*
-    ;
-
-alternative
-    : elementOptions? element+
-    |
-    // explicitly allow empty alts
-    ;
-
-element
-    : labeledElement (ebnfSuffix |)
-    | atom (ebnfSuffix |)
-    | ebnf
-    | actionBlock (QUESTION predicateOptions?)?
-    ;
-
-predicateOptions
-    : LT predicateOption (COMMA predicateOption)* GT
-    ;
-
-predicateOption
-    : elementOption
-    | identifier ASSIGN actionBlock
-    ;
-
-labeledElement
-    : identifier (ASSIGN | PLUS_ASSIGN) (atom | block)
-    ;
-
-// --------------------
 // EBNF and blocks
-
-ebnf
-    : block blockSuffix?
-    ;
-
-blockSuffix
-    : ebnfSuffix
-    ;
 
 ebnfSuffix
     : QUESTION QUESTION?
@@ -253,13 +203,6 @@ lexerAtom
     | terminalDef
     | notSet
     | LEXER_CHAR_SET
-    | DOT elementOptions?
-    ;
-
-atom
-    : terminalDef
-    | ruleref
-    | notSet
     | DOT elementOptions?
     ;
 
@@ -279,18 +222,6 @@ setElement
     | STRING_LITERAL elementOptions?
     | characterRange
     | LEXER_CHAR_SET
-    ;
-
-// -------------
-// Grammar Block
-block
-    : LPAREN (optionsSpec? ruleAction* COLON)? altList RPAREN
-    ;
-
-// ----------------
-// Parser rule ref
-ruleref
-    : RULE_REF argActionBlock? elementOptions?
     ;
 
 // ---------------
