@@ -1,0 +1,35 @@
+class A {
+    int a;
+}
+
+context (\let A c = b; c != null ==> AutoValue(c.a));
+ensures Perm(\result.a, write);
+ensures b != null ==> \result.a == b.a;
+A makeCopy(A b) {
+    A c = new A();
+    if (b != null) {
+        c.a = b.a;
+    }
+    return c;
+}
+
+// In functions AutoValue gets automatically transformed into Value since
+// functions don't consume any permissions anyway and if we were to add a leak
+// check then we would have a postcondition which is not valid for functions
+// since it refers to permissions
+requires AutoValue(b.a);
+pure int extractA(A b) = b.a;
+
+void test() {
+    A b = new A();
+    b.a = 10;
+    A c = makeCopy(b);
+    // Successful copy
+    assert c.a == 10;
+    // b.a is unchanged
+    assert b.a == 10;
+    // Stil mutable
+    b.a = 5;
+    assert b.a == 5;
+
+}

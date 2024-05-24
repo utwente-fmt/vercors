@@ -1,0 +1,49 @@
+class A {
+    int a;
+}
+
+/*[/expect autoValueLeak:perm]*/
+// Since this AutoValue only appears in the precondition a leak check is added
+// as a postcondition
+requires (\let A c = b; c != null ==> AutoValue(c.a));
+ensures Perm(\result.a, write);
+A makeLeakyCopyWithLeakCheck(A b) {
+    A c = new A();
+    if (b != null) {
+        c.a = b.a;
+    }
+    // Leak some of our read permission using the read wildcard
+    // Equivalent to Perm(c.a, read) and in Viper acc(c.a, wildcard)
+    exhale Value(b.a);
+
+    return c;
+}
+/*[/end]*/
+
+/*[/expect postFailed:perm]*/
+context (\let A c = b; c != null ==> AutoValue(c.a));
+ensures Perm(\result.a, write);
+A makeLeakyCopy(A b) {
+    A c = new A();
+    if (b != null) {
+        c.a = b.a;
+    }
+    // Leak some of our read permission using the read wildcard
+    // Equivalent to Perm(c.a, read) and in Viper acc(c.a, wildcard)
+    exhale Value(b.a);
+
+    return c;
+}
+/*[/end]*/
+
+void test() {
+    A b = new A();
+    b.a = 10;
+    A c = makeLeakyCopy(b);
+    // b.a is unchanged
+    assert b.a == 10;
+    // Still mutable
+    b.a = 5;
+    assert b.a == 5;
+
+}

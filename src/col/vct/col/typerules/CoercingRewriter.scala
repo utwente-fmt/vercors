@@ -1517,6 +1517,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
       case value: FloatValue[Pre] => e
       case value @ Value(loc) =>
         Value(loc)
+      case value @ AutoValue(loc) =>
+        value
       case values @ Values(arr, from, to) =>
         Values(array(arr)._1, int(from), int(to))(values.blame)
       case VectorCompare(left, right) =>

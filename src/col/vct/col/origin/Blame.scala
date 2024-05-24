@@ -253,6 +253,11 @@ case class ContextEverywhereFailedInPost(failure: ContractFailure, node: Contrac
   override def descInContext: String = "Context may not hold in postcondition, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the postcondition, since $failure."
 }
+case class AutoValueLeakCheckFailed(failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with SeqCallableFailure with WithContractFailure {
+  override def baseCode: String = "autoValueLeak"
+  override def descInContext: String = "The AutoValue leak check failed, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Some of the permission from `$node` was leaked before the postcondition was evaluated, since $failure."
+}
 case class SignalsFailed(failure: ContractFailure, node: AbstractMethod[_]) extends CallableFailure with WithContractFailure {
   override def baseCode: String = "signalsFailed"
   override def descInContext: String = "Signals clause may not hold, since"

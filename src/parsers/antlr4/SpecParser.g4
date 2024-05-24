@@ -176,6 +176,7 @@ valPrimaryPermission
  : 'perm' '(' langExpr ')' # valCurPerm
  | 'Perm' '(' langExpr ',' langExpr ')' # valPerm
  | 'Value' '(' langExpr ')' # valValue
+ | 'AutoValue' '(' langExpr ')' # valAutoValue
  | 'PointsTo' '(' langExpr ',' langExpr ',' langExpr ')' #valPointsTo
  | 'HPerm' '(' langExpr ',' langExpr ')' # valHPerm
  | 'APerm' '(' langExpr ',' langExpr ')' # valAPerm

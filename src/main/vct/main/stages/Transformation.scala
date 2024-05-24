@@ -24,7 +24,7 @@ import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
-import vct.rewrite.{EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, MonomorphizeClass, SmtlibToProverTypes}
+import vct.rewrite.{EncodeAutoValue, EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, MonomorphizeClass, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont.{DeduplicateChorGuards, EncodeChannels, EncodeChorBranchUnanimity, EncodeChoreography, EncodeChoreographyParameters, EncodeEndpointInequalities, EncodeUnpointedGuard, GenerateChoreographyPermissions, GenerateImplementation, InferEndpointContexts, SpecializeEndpointClasses, SplitChorGuards}
 
@@ -320,6 +320,7 @@ case class SilverTransformation
 
     // All locations with a value should now be SilverField
     EncodeForPermWithValue,
+    EncodeAutoValue,
 
     ExtractInlineQuantifierPatterns,
     RewriteTriggerADTFunctions,
