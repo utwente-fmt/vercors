@@ -115,7 +115,11 @@ case class MultiInterval(intervals: Set[Interval]) extends Interval {
 
   override def size(): IntervalSize = intervals.toSeq.map(i => i.size()).reduce((s1, s2) => s1 + s2)
 
-  override def intersection(other: Interval): Interval = MultiInterval(merge_intersecting(intervals.map(i => i.intersection(other))))
+  override def intersection(other: Interval): Interval = {
+    val is = merge_intersecting(intervals.map(i => i.intersection(other)))
+    if (is.size > 1) MultiInterval(is)
+    else is.head
+  }
 
   override def union(other: Interval): Interval = {
     val (intersecting, non_intersecting) = intervals.partition(i => i.intersection(other).non_empty())

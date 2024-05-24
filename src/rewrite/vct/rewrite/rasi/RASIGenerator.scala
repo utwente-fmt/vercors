@@ -9,7 +9,7 @@ import java.nio.file.Path
 import scala.collection.immutable.HashMap
 import scala.collection.mutable
 
-case class RASIGenerator[G]() extends LazyLogging {
+class RASIGenerator[G] extends LazyLogging {
   private val found_states: mutable.ArrayBuffer[AbstractState[G]] = mutable.ArrayBuffer()
   private val found_edges: mutable.ArrayBuffer[RASIEdge[G]] = mutable.ArrayBuffer()
   private val current_branches: mutable.ArrayBuffer[AbstractState[G]] = mutable.ArrayBuffer()
@@ -66,7 +66,7 @@ case class RASIGenerator[G]() extends LazyLogging {
     }
 
     val total_time: Long = (System.nanoTime() - start_time) / 1_000_000L
-    logger.info(s"RASI generation complete [in ${total_time}ms]")
+    logger.info(s"RASI generation complete [$i iterations in ${total_time}ms]")
 
     // TODO: Detect which variable overapproximations are detrimental to the state space and which are not
 
