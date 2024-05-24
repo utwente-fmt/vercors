@@ -72,7 +72,7 @@ case object C {
       case Seq(CFloat()) => C_ieee754_32bit()
       case Seq(CDouble()) => C_ieee754_64bit()
       case Seq(CLong(), CDouble()) => C_ieee754_64bit()
-      case Seq(CBool()) => TBool()
+      case Seq(CBool()) => TCInt()
       case Seq(defn @ CTypedefName(_)) => Types.notAValue(defn.ref.get)
       case Seq(CSpecificationType(typ)) => typ
       case Seq(defn @ CStructSpecifier(_)) => CTStruct(defn.ref.get.decl.ref)

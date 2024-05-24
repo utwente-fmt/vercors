@@ -396,6 +396,9 @@ final case class CoerceCIntCFloat[G](target: Type[G])(implicit val o: Origin) ex
 final case class CoerceCIntInt[G]()(implicit val o: Origin) extends Coercion[G] with CoerceCIntIntImpl[G]
 final case class CoerceCFloatFloat[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceCFloatFloatImpl[G]
 final case class CoerceIntRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceIntRatImpl[G]
+final case class CoerceBoolCInt[G]()(implicit val o: Origin) extends Coercion[G] with CoerceBoolCIntImpl[G]
+final case class CoerceCIntBool[G]()(implicit val o: Origin) extends Coercion[G] with CoerceCIntBoolImpl[G]
+final case class CoercePointerBool[G]()(implicit val o: Origin) extends Coercion[G] with CoercePointerBoolImpl[G]
 
 final case class CoerceIncreasePrecision[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceIncreasePrecisionImpl[G]
 final case class CoerceDecreasePrecision[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceDecreasePrecisionImpl[G]

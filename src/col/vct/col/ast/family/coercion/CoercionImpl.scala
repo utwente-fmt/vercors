@@ -10,8 +10,8 @@ trait CoercionImpl[G] extends CoercionFamilyOps[G] { this: Coercion[G] =>
     case CoerceDecreasePrecision(_, _) => false
     case CoerceCFloatCInt(_) => false
     case CoercionSequence(coercions) => coercions.forall(_.isCPromoting)
-    case CoerceJoinUnion(inner, _, _) => inner.forall(_.isPromoting)
-    case CoerceSelectUnion(inner, _, _, _) => inner.isPromoting
+    case CoerceJoinUnion(inner, _, _) => inner.forall(_.isCPromoting)
+    case CoerceSelectUnion(inner, _, _, _) => inner.isCPromoting
     case CoerceMapOption(inner, _, _) => inner.isCPromoting
     case CoerceMapTuple(inner, _, _) => inner.forall(_.isCPromoting)
     case CoerceMapEither(inner, _, _) => inner._1.isCPromoting && inner._2.isCPromoting
@@ -79,5 +79,8 @@ trait CoercionImpl[G] extends CoercionFamilyOps[G] { this: Coercion[G] =>
     case CoerceCFloatFloat(_, _) => true
     case CoerceDecreasePrecision(_, _) => false
     case CoerceCFloatCInt(_) => false
+    case CoerceBoolCInt() => true
+    case CoerceCIntBool() => false
+    case CoercePointerBool() => false
   }
 }
