@@ -1,9 +1,11 @@
 package viper.api
 
-import java.io.{File, FileOutputStream, OutputStreamWriter}
 import viper.silver.ast.{And, DomainFuncApp, LocalVarDecl, Node, Or, Seqn, Typed}
 import viper.silver.frontend.{SilFrontend, SilFrontendConfig}
 import viper.silver.verifier.{AbstractError, NoVerifier, Verifier}
+
+import java.nio.file.Files
+import scala.util.Using
 
 object DummyFrontend extends SilFrontend() {
   val NO_VERIFIER = new NoVerifier
@@ -18,23 +20,27 @@ object DummyFrontend extends SilFrontend() {
   */
 object SilverTreeCompare {
   def syntacticSugarIssues(node: Node): Either[Seq[AbstractError], Seq[(Node, Node)]] = {
-    val tmp = File.createTempFile("vercors-output-", ".sil")
-    tmp.deleteOnExit()
-    val writer = new OutputStreamWriter(new FileOutputStream(tmp))
-    writer.write(node.toString)
-    writer.close()
+    val tmp = Files.createTempFile("vercors-output-", ".sil")
 
-    val frontend = DummyFrontend
-    frontend.init(DummyFrontend.NO_VERIFIER)
-    frontend.reset(tmp.toPath)
-    frontend.parsing()
-    frontend.semanticAnalysis()
-    frontend.translation()
+    try {
+      Using(Files.newBufferedWriter(tmp)) { writer =>
+        writer.write(node.toString())
+      }
 
-    if(frontend.errors.nonEmpty) {
-      Left(frontend.errors)
-    } else {
-      Right(compare(node, frontend.translationResult))
+      val frontend = DummyFrontend
+      frontend.init(DummyFrontend.NO_VERIFIER)
+      frontend.reset(tmp)
+      frontend.parsing()
+      frontend.semanticAnalysis()
+      frontend.translation()
+
+      if (frontend.errors.nonEmpty) {
+        Left(frontend.errors)
+      } else {
+        Right(compare(node, frontend.translationResult))
+      }
+    } finally {
+      Files.delete(tmp)
     }
   }
 

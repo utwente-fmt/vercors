@@ -75,7 +75,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
       globalDeclarations.declare(c)
     }
     seqProg.endpoints.foreach(thread => {
-      val threadField = new InstanceField[Post](TClass(givenClassSucc.ref(thread.t)), Set.empty)(thread.o)
+      val threadField = new InstanceField[Post](TClass(givenClassSucc.ref(thread.t), Seq()), Nil)(thread.o)
       val channelFields = getChannelFields(thread, indexedChannelInfo, channelClasses)
       threadBuildingBlocks.having(new ThreadBuildingBlocks(seqProg.run, seqProg.decls, channelFields, channelClasses, thread, threadField)) {
         dispatch(thread)
@@ -85,11 +85,12 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
 
   private def dispatchGivenClass(c: Class[Pre]): Class[Post] = {
     val rw = GivenClassRewriter()
-    val gc = new RewriteClass[Pre, Post](c)(rw).rewrite(
-      declarations = classDeclarations.collect {
-        (givenClassConstrSucc.get(TClass(c.ref)).get +: c.declarations).foreach(d => rw.dispatch(d))
-      }._1)
-    givenClassSucc.update(TClass(c.ref),gc)
+    val gc = c.rewrite(
+      decls = classDeclarations.collect {
+        (givenClassConstrSucc.get(TClass(c.ref, Seq())).get +: c.declarations).foreach(d => rw.dispatch(d))
+      }._1
+    )(rw)
+    givenClassSucc.update(TClass(c.ref, Seq()),gc)
     gc
   }
 
@@ -133,7 +134,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
           JavaLocal[Post](getVarName(l.ref.decl).camel)(null)(e.o)
         else rewriteDefault(l)
       case t: ThisObject[Pre] =>
-        val thisClassType = TClass(t.cls)
+        val thisClassType = TClass(t.cls, Seq())
         if(rewritingConstr.nonEmpty && rewritingConstr.top._2 == thisClassType)
           ThisObject(givenClassSucc.ref[Post,Class[Post]](thisClassType))(t.o)
         else rewriteDefault(t)
@@ -169,7 +170,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
     val threadConstr = createThreadClassConstructor(thread,threadRes.threadField)
     val threadRun = getThreadRunMethod(threadRes.runMethod)
     classDeclarations.scope {
-      val threadClass = new Class[Post](
+      val threadClass = new Class[Post](Seq(),
         (threadRes.threadField +: threadRes.channelFields.values.toSeq) ++ (threadConstr +: threadRun +: threadMethods), Seq(), BooleanValue(true)(thread.o))(ThreadClassOrigin(thread))
       globalDeclarations.declare(threadClass)
       threadClassSucc.update(thread, threadClass)
@@ -191,7 +192,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
     }
     val threadConstrBody = {
       Assign(getThisVeyMontDeref(thread,ThreadClassOrigin(thread),threadField),
-      JavaInvocation[Post](None, Seq.empty, "new " + threadTypeName, passedArgs, Seq.empty, Seq.empty)(null)(ThreadClassOrigin(thread)))(null)(ThreadClassOrigin(thread))
+      JavaInvocation[Post](None, Seq.empty, "new " + threadTypeName.ucamel, passedArgs, Seq.empty, Seq.empty)(null)(ThreadClassOrigin(thread)))(null)(ThreadClassOrigin(thread))
     }
     val threadConstrContract = new ApplicableContract[Post](
       UnitAccountedPredicate[Post](BooleanValue(true)(ThreadClassOrigin(thread)))(ThreadClassOrigin(thread)),
@@ -217,7 +218,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
       .filter( chanInfo => chanInfo.comExpr.receiver.decl == thread || chanInfo.comExpr.sender.decl == thread)
       .map { chanInfo =>
         val chanFieldOrigin = ChannelFieldOrigin(chanInfo.channelName,chanInfo.comExpr.assign)
-        val chanField = new InstanceField[Post](TVeyMontChannel(getChannelClassName(chanInfo.channelType)), Set.empty)(chanFieldOrigin)
+        val chanField = new InstanceField[Post](TVeyMontChannel(getChannelClassName(chanInfo.channelType)), Nil)(chanFieldOrigin)
         ((chanInfo.comExpr, chanInfo.comExpr.o), chanField)
       }.toMap
   }
@@ -228,12 +229,13 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
       channelType -> {
         val chanClassPre = channelClass.asInstanceOf[JavaClass[Pre]]
         val rw = ChannelClassGenerator(channelType)
-        new RewriteJavaClass[Pre, Post](chanClassPre)(rw).rewrite(
+        chanClassPre.rewrite(
           name = getChannelClassName(channelType),
           modifiers = Seq.empty,
           decls = classDeclarations.collect {
             chanClassPre.decls.foreach(d => rw.dispatch(d))
-          }._1)
+          }._1
+        )(rw)
       }
     ).toMap
   }
@@ -321,7 +323,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
     m.obj match {
       case threadRef: EndpointUse[Pre] => m.rewrite(obj = dispatch(threadRef))
       case _ => threadMethodSucc.get((thread, m.ref.decl)) match {
-        case Some(postMethod) => m.rewrite(obj = dispatch(m.obj), ref = postMethod.ref, m.args.map(dispatch))
+        case Some(postMethod) => m.rewrite(obj = dispatch(m.obj), ref = postMethod.ref[InstanceMethod[Post]], m.args.map(dispatch))
         case None => throw ParalleliseEndpointsError(m, "No successor for this method found")
       }
     }
@@ -375,7 +377,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
   private def paralleliseMethodInvocation(st: Statement[Pre], thread: Endpoint[Pre], expr: Expr[Pre]): Statement[Post] = {
     expr match {
       case m: MethodInvocation[Pre] => m.obj match {
-        case _: ThisSeqProg[Pre] => Eval(m.rewrite(obj = ThisObject(threadClassSucc.ref[Post, Class[Post]](thread))(thread.o), ref = threadMethodSucc.ref((thread, m.ref.decl))))(st.o)
+        case _: ThisSeqProg[Pre] => Eval(m.rewrite(obj = ThisObject(threadClassSucc.ref[Post, Class[Post]](thread))(thread.o), ref = threadMethodSucc.ref[Post, InstanceMethod[Post]]((thread, m.ref.decl))))(st.o)
         case d: EndpointUse[Pre] => if (d.ref.decl == thread) Eval(dispatch(expr))(st.o) else Block(Seq.empty)(st.o)
         case _ => throw ParalleliseEndpointsError(st, "Statement not allowed in seq_program")
       }

@@ -1,14 +1,14 @@
 package vct.rewrite.lang
 
 import vct.col.ast.RewriteHelpers._
-import vct.col.ast.{TModel, _}
+import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, CPP}
-import vct.rewrite.lang.LangTypesToCol.IncompleteTypeArgs
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.result.VerificationError.UserError
+import vct.rewrite.lang.LangTypesToCol.{EmptyInlineDecl, IncompleteTypeArgs}
 
 import scala.reflect.ClassTag
 
@@ -20,6 +20,13 @@ case object LangTypesToCol extends RewriterBuilder {
     override def code: String = "incompleteTypeArgs"
     override def text: String =
       t.o.messageInContext("This type does not specify all generic types for the domain.")
+  }
+
+  case class EmptyInlineDecl(d: CLocalDeclaration[_]) extends UserError {
+    override def code: String = "emptyInlineDecl"
+
+    override def text: String =
+      d.o.messageInContext(" ‘inline’ in empty declaration.")
   }
 }
 
@@ -58,7 +65,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       case t @ PVLNamedType(_, typeArgs) =>
         t.ref.get match {
           case spec: SpecTypeNameTarget[Pre] => specType(spec, typeArgs)
-          case RefClass(decl) => TClass(succ(decl))
+          case RefClass(decl) => TClass(succ(decl), typeArgs.map(dispatch))
         }
       case t @ CPrimitiveType(specs) =>
         dispatch(C.getPrimitiveType(specs, context = Some(t)))
@@ -67,7 +74,6 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       case t @ SilverPartialTAxiomatic(Ref(adt), partialTypeArgs) =>
         if(partialTypeArgs.map(_._1.decl).toSet != adt.typeArgs.toSet)
           throw IncompleteTypeArgs(t)
-
         TAxiomatic(succ(adt), adt.typeArgs.map(arg => dispatch(t.partialTypeArgs.find(_._1.decl == arg).get._2)))
       case other => rewriteDefault(other)
     }
@@ -102,6 +108,10 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
                            (implicit o: Origin): (Seq[CPPDeclarationSpecifier[Post]], CPPDeclarator[Post]) = {
     val info = CPP.getDeclaratorInfo(declarator, context.getOrElse(false).isInstanceOf[CPPParam[Pre]])
     val baseType = CPP.getBaseTypeFromSpecs(specifiers, context)
+    if (info.isReference && !baseType.isInstanceOf[SYCLTHandler[Pre]]) {
+      // Only accept reference parameters for type sycl::handler, as we only need & support for a lambda method with that parameter
+      throw CPP.CPPTypeNotSupported(Some(declarator))
+    }
     val otherSpecifiers = specifiers.filter(!_.isInstanceOf[CPPTypeSpecifier[Pre]]).map(dispatch)
     val newSpecifiers = CPPSpecificationType[Post](dispatch(info.typeOrReturnType(baseType))) +: otherSpecifiers
     val newDeclarator = info.params match {
@@ -137,16 +147,30 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
         ))
       })
     case declaration: CGlobalDeclaration[Pre] =>
-      declaration.decl.inits.foreach(init => {
-        implicit val o: Origin = init.o
-        val (specs, decl) = normalizeCDeclaration(declaration.decl.specs, init.decl, context = Some(declaration))
-        globalDeclarations.declare(declaration.rewrite(
-          decl = declaration.decl.rewrite(
-            specs = specs,
-            inits = Seq(
-              CInit(decl, init.init.map(dispatch)),
-            ),
-          ),
+      declaration.decl match {
+        case CDeclaration(_, _, Seq(_: CStructDeclaration[Pre]), Seq()) =>
+          globalDeclarations.succeed(declaration, declaration.rewriteDefault())
+        case decl =>
+          decl.inits.foreach(init => {
+            implicit val o: Origin = init.o
+            val (specs, decl1) = normalizeCDeclaration(decl.specs, init.decl, context = Some(declaration))
+            globalDeclarations.declare(declaration.rewrite(
+              decl = declaration.decl.rewrite(
+                specs = specs,
+                inits = Seq(
+                  CInit(decl1, init.init.map(dispatch)),
+                ),
+              ),
+            ))
+          })
+      }
+    case declaration: CStructMemberDeclarator[Pre] =>
+      declaration.decls.foreach(decl => {
+        implicit val o: Origin = decl.o
+        val (specs, newDecl) = normalizeCDeclaration(declaration.specs, decl, context = Some(declaration))
+        cStructMemberDeclarators.declare(declaration.rewrite(
+         specs = specs,
+          decls = Seq(newDecl)
         ))
       })
     case declaration: CFunctionDefinition[Pre] =>
@@ -194,6 +218,8 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case CDeclarationStatement(local) =>
       val (locals, _) = cLocalDeclarations.collect { dispatch(local) }
+      if(locals.isEmpty && local.decl.specs.collectFirst{case CInline() => }.nonEmpty)
+        throw EmptyInlineDecl(local)
       Block(locals.map(CDeclarationStatement(_)(stat.o)))(stat.o)
     case CPPDeclarationStatement(local) =>
       val (locals, _) = cPPLocalDeclarations.collect { dispatch(local) }

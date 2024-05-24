@@ -37,6 +37,9 @@ case class ColToSilver(program: col.Program[_]) {
   val currentStarall: ScopedStack[col.Starall[_]] = ScopedStack()
   val currentUnfolding: ScopedStack[col.Unfolding[_]] = ScopedStack()
   val currentMapGet: ScopedStack[col.MapGet[_]] = ScopedStack()
+  val currentDividingExpr: ScopedStack[col.DividingExpr[_]] = ScopedStack()
+
+  val inTriggers: ScopedStack[Unit] = ScopedStack()
 
   case class NotSupported(node: col.Node[_]) extends SystemError {
     override def text: String =
@@ -64,6 +67,8 @@ case class ColToSilver(program: col.Program[_]) {
 
 
   def sanitize(name: String): String = {
+    if(name.isEmpty) return "_"
+
     val sanitized = name.flatMap {
       case '$' => "$"
       case '_' => "_"
@@ -284,6 +289,7 @@ case class ColToSilver(program: col.Program[_]) {
     result.starall = currentStarall.topOption
     result.unfolding = currentUnfolding.topOption
     result.mapGet = currentMapGet.topOption
+    result.dividingExpr = currentDividingExpr.topOption
     result
   }
 
@@ -317,8 +323,12 @@ case class ColToSilver(program: col.Program[_]) {
     case starall @ col.Starall(bindings, triggers, body) =>
       scoped {
         currentStarall.having(starall) {
+          val newBindings = bindings.map(variable)
+          val newTriggers = inTriggers.having(()) {
+             triggers.map(trigger)
+          }
           val foralls: Seq[silver.Forall] = silver.utility.QuantifiedPermissions.desugarSourceQuantifiedPermissionSyntax(
-            silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(pos=pos(e), info=expInfo(e))
+            silver.Forall(newBindings, newTriggers, exp(body))(pos=pos(e), info=expInfo(e))
           )
 
           foralls.reduce[silver.Exp] { case (l, r) => silver.And(l, r)(pos=pos(e), info=expInfo(e)) }
@@ -346,6 +356,9 @@ case class ColToSilver(program: col.Program[_]) {
       permValue.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(res)
       silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field))(pos=pos(res), info=expInfo(res)), permValue)(pos=pos(res), info=expInfo(res))
     case res: col.PredicateApply[_] =>
+      if(inTriggers.nonEmpty){
+        return predInTrigger(res)
+      }
       val silver = pred(res)
       silver.perm.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(res)
       silver
@@ -386,15 +399,28 @@ case class ColToSilver(program: col.Program[_]) {
     case op @ col.Plus(left, right) if op.isIntOp => silver.Add(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Minus(left, right) if op.isIntOp => silver.Sub(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Mult(left, right) if op.isIntOp => silver.Mul(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
-    case op @ col.Mod(left, right) if op.isIntOp => silver.Mod(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+    case op @ col.Mod(left, right) if op.isIntOp =>
+      currentDividingExpr.having(op) {
+        silver.Mod(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+      }
 
     case op @ col.Plus(left, right) if !op.isIntOp => silver.PermAdd(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Minus(left, right) if !op.isIntOp => silver.PermSub(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Mult(left, right) if !op.isIntOp => silver.PermMul(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Mod(left, right) if !op.isIntOp => ??(op)
 
-    case col.Div(left, right) => silver.PermDiv(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
-    case col.FloorDiv(left, right) => silver.Div(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+    case div @ col.RatDiv(left, right) if right.t.isInstanceOf[col.TRational[_]] =>
+      currentDividingExpr.having(div) {
+        silver.PermPermDiv(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+      }
+    case div @ col.RatDiv(left, right) =>
+      currentDividingExpr.having(div) {
+        silver.PermDiv(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+      }
+    case div @ col.FloorDiv(left, right) =>
+      currentDividingExpr.having(div) {
+        silver.Div(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+      }
 
     case col.SilverIntToRat(col.NoPerm()) => silver.NoPerm()(pos=pos(e), info=expInfo(e))
     case col.SilverIntToRat(col.WritePerm()) => silver.FullPerm()(pos=pos(e), info=expInfo(e))
@@ -450,6 +476,9 @@ case class ColToSilver(program: col.Program[_]) {
 
   def pred(p: col.PredicateApply[_]): silver.PredicateAccessPredicate =
     silver.PredicateAccessPredicate(silver.PredicateAccess(p.args.map(exp), ref(p.ref))(pos=pos(p), info=expInfo(p)), exp(p.perm))(pos=pos(p), info=expInfo(p))
+
+  def predInTrigger(p: col.PredicateApply[_]): silver.PredicateAccess =
+    silver.PredicateAccess(p.args.map(exp), ref(p.ref))(pos=pos(p), info=expInfo(p))
 
   def acc(e: col.Expr[_]): silver.LocationAccess = e match {
     case col.PredicateApply(Ref(pred), args, _) => silver.PredicateAccess(args.map(exp), ref(pred))(pos=pos(pred), info=expInfo(pred))

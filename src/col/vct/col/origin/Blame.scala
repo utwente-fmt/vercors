@@ -121,11 +121,26 @@ case class ExpectedErrorNotTripped(err: ExpectedError) extends ExpectedErrorFail
   override def inlineDesc: String = s"The expected error with code `${err.errorCode}` was not encountered."
 }
 
-case class AssignFailed(node: SilverFieldAssign[_]) extends NodeVerificationFailure {
+sealed trait AssignFailed extends NodeVerificationFailure
+
+case class AssignFieldFailed(node: SilverFieldAssign[_]) extends AssignFailed with NodeVerificationFailure {
   override def code: String = "assignFieldFailed"
   override def descInContext: String = "Insufficient permission to assign to field."
   override def inlineDescWithSource(source: String): String = s"Insufficient permission for assignment `$source`."
 }
+
+case class CopyStructFailed(node: Expr[_], field: String) extends AssignFailed with NodeVerificationFailure {
+  override def code: String = "copyStructFailed"
+  override def descInContext: String = s"Insufficient read permission for field '$field' to copy struct."
+  override def inlineDescWithSource(source: String): String = s"Insufficient permission for assignment `$source`."
+}
+
+case class CopyStructFailedBeforeCall(node: Expr[_], field: String) extends AssignFailed with FrontendInvocationError with NodeVerificationFailure {
+  override def code: String = "copyStructFailedBeforeCall"
+  override def descInContext: String = s"Insufficient read permission for field '$field' to copy struct before call."
+  override def inlineDescWithSource(source: String): String = s"Insufficient permission for call `$source`."
+}
+
 case class AssertFailed(failure: ContractFailure, node: Assert[_]) extends WithContractFailure {
   override def baseCode: String = "assertFailed"
   override def descInContext: String = "Assertion may not hold, since"
@@ -217,7 +232,6 @@ case class SYCLItemMethodPreconditionFailed(node: InvokingNode[_]) extends NodeV
 
 sealed trait CallableFailure extends ConstructorFailure with JavaConstructorFailure
 sealed trait ContractedFailure extends CallableFailure
-sealed trait SeqCallableFailure extends CallableFailure
 case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with SeqCallableFailure with WithContractFailure {
   override def baseCode: String = "postFailed"
   override def descInContext: String = "Postcondition may not hold, since"
@@ -248,6 +262,16 @@ case class ExceptionNotInSignals(node: AbstractMethod[_]) extends CallableFailur
   override def code: String = "extraExc"
   override def descInContext: String = "Method may throw exception not included in signals clauses."
   override def inlineDescWithSource(source: String): String = s"Method `$source` may throw exception not included in signals clauses."
+}
+case class SeqRunPreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: SeqRun[_]) extends SeqRunFailure with WithContractFailure {
+  override def baseCode: String = "seqRunPreFailed"
+  override def descInContext: String = "Precondition may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Precondition of `$node` may not hold, since $failure."
+}
+case class SeqRunContextEverywhereFailedInPre(failure: ContractFailure, node: SeqRun[_]) extends SeqRunFailure with WithContractFailure {
+  override def baseCode: String = "seqRunContextPreFailed"
+  override def descInContext: String = "Context may not hold in precondition, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
 }
 case class SYCLKernelLambdaFailure(kernelFailure: KernelFailure) extends VerificationFailure {
   override def code: String = "syclKernelLambda" + kernelFailure.code.capitalize
@@ -304,6 +328,21 @@ case class PlusProviderInvocationFailed(innerFailure: WithContractFailure) exten
   override def baseCode: String = innerFailure.baseCode
   override def descInContext: String = innerFailure.descInContext
   override def inlineDescWithSource(node: String, failure: String): String = innerFailure.inlineDescWithSource(node, failure)
+}
+
+sealed trait SeqCallableFailure extends VerificationFailure
+sealed trait SeqRunFailure extends SeqCallableFailure
+
+sealed trait EndpointFailure extends VerificationFailure
+case class EndpointPreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: Endpoint[_]) extends EndpointFailure with WithContractFailure {
+  override def baseCode: String = "endpointPreFailed"
+  override def descInContext: String = "Precondition of constructor of this endpoint may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Precondition of `$node` may not hold, since $failure."
+}
+case class EndpointContextEverywhereFailedInPre(failure: ContractFailure, node: Endpoint[_]) extends EndpointFailure with WithContractFailure {
+  override def baseCode: String = "endpointContextPreFailed"
+  override def descInContext: String = "Context may not hold in precondition of endpoint constructor, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
 }
 
 sealed trait FrontendIfFailure extends VerificationFailure
@@ -366,6 +405,15 @@ case class SeqAssignInsufficientPermission(node: SeqAssign[_]) extends SeqAssign
   override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
 }
 
+sealed trait PVLCommunicateFailure extends VerificationFailure
+sealed trait CommunicateFailure extends PVLCommunicateFailure
+
+case class ParticipantsNotDistinct(node: Communicate[_]) extends CommunicateFailure with NodeVerificationFailure {
+  override def code: String = "participantsNotDistinct"
+  override def descInContext: String = "The participants in this communicate statement might not be distinct."
+  override def inlineDescWithSource(source: String): String = s"The participants of `$source` might not be distinct."
+}
+
 sealed trait DerefInsufficientPermission extends FrontendDerefError
 case class InsufficientPermission(node: HeapDeref[_]) extends DerefInsufficientPermission with NodeVerificationFailure {
   override def code: String = "perm"
@@ -392,6 +440,11 @@ case class SeqBoundExceedsLength(node: SeqSubscript[_]) extends SeqBoundFailure 
   override def code: String = "indexExceedsLength"
   override def descInContext: String = "The index in this sequence subscript may exceed the length of the sequence."
   override def inlineDescWithSource(source: String): String = s"The index in `$source` may exceed the length of the sequence."
+}
+case class SetEmpty(node: Expr[_]) extends NodeVerificationFailure {
+  override def code: String = "setEmpty"
+  override def descInContext: String = "This set may be empty."
+  override def inlineDescWithSource(source: String): String = s"`$source` may be empty."
 }
 
 sealed trait ForkFailure extends VerificationFailure
@@ -552,6 +605,12 @@ case class MapKeyError(node: MapGet[_]) extends BuiltinError with FrontendSubscr
   override def descInContext: String = "Map may not contain this key."
   override def inlineDescWithSource(source: String): String = s"Map in `$source` may not contain that key."
 }
+case class MallocSize(node: Expr[_]) extends BuiltinError with NodeVerificationFailure {
+  override def code: String = "mallocNegativeSize"
+  override def descInContext: String = "Argument of malloc may be negative."
+  override def inlineDescWithSource(source: String): String = s"Size `$source` in malloc may be negative."
+}
+
 sealed trait ArraySizeError extends VerificationFailure
 sealed trait ArraySubscriptError extends FrontendSubscriptError
 sealed trait ArrayLocationError extends ArraySubscriptError
@@ -606,10 +665,36 @@ case class ArrayValuesPerm(node: Values[_]) extends ArrayValuesError {
 }
 
 sealed trait PointerSubscriptError extends FrontendSubscriptError
-sealed trait PointerDerefError extends PointerSubscriptError
+sealed trait PointerDerefError extends PointerSubscriptError with FrontendDerefError
 sealed trait PointerLocationError extends PointerDerefError
 sealed trait PointerAddError extends FrontendAdditiveError
-case class PointerNull(node: Expr[_]) extends PointerLocationError with PointerAddError with NodeVerificationFailure {
+sealed trait PointerFreeError extends FrontendInvocationError
+
+case class PointerOffsetNonZero(node: Expr[_]) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrOffsetNonZero"
+  override def descInContext: String = "Free can only be called on pointers which are allocated and are at the start of the pointer block."
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed due to invalid pointer block."
+}
+
+case class PointerInsufficientFreePermission(node: Expr[_]) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrFreePerm"
+  override def descInContext: String = "Not enough permission to free the whole pointer block."
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed due to insufficient permission."
+}
+
+case class GenericPointerFreeError(node: Expr[_]) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrFreeError"
+  override def descInContext: String = "Pointer block cannot be freed."
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed."
+}
+
+case class PointerInsufficientFreeFieldPermission(node: Expr[_], field: String) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrFreeFieldError"
+  override def descInContext: String = s"Not enough permission to free the whole pointer block, since we miss permission for field `$field`"
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed."
+}
+
+case class PointerNull(node: Expr[_]) extends PointerLocationError with PointerAddError with PointerFreeError with NodeVerificationFailure {
   override def code: String = "ptrNull"
   override def descInContext: String = "Pointer may be null."
   override def inlineDescWithSource(source: String): String = s"Pointer in `$source` may be null."

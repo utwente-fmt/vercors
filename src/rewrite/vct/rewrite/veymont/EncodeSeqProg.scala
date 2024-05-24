@@ -2,13 +2,13 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Access, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, ThisSeqProg, Variable}
-import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssignFailed, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, InsufficientPermission, Origin, PanicBlame, PostconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
+import vct.col.ast.{Access, Assert, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, ThisSeqProg, Variable}
+import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssertFailed, AssignFailed, AssignLocalOk, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, ParticipantsNotDistinct, PostconditionFailed, PreconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
-import EncodeSeqProg.{AssignFailedToSeqAssignFailure, CallableFailureToSeqCallableFailure, InsufficientPermissionToAccessFailure}
+import EncodeSeqProg.{AssertFailedToParticipantsNotDistinct, AssignFailedToSeqAssignFailure, CallableFailureToSeqCallableFailure, InsufficientPermissionToAccessFailure}
 import vct.col.ref.Ref
 
 import scala.collection.{mutable => mut}
@@ -41,9 +41,28 @@ object EncodeSeqProg extends RewriterBuilder {
     override def blame(error: AssignFailed): Unit =
       assign.blame.blame(SeqAssignInsufficientPermission(assign))
   }
+
+  case class ToSeqRunFailure(run: SeqRun[_]) extends Blame[InvocationFailure] {
+    override def blame(error: InvocationFailure): Unit = error match {
+      case PreconditionFailed(path, failure, node) => run.blame.blame(SeqRunPreconditionFailed(path, failure, run))
+      case ContextEverywhereFailedInPre(failure, node) => run.blame.blame(SeqRunContextEverywhereFailedInPre(failure, run))
+    }
+  }
+
+  case class InvocationFailureToEndpointFailure(endpoint: Endpoint[_]) extends Blame[InvocationFailure] {
+    override def blame(error: InvocationFailure): Unit = error match {
+      case PreconditionFailed(path, failure, _) => endpoint.blame.blame(EndpointPreconditionFailed(path, failure, endpoint))
+      case ContextEverywhereFailedInPre(failure, _) => endpoint.blame.blame(EndpointContextEverywhereFailedInPre(failure, endpoint))
+    }
+  }
+
+  case class AssertFailedToParticipantsNotDistinct(comm: Communicate[_]) extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit = comm.blame.blame(ParticipantsNotDistinct(comm))
+  }
 }
 
 case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+  import EncodeSeqProg._
 
   val currentProg: ScopedStack[SeqProg[Pre]] = ScopedStack()
   val currentRun: ScopedStack[SeqRun[Pre]] = ScopedStack()
@@ -83,7 +102,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
       implicit val o = prog.o
       prog.endpoints.foreach(_.drop())
       for (endpoint <- prog.endpoints) {
-        endpointSucc((mode, endpoint)) = new Variable(TClass(succ[Class[Post]](endpoint.cls.decl)))(endpoint.o)
+        endpointSucc((mode, endpoint)) = new Variable(dispatch(endpoint.t))(endpoint.o)
       }
 
       // Maintain successor for seq_prog argument variables manually, as two contexts are maintained
@@ -95,13 +114,14 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
 
       // For each endpoint, make a local variable and initialize it using the constructor referenced in the endpoint
       val endpointsInit = prog.endpoints.map { endpoint =>
-          Assign(Local[Post](endpointSucc((mode, endpoint)).ref),
-          procedureInvocation[Post](
+        Assign(Local[Post](endpointSucc((mode, endpoint)).ref),
+          constructorInvocation[Post](
+            classTypeArgs = endpoint.typeArgs.map(dispatch),
             ref = succ(endpoint.constructor.decl),
             args = endpoint.args.map(dispatch),
-            blame = PanicBlame("TODO: endpoint constructor failure blame")
+            blame = InvocationFailureToEndpointFailure(endpoint)
           )
-        )(PanicBlame("TODO: Constructor assign failure blame"))
+        )(AssignLocalOk)
       }
 
       // Invoke the run procedure with the seq_program arguments, as well as all the endpoints
@@ -109,7 +129,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         ref = runSucc(prog.run).ref,
         args = prog.args.map(arg => Local[Post](variableSucc((mode, arg)).ref)) ++
           prog.endpoints.map(endpoint => Local[Post](endpointSucc((mode, endpoint)).ref)),
-        blame = PanicBlame("TODO: run invocation failure blame")
+        blame = ToSeqRunFailure(prog.run)
       ))
 
       // Scope the endpoint vars and combine initialization and run method invocation
@@ -128,7 +148,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
 
     case (InProg(prog), method: InstanceMethod[Pre]) => currentInstanceMethod.having(method) {
       for (endpoint <- prog.endpoints) {
-        endpointSucc((mode, endpoint)) = new Variable(TClass(succ[Class[Post]](endpoint.cls.decl)))(endpoint.o)
+        endpointSucc((mode, endpoint)) = new Variable(TClass(succ[Class[Post]](endpoint.cls.decl), Seq()))(endpoint.o)
       }
 
       prog.args.foreach(_.drop())
@@ -153,7 +173,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
 
     currentRun.having(run) {
       for (endpoint <- prog.endpoints) {
-        endpointSucc((mode, endpoint)) = new Variable(TClass(succ[Class[Post]](endpoint.cls.decl)))(endpoint.o)
+        endpointSucc((mode, endpoint)) = new Variable(dispatch(endpoint.t))(endpoint.o)
       }
 
       for (arg <- prog.args) {
@@ -183,10 +203,20 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
       )(AssignFailedToSeqAssignFailure(assign))
     case comm @ Communicate(receiver, sender) =>
       implicit val o = comm.o
-      Assign[Post](
-        rewriteAccess(receiver),
-        rewriteAccess(sender)
-      )(InsufficientPermissionToAccessFailure(receiver))
+      val equalityTest: Statement[Post] = if(receiver.subject.cls == sender.subject.cls)
+        Assert(
+          rewriteSubject(receiver.subject) !== rewriteSubject(sender.subject)
+        )(AssertFailedToParticipantsNotDistinct(comm))
+      else
+        Block(Nil)
+
+      Block(Seq(
+        equalityTest,
+        Assign[Post](
+          rewriteAccess(receiver),
+          rewriteAccess(sender)
+        )(InsufficientPermissionToAccessFailure(receiver))
+      ))
     case stat => rewriteDefault(stat)
   }
 

@@ -1,0 +1,15 @@
+seq_program Main() {
+    endpoint a = Role(new Other());
+
+	seq_run { }
+}
+
+class Role {
+	Other x;
+	
+	constructor(Other v) {
+		x = v;
+	}
+}
+
+class Other { }

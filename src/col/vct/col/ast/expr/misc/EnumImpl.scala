@@ -4,8 +4,9 @@ import vct.col.ast._
 import vct.col.origin.SourceName
 import vct.col.print._
 import vct.col.resolve.ctx.RefEnumConstant
+import vct.col.ast.ops.EnumOps
 
-trait EnumImpl[G] { this: Enum[G] =>
+trait EnumImpl[G] extends EnumOps[G] { this: Enum[G] =>
   def getConstant(name: String): Option[RefEnumConstant[G]] = constants.collectFirst {
     case c if c.o.find[SourceName].contains(SourceName(name)) => RefEnumConstant(Some(this), c)
   }

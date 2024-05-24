@@ -9,6 +9,16 @@ case class Namer[G](syntax: Ctx.Syntax) {
   private val stack = ScopedStack[Node[G]]()
   private val names = mutable.Map[(scala.Any, String, Int), Declaration[G]]()
 
+  private val keywords: Set[String] = syntax match {
+    case Ctx.PVL => Keywords.PVL
+    case Ctx.Silver => Set()
+    case Ctx.Java => Keywords.JAVA
+    case Ctx.C => Keywords.C_CPP_GPGPU
+    case Ctx.CPP => Keywords.C_CPP_GPGPU
+    case Ctx.Cuda => Keywords.C_CPP_GPGPU
+    case Ctx.OpenCL => Keywords.C_CPP_GPGPU
+  }
+
   def nearest(f: PartialFunction[Node[G], Unit]): Seq[Node[G]] =
     stack.toSeq.filter(n => f.isDefinedAt(n))
 
@@ -34,6 +44,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
     case _: Procedure[G] => ()
     case _: InstanceFunction[G] => ()
     case _: InstanceMethod[G] => ()
+    case _: Constructor[G] => ()
     case _: JavaConstructor[G] => ()
     case _: JavaMethod[G] => ()
     case _: PVLConstructor[G] => ()
@@ -52,6 +63,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
     case _: Procedure[G] => ()
     case _: InstanceFunction[G] => ()
     case _: InstanceMethod[G] => ()
+    case _: Constructor[G] => ()
     case _: JavaMethod[G] => ()
     case _: JavaAnnotationMethod[G] => ()
     case _: JavaConstructor[G] => ()
@@ -89,6 +101,10 @@ case class Namer[G](syntax: Ctx.Syntax) {
       case decl: LabelDecl[_] => name.usnake
       case _ => name.camel
     })
+
+    if(index == 0 && keywords.contains(baseName)) {
+      index = 1
+    }
 
     while(keys.exists(key => names.contains((key, baseName, index)))) {
       index += 1

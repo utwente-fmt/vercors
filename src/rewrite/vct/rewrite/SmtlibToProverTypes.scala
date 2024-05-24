@@ -130,6 +130,10 @@ case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
         case SmtlibFpToReal(arg) => getExpr(e, "fp.to_real", arg)
         case SmtlibFpToSInt(arg, bits) => getExpr(e, s"(_ fp.to_sbv $bits)", arg)
         case SmtlibFpToUInt(arg, bits) => getExpr(e, s"(_ fp.to_ubv $bits)", arg)
+        case SmtlibIsInt(arg) => getExpr(e, "is_int", arg)
+        case SmtlibPow(left, right) => getExpr(e, "^", left, right)
+        case SmtlibToInt(arg) => getExpr(e, "to_int", arg)
+        case SmtlibToReal(arg) => getExpr(e, "to_real", arg)
         case SmtlibLiteralString(data) =>
           // PB: it seems "\" need not be escaped, except when an *entire* escape sequence occurs in the string
           //     literally in the string to be escaped. Here we just escape all backslashes, which is one way of
@@ -185,9 +189,9 @@ case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
           getExpr(e, s"(as const ${smtTypeString(TSmtlibArray(domain, codomain))})", value)
         case Z3ArrayOfFunction(ref) =>
           // https://github.com/utwente-fmt/vercors/issues/1022
-          getExpr(e, s"(_ as-array ${ref.ref.decl.o.getPreferredNameOrElse()})")
+          getExpr(e, s"(_ as-array ${ref.ref.decl.o.getPreferredNameOrElse().camel})")
         case Z3ArrayMap(ref, args) =>
-          getExpr(e, s"(_ map ${ref.ref.decl.o.getPreferredNameOrElse()})", args: _*)
+          getExpr(e, s"(_ map ${ref.ref.decl.o.getPreferredNameOrElse().camel})", args: _*)
         case Z3SeqEmpty(elementType) => getExpr(e, s"(as seq.empty (Seq ${smtTypeString(elementType)}))")
         case Z3SeqUnit(arg) => getExpr(e, "seq.unit", arg)
         case Z3SeqConcat(left, right) => getExpr(e, "seq.++", left, right)
@@ -204,7 +208,7 @@ case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
         case Z3SeqFoldl(f, base, seq) => getExpr(e, "seq.foldl", f, base, seq)
         case Z3SeqFoldlI(f, offset, base, seq) => getExpr(e, "seq.foldli", f, offset, base, seq)
         case Z3TransitiveClosure(ref, args) =>
-          getExpr(e, s"(_ transitive-closure ${ref.ref.decl.o.getPreferredNameOrElse()})", args: _*)
+          getExpr(e, s"(_ transitive-closure ${ref.ref.decl.o.getPreferredNameOrElse().camel})", args: _*)
       }
     case other => rewriteDefault(other)
   }

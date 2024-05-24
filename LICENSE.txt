@@ -1,14 +1,3 @@
-VerCors and all files of its source code are licensed under the Mozilla Public
-License Version 2.0 (see below or http://www.mozilla.org/MPL/2.0/), *except*
-files found in
-
- src/main/universal/res/deps
- examples
-
-For the licenses of the files in deps see the sub-directories of that folder.
-files found in examples (and its sub-directories) are licensed under Public Domain
-(see http://creativecommons.org/publicdomain/zero/1.0/).
-
 Mozilla Public License Version 2.0
 ==================================
 

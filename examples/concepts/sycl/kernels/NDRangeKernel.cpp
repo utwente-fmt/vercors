@@ -1,6 +1,6 @@
 #include <sycl/sycl.hpp>
 
-void main() {
+void test() {
 	sycl::queue myQueue;
 
 	sycl::event myEvent = myQueue.submit(
@@ -15,7 +15,7 @@ void main() {
 					int e = it.get_local_linear_id();
 					int f = it.get_local_range(0);
 
-					int g = it.get_group_id(0);
+					int g = it.get_group(0);
 					int h = it.get_group_linear_id();
 					int i = it.get_group_range(0);
 				}

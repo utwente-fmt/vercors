@@ -14,11 +14,13 @@ class ExampleCoverage extends AnyFlatSpec {
       new CIncludeSpec(),
       new ClassesSpec(),
       new CounterSpec(),
+      new CSpec(),
       new CPPSpec(),
       new DemoSpec(),
       new FinalConstExprSpec(),
       new ExtractSpec(),
       new ForkJoinSpec(),
+      new GenericsExamplesSpec(),
       new GotoSpec(),
       new GpgpuSpec(),
       new JavaBipSpec(),
@@ -40,23 +42,29 @@ class ExampleCoverage extends AnyFlatSpec {
       new SmtSpec(),
       new SummationSpec(),
       new SYCLSpec(),
+      new SYCLFullProgramsSpec(),
+      new Triggers(),
       new TechnicalAbruptSpec(),
       new TechnicalEnumSpec(),
       new TechnicalFloatSpec(),
+      new TechnicalGenericsSpec(),
       new TechnicalJavaBipSpec(),
       new TechnicalJavaSpec(),
       new TechnicalSpec(),
       new TechnicalStaticSpec(),
       new TechnicalVeyMontSpec(),
+      new TechnicalVeyMontExamplesSpec(),
       new TerminationSpec(),
       new TypeValuesSpec(),
+      new VcllvmSpec(),
       new VerifyThisSpec(),
-      new VeymontSpec(),
+      new VeyMontToolPaperSpec(),
+      new VeyMontExamplesSpec(),
       new WaitNotifySpec(),
       new WandSpec(),
     )
 
-    val testedFiles = specs.flatMap(_.coveredExamples).map(_.toFile).toSet
+    val testedFiles = specs.flatMap(_.coveredExamples).toSet
 
     var shouldFail = false
 

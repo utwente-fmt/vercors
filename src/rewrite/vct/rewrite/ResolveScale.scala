@@ -37,14 +37,16 @@ case class ResolveScale[Pre <: Generation]() extends Rewriter[Pre] {
 
     val v = new Variable[Post](TRational())(CheckScale("amount"))
 
-    globalDeclarations.declare(function[Post](
+    globalDeclarations.declare(withResult((result: Result[Post]) => {
+      function[Post](
       blame = PanicBlame("scale ensures nothing"),
       contractBlame = PanicBlame("scale only requires a positive rational"),
       args = Seq(v),
       returnType = TRational(),
       body = Some(v.get),
       requires = UnitAccountedPredicate(v.get >= const(0)),
-    )(CheckScale("scale")))
+      ensures = UnitAccountedPredicate(result >= const(0)),
+    )(CheckScale("scale"))}))
   }
 
   def scaleValue(e: Scale[Pre]): Expr[Post] =
@@ -69,7 +71,7 @@ case class ResolveScale[Pre <: Generation]() extends Rewriter[Pre] {
       case s: Starall[Pre] => s.rewrite(body = scale(s.body, amount))
 
       case l: Let[Pre] => l.rewrite(main = scale(l.main, amount))
-
+      case InlinePattern(inner, parent, group) => InlinePattern(scale(inner, amount), parent, group)
       case other => throw WrongScale(other)
     }
   }

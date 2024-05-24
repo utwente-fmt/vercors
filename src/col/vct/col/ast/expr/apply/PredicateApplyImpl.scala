@@ -2,8 +2,9 @@ package vct.col.ast.expr.apply
 
 import vct.col.ast.PredicateApply
 import vct.col.print.{Ctx, Doc, DocUtil, Empty, Group, Precedence, Text}
+import vct.col.ast.ops.PredicateApplyOps
 
-trait PredicateApplyImpl[G] { this: PredicateApply[G] =>
+trait PredicateApplyImpl[G] extends PredicateApplyOps[G] { this: PredicateApply[G] =>
   override def precedence: Int = Precedence.PREFIX
 
   def layoutSilver(implicit ctx: Ctx): Doc =

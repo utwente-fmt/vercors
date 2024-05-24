@@ -49,6 +49,7 @@ case class Silicon(
   traceBranchConditions: Boolean = false,
   branchConditionReportInterval: Option[Int] = Some(1000),
   timeoutValue: Int = 30,
+  totalTimeOut: Int = 0,
   options: Seq[String] = Nil,
 ) extends SilverBackend {
 
@@ -87,6 +88,7 @@ case class Silicon(
 
     var siliconConfig = Seq(
       "--assertTimeout", (timeoutValue*1000).toString,
+      "--timeout", totalTimeOut.toString,
       "--z3Exe", z3Path.toString,
       "--z3ConfigArgs", z3Config,
       "--ideModeAdvanced",
@@ -201,6 +203,7 @@ case class Silicon(
   override def stopVerifier(verifier: Verifier): Unit = {
     verifier.stop()
     SiliconLogListener.logs.foreach(_.done())
+    SiliconLogListener.logs.clear()
     // SymbExLogger.reset()
 
     if (printQuantifierStatistics) {

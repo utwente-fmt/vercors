@@ -51,9 +51,9 @@ object Types {
     case (TType(left), TType(right)) =>
       TType(leastCommonSuperType(left, right))
 
-    case (TClass(left), TClass(right)) =>
-      val leftArrows = left.decl.transSupportArrows
-      val rightArrows = right.decl.transSupportArrows
+    case (left @ TClass(_, _), right @ TClass(_, _)) =>
+      val leftArrows = left.transSupportArrows
+      val rightArrows = right.transSupportArrows
       // Shared support are classes where there is an incoming left-arrow and right-arrow
       // If left supports right (or vice-versa), there would be a problem, since right will not have a self-arrow
       // However, this is caught by the simple sub-typing relation above already.
@@ -63,11 +63,11 @@ object Types {
       val classes = (shared.toSet -- nonBottom.toSet).toSeq
       classes match {
         case Nil => TAnyClass()
-        case Seq(t) => TClass(t.ref)
-        case other => TUnion(other.map(cls => TClass(cls.ref)))
+        case Seq(t) => t
+        case other => TUnion(other)
       }
 
-    case (TClass(_), TAnyClass()) | (TAnyClass(), TClass(_)) =>
+    case (TClass(_, _), TAnyClass()) | (TAnyClass(), TClass(_, _)) =>
       TAnyClass()
 
     // TODO similar stuff for JavaClass

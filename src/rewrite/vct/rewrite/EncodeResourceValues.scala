@@ -10,7 +10,7 @@ import vct.col.rewrite.ResolveScale.WrongScale
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.DeclarationBox
 import vct.result.VerificationError.{SystemError, UserError}
-import vct.rewrite.EncodeResourceValues.{UnknownResourceValue, UnsupportedResourceValue, WrongResourcePattern}
+import vct.rewrite.EncodeResourceValues.{GenericsNotSupported, UnknownResourceValue, UnsupportedResourceValue, WrongResourcePattern}
 import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, const, forall}
 
 import scala.collection.mutable
@@ -23,6 +23,11 @@ case object EncodeResourceValues extends RewriterBuilder {
     override def code: String = "wrongResourceValue"
     override def text: String =
       node.o.messageInContext(s"$kind cannot yet be stored in a resource value")
+  }
+
+  case class GenericsNotSupported(node: Node[_]) extends UserError {
+    override def code: String = "genericsNotSupported"
+    override def text: String = node.o.messageInContext("Generics not supported")
   }
 
   case class UnknownResourceValue(node: Expr[_]) extends SystemError {
@@ -69,6 +74,7 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
       case col.PointerLocation(ptr) => PointerLocation(ptr.t.asPointer.get.element)
       case col.PredicateLocation(predicate, _) => PredicateLocation(predicate.decl)
       case col.InstancePredicateLocation(predicate, _, _) => InstancePredicateLocation(predicate.decl)
+      case col.InLinePatternLocation(loc, _) => scan(loc)
       case AmbiguousLocation(expr) => throw UnknownResourceValue(expr)
     }
 
@@ -97,6 +103,9 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
   val valAdt: ScopedStack[AxiomaticDataType[Post]] = ScopedStack()
   val kindFunc: ScopedStack[ADTFunction[Post]] = ScopedStack()
   val arbitraryResourceValue: ScopedStack[Predicate[Post]] = ScopedStack()
+
+  def isGeneric(cls: Class[Pre]): Boolean = cls.typeArgs.isEmpty
+  def nonGeneric(cls: Class[Pre]): Unit = if (isGeneric(cls)) throw GenericsNotSupported(cls)
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     implicit val o: Origin = program.o
@@ -139,13 +148,17 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
       val decls = patterns.zipWithIndex.flatMap { case (pattern, index) =>
         def freeTypesLoc(location: ResourcePattern.ResourcePatternLoc): Seq[Type[Post]] = location match {
           case ResourcePattern.HeapVariableLocation(_) => Nil
-          case ResourcePattern.FieldLocation(f) => Seq(TClass(succ(fieldOwner(f))))
+          case ResourcePattern.FieldLocation(f) =>
+            nonGeneric(fieldOwner(f))
+            Seq(TClass(succ(fieldOwner(f)), Seq()))
           case ResourcePattern.ModelLocation(f) => Seq(TModel(succ(modelFieldOwner(f))))
           case ResourcePattern.SilverFieldLocation(_) => Seq(TRef())
           case ResourcePattern.ArrayLocation(t) => Seq(TArray(dispatch(t)), TInt())
           case ResourcePattern.PointerLocation(t) => Seq(TPointer(dispatch(t)))
           case ResourcePattern.PredicateLocation(ref) => ref.args.map(_.t).map(dispatch)
-          case ResourcePattern.InstancePredicateLocation(ref) => TClass[Post](succ(predicateOwner(ref))) +: ref.args.map(_.t).map(dispatch)
+          case ResourcePattern.InstancePredicateLocation(ref) =>
+            nonGeneric(predicateOwner(ref))
+            TClass[Post](succ(predicateOwner(ref)), Seq()) +: ref.args.map(_.t).map(dispatch)
         }
 
         def freeTypes(pattern: ResourcePattern): Seq[Type[Post]] = pattern match {
@@ -153,7 +166,9 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
           case ResourcePattern.Perm(loc) => freeTypesLoc(loc) :+ TRational()
           case ResourcePattern.Value(loc) => freeTypesLoc(loc)
           case ResourcePattern.Predicate(p) => p.args.map(_.t).map(dispatch)
-          case ResourcePattern.InstancePredicate(p) => TClass[Post](succ(predicateOwner(p))) +: p.args.map(_.t).map(dispatch)
+          case ResourcePattern.InstancePredicate(p) =>
+            nonGeneric(predicateOwner(p))
+            TClass[Post](succ(predicateOwner(p)), Seq()) +: p.args.map(_.t).map(dispatch)
           case ResourcePattern.Star(left, right) => freeTypes(left) ++ freeTypes(right)
           case ResourcePattern.Implies(res) => freeTypes(res)
           case ResourcePattern.Select(whenTrue, whenFalse) => freeTypes(whenTrue) ++ freeTypes(whenFalse)

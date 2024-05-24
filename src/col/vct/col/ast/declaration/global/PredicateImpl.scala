@@ -5,8 +5,9 @@ import vct.col.ast.declaration.category.AbstractPredicateImpl
 import vct.col.print._
 
 import scala.collection.immutable.ListMap
+import vct.col.ast.ops.PredicateOps
 
-trait PredicateImpl[G] extends GlobalDeclarationImpl[G] with AbstractPredicateImpl[G] { this: Predicate[G] =>
+trait PredicateImpl[G] extends GlobalDeclarationImpl[G] with AbstractPredicateImpl[G] with PredicateOps[G] { this: Predicate[G] =>
   def layoutSilver(implicit ctx: Ctx): Doc =
     Text("predicate") <+> ctx.name(this) <> "(" <> Doc.args(args) <> ")" <>
       (if(body.nonEmpty) Text(" {") <>> body.get <+/> "}" else Empty)

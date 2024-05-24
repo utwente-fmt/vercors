@@ -142,7 +142,7 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     program.declarations.collect { case cls: Class[Pre] => cls }.foreach { cls =>
-      cls.declarations.foreach(classOwner(_) = cls)
+      cls.decls.foreach(classOwner(_) = cls)
     }
     rewriteDefault(program)
   }
@@ -260,6 +260,12 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case Perm(loc @ InstancePredicateLocation(pred, obj, args), WritePerm()) if pred.decl.inline =>
       dispatch(InstancePredicateApply(obj, pred, args, WritePerm()(loc.o))(loc.o))
+
+    case Perm(InLinePatternLocation(loc @ PredicateLocation(pred, args), pat), WritePerm()) if pred.decl.inline =>
+      dispatch(InlinePattern(PredicateApply(pred, args, WritePerm()(loc.o))(loc.o))(loc.o))
+
+    case Perm(InLinePatternLocation(loc @ InstancePredicateLocation(pred, obj, args), pat), WritePerm()) if pred.decl.inline =>
+      dispatch(InlinePattern(InstancePredicateApply(obj, pred, args, WritePerm()(loc.o))(loc.o))(loc.o))
 
     case other => rewriteDefault(other)
   }

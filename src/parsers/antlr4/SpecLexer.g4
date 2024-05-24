@@ -29,6 +29,8 @@ VAL_FALSE: {"keyword.spec";} 'false';
 VAL_PACKAGE: 'package';
 */
 
+NEVER: EOF '=';
+
 // Must be able to contain identifiers from any frontend, so it's fine to over-approximate valid identifiers a bit.
 LANG_ID_ESCAPE: '`' ~[`]+ '`';
 
@@ -134,11 +136,14 @@ FORALL_STAR: {"keyword.spec";} '\\forall*';
 FORALL: {"keyword.spec";} '\\forall';
 EXISTS: {"keyword.spec";} '\\exists';
 FORPERM: {"keyword.spec";} '\\forperm';
+FORPERMWITHVALUE: '\\forpermwithvalue';
 FORALL_UNICODE: '\u2200';
 FORALL_STAR_UNICODE: '\u2200*';
 EXISTS_UNICODE: '\u2203';
 LET: {"keyword.spec";} '\\let';
 SUM: {"keyword.spec";} '\\sum';
+CHOOSE: '\\choose';
+CHOOSE_FRESH: '\\choose_fresh';
 LENGTH: {"keyword.spec";} '\\length';
 OLD: {"keyword.spec";} '\\old';
 TYPEOF: {"keyword.spec";} '\\typeof';
@@ -166,6 +171,11 @@ VAL_PARTIAL_INDEX: {"keyword.spec";} '\\nd_partial_index';
 POLARITY_DEPENDENT: {"keyword.spec";} '\\polarity_dependent';
 SMT_LIB: {"keyword.spec";} '\\smtlib';
 BOOGIE: {"keyword.spec";} '\\boogie';
+
+EUCLIDIAN_DIV: '\\euclidean_div';
+EUCLIDIAN_MOD: '\\euclidean_mod';
+POW: '\\pow';
+IS_INT: '\\is_int';
 
 NONE: {"keyword.spec";} 'none';
 OPTION_NONE: {"keyword.spec";} 'None';

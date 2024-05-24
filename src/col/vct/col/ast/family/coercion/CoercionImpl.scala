@@ -1,9 +1,28 @@
 package vct.col.ast.family.coercion
 
 import vct.col.ast._
+import vct.col.ast.ops.CoercionFamilyOps
 
-trait CoercionImpl[G] { this: Coercion[G] =>
+trait CoercionImpl[G] extends CoercionFamilyOps[G] { this: Coercion[G] =>
   def target: Type[G]
+
+  def isCPromoting: Boolean = this match {
+    case CoerceDecreasePrecision(_, _) => false
+    case CoerceCFloatCInt(_) => false
+    case CoercionSequence(coercions) => coercions.forall(_.isCPromoting)
+    case CoerceJoinUnion(inner, _, _) => inner.forall(_.isPromoting)
+    case CoerceSelectUnion(inner, _, _, _) => inner.isPromoting
+    case CoerceMapOption(inner, _, _) => inner.isCPromoting
+    case CoerceMapTuple(inner, _, _) => inner.forall(_.isCPromoting)
+    case CoerceMapEither(inner, _, _) => inner._1.isCPromoting && inner._2.isCPromoting
+    case CoerceMapSeq(inner, _, _) => inner.isCPromoting
+    case CoerceMapSet(inner, _, _) => inner.isCPromoting
+    case CoerceMapBag(inner, _, _) => inner.isCPromoting
+    case CoerceMapMatrix(inner, _, _) => inner.isCPromoting
+    case CoerceMapMap(inner, _, _) => inner.isCPromoting
+    case CoerceMapType(inner, _, _) => inner.isCPromoting
+    case _ => true
+  }
 
   def isPromoting: Boolean = this match {
     case CoerceIdentity(_) => true
@@ -16,7 +35,7 @@ trait CoercionImpl[G] { this: Coercion[G] =>
     case CoerceBoolResource() => true
     case CoerceNullRef() => true
     case CoerceNullArray(_) => true
-    case CoerceNullClass(_) => true
+    case CoerceNullClass(_, _) => true
     case CoerceNullJavaClass(_) => true
     case CoerceNullAnyClass() => true
     case CoerceNullPointer(_) => true
@@ -27,12 +46,12 @@ trait CoercionImpl[G] { this: Coercion[G] =>
     case CoerceIncreasePrecision(_, _) => true
     case CoerceIntRat() => true
     case CoerceWidenBound(_, _) => true
-    case CoerceUnboundInt(_) => true
+    case CoerceUnboundInt(_, _) => true
     case CoerceBoundIntFrac() => true
     case CoerceBoundIntZFrac(_) => true
     case CoerceSupports(_, _) => true
     case CoerceJavaSupports(_, _) => true
-    case CoerceClassAnyClass(_) => true
+    case CoerceClassAnyClass(_, _) => true
     case CoerceJavaClassAnyClass(_) => true
     case CoerceCPrimitiveToCol(_, _) => true
     case CoerceColToCPrimitive(_, _) => true
@@ -54,5 +73,11 @@ trait CoercionImpl[G] { this: Coercion[G] =>
     case CoerceRatZFrac() => false
     case CoerceZFracFrac() => false
     case CoerceBoundIntFloat(_, _) => false
+
+    case CoerceCIntCFloat(_) => true
+    case CoerceCIntInt() => true
+    case CoerceCFloatFloat(_, _) => true
+    case CoerceDecreasePrecision(_, _) => false
+    case CoerceCFloatCInt(_) => false
   }
 }

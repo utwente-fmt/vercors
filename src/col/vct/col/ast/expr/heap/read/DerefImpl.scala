@@ -5,9 +5,12 @@ import vct.col.ast.{Deref, EndpointUse, Expr, TClass, Type}
 import vct.col.check.{Check, CheckContext, CheckError, SeqProgReceivingEndpoint}
 import vct.col.print.{Ctx, Doc, Group, Precedence}
 import vct.col.ref.Ref
+import vct.col.ast.ops.DerefOps
 
-trait DerefImpl[G] extends ExprImpl[G] { this: Deref[G] =>
-  override def t: Type[G] = ref.decl.t
+trait DerefImpl[G] extends ExprImpl[G] with DerefOps[G] { this: Deref[G] =>
+  override def t: Type[G] =
+    obj.t.asClass.map(_.instantiate(ref.decl.t)).getOrElse(ref.decl.t)
+
   override def check(context: CheckContext[G]): Seq[CheckError] =
     Check.inOrder(
       super.check(context),

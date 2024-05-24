@@ -595,6 +595,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       endpoint alice = Storage();
       endpoint bob = Storage();
       seq_run {
+        assume alice != bob;
         communicate alice.x <- bob.x;
       }
     }
@@ -780,4 +781,113 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       }
     }
     """)
+
+  (vercors
+    should fail
+    withCode "seqRunPreFailed:false"
+    using silicon
+    in "Precondition of seq_run should be checked"
+    pvl
+    """
+    seq_program Example(int x) {
+      requires x == 0;
+      seq_run {
+      }
+    }
+    """)
+
+  (vercors
+    should fail
+    withCode "seqRunContextPreFailed:false"
+    using silicon
+    in "Context everywhere of seq_run should be checked"
+    pvl
+    """
+    seq_program Example(int x) {
+      context_everywhere x == 0;
+      seq_run {
+      }
+    }
+    """)
+
+  (vercors
+    should fail
+    withCode "endpointPreFailed:false"
+    using silicon
+    in "Precondition of endpoint constructor should be checked"
+    pvl
+    """
+    class Storage {
+      requires x == 0;
+      constructor (int x) { }
+    }
+
+    seq_program Example() {
+      endpoint alice = Storage(1);
+
+      seq_run {
+      }
+    }
+    """)
+
+  (vercors
+    should error
+    withCode "assignNotAllowed"
+    flag "--veymont-generate-permissions"
+    in "Assignment should be disallowed in seq_program"
+    pvl
+    """
+    class Storage {
+      int x;
+    }
+
+    seq_program Example() {
+      endpoint alice = Storage();
+      seq_run {
+        alice.x = 0;
+      }
+    }
+    """)
+
+  (vercors
+    should verify
+    using silicon
+    flag "--veymont-generate-permissions"
+    flag "--dev-veymont-allow-assign"
+    in "At user discretion, assignment should be allowed"
+    pvl
+    """
+    class Storage {
+      int x;
+    }
+
+    seq_program Example() {
+      endpoint alice = Storage();
+      seq_run {
+        alice.x = 0;
+      }
+    }
+    """)
+
+  (vercors
+    should fail
+    withCode "participantsNotDistinct"
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "Endpoints participating in a communicate should be distinct"
+    pvl
+    """
+    class Storage {
+      int x;
+    }
+
+    seq_program Example() {
+      endpoint alice = Storage();
+      seq_run {
+        communicate alice.x <- alice.x;
+      }
+    }
+    """)
+
+  vercors should verify using silicon flag "--veymont-generate-permissions" example "technical/veymont/genericEndpoints.pvl"
 }

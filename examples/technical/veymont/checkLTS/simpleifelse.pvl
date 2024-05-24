@@ -1,0 +1,34 @@
+class Role {
+	int x;
+	int left;
+	
+	ensures x == v && left == v;
+	constructor(int v) {
+		x = v;
+		left = v;
+	}
+}
+
+
+seq_program Main() {
+	endpoint a = Role(0);
+	endpoint b = Role(8);
+	endpoint c = Role(4);
+
+	requires a.x == 0 && b.x == 8 && c.x == 4;
+	requires a.left == a.x && b.left == b.x && c.left == c.x;
+	ensures a.x == b.x && b.x == c.x;
+	seq_run {
+		if(a.left != a.x && b.left != b.x && c.left != c.x) {
+			a.x := a.x + 1;
+		}
+		if(a.left != 2 && b.left != 3 && c.left != 4) {
+			b.x := 5;
+		} else {
+		    c.x := 7;
+		}
+		communicate a.x -> b.x;
+		communicate b.x -> c.x;
+	}
+}
+

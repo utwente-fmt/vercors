@@ -49,12 +49,15 @@ CONS: {"keyword.operator";} '::';
 ENUM: {"storage.type";} 'enum';
 CLASS: {"storage.type";} 'class';
 SEQ_PROGRAM: {"keyword.control.concurrency";} 'seq_program';
+SEQ_RUN: 'seq_run';
 KERNEL: {"keyword.control.concurrency";} 'kernel';
 BARRIER: {"keyword.control.concurrency";} 'barrier';
 INVARIANT: {"keyword.control.concurrency";} 'invariant';
 CONSTRUCTOR: {"variable.language";} 'constructor';
 RUN: {"keyword.control.concurrency";} 'run';
+VESUV_ENTRY: 'vesuv_entry';
 THREAD: {"keyword.control.concurrency";} 'thread';
+ENDPOINT: 'endpoint';
 
 IF: {"keyword.control";} 'if';
 ELSE: {"keyword.control";} 'else';

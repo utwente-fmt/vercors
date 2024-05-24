@@ -4,8 +4,9 @@ import vct.col.ast.{AmbiguousSubscript, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Group}
 import vct.col.typerules.CoercionUtils
 import vct.result.VerificationError.Unreachable
+import vct.col.ast.ops.AmbiguousSubscriptOps
 
-trait AmbiguousSubscriptImpl[G] { this: AmbiguousSubscript[G] =>
+trait AmbiguousSubscriptImpl[G] extends AmbiguousSubscriptOps[G] { this: AmbiguousSubscript[G] =>
   def isSeqOp: Boolean = CoercionUtils.getAnySeqCoercion(collection.t).isDefined
   def isArrayOp: Boolean = CoercionUtils.getAnyArrayCoercion(collection.t).isDefined
   def isCArrayOp: Boolean = CoercionUtils.getAnyCArrayCoercion(collection.t).isDefined

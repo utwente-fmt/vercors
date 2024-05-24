@@ -2,13 +2,14 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
-import vct.col.ast.{Applicable, ApplicableContract, ArraySubscript, BooleanValue, Class, ContractApplicable, Declaration, Deref, Endpoint, EndpointGuard, EndpointName, SeqLoop, EndpointUse, EnumUse, Expr, FieldLocation, Function, InstanceField, InstanceFunction, InstanceMethod, IterationContract, Length, Local, LoopContract, LoopInvariant, Node, Null, Perm, Procedure, Result, SeqAssign, SeqProg, SeqRun, SplitAccountedPredicate, Statement, TArray, TClass, TInt, ThisObject, Type, UnitAccountedPredicate, Variable, WritePerm}
+import vct.col.ast._
 import vct.col.ast.declaration.global.SeqProgImpl.participants
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
+import vct.col.resolve.ctx.Referrable
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
+
 import scala.collection.immutable.ListSet
 
 object GenerateSeqProgPermissions extends RewriterBuilderArg[Boolean] {
@@ -20,6 +21,8 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
 
   val currentPerm: ScopedStack[Expr[Post]] = ScopedStack()
   val currentProg: ScopedStack[SeqProg[Pre]] = ScopedStack()
+  val generatingClasses: ScopedStack[Class[Pre]] = ScopedStack()
+  val generatingOrigin: ScopedStack[Node[Pre]] = ScopedStack()
 
   /* - Permission generation table -
       Only considers nodes as necessary for VeyMont case studies.
@@ -50,11 +53,26 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
         body = proc.body.map(body => currentPerm.having(variablesPerm(proc.args)) { dispatch(body) })
       ))
 
+    case cons: Constructor[Pre] if enabled =>
+      implicit val o = cons.o
+      classDeclarations.succeed(cons, cons.rewrite(
+        contract = prependContract(
+          cons.contract,
+          tt,
+          variablesPerm(cons.args) &* currentPerm.top,
+        ),
+        body = cons.body.map(body => currentPerm.having(variablesPerm(cons.args)) { dispatch(body) })
+      ))
+
     case cls: Class[Pre] if enabled => currentPerm.having(classPerm(cls)) { rewriteDefault(cls) }
 
     case fun: InstanceFunction[Pre] if enabled =>
       implicit val o = fun.o
-      classDeclarations.succeed(fun, fun.rewrite(contract = prependContract(fun.contract, currentPerm.top, tt)))
+      classDeclarations.succeed(fun, fun.rewrite(
+        contract = prependContract(
+          fun.contract,
+          currentPerm.top &* variablesPerm(fun.args),
+          tt)))
 
     case method: InstanceMethod[Pre] if enabled && currentProg.nonEmpty =>
       implicit val o = method.o
@@ -72,8 +90,8 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
       classDeclarations.succeed(method, method.rewrite(
         contract = prependContract(
           method.contract,
-          currentPerm.top,
-          currentPerm.top &* resultPerm(method)
+          currentPerm.top &* variablesPerm(method.args),
+          if(!method.pure) currentPerm.top &* resultPerm(method) else tt
         )
       ))
 
@@ -122,10 +140,10 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
 
   override def dispatch(loopContract: LoopContract[Pre]): LoopContract[Post] =
     (currentPerm.topOption, loopContract) match {
-      case (Some(perm), invariant: LoopInvariant[pre]) =>
+      case (Some(perm), invariant: LoopInvariant[Pre]) =>
         implicit val o = loopContract.o
         invariant.rewrite(invariant = perm &* dispatch(invariant.invariant))
-      case (Some(perm), iteration: IterationContract[pre]) =>
+      case (Some(perm), iteration: IterationContract[Pre]) =>
         implicit val o = loopContract.o
         iteration.rewrite(
           requires = perm &* dispatch(iteration.requires),
@@ -134,7 +152,7 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
     }
 
   def endpointPerm(endpoint: Endpoint[Pre])(implicit o: Origin): Expr[Post] =
-    transitivePerm(EndpointUse[Post](succ(endpoint)), TClass(endpoint.cls))
+    transitivePerm(EndpointUse[Post](succ(endpoint)), TClass(endpoint.cls, Seq()))
 
   def endpointsPerm(endpoints: Seq[Endpoint[Pre]])(implicit o: Origin): Expr[Post] =
     foldStar(endpoints.map(endpointPerm))
@@ -149,7 +167,7 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
     transitivePerm(Result[Post](anySucc(app)), app.returnType)
 
   def classPerm(cls: Class[Pre]): Expr[Post] =
-    transitivePerm(ThisObject[Post](succ(cls))(cls.o), TClass(cls.ref))(cls.o)
+    transitivePerm(ThisObject[Post](succ(cls))(cls.o), TClass(cls.ref, Seq()))(cls.o)
 
   /*
 
@@ -176,10 +194,19 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
         PanicBlame("Quantifying over an array should be injective."),
         TInt(),
         (i: Local[Post]) => ((const[Post](0) <= i) && (i < Length(e)(PanicBlame("Array is guaranteed non-null")))) ==>
-          (arrayPerm(e, i, WritePerm(), PanicBlame("Encoding guarantees well-formedness")) &*
-            transitivePerm(ArraySubscript(e, i)(PanicBlame("Encoding guarantees well-formedness")), u))
+//          (arrayPerm(e, i, WritePerm(), PanicBlame("Encoding guarantees well-formedness")) &*
+            (Perm(ArrayLocation(e, i)(PanicBlame("Encoding guarantees well-formedness")), WritePerm()) &*
+              transitivePerm(ArraySubscript(e, i)(PanicBlame("Encoding guarantees well-formedness")), u))
       )
-    case TClass(Ref(cls)) => foldStar(cls.collect { case f: InstanceField[Pre] => fieldTransitivePerm(e, f) })
+    case TClass(Ref(cls), _) if !generatingClasses.contains(cls) =>
+      generatingClasses.having(cls) {
+        foldStar(cls.collect { case f: InstanceField[Pre] => fieldTransitivePerm(e, f)(f.o) })
+      }
+    case TClass(Ref(cls), _) =>
+      // The class we are generating permission for has already been encountered when going through the chain
+      // of fields. So we cut off the computation
+      logger.warn(s"Not generating permissions for recursive occurrence of ${cls.o.debugName()}. Circular datastructures are not supported by permission generation")
+      tt
     case _ => tt
   }
 

@@ -10,5 +10,5 @@ trait MapCmpImpl[G] { this: MapCmp[G] =>
   def leftT: TMap[G] = left.t.asMap.get
   def rightT: TMap[G] = right.t.asMap.get
 
-  def commonMapType: TMap[G] = TMap(leftT.key, Types.leastCommonSuperType(leftT.value, rightT.value))
+  lazy val commonMapType: TMap[G] = TMap(leftT.key, Types.leastCommonSuperType(leftT.value, rightT.value))
 }

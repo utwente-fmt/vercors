@@ -153,98 +153,25 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       quantify(block, block.context_everywhere &* block.ensures, nonEmpty)
   }
 
-  def constantExpression[A](e: Expr[A], nonConstVars: Set[Variable[A]]): Boolean = e match {
-    case _: Constant[_, _] => true
-    case op: BinExpr[_] => constantExpression(op.left, nonConstVars) && constantExpression(op.right, nonConstVars)
-    case Local(v) => !nonConstVars.contains(v.decl)
+  // A variable of this type cannot be altered in a parallel block
+  def isConstType(t: Type[_]): Boolean = t match {
+    case _: NumericType[_] => true
+    case _: TBool[_] => true
+    case _: TChar[_] => true
+    case TSeq(e) => isConstType(e)
+    case TSet(e) => isConstType(e)
+    case TBag(e) => isConstType(e)
+    case TMap(e, v) => isConstType(e) && isConstType(v)
+    case TOption(e) => isConstType(e)
+    case TTuple(es) => es.forall(isConstType)
+    case TEither(l, r) => isConstType(l) && isConstType(r)
     case _ => false
   }
-
-  def applyFunc[A, B](f: A => Option[Set[B]], xs: Iterable[A]): Option[Set[B]] =
-    xs.foldLeft(Some(Set()): Option[Set[B]]) { case (res, x) => res.flatMap(r => f(x).map(s => r ++ s)) }
-
-  def combine[A](xs: Option[Set[A]], ys: Option[Set[A]]): Option[Set[A]] =
-    xs.flatMap(xs => ys.map(ys => xs ++ ys))
-
-  def scanIter(xs: Iterable[Statement[Pre]]): Option[Set[Variable[Pre]]] =
-    applyFunc(scanForAssign, xs)
-
-  def scanIterE(xs: Iterable[Expr[Pre]]): Option[Set[Variable[Pre]]] =
-    applyFunc(scanForAssignE, xs)
-
-  /* Scans statements and returns a set of variables, which will change value. Meaning other variables, did not change value.
-  * The analysis is conservative, if we are not sure, we return None, meaning we are not sure about any variable if it
-  * is potentially constant
-   */
-  def scanForAssign(s: Statement[Pre]): Option[Set[Variable[Pre]]] = s match {
-    case Block(statements) => scanIter(statements)
-    case Scope(_, statement) => scanForAssign(statement)
-    case Branch(branches) =>
-      for {
-        set1 <- scanIter(branches.map(_._2))
-        set2 <- scanIterE(branches.map(_._1))
-      } yield set1 ++ set2
-    case IndetBranch(statements) => scanIter(statements)
-    case Switch(expr, body) => combine(scanForAssignE(expr), scanForAssign(body))
-    case Loop(init, cond, update, _, body) =>
-      scanForAssign(init).flatMap(r1 => scanForAssignE(cond).flatMap(r2 => scanForAssign(update)
-        .flatMap(r3 => scanForAssign(body).map(r4 => r1 ++ r2 ++ r3 ++ r4))))
-    case Assign(target, value) => combine(scanAssignTarget(target), scanForAssignE(value))
-    case ParStatement(par) => scanForAssignP(par)
-    case ParBarrier(_, _, _, _, content) => scanForAssign(content)
-    case Eval(e) => scanForAssignE(e)
-    case _ => None
-  }
-
-  def scanForAssignP(par: ParRegion[Pre]): Option[Set[Variable[Pre]]] = par match {
-    case ParParallel(pars) => applyFunc(scanForAssignP, pars)
-    case ParSequential(pars) => applyFunc(scanForAssignP, pars)
-    case ParBlock(_, _, _, _, _, content) => scanForAssign(content)
-  }
-
-  def scanForAssignE(e: Expr[Pre]): Option[Set[Variable[Pre]]] = e match {
-    case _: Constant[Pre, _] => Some(Set())
-    case Local(_) => Some(Set())
-    case op: BinExpr[Pre] => combine(scanForAssignE(op.left), scanForAssignE(op.right))
-    case ProcedureInvocation(_, args, outArgs, _, givenMap, yields) =>
-      // Primitive types cannot be changed due to a function call, so we filter them
-      // Other arguments can possibly be changed, so we collect them
-      applyFunc(scanAssignTarget, args.filterNot(e => isPrimitive(e.t)))
-        .flatMap(r1 => scanIterE(givenMap.map(_._2))
-          .flatMap(r2 => scanIterE(outArgs)
-            .flatMap(r3 => scanIterE(yields.map(_._1))
-              .map(r4 => r1 ++ r2 ++ r3 ++ r4))))
-    case FunctionInvocation(_, args, _, givenMap, yields) =>
-      applyFunc(scanAssignTarget, args.filterNot(e => isPrimitive(e.t)))
-        .flatMap(r1 => scanIterE(givenMap.map(_._2))
-          .flatMap(r2 => scanIterE(yields.map(_._1))
-            .map(r3 => r1 ++ r2 ++ r3)))
-    case PreAssignExpression(target, value) => combine(scanAssignTarget(target), scanForAssignE(value))
-    case PointerSubscript(pointer, index) => combine(scanForAssignE(pointer), scanForAssignE(index))
-    case ArraySubscript(pointer, index) => combine(scanForAssignE(pointer), scanForAssignE(index))
-    case SeqSubscript(seq, index) => combine(scanForAssignE(seq), scanForAssignE(index))
-    case _ => None
-  }
-
-  def scanAssignTarget(e: Expr[Pre]): Option[Set[Variable[Pre]]] = e match {
-    case Local(v) => Some(Set(v.decl))
-    case ArraySubscript(arr, index) => combine(scanAssignTarget(arr), scanForAssignE(index))
-    case PointerSubscript(pointer, index) => combine(scanAssignTarget(pointer), scanForAssignE(index))
-    case SeqSubscript(seq, index) => combine(scanAssignTarget(seq), scanForAssignE(index))
-    case _ => None
-  }
-
-  def isPrimitive(t: Type[_]): Boolean = t match {
-    case _: PrimitiveType[_] => true
-    case _ => false
-  }
-
-  case class NonConstantVariables(vars: Set[Variable[Pre]])
 
   def isConstant(e: Expr[Post]): Boolean = e match {
-    case _ : Constant[Post, _] => true
-    // TODO: Is this true??
-//    case _: Local[Post] => true
+    case _ : Constant[Post] => true
+    case l: Local[_] if isConstType(l.t) => true
+    case _: Constant[_] => true
     case op: BinExpr[Post] => isConstant(op.left) && isConstant(op.right)
     case _ => false
   }
@@ -259,23 +186,15 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         implicit val o: Origin = v.o
         val from = dispatch(v.from)
         val to = dispatch(v.to)
-        val nonConstVars = scanForAssign(block.content)
-        if (nonConstVars.nonEmpty && constantExpression(v.from, nonConstVars.get) && constantExpression(v.to, nonConstVars.get)) {
-          rangeValues(v.variable) = (from, to)
-          res
-        } else {
-          val lo = variables.declare(new Variable[Post](TInt())(LowEvalOrigin(v)))
-          val hi = variables.declare(new Variable[Post](TInt())(HighEvalOrigin(v)))
-          val from = dispatch(v.from)
-          val to = dispatch(v.to)
-          val low = if(isConstant(from)) from else lo.get
-          val high = if(isConstant(to)) to else hi.get
-          rangeValues(v.variable) = (low, high)
-          res ++ Seq(
-            assignLocal(lo.get, from),
-            assignLocal(hi.get, to),
-          )
-        }
+        val lo = variables.declare(new Variable[Post](TInt())(LowEvalOrigin(v)))
+        val hi = variables.declare(new Variable[Post](TInt())(HighEvalOrigin(v)))
+        val low = if(isConstant(from)) from else lo.get
+        val high = if(isConstant(to)) to else hi.get
+        rangeValues(v.variable) = (low, high)
+        res ++ Seq(
+          assignLocal(lo.get, from),
+          assignLocal(hi.get, to),
+        )
       })(region.o)
   }
 
@@ -298,13 +217,18 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       })(region.o)
     case block@ParBlock(decl, iters, context_everywhere, requires, ensures, content) =>
       implicit val o: Origin = region.o
-      val (vars, init) = variables.collect {
-        Block(iters.map { v =>
+      val (vars, (init, blockNonEmpty)) = variables.collect {
+        val initsAndConds = iters.map { v =>
           dispatch(v.variable)
-          assignLocal(Local[Post](succ(v.variable)), IndeterminateInteger(from(v.variable), to(v.variable)))
-        })
+          val cond = from(v.variable) < to(v.variable)
+          val init = assignLocal(Local[Post](succ(v.variable)), ChooseFresh(RangeSet(from(v.variable), to(v.variable)))(PanicBlame("under branch from < to")))
+          (init, cond)
+        }
+
+        (Block(initsAndConds.map(_._1)), foldAnd(initsAndConds.map(_._2)))
       }
-      Scope(vars, Block(Seq(
+
+      val proof = Scope(vars, Block(Seq(
         init,
         FramedProof(
           pre = dispatch(context_everywhere) &* dispatch(requires),
@@ -312,6 +236,8 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
           post = dispatch(context_everywhere) &* dispatch(ensures),
         )(ParBlockProofFailed(block)),
       )))
+
+      Branch(Seq(blockNonEmpty -> proof))
   }
 
   def isParBlock(stat: ParRegion[Pre]): Boolean = stat match {

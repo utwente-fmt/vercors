@@ -5,7 +5,7 @@ import vct.antlr4.generated.CPPParser._
 import vct.antlr4.generated.CPPParserPatterns._
 import vct.antlr4.generated.LangCPPLexer
 import vct.col.ast._
-import vct.col.ast.`type`.TFloats
+import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.origin._
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.resolve.lang.CPP
@@ -71,7 +71,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     if (prependNamespace) {
       declarator match {
         case decl: CPPTypedFunctionDeclarator[G] => CPPTypedFunctionDeclarator[G](decl.params, decl.varargs, getPrependedNameDeclarator(decl.inner))
-        case CPPName(name) => CPPName[G]((currentNamespacePath.reverse :+ name).mkString("::"))(o)
+        case CPPName(name) => CPPName[G]((currentNamespacePath.reverse :+ name).mkString("::"))
         case _ => declarator
       }
     } else {
@@ -178,7 +178,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
 
   // Not supporting attribute specifiers
   def convert(implicit simpleDecl: SimpleDeclarationContext): CPPDeclaration[G] = simpleDecl match {
-    case SimpleDeclaration0(maybeContract, Some(declSpecs), maybeInits, _) =>
+    case SimpleDeclaration0(maybeContract, declSpecs, maybeInits, _) =>
       var convertedInits: Seq[CPPInit[G]] = Nil
       if (maybeInits.isDefined) {
         convert(maybeInits.get).foreach(init => {
@@ -199,12 +199,18 @@ case class CPPToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit exprStmnt: ExpressionStatementContext): Statement[G] = exprStmnt match {
     case ExpressionStatement0(None, _) => Block(Nil)
-    case ExpressionStatement0(Some(expr), _) => Eval(convert(expr))
+    case ExpressionStatement0(Some(expr), _) => Block(convert(expr).map(Eval(_)))
+  }
+
+  def convert(implicit exprs: OneOrMoreExpressionsContext): Seq[Expr[G]] = exprs match {
+    case OneOrMoreExpressions0(expr, _, moreExprs) => convert(expr) +: convert(moreExprs)
+    case OneOrMoreExpressions1(expr) => Seq(convert(expr))
   }
 
   def convert(implicit expr: ExpressionContext): Expr[G] = expr match {
-    case Expression0(inner) => convert(inner)
-    case Expression1(_, _, _) => ??(expr)
+    case Expression0(pre, inner, post) => convertEmbedWith(pre, convertEmbedThen (post, convert(inner)))
+    case Expression1(assignmentExpr) => convert(assignmentExpr)
+    case Expression2(_) => ??(expr)
   }
 
   // Do not support switch statement
@@ -224,59 +230,75 @@ case class CPPToCol[G](override val baseOrigin: Origin,
       Scope(Nil, Loop[G](Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(iterStmnt), CPPLifetimeScope(convert(body))))
     })
     case IterationStatement1(_, _, _, _, _, _, _) => ??(iterStmnt)
-    case IterationStatement2(contract1, _, _, ForInitStatement1(simpleDecl), cond, _, update, _, contract2, body) =>
+    case IterationStatement2(contract1, _, _, init, cond, _, update, _, contract2, body) =>
+      val loopInit = init match {
+        case ForInitStatement0(expr) => convert(expr)
+        case ForInitStatement1(simpleDecl) => CPPDeclarationStatement(new CPPLocalDeclaration(convert(simpleDecl)))
+      }
       withContract(contract1, contract2, c => {
-        Scope(Nil, Loop[G](CPPDeclarationStatement(new CPPLocalDeclaration(convert(simpleDecl))), cond.map(convert(_)).getOrElse(tt), evalOrNop(update), c.consumeLoopContract(iterStmnt), CPPLifetimeScope(convert(body))))
+        Scope(Nil, Loop[G](
+          loopInit,
+          cond.map(convert(_)).getOrElse(tt),
+          evalOrNop(update),
+          c.consumeLoopContract(iterStmnt),
+          CPPLifetimeScope(convert(body))
+        ))
       })
     case IterationStatement2(_, _, _, _, _, _, _, _, _, _) => ??(iterStmnt)
     case IterationStatement3(_, _, _, _, _, _, _, _, _) => ??(iterStmnt)
   }
 
-  // Do not support goto or return of a bracedInitList
+  // Do not support goto or return of a bracedInitList or multiple expressions
   def convert(implicit jumpStmnt: JumpStatementContext): Statement[G] = jumpStmnt match {
     case JumpStatement0(_, _) => col.Break(None)
     case JumpStatement1(_, _) => col.Continue(None)
-    case JumpStatement2(_, expr, _) => col.Return(convert(expr))
+    case JumpStatement2(_, expr, _) => convert(expr) match {
+      case Seq(e) => col.Return(e)
+      case _ => ??(jumpStmnt)
+    }
     case JumpStatement3(_, _, _) => ??(jumpStmnt)
     case JumpStatement4(_, _) => col.Return(col.Void())
     case JumpStatement5(_, _, _) => ??(jumpStmnt)
   }
 
-  // Do not support assignments in condition
+  // Do not support assignments in condition or multiple expressions
   def convert(implicit cond: ConditionContext): Expr[G] = cond match {
-    case Condition0(expr) => convert(expr)
+    case Condition0(expr) => convert(expr) match {
+      case Seq(e) => e
+      case _ => ??(cond)
+    }
     case _: Condition1Context => ??(cond)
   }
 
   // Do not support throw expression
   def convert(implicit expr: AssignmentExpressionContext): Expr[G] = expr match {
-    case AssignmentExpression0(pre, inner, post) =>
-      convertEmbedWith(pre, convertEmbedThen(post, convert(inner)))
-    case AssignmentExpression1(pre, targetNode, op, valueNode, post) =>
+    case AssignmentExpression0(pre, targetNode, op, valueNode, post) =>
       val e = convert(op, targetNode, valueNode, expr)
       convertEmbedWith(pre, convertEmbedThen(post, e))
-    case AssignmentExpression2(_) => ??(expr)
   }
 
   // Do not support bit operators
-  def convert(op: AssignmentOperatorContext, targetNode: LogicalOrExpressionContext, valueNode: InitializerClauseContext, expr: AssignmentExpressionContext)(implicit o: Origin): Expr[G] = {
+  def convert(op: AssignmentOperatorContext, targetNode: PointerMemberExpressionContext, valueNode: InitializerClauseContext, expr: AssignmentExpressionContext)(implicit o: Origin): Expr[G] = {
     val target = convert(targetNode)
     val value = convert(valueNode)
     PreAssignExpression(target, op match {
       case AssignmentOperator0(_) => value
       case AssignmentOperator1(_) => AmbiguousMult(target, value)
-      case AssignmentOperator2(_) => FloorDiv(target, value)(blame(expr))
-      case AssignmentOperator3(_) => col.Mod(target, value)(blame(expr))
+      case AssignmentOperator2(_) => TruncDiv(target, value)(blame(expr))
+      case AssignmentOperator3(_) => TruncMod(target, value)(blame(expr))
       case AssignmentOperator4(_) => col.AmbiguousPlus(target, value)(blame(valueNode))
       case AssignmentOperator5(_) => col.AmbiguousMinus(target, value)(blame(valueNode))
       case _ => ??(op)
     })(blame(expr))
   }
 
+  // Do not support multiple expressions
   def convert(implicit expr: ConditionalExpressionContext): Expr[G] = expr match {
     case ConditionalExpression0(inner) => convert(inner)
-    case ConditionalExpression1(cond, _, whenTrue, _, whenFalse) =>
-      Select(convert(cond), convert(whenTrue), convert(whenFalse))
+    case ConditionalExpression1(cond, _, whenTrue, _, whenFalse) => convert(whenTrue) match {
+      case Seq(e) => Select(convert(cond), e, convert(whenFalse))
+      case _ => ??(expr)
+    }
   }
 
   def convert(implicit expr: ImplicationExpressionContext): Expr[G] = expr match {
@@ -351,9 +373,9 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case MultiplicativeExpression0(inner) => convert(inner)
     case MultiplicativeExpression1(left, op, right) => op match {
       case MultiplicativeOp0(_) => AmbiguousMult(convert(left), convert(right))
-      case MultiplicativeOp1(_) => FloorDiv(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp2(_) => col.Mod(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp3(_) => col.Div(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp1(_) => TruncDiv(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp2(_) => TruncMod(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp3(_) => col.RatDiv(convert(left), convert(right))(blame(expr))
     }
   }
 
@@ -375,10 +397,15 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case CastExpression1(_, _, _, expr) => ??(expr)
   }
 
-  // Do not support bracedInitList
   def convert(implicit initClause: InitializerClauseContext): Expr[G] = initClause match {
-    case InitializerClause0(expr) => ??(expr)
+    case InitializerClause0(expr) => convert(expr)
     case InitializerClause1(expr) => convert(expr)
+  }
+
+  def convert(implicit bracedInitList: BracedInitListContext): Expr[G] = bracedInitList match {
+    case BracedInitList0(_, _) => ??(bracedInitList)
+    case BracedInitList1(_, initList, _) => CPPLiteralArray(convert(initList))
+    case BracedInitList2(_, initList, _, _) => CPPLiteralArray(convert(initList))
   }
 
   // Do not support '...'
@@ -394,10 +421,10 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case UnaryExpression0(inner) => convert(inner)
     case UnaryExpression1(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
+      PreAssignExpression(target, col.AmbiguousPlus(target, c_const(1))(blame(expr)))(blame(expr))
     case UnaryExpression2(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.AmbiguousMinus(target, const(1))(blame(expr)))(blame(expr))
+      PreAssignExpression(target, col.AmbiguousMinus(target, c_const(1))(blame(expr)))(blame(expr))
     case UnaryExpression3(UnaryOperator0(_), arg) => AddrOf(convert(arg))
     case UnaryExpression3(UnaryOperator1(_), arg) => DerefPointer(convert(arg))(blame(expr))
     case UnaryExpression3(UnaryOperator2(_), arg) => convert(arg)
@@ -434,10 +461,13 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case BraceOrEqualInitializer1(expr) => ??(expr)
   }
 
-  // Do not support templactes, typeNameSpecifiers, bracedInitLists,
+  // Do not support templates, typeNameSpecifiers, bracedInitLists, and multiple expressions
   def convert(implicit expr: PostfixExpressionContext): Expr[G] = expr match {
     case PostfixExpression0(inner) => convert(inner)
-    case PostfixExpression1(arr, _, idx, _) => AmbiguousSubscript(convert(arr), convert(idx))(blame(expr))
+    case PostfixExpression1(arr, _, idx, _) => convert(idx) match {
+      case Seq(i) => AmbiguousSubscript(convert(arr), i)(blame(expr))
+      case _ => ??(expr)
+    }
     case PostfixExpression2(_, _, _, _) => ??(expr)
     case PostfixExpression3(target, _, args, _, given, yields) =>
       CPPInvocation(convert(target), args.map(convert(_)) getOrElse Nil,
@@ -452,10 +482,10 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case PostfixExpression7(_, _, _) => ??(expr)
     case PostfixExpression8(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
+      PostAssignExpression(target, col.AmbiguousPlus(target, c_const(1))(blame(expr)))(blame(expr))
     case PostfixExpression9(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.AmbiguousMinus(target, const(1))(blame(expr)))(blame(expr))
+      PostAssignExpression(target, col.AmbiguousMinus(target, c_const(1))(blame(expr)))(blame(expr))
     case PostfixExpression10(e, SpecPostfix0(postfix)) => convert(expr, postfix, convert(e))
     case PostfixExpression11(_, _, _, _, _, _) => ??(expr)
     case PostfixExpression12(_, _) => ??(expr)
@@ -474,12 +504,15 @@ case class CPPToCol[G](override val baseOrigin: Origin,
       convertEmbedWith(pre, convertEmbedThen(post, convert(inner)))
   }
 
-  // Dot not more than 1 literal
+  // Do not support more than 1 literal or expression
   def convert(implicit expr: PrimaryExpressionContext): Expr[G] = expr match {
     case PrimaryExpression0(inner) => convert(inner)
     case PrimaryExpression1(literal) => convert(literal)
     case PrimaryExpression2(_) => AmbiguousThis()
-    case PrimaryExpression3(_, inner, _) => convert(inner)
+    case PrimaryExpression3(_, inner, _) => convert(inner) match {
+      case Seq(i) => i
+      case _ => ??(expr)
+    }
     case PrimaryExpression4(inner) => convert(inner) match {
       case CPPTypedefName(name, arg) => CPPLocal(name, arg)(blame(expr))(origin(expr))
       case SYCLClassDefName(name, arg) => CPPLocal("sycl::" + name, arg)(blame(expr))(origin(expr))
@@ -507,9 +540,9 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   def parseFloat(numFlag: String)(implicit o: Origin): Option[Expr[G]] = {
     try {
       Some(numFlag.last match {
-        case 'f' | 'F' => FloatValue(BigDecimal(numFlag.init), TFloats.ieee754_32bit)
-        case 'l' | 'L' => FloatValue(BigDecimal(numFlag.init), TFloats.ieee754_64bit)
-        case _ => FloatValue(BigDecimal(numFlag), TFloats.ieee754_32bit)
+        case 'f' | 'F' => FloatValue(BigDecimal(numFlag.init), TFloats.C_ieee754_32bit)
+        case 'l' | 'L' => FloatValue(BigDecimal(numFlag.init), TFloats.C_ieee754_64bit)
+        case _ => FloatValue(BigDecimal(numFlag), TFloats.C_ieee754_32bit)
       })
     } catch {
       case _: NumberFormatException => None
@@ -518,7 +551,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
 
   def parseInt(i: String)(implicit o: Origin): Option[Expr[G]] =
     try {
-      Some(IntegerValue(BigInt(i)))
+      Some(CIntegerValue(BigInt(i)))
     } catch {
       case _: NumberFormatException => None
     }
@@ -628,9 +661,9 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case SimpleTypeSpecifier8(_) => Seq(new CPPBool[G]())
     case SimpleTypeSpecifier9(Some(signedness), typeLengthMods, _) => Seq(convert(signedness)) ++ typeLengthMods.map(convert(_)) :+ new CPPInt[G]()
     case SimpleTypeSpecifier9(None, typeLengthMods, _) => typeLengthMods.map(convert(_)) :+ new CPPInt[G]()
-    case SimpleTypeSpecifier10(_) => Seq(CPPSpecificationType(TFloats.ieee754_32bit))
-    case SimpleTypeSpecifier11(Some(typeLengthMod), _) => Seq(convert(typeLengthMod), CPPSpecificationType(TFloats.ieee754_64bit))
-    case SimpleTypeSpecifier11(None, _) => Seq(CPPSpecificationType(TFloats.ieee754_64bit))
+    case SimpleTypeSpecifier10(_) => Seq(CPPSpecificationType(TFloats.C_ieee754_32bit))
+    case SimpleTypeSpecifier11(Some(typeLengthMod), _) => Seq(convert(typeLengthMod), CPPSpecificationType(TFloats.C_ieee754_64bit))
+    case SimpleTypeSpecifier11(None, _) => Seq(CPPSpecificationType(TFloats.C_ieee754_64bit))
     case SimpleTypeSpecifier12(_) => Seq(new CPPVoid[G]())
     case SimpleTypeSpecifier13(_) => ??(typeSpec)
     case SimpleTypeSpecifier14(valType) => Seq(CPPSpecificationType(convert(valType)))
@@ -766,7 +799,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case PointerOperator2(_, _, _, _) => ??(pointerOp)
   }
 
-  // Do not support attributeSpeciefierSeq
+  // Do not support attributeSpecifierSeq
   def convert(noPointerDeclarator: NoPointerDeclaratorContext)(implicit o: Origin): CPPDeclarator[G] = noPointerDeclarator match {
     case NoPointerDeclarator0(declaratorId, None) => convert(declaratorId)
     case NoPointerDeclarator0(_, _) => ??(noPointerDeclarator)
@@ -774,15 +807,9 @@ case class CPPToCol[G](override val baseOrigin: Origin,
       val (params, varargs) = convert(paramsAndQuals)
       CPPTypedFunctionDeclarator[G](params, varargs, convert(innerDeclarator))
     case NoPointerDeclarator2(innerDeclarator, _, None, _, None) =>
-      convert(innerDeclarator) match {
-        case CPPArrayDeclarator(_, _) => ??(noPointerDeclarator) // Do not support > 1 dimensions
-        case inner => CPPArrayDeclarator(inner, None)(blame(noPointerDeclarator))
-      }
+      CPPArrayDeclarator(None, convert(innerDeclarator))(blame(noPointerDeclarator))
     case NoPointerDeclarator2(innerDeclarator, _, Some(constExpr), _, None) =>
-      convert(innerDeclarator) match {
-        case CPPArrayDeclarator(_, _) => ??(noPointerDeclarator) // Do not support > 1 dimensions
-        case inner => CPPArrayDeclarator(inner, Some(convert(constExpr)))(blame(noPointerDeclarator))
-      }
+      CPPArrayDeclarator(Some(convert(constExpr)), convert(innerDeclarator))(blame(noPointerDeclarator))
     case NoPointerDeclarator2(_, _, _, _, _) => ??(noPointerDeclarator)
     case NoPointerDeclarator3(_, _, _) => ??(noPointerDeclarator)
   }
@@ -816,7 +843,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   // Do not support if spread operator '...' is used
   def convert(implicit declaratorId: DeclaratoridContext): CPPDeclarator[G] = declaratorId match {
     case Declaratorid0(None, idExpr) => convert(idExpr) match {
-      case CPPTypedefName(name, Seq()) => CPPName(name)
+      case CPPTypedefName(name, Nil) => CPPName(name)
       case _ => ??(declaratorId)
     }
     case Declaratorid0(_, _) => ??(declaratorId)
@@ -1103,7 +1130,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit root: ParserRuleContext, mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
-    case ValMulOp0(_) => col.Div(left, right)(blame(mulOp))
+    case ValMulOp0(_) => col.RatDiv(left, right)(blame(mulOp))
   }
 
   def convert(implicit root: ParserRuleContext, prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {
@@ -1368,6 +1395,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case ValEmptySet(_, t, _) => LiteralSet(convert(t), Nil)
     case ValEmptyBag(_, t, _) => LiteralBag(convert(t), Nil)
     case ValRange(_, from, _, to, _) => Range(convert(from), convert(to))
+    case ValRangeSet(_, from, _, to, _) => RangeSet(convert(from), convert(to))
   }
 
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] = e match {
@@ -1424,6 +1452,8 @@ case class CPPToCol[G](override val baseOrigin: Origin,
       Let(new Variable(convert(t))(origin(id).sourceName(convert(id))), convert(v), convert(body))
     case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
       ForPerm(convert(bindings), AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)), convert(body))
+    case ValForPermWithValue(_, _, _, id, _, body, _) =>
+      ForPermWithValue(new Variable(TAny())(origin(id).sourceName(convert(id))), convert(body))
   }
 
   def convert(implicit e: ValPrimaryVectorContext): Expr[G] = e match {
@@ -1486,6 +1516,12 @@ case class CPPToCol[G](override val baseOrigin: Origin,
       val allIndices = convert(indices)
       NdPartialIndex(allIndices.init, allIndices.last, convert(dims))
     case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
+    case ValEuclideanDiv(_, _, left, _, right, _) => FloorDiv(convert(left), convert(right))(blame(e))
+    case ValEuclideanMod(_, _, left, _, right, _) => col.Mod(convert(left), convert(right))(blame(e))
+    case ValPow(_, _, left, _, right, _) => SmtlibPow(convert(left), convert(right))
+    case ValIsInt(_, _, arg, _) => SmtlibIsInt(convert(arg))
+    case ValChoose(_, _, xs, _) => Choose(convert(xs))(blame(e))
+    case ValChooseFresh(_, _, xs, _) => ChooseFresh(convert(xs))(blame(e))
   }
 
   def convert(implicit e: ValExprPairContext): (Expr[G], Expr[G]) = e match {
@@ -1529,8 +1565,9 @@ case class CPPToCol[G](override val baseOrigin: Origin,
         new UnresolvedRef[G, ADTFunction[G]](convert(func)), args.map(convert(_)).getOrElse(Nil))
   }
 
-  def evalOrNop(implicit expr: Option[ExpressionContext]): Statement[G] = expr match {
-    case Some(expr) => Eval(convert(expr))(origin(expr))
+
+  def evalOrNop(implicit expr: Option[OneOrMoreExpressionsContext]): Statement[G] = expr match {
+    case Some(exprs) => Block(convert(exprs).map(e => Eval(e)(e.o)))(origin(exprs))
     case None =>
       // PB: strictly speaking it would be nice if we can point to the empty range that indicates the absence of a statement here.
       Block(Nil)(DiagnosticOrigin)
