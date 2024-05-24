@@ -13,7 +13,7 @@ import scala.collection.mutable
 case object EncodeAutoValue extends RewriterBuilder {
   override def key: String = "encodeAutoValue"
 
-  override def desc: String = "Encodes the AutoValue permission value"
+  override def desc: String = "Encodes the AutoValue resource"
 
   private def AnyReadOrigin: Origin = Origin(
     Seq(
@@ -25,7 +25,7 @@ case object EncodeAutoValue extends RewriterBuilder {
   case class InvalidAutoValue(e: Expr[_]) extends UserError {
     override def code: String = "invalidAutoValue"
 
-    override def text: String = e.o.messageInContext("The AutoValue permission value may only be in pre and postconditions in expressions containing only ?:, **, ==>, and let")
+    override def text: String = e.o.messageInContext("The AutoValue resource may only be in pre and postconditions in expressions containing only ?:, **, ==>, and let")
   }
 
   private sealed class PreOrPost
@@ -138,7 +138,6 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
             }
           }
         }
-        // This one is probably useless since you can't use resource expressions with and...
         case Select(condition, left, right) =>
           val top = conditionContext.pop()
           val c = try {

@@ -1404,6 +1404,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case ValCurPerm(_, _, loc, _) => CurPerm(AmbiguousLocation(convert(loc))(blame(e)))
     case ValPerm(_, _, loc, _, perm, _) => Perm(AmbiguousLocation(convert(loc))(blame(e)), convert(perm))
     case ValValue(_, _, loc, _) => Value(AmbiguousLocation(convert(loc))(blame(e)))
+    case ValAutoValue(_, _, loc, _) => AutoValue(AmbiguousLocation(convert(loc))(blame(e)))
     case ValPointsTo(_, _, loc, _, perm, _, v, _) => PointsTo(AmbiguousLocation(convert(loc))(blame(e)), convert(perm), convert(v))
     case ValHPerm(_, _, loc, _, perm, _) => ModelPerm(convert(loc), convert(perm))
     case ValAPerm(_, _, loc, _, perm, _) => ActionPerm(convert(loc), convert(perm))

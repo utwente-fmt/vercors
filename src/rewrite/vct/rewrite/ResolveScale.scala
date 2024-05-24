@@ -62,6 +62,8 @@ case class ResolveScale[Pre <: Generation]() extends Rewriter[Pre] {
       case Perm(loc, p) => Perm(dispatch(loc), amount * dispatch(p))
       case Value(loc) =>
         (amount > NoPerm()) ==> Value(dispatch(loc))
+      case AutoValue(loc) =>
+        (amount > NoPerm()) ==> AutoValue(dispatch(loc))
       case apply: PredicateApply[Pre] => apply.rewrite(perm = amount * dispatch(apply.perm))
       case apply: InstancePredicateApply[Pre] => apply.rewrite(perm = amount * dispatch(apply.perm))
 
