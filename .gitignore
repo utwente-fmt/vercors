@@ -20,6 +20,7 @@ vct-tool.jar
 .bsp/
 null/
 .compile-strict
+.include-vcllvm
 
 # Mac specific OS files
 .DS_Store

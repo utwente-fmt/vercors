@@ -1,5 +1,5 @@
-seq_program Main() {
-    seq_run {
+choreography Main() {
+    run {
 		foo(); // Error: cannot call static pure methods (after making foo a pure global func)
 	}
 }

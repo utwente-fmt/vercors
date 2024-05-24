@@ -1,7 +1,7 @@
-seq_program Main() {
+choreography Main() {
 	endpoint a = Role();
 
-	seq_run {
+	run {
 		a.some := new Role();
 	}
 }

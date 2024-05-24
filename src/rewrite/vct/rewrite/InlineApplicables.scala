@@ -99,7 +99,7 @@ case object InlineApplicables extends RewriterBuilder {
       val sub = Substitute[Pre](replacements.map(r => r.replacing -> r.withVariable.get).toMap)
       val replaced = sub.labelDecls.scope { sub.dispatch(e) }
       replacements.foldRight(replaced) {
-        case (replacement, e) => Let(replacement.withVariable, replacement.binding, e)
+        case (replacement, e) => Let(replacement.withVariable, replacement.binding, e)(e.o)
       }
     }
 
@@ -142,7 +142,7 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     program.declarations.collect { case cls: Class[Pre] => cls }.foreach { cls =>
-      cls.declarations.foreach(classOwner(_) = cls)
+      cls.decls.foreach(classOwner(_) = cls)
     }
     rewriteDefault(program)
   }

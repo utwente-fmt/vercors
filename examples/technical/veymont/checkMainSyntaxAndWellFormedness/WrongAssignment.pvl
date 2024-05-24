@@ -1,19 +1,19 @@
-seq_program Main() {
+choreography Main() {
     endpoint a = Role();
     endpoint b = Role();
     endpoint c = Role();
 
-	seq_run {
+	run {
 		a.x := b.x; // Error, assignment from multiple sources.
 	}
 }
 
-seq_program Main2() {
+choreography Main2() {
     endpoint a = Role();
     endpoint b = Role();
     endpoint c = Role();
 
-	seq_run {
+	run {
 	    foo();
 	}
 

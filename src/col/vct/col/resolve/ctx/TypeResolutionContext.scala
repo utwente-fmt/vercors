@@ -12,5 +12,6 @@ case class TypeResolutionContext[G]
   namespace: Option[JavaNamespace[G]] = None,
   externalJavaLoader: Option[ExternalJavaLoader] = None,
   javaClassPath: Seq[JavaClassPathEntry] = Nil,
+  inGpuKernel: Boolean = false,
   externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] = mutable.ArrayBuffer[GlobalDeclaration[G]](),
 )

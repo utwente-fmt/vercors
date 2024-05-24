@@ -1,6 +1,6 @@
 package vct.col.ast.expr.apply
 
-import vct.col.ast.ProcedureInvocation
+import vct.col.ast.{ProcedureInvocation, Type, Variable}
 import vct.col.print._
 import vct.col.ast.ops.ProcedureInvocationOps
 
@@ -15,4 +15,6 @@ trait ProcedureInvocationImpl[G] extends ProcedureInvocationOps[G] { this: Proce
           "("
       ) <> Doc.args(args ++ outArgs) <> ")" <> DocUtil.givenYields(givenMap, yields)
     )
+
+  override def typeEnv: Map[Variable[G], Type[G]] = ref.decl.typeArgs.zip(typeArgs).toMap
 }

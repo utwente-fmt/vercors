@@ -5,7 +5,8 @@ import vct.col.ast._
 import vct.col.ast.expr.apply.FunctionInvocationImpl
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
-import vct.result.VerificationError.UserError
+import vct.col.rewrite.Rewritten
+import vct.result.VerificationError.{Unreachable, UserError}
 
 /**
  * Collection of general AST building utilities. This is meant to organically grow, so add helpers as you see fit.
@@ -285,6 +286,13 @@ object AstBuildHelpers {
               (implicit o: Origin): ApplicableContract[G] =
     ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(blame)
 
+  def loopInvariant[G]
+                   (blame: Blame[LoopInvariantFailure],
+                    invariant: Expr[G] = null,
+                    decreases: Option[DecreasesClause[G]] = None)
+                   (implicit o: Origin): LoopContract[G] =
+    LoopInvariant(invariant, decreases)(blame)
+
   def withResult[G, T <: ContractApplicable[G]](builder: Result[G] => T)(implicit o: Origin): T = {
     val box = SuccessionMap[Unit, ContractApplicable[G]]()
     val result = Result[G](box.ref(()))
@@ -361,12 +369,13 @@ object AstBuildHelpers {
   def constructorInvocation[G]
                          (blame: Blame[InvocationFailure],
                           ref: Ref[G, Constructor[G]],
+                          classTypeArgs: Seq[Type[G]] = Nil,
                           args: Seq[Expr[G]] = Nil,
                           outArgs: Seq[Expr[G]] = Nil,
                           typeArgs: Seq[Type[G]] = Nil,
                           givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
                           yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): ConstructorInvocation[G] =
-    ConstructorInvocation(ref, args, outArgs, typeArgs, givenMap, yields)(blame)
+    ConstructorInvocation(ref, classTypeArgs, args, outArgs, typeArgs, givenMap, yields)(blame)
 
   private def GeneratedQuantifier: Origin = Origin(
     Seq(
@@ -504,4 +513,18 @@ object AstBuildHelpers {
 
   def foldAnd[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(And(_, _)).getOrElse(tt)
+
+  def loop[G](cond: Expr[G],
+              body: Statement[G],
+              init: Statement[G] = null,
+              update: Statement[G] = null,
+              contract: LoopContract[G] = null
+              )(implicit o: Origin): Loop[G] =
+    Loop(
+      init = Option(init).getOrElse(Block(Seq())),
+      contract = Option(contract).getOrElse(loopInvariant(blame = PanicBlame("Trivial contract"))),
+      cond = cond,
+      body = body,
+      update = Option(update).getOrElse(Block(Seq()))
+    )
 }

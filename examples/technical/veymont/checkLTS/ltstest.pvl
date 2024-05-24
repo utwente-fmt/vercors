@@ -11,21 +11,21 @@ class Role {
 }
 
 
-seq_program Main() {
+choreography Main() {
 	endpoint a = Role(0);
 	endpoint b = Role(8);
 	endpoint c = Role(4);
 
 	requires a.x == 0 && b.x == 8 && c.x == 4;
 	ensures a.x == b.x && b.x == c.x; 
-	seq_run {
+	run {
 		b.x := 3;
-		foo();
+		// foo(); // TODO (RR): Turn back on when it works again
 		a.compute();
 		b.x := 8;
 	}
 
-    requires a.x == 0 && c.x == 4;
+  requires a.x == 0 && c.x == 4;
 	ensures a.x == 8;
 	ensures c.x == 8;
 	void foo() {

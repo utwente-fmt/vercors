@@ -45,7 +45,7 @@ inline resource consistency(Process p1, Process p2, Process p3) =
 
 pure boolean xor(boolean a, boolean b) = a != b;
 
-seq_program Main() {
+choreography Main() {
   endpoint p1 = Process();
   endpoint p2 = Process();
   endpoint p3 = Process();
@@ -53,7 +53,7 @@ seq_program Main() {
   requires !p1.leader && !p2.leader && !p3.leader;
   requires consistency(p1, p2, p3);
   ensures xor(p1.leader, xor(p2.leader, p3.leader));
-  seq_run {
+  run {
     loop_invariant !p1.leader && !p2.leader && !p3.leader;
     loop_invariant consistency(p1, p2, p3);
     while (!p1.hasMaxId() && !p2.hasMaxId() && !p3.hasMaxId()) {

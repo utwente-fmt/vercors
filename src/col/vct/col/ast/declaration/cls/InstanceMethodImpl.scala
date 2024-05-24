@@ -31,7 +31,7 @@ trait InstanceMethodImpl[G] extends ClassDeclarationImpl[G] with AbstractMethodI
         body.map(Text(" ") <> _.layoutAsBlock).getOrElse(Text(";")),
     ))
 
-  override def check(context: CheckContext[G]): Seq[CheckError] = context.currentSeqProg match {
+  override def check(context: CheckContext[G]): Seq[CheckError] = context.currentChoreography match {
     case None => Seq()
     case Some(_) => (if(returnType != TVoid[G]()) Seq(SeqProgInstanceMethodNonVoid(this)) else Seq()) ++
         (if(args.nonEmpty) Seq(SeqProgInstanceMethodArgs(this)) else Seq()) ++

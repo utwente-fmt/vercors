@@ -1,15 +1,15 @@
+#include "vct/col/ast/col.pb.h"
+#include "Passes/Function/FunctionBodyTransformer.h"
+#include "Passes/Function/FunctionContractDeclarer.h"
+#include "Passes/Function/PureAssigner.h"
+#include "Passes/Module/ModuleSpecCollector.h"
+
 #include <llvm/IR/PassManager.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/CommandLine.h>
 
-#include "col.pb.h"
-
-#include "Passes/Function/FunctionBodyTransformer.h"
-#include "Passes/Function/FunctionContractDeclarer.h"
 #include "Passes/Function/FunctionDeclarer.h"
-#include "Passes/Function/PureAssigner.h"
-#include "Passes/Module/ModuleSpecCollector.h"
 
 #include "Transform/Transform.h"
 #include "Origin/OriginProvider.h"
@@ -19,21 +19,21 @@
 #include <iostream>
 #include <memory>
 
-namespace col = vct::col::serialize;
+namespace col = vct::col::ast;
 
 col::Program sampleCol(bool returnBool) {
     col::Program program = col::Program();
 
     // class
     col::GlobalDeclaration *classDeclaration = program.add_declarations();
-    llvm2Col::setColNodeId(classDeclaration);
     col::VctClass *vctClass = classDeclaration->mutable_vct_class();
+    llvm2Col::setColNodeId(vctClass);
     col::BooleanValue *lockInvariant = vctClass->mutable_intrinsic_lock_invariant()->mutable_boolean_value();
     lockInvariant->set_value(true);
     // class>method
-    col::ClassDeclaration *methodDeclaration = vctClass->add_declarations();
-    llvm2Col::setColNodeId(methodDeclaration);
+    col::ClassDeclaration *methodDeclaration = vctClass->add_decls();
     col::InstanceMethod *method = methodDeclaration->mutable_instance_method();
+    llvm2Col::setColNodeId(method);
     // class>method>return_type
     method->mutable_return_type()->mutable_t_bool();
     // class>method>body
@@ -54,7 +54,7 @@ col::Program sampleCol(bool returnBool) {
     // class>method>contract>postcondition
     col::UnitAccountedPredicate *postcondition = contract->mutable_ensures()->mutable_unit_accounted_predicate();
     col::Ref *postRefResult = postcondition->mutable_pred()->mutable_result()->mutable_applicable();
-    postRefResult->set_index(methodDeclaration->id());
+    postRefResult->set_id(method->id());
     // class>method>contract>context_everywhere
     col::BooleanValue *contextEverywhere = contract->mutable_context_everywhere()->mutable_boolean_value();
     contextEverywhere->set_value(true);
@@ -98,7 +98,8 @@ int main(int argc, char **argv) {
     vcllvm::Module *module = pModule.release();
     auto pProgram = std::make_shared<col::Program>();
     // set program origin
-    pProgram->set_origin(llvm2Col::generateProgramOrigin(*module));
+    pProgram->set_allocated_origin(llvm2Col::generateProgramOrigin(*module));
+    pProgram->set_allocated_blame(new col::Blame());
     // Create the analysis managers.
     vcllvm::LoopAnalysisManager LAM;
     vcllvm::FunctionAnalysisManager FAM;

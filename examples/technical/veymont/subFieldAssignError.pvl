@@ -1,0 +1,18 @@
+class Box {
+  int x;
+}
+
+class Role {
+  Box b;
+
+  constructor() {
+    b = new Box();
+  }
+}
+
+choreography assign(Box b) {
+  endpoint r = Role();
+  run {
+    b.x := 3;
+  }
+}

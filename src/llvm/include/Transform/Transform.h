@@ -9,7 +9,7 @@
  */
 
 namespace llvm2Col {
-    namespace col = vct::col::serialize;
+    namespace col = vct::col::ast;
 
     // type transformers
     void transformAndSetType(llvm::Type &llvmType, col::Type &colType);
@@ -53,7 +53,7 @@ namespace llvm2Col {
                           ColBinExpr &colBinExpr,
                           vcllvm::FunctionCursor &funcCursor) {
         // set origin of entire expression
-        colBinExpr.set_origin(generateBinExprOrigin(llvmInstruction));
+        colBinExpr.set_allocated_origin(generateBinExprOrigin(llvmInstruction));
         // transform left operand
         col::Expr *lExpr = colBinExpr.mutable_left();
         llvm2Col::transformAndSetExpr(

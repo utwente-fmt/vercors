@@ -88,9 +88,9 @@ trait BinExprImpl[G] { this: BinExpr[G] =>
   def isVectorOp: Boolean = BinOperatorTypes.isVectorOp(left.t, right.t)
   def isVectorIntOp: Boolean = BinOperatorTypes.isVectorIntOp(left.t, right.t)
 
-  def getIntType: IntType[G] = BinOperatorTypes.getIntType(left.t, right.t)
+  lazy val getIntType: IntType[G] = BinOperatorTypes.getIntType(left.t, right.t)
 
-  def getNumericType: Type[G] = BinOperatorTypes.getNumericType(left.t, right.t, o)
+  lazy val getNumericType: Type[G] = BinOperatorTypes.getNumericType(left.t, right.t, o)
 
-  def getVectorType: TVector[G] = BinOperatorTypes.getVectorType(left.t, right.t, o)
+  lazy val getVectorType: TVector[G] = BinOperatorTypes.getVectorType(left.t, right.t, o)
 }

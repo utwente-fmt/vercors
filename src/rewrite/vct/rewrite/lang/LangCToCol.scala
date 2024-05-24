@@ -295,7 +295,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case _ => false
   }
 
-  def getBaseType(t: Type[Pre]): Type[Pre] = t match {
+  def getBaseType[G](t: Type[G]): Type[G] = t match {
     case CPrimitiveType(specs) =>
       C.getPrimitiveType(specs)
     case _ => t
@@ -472,8 +472,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     case _ => throw Unreachable("Already checked on pointer or array type")
   }
 
-  def declareSharedMemory(): (Seq[Variable[Post]], Seq[Statement[Post]]) = rw.variables.collect {
-    var result: Seq[Statement[Post]] = Seq()
+  def declareSharedMemory(): (Seq[Variable[Post]], (Seq[Variable[Post]], Seq[Statement[Post]])) =
+    rw.variables.collect {
+    var declarations: Seq[Variable[Post]] = Seq()
+    var inits: Seq[Statement[Post]] = Seq()
     dynamicSharedMemNames.foreach(d =>
     {
       implicit val o: Origin = getCDecl(d).o
@@ -481,21 +483,23 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       val v = new Variable[Post](TCInt())(varO)
       dynamicSharedMemLengthVar(d) = v
       rw.variables.declare(v)
-      val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
+//      val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
         NewPointerArray[Post](getInnerType(cNameSuccessor(d).t), Local(v.ref))(PanicBlame("Shared memory sizes cannot be negative.")))
-      result ++= Seq(decl, assign)
+      declarations ++= Seq(cNameSuccessor(d))
+      inits ++= Seq(assign)
     })
     staticSharedMemNames.foreach{case (d,(size, blame)) =>
     implicit val o: Origin = getCDecl(d).o
-      val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
+//      val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
         // Since we set the size and blame together, we can assume the blame is not None
         NewPointerArray[Post](getInnerType(cNameSuccessor(d).t), CIntegerValue(size))(blame.get))
-      result ++= Seq(decl, assign)
+      declarations ++= Seq(cNameSuccessor(d))
+      inits ++= Seq(assign)
     }
 
-    result
+    (declarations, inits)
   }
 
   def kernelProcedure(o: Origin, contract: ApplicableContract[Pre], info: C.DeclaratorInfo[Pre], body: Option[Statement[Pre]]
@@ -509,10 +513,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     cudaCurrentBlockDim.having(blockDim) {
       cudaCurrentGridDim.having(gridDim) {
         val args = rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
+        val implFiltered = body.map(init => filterSharedDecl(init))
+
         rw.variables.collect { dynamicSharedMemNames.foreach(d => rw.variables.declare(cNameSuccessor(d)) ) }
         rw.variables.collect { staticSharedMemNames.foreach(d => rw.variables.declare(cNameSuccessor(d._1)) ) }
-        val implFiltered = body.map(init => filterSharedDecl(init))
-        val (sharedMemSizes, sharedMemInit: Seq[Statement[Post]]) = declareSharedMemory()
+        val (sharedMemSizes, (sharedMemDecls: Seq[Variable[Post]], sharedMemInits: Seq[Statement[Post]])) = declareSharedMemory()
 
         val newArgs = blockDim.indices.values.toSeq ++ gridDim.indices.values.toSeq ++ args ++ sharedMemSizes
         val newGivenArgs = rw.variables.dispatch(contract.givenArgs)
@@ -571,7 +576,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
                             .map(allThreadsInBlock(KernelNotInjective(kernelSpec)))) )
                       ),
                     // Add shared memory initialization before beginning of inner parallel block
-                    content = Block[Post](sharedMemInit ++ Seq(innerContent))
+                    content =  Scope[Post](sharedMemDecls, Block[Post](sharedMemInits ++ Seq(innerContent)))
                   )(KernelParFailure(kernelSpec)))
                 }
               }
@@ -640,24 +645,25 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def addDynamicShared(cRef: CNameTarget[Pre], t: Type[Pre], o: Origin): Unit = {
     dynamicSharedMemNames.add(cRef)
-    val v = new Variable[Post](TArray[Post](rw.dispatch(t)))(o)
+    val v = new Variable[Post](TPointer[Post](rw.dispatch(t)))(o)
     cNameSuccessor(cRef) = v
   }
 
   def addStaticShared(decl:  CDeclarator[Pre], cRef: CNameTarget[Pre], t: Type[Pre], o: Origin,
                       declStatement: CLocalDeclaration[Pre], arraySize: Option[Expr[Pre]], sizeBlame: Option[Blame[ArraySizeError]]): Unit = arraySize match {
       case Some(CIntegerValue(size)) =>
-        val v = new Variable[Post](TArray[Post](rw.dispatch(t)))(o)
+        val v = new Variable[Post](TPointer[Post](rw.dispatch(t)))(o)
         staticSharedMemNames(cRef) = (size, sizeBlame)
         cNameSuccessor(cRef) = v
       case _ => throw WrongGPULocalType(declStatement)
   }
 
   def isShared(s: Statement[Pre]): Boolean = {
-    if(!s.isInstanceOf[CDeclarationStatement[Pre]])
-      return false
-
-    val CDeclarationStatement(decl) = s
+    val decl = s match {
+      case CDeclarationStatement(decl) => decl
+      case Block(Seq(s_inner)) => return isShared(s_inner)
+      case _ => return false
+    }
 
     if (decl.decl.inits.size != 1)
       throw MultipleSharedMemoryDeclaration(decl)
@@ -703,7 +709,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case CDeclaration(_, _, Seq(sdecl@CStructDeclaration(Some(_), decls)), Seq()) => (decls, sdecl)
       case _ => throw WrongStructType(decl)
     }
-    val newStruct = new Class[Post](rw.classDeclarations.collect {
+    val newStruct = new Class[Post](Seq(), rw.classDeclarations.collect {
         decls.foreach { fieldDecl =>
           val CStructMemberDeclarator(specs: Seq[CDeclarationSpecifier[Pre]], Seq(x)) = fieldDecl
           fieldDecl.drop()
@@ -816,7 +822,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
     implicit val o: Origin = init.o
     val targetClass: Class[Post] = cStructSuccessor(ref.decl)
-    val t = TClass[Post](targetClass.ref)
+    val t = TClass[Post](targetClass.ref, Seq())
 
     val v = new Variable[Post](t)(o.sourceName(info.name))
     cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
@@ -895,17 +901,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def isPointer(t: Type[Pre]): Boolean = getPointer(t).isDefined
 
-  def getPointer(t: Type[Pre]) : Option[TPointer[Pre]] = t match {
+  def getPointer(t: Type[Pre]) : Option[TPointer[Pre]] = getBaseType(t) match {
     case t@TPointer(_) => Some(t)
-    case CPrimitiveType(specs) =>
-      specs.collectFirst{case CSpecificationType(t@TPointer(_)) => t}
     case _ => None
   }
 
-  def isNumeric(t: Type[Pre]): Boolean = t match{
+  def isNumeric(t: Type[Pre]): Boolean = getBaseType(t) match{
     case _: NumericType[Pre] => true
-    case CPrimitiveType(specs) =>
-      specs.collectFirst{case CSpecificationType(_ : NumericType[Pre]) =>}.nonEmpty
     case _ => false
   }
 
@@ -914,6 +916,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     case PointerAdd(arr : CLocal[Pre], _) => Seq(arr.ref.get)
     case AmbiguousSubscript(arr : CLocal[Pre], _) => Seq(arr.ref.get)
     case AmbiguousPlus(l, r) if isPointer(l.t) && isNumeric(r.t) => searchNames(l, original)
+    case AddrOf(inner) => searchNames(inner, original)
     case _ => throw UnsupportedBarrierPermission(original)
   }
 
@@ -1026,10 +1029,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case struct: RefCStruct[Pre] => ???
       case struct: RefCStructField[Pre] =>
         val b: Blame[PointerDerefError] = deref.blame
-        val structRef = deref.struct.t match {
-          case t@CPrimitiveType(specs) =>
-            val struct = specs.collectFirst { case CSpecificationType(CTPointer(CTStruct(ref))) => ref }
-            struct.getOrElse(throw WrongStructType(t))
+        val structRef = getBaseType(deref.struct.t) match {
+          case CTPointer(CTStruct(struct)) => struct
           case t => throw WrongStructType(t)
         }
         Deref[Post](DerefPointer(rw.dispatch(deref.struct))(b), cStructFieldsSuccessor.ref((structRef.decl, struct.decls)))(deref.blame)(deref.o)
@@ -1064,7 +1065,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def createStructCopy(value: Expr[Post], struct: CGlobalDeclaration[Pre], blame: InstanceField[_] => Blame[InsufficientPermission])(implicit o: Origin): Expr[Post] = {
     val structClass: Class[Post] = cStructSuccessor(struct)
-    val t = TClass[Post](structClass.ref)
+    val t = TClass[Post](targetClass.ref, Seq())
 
     // Assign a new variable towards the value, such that methods do not get executed multiple times.
     val vValue = new Variable[Post](t)
@@ -1086,8 +1087,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
   def assignStruct(assign: PreAssignExpression[Pre]): Expr[Post] = {
-    assign.target.t match {
-      case CPrimitiveType(Seq(CSpecificationType(CTStruct(ref)))) =>
+    getBaseType(assign.target.t) match {
+      case CTStruct(ref) =>
         val copy = createStructCopy(rw.dispatch(assign.value), ref.decl, (f: InstanceField[_]) => StructCopyFailed(assign, f))(assign.o)
         PreAssignExpression(rw.dispatch(assign.target), copy)(AssignLocalOk)(assign.o)
       case _ => throw WrongStructType(assign.target)
@@ -1207,9 +1208,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     With(before, PreAssignExpression(lhs_vec, LiteralVector(innerType, vals)(assign.o))(assign.blame)(assign.o))(assign.o)
   }
 
-  def isCPointer(t: Type[_]): Boolean = t match {
+  def isCPointer(t: Type[_]) = getBaseType(t) match {
     case CTPointer(_) => true
-    case CPrimitiveType(Seq(CSpecificationType(CTPointer(_)))) => true
     case _ => false
   }
 
@@ -1262,12 +1262,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
     // Create copy for any direct structure arguments
     val newArgs = args.map(a =>
-      a.t match {
-        case CPrimitiveType(specs) if specs.collectFirst { case CSpecificationType(_: CTStruct[Pre]) => () }.isDefined =>
-          specs match {
-            case Seq(CSpecificationType(CTStruct(ref))) => createStructCopy(rw.dispatch(a), ref.decl, (f: InstanceField[_]) => StructCopyBeforeCallFailed(inv, f))(a.o)
-            case _ => throw WrongStructType(a)
-          }
+      getBaseType(a.t) match {
+        case CTStruct(ref) => createStructCopy(rw.dispatch(a), ref.decl, (f: InstanceField[_]) => StructCopyBeforeCallFailed(inv, f))(a.o)
         case _ => rw.dispatch(a)
       }
     )
@@ -1379,14 +1375,18 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     */
   def cudaGlobalThreadId(global: GlobalThreadId[Pre]): Expr[Post] = {
     implicit val o: Origin = global.o
-    Plus(
-      Plus(
-        Mult(
-          Mult(getCudaGroupThread(2, o), getCudaGroupSize(1, o)),   // (get_global_id(2) * get_global_size(1)
-          getCudaGroupSize(0, o)),                                         //   * get_global_size(0)
-        Mult(getCudaGroupThread(1, o), getCudaGroupSize(0, o))),    //   + get_global_id(1) * get_global_size(0)
-      getCudaGroupThread(0, o)                                             //   + get_global_id(0)
-    )
+    val res =
+      (getGlobalId(2)*getGlobalSize(1)*getGlobalSize(0)) +
+        getGlobalId(1)*getGlobalSize(0) + getGlobalId(0)
+    return res;
+  }
+
+  def getGlobalId(idx: Int)(implicit o: Origin): Expr[Post] = {
+    getCudaGroupThread(idx, o) * getCudaLocalSize(idx, o) + getCudaLocalThread(idx, o)
+  }
+
+  def getGlobalSize(idx: Int)(implicit o: Origin): Expr[Post] = {
+    getCudaLocalSize(idx, o)*getCudaGroupSize(idx, o)
   }
 
   def globalInvocation(e: RefCGlobalDeclaration[Pre], inv: CInvocation[Pre], rewrittenArgs: Seq[Expr[Post]]): Expr[Post] = {
@@ -1444,6 +1444,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def structType(t: CTStruct[Pre]): Type[Post] = {
     val targetClass = new LazyRef[Post, Class[Post]](cStructSuccessor(t.ref.decl))
-    TClass[Post](targetClass)(t.o)
+    TClass[Post](targetClass, Seq())(t.o)
   }
 }
