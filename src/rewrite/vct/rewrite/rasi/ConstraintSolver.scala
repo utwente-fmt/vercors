@@ -5,8 +5,8 @@ import vct.col.ast._
 class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVariable[G]], is_contract: Boolean) {
 
   /**
-   * Resolves the constraints necessary to make the given assumption true. If there are multiple disjoint possibilities
-   * to make it true, returns one constraint for each possibility separately.
+   * Resolves the constraints necessary to make the given boolean expression true. If there are multiple disjoint
+   * possibilities to make it true, returns one constraint for each possibility separately.
    *
    * @param expr Boolean formula to be resolved to a constraint
    * @return A set of constraint maps mapping variables to possible values
@@ -83,8 +83,16 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
   private def handle_implies(left: Expr[G], right: Expr[G], neg_left: Boolean = false, neg_right: Boolean = false): Set[ConstraintMap[G]] = {
     val resolve_left: UncertainBooleanValue = state.resolve_boolean_expression(left, is_old = false, is_contract)
     var res: Set[ConstraintMap[G]] = Set()
-    if (neg_left && resolve_left.can_be_false || (!neg_left) && resolve_left.can_be_true) res = res ++ resolve(right, neg_right)
-    if (neg_left && resolve_left.can_be_true || (!neg_left) && resolve_left.can_be_false) res = res ++ Set(ConstraintMap.empty[G])
+    if (neg_left && resolve_left.can_be_false || (!neg_left) && resolve_left.can_be_true) {
+      val constraints: Set[ConstraintMap[G]] = resolve(right, neg_right)
+      val variables = vars.asInstanceOf[Set[ResolvableVariable[G]]].diff(constraints.flatMap(c => c.resolve.keySet))
+      val path_condition: ConstraintMap[G] = resolve_path_condition(if (neg_left) Not(left)(left.o) else left, variables)
+      res = res ++ constraints.map(m => m && path_condition)
+    }
+    if (neg_left && resolve_left.can_be_true || (!neg_left) && resolve_left.can_be_false) {
+      val path_condition: ConstraintMap[G] = ConstraintMap.empty[G] // TODO: resolve_path_condition(if (neg_left) left else Not(left)(left.o), vars)
+      res = res + path_condition
+    }
     res
   }
 
@@ -203,6 +211,10 @@ class ConstraintSolver[G](state: AbstractState[G], vars: Set[_ <: ResolvableVari
       if (condition.can_be_true && !condition.can_be_false) get_contained_indices(ift)
       else if (condition.can_be_false && !condition.can_be_true) get_contained_indices(iff)
       else ???
+  }
+
+  private def resolve_path_condition(cond: Expr[G], variables: Set[_ <: ResolvableVariable[G]]): ConstraintMap[G] = {
+    new ConstraintSolver(state, variables, false).resolve_assumption(Utils.remove_old(cond)).reduce((m1, m2) => m1 || m2)
   }
 
   private def get_size_vars(variable: Expr[G]): Set[SizeVariable[G]] =

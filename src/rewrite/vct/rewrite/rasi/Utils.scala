@@ -69,6 +69,15 @@ case object Utils {
     Substitute(args.map[Expr[G], Expr[G]]{ case (v, e) => Local[G](v.ref)(v.o) -> Old(e, None)(e.o)(e.o) }).dispatch(cond)
 
   /**
+   * Removes <code>\old</code> keywords from an expression.
+   *
+   * @param cond Expression to transform
+   * @return Same expression as <code>cond</code> but with <code>\old</code> specifications removed
+   */
+  def remove_old[G](cond: Expr[G]): Expr[G] =
+    Substitute(Map.from[Expr[G], Expr[G]](cond.transSubnodes.collect{ case o @ Old(expr, _) => o -> expr })).dispatch(cond)
+
+  /**
    * Determines whether an expression contains a reference to the global invariant.
    *
    * @param node COL node containing an expression

@@ -25,7 +25,7 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path) extends Stage[Node
     val main_method = in.transSubnodes.collectFirst{ case m: InstanceMethod[_] if m.o.getPreferredName.get.snake.equals("main") => m }.get
     val variables: Set[ConcreteVariable[Generation]] = vars.getOrElse(Seq()).map(s => resolve_variable(in, s)).toSet
     val parameter_invariant: InstancePredicate[Generation] = get_parameter_invariant(in)
-    RASIGenerator().test(main_method, variables, parameter_invariant, out)
+    new RASIGenerator().test(main_method, variables, parameter_invariant, out)
   }
 
   private def resolve_variable(in: Node[Generation], name: String): ConcreteVariable[Generation] = {

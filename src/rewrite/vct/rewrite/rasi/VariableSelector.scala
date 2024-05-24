@@ -45,7 +45,7 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
     case Some(e) =>
       if (!state.resolve_boolean_expression(e).can_be_false) Set(ConstraintMap.empty[G])
       else {
-        val variables: Set[ResolvableVariable[G]] = free_variables(state, e)
+        val variables: Set[ResolvableVariable[G]] = free_variables(initial_state, e)
         new ConstraintSolver(state, variables, is_contract = false).resolve_assumption(e).filter(m => !m.is_impossible)
       }
   }
