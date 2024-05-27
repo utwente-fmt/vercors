@@ -9,8 +9,13 @@ import java.nio.file.Path
 import scala.meta._
 
 class SuccessorsProvider extends AllFamiliesGenerator {
-  override def generate(out: Path, declaredFamilies: Seq[structure.Name], structuralFamilies: Seq[structure.Name]): Unit =
-    ResultStream.write(out.resolve("SuccessorsProvider.scala"), source(declaredFamilies))
+  override def generate(
+      out: Path,
+      declaredFamilies: Seq[structure.Name],
+      structuralFamilies: Seq[structure.Name],
+  ): Unit =
+    ResultStream
+      .write(out.resolve("SuccessorsProvider.scala"), source(declaredFamilies))
 
   def source(declaredFamilies: Seq[structure.Name]): Source =
     source"""
@@ -25,9 +30,7 @@ class SuccessorsProvider extends AllFamiliesGenerator {
     q"""
       trait SuccessorsProvider[Pre, Post] {
         def anySucc[RefDecl <: $Declaration[Post]](`~decl`: $Declaration[Pre])(implicit tag: $ClassTag[RefDecl]): $RefType[Post, RefDecl] =
-          ${Term.Match(q"`~decl`", declaredFamilies.map(name =>
-            Case(p"(decl: ${typ(name)}[Pre])", None, q"succ(decl)")
-          ).toList)}
+          ${Term.Match(q"`~decl`", declaredFamilies.map(name => Case(p"(decl: ${typ(name)}[Pre])", None, q"succ(decl)")).toList)}
 
         ..${declaredFamilies.map(name => q"""
           def computeSucc(decl: ${typ(name)}[Pre]): $OptionType[${typ(name)}[Post]]
@@ -40,7 +43,9 @@ class SuccessorsProvider extends AllFamiliesGenerator {
       }
     """
 
-  def successorsProviderChain(declaredFamilies: Seq[structure.Name]): Defn.Class =
+  def successorsProviderChain(
+      declaredFamilies: Seq[structure.Name]
+  ): Defn.Class =
     q"""
       case class SuccessorsProviderChain[A, B, C](left: $SuccessorsProvider[A, B], right: $SuccessorsProvider[B, C]) extends ${Init(t"SuccessorsProvider[A, C]", Name.Anonymous(), List.empty)} {
         ..${declaredFamilies.map(name => q"""
@@ -50,7 +55,9 @@ class SuccessorsProvider extends AllFamiliesGenerator {
       }
     """
 
-  def successorsProviderTrafo(declaredFamilies: Seq[structure.Name]): Defn.Class =
+  def successorsProviderTrafo(
+      declaredFamilies: Seq[structure.Name]
+  ): Defn.Class =
     q"""
       abstract class SuccessorsProviderTrafo[Pre, Post](inner: $SuccessorsProvider[Pre, Post]) extends ${Init(t"$SuccessorsProvider[Pre, Post]", Name.Anonymous(), List.empty)} {
         def preTransform[I <: $Declaration[Pre], O <: $Declaration[Post]](pre: I): $OptionType[O] = None

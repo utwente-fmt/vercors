@@ -4,7 +4,8 @@ import vct.col.ast.{BitAnd, TInt, Type}
 import vct.col.print._
 import vct.col.ast.ops.BitAndOps
 
-trait BitAndImpl[G] extends BitAndOps[G] { this: BitAnd[G] =>
+trait BitAndImpl[G] extends BitAndOps[G] {
+  this: BitAnd[G] =>
   override def t: Type[G] = getIntType
 
   override def precedence: Int = Precedence.BIT_AND

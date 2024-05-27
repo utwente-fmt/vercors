@@ -10,7 +10,8 @@ object Time {
   def formatTime(): String = formatTime(java.time.Instant.now())
 
   def formatTime(when: Instant): String = {
-    val formatter = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
+    val formatter = DateTimeFormatter.ofPattern("HH:mm:ss")
+      .withZone(ZoneId.systemDefault())
     formatter.format(when)
   }
 }

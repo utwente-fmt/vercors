@@ -9,10 +9,10 @@ import scala.meta.dialects.Scala213
 import scala.util.Using
 
 object ResultStream {
-  /**
-   * Forwards all writes to the inner Appendable, but stores the two last written
-   * characters.
-   */
+
+  /** Forwards all writes to the inner Appendable, but stores the two last
+    * written characters.
+    */
   class MiniContextAppendable(inner: Appendable) extends Appendable {
     private var last: Char = ' '
     private var prelast: Char = ' '
@@ -24,10 +24,10 @@ object ResultStream {
       _position += cs.length()
       inner.append(cs)
 
-      if(cs.length() > 1) {
+      if (cs.length() > 1) {
         prelast = cs.charAt(cs.length() - 2)
         last = cs.charAt(cs.length() - 1)
-      } else if(cs.length() > 0) {
+      } else if (cs.length() > 0) {
         prelast = last
         last = cs.charAt(cs.length() - 1)
       }
@@ -35,14 +35,14 @@ object ResultStream {
     }
 
     override def append(cs: CharSequence, start: Int, end: Int): Appendable = {
-      if(end > start)
+      if (end > start)
         _position += end - start
       inner.append(cs, start, end)
 
-      if(end - start > 1) {
+      if (end - start > 1) {
         prelast = cs.charAt(end - 2)
         last = cs.charAt(end - 1)
-      } else if(end - start > 0) {
+      } else if (end - start > 0) {
         prelast = last
         last = cs.charAt(end - 1)
       }
@@ -58,8 +58,7 @@ object ResultStream {
       this
     }
 
-    def miniContext: String =
-      s"$prelast$last"
+    def miniContext: String = s"$prelast$last"
   }
 
   def newline(out: Appendable, indentation: Int): Unit = {
@@ -77,14 +76,18 @@ object ResultStream {
   def write(out: Appendable, result: Result): Unit =
     write(new MiniContextAppendable(out), result, 0)
 
-  /**
-   * @see [[Result.toString]]
-   */
-  def write(out: MiniContextAppendable, result: Result, indentation: Int): Unit =
+  /** @see
+    *   [[Result.toString]]
+    */
+  def write(
+      out: MiniContextAppendable,
+      result: Result,
+      indentation: Int,
+  ): Unit =
     result match {
       case None =>
       case Str(text) => out.append(text)
-      case Sequence(xs@_*) => xs.foreach(write(out, _, indentation))
+      case Sequence(xs @ _*) => xs.foreach(write(out, _, indentation))
       case Repeat(first +: tail, sep) =>
         write(out, first, indentation)
         tail.foreach { x =>
@@ -98,15 +101,16 @@ object ResultStream {
       case Newline(res) =>
         newline(out, indentation)
         write(out, res, indentation)
-      case Meta(_, res) =>
-        write(out, res, indentation)
+      case Meta(_, res) => write(out, res, indentation)
       case Wrap(prefix, res, suffix) =>
         val text = res.toString
-        if(text.nonEmpty) {
-          out.append(prefix).append(text).append(suffix)
-        }
+        if (text.nonEmpty) { out.append(prefix).append(text).append(suffix) }
       case Function(fn) =>
-        if(fn.getClass.getName.startsWith("scala.meta.internal.prettyprinters.TreeSyntax$SyntaxInstances$$Lambda$")) {
+        if (
+          fn.getClass.getName.startsWith(
+            "scala.meta.internal.prettyprinters.TreeSyntax$SyntaxInstances$$Lambda$"
+          )
+        ) {
           // Currently the only instance: prepends a space if the surrounding output is dangerous.
           // Luckily it considers only the preceding two characters, so that's all the buffer we'll store
           val sb = new StringBuilder(out.miniContext)

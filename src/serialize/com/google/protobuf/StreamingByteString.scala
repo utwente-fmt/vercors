@@ -2,10 +2,10 @@ package com.google.protobuf
 
 import java.io.ByteArrayOutputStream
 
-/**
- * ForwardingByteString that optimizes for writing literal generated messages.
- */
-trait StreamingByteString { this: ForwardingByteString =>
+/** ForwardingByteString that optimizes for writing literal generated messages.
+  */
+trait StreamingByteString {
+  this: ForwardingByteString =>
   override lazy val underlying: ByteString = {
     val buf = new Array[Byte](size())
     val out = CodedOutputStream.newInstance(buf)
@@ -20,6 +20,8 @@ trait StreamingByteString { this: ForwardingByteString =>
   override def writeTo(out: ByteOutput): Unit =
     out match {
       case out: CodedOutputStream => streamTo(out)
-      case other => CodedOutputStream.newInstance(other, CodedOutputStream.DEFAULT_BUFFER_SIZE)
+      case other =>
+        CodedOutputStream
+          .newInstance(other, CodedOutputStream.DEFAULT_BUFFER_SIZE)
     }
 }

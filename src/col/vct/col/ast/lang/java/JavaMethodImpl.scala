@@ -5,18 +5,30 @@ import vct.col.ast.util.Declarator
 import vct.col.print._
 import vct.col.ast.ops.JavaMethodOps
 
-trait JavaMethodImpl[G] extends Declarator[G] with JavaMethodOps[G] { this: JavaMethod[G] =>
-  override def declarations: Seq[Declaration[G]] = parameters ++ typeParameters ++ contract.givenArgs ++ contract.yieldsArgs
+trait JavaMethodImpl[G] extends Declarator[G] with JavaMethodOps[G] {
+  this: JavaMethod[G] =>
+  override def declarations: Seq[Declaration[G]] =
+    parameters ++ typeParameters ++ contract.givenArgs ++ contract.yieldsArgs
   override def isStatic = modifiers.contains(JavaStatic[G]())
 
   override def layout(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
       contract,
-      Group(Group(Group(
-        Doc.rspread(modifiers) <>
-        (if(typeParameters.isEmpty) Empty else Text("<") <> Doc.args(typeParameters) <> ">" <+> Empty) <>
-        returnType <+> name <> "[]".repeat(dims)) <> "(" <> Doc.args(parameters) <> ")") <>
-        (if(signals.isEmpty) Empty else Empty <>> Group(Text("throws") <+> Doc.args(signals)))
-      ) <> body.map(Empty <+> _.layoutAsBlock).getOrElse(Text(";"))
+      Group(
+        Group(
+          Group(
+            Doc.rspread(modifiers) <>
+              (if (typeParameters.isEmpty)
+                 Empty
+               else
+                 Text("<") <> Doc.args(typeParameters) <> ">" <+> Empty) <>
+              returnType <+> name <> "[]".repeat(dims)
+          ) <> "(" <> Doc.args(parameters) <> ")"
+        ) <>
+          (if (signals.isEmpty)
+             Empty
+           else
+             Empty <>> Group(Text("throws") <+> Doc.args(signals)))
+      ) <> body.map(Empty <+> _.layoutAsBlock).getOrElse(Text(";")),
     ))
 }

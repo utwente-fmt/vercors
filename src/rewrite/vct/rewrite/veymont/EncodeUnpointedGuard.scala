@@ -14,48 +14,50 @@ import scala.collection.immutable.ListSet
 
 object EncodeUnpointedGuard extends RewriterBuilder {
   override def key: String = "encodeUnpointedGuard"
-  override def desc: String = "Encodes unpointed guard by duplicating the condition to all guards currently participating"
+  override def desc: String =
+    "Encodes unpointed guard by duplicating the condition to all guards currently participating"
 }
 
 case class EncodeUnpointedGuard[Pre <: Generation]() extends Rewriter[Pre] {
   val currentParticipants: ScopedStack[ListSet[Endpoint[Pre]]] = ScopedStack()
 
-  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case prog: Choreography[Pre] => currentParticipants.having(ListSet.from(prog.endpoints)) {
-      rewriteDefault(prog)
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    decl match {
+      case prog: Choreography[Pre] =>
+        currentParticipants.having(ListSet.from(prog.endpoints)) {
+          rewriteDefault(prog)
+        }
+
+      case decl => rewriteDefault(decl)
     }
 
-    case decl => rewriteDefault(decl)
-  }
+  override def dispatch(statement: Statement[Pre]): Statement[Post] =
+    statement match {
+      case branch: ChorBranch[Pre] =>
+        val newParticipants =
+          if (branch.hasUnpointed) { currentParticipants.top }
+          else { ListSet.from(branch.participants) }
+        currentParticipants.having(newParticipants) {
+          branch.rewrite(guards = branch.guards.flatMap(rewriteGuard))
+        }
 
-  override def dispatch(statement: Statement[Pre]): Statement[Post] = statement match {
-    case branch: ChorBranch[Pre] =>
-      val newParticipants = if (branch.hasUnpointed) {
-        currentParticipants.top
-      } else {
-        ListSet.from(branch.participants)
-      }
-      currentParticipants.having(newParticipants) {
-        branch.rewrite(guards = branch.guards.flatMap(rewriteGuard))
-      }
+      case loop: ChorLoop[Pre] =>
+        val newParticipants =
+          if (loop.hasUnpointed) { currentParticipants.top }
+          else { ListSet.from(loop.participants) }
+        currentParticipants.having(newParticipants) {
+          loop.rewrite(guards = loop.guards.flatMap(rewriteGuard))
+        }
 
-    case loop: ChorLoop[Pre] =>
-      val newParticipants = if (loop.hasUnpointed) {
-        currentParticipants.top
-      } else {
-        ListSet.from(loop.participants)
-      }
-      currentParticipants.having(newParticipants) {
-        loop.rewrite(guards = loop.guards.flatMap(rewriteGuard))
-      }
+      case statement => rewriteDefault(statement)
+    }
 
-    case statement => rewriteDefault(statement)
-  }
-
-  def rewriteGuard(guard: ChorGuard[Pre]): Seq[ChorGuard[Post]] = guard match {
-    case guard: EndpointGuard[Pre] => Seq(guard.rewriteDefault())
-    case UnpointedGuard(expr) => currentParticipants.top.map { endpoint =>
-      EndpointGuard[Post](succ(endpoint), dispatch(expr))(guard.o)
-    }.toSeq
-  }
+  def rewriteGuard(guard: ChorGuard[Pre]): Seq[ChorGuard[Post]] =
+    guard match {
+      case guard: EndpointGuard[Pre] => Seq(guard.rewriteDefault())
+      case UnpointedGuard(expr) =>
+        currentParticipants.top.map { endpoint =>
+          EndpointGuard[Post](succ(endpoint), dispatch(expr))(guard.o)
+        }.toSeq
+    }
 }

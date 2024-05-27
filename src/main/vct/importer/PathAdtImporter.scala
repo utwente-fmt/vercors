@@ -7,7 +7,9 @@ import vct.parsers.debug.DebugOptions
 
 import java.nio.file.Path
 
-case class PathAdtImporter(basePath: Path, debugOptions: DebugOptions) extends ImportADTImporter {
+case class PathAdtImporter(basePath: Path, debugOptions: DebugOptions)
+    extends ImportADTImporter {
   override def loadAdt[G](name: String): Program[G] =
-    Util.loadPVLLibraryFile(RWFile(basePath.resolve(name + ".pvl")), debugOptions)
+    Util
+      .loadPVLLibraryFile(RWFile(basePath.resolve(name + ".pvl")), debugOptions)
 }

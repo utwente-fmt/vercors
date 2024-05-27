@@ -17,158 +17,213 @@ case object CheckProcessAlgebra extends RewriterBuilder {
   override def desc: String = "TODO description"
 }
 
-case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
-  case class ModelPostconditionFailed(process: ModelProcess[_]) extends Blame[CallableFailure] {
-    override def blame(error: CallableFailure): Unit = error match {
-      case post: PostconditionFailed => process.blame.blame(post)
-      case ctx: ContextEverywhereFailedInPost =>
-        PanicBlame("Generated methods for models do not have context_everywhere clauses.").blame(ctx)
-      case _: SignalsFailed | _: ExceptionNotInSignals =>
-        PanicBlame("Generated methods for models do not throw exceptions.").blame(error)
-      case _: TerminationMeasureFailed =>
-        PanicBlame("Generated methods for models do not have termination measures (yet).").blame(error)
-    }
+case class CheckProcessAlgebra[Pre <: Generation]()
+    extends Rewriter[Pre] with LazyLogging {
+  case class ModelPostconditionFailed(process: ModelProcess[_])
+      extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit =
+      error match {
+        case post: PostconditionFailed => process.blame.blame(post)
+        case ctx: ContextEverywhereFailedInPost =>
+          PanicBlame(
+            "Generated methods for models do not have context_everywhere clauses."
+          ).blame(ctx)
+        case _: SignalsFailed | _: ExceptionNotInSignals =>
+          PanicBlame("Generated methods for models do not throw exceptions.")
+            .blame(error)
+        case _: TerminationMeasureFailed =>
+          PanicBlame(
+            "Generated methods for models do not have termination measures (yet)."
+          ).blame(error)
+      }
   }
 
-  case class InsufficientPermissionForModelField(modelDeref: ModelDeref[_]) extends Blame[InsufficientPermission] {
-    override def blame(error: InsufficientPermission): Unit = modelDeref.blame.blame(ModelInsufficientPermission(modelDeref))
+  case class InsufficientPermissionForModelField(modelDeref: ModelDeref[_])
+      extends Blame[InsufficientPermission] {
+    override def blame(error: InsufficientPermission): Unit =
+      modelDeref.blame.blame(ModelInsufficientPermission(modelDeref))
   }
 
-  val modelFieldSuccessors: SuccessionMap[ModelField[Pre], InstanceField[Post]] = SuccessionMap()
-  val processSuccessors: SuccessionMap[ModelProcess[Pre], InstanceMethod[Post]] = SuccessionMap()
+  val modelFieldSuccessors
+      : SuccessionMap[ModelField[Pre], InstanceField[Post]] = SuccessionMap()
+  val processSuccessors
+      : SuccessionMap[ModelProcess[Pre], InstanceMethod[Post]] = SuccessionMap()
   val modelSuccessors: SuccessionMap[Model[Pre], Class[Post]] = SuccessionMap()
   val currentModel: ScopedStack[Model[Pre]] = ScopedStack()
 
-  override def dispatch(model: Declaration[Pre]): Unit = model match {
-    //      val x = Function().declareDefault()
-    //      model.succeedDefault(this, x)
-    //      model.rewrite().declareDefault()
-    case model: Model[Pre] =>
-      // We put all permutations of every top-level parallel process
-      // in a map to detect overlapping ones.
-      // I think I'd prefer this to be done on the fly, instead of generating _all_ permutations.
-      // Putting all processes in a set and comparing two sets is better
-      val compositeMap: mutable.Map[Set[Expr[Pre]], ModelProcess[Pre]] = mutable.Map()
+  override def dispatch(model: Declaration[Pre]): Unit =
+    model match {
+      //      val x = Function().declareDefault()
+      //      model.succeedDefault(this, x)
+      //      model.rewrite().declareDefault()
+      case model: Model[Pre] =>
+        // We put all permutations of every top-level parallel process
+        // in a map to detect overlapping ones.
+        // I think I'd prefer this to be done on the fly, instead of generating _all_ permutations.
+        // Putting all processes in a set and comparing two sets is better
+        val compositeMap: mutable.Map[Set[Expr[Pre]], ModelProcess[Pre]] =
+          mutable.Map()
 
-      // TODO: Refactor this to separate method. Or, maybe in typechecker/frontend? As it could be part of a well-formedness requirement
-      model.declarations.foreach {
-        case process: ModelProcess[Pre] =>
-          process.impl match {
-            case processPar: ProcessPar[Pre] =>
-              val parallelCompositionElems = processPar.unfoldProcessPar.toSet
-              if (parallelCompositionElems.forall(_.isInstanceOf[ProcessApply[Pre]])) {
-                if (compositeMap.contains(parallelCompositionElems)) {
-                  logger.warn(
-                    "Collision detected: %s vs. %s have same set of process elements composed in parallel",
-                    process.o.getPreferredNameOrElse().camel,
-                    compositeMap(parallelCompositionElems).o.getPreferredNameOrElse().camel
-                  )
+        // TODO: Refactor this to separate method. Or, maybe in typechecker/frontend? As it could be part of a well-formedness requirement
+        model.declarations.foreach {
+          case process: ModelProcess[Pre] =>
+            process.impl match {
+              case processPar: ProcessPar[Pre] =>
+                val parallelCompositionElems = processPar.unfoldProcessPar.toSet
+                if (
+                  parallelCompositionElems
+                    .forall(_.isInstanceOf[ProcessApply[Pre]])
+                ) {
+                  if (compositeMap.contains(parallelCompositionElems)) {
+                    logger.warn(
+                      "Collision detected: %s vs. %s have same set of process elements composed in parallel",
+                      process.o.getPreferredNameOrElse().camel,
+                      compositeMap(parallelCompositionElems).o
+                        .getPreferredNameOrElse().camel,
+                    )
+                  } else { compositeMap.put(parallelCompositionElems, process) }
                 } else {
-                  compositeMap.put(parallelCompositionElems, process)
+                  // TODO: Should this be done by typechecking?
+                  logger.warn(
+                    "Process detected that composes non-process elements in parallel"
+                  )
                 }
-              } else {
-                // TODO: Should this be done by typechecking?
-                logger.warn("Process detected that composes non-process elements in parallel")
-              }
-            case _ =>
+              case _ =>
+            }
+          case _ =>
+        }
+
+        val newClass =
+          currentModel.having(model) {
+            new Class(
+              Seq(),
+              classDeclarations.collect {
+                model.declarations.foreach(dispatch(_))
+              }._1,
+              Nil,
+              tt,
+            )(model.o)
           }
-        case _ =>
-      }
+        globalDeclarations.declare(newClass)
+        modelSuccessors(model) = newClass
 
-      val newClass = currentModel.having(model) {
-        new Class(
-          Seq(),
-          classDeclarations.collect {
-            model.declarations.foreach(dispatch(_))
-          }._1, Nil, tt,
-        )(model.o)
-      }
-      globalDeclarations.declare(newClass)
-      modelSuccessors(model) = newClass
+      case process: ModelProcess[Pre] =>
+        implicit val o = process.o
 
-    case process: ModelProcess[Pre] =>
-      implicit val o = process.o
+        val currentThis = ThisObject[Post](
+          modelSuccessors.ref(currentModel.top)
+        )
 
-      val currentThis = ThisObject[Post](modelSuccessors.ref(currentModel.top))
+        def fieldRefToPerm(p: Expr[Post], f: Ref[Pre, ModelField[Pre]]) =
+          fieldPerm[Post](currentThis, modelFieldSuccessors.ref(f.decl), p)
 
-      def fieldRefToPerm(p: Expr[Post], f: Ref[Pre, ModelField[Pre]]) =
-        fieldPerm[Post](currentThis, modelFieldSuccessors.ref(f.decl), p)
+        val fieldPerms = AstBuildHelpers.foldStar(
+          process.modifies.map(f => fieldRefToPerm(WritePerm(), f)) ++
+            process.accessible.map(f => fieldRefToPerm(ReadPerm(), f))
+        )
 
-      val fieldPerms = AstBuildHelpers.foldStar(
-        process.modifies.map(f => fieldRefToPerm(WritePerm(), f)) ++
-          process.accessible.map(f => fieldRefToPerm(ReadPerm(), f)))
+        val args = variables.dispatch(process.args)
 
-      val args = variables.dispatch(process.args)
+        classDeclarations.declare(
+          new InstanceMethod[Post](
+            TVoid(),
+            args,
+            Nil,
+            Nil,
+            None, // TODO: Body
+            ApplicableContract(
+              // TODO: Is reusing fieldPerms allowed?
+              UnitAccountedPredicate(
+                Star(fieldPerms, rewriteDefault(process.requires))
+              ),
+              UnitAccountedPredicate(
+                Star(fieldPerms, rewriteDefault(process.ensures))
+              ),
+              tt,
+              Seq(),
+              Seq(),
+              Seq(),
+              None,
+            )(???),
+            false,
+            false,
+          )(ModelPostconditionFailed(process))
+        )
 
-      classDeclarations.declare(new InstanceMethod[Post](
-        TVoid(),
-        args,
-        Nil, Nil,
-        None, // TODO: Body
-        ApplicableContract(
-          // TODO: Is reusing fieldPerms allowed?
-          UnitAccountedPredicate(Star(fieldPerms, rewriteDefault(process.requires))),
-          UnitAccountedPredicate(Star(fieldPerms, rewriteDefault(process.ensures))),
-          tt,
-          Seq(),
-          Seq(),
-          Seq(),
-          None,
-        )(???),
-        false,
-        false
-      )(ModelPostconditionFailed(process)))
+      case modelField: ModelField[Pre] =>
+        val instanceField =
+          new InstanceField[Post](dispatch(modelField.t), Nil)(modelField.o)
+        classDeclarations.declare(instanceField)
+        modelFieldSuccessors(modelField) = instanceField
 
-    case modelField: ModelField[Pre] =>
-      val instanceField = new InstanceField[Post](dispatch(modelField.t), Nil)(modelField.o)
-      classDeclarations.declare(instanceField)
-      modelFieldSuccessors(modelField) = instanceField
+      case other => rewriteDefault(other)
+    }
 
-    case other => rewriteDefault(other)
-  }
+  override def dispatch(expr: Expr[Pre]): Expr[Post] =
+    expr match {
+      case p @ ProcessApply(process, args) =>
+        MethodInvocation[Post](
+          AmbiguousThis()(p.o),
+          processSuccessors.ref(process.decl),
+          args.map(dispatch(_)),
+          Nil,
+          Nil,
+          Nil,
+          Nil,
+        )(null)(p.o)
 
-  override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case p @ ProcessApply(process, args) => MethodInvocation[Post](
-        AmbiguousThis()(p.o),
-        processSuccessors.ref(process.decl),
-        args.map(dispatch(_)), Nil, Nil, Nil, Nil,
-      )(null)(p.o)
+      case modelDeref: ModelDeref[Pre] =>
+        implicit val o = modelDeref.o
+        val blame = InsufficientPermissionForModelField(modelDeref)
+        Deref[Post](
+          dispatch(modelDeref.obj),
+          modelFieldSuccessors.ref(modelDeref.ref.decl),
+        )(blame)
 
-    case modelDeref: ModelDeref[Pre] =>
-      implicit val o = modelDeref.o
-      val blame = InsufficientPermissionForModelField(modelDeref)
-      Deref[Post](dispatch(modelDeref.obj), modelFieldSuccessors.ref(modelDeref.ref.decl))(blame)
-
-    case x => rewriteDefault(x)
-  }
+      case x => rewriteDefault(x)
+    }
 
   def inline(a: ModelProcess[Pre], b: Seq[Expr[_]]): Nothing = ???
 
   // TODO: How to determine at what point to rewrite EmptyProcess/ActionApply? When encountered in expandUnguarded?
 
   // PB: added dispatch arbitrarily where demanded
-  def expandUnguarded(p: Expr[Pre]) : Expr[Post] = p match {
-    case p: EmptyProcess[Pre] => p.rewrite()
-    case p: ActionApply[Pre] => p.rewrite()
-    case ProcessApply(process, args) => expandUnguarded(inline(process.decl, args))
-    case ProcessSeq(q, r) => ProcessSeq(expandUnguarded(q), dispatch(r))(p.o)
-    case ProcessChoice(q, r) => ProcessChoice(expandUnguarded(q), expandUnguarded(r))(p.o)
-    case ProcessPar(q, r) => ProcessChoice[Post](leftMerge(expandUnguarded(q), dispatch(r)), leftMerge(expandUnguarded(r), dispatch(q)))(p.o)
-    case ProcessSelect(cond, q, r) =>
-      ProcessSelect(dispatch(cond), expandUnguarded(q), expandUnguarded(r))(p.o)
-    case _ => ???
-  }
+  def expandUnguarded(p: Expr[Pre]): Expr[Post] =
+    p match {
+      case p: EmptyProcess[Pre] => p.rewrite()
+      case p: ActionApply[Pre] => p.rewrite()
+      case ProcessApply(process, args) =>
+        expandUnguarded(inline(process.decl, args))
+      case ProcessSeq(q, r) => ProcessSeq(expandUnguarded(q), dispatch(r))(p.o)
+      case ProcessChoice(q, r) =>
+        ProcessChoice(expandUnguarded(q), expandUnguarded(r))(p.o)
+      case ProcessPar(q, r) =>
+        ProcessChoice[Post](
+          leftMerge(expandUnguarded(q), dispatch(r)),
+          leftMerge(expandUnguarded(r), dispatch(q)),
+        )(p.o)
+      case ProcessSelect(cond, q, r) =>
+        ProcessSelect(dispatch(cond), expandUnguarded(q), expandUnguarded(r))(
+          p.o
+        )
+      case _ => ???
+    }
 
-
-
-  def leftMerge[G](p: Expr[G], q: Expr[G]): Expr[G] = p match {
-    case EmptyProcess() => q
-    case p: ActionApply[G] => ProcessSeq(p, q)(DiagnosticOrigin)
-    case ProcessChoice(pLeft, pRight) => ProcessChoice(leftMerge(pLeft, q), leftMerge(pRight, q))(DiagnosticOrigin)
-    case ProcessSeq(pLeft, pRight) => // TODO
-      ???
-    case ProcessSelect(cond, pLeft, pRight) => ProcessSelect(cond, leftMerge(pLeft, q), leftMerge(pRight, q))(DiagnosticOrigin)
-    case ProcessPar(pLeft, pRight) => ??? // Not allowed
-    case _ => ???
-  }
+  def leftMerge[G](p: Expr[G], q: Expr[G]): Expr[G] =
+    p match {
+      case EmptyProcess() => q
+      case p: ActionApply[G] => ProcessSeq(p, q)(DiagnosticOrigin)
+      case ProcessChoice(pLeft, pRight) =>
+        ProcessChoice(leftMerge(pLeft, q), leftMerge(pRight, q))(
+          DiagnosticOrigin
+        )
+      case ProcessSeq(pLeft, pRight) => // TODO
+        ???
+      case ProcessSelect(cond, pLeft, pRight) =>
+        ProcessSelect(cond, leftMerge(pLeft, q), leftMerge(pRight, q))(
+          DiagnosticOrigin
+        )
+      case ProcessPar(pLeft, pRight) => ??? // Not allowed
+      case _ => ???
+    }
 }

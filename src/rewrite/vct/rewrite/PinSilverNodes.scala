@@ -16,14 +16,23 @@ case object PinSilverNodes extends RewriterBuilder {
 }
 
 case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
-  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case assn @ Assign(target, value) => target match {
-      case Local(Ref(v)) => SilverLocalAssign[Post](succ(v), dispatch(value))(stat.o)
-      case SilverDeref(obj, Ref(field)) => SilverFieldAssign[Post](dispatch(obj), succ(field), dispatch(value))(assn.blame)(stat.o)
-      case other => throw Unreachable("Invalid assignment target (check missing?)")
+  override def dispatch(stat: Statement[Pre]): Statement[Post] =
+    stat match {
+      case assn @ Assign(target, value) =>
+        target match {
+          case Local(Ref(v)) =>
+            SilverLocalAssign[Post](succ(v), dispatch(value))(stat.o)
+          case SilverDeref(obj, Ref(field)) =>
+            SilverFieldAssign[Post](
+              dispatch(obj),
+              succ(field),
+              dispatch(value),
+            )(assn.blame)(stat.o)
+          case other =>
+            throw Unreachable("Invalid assignment target (check missing?)")
+        }
+      case other => rewriteDefault(other)
     }
-    case other => rewriteDefault(other)
-  }
 
   def collectStarall(body: Expr[Pre]): (Seq[Expr[Pre]], Expr[Pre]) = {
     val (conds, consequent) = unfoldImplies(body)
@@ -32,34 +41,41 @@ case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
         bindings.foreach(dispatch)
         val (innerConds, consequent) = collectStarall(body)
         (conds ++ innerConds, consequent)
-      case other =>
-        (conds, other)
+      case other => (conds, other)
     }
   }
 
-  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case starall @ Starall(bindings, triggers, body) =>
-      implicit val o: Origin = e.o
-      val (newBindings, (conds, consequent)) = variables.collect {
-        bindings.foreach(dispatch)
-        collectStarall(body)
-      }
-      val newBody = foldAnd(conds.map(dispatch)) ==> dispatch(consequent)
-      Starall(newBindings, triggers.map(_.map(dispatch)), newBody)(starall.blame)
+  override def dispatch(e: Expr[Pre]): Expr[Post] =
+    e match {
+      case starall @ Starall(bindings, triggers, body) =>
+        implicit val o: Origin = e.o
+        val (newBindings, (conds, consequent)) = variables.collect {
+          bindings.foreach(dispatch)
+          collectStarall(body)
+        }
+        val newBody = foldAnd(conds.map(dispatch)) ==> dispatch(consequent)
+        Starall(newBindings, triggers.map(_.map(dispatch)), newBody)(
+          starall.blame
+        )
 
-    case Size(xs) =>
-      if(xs.t.asSet.nonEmpty) SilverSetSize(dispatch(xs))(e.o)
-      else if(xs.t.asBag.nonEmpty) SilverBagSize(dispatch(xs))(e.o)
-      else if(xs.t.asMap.nonEmpty) SilverMapSize(dispatch(xs))(e.o)
-      else SilverSeqSize(dispatch(xs))(e.o)
+      case Size(xs) =>
+        if (xs.t.asSet.nonEmpty)
+          SilverSetSize(dispatch(xs))(e.o)
+        else if (xs.t.asBag.nonEmpty)
+          SilverBagSize(dispatch(xs))(e.o)
+        else if (xs.t.asMap.nonEmpty)
+          SilverMapSize(dispatch(xs))(e.o)
+        else
+          SilverSeqSize(dispatch(xs))(e.o)
 
-    case other => rewriteDefault(other)
-  }
+      case other => rewriteDefault(other)
+    }
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
-    case TChar() => TInt()
-    case TBoundedInt(_, _) => TInt()
-    case TUnion(Seq(t)) => dispatch(t)
-    case other => rewriteDefault(other)
-  }
+  override def dispatch(t: Type[Pre]): Type[Post] =
+    t match {
+      case TChar() => TInt()
+      case TBoundedInt(_, _) => TInt()
+      case TUnion(Seq(t)) => dispatch(t)
+      case other => rewriteDefault(other)
+    }
 }

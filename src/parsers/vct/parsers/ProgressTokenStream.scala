@@ -3,18 +3,24 @@ package vct.parsers
 import hre.progress.task.AbstractTask
 import hre.progress.{Progress, ProgressRender, TaskRegistry}
 import org.antlr.v4.runtime.misc.Interval
-import org.antlr.v4.runtime.{BufferedTokenStream, RuleContext, Token, TokenSource, TokenStream}
+import org.antlr.v4.runtime.{
+  BufferedTokenStream,
+  RuleContext,
+  Token,
+  TokenSource,
+  TokenStream,
+}
 import vct.col.origin.Origin
 import vct.parsers.transform.OriginProvider
 
 object ProgressTokenStream {
-  class Task(override val superTask: AbstractTask, baseOrigin: Origin) extends hre.progress.task.Task {
+  class Task(override val superTask: AbstractTask, baseOrigin: Origin)
+      extends hre.progress.task.Task {
     var token: Option[Token] = None
 
     override def profilingBreadcrumb: String =
       token match {
-        case None =>
-          "Unknown"
+        case None => "Unknown"
         case Some(token) =>
           val o = OriginProvider(baseOrigin, token, token)
           o.shortPositionText
@@ -22,17 +28,19 @@ object ProgressTokenStream {
 
     override def renderHere: ProgressRender =
       token match {
-        case None =>
-          ProgressRender("Unknown")
+        case None => ProgressRender("Unknown")
         case Some(token) =>
           val o = OriginProvider(baseOrigin, token, token)
           o.renderProgress(s"At ${o.shortPositionText}", short = false)
       }
 
-    override def renderHereShort: ProgressRender = ProgressRender(profilingBreadcrumb)
+    override def renderHereShort: ProgressRender =
+      ProgressRender(profilingBreadcrumb)
   }
 
-  def apply[T](baseOrigin: Origin, stream: BufferedTokenStream)(f: TokenStream => T): T =
+  def apply[T](baseOrigin: Origin, stream: BufferedTokenStream)(
+      f: TokenStream => T
+  ): T =
     Progress.stages(Seq("Lexing" -> 1, "Parsing" -> 3)) { nextStage =>
       stream.fill()
       nextStage()
@@ -43,14 +51,17 @@ object ProgressTokenStream {
     }
 }
 
-private class ProgressTokenStream(stream: BufferedTokenStream, task: ProgressTokenStream.Task) extends TokenStream {
+private class ProgressTokenStream(
+    stream: BufferedTokenStream,
+    task: ProgressTokenStream.Task,
+) extends TokenStream {
 
   private var maxIndex = 0
 
   private def update[T](f: => T): T = {
     val result = f
 
-    if(stream.index() > maxIndex)
+    if (stream.index() > maxIndex)
       maxIndex = stream.index()
 
     result
@@ -62,7 +73,8 @@ private class ProgressTokenStream(stream: BufferedTokenStream, task: ProgressTok
   override def getText(interval: Interval): String = stream.getText(interval)
   override def getText: String = stream.getText
   override def getText(ctx: RuleContext): String = stream.getText(ctx)
-  override def getText(start: Token, stop: Token): String = stream.getText(start, stop)
+  override def getText(start: Token, stop: Token): String =
+    stream.getText(start, stop)
   override def consume(): Unit = update(stream.consume())
   override def LA(i: Int): Int = update(stream.LA(i))
   override def mark(): Int = stream.mark()

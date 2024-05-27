@@ -27,9 +27,7 @@ class ProfilingPredictionContextCache extends PredictionContextCache {
 
   override def get(ctx: PredictionContext): PredictionContext = {
     val res = super.get(ctx)
-    if(res ne null) {
-      hits(ctx) += 1
-    }
+    if (res ne null) { hits(ctx) += 1 }
     res
   }
 }

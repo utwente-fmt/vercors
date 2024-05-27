@@ -4,10 +4,20 @@ import vct.col.ast.BipTransitionSynchronization
 import vct.col.print.{Ctx, Doc, Text}
 import vct.col.ast.ops.BipTransitionSynchronizationOps
 
-trait BipTransitionSynchronizationImpl[G] extends BipTransitionSynchronizationOps[G] { this: BipTransitionSynchronization[G] =>
+trait BipTransitionSynchronizationImpl[G]
+    extends BipTransitionSynchronizationOps[G] {
+  this: BipTransitionSynchronization[G] =>
   def summarize: String = {
-    val portsTxt = if (transitions.isEmpty) "No transitions" else transitions.map("- " + _.decl.signature.shortSignature).mkString("\n")
-    val wiresTxt = if (wires.isEmpty) "No wires" else wires.map("- " + _.o.getPreferredNameOrElse().camel).mkString("\n")
+    val portsTxt =
+      if (transitions.isEmpty)
+        "No transitions"
+      else
+        transitions.map("- " + _.decl.signature.shortSignature).mkString("\n")
+    val wiresTxt =
+      if (wires.isEmpty)
+        "No wires"
+      else
+        wires.map("- " + _.o.getPreferredNameOrElse().camel).mkString("\n")
 
     s"""=== Transition synchronization ===
        |Transition:
@@ -17,9 +27,11 @@ trait BipTransitionSynchronizationImpl[G] extends BipTransitionSynchronizationOp
   }
 
   override def layout(implicit ctx: Ctx): Doc =
-    Text("/*") <+/>
-      Text("javaBipTransitionSynchronization {") <>> {
-      Text("transitions:") <>> Doc.stack(transitions.map(ctx.name).map(Text("-") <+> _)) <+/>
-        Text("wires:") <>> Doc.stack(wires.map(wire => Text(ctx.name(wire.dataOut)) <+> "->" <+> ctx.name(wire.dataIn)))
+    Text("/*") <+/> Text("javaBipTransitionSynchronization {") <>> {
+      Text("transitions:") <>>
+        Doc.stack(transitions.map(ctx.name).map(Text("-") <+> _)) <+/>
+        Text("wires:") <>> Doc.stack(wires.map(wire =>
+          Text(ctx.name(wire.dataOut)) <+> "->" <+> ctx.name(wire.dataIn)
+        ))
     } <+/> "*/"
 }

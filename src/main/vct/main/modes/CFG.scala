@@ -9,9 +9,10 @@ import vct.parsers.transform.ConstantBlameProvider
 import vct.result.VerificationError.{SystemError, UserError}
 
 case object CFG extends LazyLogging {
-  def runOptions(options: Options) : Int = {
+  def runOptions(options: Options): Int = {
     val collector = BlameCollector()
-    val stages = Stages.cfgTransformationOfOptions(options, ConstantBlameProvider(collector))
+    val stages = Stages
+      .cfgTransformationOfOptions(options, ConstantBlameProvider(collector))
     stages.run(options.inputs) match {
       case Left(err: UserError) => EXIT_CODE_ERROR
       case Left(err: SystemError) => throw err

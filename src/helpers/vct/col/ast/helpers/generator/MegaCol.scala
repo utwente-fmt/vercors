@@ -16,13 +16,18 @@ class MegaCol extends AllNodesGenerator {
 
     val messages =
       definitions.map(node => genNode.message(node)) ++
-        families.flatMap(family => genFamily.message(family._1, family._2.map(_.name)).toSeq) ++
-        genAux.messages(definitions)
+        families.flatMap(family =>
+          genFamily.message(family._1, family._2.map(_.name)).toSeq
+        ) ++ genAux.messages(definitions)
 
     Files.createDirectories(out.resolve(Paths.get("vct", "col", "ast")))
-    Using(Files.newBufferedWriter(out.resolve(Paths.get("vct", "col", "ast", "col.proto")))) { writer =>
+    Using(Files.newBufferedWriter(
+      out.resolve(Paths.get("vct", "col", "ast", "col.proto"))
+    )) { writer =>
       Proto.Source(
-        messages.flatMap(_.namedTypes.collect { case t: Proto.StandardType => t.fqName }).distinct,
+        messages.flatMap(_.namedTypes.collect { case t: Proto.StandardType =>
+          t.fqName
+        }).distinct,
         options = "",
         messages = messages,
       ).write(writer)

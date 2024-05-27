@@ -4,7 +4,8 @@ import vct.col.ast.{TSeq, Type, Values}
 import vct.col.print._
 import vct.col.ast.ops.ValuesOps
 
-trait ValuesImpl[G] extends ValuesOps[G] { this: Values[G] =>
+trait ValuesImpl[G] extends ValuesOps[G] {
+  this: Values[G] =>
   override def t: Type[G] = TSeq(arr.t.asArray.get.element)
 
   override def precedence: Int = Precedence.ATOMIC

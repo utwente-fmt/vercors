@@ -4,7 +4,8 @@ import vct.col.ast.{Head, Type}
 import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.ast.ops.HeadOps
 
-trait HeadImpl[G] extends HeadOps[G] { this: Head[G] =>
+trait HeadImpl[G] extends HeadOps[G] {
+  this: Head[G] =>
   override def t: Type[G] = xs.t.asSeq.get.element
 
   override def precedence: Int = Precedence.POSTFIX

@@ -9,8 +9,15 @@ import java.nio.file.Path
 import scala.meta._
 
 class AllFrozenScopes extends AllFamiliesGenerator {
-  override def generate(out: Path,  declaredFamilies: Seq[structure.Name], structuralFamilies: Seq[structure.Name]): Unit =
-    ResultStream.write(out.resolve("AllFrozenScopes.scala"), allFrozenScopes(declaredFamilies))
+  override def generate(
+      out: Path,
+      declaredFamilies: Seq[structure.Name],
+      structuralFamilies: Seq[structure.Name],
+  ): Unit =
+    ResultStream.write(
+      out.resolve("AllFrozenScopes.scala"),
+      allFrozenScopes(declaredFamilies),
+    )
 
   def allFrozenScopes(declaredFamilies: Seq[structure.Name]): Source =
     source"""
@@ -19,7 +26,9 @@ class AllFrozenScopes extends AllFamiliesGenerator {
       class AllFrozenScopes[Pre, Post](`~scopes`: $AllScopes[Pre, Post]) extends ${Init(t"$SuccessorsProvider[Pre, Post]", Name.Anonymous(), List.empty)} {
         override def equals(`~obj`: $Any): $Boolean = `~obj` match {
           case other: $AllFrozenScopes[_, _] =>
-            ${declaredFamilies.map(name => q"this.${scopes(name.base)} == other.${scopes(name.base)}").reduce[Term] { case (l, r) => q"$l && $r" } }
+            ${declaredFamilies
+        .map(name => q"this.${scopes(name.base)} == other.${scopes(name.base)}")
+        .reduce[Term] { case (l, r) => q"$l && $r" }}
           case _ => false
         }
 

@@ -10,20 +10,24 @@ import vct.col.util.AstBuildHelpers._
 
 case object PropagateContextEverywhere extends RewriterBuilder {
   override def key: String = "propagateContext"
-  override def desc: String = "Propagate context_everywhere declarations into loop invariants and parallel block contracts."
+  override def desc: String =
+    "Propagate context_everywhere declarations into loop invariants and parallel block contracts."
 
-  case class ContextEverywherePreconditionFailed(inv: InvokingNode[_]) extends Blame[PreconditionFailed] {
+  case class ContextEverywherePreconditionFailed(inv: InvokingNode[_])
+      extends Blame[PreconditionFailed] {
     override def blame(error: PreconditionFailed): Unit =
       inv.blame.blame(ContextEverywhereFailedInPre(error.failure, inv))
   }
 
-  case class ContextEverywherePostconditionFailed(app: ContractApplicable[_]) extends Blame[PostconditionFailed] {
+  case class ContextEverywherePostconditionFailed(app: ContractApplicable[_])
+      extends Blame[PostconditionFailed] {
     override def blame(error: PostconditionFailed): Unit =
       app.blame.blame(ContextEverywhereFailedInPost(error.failure, app))
   }
 }
 
-case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre] {
+case class PropagateContextEverywhere[Pre <: Generation]()
+    extends Rewriter[Pre] {
   import PropagateContextEverywhere._
 
   val invariants: ScopedStack[Seq[Expr[Pre]]] = ScopedStack()
@@ -42,83 +46,133 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
   def freshInvariants()(implicit o: Origin): Expr[Post] =
     foldStar(invariants.top.map(dispatch))
 
-  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case app: ContractApplicable[Pre] =>
-      allScopes.anyDeclare(allScopes.anySucceedOnly(app, withInvariant(app.contract.contextEverywhere) {
-        app match {
-          case func: AbstractFunction[Pre] =>
-            func.rewrite(blame = PostBlameSplit.left(ContextEverywherePostconditionFailed(app), func.blame))
-          case method: AbstractMethod[Pre] =>
-            method.rewrite(blame = PostBlameSplit.left(ContextEverywherePostconditionFailed(app), method.blame))
-        }
-      }))
-    case other => rewriteDefault(other)
-  }
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    decl match {
+      case app: ContractApplicable[Pre] =>
+        allScopes.anyDeclare(allScopes.anySucceedOnly(
+          app,
+          withInvariant(app.contract.contextEverywhere) {
+            app match {
+              case func: AbstractFunction[Pre] =>
+                func.rewrite(blame =
+                  PostBlameSplit
+                    .left(ContextEverywherePostconditionFailed(app), func.blame)
+                )
+              case method: AbstractMethod[Pre] =>
+                method.rewrite(blame =
+                  PostBlameSplit.left(
+                    ContextEverywherePostconditionFailed(app),
+                    method.blame,
+                  )
+                )
+            }
+          },
+        ))
+      case other => rewriteDefault(other)
+    }
 
-  override def dispatch(contract: ApplicableContract[Pre]): ApplicableContract[Post] = {
+  override def dispatch(
+      contract: ApplicableContract[Pre]
+  ): ApplicableContract[Post] = {
     implicit val o: Origin = contract.o
     contract.rewrite(
       contextEverywhere = tt,
-      requires = SplitAccountedPredicate(UnitAccountedPredicate(freshInvariants()), dispatch(contract.requires)),
-      ensures = SplitAccountedPredicate(UnitAccountedPredicate(freshInvariants()), dispatch(contract.ensures)),
+      requires = SplitAccountedPredicate(
+        UnitAccountedPredicate(freshInvariants()),
+        dispatch(contract.requires),
+      ),
+      ensures = SplitAccountedPredicate(
+        UnitAccountedPredicate(freshInvariants()),
+        dispatch(contract.ensures),
+      ),
     )
   }
 
-  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case inv: ProcedureInvocation[Pre] =>
-      inv.rewrite(blame = PreBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
-    case inv: MethodInvocation[Pre] =>
-      inv.rewrite(blame = PreBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
-    case inv: FunctionInvocation[Pre] =>
-      inv.rewrite(blame = PreBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
-    case inv: InstanceFunctionInvocation[Pre] =>
-      inv.rewrite(blame = PreBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
-    case other => rewriteDefault(other)
-  }
-
-  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case inv: InvokeProcedure[Pre] =>
-      inv.rewrite(blame = PreBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
-    case inv: InvokeMethod[Pre] =>
-      inv.rewrite(blame = PreBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
-    case bar: ParBarrier[Pre] =>
-      implicit val o: Origin = bar.o
-      bar.rewrite(
-        requires = freshInvariants() &* dispatch(bar.requires),
-        ensures = freshInvariants() &* dispatch(bar.ensures),
-      )
-    case loop: Loop[Pre] =>
-      implicit val o: Origin = loop.o
-      loop.contract match {
-        case inv @ LoopInvariant(invariant, decreases) =>
-          loop.rewrite(contract = LoopInvariant(freshInvariants() &* dispatch(invariant), decreases.map(dispatch))(inv.blame))
-        case _: IterationContract[Pre] => throw ExtraNode
-      }
-    case frame: FramedProof[Pre] =>
-      implicit val o: Origin = frame.o
-      frame.rewrite(pre = freshInvariants() &* dispatch(frame.pre), post = freshInvariants() &* dispatch(frame.post))
-    case other => rewriteDefault(other)
-  }
-
-  override def dispatch(parRegion: ParRegion[Pre]): ParRegion[Post] = parRegion match {
-    case block: ParBlock[Pre] =>
-      implicit val o: Origin = parRegion.o
-
-      val scaledInvariants = invariants.top.map(inv => ScaleByParBlock[Pre](block.decl.ref, inv))
-
-      invariants.having(scaledInvariants ++ unfoldStar(block.context_everywhere)) {
-        block.rewrite(
-          context_everywhere = freshInvariants()
+  override def dispatch(e: Expr[Pre]): Expr[Post] =
+    e match {
+      case inv: ProcedureInvocation[Pre] =>
+        inv.rewrite(blame =
+          PreBlameSplit
+            .left(ContextEverywherePreconditionFailed(inv), inv.blame)
         )
-      }
-    case ParParallel(regions) =>
-      implicit val o: Origin = parRegion.o
-      val scaledInvariants = invariants.top.map(inv => Scale[Pre](const[Pre](1) /:/ const(regions.size), inv)(
-        PanicBlame("If used, the number of regions is strictly positive")))
+      case inv: MethodInvocation[Pre] =>
+        inv.rewrite(blame =
+          PreBlameSplit
+            .left(ContextEverywherePreconditionFailed(inv), inv.blame)
+        )
+      case inv: FunctionInvocation[Pre] =>
+        inv.rewrite(blame =
+          PreBlameSplit
+            .left(ContextEverywherePreconditionFailed(inv), inv.blame)
+        )
+      case inv: InstanceFunctionInvocation[Pre] =>
+        inv.rewrite(blame =
+          PreBlameSplit
+            .left(ContextEverywherePreconditionFailed(inv), inv.blame)
+        )
+      case other => rewriteDefault(other)
+    }
 
-      invariants.having(scaledInvariants) {
-        rewriteDefault(parRegion)
-      }
-    case ParSequential(_) => rewriteDefault(parRegion)
-  }
+  override def dispatch(stat: Statement[Pre]): Statement[Post] =
+    stat match {
+      case inv: InvokeProcedure[Pre] =>
+        inv.rewrite(blame =
+          PreBlameSplit
+            .left(ContextEverywherePreconditionFailed(inv), inv.blame)
+        )
+      case inv: InvokeMethod[Pre] =>
+        inv.rewrite(blame =
+          PreBlameSplit
+            .left(ContextEverywherePreconditionFailed(inv), inv.blame)
+        )
+      case bar: ParBarrier[Pre] =>
+        implicit val o: Origin = bar.o
+        bar.rewrite(
+          requires = freshInvariants() &* dispatch(bar.requires),
+          ensures = freshInvariants() &* dispatch(bar.ensures),
+        )
+      case loop: Loop[Pre] =>
+        implicit val o: Origin = loop.o
+        loop.contract match {
+          case inv @ LoopInvariant(invariant, decreases) =>
+            loop.rewrite(contract =
+              LoopInvariant(
+                freshInvariants() &* dispatch(invariant),
+                decreases.map(dispatch),
+              )(inv.blame)
+            )
+          case _: IterationContract[Pre] => throw ExtraNode
+        }
+      case frame: FramedProof[Pre] =>
+        implicit val o: Origin = frame.o
+        frame.rewrite(
+          pre = freshInvariants() &* dispatch(frame.pre),
+          post = freshInvariants() &* dispatch(frame.post),
+        )
+      case other => rewriteDefault(other)
+    }
+
+  override def dispatch(parRegion: ParRegion[Pre]): ParRegion[Post] =
+    parRegion match {
+      case block: ParBlock[Pre] =>
+        implicit val o: Origin = parRegion.o
+
+        val scaledInvariants = invariants.top
+          .map(inv => ScaleByParBlock[Pre](block.decl.ref, inv))
+
+        invariants
+          .having(scaledInvariants ++ unfoldStar(block.context_everywhere)) {
+            block.rewrite(context_everywhere = freshInvariants())
+          }
+      case ParParallel(regions) =>
+        implicit val o: Origin = parRegion.o
+        val scaledInvariants = invariants.top.map(inv =>
+          Scale[Pre](const[Pre](1) /:/ const(regions.size), inv)(PanicBlame(
+            "If used, the number of regions is strictly positive"
+          ))
+        )
+
+        invariants.having(scaledInvariants) { rewriteDefault(parRegion) }
+      case ParSequential(_) => rewriteDefault(parRegion)
+    }
 }

@@ -8,8 +8,6 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
 import scala.collection.mutable
 
-
-
 case object ContinueToBreak extends RewriterBuilder {
   override def key: String = "continueToBreak"
   override def desc: String = "Encode continue as a break statement."
@@ -23,31 +21,37 @@ case class ContinueToBreak[Pre <: Generation]() extends Rewriter[Pre] {
     labelDeclOrigin.where(prefix = "continue", context = "loop label")
   }
 
-  val loopLabelToInnerLabel = new mutable.HashMap[LabelDecl[Pre], LabelDecl[Post]]()
+  val loopLabelToInnerLabel =
+    new mutable.HashMap[LabelDecl[Pre], LabelDecl[Post]]()
 
-  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case Label(labelDecl, loop: Loop[Pre]) =>
-      val rewrittenBody = dispatch(loop.body)
+  override def dispatch(stat: Statement[Pre]): Statement[Post] =
+    stat match {
+      case Label(labelDecl, loop: Loop[Pre]) =>
+        val rewrittenBody = dispatch(loop.body)
 
-      // If the loop label appears in the mapping, it means it contains some continue that wants to break
-      // from the inner label. We create a block wrapping the body, labeled with the inner label.
-      val possiblyWrappedBody = loopLabelToInnerLabel.get(labelDecl) match {
-        case Some(innerLabelDecl) =>
-          implicit val o: Origin = innerLabelDecl.o
-          Label(innerLabelDecl, rewrittenBody)
-        case None => rewrittenBody
-      }
+        // If the loop label appears in the mapping, it means it contains some continue that wants to break
+        // from the inner label. We create a block wrapping the body, labeled with the inner label.
+        val possiblyWrappedBody =
+          loopLabelToInnerLabel.get(labelDecl) match {
+            case Some(innerLabelDecl) =>
+              implicit val o: Origin = innerLabelDecl.o
+              Label(innerLabelDecl, rewrittenBody)
+            case None => rewrittenBody
+          }
 
-      Label(labelDecls.dispatch(labelDecl), loop.rewrite(body = possiblyWrappedBody))(stat.o)
+        Label(
+          labelDecls.dispatch(labelDecl),
+          loop.rewrite(body = possiblyWrappedBody),
+        )(stat.o)
 
-    case c@Continue(Some(Ref(labelDecl))) =>
-      // Reuse an already created inner label or create one
-      val innerLabelDecl = loopLabelToInnerLabel.getOrElseUpdate(
-        labelDecl,
-        new LabelDecl()(ContinueToBreakOrigin(labelDecl.o))
-      )
-      Break(Some(innerLabelDecl.ref))(c.o)
+      case c @ Continue(Some(Ref(labelDecl))) =>
+        // Reuse an already created inner label or create one
+        val innerLabelDecl = loopLabelToInnerLabel.getOrElseUpdate(
+          labelDecl,
+          new LabelDecl()(ContinueToBreakOrigin(labelDecl.o)),
+        )
+        Break(Some(innerLabelDecl.ref))(c.o)
 
-    case other => rewriteDefault(other)
-  }
+      case other => rewriteDefault(other)
+    }
 }

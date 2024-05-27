@@ -1,7 +1,11 @@
 package hre.progress.task
 import hre.progress.ProgressRender
 
-case class NameSequenceTask(superTask: AbstractTask, var names: Seq[String], var progressWeights: Seq[Double] = Nil) extends Task {
+case class NameSequenceTask(
+    superTask: AbstractTask,
+    var names: Seq[String],
+    var progressWeights: Seq[Double] = Nil,
+) extends Task {
   override def profilingBreadcrumb: String = names.head
   override def renderHere: ProgressRender = ProgressRender(names.head)
 
@@ -9,17 +13,18 @@ case class NameSequenceTask(superTask: AbstractTask, var names: Seq[String], var
 
   def scope[T](f: (() => Unit) => T): T = {
     start()
-    try {
-      f(next)
-    } finally {
-      end()
-    }
+    try { f(next) }
+    finally { end() }
   }
 
   private def next(): Unit = {
     end()
     names = names.tail
-    progressWeights = if(progressWeights.isEmpty) Nil else progressWeights.tail
+    progressWeights =
+      if (progressWeights.isEmpty)
+        Nil
+      else
+        progressWeights.tail
     progressDone = 0.0
     start()
   }

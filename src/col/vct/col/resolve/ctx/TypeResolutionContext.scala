@@ -6,12 +6,12 @@ import vct.col.resolve.ResolveTypes.JavaClassPathEntry
 
 import scala.collection.mutable
 
-case class TypeResolutionContext[G]
-(
-  stack: Seq[Seq[Referrable[G]]] = Nil,
-  namespace: Option[JavaNamespace[G]] = None,
-  externalJavaLoader: Option[ExternalJavaLoader] = None,
-  javaClassPath: Seq[JavaClassPathEntry] = Nil,
-  inGpuKernel: Boolean = false,
-  externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] = mutable.ArrayBuffer[GlobalDeclaration[G]](),
+case class TypeResolutionContext[G](
+    stack: Seq[Seq[Referrable[G]]] = Nil,
+    namespace: Option[JavaNamespace[G]] = None,
+    externalJavaLoader: Option[ExternalJavaLoader] = None,
+    javaClassPath: Seq[JavaClassPathEntry] = Nil,
+    inGpuKernel: Boolean = false,
+    externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] =
+      mutable.ArrayBuffer[GlobalDeclaration[G]](),
 )

@@ -7,19 +7,24 @@ import vct.col.ast.RewriteHelpers._
 
 case object BranchToIfElse extends RewriterBuilder {
   override def key: String = "branchToIfElse"
-  override def desc: String = "Translate a chain of if/elseif/else to strictly if/else."
+  override def desc: String =
+    "Translate a chain of if/elseif/else to strictly if/else."
 }
 
 case class BranchToIfElse[Pre <: Generation]() extends Rewriter[Pre] {
-  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case Branch(Nil) => Block(Nil)(stat.o)
-    case Branch(Seq((cond, whenTrue), (BooleanValue(true), whenFalse))) =>
-      Branch(Seq((dispatch(cond), dispatch(whenTrue)), (tt[Post], dispatch(whenFalse))))(stat.o)
-    case Branch((cond, whenTrue) +: tail) =>
-      Branch(Seq(
-        (dispatch(cond), dispatch(whenTrue)),
-        (tt[Post], dispatch(Branch[Pre](tail)(stat.o)))
-      ))(stat.o)
-    case other => rewriteDefault(other)
-  }
+  override def dispatch(stat: Statement[Pre]): Statement[Post] =
+    stat match {
+      case Branch(Nil) => Block(Nil)(stat.o)
+      case Branch(Seq((cond, whenTrue), (BooleanValue(true), whenFalse))) =>
+        Branch(Seq(
+          (dispatch(cond), dispatch(whenTrue)),
+          (tt[Post], dispatch(whenFalse)),
+        ))(stat.o)
+      case Branch((cond, whenTrue) +: tail) =>
+        Branch(Seq(
+          (dispatch(cond), dispatch(whenTrue)),
+          (tt[Post], dispatch(Branch[Pre](tail)(stat.o))),
+        ))(stat.o)
+      case other => rewriteDefault(other)
+    }
 }

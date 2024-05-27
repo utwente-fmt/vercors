@@ -8,10 +8,7 @@ trait Writeable {
 
   def write[T](f: Writer => T): T = {
     val writer = getWriter
-    try {
-      f(writer)
-    } finally {
-      writer.close()
-    }
+    try { f(writer) }
+    finally { writer.close() }
   }
 }
