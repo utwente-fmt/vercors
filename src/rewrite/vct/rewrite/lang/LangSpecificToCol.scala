@@ -227,7 +227,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     case inv: PVLInvocation[Pre] => pvl.invocation(inv)
 
     case local: CLocal[Pre] => c.local(local)
-    case deref: CStructAccess[Pre] => c.deref(deref)
+    case deref: CFieldAccess[Pre] => c.deref(deref)
     case deref: CStructDeref[Pre] => c.deref(deref)
     case inv: CInvocation[Pre] => c.invocation(inv)
 
@@ -254,6 +254,21 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     }
 
     case assign: PreAssignExpression[Pre] =>
+      assign.target match {
+        case AmbiguousSubscript(v, _) =>
+          v.t match {
+            case CPrimitiveType(specs)  if specs.collectFirst { case CSpecificationType(_: CTVector[Pre]) => () }.isDefined =>
+              return c.assignSubscriptVector(assign)
+            case _ =>
+          }
+        case CFieldAccess(obj, _) =>
+          obj.t match {
+            case CPrimitiveType(specs)  if specs.collectFirst { case CSpecificationType(_: TOpenCLVector[Pre]) => () }.isDefined =>
+              return c.assignOpenCLVector(assign)
+            case _ =>
+          }
+        case _ =>
+      }
       assign.target.t match {
         case CPrimitiveType(specs) if specs.collectFirst { case CSpecificationType(_: CTStruct[Pre]) => () }.isDefined =>
           c.assignStruct(assign)
@@ -274,6 +289,8 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
   override def dispatch(t: Type[Pre]): Type[Post] = t match {
     case t: JavaTClass[Pre] => java.classType(t)
     case t: CTPointer[Pre] => c.pointerType(t)
+    case t: CTVector[Pre] => c.vectorType(t)
+    case t: TOpenCLVector[Pre] => c.vectorType(t)
     case t: CTArray[Pre] => c.arrayType(t)
     case t: CTStruct[Pre] => c.structType(t)
     case t: CPPTArray[Pre] => cpp.arrayType(t)

@@ -132,6 +132,7 @@ class FeatureRainbow[G] {
     case node: CoerceMapSet[G] => Coercions
     case node: CoerceMapTuple[G] => Coercions
     case node: CoerceMapType[G] => Coercions
+    case node: CoerceMapVector[G] => Coercions
     case node: CoerceNothingSomething[G] => Coercions
     case node: CoerceNullAnyClass[G] => Coercions
     case node: CoerceNullArray[G] => Coercions
@@ -188,7 +189,7 @@ class FeatureRainbow[G] {
     case node: CSigned[G] => CSpecific
     case node: CSpecificationType[G] => CSpecific
     case node: CStatic[G] => CSpecific
-    case node: CStructAccess[G] => CSpecific
+    case node: CFieldAccess[G] => CSpecific
     case node: CStructDeref[G] => CSpecific
     case node: CTCudaVec[G] => CSpecific
     case node: CTranslationUnit[G] => CSpecific
@@ -485,6 +486,7 @@ class FeatureRainbow[G] {
     case node: LiteralSet[G] => SilverAxiomaticLibraryType
     case node: SeqMember[G] => SilverAxiomaticLibraryType
     case node: SeqSubscript[G] => SilverAxiomaticLibraryType
+    case node: VectorSubscript[G] => SilverAxiomaticLibraryType
     case node: SeqUpdate[G] => SilverAxiomaticLibraryType
     case node: SetIntersection[G] => SilverAxiomaticLibraryType
     case node: SetMember[G] => SilverAxiomaticLibraryType
@@ -501,6 +503,7 @@ class FeatureRainbow[G] {
     case node: TBag[G] => SilverAxiomaticLibraryType
     case node: TSeq[G] => SilverAxiomaticLibraryType
     case node: TSet[G] => SilverAxiomaticLibraryType
+    case node: TVector[G] => SilverAxiomaticLibraryType
 
     case node: SilverCurFieldPerm[G] => SilverSpecific
     case node: SilverCurPredPerm[G] => SilverSpecific

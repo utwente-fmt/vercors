@@ -1464,10 +1464,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case Perm(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)), _) if obj.equals(this.currentThis.get) => tt
       case PointsTo(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)), _, _) if obj.equals(this.currentThis.get) => tt
       case Value(AmbiguousLocation(ArraySubscript(Deref(obj, _), _))) if obj.equals(this.currentThis.get) => tt
-
-      // Inspecting the type of Expr[Post] is normally dangerous, as you might need to dereference LazyRefs. However,
-      // the type system here should guarantee e.t is either a TResource or a TBool, so it's safe to inspect it.
-      case Implies(left, right) if e.t == TResource[Post]() => Implies(removeKernelClassInstancePermissions(left), removeKernelClassInstancePermissions(right))
+      case Implies(left, right) => Implies(removeKernelClassInstancePermissions(left), removeKernelClassInstancePermissions(right))
 
       case e => e
     }

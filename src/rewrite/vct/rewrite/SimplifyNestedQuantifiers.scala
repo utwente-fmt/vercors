@@ -1,7 +1,7 @@
 package vct.col.rewrite
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.{ArraySubscript, _}
+import vct.col.ast._
 import vct.col.ast.util.{AnnotationVariableInfoGetter, ExpressionEqualityCheck}
 import vct.col.rewrite.util.Comparison
 import vct.col.origin.{ArrayInsufficientPermission, DiagnosticOrigin, LabelContext, Origin, PanicBlame, PointerBounds, PreferredName}
@@ -57,24 +57,30 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     e match {
-      case e: Binder[Pre] =>
-        rewriteLinearArray(e) match {
-          case None =>
-            val res = e.rewriteDefault()
-            res match {
-              case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true} =>
-                val trigger = e.o.inlineContext(false).map(_.last).getOrElse("unknown context")
-                logger.warn(f"The binder `${e.o.shortPositionText}`:`${trigger} contains no triggers`")
-              case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true } =>
-                val trigger = e.o.inlineContext(false).map(_.last).getOrElse("unknown context")
-                logger.warn(f"The binder `${e.o.shortPositionText}`:`${trigger} contains no triggers`")
-              case _ =>
-            }
-            res
-          case Some(newE)
-            => newE
-        }
+      case e: Forall[Pre] =>
+        mapUnfoldedStar(e.body, (b: Expr[Pre]) => rewriteBinder(Forall(e.bindings, e.triggers, b)(e.o)))
+      case e: Starall[Pre] =>
+        mapUnfoldedStar(e.body, (b: Expr[Pre]) => rewriteBinder(Starall(e.bindings, e.triggers, b)(e.blame)(e.o)))
       case other => other.rewriteDefault()
+    }
+  }
+
+  def rewriteBinder(e: Binder[Pre]): Expr[Post] = {
+    rewriteLinearArray(e) match {
+      case None =>
+        val res = e.rewriteDefault()
+        res match {
+          case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true} =>
+            val trigger = e.o.inlineContext(false).map(_.last).getOrElse("unknown context")
+            logger.warn(f"The binder `${e.o.shortPositionText}`:`${trigger} contains no triggers`")
+          case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true } =>
+            val trigger = e.o.inlineContext(false).map(_.last).getOrElse("unknown context")
+            logger.warn(f"The binder `${e.o.shortPositionText}`:`${trigger} contains no triggers`")
+          case _ =>
+        }
+        res
+      case Some(newE)
+      => newE
     }
   }
 
@@ -335,6 +341,13 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
         // v > right
         case Comparison.GREATER => lowerBounds(v).addOne(right + one)
       }
+    }
+
+    def testPairs[A](xs: Iterable[A], ys: Iterable[A], f: (A,A) => Boolean): Boolean = {
+      for(x <- xs)
+        for(y<-ys)
+          if(f(x,y)) return true
+      false
     }
 
     /** We check if there now any binding variables which resolve to just a single value, which happens if it

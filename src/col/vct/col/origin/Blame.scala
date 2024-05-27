@@ -306,11 +306,20 @@ case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_]) exten
 
   override def position: String = resource.o.shortPositionText
 }
-case class DivByZero(node: DividingExpr[_]) extends NodeVerificationFailure {
+sealed trait DivByZero extends NodeVerificationFailure
+
+case class ScalarDivByZero(node: DividingExpr[_]) extends DivByZero {
   override def code: String = "divByZero"
   override def descInContext: String = "The divisor may be zero."
   override def inlineDescWithSource(source: String): String = s"The divisor in `$source` may be zero."
 }
+
+case class VectorDivByZero(node: DividingExpr[_], i: Int) extends DivByZero {
+  override def code: String = "vectorDivByZero"
+  override def descInContext: String = f"Element $i of the divisor vector may be zero."
+  override def inlineDescWithSource(source: String): String = s"Element $i of the divisor vector in `$source` may be zero."
+}
+
 sealed trait FrontendDerefError extends VerificationFailure
 sealed trait FrontendAdditiveError extends VerificationFailure
 sealed trait FrontendSubscriptError extends VerificationFailure
@@ -437,6 +446,19 @@ case class SetEmpty(node: Expr[_]) extends NodeVerificationFailure {
   override def descInContext: String = "This set may be empty."
   override def inlineDescWithSource(source: String): String = s"`$source` may be empty."
 }
+
+sealed trait VectorBoundFailure extends FrontendSubscriptError with BuiltinError
+case class VectorBoundNegative(node: Expr[_]) extends VectorBoundFailure with NodeVerificationFailure {
+  override def code: String = "vecIndexNegative"
+  override def descInContext: String = "The index in this vector subscript may be negative."
+  override def inlineDescWithSource(source: String): String = s"The index in `$source` may be negative."
+}
+case class VectorBoundExceedsLength(node: Expr[_]) extends VectorBoundFailure with NodeVerificationFailure {
+  override def code: String = "vecIndexExceedsLength"
+  override def descInContext: String = "The index in this vector subscript may exceed the length of the vector."
+  override def inlineDescWithSource(source: String): String = s"The index in `$source` may exceed the length of the vector."
+}
+
 
 sealed trait ForkFailure extends VerificationFailure
 case class ForkNull(node: Fork[_]) extends ForkFailure with NodeVerificationFailure {
@@ -947,6 +969,7 @@ case class PanicBlame(message: String) extends Blame[VerificationFailure] {
 object NeverNone extends PanicBlame("get in `opt == none ? _ : get(opt)` should always be ok.")
 object FramedSeqIndex extends PanicBlame("access in `∀i. 0 <= i < |xs| ==> ...xs[i]...` should never be out of bounds")
 object FramedArrIndex extends PanicBlame("access in `∀i. 0 <= i < xs.length ==> Perm(xs[i], read) ** ...xs[i]...` should always be ok")
+object FramedVectorIndex extends PanicBlame("access in `∀i. 0 <= i < xs.length ==> ...xs[i]...` should never be out of bounds")
 object IteratedArrayInjective extends PanicBlame("access in `∀*i. 0 <= i < xs.length ==> Perm(xs[i], _)` should always be injective")
 object IteratedPtrInjective extends PanicBlame("access in `∀*i. Perm(xs[i], _)` should always be injective")
 object FramedArrLoc extends PanicBlame("Bounds and non-nullness are ensured.")

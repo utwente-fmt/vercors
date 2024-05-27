@@ -325,7 +325,7 @@ trait SilverBackend extends Backend[(silver.Program, Map[Int, col.Node[_]])] wit
   def defer(reason: ErrorReason): Unit = reason match {
     case reasons.DivisionByZero(e) =>
       val division = info(e).dividingExpr.get
-      division.blame.blame(blame.DivByZero(division))
+      division.blame.blame(blame.ScalarDivByZero(division))
     case reasons.InsufficientPermission(f@silver.FieldAccess(_, _)) =>
       val deref = get[col.SilverDeref[_]](f)
       deref.blame.blame(blame.InsufficientPermission(deref))

@@ -8,6 +8,7 @@ import vct.col.ast.ops.AmbiguousSubscriptOps
 
 trait AmbiguousSubscriptImpl[G] extends AmbiguousSubscriptOps[G] { this: AmbiguousSubscript[G] =>
   def isSeqOp: Boolean = CoercionUtils.getAnySeqCoercion(collection.t).isDefined
+  def isVectorOp: Boolean = CoercionUtils.getAnyVectorCoercion(collection.t).isDefined
   def isArrayOp: Boolean = CoercionUtils.getAnyArrayCoercion(collection.t).isDefined
   def isCArrayOp: Boolean = CoercionUtils.getAnyCArrayCoercion(collection.t).isDefined
   def isCPPArrayOp: Boolean = CoercionUtils.getAnyCPPArrayCoercion(collection.t).isDefined
@@ -16,6 +17,7 @@ trait AmbiguousSubscriptImpl[G] extends AmbiguousSubscriptOps[G] { this: Ambiguo
 
   override lazy val t: Type[G] =
     if (isSeqOp) collection.t.asSeq.get.element
+    else if (isVectorOp) collection.t.asVector.get.element
     else if (isArrayOp) collection.t.asArray.get.element
     else if (isCArrayOp) collection.t.asCArray.get.innerType
     else if (isCPPArrayOp) collection.t.asCPPArray.get.innerType

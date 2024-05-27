@@ -65,10 +65,27 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
+      case op @ AmbiguousDiv(left, right) =>
+        if (op.isVectorIntOp) VectorFloorDiv(dispatch(left), dispatch(right))(op.blame)
+        else if (op.isVectorOp) VectorFloatDiv(dispatch(left), dispatch(right))(op.blame)
+        else if (op.isIntOp) FloorDiv(dispatch(left), dispatch(right))(op.blame)
+        else FloatDiv(dispatch(left), dispatch(right))(op.blame)
+      case op @ AmbiguousTruncDiv(left, right) =>
+        if (op.isVectorIntOp) VectorTruncDiv(dispatch(left), dispatch(right))(op.blame)
+        else if (op.isVectorOp) VectorFloatDiv(dispatch(left), dispatch(right))(op.blame)
+        else if (op.isIntOp) TruncDiv(dispatch(left), dispatch(right))(op.blame)
+        else FloatDiv(dispatch(left), dispatch(right))(op.blame)
+      case op @ AmbiguousMod(left, right) =>
+        if (op.isVectorOp) VectorMod(dispatch(left), dispatch(right))(op.blame)
+        else Mod(dispatch(left), dispatch(right))(op.blame)
+      case op @ AmbiguousTruncMod(left, right) =>
+        if (op.isVectorOp) VectorTruncMod(dispatch(left), dispatch(right))(op.blame)
+        else TruncMod(dispatch(left), dispatch(right))(op.blame)
       case op @ AmbiguousMult(left, right) =>
         if(op.isProcessOp) ProcessSeq(dispatch(left), dispatch(right))
         else if(op.isSetOp) SetIntersection(dispatch(left), dispatch(right))
         else if(op.isBagOp) BagLargestCommon(dispatch(left), dispatch(right))
+        else if (op.isVectorOp) VectorMult(dispatch(left), dispatch(right))
         else Mult(dispatch(left), dispatch(right))
       case op @ AmbiguousPlus(left, right) =>
         if(op.isProcessOp) ProcessChoice(dispatch(left), dispatch(right))
@@ -79,11 +96,13 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else if(op.isStringOp) StringConcat(dispatch(left), dispatch(right))
         else if(op.getCustomPlusType(OperatorLeftPlus[Pre]()).isDefined) rewritePlusOf(OperatorLeftPlus[Pre](), op)
         else if(op.getCustomPlusType(OperatorRightPlus[Pre]()).isDefined) rewritePlusOf(OperatorRightPlus[Pre](), op)
+        else if (op.isVectorOp) VectorPlus(dispatch(left), dispatch(right))
         else Plus(dispatch(left), dispatch(right))
       case op @ AmbiguousMinus(left, right) =>
         if(op.isSetOp) SetMinus(dispatch(left), dispatch(right))
         else if(op.isPointerOp) PointerAdd(dispatch(left), dispatch(UMinus(right)))(op.blame)
         else if(op.isBagOp) BagMinus(dispatch(left), dispatch(right))
+        else if (op.isVectorOp) VectorMinus(dispatch(left), dispatch(right))
         else Minus(dispatch(left), dispatch(right))
       case op @ AmbiguousOr(left, right) =>
         if(op.isProcessOp) ProcessPar(dispatch(left), dispatch(right))
@@ -105,6 +124,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else if(op.isMapOp) MapGet(dispatch(collection), dispatch(index))(op.blame)
         else if(op.isArrayOp) ArraySubscript(dispatch(collection), dispatch(index))(op.blame)
         else if(op.isSeqOp) SeqSubscript(dispatch(collection), dispatch(index))(op.blame)
+        else if(op.isVectorOp) VectorSubscript(dispatch(collection), dispatch(index))(op.blame)
         else throw Unreachable("AmbiguousSubscript must subscript a pointer, map, array, or seq because of the type check.")
       case op @ AmbiguousMember(x, xs) =>
         if(op.isMapOp) MapMember(dispatch(x), dispatch(xs))
@@ -112,6 +132,17 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else if(op.isBagOp) BagMemberCount(dispatch(x), dispatch(xs))
         else if(op.isSeqOp) SeqMember(dispatch(x), dispatch(xs))
         else throw Unreachable("AmbiguousMember must query a map, set, bag, or seq because of the type check.")
+      case cmp: AmbiguousComparison[Pre] =>
+        if(cmp.isMapOp) cmp match {
+          case AmbiguousEq(left, right, _) => MapEq(dispatch(left), dispatch(right))
+          case AmbiguousNeq(left, right, _) => Not(MapEq(dispatch(left), dispatch(right)))
+        } else if(cmp.isVectorOp) cmp match {
+          case AmbiguousEq(left, right, _) => VectorEq(dispatch(left), dispatch(right))
+          case AmbiguousNeq(left, right, _) => VectorNeq(dispatch(left), dispatch(right))
+        } else cmp match {
+          case AmbiguousEq(left, right, _) => Eq(dispatch(left), dispatch(right))
+          case AmbiguousNeq(left, right, _) => Neq(dispatch(left), dispatch(right))
+        }
       case cmp: AmbiguousOrderOp[Pre] =>
         if(cmp.isBagOp) cmp match {
           case AmbiguousGreater(left, right) => SubBag(dispatch(right), dispatch(left))

@@ -32,6 +32,12 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
     )
   )
 
+  case class DisallowedAssignmentTarget(target: Expr[_]) extends UserError {
+    override def code: String = "disallowedAssignmentTarget"
+    override def text: String =
+      target.o.messageInContext("This target cannot be assigned to.")
+  }
+
   case class DisallowedSideEffect(effector: Expr[_]) extends UserError {
     override def code: String = "sideEffect"
     override def text: String =
@@ -408,6 +414,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case ArraySubscript(arr, index) => ArraySubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
       case PointerSubscript(arr, index) => PointerSubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
       case deref @ DerefPointer(ptr) => DerefPointer[Post](notInlined(ptr))(deref.blame)(target.o)
+      case VectorSubscript(_, _) => throw DisallowedAssignmentTarget(target)
+      case SeqSubscript(_, _) => throw DisallowedAssignmentTarget(target)
       case other => ???
     }
     flushExtractedExpressions()

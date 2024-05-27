@@ -619,8 +619,8 @@ case class JavaToCol[G](override val baseOrigin: Origin,
       mul match {
         case MulOp0(op) => op match {
           case "*" => AmbiguousMult(left, right)
-          case "/" => TruncDiv(left, right)(blame(expr))
-          case "%" => TruncMod(left, right)(blame(expr))
+          case "/" => AmbiguousTruncDiv(left, right)(blame(expr))
+          case "%" => AmbiguousTruncMod(left, right)(blame(expr))
         }
         case MulOp1(specOp) => convert(expr, specOp, left, right)
       }
@@ -642,8 +642,8 @@ case class JavaToCol[G](override val baseOrigin: Origin,
     }
     case JavaInstanceOf(obj, _, t) => InstanceOf(convert(obj), TypeValue(convert(t)))
     case JavaEquals(left, eq, right) => eq match {
-      case "==" => Eq(convert(left), convert(right))
-      case "!=" => Neq(convert(left), convert(right))
+      case "==" => AmbiguousEq(convert(left), convert(right), TInt())
+      case "!=" => AmbiguousNeq(convert(left), convert(right), TInt())
     }
     case JavaBitAnd(left, _, right) => AmbiguousComputationalAnd(convert(left), convert(right))
     case JavaBitXor(left, _, right) => AmbiguousComputationalXor(convert(left), convert(right))
@@ -666,14 +666,14 @@ case class JavaToCol[G](override val baseOrigin: Origin,
         case "+=" => AmbiguousPlus(target, value)(blame(right))
         case "-=" => AmbiguousMinus(target, value)(blame(right))
         case "*=" => AmbiguousMult(target,  value)
-        case "/=" => TruncDiv(target,  value)(blame(expr))
+        case "/=" => AmbiguousTruncDiv(target,  value)(blame(expr))
         case "&=" => AmbiguousComputationalAnd(target, value)
         case "|=" => BitOr(target, value)
         case "^=" => BitXor(target, value)
         case ">>=" => BitShr(target, value)
         case ">>>=" => BitUShr(target, value)
         case "<<=" => BitShl(target, value)
-        case "%=" => TruncMod(target, value)(blame(expr))
+        case "%=" => AmbiguousTruncMod(target, value)(blame(expr))
       })(blame(expr))
   }
 
@@ -1335,6 +1335,7 @@ case class JavaToCol[G](override val baseOrigin: Origin,
     }
     case ValSeqType(_, _, element, _) => TSeq(convert(element))
     case ValSetType(_, _, element, _) => TSet(convert(element))
+    case ValVectorType(_, _, element, _, size, _) => TVector(convert(size), convert(element))()
     case ValBagType(_, _, element, _) => TBag(convert(element))
     case ValOptionType(_, _, element, _) => TOption(convert(element))
     case ValMapType(_, _, key, _, value, _) => TMap(convert(key), convert(value))
@@ -1367,6 +1368,7 @@ case class JavaToCol[G](override val baseOrigin: Origin,
   def convert(implicit e: ValPrimaryCollectionConstructorContext): Expr[G] = e match {
     case ValTypedLiteralSeq(_, _, t, _, _, exprs, _) => LiteralSeq(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralSet(_, _, t, _, _, exprs, _) => LiteralSet(convert(t), exprs.map(convert(_)).getOrElse(Nil))
+    case ValTypedLiteralVector(_, _, t, _, _, exprs, _) => LiteralVector(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValSetComprehension(_, _, t, _, _, value, _, selectors, _, something, _) => ??(e)
     case ValTypedLiteralBag(_, _, t, _, _, exprs, _) => LiteralBag(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => LiteralMap(convert(key), convert(value), pairs.map(convert(_)).getOrElse(Nil))

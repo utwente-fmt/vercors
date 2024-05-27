@@ -210,7 +210,7 @@ case class SilverTransformation
     FilterSpecIgnore,
 
     // Normalize AST
-    TruncDivMod,
+    // Make sure Disambiguate comes after CFloatIntCoercion, so CInts are gone
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
     EncodeRangedFor,
@@ -302,6 +302,7 @@ case class SilverTransformation
     EnumToDomain,
     ImportArray.withArg(adtImporter),
     ImportPointer.withArg(adtImporter),
+    ImportVector.withArg(adtImporter),
     ImportMapCompat.withArg(adtImporter),
     ImportEither.withArg(adtImporter),
     ImportTuple.withArg(adtImporter),
@@ -313,6 +314,9 @@ case class SilverTransformation
     ImportAny.withArg(adtImporter),
     ImportViperOrder.withArg(adtImporter),
     EncodeRange.withArg(adtImporter),
+
+    // After Disambiguate and  ImportVector
+    TruncDivMod,
 
     // All locations with a value should now be SilverField
     EncodeForPermWithValue,
