@@ -1,6 +1,6 @@
 package vct.rewrite.rasi
 
-import vct.col.ast.{BooleanValue, Expr, IntType, Not, TBool, Type}
+import vct.col.ast.{BooleanValue, Expr, IntType, Not, TBool, TInt, Type}
 
 // TODO: Factor out into uncertain single value and uncertain collection value
 trait UncertainValue {
@@ -14,6 +14,7 @@ trait UncertainValue {
   def to_expression[G](variable: Expr[G]): Expr[G]
   def ==(other: UncertainValue): UncertainBooleanValue
   def !=(other: UncertainValue): UncertainBooleanValue
+  def t[G]: Type[G]
 }
 case object UncertainValue {
   def uncertain_of(t: Type[_]): UncertainValue = t match {
@@ -73,6 +74,8 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean) ex
     case _ => UncertainBooleanValue.from(true)
   }
 
+  override def t[G]: Type[G] = TBool[G]()
+
   def try_to_resolve(): Option[Boolean] = {
     if (can_be_true && !can_be_false) Some(true)
     else if (can_be_false && !can_be_true) Some(false)
@@ -106,7 +109,10 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
   }
 
   override def can_be_unequal(other: UncertainValue): Boolean = other match {
-    case UncertainIntegerValue(v) => value.intersection(v.complement()).non_empty()
+    case UncertainIntegerValue(v) => value.empty() || v.empty() || (value.union(v).size() match {
+        case Infinite() => true
+        case Finite(size) => size != 1
+      })
     case _ => true
   }
 
@@ -143,6 +149,8 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
     case i: UncertainIntegerValue => this != i
     case _ => UncertainBooleanValue.from(true)
   }
+
+  override def t[G]: Type[G] = TInt[G]()
 
   def try_to_resolve(): Option[Int] = value.try_to_resolve()
 
@@ -211,23 +219,26 @@ case class UncertainSequence(len: UncertainIntegerValue, values: Seq[(UncertainI
   }
 
   def concat(other: UncertainSequence): UncertainSequence =
-    UncertainSequence(len + other.len, values ++ other.values.map(t => (t._1 + len) -> t._2), t)
+    UncertainSequence(len + other.len, values ++ shift(other.values, len), t)
 
   def prepend(value: UncertainValue): UncertainSequence =
-    UncertainSequence(len + UncertainIntegerValue.single(1), (UncertainIntegerValue.single(0) -> value) +: values, t)
+    UncertainSequence(len + UncertainIntegerValue.single(1), (UncertainIntegerValue.single(0) -> value) +: shift(values, UncertainIntegerValue.single(1)), t)
 
   def updated(index: UncertainIntegerValue, value: UncertainValue): UncertainSequence =
-    UncertainSequence(len, values.filter(t => !t._1.can_be_equal(index)) :+ index -> value, t)
+    UncertainSequence(len, values.filter(e => !e._1.can_be_equal(index)) :+ index -> value, t)
 
-  def remove(index: UncertainIntegerValue): UncertainSequence =
-    UncertainSequence(len - UncertainIntegerValue.single(1), values.filter(t => !t._1.can_be_equal(index)), t)
+  def remove(index: UncertainIntegerValue): UncertainSequence = {
+    val (before, after) = values.filter(e => !e._1.can_be_equal(index)).partition(e => (e._1 < index).can_be_true)
+    UncertainSequence(len - UncertainIntegerValue.single(1), before ++ shift(after, UncertainIntegerValue.single(-1)), t)
+  }
 
   def take(num: UncertainIntegerValue): UncertainSequence =
     UncertainSequence(num, values.filter(t => t._1.<(num).can_be_true).map(t => t._1.intersection(num.below()).asInstanceOf[UncertainIntegerValue] -> t._2), t)
 
   def drop(num: UncertainIntegerValue): UncertainSequence = {
     val red: UncertainIntegerValue = num.intersection(len.below()).asInstanceOf[UncertainIntegerValue]
-    UncertainSequence(len - red, values.filter(t => t._1.>=(red).can_be_true).map(t => t._1.intersection(red.above_eq()).asInstanceOf[UncertainIntegerValue] -> t._2), t)
+    val remaining: Seq[(UncertainIntegerValue, UncertainValue)] = values.filter(t => t._1.>=(red).can_be_true).map(t => t._1.intersection(red.above_eq()).asInstanceOf[UncertainIntegerValue] -> t._2)
+    UncertainSequence(if (red.value.non_empty()) len - red else UncertainIntegerValue.single(0), shift(remaining, -red), t)
   }
 
   def slice(lower: UncertainIntegerValue, upper: UncertainIntegerValue): UncertainSequence =
@@ -250,6 +261,9 @@ case class UncertainSequence(len: UncertainIntegerValue, values: Seq[(UncertainI
     }
     res.distinct
   }
+
+  private def shift(sequence: Seq[(UncertainIntegerValue, UncertainValue)], value: UncertainIntegerValue): Seq[(UncertainIntegerValue, UncertainValue)] =
+    sequence.map(e => (e._1 + value, e._2))
 }
 case object UncertainSequence {
   def uncertain(t: Type[_]): UncertainSequence = UncertainSequence(UncertainIntegerValue.above(0), Seq(), t)

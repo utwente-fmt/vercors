@@ -1007,8 +1007,12 @@ public class MainTransformer<T> {
             joins.add(new Join<>(proc_deref, new GeneratedBlame<>(), OriGen.create()));
         }
 
+        java.util.List<Statement<T>> body = new java.util.ArrayList<>();
+
         // Add forks to method body
-        java.util.List<Statement<T>> body = new java.util.ArrayList<>(forks);
+        body.add(new Lock<>(col_system.THIS, new GeneratedBlame<>(), OriGen.create()));
+        body.addAll(forks);
+        body.add(new Unlock<>(col_system.THIS, new GeneratedBlame<>(), OriGen.create()));
 
         // Add scheduler loop to method body
         Statement<T> loop_body = create_scheduler_loop_body();

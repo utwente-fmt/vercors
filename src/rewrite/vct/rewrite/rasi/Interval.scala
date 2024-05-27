@@ -113,9 +113,13 @@ case object EmptyInterval extends Interval {
 case class MultiInterval(intervals: Set[Interval]) extends Interval {
   override def empty(): Boolean = intervals.isEmpty || intervals.forall(i => i.empty())
 
-  override def size(): IntervalSize = intervals.map(i => i.size()).fold(Finite(0))((s1, s2) => s1 + s2)
+  override def size(): IntervalSize = intervals.toSeq.map(i => i.size()).reduce((s1, s2) => s1 + s2)
 
-  override def intersection(other: Interval): Interval = MultiInterval(MultiInterval(intervals.map(i => i.intersection(other))).sub_intervals())
+  override def intersection(other: Interval): Interval = {
+    val is = merge_intersecting(intervals.map(i => i.intersection(other)))
+    if (is.size > 1) MultiInterval(is)
+    else is.head
+  }
 
   override def union(other: Interval): Interval = {
     val (intersecting, non_intersecting) = intervals.partition(i => i.intersection(other).non_empty())
@@ -183,7 +187,7 @@ case class MultiInterval(intervals: Set[Interval]) extends Interval {
   }
 
   override def to_expression[G](variable: Expr[G]): Expr[G] = {
-    intervals.map(i => i.to_expression(variable)).fold(BooleanValue[G](value = false)(variable.o))((e1, e2) => Or(e1, e2)(variable.o))
+    intervals.map(i => i.to_expression(variable)).reduce((e1, e2) => Or(e1, e2)(variable.o))
   }
 }
 
@@ -225,7 +229,7 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
   override def complement(): Interval =
     MultiInterval(Set(UpperBoundedInterval(lower - 1), LowerBoundedInterval(upper + 1)))
 
-  override def is_subset_of(other: Interval): Boolean = empty || (other match {
+  override def is_subset_of(other: Interval): Boolean = empty() || (other match {
     case EmptyInterval => false
     case MultiInterval(intervals) => intervals.exists(p => is_subset_of(p))
     case BoundedInterval(low, up) => low <= lower && up >= upper
@@ -475,18 +479,16 @@ case object UnboundedInterval extends Interval {
   override def /(other: Interval): Interval = this
   override def %(other: Interval): Interval = other match {
     case UnboundedInterval | EmptyInterval => other
-    case mi: MultiInterval => {
+    case mi: MultiInterval =>
       val intvs = mi.sub_intervals()
       if (intvs.collect{case LowerBoundedInterval(_) | UpperBoundedInterval(_) | UnboundedInterval => 0}.nonEmpty)
         return this
       val max = intvs.map{case EmptyInterval => 0; case BoundedInterval(lower, upper) => Utils.abs_max(lower, upper)}.max - 1
       if (max <= 0) EmptyInterval
       else BoundedInterval(-max, max)
-    }
-    case BoundedInterval(lower, upper) => {
+    case BoundedInterval(lower, upper) =>
       val max = Utils.abs_max(lower, upper) - 1
       BoundedInterval(-max, max)
-    }
     case LowerBoundedInterval(_) => this
     case UpperBoundedInterval(_) => this
   }

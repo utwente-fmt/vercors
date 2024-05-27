@@ -8,14 +8,15 @@ import scala.collection.immutable.HashMap
 case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue],
                             processes: HashMap[AbstractProcess[G], CFGEntry[G]],
                             lock: Option[AbstractProcess[G]],
-                            seq_lengths: Map[InstanceField[G], UncertainIntegerValue]) {
+                            parameters: Map[FieldVariable[G], UncertainValue]) {
   /**
    * Main function of the abstract state. For all processes that could potentially run, execute all possible next steps.
    *
    * @return The set of possible successor states
    */
-  def successors(): Set[AbstractState[G]] =
-    processes.keySet.filter(p => lock.isEmpty || lock.get.equals(p)).flatMap(p => p.atomic_step(this))
+  def successors(): RASISuccessor[G] = {
+    RASISuccessor.from(processes.keySet.filter(p => lock.isEmpty || lock.get.equals(p)).map(p => p.atomic_step(this)))
+  }
 
   /**
    * Updates the state by changing the program counter for a process.
@@ -25,7 +26,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return An abstract state that is a copy of this one with the updated process location
    */
   def with_process_at(process: AbstractProcess[G], position: CFGEntry[G]): AbstractState[G] =
-    AbstractState(valuations, processes.removed(process) + (process -> position), lock, seq_lengths)
+    AbstractState(valuations, processes.removed(process) + (process -> position), lock, parameters)
 
   /**
    * Updates the state by removing a process from the active list.
@@ -34,7 +35,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return An abstract state that is a copy of this one without the given process
    */
   def without_process(process: AbstractProcess[G]): AbstractState[G] =
-    AbstractState(valuations, processes.removed(process), lock, seq_lengths)
+    AbstractState(valuations, processes.removed(process), lock, parameters)
 
   /**
    * Updates the state by locking the global lock.
@@ -42,14 +43,37 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @param process Process that should hold the global lock
    * @return An abstract state that is a copy of this one with the lock held by the given process
    */
-  def locked_by(process: AbstractProcess[G]): AbstractState[G] = AbstractState(valuations, processes, Some(process), seq_lengths)
+  def locked_by(process: AbstractProcess[G]): AbstractState[G] =
+    AbstractState(valuations, processes, Some(process), parameters)
 
   /**
    * Updates the state by unlocking the global lock.
    *
    * @return An abstract state that is a copy of this one with the global lock unlocked
    */
-  def unlocked(): AbstractState[G] = AbstractState(valuations, processes, None, seq_lengths)
+  def unlocked(): AbstractState[G] =
+    AbstractState(valuations, processes, None, parameters)
+
+  /**
+   * Updates the state by adding a path condition to its knowledge of parameters (to avoid infeasible assumptions about
+   * potential paths).
+   *
+   * @param cond Path condition; can be <code>None</code>, which is equivalent to <code>true</code>
+   * @return An abstract state that is a copy of this one with the path condition taken into account
+   */
+  def with_condition(cond: Option[Expr[G]]): AbstractState[G] = cond match {
+    case None => this
+    case Some(expr) =>
+      val c = new ConstraintSolver(this, valuations.keySet.union(parameters.keySet.asInstanceOf[Set[ConcreteVariable[G]]]), false)
+                                  .resolve_assumption(expr)
+                                  .filter(m => !m.is_impossible)
+                                  .reduce((m1, m2) => m1 || m2)
+                                  .resolve
+      AbstractState(valuations.map(v => v._1 -> (if (c.contains(v._1)) v._2.intersection(c(v._1)) else v._2)),
+                    processes,
+                    lock,
+                    parameters.map(v => v._1 -> (if (c.contains(v._1)) v._2.intersection(c(v._1)) else v._2)))
+  }
 
   /**
    * Updates the state by updating the value of a certain variable.
@@ -59,9 +83,19 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    * @return An abstract state that is a copy of this one with the valuation for the given variable changed
    */
   def with_valuation(variable: Expr[G], value: UncertainValue): AbstractState[G] = variable_from_expr(variable) match {
-    case Some(concrete_variable) => AbstractState(valuations + (concrete_variable -> value), processes, lock, seq_lengths)
+    case Some(concrete_variable) => AbstractState(valuations + (concrete_variable -> value), processes, lock, parameters)
     case None => this
   }
+
+  /**
+   * Updates the state by adding a different valuation map to override or expand the valuations of this state. This is
+   * equivalent to calling <code>with_valuation</code> repeatedly with the entries of the new map.
+   *
+   * @param vals A new valuation map
+   * @return An abstract state that is a copy of this one with the updated valuation
+   */
+  def with_new_valuation(vals: Map[ConcreteVariable[G], UncertainValue]): AbstractState[G] =
+    AbstractState(valuations ++ vals, processes, lock, parameters)
 
   /**
    * Updates the state by updating all variables that are affected by an update to a collection.
@@ -72,38 +106,59 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    *         collection updated accordingly
    */
   def with_updated_collection(variable: Expr[G], assigned: Expr[G]): AbstractState[G] = {
-    val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(variable, this)).collect{ case v: IndexedVariable[_] => v }
+    val affected: Set[ConcreteVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(variable, this))
+    val indexed: Set[IndexedVariable[G]] = affected.collect{ case v: IndexedVariable[G] => v }
+    val size: Set[SizeVariable[G]] = affected.collect{ case v: SizeVariable[G] => v }
     if (affected.isEmpty) return this
-    val by_index: Map[Int, IndexedVariable[G]] = Map.from(affected.map(v => (v.i, v)))
+    val by_index: Map[Int, IndexedVariable[G]] = Map.from(indexed.map(v => (v.i, v)))
     val new_values: UncertainSequence = resolve_collection_expression(assigned)
     var vals: Map[ConcreteVariable[G], UncertainValue] = valuations
     by_index.foreach(t => vals = vals + (t._2 -> new_values.get(t._1)))
-    AbstractState(vals, processes, lock, seq_lengths + (affected.head.field -> new_values.len))
+    size.foreach(t => vals = vals + (t -> new_values.len))
+    AbstractState(vals, processes, lock, parameters)
   }
 
 
   /**
-   * Updates the state by taking a specification in the form of an assumption into account.
+   * Updates the state by taking a specification in the form of an assumption into account. Also returns the variables
+   * that could cause nondeterministic overapproximation in this operation.
    *
    * @param assumption Boolean expression expressing a state update
-   * @return A set of abstract states that are a copy of this one, updated according to the given assumption
+   * @return A descriptor for states that comply with the given assumption, given this state as the pre-state
    */
-  def with_assumption(assumption: Expr[G], is_contract: Boolean = false): Set[AbstractState[G]] = {
-    // TODO: An assumption adds constraints to the existing state! A postcondition first havocs all variables for which it has permission.
-    val constraints: Set[ConstraintMap[G]] = new ConstraintSolver(this, valuations.keySet, is_contract).resolve_assumption(assumption).filter(m => !m.is_impossible)
-    constraints.map(m => m.resolve).map(m => AbstractState(valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)), processes, lock, seq_lengths))
+  def with_assumption(assumption: Expr[G]): RASISuccessor[G] = {
+    val constraints: Set[Map[ConcreteVariable[G], UncertainValue]] = new ConstraintSolver(this, valuations.keySet, is_contract = false)
+                                                                                .resolve_assumption(assumption)
+                                                                                .filter(m => !m.is_impossible)
+                                                                                .map(m => Utils.resolvable_to_concrete(m.resolve))
+                                                                                .filter(m => m.forall(t => !t._2.intersection(valuations(t._1)).is_impossible))
+
+    val variables: Set[ConcreteVariable[G]] = new VariableSelector(this).distinguishing_variables(constraints, Some(assumption))
+
+    RASISuccessor(variables,                // For an assumption, the added conditions don't overwrite the previous state
+                  constraints.map(m => AbstractState(Utils.val_intersect(valuations, m), processes, lock, parameters)))
   }
 
   /**
-   * Updates the state by assuming a postcondition.
+   * Updates the state by assuming a postcondition. Also returns the variables that could cause nondeterministic
+   * overapproximation in this operation
    *
    * @param post Postcondition that alters the state
    * @param args A map from the method parameters to the given arguments, to be textually replaced
-   * @return A set of abstract states that are a copy of this one after assuming the given postcondition with the given
-   *         arguments
+   * @return A descriptor for states that comply with the given postcondition, given this state as the pre-state
    */
-  def with_postcondition(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]]): Set[AbstractState[G]] =
-    with_assumption(Utils.unify_expression(Utils.contract_to_expression(post), args), is_contract = true)
+  def with_postcondition(post: AccountedPredicate[G], args: Map[Variable[G], Expr[G]]): RASISuccessor[G] = {
+    val assumption: Expr[G] = Utils.unify_expression(Utils.contract_to_expression(post), args)
+    val constraints: Set[Map[ConcreteVariable[G], UncertainValue]] = new ConstraintSolver(this, valuations.keySet, is_contract = true)
+                                                                                  .resolve_assumption(assumption)
+                                                                                  .filter(m => !m.is_impossible)
+                                                                                  .map(m => Utils.resolvable_to_concrete(m.resolve))
+
+    val variables: Set[ConcreteVariable[G]] = new VariableSelector(this).distinguishing_variables(constraints, Some(assumption))
+
+    RASISuccessor(variables,                              // A postcondition simply overwrites the values it specifies
+                  constraints.map(m => AbstractState(valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)), processes, lock, parameters)))
+  }
 
   /**
    * Evaluates an expression and returns an uncertain value, depending on the type of expression and the values it can
@@ -114,7 +169,7 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
    */
   def resolve_expression(expr: Expr[G], is_old: Boolean = false, is_contract: Boolean = false): UncertainValue = expr.t match {
     case _: IntType[_] => resolve_integer_expression(expr, is_old, is_contract)
-    case _: TBool[_] => resolve_boolean_expression(expr, is_old, is_contract)
+    case _: TBool[_] | _: TResource[_] => resolve_boolean_expression(expr, is_old, is_contract)
     case _ => throw new IllegalArgumentException(s"Type ${expr.t.toInlineString} is not supported")
   }
 
@@ -170,10 +225,23 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
         case Some(v) =>
           if (is_contract && !is_old) UncertainIntegerValue.uncertain()
           else valuations(v).asInstanceOf[UncertainIntegerValue]
-        case None => UncertainIntegerValue.uncertain()
+        case None => parameter_from_expr(expr) match {
+          case Some(v) => parameters(v).asInstanceOf[UncertainIntegerValue]
+          case None => UncertainIntegerValue.uncertain()
+        }
       }
-    case Length(arr) => UncertainIntegerValue.above(0)    // TODO: Implement array semantics
-    case Size(obj) => resolve_collection_expression(obj).len
+    case Length(arr) => variable_from_expr(expr) match {
+      case Some(v) =>
+        if (is_contract && !is_old) UncertainIntegerValue.above(0)
+        else valuations(v).asInstanceOf[UncertainIntegerValue]
+      case None => resolve_collection_expression(arr).len
+    }
+    case Size(obj) => variable_from_expr(expr) match {
+      case Some(v) =>
+        if (is_contract && !is_old) UncertainIntegerValue.above(0)
+        else valuations(v).asInstanceOf[UncertainIntegerValue]
+      case None => resolve_collection_expression(obj).len
+    }
     case ProcedureInvocation(ref, args, _, _, _, _) =>
       get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainIntegerValue]
     case MethodInvocation(_, ref, args, _, _, _, _) =>
@@ -200,8 +268,8 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     case And(left, right) => resolve_boolean_expression(left, is_old, is_contract) && resolve_boolean_expression(right, is_old, is_contract)
     case Or(left, right) => resolve_boolean_expression(left, is_old, is_contract) || resolve_boolean_expression(right, is_old, is_contract)
     case Implies(left, right) => (!resolve_boolean_expression(left, is_old, is_contract)) || resolve_boolean_expression(right, is_old, is_contract)
-    case Eq(left, right) => handle_equality(left, right, is_old, is_contract)
-    case Neq(left, right) => !handle_equality(left, right, is_old, is_contract)
+    case Eq(left, right) => handle_equality(left, right, is_old, is_contract, negate = false)
+    case Neq(left, right) => handle_equality(left, right, is_old, is_contract, negate = true)
     case AmbiguousGreater(left, right) => resolve_integer_expression(left, is_old, is_contract) > resolve_integer_expression(right, is_old, is_contract)
     case AmbiguousLess(left, right) => resolve_integer_expression(left, is_old, is_contract) < resolve_integer_expression(right, is_old, is_contract)
     case AmbiguousGreaterEq(left, right) => resolve_integer_expression(left, is_old, is_contract) >= resolve_integer_expression(right, is_old, is_contract)
@@ -228,7 +296,10 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
         case Some(v) =>
           if (is_contract && !is_old) UncertainBooleanValue.uncertain()
           else valuations(v).asInstanceOf[UncertainBooleanValue]
-        case None => UncertainBooleanValue.uncertain()
+        case None => parameter_from_expr(expr) match {
+          case Some(v) => parameters(v).asInstanceOf[UncertainBooleanValue]
+          case None => UncertainBooleanValue.uncertain()
+        }
       }
     case ProcedureInvocation(ref, args, _, _, _, _) =>
       get_subroutine_return(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)), ref.decl.returnType).asInstanceOf[UncertainBooleanValue]
@@ -271,9 +342,12 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
         values.head.t)
     // Variables
     case d: Deref[_] => collection_from_variable(d, is_old, is_contract)
+    // Array operations
+    case Values(arr, from, to) =>
+      resolve_collection_expression(arr, is_old, is_contract).slice(resolve_integer_expression(from, is_old, is_contract),
+                                                                    resolve_integer_expression(to, is_old, is_contract))
     // TODO: Implement array semantics
-    case Values(arr, from, to) => ???
-    case NewArray(element, dims, moreDims, initialize) => ???
+    case NewArray(element, dims, moreDims, initialize) => UncertainSequence.uncertain(element)
     // Sequence operations
     case Cons(x, xs) =>
       resolve_collection_expression(xs, is_old, is_contract).prepend(resolve_expression(x, is_old, is_contract))
@@ -306,8 +380,9 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   }
 
   private def collection_from_variable(deref: Deref[G], is_old: Boolean, is_contract: Boolean): UncertainSequence = {
-    val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(deref, this)).collect { case v: IndexedVariable[_] => v }
-    val len: Option[UncertainIntegerValue] = seq_lengths.get(deref.ref.decl)
+    val affected: Set[IndexedVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(deref, this)).collect{ case v: IndexedVariable[_] => v }
+    val size_var: Option[SizeVariable[G]] = valuations.keySet.filter(v => v.is_contained_by(deref, this)).collectFirst{ case v: SizeVariable[_] => v }
+    val len: Option[UncertainIntegerValue] = size_var.map(v => valuations(v).asInstanceOf[UncertainIntegerValue])
     val t: Type[G] = deref.ref.decl.t match {
       case TArray(element) => element
       case TSeq(element) => element
@@ -330,9 +405,16 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
     possible_vals.reduce((v1, v2) => v1.union(v2))
   }
 
-  private def handle_equality(left: Expr[G], right: Expr[G], is_old: Boolean, is_contract: Boolean): UncertainBooleanValue = left.t match {
-    case _: IntType[_] | TBool() => resolve_expression(left, is_old, is_contract) == resolve_expression(right, is_old, is_contract)
-    case _: TSeq[_] | TArray(_) => resolve_collection_expression(left, is_old, is_contract) == resolve_collection_expression(right, is_old, is_contract)
+  private def handle_equality(left: Expr[G], right: Expr[G], is_old: Boolean, is_contract: Boolean, negate: Boolean): UncertainBooleanValue = left.t match {
+    case _: IntType[_] | TBool() =>
+      val left_val: UncertainValue = resolve_expression(left, is_old, is_contract)
+      val right_val: UncertainValue = resolve_expression(right, is_old, is_contract)
+      if (!negate) left_val == right_val else left_val != right_val
+    case _: TSeq[_] | TArray(_) =>
+      val left_coll: UncertainSequence = resolve_collection_expression(left, is_old, is_contract)
+      val right_coll: UncertainSequence = resolve_collection_expression(right, is_old, is_contract)
+      val equals: UncertainBooleanValue = left_coll == right_coll
+      if (!negate) equals else !equals
     case _ => UncertainBooleanValue.from(true)    // TODO: The justification for this is that the program will be verified anyway,
                                                   //  so object equality does not need to be considered; does that make sense?
   }
@@ -340,10 +422,16 @@ case class AbstractState[G](valuations: Map[ConcreteVariable[G], UncertainValue]
   private def variable_from_expr(variable: Expr[G]): Option[ConcreteVariable[G]] =
     valuations.keys.collectFirst{ case c: ConcreteVariable[G] if c.is(variable, this) => c }
 
+  private def parameter_from_expr(variable: Expr[G]): Option[FieldVariable[G]] =
+    parameters.keys.collectFirst{ case f: FieldVariable[G] if f.is(variable, this) => f }
+
   /**
    * Returns an expression to represent this state of the form <code>variable1 == value1 && variable2 == value2 && ...</code>
    *
    * @return An expression that encodes this state
    */
-  def to_expression: Expr[G] = valuations.map(v => v._2.to_expression(v._1.to_expression)).reduce((e1, e2) => And(e1, e2)(e1.o))
+  def to_expression: Expr[G] = {
+    val sorted_valuations = valuations.toSeq.sortWith((t1, t2) => t1._1.compare(t2._1))
+    sorted_valuations.map(v => v._2.to_expression(v._1.to_expression)).reduce((e1, e2) => And(e1, e2)(e1.o))
+  }
 }
