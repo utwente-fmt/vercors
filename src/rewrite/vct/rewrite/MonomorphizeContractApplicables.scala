@@ -13,8 +13,8 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case object MonomorphizeContractApplicables extends RewriterBuilder {
-  override def key: String = "monomorphize"
-  override def desc: String = "Monomorphize generic declarations with their usages where Silver does not support generics."
+  override def key: String = "monomorphizeApplicables"
+  override def desc: String = "Monomorphize generic applicable declarations with their usages where Silver does not support generics."
 }
 
 case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter[Pre] {

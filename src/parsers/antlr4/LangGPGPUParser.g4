@@ -31,3 +31,5 @@ gpgpuKernelSpecifier
 gpgpuLocalMemory: GPGPU_LOCAL_MEMORY;
 
 gpgpuGlobalMemory: GPGPU_GLOBAL_MEMORY;
+
+openCLVectorType: OPENCL_VECTOR_TYPE '(' typeName ',' Constant  ')';

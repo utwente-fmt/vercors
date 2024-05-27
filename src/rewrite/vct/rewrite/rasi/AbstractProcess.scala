@@ -76,7 +76,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
         case Some(_) => take_viable_edges_from_state(succ, state)
         case None => take_viable_edges(succ, state, state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args))))
       })
-      case InvokeConstructor(ref, _, args, _, _, _, _) => (true, ref.decl.body match {
+      case InvokeConstructor(ref, _, args, _, _, _, _, _) => (true, ref.decl.body match {
         case Some(_) => take_viable_edges_from_state(succ, state)
         case None => take_viable_edges(succ, state, state.with_postcondition(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args))))
       })

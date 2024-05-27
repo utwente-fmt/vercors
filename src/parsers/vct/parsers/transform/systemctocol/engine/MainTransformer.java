@@ -189,7 +189,7 @@ public class MainTransformer<T> {
                         // Get field type
                         Class<T> transformed_class = col_system.get_col_class_translation(process_class);
                         Ref<T, Class<T>> ref_to_class = new DirectRef<>(transformed_class, ClassTag$.MODULE$.apply(Class.class));
-                        Type<T> t = new TClass<>(ref_to_class, OriGen.create());
+                        Type<T> t = new TClass<>(ref_to_class, Seqs.empty(), OriGen.create());
 
                         // Generate instance field
                         InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create(create_instance_name(process_class)));
@@ -204,7 +204,7 @@ public class MainTransformer<T> {
                     // Get field type
                     Class<T> transformed_class = col_system.get_col_class_translation(state_class);
                     Ref<T, Class<T>> ref_to_class = new DirectRef<>(transformed_class, ClassTag$.MODULE$.apply(Class.class));
-                    Type<T> t = new TClass<>(ref_to_class, OriGen.create());
+                    Type<T> t = new TClass<>(ref_to_class, Seqs.empty(), OriGen.create());
 
                     // Generate instance field
                     InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create(create_instance_name(state_class)));
@@ -473,7 +473,7 @@ public class MainTransformer<T> {
         Expr<T> ensures = create_scheduler_contract();
         ApplicableContract<T> contract = col_system.to_applicable_contract(col_system.TRUE, ensures);
 
-        main_constructor = new PVLConstructor<>(contract, col_system.NO_VARS, Option.apply(body), new GeneratedBlame<>(), OriGen.create());
+        main_constructor = new PVLConstructor<>(contract, Seqs.empty(), col_system.NO_VARS, Option.apply(body), new GeneratedBlame<>(), OriGen.create());
     }
 
     /**
@@ -596,7 +596,7 @@ public class MainTransformer<T> {
         }
 
         // Create the new expression and return the assignment
-        PVLNew<T> new_expr = new PVLNew<>(field.t(), List.from(CollectionConverters.asScala(parameters)), col_system.NO_GIVEN,
+        PVLNew<T> new_expr = new PVLNew<>(field.t(), Seqs.empty(), List.from(CollectionConverters.asScala(parameters)), col_system.NO_GIVEN,
                 col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
         return new Assign<>(field_deref, new_expr, new GeneratedBlame<>(), OriGen.create());
     }
@@ -1237,8 +1237,8 @@ public class MainTransformer<T> {
                 new WritePerm<>(OriGen.create()), OriGen.create());
 
         // Assemble class
-        Class<T> main_class = new Class<>(List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS,
-                lock_invariant, OriGen.create("Main"));
+        Class<T> main_class = new Class<>(Seqs.empty(), List.from(CollectionConverters.asScala(declarations)),
+                Seqs.empty(), lock_invariant, OriGen.create("Main"));
 
         // Register Main class in COL system context
         col_system.add_global_declaration(main_class);

@@ -7,7 +7,7 @@ import mill.{util => _, _}
 import scalalib.{JavaModule => _, ScalaModule => _, _}
 import contrib.buildinfo.BuildInfo
 import me.pieterbos.mill.cpp.options.implicits._
-import me.pieterbos.mill.cpp.options.CppExecutableOptions
+import me.pieterbos.mill.cpp.options.{CppCompileOptions, CppExecutableOptions}
 import me.pieterbos.mill.cpp.{CMakeModule, LinkableModule}
 import me.pieterbos.mill.cpp.toolchain.GccCompatible
 import mill.util.Jvm
@@ -687,7 +687,7 @@ object vercors extends Module {
     }
 
     object origin extends CppModule {
-      def moduleDeps = Seq(llvm, json, proto, proto.protobuf.libprotobuf)
+      def moduleDeps = Seq(llvm, json, proto, protobuf.libprotobuf)
 
       def sources = T.sources(vcllvm.root() / "lib" / "origin")
 
@@ -698,7 +698,7 @@ object vercors extends Module {
     }
 
     object passes extends CppModule {
-      def moduleDeps = Seq(llvm, proto, proto.protobuf.libprotobuf)
+      def moduleDeps = Seq(llvm, proto, protobuf.libprotobuf)
 
       def sources = T.sources(vcllvm.root() / "lib" / "passes")
 
@@ -709,7 +709,7 @@ object vercors extends Module {
     }
 
     object transform extends CppModule {
-      def moduleDeps = Seq(llvm, proto, proto.protobuf.libprotobuf)
+      def moduleDeps = Seq(llvm, proto, protobuf.libprotobuf)
 
       def sources = T.sources(vcllvm.root() / "lib" / "transform")
 
@@ -720,7 +720,7 @@ object vercors extends Module {
     }
 
     object util extends CppModule {
-      def moduleDeps = Seq(llvm, proto, proto.protobuf.libprotobuf)
+      def moduleDeps = Seq(llvm, proto, protobuf.libprotobuf)
 
       def sources = T.sources(vcllvm.root() / "lib" / "util")
 
@@ -732,48 +732,47 @@ object vercors extends Module {
 
     override def unixToolchain = GccCompatible("g++", "ar")
 
-    def moduleDeps = Seq(origin, passes, transform, util, llvm, proto, proto.protobuf.libprotobuf)
+    def moduleDeps = Seq(origin, passes, transform, util, llvm, proto, protobuf.libprotobuf)
 
     def sources = T.sources(vcllvm.root() / "tools" / "vcllvm")
 
     def includePaths = T.sources(vcllvm.root() / "include")
 
+    object protobuf extends CMakeModule {
+      object protobufGit extends GitModule {
+        override def url: T[String] = "https://github.com/protocolbuffers/protobuf"
 
-    object proto extends CppModule {
-      object protobuf extends CMakeModule {
-        object protobufGit extends GitModule {
-          override def url: T[String] = "https://github.com/protocolbuffers/protobuf"
+        override def commitish: T[String] = "v25.2"
 
-          override def commitish: T[String] = "v25.2"
+        override def fetchSubmodulesRecursively = true
+      }
 
-          override def fetchSubmodulesRecursively = true
-        }
+      override def root = T.source(protobufGit.repo())
 
-        override def root = T.source(protobufGit.repo())
+      override def jobs = T {
+        2
+      }
 
-        override def jobs = T {
-          2
-        }
+      override def cMakeBuild: T[PathRef] = T {
+        os.proc("cmake", "-B", T.dest, "-Dprotobuf_BUILD_TESTS=OFF", "-DABSL_PROPAGATE_CXX_STD=ON", "-S", root().path).call(cwd = T.dest)
+        os.proc("make", "-j", jobs(), "all").call(cwd = T.dest)
+        PathRef(T.dest)
+      }
 
-        override def cMakeBuild: T[PathRef] = T {
-          os.proc("cmake", "-B", T.dest, "-Dprotobuf_BUILD_TESTS=OFF", "-DABSL_PROPAGATE_CXX_STD=ON", "-S", root().path).call(cwd = T.dest)
-          os.proc("make", "-j", jobs(), "all").call(cwd = T.dest)
-          PathRef(T.dest)
-        }
-
-        object libprotobuf extends CMakeLibrary {
-          def target = T {
-            "libprotobuf"
-          }
-        }
-
-        object protoc extends CMakeExecutable {
-          def target = T {
-            "protoc"
-          }
+      object libprotobuf extends CMakeLibrary {
+        def target = T {
+          "libprotobuf"
         }
       }
 
+      object protoc extends CMakeExecutable {
+        def target = T {
+          "protoc"
+        }
+      }
+    }
+
+    object proto extends CppModule {
       def protoPath = T.sources(
         vercors.col.helpers.megacol().path / os.up / os.up / os.up / os.up,
         settings.src / "serialize",
@@ -801,8 +800,45 @@ object vercors extends Module {
         Seq(PathRef(generate()))
       }
 
-      override def unixToolchain = GccCompatible("g++", "ar")
+      def precompileHeaders: T[PathRef] = T {
+        def isHiddenFile(path: os.Path): Boolean = path.last.startsWith(".")
 
+        val headers = for {
+          root <- allSources()
+          if os.exists(root.path)
+          path <- if(os.isDir(root.path)) os.walk(root.path) else Seq(root.path)
+          if os.isFile(path)
+          if !isHiddenFile(path)
+          if Seq("h", "hpp").contains(path.ext.toLowerCase)
+        } yield (root.path, path.relativeTo(root.path))
+
+        val options = CppCompileOptions(
+          allIncludePaths().map(_.path),
+          defines(),
+          includes().map(_.path),
+          standard(),
+          optimization(),
+          compileOptions(),
+          compileEarlyOptions(),
+        )
+
+        for((base, header) <- headers) {
+          val compileOut = toolchain.compile(base / header, T.dest, options)
+          val outDir = T.dest / header / os.up
+          val out = outDir / (header.last + ".gch")
+          os.makeDir.all(outDir)
+          os.move(compileOut, out)
+          os.copy(base / header, T.dest / header)
+        }
+
+        PathRef(T.dest)
+      }
+
+      override def exportIncludePaths: T[Seq[PathRef]] = T {
+        Seq(precompileHeaders())
+      }
+
+      override def unixToolchain = GccCompatible("g++", "ar")
     }
   }
 

@@ -130,7 +130,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
               body = Block(Seq(Label(labelDecls.dispatch(decl), Block(Nil)), newBody)),
               after = Block(Nil),
               catches = Seq(CatchClause(
-                decl = new Variable(TClass(breakLabelException.ref(decl))),
+                decl = new Variable(TClass(breakLabelException.ref(decl), Seq())),
                 body = Block(Nil),
               )),
             )
@@ -146,12 +146,12 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
 
         case Break(Some(Ref(label))) =>
           val cls = breakLabelException.getOrElseUpdate(label,
-            globalDeclarations.declare(new Class[Post](Nil, Nil, tt)(BreakException)))
+            globalDeclarations.declare(new Class[Post](Nil, Nil, Nil, tt)(BreakException)))
 
           Throw(NewObject[Post](cls.ref))(PanicBlame("The result of NewObject is never null"))
 
         case Return(result) =>
-          val exc = new Variable[Post](TClass(returnClass.get.ref))
+          val exc = new Variable[Post](TClass(returnClass.get.ref, Seq()))
           Scope(Seq(exc), Block(Seq(
             assignLocal(exc.get, NewObject(returnClass.get.ref)),
             assignField(exc.get, valueField.get.ref, dispatch(result), PanicBlame("Have write permission immediately after NewObject")),
@@ -174,10 +174,10 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
 
               if(needReturn(method)) {
                 val returnField = new InstanceField[Post](dispatch(method.returnType), Nil)(ReturnField)
-                val returnClass = new Class[Post](Seq(returnField), Nil, tt)(ReturnClass)
+                val returnClass = new Class[Post](Nil, Seq(returnField), Nil, tt)(ReturnClass)
                 globalDeclarations.declare(returnClass)
 
-                val caughtReturn = new Variable[Post](TClass(returnClass.ref))
+                val caughtReturn = new Variable[Post](TClass(returnClass.ref, Seq()))
 
                 TryCatchFinally(
                   body = BreakReturnToException(Some(returnClass), Some(returnField)).dispatch(body),

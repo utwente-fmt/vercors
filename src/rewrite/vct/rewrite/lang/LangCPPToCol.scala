@@ -827,7 +827,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     // Create a class that can be used to create a 'this' object
     // It will be linked to the class made near the end of this method.
-    val preEventClass: Class[Pre] = new Class(Nil, Nil, tt)(commandGroup.o)
+    val preEventClass: Class[Pre] = new Class(Nil, Nil, Nil, tt)(commandGroup.o)
     this.currentThis = Some(rw.dispatch(ThisObject[Pre](preEventClass.ref)(preEventClass.o)))
 
     // Generate conditions and accessor objects for each accessor declared in the command group
@@ -890,14 +890,15 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     // Create the surrounding class
     val postEventClass = new Class[Post](
-      declarations = currentKernelType.get.getRangeFields ++ accessors.flatMap(acc => acc.instanceField +: acc.rangeIndexFields) ++ Seq(kernelRunner),
+      typeArgs = Seq(),
+      decls = currentKernelType.get.getRangeFields ++ accessors.flatMap(acc => acc.instanceField +: acc.rangeIndexFields) ++ Seq(kernelRunner),
       supports = Seq(),
       intrinsicLockInvariant = tt
     )(commandGroup.o.where(name = "SYCL_EVENT_CLASS"))
     rw.globalDeclarations.succeed(preEventClass, postEventClass)
 
     // Create a variable to refer to the class instance
-    val eventClassRef = new Variable[Post](TClass(postEventClass.ref))(commandGroup.o.where(name = "sycl_event_ref"))
+    val eventClassRef = new Variable[Post](TClass(postEventClass.ref, Seq()))(commandGroup.o.where(name = "sycl_event_ref"))
     // Store the class ref and read-write accessors to be used when the kernel is done running
     currentlyRunningKernels.put(eventClassRef.get(commandGroup.o), accessors.filter(acc => acc.accessMode.isInstanceOf[SYCLReadWriteAccess[Post]]))
 
@@ -1132,7 +1133,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   private def createEventClassConstructor(accessors: Seq[SYCLAccessor[Post]], preClass: Class[Pre], commandGroupO: Origin): Procedure[Post] = {
-    val t = rw.dispatch(TClass[Pre](preClass.ref))
+    val t = rw.dispatch(TClass[Pre](preClass.ref, Seq()))
     rw.globalDeclarations.declare(withResult((result: Result[Post]) => {
       val constructorPostConditions: mutable.Buffer[Expr[Post]] = mutable.Buffer.empty
       val constructorArgs: mutable.Buffer[Variable[Post]] = mutable.Buffer.empty
@@ -1448,14 +1449,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   private def removeKernelClassInstancePermissions(e: Expr[Post]): Expr[Post] = {
     implicit val o = e.o
     e match {
-      case _ if e.t != TResource[Post]() => e
       case s@Starall(bindings, triggers, body) => Starall(bindings, triggers, removeKernelClassInstancePermissions(body))(s.blame)
       case ModelAbstractState(model, state) => ModelAbstractState(removeKernelClassInstancePermissions(model), removeKernelClassInstancePermissions(state))
       case ModelState(model, perm, state) => ModelState(removeKernelClassInstancePermissions(model), removeKernelClassInstancePermissions(perm), removeKernelClassInstancePermissions(state))
       case s@Scale(expr, res) => Scale(removeKernelClassInstancePermissions(expr), removeKernelClassInstancePermissions(res))(s.blame)
       case Star(left, right) => Star(removeKernelClassInstancePermissions(left), removeKernelClassInstancePermissions(right))
       case Wand(left, right) => Wand(removeKernelClassInstancePermissions(left), removeKernelClassInstancePermissions(right))
-      case Implies(left, right) => Implies(removeKernelClassInstancePermissions(left), removeKernelClassInstancePermissions(right))
 
       case ActionPerm(Deref(obj, _), _) if obj.equals(this.currentThis.get) => tt
       case ModelPerm(Deref(obj, _), _) if obj.equals(this.currentThis.get) => tt
@@ -1465,6 +1464,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case Perm(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)), _) if obj.equals(this.currentThis.get) => tt
       case PointsTo(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)), _, _) if obj.equals(this.currentThis.get) => tt
       case Value(AmbiguousLocation(ArraySubscript(Deref(obj, _), _))) if obj.equals(this.currentThis.get) => tt
+      case Implies(left, right) => Implies(removeKernelClassInstancePermissions(left), removeKernelClassInstancePermissions(right))
+
       case e => e
     }
   }

@@ -35,8 +35,6 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
 
   def rewriteConstructor(cons: PVLConstructor[Pre]): Unit = {
     implicit val o: Origin = cons.o
-    val t = TClass[Post](rw.succ(rw.currentClass.top))
-    val resVar = new Variable(t)
     pvlConstructor(cons) =
       rw.currentThis.having(ThisObject(rw.succ(rw.currentClass.top))) {
         rw.classDeclarations.declare(new Constructor[Post](
@@ -51,13 +49,12 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
   }
 
   def maybeDeclareDefaultConstructor(cls: Class[Pre]): Unit = {
-    if (cls.declarations.collectFirst { case _: PVLConstructor[Pre] => () }.isEmpty) {
+    if (cls.decls.collectFirst { case _: PVLConstructor[Pre] => () }.isEmpty) {
       implicit val o: Origin = cls.o
-      val t = TClass[Post](rw.succ(cls))
       val `this` = ThisObject(rw.succ[Class[Post]](cls))
       val defaultBlame = PanicBlame("The postcondition of a default constructor cannot fail.")
 
-      val checkRunnable = cls.declarations.collectFirst {
+      val checkRunnable = cls.decls.collectFirst {
         case _: RunMethod[Pre] => ()
       }.nonEmpty
 
@@ -67,7 +64,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
         Some(Scope(Nil, Block(Nil))),
         ApplicableContract(
           UnitAccountedPredicate(tt),
-          UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.declarations.collect {
+          UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.decls.collect {
             case field: InstanceField[Pre] if field.flags.collectFirst { case _: Final[Pre] => () }.isEmpty && !veymontGeneratePermissions =>
               fieldPerm[Post](`this`, rw.succ(field), WritePerm())
           }) &* (if (checkRunnable) IdleToken(`this`) else tt)), tt, Nil, Nil, Nil, None,
@@ -107,40 +104,34 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
   }
 
   def newClass(inv: PVLNew[Pre]): Expr[Post] = {
-    val PVLNew(t, args, givenMap, yields) = inv
+    val PVLNew(t, typeArgs, args, givenMap, yields) = inv
+    val classTypeArgs = t match {
+      case TClass(_, typeArgs) => typeArgs
+      case _ => Seq()
+    }
     implicit val o: Origin = inv.o
     inv.ref.get match {
       case RefModel(decl) => ModelNew[Post](rw.succ(decl))
       case RefPVLConstructor(decl) =>
-        ConstructorInvocation[Post](pvlConstructor.ref(decl), args.map(rw.dispatch), Nil, Nil,
+        ConstructorInvocation[Post](pvlConstructor.ref(decl), classTypeArgs.map(rw.dispatch), args.map(rw.dispatch),
+          Nil, typeArgs.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultPVLConstructor(_) =>
-        ConstructorInvocation[Post](pvlDefaultConstructor.ref(t.asInstanceOf[TClass[Pre]].cls.decl), args.map(rw.dispatch), Nil, Nil,
+        ConstructorInvocation[Post](pvlDefaultConstructor.ref(t.asInstanceOf[TClass[Pre]].cls.decl), classTypeArgs.map(rw.dispatch),
+          args.map(rw.dispatch), Nil, typeArgs.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
     }
   }
 
   def branch(branch: PVLBranch[Pre]): Statement[Post] =
-    if (rw.veymont.currentProg.nonEmpty) {
-      rw.veymont.rewriteBranch(branch)
-    } else {
-      Branch(branch.branches.map { case (e, s) => (rw.dispatch(e), rw.dispatch(s)) })(branch.o)
-    }
+    Branch(branch.branches.map { case (e, s) => (rw.dispatch(e), rw.dispatch(s)) })(branch.o)
 
   def loop(loop: PVLLoop[Pre]): Statement[Post] = loop match {
-    case PVLLoop(Block(Nil), _, Block(Nil), _, _) if rw.veymont.currentProg.nonEmpty =>
-      rw.veymont.rewriteLoop(loop)
     case PVLLoop(init, cond, update, contract, body) =>
       Loop(rw.dispatch(init), rw.dispatch(cond), rw.dispatch(update), rw.dispatch(contract), rw.dispatch(body))(loop.o)
   }
-
-  def assign(assign: Assign[Pre]): Statement[Post] =
-    if (rw.veymont.currentProg.nonEmpty)
-      rw.veymont.rewriteAssign(assign)
-    else
-      assign.rewriteDefault()
 
   def rewriteMainMethod(main: VeSUVMainMethod[Pre]): Unit = {
     implicit val o: Origin = main.o

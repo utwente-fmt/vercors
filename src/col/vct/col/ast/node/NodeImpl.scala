@@ -55,7 +55,7 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
       enterCheckContextCurrentApplicable(context),
       enterCheckContextInPreCondition(context),
       enterCheckContextInPostCondition(context),
-      enterCheckContextCurrentSeqProg(context),
+      enterCheckContextCurrentChoreography(context),
       enterCheckContextCurrentReceiverEndpoint(context),
       enterCheckContextCurrentParticipatingEndpoints(context),
       enterCheckContextDeclarationStack(context),
@@ -68,7 +68,7 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
   def enterCheckContextCurrentApplicable(context: CheckContext[G]): Option[Applicable[G]] = context.currentApplicable
   def enterCheckContextInPreCondition(context: CheckContext[G]): Boolean = context.inPreCondition
   def enterCheckContextInPostCondition(context: CheckContext[G]): Boolean = context.inPostCondition
-  def enterCheckContextCurrentSeqProg(context: CheckContext[G]): Option[SeqProg[G]] = context.currentSeqProg
+  def enterCheckContextCurrentChoreography(context: CheckContext[G]): Option[Choreography[G]] = context.currentChoreography
   def enterCheckContextCurrentReceiverEndpoint(context: CheckContext[G]): Option[Endpoint[G]] = context.currentReceiverEndpoint
   def enterCheckContextCurrentParticipatingEndpoints(context: CheckContext[G]): Option[Set[Endpoint[G]]] = context.currentParticipatingEndpoints
   def enterCheckContextDeclarationStack(context: CheckContext[G]): Seq[Declaration[G]] = context.declarationStack

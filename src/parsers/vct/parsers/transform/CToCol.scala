@@ -125,7 +125,7 @@ case class CToCol[G](override val baseOrigin: Origin,
   def convert(implicit functionSpec: FunctionSpecifierContext): CDeclarationSpecifier[G] = functionSpec match {
     case FunctionSpecifier0("inline") => CInline[G]()
     case FunctionSpecifier0(_) => ??(functionSpec)
-    case FunctionSpecifier1(_) => ??(functionSpec)
+    case FunctionSpecifier1(attribute) => CFunctionTypeExtensionModifier(convert(attribute))
     case FunctionSpecifier2(_) => ??(functionSpec)
   }
 
@@ -154,15 +154,16 @@ case class CToCol[G](override val baseOrigin: Origin,
       case "_Bool" => CBool()
       case _ => ??(typeSpec)
     }
-    case TypeSpecifier1(_, _, _, _) => ??(typeSpec)
-    case TypeSpecifier2(valType) => CSpecificationType(convert(valType))
-    case TypeSpecifier3(_) => ??(typeSpec)
-    case TypeSpecifier4(struct) => convert(struct)
-    case TypeSpecifier5(_) => ??(typeSpec)
-    case TypeSpecifier6(name) => name match {
+//    case TypeSpecifier1(_, _, _, _) => ??(typeSpec)
+    case TypeSpecifier1(valType) => CSpecificationType(convert(valType))
+    case TypeSpecifier2(_) => ??(typeSpec)
+    case TypeSpecifier3(struct) => convert(struct)
+    case TypeSpecifier4(_) => ??(typeSpec)
+    case TypeSpecifier5(name) => name match {
       case TypedefName0(name) => CTypedefName(convert(name))
     }
-    case TypeSpecifier7(_, _, _, _) => ??(typeSpec)
+    case TypeSpecifier6(_, _, _, _) => ??(typeSpec)
+    case TypeSpecifier7(_, _, t, _, size, _) => CSpecificationType(TOpenCLVector(BigInt(size), convert(t)))
   }
 
   def convert(implicit struct: StructOrUnionSpecifierContext): CTypeSpecifier[G] = struct match {
@@ -217,12 +218,50 @@ case class CToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit decl: DeclaratorContext): CDeclarator[G] = decl match {
-    case Declarator0(_, _, extension+:_) => ??(extension)
     case Declarator0(Some(ptr), inner, Nil) =>
       val pointers = convert(ptr)
       CPointerDeclarator(pointers, convert(inner))
     case Declarator0(None, inner, Nil) => convert(inner)
+    case Declarator0(Some(ptr), inner, extensions) =>
+      val pointers = convert(ptr)
+      val innerWithExtensions = CTypeExtensionDeclarator(extensions.flatMap(convert(_)), convert(inner))
+      CPointerDeclarator(pointers, innerWithExtensions)
+    case Declarator0(None, inner, extensions) => CTypeExtensionDeclarator(extensions.flatMap(convert(_)), convert(inner))
   }
+
+  def convert(implicit decl: GccDeclaratorExtensionContext): Seq[CTypeExtensions[G]] = decl match {
+    case GccDeclaratorExtension0(_, _, _, _) => ??(decl)
+    case GccDeclaratorExtension1(attr) => convert(attr)
+  }
+
+  def convert(implicit decl: GccAttributeSpecifierContext): Seq[CTypeExtensions[G]] = decl match {
+    case GccAttributeSpecifier0(_, _, _, attributeList, _ , _) => convert(attributeList)
+  }
+
+  def convert(implicit list: GccAttributeListContext): Seq[CTypeExtensions[G]] = list match {
+    case GccAttributeList0(nonEmpty) => convert(nonEmpty)
+    case GccAttributeList1(_) => Seq()
+  }
+
+  def convert(implicit list: GccAttributeListNonEmptyContext): Seq[CTypeExtensions[G]] = list match {
+    case GccAttributeListNonEmpty0(remainder, _, attr) =>
+      val last = convert(attr).map(Seq(_)).getOrElse(Nil)
+      convert(remainder) ++ last
+    case GccAttributeListNonEmpty1(attr) => convert(attr).map(Seq(_)).getOrElse(Nil)
+  }
+
+  def convert(implicit list: GccAttributeContext): Option[CTypeExtensions[G]] = list match {
+    case GccAttribute0(name, args) =>
+//      Some(CTypeAttribute(name, args.map(convert(_)).getOrElse(Seq())))
+      Some(CTypeAttribute(convert(name), args.map(convert(_)).getOrElse(Seq())))
+    case GccAttribute1(_) => None
+
+  }
+
+  def convert(implicit list: ParenthesizedArgumentExpressionListContext): Seq[Expr[G]] = list match {
+    case ParenthesizedArgumentExpressionList0(_, inner, _) => inner.map(convert(_)).getOrElse(Seq())
+  }
+
 
   def convert(implicit ptr: PointerContext): Seq[CPointer[G]] = ptr match {
     case Pointer0(_, quals) =>
@@ -401,8 +440,8 @@ case class CToCol[G](override val baseOrigin: Origin,
       val e = PreAssignExpression(target, op match {
         case "=" => value
         case "*=" => AmbiguousMult(target, value)
-        case "/=" => TruncDiv(target, value)(blame(expr))
-        case "%=" => TruncMod(target, value)(blame(expr))
+        case "/=" => AmbiguousTruncDiv(target, value)(blame(expr))
+        case "%=" => AmbiguousTruncMod(target, value)(blame(expr))
         case "+=" => col.AmbiguousPlus(target, value)(blame(valueNode))
         case "-=" => col.AmbiguousMinus(target, value)((blame(valueNode)))
         case "<<=" => BitShl(target, value)
@@ -457,8 +496,8 @@ case class CToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit expr: EqualityExpressionContext): Expr[G] = expr match {
     case EqualityExpression0(inner) => convert(inner)
-    case EqualityExpression1(left, _, right) => Eq(convert(left), convert(right))
-    case EqualityExpression2(left, _, right) => Neq(convert(left), convert(right))
+    case EqualityExpression1(left, _, right) => AmbiguousEq(convert(left), convert(right), TCInt())
+    case EqualityExpression2(left, _, right) => AmbiguousNeq(convert(left), convert(right), TCInt())
   }
 
   def convert(implicit expr: RelationalExpressionContext): Expr[G] = expr match {
@@ -489,8 +528,8 @@ case class CToCol[G](override val baseOrigin: Origin,
     case MultiplicativeExpression0(inner) => convert(inner)
     case MultiplicativeExpression1(left, op, right) => op match {
       case MultiplicativeOp0(_) => AmbiguousMult(convert(left), convert(right))
-      case MultiplicativeOp1(_) => TruncDiv(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp2(_) => TruncMod(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp1(_) => AmbiguousTruncDiv(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp2(_) => AmbiguousTruncMod(convert(left), convert(right))(blame(expr))
       case MultiplicativeOp3(_) => col.RatDiv(convert(left), convert(right))(blame(expr))
     }
   }
@@ -555,7 +594,7 @@ case class CToCol[G](override val baseOrigin: Origin,
     case PostfixExpression2(f, _, args, _, given, yields) =>
       CInvocation(convert(f), args.map(convert(_)) getOrElse Nil,
         convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
-    case PostfixExpression3(struct, _, field) => CStructAccess(convert(struct), convert(field))(blame(expr))
+    case PostfixExpression3(struct, _, field) => CFieldAccess(convert(struct), convert(field))(blame(expr))
     case PostfixExpression4(struct, _, field) => CStructDeref(convert(struct), convert(field))(blame(expr))
     case PostfixExpression5(targetNode, _) =>
       val target = convert(targetNode)
@@ -1072,6 +1111,7 @@ case class CToCol[G](override val baseOrigin: Origin,
     }
     case ValSeqType(_, _, element, _) => TSeq(convert(element))
     case ValSetType(_, _, element, _) => TSet(convert(element))
+    case ValVectorType(_, _, element, _, size, _) => TVector(convert(size), convert(element))()
     case ValBagType(_, _, element, _) => TBag(convert(element))
     case ValOptionType(_, _, element, _) => TOption(convert(element))
     case ValMapType(_, _, key, _, value, _) => TMap(convert(key), convert(value))
@@ -1104,6 +1144,7 @@ case class CToCol[G](override val baseOrigin: Origin,
   def convert(implicit e: ValPrimaryCollectionConstructorContext): Expr[G] = e match {
     case ValTypedLiteralSeq(_, _, t, _, _, exprs, _) => LiteralSeq(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralSet(_, _, t, _, _, exprs, _) => LiteralSet(convert(t), exprs.map(convert(_)).getOrElse(Nil))
+    case ValTypedLiteralVector(_, _, t, _, _, exprs, _) => LiteralVector(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValSetComprehension(_, _, t, _, _, value, _, selectors, _, something, _) => ??(e)
     case ValTypedLiteralBag(_, _, t, _, _, exprs, _) => LiteralBag(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => LiteralMap(convert(key), convert(value), pairs.map(convert(_)).getOrElse(Nil))
@@ -1237,8 +1278,8 @@ case class CToCol[G](override val baseOrigin: Origin,
       val allIndices = convert(indices)
       NdPartialIndex(allIndices.init, allIndices.last, convert(dims))
     case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
-    case ValEuclideanDiv(_, _, left, _, right, _) => FloorDiv(convert(left), convert(right))(blame(e))
-    case ValEuclideanMod(_, _, left, _, right, _) => col.Mod(convert(left), convert(right))(blame(e))
+    case ValEuclideanDiv(_, _, left, _, right, _) => AmbiguousDiv(convert(left), convert(right))(blame(e))
+    case ValEuclideanMod(_, _, left, _, right, _) => AmbiguousMod(convert(left), convert(right))(blame(e))
     case ValPow(_, _, left, _, right, _) => SmtlibPow(convert(left), convert(right))
     case ValIsInt(_, _, arg, _) => SmtlibIsInt(convert(arg))
     case ValChoose(_, _, xs, _) => Choose(convert(xs))(blame(e))

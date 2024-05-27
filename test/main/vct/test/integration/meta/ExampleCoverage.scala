@@ -20,6 +20,7 @@ class ExampleCoverage extends AnyFlatSpec {
       new FinalConstExprSpec(),
       new ExtractSpec(),
       new ForkJoinSpec(),
+      new GenericsExamplesSpec(),
       new GotoSpec(),
       new GpgpuSpec(),
       new JavaBipSpec(),
@@ -46,6 +47,7 @@ class ExampleCoverage extends AnyFlatSpec {
       new TechnicalAbruptSpec(),
       new TechnicalEnumSpec(),
       new TechnicalFloatSpec(),
+      new TechnicalGenericsSpec(),
       new TechnicalJavaBipSpec(),
       new TechnicalJavaSpec(),
       new TechnicalSpec(),
@@ -62,7 +64,7 @@ class ExampleCoverage extends AnyFlatSpec {
       new WandSpec(),
     )
 
-    val testedFiles = specs.flatMap(_.coveredExamples).map(_.toFile).toSet
+    val testedFiles = specs.flatMap(_.coveredExamples).toSet
 
     var shouldFail = false
 

@@ -35,7 +35,11 @@ sealed trait Referrable[G] {
       case _ => ???
     }
     case RefCStruct(_) => ???
+    case RefTypeDef(decl: CGlobalDeclaration[_]) =>
+      C.nameFromDeclarator(decl.decl.inits.head.decl)
+    case RefTypeDef(_) => ???
     case RefCStructField(decls, idx) => C.nameFromDeclarator(decls.decls(idx))
+    case RefOpenCLVectorMembers(idxs) => "s" ++ idxs.map { i => f"$i%x"}.mkString
     case RefJavaClass(decl) => decl.name
     case RefSilverField(decl) => Referrable.originName(decl)
     case RefSimplificationRule(decl) => Referrable.originName(decl)
@@ -72,13 +76,13 @@ sealed trait Referrable[G] {
     case RefModelField(decl) => Referrable.originName(decl)
     case RefModelProcess(decl) => Referrable.originName(decl)
     case RefModelAction(decl) => Referrable.originName(decl)
-    case RefSeqProg(decl) => Referrable.originName(decl)
+    case RefChoreography(decl) => Referrable.originName(decl)
     case RefEndpoint(decl) => Referrable.originName(decl)
     case RefProverType(decl) => Referrable.originName(decl)
     case RefProverFunction(decl) => Referrable.originName(decl)
     case RefJavaBipGuard(decl) => Referrable.originName(decl)
     case RefLlvmFunctionDefinition(decl) => Referrable.originName(decl)
-    case RefLlvmGlobal(decl) => Referrable.originName(decl)
+    case RefLlvmGlobal(decl, i) => Referrable.originName(decl.data.get(i))
     case RefLlvmSpecFunction(decl) => Referrable.originName(decl)
     case RefBipComponent(decl) => Referrable.originName(decl)
     case RefBipGlue(decl) => ""
@@ -93,8 +97,8 @@ sealed trait Referrable[G] {
     case RefBipConstructor(decl) => Referrable.originName(decl)
     case RefHeapVariable(decl) => Referrable.originName(decl)
     case RefPVLEndpoint(decl) => decl.name
-    case RefPVLSeqProg(decl) => decl.name
-    case RefPVLSeqRun(_) => ""
+    case RefPVLChoreography(decl) => decl.name
+    case RefPVLChorRun(_) => ""
 
     case RefJavaBipGlueContainer() => ""
     case PVLBuiltinInstanceMethod(_) => ""
@@ -123,6 +127,7 @@ case object Referrable {
     case decl: CStructMemberDeclarator[G] => return decl.decls.indices.map(RefCStructField(decl, _))
     case decl: CGlobalDeclaration[G] => decl.decl match {
       case CDeclaration(_, _, Seq(_ :CStructDeclaration[G]), Seq()) => RefCStruct(decl)
+      case CDeclaration(_, _, CTypedef() +: _, _) => RefTypeDef(decl)
       case _ => return decl.decl.inits.indices.map(RefCGlobalDeclaration(decl, _))
     }
     case decl: CPPTranslationUnit[G] => RefCPPTranslationUnit(decl)
@@ -171,10 +176,13 @@ case object Referrable {
     case decl: CPPLocalDeclaration[G] => return decl.decl.inits.indices.map(RefCPPLocalDeclaration(decl, _))
     case decl: JavaLocalDeclaration[G] => return decl.decls.indices.map(RefJavaLocalDeclaration(decl, _))
     case decl: PVLConstructor[G] => RefPVLConstructor(decl)
-    case decl: SeqProg[G] => RefSeqProg(decl)
+    case decl: Choreography[G] => RefChoreography(decl)
     case decl: Endpoint[G] => RefEndpoint(decl)
     case decl: LlvmFunctionDefinition[G] => RefLlvmFunctionDefinition(decl)
-    case decl: LlvmGlobal[G] => RefLlvmGlobal(decl)
+    case decl: LlvmGlobal[G] => decl.data match {
+      case Some(data) => return data.indices.map(RefLlvmGlobal(decl, _))
+      case None => RefLlvmGlobal(decl, -1)
+    }
     case decl: LlvmSpecFunction[G] => RefLlvmSpecFunction(decl)
     case decl: ProverType[G] => RefProverType(decl)
     case decl: ProverFunction[G] => RefProverFunction(decl)
@@ -192,8 +200,8 @@ case object Referrable {
     case decl: BipConstructor[G] => RefBipConstructor(decl)
     case decl: HeapVariable[G] => RefHeapVariable(decl)
     case decl: PVLEndpoint[G] => RefPVLEndpoint(decl)
-    case decl: PVLSeqProg[G] => RefPVLSeqProg(decl)
-    case decl: PVLSeqRun[G] => RefPVLSeqRun(decl)
+    case decl: PVLChoreography[G] => RefPVLChoreography(decl)
+    case decl: PVLChorRun[G] => RefPVLChorRun(decl)
   })
 
   def originName(decl: Declaration[_]): String = decl.o.find[SourceName] match {
@@ -256,6 +264,7 @@ sealed trait JavaBipStatePredicateTarget[G] extends Referrable[G]
 
 case class RefCTranslationUnit[G](decl: CTranslationUnit[G]) extends Referrable[G]
 case class RefCParam[G](decl: CParam[G]) extends Referrable[G] with CNameTarget[G]
+case class RefOpenCLVectorLiteralCInvocationTarget[G](size: BigInt, innerType: Type[G]) extends CInvocationTarget[G]
 case class RefCFunctionDefinition[G](decl: CFunctionDefinition[G]) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G] with ResultTarget[G]
 case class RefCGlobalDeclaration[G](decls: CGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G] with ResultTarget[G]
 case class RefCLocalDeclaration[G](decls: CLocalDeclaration[G], initIdx: Int) extends Referrable[G] with CNameTarget[G]
@@ -270,8 +279,10 @@ case class RefSYCLAccessMode[G](decl: SYCLAccessMode[G]) extends Referrable[G] w
 case class RefSYCLConstructorDefinition[G](typ: SYCLTConstructableClass[G]) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G]
 case class RefJavaNamespace[G](decl: JavaNamespace[G]) extends Referrable[G]
 case class RefUnloadedJavaNamespace[G](names: Seq[String]) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
+case class RefTypeDef[G](decl: CGlobalDeclaration[G]) extends Referrable[G] with CTypeNameTarget[G] with CNameTarget[G]
 case class RefCStruct[G](decl: CGlobalDeclaration[G]) extends Referrable[G] with CStructTarget[G] with CNameTarget[G] with CDerefTarget[G]
 case class RefCStructField[G](decls: CStructMemberDeclarator[G], idx: Int) extends Referrable[G] with CNameTarget[G] with CDerefTarget[G]
+case class RefOpenCLVectorMembers[G](idx: Seq[BigInt]) extends Referrable[G] with CDerefTarget[G]
 case class RefJavaClass[G](decl: JavaClassOrInterface[G]) extends Referrable[G] with JavaTypeNameTarget[G] with JavaNameTarget[G] with JavaDerefTarget[G] with ThisTarget[G]
 case class RefSilverField[G](decl: SilverField[G]) extends Referrable[G]
 case class RefSimplificationRule[G](decl: SimplificationRule[G]) extends Referrable[G]
@@ -313,7 +324,7 @@ case class RefJavaBipStatePredicate[G](state: String, decl: JavaAnnotation[G]) e
 case class RefJavaBipGuard[G](decl: JavaMethod[G]) extends Referrable[G] with JavaNameTarget[G]
 case class RefJavaBipGlueContainer[G]() extends Referrable[G] // Bip glue jobs are not actually referrable
 case class RefLlvmFunctionDefinition[G](decl: LlvmFunctionDefinition[G]) extends Referrable[G] with LlvmInvocationTarget[G] with ResultTarget[G]
-case class RefLlvmGlobal[G](decl: LlvmGlobal[G]) extends Referrable[G]
+case class RefLlvmGlobal[G](decl: LlvmGlobal[G], idx: Int) extends Referrable[G]
 case class RefBipComponent[G](decl: BipComponent[G]) extends Referrable[G]
 case class RefBipGlue[G](decl: BipGlue[G]) extends Referrable[G]
 case class RefBipGuard[G](decl: BipGuard[G]) extends Referrable[G]
@@ -327,11 +338,11 @@ case class RefBipTransitionSynchronization[G](decl: BipTransitionSynchronization
 case class RefBipConstructor[G](decl: BipConstructor[G]) extends Referrable[G]
 case class RefHeapVariable[G](decl: HeapVariable[G]) extends Referrable[G]
 case class RefPVLEndpoint[G](decl: PVLEndpoint[G]) extends Referrable[G] with PVLNameTarget[G]
-case class RefPVLSeqProg[G](decl: PVLSeqProg[G]) extends Referrable[G] with ThisTarget[G]
-case class RefPVLSeqRun[G](decl: PVLSeqRun[G]) extends Referrable[G]
+case class RefPVLChoreography[G](decl: PVLChoreography[G]) extends Referrable[G] with ThisTarget[G]
+case class RefPVLChorRun[G](decl: PVLChorRun[G]) extends Referrable[G]
 
 case class RefLlvmSpecFunction[G](decl: LlvmSpecFunction[G]) extends Referrable[G] with LlvmInvocationTarget[G] with ResultTarget[G]
-case class RefSeqProg[G](decl: SeqProg[G]) extends Referrable[G] with ThisTarget[G]
+case class RefChoreography[G](decl: Choreography[G]) extends Referrable[G] with ThisTarget[G]
 case class RefEndpoint[G](decl: Endpoint[G]) extends Referrable[G]
 case class RefProverType[G](decl: ProverType[G]) extends Referrable[G] with SpecTypeNameTarget[G]
 case class RefProverFunction[G](decl: ProverFunction[G]) extends Referrable[G] with SpecInvocationTarget[G]

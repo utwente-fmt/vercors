@@ -32,6 +32,12 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
     )
   )
 
+  case class DisallowedAssignmentTarget(target: Expr[_]) extends UserError {
+    override def code: String = "disallowedAssignmentTarget"
+    override def text: String =
+      target.o.messageInContext("This target cannot be assigned to.")
+  }
+
   case class DisallowedSideEffect(effector: Expr[_]) extends UserError {
     override def code: String = "sideEffect"
     override def text: String =
@@ -339,17 +345,15 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         }
       case rangedFor: RangedFor[Pre] => rewriteDefault(rangedFor)
       case assign: VeyMontAssignExpression[Pre] => rewriteDefault(assign)
-      case assign: PVLSeqAssign[Pre] => rewriteDefault(assign)
-      case assign: SeqAssign[Pre] => rewriteDefault(assign)
       case comm: CommunicateX[Pre] => rewriteDefault(comm)
       case comm: PVLCommunicate[Pre] => rewriteDefault(comm)
-      case comm: Communicate[Pre] => rewriteDefault(comm)
+      case comm: CommunicateStatement[Pre] => rewriteDefault(comm)
       case _: PVLBranch[Pre] => throw ExtraNode
       case _: PVLLoop[Pre] => throw ExtraNode
-      case _: UnresolvedSeqBranch[Pre] => throw ExtraNode
-      case _: UnresolvedSeqLoop[Pre] => throw ExtraNode
-      case _: SeqBranch[Pre] => throw ExtraNode
-      case _: SeqLoop[Pre] => throw ExtraNode
+      case _: UnresolvedChorBranch[Pre] => throw ExtraNode
+      case _: UnresolvedChorLoop[Pre] => throw ExtraNode
+      case _: ChorBranch[Pre] => throw ExtraNode
+      case _: ChorLoop[Pre] => throw ExtraNode
       case _: CStatement[Pre] => throw ExtraNode
       case _: CPPStatement[Pre] => throw ExtraNode
       case _: JavaStatement[Pre] => throw ExtraNode
@@ -410,6 +414,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case ArraySubscript(arr, index) => ArraySubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
       case PointerSubscript(arr, index) => PointerSubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
       case deref @ DerefPointer(ptr) => DerefPointer[Post](notInlined(ptr))(deref.blame)(target.o)
+      case VectorSubscript(_, _) => throw DisallowedAssignmentTarget(target)
+      case SeqSubscript(_, _) => throw DisallowedAssignmentTarget(target)
       case other => ???
     }
     flushExtractedExpressions()
@@ -474,7 +480,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       effect(dispatch(post))
       stored(value, oldValue.t)
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
-      val res = new Variable[Post](dispatch(method.returnType.particularize(method.typeArgs.zip(typeArgs).toMap)))(ResultVar)
+      val res = new Variable[Post](dispatch(inv.t))(ResultVar)
       variables.succeed(res.asInstanceOf[Variable[Pre]], res)
       effect(InvokeMethod[Post](
         obj = inlined(obj),
@@ -485,7 +491,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
         yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
       )(inv.blame)(e.o))
-      stored(res.get(SideEffectOrigin), method.returnType.particularize(method.typeArgs.zip(typeArgs).toMap))
+      stored(res.get(SideEffectOrigin), inv.t)
     case inv @ ProcedureInvocation(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       val res = new Variable[Post](dispatch(method.returnType.particularize(method.typeArgs.zip(typeArgs).toMap)))(ResultVar)
       variables.succeed(res.asInstanceOf[Variable[Pre]], res)
@@ -497,13 +503,14 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
         yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
       )(inv.blame)(e.o))
-      stored(res.get(SideEffectOrigin), method.returnType.particularize(method.typeArgs.zip(typeArgs).toMap))
-    case inv @ ConstructorInvocation(Ref(cons), args, outArgs, typeArgs, givenMap, yields) =>
-      val typ = TClass[Post](succ(cons.cls.decl))
+      stored(res.get(SideEffectOrigin), method.returnType.particularize(inv.typeEnv))
+    case inv @ ConstructorInvocation(Ref(cons), classTypeArgs, args, outArgs, typeArgs, givenMap, yields) =>
+      val typ = TClass[Post](succ(cons.cls.decl), classTypeArgs.map(dispatch))
       val res = new Variable[Post](typ)(ResultVar)
       variables.succeed(res.asInstanceOf[Variable[Pre]], res)
       effect(InvokeConstructor[Post](
         ref = succ(cons),
+        classTypeArgs = classTypeArgs.map(dispatch),
         out = res.get(ResultVar),
         args = args.map(inlined),
         outArgs = outArgs.map(dispatch),
@@ -511,12 +518,12 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
         yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
       )(inv.blame)(e.o))
-      stored(res.get(SideEffectOrigin), TClass(cons.cls))
+      stored(res.get(SideEffectOrigin), TClass(cons.cls, classTypeArgs))
     case NewObject(Ref(cls)) =>
-      val res = new Variable[Post](TClass(succ(cls)))(ResultVar)
+      val res = new Variable[Post](TClass(succ(cls), Seq()))(ResultVar)
       variables.succeed(res.asInstanceOf[Variable[Pre]], res)
       effect(Instantiate[Post](succ(cls), res.get(ResultVar))(e.o))
-      stored(res.get(SideEffectOrigin), TClass(cls.ref))
+      stored(res.get(SideEffectOrigin), TClass(cls.ref, Seq()))
     case other =>
       stored(ReInliner().dispatch(rewriteDefault(other)), other.t)
   }

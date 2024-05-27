@@ -12,8 +12,8 @@ trait AmbiguousPlusImpl[G] extends AmbiguousPlusOps[G] { this: AmbiguousPlus[G] 
   def getValidOperatorsOf(operator: Operator[G]): Option[Seq[ContractApplicable[G]]] = {
     val subject = if(operator == OperatorLeftPlus[G]()) left else right
     val decls = subject.t match {
-      case TClass(Ref(cls)) => cls.declarations
-      case JavaTClass(Ref(cls), _) => cls.declarations
+      case TClass(Ref(cls), _) => cls.decls
+      case JavaTClass(Ref(cls), _) => cls.decls
       case _ => return None
     }
     Some(decls.collect {
@@ -39,7 +39,7 @@ trait AmbiguousPlusImpl[G] extends AmbiguousPlusOps[G] { this: AmbiguousPlus[G] 
 
   override lazy val t: Type[G] = {
     if(isProcessOp) TProcess()
-    else if(isSeqOp || isBagOp || isSetOp) Types.leastCommonSuperType(left.t, right.t)
+    else if(isSeqOp || isBagOp || isSetOp || isVectorOp) Types.leastCommonSuperType(left.t, right.t)
     else if(isPointerOp) left.t
     else if(isStringOp) TString()
     else if(getCustomPlusOpType().isDefined) getCustomPlusOpType().get

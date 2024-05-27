@@ -15,8 +15,8 @@ object Utils {
     case Then(value, post) => find_all_subexpressions(value) :+ post
     case mi @ MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
       Seq(InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields)(mi.blame)(mi.o))
-    case ci @ ConstructorInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
-      Seq(InvokeConstructor(ref, get_out_variable(ref.decl.cls, ci.o), args, outArgs, typeArgs, givenMap, yields)(ci.blame)(ci.o))
+    case ci @ ConstructorInvocation(ref, classTypeArgs, args, outArgs, typeArgs, givenMap, yields) =>
+      Seq(InvokeConstructor(ref, classTypeArgs, get_out_variable(ref.decl.cls, ci.o), args, outArgs, typeArgs, givenMap, yields)(ci.blame)(ci.o))
     case pi @ ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
       Seq(InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields)(pi.blame)(pi.o))
     case no @ NewObject(cls) => Seq(Instantiate(cls, get_out_variable(cls, no.o))(no.o))
@@ -53,7 +53,7 @@ object Utils {
     case _ => expr.subnodes.collect{ case ex: Expr[G] => ex }.flatMap(e => find_all_subexpressions(e))
   }
 
-  private def get_out_variable[G](cls: Ref[G, Class[G]],  o: Origin): Local[G] = Local(new DirectRef[G, Variable[G]](new Variable(TClass(cls))(o)))(o)
+  private def get_out_variable[G](cls: Ref[G, Class[G]],  o: Origin): Local[G] = Local(new DirectRef[G, Variable[G]](new Variable(TClass(cls, Seq()))(o)))(o)
 
   def find_all_cases[G](body: Statement[G], index: GlobalIndex[G]): Seq[(SwitchCase[G], GlobalIndex[G])] = body match {
     case Switch(_, _) => Seq()
@@ -79,13 +79,13 @@ object Utils {
     case WandPackage(_, proof) => find_all_cases(proof, index.enter_scope(body))
     case ModelDo(_, _, _, _, impl) => find_all_cases(impl, index.enter_scope(body))
     case CPPLifetimeScope(bod) => find_all_cases(bod, index.enter_scope(body))
-    case UnresolvedSeqBranch(branches) => branches.zipWithIndex.flatMap(t => find_all_cases(t._1._2, index.enter_scope(body, t._2 * 2 + 1)))
-    case UnresolvedSeqLoop(_, _, bod) => find_all_cases(bod, index.enter_scope(body))
-    case SeqBranch(_, yes, no) => no match {
+    case UnresolvedChorBranch(branches) => branches.zipWithIndex.flatMap(t => find_all_cases(t._1._2, index.enter_scope(body, t._2 * 2 + 1)))
+    case UnresolvedChorLoop(_, _, bod) => find_all_cases(bod, index.enter_scope(body))
+    case ChorBranch(_, yes, no) => no match {
       case Some(stmt) => Seq((yes, 0), (stmt, 1)).flatMap(t => find_all_cases(t._1, index.enter_scope(body)))
       case None => find_all_cases(yes, index.enter_scope(body))
     }
-    case SeqLoop(_, _, bod) => find_all_cases(bod, index.enter_scope(body))
+    case ChorLoop(_, _, bod) => find_all_cases(bod, index.enter_scope(body))
     case VeyMontAssignExpression(_, assign) => find_all_cases(assign, index.enter_scope(body))
     case CommunicateX(_, _, _, assign) => find_all_cases(assign, index.enter_scope(body))
     // Recursion end

@@ -1,0 +1,68 @@
+ensures 0 <= \result && \result <= |xs|;
+ensures (\forall int i=0..|xs|; {:xs[i]:} != e || \result > 0);
+pure int count<T>(seq<T> xs, T e) =
+    |xs| == 0
+    ? 0
+    : xs.head == e
+    ? 1 + count<T>(xs.tail, e)
+    : count<T>(xs.tail, e)
+    ;
+
+pure boolean countAgrees<T>(seq<T> xs, seq<T> ys, T e) =
+    count<T>(xs, e) == count<T>(ys, e);
+
+pure boolean isPermutation<T>(seq<T> xs, seq<T> ys) =
+    (\forall T e; {:countAgrees<T>(xs, ys, e):});
+
+requires 0 <= i && i < |xs|;
+requires 0 <= j && j < |xs|;
+pure seq<T> swap<T>(seq<T> xs, int i, int j) =
+    xs[i -> xs[j]][j -> xs[i]];
+
+requires isPermutation<T>(as, bs);
+requires isPermutation<T>(bs, cs);
+ensures isPermutation<T>(as, cs);
+void lemma_permutation_trans<T>(seq<T> as, seq<T> bs, seq<T> cs) {
+    assert (\forall T e; countAgrees<T>(as, bs, e) ==> {:count<T>(as, e):} == count<T>(bs, e));
+    assert (\forall T e; countAgrees<T>(bs, cs, e) ==> count<T>(bs, e) == {:count<T>(cs, e):});
+    assert (\forall T e; count<T>(as, e) == count<T>(cs, e) ==> {:countAgrees<T>(as, cs, e):});
+}
+
+requires 0 <= i && i < |xs|;
+ensures (\forall T q; {:count<T>(xs[i -> e], q):} == (
+    q == e
+    ? (e == xs[i] ? count<T>(xs, q) : count<T>(xs, q) + 1)
+    : q == xs[i]
+    ? count<T>(xs, q) - 1
+    : count<T>(xs, q)
+));
+void lemma_count_of_replace<T>(seq<T> xs, int i, T e) {
+    if(i != 0) {
+        lemma_count_of_replace<T>(xs.tail, i-1, e);
+    }
+}
+
+requires 0 <= i && i < |xs|;
+requires 0 <= j && j < |xs|;
+ensures (\forall T q; {:countAgrees<T>(xs, swap<T>(xs, i, j), q):});
+void lemma_count_of_swap<T>(seq<T> xs, int i, int j) {
+    lemma_count_of_replace<T>(xs, i, xs[j]);
+    lemma_count_of_replace<T>(xs[i -> xs[j]], j, xs[i]);
+}
+
+requires 0 <= i && i < |xs|;
+requires 0 <= j && j < |xs|;
+ensures isPermutation<T>(xs, xs[i -> xs[j]][j -> xs[i]]);
+void lemma_permutation_swap<T>(seq<T> xs, int i, int j) {
+    lemma_count_of_swap<T>(xs, i, j);
+    assert swap<T>(xs, i, j) == xs[i -> xs[j]][j -> xs[i]];
+}
+
+requires 0 <= i && i < |xs|;
+requires 0 <= j && j < |xs|;
+requires isPermutation<T>(xs0, xs);
+ensures isPermutation<T>(xs0, xs[i -> xs[j]][j -> xs[i]]);
+void lemma_permutation_apply<T>(seq<T> xs0, seq<T> xs, int i, int j) {
+    lemma_permutation_swap<T>(xs, i, j);
+    lemma_permutation_trans<T>(xs0, xs, xs[i -> xs[j]][j -> xs[i]]);
+}

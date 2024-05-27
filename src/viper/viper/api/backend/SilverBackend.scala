@@ -16,8 +16,7 @@ import viper.silver.verifier._
 import viper.silver.verifier.errors._
 import viper.silver.{ast => silver}
 
-import java.io.{File, FileOutputStream}
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 import scala.reflect.ClassTag
 import scala.util.{Try, Using}
 
@@ -69,7 +68,7 @@ trait SilverBackend extends Backend[(silver.Program, Map[Int, col.Node[_]])] wit
           .replace("requires decreases", "decreases")
           .replace("invariant decreases", "decreases")
 
-      output.map(_.toFile).map(RWFile).foreach(_.write { writer =>
+      output.map(RWFile(_)).foreach(_.write { writer =>
         writer.write(silverProgramString)
       })
 
@@ -82,27 +81,29 @@ trait SilverBackend extends Backend[(silver.Program, Map[Int, col.Node[_]])] wit
 
       next()
 
-      val f = File.createTempFile("vercors-", ".sil")
-      f.deleteOnExit()
-      Using(new FileOutputStream(f)) { out =>
-        out.write(silverProgramString.getBytes())
-      }
-      SilverParserDummyFrontend().parse(f.toPath) match {
-        case Left(errors) =>
-          logger.warn("Possible viper bug: silver AST does not reparse when printing as text")
-          for(error <- errors) {
-            logger.warn(error.toString)
-          }
-        case Right(reparsedProgram) =>
-          SilverTreeCompare.compare(silverProgram, reparsedProgram) match {
-            case Nil =>
-            case diffs =>
-              logger.debug("Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:")
-              for((left, right) <- diffs) {
-                logger.debug(s" - Left: ${left.getClass.getSimpleName}: $left")
-                logger.debug(s" - Right: ${right.getClass.getSimpleName}: $right")
-              }
-          }
+      val f = Files.createTempFile("vercors-", ".sil")
+      try {
+        Using(Files.newBufferedWriter(f))(_.write(silverProgramString))
+
+        SilverParserDummyFrontend().parse(RWFile(f, doWatch = false)) match {
+          case Left(errors) =>
+            logger.warn("Possible viper bug: silver AST does not reparse when printing as text")
+            for(error <- errors) {
+              logger.warn(error.toString)
+            }
+          case Right(reparsedProgram) =>
+            SilverTreeCompare.compare(silverProgram, reparsedProgram) match {
+              case Nil =>
+              case diffs =>
+                logger.debug("Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:")
+                for((left, right) <- diffs) {
+                  logger.debug(s" - Left: ${left.getClass.getSimpleName}: $left")
+                  logger.debug(s" - Right: ${right.getClass.getSimpleName}: $right")
+                }
+            }
+        }
+      } finally {
+        Files.delete(f)
       }
 
       (silverProgram, nodeFromUniqueId)
@@ -324,7 +325,7 @@ trait SilverBackend extends Backend[(silver.Program, Map[Int, col.Node[_]])] wit
   def defer(reason: ErrorReason): Unit = reason match {
     case reasons.DivisionByZero(e) =>
       val division = info(e).dividingExpr.get
-      division.blame.blame(blame.DivByZero(division))
+      division.blame.blame(blame.ScalarDivByZero(division))
     case reasons.InsufficientPermission(f@silver.FieldAccess(_, _)) =>
       val deref = get[col.SilverDeref[_]](f)
       deref.blame.blame(blame.InsufficientPermission(deref))

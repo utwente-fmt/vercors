@@ -5,7 +5,7 @@ import vct.col.ast._
 import vct.col.origin._
 import vct.col.util.AstBuildHelpers.tt
 import vct.col.util.AstBuildHelpers
-import vct.parsers.ParseError
+import vct.parsers.err.ParseError
 
 import scala.annotation.nowarn
 import scala.collection.mutable

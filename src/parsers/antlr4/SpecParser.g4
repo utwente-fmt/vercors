@@ -3,6 +3,7 @@ parser grammar SpecParser;
 /**
  imported grammar rules
    langExpr
+   langConstInt
    langId
    langType
    langModifier
@@ -156,6 +157,7 @@ valMapPairs
 valPrimaryCollectionConstructor
  : 'seq' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralSeq
  | 'set' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralSet
+ | 'vector' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralVector
  | 'set' '<' langType '>' '{' langExpr '|' valSetCompSelectors ';' langExpr '}' # valSetComprehension
  | 'bag' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralBag
  | 'map' '<' langType ',' langType '>' '{' valMapPairs? '}' # valTypedLiteralMap
@@ -342,6 +344,7 @@ valType
  : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool' | 'ref' | 'any' | 'nothing' | 'string') # valPrimaryType
  | 'seq' '<' langType '>' # valSeqType
  | 'set' '<' langType '>' # valSetType
+ | 'vector' '<' langType ',' langConstInt '>' # valVectorType
  | 'bag' '<' langType '>' # valBagType
  | 'option' '<' langType '>' # valOptionType
  | 'map' '<' langType ',' langType '>' # valMapType

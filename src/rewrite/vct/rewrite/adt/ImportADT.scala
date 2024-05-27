@@ -46,6 +46,7 @@ case object ImportADT {
     case TEither(left, right) => "either$" + typeText(left) + "__" + typeText(right) + "$"
     case TSeq(element) => "seq_" + typeText(element)
     case TSet(element) => "set_" + typeText(element)
+    case TVector(size, element) => "vector" + size.toString + "_" + typeText(element)
     case TBag(element) => "bag_" + typeText(element)
     case TMatrix(element) => "mat_" + typeText(element)
     case TType(t) => "typ_" + typeText(t)
@@ -60,15 +61,15 @@ case object ImportADT {
     case TFraction() => "fract"
     case TZFraction() => "zfract"
     case TMap(key, value) => "map$" + typeText(key) + "__" + typeText(value) + "$"
-    case TClass(Ref(cls)) => cls.o.getPreferredNameOrElse().camel
+    case TClass(Ref(cls), _) => cls.o.getPreferredNameOrElse().camel
     case TVar(Ref(v)) => v.o.getPreferredNameOrElse().camel
     case TUnion(ts) => "union" + ts.map(typeText).mkString("$", "__", "$")
     case SilverPartialTAxiomatic(Ref(adt), _) => adt.o.getPreferredNameOrElse().camel
     case TAnyClass() => "cls"
     case TEnum(Ref(enum)) => enum.o.getPreferredNameOrElse().camel
     case TProverType(Ref(t)) => t.o.getPreferredNameOrElse().camel
-    case TSeqProg(Ref(prog)) => prog.o.getPreferredNameOrElse().camel
-    case TPVLSeqProg(Ref(prog)) => prog.o.getPreferredNameOrElse().camel
+    case TChoreography(Ref(prog)) => prog.o.getPreferredNameOrElse().camel
+    case TPVLChoreography(Ref(prog)) => prog.o.getPreferredNameOrElse().camel
     case TSmtlibArray(index, value) => "smtarr" + (index :+ value).map(typeText).mkString("$" , "__", "$")
     case TSmtlibBitVector(size) => s"bitvec$size"
     case TSmtlibFloatingPoint(e, m) => s"fp_${e}_$m"

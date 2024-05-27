@@ -1,15 +1,15 @@
+#include "vct/col/ast/col.pb.h"
+#include "Passes/Function/FunctionBodyTransformer.h"
+#include "Passes/Function/FunctionContractDeclarer.h"
+#include "Passes/Function/PureAssigner.h"
+#include "Passes/Module/ModuleSpecCollector.h"
+
 #include <llvm/IR/PassManager.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/CommandLine.h>
 
-#include "vct/col/ast/col.pb.h"
-
-#include "Passes/Function/FunctionBodyTransformer.h"
-#include "Passes/Function/FunctionContractDeclarer.h"
 #include "Passes/Function/FunctionDeclarer.h"
-#include "Passes/Function/PureAssigner.h"
-#include "Passes/Module/ModuleSpecCollector.h"
 
 #include "Transform/Transform.h"
 #include "Origin/OriginProvider.h"
@@ -31,7 +31,7 @@ col::Program sampleCol(bool returnBool) {
     col::BooleanValue *lockInvariant = vctClass->mutable_intrinsic_lock_invariant()->mutable_boolean_value();
     lockInvariant->set_value(true);
     // class>method
-    col::ClassDeclaration *methodDeclaration = vctClass->add_declarations();
+    col::ClassDeclaration *methodDeclaration = vctClass->add_decls();
     col::InstanceMethod *method = methodDeclaration->mutable_instance_method();
     llvm2Col::setColNodeId(method);
     // class>method>return_type

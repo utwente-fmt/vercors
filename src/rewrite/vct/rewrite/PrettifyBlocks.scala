@@ -8,6 +8,11 @@ import vct.col.util.AstBuildHelpers._
 
 import scala.collection.mutable.ArrayBuffer
 
+object PrettifyBlocks extends RewriterBuilder {
+  override def key: String = "prettifyBlocks"
+  override def desc: String = "Flattens nested blocks/scopes and removes empty blocks/scopes"
+}
+
 case class PrettifyBlocks[Pre <: Generation]() extends Rewriter[Pre] {
   def collectVariables(body: Statement[Pre], extra: Seq[Variable[Pre]] = Nil): Statement[Post] = {
     val (variablesHere, newBody) = variables.collect {

@@ -263,12 +263,12 @@ case class ExceptionNotInSignals(node: AbstractMethod[_]) extends CallableFailur
   override def descInContext: String = "Method may throw exception not included in signals clauses."
   override def inlineDescWithSource(source: String): String = s"Method `$source` may throw exception not included in signals clauses."
 }
-case class SeqRunPreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: SeqRun[_]) extends SeqRunFailure with WithContractFailure {
+case class SeqRunPreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ChorRun[_]) extends SeqRunFailure with WithContractFailure {
   override def baseCode: String = "seqRunPreFailed"
   override def descInContext: String = "Precondition may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Precondition of `$node` may not hold, since $failure."
 }
-case class SeqRunContextEverywhereFailedInPre(failure: ContractFailure, node: SeqRun[_]) extends SeqRunFailure with WithContractFailure {
+case class SeqRunContextEverywhereFailedInPre(failure: ContractFailure, node: ChorRun[_]) extends SeqRunFailure with WithContractFailure {
   override def baseCode: String = "seqRunContextPreFailed"
   override def descInContext: String = "Context may not hold in precondition, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
@@ -306,11 +306,20 @@ case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_]) exten
 
   override def position: String = resource.o.shortPositionText
 }
-case class DivByZero(node: DividingExpr[_]) extends NodeVerificationFailure {
+sealed trait DivByZero extends NodeVerificationFailure
+
+case class ScalarDivByZero(node: DividingExpr[_]) extends DivByZero {
   override def code: String = "divByZero"
   override def descInContext: String = "The divisor may be zero."
   override def inlineDescWithSource(source: String): String = s"The divisor in `$source` may be zero."
 }
+
+case class VectorDivByZero(node: DividingExpr[_], i: Int) extends DivByZero {
+  override def code: String = "vectorDivByZero"
+  override def descInContext: String = f"Element $i of the divisor vector may be zero."
+  override def inlineDescWithSource(source: String): String = s"Element $i of the divisor vector in `$source` may be zero."
+}
+
 sealed trait FrontendDerefError extends VerificationFailure
 sealed trait FrontendAdditiveError extends VerificationFailure
 sealed trait FrontendSubscriptError extends VerificationFailure
@@ -387,19 +396,10 @@ case class LoopUnanimityNotMaintained(guard1: Node[_], guard2: Node[_]) extends 
   override def inlineDesc: String = "The agreement of two conditions in this branch could not be maintained for an arbitrary loop iteration."
 }
 
-sealed trait PVLAccessFailure extends VerificationFailure
-sealed trait AccessFailure extends PVLAccessFailure
+sealed trait ChorStatementFailure extends VerificationFailure
+sealed trait ChorAssignFailure extends ChorStatementFailure
 
-case class AccessInsufficientPermission(node: Access[_]) extends AccessFailure with NodeVerificationFailure {
-  override def code: String = "accessPerm"
-  override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
-  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
-}
-
-sealed trait PVLSeqAssignFailure extends VerificationFailure
-sealed trait SeqAssignFailure extends PVLSeqAssignFailure
-
-case class SeqAssignInsufficientPermission(node: SeqAssign[_]) extends SeqAssignFailure with NodeVerificationFailure {
+case class SeqAssignInsufficientPermission(node: ChorStatement[_]) extends ChorAssignFailure with NodeVerificationFailure {
   override def code: String = "seqAssignPerm"
   override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
   override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
@@ -446,6 +446,19 @@ case class SetEmpty(node: Expr[_]) extends NodeVerificationFailure {
   override def descInContext: String = "This set may be empty."
   override def inlineDescWithSource(source: String): String = s"`$source` may be empty."
 }
+
+sealed trait VectorBoundFailure extends FrontendSubscriptError with BuiltinError
+case class VectorBoundNegative(node: Expr[_]) extends VectorBoundFailure with NodeVerificationFailure {
+  override def code: String = "vecIndexNegative"
+  override def descInContext: String = "The index in this vector subscript may be negative."
+  override def inlineDescWithSource(source: String): String = s"The index in `$source` may be negative."
+}
+case class VectorBoundExceedsLength(node: Expr[_]) extends VectorBoundFailure with NodeVerificationFailure {
+  override def code: String = "vecIndexExceedsLength"
+  override def descInContext: String = "The index in this vector subscript may exceed the length of the vector."
+  override def inlineDescWithSource(source: String): String = s"The index in `$source` may exceed the length of the vector."
+}
+
 
 sealed trait ForkFailure extends VerificationFailure
 case class ForkNull(node: Fork[_]) extends ForkFailure with NodeVerificationFailure {
@@ -956,6 +969,7 @@ case class PanicBlame(message: String) extends Blame[VerificationFailure] {
 object NeverNone extends PanicBlame("get in `opt == none ? _ : get(opt)` should always be ok.")
 object FramedSeqIndex extends PanicBlame("access in `∀i. 0 <= i < |xs| ==> ...xs[i]...` should never be out of bounds")
 object FramedArrIndex extends PanicBlame("access in `∀i. 0 <= i < xs.length ==> Perm(xs[i], read) ** ...xs[i]...` should always be ok")
+object FramedVectorIndex extends PanicBlame("access in `∀i. 0 <= i < xs.length ==> ...xs[i]...` should never be out of bounds")
 object IteratedArrayInjective extends PanicBlame("access in `∀*i. 0 <= i < xs.length ==> Perm(xs[i], _)` should always be injective")
 object IteratedPtrInjective extends PanicBlame("access in `∀*i. Perm(xs[i], _)` should always be injective")
 object FramedArrLoc extends PanicBlame("Bounds and non-nullness are ensured.")

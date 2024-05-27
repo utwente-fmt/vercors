@@ -3,6 +3,7 @@ package vct.col.resolve.lang
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.ast.`type`.typeclass.TFloats.{C_ieee754_32bit, C_ieee754_64bit}
+import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.origin._
 import vct.col.resolve._
 import vct.col.resolve.ctx._
@@ -29,6 +30,8 @@ case object C {
   )
 
   val INTEGER_LIKE_TYPES: Seq[Seq[CDeclarationSpecifier[_]]] = Seq(
+    Seq(CShort()),
+    Seq(CShort(), CInt()),
     Seq(CInt()),
     Seq(CLong()),
     Seq(CLong(), CInt()),
@@ -36,9 +39,21 @@ case object C {
     Seq(CLong(), CLong(), CInt()),
   )
 
-  val INTEGER_LIKE_SPECIFIERS: Seq[Seq[CDeclarationSpecifier[_]]] =
-    for (prefix <- NUMBER_LIKE_PREFIXES; t <- INTEGER_LIKE_TYPES)
-      yield prefix ++ t
+  // See here for more discussion https://github.com/utwente-fmt/vercors/discussions/1018#discussioncomment-5966388
+  sealed trait DataModel
+  case object ILP32 extends DataModel
+  case object LP64 extends DataModel
+  case object LLP64 extends DataModel
+
+  def INT_TYPE_TO_SIZE(dm: DataModel): Map[Seq[CDeclarationSpecifier[_]], Int] = Map(
+    (Seq(CShort()) -> 16),
+    (Seq(CShort(), CInt()) -> 16),
+    (Seq(CInt()) -> 32),
+    (Seq(CLong()) -> 64),
+    (Seq(CLong(), CInt()) -> (if(dm == LP64) 64 else 32)),
+    (Seq(CLong(), CLong()) -> 64),
+    (Seq(CLong(), CLong(), CInt()) -> 64),
+  )
 
   case class DeclaratorInfo[G](params: Option[Seq[CParam[G]]], typeOrReturnType: Type[G] => Type[G], name: String)
 
@@ -52,6 +67,19 @@ case object C {
     case c @ CArrayDeclarator(_, size, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(innerInfo.params, t => innerInfo.typeOrReturnType(CTArray(size, t)(c.blame)), innerInfo.name)
+    case CPointerDeclarator(pointers, inner) =>
+      val innerInfo = getDeclaratorInfo(inner)
+      DeclaratorInfo(
+        innerInfo.params,
+        t => innerInfo.typeOrReturnType(FuncTools.repeat[Type[G]](CTPointer(_), pointers.size, t)),
+        innerInfo.name)
+    case CTypeExtensionDeclarator(Seq(CTypeAttribute(name, Seq(size))), inner) if name == "vector_size" || name == "__vector_size__" =>
+      val innerInfo = getDeclaratorInfo(inner)
+      DeclaratorInfo(
+        innerInfo.params,
+        t => CTVector(size, innerInfo.typeOrReturnType(t))(decl.o),
+        innerInfo.name)
+    case typeExtension@CTypeExtensionDeclarator(_, _) => throw CTypeNotSupported(Some(typeExtension))
     case CTypedFunctionDeclarator(params, _, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(params=Some(params), typeOrReturnType=(t => t), innerInfo.name)
@@ -63,22 +91,57 @@ case object C {
     case CName(name) => DeclaratorInfo(params=None, typeOrReturnType=(t => t), name)
   }
 
+  def getSpecs[G](decl: CDeclarator[G], acc: Seq[CDeclarationSpecifier[G]] = Nil): Seq[CDeclarationSpecifier[G]] = decl match {
+    case CTypeExtensionDeclarator(extensions, inner) => getSpecs(inner, acc :+ CFunctionTypeExtensionModifier(extensions))
+    case _ => acc
+  }
 
-  def getPrimitiveType[G](specs: Seq[CDeclarationSpecifier[G]], context: Option[Node[G]] = None): Type[G] =
-    specs.collect { case spec: CTypeSpecifier[G] => spec } match {
+  def getTypeFromTypeDef[G](decl: CDeclaration[G], context: Option[Node[G]] = None): Type[G] = {
+    val specs: Seq[CDeclarationSpecifier[G]] = decl.specs match {
+      case CTypedef() +: remaining => remaining
+      case _ => ???
+    }
+
+    // Need to get specifications from the init (can only have one init as typedef), since it can contain GCC Type extensions
+    getPrimitiveType(getSpecs(decl.inits.head.decl) ++ specs, context)
+  }
+
+
+  def getPrimitiveType[G](specs: Seq[CDeclarationSpecifier[G]], context: Option[Node[G]] = None): Type[G] = {
+    val vectorSize: Option[Expr[G]] = specs.collect { case ext: CFunctionTypeExtensionModifier[G] => ext.extensions} match {
+      case Seq(Seq(CTypeAttribute(name, Seq(size: Expr[G])))) if name == "__vector_size__" || name == "vector_size" => Some(size)
+      case Seq() => None
+      case _ => throw CTypeNotSupported(context)
+    }
+
+    val filteredSpecs = specs.filter { case _: CFunctionTypeExtensionModifier[G] => false; case _ => true }
+      .collect { case spec: CTypeSpecifier[G] => spec }
+
+    val t: Type[G] = filteredSpecs match {
       case Seq(CVoid()) => TVoid()
       case Seq(CChar()) => TChar()
-      case t if C.INTEGER_LIKE_SPECIFIERS.contains(t) => TCInt()
+      case CUnsigned() +: t if INTEGER_LIKE_TYPES.contains(t) => TCInt()
+      case CSigned() +: t if INTEGER_LIKE_TYPES.contains(t) => TCInt()
+      case t if C.INTEGER_LIKE_TYPES.contains(t) => TCInt()
       case Seq(CFloat()) => C_ieee754_32bit()
       case Seq(CDouble()) => C_ieee754_64bit()
       case Seq(CLong(), CDouble()) => C_ieee754_64bit()
       case Seq(CBool()) => TBool()
-      case Seq(defn @ CTypedefName(_)) => Types.notAValue(defn.ref.get)
+      case Seq(defn @ CTypedefName(_)) =>
+        defn.ref.get match {
+          case RefTypeDef(decl) => getTypeFromTypeDef(decl.decl)
+          case _ => ???
+        }
       case Seq(CSpecificationType(typ)) => typ
       case Seq(defn @ CStructSpecifier(_)) => CTStruct(defn.ref.get.decl.ref)
       case spec +: _ => throw CTypeNotSupported(context.orElse(Some(spec)))
       case _ => throw CTypeNotSupported(context)
     }
+    vectorSize match {
+      case None => t
+      case Some(size) => CTVector(size, t)
+    }
+  }
 
   def nameFromDeclarator(declarator: CDeclarator[_]): String =
     getDeclaratorInfo(declarator).name
@@ -120,19 +183,25 @@ case object C {
       case target: RefCFunctionDefinition[G] if target.name == nameFromDeclarator(declarator) => target
     }
 
+  def stripCPrimitiveType[G](t: Type[G]): Type[G] = t match {
+    case CPrimitiveType(specs) => getPrimitiveType(specs)
+    case _ => t
+  }
+
+
   def findPointerDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[CDerefTarget[G]] =
-    obj.t match {
-      case CPrimitiveType(Seq(CSpecificationType(CTPointer(innerType: TNotAValue[G])))) => innerType.decl.get match {
+    stripCPrimitiveType(obj.t) match {
+      case CTPointer(innerType: TNotAValue[G]) => innerType.decl.get match {
         case RefCStruct(decl) => getCStructDeref(decl, name)
         case _ => None
       }
-      case CPrimitiveType(Seq(CSpecificationType(CTPointer(struct: CTStruct[G])))) =>
+      case CTPointer(struct: CTStruct[G]) =>
         getCStructDeref(struct.ref.decl, name)
-      case CPrimitiveType(Seq(CSpecificationType(CTArray(_, innerType: TNotAValue[G])))) => innerType.decl.get match {
+      case CTArray(_, innerType: TNotAValue[G]) => innerType.decl.get match {
         case RefCStruct(decl) => getCStructDeref(decl, name)
         case _ => None
       }
-      case CPrimitiveType(Seq(CSpecificationType(CTArray(_, struct: CTStruct[G])))) =>
+      case CTArray(_, struct: CTStruct[G]) =>
         getCStructDeref(struct.ref.decl, name)
       case _ => None
     }
@@ -146,8 +215,40 @@ case object C {
       case _ => None
     }
 
+  def openCLVectorAccessString[G](access: String, typeSize: BigInt): Option[Seq[BigInt]] = access match {
+    case "lo" if typeSize % 2 == 0 => Some(Seq.tabulate(typeSize.toInt/2)(i => i))
+    case "hi" if typeSize % 2 == 0 => Some(Seq.tabulate(typeSize.toInt/2)(i => i + typeSize/2))
+    case "even" if typeSize % 2 == 0 => Some(Seq.tabulate(typeSize.toInt/2)(i => 2*i))
+    case "odd" if typeSize % 2 == 0 => Some(Seq.tabulate(typeSize.toInt/2)(i => 2*i+1))
+    case s if s.head == 's' && s.tail.nonEmpty =>
+      val hexToInt = (i: Char) => i match {
+        case i if i.isDigit => BigInt(i - '0'.toInt)
+        case i if i >= 'a' && i <= 'f' => BigInt(i.toInt - 'a'.toInt + 10)
+        case i if i >= 'A' && i <= 'F' => BigInt(i.toInt - 'A'.toInt + 10)
+        case _ => return None
+      }
+      val res = access.tail.map(hexToInt)
+      if(res.forall(p => p < typeSize))
+        Some(res)
+      else
+        None
+    case _ =>
+      val xyzwToInt = (i: Char) => i match {
+        case 'x' => BigInt(0)
+        case 'y' => BigInt(1)
+        case 'z' => BigInt(2)
+        case 'w' => BigInt(3)
+        case _ => return None
+      }
+      val res = access.map(xyzwToInt)
+      if(res.forall(p => p < typeSize))
+        Some(res)
+      else
+        None
+  }
+
   def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[CDerefTarget[G]] =
-    (obj.t match {
+    (stripCPrimitiveType(obj.t) match {
       case t: TNotAValue[G] => t.decl.get match {
         case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
           case ref: RefADTFunction[G] if ref.name == name => ref
@@ -155,8 +256,6 @@ case object C {
         case RefCStruct(decl: CGlobalDeclaration[G]) => getCStructDeref(decl, name)
         case _ => None
       }
-      case CPrimitiveType(Seq(CSpecificationType(struct: CTStruct[G]))) =>
-        getCStructDeref(struct.ref.decl, name)
       case struct: CTStruct[G] =>
         getCStructDeref(struct.ref.decl, name)
       case CTCudaVec() =>
@@ -167,6 +266,8 @@ case object C {
           case "z" => Some(RefCudaVecZ(ref))
           case _ => None
         }
+      case v: TOpenCLVector[G] =>
+        openCLVectorAccessString(name, v.size).map(RefOpenCLVectorMembers[G])
       case _ => None
     }).orElse(Spec.builtinField(obj, name, blame))
 
@@ -176,6 +277,8 @@ case object C {
         case target: CInvocationTarget[G] => target
         case _ => throw NotApplicable(obj)
       }
+      // OpenCL overloads vector literals as function invocations..
+      case CPrimitiveType(CSpecificationType(v: TOpenCLVector[G]) +: _) => RefOpenCLVectorLiteralCInvocationTarget[G](v.size, v.innerType)
       case _ => throw NotApplicable(obj)
     }
 }

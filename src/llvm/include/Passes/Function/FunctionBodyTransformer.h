@@ -1,9 +1,10 @@
 #ifndef VCLLVM_FUNCTIONBODYTRANSFORMER_H
 #define VCLLVM_FUNCTIONBODYTRANSFORMER_H
 
+#include "vct/col/ast/col.pb.h"
+
 #include <llvm/Analysis/LoopInfo.h>
 
-#include "vct/col/ast/col.pb.h"
 #include "FunctionDeclarer.h"
 /**
  * The FunctionBodyTransformer that transforms LLVM blocks and instructions into suitable VerCors COL abstractions.

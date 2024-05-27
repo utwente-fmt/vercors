@@ -2,15 +2,12 @@ package vct.col.origin
 
 import com.typesafe.scalalogging.Logger
 import hre.io.{LiteralReadable, Readable}
+import hre.progress.ProgressRender
 import vct.result.HasContext
 import vct.result.Message.HR
 
-import java.io.{Reader, StringReader}
-import java.nio.file.Paths
-import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
-import scala.util.Try
 
 case object Origin {
 
@@ -65,10 +62,21 @@ case class PreferredName(preferredName: Seq[String]) extends NameStrategy {
 }
 
 case class NamePrefix(prefix: String) extends OriginContent
-case class NameSuffix(suffix: String) extends OriginContent
 
 case class RequiredName(requiredName: String) extends NameStrategy {
   override def name(tail: Origin): Option[Name] = Some(Name.Required(requiredName))
+}
+
+case class IndirectName(name: Name) extends NameStrategy {
+  override def name(tail: Origin): Option[Name] =
+    Some((prefix(tail).map(Seq(_)).getOrElse(Seq()) ++ Seq(name)).reduce(Name.Join))
+
+  def prefix(tail: Origin): Option[Name] = {
+    val prefix = tail.span[NameStrategy]._1.originContents.collect {
+      case NamePrefix(prefix) => prefix
+    }.reverse
+    if(prefix.isEmpty) None else Some(Name.Preferred(prefix))
+  }
 }
 
 object SourceName {
@@ -235,9 +243,11 @@ final case class Origin(originContents: Seq[OriginContent]) extends Blame[Verifi
     context: String = null,
     name: String = null,
     prefix: String = null,
+    indirect: Name = null,
   ): Origin = Origin(
     Option(context).map(LabelContext).toSeq ++
       Option(name).map(name => PreferredName(Seq(name))).toSeq ++
+      Option(indirect).map(name => IndirectName(name)).toSeq ++
       Option(prefix).map(NamePrefix).to(Seq) ++
       originContents
   )
@@ -248,9 +258,6 @@ final case class Origin(originContents: Seq[OriginContent]) extends Blame[Verifi
    */
   def sourceName(name: String): Origin =
     withContent(SourceName(name))
-
-  def debugName(name: String = "unknown"): String =
-    find[SourceName].map(_.name).getOrElse(getPreferredNameOrElse(Seq(name)).camel)
 
 //  def addStartEndLines(startIdx: Int, endIdx: Int): Origin =
 //    withContent(StartEndLines(startIdx, endIdx))
@@ -286,6 +293,14 @@ final case class Origin(originContents: Seq[OriginContent]) extends Blame[Verifi
   override def blame(error: VerificationFailure): Unit = {
     Logger("vct").error(error.toString)
   }
+
+  def renderProgress(message: String, short: Boolean): ProgressRender =
+    if(short)
+      ProgressRender(s"$message `$inlineContextText`")
+    else {
+      val lines = messageInContext(message).split("\n").toSeq
+      ProgressRender(lines, lines.size - 2)
+    }
 }
 
 object InputOrigin {
@@ -458,14 +473,4 @@ case class BlameCollector() extends Blame[VerificationFailure] {
 
   override def blame(error: VerificationFailure): Unit =
     errs += error
-}
-
-case object RedirectOrigin {
-  case class StringReadable(data: String, fileName:String="<unknown filename>") extends Readable {
-    override def isRereadable: Boolean = true
-
-    override protected def getReader: Reader =
-      new StringReader(data)
-  }
-
 }
