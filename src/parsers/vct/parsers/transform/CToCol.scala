@@ -601,7 +601,7 @@ case class CToCol[G](override val baseOrigin: Origin,
       if(s.startsWith("0x") || s.startsWith("0X")) {
         Some(CIntegerValue(BigInt(s.drop(2), 16)))
       } else if(s.startsWith("0")) {
-        Some(CIntegerValue(BigInt(s.drop(1), 8)))
+        Some(CIntegerValue(BigInt(s, 8)))
       } else {
         Some(CIntegerValue(BigInt(s)))
       }
