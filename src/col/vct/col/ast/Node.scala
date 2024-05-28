@@ -639,6 +639,7 @@ final case class PointsTo[G](loc: Location[G], perm: Expr[G], value: Expr[G])(im
 final case class CurPerm[G](loc: Location[G])(implicit val o: Origin) extends Expr[G] with CurPermImpl[G]
 
 final case class Value[G](loc: Location[G])(implicit val o: Origin) extends Expr[G] with ValueImpl[G]
+final case class AutoValue[G](loc: Location[G])(implicit val o: Origin) extends Expr[G] with AutoValueImpl[G]
 
 final case class ValidArray[G](arr: Expr[G], len: Expr[G])(implicit val o: Origin) extends Expr[G] with ValidArrayImpl[G]
 final case class ValidMatrix[G](mat: Expr[G], w: Expr[G], h: Expr[G])(implicit val o: Origin) extends Expr[G] with ValidMatrixImpl[G]

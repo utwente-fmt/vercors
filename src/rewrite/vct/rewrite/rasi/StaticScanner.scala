@@ -27,7 +27,7 @@ class StaticScanner[G](initial_node: CFGNode[G], state: AbstractState[G]) {
     case Inhale(res) => assumption_changes_vars(res)
     case InvokeProcedure(ref, args, _, _, _, _) if !ref.decl.pure && ref.decl.body.isEmpty =>
       postcondition_changes_vars(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)))
-    case InvokeConstructor(ref, _, args, _, _, _, _) if !ref.decl.pure && ref.decl.body.isEmpty =>
+    case InvokeConstructor(ref, _, _, args, _, _, _, _) if !ref.decl.pure && ref.decl.body.isEmpty =>
       postcondition_changes_vars(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)))
     case InvokeMethod(_, ref, args, _, _, _, _) if !ref.decl.pure && ref.decl.body.isEmpty =>
       postcondition_changes_vars(ref.decl.contract.ensures, Map.from(ref.decl.args.zip(args)))

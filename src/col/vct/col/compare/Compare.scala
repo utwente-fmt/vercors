@@ -22,12 +22,17 @@ case object Compare {
   def equals[L, R](left: Node[L], right: Node[R]): Boolean =
     left.compare(right).isEmpty
 
-  def getIsomorphism[L, R](left: Node[L], right: Node[R]): Either[Seq[(Node[L], Node[R])], Map[Declaration[L], Declaration[R]]] = {
+  def getIsomorphism[L, R](left: Node[L], right: Node[R], matchFreeVariables: Boolean = false): Either[Seq[(Node[L], Node[R])], Map[Declaration[L], Declaration[R]]] = {
     val isomorphism = mutable.Map[Declaration[L], Declaration[R]]()
     val valueSet = mutable.Set[Declaration[R]]()
     val irreconcilableDiffs = mutable.ArrayBuffer[(Node[L], Node[R])]()
+    val boundVariables = mutable.Set[Declaration[L]]()
 
-    def define(left: Declaration[L], right: Declaration[R]): Unit = {
+    def define(left: Declaration[L], right: Declaration[R], mustMatch: Boolean): Unit = {
+      if (mustMatch && left != right) {
+        irreconcilableDiffs += ((left, right))
+        return;
+      }
       isomorphism.get(left) match {
         case None if !valueSet.contains(right) =>
           isomorphism(left) = right
@@ -38,8 +43,10 @@ case object Compare {
     }
 
     left.compare(right).foreach {
-      case MatchingReference(left, right) => define(left, right)
-      case MatchingDeclaration(left, right) => define(left, right)
+      case MatchingReference(left, right) => define(left, right, mustMatch = matchFreeVariables && !boundVariables.contains(left))
+      case MatchingDeclaration(left, right) =>
+        boundVariables.add(left)
+        define(left, right, mustMatch = false)
       case StructuralDifference(left, right) =>
         irreconcilableDiffs += ((left, right))
     }
@@ -48,6 +55,6 @@ case object Compare {
     else Left(irreconcilableDiffs.toSeq)
   }
 
-  def isIsomorphic[L, R](left: Node[L], right: Node[R]): Boolean =
-    getIsomorphism(left, right).isRight
+  def isIsomorphic[L, R](left: Node[L], right: Node[R], matchFreeVariables: Boolean = false): Boolean =
+    getIsomorphism(left, right, matchFreeVariables).isRight
 }
