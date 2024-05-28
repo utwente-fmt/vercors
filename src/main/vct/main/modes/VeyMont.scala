@@ -11,7 +11,8 @@ import vct.result.VerificationError
 import vct.result.VerificationError.UserError
 
 object VeyMont extends LazyLogging {
-  case class ChoreographyVerificationError(failures: Seq[VerificationFailure]) extends UserError {
+  case class ChoreographyVerificationError(failures: Seq[VerificationFailure])
+      extends UserError {
     override def text: String = {
       val fails = failures.map(_.desc).mkString("\n")
       s"Verification of the input choreography failed because of the following failures:\n$fails"
@@ -20,7 +21,8 @@ object VeyMont extends LazyLogging {
     override def code: String = "veymont:choreographyVerificationFailed"
   }
 
-  case class ImplementationVerificationError(failures: Seq[VerificationFailure]) extends UserError {
+  case class ImplementationVerificationError(failures: Seq[VerificationFailure])
+      extends UserError {
     override def text: String = {
       val fails = failures.map(_.desc).mkString("\n")
       s"Verification of the generated implementation failed because of the following failuers:\n$fails"
@@ -29,13 +31,14 @@ object VeyMont extends LazyLogging {
     override def code: String = "veymont:implementationVerificationFailed"
   }
 
-  case class NoVerificationFailures(collector: BlameCollector, error: Seq[VerificationFailure] => UserError) extends Stage[Unit, Unit] {
+  case class NoVerificationFailures(
+      collector: BlameCollector,
+      error: Seq[VerificationFailure] => UserError,
+  ) extends Stage[Unit, Unit] {
     override def friendlyName: String = "noVerificationErrors"
     override def progressWeight: Int = 1
     override def run(in: Unit): Unit =
-      if (collector.errs.nonEmpty) {
-        throw error(collector.errs.toSeq)
-      }
+      if (collector.errs.nonEmpty) { throw error(collector.errs.toSeq) }
   }
 
   def runOptions(options: Options): Int = {
@@ -54,4 +57,3 @@ object VeyMont extends LazyLogging {
   }
 
 }
-

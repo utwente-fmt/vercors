@@ -4,7 +4,8 @@ import vct.col.ast.{Type, With}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Show, Text}
 import vct.col.ast.ops.WithOps
 
-trait WithImpl[G] extends WithOps[G] { this: With[G] =>
+trait WithImpl[G] extends WithOps[G] {
+  this: With[G] =>
   override def t: Type[G] = value.t
 
   def layoutEffect(implicit ctx: Ctx): Doc =

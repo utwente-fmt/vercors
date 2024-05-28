@@ -9,14 +9,15 @@ case object EncodeChar extends RewriterBuilder {
 }
 
 case class EncodeChar[Pre <: Generation]() extends Rewriter[Pre] {
-  override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case CharValue(data) =>
-      const(data)(expr.o)
-    case e => rewriteDefault(e)
-  }
+  override def dispatch(expr: Expr[Pre]): Expr[Post] =
+    expr match {
+      case CharValue(data) => const(data)(expr.o)
+      case e => rewriteDefault(e)
+    }
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
-    case TChar() => TInt[Post]()(t.o)
-    case t => rewriteDefault(t)
-  }
+  override def dispatch(t: Type[Pre]): Type[Post] =
+    t match {
+      case TChar() => TInt[Post]()(t.o)
+      case t => rewriteDefault(t)
+    }
 }

@@ -5,7 +5,8 @@ import vct.col.ast.{Type, TBool}
 import vct.col.print._
 import vct.col.ast.ops.SmtlibFpEqOps
 
-trait SmtlibFpEqImpl[G] extends SmtlibFpEqOps[G] { this: SmtlibFpEq[G] =>
+trait SmtlibFpEqImpl[G] extends SmtlibFpEqOps[G] {
+  this: SmtlibFpEq[G] =>
   override def t: Type[G] = TBool()
   // def layout(implicit ctx: Ctx): Doc = ???
 }

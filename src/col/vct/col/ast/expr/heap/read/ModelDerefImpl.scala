@@ -6,7 +6,8 @@ import vct.col.check.{Check, CheckContext, CheckError}
 import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.ast.ops.ModelDerefOps
 
-trait ModelDerefImpl[G] extends ExprImpl[G] with ModelDerefOps[G] { this: ModelDeref[G] =>
+trait ModelDerefImpl[G] extends ExprImpl[G] with ModelDerefOps[G] {
+  this: ModelDeref[G] =>
   override def t: Type[G] = ref.decl.t
   override def check(context: CheckContext[G]): Seq[CheckError] = {
     Check.inOrder(

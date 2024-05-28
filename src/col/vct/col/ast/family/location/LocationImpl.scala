@@ -1,12 +1,27 @@
 package vct.col.ast.family.location
 
-import vct.col.ast.{AmbiguousLocation, ArrayLocation, FieldLocation, HeapVariableLocation, InLinePatternLocation, InstancePredicateLocation, Location, ModelLocation, PointerLocation, PredicateLocation, SilverFieldLocation, Type}
+import vct.col.ast.{
+  AmbiguousLocation,
+  ArrayLocation,
+  FieldLocation,
+  HeapVariableLocation,
+  InLinePatternLocation,
+  InstancePredicateLocation,
+  Location,
+  ModelLocation,
+  PointerLocation,
+  PredicateLocation,
+  SilverFieldLocation,
+  Type,
+}
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.ops.LocationFamilyOps
 import vct.col.check.{CheckContext, CheckError}
 
-trait LocationImpl[G] extends NodeFamilyImpl[G] with LocationFamilyOps[G] { this: Location[G] =>
-  override def check(context: CheckContext[G]): Seq[CheckError] = super.check(context)
+trait LocationImpl[G] extends NodeFamilyImpl[G] with LocationFamilyOps[G] {
+  this: Location[G] =>
+  override def check(context: CheckContext[G]): Seq[CheckError] =
+    super.check(context)
 
   def t: Type[G] = {
     this match {

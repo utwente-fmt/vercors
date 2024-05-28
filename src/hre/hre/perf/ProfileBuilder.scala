@@ -9,10 +9,12 @@ class ProfileBuilder {
   private val stringTable = mutable.ArrayBuffer[String]("")
 
   def str(s: String): Long =
-    stringIndex.getOrElseUpdate(s, {
-      stringTable += s
-      stringIndex.size
-    })
+    stringIndex.getOrElseUpdate(
+      s, {
+        stringTable += s
+        stringIndex.size
+      },
+    )
 
   def finishStringTable(): Seq[String] = stringTable.toIndexedSeq
 
@@ -21,15 +23,16 @@ class ProfileBuilder {
   private val functionTable = mutable.ArrayBuffer[Function]()
 
   def loc(s: String): Long =
-    locationIndex.getOrElseUpdate(s, {
-      val id = functionTable.size + 1
-      functionTable += Function(id = id, name = str(s))
-      locationTable += Location(id = id, line = Seq(Line(functionId = id)))
-      id
-    })
+    locationIndex.getOrElseUpdate(
+      s, {
+        val id = functionTable.size + 1
+        functionTable += Function(id = id, name = str(s))
+        locationTable += Location(id = id, line = Seq(Line(functionId = id)))
+        id
+      },
+    )
 
   def finishLocationTable(): Seq[Location] = locationTable.toIndexedSeq
   def finishFunctionTable(): Seq[Function] = functionTable.toIndexedSeq
-
 
 }

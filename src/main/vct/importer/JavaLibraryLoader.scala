@@ -13,14 +13,23 @@ import vct.parsers.parser.ColJavaParser
 import java.io.File.{separator => FILE_SEPARATOR}
 import java.nio.file.Path
 
-case class JavaLibraryLoader(blameProvider: BlameProvider, debugOptions: DebugOptions) extends ExternalJavaLoader {
-  override def load[G](base: Path, name: Seq[String]): Option[JavaNamespace[G]] = try {
-    val f = RWFile(base.resolve((name.init :+ name.last + ".java").mkString(FILE_SEPARATOR)))
-    parser.ColJavaParser(debugOptions, blameProvider).parse[G](f).decls match {
-      case Seq(ns: JavaNamespace[G]) => Some(ns)
-      case _ => None
-    }
-  } catch {
-    case _: FileNotFound => None
-  }
+case class JavaLibraryLoader(
+    blameProvider: BlameProvider,
+    debugOptions: DebugOptions,
+) extends ExternalJavaLoader {
+  override def load[G](
+      base: Path,
+      name: Seq[String],
+  ): Option[JavaNamespace[G]] =
+    try {
+      val f = RWFile(
+        base
+          .resolve((name.init :+ name.last + ".java").mkString(FILE_SEPARATOR))
+      )
+      parser.ColJavaParser(debugOptions, blameProvider).parse[G](f)
+        .decls match {
+        case Seq(ns: JavaNamespace[G]) => Some(ns)
+        case _ => None
+      }
+    } catch { case _: FileNotFound => None }
 }

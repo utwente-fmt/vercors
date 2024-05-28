@@ -9,8 +9,6 @@ case class RootTask() extends AbstractTask {
   override def end(): Unit = {
     poll()
     val stack = TaskRegistry.threadTaskStack.get()
-    if(stack.lastOption.contains(this)) {
-      stack.remove(stack.length - 1)
-    }
+    if (stack.lastOption.contains(this)) { stack.remove(stack.length - 1) }
   }
 }

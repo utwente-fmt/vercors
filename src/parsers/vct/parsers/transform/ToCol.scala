@@ -13,75 +13,123 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-abstract class ToCol[G](val baseOrigin: Origin, val blameProvider: BlameProvider, val errors: Seq[(Token, Token, ExpectedError)]) {
+abstract class ToCol[G](
+    val baseOrigin: Origin,
+    val blameProvider: BlameProvider,
+    val errors: Seq[(Token, Token, ExpectedError)],
+) {
   class ContractCollector[G1]() {
-    val modifies: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
-    val accessible: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
-    val signals: mutable.ArrayBuffer[(ParserRuleContext, SignalsClause[G1])] = mutable.ArrayBuffer()
-    val decreases: mutable.ArrayBuffer[(ParserRuleContext, DecreasesClause[G1])] = mutable.ArrayBuffer()
+    val modifies: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable
+      .ArrayBuffer()
+    val accessible: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable
+      .ArrayBuffer()
+    val signals: mutable.ArrayBuffer[(ParserRuleContext, SignalsClause[G1])] =
+      mutable.ArrayBuffer()
+    val decreases
+        : mutable.ArrayBuffer[(ParserRuleContext, DecreasesClause[G1])] =
+      mutable.ArrayBuffer()
 
-    val requires: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
-    val ensures: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
-    val context_everywhere: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
-    val kernel_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
-    val lock_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
+    val requires: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable
+      .ArrayBuffer()
+    val ensures: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable
+      .ArrayBuffer()
+    val context_everywhere: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] =
+      mutable.ArrayBuffer()
+    val kernel_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] =
+      mutable.ArrayBuffer()
+    val lock_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] =
+      mutable.ArrayBuffer()
 
-    val given: mutable.ArrayBuffer[(ParserRuleContext, Variable[G1])] = mutable.ArrayBuffer()
-    val yields: mutable.ArrayBuffer[(ParserRuleContext, Variable[G1])] = mutable.ArrayBuffer()
+    val given: mutable.ArrayBuffer[(ParserRuleContext, Variable[G1])] = mutable
+      .ArrayBuffer()
+    val yields: mutable.ArrayBuffer[(ParserRuleContext, Variable[G1])] = mutable
+      .ArrayBuffer()
 
-    val loop_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
+    val loop_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] =
+      mutable.ArrayBuffer()
 
-    def consume[T](buffer: mutable.ArrayBuffer[(ParserRuleContext, T)]): Seq[T] = {
+    def consume[T](
+        buffer: mutable.ArrayBuffer[(ParserRuleContext, T)]
+    ): Seq[T] = {
       val result = buffer.map(_._2)
       buffer.clear()
       result.toSeq
     }
 
-    def consumeOpt[T](buffer: mutable.ArrayBuffer[(ParserRuleContext, T)]): Option[T] = {
+    def consumeOpt[T](
+        buffer: mutable.ArrayBuffer[(ParserRuleContext, T)]
+    ): Option[T] = {
       val result = buffer.toSeq
       buffer.clear()
 
       result match {
         case Nil => None
         case (_, x) +: Nil => Some(x)
-        case _ +: (rule, _) +: _ => fail(rule, "Only one clause of this type may occur in a contract")
+        case _ +: (rule, _) +: _ =>
+          fail(rule, "Only one clause of this type may occur in a contract")
       }
     }
 
-    def consumeApplicableContract(blame: Blame[NontrivialUnsatisfiable])(implicit o: Origin): ApplicableContract[G1] = {
-      ApplicableContract(UnitAccountedPredicate(AstBuildHelpers.foldStar(consume(requires))),
-                         UnitAccountedPredicate(AstBuildHelpers.foldStar(consume(ensures))),
-                         AstBuildHelpers.foldStar(consume(context_everywhere)),
-                         consume(signals), consume(given), consume(yields), consumeOpt(decreases))(blame)
+    def consumeApplicableContract(
+        blame: Blame[NontrivialUnsatisfiable]
+    )(implicit o: Origin): ApplicableContract[G1] = {
+      ApplicableContract(
+        UnitAccountedPredicate(AstBuildHelpers.foldStar(consume(requires))),
+        UnitAccountedPredicate(AstBuildHelpers.foldStar(consume(ensures))),
+        AstBuildHelpers.foldStar(consume(context_everywhere)),
+        consume(signals),
+        consume(given),
+        consume(yields),
+        consumeOpt(decreases),
+      )(blame)
     }
 
-    def consumeLoopContract(blameNode: ParserRuleContext)(implicit o: Origin): LoopContract[G1] = {
+    def consumeLoopContract(
+        blameNode: ParserRuleContext
+    )(implicit o: Origin): LoopContract[G1] = {
       val likelyMeantInvariant = loop_invariant.nonEmpty
-      val likelyMeantIteration = requires.nonEmpty || ensures.nonEmpty || context_everywhere.nonEmpty
+      val likelyMeantIteration =
+        requires.nonEmpty || ensures.nonEmpty || context_everywhere.nonEmpty
 
-      if(likelyMeantInvariant || (!likelyMeantIteration && decreases.nonEmpty))
-        LoopInvariant(AstBuildHelpers.foldStar(consume(loop_invariant)), consumeOpt(decreases))(blame(blameNode))
-      else if(likelyMeantIteration)
+      if (likelyMeantInvariant || (!likelyMeantIteration && decreases.nonEmpty))
+        LoopInvariant(
+          AstBuildHelpers.foldStar(consume(loop_invariant)),
+          consumeOpt(decreases),
+        )(blame(blameNode))
+      else if (likelyMeantIteration)
         IterationContract(
           AstBuildHelpers.foldStar(consume(requires)),
           AstBuildHelpers.foldStar(consume(ensures)),
-          AstBuildHelpers.foldAnd(consume(context_everywhere)))(blame(blameNode))
-      else LoopInvariant(tt[G1], None)(blame(blameNode))
+          AstBuildHelpers.foldAnd(consume(context_everywhere)),
+        )(blame(blameNode))
+      else
+        LoopInvariant(tt[G1], None)(blame(blameNode))
     }
 
-    def nodes: Seq[ParserRuleContext] = Seq(
-      modifies, accessible, signals, decreases,
-      requires, ensures, context_everywhere, kernel_invariant,
-      given, yields, loop_invariant,
-    ).flatMap(_.map(_._1))
+    def nodes: Seq[ParserRuleContext] =
+      Seq(
+        modifies,
+        accessible,
+        signals,
+        decreases,
+        requires,
+        ensures,
+        context_everywhere,
+        kernel_invariant,
+        given,
+        yields,
+        loop_invariant,
+      ).flatMap(_.map(_._1))
   }
 
   class ModifierCollector() {
     val pure: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
     val inline: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
-    val threadLocal: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
+    val threadLocal: mutable.ArrayBuffer[ParserRuleContext] = mutable
+      .ArrayBuffer()
     val static: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
-    val bipAnnotation: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
+    val bipAnnotation: mutable.ArrayBuffer[ParserRuleContext] = mutable
+      .ArrayBuffer()
 
     def consume(buffer: mutable.ArrayBuffer[ParserRuleContext]): Boolean = {
       val result = buffer.nonEmpty
@@ -89,79 +137,101 @@ abstract class ToCol[G](val baseOrigin: Origin, val blameProvider: BlameProvider
       result
     }
 
-    def nodes: Seq[ParserRuleContext] = Seq(pure, inline, threadLocal, static, bipAnnotation).flatten
+    def nodes: Seq[ParserRuleContext] =
+      Seq(pure, inline, threadLocal, static, bipAnnotation).flatten
   }
 
-  /**
-   * Used to convert ParserRuleContext nodes into origin implicitly
-   * @param node the node we want the origin of
-   * @return a constructed Origin based on the (implicitly) given node
-   */
+  /** Used to convert ParserRuleContext nodes into origin implicitly
+    * @param node
+    *   the node we want the origin of
+    * @return
+    *   a constructed Origin based on the (implicitly) given node
+    */
   implicit def origin(implicit node: ParserRuleContext): Origin = {
     baseOrigin.withContent(ctxToOrigin(node.start, node.stop))
   }
 
-  /**
-   * Helper function used to deduce a node's position in the origin, used by the implicit origin method
-   */
+  /** Helper function used to deduce a node's position in the origin, used by
+    * the implicit origin method
+    */
   def ctxToOrigin(start: Token, stop: Token): PositionRange = {
     val startLineIdx = start.getLine - 1
     val startColIdx = start.getCharPositionInLine
     val endLineIdx = stop.getLine - 1
-    val endColIdx = stop.getCharPositionInLine + stop.getStopIndex - stop.getStartIndex + 1
+    val endColIdx =
+      stop.getCharPositionInLine + stop.getStopIndex - stop.getStartIndex + 1
     positionToOrigin(startLineIdx, endLineIdx, Some((startColIdx, endColIdx)))
   }
 
-  def positionToOrigin(startLineIdx: Int, endLineIdx: Int, cols: Some[(Int, Int)]): PositionRange =
-    PositionRange(startLineIdx, endLineIdx, cols)
+  def positionToOrigin(
+      startLineIdx: Int,
+      endLineIdx: Int,
+      cols: Some[(Int, Int)],
+  ): PositionRange = PositionRange(startLineIdx, endLineIdx, cols)
 
   def blame(implicit node: ParserRuleContext): Blame[VerificationFailure] =
     errors.foldLeft(blameProvider(node)) {
       case (currentBlame, (from, to, expectedError)) =>
-        if(node.start.getTokenIndex >= from.getTokenIndex && node.stop.getTokenIndex <= to.getTokenIndex) {
-          FilterExpectedErrorBlame(currentBlame, expectedError)
-        } else {
-          currentBlame
+        if (
+          node.start.getTokenIndex >= from.getTokenIndex &&
+          node.stop.getTokenIndex <= to.getTokenIndex
+        ) { FilterExpectedErrorBlame(currentBlame, expectedError) }
+        else { currentBlame }
+    }
+
+  def convertList[Input, Append <: Input, Singleton <: Input, Element](
+      extractSingle: Singleton => Option[Element],
+      extractAppend: Append => Option[(Input, Element)],
+  )(input: Input)(
+      implicit singleTag: ClassTag[Singleton],
+      appendTag: ClassTag[Append],
+  ): Seq[Element] =
+    input match {
+      case single: Singleton => Seq(extractSingle(single).get)
+      case append: Append =>
+        extractAppend(append).get match {
+          case (input, element) =>
+            convertList(extractSingle, extractAppend)(input) :+ element
         }
     }
 
-  def convertList[Input, Append <: Input, Singleton <: Input, Element]
-                 (extractSingle: Singleton => Option[Element], extractAppend: Append => Option[(Input, Element)])
-                 (input: Input)
-                 (implicit singleTag: ClassTag[Singleton], appendTag: ClassTag[Append]): Seq[Element] =
-    input match {
-      case single: Singleton => Seq(extractSingle(single).get)
-      case append: Append => extractAppend(append).get match {
-        case (input, element) => convertList(extractSingle, extractAppend)(input) :+ element
-      }
+  def getOrFail[B](node: ParserRuleContext, thing: Either[String, B]): B =
+    thing match {
+      case Left(err) => fail(node, err)
+      case Right(good) => good
     }
 
-  def getOrFail[B](node: ParserRuleContext, thing: Either[String, B]): B = thing match {
-    case Left(err) => fail(node, err)
-    case Right(good) => good
-  }
+  def getOrFail[B](
+      node: ParserRuleContext,
+      thing: Option[B],
+      message: String,
+  ): B =
+    thing match {
+      case None => fail(node, message)
+      case Some(b) => b
+    }
 
-  def getOrFail[B](node: ParserRuleContext, thing: Option[B], message: String): B = thing match {
-    case None => fail(node, message)
-    case Some(b) => b
-  }
-
-  def failIfDefined[T <: ParserRuleContext](node: Option[T], format: String): Unit = node match {
-    case Some(node) => fail(node, format)
-    case None => // do nothing
-  }
+  def failIfDefined[T <: ParserRuleContext](
+      node: Option[T],
+      format: String,
+  ): Unit =
+    node match {
+      case Some(node) => fail(node, format)
+      case None => // do nothing
+    }
 
   def fail(tree: ParserRuleContext, message: String): Nothing = {
     throw ParseError(OriginProvider(tree), message)
   }
 
-  /**
-   * Print notice and exit, because a rule is unimplemented in the conversion to COL. Named after the scala
-   * "unimplemented" method, [[???]]
-   */
+  /** Print notice and exit, because a rule is unimplemented in the conversion
+    * to COL. Named after the scala "unimplemented" method, [[???]]
+    */
   def ??(tree: ParserRuleContext): Nothing = {
-    fail(tree, f"This construct (${tree.getClass.getSimpleName}) is syntactically valid, but not supported by VerCors.")
+    fail(
+      tree,
+      f"This construct (${tree.getClass.getSimpleName}) is syntactically valid, but not supported by VerCors.",
+    )
   }
-
 
 }

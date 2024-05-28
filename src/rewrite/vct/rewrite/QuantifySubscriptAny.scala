@@ -3,24 +3,31 @@ package vct.col.rewrite
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
-import vct.col.origin.{DiagnosticOrigin, FramedArrIndex, LabelContext, Origin, PreferredName, TriggerPatternBlame}
+import vct.col.origin.{
+  DiagnosticOrigin,
+  FramedArrIndex,
+  LabelContext,
+  Origin,
+  PreferredName,
+  TriggerPatternBlame,
+}
 import vct.result.VerificationError.UserError
 
 case object QuantifySubscriptAny extends RewriterBuilder {
   override def key: String = "any"
-  override def desc: String = "Quantify expressions that are automatically quantified with *."
+  override def desc: String =
+    "Quantify expressions that are automatically quantified with *."
 
   val GeneratedQuantifierOrigin: Origin = Origin(
-    Seq(
-      PreferredName(Seq("i")),
-      LabelContext("* index"),
-    )
+    Seq(PreferredName(Seq("i")), LabelContext("* index"))
   )
 
   case class InvalidAnyPosition(any: Any[_]) extends UserError {
     override def code: String = "any"
-    override def text: String = any.o.messageInContext(
-      "This instance of `*` occurs in a position where VerCors cannot recognize a pattern to quantify.")
+    override def text: String =
+      any.o.messageInContext(
+        "This instance of `*` occurs in a position where VerCors cannot recognize a pattern to quantify."
+      )
   }
 }
 
@@ -38,13 +45,11 @@ case class QuantifySubscriptAny[Pre <: Generation]() extends Rewriter[Pre] {
 
         Starall(
           bindings = Seq(i_var),
-          triggers = Seq(
-            Seq(ArraySubscript(arr, i)(TriggerPatternBlame))
-          ),
+          triggers = Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame))),
           body = Implies(
             const[Post](0) <= i && i < Length(arr)(any.blame),
-            Perm(ArrayLocation(arr, i)(FramedArrIndex), perm)
-          )
+            Perm(ArrayLocation(arr, i)(FramedArrIndex), perm),
+          ),
         )(any.blame)
       case Value(ArrayLocation(arrIn, any @ Any())) =>
         val i_var = new Variable[Post](TInt())
@@ -52,13 +57,11 @@ case class QuantifySubscriptAny[Pre <: Generation]() extends Rewriter[Pre] {
         val arr = dispatch(arrIn)
         Starall(
           bindings = Seq(i_var),
-          triggers = Seq(
-            Seq(ArraySubscript(arr, i)(TriggerPatternBlame))
-          ),
+          triggers = Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame))),
           body = Implies(
             const[Post](0) <= i && i < Length(arr)(any.blame),
             Value(ArrayLocation(arr, i)(FramedArrIndex)),
-          )
+          ),
         )(any.blame)
       case node: Any[Pre] => throw InvalidAnyPosition(node)
 

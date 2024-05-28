@@ -9,9 +9,17 @@ import java.nio.file.Path
 import scala.meta._
 
 class DeclareFamily extends FamilyGenerator {
-  override def generate(out: Path, family: structure.Name, kind: NodeKind, nodes: Seq[structure.Name]): Unit =
-    if(kind == DeclaredNode) {
-      ResultStream.write(out.resolve(s"${family.base}FamilyDeclare.scala"), getDeclare(family))
+  override def generate(
+      out: Path,
+      family: structure.Name,
+      kind: NodeKind,
+      nodes: Seq[structure.Name],
+  ): Unit =
+    if (kind == DeclaredNode) {
+      ResultStream.write(
+        out.resolve(s"${family.base}FamilyDeclare.scala"),
+        getDeclare(family),
+      )
     }
 
   def getDeclare(name: structure.Name): Source =
