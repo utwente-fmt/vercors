@@ -592,12 +592,18 @@ case class CToCol[G](override val baseOrigin: Origin,
 
   def parseInt(i: String)(implicit o: Origin): Option[Expr[G]] =
     try {
-      if(i.startsWith("0x") || i.startsWith("0X")) {
-        Some(CIntegerValue(BigInt(i.drop(2), 16)))
-      } else if(i.startsWith("0")) {
-        Some(CIntegerValue(BigInt(i.drop(1), 8)))
+      var s = i
+      // drop int suffixes like in "15LL"
+      while(s.endsWith("l") || s.endsWith("L") || s.endsWith("u") || s.endsWith("U")) {
+        s = s.dropRight(1)
+      }
+      // try parsing according to appropriate base (base 10 by default)
+      if(s.startsWith("0x") || s.startsWith("0X")) {
+        Some(CIntegerValue(BigInt(s.drop(2), 16)))
+      } else if(s.startsWith("0")) {
+        Some(CIntegerValue(BigInt(s.drop(1), 8)))
       } else {
-        Some(CIntegerValue(BigInt(i)))
+        Some(CIntegerValue(BigInt(s)))
       }
     } catch {
       case e: NumberFormatException => None

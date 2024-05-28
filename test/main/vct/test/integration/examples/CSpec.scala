@@ -6,6 +6,7 @@ class CSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/c/casts.c"
   vercors should verify using silicon example "concepts/c/floats.c"
   vercors should verify using silicon example "concepts/c/hex.c"
+  vercors should verify using silicon example "concepts/c/int_suffixes.c"
   vercors should verify using silicon example "concepts/c/malloc_free.c"
   vercors should verify using silicon example "concepts/c/math.c"
   vercors should verify using silicon example "concepts/c/mod_div.c"
