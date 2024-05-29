@@ -88,7 +88,15 @@ object ATNTools {
               case other => other.target
             }
 
-          edges += ((s, transitionLanguage(recognizer, trans), target))
+          val language =
+            trans match {
+              case rule: RuleTransition
+                  if expandRules.contains(rule.ruleIndex) =>
+                Seqn()
+              case other => transitionLanguage(recognizer, other)
+            }
+
+          edges += ((s, language, target))
 
           if (!explored.contains(target)) { toExplore += target }
         }
@@ -118,8 +126,8 @@ object ATNTools {
       val startOut = outEdge.getOrElseUpdate(start, mutable.Map())
       val endIn = inEdge.getOrElseUpdate(end, mutable.Map())
 
-      startOut(end) = Alts(lang, startOut.getOrElse(end, Alts())).simplify
-      endIn(start) = Alts(lang, endIn.getOrElse(start, Alts())).simplify
+      startOut(end) = Alts(lang, startOut.getOrElse(end, Alts()))
+      endIn(start) = Alts(lang, endIn.getOrElse(start, Alts()))
     }
 
     def delete(state: ATNState): Unit = {
@@ -157,13 +165,31 @@ object ATNTools {
     def compact(): Unit = {
       output(Paths.get(s"tmp/${recognizer.getRuleNames()(s0.ruleIndex)}-0.dot"))
 
-      for ((state, i) <- inEdge.keys.toSeq.zipWithIndex) {
-        if (state != s0 && state != accept) { delete(state) }
+      var i = 1
 
-        output(
-          Paths
-            .get(s"tmp/${recognizer.getRuleNames()(s0.ruleIndex)}-${i + 1}.dot")
+      while (
+        inEdge.size > 2 || outEdge.size > 2 || (inEdge.keys ++ outEdge.keys)
+          .toSeq.distinct.size > 2
+      ) {
+        val state = (inEdge.keys ++ outEdge.keys).minBy(state =>
+          (
+            state == s0 || state == accept,
+            (inEdge.getOrElse(state, EMPTY_MAP).size - 1) *
+              (outEdge.getOrElse(state, EMPTY_MAP).size - 1),
+          )
         )
+
+        if (state != s0 && state != accept) { delete(state) }
+        else
+          ???
+
+        println(inEdge.size)
+
+        /*output(
+          Paths.get(s"tmp/${recognizer.getRuleNames()(s0.ruleIndex)}-$i.dot")
+        )*/
+
+        i += 1
       }
     }
 
@@ -180,7 +206,7 @@ object ATNTools {
       val endAtReject = Star(
         Alts(stayReject, Seqn(goAccept, Star(stayAccept), goReject))
       )
-      Seqn(endAtReject, goAccept, Star(stayAccept)).simplify
+      Seqn(endAtReject, goAccept, Star(stayAccept))
     }
   }
 
@@ -196,16 +222,34 @@ object ATNTools {
     * class of the parser to analyze (e.g. vct.antlr4.generated.CParser)
     * Argument 2: parse rule to derive the ATN of (e.g. initializerList)
     * Argument 3: output file in DOT/graphviz format (e.g. initializerList.dot)
+    * Arguments 4: (optional) rules to expand separated by comma, or * to expand
+    * all rules
     */
   def main(args: Array[String]): Unit = {
     val parserClass = getClass.getClassLoader.loadClass(args(0))
     val parser = parserClass.getConstructor(classOf[TokenStream])
       .newInstance(null).asInstanceOf[Recognizer]
     val ruleIndex = parser.getRuleIndexMap.get(args(1))
+    val expand =
+      args.lift(3) match {
+        case None => Set.empty[Int]
+        case Some("*") => parser.getRuleNames.indices.toSet
+        case Some(list) =>
+          list.split(",").map(parser.getRuleIndexMap.get(_).toInt).toSet
+      }
     val state = parser.getATN.ruleToStartState(ruleIndex)
-    val edges = getEdges(parser, state)
+    val edges = getEdges(parser, state, expandRules = expand)
     Using(Files.newBufferedWriter(Paths.get(args(2)))) { w =>
       outputGraph(parser, edges, w)
     }
+    val language =
+      new LanguageGraph(
+        parser,
+        state,
+        parser.getATN.ruleToStopState(ruleIndex),
+        edges,
+      )
+    val lang = language.asRegLang()
+    lang.render(System.out)
   }
 }
