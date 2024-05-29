@@ -221,14 +221,14 @@ class ConstraintSolver[G](
         state.resolve_expression(comp.right)
 
     comp match {
-      case _: Eq[_] =>
+      case _: Eq[_] | _: AmbiguousEq[_] =>
         Set(
           if (!negate)
             expr_equals(expr, value)
           else
             expr_equals(expr, value.complement())
         )
-      case _: Neq[_] =>
+      case _: Neq[_] | _: AmbiguousNeq[_] =>
         Set(
           if (!negate)
             expr_equals(expr, value.complement())
@@ -352,8 +352,10 @@ class ConstraintSolver[G](
     val update_map = index_update_map ++ size_update_map
 
     comp match {
-      case _: Eq[_] if !negate => Set(ConstraintMap.from_cons(update_map))
-      case _: Neq[_] if negate => Set(ConstraintMap.from_cons(update_map))
+      case _: Eq[_] | _: AmbiguousEq[_] if !negate =>
+        Set(ConstraintMap.from_cons(update_map))
+      case _: Neq[_] | _: AmbiguousNeq[_] if negate =>
+        Set(ConstraintMap.from_cons(update_map))
       case _ =>
         throw new IllegalArgumentException(
           s"The operator ${comp.toInlineString} is not supported for collections"

@@ -347,8 +347,20 @@ case class AbstractState[G](
       case Mult(left, right) =>
         resolve_integer_expression(left, is_old, is_contract) *
           resolve_integer_expression(right, is_old, is_contract)
+      case AmbiguousDiv(left, right) =>
+        resolve_integer_expression(left, is_old, is_contract) /
+          resolve_integer_expression(right, is_old, is_contract)
+      case AmbiguousTruncDiv(left, right) =>    // TODO: Handle this?
+        resolve_integer_expression(left, is_old, is_contract) /
+          resolve_integer_expression(right, is_old, is_contract)
       case FloorDiv(left, right) =>
         resolve_integer_expression(left, is_old, is_contract) /
+          resolve_integer_expression(right, is_old, is_contract)
+      case AmbiguousMod(left, right) =>
+        resolve_integer_expression(left, is_old, is_contract) %
+          resolve_integer_expression(right, is_old, is_contract)
+      case AmbiguousTruncMod(left, right) =>    // TODO: Handle this?
+        resolve_integer_expression(left, is_old, is_contract) %
           resolve_integer_expression(right, is_old, is_contract)
       case Mod(left, right) =>
         resolve_integer_expression(left, is_old, is_contract) %
@@ -483,8 +495,12 @@ case class AbstractState[G](
       case Implies(left, right) =>
         (!resolve_boolean_expression(left, is_old, is_contract)) ||
         resolve_boolean_expression(right, is_old, is_contract)
+      case AmbiguousEq(left, right, _) =>
+        handle_equality(left, right, is_old, is_contract, negate = false)
       case Eq(left, right) =>
         handle_equality(left, right, is_old, is_contract, negate = false)
+      case AmbiguousNeq(left, right, _) =>
+        handle_equality(left, right, is_old, is_contract, negate = true)
       case Neq(left, right) =>
         handle_equality(left, right, is_old, is_contract, negate = true)
       case AmbiguousGreater(left, right) =>
