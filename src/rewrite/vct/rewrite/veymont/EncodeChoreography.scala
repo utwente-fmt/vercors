@@ -16,6 +16,7 @@ import vct.col.ast.{
   Declaration,
   Deref,
   Endpoint,
+  EndpointExpr,
   EndpointName,
   EndpointStatement,
   Eval,
@@ -443,6 +444,11 @@ case class EncodeChoreography[Pre <: Generation]()
       case (mode, Message(Ref(comm))) =>
         implicit val o = expr.o
         msgSucc(comm).get
-      case (_, expr) => rewriteDefault(expr)
+      case (mode, EndpointExpr(Ref(endpoint), expr)) =>
+        logger.warn(
+          "Ignoring endpoint expr annotation at " + expr.o.shortPositionText
+        )
+        dispatch(expr)
+      case (_, expr) => expr.rewriteDefault()
     }
 }
