@@ -6,8 +6,6 @@ import vct.col.ast.{
   Assume,
   Block,
   Branch,
-  ChorBranch,
-  ChorLoop,
   Communicate,
   CommunicateStatement,
   CommunicateX,
@@ -146,7 +144,7 @@ trait EndpointStatementImpl[G]
             _: VeyMontAssignExpression[G] | _: Branch[G] | _: Loop[G] |
             _: Scope[G] | _: Block[G] | _: Assert[G] | _: Assume[G] |
             _: UnresolvedChorBranch[G] | _: UnresolvedChorLoop[G] |
-            _: ChorBranch[G] | _: ChorLoop[G] | _: EndpointStatement[G] =>
+            _: EndpointStatement[G] =>
           Seq()
         case _ => Seq(SeqProgStatement(this))
       })

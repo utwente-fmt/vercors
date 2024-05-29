@@ -10,12 +10,9 @@ import vct.col.ast.{
   Block,
   BooleanValue,
   Branch,
-  ChorBranch,
-  ChorGuard,
-  ChorLoop,
   ChorPerm,
   ChorRun,
-  EndpointStatement,
+  ChorStatement,
   Choreography,
   Class,
   ClassDeclaration,
@@ -24,8 +21,9 @@ import vct.col.ast.{
   Declaration,
   Deref,
   Endpoint,
-  EndpointGuard,
+  EndpointExpr,
   EndpointName,
+  EndpointStatement,
   Eval,
   Expr,
   Fork,
@@ -312,7 +310,7 @@ case class GenerateImplementation[Pre <: Generation]()
       currentEndpoint.having(endpoint) {
         classDeclarations.declare(
           new RunMethod(
-            body = Some(projectStatement(run.body)),
+            body = Some(projectStatement(run.body)(endpoint)),
             contract = dispatch(run.contract),
           )(PanicBlame(""))
         )
@@ -353,7 +351,7 @@ case class GenerateImplementation[Pre <: Generation]()
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = {
     if (currentEndpoint.nonEmpty)
-      projectStatement(statement)
+      projectStatement(statement)(currentEndpoint.top)
     else
       super.dispatch(statement)
   }
@@ -375,11 +373,13 @@ case class GenerateImplementation[Pre <: Generation]()
         Deref[Post](currentThis.top, endpointParamFields.ref((endpoint, v)))(
           PanicBlame("Shouldn't happen")
         )
-      case InEndpoint(_, endpoint, expr) => projectExpression(expr, endpoint)
+      case InEndpoint(_, endpoint, expr) => projectExpression(expr)(endpoint)
       case _ => expr.rewriteDefault()
     }
 
-  def projectStatement(statement: Statement[Pre]): Statement[Post] =
+  def projectStatement(
+      statement: Statement[Pre]
+  )(implicit endpoint: Endpoint[Pre]): Statement[Post] =
     statement match {
       case EndpointStatement(None, statement) =>
         statement match {
@@ -388,8 +388,7 @@ case class GenerateImplementation[Pre <: Generation]()
               "Encountered ChorStatement without endpoint context"
             )
         }
-      case EndpointStatement(Some(Ref(endpoint)), inner)
-          if endpoint == currentEndpoint.top =>
+      case EndpointStatement(Some(Ref(other)), inner) if other == endpoint =>
         inner match {
           case assign: Assign[Pre] => assign.rewriteDefault()
           case eval: Eval[Pre] => eval.rewriteDefault()
@@ -397,28 +396,25 @@ case class GenerateImplementation[Pre <: Generation]()
       // Ignore statements that do not match the current endpoint
       case EndpointStatement(_, _) => Block(Seq())(statement.o)
       // Specialize composite statements to the current endpoint
-      case branch: ChorBranch[Pre]
-          if branch.guards.map(_.endpointOpt.get)
-            .contains(currentEndpoint.top) =>
+      case c @ ChorStatement(branch: Branch[Pre])
+          if c.branch.endpointGuards.map(_.endpoint.decl).contains(endpoint) =>
         implicit val o = branch.o
         Branch[Post](
-          Seq((
-            projectExpression(branch.guards)(branch.o),
-            projectStatement(branch.yes),
-          )) ++ branch.no.map(no => Seq((tt[Post], projectStatement(no))))
+          Seq(
+            (projectExpression(c.branch.cond), projectStatement(c.branch.yes))
+          ) ++ c.branch.no.map(no => Seq((tt[Post], projectStatement(no))))
             .getOrElse(Seq())
         )
-      case chorLoop: ChorLoop[Pre]
-          if chorLoop.guards.map(_.endpointOpt.get)
-            .contains(currentEndpoint.top) =>
-        implicit val o = chorLoop.o
+      case c @ ChorStatement(l: Loop[Pre])
+          if c.loop.endpointGuards.map(_.endpoint.decl).contains(endpoint) =>
+        implicit val o = l.o
         loop(
-          cond = projectExpression(chorLoop.guards)(chorLoop.o),
-          body = projectStatement(chorLoop.body),
-          contract = dispatch(chorLoop.contract),
+          cond = projectExpression(l.cond),
+          body = projectStatement(l.body),
+          contract = dispatch(l.contract),
         )
-      // Ignore composite statements the current endpoint is not participating in
-      case _: ChorBranch[Pre] | _: ChorLoop[Pre] => Block(Seq())(statement.o)
+      // Ignore loops, branches that the current endpoint doesn't participate in
+      case c @ ChorStatement(_: Loop[Pre] | _: Branch[Pre]) => Block(Seq())(c.o)
       // Rewrite blocks transparently
       case block: Block[Pre] => block.rewriteDefault()
       // Don't let any missed cases slip through
@@ -426,19 +422,15 @@ case class GenerateImplementation[Pre <: Generation]()
     }
 
   def projectExpression(
-      guards: Seq[ChorGuard[Pre]]
-  )(implicit o: Origin): Expr[Post] =
-    foldStar(guards.collect {
-      case EndpointGuard(Ref(endpoint), cond)
-          if endpoint == currentEndpoint.top =>
-        dispatch(cond)
-    })
-
-  def projectExpression(expr: Expr[Pre], endpoint: Endpoint[Pre]): Expr[Post] =
+      expr: Expr[Pre]
+  )(implicit focus: Endpoint[Pre]): Expr[Post] =
     expr match {
-      case ChorPerm(Ref(other), loc, perm) if endpoint == other =>
+      case ChorPerm(Ref(other), loc, perm) if focus == other =>
         Perm(dispatch(loc), dispatch(perm))(expr.o)
-      case ChorPerm(Ref(other), _, _) if endpoint != other => tt
+      case ChorPerm(Ref(other), _, _) if focus != other => tt
+      case EndpointExpr(Ref(other), expr) if focus == other =>
+        super.dispatch(expr)
+      case EndpointExpr(Ref(other), expr) => tt
       case _ => expr.rewriteDefault()
     }
 
@@ -903,20 +895,20 @@ case class GenerateImplementation[Pre <: Generation]()
     }
   }
 
-  private def paralleliseThreadCondition(
-      node: Expr[Pre],
-      thread: Endpoint[Pre],
-      c: ChorGuard[Pre],
-  ) = {
-    ???
-    // TODO: Broke this because AST changed, repair
+//  private def paralleliseThreadCondition(
+//      node: Expr[Pre],
+//      thread: Endpoint[Pre],
+//      c: ChorGuard[Pre],
+//  ) = {
+//    ???
+  // TODO: Broke this because AST changed, repair
 //    c.conditions.find { case (threadRef, _) =>
 //      threadRef.decl == thread
 //    } match {
 //      case Some((_, threadExpr)) => dispatch(threadExpr)
 //      case _ => throw ParalleliseEndpointsError(node, "Condition of if statement or while loop must contain an expression for every thread")
 //    }
-  }
+//  }
 
   private def getThisVeyMontDeref(
       thread: Endpoint[Pre],

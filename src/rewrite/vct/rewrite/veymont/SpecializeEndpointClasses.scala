@@ -11,7 +11,6 @@ import vct.col.ast.{
   Block,
   BooleanValue,
   Branch,
-  ChorGuard,
   ChorRun,
   EndpointStatement,
   Choreography,

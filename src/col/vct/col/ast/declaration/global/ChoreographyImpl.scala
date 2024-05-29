@@ -3,14 +3,14 @@ package vct.col.ast.declaration.global
 import vct.col.ast.declaration.DeclarationImpl
 import vct.col.ast.{
   Assign,
-  EndpointStatement,
+  ChorStatement,
+  Choreography,
   Class,
   Declaration,
   Endpoint,
-  EndpointGuard,
   EndpointName,
+  EndpointStatement,
   Node,
-  Choreography,
 }
 import vct.col.ast.util.Declarator
 import vct.col.check.{CheckContext, CheckError}
@@ -24,10 +24,10 @@ import vct.col.ast.ops.ChoreographyOps
 object ChoreographyImpl {
   def participants[G](node: Node[G]): ListSet[Endpoint[G]] =
     ListSet.from(node.collect {
-      case EndpointGuard(Ref(endpoint), _) => endpoint
-      case EndpointStatement(Some(Ref(endpoint)), Assign(_, _)) => endpoint
-      case EndpointName(Ref(endpoint)) => endpoint
-    })
+      case EndpointStatement(Some(Ref(endpoint)), Assign(_, _)) => Seq(endpoint)
+      case EndpointName(Ref(endpoint)) => Seq(endpoint)
+      case c @ ChorStatement(_) => c.participants.toSeq
+    }.flatten)
 }
 
 trait ChoreographyImpl[G]

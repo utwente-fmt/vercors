@@ -354,7 +354,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: ProverLanguage[Pre] => node
       case node: SmtlibFunctionSymbol[Pre] => node
       case node: ChorRun[Pre] => node
-      case node: ChorGuard[Pre] => coerce(node)
       case node: PVLEndpointName[Pre] => coerce(node)
       case node: EndpointName[Pre] => coerce(node)
     }
@@ -2294,8 +2293,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case PVLChannelInvariant(comm, inv) => PVLChannelInvariant(comm, res(inv))
       case s: PVLEndpointStatement[Pre] => s
-      case s: ChorBranch[Pre] => s
-      case s: ChorLoop[Pre] => s
       case c: EndpointStatement[Pre] => c
       case c: CommunicateStatement[Pre] => c
       case ChorStatement(inner) => ChorStatement(inner)
@@ -2932,12 +2929,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node
 
   def coerce(node: ChorRun[Pre]): ChorRun[Pre] = node
-  def coerce(node: ChorGuard[Pre]): ChorGuard[Pre] =
-    node match {
-      case EndpointGuard(endpoint, cond) =>
-        EndpointGuard(endpoint, bool(cond))(node.o)
-      case UnpointedGuard(cond) => UnpointedGuard(bool(cond))(node.o)
-    }
 
   def coerce(node: PVLEndpointName[Pre]): PVLEndpointName[Pre] = node
   def coerce(node: EndpointName[Pre]): EndpointName[Pre] = node

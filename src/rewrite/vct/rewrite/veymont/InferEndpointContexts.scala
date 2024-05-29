@@ -13,7 +13,6 @@ import vct.col.ast.{
   Block,
   BooleanValue,
   Branch,
-  ChorGuard,
   ChorPerm,
   ChorRun,
   EndpointStatement,

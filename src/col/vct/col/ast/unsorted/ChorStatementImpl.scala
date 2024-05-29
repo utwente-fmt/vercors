@@ -4,7 +4,6 @@ import vct.col.ast.ops.ChorStatementOps
 import vct.col.ast.{
   Assign,
   Branch,
-  ChorBranch,
   ChorStatement,
   Communicate,
   Endpoint,
@@ -40,6 +39,8 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] {
     def cond: Expr[G] = branch().branches.head._1
     def guards: Seq[Expr[G]] =
       AstBuildHelpers.unfoldStar(branch().branches.head._1)
+    def endpointGuards: Seq[EndpointExpr[G]] =
+      guards.map { case e: EndpointExpr[G] => e }
 
     def yes: Statement[G] = branch().branches.head._2
     def no: Option[Statement[G]] = Try(branch().branches(1)).toOption.map(_._2)
@@ -59,6 +60,8 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] {
     def apply(): Loop[G] = inner.asInstanceOf[Loop[G]]
 
     def guards: Seq[Expr[G]] = AstBuildHelpers.unfoldStar(loop().cond)
+    def endpointGuards: Seq[EndpointExpr[G]] =
+      guards.map { case e: EndpointExpr[G] => e }
 
     def hasUnpointed: Boolean =
       guards.exists {
