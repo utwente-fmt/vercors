@@ -12,12 +12,14 @@ import vct.col.ast.{
   EndpointStatement,
   Expr,
   Loop,
+  Statement,
 }
 import vct.col.print._
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers
 
 import scala.collection.immutable.ListSet
+import scala.util.Try
 
 trait ChorStatementImpl[G] extends ChorStatementOps[G] {
   this: ChorStatement[G] =>
@@ -35,8 +37,12 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] {
   object branch {
     def apply(): Branch[G] = inner.asInstanceOf[Branch[G]]
 
+    def cond: Expr[G] = branch().branches.head._1
     def guards: Seq[Expr[G]] =
       AstBuildHelpers.unfoldStar(branch().branches.head._1)
+
+    def yes: Statement[G] = branch().branches.head._2
+    def no: Option[Statement[G]] = Try(branch().branches(1)).toOption.map(_._2)
 
     // Choreographic branches are unfolded early on, so we only consider the head condition
     def hasUnpointed: Boolean =

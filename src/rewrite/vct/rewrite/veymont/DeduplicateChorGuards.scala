@@ -18,41 +18,43 @@ object DeduplicateChorGuards extends RewriterBuilder {
     "Deduplicates SeqGuard nodes with syntactically identical endpoints"
 }
 
-case class DeduplicateChorGuards[Pre <: Generation]() extends Rewriter[Pre] {
+case class DeduplicateChorGuards[Pre <: Generation]()
+    extends Rewriter[Pre] with VeymontContext[Pre] {
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    decl match {
+      case chor: Choreography[Pre] =>
+        currentChoreography.having(chor) { super.dispatch(chor) }
+      case _ => super.dispatch(decl)
+    }
+
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
     statement match {
-      case branch: ChorBranch[Pre] =>
-        val guards: Seq[EndpointGuard[Pre]] = branch.guards.map {
-          case guard: EndpointGuard[Pre] => guard
-          case guard: UnpointedGuard[Pre] =>
-            ??? // Excluded by RemoveUnpointedGuard
-        }
-        branch.rewrite(guards = dedup(guards))
+      case InChor(_, c @ ChorStatement(branch: Branch[Pre])) =>
+        c.rewrite(inner =
+          branch.rewrite(branches =
+            (dedup(c.branch.cond), super.dispatch(c.branch.yes)) +:
+              c.branch.no.map(no => Seq((tt[Post], super.dispatch(no))))
+                .getOrElse(Seq())
+          )
+        )
 
-      case loop: ChorLoop[Pre] =>
-        val guards: Seq[EndpointGuard[Pre]] = loop.guards.map {
-          case guard: EndpointGuard[Pre] => guard
-          case guard: UnpointedGuard[Pre] =>
-            ??? // Excluded by RemoveUnpointedGuard
-        }
-        loop.rewrite(guards = dedup(guards))
+      case InChor(_, c @ ChorStatement(loop: Loop[Pre])) =>
+        c.rewrite(inner = loop.rewrite(cond = dedup(loop.cond)))
 
       case _ => rewriteDefault(statement)
     }
 
-  def dedup(guards: Seq[EndpointGuard[Pre]]): Seq[EndpointGuard[Post]] = {
+  def dedup(expr: Expr[Pre]): Expr[Post] = {
+    implicit val o = expr.o
     val m: mutable.LinkedHashMap[Endpoint[Pre], Seq[Expr[Pre]]] = mutable
       .LinkedHashMap()
-    guards.foreach { guard =>
-      m.updateWith(guard.endpoint.decl)(exprs =>
-        Some(exprs.getOrElse(Nil) :+ guard.condition)
-      )
+    unfoldStar(expr).foreach {
+      case EndpointExpr(Ref(endpoint), expr) =>
+        m.updateWith(endpoint)(exprs => Some(exprs.getOrElse(Seq()) :+ expr))
+      case _ => assert(false)
     }
-    m.iterator.map { case (endpoint, exprs) =>
-      EndpointGuard[Post](
-        succ(endpoint),
-        foldAnd(exprs.map(dispatch))(DiagnosticOrigin),
-      )(exprs.head.o)
-    }.toSeq
+    foldAnd(m.iterator.map { case (endpoint, parts) =>
+      EndpointExpr[Post](succ(endpoint), foldAnd(parts.map(dispatch)))
+    }.toSeq)
   }
 }
