@@ -420,11 +420,8 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
         else
           LowerBoundedInterval(0)
     }
-<<<<<<< HEAD
 
   override def values: Option[Set[Int]] = Some(lower.to(upper).toSet)
-=======
->>>>>>> dev
 
   override def try_to_resolve(): Option[Int] = {
     if (lower == upper)
