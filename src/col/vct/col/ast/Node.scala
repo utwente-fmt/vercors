@@ -3504,7 +3504,7 @@ final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(
   var ref: Option[PVLTypeNameTarget[G]] = None
 }
 
-sealed trait PVLExpr[G] extends Expr[G] with PVLExprImpl[Galice.x == 0]
+sealed trait PVLExpr[G] extends Expr[G] with PVLExprImpl[G]
 final case class PVLLocal[G](name: String)(
     val blame: Blame[DerefInsufficientPermission]
 )(implicit val o: Origin)

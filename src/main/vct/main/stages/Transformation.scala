@@ -39,10 +39,10 @@ import vct.rewrite.{
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont.{
   DeduplicateChorGuards,
+  DropChorExpr,
   EncodeChannels,
   EncodeChorBranchUnanimity,
   EncodeChoreography,
-  EncodeChoreographyParameters,
   EncodeEndpointInequalities,
   EncodeUnpointedGuard,
   GenerateChoreographyPermissions,
@@ -439,13 +439,13 @@ case class VeyMontImplementationGeneration(
 ) extends Transformation(
       onPassEvent,
       Seq(
+        DropChorExpr,
         SplitChorGuards,
         EncodeUnpointedGuard,
         DeduplicateChorGuards,
         SpecializeEndpointClasses,
         EncodeChannels.withArg(importer),
         InferEndpointContexts,
-//    EncodeChoreographyParameters,
         GenerateImplementation,
         PrettifyBlocks,
       ),

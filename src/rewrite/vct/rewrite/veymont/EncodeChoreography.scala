@@ -6,6 +6,7 @@ import vct.col.ast.{
   Assert,
   Assign,
   Block,
+  ChorExpr,
   ChorPerm,
   ChorRun,
   ChorStatement,
@@ -449,6 +450,7 @@ case class EncodeChoreography[Pre <: Generation]()
           "Ignoring endpoint expr annotation at " + expr.o.shortPositionText
         )
         dispatch(expr)
+      case (mode, ChorExpr(inner)) => dispatch(expr)
       case (_, expr) => expr.rewriteDefault()
     }
 }
