@@ -165,6 +165,8 @@ case class LangVeyMontToCol[Pre <: Generation](
         Receiver[Post](commSucc.ref(expr.ref.get))(expr.o)
       case expr @ PVLMessage() =>
         Message[Post](commSucc.ref(expr.ref.get))(expr.o)
+      case PVLEndpointExpr(endpoint, expr) =>
+        EndpointExpr(rewriteEndpointName(endpoint), rw.dispatch(expr))(expr.o)
       case expr => currentExpr.having(expr) { rw.dispatch(expr) }
     }
 }

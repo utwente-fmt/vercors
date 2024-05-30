@@ -151,6 +151,10 @@ postfixExpr
 unit
  : valExpr # pvlValExpr
  | 'Perm' '[' identifier ']' '(' expr ',' expr ')' # pvlChorPerm
+ | '(' '\\endpoint' identifier ';' expr ')' # pvlLongEndpointExpr
+ | '(' '\\' '[' identifier ']' expr ')' # pvlShortEndpointExpr
+ | '(' '\\chor' expr ')' # pvlLongChorExpr
+ | '(' '\\' '[' ']' expr ')' # pvlShortChorExpr
  | 'this' # pvlThis
  | 'null' # pvlNull
  | '\\sender' # pvlSender

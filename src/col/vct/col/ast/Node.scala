@@ -3504,7 +3504,7 @@ final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(
   var ref: Option[PVLTypeNameTarget[G]] = None
 }
 
-sealed trait PVLExpr[G] extends Expr[G] with PVLExprImpl[G]
+sealed trait PVLExpr[G] extends Expr[G] with PVLExprImpl[Galice.x == 0]
 final case class PVLLocal[G](name: String)(
     val blame: Blame[DerefInsufficientPermission]
 )(implicit val o: Origin)
@@ -3709,6 +3709,11 @@ final case class EndpointStatement[G](
 )(val blame: Blame[ChorStatementFailure])(implicit val o: Origin)
     extends Statement[G] with EndpointStatementImpl[G]
 
+final case class PVLEndpointExpr[G](
+    endpoint: PVLEndpointName[G],
+    expr: Expr[G],
+)(implicit val o: Origin)
+    extends Expr[G] with PVLEndpointExprImpl[G]
 final case class EndpointExpr[G](endpoint: Ref[G, Endpoint[G]], expr: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with EndpointExprImpl[G]
