@@ -79,19 +79,17 @@ class RASIGenerator[G] extends LazyLogging {
       parameter_invariant: InstancePredicate[G],
   ): Unit = {
     logger.info("Starting RASI generation")
-    val start_time: Long = System.nanoTime()
-    var last_measurement: Long = start_time
+    val global_start_time: Long = System.nanoTime()
 
-    val initial_state = AbstractState(
-      get_initial_values(vars),
-      HashMap((AbstractProcess[G](Null()(Origin(Seq()))), node)),
-      None,
-      get_parameter_constraints(parameter_invariant),
-    ).with_condition(parameter_invariant.body)
+    var considered_variables: Set[ConcreteVariable[G]] = vars
 
-    found_states += initial_state
-    current_branches += initial_state
-
+    var generation_start_time: Long = reset(
+      node,
+      considered_variables,
+      parameter_invariant,
+    )
+    var last_measurement_time: Long = generation_start_time
+    var initial_state: AbstractState[G] = current_branches.head
     var i = 0
 
     while (current_branches.nonEmpty) {
@@ -99,25 +97,56 @@ class RASIGenerator[G] extends LazyLogging {
       current_branches -= curr
 
       val successor: RASISuccessor[G] = curr.successors()
-      found_edges.addAll(successor.edges(curr))
-      successor.successors.foreach(s =>
-        if (!found_states.contains(s)) {
-          found_states += s; current_branches += s
+
+      val relevant_variables: Set[ConcreteVariable[G]] = successor
+        .deciding_variables.filter(v => is_relevant_variable(v))
+      if (relevant_variables.nonEmpty) {
+        val time: Long =
+          (System.nanoTime() - generation_start_time) / 1_000_000L
+        logger.info(
+          s"Found relevant new variables; abort generation [$i iterations in ${time}ms]"
+        )
+        val found_vars = relevant_variables.toSeq
+          .sortWith((v1, v2) => v1.compare(v2))
+          .map(v => v.to_expression.toInlineString)
+        logger.debug(s"Variables found: $found_vars")
+
+        considered_variables ++= relevant_variables
+
+        generation_start_time = reset(
+          node,
+          considered_variables,
+          parameter_invariant,
+        )
+        last_measurement_time = generation_start_time
+        initial_state = current_branches.head
+        i = 0
+      } else {
+        found_edges.addAll(successor.edges(curr))
+        successor.successors.foreach(s =>
+          if (!found_states.contains(s)) {
+            found_states += s;
+            current_branches += s
+          }
+        )
+        i = i + 1
+        if (System.nanoTime() - last_measurement_time > 1_000_000_000L) {
+          last_measurement_time = System.nanoTime()
+          val time =
+            (last_measurement_time - generation_start_time) / 1_000_000L
+          logger.debug(s"[Runtime ${time}ms] Iteration $i: ${found_states
+              .size} states found, ${current_branches.size} yet to explore")
         }
-      )
-      i = i + 1
-      if (System.nanoTime() - last_measurement > 5_000_000_000L) {
-        last_measurement = System.nanoTime()
-        val time = (last_measurement - start_time) / 1_000_000L
-        logger.debug(s"[Runtime ${time}ms] Iteration $i: ${found_states
-            .size} states found, ${current_branches.size} yet to explore")
       }
     }
 
-    val total_time: Long = (System.nanoTime() - start_time) / 1_000_000L
-    logger.info(s"RASI generation complete [$i iterations in ${total_time}ms]")
-
-    // TODO: Detect which variable overapproximations are detrimental to the state space and which are not
+    val current_time: Long = System.nanoTime()
+    val generation_time: Long =
+      (current_time - generation_start_time) / 1_000_000L
+    val total_time: Long = (System.nanoTime() - global_start_time) / 1_000_000L
+    logger
+      .info(s"RASI generation complete [$i iterations in ${generation_time}ms]")
+    logger.info(s"Total runtime: ${total_time}ms")
 
     // The initial state converts to simply "true", so it would make the RASI trivial
     found_states.filterInPlace(s => s.valuations != initial_state.valuations)
@@ -132,6 +161,28 @@ class RASIGenerator[G] extends LazyLogging {
     logger.debug(
       s"${found_edges.count(e => e.vars.nonEmpty)} edges have variable annotations"
     )
+  }
+
+  private def reset(
+      node: CFGEntry[G],
+      vars: Set[ConcreteVariable[G]],
+      parameter_invariant: InstancePredicate[G],
+  ): Long = {
+    found_states.clear()
+    found_edges.clear()
+    current_branches.clear()
+
+    val initial_state = AbstractState(
+      get_initial_values(vars),
+      HashMap((AbstractProcess[G](Null()(Origin(Seq()))), node)),
+      None,
+      get_parameter_constraints(parameter_invariant),
+    ).with_condition(parameter_invariant.body)
+
+    found_states += initial_state
+    current_branches += initial_state
+
+    System.nanoTime()
   }
 
   private def get_initial_values(
@@ -150,6 +201,22 @@ class RASIGenerator[G] extends LazyLogging {
     Map.from(
       parameters.map(f => FieldVariable(f) -> UncertainValue.uncertain_of(f.t))
     )
+  }
+
+  private def is_relevant_variable(variable: ConcreteVariable[G]): Boolean = {
+    // TODO: This is just a (horrendous) heuristic! This needs to be fixed ASAP!
+    // Basically, if the variable is a defined variable from the VeSUV transformation,
+    // it should be included when encountered
+    val name = variable.to_expression.toInlineString
+    val relevant_names: Set[String] = Set(
+      ".ProcessState_",
+      ".EventState_",
+      ".PrimitiveChannelUpdate_",
+      ".Written",
+      ".NumRead",
+      ".Buffer",
+    )
+    relevant_names.exists(s => name.contains(s))
   }
 
   private def reduce_redundant_states()
