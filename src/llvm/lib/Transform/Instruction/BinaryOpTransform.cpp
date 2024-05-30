@@ -42,6 +42,7 @@ void llvm2col::transformBinaryOp(llvm::Instruction &llvmInstruction,
         }
         col::FloorDiv &expr = *assignment.mutable_value()->mutable_floor_div();
         transformBinExpr(llvmInstruction, expr, funcCursor);
+        expr.set_allocated_blame(new col::Blame());
         break;
     }
     // TODO: All of these are currently bitwise operators, verify that works

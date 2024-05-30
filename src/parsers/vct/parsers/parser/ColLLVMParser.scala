@@ -82,8 +82,9 @@ case class ColLLVMParser(
       )
     }
 
+    // Use the origin in the blame provider
     val COLProgram = Deserialize
-      .deserializeProgram[G](protoProgram, readable.fileName)
+      .deserializeProgram[G](protoProgram, _ => blameProvider.apply())
     ParseResult(COLProgram.declarations, Seq.empty)
   }
 

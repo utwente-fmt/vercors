@@ -55,6 +55,13 @@ class FunctionCursor {
     /// excludes possible future phi node back transformations.
     std::set<col::Block *> completedColBlocks;
 
+    /// set of all COL blocks that we have started transforming.
+    std::set<col::Block *> visitedColBlocks;
+
+    /// map of assignments which should be added to the basic block when it is
+    /// completed.
+    std::unordered_multimap<col::Block *, col::Assign *> phiAssignBuffer;
+
     /// Almost always when adding a variable to the variableMap, some extra
     /// processing is required which is why this method is private as to not
     /// accidentally use it outside the functionCursor
@@ -102,6 +109,10 @@ class FunctionCursor {
     col::Assign &createAssignment(Instruction &llvmInstruction,
                                   col::Block &colBlock, col::Variable &varDecl);
 
+    col::Assign &createPhiAssignment(Instruction &llvmInstruction,
+                                     col::Block &colBlock,
+                                     col::Variable &varDecl);
+
     col::Variable &getVariableMapEntry(llvm::Value &llvmValue, bool inPhiNode);
 
     /**
@@ -119,6 +130,8 @@ class FunctionCursor {
      */
     LabeledColBlock &
     getOrSetLLVMBlock2LabeledColBlockEntry(BasicBlock &llvmBlock);
+
+    LabeledColBlock &visitLLVMBlock(BasicBlock &llvmBlock);
 
     llvm::FunctionAnalysisManager &getFunctionAnalysisManager();
 

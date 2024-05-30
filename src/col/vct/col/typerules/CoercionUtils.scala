@@ -198,6 +198,7 @@ case object CoercionUtils {
         ))
       case (TCInt(), TInt()) => CoerceCIntInt()
       case (LLVMTInt(_), TInt()) => CoerceLLVMIntInt()
+      case (TInt(), LLVMTInt(_)) => CoerceIdentity(target)
 
       case (TBoundedInt(gte, lt), TFraction()) if gte >= 1 && lt <= 2 =>
         CoerceBoundIntFrac()

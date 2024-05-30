@@ -46,18 +46,32 @@ col::Variable &FunctionCursor::getVariableMapEntry(Value &llvmValue,
         }
 
         col::Variable *colVar = new col::Variable();
+        llvm2col::setColNodeId(colVar);
         addVariableMapEntry(llvmValue, *colVar);
         return *colVar;
     }
 }
 
 bool FunctionCursor::isVisited(BasicBlock &llvmBlock) {
-    return llvmBlock2LabeledColBlock.contains(&llvmBlock);
+    return visitedColBlocks.contains(
+        &this->getOrSetLLVMBlock2LabeledColBlockEntry(llvmBlock).block);
 }
 
 void FunctionCursor::complete(col::Block &colBlock) {
+    int lastIndex = colBlock.statements_size() - 1;
+    bool found = false;
+    auto range = phiAssignBuffer.equal_range(&colBlock);
+    for (auto it = range.first; it != range.second; ++it) {
+        found = true;
+        colBlock.add_statements()->set_allocated_assign(it->second);
+    }
+    if (found) {
+        colBlock.mutable_statements()->SwapElements(
+            colBlock.statements_size() - 1, lastIndex);
+    }
     completedColBlocks.insert(&colBlock);
 }
+
 bool FunctionCursor::isComplete(col::Block &colBlock) {
     return completedColBlocks.contains(&colBlock);
 }
@@ -87,6 +101,13 @@ FunctionCursor::getOrSetLLVMBlock2LabeledColBlockEntry(BasicBlock &llvmBlock) {
     return llvmBlock2LabeledColBlock.at(&llvmBlock);
 }
 
+LabeledColBlock &FunctionCursor::visitLLVMBlock(BasicBlock &llvmBlock) {
+    LabeledColBlock &labeledBlock =
+        this->getOrSetLLVMBlock2LabeledColBlockEntry(llvmBlock);
+    visitedColBlocks.insert(&labeledBlock.block);
+    return labeledBlock;
+}
+
 LoopInfo &FunctionCursor::getLoopInfo() {
     return FAM.getResult<LoopAnalysis>(llvmFunction);
 }
@@ -105,8 +126,19 @@ FDResult &FunctionCursor::getFDResult(Function &otherLLVMFunction) {
 
 col::Variable &FunctionCursor::declareVariable(Instruction &llvmInstruction,
                                                Type *llvmPointerType) {
-    // create declaration in buffer
-    col::Variable *varDecl = functionScope.add_locals();
+    col::Variable *varDecl;
+    if (auto variablePair = variableMap.find(&llvmInstruction);
+        variablePair != variableMap.end()) {
+        varDecl = functionScope.add_locals();
+        *varDecl = *variablePair->second;
+    } else {
+        // create declaration in buffer
+        varDecl = functionScope.add_locals();
+        // set id
+        llvm2col::setColNodeId(varDecl);
+        // add to the variable lut
+        this->addVariableMapEntry(llvmInstruction, *varDecl);
+    }
     // set type of declaration
     try {
         if (llvmPointerType == nullptr) {
@@ -121,13 +153,9 @@ col::Variable &FunctionCursor::declareVariable(Instruction &llvmInstruction,
         errorStream << e.what() << " in variable declaration.";
         ErrorReporter::addError(SOURCE_LOC, errorStream.str(), llvmInstruction);
     }
-    // set id
-    llvm2col::setColNodeId(varDecl);
     // set origin
     varDecl->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(llvmInstruction));
-    // add to the variable lut
-    this->addVariableMapEntry(llvmInstruction, *varDecl);
     return *varDecl;
 }
 
@@ -158,6 +186,35 @@ col::Assign &FunctionCursor::createAssignment(Instruction &llvmInstruction,
         // the newest assignment)
         int lastIndex = colBlock.statements_size() - 1;
         colBlock.mutable_statements()->SwapElements(lastIndex, lastIndex - 1);
+    }
+    return *assignment;
+}
+
+col::Assign &FunctionCursor::createPhiAssignment(Instruction &llvmInstruction,
+                                                 col::Block &colBlock,
+                                                 col::Variable &varDecl) {
+    col::Assign *assignment = new col::Assign();
+    assignment->set_allocated_blame(new col::Blame());
+    assignment->set_allocated_origin(
+        llvm2col::generateSingleStatementOrigin(llvmInstruction));
+    // create local target in buffer and set origin
+    col::Local *colLocal = assignment->mutable_target()->mutable_local();
+    colLocal->set_allocated_origin(
+        llvm2col::generateAssignTargetOrigin(llvmInstruction));
+    // set target to refer to var decl
+    colLocal->mutable_ref()->set_id(varDecl.id());
+    if (isComplete(colBlock)) {
+        // if the colBlock is completed, the assignment will be inserted after
+        // the goto/branch statement this can occur due to e.g. phi nodes back
+        // tracking assignments in their origin blocks. therefore we need to
+        // swap the last two elements of the block (i.e. the goto statement and
+        // the newest assignment)
+        int lastIndex = colBlock.statements_size() - 1;
+        colBlock.add_statements()->set_allocated_assign(assignment);
+        colBlock.mutable_statements()->SwapElements(lastIndex, lastIndex - 1);
+    } else {
+        // Buffer the phi assignments so they appear at the end
+        phiAssignBuffer.insert({&colBlock, assignment});
     }
     return *assignment;
 }

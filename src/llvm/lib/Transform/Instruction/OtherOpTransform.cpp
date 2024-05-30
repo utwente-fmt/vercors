@@ -34,8 +34,8 @@ void llvm2col::transformPhi(llvm::PHINode &phiInstruction,
         // add assignment of the variable to target block
         col::Block &targetBlock =
             funcCursor.getOrSetLLVMBlock2LabeledColBlockEntry(*B).block;
-        col::Assign &assignment =
-            funcCursor.createAssignment(phiInstruction, targetBlock, varDecl);
+        col::Assign &assignment = funcCursor.createPhiAssignment(
+            phiInstruction, targetBlock, varDecl);
         // assign correct value by looking at the value-block pair of phi
         // instruction.
         col::Expr *value = assignment.mutable_value();
