@@ -106,7 +106,7 @@ class RASIGenerator[G] extends LazyLogging {
         logger.info(
           s"Found relevant new variables; abort generation [$i iterations in ${time}ms]"
         )
-        val found_vars = relevant_variables.toSeq
+        val found_vars: Seq[String] = relevant_variables.toSeq
           .sortWith((v1, v2) => v1.compare(v2))
           .map(v => v.to_expression.toInlineString)
         logger.debug(s"Variables found: $found_vars")

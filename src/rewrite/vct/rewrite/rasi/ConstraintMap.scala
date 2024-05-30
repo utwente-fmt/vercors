@@ -44,8 +44,7 @@ case class ConstraintMap[G](
     *   A representation of this map in which each variable is mapped to one
     *   uncertain value
     */
-  def resolve: Map[ResolvableVariable[G], UncertainValue] =
-    constraints.filter(t => !t._2.is_uncertain)
+  def resolve: Map[ResolvableVariable[G], UncertainValue] = constraints
 
   /** Checks whether this map's valuation is impossible. A valuation is
     * impossible if any variable is mapped to an empty set of potential values.
@@ -65,7 +64,7 @@ case class ConstraintMap[G](
     *   <code>true</code> if the map does not constrain any variable,
     *   <code>false</code> otherwise
     */
-  def is_empty: Boolean = resolve.isEmpty
+  def is_empty: Boolean = resolve.forall(v => v._2.is_uncertain)
 }
 case object ConstraintMap {
   def from[G](

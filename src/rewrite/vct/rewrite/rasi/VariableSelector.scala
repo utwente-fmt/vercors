@@ -53,7 +53,6 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
 
     val constraints: Seq[Set[ConstraintMap[G]]] = conditions.toSeq
       .map(e => satisfying_valuations(initial_state, e))
-      .filter(s => s.exists(m => !m.is_empty))
     if (constraints.isEmpty)
       Set.empty[ConcreteVariable[G]]
     else
