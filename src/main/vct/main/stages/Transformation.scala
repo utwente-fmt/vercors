@@ -44,12 +44,12 @@ import vct.rewrite.veymont.{
   EncodeChorBranchUnanimity,
   EncodeChoreography,
   EncodeEndpointInequalities,
-  EncodeUnpointedGuard,
+  StratifyUnpointedExpressions,
   GenerateChoreographyPermissions,
   GenerateImplementation,
   InferEndpointContexts,
   SpecializeEndpointClasses,
-  SplitChorGuards,
+  StratifyExpressions,
 }
 
 import java.nio.file.Path
@@ -314,8 +314,8 @@ case class SilverTransformation(
         EncodeRangedFor,
 
         // VeyMont sequential program encoding
-        SplitChorGuards,
-        EncodeUnpointedGuard,
+        StratifyExpressions,
+        StratifyUnpointedExpressions,
         DeduplicateChorGuards,
         InferEndpointContexts,
         GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
@@ -440,8 +440,8 @@ case class VeyMontImplementationGeneration(
       onPassEvent,
       Seq(
         DropChorExpr,
-        SplitChorGuards,
-        EncodeUnpointedGuard,
+        StratifyExpressions,
+        StratifyUnpointedExpressions,
         DeduplicateChorGuards,
         SpecializeEndpointClasses,
         EncodeChannels.withArg(importer),

@@ -29,6 +29,7 @@ import vct.col.ast.{
   Fork,
   InstanceField,
   InstanceMethod,
+  IterationContract,
   JavaClass,
   JavaConstructor,
   JavaInvocation,
@@ -41,6 +42,8 @@ import vct.col.ast.{
   Join,
   Local,
   Loop,
+  LoopContract,
+  LoopInvariant,
   MethodInvocation,
   NewObject,
   Node,
@@ -310,7 +313,7 @@ case class GenerateImplementation[Pre <: Generation]()
       currentEndpoint.having(endpoint) {
         classDeclarations.declare(
           new RunMethod(
-            body = Some(projectStatement(run.body)(endpoint)),
+            body = Some(projectStmt(run.body)(endpoint)),
             contract = dispatch(run.contract),
           )(PanicBlame(""))
         )
@@ -351,7 +354,7 @@ case class GenerateImplementation[Pre <: Generation]()
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = {
     if (currentEndpoint.nonEmpty)
-      projectStatement(statement)(currentEndpoint.top)
+      projectStmt(statement)(currentEndpoint.top)
     else
       super.dispatch(statement)
   }
@@ -373,11 +376,11 @@ case class GenerateImplementation[Pre <: Generation]()
         Deref[Post](currentThis.top, endpointParamFields.ref((endpoint, v)))(
           PanicBlame("Shouldn't happen")
         )
-      case InEndpoint(_, endpoint, expr) => projectExpression(expr)(endpoint)
+      case InEndpoint(_, endpoint, expr) => projectExpr(expr)(endpoint)
       case _ => expr.rewriteDefault()
     }
 
-  def projectStatement(
+  def projectStmt(
       statement: Statement[Pre]
   )(implicit endpoint: Endpoint[Pre]): Statement[Post] =
     statement match {
@@ -400,17 +403,16 @@ case class GenerateImplementation[Pre <: Generation]()
           if c.branch.endpointGuards.map(_.endpoint.decl).contains(endpoint) =>
         implicit val o = branch.o
         Branch[Post](
-          Seq(
-            (projectExpression(c.branch.cond), projectStatement(c.branch.yes))
-          ) ++ c.branch.no.map(no => Seq((tt[Post], projectStatement(no))))
-            .getOrElse(Seq())
+          Seq((projectExpr(c.branch.cond), projectStmt(c.branch.yes))) ++
+            c.branch.no.map(no => Seq((tt[Post], projectStmt(no))))
+              .getOrElse(Seq())
         )
       case c @ ChorStatement(l: Loop[Pre])
           if c.loop.endpointGuards.map(_.endpoint.decl).contains(endpoint) =>
         implicit val o = l.o
         loop(
-          cond = projectExpression(l.cond),
-          body = projectStatement(l.body),
+          cond = projectExpr(l.cond),
+          body = projectStmt(l.body),
           contract = dispatch(l.contract),
         )
       // Ignore loops, branches that the current endpoint doesn't participate in
@@ -421,15 +423,37 @@ case class GenerateImplementation[Pre <: Generation]()
       case s => throw new Exception(s"Unsupported: $s")
     }
 
-  def projectExpression(
+  def projectContract(
+      contract: LoopContract[Pre]
+  )(implicit endpoint: Endpoint[Pre]): LoopContract[Post] =
+    contract match {
+      case inv: LoopInvariant[Pre] =>
+        inv.rewrite(invariant = projectExpr(inv.invariant))
+      case it: IterationContract[Pre] =>
+        it.rewrite(
+          requires = projectExpr(it.requires),
+          ensures = projectExpr(it.ensures),
+        )
+    }
+
+  def projectContract(
+      contract: ApplicableContract[Pre]
+  )(implicit endpoint: Endpoint[Pre]): ApplicableContract[Post] =
+    contract.rewrite(
+      requires = (projectExpr(_)).accounted(contract.requires),
+      ensures = (projectExpr(_)).accounted(contract.ensures),
+      contextEverywhere = projectExpr(contract.contextEverywhere),
+    )
+
+  def projectExpr(
       expr: Expr[Pre]
-  )(implicit focus: Endpoint[Pre]): Expr[Post] =
+  )(implicit endpoint: Endpoint[Pre]): Expr[Post] =
     expr match {
-      case ChorPerm(Ref(other), loc, perm) if focus == other =>
+      case ChorPerm(Ref(other), loc, perm) if endpoint == other =>
         Perm(dispatch(loc), dispatch(perm))(expr.o)
-      case ChorPerm(Ref(other), _, _) if focus != other => tt
-      case EndpointExpr(Ref(other), expr) if focus == other =>
-        super.dispatch(expr)
+      case ChorPerm(Ref(other), _, _) if endpoint != other => tt
+      case EndpointExpr(Ref(other), expr) if endpoint == other =>
+        projectExpr(expr)
       case EndpointExpr(Ref(other), expr) => tt
       case _ => expr.rewriteDefault()
     }

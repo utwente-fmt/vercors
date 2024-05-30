@@ -831,6 +831,13 @@ object AstBuildHelpers {
         )
     }
 
+  implicit class AccountedRewriteHelpers[Pre, Post](
+      f: Expr[Pre] => Expr[Post]
+  ) {
+    def accounted: AccountedPredicate[Pre] => AccountedPredicate[Post] =
+      p => mapPredicate(p, f)
+  }
+
   def unfoldImplies[G](expr: Expr[G]): (Seq[Expr[G]], Expr[G]) =
     expr match {
       case Implies(left, right) =>
@@ -888,6 +895,13 @@ object AstBuildHelpers {
 
   def foldAnd[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(And(_, _)).getOrElse(tt)
+
+  def foldAny[G](t: Type[_])(exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
+    t match {
+      case TBool() => foldAnd(exprs)
+      case TResource() => foldStar(exprs)
+      case _ => ???
+    }
 
   def loop[G](
       cond: Expr[G],

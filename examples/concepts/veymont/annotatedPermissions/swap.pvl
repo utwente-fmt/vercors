@@ -6,8 +6,8 @@ choreography swap(int x, int y) {
   endpoint a = Role();
   endpoint b = Role();
 
-  context Perm(a.v, 1) ** Perm(a.temp, 1) ** (\[b] a.v == 0) ** (\[] a.v == 0);
-  context Perm(b.v, 1) ** Perm(b.temp, 1) ** (\[a] b.v == 1);
+  context Perm(a.v, 1) ** Perm(a.temp, 1) ** a.v == 0;
+  context Perm(b.v, 1) ** Perm(b.temp, 1) ** b.v == 1;
   run {
     a.v := x;
     b.v := y;

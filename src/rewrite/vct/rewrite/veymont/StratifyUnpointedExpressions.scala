@@ -8,17 +8,17 @@ import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.SplitChorGuards.MultipleEndpoints
+import vct.rewrite.veymont.StratifyExpressions.MultipleEndpoints
 
 import scala.collection.immutable.ListSet
 
-object EncodeUnpointedGuard extends RewriterBuilder {
-  override def key: String = "encodeUnpointedGuard"
+object StratifyUnpointedExpressions extends RewriterBuilder {
+  override def key: String = "stratifyUnpointedExpressions"
   override def desc: String =
-    "Encodes unpointed guard by duplicating the condition to all guards currently participating"
+    "Stratifies expressions that could be in any endpoint context by duplicating the expression to all endpoints currently participating"
 }
 
-case class EncodeUnpointedGuard[Pre <: Generation]()
+case class StratifyUnpointedExpressions[Pre <: Generation]()
     extends Rewriter[Pre] with VeymontContext[Pre] {
   val currentParticipants: ScopedStack[ListSet[Endpoint[Pre]]] = ScopedStack()
 
@@ -32,6 +32,31 @@ case class EncodeUnpointedGuard[Pre <: Generation]()
         }
 
       case decl => rewriteDefault(decl)
+    }
+
+  override def dispatch(
+      contract: ApplicableContract[Pre]
+  ): ApplicableContract[Post] =
+    contract match {
+      case InChor(_, contract) =>
+        contract.rewrite(
+          requires = (stratifyExpr(_)).accounted(contract.requires),
+          ensures = (stratifyExpr(_)).accounted(contract.ensures),
+          contextEverywhere = stratifyExpr(contract.contextEverywhere),
+        )
+      case _ => contract.rewriteDefault()
+    }
+
+  override def dispatch(contract: LoopContract[Pre]): LoopContract[Post] =
+    contract match {
+      case InChor(_, inv: LoopInvariant[Pre]) =>
+        inv.rewrite(invariant = stratifyExpr(inv.invariant))
+      case InChor(_, contract: IterationContract[Pre]) =>
+        contract.rewrite(
+          requires = stratifyExpr(contract.requires),
+          ensures = stratifyExpr(contract.ensures),
+        )
+      case _ => contract.rewriteDefault()
     }
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
@@ -51,7 +76,7 @@ case class EncodeUnpointedGuard[Pre <: Generation]()
         currentParticipants.having(newParticipants) {
           c.rewrite(inner =
             branch.rewrite(branches =
-              (rewriteGuards(guard), super.dispatch(yes)) +:
+              (stratifyExpr(guard), super.dispatch(yes)) +:
                 noOpt.map(no => Seq((tt[Post], super.dispatch(no))))
                   .getOrElse(Seq())
             )
@@ -63,19 +88,19 @@ case class EncodeUnpointedGuard[Pre <: Generation]()
           if (c.loop.hasUnpointed) { currentParticipants.top }
           else { ListSet.from(c.participants) }
         currentParticipants.having(newParticipants) {
-          c.rewrite(inner = loop.rewrite(cond = rewriteGuards(loop.cond)))
+          c.rewrite(inner = loop.rewrite(cond = stratifyExpr(loop.cond)))
         }
 
       case statement => statement.rewriteDefault()
     }
 
-  def rewriteGuards(guard: Expr[Pre]): Expr[Post] = {
-    implicit val o = guard.o
-    foldAnd(unfoldStar(guard).flatMap {
+  def stratifyExpr(expr: Expr[Pre]): Expr[Post] = {
+    implicit val o = expr.o
+    foldAny(expr.t)(unfoldStar(expr).flatMap {
       case expr: EndpointExpr[Pre] => Seq(expr.rewriteDefault())
       case expr =>
         currentParticipants.top.map { endpoint =>
-          EndpointExpr[Post](succ(endpoint), dispatch(expr))(guard.o)
+          EndpointExpr[Post](succ(endpoint), dispatch(expr))
         }.toSeq
     })
   }

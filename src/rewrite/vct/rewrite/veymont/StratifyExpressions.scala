@@ -10,7 +10,7 @@ import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.SplitChorGuards.{
+import vct.rewrite.veymont.StratifyExpressions.{
   MultipleEndpoints,
   SeqProgParticipantErrors,
 }
@@ -18,10 +18,10 @@ import vct.rewrite.veymont.SplitChorGuards.{
 import scala.collection.immutable.ListSet
 import scala.collection.mutable
 
-object SplitChorGuards extends RewriterBuilder {
-  override def key: String = "splitChorGuards"
+object StratifyExpressions extends RewriterBuilder {
+  override def key: String = "stratifyExpressions"
   override def desc: String =
-    "Lifts conditions in loops and conditionals into the ChorGuard AST node, stratifying the condition per endpoint."
+    "Stratifies expressions by putting all contracts, branch conditions and loop conditions within a choreography's run declaration into endpoint exprs, inferring endpoint contexts where required."
 
   case class MultipleEndpoints(e: Expr[_]) extends UserError {
     override def code: String = "multipleEndpoints"
@@ -40,7 +40,7 @@ object SplitChorGuards extends RewriterBuilder {
   }
 }
 
-case class SplitChorGuards[Pre <: Generation]()
+case class StratifyExpressions[Pre <: Generation]()
     extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
   override def dispatch(prog: Program[Pre]): Program[Post] = {
@@ -60,11 +60,36 @@ case class SplitChorGuards[Pre <: Generation]()
       case decl => super.dispatch(decl)
     }
 
+  override def dispatch(
+      contract: ApplicableContract[Pre]
+  ): ApplicableContract[Post] =
+    contract match {
+      case InChor(_, contract) =>
+        contract.rewrite(
+          requires = (stratifyExpr(_)).accounted(contract.requires),
+          ensures = (stratifyExpr(_)).accounted(contract.ensures),
+          contextEverywhere = stratifyExpr(contract.contextEverywhere),
+        )
+      case _ => contract.rewriteDefault()
+    }
+
+  override def dispatch(contract: LoopContract[Pre]): LoopContract[Post] =
+    contract match {
+      case InChor(_, inv: LoopInvariant[Pre]) =>
+        inv.rewrite(invariant = stratifyExpr(inv.invariant))
+      case InChor(_, contract: IterationContract[Pre]) =>
+        contract.rewrite(
+          requires = stratifyExpr(contract.requires),
+          ensures = stratifyExpr(contract.ensures),
+        )
+      case _ => contract.rewriteDefault()
+    }
+
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
     statement match {
       case InChor(_, l: Loop[Pre]) if currentChoreography.nonEmpty =>
         loop(
-          cond = inferSeqGuard(l.cond),
+          cond = stratifyExpr(l.cond),
           contract = dispatch(l.contract),
           body = dispatch(l.body),
         ) /*(loop.blame)*/ (l.o)
@@ -83,16 +108,16 @@ case class SplitChorGuards[Pre <: Generation]()
       branches: Seq[(Expr[Pre], Statement[Pre])]
   )(implicit blame: Blame[SeqBranchFailure], o: Origin): Branch[Post] =
     branches match {
-      case Seq((e, s)) => Branch(Seq((inferSeqGuard(e), dispatch(s))))
+      case Seq((e, s)) => Branch(Seq((stratifyExpr(e), dispatch(s))))
       case (e, s) +: (otherYes +: branches) =>
         Branch(Seq(
-          (inferSeqGuard(e), dispatch(s)),
+          (stratifyExpr(e), dispatch(s)),
           (tt, unfoldBranch(otherYes +: branches)),
         )) /* (blame) */
       case _ => ???
     }
 
-  def inferSeqGuard(e: Expr[Pre]): Expr[Post] = {
+  def stratifyExpr(e: Expr[Pre]): Expr[Post] = {
     val exprs = {
       // Ensure the "true" expression is kept
       val es = unfoldStar(e)
@@ -101,7 +126,7 @@ case class SplitChorGuards[Pre <: Generation]()
       else
         es
     }
-    foldAnd(exprs.map(point).map {
+    foldAny(e.t)(exprs.map(point).map {
       case (Some(endpoint), expr) =>
         EndpointExpr[Post](succ(endpoint), dispatch(expr))(expr.o)
       case (None, expr) => dispatch(expr)

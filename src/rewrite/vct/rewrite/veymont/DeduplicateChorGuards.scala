@@ -8,7 +8,7 @@ import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.SplitChorGuards.MultipleEndpoints
+import vct.rewrite.veymont.StratifyExpressions.MultipleEndpoints
 
 import scala.collection.mutable
 
