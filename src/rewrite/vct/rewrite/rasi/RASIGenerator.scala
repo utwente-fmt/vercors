@@ -204,7 +204,7 @@ class RASIGenerator[G] extends LazyLogging {
   }
 
   private def is_relevant_variable(variable: ConcreteVariable[G]): Boolean = {
-    // TODO: This is just a (horrendous) heuristic! This needs to be fixed ASAP!
+    // TODO: This is just a (horrible) heuristic! This needs to be fixed ASAP!
     // Basically, if the variable is a defined variable from the VeSUV transformation,
     // it should be included when encountered
     val name = variable.to_expression.toInlineString
@@ -215,6 +215,7 @@ class RASIGenerator[G] extends LazyLogging {
       ".Written",
       ".NumRead",
       ".Buffer",
+      "MinAdvance",
     )
     relevant_names.exists(s => name.contains(s))
   }
