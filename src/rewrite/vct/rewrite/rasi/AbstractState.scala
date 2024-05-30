@@ -106,7 +106,7 @@ case class AbstractState[G](
     cond match {
       case None => this
       case Some(expr) =>
-        val c =
+        val c: Map[ResolvableVariable[G], UncertainValue] =
           new ConstraintSolver(
             this,
             valuations.keySet
@@ -350,7 +350,7 @@ case class AbstractState[G](
       case AmbiguousDiv(left, right) =>
         resolve_integer_expression(left, is_old, is_contract) /
           resolve_integer_expression(right, is_old, is_contract)
-      case AmbiguousTruncDiv(left, right) =>    // TODO: Handle this?
+      case AmbiguousTruncDiv(left, right) => // TODO: Handle this?
         resolve_integer_expression(left, is_old, is_contract) /
           resolve_integer_expression(right, is_old, is_contract)
       case FloorDiv(left, right) =>
@@ -359,7 +359,7 @@ case class AbstractState[G](
       case AmbiguousMod(left, right) =>
         resolve_integer_expression(left, is_old, is_contract) %
           resolve_integer_expression(right, is_old, is_contract)
-      case AmbiguousTruncMod(left, right) =>    // TODO: Handle this?
+      case AmbiguousTruncMod(left, right) => // TODO: Handle this?
         resolve_integer_expression(left, is_old, is_contract) %
           resolve_integer_expression(right, is_old, is_contract)
       case Mod(left, right) =>

@@ -6,6 +6,7 @@ import vct.col.ast.{BooleanValue, Expr, IntType, Not, TBool, TInt, Type}
 trait UncertainValue {
   def can_be_equal(other: UncertainValue): Boolean
   def can_be_unequal(other: UncertainValue): Boolean
+  def is_uncertain: Boolean
   def is_impossible: Boolean
   def is_subset_of(other: UncertainValue): Boolean
   def complement(): UncertainValue
@@ -43,6 +44,8 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean)
       case UncertainBooleanValue(t, f) => can_be_true && f || can_be_false && t
       case _ => true
     }
+
+  override def is_uncertain: Boolean = can_be_true && can_be_false
 
   override def is_impossible: Boolean = !can_be_true && !can_be_false
 
@@ -172,6 +175,8 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
         })
       case _ => true
     }
+
+  override def is_uncertain: Boolean = value == UnboundedInterval
 
   override def is_impossible: Boolean = value.empty()
 
