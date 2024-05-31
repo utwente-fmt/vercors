@@ -98,20 +98,18 @@ class RASIGenerator[G] extends LazyLogging {
 
       val successor: RASISuccessor[G] = curr.successors()
 
-      val relevant_variables: Set[ConcreteVariable[G]] = successor
-        .deciding_variables.filter(v => is_relevant_variable(v))
-      if (relevant_variables.nonEmpty) {
+      if (successor.deciding_variables.nonEmpty) {
         val time: Long =
           (System.nanoTime() - generation_start_time) / 1_000_000L
         logger.info(
           s"Found relevant new variables; abort generation [$i iterations in ${time}ms]"
         )
-        val found_vars: Seq[String] = relevant_variables.toSeq
+        val found_vars: Seq[String] = successor.deciding_variables.toSeq
           .sortWith((v1, v2) => v1.compare(v2))
           .map(v => v.to_expression.toInlineString)
         logger.debug(s"Variables found: $found_vars")
 
-        considered_variables ++= relevant_variables
+        considered_variables ++= successor.deciding_variables
 
         generation_start_time = reset(
           node,
@@ -125,7 +123,7 @@ class RASIGenerator[G] extends LazyLogging {
         found_edges.addAll(successor.edges(curr))
         successor.successors.foreach(s =>
           if (!found_states.contains(s)) {
-            found_states += s;
+            found_states += s
             current_branches += s
           }
         )
@@ -201,23 +199,6 @@ class RASIGenerator[G] extends LazyLogging {
     Map.from(
       parameters.map(f => FieldVariable(f) -> UncertainValue.uncertain_of(f.t))
     )
-  }
-
-  private def is_relevant_variable(variable: ConcreteVariable[G]): Boolean = {
-    // TODO: This is just a (horrible) heuristic! This needs to be fixed ASAP!
-    // Basically, if the variable is a defined variable from the VeSUV transformation,
-    // it should be included when encountered
-    val name = variable.to_expression.toInlineString
-    val relevant_names: Set[String] = Set(
-      ".ProcessState_",
-      ".EventState_",
-      ".PrimitiveChannelUpdate_",
-      ".Written",
-      ".NumRead",
-      ".Buffer",
-      "MinAdvance",
-    )
-    relevant_names.exists(s => name.contains(s))
   }
 
   private def reduce_redundant_states()
