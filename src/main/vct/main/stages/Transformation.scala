@@ -44,12 +44,13 @@ import vct.rewrite.veymont.{
   EncodeChorBranchUnanimity,
   EncodeChoreography,
   EncodeEndpointInequalities,
-  StratifyUnpointedExpressions,
+  EncodePermissionStratification,
   GenerateChoreographyPermissions,
   GenerateImplementation,
   InferEndpointContexts,
   SpecializeEndpointClasses,
   StratifyExpressions,
+  StratifyUnpointedExpressions,
 }
 
 import java.nio.file.Path
@@ -89,7 +90,6 @@ object Transformation extends LazyLogging {
       stageKey: String,
   ): PassEventHandler = {
     Files.createDirectories(out)
-    Files.list(out).filter(_.endsWith(".col")).forEach(Files.delete(_))
     (passes, event, pass, program) => {
       val i =
         passes.map(_.key).indexOf(pass) * 2 +
@@ -324,6 +324,7 @@ case class SilverTransformation(
         GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
         EncodeChorBranchUnanimity,
         EncodeEndpointInequalities,
+        EncodePermissionStratification,
         EncodeChoreography,
         EncodeString, // Encode spec string as seq<int>
         EncodeChar,

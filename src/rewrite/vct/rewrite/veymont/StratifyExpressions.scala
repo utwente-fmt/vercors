@@ -130,11 +130,12 @@ case class StratifyExpressions[Pre <: Generation]()
       exprs.map {
         case e: ChorExpr[Pre] => (None, e)
         case e: ChorPerm[Pre] => (None, e)
+        case e: EndpointExpr[Pre] => (None, e)
         case expr => point(expr)
       }.map {
         case (Some(endpoint), expr) =>
           EndpointExpr[Post](succ(endpoint), dispatch(expr))(expr.o)
-        case (None, expr) => dispatch(expr)
+        case (None, expr) => expr.rewriteDefault()
       }
     )(e.o)
   }

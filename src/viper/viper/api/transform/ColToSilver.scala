@@ -7,7 +7,7 @@ import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.unfoldStar
 import vct.col.{ast => col}
 import vct.result.VerificationError.{SystemError, Unreachable}
-import viper.silver.ast.TypeVar
+import viper.silver.ast.{TypeVar, WildcardPerm}
 import viper.silver.plugin.standard.termination.{
   DecreasesClause,
   DecreasesTuple,
@@ -580,6 +580,19 @@ case class ColToSilver(program: col.Program[_]) {
           pos = pos(e),
           info = expInfo(e),
         )
+      case u @ col.Unfolding(col.Value(p: col.PredicateLocation[_]), body) =>
+        silver.Unfolding(
+          currentUnfolding.having(u) {
+            silver.PredicateAccessPredicate(
+              silver.PredicateAccess(p.args.map(exp), ref(p.predicate))(
+                pos = pos(p),
+                info = expInfo(p),
+              ),
+              WildcardPerm()(),
+            )(pos = pos(p), info = expInfo(p))
+          },
+          exp(body),
+        )(pos = pos(e), info = expInfo(e))
       case col.Select(condition, whenTrue, whenFalse) =>
         silver.CondExp(exp(condition), exp(whenTrue), exp(whenFalse))(
           pos = pos(e),
