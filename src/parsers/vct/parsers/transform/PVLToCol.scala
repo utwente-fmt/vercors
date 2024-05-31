@@ -460,6 +460,18 @@ case class PVLToCol[G](
           AmbiguousLocation(convert(loc))(blame(expr)),
           convert(perm),
         )
+      case PvlLongEndpointExpr(_, _, endpoint, _, inner, _) =>
+        PVLEndpointExpr(
+          PVLEndpointName(convert(endpoint))(origin(endpoint)),
+          convert(inner),
+        )
+      case PvlShortEndpointExpr(_, _, _, endpoint, _, inner, _) =>
+        PVLEndpointExpr(
+          PVLEndpointName(convert(endpoint))(origin(endpoint)),
+          convert(inner),
+        )
+      case PvlLongChorExpr(_, _, inner, _) => ChorExpr(convert(inner))
+      case PvlShortChorExpr(_, _, _, _, inner, _) => ChorExpr(convert(inner))
       case PvlSender(_) => PVLSender()
       case PvlReceiver(_) => PVLReceiver()
       case PvlMessage(_) => PVLMessage()
@@ -663,7 +675,7 @@ case class PVLToCol[G](
       case PvlAssign(target, _, value) =>
         Assign(convert(target), convert(value))(blame(stat))
       case PvlSeqAssign(participant, receiver, _, _, value) =>
-        PVLChorStatement(
+        PVLEndpointStatement(
           participant.map(convertParticipant(_)),
           Assign(convert(receiver), convert(value))(blame(stat)),
         )(blame(stat))

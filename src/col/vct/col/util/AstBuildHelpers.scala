@@ -97,6 +97,17 @@ object AstBuildHelpers {
         index: Expr[G]
     )(implicit blame: Blame[SeqBoundFailure], origin: Origin): SeqSubscript[G] =
       SeqSubscript(left, index)(blame)
+
+    def accounted(implicit o: Origin): UnitAccountedPredicate[G] =
+      UnitAccountedPredicate(left)
+  }
+
+  implicit class AccountedBuildHelpers[G](left: AccountedPredicate[G]) {
+    def &*(right: Expr[G])(implicit o: Origin): SplitAccountedPredicate[G] =
+      SplitAccountedPredicate(left, right.accounted)
+    def &*(right: AccountedPredicate[G])(
+        implicit o: Origin
+    ): SplitAccountedPredicate[G] = SplitAccountedPredicate(left, right)
   }
 
   implicit class VarBuildHelpers[G](left: Variable[G]) {
@@ -778,6 +789,10 @@ object AstBuildHelpers {
       amount: Expr[G],
   )(implicit o: Origin): Perm[G] = Perm(FieldLocation(obj, field), amount)
 
+  def value[G](obj: Expr[G], ref: Ref[G, InstanceField[G]])(
+      implicit o: Origin
+  ): Value[G] = Value(FieldLocation(obj, ref))
+
   def arrayPerm[G](
       arr: Expr[G],
       index: Expr[G],
@@ -815,6 +830,13 @@ object AstBuildHelpers {
           p.o
         )
     }
+
+  implicit class AccountedRewriteHelpers[Pre, Post](
+      f: Expr[Pre] => Expr[Post]
+  ) {
+    def accounted: AccountedPredicate[Pre] => AccountedPredicate[Post] =
+      p => mapPredicate(p, f)
+  }
 
   def unfoldImplies[G](expr: Expr[G]): (Seq[Expr[G]], Expr[G]) =
     expr match {
@@ -874,6 +896,13 @@ object AstBuildHelpers {
   def foldAnd[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(And(_, _)).getOrElse(tt)
 
+  def foldAny[G](t: Type[_])(exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
+    t match {
+      case TBool() => foldAnd(exprs)
+      case TResource() => foldStar(exprs)
+      case _ => ???
+    }
+
   def loop[G](
       cond: Expr[G],
       body: Statement[G],
@@ -889,4 +918,17 @@ object AstBuildHelpers {
       body = body,
       update = Option(update).getOrElse(Block(Seq())),
     )
+
+  def instanceField[G](t: Type[G], isFinal: Boolean = false)(
+      implicit o: Origin
+  ): InstanceField[G] =
+    new InstanceField(
+      t,
+      if (isFinal)
+        Seq(Final())
+      else
+        Seq(),
+    )
+
+  def skip[G](implicit o: Origin): Block[G] = Block(Seq())
 }

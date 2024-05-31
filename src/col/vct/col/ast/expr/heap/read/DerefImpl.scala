@@ -1,7 +1,15 @@
 package vct.col.ast.expr.heap.read
 
 import vct.col.ast.expr.ExprImpl
-import vct.col.ast.{Deref, EndpointName, Expr, TClass, Type}
+import vct.col.ast.{
+  Deref,
+  EndpointName,
+  Expr,
+  FieldLocation,
+  TClass,
+  Type,
+  Value,
+}
 import vct.col.check.{Check, CheckContext, CheckError, SeqProgReceivingEndpoint}
 import vct.col.print.{Ctx, Doc, Group, Precedence}
 import vct.col.ref.Ref
@@ -21,4 +29,6 @@ trait DerefImpl[G] extends ExprImpl[G] with DerefOps[G] {
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
     assoc(obj) <> "." <> ctx.name(ref)
+
+  def value: Value[G] = Value(FieldLocation(obj, ref))
 }

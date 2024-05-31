@@ -56,7 +56,6 @@ import vct.col.ast.family.location._
 import vct.col.ast.family.loopcontract._
 import vct.col.ast.family.parregion._
 import vct.col.ast.family.pvlcommunicate._
-import vct.col.ast.family.seqguard._
 import vct.col.ast.family.seqrun._
 import vct.col.ast.family.signals._
 import vct.col.ast.lang.c._
@@ -3607,11 +3606,11 @@ final case class PVLCommunicate[G](
   var inferredSender: Option[PVLEndpoint[G]] = None
   var inferredReceiver: Option[PVLEndpoint[G]] = None
 }
-final case class PVLChorStatement[G](
+final case class PVLEndpointStatement[G](
     endpoint: Option[PVLEndpointName[G]],
     inner: Statement[G],
 )(val blame: Blame[ChorStatementFailure])(implicit val o: Origin)
-    extends Statement[G] with PVLChorStatementImpl[G]
+    extends Statement[G] with PVLEndpointStatementImpl[G]
 final case class PVLChorPerm[G](
     endpoint: PVLEndpointName[G],
     loc: Location[G],
@@ -3702,36 +3701,24 @@ final case class UnresolvedChorLoop[G](
     with ControlContainerStatement[G]
     with UnresolvedChorLoopImpl[G]
 
-final case class ChorStatement[G](
+final case class ChorStatement[G](inner: Statement[G])(implicit val o: Origin)
+    extends Statement[G] with ChorStatementImpl[G]
+final case class EndpointStatement[G](
     endpoint: Option[Ref[G, Endpoint[G]]],
     inner: Statement[G],
 )(val blame: Blame[ChorStatementFailure])(implicit val o: Origin)
-    extends Statement[G] with ChorStatementImpl[G]
+    extends Statement[G] with EndpointStatementImpl[G]
 
-@family
-sealed trait ChorGuard[G] extends NodeFamily[G] with ChorGuardImpl[G]
-final case class EndpointGuard[G](
-    endpoint: Ref[G, Endpoint[G]],
-    condition: Expr[G],
+final case class PVLEndpointExpr[G](
+    endpoint: PVLEndpointName[G],
+    expr: Expr[G],
 )(implicit val o: Origin)
-    extends ChorGuard[G] with EndpointGuardImpl[G]
-final case class UnpointedGuard[G](condition: Expr[G])(implicit val o: Origin)
-    extends ChorGuard[G] with UnpointedGuardImpl[G]
-
-final case class ChorBranch[G](
-    guards: Seq[ChorGuard[G]],
-    yes: Statement[G],
-    no: Option[Statement[G]],
-)(val blame: Blame[SeqBranchFailure])(implicit val o: Origin)
-    extends Statement[G]
-    with ControlContainerStatement[G]
-    with ChorBranchImpl[G]
-final case class ChorLoop[G](
-    guards: Seq[ChorGuard[G]],
-    contract: LoopContract[G],
-    body: Statement[G],
-)(val blame: Blame[SeqLoopFailure])(implicit val o: Origin)
-    extends Statement[G] with ControlContainerStatement[G] with ChorLoopImpl[G]
+    extends Expr[G] with PVLEndpointExprImpl[G]
+final case class EndpointExpr[G](endpoint: Ref[G, Endpoint[G]], expr: Expr[G])(
+    implicit val o: Origin
+) extends Expr[G] with EndpointExprImpl[G]
+final case class ChorExpr[G](expr: Expr[G])(implicit val o: Origin)
+    extends Expr[G] with ChorExprImpl[G]
 
 final case class VeyMontAssignExpression[G](
     endpoint: Ref[G, Endpoint[G]],

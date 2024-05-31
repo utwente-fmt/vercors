@@ -9,7 +9,7 @@ import vct.col.ast.ops.{CommunicateOps, CommunicateFamilyOps}
 
 trait CommunicateImpl[G]
     extends CommunicateOps[G] with CommunicateFamilyOps[G] {
-  this: Communicate[G] =>
+  comm: Communicate[G] =>
   override def layout(implicit ctx: Ctx): Doc =
     Group(
       Text("communicate") <+> layoutParticipant(receiver) <> target.show <+>
@@ -37,4 +37,9 @@ trait CommunicateImpl[G]
 
   def participants: Seq[Endpoint[G]] = (sender.toSeq ++ receiver.toSeq)
     .map(_.decl)
+
+  object t {
+    def sender = comm.sender.get.decl.t
+    def receiver = comm.receiver.get.decl.t
+  }
 }

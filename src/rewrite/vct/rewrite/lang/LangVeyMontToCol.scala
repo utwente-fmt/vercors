@@ -124,36 +124,30 @@ case class LangVeyMontToCol[Pre <: Generation](
     ChorRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
   }
 
-  def rewriteBranch(branch: PVLBranch[Pre]): UnresolvedChorBranch[Post] =
-    UnresolvedChorBranch(branch.branches.map { case (e, s) =>
-      (rw.dispatch(e), rw.dispatch(s))
-    })(branch.blame)(branch.o)
-
-  def rewriteLoop(loop: PVLLoop[Pre]): UnresolvedChorLoop[Post] =
-    UnresolvedChorLoop(
-      rw.dispatch(loop.cond),
-      rw.dispatch(loop.contract),
-      rw.dispatch(loop.body),
-    )(loop.blame)(loop.o)
-
   def rewriteStatement(stmt: Statement[Pre]): Statement[Post] =
     stmt match {
-      case stmt @ PVLChorStatement(endpointName, inner) =>
-        ChorStatement[Post](
+      case stmt @ PVLEndpointStatement(endpointName, inner) =>
+        EndpointStatement[Post](
           endpointName.map(rewriteEndpointName),
           inner.rewriteDefault(),
         )(stmt.blame)(stmt.o)
       case _: Block[Pre] | _: Scope[Pre] =>
         currentStatement.having(stmt) { rw.dispatch(stmt) }
-      case branch: PVLBranch[Pre] => rewriteBranch(branch)
-      case loop: PVLLoop[Pre] => rewriteLoop(loop)
+      case _: PVLBranch[Pre] | _: PVLLoop[Pre] =>
+        ChorStatement(currentStatement.having(stmt) { rw.dispatch(stmt) })(
+          stmt.o
+        )
+      case _: Assert[Pre] | _: Assign[Pre] | _: Eval[Pre] =>
+        EndpointStatement(
+          None,
+          currentStatement.having(stmt) { rw.dispatch(stmt) },
+        )(PanicBlame("Shouldn't happen"))(stmt.o)
       case comm: PVLCommunicate[Pre] => rewriteCommunicate(comm)
       case inv: PVLChannelInvariant[Pre] => rewriteChannelInv(inv)
+      // Any statement not listed here, we put in ChorStatement. ChorStatementImpl defines which leftover statement we tolerate in choreographies
       case stmt =>
         currentStatement.having(stmt) {
-          ChorStatement(None, rw.dispatch(stmt))(PanicBlame(
-            "Arbitratry statement blame missing"
-          ))(stmt.o)
+          ChorStatement(rw.dispatch(stmt))(stmt.o)
         }
     }
 
@@ -171,6 +165,8 @@ case class LangVeyMontToCol[Pre <: Generation](
         Receiver[Post](commSucc.ref(expr.ref.get))(expr.o)
       case expr @ PVLMessage() =>
         Message[Post](commSucc.ref(expr.ref.get))(expr.o)
+      case PVLEndpointExpr(endpoint, expr) =>
+        EndpointExpr(rewriteEndpointName(endpoint), rw.dispatch(expr))(expr.o)
       case expr => currentExpr.having(expr) { rw.dispatch(expr) }
     }
 }

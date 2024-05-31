@@ -189,10 +189,10 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
     statement match {
-      case loop: ChorLoop[Pre] =>
+      case c @ ChorStatement(loop: Loop[Pre]) =>
         currentPerm.having(
           endpointsPerm(participants(statement).toSeq)(loop.contract.o)
-        ) { loop.rewriteDefault() }
+        ) { c.rewriteDefault() }
       case statement => rewriteDefault(statement)
     }
 

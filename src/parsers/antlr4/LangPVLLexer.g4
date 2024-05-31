@@ -83,6 +83,8 @@ COMMUNICATE: 'communicate';
 SENDER: '\\sender';
 RECEIVER: '\\receiver';
 MESSAGE: '\\msg';
+BENDPOINT: '\\endpoint';
+BCHOR: '\\chor';
 
 THIS: 'this';
 NULL: 'null';

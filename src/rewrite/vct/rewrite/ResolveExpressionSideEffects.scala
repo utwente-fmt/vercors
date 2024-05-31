@@ -466,8 +466,6 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
         case _: PVLLoop[Pre] => throw ExtraNode
         case _: UnresolvedChorBranch[Pre] => throw ExtraNode
         case _: UnresolvedChorLoop[Pre] => throw ExtraNode
-        case _: ChorBranch[Pre] => throw ExtraNode
-        case _: ChorLoop[Pre] => throw ExtraNode
         case _: CStatement[Pre] => throw ExtraNode
         case _: CPPStatement[Pre] => throw ExtraNode
         case _: JavaStatement[Pre] => throw ExtraNode

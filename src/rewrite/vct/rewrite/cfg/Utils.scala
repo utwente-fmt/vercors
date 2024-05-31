@@ -175,14 +175,6 @@ object Utils {
         )
       case UnresolvedChorLoop(_, _, bod) =>
         find_all_cases(bod, index.enter_scope(body))
-      case ChorBranch(_, yes, no) =>
-        no match {
-          case Some(stmt) =>
-            Seq((yes, 0), (stmt, 1))
-              .flatMap(t => find_all_cases(t._1, index.enter_scope(body)))
-          case None => find_all_cases(yes, index.enter_scope(body))
-        }
-      case ChorLoop(_, _, bod) => find_all_cases(bod, index.enter_scope(body))
       case VeyMontAssignExpression(_, assign) =>
         find_all_cases(assign, index.enter_scope(body))
       case CommunicateX(_, _, _, assign) =>

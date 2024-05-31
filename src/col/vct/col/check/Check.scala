@@ -106,8 +106,8 @@ sealed trait CheckError {
           context(a) ->
             "This dereference does not take place on one of the endpoints in the surrounding `seq_prog`."
         )
-      case SeqProgStatement(s) =>
-        Seq(context(s) -> "This statement is not allowed in `seq_prog`.")
+      case ChorStatement(s) =>
+        Seq(context(s) -> "This statement is not allowed in `choreography`.")
       case SeqProgInstanceMethodArgs(m) =>
         Seq(
           context(m) ->
@@ -214,7 +214,7 @@ case class ReturnOutsideMethod(ret: Return[_]) extends CheckError {
 case class FinalPermission(loc: FieldLocation[_]) extends CheckError {
   override def subcode: String = "finalPerm"
 }
-case class PVLSeqAssignEndpoint(assign: PVLChorStatement[_])
+case class PVLSeqAssignEndpoint(assign: PVLEndpointStatement[_])
     extends CheckError {
   val subcode = "pvlSeqAssignEndpoint"
 }
@@ -228,8 +228,8 @@ case class SeqProgInstanceMethodArgs(m: InstanceMethod[_]) extends CheckError {
 case class SeqProgInstanceMethodBody(m: InstanceMethod[_]) extends CheckError {
   val subcode = "seqProgInstanceMethodBody"
 }
-case class SeqProgStatement(s: Statement[_]) extends CheckError {
-  val subcode = "seqProgStatement"
+case class ChorStatement(s: Statement[_]) extends CheckError {
+  val subcode = "chorStatement"
 }
 case class SeqProgInvocation(s: Statement[_]) extends CheckError {
   val subcode = "seqProgInvocation"
