@@ -226,6 +226,8 @@ case class EncodeChoreography[Pre <: Generation]()
             )(AssignLocalOk)
           }
 
+          val preRun = prog.preRun.map(dispatch).toSeq
+
           // Invoke the run procedure with the seq_program arguments, as well as all the endpoints
           val invokeRun = Eval(procedureInvocation[Post](
             ref = runSucc(prog.run).ref,
@@ -241,7 +243,7 @@ case class EncodeChoreography[Pre <: Generation]()
           // Scope the endpoint vars and combine initialization and run method invocation
           val body = Scope(
             prog.endpoints.map(endpoint => endpointSucc((mode, endpoint))),
-            Block(endpointsInit :+ invokeRun),
+            Block((endpointsInit ++ preRun) :+ invokeRun),
           )
 
           progSucc(prog) = globalDeclarations.declare(

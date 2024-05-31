@@ -27,6 +27,7 @@ import vct.col.ast.{
   FieldLocation,
   Function,
   FunctionInvocation,
+  Inhale,
   InstanceField,
   InstanceMethod,
   Local,
@@ -149,7 +150,6 @@ case class EncodePermissionStratification[Pre <: Generation]()
     val pred = wrapperPredicate(endpoint, obj, field)
     readFunctions.getOrElseUpdate(
       k, {
-        // pure field.t readField(endpoint.t endpoint, obj.t obj) = \unfolding wrapF(endpoint, obj) \in obj.field
         val endpointArg =
           new Variable(dispatch(endpoint.t))(o.where(name = "endpoint"))
         val objArg = new Variable(dispatch(obj.t))(o.where(name = "obj"))
@@ -174,9 +174,16 @@ case class EncodePermissionStratification[Pre <: Generation]()
     ).ref
   }
 
-  case class IdentityRewriter() extends Rewriter[Pre] {
+  case class StripChorPerm() extends Rewriter[Pre] {
     override val allScopes: AllScopes[Pre, Post] =
       EncodePermissionStratification.this.allScopes
+
+    override def dispatch(expr: Expr[Pre]): Expr[Post] =
+      expr match {
+        case ChorPerm(_, loc, perm) =>
+          Perm(dispatch(loc), dispatch(perm))(expr.o)
+        case _ => expr.rewriteDefault()
+      }
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
@@ -185,13 +192,18 @@ case class EncodePermissionStratification[Pre <: Generation]()
         implicit val o = chor.o
         currentChoreography.having(chor) {
           chor.rewrite(preRun =
-            chor.preRun.map(Seq(_)).toSeq ++ Seq(
-              unfoldPredicate(chor.run.contract.requires).map(
-                Exhale(_)(PanicBlame(
-                  "Exhaling non-stratified part of precondition failed"
-                ))
-              )(IdentityRewriter().dispatch(chor.run.contract.requires))()
-            )
+            Some(Block(
+              chor.preRun.map(dispatch).toSeq ++
+                (Seq(
+                  Exhale[Post](StripChorPerm().dispatch(foldStar(
+                    unfoldPredicate(chor.run.contract.requires)
+                  )))(PanicBlame(
+                    "Exhaling non-stratified part of precondition failed"
+                  ))
+                )) ++
+                (unfoldPredicate(chor.run.contract.requires)
+                  .map(e => Inhale[Post](dispatch(e))))
+            ))
           ).succeed(chor)
         }
       case _ => super.dispatch(decl)
