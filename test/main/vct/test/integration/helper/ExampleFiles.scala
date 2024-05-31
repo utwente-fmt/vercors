@@ -11,7 +11,7 @@ case object ExampleFiles {
     "examples/concepts/resourceValues",
     "examples/technical/veymont",
     "examples/concepts/veymont",
-    "concepts/veymont/generatedPermissions",
+    "examples/publications/2023/VeyMontToolPaper",
   ).map(_.replaceAll("/", File.separator))
 
   val IGNORE_EXTS: Seq[String] = Seq(".h", ".bib", ".xml")

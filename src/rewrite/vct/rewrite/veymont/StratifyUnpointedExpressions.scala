@@ -97,7 +97,9 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
   def stratifyExpr(expr: Expr[Pre]): Expr[Post] = {
     implicit val o = expr.o
     foldAny(expr.t)(unfoldStar(expr).flatMap {
-      case expr: EndpointExpr[Pre] => Seq(expr.rewriteDefault())
+      case expr @ (_: EndpointExpr[Pre] |
+          _: ChorExpr[Pre] | _: ChorPerm[Pre]) =>
+        Seq(expr.rewriteDefault())
       case expr =>
         currentParticipants.top.map { endpoint =>
           EndpointExpr[Post](succ(endpoint), dispatch(expr))
