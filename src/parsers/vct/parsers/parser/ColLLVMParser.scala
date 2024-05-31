@@ -49,7 +49,7 @@ case class ColLLVMParser(
     }
     val command = Seq(
       "opt-17",
-      s"--load-pass-plugin=${pallas.toAbsolutePath}",
+      s"--load-pass-plugin=$pallas",
       "--passes=module(pallas-declare-variables,pallas-collect-module-spec),function(pallas-declare-function,pallas-assign-pure,pallas-declare-function-contract,pallas-transform-function-body),module(pallas-print-protobuf)",
       readable.fileName,
       "--disable-output",

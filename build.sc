@@ -433,7 +433,6 @@ object vercors extends Module {
       ivy"org.apache.logging.log4j:log4j-to-slf4j:2.23.1",
     )
     override def moduleDeps = Seq(hre, col, serialize)
-    override def unmanagedClasspath = super.unmanagedClasspath() ++ Agg(PathRef(pallas.compile().path / os.up))
 
     val includePallasCross = interp.watchValue {
       if(os.exists(settings.root / ".include-pallas")) {
