@@ -70,12 +70,12 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
 
   // There are only a few statements where we fully define how projection works - for now
   def allowedInner: Option[CheckError] =
-    Option.when(!branches)(vct.col.check.ChorStatement(this))
+    Option.unless(branches)(vct.col.check.ChorStatement(this))
 
   def participantCheck(context: CheckContext[G]): Option[CheckError] =
     // There are participants in this if that have been excluded from participation: error
-    Option.when(
-      !Set.from(explicitEndpoints)
+    Option.unless(
+      Set.from(explicitEndpoints)
         .subsetOf(context.currentParticipatingEndpoints.get)
     )(SeqProgParticipant(this))
 
