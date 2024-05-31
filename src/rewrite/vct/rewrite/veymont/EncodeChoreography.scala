@@ -450,7 +450,7 @@ case class EncodeChoreography[Pre <: Generation]()
           "Ignoring endpoint expr annotation at " + expr.o.shortPositionText
         )
         dispatch(expr)
-      case (mode, ChorExpr(inner)) => dispatch(expr)
+      case (mode, ChorExpr(inner)) => dispatch(inner)
       case (_, expr) => expr.rewriteDefault()
     }
 }

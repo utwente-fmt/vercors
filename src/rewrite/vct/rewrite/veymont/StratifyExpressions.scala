@@ -126,11 +126,16 @@ case class StratifyExpressions[Pre <: Generation]()
       else
         es
     }
-    foldAny(e.t)(exprs.map(point).map {
-      case (Some(endpoint), expr) =>
-        EndpointExpr[Post](succ(endpoint), dispatch(expr))(expr.o)
-      case (None, expr) => dispatch(expr)
-    })(e.o)
+    foldAny(e.t)(
+      exprs.map {
+        case e: ChorExpr[Pre] => (None, e)
+        case expr => point(expr)
+      }.map {
+        case (Some(endpoint), expr) =>
+          EndpointExpr[Post](succ(endpoint), dispatch(expr))(expr.o)
+        case (None, expr) => dispatch(expr)
+      }
+    )(e.o)
   }
 
   // "Points" an expression in the direction of an endpoint if possible
@@ -141,9 +146,8 @@ case class StratifyExpressions[Pre <: Generation]()
         (Some(endpoint), e)
       case Seq() => (None, e)
       case _ =>
-        throw MultipleEndpoints(
-          e
-        ) // Expr uses multiple endpoints - for now we should disallow that.
+        // Expr uses multiple endpoints - for now we should disallow that.
+        throw MultipleEndpoints(e)
     }
   }
 }

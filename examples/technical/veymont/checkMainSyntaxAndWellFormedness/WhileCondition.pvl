@@ -1,9 +1,9 @@
 choreography Main() {
-    endpoint a = Role(5);
-    endpoint b = Role(6);
-    endpoint c = Role(7);
+  endpoint a = Role(5);
+  endpoint b = Role(6);
+  endpoint c = Role(7);
 
-    requires a.x == 5 && b.x == 6 && c.x == 7;
+  requires a.x == 5 && b.x == 6 && c.x == 7;
 	run {
 		while(a.x >= 5 && b.x == 6 && c.x == 7) {
 			c.x := -2;

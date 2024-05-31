@@ -1,7 +1,7 @@
 class Player {
 	int c00, c01, c02, c10, c11, c12, c20, c21, c22;
 	int myToken;
-	Move move, temp;
+	Move move;
 	boolean turn;
 	
 	
@@ -25,7 +25,6 @@ class Player {
 		myToken = tok;
 		turn = t;
 		move = new Move(0, 0, tok);
-		temp = new Move(-1, -1, -1);
 	}
 	
 

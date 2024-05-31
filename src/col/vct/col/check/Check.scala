@@ -107,7 +107,7 @@ sealed trait CheckError {
             "This dereference does not take place on one of the endpoints in the surrounding `seq_prog`."
         )
       case ChorStatement(s) =>
-        Seq(context(s) -> "This statement is not allowed in `seq_prog`.")
+        Seq(context(s) -> "This statement is not allowed in `choreography`.")
       case SeqProgInstanceMethodArgs(m) =>
         Seq(
           context(m) ->
