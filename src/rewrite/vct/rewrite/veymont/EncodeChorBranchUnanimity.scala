@@ -69,7 +69,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation]()
     statement match {
       case InChor(_, c @ ChorStatement(branch: Branch[Pre])) =>
         implicit val o = statement.o
-        val guards = c.branch.guards
+        val guards = c.guards
         val assertions: Block[Post] = Block(guards.indices.init.map { i =>
           Assert(dispatch(guards(i)) === dispatch(guards(i + 1)))(
             ForwardBranchUnanimity(branch, guards(i), guards(i + 1))
@@ -80,7 +80,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation]()
 
       case InChor(_, c @ ChorStatement(loop: Loop[Pre])) =>
         implicit val o = statement.o
-        val guards = c.loop.guards
+        val guards = c.guards
         val establishAssertions: Statement[Post] = Block(
           guards.indices.init.map { i =>
             Assert(dispatch(guards(i)) === dispatch(guards(i + 1)))(
@@ -116,14 +116,13 @@ case class EncodeChorBranchUnanimity[Pre <: Generation]()
       case (Some(c), inv: LoopInvariant[Pre]) =>
         implicit val o = contract.o
         inv.rewrite(invariant =
-          dispatch(inv.invariant) &* allEqual(c.loop.guards.map(dispatch))
+          dispatch(inv.invariant) &* allEqual(c.guards.map(dispatch))
         )
       case (Some(c), inv @ IterationContract(requires, ensures, _)) =>
         implicit val o = contract.o
         inv.rewrite(
-          requires =
-            dispatch(requires) &* allEqual(c.loop.guards.map(dispatch)),
-          ensures = dispatch(ensures) &* allEqual(c.loop.guards.map(dispatch)),
+          requires = dispatch(requires) &* allEqual(c.guards.map(dispatch)),
+          ensures = dispatch(ensures) &* allEqual(c.guards.map(dispatch)),
         )
       case _ => contract.rewriteDefault()
     }

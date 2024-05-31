@@ -71,7 +71,7 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
             case _ => ???
           }
         val newParticipants =
-          if (c.branch.hasUnpointed) { currentParticipants.top }
+          if (c.hasUnpointed) { currentParticipants.top }
           else { ListSet.from(c.participants) }
         currentParticipants.having(newParticipants) {
           c.rewrite(inner =
@@ -85,7 +85,7 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
 
       case InChor(_, c @ ChorStatement(loop: Loop[Pre])) =>
         val newParticipants =
-          if (c.loop.hasUnpointed) { currentParticipants.top }
+          if (c.hasUnpointed) { currentParticipants.top }
           else { ListSet.from(c.participants) }
         currentParticipants.having(newParticipants) {
           c.rewrite(inner = loop.rewrite(cond = stratifyExpr(loop.cond)))

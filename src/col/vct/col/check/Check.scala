@@ -106,7 +106,7 @@ sealed trait CheckError {
           context(a) ->
             "This dereference does not take place on one of the endpoints in the surrounding `seq_prog`."
         )
-      case SeqProgStatement(s) =>
+      case ChorStatement(s) =>
         Seq(context(s) -> "This statement is not allowed in `seq_prog`.")
       case SeqProgInstanceMethodArgs(m) =>
         Seq(
@@ -228,8 +228,8 @@ case class SeqProgInstanceMethodArgs(m: InstanceMethod[_]) extends CheckError {
 case class SeqProgInstanceMethodBody(m: InstanceMethod[_]) extends CheckError {
   val subcode = "seqProgInstanceMethodBody"
 }
-case class SeqProgStatement(s: Statement[_]) extends CheckError {
-  val subcode = "seqProgStatement"
+case class ChorStatement(s: Statement[_]) extends CheckError {
+  val subcode = "chorStatement"
 }
 case class SeqProgInvocation(s: Statement[_]) extends CheckError {
   val subcode = "seqProgInvocation"

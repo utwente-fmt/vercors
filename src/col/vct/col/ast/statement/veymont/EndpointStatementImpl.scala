@@ -23,7 +23,7 @@ import vct.col.ast.{
   UnresolvedChorLoop,
   VeyMontAssignExpression,
 }
-import vct.col.ast.ops.{EndpointStatementOps}
+import vct.col.ast.ops.EndpointStatementOps
 import vct.col.ast.statement.StatementImpl
 import vct.col.check.{
   CheckContext,
@@ -31,7 +31,7 @@ import vct.col.check.{
   SeqProgInvocation,
   SeqProgNoParticipant,
   SeqProgParticipant,
-  SeqProgStatement,
+  ChorStatement,
 }
 import vct.col.print.{Ctx, Doc, Line, Text}
 import vct.col.ref.Ref
@@ -146,6 +146,6 @@ trait EndpointStatementImpl[G]
             _: UnresolvedChorBranch[G] | _: UnresolvedChorLoop[G] |
             _: EndpointStatement[G] =>
           Seq()
-        case _ => Seq(SeqProgStatement(this))
+        case _ => Seq(ChorStatement(this))
       })
 }

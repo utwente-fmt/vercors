@@ -53,6 +53,8 @@ import vct.rewrite.veymont.{
 }
 
 import java.nio.file.Path
+import java.nio.file.Files
+import java.nio.file.Paths
 
 object Transformation extends LazyLogging {
   case class TransformationCheckError(
@@ -86,7 +88,8 @@ object Transformation extends LazyLogging {
       out: Path,
       stageKey: String,
   ): PassEventHandler = {
-    out.toFile.mkdirs()
+    Files.createDirectories(out)
+    Files.list(out).filter(_.endsWith(".col")).forEach(Files.delete(_))
     (passes, event, pass, program) => {
       val i =
         passes.map(_.key).indexOf(pass) * 2 +

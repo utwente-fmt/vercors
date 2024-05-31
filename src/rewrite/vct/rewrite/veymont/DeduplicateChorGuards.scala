@@ -32,7 +32,7 @@ case class DeduplicateChorGuards[Pre <: Generation]()
       case InChor(_, c @ ChorStatement(branch: Branch[Pre])) =>
         c.rewrite(inner =
           branch.rewrite(branches =
-            (dedup(c.branch.cond), super.dispatch(c.branch.yes)) +:
+            (dedup(c.cond), super.dispatch(c.branch.yes)) +:
               c.branch.no.map(no => Seq((tt[Post], super.dispatch(no))))
                 .getOrElse(Seq())
           )

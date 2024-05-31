@@ -400,15 +400,15 @@ case class GenerateImplementation[Pre <: Generation]()
       case EndpointStatement(_, _) => Block(Seq())(statement.o)
       // Specialize composite statements to the current endpoint
       case c @ ChorStatement(branch: Branch[Pre])
-          if c.branch.endpointGuards.map(_.endpoint.decl).contains(endpoint) =>
+          if c.explicitEndpoints.contains(endpoint) =>
         implicit val o = branch.o
         Branch[Post](
-          Seq((projectExpr(c.branch.cond), projectStmt(c.branch.yes))) ++
+          Seq((projectExpr(c.cond), projectStmt(c.branch.yes))) ++
             c.branch.no.map(no => Seq((tt[Post], projectStmt(no))))
               .getOrElse(Seq())
         )
       case c @ ChorStatement(l: Loop[Pre])
-          if c.loop.endpointGuards.map(_.endpoint.decl).contains(endpoint) =>
+          if c.explicitEndpoints.contains(endpoint) =>
         implicit val o = l.o
         loop(
           cond = projectExpr(l.cond),
