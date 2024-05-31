@@ -8,7 +8,7 @@ then
     if command -v clang-format > /dev/null 2>&1
     then
         CLANG_FMT=clang-format
-    elif command -v clang-format-18 > /dev/null 2>&1
+    elif command -v clang-format-17 > /dev/null 2>&1
     then
         CLANG_FMT=clang-format-17
     elif command -v clang-format-16 > /dev/null 2>&1
