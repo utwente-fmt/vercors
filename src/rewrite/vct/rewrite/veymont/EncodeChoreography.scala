@@ -339,53 +339,6 @@ case class EncodeChoreography[Pre <: Generation]()
         Assign(dispatch(target), dispatch(e))(AssignFailedToSeqAssignFailure(
           assign
         ))
-      case CommunicateStatement(comm: Communicate[Pre]) =>
-        implicit val o = comm.o
-        val Some(Ref(receiver)) = comm.receiver
-        val Some(Ref(sender)) = comm.sender
-        if (
-          InferEndpointContexts.getEndpoint(comm.target) != receiver ||
-          InferEndpointContexts.getEndpoint(comm.msg) != sender
-        ) {
-          throw new Exception(
-            comm.o
-              .messageInContext("sender/receiver does not match message/target")
-          )
-        }
-
-        val equalityTest: Statement[Post] =
-          if (receiver.t == sender.t)
-            Assert[Post](
-              endpointSucc((mode, receiver)).get !==
-                endpointSucc((mode, sender)).get
-            )(AssertFailedToParticipantsNotDistinct(comm))
-          else
-            Block(Nil)
-
-        msgSucc(comm) =
-          new Variable(dispatch(comm.msg.t))(comm.o.where(name = "msg"))
-
-        Scope(
-          Seq(msgSucc(comm)),
-          Block(Seq(
-            equalityTest,
-            // Assign to msg,
-            Assign(msgSucc(comm).get, dispatch(comm.msg))(PanicBlame(
-              "Should be safe"
-            )),
-            // Assert channel invariant over msg, sender, receiver
-            Assert(currentCommunicate.having(comm) {
-              dispatch(comm.invariant)
-            })(PanicBlame("Channel invariant assert failed")),
-            Assign[Post](dispatch(comm.target), msgSucc(comm).get)(PanicBlame(
-              "TODO: Assignment from communicate failed"
-            )),
-          )),
-        )
-      case CommunicateStatement(comm: Communicate[Pre]) =>
-        throw new Exception(comm.o.messageInContext(
-          "Either the sender or receiver was not annotated for or not inferred!"
-        ))
       case EndpointStatement(_, stat) => dispatch(stat)
       case s @ ChorStatement(inner) =>
         logger.warn(

@@ -3,6 +3,7 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
+  Assert,
   Assign,
   Block,
   ChorPerm,
@@ -57,6 +58,7 @@ import vct.col.rewrite.{
 }
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
+import vct.rewrite.veymont.EncodeChoreography.AssertFailedToParticipantsNotDistinct
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -83,27 +85,32 @@ case class EncodeChannels[Pre <: Generation]()
     statement match {
       case CommunicateStatement(comm) =>
         implicit val o = comm.o
+        val sender = comm.sender.get.decl
+        val receiver = comm.receiver.get.decl
         val m = new Variable(dispatch(comm.msg.t))(comm.o.where(name = "m"))
-        Scope(
-          Seq(m),
-          Block(Seq(
-            assignLocal(m.get, dispatch(comm.msg)),
-            Exhale(currentEndpoint.having(comm.sender.get.decl) {
-              foldAny(comm.invariant.t)(unfoldStar(comm.invariant).map { e =>
-                EndpointExpr[Post](succ(comm.sender.get.decl), dispatch(e))
-              })
-            })(PanicBlame("TODO: Redirect failing exhale")),
-            Inhale(currentEndpoint.having(comm.receiver.get.decl) {
-              dispatch(comm.invariant)
-              foldAny(comm.invariant.t)(unfoldStar(comm.invariant).map { e =>
-                EndpointExpr[Post](succ(comm.receiver.get.decl), dispatch(e))
-              })
-            }),
-            Assign(dispatch(comm.target), m.get)(PanicBlame(
-              "TODO: Redirect to comm?"
+
+        currentMsg.having(m.get) {
+          Scope(
+            Seq(m),
+            Block(Seq(
+              assignLocal(m.get, dispatch(comm.msg)),
+              Exhale(currentEndpoint.having(comm.sender.get.decl) {
+                foldAny(comm.invariant.t)(unfoldStar(comm.invariant).map { e =>
+                  EndpointExpr[Post](succ(comm.sender.get.decl), dispatch(e))
+                })
+              })(PanicBlame("TODO: Redirect failing exhale")),
+              Inhale(currentEndpoint.having(comm.receiver.get.decl) {
+                dispatch(comm.invariant)
+                foldAny(comm.invariant.t)(unfoldStar(comm.invariant).map { e =>
+                  EndpointExpr[Post](succ(comm.receiver.get.decl), dispatch(e))
+                })
+              }),
+              Assign(dispatch(comm.target), m.get)(PanicBlame(
+                "TODO: Redirect to comm?"
+              )),
             )),
-          )),
-        )
+          )
+        }
       case _ => statement.rewriteDefault()
     }
 
@@ -113,6 +120,11 @@ case class EncodeChannels[Pre <: Generation]()
         ChorPerm[Post](succ(endpoint), dispatch(loc), dispatch(perm))(expr.o)
       // TODO: Check this in the check pass
       case InEndpoint(_, endpoint, cp: ChorPerm[Pre]) => assert(false); ???
+      case Message(_) if currentMsg.nonEmpty => currentMsg.top
+      case Sender(Ref(comm)) =>
+        EndpointName[Post](succ(comm.sender.get.decl))(expr.o)
+      case Receiver(Ref(comm)) =>
+        EndpointName[Post](succ(comm.sender.get.decl))(expr.o)
       case _ => expr.rewriteDefault()
     }
 }

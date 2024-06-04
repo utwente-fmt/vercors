@@ -4,7 +4,10 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
   ApplicableContract,
+  Assert,
+  Block,
   Choreography,
+  CommunicateStatement,
   Declaration,
   Endpoint,
   EndpointName,
@@ -14,6 +17,7 @@ import vct.col.ast.{
   LoopInvariant,
   Program,
   SplitAccountedPredicate,
+  Statement,
   UnitAccountedPredicate,
 }
 import vct.col.origin.{
@@ -35,13 +39,14 @@ import vct.rewrite.veymont.EncodeChorBranchUnanimity.{
 }
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError
+import vct.rewrite.veymont.EncodeChoreography.AssertFailedToParticipantsNotDistinct
 
 import scala.collection.mutable
 
 object EncodeEndpointInequalities extends RewriterBuilder {
   override def key: String = "encodeEndpointInequalities"
   override def desc: String =
-    "Encodes inequalities of endpoints in contracts and loop invariants within choreographies"
+    "Encodes inequalities of endpoints in contracts and loop invariants within choreographies, as well as required inequalities on the sender and receiver of communicate statements"
 }
 
 case class EncodeEndpointInequalities[Pre <: Generation]()
@@ -117,5 +122,25 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
           ensures = currentInequality &* dispatch(contract.ensures),
         )
       case _ => super.dispatch(contract)
+    }
+
+  override def dispatch(statement: Statement[Pre]): Statement[Post] =
+    statement match {
+      case comm: CommunicateStatement[Pre] =>
+        implicit val o = comm.o
+        val sender = comm.inner.sender.get.decl
+        val receiver = comm.inner.receiver.get.decl
+        if (receiver.t == sender.t)
+          Block(Seq(
+            Assert(
+              EndpointName[Post](succ(receiver)) !==
+                EndpointName[Post](succ(sender))
+            )(AssertFailedToParticipantsNotDistinct(comm.inner)),
+            comm.rewriteDefault(),
+          ))
+        else
+          comm.rewriteDefault()
+
+      case _ => statement.rewriteDefault()
     }
 }
