@@ -211,7 +211,15 @@ case class EncodePermissionStratification[Pre <: Generation]()
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
-      case InChor(_, ChorPerm(Ref(endpoint), loc: FieldLocation[Pre], perm)) =>
+      case InChor(_, cp: ChorPerm[Pre]) =>
+        assert(currentEndpoint.isEmpty)
+        currentEndpoint.having(cp.endpoint.decl) { dispatch(cp) }
+
+      case InEndpoint(
+            _,
+            _,
+            ChorPerm(Ref(endpoint), loc: FieldLocation[Pre], perm),
+          ) =>
         implicit val o = expr.o
         PredicateApply(
           wrapperPredicate(endpoint, loc.obj, loc.field.decl)(expr.o),
