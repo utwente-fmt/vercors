@@ -11,7 +11,7 @@ trait CommunicateImpl[G]
     extends CommunicateOps[G] with CommunicateFamilyOps[G] {
   comm: Communicate[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Group(
+    Text("channel_invariant") <+> invariant <> ";" <+/> Group(
       Text("communicate") <+> layoutParticipant(receiver) <> target.show <+>
         "<-" <+> layoutParticipant(sender) <> msg.show <> ";"
     )

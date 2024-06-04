@@ -7,5 +7,5 @@ import vct.col.print._
 trait CommunicateStatementImpl[G] extends CommunicateStatementOps[G] {
   this: CommunicateStatement[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Text("/* Communicate container */") <+> inner
+    Text("/* Communicate container */") <+/> inner
 }

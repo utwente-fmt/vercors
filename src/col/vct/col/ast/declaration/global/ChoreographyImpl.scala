@@ -41,11 +41,11 @@ trait ChoreographyImpl[G]
       Group(
         Text("choreography") <+> ctx.name(this) <> "(" <> Doc.args(params) <>
           ")"
-      ) <+> "{" <>> Doc.stack(
+      ) <+> "{" <>> Doc.fold(
         endpoints ++ decls :+
           preRun.map(preRun => Text("/* preRun */") <+> preRun.show)
             .getOrElse(Empty) :+ run
-      ) <+/> "}",
+      )(_ <> Line <> Line <> _) <+/> "}",
     ))
 
   override def enterCheckContextCurrentParticipatingEndpoints(

@@ -45,6 +45,7 @@ import vct.rewrite.veymont.{
   EncodeChoreography,
   EncodeEndpointInequalities,
   EncodePermissionStratification,
+  GenerateAndEncodeChannels,
   GenerateChoreographyPermissions,
   GenerateImplementation,
   InferEndpointContexts,
@@ -316,16 +317,18 @@ case class SilverTransformation(
         DisambiguateLocation, // Resolve location type
         EncodeRangedFor,
 
-        // VeyMont sequential program encoding
+        // VeyMont choreography encoding
+        InferEndpointContexts,
         StratifyExpressions,
         StratifyUnpointedExpressions,
         DeduplicateChorGuards,
-        InferEndpointContexts,
         GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
         EncodeChorBranchUnanimity,
         EncodeEndpointInequalities,
+        EncodeChannels,
         EncodePermissionStratification,
         EncodeChoreography,
+        // All VeyMont nodes should now be gone
         EncodeString, // Encode spec string as seq<int>
         EncodeChar,
         CollectLocalDeclarations, // all decls in Scope
@@ -444,12 +447,12 @@ case class VeyMontImplementationGeneration(
       onPassEvent,
       Seq(
         DropChorExpr,
+        InferEndpointContexts,
         StratifyExpressions,
         StratifyUnpointedExpressions,
         DeduplicateChorGuards,
         SpecializeEndpointClasses,
-        EncodeChannels.withArg(importer),
-        InferEndpointContexts,
+        GenerateAndEncodeChannels.withArg(importer),
         GenerateImplementation,
         PrettifyBlocks,
       ),

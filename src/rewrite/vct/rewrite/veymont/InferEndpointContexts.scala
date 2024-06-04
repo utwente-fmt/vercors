@@ -177,6 +177,8 @@ case class InferEndpointContexts[Pre <: Generation]()
         val endpoint: Endpoint[Pre] = getEndpoint(invoke.obj)
         s.rewrite(endpoint = Some(succ(endpoint)))
       case s @ EndpointStatement(None, _) => throw EndpointInferenceUndefined(s)
+      case comm: CommunicateStatement[Pre] =>
+        inChor.having(false) { comm.rewriteDefault() }
       case s => s.rewriteDefault()
     }
 
