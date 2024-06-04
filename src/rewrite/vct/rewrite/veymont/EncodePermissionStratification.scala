@@ -25,6 +25,7 @@ import vct.col.ast.{
   Exhale,
   Expr,
   FieldLocation,
+  Fold,
   Function,
   FunctionInvocation,
   Inhale,
@@ -49,6 +50,7 @@ import vct.col.ast.{
   TVoid,
   ThisChoreography,
   Type,
+  Unfold,
   Unfolding,
   Value,
   Variable,
@@ -112,7 +114,7 @@ case class EncodePermissionStratification[Pre <: Generation]()
     super.dispatch(program)
   }
 
-  type WrapperPredicateKey = (Endpoint[Pre], Type[Pre], InstanceField[Pre])
+  type WrapperPredicateKey = (TClass[Pre], Type[Pre], InstanceField[Pre])
   val wrapperPredicates = mut
     .LinkedHashMap[WrapperPredicateKey, Predicate[Post]]()
 
@@ -121,9 +123,10 @@ case class EncodePermissionStratification[Pre <: Generation]()
       obj: Expr[Pre],
       field: InstanceField[Pre],
   )(implicit o: Origin): Ref[Post, Predicate[Post]] = {
-    val k = (endpoint, obj.t, field)
+    val k = (endpoint.t, obj.t, field)
     wrapperPredicates.getOrElseUpdate(
       k, {
+        logger.debug(s"Declaring wrapper predicate for $k")
         val endpointArg =
           new Variable(dispatch(endpoint.t))(o.where(name = "endpoint"))
         val objectArg = new Variable(dispatch(obj.t))(o.where(name = "obj"))
@@ -146,22 +149,26 @@ case class EncodePermissionStratification[Pre <: Generation]()
       obj: Expr[Pre],
       field: InstanceField[Pre],
   )(implicit o: Origin): Ref[Post, Function[Post]] = {
-    val k = (endpoint, obj.t, field)
+    val k = (endpoint.t, obj.t, field)
     val pred = wrapperPredicate(endpoint, obj, field)
     readFunctions.getOrElseUpdate(
       k, {
+        logger.debug(s"Declaring read function for $k")
         val endpointArg =
           new Variable(dispatch(endpoint.t))(o.where(name = "endpoint"))
         val objArg = new Variable(dispatch(obj.t))(o.where(name = "obj"))
         function(
           requires =
-            Value(PredicateLocation(pred, Seq(endpointArg.get, objArg.get)))
-              .accounted,
+            Value(PredicateLocation(pred, Seq(endpointArg.get, objArg.get))(
+              o.where(context = "precondition")
+            )).accounted,
           args = Seq(endpointArg, objArg),
           returnType = dispatch(field.t),
           body = Some(
             Unfolding(
-              Value(PredicateLocation(pred, Seq(endpointArg.get, objArg.get))),
+              Value(PredicateLocation(pred, Seq(endpointArg.get, objArg.get))(
+                o.where(context = "body")
+              )),
               Deref[Post](objArg.get, succ(field))(PanicBlame("???")),
             )(PanicBlame("???"))
           ),
@@ -240,5 +247,31 @@ case class EncodePermissionStratification[Pre <: Generation]()
         )
 
       case _ => expr.rewriteDefault()
+    }
+
+  override def dispatch(statement: Statement[Pre]): Statement[Post] =
+    statement match {
+      case EndpointStatement(
+            Some(Ref(endpoint)),
+            assign @ Assign(target @ Deref(obj, Ref(field)), _),
+          ) =>
+        implicit val o = statement.o
+        val apply = {
+          val newEndpoint: Ref[Post, Endpoint[Post]] = succ(endpoint)
+          val ref = wrapperPredicate(endpoint, obj, field)
+          PredicateApply[Post](
+            ref,
+            Seq(EndpointName(newEndpoint), dispatch(obj)),
+            WritePerm(),
+          )
+        }
+        Block(Seq(
+          Unfold(apply)(PanicBlame("TODO: Use blame on endpoint")),
+          currentEndpoint.having(endpoint) {
+            assign.rewrite(target = target.rewriteDefault())
+          },
+//          Fold(apply)(PanicBlame("TODO: Use blame on endpointstatement")),
+        ))
+      case _ => statement.rewriteDefault()
     }
 }

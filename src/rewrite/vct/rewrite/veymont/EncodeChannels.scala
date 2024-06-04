@@ -93,21 +93,27 @@ case class EncodeChannels[Pre <: Generation]()
           Scope(
             Seq(m),
             Block(Seq(
-              assignLocal(m.get, dispatch(comm.msg)),
+              assignLocal(
+                m.get,
+                EndpointExpr[Post](succ(sender), dispatch(comm.msg)),
+              ),
               Exhale(currentEndpoint.having(comm.sender.get.decl) {
                 foldAny(comm.invariant.t)(unfoldStar(comm.invariant).map { e =>
-                  EndpointExpr[Post](succ(comm.sender.get.decl), dispatch(e))
+                  EndpointExpr[Post](succ(sender), dispatch(e))
                 })
               })(PanicBlame("TODO: Redirect failing exhale")),
               Inhale(currentEndpoint.having(comm.receiver.get.decl) {
                 dispatch(comm.invariant)
                 foldAny(comm.invariant.t)(unfoldStar(comm.invariant).map { e =>
-                  EndpointExpr[Post](succ(comm.receiver.get.decl), dispatch(e))
+                  EndpointExpr[Post](succ(receiver), dispatch(e))
                 })
               }),
-              Assign(dispatch(comm.target), m.get)(PanicBlame(
-                "TODO: Redirect to comm?"
-              )),
+              EndpointStatement[Post](
+                Some(succ(receiver)),
+                Assign(dispatch(comm.target), m.get)(PanicBlame(
+                  "TODO: Redirect to comm?"
+                )),
+              )(PanicBlame("??? unused ???")),
             )),
           )
         }

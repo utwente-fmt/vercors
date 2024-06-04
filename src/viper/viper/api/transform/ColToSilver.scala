@@ -536,7 +536,7 @@ case class ColToSilver(program: col.Program[_]) {
             silver.PredicateAccessPredicate(
               silver.PredicateAccess(args.map(exp), ref(predicate))(
                 pos = pos(loc),
-                NodeInfo(loc),
+                info = expInfo(e),
               ),
               silver.WildcardPerm()(),
             )(pos = pos(e), expInfo(e))
