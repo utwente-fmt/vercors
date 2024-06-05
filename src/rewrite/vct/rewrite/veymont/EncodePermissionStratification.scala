@@ -280,6 +280,12 @@ case class EncodePermissionStratification[Pre <: Generation]()
             Fold(apply)(PanicBlame("TODO: Use blame on endpointstatement")),
           )),
         )
+      case EndpointStatement(Some(Ref(endpoint)), assert: Assert[Pre]) =>
+        currentEndpoint.having(endpoint) { assert.rewriteDefault() }
+      case EndpointStatement(_, eval: Eval[Pre]) =>
+        throw new Exception(statement.o.messageInContext(
+          "Eval with permission stratification not yet supported"
+        ))
       case _ => statement.rewriteDefault()
     }
 }
