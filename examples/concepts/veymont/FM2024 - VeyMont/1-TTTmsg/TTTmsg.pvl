@@ -15,15 +15,15 @@ choreography Main() {
 
   requires p1.inv() ** p2.inv();
   requires p1.emptyBoard() ** p2.emptyBoard();
-  requires (\in_endpoint p1; p1.turn ==> turnInvariant(p1, p2));
-  requires (\in_endpoint p2; p2.turn ==> turnInvariant(p2, p1));
+  requires (\endpoint p1; p1.turn ==> turnInvariant(p1, p2));
+  requires (\endpoint p2; p2.turn ==> turnInvariant(p2, p1));
   ensures p1.gameFinished() && p2.gameFinished();
-  ensures (\in_endpoint p1; 
+  ensures (\endpoint p1;
     ([3\4]p1.boardPerm()) **
     ([1\4]p2.boardPerm()) **
     p1.equalBoard(p2)
   );
-  ensures (\in_endpoint p2;
+  ensures (\endpoint p2;
     ([3\4]p2.boardPerm()) **
     ([1\4]p1.boardPerm()) **
     p2.equalBoard(p1))

@@ -318,11 +318,11 @@ case class SilverTransformation(
         EncodeRangedFor,
 
         // VeyMont choreography encoding
+        GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
         InferEndpointContexts,
         StratifyExpressions,
         StratifyUnpointedExpressions,
         DeduplicateChorGuards,
-        GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
         EncodeChorBranchUnanimity,
         EncodeEndpointInequalities,
         EncodeChannels,
