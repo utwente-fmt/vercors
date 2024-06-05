@@ -2,9 +2,15 @@ package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.{LiteralReadable, Readable}
-import hre.stages.{Stage, Stages}
-import vct.col.ast.{Declaration, Node, Program, Verification}
-import vct.col.origin.DiagnosticOrigin
+import hre.stages.{FunctionStage, Stage, Stages}
+import vct.col.ast.{
+  Declaration,
+  Node,
+  Program,
+  Verification,
+  VerificationContext,
+}
+import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.print.{Ctx, Namer}
 import vct.col.rewrite.{Generation, InitialGeneration}
 import vct.options.Options
@@ -22,9 +28,19 @@ case object Output {
   def vesuvOfOptions[G <: Generation](
       options: Options
   ): Stages[ParseResult[G], Unit] = {
-//    FunctionStage((pr: ParseResult[_ <: Generation]) => Program(pr.decls)(DiagnosticOrigin)(DiagnosticOrigin))
-//      .thenRun(??? /* Output(options.vesuvOutput, Ctx.PVL) */)
-    ???
+    implicit val o: Origin = DiagnosticOrigin
+    FunctionStage((pr: ParseResult[_ <: Generation]) =>
+      Verification(
+        Seq(VerificationContext(Program(pr.decls)(DiagnosticOrigin))),
+        Seq(),
+      )
+    ).thenRun(Output(
+      Some(options.vesuvOutput),
+      Ctx.PVL,
+      Files.isDirectory(options.vesuvOutput),
+    )).thenRun(FunctionStage((_: Seq[LiteralReadable]) =>
+        ()
+      )) // TODO: Not the prettiest, but I have no time for this. I blame Bob.
   }
 
   def veymontOfOptions(
@@ -63,13 +79,13 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
 
     val txts: Seq[LiteralReadable] =
       if (splitDecls) {
-        in.asInstanceOf[Program[_]].declarations.zipWithIndex.map {
+        in.tasks.map(t => t.program).flatMap(p => p.declarations).zipWithIndex.map {
           case (decl, i) =>
-            val name = names.getOrElse(decl.asInstanceOf, s"unknown$i")
+            val name = names.getOrElse(decl.asInstanceOf[Declaration[Generation]], s"unknown$i")
             val fileName = s"${name}.${extension(syntax)}"
             val buf = new StringBuffer()
             decl.write(buf)(ctx)
-            LiteralReadable(buf.toString, fileName)
+            LiteralReadable(fileName, buf.toString)
         }
       } else {
         val buf = new StringBuffer()
