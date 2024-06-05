@@ -3634,8 +3634,7 @@ final case class PVLMessage[G]()(implicit val o: Origin)
 final class Endpoint[G](
     val cls: Ref[G, Class[G]],
     val typeArgs: Seq[Type[G]],
-    val constructor: Ref[G, Constructor[G]],
-    val args: Seq[Expr[G]],
+    val init: Expr[G],
 )(val blame: Blame[EndpointFailure])(implicit val o: Origin)
     extends Declaration[G] with EndpointImpl[G]
 @scopes[Endpoint]

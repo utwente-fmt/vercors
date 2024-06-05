@@ -85,7 +85,7 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
         )
 
       case cls: Class[Pre] if enabled =>
-        currentPerm.having(classPerm(cls)) { rewriteDefault(cls) }
+        currentPerm.having(classPerm(cls)) { cls.rewriteDefault().succeed(cls) }
 
       case fun: InstanceFunction[Pre] if enabled =>
         implicit val o = fun.o
@@ -130,35 +130,35 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
           ),
         )
 
-      case prog: Choreography[Pre] if enabled =>
-        val run = prog.run
-        currentProg.having(prog) {
+      case chor: Choreography[Pre] if enabled =>
+        val run = chor.run
+        currentProg.having(chor) {
           globalDeclarations.succeed(
-            prog,
-            prog.rewrite(
+            chor,
+            chor.rewrite(
               contract =
                 prependContract(
-                  prog.contract,
-                  variablesPerm(prog.params)(prog.o),
-                  variablesPerm(prog.params)(prog.o),
-                )(prog.o),
+                  chor.contract,
+                  variablesPerm(chor.params)(chor.o),
+                  variablesPerm(chor.params)(chor.o),
+                )(chor.o),
               run = run.rewrite(
                 contract =
                   prependContract(
                     run.contract,
-                    endpointsPerm(prog.endpoints)(run.o),
-                    endpointsPerm(prog.endpoints)(run.o),
+                    endpointsPerm(chor.endpoints)(run.o),
+                    endpointsPerm(chor.endpoints)(run.o),
                   )(run.o),
                 body =
-                  currentPerm.having(endpointsPerm(prog.endpoints)(run.o)) {
-                    rewriteDefault(run.body)
+                  currentPerm.having(endpointsPerm(chor.endpoints)(run.o)) {
+                    run.body.rewriteDefault()
                   },
               ),
             ),
           )
         }
 
-      case decl => rewriteDefault(decl)
+      case decl => super.dispatch(decl)
     }
 
   def prependContract(
@@ -193,7 +193,7 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
         currentPerm.having(
           endpointsPerm(participants(statement).toSeq)(loop.contract.o)
         ) { c.rewriteDefault() }
-      case statement => rewriteDefault(statement)
+      case statement => statement.rewriteDefault()
     }
 
   override def dispatch(loopContract: LoopContract[Pre]): LoopContract[Post] =
@@ -207,7 +207,7 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
           requires = perm &* dispatch(iteration.requires),
           ensures = perm &* dispatch(iteration.ensures),
         )
-      case _ => rewriteDefault(loopContract)
+      case _ => loopContract.rewriteDefault()
     }
 
   def endpointPerm(endpoint: Endpoint[Pre])(implicit o: Origin): Expr[Post] =

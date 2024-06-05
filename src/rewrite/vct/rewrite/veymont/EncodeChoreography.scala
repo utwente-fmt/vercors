@@ -217,12 +217,7 @@ case class EncodeChoreography[Pre <: Generation]()
           val endpointsInit = prog.endpoints.map { endpoint =>
             Assign(
               Local[Post](endpointSucc((mode, endpoint)).ref),
-              constructorInvocation[Post](
-                classTypeArgs = endpoint.typeArgs.map(dispatch),
-                ref = succ(endpoint.constructor.decl),
-                args = endpoint.args.map(dispatch),
-                blame = InvocationFailureToEndpointFailure(endpoint),
-              ),
+              dispatch(endpoint.init),
             )(AssignLocalOk)
           }
 

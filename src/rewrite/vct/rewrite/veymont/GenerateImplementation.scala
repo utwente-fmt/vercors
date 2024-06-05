@@ -243,15 +243,7 @@ case class GenerateImplementation[Pre <: Generation]()
           val initEndpoints = chor.endpoints.map { endpoint =>
             assignLocal[Post](
               endpointLocals(endpoint).get,
-              ConstructorInvocation[Post](
-                ref = succ(endpoint.constructor.decl),
-                classTypeArgs = endpoint.typeArgs.map(dispatch),
-                args = endpoint.args.map(dispatch),
-                outArgs = Seq(),
-                typeArgs = Seq(),
-                givenMap = Seq(),
-                yields = Seq(),
-              )(PanicBlame("Should be safe")),
+              dispatch(endpoint.init),
             )
           }
 
@@ -662,7 +654,8 @@ case class GenerateImplementation[Pre <: Generation]()
       thread: Endpoint[Pre],
       threadField: InstanceField[Post],
   ): JavaConstructor[Post] = {
-    val threadConstrArgBlocks = thread.args.map {
+    val threadConstrArgBlocks: Seq[(Name, Type[Post])] =
+      ??? /* thread.args.map {
       case l: Local[Pre] =>
         (l.ref.decl.o.getPreferredNameOrElse(), dispatch(l.t))
       case other =>
@@ -670,7 +663,7 @@ case class GenerateImplementation[Pre <: Generation]()
           other,
           "This node is expected to be an argument of seq_prog, and have type Local",
         )
-    }
+    } */
     val threadConstrArgs: Seq[JavaParam[Post]] = threadConstrArgBlocks.map {
       case (a, t) =>
         new JavaParam[Post](Seq.empty, a.camel, t)(ThreadClassOrigin(thread))

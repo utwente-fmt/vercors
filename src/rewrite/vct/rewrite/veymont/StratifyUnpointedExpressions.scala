@@ -27,11 +27,11 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
       case chor: Choreography[Pre] =>
         currentChoreography.having(chor) {
           currentParticipants.having(ListSet.from(chor.endpoints)) {
-            rewriteDefault(chor)
+            chor.rewriteDefault().succeed(chor)
           }
         }
 
-      case decl => rewriteDefault(decl)
+      case decl => super.dispatch(decl)
     }
 
   override def dispatch(

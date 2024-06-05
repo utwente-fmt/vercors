@@ -76,15 +76,25 @@ case class LangVeyMontToCol[Pre <: Generation](
       name: PVLEndpointName[Pre]
   ): Ref[Post, Endpoint[Post]] = endpointSucc.ref(name.ref.get.decl)
 
-  def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit =
+  def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit = {
+    // TODO (RR): Sort out blame. See EncodeChoreography for old blame
+    val classTypeArgs = endpoint.typeArgs.map(rw.dispatch)
     endpointSucc(endpoint) = rw.endpoints.declare(
-      new Endpoint(
+      new Endpoint[Post](
         rw.succ[Class[Post]](endpoint.cls.decl),
-        endpoint.typeArgs.map(rw.dispatch),
-        rw.pvl.constructorSucc(endpoint.ref.get),
-        endpoint.args.map(rw.dispatch),
+        classTypeArgs,
+        ConstructorInvocation(
+          rw.pvl.constructorSucc(endpoint.ref.get),
+          classTypeArgs,
+          endpoint.args.map(rw.dispatch),
+          Seq(),
+          Seq(),
+          Seq(),
+          Seq(),
+        )(PanicBlame("TODO: Refer back to PVLEndpoint blame"))(endpoint.o),
       )(endpoint.blame)(endpoint.o)
     )
+  }
 
   def rewriteChoreography(prog: PVLChoreography[Pre]): Unit = {
     implicit val o: Origin = prog.o

@@ -316,19 +316,6 @@ case class SilverTransformation(
         Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
         DisambiguateLocation, // Resolve location type
         EncodeRangedFor,
-
-        // VeyMont choreography encoding
-        GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
-        InferEndpointContexts,
-        StratifyExpressions,
-        StratifyUnpointedExpressions,
-        DeduplicateChorGuards,
-        EncodeChorBranchUnanimity,
-        EncodeEndpointInequalities,
-        EncodeChannels,
-        EncodePermissionStratification,
-        EncodeChoreography,
-        // All VeyMont nodes should now be gone
         EncodeString, // Encode spec string as seq<int>
         EncodeChar,
         CollectLocalDeclarations, // all decls in Scope
@@ -347,6 +334,21 @@ case class SilverTransformation(
         EncodeIntrinsicLock,
         EncodeForkJoin,
         InlineApplicables,
+
+        // VeyMont choreography encoding
+        // Explicitly after InlineApplicables such that VeyMont doesn't care about inline predicates
+        GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
+        InferEndpointContexts,
+        StratifyExpressions,
+        StratifyUnpointedExpressions,
+        DeduplicateChorGuards,
+        EncodeChorBranchUnanimity,
+        EncodeEndpointInequalities,
+        EncodeChannels,
+        EncodePermissionStratification,
+        EncodeChoreography,
+        // All VeyMont nodes should now be gone
+
         PureMethodsToFunctions,
         RefuteToInvertedAssert,
         ExplicitResourceValues,
