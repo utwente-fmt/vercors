@@ -265,13 +265,21 @@ case class EncodePermissionStratification[Pre <: Generation]()
             WritePerm(),
           )
         }
-        Block(Seq(
-          Unfold(apply)(PanicBlame("TODO: Use blame on endpoint")),
-          currentEndpoint.having(endpoint) {
-            assign.rewrite(target = target.rewriteDefault())
-          },
-//          Fold(apply)(PanicBlame("TODO: Use blame on endpointstatement")),
-        ))
+        val intermediate =
+          new Variable(dispatch(assign.value.t))(
+            assign.o.where(name = "intermediate")
+          )
+        Scope(
+          Seq(intermediate),
+          Block(Seq(
+            currentEndpoint.having(endpoint) {
+              assignLocal(intermediate.get, dispatch(assign.value))
+            },
+            Unfold(apply)(PanicBlame("TODO: Use blame on endpoint")),
+            assign.rewrite(value = intermediate.get),
+            Fold(apply)(PanicBlame("TODO: Use blame on endpointstatement")),
+          )),
+        )
       case _ => statement.rewriteDefault()
     }
 }
