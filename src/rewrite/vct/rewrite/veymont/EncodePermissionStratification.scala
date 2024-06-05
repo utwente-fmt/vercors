@@ -2,91 +2,13 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{
-  AllScopes,
-  Assert,
-  Assign,
-  Block,
-  ChorExpr,
-  ChorPerm,
-  ChorRun,
-  ChorStatement,
-  Choreography,
-  Class,
-  Communicate,
-  CommunicateStatement,
-  Declaration,
-  Deref,
-  Endpoint,
-  EndpointExpr,
-  EndpointName,
-  EndpointStatement,
-  Eval,
-  Exhale,
-  Expr,
-  FieldLocation,
-  Fold,
-  Function,
-  FunctionInvocation,
-  Inhale,
-  InstanceField,
-  InstanceMethod,
-  Local,
-  LocalDecl,
-  Message,
-  MethodInvocation,
-  Node,
-  Perm,
-  Predicate,
-  PredicateApply,
-  PredicateLocation,
-  Procedure,
-  Program,
-  Receiver,
-  Scope,
-  Sender,
-  Statement,
-  TClass,
-  TVoid,
-  ThisChoreography,
-  Type,
-  Unfold,
-  Unfolding,
-  Value,
-  Variable,
-  WritePerm,
+import vct.col.ast._
+import vct.col.rewrite.{
+  Generation,
+  Rewriter,
+  RewriterBuilder,
+  RewriterBuilderArg,
 }
-import vct.col.origin.{
-  AssertFailed,
-  AssignFailed,
-  AssignLocalOk,
-  Blame,
-  CallableFailure,
-  ChorAssignFailure,
-  ContextEverywhereFailedInPost,
-  ContextEverywhereFailedInPre,
-  ContractedFailure,
-  DiagnosticOrigin,
-  EndpointContextEverywhereFailedInPre,
-  EndpointPreconditionFailed,
-  ExceptionNotInSignals,
-  InsufficientPermission,
-  InvocationFailure,
-  Name,
-  Origin,
-  PanicBlame,
-  ParticipantsNotDistinct,
-  PostconditionFailed,
-  PreconditionFailed,
-  SeqAssignInsufficientPermission,
-  SeqCallableFailure,
-  SeqRunContextEverywhereFailedInPre,
-  SeqRunPreconditionFailed,
-  SignalsFailed,
-  TerminationMeasureFailed,
-  VerificationFailure,
-}
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
@@ -95,19 +17,22 @@ import EncodeChoreography.{
   AssignFailedToSeqAssignFailure,
   CallableFailureToSeqCallableFailure,
 }
+import vct.col.origin.{Name, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.rewrite.veymont
 
 import scala.collection.{mutable => mut}
 
-object EncodePermissionStratification extends RewriterBuilder {
+object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
   override def key: String = "encodePermissionStratification"
   override def desc: String =
     "Encodes stratification of permissions by wrapping each permission in an opaque predicate, guarding the permission using an endpoint reference."
 }
 
-case class EncodePermissionStratification[Pre <: Generation]()
-    extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
+// TODO (RR): Document here the hack to make \chor work
+case class EncodePermissionStratification[Pre <: Generation](
+    veymontGeneratePermissions: Boolean
+) extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     mappings.program = program
@@ -120,6 +45,7 @@ case class EncodePermissionStratification[Pre <: Generation]()
 
   def wrapperPredicate(
       endpoint: Endpoint[Pre],
+      // TODO (RR): Can this obj param be omitted, as instancefield implies one unique class type
       obj: Expr[Pre],
       field: InstanceField[Pre],
   )(implicit o: Origin): Ref[Post, Predicate[Post]] = {
@@ -159,16 +85,13 @@ case class EncodePermissionStratification[Pre <: Generation]()
         val objArg = new Variable(dispatch(obj.t))(o.where(name = "obj"))
         function(
           requires =
-            Value(PredicateLocation(pred, Seq(endpointArg.get, objArg.get))(
-              o.where(context = "precondition")
-            )).accounted,
+            Value(PredicateLocation(pred, Seq(endpointArg.get, objArg.get)))
+              .accounted,
           args = Seq(endpointArg, objArg),
           returnType = dispatch(field.t),
           body = Some(
             Unfolding(
-              Value(PredicateLocation(pred, Seq(endpointArg.get, objArg.get))(
-                o.where(context = "body")
-              )),
+              Value(PredicateLocation(pred, Seq(endpointArg.get, objArg.get))),
               Deref[Post](objArg.get, succ(field))(PanicBlame("???")),
             )(PanicBlame("???"))
           ),
@@ -246,6 +169,29 @@ case class EncodePermissionStratification[Pre <: Generation]()
           blame = PanicBlame("???"),
         )
 
+      case ChorExpr(inner) if veymontGeneratePermissions =>
+        implicit val o = expr.o
+        val endpoints = InferEndpointContexts.getEndpoints(inner)
+        val fields = endpoints.flatMap { endpoint =>
+          endpoint.cls.decl.decls.collect { case field: InstanceField[Pre] =>
+            (endpoint, field)
+          }
+        }
+        fields.foldRight[Expr[Post]](dispatch(inner)) {
+          case ((endpoint, field), base) =>
+            val pred = wrapperPredicate(
+              endpoint,
+              EndpointName(endpoint.ref),
+              field,
+            )
+            Unfolding[Post](
+              Value(PredicateLocation(
+                pred,
+                Seq(EndpointName(succ(endpoint)), EndpointName(succ(endpoint))),
+              )),
+              base,
+            )(PanicBlame("Generating permissions should be good"))
+        }
       case _ => expr.rewriteDefault()
     }
 

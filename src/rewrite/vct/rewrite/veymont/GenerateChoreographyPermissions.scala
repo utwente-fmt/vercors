@@ -25,7 +25,6 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
   val currentPerm: ScopedStack[Expr[Post]] = ScopedStack()
   val currentProg: ScopedStack[Choreography[Pre]] = ScopedStack()
   val generatingClasses: ScopedStack[Class[Pre]] = ScopedStack()
-  val generatingOrigin: ScopedStack[Node[Pre]] = ScopedStack()
 
   /* - Permission generation table -
       Only considers nodes as necessary for VeyMont case studies.
