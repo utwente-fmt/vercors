@@ -41,6 +41,8 @@ case object ExampleFiles {
 
   val FILES: Seq[Path] = find(Paths.get("examples"))
 
+  val PUBLICATIONS_DIR: Path = Paths.get("examples", "publications")
+
   def find(directory: Path): Seq[Path] =
     Files.list(directory).toScala(Seq).filterNot(f => EXCLUSIONS.exists(_(f)))
       .sortBy(_.getFileName.toString).flatMap(f =>

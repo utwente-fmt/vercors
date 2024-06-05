@@ -1,0 +1,30 @@
+inline resource ticTacToeAnnotations(Player p1, Player p2) =
+    p1.myMark == 0 ** p2.myMark == 1
+    ** p1.turn != p2.turn
+    ** p1.equalBoard(p2);
+
+choreography TTT() {
+	endpoint p1 = Player(0, true);
+	endpoint p2 = Player(1, false);
+	
+	context (\chor ticTacToeAnnotations(p1, p2));
+	ensures (\chor p1.gameFinished() && p2.gameFinished());
+	run {
+		loop_invariant (\chor ticTacToeAnnotations(p1, p2));
+		loop_invariant (\chor !p1.gameFinished() == !p2.gameFinished());
+		while(!p1.gameFinished() && !p2.gameFinished()) {
+			assert p1.turn == !p2.turn;
+			if(p1.turn && !p2.turn) {
+				p1.createNewMove();
+				communicate p2.move <- p1.move.clone();
+			} else {
+				p2.createNewMove();
+				communicate p1.move <- p2.move.clone();
+			}
+			p1.doMove();
+			p2.doMove();
+			p1.turn := !p1.turn;
+			p2.turn := !p2.turn;
+		}
+	}
+}

@@ -1,0 +1,25 @@
+class Move {
+	int i, j, mark;
+	
+	ensures Perm(i, write) ** Perm(j, write) ** Perm(mark, write);
+	ensures i == mi ** j == mj ** mark == mm;
+	Move(int mi, int mj, int mm) {
+		i = mi;
+		j = mj;
+		mark = mm;
+	}
+
+  inline resource movePerm() = true
+    ** Perm(i, write) ** Perm(j, write) ** Perm(mark, write)
+    ** 0 <= i ** i <= 2
+    ** 0 <= j ** j <= 2
+    ** 0 <= mark ** mark <= 1
+    ;
+
+  context [1\100]movePerm();
+  ensures \result.movePerm();
+  ensures \result.i == i ** \result.j == j ** \result.mark == mark;
+  Move copy() {
+    return new Move(i, j, mark);
+  }
+}

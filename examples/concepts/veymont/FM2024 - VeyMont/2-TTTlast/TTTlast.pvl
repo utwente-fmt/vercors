@@ -1,0 +1,69 @@
+/*
+This file is a sketch of the choreography for the TTTtok case study. It assumes the Move.pvl, Player.pvl files from the TTT+ case study are in scope and appropriately renamed. While we cannot guarantee the correctness of TTTtok, we have successfully verified a manually encoded version of this file.
+*/
+
+inline resource turnInvariant(Player p, Player q) =
+  ([1\2]p.boardPerm()) **
+  ([1\2]q.boardPerm()) **
+  p.equalBoard(q)
+  ;
+
+choreography Main() {
+  endpoint p1 = Player(0, true);
+  endpoint p2 = Player(1, false);
+
+  context p1.inv() ** p2.inv();
+  requires p1.emptyBoard() ** p2.emptyBoard();
+  requires (\endpoint p1; ([1\4]p1.returnerBound(p2)) ** p1.turn ==>
+      turnInvariant(p1, p2) ** ([1\2]p1.returnerBound(p2)) ** p1.returnerToken());
+  requires (\endpoint p2; ([1\4]p2.returnerBound(p1)) ** p2.turn ==>
+      turnInvariant(p1, p2) ** ([1\2]p2.returnerBound(p1)) ** p2.returnerToken());
+  ensures p1.gameFinished() && p2.gameFinished();
+  ensures (\endpoint p1; ([1\2]p1.returnerToken()) **
+    p1.returner.mark == p1.myMark ==> turnInvariant(p1, p2));
+  ensures (\endpoint p2; ([1\2]p2.returnerMark()) **
+    p2.returner.mark == p2.myMark ==> turnInvariant(p1, p2));
+  run {
+    loop_invariant p1.inv() ** p2.inv();
+    loop_invariant (\endpoints p1; p1.turn ==> turnInvariant(p1) **
+      ([1\2]p1.returnerBound(other)) **
+      p1.returnerToken());
+    loop_invariant (\endpoint p2; p2.turn ==> turnInvariant(p2) **
+      ([1\2]p2.returnerBound(other)) **
+      p2.returnerToken());
+    while(!p1.gameFinished() && !p2.gameFinished()) {
+      assert p1.turn == !p2.turn;
+      if(p1.turn && !p2.turn) {
+        p1.createNewMove();
+        if (p1.gameFinished()) {
+          p1.returnee.mark = 1 - p1.myMark;
+        }
+        channel_invariant
+          \msg.movePerm() **
+          ([1\2]\sender.boardPerm()) ** ([1\2]\receiver.boardPerm()) **
+          \sender.oneMoveAheadOf(\msg, \receiver) **
+          ([1\2]\sender.returnerBound(\receiver)) **
+          ([1\2]\sender.returnerMark()) **
+          (!\sender.gameFinished() ==> ([1\2]\sender.returnerMark));
+        communicate p2.move <- p1.move;
+      } else {
+        p2.createNewMove();
+        if (p2.gameFinished()) {
+          p2.returnee.mark = 1 - p2.myMark;
+        }
+        channel_invariant
+          \msg.movePerm() **
+          ([1\2]\sender.boardPerm()) ** ([1\2]\receiver.boardPerm()) **
+          \sender.oneMoveAheadOf(\msg, \receiver) ***
+          ([1\2]\sender.returnerBound(\receiver)) **
+          ([1\2]\sender.returnerMark()) **
+          (!\sender.gameFinished() ==> ([1\2]\sender.returnerMark));
+        communicate p1.move <- p2.move;
+      }
+      p1.doMove();
+      p2.doMove();
+      p1.turn := !p1.turn;
+      p2.turn := !p2.turn;
+    }
+  }
+}
