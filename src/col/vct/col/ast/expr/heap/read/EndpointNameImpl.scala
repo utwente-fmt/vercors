@@ -10,5 +10,6 @@ trait EndpointNameImpl[G] extends NodeFamilyImpl[G] with EndpointNameOps[G] {
   this: EndpointName[G] =>
   def t: Type[G] = ref.decl.t
 
+  override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc = Text(ctx.name(ref))
 }

@@ -185,10 +185,11 @@ case class EncodePermissionStratification[Pre <: Generation](
               field,
             )
             Unfolding[Post](
-              Value(PredicateLocation(
+              PredicateApply(
                 pred,
                 Seq(EndpointName(succ(endpoint)), EndpointName(succ(endpoint))),
-              )),
+                WritePerm(),
+              ),
               base,
             )(PanicBlame("Generating permissions should be good"))
         }
@@ -228,10 +229,10 @@ case class EncodePermissionStratification[Pre <: Generation](
         )
       case EndpointStatement(Some(Ref(endpoint)), assert: Assert[Pre]) =>
         currentEndpoint.having(endpoint) { assert.rewriteDefault() }
-      case EndpointStatement(_, eval: Eval[Pre]) =>
-        throw new Exception(statement.o.messageInContext(
-          "Eval with permission stratification not yet supported"
-        ))
+      case EndpointStatement(_, eval: Eval[Pre]) => Block(Seq())(statement.o)
+//        throw new Exception(statement.o.messageInContext(
+//          "Eval with permission stratification not yet supported"
+//        ))
       case _ => statement.rewriteDefault()
     }
 }
