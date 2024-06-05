@@ -31,6 +31,7 @@ import vct.parsers.transform.systemctocol.exceptions.SystemCFormatException;
 import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
 import vct.parsers.transform.systemctocol.util.OriGen;
+import vct.parsers.transform.systemctocol.util.Seqs;
 
 import java.util.stream.Collectors;
 
@@ -300,6 +301,11 @@ public class COLSystem<T> {
     private Class<T> main;
 
     /**
+     * The scheduler method in the Main class.
+     */
+    private InstanceMethod<T> main_method;
+
+    /**
      * Global permission invariant.
      */
     private InstancePredicate<T> global_perms;
@@ -539,6 +545,31 @@ public class COLSystem<T> {
                 List.from(CollectionConverters.asScala(expected_errors)));
     }
 
+    public void create_vesuv_entry() {
+        java.util.List<Statement<T>> body = new java.util.ArrayList<>();
+
+        // Create variable of Main class
+        TClass<T> main_type = new TClass<>(new DirectRef<>(main, ClassTag$.MODULE$.apply(Class.class)), Seqs.empty(), OriGen.create());
+        Variable<T> var = new Variable<>(main_type, OriGen.create("design"));
+
+        // Constructor call
+        PVLNew<T> new_expr = new PVLNew<>(main_type, Seqs.empty(), Seqs.empty(), NO_GIVEN, NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+        Local<T> m_deref = new Local<>(new DirectRef<>(var, ClassTag$.MODULE$.apply(Variable.class)), OriGen.create());
+
+        // main method call
+        Ref<T, InstanceMethod<T>> scheduler_ref = new DirectRef<>(main_method, ClassTag$.MODULE$.apply(InstanceMethod.class));
+        InvokeMethod<T> call_main = new InvokeMethod<>(m_deref, scheduler_ref, NO_EXPRS, NO_EXPRS, NO_TYPES, NO_GIVEN,
+                NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+
+        body.add(new LocalDecl<>(var, OriGen.create()));
+        body.add(new Assign<>(m_deref, new_expr, new GeneratedBlame<>(), OriGen.create()));
+        body.add(call_main);
+
+        Block<T> block = new Block<>(List.from(CollectionConverters.asScala(body)), OriGen.create());
+
+        global_declarations.add(new VeSUVMainMethod<>(Option.apply(block), new GeneratedBlame<>(), OriGen.create()));
+    }
+
     // ===================================================== //
     // ================ GETTERS AND SETTERS ================ //
     // ===================================================== //
@@ -569,6 +600,15 @@ public class COLSystem<T> {
      */
     public Class<T> get_main() {
         return main;
+    }
+
+    /**
+     * Registers the main scheduler method.
+     *
+     * @param main_method Scheduler method
+     */
+    public void set_main_method(InstanceMethod<T> main_method) {
+        this.main_method = main_method;
     }
 
     /**

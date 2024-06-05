@@ -1243,5 +1243,6 @@ public class MainTransformer<T> {
         // Register Main class in COL system context
         col_system.add_global_declaration(main_class);
         col_system.set_main(main_class);
+        col_system.set_main_method(scheduler);
     }
 }
