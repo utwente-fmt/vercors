@@ -221,6 +221,22 @@ case class EncodePermissionStratification[Pre <: Generation](
           ))
         }
 
+      case ChorExpr(inner) if !veymontGeneratePermissions =>
+        // If not generating permissions, we rely on endpoint expressions to indicate the owner
+        // of relevant permissions
+        inChor.having(true) { dispatch(inner) }
+
+      // Generate an invocation to the unspecialized function version
+      case inv: FunctionInvocation[Pre] if inChor.topOption.contains(true) =>
+        inv.rewrite(ref = ???)
+      case inv: InstanceFunctionInvocation[Pre]
+          if inChor.topOption.contains(true) =>
+        inv.rewrite(ref = ???)
+
+      case InEndpoint(_, endpoint, inv: AnyFunctionInvocation[Pre]) =>
+        // ???
+        ???
+
       case _ => expr.rewriteDefault()
     }
 
