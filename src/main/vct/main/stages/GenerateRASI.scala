@@ -1,7 +1,13 @@
 package vct.main.stages
 
 import hre.stages.Stage
-import vct.col.ast.{InstanceField, InstanceMethod, InstancePredicate, Node}
+import vct.col.ast.{
+  Expr,
+  InstanceField,
+  InstanceMethod,
+  InstancePredicate,
+  Node,
+}
 import vct.col.rewrite.Generation
 import vct.options.Options
 import vct.rewrite.rasi.{
@@ -16,11 +22,15 @@ import java.nio.file.Path
 
 case object GenerateRASI {
   def ofOptions(options: Options): Stage[Node[_ <: Generation], Unit] = {
-    GenerateRASI(options.vesuvRasiVariables, options.vesuvOutput)
+    GenerateRASI(
+      options.vesuvRasiVariables,
+      options.vesuvOutput,
+      test = options.vesuvRasiTest,
+    )
   }
 }
 
-case class GenerateRASI(vars: Option[Seq[String]], out: Path)
+case class GenerateRASI(vars: Option[Seq[String]], out: Path, test: Boolean)
     extends Stage[Node[_ <: Generation], Unit] {
 
   override def friendlyName: String =
@@ -40,7 +50,12 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path)
       vars.getOrElse(Seq()).map(s => resolve_variable(in, s)).toSet
     val parameter_invariant: InstancePredicate[Generation] =
       get_parameter_invariant(in)
-    new RASIGenerator().test(main_method, variables, parameter_invariant, out)
+    if (test) {
+      new RASIGenerator().test(main_method, variables, parameter_invariant, out)
+    } else {
+      val rasi: Expr[Generation] = new RASIGenerator()
+        .execute(main_method, variables, parameter_invariant, in)
+    }
   }
 
   private def resolve_variable(

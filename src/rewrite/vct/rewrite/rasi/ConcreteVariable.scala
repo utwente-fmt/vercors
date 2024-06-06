@@ -66,7 +66,7 @@ sealed trait ConcreteVariable[G] extends ResolvableVariable[G] {
     * @return
     *   A COL expression representing this variable
     */
-  def to_expression: Expr[G]
+  def to_expression(obj: Option[Expr[G]]): Expr[G]
 
   protected def field_equals(expr: Expr[G], field: InstanceField[G]): Boolean =
     expr match {
@@ -102,7 +102,8 @@ case class LocalVariable[G](variable: Variable[G]) extends ConcreteVariable[G] {
       expr: Expr[G],
       state: AbstractState[G],
   ): Boolean = is(expr, state)
-  override def to_expression: Expr[G] = Local[G](variable.ref)(variable.o)
+  override def to_expression(obj: Option[Expr[G]]): Expr[G] =
+    Local[G](variable.ref)(variable.o)
   override def t: Type[G] = variable.t
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
@@ -121,8 +122,10 @@ case class FieldVariable[G](field: InstanceField[G])
       expr: Expr[G],
       state: AbstractState[G],
   ): Boolean = is(expr, state)
-  override def to_expression: Expr[G] =
-    Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o)
+  override def to_expression(obj: Option[Expr[G]]): Expr[G] =
+    Deref[G](obj.getOrElse(AmbiguousThis()(field.o)), field.ref)(field.o)(
+      field.o
+    )
   override def t: Type[G] = field.t
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
@@ -148,10 +151,10 @@ case class SizeVariable[G](field: InstanceField[G])
       expr: Expr[G],
       state: AbstractState[G],
   ): Boolean = is(expr, state) || field_equals(expr, field)
-  override def to_expression: Expr[G] =
-    Size(Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o))(
+  override def to_expression(obj: Option[Expr[G]]): Expr[G] =
+    Size(Deref[G](obj.getOrElse(AmbiguousThis()(field.o)), field.ref)(field.o)(
       field.o
-    )
+    ))(field.o)
   override def t: Type[G] = TInt()(field.o)
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
@@ -203,21 +206,27 @@ case class IndexedVariable[G](field: InstanceField[G], i: Int)
           .getOrElse(i - 1) >= i
       case _ => field_equals(expr, field) || is(expr, state)
     }
-  override def to_expression: Expr[G] =
+  override def to_expression(obj: Option[Expr[G]]): Expr[G] =
     field.t match {
       case TSeq(_) =>
         SeqSubscript(
-          Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o),
+          Deref[G](obj.getOrElse(AmbiguousThis()(field.o)), field.ref)(field.o)(
+            field.o
+          ),
           IntegerValue(i)(field.o),
         )(field.o)(field.o)
       case TArray(_) =>
         ArraySubscript(
-          Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o),
+          Deref[G](obj.getOrElse(AmbiguousThis()(field.o)), field.ref)(field.o)(
+            field.o
+          ),
           IntegerValue(i)(field.o),
         )(field.o)(field.o)
       case TPointer(_) =>
         PointerSubscript(
-          Deref[G](AmbiguousThis()(field.o), field.ref)(field.o)(field.o),
+          Deref[G](obj.getOrElse(AmbiguousThis()(field.o)), field.ref)(field.o)(
+            field.o
+          ),
           IntegerValue(i)(field.o),
         )(field.o)(field.o)
     }

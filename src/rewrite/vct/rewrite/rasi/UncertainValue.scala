@@ -309,6 +309,7 @@ case class UncertainSequence(
       )
     )
       return UncertainBooleanValue.from(false)
+
     val length: Option[Int] = len.try_to_resolve()
     val other_length: Option[Int] = other.len.try_to_resolve()
     if (

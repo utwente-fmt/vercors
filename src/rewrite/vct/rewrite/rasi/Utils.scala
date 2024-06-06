@@ -201,7 +201,7 @@ case object Utils {
         node_names,
         edges,
         w,
-        states.head.to_expression.toInlineString.length > 100,
+        states.head.to_expression(None).toInlineString.length > 100,
       )
     )
   }
@@ -218,9 +218,9 @@ case object Utils {
         if (shorten_labels)
           t._2
         else
-          t._1.to_expression.toInlineString
+          t._1.to_expression(None).toInlineString
       ).append(s"${"\""}];${if (shorten_labels)
-          s" /* ${t._1.to_expression.toInlineString} */"
+          s" /* ${t._1.to_expression(None).toInlineString} */"
         else
           ""}\n")
     )

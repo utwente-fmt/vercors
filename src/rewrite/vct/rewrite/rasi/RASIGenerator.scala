@@ -1,15 +1,7 @@
 package vct.rewrite.rasi
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.{
-  Deref,
-  Expr,
-  InstanceField,
-  InstanceMethod,
-  InstancePredicate,
-  Null,
-  Or,
-}
+import vct.col.ast.{AmbiguousThis, Deref, Expr, InstanceField, InstanceMethod, InstancePredicate, Node, Null, Or}
 import vct.col.origin.Origin
 import vct.rewrite.cfg.{CFGEntry, CFGGenerator}
 
@@ -29,11 +21,13 @@ class RASIGenerator[G] extends LazyLogging {
       entry_point: InstanceMethod[G],
       vars: Set[ConcreteVariable[G]],
       parameter_invariant: InstancePredicate[G],
+      program: Node[G],
   ): Expr[G] =
     generate_rasi(
       CFGGenerator().generate(entry_point),
       vars,
       parameter_invariant,
+      program,
     )
 
   def test(
@@ -53,11 +47,16 @@ class RASIGenerator[G] extends LazyLogging {
       node: CFGEntry[G],
       vars: Set[ConcreteVariable[G]],
       parameter_invariant: InstancePredicate[G],
+      program: Node[G],
   ): Expr[G] = {
     explore(node, vars, parameter_invariant)
     val distinct_states = found_states.distinctBy(s => s.valuations)
     logger.debug(s"${distinct_states.size} distinct states found")
-    distinct_states.map(s => s.to_expression)
+    val objs: Map[ConcreteVariable[G], Expr[G]] = find_fitting_objects(
+      program,
+      distinct_states.head.valuations.keySet,
+    )
+    distinct_states.map(s => s.to_expression(Some(objs)))
       .reduce((e1, e2) => Or(e1, e2)(e1.o))
   }
 
@@ -106,7 +105,7 @@ class RASIGenerator[G] extends LazyLogging {
         )
         val found_vars: Seq[String] = successor.deciding_variables.toSeq
           .sortWith((v1, v2) => v1.compare(v2))
-          .map(v => v.to_expression.toInlineString)
+          .map(v => v.to_expression(None).toInlineString)
         logger.debug(s"Variables found: $found_vars")
 
         considered_variables ++= successor.deciding_variables
@@ -204,12 +203,12 @@ class RASIGenerator[G] extends LazyLogging {
   private def reduce_redundant_states()
       : (Seq[AbstractState[G]], Seq[(AbstractState[G], AbstractState[G])]) = {
     val state_groups: Map[Expr[G], mutable.ArrayBuffer[AbstractState[G]]] = Map
-      .from(found_states.groupBy(s => s.to_expression))
+      .from(found_states.groupBy(s => s.to_expression(None)))
     val edge_groups: Seq[(AbstractState[G], AbstractState[G])] = Seq
       .from(found_edges.map(e =>
         (
-          state_groups(e.from.to_expression).head,
-          state_groups(e.to.to_expression).head,
+          state_groups(e.from.to_expression(None)).head,
+          state_groups(e.to.to_expression(None)).head,
         )
       ))
     (
@@ -217,4 +216,24 @@ class RASIGenerator[G] extends LazyLogging {
       edge_groups.distinct.filter(t => t._1 != t._2),
     )
   }
+
+  private def find_fitting_objects(
+      program: Node[G],
+      vars: Set[ConcreteVariable[G]],
+  ): Map[ConcreteVariable[G], Expr[G]] = {
+    var m: Map[ConcreteVariable[G], Expr[G]] = Map.empty[ConcreteVariable[G], Expr[G]]
+
+    for (v <- vars) {
+      v match {
+        case IndexedVariable(f, _) => m += (v -> find_field_object(program, f))
+        case FieldVariable(f) => m += (v -> find_field_object(program, f))
+        case SizeVariable(f) => m += (v -> find_field_object(program, f))
+        case LocalVariable(f) => m += (v -> AmbiguousThis()(f.o))
+      }
+    }
+
+    m
+  }
+
+  private def find_field_object(program: Node[G], field: InstanceField[G]): Expr[G] = ???
 }

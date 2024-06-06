@@ -869,10 +869,15 @@ case class AbstractState[G](
     * @return
     *   An expression that encodes this state
     */
-  def to_expression: Expr[G] = {
+  def to_expression(
+      objs: Option[Map[ConcreteVariable[G], Expr[G]]]
+  ): Expr[G] = {
     val sorted_valuations = valuations.toSeq
       .sortWith((t1, t2) => t1._1.compare(t2._1))
-    sorted_valuations.map(v => v._2.to_expression(v._1.to_expression))
-      .reduce((e1, e2) => And(e1, e2)(e1.o))
+    sorted_valuations.map(v =>
+      v._2.to_expression(
+        v._1.to_expression(Option.when(objs.nonEmpty)(objs.get.apply(v._1)))
+      )
+    ).reduce((e1, e2) => And(e1, e2)(e1.o))
   }
 }

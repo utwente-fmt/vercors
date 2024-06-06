@@ -326,11 +326,15 @@ case object Options {
           .action((_, c) => c.copy(vesuvGenerateRasi = true)).text(
             "Instead of transforming a SystemC design to PVL, generate a global invariant for a PVL program"
           ).children(
+            opt[Unit]("rasi-graph-output")
+              .action((_, c) => c.copy(vesuvRasiTest = true)).text(
+                "Output RASI graph to test the algorithm rather than outputting the invariant"
+              ),
             opt[Seq[String]]("rasi-vars").valueName("<var1>,...")
               .action((vars, c) => c.copy(vesuvRasiVariables = Some(vars)))
               .text(
                 "[WIP] Preliminary selection mechanism for RASI variables; might be replaced later"
-              )
+              ),
           ),
       ),
       note(""),
@@ -444,6 +448,7 @@ case class Options(
     // VeSUV options
     vesuvOutput: Path = null,
     vesuvGenerateRasi: Boolean = false,
+    vesuvRasiTest: Boolean = false,
     vesuvRasiVariables: Option[Seq[String]] = None,
 
     // Control flow graph options

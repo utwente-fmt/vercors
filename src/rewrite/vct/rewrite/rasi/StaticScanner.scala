@@ -66,8 +66,8 @@ class StaticScanner[G](initial_node: CFGNode[G], state: AbstractState[G]) {
       // If it is a collection, an update might only change other indices than those tracked
       // Therefore: evaluate the assignment explicitly to see if it affects the tracked variables      TODO: Consider arrays
       case _: TSeq[_] =>
-        state.to_expression != state.with_updated_collection(target, value)
-          .to_expression
+        state.to_expression(None) !=
+          state.with_updated_collection(target, value).to_expression(None)
     }
   }
 
@@ -77,7 +77,8 @@ class StaticScanner[G](initial_node: CFGNode[G], state: AbstractState[G]) {
     if (potential_successor.successors.size != 1)
       true
     else
-      state.to_expression != potential_successor.successors.head.to_expression
+      state.to_expression(None) !=
+        potential_successor.successors.head.to_expression(None)
   }
 
   private def postcondition_changes_vars(
@@ -89,10 +90,7 @@ class StaticScanner[G](initial_node: CFGNode[G], state: AbstractState[G]) {
     if (potential_successor.successors.size != 1)
       true
     else
-      state.to_expression != potential_successor.successors.head.to_expression
-  }
-
-  def scan_for_important_variables: Set[ConcreteVariable[G]] = {
-    ???
+      state.to_expression(None) !=
+        potential_successor.successors.head.to_expression(None)
   }
 }
