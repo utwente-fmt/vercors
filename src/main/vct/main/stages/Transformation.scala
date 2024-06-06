@@ -33,6 +33,7 @@ import vct.rewrite.{
   EncodeResourceValues,
   ExplicitResourceValues,
   HeapVariableToRef,
+  InlineTrivialLets,
   MonomorphizeClass,
   SmtlibToProverTypes,
 }
@@ -334,6 +335,7 @@ case class SilverTransformation(
         EncodeIntrinsicLock,
         EncodeForkJoin,
         InlineApplicables,
+        InlineTrivialLets,
 
         // VeyMont choreography encoding
         // Explicitly after InlineApplicables such that VeyMont doesn't care about inline predicates
