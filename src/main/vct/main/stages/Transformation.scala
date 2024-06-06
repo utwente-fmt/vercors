@@ -50,6 +50,7 @@ import vct.rewrite.veymont.{
   GenerateChoreographyPermissions,
   GenerateImplementation,
   InferEndpointContexts,
+  PushInChor,
   SpecializeEndpointClasses,
   StratifyExpressions,
   StratifyUnpointedExpressions,
@@ -341,6 +342,7 @@ case class SilverTransformation(
         // Explicitly after InlineApplicables such that VeyMont doesn't care about inline predicates
         GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
         InferEndpointContexts,
+        PushInChor.withArg(veymontGeneratePermissions),
         StratifyExpressions,
         StratifyUnpointedExpressions,
         DeduplicateChorGuards,

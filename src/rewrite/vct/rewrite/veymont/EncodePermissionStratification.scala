@@ -35,10 +35,7 @@ case class EncodePermissionStratification[Pre <: Generation](
     veymontGeneratePermissions: Boolean
 ) extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
-  override def dispatch(program: Program[Pre]): Program[Post] = {
-    mappings.program = program
-    super.dispatch(program)
-  }
+  val inChor = ScopedStack[Boolean]()
 
   type WrapperPredicateKey = (TClass[Pre], Type[Pre], InstanceField[Pre])
   val wrapperPredicates = mut
@@ -114,6 +111,11 @@ case class EncodePermissionStratification[Pre <: Generation](
           Perm(dispatch(loc), dispatch(perm))(expr.o)
         case _ => expr.rewriteDefault()
       }
+  }
+
+  override def dispatch(program: Program[Pre]): Program[Post] = {
+    mappings.program = program
+    super.dispatch(program)
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
@@ -204,6 +206,8 @@ case class EncodePermissionStratification[Pre <: Generation](
             })
         }
 
+        val newInner = inChor.having(true) { dispatch(inner) }
+
         InferEndpointContexts.getEndpoints(inner).flatMap { endpoint =>
           predicates(
             HashSet(),
@@ -211,7 +215,7 @@ case class EncodePermissionStratification[Pre <: Generation](
             endpoint.t,
             EndpointName[Post](succ(endpoint)),
           )
-        }.foldRight[Expr[Post]](dispatch(inner)) { case (app, inner) =>
+        }.foldRight[Expr[Post]](newInner) { case (app, inner) =>
           Unfolding[Post](app, inner)(PanicBlame(
             "Generating permissions should be good"
           ))
@@ -253,11 +257,11 @@ case class EncodePermissionStratification[Pre <: Generation](
         )
       case EndpointStatement(Some(Ref(endpoint)), assert: Assert[Pre]) =>
         currentEndpoint.having(endpoint) { assert.rewriteDefault() }
-      case EndpointStatement(_, eval: Eval[Pre]) =>
-        Block(Seq())(statement.o)
-        throw new Exception(statement.o.messageInContext(
-          "Eval with permission stratification not yet supported"
-        ))
+      case EndpointStatement(_, eval: Eval[Pre]) => Block(Seq())(statement.o)
+      // TODO (RR): Implement this
+//        throw new Exception(statement.o.messageInContext(
+//          "Eval with permission stratification not yet supported"
+//        ))
       case _ => statement.rewriteDefault()
     }
 }
