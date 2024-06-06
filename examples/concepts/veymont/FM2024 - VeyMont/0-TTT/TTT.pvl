@@ -14,7 +14,6 @@ choreography TTT() {
   ensures (\chor p1.gameFinished() && p2.gameFinished());
   run {
     loop_invariant (\chor ticTacToeAnnotations(p1, p2));
-    loop_invariant (\chor !p1.gameFinished() == !p2.gameFinished());
     while(!p1.gameFinished() && !p2.gameFinished()) {
       if(p1.turn && !p2.turn) {
         p1.createNewMove();
