@@ -21,6 +21,7 @@ import vct.col.origin.{Name, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.rewrite.veymont
 
+import scala.collection.immutable.HashSet
 import scala.collection.{mutable => mut}
 
 object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
@@ -45,17 +46,16 @@ case class EncodePermissionStratification[Pre <: Generation](
 
   def wrapperPredicate(
       endpoint: Endpoint[Pre],
-      // TODO (RR): Can this obj param be omitted, as instancefield implies one unique class type
-      obj: Expr[Pre],
+      objT: Type[Pre],
       field: InstanceField[Pre],
   )(implicit o: Origin): Ref[Post, Predicate[Post]] = {
-    val k = (endpoint.t, obj.t, field)
+    val k = (endpoint.t, objT, field)
     wrapperPredicates.getOrElseUpdate(
       k, {
         logger.debug(s"Declaring wrapper predicate for $k")
         val endpointArg =
           new Variable(dispatch(endpoint.t))(o.where(name = "endpoint"))
-        val objectArg = new Variable(dispatch(obj.t))(o.where(name = "obj"))
+        val objectArg = new Variable(dispatch(objT))(o.where(name = "obj"))
         val body = Perm[Post](
           FieldLocation(objectArg.get, succ(field)),
           WritePerm(),
@@ -76,7 +76,7 @@ case class EncodePermissionStratification[Pre <: Generation](
       field: InstanceField[Pre],
   )(implicit o: Origin): Ref[Post, Function[Post]] = {
     val k = (endpoint.t, obj.t, field)
-    val pred = wrapperPredicate(endpoint, obj, field)
+    val pred = wrapperPredicate(endpoint, obj.t, field)
     readFunctions.getOrElseUpdate(
       k, {
         logger.debug(s"Declaring read function for $k")
@@ -152,7 +152,7 @@ case class EncodePermissionStratification[Pre <: Generation](
           ) =>
         implicit val o = expr.o
         PredicateApply(
-          wrapperPredicate(endpoint, loc.obj, loc.field.decl)(expr.o),
+          wrapperPredicate(endpoint, loc.obj.t, loc.field.decl)(expr.o),
           Seq(EndpointName(succ(endpoint)), dispatch(loc.obj)),
           dispatch(perm),
         )
@@ -171,28 +171,52 @@ case class EncodePermissionStratification[Pre <: Generation](
 
       case ChorExpr(inner) if veymontGeneratePermissions =>
         implicit val o = expr.o
-        val endpoints = InferEndpointContexts.getEndpoints(inner)
-        val fields = endpoints.flatMap { endpoint =>
-          endpoint.cls.decl.decls.collect { case field: InstanceField[Pre] =>
-            (endpoint, field)
-          }
-        }
-        fields.foldRight[Expr[Post]](dispatch(inner)) {
-          case ((endpoint, field), base) =>
-            val pred = wrapperPredicate(
-              endpoint,
-              EndpointName(endpoint.ref),
-              field,
+
+        def predicates(
+            seenClasses: Set[TClass[Pre]],
+            endpoint: Endpoint[Pre],
+            baseT: TClass[Pre],
+            base: Expr[Post],
+        ): Seq[PredicateApply[Post]] = {
+          val cls = baseT.cls.decl
+          // Permission generation makes sure no cycles exist at this point by crashing, but lets make sure anyway
+          assert(!seenClasses.contains(baseT))
+          val newSeenClasses = seenClasses.incl(baseT)
+          val predicatesForClass = cls.fields.map { field =>
+            PredicateApply[Post](
+              wrapperPredicate(endpoint, baseT, field),
+              Seq(EndpointName(succ(endpoint)), base),
+              WritePerm(),
             )
-            Unfolding[Post](
-              PredicateApply(
-                pred,
-                Seq(EndpointName(succ(endpoint)), EndpointName(succ(endpoint))),
-                WritePerm(),
-              ),
-              base,
-            )(PanicBlame("Generating permissions should be good"))
+          }
+          predicatesForClass ++
+            (cls.fields.filter { _.t.asClass.nonEmpty }.flatMap { field =>
+              val newBase =
+                Deref[Post](base, succ(field))(PanicBlame(
+                  "Permissions were unfolded earlier"
+                ))
+              predicates(
+                newSeenClasses,
+                endpoint,
+                baseT.instantiate(field.t).asClass.get,
+                newBase,
+              )
+            })
         }
+
+        InferEndpointContexts.getEndpoints(inner).flatMap { endpoint =>
+          predicates(
+            HashSet(),
+            endpoint,
+            endpoint.t,
+            EndpointName[Post](succ(endpoint)),
+          )
+        }.foldRight[Expr[Post]](dispatch(inner)) { case (app, inner) =>
+          Unfolding[Post](app, inner)(PanicBlame(
+            "Generating permissions should be good"
+          ))
+        }
+
       case _ => expr.rewriteDefault()
     }
 
@@ -205,7 +229,7 @@ case class EncodePermissionStratification[Pre <: Generation](
         implicit val o = statement.o
         val apply = {
           val newEndpoint: Ref[Post, Endpoint[Post]] = succ(endpoint)
-          val ref = wrapperPredicate(endpoint, obj, field)
+          val ref = wrapperPredicate(endpoint, obj.t, field)
           PredicateApply[Post](
             ref,
             Seq(EndpointName(newEndpoint), dispatch(obj)),
