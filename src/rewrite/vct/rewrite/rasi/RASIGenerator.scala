@@ -1,7 +1,19 @@
 package vct.rewrite.rasi
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.{AmbiguousThis, Deref, Expr, InstanceField, InstanceMethod, InstancePredicate, Node, Null, Or}
+import vct.col.ast.{
+  AmbiguousThis,
+  Class,
+  Deref,
+  Expr,
+  InstanceField,
+  InstanceMethod,
+  InstancePredicate,
+  Node,
+  Null,
+  Or,
+  TClass,
+}
 import vct.col.origin.Origin
 import vct.rewrite.cfg.{CFGEntry, CFGGenerator}
 
@@ -221,13 +233,24 @@ class RASIGenerator[G] extends LazyLogging {
       program: Node[G],
       vars: Set[ConcreteVariable[G]],
   ): Map[ConcreteVariable[G], Expr[G]] = {
-    var m: Map[ConcreteVariable[G], Expr[G]] = Map.empty[ConcreteVariable[G], Expr[G]]
+    var m: Map[ConcreteVariable[G], Expr[G]] = Map
+      .empty[ConcreteVariable[G], Expr[G]]
+
+    val classes: Seq[Class[G]] = program.transSubnodes.collect[Class[G]] {
+      case c: Class[G] => c
+    }
+    // TODO: Find differently, e.g. with lock invariant?
+    val main_class: Class[G] =
+      classes.find(c => c.o.getPreferredName.get.camel.startsWith("main")).get
 
     for (v <- vars) {
       v match {
-        case IndexedVariable(f, _) => m += (v -> find_field_object(program, f))
-        case FieldVariable(f) => m += (v -> find_field_object(program, f))
-        case SizeVariable(f) => m += (v -> find_field_object(program, f))
+        case IndexedVariable(f, _) =>
+          m += (v -> find_field_object(classes, main_class, f))
+        case FieldVariable(f) =>
+          m += (v -> find_field_object(classes, main_class, f))
+        case SizeVariable(f) =>
+          m += (v -> find_field_object(classes, main_class, f))
         case LocalVariable(f) => m += (v -> AmbiguousThis()(f.o))
       }
     }
@@ -235,5 +258,22 @@ class RASIGenerator[G] extends LazyLogging {
     m
   }
 
-  private def find_field_object(program: Node[G], field: InstanceField[G]): Expr[G] = ???
+  private def find_field_object(
+      classes: Seq[Class[G]],
+      main: Class[G],
+      field: InstanceField[G],
+  ): Expr[G] = {
+    val type_class: Class[G] = classes.find(c => c.decls.contains(field)).get
+    if (type_class == main)
+      return AmbiguousThis()(field.o)
+
+    val obj: InstanceField[G] =
+      main.decls.collectFirst {
+        case f: InstanceField[G]
+          if f.t.isInstanceOf[TClass[G]] &&
+            f.t.asInstanceOf[TClass[G]].cls.decl == type_class =>
+          f
+      }.get
+    Deref[G](AmbiguousThis()(field.o), obj.ref)(field.o)(field.o)
+  }
 }

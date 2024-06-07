@@ -91,7 +91,7 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
         val buf = new StringBuffer()
         in.write(buf)(ctx)
         val path = s"unknown.${extension(syntax)}"
-        Seq(LiteralReadable(buf.toString, path))
+        Seq(LiteralReadable(path, buf.toString))
       }
 
     (out, txts) match {

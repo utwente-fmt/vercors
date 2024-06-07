@@ -1,22 +1,12 @@
 package vct.main.stages
 
 import hre.stages.Stage
-import vct.col.ast.{
-  Expr,
-  InstanceField,
-  InstanceMethod,
-  InstancePredicate,
-  Node,
-}
+import vct.col.ast.{Expr, InstanceField, InstanceMethod, InstancePredicate, Node, Predicate, Program, Verification, VerificationContext}
+import vct.col.origin.{LabelContext, Origin, PreferredName}
+import vct.col.print.Ctx
 import vct.col.rewrite.Generation
 import vct.options.Options
-import vct.rewrite.rasi.{
-  ConcreteVariable,
-  FieldVariable,
-  IndexedVariable,
-  RASIGenerator,
-  SizeVariable,
-}
+import vct.rewrite.rasi.{ConcreteVariable, FieldVariable, IndexedVariable, RASIGenerator, SizeVariable}
 
 import java.nio.file.Path
 
@@ -55,6 +45,10 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path, test: Boolean)
     } else {
       val rasi: Expr[Generation] = new RASIGenerator()
         .execute(main_method, variables, parameter_invariant, in)
+      implicit val o: Origin = Origin(Seq(LabelContext("rasi-generation"))).withContent(PreferredName(Seq("reachable_abstract_states_invariant")))
+      val predicate: Predicate[Generation] = new Predicate(Seq(), Some(rasi))
+      val verification: Verification[Generation] = Verification(Seq(VerificationContext(Program(Seq(predicate))(o))), Seq())
+      Output(Some(out), Ctx.PVL, false).run(verification)
     }
   }
 
