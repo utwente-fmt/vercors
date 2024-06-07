@@ -20,6 +20,7 @@ import EncodeChoreography.{
 import vct.col.origin.{Name, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.rewrite.veymont
+import vct.result.VerificationError.UserError
 
 import scala.collection.immutable.HashSet
 import scala.collection.{mutable => mut}
@@ -28,6 +29,14 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
   override def key: String = "encodePermissionStratification"
   override def desc: String =
     "Encodes stratification of permissions by wrapping each permission in an opaque predicate, guarding the permission using an endpoint reference."
+
+  case class NestedFunctionInvocationError(inv: Node[_]) extends UserError {
+    override def code: String = "nestedFunctionInvocationError"
+    override def text: String =
+      inv.o.messageInContext(
+        "Nested function invocations to be specialized by VeyMont is not supported"
+      )
+  }
 }
 
 // TODO (RR): Document here the hack to make \chor work
@@ -36,6 +45,23 @@ case class EncodePermissionStratification[Pre <: Generation](
 ) extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
   val inChor = ScopedStack[Boolean]()
+  lazy val specialized
+      : mut.LinkedHashMap[AbstractFunction[Pre], Seq[Endpoint]] = {
+    val entries = mappings.program.collect { case expr: EndpointExpr[Pre] =>
+      val funs = expr.collect { case inv: AnyFunctionInvocation[Pre] =>
+        inv.ref.decl
+      }
+      // If necessary, a fixpoint procedure can be implemented that marks
+      // all functions called by a function to be specialized as a specialized
+      // function as well. For now we just crash as I don't need it at the
+      // moment.
+      funs.collect { case inv: AnyFunctionInvocation[Pre] =>
+        throw new NestedFunctionInvocationError(inv)
+      }
+      (expr.endpoint.decl, funs)
+    }
+    mut.LinkedHashMap.from(mappings)
+  }
 
   type WrapperPredicateKey = (TClass[Pre], Type[Pre], InstanceField[Pre])
   val wrapperPredicates = mut
@@ -227,15 +253,17 @@ case class EncodePermissionStratification[Pre <: Generation](
         inChor.having(true) { dispatch(inner) }
 
       // Generate an invocation to the unspecialized function version
+      // The natural successor of the function will be the unspecialized one
       case inv: FunctionInvocation[Pre] if inChor.topOption.contains(true) =>
-        inv.rewrite(ref = ???)
+        inv.rewriteDefault()
       case inv: InstanceFunctionInvocation[Pre]
           if inChor.topOption.contains(true) =>
-        inv.rewrite(ref = ???)
+        inv.rewriteDefault()
 
-      case InEndpoint(_, endpoint, inv: AnyFunctionInvocation[Pre]) =>
+      case InEndpoint(_, endpoint, inv: FunctionInvocation[Pre]) =>
         // ???
         ???
+      case InEndpoint(_, endpoint, inv: InstanceFunctionInvocation[Pre]) => ???
 
       case _ => expr.rewriteDefault()
     }
