@@ -1,14 +1,35 @@
 package vct.main.stages
 
+import com.typesafe.scalalogging.LazyLogging
+import hre.io.LiteralReadable
 import hre.stages.Stage
-import vct.col.ast.{Expr, InstanceField, InstanceMethod, InstancePredicate, Node, Predicate, Program, Verification, VerificationContext}
+import vct.col.ast.{
+  Declaration,
+  Deref,
+  Expr,
+  InstanceField,
+  InstanceMethod,
+  InstancePredicate,
+  Node,
+  Predicate,
+  Program,
+  Verification,
+  VerificationContext,
+}
 import vct.col.origin.{LabelContext, Origin, PreferredName}
 import vct.col.print.Ctx
 import vct.col.rewrite.Generation
 import vct.options.Options
-import vct.rewrite.rasi.{ConcreteVariable, FieldVariable, IndexedVariable, RASIGenerator, SizeVariable}
+import vct.rewrite.rasi.{
+  ConcreteVariable,
+  FieldVariable,
+  IndexedVariable,
+  RASIGenerator,
+  SizeVariable,
+}
 
-import java.nio.file.Path
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
 
 case object GenerateRASI {
   def ofOptions(options: Options): Stage[Node[_ <: Generation], Unit] = {
@@ -21,7 +42,7 @@ case object GenerateRASI {
 }
 
 case class GenerateRASI(vars: Option[Seq[String]], out: Path, test: Boolean)
-    extends Stage[Node[_ <: Generation], Unit] {
+    extends Stage[Node[_ <: Generation], Unit] with LazyLogging {
 
   override def friendlyName: String =
     "Generate reachable abstract states invariant"
@@ -45,11 +66,35 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path, test: Boolean)
     } else {
       val rasi: Expr[Generation] = new RASIGenerator()
         .execute(main_method, variables, parameter_invariant, in)
-      implicit val o: Origin = Origin(Seq(LabelContext("rasi-generation"))).withContent(PreferredName(Seq("reachable_abstract_states_invariant")))
+      implicit val o: Origin = Origin(Seq(LabelContext("rasi-generation")))
+        .withContent(PreferredName(Seq("reachable_abstract_states_invariant")))
       val predicate: Predicate[Generation] = new Predicate(Seq(), Some(rasi))
-      val verification: Verification[Generation] = Verification(Seq(VerificationContext(Program(Seq(predicate))(o))), Seq())
-      Output(Some(out), Ctx.PVL, false).run(verification)
+      val verification: Verification[Generation] = Verification(
+        Seq(VerificationContext(Program(Seq(predicate))(o))),
+        Seq(),
+      )
+
+      val name_map: Map[Declaration[_], String] = Map
+        .from(rasi.transSubnodes.collect { case Deref(_, ref) =>
+          ref.decl -> ref.decl.o.getPreferredName.get.snake
+        })
+      print(verification, name_map)
     }
+  }
+
+  private def print(
+      in: Verification[_ <: Generation],
+      name_map: Map[Declaration[_], String],
+  ): Unit = {
+    val ctx = Ctx(syntax = Ctx.PVL, names = name_map)
+
+    val buf = new StringBuffer()
+    in.write(buf)(ctx)
+    val path = s"unknown.pvl"
+    val txt = LiteralReadable(path, buf.toString)
+
+    logger.info(s"Writing ${txt.fileName} to $out")
+    Files.write(out, txt.data.getBytes(StandardCharsets.UTF_8))
   }
 
   private def resolve_variable(
