@@ -157,6 +157,16 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
           )
         }
 
+      case comm: Communicate[Pre] =>
+        val perms =
+          transitivePerm(Message[Post](succ(comm))(comm.o), comm.msg.t)(comm.o)
+        val invariant =
+          comm.invariant match {
+            case BooleanValue(true) => perms
+            case _ => (perms &* dispatch(comm.invariant))(comm.o)
+          }
+        comm.rewrite(invariant = invariant).succeed(comm)
+
       case decl => super.dispatch(decl)
     }
 
@@ -294,11 +304,16 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
   def fieldTransitivePerm(`this`: Expr[Post], f: InstanceField[Pre])(
       implicit o: Origin
   ): Expr[Post] = {
-    fieldPerm[Post](`this`, succ(f), WritePerm()) &* transitivePerm(
-      Deref[Post](`this`, succ(f))(PanicBlame(
-        "Permission for this field is already established"
-      )),
-      f.t,
-    )
+    val left = fieldPerm[Post](`this`, succ(f), WritePerm())
+    f.t match {
+      case _: TClass[Pre] | _: TArray[Pre] =>
+        left &* transitivePerm(
+          Deref[Post](`this`, succ(f))(PanicBlame(
+            "Permission for this field is already established"
+          )),
+          f.t,
+        )
+      case _ => left
+    }
   }
 }

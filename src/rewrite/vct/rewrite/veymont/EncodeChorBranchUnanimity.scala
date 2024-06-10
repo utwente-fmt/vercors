@@ -10,6 +10,7 @@ import vct.col.origin.{
   LoopUnanimityNotEstablished,
   LoopUnanimityNotMaintained,
   Origin,
+  PanicBlame,
 }
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -92,7 +93,8 @@ case class EncodeChorBranchUnanimity[Pre <: Generation]()
         val maintainAssertions: Statement[Post] = Block(
           guards.indices.init.map { i =>
             Assert(dispatch(guards(i)) === dispatch(guards(i + 1)))(
-              ForwardLoopUnanimityNotMaintained(loop, guards(i), guards(i + 1))
+              PanicBlame("ForwardLoopUnanimityNotMaintained")
+//              ForwardLoopUnanimityNotMaintained(loop, guards(i), guards(i + 1))
             )
           }
         )
