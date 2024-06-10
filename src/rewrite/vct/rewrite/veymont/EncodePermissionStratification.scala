@@ -51,42 +51,52 @@ case class EncodePermissionStratification[Pre <: Generation](
   lazy val specialized
       : mut.LinkedHashMap[AbstractFunction[Pre], Seq[Endpoint[Pre]]] = {
     val map = mut.LinkedHashMap[AbstractFunction[Pre], Seq[Endpoint[Pre]]]()
-    mappings
-      // For each endpoint expr
-      .program.collect {
-        // Get all function invocations from endpoint contexts
-        case expr: EndpointExpr[Pre] =>
-          (
-            expr.endpoint.decl,
-            expr.collect { case inv: AnyFunctionInvocation[Pre] =>
-              inv.ref.decl
-            },
-          )
-        case stmt: EndpointStatement[Pre] =>
-          (
-            stmt.endpoint.get.decl,
-            stmt.collect { case inv: AnyFunctionInvocation[Pre] =>
-              inv.ref.decl
-            },
-          )
-      }.flatMap { case (endpoint, funs) =>
-        // If necessary, a fixpoint procedure can be implemented that marks
-        // all functions called by a function to be specialized as a specialized
-        // function as well. For now we just crash as I don't need it at the
-        // moment.
-        funs.foreach { f =>
-          f.foreach { case inv: AnyFunctionInvocation[Pre] =>
-            throw NestedFunctionInvocationError(inv)
+    val specializations = mut.LinkedHashSet.from(
+      mappings
+        // For each endpoint expr
+        .program.collect {
+          // Get all function invocations from endpoint contexts
+          case expr: EndpointExpr[Pre] =>
+            (
+              expr.endpoint.decl,
+              expr.collect { case inv: AnyFunctionInvocation[Pre] =>
+                inv.ref.decl
+              },
+            )
+          case stmt: EndpointStatement[Pre] =>
+            (
+              stmt.endpoint.get.decl,
+              stmt.collect { case inv: AnyFunctionInvocation[Pre] =>
+                inv.ref.decl
+              },
+            )
+        }.flatMap { case (endpoint, funs) =>
+          // If necessary, a fixpoint procedure can be implemented that marks
+          // all functions called by a function to be specialized as a specialized
+          // function as well. For now we just crash as I don't need it at the
+          // moment.
+          funs.foreach { f =>
+            f.foreach { case inv: AnyFunctionInvocation[Pre] =>
+              throw NestedFunctionInvocationError(inv)
+            }
           }
+          // Tag each function invocation with the endpoint context
+          funs.map { f => (endpoint, f) }
         }
-        // Tag each function invocation with the endpoint context
-        funs.map { f => (endpoint, f) }
-      }.foreach { case (endpoint, f) =>
-        map.updateWith(f) {
-          case None => Some(Seq(endpoint))
-          case Some(endpoints) => Some(endpoint +: endpoints)
-        }
+    )
+    var changes = true
+    while (changes) {
+      changes = false
+      val funs = specializations.map(_._2)
+      ???
+    }
+
+    specializations.foreach { case (endpoint, f) =>
+      map.updateWith(f) {
+        case None => Some(Seq(endpoint))
+        case Some(endpoints) => Some(endpoint +: endpoints)
       }
+    }
     map
   }
 
@@ -432,7 +442,9 @@ case class EncodePermissionStratification[Pre <: Generation](
         )
       case EndpointStatement(Some(Ref(endpoint)), assert: Assert[Pre]) =>
         currentEndpoint.having(endpoint) { assert.rewriteDefault() }
-      case EndpointStatement(_, eval: Eval[Pre]) => Block(Seq())(statement.o)
+      case EndpointStatement(_, eval: Eval[Pre]) =>
+        logger.warn("Throwing away endpoint statement with eval!")
+        Block(Seq())(statement.o)
       // TODO (RR): Implement this
 //        throw new Exception(statement.o.messageInContext(
 //          "Eval with permission stratification not yet supported"
