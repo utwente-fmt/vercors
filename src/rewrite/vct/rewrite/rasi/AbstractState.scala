@@ -25,6 +25,21 @@ case class AbstractState[G](
     )
   }
 
+  /** Returns a state with the same tracked variables, but with no knowledge of
+    * their values.
+    *
+    * @return
+    *   A copy of this state with all variable values perfectly uncertain
+    */
+  def reset: AbstractState[G] = {
+    AbstractState(
+      valuations.map(v => v._1 -> UncertainValue.uncertain_of(v._1.t)),
+      processes,
+      lock,
+      parameters,
+    )
+  }
+
   /** Updates the state by changing the program counter for a process.
     *
     * @param process

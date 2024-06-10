@@ -64,8 +64,8 @@ class StaticScanner[G](initial_node: CFGNode[G], state: AbstractState[G]) {
       // If it is a collection, an update might only change other indices than those tracked
       // Therefore: evaluate the assignment explicitly to see if it affects the tracked variables      TODO: Consider arrays
       case _: TSeq[_] =>
-        state.to_expression(None) !=
-          state.with_updated_collection(target, value).to_expression(None)
+        state.reset.to_expression(None) !=
+          state.reset.with_updated_collection(target, value).to_expression(None)
     }
   }
 

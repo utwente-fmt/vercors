@@ -57,7 +57,7 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path, test: Boolean)
       )
 
       val name_map: Map[Declaration[_], String] = Map
-        .from(rasi.transSubnodes.collect {
+        .from(predicate.transSubnodes.collect {
           case Deref(_, ref) =>
             ref.decl -> ref.decl.o.getPreferredName.get.snake
           case p: Predicate[_] => p -> p.o.getPreferredName.get.snake

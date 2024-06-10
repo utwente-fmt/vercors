@@ -1100,8 +1100,8 @@ public class MainTransformer<T> {
                 col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
         Assign<T> assign_ma = new Assign<>(ma_local, fma_invoke, new GeneratedBlame<>(), OriGen.create());
 
-        // Set min_advance to zero if it is -1
-        Eq<T> cond = new Eq<>(ma_local, col_system.MINUS_ONE, OriGen.create());
+        // Set min_advance to zero if it is less than or equal to -1
+        LessEq<T> cond = new LessEq<>(ma_local, col_system.MINUS_ONE, OriGen.create());
         Assign<T> reset_ma = new Assign<>(ma_local, col_system.ZERO, new GeneratedBlame<>(), OriGen.create());
         java.util.List<Tuple2<Expr<T>, Statement<T>>> branches = java.util.List.of(new Tuple2<>(cond, reset_ma));
         Branch<T> cond_reset_ma = new Branch<>(List.from(CollectionConverters.asScala(branches)), OriGen.create());
