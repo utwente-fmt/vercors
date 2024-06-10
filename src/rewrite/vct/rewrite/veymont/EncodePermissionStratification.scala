@@ -38,10 +38,12 @@ case class EncodePermissionStratification[Pre <: Generation](
 
   val inChor = ScopedStack[Boolean]()
 
-  lazy val specializedApplicables = findInContext {
-    case inv: AnyFunctionInvocation[Pre] => inv.ref.decl
-    case inv: MethodInvocation[Pre] => inv.ref.decl
-  }
+  lazy val specializedApplicables
+      : mut.LinkedHashMap[ContractApplicable[Pre], Seq[Endpoint[Pre]]] =
+    findInContext {
+      case inv: AnyFunctionInvocation[Pre] => inv.ref.decl
+      case inv: MethodInvocation[Pre] => inv.ref.decl
+    }
 
   def findInContext[T <: Node[Pre]](
       f: PartialFunction[Node[Pre], T]
@@ -62,7 +64,6 @@ case class EncodePermissionStratification[Pre <: Generation](
     // Do a transitive closure given the selector function f
     var changes = true
     while (changes) {
-      println("iter")
       changes = false
       val oldSize = specializations.size
       specializations.flatMap { case (endpoint, t) =>
@@ -81,12 +82,10 @@ case class EncodePermissionStratification[Pre <: Generation](
     map
   }
 
-  val specializedFunctionSucc =
-    SuccessionMap[(Endpoint[Pre], AbstractFunction[Pre]), AbstractFunction[
+  val specializedApplicableSucc =
+    SuccessionMap[(Endpoint[Pre], ContractApplicable[Pre]), ContractApplicable[
       Post
     ]]()
-  val specializedMethodSucc =
-    SuccessionMap[(Endpoint[Pre], InstanceMethod[Pre]), InstanceMethod[Post]]()
 
   // Keeps track of the current anchoring/endpoint context identity expression for the current endpoint context.
   // E.g. within a choreograph, it is EndpointName(succ(endpoint)), within a specialized function it is a local
@@ -171,7 +170,6 @@ case class EncodePermissionStratification[Pre <: Generation](
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     mappings.program = program
-    println(specializedFunctions)
     super.dispatch(program)
   }
 
@@ -195,22 +193,29 @@ case class EncodePermissionStratification[Pre <: Generation](
             ))
           ).succeed(chor)
         }
-      case f: Function[Pre] if specializedFunctions.contains(f) =>
+      case f: Function[Pre] if specializedApplicables.contains(f) =>
         f.rewriteDefault().succeed(f)
-        specializeFunction(f)
-      case f: InstanceFunction[Pre] if specializedFunctions.contains(f) =>
+        specializeApplicable(f)
+      case f: InstanceFunction[Pre] if specializedApplicables.contains(f) =>
         f.rewriteDefault().succeed(f)
-        specializeFunction(f)
-      case m: InstanceMethod[Pre] if specializedMethods.contains(m) =>
+        specializeApplicable(f)
+      case m: InstanceMethod[Pre] if specializedApplicables.contains(m) =>
         m.rewriteDefault().succeed(m)
-        specializeMethod(m)
+        specializeApplicable(m)
       case _ => super.dispatch(decl)
     }
 
-  def specializeFunction(f: AbstractFunction[Pre]): Unit = {
+  def specializeApplicable(app: ContractApplicable[Pre]): Unit = {
+    assert(app match {
+      case _: InstanceMethod[Pre] |
+          _: InstanceFunction[Pre] | _: Function[Pre] =>
+        true
+      case _ => false
+    })
+
     def nameOrigin(
         endpoint: Endpoint[Pre],
-        f: AbstractFunction[Pre],
+        f: ContractApplicable[Pre],
     ): Origin = {
       f.o.where(indirect =
         Name.names(
@@ -220,33 +225,43 @@ case class EncodePermissionStratification[Pre <: Generation](
       )
     }
 
-    specializedFunctions(f).foreach { endpoint =>
+    specializedApplicables(app).foreach { endpoint =>
       // Make sure the unnapply methods InChor/InEndpoint pick this rewrite up
       currentChoreography.having(choreographyOf(endpoint)) {
         currentEndpoint.having(endpoint) {
-          val endpointCtxVar =
-            new Variable(dispatch(endpoint.t))(
-              currentChoreography.top.o
-                .where(indirect = Name.strings("endpoint", "ctx"))
-            )
-          // Make sure plain perms are rewritten into wrapped perms
-          specializing.having(endpointCtxVar.get(f.o)) {
-            val newF =
-              f match {
-                case f: InstanceFunction[Pre] =>
-                  val newF = f.rewrite(
-                    args = endpointCtxVar +: variables.dispatch(f.args),
-                    o = nameOrigin(endpoint, f),
-                  )
-                  newF.declare()
-                case f: Function[Pre] =>
-                  val newF = f.rewrite(
-                    args = endpointCtxVar +: variables.dispatch(f.args),
-                    o = nameOrigin(endpoint, f),
-                  )
-                  newF.declare()
-              }
-            specializedFunctionSucc((endpoint, f)) = newF
+          variables.scope {
+            val endpointCtxVar =
+              new Variable(dispatch(endpoint.t))(
+                currentChoreography.top.o
+                  .where(indirect = Name.strings("endpoint", "ctx"))
+              )
+
+            // Make sure plain perms are rewritten into wrapped perms
+            specializing.having(endpointCtxVar.get(app.o)) {
+              val newF: ContractApplicable[Post] =
+                app match {
+                  case f: InstanceFunction[Pre] =>
+                    val newF = f.rewrite(
+                      args = endpointCtxVar +: variables.dispatch(f.args),
+                      o = nameOrigin(endpoint, f),
+                    )
+                    newF.declare()
+                  case f: Function[Pre] =>
+                    val newF = f.rewrite(
+                      args = endpointCtxVar +: variables.dispatch(f.args),
+                      o = nameOrigin(endpoint, f),
+                    )
+                    newF.declare()
+                  case m: InstanceMethod[Pre] =>
+                    val newM = m.rewrite(
+                      args = endpointCtxVar +: variables.dispatch(m.args),
+                      body = None,
+                      o = nameOrigin(endpoint, m),
+                    )
+                    newM.declare()
+                }
+              specializedApplicableSucc((endpoint, app)) = newF
+            }
           }
         }
       }
@@ -374,13 +389,19 @@ case class EncodePermissionStratification[Pre <: Generation](
       case InEndpoint(_, endpoint, inv: FunctionInvocation[Pre]) =>
         val k = (endpoint, inv.ref.decl)
         inv.rewrite(
-          ref = specializedFunctionSucc.ref(k),
+          ref = specializedApplicableSucc.ref(k),
           args = specializing.top +: inv.args.map(dispatch),
         )
       case InEndpoint(_, endpoint, inv: InstanceFunctionInvocation[Pre]) =>
         val k = (endpoint, inv.ref.decl)
         inv.rewrite(
-          ref = specializedFunctionSucc.ref(k),
+          ref = specializedApplicableSucc.ref(k),
+          args = specializing.top +: inv.args.map(dispatch),
+        )
+      case InEndpoint(_, endpoint, inv: MethodInvocation[Pre]) =>
+        val k = (endpoint, inv.ref.decl)
+        inv.rewrite(
+          ref = specializedApplicableSucc.ref(k),
           args = specializing.top +: inv.args.map(dispatch),
         )
 
@@ -426,13 +447,12 @@ case class EncodePermissionStratification[Pre <: Generation](
             assert.rewriteDefault()
           }
         }
-      case EndpointStatement(_, eval: Eval[Pre]) =>
-        logger.warn("Throwing away endpoint statement with eval!")
-        Block(Seq())(statement.o)
-      // TODO (RR): Implement this
-//        throw new Exception(statement.o.messageInContext(
-//          "Eval with permission stratification not yet supported"
-//        ))
+      case EndpointStatement(Some(Ref(endpoint)), eval: Eval[Pre]) =>
+        currentEndpoint.having(endpoint) {
+          specializing.having(EndpointName[Post](succ(endpoint))(statement.o)) {
+            eval.rewriteDefault()
+          }
+        }
       case _ => statement.rewriteDefault()
     }
 }

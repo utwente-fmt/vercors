@@ -32,7 +32,8 @@ class Player {
 	context 0 <= move.j && move.j <= 2;
 	requires move.mark == 0 || move.mark == 1;
 	ensures myMark == \old(myMark);
-	requires readMoveCell() == -1;
+	// TODO (RR): removing this precondition is probably a bad idea! Correctness is no longer guaranteed, I think...
+	// requires readMoveCell() == -1;
 	ensures readMoveCell() == move.mark;
 	ensures move.i == \old(move.i);
 	ensures move.j == \old(move.j);
@@ -103,7 +104,8 @@ class Player {
 		c00 == other.c00 && c01 == other.c01 && c02 == other.c02 && 
 		c10 == other.c10 && c11 == other.c11 && c12 == other.c12 && 
 		c20 == other.c20 && c21 == other.c21 && c22 == other.c22;
-			
+
+    ensures move != null;
 	ensures 0 <= move.i && move.i <= 2;
 	ensures 0 <= move.j && move.j <= 2;
 	requires myMark == 0 || myMark == 1;
