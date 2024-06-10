@@ -37,49 +37,43 @@ case class EncodePermissionStratification[Pre <: Generation](
 ) extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
   val inChor = ScopedStack[Boolean]()
-  lazy val specialized
-      : mut.LinkedHashMap[AbstractFunction[Pre], Seq[Endpoint[Pre]]] = {
-    val specializations = mut.LinkedHashSet.from(
-      mappings
-        // For each endpoint expr
-        .program.collect {
-          // Get all function invocations from endpoint contexts
-          case expr: EndpointExpr[Pre] =>
-            (
-              expr.endpoint.decl,
-              expr.collect { case inv: AnyFunctionInvocation[Pre] =>
-                inv.ref.decl
-              },
-            )
-          case stmt: EndpointStatement[Pre] =>
-            (
-              stmt.endpoint.get.decl,
-              stmt.collect { case inv: AnyFunctionInvocation[Pre] =>
-                inv.ref.decl
-              },
-            )
-        }.flatMap { case (endpoint, funs) =>
-          // Tag each function invocation with the endpoint context
-          funs.map { f => (endpoint, f) }
-        }
-    )
 
+  lazy val specializedApplicables = findInContext {
+    case inv: AnyFunctionInvocation[Pre] => inv.ref.decl
+    case inv: MethodInvocation[Pre] => inv.ref.decl
+  }
+
+  def findInContext[T <: Node[Pre]](
+      f: PartialFunction[Node[Pre], T]
+  ): mut.LinkedHashMap[T, Seq[Endpoint[Pre]]] = {
+    val specializations: mut.LinkedHashSet[(Endpoint[Pre], T)] = mut
+      .LinkedHashSet.from(
+        mappings
+          // For each endpoint expr
+          .program.collect {
+            // Get all T's from endpoint contexts
+            case expr: EndpointExpr[Pre] =>
+              expr.collect(f).map { t => (expr.endpoint.decl, t) }
+            case stmt: EndpointStatement[Pre] =>
+              stmt.collect(f).map { t => (stmt.endpoint.get.decl, t) }
+          }.flatten
+      )
+
+    // Do a transitive closure given the selector function f
     var changes = true
     while (changes) {
       println("iter")
       changes = false
       val oldSize = specializations.size
-      specializations.flatMap { case (endpoint, f) =>
-        f.collect { case inv: AnyFunctionInvocation[Pre] =>
-          (endpoint, inv.ref.decl)
-        }
+      specializations.flatMap { case (endpoint, t) =>
+        t.collect(f).map { newT => (endpoint, newT) }
       }.foreach(specializations.add)
       changes = oldSize != specializations.size
     }
 
-    val map = mut.LinkedHashMap[AbstractFunction[Pre], Seq[Endpoint[Pre]]]()
-    specializations.foreach { case (endpoint, f) =>
-      map.updateWith(f) {
+    val map = mut.LinkedHashMap[T, Seq[Endpoint[Pre]]]()
+    specializations.foreach { case (endpoint, t) =>
+      map.updateWith(t) {
         case None => Some(Seq(endpoint))
         case Some(endpoints) => Some(endpoint +: endpoints)
       }
@@ -87,10 +81,12 @@ case class EncodePermissionStratification[Pre <: Generation](
     map
   }
 
-  val specializedSucc =
+  val specializedFunctionSucc =
     SuccessionMap[(Endpoint[Pre], AbstractFunction[Pre]), AbstractFunction[
       Post
     ]]()
+  val specializedMethodSucc =
+    SuccessionMap[(Endpoint[Pre], InstanceMethod[Pre]), InstanceMethod[Post]]()
 
   // Keeps track of the current anchoring/endpoint context identity expression for the current endpoint context.
   // E.g. within a choreograph, it is EndpointName(succ(endpoint)), within a specialized function it is a local
@@ -175,7 +171,7 @@ case class EncodePermissionStratification[Pre <: Generation](
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     mappings.program = program
-    println(specialized)
+    println(specializedFunctions)
     super.dispatch(program)
   }
 
@@ -199,12 +195,15 @@ case class EncodePermissionStratification[Pre <: Generation](
             ))
           ).succeed(chor)
         }
-      case f: Function[Pre] if specialized.contains(f) =>
+      case f: Function[Pre] if specializedFunctions.contains(f) =>
         f.rewriteDefault().succeed(f)
         specializeFunction(f)
-      case f: InstanceFunction[Pre] if specialized.contains(f) =>
+      case f: InstanceFunction[Pre] if specializedFunctions.contains(f) =>
         f.rewriteDefault().succeed(f)
         specializeFunction(f)
+      case m: InstanceMethod[Pre] if specializedMethods.contains(m) =>
+        m.rewriteDefault().succeed(m)
+        specializeMethod(m)
       case _ => super.dispatch(decl)
     }
 
@@ -221,7 +220,7 @@ case class EncodePermissionStratification[Pre <: Generation](
       )
     }
 
-    specialized(f).foreach { endpoint =>
+    specializedFunctions(f).foreach { endpoint =>
       // Make sure the unnapply methods InChor/InEndpoint pick this rewrite up
       currentChoreography.having(choreographyOf(endpoint)) {
         currentEndpoint.having(endpoint) {
@@ -247,7 +246,7 @@ case class EncodePermissionStratification[Pre <: Generation](
                   )
                   newF.declare()
               }
-            specializedSucc((endpoint, f)) = newF
+            specializedFunctionSucc((endpoint, f)) = newF
           }
         }
       }
@@ -375,13 +374,13 @@ case class EncodePermissionStratification[Pre <: Generation](
       case InEndpoint(_, endpoint, inv: FunctionInvocation[Pre]) =>
         val k = (endpoint, inv.ref.decl)
         inv.rewrite(
-          ref = specializedSucc.ref(k),
+          ref = specializedFunctionSucc.ref(k),
           args = specializing.top +: inv.args.map(dispatch),
         )
       case InEndpoint(_, endpoint, inv: InstanceFunctionInvocation[Pre]) =>
         val k = (endpoint, inv.ref.decl)
         inv.rewrite(
-          ref = specializedSucc.ref(k),
+          ref = specializedFunctionSucc.ref(k),
           args = specializing.top +: inv.args.map(dispatch),
         )
 
