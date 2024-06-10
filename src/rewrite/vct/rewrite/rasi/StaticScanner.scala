@@ -8,8 +8,6 @@ import scala.collection.mutable
 class StaticScanner[G](initial_node: CFGNode[G], state: AbstractState[G]) {
   private val var_change_explored_nodes: mutable.Set[CFGEntry[G]] = mutable.Set
     .empty[CFGEntry[G]]
-  private val find_var_explored_nodes: mutable.Set[CFGEntry[G]] = mutable.Set
-    .empty[CFGEntry[G]]
 
   def scan_can_change_variables(until: Option[CFGNode[G]]): Boolean = {
     if (until.nonEmpty)

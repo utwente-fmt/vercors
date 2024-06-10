@@ -3,30 +3,12 @@ package vct.main.stages
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.LiteralReadable
 import hre.stages.Stage
-import vct.col.ast.{
-  Declaration,
-  Deref,
-  Expr,
-  InstanceField,
-  InstanceMethod,
-  InstancePredicate,
-  Node,
-  Predicate,
-  Program,
-  Verification,
-  VerificationContext,
-}
+import vct.col.ast.{Declaration, Deref, Expr, InstanceField, InstanceMethod, InstancePredicate, Node, Predicate, Procedure, Program, Verification, VerificationContext}
 import vct.col.origin.{LabelContext, Origin, PreferredName}
 import vct.col.print.Ctx
 import vct.col.rewrite.Generation
 import vct.options.Options
-import vct.rewrite.rasi.{
-  ConcreteVariable,
-  FieldVariable,
-  IndexedVariable,
-  RASIGenerator,
-  SizeVariable,
-}
+import vct.rewrite.rasi.{ConcreteVariable, FieldVariable, IndexedVariable, RASIGenerator, SizeVariable}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
@@ -53,8 +35,8 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path, test: Boolean)
     val in = in1.asInstanceOf[Node[Generation]]
     val main_method =
       in.transSubnodes.collectFirst {
-        case m: InstanceMethod[_]
-            if m.o.getPreferredName.get.snake.equals("main") =>
+        case m: Procedure[_]
+            if m.vesuv_entry =>
           m
       }.get
     val variables: Set[ConcreteVariable[Generation]] =
@@ -75,8 +57,10 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path, test: Boolean)
       )
 
       val name_map: Map[Declaration[_], String] = Map
-        .from(rasi.transSubnodes.collect { case Deref(_, ref) =>
-          ref.decl -> ref.decl.o.getPreferredName.get.snake
+        .from(rasi.transSubnodes.collect {
+          case Deref(_, ref) =>
+            ref.decl -> ref.decl.o.getPreferredName.get.snake
+          case p: Predicate[_] => p -> p.o.getPreferredName.get.snake
         })
       print(verification, name_map)
     }
@@ -90,7 +74,7 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path, test: Boolean)
 
     val buf = new StringBuffer()
     in.write(buf)(ctx)
-    val path = s"unknown.pvl"
+    val path = s"invariant.pvl"
     val txt = LiteralReadable(path, buf.toString)
 
     logger.info(s"Writing ${txt.fileName} to $out")

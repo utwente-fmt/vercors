@@ -1,19 +1,7 @@
 package vct.rewrite.rasi
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.{
-  AmbiguousThis,
-  Class,
-  Deref,
-  Expr,
-  InstanceField,
-  InstanceMethod,
-  InstancePredicate,
-  Node,
-  Null,
-  Or,
-  TClass,
-}
+import vct.col.ast.{AmbiguousThis, Class, Deref, Expr, InstanceField, InstanceMethod, InstancePredicate, Node, Null, Or, Procedure, TClass}
 import vct.col.origin.Origin
 import vct.rewrite.cfg.{CFGEntry, CFGGenerator}
 
@@ -30,7 +18,7 @@ class RASIGenerator[G] extends LazyLogging {
     .ArrayBuffer()
 
   def execute(
-      entry_point: InstanceMethod[G],
+      entry_point: Procedure[G],
       vars: Set[ConcreteVariable[G]],
       parameter_invariant: InstancePredicate[G],
       program: Node[G],
@@ -43,7 +31,7 @@ class RASIGenerator[G] extends LazyLogging {
     )
 
   def test(
-      entry_point: InstanceMethod[G],
+      entry_point: Procedure[G],
       vars: Set[ConcreteVariable[G]],
       parameter_invariant: InstancePredicate[G],
       out_path: Path,

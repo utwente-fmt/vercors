@@ -158,7 +158,7 @@ sealed trait Index[G] {
 object Index {
   def from[G](node: Node[G], index: Int): Index[G] =
     node match {
-      case instance_method: InstanceMethod[G] => InitialIndex(instance_method)
+      case procedure: Procedure[G] => InitialIndex(procedure)
       case run_method: RunMethod[G] => RunMethodIndex(run_method)
       case assign: Assign[G] => AssignmentIndex(assign, index)
       case pvl_branch: PVLBranch[G] => PVLBranchIndex(pvl_branch, index)
@@ -209,7 +209,7 @@ object Index {
 
 // TODO: Handle contract assertions for InitialIndex, RunMethodIndex, FramedProof, RangedForIndex, ???
 
-case class InitialIndex[G](instance_method: InstanceMethod[G])
+case class InitialIndex[G](instance_method: Procedure[G])
     extends Index[G] {
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] =
     Set((Outgoing(), None))
