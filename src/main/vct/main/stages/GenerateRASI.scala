@@ -31,7 +31,7 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path)
   override def run(in1: Node[_ <: Generation]): Unit = {
     val in = in1.asInstanceOf[Node[Generation]]
     val main_method =
-      in.transSubnodes.collectFirst {
+      in.collectFirst {
         case m: InstanceMethod[_]
             if m.o.getPreferredName.get.snake.equals("main") =>
           m
@@ -49,7 +49,7 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path)
   ): ConcreteVariable[Generation] = {
     if (name.contains("|")) {
       val var_name = name.substring(1, name.length - 1)
-      return SizeVariable(in.transSubnodes.collectFirst {
+      return SizeVariable(in.collectFirst {
         case f: InstanceField[_]
             if f.o.getPreferredName.get.snake.equals(var_name) =>
           f
@@ -67,7 +67,7 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path)
       else
         Some(Integer.valueOf(name.substring(name_len + 1, name.length - 1)))
     val instance_field =
-      in.transSubnodes.collectFirst {
+      in.collectFirst {
         case f: InstanceField[_]
             if f.o.getPreferredName.get.snake.equals(var_name) =>
           f
@@ -81,7 +81,7 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path)
   private def get_parameter_invariant(
       in: Node[Generation]
   ): InstancePredicate[Generation] = {
-    in.transSubnodes.collectFirst {
+    in.collectFirst {
       case p: InstancePredicate[_]
           if p.o.getPreferredName.get.snake.equals("parameter_invariant") =>
         p

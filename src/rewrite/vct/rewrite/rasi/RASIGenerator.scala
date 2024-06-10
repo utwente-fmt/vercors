@@ -144,8 +144,8 @@ class RASIGenerator[G] extends LazyLogging {
       parameter_invariant: InstancePredicate[G]
   ): Map[FieldVariable[G], UncertainValue] = {
     val pred = parameter_invariant.body.get
-    val parameters: Seq[InstanceField[G]] = pred.transSubnodes.collect {
-      case f: Deref[G] => f
+    val parameters: Seq[InstanceField[G]] = pred.collect { case f: Deref[G] =>
+      f
     }.map(d => d.ref.decl)
     Map.from(
       parameters.map(f => FieldVariable(f) -> UncertainValue.uncertain_of(f.t))

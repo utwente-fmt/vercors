@@ -457,7 +457,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](
     }
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
-    val exprCount = program.map { case _: Expr[Pre] => () }.size
+    val exprCount = program.count { case _: Expr[Pre] => () }
     Progress.dynamicMessages(exprCount) { update =>
       updateProgress.having(update) { rewriteDefault(program) }
     }

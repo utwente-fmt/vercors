@@ -214,8 +214,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults)
   val rewritingBipConstructorBody: ScopedStack[BipComponent[Pre]] =
     ScopedStack()
 
-  lazy val classes =
-    program.transSubnodes.collect { case c: Class[Pre] => c }.toIndexedSeq
+  lazy val classes = program.collect { case c: Class[Pre] => c }.toIndexedSeq
   lazy val components = classes.collect {
     case ClassBipComponent(cls, component) => component
   }
