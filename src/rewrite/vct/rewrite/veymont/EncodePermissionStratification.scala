@@ -21,7 +21,6 @@ import vct.col.origin.{Name, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.rewrite.veymont
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.EncodePermissionStratification.NestedFunctionInvocationError
 
 import scala.collection.immutable.HashSet
 import scala.collection.{mutable => mut}
@@ -30,14 +29,6 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
   override def key: String = "encodePermissionStratification"
   override def desc: String =
     "Encodes stratification of permissions by wrapping each permission in an opaque predicate, guarding the permission using an endpoint reference."
-
-  case class NestedFunctionInvocationError(inv: Node[_]) extends UserError {
-    override def code: String = "nestedFunctionInvocationError"
-    override def text: String =
-      inv.o.messageInContext(
-        "Nested function invocations to be specialized by VeyMont is not supported"
-      )
-  }
 }
 
 // TODO (RR): Document here the hack to make \chor work
@@ -46,11 +37,8 @@ case class EncodePermissionStratification[Pre <: Generation](
 ) extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
   val inChor = ScopedStack[Boolean]()
-  // Do the below scan the hard way to keep the map order preserved
-  // groupBy does the job but it's not order preserving
   lazy val specialized
       : mut.LinkedHashMap[AbstractFunction[Pre], Seq[Endpoint[Pre]]] = {
-    val map = mut.LinkedHashMap[AbstractFunction[Pre], Seq[Endpoint[Pre]]]()
     val specializations = mut.LinkedHashSet.from(
       mappings
         // For each endpoint expr
@@ -71,26 +59,25 @@ case class EncodePermissionStratification[Pre <: Generation](
               },
             )
         }.flatMap { case (endpoint, funs) =>
-          // If necessary, a fixpoint procedure can be implemented that marks
-          // all functions called by a function to be specialized as a specialized
-          // function as well. For now we just crash as I don't need it at the
-          // moment.
-          funs.foreach { f =>
-            f.foreach { case inv: AnyFunctionInvocation[Pre] =>
-              throw NestedFunctionInvocationError(inv)
-            }
-          }
           // Tag each function invocation with the endpoint context
           funs.map { f => (endpoint, f) }
         }
     )
+
     var changes = true
     while (changes) {
+      println("iter")
       changes = false
-      val funs = specializations.map(_._2)
-      ???
+      val oldSize = specializations.size
+      specializations.flatMap { case (endpoint, f) =>
+        f.collect { case inv: AnyFunctionInvocation[Pre] =>
+          (endpoint, inv.ref.decl)
+        }
+      }.foreach(specializations.add)
+      changes = oldSize != specializations.size
     }
 
+    val map = mut.LinkedHashMap[AbstractFunction[Pre], Seq[Endpoint[Pre]]]()
     specializations.foreach { case (endpoint, f) =>
       map.updateWith(f) {
         case None => Some(Seq(endpoint))
@@ -105,8 +92,10 @@ case class EncodePermissionStratification[Pre <: Generation](
       Post
     ]]()
 
-  val specializing = ScopedStack[Boolean]()
-  val currentEndpointVar = ScopedStack[Variable[Post]]()
+  // Keeps track of the current anchoring/endpoint context identity expression for the current endpoint context.
+  // E.g. within a choreograph, it is EndpointName(succ(endpoint)), within a specialized function it is a local
+  // to the endpoint context argument.
+  val specializing = ScopedStack[Expr[Post]]()
 
   type WrapperPredicateKey = (TClass[Pre], Type[Pre], InstanceField[Pre])
   val wrapperPredicates = mut
@@ -236,31 +225,29 @@ case class EncodePermissionStratification[Pre <: Generation](
       // Make sure the unnapply methods InChor/InEndpoint pick this rewrite up
       currentChoreography.having(choreographyOf(endpoint)) {
         currentEndpoint.having(endpoint) {
+          val endpointCtxVar =
+            new Variable(dispatch(endpoint.t))(
+              currentChoreography.top.o
+                .where(indirect = Name.strings("endpoint", "ctx"))
+            )
           // Make sure plain perms are rewritten into wrapped perms
-          specializing.having(true) {
-            val endpointCtxVar =
-              new Variable(dispatch(endpoint.t))(
-                currentChoreography.top.o
-                  .where(indirect = Name.strings("endpoint", "ctx"))
-              )
-            currentEndpointVar.having(endpointCtxVar) {
-              val newF =
-                f match {
-                  case f: InstanceFunction[Pre] =>
-                    val newF = f.rewrite(
-                      args = endpointCtxVar +: variables.dispatch(f.args),
-                      o = nameOrigin(endpoint, f),
-                    )
-                    newF.declare()
-                  case f: Function[Pre] =>
-                    val newF = f.rewrite(
-                      args = endpointCtxVar +: variables.dispatch(f.args),
-                      o = nameOrigin(endpoint, f),
-                    )
-                    newF.declare()
-                }
-              specializedSucc((endpoint, f)) = newF
-            }
+          specializing.having(endpointCtxVar.get(f.o)) {
+            val newF =
+              f match {
+                case f: InstanceFunction[Pre] =>
+                  val newF = f.rewrite(
+                    args = endpointCtxVar +: variables.dispatch(f.args),
+                    o = nameOrigin(endpoint, f),
+                  )
+                  newF.declare()
+                case f: Function[Pre] =>
+                  val newF = f.rewrite(
+                    args = endpointCtxVar +: variables.dispatch(f.args),
+                    o = nameOrigin(endpoint, f),
+                  )
+                  newF.declare()
+              }
+            specializedSucc((endpoint, f)) = newF
           }
         }
       }
@@ -289,7 +276,12 @@ case class EncodePermissionStratification[Pre <: Generation](
     expr match {
       case InChor(_, cp: ChorPerm[Pre]) =>
         assert(currentEndpoint.isEmpty)
-        currentEndpoint.having(cp.endpoint.decl) { dispatch(cp) }
+        currentEndpoint.having(cp.endpoint.decl) {
+          specializing
+            .having(EndpointName[Post](succ(cp.endpoint.decl))(cp.o)) {
+              dispatch(cp)
+            }
+        }
 
       case InEndpoint(
             _,
@@ -298,33 +290,22 @@ case class EncodePermissionStratification[Pre <: Generation](
           ) =>
         makeWrappedPerm(endpoint, loc, perm)(expr.o)
 
-      case InEndpoint(_, endpoint, Perm(loc: FieldLocation[Pre], perm))
-          if specializing.topOption.contains(true) =>
-        makeWrappedPerm(
-          endpoint,
-          loc,
-          perm,
-          currentEndpointVar.top.get(expr.o),
-        )(expr.o)
+      case InEndpoint(_, endpoint, Perm(loc: FieldLocation[Pre], perm)) =>
+        makeWrappedPerm(endpoint, loc, perm, specializing.top)(expr.o)
 
       case EndpointExpr(Ref(endpoint), inner) =>
         assert(currentEndpoint.isEmpty)
-        currentEndpoint.having(endpoint) { dispatch(inner) }
-
-      case InEndpoint(_, endpoint, Deref(obj, Ref(field)))
-          if specializing.topOption.contains(true) =>
-        implicit val o = expr.o
-        functionInvocation(
-          ref = readFunction(endpoint, obj, field)(expr.o),
-          args = Seq(currentEndpointVar.top.get, dispatch(obj)),
-          blame = PanicBlame("???"),
-        )
+        currentEndpoint.having(endpoint) {
+          specializing.having(EndpointName[Post](succ(endpoint))(expr.o)) {
+            dispatch(inner)
+          }
+        }
 
       case InEndpoint(_, endpoint, Deref(obj, Ref(field))) =>
         implicit val o = expr.o
         functionInvocation(
           ref = readFunction(endpoint, obj, field)(expr.o),
-          args = Seq(EndpointName(succ(endpoint)), dispatch(obj)),
+          args = Seq(specializing.top, dispatch(obj)),
           blame = PanicBlame("???"),
         )
 
@@ -395,15 +376,13 @@ case class EncodePermissionStratification[Pre <: Generation](
         val k = (endpoint, inv.ref.decl)
         inv.rewrite(
           ref = specializedSucc.ref(k),
-          args =
-            EndpointName[Post](succ(endpoint))(expr.o) +: inv.args.map(dispatch),
+          args = specializing.top +: inv.args.map(dispatch),
         )
       case InEndpoint(_, endpoint, inv: InstanceFunctionInvocation[Pre]) =>
         val k = (endpoint, inv.ref.decl)
         inv.rewrite(
           ref = specializedSucc.ref(k),
-          args =
-            EndpointName[Post](succ(endpoint))(expr.o) +: inv.args.map(dispatch),
+          args = specializing.top +: inv.args.map(dispatch),
         )
 
       case _ => expr.rewriteDefault()
@@ -433,7 +412,9 @@ case class EncodePermissionStratification[Pre <: Generation](
           Seq(intermediate),
           Block(Seq(
             currentEndpoint.having(endpoint) {
-              assignLocal(intermediate.get, dispatch(assign.value))
+              specializing.having(EndpointName[Post](succ(endpoint))) {
+                assignLocal(intermediate.get, dispatch(assign.value))
+              }
             },
             Unfold(apply)(PanicBlame("TODO: Use blame on endpoint")),
             assign.rewrite(value = intermediate.get),
@@ -441,7 +422,11 @@ case class EncodePermissionStratification[Pre <: Generation](
           )),
         )
       case EndpointStatement(Some(Ref(endpoint)), assert: Assert[Pre]) =>
-        currentEndpoint.having(endpoint) { assert.rewriteDefault() }
+        currentEndpoint.having(endpoint) {
+          specializing.having(EndpointName[Post](succ(endpoint))(statement.o)) {
+            assert.rewriteDefault()
+          }
+        }
       case EndpointStatement(_, eval: Eval[Pre]) =>
         logger.warn("Throwing away endpoint statement with eval!")
         Block(Seq())(statement.o)
