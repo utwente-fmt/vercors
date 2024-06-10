@@ -162,6 +162,9 @@ trait NodeImpl[G] extends Show {
   def exists[T](f: PartialFunction[Node[G], Boolean]): Boolean =
     collectFirst(f).getOrElse(false)
 
+  def foreach[U](f: PartialFunction[Node[G], U]): Unit =
+    transSubnodes.foreach(f.lift)
+
   def unsafeTransmuteGeneration[TNode[_] <: Node[_], G2](
       implicit witness: this.type <:< TNode[G]
   ): TNode[G2] = (this: TNode[G]).asInstanceOf[TNode[G2]]

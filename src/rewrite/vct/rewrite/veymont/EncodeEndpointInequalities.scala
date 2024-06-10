@@ -15,6 +15,7 @@ import vct.col.ast.{
   IterationContract,
   LoopContract,
   LoopInvariant,
+  Null,
   Program,
   SplitAccountedPredicate,
   Statement,
@@ -75,6 +76,8 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
         others.map { other =>
           EndpointName[Post](succ(endpoint)) !== EndpointName[Post](succ(other))
         }
+      } ++ chor.endpoints.map { endpoint =>
+        EndpointName[Post](succ(endpoint)) !== Null()
       }
     )
   }
@@ -83,10 +86,7 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
     decl match {
       case chor: Choreography[Pre] =>
         currentChoreography.having(chor) {
-          globalDeclarations.succeed(
-            chor,
-            chor.rewrite(contract = chor.contract.rewriteDefault()),
-          )
+          chor.rewrite(contract = chor.contract.rewriteDefault()).succeed(chor)
         }
       case _ => super.dispatch(decl)
     }

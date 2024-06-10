@@ -21,6 +21,7 @@ import vct.col.origin.{Name, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.rewrite.veymont
 import vct.result.VerificationError.UserError
+import vct.rewrite.veymont.EncodePermissionStratification.NestedFunctionInvocationError
 
 import scala.collection.immutable.HashSet
 import scala.collection.{mutable => mut}
@@ -45,23 +46,57 @@ case class EncodePermissionStratification[Pre <: Generation](
 ) extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
   val inChor = ScopedStack[Boolean]()
+  // Do the below scan the hard way to keep the map order preserved
+  // groupBy does the job but it's not order preserving
   lazy val specialized
-      : mut.LinkedHashMap[AbstractFunction[Pre], Seq[Endpoint]] = {
-    val entries = mappings.program.collect { case expr: EndpointExpr[Pre] =>
-      val funs = expr.collect { case inv: AnyFunctionInvocation[Pre] =>
-        inv.ref.decl
+      : mut.LinkedHashMap[AbstractFunction[Pre], Seq[Endpoint[Pre]]] = {
+    val map = mut.LinkedHashMap[AbstractFunction[Pre], Seq[Endpoint[Pre]]]()
+    mappings
+      // For each endpoint expr
+      .program.collect {
+        // Get all function invocations from endpoint contexts
+        case expr: EndpointExpr[Pre] =>
+          (
+            expr.endpoint.decl,
+            expr.collect { case inv: AnyFunctionInvocation[Pre] =>
+              inv.ref.decl
+            },
+          )
+        case stmt: EndpointStatement[Pre] =>
+          (
+            stmt.endpoint.get.decl,
+            stmt.collect { case inv: AnyFunctionInvocation[Pre] =>
+              inv.ref.decl
+            },
+          )
+      }.flatMap { case (endpoint, funs) =>
+        // If necessary, a fixpoint procedure can be implemented that marks
+        // all functions called by a function to be specialized as a specialized
+        // function as well. For now we just crash as I don't need it at the
+        // moment.
+        funs.foreach { f =>
+          f.foreach { case inv: AnyFunctionInvocation[Pre] =>
+            throw NestedFunctionInvocationError(inv)
+          }
+        }
+        // Tag each function invocation with the endpoint context
+        funs.map { f => (endpoint, f) }
+      }.foreach { case (endpoint, f) =>
+        map.updateWith(f) {
+          case None => Some(Seq(endpoint))
+          case Some(endpoints) => Some(endpoint +: endpoints)
+        }
       }
-      // If necessary, a fixpoint procedure can be implemented that marks
-      // all functions called by a function to be specialized as a specialized
-      // function as well. For now we just crash as I don't need it at the
-      // moment.
-      funs.collect { case inv: AnyFunctionInvocation[Pre] =>
-        throw new NestedFunctionInvocationError(inv)
-      }
-      (expr.endpoint.decl, funs)
-    }
-    mut.LinkedHashMap.from(mappings)
+    map
   }
+
+  val specializedSucc =
+    SuccessionMap[(Endpoint[Pre], AbstractFunction[Pre]), AbstractFunction[
+      Post
+    ]]()
+
+  val specializing = ScopedStack[Boolean]()
+  val currentEndpointVar = ScopedStack[Variable[Post]]()
 
   type WrapperPredicateKey = (TClass[Pre], Type[Pre], InstanceField[Pre])
   val wrapperPredicates = mut
@@ -141,6 +176,7 @@ case class EncodePermissionStratification[Pre <: Generation](
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     mappings.program = program
+    println(specialized)
     super.dispatch(program)
   }
 
@@ -164,8 +200,80 @@ case class EncodePermissionStratification[Pre <: Generation](
             ))
           ).succeed(chor)
         }
+      case f: Function[Pre] if specialized.contains(f) =>
+        f.rewriteDefault().succeed(f)
+        specializeFunction(f)
+      case f: InstanceFunction[Pre] if specialized.contains(f) =>
+        f.rewriteDefault().succeed(f)
+        specializeFunction(f)
       case _ => super.dispatch(decl)
     }
+
+  def specializeFunction(f: AbstractFunction[Pre]): Unit = {
+    def nameOrigin(
+        endpoint: Endpoint[Pre],
+        f: AbstractFunction[Pre],
+    ): Origin = {
+      f.o.where(indirect =
+        Name.names(
+          f.o.getPreferredNameOrElse(),
+          endpoint.o.getPreferredNameOrElse(),
+        )
+      )
+    }
+
+    specialized(f).foreach { endpoint =>
+      // Make sure the unnapply methods InChor/InEndpoint pick this rewrite up
+      currentChoreography.having(choreographyOf(endpoint)) {
+        currentEndpoint.having(endpoint) {
+          // Make sure plain perms are rewritten into wrapped perms
+          specializing.having(true) {
+            val endpointCtxVar =
+              new Variable(dispatch(endpoint.t))(
+                currentChoreography.top.o
+                  .where(indirect = Name.strings("endpoint", "ctx"))
+              )
+            currentEndpointVar.having(endpointCtxVar) {
+              val newF =
+                f match {
+                  case f: InstanceFunction[Pre] =>
+                    val newF = f.rewrite(
+                      args = endpointCtxVar +: variables.dispatch(f.args),
+                      o = nameOrigin(endpoint, f),
+                    )
+                    newF.declare()
+                  case f: Function[Pre] =>
+                    val newF = f.rewrite(
+                      args = endpointCtxVar +: variables.dispatch(f.args),
+                      o = nameOrigin(endpoint, f),
+                    )
+                    newF.declare()
+                }
+              specializedSucc((endpoint, f)) = newF
+            }
+          }
+        }
+      }
+    }
+  }
+
+  def makeWrappedPerm(
+      endpoint: Endpoint[Pre],
+      loc: FieldLocation[Pre],
+      perm: Expr[Pre],
+      endpointExpr: Expr[Post] = null,
+  )(implicit o: Origin): Expr[Post] = {
+    val expr =
+      if (endpointExpr == null)
+        EndpointName[Post](succ(endpoint))
+      else
+        endpointExpr
+    PredicateApply(
+      wrapperPredicate(endpoint, loc.obj.t, loc.field.decl),
+      Seq(expr, dispatch(loc.obj)),
+      dispatch(perm),
+    )
+  }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
@@ -178,16 +286,29 @@ case class EncodePermissionStratification[Pre <: Generation](
             _,
             ChorPerm(Ref(endpoint), loc: FieldLocation[Pre], perm),
           ) =>
-        implicit val o = expr.o
-        PredicateApply(
-          wrapperPredicate(endpoint, loc.obj.t, loc.field.decl)(expr.o),
-          Seq(EndpointName(succ(endpoint)), dispatch(loc.obj)),
-          dispatch(perm),
-        )
+        makeWrappedPerm(endpoint, loc, perm)(expr.o)
+
+      case InEndpoint(_, endpoint, Perm(loc: FieldLocation[Pre], perm))
+          if specializing.topOption.contains(true) =>
+        makeWrappedPerm(
+          endpoint,
+          loc,
+          perm,
+          currentEndpointVar.top.get(expr.o),
+        )(expr.o)
 
       case EndpointExpr(Ref(endpoint), inner) =>
         assert(currentEndpoint.isEmpty)
         currentEndpoint.having(endpoint) { dispatch(inner) }
+
+      case InEndpoint(_, endpoint, Deref(obj, Ref(field)))
+          if specializing.topOption.contains(true) =>
+        implicit val o = expr.o
+        functionInvocation(
+          ref = readFunction(endpoint, obj, field)(expr.o),
+          args = Seq(currentEndpointVar.top.get, dispatch(obj)),
+          blame = PanicBlame("???"),
+        )
 
       case InEndpoint(_, endpoint, Deref(obj, Ref(field))) =>
         implicit val o = expr.o
@@ -261,9 +382,19 @@ case class EncodePermissionStratification[Pre <: Generation](
         inv.rewriteDefault()
 
       case InEndpoint(_, endpoint, inv: FunctionInvocation[Pre]) =>
-        // ???
-        ???
-      case InEndpoint(_, endpoint, inv: InstanceFunctionInvocation[Pre]) => ???
+        val k = (endpoint, inv.ref.decl)
+        inv.rewrite(
+          ref = specializedSucc.ref(k),
+          args =
+            EndpointName[Post](succ(endpoint))(expr.o) +: inv.args.map(dispatch),
+        )
+      case InEndpoint(_, endpoint, inv: InstanceFunctionInvocation[Pre]) =>
+        val k = (endpoint, inv.ref.decl)
+        inv.rewrite(
+          ref = specializedSucc.ref(k),
+          args =
+            EndpointName[Post](succ(endpoint))(expr.o) +: inv.args.map(dispatch),
+        )
 
       case _ => expr.rewriteDefault()
     }
