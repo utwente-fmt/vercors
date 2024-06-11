@@ -60,13 +60,15 @@ case object EncodeArrayValues extends RewriterBuilder {
       }
   }
 
-  case class PointerArrayCreationFailed(arr: NewPointerArray[_])
-      extends Blame[InvocationFailure] {
+  case class PointerArrayCreationFailed(
+      arr: Expr[_],
+      blame: Blame[ArraySizeError],
+  ) extends Blame[InvocationFailure] {
     override def blame(error: InvocationFailure): Unit =
       error match {
-        case PreconditionFailed(_, _, _) => arr.blame.blame(ArraySize(arr))
+        case PreconditionFailed(_, _, _) => blame.blame(ArraySize(arr))
         case ContextEverywhereFailedInPre(_, _) =>
-          arr.blame.blame(ArraySize(arr)) // Unnecessary?
+          blame.blame(ArraySize(arr)) // Unnecessary?
         case other => throw Unreachable(s"Invalid invocation failure: $other")
       }
   }
@@ -106,6 +108,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
 
   val pointerArrayCreationMethods: mutable.Map[Type[Pre], Procedure[Post]] =
     mutable.Map()
+  val nonNullPointerArrayCreationMethods
+      : mutable.Map[Type[Pre], Procedure[Post]] = mutable.Map()
 
   val freeMethods: mutable.Map[Type[
     Post
@@ -189,7 +193,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       // If structure contains structs, the permission for those fields need to be released as well
       val permFields =
         t match {
-          case t: TClass[Post] => unwrapStructPerm(access, t, o, makeStruct)
+//          case t: TClass[Post] => unwrapStructPerm(access, t, o, makeStruct)
           case _ => Seq()
         }
       requiresT =
@@ -421,6 +425,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       ) // We do not allow this notation for recursive structs
     implicit val o: Origin = origin
 
+    // TODO: Instead of doing complicated stuff here just generate a Perm(struct.field, write) and rely on EncodyByValueClass to deal with it :)
     val fields =
       structType match {
         case t: TClass[Post] =>
@@ -431,7 +436,10 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       }
     val newFieldPerms = fields.map(member => {
       val loc =
-        (i: Variable[Post]) => Deref[Post](struct(i), member.ref)(DerefPerm)
+        (i: Variable[Post]) =>
+          DerefPointer(Deref[Post](struct(i), member.ref)(DerefPerm))(
+            NonNullPointerNull
+          )
       var anns: Seq[(Expr[Post], Expr[Pre] => PointerFreeError)] = Seq((
         makeStruct.makePerm(
           i => FieldLocation[Post](struct(i), member.ref),
@@ -444,7 +452,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           ),
       ))
       anns =
-        if (typeIsRef(member.t))
+        if (typeIsRef(member.t.asPointer.get.element))
           anns :+
             (
               makeStruct.makeUnique(loc),
@@ -452,7 +460,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
             )
         else
           anns
-      member.t match {
+      member.t.asPointer.get.element match {
         case newStruct: TClass[Post] =>
           // We recurse, since a field is another struct
           anns ++ unwrapStructPerm(
@@ -504,7 +512,10 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       case _ => false
     }
 
-  def makePointerCreationMethodFor(elementType: Type[Pre]) = {
+  def makePointerCreationMethodFor(
+      elementType: Type[Pre],
+      nullable: Boolean,
+  ) = {
     implicit val o: Origin = arrayCreationOrigin
     // ar != null
     // ar.length == dim0
@@ -529,9 +540,11 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         Seq(access(i), access(j)),
       )
 
-      var ensures = (result !== Null()) &*
+      var ensures =
         (PointerBlockLength(result)(FramedPtrBlockLength) === sizeArg.get) &*
-        (PointerBlockOffset(result)(FramedPtrBlockOffset) === zero)
+          (PointerBlockOffset(result)(FramedPtrBlockOffset) === zero)
+
+      if (nullable) { ensures = (result !== Null()) &* ensures }
       // Pointer location needs pointer add, not pointer subscript
       ensures =
         ensures &* makeStruct.makePerm(
@@ -561,7 +574,9 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       procedure(
         blame = AbstractApplicable,
         contractBlame = TrueSatisfiable,
-        returnType = TPointer(dispatch(elementType)),
+        returnType =
+          if (nullable) { TPointer(dispatch(elementType)) }
+          else { TNonNullPointer(dispatch(elementType)) },
         args = Seq(sizeArg),
         requires = UnitAccountedPredicate(requires),
         ensures = UnitAccountedPredicate(ensures),
@@ -597,8 +612,10 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
         )(ArrayCreationFailed(newArr))
       case newPointerArr @ NewPointerArray(element, size) =>
-        val method = pointerArrayCreationMethods
-          .getOrElseUpdate(element, makePointerCreationMethodFor(element))
+        val method = pointerArrayCreationMethods.getOrElseUpdate(
+          element,
+          makePointerCreationMethodFor(element, nullable = true),
+        )
         ProcedureInvocation[Post](
           method.ref,
           Seq(dispatch(size)),
@@ -606,7 +623,20 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
           Nil,
-        )(PointerArrayCreationFailed(newPointerArr))
+        )(PointerArrayCreationFailed(newPointerArr, newPointerArr.blame))
+      case newPointerArr @ NewNonNullPointerArray(element, size) =>
+        val method = nonNullPointerArrayCreationMethods.getOrElseUpdate(
+          element,
+          makePointerCreationMethodFor(element, nullable = false),
+        )
+        ProcedureInvocation[Post](
+          method.ref,
+          Seq(dispatch(size)),
+          Nil,
+          Nil,
+          Nil,
+          Nil,
+        )(PointerArrayCreationFailed(newPointerArr, newPointerArr.blame))
       case free @ FreePointer(xs) =>
         val newXs = dispatch(xs)
         val TPointer(t) = newXs.t

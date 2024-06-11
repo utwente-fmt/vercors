@@ -254,7 +254,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     SuccessionMap()
   val cNameSuccessor: SuccessionMap[CNameTarget[Pre], Variable[Post]] =
     SuccessionMap()
-  val cLocalHeapNameSuccessor: SuccessionMap[CNameTarget[Pre], LocalHeapVariable[Post]] =
+  val cLocalHeapNameSuccessor
+      : SuccessionMap[CNameTarget[Pre], LocalHeapVariable[Post]] =
     SuccessionMap()
   val cGlobalNameSuccessor
       : SuccessionMap[CNameTarget[Pre], HeapVariable[Post]] = SuccessionMap()
@@ -991,10 +992,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               Seq(x),
             ) = fieldDecl
             fieldDecl.drop()
-            val t =
-              specs.collectFirst { case t: CSpecificationType[Pre] =>
-                rw.dispatch(t.t)
-              }.get
+            val t = TNonNullPointer(specs.collectFirst {
+              case t: CSpecificationType[Pre] => rw.dispatch(t.t)
+            }.get)
             cStructFieldsSuccessor((decl, fieldDecl)) =
               new InstanceField(t = t, flags = Nil)(CStructFieldOrigin(x))
             rw.classDeclarations
@@ -1147,11 +1147,20 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val targetClass: Class[Post] = cStructSuccessor(ref.decl)
     val t = TByValueClass[Post](targetClass.ref, Seq())
 
-    val v = new LocalHeapVariable[Post](t)(o.sourceName(info.name))
+    val v =
+      new LocalHeapVariable[Post](TNonNullPointer(t))(o.sourceName(info.name))
     cLocalHeapNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
 
     if (init.init.isDefined) {
-      Block(Seq(HeapLocalDecl(v), assignHeapLocal(v.get, rw.dispatch(init.init.get))))
+      Block(Seq(
+        HeapLocalDecl(v),
+        Assign(
+          v.get(PanicBlame(
+            "Dereferencing freshly declared struct should never fail"
+          )),
+          rw.dispatch(init.init.get),
+        )(AssignLocalOk),
+      ))
     } else { HeapLocalDecl(v) }
   }
 
@@ -1315,7 +1324,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(local.blame)
           case Some(_) => throw NotAValue(local)
         }
-      case ref: RefCLocalDeclaration[Pre] if cLocalHeapNameSuccessor.contains(ref) => HeapLocal(cLocalHeapNameSuccessor.ref(ref))
+      case ref: RefCLocalDeclaration[Pre]
+          if cLocalHeapNameSuccessor.contains(ref) =>
+        DerefPointer(HeapLocal[Post](cLocalHeapNameSuccessor.ref(ref)))(
+          local.blame
+        )
       case ref: RefCLocalDeclaration[Pre] => Local(cNameSuccessor.ref(ref))
       case _: RefCudaVec[Pre] => throw NotAValue(local)
     }
@@ -1365,10 +1378,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             case _: TNotAValue[Pre] => throw TypeUsedAsValue(deref.obj)
             case _ => ???
           }
-        Deref[Post](
-          rw.dispatch(deref.obj),
-          cStructFieldsSuccessor.ref((struct_ref.decl, struct.decls)),
-        )(deref.blame)
+        DerefPointer(
+          Deref[Post](
+            rw.dispatch(deref.obj),
+            cStructFieldsSuccessor.ref((struct_ref.decl, struct.decls)),
+          )(deref.blame)
+        )(NonNullPointerNull)
     }
   }
 
@@ -1388,10 +1403,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             case CTPointer(CTStruct(struct)) => struct
             case t => throw WrongStructType(t)
           }
-        Deref[Post](
-          DerefPointer(rw.dispatch(deref.struct))(b),
-          cStructFieldsSuccessor.ref((structRef.decl, struct.decls)),
-        )(deref.blame)(deref.o)
+        DerefPointer(
+          Deref[Post](
+            DerefPointer(rw.dispatch(deref.struct))(b),
+            cStructFieldsSuccessor.ref((structRef.decl, struct.decls)),
+          )(deref.blame)(deref.o)
+        )(NonNullPointerNull)(deref.o)
     }
   }
 
@@ -1415,9 +1432,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val newFieldPerms = fields.map(member => {
       val loc =
         AmbiguousLocation(
-          Deref[Post](
-            newExpr,
-            cStructFieldsSuccessor.ref((structType.ref.decl, member)),
+          DerefPointer(
+            Deref[Post](
+              newExpr,
+              cStructFieldsSuccessor.ref((structType.ref.decl, member)),
+            )(blame)
           )(blame)
         )(struct.blame)
       member.specs.collectFirst {

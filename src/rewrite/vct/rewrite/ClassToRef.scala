@@ -22,6 +22,10 @@ case object ClassToRef extends RewriterBuilder {
   private def InstanceOfOrigin: Origin =
     Origin(Seq(PreferredName(Seq("subtype")), LabelContext("classToRef")))
 
+  private val PointerCreationOrigin: Origin = Origin(
+    Seq(LabelContext("classToRef, pointer creation method"))
+  )
+
   case class InstanceNullPreconditionFailed(
       inner: Blame[InstanceNull],
       inv: InvokingNode[_],
@@ -38,10 +42,18 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   private def This: Origin =
     Origin(Seq(PreferredName(Seq("this")), LabelContext("classToRef")))
 
-  val fieldSucc: SuccessionMap[Field[Pre], SilverField[Post]] = SuccessionMap()
+  val byRefFieldSucc: SuccessionMap[Field[Pre], SilverField[Post]] =
+    SuccessionMap()
+  val byValFieldSucc: SuccessionMap[Field[Pre], ADTFunction[Post]] =
+    SuccessionMap()
+  val byValClassSucc
+      : SuccessionMap[ByValueClass[Pre], AxiomaticDataType[Post]] =
+    SuccessionMap()
   val methodSucc: SuccessionMap[InstanceMethod[Pre], Procedure[Post]] =
     SuccessionMap()
   val consSucc: SuccessionMap[Constructor[Pre], Procedure[Post]] =
+    SuccessionMap()
+  val byValConsSucc: SuccessionMap[ByValueClass[Pre], ADTFunction[Post]] =
     SuccessionMap()
   val functionSucc: SuccessionMap[InstanceFunction[Pre], Function[Post]] =
     SuccessionMap()
@@ -53,6 +65,26 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   var typeNumberStore: mutable.Map[Class[Pre], Int] = mutable.Map()
   val typeOf: SuccessionMap[Unit, Function[Post]] = SuccessionMap()
   val instanceOf: SuccessionMap[Unit, Function[Post]] = SuccessionMap()
+  private val pointerCreationMethods
+      : SuccessionMap[Type[Pre], Procedure[Post]] = SuccessionMap()
+
+  def makePointerCreationMethod(t: Type[Post]): Procedure[Post] = {
+    implicit val o: Origin = PointerCreationOrigin
+
+    val result = new Variable[Post](TNonNullPointer(t))
+    globalDeclarations.declare(procedure[Post](
+      blame = AbstractApplicable,
+      contractBlame = TrueSatisfiable,
+      returnType = TVoid(),
+      outArgs = Seq(result),
+      ensures = UnitAccountedPredicate(
+        (PointerBlockLength(result.get)(FramedPtrBlockLength) === const(1)) &*
+          (PointerBlockOffset(result.get)(FramedPtrOffset) === const(0)) &*
+          Perm(PointerLocation(result.get)(FramedPtrOffset), WritePerm())
+      ),
+      decreases = Some(DecreasesClauseNoRecursion[Post]()),
+    ))
+  }
 
   def typeNumber(cls: Class[Pre]): Int =
     typeNumberStore.getOrElseUpdate(cls, typeNumberStore.size + 1)
@@ -143,7 +175,6 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           )
 
         typeNumber(cls)
-        cls.drop()
         cls.decls.foreach {
           case function: InstanceFunction[Pre] =>
             implicit val o: Origin = function.o
@@ -278,9 +309,120 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               )
             }
           case field: Field[Pre] =>
-            fieldSucc(field) = new SilverField(dispatch(field.t))(field.o)
-            globalDeclarations.declare(fieldSucc(field))
+            if (cls.isInstanceOf[ByReferenceClass[Pre]]) {
+              byRefFieldSucc(field) =
+                new SilverField(dispatch(field.t))(field.o)
+              globalDeclarations.declare(byRefFieldSucc(field))
+            }
           case _ => throw ExtraNode
+        }
+        cls match {
+          case cls: ByValueClass[Pre] =>
+            implicit val o: Origin = cls.o
+            val axiomType = TAxiomatic[Post](byValClassSucc.ref(cls), Nil)
+            val (fieldFunctions, fieldTypes) =
+              cls.decls.collect { case field: Field[Pre] =>
+                val newT = dispatch(field.t)
+                byValFieldSucc(field) =
+                  new ADTFunction[Post](
+                    Seq(new Variable(axiomType)(field.o)),
+                    newT,
+                  )(field.o)
+                (byValFieldSucc(field), newT)
+              }.unzip
+            val constructor =
+              new ADTFunction[Post](fieldTypes.map(new Variable(_)), axiomType)(
+                cls.o
+              )
+            val destructorAxiom =
+              new ADTAxiom[Post](foralls(
+                fieldTypes,
+                body =
+                  variables => {
+                    foldAnd(variables.zip(fieldFunctions).map { case (v, f) =>
+                      adtFunctionInvocation[Post](
+                        f.ref,
+                        args = Seq(adtFunctionInvocation[Post](
+                          constructor.ref,
+                          None,
+                          args = variables,
+                        )),
+                      ) === v
+                    })
+                  },
+                triggers =
+                  variables => {
+                    fieldFunctions.map { f =>
+                      Seq(adtFunctionInvocation[Post](
+                        f.ref,
+                        args = Seq(adtFunctionInvocation[Post](
+                          constructor.ref,
+                          None,
+                          args = variables,
+                        )),
+                      ))
+                    }
+                  },
+              ))
+            val nonNullAxiom =
+              new ADTAxiom[Post](forall(
+                axiomType,
+                body =
+                  v => {
+                    foldAnd(fieldFunctions.map { f =>
+                      adtFunctionInvocation[Post](
+                        f.ref,
+                        None,
+                        args = Seq(v),
+                      ) !== Null()
+                    })
+                  },
+              ))
+            // TODO: need Non null pointer....
+            val injectivityAxiom =
+              new ADTAxiom[Post](foralls(
+                Seq(axiomType, axiomType),
+                body = { case Seq(a0, a1) =>
+                  (a0 !== a1) ==> foldAnd(fieldFunctions.map { f =>
+                    DerefPointer(
+                      adtFunctionInvocation[Post](f.ref, args = Seq(a0))
+                    )(NonNullPointerNull)(
+                      o.withContent(TypeName("helloWorld"))
+                    ) !== DerefPointer(
+                      adtFunctionInvocation[Post](f.ref, args = Seq(a1))
+                    )(NonNullPointerNull)(o.withContent(TypeName("helloWorld")))
+                  })
+                },
+                triggers = { case Seq(a0, a1) =>
+                  fieldFunctions.map { f =>
+                    Seq(
+                      DerefPointer(
+                        adtFunctionInvocation[Post](f.ref, None, args = Seq(a0))
+                      )(NonNullPointerNull)(o.withContent(TypeName(
+                        "helloWorld"
+                      ))),
+                      DerefPointer(
+                        adtFunctionInvocation[Post](f.ref, None, args = Seq(a1))
+                      )(NonNullPointerNull)(o.withContent(TypeName(
+                        "helloWorld"
+                      ))),
+                    )
+                  }
+                },
+              ))
+            byValConsSucc(cls) = constructor
+            byValClassSucc(cls) =
+              new AxiomaticDataType[Post](
+                Seq(
+                  constructor,
+                  destructorAxiom,
+//                  nonNullAxiom,
+                  injectivityAxiom,
+                ) ++ fieldFunctions,
+                Nil,
+              )
+            globalDeclarations.succeed(cls, byValClassSucc(cls))
+          case _ => cls.drop()
         }
       case decl => rewriteDefault(decl)
     }
@@ -288,23 +430,61 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   def instantiate(cls: Class[Pre], target: Ref[Post, Variable[Post]])(
       implicit o: Origin
   ): Statement[Post] = {
-    Block(Seq(
-      SilverNewRef[Post](
-        target,
-        cls.decls.collect { case field: InstanceField[Pre] =>
-          fieldSucc.ref(field)
-        },
-      ),
-      Inhale(
-        FunctionInvocation[Post](
-          typeOf.ref(()),
-          Seq(Local(target)),
-          Nil,
-          Nil,
-          Nil,
-        )(PanicBlame("typeOf requires nothing.")) === const(typeNumber(cls))
-      ),
-    ))
+    cls match {
+      case cls: ByReferenceClass[Pre] =>
+        Block(Seq(
+          SilverNewRef[Post](
+            target,
+            cls.decls.collect { case field: InstanceField[Pre] =>
+              byRefFieldSucc.ref(field)
+            },
+          ),
+          Inhale(
+            FunctionInvocation[Post](
+              typeOf.ref(()),
+              Seq(Local(target)),
+              Nil,
+              Nil,
+              Nil,
+            )(PanicBlame("typeOf requires nothing.")) === const(typeNumber(cls))
+          ),
+        ))
+      case cls: ByValueClass[Pre] =>
+        val (assigns, vars) =
+          cls.decls.collect { case field: InstanceField[Pre] =>
+            val element = field.t.asPointer.get.element
+            val newE = dispatch(element)
+            val v = new Variable[Post](TNonNullPointer(newE))
+            (
+              InvokeProcedure[Post](
+                pointerCreationMethods
+                  .getOrElseUpdate(element, makePointerCreationMethod(newE))
+                  .ref,
+                Nil,
+                Seq(v.get),
+                Nil,
+                Nil,
+                Nil,
+              )(TrueSatisfiable),
+              v,
+            )
+          }.unzip
+        Scope(
+          vars,
+          Block(
+            assigns ++ Seq(
+              Assign(
+                Local(target),
+                adtFunctionInvocation[Post](
+                  byValConsSucc.ref(cls),
+                  args = vars.map(_.get),
+                ),
+              )(AssignLocalOk)
+              // TODO: Add back typeOf here (but use a separate definition for the adt)
+            )
+          ),
+        )
+    }
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
@@ -423,9 +603,17 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         ))(inv.o)
       case ThisObject(_) => diz.top
       case deref @ Deref(obj, Ref(field)) =>
-        SilverDeref[Post](dispatch(obj), fieldSucc.ref(field))(deref.blame)(
-          deref.o
-        )
+        obj.t match {
+          case _: TByReferenceClass[Pre] =>
+            SilverDeref[Post](dispatch(obj), byRefFieldSucc.ref(field))(
+              deref.blame
+            )(deref.o)
+          case _: TByValueClass[Pre] =>
+            adtFunctionInvocation[Post](
+              byValFieldSucc.ref(field),
+              args = Seq(dispatch(obj)),
+            )(deref.o)
+        }
       case TypeValue(t) =>
         t match {
           case t: TClass[Pre] if t.typeArgs.isEmpty =>
@@ -493,7 +681,12 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(t: Type[Pre]): Type[Post] =
     t match {
-      case _: TClass[Pre] => TRef()
+      case _: TByReferenceClass[Pre] => TRef()
+      case t: TByValueClass[Pre] =>
+        TAxiomatic(
+          byValClassSucc.ref(t.cls.decl.asInstanceOf[ByValueClass[Pre]]),
+          Nil,
+        )
       case TAnyClass() => TRef()
       case t => rewriteDefault(t)
     }
@@ -505,10 +698,21 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           predicateSucc.ref(predicate.decl),
           dispatch(obj) +: args.map(dispatch),
         )(loc.o)
-      case FieldLocation(obj, field) =>
-        SilverFieldLocation[Post](dispatch(obj), fieldSucc.ref(field.decl))(
-          loc.o
-        )
+      case FieldLocation(obj, Ref(field)) =>
+        obj.t match {
+          case _: TByReferenceClass[Pre] =>
+            SilverFieldLocation[Post](dispatch(obj), byRefFieldSucc.ref(field))(
+              loc.o
+            )
+          case _: TByValueClass[Pre] =>
+            PointerLocation[Post](
+              adtFunctionInvocation[Post](
+                byValFieldSucc.ref(field),
+                None,
+                args = Seq(dispatch(obj)),
+              )(loc.o)
+            )(NonNullPointerNull)(loc.o)
+        }
       case default => rewriteDefault(default)
     }
 }

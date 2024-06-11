@@ -29,13 +29,15 @@ import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
 import vct.rewrite.{
   EncodeAutoValue,
+  PrepareByValueClass,
   EncodeRange,
   EncodeResourceValues,
   ExplicitResourceValues,
   HeapVariableToRef,
+  LowerLocalHeapVariables,
   MonomorphizeClass,
   SmtlibToProverTypes,
-  EncodeByValueClass,
+  VariableToPointer,
 }
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont.{
@@ -326,7 +328,8 @@ case class SilverTransformation(
         EncodeString, // Encode spec string as seq<int>
         EncodeChar,
         CollectLocalDeclarations, // all decls in Scope
-        EncodeByValueClass,
+//        EncodeByValueClass,
+        VariableToPointer, // should happen before ParBlockEncoder so it can distinguish between variables which can and can't altered in a parallel block
         DesugarPermissionOperators, // no PointsTo, \pointer, etc.
         ReadToValue, // resolve wildcard into fractional permission
         TrivialAddrOf,
@@ -335,6 +338,7 @@ case class SilverTransformation(
         QuantifySubscriptAny, // no arr[*]
         IterationContractToParBlock,
         PropagateContextEverywhere, // inline context_everywhere into loop invariants
+        PrepareByValueClass,
         EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
         GivenYieldsToArgs,
         CheckProcessAlgebra,
@@ -384,6 +388,7 @@ case class SilverTransformation(
         // No more classes
         ClassToRef,
         HeapVariableToRef,
+        LowerLocalHeapVariables,
         CheckContractSatisfiability.withArg(checkSat),
         DesugarCollectionOperators,
         EncodeNdIndex,

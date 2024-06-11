@@ -159,7 +159,7 @@ case class AssignFieldFailed(node: SilverFieldAssign[_])
 }
 
 case class CopyClassFailed(node: Node[_], clazz: ByValueClass[_], field: String)
-    extends AssignFailed with NodeVerificationFailure {
+    extends PointerDerefError with NodeVerificationFailure {
   override def code: String = "copyClassFailed"
   override def descInContext: String =
     s"Insufficient read permission for field '$field' to copy ${clazz.o
@@ -172,7 +172,9 @@ case class CopyClassFailedBeforeCall(
     node: Node[_],
     clazz: ByValueClass[_],
     field: String,
-) extends AssignFailed with InvocationFailure with NodeVerificationFailure {
+) extends PointerDerefError
+    with InvocationFailure
+    with NodeVerificationFailure {
   override def code: String = "copyClassFailedBeforeCall"
   override def descInContext: String =
     s"Insufficient read permission for field '$field' to copy ${clazz.o
@@ -1516,6 +1518,9 @@ object JavaArrayInitializerBlame
     extends PanicBlame(
       "The explicit initialization of an array in Java should never generate an assignment that exceeds the bounds of the array"
     )
+
+object NonNullPointerNull
+    extends PanicBlame("A non-null pointer can never be null")
 
 object UnsafeDontCare {
   case class Satisfiability(reason: String)

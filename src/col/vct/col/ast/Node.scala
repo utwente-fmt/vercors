@@ -133,6 +133,9 @@ final case class TArray[G](element: Type[G])(
 final case class TPointer[G](element: Type[G])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends Type[G] with TPointerImpl[G]
+final case class TNonNullPointer[G](element: Type[G])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends Type[G] with TNonNullPointerImpl[G]
 final case class TType[G](t: Type[G])(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with TTypeImpl[G]
 final case class TVar[G](ref: Ref[G, Variable[G]])(
@@ -325,8 +328,9 @@ final case class LocalDecl[G](local: Variable[G])(implicit val o: Origin)
     extends NonExecutableStatement[G]
     with PurelySequentialStatement[G]
     with LocalDeclImpl[G]
-final case class HeapLocalDecl[G](local: LocalHeapVariable[G])(implicit val o: Origin)
-    extends NonExecutableStatement[G]
+final case class HeapLocalDecl[G](local: LocalHeapVariable[G])(
+    implicit val o: Origin
+) extends NonExecutableStatement[G]
     with PurelySequentialStatement[G]
     with HeapLocalDeclImpl[G]
 final case class SpecIgnoreStart[G]()(implicit val o: Origin)
@@ -1008,6 +1012,9 @@ final case class CoerceNullAnyClass[G]()(implicit val o: Origin)
 final case class CoerceNullPointer[G](pointerElementType: Type[G])(
     implicit val o: Origin
 ) extends Coercion[G] with CoerceNullPointerImpl[G]
+final case class CoerceNonNullPointer[G](elementType: Type[G])(
+    implicit val o: Origin
+) extends Coercion[G] with CoerceNonNullPointerImpl[G]
 final case class CoerceNullEnum[G](targetEnum: Ref[G, Enum[G]])(
     implicit val o: Origin
 ) extends Coercion[G] with CoerceNullEnumImpl[G]
@@ -1367,8 +1374,9 @@ final case class ScopedExpr[G](declarations: Seq[Variable[G]], body: Expr[G])(
 
 final case class Local[G](ref: Ref[G, Variable[G]])(implicit val o: Origin)
     extends Expr[G] with LocalImpl[G]
-final case class HeapLocal[G](ref: Ref[G, LocalHeapVariable[G]])(implicit val o: Origin)
-    extends Expr[G] with HeapLocalImpl[G]
+final case class HeapLocal[G](ref: Ref[G, LocalHeapVariable[G]])(
+    implicit val o: Origin
+) extends Expr[G] with HeapLocalImpl[G]
 
 final case class EnumUse[G](
     enum: Ref[G, Enum[G]],
@@ -1735,6 +1743,10 @@ final case class PointerLocation[G](pointer: Expr[G])(
     val blame: Blame[PointerLocationError]
 )(implicit val o: Origin)
     extends Location[G] with PointerLocationImpl[G]
+final case class ByValueClassLocation[G](expr: Expr[G])(
+    val blame: Blame[PointerLocationError]
+)(implicit val o: Origin)
+    extends Location[G] with ByValueClassLocationImpl[G]
 final case class PredicateLocation[G](
     predicate: Ref[G, Predicate[G]],
     args: Seq[Expr[G]],
@@ -1869,6 +1881,10 @@ final case class NewPointerArray[G](element: Type[G], size: Expr[G])(
     val blame: Blame[ArraySizeError]
 )(implicit val o: Origin)
     extends Expr[G] with NewPointerArrayImpl[G]
+final case class NewNonNullPointerArray[G](element: Type[G], size: Expr[G])(
+    val blame: Blame[ArraySizeError]
+)(implicit val o: Origin)
+    extends Expr[G] with NewNonNullPointerArrayImpl[G]
 final case class FreePointer[G](pointer: Expr[G])(
     val blame: Blame[PointerFreeError]
 )(implicit val o: Origin)
@@ -2761,10 +2777,9 @@ final case class GpgpuAtomic[G](
     extends CStatement[G] with GpgpuAtomicImpl[G]
 
 sealed trait CExpr[G] extends Expr[G] with CExprImpl[G]
-final case class CLocal[G](name: String)(
-    val blame: Blame[DerefInsufficientPermission]
-)(implicit val o: Origin)
-    extends CExpr[G] with CLocalImpl[G] {
+final case class CLocal[G](name: String)(val blame: Blame[FrontendDerefError])(
+    implicit val o: Origin
+) extends CExpr[G] with CLocalImpl[G] {
   var ref: Option[CNameTarget[G]] = None
 }
 final case class CInvocation[G](

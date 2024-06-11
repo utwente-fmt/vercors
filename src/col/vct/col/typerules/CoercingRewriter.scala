@@ -281,6 +281,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceNullJavaClass(_) => e
       case CoerceNullAnyClass() => e
       case CoerceNullPointer(_) => e
+      case CoerceNonNullPointer(_) => e
       case CoerceFracZFrac() => e
       case CoerceZFracRat() => e
       case CoerceFloatRat(_) => e
@@ -1566,6 +1567,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         NewArray(element, dims.map(int), moreDims, initialize)(na.blame)
       case na @ NewPointerArray(element, size) =>
         NewPointerArray(element, size)(na.blame)
+      case na @ NewNonNullPointerArray(element, size) =>
+        NewNonNullPointerArray(element, size)(na.blame)
       case NewObject(cls) => NewObject(cls)
       case NoPerm() => NoPerm()
       case Not(arg) => Not(bool(arg))
@@ -2686,6 +2689,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         ArrayLocation(array(arrayObj)._1, int(subscript))(a.blame)
       case p @ PointerLocation(pointerExp) =>
         PointerLocation(pointer(pointerExp)._1)(p.blame)
+      case ByValueClassLocation(expr) => node
       case PredicateLocation(predicate, args) =>
         PredicateLocation(predicate, coerceArgs(args, predicate.decl))
       case InstancePredicateLocation(predicate, obj, args) =>

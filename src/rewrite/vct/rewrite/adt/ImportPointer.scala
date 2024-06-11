@@ -87,17 +87,30 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
     ).ref
   }
 
+  private def unwrapOption(
+      ptr: Expr[Pre],
+      blame: Blame[PointerNull],
+  ): Expr[Post] = {
+    ptr.t match {
+      case TPointer(_) =>
+        OptGet(dispatch(ptr))(PointerNullOptNone(blame, ptr))(ptr.o)
+      case TNonNullPointer(_) => dispatch(ptr)
+    }
+  }
+
   override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(
       implicit o: Origin
   ): Expr[Post] =
     coercion match {
       case CoerceNullPointer(_) => OptNone()
+      case CoerceNonNullPointer(_) => OptSome(e)
       case other => super.applyCoercion(e, other)
     }
 
   override def postCoerce(t: Type[Pre]): Type[Post] =
     t match {
       case TPointer(_) => TOption(TAxiomatic(pointerAdt.ref, Nil))
+      case TNonNullPointer(_) => TAxiomatic(pointerAdt.ref, Nil)
       case other => rewriteDefault(other)
     }
 
@@ -108,11 +121,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
           obj =
             FunctionInvocation[Post](
               ref = pointerDeref.ref,
-              args = Seq(
-                OptGet(dispatch(pointer))(
-                  PointerNullOptNone(loc.blame, pointer)
-                )(pointer.o)
-              ),
+              args = Seq(unwrapOption(pointer, loc.blame)),
               typeArgs = Nil,
               Nil,
               Nil,
@@ -133,12 +142,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
               args = Seq(
                 FunctionInvocation[Post](
                   ref = pointerAdd.ref,
-                  args = Seq(
-                    OptGet(dispatch(pointer))(
-                      PointerNullOptNone(sub.blame, pointer)
-                    ),
-                    dispatch(index),
-                  ),
+                  args = Seq(unwrapOption(pointer, sub.blame), dispatch(index)),
                   typeArgs = Nil,
                   Nil,
                   Nil,
@@ -151,46 +155,51 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
           field = getPointerField(pointer),
         )(PointerFieldInsufficientPermission(sub.blame, sub))
       case add @ PointerAdd(pointer, offset) =>
-        OptSome(
+        val inv =
           FunctionInvocation[Post](
             ref = pointerAdd.ref,
-            args = Seq(
-              OptGet(dispatch(pointer))(PointerNullOptNone(add.blame, pointer)),
-              dispatch(offset),
-            ),
+            args = Seq(unwrapOption(pointer, add.blame), dispatch(offset)),
             typeArgs = Nil,
             Nil,
             Nil,
           )(NoContext(PointerBoundsPreconditionFailed(add.blame, pointer)))
-        )
+        pointer.t match {
+          case TPointer(_) => OptSome(inv)
+          case TNonNullPointer(_) => inv
+        }
       case deref @ DerefPointer(pointer) =>
-        SilverDeref(
-          obj =
-            FunctionInvocation[Post](
-              ref = pointerDeref.ref,
-              args = Seq(
-                FunctionInvocation[Post](
-                  ref = pointerAdd.ref,
-                  // Always index with zero, otherwise quantifiers with pointers do not get triggered
-                  args = Seq(
-                    OptGet(dispatch(pointer))(
-                      PointerNullOptNone(deref.blame, pointer)
-                    ),
-                    const(0),
-                  ),
-                  typeArgs = Nil,
-                  Nil,
-                  Nil,
-                )(NoContext(
-                  DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
-                ))
-              ),
-              typeArgs = Nil,
-              Nil,
-              Nil,
-            )(PanicBlame("ptr_deref requires nothing.")),
-          field = getPointerField(pointer),
-        )(PointerFieldInsufficientPermission(deref.blame, deref))
+        if (pointer.o.find[TypeName].isDefined) {
+          FunctionInvocation[Post](
+            ref = pointerDeref.ref,
+            args = Seq(unwrapOption(pointer, deref.blame)),
+            typeArgs = Nil,
+            Nil,
+            Nil,
+          )(PanicBlame("ptr_deref requires nothing."))
+        } else {
+          SilverDeref(
+            obj =
+              FunctionInvocation[Post](
+                ref = pointerDeref.ref,
+                args = Seq(
+                  FunctionInvocation[Post](
+                    ref = pointerAdd.ref,
+                    // Always index with zero, otherwise quantifiers with pointers do not get triggered
+                    args = Seq(unwrapOption(pointer, deref.blame), const(0)),
+                    typeArgs = Nil,
+                    Nil,
+                    Nil,
+                  )(NoContext(
+                    DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
+                  ))
+                ),
+                typeArgs = Nil,
+                Nil,
+                Nil,
+              )(PanicBlame("ptr_deref requires nothing.")),
+            field = getPointerField(pointer),
+          )(PointerFieldInsufficientPermission(deref.blame, deref))
+        }
       case len @ PointerBlockLength(pointer) =>
         ADTFunctionInvocation[Post](
           typeArgs = Some((blockAdt.ref, Nil)),
@@ -198,18 +207,14 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
           args = Seq(ADTFunctionInvocation[Post](
             typeArgs = Some((pointerAdt.ref, Nil)),
             ref = pointerBlock.ref,
-            args = Seq(
-              OptGet(dispatch(pointer))(PointerNullOptNone(len.blame, pointer))
-            ),
+            args = Seq(unwrapOption(pointer, len.blame)),
           )),
         )
       case off @ PointerBlockOffset(pointer) =>
         ADTFunctionInvocation[Post](
           typeArgs = Some((pointerAdt.ref, Nil)),
           ref = pointerOffset.ref,
-          args = Seq(
-            OptGet(dispatch(pointer))(PointerNullOptNone(off.blame, pointer))
-          ),
+          args = Seq(unwrapOption(pointer, off.blame)),
         )
       case pointerLen @ PointerLength(pointer) =>
         postCoerce(

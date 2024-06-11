@@ -45,6 +45,8 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
         ArrayLocation(dispatch(arr), dispatch(index))(expr.blame)
       case expr if expr.t.asPointer.isDefined =>
         PointerLocation(dispatch(expr))(blame)
+      case expr if expr.t.isInstanceOf[TByValueClass[Pre]] =>
+        ByValueClassLocation(dispatch(expr))(blame)
       case PredicateApply(ref, args, WritePerm()) =>
         PredicateLocation(succ(ref.decl), (args.map(dispatch)))
       case InstancePredicateApply(obj, ref, args, WritePerm()) =>
@@ -53,7 +55,6 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
           dispatch(obj),
           args.map(dispatch),
         )
-
       case InlinePattern(inner, pattern, group) =>
         InLinePatternLocation(
           exprToLoc(inner, blame),

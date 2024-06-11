@@ -106,7 +106,9 @@ object AstBuildHelpers {
   }
 
   implicit class LocalHeapVarBuildHelpers[G](left: LocalHeapVariable[G]) {
-    def get(implicit origin: Origin): HeapLocal[G] = HeapLocal(new DirectRef(left))
+    def get(blame: Blame[PointerDerefError])(
+        implicit origin: Origin
+    ): DerefPointer[G] = DerefPointer(HeapLocal[G](new DirectRef(left)))(blame)
   }
 
   implicit class FieldBuildHelpers[G](left: SilverDeref[G]) {
@@ -672,6 +674,13 @@ object AstBuildHelpers {
   )(implicit o: Origin): FunctionInvocation[G] =
     FunctionInvocation(ref, args, typeArgs, givenMap, yields)(blame)
 
+  def adtFunctionInvocation[G](
+      ref: Ref[G, ADTFunction[G]],
+      typeArgs: Option[(Ref[G, AxiomaticDataType[G]], Seq[Type[G]])] = None,
+      args: Seq[Expr[G]] = Nil,
+  )(implicit o: Origin): ADTFunctionInvocation[G] =
+    ADTFunctionInvocation(typeArgs, ref, args)
+
   def methodInvocation[G](
       blame: Blame[InstanceInvocationFailure],
       obj: Expr[G],
@@ -765,10 +774,6 @@ object AstBuildHelpers {
   }
 
   def assignLocal[G](local: Local[G], value: Expr[G])(
-      implicit o: Origin
-  ): Assign[G] = Assign(local, value)(AssignLocalOk)
-
-  def assignHeapLocal[G](local: HeapLocal[G], value: Expr[G])(
       implicit o: Origin
   ): Assign[G] = Assign(local, value)(AssignLocalOk)
 

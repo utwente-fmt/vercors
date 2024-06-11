@@ -340,6 +340,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
               ),
           )
         case decl: LocalDecl[Pre] => rewriteDefault(decl)
+        case decl: HeapLocalDecl[Pre] => decl.rewriteDefault()
         case Return(result) =>
           frame(
             result,
@@ -532,6 +533,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
     val result =
       target match {
         case Local(Ref(v)) => Local[Post](succ(v))(target.o)
+        case HeapLocal(Ref(v)) => HeapLocal[Post](succ(v))(target.o)
         case deref @ DerefHeapVariable(Ref(v)) =>
           DerefHeapVariable[Post](succ(v))(deref.blame)(target.o)
         case Deref(obj, Ref(f)) =>

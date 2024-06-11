@@ -366,6 +366,7 @@ case object ResolveReferences extends LazyLogging {
       case CPPDeclarationStatement(decl) => Seq(decl)
       case JavaLocalDeclarationStatement(decl) => Seq(decl)
       case LocalDecl(v) => Seq(v)
+      case HeapLocalDecl(v) => Seq(v)
       case other => other.subnodes.flatMap(scanScope(ctx))
     }
 
