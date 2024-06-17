@@ -36,6 +36,10 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
       implicit o: Origin
   ): Location[Post] =
     expr match {
+      case expr if expr.t.asPointer.isDefined =>
+        PointerLocation(dispatch(expr))(blame)
+      case expr if expr.t.isInstanceOf[TByValueClass[Pre]] =>
+        ByValueClassLocation(dispatch(expr))(blame)
       case DerefHeapVariable(ref) => HeapVariableLocation(succ(ref.decl))
       case Deref(obj, ref) => FieldLocation(dispatch(obj), succ(ref.decl))
       case ModelDeref(obj, ref) => ModelLocation(dispatch(obj), succ(ref.decl))
@@ -43,10 +47,6 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
         SilverFieldLocation(dispatch(obj), succ(ref.decl))
       case expr @ ArraySubscript(arr, index) =>
         ArrayLocation(dispatch(arr), dispatch(index))(expr.blame)
-      case expr if expr.t.asPointer.isDefined =>
-        PointerLocation(dispatch(expr))(blame)
-      case expr if expr.t.isInstanceOf[TByValueClass[Pre]] =>
-        ByValueClassLocation(dispatch(expr))(blame)
       case PredicateApply(ref, args, WritePerm()) =>
         PredicateLocation(succ(ref.decl), (args.map(dispatch)))
       case InstancePredicateApply(obj, ref, args, WritePerm()) =>

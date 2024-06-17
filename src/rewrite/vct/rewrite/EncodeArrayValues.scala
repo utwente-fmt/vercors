@@ -500,8 +500,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       val zero = const[Post](0)
       val pre1 = zero <= i.get && i.get < size
       val pre2 = zero <= j.get && j.get < size
-      val body =
-        (pre1 && pre2 && (i.get !== j.get)) ==> (access(i) !== access(j))
+      val body = (pre1 && pre2 && access(i) === access(j)) ==> (i.get === j.get)
       Forall(Seq(i, j), Seq(triggerUnique), body)
     }
   }

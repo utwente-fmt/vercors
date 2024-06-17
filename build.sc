@@ -41,7 +41,7 @@ object external extends Module {
 object viper extends ScalaModule {
   object silverGit extends GitModule {
     def url = T { "https://github.com/viperproject/silver.git" }
-    def commitish = T { "31c94df4f9792046618d9b4db52444ffe9c7c988" }
+    def commitish = T { "9cd85c01c10f5f846ed2754d64de08fcc59207ee" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -51,7 +51,7 @@ object viper extends ScalaModule {
 
   object siliconGit extends GitModule {
     def url = T { "https://github.com/viperproject/silicon.git" }
-    def commitish = T { "529d2a49108b954d2b0749356faf985d622f54f0" }
+    def commitish = T { "c4350bd33043a727a0a4f3008f39a4efc7748033" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -61,7 +61,7 @@ object viper extends ScalaModule {
 
   object carbonGit extends GitModule {
     def url = T { "https://github.com/viperproject/carbon.git" }
-    def commitish = T { "d7ac8b000e1123a72cbdda0c7679ab88ca8a52d4" }
+    def commitish = T { "15d74246bb8baef1e3ea88dcc4861c891259a99d" }
   }
 
   object silver extends ScalaModule {
@@ -79,6 +79,8 @@ object viper extends ScalaModule {
       ivy"commons-io:commons-io:2.8.0",
       ivy"com.google.guava:guava:29.0-jre",
       ivy"org.jgrapht:jgrapht-core:1.5.0",
+      ivy"com.lihaoyi::requests:0.3.0",
+      ivy"com.lihaoyi::upickle:1.0.0",
     )
   }
 
@@ -407,14 +409,14 @@ object vercors extends Module {
     )
     override def moduleDeps = Seq(hre, col, serialize)
 
-    val includeVcllvmCross = interp.watchValue { 
+    val includeVcllvmCross = interp.watchValue {
       if(os.exists(settings.root / ".include-vcllvm")) {
         Seq("vcllvm")
       } else {
         Seq.empty[String]
       }
     }
-    
+
     object vcllvmDep extends Cross[VcllvmDep](includeVcllvmCross)
     trait VcllvmDep extends Cross.Module[String] {
       def path = T {

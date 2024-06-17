@@ -5,13 +5,18 @@ import ImportADT.typeText
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.Generation
-import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, const}
+import vct.col.util.AstBuildHelpers._
+import vct.col.util.SuccessionMap
 
 import scala.collection.mutable
 
 case object ImportPointer extends ImportADTBuilder("pointer") {
   private def PointerField(t: Type[_]): Origin =
     Origin(Seq(PreferredName(Seq(typeText(t))), LabelContext("pointer field")))
+
+  private val PointerCreationOrigin: Origin = Origin(
+    Seq(LabelContext("classToRef, pointer creation method"))
+  )
 
   case class PointerNullOptNone(inner: Blame[PointerNull], expr: Expr[_])
       extends Blame[OptionNone] {
@@ -77,6 +82,57 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
 
   val pointerField: mutable.Map[Type[Post], SilverField[Post]] = mutable.Map()
 
+  private val pointerCreationMethods
+      : SuccessionMap[Type[Pre], Procedure[Post]] = SuccessionMap()
+
+  private def makePointerCreationMethod(t: Type[Post]): Procedure[Post] = {
+    implicit val o: Origin = PointerCreationOrigin
+
+    val result = new Variable[Post](TAxiomatic(pointerAdt.ref, Nil))
+    globalDeclarations.declare(procedure[Post](
+      blame = AbstractApplicable,
+      contractBlame = TrueSatisfiable,
+      returnType = TVoid(),
+      outArgs = Seq(result),
+      ensures = UnitAccountedPredicate(
+        (ADTFunctionInvocation[Post](
+          typeArgs = Some((blockAdt.ref, Nil)),
+          ref = blockLength.ref,
+          args = Seq(ADTFunctionInvocation[Post](
+            typeArgs = Some((pointerAdt.ref, Nil)),
+            ref = pointerBlock.ref,
+            args = Seq(result.get),
+          )),
+        ) === const(1)) &*
+          (ADTFunctionInvocation[Post](
+            typeArgs = Some((pointerAdt.ref, Nil)),
+            ref = pointerOffset.ref,
+            args = Seq(result.get),
+          ) === const(0)) &* Perm(
+            SilverFieldLocation(
+              obj =
+                FunctionInvocation[Post](
+                  ref = pointerDeref.ref,
+                  args = Seq(result.get),
+                  typeArgs = Nil,
+                  Nil,
+                  Nil,
+                )(PanicBlame("ptr_deref requires nothing.")),
+              field =
+                pointerField.getOrElseUpdate(
+                  t, {
+                    globalDeclarations
+                      .declare(new SilverField(t)(PointerField(t)))
+                  },
+                ).ref,
+            ),
+            WritePerm(),
+          )
+      ),
+      decreases = Some(DecreasesClauseNoRecursion[Post]()),
+    ))
+  }
+
   private def getPointerField(ptr: Expr[Pre]): Ref[Post, SilverField[Post]] = {
     val tElement = dispatch(ptr.t.asPointer.get.element)
     pointerField.getOrElseUpdate(
@@ -114,7 +170,8 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       case other => rewriteDefault(other)
     }
 
-  override def postCoerce(location: Location[Pre]): Location[Post] =
+  override def postCoerce(location: Location[Pre]): Location[Post] = {
+    implicit val o: Origin = location.o
     location match {
       case loc @ PointerLocation(pointer) =>
         SilverFieldLocation(
@@ -127,9 +184,46 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
               Nil,
             )(PanicBlame("ptr_deref requires nothing."))(pointer.o),
           field = getPointerField(pointer),
-        )(loc.o)
+        )
       case other => rewriteDefault(other)
     }
+  }
+
+  override def postCoerce(s: Statement[Pre]): Statement[Post] = {
+    implicit val o: Origin = s.o
+    s match {
+      case scope: Scope[Pre] =>
+        scope.rewrite(body = Block(scope.locals.collect {
+          case v if v.t.isInstanceOf[TNonNullPointer[Pre]] => {
+            val firstUse = scope.body.collectFirst {
+              case l @ Local(Ref(variable)) if variable == v => l
+            }
+            if (
+              firstUse.isDefined && scope.body.collectFirst {
+                case Assign(l @ Local(Ref(variable)), _) if variable == v =>
+                  System.identityHashCode(l) !=
+                    System.identityHashCode(firstUse.get)
+              }.getOrElse(true)
+            ) {
+              val oldT = v.t.asInstanceOf[TNonNullPointer[Pre]].element
+              val newT = dispatch(oldT)
+              Seq(
+                InvokeProcedure[Post](
+                  pointerCreationMethods
+                    .getOrElseUpdate(oldT, makePointerCreationMethod(newT)).ref,
+                  Nil,
+                  Seq(Local(succ(v))),
+                  Nil,
+                  Nil,
+                  Nil,
+                )(TrueSatisfiable)
+              )
+            } else { Nil }
+          }
+        }.flatten :+ dispatch(scope.body)))
+      case _ => s.rewriteDefault()
+    }
+  }
 
   override def postCoerce(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
@@ -168,38 +262,47 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
           case TNonNullPointer(_) => inv
         }
       case deref @ DerefPointer(pointer) =>
-        if (pointer.o.find[TypeName].isDefined) {
-          FunctionInvocation[Post](
-            ref = pointerDeref.ref,
-            args = Seq(unwrapOption(pointer, deref.blame)),
-            typeArgs = Nil,
-            Nil,
-            Nil,
-          )(PanicBlame("ptr_deref requires nothing."))
-        } else {
-          SilverDeref(
-            obj =
-              FunctionInvocation[Post](
-                ref = pointerDeref.ref,
-                args = Seq(
-                  FunctionInvocation[Post](
-                    ref = pointerAdd.ref,
-                    // Always index with zero, otherwise quantifiers with pointers do not get triggered
-                    args = Seq(unwrapOption(pointer, deref.blame), const(0)),
-                    typeArgs = Nil,
-                    Nil,
-                    Nil,
-                  )(NoContext(
-                    DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
-                  ))
-                ),
-                typeArgs = Nil,
-                Nil,
-                Nil,
-              )(PanicBlame("ptr_deref requires nothing.")),
-            field = getPointerField(pointer),
-          )(PointerFieldInsufficientPermission(deref.blame, deref))
-        }
+        SilverDeref(
+          obj =
+            FunctionInvocation[Post](
+              ref = pointerDeref.ref,
+              args = Seq(
+                FunctionInvocation[Post](
+                  ref = pointerAdd.ref,
+                  // Always index with zero, otherwise quantifiers with pointers do not get triggered
+                  args = Seq(unwrapOption(pointer, deref.blame), const(0)),
+                  typeArgs = Nil,
+                  Nil,
+                  Nil,
+                )(NoContext(
+                  DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
+                ))
+              ),
+              typeArgs = Nil,
+              Nil,
+              Nil,
+            )(PanicBlame("ptr_deref requires nothing.")),
+          field = getPointerField(pointer),
+        )(PointerFieldInsufficientPermission(deref.blame, deref))
+      case deref @ RawDerefPointer(pointer) =>
+        FunctionInvocation[Post](
+          ref = pointerDeref.ref,
+          args = Seq(
+            FunctionInvocation[Post](
+              ref = pointerAdd.ref,
+              // Always index with zero, otherwise quantifiers with pointers do not get triggered
+              args = Seq(unwrapOption(pointer, deref.blame), const(0)),
+              typeArgs = Nil,
+              Nil,
+              Nil,
+            )(NoContext(
+              DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
+            ))
+          ),
+          typeArgs = Nil,
+          Nil,
+          Nil,
+        )(PanicBlame("ptr_deref requires nothing."))
       case len @ PointerBlockLength(pointer) =>
         ADTFunctionInvocation[Post](
           typeArgs = Some((blockAdt.ref, Nil)),

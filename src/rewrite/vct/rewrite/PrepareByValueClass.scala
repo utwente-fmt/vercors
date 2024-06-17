@@ -94,10 +94,11 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
         val t = newLocal.t.asPointer.get.element
         Block(Seq(
           HeapLocalDecl(newLocal),
-          Assign(
-            HeapLocal[Post](newLocal.ref),
-            NewNonNullPointerArray(t, const(1))(PanicBlame("Size > 0")),
-          )(AssignLocalOk),
+//          Assign(
+//            HeapLocal[Post](newLocal.ref),
+//            NewNonNullPointerArray(t, const(1))(PanicBlame("Size > 0")),
+//          )(AssignLocalOk),
+          // TODO: Only do this if the first use does not overwrite it again (do something similar to what I implemented in ImportPointer)....
           Assign(
             newLocal.get(DerefAssignTarget),
             NewObject(t.asInstanceOf[TByValueClass[Post]].cls),
@@ -175,6 +176,7 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
     }
     val newFieldPerms = fields.map(member => {
       val loc = FieldLocation[Post](obj, succ(member))
+      // TODO: Don't go through regular pointers...
       member.t.asPointer.get.element match {
         case inner: TByValueClass[Pre] =>
           Perm[Post](loc, perm) &* unwrapClassPerm(
@@ -192,8 +194,63 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
     foldStar(newFieldPerms)
   }
 
+  private def unwrapClassComp(
+      comp: (Expr[Post], Expr[Post]) => Expr[Post],
+      left: Expr[Post],
+      right: Expr[Post],
+      structType: TByValueClass[Pre],
+      visited: Seq[TByValueClass[Pre]] = Nil,
+  )(implicit o: Origin): Expr[Post] = {
+    // TODO: Better error
+    if (visited.contains(structType))
+      throw UnsupportedStructPerm(o)
+
+    val blame = PanicBlame("Struct deref can never fail")
+    val fields = structType.cls.decl.decls.collect {
+      case f: InstanceField[Pre] => f
+    }
+    foldAnd(fields.map(member => {
+      val l =
+        RawDerefPointer(Deref[Post](left, succ(member))(blame))(
+          NonNullPointerNull
+        )
+      val r =
+        RawDerefPointer(Deref[Post](right, succ(member))(blame))(
+          NonNullPointerNull
+        )
+      member.t match {
+//        case p: TNonNullPointer[Pre] if p.element.isInstanceOf[TByValueClass[Pre]] =>
+//          unwrapClassComp(comp, DerefPointer(l)(NonNullPointerNull), r, p.element.asInstanceOf[TByValueClass[Pre]], structType +: visited)
+        case _ => comp(l, r)
+      }
+    }))
+  }
+
   override def dispatch(node: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = node.o
+    node match {
+      case Eq(left, right)
+          if left.t == right.t && left.t.isInstanceOf[TByValueClass[Pre]] =>
+        val newLeft = dispatch(left)
+        val newRight = dispatch(right)
+        return Eq(newLeft, newRight) && unwrapClassComp(
+          (l, r) => Eq(l, r),
+          newLeft,
+          newRight,
+          left.t.asInstanceOf[TByValueClass[Pre]],
+        )
+      case Neq(left, right)
+          if left.t == right.t && left.t.isInstanceOf[TByValueClass[Pre]] =>
+        val newLeft = dispatch(left)
+        val newRight = dispatch(right)
+        return Neq(newLeft, newRight) && unwrapClassComp(
+          (l, r) => Neq(l, r),
+          newLeft,
+          newRight,
+          left.t.asInstanceOf[TByValueClass[Pre]],
+        )
+      case _ => {}
+    }
     if (inAssignment.nonEmpty)
       node.rewriteDefault()
     else
@@ -204,6 +261,17 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
             dispatch(p),
             e.t.asInstanceOf[TByValueClass[Pre]],
           )
+        case Perm(pl @ PointerLocation(dhv @ DerefHeapVariable(Ref(v))), p)
+            if v.t.isInstanceOf[TNonNullPointer[Pre]] =>
+          val t = v.t.asInstanceOf[TNonNullPointer[Pre]]
+          if (t.element.isInstanceOf[TByValueClass[Pre]]) {
+            val newV: Ref[Post, HeapVariable[Post]] = succ(v)
+            val newP = dispatch(p)
+            Perm(HeapVariableLocation(newV), newP) &* Perm(
+              PointerLocation(DerefHeapVariable(newV)(dhv.blame))(pl.blame),
+              newP,
+            )
+          } else { node.rewriteDefault() }
         // What if I get rid of this...
 //        case Perm(loc@PointerLocation(e), p) if e.t.asPointer.exists(t => t.element.isInstanceOf[TByValueClass[Pre]])=>
 //          unwrapClassPerm(DerefPointer(dispatch(e))(PointerLocationDerefBlame(loc.blame))(loc.o), dispatch(p), e.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]])

@@ -1042,8 +1042,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             )
           )
         case None =>
+          val newT =
+            if (t.isInstanceOf[TByValueClass[Post]]) { TNonNullPointer(t) }
+            else { t }
           cGlobalNameSuccessor(RefCGlobalDeclaration(decl, idx)) = rw
-            .globalDeclarations.declare(new HeapVariable(t)(init.o))
+            .globalDeclarations.declare(new HeapVariable(newT)(init.o))
       }
     }
   }
@@ -1321,7 +1324,21 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case ref @ RefCGlobalDeclaration(decl, initIdx) =>
         C.getDeclaratorInfo(decl.decl.inits(initIdx).decl).params match {
           case None =>
-            DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(local.blame)
+            val t =
+              decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] =>
+                t.t
+              }.get
+            if (t.isInstanceOf[CTStruct[Pre]]) {
+              DerefPointer[Post](
+                DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(
+                  local.blame
+                )
+              )(NonNullPointerNull)
+            } else {
+              DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(
+                local.blame
+              )
+            }
           case Some(_) => throw NotAValue(local)
         }
       case ref: RefCLocalDeclaration[Pre]

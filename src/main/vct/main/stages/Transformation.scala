@@ -338,7 +338,6 @@ case class SilverTransformation(
         QuantifySubscriptAny, // no arr[*]
         IterationContractToParBlock,
         PropagateContextEverywhere, // inline context_everywhere into loop invariants
-        PrepareByValueClass,
         EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
         GivenYieldsToArgs,
         CheckProcessAlgebra,
@@ -378,7 +377,7 @@ case class SilverTransformation(
         // flatten out functions in the rhs of assignments, making it harder to detect final field assignments where the
         // value is pure and therefore be put in the contract of the constant function.
         ConstantifyFinalFields,
-
+        PrepareByValueClass,
         // Resolve side effects including method invocations, for encodetrythrowsignals.
         ResolveExpressionSideChecks,
         ResolveExpressionSideEffects,

@@ -364,48 +364,46 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                     }
                   },
               ))
-            val nonNullAxiom =
-              new ADTAxiom[Post](forall(
-                axiomType,
-                body =
-                  v => {
-                    foldAnd(fieldFunctions.map { f =>
-                      adtFunctionInvocation[Post](
-                        f.ref,
-                        None,
-                        args = Seq(v),
-                      ) !== Null()
-                    })
-                  },
-              ))
-            // TODO: need Non null pointer....
-            val injectivityAxiom =
+            val injectivityAxiom1 =
               new ADTAxiom[Post](foralls(
                 Seq(axiomType, axiomType),
                 body = { case Seq(a0, a1) =>
-                  (a0 !== a1) ==> foldAnd(fieldFunctions.map { f =>
-                    DerefPointer(
-                      adtFunctionInvocation[Post](f.ref, args = Seq(a0))
-                    )(NonNullPointerNull)(
-                      o.withContent(TypeName("helloWorld"))
-                    ) !== DerefPointer(
-                      adtFunctionInvocation[Post](f.ref, args = Seq(a1))
-                    )(NonNullPointerNull)(o.withContent(TypeName("helloWorld")))
+                  foldAnd(fieldFunctions.combinations(2).map {
+                    case Seq(f0, f1) =>
+                      Neq(
+                        adtFunctionInvocation[Post](f0.ref, args = Seq(a0)),
+                        adtFunctionInvocation[Post](f1.ref, args = Seq(a1)),
+                      )
+                  }.toSeq)
+                },
+                triggers = { case Seq(a0, a1) =>
+                  fieldFunctions.combinations(2).map { case Seq(f0, f1) =>
+                    Seq(
+                      adtFunctionInvocation[Post](f0.ref, None, args = Seq(a0)),
+                      adtFunctionInvocation[Post](f1.ref, None, args = Seq(a1)),
+                    )
+                  }.toSeq
+                },
+              ))
+            val injectivityAxiom2 =
+              new ADTAxiom[Post](foralls(
+                Seq(axiomType, axiomType),
+                body = { case Seq(a0, a1) =>
+                  foldAnd(fieldFunctions.map { f =>
+                    Implies(
+                      Eq(
+                        adtFunctionInvocation[Post](f.ref, args = Seq(a0)),
+                        adtFunctionInvocation[Post](f.ref, args = Seq(a1)),
+                      ),
+                      a0 === a1,
+                    )
                   })
                 },
                 triggers = { case Seq(a0, a1) =>
                   fieldFunctions.map { f =>
                     Seq(
-                      DerefPointer(
-                        adtFunctionInvocation[Post](f.ref, None, args = Seq(a0))
-                      )(NonNullPointerNull)(o.withContent(TypeName(
-                        "helloWorld"
-                      ))),
-                      DerefPointer(
-                        adtFunctionInvocation[Post](f.ref, None, args = Seq(a1))
-                      )(NonNullPointerNull)(o.withContent(TypeName(
-                        "helloWorld"
-                      ))),
+                      adtFunctionInvocation[Post](f.ref, None, args = Seq(a0)),
+                      adtFunctionInvocation[Post](f.ref, None, args = Seq(a1)),
                     )
                   }
                 },
@@ -416,8 +414,8 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                 Seq(
                   constructor,
                   destructorAxiom,
-//                  nonNullAxiom,
-                  injectivityAxiom,
+                  injectivityAxiom1,
+                  injectivityAxiom2,
                 ) ++ fieldFunctions,
                 Nil,
               )

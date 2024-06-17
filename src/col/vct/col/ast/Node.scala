@@ -1400,6 +1400,10 @@ final case class DerefPointer[G](pointer: Expr[G])(
     val blame: Blame[PointerDerefError]
 )(implicit val o: Origin)
     extends Expr[G] with DerefPointerImpl[G]
+final case class RawDerefPointer[G](pointer: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends Expr[G] with RawDerefPointerImpl[G]
 final case class PointerAdd[G](pointer: Expr[G], offset: Expr[G])(
     val blame: Blame[PointerAddError]
 )(implicit val o: Origin)
