@@ -91,7 +91,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   def makeTypeOf: Function[Post] = {
     implicit val o: Origin = TypeOfOrigin
-    val obj = new Variable[Post](TRef())
+    val obj = new Variable[Post](TAnyValue())
     withResult((result: Result[Post]) =>
       function(
         blame = AbstractApplicable,
@@ -175,10 +175,11 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           )
 
         typeNumber(cls)
+        val thisType = dispatch(cls.classType(Nil))
         cls.decls.foreach {
           case function: InstanceFunction[Pre] =>
             implicit val o: Origin = function.o
-            val thisVar = new Variable[Post](TRef())(This)
+            val thisVar = new Variable[Post](thisType)(This)
             diz.having(thisVar.get) {
               functionSucc(function) = globalDeclarations
                 .declare(labelDecls.scope {
@@ -213,7 +214,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             }
           case method: InstanceMethod[Pre] =>
             implicit val o: Origin = method.o
-            val thisVar = new Variable[Post](TRef())(This)
+            val thisVar = new Variable[Post](thisType)(This)
             diz.having(thisVar.get) {
               methodSucc(method) = globalDeclarations.declare(labelDecls.scope {
                 new Procedure(
@@ -249,7 +250,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             }
           case cons: Constructor[Pre] =>
             implicit val o: Origin = cons.o
-            val thisVar = new Variable[Post](TRef())(This)
+            val thisVar = new Variable[Post](thisType)(This)
             consSucc(cons) = globalDeclarations.declare(labelDecls.scope {
               new Procedure(
                 returnType = TVoid(),
@@ -293,7 +294,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               ))
             })
           case predicate: InstancePredicate[Pre] =>
-            val thisVar = new Variable[Post](TRef())(This)
+            val thisVar = new Variable[Post](thisType)(This)
             diz.having(thisVar.get(predicate.o)) {
               predicateSucc(predicate) = globalDeclarations.declare(
                 new Predicate(
