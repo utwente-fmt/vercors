@@ -64,6 +64,8 @@ case object PrepareByValueClass extends RewriterBuilder {
   private case class InAssignmentStatement(assignment: Assign[_])
       extends CopyContext
 
+  private case class NoCopy() extends CopyContext
+
   case class PointerLocationDerefBlame(blame: Blame[PointerLocationError])
       extends Blame[PointerDerefError] {
     override def blame(error: PointerDerefError): Unit = {
@@ -107,9 +109,11 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
       }
       case assign: Assign[Pre] => {
         val target = inAssignment.having(()) { dispatch(assign.target) }
-        copyContext.having(InAssignmentStatement(assign)) {
-          assign.rewrite(target = target)
-        }
+        if (assign.target.t.isInstanceOf[TByValueClass[Pre]]) {
+          copyContext.having(InAssignmentStatement(assign)) {
+            assign.rewrite(target = target)
+          }
+        } else { assign.rewrite(target = target) }
       }
       case _ => node.rewriteDefault()
     }
@@ -277,11 +281,20 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
 //          unwrapClassPerm(DerefPointer(dispatch(e))(PointerLocationDerefBlame(loc.blame))(loc.o), dispatch(p), e.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]])
         case assign: PreAssignExpression[Pre] =>
           val target = inAssignment.having(()) { dispatch(assign.target) }
-          copyContext.having(InAssignmentExpression(assign)) {
-            assign.rewrite(target = target)
+          if (assign.target.t.isInstanceOf[TByValueClass[Pre]]) {
+            copyContext.having(InAssignmentExpression(assign)) {
+              assign.rewrite(target = target)
+            }
+          } else {
+            // No need for copy semantics in this context
+            copyContext.having(NoCopy()) { assign.rewrite(target = target) }
           }
         case invocation: Invocation[Pre] => {
-          copyContext.having(InCall(invocation)) { invocation.rewriteDefault() }
+          invocation.rewrite(args = invocation.args.map { a =>
+            if (a.t.isInstanceOf[TByValueClass[Pre]]) {
+              copyContext.having(InCall(invocation)) { dispatch(a) }
+            } else { copyContext.having(NoCopy()) { dispatch(a) } }
+          })
         }
         // WHOOPSIE WE ALSO MAKE A COPY IF IT WAS A POINTER
         case dp @ DerefPointer(HeapLocal(Ref(v)))
@@ -342,6 +355,7 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
           t,
           f => ClassCopyInAssignmentFailed(dp.blame, assignment, clazz, f),
         )
+      case NoCopy() => dp.rewriteDefault()
     }
   }
 }

@@ -193,7 +193,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       // If structure contains structs, the permission for those fields need to be released as well
       val permFields =
         t match {
-//          case t: TClass[Post] => unwrapStructPerm(access, t, o, makeStruct)
+          case t: TClass[Post] => unwrapStructPerm(access, t, o, makeStruct)
           case _ => Seq()
         }
       requiresT =

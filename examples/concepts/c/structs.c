@@ -52,7 +52,6 @@ void alter_copy_struct(struct point p){
     p.y = 0;
 }
 
-// TODO: Should be auto-generated
 /*@
   context Perm(p, 1\1);
 @*/
@@ -133,7 +132,6 @@ int main(){
     struct point *pp;
     pp = &p;
 
-    /* //@ assert (pp[0] != NULL ); */
     assert (pp != NULL );
 
     p.x = 1;
@@ -147,7 +145,7 @@ int main(){
     alter_struct(pp);
     assert(pp->x == 0);
     assert(p.x == 0);
-    alter_struct_1(pp); //alter_struct_1(&p) is not supported yet
+    alter_struct_1(pp);
     assert(p.x == 1 && p.y == 1);
 
     struct point p1, p2, p3;
@@ -164,10 +162,6 @@ int main(){
     struct polygon pol, *ppols;
     ppols = &pol;
     pol.ps = ps;
-    //@ assert Perm(&ppols->ps[0], write);
-    //@ assert Perm(&ppols->ps[1], write);
-    //@ assert Perm(&ppols->ps[2], write);
-    //@ assert (\forall* int i; 0<=i && i<3; Perm(&ppols->ps[i], write));
     int avr_pol = avr_x_pol(ppols, 3);
     // assert sum_seq(inp_to_seq(ppols->ps, 3)) == 6;
     assert(avr_pol == 2);
