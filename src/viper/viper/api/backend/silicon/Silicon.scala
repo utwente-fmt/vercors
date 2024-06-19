@@ -97,6 +97,7 @@ case class Silicon(
       "--z3ConfigArgs",
       z3Config,
       "--ideModeAdvanced",
+      "--useOldAxiomatization",
     )
 
     if (proverLogFile.isDefined) {
