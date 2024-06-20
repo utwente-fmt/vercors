@@ -25,6 +25,8 @@ case object Profile {
     currentProfile.foreach(_.finish())
     currentProfile = None
   }
+
+  def enabled: Boolean = currentProfile.isDefined
 }
 
 case class Profile() {
