@@ -3,7 +3,9 @@ package vct.rewrite.rasi
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{
   AmbiguousThis,
+  BooleanValue,
   Class,
+  Declaration,
   Deref,
   Expr,
   InstanceField,
@@ -15,6 +17,7 @@ import vct.col.ast.{
   TClass,
 }
 import vct.col.origin.Origin
+import vct.col.print.Ctx
 import vct.rewrite.cfg.{CFGEntry, CFGGenerator}
 
 import java.nio.file.Path
@@ -32,12 +35,14 @@ class RASIGenerator[G] extends LazyLogging {
   def execute(
       entry_point: Procedure[G],
       vars: Set[ConcreteVariable[G]],
+      split_on: Option[Set[ConcreteVariable[G]]],
       parameter_invariant: InstancePredicate[G],
       program: Node[G],
-  ): Expr[G] =
+  ): Seq[(String, Expr[G])] =
     generate_rasi(
       CFGGenerator().generate(entry_point),
       vars,
+      split_on,
       parameter_invariant,
       program,
     )
@@ -58,18 +63,78 @@ class RASIGenerator[G] extends LazyLogging {
   private def generate_rasi(
       node: CFGEntry[G],
       vars: Set[ConcreteVariable[G]],
+      split_on: Option[Set[ConcreteVariable[G]]],
       parameter_invariant: InstancePredicate[G],
       program: Node[G],
-  ): Expr[G] = {
+  ): Seq[(String, Expr[G])] = {
     explore(node, vars, parameter_invariant)
-    val distinct_states = found_states.distinctBy(s => s.valuations)
-    logger.debug(s"${distinct_states.size} distinct states found")
+    val distinct: Int = found_states.distinctBy(s => s.valuations).size
+    logger.info(s"$distinct distinct states found")
+
+    if (split_on.isEmpty)
+      return Seq((
+        "reachable_abstract_states_invariant",
+        get_rasi_expression(_ => true, program),
+      ))
+
+    var res: Seq[(String, Expr[G])] = Seq(
+      ("interleaving_states", get_rasi_expression(s => s.lock.isEmpty, program))
+    )
+
+    get_var_value_pairs(split_on.get).foreach(t =>
+      res =
+        res :+
+          (
+            get_rasi_name(t._1, t._2),
+            get_rasi_expression(s => s.valuations(t._1) == t._2, program),
+          )
+    )
+
+    res
+  }
+
+  private def get_rasi_expression(
+      f: AbstractState[G] => Boolean,
+      program: Node[G],
+  ): Expr[G] = {
+    val rasi_states = found_states.filter(f).distinctBy(s => s.valuations)
+
+    if (rasi_states.isEmpty)
+      return BooleanValue(value = false)(program.o)
+
     val objs: Map[ConcreteVariable[G], Expr[G]] = find_fitting_objects(
       program,
-      distinct_states.head.valuations.keySet,
+      rasi_states.head.valuations.keySet,
     )
-    distinct_states.map(s => s.to_expression(Some(objs)))
+    rasi_states.map(s => s.to_expression(Some(objs)))
       .reduce((e1, e2) => Or(e1, e2)(e1.o))
+  }
+
+  private def get_var_value_pairs(
+      split_on_vars: Set[ConcreteVariable[G]]
+  ): Set[(ConcreteVariable[G], UncertainValue)] =
+    split_on_vars.flatMap(v => found_states.map(s => v -> s.valuations(v)))
+
+  private def get_rasi_name(
+      variable: ConcreteVariable[G],
+      value: UncertainValue,
+  ): String = {
+    // Compute variable name
+    val name_map: Map[Declaration[_], String] = Map.from(Seq(
+      variable.get_declaration ->
+        variable.get_declaration.o.getPreferredName.get.snake
+    ))
+    implicit val context: Ctx = Ctx(syntax = Ctx.PVL, names = name_map)
+    val var_name: String = variable.to_expression(None).toStringWithContext
+      .replace("]", "").replace("[", "").replace("this.", "")
+
+    // Compute value string
+    val value_string: String = value match {
+      case i: UncertainIntegerValue => i.try_to_resolve().getOrElse(throw new IllegalStateException("Value must be defined")).toString
+      case b: UncertainBooleanValue => b.try_to_resolve().getOrElse(throw new IllegalStateException("Value must be defined")).toString
+    }
+
+    "rasi_" + var_name + "_" + value_string
   }
 
   private def print_state_space(
@@ -80,7 +145,7 @@ class RASIGenerator[G] extends LazyLogging {
   ): Unit = {
     explore(node, vars, parameter_invariant)
     val (ns, es) = reduce_redundant_states()
-    logger.debug(s"${ns.size} distinct states found")
+    logger.info(s"${ns.size} distinct states found")
     Utils.print(ns, es, out_path)
   }
 

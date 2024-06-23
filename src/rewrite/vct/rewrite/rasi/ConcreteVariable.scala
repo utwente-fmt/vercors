@@ -68,6 +68,8 @@ sealed trait ConcreteVariable[G] extends ResolvableVariable[G] {
     */
   def to_expression(obj: Option[Expr[G]]): Expr[G]
 
+  def get_declaration: Declaration[G]
+
   protected def field_equals(expr: Expr[G], field: InstanceField[G]): Boolean =
     expr match {
       // TODO: Support other types of expressions? Take object into account?
@@ -98,13 +100,19 @@ sealed trait ConcreteVariable[G] extends ResolvableVariable[G] {
 case class LocalVariable[G](variable: Variable[G]) extends ConcreteVariable[G] {
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
     variable_equals(expr, variable)
+
   override def is_contained_by(
       expr: Expr[G],
       state: AbstractState[G],
   ): Boolean = is(expr, state)
+
   override def to_expression(obj: Option[Expr[G]]): Expr[G] =
     Local[G](variable.ref)(variable.o)
+
+  override def get_declaration: Declaration[G] = variable
+
   override def t: Type[G] = variable.t
+
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
       case LocalVariable(v) => v.toInlineString > variable.toInlineString
@@ -118,15 +126,21 @@ case class FieldVariable[G](field: InstanceField[G])
     extends ConcreteVariable[G] {
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
     field_equals(expr, field)
+
   override def is_contained_by(
       expr: Expr[G],
       state: AbstractState[G],
   ): Boolean = is(expr, state)
+
   override def to_expression(obj: Option[Expr[G]]): Expr[G] =
     Deref[G](obj.getOrElse(AmbiguousThis()(field.o)), field.ref)(field.o)(
       field.o
     )
+
+  override def get_declaration: Declaration[G] = field
+
   override def t: Type[G] = field.t
+
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
       case LocalVariable(_) => true
@@ -147,15 +161,21 @@ case class SizeVariable[G](field: InstanceField[G])
       case Size(obj) => field_equals(obj, field)
       case _ => false
     }
+
   override def is_contained_by(
       expr: Expr[G],
       state: AbstractState[G],
   ): Boolean = is(expr, state) || field_equals(expr, field)
+
   override def to_expression(obj: Option[Expr[G]]): Expr[G] =
     Size(Deref[G](obj.getOrElse(AmbiguousThis()(field.o)), field.ref)(field.o)(
       field.o
     ))(field.o)
+
+  override def get_declaration: Declaration[G] = field
+
   override def t: Type[G] = TInt()(field.o)
+
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
       case LocalVariable(_) => true
@@ -187,6 +207,7 @@ case class IndexedVariable[G](field: InstanceField[G], i: Int)
           .getOrElse(-1)
       case _ => false
     }
+
   override def is_contained_by(
       expr: Expr[G],
       state: AbstractState[G],
@@ -206,6 +227,7 @@ case class IndexedVariable[G](field: InstanceField[G], i: Int)
           .getOrElse(i - 1) >= i
       case _ => field_equals(expr, field) || is(expr, state)
     }
+
   override def to_expression(obj: Option[Expr[G]]): Expr[G] =
     field.t match {
       case TSeq(_) =>
@@ -230,12 +252,16 @@ case class IndexedVariable[G](field: InstanceField[G], i: Int)
           IntegerValue(i)(field.o),
         )(field.o)(field.o)
     }
+
+  override def get_declaration: Declaration[G] = field
+
   override def t: Type[G] =
     field.t match {
       case TSeq(element) => element
       case TArray(element) => element
       case TPointer(element) => element
     }
+
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
       case LocalVariable(_) => true
