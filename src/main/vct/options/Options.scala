@@ -335,6 +335,11 @@ case object Options {
               .text(
                 "[WIP] Preliminary selection mechanism for RASI variables; might be replaced later"
               ),
+            opt[Seq[String]]("split-rasi").valueName("<var1>,...")
+              .action((vars, c) => c.copy(vesuvRasiSplitVariables = Some(vars)))
+              .text(
+                "[WIP] Preliminary selection mechanism for localizing the RASI based on certain variables; might be changed later"
+              ),
           ),
       ),
       note(""),
@@ -450,6 +455,7 @@ case class Options(
     vesuvGenerateRasi: Boolean = false,
     vesuvRasiTest: Boolean = false,
     vesuvRasiVariables: Option[Seq[String]] = None,
+    vesuvRasiSplitVariables: Option[Seq[String]] = None,
 
     // Control flow graph options
     cfgOutput: Path = null,

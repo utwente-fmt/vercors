@@ -3,12 +3,31 @@ package vct.main.stages
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.LiteralReadable
 import hre.stages.Stage
-import vct.col.ast.{Declaration, Deref, Expr, InstanceField, InstanceMethod, InstancePredicate, Node, Predicate, Procedure, Program, Verification, VerificationContext}
+import vct.col.ast.{
+  Declaration,
+  Deref,
+  Expr,
+  InstanceField,
+  InstanceMethod,
+  InstancePredicate,
+  Node,
+  Predicate,
+  Procedure,
+  Program,
+  Verification,
+  VerificationContext,
+}
 import vct.col.origin.{LabelContext, Origin, PreferredName}
 import vct.col.print.Ctx
 import vct.col.rewrite.Generation
 import vct.options.Options
-import vct.rewrite.rasi.{ConcreteVariable, FieldVariable, IndexedVariable, RASIGenerator, SizeVariable}
+import vct.rewrite.rasi.{
+  ConcreteVariable,
+  FieldVariable,
+  IndexedVariable,
+  RASIGenerator,
+  SizeVariable,
+}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
@@ -17,13 +36,14 @@ case object GenerateRASI {
   def ofOptions(options: Options): Stage[Node[_ <: Generation], Unit] = {
     GenerateRASI(
       options.vesuvRasiVariables,
+      options.vesuvRasiSplitVariables,
       options.vesuvOutput,
       test = options.vesuvRasiTest,
     )
   }
 }
 
-case class GenerateRASI(vars: Option[Seq[String]], out: Path, test: Boolean)
+case class GenerateRASI(vars: Option[Seq[String]], split: Option[Seq[String]], out: Path, test: Boolean)
     extends Stage[Node[_ <: Generation], Unit] with LazyLogging {
 
   override def friendlyName: String =
@@ -35,9 +55,7 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path, test: Boolean)
     val in = in1.asInstanceOf[Node[Generation]]
     val main_method =
       in.transSubnodes.collectFirst {
-        case m: Procedure[_]
-            if m.vesuv_entry =>
-          m
+        case m: Procedure[_] if m.vesuv_entry => m
       }.get
     val variables: Set[ConcreteVariable[Generation]] =
       vars.getOrElse(Seq()).map(s => resolve_variable(in, s)).toSet
@@ -50,7 +68,8 @@ case class GenerateRASI(vars: Option[Seq[String]], out: Path, test: Boolean)
         .execute(main_method, variables, parameter_invariant, in)
       implicit val o: Origin = Origin(Seq(LabelContext("rasi-generation")))
         .withContent(PreferredName(Seq("reachable_abstract_states_invariant")))
-      val predicate: Predicate[Generation] = new Predicate(Seq(), Some(rasi))
+      val predicate: Predicate[Generation] =
+        new Predicate(Seq(), Some(rasi), threadLocal = false, inline = true)
       val verification: Verification[Generation] = Verification(
         Seq(VerificationContext(Program(Seq(predicate))(o))),
         Seq(),
