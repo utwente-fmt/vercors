@@ -54,7 +54,7 @@ case class GenerateRASI(vars: Option[Seq[String]], split: Option[Seq[String]], o
   override def run(in1: Node[_ <: Generation]): Unit = {
     val in = in1.asInstanceOf[Node[Generation]]
     val main_method =
-      in.transSubnodes.collectFirst {
+      in.collectFirst {
         case m: Procedure[_] if m.vesuv_entry => m
       }.get
     val variables: Set[ConcreteVariable[Generation]] =
@@ -76,7 +76,7 @@ case class GenerateRASI(vars: Option[Seq[String]], split: Option[Seq[String]], o
       )
 
       val name_map: Map[Declaration[_], String] = Map
-        .from(predicate.transSubnodes.collect {
+        .from(predicate.collect {
           case Deref(_, ref) =>
             ref.decl -> ref.decl.o.getPreferredName.get.snake
           case p: Predicate[_] => p -> p.o.getPreferredName.get.snake
@@ -106,7 +106,7 @@ case class GenerateRASI(vars: Option[Seq[String]], split: Option[Seq[String]], o
   ): ConcreteVariable[Generation] = {
     if (name.contains("|")) {
       val var_name = name.substring(1, name.length - 1)
-      return SizeVariable(in.transSubnodes.collectFirst {
+      return SizeVariable(in.collectFirst {
         case f: InstanceField[_]
             if f.o.getPreferredName.get.snake.equals(var_name) =>
           f
@@ -124,7 +124,7 @@ case class GenerateRASI(vars: Option[Seq[String]], split: Option[Seq[String]], o
       else
         Some(Integer.valueOf(name.substring(name_len + 1, name.length - 1)))
     val instance_field =
-      in.transSubnodes.collectFirst {
+      in.collectFirst {
         case f: InstanceField[_]
             if f.o.getPreferredName.get.snake.equals(var_name) =>
           f
@@ -138,7 +138,7 @@ case class GenerateRASI(vars: Option[Seq[String]], split: Option[Seq[String]], o
   private def get_parameter_invariant(
       in: Node[Generation]
   ): InstancePredicate[Generation] = {
-    in.transSubnodes.collectFirst {
+    in.collectFirst {
       case p: InstancePredicate[_]
           if p.o.getPreferredName.get.snake.equals("parameter_invariant") =>
         p

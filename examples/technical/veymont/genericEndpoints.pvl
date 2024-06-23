@@ -14,7 +14,6 @@ choreography genericTest() {
   endpoint a = Role<A>();
   endpoint b = Role<B>();
 
-  requires a != b;
   run {
     a.i := a.toInt(a.t);
     communicate a.i -> b.i;

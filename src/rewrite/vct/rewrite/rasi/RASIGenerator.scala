@@ -1,7 +1,19 @@
 package vct.rewrite.rasi
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.{AmbiguousThis, Class, Deref, Expr, InstanceField, InstanceMethod, InstancePredicate, Node, Null, Or, Procedure, TClass}
+import vct.col.ast.{
+  AmbiguousThis,
+  Class,
+  Deref,
+  Expr,
+  InstanceField,
+  InstancePredicate,
+  Node,
+  Null,
+  Or,
+  Procedure,
+  TClass,
+}
 import vct.col.origin.Origin
 import vct.rewrite.cfg.{CFGEntry, CFGGenerator}
 
@@ -192,8 +204,8 @@ class RASIGenerator[G] extends LazyLogging {
       parameter_invariant: InstancePredicate[G]
   ): Map[FieldVariable[G], UncertainValue] = {
     val pred = parameter_invariant.body.get
-    val parameters: Seq[InstanceField[G]] = pred.transSubnodes.collect {
-      case f: Deref[G] => f
+    val parameters: Seq[InstanceField[G]] = pred.collect { case f: Deref[G] =>
+      f
     }.map(d => d.ref.decl)
     Map.from(
       parameters.map(f => FieldVariable(f) -> UncertainValue.uncertain_of(f.t))
@@ -224,8 +236,8 @@ class RASIGenerator[G] extends LazyLogging {
     var m: Map[ConcreteVariable[G], Expr[G]] = Map
       .empty[ConcreteVariable[G], Expr[G]]
 
-    val classes: Seq[Class[G]] = program.transSubnodes.collect[Class[G]] {
-      case c: Class[G] => c
+    val classes: Seq[Class[G]] = program.collect[Class[G]] { case c: Class[G] =>
+      c
     }
     // TODO: Find differently, e.g. with lock invariant?
     val main_class: Class[G] =
@@ -258,8 +270,8 @@ class RASIGenerator[G] extends LazyLogging {
     val obj: InstanceField[G] =
       main.decls.collectFirst {
         case f: InstanceField[G]
-          if f.t.isInstanceOf[TClass[G]] &&
-            f.t.asInstanceOf[TClass[G]].cls.decl == type_class =>
+            if f.t.isInstanceOf[TClass[G]] &&
+              f.t.asInstanceOf[TClass[G]].cls.decl == type_class =>
           f
       }.get
     Deref[G](AmbiguousThis()(field.o), obj.ref)(field.o)(field.o)

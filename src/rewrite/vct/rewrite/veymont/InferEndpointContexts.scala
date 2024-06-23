@@ -3,6 +3,8 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
+  ReadPerm,
+  Value,
   AbstractRewriter,
   AmbiguousLocation,
   ApplicableContract,
@@ -11,10 +13,9 @@ import vct.col.ast.{
   Block,
   BooleanValue,
   Branch,
-  ChorGuard,
   ChorPerm,
   ChorRun,
-  ChorStatement,
+  EndpointStatement,
   Choreography,
   Class,
   ClassDeclaration,
@@ -166,16 +167,16 @@ case class InferEndpointContexts[Pre <: Generation]()
   override def dispatch(stmt: Statement[Pre]): Statement[Post] =
     stmt match {
       // Whitelist statements that do not need a context
-      case s @ ChorStatement(None, assign: Assign[Pre]) =>
+      case s @ EndpointStatement(None, assign: Assign[Pre]) =>
         val endpoint: Endpoint[Pre] = getEndpoint(assign.target)
         s.rewrite(endpoint = Some(succ(endpoint)))
-      case s @ ChorStatement(None, assert: Assert[Pre]) =>
+      case s @ EndpointStatement(None, assert: Assert[Pre]) =>
         val endpoint: Endpoint[Pre] = getEndpoint(assert.expr)
         s.rewrite(endpoint = Some(succ(endpoint)))
-      case s @ ChorStatement(None, Eval(invoke: MethodInvocation[Pre])) =>
+      case s @ EndpointStatement(None, Eval(invoke: MethodInvocation[Pre])) =>
         val endpoint: Endpoint[Pre] = getEndpoint(invoke.obj)
         s.rewrite(endpoint = Some(succ(endpoint)))
-      case s @ ChorStatement(None, _) => throw EndpointInferenceUndefined(s)
+      case s @ EndpointStatement(None, _) => throw EndpointInferenceUndefined(s)
       case s => s.rewriteDefault()
     }
 
@@ -184,6 +185,10 @@ case class InferEndpointContexts[Pre <: Generation]()
       case p @ Perm(loc, perm) if inChor.topOption.contains(true) =>
         ChorPerm[Post](succ(getEndpoint(loc)), dispatch(loc), dispatch(perm))(
           p.o
+        )
+      case v @ Value(loc) if inChor.topOption.contains(true) =>
+        ChorPerm[Post](succ(getEndpoint(loc)), dispatch(loc), ReadPerm()(v.o))(
+          v.o
         )
       case _ => expr.rewriteDefault()
     }

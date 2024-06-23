@@ -6,6 +6,7 @@ import vct.col.ast.{
   Assert,
   Assign,
   Block,
+  ChorExpr,
   ChorPerm,
   ChorRun,
   ChorStatement,
@@ -16,14 +17,16 @@ import vct.col.ast.{
   Declaration,
   Deref,
   Endpoint,
+  EndpointExpr,
   EndpointName,
+  EndpointStatement,
   Eval,
   Expr,
   InstanceMethod,
   Local,
   LocalDecl,
-  MethodInvocation,
   Message,
+  MethodInvocation,
   Node,
   Perm,
   Procedure,
@@ -106,7 +109,7 @@ object EncodeChoreography extends RewriterBuilder {
 //    }
 //  }
 
-  case class AssignFailedToSeqAssignFailure(assign: ChorStatement[_])
+  case class AssignFailedToSeqAssignFailure(assign: EndpointStatement[_])
       extends Blame[AssignFailed] {
     override def blame(error: AssignFailed): Unit =
       assign.blame.blame(SeqAssignInsufficientPermission(assign))
@@ -317,11 +320,11 @@ case class EncodeChoreography[Pre <: Generation]()
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
     stat match {
-      case assign @ ChorStatement(None, Assign(target, e)) =>
+      case assign @ EndpointStatement(None, Assign(target, e)) =>
         throw new Exception(
           assign.o.messageInContext("ChorStatement with None!")
         )
-      case assign @ ChorStatement(Some(Ref(endpoint)), Assign(target, e)) =>
+      case assign @ EndpointStatement(Some(Ref(endpoint)), Assign(target, e)) =>
         logger
           .warn(s"Ignoring endpoint annotation on chor assign statement ${assign
               .o.shortPosition.map("at " + _).getOrElse("")}")
@@ -381,7 +384,16 @@ case class EncodeChoreography[Pre <: Generation]()
         throw new Exception(comm.o.messageInContext(
           "Either the sender or receiver was not annotated for or not inferred!"
         ))
-      case ChorStatement(_, stat) => dispatch(stat)
+      case EndpointStatement(_, stat) => dispatch(stat)
+      case s @ ChorStatement(inner) =>
+        logger.warn(
+          s"Ignoring semantics of ChorStatement at ${s.o.shortPositionText}"
+        )
+        dispatch(inner)
+      case ep @ EndpointStatement(_, inner) =>
+        throw new Exception(ep.o.messageInContext(
+          "TODO: Implement choreographic verification encoding for this"
+        ))
       case stat => rewriteDefault(stat)
     }
 
@@ -433,6 +445,12 @@ case class EncodeChoreography[Pre <: Generation]()
       case (mode, Message(Ref(comm))) =>
         implicit val o = expr.o
         msgSucc(comm).get
-      case (_, expr) => rewriteDefault(expr)
+      case (mode, EndpointExpr(Ref(endpoint), expr)) =>
+        logger.warn(
+          "Ignoring endpoint expr annotation at " + expr.o.shortPositionText
+        )
+        dispatch(expr)
+      case (mode, ChorExpr(inner)) => dispatch(inner)
+      case (_, expr) => expr.rewriteDefault()
     }
 }

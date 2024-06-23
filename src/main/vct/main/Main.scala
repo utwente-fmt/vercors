@@ -138,8 +138,11 @@ case object Main extends LazyLogging {
       val thisThread = Thread.currentThread()
       Thread.getAllStackTraces.keySet().stream().filter(_ != thisThread)
         .filter(!_.isDaemon).forEach { thread =>
-          logger.warn(s"Non-daemon thread ${thread.getThreadGroup
-              .getName}.${thread.getName} (#${thread.getId}) is still running")
+          val tg = Option(thread.getThreadGroup)
+          logger.warn(
+            s"Non-daemon thread ${tg.map(_.getName)
+                .getOrElse("UnknownThreadGroup")}.${thread.getName} (#${thread.getId}) is still running"
+          )
           logger.warn(
             "Due to this VerCors will not exit and sit idly until that thread is done. You may want to stop the program manually."
           )

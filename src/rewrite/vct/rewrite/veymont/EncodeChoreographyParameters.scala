@@ -26,6 +26,7 @@ object EncodeChoreographyParameters extends RewriterBuilder {
     "Encode choreography parameters as fields on all endpoint types."
 }
 
+// TODO (RR): Remove this class in the end, probably
 /** This is a rewrite that encodes choreography parameters as endpoint fields in
   * a separate class. It was abandoned because the connection between parameters
   * and the respective fields in each endpoint class is lost between this pass

@@ -55,7 +55,7 @@ case object TaskRegistry {
       }
 
   def ownUsage(): ResourceUsage =
-    if (enabled) {
+    if (enabled && Profile.enabled) {
       if (isMainThread)
         ResourceUsage.getProcess
       else

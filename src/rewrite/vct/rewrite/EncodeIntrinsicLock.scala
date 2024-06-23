@@ -99,7 +99,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
-    program.transSubnodes.foreach {
+    program.foreach {
       case Lock(obj) => needHeld(obj)
       case Unlock(obj) => needHeld(obj)
       case Wait(obj) => needHeld(obj)

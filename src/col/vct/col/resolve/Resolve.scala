@@ -365,7 +365,7 @@ case object ResolveReferences extends LazyLogging {
     }
 
   def scanLabels[G](node: Node[G]): Seq[Declaration[G]] =
-    node.transSubnodes.collect {
+    node.collect {
       case decl: LabelDecl[G] => decl
       case decl: SendDecl[G] => decl
     }
@@ -378,7 +378,7 @@ case object ResolveReferences extends LazyLogging {
     }
 
   def scanShared[G](node: Node[G]): Seq[Declaration[G]] =
-    node.transSubnodes.collect {
+    node.collect {
       case decl: CLocalDeclaration[G] if decl.decl.specs.collectFirst {
             case GPULocal() => ()
           }.isDefined =>

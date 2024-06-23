@@ -39,20 +39,22 @@ import vct.rewrite.{
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont.{
   DeduplicateChorGuards,
+  DropChorExpr,
   EncodeChannels,
   EncodeChorBranchUnanimity,
   EncodeChoreography,
-  EncodeChoreographyParameters,
   EncodeEndpointInequalities,
-  EncodeUnpointedGuard,
+  StratifyUnpointedExpressions,
   GenerateChoreographyPermissions,
   GenerateImplementation,
   InferEndpointContexts,
   SpecializeEndpointClasses,
-  SplitChorGuards,
+  StratifyExpressions,
 }
 
 import java.nio.file.Path
+import java.nio.file.Files
+import java.nio.file.Paths
 
 object Transformation extends LazyLogging {
   case class TransformationCheckError(
@@ -86,7 +88,8 @@ object Transformation extends LazyLogging {
       out: Path,
       stageKey: String,
   ): PassEventHandler = {
-    out.toFile.mkdirs()
+    Files.createDirectories(out)
+    Files.list(out).filter(_.endsWith(".col")).forEach(Files.delete(_))
     (passes, event, pass, program) => {
       val i =
         passes.map(_.key).indexOf(pass) * 2 +
@@ -314,8 +317,8 @@ case class SilverTransformation(
         EncodeRangedFor,
 
         // VeyMont sequential program encoding
-        SplitChorGuards,
-        EncodeUnpointedGuard,
+        StratifyExpressions,
+        StratifyUnpointedExpressions,
         DeduplicateChorGuards,
         InferEndpointContexts,
         GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
@@ -439,13 +442,13 @@ case class VeyMontImplementationGeneration(
 ) extends Transformation(
       onPassEvent,
       Seq(
-        SplitChorGuards,
-        EncodeUnpointedGuard,
+        DropChorExpr,
+        StratifyExpressions,
+        StratifyUnpointedExpressions,
         DeduplicateChorGuards,
         SpecializeEndpointClasses,
-        InferEndpointContexts,
         EncodeChannels.withArg(importer),
-//    EncodeChoreographyParameters,
+        InferEndpointContexts,
         GenerateImplementation,
         PrettifyBlocks,
       ),

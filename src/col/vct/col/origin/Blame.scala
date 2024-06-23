@@ -571,7 +571,7 @@ case class LoopUnanimityNotMaintained(guard1: Node[_], guard2: Node[_])
 sealed trait ChorStatementFailure extends VerificationFailure
 sealed trait ChorAssignFailure extends ChorStatementFailure
 
-case class SeqAssignInsufficientPermission(node: ChorStatement[_])
+case class SeqAssignInsufficientPermission(node: EndpointStatement[_])
     extends ChorAssignFailure with NodeVerificationFailure {
   override def code: String = "seqAssignPerm"
   override def descInContext: String =

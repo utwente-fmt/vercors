@@ -6,11 +6,12 @@ choreography swap(int x, int y) {
   endpoint a = Role();
   endpoint b = Role();
 
-  context Perm(a.v, 1) ** Perm(a.temp, 1);
-  context Perm(b.v, 1) ** Perm(b.temp, 1);
+  context Perm(a.v, 1) ** Perm(a.temp, 1) ** a.v == 0;
+  context Perm(b.v, 1) ** Perm(b.temp, 1) ** b.v == 1;
   run {
     a.v := x;
     b.v := y;
+    channel_invariant \sender != \receiver && \msg == \msg;
     communicate a.v -> b.temp;
     communicate b.v -> a.temp;
     a.v := a.temp;

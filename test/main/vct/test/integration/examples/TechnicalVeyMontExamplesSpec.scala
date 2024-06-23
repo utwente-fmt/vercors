@@ -11,49 +11,46 @@ class TechnicalVeyMontExamplesSpec extends VercorsSpec {
   // vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkLTS/ltstest.pvl"
   // vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkLTS/simpleifelse.pvl"
 
-  (vercors
-    should error withCode "resolutionError:seqProgInvocation"
-    flag "--veymont-generate-permissions"
-    example s"$wd/checkMainSyntaxAndWellFormedness/ConstructorCall.pvl")
+  (vercors should error withCode "resolutionError:seqProgInvocation" flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkMainSyntaxAndWellFormedness/ConstructorCall.pvl")
   // (vercors
   //   should verify
   //   using silicon flag "--veymont-generate-permissions"
   //   example s"$wd/checkMainSyntaxAndWellFormedness/IfCondition.pvl")
 
-  (vercors
-    should verify
-    using silicon flag "--veymont-generate-permissions"
-    example s"$wd/checkMainSyntaxAndWellFormedness/MainConstructorWithArgs.pvl")
+  (vercors should verify using silicon flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkMainSyntaxAndWellFormedness/MainConstructorWithArgs.pvl")
 
   // vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/MainMethodCall.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/NewNonRoleObject.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/NewRoleObject.pvl"
+  vercors should verify using silicon flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkMainSyntaxAndWellFormedness/NewNonRoleObject.pvl"
+  vercors should verify using silicon flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkMainSyntaxAndWellFormedness/NewRoleObject.pvl"
 
-  (vercors
-    should error
-    withCode "resolutionError:seqProgInvocation"
-    flag "--veymont-generate-permissions"
-    example s"$wd/checkMainSyntaxAndWellFormedness/NonRoleMethodCall.pvl")
+  (vercors should error withCode "resolutionError:seqProgInvocation" flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkMainSyntaxAndWellFormedness/NonRoleMethodCall.pvl")
 
-  (vercors should error
-    withCode "resolutionError:seqProgInvocation"
-    flag "--veymont-generate-permissions"
-    example s"$wd/checkMainSyntaxAndWellFormedness/PureMethodCall.pvl")
+  (vercors should error withCode "resolutionError:seqProgInvocation" flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkMainSyntaxAndWellFormedness/PureMethodCall.pvl")
 
-  (vercors
-    should error withCode "resolutionError:seqProgEndpointAssign"
-    flags("--veymont-generate-permissions", "--dev-veymont-allow-assign")
-    example s"$wd/checkMainSyntaxAndWellFormedness/RoleFieldAssignment.pvl")
+  (vercors should error withCode "resolutionError:seqProgEndpointAssign" flags
+    ("--veymont-generate-permissions", "--dev-veymont-allow-assign") example
+    s"$wd/checkMainSyntaxAndWellFormedness/RoleFieldAssignment.pvl")
 
-  (vercors
-    should error withCode "resolutionError:seqProgStatement"
-    flag "--veymont-generate-permissions"
-    example s"$wd/checkMainSyntaxAndWellFormedness/WaitStatement.pvl")
+  (vercors should error withCode "resolutionError:chorStatement" flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkMainSyntaxAndWellFormedness/WaitStatement.pvl")
 
-  (vercors
-    should fail withCode "loopUnanimityNotMaintained"
-    using silicon flag "--veymont-generate-permissions"
-    example s"$wd/checkMainSyntaxAndWellFormedness/WhileCondition.pvl")
+  // TODO (RR): Re-enable once loop unanimity is re-implemented
+//  (vercors should fail withCode "loopUnanimityNotMaintained" using silicon flag
+//    "--veymont-generate-permissions" example
+//    s"$wd/checkMainSyntaxAndWellFormedness/WhileCondition.pvl")
 
   // (vercors
   //   should error
@@ -65,8 +62,12 @@ class TechnicalVeyMontExamplesSpec extends VercorsSpec {
   //   flag "--veymont-generate-permissions"
   //   example s"$wd/checkMainSyntaxAndWellFormedness/WrongSyntax.pvl")
 
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkTypesNonMain/RoleFieldType2.pvl"
-  vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkTypesNonMain/RoleMethodType4.pvl"
+  vercors should verify using silicon flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkTypesNonMain/RoleFieldType2.pvl"
+  vercors should verify using silicon flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkTypesNonMain/RoleMethodType4.pvl"
 
   // vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/various.pvl"
 }

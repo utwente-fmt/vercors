@@ -354,7 +354,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: ProverLanguage[Pre] => node
       case node: SmtlibFunctionSymbol[Pre] => node
       case node: ChorRun[Pre] => node
-      case node: ChorGuard[Pre] => coerce(node)
       case node: PVLEndpointName[Pre] => coerce(node)
       case node: EndpointName[Pre] => coerce(node)
     }
@@ -663,7 +662,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
     if (inv.ref.decl.args.length != inv.args.length) {
       throw IncoercibleExplanation(
         inv,
-        s"expected ${inv.ref.decl.typeArgs.length} type arguments, got ${inv.typeArgs.length} type arguments",
+        s"expected ${inv.ref.decl.args.length} arguments, got ${inv.args.length} arguments",
       )
     }
     inv
@@ -2134,6 +2133,9 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Sender(_) => e
       case Receiver(_) => e
       case Message(_) => e
+      case PVLEndpointExpr(endpoint, expr) => e
+      case EndpointExpr(ref, expr) => e
+      case ChorExpr(expr) => e
     }
   }
 
@@ -2291,11 +2293,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
           s"The message should have type ${target.t}, but actually has type ${msg.t}.",
         )
       case PVLChannelInvariant(comm, inv) => PVLChannelInvariant(comm, res(inv))
-      case s: PVLChorStatement[Pre] => s
-      case s: ChorBranch[Pre] => s
-      case s: ChorLoop[Pre] => s
-      case c: ChorStatement[Pre] => c
+      case s: PVLEndpointStatement[Pre] => s
+      case c: EndpointStatement[Pre] => c
       case c: CommunicateStatement[Pre] => c
+      case ChorStatement(inner) => ChorStatement(inner)
       case branch @ UnresolvedChorBranch(branches) =>
         UnresolvedChorBranch(branches.map { case (cond, effect) =>
           (bool(cond), effect)
@@ -2929,12 +2930,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node
 
   def coerce(node: ChorRun[Pre]): ChorRun[Pre] = node
-  def coerce(node: ChorGuard[Pre]): ChorGuard[Pre] =
-    node match {
-      case EndpointGuard(endpoint, cond) =>
-        EndpointGuard(endpoint, bool(cond))(node.o)
-      case UnpointedGuard(cond) => UnpointedGuard(bool(cond))(node.o)
-    }
 
   def coerce(node: PVLEndpointName[Pre]): PVLEndpointName[Pre] = node
   def coerce(node: EndpointName[Pre]): EndpointName[Pre] = node

@@ -41,7 +41,7 @@ object external extends Module {
 object viper extends ScalaModule {
   object silverGit extends GitModule {
     def url = T { "https://github.com/viperproject/silver.git" }
-    def commitish = T { "31c94df4f9792046618d9b4db52444ffe9c7c988" }
+    def commitish = T { "4a8065758868eae3414f86f3d96e843a283444fc" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -51,7 +51,7 @@ object viper extends ScalaModule {
 
   object siliconGit extends GitModule {
     def url = T { "https://github.com/viperproject/silicon.git" }
-    def commitish = T { "529d2a49108b954d2b0749356faf985d622f54f0" }
+    def commitish = T { "4033dd21614b3bbba9c7615655e41c6cf0b9d80b" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -61,7 +61,7 @@ object viper extends ScalaModule {
 
   object carbonGit extends GitModule {
     def url = T { "https://github.com/viperproject/carbon.git" }
-    def commitish = T { "d7ac8b000e1123a72cbdda0c7679ab88ca8a52d4" }
+    def commitish = T { "758481ef42f42720c36406bb278820ba802c7e68" }
   }
 
   object silver extends ScalaModule {
@@ -79,6 +79,8 @@ object viper extends ScalaModule {
       ivy"commons-io:commons-io:2.8.0",
       ivy"com.google.guava:guava:29.0-jre",
       ivy"org.jgrapht:jgrapht-core:1.5.0",
+      ivy"com.lihaoyi::requests:0.3.0",
+      ivy"com.lihaoyi::upickle:1.0.0",
     )
   }
 

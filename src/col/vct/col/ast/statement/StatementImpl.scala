@@ -2,7 +2,7 @@ package vct.col.ast.statement
 
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast._
-import vct.col.check.{CheckContext, CheckError, SeqProgStatement}
+import vct.col.check.{CheckContext, CheckError, ChorStatement}
 import vct.col.print._
 import vct.col.ast.ops.StatementFamilyOps
 

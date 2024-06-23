@@ -2,21 +2,21 @@ package vct.col.ast.unsorted
 
 import vct.col.ast.{
   Assign,
-  ChorStatement,
+  EndpointStatement,
   Expr,
-  PVLChorStatement,
   PVLDeref,
   PVLEndpoint,
+  PVLEndpointStatement,
   PVLLocal,
 }
-import vct.col.ast.ops.PVLChorStatementOps
+import vct.col.ast.ops.{PVLEndpointStatementOps}
 import vct.col.check.{CheckContext, CheckError, PVLSeqAssignEndpoint}
 import vct.col.print._
 import vct.col.resolve.ctx.RefPVLEndpoint
 
-trait PVLChorStatementImpl[G] extends PVLChorStatementOps[G] {
-  this: PVLChorStatement[G] =>
-  assert(!inner.isInstanceOf[ChorStatement[_]])
+trait PVLEndpointStatementImpl[G] extends PVLEndpointStatementOps[G] {
+  this: PVLEndpointStatement[G] =>
+  assert(!inner.isInstanceOf[EndpointStatement[_]])
 
   // override def layout(implicit ctx: Ctx): Doc = ???
 

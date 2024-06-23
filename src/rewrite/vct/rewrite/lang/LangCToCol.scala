@@ -593,7 +593,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   ): Set[Variable[Post]] =
     e match {
       case Local(ref) => vars + ref.decl
-      case _ => e.transSubnodes.collect { case Local(Ref(v)) => v }.toSet
+      case _ => e.collect { case Local(Ref(v)) => v }.toSet
     }
 
   def allThreadsInBlock(

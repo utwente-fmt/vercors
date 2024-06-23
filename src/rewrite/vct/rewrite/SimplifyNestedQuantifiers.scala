@@ -322,8 +322,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     def containsOtherBinders(e: Expr[Pre]): Boolean = {
       e match {
         case _: Binder[Pre] => return true
-        case _ =>
-          e.transSubnodes.collectFirst { case e: Binder[Pre] => return true }
+        case _ => e.collectFirst { case e: Binder[Pre] => return true }
       }
       false
     }
@@ -684,9 +683,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
   }
 
   def indepOf[G](bindings: mutable.Set[Variable[G]], e: Expr[G]): Boolean =
-    e.transSubnodes.collectFirst {
-      case Local(ref) if bindings.contains(ref.decl) => ()
-    }.isEmpty
+    e.collectFirst { case Local(ref) if bindings.contains(ref.decl) => () }
+      .isEmpty
 
   sealed trait Subscript[G] {
     val index: Expr[G]

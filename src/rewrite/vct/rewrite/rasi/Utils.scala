@@ -122,7 +122,7 @@ case object Utils {
     *   specifications removed
     */
   def remove_old[G](cond: Expr[G]): Expr[G] =
-    Substitute(Map.from[Expr[G], Expr[G]](cond.transSubnodes.collect {
+    Substitute(Map.from[Expr[G], Expr[G]](cond.collect {
       case o @ Old(expr, _) => o -> expr
     })).dispatch(cond)
 

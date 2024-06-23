@@ -108,7 +108,7 @@ object ResultStream {
       case Function(fn) =>
         if (
           fn.getClass.getName.startsWith(
-            "scala.meta.internal.prettyprinters.TreeSyntax$SyntaxInstances$$Lambda$"
+            "scala.meta.internal.prettyprinters.TreeSyntax$SyntaxInstances$$Lambda"
           )
         ) {
           // Currently the only instance: prepends a space if the surrounding output is dangerous.

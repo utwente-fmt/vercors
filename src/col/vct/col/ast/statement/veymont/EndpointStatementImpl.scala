@@ -6,15 +6,13 @@ import vct.col.ast.{
   Assume,
   Block,
   Branch,
-  ChorBranch,
-  ChorLoop,
-  ChorStatement,
   Communicate,
   CommunicateStatement,
   CommunicateX,
   Deref,
   Endpoint,
   EndpointName,
+  EndpointStatement,
   Eval,
   Expr,
   Loop,
@@ -25,7 +23,7 @@ import vct.col.ast.{
   UnresolvedChorLoop,
   VeyMontAssignExpression,
 }
-import vct.col.ast.ops.ChorStatementOps
+import vct.col.ast.ops.EndpointStatementOps
 import vct.col.ast.statement.StatementImpl
 import vct.col.check.{
   CheckContext,
@@ -33,36 +31,31 @@ import vct.col.check.{
   SeqProgInvocation,
   SeqProgNoParticipant,
   SeqProgParticipant,
-  SeqProgStatement,
+  ChorStatement,
 }
 import vct.col.print.{Ctx, Doc, Line, Text}
 import vct.col.ref.Ref
 
-trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
-  this: ChorStatement[G] =>
+trait EndpointStatementImpl[G]
+    extends EndpointStatementOps[G] with StatementImpl[G] {
+  this: EndpointStatement[G] =>
   assert(wellformed)
   def wellformed: Boolean =
     inner match {
-      // ChorStatement should not be nested, and is transparent w.r.t some statements.
-      // Proper encoding & filtering of this should happen in LangVeymontToCol
-      case _: Block[G] | _: Scope[G] | _: Branch[G] | _: Loop[G] |
-          _: ChorStatement[G] =>
-        false
-      // Communicate consists of two statements (send & receive) for which each should easily resolve to an endpoint,
-      // so it also shouldn't be put in a chorstmt
-      case _: CommunicateStatement[G] => false
-      case _ => true
+      // There are only a few statements where we fully define how projection works - for now
+      case _: Assign[G] | _: Assert[G] | _: Eval[G] => true
+      case _ => false
     }
 
   override def layout(implicit ctx: Ctx): Doc =
     (endpoint match {
-      case Some(Ref(endpoint)) => Text(ctx.name(endpoint)) <> ":" <> " "
-      case None => Text("/* unlabeled choreographic statement */") <> Line
+      case Some(Ref(endpoint)) => Text(s"/* ${ctx.name(endpoint)}: */ ")
+      case None => Text("/* unlabeled endpoint statement */") <> Line
     }) <> inner
 
   object eval {
     def enterCheckContextCurrentReceiverEndpoint(
-        chorStmt: ChorStatement[G],
+        chorStmt: EndpointStatement[G],
         node: Eval[G],
         context: CheckContext[G],
     ): Option[Endpoint[G]] =
@@ -79,7 +72,7 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
       }
 
     def check(
-        chorStmt: ChorStatement[G],
+        chorStmt: EndpointStatement[G],
         node: Eval[G],
         context: CheckContext[G],
     ): Seq[CheckError] =
@@ -107,18 +100,18 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
 
   object assign {
     def receiver(
-        chorStmt: ChorStatement[G],
+        chorStmt: EndpointStatement[G],
         node: Assign[G],
     ): Option[Endpoint[G]] = chorStmt.endpoint.map(_.decl)
 
     def enterCheckContextCurrentReceiverEndpoint(
-        chorStmt: ChorStatement[G],
+        chorStmt: EndpointStatement[G],
         node: Assign[G],
         context: CheckContext[G],
     ): Option[Endpoint[G]] = receiver(chorStmt, node)
 
     def check(
-        chorStmt: ChorStatement[G],
+        chorStmt: EndpointStatement[G],
         node: Assign[G],
         context: CheckContext[G],
     ): Seq[CheckError] = {
@@ -151,8 +144,8 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
             _: VeyMontAssignExpression[G] | _: Branch[G] | _: Loop[G] |
             _: Scope[G] | _: Block[G] | _: Assert[G] | _: Assume[G] |
             _: UnresolvedChorBranch[G] | _: UnresolvedChorLoop[G] |
-            _: ChorBranch[G] | _: ChorLoop[G] | _: ChorStatement[G] =>
+            _: EndpointStatement[G] =>
           Seq()
-        case _ => Seq(SeqProgStatement(this))
+        case _ => Seq(ChorStatement(this))
       })
 }
