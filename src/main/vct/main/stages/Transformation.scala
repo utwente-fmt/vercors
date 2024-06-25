@@ -147,6 +147,7 @@ object Transformation extends LazyLogging {
           bipResults = bipResults,
           splitVerificationByProcedure =
             options.devSplitVerificationByProcedure,
+          optimizeUnsafe = options.devUnsafeOptimization,
           veymontGeneratePermissions = options.veymontGeneratePermissions,
         )
     }
@@ -188,10 +189,14 @@ object Transformation extends LazyLogging {
   *   Execute a handler before/after a pass is executed.
   * @param passes
   *   The list of rewrite passes to execute.
+  * @param optimizeUnsafe
+  *   Flag indicating to not do typechecking in-between passes to save
+  *   performance
   */
 class Transformation(
     val onPassEvent: Seq[PassEventHandler],
     val passes: Seq[RewriterBuilder],
+    val optimizeUnsafe: Boolean = false,
 ) extends Stage[Verification[_ <: Generation], Verification[_ <: Generation]]
     with LazyLogging {
   override def friendlyName: String = "Transformation"
@@ -235,11 +240,12 @@ class Transformation(
           action(passes, Transformation.after, pass.key, result)
         }
 
-        result.tasks.map(_.program)
-          .flatMap(program => program.check.map(program -> _)) match {
-          case Nil => // ok
-          case errors => throw TransformationCheckError(pass, errors)
-        }
+        if (!optimizeUnsafe)
+          result.tasks.map(_.program)
+            .flatMap(program => program.check.map(program -> _)) match {
+            case Nil => // ok
+            case errors => throw TransformationCheckError(pass, errors)
+          }
 
         result = PrettifyBlocks().dispatch(result)
       }
@@ -292,6 +298,7 @@ case class SilverTransformation(
     bipResults: BIP.VerificationResults,
     checkSat: Boolean = true,
     splitVerificationByProcedure: Boolean = false,
+    override val optimizeUnsafe: Boolean = false,
     veymontGeneratePermissions: Boolean = false,
 ) extends Transformation(
       onPassEvent,
@@ -431,6 +438,7 @@ case class SilverTransformation(
         PinSilverNodes,
         Explode.withArg(splitVerificationByProcedure),
       ),
+      optimizeUnsafe = optimizeUnsafe,
     )
 
 case class VeyMontImplementationGeneration(

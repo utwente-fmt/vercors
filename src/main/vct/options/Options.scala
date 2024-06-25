@@ -244,6 +244,9 @@ case object Options {
         "Indicate, in seconds, the timeout value for the backend verification. If the verification gets stuck " +
           "for longer than this timeout, the verification will timeout."
       ),
+      opt[Unit]("dev-unsafe-optimization").maybeHidden()
+        .action((_, c) => c.copy(devUnsafeOptimization = true))
+        .text("Optimizes runtime at the cost of progress logging and readability of error messages"),
       opt[Path]("dev-silicon-z3-log-file").maybeHidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),
@@ -442,6 +445,7 @@ case class Options(
     devSiliconTraceBranchConditions: Boolean = false,
     devCarbonBoogieLogFile: Option[Path] = None,
     devViperProverLogFile: Option[Path] = None,
+    devUnsafeOptimization: Boolean = false,
 
     // VeyMont options
     veymontOutput: Option[Path] = None,

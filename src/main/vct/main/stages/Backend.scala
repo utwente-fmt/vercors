@@ -57,6 +57,7 @@ case object Backend {
               options.siliconPrintQuantifierStats.isDefined,
             reportOnNoProgress = options.devSiliconReportOnNoProgress,
             traceBranchConditions = options.devSiliconTraceBranchConditions,
+            optimizeUnsafe = options.devUnsafeOptimization,
             branchConditionReportInterval =
               options.devSiliconBranchConditionReportInterval,
             options = options.backendFlags,
