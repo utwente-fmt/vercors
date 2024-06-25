@@ -49,8 +49,11 @@ trait NodeSubnodeOps[G] {
     None
   }
 
-  def exists[T](f: PartialFunction[Node[G], Boolean]): Boolean =
-    collectFirst(f).getOrElse(false)
+  def exists[T](f: PartialFunction[Node[G], Boolean]): Boolean = {
+    var res = false
+    visit(node => res = res || f(node))
+    res
+  }
 
   def count[T](f: PartialFunction[Node[G], Unit]): Int = {
     var result: Int = 0
