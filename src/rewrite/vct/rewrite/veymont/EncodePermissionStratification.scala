@@ -378,7 +378,8 @@ case class EncodePermissionStratification[Pre <: Generation](
         // of relevant permissions
         inChor.having(true) { dispatch(inner) }
 
-      // Generate an invocation to the unspecialized function version
+      // Generate an invocation to the unspecialized function version if we're inside a \chor
+      // This is safe because \chor unfold all predicates of all endpoints that occur within the expression
       // The natural successor of the function will be the unspecialized one
       case inv: FunctionInvocation[Pre] if inChor.topOption.contains(true) =>
         inv.rewriteDefault()

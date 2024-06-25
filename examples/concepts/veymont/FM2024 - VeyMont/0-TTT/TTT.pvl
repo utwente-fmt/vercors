@@ -14,19 +14,17 @@ choreography TTT() {
     while(!p1.gameFinished() && !p2.gameFinished()) {
       if(p1.turn && !p2.turn) {
         p1.createNewMove();
-        // TODO (RR): Probably can remove these once proper unfold scripts are emitted
         channel_invariant
-          0 <= \msg.i ** \msg.i <= 2 **
-          0 <= \msg.j ** \msg.j <= 2 **
-          (\msg.mark == 0 || \msg.mark == 1);
+          (\chor \msg.i == \sender.move.i **
+            \msg.j == \sender.move.j **
+            \msg.mark == \sender.move.mark);
         communicate p2.move <- p1.move.clone();
       } else {
         p2.createNewMove();
-        // TODO (RR): Probably can remove these once proper unfold scripts are emitted
         channel_invariant
-          0 <= \msg.i ** \msg.i <= 2 **
-          0 <= \msg.j ** \msg.j <= 2 **
-          (\msg.mark == 0 || \msg.mark == 1);
+          (\chor \msg.i == \sender.move.i **
+            \msg.j == \sender.move.j **
+            \msg.mark == \sender.move.mark);
         communicate p1.move <- p2.move.clone();
       }
       p1.doMove();
