@@ -130,8 +130,10 @@ class RASIGenerator[G] extends LazyLogging {
 
     // Compute value string
     val value_string: String = value match {
-      case i: UncertainIntegerValue => i.try_to_resolve().getOrElse(throw new IllegalStateException("Value must be defined")).toString
-      case b: UncertainBooleanValue => b.try_to_resolve().getOrElse(throw new IllegalStateException("Value must be defined")).toString
+      case i: UncertainIntegerValue =>
+        i.try_to_resolve().getOrElse(throw new IllegalStateException("Value must be defined")).toString
+      case b: UncertainBooleanValue =>
+        b.try_to_resolve().getOrElse(throw new IllegalStateException("Value must be defined")).toString
     }
 
     "rasi_" + var_name + "_" + value_string
