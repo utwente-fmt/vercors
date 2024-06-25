@@ -30,20 +30,25 @@ class ColoredTiles {
   pure boolean has_false_in_prefix(seq<boolean> s,int k)
    = (\exists int y;0<=y && y < k+1 && y<|s|; s[y]==false);
   
-  ensures (s1 == s2) == (prefix + s1 == prefix + s2);
-  void lemma_uniqueness_prefix(seq<boolean> s1,seq<boolean> s2,seq<boolean> prefix){
-    if (|s1| == |s2|){
-      seq<boolean> s3 = prefix + s1;
-      seq<boolean> s4 = prefix + s2;
-      par lemma_up_par (int y=0..|s1|)
-        requires s3 == prefix + s1;
-        requires s4 == prefix + s2;
-        requires |s1| == |s2|;
-        ensures (s1[y]==s2[y]) == (s3[|prefix|+y]==s4[|prefix|+y]);
-      {
+  ensures left != right ==> (prefix + left != prefix + right);
+  void lemma_uniqueness_prefix(seq<boolean> left, seq<boolean> right, seq<boolean> prefix) {
+    if (|left| == |right|) {
+      int i = 0;
+
+      loop_invariant 0 <= i && i <= |left|;
+      loop_invariant (\forall int j = 0..i; left[j] == right[j]);
+      for(; i < |left| && left[i] == right[i]; i++) {
+
       }
+
+      if(i == |left|) {
+        assert left == right;
+      } else {
+        assert (prefix+left)[i + |prefix|] != (prefix+right)[i + |prefix|];
+      }
+    } else {
+      assert |prefix + left| != |prefix + right|;
     }
-    return;
   }
   
   requires l <= k && 0 <= l;
