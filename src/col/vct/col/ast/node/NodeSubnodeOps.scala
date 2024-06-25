@@ -51,7 +51,7 @@ trait NodeSubnodeOps[G] {
 
   def exists[T](f: PartialFunction[Node[G], Boolean]): Boolean = {
     var res = false
-    visit(node => res = res || f(node))
+    visit(node => res = res || f.lift(node).getOrElse(false))
     res
   }
 
