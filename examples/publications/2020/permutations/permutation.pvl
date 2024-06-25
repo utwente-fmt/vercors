@@ -28,12 +28,6 @@ void lemma_permutation_trans<T>(seq<T> as, seq<T> bs, seq<T> cs) {
     assert (\forall T e; count<T>(as, e) == count<T>(cs, e) ==> {:countAgrees<T>(as, cs, e):});
 }
 
-
-requires 0 <= i && i < |xs|;
-ensures i > 0 ==> xs[i -> e] == xs[i -> e];
-void lemma_replace_tail<T>(seq<T> xs, int i, T e) {
-}
-
 requires 0 <= i && i < |xs|;
 ensures (\forall T q; {:count<T>(xs[i -> e], q):} == (
     q == e
