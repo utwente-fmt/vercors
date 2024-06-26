@@ -9,6 +9,7 @@ import vct.col.rewrite.util.FreeVariables
 import vct.col.origin.{DiagnosticOrigin, Name, Origin, SourceName}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite._
+import vct.col.util.IdentitySuccessorsProvider
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.annotation.tailrec
@@ -98,12 +99,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](
       bindings: Map[Variable[Pre], Ref[Pre, Variable[Pre]]]
   ) extends NonLatchingRewriter[Pre, Pre] {
     override def succProvider: SuccessorsProvider[Pre, Pre] =
-      new SuccessorsProviderTrafo(allScopes.freeze) {
-        override def postTransform[T <: Declaration[Pre]](
-            pre: Declaration[Pre],
-            post: Option[T],
-        ): Option[T] = Some(pre.asInstanceOf[T])
-
+      new IdentitySuccessorsProvider[Pre] {
         override def succ[RefDecl <: Declaration[Pre]](
             decl: Variable[Pre]
         )(implicit tag: ClassTag[RefDecl]): Ref[Pre, RefDecl] =
@@ -392,13 +388,8 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](
     }
 
   case class ApplyRecursively() extends NonLatchingRewriter[Pre, Pre] {
-    case object IdentitySucc extends SuccessorsProviderTrafo(allScopes.freeze) {
-      override def preTransform[I <: Declaration[Pre], O <: Declaration[Pre]](
-          pre: I
-      ): Option[O] = Some(pre.asInstanceOf[O])
-    }
-
-    override def succProvider: SuccessorsProvider[Pre, Pre] = IdentitySucc
+    override val succProvider: SuccessorsProvider[Pre, Pre] =
+      new IdentitySuccessorsProvider
 
     @tailrec
     override final def dispatch(e: Expr[Pre]): Expr[Pre] = {
