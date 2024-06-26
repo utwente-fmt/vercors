@@ -88,15 +88,13 @@ object AstBuildHelpers {
     def ==>(right: Expr[G])(implicit origin: Origin): Implies[G] =
       Implies(left, right)
 
-    def ~>(field: SilverField[G])(
-        implicit blame: Blame[InsufficientPermission],
-        origin: Origin,
+    def ~>(field: SilverField[G])(blame: Blame[InsufficientPermission])(
+        implicit origin: Origin
     ): SilverDeref[G] = SilverDeref[G](left, field.ref)(blame)
 
-    def @@(
-        index: Expr[G]
-    )(implicit blame: Blame[SeqBoundFailure], origin: Origin): SeqSubscript[G] =
-      SeqSubscript(left, index)(blame)
+    def @@(index: Expr[G])(blame: Blame[SeqBoundFailure])(
+        implicit origin: Origin
+    ): SeqSubscript[G] = SeqSubscript(left, index)(blame)
 
     def accounted(implicit o: Origin): UnitAccountedPredicate[G] =
       UnitAccountedPredicate(left)
@@ -118,9 +116,8 @@ object AstBuildHelpers {
 
   implicit class FieldBuildHelpers[G](left: SilverDeref[G]) {
     def <~(right: Expr[G])(
-        implicit blame: Blame[AssignFailed],
-        origin: Origin,
-    ): SilverFieldAssign[G] =
+        blame: Blame[AssignFailed]
+    )(implicit origin: Origin): SilverFieldAssign[G] =
       SilverFieldAssign(left.obj, left.field, right)(blame)
   }
 
@@ -148,14 +145,15 @@ object AstBuildHelpers {
     def rewrite(
         args: => Seq[Variable[Post]] = rewriter.variables
           .dispatch(inlineable.args),
-        inline: => Boolean = inlineable.inline,
+        doInline: => Boolean = inlineable.doInline,
     ): InlineableApplicable[Post] =
       inlineable match {
         case pred: AbstractPredicate[Pre] =>
-          new PredicateBuildHelpers(pred).rewrite(args = args, inline = inline)
+          new PredicateBuildHelpers(pred)
+            .rewrite(args = args, doInline = doInline)
         case contracted: ContractApplicable[Pre] =>
           new ContractApplicableBuildHelpers(contracted)
-            .rewrite(args = args, inline = inline)
+            .rewrite(args = args, doInline = doInline)
       }
   }
 
@@ -170,7 +168,7 @@ object AstBuildHelpers {
           .dispatch(contracted.typeArgs),
         contract: => ApplicableContract[Post] = rewriter
           .dispatch(contracted.contract),
-        inline: => Boolean = contracted.inline,
+        doInline: => Boolean = contracted.doInline,
     ): ContractApplicable[Post] =
       contracted match {
         case function: Function[Pre] =>
@@ -178,7 +176,7 @@ object AstBuildHelpers {
             args = args,
             returnType = returnType,
             typeArgs = typeArgs,
-            inline = Some(inline),
+            doInline = Some(doInline),
             contract = contract,
           )
         case function: InstanceFunction[Pre] =>
@@ -186,14 +184,14 @@ object AstBuildHelpers {
             args = args,
             returnType = returnType,
             typeArgs = typeArgs,
-            inline = Some(inline),
+            doInline = Some(doInline),
             contract = contract,
           )
         case function: InstanceOperatorFunction[Pre] =>
           function.rewrite(
             args = args,
             returnType = returnType,
-            inline = Some(inline),
+            doInline = Some(doInline),
             contract = contract,
           )
         case function: LlvmSpecFunction[Pre] =>
@@ -201,7 +199,7 @@ object AstBuildHelpers {
             args = args,
             returnType = returnType,
             typeArgs = typeArgs,
-            inline = Some(inline),
+            doInline = Some(doInline),
             contract = contract,
           )
         case method: AbstractMethod[Pre] =>
@@ -209,7 +207,7 @@ object AstBuildHelpers {
             args = args,
             returnType = returnType,
             typeArgs = typeArgs,
-            inline = inline,
+            doInline = doInline,
             contract = contract,
           )
       }
@@ -228,7 +226,7 @@ object AstBuildHelpers {
           .dispatch(method.contract),
         typeArgs: => Seq[Variable[Post]] = rewriter.variables
           .dispatch(method.typeArgs),
-        inline: => Boolean = method.inline,
+        doInline: => Boolean = method.doInline,
         pure: => Boolean = method.pure,
         blame: Blame[CallableFailure] = method.blame,
     ): AbstractMethod[Post] =
@@ -238,7 +236,7 @@ object AstBuildHelpers {
             args = args,
             returnType = returnType,
             body = body,
-            inline = Some(inline),
+            doInline = Some(doInline),
             contract = contract,
             typeArgs = typeArgs,
             outArgs = outArgs,
@@ -250,7 +248,7 @@ object AstBuildHelpers {
             args = args,
             returnType = returnType,
             body = body,
-            inline = Some(inline),
+            doInline = Some(doInline),
             contract = contract,
             typeArgs = typeArgs,
             outArgs = outArgs,
@@ -264,7 +262,7 @@ object AstBuildHelpers {
             args = args,
             body = body,
             contract = contract,
-            inline = Some(inline),
+            doInline = Some(doInline),
             pure = Some(pure),
             blame = blame,
           )
@@ -275,7 +273,7 @@ object AstBuildHelpers {
             typeArgs = typeArgs,
             body = body,
             contract = contract,
-            inline = Some(inline),
+            doInline = Some(doInline),
             blame = blame,
           )
       }
@@ -293,7 +291,7 @@ object AstBuildHelpers {
           .dispatch(function.contract),
         typeArgs: => Seq[Variable[Post]] = rewriter.variables
           .dispatch(function.typeArgs),
-        inline: => Boolean = function.inline,
+        doInline: => Boolean = function.doInline,
         threadLocal: => Boolean = function.threadLocal,
         blame: => Blame[ContractedFailure] = function.blame,
     ): ContractApplicable[Post] =
@@ -303,7 +301,7 @@ object AstBuildHelpers {
             args = args,
             returnType = returnType,
             body = body,
-            inline = Some(inline),
+            doInline = Some(doInline),
             threadLocal = Some(threadLocal),
             contract = contract,
             typeArgs = typeArgs,
@@ -314,7 +312,7 @@ object AstBuildHelpers {
             args = args,
             returnType = returnType,
             body = body,
-            inline = Some(inline),
+            doInline = Some(doInline),
             threadLocal = Some(threadLocal),
             contract = contract,
             typeArgs = typeArgs,
@@ -326,7 +324,7 @@ object AstBuildHelpers {
             args = args,
             body = body,
             contract = contract,
-            inline = Some(inline),
+            doInline = Some(doInline),
             threadLocal = Some(threadLocal),
             blame = blame,
           )
@@ -336,7 +334,7 @@ object AstBuildHelpers {
             args = args,
             body = body,
             contract = contract,
-            inline = Some(inline),
+            doInline = Some(doInline),
             threadLocal = Some(threadLocal),
             blame = blame,
           )
@@ -349,20 +347,20 @@ object AstBuildHelpers {
     def rewrite(
         args: => Seq[Variable[Post]] = rewriter.variables
           .dispatch(predicate.args),
-        inline: => Boolean = predicate.inline,
+        doInline: => Boolean = predicate.doInline,
         threadLocal: => Boolean = predicate.threadLocal,
     ): AbstractPredicate[Post] =
       predicate match {
         case predicate: Predicate[Pre] =>
           predicate.rewrite(
             args = args,
-            inline = Some(inline),
+            doInline = Some(doInline),
             threadLocal = Some(threadLocal),
           )
         case predicate: InstancePredicate[Pre] =>
           predicate.rewrite(
             args = args,
-            inline = Some(inline),
+            doInline = Some(doInline),
             threadLocal = Some(threadLocal),
           )
       }
@@ -610,7 +608,7 @@ object AstBuildHelpers {
       givenArgs: Seq[Variable[G]] = Nil,
       yieldsArgs: Seq[Variable[G]] = Nil,
       decreases: Option[DecreasesClause[G]] = None,
-      inline: Boolean = false,
+      doInline: Boolean = false,
       pure: Boolean = false,
   )(implicit o: Origin): Procedure[G] =
     new Procedure(
@@ -628,7 +626,7 @@ object AstBuildHelpers {
         yieldsArgs,
         decreases,
       )(contractBlame),
-      inline,
+      doInline,
       pure,
     )(blame)
 
@@ -650,7 +648,7 @@ object AstBuildHelpers {
       decreases: Option[DecreasesClause[G]] = Some(
         DecreasesClauseNoRecursion[G]()(constOrigin("decreases"))
       ),
-      inline: Boolean = false,
+      doInline: Boolean = false,
   )(implicit o: Origin): Function[G] =
     new Function(
       returnType,
@@ -666,7 +664,7 @@ object AstBuildHelpers {
         yieldsArgs,
         decreases,
       )(contractBlame),
-      inline,
+      doInline,
     )(blame)
 
   def functionInvocation[G](
@@ -729,7 +727,8 @@ object AstBuildHelpers {
       blame: Blame[ReceiverNotInjective],
       t: Type[G],
       body: Local[G] => Expr[G],
-      triggers: Local[G] => Seq[Seq[Expr[G]]] = (_: Local[G]) => Nil,
+      triggers: Local[G] => Seq[Seq[Expr[G]]] =
+        (_: Local[G]) => Seq.empty[Seq[Expr[G]]],
   ): Starall[G] = {
     implicit val o: Origin = GeneratedQuantifier
     val i_var = new Variable[G](t)
@@ -742,7 +741,8 @@ object AstBuildHelpers {
   def forall[G](
       t: Type[G],
       body: Local[G] => Expr[G],
-      triggers: Local[G] => Seq[Seq[Expr[G]]] = (_: Local[G]) => Nil,
+      triggers: Local[G] => Seq[Seq[Expr[G]]] =
+        (_: Local[G]) => Seq.empty[Seq[Expr[G]]],
   ): Forall[G] = {
     implicit val o: Origin = GeneratedQuantifier
     val i_var = new Variable[G](t)
@@ -753,7 +753,8 @@ object AstBuildHelpers {
   def foralls[G](
       ts: Seq[Type[G]],
       body: Seq[Local[G]] => Expr[G],
-      triggers: Seq[Local[G]] => Seq[Seq[Expr[G]]] = (_: Seq[Local[G]]) => Nil,
+      triggers: Seq[Local[G]] => Seq[Seq[Expr[G]]] =
+        (_: Seq[Local[G]]) => Seq.empty[Seq[Expr[G]]],
   ): Forall[G] = {
     implicit val o: Origin = GeneratedQuantifier
     val i_vars: Seq[Variable[G]] = ts.map(new Variable[G](_))

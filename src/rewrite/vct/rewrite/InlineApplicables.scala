@@ -204,15 +204,15 @@ case class InlineApplicables[Pre <: Generation]()
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
-      case app: InlineableApplicable[Pre] if app.inline => app.drop()
+      case app: InlineableApplicable[Pre] if app.doInline => app.drop()
       case other => rewriteDefault(other)
     }
 
   @tailrec
   private def isInlinePredicateApply(e: Expr[Pre]): Boolean =
     e match {
-      case PredicateApply(Ref(pred), _, _) => pred.inline
-      case InstancePredicateApply(_, Ref(pred), _, _) => pred.inline
+      case PredicateApply(Ref(pred), _, _) => pred.doInline
+      case InstancePredicateApply(_, Ref(pred), _, _) => pred.doInline
       case Scale(_, res) => isInlinePredicateApply(res)
       case _ => false
     }
@@ -229,9 +229,9 @@ case class InlineApplicables[Pre <: Generation]()
 
   override def dispatch(loc: Location[Pre]): Location[Post] =
     loc match {
-      case loc @ PredicateLocation(Ref(pred), _) if pred.inline =>
+      case loc @ PredicateLocation(Ref(pred), _) if pred.doInline =>
         throw WrongPredicateLocation(loc)
-      case loc @ InstancePredicateLocation(Ref(pred), _, _) if pred.inline =>
+      case loc @ InstancePredicateLocation(Ref(pred), _, _) if pred.doInline =>
         throw WrongPredicateLocation(loc)
 
       case other => rewriteDefault(other)
@@ -239,7 +239,7 @@ case class InlineApplicables[Pre <: Generation]()
 
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     e match {
-      case apply: ApplyInlineable[Pre] if apply.ref.decl.inline =>
+      case apply: ApplyInlineable[Pre] if apply.ref.decl.doInline =>
         implicit val o: Origin = apply.o
 
         // Some fanfare here to produce a nice diagnostic when the cycle of applications is large.
@@ -336,7 +336,7 @@ case class InlineApplicables[Pre <: Generation]()
         }
 
       case Unfolding(PredicateApply(Ref(pred), args, perm), body)
-          if pred.inline =>
+          if pred.doInline =>
         With(
           Block(
             args.map(dispatch).map(e => Eval(e)(e.o)) :+
@@ -346,7 +346,7 @@ case class InlineApplicables[Pre <: Generation]()
         )(e.o)
 
       case Unfolding(InstancePredicateApply(obj, Ref(pred), args, perm), body)
-          if pred.inline =>
+          if pred.doInline =>
         With(
           Block(
             Seq(Eval(dispatch(obj))(obj.o)) ++ args.map(dispatch)
@@ -356,11 +356,11 @@ case class InlineApplicables[Pre <: Generation]()
         )(e.o)
 
       case Perm(loc @ PredicateLocation(pred, args), WritePerm())
-          if pred.decl.inline =>
+          if pred.decl.doInline =>
         dispatch(PredicateApply(pred, args, WritePerm()(loc.o))(loc.o))
 
       case Perm(loc @ InstancePredicateLocation(pred, obj, args), WritePerm())
-          if pred.decl.inline =>
+          if pred.decl.doInline =>
         dispatch(
           InstancePredicateApply(obj, pred, args, WritePerm()(loc.o))(loc.o)
         )
@@ -368,7 +368,7 @@ case class InlineApplicables[Pre <: Generation]()
       case Perm(
             InLinePatternLocation(loc @ PredicateLocation(pred, args), pat),
             WritePerm(),
-          ) if pred.decl.inline =>
+          ) if pred.decl.doInline =>
         dispatch(
           InlinePattern(PredicateApply(pred, args, WritePerm()(loc.o))(loc.o))(
             loc.o
@@ -381,7 +381,7 @@ case class InlineApplicables[Pre <: Generation]()
               pat,
             ),
             WritePerm(),
-          ) if pred.decl.inline =>
+          ) if pred.decl.doInline =>
         dispatch(
           InlinePattern(
             InstancePredicateApply(obj, pred, args, WritePerm()(loc.o))(loc.o)

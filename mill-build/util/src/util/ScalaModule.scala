@@ -4,13 +4,12 @@ import mill.T
 import mill.scalalib.{ScalaModule => BaseScalaModule}
 
 trait ScalaModule extends BaseScalaModule with JavaModule {
-  def scalaVersion = "2.13.12"
+  def scalaVersion = "3.4.2"
 
   override def scalacOptions = T {
     val shared = Seq(
       "-deprecation",
       "-feature",
-      "-Xno-patmat-analysis"
     )
 
     if (strictOptions()) {
@@ -20,7 +19,6 @@ trait ScalaModule extends BaseScalaModule with JavaModule {
       ) ++ shared
     } else {
       Seq(
-        "-Xno-patmat-analysis",
       ) ++ shared
     }
   }

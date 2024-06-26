@@ -676,7 +676,7 @@ class FeatureRainbow[G] {
         }
       case node: Function[G] =>
         return Seq(SmtDeclarations) ++
-          (if (node.inline)
+          (if (node.doInline)
              Seq(ApplicableToBeInlined)
            else
              Nil) ++
@@ -687,7 +687,7 @@ class FeatureRainbow[G] {
       case node: Procedure[G] =>
         returnTypes :+= node.returnType
         return Seq(Methods) ++
-          (if (node.inline)
+          (if (node.doInline)
              Seq(ApplicableToBeInlined)
            else
              Nil) ++
@@ -701,7 +701,7 @@ class FeatureRainbow[G] {
              Nil)
       case node: Predicate[G] =>
         return Seq(Resources) ++
-          (if (node.inline)
+          (if (node.doInline)
              Seq(ApplicableToBeInlined)
            else
              Nil)
@@ -711,7 +711,7 @@ class FeatureRainbow[G] {
              Seq(TypeValuesAndGenerics)
            else
              Nil) ++
-          (if (node.inline)
+          (if (node.doInline)
              Seq(ApplicableToBeInlined)
            else
              Nil)
@@ -722,7 +722,7 @@ class FeatureRainbow[G] {
              Seq(TypeValuesAndGenerics)
            else
              Nil) ++
-          (if (node.inline)
+          (if (node.doInline)
              Seq(ApplicableToBeInlined)
            else
              Nil) ++
@@ -732,7 +732,7 @@ class FeatureRainbow[G] {
              Nil)
       case node: InstancePredicate[G] =>
         return Seq(Classes) ++
-          (if (node.inline)
+          (if (node.doInline)
              Seq(ApplicableToBeInlined)
            else
              Nil)

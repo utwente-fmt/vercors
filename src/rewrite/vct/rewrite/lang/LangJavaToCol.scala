@@ -391,7 +391,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               method.signals
                 .map(t => SignalsClause(new Variable(rw.dispatch(t)), tt))
           ),
-          inline =
+          doInline =
             method.modifiers.collectFirst { case JavaInline() => () }.nonEmpty,
           pure =
             method.modifiers.collectFirst { case JavaPure() => () }.nonEmpty,

@@ -97,7 +97,7 @@ case class StratifyExpressions[Pre <: Generation]()
       case InChor(_, branch: Branch[Pre]) =>
         assert(branch.branches.nonEmpty)
         logger.warn("TODO: Branch blame")
-        unfoldBranch(branch.branches)(null, branch.o)
+        unfoldBranch(branch.branches)(null)(branch.o)
 
       case statement => statement.rewriteDefault()
     }
@@ -106,13 +106,13 @@ case class StratifyExpressions[Pre <: Generation]()
 
   def unfoldBranch(
       branches: Seq[(Expr[Pre], Statement[Pre])]
-  )(implicit blame: Blame[SeqBranchFailure], o: Origin): Branch[Post] =
+  )(blame: Blame[SeqBranchFailure])(implicit o: Origin): Branch[Post] =
     branches match {
       case Seq((e, s)) => Branch(Seq((stratifyExpr(e), dispatch(s))))
       case (e, s) +: (otherYes +: branches) =>
         Branch(Seq(
           (stratifyExpr(e), dispatch(s)),
-          (tt, unfoldBranch(otherYes +: branches)),
+          (tt, unfoldBranch(otherYes +: branches)(blame)),
         )) /* (blame) */
       case _ => ???
     }

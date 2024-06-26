@@ -102,7 +102,7 @@ case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter)
       implicit tag: ClassTag[T]
   ): T =
     decls.collectFirst {
-      case decl: T
+      case decl: T with Declaration[G]
           if name == null ||
             decl.o.find[SourceName].contains(SourceName(name)) =>
         decl

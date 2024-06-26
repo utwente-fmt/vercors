@@ -44,7 +44,7 @@ class BasicExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/basic/yield.pvl"
   vercors should verify using anyBackend example "concepts/basic/DafnyIncr.java"
   vercors should verify using silicon example "concepts/basic/DafnyIncrE1.java"
-  vercors should fail withCode "perm" using carbon example "concepts/basic/DafnyIncrE1.java"
+  vercors should failVerification withCode "perm" using carbon example "concepts/basic/DafnyIncrE1.java"
   vercors should error withCode "resolutionError:type" example "concepts/basic/BadType.pvl"
   vercors should error withCode "notALocation" example "concepts/basic/BadType.java"
   vercors should verify using anyBackend example "concepts/basic/functions.pvl"

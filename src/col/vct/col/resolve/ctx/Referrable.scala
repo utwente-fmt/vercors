@@ -164,7 +164,7 @@ case object Referrable {
       case decl: Predicate[G] => RefPredicate(decl)
       case decl: Class[G] => RefClass(decl)
       case decl: Model[G] => RefModel(decl)
-      case decl: Enum[G] => RefEnum(decl)
+      case decl: EnumDecl[G] => RefEnum(decl)
       case decl: EnumConstant[G] => RefEnumConstant(None, decl)
       case decl: JavaSharedInitialization[G] =>
         RefJavaSharedInitialization(decl)
@@ -399,10 +399,12 @@ case class RefModel[G](decl: Model[G])
     with ThisTarget[G]
     with PVLConstructorTarget[G]
     with JavaConstructorTarget[G]
-case class RefEnum[G](decl: Enum[G])
+case class RefEnum[G](decl: EnumDecl[G])
     extends Referrable[G] with SpecTypeNameTarget[G] with SpecNameTarget[G]
-case class RefEnumConstant[G](enum: Option[Enum[G]], decl: EnumConstant[G])
-    extends Referrable[G] with SpecDerefTarget[G] with SpecNameTarget[G]
+case class RefEnumConstant[G](
+    enumDecl: Option[EnumDecl[G]],
+    decl: EnumConstant[G],
+) extends Referrable[G] with SpecDerefTarget[G] with SpecNameTarget[G]
 case class RefJavaSharedInitialization[G](decl: JavaSharedInitialization[G])
     extends Referrable[G]
 case class RefJavaField[G](decls: JavaFields[G], idx: Int)

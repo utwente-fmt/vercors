@@ -52,7 +52,7 @@ trait CFieldAccessImpl[G] extends CFieldAccessOps[G] {
       case ref: BuiltinField[G] => ref.f(obj).t
       case ref: BuiltinInstanceMethod[G] => Types.notAValue(ref)
       case ref: RefCudaVecDim[G] => TCInt()
-      case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
+      case RefEnumConstant(decl, _) => TEnum(decl.get.ref)
       case RefProverFunction(decl) => decl.returnType
     }
 

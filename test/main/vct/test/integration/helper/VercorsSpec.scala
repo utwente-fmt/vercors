@@ -175,27 +175,27 @@ abstract class VercorsSpec extends AnyFlatSpec {
   }
 
   class VercorsWord {
-    def should(verdict: Verdict): VerdictPhrase = new VerdictPhrase(verdict, None)
-    def should(verdict: IncompleteVerdict): CodeVerdictPhrase = new CodeVerdictPhrase(verdict)
-    def should(verdict: ErrorVerdict.type): ErrorVerdictPhrase = new ErrorVerdictPhrase()
+    infix def should(verdict: Verdict): VerdictPhrase = new VerdictPhrase(verdict, None)
+    infix def should(verdict: IncompleteVerdict): CodeVerdictPhrase = new CodeVerdictPhrase(verdict)
+    infix def should(verdict: ErrorVerdict.type): ErrorVerdictPhrase = new ErrorVerdictPhrase()
   }
 
   class CodeVerdictPhrase(val verdict: IncompleteVerdict) {
-    def withCode(code: String): VerdictPhrase = new VerdictPhrase(verdict.fromCode(code), None)
+    infix def withCode(code: String): VerdictPhrase = new VerdictPhrase(verdict.fromCode(code), None)
   }
 
   class ErrorVerdictPhrase() {
-    def withCode(code: String): BackendPhrase = new BackendPhrase(Error(code), None, silicon, Nil)
+    infix def withCode(code: String): BackendPhrase = new BackendPhrase(Error(code), None, silicon, Nil)
   }
 
   class VerdictPhrase(val verdict: Verdict, val reportPath: Option[Path]) {
-    def using(backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, reportPath, backend, Nil)
+    infix def using(backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, reportPath, backend, Nil)
   }
 
   class BackendPhrase(val verdict: Verdict, val reportPath: Option[Path], val backends: Seq[Backend], val _flags: Seq[String]) {
-    def example(path: String)(implicit pos: source.Position): Unit = examples(path)
+    infix def example(path: String)(implicit pos: source.Position): Unit = examples(path)
 
-    def examples(examples: String*)(implicit pos: source.Position): Unit = {
+    infix def examples(examples: String*)(implicit pos: source.Position): Unit = {
       val paths = examples.map(ex => Paths.get(s"examples/$ex"))
       coveredExamples ++= paths
       val inputs = paths.map(PathOrStd.Path)
@@ -205,28 +205,28 @@ abstract class VercorsSpec extends AnyFlatSpec {
       }
     }
 
-    def in(desc: String): DescPhrase = new DescPhrase(verdict, backends, desc, _flags)
+    infix def in(desc: String): DescPhrase = new DescPhrase(verdict, backends, desc, _flags)
 
-    def flags(args: String*): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, _flags ++ args.toSeq)
-    def flag(arg: String): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, _flags :+ arg)
+    infix def flags(args: String*): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, _flags ++ args.toSeq)
+    infix def flag(arg: String): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, _flags :+ arg)
   }
 
   class DescPhrase(val verdict: Verdict, val backends: Seq[Backend], val desc: String, val flags: Seq[String]) {
-    def pvl(data: String)(implicit pos: source.Position): Unit = {
+    infix def pvl(data: String)(implicit pos: source.Position): Unit = {
       val inputs = Seq(LiteralReadable("test.pvl", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
       }
     }
 
-    def java(data: String)(implicit pos: source.Position): Unit = {
+    infix def java(data: String)(implicit pos: source.Position): Unit = {
       val inputs = Seq(LiteralReadable("test.java", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
       }
     }
 
-    def c(data: String)(implicit pos: source.Position): Unit = {
+    infix def c(data: String)(implicit pos: source.Position): Unit = {
       val inputs = Seq(LiteralReadable("test.c", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
@@ -236,7 +236,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
 
   val vercors: VercorsWord = new VercorsWord
   val verify: Verdict = Pass
-  val fail: IncompleteVerdict = IncompleteVerdict(Fail)
+  val failVerification: IncompleteVerdict = IncompleteVerdict(Fail)
   val error: ErrorVerdict.type = ErrorVerdict
 
   val silicon: Seq[Backend] = Seq(types.Backend.Silicon)

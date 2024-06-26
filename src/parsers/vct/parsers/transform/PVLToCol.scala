@@ -29,18 +29,18 @@ case class PVLToCol[G](
     decl match {
       case ProgramDecl0(valDecl) => convert(valDecl)
       case ProgramDecl1(cls) => Seq(convert(cls))
-      case ProgramDecl2(enum) => Seq(convert(enum))
+      case ProgramDecl2(enumDecl) => Seq(convert(enumDecl))
       case ProgramDecl3(method) => Seq(convertProcedure(method))
       case ProgramDecl4(choreography) => Seq(convertChoreography(choreography))
       case ProgramDecl5(vesuv_entry) => convert(vesuv_entry)
     }
 
-  def convert(implicit enum: EnumDeclContext): Enum[G] =
-    enum match {
+  def convert(implicit enumDecl: EnumDeclContext): EnumDecl[G] =
+    enumDecl match {
       case EnumDecl0(_, name, _, constants, _, _) =>
-        new vct.col.ast.Enum[G](constants.map(convertConstants(_)).getOrElse(
+        new vct.col.ast.EnumDecl[G](constants.map(convertConstants(_)).getOrElse(
           Nil
-        ))(origin(enum).sourceName(convert(name)))
+        ))(origin(enumDecl).sourceName(convert(name)))
     }
 
   def convertConstants(
@@ -133,7 +133,7 @@ case class PVLToCol[G](
                   typeArgs = typeArgs.map(convert(_)).getOrElse(Nil),
                   convert(body),
                   contract.consumeApplicableContract(blame(method)),
-                  inline = mods.consume(mods.inline),
+                  doInline = mods.consume(mods.doInline),
                   pure = mods.consume(mods.pure),
                 )(blame(method))(origin(method).sourceName(convert(name)))
               },
@@ -205,7 +205,7 @@ case class PVLToCol[G](
                   typeArgs = typeArgs.map(convert(_)).getOrElse(Nil),
                   convert(body),
                   contract.consumeApplicableContract(blame(method)),
-                  inline = mods.consume(mods.inline),
+                  doInline = mods.consume(mods.doInline),
                   pure = mods.consume(mods.pure),
                 )(blame(method))(origin(method).sourceName(convert(name)))
               },
@@ -414,12 +414,12 @@ case class PVLToCol[G](
 
   def convert(implicit expr: NewExprContext): Expr[G] =
     expr match {
-      case NewExpr0(_, name, Call0(typeArgs, args, given, yields)) =>
+      case NewExpr0(_, name, Call0(typeArgs, args, givenMap, yields)) =>
         PVLNew(
           convert(name),
           typeArgs.map(convert(_)).getOrElse(Seq()),
           convert(args),
-          convertGiven(given),
+          convertGiven(givenMap),
           convertYields(yields),
         )(blame(expr))
       case NewExpr1(_, t, dims) =>
@@ -435,14 +435,14 @@ case class PVLToCol[G](
             obj,
             _,
             field,
-            Some(Call0(typeArgs, args, given, yields)),
+            Some(Call0(typeArgs, args, givenMap, yields)),
           ) =>
         PVLInvocation(
           Some(convert(obj)),
           convert(field),
           convert(args),
           typeArgs.map(convert(_)).getOrElse(Nil),
-          convertGiven(given),
+          convertGiven(givenMap),
           convertYields(yields),
         )(blame(expr))
       case PostfixExpr1(xs, _, i, _) =>
@@ -485,13 +485,13 @@ case class PVLToCol[G](
       case PvlChar(s"'$data'") => CharValue(data.codePointAt(0))
       case PvlParens(_, inner, _) => convert(inner)
       case PvlInvocation(id, None) => local(id, convert(id))
-      case PvlInvocation(id, Some(Call0(typeArgs, args, given, yields))) =>
+      case PvlInvocation(id, Some(Call0(typeArgs, args, givenMap, yields))) =>
         PVLInvocation(
           None,
           convert(id),
           convert(args),
           typeArgs.map(convert(_)).getOrElse(Nil),
-          convertGiven(given),
+          convertGiven(givenMap),
           convertYields(yields),
         )(blame(expr))
       case PvlValAdtInvocation(inner) => convert(inner)
@@ -971,7 +971,7 @@ case class PVLToCol[G](
       case ValContractClause4(_, t, id, _) =>
         val variable =
           new Variable(convert(t))(origin(contract).sourceName(convert(id)))
-        collector.given += ((contract, variable))
+        collector.givenMap += ((contract, variable))
       case ValContractClause5(_, t, id, _) =>
         val variable =
           new Variable(convert(t))(origin(contract).sourceName(convert(id)))
@@ -1021,7 +1021,7 @@ case class PVLToCol[G](
       case ValModifier0(name) =>
         name match {
           case "pure" => collector.pure += mod
-          case "inline" => collector.inline += mod
+          case "inline" => collector.doInline += mod
           case "thread_local" => collector.threadLocal += mod
         }
       case ValStatic(_) => collector.static += mod
@@ -1088,18 +1088,18 @@ case class PVLToCol[G](
     whiff match { case ValThen0(_, stat) => convert(stat) }
 
   def convertEmbedGiven(
-      implicit given: Option[ValEmbedGivenContext]
+      implicit givenMap: Option[ValEmbedGivenContext]
   ): Seq[(Ref[G, Variable[G]], Expr[G])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValEmbedGiven0(_, inner, _)) => convertGiven(inner)
       case Some(ValEmbedGiven1(inner)) => convertGiven(Some(inner))
     }
 
   def convertGiven(
-      implicit given: Option[ValGivenContext]
+      implicit givenMap: Option[ValGivenContext]
   ): Seq[(Ref[G, Variable[G]], Expr[G])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValGiven0(_, _, mappings, _)) => convert(mappings)
     }
@@ -1116,18 +1116,18 @@ case class PVLToCol[G](
     }
 
   def convertEmbedYields(
-      implicit given: Option[ValEmbedYieldsContext]
+      implicit givenMap: Option[ValEmbedYieldsContext]
   ): Seq[(Expr[G], Ref[G, Variable[G]])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValEmbedYields0(_, inner, _)) => convertYields(inner)
       case Some(ValEmbedYields1(inner)) => convertYields(Some(inner))
     }
 
   def convertYields(
-      implicit given: Option[ValYieldsContext]
+      implicit givenMap: Option[ValYieldsContext]
   ): Seq[(Expr[G], Ref[G, Variable[G]])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
     }
@@ -1362,7 +1362,7 @@ case class PVLToCol[G](
                 args.map(convert(_)).getOrElse(Nil),
                 convert(definition),
                 mods.consume(mods.threadLocal),
-                mods.consume(mods.inline),
+                mods.consume(mods.doInline),
               )(origin(decl).sourceName(convert(name)))
             ),
         )
@@ -1391,7 +1391,7 @@ case class PVLToCol[G](
                   typeArgs.map(convert(_)).getOrElse(Nil),
                   convert(definition),
                   c.consumeApplicableContract(blame(decl)),
-                  m.consume(m.inline),
+                  m.consume(m.doInline),
                 )(blame(decl))(namedOrigin)
               },
             ),
@@ -1462,7 +1462,7 @@ case class PVLToCol[G](
                 args.map(convert(_)).getOrElse(Nil),
                 convert(definition),
                 mods.consume(mods.threadLocal),
-                mods.consume(mods.inline),
+                mods.consume(mods.doInline),
               )(origin(decl).sourceName(convert(name)))
             )
           },
@@ -1492,7 +1492,7 @@ case class PVLToCol[G](
                     typeArgs.map(convert(_)).getOrElse(Nil),
                     convert(definition),
                     c.consumeApplicableContract(blame(decl)),
-                    m.consume(m.inline),
+                    m.consume(m.doInline),
                   )(blame(decl))(origin(decl).sourceName(convert(name)))
                 )
               },
@@ -1524,7 +1524,7 @@ case class PVLToCol[G](
                     args.map(convert(_)).getOrElse(Nil),
                     convert(definition),
                     c.consumeApplicableContract(blame(decl)),
-                    m.consume(m.inline),
+                    m.consume(m.doInline),
                     m.consume(m.threadLocal),
                   )(blame(decl))
                 )
@@ -1555,7 +1555,7 @@ case class PVLToCol[G](
                     args.map(convert(_)).getOrElse(Nil),
                     convert(definition),
                     c.consumeApplicableContract(blame(decl)),
-                    m.consume(m.inline),
+                    m.consume(m.doInline),
                     m.consume(m.pure),
                   )(blame(decl))
                 )

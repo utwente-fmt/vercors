@@ -12,7 +12,7 @@ import vct.helper.ColHelper
 case class ResolveExpressionSideEffectsSpec() extends AnyFlatSpec with Matchers {
   type G = InitialGeneration
   implicit val o: Origin = DiagnosticOrigin
-  val rw: ResolveExpressionSideEffects[G] = ResolveExpressionSideEffects()
+  val rw: ResolveExpressionSideEffects[G] = new ResolveExpressionSideEffects[G]()
 
   val SIDE_EFFECT_1: Statement[G] = Block[G](Nil)
   val SIDE_EFFECT_2: Statement[G] = Block[G](Seq(Block(Nil), Block(Nil)))

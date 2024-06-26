@@ -227,7 +227,7 @@ final case class TAxiomatic[G](
     args: Seq[Type[G]],
 )(implicit val o: Origin = DiagnosticOrigin)
     extends DeclaredType[G] with TAxiomaticImpl[G]
-final case class TEnum[G](enum: Ref[G, Enum[G]])(
+final case class TEnum[G](enumRef: Ref[G, EnumDecl[G]])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends DeclaredType[G] with TEnumImpl[G]
 final case class TProverType[G](ref: Ref[G, ProverType[G]])(
@@ -664,7 +664,7 @@ final class Function[G](
     val typeArgs: Seq[Variable[G]],
     val body: Option[Expr[G]],
     val contract: ApplicableContract[G],
-    val inline: Boolean = false,
+    val doInline: Boolean = false,
     val threadLocal: Boolean = false,
 )(val blame: Blame[ContractedFailure])(implicit val o: Origin)
     extends GlobalDeclaration[G] with AbstractFunction[G] with FunctionImpl[G]
@@ -676,7 +676,7 @@ final class Procedure[G](
     val typeArgs: Seq[Variable[G]],
     val body: Option[Statement[G]],
     val contract: ApplicableContract[G],
-    val inline: Boolean = false,
+    val doInline: Boolean = false,
     val pure: Boolean = false,
     val vesuv_entry: Boolean = false,
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
@@ -690,11 +690,12 @@ final class Predicate[G](
     val args: Seq[Variable[G]],
     val body: Option[Expr[G]],
     val threadLocal: Boolean = false,
-    val inline: Boolean = false,
+    val doInline: Boolean = false,
 )(implicit val o: Origin)
     extends GlobalDeclaration[G] with AbstractPredicate[G] with PredicateImpl[G]
-final class Enum[G](val constants: Seq[EnumConstant[G]])(implicit val o: Origin)
-    extends GlobalDeclaration[G] with EnumImpl[G]
+final class EnumDecl[G](val constants: Seq[EnumConstant[G]])(
+    implicit val o: Origin
+) extends GlobalDeclaration[G] with EnumDeclImpl[G]
 @family
 final class EnumConstant[G]()(implicit val o: Origin)
     extends Declaration[G] with EnumConstantImpl[G]
@@ -726,7 +727,7 @@ final class InstanceFunction[G](
     val typeArgs: Seq[Variable[G]],
     val body: Option[Expr[G]],
     val contract: ApplicableContract[G],
-    val inline: Boolean,
+    val doInline: Boolean,
     val threadLocal: Boolean = false,
 )(val blame: Blame[ContractedFailure])(implicit val o: Origin)
     extends ClassDeclaration[G]
@@ -740,7 +741,7 @@ final class Constructor[G](
     val typeArgs: Seq[Variable[G]],
     val body: Option[Statement[G]],
     val contract: ApplicableContract[G],
-    val inline: Boolean = false,
+    val doInline: Boolean = false,
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends ClassDeclaration[G] with AbstractMethod[G] with ConstructorImpl[G]
 @scopes[LabelDecl]
@@ -751,7 +752,7 @@ final class InstanceMethod[G](
     val typeArgs: Seq[Variable[G]],
     val body: Option[Statement[G]],
     val contract: ApplicableContract[G],
-    val inline: Boolean = false,
+    val doInline: Boolean = false,
     val pure: Boolean = false,
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends ClassDeclaration[G]
@@ -762,7 +763,7 @@ final class InstancePredicate[G](
     val args: Seq[Variable[G]],
     val body: Option[Expr[G]],
     val threadLocal: Boolean = false,
-    val inline: Boolean = false,
+    val doInline: Boolean = false,
 )(implicit val o: Origin)
     extends ClassDeclaration[G]
     with AbstractPredicate[G]
@@ -781,7 +782,7 @@ final class InstanceOperatorFunction[G](
     val args: Seq[Variable[G]],
     val body: Option[Expr[G]],
     val contract: ApplicableContract[G],
-    val inline: Boolean,
+    val doInline: Boolean,
     val threadLocal: Boolean = false,
 )(val blame: Blame[ContractedFailure])(implicit val o: Origin)
     extends ClassDeclaration[G]
@@ -793,7 +794,7 @@ final class InstanceOperatorMethod[G](
     val args: Seq[Variable[G]],
     val body: Option[Statement[G]],
     val contract: ApplicableContract[G],
-    val inline: Boolean = false,
+    val doInline: Boolean = false,
     val pure: Boolean = false,
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends ClassDeclaration[G]
@@ -972,7 +973,7 @@ final case class CoerceNullAnyClass[G]()(implicit val o: Origin)
 final case class CoerceNullPointer[G](pointerElementType: Type[G])(
     implicit val o: Origin
 ) extends Coercion[G] with CoerceNullPointerImpl[G]
-final case class CoerceNullEnum[G](targetEnum: Ref[G, Enum[G]])(
+final case class CoerceNullEnum[G](targetEnum: Ref[G, EnumDecl[G]])(
     implicit val o: Origin
 ) extends Coercion[G] with CoerceNullEnumImpl[G]
 
@@ -1323,7 +1324,7 @@ final case class ScopedExpr[G](declarations: Seq[Variable[G]], body: Expr[G])(
 final case class Local[G](ref: Ref[G, Variable[G]])(implicit val o: Origin)
     extends Expr[G] with LocalImpl[G]
 final case class EnumUse[G](
-    enum: Ref[G, Enum[G]],
+    enumRef: Ref[G, EnumDecl[G]],
     const: Ref[G, EnumConstant[G]],
 )(implicit val o: Origin)
     extends Expr[G] with EnumUseImpl[G]
@@ -3449,7 +3450,7 @@ final class LlvmSpecFunction[G](
     val typeArgs: Seq[Variable[G]],
     val body: Option[Expr[G]],
     val contract: ApplicableContract[G],
-    val inline: Boolean = false,
+    val doInline: Boolean = false,
     val threadLocal: Boolean = false,
 )(val blame: Blame[ContractedFailure])(implicit val o: Origin)
     extends LlvmCallable[G]

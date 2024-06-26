@@ -659,11 +659,11 @@ case class CPPToCol[G](
           case _ => ??(expr)
         }
       case PostfixExpression2(_, _, _, _) => ??(expr)
-      case PostfixExpression3(target, _, args, _, given, yields) =>
+      case PostfixExpression3(target, _, args, _, givenMap, yields) =>
         CPPInvocation(
           convert(target),
           args.map(convert(_)) getOrElse Nil,
-          convertEmbedGiven(given),
+          convertEmbedGiven(givenMap),
           convertEmbedYields(yields),
         )(blame(expr))
       case PostfixExpression4(classVar, _, None, idExpr) =>
@@ -848,7 +848,7 @@ case class CPPToCol[G](
           m => {
             if (m.consume(m.pure))
               Seq(new CPPPure[G]())
-            else if (m.consume(m.inline))
+            else if (m.consume(m.doInline))
               Seq(new CPPInline[G]())
             else
               fail(
@@ -1404,7 +1404,7 @@ case class CPPToCol[G](
       case ValContractClause4(_, t, id, _) =>
         val variable =
           new Variable(convert(t))(origin(contract).sourceName((convert(id))))
-        collector.given += ((contract, variable))
+        collector.givenMap += ((contract, variable))
       case ValContractClause5(_, t, id, _) =>
         val variable =
           new Variable(convert(t))(origin(contract).sourceName((convert(id))))
@@ -1454,7 +1454,7 @@ case class CPPToCol[G](
       case ValModifier0(name) =>
         name match {
           case "pure" => collector.pure += mod
-          case "inline" => collector.inline += mod
+          case "inline" => collector.doInline += mod
           case "thread_local" => collector.threadLocal += mod
         }
       case ValStatic(_) => collector.static += mod
@@ -1521,18 +1521,18 @@ case class CPPToCol[G](
     whiff match { case ValThen0(_, stat) => convert(stat) }
 
   def convertEmbedGiven(
-      implicit given: Option[ValEmbedGivenContext]
+      implicit givenMap: Option[ValEmbedGivenContext]
   ): Seq[(Ref[G, Variable[G]], Expr[G])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValEmbedGiven0(_, inner, _)) => convertGiven(inner)
       case Some(ValEmbedGiven1(inner)) => convertGiven(Some(inner))
     }
 
   def convertGiven(
-      implicit given: Option[ValGivenContext]
+      implicit givenMap: Option[ValGivenContext]
   ): Seq[(Ref[G, Variable[G]], Expr[G])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValGiven0(_, _, mappings, _)) => convert(mappings)
     }
@@ -1549,18 +1549,18 @@ case class CPPToCol[G](
     }
 
   def convertEmbedYields(
-      implicit given: Option[ValEmbedYieldsContext]
+      implicit givenMap: Option[ValEmbedYieldsContext]
   ): Seq[(Expr[G], Ref[G, Variable[G]])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValEmbedYields0(_, inner, _)) => convertYields(inner)
       case Some(ValEmbedYields1(inner)) => convertYields(Some(inner))
     }
 
   def convertYields(
-      implicit given: Option[ValYieldsContext]
+      implicit givenMap: Option[ValYieldsContext]
   ): Seq[(Expr[G], Ref[G, Variable[G]])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
     }
@@ -1799,7 +1799,7 @@ case class CPPToCol[G](
                 args.map(convert(_)).getOrElse(Nil),
                 convert(definition),
                 mods.consume(mods.threadLocal),
-                mods.consume(mods.inline),
+                mods.consume(mods.doInline),
               )(origin(decl).sourceName(
                 (currentNamespacePath.reverse :+ convert(name)).mkString("::")
               ))
@@ -1832,7 +1832,7 @@ case class CPPToCol[G](
                   typeArgs.map(convert(_)).getOrElse(Nil),
                   convert(definition),
                   c.consumeApplicableContract(blame(decl)),
-                  m.consume(m.inline),
+                  m.consume(m.doInline),
                 )(blame(decl))(namedOrigin)
               },
             ),
@@ -1877,7 +1877,7 @@ case class CPPToCol[G](
                 args.map(convert(_)).getOrElse(Nil),
                 convert(definition),
                 mods.consume(mods.threadLocal),
-                mods.consume(mods.inline),
+                mods.consume(mods.doInline),
               )(origin(decl).sourceName(convert(name)))
             )
           },
@@ -1907,7 +1907,7 @@ case class CPPToCol[G](
                     typeArgs.map(convert(_)).getOrElse(Nil),
                     convert(definition),
                     c.consumeApplicableContract(blame(decl)),
-                    m.consume(m.inline),
+                    m.consume(m.doInline),
                   )(blame(decl))(origin(decl).sourceName(convert(name)))
                 )
               },

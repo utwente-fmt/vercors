@@ -21,21 +21,21 @@ class TestSilicon extends VerifySpec[(silver.Program, Map[Int, Node[_]])](Silico
   var i = new Variable[G](TInt())
 
   vercors should "report insufficient permission on a dereference" in procedure(
-    args=Seq(r), body=Scope(Seq(i), i <~ (r.get~>int)(ExpectError(), DiagnosticOrigin))
+    args=Seq(r), body=Scope(Seq(i), i <~ (r.get~>int)(ExpectError())(DiagnosticOrigin))
   )
 
   vercors should "verify a dereference with sufficient permission" in procedure(
     args=Seq(r), requires=Perm(SilverFieldLocation(r.get, int.ref), WritePerm()),
-    body=Scope(Seq(i), i <~ r.get~>int)
+    body=Scope(Seq(i), i <~ (r.get~>int)(noErrors))
   )
 
   vercors should "report assignment failed when there is insufficient permission to assign to a field" in procedure(
-    args=Seq(r), body=(r.get~>int <~ const(0))(ExpectError(), DiagnosticOrigin)
+    args=Seq(r), body=((r.get~>int)(noErrors) <~ const(0))(ExpectError())(DiagnosticOrigin)
   )
 
   vercors should "assign a field with sufficient permission" in procedure(
     args=Seq(r), requires=Perm(SilverFieldLocation(r.get, int.ref), WritePerm()),
-    body=r.get~>int <~ const(0)
+    body=((r.get~>int)(noErrors) <~ const(0))(noErrors)
   )
 
   vercors should "verify true assertions" in procedure(
@@ -53,7 +53,7 @@ class TestSilicon extends VerifySpec[(silver.Program, Map[Int, Node[_]])](Silico
     body=Assert[G](
       Starall(Seq(i), Seq(),
         Implies(i.get >= const(0) && i.get < SilverSeqSize(rs.get),
-          Perm(SilverFieldLocation[G]((rs.get @@ i.get), int.ref), WritePerm())))(ExpectError()))(noErrors)
+          Perm(SilverFieldLocation[G]((rs.get @@ i.get)(noErrors), int.ref), WritePerm())))(ExpectError()))(noErrors)
   )
 
   val p = new Variable[G](TRational())
@@ -76,5 +76,5 @@ class TestSilicon extends VerifySpec[(silver.Program, Map[Int, Node[_]])](Silico
   )
 
   val validPred = new Predicate(Seq(), Some(Perm[G](SilverFieldLocation(r.get, int.ref), WritePerm())))
-  val invalidPred = new Predicate(Seq(), Some(Eq(r.get~>int, const(5))))
+  val invalidPred = new Predicate(Seq(), Some(Eq((r.get~>int)(noErrors), const(5))))
 }

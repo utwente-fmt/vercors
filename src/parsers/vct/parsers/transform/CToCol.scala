@@ -165,7 +165,7 @@ case class CToCol[G](
           m => {
             if (m.consume(m.pure))
               CPure[G]()
-            else if (m.consume(m.inline))
+            else if (m.consume(m.doInline))
               CInline[G]()
             else
               fail(
@@ -887,11 +887,11 @@ case class CToCol[G](
       case PostfixExpression0(inner) => convert(inner)
       case PostfixExpression1(arr, _, idx, _) =>
         AmbiguousSubscript(convert(arr), convert(idx))(blame(expr))
-      case PostfixExpression2(f, _, args, _, given, yields) =>
+      case PostfixExpression2(f, _, args, _, givenMap, yields) =>
         CInvocation(
           convert(f),
           args.map(convert(_)) getOrElse Nil,
-          convertEmbedGiven(given),
+          convertEmbedGiven(givenMap),
           convertEmbedYields(yields),
         )(blame(expr))
       case PostfixExpression3(struct, _, field) =>
@@ -927,7 +927,7 @@ case class CToCol[G](
               _,
               args,
               _,
-              given,
+              givenMap,
               yields,
             )
           ) =>
@@ -936,7 +936,7 @@ case class CToCol[G](
           convert(blocks),
           convert(threads),
           convert(args),
-          convertEmbedGiven(given),
+          convertEmbedGiven(givenMap),
           convertEmbedYields(yields),
         )(blame(expr))
     }
@@ -1129,7 +1129,7 @@ case class CToCol[G](
       case ValContractClause4(_, t, id, _) =>
         val variable =
           new Variable(convert(t))(origin(contract).sourceName(convert(id)))
-        collector.given += ((contract, variable))
+        collector.givenMap += ((contract, variable))
       case ValContractClause5(_, t, id, _) =>
         val variable =
           new Variable(convert(t))(origin(contract).sourceName(convert(id)))
@@ -1179,7 +1179,7 @@ case class CToCol[G](
       case ValModifier0(name) =>
         name match {
           case "pure" => collector.pure += mod
-          case "inline" => collector.inline += mod
+          case "inline" => collector.doInline += mod
           case "thread_local" => collector.threadLocal += mod
         }
       case ValStatic(_) => collector.static += mod
@@ -1246,18 +1246,18 @@ case class CToCol[G](
     whiff match { case ValThen0(_, stat) => convert(stat) }
 
   def convertEmbedGiven(
-      implicit given: Option[ValEmbedGivenContext]
+      implicit givenMap: Option[ValEmbedGivenContext]
   ): Seq[(Ref[G, Variable[G]], Expr[G])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValEmbedGiven0(_, inner, _)) => convertGiven(inner)
       case Some(ValEmbedGiven1(inner)) => convertGiven(Some(inner))
     }
 
   def convertGiven(
-      implicit given: Option[ValGivenContext]
+      implicit givenMap: Option[ValGivenContext]
   ): Seq[(Ref[G, Variable[G]], Expr[G])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValGiven0(_, _, mappings, _)) => convert(mappings)
     }
@@ -1274,18 +1274,18 @@ case class CToCol[G](
     }
 
   def convertEmbedYields(
-      implicit given: Option[ValEmbedYieldsContext]
+      implicit givenMap: Option[ValEmbedYieldsContext]
   ): Seq[(Expr[G], Ref[G, Variable[G]])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValEmbedYields0(_, inner, _)) => convertYields(inner)
       case Some(ValEmbedYields1(inner)) => convertYields(Some(inner))
     }
 
   def convertYields(
-      implicit given: Option[ValYieldsContext]
+      implicit givenMap: Option[ValYieldsContext]
   ): Seq[(Expr[G], Ref[G, Variable[G]])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
     }
@@ -1520,7 +1520,7 @@ case class CToCol[G](
                 args.map(convert(_)).getOrElse(Nil),
                 convert(definition),
                 mods.consume(mods.threadLocal),
-                mods.consume(mods.inline),
+                mods.consume(mods.doInline),
               )(origin(decl).sourceName(convert(name)))
             ),
         )
@@ -1549,7 +1549,7 @@ case class CToCol[G](
                   typeArgs.map(convert(_)).getOrElse(Nil),
                   convert(definition),
                   c.consumeApplicableContract(blame(decl)),
-                  m.consume(m.inline),
+                  m.consume(m.doInline),
                 )(blame(decl))(namedOrigin)
               },
             ),
@@ -1592,7 +1592,7 @@ case class CToCol[G](
                 args.map(convert(_)).getOrElse(Nil),
                 convert(definition),
                 mods.consume(mods.threadLocal),
-                mods.consume(mods.inline),
+                mods.consume(mods.doInline),
               )(origin(decl).sourceName(convert(name)))
             )
           },
@@ -1622,7 +1622,7 @@ case class CToCol[G](
                     typeArgs.map(convert(_)).getOrElse(Nil),
                     convert(definition),
                     c.consumeApplicableContract(blame(decl)),
-                    m.consume(m.inline),
+                    m.consume(m.doInline),
                   )(blame(decl))(origin(decl).sourceName(convert(name)))
                 )
               },

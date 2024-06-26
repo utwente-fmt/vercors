@@ -323,7 +323,7 @@ case class ComputeBipGlue[Pre <: Generation]()
               Using(prover.getModel()) { model =>
                 val enabledPorts = ports.filter { port =>
                   model.evaluate(bipSmt.get(port))
-                }.map(_.ref)
+                }.map(_.ref[BipPort[Pre]])
                 val enabledWires = wires.filter { wire =>
                   model.evaluate(bipSmt.get(wire))
                 }

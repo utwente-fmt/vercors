@@ -44,8 +44,8 @@ trait CLocalImpl[G] extends CLocalOps[G] {
       case target: SpecInvocationTarget[G] => Types.notAValue(target)
       case _: RefCudaVec[G] => CTCudaVec()
       case cls: RefClass[G] => Types.notAValue(cls)
-      case enum: RefEnum[G] => Types.notAValue(enum)
-      case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
+      case ref: RefEnum[G] => Types.notAValue(ref)
+      case RefEnumConstant(decl, _) => TEnum(decl.get.ref)
     }
 
   override def layout(implicit ctx: Ctx): Doc = Text(name)

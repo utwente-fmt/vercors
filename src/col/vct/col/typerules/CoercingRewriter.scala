@@ -1248,7 +1248,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Drop(xs, count) => Drop(seq(xs)._1, int(count))
       case Empty(obj) => Empty(sized(obj)._1)
       case EmptyProcess() => EmptyProcess()
-      case use @ EnumUse(enum, const) => use
+      case use @ EnumUse(enumRef, const) => use
       case Eq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Eq(coerce(left, sharedType), coerce(right, sharedType))
@@ -2332,7 +2332,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           clazz.supports,
           res(clazz.intrinsicLockInvariant),
         )
-      case enum: Enum[Pre] => enum
+      case enumDecl: EnumDecl[Pre] => enumDecl
       case enumConstant: EnumConstant[Pre] => enumConstant
       case model: Model[Pre] => model
       case function: Function[Pre] =>
@@ -2342,7 +2342,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           function.typeArgs,
           function.body.map(coerce(_, function.returnType)),
           function.contract,
-          function.inline,
+          function.doInline,
           function.threadLocal,
         )(function.blame)
       case procedure: Procedure[Pre] => procedure
@@ -2352,7 +2352,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           predicate.args,
           predicate.body.map(res),
           predicate.threadLocal,
-          predicate.inline,
+          predicate.doInline,
         )
       case definition: CFunctionDefinition[Pre] => definition
       case declaration: CGlobalDeclaration[Pre] => declaration
@@ -2381,7 +2381,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           function.typeArgs,
           function.body.map(coerce(_, function.returnType)),
           function.contract,
-          function.inline,
+          function.doInline,
           function.threadLocal,
         )(function.blame)
       case method: InstanceMethod[Pre] => method
@@ -2390,7 +2390,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           predicate.args,
           predicate.body.map(res),
           predicate.threadLocal,
-          predicate.inline,
+          predicate.doInline,
         )
       case field: InstanceField[Pre] => field
       case method: RunMethod[Pre] => method
@@ -2402,7 +2402,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           function.args,
           function.body.map(coerce(_, function.returnType)),
           function.contract,
-          function.inline,
+          function.doInline,
           function.threadLocal,
         )(function.o)
       case initialization: JavaSharedInitialization[Pre] => initialization
@@ -2521,7 +2521,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           function.typeArgs,
           function.body.map(coerce(_, function.returnType)),
           function.contract,
-          function.inline,
+          function.doInline,
           function.threadLocal,
         )(function.blame)
       case glob: LlvmGlobal[Pre] => glob

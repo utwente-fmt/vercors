@@ -44,8 +44,8 @@ trait CPPLocalImpl[G] extends CPPLocalOps[G] {
       case RefModelField(field) => field.t
       case target: SpecInvocationTarget[G] => Types.notAValue(target)
       case cls: RefClass[G] => Types.notAValue(cls)
-      case enum: RefEnum[G] => Types.notAValue(enum)
-      case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
+      case ref: RefEnum[G] => Types.notAValue(ref)
+      case RefEnumConstant(decl, _) => TEnum(decl.get.ref)
     }
 
   override def layout(implicit ctx: Ctx): Doc =

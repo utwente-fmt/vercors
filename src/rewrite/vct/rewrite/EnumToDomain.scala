@@ -23,33 +23,33 @@ case object EnumToDomain extends RewriterBuilder {
 }
 
 case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
-  val enumSucc: SuccessionMap[Enum[Pre], AxiomaticDataType[Post]] =
+  val enumSucc: SuccessionMap[EnumDecl[Pre], AxiomaticDataType[Post]] =
     SuccessionMap()
   val constSucc: SuccessionMap[EnumConstant[Pre], ADTFunction[Post]] =
     SuccessionMap()
-  val eqDefs: SuccessionMap[Enum[Pre], ADTFunction[Post]] = SuccessionMap()
-  val eqOptDefs: SuccessionMap[Enum[Pre], Function[Post]] = SuccessionMap()
+  val eqDefs: SuccessionMap[EnumDecl[Pre], ADTFunction[Post]] = SuccessionMap()
+  val eqOptDefs: SuccessionMap[EnumDecl[Pre], Function[Post]] = SuccessionMap()
 
-  val oracles: mutable.Map[Enum[Pre], Function[Post]] = mutable.Map()
+  val oracles: mutable.Map[EnumDecl[Pre], Function[Post]] = mutable.Map()
 
-  val currentEnum: ScopedStack[Enum[Pre]] = ScopedStack()
+  val currentEnum: ScopedStack[EnumDecl[Pre]] = ScopedStack()
 
   def enumEq(
       a: Expr[Post],
       b: Expr[Post],
-  )(implicit enum: Enum[Pre], o: Origin): Expr[Post] =
+  )(implicit enumDecl: EnumDecl[Pre], o: Origin): Expr[Post] =
     ADTFunctionInvocation(
       None,
-      eqDefs.ref[Post, ADTFunction[Post]](enum),
+      eqDefs.ref[Post, ADTFunction[Post]](enumDecl),
       Seq(a, b),
     )(o)
 
   def enumOptEq(
       a: Expr[Post],
       b: Expr[Post],
-  )(implicit enum: Enum[Pre], o: Origin): Expr[Post] =
+  )(implicit enumDecl: EnumDecl[Pre], o: Origin): Expr[Post] =
     FunctionInvocation(
-      eqOptDefs.ref[Post, Function[Post]](enum),
+      eqOptDefs.ref[Post, Function[Post]](enumDecl),
       Seq(a, b),
       Seq(),
       Seq(),
@@ -63,83 +63,85 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
       Seq(),
     )
 
-  def T(enum: Enum[Pre])(implicit o: Origin): Type[Post] =
-    TAxiomatic(enumSucc.ref[Post, AxiomaticDataType[Post]](enum), Seq())
+  def T(enumDecl: EnumDecl[Pre])(implicit o: Origin): Type[Post] =
+    TAxiomatic(enumSucc.ref[Post, AxiomaticDataType[Post]](enumDecl), Seq())
 
   override def postCoerce(decl: Declaration[Pre]): Unit =
     decl match {
-      case enum: ast.Enum[Pre] =>
-        implicit val o = enum.o
-        implicit val enumImp: Enum[Pre] = enum
-        currentEnum.having(enum) {
+      case enumDecl: EnumDecl[Pre] =>
+        implicit val o = enumDecl.o
+        implicit val enumImp: EnumDecl[Pre] = enumDecl
+        currentEnum.having(enumDecl) {
           aDTDeclarations.scope {
-            enumSucc(enum) = globalDeclarations.declare(new AxiomaticDataType(
-              aDTDeclarations.collect {
-                enum.constants.foreach(dispatch)
+            enumSucc(enumDecl) = globalDeclarations
+              .declare(new AxiomaticDataType(
+                aDTDeclarations.collect {
+                  enumDecl.constants.foreach(dispatch)
 
-                val eqDef: ADTFunction[Post] = aDTDeclarations.declare(
-                  new ADTFunction(
-                    Seq(new Variable(T(enum)), new Variable(T(enum))),
-                    TBool(),
-                  )(EqOrigin(enum.o))
-                )
-                eqDefs(enum) = eqDef
-                val toIntDef: ADTFunction[Post] = aDTDeclarations
-                  .declare(new ADTFunction(Seq(new Variable(T(enum))), TInt())(
-                    ToIntOrigin(enum.o)
-                  ))
-                val toInt: Expr[Post] => Expr[Post] =
-                  e =>
-                    ADTFunctionInvocation(
-                      None,
-                      toIntDef.ref[ADTFunction[Post]],
-                      Seq(e),
+                  val eqDef: ADTFunction[Post] = aDTDeclarations.declare(
+                    new ADTFunction(
+                      Seq(new Variable(T(enumDecl)), new Variable(T(enumDecl))),
+                      TBool(),
+                    )(EqOrigin(enumDecl.o))
+                  )
+                  eqDefs(enumDecl) = eqDef
+                  val toIntDef: ADTFunction[Post] = aDTDeclarations.declare(
+                    new ADTFunction(Seq(new Variable(T(enumDecl))), TInt())(
+                      ToIntOrigin(enumDecl.o)
                     )
+                  )
+                  val toInt: Expr[Post] => Expr[Post] =
+                    e =>
+                      ADTFunctionInvocation(
+                        None,
+                        toIntDef.ref[ADTFunction[Post]],
+                        Seq(e),
+                      )
 
-                // eqDef
-                aDTDeclarations.declare(new ADTAxiom(foralls[Post](
-                  Seq(T(enum), T(enum)),
-                  {
-                    case Seq(a, b) => (
-                      InlinePattern(enumEq(a, b)) === (toInt(a) === toInt(b))
-                    )
-                  },
-                )))
+                  // eqDef
+                  aDTDeclarations.declare(new ADTAxiom(foralls[Post](
+                    Seq(T(enumDecl), T(enumDecl)),
+                    {
+                      case Seq(a, b) => (
+                        InlinePattern(enumEq(a, b)) === (toInt(a) === toInt(b))
+                      )
+                    },
+                  )))
 
-                // eqPost
-                aDTDeclarations.declare(new ADTAxiom(foralls[Post](
-                  Seq(T(enum), T(enum)),
-                  {
-                    case Seq(a, b) => (
-                      InlinePattern(enumEq(a, b)) ==> (a === b)
-                    )
-                  },
-                )))
+                  // eqPost
+                  aDTDeclarations.declare(new ADTAxiom(foralls[Post](
+                    Seq(T(enumDecl), T(enumDecl)),
+                    {
+                      case Seq(a, b) => (
+                        InlinePattern(enumEq(a, b)) ==> (a === b)
+                      )
+                    },
+                  )))
 
-                /// toIntAlts
-                aDTDeclarations.declare(new ADTAxiom(foldAnd(
-                  enum.constants.zipWithIndex.map {
-                    case (eConst, i) => (toInt(getConst(eConst)) === const(i))
-                  }
-                )))
+                  /// toIntAlts
+                  aDTDeclarations.declare(new ADTAxiom(foldAnd(
+                    enumDecl.constants.zipWithIndex.map {
+                      case (eConst, i) => (toInt(getConst(eConst)) === const(i))
+                    }
+                  )))
 
-                // toIntRange
-                aDTDeclarations.declare(new ADTAxiom(forall[Post](
-                  T(enum),
-                  e =>
-                    (const(0) <= InlinePattern(toInt(e))) &&
-                      (toInt(e) < const(enum.constants.length)),
-                )))
-              }._1,
-              Seq(),
-            ))
+                  // toIntRange
+                  aDTDeclarations.declare(new ADTAxiom(forall[Post](
+                    T(enumDecl),
+                    e =>
+                      (const(0) <= InlinePattern(toInt(e))) &&
+                        (toInt(e) < const(enumDecl.constants.length)),
+                  )))
+                }._1,
+                Seq(),
+              ))
           }
         }
 
         // eqOptDef
-        val ax = new Variable(TOption(T(enum)))
-        val bx = new Variable(TOption(T(enum)))
-        eqOptDefs(enum) = globalDeclarations.declare(
+        val ax = new Variable(TOption(T(enumDecl)))
+        val bx = new Variable(TOption(T(enumDecl)))
+        eqOptDefs(enumDecl) = globalDeclarations.declare(
           function[Post](
             args = Seq(ax, bx),
             returnType = TBool(),
@@ -153,7 +155,7 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
             )),
             blame = PanicBlame("Contract should be ok"),
             contractBlame = PanicBlame("Contract should be satisfiable"),
-          )(EqOptOrigin(enum.o))
+          )(EqOptOrigin(enumDecl.o))
         )
 
       case const: EnumConstant[Pre] =>
@@ -174,17 +176,17 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
   override def postCoerce(e: Expr[Pre]): Expr[Post] =
     e match {
       case EnumUse(_, const) => OptSome(getConst(const.decl)(e.o))(e.o)
-      case EqTL(Eq(a, b), TEnum(enum)) =>
-        enumOptEq(dispatch(a), dispatch(b))(enum.decl, e.o)
-      case EqTL(Neq(a, b), TEnum(enum)) =>
+      case EqTL(Eq(a, b), TEnum(enumDecl)) =>
+        enumOptEq(dispatch(a), dispatch(b))(enumDecl.decl, e.o)
+      case EqTL(Neq(a, b), TEnum(enumDecl)) =>
         implicit val o = e.o;
-        !enumOptEq(dispatch(a), dispatch(b))(enum.decl, e.o)
+        !enumOptEq(dispatch(a), dispatch(b))(enumDecl.decl, e.o)
       case other => rewriteDefault(other)
     }
 
   override def postCoerce(t: Type[Pre]): Type[Post] =
     t match {
-      case TEnum(enum) => TOption(T(enum.decl)(t.o))(t.o)
+      case TEnum(enumDecl) => TOption(T(enumDecl.decl)(t.o))(t.o)
       case other => rewriteDefault(other)
     }
 

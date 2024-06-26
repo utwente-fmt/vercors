@@ -6,9 +6,9 @@ import vct.col.ast.ops.EnumUseOps
 
 trait EnumUseImpl[G] extends EnumUseOps[G] {
   this: EnumUse[G] =>
-  override def t: Type[G] = TEnum(enum)
+  override def t: Type[G] = TEnum(enumRef)
 
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
-    Text(ctx.name(enum)) <> "." <> ctx.name(const)
+    Text(ctx.name(enumRef)) <> "." <> ctx.name(const)
 }

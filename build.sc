@@ -45,6 +45,7 @@ object viper extends ScalaModule {
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
+      os.remove.all(workspace / "src" / "main" / "scala" / "viper" / "silver" / "testing")
       workspace
     }
   }
@@ -72,7 +73,6 @@ object viper extends ScalaModule {
     override def resources = T.sources { repo.filteredRepo() / "src" / "main" / "resources" }
     override def ivyDeps = settings.deps.log ++ Agg(
       ivy"org.scala-lang:scala-reflect:2.13.10",
-      ivy"org.scalatest::scalatest:3.1.2",
       ivy"org.scala-lang.modules::scala-parser-combinators:1.1.2",
       ivy"com.lihaoyi::fastparse:2.2.2",
       ivy"org.rogach::scallop:4.0.4",
@@ -86,6 +86,7 @@ object viper extends ScalaModule {
 
   object silicon extends ScalaModule {
     object buildInfo extends BuildInfo with ScalaModule {
+      override def scalaVersion = "2.13.10"
       def buildInfoPackageName = "viper.silicon"
       override def buildInfoMembers = T {
         Seq(
@@ -142,6 +143,7 @@ object vercors extends Module {
     upickle.default.read[T](interp.watch(p).toNIO)
 
   object hre extends VercorsModule {
+    override def scalaVersion = "2.13.12"
     def key = "hre"
     def deps = Agg(
       ivy"org.fusesource.jansi:jansi:2.4.0",
@@ -151,6 +153,7 @@ object vercors extends Module {
     override def moduleDeps = Seq(pprofProto)
 
     object pprofProto extends ScalaPBModule {
+      override def scalaVersion = "2.13.12"
       override def scalaPBSources = hre.sources
       override def scalaPBFlatPackage = true
     }
@@ -173,6 +176,7 @@ object vercors extends Module {
 
       // Step 1: compile
       object generators extends VercorsModule {
+        override def scalaVersion = "2.13.12"
         def key = "helpers"
         def deps: T[Agg[Dep]] = T {
           Agg(
@@ -528,7 +532,7 @@ object vercors extends Module {
   object viperApi extends VercorsModule {
     def key = "viper"
     def deps = Agg(
-      ivy"org.scalatest::scalatest:3.2.7"
+      ivy"org.scalatest::scalatest:3.2.9"
     )
     override def moduleDeps = Seq(hre, col, parsers, viper)
 

@@ -29,7 +29,7 @@ trait TClassImpl[G] extends TClassOps[G] {
       (instantiate(clsA).asClass.get, instantiate(clsB).asClass.get)
     }
 
-  def transSupportArrows(): Seq[(TClass[G], TClass[G])] =
+  def transSupportArrows: Seq[(TClass[G], TClass[G])] =
     transSupportArrowsHelper(Set.empty)
 
   override def layout(implicit ctx: Ctx): Doc =

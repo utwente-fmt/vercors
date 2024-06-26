@@ -60,8 +60,8 @@ case class LangSpecificToCol[Pre <: Generation](
       case RefAxiomaticDataType(_) => throw NotAValue(e)
       case RefClass(_) => throw NotAValue(e)
       case RefEnum(_) => throw NotAValue(e)
-      case RefEnumConstant(enum, decl) =>
-        EnumUse[Post](succ(enum.get), succ(decl))(e.o)
+      case RefEnumConstant(enumDecl, decl) =>
+        EnumUse[Post](succ(enumDecl.get), succ(decl))(e.o)
       case RefVariable(decl) => Local[Post](succ(decl))(e.o)
       case RefModelField(decl) =>
         ModelDeref[Post](currentThis.top, succ(decl))(blame)(e.o)
@@ -74,8 +74,8 @@ case class LangSpecificToCol[Pre <: Generation](
       blame: Blame[DerefInsufficientPermission],
   ): Expr[Post] =
     target match {
-      case RefEnumConstant(enum, decl) =>
-        EnumUse[Post](succ(enum.get), succ(decl))(e.o)
+      case RefEnumConstant(enumDecl, decl) =>
+        EnumUse[Post](succ(enumDecl.get), succ(decl))(e.o)
       case RefModelField(decl) =>
         ModelDeref[Post](dispatch(obj), succ(decl))(blame)(e.o)
       case BuiltinField(f) => dispatch(f(obj))

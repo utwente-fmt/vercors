@@ -450,7 +450,7 @@ case class EncodeResourceValues[Pre <: Generation]()
           patternBuilders.top.values.map { builder =>
             val cond =
               ADTFunctionInvocation[Post](
-                Some(valAdt.top.ref -> Nil),
+                Some(valAdt.top.ref[AxiomaticDataType[Post]] -> Nil),
                 kindFunc.top.ref,
                 Seq(v),
               ) === const(builder.index)

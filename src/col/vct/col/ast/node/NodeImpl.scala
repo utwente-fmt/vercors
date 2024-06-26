@@ -74,7 +74,6 @@ trait NodeImpl[G]
 
   def subnodes: Seq[Node[G]]
 
-  def unsafeTransmuteGeneration[TNode[_] <: Node[_], G2](
-      implicit witness: this.type <:< TNode[G]
-  ): TNode[G2] = (this: TNode[G]).asInstanceOf[TNode[G2]]
+  def unsafeTransmuteGeneration[TNode[_] <: Node[_], G2]: TNode[G2] =
+    this.asInstanceOf[TNode[G2]]
 }

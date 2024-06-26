@@ -18,7 +18,7 @@ trait PVLLocalImpl[G] extends PVLLocalOps[G] {
       case ref: RefModelField[G] => ref.decl.t
       case ref: RefEndpoint[G] => ref.decl.t
       case ref: RefPVLEndpoint[G] => ref.decl.t
-      case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
+      case RefEnumConstant(decl, _) => TEnum(decl.get.ref)
     }
 
   override def layout(implicit ctx: Ctx): Doc = Text(name)

@@ -141,7 +141,7 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
                 )
               },
             contract = dispatch(proc.contract),
-            inline = proc.inline,
+            doInline = proc.doInline,
           )(proc.blame)(proc.o),
         )
       case method: InstanceMethod[Pre] if method.pure =>
@@ -173,7 +173,7 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
                 )
               },
             contract = dispatch(method.contract),
-            inline = method.inline,
+            doInline = method.doInline,
           )(method.blame)(method.o),
         )
       case other => rewriteDefault(other)

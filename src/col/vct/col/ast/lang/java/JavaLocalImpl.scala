@@ -13,7 +13,7 @@ trait JavaLocalImpl[G] extends JavaLocalOps[G] {
     ref.get match {
       case ref: RefAxiomaticDataType[G] => Types.notAValue(ref)
       case ref: RefEnum[G] => Types.notAValue(ref)
-      case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
+      case RefEnumConstant(decl, _) => TEnum(decl.get.ref)
       case RefVariable(decl) => decl.t
       case ref: RefUnloadedJavaNamespace[G] => Types.notAValue(ref)
       case ref: RefJavaClass[G] => Types.notAValue(ref)

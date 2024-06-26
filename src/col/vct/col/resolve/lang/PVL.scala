@@ -59,10 +59,10 @@ case object PVL {
       blame: Blame[BuiltinError],
   ): Option[PVLDerefTarget[G]] =
     obj.t match {
-      case TNotAValue(RefEnum(enum)) =>
-        enum.constants.flatMap(Referrable.from).collectFirst {
+      case TNotAValue(RefEnum(decl)) =>
+        decl.constants.flatMap(Referrable.from).collectFirst {
           case ref: RefEnumConstant[G @unchecked] if ref.name == name =>
-            ref.copy(enum = Some(enum))
+            ref.copy(enumDecl = Some(decl))
         }
       case _: TNotAValue[G] => Spec.builtinField(obj, name, blame)
       case TModel(ref) =>

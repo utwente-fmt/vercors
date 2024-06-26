@@ -12,7 +12,7 @@ trait InstanceOperatorMethodImpl[G] extends InstanceOperatorMethodOps[G] {
   def outArgs: Seq[Variable[G]] = Nil
 
   def layoutModifiers(implicit ctx: Ctx): Seq[Doc] =
-    ListMap(pure -> "pure", inline -> "inline").filter(_._1).values.map(Text)
+    ListMap(pure -> "pure", doInline -> "inline").filter(_._1).values.map(Text)
       .map(Doc.inlineSpec).toSeq
 
   override def layout(implicit ctx: Ctx): Doc =

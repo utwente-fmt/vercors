@@ -252,7 +252,7 @@ case object Java extends LazyLogging {
       )
 
       for (t <- currentlyLoading.remove(potentialFQName).get) {
-        ((t: JavaNamedType[_])
+        ((t: JavaNamedType[?])
           .unsafeTransmuteGeneration[JavaNamedType, G]: JavaNamedType[G]).ref =
           Some(RefJavaClass(colClass))
       }
@@ -626,7 +626,7 @@ case object Java extends LazyLogging {
                     ref.decls.modifiers.is[JavaStatic[G]] =>
                 ref
             }
-          case RefEnum(enum) => enum.getConstant(name)
+          case RefEnum(decl) => decl.getConstant(name)
           case _ => None
         }
       case TModel(Ref(model)) =>
@@ -840,7 +840,7 @@ case object Java extends LazyLogging {
           case decl: JavaClassDeclaration[G] if decl.isStatic =>
             Referrable.from(decl)
         }.flatten
-      case RefEnum(enum) => enum.constants.map(RefEnumConstant(Some(enum), _))
+      case RefEnum(decl) => decl.constants.map(RefEnumConstant(Some(decl), _))
       case _ =>
         Nil // PB: I guess? Maybe we should support "ghost static importing" adt functions and whatnot :)
     }

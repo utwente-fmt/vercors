@@ -183,7 +183,7 @@ case class CheckProcessAlgebra[Pre <: Generation]()
       case x => rewriteDefault(x)
     }
 
-  def inline(a: ModelProcess[Pre], b: Seq[Expr[_]]): Nothing = ???
+  def doInline(a: ModelProcess[Pre], b: Seq[Expr[_]]): Nothing = ???
 
   // TODO: How to determine at what point to rewrite EmptyProcess/ActionApply? When encountered in expandUnguarded?
 
@@ -193,7 +193,7 @@ case class CheckProcessAlgebra[Pre <: Generation]()
       case p: EmptyProcess[Pre] => p.rewrite()
       case p: ActionApply[Pre] => p.rewrite()
       case ProcessApply(process, args) =>
-        expandUnguarded(inline(process.decl, args))
+        expandUnguarded(doInline(process.decl, args))
       case ProcessSeq(q, r) => ProcessSeq(expandUnguarded(q), dispatch(r))(p.o)
       case ProcessChoice(q, r) =>
         ProcessChoice(expandUnguarded(q), expandUnguarded(r))(p.o)

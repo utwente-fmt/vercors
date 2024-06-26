@@ -63,7 +63,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       case RefAxiomaticDataType(decl) =>
         TAxiomatic[Post](succ(decl), args.map(dispatch))
       case RefModel(decl) => TModel[Post](succ(decl))
-      case RefEnum(enum) => TEnum[Post](succ(enum))
+      case RefEnum(enumDecl) => TEnum[Post](succ(enumDecl))
       case RefProverType(typ) => TProverType[Post](succ(typ))
       case RefVariable(decl) => TVar[Post](succ(decl))
     }

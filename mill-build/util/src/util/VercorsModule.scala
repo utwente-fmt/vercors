@@ -61,6 +61,6 @@ trait VercorsModule extends ScalaModule with ScalafmtModule with VercorsJavaModu
     override def sourcesDir = T { settings.test / key }
     override def sources = T.sources { sourcesDir() }
     def deps = T { Agg.empty }
-    override def ivyDeps = settings.deps.common ++ Agg(ivy"org.scalatest::scalatest:3.2.7") ++ outer.deps() ++ deps()
+    override def ivyDeps = settings.deps.common ++ Agg(ivy"org.scalatest::scalatest:3.2.9") ++ outer.deps() ++ deps()
   }
 }

@@ -93,7 +93,7 @@ case object SilverToCol {
     }
 
   def parse[G](path: Path, blameProvider: BlameProvider): col.Program[G] =
-    transform(path, SilverParserDummyFrontend().parse(path), blameProvider)
+    transform(path, new SilverParserDummyFrontend().parse(path), blameProvider)
 
   def parse[G](
       input: String,
@@ -102,7 +102,7 @@ case object SilverToCol {
   ): col.Program[G] =
     transform(
       diagnosticPath,
-      SilverParserDummyFrontend().parse(input, diagnosticPath),
+      new SilverParserDummyFrontend().parse(input, diagnosticPath),
       blameProvider,
     )
 
@@ -112,7 +112,7 @@ case object SilverToCol {
   ): col.Program[G] =
     transform(
       Paths.get(readable.fileName),
-      SilverParserDummyFrontend().parse(readable),
+      new SilverParserDummyFrontend().parse(readable),
       blameProvider,
     )
 }
@@ -235,7 +235,7 @@ case class SilverToCol[G](
           yieldsArgs = Nil,
           decreases = decreases.flatMap(transform),
         )(blame(func))(origin(func)),
-      inline = false,
+      doInline = false,
       threadLocal = false,
     )(blame(func))(origin(func))
   }
@@ -253,7 +253,7 @@ case class SilverToCol[G](
       args = pred.formalArgs.map(transform),
       body = pred.body.map(transform),
       threadLocal = false,
-      inline = false,
+      doInline = false,
     )(origin(pred))
 
   def transform(proc: silver.Method): col.Procedure[G] = {
@@ -281,7 +281,7 @@ case class SilverToCol[G](
           yieldsArgs = Nil,
           decreases = decreases.flatMap(transform),
         )(blame(proc))(origin(proc)),
-      inline = false,
+      doInline = false,
       pure = false,
     )(blame(proc))(origin(proc))
   }

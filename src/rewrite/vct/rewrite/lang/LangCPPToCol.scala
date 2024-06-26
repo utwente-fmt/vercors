@@ -965,7 +965,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                   typeArgs = Nil,
                   body = None,
                   contract = rw.dispatch(decl.decl.contract),
-                  inline =
+                  doInline =
                     decl.decl.specs.collectFirst { case CPPInline() => () }
                       .nonEmpty,
                   pure =

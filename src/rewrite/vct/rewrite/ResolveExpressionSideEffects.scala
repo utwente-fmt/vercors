@@ -183,7 +183,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
 
     try {
       val (vars, result) = collectVarsIfOuterScope {
-        executionContext.having(Some(statements.append)) {
+        executionContext.having(Some(statements += _)) {
           ReInliner().dispatch(dispatch(e))
         }
       }

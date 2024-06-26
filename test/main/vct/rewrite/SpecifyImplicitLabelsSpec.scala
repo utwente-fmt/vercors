@@ -40,7 +40,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       )
     }
 
-    val rewriter = SpecifyImplicitLabels[G]()
+    val rewriter = new SpecifyImplicitLabels[G]()
     ColHelper.assertEquals(rewriter.dispatch(before), after)
     assert(rewriter.labelStack.isEmpty)
   }
@@ -76,7 +76,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       )
     }
 
-    val rewriter = SpecifyImplicitLabels[G]()
+    val rewriter = new SpecifyImplicitLabels[G]()
     ColHelper.assertEquals(rewriter.labelDecls.scope { rewriter.dispatch(before) }, after)
     assert(rewriter.labelStack.isEmpty)
   }
@@ -108,7 +108,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       )
     }
 
-    val rewriter = SpecifyImplicitLabels[G]()
+    val rewriter = new SpecifyImplicitLabels[G]()
     ColHelper.assertEquals(rewriter.labelDecls.scope { rewriter.dispatch(before) }, after)
     assert(rewriter.labelStack.isEmpty)
   }
@@ -151,7 +151,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       )
     }
 
-    val rewriter = SpecifyImplicitLabels[G]()
+    val rewriter = new SpecifyImplicitLabels[G]()
     ColHelper.assertEquals(rewriter.labelDecls.scope { rewriter.dispatch(before) }, after)
     assert(rewriter.labelStack.isEmpty)
   }

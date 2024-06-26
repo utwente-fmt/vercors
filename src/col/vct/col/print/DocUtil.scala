@@ -44,13 +44,13 @@ object DocUtil {
       )
 
   def givenYields[G](
-      given: Seq[(Ref[G, Variable[G]], Expr[G])],
+      givenMap: Seq[(Ref[G, Variable[G]], Expr[G])],
       yields: Seq[(Expr[G], Ref[G, Variable[G]])],
   )(implicit ctx: Ctx): Doc =
     Doc.inlineSpec(Show.lazily(
       givenYieldsMapping(
         "given",
-        given.map { case (ref, e) => Text(ctx.name(ref)) -> e.show },
+        givenMap.map { case (ref, e) => Text(ctx.name(ref)) -> e.show },
       )(_)
     )) <> Doc.inlineSpec(Show.lazily(
       givenYieldsMapping(

@@ -24,7 +24,7 @@ trait CPPClassMethodOrFieldAccessImpl[G]
       case RefProverFunction(decl) => decl.returnType
       case ref: BuiltinField[G] => ref.f(classInstance).t
       case ref: BuiltinInstanceMethod[G] => Types.notAValue(ref)
-      case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
+      case RefEnumConstant(decl, _) => TEnum(decl.get.ref)
       case ref: RefCPPGlobalDeclaration[G] => Types.notAValue(ref)
     }
 

@@ -155,7 +155,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                         ),
                       )
                     ),
-                    inline = function.inline,
+                    doInline = function.doInline,
                   )(function.blame)(function.o)
                 })
             }
@@ -190,7 +190,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                       ),
                     )
                   ),
-                  inline = method.inline,
+                  doInline = method.doInline,
                   pure = method.pure,
                 )(method.blame)(method.o)
               })
@@ -252,7 +252,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                     }._1,
                   body = predicate.body.map(dispatch),
                   threadLocal = predicate.threadLocal,
-                  inline = predicate.inline,
+                  doInline = predicate.doInline,
                 )(predicate.o)
               )
             }

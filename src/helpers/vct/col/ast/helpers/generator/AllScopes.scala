@@ -25,19 +25,19 @@ class AllScopes extends AllFamiliesGenerator {
         def freeze: $AllFrozenScopes[Pre, Post] = new $AllFrozenScopes(this)
 
         def anyDeclare[T <: $Declaration[Post]](`~decl`: T): T =
-          ${Term.Match(q"`~decl`", declaredFamilies.map(name => Case(p"decl: ${typ(name)}[Post]", None, q"${scopes(name.base)}.declare(decl); `~decl`")).toList)}
+          ${Term.Match(q"`~decl`", declaredFamilies.map(name => Case(p"decl: ${typ(name)}[Post]", None, q"${scopes(name.base)}.declare[${typ(name)}[Post]](decl); `~decl`")).toList)}
 
         def anySucceedOnly[T <: $Declaration[Post]](`~pre`: $Declaration[Pre], `~post`: T)(implicit tag: $ClassTag[T]): T =
           ${Term.Match(
         q"(`~pre`, `~post`)",
         declaredFamilies.map(name =>
-          Case(p"(pre: ${typ(name)}[Pre], post: ${typ(name)}[Post])", None, q"${scopes(name.base)}.succeedOnly(pre, post); `~post`")
+          Case(p"(pre: ${typ(name)}[Pre], post: ${typ(name)}[Post])", None, q"${scopes(name.base)}.succeedOnly[${typ(name)}[Post]](pre, post); `~post`")
         ).toList :+ Case(p"(pre, post)", None, q"throw $InconsistentSuccessionTypesObj(pre, post)"),
       )}
 
         def anySucceed[T <: $Declaration[Post]](`~pre`: $Declaration[Pre], `~post`: T)(implicit tag: $ClassTag[T]): T = {
-          anyDeclare(`~post`)
-          anySucceedOnly(`~pre`, `~post`)
+          anyDeclare[T](`~post`)
+          anySucceedOnly[T](`~pre`, `~post`)
         }
 
         ..${declaredFamilies.map(name => q"""

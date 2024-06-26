@@ -129,7 +129,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 case None => None
               },
               rw.dispatch(function.contract),
-              function.inline,
+              function.doInline,
               function.threadLocal,
             )(function.blame)
           specFunctionMap.update(function, rwFunction)

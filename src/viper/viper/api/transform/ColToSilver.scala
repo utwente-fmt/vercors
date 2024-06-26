@@ -221,7 +221,7 @@ case class ColToSilver(program: col.Program[_]) {
       // nop
       case rule: col.SimplificationRule[_] => ??(rule)
       case function: col.Function[_]
-          if !function.inline && function.typeArgs.isEmpty =>
+          if !function.doInline && function.typeArgs.isEmpty =>
         scoped {
           functions += silver.Function(
             ref(function),
@@ -234,7 +234,7 @@ case class ColToSilver(program: col.Program[_]) {
           )(pos = pos(function), info = NodeInfo(function))
         }
       case procedure: col.Procedure[_]
-          if procedure.returnType == col.TVoid() && !procedure.inline &&
+          if procedure.returnType == col.TVoid() && !procedure.doInline &&
             !procedure.pure && procedure.typeArgs.isEmpty =>
         scoped {
           val labelDecls = procedure.body.toSeq
@@ -260,7 +260,7 @@ case class ColToSilver(program: col.Program[_]) {
           )(pos = pos(procedure), info = NodeInfo(procedure))
         }
       case predicate: col.Predicate[_]
-          if !predicate.inline && !predicate.threadLocal =>
+          if !predicate.doInline && !predicate.threadLocal =>
         scoped {
           predicates += silver.Predicate(
             ref(predicate),

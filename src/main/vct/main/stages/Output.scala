@@ -40,7 +40,7 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
 
   override def progressWeight: Int = 1
 
-  def extension(syntax: Ctx.Syntax): String =
+  def ext(syntax: Ctx.Syntax): String =
     syntax match {
       case Ctx.PVL => "pvl"
       case Ctx.Silver => "vpr"
@@ -66,7 +66,7 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
         in.asInstanceOf[Program[_]].declarations.zipWithIndex.map {
           case (decl, i) =>
             val name = names.getOrElse(decl.asInstanceOf, s"unknown$i")
-            val fileName = s"${name}.${extension(syntax)}"
+            val fileName = s"${name}.${ext(syntax)}"
             val buf = new StringBuffer()
             decl.write(buf)(ctx)
             LiteralReadable(fileName, buf.toString)
@@ -74,7 +74,7 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
       } else {
         val buf = new StringBuffer()
         in.write(buf)(ctx)
-        val path = s"unknown.${extension(syntax)}"
+        val path = s"unknown.${ext(syntax)}"
         Seq(LiteralReadable(path, buf.toString))
       }
 

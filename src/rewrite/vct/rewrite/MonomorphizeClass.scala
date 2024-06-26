@@ -73,7 +73,7 @@ case class MonomorphizeClass[Pre <: Generation]()
       typeValues,
       keepBodies = keepBodies,
       substitutions =
-        cls.typeArgs.map { v: Variable[Pre] => TVar(v.ref[Variable[Pre]]) }
+        cls.typeArgs.map((v: Variable[Pre]) => TVar(v.ref[Variable[Pre]]))
           .zip(typeValues).toMap,
     )
     knownInstantiations.add(key)

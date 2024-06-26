@@ -77,7 +77,7 @@ case object ImportADT {
       case SilverPartialTAxiomatic(Ref(adt), _) =>
         adt.o.getPreferredNameOrElse().camel
       case TAnyClass() => "cls"
-      case TEnum(Ref(enum)) => enum.o.getPreferredNameOrElse().camel
+      case TEnum(Ref(enumDecl)) => enumDecl.o.getPreferredNameOrElse().camel
       case TProverType(Ref(t)) => t.o.getPreferredNameOrElse().camel
       case TChoreography(Ref(prog)) => prog.o.getPreferredNameOrElse().camel
       case TPVLChoreography(Ref(prog)) => prog.o.getPreferredNameOrElse().camel
@@ -123,7 +123,7 @@ abstract class ImportADT[Pre <: Generation](importer: ImportADTImporter)
       implicit tag: ClassTag[T]
   ): T =
     decls.collectFirst {
-      case decl: T if decl.o.find[SourceName].contains(SourceName(name)) => decl
+      case decl: T with Declaration[Post] if decl.o.find[SourceName].contains(SourceName(name)) => decl
     }.get
 
   protected def find[T](decls: Declarator[Post], name: String)(

@@ -502,7 +502,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         rw.dispatch(t.t)
       }.get
     val pure = func.specs.collectFirst { case CPure() => () }.isDefined
-    val inline = func.specs.collectFirst { case CInline() => () }.isDefined
+    val doInline = func.specs.collectFirst { case CInline() => () }.isDefined
 
     val (contract, subs: Map[CParam[Pre], CParam[Pre]]) =
       func.ref match {
@@ -536,7 +536,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 typeArgs = Nil,
                 body = Some(rw.dispatch(func.body)),
                 contract = rw.dispatch(contract),
-                inline = inline,
+                doInline = doInline,
                 pure = pure,
               )(func.blame)(namedO)
             }
@@ -1032,7 +1032,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         .isDefined
     if (isStruct) { rewriteStruct(decl); return }
     val pure = decl.decl.specs.collectFirst { case CPure() => () }.isDefined
-    val inline = decl.decl.specs.collectFirst { case CInline() => () }.isDefined
+    val doInline = decl.decl.specs.collectFirst { case CInline() => () }.isDefined
 
     val t =
       decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] =>
@@ -1055,7 +1055,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 body = None,
                 contract = rw.dispatch(decl.decl.contract),
                 pure = pure,
-                inline = inline,
+                doInline = doInline,
               )(AbstractApplicable)(init.o)
             )
           )

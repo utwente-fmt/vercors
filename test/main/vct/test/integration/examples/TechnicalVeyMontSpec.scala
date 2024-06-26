@@ -27,7 +27,7 @@ class TechnicalVeyMontSpec
        }
     """)
 
-  (vercors should fail withCode "assertFailed:false" using silicon flag
+  (vercors should failVerification withCode "assertFailed:false" using silicon flag
     "--veymont-generate-permissions" in
     "plain endpoint field dereference should be possible" pvl """
        class Storage {
@@ -202,7 +202,7 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  (vercors should fail withCode "postFailed:false" using silicon flag
+  (vercors should failVerification withCode "postFailed:false" using silicon flag
     "--veymont-generate-permissions" in "Postcondition of run can fail" pvl """
     class Storage {
        int x;
@@ -216,7 +216,7 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  (vercors should fail withCode "postFailed:false" using silicon flag
+  (vercors should failVerification withCode "postFailed:false" using silicon flag
     "--veymont-generate-permissions" in
     "Postcondition of choreography can fail" pvl """
     class Storage {
@@ -531,7 +531,7 @@ class TechnicalVeyMontSpec
   //   }
   //   """)
 
-  (vercors should fail withCode "seqAssignPerm" using silicon in
+  (vercors should failVerification withCode "seqAssignPerm" using silicon in
     "When no permission is generated, a failure should occur on seq assign field access" pvl
     """
     class Storage {
@@ -703,7 +703,7 @@ class TechnicalVeyMontSpec
 //    }
 //    """)
 
-  (vercors should fail withCode "seqRunPreFailed:false" using silicon in
+  (vercors should failVerification withCode "seqRunPreFailed:false" using silicon in
     "Precondition of run should be checked" pvl """
     class C { }
     choreography Example(int x) {
@@ -725,7 +725,7 @@ class TechnicalVeyMontSpec
 //    }
 //    """)
 
-  (vercors should fail withCode "seqRunContextPreFailed:false" using silicon in
+  (vercors should failVerification withCode "seqRunContextPreFailed:false" using silicon in
     "Context everywhere of run should be checked" pvl """
     class C {}
     choreography Example(int x) {
@@ -736,7 +736,7 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  (vercors should fail withCode "endpointPreFailed:false" using silicon in
+  (vercors should failVerification withCode "endpointPreFailed:false" using silicon in
     "Precondition of endpoint constructor should be checked" pvl """
     class Storage {
       requires x == 0;
@@ -786,7 +786,7 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  (vercors should fail withCode "participantsNotDistinct" using silicon flag
+  (vercors should failVerification withCode "participantsNotDistinct" using silicon flag
     "--veymont-generate-permissions" in
     "Endpoints participating in a communicate should be distinct" pvl """
     class Storage {

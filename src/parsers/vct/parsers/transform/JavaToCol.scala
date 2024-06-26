@@ -95,14 +95,14 @@ case class JavaToCol[G](
           case _ => fail(decl, "only public modifier allowed")
         }
         Seq(
-          new Enum(convert(constants))(origin(decl).sourceName(convert(name)))
+          new EnumDecl(convert(constants))(origin(decl).sourceName(convert(name)))
         )
       case TypeDeclaration1(
             mods,
-            enum @ EnumDeclaration0(a, b, c, d, e, f, g, h),
+            enumDecl @ EnumDeclaration0(a, b, c, d, e, f, g, h),
           ) =>
         fail(
-          enum,
+          enumDecl,
           "Enums with implements or class declarations, or without constants, are not supported",
         )
       case TypeDeclaration2(
@@ -232,7 +232,7 @@ case class JavaToCol[G](
           m => {
             if (m.consume(m.pure))
               JavaPure[G]()
-            else if (m.consume(m.inline))
+            else if (m.consume(m.doInline))
               JavaInline[G]()
             else if (m.consume(m.bipAnnotation))
               JavaBipAnnotation[G]()
@@ -447,8 +447,8 @@ case class JavaToCol[G](
         fail(annotation, "Annotations are not supported.")
       case MemberDeclaration7(cls) =>
         fail(cls, "Inner classes are not supported.")
-      case MemberDeclaration8(enum) =>
-        fail(enum, "Inner enums are not supported.")
+      case MemberDeclaration8(enumDecl) =>
+        fail(enumDecl, "Inner enums are not supported.")
     }
 
   def convert(
@@ -506,8 +506,8 @@ case class JavaToCol[G](
         fail(annotation, "Annotations are not supported.")
       case InterfaceMemberDeclaration5(cls) =>
         fail(cls, "Inner classes are not supported.")
-      case InterfaceMemberDeclaration6(enum) =>
-        fail(enum, "Enums are not supported.")
+      case InterfaceMemberDeclaration6(enumDecl) =>
+        fail(enumDecl, "Enums are not supported.")
     }
 
   def convert(
@@ -790,7 +790,7 @@ case class JavaToCol[G](
   def convert(implicit switchLabel: SwitchLabelContext): Statement[G] =
     switchLabel match {
       case SwitchLabel0(_, expr, _) => Case(convert(expr))
-      case SwitchLabel1(_, enum, _) => ??(enum)
+      case SwitchLabel1(_, enumDecl, _) => ??(enumDecl)
       case SwitchLabel2(_, _) => DefaultCase()
     }
 
@@ -997,14 +997,14 @@ case class JavaToCol[G](
           )(blame(expr)),
         )
       case parse
-            .JavaInvocation(obj, _, name, familyType, args, given, yields) =>
+            .JavaInvocation(obj, _, name, familyType, args, givenMap, yields) =>
         failIfDefined(familyType, "Predicate families not supported (for now)")
         col.JavaInvocation(
           Some(convert(obj)),
           Nil,
           convert(name),
           convert(args),
-          convertEmbedGiven(given),
+          convertEmbedGiven(givenMap),
           convertEmbedYields(yields),
         )(blame(expr))
       case JavaValPostfix(expr, PostfixOp0(valPostfix)) =>
@@ -1017,8 +1017,12 @@ case class JavaToCol[G](
             None,
           ) =>
         convertBipGlue(creatorRest)
-      case JavaNew(_, None, creator, given, yields) =>
-        convert(creator, convertEmbedGiven(given), convertEmbedYields(yields))
+      case JavaNew(_, None, creator, givenMap, yields) =>
+        convert(
+          creator,
+          convertEmbedGiven(givenMap),
+          convertEmbedYields(yields),
+        )
       case JavaCast(_, t, _, inner) =>
         Cast(convert(inner), TypeValue(convert(t)))
       case JavaPostfixIncDec(inner, postOp) =>
@@ -1409,7 +1413,7 @@ case class JavaToCol[G](
       case Primary2(_) => ??(expr)
       case Primary3(literal) => convert(literal)
       case Primary4(name) => local(expr, convert(name))
-      case Primary5(name, familyType, args, given, yields) =>
+      case Primary5(name, familyType, args, givenMap, yields) =>
         failIfDefined(
           familyType,
           "Predicate families are unsupported (for now)",
@@ -1419,7 +1423,7 @@ case class JavaToCol[G](
           Nil,
           convert(name),
           convert(args),
-          convertEmbedGiven(given),
+          convertEmbedGiven(givenMap),
           convertEmbedYields(yields),
         )(blame(expr))
       case Primary6(_, _, _) => ??(expr)
@@ -1596,7 +1600,7 @@ case class JavaToCol[G](
       case ValContractClause4(_, t, id, _) =>
         val variable =
           new Variable(convert(t))(origin(contract).sourceName(convert(id)))
-        collector.given += ((contract, variable))
+        collector.givenMap += ((contract, variable))
       case ValContractClause5(_, t, id, _) =>
         val variable =
           new Variable(convert(t))(origin(contract).sourceName(convert(id)))
@@ -1646,7 +1650,7 @@ case class JavaToCol[G](
       case ValModifier0(name) =>
         name match {
           case "pure" => collector.pure += mod
-          case "inline" => collector.inline += mod
+          case "inline" => collector.doInline += mod
           case "thread_local" => collector.threadLocal += mod
           case "bip_annotation" => collector.bipAnnotation += mod
         }
@@ -1714,18 +1718,18 @@ case class JavaToCol[G](
     whiff match { case ValThen0(_, stat) => convert(stat) }
 
   def convertEmbedGiven(
-      implicit given: Option[ValEmbedGivenContext]
+      implicit givenMap: Option[ValEmbedGivenContext]
   ): Seq[(Ref[G, Variable[G]], Expr[G])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValEmbedGiven0(_, inner, _)) => convertGiven(inner)
       case Some(ValEmbedGiven1(inner)) => convertGiven(Some(inner))
     }
 
   def convertGiven(
-      implicit given: Option[ValGivenContext]
+      implicit givenMap: Option[ValGivenContext]
   ): Seq[(Ref[G, Variable[G]], Expr[G])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValGiven0(_, _, mappings, _)) => convert(mappings)
     }
@@ -1742,18 +1746,18 @@ case class JavaToCol[G](
     }
 
   def convertEmbedYields(
-      implicit given: Option[ValEmbedYieldsContext]
+      implicit givenMap: Option[ValEmbedYieldsContext]
   ): Seq[(Expr[G], Ref[G, Variable[G]])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValEmbedYields0(_, inner, _)) => convertYields(inner)
       case Some(ValEmbedYields1(inner)) => convertYields(Some(inner))
     }
 
   def convertYields(
-      implicit given: Option[ValYieldsContext]
+      implicit givenMap: Option[ValYieldsContext]
   ): Seq[(Expr[G], Ref[G, Variable[G]])] =
-    given match {
+    givenMap match {
       case None => Nil
       case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
     }
@@ -1988,7 +1992,7 @@ case class JavaToCol[G](
                 args.map(convert(_)).getOrElse(Nil),
                 convert(definition),
                 mods.consume(mods.threadLocal),
-                mods.consume(mods.inline),
+                mods.consume(mods.doInline),
               )(origin(decl).sourceName(convert(name)))
             ),
         )
@@ -2017,7 +2021,7 @@ case class JavaToCol[G](
                   typeArgs.map(convert(_)).getOrElse(Nil),
                   convert(definition),
                   c.consumeApplicableContract(blame(decl)),
-                  m.consume(m.inline),
+                  m.consume(m.doInline),
                 )(blame(decl))(namedOrigin)
               },
             ),
@@ -2060,7 +2064,7 @@ case class JavaToCol[G](
                 args.map(convert(_)).getOrElse(Nil),
                 convert(definition),
                 mods.consume(mods.threadLocal),
-                mods.consume(mods.inline),
+                mods.consume(mods.doInline),
               )(origin(decl).sourceName(convert(name)))
             )
           },
@@ -2090,7 +2094,7 @@ case class JavaToCol[G](
                     typeArgs.map(convert(_)).getOrElse(Nil),
                     convert(definition),
                     c.consumeApplicableContract(blame(decl)),
-                    m.consume(m.inline),
+                    m.consume(m.doInline),
                   )(blame(decl))(origin(decl).sourceName(convert(name)))
                 )
               },
@@ -2122,7 +2126,7 @@ case class JavaToCol[G](
                     args.map(convert(_)).getOrElse(Nil),
                     convert(definition),
                     c.consumeApplicableContract(blame(decl)),
-                    m.consume(m.inline),
+                    m.consume(m.doInline),
                     m.consume(m.threadLocal),
                   )(blame(decl))
                 )
@@ -2153,7 +2157,7 @@ case class JavaToCol[G](
                     args.map(convert(_)).getOrElse(Nil),
                     convert(definition),
                     c.consumeApplicableContract(blame(decl)),
-                    m.consume(m.inline),
+                    m.consume(m.doInline),
                     m.consume(m.pure),
                   )(blame(decl))
                 )

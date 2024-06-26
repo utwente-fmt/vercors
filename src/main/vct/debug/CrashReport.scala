@@ -24,13 +24,19 @@ object CrashReport {
     var uri: String = ""
     var lastBody: String = ""
 
-    do {
+    val params =
+      s"labels=${enc("A-Bug")}&title=${enc(title)}&body=${enc(body)}"
+    uri = GITHUB_URI + "?" + params
+    lastBody = body
+    body = body.replaceFirst("\n[^\n]*$", "")
+
+    while (uri.length > 8000 && body.length < lastBody.length) {
       val params =
         s"labels=${enc("A-Bug")}&title=${enc(title)}&body=${enc(body)}"
       uri = GITHUB_URI + "?" + params
       lastBody = body
       body = body.replaceFirst("\n[^\n]*$", "")
-    } while (uri.length > 8000 && body.length < lastBody.length)
+    }
 
     uri
   }

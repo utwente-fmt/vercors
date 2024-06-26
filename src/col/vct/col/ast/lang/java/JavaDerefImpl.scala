@@ -19,7 +19,7 @@ trait JavaDerefImpl[G] extends JavaDerefOps[G] {
       case RefVariable(v) => v.t
       case RefJavaField(decls, idx) =>
         FuncTools.repeat[Type[G]](TArray(_), decls.decls(idx).moreDims, decls.t)
-      case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
+      case RefEnumConstant(decl, _) => TEnum(decl.get.ref)
       case BuiltinField(f) => f(obj).t
       case ref: RefEnum[G] => Types.notAValue(ref)
       case ref: RefProverType[G] => Types.notAValue(ref)

@@ -67,9 +67,7 @@ trait SilverBackend
   ): (Verifier, SilverPluginManager)
   def stopVerifier(verifier: Verifier): Unit
 
-  private def info[T <: col.Node[_]](
-      node: silver.Infoed
-  )(implicit tag: ClassTag[T]): NodeInfo[T] =
+  private def info[T <: col.Node[_]](node: silver.Infoed): NodeInfo[T] =
     node.info.getAllInfos[NodeInfo[T]].headOption.getOrElse(throw NoInfo(node))
 
   private def get[T <: col.Node[_]](node: silver.Infoed): T = info(node).node
@@ -112,7 +110,7 @@ trait SilverBackend
       try {
         Using(Files.newBufferedWriter(f))(_.write(silverProgramString))
 
-        SilverParserDummyFrontend().parse(RWFile(f, doWatch = false)) match {
+        new SilverParserDummyFrontend().parse(RWFile(f, doWatch = false)) match {
           case Left(errors) =>
             logger.warn(
               "Possible viper bug: silver AST does not reparse when printing as text"

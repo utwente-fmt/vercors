@@ -52,7 +52,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
     decl match {
       case f: InstanceOperatorFunction[Pre] =>
         functionSucc(f) =
-          withResult { result: Result[Post] =>
+          withResult((result: Result[Post]) =>
             currentResult.having(result) {
               classDeclarations.declare(
                 new InstanceFunction[Post](
@@ -61,15 +61,15 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
                   variables.collect(f.typeArgs.map(dispatch(_)))._1,
                   f.body.map(dispatch(_)),
                   dispatch(f.contract),
-                  f.inline,
+                  f.doInline,
                   f.threadLocal,
                 )(f.blame)(f.o)
               )
             }
-          }(DiagnosticOrigin)
+          )(DiagnosticOrigin)
       case m: InstanceOperatorMethod[Pre] =>
         methodSucc(m) =
-          withResult { result: Result[Post] =>
+          withResult((result: Result[Post]) =>
             currentResult.having(result) {
               classDeclarations.declare(
                 new InstanceMethod[Post](
@@ -79,12 +79,12 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
                   variables.collect(m.typeArgs.map(dispatch(_)))._1,
                   m.body.map(dispatch(_)),
                   dispatch(m.contract),
-                  m.inline,
+                  m.doInline,
                   m.pure,
                 )(m.blame)(m.o)
               )
             }
-          }(DiagnosticOrigin)
+          )(DiagnosticOrigin)
       case _ => rewriteDefault(decl)
     }
 

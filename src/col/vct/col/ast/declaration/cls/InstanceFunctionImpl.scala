@@ -9,7 +9,7 @@ import vct.col.ast.ops.InstanceFunctionOps
 trait InstanceFunctionImpl[G] extends InstanceFunctionOps[G] {
   this: InstanceFunction[G] =>
   def layoutModifiers(implicit ctx: Ctx): Seq[Doc] =
-    ListMap(inline -> "inline", threadLocal -> "thread_local").filter(_._1)
+    ListMap(doInline -> "inline", threadLocal -> "thread_local").filter(_._1)
       .values.map(Text).map(Doc.inlineSpec).toSeq
 
   override def layout(implicit ctx: Ctx): Doc =

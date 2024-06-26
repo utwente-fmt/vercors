@@ -7,7 +7,6 @@ import vct.col.ast.ops.ADTFunctionInvocationOps
 
 trait ADTFunctionInvocationImpl[G] extends ADTFunctionInvocationOps[G] {
   this: ADTFunctionInvocation[G] =>
-  override def ref: Ref[G, _ <: ADTFunction[G]]
   override lazy val t: Type[G] =
     typeArgs match {
       case Some((adt, typeArgs)) =>

@@ -18,7 +18,7 @@ class CSpec extends VercorsSpec {
     int x = 4.0 % 1;
   }
   """
-  vercors should fail withCode "assignFieldFailed" using silicon in "cannot access field of struct after freeing" c
+  vercors should failVerification withCode "assignFieldFailed" using silicon in "cannot access field of struct after freeing" c
     """
     #include <stdlib.h>
 
@@ -40,7 +40,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "ptrNull" using silicon in "free null pointer" c
+  vercors should failVerification withCode "ptrNull" using silicon in "free null pointer" c
     """
       #include <stdlib.h>
       int main(){
@@ -49,7 +49,7 @@ class CSpec extends VercorsSpec {
       }
     """
 
-  vercors should fail withCode "ptrOffsetNonZero" using silicon in "free offset 1 pointer" c
+  vercors should failVerification withCode "ptrOffsetNonZero" using silicon in "free offset 1 pointer" c
     """
       #include <stdlib.h>
       int main(){
@@ -58,7 +58,7 @@ class CSpec extends VercorsSpec {
       }
     """
 
-  vercors should fail withCode "ptrFreePerm" using silicon in "free pointer with insufficient permission" c
+  vercors should failVerification withCode "ptrFreePerm" using silicon in "free pointer with insufficient permission" c
     """
       #include <stdlib.h>
       int main(){
@@ -67,7 +67,7 @@ class CSpec extends VercorsSpec {
           free(xs);
       }
     """
-  vercors should fail withCode "ptrFreeFieldError" using silicon in "free pointer with insufficient permission for field" c
+  vercors should failVerification withCode "ptrFreeFieldError" using silicon in "free pointer with insufficient permission for field" c
     """
     #include <stdlib.h>
     struct d{
@@ -80,7 +80,7 @@ class CSpec extends VercorsSpec {
       free(xs);
     }
     """
-  vercors should fail withCode "ptrNull" using silicon in "Deref field of null ptr" c
+  vercors should failVerification withCode "ptrNull" using silicon in "Deref field of null ptr" c
     """
     struct d{
       int x;
@@ -91,7 +91,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "ptrPerm" using silicon in "Deref field of zero perm ptr" c
+  vercors should failVerification withCode "ptrPerm" using silicon in "Deref field of zero perm ptr" c
     """
     struct d{
       int x;
@@ -104,7 +104,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "assignFieldFailed" using silicon in "Deref field of zero perm field" c
+  vercors should failVerification withCode "assignFieldFailed" using silicon in "Deref field of zero perm field" c
     """
     struct d{
       int x;
@@ -117,7 +117,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "assignFieldFailed" using silicon in "Access field of zero perm ptr" c
+  vercors should failVerification withCode "assignFieldFailed" using silicon in "Access field of zero perm ptr" c
     """
     struct d{
       int x;
@@ -128,7 +128,7 @@ class CSpec extends VercorsSpec {
       s.x = 1;
     }
     """
-  vercors should fail withCode "perm" using silicon in "Read field of zero perm ptr" c
+  vercors should failVerification withCode "perm" using silicon in "Read field of zero perm ptr" c
     """
     struct d{
       int x;
@@ -201,28 +201,28 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "divByZero" using silicon in "Truncated div divide zero" c
+  vercors should failVerification withCode "divByZero" using silicon in "Truncated div divide zero" c
     """
     int test(int a, int b){
       return a/b;
     }
     """
 
-  vercors should fail withCode "divByZero" using silicon in "Truncated mod divide zero" c
+  vercors should failVerification withCode "divByZero" using silicon in "Truncated mod divide zero" c
     """
     int test(int a, int b){
       return a%b;
     }
     """
 
-  vercors should fail withCode "divByZero" using silicon in "Eucl div divide zero" c
+  vercors should failVerification withCode "divByZero" using silicon in "Eucl div divide zero" c
     """
     int test(int a, int b){
       return a/b;
     }
     """
 
-  vercors should fail withCode "divByZero" using silicon in "Eucl mod divide zero" c
+  vercors should failVerification withCode "divByZero" using silicon in "Eucl mod divide zero" c
     """
     int test(int a, int b){
       return a%b;
@@ -310,7 +310,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "copyStructFailedBeforeCall" using silicon in "Insufficient permission for field x to copy struct before call" c
+  vercors should failVerification withCode "copyStructFailedBeforeCall" using silicon in "Insufficient permission for field x to copy struct before call" c
     """
     struct d {
         int x;
@@ -328,7 +328,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "copyStructFailed" using silicon in "Insufficient permission for field x to copy struct" c
+  vercors should failVerification withCode "copyStructFailed" using silicon in "Insufficient permission for field x to copy struct" c
     """
     struct d {
         int x;
@@ -439,7 +439,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-    vercors should fail withCode "vecIndexExceedsLength" using silicon in "Vector index exceeds length" c
+    vercors should failVerification withCode "vecIndexExceedsLength" using silicon in "Vector index exceeds length" c
     """
     // vecIndexExceedsLength
     typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
@@ -450,7 +450,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-    vercors should fail withCode "vecIndexNegative" using silicon in "Vector negative indexed" c
+    vercors should failVerification withCode "vecIndexNegative" using silicon in "Vector negative indexed" c
     """
     // vecIndexNegative
     typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
@@ -461,7 +461,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-    vercors should fail withCode "vecIndexNegative" using silicon in "Vector value negative indexed" c
+    vercors should failVerification withCode "vecIndexNegative" using silicon in "Vector value negative indexed" c
     """
     // vecIndexNegative
     typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
@@ -472,7 +472,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-    vercors should fail withCode "vectorDivByZero" using silicon in "Vector divide by zero" c
+    vercors should failVerification withCode "vectorDivByZero" using silicon in "Vector divide by zero" c
     """
     // vecIndexNegative
     typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));

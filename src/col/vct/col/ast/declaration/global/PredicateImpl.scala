@@ -20,7 +20,7 @@ trait PredicateImpl[G]
          Empty)
 
   def layoutModifiers(implicit ctx: Ctx): Seq[Doc] =
-    ListMap(inline -> "inline", threadLocal -> "thread_local").filter(_._1)
+    ListMap(doInline -> "inline", threadLocal -> "thread_local").filter(_._1)
       .values.map(Text).map(Doc.inlineSpec).toSeq
 
   def layoutSpec(implicit ctx: Ctx): Doc =

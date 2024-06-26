@@ -68,7 +68,7 @@ case class LLVMContractToCol[G](
         collector.ensures += ((contract, convert(exp)))
       case ValContractClause4(_, t, id, _) =>
         val variable = createVariable(contract, id, t)
-        collector.given += ((contract, variable))
+        collector.givenMap += ((contract, variable))
       case ValContractClause5(_, t, id, _) =>
         val variable = createVariable(contract, id, t)
         collector.yields += ((contract, variable))
@@ -554,7 +554,7 @@ case class LLVMContractToCol[G](
           Nil, // TODO implement
           convert(definition),
           contractCollector.consumeApplicableContract(blame(decl)),
-          modifierCollector.consume(modifierCollector.inline),
+          modifierCollector.consume(modifierCollector.doInline),
         )(blame(decl))(namedOrigin)
     }
 
@@ -569,7 +569,7 @@ case class LLVMContractToCol[G](
       case ValModifier0(name) =>
         name match {
           case "pure" => collector.pure += mod
-          case "inline" => collector.inline += mod
+          case "inline" => collector.doInline += mod
           case "thread_local" => collector.threadLocal += mod
           case "bip_annotation" => collector.bipAnnotation += mod
         }

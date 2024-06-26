@@ -40,8 +40,8 @@ abstract class ToCol[G](
     val lock_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] =
       mutable.ArrayBuffer()
 
-    val given: mutable.ArrayBuffer[(ParserRuleContext, Variable[G1])] = mutable
-      .ArrayBuffer()
+    val givenMap: mutable.ArrayBuffer[(ParserRuleContext, Variable[G1])] =
+      mutable.ArrayBuffer()
     val yields: mutable.ArrayBuffer[(ParserRuleContext, Variable[G1])] = mutable
       .ArrayBuffer()
 
@@ -78,7 +78,7 @@ abstract class ToCol[G](
         UnitAccountedPredicate(AstBuildHelpers.foldStar(consume(ensures))),
         AstBuildHelpers.foldStar(consume(context_everywhere)),
         consume(signals),
-        consume(given),
+        consume(givenMap),
         consume(yields),
         consumeOpt(decreases),
       )(blame)
@@ -116,7 +116,7 @@ abstract class ToCol[G](
         ensures,
         context_everywhere,
         kernel_invariant,
-        given,
+        givenMap,
         yields,
         loop_invariant,
       ).flatMap(_.map(_._1))
@@ -124,7 +124,7 @@ abstract class ToCol[G](
 
   class ModifierCollector() {
     val pure: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
-    val inline: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
+    val doInline: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
     val threadLocal: mutable.ArrayBuffer[ParserRuleContext] = mutable
       .ArrayBuffer()
     val static: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
@@ -138,7 +138,7 @@ abstract class ToCol[G](
     }
 
     def nodes: Seq[ParserRuleContext] =
-      Seq(pure, inline, threadLocal, static, bipAnnotation).flatten
+      Seq(pure, doInline, threadLocal, static, bipAnnotation).flatten
   }
 
   /** Used to convert ParserRuleContext nodes into origin implicitly
