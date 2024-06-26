@@ -58,14 +58,16 @@ abstract class CoercingRewriter[Pre <: Generation]()
     SuccessionMap()
 
   class CoercedSuccessorsProvider
-      extends SuccessorsProviderTrafo[Pre, Pre](null) {
+      extends SuccessorsProviderTrafo[Pre, Pre](new SuccessorsProviderNothing(
+        throw Unreachable("Always preTransformed")
+      )) {
     override def preTransform[I <: Declaration[Pre], O <: Declaration[Pre]](
         pre: I
     ): Option[O] = Some(coercedDeclaration(pre).asInstanceOf[O])
   }
 
   override def succProvider: SuccessorsProvider[Pre, Post] =
-    SuccessorsProviderChain(new CoercedSuccessorsProvider, allScopes.freeze)
+    SuccessorsProviderChain(new CoercedSuccessorsProvider, allScopes)
 
   /** Apply a particular coercion to an expression. SAFETY: all promoting
     * coercions must be injective; otherwise the default mapping coercion of
