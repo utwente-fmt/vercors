@@ -55,25 +55,6 @@ class Player {
     turn = t;
   }
 
-  // Probably this one can go
-  /*
-  context [1\2]p.boardPerm();
-  ensures boardPerm();
-  ensures p.equalBoard(this);
-  ensures Perm(move,1);
-  ensures p == \old(p);
-  constructor(Player p) {
-    c00 = p.c00;
-    c01 = p.c01;
-    c02 = p.c02;
-    c10 = p.c10;
-    c11 = p.c11;
-    c12 = p.c12;
-    c20 = p.c20;
-    c21 = p.c21;
-    c22 = p.c22;
-  }*/
-  
   requires ([1\100]boardPerm()) ** ([1\100]other.boardPerm());
   requires Perm(move.i, read) ** Perm(move.j, read) ** Perm(move.mark, read);
   requires 0 <= move.i && move.i <= 2;

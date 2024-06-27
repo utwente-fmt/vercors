@@ -150,7 +150,7 @@ case class EncodeChannels[Pre <: Generation]()
       case Sender(Ref(comm)) =>
         EndpointName[Post](succ(comm.sender.get.decl))(expr.o)
       case Receiver(Ref(comm)) =>
-        EndpointName[Post](succ(comm.sender.get.decl))(expr.o)
+        EndpointName[Post](succ(comm.receiver.get.decl))(expr.o)
       case chor: ChorExpr[Pre] if includeChorExpr.topOption.contains(true) =>
         // Case chor must be kept: include the expression. The top level invariant rewrite will wrap
         // it into a proper EndpointExpr, hence, remove the \chor layer

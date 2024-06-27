@@ -151,6 +151,7 @@ object Transformation extends LazyLogging {
           splitVerificationByProcedure =
             options.devSplitVerificationByProcedure,
           veymontGeneratePermissions = options.veymontGeneratePermissions,
+          veymontBranchUnanimity = options.veymontBranchUnanimity,
         )
     }
 
@@ -296,6 +297,7 @@ case class SilverTransformation(
     checkSat: Boolean = true,
     splitVerificationByProcedure: Boolean = false,
     veymontGeneratePermissions: Boolean = false,
+    veymontBranchUnanimity: Boolean = true,
 ) extends Transformation(
       onPassEvent,
       Seq(
@@ -346,7 +348,7 @@ case class SilverTransformation(
         StratifyExpressions,
         StratifyUnpointedExpressions,
         DeduplicateChorGuards,
-        EncodeChorBranchUnanimity,
+        EncodeChorBranchUnanimity.withArg(veymontBranchUnanimity),
         EncodeEndpointInequalities,
         EncodeChannels,
         EncodePermissionStratification.withArg(veymontGeneratePermissions),

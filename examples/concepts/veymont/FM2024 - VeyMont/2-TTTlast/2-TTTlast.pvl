@@ -1,12 +1,14 @@
-/*
-This file is a sketch of the choreography for the TTTtok case study. It assumes the Move.pvl, Player.pvl files from the TTT+ case study are in scope and appropriately renamed. While we cannot guarantee the correctness of TTTtok, we have successfully verified a manually encoded version of this file.
-*/
-
 inline resource turnInvariant(Player p, Player q) =
   ([1\2]p.boardPerm()) **
   ([1\2]q.boardPerm()) **
   p.equalBoard(q)
   ;
+
+inline resource state(Player p, boolean withBoardPerm) =
+    // TODO: refactor boardPerm to simply state?
+    (withBoardPerm ==> ([1\2]p.boardPerm())) **
+    Perm(p.move, 1) ** p.move != null ** p.move.state() **
+    Perm(p.temp, 1) ** Perm(p.turn, 1) ** Perm(p.myMark, 1);
 
 choreography Main() {
   endpoint p1 = Player(0, true);
@@ -38,30 +40,32 @@ choreography Main() {
         if (p1.gameFinished()) {
           p1.returnee.mark = 1 - p1.myMark;
         }
+        p1.doMove();
         channel_invariant
           \msg.movePerm() **
           ([1\2]\sender.boardPerm()) ** ([1\2]\receiver.boardPerm()) **
           \sender.oneMoveAheadOf(\msg, \receiver) **
           ([1\2]\sender.returnerBound(\receiver)) **
           ([1\2]\sender.returnerMark()) **
-          (!\sender.gameFinished() ==> ([1\2]\sender.returnerMark));
-        communicate p2.move <- p1.move;
+          (!\sender.gameFinished() ==> ([1\2]\sender.returnerMark()));
+        communicate p2.move <- p1.move.copy();
+        p2.doMove();
       } else {
         p2.createNewMove();
         if (p2.gameFinished()) {
           p2.returnee.mark = 1 - p2.myMark;
         }
+        p2.doMove();
         channel_invariant
           \msg.movePerm() **
           ([1\2]\sender.boardPerm()) ** ([1\2]\receiver.boardPerm()) **
           \sender.oneMoveAheadOf(\msg, \receiver) ***
           ([1\2]\sender.returnerBound(\receiver)) **
           ([1\2]\sender.returnerMark()) **
-          (!\sender.gameFinished() ==> ([1\2]\sender.returnerMark));
-        communicate p1.move <- p2.move;
+          (!\sender.gameFinished() ==> ([1\2]\sender.returnerMark()));
+        communicate p1.move <- p2.move.copy();
+        p1.doMove();
       }
-      p1.doMove();
-      p2.doMove();
       p1.turn := !p1.turn;
       p2.turn := !p2.turn;
     }

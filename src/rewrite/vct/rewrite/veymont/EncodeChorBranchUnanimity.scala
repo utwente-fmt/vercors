@@ -12,7 +12,12 @@ import vct.col.origin.{
   Origin,
   PanicBlame,
 }
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{
+  Generation,
+  Rewriter,
+  RewriterBuilder,
+  RewriterBuilderArg,
+}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
@@ -24,7 +29,7 @@ import vct.rewrite.veymont.EncodeChorBranchUnanimity.{
 
 import scala.collection.mutable
 
-object EncodeChorBranchUnanimity extends RewriterBuilder {
+object EncodeChorBranchUnanimity extends RewriterBuilderArg[Boolean] {
   override def key: String = "encodeSeqBranchUnanimity"
   override def desc: String =
     "Encodes the branch unanimity requirement imposed by VeyMont on branches and loops in seq_program nodes."
@@ -54,10 +59,18 @@ object EncodeChorBranchUnanimity extends RewriterBuilder {
   }
 }
 
-case class EncodeChorBranchUnanimity[Pre <: Generation]()
+case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
     extends Rewriter[Pre] with VeymontContext[Pre] {
 
+  case class IdentityRewriter[Pre <: Generation]() extends Rewriter[Pre] {}
+
   val currentLoop = ScopedStack[ChorStatement[Pre]]()
+
+  override def dispatch(program: Program[Pre]): Program[Post] =
+    if (enabled)
+      super.dispatch(program)
+    else
+      IdentityRewriter().dispatch(program)
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {

@@ -17,6 +17,7 @@ class Move {
     ;
 
   context [1\100]state();
+  ensures \result != null; // TODO: Not  necessary with lightweight encoding
   ensures \result.state();
   ensures \result.i == i ** \result.j == j ** \result.mark == mark;
   Move copy() {

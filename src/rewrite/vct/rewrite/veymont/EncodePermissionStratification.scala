@@ -393,12 +393,14 @@ case class EncodePermissionStratification[Pre <: Generation](
         inChor.having(true) { dispatch(inner) }
 
       // Generate an invocation to the unspecialized function version if we're inside a \chor
-      // This is safe because \chor unfold all predicates of all endpoints that occur within the expression
+      // This is safe because \chor unfold all predicates of all endpoints that occur within the expression...
+      // ... in the case of permission generation. Otherwise it just does nothing...?
       // The natural successor of the function will be the unspecialized one
-      case inv: FunctionInvocation[Pre] if inChor.topOption.contains(true) =>
+      case inv: FunctionInvocation[Pre]
+          if inChor.topOption.contains(true) && veymontGeneratePermissions =>
         inv.rewriteDefault()
       case inv: InstanceFunctionInvocation[Pre]
-          if inChor.topOption.contains(true) =>
+          if inChor.topOption.contains(true) && veymontGeneratePermissions =>
         inv.rewriteDefault()
 
       case InEndpoint(_, endpoint, inv: FunctionInvocation[Pre]) =>
