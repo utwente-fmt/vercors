@@ -77,16 +77,15 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
 
     def predUsage: Seq[Predicate[Pre]] =
       scanNodes.flatMap(_.collect {
-        case PredicateApply(Ref(p), _, _) => p
-        case PredicateLocation(Ref(p), _) => p
+        case PredicateApply(Ref(p), _) => p
         case SilverCurPredPerm(Ref(p), _) => p
       }).distinct
 
     def predContentUsage: Seq[Predicate[Pre]] =
       scanNodes.flatMap(_.collect {
-        case Fold(PredicateApply(Ref(p), _, _)) => p
-        case Unfold(PredicateApply(Ref(p), _, _)) => p
-        case Unfolding(PredicateApply(Ref(p), _, _), _) => p
+        case Fold(ScaledPredicateApply(PredicateApply(Ref(p), _), _)) => p
+        case Unfold(ScaledPredicateApply(PredicateApply(Ref(p), _), _)) => p
+        case Unfolding(ScaledPredicateApply(PredicateApply(Ref(p), _), _), _) => p
       }).distinct
 
     def procUsage: Seq[Procedure[Pre]] =

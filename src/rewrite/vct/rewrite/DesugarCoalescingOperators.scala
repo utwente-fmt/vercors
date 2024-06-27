@@ -14,10 +14,10 @@ object DesugarCoalescingOperators extends RewriterBuilder {
 case class DesugarCoalescingOperators[Pre <: Generation]()
     extends Rewriter[Pre] {
 
-  override def dispatch(e: Expr[Pre]): Expr[Post] = {
+  override def dispatch(e: FoldTarget[Pre]): FoldTarget[Post] = {
     implicit val o: Origin = e.o
     e match {
-      case CoalesceInstancePredicateApply(obj, ref, args, perm) =>
+      case CoalesceInstancePredicateApply(obj, ref, args) =>
         Implies(
           Neq(dispatch(obj), Null()),
           InstancePredicateApply(

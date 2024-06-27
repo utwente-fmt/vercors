@@ -6,7 +6,6 @@ import vct.col.ast.{
   FieldLocation,
   HeapVariableLocation,
   InLinePatternLocation,
-  InstancePredicateLocation,
   Location,
   ModelLocation,
   PointerLocation,
@@ -30,8 +29,7 @@ trait LocationImpl[G] extends NodeFamilyImpl[G] with LocationFamilyOps[G] {
       case SilverFieldLocation(obj, field) => field.decl.t
       case ArrayLocation(array, subscript) => array.t.asArray.get.element
       case PointerLocation(pointer) => pointer.t.asPointer.get.element
-      case PredicateLocation(predicate, args) => ???
-      case InstancePredicateLocation(predicate, obj, args) => ???
+      case PredicateLocation(inv) => ???
       case AmbiguousLocation(expr) => expr.t
       case InLinePatternLocation(loc, _) => loc.t
       case HeapVariableLocation(ref) => ref.decl.t

@@ -6,17 +6,14 @@ import vct.col.ast.ops.PredicateApplyOps
 
 trait PredicateApplyImpl[G] extends PredicateApplyOps[G] {
   this: PredicateApply[G] =>
-  override def precedence: Int = Precedence.PREFIX
-
   def layoutSilver(implicit ctx: Ctx): Doc =
     Group(
-      Text("acc(") <> ctx.name(ref) <> "(" <> Doc.args(args) <> "), " <> perm <>
-        ")"
+      Text("acc(") <> ctx.name(ref) <> "(" <> Doc.args(args) <> "), write)"
     )
 
   def layoutSpec(implicit ctx: Ctx): Doc =
     Group(
-      Text("[") <> perm <> "]" <> ctx.name(ref) <> "(" <> Doc.args(args) <> ")"
+      Text(ctx.name(ref)) <> "(" <> Doc.args(args) <> ")"
     )
 
   override def layout(implicit ctx: Ctx): Doc =
