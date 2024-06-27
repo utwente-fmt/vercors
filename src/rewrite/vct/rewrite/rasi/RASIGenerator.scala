@@ -74,30 +74,53 @@ class RASIGenerator[G] extends LazyLogging {
     if (split_on.isEmpty)
       return Seq((
         "reachable_abstract_states_invariant",
-        get_rasi_expression(_ => true, program),
+        get_rasi_expression(_ => true, None, program),
       ))
 
-    var res: Seq[(String, Expr[G])] = Seq(
-      ("interleaving_states", get_rasi_expression(s => s.lock.isEmpty, program))
-    )
+    val all_processes: Set[AbstractProcess[G]] = found_states.toSet
+      .flatMap((s: AbstractState[G]) => s.processes.keySet)
+
+    var res: Seq[(String, Expr[G])] = Seq((
+      "interleaving_states",
+      get_rasi_expression(s => s.lock.isEmpty, None, program),
+    ))
 
     get_var_value_pairs(split_on.get).foreach(t =>
       res =
         res :+
           (
             get_rasi_name(t._1, t._2),
-            get_rasi_expression(s => s.valuations(t._1) == t._2, program),
+            get_rasi_expression(
+              s => s.valuations(t._1) == t._2,
+              Some(get_associated_process(t._1, all_processes)),
+              program,
+            ),
           )
     )
 
     res
   }
 
+  private def get_associated_process(
+      of: ConcreteVariable[G],
+      from: Set[AbstractProcess[G]],
+  ): AbstractProcess[G] = {
+    from.filter(p => p.obj.t.isInstanceOf[TClass[G]]).collectFirst {
+      case p @ AbstractProcess(obj)
+          if obj.t.asInstanceOf[TClass[G]].cls.decl.decls
+            .contains(of.get_declaration) =>
+        p
+    }.get
+  }
+
   private def get_rasi_expression(
       f: AbstractState[G] => Boolean,
+      proc: Option[AbstractProcess[G]],
       program: Node[G],
   ): Expr[G] = {
-    val rasi_states = found_states.filter(f).distinctBy(s => s.valuations)
+    val rasi_states = found_states.filter(f)
+      .filter(s => proc.isEmpty || s.lock.isEmpty || s.lock.get == proc.get)
+      .distinctBy(s => s.valuations)
 
     if (rasi_states.isEmpty)
       return BooleanValue(value = false)(program.o)
@@ -129,12 +152,17 @@ class RASIGenerator[G] extends LazyLogging {
       .replace("]", "").replace("[", "").replace("this.", "")
 
     // Compute value string
-    val value_string: String = value match {
-      case i: UncertainIntegerValue =>
-        i.try_to_resolve().getOrElse(throw new IllegalStateException("Value must be defined")).toString
-      case b: UncertainBooleanValue =>
-        b.try_to_resolve().getOrElse(throw new IllegalStateException("Value must be defined")).toString
-    }
+    val value_string: String =
+      value match {
+        case i: UncertainIntegerValue =>
+          i.try_to_resolve()
+            .getOrElse(throw new IllegalStateException("Value must be defined"))
+            .toString
+        case b: UncertainBooleanValue =>
+          b.try_to_resolve()
+            .getOrElse(throw new IllegalStateException("Value must be defined"))
+            .toString
+      }
 
     "rasi_" + var_name + "_" + value_string
   }
