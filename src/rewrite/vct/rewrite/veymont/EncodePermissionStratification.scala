@@ -274,16 +274,25 @@ case class EncodePermissionStratification[Pre <: Generation](
       perm: Expr[Pre],
       endpointExpr: Expr[Post] = null,
   )(implicit o: Origin): Expr[Post] = {
+    // TODO: This branch + parameter use is ugly and unclear
     val expr =
       if (endpointExpr == null)
         EndpointName[Post](succ(endpoint))
       else
         endpointExpr
-    PredicateApply(
-      wrapperPredicate(endpoint, loc.obj.t, loc.field.decl),
-      Seq(expr, dispatch(loc.obj)),
-      dispatch(perm),
-    )
+
+    if (perm == ReadPerm[Pre]()) {
+      Value(PredicateLocation(
+        wrapperPredicate(endpoint, loc.obj.t, loc.field.decl),
+        Seq(expr, dispatch(loc.obj)),
+      ))
+    } else {
+      PredicateApply(
+        wrapperPredicate(endpoint, loc.obj.t, loc.field.decl),
+        Seq(expr, dispatch(loc.obj)),
+        dispatch(perm),
+      )
+    }
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
@@ -306,6 +315,11 @@ case class EncodePermissionStratification[Pre <: Generation](
 
       case InEndpoint(_, endpoint, Perm(loc: FieldLocation[Pre], perm)) =>
         makeWrappedPerm(endpoint, loc, perm, specializing.top)(expr.o)
+
+      case InEndpoint(_, endpoint, Value(loc: FieldLocation[Pre])) =>
+        makeWrappedPerm(endpoint, loc, ReadPerm()(expr.o), specializing.top)(
+          expr.o
+        )
 
       case EndpointExpr(Ref(endpoint), inner) =>
         assert(currentEndpoint.isEmpty)

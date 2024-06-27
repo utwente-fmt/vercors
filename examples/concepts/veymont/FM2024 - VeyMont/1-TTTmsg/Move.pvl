@@ -9,15 +9,15 @@ class Move {
 		mark = mm;
 	}
 
-  inline resource movePerm() = true
-    ** Perm(i, write) ** Perm(j, write) ** Perm(mark, write)
+  inline resource state() =
+    Perm(i, write) ** Perm(j, write) ** Perm(mark, write)
     ** 0 <= i ** i <= 2
     ** 0 <= j ** j <= 2
     ** 0 <= mark ** mark <= 1
     ;
 
-  context [1\100]movePerm();
-  ensures \result.movePerm();
+  context [1\100]state();
+  ensures \result.state();
   ensures \result.i == i ** \result.j == j ** \result.mark == mark;
   Move copy() {
     return new Move(i, j, mark);

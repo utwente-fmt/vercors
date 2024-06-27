@@ -3,8 +3,6 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
-  ReadPerm,
-  Value,
   AbstractRewriter,
   AmbiguousLocation,
   ApplicableContract,
@@ -15,7 +13,6 @@ import vct.col.ast.{
   Branch,
   ChorPerm,
   ChorRun,
-  EndpointStatement,
   Choreography,
   Class,
   ClassDeclaration,
@@ -26,7 +23,9 @@ import vct.col.ast.{
   Declaration,
   Deref,
   Endpoint,
+  EndpointExpr,
   EndpointName,
+  EndpointStatement,
   Eval,
   Expr,
   FieldLocation,
@@ -53,6 +52,7 @@ import vct.col.ast.{
   Perm,
   Procedure,
   Program,
+  ReadPerm,
   RunMethod,
   Scope,
   Statement,
@@ -63,6 +63,7 @@ import vct.col.ast.{
   ThisObject,
   Type,
   UnitAccountedPredicate,
+  Value,
   Variable,
   VeyMontAssignExpression,
 }
@@ -143,6 +144,7 @@ object InferEndpointContexts extends RewriterBuilder {
 case class InferEndpointContexts[Pre <: Generation]()
     extends Rewriter[Pre] with LazyLogging {
   val inChor = ScopedStack[Boolean]()
+  val inEndpointExpr = ScopedStack[Endpoint[Pre]]()
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
@@ -184,6 +186,18 @@ case class InferEndpointContexts[Pre <: Generation]()
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
+      case p @ Perm(loc, perm)
+          if inChor.topOption.contains(true) && inEndpointExpr.nonEmpty =>
+        ChorPerm[Post](succ(inEndpointExpr.top), dispatch(loc), dispatch(perm))(
+          p.o
+        )
+      case v @ Value(loc)
+          if inChor.topOption.contains(true) && inEndpointExpr.nonEmpty =>
+        ChorPerm[Post](
+          succ(inEndpointExpr.top),
+          dispatch(loc),
+          ReadPerm()(v.o),
+        )(v.o)
       case p @ Perm(loc, perm) if inChor.topOption.contains(true) =>
         ChorPerm[Post](succ(getEndpoint(loc)), dispatch(loc), dispatch(perm))(
           p.o
@@ -192,6 +206,8 @@ case class InferEndpointContexts[Pre <: Generation]()
         ChorPerm[Post](succ(getEndpoint(loc)), dispatch(loc), ReadPerm()(v.o))(
           v.o
         )
+      case expr @ EndpointExpr(Ref(endpoint), _) =>
+        inEndpointExpr.having(endpoint) { expr.rewriteDefault() }
       case _ => expr.rewriteDefault()
     }
 }

@@ -157,7 +157,7 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
           )
         }
 
-      case comm: Communicate[Pre] =>
+      case comm: Communicate[Pre] if enabled =>
         val perms =
           transitivePerm(Message[Post](succ(comm))(comm.o), comm.msg.t)(comm.o)
         val invariant =
@@ -198,7 +198,7 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
     statement match {
-      case c @ ChorStatement(loop: Loop[Pre]) =>
+      case c @ ChorStatement(loop: Loop[Pre]) if enabled =>
         currentPerm.having(
           endpointsPerm(participants(statement).toSeq)(loop.contract.o)
         ) { c.rewriteDefault() }
@@ -207,10 +207,10 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
 
   override def dispatch(loopContract: LoopContract[Pre]): LoopContract[Post] =
     (currentPerm.topOption, loopContract) match {
-      case (Some(perm), invariant: LoopInvariant[Pre]) =>
+      case (Some(perm), invariant: LoopInvariant[Pre]) if enabled =>
         implicit val o = loopContract.o
         invariant.rewrite(invariant = perm &* dispatch(invariant.invariant))
-      case (Some(perm), iteration: IterationContract[Pre]) =>
+      case (Some(perm), iteration: IterationContract[Pre]) if enabled =>
         implicit val o = loopContract.o
         iteration.rewrite(
           requires = perm &* dispatch(iteration.requires),

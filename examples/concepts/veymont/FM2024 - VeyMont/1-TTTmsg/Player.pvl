@@ -7,9 +7,9 @@ class Player {
   int c00, c01, c02, c10, c11, c12, c20, c21, c22;
   int mymark;
   Move move;
-  boolean turn;
+  boolean turn, temp;
   Returner returner;
-  
+
   inline resource boardPerm() = 
       Perm(c00, 1) ** Perm(c01, 1) ** Perm(c02, 1) ** 
       Perm(c10, 1) ** Perm(c11, 1) ** Perm(c12, 1) ** 
@@ -26,7 +26,7 @@ class Player {
     ** (returner.mark == 0 || returner.mark == 1)
     ;
 
-  requires [1\2]boardPerm();
+  requires [1\100]boardPerm();
   pure boolean emptyBoard() = 
     c00 == -1 && c01 == -1 && c02 == -1 && 
     c10 == -1 && c11 == -1 && c12 == -1 && 
@@ -41,6 +41,8 @@ class Player {
   ensures mymark == 0 || mymark == 1;
   ensures Perm(turn, 1) ** turn == t;
   ensures Perm(returner, 1);
+  ensures Perm(temp, 1);
+  ensures move.state();
   constructor(int tok, boolean t) {
     c00 = -1;
     c01 = -1;
@@ -53,27 +55,9 @@ class Player {
     c22 = -1;
     mymark = tok;
     turn = t;
+    move = new Move(0, 0, 0);
   }
 
-  // Probably this one can go
-  /*
-  context [1\2]p.boardPerm();
-  ensures boardPerm();
-  ensures p.equalBoard(this);
-  ensures Perm(move,1);
-  ensures p == \old(p);
-  constructor(Player p) {
-    c00 = p.c00;
-    c01 = p.c01;
-    c02 = p.c02;
-    c10 = p.c10;
-    c11 = p.c11;
-    c12 = p.c12;
-    c20 = p.c20;
-    c21 = p.c21;
-    c22 = p.c22;
-  }*/
-  
   requires ([1\100]boardPerm()) ** ([1\100]other.boardPerm());
   requires Perm(move.i, read) ** Perm(move.j, read) ** Perm(move.mark, read);
   requires 0 <= move.i && move.i <= 2;
@@ -91,7 +75,7 @@ class Player {
     && (move.i != 2 || move.j != 2 ==> other.c22 == c22);
   
   context boardPerm();
-  context Perm(move,1\2) ** ([1\2]move.movePerm());
+  context Perm(move,1\2) ** ([1\2]move.state());
   requires readMoveCell(move,this) == -1;
   ensures readMoveCell(move,this) == move.mark;
   ensures move.i != 0 || move.j != 0 ==> \old(c00) == c00;
@@ -167,7 +151,7 @@ class Player {
       
   context Perm(move,1) ** Perm(mymark, 1\2);
   context [1\100]boardPerm();
-  ensures move.movePerm();
+  ensures move.state();
   ensures move.mark == mymark;
   requires !boardFull();
   ensures readMoveCell(move,this) == -1;
@@ -175,7 +159,7 @@ class Player {
 
 }
 
-requires Perm(move.i,read) ** Perm(move.j,read);
+requires Perm(move.i, read) ** Perm(move.j, read);
 requires 0 <= move.i && move.i <= 2;
 requires 0 <= move.j && move.j <= 2;
 requires [1\100]p.boardPerm();
