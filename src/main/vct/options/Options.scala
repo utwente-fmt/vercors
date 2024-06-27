@@ -306,18 +306,18 @@ case object Options {
           .action((path, c) => c.copy(veymontResourcePath = path)),
         opt[Unit]("veymont-skip-choreography-verification")
           .action((_, c) => c.copy(veymontSkipChoreographyVerification = true)),
-        opt[Unit]("dev-veymont-no-branch-unanimity").maybeHidden()
-          .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
-            "Disables generation of the branch unanimity check encoded by VeyMont, which verifies that choreographies do not deadlock during choreographic verification"
-          ),
-        opt[Unit]("dev-veymont-allow-assign").maybeHidden()
-          .action((p, c) => c.copy(devVeymontAllowAssign = true))
-          .text("Do not error when plain assignment is used in seq_programs"),
       ),
       opt[Unit]("veymont-generate-permissions")
         .action((_, c) => c.copy(veymontGeneratePermissions = true)).text(
           "Generate permissions for the entire sequential program in the style of VeyMont 1.4"
         ),
+      opt[Unit]("dev-veymont-no-branch-unanimity").maybeHidden()
+        .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
+          "Disables generation of the branch unanimity check encoded by VeyMont, which verifies that choreographies do not deadlock during choreographic verification"
+        ),
+      opt[Unit]("dev-veymont-allow-assign").maybeHidden()
+        .action((p, c) => c.copy(devVeymontAllowAssign = true))
+        .text("Do not error when plain assignment is used in seq_programs"),
       note(""),
       note("VeSUV Mode"),
       opt[Unit]("vesuv").action((_, c) => c.copy(mode = Mode.VeSUV)).text(

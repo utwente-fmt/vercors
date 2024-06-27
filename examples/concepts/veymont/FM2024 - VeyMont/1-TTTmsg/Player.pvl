@@ -1,30 +1,14 @@
-class Returner {
-  int mark;
-}
-
 class Player {
 
   int c00, c01, c02, c10, c11, c12, c20, c21, c22;
   int myMark;
   Move move;
   boolean turn, temp;
-  Returner returner;
 
   inline resource boardPerm() = 
       Perm(c00, 1) ** Perm(c01, 1) ** Perm(c02, 1) ** 
       Perm(c10, 1) ** Perm(c11, 1) ** Perm(c12, 1) ** 
       Perm(c20, 1) ** Perm(c21, 1) ** Perm(c22, 1);
-
-  inline resource returnerBound(Player other) = true
-    ** Perm(returner, write)
-    ** Perm(other.returner, write)
-    ** returner == other.returner
-    ;
-
-  inline resource returnermark() = true
-    ** Perm(returner.mark, write) 
-    ** (returner.mark == 0 || returner.mark == 1)
-    ;
 
   requires [1\100]boardPerm();
   pure boolean emptyBoard() = 
@@ -40,7 +24,6 @@ class Player {
   ensures myMark == tok;
   ensures myMark == 0 || myMark == 1;
   ensures Perm(turn, 1) ** turn == t;
-  ensures Perm(returner, 1);
   ensures Perm(temp, 1);
   ensures move.state();
   constructor(int tok, boolean t) {
