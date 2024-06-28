@@ -39,8 +39,8 @@ choreography Main() {
     loop_invariant (\endpoint p1; p1.turn ==> turnInvariant(p1, p2));
     loop_invariant (\endpoint p2; p2.turn ==> turnInvariant(p2, p1));
     loop_invariant (\chor (\endpoint p1; p1.turn) != (\endpoint p2; p2.turn));
-    while(!p1.gameFinished() && !p2.gameFinished()) {
-      if(p1.turn && !p2.turn) {
+    while (!p1.gameFinished() && !p2.gameFinished()) {
+      if (p1.turn && !p2.turn) {
         p1.createNewMove();
         p1.doMove();
         channel_invariant

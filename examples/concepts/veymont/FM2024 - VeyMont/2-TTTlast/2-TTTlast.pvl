@@ -4,45 +4,55 @@ inline resource turnInvariant(Player p, Player q) =
   p.equalBoard(q)
   ;
 
-inline resource state(Player p, boolean withBoardPerm) =
+inline resource state(Player p, Player other, boolean withBoardPerm) =
     // TODO: refactor boardPerm to simply state?
     (withBoardPerm ==> ([1\2]p.boardPerm())) **
     Perm(p.move, 1) ** p.move != null ** p.move.state() **
-    Perm(p.temp, 1) ** Perm(p.turn, 1) ** Perm(p.myMark, 1);
+    Perm(p.turn, 1) ** Perm(p.myMark, 1\2) **
+    ([1\4]p.returnerBound(other));
 
 choreography Main() {
   endpoint p1 = Player(0, true);
-  endpoint p2 = Player(1, false);
+  endpoint p2 = Player(1, false, p1);
 
-  context p1.inv() ** p2.inv();
+  requires (\endpoint p1; state(p1, p2, true)) ** (\endpoint p2; state(p2, p1, true));
   requires p1.emptyBoard() ** p2.emptyBoard();
-  requires (\endpoint p1; ([1\4]p1.returnerBound(p2)) ** p1.turn ==>
-      turnInvariant(p1, p2) ** ([1\2]p1.returnerBound(p2)) ** p1.returnerToken());
-  requires (\endpoint p2; ([1\4]p2.returnerBound(p1)) ** p2.turn ==>
-      turnInvariant(p1, p2) ** ([1\2]p2.returnerBound(p1)) ** p2.returnerToken());
-  ensures p1.gameFinished() && p2.gameFinished();
-  ensures (\endpoint p1; ([1\2]p1.returnerToken()) **
-    p1.returner.mark == p1.myMark ==> turnInvariant(p1, p2));
+  requires (\endpoint p1; p1.turn ==>
+      turnInvariant(p1, p2) ** ([1\2]p1.returnerBound(p2)) ** p1.returnerMark());
+  requires (\endpoint p2; p2.turn ==>
+      turnInvariant(p1, p2) ** ([1\2]p2.returnerBound(p1)) ** p2.returnerMark());
+  ensures (\endpoint p1; state(p1, p2, true)) ** (\endpoint p2; state(p2, p1, true));
+  // TODO: Would like to have
+  // ensures p1.gameFinished() && p2.gameFinished();
+  ensures (\endpoint p1; ([1\2]p1.returnerMark()) **
+    (p1.returner.mark == p1.myMark ==> turnInvariant(p1, p2)));
   ensures (\endpoint p2; ([1\2]p2.returnerMark()) **
-    p2.returner.mark == p2.myMark ==> turnInvariant(p1, p2));
+    (p2.returner.mark == p2.myMark ==> turnInvariant(p1, p2)));
   run {
-    loop_invariant p1.inv() ** p2.inv();
-    loop_invariant (\endpoints p1; p1.turn ==> turnInvariant(p1) **
-      ([1\2]p1.returnerBound(other)) **
-      p1.returnerToken());
-    loop_invariant (\endpoint p2; p2.turn ==> turnInvariant(p2) **
-      ([1\2]p2.returnerBound(other)) **
-      p2.returnerToken());
-    while(!p1.gameFinished() && !p2.gameFinished()) {
-      assert p1.turn == !p2.turn;
-      if(p1.turn && !p2.turn) {
+    loop_invariant (\endpoint p1; state(p1, p2, true)) ** (\endpoint p2; state(p2, p1, true));
+    loop_invariant (\endpoint p1; p1.turn && !p1.gameFinished() ==>
+      turnInvariant(p1, p2) **
+      ([1\2]p1.returnerBound(p2)) **
+      p1.returnerMark());
+    loop_invariant (\endpoint p2; p2.turn && !p2.gameFinished() ==>
+      turnInvariant(p2, p1) **
+      ([1\2]p2.returnerBound(p1)) **
+      p2.returnerMark());
+    loop_invariant (\endpoint p1; p1.gameFinished() ==>
+      ([1\2]p1.returnerMark()) **
+      (p1.returner.mark == p1.myMark ==> turnInvariant(p1, p2)));
+    loop_invariant (\endpoint p2; p2.gameFinished() ==>
+      ([1\2]p2.returnerMark()) **
+      (p2.returner.mark == p2.myMark ==> turnInvariant(p2, p2)));
+    while (!p1.gameFinished() && !p2.gameFinished()) {
+      if (p1.turn && !p2.turn) {
         p1.createNewMove();
         if (p1.gameFinished()) {
-          p1.returnee.mark = 1 - p1.myMark;
+          p1.returner.mark := 1 - p1.myMark;
         }
         p1.doMove();
         channel_invariant
-          \msg.movePerm() **
+          \msg.state() **
           ([1\2]\sender.boardPerm()) ** ([1\2]\receiver.boardPerm()) **
           \sender.oneMoveAheadOf(\msg, \receiver) **
           ([1\2]\sender.returnerBound(\receiver)) **
@@ -53,13 +63,13 @@ choreography Main() {
       } else {
         p2.createNewMove();
         if (p2.gameFinished()) {
-          p2.returnee.mark = 1 - p2.myMark;
+          p2.returner.mark := 1 - p2.myMark;
         }
         p2.doMove();
         channel_invariant
-          \msg.movePerm() **
+          \msg.state() **
           ([1\2]\sender.boardPerm()) ** ([1\2]\receiver.boardPerm()) **
-          \sender.oneMoveAheadOf(\msg, \receiver) ***
+          \sender.oneMoveAheadOf(\msg, \receiver) **
           ([1\2]\sender.returnerBound(\receiver)) **
           ([1\2]\sender.returnerMark()) **
           (!\sender.gameFinished() ==> ([1\2]\sender.returnerMark()));
@@ -68,6 +78,8 @@ choreography Main() {
       }
       p1.turn := !p1.turn;
       p2.turn := !p2.turn;
+      assume (\chor (\endpoint p1; p1.gameFinished()) == (\endpoint p2; p2.gameFinished()));
     }
+    assume (\chor (\endpoint p1; p1.gameFinished()) == (\endpoint p2; p2.gameFinished()));
   }
 }

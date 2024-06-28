@@ -3,14 +3,18 @@ package vct.col.ast.unsorted
 import vct.col.ast.ops.ChorStatementOps
 import vct.col.ast.statement.StatementImpl
 import vct.col.ast.{
+  Assert,
   Assign,
+  Assume,
   Branch,
   ChorStatement,
   Communicate,
   Endpoint,
   EndpointExpr,
   EndpointStatement,
+  Exhale,
   Expr,
+  Inhale,
   Loop,
   Statement,
 }
@@ -61,6 +65,14 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
       case _ => false
     }
 
+  def allowed: Boolean =
+    inner match {
+      case _: Branch[G] | _: Loop[G] | _: Assert[G] | _: Inhale[G] |
+          _: Exhale[G] | _: Assume[G] =>
+        true
+      case _ => false
+    }
+
   def participants: Set[Endpoint[G]] =
     ListSet.from(collect {
       case comm: Communicate[G] => comm.participants
@@ -70,7 +82,7 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
 
   // There are only a few statements where we fully define how projection works - for now
   def allowedInner: Option[CheckError] =
-    Option.when(!branches)(vct.col.check.ChorStatement(this))
+    Option.when(!allowed)(vct.col.check.ChorStatement(this))
 
   def participantCheck(context: CheckContext[G]): Option[CheckError] =
     // There are participants in this if that have been excluded from participation: error
