@@ -13,6 +13,7 @@ import vct.col.origin.{
   UnfoldFailed,
 }
 import vct.col.ref.Ref
+import vct.col.rewrite.error.ExcludedByPassOrder
 import vct.col.rewrite.{
   Generation,
   NonLatchingRewriter,
@@ -34,7 +35,7 @@ case object InlineApplicables extends RewriterBuilder {
   override def desc: String =
     "Inline applicables into their usage sites for applicables marked inline."
 
-  case class CyclicInline(applications: Seq[Apply[_]]) extends UserError {
+  case class CyclicInline(applications: Seq[Node[_]]) extends UserError {
     override def code: String = "cyclicInline"
     override def text: String =
       applications match {
@@ -54,10 +55,8 @@ case object InlineApplicables extends RewriterBuilder {
       }
   }
 
-  case class AbstractInlineable(
-      use: Apply[_],
-      inlineable: InlineableApplicable[_],
-  ) extends UserError {
+  case class AbstractInlineable(use: Node[_], inlineable: Node[_])
+      extends UserError {
     override def code: String = "abstractInlined"
     override def text: String =
       Message.messagesInContext(
@@ -93,7 +92,7 @@ case object InlineApplicables extends RewriterBuilder {
       }
   }
 
-  private def InlinedOrigin(definition: Origin, usages: Seq[Apply[_]]): Origin =
+  private def InlinedOrigin(definition: Origin, usages: Seq[Node[_]]): Origin =
     Origin(
       usages.flatMap(usage =>
         LabelContext("inlined from") +: usage.o.originContents
@@ -186,55 +185,114 @@ case class InlineApplicables[Pre <: Generation]()
     extends Rewriter[Pre] with LazyLogging {
   import InlineApplicables._
 
-  val inlineStack: ScopedStack[Apply[Pre]] = ScopedStack()
+  val inlineStack: ScopedStack[(Node[Pre], Declaration[Pre])] = ScopedStack()
   val classOwner: mutable.Map[ClassDeclaration[Pre], Class[Pre]] = mutable.Map()
 
   override def dispatch(o: Origin): Origin =
     inlineStack.toSeq match {
       case Nil => o
-      case some => InlinedOrigin(o, some.reverse)
+      case some => InlinedOrigin(o, some.reverse.map(_._1))
     }
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     program.declarations.collect { case cls: Class[Pre] => cls }.foreach {
       cls => cls.decls.foreach(classOwner(_) = cls)
     }
-    rewriteDefault(program)
+    program.rewriteDefault()
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case app: InlineableApplicable[Pre] if app.inline => app.drop()
-      case other => rewriteDefault(other)
-    }
-
-  @tailrec
-  private def isInlinePredicateApply(e: Expr[Pre]): Boolean =
-    e match {
-      case PredicateApply(Ref(pred), _, _) => pred.inline
-      case InstancePredicateApply(_, Ref(pred), _, _) => pred.inline
-      case Scale(_, res) => isInlinePredicateApply(res)
-      case _ => false
+      case other => other.rewriteDefault()
     }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
     stat match {
-      case f @ Fold(e) if isInlinePredicateApply(e) =>
-        Assert(dispatch(e))(InlineFoldAssertFailed(f))(stat.o)
-      case u @ Unfold(e) if isInlinePredicateApply(e) =>
-        Assert(dispatch(e))(InlineUnfoldAssertFailed(u))(stat.o)
+      case f @ Fold(target @ ScaledPredicateApply(inv, perm))
+          if inv.ref.decl.inline =>
+        Assert(permExpression(PredicateLocation(inv)(f.o), perm, target.o))(
+          InlineFoldAssertFailed(f)
+        )(stat.o)
+      case u @ Unfold(target @ ScaledPredicateApply(inv, perm))
+          if inv.ref.decl.inline =>
+        Assert(permExpression(PredicateLocation(inv)(u.o), perm, target.o))(
+          InlineUnfoldAssertFailed(u)
+        )(stat.o)
 
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
 
   override def dispatch(loc: Location[Pre]): Location[Post] =
     loc match {
-      case loc @ PredicateLocation(Ref(pred), _) if pred.inline =>
-        throw WrongPredicateLocation(loc)
-      case loc @ InstancePredicateLocation(Ref(pred), _, _) if pred.inline =>
+      case loc @ PredicateLocation(inv) if inv.ref.decl.inline =>
         throw WrongPredicateLocation(loc)
 
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
+    }
+
+  def checkCycle[T](use: Node[Pre], decl: Declaration[Pre])(f: => T): T = {
+    // Some fanfare here to produce a nice diagnostic when the cycle of applications is large.
+    // First reverse the stack of to-be-inlined applications, since toSeq of a stack presents the head first.
+    // Next skip any declarations that are not equal to the declaration of the current apply: they are unrelated to the cycle.
+    // Finally throw if we have found an apply that has the same declaration as us, but skip that initial apply:
+    // it may not be part of the real cycle (but just the entry into it).
+    inlineStack.toSeq.reverse.dropWhile(_._2 != decl) match {
+      case Nil => // ok
+      case some => throw CyclicInline(some.tail.map(_._1) :+ use)
+    }
+
+    inlineStack.having(use -> decl) { f }
+  }
+
+  def permExpression(
+      loc: Location[Pre],
+      perm: Expr[Pre],
+      o: Origin,
+  ): Expr[Post] =
+    loc match {
+      case InLinePatternLocation(loc, trigExpr) =>
+        Perm(
+          InLinePatternLocation(dispatch(loc), dispatch(trigExpr))(dispatch(
+            loc.o
+          )),
+          dispatch(perm),
+        )(dispatch(o))
+      case PredicateLocation(inv) if inv.ref.decl.inline =>
+        implicit val replOrigin: Origin = inv.o
+        lazy val obj = {
+          val instanceApply = inv.asInstanceOf[InstancePredicateApply[Pre]]
+          val cls = classOwner(instanceApply.ref.decl)
+          Replacement(ThisObject[Pre](cls.ref), instanceApply.obj)(
+            InlineLetThisOrigin
+          )
+        }
+
+        lazy val args = Replacements(
+          for ((arg, v) <- inv.args.zip(inv.ref.decl.args))
+            yield Replacement(v.get, arg)(v.o)
+        )
+
+        inv match {
+          case PredicateApply(Ref(pred), _) =>
+            dispatch(
+              args
+                .expr(pred.body.getOrElse(throw AbstractInlineable(inv, pred)))
+            )
+
+          case InstancePredicateApply(_, Ref(pred), _) =>
+            dispatch(
+              (obj + args)
+                .expr(pred.body.getOrElse(throw AbstractInlineable(inv, pred)))
+            )
+
+          case coalesce: CoalesceInstancePredicateApply[Pre] =>
+            throw ExcludedByPassOrder(
+              "No more coalescing predicate applications here",
+              Some(coalesce),
+            )
+        }
+      case other => Perm(dispatch(other), dispatch(perm))(dispatch(o))
     }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] =
@@ -242,18 +300,7 @@ case class InlineApplicables[Pre <: Generation]()
       case apply: ApplyInlineable[Pre] if apply.ref.decl.inline =>
         implicit val o: Origin = apply.o
 
-        // Some fanfare here to produce a nice diagnostic when the cycle of applications is large.
-        // First reverse the stack of to-be-inlined applications, since toSeq of a stack presents the head first.
-        // Next skip any declarations that are not equal to the declaration of the current apply: they are unrelated to the cycle.
-        // Finally throw if we have found an apply that has the same declaration as us, but skip that initial apply:
-        // it may not be part of the real cycle (but just the entry into it).
-        inlineStack.toSeq.reverse
-          .dropWhile(_.ref.decl != apply.ref.decl) match {
-          case Nil => // ok
-          case some => throw CyclicInline(some.tail :+ apply)
-        }
-
-        inlineStack.having(apply) {
+        checkCycle(apply, apply.ref.decl) {
           lazy val obj = {
             val instanceApply = apply.asInstanceOf[InstanceApply[Pre]]
             val cls = classOwner(instanceApply.ref.decl)
@@ -287,19 +334,8 @@ case class InlineApplicables[Pre <: Generation]()
               yield Replacement(v.get, out)(v.o)
           )
 
-          val replacements = apply.ref.decl.args.map(_.get).zip(apply.args)
-            .toMap[Expr[Pre], Expr[Pre]]
           // TODO: consider type arguments
           apply match {
-            case PredicateApply(
-                  Ref(pred),
-                  _,
-                  WritePerm(),
-                ) => // TODO inline predicates with non-write perm
-              dispatch(args.expr(
-                pred.body.getOrElse(throw AbstractInlineable(apply, pred))
-              ))
-            case PredicateApply(Ref(pred), _, _) => ???
             case ProcedureInvocation(Ref(proc), _, _, typeArgs, _, _) =>
               dispatch((args + givenArgs).stat(
                 apply.t,
@@ -321,22 +357,13 @@ case class InlineApplicables[Pre <: Generation]()
               dispatch((obj + args + givenArgs).expr(func.body.getOrElse(
                 throw AbstractInlineable(apply, func)
               )))
-            case InstancePredicateApply(_, Ref(pred), _, WritePerm()) =>
-              dispatch((obj + args).expr(
-                pred.body.getOrElse(throw AbstractInlineable(apply, pred))
-              ))
-            case InstancePredicateApply(_, Ref(pred), _, _) => ???
-            case CoalesceInstancePredicateApply(_, Ref(pred), _, WritePerm()) =>
-              dispatch((obj + args).expr(Implies(
-                Neq(obj.replacing, Null()),
-                pred.body.getOrElse(throw AbstractInlineable(apply, pred)),
-              )))
-            case CoalesceInstancePredicateApply(_, Ref(pred), _, _) => ???
           }
         }
 
-      case Unfolding(PredicateApply(Ref(pred), args, perm), body)
-          if pred.inline =>
+      case Unfolding(
+            ScaledPredicateApply(PredicateApply(Ref(pred), args), perm),
+            body,
+          ) if pred.inline =>
         With(
           Block(
             args.map(dispatch).map(e => Eval(e)(e.o)) :+
@@ -345,8 +372,13 @@ case class InlineApplicables[Pre <: Generation]()
           dispatch(body),
         )(e.o)
 
-      case Unfolding(InstancePredicateApply(obj, Ref(pred), args, perm), body)
-          if pred.inline =>
+      case Unfolding(
+            ScaledPredicateApply(
+              InstancePredicateApply(obj, Ref(pred), args),
+              perm,
+            ),
+            body,
+          ) if pred.inline =>
         With(
           Block(
             Seq(Eval(dispatch(obj))(obj.o)) ++ args.map(dispatch)
@@ -355,39 +387,8 @@ case class InlineApplicables[Pre <: Generation]()
           dispatch(body),
         )(e.o)
 
-      case Perm(loc @ PredicateLocation(pred, args), WritePerm())
-          if pred.decl.inline =>
-        dispatch(PredicateApply(pred, args, WritePerm()(loc.o))(loc.o))
+      case Perm(loc, perm) => permExpression(loc, perm, e.o)
 
-      case Perm(loc @ InstancePredicateLocation(pred, obj, args), WritePerm())
-          if pred.decl.inline =>
-        dispatch(
-          InstancePredicateApply(obj, pred, args, WritePerm()(loc.o))(loc.o)
-        )
-
-      case Perm(
-            InLinePatternLocation(loc @ PredicateLocation(pred, args), pat),
-            WritePerm(),
-          ) if pred.decl.inline =>
-        dispatch(
-          InlinePattern(PredicateApply(pred, args, WritePerm()(loc.o))(loc.o))(
-            loc.o
-          )
-        )
-
-      case Perm(
-            InLinePatternLocation(
-              loc @ InstancePredicateLocation(pred, obj, args),
-              pat,
-            ),
-            WritePerm(),
-          ) if pred.decl.inline =>
-        dispatch(
-          InlinePattern(
-            InstancePredicateApply(obj, pred, args, WritePerm()(loc.o))(loc.o)
-          )(loc.o)
-        )
-
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
 }

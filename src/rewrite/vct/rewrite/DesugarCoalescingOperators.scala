@@ -17,17 +17,19 @@ case class DesugarCoalescingOperators[Pre <: Generation]()
   override def dispatch(e: FoldTarget[Pre]): FoldTarget[Post] = {
     implicit val o: Origin = e.o
     e match {
-      case CoalesceInstancePredicateApply(obj, ref, args) =>
-        Implies(
-          Neq(dispatch(obj), Null()),
+      case ScaledPredicateApply(
+            CoalesceInstancePredicateApply(obj, ref, args),
+            scale,
+          ) =>
+        ScaledPredicateApply(
           InstancePredicateApply(
             dispatch(obj),
             succ(ref.decl),
             args.map(dispatch),
-            dispatch(perm),
           ),
+          Select(Eq(dispatch(obj), Null()), NoPerm(), dispatch(scale)),
         )
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
   }
 

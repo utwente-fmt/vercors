@@ -136,6 +136,20 @@ public class COLSystem<T> {
         return _fold_star(new java.util.ArrayList<>(expressions));
     }
 
+    @SafeVarargs
+    public final Expr<T> fold_preds(ApplyAnyPredicate<T>... predicates) {
+        if(predicates.length == 0)
+            return TRUE;
+
+        Expr<T> result = new Perm<T>(new PredicateLocation<T>(predicates[0], OriGen.create()), ONE, OriGen.create());
+
+        for(int i = 1; i < predicates.length; i++) {
+            result = new Star(result, new Perm<T>(new PredicateLocation<T>(predicates[i], OriGen.create()), ONE, OriGen.create()), OriGen.create());
+        }
+
+        return result;
+    }
+
     /**
      * Private helper function that calculates the result of <code>fold_star</code>. This function requires that the
      * given list is mutable and will modify it, so it should not be used with external function calls.
