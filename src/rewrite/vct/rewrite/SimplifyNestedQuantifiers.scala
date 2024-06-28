@@ -149,19 +149,14 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     FramedProof[Post](pre, body, post)(proof.blame)(proof.o)
   }
 
-//  def getConditions(preds: AccountedPredicate[Pre]): Seq[Expr[Pre]] =
-//    preds match {
-//      case UnitAccountedPredicate(pred) => getConditions(pred)
-//      case SplitAccountedPredicate(left, right) =>
-//        getConditions(left) ++ getConditions(right)
-//    }
-//
-//  def getConditions(e: Expr[Pre]): Seq[Expr[Pre]] =
-//    e match {
-//      case And(left, right) => getConditions(left) ++ getConditions(right)
-//      case Star(left, right) => getConditions(left) ++ getConditions(right)
-//      case other => Seq[Expr[Pre]](other)
-//    }
+  override def dispatch(p: AccountedPredicate[Pre]) : AccountedPredicate[Post] = {
+    p match {
+      case u@UnitAccountedPredicate(pred) =>
+        topLevel = true
+        u.rewriteDefault()
+      case s@SplitAccountedPredicate(left, right) => s.rewriteDefault()
+    }
+  }
 
   override def dispatch(loopContract: LoopContract[Pre]): LoopContract[Post] = {
     val loopInvariant: LoopInvariant[Pre] =
@@ -186,15 +181,18 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
 
     topLevel = true
     infoGetter.setupInfo()
+    val contextEverywhere = dispatch(contract.contextEverywhere)
+    val oldInfo = infoGetter
+
+    // Reuse information from context everywhere
     val requires = dispatch(contract.requires)
     equalityChecker = ExpressionEqualityCheck()
-    infoGetter.setupInfo()
-    val ensures = dispatch(contract.ensures)
-    topLevel = false
-    equalityChecker = ExpressionEqualityCheck()
 
-    // TODO: Is context everywhere al distributed here? If not, we need to do more.
-    val contextEverywhere = dispatch(contract.contextEverywhere)
+    // Again reuse information from context everywhere
+    infoGetter = oldInfo
+    val ensures = dispatch(contract.ensures)
+    equalityChecker = ExpressionEqualityCheck()
+    topLevel = false
 
     val signals = contract.signals.map(element => dispatch(element))
     val givenArgs =
@@ -286,7 +284,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     var newBinder = false
 
     def setData(): Unit = {
-      val allConditions = unfoldBody(Seq())
+      val allConditions = unfoldBody(Seq(), Seq())
       // Split bounds that are independent of any binding variables
       val (newIndependentConditions, potentialBounds) = allConditions
         .partition(indepOf(bindings, _))
@@ -294,15 +292,21 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
       getBounds(potentialBounds)
     }
 
-    def unfoldBody(prevConditions: Seq[Expr[Pre]]): Seq[Expr[Pre]] = {
+    def unfoldBody(prevConditions: Seq[Expr[Pre]], scales: Seq[Expr[Pre] => Expr[Pre]]): Seq[Expr[Pre]] = {
       val (allConditions, mainBody) = unfoldImplies[Pre](body)
       val newConditions = prevConditions ++ allConditions
       val (newVars, secondBody) =
         mainBody match {
           case Forall(newVars, _, secondBody) => (newVars, secondBody)
           case Starall(newVars, _, secondBody) => (newVars, secondBody)
+          // Strip Scales
+          case s@Scale(scale, res) =>
+            val newScales = scales :+ ((r: Expr[Pre]) => Scale(scale, r)(s.o))
+            body = res
+            return unfoldBody(newConditions, newScales)
           case _ =>
-            body = mainBody
+            // Re-aply scales from right to left
+            body = scales.foldRight(mainBody)((s, b) => s(b))
             return newConditions
         }
 
@@ -316,7 +320,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
 
       body = secondBody
 
-      unfoldBody(newConditions)
+      unfoldBody(newConditions, scales)
     }
 
     def containsOtherBinders(e: Expr[Pre]): Boolean = {
@@ -419,18 +423,6 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
         // v > right
         case Comparison.GREATER => lowerBounds(v).addOne(right + one)
       }
-    }
-
-    def testPairs[A](
-        xs: Iterable[A],
-        ys: Iterable[A],
-        f: (A, A) => Boolean,
-    ): Boolean = {
-      for (x <- xs)
-        for (y <- ys)
-          if (f(x, y))
-            return true
-      false
     }
 
     /** We check if there now any binding variables which resolve to just a
@@ -870,7 +862,6 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
         * additionally add base_{i-1} / a_{i-1} < n_{i-1} (derived from (x_{i-1}
         * < xmin_i + n_{i-1})
         */
-//          TODO ABOVE
       def check_vars_list(
           vars: List[Variable[Pre]]
       ): Option[SubstituteForall] = {
@@ -989,7 +980,6 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
                 Seq(PointerSubscript(newGen(arrayIndex.array), xNewVar)(
                   triggerBlame
                 ))
-//                Seq(PointerAdd(newGen(arrayIndex.array), xNewVar)(triggerBlame))
               )
           }
 
