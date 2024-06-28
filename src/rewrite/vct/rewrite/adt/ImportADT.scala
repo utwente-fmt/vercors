@@ -115,7 +115,8 @@ abstract class ImportADT[Pre <: Generation](importer: ImportADTImporter)
   protected def parse(name: String): Seq[GlobalDeclaration[Post]] = {
     val program = importer.loadAdt[Pre](name)
     program.declarations.foreach(dispatch)
-    program.declarations.map(succProvider.computeSucc).map(_.get)
+    program.declarations
+      .map(succProvider.globalDeclarationsSuccProvider.computeSucc).map(_.get)
   }
 
   protected def find[T](decls: Seq[Declaration[Post]], name: String)(
