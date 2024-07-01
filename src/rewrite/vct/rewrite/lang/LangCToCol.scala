@@ -30,6 +30,12 @@ case object LangCToCol {
       example.o.messageInContext("Global variables in C are not supported.")
   }
 
+  case class CDeclarationSpecifierNotSupported(spec: CDeclarationSpecifier[_]) extends UserError {
+    override def code: String = "notSupportedTypeDecl"
+    override def text: String =
+      spec.o.messageInContext("This decleration specifier is not supported.")
+  }
+
   case class MultipleSharedMemoryDeclaration(decl: Node[_]) extends UserError {
     override def code: String = "multipleSharedMemoryDeclaration"
     override def text: String =
@@ -860,14 +866,21 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     var extern = false
     var innerType: Option[Type[Pre]] = None
     var arraySize: Option[Expr[Pre]] = None
+    var mainType: Option[Type[Pre]] = None
+
     var sizeBlame: Option[Blame[ArraySizeError]] = None
+    var pure = false
+    var inline = false
+    var unique: Option[BigInt] = None
+    var static = false
 
     specs.foreach {
       case GPULocal() => shared = true
       case GPUGlobal() => global = true
-      case CSpecificationType(CTPointer(t)) =>
+      case CSpecificationType(t@CTPointer(it)) =>
         arrayOrPointer = true
-        innerType = Some(t)
+        innerType = Some(it)
+        mainType = Some(t)
       case CSpecificationType(ctarr @ CTArray(size, t)) =>
         arraySize = size
         innerType = Some(t)
@@ -875,7 +888,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           ctarr.blame
         ) // we set the blame here, together with the size
         arrayOrPointer = true
+        mainType = Some(t)
+      case CSpecificationType(t) =>
+        mainType = Some(t)
       case CExtern() => extern = true
+      case CUnique(i) => unique = Some(i)
+      case CPure() => pure = true
+      case CInline() => inline = true
+      case CStatic() => static = true
       case _ =>
     }
 
@@ -894,7 +914,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   def addStaticShared(
-      decl: CDeclarator[Pre],
       cRef: CNameTarget[Pre],
       t: Type[Pre],
       o: Origin,
@@ -942,7 +961,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           !prop.extern
         ) {
           addStaticShared(
-            init.decl,
             cRef,
             prop.innerType.get,
             varO,
@@ -958,7 +976,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           !prop.extern
         ) {
           addStaticShared(
-            init.decl,
             cRef,
             prop.innerType.get,
             varO,

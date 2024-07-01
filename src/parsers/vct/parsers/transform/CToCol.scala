@@ -168,9 +168,12 @@ case class CToCol[G](
             else if (m.consume(m.inline))
               CInline[G]()
             else
+              m.consume(m.unique).map(CUnique[G](_)).getOrElse(
+
               fail(
                 m.nodes.head,
                 "This modifier cannot be attached to a declaration in C",
+              )
               )
           },
         )
@@ -1183,6 +1186,7 @@ case class CToCol[G](
           case "thread_local" => collector.threadLocal += mod
         }
       case ValStatic(_) => collector.static += mod
+      case ValUnique(_, _, i, _) => collector.unique += ((mod, convert(i)))
     }
 
   def convertEmbedWith(

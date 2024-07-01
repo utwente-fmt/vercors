@@ -2489,6 +2489,8 @@ final case class CPure[G]()(implicit val o: Origin)
     extends CSpecificationModifier[G] with CPureImpl[G]
 final case class CInline[G]()(implicit val o: Origin)
     extends CSpecificationModifier[G] with CInlineImpl[G]
+final case class CUnique[G](i: BigInt)(implicit val o: Origin)
+  extends CSpecificationModifier[G] with CUniqueImpl[G]
 
 sealed trait CStorageClassSpecifier[G]
     extends CDeclarationSpecifier[G] with CStorageClassSpecifierImpl[G]

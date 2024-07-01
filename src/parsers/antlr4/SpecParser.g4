@@ -417,6 +417,7 @@ valImpureDef
 valModifier
  : ('pure' | 'inline' | 'thread_local' | 'bip_annotation')
  | langStatic # valStatic
+ | 'unique' '<' langConstInt '>' # valUnique
  ;
 
 valArgList
