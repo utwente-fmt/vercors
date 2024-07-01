@@ -358,6 +358,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: ChorRun[Pre] => node
       case node: PVLEndpointName[Pre] => coerce(node)
       case node: EndpointName[Pre] => coerce(node)
+      case node: ApplyAnyPredicate[Pre] => coerce(node)
+      case node: FoldTarget[Pre] => coerce(node)
     }
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
@@ -1615,8 +1617,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         PreAssignExpression(target, coerce(value, target.t, canCDemote = true))(
           ass.blame
         )
-      case PredicateApplyExpr(apply) =>
-        PredicateApplyExpr(apply)
+      case PredicateApplyExpr(apply) => PredicateApplyExpr(apply)
       case inv @ ProcedureInvocation(
             ref,
             args,
@@ -2670,8 +2671,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         ArrayLocation(array(arrayObj)._1, int(subscript))(a.blame)
       case p @ PointerLocation(pointerExp) =>
         PointerLocation(pointer(pointerExp)._1)(p.blame)
-      case PredicateLocation(inv) =>
-        PredicateLocation(inv)
+      case PredicateLocation(inv) => PredicateLocation(inv)
       case al @ AmbiguousLocation(expr) => AmbiguousLocation(expr)(al.blame)
       case patLoc @ InLinePatternLocation(loc, pat) =>
         InLinePatternLocation(loc, pat)
@@ -2887,21 +2887,29 @@ abstract class CoercingRewriter[Pre <: Generation]()
     }
   }
 
-  def coerce(node: ApplyAnyPredicate[Pre]): ApplyAnyPredicate[Pre] = node match {
-    case InstancePredicateApply(obj, ref, args) =>
-      InstancePredicateApply(cls(obj), ref, coerceArgs(args, ref.decl))(node.o)
-    case CoalesceInstancePredicateApply(obj, ref, args) =>
-      CoalesceInstancePredicateApply(cls(obj), ref, coerceArgs(args, ref.decl))(node.o)
-    case PredicateApply(ref, args) =>
-      PredicateApply(ref, coerceArgs(args, ref.decl))(node.o)
-  }
+  def coerce(node: ApplyAnyPredicate[Pre]): ApplyAnyPredicate[Pre] =
+    node match {
+      case InstancePredicateApply(obj, ref, args) =>
+        InstancePredicateApply(cls(obj), ref, coerceArgs(args, ref.decl))(
+          node.o
+        )
+      case CoalesceInstancePredicateApply(obj, ref, args) =>
+        CoalesceInstancePredicateApply(
+          cls(obj),
+          ref,
+          coerceArgs(args, ref.decl),
+        )(node.o)
+      case PredicateApply(ref, args) =>
+        PredicateApply(ref, coerceArgs(args, ref.decl))(node.o)
+    }
 
-  def coerce(node: FoldTarget[Pre]): FoldTarget[Pre] = node match {
-    case ScaledPredicateApply(apply, perm) =>
-      ScaledPredicateApply(apply, rat(perm))(node.o)
-    case AmbiguousFoldTarget(target) =>
-      AmbiguousFoldTarget(res(target))(node.o)
-  }
+  def coerce(node: FoldTarget[Pre]): FoldTarget[Pre] =
+    node match {
+      case ScaledPredicateApply(apply, perm) =>
+        ScaledPredicateApply(apply, rat(perm))(node.o)
+      case AmbiguousFoldTarget(target) =>
+        AmbiguousFoldTarget(res(target))(node.o)
+    }
 
   def coerce(node: BipPortType[Pre]): BipPortType[Pre] = {
     implicit val o: Origin = node.o
