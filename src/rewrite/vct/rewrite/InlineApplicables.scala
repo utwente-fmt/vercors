@@ -204,7 +204,7 @@ case class InlineApplicables[Pre <: Generation]()
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case app: InlineableApplicable[Pre] if app.inline => app.drop()
-      case other => other.rewriteDefault()
+      case other => allScopes.anySucceed(other, other.rewriteDefault())
     }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
