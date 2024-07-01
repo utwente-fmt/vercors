@@ -1408,6 +1408,9 @@ final case class ScaledPredicateApply[G](
     perm: Expr[G],
 )(implicit val o: Origin)
     extends FoldTarget[G] with ScaledPredicateApplyImpl[G]
+final case class ValuePredicateApply[G](apply: ApplyAnyPredicate[G])(
+    implicit val o: Origin
+) extends FoldTarget[G] with ValuePredicateApplyImpl[G]
 final case class AmbiguousFoldTarget[G](target: Expr[G])(implicit val o: Origin)
     extends FoldTarget[G] with AmbiguousFoldTargetImpl[G]
 

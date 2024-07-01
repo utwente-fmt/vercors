@@ -499,8 +499,17 @@ case class ColToSilver(program: col.Program[_]) {
           ),
           permValue,
         )(pos = pos(res), info = expInfo(res))
+
+      case res @ col
+            .Perm(col.PredicateLocation(app: col.PredicateApply[_]), perm) =>
+        silver.PredicateAccessPredicate(pred(app), exp(perm))(
+          pos = pos(res),
+          info = expInfo(res),
+        )
+
       case col.Wand(left, right) =>
         silver.MagicWand(exp(left), exp(right))(pos = pos(e), info = expInfo(e))
+
       case col.CurPerm(loc) =>
         loc match {
           case col
@@ -725,16 +734,15 @@ case class ColToSilver(program: col.Program[_]) {
           pos = pos(f),
           info = expInfo(f),
         )
+      case col.ValuePredicateApply(inv: col.PredicateApply[_]) =>
+        silver.PredicateAccessPredicate(
+          pred(inv),
+          silver.WildcardPerm()(pos = pos(f), info = expInfo(f)),
+        )(pos = pos(f), info = expInfo(f))
       case other => ??(other)
     }
 
   def pred(p: col.PredicateApply[_]): silver.PredicateAccess =
-    silver.PredicateAccess(p.args.map(exp), ref(p.ref))(
-      pos = pos(p),
-      info = expInfo(p),
-    )
-
-  def predInTrigger(p: col.PredicateApply[_]): silver.PredicateAccess =
     silver.PredicateAccess(p.args.map(exp), ref(p.ref))(
       pos = pos(p),
       info = expInfo(p),

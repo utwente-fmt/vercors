@@ -2907,6 +2907,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
     node match {
       case ScaledPredicateApply(apply, perm) =>
         ScaledPredicateApply(apply, rat(perm))(node.o)
+      case ValuePredicateApply(apply) => ValuePredicateApply(apply)(node.o)
       case AmbiguousFoldTarget(target) =>
         AmbiguousFoldTarget(res(target))(node.o)
     }
