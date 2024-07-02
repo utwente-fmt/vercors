@@ -226,9 +226,9 @@ case class ColToSilver(program: col.Program[_]) {
             ref(function),
             function.args.map(variable),
             typ(function.returnType),
-            pred(function.contract.requires) ++
+            accountedPred(function.contract.requires) ++
               function.contract.decreases.toSeq.map(decreases),
-            pred(function.contract.ensures),
+            accountedPred(function.contract.ensures),
             function.body.map(exp),
           )(pos = pos(function), info = NodeInfo(function))
         }
@@ -247,9 +247,9 @@ case class ColToSilver(program: col.Program[_]) {
             ref(procedure),
             procedure.args.map(variable),
             procedure.outArgs.map(variable),
-            pred(procedure.contract.requires) ++
+            accountedPred(procedure.contract.requires) ++
               procedure.contract.decreases.toSeq.map(decreases),
-            pred(procedure.contract.ensures),
+            accountedPred(procedure.contract.ensures),
             procedure.body.map(body =>
               silver.Seqn(Seq(block(body)), labelDecls)(
                 pos = pos(body),
@@ -347,7 +347,7 @@ case class ColToSilver(program: col.Program[_]) {
       case other => ??(other)
     }
 
-  def pred(
+  def accountedPred(
       e: col.AccountedPredicate[_],
       path: Seq[AccountedDirection] = Nil,
   ): Seq[silver.Exp] =
@@ -355,7 +355,8 @@ case class ColToSilver(program: col.Program[_]) {
       case col.UnitAccountedPredicate(pred) =>
         currentPredicatePath.having(path) { unfoldStar(pred).map(exp) }
       case col.SplitAccountedPredicate(left, right) =>
-        pred(left, path :+ FailLeft) ++ pred(right, path :+ FailRight)
+        accountedPred(left, path :+ FailLeft) ++
+          accountedPred(right, path :+ FailRight)
     }
 
   def expInfo[T <: col.Node[_]](e: T): NodeInfo[T] = {
@@ -488,6 +489,9 @@ case class ColToSilver(program: col.Program[_]) {
           info = expInfo(e),
         )
 
+      // PB: NB: an exhale failed error reason is reported on the location node,
+      // so it is important that the LocationAccess part of the predicate has
+      // the info of the Perm.
       case res @ col.Perm(col.SilverFieldLocation(obj, Ref(field)), perm) =>
         val permValue = exp(perm)
         permValue.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode =
@@ -502,10 +506,10 @@ case class ColToSilver(program: col.Program[_]) {
 
       case res @ col
             .Perm(col.PredicateLocation(app: col.PredicateApply[_]), perm) =>
-        silver.PredicateAccessPredicate(pred(app), exp(perm))(
-          pos = pos(res),
-          info = expInfo(res),
-        )
+        silver.PredicateAccessPredicate(
+          pred(app, info = Some(expInfo(res))),
+          exp(perm),
+        )(pos = pos(res), info = expInfo(res))
 
       case col.Wand(left, right) =>
         silver.MagicWand(exp(left), exp(right))(pos = pos(e), info = expInfo(e))
@@ -742,10 +746,13 @@ case class ColToSilver(program: col.Program[_]) {
       case other => ??(other)
     }
 
-  def pred(p: col.PredicateApply[_]): silver.PredicateAccess =
+  def pred(
+      p: col.PredicateApply[_],
+      info: Option[silver.Info] = None,
+  ): silver.PredicateAccess =
     silver.PredicateAccess(p.args.map(exp), ref(p.ref))(
       pos = pos(p),
-      info = expInfo(p),
+      info = info.getOrElse(expInfo(p)),
     )
 
   def stat(s: col.Statement[_]): silver.Stmt =
