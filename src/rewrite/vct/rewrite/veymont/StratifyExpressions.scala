@@ -99,6 +99,15 @@ case class StratifyExpressions[Pre <: Generation]()
         logger.warn("TODO: Branch blame")
         unfoldBranch(branch.branches)(null, branch.o)
 
+      case assert: Assert[Pre] =>
+        assert.rewrite(res = stratifyExpr(assert.expr))
+      case inhale: Inhale[Pre] =>
+        inhale.rewrite(res = stratifyExpr(inhale.expr))
+      case exhale: Exhale[Pre] =>
+        exhale.rewrite(res = stratifyExpr(exhale.expr))
+      case assume: Assume[Pre] =>
+        assume.rewrite(assn = stratifyExpr(assume.expr))
+
       case statement => statement.rewriteDefault()
     }
 

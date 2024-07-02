@@ -22,6 +22,7 @@ import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.print._
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers
+import vct.col.util.AstBuildHelpers.unfoldStar
 
 import scala.collection.immutable.ListSet
 import scala.util.Try
@@ -31,35 +32,26 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
   override def layout(implicit ctx: Ctx): Doc =
     Text("/* choreographic statement */") <+/> inner
 
-  def cond: Expr[G] =
-    inner match {
-      case branch: Branch[G] => branch.branches.head._1
-      case loop: Loop[G] => loop.cond
-    }
-
-  def guards: Seq[Expr[G]] = AstBuildHelpers.unfoldStar(cond)
+  def exprs: Seq[Expr[G]] =
+    (inner match {
+      case branch: Branch[G] => branch.branches.map(_._1)
+      case loop: Loop[G] => Seq(loop.cond)
+      case assert: Assert[G] => Seq(assert.res)
+      case assume: Assume[G] => Seq(assume.assn)
+      case inhale: Inhale[G] => Seq(inhale.res)
+      case exhale: Exhale[G] => Seq(exhale.res)
+    }).flatMap(unfoldStar)
 
   def explicitEndpoints: Seq[Endpoint[G]] =
-    guards.collect { case EndpointExpr(Ref(endpoint), _) => endpoint }
+    exprs.collect { case EndpointExpr(Ref(endpoint), _) => endpoint }
 
   def hasUnpointed: Boolean =
-    guards.exists {
+    exprs.exists {
       case _: EndpointExpr[G] => false
       case _ => true
     }
 
-  object branch {
-    def apply(): Branch[G] = inner.asInstanceOf[Branch[G]]
-
-    def yes: Statement[G] = branch().branches.head._2
-    def no: Option[Statement[G]] = Try(branch().branches(1)).toOption.map(_._2)
-  }
-
-  object loop {
-    def apply(): Loop[G] = inner.asInstanceOf[Loop[G]]
-  }
-
-  def branches: Boolean =
+  def loopOrBranch: Boolean =
     inner match {
       case _: Branch[G] | _: Loop[G] => true
       case _ => false
@@ -80,27 +72,33 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
       case c @ ChorStatement(_) => c.explicitEndpoints
     }.flatten)
 
-  // There are only a few statements where we fully define how projection works - for now
+  // There are only a few statements where we fully define how projection works
   def allowedInner: Option[CheckError] =
     Option.when(!allowed)(vct.col.check.ChorStatement(this))
 
+  // There are participants in this if that have been excluded from participation: error
   def participantCheck(context: CheckContext[G]): Option[CheckError] =
-    // There are participants in this if that have been excluded from participation: error
-    Option.unless(
-      Set.from(explicitEndpoints)
+    if (
+      !Set.from(explicitEndpoints)
         .subsetOf(context.currentParticipatingEndpoints.get)
-    )(SeqProgParticipant(this))
+    )
+      Some(SeqProgParticipant(this))
+    else
+      None
 
   override def check(context: CheckContext[G]): Seq[CheckError] = {
     assert(context.currentParticipatingEndpoints.isDefined)
     super.check(context) ++ allowedInner.toSeq ++
-      Option.when(branches)(participantCheck(context)).flatten.toSeq
+      (if (loopOrBranch)
+         participantCheck(context).toSeq
+       else
+         Seq())
   }
 
   override def enterCheckContextCurrentParticipatingEndpoints(
       context: CheckContext[G]
   ): Option[Set[Endpoint[G]]] =
-    if (branches) {
+    if (loopOrBranch) {
       // Assume SeqProg sets participatingEndpoints
       assert(context.currentParticipatingEndpoints.isDefined)
 
