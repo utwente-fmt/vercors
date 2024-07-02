@@ -876,11 +876,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         arrayOrPointer = true
         innerType = Some(it)
         mainType = Some(t)
-      case CSpecificationType(ctarr @ CTArray(size, t)) =>
+      case CSpecificationType(t @ CTArray(size, it)) =>
         arraySize = size
-        innerType = Some(t)
+        innerType = Some(it)
         sizeBlame = Some(
-          ctarr.blame
+          t.blame
         ) // we set the blame here, together with the size
         arrayOrPointer = true
         mainType = Some(t)
