@@ -538,7 +538,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"two-dimensional array")
     }
-  def pointer(e: Expr[Pre]): (Expr[Pre], TPointer[Pre]) =
+  def pointer(e: Expr[Pre]): (Expr[Pre], PointerType[Pre]) =
     CoercionUtils.getAnyPointerCoercion(e.t) match {
       case Some((coercion, t)) =>
         (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
@@ -2145,14 +2145,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
     implicit val o: Origin = stat.o
     stat match {
       case a @ Assert(assn) => Assert(res(assn))(a.blame)
-      case a @ Assign(target, value) =>
-        try {
-          Assign(target, coerce(value, target.t, canCDemote = true))(a.blame)
-        } catch {
-          case err: Incoercible =>
-            println(err.text)
-            throw err
-        }
+      case a @ Assign(target, value) => Assign(target, coerce(value, target.t, canCDemote = true))(a.blame)
       case Assume(assn) => Assume(bool(assn))
       case Block(statements) => Block(statements)
       case Branch(branches) =>

@@ -122,6 +122,7 @@ case object CoercionUtils {
       case (TNull(), JavaTClass(target, _)) => CoerceNullJavaClass(target)
       case (TNull(), TAnyClass()) => CoerceNullAnyClass()
       case (TNull(), TPointer(target)) => CoerceNullPointer(target)
+      case (TNull(), TUniquePointer(target, id)) => CoerceNullPointer(target)
       case (TNull(), CTPointer(target)) => CoerceNullPointer(target)
       case (TNull(), TEnum(target)) => CoerceNullEnum(target)
 
@@ -425,10 +426,11 @@ case object CoercionUtils {
 
   def getAnyPointerCoercion[G](
       source: Type[G]
-  ): Option[(Coercion[G], TPointer[G])] =
+  ): Option[(Coercion[G], PointerType[G])] =
     source match {
       case t: CPrimitiveType[G] => chainCCoercion(t, getAnyPointerCoercion)
       case t: TPointer[G] => Some((CoerceIdentity(source), t))
+      case t: TUniquePointer[G] => Some((CoerceIdentity(source), t))
       case t: CTPointer[G] =>
         Some((CoerceIdentity(source), TPointer(t.innerType)))
       case t: CTArray[G] =>

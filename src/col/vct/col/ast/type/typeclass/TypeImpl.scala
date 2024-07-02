@@ -21,7 +21,7 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
   def asVector: Option[TVector[G]] =
     CoercionUtils.getAnyVectorCoercion(this).map(_._2)
   def asBag: Option[TBag[G]] = CoercionUtils.getAnyBagCoercion(this).map(_._2)
-  def asPointer: Option[TPointer[G]] =
+  def asPointer: Option[PointerType[G]] =
     CoercionUtils.getAnyPointerCoercion(this).map(_._2)
   def asArray: Option[TArray[G]] =
     CoercionUtils.getAnyArrayCoercion(this).map(_._2)

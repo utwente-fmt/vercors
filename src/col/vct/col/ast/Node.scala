@@ -128,14 +128,19 @@ final case class TUnion[G](types: Seq[Type[G]])(
 final case class TArray[G](element: Type[G])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends Type[G] with TArrayImpl[G]
-final case class TPointer[G](element: Type[G])(
-    implicit val o: Origin = DiagnosticOrigin
-) extends Type[G] with TPointerImpl[G]
 final case class TType[G](t: Type[G])(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with TTypeImpl[G]
 final case class TVar[G](ref: Ref[G, Variable[G]])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends Type[G] with TVarImpl[G]
+
+sealed trait PointerType[G] extends Type[G] with PointerTypeImpl[G]
+final case class TPointer[G](element: Type[G])(
+  implicit val o: Origin = DiagnosticOrigin
+) extends PointerType[G] with TPointerImpl[G]
+final case class TUniquePointer[G](element: Type[G], id: BigInt)(
+  implicit val o: Origin = DiagnosticOrigin
+) extends PointerType[G] with TUniquePointerImpl[G]
 
 sealed trait CompositeType[G] extends Type[G] with CompositeTypeImpl[G]
 sealed trait SizedType[G] extends CompositeType[G] with SizedTypeImpl[G]

@@ -30,12 +30,6 @@ case object LangCToCol {
       example.o.messageInContext("Global variables in C are not supported.")
   }
 
-  case class CDeclarationSpecifierNotSupported(spec: CDeclarationSpecifier[_]) extends UserError {
-    override def code: String = "notSupportedTypeDecl"
-    override def text: String =
-      spec.o.messageInContext("This decleration specifier is not supported.")
-  }
-
   case class MultipleSharedMemoryDeclaration(decl: Node[_]) extends UserError {
     override def code: String = "multipleSharedMemoryDeclaration"
     override def text: String =
@@ -60,7 +54,7 @@ case object LangCToCol {
       )
   }
 
-  case class WrongCType(decl: CLocalDeclaration[_]) extends UserError {
+  case class WrongCType(decl: Declaration[_]) extends UserError {
     override def code: String = "wrongCType"
     override def text: String =
       decl.o
@@ -445,7 +439,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = cParam.o
     val varO = o.sourceName(C.getDeclaratorInfo(cParam.declarator).name)
     val cRef = RefCParam(cParam)
-    val tp = new TypeProperties(cParam.specifiers, cParam.declarator)
+    val tp = new TypeProperties(cParam.specifiers, cParam)
 
     kernelSpecifier match {
       case OpenCLKernel() =>
@@ -486,10 +480,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case GPULocal() => throw WrongGPUType(cParam)
       case GPUGlobal() => throw WrongGPUType(cParam)
     }
-    val specType =
-      cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] =>
-        rw.dispatch(t.t)
-      }.get
+    val prop = new TypeProperties(cParam.specifiers, cParam)
+    if(!prop.validCParam) throw WrongCType(cParam)
+    val specType = if(prop.unique.isEmpty)
+      rw.dispatch(prop.mainType.get) else
+      TUniquePointer(rw.dispatch(prop.innerType.get), prop.unique.get)(cParam.o)
 
     cParam.drop()
     val v =
@@ -635,6 +630,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     t match {
       case TArray(element) => element
       case TPointer(element) => element
+      case TUniquePointer(element, _) => element
       case _ => throw Unreachable("Already checked on pointer or array type")
     }
 
@@ -857,8 +853,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   class TypeProperties(
-      specs: Seq[CDeclarationSpecifier[Pre]],
-      decl: CDeclarator[Pre],
+      specs: Seq[CDeclarationSpecifier[Pre]], decl: Declaration[Pre]
   ) {
     var arrayOrPointer = false
     var global = false
@@ -892,15 +887,22 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case CSpecificationType(t) =>
         mainType = Some(t)
       case CExtern() => extern = true
+      case CUnique(i) if unique.isDefined => throw WrongCType(decl)
       case CUnique(i) => unique = Some(i)
       case CPure() => pure = true
       case CInline() => inline = true
       case CStatic() => static = true
-      case _ =>
+      // We want to make sure we process everything
+      case _ => ???
     }
 
     def isShared: Boolean = shared && !global
     def isGlobal: Boolean = !shared && global
+    def validNonGpu: Boolean = !global && !shared &&
+      (unique.isEmpty || (unique.isDefined && arrayOrPointer)) && mainType.isDefined
+    def validReturn: Boolean = validNonGpu && !static
+    def validCParam: Boolean = !pure && !inline && validNonGpu && !static
+    def validCLocal = validCParam
   }
 
   def addDynamicShared(
@@ -940,7 +942,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     if (decl.decl.inits.size != 1)
       throw MultipleSharedMemoryDeclaration(decl)
 
-    val prop = new TypeProperties(decl.decl.specs, decl.decl.inits.head.decl)
+    val prop = new TypeProperties(decl.decl.specs, decl)
     if (!prop.shared)
       return false
     val init: CInit[Pre] = decl.decl.inits.head
@@ -1266,9 +1268,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def isPointer(t: Type[Pre]): Boolean = getPointer(t).isDefined
 
-  def getPointer(t: Type[Pre]): Option[TPointer[Pre]] =
+  def getPointer(t: Type[Pre]): Option[Type[Pre]] =
     getBaseType(t) match {
       case t @ TPointer(_) => Some(t)
+      case t @ TUniquePointer(_, _) => Some(t)
+      case t @ CTPointer(_) => Some(t)
       case _ => None
     }
 
