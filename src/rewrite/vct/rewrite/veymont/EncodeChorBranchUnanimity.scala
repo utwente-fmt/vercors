@@ -64,7 +64,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
 
   case class IdentityRewriter[Pre <: Generation]() extends Rewriter[Pre] {}
 
-  val currentLoop = ScopedStack[ChorStatement[Pre]]()
+  val currentLoop = ScopedStack[Loop[Pre]]()
 
   override def dispatch(program: Program[Pre]): Program[Post] =
     if (enabled)
@@ -83,7 +83,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
     statement match {
       case InChor(_, c @ ChorStatement(branch: Branch[Pre])) =>
         implicit val o = statement.o
-        val guards = c.guards
+        val guards = unfoldStar(branch.cond)
         val assertions: Block[Post] = Block(guards.indices.init.map { i =>
           Assert(dispatch(guards(i)) === dispatch(guards(i + 1)))(
             ForwardBranchUnanimity(branch, guards(i), guards(i + 1))
@@ -94,7 +94,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
 
       case InChor(_, c @ ChorStatement(loop: Loop[Pre])) =>
         implicit val o = statement.o
-        val guards = c.guards
+        val guards = unfoldStar(loop.cond)
         val establishAssertions: Statement[Post] = Block(
           guards.indices.init.map { i =>
             Assert(dispatch(guards(i)) === dispatch(guards(i + 1)))(
@@ -115,7 +115,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
         val finalLoop: Loop[Post] = loop.rewrite(
           init = establishAssertions,
           update = maintainAssertions,
-          contract = currentLoop.having(c) { dispatch(loop.contract) },
+          contract = currentLoop.having(loop) { dispatch(loop.contract) },
         )
 
         finalLoop
@@ -128,16 +128,18 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
 
   override def dispatch(contract: LoopContract[Pre]): LoopContract[Post] =
     (currentLoop.topOption, contract) match {
-      case (Some(c), inv: LoopInvariant[Pre]) =>
+      case (Some(loop), inv: LoopInvariant[Pre]) =>
         implicit val o = contract.o
+        val guards = unfoldStar(loop.cond)
         inv.rewrite(invariant =
-          dispatch(inv.invariant) &* allEqual(c.guards.map(dispatch))
+          dispatch(inv.invariant) &* allEqual(guards.map(dispatch))
         )
-      case (Some(c), inv @ IterationContract(requires, ensures, _)) =>
+      case (Some(loop), inv @ IterationContract(requires, ensures, _)) =>
         implicit val o = contract.o
+        val guards = unfoldStar(loop.cond)
         inv.rewrite(
-          requires = dispatch(requires) &* allEqual(c.guards.map(dispatch)),
-          ensures = dispatch(ensures) &* allEqual(c.guards.map(dispatch)),
+          requires = dispatch(requires) &* allEqual(guards.map(dispatch)),
+          ensures = dispatch(ensures) &* allEqual(guards.map(dispatch)),
         )
       case _ => contract.rewriteDefault()
     }

@@ -395,8 +395,8 @@ case class GenerateImplementation[Pre <: Generation]()
           if c.explicitEndpoints.contains(endpoint) =>
         implicit val o = branch.o
         Branch[Post](
-          Seq((projectExpr(c.cond), projectStmt(c.branch.yes))) ++
-            c.branch.no.map(no => Seq((tt[Post], projectStmt(no))))
+          Seq((projectExpr(branch.cond), projectStmt(branch.yes))) ++
+            branch.no.map(no => Seq((tt[Post], projectStmt(no))))
               .getOrElse(Seq())
         )
       case c @ ChorStatement(l: Loop[Pre])

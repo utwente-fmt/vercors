@@ -445,19 +445,22 @@ case class EncodePermissionStratification[Pre <: Generation](
           new Variable(dispatch(assign.value.t))(
             assign.o.where(name = "intermediate")
           )
-        Scope(
-          Seq(intermediate),
-          Block(Seq(
-            currentEndpoint.having(endpoint) {
-              specializing.having(EndpointName[Post](succ(endpoint))) {
-                assignLocal(intermediate.get, dispatch(assign.value))
-              }
-            },
-            Unfold(apply)(PanicBlame("TODO: Use blame on endpoint")),
-            assign.rewrite(value = intermediate.get),
-            Fold(apply)(PanicBlame("TODO: Use blame on endpointstatement")),
-          )),
-        )
+        currentEndpoint.having(endpoint) {
+          specializing.having(EndpointName[Post](succ(endpoint))) {
+            Scope(
+              Seq(intermediate),
+              Block(Seq(
+                assignLocal(intermediate.get, dispatch(assign.value)),
+                Unfold(apply)(PanicBlame("TODO: Use blame on endpoint")),
+                assign.rewrite(
+                  target = Deref[Post](dispatch(obj), succ(field))(target.o),
+                  value = intermediate.get,
+                ),
+                Fold(apply)(PanicBlame("TODO: Use blame on endpointstatement")),
+              )),
+            )
+          }
+        }
       case EndpointStatement(Some(Ref(endpoint)), assert: Assert[Pre]) =>
         currentEndpoint.having(endpoint) {
           specializing.having(EndpointName[Post](succ(endpoint))(statement.o)) {

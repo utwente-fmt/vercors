@@ -7,8 +7,8 @@ inline resource turnInvariant(Player p, Player q) =
 inline resource state(Player p, Player other, boolean withBoardPerm) =
     // TODO: refactor boardPerm to simply state?
     (withBoardPerm ==> ([1\2]p.boardPerm())) **
-    Perm(p.move, 1) ** p.move != null ** p.move.state() **
-    Perm(p.turn, 1) ** Perm(p.myMark, 1\2) **
+    Perm(p.move, 1) ** p.move != null ** p.move.state() ** Perm(p.turn, 1) **
+    Perm(p.myMark, 1\2) ** (p.myMark == 0 || p.myMark == 1) **
     ([1\4]p.returnerBound(other));
 
 choreography Main() {
@@ -21,6 +21,7 @@ choreography Main() {
       turnInvariant(p1, p2) ** ([1\2]p1.returnerBound(p2)) ** p1.returnerMark());
   requires (\endpoint p2; p2.turn ==>
       turnInvariant(p1, p2) ** ([1\2]p2.returnerBound(p1)) ** p2.returnerMark());
+  requires (\chor (\endpoint p1; p1.turn) != (\endpoint p2; p2.turn));
   ensures (\endpoint p1; state(p1, p2, true)) ** (\endpoint p2; state(p2, p1, true));
   // TODO: Would like to have
   // ensures p1.gameFinished() && p2.gameFinished();
@@ -30,6 +31,7 @@ choreography Main() {
     (p2.returner.mark == p2.myMark ==> turnInvariant(p1, p2)));
   run {
     loop_invariant (\endpoint p1; state(p1, p2, true)) ** (\endpoint p2; state(p2, p1, true));
+    loop_invariant (\chor (\endpoint p1; p1.turn) != (\endpoint p2; p2.turn));
     loop_invariant (\endpoint p1; p1.turn && !p1.gameFinished() ==>
       turnInvariant(p1, p2) **
       ([1\2]p1.returnerBound(p2)) **
@@ -43,14 +45,15 @@ choreography Main() {
       (p1.returner.mark == p1.myMark ==> turnInvariant(p1, p2)));
     loop_invariant (\endpoint p2; p2.gameFinished() ==>
       ([1\2]p2.returnerMark()) **
-      (p2.returner.mark == p2.myMark ==> turnInvariant(p2, p2)));
+      (p2.returner.mark == p2.myMark ==> turnInvariant(p2, p1)));
     while (!p1.gameFinished() && !p2.gameFinished()) {
       if (p1.turn && !p2.turn) {
         p1.createNewMove();
+        p1.doMove();
         if (p1.gameFinished()) {
           p1.returner.mark := 1 - p1.myMark;
+          assert (\chor (\endpoint p1; p1.returner.mark != p1.myMark));
         }
-        p1.doMove();
         channel_invariant
           \msg.state() **
           ([1\2]\sender.boardPerm()) ** ([1\2]\receiver.boardPerm()) **
@@ -60,12 +63,17 @@ choreography Main() {
           (!\sender.gameFinished() ==> ([1\2]\sender.returnerMark()));
         communicate p2.move <- p1.move.copy();
         p2.doMove();
+        assert (\chor (\endpoint p2; p2.gameFinished() && p2.returner.mark == p2.myMark ==> turnInvariant(p2, p1)));
+        assert (\chor (\endpoint p1; p1.gameFinished() ==> p1.returner.mark != p1.myMark));
+        assert (\chor (\endpoint p1; p1.gameFinished() && p1.returner.mark == p1.myMark ==> turnInvariant(p1, p2)));
+        inhale false;
       } else {
+        inhale false;
         p2.createNewMove();
+        p2.doMove();
         if (p2.gameFinished()) {
           p2.returner.mark := 1 - p2.myMark;
         }
-        p2.doMove();
         channel_invariant
           \msg.state() **
           ([1\2]\sender.boardPerm()) ** ([1\2]\receiver.boardPerm()) **
@@ -78,8 +86,10 @@ choreography Main() {
       }
       p1.turn := !p1.turn;
       p2.turn := !p2.turn;
+      // TODO: Remove when lightweight encoding
       assume (\chor (\endpoint p1; p1.gameFinished()) == (\endpoint p2; p2.gameFinished()));
     }
+    inhale false;
     assume (\chor (\endpoint p1; p1.gameFinished()) == (\endpoint p2; p2.gameFinished()));
   }
 }

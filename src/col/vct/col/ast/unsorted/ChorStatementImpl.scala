@@ -42,6 +42,11 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
       case exhale: Exhale[G] => Seq(exhale.res)
     }).flatMap(unfoldStar)
 
+  // All explicitly mentioned endpoints in the relevant expressions.
+  // Note that this is an underapproximation of the actual participating endpoints,
+  // in the case of unpointed expressions, meaning expressions in e.g. a branch without \endpoint.
+  // These expressions are simply checked by _all_ participating endpoints, plus any
+  // explicitly mentioned endpoints.
   def explicitEndpoints: Seq[Endpoint[G]] =
     exprs.collect { case EndpointExpr(Ref(endpoint), _) => endpoint }
 

@@ -79,10 +79,10 @@ object Transformation extends LazyLogging {
       (
           passes,
           currentEvent,
-          currentKey,
+          passIndex,
           program: Verification[_ <: Generation],
       ) => {
-        if (key == currentKey && event == currentEvent) {
+        if (key == passes(passIndex).key && event == currentEvent) {
           out.write { writer => program.write(writer)(Ctx().namesIn(program)) }
         }
       }
@@ -93,9 +93,10 @@ object Transformation extends LazyLogging {
       stageKey: String,
   ): PassEventHandler = {
     Files.createDirectories(out)
-    (passes, event, pass, program) => {
+    (passes, event, passIndex, program) => {
+      val pass = passes(passIndex).key
       val i =
-        passes.map(_.key).indexOf(pass) * 2 +
+        passIndex * 2 +
           (if (event == before)
              0
            else
@@ -177,7 +178,7 @@ object Transformation extends LazyLogging {
     (
         Seq[RewriterBuilder],
         TransformationEvent,
-        String,
+        Int,
         Verification[_ <: Generation],
     ) => Unit
 }
@@ -222,9 +223,12 @@ class Transformation(
     TimeTravel.safelyRepeatable {
       var result: Verification[_ <: Generation] = input
 
-      Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
+      Progress.foreach[(Int, RewriterBuilder)](
+        passes.indices.zip(passes),
+        { case (_, pass) => pass.key },
+      ) { case (passIndex, pass) =>
         onPassEvent.foreach { action =>
-          action(passes, Transformation.before, pass.key, result)
+          action(passes, Transformation.before, passIndex, result)
         }
 
         result =
@@ -236,7 +240,7 @@ class Transformation(
           }
 
         onPassEvent.foreach { action =>
-          action(passes, Transformation.after, pass.key, result)
+          action(passes, Transformation.after, passIndex, result)
         }
 
         result.tasks.map(_.program)
@@ -342,6 +346,10 @@ case class SilverTransformation(
 
         // VeyMont choreography encoding
         // Explicitly after InlineApplicables such that VeyMont doesn't care about inline predicates
+        // (Even though this makes inferring endpoint ownership annotations less complete)
+        // Also, VeyMont requires branches to be nested, instead of flat, because the false branch
+        // may refine the set of participating endpoints
+        BranchToIfElse,
         GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
         InferEndpointContexts,
         PushInChor.withArg(veymontGeneratePermissions),
