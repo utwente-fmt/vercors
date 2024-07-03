@@ -48,7 +48,7 @@ case class PushInChor[Pre <: Generation](veymontGeneratePermissions: Boolean)
     }
 
   def containsFunctionInvocation(expr: Expr[Pre]): Boolean =
-    expr.transSubnodes.exists {
+    expr.exists {
       case inv: AnyFunctionInvocation[Pre] => true
       case _ => false
     }
