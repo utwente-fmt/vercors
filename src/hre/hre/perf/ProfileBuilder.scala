@@ -11,10 +11,13 @@ class ProfileBuilder {
   def str(s: String): Long =
     stringIndex.getOrElseUpdate(
       s, {
-        stringTable += s
+        stringTable += sanitize(s)
         stringIndex.size
       },
     )
+
+  def sanitize(s: String): String =
+    s.replace("\n", " ").replace("\"", "").replace("'", "").take(1_000)
 
   def finishStringTable(): Seq[String] = stringTable.toIndexedSeq
 

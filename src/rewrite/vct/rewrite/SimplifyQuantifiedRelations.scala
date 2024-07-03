@@ -29,9 +29,8 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]()
   private def one: IntegerValue[Pre] = IntegerValue(1)
 
   def indepOf[G](bindings: Seq[Variable[G]], e: Expr[G]): Boolean =
-    e.transSubnodes.collectFirst {
-      case Local(ref) if bindings.contains(ref.decl) => ()
-    }.isEmpty
+    e.collectFirst { case Local(ref) if bindings.contains(ref.decl) => () }
+      .isEmpty
 
   case class ExtremeValue(
       bindings: Seq[Variable[Pre]],

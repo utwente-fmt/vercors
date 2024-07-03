@@ -12,7 +12,7 @@ case class ImportViperOrder[Pre <: Generation](importer: ImportADTImporter)
     program.rewrite(declarations =
       globalDeclarations.collect {
         if (
-          program.transSubnodes.collectFirst {
+          program.collectFirst {
             case contract: ApplicableContract[Pre]
                 if contract.decreases.nonEmpty =>
               ()

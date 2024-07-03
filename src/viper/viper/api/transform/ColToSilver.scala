@@ -238,7 +238,7 @@ case class ColToSilver(program: col.Program[_]) {
             !procedure.pure && procedure.typeArgs.isEmpty =>
         scoped {
           val labelDecls = procedure.body.toSeq
-            .flatMap(_.transSubnodes.collect { case l: col.LabelDecl[_] =>
+            .flatMap(_.collect { case l: col.LabelDecl[_] =>
               silver.Label(name(l, _.usnake), Seq())(
                 pos = pos(l),
                 info = NodeInfo(l),

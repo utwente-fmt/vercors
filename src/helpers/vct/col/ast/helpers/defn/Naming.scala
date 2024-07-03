@@ -111,4 +111,6 @@ object Naming {
     Type.Name(node.base + "FamilyDeclare")
   def declareType(node: structure.Name) =
     t"${packageFromRoot(DeclarePackage)}.${declareTrait(node)}"
+  def succProviderName(name: structure.Name) =
+    Term.Name(scopes(name.base) + "SuccProvider")
 }
