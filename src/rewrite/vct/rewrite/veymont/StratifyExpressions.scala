@@ -15,9 +15,6 @@ import vct.rewrite.veymont.StratifyExpressions.{
   SeqProgParticipantErrors,
 }
 
-import scala.collection.immutable.ListSet
-import scala.collection.mutable
-
 object StratifyExpressions extends RewriterBuilder {
   override def key: String = "stratifyExpressions"
   override def desc: String =
@@ -96,10 +93,19 @@ case class StratifyExpressions[Pre <: Generation]()
           body = dispatch(l.body),
         ) /*(loop.blame)*/ (l.o)
 
-      case InChor(_, branch: Branch[Pre]) =>
-        assert(branch.branches.nonEmpty)
+      case InChor(_, branch @ Branch(Seq((cond, yes)))) =>
         logger.warn("TODO: Branch blame")
-        unfoldBranch(branch.branches)(null, branch.o)
+        branch.rewrite(Seq((stratifyExpr(cond), dispatch(yes))))
+
+      case InChor(
+            _,
+            branch @ Branch(Seq((cond, yes), (BooleanValue(true), no))),
+          ) =>
+        logger.warn("TODO: Branch blame")
+        branch
+          .rewrite(Seq((stratifyExpr(cond), dispatch(yes)), (tt, dispatch(no))))
+
+      case InChor(_, Branch(_)) => ???
 
       case assert: Assert[Pre] =>
         assert.rewrite(res = stratifyExpr(assert.expr))
@@ -111,21 +117,6 @@ case class StratifyExpressions[Pre <: Generation]()
         assume.rewrite(assn = stratifyExpr(assume.expr))
 
       case statement => statement.rewriteDefault()
-    }
-
-  // TODO (RR): For branch, make sure blame is put on ChorStatement wrapper of Branch. Probably too for loop
-
-  def unfoldBranch(
-      branches: Seq[(Expr[Pre], Statement[Pre])]
-  )(implicit blame: Blame[SeqBranchFailure], o: Origin): Branch[Post] =
-    branches match {
-      case Seq((e, s)) => Branch(Seq((stratifyExpr(e), dispatch(s))))
-      case (e, s) +: (otherYes +: branches) =>
-        Branch(Seq(
-          (stratifyExpr(e), dispatch(s)),
-          (tt, unfoldBranch(otherYes +: branches)),
-        )) /* (blame) */
-      case _ => ???
     }
 
   def stratifyExpr(e: Expr[Pre]): Expr[Post] = {
