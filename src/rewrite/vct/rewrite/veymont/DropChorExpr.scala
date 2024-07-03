@@ -1,15 +1,9 @@
 package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.check.SeqProgParticipant
-import vct.col.origin.{Blame, Origin, SeqBranchFailure}
-import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationError.UserError
 
 object DropChorExpr extends RewriterBuilder {
   override def key: String = "dropChorExpr"

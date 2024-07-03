@@ -1,14 +1,9 @@
 package vct.rewrite.veymont
 
-import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.StratifyExpressions.MultipleEndpoints
 
 import scala.collection.mutable
 

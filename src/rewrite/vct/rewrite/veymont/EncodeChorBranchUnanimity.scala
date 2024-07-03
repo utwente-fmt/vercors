@@ -1,7 +1,6 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin.{
   AssertFailed,

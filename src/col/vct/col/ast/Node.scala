@@ -3685,21 +3685,6 @@ final case class Receiver[G](ref: Ref[G, Communicate[G]])(
 final case class Message[G](ref: Ref[G, Communicate[G]])(implicit val o: Origin)
     extends Expr[G] with MessageImpl[G]
 
-final case class UnresolvedChorBranch[G](
-    branches: Seq[(Expr[G], Statement[G])]
-)(val blame: Blame[SeqBranchFailure])(implicit val o: Origin)
-    extends Statement[G]
-    with ControlContainerStatement[G]
-    with UnresolvedChorBranchImpl[G]
-final case class UnresolvedChorLoop[G](
-    cond: Expr[G],
-    contract: LoopContract[G],
-    body: Statement[G],
-)(val blame: Blame[SeqLoopFailure])(implicit val o: Origin)
-    extends Statement[G]
-    with ControlContainerStatement[G]
-    with UnresolvedChorLoopImpl[G]
-
 final case class ChorStatement[G](inner: Statement[G])(implicit val o: Origin)
     extends Statement[G] with ChorStatementImpl[G]
 final case class EndpointStatement[G](

@@ -284,6 +284,13 @@ class Transformation(
   *   just after quantified integer relations are simplified.
   * @param checkSat
   *   Check that non-trivial contracts are satisfiable.
+  * @param splitVerificationByProcedure
+  *   Splits verification into one task per procedure body.
+  * @param veymontGeneratePermissions
+  *   Generates permissions such that each callable requires full permissions
+  *   its arguments and any transitively reachable locations.
+  * @param veymontBranchUnanimity
+  *   Indicates whether branch unanimity should be checked.
   */
 case class SilverTransformation(
     adtImporter: ImportADTImporter = PathAdtImporter(

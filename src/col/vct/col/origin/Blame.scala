@@ -509,10 +509,9 @@ case class EndpointContextEverywhereFailedInPre(
 }
 
 sealed trait FrontendIfFailure extends VerificationFailure
-sealed trait SeqBranchFailure extends FrontendIfFailure
 
 case class BranchUnanimityFailed(guard1: Node[_], guard2: Node[_])
-    extends SeqBranchFailure {
+    extends FrontendIfFailure with ChorStatementFailure {
   override def code: String = "branchNotUnanimous"
 
   override def desc: String =
@@ -530,10 +529,9 @@ case class BranchUnanimityFailed(guard1: Node[_], guard2: Node[_])
 }
 
 sealed trait FrontEndLoopFailure extends VerificationFailure
-sealed trait SeqLoopFailure extends FrontEndLoopFailure
 
 case class LoopUnanimityNotEstablished(guard1: Node[_], guard2: Node[_])
-    extends SeqLoopFailure {
+    extends FrontEndLoopFailure with ChorStatementFailure {
   override def code: String = "loopUnanimityNotEstablished"
 
   override def desc: String =
@@ -551,7 +549,7 @@ case class LoopUnanimityNotEstablished(guard1: Node[_], guard2: Node[_])
 }
 
 case class LoopUnanimityNotMaintained(guard1: Node[_], guard2: Node[_])
-    extends SeqLoopFailure {
+    extends FrontEndLoopFailure with ChorStatementFailure {
   override def code: String = "loopUnanimityNotMaintained"
 
   override def desc: String =

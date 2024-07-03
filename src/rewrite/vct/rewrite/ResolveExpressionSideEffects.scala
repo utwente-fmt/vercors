@@ -464,8 +464,6 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
         case comm: CommunicateStatement[Pre] => rewriteDefault(comm)
         case _: PVLBranch[Pre] => throw ExtraNode
         case _: PVLLoop[Pre] => throw ExtraNode
-        case _: UnresolvedChorBranch[Pre] => throw ExtraNode
-        case _: UnresolvedChorLoop[Pre] => throw ExtraNode
         case _: CStatement[Pre] => throw ExtraNode
         case _: CPPStatement[Pre] => throw ExtraNode
         case _: JavaStatement[Pre] => throw ExtraNode

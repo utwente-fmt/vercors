@@ -1,10 +1,28 @@
 package vct.test.integration.examples
 
-import hre.io.LiteralReadable
-import vct.main.modes.Verify
-import vct.options.Options
-import vct.options.types.Verbosity
 import vct.test.integration.helper.VercorsSpec
+
+class TechnicalVeyMontSpec2
+    extends VercorsSpec {
+      (vercors should verify using silicon flag
+    "--veymont-generate-permissions" in "branch unanimity for if" pvl """
+       class Storage {
+          int x;
+       }
+       choreography Example() {
+          endpoint alice = Storage();
+          endpoint bob = Storage();
+
+          run {
+            alice.x := 0;
+            bob.x := 1;
+            if (alice.x == 0 && bob.x == 0) {
+              communicate alice.x -> bob.x;
+            }
+          }
+       }
+    """)
+}
 
 class TechnicalVeyMontSpec
     extends VercorsSpec {

@@ -2299,16 +2299,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case c: EndpointStatement[Pre] => c
       case c: CommunicateStatement[Pre] => c
       case ChorStatement(inner) => ChorStatement(inner)
-      case branch @ UnresolvedChorBranch(branches) =>
-        UnresolvedChorBranch(branches.map { case (cond, effect) =>
-          (bool(cond), effect)
-        })(branch.blame)
       case branch @ PVLBranch(branches) =>
         PVLBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(
           branch.blame
         )
-      case loop @ UnresolvedChorLoop(cond, contract, body) =>
-        UnresolvedChorLoop(bool(cond), contract, body)(loop.blame)
       case loop @ PVLLoop(init, cond, update, contract, body) =>
         PVLLoop(init, bool(cond), update, contract, body)(loop.blame)
     }

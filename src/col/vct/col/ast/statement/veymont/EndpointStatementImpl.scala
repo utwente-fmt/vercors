@@ -19,8 +19,6 @@ import vct.col.ast.{
   MethodInvocation,
   Scope,
   ThisChoreography,
-  UnresolvedChorBranch,
-  UnresolvedChorLoop,
   VeyMontAssignExpression,
 }
 import vct.col.ast.ops.EndpointStatementOps
@@ -143,7 +141,6 @@ trait EndpointStatementImpl[G]
         case _: CommunicateX[G] | _: CommunicateStatement[G] |
             _: VeyMontAssignExpression[G] | _: Branch[G] | _: Loop[G] |
             _: Scope[G] | _: Block[G] | _: Assert[G] | _: Assume[G] |
-            _: UnresolvedChorBranch[G] | _: UnresolvedChorLoop[G] |
             _: EndpointStatement[G] =>
           Seq()
         case _ => Seq(ChorStatement(this))
