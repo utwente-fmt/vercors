@@ -14,7 +14,7 @@ trait BranchImpl[G] extends BranchOps[G] {
         Group(Text("if (") <> Doc.arg(cond) <> ")") <+> body.layoutAsBlock
     })(_ <+> "else" <+> _)
 
-  def isBinary: Boolean = branches.length == 2
+  def isBinary: Boolean = 1 <= branches.length && branches.length <= 2
 
   def cond: Expr[G] = {
     require(isBinary)

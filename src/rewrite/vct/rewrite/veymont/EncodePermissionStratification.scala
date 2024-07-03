@@ -437,7 +437,14 @@ case class EncodePermissionStratification[Pre <: Generation](
           val ref = wrapperPredicate(endpoint, obj.t, field)
           PredicateApply[Post](
             ref,
-            Seq(EndpointName(newEndpoint), dispatch(obj)),
+            Seq(
+              EndpointName(newEndpoint),
+              currentEndpoint.having(endpoint) {
+                specializing.having(EndpointName[Post](succ(endpoint))) {
+                  dispatch(obj)
+                }
+              },
+            ),
             WritePerm(),
           )
         }

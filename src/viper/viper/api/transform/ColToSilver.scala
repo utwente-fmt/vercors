@@ -793,6 +793,12 @@ case class ColToSilver(program: col.Program[_]) {
         val silverLocals = locals.map(variable)
         silver
           .Seqn(Seq(stat(body)), silverLocals)(pos = pos(s), info = NodeInfo(s))
+      case col.Branch(Seq((cond, whenTrue))) =>
+        silver.If(
+          exp(cond),
+          block(whenTrue),
+          silver.Seqn(Nil, Nil)(pos = pos(s), info = NodeInfo(s)),
+        )(pos = pos(s), info = NodeInfo(s))
       case col.Branch(
             Seq((cond, whenTrue), (col.BooleanValue(true), whenFalse))
           ) =>
