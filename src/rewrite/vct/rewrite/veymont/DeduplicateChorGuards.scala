@@ -39,15 +39,17 @@ case class DeduplicateChorGuards[Pre <: Generation]()
     implicit val o = expr.o
     val m: mutable.LinkedHashMap[Endpoint[Pre], Seq[Expr[Pre]]] = mutable
       .LinkedHashMap()
-    ???
-    // TODO: Optimize this for cases where it doesn't overlap so the origin thing doesn't even matter
     unfoldStar(expr).foreach {
       case EndpointExpr(Ref(endpoint), expr) =>
-        m.updateWith(endpoint)(exprs => Some(exprs.getOrElse(Seq()) :+ expr))
-      case _ => assert(false)
+        m.updateWith(endpoint)(exprs => Some(exprs.toSeq.flatten :+ expr))
+      case _ =>
     }
-    foldAnd(m.iterator.map { case (endpoint, parts) =>
-      EndpointExpr[Post](succ(endpoint), foldAnd(parts.map(dispatch)))
+    foldAnd(m.iterator.map {
+      case (endpoint, parts) if parts.size > 1 =>
+        // It's unclear how to properly combine the origins of the expressions here
+        EndpointExpr[Post](succ(endpoint), foldAnd(parts.map(dispatch)))
+      case (endpoint, parts) if parts.size == 1 =>
+        EndpointExpr[Post](succ(endpoint), dispatch(parts.head))(parts.head.o)
     }.toSeq)
   }
 }

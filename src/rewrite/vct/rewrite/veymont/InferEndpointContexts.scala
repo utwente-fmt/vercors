@@ -172,11 +172,6 @@ case class InferEndpointContexts[Pre <: Generation]()
       case s @ EndpointStatement(None, assign: Assign[Pre]) =>
         val endpoint: Endpoint[Pre] = getEndpoint(assign.target)
         s.rewrite(endpoint = Some(succ(endpoint)))
-      case s @ EndpointStatement(None, assert: Assert[Pre]) =>
-        // TODO: Turn back on? Probably we should just extend the projection to assert, inhale, exhale, etc.
-//        val endpoint: Endpoint[Pre] = getEndpoint(assert.expr)
-//        s.rewrite(endpoint = Some(succ(endpoint)))
-        assert.rewriteDefault()
       case s @ EndpointStatement(None, Eval(invoke: MethodInvocation[Pre])) =>
         val endpoint: Endpoint[Pre] = getEndpoint(invoke.obj)
         s.rewrite(endpoint = Some(succ(endpoint)))

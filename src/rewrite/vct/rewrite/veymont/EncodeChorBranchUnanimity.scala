@@ -9,29 +9,19 @@ import vct.col.origin.{
   LoopUnanimityNotEstablished,
   LoopUnanimityNotMaintained,
   Origin,
-  PanicBlame,
 }
-import vct.col.rewrite.{
-  Generation,
-  Rewriter,
-  RewriterBuilder,
-  RewriterBuilderArg,
-}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
-import vct.col.util.SuccessionMap
-import vct.result.VerificationError.UserError
 import vct.rewrite.veymont.EncodeChorBranchUnanimity.{
   ForwardBranchUnanimity,
   ForwardLoopUnanimityNotEstablished,
   ForwardLoopUnanimityNotMaintained,
 }
 
-import scala.collection.mutable
-
 object EncodeChorBranchUnanimity extends RewriterBuilderArg[Boolean] {
-  override def key: String = "encodeSeqBranchUnanimity"
+  override def key: String = "encodeChorBranchUnanimity"
   override def desc: String =
-    "Encodes the branch unanimity requirement imposed by VeyMont on branches and loops in seq_program nodes."
+    "Encodes the branch unanimity requirement imposed by VeyMont on branches and loops in choreographies."
 
   case class ForwardBranchUnanimity(
       chor: ChorStatement[_],

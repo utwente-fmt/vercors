@@ -189,7 +189,7 @@ case class LangVeyMontToCol[Pre <: Generation](
         ChorStatement(currentStatement.having(stmt) { rw.dispatch(stmt) })(
           ForwardLoopUnanimityFailed(loop)
         )(stmt.o)
-      case _: Assert[Pre] | _: Assign[Pre] | _: Eval[Pre] =>
+      case _: Assign[Pre] | _: Eval[Pre] =>
         EndpointStatement(
           None,
           currentStatement.having(stmt) { rw.dispatch(stmt) },
