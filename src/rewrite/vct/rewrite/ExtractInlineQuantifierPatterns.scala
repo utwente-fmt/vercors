@@ -73,13 +73,8 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
         case Local(Ref(v)) if pattern.letBindingsHere.contains(v) =>
           dispatch(pattern.letBindingsHere(v))
 
-        case p @ PredicateApply(ref, args, perm) =>
-          val newPerm = inScale.having(()) { dispatch(perm) }
-          PredicateApply(
-            succ[Predicate[Post]](ref.decl),
-            args.map(dispatch),
-            newPerm,
-          )(e.o)
+        case p @ PredicateApplyExpr(apply: PredicateApply[Pre]) =>
+          PredicateApplyExpr(dispatch(apply))(p.o)
 
         case e => rewriteDefault(e)
       }

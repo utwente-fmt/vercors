@@ -27,6 +27,9 @@ case class ReadToValue[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
       case Perm(loc, ReadPerm()) => Value(dispatch(loc))(expr.o)
+      case Scale(ReadPerm(), PredicateApplyExpr(inv)) =>
+        // Temporary solution: there should be a proper notion of scaling by read instead.
+        Value(PredicateLocation(dispatch(inv))(inv.o))(expr.o)
       case read @ ReadPerm() => throw WildcardError(read)
       case default => rewriteDefault(default)
     }

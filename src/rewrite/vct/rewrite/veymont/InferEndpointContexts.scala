@@ -3,8 +3,6 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
-  ReadPerm,
-  Value,
   AbstractRewriter,
   AmbiguousLocation,
   ApplicableContract,
@@ -15,7 +13,6 @@ import vct.col.ast.{
   Branch,
   ChorPerm,
   ChorRun,
-  EndpointStatement,
   Choreography,
   Class,
   ClassDeclaration,
@@ -27,6 +24,7 @@ import vct.col.ast.{
   Deref,
   Endpoint,
   EndpointName,
+  EndpointStatement,
   Eval,
   Expr,
   FieldLocation,
@@ -51,8 +49,10 @@ import vct.col.ast.{
   Node,
   Null,
   Perm,
+  PredicateLocation,
   Procedure,
   Program,
+  ReadPerm,
   RunMethod,
   Scope,
   Statement,
@@ -63,6 +63,7 @@ import vct.col.ast.{
   ThisObject,
   Type,
   UnitAccountedPredicate,
+  Value,
   Variable,
   VeyMontAssignExpression,
 }
@@ -182,6 +183,7 @@ case class InferEndpointContexts[Pre <: Generation]()
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
+      case p @ Perm(_: PredicateLocation[Pre], _) => p.rewriteDefault()
       case p @ Perm(loc, perm) if inChor.topOption.contains(true) =>
         ChorPerm[Post](succ(getEndpoint(loc)), dispatch(loc), dispatch(perm))(
           p.o

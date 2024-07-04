@@ -14,13 +14,9 @@ import viper.api.transform.SilverToCol.{
 import viper.silver.ast.{
   AbstractSourcePosition,
   FilePosition,
-  HasIdentifier,
-  HasLineColumn,
-  IdentifierPosition,
   LineColumnPosition,
   NoPosition,
   SourcePosition,
-  TranslatedPosition,
   VirtualPosition,
 }
 import viper.silver.plugin.standard.termination.{
@@ -310,8 +306,14 @@ case class SilverToCol[G](
       case silver.Inhale(exp) => col.Inhale(transform(exp))(origin(s))
       case silver.Assert(exp) => col.Assert(transform(exp))(blame(s))(origin(s))
       case silver.Assume(exp) => col.Assume(transform(exp))(origin(s))
-      case silver.Fold(acc) => col.Fold(transform(acc))(blame(s))(origin(s))
-      case silver.Unfold(acc) => col.Unfold(transform(acc))(blame(s))(origin(s))
+      case silver.Fold(acc) =>
+        col.Fold(col.AmbiguousFoldTarget(transform(acc))(origin(acc)))(blame(
+          s
+        ))(origin(s))
+      case silver.Unfold(acc) =>
+        col.Unfold(col.AmbiguousFoldTarget(transform(acc))(origin(acc)))(blame(
+          s
+        ))(origin(s))
       case silver.Seqn(ss, scopedDecls) =>
         val vars = scopedDecls.flatMap {
           case decl @ silver.LocalVarDecl(_, typ) =>
@@ -526,20 +528,19 @@ case class SilverToCol[G](
       case silver.PermMul(left, right) => col.Mult(f(left), f(right))
       case silver.PermSub(left, right) => col.Minus(f(left), f(right))
       case silver.PredicateAccess(args, predicateName) =>
-        col.PredicateApply(
-          new UnresolvedRef(predicateName),
-          args.map(f),
-          col.WritePerm(),
+        col.PredicateApplyExpr(
+          col.PredicateApply(new UnresolvedRef(predicateName), args.map(f))
         )
       case silver.PredicateAccessPredicate(
             silver.PredicateAccess(args, predicateName),
             perm,
           ) =>
-        col.PredicateApply(
-          new UnresolvedRef(predicateName),
-          args.map(f),
+        col.Scale[G](
           f(perm),
-        )
+          col.PredicateApplyExpr(
+            col.PredicateApply(new UnresolvedRef(predicateName), args.map(f))
+          ),
+        )(blame(e))
       case silver.RangeSeq(low, high) => col.Range(f(low), f(high))
       case silver.Result(typ) => col.AmbiguousResult()
       case silver.SeqAppend(left, right) => col.Concat(f(left), f(right))
@@ -553,7 +554,7 @@ case class SilverToCol[G](
       case silver.Sub(left, right) => col.Minus(f(left), f(right))
       case silver.TrueLit() => col.BooleanValue(true)
       case silver.Unfolding(acc, body) =>
-        col.Unfolding(f(acc), f(body))(blame(e))
+        col.Unfolding(col.AmbiguousFoldTarget(f(acc)), f(body))(blame(e))
       case silver.WildcardPerm() => col.ReadPerm()
 
       case silver.ForPerm(variables, resource, body) => ??(e)

@@ -119,7 +119,7 @@ case object Utils {
     */
   def contains_global_invariant[G](node: Node[G]): Boolean =
     node match {
-      case InstancePredicateApply(_, ref, _, _) =>
+      case InstancePredicateApply(_, ref, _) =>
         if (ref.decl.o.getPreferredName.get.snake.equals("global_invariant"))
           true
         else

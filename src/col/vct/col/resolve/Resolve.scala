@@ -866,7 +866,7 @@ case object ResolveReferences extends LazyLogging {
         )
         Spec.resolveGiven(givenMap, RefFunction(ref.decl), inv)
         Spec.resolveYields(ctx, yields, RefFunction(ref.decl), inv)
-      case inv @ PredicateApply(ref, _, _) =>
+      case inv @ PredicateApply(ref, _) =>
         ref.tryResolve(name =>
           Spec.findPredicate(name, ctx)
             .getOrElse(throw NoSuchNameError("predicate", name, inv))
@@ -895,12 +895,12 @@ case object ResolveReferences extends LazyLogging {
           Spec.findInstanceFunction(obj, name)
             .getOrElse(throw NoSuchNameError("function", name, inv))
         )
-      case inv @ InstancePredicateApply(obj, ref, _, _) =>
+      case inv @ InstancePredicateApply(obj, ref, _) =>
         ref.tryResolve(name =>
           Spec.findInstancePredicate(obj, name)
             .getOrElse(throw NoSuchNameError("predicate", name, inv))
         )
-      case inv @ CoalesceInstancePredicateApply(obj, ref, _, _) =>
+      case inv @ CoalesceInstancePredicateApply(obj, ref, _) =>
         ref.tryResolve(name =>
           Spec.findInstancePredicate(obj, name)
             .getOrElse(throw NoSuchNameError("predicate", name, inv))
