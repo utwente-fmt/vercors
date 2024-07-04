@@ -458,6 +458,12 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               Some(function),
             )
         }
+      case p @ Perm(PredicateLocation(inv: InstancePredicateApply[Pre]), _) =>
+        implicit val o: Origin = e.o
+        Star[Post](dispatch(inv.obj) !== Null(), p.rewrite())
+      case v @ Value(PredicateLocation(inv: InstancePredicateApply[Pre])) =>
+        implicit val o: Origin = e.o
+        Star[Post](dispatch(inv.obj) !== Null(), v.rewrite())
       case _ => rewriteDefault(e)
     }
 
