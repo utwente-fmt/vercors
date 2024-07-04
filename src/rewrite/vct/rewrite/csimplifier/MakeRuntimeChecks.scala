@@ -6,6 +6,8 @@ import vct.col.origin.{Origin, PanicBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers.{VarBuildHelpers, assignLocal, tt}
 
+import scala.collection.mutable
+
 case object MakeRuntimeChecks extends RewriterBuilder {
   override def key: String = "makeRuntimeChecks"
 
@@ -18,8 +20,15 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
   private var verifierAssume: Procedure[Post] = null
   private var nondetInt: Procedure[Post] = null
 
-  val currentMethod: ScopedStack[Procedure[Pre]] = new ScopedStack()
-  val returnVar: ScopedStack[Variable[Post]] = new ScopedStack()
+  private val currentMethod: ScopedStack[Procedure[Pre]] = new ScopedStack()
+  private val returnVar: ScopedStack[Variable[Post]] = new ScopedStack()
+  // currently active mapping of global vars to local vars (used inside \old)
+  private val globalVars: ScopedStack[Map[HeapVariable[Pre], Variable[Post]]] =
+    new ScopedStack()
+  // mapping of global vars to local vars storing cached value (for \old)
+  private val olds
+      : ScopedStack[mutable.Map[HeapVariable[Pre], Variable[Post]]] =
+    new ScopedStack()
 
   /** add CPAchecker-specific methods to program */
   override def dispatch(program: Program[Pre]): Program[Post] = {
@@ -63,48 +72,121 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
-  /** turn preconditions into assumptions (and postconditions into assertions if
-    * void method)
-    */
-  def dispatchMethod(meth: Procedure[Pre]): Procedure[Post] = {
-    currentMethod
-      .having(meth) { // remember current method, so that dispatchStatement can reference it
-
-        // assume precondition
-        val pres = gatherConditions(meth.contract.requires).flatMap(assume)
-
-        // if non-void, then return statements check postcondition. if void, do it at end of method
-        val posts =
-          if (meth.returnType == TVoid[Pre]())
-            gatherConditions(meth.contract.ensures).flatMap(assert)
-          else
-            Seq()
-
-        // rewrite method with new body
-        val body = meth.body.map {
-          case b: Block[Pre] =>
-            b.rewrite(statements = pres ++ b.statements.map(dispatch) ++ posts)
-          case stmt => Block[Post](pres ++ Seq(dispatch(stmt)) ++ posts)(meth.o)
-        }
-        meth.rewrite(body = body, contract = emptyContract()(meth.o))
-      }
-  }
-
   /** rewrite expressions for runtime checking, e.g. replacing "\result" with
     * reference to return value
     */
   override def dispatch(node: Expr[Pre]): Expr[Post] = {
     node match {
       case r: Result[Pre] => returnVar.top.get(r.o)
+      case o: Old[Pre] => globalVars.having(olds.top.toMap) { dispatch(o.expr) }
+      case h: DerefHeapVariable[Pre] =>
+        if (globalVars.isEmpty) { super.dispatch(h) }
+        else { globalVars.top(h.ref.decl).get(h.o) }
       case _ => super.dispatch(node)
     }
+  }
+
+  /** turn preconditions into assumptions (and postconditions into assertions if
+    * void method)
+    */
+  private def dispatchMethod(meth: Procedure[Pre]): Procedure[Post] = {
+    currentMethod
+      .having(meth) { // remember current method, so that dispatchStatement can reference it
+        // cache old values for all heap locations referenced in "\old"
+        // todo: labeled old?
+        var oldExprs = meth.contract.ensures.collect {
+          case o: Old[Pre] if o.at.isEmpty => o.expr
+        }
+        if (meth.body.nonEmpty) {
+          oldExprs =
+            oldExprs ++ meth.body.get.collect {
+              case o: Old[Pre] if o.at.isEmpty => o.expr
+            }
+        }
+        val derefs = oldExprs
+          .flatMap(e => e.collect { case r: DerefHeapVariable[Pre] => r })
+        olds.having(mutable.Map()) {
+          for (r <- derefs) {
+            if (!olds.top.contains(r.ref.decl)) {
+              val newOrigin = r.o.sourceName(
+                "__old_" + r.ref.decl.o.getPreferredNameOrElse().camel
+              )
+              val old = new Variable(dispatch(r.ref.decl.t))(newOrigin)
+              olds.top.addOne(r.ref.decl, old)
+            }
+          }
+          val cached = olds.top.map { case (r, old) =>
+            implicit val o: Origin = r.o
+            assignLocal(
+              old.get,
+              new DerefHeapVariable[Post](succ(r.ref.decl))(PanicBlame(
+                "caching old failed"
+              )),
+            )
+          }
+
+          // assume precondition
+          val pres = gatherConditions(meth.contract.requires).flatMap(assume)
+
+          // if non-void, then return statements check postcondition. if void, do it at end of method
+          val posts =
+            if (meth.returnType == TVoid[Pre]())
+              gatherConditions(meth.contract.ensures).flatMap(assert)
+            else
+              Seq()
+
+          // rewrite method with new body
+          val body = meth.body.map {
+            case b: Block[Pre] =>
+              val newScope =
+                Scope[Post](
+                  olds.top.values.toSeq,
+                  Block[Post](
+                    cached.toSeq ++ b.statements.map(dispatch) ++ posts
+                  )(b.o),
+                )(b.o)
+              b.rewrite(statements = pres ++ Seq(newScope))
+            case stmt =>
+              val newScope =
+                Scope[Post](
+                  olds.top.values.toSeq,
+                  Block[Post](cached.toSeq ++ Seq(dispatch(stmt)) ++ posts)(
+                    meth.o
+                  ),
+                )(meth.o)
+              Block[Post](pres ++ Seq(newScope))(meth.o)
+          }
+          meth.rewrite(body = body, contract = emptyContract()(meth.o))
+        }
+      }
+  }
+
+  /** turn "return expr;" into "<rtype> result = expr; assert <postconditions>;
+    * return result;"
+    */
+  private def rewriteReturn(r: Return[Pre]): Statement[Post] = {
+    val meth = currentMethod.top
+    val retV =
+      new Variable(dispatch(meth.returnType))(
+        meth.o.sourceName("__verifier_result")
+      )
+    returnVar
+      .having(retV) { // remember ref to result variable so that dispatchExpr can reference it
+        val posts = gatherConditions(meth.contract.ensures).flatMap(assert)
+        if (posts.nonEmpty) {
+          val d = LocalDecl(retV)(retV.o)
+          val asgn = assignLocal(retV.get(r.o), dispatch(r.result))(r.o)
+          val ret = Return(retV.get(r.o))(r.o)
+          Block[Post](Seq(d, asgn) ++ posts ++ Seq(ret))(r.o)
+        } else { super.dispatch(r) }
+      }
   }
 
   /** remove subexpressions that CPAchecker cannot handle, e.g. quantifiers and
     * permissions. Todo: Only looking at top level, not checking for e.g.
     * quantifiers inside equalities
     */
-  def dispatchExpr(node: Expr[Pre]): Option[Expr[Post]] = {
+  private def dispatchExpr(node: Expr[Pre]): Option[Expr[Post]] = {
     node match {
       case _: Binder[Pre] => None // quantifiers
       case _: Perm[Pre] => None
@@ -250,27 +332,6 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
       case split: SplitAccountedPredicate[Pre] =>
         gatherConditions(split.left) ++ gatherConditions(split.right)
     }
-  }
-
-  /** turn "return expr;" into "<rtype> result = expr; assert <postconditions>;
-    * return result;"
-    */
-  private def rewriteReturn(r: Return[Pre]): Statement[Post] = {
-    val meth = currentMethod.top
-    val retV =
-      new Variable(dispatch(meth.returnType))(
-        meth.o.sourceName("__verifier_result")
-      )
-    returnVar
-      .having(retV) { // remember ref to result variable so that dispatchExpr can reference it
-        val posts = gatherConditions(meth.contract.ensures).flatMap(assert)
-        if (posts.nonEmpty) {
-          val d = LocalDecl(retV)(retV.o)
-          val asgn = assignLocal(retV.get(r.o), dispatch(r.result))(r.o)
-          val ret = Return(retV.get(r.o))(r.o)
-          Block[Post](Seq(d, asgn) ++ posts ++ Seq(ret))(r.o)
-        } else { super.dispatch(r) }
-      }
   }
 
 }
