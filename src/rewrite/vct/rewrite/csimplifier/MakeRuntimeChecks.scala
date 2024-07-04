@@ -74,6 +74,7 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
         assert(a.res).getOrElse(Assert[Post](tt)(a.blame)(a.o))
       case a: Assume[Pre] => assume(a.expr).getOrElse(Assume[Post](tt)(a.o))
       case r: Return[Pre] => rewriteReturn(r)
+      case l: Loop[Pre] => rewriteLoop(l)
       case _ => super.dispatch(stat)
     }
   }
@@ -140,14 +141,11 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
             val pres = gatherConditions(meth.contract.requires).flatMap(assert)
 
             // havoc global assignment targets
-            val targets =
+            val havocced =
               meth.body match {
-                case Some(b) =>
-                  gatherGlobalAssigns(b) ++ gatherInvocations(b)
-                    .flatMap(gatherGlobalAssigns)
+                case Some(b) => havocGlobals(b)
                 case None => Seq()
               }
-            val havocced = havoc(targets)
 
             // assume postcondition
             implicit val o: Origin = meth.o
@@ -178,7 +176,6 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
             // declare new procedure with the simplified body
             val newProc = meth
               .rewrite(body = Some(newBody), contract = emptyContract())
-            //          simplifiedProcedures.addOne(meth, newProc)
             newProc
           } else { // i.e. not simplifying
             // assume precondition
@@ -237,6 +234,25 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
           Block[Post](Seq(d, asgn) ++ posts ++ Seq(ret))(r.o)
         } else { super.dispatch(r) }
       }
+  }
+
+  /** replace loop with its invariant, i.e. "assert inv; havoc
+    * assignedVariables; assume inv;"
+    */
+  private def rewriteLoop(loop: Loop[Pre]): Statement[Post] = {
+    loop.contract match {
+      case inv: LoopInvariant[Pre] =>
+        val havoccedLocals = havoc(
+          gatherAssigns(loop.body) ++ gatherAssigns(loop.update)
+        )
+        val havoccedGlobals =
+          havocGlobals(loop.body) ++ havocGlobals(loop.update)
+        Block[Post](
+          Seq(dispatch(loop.init)) ++ assert(inv.invariant).toSeq ++
+            havoccedLocals ++ havoccedGlobals ++ assume(inv.invariant).toSeq
+        )(loop.o)
+      case _ => super.dispatch(loop) // todo? iterationContract, not handled yet
+    }
   }
 
   /** remove subexpressions that CPAchecker cannot handle, e.g. quantifiers and
@@ -403,6 +419,16 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
         )(t.o),
       )(b)(t.o)
     }.toSeq
+  }
+
+  /** havoc all global assigments in given statement (incl. by called
+    * procedures)
+    */
+  private def havocGlobals(stmt: Statement[Pre]): Seq[Statement[Post]] = {
+    val targets =
+      gatherGlobalAssigns(stmt) ++ gatherInvocations(stmt)
+        .flatMap(gatherGlobalAssigns)
+    havoc(targets)
   }
 
   /** gather all expressions that this contract clause contains */
