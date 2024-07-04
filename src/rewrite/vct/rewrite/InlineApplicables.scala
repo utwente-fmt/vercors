@@ -9,6 +9,7 @@ import vct.col.origin.{
   FoldFailed,
   LabelContext,
   Origin,
+  PanicBlame,
   PreferredName,
   UnfoldFailed,
 }
@@ -259,38 +260,41 @@ case class InlineApplicables[Pre <: Generation]()
           dispatch(perm),
         )(dispatch(o))
       case PredicateLocation(inv) if inv.ref.decl.inline =>
-        implicit val replOrigin: Origin = inv.o
-        lazy val obj = {
-          val instanceApply = inv.asInstanceOf[InstancePredicateApply[Pre]]
-          val cls = classOwner(instanceApply.ref.decl)
-          Replacement(ThisObject[Pre](cls.ref), instanceApply.obj)(
-            InlineLetThisOrigin
+        checkCycle(inv, inv.ref.decl) {
+          implicit val replOrigin: Origin = inv.o
+          lazy val obj = {
+            val instanceApply = inv.asInstanceOf[InstancePredicateApply[Pre]]
+            val cls = classOwner(instanceApply.ref.decl)
+            Replacement(ThisObject[Pre](cls.ref), instanceApply.obj)(
+              InlineLetThisOrigin
+            )
+          }
+
+          lazy val args = Replacements(
+            for ((arg, v) <- inv.args.zip(inv.ref.decl.args))
+              yield Replacement(v.get, arg)(v.o)
           )
-        }
 
-        lazy val args = Replacements(
-          for ((arg, v) <- inv.args.zip(inv.ref.decl.args))
-            yield Replacement(v.get, arg)(v.o)
-        )
+          val inlinedBody =
+            inv match {
+              case PredicateApply(Ref(pred), _) =>
+                dispatch(args.expr(
+                  pred.body.getOrElse(throw AbstractInlineable(inv, pred))
+                ))
 
-        inv match {
-          case PredicateApply(Ref(pred), _) =>
-            dispatch(
-              args
-                .expr(pred.body.getOrElse(throw AbstractInlineable(inv, pred)))
-            )
+              case InstancePredicateApply(_, Ref(pred), _) =>
+                dispatch((obj + args).expr(
+                  pred.body.getOrElse(throw AbstractInlineable(inv, pred))
+                ))
 
-          case InstancePredicateApply(_, Ref(pred), _) =>
-            dispatch(
-              (obj + args)
-                .expr(pred.body.getOrElse(throw AbstractInlineable(inv, pred)))
-            )
+              case coalesce: CoalesceInstancePredicateApply[Pre] =>
+                throw ExcludedByPassOrder(
+                  "No more coalescing predicate applications here",
+                  Some(coalesce),
+                )
+            }
 
-          case coalesce: CoalesceInstancePredicateApply[Pre] =>
-            throw ExcludedByPassOrder(
-              "No more coalescing predicate applications here",
-              Some(coalesce),
-            )
+          Scale(dispatch(perm), inlinedBody)(PanicBlame("Bug #1012"))
         }
       case other => Perm(dispatch(other), dispatch(perm))(dispatch(o))
     }
