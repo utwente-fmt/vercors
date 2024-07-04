@@ -2,7 +2,7 @@ package vct.rewrite.csimplifier
 
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.{Origin, PanicBlame}
+import vct.col.origin.{AssignFailed, Blame, Origin, PanicBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers.{VarBuildHelpers, assignLocal, tt}
 
@@ -47,17 +47,23 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
     createAssertMethod(abort)
     createAssumeMethod()
 
+    lazy val nonSimplified = program.declarations.collect {
+      case p: Procedure[Pre] =>
+        variables.scope(dispatchMethod(p, simplify = false))
+    }
+
     lazy val other: Seq[GlobalDeclaration[Post]] =
       globalDeclarations.collect { program.declarations.foreach(dispatch) }._1
 
     program.rewrite(declarations =
-      Seq(abort, verifierAssert, verifierAssume, nondetInt) ++ other
+      Seq(abort, verifierAssert, verifierAssume, nondetInt) ++ other ++
+        nonSimplified
     )
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
-      case m: Procedure[Pre] => dispatchMethod(m).succeed(m)
+      case m: Procedure[Pre] => dispatchMethod(m, simplify = true).succeed(m)
       case _ => super.dispatch(decl)
     }
   }
@@ -89,7 +95,10 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
   /** turn preconditions into assumptions (and postconditions into assertions if
     * void method)
     */
-  private def dispatchMethod(meth: Procedure[Pre]): Procedure[Post] = {
+  private def dispatchMethod(
+      meth: Procedure[Pre],
+      simplify: Boolean,
+  ): Procedure[Post] = {
     currentMethod
       .having(meth) { // remember current method, so that dispatchStatement can reference it
         // cache old values for all heap locations referenced in "\old"
@@ -125,38 +134,86 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
             )
           }
 
-          // assume precondition
-          val pres = gatherConditions(meth.contract.requires).flatMap(assume)
+          // generate new method body
+          if (simplify) {
+            // check preconditions
+            val pres = gatherConditions(meth.contract.requires).flatMap(assert)
 
-          // if non-void, then return statements check postcondition. if void, do it at end of method
-          val posts =
-            if (meth.returnType == TVoid[Pre]())
-              gatherConditions(meth.contract.ensures).flatMap(assert)
-            else
-              Seq()
+            // havoc global assignment targets
+            val targets =
+              meth.body match {
+                case Some(b) =>
+                  gatherGlobalAssigns(b) ++ gatherInvocations(b)
+                    .flatMap(gatherGlobalAssigns)
+                case None => Seq()
+              }
+            val havocced = havoc(targets)
 
-          // rewrite method with new body
-          val body = meth.body.map {
-            case b: Block[Pre] =>
-              val newScope =
-                Scope[Post](
+            // assume postcondition
+            implicit val o: Origin = meth.o
+            val newBody =
+              if (meth.returnType == TVoid[Pre]()) {
+                val newPost = Scope[Post](
                   olds.top.values.toSeq,
-                  Block[Post](
-                    cached.toSeq ++ b.statements.map(dispatch) ++ posts
-                  )(b.o),
-                )(b.o)
-              b.rewrite(statements = pres ++ Seq(newScope))
-            case stmt =>
-              val newScope =
-                Scope[Post](
-                  olds.top.values.toSeq,
-                  Block[Post](cached.toSeq ++ Seq(dispatch(stmt)) ++ posts)(
-                    meth.o
-                  ),
-                )(meth.o)
-              Block[Post](pres ++ Seq(newScope))(meth.o)
+                  Block[Post](cached.toSeq ++ havocced ++ assumePost(meth)),
+                )
+                Block[Post](pres ++ Seq(newPost))(meth.o)
+              } else {
+                val retVar =
+                  new Variable[Post](meth.returnType.rewriteDefault())(
+                    meth.o.sourceName("returnValue")
+                  )
+                returnVar.having(retVar) {
+                  lazy val ret = Return[Post](retVar.get)
+                  val newPost = Scope[Post](
+                    olds.top.values.toSeq ++ Seq(retVar),
+                    Block[Post](
+                      cached.toSeq ++ havocced ++ assumePost(meth) ++ Seq(ret)
+                    ),
+                  )
+                  Block[Post](pres ++ Seq(newPost))
+                }
+              }
+
+            // declare new procedure with the simplified body
+            val newProc = meth
+              .rewrite(body = Some(newBody), contract = emptyContract())
+            //          simplifiedProcedures.addOne(meth, newProc)
+            newProc
+          } else { // i.e. not simplifying
+            // assume precondition
+            val pres = gatherConditions(meth.contract.requires).flatMap(assume)
+
+            // if non-void, then return statements check postcondition. if void, do it at end of method
+            val posts =
+              if (meth.returnType == TVoid[Pre]())
+                gatherConditions(meth.contract.ensures).flatMap(assert)
+              else
+                Seq()
+
+            // rewrite method with new body
+            val body = meth.body.map {
+              case b: Block[Pre] =>
+                val newScope =
+                  Scope[Post](
+                    olds.top.values.toSeq,
+                    Block[Post](
+                      cached.toSeq ++ b.statements.map(dispatch) ++ posts
+                    )(b.o),
+                  )(b.o)
+                b.rewrite(statements = pres ++ Seq(newScope))
+              case stmt =>
+                val newScope =
+                  Scope[Post](
+                    olds.top.values.toSeq,
+                    Block[Post](cached.toSeq ++ Seq(dispatch(stmt)) ++ posts)(
+                      meth.o
+                    ),
+                  )(meth.o)
+                Block[Post](pres ++ Seq(newScope))(meth.o)
+            }
+            meth.rewrite(body = body, contract = emptyContract()(meth.o))
           }
-          meth.rewrite(body = body, contract = emptyContract()(meth.o))
         }
       }
   }
@@ -325,13 +382,90 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  /** turn postcondition into assumption */
+  private def assumePost(proc: Procedure[Pre]): Seq[Statement[Post]] = {
+    gatherConditions(proc.contract.ensures).flatMap(assume)
+  }
+
+  /** havoc given assignment targets
+    * @param assigns:
+    *   pairs of (assigmentTarget, Blame)
+    */
+  private def havoc(
+      assigns: Iterable[(Expr[Pre], Blame[AssignFailed])]
+  ): Seq[Statement[Post]] = {
+    val asset = assigns.toSet
+    asset.map { case (t, b) =>
+      Assign[Post](
+        dispatch(t),
+        ProcedureInvocation[Post](nondetInt.ref, Nil, Nil, Nil, Nil, Nil)(
+          PanicBlame("havoc failed")
+        )(t.o),
+      )(b)(t.o)
+    }.toSeq
+  }
+
   /** gather all expressions that this contract clause contains */
-  def gatherConditions(pred: AccountedPredicate[Pre]): Seq[Expr[Pre]] = {
+  private def gatherConditions(
+      pred: AccountedPredicate[Pre]
+  ): Seq[Expr[Pre]] = {
     pred match {
       case unit: UnitAccountedPredicate[Pre] => Seq(unit.pred)
       case split: SplitAccountedPredicate[Pre] =>
         gatherConditions(split.left) ++ gatherConditions(split.right)
     }
+  }
+
+  /** gather assignment expressions and their blames (for havoccing) */
+  private def gatherAssigns(
+      node: Statement[Pre]
+  ): Seq[(Expr[Pre], Blame[AssignFailed])] = {
+    node.collect {
+      case a: Assign[Pre] => (a.target, a.blame)
+      case p: PreAssignExpression[Pre] => (p.target, p.blame)
+      case p: PostAssignExpression[Pre] => (p.target, p.blame)
+    }
+  }
+
+  /** gather assignment expressions to global vars and their blames (for
+    * havoccing)
+    */
+  private def gatherGlobalAssigns(
+      node: Statement[Pre]
+  ): Seq[(Expr[Pre], Blame[AssignFailed])] = {
+    val as = gatherAssigns(node)
+    as.filter { case (t, _) =>
+      t match {
+        case _: DerefHeapVariable[Pre] => true
+        case _ => false
+      }
+    }
+  }
+
+  /** gather bodies of invoked procedures (for havoccing their global
+    * assignments, too)
+    */
+  private def gatherInvocations(
+      node: Statement[Pre],
+      alreadyGathered: mutable.Buffer[Procedure[Pre]] = mutable.Buffer(),
+  ): Seq[Statement[Pre]] = {
+    val procList = node.collect {
+      case i: InvokeProcedure[Pre] => i.ref.decl
+      case i: ProcedureInvocation[Pre] => i.ref.decl
+    }
+    val res: mutable.Buffer[Statement[Pre]] = mutable.Buffer()
+    for (p <- procList) {
+      if (!alreadyGathered.contains(p)) {
+        alreadyGathered.append(p)
+        p.body match {
+          case Some(b) =>
+            res.append(b)
+            res.appendAll(gatherInvocations(b, alreadyGathered))
+          case None =>
+        }
+      }
+    }
+    res.toSeq
   }
 
 }
