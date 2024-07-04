@@ -50,8 +50,6 @@ import vct.col.origin.{
   ContextEverywhereFailedInPre,
   ContractedFailure,
   DiagnosticOrigin,
-  EndpointContextEverywhereFailedInPre,
-  EndpointPreconditionFailed,
   ExceptionNotInSignals,
   InsufficientPermission,
   InvocationFailure,
@@ -122,19 +120,6 @@ object EncodeChoreography extends RewriterBuilder {
           run.blame.blame(SeqRunPreconditionFailed(path, failure, run))
         case ContextEverywhereFailedInPre(failure, node) =>
           run.blame.blame(SeqRunContextEverywhereFailedInPre(failure, run))
-      }
-  }
-
-  case class InvocationFailureToEndpointFailure(endpoint: Endpoint[_])
-      extends Blame[InvocationFailure] {
-    override def blame(error: InvocationFailure): Unit =
-      error match {
-        case PreconditionFailed(path, failure, _) =>
-          endpoint.blame
-            .blame(EndpointPreconditionFailed(path, failure, endpoint))
-        case ContextEverywhereFailedInPre(failure, _) =>
-          endpoint.blame
-            .blame(EndpointContextEverywhereFailedInPre(failure, endpoint))
       }
   }
 

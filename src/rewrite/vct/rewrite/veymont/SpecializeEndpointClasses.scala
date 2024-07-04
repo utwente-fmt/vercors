@@ -160,7 +160,6 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
               args = Seq(dispatch(endpoint.init)),
               blame = PanicBlame("Should be safe"),
             ),
-            blame = PanicBlame("Unreachable"),
           ),
         )
       case _ => super.dispatch(decl)

@@ -485,29 +485,6 @@ case class PlusProviderInvocationFailed(innerFailure: WithContractFailure)
 sealed trait SeqCallableFailure extends VerificationFailure
 sealed trait SeqRunFailure extends SeqCallableFailure
 
-sealed trait EndpointFailure extends VerificationFailure
-case class EndpointPreconditionFailed(
-    path: Seq[AccountedDirection],
-    failure: ContractFailure,
-    node: Endpoint[_],
-) extends EndpointFailure with WithContractFailure {
-  override def baseCode: String = "endpointPreFailed"
-  override def descInContext: String =
-    "Precondition of constructor of this endpoint may not hold, since"
-  override def inlineDescWithSource(node: String, failure: String): String =
-    s"Precondition of `$node` may not hold, since $failure."
-}
-case class EndpointContextEverywhereFailedInPre(
-    failure: ContractFailure,
-    node: Endpoint[_],
-) extends EndpointFailure with WithContractFailure {
-  override def baseCode: String = "endpointContextPreFailed"
-  override def descInContext: String =
-    "Context may not hold in precondition of endpoint constructor, since"
-  override def inlineDescWithSource(node: String, failure: String): String =
-    s"Context of `$node` may not hold in the precondition, since $failure."
-}
-
 sealed trait FrontendIfFailure extends VerificationFailure
 
 case class BranchUnanimityFailed(guard1: Node[_], guard2: Node[_])

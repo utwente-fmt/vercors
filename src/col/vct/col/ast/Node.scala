@@ -3566,7 +3566,7 @@ final class PVLEndpoint[G](
     val cls: Ref[G, Class[G]],
     val typeArgs: Seq[Type[G]],
     val args: Seq[Expr[G]],
-)(val blame: Blame[EndpointFailure])(implicit val o: Origin)
+)(val blame: Blame[InvocationFailure])(implicit val o: Origin)
     extends ClassDeclaration[G] with PVLEndpointImpl[G] {
   var ref: Option[PVLConstructorTarget[G]] = None
 }
@@ -3635,7 +3635,7 @@ final class Endpoint[G](
     val cls: Ref[G, Class[G]],
     val typeArgs: Seq[Type[G]],
     val init: Expr[G],
-)(val blame: Blame[EndpointFailure])(implicit val o: Origin)
+)(implicit val o: Origin)
     extends Declaration[G] with EndpointImpl[G]
 @scopes[Endpoint]
 final class Choreography[G](

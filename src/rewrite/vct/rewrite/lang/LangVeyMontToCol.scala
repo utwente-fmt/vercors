@@ -129,8 +129,8 @@ case class LangVeyMontToCol[Pre <: Generation](
           Seq(),
           Seq(),
           Seq(),
-        )(PanicBlame("TODO: Refer back to PVLEndpoint blame"))(endpoint.o),
-      )(endpoint.blame)(endpoint.o)
+        )(endpoint.blame)(endpoint.o),
+      )(endpoint.o)
     )
   }
 
