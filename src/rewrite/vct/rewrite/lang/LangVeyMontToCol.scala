@@ -4,13 +4,26 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
-import vct.col.origin.{Origin, PanicBlame}
+import vct.col.origin.{
+  Blame,
+  BranchUnanimityFailed,
+  ChorStatementFailure,
+  LoopUnanimityNotEstablished,
+  LoopUnanimityNotMaintained,
+  Origin,
+  PanicBlame,
+}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{RefField, RefPVLEndpoint}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import vct.rewrite.lang.LangVeyMontToCol.{AssignNotAllowed, NoRunMethod}
+import vct.rewrite.lang.LangVeyMontToCol.{
+  AssignNotAllowed,
+  ForwardBranchUnanimityFailed,
+  ForwardLoopUnanimityFailed,
+  NoRunMethod,
+}
 import vct.rewrite.veymont.InferEndpointContexts
 
 case object LangVeyMontToCol {
@@ -26,6 +39,31 @@ case object LangVeyMontToCol {
       assign.o.messageInContext(
         "Plain assignment is not allowed in `seq_program`. Use `:=` instead."
       )
+  }
+
+  case class ForwardBranchUnanimityFailed(branch: PVLBranch[_])
+      extends Blame[ChorStatementFailure]() {
+    def blame(error: ChorStatementFailure): Unit =
+      error match {
+        case error: BranchUnanimityFailed => branch.blame.blame(error)
+        case error =>
+          PanicBlame(
+            s"ChorStatement got error ${error.code}, but it only supports branch unanimity"
+          ).blame(error)
+      }
+  }
+
+  case class ForwardLoopUnanimityFailed(loop: PVLLoop[_])
+      extends Blame[ChorStatementFailure]() {
+    def blame(error: ChorStatementFailure): Unit =
+      error match {
+        case error: LoopUnanimityNotMaintained => loop.blame.blame(error)
+        case error: LoopUnanimityNotEstablished => loop.blame.blame(error)
+        case error =>
+          PanicBlame(
+            s"ChorStatement got error ${error.code}, but it only supports loop unanimity maintained/established"
+          ).blame(error)
+      }
   }
 }
 
@@ -143,10 +181,14 @@ case class LangVeyMontToCol[Pre <: Generation](
         )(stmt.blame)(stmt.o)
       case _: Block[Pre] | _: Scope[Pre] =>
         currentStatement.having(stmt) { rw.dispatch(stmt) }
-      case _: PVLBranch[Pre] | _: PVLLoop[Pre] =>
+      case branch: PVLBranch[Pre] =>
         ChorStatement(currentStatement.having(stmt) { rw.dispatch(stmt) })(
-          stmt.o
-        )
+          ForwardBranchUnanimityFailed(branch)
+        )(stmt.o)
+      case loop: PVLLoop[Pre] =>
+        ChorStatement(currentStatement.having(stmt) { rw.dispatch(stmt) })(
+          ForwardLoopUnanimityFailed(loop)
+        )(stmt.o)
       case _: Assert[Pre] | _: Assign[Pre] | _: Eval[Pre] =>
         EndpointStatement(
           None,
@@ -157,7 +199,9 @@ case class LangVeyMontToCol[Pre <: Generation](
       // Any statement not listed here, we put in ChorStatement. ChorStatementImpl defines which leftover statement we tolerate in choreographies
       case stmt =>
         currentStatement.having(stmt) {
-          ChorStatement(rw.dispatch(stmt))(stmt.o)
+          ChorStatement(rw.dispatch(stmt))(PanicBlame(
+            "The internal statement cannot cause an  error on this ChorStatement"
+          ))(stmt.o)
         }
     }
 

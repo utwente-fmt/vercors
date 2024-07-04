@@ -25,13 +25,9 @@ case class DeduplicateChorGuards[Pre <: Generation]()
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
     statement match {
       case InChor(_, c @ ChorStatement(branch: Branch[Pre])) =>
-        c.rewrite(inner =
-          branch.rewrite(branches =
-            (dedup(branch.cond), super.dispatch(branch.yes)) +:
-              branch.no.map(no => Seq((tt[Post], super.dispatch(no))))
-                .getOrElse(Seq())
-          )
-        )
+        c.rewrite(inner = branch.rewrite(branches = branch.branches.map {
+          case (cond, stmt) => (dedup(cond), stmt.rewriteDefault())
+        }))
 
       case InChor(_, c @ ChorStatement(loop: Loop[Pre])) =>
         c.rewrite(inner = loop.rewrite(cond = dedup(loop.cond)))
@@ -43,6 +39,8 @@ case class DeduplicateChorGuards[Pre <: Generation]()
     implicit val o = expr.o
     val m: mutable.LinkedHashMap[Endpoint[Pre], Seq[Expr[Pre]]] = mutable
       .LinkedHashMap()
+    ???
+    // TODO: Optimize this for cases where it doesn't overlap so the origin thing doesn't even matter
     unfoldStar(expr).foreach {
       case EndpointExpr(Ref(endpoint), expr) =>
         m.updateWith(endpoint)(exprs => Some(exprs.getOrElse(Seq()) :+ expr))

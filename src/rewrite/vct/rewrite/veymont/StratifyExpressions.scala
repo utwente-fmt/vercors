@@ -90,14 +90,12 @@ case class StratifyExpressions[Pre <: Generation]()
         ) /*(loop.blame)*/ (l.o)
 
       case InChor(_, branch @ Branch(Seq((cond, yes)))) =>
-        logger.warn("TODO: Branch blame")
         branch.rewrite(Seq((stratifyExpr(cond), dispatch(yes))))
 
       case InChor(
             _,
             branch @ Branch(Seq((cond, yes), (BooleanValue(true), no))),
           ) =>
-        logger.warn("TODO: Branch blame")
         branch
           .rewrite(Seq((stratifyExpr(cond), dispatch(yes)), (tt, dispatch(no))))
 

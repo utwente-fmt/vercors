@@ -2298,7 +2298,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case s: PVLEndpointStatement[Pre] => s
       case c: EndpointStatement[Pre] => c
       case c: CommunicateStatement[Pre] => c
-      case ChorStatement(inner) => ChorStatement(inner)
+      case c @ ChorStatement(inner) => ChorStatement(inner)(c.blame)
       case branch @ PVLBranch(branches) =>
         PVLBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(
           branch.blame

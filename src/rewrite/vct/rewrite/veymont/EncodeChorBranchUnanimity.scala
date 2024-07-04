@@ -33,28 +33,34 @@ object EncodeChorBranchUnanimity extends RewriterBuilderArg[Boolean] {
   override def desc: String =
     "Encodes the branch unanimity requirement imposed by VeyMont on branches and loops in seq_program nodes."
 
-  case class ForwardBranchUnanimity(branch: Branch[_], c1: Expr[_], c2: Expr[_])
-      extends Blame[AssertFailed] {
-    override def blame(error: AssertFailed): Unit = ???
-    // TODO (RR): Repair blames -- branch.blame.blame(BranchUnanimityFailed(c1, c2))
+  case class ForwardBranchUnanimity(
+      chor: ChorStatement[_],
+      c1: Expr[_],
+      c2: Expr[_],
+  ) extends Blame[AssertFailed] {
+    require(chor.inner match { case _: Branch[_] => true; case _ => false })
+    override def blame(error: AssertFailed): Unit =
+      chor.blame.blame(BranchUnanimityFailed(c1, c2))
   }
 
   case class ForwardLoopUnanimityNotEstablished(
-      loop: Loop[_],
+      chor: ChorStatement[_],
       c1: Expr[_],
       c2: Expr[_],
   ) extends Blame[AssertFailed] {
-    override def blame(error: AssertFailed): Unit = ???
-    //  TODO (RR): Repair blames    loop.blame.blame(LoopUnanimityNotEstablished(c1, c2))
+    require(chor.inner match { case _: Loop[_] => true; case _ => false })
+    override def blame(error: AssertFailed): Unit =
+      chor.blame.blame(LoopUnanimityNotEstablished(c1, c2))
   }
 
   case class ForwardLoopUnanimityNotMaintained(
-      loop: Loop[_],
+      chor: ChorStatement[_],
       c1: Expr[_],
       c2: Expr[_],
   ) extends Blame[AssertFailed] {
-    override def blame(error: AssertFailed): Unit = ???
-    // TODO (RR): Repair blames      loop.blame.blame(LoopUnanimityNotMaintained(c1, c2))
+    require(chor.inner match { case _: Loop[_] => true; case _ => false })
+    override def blame(error: AssertFailed): Unit =
+      chor.blame.blame(LoopUnanimityNotMaintained(c1, c2))
   }
 }
 
@@ -85,7 +91,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
         val guards = unfoldStar(branch.cond)
         val assertions: Block[Post] = Block(guards.indices.init.map { i =>
           Assert(dispatch(guards(i)) === dispatch(guards(i + 1)))(
-            ForwardBranchUnanimity(branch, guards(i), guards(i + 1))
+            ForwardBranchUnanimity(c, guards(i), guards(i + 1))
           )
         })
 
@@ -97,7 +103,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
         val establishAssertions: Statement[Post] = Block(
           guards.indices.init.map { i =>
             Assert(dispatch(guards(i)) === dispatch(guards(i + 1)))(
-              ForwardLoopUnanimityNotEstablished(loop, guards(i), guards(i + 1))
+              ForwardLoopUnanimityNotEstablished(c, guards(i), guards(i + 1))
             )
           }
         )
@@ -105,8 +111,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
         val maintainAssertions: Statement[Post] = Block(
           guards.indices.init.map { i =>
             Assert(dispatch(guards(i)) === dispatch(guards(i + 1)))(
-              PanicBlame("ForwardLoopUnanimityNotMaintained")
-//              ForwardLoopUnanimityNotMaintained(loop, guards(i), guards(i + 1))
+              ForwardLoopUnanimityNotMaintained(c, guards(i), guards(i + 1))
             )
           }
         )

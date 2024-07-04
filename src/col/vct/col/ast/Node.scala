@@ -3685,7 +3685,9 @@ final case class Receiver[G](ref: Ref[G, Communicate[G]])(
 final case class Message[G](ref: Ref[G, Communicate[G]])(implicit val o: Origin)
     extends Expr[G] with MessageImpl[G]
 
-final case class ChorStatement[G](inner: Statement[G])(implicit val o: Origin)
+final case class ChorStatement[G](inner: Statement[G])(
+    val blame: Blame[ChorStatementFailure]
+)(implicit val o: Origin)
     extends Statement[G] with ChorStatementImpl[G]
 final case class EndpointStatement[G](
     endpoint: Option[Ref[G, Endpoint[G]]],
