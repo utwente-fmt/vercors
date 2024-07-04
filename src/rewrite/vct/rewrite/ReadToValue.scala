@@ -27,11 +27,17 @@ case class ReadToValue[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
       case Perm(loc, ReadPerm()) => Value(dispatch(loc))(expr.o)
-      case Scale(ReadPerm(), PredicateApplyExpr(inv)) =>
-        // Temporary solution: there should be a proper notion of scaling by read instead.
-        Value(PredicateLocation(dispatch(inv))(inv.o))(expr.o)
+      case Scale(ReadPerm(), Perm(loc, WritePerm())) =>
+        // Temporary solution for predicates: there should be a proper notion of scaling by read instead.
+        Value(dispatch(loc))(expr.o)
       case read @ ReadPerm() => throw WildcardError(read)
-      case default => rewriteDefault(default)
+      case default => default.rewriteDefault()
     }
 
+  override def dispatch(target: FoldTarget[Pre]): FoldTarget[Post] =
+    target match {
+      case ScaledPredicateApply(inv, ReadPerm()) =>
+        ValuePredicateApply(dispatch(inv))(target.o)
+      case other => other.rewriteDefault()
+    }
 }
