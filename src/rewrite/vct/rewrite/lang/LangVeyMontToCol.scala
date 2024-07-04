@@ -30,14 +30,14 @@ case object LangVeyMontToCol {
   case class NoRunMethod(prog: PVLChoreography[_]) extends UserError {
     override def code: String = "noRunMethod"
     override def text: String =
-      prog.o.messageInContext(s"This `seq_program` has no `run` method.")
+      prog.o.messageInContext(s"This choreography has no `run` method.")
   }
 
   case class AssignNotAllowed(assign: Assign[_]) extends UserError {
     override def code: String = "assignNotAllowed"
     override def text: String =
       assign.o.messageInContext(
-        "Plain assignment is not allowed in `seq_program`. Use `:=` instead."
+        "Plain assignment is not allowed in a choreography. Use `:=` instead."
       )
   }
 

@@ -308,12 +308,13 @@ case class SYCLItemMethodPreconditionFailed(node: InvokingNode[_])
 
 sealed trait CallableFailure
     extends ConstructorFailure with JavaConstructorFailure
-sealed trait ContractedFailure extends CallableFailure
+sealed trait ContractedFailure
+    extends CallableFailure with ChoreographyFailure with ChorRunFailure
 case class PostconditionFailed(
     path: Seq[AccountedDirection],
     failure: ContractFailure,
     node: ContractApplicable[_],
-) extends ContractedFailure with ChorCallableFailure with WithContractFailure {
+) extends ContractedFailure with WithContractFailure {
   override def baseCode: String = "postFailed"
   override def descInContext: String = "Postcondition may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String =
@@ -323,7 +324,7 @@ case class TerminationMeasureFailed(
     applicable: ContractApplicable[_],
     apply: Invocation[_],
     measure: DecreasesClause[_],
-) extends ContractedFailure with ChorCallableFailure with VerificationFailure {
+) extends ContractedFailure with VerificationFailure {
   override def code: String = "decreasesFailed"
   override def position: String = measure.o.shortPositionText
   override def desc: String =
@@ -338,7 +339,7 @@ case class TerminationMeasureFailed(
 case class ContextEverywhereFailedInPost(
     failure: ContractFailure,
     node: ContractApplicable[_],
-) extends ContractedFailure with ChorCallableFailure with WithContractFailure {
+) extends ContractedFailure with WithContractFailure {
   override def baseCode: String = "contextPostFailed"
   override def descInContext: String =
     "Context may not hold in postcondition, since"
@@ -348,7 +349,7 @@ case class ContextEverywhereFailedInPost(
 case class AutoValueLeakCheckFailed(
     failure: ContractFailure,
     node: ContractApplicable[_],
-) extends ContractedFailure with ChorCallableFailure with WithContractFailure {
+) extends ContractedFailure with WithContractFailure {
   override def baseCode: String = "autoValueLeak"
   override def descInContext: String = "The AutoValue leak check failed, since"
   override def inlineDescWithSource(node: String, failure: String): String =
@@ -368,26 +369,6 @@ case class ExceptionNotInSignals(node: AbstractMethod[_])
     "Method may throw exception not included in signals clauses."
   override def inlineDescWithSource(source: String): String =
     s"Method `$source` may throw exception not included in signals clauses."
-}
-case class ChorRunPreconditionFailed(
-    path: Seq[AccountedDirection],
-    failure: ContractFailure,
-    node: ChorRun[_],
-) extends ChorRunFailure with WithContractFailure {
-  override def baseCode: String = "seqRunPreFailed"
-  override def descInContext: String = "Precondition may not hold, since"
-  override def inlineDescWithSource(node: String, failure: String): String =
-    s"Precondition of `$node` may not hold, since $failure."
-}
-case class ChorRunContextEverywhereFailedInPre(
-    failure: ContractFailure,
-    node: ChorRun[_],
-) extends ChorRunFailure with WithContractFailure {
-  override def baseCode: String = "seqRunContextPreFailed"
-  override def descInContext: String =
-    "Context may not hold in precondition, since"
-  override def inlineDescWithSource(node: String, failure: String): String =
-    s"Context of `$node` may not hold in the precondition, since $failure."
 }
 case class SYCLKernelLambdaFailure(kernelFailure: KernelFailure)
     extends VerificationFailure {
@@ -482,8 +463,31 @@ case class PlusProviderInvocationFailed(innerFailure: WithContractFailure)
     innerFailure.inlineDescWithSource(node, failure)
 }
 
-sealed trait ChorCallableFailure extends VerificationFailure
-sealed trait ChorRunFailure extends ChorCallableFailure
+sealed trait ChoreographyFailure extends VerificationFailure
+sealed trait ChorRunFailure extends VerificationFailure
+
+// Duplicated because InvokingNode in PreconditionFailed did not allow the choreography
+case class ChorRunPreconditionFailed(
+    path: Option[Seq[AccountedDirection]],
+    failure: ContractFailure,
+    node: ChorRun[_],
+) extends ChorRunFailure with WithContractFailure {
+  override def baseCode: String = "chorRunPreFailed"
+  override def descInContext: String = "Precondition may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String =
+    s"Precondition of `$node` may not hold, since $failure."
+}
+// Duplicated because InvokingNode in ContextEverywhereFailedInPre did not allow the choreography
+case class ChorRunContextEverywhereFailedInPre(
+    failure: ContractFailure,
+    node: ChorRun[_],
+) extends ChorRunFailure with WithContractFailure {
+  override def baseCode: String = "chorRunContextPreFailed"
+  override def descInContext: String =
+    "Context may not hold in precondition, since"
+  override def inlineDescWithSource(node: String, failure: String): String =
+    s"Context of `$node` may not hold in the precondition, since $failure."
+}
 
 sealed trait FrontendIfFailure extends VerificationFailure
 

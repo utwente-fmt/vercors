@@ -317,7 +317,7 @@ case object Options {
         ),
       opt[Unit]("dev-veymont-allow-assign").maybeHidden()
         .action((p, c) => c.copy(devVeymontAllowAssign = true))
-        .text("Do not error when plain assignment is used in seq_programs"),
+        .text("Do not error when plain assignment is used in choreographies"),
       note(""),
       note("VeSUV Mode"),
       opt[Unit]("vesuv").action((_, c) => c.copy(mode = Mode.VeSUV)).text(

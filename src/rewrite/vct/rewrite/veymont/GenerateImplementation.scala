@@ -801,11 +801,11 @@ case class GenerateImplementation[Pre <: Generation]()
         m.body.map(getChannelNamesAndTypes).getOrElse(
           throw ParalleliseEndpointsError(
             m,
-            "Abstract methods are not supported inside `seq_prog`.",
+            "Abstract methods are not supported inside a choreography.",
           )
         )
       case other =>
-        throw ParalleliseEndpointsError(other, "seq_program method expected")
+        throw ParalleliseEndpointsError(other, "choreography method expected")
     }
 
   private def getChannelNamesAndTypes(
@@ -960,7 +960,7 @@ case class GenerateImplementation[Pre <: Generation]()
         case _ =>
           throw ParalleliseEndpointsError(
             st,
-            "Statement not allowed in seq_program",
+            "Statement not allowed in choreography",
           )
       }
     } else

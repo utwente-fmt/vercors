@@ -15,12 +15,20 @@ import vct.result.VerificationError.{Unreachable, UserError}
 import EncodeChoreography.{
   AssertFailedToParticipantsNotDistinct,
   AssignFailedToSeqAssignFailure,
-  CallableFailureToSeqCallableFailure,
 }
-import vct.col.origin.{Blame, ExhaleFailed, Name, Origin, PanicBlame}
+import vct.col.origin.{
+  Blame,
+  ChorRunPreconditionFailed,
+  ExhaleFailed,
+  Name,
+  Origin,
+  PanicBlame,
+  PreconditionFailed,
+}
 import vct.col.ref.Ref
 import vct.rewrite.veymont
 import vct.result.VerificationError.UserError
+import vct.rewrite.veymont.EncodePermissionStratification.ForwardExhaleFailedToChorRun
 
 import scala.collection.immutable.HashSet
 import scala.collection.{mutable => mut}
@@ -32,7 +40,8 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
 
   case class ForwardExhaleFailedToChorRun(run: ChorRun[_])
       extends Blame[ExhaleFailed] {
-    override def blame(error: ExhaleFailed): Unit = run.blame.blame(error)
+    override def blame(error: ExhaleFailed): Unit =
+      run.blame.blame(ChorRunPreconditionFailed(None, error.failure, run))
   }
 }
 
@@ -184,20 +193,17 @@ case class EncodePermissionStratification[Pre <: Generation](
     decl match {
       case chor: Choreography[Pre] =>
         implicit val o = chor.o
+        val pre = foldStar(
+          chor.run.contract.contextEverywhere +:
+            unfoldPredicate(chor.run.contract.requires)
+        )
         currentChoreography.having(chor) {
           chor.rewrite(preRun =
             Some(Block(
               chor.preRun.map(dispatch).toSeq ++
-                (Seq(
-                  Exhale[Post](StripChorPerm().dispatch(foldStar(
-                    unfoldPredicate(chor.run.contract.requires)
-                  )))(PanicBlame(
-                    // TODO (RR): Make proper blame
-                    "Exhaling non-stratified part of precondition failed"
-                  ))
-                )) :+ Inhale[Post](dispatch(
-                  foldStar(unfoldPredicate(chor.run.contract.requires))
-                ))
+                Seq(Exhale[Post](StripChorPerm().dispatch(pre))(
+                  ForwardExhaleFailedToChorRun(chor.run)
+                )) :+ Inhale[Post](dispatch(pre))
             ))
           ).succeed(chor)
         }

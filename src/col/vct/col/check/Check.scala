@@ -144,7 +144,7 @@ sealed trait CheckError {
       case SeqProgEndpointAssign(a) =>
         Seq(context(a) -> s"Raw assignment to an endpoint is not allowed.")
       case SeqProgInstanceMethodPure(m) =>
-        Seq(context(m) -> s"Instance methods in seq_programs cannot be pure.")
+        Seq(context(m) -> s"Instance methods in choreographies cannot be pure.")
     }): _*)
 
   def subcode: String

@@ -46,6 +46,10 @@ import vct.col.origin.{
   Blame,
   CallableFailure,
   ChorAssignFailure,
+  ChorRunContextEverywhereFailedInPre,
+  ChorRunFailure,
+  ChorRunPreconditionFailed,
+  ChoreographyFailure,
   ContextEverywhereFailedInPost,
   ContextEverywhereFailedInPre,
   ContractedFailure,
@@ -59,9 +63,6 @@ import vct.col.origin.{
   PostconditionFailed,
   PreconditionFailed,
   SeqAssignInsufficientPermission,
-  ChorCallableFailure,
-  ChorRunContextEverywhereFailedInPre,
-  ChorRunPreconditionFailed,
   SignalsFailed,
   TerminationMeasureFailed,
   VerificationFailure,
@@ -73,7 +74,6 @@ import vct.result.VerificationError.{Unreachable, UserError}
 import EncodeChoreography.{
   AssertFailedToParticipantsNotDistinct,
   AssignFailedToSeqAssignFailure,
-  CallableFailureToSeqCallableFailure,
 }
 import vct.col.ref.Ref
 import vct.rewrite.veymont
@@ -86,26 +86,15 @@ object EncodeChoreography extends RewriterBuilder {
 
   object SignalsAlwaysEmpty extends PanicBlame("signals always empty")
 
-  case class CallableFailureToSeqCallableFailure(
-      seqBlame: Blame[ChorCallableFailure]
-  ) extends Blame[CallableFailure] {
+  case class CallableFailureToContractedFailure(blame: Blame[ContractedFailure])
+      extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit =
       error match {
-        case failure: ChorCallableFailure => seqBlame.blame(failure)
+        case failure: ContractedFailure => blame.blame(failure)
         case SignalsFailed(failure, node) => SignalsAlwaysEmpty.blame(error)
         case ExceptionNotInSignals(node) => SignalsAlwaysEmpty.blame(error)
       }
   }
-
-//  case class InsufficientPermissionToAccessFailure(access: Access[_]) extends Blame[VerificationFailure] {
-//    override def blame(error: VerificationFailure): Unit = error match {
-//      case _: AssignFailed =>
-//        access.blame.blame(AccessInsufficientPermission(access))
-//      case _: InsufficientPermission =>
-//        access.blame.blame(AccessInsufficientPermission(access))
-//      case _ => PanicBlame("Error should either be AssignFailed or InsufficientPermission").blame(error)
-//    }
-//  }
 
   case class AssignFailedToSeqAssignFailure(assign: EndpointStatement[_])
       extends Blame[AssignFailed] {
@@ -113,20 +102,21 @@ object EncodeChoreography extends RewriterBuilder {
       assign.blame.blame(SeqAssignInsufficientPermission(assign))
   }
 
-  case class ToSeqRunFailure(run: ChorRun[_]) extends Blame[InvocationFailure] {
-    override def blame(error: InvocationFailure): Unit =
-      error match {
-        case PreconditionFailed(path, failure, node) =>
-          run.blame.blame(ChorRunPreconditionFailed(path, failure, run))
-        case ContextEverywhereFailedInPre(failure, node) =>
-          run.blame.blame(ChorRunContextEverywhereFailedInPre(failure, run))
-      }
-  }
-
   case class AssertFailedToParticipantsNotDistinct(comm: Communicate[_])
       extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
       comm.blame.blame(ParticipantsNotDistinct(comm))
+  }
+
+  case class InvocationFailureToChorRunFailure(run: ChorRun[_])
+      extends Blame[InvocationFailure] {
+    override def blame(error: InvocationFailure): Unit =
+      error match {
+        case PreconditionFailed(path, fail, node) =>
+          run.blame.blame(ChorRunPreconditionFailed(Some(path), fail, run))
+        case ContextEverywhereFailedInPre(fail, node) =>
+          run.blame.blame(ChorRunContextEverywhereFailedInPre(fail, run))
+      }
   }
 }
 
@@ -217,7 +207,7 @@ case class EncodeChoreography[Pre <: Generation]()
                 prog.endpoints.map(endpoint =>
                   Local[Post](endpointSucc((mode, endpoint)).ref)
                 ),
-            blame = ToSeqRunFailure(prog.run),
+            blame = InvocationFailureToChorRunFailure(prog.run),
           ))
 
           // Scope the endpoint vars and combine initialization and run method invocation
@@ -234,7 +224,7 @@ case class EncodeChoreography[Pre <: Generation]()
               args = prog.params.map(arg => variableSucc((mode, arg))),
               contract = dispatch(prog.contract),
               body = Some(body),
-            )(CallableFailureToSeqCallableFailure(prog.blame))
+            )(CallableFailureToContractedFailure(prog.blame))
           )
         }
 
@@ -295,7 +285,7 @@ case class EncodeChoreography[Pre <: Generation]()
           outArgs = Seq(),
           typeArgs = Seq(),
           returnType = TVoid(),
-        )(CallableFailureToSeqCallableFailure(run.blame))
+        )(CallableFailureToContractedFailure(run.blame))
       )
     }
   }

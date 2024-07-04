@@ -64,7 +64,7 @@ case class PVLToCol[G](
         withContract(
           contract,
           contract =>
-            PVLChorRun(
+            new PVLChorRun(
               convert(body),
               contract.consumeApplicableContract(blame(decl)),
             )(blame(decl))(origin(decl).where(name = "run")),

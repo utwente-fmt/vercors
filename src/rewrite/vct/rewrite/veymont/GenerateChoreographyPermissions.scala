@@ -15,7 +15,7 @@ import scala.collection.immutable.ListSet
 object GenerateChoreographyPermissions extends RewriterBuilderArg[Boolean] {
   override def key: String = "generateChoreographyPermissions"
   override def desc: String =
-    "Generates permissions for fields of some types (classes, int, bool, and arrays of these) for constructs used inside seq_program."
+    "Generates permissions for fields of some types (classes, int, bool, and arrays of these) for constructs used inside choreographies."
 }
 
 case class GenerateChoreographyPermissions[Pre <: Generation](

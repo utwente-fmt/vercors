@@ -3575,12 +3575,12 @@ final class PVLChoreography[G](
     val declarations: Seq[ClassDeclaration[G]],
     val contract: ApplicableContract[G],
     val args: Seq[Variable[G]],
-)(val blame: Blame[ChorCallableFailure])(implicit val o: Origin)
+)(val blame: Blame[ChoreographyFailure])(implicit val o: Origin)
     extends GlobalDeclaration[G] with PVLChoreographyImpl[G] with Declarator[G]
-final case class PVLChorRun[G](
-    body: Statement[G],
-    contract: ApplicableContract[G],
-)(val blame: Blame[ChorCallableFailure])(implicit val o: Origin)
+final class PVLChorRun[G](
+    val body: Statement[G],
+    val contract: ApplicableContract[G],
+)(val blame: Blame[ChorRunFailure])(implicit val o: Origin)
     extends ClassDeclaration[G] with PVLChorRunImpl[G]
 
 @family
@@ -3645,13 +3645,13 @@ final class Choreography[G](
     val preRun: Option[Statement[G]],
     val run: ChorRun[G],
     val decls: Seq[ClassDeclaration[G]],
-)(val blame: Blame[ChorCallableFailure])(implicit val o: Origin)
+)(val blame: Blame[ChoreographyFailure])(implicit val o: Origin)
     extends GlobalDeclaration[G] with ChoreographyImpl[G]
 @family
 final case class ChorRun[G](
     body: Statement[G],
     contract: ApplicableContract[G],
-)(val blame: Blame[ChorCallableFailure])(implicit val o: Origin)
+)(val blame: Blame[ChorRunFailure])(implicit val o: Origin)
     extends NodeFamily[G] with ChorRunImpl[G]
 
 @family
