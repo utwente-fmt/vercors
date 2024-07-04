@@ -343,6 +343,15 @@ case object Options {
           .text("Output file for the control flow graph in .dot format")
       ),
       note(""),
+      note("Modify C file for automatic verifiers"),
+      opt[Unit]("cpa").action((_, c) => c.copy(mode = Mode.CSimplifier)).text(
+        "Instead of verifying a C program, turn annotations into runtime checks and simplify it"
+      ).children(
+        opt[Path]("c-output").required().valueName("<path>")
+          .action((path, c) => c.copy(cOutput = Some(path)))
+          .text("Output file for the modified C file")
+      ),
+      note(""),
       note(""),
       arg[PathOrStd]("<path>...").unbounded().optional()
         .action((path, c) => c.copy(inputs = c.inputs :+ path))
@@ -448,6 +457,9 @@ case class Options(
 
     // Control flow graph options
     cfgOutput: Path = null,
+
+    // C-Simplifier options
+    cOutput: Option[Path] = None,
 ) {
   def getParserDebugOptions: vct.parsers.debug.DebugOptions =
     vct.parsers.debug.DebugOptions(

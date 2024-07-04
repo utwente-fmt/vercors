@@ -19,6 +19,10 @@ import java.nio.file.{Files, Path}
  */
 
 case object Output {
+  def cSimplifierOfOptions(options: Options) = {
+    Output(options.cOutput, Ctx.C, false)
+  }
+
   def vesuvOfOptions[G <: Generation](
       options: Options
   ): Stages[ParseResult[G], Unit] = {

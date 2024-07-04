@@ -51,6 +51,7 @@ import vct.rewrite.veymont.{
   SpecializeEndpointClasses,
   StratifyExpressions,
 }
+import vct.rewrite.csimplifier.MakeRuntimeChecks
 
 import java.nio.file.Path
 import java.nio.file.Files
@@ -164,6 +165,12 @@ object Transformation extends LazyLogging {
           .map(p => reportIntermediateProgram(p, "generate")).toSeq ++
           writeOutFunctions(before, options.outputBeforePass) ++
           writeOutFunctions(after, options.outputAfterPass),
+    )
+
+  def cSimplifierOfOptions(options: Options): Transformation =
+    CSimplifier(onPassEvent =
+      writeOutFunctions(before, options.outputBeforePass) ++
+        writeOutFunctions(after, options.outputAfterPass)
     )
 
   sealed trait TransformationEvent
@@ -453,3 +460,6 @@ case class VeyMontImplementationGeneration(
         PrettifyBlocks,
       ),
     )
+
+case class CSimplifier(override val onPassEvent: Seq[PassEventHandler] = Nil)
+    extends Transformation(onPassEvent, Seq(MakeRuntimeChecks))
