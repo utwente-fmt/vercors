@@ -17,7 +17,7 @@ import EncodeChoreography.{
   AssignFailedToSeqAssignFailure,
   CallableFailureToSeqCallableFailure,
 }
-import vct.col.origin.{Name, Origin, PanicBlame}
+import vct.col.origin.{Blame, ExhaleFailed, Name, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.rewrite.veymont
 import vct.result.VerificationError.UserError
@@ -29,6 +29,11 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
   override def key: String = "encodePermissionStratification"
   override def desc: String =
     "Encodes stratification of permissions by wrapping each permission in an opaque predicate, guarding the permission using an endpoint reference."
+
+  case class ForwardExhaleFailedToChorRun(run: ChorRun[_])
+      extends Blame[ExhaleFailed] {
+    override def blame(error: ExhaleFailed): Unit = run.blame.blame(error)
+  }
 }
 
 // TODO (RR): Document here the hack to make \chor work

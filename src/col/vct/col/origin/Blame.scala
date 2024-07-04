@@ -313,7 +313,7 @@ case class PostconditionFailed(
     path: Seq[AccountedDirection],
     failure: ContractFailure,
     node: ContractApplicable[_],
-) extends ContractedFailure with SeqCallableFailure with WithContractFailure {
+) extends ContractedFailure with ChorCallableFailure with WithContractFailure {
   override def baseCode: String = "postFailed"
   override def descInContext: String = "Postcondition may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String =
@@ -323,7 +323,7 @@ case class TerminationMeasureFailed(
     applicable: ContractApplicable[_],
     apply: Invocation[_],
     measure: DecreasesClause[_],
-) extends ContractedFailure with SeqCallableFailure with VerificationFailure {
+) extends ContractedFailure with ChorCallableFailure with VerificationFailure {
   override def code: String = "decreasesFailed"
   override def position: String = measure.o.shortPositionText
   override def desc: String =
@@ -338,7 +338,7 @@ case class TerminationMeasureFailed(
 case class ContextEverywhereFailedInPost(
     failure: ContractFailure,
     node: ContractApplicable[_],
-) extends ContractedFailure with SeqCallableFailure with WithContractFailure {
+) extends ContractedFailure with ChorCallableFailure with WithContractFailure {
   override def baseCode: String = "contextPostFailed"
   override def descInContext: String =
     "Context may not hold in postcondition, since"
@@ -348,7 +348,7 @@ case class ContextEverywhereFailedInPost(
 case class AutoValueLeakCheckFailed(
     failure: ContractFailure,
     node: ContractApplicable[_],
-) extends ContractedFailure with SeqCallableFailure with WithContractFailure {
+) extends ContractedFailure with ChorCallableFailure with WithContractFailure {
   override def baseCode: String = "autoValueLeak"
   override def descInContext: String = "The AutoValue leak check failed, since"
   override def inlineDescWithSource(node: String, failure: String): String =
@@ -369,20 +369,20 @@ case class ExceptionNotInSignals(node: AbstractMethod[_])
   override def inlineDescWithSource(source: String): String =
     s"Method `$source` may throw exception not included in signals clauses."
 }
-case class SeqRunPreconditionFailed(
+case class ChorRunPreconditionFailed(
     path: Seq[AccountedDirection],
     failure: ContractFailure,
     node: ChorRun[_],
-) extends SeqRunFailure with WithContractFailure {
+) extends ChorRunFailure with WithContractFailure {
   override def baseCode: String = "seqRunPreFailed"
   override def descInContext: String = "Precondition may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String =
     s"Precondition of `$node` may not hold, since $failure."
 }
-case class SeqRunContextEverywhereFailedInPre(
+case class ChorRunContextEverywhereFailedInPre(
     failure: ContractFailure,
     node: ChorRun[_],
-) extends SeqRunFailure with WithContractFailure {
+) extends ChorRunFailure with WithContractFailure {
   override def baseCode: String = "seqRunContextPreFailed"
   override def descInContext: String =
     "Context may not hold in precondition, since"
@@ -482,8 +482,8 @@ case class PlusProviderInvocationFailed(innerFailure: WithContractFailure)
     innerFailure.inlineDescWithSource(node, failure)
 }
 
-sealed trait SeqCallableFailure extends VerificationFailure
-sealed trait SeqRunFailure extends SeqCallableFailure
+sealed trait ChorCallableFailure extends VerificationFailure
+sealed trait ChorRunFailure extends ChorCallableFailure
 
 sealed trait FrontendIfFailure extends VerificationFailure
 

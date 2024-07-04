@@ -59,9 +59,9 @@ import vct.col.origin.{
   PostconditionFailed,
   PreconditionFailed,
   SeqAssignInsufficientPermission,
-  SeqCallableFailure,
-  SeqRunContextEverywhereFailedInPre,
-  SeqRunPreconditionFailed,
+  ChorCallableFailure,
+  ChorRunContextEverywhereFailedInPre,
+  ChorRunPreconditionFailed,
   SignalsFailed,
   TerminationMeasureFailed,
   VerificationFailure,
@@ -87,11 +87,11 @@ object EncodeChoreography extends RewriterBuilder {
   object SignalsAlwaysEmpty extends PanicBlame("signals always empty")
 
   case class CallableFailureToSeqCallableFailure(
-      seqBlame: Blame[SeqCallableFailure]
+      seqBlame: Blame[ChorCallableFailure]
   ) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit =
       error match {
-        case failure: SeqCallableFailure => seqBlame.blame(failure)
+        case failure: ChorCallableFailure => seqBlame.blame(failure)
         case SignalsFailed(failure, node) => SignalsAlwaysEmpty.blame(error)
         case ExceptionNotInSignals(node) => SignalsAlwaysEmpty.blame(error)
       }
@@ -117,9 +117,9 @@ object EncodeChoreography extends RewriterBuilder {
     override def blame(error: InvocationFailure): Unit =
       error match {
         case PreconditionFailed(path, failure, node) =>
-          run.blame.blame(SeqRunPreconditionFailed(path, failure, run))
+          run.blame.blame(ChorRunPreconditionFailed(path, failure, run))
         case ContextEverywhereFailedInPre(failure, node) =>
-          run.blame.blame(SeqRunContextEverywhereFailedInPre(failure, run))
+          run.blame.blame(ChorRunContextEverywhereFailedInPre(failure, run))
       }
   }
 
