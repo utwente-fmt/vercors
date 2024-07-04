@@ -1,9 +1,10 @@
 package vct.rewrite.csimplifier
 
+import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.col.util.AstBuildHelpers.{VarBuildHelpers, tt}
+import vct.col.util.AstBuildHelpers.{VarBuildHelpers, assignLocal, tt}
 
 case object MakeRuntimeChecks extends RewriterBuilder {
   override def key: String = "makeRuntimeChecks"
@@ -16,6 +17,9 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
   private var verifierAssert: Procedure[Post] = null
   private var verifierAssume: Procedure[Post] = null
   private var nondetInt: Procedure[Post] = null
+
+  val currentMethod: ScopedStack[Procedure[Pre]] = new ScopedStack()
+  val returnVar: ScopedStack[Variable[Post]] = new ScopedStack()
 
   /** add CPAchecker-specific methods to program */
   override def dispatch(program: Program[Pre]): Program[Post] = {
@@ -42,12 +46,57 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
     )
   }
 
+  override def dispatch(decl: Declaration[Pre]): Unit = {
+    decl match {
+      case m: Procedure[Pre] => dispatchMethod(m).succeed(m)
+      case _ => super.dispatch(decl)
+    }
+  }
+
   override def dispatch(stat: Statement[Pre]): Statement[Post] = {
     stat match {
       case a: Assert[Pre] =>
         assert(a.res).getOrElse(Assert[Post](tt)(a.blame)(a.o))
       case a: Assume[Pre] => assume(a.expr).getOrElse(Assume[Post](tt)(a.o))
+      case r: Return[Pre] => rewriteReturn(r)
       case _ => super.dispatch(stat)
+    }
+  }
+
+  /** turn preconditions into assumptions (and postconditions into assertions if
+    * void method)
+    */
+  def dispatchMethod(meth: Procedure[Pre]): Procedure[Post] = {
+    currentMethod
+      .having(meth) { // remember current method, so that dispatchStatement can reference it
+
+        // assume precondition
+        val pres = gatherConditions(meth.contract.requires).flatMap(assume)
+
+        // if non-void, then return statements check postcondition. if void, do it at end of method
+        val posts =
+          if (meth.returnType == TVoid[Pre]())
+            gatherConditions(meth.contract.ensures).flatMap(assert)
+          else
+            Seq()
+
+        // rewrite method with new body
+        val body = meth.body.map {
+          case b: Block[Pre] =>
+            b.rewrite(statements = pres ++ b.statements.map(dispatch) ++ posts)
+          case stmt => Block[Post](pres ++ Seq(dispatch(stmt)) ++ posts)(meth.o)
+        }
+        meth.rewrite(body = body, contract = emptyContract()(meth.o))
+      }
+  }
+
+  /** rewrite expressions for runtime checking, e.g. replacing "\result" with
+    * reference to return value
+    */
+  override def dispatch(node: Expr[Pre]): Expr[Post] = {
+    node match {
+      case r: Result[Pre] => returnVar.top.get(r.o)
+      case _ => super.dispatch(node)
     }
   }
 
@@ -93,8 +142,8 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
     )(PanicBlame("trivial contract unsatisfiable"))
   }
 
-  /** create "__verifier_assert" method, which calls "abort" if given condition
-    * is false
+  /** create "&#95;&#95;verifier_assert" method, which calls "abort" if given
+    * condition is false
     */
   private def createAssertMethod(
       abort: Procedure[Post]
@@ -119,8 +168,8 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
       )(PanicBlame("abort failed"))(o.sourceName("__VERIFIER_assert"))
   }
 
-  /** create "__verifier_assume" method, which loops forever if given condition
-    * is false
+  /** create "&#95;&#95;verifier_assume" method, which loops forever if given
+    * condition is false
     */
   private def createAssumeMethod()(implicit o: Origin): Unit = {
     val arg = new Variable[Post](TInt())(o.sourceName("cond"))
@@ -192,6 +241,36 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
         } else { None }
       case None => None
     }
+  }
+
+  /** gather all expressions that this contract clause contains */
+  def gatherConditions(pred: AccountedPredicate[Pre]): Seq[Expr[Pre]] = {
+    pred match {
+      case unit: UnitAccountedPredicate[Pre] => Seq(unit.pred)
+      case split: SplitAccountedPredicate[Pre] =>
+        gatherConditions(split.left) ++ gatherConditions(split.right)
+    }
+  }
+
+  /** turn "return expr;" into "<rtype> result = expr; assert <postconditions>;
+    * return result;"
+    */
+  private def rewriteReturn(r: Return[Pre]): Statement[Post] = {
+    val meth = currentMethod.top
+    val retV =
+      new Variable(dispatch(meth.returnType))(
+        meth.o.sourceName("__verifier_result")
+      )
+    returnVar
+      .having(retV) { // remember ref to result variable so that dispatchExpr can reference it
+        val posts = gatherConditions(meth.contract.ensures).flatMap(assert)
+        if (posts.nonEmpty) {
+          val d = LocalDecl(retV)(retV.o)
+          val asgn = assignLocal(retV.get(r.o), dispatch(r.result))(r.o)
+          val ret = Return(retV.get(r.o))(r.o)
+          Block[Post](Seq(d, asgn) ++ posts ++ Seq(ret))(r.o)
+        } else { super.dispatch(r) }
+      }
   }
 
 }
