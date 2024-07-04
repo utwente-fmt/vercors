@@ -144,11 +144,13 @@ case class EncodePermissionStratification[Pre <: Generation](
           body = Some(
             Unfolding(
               Value(PredicateLocation(pred, Seq(endpointArg.get, objArg.get))),
-              Deref[Post](objArg.get, succ(field))(PanicBlame("???")),
-            )(PanicBlame("???"))
+              Deref[Post](objArg.get, succ(field))(PanicBlame(
+                "Permission is guaranteed by the predicate"
+              )),
+            )(PanicBlame("Predicate is guaranteed to be in the precondition"))
           ),
-          blame = PanicBlame("???"),
-          contractBlame = PanicBlame("???"),
+          blame = PanicBlame("Contract is guaranteed to hold"),
+          contractBlame = PanicBlame("Contract is guaranteed to be satisfiable"),
         )(o.where(indirect =
           Name.names(Name("read"), field.o.getPreferredNameOrElse())
         )).declare()
@@ -185,11 +187,12 @@ case class EncodePermissionStratification[Pre <: Generation](
                   Exhale[Post](StripChorPerm().dispatch(foldStar(
                     unfoldPredicate(chor.run.contract.requires)
                   )))(PanicBlame(
+                    // TODO (RR): Make proper blame
                     "Exhaling non-stratified part of precondition failed"
                   ))
-                )) ++
-                (unfoldPredicate(chor.run.contract.requires)
-                  .map(e => Inhale[Post](dispatch(e))))
+                )) :+ Inhale[Post](dispatch(
+                  foldStar(unfoldPredicate(chor.run.contract.requires))
+                ))
             ))
           ).succeed(chor)
         }
@@ -334,6 +337,7 @@ case class EncodePermissionStratification[Pre <: Generation](
         functionInvocation(
           ref = readFunction(endpoint, obj, field)(expr.o),
           args = Seq(specializing.top, dispatch(obj)),
+          // TODO (RR): Make proper blame
           blame = PanicBlame("???"),
         )
 
@@ -383,7 +387,7 @@ case class EncodePermissionStratification[Pre <: Generation](
           )
         }.foldRight[Expr[Post]](newInner) { case (app, inner) =>
           Unfolding[Post](app, inner)(PanicBlame(
-            "Generating permissions should be good"
+            "Generating permissions guarantee permissions are in scope"
           ))
         }
 
@@ -458,11 +462,13 @@ case class EncodePermissionStratification[Pre <: Generation](
               Seq(intermediate),
               Block(Seq(
                 assignLocal(intermediate.get, dispatch(assign.value)),
+                // TODO (RR): Make proper blame
                 Unfold(apply)(PanicBlame("TODO: Use blame on endpoint")),
                 assign.rewrite(
                   target = Deref[Post](dispatch(obj), succ(field))(target.o),
                   value = intermediate.get,
                 ),
+                // TODO (RR): Make proper blame
                 Fold(apply)(PanicBlame("TODO: Use blame on endpointstatement")),
               )),
             )

@@ -144,7 +144,6 @@ case class EncodeChannels[Pre <: Generation]()
         substitutions.top(e)
       case InEndpoint(_, endpoint, Perm(loc, perm)) =>
         ChorPerm[Post](succ(endpoint), dispatch(loc), dispatch(perm))(expr.o)
-      // TODO: Check this in the check pass
       case InEndpoint(_, endpoint, cp: ChorPerm[Pre]) => assert(false); ???
       case Message(Ref(comm)) => Local[Post](msgSucc.ref(comm))(comm.o)
       case Sender(Ref(comm)) =>
