@@ -6,7 +6,6 @@ class TechnicalVeyMontSpec
     extends VercorsSpec {
       // TODO (RR): Re-enable tests asap
 
-      // TODO (RR): Add (\in_chor alice.x == bob.x) to this test
       (vercors should verify using silicon flag
     "--veymont-generate-permissions" in "example using communicate" pvl """
        class Storage {
@@ -16,7 +15,7 @@ class TechnicalVeyMontSpec
           endpoint alice = Storage();
           endpoint bob = Storage();
 
-          ensures alice.x == bob.x;
+          ensures (\chor alice.x == bob.x);
           run {
             channel_invariant (\chor \msg == bob.x);
             communicate alice.x <- bob.x;
@@ -530,7 +529,7 @@ class TechnicalVeyMontSpec
   //   }
   //   """)
 
-  (vercors should fail withCode "seqAssignPerm" using silicon in
+  (vercors should fail withCode "perm" using silicon in
     "When no permission is generated, a failure should occur on seq assign field access" pvl
     """
     class Storage {
@@ -702,7 +701,7 @@ class TechnicalVeyMontSpec
 //    }
 //    """)
 
-  (vercors should fail withCode "seqRunPreFailed:false" using silicon in
+  (vercors should fail withCode "chorRunPreFailed:false" using silicon in
     "Precondition of run should be checked" pvl """
     class C { }
     choreography Example(int x) {

@@ -629,18 +629,18 @@ case class PVLToCol[G](
   )(implicit node: ParserRuleContext): Statement[G] = {
     val Access0(receiver, target) = to
     val Access0(sender, msg) = from
-    val comm =
-      PVLCommunicate[G](
+    val comm = {
+      new PVLCommunicate[G](
         receiver.map(convertParticipant(_)),
         convert(target),
         sender.map(convertParticipant(_)),
         convert(msg),
       )(blame(node))
-    inv match {
-      case Some(node @ ChannelInvariant0(_, inv, _)) =>
-        PVLChannelInvariant[G](comm, convert(inv))(origin(node))
-      case None => comm
     }
+    PVLCommunicateStatement(
+      comm,
+      inv.map { case node @ ChannelInvariant0(_, inv, _) => convert(inv) },
+    )(origin(node))
   }
 
   def convertParticipant(

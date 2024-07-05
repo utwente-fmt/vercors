@@ -2286,15 +2286,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t, a) => VeyMontAssignExpression(t, a)
       case CommunicateX(r, s, t, a) => CommunicateX(r, s, t, a)
-      case c @ PVLCommunicate(receiver, target, sender, msg)
-          if target.t == msg.t =>
-        PVLCommunicate(receiver, target, sender, msg)(c.blame)
-      case comm @ PVLCommunicate(receiver, target, sender, msg) =>
-        throw IncoercibleExplanation(
-          comm,
-          s"The message should have type ${target.t}, but actually has type ${msg.t}.",
-        )
-      case PVLChannelInvariant(comm, inv) => PVLChannelInvariant(comm, res(inv))
+      case PVLCommunicateStatement(comm, inv) =>
+        PVLCommunicateStatement(comm, inv.map(res))
       case s: PVLEndpointStatement[Pre] => s
       case c: EndpointStatement[Pre] => c
       case c: CommunicateStatement[Pre] => c
@@ -2521,6 +2514,13 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case endpoint: PVLEndpoint[Pre] => endpoint
       case seqProg: PVLChoreography[Pre] => seqProg
       case seqRun: PVLChorRun[Pre] => seqRun
+      case c: PVLCommunicate[Pre] if c.target.t == c.msg.t =>
+        new PVLCommunicate[Pre](c.receiver, c.target, c.sender, c.msg)(c.blame)
+      case c: PVLCommunicate[Pre] =>
+        throw IncoercibleExplanation(
+          c,
+          s"The message should have type ${c.target.t}, but actually has type ${c.msg.t}.",
+        )
       case c: Communicate[Pre] if c.target.t == c.msg.t =>
         new Communicate(
           res(c.invariant),

@@ -452,10 +452,8 @@ case object ResolveReferences extends LazyLogging {
       case chor: PVLChoreography[G] =>
         ctx.copy(currentThis = Some(RefPVLChoreography(chor)))
           .declare(chor.args).declare(chor.declarations)
-      case channelInv: PVLChannelInvariant[G] =>
-        ctx.copy(currentCommunicate =
-          Some(channelInv.comm.asInstanceOf[PVLCommunicate[G]])
-        )
+      case comm: PVLCommunicateStatement[G] =>
+        ctx.copy(currentCommunicate = Some(comm))
       case method: JavaMethod[G] =>
         ctx.copy(currentResult = Some(RefJavaMethod(method)))
           .copy(inStaticJavaContext =

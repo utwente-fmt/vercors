@@ -3591,18 +3591,20 @@ case class PVLEndpointName[G](name: String)(implicit val o: Origin)
 
 // Resolution of invariant can depend on communicate's target/msg through \sender, \receiver, \msg. Therefore, definitions are nested like this,
 // to ensure that PVLCommunicate is fully resolved before the invariant is typechecked.
-final case class PVLChannelInvariant[G](comm: Statement[G], inv: Expr[G])(
-    implicit val o: Origin
-) extends Statement[G] with PVLChannelInvariantImpl[G]
-final case class PVLCommunicate[G](
-    receiver: Option[PVLEndpointName[G]],
-    target: Expr[G],
-    sender: Option[PVLEndpointName[G]],
-    msg: Expr[G],
+@scopes[PVLCommunicate]
+final case class PVLCommunicateStatement[G](
+    comm: PVLCommunicate[G],
+    inv: Option[Expr[G]],
+)(implicit val o: Origin)
+    extends Statement[G] with PVLCommunicateStatementImpl[G]
+@family
+final class PVLCommunicate[G](
+    val receiver: Option[PVLEndpointName[G]],
+    val target: Expr[G],
+    val sender: Option[PVLEndpointName[G]],
+    val msg: Expr[G],
 )(val blame: Blame[PVLCommunicateFailure])(implicit val o: Origin)
-    extends Statement[G]
-    with PurelySequentialStatement[G]
-    with PVLCommunicateImpl[G] {
+    extends Declaration[G] with PVLCommunicateImpl[G] {
   var inferredSender: Option[PVLEndpoint[G]] = None
   var inferredReceiver: Option[PVLEndpoint[G]] = None
 }
@@ -3619,15 +3621,15 @@ final case class PVLChorPerm[G](
     extends PVLExpr[G] with PVLChorPermImpl[G]
 final case class PVLSender[G]()(implicit val o: Origin)
     extends Expr[G] with PVLSenderImpl[G] {
-  var ref: Option[PVLCommunicate[G]] = None
+  var ref: Option[PVLCommunicateStatement[G]] = None
 }
 final case class PVLReceiver[G]()(implicit val o: Origin)
     extends Expr[G] with PVLReceiverImpl[G] {
-  var ref: Option[PVLCommunicate[G]] = None
+  var ref: Option[PVLCommunicateStatement[G]] = None
 }
 final case class PVLMessage[G]()(implicit val o: Origin)
     extends Expr[G] with PVLMessageImpl[G] {
-  var ref: Option[PVLCommunicate[G]] = None
+  var ref: Option[PVLCommunicateStatement[G]] = None
 }
 
 @family

@@ -85,30 +85,21 @@ case class LangVeyMontToCol[Pre <: Generation](
   val currentStatement: ScopedStack[Statement[Pre]] = ScopedStack()
   val currentExpr: ScopedStack[Expr[Pre]] = ScopedStack()
 
-  def rewriteCommunicate(
-      comm: PVLCommunicate[Pre],
-      inv: Expr[Pre],
+  def rewriteCommunicateStatement(
+      comm: PVLCommunicateStatement[Pre]
   ): CommunicateStatement[Post] = {
+    val inner = comm.comm
     val newComm =
       new Communicate[Post](
-        rw.dispatch(inv),
-        Some(endpointSucc.ref(comm.inferredReceiver.get)),
-        rw.dispatch(comm.target),
-        Some(endpointSucc.ref(comm.inferredSender.get)),
-        rw.dispatch(comm.msg),
-      )(comm.blame)(comm.o)
-    commSucc(comm) = newComm
+        rw.dispatch(comm.inv.getOrElse(tt[Pre])),
+        Some(endpointSucc.ref(inner.inferredReceiver.get)),
+        rw.dispatch(inner.target),
+        Some(endpointSucc.ref(inner.inferredSender.get)),
+        rw.dispatch(inner.msg),
+      )(inner.blame)(comm.o)
+    commSucc(inner) = newComm
     CommunicateStatement(newComm)(comm.o)
   }
-
-  def rewriteCommunicate(
-      comm: PVLCommunicate[Pre]
-  ): CommunicateStatement[Post] = rewriteCommunicate(comm, tt)
-
-  def rewriteChannelInv(
-      inv: PVLChannelInvariant[Pre]
-  ): CommunicateStatement[Post] =
-    rewriteCommunicate(inv.comm.asInstanceOf[PVLCommunicate[Pre]], inv.inv)
 
   def rewriteEndpointName(
       name: PVLEndpointName[Pre]
@@ -194,8 +185,8 @@ case class LangVeyMontToCol[Pre <: Generation](
           None,
           currentStatement.having(stmt) { rw.dispatch(stmt) },
         )(PanicBlame("Shouldn't happen"))(stmt.o)
-      case comm: PVLCommunicate[Pre] => rewriteCommunicate(comm)
-      case inv: PVLChannelInvariant[Pre] => rewriteChannelInv(inv)
+      case comm: PVLCommunicateStatement[Pre] =>
+        rewriteCommunicateStatement(comm)
       // Any statement not listed here, we put in ChorStatement. ChorStatementImpl defines which leftover statement we tolerate in choreographies
       case stmt =>
         currentStatement.having(stmt) {
@@ -214,11 +205,11 @@ case class LangVeyMontToCol[Pre <: Generation](
           rw.dispatch(perm),
         )(expr.o)
       case expr @ PVLSender() =>
-        Sender[Post](commSucc.ref(expr.ref.get))(expr.o)
+        Sender[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
       case expr @ PVLReceiver() =>
-        Receiver[Post](commSucc.ref(expr.ref.get))(expr.o)
+        Receiver[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
       case expr @ PVLMessage() =>
-        Message[Post](commSucc.ref(expr.ref.get))(expr.o)
+        Message[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
       case PVLEndpointExpr(endpoint, expr) =>
         EndpointExpr(rewriteEndpointName(endpoint), rw.dispatch(expr))(expr.o)
       case expr => currentExpr.having(expr) { rw.dispatch(expr) }

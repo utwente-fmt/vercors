@@ -205,7 +205,7 @@ case class EncodePermissionStratification[Pre <: Generation](
     ).ref
   }
 
-  case class StripChorPerm() extends Rewriter[Pre] {
+  case class StripPermissionStratification() extends Rewriter[Pre] {
     override val allScopes: AllScopes[Pre, Post] =
       EncodePermissionStratification.this.allScopes
 
@@ -213,6 +213,8 @@ case class EncodePermissionStratification[Pre <: Generation](
       expr match {
         case ChorPerm(_, loc, perm) =>
           Perm(dispatch(loc), dispatch(perm))(expr.o)
+        case ChorExpr(inner) => dispatch(inner)
+        case EndpointExpr(_, inner) => dispatch(inner)
         case _ => expr.rewriteDefault()
       }
   }
@@ -234,7 +236,7 @@ case class EncodePermissionStratification[Pre <: Generation](
           chor.rewrite(preRun =
             Some(Block(
               chor.preRun.map(dispatch).toSeq ++
-                Seq(Exhale[Post](StripChorPerm().dispatch(pre))(
+                Seq(Exhale[Post](StripPermissionStratification().dispatch(pre))(
                   ForwardExhaleFailedToChorRun(chor.run)
                 )) :+ Inhale[Post](dispatch(pre))
             ))
