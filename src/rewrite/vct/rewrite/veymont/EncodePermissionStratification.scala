@@ -37,6 +37,7 @@ import vct.rewrite.veymont.EncodePermissionStratification.{
   ForwardExhaleFailedToChorRun,
   ForwardInvocationFailureToDeref,
   ForwardUnfoldFailedToDeref,
+  NoEndpointContext,
 }
 
 import scala.collection.immutable.HashSet
@@ -64,6 +65,12 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
     override def blame(error: UnfoldFailed): Unit =
       deref.blame.blame(InsufficientPermission(deref))
   }
+
+  case class NoEndpointContext(node: Node[_]) extends UserError {
+    override def code = "noEndpointContext"
+    override def text =
+      node.o.messageInContext("There is no endpoint context inferrable here")
+  }
 }
 
 // TODO (RR): Document here the hack to make \chor work
@@ -80,6 +87,11 @@ case class EncodePermissionStratification[Pre <: Generation](
       case inv: MethodInvocation[Pre] => inv.ref.decl
     }
 
+  // Given a function f that finds Nodes inside nodes, findInContext keeps applying f
+  // to nodes that f itself finds, until no more new nodes are found. The search is started
+  // by first applying f to all endpointexprs and endpoint statements. In addition, the
+  // endpoint in the endpoint expr that is at the start of the search, is kept, and attached to each
+  // node found later.
   def findInContext[T <: Node[Pre]](
       f: PartialFunction[Node[Pre], T]
   ): mut.LinkedHashMap[T, Seq[Endpoint[Pre]]] = {
@@ -462,6 +474,8 @@ case class EncodePermissionStratification[Pre <: Generation](
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
     statement match {
+      case EndpointStatement(None, Assign(_, _)) =>
+        throw NoEndpointContext(statement)
       case EndpointStatement(
             Some(Ref(endpoint)),
             assign @ Assign(deref @ Deref(obj, Ref(field)), _),

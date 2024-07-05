@@ -3,7 +3,6 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
-  Assert,
   Assign,
   Block,
   ChorExpr,
@@ -13,9 +12,7 @@ import vct.col.ast.{
   Choreography,
   Class,
   Communicate,
-  CommunicateStatement,
   Declaration,
-  Deref,
   Endpoint,
   EndpointExpr,
   EndpointName,
@@ -24,10 +21,8 @@ import vct.col.ast.{
   Expr,
   InstanceMethod,
   Local,
-  LocalDecl,
   Message,
   MethodInvocation,
-  Node,
   Perm,
   Procedure,
   Receiver,
@@ -45,38 +40,24 @@ import vct.col.origin.{
   AssignLocalOk,
   Blame,
   CallableFailure,
-  ChorAssignFailure,
   ChorRunContextEverywhereFailedInPre,
-  ChorRunFailure,
   ChorRunPreconditionFailed,
-  ChoreographyFailure,
-  ContextEverywhereFailedInPost,
   ContextEverywhereFailedInPre,
   ContractedFailure,
-  DiagnosticOrigin,
   ExceptionNotInSignals,
-  InsufficientPermission,
   InvocationFailure,
   Origin,
   PanicBlame,
   ParticipantsNotDistinct,
-  PostconditionFailed,
   PreconditionFailed,
   SeqAssignInsufficientPermission,
   SignalsFailed,
-  TerminationMeasureFailed,
-  VerificationFailure,
 }
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
-import vct.result.VerificationError.{Unreachable, UserError}
-import EncodeChoreography.{
-  AssertFailedToParticipantsNotDistinct,
-  AssignFailedToSeqAssignFailure,
-}
+import vct.result.VerificationError.Unreachable
 import vct.col.ref.Ref
-import vct.rewrite.veymont
 
 import scala.collection.{mutable => mut}
 
@@ -257,7 +238,7 @@ case class EncodeChoreography[Pre <: Generation]()
           )
         }
 
-      case _ => rewriteDefault(decl)
+      case _ => super.dispatch(decl)
     }
 
   def rewriteRun(prog: Choreography[Pre]): Unit = {
@@ -292,34 +273,12 @@ case class EncodeChoreography[Pre <: Generation]()
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
     stat match {
-      case assign @ EndpointStatement(None, Assign(target, e)) =>
-        throw new Exception(
-          assign.o.messageInContext("ChorStatement with None!")
+      case ChorStatement(inner) => dispatch(inner)
+      case EndpointStatement(_, _) =>
+        throw Unreachable(
+          "Encoding endpoint statements should be handled by EncodePermissionStratification"
         )
-      case assign @ EndpointStatement(Some(Ref(endpoint)), Assign(target, e)) =>
-        logger
-          .warn(s"Ignoring endpoint annotation on chor assign statement ${assign
-              .o.shortPosition.map("at " + _).getOrElse("")}")
-        implicit val o = assign.o
-        if (endpoint != InferEndpointContexts.getEndpoint(target)) {
-          throw new Exception(assign.o.messageInContext(
-            "Assign endpoint in value does not match endpoint that was annotated or inferred"
-          ))
-        }
-        Assign(dispatch(target), dispatch(e))(AssignFailedToSeqAssignFailure(
-          assign
-        ))
-      case EndpointStatement(_, stat) => dispatch(stat)
-      case s @ ChorStatement(inner) =>
-        logger.warn(
-          s"Ignoring semantics of ChorStatement at ${s.o.shortPositionText}"
-        )
-        dispatch(inner)
-      case ep @ EndpointStatement(_, inner) =>
-        throw new Exception(ep.o.messageInContext(
-          "TODO: Implement choreographic verification encoding for this"
-        ))
-      case stat => rewriteDefault(stat)
+      case stat => stat.rewriteDefault()
     }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
@@ -354,28 +313,19 @@ case class EncodeChoreography[Pre <: Generation]()
               ),
           blame = invocation.blame,
         )
-      case (mode, p @ ChorPerm(Ref(endpoint), loc, perm)) =>
-        if (endpoint != InferEndpointContexts.getEndpoint(loc)) {
-          throw new Exception(p.o.messageInContext(
-            "Endpoint in obj does not match inferred/annotated endpoint"
-          ))
-        }
-        Perm(dispatch(loc), dispatch(perm))(p.o)
       case (mode, Sender(Ref(comm))) =>
         implicit val o = expr.o
         endpointSucc((mode, comm.sender.get.decl)).get
       case (mode, Receiver(Ref(comm))) =>
         implicit val o = expr.o
         endpointSucc((mode, comm.receiver.get.decl)).get
-      case (mode, Message(Ref(comm))) =>
+      case (_, Message(Ref(comm))) =>
         implicit val o = expr.o
         msgSucc(comm).get
-      case (mode, EndpointExpr(Ref(endpoint), expr)) =>
-        logger.warn(
-          "Ignoring endpoint expr annotation at " + expr.o.shortPositionText
+      case (_, _: ChorPerm[_] | _: ChorExpr[_] | _: EndpointExpr[_]) =>
+        throw Unreachable(
+          "Encoding of ChorPerm, ChorExpr, EndpointExpr should happen in EncodePermissionStratification"
         )
-        dispatch(expr)
-      case (mode, ChorExpr(inner)) => dispatch(inner)
-      case (_, expr) => expr.rewriteDefault()
+      case _ => expr.rewriteDefault()
     }
 }
