@@ -23,12 +23,37 @@ class TechnicalVeyMontSpec2
        }
     """)
 
-  vercors should fail withCode "perm" using silicon in "deref" pvl """
+  vercors should fail withCode "perm" using silicon in
+    "deref should be safe" pvl """
   class Storage { int x; int y; }
 
   choreography runPostFails() {
     endpoint alice = Storage();
     requires Perm(alice.x, 1);
+    run {
+      alice.x := alice.y;
+    }
+  }
+  """
+
+  vercors should fail withCode "perm" using silicon in
+    "assigning to a deref should fail if there is no permission" pvl """
+  class Storage { int x; int y; }
+  choreography runPostFails() {
+    endpoint alice = Storage();
+    requires Perm(alice.x, 1);
+    run {
+      alice.x := alice.y;
+    }
+  }
+  """
+
+  vercors should verify using silicon in
+    "assigning to a deref should succeed if there is permission" pvl """
+  class Storage { int x; int y; }
+  choreography runPostFails() {
+    endpoint alice = Storage();
+    requires Perm(alice.x, 1) ** Perm(alice.y, 1);
     run {
       alice.x := alice.y;
     }

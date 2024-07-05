@@ -20,12 +20,15 @@ import vct.col.origin.{
   Blame,
   ChorRunPreconditionFailed,
   ExhaleFailed,
+  FoldFailed,
   InsufficientPermission,
   InvocationFailure,
   Name,
   Origin,
   PanicBlame,
   PreconditionFailed,
+  UnfoldFailed,
+  VerificationFailure,
 }
 import vct.col.ref.Ref
 import vct.rewrite.veymont
@@ -33,6 +36,7 @@ import vct.result.VerificationError.UserError
 import vct.rewrite.veymont.EncodePermissionStratification.{
   ForwardExhaleFailedToChorRun,
   ForwardInvocationFailureToDeref,
+  ForwardUnfoldFailedToDeref,
 }
 
 import scala.collection.immutable.HashSet
@@ -52,6 +56,12 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
   case class ForwardInvocationFailureToDeref(deref: Deref[_])
       extends Blame[InvocationFailure] {
     override def blame(error: InvocationFailure): Unit =
+      deref.blame.blame(InsufficientPermission(deref))
+  }
+
+  case class ForwardUnfoldFailedToDeref(deref: Deref[_])
+      extends Blame[UnfoldFailed] {
+    override def blame(error: UnfoldFailed): Unit =
       deref.blame.blame(InsufficientPermission(deref))
   }
 }
@@ -454,7 +464,7 @@ case class EncodePermissionStratification[Pre <: Generation](
     statement match {
       case EndpointStatement(
             Some(Ref(endpoint)),
-            assign @ Assign(target @ Deref(obj, Ref(field)), _),
+            assign @ Assign(deref @ Deref(obj, Ref(field)), _),
           ) =>
         implicit val o = statement.o
         val apply = {
@@ -483,14 +493,15 @@ case class EncodePermissionStratification[Pre <: Generation](
               Seq(intermediate),
               Block(Seq(
                 assignLocal(intermediate.get, dispatch(assign.value)),
-                // TODO (RR): Make proper blame
-                Unfold(apply)(PanicBlame("TODO: Use blame on endpoint")),
+                Unfold(apply)(ForwardUnfoldFailedToDeref(deref)),
                 assign.rewrite(
-                  target = Deref[Post](dispatch(obj), succ(field))(target.o),
+                  target =
+                    Deref[Post](dispatch(obj), succ(field))(PanicBlame(
+                      "Unfold succeeded, so assignment is safe"
+                    )),
                   value = intermediate.get,
                 ),
-                // TODO (RR): Make proper blame
-                Fold(apply)(PanicBlame("TODO: Use blame on endpointstatement")),
+                Fold(apply)(PanicBlame("Unfold succeeded, so fold is safe")),
               )),
             )
           }
