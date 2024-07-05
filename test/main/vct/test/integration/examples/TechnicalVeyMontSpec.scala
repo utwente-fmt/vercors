@@ -2,65 +2,6 @@ package vct.test.integration.examples
 
 import vct.test.integration.helper.VercorsSpec
 
-class TechnicalVeyMontSpec2
-    extends VercorsSpec {
-      (vercors should fail withCode "branchNotUnanimous" using silicon flag
-    "--veymont-generate-permissions" in "branch unanimity for if" pvl """
-       class Storage {
-          int x;
-       }
-       choreography Example() {
-          endpoint alice = Storage();
-          endpoint bob = Storage();
-
-          run {
-            alice.x := 0;
-            bob.x := 1;
-            if (alice.x == 0 && bob.x == 0) {
-              communicate alice.x -> bob.x;
-            }
-          }
-       }
-    """)
-
-  vercors should fail withCode "perm" using silicon in
-    "deref should be safe" pvl """
-  class Storage { int x; int y; }
-
-  choreography runPostFails() {
-    endpoint alice = Storage();
-    requires Perm(alice.x, 1);
-    run {
-      alice.x := alice.y;
-    }
-  }
-  """
-
-  vercors should fail withCode "perm" using silicon in
-    "assigning to a deref should fail if there is no permission" pvl """
-  class Storage { int x; int y; }
-  choreography runPostFails() {
-    endpoint alice = Storage();
-    requires Perm(alice.x, 1);
-    run {
-      alice.x := alice.y;
-    }
-  }
-  """
-
-  vercors should verify using silicon in
-    "assigning to a deref should succeed if there is permission" pvl """
-  class Storage { int x; int y; }
-  choreography runPostFails() {
-    endpoint alice = Storage();
-    requires Perm(alice.x, 1) ** Perm(alice.y, 1);
-    run {
-      alice.x := alice.y;
-    }
-  }
-  """
-}
-
 class TechnicalVeyMontSpec
     extends VercorsSpec {
       // TODO (RR): Re-enable tests asap
@@ -75,8 +16,11 @@ class TechnicalVeyMontSpec
           endpoint alice = Storage();
           endpoint bob = Storage();
 
+          ensures alice.x == bob.x;
           run {
+            channel_invariant (\chor \msg == bob.x);
             communicate alice.x <- bob.x;
+            channel_invariant (\chor \msg == bob.x);
             communicate bob.x -> alice.x;
           }
        }
@@ -859,4 +803,60 @@ class TechnicalVeyMontSpec
   vercors should verify using silicon flag
     "--veymont-generate-permissions" example
     "technical/veymont/genericEndpoints.pvl"
+
+  (vercors should fail withCode "branchNotUnanimous" using silicon flag
+    "--veymont-generate-permissions" in "branch unanimity for if" pvl """
+       class Storage {
+          int x;
+       }
+       choreography Example() {
+          endpoint alice = Storage();
+          endpoint bob = Storage();
+
+          run {
+            alice.x := 0;
+            bob.x := 1;
+            if (alice.x == 0 && bob.x == 0) {
+              communicate alice.x -> bob.x;
+            }
+          }
+       }
+    """)
+
+  vercors should fail withCode "perm" using silicon in
+    "deref should be safe" pvl """
+  class Storage { int x; int y; }
+
+  choreography runPostFails() {
+    endpoint alice = Storage();
+    requires Perm(alice.x, 1);
+    run {
+      alice.x := alice.y;
+    }
+  }
+  """
+
+  vercors should fail withCode "perm" using silicon in
+    "assigning to a deref should fail if there is no permission" pvl """
+  class Storage { int x; int y; }
+  choreography runPostFails() {
+    endpoint alice = Storage();
+    requires Perm(alice.x, 1);
+    run {
+      alice.x := alice.y;
+    }
+  }
+  """
+
+  vercors should verify using silicon in
+    "assigning to a deref should succeed if there is permission" pvl """
+  class Storage { int x; int y; }
+  choreography runPostFails() {
+    endpoint alice = Storage();
+    requires Perm(alice.x, 1) ** Perm(alice.y, 1);
+    run {
+      alice.x := alice.y;
+    }
+  }
+  """
 }
