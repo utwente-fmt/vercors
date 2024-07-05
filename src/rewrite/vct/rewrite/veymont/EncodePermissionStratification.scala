@@ -20,6 +20,8 @@ import vct.col.origin.{
   Blame,
   ChorRunPreconditionFailed,
   ExhaleFailed,
+  InsufficientPermission,
+  InvocationFailure,
   Name,
   Origin,
   PanicBlame,
@@ -28,7 +30,10 @@ import vct.col.origin.{
 import vct.col.ref.Ref
 import vct.rewrite.veymont
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.EncodePermissionStratification.ForwardExhaleFailedToChorRun
+import vct.rewrite.veymont.EncodePermissionStratification.{
+  ForwardExhaleFailedToChorRun,
+  ForwardInvocationFailureToDeref,
+}
 
 import scala.collection.immutable.HashSet
 import scala.collection.{mutable => mut}
@@ -42,6 +47,12 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
       extends Blame[ExhaleFailed] {
     override def blame(error: ExhaleFailed): Unit =
       run.blame.blame(ChorRunPreconditionFailed(None, error.failure, run))
+  }
+
+  case class ForwardInvocationFailureToDeref(deref: Deref[_])
+      extends Blame[InvocationFailure] {
+    override def blame(error: InvocationFailure): Unit =
+      deref.blame.blame(InsufficientPermission(deref))
   }
 }
 
@@ -343,13 +354,12 @@ case class EncodePermissionStratification[Pre <: Generation](
           }
         }
 
-      case InEndpoint(_, endpoint, Deref(obj, Ref(field))) =>
+      case InEndpoint(_, endpoint, deref @ Deref(obj, Ref(field))) =>
         implicit val o = expr.o
         functionInvocation(
           ref = readFunction(endpoint, obj, field)(expr.o),
           args = Seq(specializing.top, dispatch(obj)),
-          // TODO (RR): Make proper blame
-          blame = PanicBlame("???"),
+          blame = ForwardInvocationFailureToDeref(deref),
         )
 
       case ChorExpr(inner) if veymontGeneratePermissions =>

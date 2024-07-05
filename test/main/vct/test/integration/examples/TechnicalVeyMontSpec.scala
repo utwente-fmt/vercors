@@ -4,7 +4,7 @@ import vct.test.integration.helper.VercorsSpec
 
 class TechnicalVeyMontSpec2
     extends VercorsSpec {
-      (vercors should verify using silicon flag
+      (vercors should fail withCode "branchNotUnanimous" using silicon flag
     "--veymont-generate-permissions" in "branch unanimity for if" pvl """
        class Storage {
           int x;
@@ -22,6 +22,18 @@ class TechnicalVeyMontSpec2
           }
        }
     """)
+
+  vercors should fail withCode "perm" using silicon in "deref" pvl """
+  class Storage { int x; int y; }
+
+  choreography runPostFails() {
+    endpoint alice = Storage();
+    requires Perm(alice.x, 1);
+    run {
+      alice.x := alice.y;
+    }
+  }
+  """
 }
 
 class TechnicalVeyMontSpec
