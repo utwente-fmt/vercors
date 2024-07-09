@@ -1,7 +1,7 @@
 package vct.col.ast.helpers.generator
 
 import vct.col.ast.helpers.defn.Constants._
-import vct.col.ast.helpers.defn.Naming.{scopes, typ}
+import vct.col.ast.helpers.defn.Naming.{scopes, succProviderName, typ}
 import vct.col.ast.structure
 import vct.col.ast.structure.AllFamiliesGenerator
 
@@ -21,7 +21,7 @@ class AllScopes extends AllFamiliesGenerator {
     source"""
       package vct.col.ast
 
-      case class AllScopes[Pre, Post]() {
+      case class AllScopes[Pre, Post]() extends ${Init(t"$SuccessorsProvider[Pre, Post]", Name.Anonymous(), List.empty)} {
         def freeze: $AllFrozenScopes[Pre, Post] = new $AllFrozenScopes(this)
 
         def anyDeclare[T <: $Declaration[Post]](`~decl`: T): T =
@@ -45,7 +45,12 @@ class AllScopes extends AllFamiliesGenerator {
         """).toList}
 
         ..${declaredFamilies.map(name => q"""
-          def succ[RefDecl <: $Declaration[Post]](decl: ${typ(name)}[Pre])(implicit tag: $ClassTag[RefDecl]): $RefType[Post, RefDecl] =
+          def ${succProviderName(name)}: $SuccessorProvider[Pre, Post, ${typ(name)}[Pre], ${typ(name)}[Post]] =
+            this.${scopes(name.base)}.freeze
+        """).toList}
+
+        ..${declaredFamilies.map(name => q"""
+          override def succ[RefDecl <: $Declaration[Post]](decl: ${typ(name)}[Pre])(implicit tag: $ClassTag[RefDecl]): $RefType[Post, RefDecl] =
             this.${scopes(name.base)}.freeze.succ(decl)
         """).toList}
       }

@@ -416,12 +416,12 @@ final case class Commit[G](obj: Expr[G])(val blame: Blame[CommitFailed])(
 ) extends NormallyCompletingStatement[G]
     with ExpressionContainerStatement[G]
     with CommitImpl[G]
-final case class Fold[G](res: Expr[G])(val blame: Blame[FoldFailed])(
+final case class Fold[G](res: FoldTarget[G])(val blame: Blame[FoldFailed])(
     implicit val o: Origin
 ) extends NormallyCompletingStatement[G]
     with ExpressionContainerStatement[G]
     with FoldImpl[G]
-final case class Unfold[G](res: Expr[G])(val blame: Blame[UnfoldFailed])(
+final case class Unfold[G](res: FoldTarget[G])(val blame: Blame[UnfoldFailed])(
     implicit val o: Origin
 ) extends NormallyCompletingStatement[G]
     with ExpressionContainerStatement[G]
@@ -1377,32 +1377,42 @@ final case class ProverFunctionInvocation[G](
 sealed trait ApplyInlineable[G] extends Apply[G] with ApplyInlineableImpl[G]
 sealed trait InstanceApply[G] extends Node[G] with InstanceApplyImpl[G]
 
+final case class PredicateApplyExpr[G](apply: ApplyAnyPredicate[G])(
+    implicit val o: Origin
+) extends ApplyInlineable[G] with PredicateApplyExprImpl[G]
+@family
 sealed trait ApplyAnyPredicate[G]
-    extends ApplyInlineable[G] with ApplyAnyPredicateImpl[G]
+    extends NodeFamily[G] with ApplyAnyPredicateImpl[G]
 final case class PredicateApply[G](
     ref: Ref[G, Predicate[G]],
     args: Seq[Expr[G]],
-    perm: Expr[G],
 )(implicit val o: Origin)
     extends ApplyAnyPredicate[G] with PredicateApplyImpl[G]
 final case class InstancePredicateApply[G](
     obj: Expr[G],
     ref: Ref[G, InstancePredicate[G]],
     args: Seq[Expr[G]],
-    perm: Expr[G],
 )(implicit val o: Origin)
-    extends ApplyAnyPredicate[G]
-    with InstanceApply[G]
-    with InstancePredicateApplyImpl[G]
+    extends ApplyAnyPredicate[G] with InstancePredicateApplyImpl[G]
 final case class CoalesceInstancePredicateApply[G](
     obj: Expr[G],
     ref: Ref[G, InstancePredicate[G]],
     args: Seq[Expr[G]],
+)(implicit val o: Origin)
+    extends ApplyAnyPredicate[G] with CoalesceInstancePredicateApplyImpl[G]
+
+@family
+sealed trait FoldTarget[G] extends NodeFamily[G] with FoldTargetImpl[G]
+final case class ScaledPredicateApply[G](
+    apply: ApplyAnyPredicate[G],
     perm: Expr[G],
 )(implicit val o: Origin)
-    extends ApplyAnyPredicate[G]
-    with InstanceApply[G]
-    with CoalesceInstancePredicateApplyImpl[G]
+    extends FoldTarget[G] with ScaledPredicateApplyImpl[G]
+final case class ValuePredicateApply[G](apply: ApplyAnyPredicate[G])(
+    implicit val o: Origin
+) extends FoldTarget[G] with ValuePredicateApplyImpl[G]
+final case class AmbiguousFoldTarget[G](target: Expr[G])(implicit val o: Origin)
+    extends FoldTarget[G] with AmbiguousFoldTargetImpl[G]
 
 sealed trait InvokingNode[G] extends Node[G] with InvokingNodeImpl[G]
 sealed trait Invocation[G]
@@ -1656,7 +1666,7 @@ final case class PolarityDependent[G](onInhale: Expr[G], onExhale: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with PolarityDependentImpl[G]
 
-final case class Unfolding[G](res: Expr[G], body: Expr[G])(
+final case class Unfolding[G](res: FoldTarget[G], body: Expr[G])(
     val blame: Blame[UnfoldFailed]
 )(implicit val o: Origin)
     extends Expr[G] with UnfoldingImpl[G]
@@ -1687,17 +1697,9 @@ final case class PointerLocation[G](pointer: Expr[G])(
     val blame: Blame[PointerLocationError]
 )(implicit val o: Origin)
     extends Location[G] with PointerLocationImpl[G]
-final case class PredicateLocation[G](
-    predicate: Ref[G, Predicate[G]],
-    args: Seq[Expr[G]],
-)(implicit val o: Origin)
-    extends Location[G] with PredicateLocationImpl[G]
-final case class InstancePredicateLocation[G](
-    predicate: Ref[G, InstancePredicate[G]],
-    obj: Expr[G],
-    args: Seq[Expr[G]],
-)(implicit val o: Origin)
-    extends Location[G] with InstancePredicateLocationImpl[G]
+final case class PredicateLocation[G](inv: ApplyAnyPredicate[G])(
+    implicit val o: Origin
+) extends Location[G] with PredicateLocationImpl[G]
 final case class AmbiguousLocation[G](expr: Expr[G])(
     val blame: Blame[PointerLocationError]
 )(implicit val o: Origin)

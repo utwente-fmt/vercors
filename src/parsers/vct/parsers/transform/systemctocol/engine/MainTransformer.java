@@ -280,8 +280,8 @@ public class MainTransformer<T> {
 
         // Apply update permission invariant
         Ref<T, InstancePredicate<T>> ref_update_invariant = new DirectRef<>(update_permission_invariant, ClassTag$.MODULE$.apply(InstancePredicate.class));
-        InstancePredicateApply<T> apply_update_perms = new InstancePredicateApply<>(col_system.THIS, ref_update_invariant,
-                col_system.NO_EXPRS, new WritePerm<>(OriGen.create()), OriGen.create());
+        Expr<T> apply_update_perms = col_system.fold_preds(new InstancePredicateApply<T>(col_system.THIS, ref_update_invariant,
+                col_system.NO_EXPRS, OriGen.create()));
 
         // Create conditions
         Perm<T> perm_to_proc = new Perm<>(proc_state_loc, new WritePerm<>(OriGen.create()), OriGen.create());
@@ -359,20 +359,17 @@ public class MainTransformer<T> {
 
         // Create call to scheduler invariant
         Ref<T, InstancePredicate<T>> ref_scheduler_invariant = new DirectRef<>(scheduler_invariant, ClassTag$.MODULE$.apply(InstancePredicate.class));
-        conditions.add(new InstancePredicateApply<>(col_system.THIS, ref_scheduler_invariant, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create()));
+        conditions.add(col_system.fold_preds(new InstancePredicateApply<>(col_system.THIS, ref_scheduler_invariant, col_system.NO_EXPRS, OriGen.create())));
 
         // Create call to parameter invariant
         Ref<T, InstancePredicate<T>> ref_parameter_invariant = new DirectRef<>(parameter_invariant, ClassTag$.MODULE$.apply(InstancePredicate.class));
-        conditions.add(new InstancePredicateApply<>(col_system.THIS, ref_parameter_invariant, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create()));
+        conditions.add(col_system.fold_preds(new InstancePredicateApply<>(col_system.THIS, ref_parameter_invariant, col_system.NO_EXPRS, OriGen.create())));
 
         // Create calls to all primitive channel invariants
         for (InstanceField<T> prim_channel : channels) {
             InstancePredicate<T> prim_channel_inv = col_system.get_prim_channel_inv(channel_by_field.get(prim_channel));
             Ref<T, InstancePredicate<T>> ref_channel_invariant = new DirectRef<>(prim_channel_inv, ClassTag$.MODULE$.apply(InstancePredicate.class));
-            conditions.add(new InstancePredicateApply<>(col_system.THIS, ref_channel_invariant, col_system.NO_EXPRS,
-                    new WritePerm<>(OriGen.create()), OriGen.create()));
+            conditions.add(col_system.fold_preds(new InstancePredicateApply<>(col_system.THIS, ref_channel_invariant, col_system.NO_EXPRS, OriGen.create())));
         }
 
         // Create permissions to every field of every process
@@ -1025,11 +1022,10 @@ public class MainTransformer<T> {
 
         // Create conditions of method context
         Held<T> held_this = new Held<>(col_system.THIS, OriGen.create());
-        InstancePredicateApply<T> permission_inv = new InstancePredicateApply<>(col_system.THIS, scheduler_perms, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create());
+        InstancePredicateApply<T> permission_inv = new InstancePredicateApply<>(col_system.THIS, scheduler_perms, col_system.NO_EXPRS, OriGen.create());
 
         // Put it all together and fold it with stars
-        return col_system.fold_star(java.util.List.of(held_this, permission_inv));
+        return col_system.fold_star(java.util.List.of(held_this, col_system.fold_preds(permission_inv)));
     }
 
     /**
@@ -1298,8 +1294,7 @@ public class MainTransformer<T> {
 
         // Create lock invariant for the Main class
         Ref<T, InstancePredicate<T>> global_invariant_ref = new DirectRef<>(global_invariant, ClassTag$.MODULE$.apply(InstancePredicate.class));
-        Expr<T> lock_invariant = new InstancePredicateApply<>(col_system.THIS, global_invariant_ref, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create());
+        Expr<T> lock_invariant = col_system.fold_preds(new InstancePredicateApply<>(col_system.THIS, global_invariant_ref, col_system.NO_EXPRS, OriGen.create()));
 
         // Assemble class
         Class<T> main_class = new Class<>(Seqs.empty(), List.from(CollectionConverters.asScala(declarations)),

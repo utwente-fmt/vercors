@@ -28,6 +28,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
 import vct.rewrite.{
+  DisambiguatePredicateExpression,
   EncodeAutoValue,
   EncodeRange,
   EncodeResourceValues,
@@ -44,12 +45,12 @@ import vct.rewrite.veymont.{
   EncodeChorBranchUnanimity,
   EncodeChoreography,
   EncodeEndpointInequalities,
-  StratifyUnpointedExpressions,
   GenerateChoreographyPermissions,
   GenerateImplementation,
   InferEndpointContexts,
   SpecializeEndpointClasses,
   StratifyExpressions,
+  StratifyUnpointedExpressions,
 }
 
 import java.nio.file.Path
@@ -321,6 +322,7 @@ case class SilverTransformation(
         // Make sure Disambiguate comes after CFloatIntCoercion, so CInts are gone
         Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
         DisambiguateLocation, // Resolve location type
+        DisambiguatePredicateExpression,
         EncodeRangedFor,
 
         // VeyMont sequential program encoding

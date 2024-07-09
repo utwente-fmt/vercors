@@ -14,8 +14,7 @@ case class Substitute[G](
     originTrafo: Origin => Origin = identity,
 ) extends NonLatchingRewriter[G, G] {
 
-  case class SuccOrIdentity()
-      extends SuccessorsProviderTrafo[G, G](allScopes.freeze) {
+  case class SuccOrIdentity() extends SuccessorsProviderTrafo[G, G](allScopes) {
     override def postTransform[T <: Declaration[G]](
         pre: Declaration[G],
         post: Option[T],

@@ -263,7 +263,7 @@ trait SilverBackend
             reason match {
               case reasons.InsufficientPermission(access) =>
                 get[col.Node[_]](access) match {
-                  case col.PredicateApply(_, _, _) =>
+                  case _: col.FoldTarget[_] =>
                     val unfold = get[col.Unfold[_]](node)
                     unfold.blame
                       .blame(blame.UnfoldFailed(getFailure(reason), unfold))
@@ -313,8 +313,7 @@ trait SilverBackend
                   .blame(blame.PackageFailed(getFailure(reason), packageNode))
               case reasons.InsufficientPermission(permNode) =>
                 get[col.Node[_]](permNode) match {
-                  case col.Perm(_, _) | col.PredicateApply(_, _, _) | col
-                        .Value(_) =>
+                  case col.Perm(_, _) | col.Value(_) =>
                     packageNode.blame.blame(
                       blame.PackageFailed(getFailure(reason), packageNode)
                     )
@@ -331,8 +330,7 @@ trait SilverBackend
                 ) // take the blame
               case reasons.InsufficientPermission(permNode) =>
                 get[col.Node[_]](permNode) match {
-                  case col.Perm(_, _) | col.PredicateApply(_, _, _) | col
-                        .Value(_) =>
+                  case col.Perm(_, _) | col.Value(_) =>
                     applyNode.blame.blame(
                       blame.WandApplyFailed(getFailure(reason), applyNode)
                     ) // take the blame

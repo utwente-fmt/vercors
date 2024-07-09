@@ -616,31 +616,6 @@ case class AbstractState[G](
           is_old,
           is_contract,
         ) // TODO: Do anything with permission fraction?
-      case PredicateApply(
-            ref,
-            args,
-            _,
-          ) => // TODO: Do anything with permission fraction?
-        if (ref.decl.body.nonEmpty)
-          UncertainBooleanValue
-            .from(
-              true
-            ) // resolve_boolean_expression(Utils.unify_expression(ref.decl.body.get, Map.from(ref.decl.args.zip(args))))
-        else
-          ??? // TODO: Track resource ownership?
-      case InstancePredicateApply(
-            _,
-            ref,
-            args,
-            _,
-          ) => // TODO: Do anything with permission fraction?
-        if (ref.decl.body.nonEmpty)
-          UncertainBooleanValue
-            .from(
-              true
-            ) // resolve_boolean_expression(Utils.unify_expression(ref.decl.body.get, Map.from(ref.decl.args.zip(args))))
-        else
-          ??? // TODO: Track resource ownership?
       case Perm(_, _) =>
         UncertainBooleanValue
           .from(true) // TODO: Do anything with permissions/resources?

@@ -58,14 +58,16 @@ abstract class CoercingRewriter[Pre <: Generation]()
     SuccessionMap()
 
   class CoercedSuccessorsProvider
-      extends SuccessorsProviderTrafo[Pre, Pre](null) {
+      extends SuccessorsProviderTrafo[Pre, Pre](new SuccessorsProviderNothing(
+        throw Unreachable("Always preTransformed")
+      )) {
     override def preTransform[I <: Declaration[Pre], O <: Declaration[Pre]](
         pre: I
     ): Option[O] = Some(coercedDeclaration(pre).asInstanceOf[O])
   }
 
   override def succProvider: SuccessorsProvider[Pre, Post] =
-    SuccessorsProviderChain(new CoercedSuccessorsProvider, allScopes.freeze)
+    SuccessorsProviderChain(new CoercedSuccessorsProvider, allScopes)
 
   /** Apply a particular coercion to an expression. SAFETY: all promoting
     * coercions must be injective; otherwise the default mapping coercion of
@@ -356,6 +358,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: ChorRun[Pre] => node
       case node: PVLEndpointName[Pre] => coerce(node)
       case node: EndpointName[Pre] => coerce(node)
+      case node: ApplyAnyPredicate[Pre] => coerce(node)
+      case node: FoldTarget[Pre] => coerce(node)
     }
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
@@ -1344,20 +1348,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
           )(inv.blame)
         )
       case InstanceOf(value, typeValue) => InstanceOf(value, typeValue)
-      case InstancePredicateApply(obj, ref, args, perm) =>
-        InstancePredicateApply(
-          cls(obj),
-          ref,
-          coerceArgs(args, ref.decl),
-          rat(perm),
-        )
-      case CoalesceInstancePredicateApply(obj, ref, args, perm) =>
-        CoalesceInstancePredicateApply(
-          cls(obj),
-          ref,
-          coerceArgs(args, ref.decl),
-          rat(perm),
-        )
       case IsLeft(e) => IsLeft(either(e)._1)
       case IsRight(e) => IsRight(either(e)._1)
       case deref @ JavaDeref(obj, field) => e
@@ -1627,8 +1617,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         PreAssignExpression(target, coerce(value, target.t, canCDemote = true))(
           ass.blame
         )
-      case PredicateApply(ref, args, perm) =>
-        PredicateApply(ref, coerceArgs(args, ref.decl), rat(perm))
+      case PredicateApplyExpr(apply) => PredicateApplyExpr(apply)
       case inv @ ProcedureInvocation(
             ref,
             args,
@@ -1981,7 +1970,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           UMinus(float(arg)),
           UMinus(rat(arg)),
         )
-      case u @ Unfolding(pred, body) => Unfolding(res(pred), body)(u.blame)
+      case u @ Unfolding(pred, body) => Unfolding(pred, body)(u.blame)
       case UntypedLiteralBag(values) =>
         val sharedType = Types.leastCommonSuperType(values.map(_.t))
         UntypedLiteralBag(values.map(coerce(_, sharedType)))
@@ -2167,7 +2156,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Eval(expr) => Eval(expr)
       case e @ Exhale(assn) => Exhale(res(assn))(e.blame)
       case Extract(body) => Extract(body)
-      case f @ Fold(assn) => Fold(res(assn))(f.blame)
+      case f @ Fold(assn) => Fold(assn)(f.blame)
       case f @ Fork(obj) => Fork(cls(obj))(f.blame)
       case proof @ FramedProof(pre, body, post) =>
         FramedProof(res(pre), body, res(post))(proof.blame)
@@ -2275,7 +2264,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case t @ Throw(obj) => Throw(cls(obj))(t.blame)
       case TryCatchFinally(body, after, catches) =>
         TryCatchFinally(body, after, catches)
-      case u @ Unfold(assn) => Unfold(res(assn))(u.blame)
+      case u @ Unfold(assn) => Unfold(assn)(u.blame)
       case u @ Unlock(obj) => Unlock(cls(obj))(u.blame)
       case VecBlock(iters, requires, ensures, content) =>
         VecBlock(iters, res(requires), res(ensures), content)
@@ -2682,14 +2671,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         ArrayLocation(array(arrayObj)._1, int(subscript))(a.blame)
       case p @ PointerLocation(pointerExp) =>
         PointerLocation(pointer(pointerExp)._1)(p.blame)
-      case PredicateLocation(predicate, args) =>
-        PredicateLocation(predicate, coerceArgs(args, predicate.decl))
-      case InstancePredicateLocation(predicate, obj, args) =>
-        InstancePredicateLocation(
-          predicate,
-          cls(obj),
-          coerceArgs(args, predicate.decl),
-        )
+      case PredicateLocation(inv) => PredicateLocation(inv)
       case al @ AmbiguousLocation(expr) => AmbiguousLocation(expr)(al.blame)
       case patLoc @ InLinePatternLocation(loc, pat) =>
         InLinePatternLocation(loc, pat)
@@ -2904,6 +2886,31 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case OperatorRightPlus() => OperatorRightPlus()
     }
   }
+
+  def coerce(node: ApplyAnyPredicate[Pre]): ApplyAnyPredicate[Pre] =
+    node match {
+      case InstancePredicateApply(obj, ref, args) =>
+        InstancePredicateApply(cls(obj), ref, coerceArgs(args, ref.decl))(
+          node.o
+        )
+      case CoalesceInstancePredicateApply(obj, ref, args) =>
+        CoalesceInstancePredicateApply(
+          cls(obj),
+          ref,
+          coerceArgs(args, ref.decl),
+        )(node.o)
+      case PredicateApply(ref, args) =>
+        PredicateApply(ref, coerceArgs(args, ref.decl))(node.o)
+    }
+
+  def coerce(node: FoldTarget[Pre]): FoldTarget[Pre] =
+    node match {
+      case ScaledPredicateApply(apply, perm) =>
+        ScaledPredicateApply(apply, rat(perm))(node.o)
+      case ValuePredicateApply(apply) => ValuePredicateApply(apply)(node.o)
+      case AmbiguousFoldTarget(target) =>
+        AmbiguousFoldTarget(res(target))(node.o)
+    }
 
   def coerce(node: BipPortType[Pre]): BipPortType[Pre] = {
     implicit val o: Origin = node.o
