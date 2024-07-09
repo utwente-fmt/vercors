@@ -913,7 +913,7 @@ public class COLSystem<T> {
      * @return A list of process classes that use the given function
      */
     public java.util.List<ProcessClass> get_function_usages(SCFunction function) {
-        return this.function_usages.get(function);
+        return this.function_usages.getOrDefault(function, new java.util.ArrayList<>());
     }
 
     /**
