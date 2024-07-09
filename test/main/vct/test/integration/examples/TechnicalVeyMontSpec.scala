@@ -723,18 +723,7 @@ class TechnicalVeyMontSpec
 //    }
 //    """)
 
-  (vercors should fail withCode "seqRunContextPreFailed:false" using silicon in
-    "Context everywhere of run should be checked" pvl """
-    class C {}
-    choreography Example(int x) {
-      endpoint c = C();
-      context_everywhere x == 0;
-      run {
-      }
-    }
-    """)
-
-  (vercors should fail withCode "endpointPreFailed:false" using silicon in
+  (vercors should fail withCode "preFailed:false" using silicon in
     "Precondition of endpoint constructor should be checked" pvl """
     class Storage {
       requires x == 0;

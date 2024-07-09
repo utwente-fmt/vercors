@@ -145,6 +145,8 @@ sealed trait CheckError {
         Seq(context(a) -> s"Raw assignment to an endpoint is not allowed.")
       case SeqProgInstanceMethodPure(m) =>
         Seq(context(m) -> s"Instance methods in choreographies cannot be pure.")
+      case ChorNonTrivialContextEverywhere(e) =>
+        Seq(context(e) -> s"Context everywhere is not supported here")
     }): _*)
 
   def subcode: String
@@ -248,6 +250,9 @@ case class SeqProgEndpointAssign(a: Assign[_]) extends CheckError {
 }
 case class SeqProgInstanceMethodPure(m: InstanceMethod[_]) extends CheckError {
   val subcode = "seqProgInstanceMethodPure"
+}
+case class ChorNonTrivialContextEverywhere(expr: Node[_]) extends CheckError {
+  val subcode = "chorNonTrivialContextEverywhere"
 }
 
 case object CheckContext {
