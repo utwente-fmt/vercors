@@ -1,6 +1,6 @@
 package vct.col.ast.expr.apply
 
-import vct.col.ast.InstancePredicateApply
+import vct.col.ast.{InstancePredicateApply, WritePerm}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.ast.ops.InstancePredicateApplyOps
 

@@ -73,6 +73,8 @@ public class Transformer<T> {
 		transform_classes();
 		// Finish the Main class
 		create_main_class();
+		// Create program entry point
+		create_vesuv_entry();
 	}
 
 	/**
@@ -345,6 +347,10 @@ public class Transformer<T> {
 	private void create_main_class() {
 		MainTransformer<T> main_transformer = new MainTransformer<>(sc_system, col_system);
 		main_transformer.create_main_class();
+	}
+
+	private void create_vesuv_entry() {
+		col_system.create_vesuv_entry();
 	}
 
 	// ============================================================================================================== //

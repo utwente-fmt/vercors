@@ -116,6 +116,11 @@ public class MainTransformer<T> {
     private InstanceMethod<T> find_minimum_advance;
 
     /**
+     * Scheduler helper method <code>update_events</code>
+     */
+    private InstanceMethod<T> update_events;
+
+    /**
      * Scheduler helper method <code>wakeup_after_wait</code>.
      */
     private InstanceMethod<T> wakeup_after_wait;
@@ -605,6 +610,7 @@ public class MainTransformer<T> {
         immediate_wakeup = create_immediate_wakeup();
         reset_events_no_delta = create_reset_events_no_delta();
         find_minimum_advance = create_find_minimum_advance();
+        update_events = create_update_events();
         wakeup_after_wait = create_wakeup_after_wait();
         reset_all_events = create_reset_all_events();
     }
@@ -804,6 +810,69 @@ public class MainTransformer<T> {
         ApplicableContract<T> contract = col_system.to_applicable_contract(col_system.TRUE, col_system.fold_star(ensures));
         return new InstanceMethod<>(col_system.T_INT, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract,
                 false, true, new GeneratedBlame<>(), OriGen.create("find_minimum_advance"));
+    }
+
+    /**
+     * Creates the abstract helper method <code>update_events</code>. This method takes as a parameter the next time
+     * advance and updates all events based on
+     *
+     * @return An <code>InstanceMethod</code> object encoding the method <code>wakeup_after_wait</code>
+     */
+    private InstanceMethod<T> create_update_events() {
+        // Create parameter
+        Variable<T> param = new Variable<>(col_system.T_INT, OriGen.create("advance"));
+        Ref<T, Variable<T>> param_ref = new DirectRef<>(param, ClassTag$.MODULE$.apply(Variable.class));
+        Local<T> param_deref = new Local<>(param_ref, OriGen.create());
+        List<Variable<T>> params = List.from(CollectionConverters.asScala(java.util.List.of(param)));
+
+        // Create references to the event and process state variables
+        Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, new GeneratedBlame<>(), OriGen.create());
+
+        // Create general permission context
+        Expr<T> context = create_helper_context();
+
+        // Create condition on event state and primitive update sequence
+        Old<T> old_process_state = new Old<>(process_state_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Eq<T> event_state_unchanged = new Eq<>(process_state_deref, old_process_state, OriGen.create());
+        Old<T> old_prim_update = new Old<>(prim_update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Eq<T> prim_update_unchanged = new Eq<>(prim_update_deref, old_prim_update, OriGen.create());
+        And<T> unchanged = new And<>(event_state_unchanged, prim_update_unchanged, OriGen.create());
+
+        // Create conditions for the changing state
+        java.util.List<Expr<T>> ensures = new java.util.ArrayList<>();
+        ensures.add(context);
+        ensures.add(unchanged);
+        for(int i = 0; i < col_system.get_total_nr_events(); i++) {
+            // Prepare appropriate sequence accesses
+            SeqSubscript<T> ev_state_i = new SeqSubscript<>(event_state_deref, new IntegerValue<>(BigInt.apply(i), OriGen.create()),
+                    new GeneratedBlame<>(), OriGen.create());
+            Old<T> old_ev_state_i = new Old<>(ev_state_i, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+
+            // Conditions
+            Less<T> event_negative = new Less<>(old_ev_state_i, col_system.MINUS_ONE, OriGen.create());
+            GreaterEq<T> event_positive = new GreaterEq<>(old_ev_state_i, col_system.MINUS_ONE, OriGen.create());
+
+            // Reset (if the event is -2 or -3 before, reset it to -3)
+            Eq<T> event_reset = new Eq<>(ev_state_i, col_system.MINUS_THREE, OriGen.create());
+
+            // Advance (if the event is scheduled before, subtract the given time from it)
+            Minus<T> reduced = new Minus<>(old_ev_state_i, param_deref, OriGen.create());
+            Eq<T> event_reduced = new Eq<>(ev_state_i, reduced, OriGen.create());
+
+            // Add to updates
+            ensures.add(new Implies<>(event_negative, event_reset, OriGen.create()));
+            ensures.add(new Implies<>(event_positive, event_reduced, OriGen.create()));
+        }
+
+        // Generate contract and method and return
+        ApplicableContract<T> contract = col_system.to_applicable_contract(context, col_system.fold_star(ensures));
+        return new InstanceMethod<>(col_system.T_VOID, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract,
+                false, false, new GeneratedBlame<>(), OriGen.create("update_events"));
     }
 
     /**
@@ -1096,21 +1165,16 @@ public class MainTransformer<T> {
                 col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
         Assign<T> assign_ma = new Assign<>(ma_local, fma_invoke, new GeneratedBlame<>(), OriGen.create());
 
-        // Set min_advance to zero if it is -1
-        Eq<T> cond = new Eq<>(ma_local, col_system.MINUS_ONE, OriGen.create());
+        // Set min_advance to zero if it is less than or equal to -1
+        LessEq<T> cond = new LessEq<>(ma_local, col_system.MINUS_ONE, OriGen.create());
         Assign<T> reset_ma = new Assign<>(ma_local, col_system.ZERO, new GeneratedBlame<>(), OriGen.create());
         java.util.List<Tuple2<Expr<T>, Statement<T>>> branches = java.util.List.of(new Tuple2<>(cond, reset_ma));
         Branch<T> cond_reset_ma = new Branch<>(List.from(CollectionConverters.asScala(branches)), OriGen.create());
 
-        // Advance delays in event_state
-        java.util.List<Expr<T>> literal_values = new java.util.ArrayList<>();
-        for (Expr<T> ev_i : event_entries) {
-            Less<T> condition = new Less<>(ev_i, col_system.MINUS_ONE, OriGen.create());
-            Minus<T> minus = new Minus<>(ev_i, ma_local, OriGen.create());
-            literal_values.add(new Select<>(condition, col_system.MINUS_THREE, minus, OriGen.create()));
-        }
-        LiteralSeq<T> reset_literal = new LiteralSeq<>(col_system.T_INT, List.from(CollectionConverters.asScala(literal_values)), OriGen.create());
-        Assign<T> advance_delays = new Assign<>(event_state_deref, reset_literal, new GeneratedBlame<>(), OriGen.create());
+        // Call update_events
+        Ref<T, InstanceMethod<T>> ue_ref = new DirectRef<>(update_events, ClassTag$.MODULE$.apply(InstanceMethod.class));
+        InvokeMethod<T> call_ue = new InvokeMethod<>(col_system.THIS, ue_ref, List.from(CollectionConverters.asScala(java.util.List.of(ma_local))),
+                col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
 
         // Call wakeup_after_wait
         Ref<T, InstanceMethod<T>> waw_ref = new DirectRef<>(wakeup_after_wait, ClassTag$.MODULE$.apply(InstanceMethod.class));
@@ -1123,7 +1187,7 @@ public class MainTransformer<T> {
                 col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
 
         // Put it all together and return
-        java.util.List<Statement<T>> statements = java.util.List.of(update_phase, declare_ma, assign_ma, cond_reset_ma, advance_delays, call_waw, call_rae);
+        java.util.List<Statement<T>> statements = java.util.List.of(update_phase, declare_ma, assign_ma, cond_reset_ma, call_ue, call_waw, call_rae);
         return new Block<>(List.from(CollectionConverters.asScala(statements)), OriGen.create());
     }
 
@@ -1224,6 +1288,7 @@ public class MainTransformer<T> {
         declarations.add(immediate_wakeup);
         declarations.add(reset_events_no_delta);
         declarations.add(find_minimum_advance);
+        declarations.add(update_events);
         declarations.add(wakeup_after_wait);
         declarations.add(reset_all_events);
 
@@ -1238,5 +1303,6 @@ public class MainTransformer<T> {
         // Register Main class in COL system context
         col_system.add_global_declaration(main_class);
         col_system.set_main(main_class);
+        col_system.set_main_method(scheduler);
     }
 }
