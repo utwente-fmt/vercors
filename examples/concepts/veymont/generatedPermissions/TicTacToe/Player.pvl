@@ -107,6 +107,7 @@ class Player {
 	ensures 0 <= move.i && move.i <= 2;
 	ensures 0 <= move.j && move.j <= 2;
 	requires myToken == 0 || myToken == 1;
+	ensures move != null;
 	ensures move.token == myToken;
 	ensures move.token == 0 || move.token == 1;
 	ensures myToken == \old(myToken);

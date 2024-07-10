@@ -12,9 +12,14 @@ class VeyMontExamplesSpec extends VercorsSpec {
       s"$wd/TicTacToe/TicTacToe.pvl",
     )
   // TODO (RR): Re-enable after stratified permissions are done
-  // vercors should verify using silicon flags "--veymont-generate-permissions" example s"$wd/leaderelectring.pvl"
-  // vercors should verify using silicon flags "--veymont-generate-permissions" example s"$wd/leaderelectstar.pvl"
-  // vercors should verify using silicon flags "--veymont-generate-permissions" example s"$wd/paperscissorsrock.pvl"
-  // vercors should verify using silicon flags "--veymont-generate-permissions" example s"$wd/parallel_while.pvl"
-  // vercors should verify using silicon flags "--veymont-generate-permissions" example s"$wd/spectral-norm.pvl"
+  vercors should verify using silicon flags
+    "--veymont-generate-permissions" example s"$wd/leaderelectring.pvl"
+  vercors should verify using silicon flags
+    "--veymont-generate-permissions" example s"$wd/leaderelectstar.pvl"
+  vercors should verify using silicon flags
+    "--veymont-generate-permissions" example s"$wd/paperscissorsrock.pvl"
+  vercors should verify using silicon flags
+    "--veymont-generate-permissions" example s"$wd/parallel_while.pvl"
+  vercors should verify using silicon flags
+    "--veymont-generate-permissions" example s"$wd/spectral-norm.pvl"
 }
