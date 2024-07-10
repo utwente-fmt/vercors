@@ -317,6 +317,13 @@ case class EncodePermissionStratification[Pre <: Generation](
     }
   }
 
+  // Warning: this does not integrate well with generics. To support generic endpoints and generic
+  // methods fully, generic parameters need to be added to the predicates generated, such that stating
+  // the actual type of the object dereferenced in the wrapper predicate can be delayed as long as possible.
+  // This is because we need the type of the field (e.g. through loc.obj.t), but to actually instantiate
+  // this possibly generic type you need a type environment that is lost at this point. As rewriting is nested (e.g.
+  // endpoint x calls function a, that calls function b, that calls function c, which we are now specializing
+  // for endpoint x), it is difficult to maintain the proper type environment.
   def makeWrappedPerm(
       endpoint: Endpoint[Pre],
       loc: FieldLocation[Pre],

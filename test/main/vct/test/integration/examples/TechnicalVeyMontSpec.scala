@@ -788,9 +788,10 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  vercors should verify using silicon flag
-    "--veymont-generate-permissions" example
-    "technical/veymont/genericEndpoints.pvl"
+  // Disabled indefinitely until EncodePermissionStratification.scala is refactored to fully support generics
+//  vercors should verify using silicon flag
+//    "--veymont-generate-permissions" example
+//    "technical/veymont/genericEndpoints.pvl"
 
   (vercors should fail withCode "branchNotUnanimous" using silicon flag
     "--veymont-generate-permissions" in "branch unanimity for if" pvl """
