@@ -133,18 +133,33 @@ class TechnicalVeyMontSpec
   }
   """
 
-  vercors should error withCode "resolutionError:seqProgReceivingEndpoint" in
-    "Dereferencing anything other than the receiving endpoint in the arguments of a endpoint method invocation is not supported yet" pvl
+  vercors should verify using silicon in
+    "Dereferencing other endpoints in arguments is possible if permissions are available for the endpoint context" pvl
     """
-   class C { C d; void foo(int x); int x; }
-   choreography Example(C c) {
-     endpoint c = C();
-     endpoint d = C();
-     run {
-       c.foo(d.x);
-     }
-   }
-   """
+    class C { C d; void foo(int x); int x; }
+    choreography Example(C c) {
+      endpoint c = C();
+      endpoint d = C();
+      requires Perm[c](d.x, 1);
+      run {
+        c.foo(d.x);
+      }
+    }
+    """
+
+  vercors should fail withCode "perm" using silicon in
+    "Dereferencing other endpoints in arguments is not possible if permissions are not available for the endpoint context" pvl
+    """
+    class C { C d; void foo(int x); int x; }
+    choreography Example(C c) {
+      endpoint c = C();
+      endpoint d = C();
+      requires Perm[d](d.x, 1);
+      run {
+        c.foo(d.x);
+      }
+    }
+    """
 
   vercors should verify using silicon in "Empty choreography must verify" pvl
     """
@@ -230,22 +245,22 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  vercors should fail withCode "???" using silicon flag
+  vercors should fail withCode "perm" using silicon flag
     "--veymont-generate-permissions" in
     "Assignment statement only allows one endpoint in the assigned expression" pvl
     """
-   class Storage {
-      int x;
-   }
-   choreography Example() {
-      endpoint alice = Storage();
-      endpoint bob = Storage();
+    class Storage {
+       int x;
+    }
+    choreography Example() {
+       endpoint alice = Storage();
+       endpoint bob = Storage();
 
-      run {
-        alice.x := bob.x;
-      }
-   }
-   """
+       run {
+         alice.x := bob.x;
+       }
+    }
+    """
 
   (vercors should fail withCode "branchNotUnanimous" using silicon flag
     "--veymont-generate-permissions" in
@@ -510,7 +525,7 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  (vercors should fail withCode "accessPerm" using silicon in
+  (vercors should fail withCode "perm" using silicon in
     "When no permission is generated, a failure should occur on endpoint field access" pvl
     """
      class Storage {
@@ -707,13 +722,12 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  // This should still fail. Even though it will not be observed by any endpoints when projected. It is still
-  // sound to reject this program.
-  (vercors should fail withCode "seqRunPreFailed:false" using silicon in
-    "Precondition of run should be checked, also when there are no endpoints" pvl
-    """
+  (vercors should fail withCode "postFailed:false" using silicon in
+    "Precondition of run is never witnessed if there are no endpoints" pvl """
+    ensures x == 0;
     choreography Example(int x) {
       requires x == 0;
+      ensures x == 0;
       run {
       }
     }
@@ -734,24 +748,8 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  (vercors should fail withCode "assignNotAllowed" using silicon in
-    "Contrary to historical precedent, assignment should be allowed in choreographies" pvl
-    """
-    class Storage {
-      int x;
-    }
-
-    choreography Example() {
-      endpoint alice = Storage();
-      run {
-        alice.x = 0;
-      }
-    }
-    """)
-
-  (vercors should verify using silicon flag
-    "--veymont-generate-permissions" flag "--dev-veymont-allow-assign" in
-    "At user discretion, assignment should be allowed" pvl """
+  (vercors should error withCode "resolutionError:chorStatement" in
+    "Assignment should not be allowed in choreographies" pvl """
     class Storage {
       int x;
     }

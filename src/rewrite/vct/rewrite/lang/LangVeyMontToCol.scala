@@ -170,6 +170,10 @@ case class LangVeyMontToCol[Pre <: Generation](
           endpointName.map(rewriteEndpointName),
           inner.rewriteDefault(),
         )(stmt.blame)(stmt.o)
+      case eval: Eval[Pre] =>
+        EndpointStatement[Post](None, eval.rewriteDefault())(PanicBlame(
+          "Inner statement cannot fail"
+        ))(stmt.o)
       case _: Block[Pre] | _: Scope[Pre] =>
         currentStatement.having(stmt) { rw.dispatch(stmt) }
       case branch: PVLBranch[Pre] =>

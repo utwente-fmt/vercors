@@ -22,7 +22,8 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
       case chor: Choreography[Pre] =>
         currentChoreography.having(chor) {
           currentParticipants.having(ListSet.from(chor.endpoints)) {
-            chor.rewriteDefault().succeed(chor)
+            chor.rewrite(contract = chor.contract.rewriteDefault())
+              .succeed(chor)
           }
         }
 

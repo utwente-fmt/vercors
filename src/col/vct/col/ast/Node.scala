@@ -3640,6 +3640,7 @@ final class Endpoint[G](
 )(implicit val o: Origin)
     extends Declaration[G] with EndpointImpl[G]
 @scopes[Endpoint]
+@scopes[Variable]
 final class Choreography[G](
     val contract: ApplicableContract[G],
     val params: Seq[Variable[G]],

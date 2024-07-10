@@ -111,7 +111,7 @@ sealed trait CheckError {
           context(s) ->
             "Plain assignment is not allowed in `choreography`, only assignment using `:=`."
         )
-      case ChorStatement(s @ vct.col.ast.ChorStatement(_: Assign[_])) =>
+      case ChorStatement(s) =>
         Seq(context(s) -> "This statement is not allowed in `choreography`.")
       case SeqProgInstanceMethodArgs(m) =>
         Seq(
