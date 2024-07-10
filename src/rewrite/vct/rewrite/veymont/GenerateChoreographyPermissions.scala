@@ -131,38 +131,32 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
 
       case chor: Choreography[Pre] if enabled =>
         val run = chor.run
-        val x =
-          currentProg.having(chor) {
-            globalDeclarations.succeed(
-              chor,
-              chor.rewrite(
-                contract = {
-                  val c =
-                    prependContract(
-                      chor.contract,
-                      variablesPerm(chor.params)(chor.o),
-                      variablesPerm(chor.params)(chor.o),
-                    )(chor.o)
-                  val d = c
-                  c
-                },
-                run = run.rewrite(
-                  contract =
-                    prependContract(
-                      run.contract,
-                      endpointsPerm(chor.endpoints)(run.o),
-                      endpointsPerm(chor.endpoints)(run.o),
-                    )(run.o),
-                  body =
-                    currentPerm.having(endpointsPerm(chor.endpoints)(run.o)) {
-                      run.body.rewriteDefault()
-                    },
-                ),
+        currentProg.having(chor) {
+          globalDeclarations.succeed(
+            chor,
+            chor.rewrite(
+              contract = {
+                prependContract(
+                  chor.contract,
+                  variablesPerm(chor.params)(chor.o),
+                  variablesPerm(chor.params)(chor.o),
+                )(chor.o)
+              },
+              run = run.rewrite(
+                contract =
+                  prependContract(
+                    run.contract,
+                    endpointsPerm(chor.endpoints)(run.o),
+                    endpointsPerm(chor.endpoints)(run.o),
+                  )(run.o),
+                body =
+                  currentPerm.having(endpointsPerm(chor.endpoints)(run.o)) {
+                    run.body.rewriteDefault()
+                  },
               ),
-            )
-          }
-        val y = x
-        x
+            ),
+          )
+        }
 
       case comm: Communicate[Pre] if enabled =>
         val perms =

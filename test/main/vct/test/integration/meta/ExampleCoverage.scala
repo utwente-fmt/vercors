@@ -53,7 +53,6 @@ class ExampleCoverage extends AnyFlatSpec {
       new TechnicalSpec(),
       new TechnicalStaticSpec(),
       new TechnicalVeyMontSpec(),
-      new TechnicalVeyMontExamplesSpec(),
       new TerminationSpec(),
       new TypeValuesSpec(),
       new VcllvmSpec(),
@@ -69,13 +68,16 @@ class ExampleCoverage extends AnyFlatSpec {
 
     var shouldFail = false
 
-    for(f <- ExampleFiles.FILES) {
-      if(!testedFiles.contains(f)) {
+    for (f <- ExampleFiles.FILES) {
+      if (!testedFiles.contains(f)) {
         shouldFail = true
         println(s"Not tested: $f")
       }
     }
 
-    if(shouldFail) fail("The test suite does not have a test entry that processes the above files.")
+    if (shouldFail)
+      fail(
+        "The test suite does not have a test entry that processes the above files."
+      )
   }
 }
