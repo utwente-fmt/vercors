@@ -4,7 +4,6 @@ import vct.test.integration.helper.VercorsSpec
 
 class TechnicalVeyMontSpec
     extends VercorsSpec {
-      // TODO (RR): Re-enable tests asap
 
       (vercors should verify using silicon flag
     "--veymont-generate-permissions" in "example using communicate" pvl """
@@ -134,17 +133,18 @@ class TechnicalVeyMontSpec
   }
   """
 
-  // vercors should error withCode "resolutionError:seqProgReceivingEndpoint" in "Dereferencing anything other than the receiving endpoint in the arguments of a endpoint method invocation is not supported yet" pvl
-  //   """
-  // class C { C d; void foo(int x); int x; }
-  // choreography Example(C c) {
-  //   endpoint c = C();
-  //   endpoint d = C();
-  //   run {
-  //     c.foo(d.x);
-  //   }
-  // }
-  // """
+  vercors should error withCode "resolutionError:seqProgReceivingEndpoint" in
+    "Dereferencing anything other than the receiving endpoint in the arguments of a endpoint method invocation is not supported yet" pvl
+    """
+   class C { C d; void foo(int x); int x; }
+   choreography Example(C c) {
+     endpoint c = C();
+     endpoint d = C();
+     run {
+       c.foo(d.x);
+     }
+   }
+   """
 
   vercors should verify using silicon in "Empty choreography must verify" pvl
     """
@@ -230,62 +230,62 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  // TODO (RR): Test makes sense if you generate permissions...?
-  // vercors should error withCode "resolutionError:seqProgReceivingEndpoint" in "Assignment statement only allows one endpoint in the assigned expression" pvl
-  //   """
-  // class Storage {
-  //    int x;
-  // }
-  // choreography Example() {
-  //    endpoint alice = Storage();
-  //    endpoint bob = Storage();
+  vercors should fail withCode "???" using silicon flag
+    "--veymont-generate-permissions" in
+    "Assignment statement only allows one endpoint in the assigned expression" pvl
+    """
+   class Storage {
+      int x;
+   }
+   choreography Example() {
+      endpoint alice = Storage();
+      endpoint bob = Storage();
 
-  //    run {
-  //      alice.x := bob.x;
-  //    }
-  // }
-  // """
+      run {
+        alice.x := bob.x;
+      }
+   }
+   """
 
-  // TODO (RR): Re-implement proper error reporting for branch unanimity
-//  (vercors should fail withCode "branchNotUnanimous" using silicon flag
-//    "--veymont-generate-permissions" in
-//    "Parts of condition in branch have to agree inside seqprog" pvl """
-//    class Storage {
-//       int x;
-//    }
-//    choreography Example() {
-//       endpoint alice = Storage();
-//       endpoint bob = Storage();
-//
-//       run {
-//          if (alice.x == 0 && bob.x == 0) {
-//            // Alice might go here, bob might not: error
-//          }
-//       }
-//    }
-//    """)
+  (vercors should fail withCode "branchNotUnanimous" using silicon flag
+    "--veymont-generate-permissions" in
+    "Parts of condition in branch have to agree inside seqprog" pvl """
+    class Storage {
+       int x;
+    }
+    choreography Example() {
+       endpoint alice = Storage();
+       endpoint bob = Storage();
 
-//  (vercors should fail withCode "branchNotUnanimous" using silicon flag
-//    "--veymont-generate-permissions" in
-//    "Parts of condition in branch have to agree inside seqprog, including conditions for all endpoints" pvl
-//    """
-//    class Storage {
-//       int x;
-//    }
-//
-//    pure int f() = 3;
-//
-//    choreography Example() {
-//       endpoint alice = Storage();
-//       endpoint bob = Storage();
-//
-//       run {
-//          if (alice.x == 0 && f() == 3) {
-//            // Alice might go here, bob will definitely, because of the second expression: error
-//          }
-//       }
-//    }
-//    """)
+       run {
+          if (alice.x == 0 && bob.x == 0) {
+            // Alice might go here, bob might not: error
+          }
+       }
+    }
+    """)
+
+  (vercors should fail withCode "branchNotUnanimous" using silicon flag
+    "--veymont-generate-permissions" in
+    "Parts of condition in branch have to agree inside seqprog, including conditions for all endpoints" pvl
+    """
+    class Storage {
+       int x;
+    }
+
+    pure int f() = 3;
+
+    choreography Example() {
+       endpoint alice = Storage();
+       endpoint bob = Storage();
+
+       run {
+          if (alice.x == 0 && f() == 3) {
+            // Alice might go here, bob will definitely, because of the second expression: error
+          }
+       }
+    }
+    """)
 
   (vercors should verify using silicon flag "--veymont-generate-permissions" in
     "If there is only one endpoint, the conditions don't have to agree, as there is only one endpoint" pvl
@@ -343,22 +343,22 @@ class TechnicalVeyMontSpec
   }
   """
 
-  // vercors should error withCode "seqProgParticipantErrors" in "If alice branches, bob cannot assign" pvl
-  //   """
-  // class Storage {
-  //   int x;
-  // }
-  // choreography Example() {
-  //    endpoint alice = Storage();
-  //    endpoint bob = Storage();
+  vercors should error withCode "seqProgParticipantErrors" in
+    "If alice branches, bob cannot assign" pvl """
+   class Storage {
+     int x;
+   }
+   choreography Example() {
+      endpoint alice = Storage();
+      endpoint bob = Storage();
 
-  //    run {
-  //       if (alice.x == 0) {
-  //         bob.x := 3;
-  //       }
-  //    }
-  // }
-  // """
+      run {
+         if (alice.x == 0) {
+           bob.x := 3;
+         }
+      }
+   }
+   """
 
   (vercors should verify using silicon flag "--veymont-generate-permissions" in
     "Programs where branch conditions agree should verify" pvl """
@@ -380,66 +380,66 @@ class TechnicalVeyMontSpec
     }
     """)
 
-//  (vercors should fail withCode "loopUnanimityNotEstablished" using silicon flag
-//    "--veymont-generate-permissions" in
-//    "Programs where branch condition unanimity cannot be established should fail" pvl
-//    """
-//    class Storage {
-//       bool x;
-//    }
-//    choreography Example() {
-//       endpoint alice = Storage();
-//       endpoint bob = Storage();
-//
-//       run {
-//         while (alice.x && bob.x) {
-//
-//         }
-//       }
-//    }
-//    """)
+  (vercors should fail withCode "loopUnanimityNotEstablished" using silicon flag
+    "--veymont-generate-permissions" in
+    "Programs where branch condition unanimity cannot be established should fail" pvl
+    """
+    class Storage {
+       bool x;
+    }
+    choreography Example() {
+       endpoint alice = Storage();
+       endpoint bob = Storage();
 
-//  (vercors should fail withCode "loopUnanimityNotMaintained" using silicon flag
-//    "--veymont-generate-permissions" in
-//    "Programs where branch condition unanimity cannot be maintained should fail" pvl
-//    """
-//    class Storage {
-//       bool x;
-//    }
-//    choreography Example() {
-//       endpoint alice = Storage();
-//       endpoint bob = Storage();
-//
-//       run {
-//         alice.x := true;
-//         bob.x := true;
-//         while (alice.x && bob.x) {
-//           alice.x := false;
-//         }
-//       }
-//    }
-//    """)
+       run {
+         while (alice.x && bob.x) {
 
-  // vercors should error withCode "seqProgParticipantErrors" in "Loops should also limit the number of participants" pvl
-  //   """
-  // class Storage {
-  //    bool x;
-  // }
-  // choreography Example() {
-  //    endpoint alice = Storage();
-  //    endpoint bob = Storage();
-  //    endpoint charlie = Storage();
+         }
+       }
+    }
+    """)
 
-  //    run {
-  //      alice.x := true;
-  //      bob.x := true;
-  //      while (alice.x && bob.x) {
-  //        alice.x := false;
-  //        charlie.x := true;
-  //      }
-  //    }
-  // }
-  // """
+  (vercors should fail withCode "loopUnanimityNotMaintained" using silicon flag
+    "--veymont-generate-permissions" in
+    "Programs where branch condition unanimity cannot be maintained should fail" pvl
+    """
+    class Storage {
+       bool x;
+    }
+    choreography Example() {
+       endpoint alice = Storage();
+       endpoint bob = Storage();
+
+       run {
+         alice.x := true;
+         bob.x := true;
+         while (alice.x && bob.x) {
+           alice.x := false;
+         }
+       }
+    }
+    """)
+
+  vercors should error withCode "seqProgParticipantErrors" in
+    "Loops should also limit the number of participants" pvl """
+   class Storage {
+      bool x;
+   }
+   choreography Example() {
+      endpoint alice = Storage();
+      endpoint bob = Storage();
+      endpoint charlie = Storage();
+
+      run {
+        alice.x := true;
+        bob.x := true;
+        while (alice.x && bob.x) {
+          alice.x := false;
+          charlie.x := true;
+        }
+      }
+   }
+   """
 
   (vercors should verify using silicon flag "--veymont-generate-permissions" in
     "Loops should also limit the number of participants when combined with branches" pvl
@@ -465,29 +465,30 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  // vercors should error withCode "seqProgParticipantErrors" in "Loops should also limit the number of participants when combined with branches, failing" pvl
-  //   """
-  // class Storage {
-  //    bool x;
-  // }
-  // choreography Example() {
-  //    endpoint alice = Storage();
-  //    endpoint bob = Storage();
-  //    endpoint charlie = Storage();
+  vercors should error withCode "seqProgParticipantErrors" in
+    "Loops should also limit the number of participants when combined with branches, failing" pvl
+    """
+   class Storage {
+      bool x;
+   }
+   choreography Example() {
+      endpoint alice = Storage();
+      endpoint bob = Storage();
+      endpoint charlie = Storage();
 
-  //    run {
-  //      alice.x := true;
-  //      bob.x := true;
-  //      while (alice.x && bob.x) {
-  //        alice.x := false;
-  //        if (bob.x == true) {
-  //         bob.x := false;
-  //         charlie.x := true;
-  //        }
-  //      }
-  //    }
-  // }
-  // """
+      run {
+        alice.x := true;
+        bob.x := true;
+        while (alice.x && bob.x) {
+          alice.x := false;
+          if (bob.x == true) {
+           bob.x := false;
+           charlie.x := true;
+          }
+        }
+      }
+   }
+   """
 
   (vercors should verify using silicon flag "--veymont-generate-permissions" in
     "Permission should be generated for constructors as well" pvl """
@@ -509,25 +510,21 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  // (vercors
-  //   should fail
-  //   withCode "accessPerm"
-  //   using silicon
-  //   in "When no permission is generated, a failure should occur on endpoint field access"
-  //   pvl
-  //   """
-  //   class Storage {
-  //     int x;
-  //   }
+  (vercors should fail withCode "accessPerm" using silicon in
+    "When no permission is generated, a failure should occur on endpoint field access" pvl
+    """
+     class Storage {
+       int x;
+     }
 
-  //   choreography Example() {
-  //     endpoint alice = Storage();
-  //     endpoint bob = Storage();
-  //     run {
-  //       communicate alice.x <- bob.x;
-  //     }
-  //   }
-  //   """)
+     choreography Example() {
+       endpoint alice = Storage();
+       endpoint bob = Storage();
+       run {
+         communicate alice.x <- bob.x;
+       }
+     }
+     """)
 
   (vercors should fail withCode "perm" using silicon in
     "When no permission is generated, a failure should occur on seq assign field access" pvl
@@ -612,7 +609,7 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  // TODO (RR): Auxiliary methods will be implemented at a later point; turned off for now.
+  // Auxiliary methods turned off indefinitely for now. Though can be implemented with just engineering work.
 //  (vercors
 //    should verify
 //    using silicon
@@ -639,7 +636,6 @@ class TechnicalVeyMontSpec
 //    }
 //    """)
 
-  // TODO (RR): Turned off until aux. methods are supported again
 //  (vercors
 //    should verify
 //    using silicon
@@ -669,7 +665,6 @@ class TechnicalVeyMontSpec
 //    }
 //    """)
 
-  // TODO (RR): Disabled until aux. methods are supported again
 //  (vercors
 //    should fail
 //    withCode "assertFailed:false"
@@ -712,16 +707,17 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  // TODO (RR): Decide on a sane interpretation for this before the artefact deadline
-//  (vercors should fail withCode "seqRunPreFailed:false" using silicon in
-//    "Precondition of run should be checked, also when there are no endpoints" pvl
-//    """
-//    choreography Example(int x) {
-//      requires x == 0;
-//      run {
-//      }
-//    }
-//    """)
+  // This should still fail. Even though it will not be observed by any endpoints when projected. It is still
+  // sound to reject this program.
+  (vercors should fail withCode "seqRunPreFailed:false" using silicon in
+    "Precondition of run should be checked, also when there are no endpoints" pvl
+    """
+    choreography Example(int x) {
+      requires x == 0;
+      run {
+      }
+    }
+    """)
 
   (vercors should fail withCode "preFailed:false" using silicon in
     "Precondition of endpoint constructor should be checked" pvl """
@@ -738,12 +734,7 @@ class TechnicalVeyMontSpec
     }
     """)
 
-  /* TODO (RR): This test used to be failing, as there was separate syntax for assignment in choreographies. After some refactorings,
-       it is not clear if this syntax is still needed. I think this will be resolved in a few weeks from now. For now,
-       this test is just marked as succeeding. */
-  (vercors should verify
-//    withCode "assignNotAllowed"
-  using silicon flag "--veymont-generate-permissions" in
+  (vercors should fail withCode "assignNotAllowed" using silicon in
     "Contrary to historical precedent, assignment should be allowed in choreographies" pvl
     """
     class Storage {

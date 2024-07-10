@@ -180,11 +180,6 @@ case class LangVeyMontToCol[Pre <: Generation](
         ChorStatement(currentStatement.having(stmt) { rw.dispatch(stmt) })(
           ForwardLoopUnanimityFailed(loop)
         )(stmt.o)
-      case _: Assign[Pre] | _: Eval[Pre] =>
-        EndpointStatement(
-          None,
-          currentStatement.having(stmt) { rw.dispatch(stmt) },
-        )(PanicBlame("Shouldn't happen"))(stmt.o)
       case comm: PVLCommunicateStatement[Pre] =>
         rewriteCommunicateStatement(comm)
       // Any statement not listed here, we put in ChorStatement. ChorStatementImpl defines which leftover statement we tolerate in choreographies

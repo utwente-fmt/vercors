@@ -8,22 +8,25 @@ class TechnicalVeyMontExamplesSpec extends VercorsSpec {
   val wd = "technical/veymont"
 
   // TODO (RR): Re-enable tests asap
-  // vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkLTS/ltstest.pvl"
-  // vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkLTS/simpleifelse.pvl"
+  vercors should verify using silicon flag
+    "--veymont-generate-permissions" example s"$wd/checkLTS/ltstest.pvl"
+  vercors should verify using silicon flag
+    "--veymont-generate-permissions" example s"$wd/checkLTS/simpleifelse.pvl"
 
   (vercors should error withCode "resolutionError:seqProgInvocation" flag
     "--veymont-generate-permissions" example
     s"$wd/checkMainSyntaxAndWellFormedness/ConstructorCall.pvl")
-  // (vercors
-  //   should verify
-  //   using silicon flag "--veymont-generate-permissions"
-  //   example s"$wd/checkMainSyntaxAndWellFormedness/IfCondition.pvl")
+  (vercors should verify using silicon flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkMainSyntaxAndWellFormedness/IfCondition.pvl")
 
   (vercors should verify using silicon flag
     "--veymont-generate-permissions" example
     s"$wd/checkMainSyntaxAndWellFormedness/MainConstructorWithArgs.pvl")
 
-  // vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/MainMethodCall.pvl"
+  vercors should verify using silicon flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkMainSyntaxAndWellFormedness/MainMethodCall.pvl"
   vercors should verify using silicon flag
     "--veymont-generate-permissions" example
     s"$wd/checkMainSyntaxAndWellFormedness/NewNonRoleObject.pvl"
@@ -48,19 +51,18 @@ class TechnicalVeyMontExamplesSpec extends VercorsSpec {
     s"$wd/checkMainSyntaxAndWellFormedness/WaitStatement.pvl")
 
   // TODO (RR): Re-enable once loop unanimity is re-implemented
-//  (vercors should fail withCode "loopUnanimityNotMaintained" using silicon flag
-//    "--veymont-generate-permissions" example
-//    s"$wd/checkMainSyntaxAndWellFormedness/WhileCondition.pvl")
+  (vercors should fail withCode "loopUnanimityNotMaintained" using silicon flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkMainSyntaxAndWellFormedness/WhileCondition.pvl")
 
-  // (vercors
-  //   should error
-  //   withCode "resolutionError:seqProgReceivingEndpoint,seqProgReceivingEndpoint"
-  //   flag "--veymont-generate-permissions" example s"$wd/checkMainSyntaxAndWellFormedness/WrongAssignment.pvl")
+  (vercors should error withCode
+    "resolutionError:seqProgReceivingEndpoint,seqProgReceivingEndpoint" flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkMainSyntaxAndWellFormedness/WrongAssignment.pvl")
 
-  // (vercors
-  //   should error withCode "assignNotAllowed"
-  //   flag "--veymont-generate-permissions"
-  //   example s"$wd/checkMainSyntaxAndWellFormedness/WrongSyntax.pvl")
+  (vercors should error withCode "assignNotAllowed" flag
+    "--veymont-generate-permissions" example
+    s"$wd/checkMainSyntaxAndWellFormedness/WrongSyntax.pvl")
 
   vercors should verify using silicon flag
     "--veymont-generate-permissions" example
@@ -69,5 +71,6 @@ class TechnicalVeyMontExamplesSpec extends VercorsSpec {
     "--veymont-generate-permissions" example
     s"$wd/checkTypesNonMain/RoleMethodType4.pvl"
 
-  // vercors should verify using silicon flag "--veymont-generate-permissions" example s"$wd/various.pvl"
+  vercors should verify using silicon flag
+    "--veymont-generate-permissions" example s"$wd/various.pvl"
 }

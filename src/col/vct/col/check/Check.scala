@@ -106,7 +106,12 @@ sealed trait CheckError {
           context(a) ->
             "This dereference does not take place on one of the endpoints in the surrounding `seq_prog`."
         )
-      case ChorStatement(s) =>
+      case ChorStatement(s @ vct.col.ast.ChorStatement(_: Assign[_])) =>
+        Seq(
+          context(s) ->
+            "Plain assignment is not allowed in `choreography`, only assignment using `:=`."
+        )
+      case ChorStatement(s @ vct.col.ast.ChorStatement(_: Assign[_])) =>
         Seq(context(s) -> "This statement is not allowed in `choreography`.")
       case SeqProgInstanceMethodArgs(m) =>
         Seq(

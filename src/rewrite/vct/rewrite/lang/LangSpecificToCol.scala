@@ -222,7 +222,9 @@ case class LangSpecificToCol[Pre <: Generation](
       case stmt
           if veymont.currentProg.nonEmpty &&
             !veymont.currentStatement.topOption.contains(stmt) =>
-        veymont.rewriteStatement(stmt)
+        val x = veymont.rewriteStatement(stmt)
+        val y = x
+        x
       case scope @ Scope(locals, body) =>
         def scanScope(node: Node[Pre]): Unit =
           node match {
