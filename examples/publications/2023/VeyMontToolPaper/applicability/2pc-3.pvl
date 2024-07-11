@@ -9,14 +9,13 @@ class Query {
 }
 
 class Client {
-  Query query, temp;
+  Query query;
   boolean flag, flag1, flag2;
 
   ensures query != null;
   ensures flag == false;
   constructor(int n) {
     query = new Query(5);
-    temp = new Query(-1);
     flag = false;
   }
 
@@ -93,11 +92,8 @@ choreography Main(int n) {
     while (!c.flag &&
            s1.isUncommitted() &&
            s2.isUncommitted()) {
-      c.temp := c.query.clone(); // TODO: when expressions are allowed in communicates, remove temp workaround
-      communicate s1.query <- c.query;
-      c.query := c.temp.clone();
-      communicate s2.query <- c.query;
-      c.query := c.temp.clone();
+      communicate s1.query <- c.query.clone();
+      communicate s2.query <- c.query.clone();
       s1.start();
       s2.start();
       communicate c.flag1 <- s1.flag;
