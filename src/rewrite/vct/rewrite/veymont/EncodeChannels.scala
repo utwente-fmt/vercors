@@ -129,9 +129,7 @@ case class EncodeChannels[Pre <: Generation]()
                   foldAny(comm.invariant.t)(unfoldStar(comm.invariant).map {
                     // TODO (RR): I might want to consider enforcing as a constraint that \chor can only occur in communiates as a top level expression
                     //   as part of an and/separating conjunction chain, i.e. not conditional.
-                    // TODO (RR): I changed the inhale to also keep only the inner chorexpr, such that it wraps the
-                    //   invariant in an endpoint expr. But that might break the FM paper case studies...?
-//                    case e: ChorExpr[Pre] => e.rewriteDefault()
+                    case e: ChorExpr[Pre] => e.rewriteDefault()
                     case e => EndpointExpr[Post](succ(receiver), dispatch(e))
                   })
                 }
