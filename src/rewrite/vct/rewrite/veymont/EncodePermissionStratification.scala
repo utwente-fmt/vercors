@@ -301,7 +301,13 @@ case class EncodePermissionStratification[Pre <: Generation](
                       o = nameOrigin(endpoint, f),
                     )
                     newF.declare()
-                  case m: InstanceMethod[Pre] =>
+                  case m: InstanceMethod[Pre] if m.pure =>
+                    val newM = m.rewrite(
+                      args = endpointCtxVar +: variables.dispatch(m.args),
+                      o = nameOrigin(endpoint, m),
+                    )
+                    newM.declare()
+                  case m: InstanceMethod[Pre] if !m.pure =>
                     val newM = m.rewrite(
                       args = endpointCtxVar +: variables.dispatch(m.args),
                       body = None,
