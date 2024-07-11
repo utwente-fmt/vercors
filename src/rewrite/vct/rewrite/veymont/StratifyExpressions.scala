@@ -19,9 +19,7 @@ object StratifyExpressions extends RewriterBuilder {
   case class MultipleEndpoints(e: Expr[_]) extends UserError {
     override def code: String = "multipleEndpoints"
     override def text: String =
-      e.o.messageInContext(
-        "This expression references multiple endpoints, but that is not yet supported."
-      )
+      e.o.messageInContext("Cannot infer endpoint context for this expression")
   }
 
   case class SeqProgParticipantErrors(es: Seq[SeqProgParticipant])

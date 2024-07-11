@@ -82,14 +82,14 @@ choreography Main(int n) {
   requires c.flag == false;
   requires s1.status == s1.INITIAL();
   requires s2.status == s2.INITIAL();
-  requires consistency(c, s1, s2);
+  requires (\chor consistency(c, s1, s2));
   ensures s1.status == s1.COMMITTED();
   ensures s2.status == s2.COMMITTED();
   run {
     loop_invariant c.query != null;
     loop_invariant s1.status == s1.INITIAL() || s1.status == s1.COMMITTED() || s1.status == s1.ABORTED();
     loop_invariant s2.status == s2.INITIAL() || s2.status == s2.COMMITTED() || s2.status == s2.ABORTED();
-    loop_invariant consistency(c, s1, s2);
+    loop_invariant (\chor consistency(c, s1, s2));
     while (!c.flag &&
            s1.isUncommitted() &&
            s2.isUncommitted()) {
