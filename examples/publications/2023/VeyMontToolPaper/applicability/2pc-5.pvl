@@ -88,7 +88,7 @@ choreography Main(int n) {
   requires s2.status == s2.INITIAL();
   requires s3.status == s3.INITIAL();
   requires s4.status == s4.INITIAL();
-  requires consistency(c, s1, s2, s3, s4);
+  requires (\chor consistency(c, s1, s2, s3, s4));
   ensures s1.status == s1.COMMITTED();
   ensures s2.status == s2.COMMITTED();
   ensures s3.status == s3.COMMITTED();
@@ -99,21 +99,16 @@ choreography Main(int n) {
     loop_invariant s2.status == s2.INITIAL() || s2.status == s2.COMMITTED() || s2.status == s2.ABORTED();
     loop_invariant s3.status == s3.INITIAL() || s3.status == s3.COMMITTED() || s3.status == s3.ABORTED();
     loop_invariant s4.status == s4.INITIAL() || s4.status == s4.COMMITTED() || s4.status == s4.ABORTED();
-    loop_invariant consistency(c, s1, s2, s3, s4);
+    loop_invariant (\chor consistency(c, s1, s2, s3, s4));
     while (!c.flag &&
            s1.isUncommitted() &&
            s2.isUncommitted() &&
            s3.isUncommitted() &&
            s4.isUncommitted()) {
-      c.temp := c.query.clone();
-      communicate s1.query <- c.query;
-      c.query := c.temp.clone();
-      communicate s2.query <- c.query;
-      c.query := c.temp.clone();
-      communicate s3.query <- c.query;
-      c.query := c.temp.clone();
-      communicate s4.query <- c.query;
-      c.query := c.temp.clone();
+      communicate s1.query <- c.query.clone();
+      communicate s2.query <- c.query.clone();
+      communicate s3.query <- c.query.clone();
+      communicate s4.query <- c.query.clone();
 
       s1.start();
       s2.start();
