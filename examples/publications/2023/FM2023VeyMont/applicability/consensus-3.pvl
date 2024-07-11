@@ -117,14 +117,14 @@ choreography Main(int n, int f,
   requires p1.class_invariant();
   requires p2.class_invariant();
   requires p3.class_invariant();
-  requires consistency(p1, p2, p3);
-  requires p1.fault + p2.fault + p3.fault <= p1.f && p1.f == 0 && p1.n == 3;
-  ensures ((p1.fault == 0 ==> p1.v == 0) &&
+  requires (\chor consistency(p1, p2, p3));
+  requires (\chor p1.fault + p2.fault + p3.fault <= p1.f && p1.f == 0 && p1.n == 3);
+  ensures (\chor ((p1.fault == 0 ==> p1.v == 0) &&
            (p2.fault == 0 ==> p2.v == 0) &&
            (p3.fault == 0 ==> p3.v == 0)) ||
           ((p1.fault == 0 ==> p1.v == 1) &&
            (p2.fault == 0 ==> p2.v == 1) &&
-           (p3.fault == 0 ==> p3.v == 1));
+           (p3.fault == 0 ==> p3.v == 1)));
   run {
     p1.v1 := p1.getValueOrFail();
     communicate p2.v1 <- p1.v;

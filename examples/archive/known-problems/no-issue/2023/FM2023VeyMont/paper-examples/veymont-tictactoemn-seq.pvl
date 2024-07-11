@@ -1,5 +1,5 @@
 /*
-  Note: requires to pass: --assumeInjectivityOnInhale.
+  Note: requires to pass: --assumeInjectivityOnInhale. Might require --dev-assert-timeout 300
 
   This is a version of veymont-tictactoe.pvl (archived in known-problems), except instead of a doubly nested array it
   uses doubly nested seqs. This brings down verification time from 3 minutes to 30 seconds, and also makes verification

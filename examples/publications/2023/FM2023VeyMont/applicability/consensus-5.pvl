@@ -138,9 +138,9 @@ choreography Main(int n, int f,
   requires p3.class_invariant();
   requires p4.class_invariant();
   requires p5.class_invariant();
-  requires consistency(p1, p2, p3, p4, p5);
-  requires p1.fault + p2.fault + p3.fault + p4.fault + p5.fault <= p1.f && p1.f == 1 && p1.n == 5;
-  ensures ((p1.fault == 0 ==> p1.v == 0) &&
+  requires (\chor consistency(p1, p2, p3, p4, p5) **
+    (p1.fault + p2.fault + p3.fault + p4.fault + p5.fault <= p1.f && p1.f == 1 && p1.n == 5));
+  ensures (\chor ((p1.fault == 0 ==> p1.v == 0) &&
            (p2.fault == 0 ==> p2.v == 0) &&
            (p3.fault == 0 ==> p3.v == 0) &&
            (p4.fault == 0 ==> p4.v == 0) &&
@@ -149,7 +149,7 @@ choreography Main(int n, int f,
            (p2.fault == 0 ==> p2.v == 1) &&
            (p3.fault == 0 ==> p3.v == 1) &&
            (p4.fault == 0 ==> p4.v == 1) &&
-           (p5.fault == 0 ==> p5.v == 1));
+           (p5.fault == 0 ==> p5.v == 1)));
   run {
     // Phase 1 (p1 is "king")
     p1.v1 := p1.getValueOrFail();
