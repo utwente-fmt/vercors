@@ -20,7 +20,8 @@ class VeyMontToolPaperSpec extends VercorsSpec {
   vercors should verify using silicon flag
     "--veymont-generate-permissions" example s"$applicability/election-5.pvl"
 
-  // vercors should verify using silicon flag "--veymont-generate-permissions" example s"$paperExamples/veymont-swap.pvl"
+  vercors should verify using silicon flag
+    "--veymont-generate-permissions" example s"$paperExamples/veymont-swap.pvl"
 
   // Slow because of generated permisissions. Can fix when VeyMont has permission support.
 //  (vercors

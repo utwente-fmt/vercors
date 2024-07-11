@@ -10,12 +10,7 @@ import vct.col.ast.{
   Program,
   Statement,
 }
-import vct.col.rewrite.{
-  Generation,
-  Rewriter,
-  RewriterBuilder,
-  RewriterBuilderArg,
-}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
 
 object PushInChor extends RewriterBuilderArg[Boolean] {

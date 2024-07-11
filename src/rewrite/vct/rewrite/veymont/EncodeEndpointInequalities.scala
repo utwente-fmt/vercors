@@ -5,6 +5,7 @@ import hre.util.ScopedStack
 import vct.col.ast.{
   ApplicableContract,
   Assert,
+  Assume,
   Block,
   Choreography,
   CommunicateStatement,
@@ -15,6 +16,7 @@ import vct.col.ast.{
   IterationContract,
   LoopContract,
   LoopInvariant,
+  Neq,
   Null,
   Program,
   SplitAccountedPredicate,
@@ -86,7 +88,26 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
     decl match {
       case chor: Choreography[Pre] =>
         currentChoreography.having(chor) {
-          chor.rewrite(contract = chor.contract.rewriteDefault()).succeed(chor)
+          chor.rewrite(
+            contract = chor.contract.rewriteDefault(),
+            preRun = {
+              val preRun = chor.preRun.map(dispatch)
+                .getOrElse(Block(Seq())(chor.o))
+              implicit val o = chor.o
+              Some(Block(Seq(
+                preRun,
+                Assume[Post](foldAnd(
+                  chor.endpoints.zip(chor.endpoints.tail)
+                    .map { case (alice, bob) =>
+                      Neq[Post](
+                        EndpointName(succ(alice)),
+                        EndpointName(succ(bob)),
+                      )
+                    }
+                )),
+              )))
+            },
+          ).succeed(chor)
         }
       case _ => super.dispatch(decl)
     }

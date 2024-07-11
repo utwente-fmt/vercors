@@ -27,6 +27,9 @@ case class ReadToValue[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
       case Perm(loc, ReadPerm()) => Value(dispatch(loc))(expr.o)
+      case cp @ ChorPerm(endpoint, loc, ReadPerm()) =>
+        implicit val o = cp.o
+        EndpointExpr(succ(endpoint.decl), Value(dispatch(loc)))
       case read @ ReadPerm() => throw WildcardError(read)
       case default => rewriteDefault(default)
     }

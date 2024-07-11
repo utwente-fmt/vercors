@@ -25,6 +25,7 @@ import vct.col.ast.{
   MethodInvocation,
   Perm,
   Procedure,
+  ReadPerm,
   Receiver,
   Scope,
   Sender,
@@ -32,6 +33,7 @@ import vct.col.ast.{
   TClass,
   TVoid,
   ThisChoreography,
+  Value,
   Variable,
 }
 import vct.col.origin.{
@@ -326,6 +328,9 @@ case class EncodeChoreography[Pre <: Generation]()
         throw Unreachable(
           "Encoding of ChorPerm, ChorExpr, EndpointExpr should happen in EncodePermissionStratification"
         )
+      case (_, Perm(loc, ReadPerm())) =>
+        // For now we manually translate the readperms away because we accidentally introduce them as well
+        Value(dispatch(loc))(expr.o)
       case _ => expr.rewriteDefault()
     }
 }

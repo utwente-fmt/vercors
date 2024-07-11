@@ -1,9 +1,11 @@
 class Storage {
-  int v;
+  int v, oldV;
   int temp;
 
+  ensures Perm(this.v, 1) ** Perm(oldV, 1) ** Perm(temp, 1) ** oldV == v ** this.v == v;
   constructor(int v) {
     this.v = v;
+    oldV = v;
   }
 }
 
@@ -11,14 +13,22 @@ choreography Swap(int x, int y) {
     endpoint alex = Storage(x);
     endpoint bobby = Storage(y);
 
-    ensures alex.v == \old(bobby.v);
-    ensures bobby.v == \old(alex.v);
+    // Using \old doesn't work because of the heavyweight permission stratification.
+    // When the lightweight method is implemented, these post-conditions (and below
+    // channel invariants) can be changed to just use \old.
+    context Perm(alex.v, 1) ** Perm(alex.temp, 1) ** Perm(bobby.v, 1) ** Perm(bobby.temp, 1);
+    context Perm(alex.oldV, read) ** Perm[bobby](alex.oldV, read) ** Perm(bobby.oldV, read) ** Perm[alex](bobby.oldV, read);
+    requires (\[alex] alex.oldV == alex.v) ** (\[bobby] bobby.oldV == bobby.v);
+    ensures (\[alex] alex.v == bobby.oldV);
+    ensures (\[bobby] bobby.v == alex.oldV);
     run {
         // First save the previous values
         alex.temp := alex.v;
         bobby.temp := bobby.v;
         // Then send them to the other
+        channel_invariant (\chor \msg == bobby.oldV);
         communicate alex.v <- bobby.temp;
+        channel_invariant (\chor \msg == alex.oldV);
         communicate bobby.v <- alex.temp;
     }
 }
