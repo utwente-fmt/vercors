@@ -12,11 +12,11 @@ choreography TTT() {
 	context (\chor ticTacToeAnnotations(p1, p2));
 	ensures p1.gameFinished() && p2.gameFinished();
 	run {
-	  assert 0 <= p1.move.i && p1.move.i <= 2;
 		loop_invariant (\chor ticTacToeAnnotations(p1, p2));
 		loop_invariant (\chor !p1.gameFinished() == !p2.gameFinished());
 		while(!p1.gameFinished() && !p2.gameFinished()) {
 			if(p1.turn && !p2.turn) {
+				p1.createNewMove();
 				channel_invariant (\chor
 				  \msg.i == p1.move.i && \msg.j == p1.move.j && \msg.token == p1.move.token
 				);
@@ -24,7 +24,7 @@ choreography TTT() {
 			} else {
 				p2.createNewMove();
 				channel_invariant (\chor
-				  \msg.i == p1.move.i && \msg.j == p1.move.j && \msg.token == p1.move.token
+				  \msg.i == p2.move.i && \msg.j == p2.move.j && \msg.token == p2.move.token
 				);
 				communicate p1.move <- p2.move.clone();
 			}
