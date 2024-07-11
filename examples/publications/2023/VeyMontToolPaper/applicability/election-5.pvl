@@ -58,6 +58,8 @@ inline resource consistency(Process p1, Process p2, Process p3, Process p4, Proc
     p1.id5 == p2.id5 && p2.id5 == p3.id5 && p3.id5 == p4.id5 && p4.id5 == p5.id5 && p5.id5 == p1.id5;
 
 pure boolean xor(boolean a, boolean b) = a != b;
+pure boolean xor(boolean a, boolean b, boolean c) = xor(a, xor(b, c));
+pure boolean xor(boolean a, boolean b, boolean c, boolean d, boolean e) = xor(a, b, xor(c, d, e));
 
 choreography Main() {
   endpoint p1 = Process();
@@ -67,11 +69,12 @@ choreography Main() {
   endpoint p5 = Process();
 
   requires !p1.leader && !p2.leader && !p3.leader && !p4.leader && !p5.leader;
-  requires consistency(p1, p2, p3, p4, p5);
-  ensures xor(p1.leader, xor(p2.leader, xor(p3.leader, xor(p4.leader, p5.leader))));
+  requires !p1.hasMaxId() && !p2.hasMaxId() && !p3.hasMaxId() && !p4.hasMaxId() && !p5.hasMaxId();
+  requires (\chor consistency(p1, p2, p3, p4, p5));
+  ensures (\chor xor(p1.leader, p2.leader, p3.leader, p4.leader, p5.leader));
   run {
     loop_invariant !p1.leader && !p2.leader && !p3.leader && !p4.leader && !p5.leader;
-    loop_invariant consistency(p1, p2, p3, p4, p5);
+    loop_invariant (\chor consistency(p1, p2, p3, p4, p5));
     while (!p1.hasMaxId() && !p2.hasMaxId() && !p3.hasMaxId() && !p4.hasMaxId() && !p5.hasMaxId()) {
       p1.id1 := p1.randomId();
       communicate p2.id1 <- p1.id1;
