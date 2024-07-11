@@ -1,9 +1,9 @@
-package vct.test.integration.examples
+package vct.test.integration.examples.veymont
 
 import vct.test.integration.helper.VercorsSpec
 
-class VeyMontToolPaperSpec extends VercorsSpec {
-  val wd = "publications/2023/VeyMontToolPaper"
+class FM2023VeyMontSpec extends VercorsSpec {
+  val wd = "publications/2023/FM2023VeyMont"
   val applicability = s"$wd/applicability"
   val paperExamples = s"$wd/paper-examples"
 

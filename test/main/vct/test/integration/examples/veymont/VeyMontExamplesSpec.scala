@@ -1,4 +1,4 @@
-package vct.test.integration.examples
+package vct.test.integration.examples.veymont
 
 import vct.test.integration.helper.VercorsSpec
 
