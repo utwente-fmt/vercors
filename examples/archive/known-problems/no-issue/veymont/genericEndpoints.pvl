@@ -1,3 +1,7 @@
+// Disabled because currently VeyMont's function specialization mechanism does not mesh well with generics.
+// In this test case specifically, the contract of toInt is specialized to endpoint a. In this process it's not easy
+// to handle the scoping of the generic parameter T.
+
 class Role<T> {
   T t;
   int i;

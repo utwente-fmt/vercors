@@ -1,4 +1,6 @@
-// TODO (RR): Remove use of temp field in choreography
+// TODO: Remove use of temp field in choreography
+// TODO: Removed from test suite because submethods are not supported at the moment. The test should be reinstated
+//   when submethods work again.
 
 pure int nrThreads() = 3;
 
