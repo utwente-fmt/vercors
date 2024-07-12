@@ -409,14 +409,14 @@ object vercors extends Module {
     )
     override def moduleDeps = Seq(hre, col, serialize)
 
-    val includeVcllvmCross = interp.watchValue { 
+    val includeVcllvmCross = interp.watchValue {
       if(os.exists(settings.root / ".include-vcllvm")) {
         Seq("vcllvm")
       } else {
         Seq.empty[String]
       }
     }
-    
+
     object vcllvmDep extends Cross[VcllvmDep](includeVcllvmCross)
     trait VcllvmDep extends Cross.Module[String] {
       def path = T {
@@ -755,10 +755,12 @@ object vercors extends Module {
         2
       }
 
-      override def cMakeBuild: T[PathRef] = T {
+      override def cMakeSetupBuild: T[os.Path] = T {
+        val apiDir = T.dest / ".cmake" / "api" / "v1"
+        os.makeDir.all(apiDir / "query")
+        os.write(apiDir / "query" / "codemodel-v2", "")
         os.proc("cmake", "-B", T.dest, "-Dprotobuf_BUILD_TESTS=OFF", "-DABSL_PROPAGATE_CXX_STD=ON", "-S", root().path).call(cwd = T.dest)
-        os.proc("make", "-j", jobs(), "all").call(cwd = T.dest)
-        PathRef(T.dest)
+        T.dest
       }
 
       object libprotobuf extends CMakeLibrary {
