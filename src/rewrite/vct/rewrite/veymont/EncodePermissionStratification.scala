@@ -184,13 +184,16 @@ case class EncodePermissionStratification[Pre <: Generation](
         val objArg = new Variable(dispatch(obj.t))(o.where(name = "obj"))
         function(
           requires =
-            Value(PredicateLocation(pred, Seq(endpointArg.get, objArg.get)))
-              .accounted,
+            Value(PredicateLocation(
+              PredicateApply(pred, Seq(endpointArg.get, objArg.get))
+            )).accounted,
           args = Seq(endpointArg, objArg),
           returnType = dispatch(field.t),
           body = Some(
             Unfolding(
-              Value(PredicateLocation(pred, Seq(endpointArg.get, objArg.get))),
+              ValuePredicateApply(
+                PredicateApply(pred, Seq(endpointArg.get, objArg.get))
+              ),
               Deref[Post](objArg.get, succ(field))(PanicBlame(
                 "Permission is guaranteed by the predicate"
               )),
@@ -344,14 +347,16 @@ case class EncodePermissionStratification[Pre <: Generation](
         endpointExpr
 
     if (perm == ReadPerm[Pre]()) {
-      Value(PredicateLocation(
+      Value(PredicateLocation(PredicateApply(
         wrapperPredicate(endpoint, loc.obj.t, loc.field.decl),
         Seq(expr, dispatch(loc.obj)),
-      ))
+      )))
     } else {
-      PredicateApply(
-        wrapperPredicate(endpoint, loc.obj.t, loc.field.decl),
-        Seq(expr, dispatch(loc.obj)),
+      Perm(
+        PredicateLocation(PredicateApply(
+          wrapperPredicate(endpoint, loc.obj.t, loc.field.decl),
+          Seq(expr, dispatch(loc.obj)),
+        )),
         dispatch(perm),
       )
     }
@@ -407,17 +412,16 @@ case class EncodePermissionStratification[Pre <: Generation](
             endpoint: Endpoint[Pre],
             baseT: TClass[Pre],
             base: Expr[Post],
-        ): Seq[PredicateApply[Post]] = {
+        ): Seq[ValuePredicateApply[Post]] = {
           val cls = baseT.cls.decl
           // Permission generation makes sure no cycles exist at this point by crashing, but lets make sure anyway
           assert(!seenClasses.contains(baseT))
           val newSeenClasses = seenClasses.incl(baseT)
           val predicatesForClass = cls.fields.map { field =>
-            PredicateApply[Post](
+            ValuePredicateApply(PredicateApply[Post](
               wrapperPredicate(endpoint, baseT, field),
               Seq(EndpointName(succ(endpoint)), base),
-              WritePerm(),
-            )
+            ))
           }
           predicatesForClass ++
             (cls.fields.filter { _.t.asClass.nonEmpty }.flatMap { field =>
@@ -499,15 +503,17 @@ case class EncodePermissionStratification[Pre <: Generation](
         val apply = {
           val newEndpoint: Ref[Post, Endpoint[Post]] = succ(endpoint)
           val ref = wrapperPredicate(endpoint, obj.t, field)
-          PredicateApply[Post](
-            ref,
-            Seq(
-              EndpointName(newEndpoint),
-              currentEndpoint.having(endpoint) {
-                specializing.having(EndpointName[Post](succ(endpoint))) {
-                  dispatch(obj)
-                }
-              },
+          ScaledPredicateApply[Post](
+            PredicateApply(
+              ref,
+              Seq(
+                EndpointName(newEndpoint),
+                currentEndpoint.having(endpoint) {
+                  specializing.having(EndpointName[Post](succ(endpoint))) {
+                    dispatch(obj)
+                  }
+                },
+              ),
             ),
             WritePerm(),
           )
