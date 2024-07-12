@@ -378,8 +378,10 @@ object AstBuildHelpers {
         case inv: ADTFunctionInvocation[Pre] => inv.rewrite(args = args)
         case inv: ProverFunctionInvocation[Pre] => inv.rewrite(args = args)
         case inv: LlvmFunctionInvocation[Pre] => inv.rewrite(args = args)
-        case apply: ApplyAnyPredicate[Pre] =>
-          new ApplyAnyPredicateBuildHelpers(apply).rewrite(args = args)
+        case apply: PredicateApplyExpr[Pre] =>
+          PredicateApplyExpr(
+            new ApplyAnyPredicateBuildHelpers(apply.apply).rewrite(args = args)
+          )(apply.o)
         case inv: Invocation[Pre] =>
           new InvocationBuildHelpers(inv).rewrite(args = args)
       }
@@ -389,15 +391,13 @@ object AstBuildHelpers {
       apply: ApplyAnyPredicate[Pre]
   )(implicit rewriter: AbstractRewriter[Pre, Post]) {
     def rewrite(
-        args: => Seq[Expr[Post]] = apply.args.map(rewriter.dispatch),
-        perm: => Expr[Post] = rewriter.dispatch(apply.perm),
+        args: => Seq[Expr[Post]] = apply.args.map(rewriter.dispatch)
     ): ApplyAnyPredicate[Post] =
       apply match {
-        case inv: PredicateApply[Pre] => inv.rewrite(args = args, perm = perm)
-        case inv: InstancePredicateApply[Pre] =>
-          inv.rewrite(args = args, perm = perm)
+        case inv: PredicateApply[Pre] => inv.rewrite(args = args)
+        case inv: InstancePredicateApply[Pre] => inv.rewrite(args = args)
         case inv: CoalesceInstancePredicateApply[Pre] =>
-          inv.rewrite(args = args, perm = perm)
+          inv.rewrite(args = args)
       }
   }
 

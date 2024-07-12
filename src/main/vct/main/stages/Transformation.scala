@@ -28,6 +28,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
 import vct.rewrite.{
+  DisambiguatePredicateExpression,
   EncodeAutoValue,
   EncodeRange,
   EncodeResourceValues,
@@ -38,23 +39,7 @@ import vct.rewrite.{
   SmtlibToProverTypes,
 }
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{
-  DeduplicateChorGuards,
-  DropChorExpr,
-  EncodeChannels,
-  EncodeChorBranchUnanimity,
-  EncodeChoreography,
-  EncodeEndpointInequalities,
-  EncodePermissionStratification,
-  GenerateAndEncodeChannels,
-  GenerateChoreographyPermissions,
-  GenerateImplementation,
-  InferEndpointContexts,
-  PushInChor,
-  SpecializeEndpointClasses,
-  StratifyExpressions,
-  StratifyUnpointedExpressions,
-}
+import vct.rewrite.veymont._
 
 import java.nio.file.Path
 import java.nio.file.Files
@@ -151,6 +136,7 @@ object Transformation extends LazyLogging {
           bipResults = bipResults,
           splitVerificationByProcedure =
             options.devSplitVerificationByProcedure,
+          optimizeUnsafe = options.devUnsafeOptimization,
           veymontGeneratePermissions = options.veymontGeneratePermissions,
           veymontBranchUnanimity = options.veymontBranchUnanimity,
         )
@@ -193,10 +179,14 @@ object Transformation extends LazyLogging {
   *   Execute a handler before/after a pass is executed.
   * @param passes
   *   The list of rewrite passes to execute.
+  * @param optimizeUnsafe
+  *   Flag indicating to not do typechecking in-between passes to save
+  *   performance
   */
 class Transformation(
     val onPassEvent: Seq[PassEventHandler],
     val passes: Seq[RewriterBuilder],
+    val optimizeUnsafe: Boolean = false,
 ) extends Stage[Verification[_ <: Generation], Verification[_ <: Generation]]
     with LazyLogging {
   override def friendlyName: String = "Transformation"
@@ -243,11 +233,12 @@ class Transformation(
           action(passes, Transformation.after, passIndex, result)
         }
 
-        result.tasks.map(_.program)
-          .flatMap(program => program.check.map(program -> _)) match {
-          case Nil => // ok
-          case errors => throw TransformationCheckError(pass, errors)
-        }
+        if (!optimizeUnsafe)
+          result.tasks.map(_.program)
+            .flatMap(program => program.check.map(program -> _)) match {
+            case Nil => // ok
+            case errors => throw TransformationCheckError(pass, errors)
+          }
 
         result = PrettifyBlocks().dispatch(result)
       }
@@ -307,6 +298,7 @@ case class SilverTransformation(
     bipResults: BIP.VerificationResults,
     checkSat: Boolean = true,
     splitVerificationByProcedure: Boolean = false,
+    override val optimizeUnsafe: Boolean = false,
     veymontGeneratePermissions: Boolean = false,
     veymontBranchUnanimity: Boolean = true,
 ) extends Transformation(
@@ -330,6 +322,7 @@ case class SilverTransformation(
         // Make sure Disambiguate comes after CFloatIntCoercion, so CInts are gone
         Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
         DisambiguateLocation, // Resolve location type
+        DisambiguatePredicateExpression,
         EncodeRangedFor,
         EncodeString, // Encode spec string as seq<int>
         EncodeChar,
@@ -458,6 +451,7 @@ case class SilverTransformation(
         PinSilverNodes,
         Explode.withArg(splitVerificationByProcedure),
       ),
+      optimizeUnsafe = optimizeUnsafe,
     )
 
 case class VeyMontImplementationGeneration(

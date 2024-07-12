@@ -864,15 +864,17 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     throw LambdaDefinitionUnsupported(lambda)
   }
 
-  def checkPredicateFoldingAllowed(predRes: Expr[Pre]): Unit =
+  def checkPredicateFoldingAllowed(predRes: FoldTarget[Pre]): Unit =
     predRes match {
-      case CPPInvocation(
-            CPPLocal("sycl::buffer::exclusive_hostData_access", Seq()),
-            _,
-            _,
-            _,
+      case AmbiguousFoldTarget(
+            e @ CPPInvocation(
+              CPPLocal("sycl::buffer::exclusive_hostData_access", Seq()),
+              _,
+              _,
+              _,
+            )
           ) =>
-        throw SYCLPredicateFoldingNotAllowed(predRes)
+        throw SYCLPredicateFoldingNotAllowed(e)
       case _ =>
     }
 
@@ -2390,9 +2392,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     // Fold predicate to gain exclusive access to the hostData
     val gainExclusiveAccess =
-      Fold(
-        PredicateApply[Post](exclusiveAccessPredicate.ref, args, WritePerm())
-      )(SYCLBufferConstructionFoldFailedBlame(inv))
+      Fold(ScaledPredicateApply(
+        PredicateApply[Post](exclusiveAccessPredicate.ref, args),
+        WritePerm(),
+      ))(SYCLBufferConstructionFoldFailedBlame(inv))
 
     val v = new Variable[Post](TArray(postType.typ))(varNameO)
     syclBufferSuccessor.top
@@ -2439,9 +2442,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     // Unfold predicate to release exclusive access to the hostData
     val args = Seq(buffer.hostData, buffer.range.size)
     val removeExclusiveAccess =
-      Unfold(
-        PredicateApply[Post](exclusiveAccessPredicate.ref, args, WritePerm())
-      )(SYCLBufferDestructionUnfoldFailedBlame(buffer.generatedVar, scope))
+      Unfold(ScaledPredicateApply(
+        PredicateApply[Post](exclusiveAccessPredicate.ref, args),
+        WritePerm(),
+      ))(SYCLBufferDestructionUnfoldFailedBlame(buffer.generatedVar, scope))
 
     Block(kernelTerminations ++ Seq(Eval(copyInv), removeExclusiveAccess))
   }

@@ -30,8 +30,17 @@ case class ReadToValue[Pre <: Generation]() extends Rewriter[Pre] {
       case cp @ ChorPerm(endpoint, loc, ReadPerm()) =>
         implicit val o = cp.o
         EndpointExpr(succ(endpoint.decl), Value(dispatch(loc)))
+      case Scale(ReadPerm(), Perm(loc, WritePerm())) =>
+        // Temporary solution for predicates: there should be a proper notion of scaling by read instead.
+        Value(dispatch(loc))(expr.o)
       case read @ ReadPerm() => throw WildcardError(read)
-      case default => rewriteDefault(default)
+      case default => default.rewriteDefault()
     }
 
+  override def dispatch(target: FoldTarget[Pre]): FoldTarget[Post] =
+    target match {
+      case ScaledPredicateApply(inv, ReadPerm()) =>
+        ValuePredicateApply(dispatch(inv))(target.o)
+      case other => other.rewriteDefault()
+    }
 }

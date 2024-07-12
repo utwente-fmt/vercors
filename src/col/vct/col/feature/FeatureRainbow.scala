@@ -99,7 +99,6 @@ class FeatureRainbow[G] {
       case node: InstancePredicateApply[G] => Classes
       case node: CoalesceInstancePredicateApply[G] => Classes
       case node: InstanceFunctionInvocation[G] => Classes
-      case node: InstancePredicateLocation[G] => Classes
       case node: NewObject[G] => Classes
       case node: TClass[G] => Classes
       case node: Class[G] => Classes

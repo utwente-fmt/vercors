@@ -6,17 +6,19 @@ import vct.rewrite.cfg.{CFGEntry, CFGNode}
 import scala.collection.mutable
 
 class StaticScanner[G](initial_node: CFGNode[G], state: AbstractState[G]) {
-  private val explored_nodes: mutable.Set[CFGEntry[G]] = mutable.Set
+  private val var_change_explored_nodes: mutable.Set[CFGEntry[G]] = mutable.Set
     .empty[CFGEntry[G]]
 
-  def scan_can_change_variables(): Boolean = {
+  def scan_can_change_variables(until: Option[CFGNode[G]]): Boolean = {
+    if (until.nonEmpty)
+      var_change_explored_nodes.add(until.get)
     scan_for_var_changes_from_node(initial_node)
   }
 
   private def scan_for_var_changes_from_node(node: CFGNode[G]): Boolean = {
-    if (explored_nodes.contains(node))
+    if (var_change_explored_nodes.contains(node))
       return false
-    explored_nodes.add(node)
+    var_change_explored_nodes.add(node)
     node_changes_vars(node) || node.successors.map(e => e.target).collect {
       case n: CFGNode[G] => n
     }.exists(n => scan_for_var_changes_from_node(n))
@@ -62,8 +64,8 @@ class StaticScanner[G](initial_node: CFGNode[G], state: AbstractState[G]) {
       // If it is a collection, an update might only change other indices than those tracked
       // Therefore: evaluate the assignment explicitly to see if it affects the tracked variables      TODO: Consider arrays
       case _: TSeq[_] =>
-        state.to_expression != state.with_updated_collection(target, value)
-          .to_expression
+        state.reset.to_expression(None) !=
+          state.reset.with_updated_collection(target, value).to_expression(None)
     }
   }
 
@@ -73,7 +75,8 @@ class StaticScanner[G](initial_node: CFGNode[G], state: AbstractState[G]) {
     if (potential_successor.successors.size != 1)
       true
     else
-      state.to_expression != potential_successor.successors.head.to_expression
+      state.to_expression(None) !=
+        potential_successor.successors.head.to_expression(None)
   }
 
   private def postcondition_changes_vars(
@@ -85,6 +88,7 @@ class StaticScanner[G](initial_node: CFGNode[G], state: AbstractState[G]) {
     if (potential_successor.successors.size != 1)
       true
     else
-      state.to_expression != potential_successor.successors.head.to_expression
+      state.to_expression(None) !=
+        potential_successor.successors.head.to_expression(None)
   }
 }

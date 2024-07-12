@@ -119,7 +119,7 @@ case class LangSpecificToCol[Pre <: Generation](
           yields,
         )(blame)
       case RefPredicate(decl) =>
-        PredicateApply[Post](succ(decl), args.map(dispatch), WritePerm())
+        PredicateApplyExpr(PredicateApply[Post](succ(decl), args.map(dispatch)))
       case RefADTFunction(decl) =>
         ADTFunctionInvocation(None, succ(decl), args.map(dispatch))
       case RefProverFunction(decl) =>
@@ -145,11 +145,8 @@ case class LangSpecificToCol[Pre <: Generation](
           yields,
         )(blame)
       case RefInstancePredicate(decl) =>
-        InstancePredicateApply[Post](
-          obj,
-          succ(decl),
-          args.map(dispatch),
-          WritePerm(),
+        PredicateApplyExpr(
+          InstancePredicateApply[Post](obj, succ(decl), args.map(dispatch))
         )
 
       case RefModelProcess(decl) =>
@@ -258,16 +255,14 @@ case class LangSpecificToCol[Pre <: Generation](
       case eval @ Eval(CPPInvocation(_, _, _, _)) =>
         cpp.invocationStatement(eval)
 
-      case fold: Fold[Pre] => {
+      case fold: Fold[Pre] =>
         cpp.checkPredicateFoldingAllowed(fold.res)
-        rewriteDefault(fold)
-      }
-      case unfold: Unfold[Pre] => {
+        fold.rewriteDefault()
+      case unfold: Unfold[Pre] =>
         cpp.checkPredicateFoldingAllowed(unfold.res)
-        rewriteDefault(unfold)
-      }
+        unfold.rewriteDefault()
 
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] =

@@ -1,13 +1,19 @@
 package vct.col.ast.statement.terminal
 
-import vct.col.ast.{Expr, Fold}
+import vct.col.ast.{
+  AmbiguousFoldTarget,
+  Expr,
+  Fold,
+  PredicateApplyExpr,
+  Scale,
+  ScaledPredicateApply,
+}
 import vct.col.ast.node.NodeFamilyImpl
-import vct.col.ast.util.CheckFoldUnfoldTarget
 import vct.col.print.{Ctx, Doc, Show, Text}
 import vct.col.ast.ops.FoldOps
+import vct.col.origin.PanicBlame
 
-trait FoldImpl[G]
-    extends NodeFamilyImpl[G] with CheckFoldUnfoldTarget[G] with FoldOps[G] {
+trait FoldImpl[G] extends NodeFamilyImpl[G] with FoldOps[G] {
   this: Fold[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc = Text("fold") <+> res <> ";"
 
@@ -19,5 +25,12 @@ trait FoldImpl[G]
       case _ => Doc.inlineSpec(Show.lazily(layoutSpec(_)))
     }
 
-  override def expr: Expr[G] = this.res
+  override def expr: Expr[G] =
+    res match {
+      case ScaledPredicateApply(inv, perm) =>
+        Scale(perm, PredicateApplyExpr(inv))(PanicBlame(
+          "TODO: wire through when #1012 is fixed"
+        ))
+      case AmbiguousFoldTarget(e) => e
+    }
 }

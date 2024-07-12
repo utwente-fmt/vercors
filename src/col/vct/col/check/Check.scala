@@ -206,7 +206,7 @@ case class TupleTypeCount(tup: LiteralTuple[_]) extends CheckError {
 case class NotAPredicateApplication(res: Expr[_]) extends CheckError {
   val subcode = "notAPredicateApplication"
 }
-case class AbstractPredicate(res: Expr[_]) extends CheckError {
+case class AbstractPredicate(res: FoldTarget[_]) extends CheckError {
   val subcode = "abstractPredicate"
 }
 case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError {
