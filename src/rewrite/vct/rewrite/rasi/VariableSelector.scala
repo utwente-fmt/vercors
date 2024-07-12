@@ -155,7 +155,7 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
     val vars: Seq[ConcreteVariable[G]] = c.flatMap(m => m.keySet)
     var s: Set[ConcreteVariable[G]] = Set()
     for (v <- vars) {
-      val t: Seq[UncertainValue] = c.filter(m => m.contains(v)).map(m => m(v))
+      val t: Seq[UncertainValue] = c.map(m => m.getOrElse(v, UncertainValue.uncertain_of(v.t)))
       if (t.exists(_ != t.head))
         s += v
     }
