@@ -42,7 +42,6 @@ case class ColToSilver(program: col.Program[_]) {
   val currentInvariant: ScopedStack[col.LoopInvariant[_]] = ScopedStack()
   val currentStarall: ScopedStack[col.Starall[_]] = ScopedStack()
   val currentUnfolding: ScopedStack[col.Unfolding[_]] = ScopedStack()
-  val currentUnfold: ScopedStack[col.Unfold[_]] = ScopedStack()
   val currentMapGet: ScopedStack[col.MapGet[_]] = ScopedStack()
   val currentDividingExpr: ScopedStack[col.DividingExpr[_]] = ScopedStack()
 
@@ -366,7 +365,6 @@ case class ColToSilver(program: col.Program[_]) {
     result.invariant = currentInvariant.topOption
     result.starall = currentStarall.topOption
     result.unfolding = currentUnfolding.topOption
-    result.unfold = currentUnfold.topOption
     result.mapGet = currentMapGet.topOption
     result.dividingExpr = currentDividingExpr.topOption
     result
@@ -736,13 +734,13 @@ case class ColToSilver(program: col.Program[_]) {
   def fold(f: col.FoldTarget[_]): silver.PredicateAccessPredicate =
     f match {
       case col.ScaledPredicateApply(inv: col.PredicateApply[_], perm) =>
-        silver.PredicateAccessPredicate(pred(inv), exp(perm))(
+        silver.PredicateAccessPredicate(pred(inv, Some(expInfo(f))), exp(perm))(
           pos = pos(f),
           info = expInfo(f),
         )
       case col.ValuePredicateApply(inv: col.PredicateApply[_]) =>
         silver.PredicateAccessPredicate(
-          pred(inv),
+          pred(inv, Some(expInfo(f))),
           silver.WildcardPerm()(pos = pos(f), info = expInfo(f)),
         )(pos = pos(f), info = expInfo(f))
       case other => ??(other)
@@ -832,10 +830,7 @@ case class ColToSilver(program: col.Program[_]) {
         silver.Inhale(exp(assn))(pos = pos(s), info = NodeInfo(s))
       case col.Fold(p) => silver.Fold(fold(p))(pos = pos(s), info = NodeInfo(s))
       case u @ col.Unfold(p) =>
-        silver.Unfold(currentUnfold.having(u) { fold(p) })(
-          pos = pos(s),
-          info = NodeInfo(s),
-        )
+        silver.Unfold(fold(p))(pos = pos(s), info = NodeInfo(s))
       case col.SilverNewRef(v, fs) =>
         silver.NewStmt(
           silver.LocalVar(ref(v), typ(v.decl.t))(),
