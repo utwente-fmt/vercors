@@ -204,18 +204,18 @@ class RASIGenerator[G] extends LazyLogging {
 
       val successor: RASISuccessor[G] = curr.successors()
 
-      if (successor.deciding_variables.nonEmpty) {
+      if (successor.distinguish_by.nonEmpty) {
         val time: Long =
           (System.nanoTime() - generation_start_time) / 1_000_000L
         logger.info(
           s"Found relevant new variables; abort generation [$i iterations in ${time}ms]"
         )
-        val found_vars: Seq[String] = successor.deciding_variables.toSeq
+        val found_vars: Seq[String] = successor.distinguish_by.toSeq
           .sortWith((v1, v2) => v1.compare(v2))
           .map(v => v.to_expression(None).toInlineString)
         logger.debug(s"Variables found: $found_vars")
 
-        considered_variables ++= successor.deciding_variables
+        considered_variables ++= successor.distinguish_by
 
         generation_start_time = reset(
           node,

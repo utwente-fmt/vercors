@@ -17,38 +17,37 @@ case class AbstractProcess[G](obj: Expr[G]) {
     *   A description of all reachable post-states
     */
   def atomic_step(starting_state: AbstractState[G]): RASISuccessor[G] = {
-    val (atomic, successor): (Boolean, RASISuccessor[G]) = small_step(
+    var (atomic, successor): (Boolean, RASISuccessor[G]) = small_step(
       starting_state.processes(this),
       starting_state,
     )
 
-    var end_states: Set[AbstractState[G]] =
+    var finished: Set[AbstractState[G]] =
       if (!atomic)
         successor.successors
       else
         Set.empty[AbstractState[G]]
-    var intermediate: Set[AbstractState[G]] =
+    var explored: Set[AbstractState[G]] =
       if (atomic)
         successor.successors
       else
         Set.empty[AbstractState[G]]
-    var explored: Set[AbstractState[G]] = intermediate
 
-    var variables: Set[ConcreteVariable[G]] = successor.deciding_variables
+    while (successor.successors.diff(finished).nonEmpty) {
+      successor = successor.update_each(s =>
+        if (!finished.contains(s)) {
+          val (atom, next) = small_step_if_atomic(s, starting_state)
+          if (!atom)
+            finished ++= next.successors
+          next
+        } else { SingleSuccessor(s) }
+      )
 
-    while (intermediate.nonEmpty) {
-      val next: Set[(Boolean, RASISuccessor[G])] = intermediate
-        .map(s => small_step_if_atomic(s, starting_state))
-
-      variables ++= next.map(s => s._2).flatMap(s => s.deciding_variables)
-      end_states ++= next.filter(s => !s._1).map(s => s._2)
-        .flatMap(s => s.successors)
-      intermediate = next.filter(s => s._1).map(s => s._2)
-        .flatMap(s => s.successors).diff(explored)
-      explored ++= intermediate
+      finished ++= successor.successors.intersect(explored)
+      explored ++= successor.successors
     }
 
-    RASISuccessor(variables, end_states)
+    successor
   }
 
   /** Tests if another small step can be executed without breaking the current
@@ -71,7 +70,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
       !state.processes.contains(this) ||
       (vars_changed && !is_atomic(state.processes(this)))
     )
-      (false, RASISuccessor(Set(), Set(state)))
+      (false, SingleSuccessor(state))
     else
       small_step(state.processes(this), state)
   }
@@ -95,7 +94,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
   ): (Boolean, RASISuccessor[G]) =
     node match {
       case CFGTerminal() =>
-        (false, RASISuccessor(Set(), Set(state.without_process(this))))
+        (false, SingleSuccessor(state.without_process(this)))
       case CFGNode(n, succ) =>
         n match {
           // Assign statements change the state of variables directly (if they appear in the valuation)
@@ -107,21 +106,17 @@ case class AbstractProcess[G](obj: Expr[G]) {
                   take_viable_edges(
                     succ,
                     state,
-                    RASISuccessor(
-                      Set(),
-                      Set(state.with_valuation(
-                        target,
-                        state.resolve_expression(value),
-                      )),
+                    SingleSuccessor(
+                      state
+                        .with_valuation(target, state.resolve_expression(value))
                     ),
                   )
                 case _: TSeq[_] =>
                   take_viable_edges(
                     succ,
                     state,
-                    RASISuccessor(
-                      Set(),
-                      Set(state.with_updated_collection(target, value)),
+                    SingleSuccessor(
+                      state.with_updated_collection(target, value)
                     ),
                   ) // TODO: Consider arrays
                 case _ => take_viable_edges_from_state(succ, state)
@@ -133,12 +128,8 @@ case class AbstractProcess[G](obj: Expr[G]) {
               take_viable_edges(
                 succ,
                 state,
-                RASISuccessor(
-                  Set(),
-                  Set(
-                    state
-                      .with_valuation(loc, UncertainValue.uncertain_of(loc.t))
-                  ),
+                SingleSuccessor(
+                  state.with_valuation(loc, UncertainValue.uncertain_of(loc.t))
                 ),
               ),
             )
@@ -207,7 +198,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
             state.lock match {
               case Some(proc) =>
                 if (!proc.equals(this))
-                  (false, RASISuccessor(Set(), Set(state)))
+                  (false, SingleSuccessor(state))
                 else
                   throw new IllegalStateException(
                     "Trying to lock already acquired lock"
@@ -218,7 +209,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
                   take_viable_edges(
                     succ,
                     state,
-                    RASISuccessor(Set(), Set(state.locked_by(this))),
+                    SingleSuccessor(state.locked_by(this)),
                   ),
                 )
             }
@@ -231,7 +222,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
                     take_viable_edges(
                       succ,
                       state,
-                      RASISuccessor(Set(), Set(state.unlocked())),
+                      SingleSuccessor(state.unlocked()),
                     ),
                   )
                 else
@@ -268,17 +259,14 @@ case class AbstractProcess[G](obj: Expr[G]) {
               take_viable_edges(
                 edges._2,
                 state,
-                RASISuccessor(
-                  Set(),
-                  Set(
-                    if (relevant)
-                      state.with_process_at(
-                        AbstractProcess(obj),
-                        edges._1.head.target,
-                      )
-                    else
-                      state
-                  ),
+                SingleSuccessor(
+                  if (relevant)
+                    state.with_process_at(
+                      AbstractProcess(obj),
+                      edges._1.head.target,
+                    )
+                  else
+                    state
                 ),
               ),
             )
@@ -286,7 +274,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
             if (state.processes.keys.forall(p => p.obj != obj))
               (true, take_viable_edges_from_state(succ, state))
             else
-              (false, RASISuccessor(Set(), Set(state)))
+              (false, SingleSuccessor(state))
           // Everything else does not affect the state, so simply go to the next step
           case _ => (true, take_viable_edges_from_state(succ, state))
         }
@@ -298,8 +286,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
   private def take_viable_edges_from_state(
       edges: mutable.Set[CFGEdge[G]],
       state: AbstractState[G],
-  ): RASISuccessor[G] =
-    take_viable_edges(edges, state, RASISuccessor(Set(), Set(state)))
+  ): RASISuccessor[G] = take_viable_edges(edges, state, SingleSuccessor(state))
 
   /** Returns a successor object representing all states reachable in one state
     * from the given starting state with the given control flow graph edges.
@@ -322,11 +309,12 @@ case class AbstractProcess[G](obj: Expr[G]) {
   ): RASISuccessor[G] = {
     val enabled_edges: (Set[CFGEdge[G]], Set[ConcreteVariable[G]]) =
       viable_edges(edges, starting_state)
-    RASISuccessor(
-      new_states.deciding_variables ++ enabled_edges._2,
-      enabled_edges._1
-        .flatMap(e => new_states.successors.map(s => take_edge(e, s)))
-        .flatMap(s => s.split_values()),
+    new_states.update_each(s =>
+      RASISuccessor(
+        enabled_edges._2,
+        enabled_edges._1.map(e => take_edge(e, s))
+          .flatMap(s => s.split_values()),
+      )
     )
   }
 

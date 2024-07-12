@@ -18,12 +18,11 @@ case class AbstractState[G](
     * @return
     *   The set of possible successor states
     */
-  def successors(): RASISuccessor[G] = {
-    RASISuccessor.from(
+  def successors(): RASISuccessor[G] =
+    AlternativeSuccessor(
       processes.keySet.filter(p => lock.isEmpty || lock.get.equals(p))
-        .map(p => p.atomic_step(this))
+        .map(p => p.atomic_step(this)).map(r => r.removed_states(Set(this)))
     )
-  }
 
   /** Returns a state with the same tracked variables, but with no knowledge of
     * their values.
@@ -244,7 +243,7 @@ case class AbstractState[G](
       .distinguishing_variables(constraints, Some(assumption))
 
     RASISuccessor(
-      variables, // For an assumption, the added conditions don't overwrite the previous state
+      variables,
       constraints.map(m =>
         AbstractState(
           Utils.val_intersect(valuations, m),
@@ -254,6 +253,7 @@ case class AbstractState[G](
         )
       ),
     )
+
   }
 
   /** Updates the state by assuming a postcondition. Also returns the variables
@@ -616,6 +616,7 @@ case class AbstractState[G](
           is_old,
           is_contract,
         ) // TODO: Do anything with permission fraction?
+      case PredicateApplyExpr(_) => UncertainBooleanValue.from(true)
       case Perm(_, _) =>
         UncertainBooleanValue
           .from(true) // TODO: Do anything with permissions/resources?
@@ -623,7 +624,8 @@ case class AbstractState[G](
         UncertainBooleanValue.from(true) // TODO: How to handle quantifiers?!
       case Result(_) => UncertainBooleanValue.uncertain()
       case AmbiguousResult() => UncertainBooleanValue.uncertain()
-      case SeqMember(_, _) => UncertainBooleanValue.uncertain() // TODO: Implement something for this?
+      case SeqMember(_, _) =>
+        UncertainBooleanValue.uncertain() // TODO: Implement something for this?
     }
 
   /** Evaluates a collection expression and returns an uncertain collection
