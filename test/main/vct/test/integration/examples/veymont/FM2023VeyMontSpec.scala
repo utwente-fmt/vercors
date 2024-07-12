@@ -23,6 +23,7 @@ class FM2023VeyMontSpec extends VercorsSpec {
   vercors should verify using silicon example s"$paperExamples/veymont-swap.pvl"
 
   // Slow because of generated permisissions. Can fix when VeyMont has permission support. For now in known-problems
+  // Also: needs sub runs, otherwise the program blows up quite a bit.
 //  (vercors
 //    should verify
 //    using silicon
