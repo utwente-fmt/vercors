@@ -9,9 +9,6 @@ case object ExampleFiles {
     "examples/private/",
     "examples/archive/",
     "examples/concepts/resourceValues",
-    "examples/technical/veymont",
-    "examples/concepts/veymont",
-    "examples/publications/2023/VeyMontToolPaper",
   ).map(_.replaceAll("/", File.separator))
 
   val IGNORE_EXTS: Seq[String] = Seq(".h", ".bib", ".xml")
@@ -22,7 +19,6 @@ case object ExampleFiles {
     "Makefile",
     "README",
     "LICENSE.txt",
-    "veymont-tictactoemn-seq.pvl",
   )
 
   val MAIN_FILES: Set[String] = Set(
