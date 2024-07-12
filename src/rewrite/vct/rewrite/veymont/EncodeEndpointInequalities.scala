@@ -94,17 +94,16 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
               val preRun = chor.preRun.map(dispatch)
                 .getOrElse(Block(Seq())(chor.o))
               implicit val o = chor.o
+              val endpointPairs =
+                if (chor.endpoints.nonEmpty)
+                  chor.endpoints.zip(chor.endpoints.tail)
+                else
+                  Seq()
               Some(Block(Seq(
                 preRun,
-                Assume[Post](foldAnd(
-                  chor.endpoints.zip(chor.endpoints.tail)
-                    .map { case (alice, bob) =>
-                      Neq[Post](
-                        EndpointName(succ(alice)),
-                        EndpointName(succ(bob)),
-                      )
-                    }
-                )),
+                Assume[Post](foldAnd(endpointPairs.map { case (alice, bob) =>
+                  Neq[Post](EndpointName(succ(alice)), EndpointName(succ(bob)))
+                })),
               )))
             },
           ).succeed(chor)
