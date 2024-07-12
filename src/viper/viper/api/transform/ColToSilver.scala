@@ -42,6 +42,7 @@ case class ColToSilver(program: col.Program[_]) {
   val currentInvariant: ScopedStack[col.LoopInvariant[_]] = ScopedStack()
   val currentStarall: ScopedStack[col.Starall[_]] = ScopedStack()
   val currentUnfolding: ScopedStack[col.Unfolding[_]] = ScopedStack()
+  val currentUnfold: ScopedStack[col.Unfold[_]] = ScopedStack()
   val currentMapGet: ScopedStack[col.MapGet[_]] = ScopedStack()
   val currentDividingExpr: ScopedStack[col.DividingExpr[_]] = ScopedStack()
 
@@ -365,6 +366,7 @@ case class ColToSilver(program: col.Program[_]) {
     result.invariant = currentInvariant.topOption
     result.starall = currentStarall.topOption
     result.unfolding = currentUnfolding.topOption
+    result.unfold = currentUnfold.topOption
     result.mapGet = currentMapGet.topOption
     result.dividingExpr = currentDividingExpr.topOption
     result
@@ -590,19 +592,6 @@ case class ColToSilver(program: col.Program[_]) {
           pos = pos(e),
           info = expInfo(e),
         )
-      case u @ col.Unfolding(col.Value(p: col.PredicateLocation[_]), body) =>
-        silver.Unfolding(
-          currentUnfolding.having(u) {
-            silver.PredicateAccessPredicate(
-              silver.PredicateAccess(p.args.map(exp), ref(p.predicate))(
-                pos = pos(p),
-                info = expInfo(p),
-              ),
-              WildcardPerm()(),
-            )(pos = pos(p), info = expInfo(p))
-          },
-          exp(body),
-        )(pos = pos(e), info = expInfo(e))
       case col.Select(condition, whenTrue, whenFalse) =>
         silver.CondExp(exp(condition), exp(whenTrue), exp(whenFalse))(
           pos = pos(e),
@@ -842,8 +831,11 @@ case class ColToSilver(program: col.Program[_]) {
         // PB: OK, since assn is type-checked boolean and hence equivalent.
         silver.Inhale(exp(assn))(pos = pos(s), info = NodeInfo(s))
       case col.Fold(p) => silver.Fold(fold(p))(pos = pos(s), info = NodeInfo(s))
-      case col.Unfold(p) =>
-        silver.Unfold(fold(p))(pos = pos(s), info = NodeInfo(s))
+      case u @ col.Unfold(p) =>
+        silver.Unfold(currentUnfold.having(u) { fold(p) })(
+          pos = pos(s),
+          info = NodeInfo(s),
+        )
       case col.SilverNewRef(v, fs) =>
         silver.NewStmt(
           silver.LocalVar(ref(v), typ(v.decl.t))(),

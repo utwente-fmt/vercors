@@ -3,6 +3,7 @@ package viper.api.backend
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.RWFile
 import hre.progress.Progress
+import vct.col.ast.Node
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
@@ -426,8 +427,14 @@ trait SilverBackend
         val deref = get[col.SilverDeref[_]](f)
         deref.blame.blame(blame.InsufficientPermission(deref))
       case reasons.InsufficientPermission(p @ silver.PredicateAccess(_, _)) =>
-        val unfolding = info(p).unfolding.get
-        unfolding.blame.blame(blame.UnfoldFailed(getFailure(reason), unfolding))
+        val unfolding = info(p).unfolding.orElse(info(p).unfold).get
+        val b =
+          unfolding match {
+            case u: col.Unfolding[_] => u.blame
+            case u: col.Unfold[_] => u.blame
+            case _ => ???
+          }
+        b.blame(blame.UnfoldFailed(getFailure(reason), unfolding))
       case reasons.QPAssertionNotInjective(access: silver.ResourceAccess) =>
         val starall = info(access).starall.get
         starall.blame.blame(blame.ReceiverNotInjective(starall, get(access)))
