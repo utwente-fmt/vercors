@@ -1,5 +1,6 @@
 package vct.options
 
+import hre.log.Verbosity
 import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
@@ -42,7 +43,7 @@ case object Options {
 
     import vct.options.types.Backend.read
     implicit val readLanguage: scopt.Read[Language] = ReadLanguage.read
-    import vct.options.types.Verbosity.read
+    import ReadEnum.readVerbosity
 
     implicit val readPathOrStd: scopt.Read[PathOrStd] = scopt.Read.reads {
       case "-" => PathOrStd.StdInOrOut
@@ -245,8 +246,9 @@ case object Options {
           "for longer than this timeout, the verification will timeout."
       ),
       opt[Unit]("dev-unsafe-optimization").maybeHidden()
-        .action((_, c) => c.copy(devUnsafeOptimization = true))
-        .text("Optimizes runtime at the cost of progress logging and readability of error messages"),
+        .action((_, c) => c.copy(devUnsafeOptimization = true)).text(
+          "Optimizes runtime at the cost of progress logging and readability of error messages"
+        ),
       opt[Path]("dev-silicon-z3-log-file").maybeHidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),

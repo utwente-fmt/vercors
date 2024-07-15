@@ -2,17 +2,20 @@ package vct.main
 
 import ch.qos.logback.classic.{Level, Logger}
 import com.typesafe.scalalogging.LazyLogging
-import hre.io.{CollectString, InterruptibleInputStream, Watch}
+import hre.io.{CollectString, InterruptibleStdin, Watch}
+import hre.log.Logging
+import hre.middleware.Middleware
 import hre.perf.Profile
-import hre.progress.{Layout, Progress}
+import hre.progress.{Layout, Progress, TaskRegistry}
+import hre.util.ThreadWatchdog
 import org.slf4j.LoggerFactory
 import scopt.OParser
 import vct.col.ast.Node
 import vct.debug.CrashReport
 import vct.main.modes.{CFG, VeSUV, Verify, VeyMont}
 import vct.main.stages.Transformation
-import vct.options.types.{Mode, Verbosity}
 import vct.options.Options
+import vct.options.types.Mode
 import vct.result.VerificationError.UserError
 
 import scala.util.control.NonFatal
@@ -83,70 +86,37 @@ case object Main extends LazyLogging {
       return 0
     }
 
-    for ((key, logLevel) <- options.logLevels) {
-      LoggerFactory.getLogger(key).asInstanceOf[Logger]
-        .setLevel(logLevel match {
-          case Verbosity.Off => Level.OFF
-          case Verbosity.Error => Level.ERROR
-          case Verbosity.Warning => Level.WARN
-          case Verbosity.Info => Level.INFO
-          case Verbosity.Debug => Level.DEBUG
-          case Verbosity.Trace => Level.TRACE
-          case Verbosity.All => Level.ALL
-        })
-    }
-
-    Layout.install(options.progress)
-
-    // Make it so read calls to System.in may be interrupted with Thread.interrupt()
-    // This causes data read between the start of reading and the interrupt to be lost.
-    System.setIn(new InterruptibleInputStream(System.in))
-
-    Runtime.getRuntime.addShutdownHook(
-      new Thread("[VerCors] Shutdown hook to abort progress on exit") {
-        override def run(): Unit = Progress.abort()
-      }
-    )
-
-    try {
+    Middleware.using(
+      true -> InterruptibleStdin,
+      true -> Logging.withLogLevels(options.logLevels),
+      true -> ThreadWatchdog,
+      true -> Layout.withForceProgress(options.progress),
+      true -> TaskRegistry,
+      true -> Progress,
+      options.profile -> Profile,
+    ) {
       Watch.booleanWithWatch(options.watch, default = EXIT_CODE_SUCCESS) {
-        Progress.install(options.profile)
-        try {
-          options.mode match {
-            case Mode.Verify =>
-              logger
-                .info(s"Starting verification at ${hre.util.Time.formatTime()}")
-              Verify.runOptions(options)
-            case Mode.HelpVerifyPasses =>
-              logger.info("Available passes:")
-              Transformation.ofOptions(options).passes.foreach { pass =>
-                logger.info(s" - ${pass.key}")
-                logger.info(s"    ${pass.desc}")
-              }
-              EXIT_CODE_SUCCESS
-            case Mode.VeyMont => VeyMont.runOptions(options)
-            case Mode.VeSUV =>
-              logger.info("Starting transformation")
-              VeSUV.runOptions(options)
-            case Mode.CFG =>
-              logger.info("Starting control flow graph transformation")
-              CFG.runOptions(options)
-          }
-        } finally { Progress.finish() }
-      }
-    } finally {
-      val thisThread = Thread.currentThread()
-      Thread.getAllStackTraces.keySet().stream().filter(_ != thisThread)
-        .filter(!_.isDaemon).forEach { thread =>
-          val tg = Option(thread.getThreadGroup)
-          logger.warn(
-            s"Non-daemon thread ${tg.map(_.getName)
-                .getOrElse("UnknownThreadGroup")}.${thread.getName} (#${thread.getId}) is still running"
-          )
-          logger.warn(
-            "Due to this VerCors will not exit and sit idly until that thread is done. You may want to stop the program manually."
-          )
+        options.mode match {
+          case Mode.Verify =>
+            logger
+              .info(s"Starting verification at ${hre.util.Time.formatTime()}")
+            Verify.runOptions(options)
+          case Mode.HelpVerifyPasses =>
+            logger.info("Available passes:")
+            Transformation.ofOptions(options).passes.foreach { pass =>
+              logger.info(s" - ${pass.key}")
+              logger.info(s"    ${pass.desc}")
+            }
+            EXIT_CODE_SUCCESS
+          case Mode.VeyMont => VeyMont.runOptions(options)
+          case Mode.VeSUV =>
+            logger.info("Starting transformation")
+            VeSUV.runOptions(options)
+          case Mode.CFG =>
+            logger.info("Starting control flow graph transformation")
+            CFG.runOptions(options)
         }
+      }
     }
   }
 }

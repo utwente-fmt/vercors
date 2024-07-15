@@ -1,9 +1,5 @@
 package vct.test.integration.examples
 
-import hre.io.LiteralReadable
-import vct.main.modes.Verify
-import vct.options.Options
-import vct.options.types.Verbosity
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalVeyMontSpec

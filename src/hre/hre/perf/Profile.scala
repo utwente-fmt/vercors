@@ -2,34 +2,21 @@ package hre.perf
 
 import com.google.perftools
 import com.google.perftools.profiles.{Sample, ValueType}
+import hre.middleware.{Middleware, MiddlewareObject}
 
 import java.nio.file.{Files, Paths}
 import java.util.zip.GZIPOutputStream
 import scala.collection.mutable
 
-case object Profile {
-  private var currentProfile: Option[Profile] = None
-
-  def install(profile: Boolean): Unit =
-    if (profile)
-      currentProfile = Some(Profile())
-
+case object Profile extends MiddlewareObject[Profile] {
   def update(
       stack: Seq[String],
       ownUsage: ResourceUsage,
       doUpdateChildUsage: Boolean,
-  ): Unit =
-    currentProfile.foreach(_.update(stack, ownUsage, doUpdateChildUsage))
-
-  def finish(): Unit = {
-    currentProfile.foreach(_.finish())
-    currentProfile = None
-  }
-
-  def enabled: Boolean = currentProfile.isDefined
+  ): Unit = instance.foreach(_.update(stack, ownUsage, doUpdateChildUsage))
 }
 
-case class Profile() {
+case class Profile() extends Middleware {
   val builder = new ProfileBuilder()
 
   import builder.{loc, str}
@@ -84,7 +71,9 @@ case class Profile() {
       )
     }
 
-  def finish(): Unit = {
+  override protected def install(): Unit = {}
+
+  override protected def uninstall(): Unit = {
     val result = perftools.profiles.Profile(
       sampleType = valueTypes,
       sample = samples.toIndexedSeq,
