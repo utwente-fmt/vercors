@@ -2,7 +2,7 @@ package vct.test.integration.meta
 
 import org.scalatest.flatspec.AnyFlatSpec
 import vct.test.integration.examples._
-import vct.test.integration.examples.veymont.{FM2023VeyMontSpec, TechnicalVeyMontSpec, VeyMontExamplesSpec}
+import vct.test.integration.examples.veymont.{FM2023VeyMontSpec, TechnicalVeyMontSpec, VeyMontExamplesSpec, VeyMontPermissionsPaperSpec}
 import vct.test.integration.helper._
 
 class ExampleCoverage extends AnyFlatSpec {
@@ -60,6 +60,7 @@ class ExampleCoverage extends AnyFlatSpec {
       new VerifyThisSpec(),
       new FM2023VeyMontSpec(),
       new VeyMontExamplesSpec(),
+      new VeyMontPermissionsPaperSpec(),
       new WaitNotifySpec(),
       new WandSpec(),
       new AutoValueSpec(),

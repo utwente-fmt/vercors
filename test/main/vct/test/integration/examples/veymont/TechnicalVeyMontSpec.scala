@@ -894,4 +894,10 @@ class TechnicalVeyMontSpec
   vercors should verify using silicon flag
     "--veymont-generate-permissions" example
     s"$wd/checkTypesNonMain/RoleMethodType4.pvl"
+
+  vercors should verify using silicon example s"$wd/first.pvl"
+  vercors should verify using silicon flag
+    "--veymont-generate-permissions" example s"$wd/subFieldAssign.pvl"
+  vercors should fail withCode "perm" using silicon example
+    s"$wd/subFieldAssignError.pvl"
 }
