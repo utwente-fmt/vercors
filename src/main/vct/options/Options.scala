@@ -1,5 +1,6 @@
 package vct.options
 
+import hre.log.Verbosity
 import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
@@ -42,7 +43,7 @@ case object Options {
 
     import vct.options.types.Backend.read
     implicit val readLanguage: scopt.Read[Language] = ReadLanguage.read
-    import vct.options.types.Verbosity.read
+    import ReadEnum.readVerbosity
 
     implicit val readPathOrStd: scopt.Read[PathOrStd] = scopt.Read.reads {
       case "-" => PathOrStd.StdInOrOut
