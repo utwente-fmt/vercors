@@ -91,32 +91,35 @@ case object Main extends LazyLogging {
       true -> Logging.withLogLevels(options.logLevels),
       true -> ThreadWatchdog,
       true -> Layout.withForceProgress(options.progress),
-      true -> TaskRegistry,
-      true -> Progress,
-      options.profile -> Profile,
     ) {
       Watch.booleanWithWatch(options.watch, default = EXIT_CODE_SUCCESS) {
-        options.mode match {
-          case Mode.Verify =>
-            logger
-              .info(s"Starting verification at ${hre.util.Time.formatTime()}")
-            Verify.runOptions(options)
-          case Mode.HelpVerifyPasses =>
-            logger.info("Available passes:")
-            Transformation.ofOptions(options).passes.foreach { pass =>
-              logger.info(s" - ${pass.key}")
-              logger.info(s"    ${pass.desc}")
-            }
-            EXIT_CODE_SUCCESS
-          case Mode.VeyMont => VeyMont.runOptions(options)
-          case Mode.VeSUV =>
-            logger.info("Starting transformation")
-            VeSUV.runOptions(options)
-          case Mode.CFG =>
-            logger.info("Starting control flow graph transformation")
-            CFG.runOptions(options)
-        }
+        Middleware.using(
+          true -> TaskRegistry,
+          true -> Progress,
+          options.profile -> Profile,
+        )(runMode(options.mode, options))
       }
     }
   }
+
+  def runMode(mode: Mode, options: Options): Int =
+    options.mode match {
+      case Mode.Verify =>
+        logger.info(s"Starting verification at ${hre.util.Time.formatTime()}")
+        Verify.runOptions(options)
+      case Mode.HelpVerifyPasses =>
+        logger.info("Available passes:")
+        Transformation.ofOptions(options).passes.foreach { pass =>
+          logger.info(s" - ${pass.key}")
+          logger.info(s"    ${pass.desc}")
+        }
+        EXIT_CODE_SUCCESS
+      case Mode.VeyMont => VeyMont.runOptions(options)
+      case Mode.VeSUV =>
+        logger.info("Starting transformation")
+        VeSUV.runOptions(options)
+      case Mode.CFG =>
+        logger.info("Starting control flow graph transformation")
+        CFG.runOptions(options)
+    }
 }

@@ -108,5 +108,6 @@ case class Progress() extends Middleware {
         timer.cancel()
       }
       blockLayoutUpdateTimer = None
+      Layout.update()
     }
 }
