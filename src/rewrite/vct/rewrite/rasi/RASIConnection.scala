@@ -142,7 +142,8 @@ case class DistinguishedSuccessor[G](
   }
 
   override def factor_out(states: Set[AbstractState[G]]): RASISuccessor[G] = {
-    val hit: Set[AbstractState[G]] = states.intersect(successors)
+    val hit: Set[AbstractState[G]] = successors.intersect(states)
+    // different result for some reason: states.intersect(successors)
     if (hit.nonEmpty)
       AlternativeSuccessor(
         hit.map[RASISuccessor[G]](s => SingleSuccessor(s)) + this.removed_states(hit)
