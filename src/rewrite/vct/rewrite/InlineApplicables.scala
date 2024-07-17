@@ -12,6 +12,7 @@ import vct.col.origin.{
   PanicBlame,
   PreferredName,
   UnfoldFailed,
+  UnfoldInlineFailed,
 }
 import vct.col.ref.Ref
 import vct.col.rewrite.error.ExcludedByPassOrder
@@ -111,7 +112,7 @@ case object InlineApplicables extends RewriterBuilder {
   case class InlineUnfoldAssertFailed(unfold: Unfold[_])
       extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
-      unfold.blame.blame(UnfoldFailed(error.failure, unfold))
+      unfold.blame.blame(UnfoldInlineFailed(error.failure, unfold))
   }
 
   case class Replacement[Pre](replacing: Expr[Pre], binding: Expr[Pre])(

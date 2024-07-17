@@ -28,6 +28,7 @@ import vct.col.origin.{
   PanicBlame,
   PreconditionFailed,
   UnfoldFailed,
+  UnfoldFailure,
   VerificationFailure,
 }
 import vct.col.ref.Ref
@@ -61,8 +62,8 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
   }
 
   case class ForwardUnfoldFailedToDeref(deref: Deref[_])
-      extends Blame[UnfoldFailed] {
-    override def blame(error: UnfoldFailed): Unit =
+      extends Blame[UnfoldFailure] {
+    override def blame(error: UnfoldFailure): Unit =
       deref.blame.blame(InsufficientPermission(deref))
   }
 

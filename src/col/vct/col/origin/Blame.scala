@@ -199,12 +199,20 @@ case class ExhaleFailed(failure: ContractFailure, node: Exhale[_])
   override def inlineDescWithSource(node: String, failure: String): String =
     s"`$node` may fail, since $failure."
 }
-case class UnfoldFailed(failure: ContractFailure, node: Node[_])
-    extends WithContractFailure {
+sealed trait UnfoldFailure extends VerificationFailure
+case class UnfoldFailed(node: Node[_])
+    extends UnfoldFailure with NodeVerificationFailure {
+  override def code: String = "unfoldFailed"
+  override def descInContext: String = "Unfold may fail"
+  override def inlineDescWithSource(source: String): String =
+    s"`$source` may fail"
+}
+case class UnfoldInlineFailed(failure: ContractFailure, node: Node[_])
+    extends UnfoldFailure with WithContractFailure {
   override def baseCode: String = "unfoldFailed"
-  override def descInContext: String = "Unfold may fail, since"
+  override def descInContext: String = "Unfold may fail"
   override def inlineDescWithSource(node: String, failure: String): String =
-    s"`$node` may fail, since $failure."
+    s"`$node` may fail, because it is inline and $failure"
 }
 case class FoldFailed(failure: ContractFailure, node: Fold[_])
     extends WithContractFailure {

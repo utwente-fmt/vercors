@@ -412,8 +412,8 @@ case object LangCPPToCol {
   private case class SYCLBufferDestructionUnfoldFailedBlame(
       bufferDecl: Variable[_],
       scope: CPPLifetimeScope[_],
-  ) extends Blame[UnfoldFailed] {
-    override def blame(error: UnfoldFailed): Unit =
+  ) extends Blame[UnfoldFailure] {
+    override def blame(error: UnfoldFailure): Unit =
       throw SYCLBufferDestructionFailed(bufferDecl, scope)
   }
 

@@ -421,7 +421,7 @@ final case class Fold[G](res: FoldTarget[G])(val blame: Blame[FoldFailed])(
 ) extends NormallyCompletingStatement[G]
     with ExpressionContainerStatement[G]
     with FoldImpl[G]
-final case class Unfold[G](res: FoldTarget[G])(val blame: Blame[UnfoldFailed])(
+final case class Unfold[G](res: FoldTarget[G])(val blame: Blame[UnfoldFailure])(
     implicit val o: Origin
 ) extends NormallyCompletingStatement[G]
     with ExpressionContainerStatement[G]

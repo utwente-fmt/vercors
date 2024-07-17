@@ -269,8 +269,7 @@ trait SilverBackend
                 get[col.Node[_]](access) match {
                   case _: col.FoldTarget[_] =>
                     val unfold = get[col.Unfold[_]](node)
-                    unfold.blame
-                      .blame(blame.UnfoldFailed(getFailure(reason), unfold))
+                    unfold.blame.blame(blame.UnfoldFailed(unfold))
                   case _ => defer(reason)
                 }
               case otherReason => defer(otherReason)
@@ -431,7 +430,7 @@ trait SilverBackend
         deref.blame.blame(blame.InsufficientPermission(deref))
       case reasons.InsufficientPermission(p @ silver.PredicateAccess(_, _)) =>
         val unfolding = info(p).unfolding.get
-        unfolding.blame.blame(blame.UnfoldFailed(getFailure(reason), unfolding))
+        unfolding.blame.blame(blame.UnfoldFailed(unfolding))
       case reasons.QPAssertionNotInjective(access: silver.ResourceAccess) =>
         val starall = info(access).starall.get
         starall.blame.blame(blame.ReceiverNotInjective(starall, get(access)))
