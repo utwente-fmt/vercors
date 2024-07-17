@@ -49,7 +49,18 @@ import vct.col.ast.{
   Value,
   Variable,
 }
-import vct.col.origin.{Name, Origin, PanicBlame, SourceName}
+import vct.col.origin.{
+  AssertFailed,
+  AssignLocalOk,
+  Blame,
+  ChannelInvariantNotEstablished,
+  ChannelInvariantNotEstablishedLocally,
+  ExhaleFailed,
+  Name,
+  Origin,
+  PanicBlame,
+  SourceName,
+}
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.adt.ImportADTImporter
 import vct.col.rewrite.{
@@ -60,6 +71,10 @@ import vct.col.rewrite.{
 }
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
+import vct.rewrite.veymont.EncodeChannels.{
+  AssertFailedToChannelInvariantNotEstablished,
+  ExhaleFailedToChannelInvariantNotEstablished,
+}
 import vct.rewrite.veymont.EncodeChoreography.AssertFailedToParticipantsNotDistinct
 
 import scala.collection.mutable
@@ -70,6 +85,19 @@ object EncodeChannels extends RewriterBuilder {
 
   override def desc: String =
     "Encodes channels using plain assignment. Encodes channel invariants using exhale/inhale."
+
+  case class AssertFailedToChannelInvariantNotEstablished(comm: Communicate[_])
+      extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit =
+      comm.blame.blame(ChannelInvariantNotEstablished(error.failure, comm))
+  }
+
+  case class ExhaleFailedToChannelInvariantNotEstablished(comm: Communicate[_])
+      extends Blame[ExhaleFailed] {
+    override def blame(error: ExhaleFailed): Unit =
+      comm.blame
+        .blame(ChannelInvariantNotEstablishedLocally(error.failure, comm))
+  }
 }
 
 case class EncodeChannels[Pre <: Generation]()
@@ -103,24 +131,22 @@ case class EncodeChannels[Pre <: Generation]()
             ),
             Assert(currentEndpoint.having(comm.sender.get.decl) {
               includeChorExpr.having(true) {
-                foldAny(comm.invariant.t)(unfoldStar(comm.invariant).map { e =>
-                  EndpointExpr[Post](succ(sender), dispatch(e))
-                })
+                EndpointExpr[Post](succ(sender), dispatch(comm.invariant))
               }
-            })(PanicBlame("TODO: Redirect failing exhale")),
+            })(AssertFailedToChannelInvariantNotEstablished(comm)),
             Exhale(currentEndpoint.having(comm.sender.get.decl) {
               includeChorExpr.having(false) {
                 foldAny(comm.invariant.t)(unfoldStar(comm.invariant).map { e =>
                   EndpointExpr[Post](succ(sender), dispatch(e))
                 })
               }
-            })(PanicBlame("TODO: Redirect failing exhale")),
+            })(ExhaleFailedToChannelInvariantNotEstablished(comm)),
             EndpointStatement[Post](
               Some(succ(receiver)),
               Assign(dispatch(comm.target), m.get)(PanicBlame(
-                "TODO: Redirect to comm?"
+                "Assignment blame is handled by target expression"
               )),
-            )(PanicBlame("??? unused ???")),
+            )(PanicBlame("Unused blame")),
             Inhale(currentEndpoint.having(comm.receiver.get.decl) {
               substitutions.having(Map.from(Seq(
                 (Message(new DirectRef(comm)), dispatch(comm.target))

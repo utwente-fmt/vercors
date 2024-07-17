@@ -3,17 +3,21 @@ class Role {
 
   ensures Perm(v, 1) ** Perm(temp, 1);
   ensures v == x;
-  Role(int x) {
+  constructor(int x) {
     v = x;
   }
 }
 
+requires x == 0 && y == 1;
 choreography swap(int x, int y) {
   endpoint a = Role(0);
   endpoint b = Role(1);
 
-  context Perm(a.v, 1) ** Perm(a.temp, 1) ** a.v == 0;
-  context Perm(b.v, 1) ** Perm(b.temp, 1) ** b.v == 1;
+  requires x == 0 && y == 1;
+  context Perm(a.v, 1) ** Perm(a.temp, 1);
+  context Perm(b.v, 1) ** Perm(b.temp, 1);
+  requires a.v == 0 && b.v == 1;
+  ensures a.v == 1 && b.v == 0;
   run {
     a.v := x;
     b.v := y;

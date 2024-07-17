@@ -572,6 +572,28 @@ case class ParticipantsNotDistinct(node: Communicate[_])
     s"The participants of `$source` might not be distinct."
 }
 
+case class ChannelInvariantNotEstablished(
+    failure: ContractFailure,
+    node: Communicate[_],
+) extends CommunicateFailure with WithContractFailure {
+  override def baseCode: String = "channelInvariantNotEstablished"
+  override def descInContext: String =
+    "This channel invariant cannot be estalished, since"
+  override def inlineDescWithSource(node: String, failure: String): String =
+    s"The channel invariant at `$node` cannot be established, since $failure"
+}
+
+case class ChannelInvariantNotEstablishedLocally(
+    failure: ContractFailure,
+    node: Communicate[_],
+) extends CommunicateFailure with WithContractFailure {
+  override def baseCode: String = "channelInvariantNotEstablishedLocally"
+  override def descInContext: String =
+    "This channel invariant cannot be estalished when `\\chor` expressions are removed, since"
+  override def inlineDescWithSource(node: String, failure: String): String =
+    s"The channel invariant at `$node` cannot be established without `\\chor`, since $failure"
+}
+
 sealed trait DerefInsufficientPermission extends FrontendDerefError
 case class InsufficientPermission(node: HeapDeref[_])
     extends DerefInsufficientPermission with NodeVerificationFailure {

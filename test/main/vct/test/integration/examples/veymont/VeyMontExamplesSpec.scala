@@ -24,14 +24,14 @@ class VeyMontExamplesSpec extends VercorsSpec {
 
     vercors should verify using silicon flags
       "--veymont-generate-permissions" example s"$wd/parallel_while.pvl"
+
+    // Disabled indefinitely until submethods are enabled again
+    // vercors should verify using silicon flags
+    //   "--veymont-generate-permissions" example s"$wd/spectral_norm.pvl"
   }
 
   {
     val wd = "concepts/veymont/annotatedPermissions"
     vercors should verify using silicon example s"$wd/swap.pvl"
   }
-
-  // Disabled indefinitely until submethods are enabled again
-  // vercors should verify using silicon flags
-  //   "--veymont-generate-permissions" example s"$wd/spectral_norm.pvl"
 }

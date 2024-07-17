@@ -2,11 +2,50 @@ package vct.test.integration.examples.veymont
 
 import vct.test.integration.helper.VercorsSpec
 
-class TechnicalVeyMontSpec
-    extends VercorsSpec {
+class TechnicalVeyMontSpec extends VercorsSpec {
+  vercors should fail withCode "perm" using silicon in
+    "Bobby may receive permission for its target location" pvl """
+  class Storage { int x; int y; }
+  choreography Chor() {
+    endpoint alex = Storage();
+    endpoint bobby = Storage();
+    requires Perm(alex.x, 1) ** Perm[alex](bobby.x, 1);
+    run {
+      channel_invariant Perm(bobby.x, 1);
+      communicate alex.x -> bobby.x;
+    }
+  }
+  """
 
-      (vercors should verify using silicon flag
-    "--veymont-generate-permissions" in "example using communicate" pvl """
+  vercors should fail withCode "perm" using silicon in
+    "Bobby might not have permission to assign" pvl """
+  class Storage { int x; int y; }
+  choreography Chor() {
+    endpoint alex = Storage();
+    endpoint bobby = Storage();
+    requires Perm(alex.x, 1);
+    run {
+      communicate alex.x -> bobby.x;
+    }
+  }
+  """
+
+  vercors should fail withCode "channelInvariantNotEstablished:false" using
+    silicon in "Channel invariant might not be established" pvl """
+  class Storage { int x; int y; }
+  choreography Chor() {
+    endpoint alex = Storage();
+    endpoint bobby = Storage();
+    requires Perm(alex.x, 1) ** Perm(bobby.x, 1);
+    run {
+      channel_invariant \msg == 3;
+      communicate alex.x -> bobby.x;
+    }
+  }
+  """
+
+  (vercors should verify using silicon flag "--veymont-generate-permissions" in
+    "example using communicate" pvl """
        class Storage {
           int x;
        }
@@ -900,4 +939,5 @@ class TechnicalVeyMontSpec
     "--veymont-generate-permissions" example s"$wd/subFieldAssign.pvl"
   vercors should fail withCode "perm" using silicon example
     s"$wd/subFieldAssignError.pvl"
+
 }
