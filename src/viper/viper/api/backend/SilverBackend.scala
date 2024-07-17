@@ -236,6 +236,9 @@ trait SilverBackend
                       .blame(blame.AssertFailed(getFailure(reason), assert))
                   case _ => defer(reason)
                 }
+              case _: reasons.MagicWandChunkNotFound =>
+                assert.blame
+                  .blame(blame.AssertFailed(getFailure(reason), assert))
               case reasons.AssertionFalse(_) | reasons.NegativePermission(_) =>
                 assert.blame
                   .blame(blame.AssertFailed(getFailure(reason), assert))
