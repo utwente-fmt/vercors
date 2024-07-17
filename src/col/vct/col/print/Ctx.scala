@@ -18,8 +18,8 @@ object Ctx {
 
 case class Ctx(
     syntax: Ctx.Syntax = Ctx.PVL,
-    width: Int = 180, // TODO (RR): Change back to 120
-    tabWidth: Int = 2, // TODO (RR): Change back to 4
+    width: Int = 120,
+    tabWidth: Int = 4,
     names: Map[Declaration[_], String] = Map.empty,
     inSpec: Boolean = false,
 ) {

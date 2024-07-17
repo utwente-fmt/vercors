@@ -73,7 +73,18 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
   }
 }
 
-// TODO (RR): Document here the hack to make \chor work
+/* At the time of writing, under the heavy-weight stratified permissions model, supporting \chor is an enormous hack.
+   It currently consists of 3 parts:
+   - Making \chor work when generating permissions in plain asserts, loop invariants, contracts
+     This is done using the simplifying assumption that, when generating permissions, each field is completely and transitively
+     owned by the anchor (either a local or a method argument). Then chor just transitively unfolds all fields of all anchors
+     in scope. Inside this unfolded expression, plain functions (meaning, with non-specialized contracts), are used.
+   - Making \chor work when not generating permissions in plain asserts, ...
+     Here, we rely on the user to add (\endpoint e; ...) annotations inside \chor.
+   - Making \chor work in channel invariants
+     This is also quite annoying. Because the heavyweight approach does not allow easy peeking into wrapped permissions,
+     we implement an incomplete approach in EncodeChannels.scala.
+ */
 case class EncodePermissionStratification[Pre <: Generation](
     veymontGeneratePermissions: Boolean
 ) extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {

@@ -18,8 +18,7 @@ case class ContractFalse(node: Expr[_]) extends ContractFailure {
   override def inlineDescCompletion: String =
     s"${node.o.inlineContextText} may be false"
 }
-// TODO (RR): This was an Expr before, probably too liberal now
-case class InsufficientPermissionToExhale(node: Node[_])
+case class InsufficientPermissionToExhale(node: Expr[_])
     extends ContractFailure {
   override def code: String = "perm"
   override def descCompletion: String =

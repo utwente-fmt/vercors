@@ -18,8 +18,6 @@ trait PVLEndpointStatementImpl[G] extends PVLEndpointStatementOps[G] {
   this: PVLEndpointStatement[G] =>
   assert(!inner.isInstanceOf[EndpointStatement[_]])
 
-  // override def layout(implicit ctx: Ctx): Doc = ???
-
   object assign {
     def apply(): Assign[G] = inner.asInstanceOf[Assign[G]]
     def get: Option[Assign[G]] =
@@ -43,10 +41,4 @@ trait PVLEndpointStatementImpl[G] extends PVLEndpointStatementOps[G] {
         case _ => None
       }
   }
-
-  // TODO (RR): How to redo this error? Purely with permissions? Then it has to be a blame
-//  override def check(context: CheckContext[G]): Seq[CheckError] = super.check(context) ++ (endpoint match {
-//    case None => Seq(PVLSeqAssignEndpoint(this))
-//    case Some(_) => Seq()
-//  })
 }

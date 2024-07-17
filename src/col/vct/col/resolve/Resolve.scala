@@ -1057,7 +1057,8 @@ case object ResolveReferences extends LazyLogging {
       case ann @ JavaAnnotation(_, _) if isBip(ann, "StatePredicate") =>
         val expr: Expr[G] = ctx.javaParser
           .parse(getLit(ann.expect("expr")), ann.expect("expr").o)
-        resolve(expr, ctx) // TODO (RR): Throwing away errors here?
+        // We are throwing away errors here. Resolve if we ever do a case study
+        resolve(expr, ctx)
         ann.data = Some(
           BipStatePredicate(getLit(ann.expect("state")), expr)(ann.o)
         )
@@ -1138,7 +1139,6 @@ case object ResolveReferences extends LazyLogging {
         def getEndpoint[G](expr: Expr[G]): PVLEndpoint[G] =
           getEndpoints(expr) match {
             case Seq(endpoint) => endpoint
-            // TODO (RR): Proper error
             case Seq() =>
               throw new Exception(
                 expr.o.messageInContext("No endpoints in expr")

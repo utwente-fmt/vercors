@@ -196,8 +196,6 @@ case class InferEndpointContexts[Pre <: Generation]()
           dispatch(loc),
           ReadPerm()(v.o),
         )(v.o)
-      // TODO (RR): Workaround for pieter, keeping it around briefly
-//      case p @ Perm(_: PredicateLocation[Pre], _) => p.rewriteDefault()
       case p @ Perm(loc, perm) if inChor.topOption.contains(true) =>
         ChorPerm[Post](succ(getEndpoint(loc)), dispatch(loc), dispatch(perm))(
           p.o

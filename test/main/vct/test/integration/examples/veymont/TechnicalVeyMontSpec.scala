@@ -879,7 +879,6 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 
   val wd = "technical/veymont"
 
-  // TODO (RR): Re-enable tests asap
   vercors should verify using silicon flag
     "--veymont-generate-permissions" example s"$wd/checkLTS/ltstest.pvl"
   vercors should verify using silicon flag
@@ -922,7 +921,6 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     "--veymont-generate-permissions" example
     s"$wd/checkMainSyntaxAndWellFormedness/WaitStatement.pvl")
 
-  // TODO (RR): Re-enable once loop unanimity is re-implemented
   (vercors should fail withCode "loopUnanimityNotMaintained" using silicon flag
     "--veymont-generate-permissions" example
     s"$wd/checkMainSyntaxAndWellFormedness/WhileCondition.pvl")

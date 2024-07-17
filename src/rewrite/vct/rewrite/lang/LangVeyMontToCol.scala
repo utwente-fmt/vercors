@@ -106,7 +106,6 @@ case class LangVeyMontToCol[Pre <: Generation](
   ): Ref[Post, Endpoint[Post]] = endpointSucc.ref(name.ref.get.decl)
 
   def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit = {
-    // TODO (RR): Sort out blame. See EncodeChoreography for old blame
     val classTypeArgs = endpoint.typeArgs.map(rw.dispatch)
     endpointSucc(endpoint) = rw.endpoints.declare(
       new Endpoint[Post](
