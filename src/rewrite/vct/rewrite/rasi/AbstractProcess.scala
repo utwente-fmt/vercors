@@ -27,15 +27,18 @@ case class AbstractProcess[G](obj: Expr[G]) {
         successor.successors
       else
         Set.empty[AbstractState[G]]
+
+    var looping: Set[AbstractState[G]] = Set.empty[AbstractState[G]]
+
     var explored: Set[AbstractState[G]] =
       if (atomic)
         successor.successors
       else
         Set.empty[AbstractState[G]]
 
-    while (successor.successors.diff(finished).nonEmpty) {
+    while (successor.successors.diff(finished).diff(looping).nonEmpty) {
       successor = successor.update_each(s =>
-        if (!finished.contains(s)) {
+        if (!finished.contains(s) && !looping.contains(s)) {
           val (atom, next) = small_step_if_atomic(s, starting_state)
           if (!atom)
             finished ++= next.successors
@@ -43,11 +46,11 @@ case class AbstractProcess[G](obj: Expr[G]) {
         } else { SingleSuccessor(s) }
       )
 
-      finished ++= successor.successors.intersect(explored)
+      looping ++= successor.successors.intersect(explored).diff(finished)
       explored ++= successor.successors
     }
 
-    successor
+    successor.removed_states(looping).factor_out(Set(starting_state))
   }
 
   /** Tests if another small step can be executed without breaking the current

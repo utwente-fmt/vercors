@@ -13,10 +13,11 @@ sealed trait RASISuccessor[G] {
   def update_each(f: AbstractState[G] => RASISuccessor[G]): RASISuccessor[G]
   def edges(start: AbstractState[G]): Set[RASIEdge[G]]
   def removed_states(states: Set[AbstractState[G]]): RASISuccessor[G]
+  def factor_out(states: Set[AbstractState[G]]): RASISuccessor[G]
 }
 
 case object RASISuccessor {
-  def from[G](
+  private def from[G](
       variables: Set[ConcreteVariable[G]],
       states: Set[AbstractState[G]],
   ): RASISuccessor[G] =
@@ -33,6 +34,17 @@ case object RASISuccessor {
       variables: Set[ConcreteVariable[G]],
       states: Set[AbstractState[G]],
   ): RASISuccessor[G] = from(variables, states)
+
+  private def combine[G](
+      successor_set: Set[RASISuccessor[G]]
+  ): RASISuccessor[G] = {
+    AlternativeSuccessor(successor_set.map(r =>
+      r.factor_out(successor_set.diff(Set(r)).flatMap(s => s.successors))
+    ))
+  }
+
+  def apply[G](successors: Set[RASISuccessor[G]]): RASISuccessor[G] =
+    combine(successors)
 }
 
 case class AlternativeSuccessor[G](successor_set: Set[RASISuccessor[G]])
@@ -53,10 +65,19 @@ case class AlternativeSuccessor[G](successor_set: Set[RASISuccessor[G]])
   override def edges(start: AbstractState[G]): Set[RASIEdge[G]] =
     successor_set.flatMap(r => r.edges(start))
 
-  override def removed_states(states: Set[AbstractState[G]]): RASISuccessor[G] =
-    AlternativeSuccessor(
-      successor_set.map(r => r.removed_states(states)).filter(r => !r.is_empty)
-    )
+  override def removed_states(
+      states: Set[AbstractState[G]]
+  ): RASISuccessor[G] = {
+    val filtered: Set[RASISuccessor[G]] = successor_set
+      .map(r => r.removed_states(states)).filter(r => !r.is_empty)
+    if (filtered.size == 1)
+      filtered.head
+    else
+      AlternativeSuccessor(filtered)
+  }
+
+  override def factor_out(states: Set[AbstractState[G]]): RASISuccessor[G] =
+    AlternativeSuccessor(successor_set.map(r => r.factor_out(states)))
 }
 
 case class SingleSuccessor[G](successor: AbstractState[G])
@@ -79,6 +100,9 @@ case class SingleSuccessor[G](successor: AbstractState[G])
       AlternativeSuccessor(Set())
     else
       this
+
+  override def factor_out(states: Set[AbstractState[G]]): RASISuccessor[G] =
+    this
 }
 
 case class DistinguishedSuccessor[G](
@@ -91,7 +115,7 @@ case class DistinguishedSuccessor[G](
     successor_set.flatMap(r => r.successors)
 
   override def distinguish_by: Set[ConcreteVariable[G]] =
-    distinguishing_variables
+    distinguishing_variables ++ successor_set.flatMap(r => r.distinguish_by)
 
   override def update_each(
       f: AbstractState[G] => RASISuccessor[G]
@@ -115,5 +139,18 @@ case class DistinguishedSuccessor[G](
       filtered.head
     else
       DistinguishedSuccessor(distinguishing_variables, filtered)
+  }
+
+  override def factor_out(states: Set[AbstractState[G]]): RASISuccessor[G] = {
+    val hit: Set[AbstractState[G]] = states.intersect(successors)
+    if (hit.nonEmpty)
+      AlternativeSuccessor(
+        hit.map[RASISuccessor[G]](s => SingleSuccessor(s)) + this.removed_states(hit)
+      )
+    else
+      DistinguishedSuccessor(
+        distinguishing_variables,
+        successor_set.map(r => r.factor_out(states)),
+      )
   }
 }
