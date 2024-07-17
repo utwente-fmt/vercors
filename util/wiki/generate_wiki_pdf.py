@@ -440,8 +440,6 @@ def output_cases(path, cases):
         try:
             p = os.path.join(path, f"{case_name}.{language_to_extension(case.language)}")
             content = case.render()
-            if not "//:: tool" in content:
-                raise CaseWithoutTool(f'Case "{case_name}" is missing a tool directive for the test suite')
             with open(p, "w") as f:
                 f.write(case.render())
             ok += 1
