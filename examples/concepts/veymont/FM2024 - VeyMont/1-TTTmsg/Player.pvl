@@ -134,7 +134,7 @@ class Player {
       
   context Perm(move,1) ** Perm(myMark, 1\2);
   context [1\100]boardPerm();
-  ensures move != null; // TODO: Can be removed with lightweight encoding
+  ensures move != null; // TODO (RR): Can be removed with lightweight encoding
   ensures move.state();
   ensures move.mark == myMark;
   requires !boardFull();
