@@ -7,7 +7,7 @@ class VeyMontPermissionsPaperSpec extends VercorsSpec {
 
   vercors should verify using silicon flags
     "--veymont-generate-permissions" examples
-    (s"$wd/0-TTT/Move.pvl", s"$wd/0-TTT/Player.pvl", s"$wd/0-TTT/TTT.pvl")
+    (s"$wd/0-TTT/Move.pvl", s"$wd/0-TTT/Player.pvl", s"$wd/0-TTT/0-TTT.pvl")
 
   vercors should verify using silicon flags "--dev-unsafe-optimization" examples
     (

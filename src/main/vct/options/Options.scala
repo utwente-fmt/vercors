@@ -300,22 +300,31 @@ case object Options {
       opt[Path]("path-c-preprocessor").valueName("<path>")
         .action((path, c) => c.copy(cPreprocessorPath = path))
         .text("Set the location of the C preprocessor binary"),
+      opt[Unit]("generate-permissions")
+        .action((_, c) => c.copy(generatePermissions = true)).text(
+          "Generates permissions for the entire program using a syntax-driven single-owner policy"
+        ),
       note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont").action((_, c) => c.copy(mode = Mode.VeyMont)).text(
         "Enable VeyMont mode: decompose the global program from the input files into several local programs that can be executed in parallel"
       ).children(
         opt[Path]("veymont-output").valueName("<path>")
-          .action((path, c) => c.copy(veymontOutput = Some(path))),
-        opt[Path]("veymont-resource-path").valueName("<path>")
-          .action((path, c) => c.copy(veymontResourcePath = path)),
+          .action((path, c) => c.copy(veymontOutput = Some(path)))
+          .text("Indicates output path for generated implementation"),
         opt[Unit]("veymont-skip-choreography-verification")
-          .action((_, c) => c.copy(veymontSkipChoreographyVerification = true)),
+          .action((_, c) => c.copy(veymontSkipChoreographyVerification = true))
+          .text(
+            "Do not verify choreographies, skipping to implementation generation & verification immediately"
+          ),
+        opt[Unit]("veymont-skip-implementation-verification").action((_, c) =>
+          c.copy(veymontSkipImplementationVerification = true)
+        ).text("Do not verify generated implementation"),
+        opt[Unit]("veymont-generate-permissions")
+          .action((_, c) => c.copy(veymontGeneratePermissions = true)).text(
+            "Generate permissions for the entire choreography using a syntax-driven single-owner policy. VeyMont ensures the generated permissions will not interfere with auxiliary generated code."
+          ),
       ),
-      opt[Unit]("veymont-generate-permissions")
-        .action((_, c) => c.copy(veymontGeneratePermissions = true)).text(
-          "Generate permissions for the entire sequential program in the style of VeyMont 1.4"
-        ),
       opt[Unit]("dev-veymont-no-branch-unanimity").maybeHidden()
         .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
           "Disables generation of the branch unanimity check encoded by VeyMont, which verifies that choreographies do not deadlock during choreographic verification"
@@ -428,6 +437,7 @@ case class Options(
     siliconPrintQuantifierStats: Option[Int] = None,
     bipReportFile: Option[PathOrStd] = None,
     inferHeapContextIntoFrame: Boolean = true,
+    generatePermissions: Boolean = false,
 
     // Verify options - hidden
     devParserReportAmbiguities: Boolean = false,
@@ -459,6 +469,7 @@ case class Options(
     veymontGeneratePermissions: Boolean = false,
     veymontBranchUnanimity: Boolean = true,
     veymontSkipChoreographyVerification: Boolean = false,
+    veymontSkipImplementationVerification: Boolean = false,
     devVeymontAllowAssign: Boolean = false,
 
     // VeSUV options
