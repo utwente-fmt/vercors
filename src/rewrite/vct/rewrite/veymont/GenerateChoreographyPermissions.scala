@@ -11,6 +11,7 @@ import vct.col.resolve.ctx.Referrable
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 
 import scala.collection.immutable.ListSet
+import scala.collection.mutable
 
 object GenerateChoreographyPermissions extends RewriterBuilderArg[Boolean] {
   override def key: String = "generateChoreographyPermissions"
@@ -260,6 +261,8 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
 
    */
 
+  val warnedClasses = mutable.HashSet[Class[Pre]]()
+
   def transitivePerm(e: Expr[Post], t: Type[Pre])(
       implicit o: Origin
   ): Expr[Post] =
@@ -295,9 +298,12 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
       case TClass(Ref(cls), _) =>
         // The class we are generating permission for has already been encountered when going through the chain
         // of fields. So we cut off the computation
-        logger.warn(
-          s"Not generating permissions for recursive occurrence of ${cls.o.getPreferredNameOrElse().ucamel}. Circular datastructures are not supported by permission generation"
-        )
+        if (!warnedClasses.contains(cls)) {
+          logger.warn(
+            s"Not generating permissions for recursive occurrence of ${cls.o.getPreferredNameOrElse().ucamel}. Circular datastructures are not supported by permission generation"
+          )
+          warnedClasses.addOne(cls)
+        }
         tt
       case _ => tt
     }

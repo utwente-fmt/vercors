@@ -27,7 +27,7 @@ trait PredicateImpl[G]
     Group(
       Doc.rspread(layoutModifiers) <> "resource" <+> ctx.name(this) <> "(" <>
         Doc.args(args) <> ")" <> body.map(Text(" =") <>> _.show)
-          .getOrElse(Empty)
+          .getOrElse(Empty) <> ";"
     )
 
   override def layout(implicit ctx: Ctx): Doc =
