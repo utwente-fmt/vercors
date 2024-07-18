@@ -40,6 +40,9 @@ case object Doc {
 
   def stack(docs: Iterable[Show])(implicit ctx: Ctx): Doc = fold(docs)(_ <+/> _)
 
+  def stack2(docs: Iterable[Show])(implicit ctx: Ctx): Doc =
+    fold(docs)(_ <> Line <> Line <> _)
+
   def arg(doc: Show)(implicit ctx: Ctx): Doc =
     Nest(NonWsLine <> doc) <> NonWsLine
 

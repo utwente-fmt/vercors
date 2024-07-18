@@ -49,5 +49,5 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] {
            Text(" implements") <+> Doc.args(
              supports.map(supp => ctx.name(supp.asClass.get.cls)).map(Text)
            )) <+> "{"
-    ) <>> Doc.stack(decls) <+/> "}"
+    ) <>> Doc.stack2(decls) <+/> "}"
 }
