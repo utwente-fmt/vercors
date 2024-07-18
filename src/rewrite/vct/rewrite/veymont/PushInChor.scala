@@ -20,7 +20,7 @@ object PushInChor extends RewriterBuilderArg[Boolean] {
     "Pushes in `\\chor` expressions when generating permissions. This simplifies later analysis to be done by encodePermissionStratification."
 }
 
-case class PushInChor[Pre <: Generation](veymontGeneratePermissions: Boolean)
+case class PushInChor[Pre <: Generation](generatePermissions: Boolean)
     extends Rewriter[Pre] {
 
   case class IdentityRewriter[Pre <: Generation]() extends Rewriter[Pre] {}
@@ -28,7 +28,7 @@ case class PushInChor[Pre <: Generation](veymontGeneratePermissions: Boolean)
   val inInvariant = ScopedStack[Boolean]()
 
   override def dispatch(program: Program[Pre]): Program[Post] =
-    if (veymontGeneratePermissions)
+    if (generatePermissions)
       program.rewriteDefault()
     else
       IdentityRewriter().dispatch(program)
@@ -61,7 +61,7 @@ case class PushInChor[Pre <: Generation](veymontGeneratePermissions: Boolean)
   // expression in an EndpointExpr, which will in turn cause read functions to be used by EncodePermissionStratification
   // This doesn't make analysis more powerful, but it might save a chain of unfoldings here and there.
   // In addition, this optimization is only possible when generating permissions, as indicated by the
-  // veymontGeneratePermissions parameter, because only then we know the owner of each field, which is what makes
+  // generatePermissions parameter, because only then we know the owner of each field, which is what makes
   // wrapping exprs in EndpointExpr's safe: they explicitly model the semantics of permission generation.
   def needsChor(expr: Expr[Pre]): Boolean =
     containsFunctionInvocation(expr) || countEndpoints(expr) > 1

@@ -87,7 +87,7 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
      we implement an incomplete approach in EncodeChannels.scala.
  */
 case class EncodePermissionStratification[Pre <: Generation](
-    veymontGeneratePermissions: Boolean
+    generatePermissions: Boolean
 ) extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
   val inChor = ScopedStack[Boolean]()
@@ -416,7 +416,7 @@ case class EncodePermissionStratification[Pre <: Generation](
           blame = ForwardInvocationFailureToDeref(deref),
         )
 
-      case ChorExpr(inner) if veymontGeneratePermissions =>
+      case ChorExpr(inner) if generatePermissions =>
         implicit val o = expr.o
 
         def predicates(
@@ -468,7 +468,7 @@ case class EncodePermissionStratification[Pre <: Generation](
           ))
         }
 
-      case ChorExpr(inner) if !veymontGeneratePermissions =>
+      case ChorExpr(inner) if !generatePermissions =>
         // If not generating permissions, we rely on endpoint expressions to indicate the owner
         // of relevant permissions
         inChor.having(true) { dispatch(inner) }
@@ -478,10 +478,10 @@ case class EncodePermissionStratification[Pre <: Generation](
       // ... in the case of permission generation. Otherwise it just does nothing...?
       // The natural successor of the function will be the unspecialized one
       case inv: FunctionInvocation[Pre]
-          if inChor.topOption.contains(true) && veymontGeneratePermissions =>
+          if inChor.topOption.contains(true) && generatePermissions =>
         inv.rewriteDefault()
       case inv: InstanceFunctionInvocation[Pre]
-          if inChor.topOption.contains(true) && veymontGeneratePermissions =>
+          if inChor.topOption.contains(true) && generatePermissions =>
         inv.rewriteDefault()
 
       case InEndpoint(_, endpoint, inv: FunctionInvocation[Pre]) =>

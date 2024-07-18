@@ -137,7 +137,7 @@ object Transformation extends LazyLogging {
           splitVerificationByProcedure =
             options.devSplitVerificationByProcedure,
           optimizeUnsafe = options.devUnsafeOptimization,
-          veymontGeneratePermissions = options.veymontGeneratePermissions,
+          generatePermissions = options.generatePermissions,
           veymontBranchUnanimity = options.veymontBranchUnanimity,
         )
     }
@@ -150,6 +150,7 @@ object Transformation extends LazyLogging {
         options.veymontResourcePath,
         options.getParserDebugOptions,
       ),
+      options.veymontGeneratePermissions,
       onPassEvent =
         options.outputIntermediatePrograms
           .map(p => reportIntermediateProgram(p, "generate")).toSeq ++
@@ -277,7 +278,7 @@ class Transformation(
   *   Check that non-trivial contracts are satisfiable.
   * @param splitVerificationByProcedure
   *   Splits verification into one task per procedure body.
-  * @param veymontGeneratePermissions
+  * @param generatePermissions
   *   Generates permissions such that each callable requires full permissions
   *   its arguments and any transitively reachable locations.
   * @param veymontBranchUnanimity
@@ -299,7 +300,7 @@ case class SilverTransformation(
     checkSat: Boolean = true,
     splitVerificationByProcedure: Boolean = false,
     override val optimizeUnsafe: Boolean = false,
-    veymontGeneratePermissions: Boolean = false,
+    generatePermissions: Boolean = false,
     veymontBranchUnanimity: Boolean = true,
 ) extends Transformation(
       onPassEvent,
@@ -350,16 +351,16 @@ case class SilverTransformation(
         // Also, VeyMont requires branches to be nested, instead of flat, because the false branch
         // may refine the set of participating endpoints
         BranchToIfElse,
-        GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
+        GenerateChoreographyPermissions.withArg(generatePermissions),
         InferEndpointContexts,
-        PushInChor.withArg(veymontGeneratePermissions),
+        PushInChor.withArg(generatePermissions),
         StratifyExpressions,
         StratifyUnpointedExpressions,
         DeduplicateChorGuards,
         EncodeChorBranchUnanimity.withArg(veymontBranchUnanimity),
         EncodeEndpointInequalities,
         EncodeChannels,
-        EncodePermissionStratification.withArg(veymontGeneratePermissions),
+        EncodePermissionStratification.withArg(generatePermissions),
         EncodeChoreography,
         // All VeyMont nodes should now be gone
 
@@ -459,11 +460,13 @@ case class VeyMontImplementationGeneration(
       Resources.getVeymontPath,
       vct.parsers.debug.DebugOptions.NONE,
     ),
+    generatePermissions: Boolean,
     override val onPassEvent: Seq[PassEventHandler] = Nil,
 ) extends Transformation(
       onPassEvent,
       Seq(
         DropChorExpr,
+        GenerateChoreographyPermissions.withArg(generatePermissions),
         InferEndpointContexts,
         StratifyExpressions,
         StratifyUnpointedExpressions,

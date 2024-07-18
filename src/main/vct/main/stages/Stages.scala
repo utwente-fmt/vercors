@@ -71,12 +71,21 @@ case object Stages extends LazyLogging {
       .thenRun(ExpectedErrors.ofOptions(options))
   }
 
-  def veymontOfOptions(options: Options): Stages[Seq[Readable], Unit] = {
+  def veymontOfOptions(globalOptions: Options): Stages[Seq[Readable], Unit] = {
+    // generatePermissions is precluded by veymontGeneratePermissions in VeyMont mode
+    if (globalOptions.generatePermissions) {
+      logger.warn(
+        "`--generate-permissions` does not do anything in VeyMont mode, please use --veymont-generate-permissions"
+      )
+    }
+
     val choreographyStage
         : Stages[Seq[Readable], Verification[_ <: Generation]] = {
       val collector = BlameCollector()
       val bipResults = BIP.VerificationResults()
       val blameProvider = ConstantBlameProvider(collector)
+      val options = globalOptions
+        .copy(generatePermissions = globalOptions.veymontGeneratePermissions)
 
       IdentityStage()
         .also(logger.info("VeyMont choreography verifier & code generator"))
@@ -101,6 +110,7 @@ case object Stages extends LazyLogging {
 
     val generationStage
         : Stages[Verification[_ <: Generation], Seq[LiteralReadable]] = {
+      val options = globalOptions
       IdentityStage().also(logger.info("Generating endpoint implementations"))
         .thenRun(Transformation.veymontImplementationGenerationOfOptions(
           options
@@ -111,16 +121,20 @@ case object Stages extends LazyLogging {
       val collector = BlameCollector()
       val bipResults = BIP.VerificationResults()
       val blameProvider = ConstantBlameProvider(collector)
+      // generatePermissions is precluded by veymontGeneratePermissions in VeyMont mode
+      val options = globalOptions.copy(generatePermissions = false)
 
-      Parsing.ofOptions(options, blameProvider)
-        .thenRun(Resolution.ofOptions(options, blameProvider))
-        .thenRun(Transformation.ofOptions(options, bipResults))
-        .thenRun(Backend.ofOptions(options))
-        .thenRun(ExpectedErrors.ofOptions(options))
-        .thenRun(VeyMont.NoVerificationFailures(
-          collector,
-          VeyMont.ImplementationVerificationError,
-        ))
+      branch(
+        !options.veymontSkipImplementationVerification,
+        // Run regular vercors
+        Stages.ofOptions(options, blameProvider, bipResults)
+          .thenRun(VeyMont.NoVerificationFailures(
+            collector,
+            VeyMont.ImplementationVerificationError,
+          )),
+        IdentityStage().drop()
+          .also(logger.warn("Skipping implementation verification")),
+      )
     }
 
     choreographyStage.thenRun(generationStage)

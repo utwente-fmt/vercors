@@ -312,6 +312,8 @@ case object Options {
         opt[Path]("veymont-output").valueName("<path>")
           .action((path, c) => c.copy(veymontOutput = Some(path)))
           .text("Indicates output path for generated implementation"),
+        opt[Path]("veymont-resource-path").valueName("<path>")
+          .action((path, c) => c.copy(veymontResourcePath = path)),
         opt[Unit]("veymont-skip-choreography-verification")
           .action((_, c) => c.copy(veymontSkipChoreographyVerification = true))
           .text(

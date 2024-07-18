@@ -6,7 +6,6 @@ import vct.col.ast.{
   Assign,
   Block,
   ChorRun,
-  EndpointStatement,
   Choreography,
   Class,
   Communicate,
@@ -17,6 +16,7 @@ import vct.col.ast.{
   Deref,
   Endpoint,
   EndpointName,
+  EndpointStatement,
   Eval,
   Expr,
   FieldLocation,
@@ -41,7 +41,7 @@ import vct.col.ast.{
   Value,
   Variable,
 }
-import vct.col.origin.{Name, Origin, PanicBlame, SourceName}
+import vct.col.origin.{Name, Origin, PanicBlame, PostBlameSplit, SourceName}
 import vct.col.ref.Ref
 import vct.col.rewrite.adt.ImportADTImporter
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
@@ -244,6 +244,8 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
         }
 
       case cls: Class[Pre] if isEndpointClass(cls) =>
+        // For each communicate in a choreography, add fields for the communicate channel to classes
+        // of endpoints participating in the choreography
         cls.rewrite(decls =
           classDeclarations.collect {
             cls.decls.foreach(dispatch)
@@ -257,6 +259,13 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
             }
           }._1
         ).succeed(cls)
+
+      case cons: Constructor[Pre] if isEndpointClass(classOf(cons)) =>
+        val perms = communicatesOf(choreographyOf(cls)).map { comm => ??? }
+        // TODO (RR): Finish the permission generation here
+        cons.rewrite(contract =
+          cons.contract.rewrite(ensures = tt.accounted &* cons.contract.ensures)
+        ).succeed(cons)
 
       case cls: Class[Pre] if cls == genericChannelClass =>
         implicit val comm = currentCommunicate.top
@@ -355,7 +364,19 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
     if (currentCommunicate.nonEmpty) {
       rewriteChannelExpr(currentCommunicate.top, expr)
     } else
-      super.dispatch(expr)
+      expr match {
+        case inv @ ConstructorInvocation(Ref(cons), _, _, _, _, _, _)
+            if isEndpointClass(classOf(cons)) =>
+          inv.rewrite(blame =
+            PostBlameSplit.left(
+              PanicBlame(
+                "Channel field permissions should be managed correctly, automatically"
+              ),
+              inv.blame,
+            )
+          )
+        case _ => expr.rewriteDefault()
+      }
 
   def rewriteChannelExpr(
       comm: Communicate[Pre],

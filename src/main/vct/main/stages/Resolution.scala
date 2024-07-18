@@ -67,7 +67,7 @@ case object Resolution {
         case ClassPathEntry.SourcePath(root) =>
           ResolveTypes.JavaClassPathEntry.Path(root)
       },
-      options.veymontGeneratePermissions,
+      options.generatePermissions,
       options.devVeymontAllowAssign,
     )
 }
@@ -117,7 +117,7 @@ case class Resolution[G <: Generation](
       ResolveTypes.JavaClassPathEntry.Path(Resources.getJrePath),
       ResolveTypes.JavaClassPathEntry.SourcePackageRoot,
     ),
-    veymontGeneratePermissions: Boolean = false,
+    generatePermissions: Boolean = false,
     veymontAllowAssign: Boolean = false,
 ) extends Stage[ParseResult[G], Verification[_ <: Generation]]
     with LazyLogging {
@@ -147,7 +147,7 @@ case class Resolution[G <: Generation](
       case some => throw InputResolutionError(some)
     }
     val resolvedProgram = LangSpecificToCol(
-      veymontGeneratePermissions,
+      generatePermissions,
       veymontAllowAssign,
     ).dispatch(typedProgram)
     resolvedProgram.check match {

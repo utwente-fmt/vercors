@@ -28,6 +28,10 @@ trait Stage[-Input, +Output] {
     UnitStages(this).thenRun(FunctionStage[Output, Output](x => { f; x }))
   }
 
+  def drop(): Stages[Input, Unit] = {
+    UnitStages(this).thenRun(FunctionStage[Output, Unit](_ => {}))
+  }
+
   def preprocess[Input2](f: Input2 => Input): Stages[Input2, Output] =
     UnitStages(FunctionStage(f)).thenRun(UnitStages(this))
 }
@@ -110,6 +114,9 @@ trait Stages[-Input, +Output] {
 
   def also(f: => Unit): Stages[Input, Output] =
     thenRun(FunctionStage[Output, Output](x => { val y = f; x }))
+
+  def drop(): Stages[Input, Unit] =
+    thenRun(FunctionStage[Output, Unit](_ => {}))
 }
 
 case class FunctionStage[T, S](f: T => S) extends Stage[T, S] {
