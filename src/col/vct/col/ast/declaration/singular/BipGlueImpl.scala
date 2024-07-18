@@ -1,8 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.declaration.singular
 
 import vct.col.ast.BipGlue
 import vct.col.ast.ops.BipGlueOps
-import vct.col.print._
 
 trait BipGlueImpl[G] extends BipGlueOps[G] {
   this: BipGlue[G] =>

@@ -1,8 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.family.bipporttype
 
 import vct.col.ast.BipPortType
 import vct.col.ast.ops.BipPortTypeFamilyOps
-import vct.col.print._
 
 trait BipPortTypeImpl[G] extends BipPortTypeFamilyOps[G] {
   this: BipPortType[G] =>

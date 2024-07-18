@@ -1,17 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.lang.pvl
 
-import vct.col.ast.{
-  Assign,
-  EndpointStatement,
-  Expr,
-  PVLDeref,
-  PVLEndpoint,
-  PVLEndpointStatement,
-  PVLLocal,
-}
-import vct.col.ast.ops.{PVLEndpointStatementOps}
-import vct.col.check.{CheckContext, CheckError, PVLSeqAssignEndpoint}
-import vct.col.print._
+import vct.col.ast.ops.PVLEndpointStatementOps
+import vct.col.ast._
 import vct.col.resolve.ctx.RefPVLEndpoint
 
 trait PVLEndpointStatementImpl[G] extends PVLEndpointStatementOps[G] {

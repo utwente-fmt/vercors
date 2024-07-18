@@ -1,7 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.lang.pvl
 
-import vct.col.ast.{PVLReceiver, Type}
 import vct.col.ast.ops.PVLReceiverOps
+import vct.col.ast.{PVLReceiver, Type}
 import vct.col.print._
 
 trait PVLReceiverImpl[G] extends PVLReceiverOps[G] {

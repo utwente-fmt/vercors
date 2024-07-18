@@ -1,7 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.lang.pvl
 
-import vct.col.ast.{PVLChorPerm, TResource, Type}
 import vct.col.ast.ops.PVLChorPermOps
+import vct.col.ast.{PVLChorPerm, TResource, Type}
 import vct.col.print._
 
 trait PVLChorPermImpl[G] extends PVLChorPermOps[G] {

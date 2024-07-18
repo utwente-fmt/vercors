@@ -1,7 +1,6 @@
-package vct.col.ast.unsorted
+package vct.col.ast.lang.pvl
 
 import vct.col.ast.TPVLChoreography
-import vct.col.print._
 import vct.col.ast.ops.TPVLChoreographyOps
 
 trait TPVLChoreographyImpl[G] extends TPVLChoreographyOps[G] {

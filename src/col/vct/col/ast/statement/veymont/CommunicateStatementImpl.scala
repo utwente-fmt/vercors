@@ -1,4 +1,4 @@
-package vct.col.ast.unsorted
+package vct.col.ast.statement.veymont
 
 import vct.col.ast.CommunicateStatement
 import vct.col.ast.ops.CommunicateStatementOps

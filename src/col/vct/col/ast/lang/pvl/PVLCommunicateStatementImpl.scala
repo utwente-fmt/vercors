@@ -1,8 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.lang.pvl
 
 import vct.col.ast.PVLCommunicateStatement
 import vct.col.ast.ops.PVLCommunicateStatementOps
-import vct.col.print._
 
 trait PVLCommunicateStatementImpl[G] extends PVLCommunicateStatementOps[G] {
   this: PVLCommunicateStatement[G] =>

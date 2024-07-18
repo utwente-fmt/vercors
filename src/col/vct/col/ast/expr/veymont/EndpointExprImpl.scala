@@ -1,7 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.expr.veymont
 
-import vct.col.ast.{EndpointExpr, TBool, Type}
 import vct.col.ast.ops.EndpointExprOps
+import vct.col.ast.{EndpointExpr, Type}
 import vct.col.print._
 
 trait EndpointExprImpl[G] extends EndpointExprOps[G] {

@@ -1,7 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.lang.pvl
 
-import vct.col.ast.{PVLSender, Type}
 import vct.col.ast.ops.PVLSenderOps
+import vct.col.ast.{PVLSender, Type}
 import vct.col.print._
 
 trait PVLSenderImpl[G] extends PVLSenderOps[G] {

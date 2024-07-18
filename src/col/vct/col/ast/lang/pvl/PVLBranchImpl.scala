@@ -1,8 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.lang.pvl
 
 import vct.col.ast.PVLBranch
 import vct.col.ast.ops.PVLBranchOps
-import vct.col.print._
 
 trait PVLBranchImpl[G] extends PVLBranchOps[G] {
   this: PVLBranch[G] =>

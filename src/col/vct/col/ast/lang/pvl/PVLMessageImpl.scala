@@ -1,7 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.lang.pvl
 
-import vct.col.ast.{PVLMessage, Type}
 import vct.col.ast.ops.PVLMessageOps
+import vct.col.ast.{PVLMessage, Type}
 import vct.col.print._
 
 trait PVLMessageImpl[G] extends PVLMessageOps[G] {

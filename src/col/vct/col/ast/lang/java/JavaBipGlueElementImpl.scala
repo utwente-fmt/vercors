@@ -1,8 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.lang.java
 
 import vct.col.ast.JavaBipGlueElement
 import vct.col.ast.ops.JavaBipGlueElementFamilyOps
-import vct.col.print._
 
 trait JavaBipGlueElementImpl[G] extends JavaBipGlueElementFamilyOps[G] {
   this: JavaBipGlueElement[G] =>

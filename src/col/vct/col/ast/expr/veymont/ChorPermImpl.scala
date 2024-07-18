@@ -1,7 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.expr.veymont
 
-import vct.col.ast.{ChorPerm, TResource, Type}
 import vct.col.ast.ops.ChorPermOps
+import vct.col.ast.{ChorPerm, TResource, Type}
 import vct.col.print._
 
 trait ChorPermImpl[G] extends ChorPermOps[G] {

@@ -1,7 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.expr.veymont
 
-import vct.col.ast.{Message, Type}
 import vct.col.ast.ops.MessageOps
+import vct.col.ast.{Message, Type}
 import vct.col.print._
 
 trait MessageImpl[G] extends MessageOps[G] {

@@ -1,8 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.lang.pvl
 
-import vct.col.ast.{PVLEndpoint, TClass, Type}
 import vct.col.ast.ops.PVLEndpointOps
-import vct.col.print._
+import vct.col.ast.{PVLEndpoint, TClass}
 
 trait PVLEndpointImpl[G] extends PVLEndpointOps[G] {
   this: PVLEndpoint[G] =>

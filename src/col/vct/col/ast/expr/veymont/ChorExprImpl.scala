@@ -1,7 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.expr.veymont
 
-import vct.col.ast.{ChorExpr, TBool, Type}
 import vct.col.ast.ops.ChorExprOps
+import vct.col.ast.{ChorExpr, Type}
 import vct.col.print._
 
 trait ChorExprImpl[G] extends ChorExprOps[G] {

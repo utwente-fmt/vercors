@@ -1,7 +1,7 @@
-package vct.col.ast.unsorted
+package vct.col.ast.expr.veymont
 
-import vct.col.ast.{Sender, Type}
 import vct.col.ast.ops.SenderOps
+import vct.col.ast.{Sender, Type}
 import vct.col.print._
 
 trait SenderImpl[G] extends SenderOps[G] {

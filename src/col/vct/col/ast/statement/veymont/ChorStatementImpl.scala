@@ -1,31 +1,14 @@
-package vct.col.ast.unsorted
+package vct.col.ast.statement.veymont
 
 import vct.col.ast.ops.ChorStatementOps
 import vct.col.ast.statement.StatementImpl
-import vct.col.ast.{
-  Assert,
-  Assign,
-  Assume,
-  Branch,
-  ChorStatement,
-  Communicate,
-  Endpoint,
-  EndpointExpr,
-  EndpointStatement,
-  Exhale,
-  Expr,
-  Inhale,
-  Loop,
-  Statement,
-}
+import vct.col.ast._
 import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.print._
 import vct.col.ref.Ref
-import vct.col.util.AstBuildHelpers
 import vct.col.util.AstBuildHelpers.unfoldStar
 
 import scala.collection.immutable.ListSet
-import scala.util.Try
 
 trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
   this: ChorStatement[G] =>
