@@ -50,7 +50,10 @@ case class AbstractProcess[G](obj: Expr[G]) {
       explored ++= successor.successors
     }
 
-    successor.removed_states(looping).factor_out(Set(starting_state))
+    // TODO: Special treatment for the scheduler? There must be a better algorithm for this...
+    if (obj.isInstanceOf[Null[G]])
+      successor.removed_states(looping + starting_state)
+    else successor
   }
 
   /** Tests if another small step can be executed without breaking the current
