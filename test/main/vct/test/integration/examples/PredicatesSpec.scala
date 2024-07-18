@@ -33,4 +33,49 @@ void main(int[] xs, int[] ys, int n){
 }
   """
    */
+
+  vercors should verify using silicon in
+    "Opening a present predicate should succeed" pvl """
+    class C {
+      int x;
+    }
+
+    resource P(C c) = true;
+
+    requires P(c);
+    void m(C c) {
+      unfold P(c);
+    }
+    """
+
+  vercors should fail withCode "unfoldFailed" using silicon in
+    "Opening a non-present predicate should fail" pvl """
+    class C { int x; }
+
+    resource P(C c) = true;
+
+    void m(C c) {
+      unfold P(c);
+    }
+    """
+
+  vercors should fail withCode "unfoldFailed:false" using silicon in
+    "Opening a non-present inline predicate should fail" pvl """
+    inline resource P(int x, int y) = x == 1 && y == 2;
+
+    requires x == 1;
+    void m(int x) {
+      unfold P(x, 0);
+    }
+    """
+
+  vercors should verify using silicon in
+    "Opening a present inline predicate should succeed" pvl """
+    inline resource P(int x, int y) = x == 1 && y == 2;
+
+    requires x == 1;
+    void m(int x) {
+      unfold P(x, 2);
+    }
+    """
 }

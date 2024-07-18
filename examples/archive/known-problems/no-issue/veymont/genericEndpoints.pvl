@@ -1,0 +1,26 @@
+// Disabled because currently VeyMont's function specialization mechanism does not mesh well with generics.
+// In this test case specifically, the contract of toInt is specialized to endpoint a. In this process it's not easy
+// to handle the scoping of the generic parameter T.
+
+class Role<T> {
+  T t;
+  int i;
+
+  T fromInt(int i);
+  int toInt(T t);
+}
+
+class A { }
+
+class B { }
+
+choreography genericTest() {
+  endpoint a = Role<A>();
+  endpoint b = Role<B>();
+
+  run {
+    a.i := a.toInt(a.t);
+    communicate a.i -> b.i;
+    b.t := b.fromInt(b.i);
+  }
+}

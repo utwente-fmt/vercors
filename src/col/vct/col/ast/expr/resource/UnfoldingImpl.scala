@@ -5,9 +5,7 @@ import vct.col.ast.{Type, Unfolding}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.ast.ops.UnfoldingOps
 
-trait UnfoldingImpl[G]
-    extends NodeFamilyImpl[G]
-    with UnfoldingOps[G] {
+trait UnfoldingImpl[G] extends NodeFamilyImpl[G] with UnfoldingOps[G] {
   this: Unfolding[G] =>
   override def t: Type[G] = body.t
 

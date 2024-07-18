@@ -85,7 +85,8 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
       scanNodes.flatMap(_.collect {
         case Fold(ScaledPredicateApply(PredicateApply(Ref(p), _), _)) => p
         case Unfold(ScaledPredicateApply(PredicateApply(Ref(p), _), _)) => p
-        case Unfolding(ScaledPredicateApply(PredicateApply(Ref(p), _), _), _) => p
+        case Unfolding(ScaledPredicateApply(PredicateApply(Ref(p), _), _), _) =>
+          p
       }).distinct
 
     def procUsage: Seq[Procedure[Pre]] =

@@ -1,6 +1,13 @@
 package vct.col.ast.statement.terminal
 
-import vct.col.ast.{AmbiguousFoldTarget, Expr, Fold, PredicateApplyExpr, Scale, ScaledPredicateApply}
+import vct.col.ast.{
+  AmbiguousFoldTarget,
+  Expr,
+  Fold,
+  PredicateApplyExpr,
+  Scale,
+  ScaledPredicateApply,
+}
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.print.{Ctx, Doc, Show, Text}
 import vct.col.ast.ops.FoldOps
@@ -21,7 +28,9 @@ trait FoldImpl[G] extends NodeFamilyImpl[G] with FoldOps[G] {
   override def expr: Expr[G] =
     res match {
       case ScaledPredicateApply(inv, perm) =>
-        Scale(perm, PredicateApplyExpr(inv))(PanicBlame("TODO: wire through when #1012 is fixed"))
+        Scale(perm, PredicateApplyExpr(inv))(PanicBlame(
+          "TODO: wire through when #1012 is fixed"
+        ))
       case AmbiguousFoldTarget(e) => e
     }
 }

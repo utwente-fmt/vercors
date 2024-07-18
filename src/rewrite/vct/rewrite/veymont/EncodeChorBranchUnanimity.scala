@@ -1,7 +1,6 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin.{
   AssertFailed,
@@ -11,52 +10,62 @@ import vct.col.origin.{
   LoopUnanimityNotMaintained,
   Origin,
 }
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
-import vct.col.util.SuccessionMap
-import vct.result.VerificationError.UserError
 import vct.rewrite.veymont.EncodeChorBranchUnanimity.{
   ForwardBranchUnanimity,
   ForwardLoopUnanimityNotEstablished,
   ForwardLoopUnanimityNotMaintained,
 }
 
-import scala.collection.mutable
-
-object EncodeChorBranchUnanimity extends RewriterBuilder {
-  override def key: String = "encodeSeqBranchUnanimity"
+object EncodeChorBranchUnanimity extends RewriterBuilderArg[Boolean] {
+  override def key: String = "encodeChorBranchUnanimity"
   override def desc: String =
-    "Encodes the branch unanimity requirement imposed by VeyMont on branches and loops in seq_program nodes."
+    "Encodes the branch unanimity requirement imposed by VeyMont on branches and loops in choreographies."
 
-  case class ForwardBranchUnanimity(branch: Branch[_], c1: Expr[_], c2: Expr[_])
-      extends Blame[AssertFailed] {
-    override def blame(error: AssertFailed): Unit = ???
-    // TODO (RR): Repair blames -- branch.blame.blame(BranchUnanimityFailed(c1, c2))
+  case class ForwardBranchUnanimity(
+      chor: ChorStatement[_],
+      c1: Expr[_],
+      c2: Expr[_],
+  ) extends Blame[AssertFailed] {
+    require(chor.inner match { case _: Branch[_] => true; case _ => false })
+    override def blame(error: AssertFailed): Unit =
+      chor.blame.blame(BranchUnanimityFailed(c1, c2))
   }
 
   case class ForwardLoopUnanimityNotEstablished(
-      loop: Loop[_],
+      chor: ChorStatement[_],
       c1: Expr[_],
       c2: Expr[_],
   ) extends Blame[AssertFailed] {
-    override def blame(error: AssertFailed): Unit = ???
-    //  TODO (RR): Repair blames    loop.blame.blame(LoopUnanimityNotEstablished(c1, c2))
+    require(chor.inner match { case _: Loop[_] => true; case _ => false })
+    override def blame(error: AssertFailed): Unit =
+      chor.blame.blame(LoopUnanimityNotEstablished(c1, c2))
   }
 
   case class ForwardLoopUnanimityNotMaintained(
-      loop: Loop[_],
+      chor: ChorStatement[_],
       c1: Expr[_],
       c2: Expr[_],
   ) extends Blame[AssertFailed] {
-    override def blame(error: AssertFailed): Unit = ???
-    // TODO (RR): Repair blames      loop.blame.blame(LoopUnanimityNotMaintained(c1, c2))
+    require(chor.inner match { case _: Loop[_] => true; case _ => false })
+    override def blame(error: AssertFailed): Unit =
+      chor.blame.blame(LoopUnanimityNotMaintained(c1, c2))
   }
 }
 
-case class EncodeChorBranchUnanimity[Pre <: Generation]()
+case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
     extends Rewriter[Pre] with VeymontContext[Pre] {
 
-  val currentLoop = ScopedStack[ChorStatement[Pre]]()
+  case class IdentityRewriter[Pre <: Generation]() extends Rewriter[Pre] {}
+
+  val currentLoop = ScopedStack[Loop[Pre]]()
+
+  override def dispatch(program: Program[Pre]): Program[Post] =
+    if (enabled)
+      super.dispatch(program)
+    else
+      IdentityRewriter().dispatch(program)
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
@@ -69,10 +78,10 @@ case class EncodeChorBranchUnanimity[Pre <: Generation]()
     statement match {
       case InChor(_, c @ ChorStatement(branch: Branch[Pre])) =>
         implicit val o = statement.o
-        val guards = c.guards
+        val guards = unfoldStar(branch.cond)
         val assertions: Block[Post] = Block(guards.indices.init.map { i =>
           Assert(dispatch(guards(i)) === dispatch(guards(i + 1)))(
-            ForwardBranchUnanimity(branch, guards(i), guards(i + 1))
+            ForwardBranchUnanimity(c, guards(i), guards(i + 1))
           )
         })
 
@@ -80,11 +89,11 @@ case class EncodeChorBranchUnanimity[Pre <: Generation]()
 
       case InChor(_, c @ ChorStatement(loop: Loop[Pre])) =>
         implicit val o = statement.o
-        val guards = c.guards
+        val guards = unfoldStar(loop.cond)
         val establishAssertions: Statement[Post] = Block(
           guards.indices.init.map { i =>
             Assert(dispatch(guards(i)) === dispatch(guards(i + 1)))(
-              ForwardLoopUnanimityNotEstablished(loop, guards(i), guards(i + 1))
+              ForwardLoopUnanimityNotEstablished(c, guards(i), guards(i + 1))
             )
           }
         )
@@ -92,7 +101,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation]()
         val maintainAssertions: Statement[Post] = Block(
           guards.indices.init.map { i =>
             Assert(dispatch(guards(i)) === dispatch(guards(i + 1)))(
-              ForwardLoopUnanimityNotMaintained(loop, guards(i), guards(i + 1))
+              ForwardLoopUnanimityNotMaintained(c, guards(i), guards(i + 1))
             )
           }
         )
@@ -100,7 +109,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation]()
         val finalLoop: Loop[Post] = loop.rewrite(
           init = establishAssertions,
           update = maintainAssertions,
-          contract = currentLoop.having(c) { dispatch(loop.contract) },
+          contract = currentLoop.having(loop) { dispatch(loop.contract) },
         )
 
         finalLoop
@@ -113,16 +122,18 @@ case class EncodeChorBranchUnanimity[Pre <: Generation]()
 
   override def dispatch(contract: LoopContract[Pre]): LoopContract[Post] =
     (currentLoop.topOption, contract) match {
-      case (Some(c), inv: LoopInvariant[Pre]) =>
+      case (Some(loop), inv: LoopInvariant[Pre]) =>
         implicit val o = contract.o
+        val guards = unfoldStar(loop.cond)
         inv.rewrite(invariant =
-          dispatch(inv.invariant) &* allEqual(c.guards.map(dispatch))
+          dispatch(inv.invariant) &* allEqual(guards.map(dispatch))
         )
-      case (Some(c), inv @ IterationContract(requires, ensures, _)) =>
+      case (Some(loop), inv @ IterationContract(requires, ensures, _)) =>
         implicit val o = contract.o
+        val guards = unfoldStar(loop.cond)
         inv.rewrite(
-          requires = dispatch(requires) &* allEqual(c.guards.map(dispatch)),
-          ensures = dispatch(ensures) &* allEqual(c.guards.map(dispatch)),
+          requires = dispatch(requires) &* allEqual(guards.map(dispatch)),
+          ensures = dispatch(ensures) &* allEqual(guards.map(dispatch)),
         )
       case _ => contract.rewriteDefault()
     }

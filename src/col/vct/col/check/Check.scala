@@ -106,6 +106,11 @@ sealed trait CheckError {
           context(a) ->
             "This dereference does not take place on one of the endpoints in the surrounding `seq_prog`."
         )
+      case ChorStatement(s @ vct.col.ast.ChorStatement(_: Assign[_])) =>
+        Seq(
+          context(s) ->
+            "Plain assignment is not allowed in `choreography`, only assignment using `:=`."
+        )
       case ChorStatement(s) =>
         Seq(context(s) -> "This statement is not allowed in `choreography`.")
       case SeqProgInstanceMethodArgs(m) =>
@@ -144,7 +149,9 @@ sealed trait CheckError {
       case SeqProgEndpointAssign(a) =>
         Seq(context(a) -> s"Raw assignment to an endpoint is not allowed.")
       case SeqProgInstanceMethodPure(m) =>
-        Seq(context(m) -> s"Instance methods in seq_programs cannot be pure.")
+        Seq(context(m) -> s"Instance methods in choreographies cannot be pure.")
+      case ChorNonTrivialContextEverywhere(e) =>
+        Seq(context(e) -> s"Context everywhere is not supported here")
     }): _*)
 
   def subcode: String
@@ -248,6 +255,9 @@ case class SeqProgEndpointAssign(a: Assign[_]) extends CheckError {
 }
 case class SeqProgInstanceMethodPure(m: InstanceMethod[_]) extends CheckError {
   val subcode = "seqProgInstanceMethodPure"
+}
+case class ChorNonTrivialContextEverywhere(expr: Node[_]) extends CheckError {
+  val subcode = "chorNonTrivialContextEverywhere"
 }
 
 case object CheckContext {

@@ -1,0 +1,88 @@
+inline resource turnInvariant(Player p, Player q) =
+  ([1\2]p.boardPerm()) **
+  ([1\2]q.boardPerm()) **
+  p.equalBoard(q)
+  ;
+
+inline resource state(Player p, boolean withBoardPerm) =
+    // TODO: refactor boardPerm to simply state?
+    (withBoardPerm ==> ([1\2]p.boardPerm())) **
+    Perm(p.move, 1) ** p.move != null ** p.move.state() **
+    Perm(p.temp, 1) ** Perm(p.turn, 1) ** Perm(p.myMark, 1);
+
+choreography Main() {
+  endpoint p1 = Player(0, true);
+  endpoint p2 = Player(1, false);
+
+  // TODO: If inline predicates were not removed here already, inference could also detect boardPerm is p1/p2's.
+  requires (\endpoint p1; state(p1, true));
+  requires (\endpoint p2; state(p2, true));
+  ensures (\endpoint p1; state(p1, false)); // TODO: remove (also param)
+  ensures (\endpoint p2; state(p2, false));
+  requires (\endpoint p1; p1.turn ==> turnInvariant(p1, p2));
+  requires (\endpoint p2; p2.turn ==> turnInvariant(p2, p1));
+  // TODO: endpoint annotations can be removed here if we switch to more lightweight encoding
+  requires (\chor (\endpoint p1; p1.turn) != (\endpoint p2; p2.turn));
+  requires p1.emptyBoard() ** p2.emptyBoard();
+  ensures (\endpoint p1;
+    ([3\4]p1.boardPerm()) **
+    ([1\4]p2.boardPerm()) **
+    p1.equalBoard(p2));
+  ensures (\endpoint p2;
+    ([3\4]p2.boardPerm()) **
+    ([1\4]p1.boardPerm()) **
+    p2.equalBoard(p1));
+  // TODO: Would like this as well. Probably will work with the lightweight encoding
+   ensures p1.gameFinished() && p2.gameFinished();
+  run {
+    loop_invariant (\endpoint p1; state(p1, true)) ** (\endpoint p2; state(p2, true));
+    loop_invariant (\endpoint p1; p1.turn ==> turnInvariant(p1, p2));
+    loop_invariant (\endpoint p2; p2.turn ==> turnInvariant(p2, p1));
+    loop_invariant (\chor (\endpoint p1; p1.turn) != (\endpoint p2; p2.turn));
+    while (!p1.gameFinished() && !p2.gameFinished()) {
+      if (p1.turn && !p2.turn) {
+        p1.createNewMove();
+        p1.doMove();
+        channel_invariant
+          \msg.state() **
+          ([1\2]\sender.boardPerm()) ** ([1\2]\receiver.boardPerm()) **
+          \sender.oneMoveAheadOf(\msg, \receiver);
+        communicate p2.move <- p1.move.copy();
+        p2.doMove();
+        assert (\chor (\endpoint p2; p2.equalBoard(p1)));
+      } else {
+        p2.createNewMove();
+        p2.doMove();
+        channel_invariant
+          \msg.state() **
+          ([1\2]\sender.boardPerm()) ** ([1\2]\receiver.boardPerm()) **
+          \sender.oneMoveAheadOf(\msg, \receiver);
+        communicate p1.move <- p2.move.copy();
+        p1.doMove();
+      }
+      p1.turn := !p1.turn;
+      p2.turn := !p2.turn;
+
+      // TODO: Remove when lightweight encoding
+      assume (\chor (\endpoint p1; p1.gameFinished()) == (\endpoint p2; p2.gameFinished()));
+    }
+    assume (\chor (\endpoint p1; p1.gameFinished()) == (\endpoint p2; p2.gameFinished()));
+
+    if (p1.turn && !p2.turn) {
+      // Send "true" from p1 to p2. p2 discards the value immediately.
+      // This turns the communicate statement into a barrier for p1 and p2. 
+      // Meaning they both have to send/receive before they can continue.
+      channel_invariant
+        [1\4]\sender.boardPerm() **
+        [1\4]\receiver.boardPerm() **
+        \receiver.equalBoard(\sender);
+      communicate p2.temp <- p1: true;
+    } else {
+      channel_invariant
+        [1\4]\sender.boardPerm() **
+        [1\4]\receiver.boardPerm() **
+        \receiver.equalBoard(\sender);
+      communicate p1.temp <- p2: true;
+    }
+  }
+}

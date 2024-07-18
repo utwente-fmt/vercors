@@ -1417,8 +1417,10 @@ case class CToCol[G](
       case ValPackage(_, expr, innerStat) =>
         WandPackage(convert(expr), convert(innerStat))(blame(stat))
       case ValApplyWand(_, wand, _) => WandApply(convert(wand))(blame(stat))
-      case ValFold(_, predicate, _) => Fold(AmbiguousFoldTarget(convert(predicate)))(blame(stat))
-      case ValUnfold(_, predicate, _) => Unfold(AmbiguousFoldTarget(convert(predicate)))(blame(stat))
+      case ValFold(_, predicate, _) =>
+        Fold(AmbiguousFoldTarget(convert(predicate)))(blame(stat))
+      case ValUnfold(_, predicate, _) =>
+        Unfold(AmbiguousFoldTarget(convert(predicate)))(blame(stat))
       case ValOpen(_, _, _) => ??(stat)
       case ValClose(_, _, _) => ??(stat)
       case ValAssert(_, assn, _) => Assert(convert(assn))(blame(stat))
@@ -1965,7 +1967,9 @@ case class CToCol[G](
             groupText.toInt,
         )
       case ValUnfolding(_, predExpr, _, body) =>
-        Unfolding(AmbiguousFoldTarget(convert(predExpr)), convert(body))(blame(e))
+        Unfolding(AmbiguousFoldTarget(convert(predExpr)), convert(body))(blame(
+          e
+        ))
       case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
       case ValOldLabeled(_, _, label, _, _, expr, _) =>
         Old(

@@ -6,7 +6,7 @@ import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.unfoldStar
 import vct.col.{ast => col}
 import vct.result.VerificationError.{SystemError, Unreachable}
-import viper.silver.ast.TypeVar
+import viper.silver.ast.{TypeVar, WildcardPerm}
 import viper.silver.plugin.standard.termination.{
   DecreasesClause,
   DecreasesTuple,
@@ -546,7 +546,7 @@ case class ColToSilver(program: col.Program[_]) {
             silver.PredicateAccessPredicate(
               silver.PredicateAccess(args.map(exp), ref(predicate))(
                 pos = pos(loc),
-                NodeInfo(loc),
+                info = expInfo(e),
               ),
               silver.WildcardPerm()(),
             )(pos = pos(e), expInfo(e))
@@ -734,13 +734,13 @@ case class ColToSilver(program: col.Program[_]) {
   def fold(f: col.FoldTarget[_]): silver.PredicateAccessPredicate =
     f match {
       case col.ScaledPredicateApply(inv: col.PredicateApply[_], perm) =>
-        silver.PredicateAccessPredicate(pred(inv), exp(perm))(
+        silver.PredicateAccessPredicate(pred(inv, Some(expInfo(f))), exp(perm))(
           pos = pos(f),
           info = expInfo(f),
         )
       case col.ValuePredicateApply(inv: col.PredicateApply[_]) =>
         silver.PredicateAccessPredicate(
-          pred(inv),
+          pred(inv, Some(expInfo(f))),
           silver.WildcardPerm()(pos = pos(f), info = expInfo(f)),
         )(pos = pos(f), info = expInfo(f))
       case other => ??(other)
@@ -786,6 +786,12 @@ case class ColToSilver(program: col.Program[_]) {
         val silverLocals = locals.map(variable)
         silver
           .Seqn(Seq(stat(body)), silverLocals)(pos = pos(s), info = NodeInfo(s))
+      case col.Branch(Seq((cond, whenTrue))) =>
+        silver.If(
+          exp(cond),
+          block(whenTrue),
+          silver.Seqn(Nil, Nil)(pos = pos(s), info = NodeInfo(s)),
+        )(pos = pos(s), info = NodeInfo(s))
       case col.Branch(
             Seq((cond, whenTrue), (col.BooleanValue(true), whenFalse))
           ) =>
@@ -823,7 +829,7 @@ case class ColToSilver(program: col.Program[_]) {
         // PB: OK, since assn is type-checked boolean and hence equivalent.
         silver.Inhale(exp(assn))(pos = pos(s), info = NodeInfo(s))
       case col.Fold(p) => silver.Fold(fold(p))(pos = pos(s), info = NodeInfo(s))
-      case col.Unfold(p) =>
+      case u @ col.Unfold(p) =>
         silver.Unfold(fold(p))(pos = pos(s), info = NodeInfo(s))
       case col.SilverNewRef(v, fs) =>
         silver.NewStmt(

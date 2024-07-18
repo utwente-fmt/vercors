@@ -74,6 +74,20 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
             )
           }),
         )
+      case chor: Choreography[Pre] =>
+        implicit val o = chor.o
+        // Assume the whole choreography gets analyzed in the context of one "currentThread".
+        // If someone makes choreographies callable in the future, they can decide if they
+        // also want distinct currentThread values for each endpoint.
+        val currentThreadVar = new Variable[Post](TInt())(currentThreadIdOrigin)
+        currentThreadId.having(currentThreadVar.get) {
+          chor.rewrite(params =
+            variables.collect {
+              currentThreadVar.declare()
+              chor.params.foreach(dispatch)
+            }._1
+          ).succeed(chor)
+        }
       case app: Applicable[Pre] =>
         if (wantsThreadLocal(app)) {
           val currentThreadVar =

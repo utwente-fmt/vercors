@@ -22,11 +22,7 @@ case class PrintCFG(out: Path) extends Stage[Node[_ <: Generation], Unit] {
 
   override def run(in1: Node[_ <: Generation]): Unit = {
     val main_method =
-      in1.collectFirst {
-        case m: Procedure[_]
-            if m.vesuv_entry =>
-          m
-      }.get
+      in1.collectFirst { case m: Procedure[_] if m.vesuv_entry => m }.get
     CFGPrinter().print_ast_as_cfg(main_method, out)
   }
 }

@@ -3,6 +3,7 @@ package viper.api.backend
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.RWFile
 import hre.progress.Progress
+import vct.col.ast.Node
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
@@ -235,6 +236,9 @@ trait SilverBackend
                       .blame(blame.AssertFailed(getFailure(reason), assert))
                   case _ => defer(reason)
                 }
+              case _: reasons.MagicWandChunkNotFound =>
+                assert.blame
+                  .blame(blame.AssertFailed(getFailure(reason), assert))
               case reasons.AssertionFalse(_) | reasons.NegativePermission(_) =>
                 assert.blame
                   .blame(blame.AssertFailed(getFailure(reason), assert))
@@ -265,8 +269,7 @@ trait SilverBackend
                 get[col.Node[_]](access) match {
                   case _: col.FoldTarget[_] =>
                     val unfold = get[col.Unfold[_]](node)
-                    unfold.blame
-                      .blame(blame.UnfoldFailed(getFailure(reason), unfold))
+                    unfold.blame.blame(blame.UnfoldFailed(unfold))
                   case _ => defer(reason)
                 }
               case otherReason => defer(otherReason)
@@ -427,7 +430,7 @@ trait SilverBackend
         deref.blame.blame(blame.InsufficientPermission(deref))
       case reasons.InsufficientPermission(p @ silver.PredicateAccess(_, _)) =>
         val unfolding = info(p).unfolding.get
-        unfolding.blame.blame(blame.UnfoldFailed(getFailure(reason), unfolding))
+        unfolding.blame.blame(blame.UnfoldFailed(unfolding))
       case reasons.QPAssertionNotInjective(access: silver.ResourceAccess) =>
         val starall = info(access).starall.get
         starall.blame.blame(blame.ReceiverNotInjective(starall, get(access)))

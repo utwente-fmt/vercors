@@ -34,24 +34,12 @@ import vct.rewrite.{
   EncodeResourceValues,
   ExplicitResourceValues,
   HeapVariableToRef,
+  InlineTrivialLets,
   MonomorphizeClass,
   SmtlibToProverTypes,
 }
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{
-  DeduplicateChorGuards,
-  DropChorExpr,
-  EncodeChannels,
-  EncodeChorBranchUnanimity,
-  EncodeChoreography,
-  EncodeEndpointInequalities,
-  GenerateChoreographyPermissions,
-  GenerateImplementation,
-  InferEndpointContexts,
-  SpecializeEndpointClasses,
-  StratifyExpressions,
-  StratifyUnpointedExpressions,
-}
+import vct.rewrite.veymont._
 
 import java.nio.file.Path
 import java.nio.file.Files
@@ -76,10 +64,10 @@ object Transformation extends LazyLogging {
       (
           passes,
           currentEvent,
-          currentKey,
+          passIndex,
           program: Verification[_ <: Generation],
       ) => {
-        if (key == currentKey && event == currentEvent) {
+        if (key == passes(passIndex).key && event == currentEvent) {
           out.write { writer => program.write(writer)(Ctx().namesIn(program)) }
         }
       }
@@ -90,10 +78,10 @@ object Transformation extends LazyLogging {
       stageKey: String,
   ): PassEventHandler = {
     Files.createDirectories(out)
-    Files.list(out).filter(_.endsWith(".col")).forEach(Files.delete(_))
-    (passes, event, pass, program) => {
+    (passes, event, passIndex, program) => {
+      val pass = passes(passIndex).key
       val i =
-        passes.map(_.key).indexOf(pass) * 2 +
+        passIndex * 2 +
           (if (event == before)
              0
            else
@@ -150,6 +138,7 @@ object Transformation extends LazyLogging {
             options.devSplitVerificationByProcedure,
           optimizeUnsafe = options.devUnsafeOptimization,
           veymontGeneratePermissions = options.veymontGeneratePermissions,
+          veymontBranchUnanimity = options.veymontBranchUnanimity,
         )
     }
 
@@ -175,7 +164,7 @@ object Transformation extends LazyLogging {
     (
         Seq[RewriterBuilder],
         TransformationEvent,
-        String,
+        Int,
         Verification[_ <: Generation],
     ) => Unit
 }
@@ -224,9 +213,12 @@ class Transformation(
     TimeTravel.safelyRepeatable {
       var result: Verification[_ <: Generation] = input
 
-      Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
+      Progress.foreach[(Int, RewriterBuilder)](
+        passes.indices.zip(passes),
+        { case (_, pass) => pass.key },
+      ) { case (passIndex, pass) =>
         onPassEvent.foreach { action =>
-          action(passes, Transformation.before, pass.key, result)
+          action(passes, Transformation.before, passIndex, result)
         }
 
         result =
@@ -238,7 +230,7 @@ class Transformation(
           }
 
         onPassEvent.foreach { action =>
-          action(passes, Transformation.after, pass.key, result)
+          action(passes, Transformation.after, passIndex, result)
         }
 
         if (!optimizeUnsafe)
@@ -283,6 +275,13 @@ class Transformation(
   *   just after quantified integer relations are simplified.
   * @param checkSat
   *   Check that non-trivial contracts are satisfiable.
+  * @param splitVerificationByProcedure
+  *   Splits verification into one task per procedure body.
+  * @param veymontGeneratePermissions
+  *   Generates permissions such that each callable requires full permissions
+  *   its arguments and any transitively reachable locations.
+  * @param veymontBranchUnanimity
+  *   Indicates whether branch unanimity should be checked.
   */
 case class SilverTransformation(
     adtImporter: ImportADTImporter = PathAdtImporter(
@@ -301,6 +300,7 @@ case class SilverTransformation(
     splitVerificationByProcedure: Boolean = false,
     override val optimizeUnsafe: Boolean = false,
     veymontGeneratePermissions: Boolean = false,
+    veymontBranchUnanimity: Boolean = true,
 ) extends Transformation(
       onPassEvent,
       Seq(
@@ -324,16 +324,6 @@ case class SilverTransformation(
         DisambiguateLocation, // Resolve location type
         DisambiguatePredicateExpression,
         EncodeRangedFor,
-
-        // VeyMont sequential program encoding
-        StratifyExpressions,
-        StratifyUnpointedExpressions,
-        DeduplicateChorGuards,
-        InferEndpointContexts,
-        GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
-        EncodeChorBranchUnanimity,
-        EncodeEndpointInequalities,
-        EncodeChoreography,
         EncodeString, // Encode spec string as seq<int>
         EncodeChar,
         CollectLocalDeclarations, // all decls in Scope
@@ -352,6 +342,27 @@ case class SilverTransformation(
         EncodeIntrinsicLock,
         EncodeForkJoin,
         InlineApplicables,
+        InlineTrivialLets,
+
+        // VeyMont choreography encoding
+        // Explicitly after InlineApplicables such that VeyMont doesn't care about inline predicates
+        // (Even though this makes inferring endpoint ownership annotations less complete)
+        // Also, VeyMont requires branches to be nested, instead of flat, because the false branch
+        // may refine the set of participating endpoints
+        BranchToIfElse,
+        GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
+        InferEndpointContexts,
+        PushInChor.withArg(veymontGeneratePermissions),
+        StratifyExpressions,
+        StratifyUnpointedExpressions,
+        DeduplicateChorGuards,
+        EncodeChorBranchUnanimity.withArg(veymontBranchUnanimity),
+        EncodeEndpointInequalities,
+        EncodeChannels,
+        EncodePermissionStratification.withArg(veymontGeneratePermissions),
+        EncodeChoreography,
+        // All VeyMont nodes should now be gone
+
         PureMethodsToFunctions,
         RefuteToInvertedAssert,
         ExplicitResourceValues,
@@ -453,12 +464,12 @@ case class VeyMontImplementationGeneration(
       onPassEvent,
       Seq(
         DropChorExpr,
+        InferEndpointContexts,
         StratifyExpressions,
         StratifyUnpointedExpressions,
         DeduplicateChorGuards,
         SpecializeEndpointClasses,
-        EncodeChannels.withArg(importer),
-        InferEndpointContexts,
+        GenerateAndEncodeChannels.withArg(importer),
         GenerateImplementation,
         PrettifyBlocks,
       ),

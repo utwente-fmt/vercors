@@ -623,7 +623,8 @@ case class AbstractState[G](
         UncertainBooleanValue.from(true) // TODO: How to handle quantifiers?!
       case Result(_) => UncertainBooleanValue.uncertain()
       case AmbiguousResult() => UncertainBooleanValue.uncertain()
-      case SeqMember(_, _) => UncertainBooleanValue.uncertain() // TODO: Implement something for this?
+      case SeqMember(_, _) =>
+        UncertainBooleanValue.uncertain() // TODO: Implement something for this?
     }
 
   /** Evaluates a collection expression and returns an uncertain collection

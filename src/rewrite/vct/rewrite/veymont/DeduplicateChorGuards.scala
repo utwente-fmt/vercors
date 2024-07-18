@@ -1,14 +1,9 @@
 package vct.rewrite.veymont
 
-import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.StratifyExpressions.MultipleEndpoints
 
 import scala.collection.mutable
 
@@ -30,13 +25,9 @@ case class DeduplicateChorGuards[Pre <: Generation]()
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
     statement match {
       case InChor(_, c @ ChorStatement(branch: Branch[Pre])) =>
-        c.rewrite(inner =
-          branch.rewrite(branches =
-            (dedup(c.cond), super.dispatch(c.branch.yes)) +:
-              c.branch.no.map(no => Seq((tt[Post], super.dispatch(no))))
-                .getOrElse(Seq())
-          )
-        )
+        c.rewrite(inner = branch.rewrite(branches = branch.branches.map {
+          case (cond, stmt) => (dedup(cond), stmt.rewriteDefault())
+        }))
 
       case InChor(_, c @ ChorStatement(loop: Loop[Pre])) =>
         c.rewrite(inner = loop.rewrite(cond = dedup(loop.cond)))
@@ -50,11 +41,15 @@ case class DeduplicateChorGuards[Pre <: Generation]()
       .LinkedHashMap()
     unfoldStar(expr).foreach {
       case EndpointExpr(Ref(endpoint), expr) =>
-        m.updateWith(endpoint)(exprs => Some(exprs.getOrElse(Seq()) :+ expr))
-      case _ => assert(false)
+        m.updateWith(endpoint)(exprs => Some(exprs.toSeq.flatten :+ expr))
+      case _ =>
     }
-    foldAnd(m.iterator.map { case (endpoint, parts) =>
-      EndpointExpr[Post](succ(endpoint), foldAnd(parts.map(dispatch)))
+    foldAnd(m.iterator.map {
+      case (endpoint, parts) if parts.size > 1 =>
+        // It's unclear how to properly combine the origins of the expressions here
+        EndpointExpr[Post](succ(endpoint), foldAnd(parts.map(dispatch)))
+      case (endpoint, parts) if parts.size == 1 =>
+        EndpointExpr[Post](succ(endpoint), dispatch(parts.head))(parts.head.o)
     }.toSeq)
   }
 }

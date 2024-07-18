@@ -79,14 +79,17 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
 
     val txts: Seq[LiteralReadable] =
       if (splitDecls) {
-        in.tasks.map(t => t.program).flatMap(p => p.declarations).zipWithIndex.map {
-          case (decl, i) =>
-            val name = names.getOrElse(decl.asInstanceOf[Declaration[Generation]], s"unknown$i")
+        in.tasks.map(t => t.program).flatMap(p => p.declarations).zipWithIndex
+          .map { case (decl, i) =>
+            val name = names.getOrElse(
+              decl.asInstanceOf[Declaration[Generation]],
+              s"unknown$i",
+            )
             val fileName = s"${name}.${extension(syntax)}"
             val buf = new StringBuffer()
             decl.write(buf)(ctx)
             LiteralReadable(fileName, buf.toString)
-        }
+          }
       } else {
         val buf = new StringBuffer()
         in.write(buf)(ctx)

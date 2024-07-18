@@ -2256,7 +2256,9 @@ case class CPPToCol[G](
             groupText.toInt,
         )
       case ValUnfolding(_, predExpr, _, body) =>
-        Unfolding(AmbiguousFoldTarget(convert(predExpr)), convert(body))(blame(e))
+        Unfolding(AmbiguousFoldTarget(convert(predExpr)), convert(body))(blame(
+          e
+        ))
       case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
       case ValOldLabeled(_, _, label, _, _, expr, _) =>
         Old(

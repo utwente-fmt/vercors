@@ -1,7 +1,9 @@
 inline resource ticTacToeAnnotations(Player p1, Player p2) =
     p1.myToken == 0 ** p2.myToken == 1
     ** p1.turn != p2.turn
-    ** p1.equalGrid(p2);
+    ** p1.equalGrid(p2)
+    ** p1.move != null
+    ** p2.move != null;
 
 choreography TTT() {
 	endpoint p1 = Player(0, true);
@@ -13,13 +15,17 @@ choreography TTT() {
 		loop_invariant (\chor ticTacToeAnnotations(p1, p2));
 		loop_invariant (\chor !p1.gameFinished() == !p2.gameFinished());
 		while(!p1.gameFinished() && !p2.gameFinished()) {
-		  // TODO (RR): Re-enable with in_chor
-			// assert p1.turn == !p2.turn;
 			if(p1.turn && !p2.turn) {
 				p1.createNewMove();
+				channel_invariant (\chor
+				  \msg.i == p1.move.i && \msg.j == p1.move.j && \msg.token == p1.move.token
+				);
 				communicate p2.move <- p1.move.clone();
 			} else {
 				p2.createNewMove();
+				channel_invariant (\chor
+				  \msg.i == p2.move.i && \msg.j == p2.move.j && \msg.token == p2.move.token
+				);
 				communicate p1.move <- p2.move.clone();
 			}
 			p1.doMove();

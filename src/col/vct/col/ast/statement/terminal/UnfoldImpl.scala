@@ -1,6 +1,13 @@
 package vct.col.ast.statement.terminal
 
-import vct.col.ast.{AmbiguousFoldTarget, Expr, PredicateApplyExpr, Scale, ScaledPredicateApply, Unfold}
+import vct.col.ast.{
+  AmbiguousFoldTarget,
+  Expr,
+  PredicateApplyExpr,
+  Scale,
+  ScaledPredicateApply,
+  Unfold,
+}
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.print.{Ctx, Doc, Show, Text}
 import vct.col.ast.ops.UnfoldOps
@@ -21,7 +28,9 @@ trait UnfoldImpl[G] extends NodeFamilyImpl[G] with UnfoldOps[G] {
   override def expr: Expr[G] =
     res match {
       case ScaledPredicateApply(inv, perm) =>
-        Scale(perm, PredicateApplyExpr(inv))(PanicBlame("TODO: wire through when #1012 is fixed"))
+        Scale(perm, PredicateApplyExpr(inv))(PanicBlame(
+          "TODO: wire through when #1012 is fixed"
+        ))
       case AmbiguousFoldTarget(e) => e
     }
 }
