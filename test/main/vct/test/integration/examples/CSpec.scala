@@ -18,7 +18,7 @@ class CSpec extends VercorsSpec {
     int x = 4.0 % 1;
   }
   """
-  vercors should fail withCode "assignFieldFailed" using silicon in "cannot access field of struct after freeing" c
+  vercors should fail withCode "ptrPerm" using silicon in "cannot access field of struct after freeing" c
     """
     #include <stdlib.h>
 
@@ -76,7 +76,7 @@ class CSpec extends VercorsSpec {
     int main(){
       struct d* xs = (struct d*) malloc(sizeof(struct d)*3);
       struct d* ys = (struct d*) malloc(sizeof(struct d)*3);
-      //@ exhale Perm(xs[0].x, 1\2);
+      //@ exhale Perm(&xs[0].x, 1\2);
       free(xs);
     }
     """
@@ -112,7 +112,7 @@ class CSpec extends VercorsSpec {
     int main(){
       struct d s1;
       struct d* s2 = &s1;
-      //@ exhale Perm(s2->x, 1\1);
+      //@ exhale Perm(&s2->x, 1\1);
       s2->x = 1;
     }
     """
@@ -124,7 +124,7 @@ class CSpec extends VercorsSpec {
     };
     int main(){
       struct d s;
-      //@ exhale Perm(s.x, 1\1);
+      //@ exhale Perm(&s.x, 1\1);
       s.x = 1;
     }
     """
@@ -136,7 +136,7 @@ class CSpec extends VercorsSpec {
     int main(){
       struct d s;
       s.x = 1;
-      //@ exhale Perm(s.x, 1\1);
+      //@ exhale Perm(&s.x, 1\1);
       int x = s.x;
     }
     """
@@ -323,7 +323,7 @@ class CSpec extends VercorsSpec {
 
     int main(){
         struct d s;
-        //@ exhale Perm(s.x, 1\1);
+        //@ exhale Perm(&s.x, 1\1);
         test(s);
     }
     """
@@ -341,7 +341,7 @@ class CSpec extends VercorsSpec {
 
     int main(){
         struct d s, t;
-        //@ exhale Perm(s.x, 1\1);
+        //@ exhale Perm(&s.x, 1\1);
         t = s;
     }
     """

@@ -15,7 +15,7 @@ case object ImportPointer extends ImportADTBuilder("pointer") {
     Origin(Seq(PreferredName(Seq(typeText(t))), LabelContext("pointer field")))
 
   private val PointerCreationOrigin: Origin = Origin(
-    Seq(LabelContext("classToRef, pointer creation method"))
+    Seq(LabelContext("adtPointer, pointer creation method"))
   )
 
   case class PointerNullOptNone(inner: Blame[PointerNull], expr: Expr[_])
@@ -87,8 +87,10 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
 
   private def makePointerCreationMethod(t: Type[Post]): Procedure[Post] = {
     implicit val o: Origin = PointerCreationOrigin
+      .where(name = "create_nonnull_pointer_" + t.toString)
 
-    val result = new Variable[Post](TAxiomatic(pointerAdt.ref, Nil))
+    val result =
+      new Variable[Post](TAxiomatic(pointerAdt.ref, Nil))(o.where(name = "res"))
     globalDeclarations.declare(procedure[Post](
       blame = AbstractApplicable,
       contractBlame = TrueSatisfiable,
@@ -225,9 +227,63 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
     }
   }
 
+  def rewriteTopLevelPointerSubscriptInTrigger(e: Expr[Pre]): Expr[Post] = {
+    implicit val o: Origin = e.o
+    e match {
+      case sub @ PointerSubscript(pointer, index) =>
+        FunctionInvocation[Post](
+          ref = pointerDeref.ref,
+          args = Seq(
+            FunctionInvocation[Post](
+              ref = pointerAdd.ref,
+              args = Seq(unwrapOption(pointer, sub.blame), dispatch(index)),
+              typeArgs = Nil,
+              Nil,
+              Nil,
+            )(NoContext(PointerBoundsPreconditionFailed(sub.blame, index)))
+          ),
+          typeArgs = Nil,
+          Nil,
+          Nil,
+        )(PanicBlame("ptr_deref requires nothing."))
+      case deref @ DerefPointer(pointer) =>
+        FunctionInvocation[Post](
+          ref = pointerDeref.ref,
+          args = Seq(
+            FunctionInvocation[Post](
+              ref = pointerAdd.ref,
+              // Always index with zero, otherwise quantifiers with pointers do not get triggered
+              args = Seq(unwrapOption(pointer, deref.blame), const(0)),
+              typeArgs = Nil,
+              Nil,
+              Nil,
+            )(NoContext(
+              DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
+            ))
+          ),
+          typeArgs = Nil,
+          Nil,
+          Nil,
+        )(PanicBlame("ptr_deref requires nothing."))
+      case other => rewriteDefault(other)
+    }
+  }
+
   override def postCoerce(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
+//      case f @ Forall(_, triggers, _) =>
+//        f.rewrite(triggers =
+//          triggers.map(_.map(rewriteTopLevelPointerSubscriptInTrigger))
+//        )
+//      case s @ Starall(_, triggers, _) =>
+//        s.rewrite(triggers =
+//          triggers.map(_.map(rewriteTopLevelPointerSubscriptInTrigger))
+//        )
+//      case e @ Exists(_, triggers, _) =>
+//        e.rewrite(triggers =
+//          triggers.map(_.map(rewriteTopLevelPointerSubscriptInTrigger))
+//        )
       case sub @ PointerSubscript(pointer, index) =>
         SilverDeref(
           obj =

@@ -7,7 +7,7 @@ import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.unfoldStar
 import vct.col.{ast => col}
 import vct.result.VerificationError.{SystemError, Unreachable}
-import viper.silver.ast.TypeVar
+import viper.silver.ast.{AnnotationInfo, ConsInfo, TypeVar}
 import viper.silver.plugin.standard.termination.{
   DecreasesClause,
   DecreasesTuple,
@@ -231,7 +231,17 @@ case class ColToSilver(program: col.Program[_]) {
               function.contract.decreases.toSeq.map(decreases),
             pred(function.contract.ensures),
             function.body.map(exp),
-          )(pos = pos(function), info = NodeInfo(function))
+          )(
+            pos = pos(function),
+            info =
+              if (ref(function) == "ptrDerefblahblah")
+                ConsInfo(
+                  AnnotationInfo(Map("opaque" -> Seq())),
+                  NodeInfo(function),
+                )
+              else
+                NodeInfo(function),
+          )
         }
       case procedure: col.Procedure[_]
           if procedure.returnType == col.TVoid() && !procedure.inline &&

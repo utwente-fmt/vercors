@@ -52,6 +52,7 @@ void alter_copy_struct(struct point p){
     p.y = 0;
 }
 
+// TODO: Should be auto-generated
 /*@
   context Perm(p, 1\1);
 @*/
@@ -132,6 +133,7 @@ int main(){
     struct point *pp;
     pp = &p;
 
+    /* //@ assert (pp[0] != NULL ); */
     assert (pp != NULL );
 
     p.x = 1;
@@ -145,7 +147,7 @@ int main(){
     alter_struct(pp);
     assert(pp->x == 0);
     assert(p.x == 0);
-    alter_struct_1(pp);
+    alter_struct_1(pp); //alter_struct_1(&p) is not supported yet
     assert(p.x == 1 && p.y == 1);
 
     struct point p1, p2, p3;

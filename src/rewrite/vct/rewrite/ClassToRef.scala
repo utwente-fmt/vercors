@@ -321,7 +321,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           case cls: ByValueClass[Pre] =>
             implicit val o: Origin = cls.o
             val axiomType = TAxiomatic[Post](byValClassSucc.ref(cls), Nil)
-            val (fieldFunctions, fieldTypes) =
+            val (fieldFunctions, fieldInverses, fieldTypes) =
               cls.decls.collect { case field: Field[Pre] =>
                 val newT = dispatch(field.t)
                 byValFieldSucc(field) =
@@ -329,27 +329,73 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                     Seq(new Variable(axiomType)(field.o)),
                     newT,
                   )(field.o)
-                (byValFieldSucc(field), newT)
-              }.unzip
+                (
+                  byValFieldSucc(field),
+                  new ADTFunction[Post](
+                    Seq(new Variable(newT)(field.o)),
+                    axiomType,
+                  )(
+                    field.o.copy(
+                      field.o.originContents
+                        .filterNot(_.isInstanceOf[SourceName])
+                    ).where(name =
+                      "inv_" + field.o.find[SourceName].map(_.name)
+                        .getOrElse("unknown")
+                    )
+                  ),
+                  newT,
+                )
+              }.unzip3
             val constructor =
-              new ADTFunction[Post](fieldTypes.map(new Variable(_)), axiomType)(
-                cls.o
+              new ADTFunction[Post](
+                fieldTypes.zipWithIndex.map { case (t, i) =>
+                  new Variable(t)(Origin(Seq(
+                    PreferredName(Seq("p_" + i)),
+                    LabelContext("classToRef"),
+                  )))
+                },
+                axiomType,
+              )(
+                cls.o.copy(
+                  cls.o.originContents.filterNot(_.isInstanceOf[SourceName])
+                ).where(name =
+                  "new_" + cls.o.find[SourceName].map(_.name)
+                    .getOrElse("unknown")
+                )
+              )
+            // TAnyValue is a placeholder the pointer adt doesn't have type parameters
+            val indexFunction =
+              new ADTFunction[Post](
+                Seq(new Variable(TNonNullPointer(TAnyValue()))(Origin(
+                  Seq(PreferredName(Seq("pointer")), LabelContext("classToRef"))
+                ))),
+                TInt(),
+              )(
+                cls.o.copy(
+                  cls.o.originContents.filterNot(_.isInstanceOf[SourceName])
+                ).where(name =
+                  "index_" + cls.o.find[SourceName].map(_.name)
+                    .getOrElse("unknown")
+                )
               )
             val destructorAxiom =
               new ADTAxiom[Post](foralls(
                 fieldTypes,
                 body =
                   variables => {
-                    foldAnd(variables.zip(fieldFunctions).map { case (v, f) =>
-                      adtFunctionInvocation[Post](
-                        f.ref,
-                        args = Seq(adtFunctionInvocation[Post](
-                          constructor.ref,
-                          None,
-                          args = variables,
-                        )),
-                      ) === v
-                    })
+                    foldAnd(variables.combinations(2).map { case Seq(v1, v2) =>
+                      v1 !== v2
+                    }.toSeq) ==>
+                      foldAnd(variables.zip(fieldFunctions).map { case (v, f) =>
+                        adtFunctionInvocation[Post](
+                          f.ref,
+                          args = Seq(adtFunctionInvocation[Post](
+                            constructor.ref,
+                            None,
+                            args = variables,
+                          )),
+                        ) === v
+                      })
                   },
                 triggers =
                   variables => {
@@ -365,6 +411,8 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                     }
                   },
               ))
+
+            // This one generates a matching loop
             val injectivityAxiom1 =
               new ADTAxiom[Post](foralls(
                 Seq(axiomType, axiomType),
@@ -409,15 +457,56 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                   }
                 },
               ))
+            val destructorAxioms = fieldFunctions.zip(fieldInverses).map {
+              case (f, inv) =>
+                new ADTAxiom[Post](forall(
+                  axiomType,
+                  body = { a =>
+                    adtFunctionInvocation[Post](
+                      inv.ref,
+                      None,
+                      args = Seq(
+                        adtFunctionInvocation[Post](f.ref, None, args = Seq(a))
+                      ),
+                    ) === a
+                  },
+                  triggers = { a =>
+                    Seq(Seq(
+                      adtFunctionInvocation[Post](f.ref, None, args = Seq(a))
+                    ))
+                  },
+                ))
+            }
+            val indexAxioms = fieldFunctions.zipWithIndex.map { case (f, i) =>
+              new ADTAxiom[Post](forall(
+                axiomType,
+                body = { a =>
+                  adtFunctionInvocation[Post](
+                    indexFunction.ref,
+                    None,
+                    args = Seq(
+                      adtFunctionInvocation[Post](f.ref, None, args = Seq(a))
+                    ),
+                  ) === const(i)
+                },
+                triggers = { a =>
+                  Seq(
+                    Seq(adtFunctionInvocation[Post](f.ref, None, args = Seq(a)))
+                  )
+                },
+              ))
+            }
             byValConsSucc(cls) = constructor
             byValClassSucc(cls) =
               new AxiomaticDataType[Post](
                 Seq(
-                  constructor,
-                  destructorAxiom,
-                  injectivityAxiom1,
+//                  constructor,
+//                  destructorAxiom,
+                  indexFunction,
+//                  injectivityAxiom1,
                   injectivityAxiom2,
-                ) ++ fieldFunctions,
+                ) ++ destructorAxioms ++ indexAxioms ++ fieldFunctions ++
+                  fieldInverses,
                 Nil,
               )
             globalDeclarations.succeed(cls, byValClassSucc(cls))
@@ -448,41 +537,46 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             )(PanicBlame("typeOf requires nothing.")) === const(typeNumber(cls))
           ),
         ))
-      case cls: ByValueClass[Pre] =>
-        val (assigns, vars) =
-          cls.decls.collect { case field: InstanceField[Pre] =>
-            val element = field.t.asPointer.get.element
-            val newE = dispatch(element)
-            val v = new Variable[Post](TNonNullPointer(newE))
-            (
-              InvokeProcedure[Post](
-                pointerCreationMethods
-                  .getOrElseUpdate(element, makePointerCreationMethod(newE))
-                  .ref,
-                Nil,
-                Seq(v.get),
-                Nil,
-                Nil,
-                Nil,
-              )(TrueSatisfiable),
-              v,
-            )
-          }.unzip
-        Scope(
-          vars,
-          Block(
-            assigns ++ Seq(
-              Assign(
-                Local(target),
-                adtFunctionInvocation[Post](
-                  byValConsSucc.ref(cls),
-                  args = vars.map(_.get),
-                ),
-              )(AssignLocalOk)
-              // TODO: Add back typeOf here (but use a separate definition for the adt)
-            )
-          ),
-        )
+      case cls: ByValueClass[Pre] => throw ExtraNode
+//        val (assigns, vars) =
+//          cls.decls.collect { case field: InstanceField[Pre] =>
+//            val element = field.t.asPointer.get.element
+//            val newE = dispatch(element)
+//            val v = new Variable[Post](TNonNullPointer(newE))
+//            (
+//              InvokeProcedure[Post](
+//                pointerCreationMethods
+//                  .getOrElseUpdate(element, makePointerCreationMethod(newE))
+//                  .ref,
+//                Nil,
+//                Seq(v.get),
+//                Nil,
+//                Nil,
+//                Nil,
+//              )(TrueSatisfiable),
+//              v,
+//            )
+//          }.unzip
+//        val assertions = if (vars.size > 1) {
+//          Seq(Assert(foldAnd[Post](vars.combinations(2).map { case Seq(a,b) => a.get !== b.get}.toSeq))(PanicBlame("Newly created pointers should be distinct")))
+//        } else {
+//          Nil
+//        }
+//        Scope(
+//          vars,
+//          Block(
+//            assigns ++ assertions ++ Seq(
+//              Assign(
+//                Local(target),
+//                adtFunctionInvocation[Post](
+//                  byValConsSucc.ref(cls),
+//                  args = vars.map(_.get),
+//                ),
+//              )(AssignLocalOk)
+//              // TODO: Add back typeOf here (but use a separate definition for the adt)
+//            )
+//          ),
+//        )
     }
   }
 

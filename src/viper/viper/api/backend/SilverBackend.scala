@@ -392,7 +392,7 @@ trait SilverBackend
           .NegativePermissionValue(
             info(p).permissionValuePermissionNode.get
           ) // need to fetch access
-      case _ => ???
+      case r => throw new NotImplementedError("Missing: " + r)
     }
 
   def getDecreasesClause(reason: ErrorReason): col.DecreasesClause[_] =

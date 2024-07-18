@@ -7,6 +7,7 @@ import vct.col.ref.Ref
 import vct.col.resolve.ctx.Referrable
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
 
 // TODO: Think of a better name
@@ -86,14 +87,32 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
 
   private val inAssignment: ScopedStack[Unit] = ScopedStack()
   private val copyContext: ScopedStack[CopyContext] = ScopedStack()
+  private val classCreationMethods
+      : SuccessionMap[TByValueClass[Pre], Procedure[Post]] = SuccessionMap()
+
+  def makeClassCreationMethod(t: TByValueClass[Pre]): Procedure[Post] = {
+    implicit val o: Origin = t.cls.decl.o
+
+    globalDeclarations.declare(withResult((result: Result[Post]) =>
+      procedure[Post](
+        blame = AbstractApplicable,
+        contractBlame = TrueSatisfiable,
+        returnType = dispatch(t),
+        ensures = UnitAccountedPredicate(
+          unwrapClassPerm(result, WritePerm(), t)
+        ),
+        decreases = Some(DecreasesClauseNoRecursion[Post]()),
+      )
+    ))
+  }
 
   override def dispatch(node: Statement[Pre]): Statement[Post] = {
     implicit val o: Origin = node.o
     node match {
       case HeapLocalDecl(local)
           if local.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] => {
+        val t = local.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]]
         val newLocal = localHeapVariables.dispatch(local)
-        val t = newLocal.t.asPointer.get.element
         Block(Seq(
           HeapLocalDecl(newLocal),
 //          Assign(
@@ -103,17 +122,33 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
           // TODO: Only do this if the first use does not overwrite it again (do something similar to what I implemented in ImportPointer)....
           Assign(
             newLocal.get(DerefAssignTarget),
-            NewObject(t.asInstanceOf[TByValueClass[Post]].cls),
+            procedureInvocation[Post](
+              TrueSatisfiable,
+              classCreationMethods
+                .getOrElseUpdate(t, makeClassCreationMethod(t)).ref,
+            ),
           )(AssignLocalOk),
         ))
       }
-      case assign: Assign[Pre] => {
+      case assign: Assign[Pre] =>
         val target = inAssignment.having(()) { dispatch(assign.target) }
         if (assign.target.t.isInstanceOf[TByValueClass[Pre]]) {
           copyContext.having(InAssignmentStatement(assign)) {
             assign.rewrite(target = target)
           }
         } else { assign.rewrite(target = target) }
+      case Instantiate(Ref(cls), out)
+          if cls.isInstanceOf[ByValueClass[Pre]] => {
+        // AssignLocalOk doesn't make too much sense since we don't know if out is a local
+        val t = TByValueClass[Pre](cls.ref, Seq())
+        Assign[Post](
+          dispatch(out),
+          procedureInvocation(
+            TrueSatisfiable,
+            classCreationMethods.getOrElseUpdate(t, makeClassCreationMethod(t))
+              .ref,
+          ),
+        )(AssignLocalOk)
       }
       case _ => node.rewriteDefault()
     }
@@ -125,9 +160,8 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
       blame: InstanceField[Pre] => Blame[InsufficientPermission],
   ): Expr[Post] = {
     implicit val o: Origin = obj.o
-    val ov = new Variable[Post](obj.t)
-    val v =
-      new Variable[Post](dispatch(t))(o.withContent(TypeName("HelloWorld")))
+    val ov = new Variable[Post](obj.t)(o.where(name = "original"))
+    val v = new Variable[Post](dispatch(t))(o.where(name = "copy"))
     val children = t.cls.decl.decls.collect { case f: InstanceField[Pre] =>
       f.t match {
         case inner: TByValueClass[Pre] =>
@@ -154,9 +188,14 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
       Then(
         With(
           assignLocal(ov.get, obj),
-          PreAssignExpression(v.get, NewObject[Post](succ(t.cls.decl)))(
-            AssignLocalOk
-          ),
+          PreAssignExpression(
+            v.get,
+            procedureInvocation[Post](
+              TrueSatisfiable,
+              classCreationMethods
+                .getOrElseUpdate(t, makeClassCreationMethod(t)).ref,
+            ),
+          )(AssignLocalOk),
         ),
         Block(children),
       ),
@@ -233,26 +272,34 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(node: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = node.o
     node match {
-      case Eq(left, right)
-          if left.t == right.t && left.t.isInstanceOf[TByValueClass[Pre]] =>
-        val newLeft = dispatch(left)
-        val newRight = dispatch(right)
-        return Eq(newLeft, newRight) && unwrapClassComp(
-          (l, r) => Eq(l, r),
-          newLeft,
-          newRight,
-          left.t.asInstanceOf[TByValueClass[Pre]],
+      case NewObject(Ref(cls)) if cls.isInstanceOf[ByValueClass[Pre]] => {
+        val t = TByValueClass[Pre](cls.ref, Seq())
+        procedureInvocation[Post](
+          TrueSatisfiable,
+          classCreationMethods.getOrElseUpdate(t, makeClassCreationMethod(t))
+            .ref,
         )
-      case Neq(left, right)
-          if left.t == right.t && left.t.isInstanceOf[TByValueClass[Pre]] =>
-        val newLeft = dispatch(left)
-        val newRight = dispatch(right)
-        return Neq(newLeft, newRight) && unwrapClassComp(
-          (l, r) => Neq(l, r),
-          newLeft,
-          newRight,
-          left.t.asInstanceOf[TByValueClass[Pre]],
-        )
+      }
+//      case Eq(left, right)
+//          if left.t == right.t && left.t.isInstanceOf[TByValueClass[Pre]] =>
+//        val newLeft = dispatch(left)
+//        val newRight = dispatch(right)
+//        return Eq(newLeft, newRight) && unwrapClassComp(
+//          (l, r) => Eq(l, r),
+//          newLeft,
+//          newRight,
+//          left.t.asInstanceOf[TByValueClass[Pre]],
+//        )
+//      case Neq(left, right)
+//          if left.t == right.t && left.t.isInstanceOf[TByValueClass[Pre]] =>
+//        val newLeft = dispatch(left)
+//        val newRight = dispatch(right)
+//        return Neq(newLeft, newRight) && unwrapClassComp(
+//          (l, r) => Neq(l, r),
+//          newLeft,
+//          newRight,
+//          left.t.asInstanceOf[TByValueClass[Pre]],
+//        )
       case _ => {}
     }
     if (inAssignment.nonEmpty)

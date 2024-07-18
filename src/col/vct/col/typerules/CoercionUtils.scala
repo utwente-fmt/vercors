@@ -143,6 +143,9 @@ case object CoercionUtils {
       case (TNonNullPointer(innerType), TPointer(element))
           if innerType == element =>
         CoerceNonNullPointer(innerType)
+      case (TNonNullPointer(a), TNonNullPointer(b))
+          if getAnyCoercion(a, b).isDefined =>
+        CoerceIdentity(target)
       case (
             TPointer(element),
             CTPointer(innerType),

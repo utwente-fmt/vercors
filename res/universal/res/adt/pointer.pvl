@@ -31,13 +31,6 @@ adt `pointer` {
   axiom (∀ ref r; ptr_deref({:pointer_inv(r):}) == r);
 
   axiom (∀ `pointer` p; pointer_inv({:ptr_deref(p):}) == p);
-
-  axiom (∀ `pointer` p1, `pointer` p2, int offset;
-    (0 <= offset && offset < `block`.block_length(pointer_block(p1)) &&
-        pointer_block(p1) == pointer_block(p2) &&
-        {:pointer_of(pointer_block(p1), offset):} ==
-        {:pointer_of(pointer_block(p2), offset):}) ==> p1 == p2
-  );
 }
 
 decreases;
