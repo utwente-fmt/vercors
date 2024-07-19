@@ -436,10 +436,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       }
     val newFieldPerms = fields.map(member => {
       val loc =
-        (i: Variable[Post]) =>
-          DerefPointer(Deref[Post](struct(i), member.ref)(DerefPerm))(
-            NonNullPointerNull
-          )
+        (i: Variable[Post]) => Deref[Post](struct(i), member.ref)(DerefPerm)
       var anns: Seq[(Expr[Post], Expr[Pre] => PointerFreeError)] = Seq((
         makeStruct.makePerm(
           i => FieldLocation[Post](struct(i), member.ref),
@@ -452,7 +449,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           ),
       ))
       anns =
-        if (typeIsRef(member.t.asPointer.get.element))
+        if (typeIsRef(member.t))
           anns :+
             (
               makeStruct.makeUnique(loc),
@@ -460,7 +457,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
             )
         else
           anns
-      member.t.asPointer.get.element match {
+      member.t match {
         case newStruct: TClass[Post] =>
           // We recurse, since a field is another struct
           anns ++ unwrapStructPerm(

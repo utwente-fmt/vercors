@@ -992,9 +992,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               Seq(x),
             ) = fieldDecl
             fieldDecl.drop()
-            val t = TNonNullPointer(specs.collectFirst {
-              case t: CSpecificationType[Pre] => rw.dispatch(t.t)
-            }.get)
+            val t =
+              specs.collectFirst { case t: CSpecificationType[Pre] =>
+                rw.dispatch(t.t)
+              }.get
             cStructFieldsSuccessor((decl, fieldDecl)) =
               new InstanceField(t = t, flags = Nil)(CStructFieldOrigin(x))
             rw.classDeclarations
@@ -1329,11 +1330,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 t.t
               }.get
             if (t.isInstanceOf[CTStruct[Pre]]) {
-              DerefPointer[Post](
-                DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(
-                  local.blame
-                )
-              )(NonNullPointerNull)
+              DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(
+                local.blame
+              )
             } else {
               DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(
                 local.blame
@@ -1395,12 +1394,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             case _: TNotAValue[Pre] => throw TypeUsedAsValue(deref.obj)
             case _ => ???
           }
-        DerefPointer(
-          Deref[Post](
-            rw.dispatch(deref.obj),
-            cStructFieldsSuccessor.ref((struct_ref.decl, struct.decls)),
-          )(deref.blame)
-        )(NonNullPointerNull)
+        Deref[Post](
+          rw.dispatch(deref.obj),
+          cStructFieldsSuccessor.ref((struct_ref.decl, struct.decls)),
+        )(deref.blame)
     }
   }
 
@@ -1420,12 +1417,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             case CTPointer(CTStruct(struct)) => struct
             case t => throw WrongStructType(t)
           }
-        DerefPointer(
-          Deref[Post](
-            DerefPointer(rw.dispatch(deref.struct))(b),
-            cStructFieldsSuccessor.ref((structRef.decl, struct.decls)),
-          )(deref.blame)(deref.o)
-        )(NonNullPointerNull)(deref.o)
+        Deref[Post](
+          DerefPointer(rw.dispatch(deref.struct))(b),
+          cStructFieldsSuccessor.ref((structRef.decl, struct.decls)),
+        )(deref.blame)(deref.o)
     }
   }
 
@@ -1449,11 +1444,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val newFieldPerms = fields.map(member => {
       val loc =
         AmbiguousLocation(
-          DerefPointer(
-            Deref[Post](
-              newExpr,
-              cStructFieldsSuccessor.ref((structType.ref.decl, member)),
-            )(blame)
+          Deref[Post](
+            newExpr,
+            cStructFieldsSuccessor.ref((structType.ref.decl, member)),
           )(blame)
         )(struct.blame)
       member.specs.collectFirst {

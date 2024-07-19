@@ -7,6 +7,7 @@ import vct.col.util.AstBuildHelpers._
 import hre.util.ScopedStack
 import vct.col.rewrite.error.{ExcludedByPassOrder, ExtraNode}
 import vct.col.ref.Ref
+import vct.col.resolve.ctx.Referrable
 import vct.col.util.SuccessionMap
 
 import scala.collection.mutable
@@ -34,6 +35,16 @@ case object ClassToRef extends RewriterBuilder {
       inner.blame(InstanceNull(inv))
   }
 
+  case class DerefFieldPointerBlame(
+      inner: Blame[InsufficientPermission],
+      node: HeapDeref[_],
+      clazz: ByValueClass[_],
+      field: String,
+  ) extends Blame[PointerDerefError] {
+    override def blame(error: PointerDerefError): Unit = {
+      inner.blame(InsufficientPermission(node))
+    }
+  }
 }
 
 case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
@@ -323,7 +334,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             val axiomType = TAxiomatic[Post](byValClassSucc.ref(cls), Nil)
             val (fieldFunctions, fieldInverses, fieldTypes) =
               cls.decls.collect { case field: Field[Pre] =>
-                val newT = dispatch(field.t)
+                val newT = TNonNullPointer(dispatch(field.t))
                 byValFieldSucc(field) =
                   new ADTFunction[Post](
                     Seq(new Variable(axiomType)(field.o)),
@@ -695,17 +706,30 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             .left(PanicBlame("incorrect instance function type?"), inv.blame),
         ))(inv.o)
       case ThisObject(_) => diz.top
+      case ptrOf @ AddrOf(Deref(obj, Ref(field)))
+          if obj.t.isInstanceOf[TByValueClass[Pre]] =>
+        adtFunctionInvocation[Post](
+          byValFieldSucc.ref(field),
+          args = Seq(dispatch(obj)),
+        )(ptrOf.o)
       case deref @ Deref(obj, Ref(field)) =>
         obj.t match {
           case _: TByReferenceClass[Pre] =>
             SilverDeref[Post](dispatch(obj), byRefFieldSucc.ref(field))(
               deref.blame
             )(deref.o)
-          case _: TByValueClass[Pre] =>
-            adtFunctionInvocation[Post](
-              byValFieldSucc.ref(field),
-              args = Seq(dispatch(obj)),
-            )(deref.o)
+          case t: TByValueClass[Pre] =>
+            DerefPointer(
+              adtFunctionInvocation[Post](
+                byValFieldSucc.ref(field),
+                args = Seq(dispatch(obj)),
+              )(deref.o)
+            )(DerefFieldPointerBlame(
+              deref.blame,
+              deref,
+              t.cls.decl.asInstanceOf[ByValueClass[Pre]],
+              Referrable.originNameOrEmpty(field),
+            ))(deref.o)
         }
       case TypeValue(t) =>
         t match {

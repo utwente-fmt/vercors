@@ -37,6 +37,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
       case AddrOf(sub @ PointerSubscript(p, i)) =>
         PointerAdd(dispatch(p), dispatch(i))(SubscriptErrorAddError(sub))(e.o)
 
+      case AddrOf(Deref(_, _)) => e.rewriteDefault()
       case AddrOf(other) => throw UnsupportedLocation(other)
       case assign @ PreAssignExpression(target, AddrOf(value))
           if value.t.isInstanceOf[TByReferenceClass[Pre]] =>

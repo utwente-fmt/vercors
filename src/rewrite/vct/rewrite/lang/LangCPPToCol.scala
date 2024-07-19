@@ -738,9 +738,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         implicit val o: Origin = f.o
         Star(
           Perm[Post](FieldLocation[Post](thisObj, f.ref), ReadPerm()),
-          DerefPointer(Deref[Post](thisObj, f.ref)(new SYCLRangeDerefBlame(f)))(
-            NonNullPointerNull
-          ) >= c_const(0),
+          Deref[Post](thisObj, f.ref)(new SYCLRangeDerefBlame(f)) >= c_const(0),
         )
       })
   }
@@ -765,9 +763,9 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         implicit val o: Origin = params(i).o
         Star(
           Perm(FieldLocation[Post](result, rangeFields(i).ref), ReadPerm()),
-          DerefPointer(Deref[Post](result, rangeFields(i).ref)(
-            new SYCLRangeDerefBlame(rangeFields(i))
-          ))(NonNullPointerNull) === Local[Post](params(i).ref),
+          Deref[Post](result, rangeFields(i).ref)(new SYCLRangeDerefBlame(
+            rangeFields(i)
+          )) === Local[Post](params(i).ref),
         )
       })
   }
@@ -801,23 +799,21 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         implicit val o: Origin = params(i).o
         foldStar(Seq(
           Perm(FieldLocation[Post](result, rangeFields(i).ref), ReadPerm()),
-          DerefPointer(Deref[Post](result, rangeFields(i).ref)(
-            new SYCLRangeDerefBlame(rangeFields(i))
-          ))(NonNullPointerNull) === FloorDiv(
+          Deref[Post](result, rangeFields(i).ref)(new SYCLRangeDerefBlame(
+            rangeFields(i)
+          )) === FloorDiv(
             Local[Post](params(i).ref),
             Local[Post](params(i + 1).ref),
           )(ImpossibleDivByZeroBlame()),
           Perm(FieldLocation[Post](result, rangeFields(i + 1).ref), ReadPerm()),
-          DerefPointer(Deref[Post](result, rangeFields(i + 1).ref)(
+          Deref[Post](result, rangeFields(i + 1).ref)(new SYCLRangeDerefBlame(
+            rangeFields(i + 1)
+          )) === Local[Post](params(i + 1).ref),
+          Deref[Post](result, rangeFields(i).ref)(new SYCLRangeDerefBlame(
+            rangeFields(i)
+          )) * Deref[Post](result, rangeFields(i + 1).ref)(
             new SYCLRangeDerefBlame(rangeFields(i + 1))
-          ))(NonNullPointerNull) === Local[Post](params(i + 1).ref),
-          DerefPointer(Deref[Post](result, rangeFields(i).ref)(
-            new SYCLRangeDerefBlame(rangeFields(i))
-          ))(NonNullPointerNull) * DerefPointer(
-            Deref[Post](result, rangeFields(i + 1).ref)(new SYCLRangeDerefBlame(
-              rangeFields(i + 1)
-            ))
-          )(NonNullPointerNull) === Local[Post](params(i).ref),
+          ) === Local[Post](params(i).ref),
         ))
       })
     }
@@ -1098,11 +1094,9 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           case _: SYCLTAccessor[Pre] =>
             // Referencing an accessor variable can only be done in kernels, otherwise an error will already have been thrown
             val accessor = syclAccessorSuccessor(ref)
-            DerefPointer(
-              Deref[Post](currentThis.get, accessor.instanceField.ref)(
-                SYCLAccessorFieldInsufficientReferencePermissionBlame(local)
-              )
-            )(NonNullPointerNull)
+            Deref[Post](currentThis.get, accessor.instanceField.ref)(
+              SYCLAccessorFieldInsufficientReferencePermissionBlame(local)
+            )
           case _: SYCLTLocalAccessor[Pre]
               if currentKernelType.get.isInstanceOf[BasicKernel] =>
             throw SYCLNoLocalAccessorsInBasicKernel(local)
@@ -1240,18 +1234,18 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         getGlobalWorkItemLinearId(inv)
       case "sycl::accessor::get_range" =>
         classInstance match {
-          case Some(DerefPointer(Deref(_, ref))) =>
+          case Some(Deref(_, ref)) =>
             val accessor =
               syclAccessorSuccessor.values
                 .find(acc => ref.decl.equals(acc.instanceField)).get
             LiteralSeq[Post](
               TCInt(),
               accessor.rangeIndexFields.map(f =>
-                DerefPointer(Deref[Post](currentThis.get, f.ref)(
+                Deref[Post](currentThis.get, f.ref)(
                   SYCLAccessorRangeIndexFieldInsufficientReferencePermissionBlame(
                     inv
                   )
-                ))(NonNullPointerNull)
+                )
               ),
             )
           case _ => throw NotApplicable(inv)
@@ -1573,14 +1567,14 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val rangeFields: mutable.Buffer[InstanceField[Post]] = mutable.Buffer.empty
     range.indices.foreach(index => {
       implicit val o: Origin = range(index).o.where(name = s"range$index")
-      val instanceField = new InstanceField[Post](TNonNullPointer(TCInt()), Nil)
+      val instanceField = new InstanceField[Post](TCInt(), Nil)
       rangeFields.append(instanceField)
       val iterVar = createRangeIterVar(
         GlobalScope(),
         index,
-        DerefPointer(Deref[Post](currentThis.get, instanceField.ref)(
-          new SYCLRangeDerefBlame(instanceField)
-        ))(NonNullPointerNull),
+        Deref[Post](currentThis.get, instanceField.ref)(new SYCLRangeDerefBlame(
+          instanceField
+        )),
       )
       currentDimensionIterVars(GlobalScope()).append(iterVar)
     })
@@ -1649,30 +1643,28 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       {
         implicit val o: Origin = kernelDimensions.o
           .where(name = s"group_range$index")
-        val groupInstanceField =
-          new InstanceField[Post](TNonNullPointer(TCInt()), Nil)
+        val groupInstanceField = new InstanceField[Post](TCInt(), Nil)
         rangeFields.append(groupInstanceField)
         val groupIterVar = createRangeIterVar(
           GroupScope(),
           index,
-          DerefPointer(Deref[Post](currentThis.get, groupInstanceField.ref)(
+          Deref[Post](currentThis.get, groupInstanceField.ref)(
             new SYCLRangeDerefBlame(groupInstanceField)
-          ))(NonNullPointerNull),
+          ),
         )
         currentDimensionIterVars(GroupScope()).append(groupIterVar)
       }
       {
         implicit val o: Origin = localRange(index).o
           .where(name = s"local_range$index")
-        val localInstanceField =
-          new InstanceField[Post](TNonNullPointer(TCInt()), Nil)
+        val localInstanceField = new InstanceField[Post](TCInt(), Nil)
         rangeFields.append(localInstanceField)
         val localIterVar = createRangeIterVar(
           LocalScope(),
           index,
-          DerefPointer(Deref[Post](currentThis.get, localInstanceField.ref)(
+          Deref[Post](currentThis.get, localInstanceField.ref)(
             new SYCLRangeDerefBlame(localInstanceField)
-          ))(NonNullPointerNull),
+          ),
         )
         currentDimensionIterVars(LocalScope()).append(localIterVar)
       }
@@ -1864,13 +1856,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                   case None =>
                     // No accessor for buffer exist in the command group, so make fields and permissions
                     val instanceField =
-                      new InstanceField[Post](
-                        TNonNullPointer(buffer.generatedVar.t),
-                        Nil,
-                      )(accO)
+                      new InstanceField[Post](buffer.generatedVar.t, Nil)(accO)
                     val rangeIndexFields = Seq
                       .range(0, buffer.range.dimensions.size).map(i =>
-                        new InstanceField[Post](TNonNullPointer(TCInt()), Nil)(
+                        new InstanceField[Post](TCInt(), Nil)(
                           dimO.where(name = s"${accName}_r$i")
                         )
                       )
@@ -1942,11 +1931,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
 
     val rangeIndexDerefs: Seq[Expr[Post]] = acc.rangeIndexFields.map(f =>
-      DerefPointer(
-        Deref[Post](classObj, f.ref)(new SYCLAccessorDimensionDerefBlame(f))(
-          f.o
-        )
-      )(NonNullPointerNull)(f.o)
+      Deref[Post](classObj, f.ref)(new SYCLAccessorDimensionDerefBlame(f))(f.o)
     )
 
     (
@@ -1964,22 +1949,18 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             ReadPerm()(acc.instanceField.o),
           )(acc.instanceField.o),
           ValidArray(
-            DerefPointer(
-              Deref[Post](classObj, acc.instanceField.ref)(
-                new SYCLAccessorDerefBlame(acc.instanceField)
-              )(acc.instanceField.o)
-            )(NonNullPointerNull)(acc.instanceField.o),
+            Deref[Post](classObj, acc.instanceField.ref)(
+              new SYCLAccessorDerefBlame(acc.instanceField)
+            )(acc.instanceField.o),
             rangeIndexDerefs.reduce((e1, e2) => (e1 * e2)(acc.buffer.o)),
           )(acc.instanceField.o),
         )
       )(acc.instanceField.o),
       Perm(
         ArrayLocation(
-          DerefPointer(
-            Deref[Post](classObj, acc.instanceField.ref)(
-              new SYCLAccessorDerefBlame(acc.instanceField)
-            )(acc.instanceField.o)
-          )(NonNullPointerNull)(acc.instanceField.o),
+          Deref[Post](classObj, acc.instanceField.ref)(
+            new SYCLAccessorDerefBlame(acc.instanceField)
+          )(acc.instanceField.o),
           Any()(PanicBlame(
             "The accessor field is not null as that was proven in the previous conditions."
           ))(acc.instanceField.o),
@@ -2031,24 +2012,20 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           constructorPostConditions.append(
             foldStar[Post](
               Eq[Post](
-                DerefPointer(
-                  Deref[Post](result, acc.instanceField.ref)(
-                    new SYCLAccessorDerefBlame(acc.instanceField)
-                  )(acc.instanceField.o)
-                )(NonNullPointerNull)(acc.instanceField.o),
+                Deref[Post](result, acc.instanceField.ref)(
+                  new SYCLAccessorDerefBlame(acc.instanceField)
+                )(acc.instanceField.o),
                 Local[Post](newConstructorAccessorArg.ref)(
                   newConstructorAccessorArg.o
                 ),
               )(newConstructorAccessorArg.o) +:
                 Seq.range(0, acc.rangeIndexFields.size).map(i =>
                   Eq[Post](
-                    DerefPointer(
-                      Deref[Post](result, acc.rangeIndexFields(i).ref)(
-                        new SYCLAccessorDimensionDerefBlame(
-                          acc.rangeIndexFields(i)
-                        )
-                      )(acc.rangeIndexFields(i).o)
-                    )(NonNullPointerNull)(acc.rangeIndexFields(i).o),
+                    Deref[Post](result, acc.rangeIndexFields(i).ref)(
+                      new SYCLAccessorDimensionDerefBlame(
+                        acc.rangeIndexFields(i)
+                      )
+                    )(acc.rangeIndexFields(i).o),
                     Local[Post](newConstructorAccessorDimensionArgs(i).ref)(
                       newConstructorAccessorDimensionArgs(i).o
                     ),
@@ -2506,14 +2483,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         CPP.unwrappedType(base.t) match {
           case SYCLTAccessor(_, 1, _) =>
             ArraySubscript[Post](
-              DerefPointer(
-                Deref[Post](
-                  currentThis.get,
-                  syclAccessorSuccessor(base.ref.get).instanceField.ref,
-                )(new SYCLAccessorDerefBlame(
-                  syclAccessorSuccessor(base.ref.get).instanceField
-                ))(sub.o)
-              )(NonNullPointerNull)(sub.o),
+              Deref[Post](
+                currentThis.get,
+                syclAccessorSuccessor(base.ref.get).instanceField.ref,
+              )(new SYCLAccessorDerefBlame(
+                syclAccessorSuccessor(base.ref.get).instanceField
+              ))(sub.o),
               rw.dispatch(index),
             )(SYCLAccessorArraySubscriptErrorBlame(sub))(sub.o)
           case t: SYCLTAccessor[Pre] =>
@@ -2529,25 +2504,19 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         val linearizeArgs = Seq(
           rw.dispatch(indexX),
           rw.dispatch(indexY),
-          DerefPointer(
-            Deref[Post](currentThis.get, accessor.rangeIndexFields(0).ref)(
-              new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(0))
-            )
-          )(NonNullPointerNull),
-          DerefPointer(
-            Deref[Post](currentThis.get, accessor.rangeIndexFields(1).ref)(
-              new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(1))
-            )
-          )(NonNullPointerNull),
+          Deref[Post](currentThis.get, accessor.rangeIndexFields(0).ref)(
+            new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(0))
+          ),
+          Deref[Post](currentThis.get, accessor.rangeIndexFields(1).ref)(
+            new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(1))
+          ),
         )
         CPP.unwrappedType(base.t) match {
           case SYCLTAccessor(_, 2, _) =>
             ArraySubscript[Post](
-              DerefPointer(
-                Deref[Post](currentThis.get, accessor.instanceField.ref)(
-                  new SYCLAccessorDerefBlame(accessor.instanceField)
-                )
-              )(NonNullPointerNull),
+              Deref[Post](currentThis.get, accessor.instanceField.ref)(
+                new SYCLAccessorDerefBlame(accessor.instanceField)
+              ),
               syclHelperFunctions("sycl_:_:linearize_2")(
                 linearizeArgs,
                 SYCLAccessorArraySubscriptLinearizeInvocationBlame(
@@ -2575,30 +2544,22 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           rw.dispatch(indexX),
           rw.dispatch(indexY),
           rw.dispatch(indexZ),
-          DerefPointer(
-            Deref[Post](currentThis.get, accessor.rangeIndexFields(0).ref)(
-              new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(0))
-            )
-          )(NonNullPointerNull),
-          DerefPointer(
-            Deref[Post](currentThis.get, accessor.rangeIndexFields(1).ref)(
-              new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(1))
-            )
-          )(NonNullPointerNull),
-          DerefPointer(
-            Deref[Post](currentThis.get, accessor.rangeIndexFields(2).ref)(
-              new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(2))
-            )
-          )(NonNullPointerNull),
+          Deref[Post](currentThis.get, accessor.rangeIndexFields(0).ref)(
+            new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(0))
+          ),
+          Deref[Post](currentThis.get, accessor.rangeIndexFields(1).ref)(
+            new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(1))
+          ),
+          Deref[Post](currentThis.get, accessor.rangeIndexFields(2).ref)(
+            new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(2))
+          ),
         )
         CPP.unwrappedType(base.t) match {
           case SYCLTAccessor(_, 3, _) =>
             ArraySubscript[Post](
-              DerefPointer(
-                Deref[Post](currentThis.get, accessor.instanceField.ref)(
-                  new SYCLAccessorDerefBlame(accessor.instanceField)
-                )
-              )(NonNullPointerNull),
+              Deref[Post](currentThis.get, accessor.instanceField.ref)(
+                new SYCLAccessorDerefBlame(accessor.instanceField)
+              ),
               syclHelperFunctions("sycl_:_:linearize_3")(
                 linearizeArgs,
                 SYCLAccessorArraySubscriptLinearizeInvocationBlame(
@@ -2676,12 +2637,9 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           removeKernelClassInstancePermissions(right),
         )
 
-      case ActionPerm(DerefPointer(Deref(obj, _)), _)
-          if obj.equals(this.currentThis.get) =>
+      case ActionPerm(Deref(obj, _), _) if obj.equals(this.currentThis.get) =>
         tt
-      case ModelPerm(DerefPointer(Deref(obj, _)), _)
-          if obj.equals(this.currentThis.get) =>
-        tt
+      case ModelPerm(Deref(obj, _), _) if obj.equals(this.currentThis.get) => tt
       case Perm(FieldLocation(obj, _), _) if obj.equals(this.currentThis.get) =>
         tt
       case PointsTo(FieldLocation(obj, _), _, _)
@@ -2689,20 +2647,14 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         tt
       case Value(FieldLocation(obj, _)) if obj.equals(this.currentThis.get) =>
         tt
-      case Perm(
-            AmbiguousLocation(ArraySubscript(DerefPointer(Deref(obj, _)), _)),
-            _,
-          ) if obj.equals(this.currentThis.get) =>
+      case Perm(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)), _)
+          if obj.equals(this.currentThis.get) =>
         tt
-      case PointsTo(
-            AmbiguousLocation(ArraySubscript(DerefPointer(Deref(obj, _)), _)),
-            _,
-            _,
-          ) if obj.equals(this.currentThis.get) =>
+      case PointsTo(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)), _, _)
+          if obj.equals(this.currentThis.get) =>
         tt
-      case Value(
-            AmbiguousLocation(ArraySubscript(DerefPointer(Deref(obj, _)), _))
-          ) if obj.equals(this.currentThis.get) =>
+      case Value(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)))
+          if obj.equals(this.currentThis.get) =>
         tt
       case Implies(left, right) =>
         Implies(
@@ -2733,9 +2685,9 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case SYCLAccessor(buffer, SYCLReadWriteAccess(), instanceField, _) =>
         assignLocal(
           buffer.generatedVar.get,
-          DerefPointer(Deref[Post](variable, instanceField.ref)(
-            new SYCLAccessorDerefBlame(instanceField)
-          ))(NonNullPointerNull),
+          Deref[Post](variable, instanceField.ref)(new SYCLAccessorDerefBlame(
+            instanceField
+          )),
         )
     }))
   }

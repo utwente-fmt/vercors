@@ -166,19 +166,13 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
       f.t match {
         case inner: TByValueClass[Pre] =>
           Assign[Post](
-            DerefPointer(Deref[Post](v.get, succ(f))(DerefAssignTarget))(
-              NonNullPointerNull
-            ),
+            Deref[Post](v.get, succ(f))(DerefAssignTarget),
             copyClassValue(Deref[Post](ov.get, succ(f))(blame(f)), inner, blame),
           )(AssignLocalOk)
         case _ =>
           Assign[Post](
-            DerefPointer(Deref[Post](v.get, succ(f))(DerefAssignTarget))(
-              NonNullPointerNull
-            ),
-            DerefPointer(Deref[Post](ov.get, succ(f))(blame(f)))(
-              NonNullPointerNull
-            ),
+            Deref[Post](v.get, succ(f))(DerefAssignTarget),
+            Deref[Post](ov.get, succ(f))(blame(f)),
           )(AssignLocalOk)
 
       }
@@ -220,12 +214,10 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
     val newFieldPerms = fields.map(member => {
       val loc = FieldLocation[Post](obj, succ(member))
       // TODO: Don't go through regular pointers...
-      member.t.asPointer.get.element match {
+      member.t match {
         case inner: TByValueClass[Pre] =>
           Perm[Post](loc, perm) &* unwrapClassPerm(
-            DerefPointer(Deref[Post](obj, succ(member))(blame))(
-              NonNullPointerNull
-            ),
+            Deref[Post](obj, succ(member))(blame),
             perm,
             inner,
             structType +: visited,
@@ -356,12 +348,16 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
             dp,
             v.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
           )
-        case dp @ DerefPointer(Deref(_, Ref(f)))
-            if f.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
-          rewriteInCopyContext(
-            dp,
-            f.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
-          )
+        case deref @ Deref(_, Ref(f)) if f.t.isInstanceOf[TByValueClass[Pre]] =>
+          if (copyContext.isEmpty) { deref.rewriteDefault() }
+          else {
+            // TODO: Improve blame message here
+            copyClassValue(
+              deref.rewriteDefault(),
+              f.t.asInstanceOf[TByValueClass[Pre]],
+              f => deref.blame,
+            )
+          }
         case dp @ DerefPointer(Local(Ref(v)))
             if v.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
           // This can happen if the user specifies a local of type pointer to TByValueClass
