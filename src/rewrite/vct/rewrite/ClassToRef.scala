@@ -102,7 +102,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   def makeTypeOf: Function[Post] = {
     implicit val o: Origin = TypeOfOrigin
-    val obj = new Variable[Post](TAnyValue())
+    val obj = new Variable[Post](TRef())
     withResult((result: Result[Post]) =>
       function(
         blame = AbstractApplicable,
@@ -185,7 +185,11 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             "Class type parameters should be encoded using monomorphization earlier"
           )
 
-        typeNumber(cls)
+        cls match {
+          case clazz: ByReferenceClass[Pre] => typeNumber(cls)
+          case clazz: ByValueClass[Pre] => {}
+        }
+
         val thisType = dispatch(cls.classType(Nil))
         cls.decls.foreach {
           case function: InstanceFunction[Pre] =>
