@@ -1,17 +1,10 @@
-package vct.rewrite.veymont
+package vct.rewrite.veymont.verification
 
 import hre.util.ScopedStack
-import vct.col.ast.{
-  AnyFunctionInvocation,
-  ChorExpr,
-  Communicate,
-  Declaration,
-  Expr,
-  Program,
-  Statement,
-}
+import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
+import vct.rewrite.veymont.InferEndpointContexts
 
 object PushInChor extends RewriterBuilderArg[Boolean] {
   override def key: String = "pushInChor"

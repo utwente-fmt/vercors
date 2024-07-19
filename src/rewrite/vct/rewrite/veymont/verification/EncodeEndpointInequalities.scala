@@ -1,48 +1,10 @@
-package vct.rewrite.veymont
+package vct.rewrite.veymont.verification
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.util.ScopedStack
-import vct.col.ast.{
-  ApplicableContract,
-  Assert,
-  Assume,
-  Block,
-  Choreography,
-  CommunicateStatement,
-  Declaration,
-  Endpoint,
-  EndpointName,
-  Expr,
-  IterationContract,
-  LoopContract,
-  LoopInvariant,
-  Neq,
-  Null,
-  Program,
-  SplitAccountedPredicate,
-  Statement,
-  UnitAccountedPredicate,
-}
-import vct.col.origin.{
-  AssertFailed,
-  Blame,
-  BranchUnanimityFailed,
-  LoopUnanimityNotEstablished,
-  LoopUnanimityNotMaintained,
-  Origin,
-}
+import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.col.util.SuccessionMap
-import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.EncodeChorBranchUnanimity.{
-  ForwardBranchUnanimity,
-  ForwardLoopUnanimityNotEstablished,
-  ForwardLoopUnanimityNotMaintained,
-}
-import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationError
-import vct.rewrite.veymont.EncodeChoreography.AssertFailedToParticipantsNotDistinct
+import vct.rewrite.veymont.VeymontContext
 
 import scala.collection.mutable
 

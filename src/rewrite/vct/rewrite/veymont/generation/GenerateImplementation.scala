@@ -1,9 +1,8 @@
-package vct.rewrite.veymont
+package vct.rewrite.veymont.generation
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
-  AbstractRewriter,
   ApplicableContract,
   Assert,
   Assign,
@@ -17,7 +16,6 @@ import vct.col.ast.{
   Class,
   ClassDeclaration,
   CommunicateX,
-  ConstructorInvocation,
   Declaration,
   Deref,
   Endpoint,
@@ -38,22 +36,18 @@ import vct.col.ast.{
   JavaNamedType,
   JavaParam,
   JavaPublic,
-  JavaTClass,
   Join,
   Local,
   Loop,
   LoopContract,
   LoopInvariant,
   MethodInvocation,
-  NewObject,
   Node,
-  Null,
   Perm,
   Procedure,
   Program,
   RunMethod,
   Scope,
-  Star,
   Statement,
   TClass,
   TVeyMontChannel,
@@ -65,23 +59,13 @@ import vct.col.ast.{
   Variable,
   VeyMontAssignExpression,
 }
-import vct.col.origin.{AssignLocalOk, Name, Origin, PanicBlame}
+import vct.col.origin.{Name, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
-import vct.col.rewrite.adt.ImportADTImporter
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
-import vct.col.util.SuccessionMap
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
-import vct.rewrite.veymont.GenerateImplementation.{
-  ChannelFieldOrigin,
-  ParalleliseEndpointsError,
-  RunMethodOrigin,
-  ThreadClassOrigin,
-  getChannelClassName,
-  getThreadClassName,
-  getVarName,
-}
 
 import scala.collection.mutable
 

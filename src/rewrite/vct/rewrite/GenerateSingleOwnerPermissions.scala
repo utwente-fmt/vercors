@@ -1,25 +1,23 @@
-package vct.rewrite.veymont
+package vct.rewrite
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
 import vct.col.ast.declaration.global.ChoreographyImpl.participants
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
-import vct.col.resolve.ctx.Referrable
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
+import vct.col.util.AstBuildHelpers._
 
-import scala.collection.immutable.ListSet
 import scala.collection.mutable
 
-object GenerateChoreographyPermissions extends RewriterBuilderArg[Boolean] {
+object GenerateSingleOwnerPermissions extends RewriterBuilderArg[Boolean] {
   override def key: String = "generateChoreographyPermissions"
   override def desc: String =
     "Generates permissions for fields of some types (classes, int, bool, and arrays of these) for constructs used inside choreographies."
 }
 
-case class GenerateChoreographyPermissions[Pre <: Generation](
+case class GenerateSingleOwnerPermissions[Pre <: Generation](
     enabled: Boolean = false
 ) extends Rewriter[Pre] with LazyLogging {
 

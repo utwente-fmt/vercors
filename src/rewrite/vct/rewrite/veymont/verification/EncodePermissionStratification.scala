@@ -1,45 +1,14 @@
-package vct.rewrite.veymont
+package vct.rewrite.veymont.verification
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.rewrite.{
-  Generation,
-  Rewriter,
-  RewriterBuilder,
-  RewriterBuilderArg,
-}
+import vct.col.origin._
+import vct.col.ref.Ref
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
-import vct.result.VerificationError.{Unreachable, UserError}
-import EncodeChoreography.{
-  AssertFailedToParticipantsNotDistinct,
-  AssignFailedToSeqAssignFailure,
-}
-import vct.col.origin.{
-  Blame,
-  ChorRunPreconditionFailed,
-  ExhaleFailed,
-  FoldFailed,
-  InsufficientPermission,
-  InvocationFailure,
-  Name,
-  Origin,
-  PanicBlame,
-  PreconditionFailed,
-  UnfoldFailed,
-  UnfoldFailure,
-  VerificationFailure,
-}
-import vct.col.ref.Ref
-import vct.rewrite.veymont
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.EncodePermissionStratification.{
-  ForwardExhaleFailedToChorRun,
-  ForwardInvocationFailureToDeref,
-  ForwardUnfoldFailedToDeref,
-  NoEndpointContext,
-}
 
 import scala.collection.immutable.HashSet
 import scala.collection.{mutable => mut}

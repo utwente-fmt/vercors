@@ -1,4 +1,4 @@
-package vct.rewrite.veymont
+package vct.rewrite.veymont.generation
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
@@ -22,7 +22,6 @@ import vct.col.ast.{
   FieldLocation,
   InstanceField,
   InstanceMethod,
-  InstancePredicate,
   IterationContract,
   Local,
   LoopContract,
@@ -39,16 +38,16 @@ import vct.col.ast.{
   TVar,
   ThisObject,
   Type,
-  Value,
   Variable,
   WritePerm,
 }
-import vct.col.origin.{Name, Origin, PanicBlame, PostBlameSplit, SourceName}
+import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.adt.ImportADTImporter
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
-import vct.col.util.AstBuildHelpers._
+import vct.col.util.AstBuildHelpers.{value, _}
 import vct.col.util.SuccessionMap
+import vct.rewrite.veymont.VeymontContext
 
 import scala.collection.mutable
 import scala.reflect.ClassTag

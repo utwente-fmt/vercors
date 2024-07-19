@@ -1,4 +1,4 @@
-package vct.rewrite.veymont
+package vct.rewrite.veymont.verification
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
@@ -36,30 +36,12 @@ import vct.col.ast.{
   Value,
   Variable,
 }
-import vct.col.origin.{
-  AssertFailed,
-  AssignFailed,
-  AssignLocalOk,
-  Blame,
-  CallableFailure,
-  ChorRunContextEverywhereFailedInPre,
-  ChorRunPreconditionFailed,
-  ContextEverywhereFailedInPre,
-  ContractedFailure,
-  ExceptionNotInSignals,
-  InvocationFailure,
-  Origin,
-  PanicBlame,
-  ParticipantsNotDistinct,
-  PreconditionFailed,
-  SeqAssignInsufficientPermission,
-  SignalsFailed,
-}
+import vct.col.origin._
+import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.Unreachable
-import vct.col.ref.Ref
 
 import scala.collection.{mutable => mut}
 

@@ -1,22 +1,11 @@
-package vct.rewrite.veymont
+package vct.rewrite.veymont.verification
 
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.{
-  AssertFailed,
-  Blame,
-  BranchUnanimityFailed,
-  LoopUnanimityNotEstablished,
-  LoopUnanimityNotMaintained,
-  Origin,
-}
+import vct.col.origin._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
-import vct.rewrite.veymont.EncodeChorBranchUnanimity.{
-  ForwardBranchUnanimity,
-  ForwardLoopUnanimityNotEstablished,
-  ForwardLoopUnanimityNotMaintained,
-}
+import vct.rewrite.veymont.VeymontContext
 
 object EncodeChorBranchUnanimity extends RewriterBuilderArg[Boolean] {
   override def key: String = "encodeChorBranchUnanimity"

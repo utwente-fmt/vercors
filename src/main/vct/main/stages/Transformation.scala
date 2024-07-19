@@ -15,7 +15,6 @@ import vct.col.rewrite.adt._
 import vct.col.rewrite.bip._
 import vct.col.rewrite.exc._
 import vct.rewrite.lang.NoSupportSelfLoop
-import vct.col.rewrite.veymont.StructureCheck
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.{
@@ -37,9 +36,12 @@ import vct.rewrite.{
   InlineTrivialLets,
   MonomorphizeClass,
   SmtlibToProverTypes,
+  GenerateSingleOwnerPermissions,
 }
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont._
+import vct.rewrite.veymont.generation._
+import vct.rewrite.veymont.verification._
 
 import java.nio.file.Path
 import java.nio.file.Files
@@ -351,7 +353,7 @@ case class SilverTransformation(
         // Also, VeyMont requires branches to be nested, instead of flat, because the false branch
         // may refine the set of participating endpoints
         BranchToIfElse,
-        GenerateChoreographyPermissions.withArg(generatePermissions),
+        GenerateSingleOwnerPermissions.withArg(generatePermissions),
         InferEndpointContexts,
         PushInChor.withArg(generatePermissions),
         StratifyExpressions,
@@ -466,7 +468,7 @@ case class VeyMontImplementationGeneration(
       onPassEvent,
       Seq(
         DropChorExpr,
-        GenerateChoreographyPermissions.withArg(generatePermissions),
+        GenerateSingleOwnerPermissions.withArg(generatePermissions),
         InferEndpointContexts,
         StratifyExpressions,
         StratifyUnpointedExpressions,
