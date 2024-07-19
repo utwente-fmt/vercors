@@ -185,10 +185,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             "Class type parameters should be encoded using monomorphization earlier"
           )
 
-        cls match {
-          case clazz: ByReferenceClass[Pre] => typeNumber(cls)
-          case clazz: ByValueClass[Pre] => {}
-        }
+        typeNumber(cls)
 
         val thisType = dispatch(cls.classType(Nil))
         cls.decls.foreach {
@@ -734,13 +731,18 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           case other => ???
         }
       case TypeOf(value) =>
-        FunctionInvocation[Post](
-          typeOf.ref(()),
-          Seq(dispatch(value)),
-          Nil,
-          Nil,
-          Nil,
-        )(PanicBlame("typeOf requires nothing"))(e.o)
+        value.t match {
+          case cls: TByReferenceClass[Pre] =>
+            FunctionInvocation[Post](
+              typeOf.ref(()),
+              Seq(dispatch(value)),
+              Nil,
+              Nil,
+              Nil,
+            )(PanicBlame("typeOf requires nothing"))(e.o)
+          case cls: TByValueClass[Pre] =>
+            const[Post](typeNumber(cls.cls.decl))(e.o)
+        }
       case InstanceOf(value, TypeValue(TUnion(ts))) =>
         implicit val o: Origin = e.o
         dispatch(foldOr(ts.map(t => InstanceOf(value, TypeValue(t)))))
