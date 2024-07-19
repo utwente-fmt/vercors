@@ -130,20 +130,11 @@ abstract class ToCol[G](
     val static: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
     val bipAnnotation: mutable.ArrayBuffer[ParserRuleContext] = mutable
       .ArrayBuffer()
-    val unique: mutable.ArrayBuffer[(ParserRuleContext, BigInt)] = mutable
-      .ArrayBuffer()
 
     def consume(buffer: mutable.ArrayBuffer[ParserRuleContext]): Boolean = {
       val result = buffer.nonEmpty
       buffer.clear()
       result
-    }
-
-    def consume(buffer: mutable.ArrayBuffer[(ParserRuleContext, BigInt)]): Option[BigInt] = {
-      buffer match {
-        case mutable.ArrayBuffer() => None
-        case (_, i) +: _ => buffer.clear(); Some(i)
-      }
     }
 
     def nodes: Seq[ParserRuleContext] =

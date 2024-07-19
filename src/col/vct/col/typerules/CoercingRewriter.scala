@@ -263,6 +263,11 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceBoolResource() => e
       case CoerceResourceResourceVal() => e
       case CoerceResourceValResource() => e
+      case CoerceFromConst(_) => e
+      case CoerceToConst(_) => e
+      case CoerceFromUnique(_, _) => e
+      case CoerceToUnique(_, _) => e
+      case CoerceBetweenUnique(_, _, _) => e
       case CoerceBoundIntFrac() => e
       case CoerceBoundIntZFrac(_) => e
       case CoerceBoundIntFloat(_, _) => e
@@ -1564,8 +1569,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
         Neq(coerce(left, sharedType), coerce(right, sharedType))
       case na @ NewArray(element, dims, moreDims, initialize) =>
         NewArray(element, dims.map(int), moreDims, initialize)(na.blame)
-      case na @ NewPointerArray(element, size) =>
-        NewPointerArray(element, size)(na.blame)
+      case na @ NewPointerArray(element, size, unique) =>
+        NewPointerArray(element, size, unique)(na.blame)
+      case nca @ NewConstPointerArray(element, size) =>
+        NewConstPointerArray(element, size)(nca.blame)
       case NewObject(cls) => NewObject(cls)
       case NoPerm() => NoPerm()
       case Not(arg) => Not(bool(arg))
@@ -2146,6 +2153,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
     stat match {
       case a @ Assert(assn) => Assert(res(assn))(a.blame)
       case a @ Assign(target, value) => Assign(target, coerce(value, target.t, canCDemote = true))(a.blame)
+      case a @ AssignInitial(target, value) => AssignInitial(target, coerce(value, target.t, canCDemote = true))(a.blame)
       case Assume(assn) => Assume(bool(assn))
       case Block(statements) => Block(statements)
       case Branch(branches) =>

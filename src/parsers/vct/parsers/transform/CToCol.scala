@@ -168,12 +168,9 @@ case class CToCol[G](
             else if (m.consume(m.inline))
               CInline[G]()
             else
-              m.consume(m.unique).map(CUnique[G](_)).getOrElse(
-
               fail(
                 m.nodes.head,
                 "This modifier cannot be attached to a declaration in C",
-              )
               )
           },
         )
@@ -293,6 +290,7 @@ case class CToCol[G](
       case TypeQualifier1(_) => CRestrict()
       case TypeQualifier2(_) => CVolatile()
       case TypeQualifier3(_) => CAtomic()
+      case TypeQualifier4(spec) => convert(spec)
     }
 
   def convert(
@@ -841,7 +839,9 @@ case class CToCol[G](
       case SpecifierQualifierList0(t, tail) =>
         convert(t) +: tail.map((e: SpecifierQualifierListContext) => convert(e))
           .getOrElse(Nil)
-      case SpecifierQualifierList1(_, _) => ??(specifiers)
+      case SpecifierQualifierList1(t, tail) =>
+        CTypeQualifierDeclarationSpecifier(convert(t)) +: tail.map((e: SpecifierQualifierListContext) => convert(e))
+        .getOrElse(Nil)
     }
 
   def convert(implicit expr: CastExpressionContext): Expr[G] =
@@ -1186,7 +1186,17 @@ case class CToCol[G](
           case "thread_local" => collector.threadLocal += mod
         }
       case ValStatic(_) => collector.static += mod
-      case ValUnique(_, _, i, _) => collector.unique += ((mod, convert(i)))
+    }
+
+  def convert(mod: ValEmbedTypeQualifierContext): CUnique[G] =
+    mod match {
+      case ValEmbedTypeQualifier0(_, mod, _) => convert(mod)
+      case ValEmbedTypeQualifier1(mod) => convert(mod)
+    }
+
+  def convert(implicit mod: ValTypeQualifierContext): CUnique[G] =
+    mod match {
+      case ValUnique(_, _, uniqueId, _) => CUnique[G](convert(uniqueId))
     }
 
   def convertEmbedWith(

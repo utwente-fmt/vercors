@@ -417,8 +417,11 @@ valImpureDef
 valModifier
  : ('pure' | 'inline' | 'thread_local' | 'bip_annotation')
  | langStatic # valStatic
- | 'unique' '<' langConstInt '>' # valUnique
  ;
+
+valTypeQualifier
+  : 'unique' '<' langConstInt '>' # valUnique
+  ;
 
 valArgList
  : valArg
@@ -462,3 +465,8 @@ valEmbedModifier
  : startSpec valModifier endSpec
  | {specLevel>0}? valModifier
  ;
+
+ valEmbedTypeQualifier
+  : startSpec valTypeQualifier endSpec
+  | {specLevel>0}? valTypeQualifier
+  ;

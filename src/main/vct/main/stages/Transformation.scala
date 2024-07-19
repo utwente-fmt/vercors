@@ -18,39 +18,15 @@ import vct.rewrite.lang.NoSupportSelfLoop
 import vct.col.rewrite.veymont.StructureCheck
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
-import vct.main.stages.Transformation.{
-  PassEventHandler,
-  TransformationCheckError,
-}
+import vct.main.stages.Transformation.{PassEventHandler, TransformationCheckError}
 import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
-import vct.rewrite.{
-  EncodeAutoValue,
-  EncodeRange,
-  EncodeResourceValues,
-  ExplicitResourceValues,
-  HeapVariableToRef,
-  MonomorphizeClass,
-  SmtlibToProverTypes,
-}
+import vct.rewrite.{TypeQualifierCoercion, EncodeAutoValue, EncodeRange, EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, MonomorphizeClass, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{
-  DeduplicateChorGuards,
-  DropChorExpr,
-  EncodeChannels,
-  EncodeChorBranchUnanimity,
-  EncodeChoreography,
-  EncodeEndpointInequalities,
-  StratifyUnpointedExpressions,
-  GenerateChoreographyPermissions,
-  GenerateImplementation,
-  InferEndpointContexts,
-  SpecializeEndpointClasses,
-  StratifyExpressions,
-}
+import vct.rewrite.veymont.{DeduplicateChorGuards, DropChorExpr, EncodeChannels, EncodeChorBranchUnanimity, EncodeChoreography, EncodeEndpointInequalities, GenerateChoreographyPermissions, GenerateImplementation, InferEndpointContexts, SpecializeEndpointClasses, StratifyExpressions, StratifyUnpointedExpressions}
 
 import java.nio.file.Path
 import java.nio.file.Files
@@ -298,6 +274,7 @@ case class SilverTransformation(
       Seq(
         // Replace leftover SYCL types
         ReplaceSYCLTypes,
+        TypeQualifierCoercion,
         CFloatIntCoercion,
         ComputeBipGlue,
         InstantiateBipSynchronizations,
@@ -394,6 +371,7 @@ case class SilverTransformation(
         SmtlibToProverTypes,
         EnumToDomain,
         ImportArray.withArg(adtImporter),
+        ImportConstPointer.withArg(adtImporter),
         ImportPointer.withArg(adtImporter),
         ImportVector.withArg(adtImporter),
         ImportMapCompat.withArg(adtImporter),

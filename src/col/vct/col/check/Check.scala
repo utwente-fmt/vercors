@@ -243,7 +243,7 @@ case class SeqProgParticipant(s: Node[_]) extends CheckError {
 case class SeqProgNoParticipant(s: Node[_]) extends CheckError {
   val subcode = "seqProgNoParticipant"
 }
-case class SeqProgEndpointAssign(a: Assign[_]) extends CheckError {
+case class SeqProgEndpointAssign(a: AssignStmt[_]) extends CheckError {
   val subcode = "seqProgEndpointAssign"
 }
 case class SeqProgInstanceMethodPure(m: InstanceMethod[_]) extends CheckError {

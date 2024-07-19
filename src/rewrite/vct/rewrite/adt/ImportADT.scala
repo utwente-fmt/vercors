@@ -38,6 +38,8 @@ case object ImportADT {
       case TRef() => "ref"
       case TArray(element) => "arr_" + typeText(element)
       case TPointer(element) => "ptr_" + typeText(element)
+      case TUniquePointer(element, unique) => "unique_ptr_" + unique.toString + "_" + typeText(element)
+      case TConstPointer(element) => "const_ptr_" + typeText(element)
       case TProcess() => "proc"
       case TModel(Ref(model)) => model.o.getPreferredNameOrElse().camel
       case TAxiomatic(Ref(adt), args) =>

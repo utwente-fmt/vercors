@@ -775,6 +775,10 @@ object AstBuildHelpers {
       implicit o: Origin
   ): Assign[G] = Assign(local, value)(AssignLocalOk)
 
+  def assignInitial[G](local: Local[G], value: Expr[G])(
+    implicit o: Origin
+  ): AssignInitial[G] = AssignInitial(local, value)(AssignLocalOk)
+
   def assignField[G](
       obj: Expr[G],
       field: Ref[G, InstanceField[G]],

@@ -393,6 +393,7 @@ case class LangSpecificToCol[Pre <: Generation](
   override def dispatch(t: Type[Pre]): Type[Post] =
     t match {
       case t: JavaTClass[Pre] => java.classType(t)
+      case t: CPointerType[Pre] => c.pointerType(t)
       case t: CTPointer[Pre] => c.pointerType(t)
       case t: CTVector[Pre] => c.vectorType(t)
       case t: TOpenCLVector[Pre] => c.vectorType(t)

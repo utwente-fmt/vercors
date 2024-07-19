@@ -115,12 +115,14 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       implicit o: Origin
   ): (Seq[CDeclarationSpecifier[Post]], CDeclarator[Post]) = {
     val info = C.getDeclaratorInfo(declarator)
-    val baseType = C.getPrimitiveType(specifiers, context)
-    val otherSpecifiers = specifiers
-      .filter(!_.isInstanceOf[CTypeSpecifier[Pre]]).map(dispatch)
-    val newSpecifiers =
+    val (specs, otherSpecifiers) = specifiers
+      .partition({case _ : CTypeSpecifier[Pre] => true; case _: CTypeQualifierDeclarationSpecifier[Pre] => true;
+      case _ => false})
+    val newOtherSpecifiers = otherSpecifiers.map(dispatch)
+    val baseType = C.getPrimitiveType(specs, context)
+    val newSpecifiers : Seq[CDeclarationSpecifier[LangTypesToCol.this.Post]] =
       CSpecificationType[Post](dispatch(info.typeOrReturnType(baseType))) +:
-        otherSpecifiers
+        newOtherSpecifiers
     val newDeclarator =
       info.params match {
         case Some(params) =>

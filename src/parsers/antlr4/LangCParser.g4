@@ -355,6 +355,7 @@ typeQualifier
     |   'restrict'
     |   'volatile'
     |   '_Atomic'
+    |   valEmbedTypeQualifier
     ;
 
 functionSpecifier
