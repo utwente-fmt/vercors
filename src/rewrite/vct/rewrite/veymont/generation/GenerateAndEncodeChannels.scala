@@ -179,11 +179,6 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
       fieldOfCommunicate.ref((endpoint, comm)),
     )(PanicBlame("Shouldn't happen"))
 
-  override def dispatch(p: Program[Pre]): Program[Post] = {
-    mappings.program = p
-    p.rewriteDefault()
-  }
-
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case chor: Choreography[Pre] =>

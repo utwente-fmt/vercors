@@ -5,6 +5,7 @@ import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.rewrite.veymont.VeymontContext
+import vct.rewrite.veymont.verification.EncodeChoreography.AssertFailedToParticipantsNotDistinct
 
 import scala.collection.mutable
 

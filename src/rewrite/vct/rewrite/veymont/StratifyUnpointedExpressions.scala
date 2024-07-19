@@ -17,6 +17,9 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
     extends Rewriter[Pre] with VeymontContext[Pre] {
   val currentParticipants: ScopedStack[ListSet[Endpoint[Pre]]] = ScopedStack()
 
+  override def veymontDispatch(p: Program[Pre]): Program[Post] =
+    super.dispatch(p)
+
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case chor: Choreography[Pre] =>

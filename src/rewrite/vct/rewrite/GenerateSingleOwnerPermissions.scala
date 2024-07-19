@@ -12,7 +12,7 @@ import vct.col.util.AstBuildHelpers._
 import scala.collection.mutable
 
 object GenerateSingleOwnerPermissions extends RewriterBuilderArg[Boolean] {
-  override def key: String = "generateChoreographyPermissions"
+  override def key: String = "generateSingleOwnerPermissions"
   override def desc: String =
     "Generates permissions for fields of some types (classes, int, bool, and arrays of these) for constructs used inside choreographies."
 }

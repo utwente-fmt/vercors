@@ -76,15 +76,6 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
-import vct.rewrite.veymont.GenerateImplementation.{
-  ChannelFieldOrigin,
-  ParalleliseEndpointsError,
-  RunMethodOrigin,
-  ThreadClassOrigin,
-  getChannelClassName,
-  getThreadClassName,
-  getVarName,
-}
 import vct.rewrite.veymont.InferEndpointContexts.{
   EndpointInferenceUndefined,
   MultipleImplicitEndpointsError,

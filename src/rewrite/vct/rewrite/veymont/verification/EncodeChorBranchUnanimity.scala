@@ -6,6 +6,11 @@ import vct.col.origin._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
 import vct.rewrite.veymont.VeymontContext
+import vct.rewrite.veymont.verification.EncodeChorBranchUnanimity.{
+  ForwardBranchUnanimity,
+  ForwardLoopUnanimityNotEstablished,
+  ForwardLoopUnanimityNotMaintained,
+}
 
 object EncodeChorBranchUnanimity extends RewriterBuilderArg[Boolean] {
   override def key: String = "encodeChorBranchUnanimity"
@@ -50,7 +55,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
 
   val currentLoop = ScopedStack[Loop[Pre]]()
 
-  override def dispatch(program: Program[Pre]): Program[Post] =
+  override def veymontDispatch(program: Program[Pre]): Program[Post] =
     if (enabled)
       super.dispatch(program)
     else

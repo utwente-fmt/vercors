@@ -9,6 +9,13 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
+import vct.rewrite.veymont.{InferEndpointContexts, VeymontContext}
+import vct.rewrite.veymont.verification.EncodePermissionStratification.{
+  ForwardExhaleFailedToChorRun,
+  ForwardInvocationFailureToDeref,
+  ForwardUnfoldFailedToDeref,
+  NoEndpointContext,
+}
 
 import scala.collection.immutable.HashSet
 import scala.collection.{mutable => mut}
@@ -201,11 +208,6 @@ case class EncodePermissionStratification[Pre <: Generation](
         case EndpointExpr(_, inner) => dispatch(inner)
         case _ => expr.rewriteDefault()
       }
-  }
-
-  override def dispatch(program: Program[Pre]): Program[Post] = {
-    mappings.program = program
-    super.dispatch(program)
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit =

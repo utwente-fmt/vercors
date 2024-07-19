@@ -9,6 +9,10 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.rewrite.veymont.VeymontContext
+import vct.rewrite.veymont.verification.EncodeChannels.{
+  AssertFailedToChannelInvariantNotEstablished,
+  ExhaleFailedToChannelInvariantNotEstablished,
+}
 
 object EncodeChannels extends RewriterBuilder {
   override def key: String = "encodeChannels"
