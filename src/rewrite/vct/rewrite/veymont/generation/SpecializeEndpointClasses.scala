@@ -2,22 +2,29 @@ package vct.rewrite.veymont.generation
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{
+  ChorRun,
   Choreography,
   Class,
   Constructor,
   Declaration,
   Deref,
   Endpoint,
+  EndpointExpr,
   EndpointName,
   Expr,
+  FieldLocation,
   InstanceField,
+  IterationContract,
+  LoopContract,
+  LoopInvariant,
   Program,
   ThisObject,
   UnitAccountedPredicate,
+  Value,
   Variable,
   WritePerm,
 }
-import vct.col.origin.{Name, PanicBlame}
+import vct.col.origin.{Name, Origin, PanicBlame, PostBlameSplit}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -33,7 +40,7 @@ object SpecializeEndpointClasses extends RewriterBuilder {
 case class SpecializeEndpointClasses[Pre <: Generation]()
     extends Rewriter[Pre] with LazyLogging with VeymontContext[Pre] {
 
-  val implFieldOfEndpoint = SuccessionMap[Endpoint[Pre], InstanceField[Post]]()
+  val implFields = SuccessionMap[Endpoint[Pre], InstanceField[Post]]()
   val classOfEndpoint = SuccessionMap[Endpoint[Pre], Class[Post]]()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
@@ -45,9 +52,9 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
     expr match {
       case name @ EndpointName(Ref(endpoint)) =>
         implicit val o = name.o
-        Deref[Post](name.rewriteDefault(), implFieldOfEndpoint.ref(endpoint))(
-          PanicBlame("Should be safe")
-        )
+        Deref[Post](name.rewriteDefault(), implFields.ref(endpoint))(PanicBlame(
+          "Should be safe"
+        ))
       case _ => expr.rewriteDefault()
     }
 
@@ -63,7 +70,7 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
           new InstanceField[Post](dispatch(endpoint.t), Seq())(
             o.where(name = "impl")
           )
-        implFieldOfEndpoint(endpoint) = implField
+        implFields(endpoint) = implField
 
         val constructor: Constructor[Post] = {
           val implArg = new Variable(dispatch(endpoint.t))
@@ -117,4 +124,48 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
         )
       case _ => super.dispatch(decl)
     }
+
+  override def dispatch(run: ChorRun[Pre]): ChorRun[Post] = {
+    implicit val o = run.o
+    run.rewrite(
+      contract = run.contract.rewrite(requires =
+        specializeContext(currentChoreography.top).accounted &*
+          dispatch(run.contract.requires)
+      ),
+      blame = PostBlameSplit
+        .left(PanicBlame("Automatically generated permissions"), run.blame),
+    )
+  }
+
+  override def dispatch(contract: LoopContract[Pre]): LoopContract[Post] =
+    contract match {
+      case InChor(chor, inv: LoopInvariant[Pre]) =>
+        implicit val o = contract.o
+        inv.rewrite(invariant =
+          specializeContext(chor) &* dispatch(inv.invariant)
+        )
+      case InChor(chor, inv: IterationContract[Pre]) =>
+        implicit val o = contract.o
+        inv.rewrite(
+          requires = specializeContext(chor) &* dispatch(inv.requires),
+          ensures = specializeContext(chor) &* dispatch(inv.ensures),
+        )
+      case _ => contract.rewriteDefault()
+    }
+
+  // Within a choreography, we need to propagate permission for the impl fields of all endpoint to all endpoints
+  def specializeContext(
+      chor: Choreography[Pre]
+  )(implicit o: Origin): Expr[Post] = {
+    foldStar(chor.endpoints.flatMap { endpoint =>
+      chor.endpoints.map { peer =>
+        EndpointExpr[Post](
+          succ(endpoint),
+          Value(
+            FieldLocation(EndpointName[Post](succ(peer)), implFields.ref(peer))
+          ),
+        )
+      }
+    })
+  }
 }
