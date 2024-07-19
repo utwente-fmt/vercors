@@ -34,7 +34,9 @@ object StratifyExpressions extends RewriterBuilder {
 case class StratifyExpressions[Pre <: Generation]()
     extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
-  override def veymontDispatch(prog: Program[Pre]): Program[Post] = {
+  override def dispatch(prog: Program[Pre]): Program[Post] = {
+    mappings.program = prog
+
     val newProg = prog.rewrite()
     val errors = newProg.check
     // TODO (RR): if we refactor branches to be nested instead of flat, this check can

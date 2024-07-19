@@ -13,6 +13,8 @@ import vct.col.ast.{
   Choreography,
   Class,
   ClassDeclaration,
+  Constructor,
+  IdleToken,
   Declaration,
   Deref,
   Endpoint,
@@ -21,12 +23,14 @@ import vct.col.ast.{
   EndpointStatement,
   Eval,
   Expr,
+  FieldLocation,
   Fork,
   InstanceField,
   InstanceMethod,
   IterationContract,
   Join,
   Local,
+  Location,
   Loop,
   LoopContract,
   LoopInvariant,
@@ -39,9 +43,11 @@ import vct.col.ast.{
   Statement,
   ThisObject,
   Type,
+  Value,
   Variable,
+  WritePerm,
 }
-import vct.col.origin.{Name, Origin, PanicBlame}
+import vct.col.origin.{Name, Origin, PanicBlame, PostBlameSplit}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -80,6 +86,11 @@ case class GenerateImplementation[Pre <: Generation]()
 
   val currentThis = ScopedStack[ThisObject[Post]]()
 
+  override def dispatch(p: Program[Pre]): Program[Post] = {
+    mappings.program = p
+    super.dispatch(p)
+  }
+
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case p: Procedure[Pre] => super.dispatch(p)
@@ -87,18 +98,27 @@ case class GenerateImplementation[Pre <: Generation]()
         val chor = choreographyOf(cls)
         val endpoint = endpointOf(cls)
         currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {
-          globalDeclarations.succeed(
-            cls,
-            cls.rewrite(decls =
-              classDeclarations.collect {
-                cls.decls.foreach(dispatch)
-                generateRunMethod(chor, endpointOf(cls))
-                generateParamFields(chor, endpoint)
-                generatePeerFields(chor, endpoint)
-              }._1
-            ),
-          )
+          cls.rewrite(decls =
+            classDeclarations.collect {
+              cls.decls.foreach(dispatch)
+              generateRunMethod(chor, endpointOf(cls))
+              generateParamFields(chor, endpoint)
+              generatePeerFields(chor, endpoint)
+            }._1
+          ).succeed(cls)
         }
+
+      case cons: Constructor[Pre] if isEndpointClass(classOf(cons)) =>
+        implicit val o = cons.o
+        cons.rewrite(
+          contract = cons.contract.rewrite(ensures =
+            (IdleToken[Post](ThisObject(succ(classOf(cons)))) &*
+              endpointContext(endpointOf(classOf(cons)), perm = WritePerm()))
+              .accounted &* dispatch(cons.contract.ensures)
+          ),
+          blame = PostBlameSplit
+            .left(PanicBlame("Automatically generated permissions"), cons.blame),
+        ).succeed(cons)
 
       case cls: Class[Pre] => super.dispatch(cls)
       case chor: Choreography[Pre] =>
@@ -178,7 +198,7 @@ case class GenerateImplementation[Pre <: Generation]()
         classDeclarations.declare(
           new RunMethod(
             body = Some(projectStmt(run.body)(endpoint)),
-            contract = dispatch(run.contract),
+            contract = projectContract(run.contract)(endpoint),
           )(PanicBlame(""))
         )
       }
@@ -215,6 +235,39 @@ case class GenerateImplementation[Pre <: Generation]()
       classDeclarations.declare(f)
       endpointPeerFields((endpoint, peer)) = f
     }
+
+  // All permissions that we want to be in scope within the run method of an endpoint:
+  // the peer fields and param fields
+  def endpointContext(
+      endpoint: Endpoint[Pre],
+      perm: Expr[Post] = null,
+      value: Boolean = false,
+  )(implicit o: Origin): Expr[Post] = {
+    assert(value ^ (perm != null))
+
+    def makePerm(loc: Location[Post]): Expr[Post] =
+      if (perm != null)
+        Perm(loc, perm)
+      else
+        Value(loc)
+
+    val cls = endpoint.cls.decl
+    val `this` = ThisObject[Post](succ(cls))
+    val chor = choreographyOf(endpoint)
+    val peerPerms = foldStar(chor.endpoints.map { peer =>
+      val ref = endpointPeerFields
+        .ref[Post, InstanceField[Post]]((endpoint, peer))
+      makePerm(FieldLocation(`this`, ref))
+    })
+
+    val paramPerms = foldStar(chor.params.map { param =>
+      val ref = endpointParamFields
+        .ref[Post, InstanceField[Post]]((endpoint, param))
+      makePerm(FieldLocation(`this`, ref))
+    })
+
+    peerPerms &* paramPerms
+  }
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = {
     if (currentEndpoint.nonEmpty)
@@ -277,7 +330,7 @@ case class GenerateImplementation[Pre <: Generation]()
         loop(
           cond = projectExpr(l.cond),
           body = projectStmt(l.body),
-          contract = dispatch(l.contract),
+          contract = projectContract(l.contract),
         )
       // Ignore loops, branches that the current endpoint doesn't participate in
       case c @ ChorStatement(_: Loop[Pre] | _: Branch[Pre]) => Block(Seq())(c.o)
@@ -289,25 +342,37 @@ case class GenerateImplementation[Pre <: Generation]()
 
   def projectContract(
       contract: LoopContract[Pre]
-  )(implicit endpoint: Endpoint[Pre]): LoopContract[Post] =
+  )(implicit endpoint: Endpoint[Pre]): LoopContract[Post] = {
+    implicit val o = contract.o
     contract match {
       case inv: LoopInvariant[Pre] =>
-        inv.rewrite(invariant = projectExpr(inv.invariant))
+        inv.rewrite(invariant =
+          endpointContext(endpoint, value = true) &* projectExpr(inv.invariant)
+        )
       case it: IterationContract[Pre] =>
         it.rewrite(
-          requires = projectExpr(it.requires),
-          ensures = projectExpr(it.ensures),
+          requires =
+            endpointContext(endpoint, value = true) &* projectExpr(it.requires),
+          ensures =
+            endpointContext(endpoint, value = true) &* projectExpr(it.ensures),
         )
     }
+  }
 
   def projectContract(
       contract: ApplicableContract[Pre]
-  )(implicit endpoint: Endpoint[Pre]): ApplicableContract[Post] =
+  )(implicit endpoint: Endpoint[Pre]): ApplicableContract[Post] = {
+    implicit val o = contract.o
     contract.rewrite(
-      requires = (projectExpr(_)).accounted(contract.requires),
-      ensures = (projectExpr(_)).accounted(contract.ensures),
+      requires =
+        endpointContext(endpoint, value = true).accounted &*
+          mapPredicate(contract.requires, projectExpr),
+      ensures =
+        endpointContext(endpoint, value = true).accounted &*
+          mapPredicate(contract.ensures, projectExpr),
       contextEverywhere = projectExpr(contract.contextEverywhere),
     )
+  }
 
   def projectExpr(
       expr: Expr[Pre]

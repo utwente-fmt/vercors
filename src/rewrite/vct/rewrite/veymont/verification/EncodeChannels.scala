@@ -40,6 +40,11 @@ case class EncodeChannels[Pre <: Generation]()
   val includeChorExpr = ScopedStack[Boolean]()
   val substitutions = ScopedStack[Map[Expr[Pre], Expr[Post]]]()
 
+  override def dispatch(p: Program[Pre]): Program[Post] = {
+    mappings.program = p
+    super.dispatch(p)
+  }
+
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case chor: Choreography[Pre] =>

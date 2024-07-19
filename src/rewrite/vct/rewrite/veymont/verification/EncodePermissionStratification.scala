@@ -210,6 +210,11 @@ case class EncodePermissionStratification[Pre <: Generation](
       }
   }
 
+  override def dispatch(p: Program[Pre]): Program[Post] = {
+    mappings.program = p
+    super.dispatch(p)
+  }
+
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case chor: Choreography[Pre] =>

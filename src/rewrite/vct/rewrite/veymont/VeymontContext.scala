@@ -14,14 +14,6 @@ import vct.col.ast.{
 import vct.col.rewrite.{Generation, Rewriter}
 
 trait VeymontContext[Pre <: Generation] {
-  this: Rewriter[Pre] =>
-
-  final override def dispatch(program: Program[Pre]): Program[Post] = {
-    mappings.program = program
-    veymontDispatch(program)
-  }
-
-  def veymontDispatch(program: Program[Pre]): Program[Post]
 
   object mappings {
     var program: Program[Pre] = null

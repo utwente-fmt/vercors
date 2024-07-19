@@ -1,6 +1,7 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
+import vct.col
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -17,8 +18,10 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
     extends Rewriter[Pre] with VeymontContext[Pre] {
   val currentParticipants: ScopedStack[ListSet[Endpoint[Pre]]] = ScopedStack()
 
-  override def veymontDispatch(p: Program[Pre]): Program[Post] =
+  override def dispatch(p: Program[Pre]): Program[Post] = {
+    mappings.program = p
     super.dispatch(p)
+  }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {

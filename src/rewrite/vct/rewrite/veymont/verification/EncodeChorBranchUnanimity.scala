@@ -55,10 +55,11 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
 
   val currentLoop = ScopedStack[Loop[Pre]]()
 
-  override def veymontDispatch(program: Program[Pre]): Program[Post] =
-    if (enabled)
+  override def dispatch(program: Program[Pre]): Program[Post] =
+    if (enabled) {
+      mappings.program = program
       super.dispatch(program)
-    else
+    } else
       IdentityRewriter().dispatch(program)
 
   override def dispatch(decl: Declaration[Pre]): Unit =

@@ -11,6 +11,7 @@ import vct.col.ast.{
   EndpointName,
   Expr,
   InstanceField,
+  Program,
   ThisObject,
   UnitAccountedPredicate,
   Variable,
@@ -34,6 +35,11 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
 
   val implFieldOfEndpoint = SuccessionMap[Endpoint[Pre], InstanceField[Post]]()
   val classOfEndpoint = SuccessionMap[Endpoint[Pre], Class[Post]]()
+
+  override def dispatch(p: Program[Pre]): Program[Post] = {
+    mappings.program = p
+    super.dispatch(p)
+  }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
