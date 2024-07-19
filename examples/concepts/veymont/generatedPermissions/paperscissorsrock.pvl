@@ -22,29 +22,29 @@ choreography paperScissorsRock() {
 	ensures a.i == -2 && b.i == 3;
 	run {
 		loop_invariant a.i <= 0 && b.i >= 1;
-		loop_invariant a.i == 0 && b.i == 1 ==> a.draw() && b.draw() && c.draw();
-		loop_invariant a.i == b.i*(-1) + 1;
-		loop_invariant a.i < 0 ==> a.x == b.x && a.x == c.x;
-		loop_invariant a.i < 0 ==> b.y == a.y && b.y == c.y;
-		loop_invariant a.i < 0 ==> c.z == a.z && c.z == b.z;
-		loop_invariant a.i < 0 ==> a.x == (a.i % 2 == 0 ? 1 : 0);
-		loop_invariant a.i < 0 ==> b.y == (b.i == 6 ? 0 : 1);
-		loop_invariant a.i < 0 ==> c.z == 2;
-		loop_invariant b.i - a.i <= 5;
+		loop_invariant (\chor (a.i == 0 && b.i == 1 ==> a.draw() && b.draw() && c.draw()) &&
+		  (a.i == b.i*(-1) + 1) &&
+		  (a.i < 0 ==> a.x == b.x && a.x == c.x) &&
+		  (a.i < 0 ==> b.y == a.y && b.y == c.y) &&
+		  (a.i < 0 ==> c.z == a.z && c.z == b.z) &&
+		  (a.i < 0 ==> a.x == (a.i % 2 == 1 ? 0 : 1)) &&
+		  (a.i < 0 ==> b.y == (b.i == 6 ? 0 : 1)) &&
+		  (a.i < 0 ==> c.z == 2) &&
+		  (b.i - a.i <= 5));
 		while(a.draw() && b.draw() && c.draw()) {
-            a.x := a.i % 2 == 1 ? 1 : 0;
-            a.i := a.i - 1;
-            communicate b.x <- a.x;
-            communicate c.x <- a.x;
+      a.x := a.i % 2 == 1 ? 1 : 0;
+      a.i := a.i - 1;
+      communicate b.x <- a.x;
+      communicate c.x <- a.x;
 
-            b.y := b.i == 5 ? 0 : 1;
-            b.i := b.i + 1;
-            communicate a.y <- b.y;
-            communicate c.y <- b.y;
+      b.y := b.i == 5 ? 0 : 1;
+      b.i := b.i + 1;
+      communicate a.y <- b.y;
+      communicate c.y <- b.y;
 
-            c.z := 2;
-            communicate a.z <- c.z;
-            communicate b.z <- c.z;
+      c.z := 2;
+      communicate a.z <- c.z;
+      communicate b.z <- c.z;
 		}
 	}
 }

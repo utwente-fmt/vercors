@@ -14,7 +14,9 @@ case object VeSUV extends LazyLogging {
     val stages = Stages
       .vesuvOfOptions(options, ConstantBlameProvider(collector))
     stages.run(options.inputs) match {
-      case Left(_: UserError) => EXIT_CODE_ERROR
+      case Left(err: UserError) =>
+        logger.error(err.text)
+        EXIT_CODE_ERROR
       case Left(err: SystemError) => throw err
       case Right(()) =>
         logger.info("Transformation complete")

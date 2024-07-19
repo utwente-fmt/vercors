@@ -45,7 +45,7 @@ public class ClassTransformer<T> {
      * @param process Process class in intermediate representation
      * @return A COL class encoding the semantics of the given process class
      */
-    public Class<T> create_process_class(ProcessClass process) {
+    public ByReferenceClass<T> create_process_class(ProcessClass process) {
         java.util.List<ClassDeclaration<T>> declarations = new java.util.ArrayList<>();
 
         // Transform class attributes
@@ -86,7 +86,7 @@ public class ClassTransformer<T> {
      * @param state_class State class in intermediate representation
      * @return A COL class encoding the semantics of the given state class
      */
-    public Class<T> create_state_class(StateClass state_class) {
+    public ByReferenceClass<T> create_state_class(StateClass state_class) {
         java.util.List<ClassDeclaration<T>> declarations = new java.util.ArrayList<>();
 
         // Transform class attributes

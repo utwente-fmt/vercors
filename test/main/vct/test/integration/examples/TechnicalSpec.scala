@@ -66,7 +66,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "resolutionError:abstractPredicate" in "example unfolding abstract predicate" pvl """
+  vercors should error withCode "abstractFoldExpr" in "example unfolding abstract predicate" pvl """
     resource p();
 
     requires p();
@@ -75,7 +75,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "resolutionError:abstractPredicate" in "example unfolding abstract predicate inline" pvl """
+  vercors should error withCode "abstractFoldExpr" in "example unfolding abstract predicate inline" pvl """
     resource p();
 
     requires p();

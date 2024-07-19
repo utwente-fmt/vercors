@@ -638,26 +638,21 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           },
           yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
         )(inv.blame)(inv.o)
-      case fold @ Fold(inv: InstancePredicateApply[Pre]) =>
-        Fold(rewriteInstancePredicateApply(inv))(fold.blame)(fold.o)
-      case unfold @ Unfold(inv: InstancePredicateApply[Pre]) =>
-        Unfold(rewriteInstancePredicateApply(inv))(unfold.blame)(unfold.o)
       case other => rewriteDefault(other)
     }
 
-  def rewriteInstancePredicateApply(
-      inv: InstancePredicateApply[Pre]
-  ): PredicateApply[Post] =
-    PredicateApply[Post](
-      predicateSucc.ref(inv.ref.decl),
-      dispatch(inv.obj) +: inv.args.map(dispatch),
-      dispatch(inv.perm),
-    )(inv.o)
+  override def dispatch(node: ApplyAnyPredicate[Pre]): ApplyAnyPredicate[Post] =
+    node match {
+      case inv: InstancePredicateApply[Pre] =>
+        PredicateApply[Post](
+          predicateSucc.ref(inv.ref.decl),
+          dispatch(inv.obj) +: inv.args.map(dispatch),
+        )(inv.o)
+      case other => other.rewriteDefault()
+    }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     e match {
-      case u @ Unfolding(inv: InstancePredicateApply[Pre], e) =>
-        Unfolding(rewriteInstancePredicateApply(inv), dispatch(e))(u.blame)(e.o)
       case inv @ MethodInvocation(
             obj,
             Ref(method),
@@ -681,9 +676,6 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           PreBlameSplit
             .left(PanicBlame("incorrect instance method type?"), inv.blame),
         ))(inv.o)
-      case inv @ InstancePredicateApply(obj, Ref(pred), args, perm) =>
-        implicit val o: Origin = inv.o
-        rewriteInstancePredicateApply(inv) &* (dispatch(obj) !== Null())
       case inv @ InstanceFunctionInvocation(
             obj,
             Ref(func),
@@ -793,6 +785,12 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               Some(function),
             )
         }
+      case p @ Perm(PredicateLocation(inv: InstancePredicateApply[Pre]), _) =>
+        implicit val o: Origin = e.o
+        Star[Post](p.rewrite(), dispatch(inv.obj) !== Null())
+      case v @ Value(PredicateLocation(inv: InstancePredicateApply[Pre])) =>
+        implicit val o: Origin = e.o
+        Star[Post](v.rewrite(), dispatch(inv.obj) !== Null())
       case _ => rewriteDefault(e)
     }
 
@@ -810,11 +808,6 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(loc: Location[Pre]): Location[Post] =
     loc match {
-      case InstancePredicateLocation(predicate, obj, args) =>
-        PredicateLocation[Post](
-          predicateSucc.ref(predicate.decl),
-          dispatch(obj) +: args.map(dispatch),
-        )(loc.o)
       case FieldLocation(obj, Ref(field)) =>
         obj.t match {
           case _: TByReferenceClass[Pre] =>

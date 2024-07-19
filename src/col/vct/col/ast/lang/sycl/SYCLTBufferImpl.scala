@@ -210,7 +210,7 @@ trait SYCLTBufferImpl[G] extends SYCLTBufferOps[G] {
               ReadPerm(),
               copyBufferToHostdataBlame,
             ),
-            predApply(
+            predApplyExpr(
               exclusiveAccessPredRef,
               hostDataVar,
               Length(Local[G](bufferVar.ref))(copyBufferToHostdataBlame),
@@ -223,13 +223,13 @@ trait SYCLTBufferImpl[G] extends SYCLTBufferOps[G] {
               ReadPerm(),
               copyBufferToHostdataBlame,
             ),
-            predApply(
+            predApplyExpr(
               exclusiveAccessPredRef,
               hostDataVar,
               Length(Local[G](bufferVar.ref))(copyBufferToHostdataBlame),
             ),
             Unfolding(
-              predApply(
+              predApplyTarget(
                 exclusiveAccessPredRef,
                 hostDataVar,
                 Length(Local[G](bufferVar.ref))(copyBufferToHostdataBlame),
@@ -285,11 +285,26 @@ trait SYCLTBufferImpl[G] extends SYCLTBufferOps[G] {
       exclusiveAccessPredRef: Ref[G, Predicate[G]],
       hostData: Variable[G],
       len: Expr[G],
-  ): Expr[G] = {
-    PredicateApply[G](
-      exclusiveAccessPredRef,
-      Seq(Local[G](hostData.ref), len),
+  ): PredicateApply[G] = {
+    PredicateApply[G](exclusiveAccessPredRef, Seq(Local[G](hostData.ref), len))
+  }
+
+  private def predApplyTarget(
+      exclusiveAccessPredRef: Ref[G, Predicate[G]],
+      hostData: Variable[G],
+      len: Expr[G],
+  ): FoldTarget[G] = {
+    ScaledPredicateApply(
+      predApply(exclusiveAccessPredRef, hostData, len),
       WritePerm(),
     )
+  }
+
+  private def predApplyExpr(
+      exclusiveAccessPredRef: Ref[G, Predicate[G]],
+      hostData: Variable[G],
+      len: Expr[G],
+  ): Expr[G] = {
+    PredicateApplyExpr(predApply(exclusiveAccessPredRef, hostData, len))
   }
 }

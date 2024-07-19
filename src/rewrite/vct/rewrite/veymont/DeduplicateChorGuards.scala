@@ -1,14 +1,9 @@
 package vct.rewrite.veymont
 
-import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.SplitChorGuards.MultipleEndpoints
 
 import scala.collection.mutable
 
@@ -18,41 +13,43 @@ object DeduplicateChorGuards extends RewriterBuilder {
     "Deduplicates SeqGuard nodes with syntactically identical endpoints"
 }
 
-case class DeduplicateChorGuards[Pre <: Generation]() extends Rewriter[Pre] {
+case class DeduplicateChorGuards[Pre <: Generation]()
+    extends Rewriter[Pre] with VeymontContext[Pre] {
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    decl match {
+      case chor: Choreography[Pre] =>
+        currentChoreography.having(chor) { super.dispatch(chor) }
+      case _ => super.dispatch(decl)
+    }
+
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
     statement match {
-      case branch: ChorBranch[Pre] =>
-        val guards: Seq[EndpointGuard[Pre]] = branch.guards.map {
-          case guard: EndpointGuard[Pre] => guard
-          case guard: UnpointedGuard[Pre] =>
-            ??? // Excluded by RemoveUnpointedGuard
-        }
-        branch.rewrite(guards = dedup(guards))
+      case InChor(_, c @ ChorStatement(branch: Branch[Pre])) =>
+        c.rewrite(inner = branch.rewrite(branches = branch.branches.map {
+          case (cond, stmt) => (dedup(cond), stmt.rewriteDefault())
+        }))
 
-      case loop: ChorLoop[Pre] =>
-        val guards: Seq[EndpointGuard[Pre]] = loop.guards.map {
-          case guard: EndpointGuard[Pre] => guard
-          case guard: UnpointedGuard[Pre] =>
-            ??? // Excluded by RemoveUnpointedGuard
-        }
-        loop.rewrite(guards = dedup(guards))
+      case InChor(_, c @ ChorStatement(loop: Loop[Pre])) =>
+        c.rewrite(inner = loop.rewrite(cond = dedup(loop.cond)))
 
       case _ => rewriteDefault(statement)
     }
 
-  def dedup(guards: Seq[EndpointGuard[Pre]]): Seq[EndpointGuard[Post]] = {
+  def dedup(expr: Expr[Pre]): Expr[Post] = {
+    implicit val o = expr.o
     val m: mutable.LinkedHashMap[Endpoint[Pre], Seq[Expr[Pre]]] = mutable
       .LinkedHashMap()
-    guards.foreach { guard =>
-      m.updateWith(guard.endpoint.decl)(exprs =>
-        Some(exprs.getOrElse(Nil) :+ guard.condition)
-      )
+    unfoldStar(expr).foreach {
+      case EndpointExpr(Ref(endpoint), expr) =>
+        m.updateWith(endpoint)(exprs => Some(exprs.toSeq.flatten :+ expr))
+      case _ =>
     }
-    m.iterator.map { case (endpoint, exprs) =>
-      EndpointGuard[Post](
-        succ(endpoint),
-        foldAnd(exprs.map(dispatch))(DiagnosticOrigin),
-      )(exprs.head.o)
-    }.toSeq
+    foldAnd(m.iterator.map {
+      case (endpoint, parts) if parts.size > 1 =>
+        // It's unclear how to properly combine the origins of the expressions here
+        EndpointExpr[Post](succ(endpoint), foldAnd(parts.map(dispatch)))
+      case (endpoint, parts) if parts.size == 1 =>
+        EndpointExpr[Post](succ(endpoint), dispatch(parts.head))(parts.head.o)
+    }.toSeq)
   }
 }

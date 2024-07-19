@@ -64,7 +64,7 @@ case class PVLToCol[G](
         withContract(
           contract,
           contract =>
-            PVLChorRun(
+            new PVLChorRun(
               convert(body),
               contract.consumeApplicableContract(blame(decl)),
             )(blame(decl))(origin(decl).where(name = "run")),
@@ -305,7 +305,9 @@ case class PVLToCol[G](
   def convert(implicit expr: UnfoldingExprContext): Expr[G] =
     expr match {
       case UnfoldingExpr0(_, pred, _, body) =>
-        Unfolding(convert(pred), convert(body))(blame(expr))
+        Unfolding(AmbiguousFoldTarget(convert(pred)), convert(body))(blame(
+          expr
+        ))
       case UnfoldingExpr1(inner) => convert(inner)
     }
 
@@ -460,6 +462,18 @@ case class PVLToCol[G](
           AmbiguousLocation(convert(loc))(blame(expr)),
           convert(perm),
         )
+      case PvlLongEndpointExpr(_, _, endpoint, _, inner, _) =>
+        PVLEndpointExpr(
+          PVLEndpointName(convert(endpoint))(origin(endpoint)),
+          convert(inner),
+        )
+      case PvlShortEndpointExpr(_, _, _, endpoint, _, inner, _) =>
+        PVLEndpointExpr(
+          PVLEndpointName(convert(endpoint))(origin(endpoint)),
+          convert(inner),
+        )
+      case PvlLongChorExpr(_, _, inner, _) => ChorExpr(convert(inner))
+      case PvlShortChorExpr(_, _, _, _, inner, _) => ChorExpr(convert(inner))
       case PvlSender(_) => PVLSender()
       case PvlReceiver(_) => PVLReceiver()
       case PvlMessage(_) => PVLMessage()
@@ -617,18 +631,18 @@ case class PVLToCol[G](
   )(implicit node: ParserRuleContext): Statement[G] = {
     val Access0(receiver, target) = to
     val Access0(sender, msg) = from
-    val comm =
-      PVLCommunicate[G](
+    val comm = {
+      new PVLCommunicate[G](
         receiver.map(convertParticipant(_)),
         convert(target),
         sender.map(convertParticipant(_)),
         convert(msg),
       )(blame(node))
-    inv match {
-      case Some(node @ ChannelInvariant0(_, inv, _)) =>
-        PVLChannelInvariant[G](comm, convert(inv))(origin(node))
-      case None => comm
     }
+    PVLCommunicateStatement(
+      comm,
+      inv.map { case node @ ChannelInvariant0(_, inv, _) => convert(inv) },
+    )(origin(node))
   }
 
   def convertParticipant(
@@ -663,7 +677,7 @@ case class PVLToCol[G](
       case PvlAssign(target, _, value) =>
         Assign(convert(target), convert(value))(blame(stat))
       case PvlSeqAssign(participant, receiver, _, _, value) =>
-        PVLChorStatement(
+        PVLEndpointStatement(
           participant.map(convertParticipant(_)),
           Assign(convert(receiver), convert(value))(blame(stat)),
         )(blame(stat))
@@ -1208,12 +1222,11 @@ case class PVLToCol[G](
       case ValPostfix2(_, idx, _, v, _) =>
         SeqUpdate(xs, convert(idx), convert(v))
       case ValPostfix3(_, name, _, args, _) =>
-        CoalesceInstancePredicateApply(
+        PredicateApplyExpr(CoalesceInstancePredicateApply(
           xs,
           new UnresolvedRef[G, InstancePredicate[G]](convert(name)),
           args.map(convert(_)).getOrElse(Nil),
-          WritePerm(),
-        )
+        ))
     }
 
   def convert(
@@ -1248,8 +1261,10 @@ case class PVLToCol[G](
       case ValPackage(_, expr, innerStat) =>
         WandPackage(convert(expr), convert(innerStat))(blame(stat))
       case ValApplyWand(_, wand, _) => WandApply(convert(wand))(blame(stat))
-      case ValFold(_, predicate, _) => Fold(convert(predicate))(blame(stat))
-      case ValUnfold(_, predicate, _) => Unfold(convert(predicate))(blame(stat))
+      case ValFold(_, predicate, _) =>
+        Fold(AmbiguousFoldTarget(convert(predicate)))(blame(stat))
+      case ValUnfold(_, predicate, _) =>
+        Unfold(AmbiguousFoldTarget(convert(predicate)))(blame(stat))
       case ValOpen(_, _, _) => ??(stat)
       case ValClose(_, _, _) => ??(stat)
       case ValAssert(_, assn, _) => Assert(convert(assn))(blame(stat))
@@ -1895,7 +1910,9 @@ case class PVLToCol[G](
             groupText.toInt,
         )
       case ValUnfolding(_, predExpr, _, body) =>
-        Unfolding(convert(predExpr), convert(body))(blame(e))
+        Unfolding(AmbiguousFoldTarget(convert(predExpr)), convert(body))(blame(
+          e
+        ))
       case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
       case ValOldLabeled(_, _, label, _, _, expr, _) =>
         Old(

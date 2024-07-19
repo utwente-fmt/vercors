@@ -11,9 +11,6 @@ import vct.col.ast.{
   BooleanValue,
   Branch,
   ByReferenceClass,
-  ChorBranch,
-  ChorGuard,
-  ChorLoop,
   ChorPerm,
   ChorRun,
   ChorStatement,
@@ -25,13 +22,15 @@ import vct.col.ast.{
   Declaration,
   Deref,
   Endpoint,
-  EndpointGuard,
+  EndpointExpr,
   EndpointName,
+  EndpointStatement,
   Eval,
   Expr,
   Fork,
   InstanceField,
   InstanceMethod,
+  IterationContract,
   JavaClass,
   JavaConstructor,
   JavaInvocation,
@@ -44,6 +43,8 @@ import vct.col.ast.{
   Join,
   Local,
   Loop,
+  LoopContract,
+  LoopInvariant,
   MethodInvocation,
   NewObject,
   Node,
@@ -244,15 +245,7 @@ case class GenerateImplementation[Pre <: Generation]()
           val initEndpoints = chor.endpoints.map { endpoint =>
             assignLocal[Post](
               endpointLocals(endpoint).get,
-              ConstructorInvocation[Post](
-                ref = succ(endpoint.constructor.decl),
-                classTypeArgs = endpoint.typeArgs.map(dispatch),
-                args = endpoint.args.map(dispatch),
-                outArgs = Seq(),
-                typeArgs = Seq(),
-                givenMap = Seq(),
-                yields = Seq(),
-              )(PanicBlame("Should be safe")),
+              dispatch(endpoint.init),
             )
           }
 
@@ -284,7 +277,11 @@ case class GenerateImplementation[Pre <: Generation]()
 
           val mainBody = Scope(
             chor.endpoints.map(endpointLocals(_)),
-            Block(initEndpoints ++ auxFieldAssigns ++ forkJoins)(chor.o),
+            Block(
+              initEndpoints ++
+                Seq(chor.preRun.map(dispatch).getOrElse(Block(Seq()))) ++
+                auxFieldAssigns ++ forkJoins
+            )(chor.o),
           )
 
           globalDeclarations.declare(
@@ -310,7 +307,7 @@ case class GenerateImplementation[Pre <: Generation]()
       currentEndpoint.having(endpoint) {
         classDeclarations.declare(
           new RunMethod(
-            body = Some(dispatch(run.body)),
+            body = Some(projectStmt(run.body)(endpoint)),
             contract = dispatch(run.contract),
           )(PanicBlame(""))
         )
@@ -351,7 +348,7 @@ case class GenerateImplementation[Pre <: Generation]()
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = {
     if (currentEndpoint.nonEmpty)
-      projectStatement(statement)
+      projectStmt(statement)(currentEndpoint.top)
     else
       super.dispatch(statement)
   }
@@ -373,67 +370,85 @@ case class GenerateImplementation[Pre <: Generation]()
         Deref[Post](currentThis.top, endpointParamFields.ref((endpoint, v)))(
           PanicBlame("Shouldn't happen")
         )
-      case InEndpoint(_, endpoint, expr) => projectExpression(expr, endpoint)
+      case InEndpoint(_, endpoint, expr) => projectExpr(expr)(endpoint)
       case _ => expr.rewriteDefault()
     }
 
-  def projectStatement(statement: Statement[Pre]): Statement[Post] =
+  def projectStmt(
+      statement: Statement[Pre]
+  )(implicit endpoint: Endpoint[Pre]): Statement[Post] =
     statement match {
-      // Whitelist statements that do not need an endpoint context
-      case ChorStatement(None, statement) =>
+      case EndpointStatement(None, statement) =>
         statement match {
-          case _: Branch[Pre] | _: Loop[Pre] => projectStatement(statement)
           case _ =>
             throw new Exception(
               "Encountered ChorStatement without endpoint context"
             )
         }
-      case ChorStatement(Some(Ref(endpoint)), inner)
-          if endpoint == currentEndpoint.top =>
+      case EndpointStatement(Some(Ref(other)), inner) if other == endpoint =>
         inner match {
           case assign: Assign[Pre] => assign.rewriteDefault()
           case eval: Eval[Pre] => eval.rewriteDefault()
         }
       // Ignore statements that do not match the current endpoint
-      case ChorStatement(_, _) => Block(Seq())(statement.o)
-      case branch: ChorBranch[Pre]
-          if branch.guards.map(_.endpointOpt.get)
-            .contains(currentEndpoint.top) =>
+      case EndpointStatement(_, _) => Block(Seq())(statement.o)
+      // Specialize composite statements to the current endpoint
+      case c @ ChorStatement(branch: Branch[Pre])
+          if c.explicitEndpoints.contains(endpoint) =>
         implicit val o = branch.o
         Branch[Post](
-          Seq(
-            (projectExpression(branch.guards)(branch.o), dispatch(branch.yes))
-          ) ++ branch.no.map(no => Seq((tt[Post], dispatch(no))))
-            .getOrElse(Seq())
+          Seq((projectExpr(branch.cond), projectStmt(branch.yes))) ++
+            branch.no.map(no => Seq((tt[Post], projectStmt(no))))
+              .getOrElse(Seq())
         )
-      case chorLoop: ChorLoop[Pre]
-          if chorLoop.guards.map(_.endpointOpt.get)
-            .contains(currentEndpoint.top) =>
-        implicit val o = chorLoop.o
+      case c @ ChorStatement(l: Loop[Pre])
+          if c.explicitEndpoints.contains(endpoint) =>
+        implicit val o = l.o
         loop(
-          cond = projectExpression(chorLoop.guards)(chorLoop.o),
-          body = dispatch(chorLoop.body),
-          contract = dispatch(chorLoop.contract),
+          cond = projectExpr(l.cond),
+          body = projectStmt(l.body),
+          contract = dispatch(l.contract),
         )
-      case _: ChorBranch[Pre] | _: ChorLoop[Pre] => Block(Seq())(statement.o)
+      // Ignore loops, branches that the current endpoint doesn't participate in
+      case c @ ChorStatement(_: Loop[Pre] | _: Branch[Pre]) => Block(Seq())(c.o)
+      // Rewrite blocks transparently
       case block: Block[Pre] => block.rewriteDefault()
+      // Don't let any missed cases slip through
       case s => throw new Exception(s"Unsupported: $s")
     }
 
-  def projectExpression(
-      guards: Seq[ChorGuard[Pre]]
-  )(implicit o: Origin): Expr[Post] =
-    foldStar(guards.collect {
-      case EndpointGuard(Ref(endpoint), cond)
-          if endpoint == currentEndpoint.top =>
-        dispatch(cond)
-    })
+  def projectContract(
+      contract: LoopContract[Pre]
+  )(implicit endpoint: Endpoint[Pre]): LoopContract[Post] =
+    contract match {
+      case inv: LoopInvariant[Pre] =>
+        inv.rewrite(invariant = projectExpr(inv.invariant))
+      case it: IterationContract[Pre] =>
+        it.rewrite(
+          requires = projectExpr(it.requires),
+          ensures = projectExpr(it.ensures),
+        )
+    }
 
-  def projectExpression(expr: Expr[Pre], endpoint: Endpoint[Pre]): Expr[Post] =
+  def projectContract(
+      contract: ApplicableContract[Pre]
+  )(implicit endpoint: Endpoint[Pre]): ApplicableContract[Post] =
+    contract.rewrite(
+      requires = (projectExpr(_)).accounted(contract.requires),
+      ensures = (projectExpr(_)).accounted(contract.ensures),
+      contextEverywhere = projectExpr(contract.contextEverywhere),
+    )
+
+  def projectExpr(
+      expr: Expr[Pre]
+  )(implicit endpoint: Endpoint[Pre]): Expr[Post] =
     expr match {
       case ChorPerm(Ref(other), loc, perm) if endpoint == other =>
         Perm(dispatch(loc), dispatch(perm))(expr.o)
       case ChorPerm(Ref(other), _, _) if endpoint != other => tt
+      case EndpointExpr(Ref(other), expr) if endpoint == other =>
+        projectExpr(expr)
+      case EndpointExpr(Ref(other), expr) => tt
       case _ => expr.rewriteDefault()
     }
 
@@ -641,7 +656,8 @@ case class GenerateImplementation[Pre <: Generation]()
       thread: Endpoint[Pre],
       threadField: InstanceField[Post],
   ): JavaConstructor[Post] = {
-    val threadConstrArgBlocks = thread.args.map {
+    val threadConstrArgBlocks: Seq[(Name, Type[Post])] =
+      ??? /* thread.args.map {
       case l: Local[Pre] =>
         (l.ref.decl.o.getPreferredNameOrElse(), dispatch(l.t))
       case other =>
@@ -649,7 +665,7 @@ case class GenerateImplementation[Pre <: Generation]()
           other,
           "This node is expected to be an argument of seq_prog, and have type Local",
         )
-    }
+    } */
     val threadConstrArgs: Seq[JavaParam[Post]] = threadConstrArgBlocks.map {
       case (a, t) =>
         new JavaParam[Post](Seq.empty, a.camel, t)(ThreadClassOrigin(thread))
@@ -787,11 +803,11 @@ case class GenerateImplementation[Pre <: Generation]()
         m.body.map(getChannelNamesAndTypes).getOrElse(
           throw ParalleliseEndpointsError(
             m,
-            "Abstract methods are not supported inside `seq_prog`.",
+            "Abstract methods are not supported inside a choreography.",
           )
         )
       case other =>
-        throw ParalleliseEndpointsError(other, "seq_program method expected")
+        throw ParalleliseEndpointsError(other, "choreography method expected")
     }
 
   private def getChannelNamesAndTypes(
@@ -898,20 +914,20 @@ case class GenerateImplementation[Pre <: Generation]()
     }
   }
 
-  private def paralleliseThreadCondition(
-      node: Expr[Pre],
-      thread: Endpoint[Pre],
-      c: ChorGuard[Pre],
-  ) = {
-    ???
-    // TODO: Broke this because AST changed, repair
+//  private def paralleliseThreadCondition(
+//      node: Expr[Pre],
+//      thread: Endpoint[Pre],
+//      c: ChorGuard[Pre],
+//  ) = {
+//    ???
+  // TODO: Broke this because AST changed, repair
 //    c.conditions.find { case (threadRef, _) =>
 //      threadRef.decl == thread
 //    } match {
 //      case Some((_, threadExpr)) => dispatch(threadExpr)
 //      case _ => throw ParalleliseEndpointsError(node, "Condition of if statement or while loop must contain an expression for every thread")
 //    }
-  }
+//  }
 
   private def getThisVeyMontDeref(
       thread: Endpoint[Pre],
@@ -946,7 +962,7 @@ case class GenerateImplementation[Pre <: Generation]()
         case _ =>
           throw ParalleliseEndpointsError(
             st,
-            "Statement not allowed in seq_program",
+            "Statement not allowed in choreography",
           )
       }
     } else

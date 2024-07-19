@@ -39,6 +39,7 @@ case class Silicon(
     printQuantifierStatistics: Boolean = false,
     reportOnNoProgress: Boolean = true,
     traceBranchConditions: Boolean = false,
+    optimizeUnsafe: Boolean = false,
     branchConditionReportInterval: Option[Int] = Some(1000),
     timeoutValue: Int = 30,
     totalTimeOut: Int = 0,
@@ -96,8 +97,11 @@ case class Silicon(
       z3Path.toString,
       "--z3ConfigArgs",
       z3Config,
-      "--ideModeAdvanced",
     )
+    if (optimizeUnsafe)
+      siliconConfig ++= Seq("--parallelizeBranches")
+    else
+      siliconConfig ++= Seq("--ideModeAdvanced")
 
     if (proverLogFile.isDefined) {
       // PB: note: enableTempDirectory works unexpectedly: it only enables the logging of smtlib provers and does
@@ -121,11 +125,12 @@ case class Silicon(
     siliconConfig :+= "-"
 
     silicon.parseCommandLine(siliconConfig)
-    silicon.symbExLog = SiliconLogListener(
-      reportOnNoProgress,
-      traceBranchConditions,
-      branchConditionReportInterval,
-    )
+    if (!optimizeUnsafe)
+      silicon.symbExLog = SiliconLogListener(
+        reportOnNoProgress,
+        traceBranchConditions,
+        branchConditionReportInterval,
+      )
 
     silicon.start()
 

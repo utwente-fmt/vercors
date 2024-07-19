@@ -117,7 +117,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
   def depVars[G](bindings: Set[Variable[G]], e: Expr[G]): Set[Variable[G]] = {
     val result: mutable.Set[Variable[G]] = mutable.Set()
-    e.transSubnodes.foreach {
+    e.foreach {
       case Local(ref) if bindings.contains(ref.decl) => result.addOne(ref.decl)
       case _ =>
     }

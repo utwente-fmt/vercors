@@ -45,10 +45,8 @@ case class FilterSpecIgnore[Pre <: Generation]() extends Rewriter[Pre] {
   var program: Program[Pre] = null
 
   lazy val keepApplicables: Map[ContractApplicable[Pre], Node[Pre]] =
-    program.collect {
-      case endpoint: Endpoint[Pre] => (endpoint.constructor.decl, endpoint)
-      case invocation: ProcedureInvocation[Pre] =>
-        (invocation.ref.decl, invocation)
+    program.collect { case invocation: ProcedureInvocation[Pre] =>
+      (invocation.ref.decl, invocation)
     }.toMap
 
   override def dispatch(p: Program[Pre]): Program[Post] = {

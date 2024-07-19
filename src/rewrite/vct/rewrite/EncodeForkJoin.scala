@@ -109,19 +109,21 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
       case vct.col.ast.IdleToken(obj) =>
         implicit val o: Origin = e.o
         val cls = getRunnableClass(obj)
-        InstancePredicateApply[Post](
-          dispatch(obj),
-          idleToken.ref(cls),
-          Nil,
+        Perm(
+          PredicateLocation(
+            InstancePredicateApply[Post](dispatch(obj), idleToken.ref(cls), Nil)
+          ),
           WritePerm(),
         )
       case vct.col.ast.JoinToken(obj) =>
         implicit val o: Origin = e.o
         val cls = getRunnableClass(obj)
-        InstancePredicateApply[Post](
-          dispatch(obj),
-          runningToken.ref(cls),
-          Nil,
+        Perm(
+          PredicateLocation(InstancePredicateApply[Post](
+            dispatch(obj),
+            runningToken.ref(cls),
+            Nil,
+          )),
           WritePerm(),
         )
 
@@ -141,10 +143,12 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
               With(
                 Block(Seq(
                   assignLocal(obj.get, NewObject(succ(cls))),
-                  Inhale(InstancePredicateApply[Post](
-                    obj.get,
-                    idleToken.ref(cls),
-                    Nil,
+                  Inhale(Perm(
+                    PredicateLocation(InstancePredicateApply[Post](
+                      obj.get,
+                      idleToken.ref(cls),
+                      Nil,
+                    )),
                     WritePerm(),
                   )),
                 )),
@@ -167,10 +171,12 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
         cons.rewrite(body =
           cons.body.map(body =>
             Block(Seq(
-              Inhale(InstancePredicateApply[Post](
-                ThisObject(succ(cons.cls.decl)),
-                idleToken.ref(cons.cls.decl),
-                Nil,
+              Inhale(Perm(
+                PredicateLocation(InstancePredicateApply[Post](
+                  ThisObject(succ(cons.cls.decl)),
+                  idleToken.ref(cons.cls.decl),
+                  Nil,
+                )),
                 WritePerm(),
               )),
               dispatch(body),
@@ -196,18 +202,22 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
                 "satisfiability is checked by verifying the run method"
               ),
               requires = SplitAccountedPredicate(
-                UnitAccountedPredicate(InstancePredicateApply[Post](
-                  ThisObject(succ(cls)),
-                  idleToken.ref(cls),
-                  Nil,
+                UnitAccountedPredicate(Perm(
+                  PredicateLocation(InstancePredicateApply[Post](
+                    ThisObject(succ(cls)),
+                    idleToken.ref(cls),
+                    Nil,
+                  )),
                   WritePerm(),
                 )),
                 dispatch(m.contract.requires),
               ),
-              ensures = UnitAccountedPredicate(InstancePredicateApply[Post](
-                ThisObject(succ(cls)),
-                runningToken.ref(cls),
-                Nil,
+              ensures = UnitAccountedPredicate(Perm(
+                PredicateLocation(InstancePredicateApply[Post](
+                  ThisObject(succ(cls)),
+                  runningToken.ref(cls),
+                  Nil,
+                )),
                 WritePerm(),
               )),
             ),
@@ -224,17 +234,21 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
               blame = PanicBlame(
                 "one predicate resource is obviously satisfiable"
               ),
-              requires = UnitAccountedPredicate(InstancePredicateApply[Post](
-                ThisObject(succ(cls)),
-                runningToken.ref(cls),
-                Nil,
+              requires = UnitAccountedPredicate(Perm(
+                PredicateLocation(InstancePredicateApply[Post](
+                  ThisObject(succ(cls)),
+                  runningToken.ref(cls),
+                  Nil,
+                )),
                 WritePerm(),
               )),
               ensures = SplitAccountedPredicate(
-                UnitAccountedPredicate(InstancePredicateApply[Post](
-                  ThisObject(succ(cls)),
-                  idleToken.ref(cls),
-                  Nil,
+                UnitAccountedPredicate(Perm(
+                  PredicateLocation(InstancePredicateApply[Post](
+                    ThisObject(succ(cls)),
+                    idleToken.ref(cls),
+                    Nil,
+                  )),
                   WritePerm(),
                 )),
                 dispatch(m.contract.ensures),

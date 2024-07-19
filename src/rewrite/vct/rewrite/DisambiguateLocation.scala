@@ -47,14 +47,7 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
         SilverFieldLocation(dispatch(obj), succ(ref.decl))
       case expr @ ArraySubscript(arr, index) =>
         ArrayLocation(dispatch(arr), dispatch(index))(expr.blame)
-      case PredicateApply(ref, args, WritePerm()) =>
-        PredicateLocation(succ(ref.decl), (args.map(dispatch)))
-      case InstancePredicateApply(obj, ref, args, WritePerm()) =>
-        InstancePredicateLocation(
-          succ(ref.decl),
-          dispatch(obj),
-          args.map(dispatch),
-        )
+      case PredicateApplyExpr(inv) => PredicateLocation(dispatch(inv))
       case InlinePattern(inner, pattern, group) =>
         InLinePatternLocation(
           exprToLoc(inner, blame),

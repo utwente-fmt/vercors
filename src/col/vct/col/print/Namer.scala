@@ -61,6 +61,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
       case _: Let[G] => ()
       case _: ScopedExpr[G] => ()
       case _: ForPerm[G] => ()
+      case _: Choreography[G] => ()
     }
 
   private def nearestCallable =

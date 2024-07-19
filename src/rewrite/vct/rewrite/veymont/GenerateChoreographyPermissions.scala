@@ -15,7 +15,7 @@ import scala.collection.immutable.ListSet
 object GenerateChoreographyPermissions extends RewriterBuilderArg[Boolean] {
   override def key: String = "generateChoreographyPermissions"
   override def desc: String =
-    "Generates permissions for fields of some types (classes, int, bool, and arrays of these) for constructs used inside seq_program."
+    "Generates permissions for fields of some types (classes, int, bool, and arrays of these) for constructs used inside choreographies."
 }
 
 case class GenerateChoreographyPermissions[Pre <: Generation](
@@ -25,7 +25,6 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
   val currentPerm: ScopedStack[Expr[Post]] = ScopedStack()
   val currentProg: ScopedStack[Choreography[Pre]] = ScopedStack()
   val generatingClasses: ScopedStack[Class[Pre]] = ScopedStack()
-  val generatingOrigin: ScopedStack[Node[Pre]] = ScopedStack()
 
   /* - Permission generation table -
       Only considers nodes as necessary for VeyMont case studies.
@@ -85,7 +84,7 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
         )
 
       case cls: Class[Pre] if enabled =>
-        currentPerm.having(classPerm(cls)) { rewriteDefault(cls) }
+        currentPerm.having(classPerm(cls)) { cls.rewriteDefault().succeed(cls) }
 
       case fun: InstanceFunction[Pre] if enabled =>
         implicit val o = fun.o
@@ -130,35 +129,46 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
           ),
         )
 
-      case prog: Choreography[Pre] if enabled =>
-        val run = prog.run
-        currentProg.having(prog) {
+      case chor: Choreography[Pre] if enabled =>
+        val run = chor.run
+        currentProg.having(chor) {
           globalDeclarations.succeed(
-            prog,
-            prog.rewrite(
-              contract =
+            chor,
+            chor.rewrite(
+              contract = {
                 prependContract(
-                  prog.contract,
-                  variablesPerm(prog.params)(prog.o),
-                  variablesPerm(prog.params)(prog.o),
-                )(prog.o),
+                  chor.contract,
+                  variablesPerm(chor.params)(chor.o),
+                  variablesPerm(chor.params)(chor.o),
+                )(chor.o)
+              },
               run = run.rewrite(
                 contract =
                   prependContract(
                     run.contract,
-                    endpointsPerm(prog.endpoints)(run.o),
-                    endpointsPerm(prog.endpoints)(run.o),
+                    endpointsPerm(chor.endpoints)(run.o),
+                    endpointsPerm(chor.endpoints)(run.o),
                   )(run.o),
                 body =
-                  currentPerm.having(endpointsPerm(prog.endpoints)(run.o)) {
-                    rewriteDefault(run.body)
+                  currentPerm.having(endpointsPerm(chor.endpoints)(run.o)) {
+                    run.body.rewriteDefault()
                   },
               ),
             ),
           )
         }
 
-      case decl => rewriteDefault(decl)
+      case comm: Communicate[Pre] if enabled =>
+        val perms =
+          transitivePerm(Message[Post](succ(comm))(comm.o), comm.msg.t)(comm.o)
+        val invariant =
+          comm.invariant match {
+            case BooleanValue(true) => perms
+            case _ => (perms &* dispatch(comm.invariant))(comm.o)
+          }
+        comm.rewrite(invariant = invariant).succeed(comm)
+
+      case decl => super.dispatch(decl)
     }
 
   def prependContract(
@@ -189,25 +199,25 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
     statement match {
-      case loop: ChorLoop[Pre] =>
+      case c @ ChorStatement(loop: Loop[Pre]) if enabled =>
         currentPerm.having(
           endpointsPerm(participants(statement).toSeq)(loop.contract.o)
-        ) { loop.rewriteDefault() }
-      case statement => rewriteDefault(statement)
+        ) { c.rewriteDefault() }
+      case statement => statement.rewriteDefault()
     }
 
   override def dispatch(loopContract: LoopContract[Pre]): LoopContract[Post] =
     (currentPerm.topOption, loopContract) match {
-      case (Some(perm), invariant: LoopInvariant[Pre]) =>
+      case (Some(perm), invariant: LoopInvariant[Pre]) if enabled =>
         implicit val o = loopContract.o
         invariant.rewrite(invariant = perm &* dispatch(invariant.invariant))
-      case (Some(perm), iteration: IterationContract[Pre]) =>
+      case (Some(perm), iteration: IterationContract[Pre]) if enabled =>
         implicit val o = loopContract.o
         iteration.rewrite(
           requires = perm &* dispatch(iteration.requires),
           ensures = perm &* dispatch(iteration.ensures),
         )
-      case _ => rewriteDefault(loopContract)
+      case _ => loopContract.rewriteDefault()
     }
 
   def endpointPerm(endpoint: Endpoint[Pre])(implicit o: Origin): Expr[Post] =
@@ -296,11 +306,16 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
   def fieldTransitivePerm(`this`: Expr[Post], f: InstanceField[Pre])(
       implicit o: Origin
   ): Expr[Post] = {
-    fieldPerm[Post](`this`, succ(f), WritePerm()) &* transitivePerm(
-      Deref[Post](`this`, succ(f))(PanicBlame(
-        "Permission for this field is already established"
-      )),
-      f.t,
-    )
+    val left = fieldPerm[Post](`this`, succ(f), WritePerm())
+    f.t match {
+      case _: TClass[Pre] | _: TArray[Pre] =>
+        left &* transitivePerm(
+          Deref[Post](`this`, succ(f))(PanicBlame(
+            "Permission for this field is already established"
+          )),
+          f.t,
+        )
+      case _ => left
+    }
   }
 }

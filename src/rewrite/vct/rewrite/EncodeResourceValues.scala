@@ -56,9 +56,6 @@ case class EncodeResourceValues[Pre <: Generation]()
     object Bool extends ResourcePattern
     case class Perm(loc: ResourcePatternLoc) extends ResourcePattern
     case class Value(loc: ResourcePatternLoc) extends ResourcePattern
-    case class Predicate(p: col.Predicate[Pre]) extends ResourcePattern
-    case class InstancePredicate(p: col.InstancePredicate[Pre])
-        extends ResourcePattern
     case class Star(left: ResourcePattern, right: ResourcePattern)
         extends ResourcePattern
     case class Implies(res: ResourcePattern) extends ResourcePattern
@@ -94,10 +91,12 @@ case class EncodeResourceValues[Pre <: Generation]()
           ArrayLocation(arr.t.asArray.get.element)
         case col.PointerLocation(ptr) =>
           PointerLocation(ptr.t.asPointer.get.element)
-        case col.PredicateLocation(predicate, _) =>
+        case col.PredicateLocation(PredicateApply(predicate, _)) =>
           PredicateLocation(predicate.decl)
-        case col.InstancePredicateLocation(predicate, _, _) =>
+        case col.PredicateLocation(InstancePredicateApply(_, predicate, _)) =>
           InstancePredicateLocation(predicate.decl)
+        case col.PredicateLocation(CoalesceInstancePredicateApply(obj, _, _)) =>
+          throw UnknownResourceValue(obj)
         case col.InLinePatternLocation(loc, _) => scan(loc)
         case AmbiguousLocation(expr) => throw UnknownResourceValue(expr)
       }
@@ -113,9 +112,6 @@ case class EncodeResourceValues[Pre <: Generation]()
         case e if TBool().superTypeOf(e.t) => Bool
         case col.Perm(loc, _) => Perm(scan(loc))
         case col.Value(loc) => Value(scan(loc))
-        case apply: PredicateApply[Pre] => Predicate(apply.ref.decl)
-        case apply: InstancePredicateApply[Pre] =>
-          InstancePredicate(apply.ref.decl)
 
         case col.Star(left, right) => Star(scan(left), scan(right))
         case col.Implies(_, res) => Implies(scan(res))
@@ -217,15 +213,6 @@ case class EncodeResourceValues[Pre <: Generation]()
             case ResourcePattern.Bool => Seq(TBool())
             case ResourcePattern.Perm(loc) => freeTypesLoc(loc) :+ TRational()
             case ResourcePattern.Value(loc) => freeTypesLoc(loc)
-            case ResourcePattern.Predicate(p) => p.args.map(_.t).map(dispatch)
-            case ResourcePattern.InstancePredicate(p) =>
-              nonGeneric(predicateOwner(p))
-              (predicateOwner(p) match {
-                case cls: ByReferenceClass[Pre] =>
-                  TByReferenceClass(succ[Class[Post]](cls), Seq())
-                case cls: ByValueClass[Pre] =>
-                  TByValueClass(succ[Class[Post]](cls), Seq())
-              }) +: p.args.map(_.t).map(dispatch)
             case ResourcePattern.Star(left, right) =>
               freeTypes(left) ++ freeTypes(right)
             case ResourcePattern.Implies(res) => freeTypes(res)
@@ -302,10 +289,10 @@ case class EncodeResourceValues[Pre <: Generation]()
             case ResourcePattern.PointerLocation(_) -> PointerLocation(ptr) =>
               Seq(dispatch(ptr))
             case ResourcePattern.PredicateLocation(_) ->
-                PredicateLocation(_, args) =>
+                PredicateLocation(PredicateApply(_, args)) =>
               args.map(dispatch)
             case ResourcePattern.InstancePredicateLocation(_) ->
-                InstancePredicateLocation(_, obj, args) =>
+                PredicateLocation(InstancePredicateApply(obj, _, args)) =>
               dispatch(obj) +: args.map(dispatch)
             case _ -> _ => ???
           }
@@ -317,12 +304,6 @@ case class EncodeResourceValues[Pre <: Generation]()
               makeLoc(loc, locPat) :+ dispatch(perm)
             case ResourcePattern.Value(locPat) -> Value(loc) =>
               makeLoc(loc, locPat)
-            case ResourcePattern.Predicate(_) ->
-                PredicateApply(_, args, perm) =>
-              args.map(dispatch) :+ dispatch(perm)
-            case ResourcePattern.InstancePredicate(p) ->
-                InstancePredicateApply(obj, _, args, perm) =>
-              Seq(dispatch(obj)) ++ args.map(dispatch) ++ Seq(dispatch(perm))
             case ResourcePattern.Star(leftPat, rightPat) -> Star(left, right) =>
               make(left, leftPat) ++ make(right, rightPat)
             case ResourcePattern.Implies(pat) -> Implies(cond, res) =>
@@ -356,9 +337,11 @@ case class EncodeResourceValues[Pre <: Generation]()
                 "Design flaw: the structure should include wf somehow"
               ))
             case ResourcePattern.PredicateLocation(ref) =>
-              PredicateLocation(succ(ref), getters)
+              PredicateLocation(PredicateApply(succ(ref), getters))
             case ResourcePattern.InstancePredicateLocation(ref) =>
-              InstancePredicateLocation(succ(ref), getters.head, getters.tail)
+              PredicateLocation(
+                InstancePredicateApply(getters.head, succ(ref), getters.tail)
+              )
           }
 
         def toResource(getters: Seq[Expr[Post]], pat: ResourcePattern)(
@@ -370,15 +353,6 @@ case class EncodeResourceValues[Pre <: Generation]()
               Perm(toResourceLoc(getters.init, loc), getters.last)
             case ResourcePattern.Value(loc) =>
               Value(toResourceLoc(getters, loc))
-            case ResourcePattern.Predicate(p) =>
-              PredicateApply(succ(p), getters.init, getters.last)
-            case ResourcePattern.InstancePredicate(p) =>
-              InstancePredicateApply(
-                getters.head,
-                succ(p),
-                getters.tail.init,
-                getters.last,
-              )
             case ResourcePattern.Star(left, right) =>
               val split =
                 freeTypes(left).size // indicative of a Really Good Abstraction
@@ -470,9 +444,10 @@ case class EncodeResourceValues[Pre <: Generation]()
             cond -> res
           }.toSeq
 
-        val otherwise = PredicateApply[Post](
-          arbitraryResourceValue.top.ref,
-          Seq(v),
+        val otherwise = Perm(
+          PredicateLocation(
+            PredicateApply[Post](arbitraryResourceValue.top.ref, Seq(v))
+          ),
           WritePerm(),
         )
 

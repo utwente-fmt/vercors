@@ -4,28 +4,66 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
-import vct.col.origin.{Origin, PanicBlame}
+import vct.col.origin.{
+  Blame,
+  BranchUnanimityFailed,
+  ChorStatementFailure,
+  LoopUnanimityNotEstablished,
+  LoopUnanimityNotMaintained,
+  Origin,
+  PanicBlame,
+}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{RefField, RefPVLEndpoint}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import vct.rewrite.lang.LangVeyMontToCol.{AssignNotAllowed, NoRunMethod}
+import vct.rewrite.lang.LangVeyMontToCol.{
+  AssignNotAllowed,
+  ForwardBranchUnanimityFailed,
+  ForwardLoopUnanimityFailed,
+  NoRunMethod,
+}
 import vct.rewrite.veymont.InferEndpointContexts
 
 case object LangVeyMontToCol {
   case class NoRunMethod(prog: PVLChoreography[_]) extends UserError {
     override def code: String = "noRunMethod"
     override def text: String =
-      prog.o.messageInContext(s"This `seq_program` has no `run` method.")
+      prog.o.messageInContext(s"This choreography has no `run` method.")
   }
 
   case class AssignNotAllowed(assign: Assign[_]) extends UserError {
     override def code: String = "assignNotAllowed"
     override def text: String =
       assign.o.messageInContext(
-        "Plain assignment is not allowed in `seq_program`. Use `:=` instead."
+        "Plain assignment is not allowed in a choreography. Use `:=` instead."
       )
+  }
+
+  case class ForwardBranchUnanimityFailed(branch: PVLBranch[_])
+      extends Blame[ChorStatementFailure]() {
+    def blame(error: ChorStatementFailure): Unit =
+      error match {
+        case error: BranchUnanimityFailed => branch.blame.blame(error)
+        case error =>
+          PanicBlame(
+            s"ChorStatement got error ${error.code}, but it only supports branch unanimity"
+          ).blame(error)
+      }
+  }
+
+  case class ForwardLoopUnanimityFailed(loop: PVLLoop[_])
+      extends Blame[ChorStatementFailure]() {
+    def blame(error: ChorStatementFailure): Unit =
+      error match {
+        case error: LoopUnanimityNotMaintained => loop.blame.blame(error)
+        case error: LoopUnanimityNotEstablished => loop.blame.blame(error)
+        case error =>
+          PanicBlame(
+            s"ChorStatement got error ${error.code}, but it only supports loop unanimity maintained/established"
+          ).blame(error)
+      }
   }
 }
 
@@ -47,44 +85,44 @@ case class LangVeyMontToCol[Pre <: Generation](
   val currentStatement: ScopedStack[Statement[Pre]] = ScopedStack()
   val currentExpr: ScopedStack[Expr[Pre]] = ScopedStack()
 
-  def rewriteCommunicate(
-      comm: PVLCommunicate[Pre],
-      inv: Expr[Pre],
+  def rewriteCommunicateStatement(
+      comm: PVLCommunicateStatement[Pre]
   ): CommunicateStatement[Post] = {
+    val inner = comm.comm
     val newComm =
       new Communicate[Post](
-        rw.dispatch(inv),
-        Some(endpointSucc.ref(comm.inferredReceiver.get)),
-        rw.dispatch(comm.target),
-        Some(endpointSucc.ref(comm.inferredSender.get)),
-        rw.dispatch(comm.msg),
-      )(comm.blame)(comm.o)
-    commSucc(comm) = newComm
+        rw.dispatch(comm.inv.getOrElse(tt[Pre])),
+        Some(endpointSucc.ref(inner.inferredReceiver.get)),
+        rw.dispatch(inner.target),
+        Some(endpointSucc.ref(inner.inferredSender.get)),
+        rw.dispatch(inner.msg),
+      )(inner.blame)(comm.o)
+    commSucc(inner) = newComm
     CommunicateStatement(newComm)(comm.o)
   }
-
-  def rewriteCommunicate(
-      comm: PVLCommunicate[Pre]
-  ): CommunicateStatement[Post] = rewriteCommunicate(comm, tt)
-
-  def rewriteChannelInv(
-      inv: PVLChannelInvariant[Pre]
-  ): CommunicateStatement[Post] =
-    rewriteCommunicate(inv.comm.asInstanceOf[PVLCommunicate[Pre]], inv.inv)
 
   def rewriteEndpointName(
       name: PVLEndpointName[Pre]
   ): Ref[Post, Endpoint[Post]] = endpointSucc.ref(name.ref.get.decl)
 
-  def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit =
+  def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit = {
+    val classTypeArgs = endpoint.typeArgs.map(rw.dispatch)
     endpointSucc(endpoint) = rw.endpoints.declare(
-      new Endpoint(
+      new Endpoint[Post](
         rw.succ[Class[Post]](endpoint.cls.decl),
-        endpoint.typeArgs.map(rw.dispatch),
-        rw.pvl.constructorSucc(endpoint.ref.get),
-        endpoint.args.map(rw.dispatch),
-      )(endpoint.blame)(endpoint.o)
+        classTypeArgs,
+        ConstructorInvocation(
+          rw.pvl.constructorSucc(endpoint.ref.get),
+          classTypeArgs,
+          endpoint.args.map(rw.dispatch),
+          Seq(),
+          Seq(),
+          Seq(),
+          Seq(),
+        )(endpoint.blame)(endpoint.o),
+      )(endpoint.o)
     )
+  }
 
   def rewriteChoreography(prog: PVLChoreography[Pre]): Unit = {
     implicit val o: Origin = prog.o
@@ -124,35 +162,34 @@ case class LangVeyMontToCol[Pre <: Generation](
     ChorRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
   }
 
-  def rewriteBranch(branch: PVLBranch[Pre]): UnresolvedChorBranch[Post] =
-    UnresolvedChorBranch(branch.branches.map { case (e, s) =>
-      (rw.dispatch(e), rw.dispatch(s))
-    })(branch.blame)(branch.o)
-
-  def rewriteLoop(loop: PVLLoop[Pre]): UnresolvedChorLoop[Post] =
-    UnresolvedChorLoop(
-      rw.dispatch(loop.cond),
-      rw.dispatch(loop.contract),
-      rw.dispatch(loop.body),
-    )(loop.blame)(loop.o)
-
   def rewriteStatement(stmt: Statement[Pre]): Statement[Post] =
     stmt match {
-      case stmt @ PVLChorStatement(endpointName, inner) =>
-        ChorStatement[Post](
+      case stmt @ PVLEndpointStatement(endpointName, inner) =>
+        EndpointStatement[Post](
           endpointName.map(rewriteEndpointName),
           inner.rewriteDefault(),
         )(stmt.blame)(stmt.o)
+      case eval: Eval[Pre] =>
+        EndpointStatement[Post](None, eval.rewriteDefault())(PanicBlame(
+          "Inner statement cannot fail"
+        ))(stmt.o)
       case _: Block[Pre] | _: Scope[Pre] =>
         currentStatement.having(stmt) { rw.dispatch(stmt) }
-      case branch: PVLBranch[Pre] => rewriteBranch(branch)
-      case loop: PVLLoop[Pre] => rewriteLoop(loop)
-      case comm: PVLCommunicate[Pre] => rewriteCommunicate(comm)
-      case inv: PVLChannelInvariant[Pre] => rewriteChannelInv(inv)
+      case branch: PVLBranch[Pre] =>
+        ChorStatement(currentStatement.having(stmt) { rw.dispatch(stmt) })(
+          ForwardBranchUnanimityFailed(branch)
+        )(stmt.o)
+      case loop: PVLLoop[Pre] =>
+        ChorStatement(currentStatement.having(stmt) { rw.dispatch(stmt) })(
+          ForwardLoopUnanimityFailed(loop)
+        )(stmt.o)
+      case comm: PVLCommunicateStatement[Pre] =>
+        rewriteCommunicateStatement(comm)
+      // Any statement not listed here, we put in ChorStatement. ChorStatementImpl defines which leftover statement we tolerate in choreographies
       case stmt =>
         currentStatement.having(stmt) {
-          ChorStatement(None, rw.dispatch(stmt))(PanicBlame(
-            "Arbitratry statement blame missing"
+          ChorStatement(rw.dispatch(stmt))(PanicBlame(
+            "The internal statement cannot cause an  error on this ChorStatement"
           ))(stmt.o)
         }
     }
@@ -166,11 +203,13 @@ case class LangVeyMontToCol[Pre <: Generation](
           rw.dispatch(perm),
         )(expr.o)
       case expr @ PVLSender() =>
-        Sender[Post](commSucc.ref(expr.ref.get))(expr.o)
+        Sender[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
       case expr @ PVLReceiver() =>
-        Receiver[Post](commSucc.ref(expr.ref.get))(expr.o)
+        Receiver[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
       case expr @ PVLMessage() =>
-        Message[Post](commSucc.ref(expr.ref.get))(expr.o)
+        Message[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
+      case PVLEndpointExpr(endpoint, expr) =>
+        EndpointExpr(rewriteEndpointName(endpoint), rw.dispatch(expr))(expr.o)
       case expr => currentExpr.having(expr) { rw.dispatch(expr) }
     }
 }

@@ -1,0 +1,240 @@
+class Process {
+  int n, f, fault;
+  int v, v1, v2, v3, v4, v5, tiebreaker;
+
+  inline resource class_invariant() =
+    (fault == 0 || fault == 1) &&
+    (v == 0 || v == 1) &&
+    (v1 == 0 || v1 == 1) &&
+    (v2 == 0 || v2 == 1) &&
+    (v3 == 0 || v3 == 1) &&
+    (v4 == 0 || v4 == 1) &&
+    (v5 == 0 || v5 == 1) &&
+    (tiebreaker == 0 || tiebreaker == 1);
+
+  inline resource constants() =
+    \old(n) == n &&
+    \old(f) == f &&
+    \old(fault) == fault;
+
+  requires v == 0 || v == 1;
+  requires fault == 0 || fault == 1;
+  ensures this.n == n;
+  ensures this.f == f;
+  ensures this.fault == fault;
+  ensures this.v == v;
+  ensures class_invariant();
+  constructor(int n, int f, int fault, int v) {
+    this.n = n;
+    this.f = f;
+    this.fault = fault;
+    this.v = v;
+    this.v1 = 0;
+    this.v2 = 0;
+    this.v3 = 0;
+    this.v4 = 0;
+    this.v5 = 0;
+    this.tiebreaker = 0;
+  }
+
+  requires class_invariant();
+  ensures \result == n - (v1 + v2 + v3 + v4 + v5);
+  pure int zeros() {
+    return n - ones();
+  }
+
+  requires class_invariant();
+  ensures \result == v1 + v2 + v3 + v4 + v5;
+  pure int ones() {
+    return v1 + v2 + v3 + v4 + v5;
+  }
+
+  requires class_invariant();
+  ensures (zeros() >= ones() ==> \result == 0);
+  ensures (zeros() < ones() ==> \result == 1);
+  pure int majority() {
+    return zeros() < ones() ? 1 : 0;
+  }
+
+  requires class_invariant();
+  ensures zeros() >= ones() ==> \result == zeros();
+  ensures zeros() <  ones() ==> \result == ones();
+  pure int mult() {
+    return zeros() < ones() ? ones() : zeros();
+  }
+
+  context class_invariant();
+  ensures constants();
+  ensures \old(v) == v;
+  ensures \old(v1) == v1;
+  ensures \old(v2) == v2;
+  ensures \old(v3) == v3;
+  ensures \old(v4) == v4;
+  ensures \old(v5) == v5;
+  ensures \old(tiebreaker) == tiebreaker;
+  ensures fault == 0 ==> \result == v;
+  ensures fault == 1 ==> \result == 0 || \result == 1;
+  int getValueOrFail();
+
+  context class_invariant();
+  ensures constants();
+  ensures \old(v) == v;
+  ensures \old(v1) == v1;
+  ensures \old(v2) == v2;
+  ensures \old(v3) == v3;
+  ensures \old(v4) == v4;
+  ensures \old(v5) == v5;
+  ensures \old(tiebreaker) == tiebreaker;
+  ensures fault == 0 ==> \result == majority();
+  ensures fault == 1 ==> \result == 0 || \result == 1;
+  int getMajorityOrFail();
+
+  context class_invariant();
+  ensures constants();
+  ensures \old(v1) == v1;
+  ensures \old(v2) == v2;
+  ensures \old(v3) == v3;
+  ensures \old(v4) == v4;
+  ensures \old(v5) == v5;
+  ensures \old(tiebreaker) == tiebreaker;
+  ensures fault == 0 && mult() >= (n + 1) / 2 + f ==> v == majority();
+  ensures fault == 0 && mult() <  (n + 1) / 2 + f ==> v == tiebreaker;
+  ensures fault == 1 ==> v == 0 || v == 1;
+  void setValueOrFail();
+}
+
+inline resource consistency(Process p1, Process p2, Process p3, Process p4, Process p5) =
+    p1.n == p2.n && p2.n == p3.n && p3.n == p4.n && p4.n == p5.n && p5.n == p1.n &&
+    p1.f == p2.f && p2.f == p3.f && p3.f == p4.f && p4.f == p5.f && p5.f == p1.f;
+
+requires n == 5;
+requires f == 1;
+requires fault1 == 0 || fault1 == 1;
+requires fault2 == 0 || fault2 == 1;
+requires fault3 == 0 || fault3 == 1;
+requires fault4 == 0 || fault4 == 1;
+requires fault5 == 0 || fault5 == 1;
+requires v1 == 0 || v1 == 1;
+requires v2 == 0 || v2 == 1;
+requires v3 == 0 || v3 == 1;
+requires v4 == 0 || v4 == 1;
+requires v5 == 0 || v5 == 1;
+requires fault1 + fault2 + fault3 + fault4 + fault5 <= f;
+choreography Main(int n, int f,
+                 int fault1, int v1,
+                 int fault2, int v2,
+                 int fault3, int v3,
+                 int fault4, int v4,
+                 int fault5, int v5) {
+
+  endpoint p1 = Process(n, f, fault1, v1);
+  endpoint p2 = Process(n, f, fault2, v2);
+  endpoint p3 = Process(n, f, fault3, v3);
+  endpoint p4 = Process(n, f, fault4, v4);
+  endpoint p5 = Process(n, f, fault5, v5);
+
+  requires p1.class_invariant();
+  requires p2.class_invariant();
+  requires p3.class_invariant();
+  requires p4.class_invariant();
+  requires p5.class_invariant();
+  requires (\chor consistency(p1, p2, p3, p4, p5) **
+    (p1.fault + p2.fault + p3.fault + p4.fault + p5.fault <= p1.f && p1.f == 1 && p1.n == 5));
+  ensures (\chor ((p1.fault == 0 ==> p1.v == 0) &&
+           (p2.fault == 0 ==> p2.v == 0) &&
+           (p3.fault == 0 ==> p3.v == 0) &&
+           (p4.fault == 0 ==> p4.v == 0) &&
+           (p5.fault == 0 ==> p5.v == 0)) ||
+          ((p1.fault == 0 ==> p1.v == 1) &&
+           (p2.fault == 0 ==> p2.v == 1) &&
+           (p3.fault == 0 ==> p3.v == 1) &&
+           (p4.fault == 0 ==> p4.v == 1) &&
+           (p5.fault == 0 ==> p5.v == 1)));
+  run {
+    // Phase 1 (p1 is "king")
+    p1.v1 := p1.getValueOrFail();
+    communicate p2.v1 <- p1.v1;
+    communicate p3.v1 <- p1.v1;
+    communicate p4.v1 <- p1.v1;
+    communicate p5.v1 <- p1.v1;
+
+    p2.v2 := p2.getValueOrFail();
+    communicate p1.v2 <- p2.v2;
+    communicate p3.v2 <- p2.v2;
+    communicate p4.v2 <- p2.v2;
+    communicate p5.v2 <- p2.v2;
+
+    p3.v3 := p3.getValueOrFail();
+    communicate p1.v3 <- p3.v3;
+    communicate p2.v3 <- p3.v3;
+    communicate p4.v3 <- p3.v3;
+    communicate p5.v3 <- p3.v3;
+
+    p4.v4 := p4.getValueOrFail();
+    communicate p1.v4 <- p4.v4;
+    communicate p2.v4 <- p4.v4;
+    communicate p3.v4 <- p4.v4;
+    communicate p5.v4 <- p4.v4;
+
+    p5.v5 := p5.getValueOrFail();
+    communicate p1.v5 <- p5.v5;
+    communicate p2.v5 <- p5.v5;
+    communicate p3.v5 <- p5.v5;
+    communicate p4.v5 <- p5.v5;
+
+    p1.tiebreaker := p1.getMajorityOrFail();
+    communicate p2.tiebreaker <- p1.tiebreaker;
+    communicate p3.tiebreaker <- p1.tiebreaker;
+    communicate p4.tiebreaker <- p1.tiebreaker;
+    communicate p5.tiebreaker <- p1.tiebreaker;
+
+    p1.setValueOrFail();
+    p2.setValueOrFail();
+    p3.setValueOrFail();
+    p4.setValueOrFail();
+    p5.setValueOrFail();
+
+    // Phase 2 (p2 is "king")
+    p1.v1 := p1.getValueOrFail();
+    communicate p2.v1 <- p1.v1;
+    communicate p3.v1 <- p1.v1;
+    communicate p4.v1 <- p1.v1;
+    communicate p5.v1 <- p1.v1;
+
+    p2.v2 := p2.getValueOrFail();
+    communicate p1.v2 <- p2.v2;
+    communicate p3.v2 <- p2.v2;
+    communicate p4.v2 <- p2.v2;
+    communicate p5.v2 <- p2.v2;
+
+    p3.v3 := p3.getValueOrFail();
+    communicate p1.v3 <- p3.v3;
+    communicate p2.v3 <- p3.v3;
+    communicate p4.v3 <- p3.v3;
+    communicate p5.v3 <- p3.v3;
+
+    p4.v4 := p4.getValueOrFail();
+    communicate p1.v4 <- p4.v4;
+    communicate p2.v4 <- p4.v4;
+    communicate p3.v4 <- p4.v4;
+    communicate p5.v4 <- p4.v4;
+
+    p5.v5 := p5.getValueOrFail();
+    communicate p1.v5 <- p5.v5;
+    communicate p2.v5 <- p5.v5;
+    communicate p3.v5 <- p5.v5;
+    communicate p4.v5 <- p5.v5;
+
+    p2.tiebreaker := p2.getMajorityOrFail();
+    communicate p1.tiebreaker <- p2.tiebreaker;
+    communicate p3.tiebreaker <- p2.tiebreaker;
+    communicate p4.tiebreaker <- p2.tiebreaker;
+    communicate p5.tiebreaker <- p2.tiebreaker;
+
+    p1.setValueOrFail();
+    p2.setValueOrFail();
+    p3.setValueOrFail();
+    p4.setValueOrFail();
+    p5.setValueOrFail();
+  }
+}

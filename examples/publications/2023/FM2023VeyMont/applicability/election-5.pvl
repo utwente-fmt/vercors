@@ -1,0 +1,126 @@
+class Process {
+  boolean leader;
+  int id1, id2, id3, id4, id5;
+
+  ensures !leader;
+  ensures id1 == -1 && id2 == -1 && id3 == -1 && id4 == -1 && id5 == -1;
+  constructor() {
+    leader = false;
+    id1 = -1;
+    id2 = -1;
+    id3 = -1;
+    id4 = -1;
+    id5 = -1;
+  }
+
+  ensures \old(leader) == leader;
+  ensures \old(id1) == id1;
+  ensures \old(id2) == id2;
+  ensures \old(id3) == id3;
+  ensures \old(id4) == id4;
+  ensures \old(id5) == id5;
+  ensures 0 <= \result;
+  int randomId();
+
+  ensures id2 < id1 && id3 < id1 && id4 < id1 && id5 < id1 ==> \result == true;
+  ensures id1 < id2 && id3 < id2 && id4 < id2 && id5 < id2 ==> \result == true;
+  ensures id1 < id3 && id2 < id3 && id4 < id3 && id5 < id3 ==> \result == true;
+  ensures id1 < id4 && id2 < id4 && id3 < id4 && id5 < id4 ==> \result == true;
+  ensures id1 < id5 && id2 < id5 && id3 < id5 && id4 < id5 ==> \result == true;
+  pure boolean hasMaxId() {
+    return (id2 < id1 && id3 < id1 && id4 < id1 && id5 < id1) ||
+           (id1 < id2 && id3 < id2 && id4 < id2 && id5 < id2) ||
+           (id1 < id3 && id2 < id3 && id4 < id3 && id5 < id3) ||
+           (id1 < id4 && id2 < id4 && id3 < id4 && id5 < id4) ||
+           (id1 < id5 && id2 < id5 && id3 < id5 && id4 < id5);
+  }
+
+  requires this.hasMaxId();
+  ensures id2 < id1 && id3 < id1 && id4 < id1 && id5 < id1 ==> \result == id1;
+  ensures id1 < id2 && id3 < id2 && id4 < id2 && id5 < id2 ==> \result == id2;
+  ensures id1 < id3 && id2 < id3 && id4 < id3 && id5 < id3 ==> \result == id3;
+  ensures id1 < id4 && id2 < id4 && id3 < id4 && id5 < id4 ==> \result == id4;
+  ensures id1 < id5 && id2 < id5 && id3 < id5 && id4 < id5 ==> \result == id5;
+  pure int getMaxId() {
+    return (id2 < id1 && id3 < id1 && id4 < id1 && id5 < id1) ? id1 :
+           (id1 < id2 && id3 < id2 && id4 < id2 && id5 < id2) ? id2 :
+           (id1 < id3 && id2 < id3 && id4 < id3 && id5 < id3) ? id3 :
+           (id1 < id4 && id2 < id4 && id3 < id4 && id5 < id4) ? id4 :
+           (id1 < id5 && id2 < id5 && id3 < id5 && id4 < id5) ? id5 : -1;
+  }
+}
+
+inline resource consistency(Process p1, Process p2, Process p3, Process p4, Process p5) =
+    p1.id1 == p2.id1 && p2.id1 == p3.id1 && p3.id1 == p4.id1 && p4.id1 == p5.id1 && p5.id1 == p1.id1 &&
+    p1.id2 == p2.id2 && p2.id2 == p3.id2 && p3.id2 == p4.id2 && p4.id2 == p5.id2 && p5.id2 == p1.id2 &&
+    p1.id3 == p2.id3 && p2.id3 == p3.id3 && p3.id3 == p4.id3 && p4.id3 == p5.id3 && p5.id3 == p1.id3 &&
+    p1.id4 == p2.id4 && p2.id4 == p3.id4 && p3.id4 == p4.id4 && p4.id4 == p5.id4 && p5.id4 == p1.id4 &&
+    p1.id5 == p2.id5 && p2.id5 == p3.id5 && p3.id5 == p4.id5 && p4.id5 == p5.id5 && p5.id5 == p1.id5;
+
+pure boolean xor(boolean a, boolean b) = a != b;
+pure boolean xor(boolean a, boolean b, boolean c) = xor(a, xor(b, c));
+pure boolean xor(boolean a, boolean b, boolean c, boolean d, boolean e) = xor(a, b, xor(c, d, e));
+
+choreography Main() {
+  endpoint p1 = Process();
+  endpoint p2 = Process();
+  endpoint p3 = Process();
+  endpoint p4 = Process();
+  endpoint p5 = Process();
+
+  requires !p1.leader && !p2.leader && !p3.leader && !p4.leader && !p5.leader;
+  requires !p1.hasMaxId() && !p2.hasMaxId() && !p3.hasMaxId() && !p4.hasMaxId() && !p5.hasMaxId();
+  requires (\chor consistency(p1, p2, p3, p4, p5));
+  ensures (\chor xor(p1.leader, p2.leader, p3.leader, p4.leader, p5.leader));
+  run {
+    loop_invariant !p1.leader && !p2.leader && !p3.leader && !p4.leader && !p5.leader;
+    loop_invariant (\chor consistency(p1, p2, p3, p4, p5));
+    while (!p1.hasMaxId() && !p2.hasMaxId() && !p3.hasMaxId() && !p4.hasMaxId() && !p5.hasMaxId()) {
+      p1.id1 := p1.randomId();
+      communicate p2.id1 <- p1.id1;
+      communicate p3.id1 <- p1.id1;
+      communicate p4.id1 <- p1.id1;
+      communicate p5.id1 <- p1.id1;
+
+      p2.id2 := p2.randomId();
+      communicate p1.id2 <- p2.id2;
+      communicate p3.id2 <- p2.id2;
+      communicate p4.id2 <- p2.id2;
+      communicate p5.id2 <- p2.id2;
+
+      p3.id3 := p3.randomId();
+      communicate p1.id3 <- p3.id3;
+      communicate p2.id3 <- p3.id3;
+      communicate p4.id3 <- p3.id3;
+      communicate p5.id3 <- p3.id3;
+
+      p4.id4 := p4.randomId();
+      communicate p1.id4 <- p4.id4;
+      communicate p2.id4 <- p4.id4;
+      communicate p3.id4 <- p4.id4;
+      communicate p5.id4 <- p4.id4;
+
+      p5.id5 := p5.randomId();
+      communicate p1.id5 <- p5.id5;
+      communicate p2.id5 <- p5.id5;
+      communicate p3.id5 <- p5.id5;
+      communicate p4.id5 <- p5.id5;
+    }
+
+    if (p1.id1 == p1.getMaxId()) {
+      p1.leader := true;
+    }
+    if (p2.id2 == p2.getMaxId()) {
+      p2.leader := true;
+    }
+    if (p3.id3 == p3.getMaxId()) {
+      p3.leader := true;
+    }
+    if (p4.id4 == p4.getMaxId()) {
+      p4.leader := true;
+    }
+    if (p5.id5 == p5.getMaxId()) {
+      p5.leader := true;
+    }
+  }
+}

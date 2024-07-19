@@ -1,82 +1,27 @@
 package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.util.ScopedStack
-import vct.col.ast.util.Declarator
 import vct.col.ast.{
-  AbstractRewriter,
-  ApplicableContract,
-  Assert,
-  Assign,
-  Block,
-  BooleanValue,
-  Branch,
   ByReferenceClass,
-  ChorGuard,
-  ChorRun,
-  ChorStatement,
   Choreography,
   Class,
-  ClassDeclaration,
-  Communicate,
-  CommunicateX,
   Constructor,
-  ConstructorInvocation,
   Declaration,
   Deref,
   Endpoint,
   EndpointName,
-  Eval,
   Expr,
-  GlobalDeclaration,
   InstanceField,
-  InstanceMethod,
-  JavaClass,
-  JavaConstructor,
-  JavaInvocation,
-  JavaLocal,
-  JavaMethod,
-  JavaNamedType,
-  JavaParam,
-  JavaPublic,
-  JavaTClass,
-  Local,
-  LocalDecl,
-  Loop,
-  MethodInvocation,
-  NewObject,
-  Node,
-  Procedure,
-  Program,
-  RunMethod,
-  Scope,
-  Statement,
-  TClass,
-  TVeyMontChannel,
-  TVoid,
-  ThisChoreography,
   ThisObject,
-  Type,
   UnitAccountedPredicate,
   Variable,
-  VeyMontAssignExpression,
   WritePerm,
 }
-import vct.col.origin.{Name, Origin, PanicBlame, SourceName}
+import vct.col.origin.{Name, PanicBlame}
 import vct.col.ref.Ref
-import vct.col.resolve.ctx.RefJavaMethod
-import vct.col.rewrite.adt.{ImportADT, ImportADTImporter}
-import vct.col.rewrite.{
-  Generation,
-  Rewriter,
-  RewriterBuilder,
-  RewriterBuilderArg,
-  Rewritten,
-}
-import vct.col.util.SuccessionMap
-import vct.result.VerificationError.{Unreachable, UserError}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationError
+import vct.col.util.SuccessionMap
 
 object SpecializeEndpointClasses extends RewriterBuilder {
   override def key: String = "specializeEndpointClasses"
@@ -157,14 +102,11 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
           endpoint.rewrite[Post](
             cls = wrapperClass.ref,
             typeArgs = Seq(),
-            constructor = constructor.ref,
-            args = Seq(constructorInvocation[Post](
-              ref = succ(endpoint.constructor.decl),
-              classTypeArgs = endpoint.typeArgs.map(dispatch),
-              args = endpoint.args.map(dispatch),
-              blame = PanicBlame("Not implemented"),
-            )),
-            blame = PanicBlame("Unreachable"),
+            init = constructorInvocation(
+              ref = constructor.ref,
+              args = Seq(dispatch(endpoint.init)),
+              blame = PanicBlame("Should be safe"),
+            ),
           ),
         )
       case _ => super.dispatch(decl)

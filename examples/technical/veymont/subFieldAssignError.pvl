@@ -13,6 +13,6 @@ class Role {
 choreography assign(Box b) {
   endpoint r = Role();
   run {
-    b.x := 3;
+    r.b.x := 3;
   }
 }

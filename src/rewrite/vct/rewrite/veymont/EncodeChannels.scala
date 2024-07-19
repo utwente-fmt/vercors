@@ -3,10 +3,15 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
+  Assert,
   Assign,
   Block,
   ByValueClass,
   ChorStatement,
+  BooleanValue,
+  ChorExpr,
+  ChorPerm,
+  ChorRun,
   Choreography,
   Class,
   Communicate,
@@ -16,242 +21,177 @@ import vct.col.ast.{
   Declaration,
   Deref,
   Endpoint,
+  EndpointExpr,
   EndpointName,
+  EndpointStatement,
   Eval,
+  Exhale,
+  Expr,
+  FieldLocation,
+  Inhale,
   InstanceField,
   InstanceMethod,
+  InstancePredicate,
+  IterationContract,
   Local,
+  LoopContract,
+  LoopInvariant,
+  Message,
+  Perm,
   Program,
+  Receiver,
+  Result,
   Scope,
+  Sender,
   Statement,
   TByValueClass,
   TClass,
   TVar,
+  ThisObject,
   Type,
+  Value,
   Variable,
 }
-import vct.col.origin.{Name, PanicBlame, SourceName}
-import vct.col.ref.Ref
+import vct.col.origin.{
+  AssertFailed,
+  AssignLocalOk,
+  Blame,
+  ChannelInvariantNotEstablished,
+  ChannelInvariantNotEstablishedLocally,
+  ExhaleFailed,
+  Name,
+  Origin,
+  PanicBlame,
+  SourceName,
+}
+import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.adt.ImportADTImporter
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
+import vct.col.rewrite.{
+  Generation,
+  Rewriter,
+  RewriterBuilder,
+  RewriterBuilderArg,
+}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
+import vct.rewrite.veymont.EncodeChannels.{
+  AssertFailedToChannelInvariantNotEstablished,
+  ExhaleFailedToChannelInvariantNotEstablished,
+}
+import vct.rewrite.veymont.EncodeChoreography.AssertFailedToParticipantsNotDistinct
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-object EncodeChannels extends RewriterBuilderArg[ImportADTImporter] {
+object EncodeChannels extends RewriterBuilder {
   override def key: String = "encodeChannels"
+
   override def desc: String =
-    "Encodes VeyMont channels as fields on endpoints, and communicate statements as method invocations on endpoints."
-}
+    "Encodes channels using plain assignment. Encodes channel invariants using exhale/inhale."
 
-case class EncodeChannels[Pre <: Generation](importer: ImportADTImporter)
-    extends Rewriter[Pre] with LazyLogging with VeymontContext[Pre] {
-
-  private lazy val channelPre =
-    importer.loadAdt[Pre]("genericChannel").declarations
-
-  lazy val genericChannelClass = find[Pre, Class[Pre]](channelPre, "Channel")
-  lazy val genericChannelDecls = genericChannelClass.decls
-  lazy val genericChannelConstructor = find[Pre, Constructor[Pre]](
-    genericChannelDecls
-  )
-  lazy val genericChannelWrite = find[Pre, InstanceMethod[Pre]](
-    genericChannelDecls,
-    "writeValue",
-  )
-  lazy val genericChannelRead = find[Pre, InstanceMethod[Pre]](
-    genericChannelDecls,
-    "readValue",
-  )
-
-  val channelClassSucc = SuccessionMap[Communicate[Pre], Class[Post]]()
-  val channelConstructorSucc =
-    SuccessionMap[Communicate[Pre], Constructor[Post]]()
-  val channelWriteSucc = SuccessionMap[Communicate[Pre], InstanceMethod[Post]]()
-  val channelReadSucc = SuccessionMap[Communicate[Pre], InstanceMethod[Post]]()
-
-  protected def find[G, T](decls: Seq[Declaration[G]], name: String = null)(
-      implicit tag: ClassTag[T]
-  ): T =
-    decls.collectFirst {
-      case decl: T
-          if name == null ||
-            decl.o.find[SourceName].contains(SourceName(name)) =>
-        decl
-    }.get
-
-  def channelType(comm: Communicate[Pre]): Type[Post] =
-    TByValueClass[Post](channelClassSucc.ref(comm), Seq())
-
-  val currentCommunicate = ScopedStack[Communicate[Pre]]()
-  val currentMsgTVar = ScopedStack[Variable[Pre]]()
-
-  def generateChannel(comm: Communicate[Pre]): Unit =
-    currentCommunicate.having(comm) { dispatch(genericChannelClass) }
-
-  val fieldOfCommunicate =
-    SuccessionMap[(Endpoint[Pre], Communicate[Pre]), InstanceField[Post]]()
-  val localOfCommunicate = mutable
-    .LinkedHashMap[Communicate[Pre], Variable[Post]]()
-
-  override def dispatch(p: Program[Pre]): Program[Post] = {
-    mappings.program = p
-    p.rewriteDefault()
+  case class AssertFailedToChannelInvariantNotEstablished(comm: Communicate[_])
+      extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit =
+      comm.blame.blame(ChannelInvariantNotEstablished(error.failure, comm))
   }
 
-  def channelName(comm: Communicate[_]): Name =
-    Name.names(
-      comm.sender.get.decl.o.getPreferredNameOrElse(),
-      comm.receiver.get.decl.o.getPreferredNameOrElse(),
-    )
+  case class ExhaleFailedToChannelInvariantNotEstablished(comm: Communicate[_])
+      extends Blame[ExhaleFailed] {
+    override def blame(error: ExhaleFailed): Unit =
+      comm.blame
+        .blame(ChannelInvariantNotEstablishedLocally(error.failure, comm))
+  }
+}
+
+case class EncodeChannels[Pre <: Generation]()
+    extends Rewriter[Pre] with LazyLogging with VeymontContext[Pre] {
+  val msgSucc = SuccessionMap[Communicate[Pre], Variable[Post]]()
+  val includeChorExpr = ScopedStack[Boolean]()
+  val substitutions = ScopedStack[Map[Expr[Pre], Expr[Post]]]()
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case chor: Choreography[Pre] =>
-        implicit val o = chor.o
-        currentChoreography.having(chor) {
-          def commVar(comm: Communicate[Pre]): Variable[Post] = {
-            val t = channelType(comm)
-            val v = new Variable(t)(chor.o.where(indirect = channelName(comm)))
-            localOfCommunicate(comm) = v
-            v
-          }
-
-          def instantiateComm(comm: Communicate[Pre]): Statement[Post] = {
-            val v = localOfCommunicate(comm)
-            assignLocal(
-              local = Local[Post](v.ref),
-              value =
-                ConstructorInvocation[Post](
-                  ref = channelConstructorSucc(comm).ref,
-                  classTypeArgs = Seq(dispatch(comm.msg.t)),
-                  args = Seq(),
-                  outArgs = Seq(),
-                  typeArgs = Seq(),
-                  givenMap = Seq(),
-                  yields = Seq(),
-                )(PanicBlame("Should be safe")),
-            )
-          }
-
-          def assignComm(
-              comm: Communicate[Pre],
-              endpoint: Endpoint[Pre],
-          ): Statement[Post] = {
-            assignField(
-              obj = EndpointName[Post](succ(endpoint)),
-              field = fieldOfCommunicate.ref((endpoint, comm)),
-              value = localOfCommunicate(comm).get,
-              blame = PanicBlame("Should be safe"),
-            )
-          }
-
-          chor.rewrite(preRun = {
-            communicatesOf(chor).foreach(generateChannel)
-            val vars = communicatesOf(chor).map(commVar)
-            val instantiatedComms: Seq[Statement[Post]] = communicatesOf(chor)
-              .map(instantiateComm)
-            val assignComms: Seq[Statement[Post]] = chor.endpoints
-              .flatMap { endpoint =>
-                communicatesOf(chor).map { comm => assignComm(comm, endpoint) }
-              }
-            Some(Scope(vars, Block(instantiatedComms ++ assignComms)))
-          }).succeed(chor)
-        }
-
-      case cls: ByValueClass[Pre] if isEndpointClass(cls) =>
-        cls.rewrite(decls =
-          classDeclarations.collect {
-            cls.decls.foreach(dispatch)
-            communicatesOf(choreographyOf(cls)).foreach { comm =>
-              val f =
-                new InstanceField[Post](channelType(comm), Seq())(
-                  comm.o.where(indirect = channelName(comm))
-                )
-              fieldOfCommunicate((endpointOf(cls), comm)) = f
-              f.declare()
-            }
-          }._1
-        ).succeed(cls)
-
-      case cls: ByValueClass[Pre] if cls == genericChannelClass =>
-        globalDeclarations.scope {
-          classDeclarations.scope {
-            variables.scope {
-              localHeapVariables.scope {
-                currentMsgTVar.having(cls.typeArgs.head) {
-                  channelClassSucc(currentCommunicate.top) = cls
-                    .rewrite(typeArgs = Seq()).succeed(cls)
-                }
-              }
-            }
-          }
-        }
-      case cons: Constructor[Pre] if cons == genericChannelConstructor =>
-        channelConstructorSucc(currentCommunicate.top) = cons.rewriteDefault()
-          .succeed(cons)
-      case m: InstanceMethod[Pre] if m == genericChannelWrite =>
-        channelWriteSucc(currentCommunicate.top) = m.rewriteDefault().succeed(m)
-      case m: InstanceMethod[Pre] if m == genericChannelRead =>
-        channelReadSucc(currentCommunicate.top) = m.rewriteDefault().succeed(m)
-
+        currentChoreography.having(chor) { chor.rewriteDefault().succeed(chor) }
       case _ => super.dispatch(decl)
     }
 
-  override def dispatch(t: Type[Pre]): Type[Post] =
-    t match {
-      case TVar(Ref(v)) if currentMsgTVar.topOption.contains(v) =>
-        dispatch(currentCommunicate.top.msg.t)
-      case _ => t.rewriteDefault()
-    }
-
-  override def dispatch(stmt: Statement[Pre]): Statement[Post] =
-    stmt match {
-      case CommunicateStatement(comm: Communicate[Pre]) =>
+  override def dispatch(statement: Statement[Pre]): Statement[Post] =
+    statement match {
+      case CommunicateStatement(comm) =>
         implicit val o = comm.o
-        Block[Post](Seq(sendOf(comm), receiveOf(comm)))(comm.o)
-      case _ => stmt.rewriteDefault()
+        val sender = comm.sender.get.decl
+        val receiver = comm.receiver.get.decl
+        val m = new Variable(dispatch(comm.msg.t))(comm.o.where(name = "m"))
+        msgSucc(comm) = m
+
+        Scope(
+          Seq(m),
+          Block(Seq(
+            assignLocal(
+              m.get,
+              EndpointExpr[Post](succ(sender), dispatch(comm.msg)),
+            ),
+            Assert(currentEndpoint.having(comm.sender.get.decl) {
+              includeChorExpr.having(true) {
+                EndpointExpr[Post](succ(sender), dispatch(comm.invariant))
+              }
+            })(AssertFailedToChannelInvariantNotEstablished(comm)),
+            Exhale(currentEndpoint.having(comm.sender.get.decl) {
+              includeChorExpr.having(false) {
+                foldAny(comm.invariant.t)(unfoldStar(comm.invariant).map { e =>
+                  EndpointExpr[Post](succ(sender), dispatch(e))
+                })
+              }
+            })(ExhaleFailedToChannelInvariantNotEstablished(comm)),
+            EndpointStatement[Post](
+              Some(succ(receiver)),
+              Assign(dispatch(comm.target), m.get)(PanicBlame(
+                "Assignment blame is handled by target expression"
+              )),
+            )(PanicBlame("Unused blame")),
+            Inhale(currentEndpoint.having(comm.receiver.get.decl) {
+              substitutions.having(Map.from(Seq(
+                (Message(new DirectRef(comm)), dispatch(comm.target))
+              ))) {
+                includeChorExpr.having(true) {
+                  foldAny(comm.invariant.t)(unfoldStar(comm.invariant).map {
+                    case e: ChorExpr[Pre] => e.rewriteDefault()
+                    case e => EndpointExpr[Post](succ(receiver), dispatch(e))
+                  })
+                }
+              }
+            }),
+          )),
+        )
+      case _ => statement.rewriteDefault()
     }
 
-  def sendOf(comm: Communicate[Pre]): Statement[Post] = {
-    implicit val o = comm.o
-    val Some(Ref(sender)) = comm.sender
-    ChorStatement[Post](
-      Some(succ(sender)),
-      Eval(methodInvocation[Post](
-        obj =
-          Deref[Post](
-            EndpointName(succ(sender)),
-            fieldOfCommunicate.ref[Post, InstanceField[Post]]((sender, comm)),
-          )(PanicBlame(
-            "Permission for fields should be propagated in entire choreography"
-          )),
-        ref = channelWriteSucc.ref[Post, InstanceMethod[Post]](comm),
-        args = Seq(dispatch(comm.msg)),
-        blame = PanicBlame("TODO: sending should be safe"),
-      )),
-    )(PanicBlame("TODO: ChorStatement blame?"))
-  }
-
-  def receiveOf(comm: Communicate[Pre]): Statement[Post] = {
-    implicit val o = comm.o
-    val Some(Ref(receiver)) = comm.receiver
-    ChorStatement[Post](
-      Some(succ[Endpoint[Post]](receiver)),
-      Assign(
-        dispatch(comm.target),
-        methodInvocation[Post](
-          obj =
-            Deref[Post](
-              EndpointName[Post](succ(receiver)),
-              fieldOfCommunicate.ref((receiver, comm)),
-            )(PanicBlame("Should be safe")),
-          ref = channelReadSucc.ref[Post, InstanceMethod[Post]](comm),
-          blame = PanicBlame("Should be safe"),
-        ),
-      )(PanicBlame("TODO 2")),
-    )(PanicBlame("TODO: ChorStatement blame?"))
-  }
+  override def dispatch(expr: Expr[Pre]): Expr[Post] =
+    expr match {
+      case e if substitutions.topOption.exists(_.contains(e)) =>
+        substitutions.top(e)
+      case InEndpoint(_, endpoint, Perm(loc, perm)) =>
+        ChorPerm[Post](succ(endpoint), dispatch(loc), dispatch(perm))(expr.o)
+      case InEndpoint(_, endpoint, cp: ChorPerm[Pre]) => assert(false); ???
+      case Message(Ref(comm)) => Local[Post](msgSucc.ref(comm))(comm.o)
+      case Sender(Ref(comm)) =>
+        EndpointName[Post](succ(comm.sender.get.decl))(expr.o)
+      case Receiver(Ref(comm)) =>
+        EndpointName[Post](succ(comm.receiver.get.decl))(expr.o)
+      case chor: ChorExpr[Pre] if includeChorExpr.topOption.contains(true) =>
+        // Case chor must be kept: include the expression. The top level invariant rewrite will wrap
+        // it into a proper EndpointExpr, hence, remove the \chor layer
+        chor.expr.rewriteDefault()
+      case chor: ChorExpr[Pre] if includeChorExpr.topOption.contains(false) =>
+        // Case chor must not be kept: exhaling the invariant. Since the validity of the invariant, including
+        // the chor part, is already established, it doesn't need to be included when exhaling
+        BooleanValue(true)(chor.o)
+      case chor: ChorExpr[Pre] =>
+        // Case no boolean in includeChor: just rewrite the expression plainly and keep the chor expr
+        // This also happens to be the case we need for the inhale case, where we just want the plain \chor expr
+        // Such that all the necessary wrapped perms will be unwrapped by the EncodePermissionStratification phase
+        chor.rewriteDefault()
+      case _ => expr.rewriteDefault()
+    }
 }

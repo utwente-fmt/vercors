@@ -1,0 +1,88 @@
+class Process {
+  boolean leader;
+  int id1, id2, id3;
+
+  ensures !leader;
+  ensures id1 == -1 && id2 == -1 && id3 == -1;
+  constructor() {
+    leader = false;
+    id1 = -1;
+    id2 = -1;
+    id3 = -1;
+  }
+
+  ensures \old(leader) == leader;
+  ensures \old(id1) == id1;
+  ensures \old(id2) == id2;
+  ensures \old(id3) == id3;
+  ensures 0 <= \result;
+  int randomId();
+
+  ensures id2 < id1 && id3 < id1 ==> \result == true;
+  ensures id1 < id2 && id3 < id2 ==> \result == true;
+  ensures id1 < id3 && id2 < id3 ==> \result == true;
+  pure boolean hasMaxId() {
+    return (id2 < id1 && id3 < id1) ||
+           (id1 < id2 && id3 < id2) ||
+           (id1 < id3 && id2 < id3);
+  }
+
+  requires this.hasMaxId();
+  ensures id2 < id1 && id3 < id1 ==> \result == id1;
+  ensures id1 < id2 && id3 < id2 ==> \result == id2;
+  ensures id1 < id3 && id2 < id3 ==> \result == id3;
+  pure int getMaxId() {
+    return (id2 < id1 && id3 < id1) ? id1 :
+           (id1 < id2 && id3 < id2) ? id2 :
+           (id1 < id3 && id2 < id3) ? id3 : -1;
+  }
+}
+
+inline resource consistency(Process p1, Process p2, Process p3) =
+    p1.id1 == p2.id1 && p2.id1 == p3.id1 && p3.id1 == p1.id1 &&
+    p1.id2 == p2.id2 && p2.id2 == p3.id2 && p3.id2 == p1.id2 &&
+    p1.id3 == p2.id3 && p2.id3 == p3.id3 && p3.id3 == p1.id3;
+
+pure boolean xor(boolean a, boolean b) = a != b;
+pure boolean xor(boolean a, boolean b, boolean c) = xor(a, xor(b, c));
+
+choreography Main() {
+  endpoint p1 = Process();
+  endpoint p2 = Process();
+  endpoint p3 = Process();
+
+  requires !p1.leader && !p2.leader && !p3.leader;
+  requires !p1.hasMaxId() && !p2.hasMaxId() && !p3.hasMaxId();
+  requires (\chor consistency(p1, p2, p3));
+  ensures (\chor xor(p1.leader, p2.leader, p3.leader));
+  run {
+    loop_invariant !p1.leader && !p2.leader && !p3.leader;
+    loop_invariant (\chor consistency(p1, p2, p3));
+    while (!p1.hasMaxId() && !p2.hasMaxId() && !p3.hasMaxId()) {
+      p1.id1 := p1.randomId();
+      communicate p2.id1 <- p1.id1;
+      communicate p3.id1 <- p1.id1;
+
+      p2.id2 := p2.randomId();
+      communicate p1.id2 <- p2.id2;
+      communicate p3.id2 <- p2.id2;
+
+      p3.id3 := p3.randomId();
+      communicate p1.id3 <- p3.id3;
+      communicate p2.id3 <- p3.id3;
+
+      assert (\chor consistency(p1, p2, p3));
+      assert (\chor !p1.hasMaxId() == !p2.hasMaxId());
+      assert (\chor !p2.hasMaxId() == !p3.hasMaxId());
+    }
+    if (p1.id1 == p1.getMaxId()) {
+      p1.leader := true;
+    }
+    if (p2.id2 == p2.getMaxId()) {
+      p2.leader := true;
+    }
+    if (p3.id3 == p3.getMaxId()) {
+      p3.leader := true;
+    }
+  }
+}

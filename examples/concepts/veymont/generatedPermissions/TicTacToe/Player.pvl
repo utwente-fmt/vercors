@@ -1,7 +1,7 @@
 class Player {
 	int c00, c01, c02, c10, c11, c12, c20, c21, c22;
 	int myToken;
-	Move move, temp;
+	Move move;
 	boolean turn;
 	
 	
@@ -25,7 +25,6 @@ class Player {
 		myToken = tok;
 		turn = t;
 		move = new Move(0, 0, tok);
-		temp = new Move(-1, -1, -1);
 	}
 	
 
@@ -105,11 +104,10 @@ class Player {
 		c10 == other.c10 && c11 == other.c11 && c12 == other.c12 && 
 		c20 == other.c20 && c21 == other.c21 && c22 == other.c22;
 			
-	ensures 0 <= move.i && move.i <= 2;
-	ensures 0 <= move.j && move.j <= 2;
 	requires myToken == 0 || myToken == 1;
+	ensures move != null;
+	ensures move.bounds();
 	ensures move.token == myToken;
-	ensures move.token == 0 || move.token == 1;
 	ensures myToken == \old(myToken);
 	ensures turn == \old(turn);
 	requires !gridFull();

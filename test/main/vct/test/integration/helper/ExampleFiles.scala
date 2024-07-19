@@ -9,15 +9,12 @@ case object ExampleFiles {
     "examples/private/",
     "examples/archive/",
     "examples/concepts/resourceValues",
-    "examples/technical/veymont",
-    "examples/concepts/veymont"
+    // TODO (RR): The next two can be deleted when the veymont permissions paper artefact is finished
+    "examples/concepts/veymont/FM2024 - VeyMont/1-TTTmsg/TTTmsg-generatedImplementation.pvl",
+    "examples/concepts/veymont/FM2024 - VeyMont/2-TTTlast/TTTlast-generated.pvl",
   ).map(_.replaceAll("/", File.separator))
 
-  val IGNORE_EXTS: Seq[String] = Seq(
-    ".h",
-    ".bib",
-    ".xml",
-  )
+  val IGNORE_EXTS: Seq[String] = Seq(".h", ".bib", ".xml")
 
   val IGNORE_FILES: Set[String] = Set(
     ".gitignore",
@@ -25,7 +22,6 @@ case object ExampleFiles {
     "Makefile",
     "README",
     "LICENSE.txt",
-    "veymont-tictactoemn-seq.pvl",
   )
 
   val MAIN_FILES: Set[String] = Set(
@@ -44,10 +40,14 @@ case object ExampleFiles {
 
   val FILES: Seq[Path] = find(Paths.get("examples"))
 
+  val PUBLICATIONS_DIR: Path = Paths.get("examples", "publications")
+
   def find(directory: Path): Seq[Path] =
-    Files.list(directory)
-      .toScala(Seq)
-      .filterNot(f => EXCLUSIONS.exists(_(f)))
-      .sortBy(_.getFileName.toString)
-      .flatMap(f => if(Files.isDirectory(f)) find(f) else Seq(f))
+    Files.list(directory).toScala(Seq).filterNot(f => EXCLUSIONS.exists(_(f)))
+      .sortBy(_.getFileName.toString).flatMap(f =>
+        if (Files.isDirectory(f))
+          find(f)
+        else
+          Seq(f)
+      )
 }

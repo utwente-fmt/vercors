@@ -838,15 +838,14 @@ public class KnownTypeTransformer<T> {
                 ClassTag$.MODULE$.apply(InstancePredicate.class));
 
         // Apply predicates
-        InstancePredicateApply<T> scheduler_perms = new InstancePredicateApply<>(m_deref, perm_inv, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create());
-        InstancePredicateApply<T> parameter_perms = new InstancePredicateApply<>(m_deref, param_inv, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create());
+        InstancePredicateApply<T> scheduler_perms = new InstancePredicateApply<>(m_deref, perm_inv, col_system.NO_EXPRS, OriGen.create());
+        InstancePredicateApply<T> parameter_perms = new InstancePredicateApply<>(m_deref, param_inv, col_system.NO_EXPRS, OriGen.create());
         Ref<T, InstancePredicate<T>> channel_inv = new DirectRef<>(col_system.get_prim_channel_inv(sc_inst), ClassTag$.MODULE$.apply(InstancePredicate.class));
-        InstancePredicateApply<T> channel_perms = new InstancePredicateApply<>(m_deref, channel_inv, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create());
+        InstancePredicateApply<T> channel_perms = new InstancePredicateApply<>(m_deref, channel_inv, col_system.NO_EXPRS, OriGen.create());
+
+        Expr<T> predicates = col_system.fold_preds(scheduler_perms, parameter_perms, channel_perms);
 
         // Connect the individual conditions with stars and return
-        return col_system.fold_star(java.util.List.of(perm_m, m_not_null, held_m, scheduler_perms, parameter_perms, channel_perms, this_is_self));
+        return col_system.fold_star(java.util.List.of(perm_m, m_not_null, held_m, predicates, this_is_self));
     }
 }

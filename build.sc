@@ -41,7 +41,7 @@ object external extends Module {
 object viper extends ScalaModule {
   object silverGit extends GitModule {
     def url = T { "https://github.com/viperproject/silver.git" }
-    def commitish = T { "9cd85c01c10f5f846ed2754d64de08fcc59207ee" }
+    def commitish = T { "4a8065758868eae3414f86f3d96e843a283444fc" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -51,17 +51,24 @@ object viper extends ScalaModule {
 
   object siliconGit extends GitModule {
     def url = T { "https://github.com/viperproject/silicon.git" }
-    def commitish = T { "c4350bd33043a727a0a4f3008f39a4efc7748033" }
+    def commitish = T { "4033dd21614b3bbba9c7615655e41c6cf0b9d80b" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
+      os.remove(workspace / "src" / "main" / "resources" / "logback.xml")
       workspace
     }
   }
 
   object carbonGit extends GitModule {
     def url = T { "https://github.com/viperproject/carbon.git" }
-    def commitish = T { "15d74246bb8baef1e3ea88dcc4861c891259a99d" }
+    def commitish = T { "758481ef42f42720c36406bb278820ba802c7e68" }
+    def filteredRepo = T {
+      val workspace = repo()
+      os.remove.all(workspace / "src" / "test")
+      os.remove(workspace / "src" / "main" / "resources" / "logback.xml")
+      workspace
+    }
   }
 
   object silver extends ScalaModule {
@@ -125,10 +132,10 @@ object viper extends ScalaModule {
     override def scalaVersion = "2.13.10"
     override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
     def repo = carbonGit
-    override def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
+    override def sources = T.sources { repo.filteredRepo() / "src" / "main" / "scala" }
     override def ivyDeps = settings.deps.log
     override def moduleDeps = Seq(silver)
-    override def resources = T.sources { repo.repo() / "src" / "main" / "resources" }
+    override def resources = T.sources { repo.filteredRepo() / "src" / "main" / "resources" }
   }
 
   override def moduleDeps = Seq(silver, silicon, carbon)
@@ -755,10 +762,12 @@ object vercors extends Module {
         2
       }
 
-      override def cMakeBuild: T[PathRef] = T {
+      override def cMakeSetupBuild: T[os.Path] = T {
+        val apiDir = T.dest / ".cmake" / "api" / "v1"
+        os.makeDir.all(apiDir / "query")
+        os.write(apiDir / "query" / "codemodel-v2", "")
         os.proc("cmake", "-B", T.dest, "-Dprotobuf_BUILD_TESTS=OFF", "-DABSL_PROPAGATE_CXX_STD=ON", "-S", root().path).call(cwd = T.dest)
-        os.proc("make", "-j", jobs(), "all").call(cwd = T.dest)
-        PathRef(T.dest)
+        T.dest
       }
 
       object libprotobuf extends CMakeLibrary {

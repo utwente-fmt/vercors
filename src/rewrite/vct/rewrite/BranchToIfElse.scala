@@ -21,10 +21,13 @@ case class BranchToIfElse[Pre <: Generation]() extends Rewriter[Pre] {
           (tt[Post], dispatch(whenFalse)),
         ))(stat.o)
       case Branch((cond, whenTrue) +: tail) =>
-        Branch(Seq(
-          (dispatch(cond), dispatch(whenTrue)),
-          (tt[Post], dispatch(Branch[Pre](tail)(stat.o))),
-        ))(stat.o)
+        Branch(
+          Seq((dispatch(cond), dispatch(whenTrue))) ++
+            (if (tail.nonEmpty)
+               Seq((tt[Post], dispatch(Branch[Pre](tail)(stat.o))))
+             else
+               Seq())
+        )(stat.o)
       case other => rewriteDefault(other)
     }
 }
