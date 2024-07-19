@@ -28,6 +28,7 @@ import vct.col.ast.{
   LoopContract,
   LoopInvariant,
   Message,
+  Perm,
   Program,
   Receiver,
   Result,
@@ -40,6 +41,7 @@ import vct.col.ast.{
   Type,
   Value,
   Variable,
+  WritePerm,
 }
 import vct.col.origin.{Name, Origin, PanicBlame, PostBlameSplit, SourceName}
 import vct.col.ref.Ref
@@ -260,11 +262,28 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
           }._1
         ).succeed(cls)
 
-      case cons: Constructor[Pre] if isEndpointClass(classOf(cons)) =>
-        val perms = communicatesOf(choreographyOf(cls)).map { comm => ??? }
-        // TODO (RR): Finish the permission generation here
-        cons.rewrite(contract =
-          cons.contract.rewrite(ensures = tt.accounted &* cons.contract.ensures)
+      case cons: Constructor[Pre] if classOfOpt(cons).exists(isEndpointClass) =>
+        // For each communicate in the choreography, a field is added to the endpoint class
+        // Hence, we add full write permission for each of those fields in the postcondition
+        val cls = classOf(cons)
+        implicit val o = cons.o
+        val `this` = ThisObject[Post](succ(cls))
+        val perms = foldStar(communicatesOf(choreographyOf(cls)).map { comm =>
+          val ref: Ref[Post, InstanceField[Post]] = fieldOfCommunicate
+            .ref((endpointOf(cls), comm))
+          Perm(FieldLocation[Post](`this`, ref), WritePerm())
+        })
+        cons.rewrite(
+          contract = cons.contract.rewrite(ensures =
+            perms.accounted &* dispatch(cons.contract.ensures)
+          ),
+          // Because we prepend an accounted predicate to the contract, split the blame left
+          blame = PostBlameSplit.left(
+            PanicBlame(
+              "Permissions for automatically generated fields should be managed correctly"
+            ),
+            cons.blame,
+          ),
         ).succeed(cons)
 
       case cls: Class[Pre] if cls == genericChannelClass =>
@@ -316,6 +335,7 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
               Assign(thisReceiver, receiver.get)(PanicBlame("Should be safe")),
             ) :+ cons.body.map(dispatch).getOrElse(skip)
           )),
+          // TODO (RR): Blame accounting is wrong here
           contract = cons.contract.rewrite(ensures =
             (valueSender &* valueReceiver &* (sender.get === thisSender) &*
               (receiver.get === thisReceiver)).accounted &*
@@ -364,19 +384,7 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
     if (currentCommunicate.nonEmpty) {
       rewriteChannelExpr(currentCommunicate.top, expr)
     } else
-      expr match {
-        case inv @ ConstructorInvocation(Ref(cons), _, _, _, _, _, _)
-            if isEndpointClass(classOf(cons)) =>
-          inv.rewrite(blame =
-            PostBlameSplit.left(
-              PanicBlame(
-                "Channel field permissions should be managed correctly, automatically"
-              ),
-              inv.blame,
-            )
-          )
-        case _ => expr.rewriteDefault()
-      }
+      expr.rewriteDefault()
 
   def rewriteChannelExpr(
       comm: Communicate[Pre],

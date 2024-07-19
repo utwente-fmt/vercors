@@ -68,6 +68,8 @@ trait VeymontContext[Pre <: Generation] {
 
   def classOf(cons: Constructor[Pre]): Class[Pre] =
     mappings.constructorToClass(cons)
+  def classOfOpt(cons: Constructor[Pre]): Option[Class[Pre]] =
+    mappings.constructorToClass.get(cons)
 
   val currentChoreography = ScopedStack[Choreography[Pre]]()
   val currentEndpoint = ScopedStack[Endpoint[Pre]]()
