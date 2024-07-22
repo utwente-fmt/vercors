@@ -897,53 +897,39 @@ case class CPPToCol[G](
           case _ => ??(typeSpec)
         }
       case SimpleTypeSpecifier1(_, _, _) => ??(typeSpec)
-      case SimpleTypeSpecifier2(signedness) => Seq(convert(signedness))
-      case SimpleTypeSpecifier3(Some(signedness), typeLengthMods) =>
-        Seq(convert(signedness)) ++ typeLengthMods.map(convert(_))
-      case SimpleTypeSpecifier3(None, typeLengthMods) =>
-        typeLengthMods.map(convert(_))
-      case SimpleTypeSpecifier4(Some(signedness), _) =>
-        Seq(convert(signedness), new CPPChar[G]())
-      case SimpleTypeSpecifier4(None, _) => Seq(new CPPChar[G]())
-      case SimpleTypeSpecifier5(_, _) => ??(typeSpec)
-      case SimpleTypeSpecifier6(_, _) => ??(typeSpec)
-      case SimpleTypeSpecifier7(_, _) => ??(typeSpec)
-      case SimpleTypeSpecifier8(_) => Seq(new CPPBool[G]())
-      case SimpleTypeSpecifier9(Some(signedness), typeLengthMods, _) =>
-        Seq(convert(signedness)) ++ typeLengthMods.map(convert(_)) :+
-          new CPPInt[G]()
-      case SimpleTypeSpecifier9(None, typeLengthMods, _) =>
-        typeLengthMods.map(convert(_)) :+ new CPPInt[G]()
-      case SimpleTypeSpecifier10(_) =>
+      // Char
+      case SimpleTypeSpecifier2(_) => Seq(new CPPChar[G]())
+      // Char16
+      case SimpleTypeSpecifier3(_) => ??(typeSpec)
+      // Char32
+      case SimpleTypeSpecifier4(_) => ??(typeSpec)
+      // Wchar
+      case SimpleTypeSpecifier5(_) => ??(typeSpec)
+      // Bool
+      case SimpleTypeSpecifier6(_) => Seq(new CPPBool[G]())
+      // Short
+      case SimpleTypeSpecifier7(_) => ??(typeSpec)
+      // Int
+      case SimpleTypeSpecifier8(_) => Seq(new CPPInt[G]())
+      // Long
+      case SimpleTypeSpecifier9(_) => ??(typeSpec)
+      // Signed
+      case SimpleTypeSpecifier10(_) => Seq(new CPPSigned[G]())
+      // Signed
+      case SimpleTypeSpecifier11(_) => Seq(new CPPUnsigned[G]())
+      // Float
+      case SimpleTypeSpecifier12(_) =>
         Seq(CPPSpecificationType(TFloats.C_ieee754_32bit))
-      case SimpleTypeSpecifier11(Some(typeLengthMod), _) =>
-        Seq(
-          convert(typeLengthMod),
-          CPPSpecificationType(TFloats.C_ieee754_64bit),
-        )
-      case SimpleTypeSpecifier11(None, _) =>
+      // Double
+      case SimpleTypeSpecifier13(_) =>
         Seq(CPPSpecificationType(TFloats.C_ieee754_64bit))
-      case SimpleTypeSpecifier12(_) => Seq(new CPPVoid[G]())
-      case SimpleTypeSpecifier13(_) => ??(typeSpec)
-      case SimpleTypeSpecifier14(valType) =>
-        Seq(CPPSpecificationType(convert(valType)))
+      // Void
+      case SimpleTypeSpecifier14(_) => Seq(new CPPVoid[G]())
+      // Auto
       case SimpleTypeSpecifier15(_) => ??(typeSpec)
-    }
-
-  def convert(
-      implicit signedness: SimpleTypeSignednessModifierContext
-  ): CPPTypeSpecifier[G] =
-    signedness match {
-      case SimpleTypeSignednessModifier0(_) => new CPPUnsigned[G]()
-      case SimpleTypeSignednessModifier1(_) => new CPPSigned[G]()
-    }
-
-  def convert(
-      implicit simpleTypeLengthMod: SimpleTypeLengthModifierContext
-  ): CPPTypeSpecifier[G] =
-    simpleTypeLengthMod match {
-      case SimpleTypeLengthModifier0(_) => new CPPShort[G]()
-      case SimpleTypeLengthModifier1(_) => new CPPLong[G]()
+      case SimpleTypeSpecifier16(valType) =>
+        Seq(CPPSpecificationType(convert(valType)))
+      case SimpleTypeSpecifier17(_) => ??(typeSpec)
     }
 
   // Do not support template or decltypes, or a typename as identifier in the nestedname
