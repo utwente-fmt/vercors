@@ -14,7 +14,7 @@ case class CFGGenerator[G]() extends LazyLogging {
   private val converted_nodes: mutable.Map[GlobalIndex[G], CFGNode[G]] = mutable
     .HashMap[GlobalIndex[G], CFGNode[G]]()
 
-  def generate(entry: InstanceMethod[G]): CFGNode[G] = {
+  def generate(entry: Procedure[G]): CFGNode[G] = {
     logger.info("Generating control flow graph")
     val res = convert(
       entry.body.get,

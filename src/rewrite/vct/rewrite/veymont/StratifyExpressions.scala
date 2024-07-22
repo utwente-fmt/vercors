@@ -1,12 +1,8 @@
 package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.check.SeqProgParticipant
-import vct.col.origin.{Blame, Origin, SeqBranchFailure}
-import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
@@ -14,9 +10,6 @@ import vct.rewrite.veymont.StratifyExpressions.{
   MultipleEndpoints,
   SeqProgParticipantErrors,
 }
-
-import scala.collection.immutable.ListSet
-import scala.collection.mutable
 
 object StratifyExpressions extends RewriterBuilder {
   override def key: String = "stratifyExpressions"
@@ -26,9 +19,7 @@ object StratifyExpressions extends RewriterBuilder {
   case class MultipleEndpoints(e: Expr[_]) extends UserError {
     override def code: String = "multipleEndpoints"
     override def text: String =
-      e.o.messageInContext(
-        "This expression references multiple endpoints, but that is not yet supported."
-      )
+      e.o.messageInContext("Cannot infer endpoint context for this expression")
   }
 
   case class SeqProgParticipantErrors(es: Seq[SeqProgParticipant])
@@ -46,6 +37,8 @@ case class StratifyExpressions[Pre <: Generation]()
   override def dispatch(prog: Program[Pre]): Program[Post] = {
     val newProg = prog.rewrite()
     val errors = newProg.check
+    // TODO (RR): if we refactor branches to be nested instead of flat, this check can
+    //   happen directly after LangVeyMontToCol
     val seqBranchErrors = errors.collect { case err: SeqProgParticipant => err }
     if (errors.nonEmpty && errors.length == seqBranchErrors.length) {
       throw SeqProgParticipantErrors(seqBranchErrors)
@@ -94,27 +87,28 @@ case class StratifyExpressions[Pre <: Generation]()
           body = dispatch(l.body),
         ) /*(loop.blame)*/ (l.o)
 
-      case InChor(_, branch: Branch[Pre]) =>
-        assert(branch.branches.nonEmpty)
-        logger.warn("TODO: Branch blame")
-        unfoldBranch(branch.branches)(null, branch.o)
+      case InChor(_, branch @ Branch(Seq((cond, yes)))) =>
+        branch.rewrite(Seq((stratifyExpr(cond), dispatch(yes))))
+
+      case InChor(
+            _,
+            branch @ Branch(Seq((cond, yes), (BooleanValue(true), no))),
+          ) =>
+        branch
+          .rewrite(Seq((stratifyExpr(cond), dispatch(yes)), (tt, dispatch(no))))
+
+      case InChor(_, Branch(_)) => ???
+
+      case assert: Assert[Pre] =>
+        assert.rewrite(res = stratifyExpr(assert.expr))
+      case inhale: Inhale[Pre] =>
+        inhale.rewrite(res = stratifyExpr(inhale.expr))
+      case exhale: Exhale[Pre] =>
+        exhale.rewrite(res = stratifyExpr(exhale.expr))
+      case assume: Assume[Pre] =>
+        assume.rewrite(assn = stratifyExpr(assume.expr))
 
       case statement => statement.rewriteDefault()
-    }
-
-  // TODO (RR): For branch, make sure blame is put on ChorStatement wrapper of Branch. Probably too for loop
-
-  def unfoldBranch(
-      branches: Seq[(Expr[Pre], Statement[Pre])]
-  )(implicit blame: Blame[SeqBranchFailure], o: Origin): Branch[Post] =
-    branches match {
-      case Seq((e, s)) => Branch(Seq((stratifyExpr(e), dispatch(s))))
-      case (e, s) +: (otherYes +: branches) =>
-        Branch(Seq(
-          (stratifyExpr(e), dispatch(s)),
-          (tt, unfoldBranch(otherYes +: branches)),
-        )) /* (blame) */
-      case _ => ???
     }
 
   def stratifyExpr(e: Expr[Pre]): Expr[Post] = {
@@ -130,11 +124,12 @@ case class StratifyExpressions[Pre <: Generation]()
       exprs.map {
         case e: ChorExpr[Pre] => (None, e)
         case e: ChorPerm[Pre] => (None, e)
+        case e: EndpointExpr[Pre] => (None, e)
         case expr => point(expr)
       }.map {
         case (Some(endpoint), expr) =>
           EndpointExpr[Post](succ(endpoint), dispatch(expr))(expr.o)
-        case (None, expr) => dispatch(expr)
+        case (None, expr) => expr.rewriteDefault()
       }
     )(e.o)
   }

@@ -1,5 +1,6 @@
 package vct.options
 
+import hre.log.Verbosity
 import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
@@ -42,7 +43,7 @@ case object Options {
 
     import vct.options.types.Backend.read
     implicit val readLanguage: scopt.Read[Language] = ReadLanguage.read
-    import vct.options.types.Verbosity.read
+    import ReadEnum.readVerbosity
 
     implicit val readPathOrStd: scopt.Read[PathOrStd] = scopt.Read.reads {
       case "-" => PathOrStd.StdInOrOut
@@ -244,6 +245,10 @@ case object Options {
         "Indicate, in seconds, the timeout value for the backend verification. If the verification gets stuck " +
           "for longer than this timeout, the verification will timeout."
       ),
+      opt[Unit]("dev-unsafe-optimization").maybeHidden()
+        .action((_, c) => c.copy(devUnsafeOptimization = true)).text(
+          "Optimizes runtime at the cost of progress logging and readability of error messages"
+        ),
       opt[Path]("dev-silicon-z3-log-file").maybeHidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),
@@ -311,9 +316,13 @@ case object Options {
         .action((_, c) => c.copy(veymontGeneratePermissions = true)).text(
           "Generate permissions for the entire sequential program in the style of VeyMont 1.4"
         ),
+      opt[Unit]("dev-veymont-no-branch-unanimity").maybeHidden()
+        .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
+          "Disables generation of the branch unanimity check encoded by VeyMont, which verifies that choreographies do not deadlock during choreographic verification"
+        ),
       opt[Unit]("dev-veymont-allow-assign").maybeHidden()
         .action((p, c) => c.copy(devVeymontAllowAssign = true))
-        .text("Do not error when plain assignment is used in seq_programs"),
+        .text("Do not error when plain assignment is used in choreographies"),
       note(""),
       note("VeSUV Mode"),
       opt[Unit]("vesuv").action((_, c) => c.copy(mode = Mode.VeSUV)).text(
@@ -326,11 +335,20 @@ case object Options {
           .action((_, c) => c.copy(vesuvGenerateRasi = true)).text(
             "Instead of transforming a SystemC design to PVL, generate a global invariant for a PVL program"
           ).children(
+            opt[Unit]("rasi-graph-output")
+              .action((_, c) => c.copy(vesuvRasiTest = true)).text(
+                "Output RASI graph to test the algorithm rather than outputting the invariant"
+              ),
             opt[Seq[String]]("rasi-vars").valueName("<var1>,...")
               .action((vars, c) => c.copy(vesuvRasiVariables = Some(vars)))
               .text(
                 "[WIP] Preliminary selection mechanism for RASI variables; might be replaced later"
-              )
+              ),
+            opt[Seq[String]]("split-rasi").valueName("<var1>,...")
+              .action((vars, c) => c.copy(vesuvRasiSplitVariables = Some(vars)))
+              .text(
+                "[WIP] Preliminary selection mechanism for localizing the RASI based on certain variables; might be changed later"
+              ),
           ),
       ),
       note(""),
@@ -433,18 +451,22 @@ case class Options(
     devSiliconTraceBranchConditions: Boolean = false,
     devCarbonBoogieLogFile: Option[Path] = None,
     devViperProverLogFile: Option[Path] = None,
+    devUnsafeOptimization: Boolean = false,
 
     // VeyMont options
     veymontOutput: Option[Path] = None,
     veymontResourcePath: Path = Resources.getVeymontPath,
     veymontGeneratePermissions: Boolean = false,
+    veymontBranchUnanimity: Boolean = true,
     veymontSkipChoreographyVerification: Boolean = false,
     devVeymontAllowAssign: Boolean = false,
 
     // VeSUV options
     vesuvOutput: Path = null,
     vesuvGenerateRasi: Boolean = false,
+    vesuvRasiTest: Boolean = false,
     vesuvRasiVariables: Option[Seq[String]] = None,
+    vesuvRasiSplitVariables: Option[Seq[String]] = None,
 
     // Control flow graph options
     cfgOutput: Path = null,

@@ -1,14 +1,9 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.Origin
-import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.StratifyExpressions.MultipleEndpoints
 
 import scala.collection.immutable.ListSet
 
@@ -27,11 +22,12 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
       case chor: Choreography[Pre] =>
         currentChoreography.having(chor) {
           currentParticipants.having(ListSet.from(chor.endpoints)) {
-            rewriteDefault(chor)
+            chor.rewrite(contract = chor.contract.rewriteDefault())
+              .succeed(chor)
           }
         }
 
-      case decl => rewriteDefault(decl)
+      case decl => super.dispatch(decl)
     }
 
   override def dispatch(

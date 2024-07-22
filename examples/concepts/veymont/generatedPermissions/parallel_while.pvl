@@ -1,35 +1,35 @@
 class Role {
-	int x, left;
-	
-	ensures x == v;
-	constructor(int v) {
-		x = v;
-	}
+  int x, left;
+
+  ensures x == v;
+  constructor(int v) {
+    x = v;
+  }
 }
 
 requires vb - vc == vc - va;
 choreography parallelWhile(int va, int vb, int vc) {
-	
-	endpoint a = Role(va);
-	endpoint b = Role(vb);
-	endpoint c = Role(vc);
 
-	requires b.x - c.x == c.x - a.x;
-	ensures a.x == b.x && b.x == c.x; 
-	run {
-        communicate b.left <- a.x;
-        communicate c.left <- b.x;
-        communicate a.left <- c.x;
+  endpoint a = Role(va);
+  endpoint b = Role(vb);
+  endpoint c = Role(vc);
 
-		loop_invariant b.x - c.x == c.x - a.x;
-		loop_invariant b.left == a.x && c.left == b.x && a.left == c.x;
-		while(a.left != a.x && b.left != b.x && c.left != c.x) {
-            a.x := a.x + 1;
-            communicate b.left <- a.x;
-            b.x := b.x - 1;
-            communicate c.left <- b.x;
-            communicate a.left <- c.x;
-		}
-	}
+  requires (\chor b.x - c.x == c.x - a.x);
+  ensures (\chor a.x == b.x && b.x == c.x);
+  run {
+    communicate b.left <- a.x;
+    communicate c.left <- b.x;
+    communicate a.left <- c.x;
+
+    loop_invariant (\chor b.x - c.x == c.x - a.x);
+    loop_invariant (\chor b.left == a.x && c.left == b.x && a.left == c.x);
+    while(a.left != a.x && b.left != b.x && c.left != c.x) {
+      a.x := a.x + 1;
+      communicate b.left <- a.x;
+      b.x := b.x - 1;
+      communicate c.left <- b.x;
+      communicate a.left <- c.x;
+    }
+  }
 }
 

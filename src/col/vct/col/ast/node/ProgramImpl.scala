@@ -21,5 +21,6 @@ trait ProgramImpl[G]
       super.checkContextRecursor(context, f)
     }
 
-  override def layout(implicit ctx: Ctx): Doc = Doc.stack(declarations)
+  override def layout(implicit ctx: Ctx): Doc =
+    Doc.fold(declarations)(_ <> vct.col.print.Line <> vct.col.print.Line <> _)
 }

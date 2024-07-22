@@ -10,7 +10,7 @@ trait PVLChoreographyImpl[G] extends PVLChoreographyOps[G] {
     Doc.stack(Seq(
       contract,
       Group(
-        Text("seq_program") <+> ctx.name(this) <> "(" <> Doc.args(args) <> ")"
+        Text("choreography") <+> ctx.name(this) <> "(" <> Doc.args(args) <> ")"
       ) <+> "{" <>> Doc.stack(declarations) <+/> "}",
     ))
 }

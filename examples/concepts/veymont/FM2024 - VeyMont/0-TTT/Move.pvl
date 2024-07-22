@@ -1,0 +1,16 @@
+class Move {
+	int i, j, mark;
+	
+	ensures i == mi ** j == mj ** mark == mm;
+	constructor(int mi, int mj, int mm) {
+		i = mi;
+		j = mj;
+		mark = mm;
+	}
+	
+	ensures \result.i == i ** \result.j == j ** \result.mark == mark;
+	ensures i == \old(i) ** j == \old(j) ** mark == \old(mark);
+	Move clone() {
+	    return new Move(i, j, mark);
+	}
+}

@@ -1,6 +1,6 @@
 package vct.col.ast.declaration.global
 
-import vct.col.ast.{Class, Declaration, TClass, TVar}
+import vct.col.ast.{Class, Declaration, InstanceField, TClass, TVar}
 import vct.col.ast.util.Declarator
 import vct.col.print._
 import vct.col.util.AstBuildHelpers.tt
@@ -24,6 +24,9 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] {
     transSupportArrowsHelper(Set.empty)
 
   def supers: Seq[TClass[G]] = supports.map(_.asClass.get)
+
+  def fields: Seq[InstanceField[G]] =
+    decls.collect { case field: InstanceField[G] => field }
 
   override def declarations: Seq[Declaration[G]] = decls ++ typeArgs
 

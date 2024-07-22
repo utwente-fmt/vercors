@@ -155,14 +155,11 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
           endpoint.rewrite[Post](
             cls = wrapperClass.ref,
             typeArgs = Seq(),
-            constructor = constructor.ref,
-            args = Seq(constructorInvocation[Post](
-              ref = succ(endpoint.constructor.decl),
-              classTypeArgs = endpoint.typeArgs.map(dispatch),
-              args = endpoint.args.map(dispatch),
-              blame = PanicBlame("Not implemented"),
-            )),
-            blame = PanicBlame("Unreachable"),
+            init = constructorInvocation(
+              ref = constructor.ref,
+              args = Seq(dispatch(endpoint.init)),
+              blame = PanicBlame("Should be safe"),
+            ),
           ),
         )
       case _ => super.dispatch(decl)

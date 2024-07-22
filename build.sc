@@ -55,6 +55,7 @@ object viper extends ScalaModule {
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
+      os.remove(workspace / "src" / "main" / "resources" / "logback.xml")
       workspace
     }
   }
@@ -62,6 +63,12 @@ object viper extends ScalaModule {
   object carbonGit extends GitModule {
     def url = T { "https://github.com/viperproject/carbon.git" }
     def commitish = T { "758481ef42f42720c36406bb278820ba802c7e68" }
+    def filteredRepo = T {
+      val workspace = repo()
+      os.remove.all(workspace / "src" / "test")
+      os.remove(workspace / "src" / "main" / "resources" / "logback.xml")
+      workspace
+    }
   }
 
   object silver extends ScalaModule {
@@ -125,10 +132,10 @@ object viper extends ScalaModule {
     override def scalaVersion = "2.13.10"
     override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
     def repo = carbonGit
-    override def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
+    override def sources = T.sources { repo.filteredRepo() / "src" / "main" / "scala" }
     override def ivyDeps = settings.deps.log
     override def moduleDeps = Seq(silver)
-    override def resources = T.sources { repo.repo() / "src" / "main" / "resources" }
+    override def resources = T.sources { repo.filteredRepo() / "src" / "main" / "resources" }
   }
 
   override def moduleDeps = Seq(silver, silicon, carbon)
@@ -409,14 +416,14 @@ object vercors extends Module {
     )
     override def moduleDeps = Seq(hre, col, serialize)
 
-    val includeVcllvmCross = interp.watchValue { 
+    val includeVcllvmCross = interp.watchValue {
       if(os.exists(settings.root / ".include-vcllvm")) {
         Seq("vcllvm")
       } else {
         Seq.empty[String]
       }
     }
-    
+
     object vcllvmDep extends Cross[VcllvmDep](includeVcllvmCross)
     trait VcllvmDep extends Cross.Module[String] {
       def path = T {
@@ -755,10 +762,12 @@ object vercors extends Module {
         2
       }
 
-      override def cMakeBuild: T[PathRef] = T {
+      override def cMakeSetupBuild: T[os.Path] = T {
+        val apiDir = T.dest / ".cmake" / "api" / "v1"
+        os.makeDir.all(apiDir / "query")
+        os.write(apiDir / "query" / "codemodel-v2", "")
         os.proc("cmake", "-B", T.dest, "-Dprotobuf_BUILD_TESTS=OFF", "-DABSL_PROPAGATE_CXX_STD=ON", "-S", root().path).call(cwd = T.dest)
-        os.proc("make", "-j", jobs(), "all").call(cwd = T.dest)
-        PathRef(T.dest)
+        T.dest
       }
 
       object libprotobuf extends CMakeLibrary {

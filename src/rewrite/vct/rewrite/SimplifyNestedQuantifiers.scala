@@ -56,21 +56,45 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
   private def one: IntegerValue[Pre] = IntegerValue(1)
 
   var equalityChecker: ExpressionEqualityCheck[Pre] = ExpressionEqualityCheck()
+  var topLevel: Boolean = false
+  var infoGetter: AnnotationVariableInfoGetter[Pre] =
+    new AnnotationVariableInfoGetter[Pre]()
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     e match {
+      // Consider elements of top level stars and ands also toplevel
+      case e: Star[Pre] if topLevel =>
+        val left = dispatch(e.left)
+        topLevel = true
+        val right = dispatch(e.right)
+        topLevel = true
+        Star(left, right)(e.o)
+      case e: And[Pre] if topLevel =>
+        val left = dispatch(e.left)
+        topLevel = true
+        val right = dispatch(e.right)
+        topLevel = true
+        And(left, right)(e.o)
       case e: Forall[Pre] =>
+        topLevel = false
+        equalityChecker = ExpressionEqualityCheck(Some(infoGetter.finalInfo()))
         mapUnfoldedStar(
           e.body,
           (b: Expr[Pre]) =>
             rewriteBinder(Forall(e.bindings, e.triggers, b)(e.o)),
         )
       case e: Starall[Pre] =>
+        topLevel = false
+        equalityChecker = ExpressionEqualityCheck(Some(infoGetter.finalInfo()))
         mapUnfoldedStar(
           e.body,
           (b: Expr[Pre]) =>
             rewriteBinder(Starall(e.bindings, e.triggers, b)(e.blame)(e.o)),
         )
+      case other if topLevel =>
+        infoGetter.addInfo(other)
+        topLevel = false
+        other.rewriteDefault()
       case other => other.rewriteDefault()
     }
   }
@@ -106,55 +130,45 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = {
-    val e =
-      stat match {
-        case Exhale(e) => e
-        case Inhale(e) => e
-        case proof: FramedProof[Pre] => return checkFramedProof(proof)
-        case _ => return stat.rewriteDefault()
-      }
-
-    val conditions = getConditions(e)
-    val infoGetter = new AnnotationVariableInfoGetter[Pre]()
-    equalityChecker = ExpressionEqualityCheck(
-      Some(infoGetter.getInfo(conditions))
-    )
+    stat match {
+      case Exhale(e) =>
+      case Inhale(e) =>
+      case proof: FramedProof[Pre] => return checkFramedProof(proof)
+      case _ => return stat.rewriteDefault()
+    }
+    topLevel = true
+    infoGetter.setupInfo()
     val result = stat.rewriteDefault()
+    topLevel = false
     equalityChecker = ExpressionEqualityCheck()
     result
   }
 
   def checkFramedProof(proof: FramedProof[Pre]): Statement[Post] = {
-    val conditions_pre = getConditions(proof.pre)
-    val infoGetter_pre = new AnnotationVariableInfoGetter[Pre]()
-    equalityChecker = ExpressionEqualityCheck(
-      Some(infoGetter_pre.getInfo(conditions_pre))
-    )
+    topLevel = true
+    infoGetter.setupInfo()
     val pre = dispatch(proof.pre)
-
-    val conditions_post = getConditions(proof.post)
-    val infoGetter_post = new AnnotationVariableInfoGetter[Pre]()
-    ExpressionEqualityCheck(Some(infoGetter_post.getInfo(conditions_post)))
-    val post = dispatch(proof.post)
     equalityChecker = ExpressionEqualityCheck()
+    infoGetter.setupInfo()
+    val post = dispatch(proof.post)
+    topLevel = false
+    equalityChecker = ExpressionEqualityCheck()
+
     val body = dispatch(proof.body)
 
     FramedProof[Post](pre, body, post)(proof.blame)(proof.o)
   }
 
-  def getConditions(preds: AccountedPredicate[Pre]): Seq[Expr[Pre]] =
-    preds match {
-      case UnitAccountedPredicate(pred) => getConditions(pred)
-      case SplitAccountedPredicate(left, right) =>
-        getConditions(left) ++ getConditions(right)
+  override def dispatch(
+      p: AccountedPredicate[Pre]
+  ): AccountedPredicate[Post] = {
+    p match {
+      case u @ UnitAccountedPredicate(pred) =>
+        topLevel = true
+        u.rewriteDefault()
+      case s @ SplitAccountedPredicate(left, right) => s.rewriteDefault()
     }
-
-  def getConditions(e: Expr[Pre]): Seq[Expr[Pre]] =
-    e match {
-      case And(left, right) => getConditions(left) ++ getConditions(right)
-      case Star(left, right) => getConditions(left) ++ getConditions(right)
-      case other => Seq[Expr[Pre]](other)
-    }
+  }
 
   override def dispatch(loopContract: LoopContract[Pre]): LoopContract[Post] = {
     val loopInvariant: LoopInvariant[Pre] =
@@ -163,12 +177,10 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
         case _ => return dispatch(loopContract)
       }
 
-    val infoGetter = new AnnotationVariableInfoGetter[Pre]()
-    val conditions = getConditions(loopInvariant.invariant)
-    equalityChecker = ExpressionEqualityCheck(
-      Some(infoGetter.getInfo(conditions))
-    )
+    topLevel = true
+    infoGetter.setupInfo()
     val invariant = dispatch(loopInvariant.invariant)
+    topLevel = false
     equalityChecker = ExpressionEqualityCheck()
     val decreases = loopInvariant.decreases.map(element => dispatch(element))
 
@@ -178,23 +190,21 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
   override def dispatch(
       contract: ApplicableContract[Pre]
   ): ApplicableContract[Post] = {
-    val infoGetter = new AnnotationVariableInfoGetter[Pre]()
-    val reqConditions = getConditions(contract.requires)
-    val contextConditions = getConditions(contract.contextEverywhere)
-    val ensureConditions = getConditions(contract.ensures)
-    equalityChecker = ExpressionEqualityCheck(
-      Some(infoGetter.getInfo(reqConditions ++ contextConditions))
-    )
-    val requires = dispatch(contract.requires)
-    equalityChecker = ExpressionEqualityCheck(
-      Some(infoGetter.getInfo(ensureConditions ++ contextConditions))
-    )
-    val ensures = dispatch(contract.ensures)
-    equalityChecker = ExpressionEqualityCheck(
-      Some(infoGetter.getInfo(contextConditions))
-    )
+
+    topLevel = true
+    infoGetter.setupInfo()
     val contextEverywhere = dispatch(contract.contextEverywhere)
+    val oldInfo = infoGetter
+
+    // Reuse information from context everywhere
+    val requires = dispatch(contract.requires)
     equalityChecker = ExpressionEqualityCheck()
+
+    // Again reuse information from context everywhere
+    infoGetter = oldInfo
+    val ensures = dispatch(contract.ensures)
+    equalityChecker = ExpressionEqualityCheck()
+    topLevel = false
 
     val signals = contract.signals.map(element => dispatch(element))
     val givenArgs =
@@ -286,7 +296,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     var newBinder = false
 
     def setData(): Unit = {
-      val allConditions = unfoldBody(Seq())
+      val allConditions = unfoldBody(Seq(), Seq())
       // Split bounds that are independent of any binding variables
       val (newIndependentConditions, potentialBounds) = allConditions
         .partition(indepOf(bindings, _))
@@ -294,15 +304,24 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
       getBounds(potentialBounds)
     }
 
-    def unfoldBody(prevConditions: Seq[Expr[Pre]]): Seq[Expr[Pre]] = {
+    def unfoldBody(
+        prevConditions: Seq[Expr[Pre]],
+        scales: Seq[Expr[Pre] => Expr[Pre]],
+    ): Seq[Expr[Pre]] = {
       val (allConditions, mainBody) = unfoldImplies[Pre](body)
       val newConditions = prevConditions ++ allConditions
       val (newVars, secondBody) =
         mainBody match {
           case Forall(newVars, _, secondBody) => (newVars, secondBody)
           case Starall(newVars, _, secondBody) => (newVars, secondBody)
+          // Strip Scales
+          case s @ Scale(scale, res) =>
+            val newScales = scales :+ ((r: Expr[Pre]) => Scale(scale, r)(s.o))
+            body = res
+            return unfoldBody(newConditions, newScales)
           case _ =>
-            body = mainBody
+            // Re-aply scales from right to left
+            body = scales.foldRight(mainBody)((s, b) => s(b))
             return newConditions
         }
 
@@ -316,7 +335,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
 
       body = secondBody
 
-      unfoldBody(newConditions)
+      unfoldBody(newConditions, scales)
     }
 
     def containsOtherBinders(e: Expr[Pre]): Boolean = {
@@ -419,18 +438,6 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
         // v > right
         case Comparison.GREATER => lowerBounds(v).addOne(right + one)
       }
-    }
-
-    def testPairs[A](
-        xs: Iterable[A],
-        ys: Iterable[A],
-        f: (A, A) => Boolean,
-    ): Boolean = {
-      for (x <- xs)
-        for (y <- ys)
-          if (f(x, y))
-            return true
-      false
     }
 
     /** We check if there now any binding variables which resolve to just a
@@ -870,7 +877,6 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
         * additionally add base_{i-1} / a_{i-1} < n_{i-1} (derived from (x_{i-1}
         * < xmin_i + n_{i-1})
         */
-//          TODO ABOVE
       def check_vars_list(
           vars: List[Variable[Pre]]
       ): Option[SubstituteForall] = {
@@ -985,12 +991,9 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
                 Seq(SeqSubscript(newGen(seqIndex.array), xNewVar)(triggerBlame))
               )
             case arrayIndex: Pointer[Pre] =>
-              Seq(
-                Seq(PointerSubscript(newGen(arrayIndex.array), xNewVar)(
-                  triggerBlame
-                ))
-//                Seq(PointerAdd(newGen(arrayIndex.array), xNewVar)(triggerBlame))
-              )
+              Seq(Seq(PointerSubscript(newGen(arrayIndex.array), xNewVar)(
+                triggerBlame
+              )))
           }
 
         for (x <- vars) {
