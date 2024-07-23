@@ -21,10 +21,12 @@ import vct.col.ast.{
   Eval,
   Expr,
   FieldLocation,
+  Held,
   InstanceField,
   InstanceMethod,
   IterationContract,
   Local,
+  Loop,
   LoopContract,
   LoopInvariant,
   Message,
@@ -114,6 +116,7 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
   val currentCommunicate = ScopedStack[Communicate[Pre]]()
   val currentMsgTVar = ScopedStack[Variable[Pre]]()
   val currentMsgExpr = ScopedStack[Expr[Post]]()
+  val currentWriteRead = ScopedStack[InstanceMethod[Pre]]()
 
   val fieldOfCommunicate =
     SuccessionMap[(Endpoint[Pre], Communicate[Pre]), InstanceField[Post]]()
@@ -179,6 +182,11 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
       EndpointName(succ(endpoint)),
       fieldOfCommunicate.ref((endpoint, comm)),
     )(PanicBlame("Shouldn't happen"))
+
+  def channelLockInv(comm: Communicate[Pre])(implicit o: Origin): Expr[Post] =
+    valueSender(comm) &* valueReceiver(comm) &*
+      dispatch(genericChannelClass.intrinsicLockInvariant) &*
+      thisHasMsg(comm) ==> dispatch(comm.invariant)
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     mappings.program = p
@@ -305,10 +313,7 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
                       )(o.where(name = "receiver")).declare()
                       cls.decls.foreach(dispatch)
                     }._1,
-                  intrinsicLockInvariant =
-                    valueSender &* valueReceiver &*
-                      dispatch(cls.intrinsicLockInvariant) &*
-                      thisHasMsg ==> dispatch(comm.invariant),
+                  intrinsicLockInvariant = channelLockInv(comm),
                 ).succeed(cls)
               }
             }
@@ -346,31 +351,33 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
       case m: InstanceMethod[Pre] if m == genericChannelWrite =>
         implicit val comm = currentCommunicate.top
         implicit val o = comm.o
-        currentMsgExpr.having(Local(succ(m.args.head))) {
-          channelWriteSucc(currentCommunicate.top) = m.rewrite(
-            contract = m.contract.rewrite(requires =
-              (valueSender &* valueReceiver &* dispatch(comm.invariant))
-                .accounted &* dispatch(m.contract.requires)
-            ),
-            body = ???,
-          ).succeed(m)
-        }
+        channelWriteSucc(currentCommunicate.top) = m.rewrite(
+          contract =
+            currentMsgExpr.having(Local(succ(m.args.head))) {
+              m.contract.rewrite(requires =
+                (valueSender &* valueReceiver &* dispatch(comm.invariant))
+                  .accounted &* dispatch(m.contract.requires)
+              )
+            },
+          body = currentWriteRead.having(m) { m.body.map(dispatch) },
+        ).succeed(m)
 
       case m: InstanceMethod[Pre] if m == genericChannelRead =>
         implicit val comm = currentCommunicate.top
         implicit val o = comm.o
-        currentMsgExpr.having(Result(succ(m))) {
-          channelReadSucc(currentCommunicate.top) = m.rewrite[Post](
-            contract = m.contract.rewrite(
-              requires = (valueSender &* valueReceiver).accounted &*
-                dispatch(m.contract.requires),
-              ensures =
-                (valueSender &* valueReceiver &* dispatch(comm.invariant))
-                  .accounted &* dispatch(m.contract.requires),
-            ),
-            body = ???,
-          ).succeed(m)
-        }
+        channelReadSucc(currentCommunicate.top) = m.rewrite[Post](
+          contract =
+            currentMsgExpr.having(Result(succ(m))) {
+              m.contract.rewrite(
+                requires = (valueSender &* valueReceiver).accounted &*
+                  dispatch(m.contract.requires),
+                ensures =
+                  (valueSender &* valueReceiver &* dispatch(comm.invariant))
+                    .accounted &* dispatch(m.contract.requires),
+              )
+            },
+          body = currentWriteRead.having(m) { m.body.map(dispatch) },
+        ).succeed(m)
 
       case f: InstanceField[Pre] if f == genericChannelHasMsg =>
         channelHasMsgSucc(currentCommunicate.top) = f.rewriteDefault()
@@ -441,6 +448,18 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
       case InChor(chor, iter: IterationContract[Pre]) =>
         iter.rewrite(requires =
           (channelContext(chor)(chor.o) &* dispatch(iter.requires))(chor.o)
+        )
+      case inv: LoopInvariant[Pre]
+          if currentCommunicate.nonEmpty && currentWriteRead.nonEmpty =>
+        implicit val comm = currentCommunicate.top
+        implicit val o = inv.o
+        inv.rewrite(invariant = Held(channelThis) &* channelLockInv(comm))
+      case inv: IterationContract[Pre] =>
+        implicit val comm = currentCommunicate.top
+        implicit val o = inv.o
+        inv.rewrite(
+          requires = Held(channelThis) &* channelLockInv(comm),
+          ensures = Held(channelThis) &* channelLockInv(comm),
         )
       case _ => contract.rewriteDefault()
     }

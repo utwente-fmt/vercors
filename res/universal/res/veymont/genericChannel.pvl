@@ -15,12 +15,11 @@ class Channel<T> {
 
     loop_invariant Perm(hasMsg, 1) ** Perm(exchangeValue,1);
     loop_invariant held(this);
-    while (!hasMsg) {
-      unlock this;
-      lock this;
+    while (hasMsg) {
+      wait this;
     }
 
-    hasMsg = false;
+    hasMsg = true;
     exchangeValue = v;
     unlock this;
   }
@@ -31,7 +30,7 @@ class Channel<T> {
 
     loop_invariant Perm(hasMsg, 1) ** Perm(exchangeValue,1);
     loop_invariant held(this);
-    while (hasMsg) {
+    while (!hasMsg) {
       wait this;
     }
 

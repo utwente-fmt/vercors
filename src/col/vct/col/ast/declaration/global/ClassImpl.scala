@@ -31,7 +31,8 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] {
   override def declarations: Seq[Declaration[G]] = decls ++ typeArgs
 
   def layoutLockInvariant(implicit ctx: Ctx): Doc =
-    Text("lock_invariant") <+> intrinsicLockInvariant <> ";" <+/> Empty
+    Text("lock_invariant") <+> Nest(intrinsicLockInvariant.show) <> ";" <+/>
+      Empty
 
   override def layout(implicit ctx: Ctx): Doc =
     (if (intrinsicLockInvariant == tt[G])
