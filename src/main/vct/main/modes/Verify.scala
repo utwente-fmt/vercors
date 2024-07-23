@@ -95,7 +95,7 @@ case object Verify extends LazyLogging {
     }
 
     logTime(
-      "verification",
+      "VerCors",
       verifyWithOptions(options, options.inputs) match {
         case Left(err: VerificationError.UserError) =>
           logger.error(err.text)

@@ -8,6 +8,7 @@ import vct.col.ast.{
   ChorRun,
   Choreography,
   Class,
+  Committed,
   Communicate,
   CommunicateStatement,
   Constructor,
@@ -346,11 +347,12 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
         implicit val comm = currentCommunicate.top
         implicit val o = comm.o
         currentMsgExpr.having(Local(succ(m.args.head))) {
-          channelWriteSucc(currentCommunicate.top) = m.rewrite(contract =
-            m.contract.rewrite(requires =
+          channelWriteSucc(currentCommunicate.top) = m.rewrite(
+            contract = m.contract.rewrite(requires =
               (valueSender &* valueReceiver &* dispatch(comm.invariant))
                 .accounted &* dispatch(m.contract.requires)
-            )
+            ),
+            body = ???,
           ).succeed(m)
         }
 
@@ -358,14 +360,15 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
         implicit val comm = currentCommunicate.top
         implicit val o = comm.o
         currentMsgExpr.having(Result(succ(m))) {
-          channelReadSucc(currentCommunicate.top) = m.rewrite[Post](contract =
-            m.contract.rewrite(
+          channelReadSucc(currentCommunicate.top) = m.rewrite[Post](
+            contract = m.contract.rewrite(
               requires = (valueSender &* valueReceiver).accounted &*
                 dispatch(m.contract.requires),
               ensures =
                 (valueSender &* valueReceiver &* dispatch(comm.invariant))
                   .accounted &* dispatch(m.contract.requires),
-            )
+            ),
+            body = ???,
           ).succeed(m)
         }
 
@@ -403,11 +406,17 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
     }
   }
 
+  // For each communicate statement, there is a channel C. For each C, we generate the permissions for all the extra
+  // fields (sender, receiver), for each endpoint E, such that the fields are accessible to all endpoints.
+  // We also ensure it is invariant that the channels are committed. Finally, we generate annotations to indicate that
+  // the values in the sender/receiver fields are equal to actual intended endpoint.
   def channelContext(chor: Choreography[Pre])(implicit o: Origin): Expr[Post] =
     foldStar(chor.endpoints.flatMap { endpoint =>
       communicatesOf(endpoint).map { comm =>
         endpointComm(endpoint, comm).value &* getSender(endpoint, comm).value &*
-          getReceiver(endpoint, comm).value &*
+          getReceiver(endpoint, comm).value &* Committed(
+            endpointComm(endpoint, comm)
+          )(PanicBlame("Guaranteed not to be null")) &*
           (getSender(endpoint, comm) ===
             EndpointName(succ(comm.sender.get.decl))) &*
           (getReceiver(endpoint, comm) ===
