@@ -425,7 +425,6 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       ) // We do not allow this notation for recursive structs
     implicit val o: Origin = origin
 
-    // TODO: Instead of doing complicated stuff here just generate a Perm(struct.field, write) and rely on EncodyByValueClass to deal with it :)
     val fields =
       structType match {
         case t: TClass[Post] =>

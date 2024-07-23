@@ -390,63 +390,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                     .getOrElse("unknown")
                 )
               )
-            val destructorAxiom =
-              new ADTAxiom[Post](foralls(
-                fieldTypes,
-                body =
-                  variables => {
-                    foldAnd(variables.combinations(2).map { case Seq(v1, v2) =>
-                      v1 !== v2
-                    }.toSeq) ==>
-                      foldAnd(variables.zip(fieldFunctions).map { case (v, f) =>
-                        adtFunctionInvocation[Post](
-                          f.ref,
-                          args = Seq(adtFunctionInvocation[Post](
-                            constructor.ref,
-                            None,
-                            args = variables,
-                          )),
-                        ) === v
-                      })
-                  },
-                triggers =
-                  variables => {
-                    fieldFunctions.map { f =>
-                      Seq(adtFunctionInvocation[Post](
-                        f.ref,
-                        args = Seq(adtFunctionInvocation[Post](
-                          constructor.ref,
-                          None,
-                          args = variables,
-                        )),
-                      ))
-                    }
-                  },
-              ))
-
-            // This one generates a matching loop
-            val injectivityAxiom1 =
-              new ADTAxiom[Post](foralls(
-                Seq(axiomType, axiomType),
-                body = { case Seq(a0, a1) =>
-                  foldAnd(fieldFunctions.combinations(2).map {
-                    case Seq(f0, f1) =>
-                      Neq(
-                        adtFunctionInvocation[Post](f0.ref, args = Seq(a0)),
-                        adtFunctionInvocation[Post](f1.ref, args = Seq(a1)),
-                      )
-                  }.toSeq)
-                },
-                triggers = { case Seq(a0, a1) =>
-                  fieldFunctions.combinations(2).map { case Seq(f0, f1) =>
-                    Seq(
-                      adtFunctionInvocation[Post](f0.ref, None, args = Seq(a0)),
-                      adtFunctionInvocation[Post](f1.ref, None, args = Seq(a1)),
-                    )
-                  }.toSeq
-                },
-              ))
-            val injectivityAxiom2 =
+            val injectivityAxiom =
               new ADTAxiom[Post](foralls(
                 Seq(axiomType, axiomType),
                 body = { case Seq(a0, a1) =>
@@ -511,14 +455,8 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             byValConsSucc(cls) = constructor
             byValClassSucc(cls) =
               new AxiomaticDataType[Post](
-                Seq(
-//                  constructor,
-//                  destructorAxiom,
-                  indexFunction,
-//                  injectivityAxiom1,
-                  injectivityAxiom2,
-                ) ++ destructorAxioms ++ indexAxioms ++ fieldFunctions ++
-                  fieldInverses,
+                Seq(indexFunction, injectivityAxiom) ++ destructorAxioms ++
+                  indexAxioms ++ fieldFunctions ++ fieldInverses,
                 Nil,
               )
             globalDeclarations.succeed(cls, byValClassSucc(cls))
