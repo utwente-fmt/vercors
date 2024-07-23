@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import vct.options.Options
 import hre.io.{CollectString, Readable}
 import hre.util.Time
+import hre.util.Time.logTime
 import sun.misc.{Signal, SignalHandler}
 import vct.col.origin.{BlameCollector, TableEntry, VerificationFailure}
 import vct.col.rewrite.bip.BIP
@@ -93,9 +94,8 @@ case object Verify extends LazyLogging {
       case _: IllegalArgumentException =>
     }
 
-    val start = java.time.Instant.now()
-
-    try {
+    logTime(
+      "verification",
       verifyWithOptions(options, options.inputs) match {
         case Left(err: VerificationError.UserError) =>
           logger.error(err.text)
@@ -117,13 +117,8 @@ case object Verify extends LazyLogging {
           }
           friendlyHandleBipReport(report, options.bipReportFile)
           EXIT_CODE_VERIFICATION_FAILURE
-      }
-    } finally {
-      logger.info(
-        s"Finished verification at ${Time.formatTime()} (duration: ${Time
-            .formatDuration(Duration.between(start, java.time.Instant.now()))})"
-      )
-    }
+      },
+    )
   }
 
   def friendlyHandleBipReport(

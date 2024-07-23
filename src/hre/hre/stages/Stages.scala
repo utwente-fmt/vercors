@@ -1,6 +1,8 @@
 package hre.stages
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
+import hre.util.Time
 import vct.result.VerificationError
 
 trait Stage[-Input, +Output] {
@@ -77,6 +79,11 @@ object Stages {
       f: Input2 => Input,
       stages: Stages[Input, Output],
   ): Stages[Input2, Output] = UnitStages(FunctionStage(f)).thenRun(stages)
+
+  def timed[Input, Output](
+      name: String,
+      stages: Stages[Input, Output],
+  ): TimedStages[Input, Output] = TimedStages(name, stages)
 }
 
 trait Stages[-Input, +Output] {
@@ -189,4 +196,22 @@ case class Branch[Input, Output](
       tt.collect
     else
       ff.collect
+}
+
+case class TimedStages[Input, Output](
+    name: String,
+    stages: Stages[Input, Output],
+) extends Stages[Input, Output] with LazyLogging {
+  var start: java.time.Instant = null
+  var end: java.time.Instant = null
+
+  override def collect: Seq[Stage[Nothing, Any]] =
+    IdentityStage().also {
+      start = java.time.Instant.now();
+      logger.warn(s"Start: $name (at ${Time.formatTime(start)})")
+    }.collect ++ stages.collect ++ IdentityStage().also {
+      end = java.time.Instant.now();
+      logger.warn(s"Done: $name (at ${Time.formatTime(end)}, duration: ${Time
+          .formatDuration(java.time.Duration.between(start, end))})")
+    }.collect
 }

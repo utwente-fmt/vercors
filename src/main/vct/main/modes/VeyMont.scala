@@ -3,6 +3,7 @@ package vct.main.modes
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.CollectString
 import hre.stages.Stage
+import hre.util.Time.logTime
 import vct.col.origin.{BlameCollector, VerificationFailure}
 import vct.main.Main.{EXIT_CODE_ERROR, EXIT_CODE_SUCCESS}
 import vct.main.stages.Stages
@@ -41,19 +42,22 @@ object VeyMont extends LazyLogging {
       if (collector.errs.nonEmpty) { throw error(collector.errs.toSeq) }
   }
 
-  def runOptions(options: Options): Int = {
-    val stages = Stages.veymontOfOptions(options)
-    stages.run(options.inputs) match {
-      case Left(err: VerificationError.UserError) =>
-        logger.error(err.text)
-        EXIT_CODE_ERROR
-      case Left(err: VerificationError.SystemError) =>
-        logger.error(CollectString(s => err.printStackTrace(s)))
-        EXIT_CODE_ERROR
-      case Right(()) =>
-        logger.info("VeyMont success")
-        EXIT_CODE_SUCCESS
-    }
-  }
+  def runOptions(options: Options): Int =
+    logTime(
+      "VeyMont mode", {
+        val stages = Stages.veymontOfOptions(options)
+        stages.run(options.inputs) match {
+          case Left(err: VerificationError.UserError) =>
+            logger.error(err.text)
+            EXIT_CODE_ERROR
+          case Left(err: VerificationError.SystemError) =>
+            logger.error(CollectString(s => err.printStackTrace(s)))
+            EXIT_CODE_ERROR
+          case Right(()) =>
+            logger.info("VeyMont success")
+            EXIT_CODE_SUCCESS
+        }
+      },
+    )
 
 }

@@ -104,9 +104,7 @@ case object Main extends LazyLogging {
 
   def runMode(mode: Mode, options: Options): Int =
     options.mode match {
-      case Mode.Verify =>
-        logger.info(s"Starting verification at ${hre.util.Time.formatTime()}")
-        Verify.runOptions(options)
+      case Mode.Verify => Verify.runOptions(options)
       case Mode.HelpVerifyPasses =>
         logger.info("Available passes:")
         Transformation.ofOptions(options).passes.foreach { pass =>
