@@ -873,7 +873,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     specs.foreach {
       case GPULocal() => shared = true
       case GPUGlobal() => global = true
-      case CSpecificationType(t) if isPointer(t) =>
+      case CSpecificationType(t) if isPointerOrArray(t) =>
         val (inner, size, blame) = getInnerPointerInfo(t).get
         arrayOrPointer = true
         innerType = Some(inner)
@@ -1282,6 +1282,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     getBaseType(t) match {
       case t @ TPointer(_) => true
       case t @ CTPointer(_) => true
+      case _ => false
+    }
+
+  def isPointerOrArray(t: Type[Pre]): Boolean =
+    getBaseType(t) match {
+      case t @ TPointer(_) => true
+      case t @ CTPointer(_) => true
+      case t @ CTArray(_, _) => true
       case _ => false
     }
 

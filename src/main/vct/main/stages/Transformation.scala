@@ -304,8 +304,8 @@ case class SilverTransformation(
       Seq(
         // Replace leftover SYCL types
         ReplaceSYCLTypes,
-        TypeQualifierCoercion,
         CFloatIntCoercion,
+        TypeQualifierCoercion,
         ComputeBipGlue,
         InstantiateBipSynchronizations,
         EncodeBipPermissions,
