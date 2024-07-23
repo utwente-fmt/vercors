@@ -128,9 +128,13 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
   override def dispatch(run: ChorRun[Pre]): ChorRun[Post] = {
     implicit val o = run.o
     run.rewrite(
-      contract = run.contract.rewrite(requires =
-        specializeContext(currentChoreography.top).accounted &*
-          dispatch(run.contract.requires)
+      contract = run.contract.rewrite(
+        requires =
+          specializeContext(currentChoreography.top).accounted &*
+            dispatch(run.contract.requires),
+        ensures =
+          specializeContext(currentChoreography.top).accounted &*
+            dispatch(run.contract.ensures),
       ),
       blame = PostBlameSplit
         .left(PanicBlame("Automatically generated permissions"), run.blame),

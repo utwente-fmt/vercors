@@ -87,22 +87,22 @@ case object Stages extends LazyLogging {
       val options = globalOptions
         .copy(generatePermissions = globalOptions.veymontGeneratePermissions)
 
-      IdentityStage()
-        .also(logger.info("VeyMont choreography verifier & code generator"))
-        .thenRun(Parsing.ofOptions(options, blameProvider).also(logger.info(
-          "Finished parsing"
-        ))).thenRun(Resolution.ofOptions(options, blameProvider))
+      IdentityStage().also(logger.info(
+        "VeyMont mode - choreography verification & code generation"
+      )).thenRun(Parsing.ofOptions(options, blameProvider))
+        .thenRun(Resolution.ofOptions(options, blameProvider))
         .thenRun(saveInput[Verification[_ <: Generation], Any](branch(
           !options.veymontSkipChoreographyVerification,
           IdentityStage()
-            .also(logger.info("Verifying choreography with VerCors"))
+            .also(logger.info("Verifying choreography with VerCors..."))
             .thenRun(Transformation.ofOptions(options, bipResults))
             .thenRun(Backend.ofOptions(options))
             .thenRun(ExpectedErrors.ofOptions(options))
             .thenRun(VeyMont.NoVerificationFailures(
               collector,
               VeyMont.ChoreographyVerificationError,
-            )),
+            ))
+            .also(logger.info("Choreographic verification successful ✔\uFE0F")),
           IdentityStage()
             .also(logger.warn("Skipping verifying choreography with VerCors")),
         ))).transform(_._1)
@@ -111,10 +111,12 @@ case object Stages extends LazyLogging {
     val generationStage
         : Stages[Verification[_ <: Generation], Seq[LiteralReadable]] = {
       val options = globalOptions
-      IdentityStage().also(logger.info("Generating endpoint implementations"))
+      IdentityStage()
+        .also(logger.info("Generating endpoint implementations..."))
         .thenRun(Transformation.veymontImplementationGenerationOfOptions(
           options
         )).thenRun(Output.veymontOfOptions(options))
+        .also(logger.info("Finished code generation ✔\uFE0F"))
     }
 
     val implementationVerificationStage = {
@@ -127,7 +129,9 @@ case object Stages extends LazyLogging {
       branch(
         !options.veymontSkipImplementationVerification,
         // Run regular vercors
-        Stages.ofOptions(options, blameProvider, bipResults)
+        IdentityStage()
+          .also(logger.info("Verifying generated implementation..."))
+          .thenRun(Stages.ofOptions(options, blameProvider, bipResults))
           .thenRun(VeyMont.NoVerificationFailures(
             collector,
             VeyMont.ImplementationVerificationError,

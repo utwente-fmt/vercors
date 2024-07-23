@@ -383,7 +383,7 @@ case class GenerateImplementation[Pre <: Generation]()
       case ChorPerm(Ref(other), _, _) if endpoint != other => tt
       case EndpointExpr(Ref(other), expr) if endpoint == other =>
         projectExpr(expr)
-      case EndpointExpr(Ref(other), expr) => tt
+      case EndpointExpr(_, _) => tt
       case _ => expr.rewriteDefault()
     }
 
