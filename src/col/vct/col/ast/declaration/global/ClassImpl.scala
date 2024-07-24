@@ -38,7 +38,7 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] {
     (if (intrinsicLockInvariant == tt[G])
        Empty
      else
-       Doc.spec(Show.lazily(layoutLockInvariant(_)))) <> Group(
+       Doc.spec(Show.lazily(layoutLockInvariant(_)))) <+/> Group(
       Text("class") <+> ctx.name(this) <>
         (if (typeArgs.nonEmpty)
            Text("<") <> Doc.args(typeArgs) <> ">"

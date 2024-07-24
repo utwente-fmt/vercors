@@ -46,7 +46,7 @@ case object Output {
   def veymontOfOptions(
       options: Options
   ): Stage[Verification[_ <: Generation], Seq[LiteralReadable]] =
-    Output(options.veymontOutput, Ctx.PVL, false)
+    Output(options.veymontOutput, Ctx.Java, false)
 }
 
 case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)

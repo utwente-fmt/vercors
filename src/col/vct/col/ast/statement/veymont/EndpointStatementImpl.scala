@@ -47,9 +47,10 @@ trait EndpointStatementImpl[G]
 
   override def layout(implicit ctx: Ctx): Doc =
     (endpoint match {
-      case Some(Ref(endpoint)) => Text(s"/* ${ctx.name(endpoint)}: */ ")
-      case None => Text("/* unlabeled endpoint statement */") <> Line
-    }) <> inner
+      case Some(Ref(endpoint)) =>
+        Text(s"\\\\endpoint_statement") <+> ctx.name(endpoint) <> ";"
+      case None => Text("\\\\unlabeled_endpoint_statement")
+    }) <+> inner
 
   object eval {
     def enterCheckContextCurrentReceiverEndpoint(

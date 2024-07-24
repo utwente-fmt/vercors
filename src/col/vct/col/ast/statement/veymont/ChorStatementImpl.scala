@@ -12,8 +12,10 @@ import scala.collection.immutable.ListSet
 
 trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
   this: ChorStatement[G] =>
+
+  // use non-existent syntax to be explicit about presence of an internal node
   override def layout(implicit ctx: Ctx): Doc =
-    Text("/* choreographic statement */") <+/> inner
+    Text("\\\\chor_statement") <+/> inner
 
   def exprs: Seq[Expr[G]] =
     (inner match {

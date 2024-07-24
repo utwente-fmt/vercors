@@ -24,11 +24,11 @@ trait PredicateImpl[G]
       .values.map(Text).map(Doc.inlineSpec).toSeq
 
   def layoutSpec(implicit ctx: Ctx): Doc =
-    Group(
+    Group(Doc.spec(
       Doc.rspread(layoutModifiers) <> "resource" <+> ctx.name(this) <> "(" <>
         Doc.args(args) <> ")" <> body.map(Text(" =") <>> _.show)
           .getOrElse(Empty) <> ";"
-    )
+    ))
 
   override def layout(implicit ctx: Ctx): Doc =
     ctx.syntax match {
