@@ -63,12 +63,7 @@ choreography Main() {
           (!\sender.gameFinished() ==> ([1\2]\sender.returnerMark()));
         communicate p2.move <- p1.move.copy();
         p2.doMove();
-        assert (\chor (\endpoint p2; p2.gameFinished() && p2.returner.mark == p2.myMark ==> turnInvariant(p2, p1)));
-        assert (\chor (\endpoint p1; p1.gameFinished() ==> p1.returner.mark != p1.myMark));
-        assert (\chor (\endpoint p1; p1.gameFinished() && p1.returner.mark == p1.myMark ==> turnInvariant(p1, p2)));
-        inhale false;
       } else {
-        inhale false;
         p2.createNewMove();
         p2.doMove();
         if (p2.gameFinished()) {
@@ -89,7 +84,6 @@ choreography Main() {
       // TODO: Remove when lightweight encoding
       assume (\chor (\endpoint p1; p1.gameFinished()) == (\endpoint p2; p2.gameFinished()));
     }
-    inhale false;
     assume (\chor (\endpoint p1; p1.gameFinished()) == (\endpoint p2; p2.gameFinished()));
   }
 }
