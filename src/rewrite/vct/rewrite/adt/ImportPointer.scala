@@ -5,7 +5,7 @@ import ImportADT.typeText
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.Generation
-import vct.col.util.AstBuildHelpers._
+import vct.col.util.AstBuildHelpers.{functionInvocation, _}
 import vct.col.util.SuccessionMap
 
 import scala.collection.mutable
@@ -16,6 +16,10 @@ case object ImportPointer extends ImportADTBuilder("pointer") {
 
   private val PointerCreationOrigin: Origin = Origin(
     Seq(LabelContext("adtPointer, pointer creation method"))
+  )
+
+  private val AsTypeOrigin: Origin = Origin(
+    Seq(LabelContext("classToRef, asType function"))
   )
 
   case class PointerNullOptNone(inner: Blame[PointerNull], expr: Expr[_])
@@ -84,6 +88,23 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
 
   private val pointerCreationMethods
       : SuccessionMap[Type[Pre], Procedure[Post]] = SuccessionMap()
+
+  val asTypeFunctions: mutable.Map[Type[Pre], Function[Post]] = mutable.Map()
+
+  private def makeAsTypeFunction(typeName: String): Function[Post] = {
+    val value =
+      new Variable[Post](TAxiomatic(pointerAdt.ref, Nil))(
+        AsTypeOrigin.where(name = "value")
+      )
+    globalDeclarations.declare(
+      function[Post](
+        AbstractApplicable,
+        TrueSatisfiable,
+        returnType = TAxiomatic(pointerAdt.ref, Nil),
+        args = Seq(value),
+      )(AsTypeOrigin.where(name = "as_" + typeName))
+    )
+  }
 
   private def makePointerCreationMethod(t: Type[Post]): Procedure[Post] = {
     implicit val o: Origin = PointerCreationOrigin
@@ -169,7 +190,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
     t match {
       case TPointer(_) => TOption(TAxiomatic(pointerAdt.ref, Nil))
       case TNonNullPointer(_) => TAxiomatic(pointerAdt.ref, Nil)
-      case other => rewriteDefault(other)
+      case other => super.postCoerce(other)
     }
 
   override def postCoerce(location: Location[Pre]): Location[Post] = {
@@ -380,7 +401,129 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
           PointerBlockLength(pointer)(pointerLen.blame) -
             PointerBlockOffset(pointer)(pointerLen.blame)
         )
-      case other => rewriteDefault(other)
+      case Cast(value, typeValue) if value.t.asPointer.isDefined =>
+        // TODO: Check if types are compatible
+        // TODO: Clean up code duplication
+        val targetType = typeValue.t.asInstanceOf[TType[Pre]].t
+        val innerType = targetType.asPointer.get.element
+        val newValue = dispatch(value)
+        (targetType, value.t) match {
+          case (TPointer(_), TPointer(_)) =>
+            Select[Post](
+              newValue === OptNone(),
+              OptNoneTyped(TAxiomatic(pointerAdt.ref, Nil)),
+              OptSome(functionInvocation[Post](
+                PanicBlame("as_type requires nothing"),
+                asTypeFunctions.getOrElseUpdate(
+                  innerType,
+                  makeAsTypeFunction(innerType.toString),
+                ).ref,
+                Seq(value match {
+                  case PointerAdd(_, _) =>
+                    OptGet(newValue)(PanicBlame(
+                      "OptGet(Some(_)) should always be optimised away"
+                    ))
+                  case _ =>
+                    FunctionInvocation[Post](
+                      ref = pointerAdd.ref,
+                      // Always index with zero, otherwise quantifiers with pointers do not get triggered
+                      args = Seq(
+                        OptGet(newValue)(PanicBlame(
+                          "Can never be null since this is ensured in the conditional statement"
+                        )),
+                        const(0),
+                      ),
+                      typeArgs = Nil,
+                      Nil,
+                      Nil,
+                    )(PanicBlame(
+                      "Pointer out of bounds in pointer cast (no appropriate blame available)"
+                    ))
+                }),
+              )),
+            )
+          case (TNonNullPointer(_), TPointer(_)) =>
+            functionInvocation[Post](
+              PanicBlame("as_type requires nothing"),
+              asTypeFunctions.getOrElseUpdate(
+                innerType,
+                makeAsTypeFunction(innerType.toString),
+              ).ref,
+              Seq(value match {
+                case PointerAdd(_, _) =>
+                  OptGet(newValue)(PanicBlame(
+                    "OptGet(Some(_)) should always be optimised away"
+                  ))
+                case _ =>
+                  FunctionInvocation[Post](
+                    ref = pointerAdd.ref,
+                    // Always index with zero, otherwise quantifiers with pointers do not get triggered
+                    args = Seq(
+                      OptGet(newValue)(PanicBlame(
+                        "Casting a pointer to a non-null pointer implies the pointer must be statically known to be non-null"
+                      )),
+                      const(0),
+                    ),
+                    typeArgs = Nil,
+                    Nil,
+                    Nil,
+                  )(PanicBlame(
+                    "Pointer out of bounds in pointer cast (no appropriate blame available)"
+                  ))
+              }),
+            )
+          case (TPointer(_), TNonNullPointer(_)) =>
+            OptSome(functionInvocation[Post](
+              PanicBlame("as_type requires nothing"),
+              asTypeFunctions.getOrElseUpdate(
+                innerType,
+                makeAsTypeFunction(innerType.toString),
+              ).ref,
+              Seq(value match {
+                case PointerAdd(_, _) =>
+                  OptGet(newValue)(PanicBlame(
+                    "OptGet(Some(_)) should always be optimised away"
+                  ))
+                case _ =>
+                  FunctionInvocation[Post](
+                    ref = pointerAdd.ref,
+                    // Always index with zero, otherwise quantifiers with pointers do not get triggered
+                    args = Seq(newValue, const(0)),
+                    typeArgs = Nil,
+                    Nil,
+                    Nil,
+                  )(PanicBlame(
+                    "Pointer out of bounds in pointer cast (no appropriate blame available)"
+                  ))
+              }),
+            ))
+          case (TNonNullPointer(_), TNonNullPointer(_)) =>
+            functionInvocation[Post](
+              PanicBlame("as_type requires nothing"),
+              asTypeFunctions.getOrElseUpdate(
+                innerType,
+                makeAsTypeFunction(innerType.toString),
+              ).ref,
+              Seq(value match {
+                case PointerAdd(_, _) =>
+                  OptGet(newValue)(PanicBlame(
+                    "OptGet(Some(_)) should always be optimised away"
+                  ))
+                case _ =>
+                  FunctionInvocation[Post](
+                    ref = pointerAdd.ref,
+                    // Always index with zero, otherwise quantifiers with pointers do not get triggered
+                    args = Seq(newValue, const(0)),
+                    typeArgs = Nil,
+                    Nil,
+                    Nil,
+                  )(PanicBlame(
+                    "Pointer out of bounds in pointer cast (no appropriate blame available)"
+                  ))
+              }),
+            )
+        }
+      case other => super.postCoerce(other)
     }
   }
 }

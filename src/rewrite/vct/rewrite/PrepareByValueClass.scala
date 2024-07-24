@@ -66,19 +66,6 @@ case object PrepareByValueClass extends RewriterBuilder {
       extends CopyContext
 
   private case class NoCopy() extends CopyContext
-
-  case class PointerLocationDerefBlame(blame: Blame[PointerLocationError])
-      extends Blame[PointerDerefError] {
-    override def blame(error: PointerDerefError): Unit = {
-      error match {
-        case error: PointerLocationError => blame.blame(error)
-        case _ =>
-          Unreachable(
-            "Blame of the respective pointer operation should be used not of DerefPointer"
-          )
-      }
-    }
-  }
 }
 
 case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
@@ -213,7 +200,6 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
     }
     val newFieldPerms = fields.map(member => {
       val loc = FieldLocation[Post](obj, succ(member))
-      // TODO: Don't go through regular pointers...
       member.t match {
         case inner: TByValueClass[Pre] =>
           Perm[Post](loc, perm) &* unwrapClassPerm(
@@ -229,38 +215,6 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
     foldStar(newFieldPerms)
   }
 
-  private def unwrapClassComp(
-      comp: (Expr[Post], Expr[Post]) => Expr[Post],
-      left: Expr[Post],
-      right: Expr[Post],
-      structType: TByValueClass[Pre],
-      visited: Seq[TByValueClass[Pre]] = Nil,
-  )(implicit o: Origin): Expr[Post] = {
-    // TODO: Better error
-    if (visited.contains(structType))
-      throw UnsupportedStructPerm(o)
-
-    val blame = PanicBlame("Struct deref can never fail")
-    val fields = structType.cls.decl.decls.collect {
-      case f: InstanceField[Pre] => f
-    }
-    foldAnd(fields.map(member => {
-      val l =
-        RawDerefPointer(Deref[Post](left, succ(member))(blame))(
-          NonNullPointerNull
-        )
-      val r =
-        RawDerefPointer(Deref[Post](right, succ(member))(blame))(
-          NonNullPointerNull
-        )
-      member.t match {
-//        case p: TNonNullPointer[Pre] if p.element.isInstanceOf[TByValueClass[Pre]] =>
-//          unwrapClassComp(comp, DerefPointer(l)(NonNullPointerNull), r, p.element.asInstanceOf[TByValueClass[Pre]], structType +: visited)
-        case _ => comp(l, r)
-      }
-    }))
-  }
-
   override def dispatch(node: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = node.o
     node match {
@@ -272,27 +226,7 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
             .ref,
         )
       }
-//      case Eq(left, right)
-//          if left.t == right.t && left.t.isInstanceOf[TByValueClass[Pre]] =>
-//        val newLeft = dispatch(left)
-//        val newRight = dispatch(right)
-//        return Eq(newLeft, newRight) && unwrapClassComp(
-//          (l, r) => Eq(l, r),
-//          newLeft,
-//          newRight,
-//          left.t.asInstanceOf[TByValueClass[Pre]],
-//        )
-//      case Neq(left, right)
-//          if left.t == right.t && left.t.isInstanceOf[TByValueClass[Pre]] =>
-//        val newLeft = dispatch(left)
-//        val newRight = dispatch(right)
-//        return Neq(newLeft, newRight) && unwrapClassComp(
-//          (l, r) => Neq(l, r),
-//          newLeft,
-//          newRight,
-//          left.t.asInstanceOf[TByValueClass[Pre]],
-//        )
-      case _ => {}
+      case _ =>
     }
     if (inAssignment.nonEmpty)
       node.rewriteDefault()
@@ -315,9 +249,6 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
               newP,
             )
           } else { node.rewriteDefault() }
-        // What if I get rid of this...
-//        case Perm(loc@PointerLocation(e), p) if e.t.asPointer.exists(t => t.element.isInstanceOf[TByValueClass[Pre]])=>
-//          unwrapClassPerm(DerefPointer(dispatch(e))(PointerLocationDerefBlame(loc.blame))(loc.o), dispatch(p), e.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]])
         case assign: PreAssignExpression[Pre] =>
           val target = inAssignment.having(()) { dispatch(assign.target) }
           if (assign.target.t.isInstanceOf[TByValueClass[Pre]]) {
@@ -328,20 +259,19 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
             // No need for copy semantics in this context
             copyContext.having(NoCopy()) { assign.rewrite(target = target) }
           }
-        case invocation: Invocation[Pre] => {
+        case invocation: Invocation[Pre] =>
           invocation.rewrite(args = invocation.args.map { a =>
             if (a.t.isInstanceOf[TByValueClass[Pre]]) {
               copyContext.having(InCall(invocation)) { dispatch(a) }
             } else { copyContext.having(NoCopy()) { dispatch(a) } }
           })
-        }
-        // WHOOPSIE WE ALSO MAKE A COPY IF IT WAS A POINTER
         case dp @ DerefPointer(HeapLocal(Ref(v)))
             if v.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
           rewriteInCopyContext(
             dp,
             v.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
           )
+        // TODO: Check for copy semantics in inappropriate places (i.e. when the user has made this a pointer)
         case dp @ DerefPointer(DerefHeapVariable(Ref(v)))
             if v.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
           rewriteInCopyContext(

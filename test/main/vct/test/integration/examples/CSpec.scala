@@ -141,7 +141,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should error withCode "unsupportedCast" in "Cast ptr struct to int" c
+  vercors should verify using silicon in "Cast ptr struct to int" c
     """
     struct d{
       int x;

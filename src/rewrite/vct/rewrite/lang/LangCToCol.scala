@@ -412,6 +412,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _), _) =>
         throw UnsupportedMalloc(c)
       case CCast(n @ Null(), t) if t.asPointer.isDefined => rw.dispatch(n)
+      // TODO: Check if valid pointer cast
+      case CCast(e, t) if e.t.asPointer.isDefined && t.asPointer.isDefined =>
+        Cast(rw.dispatch(e), TypeValue(rw.dispatch(t))(t.o))(c.o)
       case _ => throw UnsupportedCast(c)
     }
 
@@ -1095,6 +1098,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
+  // TODO: (AS) Fixed-size arrays seem to become pointers but they're actually value types
   def rewriteArrayDeclaration(
       decl: CLocalDeclaration[Pre],
       cta: CTArray[Pre],
@@ -1330,9 +1334,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 t.t
               }.get
             if (t.isInstanceOf[CTStruct[Pre]]) {
-              DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(
-                local.blame
-              )
+              DerefPointer(
+                DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(
+                  local.blame
+                )
+              )(local.blame)
             } else {
               DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(
                 local.blame

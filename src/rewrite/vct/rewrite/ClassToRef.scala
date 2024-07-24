@@ -23,9 +23,11 @@ case object ClassToRef extends RewriterBuilder {
   private def InstanceOfOrigin: Origin =
     Origin(Seq(PreferredName(Seq("subtype")), LabelContext("classToRef")))
 
-  private val PointerCreationOrigin: Origin = Origin(
-    Seq(LabelContext("classToRef, pointer creation method"))
-  )
+//  private val AsTypeOrigin: Origin = Origin(
+//    Seq(LabelContext("classToRef, asType function"))
+//  )
+//
+//  private val ValueAdtOrigin: Origin = Origin(Seq(PreferredName(Seq("Value")), LabelContext("classToRef")))
 
   case class InstanceNullPreconditionFailed(
       inner: Blame[InstanceNull],
@@ -76,26 +78,16 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   var typeNumberStore: mutable.Map[Class[Pre], Int] = mutable.Map()
   val typeOf: SuccessionMap[Unit, Function[Post]] = SuccessionMap()
   val instanceOf: SuccessionMap[Unit, Function[Post]] = SuccessionMap()
-  private val pointerCreationMethods
-      : SuccessionMap[Type[Pre], Procedure[Post]] = SuccessionMap()
 
-  def makePointerCreationMethod(t: Type[Post]): Procedure[Post] = {
-    implicit val o: Origin = PointerCreationOrigin
-
-    val result = new Variable[Post](TNonNullPointer(t))
-    globalDeclarations.declare(procedure[Post](
-      blame = AbstractApplicable,
-      contractBlame = TrueSatisfiable,
-      returnType = TVoid(),
-      outArgs = Seq(result),
-      ensures = UnitAccountedPredicate(
-        (PointerBlockLength(result.get)(FramedPtrBlockLength) === const(1)) &*
-          (PointerBlockOffset(result.get)(FramedPtrOffset) === const(0)) &*
-          Perm(PointerLocation(result.get)(FramedPtrOffset), WritePerm())
-      ),
-      decreases = Some(DecreasesClauseNoRecursion[Post]()),
-    ))
-  }
+//  val valueAdt: SuccessionMap[Unit, AxiomaticDataType[Post]] = SuccessionMap()
+//  val valueAdtTypeArgument: SuccessionMap[Unit, Variable[Post]] = SuccessionMap()
+//  val asTypeFunctions: mutable.Map[Type[Pre], ADTFunction[Post]] = mutable.Map()
+//
+//  def makeAsTypeFunction(typeName: String): ADTFunction[Post] = {
+//    val typeArg = valueAdtTypeArgument.getOrElseUpdate((), new Variable[Post](TType(TAnyValue()))(AsTypeOrigin.where(name="T")))
+//    val value = new Variable[Post](TVar(typeArg.ref))(AsTypeOrigin.where(name="value"))
+//    new ADTFunction[Post](Seq(value), TNonNullPointer(TAnyValue()))(AsTypeOrigin.where(name="as_"+typeName))
+//  }
 
   def typeNumber(cls: Class[Pre]): Int =
     typeNumberStore.getOrElseUpdate(cls, typeNumberStore.size + 1)
@@ -118,7 +110,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     )
   }
 
-  def transitiveByValuePermissions(
+  private def transitiveByValuePermissions(
       obj: Expr[Pre],
       t: TByValueClass[Pre],
       amount: Expr[Pre],
@@ -174,6 +166,10 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         globalDeclarations.declare(typeOf(()))
         instanceOf(()) = makeInstanceOf
         globalDeclarations.declare(instanceOf(()))
+//        if (asTypeFunctions.nonEmpty) {
+//          valueAdt(()) = new AxiomaticDataType[Post](asTypeFunctions.values.toSeq, Seq(valueAdtTypeArgument(())))(ValueAdtOrigin)
+//          globalDeclarations.declare(valueAdt(()))
+//        }
       }._1
     )
 
@@ -462,7 +458,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             globalDeclarations.succeed(cls, byValClassSucc(cls))
           case _ => cls.drop()
         }
-      case decl => rewriteDefault(decl)
+      case decl => super.dispatch(decl)
     }
 
   def instantiate(cls: Class[Pre], target: Ref[Post, Variable[Post]])(
@@ -487,46 +483,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             )(PanicBlame("typeOf requires nothing.")) === const(typeNumber(cls))
           ),
         ))
-      case cls: ByValueClass[Pre] => throw ExtraNode
-//        val (assigns, vars) =
-//          cls.decls.collect { case field: InstanceField[Pre] =>
-//            val element = field.t.asPointer.get.element
-//            val newE = dispatch(element)
-//            val v = new Variable[Post](TNonNullPointer(newE))
-//            (
-//              InvokeProcedure[Post](
-//                pointerCreationMethods
-//                  .getOrElseUpdate(element, makePointerCreationMethod(newE))
-//                  .ref,
-//                Nil,
-//                Seq(v.get),
-//                Nil,
-//                Nil,
-//                Nil,
-//              )(TrueSatisfiable),
-//              v,
-//            )
-//          }.unzip
-//        val assertions = if (vars.size > 1) {
-//          Seq(Assert(foldAnd[Post](vars.combinations(2).map { case Seq(a,b) => a.get !== b.get}.toSeq))(PanicBlame("Newly created pointers should be distinct")))
-//        } else {
-//          Nil
-//        }
-//        Scope(
-//          vars,
-//          Block(
-//            assigns ++ assertions ++ Seq(
-//              Assign(
-//                Local(target),
-//                adtFunctionInvocation[Post](
-//                  byValConsSucc.ref(cls),
-//                  args = vars.map(_.get),
-//                ),
-//              )(AssignLocalOk)
-//              // TODO: Add back typeOf here (but use a separate definition for the adt)
-//            )
-//          ),
-//        )
+      case _: ByValueClass[Pre] => throw ExtraNode
     }
   }
 
@@ -577,7 +534,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           },
           yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
         )(inv.blame)(inv.o)
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
 
   override def dispatch(node: ApplyAnyPredicate[Pre]): ApplyAnyPredicate[Post] =
@@ -666,6 +623,8 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         t match {
           case t: TClass[Pre] if t.typeArgs.isEmpty =>
             const(typeNumber(t.cls.decl))(e.o)
+          // Keep pointer casts intact for the adtPointer stage
+          case _: TPointer[Pre] | _: TNonNullPointer[Pre] => e.rewriteDefault()
           case other => ???
         }
       case TypeOf(value) =>
@@ -701,7 +660,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
         )(PanicBlame("instanceOf requires nothing"))(e.o)
-      case Cast(value, typeValue) =>
+      case Cast(value, typeValue) if value.t.asClass.isDefined =>
         dispatch(
           value
         ) // Discard for now, should assert instanceOf(value, typeValue)
@@ -735,7 +694,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       case v @ Value(PredicateLocation(inv: InstancePredicateApply[Pre])) =>
         implicit val o: Origin = e.o
         Star[Post](v.rewrite(), dispatch(inv.obj) !== Null())
-      case _ => rewriteDefault(e)
+      case _ => super.dispatch(e)
     }
 
   override def dispatch(t: Type[Pre]): Type[Post] =
@@ -747,7 +706,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
         )
       case TAnyClass() => TRef()
-      case t => rewriteDefault(t)
+      case t => super.dispatch(t)
     }
 
   override def dispatch(loc: Location[Pre]): Location[Post] =
@@ -767,6 +726,6 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               )(loc.o)
             )(NonNullPointerNull)(loc.o)
         }
-      case default => rewriteDefault(default)
+      case default => super.dispatch(default)
     }
 }

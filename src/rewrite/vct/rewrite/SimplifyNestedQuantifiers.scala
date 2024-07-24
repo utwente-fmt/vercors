@@ -78,11 +78,13 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
       case e: Forall[Pre] =>
         topLevel = false
         equalityChecker = ExpressionEqualityCheck(Some(infoGetter.finalInfo()))
-        mapUnfoldedStar(
-          e.body,
-          (b: Expr[Pre]) =>
-            rewriteBinder(Forall(e.bindings, e.triggers, b)(e.o)),
-        )
+        if (e.bindings.size > 1) {
+          mapUnfoldedStar(
+            e.body,
+            (b: Expr[Pre]) =>
+              rewriteBinder(Forall(e.bindings, e.triggers, b)(e.o)),
+          )
+        } else { e.rewriteDefault() }
       case e: Starall[Pre] =>
         topLevel = false
         equalityChecker = ExpressionEqualityCheck(Some(infoGetter.finalInfo()))
