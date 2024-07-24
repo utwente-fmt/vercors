@@ -99,15 +99,16 @@ case class StratifyExpressions[Pre <: Generation]()
         branch
           .rewrite(Seq((stratifyExpr(cond), dispatch(yes)), (tt, dispatch(no))))
 
+      // We expect all branches to be normalized to binary branches
       case InChor(_, Branch(_)) => ???
 
-      case assert: Assert[Pre] =>
+      case InChor(_, assert: Assert[Pre]) =>
         assert.rewrite(res = stratifyExpr(assert.expr))
-      case inhale: Inhale[Pre] =>
+      case InChor(_, inhale: Inhale[Pre]) =>
         inhale.rewrite(res = stratifyExpr(inhale.expr))
-      case exhale: Exhale[Pre] =>
+      case InChor(_, exhale: Exhale[Pre]) =>
         exhale.rewrite(res = stratifyExpr(exhale.expr))
-      case assume: Assume[Pre] =>
+      case InChor(_, assume: Assume[Pre]) =>
         assume.rewrite(assn = stratifyExpr(assume.expr))
 
       case statement => statement.rewriteDefault()

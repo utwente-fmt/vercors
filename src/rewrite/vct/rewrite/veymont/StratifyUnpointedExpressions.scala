@@ -93,6 +93,15 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
           c.rewrite(inner = loop.rewrite(cond = stratifyExpr(loop.cond)))
         }
 
+      case InChor(_, c @ ChorStatement(assert: Assert[Pre])) =>
+        c.rewrite(inner = assert.rewrite(res = stratifyExpr(assert.res)))
+      case InChor(_, c @ ChorStatement(assume: Assume[Pre])) =>
+        c.rewrite(inner = assume.rewrite(assn = stratifyExpr(assume.assn)))
+      case InChor(_, c @ ChorStatement(inhale: Inhale[Pre])) =>
+        c.rewrite(inner = inhale.rewrite(res = stratifyExpr(inhale.res)))
+      case InChor(_, c @ ChorStatement(exhale: Exhale[Pre])) =>
+        c.rewrite(inner = exhale.rewrite(res = stratifyExpr(exhale.res)))
+
       case statement => statement.rewriteDefault()
     }
 

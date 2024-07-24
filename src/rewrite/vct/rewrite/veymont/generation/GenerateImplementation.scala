@@ -3,8 +3,11 @@ package vct.rewrite.veymont.generation
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
+  And,
   ApplicableContract,
+  Assert,
   Assign,
+  Assume,
   Block,
   Branch,
   ChorPerm,
@@ -14,7 +17,6 @@ import vct.col.ast.{
   Class,
   ClassDeclaration,
   Constructor,
-  IdleToken,
   Declaration,
   Deref,
   Endpoint,
@@ -22,9 +24,12 @@ import vct.col.ast.{
   EndpointName,
   EndpointStatement,
   Eval,
+  Exhale,
   Expr,
   FieldLocation,
   Fork,
+  IdleToken,
+  Inhale,
   InstanceField,
   InstanceMethod,
   IterationContract,
@@ -35,6 +40,7 @@ import vct.col.ast.{
   LoopContract,
   LoopInvariant,
   Node,
+  Or,
   Perm,
   Procedure,
   Program,
@@ -52,7 +58,10 @@ import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
+import vct.result.Message
+import vct.result.VerificationError.SystemError
 import vct.rewrite.veymont.VeymontContext
+import vct.rewrite.veymont.generation.GenerateImplementation.CannotProjectStatement
 
 import scala.collection.mutable
 
@@ -61,6 +70,19 @@ object GenerateImplementation extends RewriterBuilder {
 
   override def desc: String =
     "Generate classes for VeyMont threads in parallel program"
+
+  case class CannotProjectStatement(endpoint: Endpoint[_], s: Statement[_])
+      extends SystemError {
+    override def text: String = {
+      Message.messagesInContext(
+        (
+          s.o,
+          s"The following statement was not transformed into a supported statement...",
+        ),
+        (endpoint.o, "... while projecting for this endpoint."),
+      )
+    }
+  }
 }
 
 case class GenerateImplementation[Pre <: Generation]()
@@ -334,10 +356,19 @@ case class GenerateImplementation[Pre <: Generation]()
         )
       // Ignore loops, branches that the current endpoint doesn't participate in
       case c @ ChorStatement(_: Loop[Pre] | _: Branch[Pre]) => Block(Seq())(c.o)
+      // Project assert-like statements as you'd expect
+      case ChorStatement(assert: Assert[Pre]) =>
+        assert.rewrite(res = projectExpr(assert.res))
+      case ChorStatement(assume: Assume[Pre]) =>
+        assume.rewrite(assn = projectExpr(assume.assn))
+      case ChorStatement(inhale: Inhale[Pre]) =>
+        inhale.rewrite(res = projectExpr(inhale.res))
+      case ChorStatement(exhale: Exhale[Pre]) =>
+        exhale.rewrite(res = projectExpr(exhale.res))
       // Rewrite blocks transparently
       case block: Block[Pre] => block.rewriteDefault()
       // Don't let any missed cases slip through
-      case s => throw new Exception(s"Unsupported: $s")
+      case s => throw CannotProjectStatement(endpoint, s)
     }
 
   def projectContract(
@@ -384,6 +415,13 @@ case class GenerateImplementation[Pre <: Generation]()
       case EndpointExpr(Ref(other), expr) if endpoint == other =>
         projectExpr(expr)
       case EndpointExpr(_, _) => tt
+      // Define transparent projections for basic operators
+      case and: And[Pre] =>
+        and.rewrite(projectExpr(and.left), projectExpr(and.right))
+      case or: Or[Pre] =>
+        or.rewrite(projectExpr(or.left), projectExpr(or.right))
+      // Actually this is kind of wrong and buggy. But it covers most default & correct cases so
+      // I'll leave it for now
       case _ => expr.rewriteDefault()
     }
 

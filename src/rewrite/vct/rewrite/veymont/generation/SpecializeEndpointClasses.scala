@@ -5,6 +5,7 @@ import vct.col.ast.{
   ChorRun,
   Choreography,
   Class,
+  Communicate,
   Constructor,
   Declaration,
   Deref,
@@ -18,6 +19,8 @@ import vct.col.ast.{
   LoopContract,
   LoopInvariant,
   Program,
+  Receiver,
+  Sender,
   ThisObject,
   UnitAccountedPredicate,
   Value,
@@ -48,13 +51,22 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
     super.dispatch(p)
   }
 
+  def readImplField(obj: Expr[Post], endpoint: Endpoint[Pre])(
+      implicit o: Origin
+  ): Expr[Post] = {
+    Deref[Post](obj, implFields.ref(endpoint))(PanicBlame(
+      "Permissions for impl should be automatically generated"
+    ))
+  }
+
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
-      case name @ EndpointName(Ref(endpoint)) =>
-        implicit val o = name.o
-        Deref[Post](name.rewriteDefault(), implFields.ref(endpoint))(PanicBlame(
-          "Should be safe"
-        ))
+      case EndpointName(Ref(endpoint)) =>
+        readImplField(expr.rewriteDefault(), endpoint)(expr.o)
+      case Sender(Ref(comm)) =>
+        readImplField(expr.rewriteDefault(), comm.sender.get.decl)(expr.o)
+      case Receiver(Ref(comm)) =>
+        readImplField(expr.rewriteDefault(), comm.receiver.get.decl)(expr.o)
       case _ => expr.rewriteDefault()
     }
 
@@ -122,6 +134,18 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
             ),
           ),
         )
+
+      case comm: Communicate[Pre] =>
+        val sender = comm.sender.get.decl
+        val receiver = comm.receiver.get.decl
+        val newComm: Ref[Post, Communicate[Post]] = succ(comm)
+        implicit val o = comm.o
+        comm.rewrite(invariant =
+          value[Post](Sender(newComm), implFields.ref(sender)) &*
+            value[Post](Receiver(newComm), implFields.ref(receiver)) &*
+            dispatch(comm.invariant)
+        ).succeed(comm)
+
       case _ => super.dispatch(decl)
     }
 
