@@ -650,7 +650,13 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         elementType match {
           case t: TClass[Pre] =>
             unwrapStructPerm(access, Some(pointerAccess), t, o, makeStruct)
-          case _ => Seq()
+          case t =>
+            Seq((
+              makeStruct
+                .makeSelfCast(pointerAccess, TNonNullPointer(dispatch(t))),
+              // Will never be used
+              (p: Expr[Pre]) => GenericPointerFreeError(p),
+            ))
         }
 
       ensures =

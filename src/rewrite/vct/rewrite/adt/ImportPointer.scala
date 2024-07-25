@@ -446,10 +446,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       asTypeFunctions
         .getOrElseUpdate(innerType, makeAsTypeFunction(innerType.toString)).ref,
       Seq(preExpr match {
-        case PointerAdd(_, _) =>
-          OptGet(postExpr)(PanicBlame(
-            "OptGet(Some(_)) should always be optimised away"
-          ))
+        case PointerAdd(_, _) => postExpr
         case _ =>
           FunctionInvocation[Post](
             ref = pointerAdd.ref,
