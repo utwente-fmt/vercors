@@ -171,15 +171,6 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           (p: Expr[Pre]) => PointerInsufficientFreePermission(p),
         ),
       )
-      var requires = (ptr !== Null()) &*
-        (PointerBlockOffset(ptr)(FramedPtrBlockOffset) === zero) &*
-        makeStruct.makePerm(
-          i =>
-            PointerLocation(PointerAdd(ptr, i.get)(FramedPtrOffset))(
-              FramedPtrOffset
-            ),
-          IteratedPtrInjective,
-        )
       requiresT =
         if (!typeIsRef(t))
           requiresT
@@ -216,7 +207,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         body = None,
         requires = requiresPred,
         decreases = Some(DecreasesClauseNoRecursion[Post]()),
-      )(o.where("free_" + t.toString))
+      )(o.where(name = "free_" + t.toString))
     })
     (proc, (node: FreePointer[Pre]) => PointerFreeFailed(node, errors))
   }

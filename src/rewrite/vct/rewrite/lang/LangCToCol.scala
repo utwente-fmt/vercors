@@ -1042,7 +1042,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 contract = rw.dispatch(decl.decl.contract),
                 pure = pure,
                 inline = inline,
-              )(AbstractApplicable)(init.o)
+              )(AbstractApplicable)(init.o.sourceName(info.name))
             )
           )
         case None =>
@@ -1050,7 +1050,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             if (t.isInstanceOf[TByValueClass[Post]]) { TNonNullPointer(t) }
             else { t }
           cGlobalNameSuccessor(RefCGlobalDeclaration(decl, idx)) = rw
-            .globalDeclarations.declare(new HeapVariable(newT)(init.o))
+            .globalDeclarations
+            .declare(new HeapVariable(newT)(init.o.sourceName(info.name)))
       }
     }
   }
