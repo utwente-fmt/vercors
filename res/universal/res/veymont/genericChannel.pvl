@@ -21,6 +21,7 @@ class Channel<T> {
 
     hasMsg = true;
     exchangeValue = v;
+    notify this;
     unlock this;
   }
  
@@ -36,6 +37,7 @@ class Channel<T> {
 
     T m = exchangeValue;
     hasMsg = false;
+    notify this;
     unlock this;
 
     return m;

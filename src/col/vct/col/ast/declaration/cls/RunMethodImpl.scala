@@ -10,8 +10,8 @@ trait RunMethodImpl[G] extends RunMethodOps[G] {
   def layoutJava(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
       contract.show,
-      TVoid().show <+> Text("run()") <+> body.map(Empty <+> _.layoutAsBlock)
-        .getOrElse(Text(";")),
+      Text("public") <+> TVoid().show <+> "run" <> "()" <+>
+        body.map(_.layoutAsBlock).getOrElse(Text("{ /*@ assume false; @*/ }")),
     ))
 
   def layoutPvl(implicit ctx: Ctx): Doc =

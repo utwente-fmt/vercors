@@ -34,7 +34,31 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] {
     Text("lock_invariant") <+> Nest(intrinsicLockInvariant.show) <> ";" <+/>
       Empty
 
-  override def layout(implicit ctx: Ctx): Doc =
+  def layoutLock(implicit ctx: Ctx): Doc =
+    Text("Lock") <+> "intrinsicLock$" <+> "=" <+> "new" <+>
+      "ReentrantLock(true);" <+/> "Condition" <+> "condition$" <+> "=" <+>
+      "intrinsicLock$" <> "." <> "newCondition()" <> ";"
+
+  def layoutJava(implicit ctx: Ctx): Doc =
+    (if (intrinsicLockInvariant == tt[G])
+       Empty
+     else
+       Doc.spec(Show.lazily(layoutLockInvariant(_)))) <+/> Group(
+      Text("class") <+> ctx.name(this) <>
+        (if (typeArgs.nonEmpty)
+           Text("<") <> Doc.args(typeArgs) <> ">"
+         else
+           Empty) <>
+        (if (supports.isEmpty)
+           // Inheritance still needs work anyway
+           Text(" ") <> "extends" <+> "Thread"
+         else
+           Text(" ") <> "extends" <+> Doc.args(
+             supports.map(supp => ctx.name(supp.asClass.get.cls)).map(Text)
+           )) <+> "{"
+    ) <>> Doc.stack2(layoutLock +: decls) <+/> "}"
+
+  def layoutPvl(implicit ctx: Ctx): Doc =
     (if (intrinsicLockInvariant == tt[G])
        Empty
      else
@@ -51,4 +75,10 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] {
              supports.map(supp => ctx.name(supp.asClass.get.cls)).map(Text)
            )) <+> "{"
     ) <>> Doc.stack2(decls) <+/> "}"
+
+  override def layout(implicit ctx: Ctx): Doc =
+    ctx.syntax match {
+      case Ctx.Java => layoutJava
+      case _ => layoutPvl
+    }
 }

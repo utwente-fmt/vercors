@@ -39,7 +39,7 @@ trait InstanceMethodImpl[G]
              Empty)
     }
 
-  override def layout(implicit ctx: Ctx): Doc =
+  def layoutPvl(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
       contract,
       Group(
@@ -52,6 +52,27 @@ trait InstanceMethodImpl[G]
          else
            Empty) <> body.map(Text(" ") <> _.layoutAsBlock).getOrElse(Text(";")),
     ))
+
+  def layoutJava(implicit ctx: Ctx): Doc =
+    Doc.stack(Seq(
+      contract,
+      Group(
+        Group(
+          Doc.rspread(layoutModifiers) <> returnType <+> layoutNameAndArgs
+        ) <> "(" <> Doc.args(args) <> ")"
+      ) <>
+        (if (outArgs.nonEmpty)
+           Text(" returns") <+> "(" <> Doc.args(outArgs) <> ")"
+         else
+           Empty) <> body.map(Text(" ") <> _.layoutAsBlock)
+          .getOrElse(Text(" { /*@ assume false; @*/ }")),
+    ))
+
+  override def layout(implicit ctx: Ctx): Doc =
+    ctx.syntax match {
+      case Ctx.Java => layoutJava
+      case _ => layoutPvl
+    }
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
     context.currentChoreography match {
