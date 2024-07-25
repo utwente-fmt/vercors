@@ -23,12 +23,6 @@ case object ClassToRef extends RewriterBuilder {
   private def InstanceOfOrigin: Origin =
     Origin(Seq(PreferredName(Seq("subtype")), LabelContext("classToRef")))
 
-//  private val AsTypeOrigin: Origin = Origin(
-//    Seq(LabelContext("classToRef, asType function"))
-//  )
-//
-//  private val ValueAdtOrigin: Origin = Origin(Seq(PreferredName(Seq("Value")), LabelContext("classToRef")))
-
   case class InstanceNullPreconditionFailed(
       inner: Blame[InstanceNull],
       inv: InvokingNode[_],
@@ -78,16 +72,6 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   var typeNumberStore: mutable.Map[Class[Pre], Int] = mutable.Map()
   val typeOf: SuccessionMap[Unit, Function[Post]] = SuccessionMap()
   val instanceOf: SuccessionMap[Unit, Function[Post]] = SuccessionMap()
-
-//  val valueAdt: SuccessionMap[Unit, AxiomaticDataType[Post]] = SuccessionMap()
-//  val valueAdtTypeArgument: SuccessionMap[Unit, Variable[Post]] = SuccessionMap()
-//  val asTypeFunctions: mutable.Map[Type[Pre], ADTFunction[Post]] = mutable.Map()
-//
-//  def makeAsTypeFunction(typeName: String): ADTFunction[Post] = {
-//    val typeArg = valueAdtTypeArgument.getOrElseUpdate((), new Variable[Post](TType(TAnyValue()))(AsTypeOrigin.where(name="T")))
-//    val value = new Variable[Post](TVar(typeArg.ref))(AsTypeOrigin.where(name="value"))
-//    new ADTFunction[Post](Seq(value), TNonNullPointer(TAnyValue()))(AsTypeOrigin.where(name="as_"+typeName))
-//  }
 
   def typeNumber(cls: Class[Pre]): Int =
     typeNumberStore.getOrElseUpdate(cls, typeNumberStore.size + 1)
@@ -166,10 +150,6 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         globalDeclarations.declare(typeOf(()))
         instanceOf(()) = makeInstanceOf
         globalDeclarations.declare(instanceOf(()))
-//        if (asTypeFunctions.nonEmpty) {
-//          valueAdt(()) = new AxiomaticDataType[Post](asTypeFunctions.values.toSeq, Seq(valueAdtTypeArgument(())))(ValueAdtOrigin)
-//          globalDeclarations.declare(valueAdt(()))
-//        }
       }._1
     )
 

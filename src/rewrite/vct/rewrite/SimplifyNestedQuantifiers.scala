@@ -78,13 +78,11 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
       case e: Forall[Pre] =>
         topLevel = false
         equalityChecker = ExpressionEqualityCheck(Some(infoGetter.finalInfo()))
-        if (e.bindings.size > 1) {
-          mapUnfoldedStar(
-            e.body,
-            (b: Expr[Pre]) =>
-              rewriteBinder(Forall(e.bindings, e.triggers, b)(e.o)),
-          )
-        } else { e.rewriteDefault() }
+        mapUnfoldedStar(
+          e.body,
+          (b: Expr[Pre]) =>
+            rewriteBinder(Forall(e.bindings, e.triggers, b)(e.o)),
+        )
       case e: Starall[Pre] =>
         topLevel = false
         equalityChecker = ExpressionEqualityCheck(Some(infoGetter.finalInfo()))
@@ -227,6 +225,18 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     )(contract.blame)(contract.o)
   }
 
+  private def hasTriggers(e: Binder[Pre]): Boolean =
+    e match {
+      case Forall(body, triggers, _) =>
+        triggers.exists(_.nonEmpty) || body.exists {
+          case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true
+        }
+      case Starall(body, triggers, _) =>
+        triggers.exists(_.nonEmpty) || body.exists {
+          case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true
+        }
+    }
+
   def rewriteLinearArray(e: Binder[Pre]): Option[Expr[Post]] = {
     val originalBody =
       e match {
@@ -239,11 +249,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
       return None
 
     // PB: do not attempt to reshape quantifiers that already have patterns
-    if (
-      originalBody.exists {
-        case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true
-      }
-    ) {
+    if (hasTriggers(e)) {
       logger.debug(s"Not rewriting $e because it contains patterns")
       return None
     }
