@@ -478,5 +478,6 @@ case class VeyMontImplementationGeneration(
         GenerateImplementation,
         PrettifyBlocks,
         EncodeBooleanImplication,
+        EncodeGlobalApplicables,
       ),
     )
