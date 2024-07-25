@@ -640,9 +640,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
         )(PanicBlame("instanceOf requires nothing"))(e.o)
-      case Cast(value, typeValue)
-          if value.t.asClass.isDefined ||
-            value.t.isInstanceOf[TAnyClass[Pre]] =>
+      case Cast(value, typeValue) if value.t.asPointer.isEmpty =>
         dispatch(
           value
         ) // Discard for now, should assert instanceOf(value, typeValue)
