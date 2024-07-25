@@ -286,25 +286,25 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
           Nil,
           Nil,
         )(PanicBlame("ptr_deref requires nothing."))
-      case other => rewriteDefault(other)
+      case other => dispatch(other)
     }
   }
 
   override def postCoerce(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
-//      case f @ Forall(_, triggers, _) =>
-//        f.rewrite(triggers =
-//          triggers.map(_.map(rewriteTopLevelPointerSubscriptInTrigger))
-//        )
-//      case s @ Starall(_, triggers, _) =>
-//        s.rewrite(triggers =
-//          triggers.map(_.map(rewriteTopLevelPointerSubscriptInTrigger))
-//        )
-//      case e @ Exists(_, triggers, _) =>
-//        e.rewrite(triggers =
-//          triggers.map(_.map(rewriteTopLevelPointerSubscriptInTrigger))
-//        )
+      case f @ Forall(_, triggers, _) =>
+        f.rewrite(triggers =
+          triggers.map(_.map(rewriteTopLevelPointerSubscriptInTrigger))
+        )
+      case s @ Starall(_, triggers, _) =>
+        s.rewrite(triggers =
+          triggers.map(_.map(rewriteTopLevelPointerSubscriptInTrigger))
+        )
+      case e @ Exists(_, triggers, _) =>
+        e.rewrite(triggers =
+          triggers.map(_.map(rewriteTopLevelPointerSubscriptInTrigger))
+        )
       case sub @ PointerSubscript(pointer, index) =>
         SilverDeref(
           obj =
