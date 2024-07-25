@@ -227,11 +227,11 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
 
   private def hasTriggers(e: Binder[Pre]): Boolean =
     e match {
-      case Forall(body, triggers, _) =>
+      case Forall(_, triggers, body) =>
         triggers.exists(_.nonEmpty) || body.exists {
           case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true
         }
-      case Starall(body, triggers, _) =>
+      case Starall(_, triggers, body) =>
         triggers.exists(_.nonEmpty) || body.exists {
           case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true
         }
