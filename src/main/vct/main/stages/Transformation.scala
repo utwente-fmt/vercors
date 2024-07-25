@@ -477,5 +477,6 @@ case class VeyMontImplementationGeneration(
         GenerateAndEncodeChannels.withArg(importer),
         GenerateImplementation,
         PrettifyBlocks,
+        EncodeBooleanImplication,
       ),
     )
