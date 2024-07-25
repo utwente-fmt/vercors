@@ -2,27 +2,39 @@ package vct.rewrite.veymont.generation
 
 import hre.util.ScopedStack
 import vct.col.ast.{
+  ApplicableContract,
+  Block,
+  Assert,
+  Assume,
   Class,
+  Constructor,
   Declaration,
+  Exhale,
   Expr,
   Function,
   FunctionInvocation,
+  Inhale,
   InstanceFunction,
   InstanceFunctionInvocation,
   InstanceMethod,
   InvokingNode,
+  LoopContract,
   MethodInvocation,
+  NewObject,
   Null,
   Procedure,
   ProcedureInvocation,
   Program,
   Result,
+  Statement,
+  TClass,
 }
 import vct.col.origin.{
   Blame,
   InstanceInvocationFailure,
   InstanceNull,
   InvocationFailure,
+  Origin,
   PanicBlame,
   TrueSatisfiable,
 }
@@ -54,25 +66,47 @@ case class EncodeGlobalApplicables[Pre <: Generation]() extends Rewriter[Pre] {
   val funcSucc = SuccessionMap[Function[Pre], InstanceFunction[Post]]()
 
   val inSpec = ScopedStack[Boolean]()
+  val globalsConstructor = DeclarationBox[Post, Constructor[Post]]()
   val globals = DeclarationBox[Post, Class[Post]]()
   val ghostGlobals = DeclarationBox[Post, Function[Post]]()
 
-  def getGlobals: Expr[Post] =
+  def spec[T](f: => T): T = inSpec.having(true) { f }
+
+  def getGlobals(implicit o: Origin): Expr[Post] =
     if (inSpec.topOption.contains(true))
-      ???
+      functionInvocation(
+        ref = ghostGlobals.ref,
+        blame = PanicBlame("Trivial contract"),
+      )
     else
-      ???
+      constructorInvocation(
+        ref = globalsConstructor.ref,
+        blame = PanicBlame("Trivial contract"),
+      )
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
       case inv: ProcedureInvocation[Pre] =>
-        MethodInvocation(???, ???, ???, ???, ???, ???, ???)(
-          InstanceInvocationFailureToInvocationFailure(inv)
-        )(inv.o)
+        implicit val o = inv.o
+        MethodInvocation[Post](
+          getGlobals,
+          procSucc.ref(inv.ref.decl),
+          inv.args.map(dispatch),
+          inv.outArgs.map(dispatch),
+          inv.typeArgs.map(dispatch),
+          inv.givenMap.map { case (v, e) => (succ(v.decl), dispatch(e)) },
+          inv.yields.map { case (e, v) => (dispatch(e), succ(v.decl)) },
+        )(InstanceInvocationFailureToInvocationFailure(inv))(inv.o)
       case inv: FunctionInvocation[Pre] =>
-        InstanceFunctionInvocation(???, ???, ???, ???, ???, ???)(
-          InstanceInvocationFailureToInvocationFailure(inv)
-        )(inv.o)
+        implicit val o = inv.o
+        InstanceFunctionInvocation[Post](
+          getGlobals,
+          funcSucc.ref(inv.ref.decl),
+          inv.args.map(dispatch),
+          inv.typeArgs.map(dispatch),
+          inv.givenMap.map { case (v, e) => (succ(v.decl), dispatch(e)) },
+          inv.yields.map { case (e, v) => (dispatch(e), succ(v.decl)) },
+        )(InstanceInvocationFailureToInvocationFailure(inv))(inv.o)
       case _ => expr.rewriteDefault()
     }
 
@@ -89,7 +123,32 @@ case class EncodeGlobalApplicables[Pre <: Generation]() extends Rewriter[Pre] {
     decl match {
       // Functions and procedures are moved into the global statics class
       case _: Function[Pre] | _: Procedure[Pre] =>
+      case cls: Class[Pre] =>
+        cls.rewrite(intrinsicLockInvariant = spec {
+          cls.intrinsicLockInvariant.rewriteDefault()
+        }).succeed(cls)
       case _ => super.dispatch(decl)
+    }
+
+  override def dispatch(
+      contract: ApplicableContract[Pre]
+  ): ApplicableContract[Post] = spec { contract.rewriteDefault() }
+
+  override def dispatch(contract: LoopContract[Pre]): LoopContract[Post] =
+    spec { contract.rewriteDefault() }
+
+  override def dispatch(stmt: Statement[Pre]): Statement[Post] =
+    stmt match {
+      case assert: Assert[Pre] =>
+        assert.rewrite(res = spec { assert.res.rewriteDefault() })
+      case assume: Assume[Pre] =>
+        assume.rewrite(assn = spec { assume.assn.rewriteDefault() })
+      case inhale: Inhale[Pre] =>
+        inhale.rewrite(res = spec { inhale.res.rewriteDefault() })
+      case exhale: Exhale[Pre] =>
+        exhale.rewrite(res = spec { exhale.res.rewriteDefault() })
+      // Par blocks?
+      case _ => stmt.rewriteDefault()
     }
 
   def createGlobalClass(program: Program[Pre]): Unit = {
@@ -97,7 +156,15 @@ case class EncodeGlobalApplicables[Pre <: Generation]() extends Rewriter[Pre] {
       new Class(
         decls =
           classDeclarations.collect {
-            program.foreach {
+            globalsConstructor.fill(
+              constructor(
+                cls = globals.ref,
+                body = Some(Block[Post](Seq())(program.o)),
+                blame = PanicBlame("Trivial contract"),
+                contractBlame = PanicBlame("Trivial contract"),
+              )(program.o).declare()
+            )
+            program.declarations.collect {
               case p: Procedure[Pre] => dispatchProc(p)
               case f: Function[Pre] => dispatchFunc(f)
             }
@@ -114,6 +181,7 @@ case class EncodeGlobalApplicables[Pre <: Generation]() extends Rewriter[Pre] {
         blame = PanicBlame("Trivial contract"),
         contractBlame = TrueSatisfiable,
         ensures = (result !== Null()).accounted,
+        returnType = TClass[Post](globals.ref, Seq()),
       )(program.o.where(name = "g$")).declare()
     ))
   }

@@ -669,6 +669,45 @@ object AstBuildHelpers {
       inline,
     )(blame)
 
+  def constructor[G](
+      blame: Blame[CallableFailure],
+      contractBlame: Blame[NontrivialUnsatisfiable],
+      cls: Ref[G, Class[G]],
+      args: Seq[Variable[G]] = Nil,
+      outArgs: Seq[Variable[G]] = Nil,
+      typeArgs: Seq[Variable[G]] = Nil,
+      body: Option[Statement[G]] = None,
+      requires: AccountedPredicate[G] =
+        UnitAccountedPredicate(tt[G])(constOrigin(true)),
+      ensures: AccountedPredicate[G] =
+        UnitAccountedPredicate(tt[G])(constOrigin(true)),
+      contextEverywhere: Expr[G] = tt[G],
+      signals: Seq[SignalsClause[G]] = Nil,
+      givenArgs: Seq[Variable[G]] = Nil,
+      yieldsArgs: Seq[Variable[G]] = Nil,
+      decreases: Option[DecreasesClause[G]] = Some(
+        DecreasesClauseNoRecursion[G]()(constOrigin("decreases"))
+      ),
+      inline: Boolean = false,
+  )(implicit o: Origin): Constructor[G] =
+    new Constructor(
+      cls,
+      args,
+      outArgs,
+      typeArgs,
+      body,
+      ApplicableContract(
+        requires,
+        ensures,
+        contextEverywhere,
+        signals,
+        givenArgs,
+        yieldsArgs,
+        decreases,
+      )(contractBlame),
+      inline,
+    )(blame)
+
   def functionInvocation[G](
       blame: Blame[InvocationFailure],
       ref: Ref[G, Function[G]],
