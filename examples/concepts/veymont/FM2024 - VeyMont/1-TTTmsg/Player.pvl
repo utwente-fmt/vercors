@@ -141,6 +141,8 @@ class Player {
   ensures readMoveCell(move,this) == -1;
   void createNewMove();
 
+  // Hook for the test suite to replace code
+  void finish() { }
 }
 
 requires Perm(move.i, read) ** Perm(move.j, read);

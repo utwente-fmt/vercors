@@ -1,0 +1,50 @@
+Give createNewMove a concrete implementation:
+<<<<<<<
+    void createNewMove() { throw new UnsupportedOperationException(); }
+=======
+    // Picks the first free move
+    void createNewMove() {
+        if (this.c00 == -1) {
+            this.move = new Move(0, 0, myMark);
+        } else if (this.c01 == -1) {
+            this.move = new Move(0, 1, myMark);
+        } else if (this.c02 == -1) {
+            this.move = new Move(0, 2, myMark);
+        } else if (this.c10 == -1) {
+            this.move = new Move(1, 0, myMark);
+        } else if (this.c11 == -1) {
+            this.move = new Move(1, 1, myMark);
+        } else if (this.c12 == -1) {
+            this.move = new Move(1, 2, myMark);
+        } else if (this.c20 == -1) {
+            this.move = new Move(2, 0, myMark);
+        } else if (this.c21 == -1) {
+            this.move = new Move(2, 1, myMark);
+        } else if (this.c22 == -1) {
+            this.move = new Move(2, 2, myMark);
+        }
+    }
+>>>>>>>
+
+Save the final board of p1:
+<<<<<<<
+this.p1.impl.finish();
+=======
+G$.p1Impl = this.p1.impl;
+>>>>>>>
+
+Save the final board of p1:
+<<<<<<<
+this.p2.impl.finish();
+=======
+G$.p2Impl = this.p2.impl;
+>>>>>>>
+
+Add global fields to G$:
+<<<<<<<
+class G$ {
+=======
+class G$ {
+    Player p1Impl = null;
+    Player p2Impl = null;
+>>>>>>>

@@ -65,7 +65,7 @@ trait InstanceMethodImpl[G]
            Text(" returns") <+> "(" <> Doc.args(outArgs) <> ")"
          else
            Empty) <> body.map(Text(" ") <> _.layoutAsBlock)
-          .getOrElse(Text(" { /*@ assume false; @*/ }")),
+          .getOrElse(Text(" { throw new UnsupportedOperationException(); }")),
     ))
 
   override def layout(implicit ctx: Ctx): Doc =
