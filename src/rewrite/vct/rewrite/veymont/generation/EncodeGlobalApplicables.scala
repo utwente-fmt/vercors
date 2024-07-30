@@ -122,7 +122,7 @@ case class EncodeGlobalApplicables[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       // Functions and procedures are moved into the global statics class
-      case _: Function[Pre] | _: Procedure[Pre] =>
+      case _: Function[Pre] | _: Procedure[Pre] => decl.drop()
       case cls: Class[Pre] =>
         cls.rewrite(intrinsicLockInvariant = spec {
           cls.intrinsicLockInvariant.rewriteDefault()

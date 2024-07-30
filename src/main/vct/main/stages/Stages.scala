@@ -8,7 +8,7 @@ import vct.parsers.transform.{BlameProvider, ConstantBlameProvider}
 import vct.result.VerificationError
 import hre.io.{LiteralReadable, Readable}
 import hre.stages.{IdentityStage, Stages}
-import hre.stages.Stages.{branch, saveInput, timed}
+import hre.stages.Stages.{branch, saveInput, timed, applyIf}
 import vct.col.origin.{BlameCollector, VerificationFailure}
 import vct.col.rewrite.bip.BIP
 import vct.main.modes.VeyMont
@@ -108,13 +108,18 @@ case object Stages extends LazyLogging {
         ))).transform(_._1)
     }
 
+    val generateJava = globalOptions.veymontOutput.exists(_.endsWith(".java"))
     val generationStage
         : Stages[Verification[_ <: Generation], Seq[LiteralReadable]] = {
       val options = globalOptions
       timed(
         "generating endpoint implementations",
         Transformation.veymontImplementationGenerationOfOptions(options)
-          .thenRun(Output.veymontOfOptions(options)),
+          .thenRun(applyIf[Verification[_ <: Generation]](
+            generateJava,
+            IdentityStage()
+              .thenRun(Transformation.pvlJavaCompatOfOptions(options)),
+          )).thenRun(Output.veymontOfOptions(options)),
       )
     }
 

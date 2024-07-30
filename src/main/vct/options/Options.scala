@@ -372,6 +372,15 @@ case object Options {
           .text("Output file for the control flow graph in .dot format")
       ),
       note(""),
+      note("Compile mode"),
+      opt[Unit]("compile").action((_, c) => c.copy(mode = Mode.Compile)).text(
+        "Compiles PVL to Java. Currently only supported for the imperative fragment of PVL."
+      ).children(
+        opt[Path]("compile-output").valueName("<path>")
+          .action((path, c) => c.copy(compileOutput = Some(path)))
+          .text("Output Java file")
+      ),
+      note(""),
       note(""),
       arg[PathOrStd]("<path>...").unbounded().optional()
         .action((path, c) => c.copy(inputs = c.inputs :+ path))
@@ -483,6 +492,9 @@ case class Options(
 
     // Control flow graph options
     cfgOutput: Path = null,
+
+    // Compile options
+    compileOutput: Option[Path] = None,
 ) {
   def getParserDebugOptions: vct.parsers.debug.DebugOptions =
     vct.parsers.debug.DebugOptions(

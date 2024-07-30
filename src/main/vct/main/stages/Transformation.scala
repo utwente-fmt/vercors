@@ -160,6 +160,14 @@ object Transformation extends LazyLogging {
           writeOutFunctions(after, options.outputAfterPass),
     )
 
+  def pvlJavaCompatOfOptions(options: Options): Transformation =
+    PvlJavaCompat(onPassEvent =
+      options.outputIntermediatePrograms
+        .map(p => reportIntermediateProgram(p, "pvlJavaCompat")).toSeq ++
+        writeOutFunctions(before, options.outputBeforePass) ++
+        writeOutFunctions(after, options.outputAfterPass)
+    )
+
   sealed trait TransformationEvent
   case object before extends TransformationEvent
   case object after extends TransformationEvent
@@ -477,7 +485,13 @@ case class VeyMontImplementationGeneration(
         GenerateAndEncodeChannels.withArg(importer),
         GenerateImplementation,
         PrettifyBlocks,
-        EncodeBooleanImplication,
-        EncodeGlobalApplicables,
       ),
+    )
+
+// Compiles away several aspects of PVL that are not natively support in Java, which are too involved to handle
+// ad-hoc in the pretty printer, or possibly for which the COL ast has no support yet
+case class PvlJavaCompat(override val onPassEvent: Seq[PassEventHandler] = Nil)
+    extends Transformation(
+      onPassEvent,
+      Seq(ImplicationToTernary, EncodeGlobalApplicables),
     )

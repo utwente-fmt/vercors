@@ -66,8 +66,13 @@ object Stages {
 
   def skipIf[Input](
       condition: Boolean,
-      stages: Stages[Input, Unit],
-  ): Stages[Input, Unit] = SkipIf(condition, stages)
+      stages: Stages[Input, Input],
+  ): Stages[Input, Input] = ApplyIf(!condition, stages)
+
+  def applyIf[Input](
+      condition: Boolean,
+      stages: Stages[Input, Input],
+  ): Stages[Input, Input] = ApplyIf(condition, stages)
 
   def branch[Input, Output](
       condition: Boolean,
@@ -177,13 +182,13 @@ case class SaveInputStage[Input, Output](stages: Stages[Input, Output])
     }
 }
 
-case class SkipIf[Input](condition: Boolean, stages: Stages[Input, Unit])
-    extends Stages[Input, Unit] {
+case class ApplyIf[Input](condition: Boolean, stages: Stages[Input, Input])
+    extends Stages[Input, Input] {
   override def collect: Seq[Stage[Nothing, Any]] =
     if (condition)
-      Seq(FunctionStage((_: Input) => ()))
-    else
       stages.collect
+    else
+      Seq(FunctionStage((i: Input) => i))
 }
 
 case class Branch[Input, Output](
