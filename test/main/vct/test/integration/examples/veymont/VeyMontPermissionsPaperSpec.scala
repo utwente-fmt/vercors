@@ -18,44 +18,52 @@ import javax.tools.ToolProvider
 class VeyMontPermissionsPaperSpec extends VeyMontSpec {
   val wd = Paths.get("concepts/veymont/FM2024 - VeyMont")
 
-//  veymontTest(
-//    "TTT case study (choreographic verification)",
-//    Seq(
-//      wd.resolve("0-TTT/Move.pvl"),
-//      wd.resolve("0-TTT/Player.pvl"),
-//      wd.resolve("0-TTT/0-TTT.pvl"),
-//    ),
-//    "--veymont",
-//    "--veymont-generate-permissions",
-//    "--veymont-skip-implementation-verification",
-//  )
-//
-//  veymontTest(
-//    "TTTmsg case study (choreographic verification)",
-//    Seq(
-//      wd.resolve("1-TTTmsg/Move.pvl"),
-//      wd.resolve("1-TTTmsg/Player.pvl"),
-//      wd.resolve("1-TTTmsg/1-TTTmsg.pvl"),
-//    ),
-//    "--dev-unsafe-optimization",
-//    "--veymont",
-//    "--veymont-skip-implementation-verification",
-//  )
-//
-//  veymontTest(
-//    "TTTmsg case study (implementation verification)",
-//    Seq(
-//      wd.resolve("1-TTTmsg/Move.pvl"),
-//      wd.resolve("1-TTTmsg/Player.pvl"),
-//      wd.resolve("1-TTTmsg/1-TTTmsg.pvl"),
-//    ),
-//    "--dev-unsafe-optimization",
-//    "--veymont",
-//    "--veymont-skip-choreography-verification",
-//  )
+  {
+    val caseWd = wd.resolve("0-TTT")
+    veymontTest(
+      "TTT case study (choreographic verification)",
+      examplePaths(
+        caseWd.resolve("Move.pvl"),
+        caseWd.resolve("Player.pvl"),
+        caseWd.resolve("0-TTT.pvl"),
+      ),
+      flags = Seq(
+        "--veymont-generate-permissions",
+        // Skip implementation verification. This version of 0-TTT does not support that (time constraints).
+        "--veymont-skip-implementation-verification",
+      ),
+    )
+  }
 
   {
     val caseWd = wd.resolve("1-TTTmsg")
+
+    veymontTest(
+      "TTTmsg case study (choreograpy verification)",
+      examplePaths(
+        caseWd.resolve("Move.pvl"),
+        caseWd.resolve("Player.pvl"),
+        caseWd.resolve("1-TTTmsg.pvl"),
+      ),
+      flags = Seq(
+        "--dev-unsafe-optimization",
+        "--veymont-skip-implementation-verification",
+      ),
+    )
+
+    veymontTest(
+      "TTTmsg case study (implementation verification)",
+      examplePaths(
+        caseWd.resolve("Move.pvl"),
+        caseWd.resolve("Player.pvl"),
+        caseWd.resolve("1-TTTmsg.pvl"),
+      ),
+      Seq(
+        "--dev-unsafe-optimization",
+        "--veymont-skip-choreography-verification",
+      ),
+    )
+
     veymontTest(
       desc = "TTTmsg case study (implementation generation)",
       inputs = examplePaths(
@@ -69,68 +77,83 @@ class VeyMontPermissionsPaperSpec extends VeyMontSpec {
         "--veymont-skip-implementation-verification",
       ),
       language = Java,
-      processImplementation = { p =>
-        val source = Files.readString(p)
-        val patches = Patch
-          .fromFile(example(caseWd.resolve("testFiles/patches.txt")))
-        val patched = Patch.applyAll(patches, source)
-        val testScript = Files
-          .readString(example(caseWd.resolve("testFiles/testScript.txt")))
-        val output = runJava(testScript, patched)
-        println("== output ==")
-        println(output)
-        assert(output == """p1:
-            |0 1 0
-            |1 0 1
-            |0 -1 -1
-            |p2:
-            |0 1 0
-            |1 0 1
-            |0 -1 -1
-            |""".stripMargin)
-      },
+      processImplementation = runTttImplementation,
     )
   }
 
-  // TODO: output checking
-
   {
-    val root: Path = Files.createTempDirectory("java-veymont")
-    val source = root.resolve("TTTlast.java")
+    val caseWd = wd.resolve("2-TTTlast")
 
     veymontTest(
-      "TTTlast case study (choreographic verification)",
-      Seq(
-        wd.resolve("2-TTTlast/Move.pvl"),
-        wd.resolve("2-TTTlast/Player.pvl"),
-        wd.resolve("2-TTTlast/2-TTTlast.pvl"),
+      "TTTlast case study (choreography verification)",
+      examplePaths(
+        caseWd.resolve("Move.pvl"),
+        caseWd.resolve("Player.pvl"),
+        caseWd.resolve("2-TTTlast.pvl"),
       ),
       Seq(
         "--dev-unsafe-optimization",
-        "--veymont",
         "--veymont-skip-implementation-verification",
-        "--veymont-output",
-        source.toString,
       ),
     )
 
     veymontTest(
       "TTTlast case study (implementation verification)",
-      Seq(
-        wd.resolve("2-TTTlast/Move.pvl"),
-        wd.resolve("2-TTTlast/Player.pvl"),
-        wd.resolve("2-TTTlast/2-TTTlast.pvl"),
+      examplePaths(
+        caseWd.resolve("Move.pvl"),
+        caseWd.resolve("Player.pvl"),
+        caseWd.resolve("2-TTTlast.pvl"),
       ),
       Seq(
         "--dev-unsafe-optimization",
-        "--veymont",
-        "--veymont-skip-choreographic-verification",
-        "--veymont-output",
-        source.toString,
+        "--veymont-skip-choreography-verification",
       ),
     )
 
-    // TODO: Do patching, running, output checking
+    veymontTest(
+      desc = "TTTlast case study (implementation execution)",
+      inputs = examplePaths(
+        caseWd.resolve("Move.pvl"),
+        caseWd.resolve("Player.pvl"),
+        caseWd.resolve("2-TTTlast.pvl"),
+      ),
+      flags = Seq(
+        "--dev-unsafe-optimization",
+        "--veymont-skip-implementation-verification",
+        "--veymont-skip-choreography-verification",
+      ),
+      language = Java,
+      processImplementation = runTttImplementation,
+    )
+  }
+
+  /////////////////////
+  // Testing helpers //
+  /////////////////////
+
+  // Given a TTT implementation in java at path p, patches it to be fully executable
+  // by adding implementations and adding hooks such that it is possible to inspect the final
+  // state with external code, runs it, and asserts that
+  // the output expected is equal to each player just picking the first field
+  // location that is available.
+  def runTttImplementation(p: Path): Unit = {
+    val source = Files.readString(p)
+    val patches = Patch.fromFile(example(wd.resolve("testFiles/patches.txt")))
+    val patched = Patch.applyAll(patches, source)
+    val testScript = Files
+      .readString(example(wd.resolve("testFiles/testScript.txt")))
+    val output = runJava(testScript, patched)
+    println("== output ==")
+    println(output)
+    assert(output == """p1:
+                       |0 1 0
+                       |1 0 1
+                       |0 -1 -1
+                       |p2:
+                       |0 1 0
+                       |1 0 1
+                       |0 -1 -1
+                       |""".stripMargin)
   }
 
   /** Runs the given Java script and returns the captured standard output.

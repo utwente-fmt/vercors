@@ -84,5 +84,8 @@ choreography Main() {
       assume (\chor (\endpoint p1; p1.gameFinished()) == (\endpoint p2; p2.gameFinished()));
     }
     assume (\chor (\endpoint p1; p1.gameFinished()) == (\endpoint p2; p2.gameFinished()));
+
+    p1.finish();
+    p2.finish();
   }
 }
