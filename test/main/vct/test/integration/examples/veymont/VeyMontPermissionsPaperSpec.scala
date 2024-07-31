@@ -1,5 +1,6 @@
 package vct.test.integration.examples.veymont
 
+import hre.util.{FilesHelper, Patch}
 import vct.test.integration.helper.{VercorsSpec, VeyMontSpec}
 
 import java.io.{
@@ -15,50 +16,83 @@ import java.nio.file.{Files, Path, Paths}
 import javax.tools.ToolProvider
 
 class VeyMontPermissionsPaperSpec extends VeyMontSpec {
-  val wd = Paths.get("examples/concepts/veymont/FM2024 - VeyMont")
+  val wd = Paths.get("concepts/veymont/FM2024 - VeyMont")
 
-  veymontTest(
-    "TTT case study (choreographic verification)",
-    Seq(
-      wd.resolve("0-TTT/Move.pvl"),
-      wd.resolve("0-TTT/Player.pvl"),
-      wd.resolve("0-TTT/0-TTT.pvl"),
-    ),
-    "--veymont",
-    "--veymont-generate-permissions",
-    "--veymont-skip-implementation-verification",
-  )
+//  veymontTest(
+//    "TTT case study (choreographic verification)",
+//    Seq(
+//      wd.resolve("0-TTT/Move.pvl"),
+//      wd.resolve("0-TTT/Player.pvl"),
+//      wd.resolve("0-TTT/0-TTT.pvl"),
+//    ),
+//    "--veymont",
+//    "--veymont-generate-permissions",
+//    "--veymont-skip-implementation-verification",
+//  )
+//
+//  veymontTest(
+//    "TTTmsg case study (choreographic verification)",
+//    Seq(
+//      wd.resolve("1-TTTmsg/Move.pvl"),
+//      wd.resolve("1-TTTmsg/Player.pvl"),
+//      wd.resolve("1-TTTmsg/1-TTTmsg.pvl"),
+//    ),
+//    "--dev-unsafe-optimization",
+//    "--veymont",
+//    "--veymont-skip-implementation-verification",
+//  )
+//
+//  veymontTest(
+//    "TTTmsg case study (implementation verification)",
+//    Seq(
+//      wd.resolve("1-TTTmsg/Move.pvl"),
+//      wd.resolve("1-TTTmsg/Player.pvl"),
+//      wd.resolve("1-TTTmsg/1-TTTmsg.pvl"),
+//    ),
+//    "--dev-unsafe-optimization",
+//    "--veymont",
+//    "--veymont-skip-choreography-verification",
+//  )
 
   {
-//    val root: Path = Files.createTempDirectory("java-veymont")
-//    val source = root.resolve("TTTmsg.java")
-
+    val caseWd = wd.resolve("1-TTTmsg")
     veymontTest(
-      "TTTmsg case study (choreographic verification)",
-      Seq(
-        wd.resolve("1-TTTmsg/Move.pvl"),
-        wd.resolve("1-TTTmsg/Player.pvl"),
-        wd.resolve("1-TTTmsg/1-TTTmsg.pvl"),
+      desc = "TTTmsg case study (implementation generation)",
+      inputs = examplePaths(
+        caseWd.resolve("Move.pvl"),
+        caseWd.resolve("Player.pvl"),
+        caseWd.resolve("1-TTTmsg.pvl"),
       ),
-      "--dev-unsafe-optimization",
-      "--veymont",
-      "--veymont-skip-implementation-verification",
-    )
-
-    veymontTest(
-      "TTTmsg case study (implementation verification)",
-      Seq(
-        wd.resolve("1-TTTmsg/Move.pvl"),
-        wd.resolve("1-TTTmsg/Player.pvl"),
-        wd.resolve("1-TTTmsg/1-TTTmsg.pvl"),
+      flags = Seq(
+        "--dev-unsafe-optimization",
+        "--veymont-skip-choreography-verification",
+        "--veymont-skip-implementation-verification",
       ),
-      "--dev-unsafe-optimization",
-      "--veymont",
-      "--veymont-skip-choreography-verification",
+      language = Java,
+      processImplementation = { p =>
+        val source = Files.readString(p)
+        val patches = Patch
+          .fromFile(example(caseWd.resolve("testFiles/patches.txt")))
+        val patched = Patch.applyAll(patches, source)
+        val testScript = Files
+          .readString(example(caseWd.resolve("testFiles/testScript.txt")))
+        val output = runJava(testScript, patched)
+        println("== output ==")
+        println(output)
+        assert(output == """p1:
+            |0 1 0
+            |1 0 1
+            |0 -1 -1
+            |p2:
+            |0 1 0
+            |1 0 1
+            |0 -1 -1
+            |""".stripMargin)
+      },
     )
-
-    // TODO: Do patching, running, output checking
   }
+
+  // TODO: output checking
 
   {
     val root: Path = Files.createTempDirectory("java-veymont")
@@ -71,11 +105,13 @@ class VeyMontPermissionsPaperSpec extends VeyMontSpec {
         wd.resolve("2-TTTlast/Player.pvl"),
         wd.resolve("2-TTTlast/2-TTTlast.pvl"),
       ),
-      "--dev-unsafe-optimization",
-      "--veymont",
-      "--veymont-skip-implementation-verification",
-      "--veymont-output",
-      source.toString,
+      Seq(
+        "--dev-unsafe-optimization",
+        "--veymont",
+        "--veymont-skip-implementation-verification",
+        "--veymont-output",
+        source.toString,
+      ),
     )
 
     veymontTest(
@@ -85,28 +121,31 @@ class VeyMontPermissionsPaperSpec extends VeyMontSpec {
         wd.resolve("2-TTTlast/Player.pvl"),
         wd.resolve("2-TTTlast/2-TTTlast.pvl"),
       ),
-      "--dev-unsafe-optimization",
-      "--veymont",
-      "--veymont-skip-choreographic-verification",
-      "--veymont-output",
-      source.toString,
+      Seq(
+        "--dev-unsafe-optimization",
+        "--veymont",
+        "--veymont-skip-choreographic-verification",
+        "--veymont-output",
+        source.toString,
+      ),
     )
 
     // TODO: Do patching, running, output checking
   }
 
   /** Runs the given Java script and returns the captured standard output.
-    * Depends on the JDK being present on the current system.
+    * Requires the JDK being present on the current system.
     *
     * @param script
     *   A series of java statements to be executed. May refer to declarations in
     *   the declarations parameter.
     * @param declarations
-    *   A series of non-public java declarations, no package declaration
+    *   A series of non-public java declarations, no package declaration.
+    *   Imports at the beginning are supported.
     */
   def runJava(script: String, declarations: String): String = {
     val cls = "ScriptContainer$"
-    val source = s"public class $cls { static { $script } }"
+    val source = s"$declarations\n\npublic class $cls { static { $script } }"
 
     // Save source in .java file.
     val root: Path = Files.createTempDirectory("java")

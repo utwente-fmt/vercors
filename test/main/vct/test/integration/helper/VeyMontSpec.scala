@@ -1,6 +1,7 @@
 package vct.test.integration.helper
 
 import ch.qos.logback.classic.{Level, Logger}
+import hre.util.FilesHelper
 import org.scalactic.source
 import org.scalatest.Tag
 import org.scalatest.concurrent.TimeLimits.failAfter
@@ -14,9 +15,17 @@ import vct.test.integration.helper.VercorsSpec.MATRIX_COUNT
 import java.nio.file.{Path, Paths}
 
 class VeyMontSpec extends VercorsSpec {
-  def veymontTest(desc: String, inputs: Seq[Path], flags: String*)(
-      implicit pos: source.Position
-  ): Unit = {
+  sealed trait Language
+  case object Pvl extends Language
+  case object Java extends Language
+
+  def veymontTest(
+      desc: String,
+      inputs: Seq[Path],
+      flags: Seq[String],
+      language: Language = Pvl,
+      processImplementation: Path => Unit = null,
+  )(implicit pos: source.Position): Unit = {
     val absoluteExamplePath = Paths.get("examples").toAbsolutePath
     inputs.foreach { p =>
       if (p.toAbsolutePath.startsWith(absoluteExamplePath)) {
@@ -33,15 +42,35 @@ class VeyMontSpec extends VercorsSpec {
       LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
       LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
 
-      failAfter(Span(300, Seconds)) {
-        VeyMont.verifyGenerateOptions(
-          Options.parse((inputs.map(_.toString) ++ flags).toArray).get
-        ) match {
-          case Left(value) =>
-            fail(
-              s"Expected test to pass, but finished with the following failure/error: $value"
-            )
-          case Right(_) =>
+      FilesHelper.withTempDir { temp =>
+        val tempSource = {
+          language match {
+            case Pvl => temp.resolve("output.pvl")
+            case Java => temp.resolve("output.java")
+          }
+        }
+
+        val outputFlags =
+          if (processImplementation != null) {
+            Seq("--veymont-output", tempSource.toString)
+          } else
+            Seq()
+
+        failAfter(Span(300, Seconds)) {
+          VeyMont.verifyGenerateOptions(
+            Options.parse(
+              (inputs.map(_.toString) ++ Seq("--veymont") ++ outputFlags ++
+                flags).toArray
+            ).get
+          ) match {
+            case Left(value) =>
+              fail(
+                s"Expected test to pass, but finished with the following failure/error: $value"
+              )
+            case Right(_) =>
+          }
+
+          Option(processImplementation).foreach(f => f(tempSource))
         }
       }
     }

@@ -42,9 +42,9 @@ G$.p2Impl = this.p2.impl;
 
 Add global fields to G$:
 <<<<<<<
-class G$ {
+class G$ extends Thread {
 =======
-class G$ {
-    Player p1Impl = null;
-    Player p2Impl = null;
+class G$ extends Thread {
+    public static Player p1Impl = null;
+    public static Player p2Impl = null;
 >>>>>>>

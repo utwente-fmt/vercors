@@ -1,53 +1,62 @@
 package hre.util
 
+import hre.util.Patch.{PatchException, UnappliablePatchException}
+
 import java.nio.file.{Files, Path, Paths}
+import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
 import scala.util.matching.Regex
 
 case object Patch {
-  def fromFile(p: Path): Either[String, Seq[Patch]] =
-    parsePatches(Files.readString(p))
+  class PatchException(msg: String) extends Exception(msg)
+  object NoPatchException extends PatchException("no patch found")
+  object UnappliablePatchException
+      extends PatchException("could not apply patch")
 
-  def parsePatches(str: String): Either[String, Seq[Patch]] =
-    parseFirstPatch(str) match {
-      case Left(err) => Left(err)
-      case Right((patch, rest)) if rest.trim.isEmpty => Right(Seq(patch))
-      case Right((patch, rest)) =>
-        parsePatches(rest).map { patches => patch +: patches }
-    }
+  def fromFile(p: Path): Seq[Patch] = parsePatches(Files.readString(p))
 
-  // At least 7 characters per marker. Turn on DOTALL to enable matching of newlines
-  val startMarker = "(?s)<<<<<<<+\n".r
+  def parsePatches(str: String): Seq[Patch] = {
+    val (patch, rest) = parseFirstPatch(str)
+    if (rest.trim.isEmpty)
+      Seq(patch)
+    else
+      patch +: parsePatches(rest)
+  }
+
+  // At least 7 characters per marker. Turn on DOTALL with (?s) to enable matching of newlines
+  val startMarker = "(?s)\n<<<<<<<+\n".r
   val middleMarker = "(?s)\n=======+\n".r
   val endMarker = "(?s)\n>>>>>>>+".r
 
-  def parseFirstPatch(str: String): Either[String, (Patch, String)] = {
+  def parseFirstPatch(str: String): (Patch, String) = {
     val start = startMarker.findFirstMatchIn(str)
-      .getOrElse(return Left("no start marker"))
+      .getOrElse(throw NoPatchException)
     val startLength = start.end - start.start
-    assert(startLength >= 7 + 1)
+    assert(startLength >= 7 + 2)
 
     val middle = middleMarker.findFirstMatchIn(str)
-      .getOrElse(return Left("no middle marker"))
+      .getOrElse(throw new PatchException("no middle marker"))
     val end = endMarker.findFirstMatchIn(str)
-      .getOrElse(return Left("no end marker"))
+      .getOrElse(throw new PatchException("no end marker"))
     val middleLength = middle.end - middle.start
     val endLength = end.end - end.start
     assert(middleLength >= 7 + 2 && endLength >= 7 + 1)
 
     // Subtract to accomodate for the newlines
     if (
-      startLength - 1 != middleLength - 2 || middleLength - 2 != endLength - 1
+      startLength - 2 != middleLength - 2 || middleLength - 2 != endLength - 1
     )
-      return Left("length of start, middle and end markers do not match")
+      throw new PatchException(
+        s"length of start, middle and end markers do not match at ${start.start}"
+      )
 
-    Right((
+    (
       Patch(
         str.substring(start.end, middle.start),
         str.substring(middle.end, end.start),
       ),
       str.substring(end.end),
-    ))
+    )
   }
 
   def main(args: Array[String]): Unit = {
@@ -55,17 +64,19 @@ case object Patch {
       "examples/concepts/veymont/FM2024 - VeyMont/1-TTTmsg/testFiles/1-TTTmsg-patches.txt"
     )))
   }
+
+  def applyAll(patches: Seq[Patch], source: String): String =
+    patches.foldLeft(source) { case (source, patch) => patch.apply(source) }
 }
 
 case class Patch(target: String, newText: String) {
   lazy val r = Regex.quote(target).r
-  def apply(source: String): String =
+
+  final def apply(source: String): String =
     r.findFirstMatchIn(source) match {
       case Some(m) =>
-        apply(
-          source.substring(m.start) + newText +
-            source.substring(m.end, source.length)
-        )
-      case None => source
+        source.substring(0, m.start) + newText +
+          source.substring(m.end, source.length)
+      case None => throw UnappliablePatchException
     }
 }
