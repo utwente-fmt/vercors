@@ -19,10 +19,30 @@ class VeyMontSpec extends VercorsSpec {
   case object Pvl extends Language
   case object Java extends Language
 
+  def choreography(desc: String, inputs: Seq[Path], flags: Seq[String] = Seq())(
+      implicit pos: source.Position
+  ): Unit =
+    veymontTest(
+      desc,
+      inputs,
+      "--veymont-skip-implementation-verification" +: flags,
+    )
+
+  def implementation(
+      desc: String,
+      inputs: Seq[Path],
+      flags: Seq[String] = Seq(),
+  )(implicit pos: source.Position): Unit =
+    veymontTest(
+      desc,
+      inputs,
+      Seq("--veymont", "--veymont-skip-choreography-verification") ++ flags,
+    )
+
   def veymontTest(
       desc: String,
       inputs: Seq[Path],
-      flags: Seq[String],
+      flags: Seq[String] = Seq(),
       language: Language = Pvl,
       processImplementation: Path => Unit = null,
   )(implicit pos: source.Position): Unit = {

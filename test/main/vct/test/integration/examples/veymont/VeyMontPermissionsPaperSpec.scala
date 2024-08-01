@@ -131,6 +131,8 @@ class VeyMontPermissionsPaperSpec extends VeyMontSpec {
   // Testing helpers //
   /////////////////////
 
+  val patchFile = example(wd.resolve("testFiles/patches.txt"))
+  val scriptFile = example(wd.resolve("testFiles/testScript.txt"))
   // Given a TTT implementation in java at path p, patches it to be fully executable
   // by adding implementations and adding hooks such that it is possible to inspect the final
   // state with external code, runs it, and asserts that
@@ -138,10 +140,9 @@ class VeyMontPermissionsPaperSpec extends VeyMontSpec {
   // location that is available.
   def runTttImplementation(p: Path): Unit = {
     val source = Files.readString(p)
-    val patches = Patch.fromFile(example(wd.resolve("testFiles/patches.txt")))
+    val patches = Patch.fromFile(patchFile)
     val patched = Patch.applyAll(patches, source)
-    val testScript = Files
-      .readString(example(wd.resolve("testFiles/testScript.txt")))
+    val testScript = Files.readString(scriptFile)
     val output = runJava(testScript, patched)
     println("== output ==")
     println(output)
@@ -194,5 +195,4 @@ class VeyMontPermissionsPaperSpec extends VeyMontSpec {
     // Return captured stdout
     stdoutCapture.toString()
   }
-
 }
