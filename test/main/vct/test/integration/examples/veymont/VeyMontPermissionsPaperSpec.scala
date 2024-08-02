@@ -21,8 +21,8 @@ class VeyMontPermissionsPaperSpec extends VeyMontSpec {
   {
     val caseWd = wd.resolve("0-TTT")
     veymontTest(
-      "TTT case study (choreographic verification)",
-      examplePaths(
+      desc = "TTT case study (choreographic verification)",
+      inputs = examplePaths(
         caseWd.resolve("Move.pvl"),
         caseWd.resolve("Player.pvl"),
         caseWd.resolve("0-TTT.pvl"),
@@ -39,8 +39,8 @@ class VeyMontPermissionsPaperSpec extends VeyMontSpec {
     val caseWd = wd.resolve("1-TTTmsg")
 
     veymontTest(
-      "TTTmsg case study (choreograpy verification)",
-      examplePaths(
+      desc = "TTTmsg case study (choreograpy verification)",
+      inputs = examplePaths(
         caseWd.resolve("Move.pvl"),
         caseWd.resolve("Player.pvl"),
         caseWd.resolve("1-TTTmsg.pvl"),
@@ -52,13 +52,13 @@ class VeyMontPermissionsPaperSpec extends VeyMontSpec {
     )
 
     veymontTest(
-      "TTTmsg case study (implementation verification)",
-      examplePaths(
+      desc = "TTTmsg case study (implementation verification)",
+      inputs = examplePaths(
         caseWd.resolve("Move.pvl"),
         caseWd.resolve("Player.pvl"),
         caseWd.resolve("1-TTTmsg.pvl"),
       ),
-      Seq(
+      flags = Seq(
         "--dev-unsafe-optimization",
         "--veymont-skip-choreography-verification",
       ),
@@ -85,26 +85,26 @@ class VeyMontPermissionsPaperSpec extends VeyMontSpec {
     val caseWd = wd.resolve("2-TTTlast")
 
     veymontTest(
-      "TTTlast case study (choreography verification)",
-      examplePaths(
+      desc = "TTTlast case study (choreography verification)",
+      inputs = examplePaths(
         caseWd.resolve("Move.pvl"),
         caseWd.resolve("Player.pvl"),
         caseWd.resolve("2-TTTlast.pvl"),
       ),
-      Seq(
+      flags = Seq(
         "--dev-unsafe-optimization",
         "--veymont-skip-implementation-verification",
       ),
     )
 
     veymontTest(
-      "TTTlast case study (implementation verification)",
-      examplePaths(
+      desc = "TTTlast case study (implementation verification)",
+      inputs = examplePaths(
         caseWd.resolve("Move.pvl"),
         caseWd.resolve("Player.pvl"),
         caseWd.resolve("2-TTTlast.pvl"),
       ),
-      Seq(
+      flags = Seq(
         "--dev-unsafe-optimization",
         "--veymont-skip-choreography-verification",
       ),

@@ -309,6 +309,17 @@ case object Options {
       opt[Unit]("veymont").action((_, c) => c.copy(mode = Mode.VeyMont)).text(
         "Enable VeyMont mode: decompose the global program from the input files into several local programs that can be executed in parallel"
       ).children(
+        opt[Unit]("choreography").abbr("chor").action((_, c) =>
+          c.copy(veymontSkipImplementationVerification = true)
+        ),
+        opt[Unit]("implementation").abbr("impl")
+          .action((_, c) => c.copy(veymontSkipChoreographyVerification = true)),
+        opt[Unit]("generate").abbr("gen").action((_, c) =>
+          c.copy(
+            veymontSkipChoreographyVerification = true,
+            veymontSkipImplementationVerification = true,
+          )
+        ),
         opt[Path]("veymont-output").valueName("<path>")
           .action((path, c) => c.copy(veymontOutput = Some(path)))
           .text("Indicates output path for generated implementation"),

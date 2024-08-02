@@ -19,14 +19,12 @@ class VeyMontSpec extends VercorsSpec {
   case object Pvl extends Language
   case object Java extends Language
 
-  def choreography(desc: String, inputs: Seq[Path], flags: Seq[String] = Seq())(
-      implicit pos: source.Position
-  ): Unit =
-    veymontTest(
-      desc,
-      inputs,
-      "--veymont-skip-implementation-verification" +: flags,
-    )
+  def choreography(
+      inputs: Seq[Path],
+      desc: String = null,
+      flags: Seq[String] = Seq(),
+  )(implicit pos: source.Position): Unit =
+    veymontTest(desc = desc, inputs = inputs, flags = "--choreography" +: flags)
 
   def implementation(
       desc: String,
@@ -34,18 +32,24 @@ class VeyMontSpec extends VercorsSpec {
       flags: Seq[String] = Seq(),
   )(implicit pos: source.Position): Unit =
     veymontTest(
-      desc,
-      inputs,
-      Seq("--veymont", "--veymont-skip-choreography-verification") ++ flags,
+      desc = desc,
+      inputs = inputs,
+      flags = Seq("--implementation") ++ flags,
     )
 
   def veymontTest(
-      desc: String,
       inputs: Seq[Path],
+      desc: String = null,
       flags: Seq[String] = Seq(),
       language: Language = Pvl,
       processImplementation: Path => Unit = null,
   )(implicit pos: source.Position): Unit = {
+    val descr =
+      if (desc == null)
+        s"Files ${inputs.mkString(",")}"
+      else
+        desc
+
     val absoluteExamplePath = Paths.get("examples").toAbsolutePath
     inputs.foreach { p =>
       if (p.toAbsolutePath.startsWith(absoluteExamplePath)) {
@@ -53,7 +57,7 @@ class VeyMontSpec extends VercorsSpec {
       }
     }
 
-    val fullDesc: String = s"${desc.capitalize} verifies with silicon"
+    val fullDesc: String = s"${descr.capitalize} verifies with silicon"
     // PB: note that object typically do not have a deterministic hashCode, but Strings do.
     val matrixId = Math.floorMod(fullDesc.hashCode, MATRIX_COUNT)
     val matrixTag = Tag(s"MATRIX[$matrixId]")
