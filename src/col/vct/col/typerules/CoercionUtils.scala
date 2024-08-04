@@ -13,6 +13,19 @@ case object CoercionUtils {
   def getCoercion[G](source: Type[G], target: Type[G]): Option[Coercion[G]] =
     getAnyCoercion(source, target).filter(_.isCPromoting)
 
+  def getPointerCoercion[G](source: Type[G], target: Type[G], innerSource: Type[G], innerTarget: Type[G]) : Option[Coercion[G]] = {
+    Some((innerSource, innerTarget) match {
+      case (i,l) if i == l => CoerceIdentity(source)
+      case (TUnique(l, lId), TUnique(r, rId)) =>
+        if(l == r) CoerceBetweenUniquePointer(source, target) else return None
+      case (TUnique(l, lId), r) =>
+        if(l == r) CoerceFromUniquePointer(source, target) else return None
+      case (TUnique(l, lId), r) =>
+        if(l == r) CoerceToUniquePointer(source, target) else return None
+      case _ => return None
+    })
+  }
+
   def getAnyCoercion[G](
       source: Type[G],
       target: Type[G],
@@ -183,37 +196,20 @@ case object CoercionUtils {
       case (source @ TOpenCLVector(lSize, innerType), TVector(rSize, element))
           if element == innerType && lSize == rSize =>
         CoerceCVectorVector(rSize, element)
-      case (
-            CTPointer(innerType),
-            TPointer(element),
-          ) => // if element == innerType =>
-        getAnyCoercion(element, innerType).getOrElse(return None)
-      case (
-            TPointer(element),
-            CTPointer(innerType),
-          ) => // if element == innerType =>
-        getAnyCoercion(element, innerType).getOrElse(return None)
-      case (
-        TPointer(innerType),
-        t@TPointer(TUnique(element, unique)),
-        ) if element == innerType =>
-        ??? //CoerceToUnique()
-      case (
-        TPointer(TUnique(element, unique)),
-        t@TPointer(innerType)
-        ) if element == innerType =>
-        CoerceFromUniquePointer(t, unique)
-      case (
-        TPointer(TUnique(elementS, uniqueS)),
-        t@TPointer(TUnique(elementT, uniqueT))
-        ) if elementS == elementT =>
-        CoerceBetweenUniquePointer(t, uniqueS, uniqueT)
-      case (CTArray(_, innerType), CTPointer(element)) =>
+      case (s@CTPointer(innerLeft), t@CTPointer(innerRight)) =>
+        getPointerCoercion(s, t, innerLeft, innerRight).getOrElse(return None)
+      case (s@TPointer(innerLeft), t@TPointer(innerRight)) =>
+        getPointerCoercion(s, t, innerLeft, innerRight).getOrElse(return None)
+      case (s@CTPointer(innerLeft), t@TPointer(innerRight)) =>
+        getPointerCoercion(s, t, innerLeft, innerRight).getOrElse(return None)
+      case (s@TPointer(innerLeft), t@CTPointer(innerRight)) =>
+        getPointerCoercion(s, t, innerLeft, innerRight).getOrElse(return None)
+      case (CTArray(_, innerType), t@CTPointer(element)) =>
         if (element == innerType) { CoerceCArrayPointer(innerType) }
         else {
           CoercionSequence(Seq(
             CoerceCArrayPointer(element),
-            getAnyCoercion(element, innerType).getOrElse(return None),
+            getPointerCoercion(CTPointer(innerType), t, innerType, element).getOrElse(return None)
           ))
         }
       case (TFraction(), TZFraction()) => CoerceFracZFrac()

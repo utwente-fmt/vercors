@@ -954,13 +954,13 @@ final case class CoerceFromUnique[G](target: Type[G], sourceId: BigInt)(
   implicit val o: Origin
 ) extends Coercion[G] with CoerceFromUniqueImpl[G]
 
-final case class CoerceToUniquePointer[G](inner: Type[G], targetId: BigInt)(
+final case class CoerceToUniquePointer[G](source: Type[G], target: Type[G])(
   implicit val o: Origin
 ) extends Coercion[G] with CoerceToUniquePointerImpl[G]
-final case class CoerceFromUniquePointer[G](target: Type[G], sourceId: BigInt)(
+final case class CoerceFromUniquePointer[G](source: Type[G], target: Type[G])(
   implicit val o: Origin
 ) extends Coercion[G] with CoerceFromUniquePointerImpl[G]
-final case class CoerceBetweenUniquePointer[G](target: Type[G], sourceId: BigInt, targetId: BigInt)(
+final case class CoerceBetweenUniquePointer[G](source: Type[G], target: Type[G])(
   implicit val o: Origin
 ) extends Coercion[G] with CoerceBetweenUniquePointerImpl[G]
 

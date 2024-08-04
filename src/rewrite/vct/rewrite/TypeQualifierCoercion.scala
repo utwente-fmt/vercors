@@ -20,10 +20,16 @@ case class DisallowedQualifiedType(target: Node[_]) extends UserError {
     target.o.messageInContext("This qualified type is not allowed.")
 }
 
-case class DisallowedQualifiedCoercion(calledOrigin: Origin) extends UserError {
-  override def code: String = "disallowedQualifiedCoercion"
+case class DisallowedQualifiedMethodCoercion(calledOrigin: Origin) extends UserError {
+  override def code: String = "disallowedQualifiedMethodCoercion"
   override def text: String =
     calledOrigin.messageInContext("The coercion of args with qualifiers for this method call is not allowed.")
+}
+
+case class DisallowedQualifiedCoercion(calledOrigin: Origin, source: Type[_], target: Type [_]) extends UserError {
+  override def code: String = "disallowedQualifiedCoercion"
+  override def text: String =
+    calledOrigin.messageInContext(s"The coercion of $source to $target is not allowed.")
 }
 
 case object TypeQualifierCoercion extends RewriterBuilder {
@@ -43,12 +49,6 @@ case class TypeQualifierCoercion[Pre <: Generation]()
 
   def getCopyType(t: Type[Pre]): Option[Type[Post]] = methodCopyTypes.topOption.flatMap(m => m.get(t))
 
-  def uniquePointerType(t: Type[Pre], unique: BigInt) = t match {
-    case TPointer(TUnique(it, _)) => TPointer(TUnique(it, unique))
-    case TPointer(it) => TPointer(TUnique(it, unique))
-    case _ => ???
-  }
-
   override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(
     implicit o: Origin
   ): Expr[Post] = {
@@ -58,8 +58,9 @@ case class TypeQualifierCoercion[Pre <: Generation]()
       case CoerceToUnique(_, _) =>
       case CoerceFromUnique(_, _) =>
       case CoerceBetweenUnique(_, _, _) =>
-      case CoerceFromUniquePointer(target, sourceId) => ???
-      case CoerceBetweenUniquePointer(t, sourceId, targetId) => ???
+      case CoerceToUniquePointer(s, t) => throw DisallowedQualifiedCoercion(e.o, s, t)
+      case CoerceFromUniquePointer(s, t) => throw DisallowedQualifiedCoercion(e.o, s, t)
+      case CoerceBetweenUniquePointer(s, t) => throw DisallowedQualifiedCoercion(e.o, s, t)
       case _ =>
     }
     super.applyCoercion(e, coercion)
@@ -114,8 +115,11 @@ case class TypeQualifierCoercion[Pre <: Generation]()
 
   def containsUniqueCoerce(xs: Seq[Expr[Pre]]) : Seq[(UniqueCoercion, BigInt)] =
     xs.zipWithIndex.collect {
-      case (ApplyCoercion(_, CoerceFromUniquePointer(target, sourceId)), i) =>
-        val source = uniquePointerType(target, sourceId)
+      case (ApplyCoercion(_, CoerceFromUniquePointer(source, target)), i) =>
+        (UniqueCoercion(source, target), i)
+      case (ApplyCoercion(_, CoerceBetweenUniquePointer(source, target)), i) =>
+        (UniqueCoercion(source, target), i)
+      case (ApplyCoercion(_, CoerceToUniquePointer(source, target)), i) =>
         (UniqueCoercion(source, target), i)
     }
 
@@ -124,7 +128,7 @@ case class TypeQualifierCoercion[Pre <: Generation]()
       _.originalParamT)(
       c => dispatch(c.givenArgT))(
       // For any duplicates, we exit if they do not resolve to the same type
-      (l, r) => if(l == r) l else throw DisallowedQualifiedCoercion(calledOrigin))
+      (l, r) => if(l == r) l else throw DisallowedQualifiedMethodCoercion(calledOrigin))
   }
 
   def checkArgs(args: Seq[Variable[Pre]], coercedTypes: Set[Type[Pre]], coercedArgs: Set[BigInt], calledOrigin: Origin): Unit = {
@@ -135,7 +139,7 @@ case class TypeQualifierCoercion[Pre <: Generation]()
           ( a.collectFirst { case ApplyCoercion(_, CoerceFromUniquePointer(_, _)) => () }.isDefined ||
             coercedTypes.contains(a.t) || a.t.collectFirst { case t: Type[Pre] if coercedTypes.contains(t) => () }.isDefined)
         ) {
-          throw DisallowedQualifiedCoercion(calledOrigin)
+          throw DisallowedQualifiedMethodCoercion(calledOrigin)
         }
     })
   }
@@ -144,10 +148,10 @@ case class TypeQualifierCoercion[Pre <: Generation]()
   def checkBody(body: Node[Pre], callee: Declaration[Pre], seenMethods: mutable.Set[Declaration[Pre]], calledOrigin: Origin): Unit = {
     body.collect {
       case inv: AnyMethodInvocation[Pre] if !seenMethods.contains(inv.ref.decl) =>
-          if(inv.ref.decl == callee) throw DisallowedQualifiedCoercion(calledOrigin)
+          if(inv.ref.decl == callee) throw DisallowedQualifiedMethodCoercion(calledOrigin)
           inv.ref.decl.body.map(checkBody(_, callee, seenMethods.addOne(inv.ref.decl), calledOrigin))
       case inv: AnyFunctionInvocation[Pre] if !seenMethods.contains(inv.ref.decl) =>
-        if(inv.ref.decl == callee) throw DisallowedQualifiedCoercion(calledOrigin)
+        if(inv.ref.decl == callee) throw DisallowedQualifiedMethodCoercion(calledOrigin)
         inv.ref.decl.body.map(checkBody(_, callee, seenMethods.addOne(inv.ref.decl), calledOrigin))
     }
   }
@@ -173,7 +177,7 @@ case class TypeQualifierCoercion[Pre <: Generation]()
     })
     // check return type (also 2)
     returnType.collectFirst{
-      case t: Type[Pre] if coercedTypes.contains(t) => throw DisallowedQualifiedCoercion(calledOrigin) }
+      case t: Type[Pre] if coercedTypes.contains(t) => throw DisallowedQualifiedMethodCoercion(calledOrigin) }
     if(!checkedCallees.contains(original)) {
       // If the body of this functions calls the callee, we end up with recursion we do not want
       body.foreach(b => checkBody(b, callee.top, mutable.Set(original), calledOrigin)) // Checks 3
@@ -218,9 +222,9 @@ case class TypeQualifierCoercion[Pre <: Generation]()
       case inv@FunctionInvocation(f, args, typeArgs, givenMap, yields) =>
         val allArgs: Seq[Args] = Seq(addArgs(f.decl.args, args))
         if(argsNoCoercions(allArgs)) return inv.rewriteDefault()
-        if(callee.top == inv.ref.decl) throw DisallowedQualifiedCoercion(inv.o)
+        if(callee.top == inv.ref.decl) throw DisallowedQualifiedMethodCoercion(inv.o)
         // Yields and givens are not supported
-        if(givenMap.nonEmpty || yields.nonEmpty) throw DisallowedQualifiedCoercion(inv.o)
+        if(givenMap.nonEmpty || yields.nonEmpty) throw DisallowedQualifiedMethodCoercion(inv.o)
 
         val map = getCoercionMapAndCheck(allArgs, f.decl.returnType, inv.o, f.decl.body, f.decl)
         // Make sure we only create one copy per coercion mapping
@@ -232,9 +236,9 @@ case class TypeQualifierCoercion[Pre <: Generation]()
         val allArgs: Seq[Args] = Seq(addArgs(f.decl.args, args),
           addArgs(f.decl.outArgs, outArgs))
         if(argsNoCoercions(allArgs)) return inv.rewriteDefault()
-        if(callee.top == inv.ref.decl) throw DisallowedQualifiedCoercion(inv.o)
+        if(callee.top == inv.ref.decl) throw DisallowedQualifiedMethodCoercion(inv.o)
         // Yields and givens are not supported
-        if(givenMap.nonEmpty || yields.nonEmpty) throw DisallowedQualifiedCoercion(inv.o)
+        if(givenMap.nonEmpty || yields.nonEmpty) throw DisallowedQualifiedMethodCoercion(inv.o)
 
         val map = getCoercionMapAndCheck(allArgs, f.decl.returnType, inv.o, f.decl.body, f.decl)
         val newProc: Procedure[Post] =
