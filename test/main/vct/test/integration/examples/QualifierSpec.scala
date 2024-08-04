@@ -46,7 +46,56 @@ class QualifierSpec extends VercorsSpec {
   void f(int * const x){x[0] = 1;}"""
 }
 
-class QualifierSpecWIP extends VercorsSpec {
-  vercors should verify using silicon in "uniques pointer of unique pointer" c """void f(){/*@ unique<1> @*/ int * /*@ unique<2> @*/ * x0;}"""
+class QualifierSpecWIP2 extends VercorsSpec {
+  vercors should verify using silicon in "Call non-unique function" c """/*@
+  context n > 0;
+  context x0 != NULL ** \pointer_length(x0) == n ** (\forall* int i; 0<=i && i<n; Perm(&x0[i], 1\2));
+  context x1 != NULL ** \pointer_length(x1) == n ** (\forall* int i; 0<=i && i<n; Perm(&x1[i], 1\2));
+  ensures \result == x0[0] + x1[0];
+  @*/
+  int f(int n, /*@ unique<1> @*/ int* x0, /*@ unique<2> @*/ int* x1){
+    return h(x0) + h(x1);
+  }
 
+  /*@
+    context x != NULL ** \pointer_length(x) > 0 ** Perm(&x[0], 1\2);
+    ensures \result == x[0];
+  @*/
+  int h(int* x){
+    return x[0];
+  }"""
+}
+
+class QualifierSpecWIP extends VercorsSpec {
+  vercors should verify using silicon in "Call non-unique function" c """/*@
+  context n > 0;
+  context x0 != NULL ** \pointer_length(x0) == n ** (\forall* int i; 0<=i && i<n; Perm(&x0[i], 1\2));
+  context x1 != NULL ** \pointer_length(x1) == n ** (\forall* int i; 0<=i && i<n; Perm(&x1[i], 1\2));
+  ensures \result == x0[0] + x1[0];
+  @*/
+  int f(int n, /*@ unique<1> @*/ int* x0, /*@ unique<2> @*/ int* x1){
+    return h(x0) + h(x1);
+  }
+
+  /*@
+    context x != NULL ** \pointer_length(x) > 0 ** Perm(&x[0], 1\2);
+    ensures \result == x[0];
+  @*/
+  int h(int* x){
+    return x[0];
+  }"""
+
+  vercors should error withCode "???" in "Recursive call wrong uniques" c """/*@
+  context n > 0;
+  context x0 != NULL ** \pointer_length(x0) == n ** (\forall* int i; 0<=i && i<n; Perm(&x0[i], 1\2));
+  context x1 != NULL ** \pointer_length(x1) == n ** (\forall* int i; 0<=i && i<n; Perm(&x1[i], 1\2));
+@*/
+int f(int n, /*@ unique<1> @*/ int* x0, /*@ unique<2> @*/ int* x1){
+  if(n == 1){
+    return h(x0) + h(x1);
+  }
+  else {
+    return f(n-1, x1, x0);
+  }
+}"""
 }

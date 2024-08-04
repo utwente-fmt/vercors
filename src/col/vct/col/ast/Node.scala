@@ -954,6 +954,16 @@ final case class CoerceFromUnique[G](target: Type[G], sourceId: BigInt)(
   implicit val o: Origin
 ) extends Coercion[G] with CoerceFromUniqueImpl[G]
 
+final case class CoerceToUniquePointer[G](inner: Type[G], targetId: BigInt)(
+  implicit val o: Origin
+) extends Coercion[G] with CoerceToUniquePointerImpl[G]
+final case class CoerceFromUniquePointer[G](target: Type[G], sourceId: BigInt)(
+  implicit val o: Origin
+) extends Coercion[G] with CoerceFromUniquePointerImpl[G]
+final case class CoerceBetweenUniquePointer[G](target: Type[G], sourceId: BigInt, targetId: BigInt)(
+  implicit val o: Origin
+) extends Coercion[G] with CoerceBetweenUniquePointerImpl[G]
+
 final case class CoerceToConst[G](source: Type[G])(
   implicit val o: Origin
 ) extends Coercion[G] with CoerceToConstImpl[G]
@@ -1867,8 +1877,6 @@ final case class NewConstPointerArray[G](element: Type[G], size: Expr[G])(
   val blame: Blame[ArraySizeError]
 )(implicit val o: Origin)
   extends NewPointer[G] with NewConstPointerArrayImpl[G]
-
-final case class ToUnique[G](inner: Expr[G])(implicit val o: Origin) extends Expr[G] with ToUniqueImpl[G]
 
 final case class FreePointer[G](pointer: Expr[G])(
     val blame: Blame[PointerFreeError]

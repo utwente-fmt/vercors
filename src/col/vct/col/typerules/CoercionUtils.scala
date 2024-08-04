@@ -193,6 +193,21 @@ case object CoercionUtils {
             CTPointer(innerType),
           ) => // if element == innerType =>
         getAnyCoercion(element, innerType).getOrElse(return None)
+      case (
+        TPointer(innerType),
+        t@TPointer(TUnique(element, unique)),
+        ) if element == innerType =>
+        ??? //CoerceToUnique()
+      case (
+        TPointer(TUnique(element, unique)),
+        t@TPointer(innerType)
+        ) if element == innerType =>
+        CoerceFromUniquePointer(t, unique)
+      case (
+        TPointer(TUnique(elementS, uniqueS)),
+        t@TPointer(TUnique(elementT, uniqueT))
+        ) if elementS == elementT =>
+        CoerceBetweenUniquePointer(t, uniqueS, uniqueT)
       case (CTArray(_, innerType), CTPointer(element)) =>
         if (element == innerType) { CoerceCArrayPointer(innerType) }
         else {
@@ -487,6 +502,8 @@ case object CoercionUtils {
     source match {
       case t: TConst[G] =>
         getAnyPointerCoercion(t.inner).map{ case (c, res) => (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)}
+      case t: TUnique[G] =>
+        getAnyPointerCoercion(t.inner).map{ case (c, res) => (CoercionSequence(Seq(CoerceFromUnique(t.inner, t.unique), c)), res)}
       case t: CPrimitiveType[G] => chainCCoercion(t, getAnyPointerCoercion)
       case t: PointerType[G] => Some((CoerceIdentity(source), t))
       case t: CTPointer[G] => Some((CoerceIdentity(source), TPointer(t.innerType)))

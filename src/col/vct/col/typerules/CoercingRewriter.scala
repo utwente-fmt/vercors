@@ -274,6 +274,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceJoinUnion(_, _, _) => e
       case CoerceSelectUnion(inner, _, _, _) => applyCoercion(e, inner)
 
+      case CoerceFromUniquePointer(_, _) => e
+      case CoerceToUniquePointer(_, _) => e
+      case CoerceBetweenUniquePointer(_, _, _) => e
+
       case CoerceSupports(_, _) => e
       case CoerceClassAnyClass(_, _) => e
       case CoerceJavaSupports(_, _) => e
