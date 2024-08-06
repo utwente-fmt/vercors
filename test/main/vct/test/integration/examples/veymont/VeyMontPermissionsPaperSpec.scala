@@ -28,7 +28,7 @@ class VeyMontPermissionsPaperSpec extends VeyMontSpec {
         caseWd.resolve("0-TTT.pvl"),
       ),
       flags = Seq(
-        "--veymont-generate-permissions",
+        "--generate-permissions",
         // Skip implementation verification. This version of 0-TTT does not support that (time constraints).
         "--veymont-skip-implementation-verification",
       ),
@@ -76,7 +76,7 @@ class VeyMontPermissionsPaperSpec extends VeyMontSpec {
         "--veymont-skip-choreography-verification",
         "--veymont-skip-implementation-verification",
       ),
-      language = Java,
+      targetLanguage = Java,
       processImplementation = runTttImplementation,
     )
   }
@@ -122,7 +122,7 @@ class VeyMontPermissionsPaperSpec extends VeyMontSpec {
         "--veymont-skip-implementation-verification",
         "--veymont-skip-choreography-verification",
       ),
-      language = Java,
+      targetLanguage = Java,
       processImplementation = runTttImplementation,
     )
   }

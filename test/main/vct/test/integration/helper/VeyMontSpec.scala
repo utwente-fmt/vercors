@@ -1,61 +1,158 @@
 package vct.test.integration.helper
 
 import ch.qos.logback.classic.{Level, Logger}
+import com.typesafe.scalalogging.LazyLogging
+import hre.io.LiteralReadable
 import hre.util.FilesHelper
 import org.scalactic.source
 import org.scalatest.Tag
 import org.scalatest.concurrent.TimeLimits.failAfter
 import org.scalatest.time.{Seconds, Span}
 import org.slf4j.LoggerFactory
-import vct.main.Main
-import vct.main.modes.{Verify, VeyMont}
-import vct.options.{Options, types}
+import vct.col.origin.VerificationFailure
+import vct.main.modes.VeyMont.StageResult
+import vct.main.modes.VeyMont
+import vct.options.types.PathOrStd
+import vct.options.Options
+import vct.result.VerificationError
+import vct.result.VerificationError.{SystemError, UserError}
+import vct.test.integration.helper.{ResultModel => R}
 import vct.test.integration.helper.VercorsSpec.MATRIX_COUNT
 
 import java.nio.file.{Path, Paths}
 
-class VeyMontSpec extends VercorsSpec {
+sealed trait ResultModel
+object ResultModel {
+  def ofTestSpec(
+      fail: String,
+      fails: Seq[String],
+      error: String,
+  ): ResultModel = {
+    assert(!(fail != null && error != null && fails != null))
+    (fail, fails, error) match {
+      case (null, null, null) => Pass
+      case (fail, null, null) => Fail(Seq(fail))
+      case (null, fails, null) => Fail(fails)
+      case (null, null, error) => Error(error)
+      case _ => ???
+    }
+  }
+
+  def ofFailure(fails: Seq[VerificationFailure]): ResultModel =
+    if (fails.isEmpty)
+      Pass
+    else
+      Fail(fails.map(_.code))
+
+  def ofFrontendOutput(
+      res: Either[VerificationError, StageResult]
+  ): ResultModel =
+    res match {
+      case Left(error: UserError) => Error(error.code)
+      case Left(crash: SystemError) => Crash(crash)
+      case Right(stageResult) =>
+        stageResult match {
+          case VeyMont.ChoreographyResult(_, fails) => ofFailure(fails)
+          case VeyMont.GenerateResult(_) => Pass
+          case VeyMont.ImplementationResult(fails) => ofFailure(fails)
+        }
+    }
+
+  case class Fail(codes: Seq[String]) extends ResultModel {
+    require(codes.nonEmpty)
+  }
+  case class Error(code: String) extends ResultModel
+  case class Crash(err: SystemError) extends ResultModel
+  case object Pass extends ResultModel
+}
+
+class VeyMontSpec extends VercorsSpec with LazyLogging {
   sealed trait Language
   case object Pvl extends Language
   case object Java extends Language
 
   def choreography(
-      inputs: Seq[Path],
+      pvl: String = null,
+      inputs: Seq[Path] = null,
       desc: String = null,
       flags: Seq[String] = Seq(),
-  )(implicit pos: source.Position): Unit =
-    veymontTest(desc = desc, inputs = inputs, flags = "--choreography" +: flags)
-
-  def implementation(
-      desc: String,
-      inputs: Seq[Path],
-      flags: Seq[String] = Seq(),
+      flag: String = null,
+      fail: String = null,
+      fails: Seq[String] = null,
+      error: String = null,
+      targetLanguage: Language = Pvl,
   )(implicit pos: source.Position): Unit =
     veymontTest(
+      pvl = pvl,
+      desc = desc,
+      inputs = inputs,
+      flags = "--choreography" +: flags,
+      flag = flag,
+      fail = fail,
+      fails = fails,
+      error = error,
+      targetLanguage = targetLanguage,
+    )
+
+  def implementation(
+      pvl: String = null,
+      desc: String = null,
+      inputs: Seq[Path],
+      flags: Seq[String] = Seq(),
+      flag: String = null,
+      fail: String = null,
+      fails: Seq[String] = null,
+      error: String = null,
+      targetLanguage: Language = Pvl,
+  )(implicit pos: source.Position): Unit =
+    veymontTest(
+      pvl = pvl,
       desc = desc,
       inputs = inputs,
       flags = Seq("--implementation") ++ flags,
+      flag = flag,
+      fail = fail,
+      fails = fails,
+      error = error,
+      targetLanguage = targetLanguage,
     )
 
   def veymontTest(
-      inputs: Seq[Path],
+      pvl: String = null,
+      inputs: Seq[Path] = null,
       desc: String = null,
+      fail: String = null,
+      fails: Seq[String] = null,
+      error: String = null,
+      flag: String = null,
       flags: Seq[String] = Seq(),
-      language: Language = Pvl,
+      targetLanguage: Language = Pvl,
       processImplementation: Path => Unit = null,
   )(implicit pos: source.Position): Unit = {
+    // When giving a pvl literal, there should also be a description
+    // Otherwise, inputs should be non-null, so a description can be derived if necessary
+    require((pvl != null && desc != null) || inputs != null)
     val descr =
       if (desc == null)
         s"Files ${inputs.mkString(",")}"
       else
         desc
+    // Also, either there have to be inputs, or a pvl literal, but not both
+    require((inputs == null) ^ (pvl == null))
 
-    val absoluteExamplePath = Paths.get("examples").toAbsolutePath
-    inputs.foreach { p =>
-      if (p.toAbsolutePath.startsWith(absoluteExamplePath)) {
-        coveredExamples ++= Seq(p)
+    val actualInputs =
+      (inputs, pvl) match {
+        case (inputs, null) =>
+          // Register examples in the test suite
+          val absoluteExamplePath = Paths.get("examples").toAbsolutePath
+          inputs.foreach { p =>
+            if (p.toAbsolutePath.startsWith(absoluteExamplePath)) {
+              coveredExamples ++= Seq(p)
+            }
+          }
+          inputs.map(PathOrStd.Path)
+        case (null, pvl) => Seq(LiteralReadable("test.pvl", pvl))
       }
-    }
 
     val fullDesc: String = s"${descr.capitalize} verifies with silicon"
     // PB: note that object typically do not have a deterministic hashCode, but Strings do.
@@ -68,7 +165,7 @@ class VeyMontSpec extends VercorsSpec {
 
       FilesHelper.withTempDir { temp =>
         val tempSource = {
-          language match {
+          targetLanguage match {
             case Pvl => temp.resolve("output.pvl")
             case Java => temp.resolve("output.java")
           }
@@ -81,22 +178,41 @@ class VeyMontSpec extends VercorsSpec {
             Seq()
 
         failAfter(Span(300, Seconds)) {
-          VeyMont.verifyGenerateOptions(
+          val expectedResult = ResultModel.ofTestSpec(fail, fails, error)
+          val actualResult = ResultModel.ofFrontendOutput(VeyMont.ofOptions(
             Options.parse(
-              (inputs.map(_.toString) ++ Seq("--veymont") ++ outputFlags ++
-                flags).toArray
-            ).get
-          ) match {
-            case Left(value) =>
-              fail(
-                s"Expected test to pass, but finished with the following failure/error: $value"
-              )
-            case Right(_) =>
-          }
+              (Seq("--veymont") ++ outputFlags ++ flags ++ Option(flag).toSeq)
+                .toArray
+            ).get,
+            actualInputs,
+          ))
+
+          processResult(expectedResult, actualResult)
 
           Option(processImplementation).foreach(f => f(tempSource))
         }
       }
     }
+  }
+
+  def processResult(expected: ResultModel, actual: ResultModel): Unit = {
+    println("expected")
+    println(expected)
+    println("actual")
+    println(actual)
+    def show(res: ResultModel): String =
+      res match {
+        case R.Fail(Seq(code)) => s"fail with code $code"
+        case R.Fail(codes) =>
+          s"fail with codes: ${codes.mkString("- ", "\n- ", "")}"
+        case R.Error(code) => s"error with code $code"
+        case R.Crash(err) => s"crash with message:\n${err.text}"
+        case R.Pass => "pass"
+      }
+    if (expected != actual) {
+      fail(
+        s"Expected test result: ${show(expected)}\nActual test result: ${show(actual)}"
+      )
+    } else { println("Test passed") }
   }
 }

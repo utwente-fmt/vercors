@@ -1,10 +1,11 @@
 package vct.test.integration.examples.veymont
 
-import vct.test.integration.helper.VercorsSpec
+import vct.test.integration.helper.VeyMontSpec
 
-class TechnicalVeyMontSpec extends VercorsSpec {
-  vercors should fail withCode "perm" using silicon in
-    "Bobby may receive permission for its target location" pvl """
+class TechnicalVeyMontSpec extends VeyMontSpec {
+  choreography(
+    desc = "Bobby may receive permission for its target location",
+    pvl = """
   class Storage { int x; int y; }
   choreography Chor() {
     endpoint alex = Storage();
@@ -14,11 +15,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       channel_invariant Perm(bobby.x, 1);
       communicate alex.x -> bobby.x;
     }
-  }
-  """
+  }""",
+    fail = "perm",
+  )
 
-  vercors should fail withCode "perm" using silicon in
-    "Bobby might not have permission to assign" pvl """
+  choreography(
+    desc = "Bobby might not have permission to assign",
+    fail = "perm",
+    pvl = """
   class Storage { int x; int y; }
   choreography Chor() {
     endpoint alex = Storage();
@@ -28,10 +32,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       communicate alex.x -> bobby.x;
     }
   }
-  """
+  """,
+  )
 
-  vercors should fail withCode "channelInvariantNotEstablished:false" using
-    silicon in "Channel invariant might not be established" pvl """
+  choreography(
+    desc = "Channel invariant might not be established",
+    fail = "channelInvariantNotEstablished:false",
+    pvl = """
   class Storage { int x; int y; }
   choreography Chor() {
     endpoint alex = Storage();
@@ -42,10 +49,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       communicate alex.x -> bobby.x;
     }
   }
-  """
+  """,
+  )
 
-  (vercors should verify using silicon flag "--veymont-generate-permissions" in
-    "example using communicate" pvl """
+  choreography(
+    desc = "example using communicate",
+    flag = "--generate-permissions",
+    pvl = """
        class Storage {
           int x;
        }
@@ -61,11 +71,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
             communicate bob.x -> alice.x;
           }
        }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "assertFailed:false" using silicon flag
-    "--veymont-generate-permissions" in
-    "plain endpoint field dereference should be possible" pvl """
+  choreography(
+    desc = "plain endpoint field dereference should be possible",
+    flag = "--generate-permissions",
+    fail = "assertFailed:false",
+    pvl = """
        class Storage {
           int x;
        }
@@ -76,19 +89,25 @@ class TechnicalVeyMontSpec extends VercorsSpec {
             assert alice.x == 0;
           }
        }
-    """)
+    """,
+  )
 
-  vercors should error withCode "noSuchName" in
-    "non-existent thread name in communicate fails" pvl """
+  choreography(
+    error = "choreography:noSuchName",
+    desc = "non-existent thread name in communicate fails",
+    pvl = """
   choreography Example() {
      run {
        communicate charlie.x <- charlie.x;
      }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "noSuchName" in
-    "non-existent field in communicate fails" pvl """
+  choreography(
+    error = "choreography:noSuchName",
+    desc = "non-existent field in communicate fails",
+    pvl = """
   class Storage { int x; }
   choreography Example() {
      endpoint charlie = Storage();
@@ -96,10 +115,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
        communicate charlie.nonExistent <- charlie.nonExistent;
      }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "parseError" in
-    "parameterized sends not yet supported " pvl """
+  choreography(
+    error = "choreography:parseError",
+    desc = "parameterized sends not yet supported",
+    pvl = """
     class Storage { int x; }
     choreography Example() {
       endpoint alice[10] = Storage();
@@ -108,22 +130,31 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         communicate alice[i: 0 .. 9].x <- bob[i + 1].y;
       }
     }
-  """
+  """,
+  )
 
-  vercors should error withCode "noRunMethod" in
-    "run method should always be present" pvl """
+  choreography(
+    error = "choreography:noRunMethod",
+    desc = "run method should always be present",
+    pvl = """
   choreography Example() { }
-  """
+  """,
+  )
 
-  vercors should error withCode "parseError" in
-    "endpoints can only have class types" pvl """
+  choreography(
+    error = "choreography:parseError",
+    desc = "endpoints can only have class types",
+    pvl = """
   choreography Example() {
     endpoint alice = int();
   }
-  """
+  """,
+  )
 
-  (vercors should verify using silicon flag "--veymont-generate-permissions" in
-    "Endpoint fields should be assignable" pvl """
+  choreography(
+    flag = "--generate-permissions",
+    desc = "Endpoint fields should be assignable",
+    pvl = """
     class Storage { int x; int y; }
     choreography Example() {
       endpoint alice = Storage();
@@ -132,49 +163,62 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         alice.x := alice.y;
       }
     }
-    """)
+    """,
+  )
 
-  vercors should error withCode "resolutionError:seqProgInstanceMethodArgs" in
-    "instance method in choreography cannot have arguments" pvl """
+  choreography(
+    error = "resolutionError:seqProgInstanceMethodArgs",
+    desc = "instance method in choreography cannot have arguments",
+    pvl = """
   choreography Example() {
     void m(int x) { }
 
     run { }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "resolutionError:seqProgInstanceMethodBody" in
-    "instance method in choreography must have a body" pvl """
+  choreography(
+    error = "resolutionError:seqProgInstanceMethodBody",
+    desc = "instance method in choreography must have a body",
+    pvl = """
   choreography Example() {
     void m();
 
     run { }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode
-    "resolutionError:seqProgInstanceMethodNonVoid" in
-    "instance method in choreography must have void return type" pvl """
+  choreography(
+    error = "resolutionError:seqProgInstanceMethodNonVoid",
+    desc = "instance method in choreography must have void return type",
+    pvl = """
   choreography Example() {
     int m() { }
 
     run { }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "resolutionError:chorStatement" in
-    "`choreography` excludes certain statements" pvl """
+  choreography(
+    error = "resolutionError:chorStatement",
+    desc = "`choreography` excludes certain statements",
+    pvl = """
   class C { }
   choreography Example(C c) {
     run {
       lock c;
     }
   }
-  """
+  """,
+  )
 
-  vercors should verify using silicon in
-    "Dereferencing other endpoints in arguments is possible if permissions are available for the endpoint context" pvl
-    """
+  choreography(
+    desc =
+      "Dereferencing other endpoints in arguments is possible if permissions are available for the endpoint context",
+    pvl = """
     class C { C d; void foo(int x); int x; }
     choreography Example(C c) {
       endpoint c = C();
@@ -184,11 +228,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         c.foo(d.x);
       }
     }
-    """
+    """,
+  )
 
-  vercors should fail withCode "perm" using silicon in
-    "Dereferencing other endpoints in arguments is not possible if permissions are not available for the endpoint context" pvl
-    """
+  choreography(
+    fail = "perm",
+    desc =
+      "Dereferencing other endpoints in arguments is not possible if permissions are not available for the endpoint context",
+    pvl = """
     class C { C d; void foo(int x); int x; }
     choreography Example(C c) {
       endpoint c = C();
@@ -198,19 +245,24 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         c.foo(d.x);
       }
     }
-    """
+    """,
+  )
 
-  vercors should verify using silicon in "Empty choreography must verify" pvl
-    """
+  choreography(
+    desc = "Empty choreography must verify",
+    pvl = """
   choreography C() {
     run {
 
     }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "resolutionError:type" in
-    "Assign must be well-typed" pvl """
+  choreography(
+    error = "resolutionError:type",
+    desc = "Assign must be well-typed",
+    pvl = """
   class C { int x; }
   choreography C() {
     endpoint charlie = C();
@@ -218,10 +270,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       charlie.x := true;
     }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "resolutionError:type" in
-    "Communicating parties must agree on the type" pvl """
+  choreography(
+    error = "resolutionError:type",
+    desc = "Communicating parties must agree on the type",
+    pvl = """
   class C { int c; }
   class A { bool a; }
   choreography C() {
@@ -231,10 +286,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       communicate charlie.c <- alice.a;
     }
   }
-  """
+  """,
+  )
 
-  (vercors should verify using silicon flag "--veymont-generate-permissions" in
-    "assignment should work" pvl """
+  choreography(
+    flag = "--generate-permissions",
+    desc = "assignment should work",
+    pvl = """
     class Storage {
       int x;
 
@@ -252,10 +310,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
          assert alice.x == 0;
        }
     }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "postFailed:false" using silicon flag
-    "--veymont-generate-permissions" in "Postcondition of run can fail" pvl """
+  choreography(
+    fail = "postFailed:false",
+    flag = "--veymont-generate-permissions",
+    desc = "Postcondition of run can fail",
+    pvl = """
     class Storage {
        int x;
     }
@@ -266,11 +328,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
        run {
        }
     }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "postFailed:false" using silicon flag
-    "--veymont-generate-permissions" in
-    "Postcondition of choreography can fail" pvl """
+  choreography(
+    fail = "postFailed:false",
+    flag = "--veymont-generate-permissions",
+    desc = "Postcondition of choreography can fail",
+    pvl = """
     class Storage {
        int x;
     }
@@ -282,12 +347,15 @@ class TechnicalVeyMontSpec extends VercorsSpec {
        run {
        }
     }
-    """)
+    """,
+  )
 
-  vercors should fail withCode "perm" using silicon flag
-    "--veymont-generate-permissions" in
-    "Assignment statement only allows one endpoint in the assigned expression" pvl
-    """
+  choreography(
+    fail = "perm",
+    flag = "--veymont-generate-permissions",
+    desc =
+      "Assignment statement only allows one endpoint in the assigned expression",
+    pvl = """
     class Storage {
        int x;
     }
@@ -299,11 +367,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
          alice.x := bob.x;
        }
     }
-    """
+    """,
+  )
 
-  (vercors should fail withCode "branchNotUnanimous" using silicon flag
-    "--veymont-generate-permissions" in
-    "Parts of condition in branch have to agree inside seqprog" pvl """
+  choreography(
+    fail = "branchNotUnanimous",
+    flag = "--veymont-generate-permissions",
+    desc = "Parts of condition in branch have to agree inside seqprog",
+    pvl = """
     class Storage {
        int x;
     }
@@ -317,12 +388,15 @@ class TechnicalVeyMontSpec extends VercorsSpec {
           }
        }
     }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "branchNotUnanimous" using silicon flag
-    "--veymont-generate-permissions" in
-    "Parts of condition in branch have to agree inside seqprog, including conditions for all endpoints" pvl
-    """
+  choreography(
+    fail = "branchNotUnanimous",
+    flag = "--veymont-generate-permissions",
+    desc =
+      "Parts of condition in branch have to agree inside seqprog, including conditions for all endpoints",
+    pvl = """
     class Storage {
        int x;
     }
@@ -339,7 +413,8 @@ class TechnicalVeyMontSpec extends VercorsSpec {
           }
        }
     }
-    """)
+    """,
+  )
 
   (vercors should verify using silicon flag "--veymont-generate-permissions" in
     "If there is only one endpoint, the conditions don't have to agree, as there is only one endpoint" pvl

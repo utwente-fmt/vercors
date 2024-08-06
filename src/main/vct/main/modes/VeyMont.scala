@@ -182,13 +182,18 @@ object VeyMont extends LazyLogging {
   case class ImplementationResult(failures: Seq[VerificationFailure])
       extends StageResult
 
-  def ofOptions(options: Options): Either[VerificationError, StageResult] = {
+  // VeyMont entry point for tooling. Does not do post-processing of results. inputs argument is separate such that
+  // clients can inject both paths and string literals (LiteralReadable)
+  def ofOptions(
+      options: Options,
+      inputs: Seq[Readable],
+  ): Either[VerificationError, StageResult] = {
     Progress.stages(Seq(("VeyMont", 1))) { _ =>
       Progress.stages(
         Seq(("Choreography", 10), ("Generate", 2), ("Implementation", 9))
       ) { next =>
         val program =
-          choreographyWithOptions(options, options.inputs) match {
+          choreographyWithOptions(options, inputs) match {
             case Left(err) => return Left(err)
             case res @ Right(ChoreographyResult(_, failures))
                 if failures.nonEmpty =>
@@ -210,8 +215,9 @@ object VeyMont extends LazyLogging {
     }
   }
 
+  // Main VeyMont entry point for human users. Acquires inputs from options object.
   def runOptions(options: Options): Int =
-    ofOptions(options) match {
+    ofOptions(options, options.inputs) match {
       case Left(err: VerificationError.UserError) =>
         logger.error(err.text)
         EXIT_CODE_ERROR
