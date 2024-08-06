@@ -333,10 +333,6 @@ case object Options {
         opt[Unit]("veymont-skip-implementation-verification").action((_, c) =>
           c.copy(veymontSkipImplementationVerification = true)
         ).text("Do not verify generated implementation"),
-        opt[Unit]("veymont-generate-permissions")
-          .action((_, c) => c.copy(veymontGeneratePermissions = true)).text(
-            "Generate permissions for the entire choreography using a syntax-driven single-owner policy. VeyMont ensures the generated permissions will not interfere with auxiliary generated code."
-          ),
       ),
       opt[Unit]("dev-veymont-no-branch-unanimity").maybeHidden()
         .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
@@ -488,7 +484,6 @@ case class Options(
     // VeyMont options
     veymontOutput: Option[Path] = None,
     veymontResourcePath: Path = Resources.getVeymontPath,
-    veymontGeneratePermissions: Boolean = false,
     veymontBranchUnanimity: Boolean = true,
     veymontSkipChoreographyVerification: Boolean = false,
     veymontSkipImplementationVerification: Boolean = false,

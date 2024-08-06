@@ -6,6 +6,7 @@ import hre.progress.Progress
 import hre.stages.{IdentityStage, Stage, Stages}
 import hre.stages.Stages.{applyIf, branch, saveInput, timed}
 import hre.util.Time.logTime
+import hre.util.{Time, Timer}
 import vct.col.ast.Verification
 import vct.col.origin.{BlameCollector, TableEntry, VerificationFailure}
 import vct.col.print.Ctx
@@ -28,7 +29,7 @@ import vct.main.stages.{
 import vct.options.Options
 import vct.parsers.transform.ConstantBlameProvider
 import vct.result.VerificationError
-import vct.result.VerificationError.{SystemError, UserError}
+import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 
 object VeyMont extends LazyLogging {
   case object WrapVerificationError {
@@ -53,26 +54,6 @@ object VeyMont extends LazyLogging {
     override def text: String = s"$textPrefix\n${error.text}"
   }
 
-  case class ImplementationVerificationError(failures: Seq[VerificationFailure])
-      extends UserError {
-    override def text: String = {
-      val fails = failures.map(_.desc).mkString("\n")
-      s"Verification of the generated implementation failed because of the following failuers:\n$fails"
-    }
-
-    override def code: String = "veymont:implementationVerificationFailed"
-  }
-
-  case class NoVerificationFailures(
-      collector: BlameCollector,
-      error: Seq[VerificationFailure] => UserError,
-  ) extends Stage[Unit, Unit] {
-    override def friendlyName: String = "noVerificationErrors"
-    override def progressWeight: Int = 1
-    override def run(in: Unit): Unit =
-      if (collector.errs.nonEmpty) { throw error(collector.errs.toSeq) }
-  }
-
   def choreographyWithOptions(
       options: Options,
       inputs: Seq[Readable],
@@ -80,7 +61,8 @@ object VeyMont extends LazyLogging {
     Progress.stages(Seq(("Parsing", 2), ("Verification", 15))) { next =>
       val collector = BlameCollector()
       val blameProvider = ConstantBlameProvider(collector)
-      // TODO (RR): delete veymontGeneratePermissions to have just one
+      val timer = Timer()
+
       val parsingStages = Parsing.ofOptions(options, blameProvider)
         .thenRun(Resolution.ofOptions(options, blameProvider))
 
@@ -98,22 +80,25 @@ object VeyMont extends LazyLogging {
 
       next()
 
-      val verificationStages = Transformation
-        .ofOptions(options, BIP.VerificationResults())
-        .thenRun(Backend.ofOptions(options))
-        .thenRun(ExpectedErrors.ofOptions(options))
+      if (!options.veymontSkipChoreographyVerification) {
+        val verificationStages = Transformation
+          .ofOptions(options, BIP.VerificationResults())
+          .thenRun(Backend.ofOptions(options))
+          .thenRun(ExpectedErrors.ofOptions(options))
 
-      verificationStages.run(program) match {
-        case Left(error) => Left(wrap(error))
-        case Right(()) =>
-          Right(ChoreographyResult(program, collector.errs.toSeq))
+        verificationStages.run(program) match {
+          case Left(error) => Left(wrap(error))
+          case Right(()) =>
+            val end = timer.end
+            logger.info(
+              s"Choreography verified successfully (duration: ${Time.formatDuration(end)})"
+            )
+            Right(ChoreographyResult(program, collector.errs.toSeq))
+        }
+      } else {
+        logger.warn("Skipping choreography verification")
+        Right(ChoreographyResult(program, Seq()))
       }
-
-      // TODO (RR): Reinstate this log?
-//          logger.info("Choreographic verification successful ✔\uFE0F")
-//              ),
-//            ))).transform(_._1)
-//          }
     }
   }
 
@@ -136,16 +121,18 @@ object VeyMont extends LazyLogging {
           Ctx.PVL,
         false,
       ))
+    val wrap: VerificationError => VerificationError =
+      WrapVerificationError.wrap(
+        "generate",
+        "The following error occurred while generating an implementation:",
+      )(_)
     generateStages.run(program) match {
-      case Left(err) =>
-        Left(
-          WrapVerificationError.wrap(
-            "generate",
-            "The following error occurred while generating an implementation:",
-          )(err)
-        )
-      case Right(Seq(lit)) => Right(GenerateResult(lit))
-      case Right(_) => ??? // Should always be only 1 literal readable
+      case Left(err) => Left(wrap(err))
+      case Right(Seq(lit)) =>
+        logger.info("Implementation generated successfully")
+        Right(GenerateResult(lit))
+      case Right(_) =>
+        Left(wrap(Unreachable("Code generation should only return 1 readable")))
     }
   }
 
@@ -156,25 +143,33 @@ object VeyMont extends LazyLogging {
     val collector = BlameCollector()
     val bipResults = BIP.VerificationResults()
     val blameProvider = ConstantBlameProvider(collector)
-    // TODO: Delete?
-//    val options = globalOptions.copy(generatePermissions = false)
 
-    val stages = vct.main.stages.Stages
-      .ofOptions(options, blameProvider, bipResults)
-      .thenRun(VeyMont.NoVerificationFailures(
-        collector,
-        VeyMont.ImplementationVerificationError,
-      ))
+    val stages = vct.main.stages.Stages.ofOptions(
+      options.copy(generatePermissions = false),
+      blameProvider,
+      bipResults,
+    )
 
-    stages.run(Seq(implementation)) match {
-      case Left(err) =>
-        Left(
-          WrapVerificationError.wrap(
-            "implementation",
-            "The following error occurred during verification of the implementation:",
-          )(err)
-        )
-      case Right(()) => Right(ImplementationResult(collector.errs.toSeq))
+    if (!options.veymontSkipImplementationVerification) {
+      val timer = Timer()
+      stages.run(Seq(implementation)) match {
+        case Left(err) =>
+          Left(
+            WrapVerificationError.wrap(
+              "implementation",
+              "The following error occurred during verification of the implementation:",
+            )(err)
+          )
+        case Right(()) =>
+          val end = timer.end
+          logger.info(
+            s"Implementation verified successfully (duration: ${Time.formatDuration(end)})"
+          )
+          Right(ImplementationResult(collector.errs.toSeq))
+      }
+    } else {
+      logger.warn("Skipping implementation verification")
+      Right(ImplementationResult(collector.errs.toSeq))
     }
   }
 
@@ -192,7 +187,6 @@ object VeyMont extends LazyLogging {
       Progress.stages(
         Seq(("Choreography", 10), ("Generate", 2), ("Implementation", 9))
       ) { next =>
-        // TODO: record choreographyphase in error
         val program =
           choreographyWithOptions(options, options.inputs) match {
             case Left(err) => return Left(err)
@@ -202,8 +196,6 @@ object VeyMont extends LazyLogging {
             case Right(ChoreographyResult(program, Seq())) => program
           }
 
-        logger.info("Choreographic verification success")
-
         next()
 
         val implementation =
@@ -211,120 +203,11 @@ object VeyMont extends LazyLogging {
             .fold[GenerateResult](err => return Left(err), lit => lit)
             .implementation
 
-        logger.info("Implementation generation success")
-
         next()
 
         implementationWithOptions(options, implementation)
       }
     }
-  }
-
-  def stagesOfOptions(globalOptions: Options): Stages[Seq[Readable], Unit] = {
-    // generatePermissions is precluded by veymontGeneratePermissions in VeyMont mode
-    if (globalOptions.generatePermissions) {
-      logger.warn(
-        "`--generate-permissions` does not do anything in VeyMont mode, please use --veymont-generate-permissions"
-      )
-    }
-
-    val choreographyStage
-        : Stages[Seq[Readable], Verification[_ <: Generation]] = {
-      val collector = BlameCollector()
-      val bipResults = BIP.VerificationResults()
-      val blameProvider = ConstantBlameProvider(collector)
-      val options = globalOptions
-        .copy(generatePermissions = globalOptions.veymontGeneratePermissions)
-
-      Parsing.ofOptions(options, blameProvider)
-        .thenRun(Resolution.ofOptions(options, blameProvider))
-        .thenRun(saveInput[Verification[_ <: Generation], Any](branch(
-          !options.veymontSkipChoreographyVerification,
-          timed(
-            "choreographic verification with VerCors",
-            Transformation.ofOptions(options, bipResults)
-              .thenRun(Backend.ofOptions(options))
-              .thenRun(ExpectedErrors.ofOptions(options))
-              .thenRun(VeyMont.NoVerificationFailures(
-                collector,
-//                VeyMont.ChoreographyVerificationError,
-                ???,
-              )).also(logger.info(
-                "Choreographic verification successful ✔\uFE0F"
-              )),
-          ),
-          IdentityStage()
-            .also(logger.warn("Skipping verifying choreography with VerCors")),
-        ))).transform(_._1)
-    }
-
-    val generateJava = globalOptions.veymontOutput
-      .exists(_.toString.endsWith(".java"))
-    val generationStage
-        : Stages[Verification[_ <: Generation], Seq[LiteralReadable]] = {
-      val options = globalOptions
-      timed(
-        "generating endpoint implementations",
-        Transformation.veymontImplementationGenerationOfOptions(options)
-          .thenRun(applyIf[Verification[_ <: Generation]](
-            generateJava,
-            IdentityStage()
-              .thenRun(Transformation.pvlJavaCompatOfOptions(options)),
-          )).thenRun(Output(
-            options.veymontOutput,
-            if (generateJava)
-              Ctx.Java
-            else
-              Ctx.PVL,
-            false,
-          )),
-      )
-    }
-
-    val implementationVerificationStage = {
-      val collector = BlameCollector()
-      val bipResults = BIP.VerificationResults()
-      val blameProvider = ConstantBlameProvider(collector)
-      // generatePermissions is precluded by veymontGeneratePermissions in VeyMont mode
-      val options = globalOptions.copy(generatePermissions = false)
-
-      branch(
-        !options.veymontSkipImplementationVerification,
-        timed(
-          "verify generated implementation with VerCors",
-          vct.main.stages.Stages.ofOptions(options, blameProvider, bipResults)
-            .thenRun(VeyMont.NoVerificationFailures(
-              collector,
-              VeyMont.ImplementationVerificationError,
-            )),
-        ),
-        IdentityStage().drop()
-          .also(logger.warn("Skipping implementation verification")),
-      )
-    }
-
-    choreographyStage.thenRun(generationStage)
-      .thenRun(implementationVerificationStage)
-  }
-
-  def verifyGenerateOptions(
-      options: Options
-  ): Either[VerificationError, Unit] = {
-    // TODO (RR): Skipping, focusing, etc.
-    logTime(
-      "VeyMont mode", {
-        Progress.stages(Seq(("VeyMont", 1))) { _ =>
-          Progress.stages(Seq(
-            ("Choreography", 10),
-            ("Generation", 2),
-            ("Implementation verification", 9),
-          )) { next =>
-            val stages = stagesOfOptions(options)
-            stages.run(options.inputs)
-          }
-        }
-      },
-    )
   }
 
   def runOptions(options: Options): Int =

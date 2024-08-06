@@ -29,3 +29,9 @@ object Time extends LazyLogging {
     }
   }
 }
+
+case class Timer() {
+  val start = java.time.Instant.now()
+
+  def end: Duration = Duration.between(start, java.time.Instant.now())
+}
