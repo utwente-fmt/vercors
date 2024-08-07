@@ -446,7 +446,6 @@ case class SilverTransformation(
         EncodeForPermWithValue,
         EncodeAutoValue,
         ExtractInlineQuantifierPatterns,
-        RewriteTriggerADTFunctions,
         MonomorphizeContractApplicables,
 
         // Silver compat (basically no new nodes)
