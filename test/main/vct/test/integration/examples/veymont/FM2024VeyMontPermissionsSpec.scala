@@ -173,7 +173,7 @@ class FM2024VeyMontPermissionsSpec extends VeyMontSpec {
 
     // Save source in .java file.
     val root: Path = Files.createTempDirectory("java")
-    val sourceFile = root.resolve("ScriptContainer$.java")
+    val sourceFile = root.resolve(s"$cls.java")
     Files.createFile(sourceFile)
     Files.write(sourceFile, source.getBytes(StandardCharsets.UTF_8))
 
