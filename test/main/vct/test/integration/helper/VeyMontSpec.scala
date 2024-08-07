@@ -73,6 +73,7 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
 
   def choreography(
       pvl: String = null,
+      input: Path = null,
       inputs: Seq[Path] = null,
       desc: String = null,
       flags: Seq[String] = Seq(),
@@ -85,6 +86,7 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
     veymontTest(
       pvl = pvl,
       desc = desc,
+      input = input,
       inputs = inputs,
       flags = "--choreography" +: flags,
       flag = flag,
@@ -97,6 +99,7 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
   def implementation(
       pvl: String = null,
       desc: String = null,
+      input: Path,
       inputs: Seq[Path],
       flags: Seq[String] = Seq(),
       flag: String = null,
@@ -108,6 +111,7 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
     veymontTest(
       pvl = pvl,
       desc = desc,
+      input = input,
       inputs = inputs,
       flags = Seq("--implementation") ++ flags,
       flag = flag,
@@ -119,6 +123,7 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
 
   def veymontTest(
       pvl: String = null,
+      input: Path = null,
       inputs: Seq[Path] = null,
       desc: String = null,
       fail: String = null,
@@ -129,20 +134,25 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
       targetLanguage: Language = Pvl,
       processImplementation: Path => Unit = null,
   )(implicit pos: source.Position): Unit = {
+    // First combine both the single and the sequence input.
+    // Using them both is a weird use case but supporting it is okay
+    val pathInputs = Option(input).toSeq ++ Option(inputs).toSeq.flatten
+
     // When giving a pvl literal, there should also be a description
     // Otherwise, inputs should be non-null, so a description can be derived if necessary
-    require((pvl != null && desc != null) || inputs != null)
+    require((pvl != null && desc != null) || pathInputs != Seq())
     val descr =
       if (desc == null)
-        s"Files ${inputs.mkString(",")}"
+        s"Files ${pathInputs.mkString(",")}"
       else
         desc
     // Also, either there have to be inputs, or a pvl literal, but not both
-    require((inputs == null) ^ (pvl == null))
+    require(pathInputs == Seq() ^ (pvl == null))
 
     val actualInputs =
-      (inputs, pvl) match {
+      (pathInputs, pvl) match {
         case (inputs, null) =>
+          require(inputs.nonEmpty)
           // Register examples in the test suite
           val absoluteExamplePath = Paths.get("examples").toAbsolutePath
           inputs.foreach { p =>
@@ -151,7 +161,7 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
             }
           }
           inputs.map(PathOrStd.Path)
-        case (null, pvl) => Seq(LiteralReadable("test.pvl", pvl))
+        case (Seq(), pvl) => Seq(LiteralReadable("test.pvl", pvl))
       }
 
     val fullDesc: String = s"${descr.capitalize} verifies with silicon"
