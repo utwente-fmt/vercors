@@ -1,6 +1,6 @@
 package vct.test.integration.examples.veymont
 
-import vct.test.integration.helper.{VercorsSpec, VeyMontSpec}
+import vct.test.integration.helper.VeyMontSpec
 
 class VeyMontExamplesSpec extends VeyMontSpec {
   {
@@ -13,36 +13,36 @@ class VeyMontExamplesSpec extends VeyMontSpec {
         s"$wd/TicTacToe/Move.pvl",
         s"$wd/TicTacToe/TicTacToe.pvl",
       ),
-      flags = Seq("--veymont-generate-permissions"),
+      flags = Seq("--generate-permissions"),
     )
 
     choreography(
       desc = "Leader elect ring (generated permissions)",
       inputs = examples(s"$wd/leaderelectring.pvl"),
-      flags = Seq("--veymont-generate-permissions"),
+      flags = Seq("--generate-permissions"),
     )
 
     choreography(
       desc = "Leader elect star (generated permissions)",
       inputs = examples(s"$wd/leaderelectstar.pvl"),
-      flags = Seq("--veymont-generate-permissions"),
+      flags = Seq("--generate-permissions"),
     )
 
     choreography(
       desc = "Paper-scissors-rock (generated permissions)",
       inputs = examples(s"$wd/paperscissorsrock.pvl"),
-      flags = Seq("--veymont-generate-permissions"),
+      flags = Seq("--generate-permissions"),
     )
 
     choreography(
       desc = "Parallel while (generated permissions)",
       inputs = examples(s"$wd/parallel_while.pvl"),
-      flags = Seq("--veymont-generate-permissions"),
+      flags = Seq("--generate-permissions"),
     )
 
     // Disabled indefinitely until submethods are enabled again
     // vercors should verify using silicon flags
-    //   "--veymont-generate-permissions" example s"$wd/spectral_norm.pvl"
+    //   "--generate-permissions" example s"$wd/spectral_norm.pvl"
   }
 
   {

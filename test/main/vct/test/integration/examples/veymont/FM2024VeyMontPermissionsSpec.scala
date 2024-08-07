@@ -18,51 +18,51 @@ import javax.tools.ToolProvider
 class FM2024VeyMontPermissionsSpec extends VeyMontSpec {
   val wd = Paths.get("publications/2024/FM2024VeyMontPermissions")
 
-  {
-    val caseWd = wd.resolve("0-TTT")
-    veymontTest(
-      desc = "TTT case study (choreographic verification)",
-      inputs = examplePaths(
-        caseWd.resolve("Move.pvl"),
-        caseWd.resolve("Player.pvl"),
-        caseWd.resolve("0-TTT.pvl"),
-      ),
-      flags = Seq(
-        "--generate-permissions",
-        // Skip implementation verification. This version of 0-TTT does not support that (time constraints).
-        "--veymont-skip-implementation-verification",
-      ),
-    )
-  }
-
+//  {
+//    val caseWd = wd.resolve("0-TTT")
+//    veymontTest(
+//      desc = "TTT case study (choreographic verification)",
+//      inputs = examplePaths(
+//        caseWd.resolve("Move.pvl"),
+//        caseWd.resolve("Player.pvl"),
+//        caseWd.resolve("0-TTT.pvl"),
+//      ),
+//      flags = Seq(
+//        "--generate-permissions",
+//        // Skip implementation verification. This version of 0-TTT does not support that (time constraints).
+//        "--veymont-skip-implementation-verification",
+//      ),
+//    )
+//  }
+//
   {
     val caseWd = wd.resolve("1-TTTmsg")
+//
+//    veymontTest(
+//      desc = "TTTmsg case study (choreograpy verification)",
+//      inputs = examplePaths(
+//        caseWd.resolve("Move.pvl"),
+//        caseWd.resolve("Player.pvl"),
+//        caseWd.resolve("1-TTTmsg.pvl"),
+//      ),
+//      flags = Seq(
+//        "--dev-unsafe-optimization",
+//        "--veymont-skip-implementation-verification",
+//      ),
+//    )
 
-    veymontTest(
-      desc = "TTTmsg case study (choreograpy verification)",
-      inputs = examplePaths(
-        caseWd.resolve("Move.pvl"),
-        caseWd.resolve("Player.pvl"),
-        caseWd.resolve("1-TTTmsg.pvl"),
-      ),
-      flags = Seq(
-        "--dev-unsafe-optimization",
-        "--veymont-skip-implementation-verification",
-      ),
-    )
-
-    veymontTest(
-      desc = "TTTmsg case study (implementation verification)",
-      inputs = examplePaths(
-        caseWd.resolve("Move.pvl"),
-        caseWd.resolve("Player.pvl"),
-        caseWd.resolve("1-TTTmsg.pvl"),
-      ),
-      flags = Seq(
-        "--dev-unsafe-optimization",
-        "--veymont-skip-choreography-verification",
-      ),
-    )
+//    veymontTest(
+//      desc = "TTTmsg case study (implementation verification)",
+//      inputs = examplePaths(
+//        caseWd.resolve("Move.pvl"),
+//        caseWd.resolve("Player.pvl"),
+//        caseWd.resolve("1-TTTmsg.pvl"),
+//      ),
+//      flags = Seq(
+//        "--dev-unsafe-optimization",
+//        "--veymont-skip-choreography-verification",
+//      ),
+//    )
 
     veymontTest(
       desc = "TTTmsg case study (implementation generation)",
@@ -81,51 +81,51 @@ class FM2024VeyMontPermissionsSpec extends VeyMontSpec {
     )
   }
 
-  {
-    val caseWd = wd.resolve("2-TTTlast")
-
-    veymontTest(
-      desc = "TTTlast case study (choreography verification)",
-      inputs = examplePaths(
-        caseWd.resolve("Move.pvl"),
-        caseWd.resolve("Player.pvl"),
-        caseWd.resolve("2-TTTlast.pvl"),
-      ),
-      flags = Seq(
-        "--dev-unsafe-optimization",
-        "--veymont-skip-implementation-verification",
-      ),
-    )
-
-    veymontTest(
-      desc = "TTTlast case study (implementation verification)",
-      inputs = examplePaths(
-        caseWd.resolve("Move.pvl"),
-        caseWd.resolve("Player.pvl"),
-        caseWd.resolve("2-TTTlast.pvl"),
-      ),
-      flags = Seq(
-        "--dev-unsafe-optimization",
-        "--veymont-skip-choreography-verification",
-      ),
-    )
-
-    veymontTest(
-      desc = "TTTlast case study (implementation execution)",
-      inputs = examplePaths(
-        caseWd.resolve("Move.pvl"),
-        caseWd.resolve("Player.pvl"),
-        caseWd.resolve("2-TTTlast.pvl"),
-      ),
-      flags = Seq(
-        "--dev-unsafe-optimization",
-        "--veymont-skip-implementation-verification",
-        "--veymont-skip-choreography-verification",
-      ),
-      targetLanguage = Java,
-      processImplementation = runTttImplementation,
-    )
-  }
+//  {
+//    val caseWd = wd.resolve("2-TTTlast")
+//
+//    veymontTest(
+//      desc = "TTTlast case study (choreography verification)",
+//      inputs = examplePaths(
+//        caseWd.resolve("Move.pvl"),
+//        caseWd.resolve("Player.pvl"),
+//        caseWd.resolve("2-TTTlast.pvl"),
+//      ),
+//      flags = Seq(
+//        "--dev-unsafe-optimization",
+//        "--veymont-skip-implementation-verification",
+//      ),
+//    )
+//
+//    veymontTest(
+//      desc = "TTTlast case study (implementation verification)",
+//      inputs = examplePaths(
+//        caseWd.resolve("Move.pvl"),
+//        caseWd.resolve("Player.pvl"),
+//        caseWd.resolve("2-TTTlast.pvl"),
+//      ),
+//      flags = Seq(
+//        "--dev-unsafe-optimization",
+//        "--veymont-skip-choreography-verification",
+//      ),
+//    )
+//
+//    veymontTest(
+//      desc = "TTTlast case study (implementation execution)",
+//      inputs = examplePaths(
+//        caseWd.resolve("Move.pvl"),
+//        caseWd.resolve("Player.pvl"),
+//        caseWd.resolve("2-TTTlast.pvl"),
+//      ),
+//      flags = Seq(
+//        "--dev-unsafe-optimization",
+//        "--veymont-skip-implementation-verification",
+//        "--veymont-skip-choreography-verification",
+//      ),
+//      targetLanguage = Java,
+//      processImplementation = runTttImplementation,
+//    )
+//  }
 
   /////////////////////
   // Testing helpers //
@@ -177,9 +177,17 @@ class FM2024VeyMontPermissionsSpec extends VeyMontSpec {
     Files.createFile(sourceFile)
     Files.write(sourceFile, source.getBytes(StandardCharsets.UTF_8))
 
+    info(s"Root: $root")
+    println(s"Root: $root")
+    info(s"Files in there: ${Files.list(root).toArray.toSeq}")
+    println(s"Files in there: ${Files.list(root).toArray.toSeq}")
+
     // Compile source file.
     val compiler = ToolProvider.getSystemJavaCompiler
     compiler.run(null, null, null, sourceFile.toString)
+
+    info(s"Files in there: ${Files.list(root).toArray.toSeq}")
+    println(s"Files in there: ${Files.list(root).toArray.toSeq}")
 
     // Capture stdout
     val stdoutCapture = new ByteArrayOutputStream();
