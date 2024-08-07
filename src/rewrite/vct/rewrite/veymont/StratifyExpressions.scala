@@ -39,8 +39,9 @@ case class StratifyExpressions[Pre <: Generation]()
 
     val newProg = prog.rewrite()
     val errors = newProg.check
-    // TODO (RR): if we refactor branches to be nested instead of flat, this check can
-    //   happen directly after LangVeyMontToCol
+    /* TODO (RR): if we refactor branches to be nested instead of flat, this check can
+         happen directly after LangVeyMontToCol. Or we should consider putting the flattening in its own pass,
+         which then also contains the below check */
     val seqBranchErrors = errors.collect { case err: SeqProgParticipant => err }
     if (errors.nonEmpty && errors.length == seqBranchErrors.length) {
       throw SeqProgParticipantErrors(seqBranchErrors)

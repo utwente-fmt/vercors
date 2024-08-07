@@ -304,7 +304,6 @@ case class GenerateImplementation[Pre <: Generation]()
         Local[Post](endpointLocals.ref(endpoint))(expr.o)
       case InEndpoint(_, endpoint, EndpointName(Ref(peer))) =>
         implicit val o = expr.o
-        // TODO (RR): Also need to generate (read) permissions for all these fields!
         Deref[Post](currentThis.top, endpointPeerFields.ref((endpoint, peer)))(
           PanicBlame("Shouldn't happen")
         )
