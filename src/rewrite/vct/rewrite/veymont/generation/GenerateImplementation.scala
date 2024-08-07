@@ -205,7 +205,7 @@ case class GenerateImplementation[Pre <: Generation]()
             )(chor.o)
           )
         }
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
   }
 
