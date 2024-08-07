@@ -206,10 +206,9 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
   }
 
   def processResult(expected: ResultModel, actual: ResultModel): Unit = {
-    println("expected")
-    println(expected)
-    println("actual")
-    println(actual)
+    info(s"Expected: $expected")
+    info(s"Actual: $actual")
+
     def show(res: ResultModel): String =
       res match {
         case R.Fail(Seq(code)) => s"fail with code $code"
@@ -219,10 +218,10 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
         case R.Crash(err) => s"crash with message:\n${err.text}"
         case R.Pass => "pass"
       }
-    if (expected != actual) {
-      fail(
-        s"Expected test result: ${show(expected)}\nActual test result: ${show(actual)}"
-      )
-    } else { println("Test passed") }
+
+    assert(
+      expected == actual,
+      s"Expected test result: ${show(expected)}\nActual test result: ${show(actual)}",
+    )
   }
 }

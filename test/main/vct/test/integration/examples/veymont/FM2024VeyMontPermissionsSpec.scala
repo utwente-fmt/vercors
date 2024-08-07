@@ -13,59 +13,59 @@ import java.io.{
 import java.net.URLClassLoader
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
-import javax.tools.ToolProvider
+import scala.sys.process.Process
 
 class FM2024VeyMontPermissionsSpec extends VeyMontSpec {
   val wd = Paths.get("publications/2024/FM2024VeyMontPermissions")
 
-//  {
-//    val caseWd = wd.resolve("0-TTT")
-//    veymontTest(
-//      desc = "TTT case study (choreographic verification)",
-//      inputs = examplePaths(
-//        caseWd.resolve("Move.pvl"),
-//        caseWd.resolve("Player.pvl"),
-//        caseWd.resolve("0-TTT.pvl"),
-//      ),
-//      flags = Seq(
-//        "--generate-permissions",
-//        // Skip implementation verification. This version of 0-TTT does not support that (time constraints).
-//        "--veymont-skip-implementation-verification",
-//      ),
-//    )
-//  }
-//
+  {
+    val caseWd = wd.resolve("0-TTT")
+    veymontTest(
+      desc = "TTT case study (choreographic verification)",
+      inputs = examplePaths(
+        caseWd.resolve("Move.pvl"),
+        caseWd.resolve("Player.pvl"),
+        caseWd.resolve("0-TTT.pvl"),
+      ),
+      flags = Seq(
+        "--generate-permissions",
+        // Skip implementation verification. This version of 0-TTT does not support that (time constraints).
+        "--veymont-skip-implementation-verification",
+      ),
+    )
+  }
+
   {
     val caseWd = wd.resolve("1-TTTmsg")
-//
-//    veymontTest(
-//      desc = "TTTmsg case study (choreograpy verification)",
-//      inputs = examplePaths(
-//        caseWd.resolve("Move.pvl"),
-//        caseWd.resolve("Player.pvl"),
-//        caseWd.resolve("1-TTTmsg.pvl"),
-//      ),
-//      flags = Seq(
-//        "--dev-unsafe-optimization",
-//        "--veymont-skip-implementation-verification",
-//      ),
-//    )
-
-//    veymontTest(
-//      desc = "TTTmsg case study (implementation verification)",
-//      inputs = examplePaths(
-//        caseWd.resolve("Move.pvl"),
-//        caseWd.resolve("Player.pvl"),
-//        caseWd.resolve("1-TTTmsg.pvl"),
-//      ),
-//      flags = Seq(
-//        "--dev-unsafe-optimization",
-//        "--veymont-skip-choreography-verification",
-//      ),
-//    )
 
     veymontTest(
-      desc = "TTTmsg case study (implementation generation)",
+      desc = "TTTmsg case study (choreograpy verification)",
+      inputs = examplePaths(
+        caseWd.resolve("Move.pvl"),
+        caseWd.resolve("Player.pvl"),
+        caseWd.resolve("1-TTTmsg.pvl"),
+      ),
+      flags = Seq(
+        "--dev-unsafe-optimization",
+        "--veymont-skip-implementation-verification",
+      ),
+    )
+
+    veymontTest(
+      desc = "TTTmsg case study (implementation verification)",
+      inputs = examplePaths(
+        caseWd.resolve("Move.pvl"),
+        caseWd.resolve("Player.pvl"),
+        caseWd.resolve("1-TTTmsg.pvl"),
+      ),
+      flags = Seq(
+        "--dev-unsafe-optimization",
+        "--veymont-skip-choreography-verification",
+      ),
+    )
+
+    veymontTest(
+      desc = "TTTmsg case study (implementation execution)",
       inputs = examplePaths(
         caseWd.resolve("Move.pvl"),
         caseWd.resolve("Player.pvl"),
@@ -81,51 +81,51 @@ class FM2024VeyMontPermissionsSpec extends VeyMontSpec {
     )
   }
 
-//  {
-//    val caseWd = wd.resolve("2-TTTlast")
-//
-//    veymontTest(
-//      desc = "TTTlast case study (choreography verification)",
-//      inputs = examplePaths(
-//        caseWd.resolve("Move.pvl"),
-//        caseWd.resolve("Player.pvl"),
-//        caseWd.resolve("2-TTTlast.pvl"),
-//      ),
-//      flags = Seq(
-//        "--dev-unsafe-optimization",
-//        "--veymont-skip-implementation-verification",
-//      ),
-//    )
-//
-//    veymontTest(
-//      desc = "TTTlast case study (implementation verification)",
-//      inputs = examplePaths(
-//        caseWd.resolve("Move.pvl"),
-//        caseWd.resolve("Player.pvl"),
-//        caseWd.resolve("2-TTTlast.pvl"),
-//      ),
-//      flags = Seq(
-//        "--dev-unsafe-optimization",
-//        "--veymont-skip-choreography-verification",
-//      ),
-//    )
-//
-//    veymontTest(
-//      desc = "TTTlast case study (implementation execution)",
-//      inputs = examplePaths(
-//        caseWd.resolve("Move.pvl"),
-//        caseWd.resolve("Player.pvl"),
-//        caseWd.resolve("2-TTTlast.pvl"),
-//      ),
-//      flags = Seq(
-//        "--dev-unsafe-optimization",
-//        "--veymont-skip-implementation-verification",
-//        "--veymont-skip-choreography-verification",
-//      ),
-//      targetLanguage = Java,
-//      processImplementation = runTttImplementation,
-//    )
-//  }
+  {
+    val caseWd = wd.resolve("2-TTTlast")
+
+    veymontTest(
+      desc = "TTTlast case study (choreography verification)",
+      inputs = examplePaths(
+        caseWd.resolve("Move.pvl"),
+        caseWd.resolve("Player.pvl"),
+        caseWd.resolve("2-TTTlast.pvl"),
+      ),
+      flags = Seq(
+        "--dev-unsafe-optimization",
+        "--veymont-skip-implementation-verification",
+      ),
+    )
+
+    veymontTest(
+      desc = "TTTlast case study (implementation verification)",
+      inputs = examplePaths(
+        caseWd.resolve("Move.pvl"),
+        caseWd.resolve("Player.pvl"),
+        caseWd.resolve("2-TTTlast.pvl"),
+      ),
+      flags = Seq(
+        "--dev-unsafe-optimization",
+        "--veymont-skip-choreography-verification",
+      ),
+    )
+
+    veymontTest(
+      desc = "TTTlast case study (implementation execution)",
+      inputs = examplePaths(
+        caseWd.resolve("Move.pvl"),
+        caseWd.resolve("Player.pvl"),
+        caseWd.resolve("2-TTTlast.pvl"),
+      ),
+      flags = Seq(
+        "--dev-unsafe-optimization",
+        "--veymont-skip-implementation-verification",
+        "--veymont-skip-choreography-verification",
+      ),
+      targetLanguage = Java,
+      processImplementation = runTttImplementation,
+    )
+  }
 
   /////////////////////
   // Testing helpers //
@@ -144,8 +144,8 @@ class FM2024VeyMontPermissionsSpec extends VeyMontSpec {
     val patched = Patch.applyAll(patches, source)
     val testScript = Files.readString(scriptFile)
     val output = runJava(testScript, patched)
-    println("== output ==")
-    println(output)
+    info("== Executed code output ==")
+    info(output)
     assert(output == """p1:
                        |0 1 0
                        |1 0 1
@@ -177,24 +177,11 @@ class FM2024VeyMontPermissionsSpec extends VeyMontSpec {
     Files.createFile(sourceFile)
     Files.write(sourceFile, source.getBytes(StandardCharsets.UTF_8))
 
-    info(s"Root: $root")
-    println(s"Root: $root")
-    info(s"Files in there: ${Files.list(root).toArray.toSeq}")
-    println(s"Files in there: ${Files.list(root).toArray.toSeq}")
-
     // Compile source file.
-    val compiler = ToolProvider.getSystemJavaCompiler
-    // Maybe capture IO here and print?
-    val outStream = new ByteArrayOutputStream()
-    val errStream = new ByteArrayOutputStream()
-    compiler.run(null, outStream, errStream, sourceFile.toString)
-    println(s"-- out --\n${outStream.toString}")
-    info(s"-- out --\n${outStream.toString}")
-    println(s"-- err --\n${errStream.toString}")
-    info(s"-- err --\n${errStream.toString}")
-
-    info(s"Files in there: ${Files.list(root).toArray.toSeq}")
-    println(s"Files in there: ${Files.list(root).toArray.toSeq}")
+    info(
+      s"Invoking javac to compile generated code; expecting it to be available, otherwise this test will fail."
+    )
+    Process(Seq("javac", sourceFile.toString), sourceFile.getParent.toFile).!
 
     // Capture stdout
     val stdoutCapture = new ByteArrayOutputStream();
