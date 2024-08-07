@@ -168,7 +168,7 @@ class FM2024VeyMontPermissionsSpec extends VeyMontSpec {
     *   Imports at the beginning are supported.
     */
   def runJava(script: String, declarations: String): String = {
-    val cls = "ScriptContainer$"
+    val cls = "MyScriptContainer"
     val source = s"$declarations\n\npublic class $cls { static { $script } }"
 
     // Save source in .java file.
@@ -184,7 +184,14 @@ class FM2024VeyMontPermissionsSpec extends VeyMontSpec {
 
     // Compile source file.
     val compiler = ToolProvider.getSystemJavaCompiler
-    compiler.run(null, null, null, sourceFile.toString)
+    // Maybe capture IO here and print?
+    val outStream = new ByteArrayOutputStream()
+    val errStream = new ByteArrayOutputStream()
+    compiler.run(null, outStream, errStream, sourceFile.toString)
+    println(s"-- out --\n${outStream.toString}")
+    info(s"-- out --\n${outStream.toString}")
+    println(s"-- err --\n${errStream.toString}")
+    info(s"-- err --\n${errStream.toString}")
 
     info(s"Files in there: ${Files.list(root).toArray.toSeq}")
     println(s"Files in there: ${Files.list(root).toArray.toSeq}")
