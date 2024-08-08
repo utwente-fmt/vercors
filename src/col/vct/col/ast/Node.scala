@@ -1878,6 +1878,10 @@ final case class NewConstPointerArray[G](element: Type[G], size: Expr[G])(
 )(implicit val o: Origin)
   extends NewPointer[G] with NewConstPointerArrayImpl[G]
 
+final case class UniquePointerCoercion[G](e: Expr[G], t: Type[G])(
+  implicit val o: Origin
+) extends Expr[G] with UniquePointerCoercionImpl[G]
+
 final case class FreePointer[G](pointer: Expr[G])(
     val blame: Blame[PointerFreeError]
 )(implicit val o: Origin)

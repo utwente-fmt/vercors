@@ -1,7 +1,7 @@
 package vct.col.typerules
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.util.FuncTools
+import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.ast.rewrite.BaseCoercingRewriter
 import vct.col.ast.`type`.typeclass.TFloats
@@ -53,6 +53,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
   import CoercingRewriter._
 
   type Post = Rewritten[Pre]
+  val resultType: ScopedStack[Type[Pre]] = ScopedStack()
 
   val coercedDeclaration: SuccessionMap[Declaration[Pre], Declaration[Pre]] =
     SuccessionMap()
@@ -375,9 +376,16 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def postCoerce(decl: Declaration[Pre]): Unit =
     allScopes.anySucceed(decl, decl.rewriteDefault())
   override final def dispatch(decl: Declaration[Pre]): Unit = {
-    val coercedDecl = coerce(preCoerce(decl))
-    coercedDeclaration(decl) = coercedDecl
-    postCoerce(coercedDecl)
+    def rewrite() : Unit = {
+      val coercedDecl = coerce(preCoerce(decl))
+      coercedDeclaration(decl) = coercedDecl
+      postCoerce(coercedDecl)
+    }
+    decl match {
+      case m: AbstractMethod[Pre] =>
+        resultType.having(m.returnType)({rewrite()})
+      case _ => rewrite()
+    }
   }
 
   def coerce(node: Coercion[Pre]): Coercion[Pre] = {
@@ -1981,6 +1989,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           UMinus(float(arg)),
           UMinus(rat(arg)),
         )
+      case u: UniquePointerCoercion[Pre] => u
       case u @ Unfolding(pred, body) => Unfolding(pred, body)(u.blame)
       case UntypedLiteralBag(values) =>
         val sharedType = Types.leastCommonSuperType(values.map(_.t))
@@ -2251,7 +2260,11 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Recv(ref) => Recv(ref)
       case r @ Refute(assn) => Refute(res(assn))(r.blame)
       case Return(result) =>
-        Return(result) // TODO coerce return, make AmbiguousReturn?
+        if(resultType.nonEmpty){
+          Return(coerce(result, resultType.top)) // TODO coerce return, make AmbiguousReturn?
+        } else {
+          Return(result)
+        }
       case Scope(locals, body) => Scope(locals, body)
       case send @ Send(decl, offset, resource) =>
         Send(decl, offset, res(resource))(send.blame)

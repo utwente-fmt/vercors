@@ -120,10 +120,14 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
   ): (Procedure[Post], FreePointer[Pre] => PointerFreeFailed[Pre]) = {
     implicit val o: Origin = freeFuncOrigin
     var errors: Seq[Expr[Pre] => PointerFreeError] = Seq()
+    val innerT = t match {
+      case TPointer(it) => it
+      case TUniquePointer(it, _) => it
+    }
 
     val proc = globalDeclarations.declare({
       val (vars, ptr) = variables.collect {
-        val a_var = new Variable[Post](TPointer(t))(o.where(name = "p"))
+        val a_var = new Variable[Post](t)(o.where(name = "p"))
         variables.declare(a_var)
         Local[Post](a_var.ref)
       }
@@ -179,7 +183,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           IteratedPtrInjective,
         )
       requiresT =
-        if (!typeIsRef(t))
+        if (!typeIsRef(innerT))
           requiresT
         else {
           // I think this error actually can never happen, since we require full write permission already
@@ -192,7 +196,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       // If structure contains structs, the permission for those fields need to be released as well
       val permFields =
         t match {
-          case t: TClass[Post] => unwrapStructPerm(access, t, o, makeStruct)
+          case innerT: TClass[Post] => unwrapStructPerm(access, innerT, o, makeStruct)
           case _ => Seq()
         }
       requiresT =
@@ -213,7 +217,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         body = None,
         requires = requiresPred,
         decreases = Some(DecreasesClauseNoRecursion[Post]()),
-      )(o.where("free_" + t.toString))
+      )(o.where("free_" + innerT.toString))
     })
     (proc, (node: FreePointer[Pre]) => PointerFreeFailed(node, errors))
   }
@@ -633,8 +637,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         )(PointerArrayCreationFailed(ncpa))
       case free @ FreePointer(xs) =>
         val newXs = dispatch(xs)
-        val TPointer(t) = newXs.t
-        val (freeFunc, freeBlame) = freeMethods.getOrElseUpdate(t, makeFree(t))
+        val (freeFunc, freeBlame) = freeMethods.getOrElseUpdate(newXs.t, makeFree(newXs.t))
         ProcedureInvocation[Post](freeFunc.ref, Seq(newXs), Nil, Nil, Nil, Nil)(
           freeBlame(free)
         )(free.o)

@@ -35,6 +35,7 @@ import vct.rewrite.{
   MonomorphizeClass,
   SmtlibToProverTypes,
   TypeQualifierCoercion,
+  MakeUniqueMethodCopies,
 }
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont._
@@ -306,6 +307,7 @@ case class SilverTransformation(
         ReplaceSYCLTypes,
         CFloatIntCoercion,
         TypeQualifierCoercion,
+        MakeUniqueMethodCopies,
         ComputeBipGlue,
         InstantiateBipSynchronizations,
         EncodeBipPermissions,

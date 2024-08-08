@@ -13,14 +13,28 @@ case object CoercionUtils {
   def getCoercion[G](source: Type[G], target: Type[G]): Option[Coercion[G]] =
     getAnyCoercion(source, target).filter(_.isCPromoting)
 
+  // We don't want pointers to coerce just between anything, just some things we allow
   def getPointerCoercion[G](source: Type[G], target: Type[G], innerSource: Type[G], innerTarget: Type[G]) : Option[Coercion[G]] = {
     Some((innerSource, innerTarget) match {
-      case (i,l) if i == l => CoerceIdentity(source)
-      case (TUnique(l, lId), TUnique(r, rId)) =>
+      case (l,r) if l == r => CoerceIdentity(source)
+      case (TCInt(), TInt()) => CoerceIdentity(source)
+      case (CPrimitiveType(specs), r) =>
+        specs.collectFirst { case spec: CSpecificationType[G] => spec } match {
+          case Some(CSpecificationType(t)) =>
+            return getPointerCoercion(source, target, t, r)
+          case None => return None
+        }
+      case (l, CPrimitiveType(specs)) =>
+        specs.collectFirst { case spec: CSpecificationType[G] => spec } match {
+          case Some(CSpecificationType(t)) =>
+            return getPointerCoercion(source, target, l, t)
+          case None => return None
+        }
+      case (TUnique(l, _), TUnique(r, _)) =>
         if(l == r) CoerceBetweenUniquePointer(source, target) else return None
-      case (TUnique(l, lId), r) =>
+      case (TUnique(l, _), r) =>
         if(l == r) CoerceFromUniquePointer(source, target) else return None
-      case (TUnique(l, lId), r) =>
+      case (l, TUnique(r, _)) =>
         if(l == r) CoerceToUniquePointer(source, target) else return None
       case _ => return None
     })
