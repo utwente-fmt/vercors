@@ -388,6 +388,22 @@ case object Options {
           .text("Output Java file")
       ),
       note(""),
+      note("Patcher mode"),
+      opt[Unit]("patcher").action((_, c) => c.copy(mode = Mode.Patcher)).text(
+        "Patches a file given a patch in the custom VerCors patch format."
+      ).children(
+        opt[Path]("patch-file").valueName("<path>").required()
+          .action((path, c) => c.copy(patchFile = path))
+          .text("Path to patch file to apply"),
+        opt[Path]("patch-output").valueName("<path>").required().action(
+          (path, c) => c.copy(patchOutput = path)
+        ).text(
+          "Output path. If the patcher is given only one input, this is interpeted as a file destination." +
+            " " +
+            "If the patcher is given multiple inputs, this is interpreted as a directory path."
+        ),
+      ),
+      note(""),
       note(""),
       arg[PathOrStd]("<path>...").unbounded().optional()
         .action((path, c) => c.copy(inputs = c.inputs :+ path))
@@ -501,6 +517,10 @@ case class Options(
 
     // Compile options
     compileOutput: Option[Path] = None,
+
+    // Patch options
+    patchFile: Path = null,
+    patchOutput: Path = null,
 ) {
   def getParserDebugOptions: vct.parsers.debug.DebugOptions =
     vct.parsers.debug.DebugOptions(

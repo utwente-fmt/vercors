@@ -578,7 +578,6 @@ object vercors extends Module {
       "carbon" -> "viper.carbon.Carbon",
       "silicon" -> "viper.silicon.SiliconRunner",
       "bashOptions" -> "vct.options.BashCompletion",
-      "patcher" -> "hre.util.Patch",
     ) }
     override def packedResources = T.sources()
     override def bareResourcePaths = T {

@@ -14,7 +14,7 @@ import java.nio.file.Paths
 case object Compile extends LazyLogging {
   def runOptions(options: Options): Int = {
     if (options.inputs.isEmpty) {
-      logger.warn("No inputs found, not compiling anything")
+      logger.warn("No inputs given, not compiling anything")
     }
 
     val collector = BlameCollector()
