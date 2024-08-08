@@ -1005,11 +1005,11 @@ case class CToCol[G](
   def convert(t: TypeSpecifierWithPointerOrArrayContext): Type[G] =
     t match {
       case TypeSpecifierWithPointerOrArray0(typeSpec) =>
-        CPrimitiveType(Seq(convert(typeSpec)))
+        CPrimitiveType(convert(typeSpec))
       case TypeSpecifierWithPointerOrArray1(typeSpec, _, _) =>
-        CTArray(None, CPrimitiveType(Seq(convert(typeSpec))))(blame(t))
+        CTArray(None, CPrimitiveType(convert(typeSpec)))(blame(t))
       case TypeSpecifierWithPointerOrArray2(typeSpec, _) =>
-        CTPointer(CPrimitiveType(Seq(convert(typeSpec))))
+        CTPointer(CPrimitiveType(convert(typeSpec)))
     }
 
   def convert(id: LangIdContext): String =

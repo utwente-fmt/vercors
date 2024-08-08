@@ -251,12 +251,13 @@ case class MakeUniqueMethodCopies[Pre <: Generation]()
   }
 
   // Same for functions
-  def createAbstractFunctionCopy(original: Function[Pre], typeCoerced: Map[Type[Pre], Type[Post]]): Function[Post] = {
+  def createFunctionCopy(original: Function[Pre], typeCoerced: Map[Type[Pre], Type[Post]]): Function[Post] = {
     methodCopyTypes.having(typeCoerced) {
       globalDeclarations.declare({
         // Subtle, need to create variable scope, otherwise variables are already 'succeeded' in different copies.
         variables.scope({
-          original.rewrite(body = None)
+          // We do copy body, otherwise functions could be different.
+          original.rewrite()
         })
       })
     }
@@ -279,13 +280,46 @@ case class MakeUniqueMethodCopies[Pre <: Generation]()
     inv.rewrite(ref = newProc.ref, args=newArgs, outArgs=newOutArgs)
   }
 
+  def rewriteFunctionInvocation(inv: FunctionInvocation[Pre], returnCoercion: Option[UniqueCoercion], anyReturnPointer: Boolean = false): FunctionInvocation[Post] = {
+    val f = inv.ref.decl
+    val allArgs: Seq[Args] = Seq(addArgs(f.args, inv.args))
+    if(argsNoCoercions(allArgs) && returnCoercion.isEmpty){
+      if(methodCopyTypes.nonEmpty){
+        val map = methodCopyTypes.top
+        // So we are already coercing. Let's see if we need to change anything.
+        if(f.args.exists(v => map.contains(v.t)) || map.contains(f.returnType) ) {
+          // So yes, we just use the same map we were already using
+          val newFunc: Function[Post] =
+            abstractFunction.getOrElseUpdate((f, map), createFunctionCopy(f, map))
+          val newArgs = removeCoercions(inv.args)
+          return inv.rewrite(ref = newFunc.ref, args=newArgs)
+        }
+      }
+
+      return inv.rewriteDefault()
+    }
+    // Coercing a function call, whilst we are already coercing seems quite complicated.
+    // So let's not do that for now.
+    if(methodCopyTypes.nonEmpty) throw DisallowedQualifiedMethodCoercion(inv.o)
+
+    if(callee.top == f) throw DisallowedQualifiedMethodCoercion(inv.o)
+    // Yields and givens are not supported for now (is possible)
+    if(inv.givenMap.nonEmpty || inv.yields.nonEmpty) throw DisallowedQualifiedMethodCoercion(inv.o)
+
+    val map = getCoercionMapAndCheck(allArgs, f.returnType, returnCoercion, anyReturnPointer, inv.o, f.body, f)
+    val newFunc: Function[Post] =
+      abstractFunction.getOrElseUpdate((f, map), createFunctionCopy(f, map))
+    val newArgs = removeCoercions(inv.args)
+    inv.rewrite(ref = newFunc.ref, args=newArgs)
+  }
+
   // For AmbiguousSubscript / DerefPointer we do not care about how the return type is coerced
   // so if we encounter invocations we communicate that.
   def rewriteAnyPointerReturn(e: Expr[Pre]): Expr[Post] = e match {
     case inv: ProcedureInvocation[Pre] =>
       rewriteProcedureInvocation(inv, None, anyReturnPointer=true)
-//    case inv: FunctionInvocation[Pre] =>
-//      rewriteFunctionInvocation(inv, None, anyReturnPointer=true)
+    case inv: FunctionInvocation[Pre] =>
+      rewriteFunctionInvocation(inv, None, anyReturnPointer=true)
     case e => dispatch(e)
   }
 
@@ -294,8 +328,9 @@ case class MakeUniqueMethodCopies[Pre <: Generation]()
     case inv: ProcedureInvocation[Pre] =>
       val returnCoercion = Some(UniqueCoercion(target, inv.t))
       rewriteProcedureInvocation(inv, returnCoercion)
-//    case inv: FunctionInvocation[Pre] =>
-    //      rewriteFunctionInvocation(inv, None, anyReturnPointer=true)
+    case inv: FunctionInvocation[Pre] =>
+      val returnCoercion = Some(UniqueCoercion(target, inv.t))
+          rewriteFunctionInvocation(inv, returnCoercion)
     case am@AmbiguousMinus(pointer, _) => am.rewrite(left=rewriteCoerce(pointer, target))
     case am@AmbiguousPlus(pointer, _) => am.rewrite(left=rewriteCoerce(pointer, target))
     case e => throw DisallowedQualifiedCoercion(e.o, e.t, target)
@@ -304,19 +339,8 @@ case class MakeUniqueMethodCopies[Pre <: Generation]()
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
-      case inv@FunctionInvocation(f, args, typeArgs, givenMap, yields) =>
-        val allArgs: Seq[Args] = Seq(addArgs(f.decl.args, args))
-        if(argsNoCoercions(allArgs)) return inv.rewriteDefault()
-        if(callee.top == inv.ref.decl) throw DisallowedQualifiedMethodCoercion(inv.o)
-        // Yields and givens are not supported
-        if(givenMap.nonEmpty || yields.nonEmpty) throw DisallowedQualifiedMethodCoercion(inv.o)
-
-        val map = getCoercionMapAndCheck(allArgs, f.decl.returnType, ???, ???, inv.o, f.decl.body, f.decl)
-        // Make sure we only create one copy per coercion mapping
-        val newFunc: Function[Post] =
-          abstractFunction.getOrElseUpdate((f.decl, map), createAbstractFunctionCopy(f.decl, map))
-        val newArgs = removeCoercions(args)
-        inv.rewrite(ref = newFunc.ref, args=newArgs)
+      case inv: FunctionInvocation[Pre] =>
+        rewriteFunctionInvocation(inv, None)
       case inv: ProcedureInvocation[Pre] =>
         rewriteProcedureInvocation(inv, None)
       // So this is awkward, but...

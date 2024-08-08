@@ -340,4 +340,50 @@ int f(int n, /*@ unique<1> @*/ int* x0, int* x1){
 /*@ unique<1> @*/ int* h(int /*@ unique<2> @*/ * y){
   return NULL;
 }"""
+
+  vercors should verify using silicon in "Call function in contract, which needs coercion" c """/*@
+  context n > 0;
+  context x0 != NULL ** \pointer_length(x0) == n ** (\forall* int i; 0<=i && i<n; Perm(&x0[i], 1\2));
+  context x1 != NULL ** \pointer_length(x1) == n ** (\forall* int i; 0<=i && i<n; Perm(&x1[i], 1\2));
+  @*/
+  int f(int n, /*@ unique<1> @*/ int* x0, /*@ unique<2> @*/ int* x1){
+    //@ assert h(x0, x1) == x0[0] + x1[0];
+    //@ assert g(x0, x1) == x0[0] + x1[0];
+    return 0;
+  }
+
+  /*@
+    context x0 != NULL ** \pointer_length(x0) > 0 ** Perm(&x0[0], 1\4);
+    context x1 != NULL ** \pointer_length(x1) > 0 ** Perm(&x1[0], 1\4);
+    ensures \result == h(x0, x1);
+  @*/
+  int g(int* x0, /*@ unique<2> @*/ int* x1){
+    return x0[0] + x1[0];
+  }
+
+
+  /*@
+    requires x != NULL ** \pointer_length(x) > 0 ** Perm(&x[0], 1\4);
+    requires y != NULL ** \pointer_length(y) > 0 ** Perm(&y[0], 1\4);
+    ensures \result == x[0]+y[0];
+  pure int h(int* x, unique<2>int * y) = x[0]+y[0];
+  @*/
+"""
+
+  vercors should verify using silicon in "Call non-unique function" c """/*@
+  context n > 0;
+  context x0 != NULL ** \pointer_length(x0) == n ** (\forall* int i; 0<=i && i<n; Perm(&x0[i], 1\2));
+  context x1 != NULL ** \pointer_length(x1) == n ** (\forall* int i; 0<=i && i<n; Perm(&x1[i], 1\2));
+  @*/
+  int f(int n, /*@ unique<1> @*/ int* x0, /*@ unique<2> @*/ int* x1){
+    //@ assert h(x0) + h(x1) == x0[0] + x1[0];
+    return 0;
+  }
+
+  /*@
+    requires x != NULL ** \pointer_length(x) > 0 ** Perm(&x[0], 1\2);
+    ensures \result == x[0];
+  pure int h(int* x) = x[0];
+  @*/
+  """
 }
