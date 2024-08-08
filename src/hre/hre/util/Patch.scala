@@ -60,9 +60,25 @@ case object Patch {
   }
 
   def main(args: Array[String]): Unit = {
-    println(fromFile(Paths.get(
-      "examples/concepts/veymont/FM2024 - VeyMont/1-TTTmsg/testFiles/1-TTTmsg-patches.txt"
-    )))
+    if (args.length != 3) {
+      println(
+        "Incorrect number of arguments. Expected usage: `patcher [patch path] [input path] [output path]`"
+      )
+      return
+    }
+
+    val patchFile = Paths.get(args(0))
+    val inFile = Paths.get(args(1))
+    val outFile = Paths.get(args(2))
+
+    Files.writeString(
+      outFile,
+      applyAll(Patch.fromFile(patchFile), Files.readString(inFile)),
+    )
+
+    println(
+      s"Patched $inFile with patch in $patchFile and wrote result to $outFile"
+    )
   }
 
   def applyAll(patches: Seq[Patch], source: String): String =
