@@ -217,41 +217,44 @@ object VeyMont extends LazyLogging {
 
   // Main VeyMont entry point for human users. Acquires inputs from options object.
   def runOptions(options: Options): Int =
-    ofOptions(options, options.inputs) match {
-      case Left(err: VerificationError.UserError) =>
-        logger.error(err.text)
-        EXIT_CODE_ERROR
-      case Left(err: VerificationError.SystemError) =>
-        logger.error(CollectString(s => err.printStackTrace(s)))
-        EXIT_CODE_ERROR
-      case Right(result) =>
-        result match {
-          case ChoreographyResult(_, fails) if fails.nonEmpty =>
-            logger.error("Verification of choreography failed")
-            if (options.more || fails.size <= 2)
-              fails.foreach(fail => logger.error(fail.desc))
-            else {
-              logger.info(
-                "Printing verification results as a compressed table. Run with `--more` for verbose verification results."
-              )
-              logger.error(TableEntry.render(fails.map(_.asTableEntry)))
-            }
-            EXIT_CODE_VERIFICATION_FAILURE
-          case ChoreographyResult(_, _) => EXIT_CODE_SUCCESS
-          case GenerateResult(_) => EXIT_CODE_SUCCESS
-          case ImplementationResult(fails) if fails.nonEmpty =>
-            logger.error("Verification of generated implementation failed")
-            if (options.more || fails.size <= 2)
-              fails.foreach(fail => logger.error(fail.desc))
-            else {
-              logger.info(
-                "Printing verification results as a compressed table. Run with `--more` for verbose verification results."
-              )
-              logger.error(TableEntry.render(fails.map(_.asTableEntry)))
-            }
-            EXIT_CODE_VERIFICATION_FAILURE
-          case ImplementationResult(_) => EXIT_CODE_SUCCESS
-        }
-    }
+    logTime(
+      "VeyMont",
+      ofOptions(options, options.inputs) match {
+        case Left(err: VerificationError.UserError) =>
+          logger.error(err.text)
+          EXIT_CODE_ERROR
+        case Left(err: VerificationError.SystemError) =>
+          logger.error(CollectString(s => err.printStackTrace(s)))
+          EXIT_CODE_ERROR
+        case Right(result) =>
+          result match {
+            case ChoreographyResult(_, fails) if fails.nonEmpty =>
+              logger.error("Verification of choreography failed")
+              if (options.more || fails.size <= 2)
+                fails.foreach(fail => logger.error(fail.desc))
+              else {
+                logger.info(
+                  "Printing verification results as a compressed table. Run with `--more` for verbose verification results."
+                )
+                logger.error(TableEntry.render(fails.map(_.asTableEntry)))
+              }
+              EXIT_CODE_VERIFICATION_FAILURE
+            case ChoreographyResult(_, _) => EXIT_CODE_SUCCESS
+            case GenerateResult(_) => EXIT_CODE_SUCCESS
+            case ImplementationResult(fails) if fails.nonEmpty =>
+              logger.error("Verification of generated implementation failed")
+              if (options.more || fails.size <= 2)
+                fails.foreach(fail => logger.error(fail.desc))
+              else {
+                logger.info(
+                  "Printing verification results as a compressed table. Run with `--more` for verbose verification results."
+                )
+                logger.error(TableEntry.render(fails.map(_.asTableEntry)))
+              }
+              EXIT_CODE_VERIFICATION_FAILURE
+            case ImplementationResult(_) => EXIT_CODE_SUCCESS
+          }
+      },
+    )
 
 }
