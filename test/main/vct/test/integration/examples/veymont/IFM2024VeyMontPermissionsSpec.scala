@@ -15,8 +15,8 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import scala.sys.process.Process
 
-class FM2024VeyMontPermissionsSpec extends VeyMontSpec {
-  val wd = Paths.get("publications/2024/FM2024VeyMontPermissions")
+class IFM2024VeyMontPermissionsSpec extends VeyMontSpec {
+  val wd = Paths.get("publications/2024/IFM2024VeyMontPermissions")
 
   {
     val caseWd = wd.resolve("0-TTT")

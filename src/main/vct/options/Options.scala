@@ -321,8 +321,9 @@ case object Options {
           )
         ),
         opt[Path]("veymont-output").valueName("<path>")
-          .action((path, c) => c.copy(veymontOutput = Some(path)))
-          .text("Indicates output path for generated implementation"),
+          .action((path, c) => c.copy(veymontOutput = Some(path))).text(
+            "Indicates output path for generated implementation. The extension decides the output language: `.pvl` is PVL, `.java` is Java."
+          ),
         opt[Path]("veymont-resource-path").valueName("<path>")
           .action((path, c) => c.copy(veymontResourcePath = path)),
         opt[Unit]("veymont-skip-choreography-verification")
