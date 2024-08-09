@@ -16,7 +16,7 @@ choreography Example() {
   ensures Perm[alice](alice.x, 1) ** (\[alice] alice.x == 4);
   run {
     bob: alice.x := alice.x + 1;
-    channel_invariant Perm(alice.x, 1) ** alice.x == 3;
+    channel_invariant Perm(\receiver.x, 1) ** \receiver.x == 3;
     communicate bob.temp -> alice.temp;
     alice.x := alice.x + 1;
   }

@@ -9,4 +9,6 @@ case object Mode {
   case object VeyMont extends Mode
   case object VeSUV extends Mode
   case object CFG extends Mode
+  case object Compile extends Mode
+  case object Patcher extends Mode
 }

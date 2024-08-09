@@ -1,84 +1,18 @@
-package vct.rewrite.veymont
+package vct.rewrite.veymont.verification
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{
-  Assert,
-  Assign,
-  Block,
-  BooleanValue,
-  ChorExpr,
-  ChorPerm,
-  ChorRun,
-  Choreography,
-  Class,
-  Communicate,
-  CommunicateStatement,
-  Constructor,
-  ConstructorInvocation,
-  Declaration,
-  Deref,
-  Endpoint,
-  EndpointExpr,
-  EndpointName,
-  EndpointStatement,
-  Eval,
-  Exhale,
-  Expr,
-  FieldLocation,
-  Inhale,
-  InstanceField,
-  InstanceMethod,
-  InstancePredicate,
-  IterationContract,
-  Local,
-  LoopContract,
-  LoopInvariant,
-  Message,
-  Perm,
-  Program,
-  Receiver,
-  Result,
-  Scope,
-  Sender,
-  Statement,
-  TClass,
-  TVar,
-  ThisObject,
-  Type,
-  Value,
-  Variable,
-}
-import vct.col.origin.{
-  AssertFailed,
-  AssignLocalOk,
-  Blame,
-  ChannelInvariantNotEstablished,
-  ChannelInvariantNotEstablishedLocally,
-  ExhaleFailed,
-  Name,
-  Origin,
-  PanicBlame,
-  SourceName,
-}
+import vct.col.ast._
+import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
-import vct.col.rewrite.adt.ImportADTImporter
-import vct.col.rewrite.{
-  Generation,
-  Rewriter,
-  RewriterBuilder,
-  RewriterBuilderArg,
-}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
-import vct.rewrite.veymont.EncodeChannels.{
+import vct.rewrite.veymont.VeymontContext
+import vct.rewrite.veymont.verification.EncodeChannels.{
   AssertFailedToChannelInvariantNotEstablished,
   ExhaleFailedToChannelInvariantNotEstablished,
 }
-import vct.rewrite.veymont.EncodeChoreography.AssertFailedToParticipantsNotDistinct
-
-import scala.collection.mutable
-import scala.reflect.ClassTag
 
 object EncodeChannels extends RewriterBuilder {
   override def key: String = "encodeChannels"
@@ -105,6 +39,11 @@ case class EncodeChannels[Pre <: Generation]()
   val msgSucc = SuccessionMap[Communicate[Pre], Variable[Post]]()
   val includeChorExpr = ScopedStack[Boolean]()
   val substitutions = ScopedStack[Map[Expr[Pre], Expr[Post]]]()
+
+  override def dispatch(p: Program[Pre]): Program[Post] = {
+    mappings.program = p
+    super.dispatch(p)
+  }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {

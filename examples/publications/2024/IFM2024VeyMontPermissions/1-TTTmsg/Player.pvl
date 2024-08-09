@@ -1,32 +1,16 @@
-class Returner {
-  int mark;
-}
-
 class Player {
 
   int c00, c01, c02, c10, c11, c12, c20, c21, c22;
   int myMark;
   Move move;
-  boolean turn;
-  Returner returner;
-  
+  boolean turn, temp;
+
   inline resource boardPerm() = 
       Perm(c00, 1) ** Perm(c01, 1) ** Perm(c02, 1) ** 
       Perm(c10, 1) ** Perm(c11, 1) ** Perm(c12, 1) ** 
       Perm(c20, 1) ** Perm(c21, 1) ** Perm(c22, 1);
 
-  inline resource returnerBound(Player other) = true
-    ** Perm(returner, write)
-    ** Perm(other.returner, write)
-    ** returner == other.returner
-    ;
-
-  inline resource returnerMark() = true
-    ** Perm(returner.mark, write) 
-    ** (returner.mark == 0 || returner.mark == 1)
-    ;
-
-  requires [1\2]boardPerm();
+  requires [1\100]boardPerm();
   pure boolean emptyBoard() = 
     c00 == -1 && c01 == -1 && c02 == -1 && 
     c10 == -1 && c11 == -1 && c12 == -1 && 
@@ -37,11 +21,11 @@ class Player {
   ensures emptyBoard();
   ensures Perm(myMark, write);
   ensures Perm(move, 1);
-  ensures move.state();
   ensures myMark == tok;
   ensures myMark == 0 || myMark == 1;
   ensures Perm(turn, 1) ** turn == t;
-  ensures Perm(returner, 1);
+  ensures Perm(temp, 1);
+  ensures move.state();
   constructor(int tok, boolean t) {
     c00 = -1;
     c01 = -1;
@@ -55,39 +39,6 @@ class Player {
     myMark = tok;
     turn = t;
     move = new Move(0, 0, 0);
-  }
-
-  requires tok == 0 || tok == 1;
-  requires Perm(other.returner, 1);
-  ensures boardPerm();
-  ensures emptyBoard();
-  ensures Perm(myMark, write);
-  ensures Perm(move, 1);
-  ensures move.state();
-  ensures myMark == tok;
-  ensures myMark == 0 || myMark == 1;
-  ensures Perm(turn, 1) ** turn == t;
-  ensures returnerBound(other) ** returnerMark();
-  constructor(int tok, boolean t, Player other) {
-    c00 = -1;
-    c01 = -1;
-    c02 = -1;
-    c10 = -1;
-    c11 = -1;
-    c12 = -1;
-    c20 = -1;
-    c21 = -1;
-    c22 = -1;
-    myMark = tok;
-    turn = t;
-    move = new Move(0, 0, 0);
-
-    returner = new Returner();
-    returner.mark = 0;
-    other.returner = returner;
-
-    fold returnerBound(other);
-    fold returnerMark();
   }
 
   requires ([1\100]boardPerm()) ** ([1\100]other.boardPerm());
@@ -183,16 +134,18 @@ class Player {
       
   context Perm(move,1) ** Perm(myMark, 1\2);
   context [1\100]boardPerm();
-  ensures move != null;
+  ensures move != null; // TODO (RR): Can be removed with lightweight encoding
   ensures move.state();
   ensures move.mark == myMark;
   requires !boardFull();
   ensures readMoveCell(move,this) == -1;
   void createNewMove();
 
+  // Hook for the test suite to replace code
+  void finish() { }
 }
 
-requires Perm(move.i,read) ** Perm(move.j,read);
+requires Perm(move.i, read) ** Perm(move.j, read);
 requires 0 <= move.i && move.i <= 2;
 requires 0 <= move.j && move.j <= 2;
 requires [1\100]p.boardPerm();

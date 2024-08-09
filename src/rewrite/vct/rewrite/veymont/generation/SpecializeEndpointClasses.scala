@@ -1,80 +1,38 @@
-package vct.rewrite.veymont
+package vct.rewrite.veymont.generation
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.util.ScopedStack
-import vct.col.ast.util.Declarator
 import vct.col.ast.{
-  AbstractRewriter,
-  ApplicableContract,
-  Assert,
-  Assign,
-  Block,
-  BooleanValue,
-  Branch,
   ChorRun,
-  EndpointStatement,
   Choreography,
   Class,
-  ClassDeclaration,
   Communicate,
-  CommunicateX,
   Constructor,
-  ConstructorInvocation,
   Declaration,
   Deref,
   Endpoint,
+  EndpointExpr,
   EndpointName,
-  Eval,
   Expr,
-  GlobalDeclaration,
+  FieldLocation,
   InstanceField,
-  InstanceMethod,
-  JavaClass,
-  JavaConstructor,
-  JavaInvocation,
-  JavaLocal,
-  JavaMethod,
-  JavaNamedType,
-  JavaParam,
-  JavaPublic,
-  JavaTClass,
-  Local,
-  LocalDecl,
-  Loop,
-  MethodInvocation,
-  NewObject,
-  Node,
-  Procedure,
+  IterationContract,
+  LoopContract,
+  LoopInvariant,
   Program,
-  RunMethod,
-  Scope,
-  Statement,
-  TClass,
-  TVeyMontChannel,
-  TVoid,
-  ThisChoreography,
+  Receiver,
+  Sender,
   ThisObject,
-  Type,
   UnitAccountedPredicate,
+  Value,
   Variable,
-  VeyMontAssignExpression,
   WritePerm,
 }
-import vct.col.origin.{Name, Origin, PanicBlame, SourceName}
+import vct.col.origin.{Name, Origin, PanicBlame, PostBlameSplit}
 import vct.col.ref.Ref
-import vct.col.resolve.ctx.RefJavaMethod
-import vct.col.rewrite.adt.{ImportADT, ImportADTImporter}
-import vct.col.rewrite.{
-  Generation,
-  Rewriter,
-  RewriterBuilder,
-  RewriterBuilderArg,
-  Rewritten,
-}
-import vct.col.util.SuccessionMap
-import vct.result.VerificationError.{Unreachable, UserError}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationError
+import vct.col.util.SuccessionMap
+import vct.rewrite.veymont.VeymontContext
 
 object SpecializeEndpointClasses extends RewriterBuilder {
   override def key: String = "specializeEndpointClasses"
@@ -85,16 +43,30 @@ object SpecializeEndpointClasses extends RewriterBuilder {
 case class SpecializeEndpointClasses[Pre <: Generation]()
     extends Rewriter[Pre] with LazyLogging with VeymontContext[Pre] {
 
-  val implFieldOfEndpoint = SuccessionMap[Endpoint[Pre], InstanceField[Post]]()
+  val implFields = SuccessionMap[Endpoint[Pre], InstanceField[Post]]()
   val classOfEndpoint = SuccessionMap[Endpoint[Pre], Class[Post]]()
+
+  override def dispatch(p: Program[Pre]): Program[Post] = {
+    mappings.program = p
+    super.dispatch(p)
+  }
+
+  def readImplField(obj: Expr[Post], endpoint: Endpoint[Pre])(
+      implicit o: Origin
+  ): Expr[Post] = {
+    Deref[Post](obj, implFields.ref(endpoint))(PanicBlame(
+      "Permissions for impl should be automatically generated"
+    ))
+  }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
-      case name @ EndpointName(Ref(endpoint)) =>
-        implicit val o = name.o
-        Deref[Post](name.rewriteDefault(), implFieldOfEndpoint.ref(endpoint))(
-          PanicBlame("Should be safe")
-        )
+      case EndpointName(Ref(endpoint)) =>
+        readImplField(expr.rewriteDefault(), endpoint)(expr.o)
+      case Sender(Ref(comm)) =>
+        readImplField(expr.rewriteDefault(), comm.sender.get.decl)(expr.o)
+      case Receiver(Ref(comm)) =>
+        readImplField(expr.rewriteDefault(), comm.receiver.get.decl)(expr.o)
       case _ => expr.rewriteDefault()
     }
 
@@ -110,7 +82,7 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
           new InstanceField[Post](dispatch(endpoint.t), Seq())(
             o.where(name = "impl")
           )
-        implFieldOfEndpoint(endpoint) = implField
+        implFields(endpoint) = implField
 
         val constructor: Constructor[Post] = {
           val implArg = new Variable(dispatch(endpoint.t))
@@ -162,6 +134,66 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
             ),
           ),
         )
+
+      case comm: Communicate[Pre] =>
+        val sender = comm.sender.get.decl
+        val receiver = comm.receiver.get.decl
+        val newComm: Ref[Post, Communicate[Post]] = succ(comm)
+        implicit val o = comm.o
+        comm.rewrite(invariant =
+          value[Post](Sender(newComm), implFields.ref(sender)) &*
+            value[Post](Receiver(newComm), implFields.ref(receiver)) &*
+            dispatch(comm.invariant)
+        ).succeed(comm)
+
       case _ => super.dispatch(decl)
     }
+
+  override def dispatch(run: ChorRun[Pre]): ChorRun[Post] = {
+    implicit val o = run.o
+    run.rewrite(
+      contract = run.contract.rewrite(
+        requires =
+          specializeContext(currentChoreography.top).accounted &*
+            dispatch(run.contract.requires),
+        ensures =
+          specializeContext(currentChoreography.top).accounted &*
+            dispatch(run.contract.ensures),
+      ),
+      blame = PostBlameSplit
+        .left(PanicBlame("Automatically generated permissions"), run.blame),
+    )
+  }
+
+  override def dispatch(contract: LoopContract[Pre]): LoopContract[Post] =
+    contract match {
+      case InChor(chor, inv: LoopInvariant[Pre]) =>
+        implicit val o = contract.o
+        inv.rewrite(invariant =
+          specializeContext(chor) &* dispatch(inv.invariant)
+        )
+      case InChor(chor, inv: IterationContract[Pre]) =>
+        implicit val o = contract.o
+        inv.rewrite(
+          requires = specializeContext(chor) &* dispatch(inv.requires),
+          ensures = specializeContext(chor) &* dispatch(inv.ensures),
+        )
+      case _ => contract.rewriteDefault()
+    }
+
+  // Within a choreography, we need to propagate permission for the impl fields of all endpoint to all endpoints
+  def specializeContext(
+      chor: Choreography[Pre]
+  )(implicit o: Origin): Expr[Post] = {
+    foldStar(chor.endpoints.flatMap { endpoint =>
+      chor.endpoints.map { peer =>
+        EndpointExpr[Post](
+          succ(endpoint),
+          Value(
+            FieldLocation(EndpointName[Post](succ(peer)), implFields.ref(peer))
+          ),
+        )
+      }
+    })
+  }
 }

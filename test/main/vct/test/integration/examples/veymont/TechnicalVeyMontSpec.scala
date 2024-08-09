@@ -1,10 +1,11 @@
 package vct.test.integration.examples.veymont
 
-import vct.test.integration.helper.VercorsSpec
+import vct.test.integration.helper.VeyMontSpec
 
-class TechnicalVeyMontSpec extends VercorsSpec {
-  vercors should fail withCode "perm" using silicon in
-    "Bobby may receive permission for its target location" pvl """
+class TechnicalVeyMontSpec extends VeyMontSpec {
+  choreography(
+    desc = "Bobby may receive permission for its target location",
+    pvl = """
   class Storage { int x; int y; }
   choreography Chor() {
     endpoint alex = Storage();
@@ -14,11 +15,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       channel_invariant Perm(bobby.x, 1);
       communicate alex.x -> bobby.x;
     }
-  }
-  """
+  }""",
+    fail = "perm",
+  )
 
-  vercors should fail withCode "perm" using silicon in
-    "Bobby might not have permission to assign" pvl """
+  choreography(
+    desc = "Bobby might not have permission to assign",
+    fail = "perm",
+    pvl = """
   class Storage { int x; int y; }
   choreography Chor() {
     endpoint alex = Storage();
@@ -28,10 +32,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       communicate alex.x -> bobby.x;
     }
   }
-  """
+  """,
+  )
 
-  vercors should fail withCode "channelInvariantNotEstablished:false" using
-    silicon in "Channel invariant might not be established" pvl """
+  choreography(
+    desc = "Channel invariant might not be established",
+    fail = "channelInvariantNotEstablished:false",
+    pvl = """
   class Storage { int x; int y; }
   choreography Chor() {
     endpoint alex = Storage();
@@ -42,10 +49,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       communicate alex.x -> bobby.x;
     }
   }
-  """
+  """,
+  )
 
-  (vercors should verify using silicon flag "--veymont-generate-permissions" in
-    "example using communicate" pvl """
+  choreography(
+    desc = "example using communicate",
+    flag = "--generate-permissions",
+    pvl = """
        class Storage {
           int x;
        }
@@ -61,11 +71,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
             communicate bob.x -> alice.x;
           }
        }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "assertFailed:false" using silicon flag
-    "--veymont-generate-permissions" in
-    "plain endpoint field dereference should be possible" pvl """
+  choreography(
+    desc = "plain endpoint field dereference should be possible",
+    flag = "--generate-permissions",
+    fail = "assertFailed:false",
+    pvl = """
        class Storage {
           int x;
        }
@@ -76,19 +89,25 @@ class TechnicalVeyMontSpec extends VercorsSpec {
             assert alice.x == 0;
           }
        }
-    """)
+    """,
+  )
 
-  vercors should error withCode "noSuchName" in
-    "non-existent thread name in communicate fails" pvl """
+  choreography(
+    error = "choreography:noSuchName",
+    desc = "non-existent thread name in communicate fails",
+    pvl = """
   choreography Example() {
      run {
        communicate charlie.x <- charlie.x;
      }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "noSuchName" in
-    "non-existent field in communicate fails" pvl """
+  choreography(
+    error = "choreography:noSuchName",
+    desc = "non-existent field in communicate fails",
+    pvl = """
   class Storage { int x; }
   choreography Example() {
      endpoint charlie = Storage();
@@ -96,10 +115,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
        communicate charlie.nonExistent <- charlie.nonExistent;
      }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "parseError" in
-    "parameterized sends not yet supported " pvl """
+  choreography(
+    error = "choreography:parseError",
+    desc = "parameterized sends not yet supported",
+    pvl = """
     class Storage { int x; }
     choreography Example() {
       endpoint alice[10] = Storage();
@@ -108,22 +130,31 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         communicate alice[i: 0 .. 9].x <- bob[i + 1].y;
       }
     }
-  """
+  """,
+  )
 
-  vercors should error withCode "noRunMethod" in
-    "run method should always be present" pvl """
+  choreography(
+    error = "choreography:noRunMethod",
+    desc = "run method should always be present",
+    pvl = """
   choreography Example() { }
-  """
+  """,
+  )
 
-  vercors should error withCode "parseError" in
-    "endpoints can only have class types" pvl """
+  choreography(
+    error = "choreography:parseError",
+    desc = "endpoints can only have class types",
+    pvl = """
   choreography Example() {
     endpoint alice = int();
   }
-  """
+  """,
+  )
 
-  (vercors should verify using silicon flag "--veymont-generate-permissions" in
-    "Endpoint fields should be assignable" pvl """
+  choreography(
+    flag = "--generate-permissions",
+    desc = "Endpoint fields should be assignable",
+    pvl = """
     class Storage { int x; int y; }
     choreography Example() {
       endpoint alice = Storage();
@@ -132,49 +163,62 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         alice.x := alice.y;
       }
     }
-    """)
+    """,
+  )
 
-  vercors should error withCode "resolutionError:seqProgInstanceMethodArgs" in
-    "instance method in choreography cannot have arguments" pvl """
+  choreography(
+    error = "choreography:resolutionError:seqProgInstanceMethodArgs",
+    desc = "instance method in choreography cannot have arguments",
+    pvl = """
   choreography Example() {
     void m(int x) { }
 
     run { }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "resolutionError:seqProgInstanceMethodBody" in
-    "instance method in choreography must have a body" pvl """
+  choreography(
+    error = "choreography:resolutionError:seqProgInstanceMethodBody",
+    desc = "instance method in choreography must have a body",
+    pvl = """
   choreography Example() {
     void m();
 
     run { }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode
-    "resolutionError:seqProgInstanceMethodNonVoid" in
-    "instance method in choreography must have void return type" pvl """
+  choreography(
+    error = "choreography:resolutionError:seqProgInstanceMethodNonVoid",
+    desc = "instance method in choreography must have void return type",
+    pvl = """
   choreography Example() {
     int m() { }
 
     run { }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "resolutionError:chorStatement" in
-    "`choreography` excludes certain statements" pvl """
+  choreography(
+    error = "choreography:resolutionError:chorStatement",
+    desc = "`choreography` excludes certain statements",
+    pvl = """
   class C { }
   choreography Example(C c) {
     run {
       lock c;
     }
   }
-  """
+  """,
+  )
 
-  vercors should verify using silicon in
-    "Dereferencing other endpoints in arguments is possible if permissions are available for the endpoint context" pvl
-    """
+  choreography(
+    desc =
+      "Dereferencing other endpoints in arguments is possible if permissions are available for the endpoint context",
+    pvl = """
     class C { C d; void foo(int x); int x; }
     choreography Example(C c) {
       endpoint c = C();
@@ -184,11 +228,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         c.foo(d.x);
       }
     }
-    """
+    """,
+  )
 
-  vercors should fail withCode "perm" using silicon in
-    "Dereferencing other endpoints in arguments is not possible if permissions are not available for the endpoint context" pvl
-    """
+  choreography(
+    fail = "perm",
+    desc =
+      "Dereferencing other endpoints in arguments is not possible if permissions are not available for the endpoint context",
+    pvl = """
     class C { C d; void foo(int x); int x; }
     choreography Example(C c) {
       endpoint c = C();
@@ -198,19 +245,24 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         c.foo(d.x);
       }
     }
-    """
+    """,
+  )
 
-  vercors should verify using silicon in "Empty choreography must verify" pvl
-    """
+  choreography(
+    desc = "Empty choreography must verify",
+    pvl = """
   choreography C() {
     run {
 
     }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "resolutionError:type" in
-    "Assign must be well-typed" pvl """
+  choreography(
+    error = "choreography:resolutionError:type",
+    desc = "Assign must be well-typed",
+    pvl = """
   class C { int x; }
   choreography C() {
     endpoint charlie = C();
@@ -218,10 +270,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       charlie.x := true;
     }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "resolutionError:type" in
-    "Communicating parties must agree on the type" pvl """
+  choreography(
+    error = "choreography:resolutionError:type",
+    desc = "Communicating parties must agree on the type",
+    pvl = """
   class C { int c; }
   class A { bool a; }
   choreography C() {
@@ -231,10 +286,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       communicate charlie.c <- alice.a;
     }
   }
-  """
+  """,
+  )
 
-  (vercors should verify using silicon flag "--veymont-generate-permissions" in
-    "assignment should work" pvl """
+  choreography(
+    flag = "--generate-permissions",
+    desc = "assignment should work",
+    pvl = """
     class Storage {
       int x;
 
@@ -252,10 +310,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
          assert alice.x == 0;
        }
     }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "postFailed:false" using silicon flag
-    "--veymont-generate-permissions" in "Postcondition of run can fail" pvl """
+  choreography(
+    fail = "postFailed:false",
+    flag = "--generate-permissions",
+    desc = "Postcondition of run can fail",
+    pvl = """
     class Storage {
        int x;
     }
@@ -266,11 +328,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
        run {
        }
     }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "postFailed:false" using silicon flag
-    "--veymont-generate-permissions" in
-    "Postcondition of choreography can fail" pvl """
+  choreography(
+    fail = "postFailed:false",
+    flag = "--generate-permissions",
+    desc = "Postcondition of choreography can fail",
+    pvl = """
     class Storage {
        int x;
     }
@@ -282,12 +347,15 @@ class TechnicalVeyMontSpec extends VercorsSpec {
        run {
        }
     }
-    """)
+    """,
+  )
 
-  vercors should fail withCode "perm" using silicon flag
-    "--veymont-generate-permissions" in
-    "Assignment statement only allows one endpoint in the assigned expression" pvl
-    """
+  choreography(
+    fail = "perm",
+    flag = "--generate-permissions",
+    desc =
+      "Assignment statement only allows one endpoint in the assigned expression",
+    pvl = """
     class Storage {
        int x;
     }
@@ -299,11 +367,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
          alice.x := bob.x;
        }
     }
-    """
+    """,
+  )
 
-  (vercors should fail withCode "branchNotUnanimous" using silicon flag
-    "--veymont-generate-permissions" in
-    "Parts of condition in branch have to agree inside seqprog" pvl """
+  choreography(
+    fail = "branchNotUnanimous",
+    flag = "--generate-permissions",
+    desc = "Parts of condition in branch have to agree inside seqprog",
+    pvl = """
     class Storage {
        int x;
     }
@@ -317,12 +388,15 @@ class TechnicalVeyMontSpec extends VercorsSpec {
           }
        }
     }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "branchNotUnanimous" using silicon flag
-    "--veymont-generate-permissions" in
-    "Parts of condition in branch have to agree inside seqprog, including conditions for all endpoints" pvl
-    """
+  choreography(
+    fail = "branchNotUnanimous",
+    flag = "--generate-permissions",
+    desc =
+      "Parts of condition in branch have to agree inside seqprog, including conditions for all endpoints",
+    pvl = """
     class Storage {
        int x;
     }
@@ -339,11 +413,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
           }
        }
     }
-    """)
+    """,
+  )
 
-  (vercors should verify using silicon flag "--veymont-generate-permissions" in
-    "If there is only one endpoint, the conditions don't have to agree, as there is only one endpoint" pvl
-    """
+  choreography(
+    flag = "--generate-permissions",
+    desc =
+      "If there is only one endpoint, the conditions don't have to agree, as there is only one endpoint",
+    pvl = """
     class Storage {
        int x;
     }
@@ -359,10 +436,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
           }
        }
     }
-    """)
+    """,
+  )
 
-  vercors should error withCode "seqProgParticipantErrors" in
-    "`if` cannot depend on bob, inside an `if` depending on alice" pvl """
+  choreography(
+    error = "choreography:seqProgParticipantErrors",
+    desc = "`if` cannot depend on bob, inside an `if` depending on alice",
+    pvl = """
   class Storage {
     int x;
   }
@@ -378,10 +458,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         }
      }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "seqProgParticipantErrors" in
-    "If alice branches, bob cannot communicate" pvl """
+  choreography(
+    error = "choreography:seqProgParticipantErrors",
+    desc = "If alice branches, bob cannot communicate",
+    pvl = """
   class Storage {
     int x;
   }
@@ -395,10 +478,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         }
      }
   }
-  """
+  """,
+  )
 
-  vercors should error withCode "seqProgParticipantErrors" in
-    "If alice branches, bob cannot assign" pvl """
+  choreography(
+    error = "choreography:seqProgParticipantErrors",
+    desc = "If alice branches, bob cannot assign",
+    pvl = """
    class Storage {
      int x;
    }
@@ -412,10 +498,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
          }
       }
    }
-   """
+   """,
+  )
 
-  (vercors should verify using silicon flag "--veymont-generate-permissions" in
-    "Programs where branch conditions agree should verify" pvl """
+  choreography(
+    flag = "--generate-permissions",
+    desc = "Programs where branch conditions agree should verify",
+    pvl = """
     class Storage {
        bool x;
     }
@@ -432,12 +521,15 @@ class TechnicalVeyMontSpec extends VercorsSpec {
          }
        }
     }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "loopUnanimityNotEstablished" using silicon flag
-    "--veymont-generate-permissions" in
-    "Programs where branch condition unanimity cannot be established should fail" pvl
-    """
+  choreography(
+    fail = "loopUnanimityNotEstablished",
+    flag = "--generate-permissions",
+    desc =
+      "Programs where branch condition unanimity cannot be established should fail",
+    pvl = """
     class Storage {
        bool x;
     }
@@ -451,12 +543,15 @@ class TechnicalVeyMontSpec extends VercorsSpec {
          }
        }
     }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "loopUnanimityNotMaintained" using silicon flag
-    "--veymont-generate-permissions" in
-    "Programs where branch condition unanimity cannot be maintained should fail" pvl
-    """
+  choreography(
+    fail = "loopUnanimityNotMaintained",
+    flag = "--generate-permissions",
+    desc =
+      "Programs where branch condition unanimity cannot be maintained should fail",
+    pvl = """
     class Storage {
        bool x;
     }
@@ -472,10 +567,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
          }
        }
     }
-    """)
+    """,
+  )
 
-  vercors should error withCode "seqProgParticipantErrors" in
-    "Loops should also limit the number of participants" pvl """
+  choreography(
+    error = "choreography:seqProgParticipantErrors",
+    desc = "Loops should also limit the number of participants",
+    pvl = """
    class Storage {
       bool x;
    }
@@ -493,11 +591,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         }
       }
    }
-   """
+   """,
+  )
 
-  (vercors should verify using silicon flag "--veymont-generate-permissions" in
-    "Loops should also limit the number of participants when combined with branches" pvl
-    """
+  choreography(
+    flag = "--generate-permissions",
+    desc =
+      "Loops should also limit the number of participants when combined with branches",
+    pvl = """
     class Storage {
        bool x;
     }
@@ -517,11 +618,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
          }
        }
     }
-    """)
+    """,
+  )
 
-  vercors should error withCode "seqProgParticipantErrors" in
-    "Loops should also limit the number of participants when combined with branches, failing" pvl
-    """
+  choreography(
+    error = "choreography:seqProgParticipantErrors",
+    desc =
+      "Loops should also limit the number of participants when combined with branches, failing",
+    pvl = """
    class Storage {
       bool x;
    }
@@ -542,10 +646,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         }
       }
    }
-   """
+   """,
+  )
 
-  (vercors should verify using silicon flag "--veymont-generate-permissions" in
-    "Permission should be generated for constructors as well" pvl """
+  choreography(
+    flag = "--generate-permissions",
+    desc = "Permission should be generated for constructors as well",
+    pvl = """
     class Storage {
       int x;
 
@@ -562,11 +669,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         assert alice.x == 2;
       }
     }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "perm" using silicon in
-    "When no permission is generated, a failure should occur on endpoint field access" pvl
-    """
+  choreography(
+    fail = "perm",
+    desc =
+      "When no permission is generated, a failure should occur on endpoint field access",
+    pvl = """
      class Storage {
        int x;
      }
@@ -578,11 +688,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
          communicate alice.x <- bob.x;
        }
      }
-     """)
+     """,
+  )
 
-  (vercors should fail withCode "perm" using silicon in
-    "When no permission is generated, a failure should occur on seq assign field access" pvl
-    """
+  choreography(
+    fail = "perm",
+    desc =
+      "When no permission is generated, a failure should occur on seq assign field access",
+    pvl = """
     class Storage {
       int x;
     }
@@ -593,11 +706,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         alice.x := 3;
       }
     }
-    """)
+    """,
+  )
 
-  (vercors should verify using silicon flag "--veymont-generate-permissions" in
-    "Permissions are generated for loop invariants, procedures, functions, instance methods, instance functions" pvl
-    """
+  choreography(
+    flag = "--generate-permissions",
+    desc =
+      "Permissions are generated for loop invariants, procedures, functions, instance methods, instance functions",
+    pvl = """
     class Storage {
       int x;
 
@@ -639,11 +755,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         alice.all();
       }
     }
-    """)
+    """,
+  )
 
-  (vercors should verify using silicon flag "--veymont-generate-permissions" in
-    "Permission generation should only generate permissions that are strictly necessary" pvl
-    """
+  choreography(
+    flag = "--generate-permissions",
+    desc =
+      "Permission generation should only generate permissions that are strictly necessary",
+    pvl = """
     class Storage {
       int x;
     }
@@ -661,13 +780,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         assert bob.x == 3;
       }
     }
-    """)
+    """,
+  )
 
   // Auxiliary methods turned off indefinitely for now. Though can be implemented with just engineering work.
 //  (vercors
 //    should verify
 //    using silicon
-//    flag "--veymont-generate-permissions"
+//    flag "--generate-permissions"
 //    in "Calling auxiliary methods in seq_prog should be possible"
 //    pvl
 //    """
@@ -693,7 +813,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 //  (vercors
 //    should verify
 //    using silicon
-//    flag "--veymont-generate-permissions"
+//    flag "--generate-permissions"
 //    in "VeyMont should conservatively generate permissions for auxiliary methods"
 //    pvl
 //    """
@@ -723,7 +843,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 //    should fail
 //    withCode "assertFailed:false"
 //    using silicon
-//    flag "--veymont-generate-permissions"
+//    flag "--generate-permissions"
 //    in "Permissions should be generated when an endpoint participates in an auxiliary method"
 //    pvl
 //    """
@@ -750,8 +870,10 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 //    }
 //    """)
 
-  (vercors should fail withCode "chorRunPreFailed:false" using silicon in
-    "Precondition of run should be checked" pvl """
+  choreography(
+    fail = "chorRunPreFailed:false",
+    desc = "Precondition of run should be checked",
+    pvl = """
     class C { }
     choreography Example(int x) {
       endpoint c = C();
@@ -759,10 +881,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       run {
       }
     }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "postFailed:false" using silicon in
-    "Precondition of run is never witnessed if there are no endpoints" pvl """
+  choreography(
+    fail = "postFailed:false",
+    desc = "Precondition of run is never witnessed if there are no endpoints",
+    pvl = """
     ensures x == 0;
     choreography Example(int x) {
       requires x == 0;
@@ -770,10 +895,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       run {
       }
     }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "preFailed:false" using silicon in
-    "Precondition of endpoint constructor should be checked" pvl """
+  choreography(
+    fail = "preFailed:false",
+    desc = "Precondition of endpoint constructor should be checked",
+    pvl = """
     class Storage {
       requires x == 0;
       constructor (int x) { }
@@ -785,10 +913,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       run {
       }
     }
-    """)
+    """,
+  )
 
-  (vercors should error withCode "resolutionError:chorStatement" in
-    "Assignment should not be allowed in choreographies" pvl """
+  choreography(
+    error = "choreography:resolutionError:chorStatement",
+    desc = "Assignment should not be allowed in choreographies",
+    pvl = """
     class Storage {
       int x;
     }
@@ -799,11 +930,14 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         alice.x = 0;
       }
     }
-    """)
+    """,
+  )
 
-  (vercors should fail withCode "participantsNotDistinct" using silicon flag
-    "--veymont-generate-permissions" in
-    "Endpoints participating in a communicate should be distinct" pvl """
+  choreography(
+    fail = "participantsNotDistinct",
+    flag = "--generate-permissions",
+    desc = "Endpoints participating in a communicate should be distinct",
+    pvl = """
     class Storage {
       int x;
     }
@@ -814,15 +948,19 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         communicate alice.x <- alice.x;
       }
     }
-    """)
+    """,
+  )
 
   // Disabled indefinitely until EncodePermissionStratification.scala is refactored to fully support generics
 //  vercors should verify using silicon flag
-//    "--veymont-generate-permissions" example
+//    "--generate-permissions" example
 //    "technical/veymont/genericEndpoints.pvl"
 
-  (vercors should fail withCode "branchNotUnanimous" using silicon flag
-    "--veymont-generate-permissions" in "branch unanimity for if" pvl """
+  choreography(
+    fail = "branchNotUnanimous",
+    flag = "--generate-permissions",
+    desc = "branch unanimity for if",
+    pvl = """
        class Storage {
           int x;
        }
@@ -838,10 +976,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
             }
           }
        }
-    """)
+    """,
+  )
 
-  vercors should fail withCode "perm" using silicon in
-    "deref should be safe" pvl """
+  choreography(
+    fail = "perm",
+    desc = "deref should be safe",
+    pvl = """
   class Storage { int x; int y; }
 
   choreography runPostFails() {
@@ -851,10 +992,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       alice.x := alice.y;
     }
   }
-  """
+  """,
+  )
 
-  vercors should fail withCode "perm" using silicon in
-    "assigning to a deref should fail if there is no permission" pvl """
+  choreography(
+    fail = "perm",
+    desc = "assigning to a deref should fail if there is no permission",
+    pvl = """
   class Storage { int x; int y; }
   choreography runPostFails() {
     endpoint alice = Storage();
@@ -863,10 +1007,12 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       alice.x := alice.y;
     }
   }
-  """
+  """,
+  )
 
-  vercors should verify using silicon in
-    "assigning to a deref should succeed if there is permission" pvl """
+  choreography(
+    desc = "assigning to a deref should succeed if there is permission",
+    pvl = """
   class Storage { int x; int y; }
   choreography runPostFails() {
     endpoint alice = Storage();
@@ -875,67 +1021,103 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       alice.x := alice.y;
     }
   }
-  """
+  """,
+  )
 
   val wd = "technical/veymont"
 
-  vercors should verify using silicon flag
-    "--veymont-generate-permissions" example s"$wd/checkLTS/ltstest.pvl"
-  vercors should verify using silicon flag
-    "--veymont-generate-permissions" example s"$wd/checkLTS/simpleifelse.pvl"
+  choreography(
+    flag = "--generate-permissions",
+    input = example(s"$wd/checkLTS/ltstest.pvl"),
+  )
 
-  (vercors should error withCode "resolutionError:seqProgInvocation" flag
-    "--veymont-generate-permissions" example
-    s"$wd/checkMainSyntaxAndWellFormedness/ConstructorCall.pvl")
-  (vercors should error withCode "seqProgParticipantErrors" example
-    s"$wd/checkMainSyntaxAndWellFormedness/IfCondition.pvl")
+  choreography(
+    flag = "--generate-permissions",
+    input = example(s"$wd/checkLTS/simpleifelse.pvl"),
+  )
 
-  (vercors should verify using silicon flag
-    "--veymont-generate-permissions" example
-    s"$wd/checkMainSyntaxAndWellFormedness/MainConstructorWithArgs.pvl")
+  choreography(
+    error = "choreography:resolutionError:seqProgInvocation",
+    flag = "--generate-permissions",
+    input = example(s"$wd/checkMainSyntaxAndWellFormedness/ConstructorCall.pvl"),
+  )
+
+  choreography(
+    error = "choreography:seqProgParticipantErrors",
+    input = example(s"$wd/checkMainSyntaxAndWellFormedness/IfCondition.pvl"),
+  )
+
+  choreography(
+    flag = "--generate-permissions",
+    input = example(
+      s"$wd/checkMainSyntaxAndWellFormedness/MainConstructorWithArgs.pvl"
+    ),
+  )
 
   // Disabled indefinitely while submethods are not supported.
   // vercors should verify using silicon flag
-  //   "--veymont-generate-permissions" example
+  //   "--generate-permissions" example
   //   s"$wd/checkMainSyntaxAndWellFormedness/MainMethodCall.pvl"
-  vercors should verify using silicon flag
-    "--veymont-generate-permissions" example
-    s"$wd/checkMainSyntaxAndWellFormedness/NewNonRoleObject.pvl"
-  vercors should verify using silicon flag
-    "--veymont-generate-permissions" example
-    s"$wd/checkMainSyntaxAndWellFormedness/NewRoleObject.pvl"
+  choreography(
+    flag = "--generate-permissions",
+    input = example(
+      s"$wd/checkMainSyntaxAndWellFormedness/NewNonRoleObject.pvl"
+    ),
+  )
+  choreography(
+    flag = "--generate-permissions",
+    input = example(s"$wd/checkMainSyntaxAndWellFormedness/NewRoleObject.pvl"),
+  )
 
-  (vercors should error withCode "resolutionError:seqProgInvocation" flag
-    "--veymont-generate-permissions" example
-    s"$wd/checkMainSyntaxAndWellFormedness/NonRoleMethodCall.pvl")
+  choreography(
+    error = "choreography:resolutionError:seqProgInvocation",
+    flag = "--generate-permissions",
+    input = example(
+      s"$wd/checkMainSyntaxAndWellFormedness/NonRoleMethodCall.pvl"
+    ),
+  )
 
-  (vercors should error withCode "resolutionError:seqProgInvocation" flag
-    "--veymont-generate-permissions" example
-    s"$wd/checkMainSyntaxAndWellFormedness/PureMethodCall.pvl")
+  choreography(
+    error = "choreography:resolutionError:seqProgInvocation",
+    flag = "--generate-permissions",
+    input = example(s"$wd/checkMainSyntaxAndWellFormedness/PureMethodCall.pvl"),
+  )
 
-  (vercors should error withCode "resolutionError:seqProgEndpointAssign" flags
-    ("--veymont-generate-permissions", "--dev-veymont-allow-assign") example
-    s"$wd/checkMainSyntaxAndWellFormedness/RoleFieldAssignment.pvl")
+  choreography(
+    error = "choreography:resolutionError:seqProgEndpointAssign",
+    flags = Seq("--generate-permissions", "--dev-veymont-allow-assign"),
+    input = example(
+      s"$wd/checkMainSyntaxAndWellFormedness/RoleFieldAssignment.pvl"
+    ),
+  )
 
-  (vercors should error withCode "resolutionError:chorStatement" flag
-    "--veymont-generate-permissions" example
-    s"$wd/checkMainSyntaxAndWellFormedness/WaitStatement.pvl")
+  choreography(
+    error = "choreography:resolutionError:chorStatement",
+    flag = "--generate-permissions",
+    input = example(s"$wd/checkMainSyntaxAndWellFormedness/WaitStatement.pvl"),
+  )
 
-  (vercors should fail withCode "loopUnanimityNotMaintained" using silicon flag
-    "--veymont-generate-permissions" example
-    s"$wd/checkMainSyntaxAndWellFormedness/WhileCondition.pvl")
+  choreography(
+    fail = "loopUnanimityNotMaintained",
+    flag = "--generate-permissions",
+    input = example(s"$wd/checkMainSyntaxAndWellFormedness/WhileCondition.pvl"),
+  )
 
-  vercors should verify using silicon flag
-    "--veymont-generate-permissions" example
-    s"$wd/checkTypesNonMain/RoleFieldType2.pvl"
-  vercors should verify using silicon flag
-    "--veymont-generate-permissions" example
-    s"$wd/checkTypesNonMain/RoleMethodType4.pvl"
+  choreography(
+    flag = "--generate-permissions",
+    input = example(s"$wd/checkTypesNonMain/RoleFieldType2.pvl"),
+  )
+  choreography(
+    flag = "--generate-permissions",
+    input = example(s"$wd/checkTypesNonMain/RoleMethodType4.pvl"),
+  )
 
-  vercors should verify using silicon example s"$wd/first.pvl"
-  vercors should verify using silicon flag
-    "--veymont-generate-permissions" example s"$wd/subFieldAssign.pvl"
-  vercors should fail withCode "perm" using silicon example
-    s"$wd/subFieldAssignError.pvl"
+  choreography(input = example(s"$wd/first.pvl"))
 
+  choreography(
+    flag = "--generate-permissions",
+    input = example(s"$wd/subFieldAssign.pvl"),
+  )
+
+  choreography(fail = "perm", input = example(s"$wd/subFieldAssignError.pvl"))
 }

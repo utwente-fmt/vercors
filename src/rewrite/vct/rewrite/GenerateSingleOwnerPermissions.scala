@@ -1,24 +1,23 @@
-package vct.rewrite.veymont
+package vct.rewrite
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
 import vct.col.ast.declaration.global.ChoreographyImpl.participants
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
-import vct.col.resolve.ctx.Referrable
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
+import vct.col.util.AstBuildHelpers._
 
-import scala.collection.immutable.ListSet
+import scala.collection.mutable
 
-object GenerateChoreographyPermissions extends RewriterBuilderArg[Boolean] {
-  override def key: String = "generateChoreographyPermissions"
+object GenerateSingleOwnerPermissions extends RewriterBuilderArg[Boolean] {
+  override def key: String = "generateSingleOwnerPermissions"
   override def desc: String =
     "Generates permissions for fields of some types (classes, int, bool, and arrays of these) for constructs used inside choreographies."
 }
 
-case class GenerateChoreographyPermissions[Pre <: Generation](
+case class GenerateSingleOwnerPermissions[Pre <: Generation](
     enabled: Boolean = false
 ) extends Rewriter[Pre] with LazyLogging {
 
@@ -260,6 +259,8 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
 
    */
 
+  val warnedClasses = mutable.HashSet[Class[Pre]]()
+
   def transitivePerm(e: Expr[Post], t: Type[Pre])(
       implicit o: Origin
   ): Expr[Post] =
@@ -295,9 +296,12 @@ case class GenerateChoreographyPermissions[Pre <: Generation](
       case TClass(Ref(cls), _) =>
         // The class we are generating permission for has already been encountered when going through the chain
         // of fields. So we cut off the computation
-        logger.warn(
-          s"Not generating permissions for recursive occurrence of ${cls.o.getPreferredNameOrElse().ucamel}. Circular datastructures are not supported by permission generation"
-        )
+        if (!warnedClasses.contains(cls)) {
+          logger.warn(
+            s"Not generating permissions for recursive occurrence of ${cls.o.getPreferredNameOrElse().ucamel}. Circular datastructures are not supported by permission generation"
+          )
+          warnedClasses.addOne(cls)
+        }
         tt
       case _ => tt
     }

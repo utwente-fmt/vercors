@@ -84,5 +84,8 @@ choreography Main() {
         \receiver.equalBoard(\sender);
       communicate p1.temp <- p2: true;
     }
+
+    p1.finish();
+    p2.finish();
   }
 }

@@ -16,10 +16,13 @@ trait InstancePredicateImpl[G]
     ListMap(inline -> "inline", threadLocal -> "thread_local").filter(_._1)
       .values.map(Text).map(Doc.inlineSpec).toSeq
 
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(
+  override def layout(implicit ctx: Ctx): Doc = {
+    val oldCtx = ctx
+    Group(Doc.spec {
+      implicit val ctx = oldCtx.copy(inSpec = oldCtx.syntax == Ctx.Java)
       Doc.rspread(layoutModifiers) <> "resource" <+> ctx.name(this) <> "(" <>
         Doc.args(args) <> ")" <> body.map(Text(" =") <>> _ <> ";")
           .getOrElse(Text(";"))
-    )
+    })
+  }
 }

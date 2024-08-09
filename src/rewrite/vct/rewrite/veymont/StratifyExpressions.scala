@@ -35,10 +35,13 @@ case class StratifyExpressions[Pre <: Generation]()
     extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
   override def dispatch(prog: Program[Pre]): Program[Post] = {
+    mappings.program = prog
+
     val newProg = prog.rewrite()
     val errors = newProg.check
-    // TODO (RR): if we refactor branches to be nested instead of flat, this check can
-    //   happen directly after LangVeyMontToCol
+    /* TODO (RR): if we refactor branches to be nested instead of flat, this check can
+         happen directly after LangVeyMontToCol. Or we should consider putting the flattening in its own pass,
+         which then also contains the below check */
     val seqBranchErrors = errors.collect { case err: SeqProgParticipant => err }
     if (errors.nonEmpty && errors.length == seqBranchErrors.length) {
       throw SeqProgParticipantErrors(seqBranchErrors)
@@ -97,15 +100,16 @@ case class StratifyExpressions[Pre <: Generation]()
         branch
           .rewrite(Seq((stratifyExpr(cond), dispatch(yes)), (tt, dispatch(no))))
 
+      // We expect all branches to be normalized to binary branches
       case InChor(_, Branch(_)) => ???
 
-      case assert: Assert[Pre] =>
+      case InChor(_, assert: Assert[Pre]) =>
         assert.rewrite(res = stratifyExpr(assert.expr))
-      case inhale: Inhale[Pre] =>
+      case InChor(_, inhale: Inhale[Pre]) =>
         inhale.rewrite(res = stratifyExpr(inhale.expr))
-      case exhale: Exhale[Pre] =>
+      case InChor(_, exhale: Exhale[Pre]) =>
         exhale.rewrite(res = stratifyExpr(exhale.expr))
-      case assume: Assume[Pre] =>
+      case InChor(_, assume: Assume[Pre]) =>
         assume.rewrite(assn = stratifyExpr(assume.expr))
 
       case statement => statement.rewriteDefault()

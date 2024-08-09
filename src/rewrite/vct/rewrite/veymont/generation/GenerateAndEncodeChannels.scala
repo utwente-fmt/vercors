@@ -1,4 +1,4 @@
-package vct.rewrite.veymont
+package vct.rewrite.veymont.generation
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
@@ -6,9 +6,9 @@ import vct.col.ast.{
   Assign,
   Block,
   ChorRun,
-  EndpointStatement,
   Choreography,
   Class,
+  Committed,
   Communicate,
   CommunicateStatement,
   Constructor,
@@ -17,17 +17,20 @@ import vct.col.ast.{
   Deref,
   Endpoint,
   EndpointName,
+  EndpointStatement,
   Eval,
   Expr,
   FieldLocation,
+  Held,
   InstanceField,
   InstanceMethod,
-  InstancePredicate,
   IterationContract,
   Local,
+  Loop,
   LoopContract,
   LoopInvariant,
   Message,
+  Perm,
   Program,
   Receiver,
   Result,
@@ -38,15 +41,16 @@ import vct.col.ast.{
   TVar,
   ThisObject,
   Type,
-  Value,
   Variable,
+  WritePerm,
 }
-import vct.col.origin.{Name, Origin, PanicBlame, SourceName}
+import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.adt.ImportADTImporter
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
-import vct.col.util.AstBuildHelpers._
+import vct.col.util.AstBuildHelpers.{value, _}
 import vct.col.util.SuccessionMap
+import vct.rewrite.veymont.VeymontContext
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -112,6 +116,7 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
   val currentCommunicate = ScopedStack[Communicate[Pre]]()
   val currentMsgTVar = ScopedStack[Variable[Pre]]()
   val currentMsgExpr = ScopedStack[Expr[Post]]()
+  val currentWriteRead = ScopedStack[InstanceMethod[Pre]]()
 
   val fieldOfCommunicate =
     SuccessionMap[(Endpoint[Pre], Communicate[Pre]), InstanceField[Post]]()
@@ -178,9 +183,14 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
       fieldOfCommunicate.ref((endpoint, comm)),
     )(PanicBlame("Shouldn't happen"))
 
+  def channelLockInv(comm: Communicate[Pre])(implicit o: Origin): Expr[Post] =
+    valueSender(comm) &* valueReceiver(comm) &*
+      dispatch(genericChannelClass.intrinsicLockInvariant) &*
+      thisHasMsg(comm) ==> dispatch(comm.invariant)
+
   override def dispatch(p: Program[Pre]): Program[Post] = {
     mappings.program = p
-    p.rewriteDefault()
+    super.dispatch(p)
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
@@ -244,6 +254,8 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
         }
 
       case cls: Class[Pre] if isEndpointClass(cls) =>
+        // For each communicate in a choreography, add fields for the communicate channel to classes
+        // of endpoints participating in the choreography
         cls.rewrite(decls =
           classDeclarations.collect {
             cls.decls.foreach(dispatch)
@@ -257,6 +269,30 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
             }
           }._1
         ).succeed(cls)
+
+      case cons: Constructor[Pre] if classOfOpt(cons).exists(isEndpointClass) =>
+        // For each communicate in the choreography, a field is added to the endpoint class
+        // Hence, we add full write permission for each of those fields in the postcondition
+        val cls = classOf(cons)
+        implicit val o = cons.o
+        val `this` = ThisObject[Post](succ(cls))
+        val perms = foldStar(communicatesOf(choreographyOf(cls)).map { comm =>
+          val ref: Ref[Post, InstanceField[Post]] = fieldOfCommunicate
+            .ref((endpointOf(cls), comm))
+          Perm(FieldLocation[Post](`this`, ref), WritePerm())
+        })
+        cons.rewrite(
+          contract = cons.contract.rewrite(ensures =
+            perms.accounted &* dispatch(cons.contract.ensures)
+          ),
+          // Because we prepend an accounted predicate to the contract, split the blame left
+          blame = PostBlameSplit.left(
+            PanicBlame(
+              "Permissions for automatically generated fields should be managed correctly"
+            ),
+            cons.blame,
+          ),
+        ).succeed(cons)
 
       case cls: Class[Pre] if cls == genericChannelClass =>
         implicit val comm = currentCommunicate.top
@@ -277,10 +313,7 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
                       )(o.where(name = "receiver")).declare()
                       cls.decls.foreach(dispatch)
                     }._1,
-                  intrinsicLockInvariant =
-                    valueSender &* valueReceiver &*
-                      dispatch(cls.intrinsicLockInvariant) &*
-                      thisHasMsg ==> dispatch(comm.invariant),
+                  intrinsicLockInvariant = channelLockInv(comm),
                 ).succeed(cls)
               }
             }
@@ -307,6 +340,7 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
               Assign(thisReceiver, receiver.get)(PanicBlame("Should be safe")),
             ) :+ cons.body.map(dispatch).getOrElse(skip)
           )),
+          // TODO (RR): Blame accounting is wrong here
           contract = cons.contract.rewrite(ensures =
             (valueSender &* valueReceiver &* (sender.get === thisSender) &*
               (receiver.get === thisReceiver)).accounted &*
@@ -317,29 +351,33 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
       case m: InstanceMethod[Pre] if m == genericChannelWrite =>
         implicit val comm = currentCommunicate.top
         implicit val o = comm.o
-        currentMsgExpr.having(Local(succ(m.args.head))) {
-          channelWriteSucc(currentCommunicate.top) = m.rewrite(contract =
-            m.contract.rewrite(requires =
-              (valueSender &* valueReceiver &* dispatch(comm.invariant))
-                .accounted &* dispatch(m.contract.requires)
-            )
-          ).succeed(m)
-        }
+        channelWriteSucc(currentCommunicate.top) = m.rewrite(
+          contract =
+            currentMsgExpr.having(Local(succ(m.args.head))) {
+              m.contract.rewrite(requires =
+                (valueSender &* valueReceiver &* dispatch(comm.invariant))
+                  .accounted &* dispatch(m.contract.requires)
+              )
+            },
+          body = currentWriteRead.having(m) { m.body.map(dispatch) },
+        ).succeed(m)
 
       case m: InstanceMethod[Pre] if m == genericChannelRead =>
         implicit val comm = currentCommunicate.top
         implicit val o = comm.o
-        currentMsgExpr.having(Result(succ(m))) {
-          channelReadSucc(currentCommunicate.top) = m.rewrite[Post](contract =
-            m.contract.rewrite(
-              requires = (valueSender &* valueReceiver).accounted &*
-                dispatch(m.contract.requires),
-              ensures =
-                (valueSender &* valueReceiver &* dispatch(comm.invariant))
-                  .accounted &* dispatch(m.contract.requires),
-            )
-          ).succeed(m)
-        }
+        channelReadSucc(currentCommunicate.top) = m.rewrite[Post](
+          contract =
+            currentMsgExpr.having(Result(succ(m))) {
+              m.contract.rewrite(
+                requires = (valueSender &* valueReceiver).accounted &*
+                  dispatch(m.contract.requires),
+                ensures =
+                  (valueSender &* valueReceiver &* dispatch(comm.invariant))
+                    .accounted &* dispatch(m.contract.requires),
+              )
+            },
+          body = currentWriteRead.having(m) { m.body.map(dispatch) },
+        ).succeed(m)
 
       case f: InstanceField[Pre] if f == genericChannelHasMsg =>
         channelHasMsgSucc(currentCommunicate.top) = f.rewriteDefault()
@@ -355,7 +393,7 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
     if (currentCommunicate.nonEmpty) {
       rewriteChannelExpr(currentCommunicate.top, expr)
     } else
-      super.dispatch(expr)
+      expr.rewriteDefault()
 
   def rewriteChannelExpr(
       comm: Communicate[Pre],
@@ -375,11 +413,17 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
     }
   }
 
+  // For each communicate statement, there is a channel C. For each C, we generate the permissions for all the extra
+  // fields (sender, receiver), for each endpoint E, such that the fields are accessible to all endpoints.
+  // We also ensure it is invariant that the channels are committed. Finally, we generate annotations to indicate that
+  // the values in the sender/receiver fields are equal to actual intended endpoint.
   def channelContext(chor: Choreography[Pre])(implicit o: Origin): Expr[Post] =
     foldStar(chor.endpoints.flatMap { endpoint =>
       communicatesOf(endpoint).map { comm =>
         endpointComm(endpoint, comm).value &* getSender(endpoint, comm).value &*
-          getReceiver(endpoint, comm).value &*
+          getReceiver(endpoint, comm).value &* Committed(
+            endpointComm(endpoint, comm)
+          )(PanicBlame("Guaranteed not to be null")) &*
           (getSender(endpoint, comm) ===
             EndpointName(succ(comm.sender.get.decl))) &*
           (getReceiver(endpoint, comm) ===
@@ -404,6 +448,18 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
       case InChor(chor, iter: IterationContract[Pre]) =>
         iter.rewrite(requires =
           (channelContext(chor)(chor.o) &* dispatch(iter.requires))(chor.o)
+        )
+      case inv: LoopInvariant[Pre]
+          if currentCommunicate.nonEmpty && currentWriteRead.nonEmpty =>
+        implicit val comm = currentCommunicate.top
+        implicit val o = inv.o
+        inv.rewrite(invariant = Held(channelThis) &* channelLockInv(comm))
+      case inv: IterationContract[Pre] =>
+        implicit val comm = currentCommunicate.top
+        implicit val o = inv.o
+        inv.rewrite(
+          requires = Held(channelThis) &* channelLockInv(comm),
+          ensures = Held(channelThis) &* channelLockInv(comm),
         )
       case _ => contract.rewriteDefault()
     }

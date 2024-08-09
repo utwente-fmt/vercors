@@ -1,18 +1,12 @@
-package vct.rewrite.veymont
+package vct.rewrite.veymont.verification
 
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.{
-  AssertFailed,
-  Blame,
-  BranchUnanimityFailed,
-  LoopUnanimityNotEstablished,
-  LoopUnanimityNotMaintained,
-  Origin,
-}
+import vct.col.origin._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
-import vct.rewrite.veymont.EncodeChorBranchUnanimity.{
+import vct.rewrite.veymont.VeymontContext
+import vct.rewrite.veymont.verification.EncodeChorBranchUnanimity.{
   ForwardBranchUnanimity,
   ForwardLoopUnanimityNotEstablished,
   ForwardLoopUnanimityNotMaintained,
@@ -62,9 +56,10 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
   val currentLoop = ScopedStack[Loop[Pre]]()
 
   override def dispatch(program: Program[Pre]): Program[Post] =
-    if (enabled)
+    if (enabled) {
+      mappings.program = program
       super.dispatch(program)
-    else
+    } else
       IdentityRewriter().dispatch(program)
 
   override def dispatch(decl: Declaration[Pre]): Unit =

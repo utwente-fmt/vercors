@@ -242,4 +242,18 @@ abstract class VercorsSpec extends AnyFlatSpec {
   val silicon: Seq[Backend] = Seq(types.Backend.Silicon)
   val carbon: Seq[Backend] = Seq(types.Backend.Carbon)
   val anyBackend: Seq[Backend] = Seq(types.Backend.Silicon, types.Backend.Carbon)
+
+  def example(p: Path): Path = {
+    val path = Paths.get("examples").resolve(p)
+    coveredExamples ++= Seq(path)
+    path
+  }
+
+  def example(p: String): Path = example(Paths.get(p))
+
+  def examples(p: String*): Seq[Path] =
+    p.map(example)
+
+  def examplePaths(p: Path*): Seq[Path] =
+    p.map(example)
 }

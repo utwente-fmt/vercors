@@ -31,13 +31,38 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] {
   override def declarations: Seq[Declaration[G]] = decls ++ typeArgs
 
   def layoutLockInvariant(implicit ctx: Ctx): Doc =
-    Text("lock_invariant") <+> intrinsicLockInvariant <> ";" <+/> Empty
+    Text("lock_invariant") <+> Nest(intrinsicLockInvariant.show) <> ";" <+/>
+      Empty
 
-  override def layout(implicit ctx: Ctx): Doc =
+  def layoutLock(implicit ctx: Ctx): Doc =
+    Text("Lock") <+> "intrinsicLock$" <+> "=" <+> "new" <+>
+      "ReentrantLock(true);" <+/> "Condition" <+> "condition$" <+> "=" <+>
+      "intrinsicLock$" <> "." <> "newCondition()" <> ";"
+
+  def layoutJava(implicit ctx: Ctx): Doc =
     (if (intrinsicLockInvariant == tt[G])
        Empty
      else
-       Doc.spec(Show.lazily(layoutLockInvariant(_)))) <> Group(
+       Doc.spec(Show.lazily(layoutLockInvariant(_)))) <+/> Group(
+      Text("class") <+> ctx.name(this) <>
+        (if (typeArgs.nonEmpty)
+           Text("<") <> Doc.args(typeArgs) <> ">"
+         else
+           Empty) <>
+        (if (supports.isEmpty)
+           // Inheritance still needs work anyway
+           Text(" ") <> "extends" <+> "Thread"
+         else
+           Text(" ") <> "extends" <+> Doc.args(
+             supports.map(supp => ctx.name(supp.asClass.get.cls)).map(Text)
+           )) <+> "{"
+    ) <>> Doc.stack2(layoutLock +: decls) <+/> "}"
+
+  def layoutPvl(implicit ctx: Ctx): Doc =
+    (if (intrinsicLockInvariant == tt[G])
+       Empty
+     else
+       Doc.spec(Show.lazily(layoutLockInvariant(_)))) <+/> Group(
       Text("class") <+> ctx.name(this) <>
         (if (typeArgs.nonEmpty)
            Text("<") <> Doc.args(typeArgs) <> ">"
@@ -49,5 +74,11 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] {
            Text(" implements") <+> Doc.args(
              supports.map(supp => ctx.name(supp.asClass.get.cls)).map(Text)
            )) <+> "{"
-    ) <>> Doc.stack(decls) <+/> "}"
+    ) <>> Doc.stack2(decls) <+/> "}"
+
+  override def layout(implicit ctx: Ctx): Doc =
+    ctx.syntax match {
+      case Ctx.Java => layoutJava
+      case _ => layoutPvl
+    }
 }
