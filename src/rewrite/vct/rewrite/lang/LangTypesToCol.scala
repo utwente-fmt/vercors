@@ -204,6 +204,17 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
           case CDeclaration(_, _, Seq(_: CStructDeclaration[Pre]), Seq()) =>
             globalDeclarations
               .succeed(declaration, declaration.rewriteDefault())
+          case decl@CDeclaration(_, _, Seq(td: CTypedef[Pre], struct: CStructDeclaration[Pre]), Seq(init)) =>
+            val structDecl =
+              new CGlobalDeclaration[Post](
+                CDeclaration[Post](dispatch(decl.contract),
+                  dispatch(decl.kernelInvariant),
+                  Seq(dispatch(struct)), Seq())(decl.o))(decl.o)
+            val structSpec = CStructSpecifier[Post](struct.name.get)(decl.o)
+            structSpec.ref = Some(RefCStruct(structDecl))
+
+            globalDeclarations
+              .succeed(declaration, structDecl)
           case decl =>
             decl.inits.foreach(init => {
               implicit val o: Origin = init.o

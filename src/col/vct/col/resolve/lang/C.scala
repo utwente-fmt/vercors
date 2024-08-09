@@ -129,9 +129,10 @@ case object C extends LazyLogging {
     }
 
   def getTypeFromTypeDef[G](
-      decl: CDeclaration[G],
+      gdecl: CGlobalDeclaration[G],
       context: Option[Node[G]] = None,
   ): Type[G] = {
+    val decl = gdecl.decl
     val specs: Seq[CDeclarationSpecifier[G]] =
       decl.specs match {
         case CTypedef() +: remaining => remaining
@@ -141,7 +142,12 @@ case object C extends LazyLogging {
     // Need to get specifications from the init (can only have one init as typedef)
     if(decl.inits.size != 1) throw CTypeNotSupported(context)
     val info = getDeclaratorInfo(decl.inits.head.decl)
-    info.typeOrReturnType(getPrimitiveType(specs, context))
+    val t = specs match {
+      case CStructDeclaration(_, _) +: Seq() => CTStruct[G](gdecl.ref)
+      case _ => getPrimitiveType(specs, context)
+    }
+
+    info.typeOrReturnType(t)
   }
 
   def getPrimitiveType[G](
@@ -185,7 +191,7 @@ case object C extends LazyLogging {
         case Seq(CBool()) => TBool()
         case Seq(defn @ CTypedefName(_)) =>
           defn.ref.get match {
-            case RefTypeDef(decl) => getTypeFromTypeDef(decl.decl)
+            case RefTypeDef(decl) => getTypeFromTypeDef(decl)
             case _ => ???
           }
         case Seq(CSpecificationType(typ)) => typ
