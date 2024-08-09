@@ -54,7 +54,7 @@ case object LangCToCol {
       )
   }
 
-  case class WrongCType(decl: CLocalDeclaration[_]) extends UserError {
+  case class WrongCType(decl: Declaration[_]) extends UserError {
     override def code: String = "wrongCType"
     override def text: String =
       decl.o
@@ -391,17 +391,20 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def getBaseType[G](t: Type[G]): Type[G] =
     t match {
-      case CPrimitiveType(specs) => C.getPrimitiveType(specs)
+      case CPrimitiveType(specs) => getBaseType(C.getPrimitiveType(specs, Some(t)))
+      case TUnique(it, _) => getBaseType(it)
+      case TConst(it) => getBaseType(it)
       case _ => t
     }
 
-  def castIsId(exprType: Type[Pre], castType: Type[Pre]): Boolean =
-    (castType, getBaseType(exprType)) match {
+  def castIsId(exprType: Type[Pre], castType: Type[Pre]): Boolean = {
+    (getBaseType(castType), getBaseType(exprType)) match {
       case (tc, te) if tc == te => true
       case (TCInt(), TBoundedInt(_, _)) => true
       case (TBoundedInt(_, _), TCInt()) => true
       case _ => false
     }
+  }
 
   def cast(c: CCast[Pre]): Expr[Post] =
     c match {
@@ -413,8 +416,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
       case CCast(
             inv @ CInvocation(CLocal("__vercors_malloc"), Seq(arg), Nil, Nil),
-            CTPointer(t2),
+            tcast,
           ) =>
+        val t2 = tcast match {
+          case CTPointer(t2) => t2
+          case _ => throw UnsupportedMalloc(c)
+        }
         val (t1, size) =
           arg match {
             case SizeOf(t1) if castIsId(t1, t2) => (t1, c_const[Post](1)(c.o))
@@ -424,7 +431,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               (t1, rw.dispatch(r))
             case _ => throw UnsupportedMalloc(c)
           }
-        NewPointerArray(rw.dispatch(t1), size)(ArrayMallocFailed(inv))(c.o)
+        NewPointerArray(rw.dispatch(t2), size, None)(ArrayMallocFailed(inv))(c.o)
       case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _), _) =>
         throw UnsupportedMalloc(c)
       case CCast(n @ Null(), t) if t.asPointer.isDefined => rw.dispatch(n)
@@ -439,7 +446,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = cParam.o
     val varO = o.sourceName(C.getDeclaratorInfo(cParam.declarator).name)
     val cRef = RefCParam(cParam)
-    val tp = new TypeProperties(cParam.specifiers, cParam.declarator)
+    val tp = new TypeProperties(cParam.specifiers, cParam)
 
     kernelSpecifier match {
       case OpenCLKernel() =>
@@ -480,10 +487,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case GPULocal() => throw WrongGPUType(cParam)
       case GPUGlobal() => throw WrongGPUType(cParam)
     }
-    val specType =
-      cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] =>
-        rw.dispatch(t.t)
-      }.get
+    val prop = new TypeProperties(cParam.specifiers, cParam)
+    if(!prop.validCParam) throw WrongCType(cParam)
+    val specType = rw.dispatch(prop.mainType.get)
 
     cParam.drop()
     val v =
@@ -644,12 +650,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         val v = new Variable[Post](TCInt())(varO)
         dynamicSharedMemLengthVar(d) = v
         rw.variables.declare(v)
-//      val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
         val assign: Statement[Post] = assignLocal(
           Local(cNameSuccessor(d).ref),
           NewPointerArray[Post](
             getInnerType(cNameSuccessor(d).t),
-            Local(v.ref),
+            Local(v.ref), None
           )(PanicBlame("Shared memory sizes cannot be negative.")),
         )
         declarations ++= Seq(cNameSuccessor(d))
@@ -657,13 +662,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       })
       staticSharedMemNames.foreach { case (d, (size, blame)) =>
         implicit val o: Origin = getCDecl(d).o
-//      val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
         val assign: Statement[Post] = assignLocal(
           Local(cNameSuccessor(d).ref),
           // Since we set the size and blame together, we can assume the blame is not None
           NewPointerArray[Post](
             getInnerType(cNameSuccessor(d).t),
-            CIntegerValue(size),
+            CIntegerValue(size), None
           )(blame.get),
         )
         declarations ++= Seq(cNameSuccessor(d))
@@ -851,8 +855,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   class TypeProperties(
-      specs: Seq[CDeclarationSpecifier[Pre]],
-      decl: CDeclarator[Pre],
+      specs: Seq[CDeclarationSpecifier[Pre]], decl: Declaration[Pre]
   ) {
     var arrayOrPointer = false
     var global = false
@@ -860,27 +863,39 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     var extern = false
     var innerType: Option[Type[Pre]] = None
     var arraySize: Option[Expr[Pre]] = None
+    var mainType: Option[Type[Pre]] = None
+
     var sizeBlame: Option[Blame[ArraySizeError]] = None
+    var pure = false
+    var inline = false
+    var static = false
 
     specs.foreach {
       case GPULocal() => shared = true
       case GPUGlobal() => global = true
-      case CSpecificationType(CTPointer(t)) =>
+      case CSpecificationType(t) if isPointerOrArray(t) =>
+        val (inner, size, blame) = getInnerPointerInfo(t).get
         arrayOrPointer = true
-        innerType = Some(t)
-      case CSpecificationType(ctarr @ CTArray(size, t)) =>
+        innerType = Some(inner)
+        mainType = Some(t)
+        sizeBlame = blame
         arraySize = size
-        innerType = Some(t)
-        sizeBlame = Some(
-          ctarr.blame
-        ) // we set the blame here, together with the size
-        arrayOrPointer = true
+      case CSpecificationType(t) =>
+        mainType = Some(t)
       case CExtern() => extern = true
-      case _ =>
+      case CPure() => pure = true
+      case CInline() => inline = true
+      case CStatic() => static = true
+      // We want to make sure we process everything
+      case _ => ???
     }
 
     def isShared: Boolean = shared && !global
     def isGlobal: Boolean = !shared && global
+    def validNonGpu: Boolean = !global && !shared && mainType.isDefined
+    def validReturn: Boolean = validNonGpu && !static
+    def validCParam: Boolean = !pure && !inline && validNonGpu && !static
+    def validCLocal = validCParam
   }
 
   def addDynamicShared(
@@ -894,7 +909,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   def addStaticShared(
-      decl: CDeclarator[Pre],
       cRef: CNameTarget[Pre],
       t: Type[Pre],
       o: Origin,
@@ -921,7 +935,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     if (decl.decl.inits.size != 1)
       throw MultipleSharedMemoryDeclaration(decl)
 
-    val prop = new TypeProperties(decl.decl.specs, decl.decl.inits.head.decl)
+    val prop = new TypeProperties(decl.decl.specs, decl)
     if (!prop.shared)
       return false
     val init: CInit[Pre] = decl.decl.inits.head
@@ -942,7 +956,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           !prop.extern
         ) {
           addStaticShared(
-            init.decl,
             cRef,
             prop.innerType.get,
             varO,
@@ -958,7 +971,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           !prop.extern
         ) {
           addStaticShared(
-            init.decl,
             cRef,
             prop.innerType.get,
             varO,
@@ -1073,12 +1085,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   ): Seq[Statement[Post]] = {
     implicit val o: Origin = origin
     (exprs.zipWithIndex.map { case (value, index) =>
-      Assign[Post](
+      // Since we model const arrays with sequences internally, we cannot assign to them, so we assume their values
+        Assume[Post](
         AmbiguousSubscript(array.get, c_const(index))(PanicBlame(
-          "The explicit initialization of an array in C should never generate an assignment that exceeds the bounds of the array"
-        )),
-        rw.dispatch(value),
-      )(PanicBlame("Assignment for an explicit array initializer cannot fail."))
+          "The explicit initialization of an array in C should never exceed the bounds of the array"
+        )) === rw.dispatch(value),
+        )
     })
   }
 
@@ -1097,7 +1109,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case CLiteralArray(exprs) if exprs.size == size =>
         Block(Seq(
           LocalDecl(v),
-          assignLocal(
+          assignInitial(
             v.get,
             LiteralVector[Post](
               rw.dispatch(t.innerType),
@@ -1112,43 +1124,40 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteArrayDeclaration(
       decl: CLocalDeclaration[Pre],
       cta: CTArray[Pre],
+      init: CInit[Pre]
   ): Statement[Post] = {
-    // LangTypesToCol makes it so that each declaration only has one init
-    val init = decl.decl.inits.head
+    implicit val o: Origin = decl.o
     val info = C.getDeclaratorInfo(init.decl)
-    implicit val o: Origin = init.o
+    val CTArray(sizeOption, oldT) = cta
+    val it = rw.dispatch(oldT)
+    val t = TPointer[Post](it)
+    val v = new Variable[Post](t)(o.sourceName(info.name))
+    cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
+    val newArrf = (size: Expr[Post]) => {
+      NewPointerArray[Post](it, size, None)(cta.blame)
+    }
 
-    decl.decl.specs match {
-      case Seq(CSpecificationType(cta @ CTArray(sizeOption, oldT))) =>
-        val t = rw.dispatch(oldT)
-        val v = new Variable[Post](TPointer(t))(o.sourceName(info.name))
-        cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
-
-        (sizeOption, init.init) match {
-          case (None, None) => throw WrongCType(decl)
-          case (Some(size), None) =>
-            val newArr = NewPointerArray[Post](t, rw.dispatch(size))(cta.blame)
-            Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
-          case (None, Some(CLiteralArray(exprs))) =>
-            val newArr =
-              NewPointerArray[Post](t, c_const[Post](exprs.size))(cta.blame)
-            Block(
-              Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++
-                assignliteralArray(v, exprs, o)
-            )
-          case (Some(size), Some(CLiteralArray(exprs))) =>
-            val realSize = isConstantInt(size).filter(_ >= 0)
-              .getOrElse(throw WrongCType(decl))
-            if (realSize < exprs.size)
-              logger.warn(s"Excess elements in array initializer: '${decl}'")
-            val newArr =
-              NewPointerArray[Post](t, c_const[Post](realSize))(cta.blame)
-            Block(
-              Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++
-                assignliteralArray(v, exprs.take(realSize.intValue), o)
-            )
-          case _ => throw WrongCType(decl)
-        }
+    (sizeOption, init.init) match {
+      case (None, None) => throw WrongCType(decl)
+      case (Some(size), None) =>
+        val newArr = newArrf(rw.dispatch(size))
+        Block(Seq(LocalDecl(v), assignInitial(v.get, newArr)))
+      case (None, Some(CLiteralArray(exprs))) =>
+        val newArr = newArrf(c_const[Post](exprs.size))
+        Block(
+          Seq(LocalDecl(v), assignInitial(v.get, newArr)) ++
+            assignliteralArray(v, exprs, o)
+        )
+      case (Some(size), Some(CLiteralArray(exprs))) =>
+        val realSize = isConstantInt(size).filter(_ >= 0)
+          .getOrElse(throw WrongCType(decl))
+        if (realSize < exprs.size)
+          logger.warn(s"Excess elements in array initializer: '${decl}'")
+        val newArr = newArrf(c_const[Post](realSize))
+        Block(
+          Seq(LocalDecl(v), assignInitial(v.get, newArr)) ++
+            assignliteralArray(v, exprs.take(realSize.intValue), o)
+        )
       case _ => throw WrongCType(decl)
     }
   }
@@ -1177,27 +1186,23 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       )
     ).getOrElse(NewObject[Post](targetClass.ref))
 
-    Block(Seq(LocalDecl(v), assignLocal(v.get, initialVal)))
+    Block(Seq(LocalDecl(v), assignInitial(v.get, initialVal)))
   }
 
   def rewriteLocal(decl: CLocalDeclaration[Pre]): Statement[Post] = {
     decl.drop()
-    decl.decl.specs.foreach {
-      case _: CSpecificationType[Pre] =>
-      case _ => throw WrongCType(decl)
-    }
-
+    val prop = new TypeProperties(decl.decl.specs, decl)
+    if(!prop.validCLocal) throw WrongCType(decl)
     // LangTypesToCol makes it so that each declaration only has one init
     val init = decl.decl.inits.head
 
-    val t =
-      decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => t.t }
-        .get match {
+    val t = prop.mainType.get match {
         case t: CTVector[Pre] if init.init.collect({
               case _: CLiteralArray[Pre] => true
             }).isDefined =>
           return rewriteVectorDeclaration(decl, t, init)
-        case t: CTArray[Pre] => return rewriteArrayDeclaration(decl, t)
+        case t: CTArray[Pre] =>
+          return rewriteArrayDeclaration(decl, t, init)
         case t: CTStruct[Pre] => return rewriteStructDeclaration(decl, t)
         case t => rw.dispatch(t)
       }
@@ -1207,7 +1212,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
     implicit val o: Origin = init.o
     init.init.map(value =>
-      Block(Seq(LocalDecl(v), assignLocal(v.get, rw.dispatch(value))))
+      Block(Seq(LocalDecl(v), assignInitial(v.get, rw.dispatch(value))))
     ).getOrElse(LocalDecl(v))
   }
 
@@ -1247,12 +1252,45 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     )(KernelBarrierFailure(barrier))
   }
 
-  def isPointer(t: Type[Pre]): Boolean = getPointer(t).isDefined
-
-  def getPointer(t: Type[Pre]): Option[TPointer[Pre]] =
+  def getInnerPointerInfo(t: Type[Pre]) : Option[(Type[Pre], Option[Expr[Pre]], Option[Blame[ArraySizeError]])] =
     getBaseType(t) match {
-      case t @ TPointer(_) => Some(t)
+      case TPointer(it) => Some((it, None, None))
+      case CTPointer(it) => Some((it, None, None))
+      case a@CTArray(size, it) => Some((it, size, Some(a.blame)))
       case _ => None
+    }
+
+  def isVector(t: Type[Pre]): Boolean =
+    getBaseType(t) match {
+      case t : CTVector[Pre] => true
+      case _ => false
+    }
+
+  def isArray(t: Type[Pre]): Boolean =
+    getBaseType(t) match {
+      case t : CTArray[Pre] => true
+      case _ => false
+    }
+
+  def isStruct(t: Type[Pre]): Boolean =
+    getBaseType(t) match {
+      case t : CTStruct[Pre] => true
+      case _ => false
+    }
+
+  def isPointer(t: Type[Pre]): Boolean =
+    getBaseType(t) match {
+      case t @ TPointer(_) => true
+      case t @ CTPointer(_) => true
+      case _ => false
+    }
+
+  def isPointerOrArray(t: Type[Pre]): Boolean =
+    getBaseType(t) match {
+      case t @ TPointer(_) => true
+      case t @ CTPointer(_) => true
+      case t @ CTArray(_, _) => true
+      case _ => false
     }
 
   def isNumeric(t: Type[Pre]): Boolean =
@@ -1489,8 +1527,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         Seq(
           LocalDecl(vCopy),
           LocalDecl(vValue),
-          assignLocal(vValue.get, value),
-          assignLocal(vCopy.get, NewObject[Post](targetClass.ref)),
+          assignInitial(vValue.get, value),
+          assignInitial(vCopy.get, NewObject[Post](targetClass.ref)),
         ) ++ fieldAssigns
       ),
       vCopy.get,
@@ -1634,7 +1672,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val before: Statement[Post] =
       Block[Post](Seq(
         LocalDecl(rhs_val)(rhs.o),
-        assignLocal(rhs_val.get(rhs.o), rhs)(rhs.o),
+        assignInitial(rhs_val.get(rhs.o), rhs)(rhs.o),
       ))(assign.o)
 
     // Assign the correct values
@@ -1663,12 +1701,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       )(assign.o),
     )(assign.o)
   }
-
-  def isCPointer(t: Type[_]) =
-    getBaseType(t) match {
-      case CTPointer(_) => true
-      case _ => false
-    }
 
   def indexVectors(
       e: Expr[Post],
@@ -1707,7 +1739,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               val v = new Variable[Post](e.t)
               val befores: Seq[Statement[Post]] = Seq(
                 LocalDecl(v),
-                assignLocal(v.get, e),
+                assignInitial(v.get, e),
               )
               (befores, v.get)
           }
@@ -1936,7 +1968,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     (e.name, args, givenMap, yields) match {
       case (_, _, g, y) if g.nonEmpty || y.nonEmpty =>
-      case ("__vercors_free", Seq(xs), _, _) if isCPointer(xs.t) =>
+      case ("__vercors_free", Seq(xs), _, _) if isPointer(xs.t) =>
         return FreePointer[Post](rw.dispatch(xs))(inv.blame)(inv.o)
       case _ => ()
     }
@@ -1972,8 +2004,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
-  def pointerType(t: CTPointer[Pre]): Type[Post] = {
-    TPointer(rw.dispatch(t.innerType))
+  def pointerType(t: CPointerType[Pre]): Type[Post] = t match {
+    case CTPointer(innerType) => TPointer(rw.dispatch(innerType))
+    case CTArray(_, innerType) => TPointer(rw.dispatch(innerType))
   }
 
   def vectorType(t: CType[Pre]): Type[Post] = {

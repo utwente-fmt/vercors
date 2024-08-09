@@ -18,10 +18,7 @@ import vct.rewrite.lang.NoSupportSelfLoop
 import vct.col.rewrite.veymont.StructureCheck
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
-import vct.main.stages.Transformation.{
-  PassEventHandler,
-  TransformationCheckError,
-}
+import vct.main.stages.Transformation.{PassEventHandler, TransformationCheckError}
 import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
@@ -37,6 +34,8 @@ import vct.rewrite.{
   InlineTrivialLets,
   MonomorphizeClass,
   SmtlibToProverTypes,
+  TypeQualifierCoercion,
+  MakeUniqueMethodCopies,
 }
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont._
@@ -307,6 +306,8 @@ case class SilverTransformation(
         // Replace leftover SYCL types
         ReplaceSYCLTypes,
         CFloatIntCoercion,
+        TypeQualifierCoercion,
+        MakeUniqueMethodCopies,
         ComputeBipGlue,
         InstantiateBipSynchronizations,
         EncodeBipPermissions,
@@ -414,6 +415,7 @@ case class SilverTransformation(
         SmtlibToProverTypes,
         EnumToDomain,
         ImportArray.withArg(adtImporter),
+        ImportConstPointer.withArg(adtImporter),
         ImportPointer.withArg(adtImporter),
         ImportVector.withArg(adtImporter),
         ImportMapCompat.withArg(adtImporter),

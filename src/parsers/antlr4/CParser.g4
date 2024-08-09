@@ -20,4 +20,6 @@ specFalse: 'false';
 startSpec: LineStartSpec {specLevel++;} | BlockStartSpec {specLevel++;} | BlockStartSpecImmediate {specLevel++;};
 endSpec: EndSpec {specLevel--;};
 
-typeSpecifierWithPointerOrArray : typeSpecifier | typeSpecifier '[' ']' | typeSpecifier '*';
+typeSpecifierWithPointerOrArray : specifierQualifierList
+    | specifierQualifierList '[' ']'
+    | specifierQualifierList '*';

@@ -328,11 +328,14 @@ case class PostconditionFailed(
   override def inlineDescWithSource(node: String, failure: String): String =
     s"Postcondition of `$node` may not hold, since $failure."
 }
-case class TerminationMeasureFailed(
+
+sealed trait TerminationMeasureFailed extends ContractedFailure
+
+case class DecreaseTerminationMeasureFailed(
     applicable: ContractApplicable[_],
-    apply: Invocation[_],
+    apply: InvokingNode[_],
     measure: DecreasesClause[_],
-) extends ContractedFailure with VerificationFailure {
+) extends TerminationMeasureFailed {
   override def code: String = "decreasesFailed"
   override def position: String = measure.o.shortPositionText
   override def desc: String =
@@ -344,6 +347,21 @@ case class TerminationMeasureFailed(
   override def inlineDesc: String =
     s"${apply.o.inlineContextText} may not terminate, since `${measure.o.inlineContextText}` is not decreased or not bounded"
 }
+
+case class CallTerminationMeasureFailed(apply: InvokingNode[_],
+  calledMethod: AbstractMethod[_],
+  ) extends TerminationMeasureFailed {
+  override def code: String = "callDecreasesFailed"
+  override def position: String = calledMethod.o.shortPositionText
+  override def desc: String =
+    Message.messagesInContext(
+      apply.o -> "The invocation does not terminate, since ...",
+      calledMethod.o -> "... this called method may not decrease.",
+    )
+  override def inlineDesc: String =
+    s"The invocation ${apply.o.inlineContextText} may not terminate, since `${calledMethod.o.inlineContextText}` is not decreasing"
+}
+
 case class ContextEverywhereFailedInPost(
     failure: ContractFailure,
     node: ContractApplicable[_],

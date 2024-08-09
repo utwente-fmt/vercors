@@ -36,6 +36,7 @@ class ExampleCoverage extends AnyFlatSpec {
       new PointerSpec(),
       new PredicatesSpec(),
       new PublicationsSpec(),
+      new QualifierSpec(),
       new RefuteSpec(),
       new SequencesSpec(),
       new SetsSpec(),

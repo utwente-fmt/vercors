@@ -10,8 +10,8 @@ import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, const}
 import scala.collection.mutable
 
 case object ImportPointer extends ImportADTBuilder("pointer") {
-  private def PointerField(t: Type[_]): Origin =
-    Origin(Seq(PreferredName(Seq(typeText(t))), LabelContext("pointer field")))
+  private def PointerField(t: Type[_], uniqueId: Option[BigInt]): Origin =
+    Origin(Seq(PreferredName(Seq(typeText(t) + uniqueId.map(_.toString).getOrElse(""))), LabelContext("pointer field")))
 
   case class PointerNullOptNone(inner: Blame[PointerNull], expr: Expr[_])
       extends Blame[OptionNone] {
@@ -75,14 +75,18 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
   private lazy val pointerDeref = find[Function[Post]](pointerFile, "ptr_deref")
   private lazy val pointerAdd = find[Function[Post]](pointerFile, "ptr_add")
 
-  val pointerField: mutable.Map[Type[Post], SilverField[Post]] = mutable.Map()
+  val pointerField: mutable.Map[(Type[Post], Option[BigInt]), SilverField[Post]] = mutable.Map()
 
   private def getPointerField(ptr: Expr[Pre]): Ref[Post, SilverField[Post]] = {
-    val tElement = dispatch(ptr.t.asPointer.get.element)
+    val (tElementPre: Type[Pre], uniqueID) = ptr.t.asPointer.get match {
+      case TUniquePointer(e, i) => (e, Some(i))
+      case TPointer(e) => (e, None)
+    }
+    val tElement = dispatch(tElementPre)
     pointerField.getOrElseUpdate(
-      tElement, {
+      (tElement, uniqueID), {
         globalDeclarations
-          .declare(new SilverField(tElement)(PointerField(tElement)))
+          .declare(new SilverField(tElement)(PointerField(tElement, uniqueID)))
       },
     ).ref
   }
@@ -98,6 +102,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
   override def postCoerce(t: Type[Pre]): Type[Post] =
     t match {
       case TPointer(_) => TOption(TAxiomatic(pointerAdt.ref, Nil))
+      case TUniquePointer(_, _) => TOption(TAxiomatic(pointerAdt.ref, Nil))
       case other => rewriteDefault(other)
     }
 

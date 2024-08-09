@@ -115,12 +115,14 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       implicit o: Origin
   ): (Seq[CDeclarationSpecifier[Post]], CDeclarator[Post]) = {
     val info = C.getDeclaratorInfo(declarator)
-    val baseType = C.getPrimitiveType(specifiers, context)
-    val otherSpecifiers = specifiers
-      .filter(!_.isInstanceOf[CTypeSpecifier[Pre]]).map(dispatch)
-    val newSpecifiers =
+    val (specs, otherSpecifiers) = specifiers
+      .partition({case _ : CTypeSpecifier[Pre] => true; case _: CTypeQualifierDeclarationSpecifier[Pre] => true;
+      case _ => false})
+    val newOtherSpecifiers = otherSpecifiers.map(dispatch)
+    val baseType = C.getPrimitiveType(specs, context)
+    val newSpecifiers : Seq[CDeclarationSpecifier[LangTypesToCol.this.Post]] =
       CSpecificationType[Post](dispatch(info.typeOrReturnType(baseType))) +:
-        otherSpecifiers
+        newOtherSpecifiers
     val newDeclarator =
       info.params match {
         case Some(params) =>
@@ -202,6 +204,17 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
           case CDeclaration(_, _, Seq(_: CStructDeclaration[Pre]), Seq()) =>
             globalDeclarations
               .succeed(declaration, declaration.rewriteDefault())
+          case decl@CDeclaration(_, _, Seq(td: CTypedef[Pre], struct: CStructDeclaration[Pre]), Seq(init)) =>
+            val structDecl =
+              new CGlobalDeclaration[Post](
+                CDeclaration[Post](dispatch(decl.contract),
+                  dispatch(decl.kernelInvariant),
+                  Seq(dispatch(struct)), Seq())(decl.o))(decl.o)
+            val structSpec = CStructSpecifier[Post](struct.name.get)(decl.o)
+            structSpec.ref = Some(RefCStruct(structDecl))
+
+            globalDeclarations
+              .succeed(declaration, structDecl)
           case decl =>
             decl.inits.foreach(init => {
               implicit val o: Origin = init.o

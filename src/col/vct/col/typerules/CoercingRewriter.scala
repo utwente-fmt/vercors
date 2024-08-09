@@ -1,7 +1,7 @@
 package vct.col.typerules
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.util.FuncTools
+import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.ast.rewrite.BaseCoercingRewriter
 import vct.col.ast.`type`.typeclass.TFloats
@@ -53,6 +53,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
   import CoercingRewriter._
 
   type Post = Rewritten[Pre]
+  val resultType: ScopedStack[Type[Pre]] = ScopedStack()
 
   val coercedDeclaration: SuccessionMap[Declaration[Pre], Declaration[Pre]] =
     SuccessionMap()
@@ -263,11 +264,20 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceBoolResource() => e
       case CoerceResourceResourceVal() => e
       case CoerceResourceValResource() => e
+      case CoerceFromConst(_) => e
+      case CoerceToConst(_) => e
+      case CoerceFromUnique(_, _) => e
+      case CoerceToUnique(_, _) => e
+      case CoerceBetweenUnique(_, _, _) => e
       case CoerceBoundIntFrac() => e
       case CoerceBoundIntZFrac(_) => e
       case CoerceBoundIntFloat(_, _) => e
       case CoerceJoinUnion(_, _, _) => e
       case CoerceSelectUnion(inner, _, _, _) => applyCoercion(e, inner)
+
+      case CoerceFromUniquePointer(_, _) => e
+      case CoerceToUniquePointer(_, _) => e
+      case CoerceBetweenUniquePointer(_, _) => e
 
       case CoerceSupports(_, _) => e
       case CoerceClassAnyClass(_, _) => e
@@ -366,9 +376,16 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def postCoerce(decl: Declaration[Pre]): Unit =
     allScopes.anySucceed(decl, decl.rewriteDefault())
   override final def dispatch(decl: Declaration[Pre]): Unit = {
-    val coercedDecl = coerce(preCoerce(decl))
-    coercedDeclaration(decl) = coercedDecl
-    postCoerce(coercedDecl)
+    def rewrite() : Unit = {
+      val coercedDecl = coerce(preCoerce(decl))
+      coercedDeclaration(decl) = coercedDecl
+      postCoerce(coercedDecl)
+    }
+    decl match {
+      case m: AbstractMethod[Pre] =>
+        resultType.having(m.returnType)({rewrite()})
+      case _ => rewrite()
+    }
   }
 
   def coerce(node: Coercion[Pre]): Coercion[Pre] = {
@@ -540,7 +557,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"two-dimensional array")
     }
-  def pointer(e: Expr[Pre]): (Expr[Pre], TPointer[Pre]) =
+  def pointer(e: Expr[Pre]): (Expr[Pre], PointerType[Pre]) =
     CoercionUtils.getAnyPointerCoercion(e.t) match {
       case Some((coercion, t)) =>
         (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
@@ -1552,8 +1569,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
         Neq(coerce(left, sharedType), coerce(right, sharedType))
       case na @ NewArray(element, dims, moreDims, initialize) =>
         NewArray(element, dims.map(int), moreDims, initialize)(na.blame)
-      case na @ NewPointerArray(element, size) =>
-        NewPointerArray(element, size)(na.blame)
+      case na @ NewPointerArray(element, size, unique) =>
+        NewPointerArray(element, size, unique)(na.blame)
+      case nca @ NewConstPointerArray(element, size) =>
+        NewConstPointerArray(element, size)(nca.blame)
       case NewObject(cls) => NewObject(cls)
       case NoPerm() => NoPerm()
       case Not(arg) => Not(bool(arg))
@@ -1970,6 +1989,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           UMinus(float(arg)),
           UMinus(rat(arg)),
         )
+      case u: UniquePointerCoercion[Pre] => u
       case u @ Unfolding(pred, body) => Unfolding(pred, body)(u.blame)
       case UntypedLiteralBag(values) =>
         val sharedType = Types.leastCommonSuperType(values.map(_.t))
@@ -2132,14 +2152,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
     implicit val o: Origin = stat.o
     stat match {
       case a @ Assert(assn) => Assert(res(assn))(a.blame)
-      case a @ Assign(target, value) =>
-        try {
-          Assign(target, coerce(value, target.t, canCDemote = true))(a.blame)
-        } catch {
-          case err: Incoercible =>
-            println(err.text)
-            throw err
-        }
+      case a @ Assign(target, value) => Assign(target, coerce(value, target.t, canCDemote = true))(a.blame)
+      case a @ AssignInitial(target, value) => AssignInitial(target, coerce(value, target.t, canCDemote = true))(a.blame)
       case Assume(assn) => Assume(bool(assn))
       case Block(statements) => Block(statements)
       case Branch(branches) =>
@@ -2246,7 +2260,11 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Recv(ref) => Recv(ref)
       case r @ Refute(assn) => Refute(res(assn))(r.blame)
       case Return(result) =>
-        Return(result) // TODO coerce return, make AmbiguousReturn?
+        if(resultType.nonEmpty){
+          Return(coerce(result, resultType.top)) // TODO coerce return, make AmbiguousReturn?
+        } else {
+          Return(result)
+        }
       case Scope(locals, body) => Scope(locals, body)
       case send @ Send(decl, offset, resource) =>
         Send(decl, offset, res(resource))(send.blame)

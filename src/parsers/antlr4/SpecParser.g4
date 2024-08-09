@@ -419,6 +419,10 @@ valModifier
  | langStatic # valStatic
  ;
 
+valTypeQualifier
+  : 'unique' '<' langConstInt '>' # valUnique
+  ;
+
 valArgList
  : valArg
  | valArg ',' valArgList
@@ -461,3 +465,8 @@ valEmbedModifier
  : startSpec valModifier endSpec
  | {specLevel>0}? valModifier
  ;
+
+ valEmbedTypeQualifier
+  : startSpec valTypeQualifier endSpec
+  | {specLevel>0}? valTypeQualifier
+  ;

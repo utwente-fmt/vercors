@@ -290,6 +290,7 @@ case class CToCol[G](
       case TypeQualifier1(_) => CRestrict()
       case TypeQualifier2(_) => CVolatile()
       case TypeQualifier3(_) => CAtomic()
+      case TypeQualifier4(spec) => convert(spec)
     }
 
   def convert(
@@ -838,7 +839,9 @@ case class CToCol[G](
       case SpecifierQualifierList0(t, tail) =>
         convert(t) +: tail.map((e: SpecifierQualifierListContext) => convert(e))
           .getOrElse(Nil)
-      case SpecifierQualifierList1(_, _) => ??(specifiers)
+      case SpecifierQualifierList1(t, tail) =>
+        CTypeQualifierDeclarationSpecifier(convert(t)) +: tail.map((e: SpecifierQualifierListContext) => convert(e))
+        .getOrElse(Nil)
     }
 
   def convert(implicit expr: CastExpressionContext): Expr[G] =
@@ -1002,11 +1005,11 @@ case class CToCol[G](
   def convert(t: TypeSpecifierWithPointerOrArrayContext): Type[G] =
     t match {
       case TypeSpecifierWithPointerOrArray0(typeSpec) =>
-        CPrimitiveType(Seq(convert(typeSpec)))
+        CPrimitiveType(convert(typeSpec))
       case TypeSpecifierWithPointerOrArray1(typeSpec, _, _) =>
-        CTArray(None, CPrimitiveType(Seq(convert(typeSpec))))(blame(t))
+        CTArray(None, CPrimitiveType(convert(typeSpec)))(blame(t))
       case TypeSpecifierWithPointerOrArray2(typeSpec, _) =>
-        CTPointer(CPrimitiveType(Seq(convert(typeSpec))))
+        CTPointer(CPrimitiveType(convert(typeSpec)))
     }
 
   def convert(id: LangIdContext): String =
@@ -1183,6 +1186,17 @@ case class CToCol[G](
           case "thread_local" => collector.threadLocal += mod
         }
       case ValStatic(_) => collector.static += mod
+    }
+
+  def convert(mod: ValEmbedTypeQualifierContext): CUnique[G] =
+    mod match {
+      case ValEmbedTypeQualifier0(_, mod, _) => convert(mod)
+      case ValEmbedTypeQualifier1(mod) => convert(mod)
+    }
+
+  def convert(implicit mod: ValTypeQualifierContext): CUnique[G] =
+    mod match {
+      case ValUnique(_, _, uniqueId, _) => CUnique[G](convert(uniqueId))
     }
 
   def convertEmbedWith(

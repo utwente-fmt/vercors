@@ -288,18 +288,10 @@ trait SilverBackend
           case PredicateNotWellformed(_, reason, _) => defer(reason)
           case FunctionTerminationError(node: Infoed, reason, _) =>
             val apply = get[col.Invocation[_]](node)
-            apply.ref.decl.blame.blame(blame.TerminationMeasureFailed(
-              apply.ref.decl,
-              apply,
-              getDecreasesClause(reason),
-            ))
+            apply.ref.decl.blame.blame(getDecreasesBlame(apply, reason))
           case MethodTerminationError(node: Infoed, reason, _) =>
-            val apply = get[col.Invocation[_]](node)
-            apply.ref.decl.blame.blame(blame.TerminationMeasureFailed(
-              apply.ref.decl,
-              apply,
-              getDecreasesClause(reason),
-            ))
+            val apply = get[col.InvokingNode[_]](node)
+            apply.ref.decl.blame.blame(getDecreasesBlame(apply, reason))
           case LoopTerminationError(node: Infoed, reason, _) =>
             val decreases = get[col.DecreasesClause[_]](node)
             info(node).invariant.get.blame
@@ -395,6 +387,19 @@ trait SilverBackend
           ) // need to fetch access
       case _ => ???
     }
+
+  def getDecreasesBlame(invoking: col.InvokingNode[_], reason: ErrorReason) : blame.TerminationMeasureFailed = {
+    reason match {
+      case TerminationConditionFalse(node: Infoed) =>
+        val procedure = get[col.Procedure[_]](node)
+        blame.CallTerminationMeasureFailed(invoking, procedure)
+      case _ => blame.DecreaseTerminationMeasureFailed(
+        invoking.ref.decl,
+        invoking,
+        getDecreasesClause(reason),
+      )
+    }
+  }
 
   def getDecreasesClause(reason: ErrorReason): col.DecreasesClause[_] =
     reason match {
