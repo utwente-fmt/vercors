@@ -91,7 +91,7 @@ object VeyMont extends LazyLogging {
           case Right(()) =>
             val end = timer.end
             logger.info(
-              s"Choreography verified successfully (duration: ${Time.formatDuration(end)})"
+              s"Choreographic verification took: ${Time.formatDuration(end)}"
             )
             Right(ChoreographyResult(program, collector.errs.toSeq))
         }
@@ -163,7 +163,7 @@ object VeyMont extends LazyLogging {
         case Right(()) =>
           val end = timer.end
           logger.info(
-            s"Implementation verified successfully (duration: ${Time.formatDuration(end)})"
+            s"Implementation verification took: ${Time.formatDuration(end)}"
           )
           Right(ImplementationResult(collector.errs.toSeq))
       }
