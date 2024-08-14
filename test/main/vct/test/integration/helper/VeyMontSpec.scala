@@ -99,8 +99,8 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
   def implementation(
       pvl: String = null,
       desc: String = null,
-      input: Path,
-      inputs: Seq[Path],
+      input: Path = null,
+      inputs: Seq[Path] = null,
       flags: Seq[String] = Seq(),
       flag: String = null,
       fail: String = null,

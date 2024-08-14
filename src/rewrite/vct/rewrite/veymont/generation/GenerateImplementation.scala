@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
   And,
+  TVoid,
   ApplicableContract,
   Assert,
   Assign,
@@ -197,12 +198,14 @@ case class GenerateImplementation[Pre <: Generation]()
           )
 
           globalDeclarations.declare(
-            procedure(
+            new Procedure(
+              contract = chor.contract.rewriteDefault(),
+              returnType = TVoid[Post](),
               args = variables.dispatch(chor.params),
               body = Some(mainBody),
-              blame = PanicBlame("TODO: Procedure"),
-              contractBlame = PanicBlame("TODO: Procedure contract"),
-            )(chor.o)
+              outArgs = Seq(),
+              typeArgs = Seq(),
+            )(PanicBlame("TODO: Procedure"))(chor.o)
           )
         }
       case other => super.dispatch(other)

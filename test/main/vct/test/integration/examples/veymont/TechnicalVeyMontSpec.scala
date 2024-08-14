@@ -3,6 +3,20 @@ package vct.test.integration.examples.veymont
 import vct.test.integration.helper.VeyMontSpec
 
 class TechnicalVeyMontSpec extends VeyMontSpec {
+  implementation(
+    desc = "Run contract can depend on choreography contract",
+    pvl = """
+  class Storage {}
+
+  requires x > 0;
+  choreography Chor(int x) {
+    endpoint alex = Storage();
+
+    requires x > 0;
+    run { }
+  }""",
+  )
+
   choreography(
     desc = "Bobby may receive permission for its target location",
     pvl = """

@@ -311,14 +311,17 @@ case object Options {
       ).children(
         opt[Unit]("choreography").abbr("chor").action((_, c) =>
           c.copy(veymontSkipImplementationVerification = true)
-        ),
+        ).text("Only perform verification of the choreography."),
         opt[Unit]("implementation").abbr("impl")
-          .action((_, c) => c.copy(veymontSkipChoreographyVerification = true)),
+          .action((_, c) => c.copy(veymontSkipChoreographyVerification = true))
+          .text("Only perform verification of the generated implementation."),
         opt[Unit]("generate").abbr("gen").action((_, c) =>
           c.copy(
             veymontSkipChoreographyVerification = true,
             veymontSkipImplementationVerification = true,
           )
+        ).text(
+          "Only generate an implementation, and skip the choreography and implementation verification steps"
         ),
         opt[Path]("veymont-output").valueName("<path>")
           .action((path, c) => c.copy(veymontOutput = Some(path))).text(
