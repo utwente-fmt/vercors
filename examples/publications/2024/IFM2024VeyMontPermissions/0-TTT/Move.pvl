@@ -10,7 +10,7 @@ class Move {
 	
 	ensures \result.i == i ** \result.j == j ** \result.mark == mark;
 	ensures i == \old(i) ** j == \old(j) ** mark == \old(mark);
-	Move clone() {
+	Move copy() {
 	    return new Move(i, j, mark);
 	}
 }
