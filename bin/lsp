@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e
+ROOT=$(dirname $(dirname $(readlink -f $0)))
+# Note that 1&>2 redirects STDOUT to STDERR: a quirky choice. This is because
+# LSP requires that stdin and stdout are reserved for protocol communication.
+# Similarly we do not allow mill to inherit our stdin - just in case.
+(cd $ROOT; ./mill -j 0 vercors.main.runScript 1&>2 < /dev/null)
+$ROOT/out/vercors/main/runScript.dest/lsp "$@"

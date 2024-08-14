@@ -6,25 +6,16 @@ import hre.stages.Stage
 import vct.col.origin.{Origin, ReadableOrigin}
 import vct.col.rewrite.Generation
 import vct.main.stages.Parsing.{Language, UnknownFileExtension}
-import vct.options.Options
+import vct.options.ParsingOptions
 import vct.parsers._
 import vct.parsers.debug.DebugOptions
-import vct.parsers.parser.{
-  ColCPPParser,
-  ColCParser,
-  ColIPPParser,
-  ColIParser,
-  ColJavaParser,
-  ColLLVMParser,
-  ColPVLParser,
-  ColSystemCParser,
-}
+import vct.parsers.parser._
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
 import viper.api.transform.ColSilverParser
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.Paths
 
 case object Parsing {
   sealed trait Language
@@ -60,37 +51,20 @@ case object Parsing {
       s"Unknown file extension: $extension. Try altering the extension of the file, or specify a language explicitly with --lang."
     override def code: String = "unknownExt"
   }
-
-  def ofOptions[G <: Generation](
-      options: Options,
-      blameProvider: BlameProvider,
-  ): Parsing[G] =
-    Parsing(
-      blameProvider = blameProvider,
-      debugOptions = options.getParserDebugOptions,
-      forceLanguage = options.language,
-      cc = options.cc,
-      cSystemInclude = options.cIncludePath,
-      cOtherIncludes = Nil,
-      cDefines = options.cDefine,
-    )
 }
 
 case class Parsing[G <: Generation](
     blameProvider: BlameProvider,
-    forceLanguage: Option[Language] = None,
-    debugOptions: DebugOptions = DebugOptions.NONE,
-    cc: Path = Resources.getCcPath,
-    cSystemInclude: Path = Resources.getCIncludePath,
-    cOtherIncludes: Seq[Path] = Nil,
-    cDefines: Map[String, String] = Map.empty,
-    ccpp: Path = Resources.getCPPcPath,
-    cppSystemInclude: Path = Resources.getCPPIncludePath,
-    cppOtherIncludes: Seq[Path] = Nil,
-    cppDefines: Map[String, String] = Map.empty,
+    options: ParsingOptions,
 ) extends Stage[Seq[Readable], ParseResult[G]] {
   override def friendlyName: String = "Parsing"
   override def progressWeight: Int = 4
+
+  def parserDebugOptions: DebugOptions =
+    DebugOptions(
+      options.devParserReportAmbiguities,
+      options.devParserReportContextSensitivities,
+    )
 
   override def run(in: Seq[Readable]): ParseResult[G] =
     ParseResult.reduce(
@@ -105,35 +79,43 @@ case class Parsing[G <: Generation](
           language match {
             case Language.C =>
               ColCParser(
-                debugOptions,
+                parserDebugOptions,
                 blameProvider,
-                cc,
-                cSystemInclude,
+                options.cc,
+                options.cIncludePath,
                 Option(Paths.get(readable.fileName).getParent).toSeq ++
-                  cOtherIncludes,
-                cDefines,
+                  options.cOtherIncludePaths,
+                options.cDefine,
               )
             case Language.InterpretedC =>
-              ColIParser(debugOptions, blameProvider, cOrigin = None)
+              ColIParser(parserDebugOptions, blameProvider, cOrigin = None)
             case Language.CPP =>
               ColCPPParser(
-                debugOptions,
+                DebugOptions(
+                  options.devParserReportAmbiguities,
+                  options.devParserReportContextSensitivities,
+                ),
                 blameProvider,
-                ccpp,
-                cppSystemInclude,
+                options.ccpp,
+                options.cppIncludePath,
                 Option(Paths.get(readable.fileName).getParent).toSeq ++
-                  cppOtherIncludes,
-                cppDefines,
+                  options.cppOtherIncludePaths,
+                options.cppDefine,
               )
             case Language.InterpretedCPP =>
-              ColIPPParser(debugOptions, blameProvider, cppOrigin = None)
-            case Language.Java => ColJavaParser(debugOptions, blameProvider)
-            case Language.PVL => ColPVLParser(debugOptions, blameProvider)
+              ColIPPParser(parserDebugOptions, blameProvider, cppOrigin = None)
+            case Language.Java =>
+              ColJavaParser(parserDebugOptions, blameProvider)
+            case Language.PVL => ColPVLParser(parserDebugOptions, blameProvider)
             case Language.Silver => ColSilverParser(blameProvider)
             case Language.SystemC =>
               new ColSystemCParser(Resources.getSystemCConfig)
             case Language.LLVM =>
-              ColLLVMParser(debugOptions, blameProvider, Resources.getVCLLVM)
+              ColLLVMParser(
+                parserDebugOptions,
+                blameProvider,
+                Resources.getVCLLVM,
+              )
           }
 
         parser.parse[G](readable)

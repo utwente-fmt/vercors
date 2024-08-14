@@ -1,5 +1,6 @@
 package vct.col.rewrite.bip
 
+import upickle.core.LinkedHashMap
 import upickle.default._
 import vct.col.ast.{BipComponent, BipTransition}
 import vct.result.VerificationError
@@ -238,12 +239,15 @@ case object BIP {
         // that is the default encoding for case classes. This works around that.
         readwriter[ujson.Value].bimap[VerificationReport](
           { report =>
-            ujson.Obj(report.components.map { case (k, v) => (k, writeJs(v)) })
+            ujson.Obj(LinkedHashMap(report.components.map { case (k, v) =>
+              (k, writeJs(v))
+            }))
           },
           { v =>
-            VerificationReport(v.obj.value.map { case (k, v) =>
-              (k, read[ComponentReport](v))
-            })
+            VerificationReport(
+              v.obj.value.map { case (k, v) => (k, read[ComponentReport](v)) }
+                .to(mut.LinkedHashMap)
+            )
           },
         )
       }

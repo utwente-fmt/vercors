@@ -1,0 +1,2 @@
+#!/bin/bash
+dd of=/tmp/dd.log bs=1b

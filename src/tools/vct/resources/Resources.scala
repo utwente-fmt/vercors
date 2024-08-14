@@ -12,8 +12,6 @@ case object Resources {
   def getCIncludePath: Path = getResource("/c")
   def getCPPIncludePath: Path = getResource("/cpp")
   def getJrePath: Path = getResource("/jdk")
-  def getCcPath: Path = Paths.get("clang")
-  def getCPPcPath: Path = Paths.get("clang++")
   def getSystemCConfig: Path = getResource("/systemc/config")
   def getVeymontPath: Path = getResource("/veymont")
   def getVCLLVM: Path = getResource("/vcllvm")
