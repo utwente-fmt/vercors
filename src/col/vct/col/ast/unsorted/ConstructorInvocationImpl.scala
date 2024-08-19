@@ -1,12 +1,14 @@
 package vct.col.ast.unsorted
 
+import vct.col.ast.expr.ExprImpl
 import vct.col.ast.{Class, ConstructorInvocation, TClass, Type, Variable}
 import vct.col.ast.ops.ConstructorInvocationOps
 import vct.col.print._
 
 import scala.util.Try
 
-trait ConstructorInvocationImpl[G] extends ConstructorInvocationOps[G] {
+trait ConstructorInvocationImpl[G]
+    extends ConstructorInvocationOps[G] with ExprImpl[G] {
   this: ConstructorInvocation[G] =>
 
   def cls: Class[G] = ref.decl.cls.decl
@@ -24,4 +26,6 @@ trait ConstructorInvocationImpl[G] extends ConstructorInvocationOps[G] {
         DocUtil.givenYields(givenMap, yields),
     ))
   }
+
+  override def precedence: Int = Precedence.ATOMIC
 }

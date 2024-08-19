@@ -2,19 +2,27 @@ package vct.rewrite.veymont
 
 import hre.util.ScopedStack
 import vct.col.ast.{
-  Choreography,
   ChorRun,
+  Choreography,
   Class,
   Communicate,
+  Constructor,
   Endpoint,
   Program,
   Variable,
 }
-import vct.col.rewrite.Generation
+import vct.col.rewrite.{Generation, Rewriter}
 
 trait VeymontContext[Pre <: Generation] {
+
   object mappings {
     var program: Program[Pre] = null
+
+    lazy val choreographies: Seq[Choreography[Pre]] =
+      mappings.program.collect { case c: Choreography[Pre] => c }.toIndexedSeq
+
+    lazy val classes: Seq[Class[Pre]] =
+      mappings.program.collect { case cls: Class[Pre] => cls }.toIndexedSeq
 
     lazy val choreographyToCommunicates
         : Map[Choreography[Pre], Seq[Communicate[Pre]]] =
@@ -31,10 +39,12 @@ trait VeymontContext[Pre <: Generation] {
       choreographies.flatMap { chor =>
         chor.endpoints.map(endpoint => (endpoint.cls.decl, endpoint))
       }.toMap
-  }
 
-  lazy val choreographies: Seq[Choreography[Pre]] =
-    mappings.program.collect { case c: Choreography[Pre] => c }.toIndexedSeq
+    lazy val constructorToClass: Map[Constructor[Pre], Class[Pre]] =
+      classes.flatMap { cls =>
+        cls.collect { case cons: Constructor[Pre] => (cons, cls) }
+      }.toMap
+  }
 
   def communicatesOf(chor: Choreography[Pre]) =
     mappings.choreographyToCommunicates(chor)
@@ -55,7 +65,12 @@ trait VeymontContext[Pre <: Generation] {
     mappings.endpointClassToEndpoint(c)
   def endpointsOf(run: ChorRun[Pre]) = choreographyOf(run).endpoints
   def isChoreographyParam(v: Variable[Pre]): Boolean =
-    choreographies.exists { chor => chor.params.contains(v) }
+    mappings.choreographies.exists { chor => chor.params.contains(v) }
+
+  def classOf(cons: Constructor[Pre]): Class[Pre] =
+    mappings.constructorToClass(cons)
+  def classOfOpt(cons: Constructor[Pre]): Option[Class[Pre]] =
+    mappings.constructorToClass.get(cons)
 
   val currentChoreography = ScopedStack[Choreography[Pre]]()
   val currentEndpoint = ScopedStack[Endpoint[Pre]]()

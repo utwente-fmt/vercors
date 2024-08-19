@@ -1,6 +1,7 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
+import vct.col
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -16,6 +17,11 @@ object StratifyUnpointedExpressions extends RewriterBuilder {
 case class StratifyUnpointedExpressions[Pre <: Generation]()
     extends Rewriter[Pre] with VeymontContext[Pre] {
   val currentParticipants: ScopedStack[ListSet[Endpoint[Pre]]] = ScopedStack()
+
+  override def dispatch(p: Program[Pre]): Program[Post] = {
+    mappings.program = p
+    super.dispatch(p)
+  }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
@@ -86,6 +92,15 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
         currentParticipants.having(newParticipants) {
           c.rewrite(inner = loop.rewrite(cond = stratifyExpr(loop.cond)))
         }
+
+      case InChor(_, c @ ChorStatement(assert: Assert[Pre])) =>
+        c.rewrite(inner = assert.rewrite(res = stratifyExpr(assert.res)))
+      case InChor(_, c @ ChorStatement(assume: Assume[Pre])) =>
+        c.rewrite(inner = assume.rewrite(assn = stratifyExpr(assume.assn)))
+      case InChor(_, c @ ChorStatement(inhale: Inhale[Pre])) =>
+        c.rewrite(inner = inhale.rewrite(res = stratifyExpr(inhale.res)))
+      case InChor(_, c @ ChorStatement(exhale: Exhale[Pre])) =>
+        c.rewrite(inner = exhale.rewrite(res = stratifyExpr(exhale.res)))
 
       case statement => statement.rewriteDefault()
     }

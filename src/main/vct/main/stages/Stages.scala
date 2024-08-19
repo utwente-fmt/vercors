@@ -8,7 +8,7 @@ import vct.parsers.transform.{BlameProvider, ConstantBlameProvider}
 import vct.result.VerificationError
 import hre.io.{LiteralReadable, Readable}
 import hre.stages.{IdentityStage, Stages}
-import hre.stages.Stages.{branch, saveInput}
+import hre.stages.Stages.{applyIf, branch, saveInput, timed}
 import vct.col.origin.{BlameCollector, VerificationFailure}
 import vct.col.rewrite.bip.BIP
 import vct.main.modes.VeyMont
@@ -16,6 +16,7 @@ import vct.parsers.ParseResult
 import viper.api.backend.carbon.Carbon
 import viper.api.backend.silicon.Silicon
 import com.typesafe.scalalogging.LazyLogging
+import vct.col.print.Ctx
 
 import scala.collection.mutable
 
@@ -69,62 +70,6 @@ case object Stages extends LazyLogging {
       .thenRun(Transformation.ofOptions(options, bipResults))
       .thenRun(Backend.ofOptions(options))
       .thenRun(ExpectedErrors.ofOptions(options))
-  }
-
-  def veymontOfOptions(options: Options): Stages[Seq[Readable], Unit] = {
-    val choreographyStage
-        : Stages[Seq[Readable], Verification[_ <: Generation]] = {
-      val collector = BlameCollector()
-      val bipResults = BIP.VerificationResults()
-      val blameProvider = ConstantBlameProvider(collector)
-
-      IdentityStage()
-        .also(logger.info("VeyMont choreography verifier & code generator"))
-        .thenRun(Parsing.ofOptions(options, blameProvider).also(logger.info(
-          "Finished parsing"
-        ))).thenRun(Resolution.ofOptions(options, blameProvider))
-        .thenRun(saveInput[Verification[_ <: Generation], Any](branch(
-          !options.veymontSkipChoreographyVerification,
-          IdentityStage()
-            .also(logger.info("Verifying choreography with VerCors"))
-            .thenRun(Transformation.ofOptions(options, bipResults))
-            .thenRun(Backend.ofOptions(options))
-            .thenRun(ExpectedErrors.ofOptions(options))
-            .thenRun(VeyMont.NoVerificationFailures(
-              collector,
-              VeyMont.ChoreographyVerificationError,
-            )),
-          IdentityStage()
-            .also(logger.warn("Skipping verifying choreography with VerCors")),
-        ))).transform(_._1)
-    }
-
-    val generationStage
-        : Stages[Verification[_ <: Generation], Seq[LiteralReadable]] = {
-      IdentityStage().also(logger.info("Generating endpoint implementations"))
-        .thenRun(Transformation.veymontImplementationGenerationOfOptions(
-          options
-        )).thenRun(Output.veymontOfOptions(options))
-    }
-
-    val implementationVerificationStage = {
-      val collector = BlameCollector()
-      val bipResults = BIP.VerificationResults()
-      val blameProvider = ConstantBlameProvider(collector)
-
-      Parsing.ofOptions(options, blameProvider)
-        .thenRun(Resolution.ofOptions(options, blameProvider))
-        .thenRun(Transformation.ofOptions(options, bipResults))
-        .thenRun(Backend.ofOptions(options))
-        .thenRun(ExpectedErrors.ofOptions(options))
-        .thenRun(VeyMont.NoVerificationFailures(
-          collector,
-          VeyMont.ImplementationVerificationError,
-        ))
-    }
-
-    choreographyStage.thenRun(generationStage)
-      .thenRun(implementationVerificationStage)
   }
 
   def vesuvOfOptions(

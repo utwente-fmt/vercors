@@ -76,15 +76,6 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
-import vct.rewrite.veymont.GenerateImplementation.{
-  ChannelFieldOrigin,
-  ParalleliseEndpointsError,
-  RunMethodOrigin,
-  ThreadClassOrigin,
-  getChannelClassName,
-  getThreadClassName,
-  getVarName,
-}
 import vct.rewrite.veymont.InferEndpointContexts.{
   EndpointInferenceUndefined,
   MultipleImplicitEndpointsError,
@@ -178,6 +169,8 @@ case class InferEndpointContexts[Pre <: Generation]()
         s.rewrite(endpoint = Some(succ(endpoint)))
       case s @ EndpointStatement(None, _) => throw EndpointInferenceUndefined(s)
       case comm: CommunicateStatement[Pre] =>
+        // Make inChor false because we don't want to infer endpoint contexts for expressions in the channel invariant
+        // These should remain plain
         inChor.having(false) { comm.rewriteDefault() }
       case s => s.rewriteDefault()
     }

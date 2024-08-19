@@ -33,14 +33,14 @@ case object LangSpecificToCol extends RewriterBuilderArg2[Boolean, Boolean] {
 }
 
 case class LangSpecificToCol[Pre <: Generation](
-    veymontGeneratePermissions: Boolean = false,
+    generatePermissions: Boolean = false,
     veymontAllowAssign: Boolean = false,
 ) extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
   val bip: LangBipToCol[Pre] = LangBipToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)
   val cpp: LangCPPToCol[Pre] = LangCPPToCol(this)
-  val pvl: LangPVLToCol[Pre] = LangPVLToCol(this, veymontGeneratePermissions)
+  val pvl: LangPVLToCol[Pre] = LangPVLToCol(this, generatePermissions)
   val veymont: LangVeyMontToCol[Pre] = LangVeyMontToCol(
     this,
     veymontAllowAssign,

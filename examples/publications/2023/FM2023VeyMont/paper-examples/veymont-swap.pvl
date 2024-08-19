@@ -26,9 +26,9 @@ choreography Swap(int x, int y) {
         alex.temp := alex.v;
         bobby.temp := bobby.v;
         // Then send them to the other
-        channel_invariant Perm(bobby.oldV, read) ** \msg == bobby.oldV;
+        channel_invariant Perm(\sender.oldV, read) ** \msg == \sender.oldV;
         communicate alex.v <- bobby.temp;
-        channel_invariant Perm(alex.oldV, read) ** \msg == alex.oldV;
+        channel_invariant Perm(\sender.oldV, read) ** \msg == \sender.oldV;
         communicate bobby.v <- alex.temp;
     }
 }

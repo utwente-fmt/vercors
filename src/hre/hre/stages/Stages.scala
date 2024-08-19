@@ -1,6 +1,8 @@
 package hre.stages
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
+import hre.util.Time
 import vct.result.VerificationError
 
 trait Stage[-Input, +Output] {
@@ -26,6 +28,10 @@ trait Stage[-Input, +Output] {
 
   def also(f: => Unit): Stages[Input, Output] = {
     UnitStages(this).thenRun(FunctionStage[Output, Output](x => { f; x }))
+  }
+
+  def drop(): Stages[Input, Unit] = {
+    UnitStages(this).thenRun(FunctionStage[Output, Unit](_ => {}))
   }
 
   def preprocess[Input2](f: Input2 => Input): Stages[Input2, Output] =
@@ -60,8 +66,13 @@ object Stages {
 
   def skipIf[Input](
       condition: Boolean,
-      stages: Stages[Input, Unit],
-  ): Stages[Input, Unit] = SkipIf(condition, stages)
+      stages: Stages[Input, Input],
+  ): Stages[Input, Input] = ApplyIf(!condition, stages)
+
+  def applyIf[Input](
+      condition: Boolean,
+      stages: Stages[Input, Input],
+  ): Stages[Input, Input] = ApplyIf(condition, stages)
 
   def branch[Input, Output](
       condition: Boolean,
@@ -73,6 +84,11 @@ object Stages {
       f: Input2 => Input,
       stages: Stages[Input, Output],
   ): Stages[Input2, Output] = UnitStages(FunctionStage(f)).thenRun(stages)
+
+  def timed[Input, Output](
+      name: String,
+      stages: Stages[Input, Output],
+  ): TimedStages[Input, Output] = TimedStages(name, stages)
 }
 
 trait Stages[-Input, +Output] {
@@ -110,6 +126,9 @@ trait Stages[-Input, +Output] {
 
   def also(f: => Unit): Stages[Input, Output] =
     thenRun(FunctionStage[Output, Output](x => { val y = f; x }))
+
+  def drop(): Stages[Input, Unit] =
+    thenRun(FunctionStage[Output, Unit](_ => {}))
 }
 
 case class FunctionStage[T, S](f: T => S) extends Stage[T, S] {
@@ -163,13 +182,13 @@ case class SaveInputStage[Input, Output](stages: Stages[Input, Output])
     }
 }
 
-case class SkipIf[Input](condition: Boolean, stages: Stages[Input, Unit])
-    extends Stages[Input, Unit] {
+case class ApplyIf[Input](condition: Boolean, stages: Stages[Input, Input])
+    extends Stages[Input, Input] {
   override def collect: Seq[Stage[Nothing, Any]] =
     if (condition)
-      Seq(FunctionStage((_: Input) => ()))
-    else
       stages.collect
+    else
+      Seq(FunctionStage((i: Input) => i))
 }
 
 case class Branch[Input, Output](
@@ -182,4 +201,22 @@ case class Branch[Input, Output](
       tt.collect
     else
       ff.collect
+}
+
+case class TimedStages[Input, Output](
+    name: String,
+    stages: Stages[Input, Output],
+) extends Stages[Input, Output] with LazyLogging {
+  var start: java.time.Instant = null
+  var end: java.time.Instant = null
+
+  override def collect: Seq[Stage[Nothing, Any]] =
+    IdentityStage().also {
+      start = java.time.Instant.now();
+      logger.warn(s"Start: $name (at ${Time.formatTime(start)})")
+    }.collect ++ stages.collect ++ IdentityStage().also {
+      end = java.time.Instant.now();
+      logger.warn(s"Done: $name (at ${Time.formatTime(end)}, duration: ${Time
+          .formatDuration(java.time.Duration.between(start, end))})")
+    }.collect
 }

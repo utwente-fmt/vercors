@@ -9,9 +9,6 @@ case object ExampleFiles {
     "examples/private/",
     "examples/archive/",
     "examples/concepts/resourceValues",
-    // TODO (RR): The next two can be deleted when the veymont permissions paper artefact is finished
-    "examples/concepts/veymont/FM2024 - VeyMont/1-TTTmsg/TTTmsg-generatedImplementation.pvl",
-    "examples/concepts/veymont/FM2024 - VeyMont/2-TTTlast/TTTlast-generated.pvl",
   ).map(_.replaceAll("/", File.separator))
 
   val IGNORE_EXTS: Seq[String] = Seq(".h", ".bib", ".xml")

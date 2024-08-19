@@ -15,7 +15,6 @@ import vct.col.rewrite.adt._
 import vct.col.rewrite.bip._
 import vct.col.rewrite.exc._
 import vct.rewrite.lang.NoSupportSelfLoop
-import vct.col.rewrite.veymont.StructureCheck
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.{
@@ -40,9 +39,12 @@ import vct.rewrite.{
   MonomorphizeClass,
   SmtlibToProverTypes,
   VariableToPointer,
+  GenerateSingleOwnerPermissions,
 }
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont._
+import vct.rewrite.veymont.generation._
+import vct.rewrite.veymont.verification._
 
 import java.nio.file.Path
 import java.nio.file.Files
@@ -140,7 +142,7 @@ object Transformation extends LazyLogging {
           splitVerificationByProcedure =
             options.devSplitVerificationByProcedure,
           optimizeUnsafe = options.devUnsafeOptimization,
-          veymontGeneratePermissions = options.veymontGeneratePermissions,
+          generatePermissions = options.generatePermissions,
           veymontBranchUnanimity = options.veymontBranchUnanimity,
         )
     }
@@ -153,11 +155,20 @@ object Transformation extends LazyLogging {
         options.veymontResourcePath,
         options.getParserDebugOptions,
       ),
+      options.generatePermissions,
       onPassEvent =
         options.outputIntermediatePrograms
           .map(p => reportIntermediateProgram(p, "generate")).toSeq ++
           writeOutFunctions(before, options.outputBeforePass) ++
           writeOutFunctions(after, options.outputAfterPass),
+    )
+
+  def pvlJavaCompatOfOptions(options: Options): Transformation =
+    PvlJavaCompat(onPassEvent =
+      options.outputIntermediatePrograms
+        .map(p => reportIntermediateProgram(p, "pvlJavaCompat")).toSeq ++
+        writeOutFunctions(before, options.outputBeforePass) ++
+        writeOutFunctions(after, options.outputAfterPass)
     )
 
   sealed trait TransformationEvent
@@ -280,7 +291,7 @@ class Transformation(
   *   Check that non-trivial contracts are satisfiable.
   * @param splitVerificationByProcedure
   *   Splits verification into one task per procedure body.
-  * @param veymontGeneratePermissions
+  * @param generatePermissions
   *   Generates permissions such that each callable requires full permissions
   *   its arguments and any transitively reachable locations.
   * @param veymontBranchUnanimity
@@ -302,7 +313,7 @@ case class SilverTransformation(
     checkSat: Boolean = true,
     splitVerificationByProcedure: Boolean = false,
     override val optimizeUnsafe: Boolean = false,
-    veymontGeneratePermissions: Boolean = false,
+    generatePermissions: Boolean = false,
     veymontBranchUnanimity: Boolean = true,
 ) extends Transformation(
       onPassEvent,
@@ -355,16 +366,16 @@ case class SilverTransformation(
         // Also, VeyMont requires branches to be nested, instead of flat, because the false branch
         // may refine the set of participating endpoints
         BranchToIfElse,
-        GenerateChoreographyPermissions.withArg(veymontGeneratePermissions),
+        GenerateSingleOwnerPermissions.withArg(generatePermissions),
         InferEndpointContexts,
-        PushInChor.withArg(veymontGeneratePermissions),
+        PushInChor.withArg(generatePermissions),
         StratifyExpressions,
         StratifyUnpointedExpressions,
         DeduplicateChorGuards,
         EncodeChorBranchUnanimity.withArg(veymontBranchUnanimity),
         EncodeEndpointInequalities,
         EncodeChannels,
-        EncodePermissionStratification.withArg(veymontGeneratePermissions),
+        EncodePermissionStratification.withArg(generatePermissions),
         EncodeChoreography,
         // All VeyMont nodes should now be gone
 
@@ -441,7 +452,6 @@ case class SilverTransformation(
         EncodeForPermWithValue,
         EncodeAutoValue,
         ExtractInlineQuantifierPatterns,
-        RewriteTriggerADTFunctions,
         MonomorphizeContractApplicables,
 
         // Silver compat (basically no new nodes)
@@ -465,11 +475,13 @@ case class VeyMontImplementationGeneration(
       Resources.getVeymontPath,
       vct.parsers.debug.DebugOptions.NONE,
     ),
+    generatePermissions: Boolean,
     override val onPassEvent: Seq[PassEventHandler] = Nil,
 ) extends Transformation(
       onPassEvent,
       Seq(
         DropChorExpr,
+        GenerateSingleOwnerPermissions.withArg(generatePermissions),
         InferEndpointContexts,
         StratifyExpressions,
         StratifyUnpointedExpressions,
@@ -479,4 +491,12 @@ case class VeyMontImplementationGeneration(
         GenerateImplementation,
         PrettifyBlocks,
       ),
+    )
+
+// Compiles away several aspects of PVL that are not natively support in Java, which are too involved to handle
+// ad-hoc in the pretty printer, or possibly for which the COL ast has no support yet
+case class PvlJavaCompat(override val onPassEvent: Seq[PassEventHandler] = Nil)
+    extends Transformation(
+      onPassEvent,
+      Seq(ImplicationToTernary, EncodeGlobalApplicables),
     )

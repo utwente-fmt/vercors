@@ -6,8 +6,8 @@ import vct.col.ast.ops.LoopInvariantOps
 
 trait LoopInvariantImpl[G] extends LoopInvariantOps[G] {
   this: LoopInvariant[G] =>
-  override def layout(implicit ctx: Ctx): Doc =
-    Doc.stack(Seq(
+  override def layout(implicit ctx: Ctx): Doc = {
+    Doc.spec(Doc.stack(Seq(
       Doc.stack(decreases.toSeq),
       DocUtil.clauses(
         if (ctx.syntax == Ctx.Silver)
@@ -16,5 +16,6 @@ trait LoopInvariantImpl[G] extends LoopInvariantOps[G] {
           "loop_invariant",
         invariant,
       ),
-    ))
+    )))
+  }
 }

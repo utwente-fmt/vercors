@@ -3,10 +3,10 @@ package vct.col.ast.node
 import vct.col.ast.{Node, Program}
 import vct.col.ast.util.Declarator
 import vct.col.check.{CheckContext, CheckError}
-import vct.col.print.{Ctx, Doc}
+import vct.col.print.{Ctx, Doc, Empty, Line, Text}
 import vct.col.util.CurrentCheckProgramContext
 import vct.result.VerificationError
-import vct.col.ast.ops.{ProgramOps, ProgramFamilyOps}
+import vct.col.ast.ops.{ProgramFamilyOps, ProgramOps}
 
 trait ProgramImpl[G]
     extends Declarator[G] with ProgramOps[G] with ProgramFamilyOps[G] {
@@ -21,6 +21,12 @@ trait ProgramImpl[G]
       super.checkContextRecursor(context, f)
     }
 
-  override def layout(implicit ctx: Ctx): Doc =
-    Doc.fold(declarations)(_ <> vct.col.print.Line <> vct.col.print.Line <> _)
+  override def layout(implicit ctx: Ctx): Doc = {
+    (if (ctx.syntax == Ctx.Java)
+       (Text("import java.util.concurrent.locks.Lock;") <+/>
+         "import java.util.concurrent.locks.ReentrantLock;" <+/>
+         "import java.util.concurrent.locks.Condition;" <> Line)
+     else
+       Empty) <> Doc.stack2(declarations)
+  }
 }

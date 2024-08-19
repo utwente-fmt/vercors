@@ -15,6 +15,12 @@ object DeduplicateChorGuards extends RewriterBuilder {
 
 case class DeduplicateChorGuards[Pre <: Generation]()
     extends Rewriter[Pre] with VeymontContext[Pre] {
+
+  override def dispatch(p: Program[Pre]): Program[Post] = {
+    mappings.program = p
+    super.dispatch(p)
+  }
+
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case chor: Choreography[Pre] =>
@@ -32,7 +38,7 @@ case class DeduplicateChorGuards[Pre <: Generation]()
       case InChor(_, c @ ChorStatement(loop: Loop[Pre])) =>
         c.rewrite(inner = loop.rewrite(cond = dedup(loop.cond)))
 
-      case _ => rewriteDefault(statement)
+      case _ => statement.rewriteDefault()
     }
 
   def dedup(expr: Expr[Pre]): Expr[Post] = {
