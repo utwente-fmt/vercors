@@ -230,17 +230,7 @@ case class ColToSilver(program: col.Program[_]) {
               function.contract.decreases.toSeq.map(decreases),
             accountedPred(function.contract.ensures),
             function.body.map(exp),
-          )(
-            pos = pos(function),
-            info =
-              if (ref(function) == "ptrDerefblahblah")
-                ConsInfo(
-                  AnnotationInfo(Map("opaque" -> Seq())),
-                  NodeInfo(function),
-                )
-              else
-                NodeInfo(function),
-          )
+          )(pos = pos(function), info = NodeInfo(function))
         }
       case procedure: col.Procedure[_]
           if procedure.returnType == col.TVoid() && !procedure.inline &&

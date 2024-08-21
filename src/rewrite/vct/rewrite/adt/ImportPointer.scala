@@ -2,6 +2,7 @@ package vct.col.rewrite.adt
 
 import vct.col.ast._
 import ImportADT.typeText
+import hre.util.ScopedStack
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.Generation
@@ -90,6 +91,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       : SuccessionMap[Type[Pre], Procedure[Post]] = SuccessionMap()
 
   val asTypeFunctions: mutable.Map[Type[Pre], Function[Post]] = mutable.Map()
+  private val inAxiom: ScopedStack[Unit] = ScopedStack()
 
   private def makeAsTypeFunction(typeName: String): Function[Post] = {
     val value =
@@ -186,6 +188,21 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       case other => super.applyCoercion(e, other)
     }
 
+  override def postCoerce(decl: Declaration[Pre]): Unit = {
+    decl match {
+      case axiom: ADTAxiom[Pre] =>
+        inAxiom.having(()) {
+          allScopes.anySucceed(axiom, axiom.rewriteDefault())
+        }
+      // TODO: This is an ugly way to exempt this one bit of generated code from having ptrAdd's added
+      case proc: Procedure[Pre]
+          if proc.o.find[LabelContext].exists(_.label == "classToRef") &&
+            proc.o.getPreferredNameOrElse().snake.startsWith("constraints_") =>
+        inAxiom.having(()) { allScopes.anySucceed(proc, proc.rewriteDefault()) }
+      case _ => super.postCoerce(decl)
+    }
+  }
+
   override def postCoerce(t: Type[Pre]): Type[Post] =
     t match {
       case TPointer(_) => TOption(TAxiomatic(pointerAdt.ref, Nil))
@@ -270,7 +287,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       case deref @ DerefPointer(pointer) =>
         FunctionInvocation[Post](
           ref = pointerDeref.ref,
-          args = Seq(
+          args = Seq(if (inAxiom.isEmpty) {
             FunctionInvocation[Post](
               ref = pointerAdd.ref,
               // Always index with zero, otherwise quantifiers with pointers do not get triggered
@@ -281,7 +298,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
             )(NoContext(
               DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
             ))
-          ),
+          } else { unwrapOption(pointer, deref.blame) }),
           typeArgs = Nil,
           Nil,
           Nil,
@@ -343,7 +360,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
           obj =
             FunctionInvocation[Post](
               ref = pointerDeref.ref,
-              args = Seq(
+              args = Seq(if (inAxiom.isEmpty) {
                 FunctionInvocation[Post](
                   ref = pointerAdd.ref,
                   // Always index with zero, otherwise quantifiers with pointers do not get triggered
@@ -354,7 +371,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
                 )(NoContext(
                   DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
                 ))
-              ),
+              } else { unwrapOption(pointer, deref.blame) }),
               typeArgs = Nil,
               Nil,
               Nil,
@@ -364,7 +381,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       case deref @ RawDerefPointer(pointer) =>
         FunctionInvocation[Post](
           ref = pointerDeref.ref,
-          args = Seq(
+          args = Seq(if (inAxiom.isEmpty) {
             FunctionInvocation[Post](
               ref = pointerAdd.ref,
               // Always index with zero, otherwise quantifiers with pointers do not get triggered
@@ -375,7 +392,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
             )(NoContext(
               DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
             ))
-          ),
+          } else { unwrapOption(pointer, deref.blame) }),
           typeArgs = Nil,
           Nil,
           Nil,
@@ -447,6 +464,8 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
         .getOrElseUpdate(innerType, makeAsTypeFunction(innerType.toString)).ref,
       Seq(preExpr match {
         case PointerAdd(_, _) => postExpr
+        // Don't add ptrAdd in an ADT axiom since we cannot use functions with preconditions there
+        case _ if inAxiom.nonEmpty => postExpr
         case _ =>
           FunctionInvocation[Post](
             ref = pointerAdd.ref,

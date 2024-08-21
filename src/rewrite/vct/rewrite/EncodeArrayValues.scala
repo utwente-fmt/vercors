@@ -185,8 +185,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       // If structure contains structs, the permission for those fields need to be released as well
       val permFields =
         t match {
-          case t: TClass[Pre] =>
-            unwrapStructPerm(access, None, t, o, makeStruct)
+          case t: TClass[Pre] => unwrapStructPerm(access, t, o, makeStruct)
           case _ => Seq()
         }
       requiresT =
@@ -405,55 +404,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
     }))
   }
 
-  def unwrapStructCasts(
-      struct: Variable[Post] => Expr[Post],
-      pointer: Variable[Post] => Expr[Post],
-      structType: TClass[Pre],
-      origin: Origin,
-      makeStruct: MakeAnns,
-      visited: Seq[TClass[Pre]] = Seq(),
-  ): Seq[(Expr[Post], Expr[Pre] => PointerFreeError)] = {
-    if (visited.contains(structType)) {
-      // We do not allow this notation for recursive structs
-      throw UnsupportedStructPerm(origin)
-    }
-    implicit val o: Origin = origin
-    val field = structType.cls.decl.declarations.collectFirst {
-      case field: InstanceField[Pre] => field
-    }
-    if (field.isDefined) {
-      // TODO: I kind of want to only do this one level deep (but for every type)
-      val fieldType = field.get.t
-      val result =
-        if (typeIsRef(fieldType)) {
-          unwrapStructCasts(
-            (i: Variable[Post]) =>
-              Deref[Post](struct(i), succ(field.get))(DerefPerm),
-            pointer,
-            fieldType.asInstanceOf[TClass[Pre]],
-            origin,
-            makeStruct,
-            structType +: visited,
-          )
-        } else { Nil }
-      result :+
-        ((
-          makeStruct.makeCast(
-            pointer,
-            (i: Variable[Post]) =>
-              AddrOf(Deref[Post](struct(i), succ(field.get))(DerefPerm)),
-            TNonNullPointer(dispatch(fieldType)),
-          ),
-          // Error should never occur since this part should not be emitted in the definition of free
-          (p: Expr[Pre]) => GenericPointerFreeError(p),
-        ))
-    } else { Nil }
-  }
-
   def unwrapStructPerm(
       struct: Variable[Post] => Expr[Post],
-      // Needs to be provided to define asType assertions using casts
-      pointer: Option[Variable[Post] => Expr[Post]],
       structType: TClass[Pre],
       origin: Origin,
       makeStruct: MakeAnns,
@@ -482,18 +434,6 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
             Referrable.originName(member),
           ),
       ))
-      if (pointer.isDefined) {
-        anns =
-          anns :+
-            ((
-              makeStruct.makeSelfCast(
-                (i: Variable[Post]) => AddrOf(loc(i)),
-                TNonNullPointer(dispatch(member.t)),
-              ),
-              // Error should never occur since this part should not be emitted in the definition of free
-              (p: Expr[Pre]) => GenericPointerFreeError(p),
-            ))
-      }
       anns =
         if (typeIsRef(member.t))
           anns :+
@@ -508,7 +448,6 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           // We recurse, since a field is another struct
           anns ++ unwrapStructPerm(
             loc,
-            pointer.map { _ => (i: Variable[Post]) => AddrOf(loc(i)) },
             newStruct,
             origin,
             makeStruct,
@@ -518,17 +457,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       }
     })
 
-    if (pointer.isDefined && fields.nonEmpty) {
-      // TODO: I kind of want to only do this one level deep (but for every type)
-      newFieldPerms.flatten ++ unwrapStructCasts(
-        struct,
-        pointer.get,
-        structType,
-        origin,
-        makeStruct,
-        visited,
-      )
-    } else { newFieldPerms.flatten }
+    newFieldPerms.flatten
   }
 
   case class MakeAnns(
@@ -556,29 +485,6 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       val pre2 = zero <= j.get && j.get < size
       val body = (pre1 && pre2 && access(i) === access(j)) ==> (i.get === j.get)
       Forall(Seq(i, j), Seq(triggerUnique), body)
-    }
-
-    def makeCast(
-        pointer: Variable[Post] => Expr[Post],
-        fieldPointer: Variable[Post] => Expr[Post],
-        t: Type[Post],
-    ): Expr[Post] = {
-      implicit val o: Origin = arrayCreationOrigin
-      val zero = const[Post](0)
-      val body = (zero <= i.get && i.get < size) ==>
-        (Cast(pointer(i), TypeValue(t)) === Cast(fieldPointer(i), TypeValue(t)))
-      Forall(Seq(i), Seq(Seq(Cast(pointer(i), TypeValue(t)))), body)
-    }
-
-    def makeSelfCast(
-        pointer: Variable[Post] => Expr[Post],
-        t: Type[Post],
-    ): Expr[Post] = {
-      implicit val o: Origin = arrayCreationOrigin
-      val zero = const[Post](0)
-      val body = (zero <= i.get && i.get < size) ==>
-        (Cast(pointer(i), TypeValue(t)) === pointer(i))
-      Forall(Seq(i), Seq(Seq(Cast(pointer(i), TypeValue(t)))), body)
     }
   }
 
@@ -639,15 +545,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
 
       val permFields =
         elementType match {
-          case t: TClass[Pre] =>
-            unwrapStructPerm(access, Some(pointerAccess), t, o, makeStruct)
-          case t =>
-            Seq((
-              makeStruct
-                .makeSelfCast(pointerAccess, TNonNullPointer(dispatch(t))),
-              // Will never be used
-              (p: Expr[Pre]) => GenericPointerFreeError(p),
-            ))
+          case t: TClass[Pre] => unwrapStructPerm(access, t, o, makeStruct)
+          case _ => Nil
         }
 
       ensures =
