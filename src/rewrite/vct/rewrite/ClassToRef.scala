@@ -589,15 +589,14 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   // For loops add cast helpers before and as an invariant (since otherwise the contract might not be well-formed)
   override def dispatch(node: LoopContract[Pre]): LoopContract[Post] = {
-    implicit val o: Origin = node.o
     val helpers: mutable.Set[Type[Pre]] = mutable.Set()
     node match {
-      case LoopInvariant(invariant, decreases) => {
+      case inv @ LoopInvariant(invariant, decreases) => {
         val result =
           LoopInvariant(
             addCastConstraints(invariant, helpers),
             decreases.map(dispatch),
-          )(node.o)
+          )(inv.blame)(node.o)
         if (requiredCastHelpers.nonEmpty) {
           requiredCastHelpers.top.addAll(helpers)
         }
