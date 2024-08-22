@@ -14,6 +14,7 @@ import vct.col.resolve.ctx._
 import vct.col.resolve.lang.C.nameFromDeclarator
 import vct.col.resolve.lang.Java.logger
 import vct.col.rewrite.{Generation, Rewritten}
+import vct.col.typerules.CoercionUtils
 import vct.col.typerules.CoercionUtils.getCoercion
 import vct.col.util.SuccessionMap
 import vct.col.util.AstBuildHelpers._
@@ -412,9 +413,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _), _) =>
         throw UnsupportedMalloc(c)
       case CCast(n @ Null(), t) if t.asPointer.isDefined => rw.dispatch(n)
-      // TODO: Check if valid pointer cast
       case CCast(e, t) if e.t.asPointer.isDefined && t.asPointer.isDefined =>
-        Cast(rw.dispatch(e), TypeValue(rw.dispatch(t))(t.o))(c.o)
+        val newE = rw.dispatch(e)
+        val newT = rw.dispatch(t)
+        if (
+          CoercionUtils.firstElementIsType(
+            newE.t.asPointer.get.element,
+            newT.asPointer.get.element,
+          )
+        ) { Cast(newE, TypeValue(newT)(t.o))(c.o) }
+        else { throw UnsupportedCast(c) }
       case _ => throw UnsupportedCast(c)
     }
 

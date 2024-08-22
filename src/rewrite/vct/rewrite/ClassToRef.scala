@@ -603,22 +603,23 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         }
         result
       }
-      case contract @ IterationContract(
-            requires,
-            ensures,
-            context_everywhere,
-          ) => {
-        val result =
-          IterationContract(
-            addCastConstraints(requires, helpers),
-            addCastConstraints(ensures, helpers),
-            addCastConstraints(context_everywhere, helpers),
-          )(contract.blame)(node.o)
-        if (requiredCastHelpers.nonEmpty) {
-          requiredCastHelpers.top.addAll(helpers)
-        }
-        result
-      }
+//      case contract @ IterationContract(
+//            requires,
+//            ensures,
+//            context_everywhere,
+//          ) => {
+//        val result =
+//          IterationContract(
+//            addCastConstraints(requires, helpers),
+//            addCastConstraints(ensures, helpers),
+//            addCastConstraints(context_everywhere, helpers),
+//          )(contract.blame)(node.o)
+//        if (requiredCastHelpers.nonEmpty) {
+//          requiredCastHelpers.top.addAll(helpers)
+//        }
+//        result
+//      }
+      case _: IterationContract[Pre] => throw ExtraNode
     }
   }
 

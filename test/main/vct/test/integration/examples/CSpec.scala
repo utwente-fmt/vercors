@@ -563,4 +563,13 @@ class CSpec extends VercorsSpec {
         return;
     }
     """
+
+  vercors should error withCode "unsupportedCast" in "Casting struct pointers only works for the first element" c
+    """
+    void cannotCastToBoolean() {
+        struct B struct_b;
+        struct_b.struct_a.boolean = true == true; // We currently don't support boolean literals
+        bool *pointer_to_boolean = (bool *)&struct_b;
+    }
+    """
 }

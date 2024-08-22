@@ -23,17 +23,6 @@ void canCastToInteger() {
     //@ assert struct_b.struct_a.integer == 10;
 }
 
-void cannotCastToBoolean() {
-    struct B struct_b;
-    struct_b.struct_a.boolean = true == true; // We currently don't support boolean literals
-    // TODO: Do proper type checks for casts
-    bool *pointer_to_boolean = (bool *)&struct_b;
-    /*[/expect ptrPerm]*/
-    //@ assert *pointer_to_boolean == 5;
-    /*[/end]*/
-    //@ assert pointer_to_boolean == &struct_b.struct_a.boolean;
-    //@ assert pointer_to_boolean == (bool *)&struct_b.struct_a;
-}
 
 void castRemainsValidInLoop() {
     struct B struct_b;
@@ -49,6 +38,36 @@ void castRemainsValidInLoop() {
     for (int i = 0; i < 10; i++) {
         *pointer_to_integer = *pointer_to_integer - 1;
     }
+
+    //@ assert struct_b.struct_a.integer == 0;
+    struct_b.struct_a.integer = 10;
+
+    // We can also specify the permission through the pointer
+    //@ loop_invariant 0 <= i && i <= 10;
+    //@ loop_invariant Perm(pointer_to_integer, write);
+    //@ loop_invariant *pointer_to_integer == 10 - i;
+    for (int i = 0; i < 10; i++) {
+        *pointer_to_integer = *pointer_to_integer - 1;
+    }
+
+    //@ assert struct_b.struct_a.integer == 0;
+}
+
+void castRemainsValidInParBlock() {
+    struct B struct_b;
+    struct_b.struct_a.integer = 10;
+
+    int *pointer_to_integer = (int *)&struct_b;
+
+    //@ context i == 8 ==> Perm(pointer_to_integer, write);
+    //@ ensures i == 8 ==> *pointer_to_integer == 0;
+    for (int i = 0; i < 10; i++) {
+        if (i == 8) {
+            *pointer_to_integer = *pointer_to_integer - 10;
+        }
+    }
+
+    // Unfortunately we don't support a par block where we specify permission to the struct and then access through the cast (the generated cast helper is put too far away)
 
     //@ assert struct_b.struct_a.integer == 0;
 }

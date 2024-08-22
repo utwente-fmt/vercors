@@ -449,6 +449,18 @@ case object CoercionUtils {
       case _ => None
     }
 
+  def firstElementIsType[G](aggregate: Type[G], innerType: Type[G]): Boolean =
+    aggregate match {
+      case aggregate if getAnyCoercion(aggregate, innerType).isDefined => true
+      case clazz: TByValueClass[G] =>
+        clazz.cls.decl.decls.collectFirst { case field: InstanceField[G] =>
+          firstElementIsType(field.t, innerType)
+        }.getOrElse(false)
+      case TArray(element) => firstElementIsType(element, innerType)
+      // TODO: Add LLVM types
+      case _ => false
+    }
+
   def getAnyCArrayCoercion[G](
       source: Type[G]
   ): Option[(Coercion[G], CTArray[G])] =
