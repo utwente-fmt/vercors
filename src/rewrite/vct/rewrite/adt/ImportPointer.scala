@@ -196,8 +196,8 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
         }
       // TODO: This is an ugly way to exempt this one bit of generated code from having ptrAdd's added
       case proc: Procedure[Pre]
-          if proc.o.find[LabelContext].exists(_.label == "classToRef") &&
-            proc.o.getPreferredNameOrElse().snake.startsWith("constraints_") =>
+          if proc.o.find[LabelContext]
+            .exists(_.label == "classToRef cast helpers") =>
         inAxiom.having(()) { allScopes.anySucceed(proc, proc.rewriteDefault()) }
       case _ => super.postCoerce(decl)
     }
@@ -287,18 +287,24 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       case deref @ DerefPointer(pointer) =>
         FunctionInvocation[Post](
           ref = pointerDeref.ref,
-          args = Seq(if (inAxiom.isEmpty) {
-            FunctionInvocation[Post](
-              ref = pointerAdd.ref,
-              // Always index with zero, otherwise quantifiers with pointers do not get triggered
-              args = Seq(unwrapOption(pointer, deref.blame), const(0)),
-              typeArgs = Nil,
-              Nil,
-              Nil,
-            )(NoContext(
-              DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
-            ))
-          } else { unwrapOption(pointer, deref.blame) }),
+          args = Seq(
+            if (
+              inAxiom.isEmpty &&
+              !deref.o.find[LabelContext]
+                .exists(_.label == "classToRef cast helpers")
+            ) {
+              FunctionInvocation[Post](
+                ref = pointerAdd.ref,
+                // Always index with zero, otherwise quantifiers with pointers do not get triggered
+                args = Seq(unwrapOption(pointer, deref.blame), const(0)),
+                typeArgs = Nil,
+                Nil,
+                Nil,
+              )(NoContext(
+                DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
+              ))
+            } else { unwrapOption(pointer, deref.blame) }
+          ),
           typeArgs = Nil,
           Nil,
           Nil,
@@ -360,18 +366,24 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
           obj =
             FunctionInvocation[Post](
               ref = pointerDeref.ref,
-              args = Seq(if (inAxiom.isEmpty) {
-                FunctionInvocation[Post](
-                  ref = pointerAdd.ref,
-                  // Always index with zero, otherwise quantifiers with pointers do not get triggered
-                  args = Seq(unwrapOption(pointer, deref.blame), const(0)),
-                  typeArgs = Nil,
-                  Nil,
-                  Nil,
-                )(NoContext(
-                  DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
-                ))
-              } else { unwrapOption(pointer, deref.blame) }),
+              args = Seq(
+                if (
+                  inAxiom.isEmpty &&
+                  !deref.o.find[LabelContext]
+                    .exists(_.label == "classToRef cast helpers")
+                ) {
+                  FunctionInvocation[Post](
+                    ref = pointerAdd.ref,
+                    // Always index with zero, otherwise quantifiers with pointers do not get triggered
+                    args = Seq(unwrapOption(pointer, deref.blame), const(0)),
+                    typeArgs = Nil,
+                    Nil,
+                    Nil,
+                  )(NoContext(
+                    DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
+                  ))
+                } else { unwrapOption(pointer, deref.blame) }
+              ),
               typeArgs = Nil,
               Nil,
               Nil,
@@ -381,18 +393,24 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       case deref @ RawDerefPointer(pointer) =>
         FunctionInvocation[Post](
           ref = pointerDeref.ref,
-          args = Seq(if (inAxiom.isEmpty) {
-            FunctionInvocation[Post](
-              ref = pointerAdd.ref,
-              // Always index with zero, otherwise quantifiers with pointers do not get triggered
-              args = Seq(unwrapOption(pointer, deref.blame), const(0)),
-              typeArgs = Nil,
-              Nil,
-              Nil,
-            )(NoContext(
-              DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
-            ))
-          } else { unwrapOption(pointer, deref.blame) }),
+          args = Seq(
+            if (
+              inAxiom.isEmpty &&
+              !deref.o.find[LabelContext]
+                .exists(_.label == "classToRef cast helpers")
+            ) {
+              FunctionInvocation[Post](
+                ref = pointerAdd.ref,
+                // Always index with zero, otherwise quantifiers with pointers do not get triggered
+                args = Seq(unwrapOption(pointer, deref.blame), const(0)),
+                typeArgs = Nil,
+                Nil,
+                Nil,
+              )(NoContext(
+                DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
+              ))
+            } else { unwrapOption(pointer, deref.blame) }
+          ),
           typeArgs = Nil,
           Nil,
           Nil,
@@ -465,7 +483,11 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       Seq(preExpr match {
         case PointerAdd(_, _) => postExpr
         // Don't add ptrAdd in an ADT axiom since we cannot use functions with preconditions there
-        case _ if inAxiom.nonEmpty => postExpr
+        case _
+            if inAxiom.nonEmpty ||
+              !preExpr.o.find[LabelContext]
+                .exists(_.label == "classToRef cast helpers") =>
+          postExpr
         case _ =>
           FunctionInvocation[Post](
             ref = pointerAdd.ref,

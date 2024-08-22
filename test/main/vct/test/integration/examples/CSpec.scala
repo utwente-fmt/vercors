@@ -11,6 +11,7 @@ class CSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/c/structs.c"
   vercors should verify using silicon example "concepts/c/vector_add.c"
   vercors should verify using silicon example "concepts/c/vector_type.c"
+  vercors should verify using silicon example "concepts/c/pointer_casts.c"
 
   vercors should error withCode "resolutionError:type" in "float should not be demoted" c
   """
@@ -377,17 +378,17 @@ class CSpec extends VercorsSpec {
     #include <stdlib.h>
 
     struct nested {
-      struct nested *inner;  
+      struct nested *inner;
     };
 
     void main() {
-      int *ip = NULL;                              
-      double *dp = NULL;                           
-      struct nested *np = NULL;                    
-      np = (struct nested*) NULL;               
+      int *ip = NULL;
+      double *dp = NULL;
+      struct nested *np = NULL;
+      np = (struct nested*) NULL;
       np = (struct nested*) malloc(sizeof(struct nested));
       np->inner = NULL;
-      np->inner = (struct nested*) NULL;         
+      np->inner = (struct nested*) NULL;
     }
     """
 

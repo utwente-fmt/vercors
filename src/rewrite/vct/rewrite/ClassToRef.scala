@@ -26,7 +26,8 @@ case object ClassToRef extends RewriterBuilder {
   private def ValueAdtOrigin: Origin =
     Origin(Seq(PreferredName(Seq("Value")), LabelContext("classToRef")))
 
-  private def CastHelperOrigin: Origin = Origin(Seq(LabelContext("classToRef")))
+  private def CastHelperOrigin: Origin =
+    Origin(Seq(LabelContext("classToRef cast helpers")))
 
   case class InstanceNullPreconditionFailed(
       inner: Blame[InstanceNull],
@@ -85,7 +86,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     .Map()
 
   val castHelpers: SuccessionMap[Type[Pre], Procedure[Post]] = SuccessionMap()
-  val castHelperCalls: ScopedStack[mutable.Set[Statement[Post]]] = ScopedStack()
+  val requiredCastHelpers: ScopedStack[mutable.Set[Type[Pre]]] = ScopedStack()
 
   def typeNumber(cls: Class[Pre]): Int =
     typeNumberStore.getOrElseUpdate(cls, typeNumberStore.size + 1)
@@ -566,10 +567,65 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  private def addCastConstraints(
+      expr: Expr[Pre],
+      totalHelpers: mutable.Set[Type[Pre]],
+  ): Expr[Post] = {
+    val helpers: mutable.Set[Type[Pre]] = mutable.Set()
+    var result: Seq[Expr[Post]] = Nil
+    for (clause <- expr.unfoldStar) {
+      val newClause = requiredCastHelpers.having(helpers) { dispatch(clause) }
+      if (helpers.nonEmpty) {
+        result ++= helpers.map { t =>
+          unwrapCastConstraints(dispatch(t), t)(CastHelperOrigin)
+        }.toSeq
+        totalHelpers.addAll(helpers)
+        helpers.clear()
+      }
+      result = result :+ newClause
+    }
+    foldStar(result)(expr.o)
+  }
+
+  // For loops add cast helpers before and as an invariant (since otherwise the contract might not be well-formed)
+  override def dispatch(node: LoopContract[Pre]): LoopContract[Post] = {
+    implicit val o: Origin = node.o
+    val helpers: mutable.Set[Type[Pre]] = mutable.Set()
+    node match {
+      case LoopInvariant(invariant, decreases) => {
+        val result =
+          LoopInvariant(
+            addCastConstraints(invariant, helpers),
+            decreases.map(dispatch),
+          )(node.o)
+        if (requiredCastHelpers.nonEmpty) {
+          requiredCastHelpers.top.addAll(helpers)
+        }
+        result
+      }
+      case contract @ IterationContract(
+            requires,
+            ensures,
+            context_everywhere,
+          ) => {
+        val result =
+          IterationContract(
+            addCastConstraints(requires, helpers),
+            addCastConstraints(ensures, helpers),
+            addCastConstraints(context_everywhere, helpers),
+          )(contract.blame)(node.o)
+        if (requiredCastHelpers.nonEmpty) {
+          requiredCastHelpers.top.addAll(helpers)
+        }
+        result
+      }
+    }
+  }
+
   override def dispatch(stat: Statement[Pre]): Statement[Post] = {
-    val helpers: mutable.Set[Statement[Post]] = mutable.Set()
+    val helpers: mutable.Set[Type[Pre]] = mutable.Set()
     val result =
-      castHelperCalls.having(helpers) {
+      requiredCastHelpers.having(helpers) {
         stat match {
           case Instantiate(Ref(cls), Local(Ref(v))) =>
             instantiate(cls, succ(v))(stat.o)
@@ -620,8 +676,18 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         }
       }
 
-    if (helpers.nonEmpty) { Block(helpers.toSeq :+ result)(stat.o) }
-    else { result }
+    if (helpers.nonEmpty) {
+      Block(helpers.map { t =>
+        InvokeProcedure[Post](
+          castHelpers.getOrElseUpdate(t, makeCastHelper(t)).ref,
+          Nil,
+          Nil,
+          Nil,
+          Nil,
+          Nil,
+        )(TrueSatisfiable)(CastHelperOrigin)
+      }.toSeq :+ result)(stat.o)
+    } else { result }
   }
 
   override def dispatch(node: ApplyAnyPredicate[Pre]): ApplyAnyPredicate[Post] =
@@ -682,23 +748,15 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     ))
   }
 
-  private def addCastHelpers(t: Type[Pre], calls: mutable.Set[Statement[Post]])(
-      implicit o: Origin
+  private def addCastHelpers(
+      t: Type[Pre],
+      helpers: mutable.Set[Type[Pre]],
   ): Unit = {
     t match {
       case cls: TByValueClass[Pre] => {
-        calls.add(
-          InvokeProcedure[Post](
-            castHelpers.getOrElseUpdate(t, makeCastHelper(t)).ref,
-            Nil,
-            Nil,
-            Nil,
-            Nil,
-            Nil,
-          )(TrueSatisfiable)(o)
-        )
+        helpers.add(t)
         cls.cls.decl.decls.collectFirst { case field: InstanceField[Pre] =>
-          addCastHelpers(field.t, calls)
+          addCastHelpers(field.t, helpers)
         }
       }
       case _ =>
@@ -820,11 +878,8 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         )(PanicBlame("instanceOf requires nothing"))(e.o)
       case Cast(value, typeValue) if value.t.asPointer.isDefined => {
         // Keep pointer casts and add extra annotations
-        // TODO: Check if we need to get rid of the pointer add's here since in my testing that broke some of the reasoning
-        if (castHelperCalls.nonEmpty) {
-          addCastHelpers(value.t.asPointer.get.element, castHelperCalls.top)(
-            e.o
-          )
+        if (requiredCastHelpers.nonEmpty) {
+          addCastHelpers(value.t.asPointer.get.element, requiredCastHelpers.top)
         }
 
         e.rewriteDefault()
