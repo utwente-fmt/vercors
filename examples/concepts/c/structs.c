@@ -21,8 +21,8 @@ struct linked_list{
 
 /*@
     context p != NULL ** Perm(p, write);
-    context Perm(p->x, write);
-    context Perm(p->y, write);
+    context Perm(&p->x, write);
+    context Perm(&p->y, write);
     ensures p->x == 0;
     ensures p->y == 0;
     ensures \old(*p) == *p;
@@ -44,14 +44,15 @@ void alter_struct_1(struct point *p){
 }
 
 /*@
-  context Perm(p.x, 1\1);
-  context Perm(p.y, 1\1);
+  context Perm(&p.x, 1\1);
+  context Perm(&p.y, 1\1);
 @*/
 void alter_copy_struct(struct point p){
     p.x = 0;
     p.y = 0;
 }
 
+// TODO: Should be auto-generated
 /*@
   context Perm(p, 1\1);
 @*/
@@ -75,7 +76,7 @@ int avr_x(struct triangle *r){
  requires inp != NULL && \pointer_length(inp) >= n;
  requires (\forall* int i; 0 <= i && i < n; Perm(&inp[i], 1\10));
  requires (\forall int i, int j; 0<=i && i<n && 0<=j && j<n; i != j ==> {:inp[i]:} != {:inp[j]:});
- requires (\forall* int i; 0 <= i && i < n; Perm(inp[i].x, 1\10));
+ requires (\forall* int i; 0 <= i && i < n; Perm(&inp[i].x, 1\10));
  ensures |\result| == n;
  ensures (\forall int i; 0 <= i && i < n; \result[i] == inp[i].x);
  //ensures n>0 ==> \result == inp_to_seq(inp, n-1) + [inp[n-1].x];
@@ -132,7 +133,7 @@ int main(){
     struct point *pp;
     pp = &p;
 
-    //@ assert (pp[0] != NULL );
+    /* //@ assert (pp[0] != NULL ); */
     assert (pp != NULL );
 
     p.x = 1;

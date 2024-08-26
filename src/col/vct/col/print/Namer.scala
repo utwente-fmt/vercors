@@ -61,6 +61,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
       case _: Let[G] => ()
       case _: ScopedExpr[G] => ()
       case _: ForPerm[G] => ()
+      case _: Choreography[G] => ()
     }
 
   private def nearestCallable =
@@ -122,6 +123,9 @@ case class Namer[G](syntax: Ctx.Syntax) {
     stack.having(node) { node.subnodes.foreach(name) }
 
     node match {
+      case _: Constructor[G] =>
+      case _: RunMethod[G] =>
+      case _: PVLChorRun[G] =>
       case decl: GlobalDeclaration[G] =>
         nameKeyed(nearest { case _: Program[G] => () }, decl)
       case decl: ClassDeclaration[G] => nameKeyed(nearestClass, decl)

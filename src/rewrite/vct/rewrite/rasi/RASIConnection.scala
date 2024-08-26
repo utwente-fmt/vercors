@@ -10,7 +10,8 @@ case class RASISuccessor[G](
 case object RASISuccessor {
   def from[G](successors: Iterable[RASISuccessor[G]]): RASISuccessor[G] =
     RASISuccessor(
-      successors.flatMap(s => s.deciding_variables).toSet,
+      successors.filter(s => s.successors.size > 1)
+        .flatMap(s => s.deciding_variables).toSet,
       successors.flatMap(s => s.successors).toSet,
     )
 }

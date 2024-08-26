@@ -14,7 +14,7 @@ case class CFGGenerator[G]() extends LazyLogging {
   private val converted_nodes: mutable.Map[GlobalIndex[G], CFGNode[G]] = mutable
     .HashMap[GlobalIndex[G], CFGNode[G]]()
 
-  def generate(entry: InstanceMethod[G]): CFGNode[G] = {
+  def generate(entry: Procedure[G]): CFGNode[G] = {
     logger.info("Generating control flow graph")
     val res = convert(
       entry.body.get,
@@ -153,16 +153,6 @@ case class CFGGenerator[G]() extends LazyLogging {
           CFGEdge(convert(b._1, context.enter_scope(node, b._2)), None)
         ))
       case s: Switch[_] => handle_switch_statement(s, context.enter_scope(node))
-      case ChorBranch(_, yes, no) =>
-        no match {
-          case Some(stmt) =>
-            mutable.Set(
-              CFGEdge(convert(yes, context.enter_scope(node, 0)), None),
-              CFGEdge(convert(stmt, context.enter_scope(node, 1)), None),
-            )
-          case None =>
-            mutable.Set(CFGEdge(convert(yes, context.enter_scope(node)), None))
-        }
       // Assign statements cannot be easily categorized because they contain two expressions
       case Assign(_, _) => sequential_successor(context)
       // Other statements that can be categorized into a broader role for control flow analysis

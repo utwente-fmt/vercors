@@ -43,7 +43,7 @@ case class IterationContractToParBlock[Pre <: Generation]()
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     iterationLoopVariables =
-      program.transSubnodes.collect {
+      program.collect {
         case loop @ Loop(_, _, _, contract @ IterationContract(_, _, _), _) =>
           loop.getIterationContractData(IterationContractOrigin)
             .fold(throw _, identity).v

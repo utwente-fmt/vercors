@@ -23,7 +23,7 @@ case class ReferenceResolutionContext[G](
     currentThis: Option[ThisTarget[G]] = None,
     currentResult: Option[ResultTarget[G]] = None,
     currentInitializerType: Option[Type[G]] = None,
-    currentCommunicate: Option[PVLCommunicate[G]] = None,
+    currentCommunicate: Option[PVLCommunicateStatement[G]] = None,
     inStaticJavaContext: Boolean = false,
     inGpuKernel: Boolean = false,
     javaBipStatePredicates: ListMap[Expr[G], JavaAnnotation[G]] =

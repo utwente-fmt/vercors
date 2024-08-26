@@ -97,12 +97,29 @@ object AstBuildHelpers {
         index: Expr[G]
     )(implicit blame: Blame[SeqBoundFailure], origin: Origin): SeqSubscript[G] =
       SeqSubscript(left, index)(blame)
+
+    def accounted(implicit o: Origin): UnitAccountedPredicate[G] =
+      UnitAccountedPredicate(left)
+  }
+
+  implicit class AccountedBuildHelpers[G](left: AccountedPredicate[G]) {
+    def &*(right: Expr[G])(implicit o: Origin): SplitAccountedPredicate[G] =
+      SplitAccountedPredicate(left, right.accounted)
+    def &*(right: AccountedPredicate[G])(
+        implicit o: Origin
+    ): SplitAccountedPredicate[G] = SplitAccountedPredicate(left, right)
   }
 
   implicit class VarBuildHelpers[G](left: Variable[G]) {
     def get(implicit origin: Origin): Local[G] = Local(new DirectRef(left))
     def <~(right: Expr[G])(implicit origin: Origin): SilverLocalAssign[G] =
       SilverLocalAssign(new DirectRef(left), right)
+  }
+
+  implicit class LocalHeapVarBuildHelpers[G](left: LocalHeapVariable[G]) {
+    def get(blame: Blame[PointerDerefError])(
+        implicit origin: Origin
+    ): DerefPointer[G] = DerefPointer(HeapLocal[G](new DirectRef(left)))(blame)
   }
 
   implicit class FieldBuildHelpers[G](left: SilverDeref[G]) {
@@ -367,8 +384,10 @@ object AstBuildHelpers {
         case inv: ADTFunctionInvocation[Pre] => inv.rewrite(args = args)
         case inv: ProverFunctionInvocation[Pre] => inv.rewrite(args = args)
         case inv: LLVMFunctionInvocation[Pre] => inv.rewrite(args = args)
-        case apply: ApplyAnyPredicate[Pre] =>
-          new ApplyAnyPredicateBuildHelpers(apply).rewrite(args = args)
+        case apply: PredicateApplyExpr[Pre] =>
+          PredicateApplyExpr(
+            new ApplyAnyPredicateBuildHelpers(apply.apply).rewrite(args = args)
+          )(apply.o)
         case inv: Invocation[Pre] =>
           new InvocationBuildHelpers(inv).rewrite(args = args)
       }
@@ -378,15 +397,13 @@ object AstBuildHelpers {
       apply: ApplyAnyPredicate[Pre]
   )(implicit rewriter: AbstractRewriter[Pre, Post]) {
     def rewrite(
-        args: => Seq[Expr[Post]] = apply.args.map(rewriter.dispatch),
-        perm: => Expr[Post] = rewriter.dispatch(apply.perm),
+        args: => Seq[Expr[Post]] = apply.args.map(rewriter.dispatch)
     ): ApplyAnyPredicate[Post] =
       apply match {
-        case inv: PredicateApply[Pre] => inv.rewrite(args = args, perm = perm)
-        case inv: InstancePredicateApply[Pre] =>
-          inv.rewrite(args = args, perm = perm)
+        case inv: PredicateApply[Pre] => inv.rewrite(args = args)
+        case inv: InstancePredicateApply[Pre] => inv.rewrite(args = args)
         case inv: CoalesceInstancePredicateApply[Pre] =>
-          inv.rewrite(args = args, perm = perm)
+          inv.rewrite(args = args)
       }
   }
 
@@ -658,6 +675,45 @@ object AstBuildHelpers {
       inline,
     )(blame)
 
+  def constructor[G](
+      blame: Blame[CallableFailure],
+      contractBlame: Blame[NontrivialUnsatisfiable],
+      cls: Ref[G, Class[G]],
+      args: Seq[Variable[G]] = Nil,
+      outArgs: Seq[Variable[G]] = Nil,
+      typeArgs: Seq[Variable[G]] = Nil,
+      body: Option[Statement[G]] = None,
+      requires: AccountedPredicate[G] =
+        UnitAccountedPredicate(tt[G])(constOrigin(true)),
+      ensures: AccountedPredicate[G] =
+        UnitAccountedPredicate(tt[G])(constOrigin(true)),
+      contextEverywhere: Expr[G] = tt[G],
+      signals: Seq[SignalsClause[G]] = Nil,
+      givenArgs: Seq[Variable[G]] = Nil,
+      yieldsArgs: Seq[Variable[G]] = Nil,
+      decreases: Option[DecreasesClause[G]] = Some(
+        DecreasesClauseNoRecursion[G]()(constOrigin("decreases"))
+      ),
+      inline: Boolean = false,
+  )(implicit o: Origin): Constructor[G] =
+    new Constructor(
+      cls,
+      args,
+      outArgs,
+      typeArgs,
+      body,
+      ApplicableContract(
+        requires,
+        ensures,
+        contextEverywhere,
+        signals,
+        givenArgs,
+        yieldsArgs,
+        decreases,
+      )(contractBlame),
+      inline,
+    )(blame)
+
   def functionInvocation[G](
       blame: Blame[InvocationFailure],
       ref: Ref[G, Function[G]],
@@ -667,6 +723,13 @@ object AstBuildHelpers {
       yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil,
   )(implicit o: Origin): FunctionInvocation[G] =
     FunctionInvocation(ref, args, typeArgs, givenMap, yields)(blame)
+
+  def adtFunctionInvocation[G](
+      ref: Ref[G, ADTFunction[G]],
+      typeArgs: Option[(Ref[G, AxiomaticDataType[G]], Seq[Type[G]])] = None,
+      args: Seq[Expr[G]] = Nil,
+  )(implicit o: Origin): ADTFunctionInvocation[G] =
+    ADTFunctionInvocation(typeArgs, ref, args)
 
   def methodInvocation[G](
       blame: Blame[InstanceInvocationFailure],
@@ -778,6 +841,10 @@ object AstBuildHelpers {
       amount: Expr[G],
   )(implicit o: Origin): Perm[G] = Perm(FieldLocation(obj, field), amount)
 
+  def value[G](obj: Expr[G], ref: Ref[G, InstanceField[G]])(
+      implicit o: Origin
+  ): Value[G] = Value(FieldLocation(obj, ref))
+
   def arrayPerm[G](
       arr: Expr[G],
       index: Expr[G],
@@ -815,6 +882,13 @@ object AstBuildHelpers {
           p.o
         )
     }
+
+  implicit class AccountedRewriteHelpers[Pre, Post](
+      f: Expr[Pre] => Expr[Post]
+  ) {
+    def accounted: AccountedPredicate[Pre] => AccountedPredicate[Post] =
+      p => mapPredicate(p, f)
+  }
 
   def unfoldImplies[G](expr: Expr[G]): (Seq[Expr[G]], Expr[G]) =
     expr match {
@@ -874,6 +948,13 @@ object AstBuildHelpers {
   def foldAnd[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(And(_, _)).getOrElse(tt)
 
+  def foldAny[G](t: Type[_])(exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
+    t match {
+      case TBool() => foldAnd(exprs)
+      case TResource() => foldStar(exprs)
+      case _ => ???
+    }
+
   def loop[G](
       cond: Expr[G],
       body: Statement[G],
@@ -889,4 +970,17 @@ object AstBuildHelpers {
       body = body,
       update = Option(update).getOrElse(Block(Seq())),
     )
+
+  def instanceField[G](t: Type[G], isFinal: Boolean = false)(
+      implicit o: Origin
+  ): InstanceField[G] =
+    new InstanceField(
+      t,
+      if (isFinal)
+        Seq(Final())
+      else
+        Seq(),
+    )
+
+  def skip[G](implicit o: Origin): Block[G] = Block(Seq())
 }

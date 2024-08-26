@@ -23,7 +23,7 @@ class AllFrozenScopes extends AllFamiliesGenerator {
     source"""
       package vct.col.ast
 
-      class AllFrozenScopes[Pre, Post](`~scopes`: $AllScopes[Pre, Post]) extends ${Init(t"$SuccessorsProvider[Pre, Post]", Name.Anonymous(), List.empty)} {
+      class AllFrozenScopes[Pre, Post](`~scopes`: $AllScopes[Pre, Post]) {
         override def equals(`~obj`: $Any): $Boolean = `~obj` match {
           case other: $AllFrozenScopes[_, _] =>
             ${declaredFamilies
@@ -42,7 +42,7 @@ class AllFrozenScopes extends AllFamiliesGenerator {
         """).toList}
 
         ..${declaredFamilies.map(name => q"""
-          override def succ[RefDecl <: $Declaration[Post]](decl: ${typ(name)}[Pre])(implicit tag: $ClassTag[RefDecl]): $RefType[Post, RefDecl] =
+          def succ[RefDecl <: $Declaration[Post]](decl: ${typ(name)}[Pre])(implicit tag: $ClassTag[RefDecl]): $RefType[Post, RefDecl] =
             ${scopes(name.base)}.succ(decl)
         """).toList}
       }

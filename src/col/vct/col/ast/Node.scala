@@ -39,6 +39,7 @@ import vct.col.ast.expr.op.tuple._
 import vct.col.ast.expr.op.vec._
 import vct.col.ast.expr.resource._
 import vct.col.ast.expr.sideeffect._
+import vct.col.ast.expr.veymont._
 import vct.col.ast.family.accountedpredicate._
 import vct.col.ast.family.bipdata._
 import vct.col.ast.family.bipglueelement._
@@ -56,7 +57,6 @@ import vct.col.ast.family.location._
 import vct.col.ast.family.loopcontract._
 import vct.col.ast.family.parregion._
 import vct.col.ast.family.pvlcommunicate._
-import vct.col.ast.family.seqguard._
 import vct.col.ast.family.seqrun._
 import vct.col.ast.family.signals._
 import vct.col.ast.lang.c._
@@ -107,6 +107,7 @@ final case class VerificationContext[G](program: Program[G])(
 @scopes[ModelDeclaration]
 @scopes[EnumConstant]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Program[G](declarations: Seq[GlobalDeclaration[G]])(
     val blame: Blame[UnsafeCoercion]
 )(implicit val o: Origin)
@@ -132,6 +133,9 @@ final case class TArray[G](element: Type[G])(
 final case class TPointer[G](element: Type[G])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends Type[G] with TPointerImpl[G]
+final case class TNonNullPointer[G](element: Type[G])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends Type[G] with TNonNullPointerImpl[G]
 final case class TType[G](t: Type[G])(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with TTypeImpl[G]
 final case class TVar[G](ref: Ref[G, Variable[G]])(
@@ -218,9 +222,17 @@ sealed trait DeclaredType[G] extends Type[G] with DeclaredTypeImpl[G]
 final case class TModel[G](model: Ref[G, Model[G]])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends DeclaredType[G] with TModelImpl[G]
-final case class TClass[G](cls: Ref[G, Class[G]], typeArgs: Seq[Type[G]])(
-    implicit val o: Origin = DiagnosticOrigin
-) extends DeclaredType[G] with TClassImpl[G]
+sealed trait TClass[G] extends DeclaredType[G] with TClassImpl[G]
+final case class TByReferenceClass[G](
+    cls: Ref[G, Class[G]],
+    typeArgs: Seq[Type[G]],
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends TClass[G] with TByReferenceClassImpl[G]
+final case class TByValueClass[G](
+    cls: Ref[G, Class[G]],
+    typeArgs: Seq[Type[G]],
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends TClass[G] with TByValueClassImpl[G]
 final case class TAnyClass[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends DeclaredType[G] with TAnyClassImpl[G]
 final case class TAxiomatic[G](
@@ -249,6 +261,7 @@ final case class ParSequential[G](regions: Seq[ParRegion[G]])(
 )(implicit val o: Origin)
     extends ParRegion[G] with ParSequentialImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 @scopes[SendDecl]
 @scopes[ParBlockDecl]
 final case class ParBlock[G](
@@ -276,6 +289,7 @@ final case class IterationContract[G](
     extends LoopContract[G] with IterationContractImpl[G]
 
 @family @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class CatchClause[G](decl: Variable[G], body: Statement[G])(
     implicit val o: Origin
 ) extends NodeFamily[G] with CatchClauseImpl[G]
@@ -314,6 +328,11 @@ final case class LocalDecl[G](local: Variable[G])(implicit val o: Origin)
     extends NonExecutableStatement[G]
     with PurelySequentialStatement[G]
     with LocalDeclImpl[G]
+final case class HeapLocalDecl[G](local: LocalHeapVariable[G])(
+    implicit val o: Origin
+) extends NonExecutableStatement[G]
+    with PurelySequentialStatement[G]
+    with HeapLocalDeclImpl[G]
 final case class SpecIgnoreStart[G]()(implicit val o: Origin)
     extends NonExecutableStatement[G]
     with PurelySequentialStatement[G]
@@ -417,12 +436,12 @@ final case class Commit[G](obj: Expr[G])(val blame: Blame[CommitFailed])(
 ) extends NormallyCompletingStatement[G]
     with ExpressionContainerStatement[G]
     with CommitImpl[G]
-final case class Fold[G](res: Expr[G])(val blame: Blame[FoldFailed])(
+final case class Fold[G](res: FoldTarget[G])(val blame: Blame[FoldFailed])(
     implicit val o: Origin
 ) extends NormallyCompletingStatement[G]
     with ExpressionContainerStatement[G]
     with FoldImpl[G]
-final case class Unfold[G](res: Expr[G])(val blame: Blame[UnfoldFailed])(
+final case class Unfold[G](res: FoldTarget[G])(val blame: Blame[UnfoldFailure])(
     implicit val o: Origin
 ) extends NormallyCompletingStatement[G]
     with ExpressionContainerStatement[G]
@@ -520,6 +539,7 @@ final case class Block[G](statements: Seq[Statement[G]])(implicit val o: Origin)
     with ControlContainerStatement[G]
     with BlockImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 @scopes[CLocalDeclaration]
 @scopes[CPPLocalDeclaration]
 @scopes[JavaLocalDeclaration]
@@ -555,6 +575,7 @@ final case class Loop[G](
     with ControlContainerStatement[G]
     with LoopImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class RangedFor[G](
     iter: IterVariable[G],
     contract: LoopContract[G],
@@ -609,6 +630,7 @@ final case class ParStatement[G](impl: ParRegion[G])(implicit val o: Origin)
     with PurelySequentialStatement[G]
     with ParStatementImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class VecBlock[G](
     iters: Seq[IterVariable[G]],
     requires: Expr[G],
@@ -643,18 +665,26 @@ final class HeapVariable[G](val t: Type[G])(implicit val o: Origin)
 final class SimplificationRule[G](val axiom: Expr[G])(implicit val o: Origin)
     extends GlobalDeclaration[G] with SimplificationRuleImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class AxiomaticDataType[G](
     val decls: Seq[ADTDeclaration[G]],
     val typeArgs: Seq[Variable[G]],
 )(implicit val o: Origin)
     extends GlobalDeclaration[G] with AxiomaticDataTypeImpl[G]
-final class Class[G](
+sealed trait Class[G] extends GlobalDeclaration[G] with ClassImpl[G]
+final class ByReferenceClass[G](
     val typeArgs: Seq[Variable[G]],
     val decls: Seq[ClassDeclaration[G]],
     val supports: Seq[Type[G]],
     val intrinsicLockInvariant: Expr[G],
 )(implicit val o: Origin)
-    extends GlobalDeclaration[G] with ClassImpl[G]
+    extends Class[G] with ByReferenceClassImpl[G]
+final class ByValueClass[G](
+    val typeArgs: Seq[Variable[G]],
+    val decls: Seq[ClassDeclaration[G]],
+    val supports: Seq[Type[G]],
+)(implicit val o: Origin)
+    extends Class[G] with ByValueClassImpl[G]
 final class Model[G](val declarations: Seq[ModelDeclaration[G]])(
     implicit val o: Origin
 ) extends GlobalDeclaration[G] with Declarator[G] with ModelImpl[G]
@@ -687,6 +717,7 @@ final class VeSUVMainMethod[G](val body: Option[Statement[G]])(
 )(implicit val o: Origin)
     extends GlobalDeclaration[G] with VeSUVMainMethodImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class Predicate[G](
     val args: Seq[Variable[G]],
     val body: Option[Expr[G]],
@@ -759,6 +790,7 @@ final class InstanceMethod[G](
     with AbstractMethod[G]
     with InstanceMethodImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class InstancePredicate[G](
     val args: Seq[Variable[G]],
     val body: Option[Expr[G]],
@@ -814,6 +846,7 @@ sealed trait ModelDeclaration[G]
 final class ModelField[G](val t: Type[G])(implicit val o: Origin)
     extends ModelDeclaration[G] with Field[G] with ModelFieldImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class ModelProcess[G](
     val args: Seq[Variable[G]],
     val impl: Expr[G],
@@ -824,6 +857,7 @@ final class ModelProcess[G](
 )(val blame: Blame[PostconditionFailed])(implicit val o: Origin)
     extends ModelDeclaration[G] with Applicable[G] with ModelProcessImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class ModelAction[G](
     val args: Seq[Variable[G]],
     val requires: Expr[G],
@@ -838,6 +872,7 @@ sealed trait ADTDeclaration[G] extends Declaration[G] with ADTDeclarationImpl[G]
 final class ADTAxiom[G](val axiom: Expr[G])(implicit val o: Origin)
     extends ADTDeclaration[G] with ADTAxiomImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class ADTFunction[G](val args: Seq[Variable[G]], val returnType: Type[G])(
     implicit val o: Origin
 ) extends Applicable[G] with ADTDeclaration[G] with ADTFunctionImpl[G]
@@ -845,6 +880,9 @@ final class ADTFunction[G](val args: Seq[Variable[G]], val returnType: Type[G])(
 @family
 final class Variable[G](val t: Type[G])(implicit val o: Origin)
     extends Declaration[G] with VariableImpl[G]
+@family
+final class LocalHeapVariable[G](val t: Type[G])(implicit val o: Origin)
+    extends Declaration[G] with LocalHeapVariableImpl[G]
 @family
 final class LabelDecl[G]()(implicit val o: Origin)
     extends Declaration[G] with LabelDeclImpl[G]
@@ -872,6 +910,7 @@ sealed trait AbstractMethod[G]
 sealed trait Field[G] extends FieldImpl[G]
 
 @family @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class SignalsClause[G](binding: Variable[G], assn: Expr[G])(
     implicit val o: Origin
 ) extends NodeFamily[G] with SignalsClauseImpl[G]
@@ -973,6 +1012,9 @@ final case class CoerceNullAnyClass[G]()(implicit val o: Origin)
 final case class CoerceNullPointer[G](pointerElementType: Type[G])(
     implicit val o: Origin
 ) extends Coercion[G] with CoerceNullPointerImpl[G]
+final case class CoerceNonNullPointer[G](elementType: Type[G])(
+    implicit val o: Origin
+) extends Coercion[G] with CoerceNonNullPointerImpl[G]
 final case class CoerceNullEnum[G](targetEnum: Ref[G, Enum[G]])(
     implicit val o: Origin
 ) extends Coercion[G] with CoerceNullEnumImpl[G]
@@ -1269,6 +1311,7 @@ final case class MapRemove[G](map: Expr[G], k: Expr[G])(implicit val o: Origin)
 
 sealed trait Binder[G] extends Expr[G] with BinderImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Forall[G](
     bindings: Seq[Variable[G]],
     triggers: Seq[Seq[Expr[G]]],
@@ -1276,6 +1319,7 @@ final case class Forall[G](
 )(implicit val o: Origin)
     extends Binder[G] with ForallImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Starall[G](
     bindings: Seq[Variable[G]],
     triggers: Seq[Seq[Expr[G]]],
@@ -1283,6 +1327,7 @@ final case class Starall[G](
 )(val blame: Blame[ReceiverNotInjective])(implicit val o: Origin)
     extends Binder[G] with StarallImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Exists[G](
     bindings: Seq[Variable[G]],
     triggers: Seq[Seq[Expr[G]]],
@@ -1290,6 +1335,7 @@ final case class Exists[G](
 )(implicit val o: Origin)
     extends Binder[G] with ExistsImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Sum[G](
     bindings: Seq[Variable[G]],
     condition: Expr[G],
@@ -1297,6 +1343,7 @@ final case class Sum[G](
 )(implicit val o: Origin)
     extends Binder[G] with SumImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Product[G](
     bindings: Seq[Variable[G]],
     condition: Expr[G],
@@ -1304,6 +1351,7 @@ final case class Product[G](
 )(implicit val o: Origin)
     extends Binder[G] with ProductImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class ForPerm[G](
     bindings: Seq[Variable[G]],
     loc: Location[G],
@@ -1311,10 +1359,12 @@ final case class ForPerm[G](
 )(implicit val o: Origin)
     extends Binder[G] with ForPermImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class ForPermWithValue[G](binding: Variable[G], body: Expr[G])(
     implicit val o: Origin
 ) extends Binder[G] with ForPermWithValueImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class Let[G](binding: Variable[G], value: Expr[G], main: Expr[G])(
     implicit val o: Origin
 ) extends Binder[G] with LetImpl[G]
@@ -1326,12 +1376,17 @@ final case class InlinePattern[G](
     extends Expr[G] with InlinePatternImpl[G]
 
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final case class ScopedExpr[G](declarations: Seq[Variable[G]], body: Expr[G])(
     implicit val o: Origin
 ) extends Declarator[G] with Expr[G] with ScopedExprImpl[G]
 
 final case class Local[G](ref: Ref[G, Variable[G]])(implicit val o: Origin)
     extends Expr[G] with LocalImpl[G]
+final case class HeapLocal[G](ref: Ref[G, LocalHeapVariable[G]])(
+    implicit val o: Origin
+) extends Expr[G] with HeapLocalImpl[G]
+
 final case class EnumUse[G](
     enum: Ref[G, Enum[G]],
     const: Ref[G, EnumConstant[G]],
@@ -1354,6 +1409,10 @@ final case class DerefPointer[G](pointer: Expr[G])(
     val blame: Blame[PointerDerefError]
 )(implicit val o: Origin)
     extends Expr[G] with DerefPointerImpl[G]
+final case class RawDerefPointer[G](pointer: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends Expr[G] with RawDerefPointerImpl[G]
 final case class PointerAdd[G](pointer: Expr[G], offset: Expr[G])(
     val blame: Blame[PointerAddError]
 )(implicit val o: Origin)
@@ -1387,32 +1446,42 @@ final case class ProverFunctionInvocation[G](
 sealed trait ApplyInlineable[G] extends Apply[G] with ApplyInlineableImpl[G]
 sealed trait InstanceApply[G] extends Node[G] with InstanceApplyImpl[G]
 
+final case class PredicateApplyExpr[G](apply: ApplyAnyPredicate[G])(
+    implicit val o: Origin
+) extends ApplyInlineable[G] with PredicateApplyExprImpl[G]
+@family
 sealed trait ApplyAnyPredicate[G]
-    extends ApplyInlineable[G] with ApplyAnyPredicateImpl[G]
+    extends NodeFamily[G] with ApplyAnyPredicateImpl[G]
 final case class PredicateApply[G](
     ref: Ref[G, Predicate[G]],
     args: Seq[Expr[G]],
-    perm: Expr[G],
 )(implicit val o: Origin)
     extends ApplyAnyPredicate[G] with PredicateApplyImpl[G]
 final case class InstancePredicateApply[G](
     obj: Expr[G],
     ref: Ref[G, InstancePredicate[G]],
     args: Seq[Expr[G]],
-    perm: Expr[G],
 )(implicit val o: Origin)
-    extends ApplyAnyPredicate[G]
-    with InstanceApply[G]
-    with InstancePredicateApplyImpl[G]
+    extends ApplyAnyPredicate[G] with InstancePredicateApplyImpl[G]
 final case class CoalesceInstancePredicateApply[G](
     obj: Expr[G],
     ref: Ref[G, InstancePredicate[G]],
     args: Seq[Expr[G]],
+)(implicit val o: Origin)
+    extends ApplyAnyPredicate[G] with CoalesceInstancePredicateApplyImpl[G]
+
+@family
+sealed trait FoldTarget[G] extends NodeFamily[G] with FoldTargetImpl[G]
+final case class ScaledPredicateApply[G](
+    apply: ApplyAnyPredicate[G],
     perm: Expr[G],
 )(implicit val o: Origin)
-    extends ApplyAnyPredicate[G]
-    with InstanceApply[G]
-    with CoalesceInstancePredicateApplyImpl[G]
+    extends FoldTarget[G] with ScaledPredicateApplyImpl[G]
+final case class ValuePredicateApply[G](apply: ApplyAnyPredicate[G])(
+    implicit val o: Origin
+) extends FoldTarget[G] with ValuePredicateApplyImpl[G]
+final case class AmbiguousFoldTarget[G](target: Expr[G])(implicit val o: Origin)
+    extends FoldTarget[G] with AmbiguousFoldTargetImpl[G]
 
 sealed trait InvokingNode[G] extends Node[G] with InvokingNodeImpl[G]
 sealed trait Invocation[G]
@@ -1666,7 +1735,7 @@ final case class PolarityDependent[G](onInhale: Expr[G], onExhale: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with PolarityDependentImpl[G]
 
-final case class Unfolding[G](res: Expr[G], body: Expr[G])(
+final case class Unfolding[G](res: FoldTarget[G], body: Expr[G])(
     val blame: Blame[UnfoldFailed]
 )(implicit val o: Origin)
     extends Expr[G] with UnfoldingImpl[G]
@@ -1697,17 +1766,13 @@ final case class PointerLocation[G](pointer: Expr[G])(
     val blame: Blame[PointerLocationError]
 )(implicit val o: Origin)
     extends Location[G] with PointerLocationImpl[G]
-final case class PredicateLocation[G](
-    predicate: Ref[G, Predicate[G]],
-    args: Seq[Expr[G]],
+final case class ByValueClassLocation[G](expr: Expr[G])(
+    val blame: Blame[PointerLocationError]
 )(implicit val o: Origin)
-    extends Location[G] with PredicateLocationImpl[G]
-final case class InstancePredicateLocation[G](
-    predicate: Ref[G, InstancePredicate[G]],
-    obj: Expr[G],
-    args: Seq[Expr[G]],
-)(implicit val o: Origin)
-    extends Location[G] with InstancePredicateLocationImpl[G]
+    extends Location[G] with ByValueClassLocationImpl[G]
+final case class PredicateLocation[G](inv: ApplyAnyPredicate[G])(
+    implicit val o: Origin
+) extends Location[G] with PredicateLocationImpl[G]
 final case class AmbiguousLocation[G](expr: Expr[G])(
     val blame: Blame[PointerLocationError]
 )(implicit val o: Origin)
@@ -1831,6 +1896,10 @@ final case class NewPointerArray[G](element: Type[G], size: Expr[G])(
     val blame: Blame[ArraySizeError]
 )(implicit val o: Origin)
     extends Expr[G] with NewPointerArrayImpl[G]
+final case class NewNonNullPointerArray[G](element: Type[G], size: Expr[G])(
+    val blame: Blame[ArraySizeError]
+)(implicit val o: Origin)
+    extends Expr[G] with NewNonNullPointerArrayImpl[G]
 final case class FreePointer[G](pointer: Expr[G])(
     val blame: Blame[PointerFreeError]
 )(implicit val o: Origin)
@@ -2723,10 +2792,9 @@ final case class GpgpuAtomic[G](
     extends CStatement[G] with GpgpuAtomicImpl[G]
 
 sealed trait CExpr[G] extends Expr[G] with CExprImpl[G]
-final case class CLocal[G](name: String)(
-    val blame: Blame[DerefInsufficientPermission]
-)(implicit val o: Origin)
-    extends CExpr[G] with CLocalImpl[G] {
+final case class CLocal[G](name: String)(val blame: Blame[FrontendDerefError])(
+    implicit val o: Origin
+) extends CExpr[G] with CLocalImpl[G] {
   var ref: Option[CNameTarget[G]] = None
 }
 final case class CInvocation[G](
@@ -3115,6 +3183,7 @@ sealed trait JavaClassOrInterface[G]
     with Declarator[G]
     with JavaClassOrInterfaceImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class JavaClass[G](
     val name: String,
     val modifiers: Seq[JavaModifier[G]],
@@ -3126,6 +3195,7 @@ final class JavaClass[G](
 )(val blame: Blame[JavaImplicitConstructorFailure])(implicit val o: Origin)
     extends JavaClassOrInterface[G] with JavaClassImpl[G]
 @scopes[Variable]
+@scopes[LocalHeapVariable]
 final class JavaInterface[G](
     val name: String,
     val modifiers: Seq[JavaModifier[G]],
@@ -3713,7 +3783,7 @@ final class PVLEndpoint[G](
     val cls: Ref[G, Class[G]],
     val typeArgs: Seq[Type[G]],
     val args: Seq[Expr[G]],
-)(val blame: Blame[EndpointFailure])(implicit val o: Origin)
+)(val blame: Blame[InvocationFailure])(implicit val o: Origin)
     extends ClassDeclaration[G] with PVLEndpointImpl[G] {
   var ref: Option[PVLConstructorTarget[G]] = None
 }
@@ -3722,12 +3792,12 @@ final class PVLChoreography[G](
     val declarations: Seq[ClassDeclaration[G]],
     val contract: ApplicableContract[G],
     val args: Seq[Variable[G]],
-)(val blame: Blame[SeqCallableFailure])(implicit val o: Origin)
+)(val blame: Blame[ChoreographyFailure])(implicit val o: Origin)
     extends GlobalDeclaration[G] with PVLChoreographyImpl[G] with Declarator[G]
-final case class PVLChorRun[G](
-    body: Statement[G],
-    contract: ApplicableContract[G],
-)(val blame: Blame[SeqCallableFailure])(implicit val o: Origin)
+final class PVLChorRun[G](
+    val body: Statement[G],
+    val contract: ApplicableContract[G],
+)(val blame: Blame[ChorRunFailure])(implicit val o: Origin)
     extends ClassDeclaration[G] with PVLChorRunImpl[G]
 
 @family
@@ -3738,26 +3808,28 @@ case class PVLEndpointName[G](name: String)(implicit val o: Origin)
 
 // Resolution of invariant can depend on communicate's target/msg through \sender, \receiver, \msg. Therefore, definitions are nested like this,
 // to ensure that PVLCommunicate is fully resolved before the invariant is typechecked.
-final case class PVLChannelInvariant[G](comm: Statement[G], inv: Expr[G])(
-    implicit val o: Origin
-) extends Statement[G] with PVLChannelInvariantImpl[G]
-final case class PVLCommunicate[G](
-    receiver: Option[PVLEndpointName[G]],
-    target: Expr[G],
-    sender: Option[PVLEndpointName[G]],
-    msg: Expr[G],
+@scopes[PVLCommunicate]
+final case class PVLCommunicateStatement[G](
+    comm: PVLCommunicate[G],
+    inv: Option[Expr[G]],
+)(implicit val o: Origin)
+    extends Statement[G] with PVLCommunicateStatementImpl[G]
+@family
+final class PVLCommunicate[G](
+    val receiver: Option[PVLEndpointName[G]],
+    val target: Expr[G],
+    val sender: Option[PVLEndpointName[G]],
+    val msg: Expr[G],
 )(val blame: Blame[PVLCommunicateFailure])(implicit val o: Origin)
-    extends Statement[G]
-    with PurelySequentialStatement[G]
-    with PVLCommunicateImpl[G] {
+    extends Declaration[G] with PVLCommunicateImpl[G] {
   var inferredSender: Option[PVLEndpoint[G]] = None
   var inferredReceiver: Option[PVLEndpoint[G]] = None
 }
-final case class PVLChorStatement[G](
+final case class PVLEndpointStatement[G](
     endpoint: Option[PVLEndpointName[G]],
     inner: Statement[G],
 )(val blame: Blame[ChorStatementFailure])(implicit val o: Origin)
-    extends Statement[G] with PVLChorStatementImpl[G]
+    extends Statement[G] with PVLEndpointStatementImpl[G]
 final case class PVLChorPerm[G](
     endpoint: PVLEndpointName[G],
     loc: Location[G],
@@ -3766,26 +3838,26 @@ final case class PVLChorPerm[G](
     extends PVLExpr[G] with PVLChorPermImpl[G]
 final case class PVLSender[G]()(implicit val o: Origin)
     extends Expr[G] with PVLSenderImpl[G] {
-  var ref: Option[PVLCommunicate[G]] = None
+  var ref: Option[PVLCommunicateStatement[G]] = None
 }
 final case class PVLReceiver[G]()(implicit val o: Origin)
     extends Expr[G] with PVLReceiverImpl[G] {
-  var ref: Option[PVLCommunicate[G]] = None
+  var ref: Option[PVLCommunicateStatement[G]] = None
 }
 final case class PVLMessage[G]()(implicit val o: Origin)
     extends Expr[G] with PVLMessageImpl[G] {
-  var ref: Option[PVLCommunicate[G]] = None
+  var ref: Option[PVLCommunicateStatement[G]] = None
 }
 
 @family
 final class Endpoint[G](
     val cls: Ref[G, Class[G]],
     val typeArgs: Seq[Type[G]],
-    val constructor: Ref[G, Constructor[G]],
-    val args: Seq[Expr[G]],
-)(val blame: Blame[EndpointFailure])(implicit val o: Origin)
+    val init: Expr[G],
+)(implicit val o: Origin)
     extends Declaration[G] with EndpointImpl[G]
 @scopes[Endpoint]
+@scopes[Variable]
 final class Choreography[G](
     val contract: ApplicableContract[G],
     val params: Seq[Variable[G]],
@@ -3793,13 +3865,13 @@ final class Choreography[G](
     val preRun: Option[Statement[G]],
     val run: ChorRun[G],
     val decls: Seq[ClassDeclaration[G]],
-)(val blame: Blame[SeqCallableFailure])(implicit val o: Origin)
+)(val blame: Blame[ChoreographyFailure])(implicit val o: Origin)
     extends GlobalDeclaration[G] with ChoreographyImpl[G]
 @family
 final case class ChorRun[G](
     body: Statement[G],
     contract: ApplicableContract[G],
-)(val blame: Blame[SeqCallableFailure])(implicit val o: Origin)
+)(val blame: Blame[ChorRunFailure])(implicit val o: Origin)
     extends NodeFamily[G] with ChorRunImpl[G]
 
 @family
@@ -3833,51 +3905,26 @@ final case class Receiver[G](ref: Ref[G, Communicate[G]])(
 final case class Message[G](ref: Ref[G, Communicate[G]])(implicit val o: Origin)
     extends Expr[G] with MessageImpl[G]
 
-final case class UnresolvedChorBranch[G](
-    branches: Seq[(Expr[G], Statement[G])]
-)(val blame: Blame[SeqBranchFailure])(implicit val o: Origin)
-    extends Statement[G]
-    with ControlContainerStatement[G]
-    with UnresolvedChorBranchImpl[G]
-final case class UnresolvedChorLoop[G](
-    cond: Expr[G],
-    contract: LoopContract[G],
-    body: Statement[G],
-)(val blame: Blame[SeqLoopFailure])(implicit val o: Origin)
-    extends Statement[G]
-    with ControlContainerStatement[G]
-    with UnresolvedChorLoopImpl[G]
-
-final case class ChorStatement[G](
+final case class ChorStatement[G](inner: Statement[G])(
+    val blame: Blame[ChorStatementFailure]
+)(implicit val o: Origin)
+    extends Statement[G] with ChorStatementImpl[G]
+final case class EndpointStatement[G](
     endpoint: Option[Ref[G, Endpoint[G]]],
     inner: Statement[G],
 )(val blame: Blame[ChorStatementFailure])(implicit val o: Origin)
-    extends Statement[G] with ChorStatementImpl[G]
+    extends Statement[G] with EndpointStatementImpl[G]
 
-@family
-sealed trait ChorGuard[G] extends NodeFamily[G] with ChorGuardImpl[G]
-final case class EndpointGuard[G](
-    endpoint: Ref[G, Endpoint[G]],
-    condition: Expr[G],
+final case class PVLEndpointExpr[G](
+    endpoint: PVLEndpointName[G],
+    expr: Expr[G],
 )(implicit val o: Origin)
-    extends ChorGuard[G] with EndpointGuardImpl[G]
-final case class UnpointedGuard[G](condition: Expr[G])(implicit val o: Origin)
-    extends ChorGuard[G] with UnpointedGuardImpl[G]
-
-final case class ChorBranch[G](
-    guards: Seq[ChorGuard[G]],
-    yes: Statement[G],
-    no: Option[Statement[G]],
-)(val blame: Blame[SeqBranchFailure])(implicit val o: Origin)
-    extends Statement[G]
-    with ControlContainerStatement[G]
-    with ChorBranchImpl[G]
-final case class ChorLoop[G](
-    guards: Seq[ChorGuard[G]],
-    contract: LoopContract[G],
-    body: Statement[G],
-)(val blame: Blame[SeqLoopFailure])(implicit val o: Origin)
-    extends Statement[G] with ControlContainerStatement[G] with ChorLoopImpl[G]
+    extends Expr[G] with PVLEndpointExprImpl[G]
+final case class EndpointExpr[G](endpoint: Ref[G, Endpoint[G]], expr: Expr[G])(
+    implicit val o: Origin
+) extends Expr[G] with EndpointExprImpl[G]
+final case class ChorExpr[G](expr: Expr[G])(implicit val o: Origin)
+    extends Expr[G] with ChorExprImpl[G]
 
 final case class VeyMontAssignExpression[G](
     endpoint: Ref[G, Endpoint[G]],

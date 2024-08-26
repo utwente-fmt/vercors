@@ -41,10 +41,10 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
       case AddrOf(sub @ PointerSubscript(p, i)) =>
         PointerAdd(dispatch(p), dispatch(i))(SubscriptErrorAddError(sub))(e.o)
 
-      case AddrOf(other) if other.t.isInstanceOf[TClass[Pre]] => dispatch(other)
+      case AddrOf(Deref(_, _)) => e.rewriteDefault()
       case AddrOf(other) => throw UnsupportedLocation(other)
       case assign @ PreAssignExpression(target, AddrOf(value))
-          if value.t.isInstanceOf[TClass[Pre]] =>
+          if value.t.isInstanceOf[TByReferenceClass[Pre]] =>
         implicit val o: Origin = assign.o
         val (newPointer, newTarget, newValue) = rewriteAssign(
           target,
@@ -66,7 +66,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(s: Statement[Pre]): Statement[Post] =
     s match {
       case assign @ Assign(target, AddrOf(value))
-          if value.t.isInstanceOf[TClass[Pre]] =>
+          if value.t.isInstanceOf[TByReferenceClass[Pre]] =>
         implicit val o: Origin = assign.o
         val (newPointer, newTarget, newValue) = rewriteAssign(
           target,

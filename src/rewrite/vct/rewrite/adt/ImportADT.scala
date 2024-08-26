@@ -71,7 +71,7 @@ case object ImportADT {
       case TZFraction() => "zfract"
       case TMap(key, value) =>
         "map$" + typeText(key) + "__" + typeText(value) + "$"
-      case TClass(Ref(cls), _) => cls.o.getPreferredNameOrElse().camel
+      case t: TClass[_] => t.cls.decl.o.getPreferredNameOrElse().camel
       case TVar(Ref(v)) => v.o.getPreferredNameOrElse().camel
       case TUnion(ts) => "union" + ts.map(typeText).mkString("$", "__", "$")
       case SilverPartialTAxiomatic(Ref(adt), _) =>
@@ -115,7 +115,8 @@ abstract class ImportADT[Pre <: Generation](importer: ImportADTImporter)
   protected def parse(name: String): Seq[GlobalDeclaration[Post]] = {
     val program = importer.loadAdt[Pre](name)
     program.declarations.foreach(dispatch)
-    program.declarations.map(succProvider.computeSucc).map(_.get)
+    program.declarations
+      .map(succProvider.globalDeclarationsSuccProvider.computeSucc).map(_.get)
   }
 
   protected def find[T](decls: Seq[Declaration[Post]], name: String)(

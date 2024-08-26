@@ -90,9 +90,7 @@ case class DesugarPermissionOperators[Pre <: Generation]()
         )
       case node @ PointerLocation(pointer) =>
         DerefPointer(pointer)(FramedPointerDerefBlame(node.blame))(loc.o)
-      case PredicateLocation(predicate, args) => throw PredicateValueError(loc)
-      case InstancePredicateLocation(predicate, obj, args) =>
-        throw PredicateValueError(loc)
+      case PredicateLocation(_) => throw PredicateValueError(loc)
       case AmbiguousLocation(expr) => expr
       case InLinePatternLocation(loc, _) => extractValueFromLocation(loc)
     }

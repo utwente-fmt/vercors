@@ -229,7 +229,12 @@ case object ResolveTypes {
           Spec.findModel(name, ctx)
             .getOrElse(throw NoSuchNameError("model", name, t))
         )
-      case t @ TClass(ref, _) =>
+      case t @ TByReferenceClass(ref, _) =>
+        ref.tryResolve(name =>
+          Spec.findClass(name, ctx)
+            .getOrElse(throw NoSuchNameError("class", name, t))
+        )
+      case t @ TByValueClass(ref, _) =>
         ref.tryResolve(name =>
           Spec.findClass(name, ctx)
             .getOrElse(throw NoSuchNameError("class", name, t))
@@ -301,7 +306,10 @@ case object ResolveReferences extends LazyLogging {
       lsp: SpecContractParser,
       importedDeclarations: Seq[GlobalDeclaration[G]],
   ): Seq[CheckError] = {
-    resolve(program, ReferenceResolutionContext[G](jp, lsp, importedDeclarations))
+    resolve(
+      program,
+      ReferenceResolutionContext[G](jp, lsp, importedDeclarations),
+    )
   }
 
   def resolve[G](
@@ -371,11 +379,12 @@ case object ResolveReferences extends LazyLogging {
       case CPPDeclarationStatement(decl) => Seq(decl)
       case JavaLocalDeclarationStatement(decl) => Seq(decl)
       case LocalDecl(v) => Seq(v)
+      case HeapLocalDecl(v) => Seq(v)
       case other => other.subnodes.flatMap(scanScope(ctx))
     }
 
   def scanLabels[G](node: Node[G]): Seq[Declaration[G]] =
-    node.transSubnodes.collect {
+    node.collect {
       case decl: LabelDecl[G] => decl
       case decl: SendDecl[G] => decl
     }
@@ -388,7 +397,7 @@ case object ResolveReferences extends LazyLogging {
     }
 
   def scanShared[G](node: Node[G]): Seq[Declaration[G]] =
-    node.transSubnodes.collect {
+    node.collect {
       case decl: CLocalDeclaration[G] if decl.decl.specs.collectFirst {
             case GPULocal() => ()
           }.isDefined =>
@@ -462,10 +471,8 @@ case object ResolveReferences extends LazyLogging {
       case chor: PVLChoreography[G] =>
         ctx.copy(currentThis = Some(RefPVLChoreography(chor)))
           .declare(chor.args).declare(chor.declarations)
-      case channelInv: PVLChannelInvariant[G] =>
-        ctx.copy(currentCommunicate =
-          Some(channelInv.comm.asInstanceOf[PVLCommunicate[G]])
-        )
+      case comm: PVLCommunicateStatement[G] =>
+        ctx.copy(currentCommunicate = Some(comm))
       case method: JavaMethod[G] =>
         ctx.copy(currentResult = Some(RefJavaMethod(method)))
           .copy(inStaticJavaContext =
@@ -653,7 +660,7 @@ case object ResolveReferences extends LazyLogging {
       case endpoint: PVLEndpoint[G] =>
         endpoint.ref = Some(
           PVL.findConstructor(
-            TClass(endpoint.cls.decl.ref[Class[G]], Seq()),
+            TByReferenceClass(endpoint.cls.decl.ref[Class[G]], Seq()),
             Seq(),
             endpoint.args,
           ).getOrElse(throw ConstructorNotFound(endpoint))
@@ -876,7 +883,7 @@ case object ResolveReferences extends LazyLogging {
         )
         Spec.resolveGiven(givenMap, RefFunction(ref.decl), inv)
         Spec.resolveYields(ctx, yields, RefFunction(ref.decl), inv)
-      case inv @ PredicateApply(ref, _, _) =>
+      case inv @ PredicateApply(ref, _) =>
         ref.tryResolve(name =>
           Spec.findPredicate(name, ctx)
             .getOrElse(throw NoSuchNameError("predicate", name, inv))
@@ -905,12 +912,12 @@ case object ResolveReferences extends LazyLogging {
           Spec.findInstanceFunction(obj, name)
             .getOrElse(throw NoSuchNameError("function", name, inv))
         )
-      case inv @ InstancePredicateApply(obj, ref, _, _) =>
+      case inv @ InstancePredicateApply(obj, ref, _) =>
         ref.tryResolve(name =>
           Spec.findInstancePredicate(obj, name)
             .getOrElse(throw NoSuchNameError("predicate", name, inv))
         )
-      case inv @ CoalesceInstancePredicateApply(obj, ref, _, _) =>
+      case inv @ CoalesceInstancePredicateApply(obj, ref, _) =>
         ref.tryResolve(name =>
           Spec.findInstancePredicate(obj, name)
             .getOrElse(throw NoSuchNameError("predicate", name, inv))
@@ -1069,7 +1076,8 @@ case object ResolveReferences extends LazyLogging {
       case ann @ JavaAnnotation(_, _) if isBip(ann, "StatePredicate") =>
         val expr: Expr[G] = ctx.javaParser
           .parse(getLit(ann.expect("expr")), ann.expect("expr").o)
-        resolve(expr, ctx) // TODO (RR): Throwing away errors here?
+        // We are throwing away errors here. Resolve if we ever do a case study
+        resolve(expr, ctx)
         ann.data = Some(
           BipStatePredicate(getLit(ann.expect("state")), expr)(ann.o)
         )
@@ -1186,7 +1194,6 @@ case object ResolveReferences extends LazyLogging {
         def getEndpoint[G](expr: Expr[G]): PVLEndpoint[G] =
           getEndpoints(expr) match {
             case Seq(endpoint) => endpoint
-            // TODO (RR): Proper error
             case Seq() =>
               throw new Exception(
                 expr.o.messageInContext("No endpoints in expr")

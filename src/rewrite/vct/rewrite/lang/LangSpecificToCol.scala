@@ -13,7 +13,6 @@ import vct.col.rewrite.{
   Rewriter,
   RewriterBuilderArg,
   RewriterBuilderArg2,
-  Rewritten,
 }
 import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangSpecificToCol.NotAValue
@@ -40,7 +39,7 @@ case object LangSpecificToCol extends RewriterBuilderArg2[Boolean, Boolean] {
 }
 
 case class LangSpecificToCol[Pre <: Generation](
-    veymontGeneratePermissions: Boolean = false,
+    generatePermissions: Boolean = false,
     veymontAllowAssign: Boolean = false,
     importedDeclarations: Seq[GlobalDeclaration[Pre]] = Seq(),
 ) extends Rewriter[Pre] with LazyLogging {
@@ -48,7 +47,7 @@ case class LangSpecificToCol[Pre <: Generation](
   val bip: LangBipToCol[Pre] = LangBipToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)
   val cpp: LangCPPToCol[Pre] = LangCPPToCol(this)
-  val pvl: LangPVLToCol[Pre] = LangPVLToCol(this, veymontGeneratePermissions)
+  val pvl: LangPVLToCol[Pre] = LangPVLToCol(this, generatePermissions)
   val veymont: LangVeyMontToCol[Pre] = LangVeyMontToCol(
     this,
     veymontAllowAssign,
@@ -127,7 +126,7 @@ case class LangSpecificToCol[Pre <: Generation](
           yields,
         )(blame)
       case RefPredicate(decl) =>
-        PredicateApply[Post](succ(decl), args.map(dispatch), WritePerm())
+        PredicateApplyExpr(PredicateApply[Post](succ(decl), args.map(dispatch)))
       case RefADTFunction(decl) =>
         ADTFunctionInvocation(None, succ(decl), args.map(dispatch))
       case RefProverFunction(decl) =>
@@ -153,11 +152,8 @@ case class LangSpecificToCol[Pre <: Generation](
           yields,
         )(blame)
       case RefInstancePredicate(decl) =>
-        InstancePredicateApply[Post](
-          obj,
-          succ(decl),
-          args.map(dispatch),
-          WritePerm(),
+        PredicateApplyExpr(
+          InstancePredicateApply[Post](obj, succ(decl), args.map(dispatch))
         )
 
       case RefModelProcess(decl) =>
@@ -215,7 +211,13 @@ case class LangSpecificToCol[Pre <: Generation](
                 pvl.maybeDeclareDefaultConstructor(cls)
               }._1
 
-            globalDeclarations.succeed(cls, cls.rewrite(decls = decls))
+            globalDeclarations.succeed(
+              cls,
+              cls match {
+                case cls: ByReferenceClass[Pre] => cls.rewrite(decls = decls)
+                case cls: ByValueClass[Pre] => cls.rewrite(decls = decls)
+              },
+            )
           }
         }
 
@@ -231,7 +233,9 @@ case class LangSpecificToCol[Pre <: Generation](
       case stmt
           if veymont.currentProg.nonEmpty &&
             !veymont.currentStatement.topOption.contains(stmt) =>
-        veymont.rewriteStatement(stmt)
+        val x = veymont.rewriteStatement(stmt)
+        val y = x
+        x
       case scope @ Scope(locals, body) =>
         def scanScope(node: Node[Pre]): Unit =
           node match {
@@ -265,17 +269,15 @@ case class LangSpecificToCol[Pre <: Generation](
       case eval @ Eval(CPPInvocation(_, _, _, _)) =>
         cpp.invocationStatement(eval)
 
-      case fold: Fold[Pre] => {
+      case fold: Fold[Pre] =>
         cpp.checkPredicateFoldingAllowed(fold.res)
-        rewriteDefault(fold)
-      }
-      case unfold: Unfold[Pre] => {
+        fold.rewriteDefault()
+      case unfold: Unfold[Pre] =>
         cpp.checkPredicateFoldingAllowed(unfold.res)
-        rewriteDefault(unfold)
-      }
+        unfold.rewriteDefault()
 
       case store: LLVMStore[Pre] => llvm.rewriteStore(store)
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] =
@@ -336,17 +338,17 @@ case class LangSpecificToCol[Pre <: Generation](
       case cast: CCast[Pre] => c.cast(cast)
       case sizeof: SizeOf[Pre] => throw LangCToCol.UnsupportedSizeof(sizeof)
 
-      case Perm(a @ AmbiguousLocation(expr), perm)
-          if c.getBaseType(expr.t).isInstanceOf[CTStruct[Pre]] =>
-        c.getBaseType(expr.t) match {
-          case structType: CTStruct[Pre] =>
-            c.unwrapStructPerm(
-              dispatch(a).asInstanceOf[AmbiguousLocation[Post]],
-              perm,
-              structType,
-              e.o,
-            )
-        }
+//      case Perm(a @ AmbiguousLocation(expr), perm)
+//          if c.getBaseType(expr.t).isInstanceOf[CTStruct[Pre]] =>
+//        c.getBaseType(expr.t) match {
+//          case structType: CTStruct[Pre] =>
+//            c.unwrapStructPerm(
+//              dispatch(a).asInstanceOf[AmbiguousLocation[Post]],
+//              perm,
+//              structType,
+//              e.o,
+//            )
+//        }
       case local: CPPLocal[Pre] => cpp.local(local)
       case deref: CPPClassMethodOrFieldAccess[Pre] => cpp.deref(deref)
       case inv: CPPInvocation[Pre] => cpp.invocation(inv)
@@ -379,10 +381,6 @@ case class LangSpecificToCol[Pre <: Generation](
           case _ =>
         }
         assign.target.t match {
-          case CPrimitiveType(specs) if specs.collectFirst {
-                case CSpecificationType(_: CTStruct[Pre]) => ()
-              }.isDefined =>
-            c.assignStruct(assign)
           case CPPPrimitiveType(_) => cpp.preAssignExpr(assign)
           case _ => rewriteDefault(assign)
         }

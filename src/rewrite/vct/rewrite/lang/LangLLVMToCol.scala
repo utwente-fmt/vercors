@@ -2,7 +2,7 @@ package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
-import vct.col.origin.{Origin, PanicBlame, SourceName}
+import vct.col.origin.{Origin, PanicBlame, SourceName, TypeName}
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.resolve.ctx.RefLLVMFunctionDefinition
 import vct.col.rewrite.{Generation, Rewritten}
@@ -221,7 +221,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteStruct(t: LLVMTStruct[Pre]): Unit = {
     val LLVMTStruct(name, packed, elements) = t
     val newStruct =
-      new Class[Post](
+      new ByValueClass[Post](
         Seq(),
         rw.classDeclarations.collect {
           elements.zipWithIndex.foreach { case (fieldType, idx) =>
@@ -233,8 +233,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           }
         }._1,
         Seq(),
-        tt[Post],
-      )(t.o)
+      )(t.o.withContent(new TypeName("struct")))
 
     rw.globalDeclarations.declare(newStruct)
     structMap(t) = newStruct
@@ -250,7 +249,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           decl,
           rw.globalDeclarations.declare(
             new HeapVariable[Post](
-              new TClass[Post](
+              new TByValueClass[Post](
                 new DirectRef[Post, Class[Post]](structMap(struct)),
                 Seq(),
               )(struct.o)
@@ -606,7 +605,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def structType(t: LLVMTStruct[Pre]): Type[Post] = {
     val targetClass = new LazyRef[Post, Class[Post]](structMap(t))
-    TClass[Post](targetClass, Seq())(t.o)
+    TByValueClass[Post](targetClass, Seq())(t.o)
   }
 
   def pointerType(t: LLVMTPointer[Pre]): Type[Post] =

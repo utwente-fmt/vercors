@@ -260,7 +260,8 @@ case class AbstractProcess[G](obj: Expr[G]) {
                 (edges._1.head.target match {
                   case CFGTerminal() => false
                   case target: CFGNode[G] =>
-                    new StaticScanner(target, state).scan_can_change_variables()
+                    new StaticScanner(target, state)
+                      .scan_can_change_variables(None)
                 })
             (
               true,
@@ -324,7 +325,8 @@ case class AbstractProcess[G](obj: Expr[G]) {
     RASISuccessor(
       new_states.deciding_variables ++ enabled_edges._2,
       enabled_edges._1
-        .flatMap(e => new_states.successors.map(s => take_edge(e, s))),
+        .flatMap(e => new_states.successors.map(s => take_edge(e, s)))
+        .flatMap(s => s.split_values()),
     )
   }
 

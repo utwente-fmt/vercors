@@ -17,9 +17,8 @@ trait AmbiguousThisImpl[G] extends AmbiguousThisOps[G] {
     ) match {
       case RefJavaClass(decl) => JavaTClass(decl.ref, Nil)
       case RefClass(decl) =>
-        TClass(
-          decl.ref,
-          decl.typeArgs.map((v: Variable[G]) => TVar(v.ref[Variable[G]])),
+        decl.classType(
+          decl.typeArgs.map((v: Variable[G]) => TVar(v.ref[Variable[G]]))
         )
       case RefModel(decl) => TModel(decl.ref)
       case RefPVLChoreography(decl) => TPVLChoreography(decl.ref)

@@ -699,38 +699,28 @@ class AnnotationVariableInfoGetter[G]() {
     }
   }
 
-  def getInfo(annotations: Seq[Expr[G]]): AnnotationVariableInfo[G] = {
-    variableEqualities.clear()
-    variableValues.clear()
-    variableSynonyms.clear()
-    currentSynonymGroup = 0
-    variableNotZero.clear()
-    lessThanEqVars.clear()
-    upperBound.clear()
-    lowerBound.clear()
-    usefullConditions.clear()
+  def addInfo(annotation: Expr[G]): Unit = {
+    extractEqualities(annotation)
 
-    for (clause <- annotations) { extractEqualities(clause) }
+    if (isSimpleExpr(annotation)) {
+      val res = AnnotationVariableInfo[G](
+        variableEqualities.view.mapValues(_.toList).toMap,
+        variableValues.toMap,
+        variableSynonyms.toMap,
+        Set[Local[G]](),
+        Map[Local[G], Set[Local[G]]](),
+        Map[Local[G], BigInt](),
+        Map[Local[G], BigInt](),
+        usefullConditions,
+      )
 
-    val res = AnnotationVariableInfo[G](
-      variableEqualities.view.mapValues(_.toList).toMap,
-      variableValues.toMap,
-      variableSynonyms.toMap,
-      Set[Local[G]](),
-      Map[Local[G], Set[Local[G]]](),
-      Map[Local[G], BigInt](),
-      Map[Local[G], BigInt](),
-      usefullConditions,
-    )
-    equalCheck = ExpressionEqualityCheck(Some(res))
-
-    for (clause <- annotations) {
-      if (isSimpleExpr(clause)) {
-        extractComparisons(clause)
-        usefullConditions.addOne(clause)
-      }
+      equalCheck = ExpressionEqualityCheck(Some(res))
+      extractComparisons(annotation)
+      usefullConditions.addOne(annotation)
     }
+  }
 
+  def finalInfo(): AnnotationVariableInfo[G] = {
     distributeInfo()
 
     AnnotationVariableInfo(
@@ -743,6 +733,18 @@ class AnnotationVariableInfoGetter[G]() {
       lowerBound.toMap,
       usefullConditions,
     )
+  }
+
+  def setupInfo(): Unit = {
+    variableEqualities.clear()
+    variableValues.clear()
+    variableSynonyms.clear()
+    currentSynonymGroup = 0
+    variableNotZero.clear()
+    lessThanEqVars.clear()
+    upperBound.clear()
+    lowerBound.clear()
+    usefullConditions.clear()
   }
 
   def distributeInfo(): Unit = {

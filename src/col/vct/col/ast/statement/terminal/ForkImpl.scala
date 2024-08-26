@@ -8,8 +8,14 @@ trait ForkImpl[G] extends ForkOps[G] {
   this: Fork[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc = Text("fork") <+> obj <> ";"
 
+  def layoutJava(implicit ctx: Ctx): Doc = obj.show <> ".start()" <> ";"
+
   override def layout(implicit ctx: Ctx): Doc =
-    Doc.inlineSpec(Show.lazily(layoutSpec(_)))
+    ctx.syntax match {
+      case Ctx.Java => layoutJava
+      case Ctx.PVL => layoutSpec
+      case _ => Doc.inlineSpec(Show.lazily(layoutSpec(_)))
+    }
 
   override def expr: Expr[G] = this.obj
 }

@@ -1,158 +1,103 @@
 package vct.col.ast.statement.veymont
 
-import vct.col.ast.{
-  Assert,
-  Assign,
-  Assume,
-  Block,
-  Branch,
-  ChorBranch,
-  ChorLoop,
-  ChorStatement,
-  Communicate,
-  CommunicateStatement,
-  CommunicateX,
-  Deref,
-  Endpoint,
-  EndpointName,
-  Eval,
-  Expr,
-  Loop,
-  MethodInvocation,
-  Scope,
-  ThisChoreography,
-  UnresolvedChorBranch,
-  UnresolvedChorLoop,
-  VeyMontAssignExpression,
-}
 import vct.col.ast.ops.ChorStatementOps
 import vct.col.ast.statement.StatementImpl
-import vct.col.check.{
-  CheckContext,
-  CheckError,
-  SeqProgInvocation,
-  SeqProgNoParticipant,
-  SeqProgParticipant,
-  SeqProgStatement,
-}
-import vct.col.print.{Ctx, Doc, Line, Text}
+import vct.col.ast._
+import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
+import vct.col.print._
 import vct.col.ref.Ref
+import vct.col.util.AstBuildHelpers.unfoldStar
+
+import scala.collection.immutable.ListSet
 
 trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
   this: ChorStatement[G] =>
-  assert(wellformed)
-  def wellformed: Boolean =
-    inner match {
-      // ChorStatement should not be nested, and is transparent w.r.t some statements.
-      // Proper encoding & filtering of this should happen in LangVeymontToCol
-      case _: Block[G] | _: Scope[G] | _: Branch[G] | _: Loop[G] |
-          _: ChorStatement[G] =>
-        false
-      // Communicate consists of two statements (send & receive) for which each should easily resolve to an endpoint,
-      // so it also shouldn't be put in a chorstmt
-      case _: CommunicateStatement[G] => false
+
+  // use non-existent syntax to be explicit about presence of an internal node
+  override def layout(implicit ctx: Ctx): Doc =
+    Text("\\\\chor_statement") <+/> inner
+
+  def exprs: Seq[Expr[G]] =
+    (inner match {
+      case branch: Branch[G] => branch.branches.map(_._1)
+      case loop: Loop[G] => Seq(loop.cond)
+      case assert: Assert[G] => Seq(assert.res)
+      case assume: Assume[G] => Seq(assume.assn)
+      case inhale: Inhale[G] => Seq(inhale.res)
+      case exhale: Exhale[G] => Seq(exhale.res)
+    }).flatMap(unfoldStar)
+
+  // All explicitly mentioned endpoints in the relevant expressions.
+  // Note that this is an underapproximation of the actual participating endpoints,
+  // in the case of unpointed expressions, meaning expressions in e.g. a branch without \endpoint.
+  // These expressions are simply checked by _all_ participating endpoints, plus any
+  // explicitly mentioned endpoints.
+  def explicitEndpoints: Seq[Endpoint[G]] =
+    exprs.collect { case EndpointExpr(Ref(endpoint), _) => endpoint }
+
+  def hasUnpointed: Boolean =
+    exprs.exists {
+      case _: EndpointExpr[G] => false
       case _ => true
     }
 
-  override def layout(implicit ctx: Ctx): Doc =
-    (endpoint match {
-      case Some(Ref(endpoint)) => Text(ctx.name(endpoint)) <> ":" <> " "
-      case None => Text("/* unlabeled choreographic statement */") <> Line
-    }) <> inner
-
-  object eval {
-    def enterCheckContextCurrentReceiverEndpoint(
-        chorStmt: ChorStatement[G],
-        node: Eval[G],
-        context: CheckContext[G],
-    ): Option[Endpoint[G]] =
-      (chorStmt.endpoint, node) match {
-        case (
-              Some(Ref(endpoint)),
-              Eval(MethodInvocation(_, _, _, _, _, _, _)),
-            ) =>
-          Some(endpoint)
-        case (None, Eval(MethodInvocation(e, _, _, _, _, _, _)))
-            if rootEndpoint(e).isDefined =>
-          Some(rootEndpoint(e).get)
-        case _ => context.currentReceiverEndpoint
-      }
-
-    def check(
-        chorStmt: ChorStatement[G],
-        node: Eval[G],
-        context: CheckContext[G],
-    ): Seq[CheckError] =
-      (context.currentChoreography, node.expr) match {
-        case (None, _) => Seq()
-        case (
-              Some(_),
-              MethodInvocation(ThisChoreography(_), _, _, _, _, _, _),
-            ) =>
-          Seq()
-        case (Some(_), MethodInvocation(e, _, _, _, _, _, _))
-            if rootEndpoint(e).isDefined =>
-          Seq()
-        case _ => Seq(SeqProgInvocation(node))
-      }
-  }
-
-  def rootEndpoint(expr: Expr[G]): Option[Endpoint[G]] =
-    expr match {
-      case MethodInvocation(e, _, _, _, _, _, _) => rootEndpoint(e)
-      case Deref(obj, _) => rootEndpoint(obj)
-      case EndpointName(Ref(e)) => Some(e)
-      case _ => None
-    }
-
-  object assign {
-    def receiver(
-        chorStmt: ChorStatement[G],
-        node: Assign[G],
-    ): Option[Endpoint[G]] = chorStmt.endpoint.map(_.decl)
-
-    def enterCheckContextCurrentReceiverEndpoint(
-        chorStmt: ChorStatement[G],
-        node: Assign[G],
-        context: CheckContext[G],
-    ): Option[Endpoint[G]] = receiver(chorStmt, node)
-
-    def check(
-        chorStmt: ChorStatement[G],
-        node: Assign[G],
-        context: CheckContext[G],
-    ): Seq[CheckError] = {
-      receiver(chorStmt, node) match {
-        case Some(endpoint)
-            if !context.currentParticipatingEndpoints.get.contains(endpoint) =>
-          Seq(SeqProgParticipant(chorStmt))
-        case _ => Nil
-      }
-    }
-  }
-
-  override def enterCheckContextCurrentReceiverEndpoint(
-      context: CheckContext[G]
-  ): Option[Endpoint[G]] =
+  def loopOrBranch: Boolean =
     inner match {
-      case node: Eval[G] =>
-        eval.enterCheckContextCurrentReceiverEndpoint(this, node, context)
-      case node: Assign[G] =>
-        assign.enterCheckContextCurrentReceiverEndpoint(this, node, context)
-      case _ => context.currentReceiverEndpoint
+      case _: Branch[G] | _: Loop[G] => true
+      case _ => false
     }
 
-  override def check(context: CheckContext[G]): Seq[CheckError] =
-    super.check(context) ++
-      (inner match {
-        case node: Eval[G] => eval.check(this, node, context)
-        case node: Assign[G] => assign.check(this, node, context)
-        case _: CommunicateX[G] | _: CommunicateStatement[G] |
-            _: VeyMontAssignExpression[G] | _: Branch[G] | _: Loop[G] |
-            _: Scope[G] | _: Block[G] | _: Assert[G] | _: Assume[G] |
-            _: UnresolvedChorBranch[G] | _: UnresolvedChorLoop[G] |
-            _: ChorBranch[G] | _: ChorLoop[G] | _: ChorStatement[G] =>
-          Seq()
-        case _ => Seq(SeqProgStatement(this))
-      })
+  def allowed: Boolean =
+    inner match {
+      case _: Branch[G] | _: Loop[G] | _: Assert[G] | _: Inhale[G] |
+          _: Exhale[G] | _: Assume[G] =>
+        true
+      case _ => false
+    }
+
+  def participants: Set[Endpoint[G]] =
+    ListSet.from(collect {
+      case comm: Communicate[G] => comm.participants
+      case EndpointStatement(Some(Ref(endpoint)), Assign(_, _)) => Seq(endpoint)
+      case c @ ChorStatement(_) => c.explicitEndpoints
+    }.flatten)
+
+  // There are only a few statements where we fully define how projection works
+  def allowedInner: Option[CheckError] =
+    Option.when(!allowed)(vct.col.check.ChorStatement(this))
+
+  // There are participants in this if that have been excluded from participation: error
+  def participantCheck(context: CheckContext[G]): Option[CheckError] =
+    if (
+      !Set.from(explicitEndpoints)
+        .subsetOf(context.currentParticipatingEndpoints.get)
+    )
+      Some(SeqProgParticipant(this))
+    else
+      None
+
+  override def check(context: CheckContext[G]): Seq[CheckError] = {
+    assert(context.currentParticipatingEndpoints.isDefined)
+    super.check(context) ++ allowedInner.toSeq ++
+      (if (loopOrBranch)
+         participantCheck(context).toSeq
+       else
+         Seq())
+  }
+
+  override def enterCheckContextCurrentParticipatingEndpoints(
+      context: CheckContext[G]
+  ): Option[Set[Endpoint[G]]] =
+    if (loopOrBranch) {
+      // Assume SeqProg sets participatingEndpoints
+      assert(context.currentParticipatingEndpoints.isDefined)
+
+      if (hasUnpointed) {
+        // Everyone that is participating keeps participating, as well as any endpoints explicitly mentioned
+        context.appendCurrentParticipatingEndpoints(explicitEndpoints)
+      } else {
+        // We can refine the set of participants down to the set of endpoints actually present in the guard
+        context.withCurrentParticipatingEndpoints(explicitEndpoints)
+      }
+    } else { context.currentParticipatingEndpoints }
 }

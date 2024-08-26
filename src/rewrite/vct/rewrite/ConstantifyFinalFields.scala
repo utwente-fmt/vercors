@@ -62,13 +62,13 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Program[Pre]): Program[Post] = {
     finalValueMap =
-      decl.transSubnodes.collect({
+      decl.collect {
         // Note that we don't check the value of deref here, so if isClosedConstant is extended without care, this
         // might produce unsoundness in the future. E.g. if variables are present in the init value, this approach fails
         case Assign(Deref(_, Ref(field)), value)
             if isFinal(field) && isAllowedValue(value) =>
           (field, value)
-      }).toMap
+      }.toMap
 
     super.dispatch(decl)
   }
@@ -80,12 +80,22 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
         implicit val o: Origin = field.o
         if (isFinal(field)) {
           val `this` =
-            new Variable[Post](TClass(
-              succ(currentClass.top),
-              currentClass.top.typeArgs.map { v: Variable[Pre] =>
-                TVar(succ(v))
-              },
-            ))
+            currentClass.top match {
+              case _: ByReferenceClass[Pre] =>
+                new Variable[Post](TByReferenceClass(
+                  succ(currentClass.top),
+                  currentClass.top.typeArgs.map { v: Variable[Pre] =>
+                    TVar(succ(v))
+                  },
+                ))
+              case _: ByValueClass[Pre] =>
+                new Variable[Post](TByValueClass(
+                  succ(currentClass.top),
+                  currentClass.top.typeArgs.map { v: Variable[Pre] =>
+                    TVar(succ(v))
+                  },
+                ))
+            }
           fieldFunction(field) = globalDeclarations
             .declare(withResult((result: Result[Post]) =>
               function[Post](

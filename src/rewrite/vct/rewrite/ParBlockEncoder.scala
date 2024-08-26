@@ -117,7 +117,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
   def depVars[G](bindings: Set[Variable[G]], e: Expr[G]): Set[Variable[G]] = {
     val result: mutable.Set[Variable[G]] = mutable.Set()
-    e.transSubnodes.foreach {
+    e.foreach {
       case Local(ref) if bindings.contains(ref.decl) => result.addOne(ref.decl)
       case _ =>
     }
@@ -151,29 +151,31 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         scale(dispatch(e))
       else
         variables.scope {
-          val range = quantVars.map(v =>
-            from(v) <= Local[Post](succ(v)) && Local[Post](succ(v)) < to(v)
-          ).reduceOption[Expr[Post]](And(_, _)).getOrElse(tt)
+          localHeapVariables.scope {
+            val range = quantVars.map(v =>
+              from(v) <= Local[Post](succ(v)) && Local[Post](succ(v)) < to(v)
+            ).reduceOption[Expr[Post]](And(_, _)).getOrElse(tt)
 
-          e match {
-            case Forall(bindings, Nil, body) =>
-              Forall(
-                variables.dispatch(bindings ++ quantVars),
-                Nil,
-                range ==> scale(dispatch(body)),
-              )(body.o)
-            case s @ Starall(bindings, Nil, body) =>
-              Starall(
-                variables.dispatch(bindings ++ quantVars),
-                Nil,
-                range ==> scale(dispatch(body)),
-              )(s.blame)(body.o)
-            case other =>
-              Starall(
-                variables.dispatch(quantVars),
-                Nil,
-                range ==> scale(dispatch(other)),
-              )(ParBlockNotInjective(block, other))(other.o)
+            e match {
+              case Forall(bindings, Nil, body) =>
+                Forall(
+                  variables.dispatch(bindings ++ quantVars),
+                  Nil,
+                  range ==> scale(dispatch(body)),
+                )(body.o)
+              case s @ Starall(bindings, Nil, body) =>
+                Starall(
+                  variables.dispatch(bindings ++ quantVars),
+                  Nil,
+                  range ==> scale(dispatch(body)),
+                )(s.blame)(body.o)
+              case other =>
+                Starall(
+                  variables.dispatch(quantVars),
+                  Nil,
+                  range ==> scale(dispatch(other)),
+                )(ParBlockNotInjective(block, other))(other.o)
+            }
           }
         }
     })

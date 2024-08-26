@@ -15,6 +15,7 @@ import scala.math.BigInt;
 import scala.reflect.ClassTag$;
 import vct.col.ast.*;
 import vct.col.ast.Class;
+import vct.col.ast.ByReferenceClass;
 import vct.col.ref.DirectRef;
 import vct.col.ref.LazyRef;
 import vct.col.ref.Ref;
@@ -116,6 +117,11 @@ public class MainTransformer<T> {
     private InstanceMethod<T> find_minimum_advance;
 
     /**
+     * Scheduler helper method <code>update_events</code>
+     */
+    private InstanceMethod<T> update_events;
+
+    /**
      * Scheduler helper method <code>wakeup_after_wait</code>.
      */
     private InstanceMethod<T> wakeup_after_wait;
@@ -187,9 +193,9 @@ public class MainTransformer<T> {
                 if (process_classes != null) {
                     for (ProcessClass process_class : process_classes) {
                         // Get field type
-                        Class<T> transformed_class = col_system.get_col_class_translation(process_class);
-                        Ref<T, Class<T>> ref_to_class = new DirectRef<>(transformed_class, ClassTag$.MODULE$.apply(Class.class));
-                        Type<T> t = new TClass<>(ref_to_class, Seqs.empty(), OriGen.create());
+                        ByReferenceClass<T> transformed_class = col_system.get_col_class_translation(process_class);
+                        Ref<T, Class<T>> ref_to_class = new DirectRef<>(transformed_class, ClassTag$.MODULE$.apply(ByReferenceClass.class));
+                        Type<T> t = new TByReferenceClass<>(ref_to_class, Seqs.empty(), OriGen.create());
 
                         // Generate instance field
                         InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create(create_instance_name(process_class)));
@@ -202,9 +208,9 @@ public class MainTransformer<T> {
                 // Transform the state class for this instance, if there is any
                 if (state_class != null) {
                     // Get field type
-                    Class<T> transformed_class = col_system.get_col_class_translation(state_class);
-                    Ref<T, Class<T>> ref_to_class = new DirectRef<>(transformed_class, ClassTag$.MODULE$.apply(Class.class));
-                    Type<T> t = new TClass<>(ref_to_class, Seqs.empty(), OriGen.create());
+                    ByReferenceClass<T> transformed_class = col_system.get_col_class_translation(state_class);
+                    Ref<T, Class<T>> ref_to_class = new DirectRef<>(transformed_class, ClassTag$.MODULE$.apply(ByReferenceClass.class));
+                    Type<T> t = new TByReferenceClass<>(ref_to_class, Seqs.empty(), OriGen.create());
 
                     // Generate instance field
                     InstanceField<T> inst = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create(create_instance_name(state_class)));
@@ -275,8 +281,8 @@ public class MainTransformer<T> {
 
         // Apply update permission invariant
         Ref<T, InstancePredicate<T>> ref_update_invariant = new DirectRef<>(update_permission_invariant, ClassTag$.MODULE$.apply(InstancePredicate.class));
-        InstancePredicateApply<T> apply_update_perms = new InstancePredicateApply<>(col_system.THIS, ref_update_invariant,
-                col_system.NO_EXPRS, new WritePerm<>(OriGen.create()), OriGen.create());
+        Expr<T> apply_update_perms = col_system.fold_preds(new InstancePredicateApply<T>(col_system.THIS, ref_update_invariant,
+                col_system.NO_EXPRS, OriGen.create()));
 
         // Create conditions
         Perm<T> perm_to_proc = new Perm<>(proc_state_loc, new WritePerm<>(OriGen.create()), OriGen.create());
@@ -354,20 +360,17 @@ public class MainTransformer<T> {
 
         // Create call to scheduler invariant
         Ref<T, InstancePredicate<T>> ref_scheduler_invariant = new DirectRef<>(scheduler_invariant, ClassTag$.MODULE$.apply(InstancePredicate.class));
-        conditions.add(new InstancePredicateApply<>(col_system.THIS, ref_scheduler_invariant, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create()));
+        conditions.add(col_system.fold_preds(new InstancePredicateApply<>(col_system.THIS, ref_scheduler_invariant, col_system.NO_EXPRS, OriGen.create())));
 
         // Create call to parameter invariant
         Ref<T, InstancePredicate<T>> ref_parameter_invariant = new DirectRef<>(parameter_invariant, ClassTag$.MODULE$.apply(InstancePredicate.class));
-        conditions.add(new InstancePredicateApply<>(col_system.THIS, ref_parameter_invariant, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create()));
+        conditions.add(col_system.fold_preds(new InstancePredicateApply<>(col_system.THIS, ref_parameter_invariant, col_system.NO_EXPRS, OriGen.create())));
 
         // Create calls to all primitive channel invariants
         for (InstanceField<T> prim_channel : channels) {
             InstancePredicate<T> prim_channel_inv = col_system.get_prim_channel_inv(channel_by_field.get(prim_channel));
             Ref<T, InstancePredicate<T>> ref_channel_invariant = new DirectRef<>(prim_channel_inv, ClassTag$.MODULE$.apply(InstancePredicate.class));
-            conditions.add(new InstancePredicateApply<>(col_system.THIS, ref_channel_invariant, col_system.NO_EXPRS,
-                    new WritePerm<>(OriGen.create()), OriGen.create()));
+            conditions.add(col_system.fold_preds(new InstancePredicateApply<>(col_system.THIS, ref_channel_invariant, col_system.NO_EXPRS, OriGen.create())));
         }
 
         // Create permissions to every field of every process
@@ -608,6 +611,7 @@ public class MainTransformer<T> {
         immediate_wakeup = create_immediate_wakeup();
         reset_events_no_delta = create_reset_events_no_delta();
         find_minimum_advance = create_find_minimum_advance();
+        update_events = create_update_events();
         wakeup_after_wait = create_wakeup_after_wait();
         reset_all_events = create_reset_all_events();
     }
@@ -810,6 +814,69 @@ public class MainTransformer<T> {
     }
 
     /**
+     * Creates the abstract helper method <code>update_events</code>. This method takes as a parameter the next time
+     * advance and updates all events based on
+     *
+     * @return An <code>InstanceMethod</code> object encoding the method <code>wakeup_after_wait</code>
+     */
+    private InstanceMethod<T> create_update_events() {
+        // Create parameter
+        Variable<T> param = new Variable<>(col_system.T_INT, OriGen.create("advance"));
+        Ref<T, Variable<T>> param_ref = new DirectRef<>(param, ClassTag$.MODULE$.apply(Variable.class));
+        Local<T> param_deref = new Local<>(param_ref, OriGen.create());
+        List<Variable<T>> params = List.from(CollectionConverters.asScala(java.util.List.of(param)));
+
+        // Create references to the event and process state variables
+        Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
+        Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, new GeneratedBlame<>(), OriGen.create());
+
+        // Create general permission context
+        Expr<T> context = create_helper_context();
+
+        // Create condition on event state and primitive update sequence
+        Old<T> old_process_state = new Old<>(process_state_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Eq<T> event_state_unchanged = new Eq<>(process_state_deref, old_process_state, OriGen.create());
+        Old<T> old_prim_update = new Old<>(prim_update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Eq<T> prim_update_unchanged = new Eq<>(prim_update_deref, old_prim_update, OriGen.create());
+        And<T> unchanged = new And<>(event_state_unchanged, prim_update_unchanged, OriGen.create());
+
+        // Create conditions for the changing state
+        java.util.List<Expr<T>> ensures = new java.util.ArrayList<>();
+        ensures.add(context);
+        ensures.add(unchanged);
+        for(int i = 0; i < col_system.get_total_nr_events(); i++) {
+            // Prepare appropriate sequence accesses
+            SeqSubscript<T> ev_state_i = new SeqSubscript<>(event_state_deref, new IntegerValue<>(BigInt.apply(i), OriGen.create()),
+                    new GeneratedBlame<>(), OriGen.create());
+            Old<T> old_ev_state_i = new Old<>(ev_state_i, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+
+            // Conditions
+            Less<T> event_negative = new Less<>(old_ev_state_i, col_system.MINUS_ONE, OriGen.create());
+            GreaterEq<T> event_positive = new GreaterEq<>(old_ev_state_i, col_system.MINUS_ONE, OriGen.create());
+
+            // Reset (if the event is -2 or -3 before, reset it to -3)
+            Eq<T> event_reset = new Eq<>(ev_state_i, col_system.MINUS_THREE, OriGen.create());
+
+            // Advance (if the event is scheduled before, subtract the given time from it)
+            Minus<T> reduced = new Minus<>(old_ev_state_i, param_deref, OriGen.create());
+            Eq<T> event_reduced = new Eq<>(ev_state_i, reduced, OriGen.create());
+
+            // Add to updates
+            ensures.add(new Implies<>(event_negative, event_reset, OriGen.create()));
+            ensures.add(new Implies<>(event_positive, event_reduced, OriGen.create()));
+        }
+
+        // Generate contract and method and return
+        ApplicableContract<T> contract = col_system.to_applicable_contract(context, col_system.fold_star(ensures));
+        return new InstanceMethod<>(col_system.T_VOID, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract,
+                false, false, new GeneratedBlame<>(), OriGen.create("update_events"));
+    }
+
+    /**
      * Creates the abstract helper method <code>wakeup_after_wait</code>. This method sets the <code>process_state</code>
      * of all processes that are waiting on an event with an <code>event_state</code> of 0 or -1 (i.e. waiting for zero
      * time, having just occurred, or waiting for delta delays) to -1 (i.e. ready to run).
@@ -956,11 +1023,10 @@ public class MainTransformer<T> {
 
         // Create conditions of method context
         Held<T> held_this = new Held<>(col_system.THIS, OriGen.create());
-        InstancePredicateApply<T> permission_inv = new InstancePredicateApply<>(col_system.THIS, scheduler_perms, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create());
+        InstancePredicateApply<T> permission_inv = new InstancePredicateApply<>(col_system.THIS, scheduler_perms, col_system.NO_EXPRS, OriGen.create());
 
         // Put it all together and fold it with stars
-        return col_system.fold_star(java.util.List.of(held_this, permission_inv));
+        return col_system.fold_star(java.util.List.of(held_this, col_system.fold_preds(permission_inv)));
     }
 
     /**
@@ -1100,21 +1166,16 @@ public class MainTransformer<T> {
                 col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
         Assign<T> assign_ma = new Assign<>(ma_local, fma_invoke, new GeneratedBlame<>(), OriGen.create());
 
-        // Set min_advance to zero if it is -1
-        Eq<T> cond = new Eq<>(ma_local, col_system.MINUS_ONE, OriGen.create());
+        // Set min_advance to zero if it is less than or equal to -1
+        LessEq<T> cond = new LessEq<>(ma_local, col_system.MINUS_ONE, OriGen.create());
         Assign<T> reset_ma = new Assign<>(ma_local, col_system.ZERO, new GeneratedBlame<>(), OriGen.create());
         java.util.List<Tuple2<Expr<T>, Statement<T>>> branches = java.util.List.of(new Tuple2<>(cond, reset_ma));
         Branch<T> cond_reset_ma = new Branch<>(List.from(CollectionConverters.asScala(branches)), OriGen.create());
 
-        // Advance delays in event_state
-        java.util.List<Expr<T>> literal_values = new java.util.ArrayList<>();
-        for (Expr<T> ev_i : event_entries) {
-            Less<T> condition = new Less<>(ev_i, col_system.MINUS_ONE, OriGen.create());
-            Minus<T> minus = new Minus<>(ev_i, ma_local, OriGen.create());
-            literal_values.add(new Select<>(condition, col_system.MINUS_THREE, minus, OriGen.create()));
-        }
-        LiteralSeq<T> reset_literal = new LiteralSeq<>(col_system.T_INT, List.from(CollectionConverters.asScala(literal_values)), OriGen.create());
-        Assign<T> advance_delays = new Assign<>(event_state_deref, reset_literal, new GeneratedBlame<>(), OriGen.create());
+        // Call update_events
+        Ref<T, InstanceMethod<T>> ue_ref = new DirectRef<>(update_events, ClassTag$.MODULE$.apply(InstanceMethod.class));
+        InvokeMethod<T> call_ue = new InvokeMethod<>(col_system.THIS, ue_ref, List.from(CollectionConverters.asScala(java.util.List.of(ma_local))),
+                col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
 
         // Call wakeup_after_wait
         Ref<T, InstanceMethod<T>> waw_ref = new DirectRef<>(wakeup_after_wait, ClassTag$.MODULE$.apply(InstanceMethod.class));
@@ -1127,7 +1188,7 @@ public class MainTransformer<T> {
                 col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
 
         // Put it all together and return
-        java.util.List<Statement<T>> statements = java.util.List.of(update_phase, declare_ma, assign_ma, cond_reset_ma, advance_delays, call_waw, call_rae);
+        java.util.List<Statement<T>> statements = java.util.List.of(update_phase, declare_ma, assign_ma, cond_reset_ma, call_ue, call_waw, call_rae);
         return new Block<>(List.from(CollectionConverters.asScala(statements)), OriGen.create());
     }
 
@@ -1228,20 +1289,21 @@ public class MainTransformer<T> {
         declarations.add(immediate_wakeup);
         declarations.add(reset_events_no_delta);
         declarations.add(find_minimum_advance);
+        declarations.add(update_events);
         declarations.add(wakeup_after_wait);
         declarations.add(reset_all_events);
 
         // Create lock invariant for the Main class
         Ref<T, InstancePredicate<T>> global_invariant_ref = new DirectRef<>(global_invariant, ClassTag$.MODULE$.apply(InstancePredicate.class));
-        Expr<T> lock_invariant = new InstancePredicateApply<>(col_system.THIS, global_invariant_ref, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create());
+        Expr<T> lock_invariant = col_system.fold_preds(new InstancePredicateApply<>(col_system.THIS, global_invariant_ref, col_system.NO_EXPRS, OriGen.create()));
 
         // Assemble class
-        Class<T> main_class = new Class<>(Seqs.empty(), List.from(CollectionConverters.asScala(declarations)),
+        ByReferenceClass<T> main_class = new ByReferenceClass<>(Seqs.empty(), List.from(CollectionConverters.asScala(declarations)),
                 Seqs.empty(), lock_invariant, OriGen.create("Main"));
 
         // Register Main class in COL system context
         col_system.add_global_declaration(main_class);
         col_system.set_main(main_class);
+        col_system.set_main_method(scheduler);
     }
 }

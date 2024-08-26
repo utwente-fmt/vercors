@@ -9,15 +9,9 @@ case object ExampleFiles {
     "examples/private/",
     "examples/archive/",
     "examples/concepts/resourceValues",
-    "examples/technical/veymont",
-    "examples/concepts/veymont"
   ).map(_.replaceAll("/", File.separator))
 
-  val IGNORE_EXTS: Seq[String] = Seq(
-    ".h",
-    ".bib",
-    ".xml",
-  )
+  val IGNORE_EXTS: Seq[String] = Seq(".h", ".bib", ".xml")
 
   val IGNORE_FILES: Set[String] = Set(
     ".gitignore",
@@ -25,7 +19,6 @@ case object ExampleFiles {
     "Makefile",
     "README",
     "LICENSE.txt",
-    "veymont-tictactoemn-seq.pvl",
   )
 
   val MAIN_FILES: Set[String] = Set(
@@ -44,10 +37,14 @@ case object ExampleFiles {
 
   val FILES: Seq[Path] = find(Paths.get("examples"))
 
+  val PUBLICATIONS_DIR: Path = Paths.get("examples", "publications")
+
   def find(directory: Path): Seq[Path] =
-    Files.list(directory)
-      .toScala(Seq)
-      .filterNot(f => EXCLUSIONS.exists(_(f)))
-      .sortBy(_.getFileName.toString)
-      .flatMap(f => if(Files.isDirectory(f)) find(f) else Seq(f))
+    Files.list(directory).toScala(Seq).filterNot(f => EXCLUSIONS.exists(_(f)))
+      .sortBy(_.getFileName.toString).flatMap(f =>
+        if (Files.isDirectory(f))
+          find(f)
+        else
+          Seq(f)
+      )
 }

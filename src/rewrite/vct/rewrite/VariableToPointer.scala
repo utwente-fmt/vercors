@@ -39,30 +39,37 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
     SuccessionMap()
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
+    // TODO: Replace the isInstanceOf[TByReferenceClass] checks with something that more clearly communicates that we want to exclude all reference types
     addressedSet.addAll(program.collect {
-      case AddrOf(Local(Ref(v))) if !v.t.isInstanceOf[TClass[Pre]] => v
-      case AddrOf(DerefHeapVariable(Ref(v)))
-          if !v.t.isInstanceOf[TClass[Pre]] =>
+      case AddrOf(Local(Ref(v))) if !v.t.isInstanceOf[TByReferenceClass[Pre]] =>
         v
-      case AddrOf(Deref(_, Ref(f))) if !f.t.isInstanceOf[TClass[Pre]] => f
+      case AddrOf(DerefHeapVariable(Ref(v)))
+          if !v.t.isInstanceOf[TByReferenceClass[Pre]] =>
+        v
+      case AddrOf(Deref(o, Ref(f)))
+          if !f.t.isInstanceOf[TByReferenceClass[Pre]] &&
+            !o.t.isInstanceOf[TByValueClass[Pre]] =>
+        f
     })
     super.dispatch(program)
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
+      // TODO: Use some sort of NonNull pointer type instead
       case v: HeapVariable[Pre] if addressedSet.contains(v) =>
         heapVariableMap(v) = globalDeclarations
-          .declare(new HeapVariable(TPointer(dispatch(v.t)))(v.o))
+          .succeed(v, new HeapVariable(TNonNullPointer(dispatch(v.t)))(v.o))
       case v: Variable[Pre] if addressedSet.contains(v) =>
         variableMap(v) = variables
-          .declare(new Variable(TPointer(dispatch(v.t)))(v.o))
+          .succeed(v, new Variable(TNonNullPointer(dispatch(v.t)))(v.o))
       case f: InstanceField[Pre] if addressedSet.contains(f) =>
-        fieldMap(f) = classDeclarations.declare(
+        fieldMap(f) = classDeclarations.succeed(
+          f,
           new InstanceField(
-            TPointer(dispatch(f.t)),
+            TNonNullPointer(dispatch(f.t)),
             f.flags.map { it => dispatch(it) },
-          )(f.o)
+          )(f.o),
         )
       case other => allScopes.anySucceed(other, other.rewriteDefault())
     }
@@ -78,7 +85,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
               implicit val o: Origin = local.o
               Assign(
                 Local[Post](variableMap.ref(local)),
-                NewPointerArray(
+                NewNonNullPointerArray(
                   variableMap(local).t.asPointer.get.element,
                   const(1),
                 )(PanicBlame("Size is > 0")),
@@ -86,6 +93,8 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
             } ++ Seq(dispatch(s.body))),
         )
       case i @ Instantiate(cls, out) =>
+        // TODO: Make sure that we recursively build newobject for byvalueclasses
+        //       maybe get rid this entirely and only have it in encode by value class
         Block(Seq(i.rewriteDefault()) ++ cls.decl.declarations.flatMap {
           case f: InstanceField[Pre] =>
             if (f.t.asClass.isDefined) {
@@ -144,7 +153,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
           PanicBlame("Should always be accessible")
         )
       case newObject @ NewObject(Ref(cls)) =>
-        val obj = new Variable[Post](TClass(succ(cls), Seq()))
+        val obj = new Variable[Post](TByReferenceClass(succ(cls), Seq()))
         ScopedExpr(
           Seq(obj),
           With(
@@ -197,13 +206,11 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
         PointerLocation(Deref[Post](dispatch(obj), fieldMap.ref(f))(PanicBlame(
           "Should always be accessible"
         )))(PanicBlame("Should always be accessible"))
-      case PointerLocation(
-            AddrOf(Deref(obj, Ref(f)))
-          ) /* if addressedSet.contains(f) always true */ =>
+      case PointerLocation(AddrOf(Deref(obj, Ref(f))))
+          if addressedSet.contains(f) =>
         FieldLocation[Post](dispatch(obj), fieldMap.ref(f))
-      case PointerLocation(
-            AddrOf(DerefHeapVariable(Ref(v)))
-          ) /* if addressedSet.contains(v) always true */ =>
+      case PointerLocation(AddrOf(DerefHeapVariable(Ref(v))))
+          if addressedSet.contains(v) =>
         HeapVariableLocation[Post](heapVariableMap.ref(v))
       case PointerLocation(AddrOf(local @ Local(_))) =>
         throw UnsupportedAddrOf(local)

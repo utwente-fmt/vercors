@@ -211,7 +211,7 @@ case class ComputeBipGlue[Pre <: Generation]()
 
   def computeGlue(glue: BipGlue[Pre]): Seq[BipPortSynchronization[Pre]] = {
     val relevantDecls: Set[ClassDeclaration[Pre]] =
-      glue.transSubnodes.collect {
+      glue.collect {
         case BipGlueRequires(Ref(port), requires) =>
           port +: requires.map(_.decl)
         case BipGlueAccepts(Ref(port), accepts) => port +: accepts.map(_.decl)

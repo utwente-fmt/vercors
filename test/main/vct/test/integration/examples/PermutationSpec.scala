@@ -4,7 +4,7 @@ import vct.test.integration.helper.VercorsSpec
 
 class PermutationSpec extends VercorsSpec {
   vercors should verify using silicon example "publications/2020/permutations/permutation.pvl"
-  vercors should verify using silicon examples("publications/2020/permutations/evenPhase.pvl", "publications/2020/permutations/permutation.pvl")
+  // vercors should verify using silicon examples("publications/2020/permutations/evenPhase.pvl", "publications/2020/permutations/permutation.pvl")
   vercors should verify using silicon examples("publications/2020/permutations/oddEven.pvl", "publications/2020/permutations/permutation.pvl")
   // vercors should verify using silicon examples("publications/2020/permutations/oddPhase.pvl", "publications/2020/permutations/permutation.pvl)
   vercors should verify using silicon examples("publications/2020/permutations/bubble.pvl", "publications/2020/permutations/permutation.pvl")

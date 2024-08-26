@@ -214,8 +214,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults)
   val rewritingBipConstructorBody: ScopedStack[BipComponent[Pre]] =
     ScopedStack()
 
-  lazy val classes =
-    program.transSubnodes.collect { case c: Class[Pre] => c }.toIndexedSeq
+  lazy val classes = program.collect { case c: Class[Pre] => c }.toIndexedSeq
   lazy val components = classes.collect {
     case ClassBipComponent(cls, component) => component
   }
@@ -408,7 +407,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults)
         results.declare(component)
         implicit val o = DiagnosticOrigin
         val ref = succ[Class[Post]](classOf(constructor))
-        val t = TClass[Post](ref, Seq())
+        val t = TByReferenceClass[Post](ref, Seq())
         rewritingBipConstructorBody.having(component) {
           constructorSucc(constructor) = globalDeclarations.declare(
             new Procedure[Post](
@@ -526,7 +525,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults)
           transitions.flatMap { transition =>
             val v =
               new Variable[Post](
-                TClass(succ[Class[Post]](classOf(transition)), Seq())
+                TByReferenceClass(succ[Class[Post]](classOf(transition)), Seq())
               )(SynchronizationComponentVariableOrigin(
                 synchronization,
                 componentOf(transition),

@@ -1,5 +1,6 @@
 package vct.options
 
+import hre.log.Verbosity
 import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
@@ -42,7 +43,7 @@ case object Options {
 
     import vct.options.types.Backend.read
     implicit val readLanguage: scopt.Read[Language] = ReadLanguage.read
-    import vct.options.types.Verbosity.read
+    import ReadEnum.readVerbosity
 
     implicit val readPathOrStd: scopt.Read[PathOrStd] = scopt.Read.reads {
       case "-" => PathOrStd.StdInOrOut
@@ -244,6 +245,10 @@ case object Options {
         "Indicate, in seconds, the timeout value for the backend verification. If the verification gets stuck " +
           "for longer than this timeout, the verification will timeout."
       ),
+      opt[Unit]("dev-unsafe-optimization").maybeHidden()
+        .action((_, c) => c.copy(devUnsafeOptimization = true)).text(
+          "Optimizes runtime at the cost of progress logging and readability of error messages"
+        ),
       opt[Path]("dev-silicon-z3-log-file").maybeHidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),
@@ -295,6 +300,10 @@ case object Options {
       opt[Path]("path-c-preprocessor").valueName("<path>")
         .action((path, c) => c.copy(cPreprocessorPath = path))
         .text("Set the location of the C preprocessor binary"),
+      opt[Unit]("generate-permissions")
+        .action((_, c) => c.copy(generatePermissions = true)).text(
+          "Generates permissions for the entire program using a syntax-driven single-owner policy"
+        ),
       opt[PathOrStd]("contract-import-file").valueName("<path>")
         .action((path, c) => c.copy(contractImportFile = Some(path)))
         .text("Load function contracts from the specified file"),
@@ -303,20 +312,42 @@ case object Options {
       opt[Unit]("veymont").action((_, c) => c.copy(mode = Mode.VeyMont)).text(
         "Enable VeyMont mode: decompose the global program from the input files into several local programs that can be executed in parallel"
       ).children(
+        opt[Unit]("choreography").abbr("chor").action((_, c) =>
+          c.copy(veymontSkipImplementationVerification = true)
+        ).text("Only perform verification of the choreography."),
+        opt[Unit]("implementation").abbr("impl")
+          .action((_, c) => c.copy(veymontSkipChoreographyVerification = true))
+          .text("Only perform verification of the generated implementation."),
+        opt[Unit]("generate").abbr("gen").action((_, c) =>
+          c.copy(
+            veymontSkipChoreographyVerification = true,
+            veymontSkipImplementationVerification = true,
+          )
+        ).text(
+          "Only generate an implementation, and skip the choreography and implementation verification steps"
+        ),
         opt[Path]("veymont-output").valueName("<path>")
-          .action((path, c) => c.copy(veymontOutput = Some(path))),
+          .action((path, c) => c.copy(veymontOutput = Some(path))).text(
+            "Indicates output path for generated implementation. The extension decides the output language: `.pvl` is PVL, `.java` is Java."
+          ),
         opt[Path]("veymont-resource-path").valueName("<path>")
           .action((path, c) => c.copy(veymontResourcePath = path)),
         opt[Unit]("veymont-skip-choreography-verification")
-          .action((_, c) => c.copy(veymontSkipChoreographyVerification = true)),
+          .action((_, c) => c.copy(veymontSkipChoreographyVerification = true))
+          .text(
+            "Do not verify choreographies, skipping to implementation generation & verification immediately"
+          ),
+        opt[Unit]("veymont-skip-implementation-verification").action((_, c) =>
+          c.copy(veymontSkipImplementationVerification = true)
+        ).text("Do not verify generated implementation"),
       ),
-      opt[Unit]("veymont-generate-permissions")
-        .action((_, c) => c.copy(veymontGeneratePermissions = true)).text(
-          "Generate permissions for the entire sequential program in the style of VeyMont 1.4"
+      opt[Unit]("dev-veymont-no-branch-unanimity").maybeHidden()
+        .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
+          "Disables generation of the branch unanimity check encoded by VeyMont, which verifies that choreographies do not deadlock during choreographic verification"
         ),
       opt[Unit]("dev-veymont-allow-assign").maybeHidden()
         .action((p, c) => c.copy(devVeymontAllowAssign = true))
-        .text("Do not error when plain assignment is used in seq_programs"),
+        .text("Do not error when plain assignment is used in choreographies"),
       note(""),
       note("VeSUV Mode"),
       opt[Unit]("vesuv").action((_, c) => c.copy(mode = Mode.VeSUV)).text(
@@ -329,11 +360,20 @@ case object Options {
           .action((_, c) => c.copy(vesuvGenerateRasi = true)).text(
             "Instead of transforming a SystemC design to PVL, generate a global invariant for a PVL program"
           ).children(
+            opt[Unit]("rasi-graph-output")
+              .action((_, c) => c.copy(vesuvRasiTest = true)).text(
+                "Output RASI graph to test the algorithm rather than outputting the invariant"
+              ),
             opt[Seq[String]]("rasi-vars").valueName("<var1>,...")
               .action((vars, c) => c.copy(vesuvRasiVariables = Some(vars)))
               .text(
                 "[WIP] Preliminary selection mechanism for RASI variables; might be replaced later"
-              )
+              ),
+            opt[Seq[String]]("split-rasi").valueName("<var1>,...")
+              .action((vars, c) => c.copy(vesuvRasiSplitVariables = Some(vars)))
+              .text(
+                "[WIP] Preliminary selection mechanism for localizing the RASI based on certain variables; might be changed later"
+              ),
           ),
       ),
       note(""),
@@ -344,6 +384,31 @@ case object Options {
         opt[Path]("cfg-output").required().valueName("<path>")
           .action((path, c) => c.copy(cfgOutput = path))
           .text("Output file for the control flow graph in .dot format")
+      ),
+      note(""),
+      note("Compile mode"),
+      opt[Unit]("compile").action((_, c) => c.copy(mode = Mode.Compile)).text(
+        "Compiles PVL to Java. Currently only supported for the imperative fragment of PVL."
+      ).children(
+        opt[Path]("compile-output").valueName("<path>")
+          .action((path, c) => c.copy(compileOutput = Some(path)))
+          .text("Output Java file")
+      ),
+      note(""),
+      note("Patcher mode"),
+      opt[Unit]("patcher").action((_, c) => c.copy(mode = Mode.Patcher)).text(
+        "Patches a file given a patch in the custom VerCors patch format."
+      ).children(
+        opt[Path]("patch-file").valueName("<path>").required()
+          .action((path, c) => c.copy(patchFile = path))
+          .text("Path to patch file to apply"),
+        opt[Path]("patch-output").valueName("<path>").required().action(
+          (path, c) => c.copy(patchOutput = path)
+        ).text(
+          "Output path. If the patcher is given only one input, this is interpeted as a file destination." +
+            " " +
+            "If the patcher is given multiple inputs, this is interpreted as a directory path."
+        ),
       ),
       note(""),
       note(""),
@@ -413,6 +478,7 @@ case class Options(
     siliconPrintQuantifierStats: Option[Int] = None,
     bipReportFile: Option[PathOrStd] = None,
     inferHeapContextIntoFrame: Boolean = true,
+    generatePermissions: Boolean = false,
 
     // Verify options - hidden
     devParserReportAmbiguities: Boolean = false,
@@ -436,21 +502,32 @@ case class Options(
     devSiliconTraceBranchConditions: Boolean = false,
     devCarbonBoogieLogFile: Option[Path] = None,
     devViperProverLogFile: Option[Path] = None,
+    devUnsafeOptimization: Boolean = false,
 
     // VeyMont options
     veymontOutput: Option[Path] = None,
     veymontResourcePath: Path = Resources.getVeymontPath,
-    veymontGeneratePermissions: Boolean = false,
+    veymontBranchUnanimity: Boolean = true,
     veymontSkipChoreographyVerification: Boolean = false,
+    veymontSkipImplementationVerification: Boolean = false,
     devVeymontAllowAssign: Boolean = false,
 
     // VeSUV options
     vesuvOutput: Path = null,
     vesuvGenerateRasi: Boolean = false,
+    vesuvRasiTest: Boolean = false,
     vesuvRasiVariables: Option[Seq[String]] = None,
+    vesuvRasiSplitVariables: Option[Seq[String]] = None,
 
     // Control flow graph options
     cfgOutput: Path = null,
+
+    // Compile options
+    compileOutput: Option[Path] = None,
+
+    // Patch options
+    patchFile: Path = null,
+    patchOutput: Path = null,
 
     // Pallas options
     contractImportFile: Option[PathOrStd] = None,

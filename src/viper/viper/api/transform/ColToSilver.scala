@@ -1,13 +1,12 @@
 package viper.api.transform
 
 import hre.util.ScopedStack
-import vct.col.ast.{PredicateLocation, SilverFieldLocation}
 import vct.col.origin.{AccountedDirection, FailLeft, FailRight, Name}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.unfoldStar
 import vct.col.{ast => col}
 import vct.result.VerificationError.{SystemError, Unreachable}
-import viper.silver.ast.TypeVar
+import viper.silver.ast.{AnnotationInfo, ConsInfo, TypeVar, WildcardPerm}
 import viper.silver.plugin.standard.termination.{
   DecreasesClause,
   DecreasesTuple,
@@ -227,9 +226,9 @@ case class ColToSilver(program: col.Program[_]) {
             ref(function),
             function.args.map(variable),
             typ(function.returnType),
-            pred(function.contract.requires) ++
+            accountedPred(function.contract.requires) ++
               function.contract.decreases.toSeq.map(decreases),
-            pred(function.contract.ensures),
+            accountedPred(function.contract.ensures),
             function.body.map(exp),
           )(pos = pos(function), info = NodeInfo(function))
         }
@@ -238,7 +237,7 @@ case class ColToSilver(program: col.Program[_]) {
             !procedure.pure && procedure.typeArgs.isEmpty =>
         scoped {
           val labelDecls = procedure.body.toSeq
-            .flatMap(_.transSubnodes.collect { case l: col.LabelDecl[_] =>
+            .flatMap(_.collect { case l: col.LabelDecl[_] =>
               silver.Label(name(l, _.usnake), Seq())(
                 pos = pos(l),
                 info = NodeInfo(l),
@@ -248,9 +247,9 @@ case class ColToSilver(program: col.Program[_]) {
             ref(procedure),
             procedure.args.map(variable),
             procedure.outArgs.map(variable),
-            pred(procedure.contract.requires) ++
+            accountedPred(procedure.contract.requires) ++
               procedure.contract.decreases.toSeq.map(decreases),
-            pred(procedure.contract.ensures),
+            accountedPred(procedure.contract.ensures),
             procedure.body.map(body =>
               silver.Seqn(Seq(block(body)), labelDecls)(
                 pos = pos(body),
@@ -348,7 +347,7 @@ case class ColToSilver(program: col.Program[_]) {
       case other => ??(other)
     }
 
-  def pred(
+  def accountedPred(
       e: col.AccountedPredicate[_],
       path: Seq[AccountedDirection] = Nil,
   ): Seq[silver.Exp] =
@@ -356,7 +355,8 @@ case class ColToSilver(program: col.Program[_]) {
       case col.UnitAccountedPredicate(pred) =>
         currentPredicatePath.having(path) { unfoldStar(pred).map(exp) }
       case col.SplitAccountedPredicate(left, right) =>
-        pred(left, path :+ FailLeft) ++ pred(right, path :+ FailRight)
+        accountedPred(left, path :+ FailLeft) ++
+          accountedPred(right, path :+ FailRight)
     }
 
   def expInfo[T <: col.Node[_]](e: T): NodeInfo[T] = {
@@ -457,12 +457,14 @@ case class ColToSilver(program: col.Program[_]) {
           silver.ForPerm(
             bindings.map(variable),
             loc match {
-              case SilverFieldLocation(obj, field) =>
+              case col.SilverFieldLocation(obj, field) =>
                 silver.FieldAccess(exp(obj), fields(field.decl))(
                   pos = pos(loc),
                   info = expInfo(obj),
                 )
-              case PredicateLocation(predicate, args) =>
+              case col.PredicateLocation(
+                    col.PredicateApply(Ref(predicate), args)
+                  ) =>
                 silver.PredicateAccess(args.map(exp), ref(predicate))(
                   pos = pos(loc),
                   info = expInfo(e),
@@ -487,6 +489,9 @@ case class ColToSilver(program: col.Program[_]) {
           info = expInfo(e),
         )
 
+      // PB: NB: an exhale failed error reason is reported on the location node,
+      // so it is important that the LocationAccess part of the predicate has
+      // the info of the Perm.
       case res @ col.Perm(col.SilverFieldLocation(obj, Ref(field)), perm) =>
         val permValue = exp(perm)
         permValue.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode =
@@ -498,17 +503,21 @@ case class ColToSilver(program: col.Program[_]) {
           ),
           permValue,
         )(pos = pos(res), info = expInfo(res))
-      case res: col.PredicateApply[_] =>
-        if (inTriggers.nonEmpty) { return predInTrigger(res) }
-        val silver = pred(res)
-        silver.perm.info.asInstanceOf[NodeInfo[_]]
-          .permissionValuePermissionNode = Some(res)
-        silver
+
+      case res @ col
+            .Perm(col.PredicateLocation(app: col.PredicateApply[_]), perm) =>
+        silver.PredicateAccessPredicate(
+          pred(app, info = Some(expInfo(res))),
+          exp(perm),
+        )(pos = pos(res), info = expInfo(res))
+
       case col.Wand(left, right) =>
         silver.MagicWand(exp(left), exp(right))(pos = pos(e), info = expInfo(e))
+
       case col.CurPerm(loc) =>
         loc match {
-          case col.PredicateLocation(predicate, args) =>
+          case col
+                .PredicateLocation(col.PredicateApply(Ref(predicate), args)) =>
             silver.CurrentPerm(
               silver.PredicateAccess(args.map(exp), ref(predicate))(
                 pos = pos(e),
@@ -532,11 +541,12 @@ case class ColToSilver(program: col.Program[_]) {
               ),
               silver.WildcardPerm()(),
             )(pos = pos(e), info = expInfo(e))
-          case col.PredicateLocation(predicate, args) =>
+          case col
+                .PredicateLocation(col.PredicateApply(Ref(predicate), args)) =>
             silver.PredicateAccessPredicate(
               silver.PredicateAccess(args.map(exp), ref(predicate))(
                 pos = pos(loc),
-                NodeInfo(loc),
+                info = expInfo(e),
               ),
               silver.WildcardPerm()(),
             )(pos = pos(e), expInfo(e))
@@ -575,8 +585,8 @@ case class ColToSilver(program: col.Program[_]) {
             .get,
           silver.NoTrafos,
         )
-      case u @ col.Unfolding(p: col.PredicateApply[_], body) =>
-        silver.Unfolding(currentUnfolding.having(u) { pred(p) }, exp(body))(
+      case u @ col.Unfolding(p, body) =>
+        silver.Unfolding(currentUnfolding.having(u) { fold(p) }, exp(body))(
           pos = pos(e),
           info = expInfo(e),
         )
@@ -721,33 +731,29 @@ case class ColToSilver(program: col.Program[_]) {
   def trigger(patterns: Seq[col.Expr[_]]): silver.Trigger =
     silver.Trigger(patterns.map(exp))()
 
-  def pred(p: col.PredicateApply[_]): silver.PredicateAccessPredicate =
-    silver.PredicateAccessPredicate(
-      silver.PredicateAccess(p.args.map(exp), ref(p.ref))(
-        pos = pos(p),
-        info = expInfo(p),
-      ),
-      exp(p.perm),
-    )(pos = pos(p), info = expInfo(p))
-
-  def predInTrigger(p: col.PredicateApply[_]): silver.PredicateAccess =
-    silver.PredicateAccess(p.args.map(exp), ref(p.ref))(
-      pos = pos(p),
-      info = expInfo(p),
-    )
-
-  def acc(e: col.Expr[_]): silver.LocationAccess =
-    e match {
-      case col.PredicateApply(Ref(pred), args, _) =>
-        silver.PredicateAccess(args.map(exp), ref(pred))(
-          pos = pos(pred),
-          info = expInfo(pred),
+  def fold(f: col.FoldTarget[_]): silver.PredicateAccessPredicate =
+    f match {
+      case col.ScaledPredicateApply(inv: col.PredicateApply[_], perm) =>
+        silver.PredicateAccessPredicate(pred(inv, Some(expInfo(f))), exp(perm))(
+          pos = pos(f),
+          info = expInfo(f),
         )
-      case col.SilverDeref(obj, Ref(field)) =>
-        silver
-          .FieldAccess(exp(obj), fields(field))(pos = pos(e), info = expInfo(e))
+      case col.ValuePredicateApply(inv: col.PredicateApply[_]) =>
+        silver.PredicateAccessPredicate(
+          pred(inv, Some(expInfo(f))),
+          silver.WildcardPerm()(pos = pos(f), info = expInfo(f)),
+        )(pos = pos(f), info = expInfo(f))
       case other => ??(other)
     }
+
+  def pred(
+      p: col.PredicateApply[_],
+      info: Option[silver.Info] = None,
+  ): silver.PredicateAccess =
+    silver.PredicateAccess(p.args.map(exp), ref(p.ref))(
+      pos = pos(p),
+      info = info.getOrElse(expInfo(p)),
+    )
 
   def stat(s: col.Statement[_]): silver.Stmt =
     s match {
@@ -780,6 +786,12 @@ case class ColToSilver(program: col.Program[_]) {
         val silverLocals = locals.map(variable)
         silver
           .Seqn(Seq(stat(body)), silverLocals)(pos = pos(s), info = NodeInfo(s))
+      case col.Branch(Seq((cond, whenTrue))) =>
+        silver.If(
+          exp(cond),
+          block(whenTrue),
+          silver.Seqn(Nil, Nil)(pos = pos(s), info = NodeInfo(s)),
+        )(pos = pos(s), info = NodeInfo(s))
       case col.Branch(
             Seq((cond, whenTrue), (col.BooleanValue(true), whenFalse))
           ) =>
@@ -816,10 +828,9 @@ case class ColToSilver(program: col.Program[_]) {
       case col.Assume(assn) =>
         // PB: OK, since assn is type-checked boolean and hence equivalent.
         silver.Inhale(exp(assn))(pos = pos(s), info = NodeInfo(s))
-      case col.Fold(p: col.PredicateApply[_]) =>
-        silver.Fold(pred(p))(pos = pos(s), info = NodeInfo(s))
-      case col.Unfold(p: col.PredicateApply[_]) =>
-        silver.Unfold(pred(p))(pos = pos(s), info = NodeInfo(s))
+      case col.Fold(p) => silver.Fold(fold(p))(pos = pos(s), info = NodeInfo(s))
+      case u @ col.Unfold(p) =>
+        silver.Unfold(fold(p))(pos = pos(s), info = NodeInfo(s))
       case col.SilverNewRef(v, fs) =>
         silver.NewStmt(
           silver.LocalVar(ref(v), typ(v.decl.t))(),

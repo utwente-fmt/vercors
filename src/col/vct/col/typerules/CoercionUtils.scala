@@ -6,8 +6,6 @@ import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.resolve.lang.{C, CPP}
 import vct.col.resolve.lang.CPP.getBaseTypeFromSpecs
 
-import scala.annotation.tailrec
-
 case object CoercionUtils {
   private implicit val o: Origin = DiagnosticOrigin
 
@@ -119,7 +117,7 @@ case object CoercionUtils {
 
       case (TNull(), TRef()) => CoerceNullRef()
       case (TNull(), TArray(target)) => CoerceNullArray(target)
-      case (TNull(), TClass(target, typeArgs)) =>
+      case (TNull(), TByReferenceClass(target, typeArgs)) =>
         CoerceNullClass(target, typeArgs)
       case (TNull(), JavaTClass(target, _)) => CoerceNullJavaClass(target)
       case (TNull(), TAnyClass()) => CoerceNullAnyClass()
@@ -144,6 +142,12 @@ case object CoercionUtils {
             TPointer(element),
           ) => // if element == innerType =>
         getAnyCoercion(element, innerType).getOrElse(return None)
+      case (TNonNullPointer(innerType), TPointer(element))
+          if innerType == element =>
+        CoerceNonNullPointer(innerType)
+      case (TNonNullPointer(a), TNonNullPointer(b))
+          if getAnyCoercion(a, b).isDefined =>
+        CoerceIdentity(target)
       case (
             TPointer(element),
             CTPointer(innerType),
@@ -217,16 +221,15 @@ case object CoercionUtils {
         CoercionSequence(Seq(CoerceUnboundInt(source, TInt()), CoerceIntRat()))
       case (_: IntType[G], TRational()) => CoerceIntRat()
 
-      case (
-            source @ TClass(sourceClass, Seq()),
-            target @ TClass(targetClass, Seq()),
-          ) if source.transSupportArrows.exists { case (_, supp) =>
-            supp.cls.decl == targetClass.decl
-          } =>
-        CoerceSupports(sourceClass, targetClass)
+      case (source: TClass[G], target: TClass[G])
+          if source.typeArgs.isEmpty && target.typeArgs.isEmpty &&
+            source.transSupportArrows().exists { case (_, supp) =>
+              supp.cls.decl == target.cls.decl
+            } =>
+        CoerceSupports(source.cls, target.cls)
 
-      case (source @ TClass(sourceClass, typeArgs), TAnyClass()) =>
-        CoerceClassAnyClass(sourceClass, typeArgs)
+      case (source: TClass[G], TAnyClass()) =>
+        CoerceClassAnyClass(source.cls, source.typeArgs)
 
       case (
             source @ JavaTClass(sourceClass, Nil),
@@ -457,6 +460,8 @@ case object CoercionUtils {
       case t: TPointer[G] => Some((CoerceIdentity(source), t))
       case t: CTPointer[G] =>
         Some((CoerceIdentity(source), TPointer(t.innerType)))
+      case t: TNonNullPointer[G] =>
+        Some((CoerceIdentity(source), TPointer(t.element)))
       case t: CTArray[G] =>
         Some((CoerceCArrayPointer(t.innerType), TPointer(t.innerType)))
       case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyPointerCoercion)
@@ -474,15 +479,13 @@ case object CoercionUtils {
       case _ => None
     }
 
-  @tailrec
   def firstElementIsType[G](aggregate: Type[G], innerType: Type[G]): Boolean =
     aggregate match {
       case aggregate if getAnyCoercion(aggregate, innerType).isDefined => true
-      case clazz: TClass[G] =>
-        firstElementIsType(
-          clazz.cls.decl.declarations.head.asInstanceOf[InstanceField[G]].t,
-          innerType,
-        )
+      case clazz: TByValueClass[G] =>
+        clazz.cls.decl.decls.collectFirst { case field: InstanceField[G] =>
+          firstElementIsType(field.t, innerType)
+        }.getOrElse(false)
       case TArray(element) => firstElementIsType(element, innerType)
       case LLVMTStruct(_, _, elements) =>
         firstElementIsType(elements.head, innerType)

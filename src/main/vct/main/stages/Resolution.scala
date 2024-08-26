@@ -75,7 +75,7 @@ case object Resolution {
           )
         res.decls
       } else { Seq() },
-      options.veymontGeneratePermissions,
+      options.generatePermissions,
       options.devVeymontAllowAssign,
     )
 }
@@ -126,7 +126,7 @@ case class Resolution[G <: Generation](
       ResolveTypes.JavaClassPathEntry.SourcePackageRoot,
     ),
     importedDeclarations: Seq[GlobalDeclaration[G]] = Seq(),
-    veymontGeneratePermissions: Boolean = false,
+    generatePermissions: Boolean = false,
     veymontAllowAssign: Boolean = false,
 ) extends Stage[ParseResult[G], Verification[_ <: Generation]]
     with LazyLogging {
@@ -155,7 +155,7 @@ case class Resolution[G <: Generation](
         val ast = LangTypesToCol()
           .dispatch(Program(importedDeclarations)(blameProvider()))
         ResolveReferences.resolve(ast, javaParser, llvmParser, Seq())
-        LangSpecificToCol(veymontGeneratePermissions, veymontAllowAssign, Seq())
+        LangSpecificToCol(generatePermissions, veymontAllowAssign, Seq())
           .dispatch(ast).asInstanceOf[Program[Rewritten[G]]].declarations
       }
     ResolveReferences
@@ -164,7 +164,7 @@ case class Resolution[G <: Generation](
       case some => throw InputResolutionError(some)
     }
     val resolvedProgram = LangSpecificToCol(
-      veymontGeneratePermissions,
+      generatePermissions,
       veymontAllowAssign,
       typedImports,
     ).dispatch(typedProgram)
