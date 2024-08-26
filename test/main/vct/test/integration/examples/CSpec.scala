@@ -566,6 +566,15 @@ class CSpec extends VercorsSpec {
 
   vercors should error withCode "unsupportedCast" in "Casting struct pointers only works for the first element" c
     """
+    #include <stdbool.h>
+    struct A {
+        int integer;
+        bool boolean;
+    };
+
+    struct B {
+        struct A struct_a;
+    };
     void cannotCastToBoolean() {
         struct B struct_b;
         struct_b.struct_a.boolean = true == true; // We currently don't support boolean literals
