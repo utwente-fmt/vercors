@@ -249,9 +249,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           decl,
           rw.globalDeclarations.declare(
             new HeapVariable[Post](
-              new TByValueClass[Post](
-                new DirectRef[Post, Class[Post]](structMap(struct)),
-                Seq(),
+              new TNonNullPointer[Post](
+                new TByValueClass[Post](
+                  new DirectRef[Post, Class[Post]](structMap(struct)),
+                  Seq(),
+                )(struct.o)
               )(struct.o)
             )(decl.o)
           ),

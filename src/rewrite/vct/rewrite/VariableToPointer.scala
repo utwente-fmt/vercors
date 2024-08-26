@@ -92,7 +92,8 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
               )(PanicBlame("Initialisation should always succeed"))
             } ++ Seq(dispatch(s.body))),
         )
-      case i @ Instantiate(cls, out) =>
+      case i @ Instantiate(cls, out)
+          if cls.decl.isInstanceOf[ByValueClass[Pre]] =>
         // TODO: Make sure that we recursively build newobject for byvalueclasses
         //       maybe get rid this entirely and only have it in encode by value class
         Block(Seq(i.rewriteDefault()) ++ cls.decl.declarations.flatMap {
@@ -152,8 +153,9 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
         DerefPointer(Deref[Post](dispatch(obj), fieldMap.ref(f))(deref.blame))(
           PanicBlame("Should always be accessible")
         )
-      case newObject @ NewObject(Ref(cls)) =>
-        val obj = new Variable[Post](TByReferenceClass(succ(cls), Seq()))
+      case newObject @ NewObject(Ref(cls))
+          if cls.isInstanceOf[ByValueClass[Pre]] =>
+        val obj = new Variable[Post](TByValueClass(succ(cls), Seq()))
         ScopedExpr(
           Seq(obj),
           With(

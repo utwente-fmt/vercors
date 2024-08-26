@@ -220,7 +220,7 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
     node match {
       case NewObject(Ref(cls)) if cls.isInstanceOf[ByValueClass[Pre]] => {
         val t = TByValueClass[Pre](cls.ref, Seq())
-        procedureInvocation[Post](
+        return procedureInvocation[Post](
           TrueSatisfiable,
           classCreationMethods.getOrElseUpdate(t, makeClassCreationMethod(t))
             .ref,
