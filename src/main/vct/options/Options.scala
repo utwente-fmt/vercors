@@ -374,6 +374,15 @@ case object Options {
           ),
       ),
       note(""),
+      note("Alpinist Mode"),
+      opt[Unit]("alpinist").action((_, c) => c.copy(mode = Mode.Alpinist))
+        .text("Enable Alpinist mode: apply GPU optimizations").children(
+          // Place alpinist options here
+          opt[Path]("alpinist-output").required().valueName("<path>")
+            .action((path, c) => c.copy(alpinistOutput = path))
+            .text("Output file for alpinist optimizations")
+        ),
+      note(""),
       note("Control flow graph"),
       opt[Unit]("build-cfg").action((_, c) => c.copy(mode = Mode.CFG)).text(
         "Instead of verifying a program, build its control flow graph for further analysis"
@@ -515,6 +524,9 @@ case class Options(
     vesuvRasiTest: Boolean = false,
     vesuvRasiVariables: Option[Seq[String]] = None,
     vesuvRasiSplitVariables: Option[Seq[String]] = None,
+
+    // Alpinist options
+    alpinistOutput: Path = null,
 
     // Control flow graph options
     cfgOutput: Path = null,

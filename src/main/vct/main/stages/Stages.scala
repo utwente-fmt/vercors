@@ -94,4 +94,16 @@ case object Stages extends LazyLogging {
       .thenRun(Resolution.ofOptions(options, blameProvider))
       .thenRun(PrintCFG.ofOptions(options))
   }
+
+  def alpinistOfOptions(
+      options: Options,
+      blameProvider: BlameProvider,
+  ): Stages[Seq[Readable], Unit] =
+    AlpinistVerification.ofOptions(options, blameProvider)
+      .thenRun(AlpinistApplicability.ofOptions(options))
+      .thenRun(AlpinistTransformation.ofOptions(options)).thenRun(Output(
+        out = Some(options.alpinistOutput),
+        syntax = Ctx.PVL,
+        splitDecls = false,
+      )).transform(_ => ())
 }

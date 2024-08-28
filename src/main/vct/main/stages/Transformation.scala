@@ -58,7 +58,7 @@ object Transformation extends LazyLogging {
           .mkString("\n")
   }
 
-  private def writeOutFunctions(
+  def writeOutFunctions(
       event: TransformationEvent,
       m: Map[String, PathOrStd],
   ): Seq[PassEventHandler] =
@@ -75,7 +75,7 @@ object Transformation extends LazyLogging {
       }
     }
 
-  private def reportIntermediateProgram(
+  def reportIntermediateProgram(
       out: Path,
       stageKey: String,
   ): PassEventHandler = {
