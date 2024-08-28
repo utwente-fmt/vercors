@@ -2143,8 +2143,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Message(_) => e
       case LLVMLocal(name) => e
       case LLVMAllocA(allocationType, numElements) => e
-      case LLVMLoad(loadType, p, ordering) =>
-        LLVMLoad(loadType, llvmPointer(p, loadType)._1, ordering)
+      case load @ LLVMLoad(loadType, p, ordering) =>
+        LLVMLoad(loadType, llvmPointer(p, loadType)._1, ordering)(load.blame)
       case LLVMGetElementPointer(structureType, resultType, pointer, indices) =>
         LLVMGetElementPointer(
           structureType,
@@ -2275,8 +2275,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         Loop(init, bool(cond), update, contract, body)
       case LLVMLoop(cond, contract, body) =>
         LLVMLoop(bool(cond), contract, body)
-      case LLVMStore(value, p, ordering) =>
-        LLVMStore(value, llvmPointer(p, value.t)._1, ordering)
+      case store @ LLVMStore(value, p, ordering) =>
+        LLVMStore(value, llvmPointer(p, value.t)._1, ordering)(store.blame)
       case ModelDo(model, perm, after, action, impl) =>
         ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)

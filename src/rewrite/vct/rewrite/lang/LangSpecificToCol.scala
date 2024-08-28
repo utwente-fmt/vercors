@@ -165,6 +165,11 @@ case class LangSpecificToCol[Pre <: Generation](
     }
   }
 
+  override def dispatch(program: Program[Pre]): Program[Post] = {
+    llvm.gatherTypeHints(program)
+    super.dispatch(program)
+  }
+
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case model: Model[Pre] =>
@@ -224,6 +229,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case glue: JavaBipGlueContainer[Pre] => bip.rewriteGlue(glue)
 
       case chor: PVLChoreography[Pre] => veymont.rewriteChoreography(chor)
+      case v: Variable[Pre] => llvm.rewriteLocalVariable(v)
 
       case other => rewriteDefault(other)
     }

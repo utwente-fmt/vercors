@@ -96,6 +96,7 @@ void llvm2col::transformLoad(llvm::LoadInst &loadInstruction,
     col::LlvmLoad *load = loadExpr->mutable_llvm_load();
     load->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(loadInstruction));
+    load->set_allocated_blame(new col::Blame());
     llvm::errs() << "Working on " << loadInstruction << " has type "
                  << *loadInstruction.getType() << "\n";
     llvm2col::transformAndSetType(*loadInstruction.getType(),
@@ -114,6 +115,7 @@ void llvm2col::transformStore(llvm::StoreInst &storeInstruction,
     col::LlvmStore *store = colBlock.add_statements()->mutable_llvm_store();
     store->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(storeInstruction));
+    store->set_allocated_blame(new col::Blame());
     llvm2col::transformAndSetExpr(funcCursor, storeInstruction,
                                   *storeInstruction.getValueOperand(),
                                   *store->mutable_value());

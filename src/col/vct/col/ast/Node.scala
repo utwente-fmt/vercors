@@ -3597,14 +3597,15 @@ final case class LLVMLoad[G](
     loadType: Type[G],
     pointer: Expr[G],
     ordering: LLVMMemoryOrdering[G],
-)(implicit val o: Origin)
+)(val blame: Blame[PointerDerefError])(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMLoadImpl[G]
 
+// TODO: Figure out how to deal with the blames here (I need a super type of AssignFailed and PointerDerefError)
 final case class LLVMStore[G](
     value: Expr[G],
     pointer: Expr[G],
     ordering: LLVMMemoryOrdering[G],
-)(implicit val o: Origin)
+)(val blame: Blame[VerificationFailure])(implicit val o: Origin)
     extends LLVMStatement[G] with LLVMStoreImpl[G]
 
 final case class LLVMGetElementPointer[G](
