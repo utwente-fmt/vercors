@@ -29,7 +29,7 @@ VAL_FALSE: 'false';
 VAL_PACKAGE: 'package';
 */
 
-NEVER: EOF '=';
+NEVER: EOF '=' <category=meta>;
 
 // Must be able to contain identifiers from any frontend, so it's fine to over-approximate valid identifiers a bit.
 LANG_ID_ESCAPE: '`' ~[`]+ '`';
@@ -47,7 +47,7 @@ VAL_VECTOR: 'vector';
 VAL_BAG: 'bag';
 VAL_POINTER: 'pointer';
 VAL_MAP: 'map';
-VAL_OPTION: 'option';
+VAL_OPTION options { category=spec_type_cons } : 'option';
 VAL_EITHER: 'either';
 VAL_TUPLE: 'tuple';
 VAL_TYPE: 'type';
@@ -123,7 +123,7 @@ VAL_PERM_VAL: 'perm';
 VAL_PERM: 'Perm';
 VAL_POINTS_TO: 'PointsTo';
 VAL_RUNNING: 'running';
-VAL_SOME: 'Some';
+VAL_SOME:  'Some';
 VAL_LEFT: 'Left';
 VAL_RIGHT: 'Right';
 VAL_VALUE: 'Value';

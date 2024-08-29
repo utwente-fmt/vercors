@@ -149,7 +149,7 @@ HEX_DIGIT
     ;
 
 mode DEFAULT_MODE;
-Identifier  : ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*;
+Identifier : ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*;
 
 COMMENT : '/*' .*? '*/' -> skip;
 LINE_COMMENT : '//' .*? ('\n'|EOF) -> skip;
