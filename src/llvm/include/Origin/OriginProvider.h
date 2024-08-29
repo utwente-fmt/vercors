@@ -2,6 +2,8 @@
 #define PALLAS_ORIGINPROVIDER_H
 
 #include "vct/col/ast/Origin.pb.h"
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Value.h>
 

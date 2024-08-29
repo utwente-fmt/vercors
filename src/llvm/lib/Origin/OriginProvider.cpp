@@ -123,6 +123,53 @@ col::Origin *llvm2col::generateLabelOrigin(llvm::BasicBlock &llvmBlock) {
     return origin;
 }
 
+bool generateDebugOrigin(llvm::Instruction &llvmInstruction,
+                         col::Origin *origin) {
+    const llvm::DebugLoc &loc = llvmInstruction.getDebugLoc();
+    if (!loc)
+        return false;
+    int line = loc.getLine() - 1;
+    int col = loc.getCol() - 1;
+    col::OriginContent *positionRangeContent = origin->add_content();
+    col::PositionRange *positionRange = new col::PositionRange();
+    positionRange->set_start_line_idx(line);
+    positionRange->set_end_line_idx(line);
+    positionRange->set_start_col_idx(col);
+    positionRangeContent->set_allocated_position_range(positionRange);
+    auto *scope = llvm::cast<llvm::DIScope>(loc.getScope());
+    auto *file = scope->getFile();
+    llvm::StringRef filename = file->getFilename();
+    llvm::StringRef directory = file->getDirectory();
+    auto checksumOpt = file->getChecksum();
+    col::OriginContent *readableOriginContent = origin->add_content();
+    col::ReadableOrigin *readableOrigin = new col::ReadableOrigin();
+    readableOrigin->set_allocated_filename(new std::string(filename));
+    readableOrigin->set_allocated_directory(new std::string(directory));
+    if (checksumOpt != std::nullopt) {
+        auto checksum = checksumOpt.value();
+        readableOrigin->set_allocated_checksum(new std::string(checksum.Value));
+        switch (checksum.Kind) {
+        case llvm::DIFile::ChecksumKind::CSK_MD5:
+            readableOrigin->set_allocated_checksum_kind(new std::string("MD5"));
+            break;
+        case llvm::DIFile::ChecksumKind::CSK_SHA1:
+            readableOrigin->set_allocated_checksum_kind(
+                new std::string("SHA-1"));
+            break;
+        case llvm::DIFile::ChecksumKind::CSK_SHA256:
+            readableOrigin->set_allocated_checksum_kind(
+                new std::string("SHA-256"));
+            break;
+        default:
+            // TODO: Properly add this error to the ErrorReported
+            llvm::errs() << "Unknown checksum kind " << checksum.Kind << "\n";
+            break;
+        }
+    }
+    readableOriginContent->set_allocated_readable_origin(readableOrigin);
+    return true;
+}
+
 col::Origin *
 llvm2col::generateSingleStatementOrigin(llvm::Instruction &llvmInstruction) {
     col::Origin *origin = new col::Origin();
@@ -132,13 +179,16 @@ llvm2col::generateSingleStatementOrigin(llvm::Instruction &llvmInstruction) {
         deriveOperandPreferredName(llvmInstruction));
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
-    col::OriginContent *contextContent = origin->add_content();
-    col::Context *context = new col::Context();
-    context->set_context(deriveSurroundingInstructionContext(llvmInstruction));
-    context->set_inline_context(deriveInstructionContext(llvmInstruction));
-    context->set_short_position(
-        deriveInstructionShortPosition(llvmInstruction));
-    contextContent->set_allocated_context(context);
+    if (!generateDebugOrigin(llvmInstruction, origin)) {
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(
+            deriveSurroundingInstructionContext(llvmInstruction));
+        context->set_inline_context(deriveInstructionContext(llvmInstruction));
+        context->set_short_position(
+            deriveInstructionShortPosition(llvmInstruction));
+        contextContent->set_allocated_context(context);
+    }
 
     return origin;
 }
@@ -151,13 +201,15 @@ llvm2col::generateAssignTargetOrigin(llvm::Instruction &llvmInstruction) {
     preferredName->add_preferred_name("var");
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
-    col::OriginContent *contextContent = origin->add_content();
-    col::Context *context = new col::Context();
-    context->set_context(deriveInstructionContext(llvmInstruction));
-    context->set_inline_context(deriveInstructionLhs(llvmInstruction));
-    context->set_short_position(
-        deriveInstructionShortPosition(llvmInstruction));
-    contextContent->set_allocated_context(context);
+    if (!generateDebugOrigin(llvmInstruction, origin)) {
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveInstructionContext(llvmInstruction));
+        context->set_inline_context(deriveInstructionLhs(llvmInstruction));
+        context->set_short_position(
+            deriveInstructionShortPosition(llvmInstruction));
+        contextContent->set_allocated_context(context);
+    }
 
     return origin;
 }
@@ -165,13 +217,16 @@ llvm2col::generateAssignTargetOrigin(llvm::Instruction &llvmInstruction) {
 col::Origin *
 llvm2col::generateBinExprOrigin(llvm::Instruction &llvmInstruction) {
     col::Origin *origin = new col::Origin();
-    col::OriginContent *contextContent = origin->add_content();
-    col::Context *context = new col::Context();
-    context->set_context(deriveSurroundingInstructionContext(llvmInstruction));
-    context->set_inline_context(deriveInstructionContext(llvmInstruction));
-    context->set_short_position(
-        deriveInstructionShortPosition(llvmInstruction));
-    contextContent->set_allocated_context(context);
+    if (!generateDebugOrigin(llvmInstruction, origin)) {
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(
+            deriveSurroundingInstructionContext(llvmInstruction));
+        context->set_inline_context(deriveInstructionContext(llvmInstruction));
+        context->set_short_position(
+            deriveInstructionShortPosition(llvmInstruction));
+        contextContent->set_allocated_context(context);
+    }
 
     return origin;
 }
@@ -185,13 +240,16 @@ llvm2col::generateFunctionCallOrigin(llvm::CallInst &callInstruction) {
         callInstruction.getCalledFunction()->getName().str());
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
-    col::OriginContent *contextContent = origin->add_content();
-    col::Context *context = new col::Context();
-    context->set_context(deriveSurroundingInstructionContext(callInstruction));
-    context->set_inline_context(deriveInstructionRhs(callInstruction));
-    context->set_short_position(
-        deriveInstructionShortPosition(callInstruction));
-    contextContent->set_allocated_context(context);
+    if (!generateDebugOrigin(callInstruction, origin)) {
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(
+            deriveSurroundingInstructionContext(callInstruction));
+        context->set_inline_context(deriveInstructionRhs(callInstruction));
+        context->set_short_position(
+            deriveInstructionShortPosition(callInstruction));
+        contextContent->set_allocated_context(context);
+    }
 
     return origin;
 }
@@ -204,13 +262,15 @@ col::Origin *llvm2col::generateOperandOrigin(llvm::Instruction &llvmInstruction,
     preferredName->add_preferred_name(deriveOperandPreferredName(llvmOperand));
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
-    col::OriginContent *contextContent = origin->add_content();
-    col::Context *context = new col::Context();
-    context->set_context(deriveInstructionContext(llvmInstruction));
-    context->set_inline_context(deriveOperandContext(llvmOperand));
-    context->set_short_position(
-        deriveInstructionShortPosition(llvmInstruction));
-    contextContent->set_allocated_context(context);
+    if (!generateDebugOrigin(llvmInstruction, origin)) {
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveInstructionContext(llvmInstruction));
+        context->set_inline_context(deriveOperandContext(llvmOperand));
+        context->set_short_position(
+            deriveInstructionShortPosition(llvmInstruction));
+        contextContent->set_allocated_context(context);
+    }
 
     return origin;
 }
@@ -260,14 +320,17 @@ llvm2col::generateVoidOperandOrigin(llvm::Instruction &llvmInstruction) {
     col::PreferredName *preferredName = new col::PreferredName();
     preferredName->add_preferred_name("void");
     preferredNameContent->set_allocated_preferred_name(preferredName);
+    generateDebugOrigin(llvmInstruction, origin);
 
-    col::OriginContent *contextContent = origin->add_content();
-    col::Context *context = new col::Context();
-    context->set_context(deriveInstructionContext(llvmInstruction));
-    context->set_inline_context("void");
-    context->set_short_position(
-        deriveInstructionShortPosition(llvmInstruction));
-    contextContent->set_allocated_context(context);
+    if (!generateDebugOrigin(llvmInstruction, origin)) {
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveInstructionContext(llvmInstruction));
+        context->set_inline_context("void");
+        context->set_short_position(
+            deriveInstructionShortPosition(llvmInstruction));
+        contextContent->set_allocated_context(context);
+    }
 
     return origin;
 }
