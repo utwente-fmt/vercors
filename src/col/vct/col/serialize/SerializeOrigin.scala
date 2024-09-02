@@ -37,6 +37,7 @@ object SerializeOrigin extends LazyLogging {
                 doWatch = false,
                 context.checksumKind.get,
               )
+              // TODO: Should we do the checksum check later? Potentially this causes a lot of file loading
               if (file.getChecksum != context.checksum.get) {
                 logger.warn(
                   "The checksum of the file " + path +
@@ -54,6 +55,8 @@ object SerializeOrigin extends LazyLogging {
           range.endLineIdx,
           range.startColIdx.flatMap { start => range.endColIdx.map((start, _)) },
         )
+      case ser.OriginContent.Content.LabelContext(label) =>
+        LabelContext(label.label)
     })
 
   def serialize(
@@ -74,6 +77,20 @@ object SerializeOrigin extends LazyLogging {
             ser.OriginContent.Content
               .Context(ser.Context(context, inlineContext, shortPosition))
           )
+        case ReadableOrigin(readable) =>
+          // Not sure how to best deal with directory/filename here
+          Seq(ser.OriginContent.Content.ReadableOrigin(
+            ser.ReadableOrigin("", readable.fileName, None, None)
+          ))
+        case PositionRange(startLineIdx, endLineIdx, startEndColIdx) =>
+          Seq(ser.OriginContent.Content.PositionRange(ser.PositionRange(
+            startLineIdx,
+            endLineIdx,
+            startEndColIdx.map(_._1),
+            startEndColIdx.map(_._2),
+          )))
+        case LabelContext(label) =>
+          Seq(ser.OriginContent.Content.LabelContext(ser.LabelContext(label)))
         case _ => Nil
       }.map(ser.OriginContent(_))
     )

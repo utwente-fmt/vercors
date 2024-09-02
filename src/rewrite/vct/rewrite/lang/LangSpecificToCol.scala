@@ -22,12 +22,6 @@ case object LangSpecificToCol extends RewriterBuilderArg2[Boolean, Boolean] {
   override def desc: String =
     "Translate language-specific constructs to a common subset of nodes."
 
-  override def apply[Pre <: Generation](
-      veymontGeneratePermissions: Boolean,
-      veymontAllowAssign: Boolean,
-  ): AbstractRewriter[Pre, _ <: Generation] =
-    LangSpecificToCol(veymontGeneratePermissions, veymontAllowAssign, Seq())
-
   def ThisVar(): Origin =
     Origin(Seq(PreferredName(Seq("this")), LabelContext("constructor this")))
 
@@ -41,7 +35,6 @@ case object LangSpecificToCol extends RewriterBuilderArg2[Boolean, Boolean] {
 case class LangSpecificToCol[Pre <: Generation](
     generatePermissions: Boolean = false,
     veymontAllowAssign: Boolean = false,
-    importedDeclarations: Seq[GlobalDeclaration[Pre]] = Seq(),
 ) extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
   val bip: LangBipToCol[Pre] = LangBipToCol(this)
@@ -282,7 +275,9 @@ case class LangSpecificToCol[Pre <: Generation](
         cpp.checkPredicateFoldingAllowed(unfold.res)
         unfold.rewriteDefault()
 
+      case load: LLVMLoad[Pre] => llvm.rewriteLoad(load)
       case store: LLVMStore[Pre] => llvm.rewriteStore(store)
+      case alloc: LLVMAllocA[Pre] => llvm.rewriteAllocA(alloc)
       case other => other.rewriteDefault()
     }
 
@@ -404,8 +399,6 @@ case class LangSpecificToCol[Pre <: Generation](
         llvm.rewriteFunctionPointer(pointer)
       case pointer: LLVMPointerValue[Pre] => llvm.rewritePointerValue(pointer)
       case gep: LLVMGetElementPointer[Pre] => llvm.rewriteGetElementPointer(gep)
-      case load: LLVMLoad[Pre] => llvm.rewriteLoad(load)
-      case alloc: LLVMAllocA[Pre] => llvm.rewriteAllocA(alloc)
       case int: LLVMIntegerValue[Pre] => IntegerValue(int.value)(int.o)
 
       case other => rewriteDefault(other)

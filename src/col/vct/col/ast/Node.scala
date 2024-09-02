@@ -3529,7 +3529,10 @@ final class LLVMFunctionDefinition[G](
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends LLVMCallable[G]
     with Applicable[G]
-    with LLVMFunctionDefinitionImpl[G]
+    with LLVMFunctionDefinitionImpl[G] {
+  var importedArguments: Option[Seq[Variable[G]]] = None
+  var importedReturnType: Option[Type[G]] = None
+}
 @scopes[LabelDecl]
 final class LLVMSpecFunction[G](
     val name: String,
@@ -3589,16 +3592,21 @@ final case class LLVMAmbiguousFunctionInvocation[G](
   var ref: Option[Ref[G, LLVMCallable[G]]] = None
 }
 
-final case class LLVMAllocA[G](allocationType: Type[G], numElements: Expr[G])(
-    implicit val o: Origin
-) extends LLVMExpr[G] with LLVMAllocAImpl[G]
+// TODO: It would probably be more consistent if LLVMAllocA and LLVMLoad use the Expr type for the variable but it should never be necessary
+final case class LLVMAllocA[G](
+    variable: Ref[G, Variable[G]],
+    allocationType: Type[G],
+    numElements: Expr[G],
+)(implicit val o: Origin)
+    extends LLVMStatement[G] with LLVMAllocAImpl[G]
 
 final case class LLVMLoad[G](
+    variable: Ref[G, Variable[G]],
     loadType: Type[G],
     pointer: Expr[G],
     ordering: LLVMMemoryOrdering[G],
 )(val blame: Blame[PointerDerefError])(implicit val o: Origin)
-    extends LLVMExpr[G] with LLVMLoadImpl[G]
+    extends LLVMStatement[G] with LLVMLoadImpl[G]
 
 // TODO: Figure out how to deal with the blames here (I need a super type of AssignFailed and PointerDerefError)
 final case class LLVMStore[G](

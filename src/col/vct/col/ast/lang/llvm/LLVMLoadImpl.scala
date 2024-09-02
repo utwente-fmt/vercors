@@ -5,5 +5,4 @@ import vct.col.ast.ops.LLVMLoadOps
 
 trait LLVMLoadImpl[G] extends LLVMLoadOps[G] {
   this: LLVMLoad[G] =>
-  override val t: Type[G] = this.loadType
 }

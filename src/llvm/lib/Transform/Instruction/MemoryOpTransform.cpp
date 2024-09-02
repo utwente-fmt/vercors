@@ -4,6 +4,7 @@
 #include "Transform/BlockTransform.h"
 #include "Transform/Transform.h"
 #include "Util/Exceptions.h"
+#include <llvm/IR/DebugInfo.h>
 
 const std::string SOURCE_LOC = "Transform::Instruction::MemoryOp";
 
@@ -36,15 +37,33 @@ void llvm2col::transformMemoryOp(llvm::Instruction &llvmInstruction,
 void llvm2col::transformAllocA(llvm::AllocaInst &allocAInstruction,
                                col::Block &colBlock,
                                pallas::FunctionCursor &funcCursor) {
-    col::Assign &assignment = funcCursor.createAssignmentAndDeclaration(
-        allocAInstruction, colBlock,
-        /* pointer type*/ allocAInstruction.getAllocatedType());
-    col::Expr *allocAExpr = assignment.mutable_value();
-    col::LlvmAllocA *allocA = allocAExpr->mutable_llvm_alloc_a();
+    col::LlvmAllocA *allocA = colBlock.add_statements()->mutable_llvm_alloc_a();
     allocA->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(allocAInstruction));
-    llvm2col::transformAndSetType(*allocAInstruction.getAllocatedType(),
-                                  *allocA->mutable_allocation_type());
+
+    if (allocAInstruction.getAllocatedType()->getTypeID() ==
+        llvm::Type::PointerTyID) {
+        // Pointers are opaque so we'll use the metadata to try and figure out
+        // what this pointer will point to
+        for (llvm::DbgDeclareInst *dbg :
+             llvm::FindDbgDeclareUses(&allocAInstruction)) {
+            llvm::errs() << "Use of AllocA ptr " << *dbg << "\n";
+            llvm::CallInst *dbgCall = llvm::cast<llvm::CallInst>(dbg);
+            llvm::Metadata *metadata =
+                llvm::cast<llvm::MetadataAsValue>(dbgCall->getOperand(1))
+                    ->getMetadata();
+            // TODO: Translate this information where possible
+        }
+        llvm2col::transformAndSetType(*allocAInstruction.getAllocatedType(),
+                                      *allocA->mutable_allocation_type());
+    } else {
+        llvm2col::transformAndSetType(*allocAInstruction.getAllocatedType(),
+                                      *allocA->mutable_allocation_type());
+    }
+    col::Variable &varDecl = funcCursor.declareVariable(
+        allocAInstruction, allocAInstruction.getAllocatedType());
+    allocA->mutable_variable()->set_id(varDecl.id());
+
     llvm2col::transformAndSetExpr(funcCursor, allocAInstruction,
                                   *allocAInstruction.getArraySize(),
                                   *allocA->mutable_num_elements());
@@ -90,15 +109,12 @@ void llvm2col::transformLoad(llvm::LoadInst &loadInstruction,
                              col::Block &colBlock,
                              pallas::FunctionCursor &funcCursor) {
     // We are not storing isVolatile and getAlign
-    col::Assign &assignment =
-        funcCursor.createAssignmentAndDeclaration(loadInstruction, colBlock);
-    col::Expr *loadExpr = assignment.mutable_value();
-    col::LlvmLoad *load = loadExpr->mutable_llvm_load();
+    col::LlvmLoad *load = colBlock.add_statements()->mutable_llvm_load();
     load->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(loadInstruction));
     load->set_allocated_blame(new col::Blame());
-    llvm::errs() << "Working on " << loadInstruction << " has type "
-                 << *loadInstruction.getType() << "\n";
+    col::Variable &varDecl = funcCursor.declareVariable(loadInstruction);
+    load->mutable_variable()->set_id(varDecl.id());
     llvm2col::transformAndSetType(*loadInstruction.getType(),
                                   *load->mutable_load_type());
     llvm2col::transformAndSetExpr(funcCursor, loadInstruction,

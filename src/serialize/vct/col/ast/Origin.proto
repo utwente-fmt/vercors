@@ -22,6 +22,7 @@ message OriginContent {
     Context context = 3;
     ReadableOrigin readable_origin = 4;
     PositionRange position_range = 5;
+    LabelContext label_context = 6;
   }
 }
 
@@ -51,4 +52,8 @@ message PositionRange {
   required sint32 end_line_idx = 2;
   optional sint32 start_col_idx = 3;
   optional sint32 end_col_idx = 4;
+}
+
+message LabelContext {
+  required string label = 1;
 }

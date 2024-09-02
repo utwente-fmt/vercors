@@ -2,20 +2,12 @@ package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
-import vct.col.origin.{
-  AssignFailed,
-  Blame,
-  PointerDerefError,
-  Origin,
-  PanicBlame,
-  SourceName,
-  TypeName,
-}
+import vct.col.origin.{Origin, PanicBlame, TypeName}
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.resolve.ctx.RefLLVMFunctionDefinition
 import vct.col.rewrite.{Generation, Rewritten}
-import vct.col.util.AstBuildHelpers.{VarBuildHelpers, assignLocal, const, tt}
-import vct.col.util.{CurrentProgramContext, SuccessionMap}
+import vct.col.util.AstBuildHelpers.assignLocal
+import vct.col.util.{CurrentProgramContext, SubstituteReferences, SuccessionMap}
 import vct.result.VerificationError.{SystemError, UserError}
 
 import scala.collection.mutable
@@ -67,52 +59,187 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       : mutable.HashMap[Variable[Pre], Type[Pre]] = mutable.HashMap()
 
   def gatherTypeHints(program: Program[Pre]): Unit = {
-    val globalVariableTypeGuesses
-        : mutable.HashMap[LLVMGlobalVariable[Pre], mutable.HashSet[Type[Pre]]] =
-      mutable.HashMap()
-//    val structFieldTypeGuesses: mutable.HashMap[(LLVMTStruct[Pre], Int), mutable.HashSet[Type[Pre]]] = mutable.HashMap()
-    val localTypeGuesses
-        : mutable.HashMap[Variable[Pre], mutable.HashSet[Type[Pre]]] = mutable
-      .HashMap()
-
-    def addTypeGuess(pointer: Expr[Pre], inferredType: Type[Pre]): Unit =
-      pointer match {
-        case Local(Ref(v)) =>
-          localTypeGuesses.getOrElseUpdate(v, { mutable.HashSet() })
-            .add(LLVMTPointer[Pre](Some(inferredType)))
-        case LLVMPointerValue(Ref(g)) =>
-          globalVariableTypeGuesses.getOrElseUpdate(
-            g.asInstanceOf[LLVMGlobalVariable[Pre]],
-            { mutable.HashSet() },
-          ).add(inferredType)
-        case it => ???
+    // TODO: We also need to do something where we only keep structurally distinct types
+    def moreSpecific(self: Type[Pre], other: Type[Pre]): Boolean = {
+      (self, other) match {
+        case (a, b) if a == b => false
+        case (LLVMTPointer(None), _) => false
+        case (_, LLVMTPointer(None)) => true
+        case (LLVMTPointer(Some(a)), LLVMTPointer(Some(b))) =>
+          moreSpecific(a, b)
+        case (LLVMTPointer(Some(a)), TPointer(b)) => moreSpecific(a, b)
+        case (TPointer(a), LLVMTPointer(Some(b))) => moreSpecific(a, b)
+        case (TPointer(a), TPointer(b)) => moreSpecific(a, b)
+        case (LLVMTStruct(_, _, a), LLVMTStruct(_, _, b)) =>
+          a.headOption.exists(ta => b.exists(tb => moreSpecific(ta, tb)))
+        case (LLVMTStruct(_, _, _), _) => true
+        case (LLVMTArray(_, a), LLVMTArray(_, b)) => moreSpecific(a, b)
+        case (LLVMTArray(_, _), _) => true
+        case _ => false
       }
-
-    program.collect {
-      case gep: LLVMGetElementPointer[Pre] =>
-        addTypeGuess(gep.pointer, gep.structureType)
-      case load: LLVMLoad[Pre] => addTypeGuess(load.pointer, load.loadType)
-      case store: LLVMStore[Pre] => addTypeGuess(store.pointer, store.value.t)
     }
 
-    def findSuperType(types: mutable.HashSet[Type[Pre]]): Option[Type[Pre]] = {
+    // TODO: This sorting is non-stable which might cause nondeterministic bugs if there's something wrong with moreSpecific
+    def findMostSpecific(
+        types: mutable.ArrayBuffer[Type[Pre]]
+    ): Option[Type[Pre]] = {
       types.map(Some(_)).reduce[Option[Type[Pre]]] { (a, b) =>
         (a, b) match {
           case (None, _) | (_, None) => None
-          case (Some(a), Some(b)) if a == b || a.superTypeOf(b) => Some(a)
-          case (Some(a), Some(b)) if b.superTypeOf(a) => Some(b)
+          case (Some(a), Some(b))
+              if a == b || rw.dispatch(a) == rw.dispatch(b) ||
+                moreSpecific(a, b) =>
+            Some(a)
+          case (Some(a), Some(b)) if moreSpecific(b, a) => Some(b)
           case _ => None
         }
       }
     }
 
-    globalVariableTypeGuesses.foreachEntry { case (v, types) =>
-      findSuperType(types).foreach(globalVariableInferredType(v) = _)
-    }
-    localTypeGuesses.foreachEntry { case (v, types) =>
-      findSuperType(types).foreach(localVariableInferredType(v) = _)
+    class TypeGuess(
+        val depends: mutable.Set[Object] = mutable.Set(),
+        val dependents: mutable.Set[Object] = mutable.Set(),
+        val getGuesses: mutable.ArrayBuffer[Unit => Type[Pre]] = mutable
+          .ArrayBuffer(),
+        var currentType: Type[Pre],
+    ) {
+      def add(dependencies: Set[Object], inferType: Unit => Type[Pre]): Unit = {
+        depends.addAll(dependencies)
+        getGuesses.addOne(inferType)
+      }
+
+      def update(): Boolean = {
+        val superType = findMostSpecific(getGuesses.map(_()))
+        if (superType.isEmpty) { false }
+        else {
+          val updated = currentType == superType.get
+          currentType = superType.get
+          updated
+        }
+      }
     }
 
+    val typeGuesses: mutable.HashMap[Object, TypeGuess] = mutable.HashMap()
+
+    def findDependencies(expr: Expr[Pre]): Set[Object] = {
+      expr.collect {
+        case Local(Ref(v)) => v
+        case LLVMPointerValue(Ref(g)) => g
+        // These two below probably don't do anything
+        case v: Variable[Pre] => v
+        case v: LLVMGlobalVariable[Pre] => v
+      }.toSet
+    }
+
+    def replaceWithGuesses(
+        value: Expr[Pre],
+        dependencies: Set[Object],
+    ): Expr[Pre] = {
+      val subMap = dependencies.filter(typeGuesses.contains).collect {
+        case v: Variable[Pre] if typeGuesses(v).currentType != v.t =>
+          (v, new Variable[Pre](typeGuesses(v).currentType)(v.o))
+        case v: LLVMGlobalVariable[Pre]
+            if typeGuesses(v).currentType != v.variableType =>
+          (
+            v,
+            new LLVMGlobalVariable[Pre](
+              typeGuesses(v).currentType,
+              v.value,
+              v.constant,
+            )(v.o),
+          )
+      }
+      if (subMap.isEmpty) { value }
+      else {
+        // TODO: Support multiple guesses?
+        SubstituteReferences(subMap.toMap).dispatch(value)
+      }
+    }
+
+    def getVariable(expr: Expr[Pre]): Object = {
+      expr match {
+        case Local(Ref(v)) => v
+        case LLVMPointerValue(Ref(g)) => g
+        case _ => ???
+      }
+    }
+
+    def addTypeGuess(
+        obj: Object,
+        dependencies: Set[Object],
+        inferType: Unit => Type[Pre],
+    ): Unit =
+      typeGuesses
+        .getOrElseUpdate(obj, new TypeGuess(currentType = inferType(())))
+        .add(dependencies, inferType)
+
+    // TODO: This could be made more generic and also work with Assign nodes
+    program.collect {
+      case func: LLVMFunctionDefinition[Pre] =>
+        func.args.zipWithIndex.foreach { case (a, i) =>
+          addTypeGuess(
+            a,
+            Set.empty,
+            _ => func.importedArguments.map(_(i).t).getOrElse(a.t),
+          )
+        }
+      case alloc: LLVMAllocA[Pre] =>
+        addTypeGuess(
+          alloc.variable.decl,
+          Set.empty,
+          _ => LLVMTPointer(Some(alloc.allocationType)),
+        )
+      case gep: LLVMGetElementPointer[Pre] =>
+        addTypeGuess(
+          getVariable(gep.pointer),
+          Set.empty,
+          _ => LLVMTPointer(Some(gep.structureType)),
+        )
+      case load: LLVMLoad[Pre] =>
+        addTypeGuess(
+          getVariable(load.pointer),
+          Set(load.variable.decl),
+          _ =>
+            LLVMTPointer(Some(
+              typeGuesses.get(load.variable.decl).map(_.currentType)
+                .getOrElse(load.variable.decl.t)
+            )),
+        )
+        addTypeGuess(load.variable.decl, Set.empty, _ => load.variable.decl.t)
+      case store: LLVMStore[Pre] =>
+        val dependencies = findDependencies(store.value)
+        addTypeGuess(
+          getVariable(store.pointer),
+          dependencies,
+          _ =>
+            LLVMTPointer(Some(replaceWithGuesses(store.value, dependencies).t)),
+        )
+      case inv: LLVMFunctionInvocation[Pre] =>
+        inv.ref.decl.importedArguments.getOrElse(inv.ref.decl.args).zipWithIndex
+          .foreach { case (a, i) =>
+            addTypeGuess(getVariable(inv.args(i)), Set.empty, _ => a.t)
+          }
+    }
+
+    typeGuesses.foreachEntry((k, v) =>
+      v.depends.filter(typeGuesses.contains)
+        .foreach(typeGuesses.get(_).foreach(_.dependents.add(k)))
+    )
+    val updateQueue = mutable.ArrayDeque.from(typeGuesses.keys)
+
+    while (updateQueue.nonEmpty) {
+      val obj = updateQueue.removeLast()
+      val guess = typeGuesses(obj)
+      if (guess.update()) { updateQueue.appendAll(guess.dependents) }
+    }
+
+    typeGuesses.foreachEntry((e, t) =>
+      e match {
+        case v: Variable[Pre] => localVariableInferredType(v) = t.currentType
+        case v: LLVMGlobalVariable[Pre] =>
+          globalVariableInferredType(v) = t.currentType
+      }
+    )
   }
 
   def rewriteLocal(local: LLVMLocal[Pre]): Expr[Post] = {
@@ -132,16 +259,14 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteFunctionDef(func: LLVMFunctionDefinition[Pre]): Unit = {
     implicit val o: Origin = func.o
-    val importedDecl = rw.importedDeclarations.find {
-      case procedure: Procedure[Pre] =>
-        func.contract.name == procedure.o.get[SourceName].name
-    }
     val procedure = rw.labelDecls.scope {
-      rw.globalDeclarations.declare(if (importedDecl.isDefined) {
-        val importedProcedure = importedDecl.get.asInstanceOf[Procedure[Pre]]
-        val newArgs = importedProcedure.args.map { it => it.rewriteDefault() }
+      val newArgs = func.importedArguments.getOrElse(func.args).map { it =>
+        it.rewriteDefault()
+      }
+      rw.globalDeclarations.declare(
         new Procedure[Post](
-          returnType = rw.dispatch(importedProcedure.returnType),
+          returnType = rw
+            .dispatch(func.importedReturnType.getOrElse(func.returnType)),
           args =
             rw.variables.collect {
               func.args.zip(newArgs).foreach { case (a, b) =>
@@ -165,28 +290,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           contract = rw.dispatch(func.contract.data.get),
           pure = func.pure,
         )(func.blame)
-      } else {
-        new Procedure[Post](
-          returnType = rw.dispatch(func.returnType),
-          args = rw.variables.collect { func.args.foreach(rw.dispatch) }._1,
-          outArgs = Nil,
-          typeArgs = Nil,
-          body =
-            func.functionBody match {
-              case None => None
-              case Some(functionBody) =>
-                if (func.pure)
-                  Some(GotoEliminator(functionBody match {
-                    case scope: Scope[Pre] => scope;
-                    case other => throw UnexpectedLLVMNode(other)
-                  }).eliminate())
-                else
-                  Some(rw.dispatch(functionBody))
-            },
-          contract = rw.dispatch(func.contract.data.get),
-          pure = func.pure,
-        )(func.blame)
-      })
+      )
     }
     llvmFunctionMap.update(func, procedure)
   }
@@ -295,7 +399,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           }
         }._1,
         Seq(),
-      )(t.o.withContent(new TypeName("struct")))
+      )(t.o.withContent(TypeName("struct")))
 
     rw.globalDeclarations.declare(newStruct)
     structMap(t) = newStruct
@@ -461,6 +565,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           (expr, LLVMTStruct[Pre](name, packed, inner +: elements.tail))
         }
       }
+      // Save the expensive check for last. This check is for when we're mixing PVL and LLVM types
+      case LLVMTPointer(Some(inner))
+          if rw.dispatch(inner) == rw.dispatch(untilType) =>
+        Some((pointer, currentType))
       case _ => None
     }
   }
@@ -526,69 +634,100 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case LLVMPointerValue(Ref(v)) =>
         globalVariableInferredType
           .getOrElse(v.asInstanceOf[LLVMGlobalVariable[Pre]], e.t)
+      case _ => e.t
     }
 
   def rewriteStore(store: LLVMStore[Pre]): Statement[Post] = {
     implicit val o: Origin = store.o
     val pointerInferredType = getInferredType(store.pointer)
+    val valueInferredType = getInferredType(store.value)
     val (pointer, inferredType) = derefUntil(
       rw.dispatch(store.pointer),
       pointerInferredType,
-      store.value.t,
-    ).getOrElse((
-      Cast(
-        rw.dispatch(store.pointer),
-        TypeValue(TPointer(rw.dispatch(store.value.t))),
-      ),
-      store.value.t,
-    ))
+      valueInferredType,
+    ).map { case (pointer, typ) => (DerefPointer(pointer)(store.blame), typ) }
+      .getOrElse {
+        if (store.value.t.asPointer.isDefined) {
+          // TODO: How do we deal with this
+          ???
+        } else {
+          (
+            DerefPointer(Cast(
+              rw.dispatch(store.pointer),
+              TypeValue(TPointer(rw.dispatch(valueInferredType))),
+            ))(store.blame),
+            pointerInferredType,
+          )
+        }
+      }
     // TODO: Fix assignfailed blame
-    Assign(DerefPointer(pointer)(store.blame), rw.dispatch(store.value))(
-      store.blame
-    )
+    Assign(pointer, rw.dispatch(store.value))(store.blame)
   }
 
-  def rewriteLoad(load: LLVMLoad[Pre]): Expr[Post] = {
+  def rewriteLoad(load: LLVMLoad[Pre]): Statement[Post] = {
     implicit val o: Origin = load.o
     val pointerInferredType = getInferredType(load.pointer)
+    val destinationInferredType = localVariableInferredType
+      .getOrElse(load.variable.decl, load.loadType)
     val (pointer, inferredType) = derefUntil(
       rw.dispatch(load.pointer),
       pointerInferredType,
-      load.loadType,
-    ).getOrElse((
-      Cast(rw.dispatch(load.pointer), TypeValue(rw.dispatch(load.loadType))),
-      load.loadType,
-    ))
-    DerefPointer(pointer)(load.blame)
+      destinationInferredType,
+    ).map { case (pointer, typ) => (DerefPointer(pointer)(load.blame), typ) }
+      .getOrElse {
+        if (destinationInferredType.asPointer.isDefined) {
+          // We need to dereference before casting
+          (
+            Cast(
+              DerefPointer(rw.dispatch(load.pointer))(load.blame),
+              TypeValue(rw.dispatch(destinationInferredType)),
+            ),
+            pointerInferredType,
+          )
+        } else {
+          (
+            DerefPointer(Cast(
+              rw.dispatch(load.pointer),
+              TypeValue(TPointer(rw.dispatch(destinationInferredType))),
+            ))(load.blame),
+            pointerInferredType,
+          )
+        }
+      }
+    assignLocal(Local(rw.succ(load.variable.decl)), pointer)
   }
 
-  def rewriteAllocA(alloc: LLVMAllocA[Pre]): Expr[Post] = {
+  def rewriteAllocA(alloc: LLVMAllocA[Pre]): Statement[Post] = {
     implicit val o: Origin = alloc.o
-    val t = rw.dispatch(alloc.allocationType)
-    val v = new Variable[Post](TPointer(t))(alloc.o)
-    alloc.allocationType match {
+    val t =
+      localVariableInferredType.getOrElse(
+        alloc.variable.decl,
+        LLVMTPointer(Some(alloc.allocationType)),
+      ).asPointer.get.element
+    val newT = rw.dispatch(t)
+    val v = Local[Post](rw.succ(alloc.variable.decl))
+    val elements = rw.dispatch(alloc.numElements)
+    t match {
       case structType: LLVMTStruct[Pre] =>
-        With(
-          Block(Seq(
-            LocalDecl(v),
-            assignLocal(
-              v.get,
-              NewPointerArray[Post](
-                rw.dispatch(alloc.allocationType),
-                rw.dispatch(alloc.numElements),
-              )(PanicBlame("allocation should never fail")),
-            ),
-            Assign(
-              DerefPointer(v.get)(alloc.o),
-              NewObject[Post](structMap.ref(structType)),
-            )(PanicBlame("assignment should never fail")),
-          )),
-          v.get,
-        )
-      case _ =>
-        NewPointerArray[Post](t, rw.dispatch(alloc.numElements))(PanicBlame(
-          "allocation should never fail"
+        Block(Seq(
+          assignLocal(
+            v,
+            NewPointerArray[Post](newT, elements)(PanicBlame(
+              "allocation should never fail"
+            )),
+          ),
+          Assign(
+            DerefPointer(v)(PanicBlame("pointer is framed in allocation")),
+            NewObject[Post](structMap.ref(structType)),
+          )(PanicBlame("assignment should never fail")),
         ))
+      case _ =>
+        assignLocal(
+          v,
+          NewPointerArray[Post](newT, elements)(PanicBlame(
+            "allocation should never fail"
+          )),
+        )
     }
   }
 

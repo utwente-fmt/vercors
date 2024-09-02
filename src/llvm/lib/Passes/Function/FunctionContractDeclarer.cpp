@@ -52,7 +52,8 @@ FunctionContractDeclarerPass::run(Function &F, FunctionAnalysisManager &FAM) {
     if (!F.hasMetadata(pallas::constants::METADATA_CONTRACT_KEYWORD)) {
         // set contract to a tautology
         colContract.set_value("requires true;");
-        colContract.set_allocated_origin(new col::Origin());
+        colContract.set_allocated_origin(
+            llvm2col::generateFunctionContractOrigin(F, "requires true;"));
         return PreservedAnalyses::all();
     }
     // concatenate all contract lines with new lines

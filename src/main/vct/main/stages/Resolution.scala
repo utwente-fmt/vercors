@@ -155,8 +155,8 @@ case class Resolution[G <: Generation](
         val ast = LangTypesToCol()
           .dispatch(Program(importedDeclarations)(blameProvider()))
         ResolveReferences.resolve(ast, javaParser, llvmParser, Seq())
-        LangSpecificToCol(generatePermissions, veymontAllowAssign, Seq())
-          .dispatch(ast).asInstanceOf[Program[Rewritten[G]]].declarations
+        LangSpecificToCol(generatePermissions, veymontAllowAssign).dispatch(ast)
+          .asInstanceOf[Program[Rewritten[G]]].declarations
       }
     ResolveReferences
       .resolve(typedProgram, javaParser, llvmParser, typedImports) match {
@@ -166,7 +166,6 @@ case class Resolution[G <: Generation](
     val resolvedProgram = LangSpecificToCol(
       generatePermissions,
       veymontAllowAssign,
-      typedImports,
     ).dispatch(typedProgram)
     resolvedProgram.check match {
       case Nil => // ok

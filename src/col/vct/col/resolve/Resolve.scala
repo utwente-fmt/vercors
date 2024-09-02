@@ -1117,8 +1117,18 @@ case object ResolveReferences extends LazyLogging {
           ) =>
         portName.data = Some((cls, getLit(name)))
 
+      case func: LLVMFunctionDefinition[G] =>
+        val importedDecl = ctx.importedDeclarations.find {
+          case procedure: Procedure[G] =>
+            func.contract.name == procedure.o.get[SourceName].name
+        }
+        if (importedDecl.isDefined) {
+          val importedProcedure = importedDecl.get.asInstanceOf[Procedure[G]]
+          func.importedArguments = Some(importedProcedure.args)
+          func.importedReturnType = Some(importedProcedure.returnType)
+        }
       case contract: LLVMFunctionContract[G] =>
-        implicit val o: Origin = contract.o
+//        implicit val o: Origin = contract.o
         val llvmFunction =
           ctx.currentResult.get.asInstanceOf[RefLLVMFunctionDefinition[G]].decl
         val applicableContract = ctx.llvmSpecParser.parse(contract, contract.o)
@@ -1129,6 +1139,7 @@ case object ResolveReferences extends LazyLogging {
         if (importedDecl.isDefined) {
           val importedProcedure = importedDecl.get.asInstanceOf[Procedure[G]]
           val importedContract = importedProcedure.contract
+          implicit val o: Origin = importedContract.o
           val substitute = Substitute[G](
             ((Result[G](importedProcedure.ref) -> AmbiguousResult[G]()) +:
               importedProcedure.args.zipWithIndex.map { case (l, idx) =>
