@@ -156,11 +156,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
     }
 
-    def getVariable(expr: Expr[Pre]): Object = {
+    def getVariable(expr: Expr[Pre]): Option[Object] = {
       expr match {
-        case Local(Ref(v)) => v
-        case LLVMPointerValue(Ref(g)) => g
-        case _ => ???
+        case Local(Ref(v)) => Some(v)
+        case LLVMPointerValue(Ref(g)) => Some(g)
+        case _ => None
       }
     }
 
@@ -190,34 +190,39 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           _ => LLVMTPointer(Some(alloc.allocationType)),
         )
       case gep: LLVMGetElementPointer[Pre] =>
-        addTypeGuess(
-          getVariable(gep.pointer),
-          Set.empty,
-          _ => LLVMTPointer(Some(gep.structureType)),
+        getVariable(gep.pointer).foreach(v =>
+          addTypeGuess(v, Set.empty, _ => LLVMTPointer(Some(gep.structureType)))
         )
       case load: LLVMLoad[Pre] =>
-        addTypeGuess(
-          getVariable(load.pointer),
-          Set(load.variable.decl),
-          _ =>
-            LLVMTPointer(Some(
-              typeGuesses.get(load.variable.decl).map(_.currentType)
-                .getOrElse(load.variable.decl.t)
-            )),
+        getVariable(load.pointer).foreach(v =>
+          addTypeGuess(
+            v,
+            Set(load.variable.decl),
+            _ =>
+              LLVMTPointer(Some(
+                typeGuesses.get(load.variable.decl).map(_.currentType)
+                  .getOrElse(load.variable.decl.t)
+              )),
+          )
         )
         addTypeGuess(load.variable.decl, Set.empty, _ => load.variable.decl.t)
       case store: LLVMStore[Pre] =>
         val dependencies = findDependencies(store.value)
-        addTypeGuess(
-          getVariable(store.pointer),
-          dependencies,
-          _ =>
-            LLVMTPointer(Some(replaceWithGuesses(store.value, dependencies).t)),
+        getVariable(store.pointer).foreach(v =>
+          addTypeGuess(
+            v,
+            dependencies,
+            _ =>
+              LLVMTPointer(
+                Some(replaceWithGuesses(store.value, dependencies).t)
+              ),
+          )
         )
       case inv: LLVMFunctionInvocation[Pre] =>
         inv.ref.decl.importedArguments.getOrElse(inv.ref.decl.args).zipWithIndex
           .foreach { case (a, i) =>
-            addTypeGuess(getVariable(inv.args(i)), Set.empty, _ => a.t)
+            getVariable(inv.args(i))
+              .foreach(v => addTypeGuess(v, Set.empty, _ => a.t))
           }
     }
 
