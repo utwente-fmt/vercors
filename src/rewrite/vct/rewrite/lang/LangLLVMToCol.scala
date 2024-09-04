@@ -802,11 +802,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   the program.
    */
   case class GotoEliminator(bodyScope: Scope[Pre]) extends LazyLogging {
-    val labelDeclMap: Map[LabelDecl[Pre], Label[Pre]] =
+    val labelDeclMap: Map[LabelDecl[Pre], LLVMBasicBlock[Pre]] =
       bodyScope.body match {
         case block: Block[Pre] =>
           block.statements.map {
-            case label: Label[Pre] => (label.decl, label)
+            case bb: LLVMBasicBlock[Pre] => (bb.label, bb)
             case other => throw UnexpectedLLVMNode(other)
           }.toMap
         case other => throw UnexpectedLLVMNode(other)
@@ -820,7 +820,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             scope.body match {
               case bodyBlock: Block[Pre] =>
                 Block[Post](bodyBlock.statements.head match {
-                  case label: Label[Pre] => Seq(eliminate(label))
+                  case label: LLVMBasicBlock[Pre] => Seq(eliminate(label))
                   case other => throw UnexpectedLLVMNode(other)
                 })(scope.body.o)
               case other => throw UnexpectedLLVMNode(other)
@@ -830,9 +830,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
     }
 
-    def eliminate(label: Label[Pre]): Block[Post] = {
-      implicit val o: Origin = label.o
-      label.stat match {
+    def eliminate(bb: LLVMBasicBlock[Pre]): Block[Post] = {
+      implicit val o: Origin = bb.o
+      bb.body match {
         case block: Block[Pre] =>
           block.statements.last match {
             case goto: Goto[Pre] =>
