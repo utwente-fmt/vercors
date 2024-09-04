@@ -88,7 +88,7 @@ void llvm2col::transformConditionalBranch(llvm::BranchInst &llvmBrInstruction,
         funcCursor.getOrSetLLVMBlock2LabeledColBlockEntry(*llvmTrueBlock);
     // goto statement to true block
     col::Goto *trueGoto = colTrueBranch->mutable_v2()->mutable_goto_();
-    trueGoto->mutable_lbl()->set_id(labeledTrueColBlock.label.decl().id());
+    trueGoto->mutable_lbl()->set_id(labeledTrueColBlock.bb.label().id());
     // set origin for goto to true block
     trueGoto->set_allocated_origin(
         generateSingleStatementOrigin(llvmBrInstruction));
@@ -113,7 +113,7 @@ void llvm2col::transformConditionalBranch(llvm::BranchInst &llvmBrInstruction,
         funcCursor.getOrSetLLVMBlock2LabeledColBlockEntry(*llvmFalseBlock);
     // goto statement to false block
     col::Goto *falseGoto = colFalseBranch->mutable_v2()->mutable_goto_();
-    falseGoto->mutable_lbl()->set_id(labeledFalseColBlock.label.decl().id());
+    falseGoto->mutable_lbl()->set_id(labeledFalseColBlock.bb.label().id());
     // set origin for goto to false block
     falseGoto->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(llvmBrInstruction));
@@ -132,7 +132,7 @@ void llvm2col::transformUnConditionalBranch(
         funcCursor.getOrSetLLVMBlock2LabeledColBlockEntry(*llvmTargetBlock);
     // create goto to target labeled block
     col::Goto *colGoto = colBlock.add_statements()->mutable_goto_();
-    colGoto->mutable_lbl()->set_id(labeledColBlock.label.decl().id());
+    colGoto->mutable_lbl()->set_id(labeledColBlock.bb.label().id());
     // set origin of goto statement
     colGoto->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(llvmBrInstruction));

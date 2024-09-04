@@ -434,29 +434,6 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
         case proof: FramedProof[Pre] => rewriteDefault(proof)
         case extract: Extract[Pre] => rewriteDefault(extract)
         case branch: IndetBranch[Pre] => rewriteDefault(branch)
-        case LLVMLoop(cond, contract, body) =>
-          evaluateOne(cond) match {
-            case (Nil, Nil, cond) =>
-              LLVMLoop(cond, dispatch(contract), dispatch(body))
-            case (variables, sideEffects, cond) =>
-              val break = new LabelDecl[Post]()(BreakOrigin)
-              Block(Seq(
-                LLVMLoop(
-                  tt,
-                  dispatch(contract),
-                  Block(Seq(
-                    Scope(
-                      variables,
-                      Block(
-                        sideEffects :+ Branch(Seq(Not(cond) -> Goto(break.ref)))
-                      ),
-                    ),
-                    dispatch(body),
-                  )),
-                ),
-                Label(break, Block(Nil)),
-              ))
-          }
         case rangedFor: RangedFor[Pre] => rewriteDefault(rangedFor)
         case assign: VeyMontAssignExpression[Pre] => rewriteDefault(assign)
         case comm: CommunicateX[Pre] => rewriteDefault(comm)

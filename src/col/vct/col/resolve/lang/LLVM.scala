@@ -35,4 +35,8 @@ object LLVM {
     }
   }
 
+  def scanBlocks[G](node: Node[G]): Map[LabelDecl[G], LLVMBasicBlock[G]] = {
+    node.collect { case b: LLVMBasicBlock[G] => (b.label, b) }.toMap
+  }
+
 }

@@ -33,6 +33,8 @@ case class ReferenceResolutionContext[G](
     // When true and resolving a local, guard names should also be considered
     javaBipGuardsEnabled: Boolean = false,
     typeEnv: Map[Variable[G], Type[G]] = Map.empty[Variable[G], Type[G]],
+    llvmBlocks: Map[LabelDecl[G], LLVMBasicBlock[G]] = Map
+      .empty[LabelDecl[G], LLVMBasicBlock[G]],
 ) {
   def asTypeResolutionContext: TypeResolutionContext[G] =
     TypeResolutionContext(

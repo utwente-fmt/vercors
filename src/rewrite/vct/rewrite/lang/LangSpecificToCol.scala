@@ -159,6 +159,7 @@ case class LangSpecificToCol[Pre <: Generation](
   }
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
+    llvm.gatherBackEdges(program)
     llvm.gatherTypeHints(program)
     super.dispatch(program)
   }
@@ -263,6 +264,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case CPPDeclarationStatement(decl) => cpp.rewriteLocalDecl(decl)
       case scope: CPPLifetimeScope[Pre] => cpp.rewriteLifetimeScope(scope)
       case goto: CGoto[Pre] => c.rewriteGoto(goto)
+      case goto: Goto[Pre] => llvm.rewriteGoto(goto)
       case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
 
       case eval @ Eval(CPPInvocation(_, _, _, _)) =>
@@ -278,6 +280,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case load: LLVMLoad[Pre] => llvm.rewriteLoad(load)
       case store: LLVMStore[Pre] => llvm.rewriteStore(store)
       case alloc: LLVMAllocA[Pre] => llvm.rewriteAllocA(alloc)
+      case block: LLVMBasicBlock[Pre] => llvm.rewriteBasicBlock(block)
       case other => other.rewriteDefault()
     }
 

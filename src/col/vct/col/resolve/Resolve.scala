@@ -557,7 +557,10 @@ case object ResolveReferences extends LazyLogging {
             func.contract.givenArgs ++ func.contract.yieldsArgs
         )
       case func: LLVMFunctionDefinition[G] =>
-        ctx.copy(currentResult = Some(RefLLVMFunctionDefinition(func)))
+        ctx.copy(
+          currentResult = Some(RefLLVMFunctionDefinition(func)),
+          llvmBlocks = LLVM.scanBlocks(func),
+        )
       case func: LLVMSpecFunction[G] =>
         ctx.copy(currentResult = Some(RefLLVMSpecFunction(func)))
           .declare(func.args)
@@ -1127,6 +1130,18 @@ case object ResolveReferences extends LazyLogging {
           func.importedArguments = Some(importedProcedure.args)
           func.importedReturnType = Some(importedProcedure.returnType)
         }
+      case loop: LLVMLoop[G] =>
+        loop.blocks = Some(loop.blockLabels.map { label =>
+          ctx.llvmBlocks.get(label.decl) match {
+            case Some(block) => block
+            case None =>
+              throw Unreachable(
+                "LLVM Loop information must only refer to basic blocks contained in the function"
+              )
+          }
+        })
+        loop.headerBlock = Some(ctx.llvmBlocks(loop.header.decl))
+        loop.latchBlock = Some(ctx.llvmBlocks(loop.latch.decl))
       case contract: LLVMFunctionContract[G] =>
 //        implicit val o: Origin = contract.o
         val llvmFunction =

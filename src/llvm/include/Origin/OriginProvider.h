@@ -2,6 +2,7 @@
 #define PALLAS_ORIGINPROVIDER_H
 
 #include "vct/col/ast/Origin.pb.h"
+#include <llvm/Analysis/LoopInfo.h>
 #include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
@@ -15,6 +16,8 @@
  */
 namespace llvm2col {
 namespace col = vct::col::ast;
+
+col::Origin *generateLabelledOrigin(const std::string label);
 
 col::Origin *generateProgramOrigin(llvm::Module &llvmModule);
 
@@ -31,6 +34,8 @@ col::Origin *generateArgumentOrigin(llvm::Argument &llvmArgument);
 col::Origin *generateBlockOrigin(llvm::BasicBlock &llvmBlock);
 
 col::Origin *generateLabelOrigin(llvm::BasicBlock &llvmBlock);
+
+col::Origin *generateLoopOrigin(llvm::Loop &llvmLoop);
 
 col::Origin *generateSingleStatementOrigin(llvm::Instruction &llvmInstruction);
 

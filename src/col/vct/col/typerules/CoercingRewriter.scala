@@ -357,7 +357,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: BipGlueDataWire[Pre] => node
       case node: BipTransitionSignature[Pre] => node
       case node: LLVMFunctionContract[Pre] => node
-      case node: LLVMLoopContract[Pre] => node
       case node: LLVMMemoryOrdering[Pre] => node
       case node: ProverLanguage[Pre] => node
       case node: SmtlibFunctionSymbol[Pre] => node
@@ -2270,8 +2269,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case l @ Lock(obj) => Lock(cls(obj))(l.blame)
       case Loop(init, cond, update, contract, body) =>
         Loop(init, bool(cond), update, contract, body)
-      case LLVMLoop(cond, contract, body) =>
-        LLVMLoop(bool(cond), contract, body)
       case LLVMAllocA(variable, allocationType, numElements) =>
         LLVMAllocA(variable, allocationType, int(numElements))
       case load @ LLVMLoad(variable, loadType, p, ordering) =>
@@ -2977,7 +2974,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Pre] = node
 
   def coerce(node: LLVMFunctionContract[Pre]): LLVMFunctionContract[Pre] = node
-  def coerce(node: LLVMLoopContract[Pre]): LLVMLoopContract[Pre] = node
+  def coerce(node: LLVMLoop[Pre]): LLVMLoop[Pre] = node
   def coerce(node: LLVMMemoryOrdering[Pre]): LLVMMemoryOrdering[Pre] = node
 
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node

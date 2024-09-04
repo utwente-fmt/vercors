@@ -79,23 +79,24 @@ bool FunctionCursor::isComplete(col::Block &colBlock) {
 LabeledColBlock &
 FunctionCursor::getOrSetLLVMBlock2LabeledColBlockEntry(BasicBlock &llvmBlock) {
     if (!llvmBlock2LabeledColBlock.contains(&llvmBlock)) {
-        // create label in buffer
-        col::Label *label = functionBody.add_statements()->mutable_label();
-        // set label origin
-        label->set_allocated_origin(llvm2col::generateLabelOrigin(llvmBlock));
+        // create basic block in buffer
+        col::LlvmBasicBlock *bb =
+            functionBody.add_statements()->mutable_llvm_basic_block();
+        // set basic block origin
+        bb->set_allocated_origin(llvm2col::generateLabelOrigin(llvmBlock));
         // create label declaration in buffer
-        col::LabelDecl *labelDecl = label->mutable_decl();
+        col::LabelDecl *labelDecl = bb->mutable_label();
         // set label decl origin
         labelDecl->set_allocated_origin(
             llvm2col::generateLabelOrigin(llvmBlock));
         // set label decl id
         llvm2col::setColNodeId(labelDecl);
         // create block inside label statement
-        col::Block *block = label->mutable_stat()->mutable_block();
+        col::Block *block = bb->mutable_body()->mutable_block();
         // set block origin
         block->set_allocated_origin(llvm2col::generateBlockOrigin(llvmBlock));
         // add labeled block to the block2block lut
-        LabeledColBlock labeledColBlock = {*label, *block};
+        LabeledColBlock labeledColBlock = {*bb, *block};
         llvmBlock2LabeledColBlock.insert({&llvmBlock, labeledColBlock});
     }
     return llvmBlock2LabeledColBlock.at(&llvmBlock);

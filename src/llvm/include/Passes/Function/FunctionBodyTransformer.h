@@ -16,7 +16,7 @@ using namespace llvm;
 namespace col = vct::col::ast;
 
 struct LabeledColBlock {
-    col::Label &label;
+    col::LlvmBasicBlock &bb;
     col::Block &block;
 };
 

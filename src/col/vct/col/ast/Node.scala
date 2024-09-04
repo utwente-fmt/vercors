@@ -3555,22 +3555,25 @@ final case class LLVMFunctionInvocation[G](
 )(val blame: Blame[InvocationFailure])(implicit val o: Origin)
     extends Apply[G] with LLVMFunctionInvocationImpl[G]
 
-final case class LLVMLoop[G](
-    cond: Expr[G],
-    contract: LLVMLoopContract[G],
-    body: Statement[G],
+final class LLVMBasicBlock[G](
+    val label: LabelDecl[G],
+    val loop: Option[LLVMLoop[G]],
+    val body: Statement[G],
 )(implicit val o: Origin)
-    extends CompositeStatement[G] with LLVMLoopImpl[G]
+    extends LLVMStatement[G] with LLVMBasicBlockImpl[G]
 
 @family
-sealed trait LLVMLoopContract[G]
-    extends NodeFamily[G] with LLVMLoopContractImpl[G]
-
-final case class LLVMLoopInvariant[G](
-    value: String,
-    references: Seq[(String, Ref[G, Declaration[G]])],
-)(val blame: Blame[LoopInvariantFailure])(implicit val o: Origin)
-    extends LLVMLoopContract[G] with LLVMLoopInvariantImpl[G]
+final case class LLVMLoop[G](
+    contract: LoopContract[G],
+    header: Ref[G, LabelDecl[G]],
+    latch: Ref[G, LabelDecl[G]],
+    blockLabels: Seq[Ref[G, LabelDecl[G]]],
+)(implicit val o: Origin)
+    extends NodeFamily[G] with LLVMLoopImpl[G] {
+  var headerBlock: Option[LLVMBasicBlock[G]] = None
+  var latchBlock: Option[LLVMBasicBlock[G]] = None
+  var blocks: Option[Seq[LLVMBasicBlock[G]]] = None
+}
 
 sealed trait LLVMStatement[G] extends Statement[G] with LLVMStatementImpl[G]
 

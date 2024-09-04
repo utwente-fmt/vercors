@@ -2,11 +2,11 @@ package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
-import vct.col.origin.{Origin, PanicBlame, TypeName}
+import vct.col.origin.{DiagnosticOrigin, Origin, PanicBlame, TypeName}
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.resolve.ctx.RefLLVMFunctionDefinition
 import vct.col.rewrite.{Generation, Rewritten}
-import vct.col.util.AstBuildHelpers.assignLocal
+import vct.col.util.AstBuildHelpers._
 import vct.col.util.{CurrentProgramContext, SubstituteReferences, SuccessionMap}
 import vct.result.VerificationError.{SystemError, UserError}
 
@@ -57,6 +57,15 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       : mutable.HashMap[LLVMGlobalVariable[Pre], Type[Pre]] = mutable.HashMap()
   private val localVariableInferredType
       : mutable.HashMap[Variable[Pre], Type[Pre]] = mutable.HashMap()
+  private val loopBlocks: mutable.ArrayBuffer[LLVMBasicBlock[Pre]] = mutable
+    .ArrayBuffer()
+  private val elidedBackEdges: mutable.Set[LabelDecl[Pre]] = mutable.Set()
+
+  def gatherBackEdges(program: Program[Pre]): Unit = {
+    program.collect { case loop: LLVMLoop[Pre] =>
+      elidedBackEdges.add(loop.header.decl)
+    }
+  }
 
   def gatherTypeHints(program: Program[Pre]): Unit = {
     // TODO: We also need to do something where we only keep structurally distinct types
@@ -749,6 +758,40 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def result(ref: RefLLVMFunctionDefinition[Pre])(
       implicit o: Origin
   ): Expr[Post] = Result[Post](llvmFunctionMap.ref(ref.decl))
+
+  private def blockToLabel(block: LLVMBasicBlock[Pre]): Statement[Post] =
+    if (elidedBackEdges.contains(block.label)) { rw.dispatch(block.body) }
+    else {
+      Label(rw.labelDecls.dispatch(block.label), rw.dispatch(block.body))(
+        block.o
+      )
+    }
+
+  def rewriteBasicBlock(block: LLVMBasicBlock[Pre]): Statement[Post] = {
+    if (loopBlocks.contains(block))
+      return Block(Nil)(DiagnosticOrigin)
+    if (block.loop.isEmpty) { blockToLabel(block) }
+    else {
+      val loop = block.loop.get
+      loopBlocks.addAll(loop.blocks.get)
+      Loop(
+        Block(Nil)(block.o),
+        tt[Post],
+        Block(Nil)(block.o),
+        rw.dispatch(loop.contract),
+        Block(blockToLabel(loop.headerBlock.get) +: loop.blocks.get.filterNot {
+          b => b == loop.headerBlock.get || b == loop.latchBlock.get
+        }.map(blockToLabel) :+ blockToLabel(loop.latchBlock.get))(block.o),
+      )(block.o)
+    }
+  }
+
+  def rewriteGoto(goto: Goto[Pre]): Statement[Post] = {
+    if (elidedBackEdges.contains(goto.lbl.decl)) {
+      // TODO: Verify that the correct block always follows this one
+      Block(Nil)(goto.o)
+    } else { goto.rewriteDefault() }
+  }
 
   /*
   Elimination works by replacing every goto with the block its referring too

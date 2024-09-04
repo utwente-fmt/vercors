@@ -8,6 +8,15 @@
 
 namespace col = vct::col::ast;
 
+col::Origin *llvm2col::generateLabelledOrigin(const std::string label) {
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *labelContent = origin->add_content();
+    col::LabelContext *labelContext = labelContent->mutable_label_context();
+    labelContext->set_label(label);
+
+    return origin;
+}
+
 col::Origin *llvm2col::generateProgramOrigin(llvm::Module &llvmModule) {
     col::Origin *origin = new col::Origin();
     col::OriginContent *preferredNameContent = origin->add_content();
@@ -123,9 +132,8 @@ col::Origin *llvm2col::generateLabelOrigin(llvm::BasicBlock &llvmBlock) {
     return origin;
 }
 
-bool generateDebugOrigin(llvm::Instruction &llvmInstruction,
-                         col::Origin *origin) {
-    const llvm::DebugLoc &loc = llvmInstruction.getDebugLoc();
+bool generateDebugOrigin(const llvm::DebugLoc &loc, col::Origin *origin,
+                         const llvm::DebugLoc &endLoc = NULL) {
     if (!loc)
         return false;
     int line = loc.getLine() - 1;
@@ -133,8 +141,14 @@ bool generateDebugOrigin(llvm::Instruction &llvmInstruction,
     col::OriginContent *positionRangeContent = origin->add_content();
     col::PositionRange *positionRange = new col::PositionRange();
     positionRange->set_start_line_idx(line);
-    positionRange->set_end_line_idx(line);
     positionRange->set_start_col_idx(col);
+    if (endLoc) {
+        positionRange->set_end_line_idx(endLoc.getLine() - 1);
+        // Would it be better without setting the end col?
+        positionRange->set_end_col_idx(endLoc.getCol() - 1);
+    } else {
+        positionRange->set_end_line_idx(line);
+    }
     positionRangeContent->set_allocated_position_range(positionRange);
     auto *scope = llvm::cast<llvm::DIScope>(loc.getScope());
     auto *file = scope->getFile();
@@ -170,6 +184,21 @@ bool generateDebugOrigin(llvm::Instruction &llvmInstruction,
     return true;
 }
 
+col::Origin *llvm2col::generateLoopOrigin(llvm::Loop &llvmLoop) {
+    col::Origin *origin = new col::Origin();
+    llvm::Loop::LocRange range = llvmLoop.getLocRange();
+    if (!generateDebugOrigin(range.getStart(), origin, range.getEnd())) {
+        llvm::BasicBlock *llvmBlock = llvmLoop.getHeader();
+        col::OriginContent *contextContent = origin->add_content();
+        col::Context *context = new col::Context();
+        context->set_context(deriveBlockContext(*llvmBlock));
+        context->set_inline_context(deriveBlockContext(*llvmBlock));
+        context->set_short_position(deriveBlockShortPosition(*llvmBlock));
+        contextContent->set_allocated_context(context);
+    }
+    return origin;
+}
+
 col::Origin *
 llvm2col::generateSingleStatementOrigin(llvm::Instruction &llvmInstruction) {
     col::Origin *origin = new col::Origin();
@@ -179,7 +208,7 @@ llvm2col::generateSingleStatementOrigin(llvm::Instruction &llvmInstruction) {
         deriveOperandPreferredName(llvmInstruction));
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
-    if (!generateDebugOrigin(llvmInstruction, origin)) {
+    if (!generateDebugOrigin(llvmInstruction.getDebugLoc(), origin)) {
         col::OriginContent *contextContent = origin->add_content();
         col::Context *context = new col::Context();
         context->set_context(
@@ -201,7 +230,7 @@ llvm2col::generateAssignTargetOrigin(llvm::Instruction &llvmInstruction) {
     preferredName->add_preferred_name("var");
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
-    if (!generateDebugOrigin(llvmInstruction, origin)) {
+    if (!generateDebugOrigin(llvmInstruction.getDebugLoc(), origin)) {
         col::OriginContent *contextContent = origin->add_content();
         col::Context *context = new col::Context();
         context->set_context(deriveInstructionContext(llvmInstruction));
@@ -217,7 +246,7 @@ llvm2col::generateAssignTargetOrigin(llvm::Instruction &llvmInstruction) {
 col::Origin *
 llvm2col::generateBinExprOrigin(llvm::Instruction &llvmInstruction) {
     col::Origin *origin = new col::Origin();
-    if (!generateDebugOrigin(llvmInstruction, origin)) {
+    if (!generateDebugOrigin(llvmInstruction.getDebugLoc(), origin)) {
         col::OriginContent *contextContent = origin->add_content();
         col::Context *context = new col::Context();
         context->set_context(
@@ -240,7 +269,7 @@ llvm2col::generateFunctionCallOrigin(llvm::CallInst &callInstruction) {
         callInstruction.getCalledFunction()->getName().str());
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
-    if (!generateDebugOrigin(callInstruction, origin)) {
+    if (!generateDebugOrigin(callInstruction.getDebugLoc(), origin)) {
         col::OriginContent *contextContent = origin->add_content();
         col::Context *context = new col::Context();
         context->set_context(
@@ -262,7 +291,7 @@ col::Origin *llvm2col::generateOperandOrigin(llvm::Instruction &llvmInstruction,
     preferredName->add_preferred_name(deriveOperandPreferredName(llvmOperand));
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
-    if (!generateDebugOrigin(llvmInstruction, origin)) {
+    if (!generateDebugOrigin(llvmInstruction.getDebugLoc(), origin)) {
         col::OriginContent *contextContent = origin->add_content();
         col::Context *context = new col::Context();
         context->set_context(deriveInstructionContext(llvmInstruction));
@@ -320,9 +349,8 @@ llvm2col::generateVoidOperandOrigin(llvm::Instruction &llvmInstruction) {
     col::PreferredName *preferredName = new col::PreferredName();
     preferredName->add_preferred_name("void");
     preferredNameContent->set_allocated_preferred_name(preferredName);
-    generateDebugOrigin(llvmInstruction, origin);
 
-    if (!generateDebugOrigin(llvmInstruction, origin)) {
+    if (!generateDebugOrigin(llvmInstruction.getDebugLoc(), origin)) {
         col::OriginContent *contextContent = origin->add_content();
         col::Context *context = new col::Context();
         context->set_context(deriveInstructionContext(llvmInstruction));
