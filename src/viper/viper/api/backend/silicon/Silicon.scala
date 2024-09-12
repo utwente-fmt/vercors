@@ -97,6 +97,7 @@ case class Silicon(
       z3Path.toString,
       "--z3ConfigArgs",
       z3Config,
+      "--exhaleMode=2",
     )
     if (optimizeUnsafe)
       siliconConfig ++= Seq("--parallelizeBranches")
