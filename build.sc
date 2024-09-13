@@ -673,30 +673,8 @@ object vercors extends Module {
       )
     }
 
-    object json extends LinkableModule {
-      def moduleDeps = Nil
-
-      def systemLibraryDeps = T {
-        Seq.empty[String]
-      }
-
-      def staticObjects = T {
-        Seq.empty[PathRef]
-      }
-
-      def dynamicObjects = T {
-        Seq.empty[PathRef]
-      }
-
-      def exportIncludePaths = T {
-        os.write(T.dest / "json.tar.xz", requests.get.stream("https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz"))
-        os.proc("tar", "-xf", T.dest / "json.tar.xz").call(cwd = T.dest)
-        Seq(PathRef(T.dest / "json" / "include"))
-      }
-    }
-
     object origin extends CppModule {
-      def moduleDeps = Seq(llvm, json, proto, protobuf.libprotobuf)
+      def moduleDeps = Seq(llvm, proto, protobuf.libprotobuf)
 
       def sources = T.sources(vcllvm.root() / "lib" / "origin")
 
