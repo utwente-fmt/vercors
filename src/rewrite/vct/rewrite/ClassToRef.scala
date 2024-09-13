@@ -377,7 +377,6 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           case cls: ByValueClass[Pre] =>
             implicit val o: Origin = cls.o
             val axiomType = TAxiomatic[Post](byValClassSucc.ref(cls), Nil)
-            val classType = cls.classType(Nil)
             var valueAsAxioms: Seq[ADTAxiom[Post]] = Seq()
             val (fieldFunctions, fieldInverses, fieldTypes) =
               cls.decls.collect { case field: Field[Pre] =>
@@ -409,12 +408,21 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                     ))
 
                   valueAsAxioms =
-                    valueAsAxioms ++ unwrapValueAs(
-                      axiomType,
-                      field.t,
-                      newT,
-                      byValFieldSucc.ref(field),
-                    )
+                    valueAsAxioms ++
+                      (field.t match {
+                        case t: TByValueClass[Pre] =>
+                          // TODO: If there are no fields we should ignore the first field and add the axioms for the second field
+                          t.cls.decl.decls
+                            .collectFirst({ case innerF: InstanceField[Pre] =>
+                              unwrapValueAs(
+                                axiomType,
+                                innerF.t,
+                                dispatch(innerF.t),
+                                byValFieldSucc.ref(field),
+                              )
+                            }).getOrElse(Nil)
+                        case _ => Nil
+                      })
                 }
                 (
                   byValFieldSucc(field),
