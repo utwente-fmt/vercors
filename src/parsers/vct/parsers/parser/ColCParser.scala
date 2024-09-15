@@ -94,6 +94,6 @@ case class ColCParser(
       val result = ColIParser(debugOptions, blameProvider, Some(baseOrigin))
         .parse[G](ireadable)
       result
-    } finally { Files.delete(interpreted) }
+    } finally { Files.deleteIfExists(interpreted) }
   }
 }
