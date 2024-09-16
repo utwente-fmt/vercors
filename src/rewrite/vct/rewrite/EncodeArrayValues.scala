@@ -104,7 +104,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       : mutable.Map[(Type[Pre], Int, Int, Boolean), Procedure[Post]] = mutable
     .Map()
 
-  val pointerArrayCreationMethods: mutable.Map[Type[Pre], Procedure[Post]] =
+  val pointerArrayCreationMethods: mutable.Map[(Type[Pre], Boolean), Procedure[Post]] =
     mutable.Map()
 
   val freeMethods: mutable.Map[Type[
@@ -503,10 +503,10 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       case _ => false
     }
 
-  def makePointerCreationMethodFor(elementType: Type[Pre]) = {
+  def makePointerCreationMethodFor(elementType: Type[Pre], fallible: Boolean) = {
     implicit val o: Origin = arrayCreationOrigin
-    // ar != null
-    // ar.length == dim0
+    // fallible? then 'ar != null ==> ...'; otherwise 'ar != null ** ...'
+    // ar.length == size
     // forall ar[i] :: Perm(ar[i], write)
     // (if type ar[i] is pointer or struct):
     // forall i,j :: i!=j ==> ar[i] != ar[j]
@@ -528,7 +528,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         Seq(access(i), access(j)),
       )
 
-      var ensures = (result !== Null()) &*
+      var ensures =
         (PointerBlockLength(result)(FramedPtrBlockLength) === sizeArg.get) &*
         (PointerBlockOffset(result)(FramedPtrBlockOffset) === zero)
       // Pointer location needs pointer add, not pointer subscript
@@ -557,6 +557,12 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         else
           ensures &* foldStar(permFields.map(_._1))
 
+      ensures =
+        if (!fallible)
+          (result !== Null()) &* ensures
+        else
+          Star(Implies(result !== Null(), ensures), tt)
+
       procedure(
         blame = AbstractApplicable,
         contractBlame = TrueSatisfiable,
@@ -564,7 +570,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         args = Seq(sizeArg),
         requires = UnitAccountedPredicate(requires),
         ensures = UnitAccountedPredicate(ensures),
-      )(o.where(name = "make_pointer_array_" + elementType.toString))
+      )(o.where(name = "make_pointer_array_" + elementType.toString + (if (fallible) "_fallible" else "")))
     }))
   }
 
@@ -595,9 +601,9 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
         )(ArrayCreationFailed(newArr))
-      case newPointerArr @ NewPointerArray(element, size) =>
+      case newPointerArr @ NewPointerArray(element, size, fallible) =>
         val method = pointerArrayCreationMethods
-          .getOrElseUpdate(element, makePointerCreationMethodFor(element))
+          .getOrElseUpdate((element, fallible), makePointerCreationMethodFor(element, fallible))
         ProcedureInvocation[Post](
           method.ref,
           Seq(dispatch(size)),
