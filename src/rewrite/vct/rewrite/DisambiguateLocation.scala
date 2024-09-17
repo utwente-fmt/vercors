@@ -2,8 +2,17 @@ package vct.col.rewrite
 
 import vct.col.ast._
 import vct.col.rewrite.DisambiguateLocation.NotALocation
-import vct.col.origin.{Blame, Origin, PointerLocationError}
+import vct.col.origin.{
+  Blame,
+  Origin,
+  PanicBlame,
+  PointerAddError,
+  PointerBounds,
+  PointerLocationError,
+  PointerNull,
+}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.util.AstBuildHelpers.const
 import vct.result.VerificationError.UserError
 
 case object DisambiguateLocation extends RewriterBuilder {
@@ -25,6 +34,18 @@ case object DisambiguateLocation extends RewriterBuilder {
         "This expression is not a heap location." + hint.getOrElse("")
       )
   }
+
+  case class PointerAddRedirect(blame: Blame[PointerLocationError])
+      extends Blame[PointerAddError] {
+    override def blame(error: PointerAddError): Unit =
+      error match {
+        case nil: PointerNull => blame.blame(nil)
+        // It should not be possible to acquire an out-of-bounds pointer and pass it around
+        case bounds: PointerBounds =>
+          PanicBlame("Got location of pointer that was out of bounds")
+      }
+  }
+
   override def key: String = "disambiguateLocation"
 
   override def desc: String =
@@ -32,12 +53,24 @@ case object DisambiguateLocation extends RewriterBuilder {
 }
 
 case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
+  import DisambiguateLocation._
+
   def exprToLoc(expr: Expr[Pre], blame: Blame[PointerLocationError])(
       implicit o: Origin
   ): Location[Post] =
     expr match {
       case expr if expr.t.asPointer.isDefined =>
-        PointerLocation(dispatch(expr))(blame)
+        expr match {
+          case e: PointerAdd[Pre] => PointerLocation(dispatch(e))(blame)
+          // Adding ptr + 0 for triggering purposes (is there a better place to do this transformation?)
+          case e =>
+            PointerLocation(
+              PointerAdd[Post](dispatch(e), const[Post](0))(PointerAddRedirect(
+                blame
+              ))
+            )(blame)
+        }
+
       case expr if expr.t.isInstanceOf[TByValueClass[Pre]] =>
         ByValueClassLocation(dispatch(expr))(blame)
       case DerefHeapVariable(ref) => HeapVariableLocation(succ(ref.decl))

@@ -712,30 +712,48 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       implicit o: Origin
   ): Expr[Post] = {
     val newT = dispatch(t)
-    val constraint = forall[Post](
-      TNonNullPointer(outerType),
-      body = { p =>
-        PolarityDependent(
-          Greater(
-            CurPerm(PointerLocation(p)(PanicBlame(
-              "Referring to a non-null pointer should not cause any verification failures"
-            ))),
-            NoPerm(),
-          ) ==>
-            (InlinePattern(Cast(p, TypeValue(TNonNullPointer(newT)))) ===
-              adtFunctionInvocation(
-                valueAsFunctions
-                  .getOrElseUpdate(t, makeValueAsFunction(t.toString, newT))
-                  .ref,
-                typeArgs = Some((valueAdt.ref(()), Seq(outerType))),
-                args = Seq(DerefPointer(p)(PanicBlame(
-                  "Pointer deref is safe since the permission is framed"
-                ))),
-              )),
-          tt,
-        )
-      },
-    )
+    val constraint =
+      forall[Post](
+        TNonNullPointer(outerType),
+        body = { p =>
+          PolarityDependent(
+            Greater(
+              CurPerm(PointerLocation(p)(PanicBlame(
+                "Referring to a non-null pointer should not cause any verification failures"
+              ))),
+              NoPerm(),
+            ) ==>
+              (InlinePattern(Cast(p, TypeValue(TNonNullPointer(newT)))) ===
+                adtFunctionInvocation(
+                  valueAsFunctions
+                    .getOrElseUpdate(t, makeValueAsFunction(t.toString, newT))
+                    .ref,
+                  typeArgs = Some((valueAdt.ref(()), Seq(outerType))),
+                  args = Seq(DerefPointer(p)(PanicBlame(
+                    "Pointer deref is safe since the permission is framed"
+                  ))),
+                )),
+            tt,
+          )
+        },
+      ) &* forall[Post](
+        TNonNullPointer(outerType),
+        body = { p =>
+          PolarityDependent(
+            Greater(
+              CurPerm(PointerLocation(p)(PanicBlame(
+                "Referring to a non-null pointer should not cause any verification failures"
+              ))),
+              NoPerm(),
+            ) ==>
+              (InlinePattern(Cast(
+                Cast(p, TypeValue(TNonNullPointer(newT))),
+                TypeValue(TNonNullPointer(outerType)),
+              )) === p),
+            tt,
+          )
+        },
+      )
 
     if (t.isInstanceOf[TByValueClass[Pre]]) {
       constraint &*

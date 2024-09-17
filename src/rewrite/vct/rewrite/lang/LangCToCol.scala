@@ -420,6 +420,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           CoercionUtils.firstElementIsType(
             newE.t.asPointer.get.element,
             newT.asPointer.get.element,
+          ) || CoercionUtils.firstElementIsType(
+            newT.asPointer.get.element,
+            newE.t.asPointer.get.element,
           )
         ) { Cast(newE, TypeValue(newT)(t.o))(c.o) }
         else { throw UnsupportedCast(c) }

@@ -559,7 +559,7 @@ case class SilverToCol[G](
 
       case silver.ForPerm(variables, resource, body) => ??(e)
       case silver.EpsilonPerm() => ??(e)
-      case silver.InhaleExhaleExp(in, ex) => ??(e)
+      case silver.InhaleExhaleExp(in, ex) => col.PolarityDependent(f(in), f(ex))
       case silver.MagicWand(left, right) => ??(e)
       case silver.Applying(wand, body) => ??(e)
       case silver.BackendFuncApp(backendFunc, args) => ??(e)
