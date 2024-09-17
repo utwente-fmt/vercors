@@ -23,4 +23,9 @@ class CPPSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/cpp/methods/Permissions.cpp"
   vercors should verify using silicon example "concepts/cpp/methods/Predicates.cpp"
   vercors should verify using silicon example "concepts/cpp/methods/PureGhostMethod.cpp"
+
+  vercors should error withCode "preprocessorError" in "Source file with preprocessor error" cpp
+  """
+  #define foo(
+  """
 }

@@ -346,6 +346,11 @@ class CSpec extends VercorsSpec {
     }
     """
 
+    vercors should error withCode "preprocessorError" in "Source file with preprocessor error" c
+    """
+    #define foo(
+    """
+
     vercors should verify using silicon in "Parallel omp loop with declarations inside" c
     """
     #include <omp.h>
