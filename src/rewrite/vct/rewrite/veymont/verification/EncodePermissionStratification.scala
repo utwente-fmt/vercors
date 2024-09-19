@@ -11,9 +11,9 @@ import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 import vct.rewrite.veymont.{InferEndpointContexts, VeymontContext}
 import vct.rewrite.veymont.verification.EncodePermissionStratification.{
+  ForwardAssertFailedToDeref,
   ForwardExhaleFailedToChorRun,
   ForwardInvocationFailureToDeref,
-  ForwardUnfoldFailedToDeref,
   NoEndpointContext,
 }
 
@@ -37,9 +37,9 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
       deref.blame.blame(InsufficientPermission(deref))
   }
 
-  case class ForwardUnfoldFailedToDeref(deref: Deref[_])
-      extends Blame[UnfoldFailure] {
-    override def blame(error: UnfoldFailure): Unit =
+  case class ForwardAssertFailedToDeref(deref: Deref[_])
+      extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit =
       deref.blame.blame(InsufficientPermission(deref))
   }
 
@@ -151,11 +151,9 @@ case class EncodePermissionStratification[Pre <: Generation](
   }
 
   val readFunctions = mut.LinkedHashMap[WrapperPredicateKey, Function[Post]]()
-  def readFunction(
-      endpoint: Endpoint[Pre],
-      obj: Expr[Pre],
-      field: InstanceField[Pre],
-  )(implicit o: Origin): Ref[Post, Function[Post]] = {
+  def readFunction(obj: Expr[Pre], field: InstanceField[Pre])(
+      implicit o: Origin
+  ): Ref[Post, Function[Post]] = {
     val k = (obj.t, field)
     val pred = wrapperPredicate(obj.t, field)
     readFunctions.getOrElseUpdate(
@@ -375,7 +373,7 @@ case class EncodePermissionStratification[Pre <: Generation](
       case InEndpoint(_, endpoint, deref @ Deref(obj, Ref(field))) =>
         implicit val o = expr.o
         functionInvocation(
-          ref = readFunction(endpoint, obj, field)(expr.o),
+          ref = readFunction(obj, field)(expr.o),
           args = Seq(specializing.top, dispatch(obj)),
           blame = ForwardInvocationFailureToDeref(deref),
         )
@@ -504,15 +502,13 @@ case class EncodePermissionStratification[Pre <: Generation](
               Seq(intermediate),
               Block(Seq(
                 assignLocal(intermediate.get, dispatch(assign.value)),
-//                Unfold(apply)(ForwardUnfoldFailedToDeref(deref)),
-                Assert(Perm(PredicateLocation(apply), WritePerm()))(PanicBlame(
-                  "TODO: Forward blame"
-                )),
+                Assert(Perm(PredicateLocation(apply), WritePerm()))(
+                  ForwardAssertFailedToDeref(deref)
+                ),
                 assign.rewrite(
-                  target =
-                    Deref[Post](dispatch(obj), succ(field))(PanicBlame(
-                      "Unfold succeeded, so assignment is safe"
-                    )),
+                  // Use rewriteDefault to prevent triggering rewriting into a read function. We just want the
+                  // raw field access here.
+                  target = deref.rewriteDefault(),
                   value = intermediate.get,
                 ),
               )),
