@@ -50,18 +50,6 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
   }
 }
 
-/* At the time of writing, under the heavy-weight stratified permissions model, supporting \chor is an enormous hack.
-   It currently consists of 3 parts:
-   - Making \chor work when generating permissions in plain asserts, loop invariants, contracts
-     This is done using the simplifying assumption that, when generating permissions, each field is completely and transitively
-     owned by the anchor (either a local or a method argument). Then chor just transitively unfolds all fields of all anchors
-     in scope. Inside this unfolded expression, plain functions (meaning, with non-specialized contracts), are used.
-   - Making \chor work when not generating permissions in plain asserts, ...
-     Here, we rely on the user to add (\endpoint e; ...) annotations inside \chor.
-   - Making \chor work in channel invariants
-     This is also quite annoying. Because the heavyweight approach does not allow easy peeking into wrapped permissions,
-     we implement an incomplete approach in EncodeChannels.scala.
- */
 case class EncodePermissionStratification[Pre <: Generation](
     generatePermissions: Boolean
 ) extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
@@ -370,7 +358,7 @@ case class EncodePermissionStratification[Pre <: Generation](
           }
         }
 
-      case InEndpoint(_, endpoint, deref @ Deref(obj, Ref(field))) =>
+      case InEndpoint(_, _, deref @ Deref(obj, Ref(field))) =>
         implicit val o = expr.o
         functionInvocation(
           ref = readFunction(obj, field)(expr.o),
@@ -378,72 +366,14 @@ case class EncodePermissionStratification[Pre <: Generation](
           blame = ForwardInvocationFailureToDeref(deref),
         )
 
-      case ChorExpr(inner) if generatePermissions =>
-        implicit val o = expr.o
-
-        def predicates(
-            seenClasses: Set[TClass[Pre]],
-            endpoint: Endpoint[Pre],
-            baseT: TClass[Pre],
-            base: Expr[Post],
-        ): Seq[FoldTarget[Post]] = {
-          val cls = baseT.cls.decl
-          // Permission generation makes sure no cycles exist at this point by crashing, but lets make sure anyway
-          assert(!seenClasses.contains(baseT))
-          val newSeenClasses = seenClasses.incl(baseT)
-          val predicatesForClass = cls.fields.map { field =>
-            ScaledPredicateApply(
-              PredicateApply[Post](
-                wrapperPredicate(baseT, field),
-                Seq(EndpointName(succ(endpoint)), base),
-              ),
-              WritePerm(),
-            )
-          }
-          predicatesForClass ++
-            (cls.fields.filter { _.t.asClass.nonEmpty }.flatMap { field =>
-              val newBase =
-                Deref[Post](base, succ(field))(PanicBlame(
-                  "Permissions were unfolded earlier"
-                ))
-              predicates(
-                newSeenClasses,
-                endpoint,
-                baseT.instantiate(field.t).asClass.get,
-                newBase,
-              )
-            })
-        }
-
-        val newInner = inChor.having(true) { dispatch(inner) }
-
-        InferEndpointContexts.getEndpoints(inner).flatMap { endpoint =>
-          predicates(
-            HashSet(),
-            endpoint,
-            endpoint.t,
-            EndpointName[Post](succ(endpoint)),
-          )
-        }.foldRight[Expr[Post]](newInner) { case (app, inner) =>
-          Unfolding[Post](app, inner)(PanicBlame(
-            "Generating permissions guarantee permissions are in scope"
-          ))
-        }
-
-      case ChorExpr(inner) if !generatePermissions =>
-        // If not generating permissions, we rely on endpoint expressions to indicate the owner
-        // of relevant permissions
-        inChor.having(true) { dispatch(inner) }
+      case ChorExpr(inner) => inChor.having(true) { dispatch(inner) }
 
       // Generate an invocation to the unspecialized function version if we're inside a \chor
-      // This is safe because \chor unfold all predicates of all endpoints that occur within the expression...
-      // ... in the case of permission generation. Otherwise it just does nothing...?
       // The natural successor of the function will be the unspecialized one
-      case inv: FunctionInvocation[Pre]
-          if inChor.topOption.contains(true) && generatePermissions =>
+      case inv: FunctionInvocation[Pre] if inChor.topOption.contains(true) =>
         inv.rewriteDefault()
       case inv: InstanceFunctionInvocation[Pre]
-          if inChor.topOption.contains(true) && generatePermissions =>
+          if inChor.topOption.contains(true) =>
         inv.rewriteDefault()
 
       case InEndpoint(_, endpoint, inv: FunctionInvocation[Pre]) =>
