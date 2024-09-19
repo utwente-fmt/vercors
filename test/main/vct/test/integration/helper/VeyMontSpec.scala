@@ -221,7 +221,7 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
 
     assert(
       expected == actual,
-      s"Expected test result: ${show(expected)}\nActual test result: ${show(actual)}",
+      s"\nExpected test result: ${show(expected)}\nActual test result: ${show(actual)}",
     )
   }
 }

@@ -259,6 +259,12 @@ case class SeqProgInstanceMethodPure(m: InstanceMethod[_]) extends CheckError {
 case class ChorNonTrivialContextEverywhere(expr: Node[_]) extends CheckError {
   val subcode = "chorNonTrivialContextEverywhere"
 }
+case class EndpointExprInChor(expr: Node[_]) extends CheckError {
+  val subcode = "endpointExprInChor"
+}
+case class ChorInEndpointExpr(expr: Node[_]) extends CheckError {
+  val subcode = "chorInEndpointExpr"
+}
 
 case object CheckContext {
   case class ScopeFrame[G](
@@ -287,6 +293,8 @@ case class CheckContext[G](
     currentChoreography: Option[Choreography[G]] = None,
     currentReceiverEndpoint: Option[Endpoint[G]] = None,
     currentParticipatingEndpoints: Option[Set[Endpoint[G]]] = None,
+    inChor: Boolean = false,
+    inEndpointExpr: Option[Endpoint[G]] = None,
     declarationStack: Seq[Declaration[G]] = Nil,
 ) {
   def withScope(decls: Seq[Declaration[G]]): Seq[CheckContext.ScopeFrame[G]] =

@@ -52,6 +52,8 @@ trait NodeCheckOps[G] {
       enterCheckContextCurrentChoreography(context),
       enterCheckContextCurrentReceiverEndpoint(context),
       enterCheckContextCurrentParticipatingEndpoints(context),
+      enterCheckContextInChor(context),
+      enterCheckContextInEndpointExpr(context),
       enterCheckContextDeclarationStack(context),
     )
 
@@ -82,6 +84,11 @@ trait NodeCheckOps[G] {
   def enterCheckContextCurrentParticipatingEndpoints(
       context: CheckContext[G]
   ): Option[Set[Endpoint[G]]] = context.currentParticipatingEndpoints
+  def enterCheckContextInChor(context: CheckContext[G]): Boolean =
+    context.inChor
+  def enterCheckContextInEndpointExpr(
+      context: CheckContext[G]
+  ): Option[Endpoint[G]] = context.inEndpointExpr
   def enterCheckContextDeclarationStack(
       context: CheckContext[G]
   ): Seq[Declaration[G]] = context.declarationStack

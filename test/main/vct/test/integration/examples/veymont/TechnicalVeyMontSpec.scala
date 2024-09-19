@@ -3,6 +3,36 @@ package vct.test.integration.examples.veymont
 import vct.test.integration.helper.VeyMontSpec
 
 class TechnicalVeyMontSpec extends VeyMontSpec {
+  choreography(
+    desc = "\\endpoint not allowed in \\chor",
+    error = "choreography:resolutionError:endpointExprInChor",
+    pvl = """
+      class C {}
+      choreography Chor() {
+        endpoint a = C();
+        requires (\chor (\endpoint a; true));
+        run {
+
+        }
+      }
+        """,
+  )
+
+  choreography(
+    desc = "\\chor not allowed in \\endpoint",
+    error = "choreography:resolutionError:chorInEndpointExpr",
+    pvl = """
+      class C {}
+      choreography Chor() {
+        endpoint a = C();
+        requires (\endpoint a; (\chor true));
+        run {
+
+        }
+      }
+        """,
+  )
+
   implementation(
     desc = "Run contract can depend on choreography contract",
     pvl = """
