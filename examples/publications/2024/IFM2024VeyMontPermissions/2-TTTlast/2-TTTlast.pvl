@@ -61,6 +61,8 @@ choreography Main() {
           (!\sender.gameFinished() ==> ([1\2]\sender.returnerMark()));
         communicate p2.move <- p1.move.copy();
         p2.doMove();
+        assert (\endpoint p2; p2.equalBoard(p1));
+        assert (\endpoint p2; !p1.gameFinished() == !p2.gameFinished());
       } else {
         p2.createNewMove();
         p2.doMove();
@@ -76,13 +78,15 @@ choreography Main() {
           (!\sender.gameFinished() ==> ([1\2]\sender.returnerMark()));
         communicate p1.move <- p2.move.copy();
         p1.doMove();
+        assert (\endpoint p1; p1.equalBoard(p2));
+        assert (\endpoint p1; !p1.gameFinished() == !p2.gameFinished());
       }
       p1.turn := !p1.turn;
       p2.turn := !p2.turn;
       // Assumption required for shortcoming in backend. Can be removed after implementing the lightweight encoding.
-      assume (\chor p1.gameFinished() == p2.gameFinished());
+      // assume (\chor p1.gameFinished() == p2.gameFinished());
     }
-    assume (\chor p1.gameFinished() == p2.gameFinished());
+    // assume (\chor p1.gameFinished() == p2.gameFinished());
 
     p1.finish();
     p2.finish();

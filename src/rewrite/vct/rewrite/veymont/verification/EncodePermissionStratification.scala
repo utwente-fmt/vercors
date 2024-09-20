@@ -57,11 +57,11 @@ case class EncodePermissionStratification[Pre <: Generation](
   val inChor = ScopedStack[Boolean]()
 
   lazy val specializedApplicables
-      : mut.LinkedHashMap[ContractApplicable[Pre], Seq[Endpoint[Pre]]] =
-    findInContext {
-      case inv: AnyFunctionInvocation[Pre] => inv.ref.decl
-      case inv: MethodInvocation[Pre] => inv.ref.decl
-    }
+      : mut.LinkedHashMap[Applicable[Pre], Seq[Endpoint[Pre]]] = findInContext {
+    case inv: AnyFunctionInvocation[Pre] => inv.ref.decl
+    case inv: MethodInvocation[Pre] => inv.ref.decl
+    case app: ApplyAnyPredicate[Pre] => app.ref.decl
+  }
 
   // Given a function f that finds Nodes inside nodes, findInContext keeps applying f
   // to nodes that f itself finds, until no more new nodes are found. The search is started
@@ -106,9 +106,7 @@ case class EncodePermissionStratification[Pre <: Generation](
   }
 
   val specializedApplicableSucc =
-    SuccessionMap[(Endpoint[Pre], ContractApplicable[Pre]), ContractApplicable[
-      Post
-    ]]()
+    SuccessionMap[(Endpoint[Pre], Applicable[Pre]), Applicable[Post]]()
 
   // Keeps track of the current anchoring/endpoint context identity expression for the current endpoint context.
   // E.g. within a choreograph, it is EndpointName(succ(endpoint)), within a specialized function it is a local
@@ -119,11 +117,14 @@ case class EncodePermissionStratification[Pre <: Generation](
   // this endpoint reference comes from one of the arguments of the function, not a literal endpointname expression.
   val specializing = ScopedStack[Expr[Post]]()
 
+  // TODO (RR): I think this key can be simplified - InstanceField always belongs to a particular class,
+  //            so the Type could theoretically be omitted?
   type WrapperPredicateKey = (Type[Pre], InstanceField[Pre])
   val wrapperPredicates = mut
     .LinkedHashMap[WrapperPredicateKey, Predicate[Post]]()
 
   // TODO (RR): It does not really wrap anymore, rename
+  // marker predicate to allow marking field permissions with an endpoint owner
   def wrapperPredicate(objT: Type[Pre], field: InstanceField[Pre])(
       implicit o: Origin
   ): Ref[Post, Predicate[Post]] = {
@@ -220,21 +221,24 @@ case class EncodePermissionStratification[Pre <: Generation](
       case m: InstanceMethod[Pre] if specializedApplicables.contains(m) =>
         m.rewriteDefault().succeed(m)
         specializeApplicable(m)
+      case p: Predicate[Pre] if specializedApplicables.contains(p) =>
+        p.rewriteDefault().succeed(p)
+        specializeApplicable(p)
+      case p: InstancePredicate[Pre] if specializedApplicables.contains(p) =>
+        p.rewriteDefault().succeed(p)
+        specializeApplicable(p)
       case _ => super.dispatch(decl)
     }
 
-  def specializeApplicable(app: ContractApplicable[Pre]): Unit = {
+  def specializeApplicable(app: Applicable[Pre]): Unit = {
     assert(app match {
-      case _: InstanceMethod[Pre] |
-          _: InstanceFunction[Pre] | _: Function[Pre] =>
+      case _: InstanceMethod[Pre] | _: InstanceFunction[Pre] |
+          _: Function[Pre] | _: Predicate[Pre] | _: InstancePredicate[Pre] =>
         true
       case _ => false
     })
 
-    def nameOrigin(
-        endpoint: Endpoint[Pre],
-        f: ContractApplicable[Pre],
-    ): Origin = {
+    def nameOrigin(endpoint: Endpoint[Pre], f: Applicable[Pre]): Origin = {
       f.o.where(indirect =
         Name.names(
           f.o.getPreferredNameOrElse(),
@@ -256,7 +260,7 @@ case class EncodePermissionStratification[Pre <: Generation](
 
             // Make sure plain perms are rewritten into wrapped perms
             specializing.having(endpointCtxVar.get(app.o)) {
-              val newF: ContractApplicable[Post] =
+              val newF: Applicable[Post] =
                 app match {
                   case f: InstanceFunction[Pre] =>
                     val newF = f.rewrite(
@@ -283,6 +287,18 @@ case class EncodePermissionStratification[Pre <: Generation](
                       o = nameOrigin(endpoint, m),
                     )
                     newM.declare()
+                  case p: InstancePredicate[Pre] =>
+                    val newP = p.rewrite(
+                      args = endpointCtxVar +: variables.dispatch(p.args),
+                      o = nameOrigin(endpoint, p),
+                    )
+                    newP.declare()
+                  case p: Predicate[Pre] =>
+                    val newP = p.rewrite(
+                      args = endpointCtxVar +: variables.dispatch(p.args),
+                      o = nameOrigin(endpoint, p),
+                    )
+                    newP.declare()
                 }
               specializedApplicableSucc((endpoint, app)) = newF
             }
@@ -340,6 +356,10 @@ case class EncodePermissionStratification[Pre <: Generation](
           expr.o
         )
 
+      case InEndpoint(_, _, cp: ChorPerm[Pre]) =>
+        // Matching on cp above already put the required specializing in place, so we can ignore it here
+        Perm(dispatch(cp.loc), dispatch(cp.perm))(cp.o)
+
       case InEndpoint(_, endpoint, Perm(loc: FieldLocation[Pre], perm)) =>
         makeWrappedPerm(loc, perm, specializing.top)(expr.o)
 
@@ -390,8 +410,30 @@ case class EncodePermissionStratification[Pre <: Generation](
           ref = specializedApplicableSucc.ref(k),
           args = specializing.top +: inv.args.map(dispatch),
         )
-
       case _ => expr.rewriteDefault()
+    }
+
+  override def dispatch(app: ApplyAnyPredicate[Pre]): ApplyAnyPredicate[Post] =
+    app match {
+      case InEndpoint(_, endpoint, app: PredicateApply[Pre]) =>
+        val k = (endpoint, app.ref.decl)
+        app.rewrite(
+          ref = specializedApplicableSucc.ref(k),
+          args = specializing.top +: app.args.map(dispatch),
+        )
+      case InEndpoint(_, endpoint, app: InstancePredicateApply[Pre]) =>
+        val k = (endpoint, app.ref.decl)
+        app.rewrite(
+          ref = specializedApplicableSucc.ref(k),
+          args = specializing.top +: app.args.map(dispatch),
+        )
+      case InEndpoint(_, endpoint, app: CoalesceInstancePredicateApply[Pre]) =>
+        val k = (endpoint, app.ref.decl)
+        app.rewrite(
+          ref = specializedApplicableSucc.ref(k),
+          args = specializing.top +: app.args.map(dispatch),
+        )
+      case _ => app.rewriteDefault()
     }
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
