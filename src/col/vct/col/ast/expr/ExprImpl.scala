@@ -44,9 +44,9 @@ trait ExprImpl[G] extends NodeFamilyImpl[G] with ExprFamilyOps[G] {
 
   def lassoc(left: Expr[_], op: String, right: Expr[_])(
       implicit ctx: Ctx
-  ): Doc = Group(assoc(left) <+> op <+/> nassoc(right))
+  ): Doc = Group(assoc(left) <+> op <>> nassoc(right))
 
   def rassoc(left: Expr[_], op: String, right: Expr[_])(
       implicit ctx: Ctx
-  ): Doc = Group(nassoc(left) <+> op <+/> assoc(right))
+  ): Doc = Group(nassoc(left) <+> op <>> assoc(right))
 }

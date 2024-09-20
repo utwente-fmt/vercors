@@ -152,6 +152,10 @@ sealed trait CheckError {
         Seq(context(m) -> s"Instance methods in choreographies cannot be pure.")
       case ChorNonTrivialContextEverywhere(e) =>
         Seq(context(e) -> s"Context everywhere is not supported here")
+      case EndpointExprInChor(e) =>
+        Seq(context(e) -> s"\\endpoint not allowed in \\chor")
+      case ChorInEndpointExpr(e) =>
+        Seq(context(e) -> s"\\chor not allowed in \\endpoint")
     }): _*)
 
   def subcode: String
