@@ -113,6 +113,10 @@ case class EncodePermissionStratification[Pre <: Generation](
   // Keeps track of the current anchoring/endpoint context identity expression for the current endpoint context.
   // E.g. within a choreograph, it is EndpointName(succ(endpoint)), within a specialized function it is a local
   // to the endpoint context argument.
+  // Essentially it is kept in sync with inEndpoint: whenever inEndpoint contains an endpoint, specializing keeps
+  // the expression around to refer to it.
+  // This is especially important for specializeApplicable: there we specialize each function for one endpoint, but
+  // this endpoint reference comes from one of the arguments of the function, not a literal endpointname expression.
   val specializing = ScopedStack[Expr[Post]]()
 
   type WrapperPredicateKey = (Type[Pre], InstanceField[Pre])
@@ -296,28 +300,20 @@ case class EncodePermissionStratification[Pre <: Generation](
   // endpoint x calls function a, that calls function b, that calls function c, which we are now specializing
   // for endpoint x), it is difficult to maintain the proper type environment.
   def makeWrappedPerm(
-      endpoint: Endpoint[Pre],
       loc: FieldLocation[Pre],
       perm: Expr[Pre],
-      endpointExpr: Expr[Post] = null,
+      endpointExpr: Expr[Post],
   )(implicit o: Origin): Expr[Post] = {
-    // TODO (RR): This branch + parameter use is ugly and unclear. Also, document what it does, as I don't really follow it
-    val expr =
-      if (endpointExpr == null)
-        EndpointName[Post](succ(endpoint))
-      else
-        endpointExpr
-
     if (perm == ReadPerm[Pre]()) {
       (Value(dispatch(loc)) &* Value(PredicateLocation(PredicateApply(
         wrapperPredicate(loc.obj.t, loc.field.decl),
-        Seq(expr, dispatch(loc.obj)),
+        Seq(endpointExpr, dispatch(loc.obj)),
       ))))
     } else {
       Perm(dispatch(loc), dispatch(perm)) &* Perm(
         PredicateLocation(PredicateApply(
           wrapperPredicate(loc.obj.t, loc.field.decl),
-          Seq(expr, dispatch(loc.obj)),
+          Seq(endpointExpr, dispatch(loc.obj)),
         )),
         dispatch(perm),
       )
@@ -340,15 +336,15 @@ case class EncodePermissionStratification[Pre <: Generation](
             _,
             ChorPerm(Ref(endpoint), loc: FieldLocation[Pre], perm),
           ) =>
-        makeWrappedPerm(endpoint, loc, perm)(expr.o)
-
-      case InEndpoint(_, endpoint, Perm(loc: FieldLocation[Pre], perm)) =>
-        makeWrappedPerm(endpoint, loc, perm, specializing.top)(expr.o)
-
-      case InEndpoint(_, endpoint, Value(loc: FieldLocation[Pre])) =>
-        makeWrappedPerm(endpoint, loc, ReadPerm()(expr.o), specializing.top)(
+        makeWrappedPerm(loc, perm, EndpointName[Post](succ(endpoint))(expr.o))(
           expr.o
         )
+
+      case InEndpoint(_, endpoint, Perm(loc: FieldLocation[Pre], perm)) =>
+        makeWrappedPerm(loc, perm, specializing.top)(expr.o)
+
+      case InEndpoint(_, endpoint, Value(loc: FieldLocation[Pre])) =>
+        makeWrappedPerm(loc, ReadPerm()(expr.o), specializing.top)(expr.o)
 
       case EndpointExpr(Ref(endpoint), inner) =>
         assert(currentEndpoint.isEmpty)
