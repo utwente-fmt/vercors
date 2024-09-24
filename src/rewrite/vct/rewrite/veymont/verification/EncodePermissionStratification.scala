@@ -17,7 +17,6 @@ import vct.rewrite.veymont.verification.EncodePermissionStratification.{
   NoEndpointContext,
 }
 
-import scala.collection.immutable.HashSet
 import scala.collection.{mutable => mut}
 
 object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
@@ -119,6 +118,7 @@ case class EncodePermissionStratification[Pre <: Generation](
 
   // TODO (RR): I think this key can be simplified - InstanceField always belongs to a particular class,
   //            so the Type could theoretically be omitted?
+  //            However: if we ever want to support generics, probably the type should remain there!
   type WrapperPredicateKey = (Type[Pre], InstanceField[Pre])
   val wrapperPredicates = mut
     .LinkedHashMap[WrapperPredicateKey, Predicate[Post]]()
