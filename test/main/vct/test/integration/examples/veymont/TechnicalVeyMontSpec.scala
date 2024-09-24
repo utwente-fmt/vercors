@@ -2,6 +2,98 @@ package vct.test.integration.examples.veymont
 
 import vct.test.integration.helper.VeyMontSpec
 
+class TechnicalVeyMontSpecXYZZ extends VeyMontSpec {
+  // The next three test have a weird extra unfold because of this issue: https://github.com/viperproject/silver/issues/495
+  // Also, they highlight a shortcoming of the stratified permissions encoding w.r.t predicates.
+  // See the EncodePermissionStratification pass for more info.
+  choreography(
+    desc =
+      "Because of the partial encoding of stratified predicates, functions expecting exact permission amounts that look correct will fail to verify",
+    pvl = """
+      resource P(C c) = Perm(c.x, 1) ** c.x == 0;
+
+      requires P(c);
+      pure boolean foo(C c) = (\\unfolding P(c) \in c.x == 0);
+
+      class C {
+        int x;
+
+        ensures P(this);
+        constructor() {
+          x = 0;
+          fold P(this);
+        }
+      }
+
+      choreography Chor() {
+        endpoint a = C();
+        requires (\endpoint a; P(a));
+        run {
+          assert (\chor (\\unfolding P(a) \in foo(a)));
+        }
+      }
+      """,
+  )
+
+  choreography(
+    desc =
+      "Functions that expect only wildcard permissions will succesfully verify, despite the partial encoding of stratified predicates",
+    pvl = """
+      resource P(C c) = Perm(c.x, 1) ** c.x == 0;
+
+      requires Value(P(c));
+      pure boolean foo(C c) = (\\unfolding Value(P(c)) \in c.x == 0);
+
+      class C {
+        int x;
+
+        ensures P(this);
+        constructor() {
+          x = 0;
+          fold P(this);
+        }
+      }
+
+      choreography Chor() {
+        endpoint a = C();
+        requires (\endpoint a; P(a));
+        run {
+          assert (\chor (\\unfolding Value(P(a)) \in foo(a)));
+        }
+      }
+      """,
+  )
+
+  choreography(
+    desc =
+      "If you precisely half all permissions in a function, you can have exact permission amounts for predicates in a function contract, despite the partial encoding of stratified predicates.",
+    pvl = """
+      resource P(C c) = Perm(c.x, 1) ** c.x == 0;
+
+      requires Perm(P(c), 1\4);
+      pure boolean foo(C c) = (\\unfolding Perm(P(c), 1\4) \in c.x == 0);
+
+      class C {
+        int x;
+
+        ensures P(this);
+        constructor() {
+          x = 0;
+          fold P(this);
+        }
+      }
+
+      choreography Chor() {
+        endpoint a = C();
+        requires (\endpoint a; P(a));
+        run {
+          assert (\chor (\\unfolding Perm(P(a), 1\4) \in foo(a)));
+        }
+      }
+      """,
+  )
+}
+
 class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
     desc = "\\endpoint not allowed in \\chor",
