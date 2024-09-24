@@ -331,7 +331,9 @@ case class EncodePermissionStratification[Pre <: Generation](
         }
 
       case cp: ChorPerm[Pre] =>
-        ??? // Unexpected chorperm with something else than a FieldLocation
+        specializing.having(EndpointName[Post](succ(cp.endpoint.decl))(cp.o)) {
+          Perm(dispatch(cp.loc), dispatch(cp.perm))(expr.o)
+        }
 
       case Perm(loc: FieldLocation[Pre], perm) if specializing.nonEmpty =>
         makeWrappedPerm(loc, perm, specializing.top)(expr.o)
