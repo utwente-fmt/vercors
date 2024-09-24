@@ -228,11 +228,15 @@ case class EncodePermissionStratification[Pre <: Generation](
       case _ => false
     })
 
-    def nameOrigin(f: Applicable[Pre]): Origin = {
+    def nameOrigin(f: Applicable[Pre]): Origin =
       f.o.where(indirect =
         Name.names(f.o.getPreferredNameOrElse(), Name("Strat"))
       )
-    }
+
+    def predicateNameOrigin(f: AbstractPredicate[Pre]): Origin =
+      f.o.where(indirect =
+        Name.names(Name("ep"), Name("owner"), f.o.getPreferredNameOrElse())
+      )
 
     variables.scope {
       val endpointCtxVar =
@@ -247,7 +251,6 @@ case class EncodePermissionStratification[Pre <: Generation](
             case f: InstanceFunction[Pre] =>
               val newF = f.rewrite(
                 args = endpointCtxVar +: variables.dispatch(f.args),
-                // TODO: What to name them?
                 o = nameOrigin(f),
               )
               newF.declare()
@@ -273,13 +276,13 @@ case class EncodePermissionStratification[Pre <: Generation](
             case p: InstancePredicate[Pre] =>
               val newP = p.rewrite(
                 args = endpointCtxVar +: variables.dispatch(p.args),
-                o = nameOrigin(p),
+                o = predicateNameOrigin(p),
               )
               newP.declare()
             case p: Predicate[Pre] =>
               val newP = p.rewrite(
                 args = endpointCtxVar +: variables.dispatch(p.args),
-                o = nameOrigin(p),
+                o = predicateNameOrigin(p),
               )
               newP.declare()
           }
@@ -316,11 +319,56 @@ case class EncodePermissionStratification[Pre <: Generation](
     }
   }
 
+  def specializePredicateLocation(
+      inv: ApplyAnyPredicate[Pre]
+  ): ApplyAnyPredicate[Post] =
+    inv match {
+      case inv: PredicateApply[Pre] =>
+        inv.rewrite(
+          ref = specializedApplicableSucc.ref(inv.ref.decl),
+          args = specializing.top +: inv.args.map(dispatch),
+        )
+      case inv: InstancePredicateApply[Pre] =>
+        inv.rewrite(
+          ref = specializedApplicableSucc.ref(inv.ref.decl),
+          args = specializing.top +: inv.args.map(dispatch),
+        )
+      case inv: CoalesceInstancePredicateApply[Pre] =>
+        inv.rewrite(
+          ref = specializedApplicableSucc.ref(inv.ref.decl),
+          args = specializing.top +: inv.args.map(dispatch),
+        )
+    }
+
+  def specializePredicateLocation(target: FoldTarget[Pre]): FoldTarget[Post] =
+    target match {
+      case app: ScaledPredicateApply[Pre] =>
+        app.rewrite(
+          apply = specializePredicateLocation(app.apply),
+          perm = RatDiv(dispatch(app.perm), const(2)(app.o))(NoZeroDiv)(app.o),
+        )
+      case app: ValuePredicateApply[Pre] =>
+        app.rewrite(apply = specializePredicateLocation(app.apply))
+      case AmbiguousFoldTarget(_) => ??? // Shouldn't occur at this stage
+    }
+
+  def makeStratifiedPredicate(loc: PredicateLocation[Pre], perm: Expr[Pre])(
+      implicit o: Origin
+  ): Expr[Post] = {
+    Perm[Post](dispatch(loc), RatDiv(dispatch(perm), const(2))(NoZeroDiv)) &*
+      Perm(
+        PredicateLocation(specializePredicateLocation(loc.inv)),
+        RatDiv(dispatch(perm), const(2))(NoZeroDiv),
+      )
+  }
+
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
-      // TODO: Make a check in chorperm and endpointexpr to ensure that when nesting these types of nodes, they
-      //       all agree on one endpoint. So no nesting endpointexprs and chorperms with different endpoints.
-      //       For now we assume here that's all well and good.
+      // TODO (RR):
+      //  Make a check in chorperm and endpointexpr to ensure that when nesting these types of nodes, they
+      //  all agree on one endpoint. So no nesting endpointexprs and chorperms with different endpoints.
+      //  For now we assume here that's all well and good.
+      //  Or just get rid of chorperm anyway
       case cp @ ChorPerm(Ref(endpoint), loc: FieldLocation[Pre], perm) =>
         specializing.having(EndpointName[Post](succ(cp.endpoint.decl))(cp.o)) {
           makeWrappedPerm(
@@ -330,16 +378,39 @@ case class EncodePermissionStratification[Pre <: Generation](
           )(expr.o)
         }
 
-      case cp: ChorPerm[Pre] =>
-        specializing.having(EndpointName[Post](succ(cp.endpoint.decl))(cp.o)) {
-          Perm(dispatch(cp.loc), dispatch(cp.perm))(expr.o)
+      case cp @ ChorPerm(Ref(endpoint), loc: PredicateLocation[Pre], perm) =>
+        specializing.having(EndpointName[Post](succ(endpoint))(cp.o)) {
+          makeStratifiedPredicate(loc, perm)(expr.o)
         }
 
       case Perm(loc: FieldLocation[Pre], perm) if specializing.nonEmpty =>
         makeWrappedPerm(loc, perm, specializing.top)(expr.o)
 
+      case Perm(loc: PredicateLocation[Pre], perm) if specializing.nonEmpty =>
+        makeStratifiedPredicate(loc, perm)(expr.o)
+
       case Value(loc: FieldLocation[Pre]) if specializing.nonEmpty =>
         makeWrappedPerm(loc, ReadPerm()(expr.o), specializing.top)(expr.o)
+
+      case unfolding @ Unfolding(res: FoldTarget[Pre], inner)
+          if specializing.nonEmpty =>
+        implicit val o = unfolding.o
+        val halfRes =
+          res match {
+            case app: ScaledPredicateApply[Pre] =>
+              app
+                .rewrite(perm = RatDiv(dispatch(app.perm), const(2))(NoZeroDiv))
+            case app => app.rewriteDefault()
+          }
+
+        unfolding.rewrite(
+          res = halfRes,
+          body =
+            Unfolding[Post](
+              res = specializePredicateLocation(res),
+              body = dispatch(inner),
+            )(unfolding.blame)(unfolding.o),
+        )
 
       case EndpointExpr(Ref(endpoint), inner) =>
         specializing.having(EndpointName[Post](succ(endpoint))(expr.o)) {
@@ -382,25 +453,25 @@ case class EncodePermissionStratification[Pre <: Generation](
       case _ => expr.rewriteDefault()
     }
 
-  override def dispatch(app: ApplyAnyPredicate[Pre]): ApplyAnyPredicate[Post] =
-    app match {
-      case app: PredicateApply[Pre] if specializing.nonEmpty =>
-        app.rewrite(
-          ref = specializedApplicableSucc.ref(app.ref.decl),
-          args = specializing.top +: app.args.map(dispatch),
-        )
-      case app: InstancePredicateApply[Pre] if specializing.nonEmpty =>
-        app.rewrite(
-          ref = specializedApplicableSucc.ref(app.ref.decl),
-          args = specializing.top +: app.args.map(dispatch),
-        )
-      case app: CoalesceInstancePredicateApply[Pre] if specializing.nonEmpty =>
-        app.rewrite(
-          ref = specializedApplicableSucc.ref(app.ref.decl),
-          args = specializing.top +: app.args.map(dispatch),
-        )
-      case _ => app.rewriteDefault()
-    }
+//  override def dispatch(app: ApplyAnyPredicate[Pre]): ApplyAnyPredicate[Post] =
+//    app match {
+//      case app: PredicateApply[Pre] if specializing.nonEmpty =>
+//        app.rewrite(
+//          ref = specializedApplicableSucc.ref(app.ref.decl),
+//          args = specializing.top +: app.args.map(dispatch),
+//        )
+//      case app: InstancePredicateApply[Pre] if specializing.nonEmpty =>
+//        app.rewrite(
+//          ref = specializedApplicableSucc.ref(app.ref.decl),
+//          args = specializing.top +: app.args.map(dispatch),
+//        )
+//      case app: CoalesceInstancePredicateApply[Pre] if specializing.nonEmpty =>
+//        app.rewrite(
+//          ref = specializedApplicableSucc.ref(app.ref.decl),
+//          args = specializing.top +: app.args.map(dispatch),
+//        )
+//      case _ => app.rewriteDefault()
+//    }
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
     statement match {

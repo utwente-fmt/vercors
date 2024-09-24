@@ -1419,6 +1419,8 @@ object NeverNone
     extends PanicBlame(
       "get in `opt == none ? _ : get(opt)` should always be ok."
     )
+object NoZeroDiv
+    extends PanicBlame("denominator of division is guaranteed not to be zero.")
 object FramedSeqIndex
     extends PanicBlame(
       "access in `∀i. 0 <= i < |xs| ==> ...xs[i]...` should never be out of bounds"
