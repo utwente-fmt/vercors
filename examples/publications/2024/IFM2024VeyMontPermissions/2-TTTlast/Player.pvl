@@ -10,8 +10,7 @@ class Player {
   boolean turn;
   Returner returner;
 
-  // TODO (RR): Remove comment if it works
-  /* inline */ resource boardPerm() =
+  resource boardPerm() =
       Perm(c00, 1) ** Perm(c01, 1) ** Perm(c02, 1) ** 
       Perm(c10, 1) ** Perm(c11, 1) ** Perm(c12, 1) ** 
       Perm(c20, 1) ** Perm(c21, 1) ** Perm(c22, 1);
