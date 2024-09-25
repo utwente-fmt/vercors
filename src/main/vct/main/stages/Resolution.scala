@@ -68,7 +68,6 @@ case object Resolution {
           ResolveTypes.JavaClassPathEntry.Path(root)
       },
       options.generatePermissions,
-      options.devVeymontAllowAssign,
     )
 }
 
@@ -118,7 +117,6 @@ case class Resolution[G <: Generation](
       ResolveTypes.JavaClassPathEntry.SourcePackageRoot,
     ),
     generatePermissions: Boolean = false,
-    veymontAllowAssign: Boolean = false,
 ) extends Stage[ParseResult[G], Verification[_ <: Generation]]
     with LazyLogging {
   override def friendlyName: String = "Name Resolution"
@@ -146,10 +144,8 @@ case class Resolution[G <: Generation](
       case Nil => // ok
       case some => throw InputResolutionError(some)
     }
-    val resolvedProgram = LangSpecificToCol(
-      generatePermissions,
-      veymontAllowAssign,
-    ).dispatch(typedProgram)
+    val resolvedProgram = LangSpecificToCol(generatePermissions)
+      .dispatch(typedProgram)
     resolvedProgram.check match {
       case Nil => // ok
       // PB: This explicitly allows LangSpecificToCol to generate invalid ASTs, and will blame the input for them. The

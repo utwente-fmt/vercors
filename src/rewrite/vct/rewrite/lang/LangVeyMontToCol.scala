@@ -67,10 +67,8 @@ case object LangVeyMontToCol {
   }
 }
 
-case class LangVeyMontToCol[Pre <: Generation](
-    rw: LangSpecificToCol[Pre],
-    allowAssign: Boolean = false,
-) extends LazyLogging {
+case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
+    extends LazyLogging {
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
@@ -84,6 +82,13 @@ case class LangVeyMontToCol[Pre <: Generation](
   val currentProg: ScopedStack[PVLChoreography[Pre]] = ScopedStack()
   val currentStatement: ScopedStack[Statement[Pre]] = ScopedStack()
   val currentExpr: ScopedStack[Expr[Pre]] = ScopedStack()
+
+  lazy val warnedAboutAssign: Boolean = {
+    logger.warn(
+      "Plain assignment detected in choreography. This is allowed, but technically unsound. Use `:=` instead to also check endpoint ownership."
+    )
+    true
+  }
 
   def rewriteCommunicateStatement(
       comm: PVLCommunicateStatement[Pre]
@@ -185,6 +190,9 @@ case class LangVeyMontToCol[Pre <: Generation](
         )(stmt.o)
       case comm: PVLCommunicateStatement[Pre] =>
         rewriteCommunicateStatement(comm)
+      case assign: Assign[Pre] =>
+        val dummyToTriggerPrint = warnedAboutAssign
+        assign.rewriteDefault()
       // Any statement not listed here, we put in ChorStatement. ChorStatementImpl defines which leftover statement we tolerate in choreographies
       case stmt =>
         currentStatement.having(stmt) {

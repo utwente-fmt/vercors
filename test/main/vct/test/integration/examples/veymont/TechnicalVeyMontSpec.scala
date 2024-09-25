@@ -4,6 +4,21 @@ import vct.test.integration.helper.VeyMontSpec
 
 class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
+    desc = "Plain assignment is allowed, but considered unsound",
+    pvl = """
+      class C { int x; }
+      choreography Chor() {
+        endpoint a = C();
+        requires Perm(a.x, 1);
+        run {
+          a.x = 3;
+          assert a.x == 3;
+        }
+      }
+        """,
+  )
+
+  choreography(
     desc = "\\endpoint not allowed in \\chor",
     error = "choreography:resolutionError:endpointExprInChor",
     pvl = """
@@ -208,42 +223,6 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
       }
     }
     """,
-  )
-
-  choreography(
-    error = "choreography:resolutionError:seqProgInstanceMethodArgs",
-    desc = "instance method in choreography cannot have arguments",
-    pvl = """
-  choreography Example() {
-    void m(int x) { }
-
-    run { }
-  }
-  """,
-  )
-
-  choreography(
-    error = "choreography:resolutionError:seqProgInstanceMethodBody",
-    desc = "instance method in choreography must have a body",
-    pvl = """
-  choreography Example() {
-    void m();
-
-    run { }
-  }
-  """,
-  )
-
-  choreography(
-    error = "choreography:resolutionError:seqProgInstanceMethodNonVoid",
-    desc = "instance method in choreography must have void return type",
-    pvl = """
-  choreography Example() {
-    int m() { }
-
-    run { }
-  }
-  """,
   )
 
   choreography(
@@ -961,23 +940,6 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   )
 
   choreography(
-    error = "choreography:resolutionError:chorStatement",
-    desc = "Assignment should not be allowed in choreographies",
-    pvl = """
-    class Storage {
-      int x;
-    }
-
-    choreography Example() {
-      endpoint alice = Storage();
-      run {
-        alice.x = 0;
-      }
-    }
-    """,
-  )
-
-  choreography(
     fail = "participantsNotDistinct",
     flag = "--generate-permissions",
     desc = "Endpoints participating in a communicate should be distinct",
@@ -1129,7 +1091,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
 
   choreography(
     error = "choreography:resolutionError:seqProgEndpointAssign",
-    flags = Seq("--generate-permissions", "--dev-veymont-allow-assign"),
+    flags = Seq("--generate-permissions"),
     input = example(
       s"$wd/checkMainSyntaxAndWellFormedness/RoleFieldAssignment.pvl"
     ),

@@ -343,9 +343,6 @@ case object Options {
         .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
           "Disables generation of the branch unanimity check encoded by VeyMont, which verifies that choreographies do not deadlock during choreographic verification"
         ),
-      opt[Unit]("dev-veymont-allow-assign").maybeHidden()
-        .action((p, c) => c.copy(devVeymontAllowAssign = true))
-        .text("Do not error when plain assignment is used in choreographies"),
       note(""),
       note("VeSUV Mode"),
       opt[Unit]("vesuv").action((_, c) => c.copy(mode = Mode.VeSUV)).text(
@@ -508,7 +505,6 @@ case class Options(
     veymontBranchUnanimity: Boolean = true,
     veymontSkipChoreographyVerification: Boolean = false,
     veymontSkipImplementationVerification: Boolean = false,
-    devVeymontAllowAssign: Boolean = false,
 
     // VeSUV options
     vesuvOutput: Path = null,
