@@ -96,14 +96,12 @@ case class EncodePermissionStratification[Pre <: Generation](
   val specializedApplicableSucc =
     SuccessionMap[Applicable[Pre], Applicable[Post]]()
 
-  // TODO (RR): Update these docs
   // Keeps track of the current anchoring/endpoint context identity expression for the current endpoint context.
   // E.g. within a choreograph, it is EndpointName(succ(endpoint)), within a specialized function it is a local
   // to the endpoint context argument.
-  // Essentially it is kept in sync with inEndpoint: whenever inEndpoint contains an endpoint, specializing keeps
-  // the expression around to refer to it.
-  // This is especially important for specializeApplicable: there we specialize each function for one endpoint, but
-  // this endpoint reference comes from one of the arguments of the function, not a literal endpointname expression.
+  // This is especially important for specializeApplicable: there we specialize each function to be executed in the
+  // context of some endpoin. This endpoint reference comes indirectly through one of the arguments of the function,
+  // not a literal endpointname expression.
   val specializing = ScopedStack[Expr[Post]]()
 
   // TODO (RR): I think this key can be simplified - InstanceField always belongs to a particular class,
@@ -340,6 +338,17 @@ case class EncodePermissionStratification[Pre <: Generation](
         )
     }
 
+  // Note that the encoding for stratified predicates is incomplete w.r.t. \chor. For example,
+  // "assert (\chor perm(P()) == 1)" can never succeed, as the transparent part of the predicate can never
+  // be bigger than 1/2. By putting half of the predicate inside the marker/specialized predicate,
+  // and leaving half of the predicate untouched, we gain the ability to call functions with predicates in their
+  // preconditions within \chor. If the predicates were instead fully wrapped, giving a sound encoding,
+  // calling functions that require predicates within \chor would not be possible.
+  //
+  // This makes for easier prototyping. The downside is that if exact permission amounts
+  // are important, the user has to fiddle with dividing amounts by two here and there. We could accomodate for that
+  // in the transformation, but as this is a rare edge case, I chose to leave it kind of unsound, for the sake of
+  // keeping this transformation a bit simpler.
   def specializePredicateLocation(target: FoldTarget[Pre]): FoldTarget[Post] =
     target match {
       case app: ScaledPredicateApply[Pre] =>
@@ -352,6 +361,7 @@ case class EncodePermissionStratification[Pre <: Generation](
       case AmbiguousFoldTarget(_) => ??? // Shouldn't occur at this stage
     }
 
+  // Incomplete encoding; see specializePredicateLocation
   def makeStratifiedPredicate(loc: PredicateLocation[Pre], perm: Expr[Pre])(
       implicit o: Origin
   ): Expr[Post] = {
@@ -398,6 +408,7 @@ case class EncodePermissionStratification[Pre <: Generation](
         val halfRes =
           res match {
             case app: ScaledPredicateApply[Pre] =>
+              // Incomplete encoding; see specializePredicateLocation
               app
                 .rewrite(perm = RatDiv(dispatch(app.perm), const(2))(NoZeroDiv))
             case app => app.rewriteDefault()
@@ -452,26 +463,6 @@ case class EncodePermissionStratification[Pre <: Generation](
         )
       case _ => expr.rewriteDefault()
     }
-
-//  override def dispatch(app: ApplyAnyPredicate[Pre]): ApplyAnyPredicate[Post] =
-//    app match {
-//      case app: PredicateApply[Pre] if specializing.nonEmpty =>
-//        app.rewrite(
-//          ref = specializedApplicableSucc.ref(app.ref.decl),
-//          args = specializing.top +: app.args.map(dispatch),
-//        )
-//      case app: InstancePredicateApply[Pre] if specializing.nonEmpty =>
-//        app.rewrite(
-//          ref = specializedApplicableSucc.ref(app.ref.decl),
-//          args = specializing.top +: app.args.map(dispatch),
-//        )
-//      case app: CoalesceInstancePredicateApply[Pre] if specializing.nonEmpty =>
-//        app.rewrite(
-//          ref = specializedApplicableSucc.ref(app.ref.decl),
-//          args = specializing.top +: app.args.map(dispatch),
-//        )
-//      case _ => app.rewriteDefault()
-//    }
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
     statement match {
