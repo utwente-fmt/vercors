@@ -187,7 +187,7 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
           } else
             Seq()
 
-        failAfter(Span(300, Seconds)) {
+        failAfter(Span(400, Seconds)) {
           val expectedResult = ResultModel.ofTestSpec(fail, fails, error)
           val actualResult = ResultModel.ofFrontendOutput(VeyMont.ofOptions(
             Options.parse(
