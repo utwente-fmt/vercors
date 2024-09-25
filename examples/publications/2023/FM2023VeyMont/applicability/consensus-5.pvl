@@ -103,7 +103,7 @@ class Process {
   void setValueOrFail();
 }
 
-inline resource consistency(Process p1, Process p2, Process p3, Process p4, Process p5) =
+pure boolean consistency(Process p1, Process p2, Process p3, Process p4, Process p5) =
     p1.n == p2.n && p2.n == p3.n && p3.n == p4.n && p4.n == p5.n && p5.n == p1.n &&
     p1.f == p2.f && p2.f == p3.f && p3.f == p4.f && p4.f == p5.f && p5.f == p1.f;
 
@@ -138,7 +138,7 @@ choreography Main(int n, int f,
   requires p3.class_invariant();
   requires p4.class_invariant();
   requires p5.class_invariant();
-  requires (\chor consistency(p1, p2, p3, p4, p5) **
+  requires (\chor consistency(p1, p2, p3, p4, p5) &&
     (p1.fault + p2.fault + p3.fault + p4.fault + p5.fault <= p1.f && p1.f == 1 && p1.n == 5));
   ensures (\chor ((p1.fault == 0 ==> p1.v == 0) &&
            (p2.fault == 0 ==> p2.v == 0) &&

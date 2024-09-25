@@ -245,10 +245,11 @@ case object Options {
         "Indicate, in seconds, the timeout value for the backend verification. If the verification gets stuck " +
           "for longer than this timeout, the verification will timeout."
       ),
-      opt[Unit]("dev-unsafe-optimization").maybeHidden()
-        .action((_, c) => c.copy(devUnsafeOptimization = true)).text(
-          "Optimizes runtime at the cost of progress logging and readability of error messages"
-        ),
+      opt[Unit]("dev-unsafe-optimization").maybeHidden().action((_, c) =>
+        c.copy(devUnsafeOptimization = true, devCheckSat = false)
+      ).text(
+        "Optimizes runtime at the cost of progress logging and readability of error messages. Implies --dev-no-sat."
+      ),
       opt[Path]("dev-silicon-z3-log-file").maybeHidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),
@@ -342,9 +343,6 @@ case object Options {
         .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
           "Disables generation of the branch unanimity check encoded by VeyMont, which verifies that choreographies do not deadlock during choreographic verification"
         ),
-      opt[Unit]("dev-veymont-allow-assign").maybeHidden()
-        .action((p, c) => c.copy(devVeymontAllowAssign = true))
-        .text("Do not error when plain assignment is used in choreographies"),
       note(""),
       note("VeSUV Mode"),
       opt[Unit]("vesuv").action((_, c) => c.copy(mode = Mode.VeSUV)).text(
@@ -507,7 +505,6 @@ case class Options(
     veymontBranchUnanimity: Boolean = true,
     veymontSkipChoreographyVerification: Boolean = false,
     veymontSkipImplementationVerification: Boolean = false,
-    devVeymontAllowAssign: Boolean = false,
 
     // VeSUV options
     vesuvOutput: Path = null,

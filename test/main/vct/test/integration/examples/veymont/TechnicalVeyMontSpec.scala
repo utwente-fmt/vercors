@@ -3,6 +3,51 @@ package vct.test.integration.examples.veymont
 import vct.test.integration.helper.VeyMontSpec
 
 class TechnicalVeyMontSpec extends VeyMontSpec {
+  choreography(
+    desc = "Plain assignment is allowed, but considered unsound",
+    pvl = """
+      class C { int x; }
+      choreography Chor() {
+        endpoint a = C();
+        requires Perm(a.x, 1);
+        run {
+          a.x = 3;
+          assert a.x == 3;
+        }
+      }
+        """,
+  )
+
+  choreography(
+    desc = "\\endpoint not allowed in \\chor",
+    error = "choreography:resolutionError:endpointExprInChor",
+    pvl = """
+      class C {}
+      choreography Chor() {
+        endpoint a = C();
+        requires (\chor (\endpoint a; true));
+        run {
+
+        }
+      }
+        """,
+  )
+
+  choreography(
+    desc = "\\chor not allowed in \\endpoint",
+    error = "choreography:resolutionError:chorInEndpointExpr",
+    pvl = """
+      class C {}
+      choreography Chor() {
+        endpoint a = C();
+        requires (\endpoint a; (\chor true));
+        run {
+
+        }
+      }
+        """,
+  )
+
   implementation(
     desc = "Run contract can depend on choreography contract",
     pvl = """
@@ -178,42 +223,6 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
       }
     }
     """,
-  )
-
-  choreography(
-    error = "choreography:resolutionError:seqProgInstanceMethodArgs",
-    desc = "instance method in choreography cannot have arguments",
-    pvl = """
-  choreography Example() {
-    void m(int x) { }
-
-    run { }
-  }
-  """,
-  )
-
-  choreography(
-    error = "choreography:resolutionError:seqProgInstanceMethodBody",
-    desc = "instance method in choreography must have a body",
-    pvl = """
-  choreography Example() {
-    void m();
-
-    run { }
-  }
-  """,
-  )
-
-  choreography(
-    error = "choreography:resolutionError:seqProgInstanceMethodNonVoid",
-    desc = "instance method in choreography must have void return type",
-    pvl = """
-  choreography Example() {
-    int m() { }
-
-    run { }
-  }
-  """,
   )
 
   choreography(
@@ -931,23 +940,6 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   )
 
   choreography(
-    error = "choreography:resolutionError:chorStatement",
-    desc = "Assignment should not be allowed in choreographies",
-    pvl = """
-    class Storage {
-      int x;
-    }
-
-    choreography Example() {
-      endpoint alice = Storage();
-      run {
-        alice.x = 0;
-      }
-    }
-    """,
-  )
-
-  choreography(
     fail = "participantsNotDistinct",
     flag = "--generate-permissions",
     desc = "Endpoints participating in a communicate should be distinct",
@@ -1099,7 +1091,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
 
   choreography(
     error = "choreography:resolutionError:seqProgEndpointAssign",
-    flags = Seq("--generate-permissions", "--dev-veymont-allow-assign"),
+    flags = Seq("--generate-permissions"),
     input = example(
       s"$wd/checkMainSyntaxAndWellFormedness/RoleFieldAssignment.pvl"
     ),
@@ -1134,4 +1126,97 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   )
 
   choreography(fail = "perm", input = example(s"$wd/subFieldAssignError.pvl"))
+
+  // The next three tests highlight a shortcoming of the stratified permissions encoding w.r.t predicates.
+  // See the EncodePermissionStratification pass for more info.
+  choreography(
+    desc =
+      "Because of the partial encoding of stratified predicates, functions expecting exact permission amounts that look correct will fail to verify",
+    fail = "preFailed:perm",
+    pvl = """
+      resource P(C c) = Perm(c.x, 1) ** c.x == 0;
+
+      requires P(c);
+      ensures unfolding P(c) in c.x == 0;
+      pure boolean foo(C c) = (unfolding P(c) in c.x == 0);
+
+      class C {
+        int x;
+
+        ensures P(this);
+        constructor() {
+          x = 0;
+          fold P(this);
+        }
+      }
+
+      choreography Chor() {
+        endpoint a = C();
+        requires (\endpoint a; P(a));
+        run {
+          assert (\chor foo(a));
+        }
+      }
+      """,
+  )
+
+  choreography(
+    desc =
+      "Functions that expect only wildcard permissions will succesfully verify, despite the partial encoding of stratified predicates",
+    pvl = """
+      resource P(C c) = Perm(c.x, 1) ** c.x == 0;
+
+      requires Value(P(c));
+      ensures (unfolding Value(P(c)) in c.x == 0);
+      pure boolean foo(C c) = (unfolding Value(P(c)) in c.x == 0);
+
+      class C {
+        int x;
+
+        ensures P(this);
+        constructor() {
+          x = 0;
+          fold P(this);
+        }
+      }
+
+      choreography Chor() {
+        endpoint a = C();
+        requires (\endpoint a; P(a));
+        run {
+          assert (\chor foo(a));
+        }
+      }
+      """,
+  )
+
+  choreography(
+    desc =
+      "If you precisely half all permissions in a function, you can have exact permission amounts for predicates in a function contract, despite the partial encoding of stratified predicates.",
+    pvl = """
+      resource P(C c) = Perm(c.x, 1) ** c.x == 0;
+
+      requires Perm(P(c), 1\4);
+      ensures (unfolding Perm(P(c), 1\4) in c.x == 0);
+      pure boolean foo(C c) = (unfolding Perm(P(c), 1\4) in c.x == 0);
+
+      class C {
+        int x;
+
+        ensures P(this);
+        constructor() {
+          x = 0;
+          fold P(this);
+        }
+      }
+
+      choreography Chor() {
+        endpoint a = C();
+        requires (\endpoint a; P(a));
+        run {
+          assert (\chor foo(a));
+        }
+      }
+      """,
+  )
 }

@@ -94,6 +94,10 @@ class IFM2024VeyMontPermissionsSpec extends VeyMontSpec {
       flags = Seq(
         "--dev-unsafe-optimization",
         "--veymont-skip-implementation-verification",
+        "--backend-option",
+        "--exhaleMode",
+        "--backend-option",
+        "2",
       ),
     )
 

@@ -48,10 +48,14 @@ object VeyMont extends LazyLogging {
   ) extends UserError {
     override def code: String = s"$codePrefix:${error.code}"
     override def text: String = s"$textPrefix\n${error.text}"
+
+    initCause(error)
   }
   case class WrapSystemError(textPrefix: String, error: SystemError)
       extends SystemError {
     override def text: String = s"$textPrefix\n${error.text}"
+
+    initCause(error)
   }
 
   def choreographyWithOptions(

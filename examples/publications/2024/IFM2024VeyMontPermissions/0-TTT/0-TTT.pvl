@@ -1,6 +1,6 @@
-inline resource ticTacToeAnnotations(Player p1, Player p2) =
-  p1.myMark == 0 ** p2.myMark == 1 **
-  p1.turn != p2.turn **
+inline pure boolean ticTacToeAnnotations(Player p1, Player p2) =
+  p1.myMark == 0 && p2.myMark == 1 &&
+  p1.turn != p2.turn &&
   p1.equalBoard(p2);
 
 choreography TTT() {
@@ -16,15 +16,15 @@ choreography TTT() {
       if(p1.turn && !p2.turn) {
         p1.createNewMove();
         channel_invariant
-          (\chor \msg.i == \sender.move.i **
-            \msg.j == \sender.move.j **
+          (\chor \msg.i == \sender.move.i &&
+            \msg.j == \sender.move.j &&
             \msg.mark == \sender.move.mark);
         communicate p2.move <- p1.move.copy();
       } else {
         p2.createNewMove();
         channel_invariant
-          (\chor \msg.i == \sender.move.i **
-            \msg.j == \sender.move.j **
+          (\chor \msg.i == \sender.move.i &&
+            \msg.j == \sender.move.j &&
             \msg.mark == \sender.move.mark);
         communicate p1.move <- p2.move.copy();
       }

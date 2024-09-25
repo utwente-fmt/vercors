@@ -17,7 +17,7 @@ import vct.col.rewrite.{
 import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangSpecificToCol.NotAValue
 
-case object LangSpecificToCol extends RewriterBuilderArg2[Boolean, Boolean] {
+case object LangSpecificToCol extends RewriterBuilderArg[Boolean] {
   override def key: String = "langSpecific"
   override def desc: String =
     "Translate language-specific constructs to a common subset of nodes."
@@ -33,18 +33,14 @@ case object LangSpecificToCol extends RewriterBuilderArg2[Boolean, Boolean] {
 }
 
 case class LangSpecificToCol[Pre <: Generation](
-    generatePermissions: Boolean = false,
-    veymontAllowAssign: Boolean = false,
+    generatePermissions: Boolean = false
 ) extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
   val bip: LangBipToCol[Pre] = LangBipToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)
   val cpp: LangCPPToCol[Pre] = LangCPPToCol(this)
   val pvl: LangPVLToCol[Pre] = LangPVLToCol(this, generatePermissions)
-  val veymont: LangVeyMontToCol[Pre] = LangVeyMontToCol(
-    this,
-    veymontAllowAssign,
-  )
+  val veymont: LangVeyMontToCol[Pre] = LangVeyMontToCol(this)
   val silver: LangSilverToCol[Pre] = LangSilverToCol(this)
   val llvm: LangLLVMToCol[Pre] = LangLLVMToCol(this)
 
@@ -219,9 +215,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case stmt
           if veymont.currentProg.nonEmpty &&
             !veymont.currentStatement.topOption.contains(stmt) =>
-        val x = veymont.rewriteStatement(stmt)
-        val y = x
-        x
+        veymont.rewriteStatement(stmt)
       case scope @ Scope(locals, body) =>
         def scanScope(node: Node[Pre]): Unit =
           node match {
