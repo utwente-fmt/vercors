@@ -28,4 +28,20 @@ class CPPSpec extends VercorsSpec {
   """
   #define foo(
   """
+
+  vercors should verify using silicon in "Character literal" cpp
+  """
+  char a = 'a';
+  char b = '\u0062';
+  """
+
+  vercors should error withCode "parseError" in "Multicharacter literal" cpp
+  """
+  char c = 'bad!';
+  """
+
+  vercors should error withCode "parseError" in "Unrepresentable character literal" cpp
+  """
+  char d = 'é';
+  """
 }
