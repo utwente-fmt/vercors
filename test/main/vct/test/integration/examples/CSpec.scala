@@ -40,7 +40,18 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "ptrNull" using silicon in "free null pointer" c
+  vercors should verify using silicon in "free null pointer" c
+    """
+      #include <stdlib.h>
+      int main(){
+          int* xs = NULL;
+          free(xs);
+          free(xs);
+          free(xs);
+      }
+    """
+
+  vercors should fail withCode "ptrOffsetNonZero" using silicon in "free stack garbage pointer" c
     """
       #include <stdlib.h>
       int main(){
