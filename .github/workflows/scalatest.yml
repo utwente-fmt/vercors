@@ -184,7 +184,7 @@ jobs:
     - { name: Download Test Report macos, uses: actions/download-artifact@v3, with: { name: "test-report-macos-latest", path: reports/macos } }
 
     - name: Test Report
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@v1.9.1
       if: success() || failure()
       with:
         name: TestReport           # Name of the check run which will be created
