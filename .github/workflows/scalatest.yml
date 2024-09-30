@@ -19,13 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout VerCors
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v2
         with:
-          java-version: 17
+          distribution: 'zulu'
+          java-version: '17'
       - name: Cache dependencies and compilation
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: out
           key: vercors-ci-ubuntu-${{ hashFiles('build.sc') }}-${{ hashFiles('src') }}
@@ -62,11 +63,12 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout VerCors
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v2
         with:
-          java-version: 17
+          distribution: 'zulu'
+          java-version: '17'
       - name: Cache LLVM and Clang
         id: cache-llvm
         uses: actions/cache@v2
@@ -100,11 +102,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout VerCors
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v2
         with:
-          java-version: 17
+          distribution: 'zulu'
+          java-version: '17'
       - name: Install clang
         run: brew install llvm
       - name: Download VerCors
@@ -133,11 +136,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout VerCors
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v2
         with:
-          java-version: 17
+          distribution: 'zulu'
+          java-version: '17'
       - name: Download VerCors
         uses: actions/download-artifact@v3
         with:
