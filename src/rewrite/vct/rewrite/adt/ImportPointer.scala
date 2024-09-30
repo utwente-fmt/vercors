@@ -214,11 +214,23 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
     implicit val o: Origin = location.o
     location match {
       case loc @ PointerLocation(pointer) =>
+        val arg =
+          unwrapOption(pointer, loc.blame) match {
+            case ptr @ PointerAdd(_, _) => ptr
+            case ptr =>
+              FunctionInvocation[Post](
+                ref = pointerAdd.ref,
+                args = Seq(ptr, const(0)),
+                typeArgs = Nil,
+                Nil,
+                Nil,
+              )(PanicBlame("ptrAdd(ptr, 0) should be infallible"))
+          }
         SilverFieldLocation(
           obj =
             FunctionInvocation[Post](
               ref = pointerDeref.ref,
-              args = Seq(unwrapOption(pointer, loc.blame)),
+              args = Seq(arg),
               typeArgs = Nil,
               Nil,
               Nil,

@@ -60,17 +60,7 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
   ): Location[Post] =
     expr match {
       case expr if expr.t.asPointer.isDefined =>
-        expr match {
-          case e: PointerAdd[Pre] => PointerLocation(dispatch(e))(blame)
-          // Adding ptr + 0 for triggering purposes (is there a better place to do this transformation?)
-          case e =>
-            PointerLocation(
-              PointerAdd[Post](dispatch(e), const[Post](0))(PointerAddRedirect(
-                blame
-              ))
-            )(blame)
-        }
-
+        PointerLocation(dispatch(expr))(blame)
       case expr if expr.t.isInstanceOf[TByValueClass[Pre]] =>
         ByValueClassLocation(dispatch(expr))(blame)
       case DerefHeapVariable(ref) => HeapVariableLocation(succ(ref.decl))
