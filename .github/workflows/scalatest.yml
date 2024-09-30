@@ -38,12 +38,12 @@ jobs:
       - name: Compile
         run: ./mill -j 0 vercors.allTests.assembly + vercors.vcllvm.compile
       - name: Upload VerCors
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: allTests
           path: out/vercors/allTests/assembly.dest/out.jar
       - name: Upload VCLLVM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vcllvm
           path: out/vercors/vcllvm/compile.dest/vcllvm
@@ -82,7 +82,7 @@ jobs:
           directory: ${{ runner.temp }}/llvm
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
       - name: Download VerCors
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: allTests
           path: '.'
@@ -92,7 +92,7 @@ jobs:
         run: java -Xss64m -cp "out.jar;res/universal/deps;res/universal/res" org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-report-windows-latest
           path: 'report/**/TEST-*.xml'
@@ -111,7 +111,7 @@ jobs:
       - name: Install clang
         run: brew install llvm
       - name: Download VerCors
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: allTests
           path: '.'
@@ -121,7 +121,7 @@ jobs:
         run: java -Xss64m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-report-macos-latest
           path: 'report/**/TEST-*.xml'
@@ -143,12 +143,12 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
       - name: Download VerCors
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: allTests
           path: '.'
       - name: Download VCLLVM
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: vcllvm
           path: '.'
@@ -160,7 +160,7 @@ jobs:
         run: java -Xss64m -Xmx2G -cp out.jar:res/universal/deps:res/universal/res:. org.scalatest.tools.Runner -R out.jar -o -u report -w vct ${{matrix.batch}}
       - name: Upload test reports
         if: success() || failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-report-ubuntu-latest-${{ matrix.batch }}
           path: 'report/**/TEST-*.xml'

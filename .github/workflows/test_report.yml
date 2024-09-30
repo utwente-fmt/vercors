@@ -16,18 +16,18 @@ jobs:
     - name: Checkout VerCors
       uses: actions/checkout@v4
 
-    - {name: Download Test Report ubuntu-0, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[0]", path: reports/ubuntu-0 }}
-    - {name: Download Test Report ubuntu-1, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[1]", path: reports/ubuntu-1 }}
-    - {name: Download Test Report ubuntu-2, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[2]", path: reports/ubuntu-2 }}
-    - {name: Download Test Report ubuntu-3, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[3]", path: reports/ubuntu-3 }}
-    - {name: Download Test Report ubuntu-4, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[4]", path: reports/ubuntu-4 }}
-    - {name: Download Test Report ubuntu-5, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[5]", path: reports/ubuntu-5 }}
-    - {name: Download Test Report ubuntu-6, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[6]", path: reports/ubuntu-6 }}
-    - {name: Download Test Report ubuntu-7, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[7]", path: reports/ubuntu-7 }}
-    - {name: Download Test Report ubuntu-x, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--l MATRIX", path: reports/ubuntu-x }}
+    - {name: Download Test Report ubuntu-0, uses: actions/download-artifact@v4, with: {github-token: "${{github.token}}", repository: "${{github.repository}}", run-id: "${{github.event.workflow_run.id}}", name: "test-report-ubuntu-latest--n MATRIX[0]", path: reports/ubuntu-0 }}
+    - {name: Download Test Report ubuntu-1, uses: actions/download-artifact@v4, with: {github-token: "${{github.token}}", repository: "${{github.repository}}", run-id: "${{github.event.workflow_run.id}}", name: "test-report-ubuntu-latest--n MATRIX[1]", path: reports/ubuntu-1 }}
+    - {name: Download Test Report ubuntu-2, uses: actions/download-artifact@v4, with: {github-token: "${{github.token}}", repository: "${{github.repository}}", run-id: "${{github.event.workflow_run.id}}", name: "test-report-ubuntu-latest--n MATRIX[2]", path: reports/ubuntu-2 }}
+    - {name: Download Test Report ubuntu-3, uses: actions/download-artifact@v4, with: {github-token: "${{github.token}}", repository: "${{github.repository}}", run-id: "${{github.event.workflow_run.id}}", name: "test-report-ubuntu-latest--n MATRIX[3]", path: reports/ubuntu-3 }}
+    - {name: Download Test Report ubuntu-4, uses: actions/download-artifact@v4, with: {github-token: "${{github.token}}", repository: "${{github.repository}}", run-id: "${{github.event.workflow_run.id}}", name: "test-report-ubuntu-latest--n MATRIX[4]", path: reports/ubuntu-4 }}
+    - {name: Download Test Report ubuntu-5, uses: actions/download-artifact@v4, with: {github-token: "${{github.token}}", repository: "${{github.repository}}", run-id: "${{github.event.workflow_run.id}}", name: "test-report-ubuntu-latest--n MATRIX[5]", path: reports/ubuntu-5 }}
+    - {name: Download Test Report ubuntu-6, uses: actions/download-artifact@v4, with: {github-token: "${{github.token}}", repository: "${{github.repository}}", run-id: "${{github.event.workflow_run.id}}", name: "test-report-ubuntu-latest--n MATRIX[6]", path: reports/ubuntu-6 }}
+    - {name: Download Test Report ubuntu-7, uses: actions/download-artifact@v4, with: {github-token: "${{github.token}}", repository: "${{github.repository}}", run-id: "${{github.event.workflow_run.id}}", name: "test-report-ubuntu-latest--n MATRIX[7]", path: reports/ubuntu-7 }}
+    - {name: Download Test Report ubuntu-x, uses: actions/download-artifact@v4, with: {github-token: "${{github.token}}", repository: "${{github.repository}}", run-id: "${{github.event.workflow_run.id}}", name: "test-report-ubuntu-latest--l MATRIX", path: reports/ubuntu-x }}
 
-    - { name: Download Test Report windows, uses: actions/download-artifact@v3, with: { name: "test-report-windows-latest", path: reports/windows } }
-    - { name: Download Test Report macos, uses: actions/download-artifact@v3, with: { name: "test-report-macos-latest", path: reports/macos } }
+    - { name: Download Test Report windows, uses: actions/download-artifact@v4, with: {github-token: "${{github.token}}", repository: "${{github.repository}}", run-id: "${{github.event.workflow_run.id}}", name: "test-report-windows-latest", path: reports/windows } }
+    - { name: Download Test Report macos, uses: actions/download-artifact@v4, with: {github-token: "${{github.token}}", repository: "${{github.repository}}", run-id: "${{github.event.workflow_run.id}}", name: "test-report-macos-latest", path: reports/macos } }
 
     - name: Test Report
       uses: dorny/test-reporter@v1.9.1
