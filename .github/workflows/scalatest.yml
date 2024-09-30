@@ -19,13 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout VerCors
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
-          java-version: 17
+          distribution: 'zulu'
+          java-version: '17'
       - name: Cache dependencies and compilation
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: out
           key: vercors-ci-ubuntu-${{ hashFiles('build.sc') }}-${{ hashFiles('src') }}
@@ -37,12 +38,12 @@ jobs:
       - name: Compile
         run: ./mill -j 0 vercors.allTests.assembly + vercors.vcllvm.compile
       - name: Upload VerCors
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: allTests
           path: out/vercors/allTests/assembly.dest/out.jar
       - name: Upload VCLLVM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vcllvm
           path: out/vercors/vcllvm/compile.dest/vcllvm
@@ -62,11 +63,12 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout VerCors
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
-          java-version: 17
+          distribution: 'zulu'
+          java-version: '17'
       - name: Cache LLVM and Clang
         id: cache-llvm
         uses: actions/cache@v2
@@ -80,7 +82,7 @@ jobs:
           directory: ${{ runner.temp }}/llvm
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
       - name: Download VerCors
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: allTests
           path: '.'
@@ -90,7 +92,7 @@ jobs:
         run: java -Xss64m -cp "out.jar;res/universal/deps;res/universal/res" org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-report-windows-latest
           path: 'report/**/TEST-*.xml'
@@ -100,15 +102,16 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout VerCors
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
-          java-version: 17
+          distribution: 'zulu'
+          java-version: '17'
       - name: Install clang
         run: brew install llvm
       - name: Download VerCors
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: allTests
           path: '.'
@@ -118,7 +121,7 @@ jobs:
         run: java -Xss64m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-report-macos-latest
           path: 'report/**/TEST-*.xml'
@@ -133,18 +136,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout VerCors
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
-          java-version: 17
+          distribution: 'zulu'
+          java-version: '17'
       - name: Download VerCors
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: allTests
           path: '.'
       - name: Download VCLLVM
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: vcllvm
           path: '.'
@@ -156,37 +160,8 @@ jobs:
         run: java -Xss64m -Xmx2G -cp out.jar:res/universal/deps:res/universal/res:. org.scalatest.tools.Runner -R out.jar -o -u report -w vct ${{matrix.batch}}
       - name: Upload test reports
         if: success() || failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-report-ubuntu-latest-${{ matrix.batch }}
           path: 'report/**/TEST-*.xml'
 
-  GenerateTestReport:
-    runs-on: ubuntu-latest
-    if: ${{ success() || failure() }}
-    needs: [ScalaTest, ScalaTestWindowsBasic, ScalaTestMacOsBasic]
-
-    steps:
-    - name: Checkout VerCors
-      uses: actions/checkout@v2
-
-    - {name: Download Test Report ubuntu-0, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[0]", path: reports/ubuntu-0 }}
-    - {name: Download Test Report ubuntu-1, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[1]", path: reports/ubuntu-1 }}
-    - {name: Download Test Report ubuntu-2, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[2]", path: reports/ubuntu-2 }}
-    - {name: Download Test Report ubuntu-3, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[3]", path: reports/ubuntu-3 }}
-    - {name: Download Test Report ubuntu-4, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[4]", path: reports/ubuntu-4 }}
-    - {name: Download Test Report ubuntu-5, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[5]", path: reports/ubuntu-5 }}
-    - {name: Download Test Report ubuntu-6, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[6]", path: reports/ubuntu-6 }}
-    - {name: Download Test Report ubuntu-7, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[7]", path: reports/ubuntu-7 }}
-    - {name: Download Test Report ubuntu-x, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--l MATRIX", path: reports/ubuntu-x }}
-
-    - { name: Download Test Report windows, uses: actions/download-artifact@v3, with: { name: "test-report-windows-latest", path: reports/windows } }
-    - { name: Download Test Report macos, uses: actions/download-artifact@v3, with: { name: "test-report-macos-latest", path: reports/macos } }
-
-    - name: Test Report
-      uses: dorny/test-reporter@v1
-      if: success() || failure()
-      with:
-        name: TestReport           # Name of the check run which will be created
-        path: 'reports/**/TEST-*.xml'    # Path to test results
-        reporter: java-junit

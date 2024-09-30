@@ -765,7 +765,8 @@ case class CPPToCol[G](
 
   private def parseChar(value: String)(implicit o: Origin): Option[Expr[G]] = {
     val fixedValue = fixEscapeAndUnicodeChars(value)
-    val pattern = "^'(.|\n|\r)'$".r
+    // Only allow characters that fit 1 char in UTF-8, the assumed execution character set
+    val pattern = "^'([ -~\n\r])'$".r
     fixedValue match {
       case pattern(char, _*) => Some(CharValue(char.codePointAt(0)))
       case _ => None

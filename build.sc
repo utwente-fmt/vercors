@@ -859,6 +859,12 @@ object vercors extends Module {
 
     override def mainClass = T { Some("org.scalatest.tools.Runner") }
 
+    override def runScriptClasses = T {
+      val paths = Seq(col.test.compile(), viperApi.test.compile(), main.test.compile())
+      Map (
+      "testSuite" -> ("org.scalatest.tools.Runner -R " + paths.map(_.classes.path.toString().replace(" ", "\\\\ ")).mkString("\""," ", "\""))
+    ) }
+
     def test(args: String*) = T.command {
       col.test.test(args: _*)
       viperApi.test.test(args: _*)
