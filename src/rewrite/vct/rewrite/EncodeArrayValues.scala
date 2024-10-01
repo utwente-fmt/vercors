@@ -155,7 +155,6 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         (and recurse for struct fields)
        */
       var requiresT: Seq[(Expr[Post], Expr[Pre] => PointerFreeError)] = Seq(
-        (ptr !== Null(), (p: Expr[Pre]) => PointerNull(p)),
         (
           PointerBlockOffset(ptr)(FramedPtrBlockOffset) === zero,
           (p: Expr[Pre]) => PointerOffsetNonZero(p),
@@ -193,7 +192,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           requiresT
         else
           requiresT ++ permFields
-      val requiresPred = foldPredicate(requiresT.map(_._1))
+      val requiresPred = foldPredicate(requiresT.map((ptr !== Null()) ==> _._1))
       errors = requiresT.map(_._2)
 
       procedure(

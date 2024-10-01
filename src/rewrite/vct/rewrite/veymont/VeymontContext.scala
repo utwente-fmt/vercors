@@ -8,6 +8,7 @@ import vct.col.ast.{
   Communicate,
   Constructor,
   Endpoint,
+  InstanceField,
   Program,
   Variable,
 }
@@ -44,6 +45,10 @@ trait VeymontContext[Pre <: Generation] {
       classes.flatMap { cls =>
         cls.collect { case cons: Constructor[Pre] => (cons, cls) }
       }.toMap
+    lazy val fieldToClass: Map[InstanceField[Pre], Class[Pre]] =
+      classes.flatMap { cls =>
+        cls.collect { case field: InstanceField[Pre] => (field, cls) }
+      }.toMap
   }
 
   def communicatesOf(chor: Choreography[Pre]) =
@@ -71,6 +76,8 @@ trait VeymontContext[Pre <: Generation] {
     mappings.constructorToClass(cons)
   def classOfOpt(cons: Constructor[Pre]): Option[Class[Pre]] =
     mappings.constructorToClass.get(cons)
+  def classOf(field: InstanceField[Pre]): Class[Pre] =
+    mappings.fieldToClass(field)
 
   val currentChoreography = ScopedStack[Choreography[Pre]]()
   val currentEndpoint = ScopedStack[Endpoint[Pre]]()

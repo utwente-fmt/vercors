@@ -41,7 +41,18 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "ptrNull" using silicon in "free null pointer" c
+  vercors should verify using silicon in "free null pointer" c
+    """
+      #include <stdlib.h>
+      int main(){
+          int* xs = NULL;
+          free(xs);
+          free(xs);
+          free(xs);
+      }
+    """
+
+  vercors should fail withCode "ptrOffsetNonZero" using silicon in "free stack garbage pointer" c
     """
       #include <stdlib.h>
       int main(){
@@ -345,6 +356,11 @@ class CSpec extends VercorsSpec {
         //@ exhale Perm(&s.x, 1\1);
         t = s;
     }
+    """
+
+    vercors should error withCode "preprocessorError" in "Source file with preprocessor error" c
+    """
+    #define foo(
     """
 
     vercors should verify using silicon in "Parallel omp loop with declarations inside" c

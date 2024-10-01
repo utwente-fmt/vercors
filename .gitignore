@@ -61,3 +61,6 @@ __pycache__
 
 # Misc
 *.pprof
+*.vpr
+test.pvl
+a.java

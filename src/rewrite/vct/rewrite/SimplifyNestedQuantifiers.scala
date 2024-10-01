@@ -89,7 +89,10 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
         mapUnfoldedStar(
           e.body,
           (b: Expr[Pre]) =>
-            rewriteBinder(Starall(e.bindings, e.triggers, b)(e.blame)(e.o)),
+            if (TBool[Pre]().superTypeOf(b.t))
+              rewriteBinder(Forall(e.bindings, e.triggers, b)(e.o))
+            else
+              rewriteBinder(Starall(e.bindings, e.triggers, b)(e.blame)(e.o)),
         )
       case other if topLevel =>
         infoGetter.addInfo(other)

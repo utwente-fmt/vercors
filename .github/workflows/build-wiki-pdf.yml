@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: technote-space/auto-cancel-redundant-workflow@v1
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - run: sudo apt install pandoc texlive-xetex
       - working-directory: util/wiki
         run: pip3 install -r requirements.txt
@@ -51,5 +51,5 @@ jobs:
           #     git config --local user.name "Vercors Team"
           #     git config --local user.email "vercors@lists.utwente.nl"
           #     git commit --allow-empty -m "Trigger website refresh"
-          #     git push 
+          #     git push
 

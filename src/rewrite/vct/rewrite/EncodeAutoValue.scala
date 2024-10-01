@@ -38,6 +38,20 @@ case object EncodeAutoValue extends RewriterBuilder {
       )
   }
 
+  case class CombinedAutoValue(autoNode: Node[_], regularNode: Node[_])
+      extends UserError {
+    override def code: String = "combinedAutoValue"
+
+    override def text: String =
+      vct.result.Message.messagesInContext(
+        (
+          regularNode.o,
+          "The AutoValue resource may not be combined with permission resources for what is potentially the same field...",
+        ),
+        (autoNode.o, "The AutoValue resource was here"),
+      )
+  }
+
   private sealed class PreOrPost
 
   private final case class InPrecondition() extends PreOrPost
@@ -55,9 +69,14 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
 
   import EncodeAutoValue._
 
-  private val conditionContext
-      : ScopedStack[(PreOrPost, mutable.ArrayBuffer[(Expr[Pre], Expr[Post])])] =
-    ScopedStack()
+  private val conditionContext: ScopedStack[
+    (
+        PreOrPost,
+        mutable.ArrayBuffer[(Expr[Pre], Expr[Post])],
+        mutable.HashSet[Location[Post]],
+        mutable.HashSet[Location[Post]],
+    )
+  ] = ScopedStack()
   private val inFunction: ScopedStack[Unit] = ScopedStack()
 
   private lazy val anyRead: Function[Post] = {
@@ -103,14 +122,14 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
     val postMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
     node.rewrite(
       requires =
-        conditionContext.having((InPrecondition(), preMap)) {
-          dispatch(node.requires)
-        },
+        conditionContext.having(
+          (InPrecondition(), preMap, mutable.HashSet(), mutable.HashSet())
+        ) { dispatch(node.requires) },
       ensures = {
         val predicate =
-          conditionContext.having(((InPostcondition(), postMap))) {
-            dispatch(node.ensures)
-          }
+          conditionContext.having(
+            ((InPostcondition(), postMap, mutable.HashSet(), mutable.HashSet()))
+          ) { dispatch(node.ensures) }
         val filtered = preMap.filterNot(pre =>
           postMap.exists(post => {
             Compare.isIsomorphic(pre._1, post._1, matchFreeVariables = true)
@@ -143,7 +162,7 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
                 (SilverFieldLocation(x.get, field), obj)
             }
           conditionContext.top match {
-            case (InPrecondition(), preMap) =>
+            case (InPrecondition(), preMap, avLocations, locations) =>
               preMap +=
                 ((
                   e,
@@ -155,6 +174,10 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
                     ),
                   ),
                 ))
+              avLocations += postLoc
+              if (locations.contains(postLoc)) {
+                throw CombinedAutoValue(e, locations.find(_ == postLoc).get)
+              }
               PolarityDependent(
                 onInhale = Perm(
                   postLoc,
@@ -164,8 +187,12 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
                   !ForPerm(Seq(x), genericLocation, ff) &*
                     !ForPerm(Seq(x), genericLocation, x.get !== obj),
               )
-            case (InPostcondition(), postMap) =>
+            case (InPostcondition(), postMap, avLocations, locations) =>
               postMap += ((e, tt))
+              avLocations += postLoc
+              if (locations.contains(postLoc)) {
+                throw CombinedAutoValue(e, locations.find(_ == postLoc).get)
+              }
               PolarityDependent(
                 onInhale =
                   !ForPerm(Seq(x), genericLocation, ff) &*
@@ -177,6 +204,18 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
               )
           }
         }
+        case Perm(loc, perm) => {
+          val postLoc = dispatch(loc)
+          conditionContext.top match {
+            case (_, _, avLocations, locations) => {
+              locations += postLoc;
+              if (avLocations.contains(postLoc)) {
+                throw CombinedAutoValue(avLocations.find(_ == postLoc).get, e)
+              }
+              Perm(postLoc, dispatch(perm))
+            }
+          }
+        }
         case Let(binding, value, main) =>
           variables.scope {
             localHeapVariables.scope {
@@ -186,15 +225,17 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
                 finally { conditionContext.push(top) }
               val mMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
               val m =
-                conditionContext.having((conditionContext.top._1, mMap)) {
-                  dispatch(main)
-                }
+                conditionContext.having((
+                  conditionContext.top._1,
+                  mMap,
+                  conditionContext.top._3,
+                  conditionContext.top._4,
+                )) { dispatch(main) }
               if (mMap.isEmpty) { Let(b, v, m) }
               else {
                 mMap.foreach(postM =>
-                  conditionContext.top._2.append(
-                    (Let(binding, value, postM._1), Let(b, v, postM._2))
-                  )
+                  conditionContext.top._2
+                    .append((Let(binding, value, postM._1), Let(b, v, postM._2)))
                 )
                 conditionContext.top._1 match {
                   case InPrecondition() => Let(b, v, m)
@@ -218,13 +259,19 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
           val lMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
           val rMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
           val l =
-            conditionContext.having((conditionContext.top._1, lMap)) {
-              dispatch(left)
-            }
+            conditionContext.having((
+              conditionContext.top._1,
+              lMap,
+              conditionContext.top._3,
+              conditionContext.top._4,
+            )) { dispatch(left) }
           val r =
-            conditionContext.having((conditionContext.top._1, rMap)) {
-              dispatch(right)
-            }
+            conditionContext.having((
+              conditionContext.top._1,
+              rMap,
+              conditionContext.top._3,
+              conditionContext.top._4,
+            )) { dispatch(right) }
           if (lMap.isEmpty && rMap.isEmpty)
             Select(c, l, r)
           else {
@@ -271,9 +318,12 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
             try { dispatch(left) }
             finally { conditionContext.push(top); }
           val r =
-            conditionContext.having((conditionContext.top._1, rMap)) {
-              dispatch(right)
-            }
+            conditionContext.having((
+              conditionContext.top._1,
+              rMap,
+              conditionContext.top._3,
+              conditionContext.top._4,
+            )) { dispatch(right) }
           if (rMap.nonEmpty) {
             conditionContext.top._1 match {
               case InPrecondition() =>
@@ -302,8 +352,14 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
           try {
             val lMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
             val rMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
-            val l = conditionContext.having((top._1, lMap)) { dispatch(left) }
-            val r = conditionContext.having((top._1, rMap)) { dispatch(right) }
+            val l =
+              conditionContext.having((top._1, lMap, top._3, top._4)) {
+                dispatch(left)
+              }
+            val r =
+              conditionContext.having((top._1, rMap, top._3, top._4)) {
+                dispatch(right)
+              }
             top._2.addAll(lMap)
             top._2.addAll(rMap)
             Star(l, r)

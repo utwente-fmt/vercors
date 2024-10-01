@@ -124,6 +124,8 @@ case class Silicon(
 
     siliconConfig :+= "-"
 
+    logger.debug("Silicon command line: " + siliconConfig)
+
     silicon.parseCommandLine(siliconConfig)
     if (!optimizeUnsafe)
       silicon.symbExLog = SiliconLogListener(

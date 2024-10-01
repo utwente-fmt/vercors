@@ -16,7 +16,7 @@ trait UnfoldingImpl[G] extends NodeFamilyImpl[G] with UnfoldingOps[G] {
     Group(Text("unfolding") <+> res.show <+> "in" <>> body)
 
   def layoutJava(implicit ctx: Ctx): Doc =
-    Group(Text("\\Unfolding") <+> res.show <+> "\\in" <>> body)
+    Group(Doc.inlineSpec(Text("\\Unfolding") <+> res.show <+> "\\in") <>> body)
 
   def layoutSpec(implicit ctx: Ctx): Doc =
     Group(Text("\\unfolding") <+> res.show <+> "\\in" <>> body)
