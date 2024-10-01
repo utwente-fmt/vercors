@@ -40,6 +40,7 @@ pure ref ptr_deref(`pointer` p) =
 decreases;
 requires 0 <= `pointer`.pointer_offset(p) + offset;
 requires `pointer`.pointer_offset(p) + offset < `block`.block_length(`pointer`.pointer_block(p));
+ensures \polarity_dependent(offset == 0 ==> \result == p, true);
 pure `pointer` ptr_add(`pointer` p, int offset) =
   `pointer`.pointer_of(
      `pointer`.pointer_block(p),
