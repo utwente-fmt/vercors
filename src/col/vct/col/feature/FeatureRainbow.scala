@@ -123,6 +123,9 @@ class FeatureRainbow[G] {
       case node: CoerceIdentity[G] => Coercions
       case node: CoerceIncreasePrecision[G] => Coercions
       case node: CoerceIntRat[G] => Coercions
+      case node: CoerceBoolCInt[G] => Coercions
+      case node: CoerceCIntBool[G] => Coercions
+      case node: CoercePointerBool[G] => Coercions
       case node: CoerceJavaClassAnyClass[G] => Coercions
       case node: CoerceJavaSupports[G] => Coercions
       case node: CoerceJoinUnion[G] => Coercions

@@ -434,6 +434,8 @@ vercors should verify using silicon in "example using string primitive" pvl
 
   vercors should verify using anyBackend example "technical/labeledEmbeddedStatement.c"
 
+  vercors should verify using anyBackend example "technical/intBoolCoercion.c"
+
   vercors should verify using anyBackend in "usage of given/yields in C" c """
     /*@
     given int x;
