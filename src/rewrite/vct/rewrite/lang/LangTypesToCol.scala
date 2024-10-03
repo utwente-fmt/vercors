@@ -7,6 +7,7 @@ import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, CPP}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
+import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangTypesToCol.{EmptyInlineDecl, IncompleteTypeArgs}
 
@@ -35,6 +36,12 @@ case object LangTypesToCol extends RewriterBuilder {
 }
 
 case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
+
+  val cStructFieldsSuccessor: SuccessionMap[
+    (CStructMemberDeclarator[Pre]),
+    CStructMemberDeclarator[Post],
+  ] = SuccessionMap()
+
   override def porcelainRefSucc[RefDecl <: Declaration[Rewritten[Pre]]](
       ref: Ref[Pre, _]
   )(implicit tag: ClassTag[RefDecl]): Option[Ref[Rewritten[Pre], RefDecl]] =
@@ -94,6 +101,9 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
         dispatch(C.getPrimitiveType(specs, context = Some(t)))
       case t @ CPPPrimitiveType(specs) =>
         dispatch(CPP.getBaseTypeFromSpecs(specs, context = Some(t)))
+      case t @ CTStructUnique(inner, fieldRef, unique) =>
+        val fieldSucc: Ref[Post, CStructMemberDeclarator[Post]] = cStructFieldsSuccessor(fieldRef.decl).ref
+        t.rewrite(fieldRef = fieldSucc)
       case t @ SilverPartialTAxiomatic(Ref(adt), partialTypeArgs) =>
         if (partialTypeArgs.map(_._1.decl).toSet != adt.typeArgs.toSet)
           throw IncompleteTypeArgs(t)
@@ -239,8 +249,9 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
             decl,
             context = Some(declaration),
           )
-          cStructMemberDeclarators
-            .declare(declaration.rewrite(specs = specs, decls = Seq(newDecl)))
+          val newMember = declaration.rewrite(specs = specs, decls = Seq(newDecl))
+          cStructFieldsSuccessor(declaration) = newMember
+          cStructMemberDeclarators.declare(newMember)
         })
       case declaration: CFunctionDefinition[Pre] =>
         implicit val o: Origin = declaration.o

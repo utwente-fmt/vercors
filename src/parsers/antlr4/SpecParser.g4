@@ -421,6 +421,7 @@ valModifier
 
 valTypeQualifier
   : 'unique' '<' langConstInt '>' # valUnique
+  | 'unique_pointer_field' '<' langId ',' langConstInt '>' # valUniquePointerField
   ;
 
 valArgList

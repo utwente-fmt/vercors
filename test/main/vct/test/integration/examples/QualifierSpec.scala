@@ -2,6 +2,69 @@ package vct.test.integration.examples
 
 import vct.test.integration.helper.VercorsSpec
 
+class QualifierSpecWIP extends VercorsSpec {
+  vercors should verify using silicon in "Unique pointer field of struct containing unique struct" c """
+  struct vec2 {
+    int* xxs;
+  };
+
+  struct vec {
+    int* xs;
+    /*@unique_pointer_field<xxs, 3>@*/ struct vec2 v;
+  };
+
+  /*@
+    context xs != NULL;
+    context x1 != NULL ** \pointer_length(x1)==1 ** Perm(x1, write) ** Perm(*x1, write);
+  @*/
+  int f(/*@unique_pointer_field<xs, 2>@*/ struct vec*  x1, /*@ unique<2> @*/ int* xs, /*@unique_pointer_field<xxs, 3>@*/ struct vec2 v){
+    x1->xs = xs;
+    x1->v = v;
+    //@ assert xs != NULL;
+    return 0;
+  }
+  """
+}
+
+class StructQualifierSpec extends VercorsSpec {
+  vercors should verify using silicon in "Unique pointer field of struct" c """
+  struct vec {
+    int* xs;
+  };
+
+  /*@
+    context xs != NULL;
+    context x1 != NULL ** \pointer_length(x1)==1 ** Perm(x1, write) ** Perm(*x1, write);
+  @*/
+  int f(/*@unique_pointer_field<xs, 2>@*/ struct vec*  x1, /*@ unique<2> @*/ int* xs){
+    x1->xs = xs;
+    //@ assert xs != NULL;
+    return 0;
+  }
+  """
+
+  vercors should verify using silicon in "Unique pointer field of struct containing struct" c """
+  struct vec2 {
+    int* xxs;
+  };
+
+  struct vec {
+    int* xs;
+    struct vec2 v;
+  };
+
+  /*@
+    context xs != NULL;
+    context x1 != NULL ** \pointer_length(x1)==1 ** Perm(x1, write) ** Perm(*x1, write);
+  @*/
+  int f(/*@unique_pointer_field<xs, 2>@*/ struct vec*  x1, /*@ unique<2> @*/ int* xs){
+    x1->xs = xs;
+    //@ assert xs != NULL;
+    return 0;
+  }
+  """
+}
+
 class QualifierSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/unique/arrays.c"
 
@@ -123,6 +186,7 @@ ensures \result == 2*x0[0] + 2*x1[0];
 @*/
 int f(int n, /*@ unique<1> @*/ int* x0, /*@ unique<2> @*/ int* x1){
   return h(x0, x0) + h(x1, x1);
+  h(x0, x1);
 }
 
 /*@

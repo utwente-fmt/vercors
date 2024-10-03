@@ -394,6 +394,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case CPrimitiveType(specs) => getBaseType(C.getPrimitiveType(specs, Some(t)))
       case TUnique(it, _) => getBaseType(it)
       case TConst(it) => getBaseType(it)
+      case TClassUnique(it, _, _) => getBaseType(it)
+      case CTStructUnique(it, _, _) => getBaseType(it)
       case _ => t
     }
 
@@ -1272,10 +1274,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case _ => false
     }
 
-  def isStruct(t: Type[Pre]): Boolean =
+  def isStruct(t: Type[Pre]): Boolean = getStruct(t).isDefined
+
+  def getStruct(t: Type[Pre]): Option[CTStruct[Pre]] =
     getBaseType(t) match {
-      case t : CTStruct[Pre] => true
-      case _ => false
+      case t : CTStruct[Pre] => Some(t)
+      case _ => None
     }
 
   def isPointer(t: Type[Pre]): Boolean =
@@ -1448,6 +1452,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         val structRef =
           getBaseType(deref.struct.t) match {
             case CTPointer(CTStruct(struct)) => struct
+            case CTPointer(CTStructUnique(CTStruct(struct), fieldRef, unique)) => struct
             case t => throw WrongStructType(t)
           }
         Deref[Post](
@@ -1483,7 +1488,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           )(blame)
         )(struct.blame)
       member.specs.collectFirst {
-        case CSpecificationType(newStruct: CTStruct[Pre]) =>
+        case CSpecificationType(specT) if isStruct(specT) =>
+          val newStruct = getStruct(specT).get
           // We recurse, since a field is another struct
           Perm(loc, newPerm) &* unwrapStructPerm(
             loc,
@@ -2028,9 +2034,18 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     TPointer(rw.dispatch(t.innerType))
   }
 
-  def structType(t: CTStruct[Pre]): Type[Post] = {
-    val targetClass =
-      new LazyRef[Post, Class[Post]](cStructSuccessor(t.ref.decl))
-    TClass[Post](targetClass, Seq())(t.o)
+  def structType(t: CType[Pre]): Type[Post] = t match {
+    case ts @ CTStruct(ref) =>
+      val targetClass =
+        new LazyRef[Post, Class[Post]](cStructSuccessor(ref.decl))
+      TClass[Post](targetClass, Seq())(t.o)
+    case CTStructUnique(CTStruct(ref), fieldRef, unique) =>
+      val targetClass =
+        new LazyRef[Post, Class[Post]](cStructSuccessor(ref.decl))
+      val targetField =
+        new LazyRef[Post, InstanceField[Post]](cStructFieldsSuccessor((ref.decl, fieldRef.decl)))
+      val tInner = TClass[Post](targetClass, Seq())(t.o)
+      TClassUnique[Post](tInner, targetField, unique)(t.o)
+    case _ => ???
   }
 }

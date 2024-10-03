@@ -3,7 +3,7 @@ package vct.col.resolve
 import com.typesafe.scalalogging.LazyLogging
 import hre.data.BitString
 import hre.util.FuncTools
-import vct.col.ast._
+import vct.col.ast.{CUniquePointerField, _}
 import vct.col.ast.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
@@ -11,23 +11,8 @@ import vct.col.resolve.ResolveReferences.scanScope
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, CPP, Java, LLVM, PVL, Spec}
-import vct.col.resolve.Resolve.{
-  MalformedBipAnnotation,
-  SpecContractParser,
-  SpecExprParser,
-  getLit,
-  isBip,
-}
-import vct.col.resolve.lang.JavaAnnotationData.{
-  BipComponent,
-  BipData,
-  BipGuard,
-  BipInvariant,
-  BipPort,
-  BipPure,
-  BipStatePredicate,
-  BipTransition,
-}
+import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecContractParser, SpecExprParser, getLit, isBip}
+import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipPort, BipPure, BipStatePredicate, BipTransition}
 import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.{Unreachable, UserError}
 
@@ -188,6 +173,16 @@ case object ResolveTypes {
       case _ => ctx
     }
 
+  def addUniquePointerFieldRef[G](specifiers: Seq[CDeclarationSpecifier[G]], ctx: TypeResolutionContext[G], blameNode: Node[G]): Unit = {
+    val pf: Seq[CUniquePointerField[G]] = specifiers.collect
+    { case CTypeQualifierDeclarationSpecifier(s: CUniquePointerField[G]) => s}
+    pf.foreach(f =>
+      f.ref = Some(C.getUniquePointerStructFieldRef(specifiers, ctx).getOrElse(
+        throw NotSupportedStructUniqueField(blameNode)
+      ))
+    )
+  }
+
   def resolveOne[G](node: Node[G], ctx: TypeResolutionContext[G]): Unit =
     node match {
       case javaClass @ JavaNamedType(genericNames) =>
@@ -206,6 +201,12 @@ case object ResolveTypes {
           C.findCStruct(name, ctx)
             .getOrElse(throw NoSuchNameError("struct", name, t))
         )
+      case d: CParam[G] => addUniquePointerFieldRef(d.specifiers, ctx, d)
+      case d: CStructMemberDeclarator[G] => addUniquePointerFieldRef(d.specs, ctx, d)
+      case d: CDeclaration[G] => addUniquePointerFieldRef(d.specs, ctx, d)
+      case d: CFunctionDefinition[G] => addUniquePointerFieldRef(d.specs, ctx, d)
+      case t: CPrimitiveType[G] => addUniquePointerFieldRef(t.specifiers, ctx, t)
+
       case t @ CPPTypedefName(nestedName, _) =>
         t.ref = Some(CPP.findCPPTypeName(nestedName, ctx).getOrElse(
           throw NoSuchNameError("class, struct, or namespace", nestedName, t)

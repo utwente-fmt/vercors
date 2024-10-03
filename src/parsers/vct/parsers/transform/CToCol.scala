@@ -1188,15 +1188,16 @@ case class CToCol[G](
       case ValStatic(_) => collector.static += mod
     }
 
-  def convert(mod: ValEmbedTypeQualifierContext): CUnique[G] =
+  def convert(mod: ValEmbedTypeQualifierContext): CTypeQualifier[G] =
     mod match {
       case ValEmbedTypeQualifier0(_, mod, _) => convert(mod)
       case ValEmbedTypeQualifier1(mod) => convert(mod)
     }
 
-  def convert(implicit mod: ValTypeQualifierContext): CUnique[G] =
+  def convert(implicit mod: ValTypeQualifierContext): CTypeQualifier[G] =
     mod match {
       case ValUnique(_, _, uniqueId, _) => CUnique[G](convert(uniqueId))
+      case ValUniquePointerField(_, _, name, _, uniqueId, _) => CUniquePointerField[G](convert(name), convert(uniqueId))
     }
 
   def convertEmbedWith(

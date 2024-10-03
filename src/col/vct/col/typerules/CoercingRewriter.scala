@@ -278,6 +278,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceFromUniquePointer(_, _) => e
       case CoerceToUniquePointer(_, _) => e
       case CoerceBetweenUniquePointer(_, _) => e
+      case CoerceBetweenUniqueStruct(_, _) => e
+      case CoerceBetweenUniqueClass(_, _) => e
 
       case CoerceSupports(_, _) => e
       case CoerceClassAnyClass(_, _) => e

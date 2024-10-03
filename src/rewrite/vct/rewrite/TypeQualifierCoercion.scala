@@ -42,6 +42,46 @@ case object TypeQualifierCoercion extends RewriterBuilder {
 case class TypeQualifierCoercion[Pre <: Generation]()
   extends CoercingRewriter[Pre] {
 
+  val uniqueClasses: mutable.Map[(Class[Pre], Map[InstanceField[Pre], BigInt]), Class[Post]] = mutable.Map()
+  val uniqueField: mutable.Map[(InstanceField[Pre], Map[InstanceField[Pre], BigInt]), InstanceField[Post]] = mutable.Map()
+//  val classCopyTypes: ScopedStack[Map[Type[Pre], Type[Post]]] = ScopedStack()
+
+  def createUniqueClassCopy(original: Class[Pre], pointerInstanceFields: Map[InstanceField[Pre], BigInt]): Class[Post] = {
+      globalDeclarations.declare({
+        classDeclarations.scope({
+          val decls = classDeclarations.collect { original.decls.foreach { d =>
+            classDeclarations.declare[InstanceField[Post]] { d match {
+              case field: InstanceField[Pre] if pointerInstanceFields.contains(field) =>
+                val unique = pointerInstanceFields(field)
+                val it = field.t match {
+                  case TPointer(it) => it
+                  case _ => ??? // Not allowed
+                }
+                val (info, innerResType) = getUnqualified(it)
+                if (info.const) ??? // Not allowed
+                val resType = TUniquePointer(innerResType, unique)
+                val resField = field.rewrite(t = resType)
+                uniqueField((field, pointerInstanceFields)) = resField
+                resField
+              case field: InstanceField[Pre] =>
+                val resField = field.rewrite()
+                uniqueField((field, pointerInstanceFields)) = resField
+                resField
+              case _ => ??? // Not allowed
+            }}
+          }}._1
+          original.rewrite(decls=decls)
+        })
+      })
+  }
+
+  def getUniqueMap(t: TClassUnique[Pre]): (Map[InstanceField[Pre], BigInt], TClass[Pre]) = t.inner match {
+    case it: TClassUnique[Pre] => val (res, classT) = getUniqueMap(it)
+      if(res.contains(t.fieldRef.decl)) ??? // Not allowed
+      (res + (t.fieldRef.decl -> t.unique), classT)
+    case classT: TClass[Pre] => (Map(t.fieldRef.decl -> t.unique), classT)
+  }
+
   override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(
     implicit o: Origin
   ): Expr[Post] = {
@@ -54,6 +94,7 @@ case class TypeQualifierCoercion[Pre <: Generation]()
       case CoerceToUniquePointer(s, t) => return UniquePointerCoercion(e, dispatch(t))
       case CoerceFromUniquePointer(s, t) => return UniquePointerCoercion(e, dispatch(t))
       case CoerceBetweenUniquePointer(s, t) => return UniquePointerCoercion(e, dispatch(t))
+      case CoerceBetweenUniqueClass(_, t) =>  return UniquePointerCoercion(e, dispatch(t))
       case _ =>
     }
     e
@@ -64,6 +105,11 @@ case class TypeQualifierCoercion[Pre <: Generation]()
       case TConst(t) => dispatch(t)
       case TUnique(_, _) => throw DisallowedQualifiedType(t)
       case TPointer(it) => makePointer(it)
+      case tu: TClassUnique[Pre] =>
+        val (map, classT) = getUniqueMap(tu)
+        val c = classT.cls.decl
+        val uniqueClass = uniqueClasses.getOrElseUpdate((c,map), createUniqueClassCopy(c, map))
+        classT.rewrite(cls = uniqueClass.ref)
       case other => other.rewriteDefault()
     }
 
@@ -76,6 +122,18 @@ case class TypeQualifierCoercion[Pre <: Generation]()
         val (info, newT) = getUnqualified(t)
         if(info.const) NewConstPointerArray(newT, dispatch(size))(npa.blame)
         else NewPointerArray(newT, dispatch(size), info.unique)(npa.blame)
+      case d@Deref(obj, ref)  =>
+        obj match {
+          // Always has an CoerceClassAnyClassCoercion
+          case ApplyCoercion(e, _) if e.t.isInstanceOf[TClassUnique[Pre]] =>
+            val source = e.t.asInstanceOf[TClassUnique[Pre]]
+            d.rewriteDefault()
+            val (map, classT) = getUniqueMap(source)
+            if (!uniqueField.contains(ref.decl, map)) createUniqueClassCopy(classT.cls.decl, map)
+            d.rewrite(ref = uniqueField(ref.decl, map).ref)
+          case _ => d.rewriteDefault()
+        }
+
       case other => other.rewriteDefault()
     }
   }

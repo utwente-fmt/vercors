@@ -324,7 +324,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case sizeof: SizeOf[Pre] => throw LangCToCol.UnsupportedSizeof(sizeof)
 
       case Perm(a @ AmbiguousLocation(expr), perm)
-          if c.getBaseType(expr.t).isInstanceOf[CTStruct[Pre]] =>
+          if c.isStruct(expr.t) =>
         c.getBaseType(expr.t) match {
           case structType: CTStruct[Pre] =>
             c.unwrapStructPerm(
@@ -366,9 +366,7 @@ case class LangSpecificToCol[Pre <: Generation](
           case _ =>
         }
         assign.target.t match {
-          case CPrimitiveType(specs) if specs.collectFirst {
-                case CSpecificationType(_: CTStruct[Pre]) => ()
-              }.isDefined =>
+          case t if c.isStruct(t) =>
             c.assignStruct(assign)
           case CPPPrimitiveType(_) => cpp.preAssignExpr(assign)
           case _ => rewriteDefault(assign)
@@ -396,6 +394,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case t: TOpenCLVector[Pre] => c.vectorType(t)
       case t: CTArray[Pre] => c.arrayType(t)
       case t: CTStruct[Pre] => c.structType(t)
+      case t: CTStructUnique[Pre] => c.structType(t)
       case t: CPPTArray[Pre] => cpp.arrayType(t)
       case other => rewriteDefault(other)
     }

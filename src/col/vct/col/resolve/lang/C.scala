@@ -6,6 +6,7 @@ import vct.col.ast._
 import vct.col.ast.`type`.typeclass.TFloats.{C_ieee754_32bit, C_ieee754_64bit}
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.origin._
+import vct.col.ref.Ref
 import vct.col.resolve._
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
@@ -71,6 +72,10 @@ case object C extends LazyLogging {
     q match {
       case CConst() => TConst(t)(q.o)
       case CUnique(i) => TUnique(t, i)(q.o)
+      case pf@CUniquePointerField(_, i) =>
+        val field: CStructMemberDeclarator[G] = pf.ref.get.decls
+        val fieldRef: Ref[G, CStructMemberDeclarator[G]] = field.ref
+        CTStructUnique(t, fieldRef, i)(q.o)
       case _ => throw CTypeNotSupported(Some(q))
     }
   }
@@ -166,17 +171,9 @@ case object C extends LazyLogging {
         case _ => throw CTypeNotSupported(context)
       }
 
-    val (typeSpecs, nonTypeSpecs) = specs.filter {
+    val (typeSpecs, qualifiers) = specs.filter {
       case _: CTypeSpecifier[G] | _: CTypeQualifierDeclarationSpecifier[G] => true ; case _ => false
     }.partition { case _: CTypeSpecifier[G] => true; case _ => false }
-
-    var unique: Option[BigInt] = None
-    var constant: Boolean = false
-    nonTypeSpecs.foreach({
-      case CTypeQualifierDeclarationSpecifier(CUnique(i)) if unique.isEmpty => unique = Some(i)
-      case CTypeQualifierDeclarationSpecifier(CConst()) => constant = true
-      case _ => throw CTypeNotSupported(context)
-    })
 
     val t: Type[G] =
       typeSpecs match {
@@ -204,7 +201,7 @@ case object C extends LazyLogging {
       case Some(size) => CTVector(size, t)
     }
 
-    nonTypeSpecs.collect{ case CTypeQualifierDeclarationSpecifier(q) => q }
+    qualifiers.collect{ case CTypeQualifierDeclarationSpecifier(q) => q }
       .foldLeft(res)(qualify[G])
   }
 
@@ -294,12 +291,13 @@ case object C extends LazyLogging {
       case _ => None
     }
     case struct: CTStruct[G] => getCStructDeref(struct.ref.decl, name)
+    case struct: CTStructUnique[G] => findStruct(struct.inner, name)
   }
 
   def getCStructDeref[G](
       decl: CGlobalDeclaration[G],
       name: String,
-  ): Option[CDerefTarget[G]] =
+  ): Option[RefCStructField[G]] =
     decl.decl match {
       case CDeclaration(_, _, Seq(CStructDeclaration(_, decls)), Seq()) =>
         decls.flatMap(Referrable.from).collectFirst {
@@ -307,6 +305,28 @@ case object C extends LazyLogging {
         }
       case _ => None
     }
+
+  def getUniquePointerStructFieldRef[G](
+      specs: Seq[CDeclarationSpecifier[G]],
+      ctx: TypeResolutionContext[G]
+  ): Option[RefCStructField[G]] = {
+    var pf: Option[CUniquePointerField[G]] = None
+    var struct: Option[CStructSpecifier[G]] = None
+    specs foreach {
+      case CTypeQualifierDeclarationSpecifier(s: CUniquePointerField[G]) =>
+        if(pf.isDefined) return None
+        pf = Some(s)
+      case s: CStructSpecifier[G] =>
+        if(struct.isDefined) return None
+        struct = Some(s)
+      case _ =>
+    }
+    if(pf.isEmpty || struct.isEmpty) return None
+
+    val structRef: RefCStruct[G] = C.findCStruct(struct.get.name, ctx)
+      .getOrElse(return None)
+    C.getCStructDeref(structRef.decl, pf.get.name)
+  }
 
   def openCLVectorAccessString[G](
       access: String,

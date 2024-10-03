@@ -194,6 +194,8 @@ case object CoercionUtils {
       case (TNull(), TArray(target)) => CoerceNullArray(target)
       case (TNull(), TClass(target, typeArgs)) =>
         CoerceNullClass(target, typeArgs)
+      case (TNull(), TClassUnique(TClass(target, typeArgs), _, _)) =>
+        CoerceNullClass(target, typeArgs)
       case (TNull(), JavaTClass(target, _)) => CoerceNullJavaClass(target)
       case (TNull(), TAnyClass()) => CoerceNullAnyClass()
       case (TNull(), target: PointerType[G]) => CoerceNullPointer(target)
@@ -291,8 +293,17 @@ case object CoercionUtils {
             supp.cls.decl == targetClass.decl
           } =>
         CoerceSupports(sourceClass, targetClass)
-
+      case (source @ TClass(_, _), target@TClassUnique(innerT @ TClass(_, _), _, _)) if innerT == source =>
+        CoerceBetweenUniqueClass(source, target)
+      case (source@TClassUnique(innerS @ TClass(_, _), _, _), target@ TClass(_, _)) if innerS == target =>
+        CoerceBetweenUniqueClass(source, target)
+      case (source@TClassUnique(innerS @ TClass(_, _), _, _), target@TClassUnique(innerT @ TClass(_, _), _, _))
+        if innerT == innerS =>
+        CoerceBetweenUniqueClass(source, target)
       case (source @ TClass(sourceClass, typeArgs), TAnyClass()) =>
+        CoerceClassAnyClass(sourceClass, typeArgs)
+
+      case (source @ TClassUnique(TClass(sourceClass, typeArgs), _ ,_), TAnyClass()) =>
         CoerceClassAnyClass(sourceClass, typeArgs)
 
       case (
@@ -671,6 +682,7 @@ case object CoercionUtils {
       case t: TConst[G] =>
         getAnyClassCoercion(t.inner).map{ case (c, res) => (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)}
       case t: TClass[G] => Some((CoerceIdentity(source), t))
+      case t: TClassUnique[G] => getAnyClassCoercion(t.inner)
 
       case t: TUnion[G] =>
         val superType = Types.leastCommonSuperType(t.types)

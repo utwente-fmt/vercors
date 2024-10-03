@@ -140,6 +140,13 @@ final case class TConst[G](inner: Type[G])(
 final case class TUnique[G](inner: Type[G], unique: BigInt)(
   implicit val o: Origin = DiagnosticOrigin
 ) extends Type[G] with TUniqueImpl[G]
+final case class CTStructUnique[G](inner: Type[G], fieldRef: Ref[G, CStructMemberDeclarator[G]], unique: BigInt)(
+  implicit val o: Origin = DiagnosticOrigin
+) extends CType[G] with CTStructUniqueImpl[G]
+final case class TClassUnique[G](inner: Type[G], fieldRef: Ref[G, InstanceField[G]], unique: BigInt)(
+  implicit val o: Origin = DiagnosticOrigin
+) extends Type[G] with TClassUniqueImpl[G]
+
 
 sealed trait PointerType[G] extends Type[G] with PointerTypeImpl[G]
 final case class TPointer[G](element: Type[G])(
@@ -963,6 +970,14 @@ final case class CoerceFromUniquePointer[G](source: Type[G], target: Type[G])(
 final case class CoerceBetweenUniquePointer[G](source: Type[G], target: Type[G])(
   implicit val o: Origin
 ) extends Coercion[G] with CoerceBetweenUniquePointerImpl[G]
+
+final case class CoerceBetweenUniqueClass[G](source: Type[G], target: Type[G])(
+  implicit val o: Origin
+) extends Coercion[G] with CoerceBetweenUniqueClassImpl[G]
+final case class CoerceBetweenUniqueStruct[G](source: Type[G], target: Type[G])(
+  implicit val o: Origin
+) extends Coercion[G] with CoerceBetweenUniqueStructImpl[G]
+
 
 final case class CoerceToConst[G](source: Type[G])(
   implicit val o: Origin
@@ -2631,6 +2646,10 @@ final case class CAtomic[G]()(implicit val o: Origin)
     extends CTypeQualifier[G] with CAtomicImpl[G]
 final case class CUnique[G](i: BigInt)(implicit val o: Origin)
   extends CTypeQualifier[G] with CUniqueImpl[G]
+final case class CUniquePointerField[G](name: String, i: BigInt)(implicit val o: Origin)
+  extends CTypeQualifier[G] with CUniquePointerFieldImpl[G] {
+  var ref: Option[RefCStructField[G]] = None
+}
 
 sealed trait CFunctionSpecifier[G]
     extends CDeclarationSpecifier[G] with CFunctionSpecifierImpl[G]
