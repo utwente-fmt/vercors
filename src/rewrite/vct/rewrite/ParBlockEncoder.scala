@@ -229,6 +229,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       case l: Local[_] if isConstType(l.t) => true
       case _: Constant[_] => true
       case op: BinExpr[Post] => isConstant(op.left) && isConstant(op.right)
+      case op: UnExpr[Post] => isConstant(op.arg)
       case _ => false
     }
 

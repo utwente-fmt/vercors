@@ -174,7 +174,10 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
   ): Expr[Post] = {
     ptr.t match {
       case TPointer(_) =>
-        OptGet(dispatch(ptr))(PointerNullOptNone(blame, ptr))(ptr.o)
+        dispatch(ptr) match {
+          case OptSome(inner) => inner
+          case newPtr => OptGet(newPtr)(PointerNullOptNone(blame, ptr))(ptr.o)
+        }
       case TNonNullPointer(_) => dispatch(ptr)
     }
   }
@@ -216,7 +219,9 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       case loc @ PointerLocation(pointer) =>
         val arg =
           unwrapOption(pointer, loc.blame) match {
-            case ptr @ PointerAdd(_, _) => ptr
+            case inv @ FunctionInvocation(ref, _, _, _, _)
+                if ref.decl == pointerAdd.ref.decl =>
+              inv
             case ptr =>
               FunctionInvocation[Post](
                 ref = pointerAdd.ref,
