@@ -103,7 +103,9 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
     val newPointer = Eval(
       PreAssignExpression(
         newTarget,
-        NewPointerArray(newValue.t, const[Post](1), fallible=false)(PanicBlame("Size is > 0")),
+        NewNonNullPointerArray(newValue.t, const[Post](1))(PanicBlame(
+          "Size is > 0"
+        )),
       )(blame)
     )
     (newPointer, newTarget, newValue)

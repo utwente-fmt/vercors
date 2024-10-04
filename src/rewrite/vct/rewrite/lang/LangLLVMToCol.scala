@@ -726,7 +726,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         Block(Seq(
           assignLocal(
             v,
-            NewPointerArray[Post](newT, elements)(PanicBlame(
+            NewNonNullPointerArray[Post](newT, elements)(PanicBlame(
               "allocation should never fail"
             )),
           ),
@@ -738,7 +738,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case _ =>
         assignLocal(
           v,
-          NewPointerArray[Post](newT, elements)(PanicBlame(
+          NewNonNullPointerArray[Post](newT, elements)(PanicBlame(
             "allocation should never fail"
           )),
         )

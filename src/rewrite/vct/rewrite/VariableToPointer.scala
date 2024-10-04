@@ -104,7 +104,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
                   Deref[Post](dispatch(out), fieldMap.ref(f))(PanicBlame(
                     "Initialisation should always succeed"
                   )),
-                  NewPointerArray(
+                  NewNonNullPointerArray(
                     fieldMap(f).t.asPointer.get.element,
                     const(1),
                   )(PanicBlame("Size is > 0")),
@@ -125,7 +125,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
                   Deref[Post](dispatch(out), fieldMap.ref(f))(PanicBlame(
                     "Initialisation should always succeed"
                   )),
-                  NewPointerArray(
+                  NewNonNullPointerArray(
                     fieldMap(f).t.asPointer.get.element,
                     const(1),
                   )(PanicBlame("Size is > 0")),
@@ -178,7 +178,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
                           Deref[Post](obj.get, fieldMap.ref(f))(PanicBlame(
                             "Initialisation should always succeed"
                           )),
-                          NewPointerArray(
+                          NewNonNullPointerArray(
                             fieldMap(f).t.asPointer.get.element,
                             const(1),
                           )(PanicBlame("Size is > 0")),

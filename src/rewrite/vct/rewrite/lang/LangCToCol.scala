@@ -409,7 +409,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               (t1, rw.dispatch(r))
             case _ => throw UnsupportedMalloc(c)
           }
-        NewPointerArray(rw.dispatch(t1), size, fallible=true)(ArrayMallocFailed(inv))(c.o)
+        NewPointerArray(rw.dispatch(t1), size)(ArrayMallocFailed(inv))(c.o)
       case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _), _) =>
         throw UnsupportedMalloc(c)
       case CCast(n @ Null(), t) if t.asPointer.isDefined => rw.dispatch(n)
@@ -645,10 +645,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 //      val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
         val assign: Statement[Post] = assignLocal(
           Local(cNameSuccessor(d).ref),
-          NewPointerArray[Post](
+          NewNonNullPointerArray[Post](
             getInnerType(cNameSuccessor(d).t),
             Local(v.ref),
-            fallible=false,
           )(PanicBlame("Shared memory sizes cannot be negative.")),
         )
         declarations ++= Seq(cNameSuccessor(d))
@@ -660,10 +659,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         val assign: Statement[Post] = assignLocal(
           Local(cNameSuccessor(d).ref),
           // Since we set the size and blame together, we can assume the blame is not None
-          NewPointerArray[Post](
+          NewNonNullPointerArray[Post](
             getInnerType(cNameSuccessor(d).t),
             CIntegerValue(size),
-            fallible=false
           )(blame.get),
         )
         declarations ++= Seq(cNameSuccessor(d))
@@ -1131,11 +1129,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         (sizeOption, init.init) match {
           case (None, None) => throw WrongCType(decl)
           case (Some(size), None) =>
-            val newArr = NewPointerArray[Post](t, rw.dispatch(size), fallible=false)(cta.blame)
+            val newArr =
+              NewNonNullPointerArray[Post](t, rw.dispatch(size))(cta.blame)
             Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
           case (None, Some(CLiteralArray(exprs))) =>
             val newArr =
-              NewPointerArray[Post](t, c_const[Post](exprs.size), fallible=false)(cta.blame)
+              NewNonNullPointerArray[Post](t, c_const[Post](exprs.size))(
+                cta.blame
+              )
             Block(
               Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++
                 assignliteralArray(v, exprs, o)
@@ -1146,7 +1147,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             if (realSize < exprs.size)
               logger.warn(s"Excess elements in array initializer: '${decl}'")
             val newArr =
-              NewPointerArray[Post](t, c_const[Post](realSize), fallible=false)(cta.blame)
+              NewNonNullPointerArray[Post](t, c_const[Post](realSize))(
+                cta.blame
+              )
             Block(
               Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++
                 assignliteralArray(v, exprs.take(realSize.intValue), o)
