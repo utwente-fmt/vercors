@@ -1892,9 +1892,11 @@ final case class NewArray[G](
     initialize: Boolean,
 )(val blame: Blame[ArraySizeError])(implicit val o: Origin)
     extends Expr[G] with NewArrayImpl[G]
-final case class NewPointerArray[G](element: Type[G], size: Expr[G])(
-    val blame: Blame[ArraySizeError]
-)(implicit val o: Origin)
+final case class NewPointerArray[G](
+    element: Type[G],
+    size: Expr[G],
+    fallible: Boolean,
+)(val blame: Blame[ArraySizeError])(implicit val o: Origin)
     extends Expr[G] with NewPointerArrayImpl[G]
 final case class NewNonNullPointerArray[G](element: Type[G], size: Expr[G])(
     val blame: Blame[ArraySizeError]

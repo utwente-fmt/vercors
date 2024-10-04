@@ -34,11 +34,23 @@ class CSpec extends VercorsSpec {
 
     int main(){
       struct e* a = (struct e*) malloc(1*sizeof(struct e));
+      if (a == NULL) return 1;
+
       a->s.x = 1;
       struct d* b = &(a->s);
       free(a);
       b->x = 2;
     }
+    """
+
+  vercors should fail withCode "ptrNull" using silicon in "use malloc result without null check" c
+    """
+      #include <stdlib.h>
+      int main(){
+          int* xs = (int*) malloc(1*sizeof(int));
+          *xs = 12;
+          free(xs);
+      }
     """
 
   vercors should verify using silicon in "free null pointer" c
@@ -403,6 +415,7 @@ class CSpec extends VercorsSpec {
       struct nested *np = NULL;
       np = (struct nested*) NULL;
       np = (struct nested*) malloc(sizeof(struct nested));
+      if (np == NULL) return;
       np->inner = NULL;
       np->inner = (struct nested*) NULL;
     }

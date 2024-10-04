@@ -1569,8 +1569,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         Neq(coerce(left, sharedType), coerce(right, sharedType))
       case na @ NewArray(element, dims, moreDims, initialize) =>
         NewArray(element, dims.map(int), moreDims, initialize)(na.blame)
-      case na @ NewPointerArray(element, size) =>
-        NewPointerArray(element, size)(na.blame)
+      case na @ NewPointerArray(element, size, fallible) =>
+        NewPointerArray(element, size, fallible)(na.blame)
       case na @ NewNonNullPointerArray(element, size) =>
         NewNonNullPointerArray(element, size)(na.blame)
       case NewObject(cls) => NewObject(cls)

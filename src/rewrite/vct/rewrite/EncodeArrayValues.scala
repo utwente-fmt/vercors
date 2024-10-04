@@ -106,7 +106,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       : mutable.Map[(Type[Pre], Int, Int, Boolean), Procedure[Post]] = mutable
     .Map()
 
-  val pointerArrayCreationMethods: mutable.Map[Type[Pre], Procedure[Post]] =
+  val pointerArrayCreationMethods: mutable.Map[(Type[Pre], Boolean), Procedure[Post]] =
     mutable.Map()
   val nonNullPointerArrayCreationMethods
       : mutable.Map[Type[Pre], Procedure[Post]] = mutable.Map()
@@ -496,10 +496,11 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
   def makePointerCreationMethodFor(
       elementType: Type[Pre],
       nullable: Boolean,
+      fallible: Boolean,
   ) = {
     implicit val o: Origin = arrayCreationOrigin
-    // ar != null
-    // ar.length == dim0
+    // fallible? then 'ar != null ==> ...'; otherwise 'ar != null ** ...'
+    // ar.length == size
     // forall ar[i] :: Perm(ar[i], write)
     // (if type ar[i] is pointer or struct):
     // forall i,j :: i!=j ==> ar[i] != ar[j]
@@ -554,6 +555,12 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         else
           ensures &* foldStar(permFields.map(_._1))
 
+      ensures =
+        if (!fallible)
+          (result !== Null()) &* ensures
+        else
+          Star(Implies(result !== Null(), ensures), tt)
+
       procedure(
         blame = AbstractApplicable,
         contractBlame = TrueSatisfiable,
@@ -563,7 +570,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         args = Seq(sizeArg),
         requires = UnitAccountedPredicate(requires),
         ensures = UnitAccountedPredicate(ensures),
-      )(o.where(name = "make_pointer_array_" + elementType.toString))
+      )(o.where(name = "make_pointer_array_" + elementType.toString + (if (fallible) "_fallible" else "")))
     }))
   }
 
@@ -594,10 +601,10 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
         )(ArrayCreationFailed(newArr))
-      case newPointerArr @ NewPointerArray(element, size) =>
+      case newPointerArr @ NewPointerArray(element, size, fallible) =>
         val method = pointerArrayCreationMethods.getOrElseUpdate(
-          element,
-          makePointerCreationMethodFor(element, nullable = true),
+          (element, fallible),
+          makePointerCreationMethodFor(element, nullable = true, fallible=fallible),
         )
         ProcedureInvocation[Post](
           method.ref,
@@ -610,7 +617,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       case newPointerArr @ NewNonNullPointerArray(element, size) =>
         val method = nonNullPointerArrayCreationMethods.getOrElseUpdate(
           element,
-          makePointerCreationMethodFor(element, nullable = false),
+          makePointerCreationMethodFor(element, nullable = false, fallible=false),
         )
         ProcedureInvocation[Post](
           method.ref,
