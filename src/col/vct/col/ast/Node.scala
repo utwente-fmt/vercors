@@ -553,6 +553,16 @@ final case class Loop[G](
     extends CompositeStatement[G]
     with ControlContainerStatement[G]
     with LoopImpl[G]
+final case class SimplifiedLoop[G](
+    init: Statement[G],
+    cond: Expr[G],
+    update: Statement[G],
+    contract: LoopContract[G],
+    body: Statement[G],
+)(implicit val o: Origin)
+    extends CompositeStatement[G]
+    with ControlContainerStatement[G]
+    with SimplifiedLoopImpl[G]
 @scopes[Variable]
 final case class RangedFor[G](
     iter: IterVariable[G],
@@ -1425,6 +1435,16 @@ final case class ProcedureInvocation[G](
     yields: Seq[(Expr[G], Ref[G, Variable[G]])],
 )(val blame: Blame[InvocationFailure])(implicit val o: Origin)
     extends AnyMethodInvocation[G] with ProcedureInvocationImpl[G]
+final case class SimplifiedProcedureInvocation[G](
+    ref: Ref[G, Procedure[G]],
+    args: Seq[Expr[G]],
+)(val blame: Blame[InvocationFailure])(implicit val o: Origin)
+    extends AnyMethodInvocation[G] with SimplifiedProcedureInvocationImpl[G] {
+  override val outArgs: Seq[Expr[G]] = Nil
+  override val typeArgs: Seq[Type[G]] = Nil
+  override val givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil
+  override val yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil
+}
 final case class MethodInvocation[G](
     obj: Expr[G],
     ref: Ref[G, InstanceMethod[G]],
@@ -2730,6 +2750,7 @@ final case class CInvocation[G](
     args: Seq[Expr[G]],
     givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])],
     yields: Seq[(Expr[G], Ref[G, Variable[G]])],
+    simplify: Boolean,
 )(val blame: Blame[FrontendInvocationError])(implicit val o: Origin)
     extends CExpr[G] with CInvocationImpl[G] {
   var ref: Option[CInvocationTarget[G]] = None

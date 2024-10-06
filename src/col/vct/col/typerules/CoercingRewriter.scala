@@ -1172,8 +1172,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case CCast(e, t) => CCast(e, t)
       case c @ CharValue(_) => c
-      case inv @ CInvocation(applicable, args, givenArgs, yields) =>
-        CInvocation(applicable, args, givenArgs, yields)(inv.blame)
+      case inv @ CInvocation(applicable, args, givenArgs, yields, simplify) =>
+        CInvocation(applicable, args, givenArgs, yields, simplify)(inv.blame)
       case choose @ Choose(xs) => Choose(set(xs)._1)(choose.blame)
       case choose @ ChooseFresh(xs) => ChooseFresh(set(xs)._1)(choose.blame)
       case p @ ChorPerm(endpoint, loc, perm) =>
@@ -1648,6 +1648,13 @@ abstract class CoercingRewriter[Pre <: Generation]()
             typeArgs,
             coerceGiven(givenMap, canCDemote = true),
             coerceYields(yields, inv),
+          )(inv.blame)
+        )
+      case inv @ SimplifiedProcedureInvocation(ref, args) =>
+        arity(
+          SimplifiedProcedureInvocation(
+            ref,
+            coerceArgs(args, ref.decl, inv.typeEnv, canCDemote = true),
           )(inv.blame)
         )
       case inv @ LlvmFunctionInvocation(ref, args, givenMap, yields) =>
@@ -2245,6 +2252,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case l @ Lock(obj) => Lock(cls(obj))(l.blame)
       case Loop(init, cond, update, contract, body) =>
         Loop(init, bool(cond), update, contract, body)
+      case SimplifiedLoop(init, cond, update, contract, body) =>
+        SimplifiedLoop(init, bool(cond), update, contract, body)
       case LlvmLoop(cond, contract, body) =>
         LlvmLoop(bool(cond), contract, body)
       case ModelDo(model, perm, after, action, impl) =>

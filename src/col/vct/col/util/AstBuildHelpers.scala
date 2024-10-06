@@ -477,6 +477,7 @@ object AstBuildHelpers {
             givenMap = givenMap,
             yields = yields,
           )
+        case inv: SimplifiedProcedureInvocation[Pre] => inv.rewrite(args = args)
         case inv: MethodInvocation[Pre] =>
           inv.rewrite(
             args = args,

@@ -115,6 +115,7 @@ valWith: 'with' langStatement;
 valThen: 'then' langStatement;
 valGiven: 'given' '{' valGivenMappings '}';
 valYields: 'yields' '{' valYieldsMappings '}';
+valSimplify: 'simplify';
 
 valGivenMappings
  : langId '=' langExpr
@@ -446,6 +447,7 @@ valEmbedWith: startSpec valWith? endSpec | {specLevel>0}? valWith;
 valEmbedThen: startSpec valThen? endSpec | {specLevel>0}? valThen;
 valEmbedGiven: startSpec valGiven? endSpec | {specLevel>0}? valGiven;
 valEmbedYields: startSpec valYields? endSpec | {specLevel>0}? valYields;
+valEmbedSimplify: startSpec valSimplify endSpec | {specLevel>0}? valSimplify;
 
 valEmbedGlobalDeclarationBlock
  : startSpec valGlobalDeclaration* endSpec

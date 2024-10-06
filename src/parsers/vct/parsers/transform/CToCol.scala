@@ -401,7 +401,7 @@ case class CToCol[G](
 
   def convert(implicit decl: DirectDeclaratorContext): CDeclarator[G] =
     decl match {
-      case DirectDeclarator0(name) => CName(convert(name))
+      case DirectDeclarator0(name) => CName(convert(name))(OriginProvider(decl))
       case DirectDeclarator1(inner, _, quals, dim, _) =>
         CArrayDeclarator(
           quals.map(convert(_)) getOrElse Nil,
@@ -540,27 +540,56 @@ case class CToCol[G](
 
   def convert(implicit stat: IterationStatementContext): Statement[G] =
     stat match {
-      case IterationStatement0(contract1, _, _, cond, _, contract2, body) =>
-        withContract(
-          contract1,
-          contract2,
-          c => {
-            Scope(
-              Nil,
-              Loop[G](
-                Block(Nil),
-                convert(cond),
-                Block(Nil),
-                c.consumeLoopContract(stat),
-                convert(body),
-              ),
-            )
-          },
-        )
+      case IterationStatement0(
+            contract1,
+            simplify,
+            _,
+            _,
+            cond,
+            _,
+            contract2,
+            body,
+          ) =>
+        if (simplify.isDefined) {
+          withContract(
+            contract1,
+            contract2,
+            c => {
+              Scope(
+                Nil,
+                SimplifiedLoop[G](
+                  Block(Nil),
+                  convert(cond),
+                  Block(Nil),
+                  c.consumeLoopContract(stat),
+                  convert(body),
+                ),
+              )
+            },
+          )
+        } else {
+          withContract(
+            contract1,
+            contract2,
+            c => {
+              Scope(
+                Nil,
+                Loop[G](
+                  Block(Nil),
+                  convert(cond),
+                  Block(Nil),
+                  c.consumeLoopContract(stat),
+                  convert(body),
+                ),
+              )
+            },
+          )
+        }
       case IterationStatement1(_, _, _, _, _, _, _) => ??(stat)
       case IterationStatement2(
             contract1,
             maybePragma,
+            simplify,
             _,
             _,
             init,
@@ -572,25 +601,45 @@ case class CToCol[G](
             contract2,
             body,
           ) =>
-        withContract(
-          contract1,
-          contract2,
-          c => {
-            Scope(
-              Nil,
-              Loop[G](
-                evalOrNop(init),
-                cond.map(convert(_)) getOrElse tt,
-                evalOrNop(update),
-                c.consumeLoopContract(stat),
-                convert(body),
-              ),
-            )
-          },
-        )
+        if (simplify.isDefined) {
+          withContract(
+            contract1,
+            contract2,
+            c => {
+              Scope(
+                Nil,
+                SimplifiedLoop[G](
+                  evalOrNop(init),
+                  cond.map(convert(_)) getOrElse tt,
+                  evalOrNop(update),
+                  c.consumeLoopContract(stat),
+                  convert(body),
+                ),
+              )
+            },
+          )
+        } else {
+          withContract(
+            contract1,
+            contract2,
+            c => {
+              Scope(
+                Nil,
+                Loop[G](
+                  evalOrNop(init),
+                  cond.map(convert(_)) getOrElse tt,
+                  evalOrNop(update),
+                  c.consumeLoopContract(stat),
+                  convert(body),
+                ),
+              )
+            },
+          )
+        }
       case IterationStatement3(
             contract1,
             maybePragma,
+            simplify,
             _,
             _,
             init,
@@ -601,22 +650,41 @@ case class CToCol[G](
             contract2,
             body,
           ) =>
-        withContract(
-          contract1,
-          contract2,
-          c => {
-            Scope(
-              Nil,
-              Loop[G](
-                CDeclarationStatement(new CLocalDeclaration(convert(init))),
-                cond.map(convert(_)) getOrElse tt,
-                evalOrNop(update),
-                c.consumeLoopContract(stat),
-                convert(body),
-              ),
-            )
-          },
-        )
+        if (simplify.isDefined) {
+          withContract(
+            contract1,
+            contract2,
+            c => {
+              Scope(
+                Nil,
+                SimplifiedLoop[G](
+                  CDeclarationStatement(new CLocalDeclaration(convert(init))),
+                  cond.map(convert(_)) getOrElse tt,
+                  evalOrNop(update),
+                  c.consumeLoopContract(stat),
+                  convert(body),
+                ),
+              )
+            },
+          )
+        } else {
+          withContract(
+            contract1,
+            contract2,
+            c => {
+              Scope(
+                Nil,
+                Loop[G](
+                  CDeclarationStatement(new CLocalDeclaration(convert(init))),
+                  cond.map(convert(_)) getOrElse tt,
+                  evalOrNop(update),
+                  c.consumeLoopContract(stat),
+                  convert(body),
+                ),
+              )
+            },
+          )
+        }
     }
 
   def convert(implicit stat: JumpStatementContext): Statement[G] =
@@ -893,30 +961,39 @@ case class CToCol[G](
           args.map(convert(_)) getOrElse Nil,
           convertEmbedGiven(given),
           convertEmbedYields(yields),
+          simplify = false,
         )(blame(expr))
-      case PostfixExpression3(struct, _, field) =>
-        CFieldAccess(convert(struct), convert(field))(blame(expr))
+      case PostfixExpression3(simp, f, _, args, _, given, yields) =>
+        CInvocation(
+          convert(f),
+          args.map(convert(_)) getOrElse Nil,
+          convertEmbedGiven(given),
+          convertEmbedYields(yields),
+          simplify = true,
+        )(blame(expr))
       case PostfixExpression4(struct, _, field) =>
+        CFieldAccess(convert(struct), convert(field))(blame(expr))
+      case PostfixExpression5(struct, _, field) =>
         CStructDeref(convert(struct), convert(field))(blame(expr))
-      case PostfixExpression5(targetNode, _) =>
+      case PostfixExpression6(targetNode, _) =>
         val target = convert(targetNode)
         PostAssignExpression(
           target,
           col.AmbiguousPlus(target, c_const(1))(blame(expr)),
         )(blame(expr))
-      case PostfixExpression6(targetNode, _) =>
+      case PostfixExpression7(targetNode, _) =>
         val target = convert(targetNode)
         PostAssignExpression(
           target,
           col.AmbiguousMinus(target, c_const(1))(blame(expr)),
         )(blame(expr))
-      case PostfixExpression7(e, SpecPostfix0(postfix)) =>
+      case PostfixExpression8(e, SpecPostfix0(postfix)) =>
         convert(expr, postfix, convert(e))
-      case PostfixExpression8(_, _, _, _, _, _) => ??(expr)
-      case PostfixExpression9(_, _, _, _, _, _, _) => ??(expr)
+      case PostfixExpression9(_, _, _, _, _, _) => ??(expr)
       case PostfixExpression10(_, _, _, _, _, _, _) => ??(expr)
-      case PostfixExpression11(_, _, _, _, _, _, _, _) => ??(expr)
-      case PostfixExpression12(
+      case PostfixExpression11(_, _, _, _, _, _, _) => ??(expr)
+      case PostfixExpression12(_, _, _, _, _, _, _, _) => ??(expr)
+      case PostfixExpression13(
             GpgpuCudaKernelInvocation0(
               name,
               _,

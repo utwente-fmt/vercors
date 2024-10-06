@@ -11,6 +11,11 @@ import vct.col.ast.{
   Coercion,
   Expr,
   IntegerValue,
+  Loop,
+  ProcedureInvocation,
+  SimplifiedProcedureInvocation,
+  SimplifiedLoop,
+  Statement,
   TCFloat,
   TCInt,
   TFloat,
@@ -18,7 +23,7 @@ import vct.col.ast.{
   Type,
 }
 import vct.col.origin.Origin
-import vct.col.rewrite.{Generation, RewriterBuilder}
+import vct.col.ref.Ref
 import vct.col.typerules.CoercingRewriter
 
 case object CFloatIntCoercion extends RewriterBuilder {
@@ -47,12 +52,39 @@ case class CFloatIntCoercion[Pre <: Generation]()
       // to an arbitrary big float.
       case TCFloat(e, m) => TFloats.ieee754_32bit
       case TFloat(e, m) => TFloats.ieee754_32bit
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
 
   override def postCoerce(e: Expr[Pre]): Expr[Post] =
     e match {
       case CIntegerValue(v) => IntegerValue(v)(e.o)
-      case other => rewriteDefault(other)
+      // This has nothing to do with Floats and Ints, but gets rid of C-specific stuff,
+      // so I'll add it here for now
+      case s @ SimplifiedProcedureInvocation(Ref(proc), args) =>
+        ProcedureInvocation[Post](
+          succ(proc),
+          args.map(dispatch),
+          Nil,
+          Nil,
+          Nil,
+          Nil,
+        )(s.blame)(s.o)
+      case other => other.rewriteDefault()
     }
+
+  // This has nothing to do with Floats and Ints, but gets rid of C-specific stuff,
+  // so I'll add it here for now
+  override def postCoerce(s: Statement[Pre]): Statement[Post] = {
+    s match {
+      case SimplifiedLoop(init, cond, update, contract, body) =>
+        Loop[Post](
+          dispatch(init),
+          dispatch(cond),
+          dispatch(update),
+          dispatch(contract),
+          dispatch(body),
+        )(s.o)
+      case other => other.rewriteDefault()
+    }
+  }
 }

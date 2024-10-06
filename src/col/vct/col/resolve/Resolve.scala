@@ -718,7 +718,7 @@ case object ResolveReferences extends LazyLogging {
             .getOrElse(throw NoSuchNameError("field", name, deref))
         )
 
-      case inv @ CInvocation(obj, _, givenMap, yields) =>
+      case inv @ CInvocation(obj, _, givenMap, yields, _) =>
         inv.ref = Some(C.resolveInvocation(obj, ctx))
         Spec.resolveGiven(givenMap, inv.ref.get, inv)
         Spec.resolveYields(ctx, yields, inv.ref.get, inv)
@@ -859,6 +859,11 @@ case object ResolveReferences extends LazyLogging {
         )
         Spec.resolveGiven(givenMap, RefProcedure(ref.decl), inv)
         Spec.resolveYields(ctx, yields, RefProcedure(ref.decl), inv)
+      case inv @ SimplifiedProcedureInvocation(ref, _) =>
+        ref.tryResolve(name =>
+          Spec.findProcedure(name, ctx)
+            .getOrElse(throw NoSuchNameError("procedure", name, inv))
+        )
       case inv @ FunctionInvocation(ref, _, _, givenMap, yields) =>
         ref.tryResolve(name =>
           Spec.findFunction(name, ctx)

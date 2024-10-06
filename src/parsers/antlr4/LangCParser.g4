@@ -65,6 +65,7 @@ postfixExpression
     :   annotatedPrimaryExpression
     |   postfixExpression '[' expression ']'
     |   postfixExpression '(' argumentExpressionList? ')' valEmbedGiven? valEmbedYields?
+    |   valEmbedSimplify postfixExpression '(' argumentExpressionList? ')' valEmbedGiven? valEmbedYields?
     |   postfixExpression '.' clangIdentifier
     |   postfixExpression '->' clangIdentifier
     |   postfixExpression '++'
@@ -563,10 +564,10 @@ selectionStatement
 elseBranch: 'else' statement;
 
 iterationStatement
-    :   valEmbedContract? 'while' '(' expression ')' valEmbedContract? statement
+    :   valEmbedContract? valEmbedSimplify? 'while' '(' expression ')' valEmbedContract? statement
     |   'do' statement 'while' '(' expression ')' ';'
-    |   valEmbedContract? ompLoopPragma? 'for' '(' expression? ';' expression? ';' expression? ')' valEmbedContract? statement
-    |   valEmbedContract? ompLoopPragma? 'for' '(' declaration expression? ';' expression? ')' valEmbedContract? statement
+    |   valEmbedContract? ompLoopPragma? valEmbedSimplify? 'for' '(' expression? ';' expression? ';' expression? ')' valEmbedContract? statement
+    |   valEmbedContract? ompLoopPragma? valEmbedSimplify? 'for' '(' declaration expression? ';' expression? ')' valEmbedContract? statement
     ;
 
 jumpStatement

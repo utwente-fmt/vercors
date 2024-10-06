@@ -412,7 +412,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         // We can convert between rationals, integers and floats
         CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
       case CCast(
-            inv @ CInvocation(CLocal("__vercors_malloc"), Seq(arg), Nil, Nil),
+            inv @ CInvocation(CLocal("__vercors_malloc"), Seq(arg), Nil, Nil, _),
             CTPointer(t2),
           ) =>
         val (t1, size) =
@@ -425,7 +425,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             case _ => throw UnsupportedMalloc(c)
           }
         NewPointerArray(rw.dispatch(t1), size)(ArrayMallocFailed(inv))(c.o)
-      case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _), _) =>
+      case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _, _), _) =>
         throw UnsupportedMalloc(c)
       case CCast(n @ Null(), t) if t.asPointer.isDefined => rw.dispatch(n)
       case CCast(e, t)
@@ -1748,7 +1748,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   def invocation(inv: CInvocation[Pre]): Expr[Post] = {
-    val CInvocation(applicable, args, givenMap, yields) = inv
+    val CInvocation(applicable, args, givenMap, yields, simplify) = inv
 
     inv.ref.get match {
       case RefOpenCLVectorLiteralCInvocationTarget(size, t)
@@ -1786,14 +1786,21 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           inv.blame,
         )
       case ref: RefCFunctionDefinition[Pre] =>
-        ProcedureInvocation[Post](
-          cFunctionSuccessor.ref(ref.decl),
-          newArgs,
-          Nil,
-          Nil,
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
-        )(inv.blame)
+        if(simplify) {
+          SimplifiedProcedureInvocation[Post](
+            cFunctionSuccessor.ref(ref.decl),
+            newArgs,
+          )(inv.blame)
+        } else {
+          ProcedureInvocation[Post](
+            cFunctionSuccessor.ref(ref.decl),
+            newArgs,
+            Nil,
+            Nil,
+            givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
+          )(inv.blame)
+        }
       case e: RefCGlobalDeclaration[Pre] => globalInvocation(e, inv, newArgs)
     }
   }
@@ -1941,7 +1948,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       inv: CInvocation[Pre],
       rewrittenArgs: Seq[Expr[Post]],
   ): Expr[Post] = {
-    val CInvocation(_, args, givenMap, yields) = inv
+    val CInvocation(_, args, givenMap, yields, simplify) = inv
     val RefCGlobalDeclaration(decls, initIdx) = e
     implicit val o: Origin = inv.o
 
@@ -1972,14 +1979,21 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         getCudaLocalSize(i, o) * getCudaGroupThread(i, o) +
           getCudaLocalThread(i, o)
       case _ =>
-        ProcedureInvocation[Post](
-          cFunctionDeclSuccessor.ref((decls, initIdx)),
-          rewrittenArgs,
-          Nil,
-          Nil,
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
-        )(inv.blame)
+        if(simplify) {
+          SimplifiedProcedureInvocation[Post](
+            cFunctionDeclSuccessor.ref((decls, initIdx)),
+            rewrittenArgs,
+          )(inv.blame)
+        } else {
+          ProcedureInvocation[Post](
+            cFunctionDeclSuccessor.ref((decls, initIdx)),
+            rewrittenArgs,
+            Nil,
+            Nil,
+            givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
+          )(inv.blame)
+        }
     }
   }
 
