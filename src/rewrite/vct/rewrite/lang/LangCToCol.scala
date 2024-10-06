@@ -412,7 +412,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         // We can convert between rationals, integers and floats
         CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
       case CCast(
-            inv @ CInvocation(CLocal("__vercors_malloc"), Seq(arg), Nil, Nil, _),
+            inv @ CInvocation(
+              CLocal("__vercors_malloc"),
+              Seq(arg),
+              Nil,
+              Nil,
+              _,
+            ),
             CTPointer(t2),
           ) =>
         val (t1, size) =
@@ -1067,12 +1073,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 contract = rw.dispatch(decl.decl.contract),
                 pure = pure,
                 inline = inline,
-              )(AbstractApplicable)(init.o)
+              )(AbstractApplicable)(init.o.sourceName(info.name))
             )
           )
         case None =>
           cGlobalNameSuccessor(RefCGlobalDeclaration(decl, idx)) = rw
-            .globalDeclarations.declare(new HeapVariable(t)(init.o))
+            .globalDeclarations
+            .declare(new HeapVariable(t)(init.o.sourceName(info.name)))
       }
     }
   }
@@ -1786,7 +1793,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           inv.blame,
         )
       case ref: RefCFunctionDefinition[Pre] =>
-        if(simplify) {
+        if (simplify) {
           SimplifiedProcedureInvocation[Post](
             cFunctionSuccessor.ref(ref.decl),
             newArgs,
@@ -1979,7 +1986,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         getCudaLocalSize(i, o) * getCudaGroupThread(i, o) +
           getCudaLocalThread(i, o)
       case _ =>
-        if(simplify) {
+        if (simplify) {
           SimplifiedProcedureInvocation[Post](
             cFunctionDeclSuccessor.ref((decls, initIdx)),
             rewrittenArgs,

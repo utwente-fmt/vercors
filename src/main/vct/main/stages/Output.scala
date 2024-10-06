@@ -20,7 +20,7 @@ import java.nio.file.{Files, Path}
 
 case object Output {
   def cSimplifierOfOptions(options: Options) = {
-    Output(options.cOutput, Ctx.C, false)
+    Output(options.cOutput, Ctx.C, false, useSourceNames = true)
   }
 
   def vesuvOfOptions[G <: Generation](
@@ -37,8 +37,12 @@ case object Output {
     Output(options.veymontOutput, Ctx.PVL, false)
 }
 
-case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
-    extends Stage[Verification[_ <: Generation], Seq[LiteralReadable]]
+case class Output(
+    out: Option[Path],
+    syntax: Ctx.Syntax,
+    splitDecls: Boolean,
+    useSourceNames: Boolean = false,
+) extends Stage[Verification[_ <: Generation], Seq[LiteralReadable]]
     with LazyLogging {
   override def friendlyName: String = "Saving Output"
 
@@ -56,7 +60,7 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
     }
 
   override def run(in: Verification[_ <: Generation]): Seq[LiteralReadable] = {
-    val namer = Namer[Generation](syntax)
+    val namer = Namer[Generation](syntax, useSourceNames)
     in.tasks
       .foreach(t => namer.name(t.program.asInstanceOf[Program[Generation]]))
     val names = namer.finish

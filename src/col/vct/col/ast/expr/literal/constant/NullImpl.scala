@@ -9,5 +9,10 @@ trait NullImpl[G] extends NullOps[G] {
   override def t: Type[G] = TNull()
 
   override def precedence: Int = Precedence.ATOMIC
-  override def layout(implicit ctx: Ctx): Doc = Text("null")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.C => Text("NULL")
+      case _ => Text("null")
+    }
+  }
 }

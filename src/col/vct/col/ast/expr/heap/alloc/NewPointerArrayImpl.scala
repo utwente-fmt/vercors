@@ -10,5 +10,11 @@ trait NewPointerArrayImpl[G] extends NewPointerArrayOps[G] {
 
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
-    Text("new") <+> element <> "[" <> size <> "]"
+    ctx.syntax match {
+      case Ctx.C =>
+        val (spec, decl) = t.layoutSplitDeclarator
+        Text("(") <+> spec <+> decl <+> Text(") malloc(") <+> size <+>
+          Text(" * sizeof(") <+> element <+> Text("))")
+      case _ => Text("new") <+> element <> "[" <> size <> "]"
+    }
 }

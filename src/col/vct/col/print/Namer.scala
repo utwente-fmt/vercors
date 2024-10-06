@@ -2,10 +2,17 @@ package vct.col.print
 
 import hre.util.ScopedStack
 import vct.col.ast._
+import vct.col.origin.{Origin, SourceName}
 
 import scala.collection.mutable
 
-case class Namer[G](syntax: Ctx.Syntax) {
+object Namer {
+  def getSrcName(o: Origin): Option[String] = {
+    o.find[SourceName].map(n => n.name)
+  }
+}
+
+case class Namer[G](syntax: Ctx.Syntax, useSourceNames: Boolean = false) {
   private val stack = ScopedStack[Node[G]]()
   private val names = mutable.Map[(scala.Any, String, Int), Declaration[G]]()
 
@@ -98,16 +105,21 @@ case class Namer[G](syntax: Ctx.Syntax) {
     }
 
     val name = decl.o.getPreferredNameOrElse()
-    var (baseName, index) = unpackName(decl match {
-      case declaration: GlobalDeclaration[_] =>
-        declaration match {
-          case _: Applicable[_] => name.camel
-          case _ => name.ucamel
-        }
-      case constant: EnumConstant[_] => name.usnake
-      case decl: LabelDecl[_] => name.usnake
-      case _ => name.camel
-    })
+    val srcName = Namer.getSrcName(decl.o)
+    var (baseName, index) =
+      if (useSourceNames && srcName.isDefined)
+        (srcName.get, 0)
+      else
+        unpackName(decl match {
+          case declaration: GlobalDeclaration[_] =>
+            declaration match {
+              case _: Applicable[_] => name.camel
+              case _ => name.ucamel
+            }
+          case constant: EnumConstant[_] => name.usnake
+          case decl: LabelDecl[_] => name.usnake
+          case _ => name.camel
+        })
 
     if (index == 0 && keywords.contains(baseName)) { index = 1 }
 
