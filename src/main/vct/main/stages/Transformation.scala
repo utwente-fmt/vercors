@@ -169,7 +169,9 @@ object Transformation extends LazyLogging {
 
   def cSimplifierOfOptions(options: Options): Transformation =
     CSimplifier(onPassEvent =
-      writeOutFunctions(before, options.outputBeforePass) ++
+      options.outputIntermediatePrograms
+        .map(p => reportIntermediateProgram(p, "intermediate")).toSeq ++
+        writeOutFunctions(before, options.outputBeforePass) ++
         writeOutFunctions(after, options.outputAfterPass)
     )
 
@@ -463,4 +465,12 @@ case class VeyMontImplementationGeneration(
     )
 
 case class CSimplifier(override val onPassEvent: Seq[PassEventHandler] = Nil)
-    extends Transformation(onPassEvent, Seq(MakeRuntimeChecks))
+    extends Transformation(
+      onPassEvent,
+      Seq(
+        CIntBoolCoercion,
+        QuantifySubscriptAny, // no arr[*]
+        PropagateContextEverywhere, // inline context_everywhere into loop invariants
+        MakeRuntimeChecks,
+      ),
+    )
