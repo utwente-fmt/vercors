@@ -1,4 +1,4 @@
-package vct.rewrite.veymont
+package vct.rewrite.veymont.generation
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{

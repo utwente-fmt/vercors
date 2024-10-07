@@ -407,31 +407,6 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
             )(PanicBlame("ptr_deref requires nothing.")),
           field = getPointerField(pointer),
         )(PointerFieldInsufficientPermission(deref.blame, deref))
-      case deref @ RawDerefPointer(pointer) =>
-        FunctionInvocation[Post](
-          ref = pointerDeref.ref,
-          args = Seq(
-            if (
-              inAxiom.isEmpty &&
-              !deref.o.find[LabelContext]
-                .exists(_.label == "classToRef cast helpers")
-            ) {
-              FunctionInvocation[Post](
-                ref = pointerAdd.ref,
-                // Always index with zero, otherwise quantifiers with pointers do not get triggered
-                args = Seq(unwrapOption(pointer, deref.blame), const(0)),
-                typeArgs = Nil,
-                Nil,
-                Nil,
-              )(NoContext(
-                DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
-              ))
-            } else { unwrapOption(pointer, deref.blame) }
-          ),
-          typeArgs = Nil,
-          Nil,
-          Nil,
-        )(PanicBlame("ptr_deref requires nothing."))
       case len @ PointerBlockLength(pointer) =>
         ADTFunctionInvocation[Post](
           typeArgs = Some((blockAdt.ref, Nil)),

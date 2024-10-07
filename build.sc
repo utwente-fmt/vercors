@@ -28,13 +28,6 @@ trait CppSharedModule extends CppModule {
   }
 
   def compile: T[PathRef] = T {
-//    def temp =  //transitiveStaticObjects()).map(_.path))
-    print("Definitely a new file")
-    print(compileOnly() ++ T.traverse(moduleDeps){
-      case it: CppModule => it.compileOnly
-      case it: LinkableModule => it.staticObjects
-      case _ => T.task { Result.Success(Seq.empty) }
-    }().flatten)
     PathRef(toolchain.linkExecutable((compileOnly() ++ T.traverse(moduleDeps){
       case it: CppModule => it.compileOnly
       case it: LinkableModule => it.staticObjects
@@ -68,7 +61,7 @@ object external extends Module {
 object viper extends ScalaModule {
   object silverGit extends GitModule {
     def url = T { "https://github.com/viperproject/silver.git" }
-    def commitish = T { "93bc9b7516a710c8f01438e430058c4a54e20512" }
+    def commitish = T { "10b1b26a20957e5f000bf1bbcd4017145148afd7" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -78,7 +71,7 @@ object viper extends ScalaModule {
 
   object siliconGit extends GitModule {
     def url = T { "https://github.com/superaxander/silicon.git" }
-    def commitish = T { "c63989f64eb759f33bde68c330ce07d6e34134fa" }
+    def commitish = T { "2030e3eb63f4b1c92ddc8885f7c937673effc9bd" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -89,7 +82,7 @@ object viper extends ScalaModule {
 
   object carbonGit extends GitModule {
     def url = T { "https://github.com/viperproject/carbon.git" }
-    def commitish = T { "758481ef42f42720c36406bb278820ba802c7e68" }
+    def commitish = T { "d14a703fc6428fbae54e7333d8ede7efbbf850f0" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")

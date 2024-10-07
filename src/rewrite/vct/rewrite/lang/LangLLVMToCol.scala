@@ -596,7 +596,6 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         // TODO: Use an actual Blame
 
         // Acquire the actual struct through a PointerAdd
-        // TODO: Can we somehow wrap the rw.dispatch(gep.pointer) to add the known type structureType?
         gep.pointer.t match {
           case LLVMTPointer(None) =>
             val structPointer =
@@ -798,7 +797,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   effectively transforming the CFG into a tree. More efficient restructuring algorithms but this works for now.
 
   This of course only works for acyclic CFGs as otherwise replacement would be infinitely recursive.
-  Loop restructuring should be handled by pallas as it has much more analytical and contextual information about
+  Loop restructuring should be handled by Pallas as it has much more analytical and contextual information about
   the program.
    */
   case class GotoEliminator(bodyScope: Scope[Pre]) extends LazyLogging {

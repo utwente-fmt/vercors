@@ -271,7 +271,6 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
             dp,
             v.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
           )
-        // TODO: Check for copy semantics in inappropriate places (i.e. when the user has made this a pointer)
         case dp @ DerefPointer(DerefHeapVariable(Ref(v)))
             if v.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
           rewriteInCopyContext(

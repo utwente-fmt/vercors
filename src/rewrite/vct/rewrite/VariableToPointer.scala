@@ -56,7 +56,6 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
-      // TODO: Use some sort of NonNull pointer type instead
       case v: HeapVariable[Pre] if addressedSet.contains(v) =>
         heapVariableMap(v) = globalDeclarations
           .succeed(v, new HeapVariable(TNonNullPointer(dispatch(v.t)))(v.o))
@@ -94,8 +93,6 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
         )
       case i @ Instantiate(cls, out)
           if cls.decl.isInstanceOf[ByValueClass[Pre]] =>
-        // TODO: Make sure that we recursively build newobject for byvalueclasses
-        //       maybe get rid this entirely and only have it in encode by value class
         Block(Seq(i.rewriteDefault()) ++ cls.decl.declarations.flatMap {
           case f: InstanceField[Pre] =>
             if (f.t.asClass.isDefined) {

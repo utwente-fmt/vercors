@@ -6,7 +6,7 @@ import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.unfoldStar
 import vct.col.{ast => col}
 import vct.result.VerificationError.{SystemError, Unreachable}
-import viper.silver.ast.{AnnotationInfo, ConsInfo, TypeVar, WildcardPerm}
+import viper.silver.ast.{TypeVar, WildcardPerm}
 import viper.silver.plugin.standard.termination.{
   DecreasesClause,
   DecreasesTuple,

@@ -1261,8 +1261,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case deref @ Deref(obj, ref) => Deref(cls(obj), ref)(deref.blame)
       case deref @ DerefHeapVariable(ref) => DerefHeapVariable(ref)(deref.blame)
       case deref @ DerefPointer(p) => DerefPointer(pointer(p)._1)(deref.blame)
-      case deref @ RawDerefPointer(p) =>
-        RawDerefPointer(pointer(p)._1)(deref.blame)
       case Drop(xs, count) => Drop(seq(xs)._1, int(count))
       case Empty(obj) => Empty(sized(obj)._1)
       case EmptyProcess() => EmptyProcess()

@@ -13,28 +13,13 @@ case object LowerLocalHeapVariables extends RewriterBuilder {
 
   override def desc: String =
     "Lower LocalHeapVariables to Variables if their address is never taken"
-
-  private val pointerCreationOrigin: Origin = Origin(
-    Seq(LabelContext("pointer creation method"))
-  )
 }
 
 case class LowerLocalHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
-  import LowerLocalHeapVariables._
-
   private val stripped: SuccessionMap[LocalHeapVariable[Pre], Variable[Post]] =
     SuccessionMap()
   private val lowered: SuccessionMap[LocalHeapVariable[Pre], Variable[Post]] =
     SuccessionMap()
-//  private val pointerCreationMethods: SuccessionMap[Type[Pre], Procedure[Post]] = SuccessionMap()
-//
-//  def makePointerCreationMethod(t: Type[Pre]): Procedure[Post] = {
-//    implicit val o: Origin = pointerCreationOrigin
-//
-//    val proc = globalDeclarations.declare(withResult((result: Result[Post]) => {
-//
-//    }))
-//  }
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     val dereferencedHeapLocals = program.collect {
