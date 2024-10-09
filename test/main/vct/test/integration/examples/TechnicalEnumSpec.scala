@@ -45,6 +45,14 @@ class Test {
     enum AB { A, B }
   """
 
+  vercors should error withCode "parseError" in "pvl/empty enum" pvl """
+    enum E { }
+  """
+
+  vercors should error withCode "parseError" in "pvl/empty enum with added comma" pvl """
+    enum E { , }
+  """
+
   vercors should verify using silicon in "pvl/enum return" pvl """
     enum AB { A, B }
 

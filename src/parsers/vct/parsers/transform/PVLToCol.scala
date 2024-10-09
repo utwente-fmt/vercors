@@ -37,10 +37,10 @@ case class PVLToCol[G](
 
   def convert(implicit enum: EnumDeclContext): Enum[G] =
     enum match {
-      case EnumDecl0(_, name, _, constants, _, _) =>
-        new vct.col.ast.Enum[G](constants.map(convertConstants(_)).getOrElse(
-          Nil
-        ))(origin(enum).sourceName(convert(name)))
+      case EnumDecl0(_, name, _, Some(constants), _, _) =>
+        new vct.col.ast.Enum[G](convertConstants(constants))(origin(enum).sourceName(convert(name)))
+      case _ =>
+        fail(enum, "This enumeration must specify at least one constant")
     }
 
   def convertConstants(
