@@ -7,5 +7,6 @@ import vct.col.ast.ops.LLVMVectorValueOps
 trait LLVMVectorValueImpl[G] extends LLVMVectorValueOps[G] {
   this: LLVMVectorValue[G] =>
   override def t: Type[G] = vectorType
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc =
+    Group(Text("<") <> Doc.args(value) <> ">")
 }

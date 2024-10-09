@@ -221,6 +221,23 @@ object AstBuildHelpers {
       }
   }
 
+  implicit class ClassBuildHelpers[Pre, Post](cls: Class[Pre])(
+      implicit rewriter: AbstractRewriter[Pre, Post]
+  ) {
+    def rewrite(
+        typeArgs: Seq[Variable[Post]] = rewriter.variables
+          .dispatch(cls.typeArgs),
+        decls: Seq[ClassDeclaration[Post]] = rewriter.classDeclarations
+          .dispatch(cls.decls),
+        supports: Seq[Type[Post]] = cls.supports.map(rewriter.dispatch),
+    ): Class[Post] =
+      cls match {
+        case cls: ByReferenceClass[Pre] =>
+          cls.rewrite(typeArgs, decls, supports)
+        case cls: ByValueClass[Pre] => cls.rewrite(typeArgs, decls, supports)
+      }
+  }
+
   implicit class MethodBuildHelpers[Pre, Post](method: AbstractMethod[Pre])(
       implicit rewriter: AbstractRewriter[Pre, Post]
   ) {

@@ -3,9 +3,9 @@ package vct.rewrite
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.ref.{LazyRef, Ref}
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
-import vct.col.util.AstBuildHelpers.ContractApplicableBuildHelpers
+import vct.col.ref.Ref
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.util.AstBuildHelpers.ClassBuildHelpers
 import vct.col.util.{Substitute, SuccessionMap}
 
 import scala.collection.mutable
@@ -48,7 +48,7 @@ case class MonomorphizeClass[Pre <: Generation]()
       cls: Class[Pre],
       typeValues: Seq[Type[Pre]],
       keepBodies: Boolean,
-  ): Unit = {
+  ): Class[Post] = {
     /* Known limitation: the knownInstantations set does not take into account how a class was instantiated.
     A class can be instantiated both abstractly (without method bodies) and concretely (with method bodies)
     for the same sequence of type arguments, maybe. If that's the case, the knownInstantiations should take the
@@ -60,7 +60,7 @@ case class MonomorphizeClass[Pre <: Generation]()
       logger.debug(
         s"Class ${cls.o.getPreferredNameOrElse().ucamel} with type args $typeValues is already instantiated, so skipping instantiation"
       )
-      return
+      return genericSucc((key, cls)).asInstanceOf[Class[Post]]
     }
     val mode =
       if (keepBodies) { "concretely" }
@@ -83,19 +83,15 @@ case class MonomorphizeClass[Pre <: Generation]()
           classDeclarations.scope {
             variables.scope {
               localHeapVariables.scope {
-                allScopes.anyDeclare(allScopes.anySucceedOnly(
-                  cls,
-                  cls match {
-                    case cls: ByReferenceClass[Pre] =>
-                      cls.rewrite(typeArgs = Seq())
-                    case cls: ByValueClass[Pre] => cls.rewrite(typeArgs = Seq())
-                  },
-                ))
+                allScopes.anyDeclare(
+                  allScopes.anySucceedOnly(cls, cls.rewrite(typeArgs = Seq()))
+                )
               }
             }
           }
         }
       }
+    genericSucc((key, cls)).asInstanceOf[Class[Post]]
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
@@ -137,28 +133,13 @@ case class MonomorphizeClass[Pre <: Generation]()
 
   override def dispatch(t: Type[Pre]): Type[Post] =
     (t, ctx.topOption) match {
-      case (TByReferenceClass(Ref(cls), typeArgs), ctx) if typeArgs.nonEmpty =>
+      case (cls: TClass[Pre], ctx) if cls.typeArgs.nonEmpty =>
         val typeValues =
           ctx match {
-            case Some(ctx) => typeArgs.map(ctx.substitute.dispatch)
-            case None => typeArgs
+            case Some(ctx) => cls.typeArgs.map(ctx.substitute.dispatch)
+            case None => cls.typeArgs
           }
-        instantiate(cls, typeValues, false)
-        TByReferenceClass[Post](
-          genericSucc.ref[Post, Class[Post]](((cls, typeValues), cls)),
-          Seq(),
-        )
-      case (TByValueClass(Ref(cls), typeArgs), ctx) if typeArgs.nonEmpty =>
-        val typeValues =
-          ctx match {
-            case Some(ctx) => typeArgs.map(ctx.substitute.dispatch)
-            case None => typeArgs
-          }
-        instantiate(cls, typeValues, false)
-        TByValueClass[Post](
-          genericSucc.ref[Post, Class[Post]](((cls, typeValues), cls)),
-          Seq(),
-        )
+        instantiate(cls.cls.decl, typeValues, false).classType(Seq())
       case (tvar @ TVar(_), Some(ctx)) => dispatch(ctx.substitutions(tvar))
       case _ => t.rewriteDefault()
     }

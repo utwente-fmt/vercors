@@ -2,7 +2,7 @@ package hre.io
 
 import vct.result.VerificationError.SystemError
 
-import java.io.Reader
+import java.io.{BufferedReader, ByteArrayInputStream, InputStreamReader, Reader}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 import java.security.{MessageDigest, NoSuchAlgorithmException}
@@ -36,7 +36,10 @@ case class ChecksumReadableFile(
       case _: NoSuchAlgorithmException =>
         throw UnknownChecksumKind(checksumKind)
     }
-    Files.newBufferedReader(file, StandardCharsets.UTF_8)
+    new BufferedReader(new InputStreamReader(
+      new ByteArrayInputStream(bytes),
+      StandardCharsets.UTF_8,
+    ))
   }
 
   def getChecksum: String = {

@@ -287,22 +287,20 @@ case class GenerateSingleOwnerPermissions[Pre <: Generation](
                 u,
               )),
         )
-      case t: TByReferenceClass[Pre]
-          if !generatingClasses.contains(t.cls.decl) =>
-        generatingClasses.having(t.cls.decl) {
-          foldStar(t.cls.decl.collect { case f: InstanceField[Pre] =>
+      case TByReferenceClass(Ref(cls), _) if !generatingClasses.contains(cls) =>
+        generatingClasses.having(cls) {
+          foldStar(cls.collect { case f: InstanceField[Pre] =>
             fieldTransitivePerm(e, f)(f.o)
           })
         }
-      case t: TByReferenceClass[Pre] =>
+      case TByReferenceClass(Ref(cls), _) =>
         // The class we are generating permission for has already been encountered when going through the chain
         // of fields. So we cut off the computation
-        if (!warnedClasses.contains(t.cls.decl)) {
+        if (!warnedClasses.contains(cls)) {
           logger.warn(
-            s"Not generating permissions for recursive occurrence of ${t.cls
-                .decl.o.getPreferredNameOrElse().ucamel}. Circular datastructures are not supported by permission generation"
+            s"Not generating permissions for recursive occurrence of ${cls.o.getPreferredNameOrElse().ucamel}. Circular datastructures are not supported by permission generation"
           )
-          warnedClasses.addOne(t.cls.decl)
+          warnedClasses.addOne(cls)
         }
         tt
       case _ => tt

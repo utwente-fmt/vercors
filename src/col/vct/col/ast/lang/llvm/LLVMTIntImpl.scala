@@ -6,5 +6,6 @@ import vct.col.print._
 
 trait LLVMTIntImpl[G] extends LLVMTIntOps[G] {
   this: LLVMTInt[G] =>
-  // override def layout(implicit ctx: Ctx): Doc = ???
+
+  override def layout(implicit ctx: Ctx): Doc = Text("i") <> bitWidth.toString
 }

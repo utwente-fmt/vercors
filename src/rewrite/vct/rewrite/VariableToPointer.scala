@@ -150,8 +150,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
         DerefPointer(Deref[Post](dispatch(obj), fieldMap.ref(f))(deref.blame))(
           PanicBlame("Should always be accessible")
         )
-      case newObject @ NewObject(Ref(cls))
-          if cls.isInstanceOf[ByValueClass[Pre]] =>
+      case newObject @ NewObject(Ref(cls: ByValueClass[Pre])) =>
         val obj = new Variable[Post](TByValueClass(succ(cls), Seq()))
         ScopedExpr(
           Seq(obj),

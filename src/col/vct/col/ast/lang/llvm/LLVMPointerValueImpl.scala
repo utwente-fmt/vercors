@@ -19,5 +19,5 @@ trait LLVMPointerValueImpl[G] extends LLVMPointerValueOps[G] {
       case v: HeapVariable[G] => LLVMTPointer(Some(v.t))
     }
   }
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc = Text("@") <> ctx.name(value)
 }

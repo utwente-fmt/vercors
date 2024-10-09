@@ -336,17 +336,6 @@ case class LangSpecificToCol[Pre <: Generation](
       case cast: CCast[Pre] => c.cast(cast)
       case sizeof: SizeOf[Pre] => throw LangCToCol.UnsupportedSizeof(sizeof)
 
-//      case Perm(a @ AmbiguousLocation(expr), perm)
-//          if c.getBaseType(expr.t).isInstanceOf[CTStruct[Pre]] =>
-//        c.getBaseType(expr.t) match {
-//          case structType: CTStruct[Pre] =>
-//            c.unwrapStructPerm(
-//              dispatch(a).asInstanceOf[AmbiguousLocation[Post]],
-//              perm,
-//              structType,
-//              e.o,
-//            )
-//        }
       case local: CPPLocal[Pre] => cpp.local(local)
       case deref: CPPClassMethodOrFieldAccess[Pre] => cpp.deref(deref)
       case inv: CPPInvocation[Pre] => cpp.invocation(inv)

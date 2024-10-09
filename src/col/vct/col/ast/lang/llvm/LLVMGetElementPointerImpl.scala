@@ -7,5 +7,7 @@ import vct.col.print._
 trait LLVMGetElementPointerImpl[G] extends LLVMGetElementPointerOps[G] {
   this: LLVMGetElementPointer[G] =>
   override def t: Type[G] = LLVMTPointer(Some(resultType))
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc =
+    Text("getelementptr") <+> structureType <> "," <+> pointer <> "," <+>
+      Doc.args(indices)
 }

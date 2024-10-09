@@ -6,5 +6,5 @@ import vct.col.print._
 
 trait LLVMMemoryReleaseImpl[G] extends LLVMMemoryReleaseOps[G] {
   this: LLVMMemoryRelease[G] =>
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc = Text("release")
 }

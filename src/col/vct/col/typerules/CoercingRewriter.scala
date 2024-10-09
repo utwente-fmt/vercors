@@ -2267,6 +2267,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case l @ Lock(obj) => Lock(cls(obj))(l.blame)
       case Loop(init, cond, update, contract, body) =>
         Loop(init, bool(cond), update, contract, body)
+      case block: LLVMBasicBlock[Pre] => block
       case LLVMAllocA(variable, allocationType, numElements) =>
         LLVMAllocA(variable, allocationType, int(numElements))
       case load @ LLVMLoad(variable, loadType, p, ordering) =>

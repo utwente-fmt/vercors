@@ -7,5 +7,5 @@ import vct.col.print._
 trait LLVMIntegerValueImpl[G] extends LLVMIntegerValueOps[G] {
   this: LLVMIntegerValue[G] =>
   override def t: Type[G] = integerType
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc = Text(value.toString)
 }

@@ -659,19 +659,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
             givenMap,
             yields,
           ) =>
-        val typ =
-          cons.cls.decl match {
-            case cls: ByReferenceClass[Pre] =>
-              TByReferenceClass[Post](
-                succ[Class[Post]](cls),
-                classTypeArgs.map(dispatch),
-              )
-            case cls: ByValueClass[Pre] =>
-              TByValueClass[Post](
-                succ[Class[Post]](cls),
-                classTypeArgs.map(dispatch),
-              )
-          }
+        val typ = dispatch(cons.cls.decl.classType(classTypeArgs))
         val res = new Variable[Post](typ)(ResultVar)
         variables.succeed(res.asInstanceOf[Variable[Pre]], res)
         effect(
@@ -691,17 +679,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
           cons.cls.decl.classType(classTypeArgs),
         )
       case NewObject(Ref(cls)) =>
-        val res =
-          cls match {
-            case cls: ByReferenceClass[Pre] =>
-              new Variable[Post](
-                TByReferenceClass(succ[Class[Post]](cls), Seq())
-              )(ResultVar)
-            case cls: ByValueClass[Pre] =>
-              new Variable[Post](TByValueClass(succ[Class[Post]](cls), Seq()))(
-                ResultVar
-              )
-          }
+        val res = new Variable[Post](dispatch(cls.classType(Seq())))(ResultVar)
         variables.succeed(res.asInstanceOf[Variable[Pre]], res)
         effect(Instantiate[Post](succ(cls), res.get(ResultVar))(e.o))
         stored(res.get(SideEffectOrigin), cls.ref.decl.classType(Seq()))

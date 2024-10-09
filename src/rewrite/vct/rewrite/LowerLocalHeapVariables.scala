@@ -31,32 +31,15 @@ case class LowerLocalHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
         v
     }
     VerificationError.withContext(CurrentRewriteProgramContext(program)) {
-      localHeapVariables.scope {
-        variables.scope {
-          enumConstants.scope {
-            modelDeclarations.scope {
-              aDTDeclarations.scope {
-                classDeclarations.scope {
-                  globalDeclarations.scope {
-                    program.collect {
-                      case HeapLocal(Ref(v)) if !nakedHeapLocals.contains(v) =>
-                        v
-                    }.foreach(v =>
-                      stripped(v) =
-                        new Variable[Post](dispatch(v.t.asPointer.get.element))(
-                          v.o
-                        )
-                    )
-                    Program(globalDeclarations.dispatch(program.declarations))(
-                      dispatch(program.blame)
-                    )(program.o)
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+      program.rewrite(declarations = {
+        program.collect {
+          case HeapLocal(Ref(v)) if !nakedHeapLocals.contains(v) => v
+        }.foreach(v =>
+          stripped(v) =
+            new Variable[Post](dispatch(v.t.asPointer.get.element))(v.o)
+        )
+        globalDeclarations.dispatch(program.declarations)
+      })
     }
   }
 

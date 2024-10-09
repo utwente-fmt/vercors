@@ -8,5 +8,5 @@ trait LLVMZeroedAggregateValueImpl[G] extends LLVMZeroedAggregateValueOps[G] {
   this: LLVMZeroedAggregateValue[G] =>
   override def value: Unit = ()
   override def t: Type[G] = aggregateType
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc = Text("zeroinitializer")
 }

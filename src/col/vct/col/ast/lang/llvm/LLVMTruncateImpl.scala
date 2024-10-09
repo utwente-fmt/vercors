@@ -7,5 +7,6 @@ import vct.col.print._
 trait LLVMTruncateImpl[G] extends LLVMTruncateOps[G] {
   this: LLVMTruncate[G] =>
   override def t: Type[G] = outputType
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc =
+    Group(Text("trunc") <+> inputType <+> value <+> "to" <+> outputType)
 }

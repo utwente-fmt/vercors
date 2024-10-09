@@ -10,7 +10,7 @@ trait LLVMFunctionInvocationImpl[G] extends LLVMFunctionInvocationOps[G] {
 
   override def layout(implicit ctx: Ctx): Doc =
     Group(
-      Group(Text(ctx.name(ref)) <> "(") <> Doc.args(args) <> ")" <>
+      Group(Text("@") <> ctx.name(ref) <> "(") <> Doc.args(args) <> ")" <>
         DocUtil.givenYields(givenMap, yields)
     )
 }

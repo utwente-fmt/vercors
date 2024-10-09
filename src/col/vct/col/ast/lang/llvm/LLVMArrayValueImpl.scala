@@ -7,5 +7,6 @@ import vct.col.print._
 trait LLVMArrayValueImpl[G] extends LLVMArrayValueOps[G] {
   this: LLVMArrayValue[G] =>
   override def t: Type[G] = arrayType
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc =
+    Group(Text("[") <> Doc.args(value) <> "]")
 }

@@ -2,7 +2,7 @@ package vct.rewrite.lang
 
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import RewriteHelpers._
+import vct.col.util.AstBuildHelpers.ClassBuildHelpers
 
 case object NoSupportSelfLoop extends RewriterBuilder {
   override def key: String = "removeSupportSelfLoop"
@@ -13,22 +13,14 @@ case object NoSupportSelfLoop extends RewriterBuilder {
 case class NoSupportSelfLoop[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
-      case cls: ByReferenceClass[Pre] =>
+      case cls: Class[Pre] =>
         globalDeclarations.succeed(
           cls,
           cls.rewrite(supports =
             cls.supports.filter(_.asClass.get.cls.decl != cls)
-              .map(_.rewriteDefault())
+              .map(_.rewriteDefault)
           ),
         )
-      case cls: ByValueClass[Pre] =>
-        globalDeclarations.succeed(
-          cls,
-          cls.rewrite(supports =
-            cls.supports.filter(_.asClass.get.cls.decl != cls)
-              .map(_.rewriteDefault())
-          ),
-        )
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
 }

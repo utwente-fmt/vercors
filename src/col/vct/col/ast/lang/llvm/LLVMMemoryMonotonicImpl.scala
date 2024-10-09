@@ -6,5 +6,5 @@ import vct.col.print._
 
 trait LLVMMemoryMonotonicImpl[G] extends LLVMMemoryMonotonicOps[G] {
   this: LLVMMemoryMonotonic[G] =>
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc = Text("monotonic")
 }

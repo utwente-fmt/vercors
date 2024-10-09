@@ -6,5 +6,6 @@ import vct.col.print._
 
 trait LLVMTArrayImpl[G] extends LLVMTArrayOps[G] {
   this: LLVMTArray[G] =>
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc =
+    Group(Text("[") <> numElements.toString <+> "x" <+> elementType <> "]")
 }

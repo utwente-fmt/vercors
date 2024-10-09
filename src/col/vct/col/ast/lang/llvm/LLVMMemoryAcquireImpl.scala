@@ -6,5 +6,5 @@ import vct.col.print._
 
 trait LLVMMemoryAcquireImpl[G] extends LLVMMemoryAcquireOps[G] {
   this: LLVMMemoryAcquire[G] =>
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc = Text("acquire")
 }

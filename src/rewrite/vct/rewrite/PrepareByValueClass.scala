@@ -74,7 +74,8 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
 
   private val inAssignment: ScopedStack[Unit] = ScopedStack()
   private val copyContext: ScopedStack[CopyContext] = ScopedStack()
-  private val classCreationMethods
+  copyContext.push(NoCopy())
+  private val classCreationMethodsSucc
       : SuccessionMap[TByValueClass[Pre], Procedure[Post]] = SuccessionMap()
 
   def makeClassCreationMethod(t: TByValueClass[Pre]): Procedure[Post] = {
@@ -111,7 +112,7 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
             newLocal.get(DerefAssignTarget),
             procedureInvocation[Post](
               TrueSatisfiable,
-              classCreationMethods
+              classCreationMethodsSucc
                 .getOrElseUpdate(t, makeClassCreationMethod(t)).ref,
             ),
           )(AssignLocalOk),
@@ -119,24 +120,13 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
       }
       case assign: Assign[Pre] =>
         val target = inAssignment.having(()) { dispatch(assign.target) }
-        if (assign.target.t.isInstanceOf[TByValueClass[Pre]]) {
-          copyContext.having(InAssignmentStatement(assign)) {
-            assign.rewrite(target = target)
-          }
-        } else { assign.rewrite(target = target) }
-      case Instantiate(Ref(cls), out)
-          if cls.isInstanceOf[ByValueClass[Pre]] => {
-        // AssignLocalOk doesn't make too much sense since we don't know if out is a local
-        val t = TByValueClass[Pre](cls.ref, Seq())
-        Assign[Post](
-          dispatch(out),
-          procedureInvocation(
-            TrueSatisfiable,
-            classCreationMethods.getOrElseUpdate(t, makeClassCreationMethod(t))
-              .ref,
-          ),
-        )(AssignLocalOk)
-      }
+        assign.target.t match {
+          case _: TByValueClass[Pre] =>
+            copyContext.having(InAssignmentStatement(assign)) {
+              assign.rewrite(target = target)
+            }
+          case _ => assign.rewrite(target = target)
+        }
       case _ => node.rewriteDefault()
     }
   }
@@ -150,19 +140,14 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
     val ov = new Variable[Post](obj.t)(o.where(name = "original"))
     val v = new Variable[Post](dispatch(t))(o.where(name = "copy"))
     val children = t.cls.decl.decls.collect { case f: InstanceField[Pre] =>
-      f.t match {
-        case inner: TByValueClass[Pre] =>
-          Assign[Post](
-            Deref[Post](v.get, succ(f))(DerefAssignTarget),
-            copyClassValue(Deref[Post](ov.get, succ(f))(blame(f)), inner, blame),
-          )(AssignLocalOk)
-        case _ =>
-          Assign[Post](
-            Deref[Post](v.get, succ(f))(DerefAssignTarget),
-            Deref[Post](ov.get, succ(f))(blame(f)),
-          )(AssignLocalOk)
-
-      }
+      Assign[Post](
+        Deref[Post](v.get, succ(f))(DerefAssignTarget),
+        f.t match {
+          case inner: TByValueClass[Pre] =>
+            copyClassValue(Deref[Post](ov.get, succ(f))(blame(f)), inner, blame)
+          case _ => Deref[Post](ov.get, succ(f))(blame(f))
+        },
+      )(AssignLocalOk)
     }
     ScopedExpr(
       Seq(ov, v),
@@ -173,7 +158,7 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
             v.get,
             procedureInvocation[Post](
               TrueSatisfiable,
-              classCreationMethods
+              classCreationMethodsSucc
                 .getOrElseUpdate(t, makeClassCreationMethod(t)).ref,
             ),
           )(AssignLocalOk),
@@ -218,114 +203,101 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(node: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = node.o
     node match {
-      case NewObject(Ref(cls)) if cls.isInstanceOf[ByValueClass[Pre]] => {
+      case NewObject(Ref(cls: ByValueClass[Pre])) =>
         val t = TByValueClass[Pre](cls.ref, Seq())
-        return procedureInvocation[Post](
+        procedureInvocation[Post](
           TrueSatisfiable,
-          classCreationMethods.getOrElseUpdate(t, makeClassCreationMethod(t))
-            .ref,
+          classCreationMethodsSucc
+            .getOrElseUpdate(t, makeClassCreationMethod(t)).ref,
         )
-      }
-      case _ =>
+      case _ if inAssignment.nonEmpty => node.rewriteDefault()
+      case Perm(ByValueClassLocation(e), p) =>
+        unwrapClassPerm(
+          dispatch(e),
+          dispatch(p),
+          e.t.asInstanceOf[TByValueClass[Pre]],
+        )
+      case Perm(pl @ PointerLocation(dhv @ DerefHeapVariable(Ref(v))), p)
+          if v.t.isInstanceOf[TNonNullPointer[Pre]] =>
+        val t = v.t.asInstanceOf[TNonNullPointer[Pre]]
+        if (t.element.isInstanceOf[TByValueClass[Pre]]) {
+          val newV: Ref[Post, HeapVariable[Post]] = succ(v)
+          val newP = dispatch(p)
+          Perm(HeapVariableLocation(newV), newP) &* Perm(
+            PointerLocation(DerefHeapVariable(newV)(dhv.blame))(pl.blame),
+            newP,
+          )
+        } else { node.rewriteDefault() }
+      case assign: PreAssignExpression[Pre] =>
+        val target = inAssignment.having(()) { dispatch(assign.target) }
+        if (assign.target.t.isInstanceOf[TByValueClass[Pre]]) {
+          copyContext.having(InAssignmentExpression(assign)) {
+            assign.rewrite(target = target)
+          }
+        } else {
+          // No need for copy semantics in this context
+          copyContext.having(NoCopy()) { assign.rewrite(target = target) }
+        }
+      case invocation: Invocation[Pre] =>
+        invocation.rewrite(args = invocation.args.map { a =>
+          if (a.t.isInstanceOf[TByValueClass[Pre]]) {
+            copyContext.having(InCall(invocation)) { dispatch(a) }
+          } else { copyContext.having(NoCopy()) { dispatch(a) } }
+        })
+      case dp @ DerefPointer(HeapLocal(Ref(v)))
+          if v.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
+        rewriteInCopyContext(
+          dp,
+          v.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
+        )
+      case dp @ DerefPointer(DerefHeapVariable(Ref(v)))
+          if v.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
+        rewriteInCopyContext(
+          dp,
+          v.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
+        )
+      case deref @ Deref(_, Ref(f)) if f.t.isInstanceOf[TByValueClass[Pre]] =>
+        // TODO: Improve blame message here
+        copyClassValue(
+          deref.rewriteDefault(),
+          f.t.asInstanceOf[TByValueClass[Pre]],
+          f => deref.blame,
+        )
+      case dp @ DerefPointer(Local(Ref(v)))
+          if v.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
+        // This can happen if the user specifies a local of type pointer to TByValueClass
+        rewriteInCopyContext(
+          dp,
+          v.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
+        )
+      case _ => node.rewriteDefault()
     }
-    if (inAssignment.nonEmpty)
-      node.rewriteDefault()
-    else
-      node match {
-        case Perm(ByValueClassLocation(e), p) =>
-          unwrapClassPerm(
-            dispatch(e),
-            dispatch(p),
-            e.t.asInstanceOf[TByValueClass[Pre]],
-          )
-        case Perm(pl @ PointerLocation(dhv @ DerefHeapVariable(Ref(v))), p)
-            if v.t.isInstanceOf[TNonNullPointer[Pre]] =>
-          val t = v.t.asInstanceOf[TNonNullPointer[Pre]]
-          if (t.element.isInstanceOf[TByValueClass[Pre]]) {
-            val newV: Ref[Post, HeapVariable[Post]] = succ(v)
-            val newP = dispatch(p)
-            Perm(HeapVariableLocation(newV), newP) &* Perm(
-              PointerLocation(DerefHeapVariable(newV)(dhv.blame))(pl.blame),
-              newP,
-            )
-          } else { node.rewriteDefault() }
-        case assign: PreAssignExpression[Pre] =>
-          val target = inAssignment.having(()) { dispatch(assign.target) }
-          if (assign.target.t.isInstanceOf[TByValueClass[Pre]]) {
-            copyContext.having(InAssignmentExpression(assign)) {
-              assign.rewrite(target = target)
-            }
-          } else {
-            // No need for copy semantics in this context
-            copyContext.having(NoCopy()) { assign.rewrite(target = target) }
-          }
-        case invocation: Invocation[Pre] =>
-          invocation.rewrite(args = invocation.args.map { a =>
-            if (a.t.isInstanceOf[TByValueClass[Pre]]) {
-              copyContext.having(InCall(invocation)) { dispatch(a) }
-            } else { copyContext.having(NoCopy()) { dispatch(a) } }
-          })
-        case dp @ DerefPointer(HeapLocal(Ref(v)))
-            if v.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
-          rewriteInCopyContext(
-            dp,
-            v.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
-          )
-        case dp @ DerefPointer(DerefHeapVariable(Ref(v)))
-            if v.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
-          rewriteInCopyContext(
-            dp,
-            v.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
-          )
-        case deref @ Deref(_, Ref(f)) if f.t.isInstanceOf[TByValueClass[Pre]] =>
-          if (copyContext.isEmpty) { deref.rewriteDefault() }
-          else {
-            // TODO: Improve blame message here
-            copyClassValue(
-              deref.rewriteDefault(),
-              f.t.asInstanceOf[TByValueClass[Pre]],
-              f => deref.blame,
-            )
-          }
-        case dp @ DerefPointer(Local(Ref(v)))
-            if v.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
-          // This can happen if the user specifies a local of type pointer to TByValueClass
-          rewriteInCopyContext(
-            dp,
-            v.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
-          )
-        case _ => node.rewriteDefault()
-      }
   }
 
   private def rewriteInCopyContext(
       dp: DerefPointer[Pre],
       t: TByValueClass[Pre],
   ): Expr[Post] = {
-    if (copyContext.isEmpty) {
-      // If we are in other kinds of expressions like if statements
-      return dp.rewriteDefault()
-    }
-    val clazz = t.cls.decl.asInstanceOf[ByValueClass[Pre]]
+    val cls = t.cls.decl.asInstanceOf[ByValueClass[Pre]]
 
     copyContext.top match {
       case InCall(invocation) =>
         copyClassValue(
           dp.rewriteDefault(),
           t,
-          f => ClassCopyInCallFailed(dp.blame, invocation, clazz, f),
+          f => ClassCopyInCallFailed(dp.blame, invocation, cls, f),
         )
       case InAssignmentExpression(assignment) =>
         copyClassValue(
           dp.rewriteDefault(),
           t,
-          f => ClassCopyInAssignmentFailed(dp.blame, assignment, clazz, f),
+          f => ClassCopyInAssignmentFailed(dp.blame, assignment, cls, f),
         )
       case InAssignmentStatement(assignment) =>
         copyClassValue(
           dp.rewriteDefault(),
           t,
-          f => ClassCopyInAssignmentFailed(dp.blame, assignment, clazz, f),
+          f => ClassCopyInAssignmentFailed(dp.blame, assignment, cls, f),
         )
       case NoCopy() => dp.rewriteDefault()
     }
