@@ -40,7 +40,7 @@ trait JavaModule extends BaseJavaModule {
 
   def windowsClassPathArgumentFile =
     T {
-      val cpString = classPathFileElements().mkString("\"", ";", "\"")
+      val cpString = classPathFileElements().mkString(";")
       val cpArg = "-cp " + cpString
       os.write(T.dest / "classpath", cpArg)
       T.dest / "classpath"
