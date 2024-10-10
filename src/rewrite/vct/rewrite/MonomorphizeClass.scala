@@ -48,7 +48,7 @@ case class MonomorphizeClass[Pre <: Generation]()
       cls: Class[Pre],
       typeValues: Seq[Type[Pre]],
       keepBodies: Boolean,
-  ): Class[Post] = {
+  ): Unit = {
     /* Known limitation: the knownInstantations set does not take into account how a class was instantiated.
     A class can be instantiated both abstractly (without method bodies) and concretely (with method bodies)
     for the same sequence of type arguments, maybe. If that's the case, the knownInstantiations should take the
@@ -60,7 +60,7 @@ case class MonomorphizeClass[Pre <: Generation]()
       logger.debug(
         s"Class ${cls.o.getPreferredNameOrElse().ucamel} with type args $typeValues is already instantiated, so skipping instantiation"
       )
-      return genericSucc((key, cls)).asInstanceOf[Class[Post]]
+      return
     }
     val mode =
       if (keepBodies) { "concretely" }
@@ -91,7 +91,6 @@ case class MonomorphizeClass[Pre <: Generation]()
           }
         }
       }
-    genericSucc((key, cls)).asInstanceOf[Class[Post]]
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
@@ -133,13 +132,28 @@ case class MonomorphizeClass[Pre <: Generation]()
 
   override def dispatch(t: Type[Pre]): Type[Post] =
     (t, ctx.topOption) match {
-      case (cls: TClass[Pre], ctx) if cls.typeArgs.nonEmpty =>
+      case (TByReferenceClass(Ref(cls), typeArgs), ctx) if typeArgs.nonEmpty =>
         val typeValues =
           ctx match {
-            case Some(ctx) => cls.typeArgs.map(ctx.substitute.dispatch)
-            case None => cls.typeArgs
+            case Some(ctx) => typeArgs.map(ctx.substitute.dispatch)
+            case None => typeArgs
           }
-        instantiate(cls.cls.decl, typeValues, false).classType(Seq())
+        instantiate(cls, typeValues, false)
+        TByReferenceClass[Post](
+          genericSucc.ref[Post, Class[Post]](((cls, typeValues), cls)),
+          Seq(),
+        )
+      case (TByValueClass(Ref(cls), typeArgs), ctx) if typeArgs.nonEmpty =>
+        val typeValues =
+          ctx match {
+            case Some(ctx) => typeArgs.map(ctx.substitute.dispatch)
+            case None => typeArgs
+          }
+        instantiate(cls, typeValues, false)
+        TByValueClass[Post](
+          genericSucc.ref[Post, Class[Post]](((cls, typeValues), cls)),
+          Seq(),
+        )
       case (tvar @ TVar(_), Some(ctx)) => dispatch(ctx.substitutions(tvar))
       case _ => t.rewriteDefault()
     }

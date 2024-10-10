@@ -256,7 +256,9 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
           dp,
           v.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
         )
-      case deref @ Deref(_, Ref(f)) if f.t.isInstanceOf[TByValueClass[Pre]] =>
+      case deref @ Deref(_, Ref(f))
+          if f.t.isInstanceOf[TByValueClass[Pre]] &&
+            copyContext.top != NoCopy() =>
         // TODO: Improve blame message here
         copyClassValue(
           deref.rewriteDefault(),
