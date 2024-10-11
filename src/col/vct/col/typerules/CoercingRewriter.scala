@@ -306,8 +306,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceCFloatFloat(_, _) => e
 
       case CoerceLLVMIntInt() => e
-      case CoerceLLVMPointer(_, _) => e
-      case CoerceLLVMArray(_, _) => e
     }
   }
 
@@ -550,15 +548,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Some((coercion, t)) =>
         (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"pointer")
-    }
-  def llvmPointer(
-      e: Expr[Pre],
-      innerType: Type[Pre],
-  ): (Expr[Pre], TPointer[Pre]) =
-    CoercionUtils.getAnyLLVMPointerCoercion(e.t, innerType) match {
-      case Some((coercion, t)) =>
-        (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"llvm pointer of $innerType")
     }
   def matrix(e: Expr[Pre]): (Expr[Pre], TMatrix[Pre]) =
     CoercionUtils.getAnyMatrixCoercion(e.t) match {
@@ -2140,12 +2129,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Message(_) => e
       case LLVMLocal(name) => e
       case LLVMGetElementPointer(structureType, resultType, pointer, indices) =>
-        LLVMGetElementPointer(
-          structureType,
-          resultType,
-          llvmPointer(pointer, structureType)._1,
-          indices,
-        )
+        LLVMGetElementPointer(structureType, resultType, pointer, indices)
       case LLVMSignExtend(inputType, outputType, value) => e
       case LLVMZeroExtend(inputType, outputType, value) => e
       case LLVMTruncate(inputType, outputType, value) => e
@@ -2271,11 +2255,9 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case LLVMAllocA(variable, allocationType, numElements) =>
         LLVMAllocA(variable, allocationType, int(numElements))
       case load @ LLVMLoad(variable, loadType, p, ordering) =>
-        LLVMLoad(variable, loadType, llvmPointer(p, loadType)._1, ordering)(
-          load.blame
-        )
+        LLVMLoad(variable, loadType, p, ordering)(load.blame)
       case store @ LLVMStore(value, p, ordering) =>
-        LLVMStore(value, llvmPointer(p, value.t)._1, ordering)(store.blame)
+        LLVMStore(value, p, ordering)(store.blame)
       case ModelDo(model, perm, after, action, impl) =>
         ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)

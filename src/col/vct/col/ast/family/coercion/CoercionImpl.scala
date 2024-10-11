@@ -89,6 +89,5 @@ trait CoercionImpl[G] extends CoercionFamilyOps[G] {
       case CoerceCFloatCInt(_) => false
 
       case CoerceLLVMIntInt() => true
-      case CoerceLLVMPointer(_, _) => true
     }
 }

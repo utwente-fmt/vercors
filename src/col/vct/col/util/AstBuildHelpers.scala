@@ -229,13 +229,12 @@ object AstBuildHelpers {
           .dispatch(cls.typeArgs),
         decls: => Seq[ClassDeclaration[Post]] = rewriter.classDeclarations
           .dispatch(cls.decls),
-        supports: => Seq[Type[Post]] = cls.supports.map(rewriter.dispatch),
     ): Class[Post] =
       cls match {
         case cls: ByReferenceClass[Pre] =>
-          cls.rewrite(typeArgs = typeArgs, decls = decls, supports = supports)
+          cls.rewrite(typeArgs = typeArgs, decls = decls)
         case cls: ByValueClass[Pre] =>
-          cls.rewrite(typeArgs = typeArgs, decls = decls, supports = supports)
+          cls.rewrite(typeArgs = typeArgs, decls = decls)
       }
   }
 

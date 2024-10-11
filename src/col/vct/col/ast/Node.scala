@@ -682,7 +682,6 @@ final class ByReferenceClass[G](
 final class ByValueClass[G](
     val typeArgs: Seq[Variable[G]],
     val decls: Seq[ClassDeclaration[G]],
-    val supports: Seq[Type[G]],
 )(implicit val o: Origin)
     extends Class[G] with ByValueClassImpl[G]
 final class Model[G](val declarations: Seq[ModelDeclaration[G]])(
@@ -1172,12 +1171,6 @@ final case class CoerceZFracFrac[G]()(implicit val o: Origin)
 
 final case class CoerceLLVMIntInt[G]()(implicit val o: Origin)
     extends Coercion[G] with CoerceLLVMIntIntImpl[G]
-final case class CoerceLLVMPointer[G](from: Option[Type[G]], to: Type[G])(
-    implicit val o: Origin
-) extends Coercion[G] with CoerceLLVMPointerImpl[G]
-final case class CoerceLLVMArray[G](source: Type[G], target: Type[G])(
-    implicit val o: Origin
-) extends Coercion[G] with CoerceLLVMArrayImpl[G]
 
 @family
 sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
