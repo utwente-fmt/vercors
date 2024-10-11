@@ -370,7 +370,8 @@ case class SilverTransformation(
         EncodeChorBranchUnanimity.withArg(veymontBranchUnanimity),
         EncodeEndpointInequalities,
         EncodeChannels,
-        EncodePermissionStratification.withArg(generatePermissions),
+        EncodePermissionStratification
+          .withArg(EncodePermissionStratification.Mode.Heavy),
         EncodeChoreography,
         // All VeyMont nodes should now be gone
 
