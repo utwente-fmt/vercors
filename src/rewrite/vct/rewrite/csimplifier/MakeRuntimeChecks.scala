@@ -1,8 +1,18 @@
 package vct.rewrite.csimplifier
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.{AssignFailed, Blame, Origin, PanicBlame}
+import vct.col.origin.{
+  AssignFailed,
+  Blame,
+  CallableFailure,
+  ContractedFailure,
+  ExceptionNotInSignals,
+  Origin,
+  PanicBlame,
+  SignalsFailed,
+}
 import vct.col.print.Namer
 import vct.col.ref.Ref
 import vct.col.rewrite.{
@@ -10,6 +20,7 @@ import vct.col.rewrite.{
   NonLatchingRewriter,
   Rewriter,
   RewriterBuilder,
+  Rewritten,
 }
 import vct.col.util.AstBuildHelpers.{VarBuildHelpers, assignLocal, tt}
 import vct.col.util.SuccessionMap
@@ -21,9 +32,21 @@ case object MakeRuntimeChecks extends RewriterBuilder {
 
   override def desc: String =
     "Turn VerCors annotations into runtime checks for CPAchecker and similar"
+
+  case class FunctionBlameToProcedureBlame(blame: Blame[ContractedFailure])
+      extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit =
+      error match {
+        case failure: ContractedFailure => blame.blame(failure)
+        case SignalsFailed(_, _) => PanicBlame("Function had signals clause")
+        case ExceptionNotInSignals(_) =>
+          PanicBlame("Function had signals clause")
+      }
+  }
 }
 
-case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
+case class MakeRuntimeChecks[Pre <: Generation]()
+    extends Rewriter[Pre] with LazyLogging {
   outer =>
   private val verifierAssertName = "__VERIFIER_assert"
   private val verifierAssumeName = "__VERIFIER_assume"
@@ -43,8 +66,7 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
   private val globalVars: ScopedStack[Map[HeapVariable[Pre], Variable[Post]]] =
     new ScopedStack()
   // mapping of global vars to local vars storing cached value (for \old)
-  private val olds
-      : ScopedStack[mutable.Map[HeapVariable[Pre], Variable[Post]]] =
+  private val olds: ScopedStack[mutable.Map[Expr[Pre], Variable[Post]]] =
     new ScopedStack()
 
   /** add CPAchecker-specific methods to program */
@@ -90,53 +112,65 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
-      case m: Procedure[Pre] =>
-        // declare new method as replacement of existing method of same name
-        Namer.getSrcName(m.o) match {
-          case Some(name) if name == verifierAssertName =>
-            verifierAssert.succeed(m)
-            return
-          case Some(name) if name == abortName =>
-            abort.succeed(m)
-            return
-          case Some(name) if name == verifierAssumeName =>
-            verifierAssume.succeed(m)
-            return
-          case Some(name) if name == nondetIntName =>
-            nondetInt.succeed(m)
-            return
-          case Some(name) if name == "__vercors_malloc" =>
-            // todo: a bit hack-y: use classical malloc by turning this method
-            //  into include statement.
-            //  This means the include is followed by a ";", though
-            implicit val o: Origin = m.o
-            val decl =
-              new CGlobalDeclaration[Post](CDeclaration(
-                m.contract.rewriteDefault(),
-                tt,
-                Nil,
-                Seq(CInit(CName[Post]("#include<stdlib.h>"), None)),
-              ))
-            decl.succeed(m)
-            return
-          case Some(name) if name == "__vercors_free" =>
-            // remove __vercors_free entirely; it's never invoked anyway
-            return
-          case _ =>
-        }
-
-        lazy val rewritten = dispatchMethod(m, simplify = false)
-        if (m.body.isDefined) {
-          // add simplified versions for non-abstract methods
-          val simplified = variables.scope {
-            dispatchMethod(m, simplify = true)
-          }
-          globalDeclarations.declare(simplified)
-          simplifiedMethodRefs.update(m, simplified)
-        } else { simplifiedMethodRefs.update(m, rewritten) }
-        rewritten.succeed(m)
+      case f: Function[Pre] =>
+        val p =
+          new Procedure[Pre](
+            f.returnType,
+            f.args,
+            Nil,
+            f.typeArgs,
+            f.body.map(e => Return[Pre](e)(e.o)),
+            f.contract,
+          )(MakeRuntimeChecks.FunctionBlameToProcedureBlame(f.blame))(f.o)
+        rewriteProcedure(p).succeed(f)
+      case pred: Predicate[Pre] =>
+        val p =
+          new Procedure[Pre](
+            TCInt[Pre](),
+            pred.args,
+            Nil,
+            Nil,
+            pred.body.map(e => Return[Pre](e)(e.o)),
+            emptyContract[Pre]()(pred.o),
+          )(PanicBlame("predicate failed"))(pred.o)
+        rewriteProcedure(p).succeed(pred)
+      case m: Procedure[Pre] => rewriteProcedure(m).succeed(m)
+      case v: Variable[Pre] => super.dispatch(v)
       case _ => super.dispatch(decl)
     }
+  }
+
+  private def rewriteProcedure(m: Procedure[Pre]): GlobalDeclaration[Post] = {
+    // declare new method as replacement of existing method of same name
+    Namer.getSrcName(m.o) match {
+      case Some(name) if name == verifierAssertName => return verifierAssert
+      case Some(name) if name == abortName => return abort
+      case Some(name) if name == verifierAssumeName => return verifierAssume
+      case Some(name) if name == nondetIntName => return nondetInt
+      case Some(name) if name == "__vercors_malloc" =>
+        // todo: a bit hack-y: use classical malloc by turning this method
+        //  into include statement.
+        //  This means the include is followed by a ";", though
+        implicit val o: Origin = m.o
+        val decl =
+          new CGlobalDeclaration[Post](CDeclaration(
+            m.contract.rewriteDefault(),
+            tt,
+            Nil,
+            Seq(CInit(CName[Post]("#include<stdlib.h>"), None)),
+          ))
+        return decl
+      case _ =>
+    }
+
+    val rewritten = dispatchMethod(m, simplify = false)
+    if (m.body.isDefined) {
+      val simplified = variables.scope { dispatchMethod(m, simplify = true) }
+      // add simplified versions for non-abstract methods
+      globalDeclarations.declare(simplified)
+      simplifiedMethodRefs.update(m, simplified)
+    } else { simplifiedMethodRefs.update(m, rewritten) }
+    rewritten
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = {
@@ -149,6 +183,8 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
       case l: SimplifiedLoop[Pre] => rewriteLoop(l)
       case _: WandApply[Pre] => Block[Post](Nil)(stat.o)
       case _: WandPackage[Pre] => Block[Post](Nil)(stat.o)
+      case _: Fold[Pre] => Block[Post](Nil)(stat.o)
+      case _: Unfold[Pre] => Block[Post](Nil)(stat.o)
       case _ => super.dispatch(stat)
     }
   }
@@ -159,7 +195,11 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(node: Expr[Pre]): Expr[Post] = {
     node match {
       case r: Result[Pre] => returnVar.top.get(r.o)
-      case o: Old[Pre] => globalVars.having(olds.top.toMap) { dispatch(o.expr) }
+      case o: Old[Pre] =>
+        olds.top.get(o.expr) match {
+          case Some(v) => Local[Post](v.ref)(v.o)
+          case None => dispatch(o.expr) // should not be possible
+        }
       case h: DerefHeapVariable[Pre] =>
         if (globalVars.isEmpty) { super.dispatch(h) }
         else { globalVars.top(h.ref.decl).get(h.o) }
@@ -172,8 +212,35 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
         )(s.blame)(s.o)
+      case i: FunctionInvocation[Pre] =>
+        ProcedureInvocation[Post](
+          succ(i.ref.decl),
+          i.args.map(dispatch),
+          Nil,
+          Nil,
+          Nil,
+          Nil,
+        )(i.blame)(i.o)
+      case i: PredicateApply[Pre] =>
+        ProcedureInvocation[Post](
+          succ(i.ref.decl),
+          i.args.map(dispatch),
+          Nil,
+          Nil,
+          Nil,
+          Nil,
+        )(PanicBlame("failed to apply predicate"))(i.o)
+      case r: Scale[Pre] => dispatch(r.res)
       case i: Implies[Pre] =>
         Or(Not[Post](dispatch(i.left))(i.left.o), dispatch(i.right))(i.o)
+      case u: Unfolding[Pre] => dispatch(u.body)
+      case _ => super.dispatch(node)
+    }
+  }
+
+  override def dispatch(node: Type[Pre]): Type[Post] = {
+    node match {
+      case _: TResource[Pre] => TCInt[Post]()
       case _ => super.dispatch(node)
     }
   }
@@ -199,26 +266,30 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
               case o: Old[Pre] if o.at.isEmpty => o.expr
             }
         }
-        val derefs = oldExprs
-          .flatMap(e => e.collect { case r: DerefHeapVariable[Pre] => r })
+//        val derefs = oldExprs
+//          .flatMap(e => e.collect {
+//            case r: DerefHeapVariable[Pre] => r
+////            case p: DerefPointer[Pre] => p
+////            case s: AmbiguousSubscript[Pre] => s
+//          })
         olds.having(mutable.Map()) {
-          for (r <- derefs) {
-            if (!olds.top.contains(r.ref.decl)) {
-              val newOrigin = r.o.sourceName(
-                "__old_" + r.ref.decl.o.getPreferredNameOrElse().camel
-              )
-              val old = new Variable(dispatch(r.ref.decl.t))(newOrigin)
-              olds.top.addOne(r.ref.decl, old)
-            }
+          for (e <- oldExprs) {
+            val newOrigin = e.o.sourceName("__old_expr")
+            val old = new Variable(dispatch(e.t))(newOrigin)
+            olds.top.addOne(e, old)
           }
-          val cached = olds.top.map { case (r, old) =>
-            implicit val o: Origin = r.o
-            assignLocal(
-              old.get,
-              new DerefHeapVariable[Post](succ(r.ref.decl))(PanicBlame(
-                "caching old failed"
-              )),
-            )
+//          for (r <- derefs) {
+//            if (!olds.top.contains(r.ref.decl)) {
+//              val newOrigin = r.o.sourceName(
+//                "__old_" + r.ref.decl.o.getPreferredNameOrElse().camel
+//              )
+//              val old = new Variable(dispatch(r.ref.decl.t))(newOrigin)
+//              olds.top.addOne(r.ref.decl, old)
+//            }
+//          }
+          val cached = olds.top.map { case (e, old) =>
+            implicit val o: Origin = e.o
+            assignLocal(old.get, dispatch(e))
           }
 
           // generate new method body
@@ -321,10 +392,16 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
         val posts = gatherConditions(meth.contract.ensures).flatMap(assert)
         if (posts.nonEmpty) {
           val d = LocalDecl(retV)(retV.o)
-          val asgn = assignLocal(retV.get(r.o), dispatch(r.result))(r.o)
+          val asgn = dispatchExpr(r.result)
+            .map(e => assignLocal(retV.get(r.o), e)(r.o))
           val ret = Return(retV.get(r.o))(r.o)
-          Block[Post](Seq(d, asgn) ++ posts ++ Seq(ret))(r.o)
-        } else { super.dispatch(r) }
+          Block[Post](Seq(d) ++ asgn ++ posts ++ Seq(ret))(r.o)
+        } else {
+          dispatchExpr(r.result) match {
+            case Some(e) => r.rewrite(result = e)
+            case _ => Block[Post](Nil)(r.o)
+          }
+        }
       }
   }
 
@@ -416,15 +493,15 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
             }
         }
       // TODO: filter other non-C expressions, e.g. seqs, \array
-      case _ => Some(super.dispatch(node))
+      case _ => Some(dispatch(node))
     }
   }
 
   /** dispatch of expressions rewrites them, so the contract becomes invalid ->
     * replace with empty contract
     */
-  private def emptyContract()(implicit o: Origin): ApplicableContract[Post] = {
-    ApplicableContract[Post](
+  private def emptyContract[T]()(implicit o: Origin): ApplicableContract[T] = {
+    ApplicableContract[T](
       UnitAccountedPredicate(tt),
       UnitAccountedPredicate(tt),
       tt,
@@ -615,7 +692,7 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
   private def havocGlobals(stmt: Statement[Pre]): Seq[Statement[Post]] = {
     val allCalledBodies = gatherInvocations(stmt)
     val decls = allCalledBodies
-      .flatMap(s => s.collect { case l: LocalDecl[Pre] => dispatch(l) })
+      .flatMap(s => s.collect { case l: LocalDecl[Pre] => l.rewriteDefault() })
     val hav = havoc(allCalledBodies.flatMap(gatherGlobalAssigns))
     decls ++ hav
   }
@@ -676,12 +753,10 @@ case class MakeRuntimeChecks[Pre <: Generation]() extends Rewriter[Pre] {
     }
     val res: mutable.Buffer[Statement[Pre]] = mutable.Buffer(node)
     for (p <- procList) {
-      if (!alreadyGathered.contains(p)) {
-        alreadyGathered.append(p)
-        p.body match {
-          case Some(b) => res.appendAll(gatherInvocations(b, alreadyGathered))
-          case None =>
-        }
+      p.body match {
+        case Some(b) =>
+          if (!res.contains(b)) { res.appendAll(gatherInvocations(b)) }
+        case None =>
       }
     }
     res.toSeq
