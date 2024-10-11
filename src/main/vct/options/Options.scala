@@ -338,6 +338,14 @@ case object Options {
         opt[Unit]("veymont-skip-implementation-verification").action((_, c) =>
           c.copy(veymontSkipImplementationVerification = true)
         ).text("Do not verify generated implementation"),
+        opt[Unit]("veymont-sp-wrap").action((_, c) =>
+          c.copy(veymontSpWrap = true, veymontSpInline = false)
+        ).text(
+          "Use the wrapping implementation of stratified permissions (default)"
+        ),
+        opt[Unit]("veymont-sp-inline").action((_, c) =>
+          c.copy(veymontSpInline = true, veymontSpWrap = false)
+        ).text("Use the inline implementation of stratified permissions"),
       ),
       opt[Unit]("dev-veymont-no-branch-unanimity").maybeHidden()
         .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
@@ -503,6 +511,9 @@ case class Options(
     veymontOutput: Option[Path] = None,
     veymontResourcePath: Path = Resources.getVeymontPath,
     veymontBranchUnanimity: Boolean = true,
+    // Stratified permission settings
+    veymontSpInline: Boolean = false,
+    veymontSpWrap: Boolean = true,
     veymontSkipChoreographyVerification: Boolean = false,
     veymontSkipImplementationVerification: Boolean = false,
 

@@ -312,6 +312,8 @@ case class SilverTransformation(
     override val optimizeUnsafe: Boolean = false,
     generatePermissions: Boolean = false,
     veymontBranchUnanimity: Boolean = true,
+    veymontSpWrap: Boolean = true,
+    veymontSpInline: Boolean = false,
 ) extends Transformation(
       onPassEvent,
       Seq(
@@ -370,8 +372,7 @@ case class SilverTransformation(
         EncodeChorBranchUnanimity.withArg(veymontBranchUnanimity),
         EncodeEndpointInequalities,
         EncodeChannels,
-        EncodePermissionStratification
-          .withArg(EncodePermissionStratification.Mode.Heavy),
+        EncodePermissionStratification.withArg(veymontSpWrap, veymontSpInline),
         EncodeChoreography,
         // All VeyMont nodes should now be gone
 
