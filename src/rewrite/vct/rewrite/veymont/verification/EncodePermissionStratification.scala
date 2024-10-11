@@ -14,8 +14,9 @@ import vct.rewrite.veymont.verification.EncodePermissionStratification.{
   ForwardAssertFailedToDeref,
   ForwardExhaleFailedToChorRun,
   ForwardInvocationFailureToDeref,
-  NoEndpointContext,
+  ForwardUnfoldFailedToDeref,
   Mode,
+  NoEndpointContext,
 }
 
 import scala.collection.{mutable => mut}
@@ -47,6 +48,12 @@ object EncodePermissionStratification
   case class ForwardAssertFailedToDeref(deref: Deref[_])
       extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
+      deref.blame.blame(InsufficientPermission(deref))
+  }
+
+  case class ForwardUnfoldFailedToDeref(deref: Deref[_])
+      extends Blame[UnfoldFailure] {
+    override def blame(error: UnfoldFailure): Unit =
       deref.blame.blame(InsufficientPermission(deref))
   }
 
@@ -599,43 +606,9 @@ case class EncodePermissionStratification[Pre <: Generation](
         throw NoEndpointContext(statement)
       case EndpointStatement(
             Some(Ref(endpoint)),
-            assign @ Assign(deref @ Deref(obj, Ref(field)), _),
+            assign @ Assign(Deref(_, Ref(_)), _),
           ) =>
-        implicit val o = statement.o
-        val apply = {
-          val newEndpoint: Ref[Post, Endpoint[Post]] = succ(endpoint)
-          val ref = markerPredicate(obj.t.asClass.get, field)
-          PredicateApply(
-            ref,
-            Seq(
-              EndpointName(newEndpoint),
-              specializing.having(EndpointName[Post](succ(endpoint))) {
-                dispatch(obj)
-              },
-            ),
-          )
-        }
-        val intermediate =
-          new Variable(dispatch(assign.value.t))(
-            assign.o.where(name = "intermediate")
-          )
-        specializing.having(EndpointName[Post](succ(endpoint))) {
-          Scope(
-            Seq(intermediate),
-            Block(Seq(
-              assignLocal(intermediate.get, dispatch(assign.value)),
-              Assert(Perm(PredicateLocation(apply), WritePerm()))(
-                ForwardAssertFailedToDeref(deref)
-              ),
-              assign.rewrite(
-                // Use rewriteDefault to prevent triggering rewriting into a read function. We just want the
-                // raw field access here.
-                target = deref.rewriteDefault(),
-                value = intermediate.get,
-              ),
-            )),
-          )
-        }
+        rewriteAssign(endpoint, assign)
       case EndpointStatement(Some(Ref(endpoint)), assert: Assert[Pre]) =>
         specializing.having(EndpointName[Post](succ(endpoint))(statement.o)) {
           assert.rewriteDefault()
@@ -646,4 +619,100 @@ case class EncodePermissionStratification[Pre <: Generation](
         }
       case _ => statement.rewriteDefault()
     }
+
+  def rewriteAssign(
+      endpoint: Endpoint[Pre],
+      assign: Assign[Pre],
+  ): Statement[Post] =
+    mode match {
+      case Mode.Inline => rewriteAssignInline(endpoint, assign)
+      case Mode.Wrap => rewriteAssignWrap(endpoint, assign)
+    }
+
+  def rewriteAssignInline(
+      endpoint: Endpoint[Pre],
+      assign: Assign[Pre],
+  ): Statement[Post] = {
+    val Assign(deref @ Deref(obj, Ref(field)), _) = assign
+    implicit val o = assign.o
+    val apply = {
+      val newEndpoint: Ref[Post, Endpoint[Post]] = succ(endpoint)
+      val ref = markerPredicate(obj.t.asClass.get, field)
+      PredicateApply(
+        ref,
+        Seq(
+          EndpointName(newEndpoint),
+          specializing.having(EndpointName[Post](succ(endpoint))) {
+            dispatch(obj)
+          },
+        ),
+      )
+    }
+    val intermediate =
+      new Variable(dispatch(assign.value.t))(
+        assign.o.where(name = "intermediate")
+      )
+    specializing.having(EndpointName[Post](succ(endpoint))) {
+      Scope(
+        Seq(intermediate),
+        Block(Seq(
+          assignLocal(intermediate.get, dispatch(assign.value)),
+          Assert(Perm(PredicateLocation(apply), WritePerm()))(
+            ForwardAssertFailedToDeref(deref)
+          ),
+          assign.rewrite(
+            // Use rewriteDefault to prevent triggering rewriting into a read function. We just want the
+            // raw field access here.
+            target = deref.rewriteDefault(),
+            value = intermediate.get,
+          ),
+        )),
+      )
+    }
+  }
+
+  def rewriteAssignWrap(
+      endpoint: Endpoint[Pre],
+      assign: Assign[Pre],
+  ): Statement[Post] = {
+    val Assign(deref @ Deref(obj, Ref(field)), _) = assign
+    implicit val o = assign.o
+    val apply = {
+      val newEndpoint: Ref[Post, Endpoint[Post]] = succ(endpoint)
+      val ref = markerPredicate(obj.t.asClass.get, field)
+      PredicateApply(
+        ref,
+        Seq(
+          EndpointName(newEndpoint),
+          specializing.having(EndpointName[Post](succ(endpoint))) {
+            dispatch(obj)
+          },
+        ),
+      )
+    }
+    val intermediate =
+      new Variable(dispatch(assign.value.t))(
+        assign.o.where(name = "intermediate")
+      )
+    specializing.having(EndpointName[Post](succ(endpoint))) {
+      Scope(
+        Seq(intermediate),
+        Block(Seq(
+          assignLocal(intermediate.get, dispatch(assign.value)),
+          Unfold(ScaledPredicateApply(apply, WritePerm()))(
+            ForwardUnfoldFailedToDeref(deref)
+          ),
+          assign.rewrite(
+            // Use rewriteDefault to prevent triggering rewriting into a read function. We just want the
+            // raw field access here.
+            target = deref.rewriteDefault(),
+            value = intermediate.get,
+          ),
+          Fold(ScaledPredicateApply(apply, WritePerm()))(PanicBlame(
+            "Permission is guaranteed to be present because of earlier unfold"
+          )),
+        )),
+      )
+    }
+  }
 }
