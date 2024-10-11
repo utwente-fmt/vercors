@@ -9,5 +9,12 @@ trait InstanceFieldImpl[G] extends InstanceFieldOps[G] {
   def isFinal = flags.collectFirst { case _: Final[G] => () }.isDefined
 
   override def layout(implicit ctx: Ctx): Doc =
-    Doc.rspread(flags) <> t.show <+> ctx.name(this) <> ";"
+    Doc.rspread(flags) <>
+      (ctx.syntax match {
+        case Ctx.C | Ctx.Cuda | Ctx.OpenCL | Ctx.CPP =>
+          val (spec, decl) = t.layoutSplitDeclarator
+          spec <+> decl <> ctx.name(this) <> ";"
+        case Ctx.PVL | Ctx.Java => t.show <+> ctx.name(this) <> ";"
+        case Ctx.Silver => Text(ctx.name(this)) <> ":" <+> t
+      })
 }

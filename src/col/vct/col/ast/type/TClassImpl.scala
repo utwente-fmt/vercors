@@ -34,7 +34,10 @@ trait TClassImpl[G] extends TClassOps[G] {
 
   override def layout(implicit ctx: Ctx): Doc =
     Group(
-      Text(ctx.name(cls)) <>
+      (if (ctx.syntax == Ctx.C)
+         Text("struct")
+       else
+         Empty) <+> Text(ctx.name(cls)) <>
         (if (typeArgs.nonEmpty)
            Text("<") <> Doc.args(typeArgs) <> ">"
          else
