@@ -198,7 +198,7 @@ case class MakeRuntimeChecks[Pre <: Generation]()
       case o: Old[Pre] =>
         olds.top.get(o.expr) match {
           case Some(v) => Local[Post](v.ref)(v.o)
-          case None => dispatch(o.expr) // should not be possible
+          case None => dispatch(o.expr) // if it contained local variables
         }
       case h: DerefHeapVariable[Pre] =>
         if (globalVars.isEmpty) { super.dispatch(h) }
@@ -263,9 +263,23 @@ case class MakeRuntimeChecks[Pre <: Generation]()
         if (meth.body.nonEmpty) {
           oldExprs =
             oldExprs ++ meth.body.get.collect {
-              case o: Old[Pre] if o.at.isEmpty => o.expr
-            }
+              case o: Old[Pre] if o.at.isEmpty =>
+                val locals = o.expr.collect { case v: Local[Pre] => v.ref.decl }
+                  .filter(v => !meth.args.contains(v))
+                if (locals.isEmpty) { Some(o.expr) }
+                else {
+                  logger.warn(
+                    "at " + o.expr.o.shortPositionText +
+                      ": unsupported old expression '" + o.expr.toString +
+                      "' (using local variables '" + locals.mkString(",") +
+                      "'). The 'old' wrapper will be dropped"
+                  )
+                  None
+                }
+            }.flatten
         }
+//        val vars = oldExprs.map(_.collect {case v:Local[Pre] => v.ref.decl})
+
 //        val derefs = oldExprs
 //          .flatMap(e => e.collect {
 //            case r: DerefHeapVariable[Pre] => r
