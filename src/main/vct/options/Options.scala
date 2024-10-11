@@ -344,7 +344,7 @@ case object Options {
           "Use the wrapping implementation of stratified permissions (default)"
         ),
         opt[Unit]("veymont-sp-inline").action((_, c) =>
-          c.copy(veymontSpInline = true, veymontSpWrap = false)
+          c.copy(veymontSpWrap = false, veymontSpInline = true)
         ).text("Use the inline implementation of stratified permissions"),
       ),
       opt[Unit]("dev-veymont-no-branch-unanimity").maybeHidden()

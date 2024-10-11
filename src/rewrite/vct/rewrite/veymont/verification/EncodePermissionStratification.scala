@@ -623,15 +623,6 @@ case class EncodePermissionStratification[Pre <: Generation](
   def rewriteAssign(
       endpoint: Endpoint[Pre],
       assign: Assign[Pre],
-  ): Statement[Post] =
-    mode match {
-      case Mode.Inline => rewriteAssignInline(endpoint, assign)
-      case Mode.Wrap => rewriteAssignWrap(endpoint, assign)
-    }
-
-  def rewriteAssignInline(
-      endpoint: Endpoint[Pre],
-      assign: Assign[Pre],
   ): Statement[Post] = {
     val Assign(deref @ Deref(obj, Ref(field)), _) = assign
     implicit val o = assign.o
@@ -653,66 +644,42 @@ case class EncodePermissionStratification[Pre <: Generation](
         assign.o.where(name = "intermediate")
       )
     specializing.having(EndpointName[Post](succ(endpoint))) {
-      Scope(
-        Seq(intermediate),
-        Block(Seq(
-          assignLocal(intermediate.get, dispatch(assign.value)),
-          Assert(Perm(PredicateLocation(apply), WritePerm()))(
-            ForwardAssertFailedToDeref(deref)
-          ),
-          assign.rewrite(
-            // Use rewriteDefault to prevent triggering rewriting into a read function. We just want the
-            // raw field access here.
-            target = deref.rewriteDefault(),
-            value = intermediate.get,
-          ),
-        )),
+      val evalStatement = assignLocal(intermediate.get, dispatch(assign.value))
+      val actualAssign = assign.rewrite(
+        // Use rewriteDefault to prevent triggering rewriting into a read function. We just want the
+        // raw field access here.
+        target = deref.rewriteDefault(),
+        value = intermediate.get,
       )
-    }
-  }
-
-  def rewriteAssignWrap(
-      endpoint: Endpoint[Pre],
-      assign: Assign[Pre],
-  ): Statement[Post] = {
-    val Assign(deref @ Deref(obj, Ref(field)), _) = assign
-    implicit val o = assign.o
-    val apply = {
-      val newEndpoint: Ref[Post, Endpoint[Post]] = succ(endpoint)
-      val ref = markerPredicate(obj.t.asClass.get, field)
-      PredicateApply(
-        ref,
-        Seq(
-          EndpointName(newEndpoint),
-          specializing.having(EndpointName[Post](succ(endpoint))) {
-            dispatch(obj)
-          },
-        ),
-      )
-    }
-    val intermediate =
-      new Variable(dispatch(assign.value.t))(
-        assign.o.where(name = "intermediate")
-      )
-    specializing.having(EndpointName[Post](succ(endpoint))) {
-      Scope(
-        Seq(intermediate),
-        Block(Seq(
-          assignLocal(intermediate.get, dispatch(assign.value)),
-          Unfold(ScaledPredicateApply(apply, WritePerm()))(
-            ForwardUnfoldFailedToDeref(deref)
-          ),
-          assign.rewrite(
-            // Use rewriteDefault to prevent triggering rewriting into a read function. We just want the
-            // raw field access here.
-            target = deref.rewriteDefault(),
-            value = intermediate.get,
-          ),
-          Fold(ScaledPredicateApply(apply, WritePerm()))(PanicBlame(
-            "Permission is guaranteed to be present because of earlier unfold"
-          )),
-        )),
-      )
+      mode match {
+        case Mode.Inline =>
+          // In the inline mode, only include an assert to make sure the proper marker is present
+          Scope(
+            Seq(intermediate),
+            Block(Seq(
+              evalStatement,
+              Assert(Perm(PredicateLocation(apply), WritePerm()))(
+                ForwardAssertFailedToDeref(deref)
+              ),
+              actualAssign,
+            )),
+          )
+        case Mode.Wrap =>
+          // In the wrap mode, unfold and fold the wrap predicate around the assignment
+          Scope(
+            Seq(intermediate),
+            Block(Seq(
+              evalStatement,
+              Unfold(ScaledPredicateApply(apply, WritePerm()))(
+                ForwardUnfoldFailedToDeref(deref)
+              ),
+              actualAssign,
+              Fold(ScaledPredicateApply(apply, WritePerm()))(PanicBlame(
+                "Permission is guaranteed to be present because of earlier unfold"
+              )),
+            )),
+          )
+      }
     }
   }
 }

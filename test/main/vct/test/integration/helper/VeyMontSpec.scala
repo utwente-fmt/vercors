@@ -212,8 +212,7 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
     def show(res: ResultModel): String =
       res match {
         case R.Fail(Seq(code)) => s"fail with code $code"
-        case R.Fail(codes) =>
-          s"fail with codes: ${codes.mkString("- ", "\n- ", "")}"
+        case R.Fail(codes) => s"fail with codes: ${codes.mkString(", ")}"
         case R.Error(code) => s"error with code $code"
         case R.Crash(err) => s"crash with message:\n${err.text}"
         case R.Pass => "pass"

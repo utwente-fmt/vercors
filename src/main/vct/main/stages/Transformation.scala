@@ -141,6 +141,8 @@ object Transformation extends LazyLogging {
           optimizeUnsafe = options.devUnsafeOptimization,
           generatePermissions = options.generatePermissions,
           veymontBranchUnanimity = options.veymontBranchUnanimity,
+          veymontSpWrap = options.veymontSpWrap,
+          veymontSpInline = options.veymontSpInline,
         )
     }
 

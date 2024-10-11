@@ -4,7 +4,9 @@ import vct.test.integration.helper.VeyMontSpec
 
 class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
-    desc = "Plain assignment is allowed, but considered unsound",
+    desc =
+      "Plain assignment is allowed, and works when using --veymont-sp-inline, but considered unsound",
+    flag = "--veymont-sp-inline",
     pvl = """
       class C { int x; }
       choreography Chor() {
@@ -113,7 +115,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
 
   choreography(
     desc = "example using communicate",
-    flag = "--generate-permissions",
+    flags = Seq("--generate-permissions", "--veymont-sp-inline"),
     pvl = """
        class Storage {
           int x;
@@ -1033,12 +1035,12 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   val wd = "technical/veymont"
 
   choreography(
-    flag = "--generate-permissions",
+    flags = Seq("--generate-permissions", "--veymont-sp-inline"),
     input = example(s"$wd/checkLTS/ltstest.pvl"),
   )
 
   choreography(
-    flag = "--generate-permissions",
+    flags = Seq("--generate-permissions", "--veymont-sp-inline"),
     input = example(s"$wd/checkLTS/simpleifelse.pvl"),
   )
 
@@ -1163,6 +1165,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
     desc =
       "Functions that expect only wildcard permissions will succesfully verify, despite the partial encoding of stratified predicates",
+    flag = "--veymont-sp-inline",
     pvl = """
       resource P(C c) = Perm(c.x, 1) ** c.x == 0;
 
@@ -1193,6 +1196,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
     desc =
       "If you precisely half all permissions in a function, you can have exact permission amounts for predicates in a function contract, despite the partial encoding of stratified predicates.",
+    flag = "--veymont-sp-inline",
     pvl = """
       resource P(C c) = Perm(c.x, 1) ** c.x == 0;
 
