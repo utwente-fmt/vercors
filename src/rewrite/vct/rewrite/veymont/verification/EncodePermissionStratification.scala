@@ -468,10 +468,19 @@ case class EncodePermissionStratification[Pre <: Generation](
   def specializeFoldTarget(target: FoldTarget[Pre]): FoldTarget[Post] =
     target match {
       case app: ScaledPredicateApply[Pre] =>
-        app.rewrite(
-          apply = specializePredicateApply(app.apply),
-          perm = RatDiv(dispatch(app.perm), const(2)(app.o))(NoZeroDiv)(app.o),
-        )
+        mode match {
+          case Mode.Inline =>
+            app.rewrite(
+              apply = specializePredicateApply(app.apply),
+              perm =
+                RatDiv(dispatch(app.perm), const(2)(app.o))(NoZeroDiv)(app.o),
+            )
+          case Mode.Wrap =>
+            app.rewrite(
+              apply = specializePredicateApply(app.apply),
+              perm = dispatch(app.perm),
+            )
+        }
       case app: ValuePredicateApply[Pre] =>
         app.rewrite(apply = specializePredicateApply(app.apply))
       case AmbiguousFoldTarget(_) => ??? // Shouldn't occur at this stage
@@ -532,23 +541,32 @@ case class EncodePermissionStratification[Pre <: Generation](
       case unfolding @ Unfolding(res: FoldTarget[Pre], inner)
           if specializing.nonEmpty =>
         implicit val o = unfolding.o
-        val halfRes =
-          res match {
-            case app: ScaledPredicateApply[Pre] =>
-              // Incomplete encoding; see specializePredicateLocation
-              app
-                .rewrite(perm = RatDiv(dispatch(app.perm), const(2))(NoZeroDiv))
-            case app => app.rewriteDefault()
-          }
 
-        unfolding.rewrite(
-          res = halfRes,
-          body =
-            Unfolding[Post](
-              res = specializeFoldTarget(res),
-              body = dispatch(inner),
-            )(unfolding.blame)(unfolding.o),
-        )
+        mode match {
+          case Mode.Inline =>
+            val halfRes =
+              res match {
+                case app: ScaledPredicateApply[Pre] =>
+                  // Incomplete encoding; see specializePredicateLocation
+                  app.rewrite(perm =
+                    RatDiv(dispatch(app.perm), const(2))(NoZeroDiv)
+                  )
+                case app => app.rewriteDefault()
+              }
+
+            unfolding.rewrite(
+              res = halfRes,
+              body =
+                Unfolding[Post](
+                  res = specializeFoldTarget(res),
+                  body = dispatch(inner),
+                )(unfolding.blame)(unfolding.o),
+            )
+
+          case Mode.Wrap =>
+            unfolding
+              .rewrite(res = specializeFoldTarget(res), body = dispatch(inner))
+        }
 
       case EndpointExpr(Ref(endpoint), inner) =>
         specializing.having(EndpointName[Post](succ(endpoint))(expr.o)) {

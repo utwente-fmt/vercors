@@ -347,9 +347,9 @@ case object Options {
           c.copy(veymontSpWrap = false, veymontSpInline = true)
         ).text("Use the inline implementation of stratified permissions"),
       ),
-      opt[Unit]("dev-veymont-no-branch-unanimity").maybeHidden()
+      opt[Unit]("veymont-no-branch-unanimity").maybeHidden()
         .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
-          "Disables generation of the branch unanimity check encoded by VeyMont, which verifies that choreographies do not deadlock during choreographic verification"
+          "Disables generation of the branch unanimity check encoded by VeyMont, which ensures that endpoints cannot disagree about which branch to take. This check cannot always be computed, but if it can, it saves the user from having to prove this informally."
         ),
       note(""),
       note("VeSUV Mode"),

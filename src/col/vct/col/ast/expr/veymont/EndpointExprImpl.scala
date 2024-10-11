@@ -18,9 +18,9 @@ trait EndpointExprImpl[G] extends EndpointExprOps[G] with ExprImpl[G] {
       context: CheckContext[G]
   ): Option[Endpoint[G]] = Some(this.endpoint.decl)
 
-  override def check(context: CheckContext[G]): Seq[CheckError] =
-    if (context.inChor)
-      Seq(EndpointExprInChor(this))
-    else
-      Seq()
+//  override def check(context: CheckContext[G]): Seq[CheckError] =
+//    if (context.inChor)
+//      Seq(EndpointExprInChor(this))
+//    else
+//      Seq()
 }
