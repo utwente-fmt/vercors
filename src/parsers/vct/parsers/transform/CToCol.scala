@@ -1181,6 +1181,7 @@ case class CToCol[G](
           case "pure" => collector.pure += mod
           case "inline" => collector.inline += mod
           case "thread_local" => collector.threadLocal += mod
+          case "bip_annotation" => collector.bipAnnotation += mod
         }
       case ValStatic(_) => collector.static += mod
     }
