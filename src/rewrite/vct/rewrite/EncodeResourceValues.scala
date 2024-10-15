@@ -184,7 +184,7 @@ case class EncodeResourceValues[Pre <: Generation]()
             case ResourcePattern.HeapVariableLocation(_) => Nil
             case ResourcePattern.FieldLocation(f) =>
               nonGeneric(fieldOwner(f))
-              Seq(TClass(succ(fieldOwner(f)), Seq()))
+              Seq(dispatch(fieldOwner(f).classType(Nil)))
             case ResourcePattern.ModelLocation(f) =>
               Seq(TModel(succ(modelFieldOwner(f))))
             case ResourcePattern.SilverFieldLocation(_) => Seq(TRef())
@@ -196,8 +196,8 @@ case class EncodeResourceValues[Pre <: Generation]()
               ref.args.map(_.t).map(dispatch)
             case ResourcePattern.InstancePredicateLocation(ref) =>
               nonGeneric(predicateOwner(ref))
-              TClass[Post](succ(predicateOwner(ref)), Seq()) +:
-                ref.args.map(_.t).map(dispatch)
+              dispatch(predicateOwner(ref).classType(Nil)) +: ref.args.map(_.t)
+                .map(dispatch)
           }
 
         def freeTypes(pattern: ResourcePattern): Seq[Type[Post]] =

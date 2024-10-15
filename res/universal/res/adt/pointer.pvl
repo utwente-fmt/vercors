@@ -16,6 +16,7 @@ adt `pointer` {
   pure `pointer` pointer_of(`block` b, int offset);
   pure `block` pointer_block(`pointer` p);
   pure int pointer_offset(`pointer` p);
+  pure `pointer` pointer_inv(ref r);
 
   // the block offset is valid wrt the length of the block
   axiom (∀ `pointer` p;
@@ -26,6 +27,10 @@ adt `pointer` {
   axiom (∀`block` b, int offset;
     {:pointer_block(pointer_of(b, offset)):} == b &&
       {:pointer_offset(pointer_of(b, offset)):} == offset);
+
+  axiom (∀ ref r; ptr_deref({:pointer_inv(r):}) == r);
+
+  axiom (∀ `pointer` p; pointer_inv({:ptr_deref(p):}) == p);
 }
 
 decreases;
@@ -35,6 +40,7 @@ pure ref ptr_deref(`pointer` p) =
 decreases;
 requires 0 <= `pointer`.pointer_offset(p) + offset;
 requires `pointer`.pointer_offset(p) + offset < `block`.block_length(`pointer`.pointer_block(p));
+ensures \polarity_dependent(offset == 0 ==> \result == p, true);
 pure `pointer` ptr_add(`pointer` p, int offset) =
   `pointer`.pointer_of(
      `pointer`.pointer_block(p),

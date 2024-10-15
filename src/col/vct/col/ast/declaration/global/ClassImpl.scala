@@ -1,18 +1,35 @@
 package vct.col.ast.declaration.global
 
-import vct.col.ast.{Class, Declaration, InstanceField, TClass, TVar}
+import vct.col.ast.{
+  Class,
+  ClassDeclaration,
+  Declaration,
+  Expr,
+  InstanceField,
+  TByReferenceClass,
+  TClass,
+  TVar,
+  Type,
+  Variable,
+}
 import vct.col.ast.util.Declarator
 import vct.col.print._
 import vct.col.util.AstBuildHelpers.tt
-import vct.result.VerificationError.Unreachable
-import vct.col.ast.ops.ClassOps
 
-trait ClassImpl[G] extends Declarator[G] with ClassOps[G] {
+trait ClassImpl[G] extends Declarator[G] {
   this: Class[G] =>
+  def typeArgs: Seq[Variable[G]]
+  def decls: Seq[ClassDeclaration[G]]
+  def supports: Seq[Type[G]]
+
+  def classType(typeArgs: Seq[Type[G]]): TClass[G]
+
   def transSupportArrowsHelper(
       seen: Set[TClass[G]]
   ): Seq[(TClass[G], TClass[G])] = {
-    val t: TClass[G] = TClass(this.ref, typeArgs.map(v => TVar(v.ref)))
+    val t: TClass[G] = classType(
+      typeArgs.map((v: Variable[G]) => TVar(v.ref[Variable[G]]))
+    )
     if (seen.contains(t))
       Nil
     else
@@ -30,9 +47,7 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] {
 
   override def declarations: Seq[Declaration[G]] = decls ++ typeArgs
 
-  def layoutLockInvariant(implicit ctx: Ctx): Doc =
-    Text("lock_invariant") <+> Nest(intrinsicLockInvariant.show) <> ";" <+/>
-      Empty
+  def layoutLockInvariant(implicit ctx: Ctx): Doc
 
   def layoutLock(implicit ctx: Ctx): Doc =
     Text("Lock") <+> "intrinsicLock$" <+> "=" <+> "new" <+>
@@ -40,10 +55,7 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] {
       "intrinsicLock$" <> "." <> "newCondition()" <> ";"
 
   def layoutJava(implicit ctx: Ctx): Doc =
-    (if (intrinsicLockInvariant == tt[G])
-       Empty
-     else
-       Doc.spec(Show.lazily(layoutLockInvariant(_)))) <+/> Group(
+    layoutLockInvariant <+/> Group(
       Text("class") <+> ctx.name(this) <>
         (if (typeArgs.nonEmpty)
            Text("<") <> Doc.args(typeArgs) <> ">"
@@ -59,10 +71,7 @@ trait ClassImpl[G] extends Declarator[G] with ClassOps[G] {
     ) <>> Doc.stack2(layoutLock +: decls) <+/> "}"
 
   def layoutPvl(implicit ctx: Ctx): Doc =
-    (if (intrinsicLockInvariant == tt[G])
-       Empty
-     else
-       Doc.spec(Show.lazily(layoutLockInvariant(_)))) <+/> Group(
+    layoutLockInvariant <+/> Group(
       Text("class") <+> ctx.name(this) <>
         (if (typeArgs.nonEmpty)
            Text("<") <> Doc.args(typeArgs) <> ">"

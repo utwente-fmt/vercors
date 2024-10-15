@@ -106,50 +106,56 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
 
       case f: Forall[Pre] =>
         variables.scope {
-          val (patternsHere, body) = patterns.collect {
-            // We only want to inline lets that are defined inside the quantifier
-            letBindings.having(ScopedStack()) { dispatch(f.body) }
+          localHeapVariables.scope {
+            val (patternsHere, body) = patterns.collect {
+              // We only want to inline lets that are defined inside the quantifier
+              letBindings.having(ScopedStack()) { dispatch(f.body) }
+            }
+            val unsortedGroups = patternsHere.groupBy(_.group)
+            val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
+            val triggers = sortedGroups.map(_.map(_.make()))
+            Forall(
+              bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
+              triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
+              body = body,
+            )(f.o)
           }
-          val unsortedGroups = patternsHere.groupBy(_.group)
-          val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
-          val triggers = sortedGroups.map(_.map(_.make()))
-          Forall(
-            bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
-            triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
-            body = body,
-          )(f.o)
         }
 
       case f: Starall[Pre] =>
         variables.scope {
-          val (patternsHere, body) = patterns.collect {
-            // We only want to inline lets that are defined inside the quantifier
-            letBindings.having(ScopedStack()) { dispatch(f.body) }
+          localHeapVariables.scope {
+            val (patternsHere, body) = patterns.collect {
+              // We only want to inline lets that are defined inside the quantifier
+              letBindings.having(ScopedStack()) { dispatch(f.body) }
+            }
+            val unsortedGroups = patternsHere.groupBy(_.group)
+            val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
+            val triggers = sortedGroups.map(_.map(_.make()))
+            Starall(
+              bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
+              triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
+              body = body,
+            )(f.blame)(f.o)
           }
-          val unsortedGroups = patternsHere.groupBy(_.group)
-          val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
-          val triggers = sortedGroups.map(_.map(_.make()))
-          Starall(
-            bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
-            triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
-            body = body,
-          )(f.blame)(f.o)
         }
 
       case f: Exists[Pre] =>
         variables.scope {
-          val (patternsHere, body) = patterns.collect {
-            // We only want to inline lets that are defined inside the quantifier
-            letBindings.having(ScopedStack()) { dispatch(f.body) }
+          localHeapVariables.scope {
+            val (patternsHere, body) = patterns.collect {
+              // We only want to inline lets that are defined inside the quantifier
+              letBindings.having(ScopedStack()) { dispatch(f.body) }
+            }
+            val unsortedGroups = patternsHere.groupBy(_.group)
+            val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
+            val triggers = sortedGroups.map(_.map(_.make()))
+            Exists(
+              bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
+              triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
+              body = body,
+            )(f.o)
           }
-          val unsortedGroups = patternsHere.groupBy(_.group)
-          val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
-          val triggers = sortedGroups.map(_.map(_.make()))
-          Exists(
-            bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
-            triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
-            body = body,
-          )(f.o)
         }
 
       case other => rewriteDefault(other)

@@ -58,7 +58,6 @@ trait ApplicableContractImpl[G]
 
   def nonEmpty: Boolean = !isEmpty
 
-  // PB: please keep in sync with CDeclarationImpl
   def layoutSpec(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
       Doc.stack(givenArgs.map(Text("given") <+> _.show <> ";")),

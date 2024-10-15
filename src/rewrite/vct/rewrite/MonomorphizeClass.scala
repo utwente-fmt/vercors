@@ -3,9 +3,9 @@ package vct.rewrite
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.ref.{LazyRef, Ref}
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
-import vct.col.util.AstBuildHelpers.ContractApplicableBuildHelpers
+import vct.col.ref.Ref
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.util.AstBuildHelpers.ClassBuildHelpers
 import vct.col.util.{Substitute, SuccessionMap}
 
 import scala.collection.mutable
@@ -82,9 +82,11 @@ case class MonomorphizeClass[Pre <: Generation]()
         globalDeclarations.scope {
           classDeclarations.scope {
             variables.scope {
-              allScopes.anyDeclare(
-                allScopes.anySucceedOnly(cls, cls.rewrite(typeArgs = Seq()))
-              )
+              localHeapVariables.scope {
+                allScopes.anyDeclare(
+                  allScopes.anySucceedOnly(cls, cls.rewrite(typeArgs = Seq()))
+                )
+              }
             }
           }
         }
@@ -130,14 +132,25 @@ case class MonomorphizeClass[Pre <: Generation]()
 
   override def dispatch(t: Type[Pre]): Type[Post] =
     (t, ctx.topOption) match {
-      case (TClass(Ref(cls), typeArgs), ctx) if typeArgs.nonEmpty =>
+      case (TByReferenceClass(Ref(cls), typeArgs), ctx) if typeArgs.nonEmpty =>
         val typeValues =
           ctx match {
             case Some(ctx) => typeArgs.map(ctx.substitute.dispatch)
             case None => typeArgs
           }
         instantiate(cls, typeValues, false)
-        TClass[Post](
+        TByReferenceClass[Post](
+          genericSucc.ref[Post, Class[Post]](((cls, typeValues), cls)),
+          Seq(),
+        )
+      case (TByValueClass(Ref(cls), typeArgs), ctx) if typeArgs.nonEmpty =>
+        val typeValues =
+          ctx match {
+            case Some(ctx) => typeArgs.map(ctx.substitute.dispatch)
+            case None => typeArgs
+          }
+        instantiate(cls, typeValues, false)
+        TByValueClass[Post](
           genericSucc.ref[Post, Class[Post]](((cls, typeValues), cls)),
           Seq(),
         )
@@ -158,13 +171,13 @@ case class MonomorphizeClass[Pre <: Generation]()
         )
       case inv: InvokeMethod[Pre] =>
         inv.obj.t match {
-          case TClass(Ref(cls), typeArgs) if typeArgs.nonEmpty =>
-            val typeValues = ctx.topOption.map(_.evalTypes(typeArgs))
-              .getOrElse(typeArgs)
-            instantiate(cls, typeValues, false)
+          case t: TClass[Pre] if t.typeArgs.nonEmpty =>
+            val typeValues = ctx.topOption.map(_.evalTypes(t.typeArgs))
+              .getOrElse(t.typeArgs)
+            instantiate(t.cls.decl, typeValues, false)
             inv.rewrite(ref =
               genericSucc.ref[Post, InstanceMethod[Post]](
-                ((cls, typeValues), inv.ref.decl)
+                ((t.cls.decl, typeValues), inv.ref.decl)
               )
             )
           case _ => inv.rewriteDefault()
@@ -176,13 +189,14 @@ case class MonomorphizeClass[Pre <: Generation]()
     loc match {
       case loc @ FieldLocation(obj, Ref(field)) =>
         obj.t match {
-          case TClass(Ref(cls), typeArgs) if typeArgs.nonEmpty =>
-            val typeArgs1 = ctx.topOption.map(_.evalTypes(typeArgs))
-              .getOrElse(typeArgs)
-            instantiate(cls, typeArgs1, false)
+          case t: TClass[Pre] if t.typeArgs.nonEmpty =>
+            val typeArgs1 = ctx.topOption.map(_.evalTypes(t.typeArgs))
+              .getOrElse(t.typeArgs)
+            instantiate(t.cls.decl, typeArgs1, false)
             loc.rewrite(field =
-              genericSucc
-                .ref[Post, InstanceField[Post]](((cls, typeArgs1), field))
+              genericSucc.ref[Post, InstanceField[Post]](
+                ((t.cls.decl, typeArgs1), field)
+              )
             )
           case _ => loc.rewriteDefault()
         }
@@ -193,13 +207,14 @@ case class MonomorphizeClass[Pre <: Generation]()
     expr match {
       case deref @ Deref(obj, Ref(field)) =>
         obj.t match {
-          case TClass(Ref(cls), typeArgs) if typeArgs.nonEmpty =>
-            val typeArgs1 = ctx.topOption.map(_.evalTypes(typeArgs))
-              .getOrElse(typeArgs)
-            instantiate(cls, typeArgs1, false)
+          case t: TClass[Pre] if t.typeArgs.nonEmpty =>
+            val typeArgs1 = ctx.topOption.map(_.evalTypes(t.typeArgs))
+              .getOrElse(t.typeArgs)
+            instantiate(t.cls.decl, typeArgs1, false)
             deref.rewrite(ref =
-              genericSucc
-                .ref[Post, InstanceField[Post]](((cls, typeArgs1), field))
+              genericSucc.ref[Post, InstanceField[Post]](
+                ((t.cls.decl, typeArgs1), field)
+              )
             )
           case _ => deref.rewriteDefault()
         }

@@ -22,7 +22,6 @@ case class ScopedStack[T]() {
   def isEmpty: Boolean = stack.isEmpty
   def nonEmpty: Boolean = stack.nonEmpty
   def push(t: T): Unit = stack.push(t)
-  def pop(): T = stack.pop()
   def top: T = stack.top
   def topOption: Option[T] = stack.headOption
   def find(f: T => Boolean): Option[T] = stack.find(f)

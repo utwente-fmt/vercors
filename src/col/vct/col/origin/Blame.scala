@@ -158,22 +158,27 @@ case class AssignFieldFailed(node: SilverFieldAssign[_])
     s"Insufficient permission for assignment `$source`."
 }
 
-case class CopyStructFailed(node: Expr[_], field: String)
-    extends AssignFailed with NodeVerificationFailure {
-  override def code: String = "copyStructFailed"
+case class CopyClassFailed(node: Node[_], clazz: ByValueClass[_], field: String)
+    extends PointerDerefError with NodeVerificationFailure {
+  override def code: String = "copyClassFailed"
   override def descInContext: String =
-    s"Insufficient read permission for field '$field' to copy struct."
+    s"Insufficient read permission for field '$field' to copy ${clazz.o
+        .find[TypeName].map(_.name).getOrElse("class")}."
   override def inlineDescWithSource(source: String): String =
     s"Insufficient permission for assignment `$source`."
 }
 
-case class CopyStructFailedBeforeCall(node: Expr[_], field: String)
-    extends AssignFailed
-    with FrontendInvocationError
+case class CopyClassFailedBeforeCall(
+    node: Node[_],
+    clazz: ByValueClass[_],
+    field: String,
+) extends PointerDerefError
+    with InvocationFailure
     with NodeVerificationFailure {
-  override def code: String = "copyStructFailedBeforeCall"
+  override def code: String = "copyClassFailedBeforeCall"
   override def descInContext: String =
-    s"Insufficient read permission for field '$field' to copy struct before call."
+    s"Insufficient read permission for field '$field' to copy ${clazz.o
+        .find[TypeName].map(_.name).getOrElse("class")} before call."
   override def inlineDescWithSource(source: String): String =
     s"Insufficient permission for call `$source`."
 }
@@ -1513,6 +1518,9 @@ object JavaArrayInitializerBlame
     extends PanicBlame(
       "The explicit initialization of an array in Java should never generate an assignment that exceeds the bounds of the array"
     )
+
+object NonNullPointerNull
+    extends PanicBlame("A non-null pointer can never be null")
 
 object UnsafeDontCare {
   case class Satisfiability(reason: String)

@@ -7,6 +7,7 @@ import vct.col.ast.{
   IntType,
   TBool,
   TCInt,
+  LLVMTInt,
   TInt,
   TProcess,
   TRational,
@@ -34,6 +35,12 @@ object BinOperatorTypes {
   def isBoolOp[G](lt: Type[G], rt: Type[G]): Boolean =
     CoercionUtils.getCoercion(lt, TBool()).isDefined &&
       CoercionUtils.getCoercion(rt, TBool()).isDefined
+
+  def isLLVMIntOp[G](lt: Type[G], rt: Type[G]): Boolean =
+    (lt, rt) match {
+      case (LLVMTInt(_), LLVMTInt(_)) => true
+      case _ => false
+    }
 
   def isStringOp[G](lt: Type[G], rt: Type[G]): Boolean =
     CoercionUtils.getCoercion(lt, TString()).isDefined
@@ -78,6 +85,8 @@ object BinOperatorTypes {
   def getIntType[G](lt: Type[G], rt: Type[G]): IntType[G] =
     if (isCIntOp(lt, rt))
       TCInt()
+    else if (isLLVMIntOp(lt, rt))
+      Types.leastCommonSuperType(lt, rt).asInstanceOf[LLVMTInt[G]]
     else
       TInt()
 
@@ -91,6 +100,8 @@ object BinOperatorTypes {
   def getNumericType[G](lt: Type[G], rt: Type[G], o: Origin): Type[G] = {
     if (isCIntOp(lt, rt))
       TCInt[G]()
+    else if (isLLVMIntOp(lt, rt))
+      Types.leastCommonSuperType(lt, rt).asInstanceOf[LLVMTInt[G]]
     else if (isIntOp(lt, rt))
       TInt[G]()
     else
@@ -112,6 +123,8 @@ trait BinExprImpl[G] {
   def isIntOp: Boolean = BinOperatorTypes.isIntOp(left.t, right.t)
 
   def isRationalOp: Boolean = BinOperatorTypes.isRationalOp(left.t, right.t)
+
+  def isLLVMIntOp: Boolean = BinOperatorTypes.isLLVMIntOp(left.t, right.t)
 
   def isBoolOp: Boolean = BinOperatorTypes.isBoolOp(left.t, right.t)
 

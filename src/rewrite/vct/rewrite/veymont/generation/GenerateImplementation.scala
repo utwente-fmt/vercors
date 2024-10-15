@@ -11,6 +11,7 @@ import vct.col.ast.{
   Assume,
   Block,
   Branch,
+  ByReferenceClass,
   ChorPerm,
   ChorRun,
   ChorStatement,
@@ -117,7 +118,7 @@ case class GenerateImplementation[Pre <: Generation]()
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case p: Procedure[Pre] => super.dispatch(p)
-      case cls: Class[Pre] if isEndpointClass(cls) =>
+      case cls: ByReferenceClass[Pre] if isEndpointClass(cls) =>
         val chor = choreographyOf(cls)
         val endpoint = endpointOf(cls)
         currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {

@@ -26,7 +26,7 @@ class Deserialize extends NodeGenerator {
       package $DeserializePackage
 
       object ${deserializeObjectName(node)} {
-        def deserialize[G](node: ${scalapbType(node.name)}, decls: $MutMap[$Long, $Declaration[G]]): ${typ(node)}[G] =
+        def deserialize[G](node: ${scalapbType(node.name)}, decls: $MutMap[$Long, $Declaration[G]], blameProvider: $Origin => $Blame[$VerificationFailure]): ${typ(node)}[G] =
           ${deserializeNode(q"node", node)}
       }
     """
@@ -47,7 +47,7 @@ class Deserialize extends NodeGenerator {
         q"""
           {
             val `~o`: $Origin = $SerializeOrigin.deserialize($term.origin)
-            new ${t"${typ(node)}[G]"}(..$fields)($SerializeBlame.deserialize($term.blame, `~o`))(`~o`)
+            new ${t"${typ(node)}[G]"}(..$fields)($SerializeBlame.deserialize($term.blame, `~o`, blameProvider))(`~o`)
           }
         """
 
@@ -76,7 +76,7 @@ class Deserialize extends NodeGenerator {
       case (Proto.Repeated(pt), ST.Seq(st)) =>
         q"$term.map(`~x` => ${deserializeTerm(q"`~x`", pt, st)})"
       case (Proto.Repeated(_), ST.DeclarationSeq(name)) =>
-        q"$term.map(`~x` => ${deserializeFamilyObject(name)}.deserialize[G](`~x`.parseAs[${scalapbType(name)}], decls))"
+        q"$term.map(`~x` => ${deserializeFamilyObject(name)}.deserialize[G](`~x`.parseAs[${scalapbType(name)}], decls, blameProvider))"
       case (pt, st) => err(pt, st)
     }
 
@@ -89,9 +89,9 @@ class Deserialize extends NodeGenerator {
       case (_, ST.Seq(ST.ExpectedError)) => q"$SeqObj.empty"
 
       case (Proto.FamilyType(_), ST.Node(name)) =>
-        q"${deserializeFamilyObject(name)}.deserialize[G]($term.parseAs[${scalapbType(name)}], decls)"
+        q"${deserializeFamilyObject(name)}.deserialize[G]($term.parseAs[${scalapbType(name)}], decls, blameProvider)"
       case (Proto.FamilyType(_), ST.Declaration(name)) =>
-        q"${deserializeFamilyObject(name)}.deserialize[G]($term.parseAs[${scalapbType(name)}], decls)"
+        q"${deserializeFamilyObject(name)}.deserialize[G]($term.parseAs[${scalapbType(name)}], decls, blameProvider)"
       case (Proto.StandardType(_), ST.Ref(node)) =>
         q"new ${Init(t"$LazyRef[G, ${typ(node.name)}[G]]", Name.Anonymous(), List(List(q"decls($term.id)")))}"
       case (Proto.StandardType(_), ST.MultiRef(node)) =>
@@ -103,7 +103,7 @@ class Deserialize extends NodeGenerator {
       case (Proto.AuxType(_), ST.Seq(structuralType)) =>
         q"$term.value.map(`~x` => ${deserializeTerm(q"`~x`", ProtoNaming.getType(structuralType).t, structuralType)})"
       case (Proto.AuxType(_), ST.DeclarationSeq(name)) =>
-        q"$term.value.map(`~x` => ${deserializeFamilyObject(name)}.deserialize[G](`~x`.parseAs[${scalapbType(name)}], decls))"
+        q"$term.value.map(`~x` => ${deserializeFamilyObject(name)}.deserialize[G](`~x`.parseAs[${scalapbType(name)}], decls, blameProvider))"
       case (Proto.AuxType(_), ST.Option(structuralType)) =>
         q"$term.value.map(`~x` => ${deserializeTerm(q"`~x`", ProtoNaming.getPrimitiveType(structuralType).t, structuralType)})"
       case (Proto.AuxType(_), ST.Either(left, right)) =>

@@ -29,6 +29,8 @@ import vct.col.resolve.lang.JavaAnnotationData.{
   BipTransition,
 }
 import vct.col.rewrite.InitialGeneration
+import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, VarBuildHelpers}
+import vct.col.util.Substitute
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.immutable.{AbstractSeq, LinearSeq}
@@ -42,11 +44,14 @@ case object Resolve {
 
   trait SpecContractParser {
     def parse[G](
-        input: LlvmFunctionContract[G],
+        input: LLVMFunctionContract[G],
         o: Origin,
     ): ApplicableContract[G]
 
-    def parse[G](input: LlvmGlobal[G], o: Origin): Seq[GlobalDeclaration[G]]
+    def parse[G](
+        input: LLVMGlobalSpecification[G],
+        o: Origin,
+    ): Seq[GlobalDeclaration[G]]
   }
 
   def extractLiteral(e: Expr[_]): Option[String] =
@@ -66,12 +71,14 @@ case object Resolve {
 
   case class MalformedBipAnnotation(n: Node[_], err: String) extends UserError {
     override def code: String = "badBipAnnotation"
+
     override def text: String =
       n.o.messageInContext(s"Malformed JavaBIP annotation: $err")
   }
 
   case class UnexpectedComplicatedExpression(e: Expr[_]) extends UserError {
     override def code: String = "unexpectedComplicatedExpression"
+
     override def text: String =
       e.o.messageInContext(
         "This expression must either be a string literal or trivially resolve to one"
@@ -95,8 +102,10 @@ case object Resolve {
 
 case object ResolveTypes {
   sealed trait JavaClassPathEntry
+
   case object JavaClassPathEntry {
     case object SourcePackageRoot extends JavaClassPathEntry
+
     case class Path(root: java.nio.file.Path) extends JavaClassPathEntry
   }
 
@@ -220,7 +229,12 @@ case object ResolveTypes {
           Spec.findModel(name, ctx)
             .getOrElse(throw NoSuchNameError("model", name, t))
         )
-      case t @ TClass(ref, _) =>
+      case t @ TByReferenceClass(ref, _) =>
+        ref.tryResolve(name =>
+          Spec.findClass(name, ctx)
+            .getOrElse(throw NoSuchNameError("class", name, t))
+        )
+      case t @ TByValueClass(ref, _) =>
         ref.tryResolve(name =>
           Spec.findClass(name, ctx)
             .getOrElse(throw NoSuchNameError("class", name, t))
@@ -290,8 +304,12 @@ case object ResolveReferences extends LazyLogging {
       program: Program[G],
       jp: SpecExprParser,
       lsp: SpecContractParser,
+      importedDeclarations: Seq[GlobalDeclaration[G]],
   ): Seq[CheckError] = {
-    resolve(program, ReferenceResolutionContext[G](jp, lsp))
+    resolve(
+      program,
+      ReferenceResolutionContext[G](jp, lsp, importedDeclarations),
+    )
   }
 
   def resolve[G](
@@ -338,7 +356,7 @@ case object ResolveReferences extends LazyLogging {
         Right(ctx.copy(inGpuKernel = true))
       case p: Program[G] =>
         p.declarations.foreach {
-          case glob: LlvmGlobal[G] =>
+          case glob: LLVMGlobalSpecification[G] =>
             val decls = ctx.llvmSpecParser.parse(glob, glob.o)
             glob.data = Some(decls)
           case _ =>
@@ -361,6 +379,7 @@ case object ResolveReferences extends LazyLogging {
       case CPPDeclarationStatement(decl) => Seq(decl)
       case JavaLocalDeclarationStatement(decl) => Seq(decl)
       case LocalDecl(v) => Seq(v)
+      case HeapLocalDecl(v) => Seq(v)
       case other => other.subnodes.flatMap(scanScope(ctx))
     }
 
@@ -537,10 +556,13 @@ case object ResolveReferences extends LazyLogging {
           CPP.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++
             func.contract.givenArgs ++ func.contract.yieldsArgs
         )
-      case func: LlvmFunctionDefinition[G] =>
-        ctx.copy(currentResult = Some(RefLlvmFunctionDefinition(func)))
-      case func: LlvmSpecFunction[G] =>
-        ctx.copy(currentResult = Some(RefLlvmSpecFunction(func)))
+      case func: LLVMFunctionDefinition[G] =>
+        ctx.copy(
+          currentResult = Some(RefLLVMFunctionDefinition(func)),
+          llvmBlocks = LLVM.scanBlocks(func),
+        )
+      case func: LLVMSpecFunction[G] =>
+        ctx.copy(currentResult = Some(RefLLVMSpecFunction(func)))
           .declare(func.args)
       case par: ParStatement[G] => ctx.declare(scanBlocks(par.impl).map(_.decl))
       case Scope(locals, body) =>
@@ -641,7 +663,7 @@ case object ResolveReferences extends LazyLogging {
       case endpoint: PVLEndpoint[G] =>
         endpoint.ref = Some(
           PVL.findConstructor(
-            TClass(endpoint.cls.decl.ref[Class[G]], Seq()),
+            TByReferenceClass(endpoint.cls.decl.ref[Class[G]], Seq()),
             Seq(),
             endpoint.args,
           ).getOrElse(throw ConstructorNotFound(endpoint))
@@ -1098,20 +1120,79 @@ case object ResolveReferences extends LazyLogging {
           ) =>
         portName.data = Some((cls, getLit(name)))
 
-      case contract: LlvmFunctionContract[G] =>
+      case func: LLVMFunctionDefinition[G] =>
+        val importedDecl = ctx.importedDeclarations.find {
+          case procedure: Procedure[G] =>
+            func.contract.name == procedure.o.get[SourceName].name
+        }
+        if (importedDecl.isDefined) {
+          val importedProcedure = importedDecl.get.asInstanceOf[Procedure[G]]
+          func.importedArguments = Some(importedProcedure.args)
+          func.importedReturnType = Some(importedProcedure.returnType)
+        }
+      case loop: LLVMLoop[G] =>
+        loop.blocks = Some(loop.blockLabels.map { label =>
+          ctx.llvmBlocks.get(label.decl) match {
+            case Some(block) => block
+            case None =>
+              throw Unreachable(
+                "LLVM Loop information must only refer to basic blocks contained in the function"
+              )
+          }
+        })
+        loop.headerBlock = Some(ctx.llvmBlocks(loop.header.decl))
+        loop.latchBlock = Some(ctx.llvmBlocks(loop.latch.decl))
+      case contract: LLVMFunctionContract[G] =>
+        // WONTFIX:
+//        implicit val o: Origin = contract.o
+        val llvmFunction =
+          ctx.currentResult.get.asInstanceOf[RefLLVMFunctionDefinition[G]].decl
         val applicableContract = ctx.llvmSpecParser.parse(contract, contract.o)
-        contract.data = Some(applicableContract)
-        resolve(applicableContract, ctx)
-      case local: LlvmLocal[G] =>
+        val importedDecl = ctx.importedDeclarations.find {
+          case procedure: Procedure[G] =>
+            contract.name == procedure.o.get[SourceName].name
+        }
+        if (importedDecl.isDefined) {
+          val importedProcedure = importedDecl.get.asInstanceOf[Procedure[G]]
+          val importedContract = importedProcedure.contract
+          implicit val o: Origin = importedContract.o
+          val substitute = Substitute[G](
+            ((Result[G](importedProcedure.ref) -> AmbiguousResult[G]()) +:
+              importedProcedure.args.zipWithIndex.map { case (l, idx) =>
+                Local[G](l.ref) -> Local[G](llvmFunction.args(idx).ref)
+              }).toMap
+          )
+          val substitutedContract = substitute.dispatch(importedContract)
+          contract.data = Some(
+            ApplicableContract[G](
+              SplitAccountedPredicate(
+                applicableContract.requires,
+                substitutedContract.requires,
+              ),
+              SplitAccountedPredicate(
+                applicableContract.ensures,
+                substitutedContract.ensures,
+              ),
+              applicableContract.contextEverywhere &*
+                substitutedContract.contextEverywhere,
+              applicableContract.signals ++ substitutedContract.signals,
+              applicableContract.givenArgs ++ substitutedContract.givenArgs,
+              applicableContract.yieldsArgs ++ substitutedContract.yieldsArgs,
+              applicableContract.decreases.orElse(substitutedContract.decreases),
+            )(contract.blame)
+          )
+        } else { contract.data = Some(applicableContract) }
+        resolve(contract.data.get, ctx)
+      case local: LLVMLocal[G] =>
         local.ref =
           ctx.currentResult.get match {
-            case RefLlvmFunctionDefinition(decl) =>
+            case RefLLVMFunctionDefinition(decl) =>
               decl.contract.variableRefs
                 .find(ref => ref._1 == local.name) match {
                 case Some(ref) => Some(ref._2)
                 case None => throw NoSuchNameError("local", local.name, local)
               }
-            case RefLlvmSpecFunction(_) =>
+            case RefLLVMSpecFunction(_) =>
               Some(
                 Spec.findLocal(local.name, ctx)
                   .getOrElse(throw NoSuchNameError("local", local.name, local))
@@ -1119,13 +1200,14 @@ case object ResolveReferences extends LazyLogging {
               )
             case _ => None
           }
-      case inv: LlvmAmbiguousFunctionInvocation[G] =>
+      case inv: LLVMAmbiguousFunctionInvocation[G] =>
         inv.ref =
           LLVM.findCallable(inv.name, ctx) match {
             case Some(callable) => Some(callable.ref)
             case None => throw NoSuchNameError("function", inv.name, inv)
           }
-      case glob: LlvmGlobal[G] => glob.data.get.foreach(resolve(_, ctx))
+      case glob: LLVMGlobalSpecification[G] =>
+        glob.data.get.foreach(resolve(_, ctx))
       case comm: PVLCommunicate[G] =>
         /* Endpoint contexts for communicate are resolved early, because otherwise \sender, \receiver, \msg cannot be typed.
          */

@@ -133,7 +133,7 @@ case class Parsing[G <: Generation](
             case Language.SystemC =>
               new ColSystemCParser(Resources.getSystemCConfig)
             case Language.LLVM =>
-              ColLLVMParser(debugOptions, blameProvider, Resources.getVCLLVM)
+              ColLLVMParser(debugOptions, blameProvider, Resources.getPallas)
           }
 
         parser.parse[G](readable)

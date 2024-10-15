@@ -340,6 +340,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
               ),
           )
         case decl: LocalDecl[Pre] => rewriteDefault(decl)
+        case decl: HeapLocalDecl[Pre] => decl.rewriteDefault()
         case Return(result) =>
           frame(
             result,
@@ -433,30 +434,6 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
         case proof: FramedProof[Pre] => rewriteDefault(proof)
         case extract: Extract[Pre] => rewriteDefault(extract)
         case branch: IndetBranch[Pre] => rewriteDefault(branch)
-        case LlvmLoop(cond, contract, body) =>
-          evaluateOne(cond) match {
-            case (Nil, Nil, cond) =>
-              LlvmLoop(cond, dispatch(contract), dispatch(body))
-            case (variables, sideEffects, cond) =>
-              val break = new LabelDecl[Post]()(BreakOrigin)
-
-              Block(Seq(
-                LlvmLoop(
-                  tt,
-                  dispatch(contract),
-                  Block(Seq(
-                    Scope(
-                      variables,
-                      Block(
-                        sideEffects :+ Branch(Seq(Not(cond) -> Goto(break.ref)))
-                      ),
-                    ),
-                    dispatch(body),
-                  )),
-                ),
-                Label(break, Block(Nil)),
-              ))
-          }
         case rangedFor: RangedFor[Pre] => rewriteDefault(rangedFor)
         case assign: VeyMontAssignExpression[Pre] => rewriteDefault(assign)
         case comm: CommunicateX[Pre] => rewriteDefault(comm)
@@ -467,6 +444,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
         case _: CPPStatement[Pre] => throw ExtraNode
         case _: JavaStatement[Pre] => throw ExtraNode
         case _: PVLCommunicateStatement[Pre] => throw ExtraNode
+        case _: LLVMStatement[Pre] => throw ExtraNode
       }
     }
 
@@ -528,6 +506,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
     val result =
       target match {
         case Local(Ref(v)) => Local[Post](succ(v))(target.o)
+        case HeapLocal(Ref(v)) => HeapLocal[Post](succ(v))(target.o)
         case deref @ DerefHeapVariable(Ref(v)) =>
           DerefHeapVariable[Post](succ(v))(deref.blame)(target.o)
         case Deref(obj, Ref(f)) =>
@@ -680,7 +659,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
             givenMap,
             yields,
           ) =>
-        val typ = TClass[Post](succ(cons.cls.decl), classTypeArgs.map(dispatch))
+        val typ = dispatch(cons.cls.decl.classType(classTypeArgs))
         val res = new Variable[Post](typ)(ResultVar)
         variables.succeed(res.asInstanceOf[Variable[Pre]], res)
         effect(
@@ -695,12 +674,15 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
             yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
           )(inv.blame)(e.o)
         )
-        stored(res.get(SideEffectOrigin), TClass(cons.cls, classTypeArgs))
+        stored(
+          res.get(SideEffectOrigin),
+          cons.cls.decl.classType(classTypeArgs),
+        )
       case NewObject(Ref(cls)) =>
-        val res = new Variable[Post](TClass(succ(cls), Seq()))(ResultVar)
+        val res = new Variable[Post](dispatch(cls.classType(Seq())))(ResultVar)
         variables.succeed(res.asInstanceOf[Variable[Pre]], res)
         effect(Instantiate[Post](succ(cls), res.get(ResultVar))(e.o))
-        stored(res.get(SideEffectOrigin), TClass(cls.ref, Seq()))
+        stored(res.get(SideEffectOrigin), cls.ref.decl.classType(Seq()))
       case other => stored(ReInliner().dispatch(rewriteDefault(other)), other.t)
     }
 }

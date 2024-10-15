@@ -20,7 +20,7 @@ trait AmbiguousPlusImpl[G] extends AmbiguousPlusOps[G] {
         right
     val decls =
       subject.t match {
-        case TClass(Ref(cls), _) => cls.decls
+        case t: TClass[G] => t.cls.decl.decls
         case JavaTClass(Ref(cls), _) => cls.decls
         case _ => return None
       }
@@ -50,6 +50,18 @@ trait AmbiguousPlusImpl[G] extends AmbiguousPlusOps[G] {
       .orElse(getCustomPlusType(OperatorRightPlus[G]()))
 
   override lazy val t: Type[G] = {
+    if (isProcessOp)
+      TProcess()
+    else if (isSeqOp || isBagOp || isSetOp || isVectorOp)
+      Types.leastCommonSuperType(left.t, right.t)
+    else if (isPointerOp)
+      left.t
+    else if (isStringOp)
+      TString()
+    else if (getCustomPlusOpType().isDefined)
+      getCustomPlusOpType().get
+    else
+      getNumericType
     if (isProcessOp)
       TProcess()
     else if (isSeqOp || isBagOp || isSetOp || isVectorOp)
