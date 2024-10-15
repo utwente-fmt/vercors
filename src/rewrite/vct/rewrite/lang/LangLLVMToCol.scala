@@ -96,6 +96,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         (a, b) match {
           case (None, _) | (_, None) => None
           case (Some(a), Some(b))
+              // TODO: This should be removed as soon as we have proper contracts we load from LLVM instead of mixing PVL and LLVM. Comparing in Post is really bad
               if a == b || rw.dispatch(a) == rw.dispatch(b) ||
                 moreSpecific(a, b) =>
             Some(a)
@@ -159,10 +160,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           )
       }
       if (subMap.isEmpty) { value }
-      else {
-        // TODO: Support multiple guesses?
-        SubstituteReferences(subMap.toMap).dispatch(value)
-      }
+      else { SubstituteReferences(subMap.toMap).dispatch(value) }
     }
 
     def getVariable(expr: Expr[Pre]): Option[Object] = {
@@ -579,6 +577,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         }
       }
       // Save the expensive check for last. This check is for when we're mixing PVL and LLVM types
+      // TODO: This check should be removed ASAP when we get real LLVM contracts since comparing types in Post is bad
       case LLVMTPointer(Some(inner))
           if rw.dispatch(inner) == rw.dispatch(untilType) =>
         Some((pointer, currentType))

@@ -8,11 +8,10 @@ import vct.col.resolve.ctx.Referrable
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
-import vct.result.VerificationError.{Unreachable, UserError}
+import vct.result.VerificationError.UserError
 
-// TODO: Think of a better name
-case object PrepareByValueClass extends RewriterBuilder {
-  override def key: String = "prepareByValueClass"
+case object EncodeByValueClassUsage extends RewriterBuilder {
+  override def key: String = "encodeByValueClassUsage"
 
   override def desc: String =
     "Initialise ByValueClasses when they are declared and copy them whenever they're read"
@@ -68,9 +67,9 @@ case object PrepareByValueClass extends RewriterBuilder {
   private case class NoCopy() extends CopyContext
 }
 
-case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
+case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
 
-  import PrepareByValueClass._
+  import EncodeByValueClassUsage._
 
   private val inAssignment: ScopedStack[Unit] = ScopedStack()
   private val copyContext: ScopedStack[CopyContext] = ScopedStack()
@@ -98,8 +97,8 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = node.o
     node match {
       case HeapLocalDecl(local)
-          if local.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] => {
-        val t = local.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]]
+          if local.t.asPointer.get.element.asByValueClass.isDefined => {
+        val t = local.t.asPointer.get.element.asByValueClass.get
         val newLocal = localHeapVariables.dispatch(local)
         Block(Seq(
           HeapLocalDecl(newLocal),
@@ -212,15 +211,14 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
         )
       case _ if inAssignment.nonEmpty => node.rewriteDefault()
       case Perm(ByValueClassLocation(e), p) =>
-        unwrapClassPerm(
-          dispatch(e),
-          dispatch(p),
-          e.t.asInstanceOf[TByValueClass[Pre]],
+        unwrapClassPerm(dispatch(e), dispatch(p), e.t.asByValueClass.get)
+      case Perm(pl @ PointerLocation(dhv @ DerefHeapVariable(Ref(v))), p) =>
+        assert(
+          v.t.isInstanceOf[TNonNullPointer[Pre]],
+          "Frontends should ensure that HeapVariables are non-null pointers",
         )
-      case Perm(pl @ PointerLocation(dhv @ DerefHeapVariable(Ref(v))), p)
-          if v.t.isInstanceOf[TNonNullPointer[Pre]] =>
         val t = v.t.asInstanceOf[TNonNullPointer[Pre]]
-        if (t.element.isInstanceOf[TByValueClass[Pre]]) {
+        if (t.element.asByValueClass.isDefined) {
           val newV: Ref[Post, HeapVariable[Post]] = succ(v)
           val newP = dispatch(p)
           Perm(HeapVariableLocation(newV), newP) &* Perm(
@@ -230,7 +228,7 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
         } else { node.rewriteDefault() }
       case assign: PreAssignExpression[Pre] =>
         val target = inAssignment.having(()) { dispatch(assign.target) }
-        if (assign.target.t.isInstanceOf[TByValueClass[Pre]]) {
+        if (assign.target.t.asByValueClass.isDefined) {
           copyContext.having(InAssignmentExpression(assign)) {
             assign.rewrite(target = target)
           }
@@ -240,38 +238,28 @@ case class PrepareByValueClass[Pre <: Generation]() extends Rewriter[Pre] {
         }
       case invocation: Invocation[Pre] =>
         invocation.rewrite(args = invocation.args.map { a =>
-          if (a.t.isInstanceOf[TByValueClass[Pre]]) {
+          if (a.t.asByValueClass.isDefined) {
             copyContext.having(InCall(invocation)) { dispatch(a) }
           } else { copyContext.having(NoCopy()) { dispatch(a) } }
         })
       case dp @ DerefPointer(HeapLocal(Ref(v)))
-          if v.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
-        rewriteInCopyContext(
-          dp,
-          v.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
-        )
+          if v.t.asPointer.get.element.asByValueClass.isDefined =>
+        rewriteInCopyContext(dp, v.t.asPointer.get.element.asByValueClass.get)
       case dp @ DerefPointer(DerefHeapVariable(Ref(v)))
-          if v.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
-        rewriteInCopyContext(
-          dp,
-          v.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
-        )
+          if v.t.asPointer.get.element.asByValueClass.isDefined =>
+        rewriteInCopyContext(dp, v.t.asPointer.get.element.asByValueClass.get)
       case deref @ Deref(_, Ref(f))
-          if f.t.isInstanceOf[TByValueClass[Pre]] &&
-            copyContext.top != NoCopy() =>
+          if f.t.asByValueClass.isDefined && copyContext.top != NoCopy() =>
         // TODO: Improve blame message here
         copyClassValue(
           deref.rewriteDefault(),
-          f.t.asInstanceOf[TByValueClass[Pre]],
+          f.t.asByValueClass.get,
           f => deref.blame,
         )
       case dp @ DerefPointer(Local(Ref(v)))
-          if v.t.asPointer.get.element.isInstanceOf[TByValueClass[Pre]] =>
+          if v.t.asPointer.get.element.asByValueClass.isDefined =>
         // This can happen if the user specifies a local of type pointer to TByValueClass
-        rewriteInCopyContext(
-          dp,
-          v.t.asPointer.get.element.asInstanceOf[TByValueClass[Pre]],
-        )
+        rewriteInCopyContext(dp, v.t.asPointer.get.element.asByValueClass.get)
       case _ => node.rewriteDefault()
     }
   }

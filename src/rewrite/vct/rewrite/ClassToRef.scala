@@ -109,27 +109,6 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     )
   }
 
-  private def transitiveByValuePermissions(
-      obj: Expr[Pre],
-      t: TByValueClass[Pre],
-      amount: Expr[Pre],
-  )(implicit o: Origin): Expr[Pre] = {
-    t.cls.decl.decls.collect[Expr[Pre]] { case field: InstanceField[Pre] =>
-      field.t match {
-        case field_t: TByValueClass[Pre] =>
-          fieldPerm[Pre](obj, field.ref, amount) &*
-            transitiveByValuePermissions(
-              Deref[Pre](obj, field.ref)(PanicBlame(
-                "Permission should already be ensured"
-              )),
-              field_t,
-              amount,
-            )
-        case _ => fieldPerm(obj, field.ref, amount)
-      }
-    }.reduce[Expr[Pre]] { (a, b) => a &* b }
-  }
-
   def makeInstanceOf: Function[Post] = {
     implicit val o: Origin = InstanceOfOrigin
     val sub = new Variable[Post](TInt())
@@ -374,180 +353,169 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           case _ => throw ExtraNode
         }
         cls match {
-          case cls: ByValueClass[Pre] =>
-            implicit val o: Origin = cls.o
-            val axiomType = TAxiomatic[Post](byValClassSucc.ref(cls), Nil)
-            var valueAsAxioms: Seq[ADTAxiom[Post]] = Seq()
-            val (fieldFunctions, fieldInverses, fieldTypes) =
-              cls.decls.collect { case field: Field[Pre] =>
-                val newT = dispatch(field.t)
-                val nonnullT = TNonNullPointer(newT)
-                byValFieldSucc(field) =
-                  new ADTFunction[Post](
-                    Seq(new Variable(axiomType)(field.o)),
-                    nonnullT,
-                  )(field.o)
-                if (valueAsAxioms.isEmpty) {
-                  // This is the first field
-                  valueAsAxioms =
-                    valueAsAxioms :+ new ADTAxiom[Post](forall(
-                      axiomType,
-                      body = { a =>
-                        InlinePattern(adtFunctionInvocation[Post](
-                          valueAsFunctions.getOrElseUpdate(
-                            field.t,
-                            makeValueAsFunction(field.t.toString, newT),
-                          ).ref,
-                          typeArgs = Some((valueAdt.ref(()), Seq(axiomType))),
-                          args = Seq(a),
-                        )) === adtFunctionInvocation(
-                          byValFieldSucc.ref(field),
-                          args = Seq(a),
-                        )
-                      },
-                    ))
-
-                  valueAsAxioms =
-                    valueAsAxioms ++
-                      (field.t match {
-                        case t: TByValueClass[Pre] =>
-                          // TODO: If there are no fields we should ignore the first field and add the axioms for the second field
-                          t.cls.decl.decls
-                            .collectFirst({ case innerF: InstanceField[Pre] =>
-                              unwrapValueAs(
-                                axiomType,
-                                innerF.t,
-                                dispatch(innerF.t),
-                                byValFieldSucc.ref(field),
-                              )
-                            }).getOrElse(Nil)
-                        case _ => Nil
-                      })
-                }
-                (
-                  byValFieldSucc(field),
-                  new ADTFunction[Post](
-                    Seq(new Variable(nonnullT)(field.o)),
-                    axiomType,
-                  )(
-                    field.o.copy(
-                      field.o.originContents
-                        .filterNot(_.isInstanceOf[SourceName])
-                    ).where(name =
-                      "inv_" + field.o.find[SourceName].map(_.name)
-                        .getOrElse("unknown")
-                    )
-                  ),
-                  nonnullT,
-                )
-              }.unzip3
-            val constructor =
-              new ADTFunction[Post](
-                fieldTypes.zipWithIndex.map { case (t, i) =>
-                  new Variable(t)(Origin(Seq(
-                    PreferredName(Seq("p_" + i)),
-                    LabelContext("classToRef"),
-                  )))
-                },
-                axiomType,
-              )(
-                cls.o.copy(
-                  cls.o.originContents.filterNot(_.isInstanceOf[SourceName])
-                ).where(name =
-                  "new_" + cls.o.find[SourceName].map(_.name)
-                    .getOrElse("unknown")
-                )
-              )
-            // TAnyValue is a placeholder the pointer adt doesn't have type parameters
-            val indexFunction =
-              new ADTFunction[Post](
-                Seq(new Variable(TNonNullPointer(TAnyValue()))(Origin(
-                  Seq(PreferredName(Seq("pointer")), LabelContext("classToRef"))
-                ))),
-                TInt(),
-              )(
-                cls.o.copy(
-                  cls.o.originContents.filterNot(_.isInstanceOf[SourceName])
-                ).where(name =
-                  "index_" + cls.o.find[SourceName].map(_.name)
-                    .getOrElse("unknown")
-                )
-              )
-            val injectivityAxiom =
-              new ADTAxiom[Post](foralls(
-                Seq(axiomType, axiomType),
-                body = { case Seq(a0, a1) =>
-                  foldAnd(fieldFunctions.map { f =>
-                    Implies(
-                      Eq(
-                        adtFunctionInvocation[Post](f.ref, args = Seq(a0)),
-                        adtFunctionInvocation[Post](f.ref, args = Seq(a1)),
-                      ),
-                      a0 === a1,
-                    )
-                  })
-                },
-                triggers = { case Seq(a0, a1) =>
-                  fieldFunctions.map { f =>
-                    Seq(
-                      adtFunctionInvocation[Post](f.ref, None, args = Seq(a0)),
-                      adtFunctionInvocation[Post](f.ref, None, args = Seq(a1)),
-                    )
-                  }
-                },
-              ))
-            val destructorAxioms = fieldFunctions.zip(fieldInverses).map {
-              case (f, inv) =>
-                new ADTAxiom[Post](forall(
-                  axiomType,
-                  body = { a =>
-                    adtFunctionInvocation[Post](
-                      inv.ref,
-                      None,
-                      args = Seq(
-                        adtFunctionInvocation[Post](f.ref, None, args = Seq(a))
-                      ),
-                    ) === a
-                  },
-                  triggers = { a =>
-                    Seq(Seq(
-                      adtFunctionInvocation[Post](f.ref, None, args = Seq(a))
-                    ))
-                  },
-                ))
-            }
-            val indexAxioms = fieldFunctions.zipWithIndex.map { case (f, i) =>
-              new ADTAxiom[Post](forall(
-                axiomType,
-                body = { a =>
-                  adtFunctionInvocation[Post](
-                    indexFunction.ref,
-                    None,
-                    args = Seq(
-                      adtFunctionInvocation[Post](f.ref, None, args = Seq(a))
-                    ),
-                  ) === const(i)
-                },
-                triggers = { a =>
-                  Seq(
-                    Seq(adtFunctionInvocation[Post](f.ref, None, args = Seq(a)))
-                  )
-                },
-              ))
-            }
-            byValConsSucc(cls) = constructor
-            byValClassSucc(cls) =
-              new AxiomaticDataType[Post](
-                Seq(indexFunction, injectivityAxiom) ++ destructorAxioms ++
-                  indexAxioms ++ fieldFunctions ++ fieldInverses ++
-                  valueAsAxioms,
-                Nil,
-              )
-            globalDeclarations.succeed(cls, byValClassSucc(cls))
+          case cls: ByValueClass[Pre] => encodeByValueClass(cls)
           case _ => cls.drop()
         }
       case decl => super.dispatch(decl)
     }
+
+  private def encodeByValueClass(cls: ByValueClass[Pre]) = {
+    implicit val o: Origin = cls.o
+    val axiomType = TAxiomatic[Post](byValClassSucc.ref(cls), Nil)
+    var valueAsAxioms: Seq[ADTAxiom[Post]] = Seq()
+    val (fieldFunctions, fieldInverses, fieldTypes) =
+      cls.decls.collect { case field: Field[Pre] =>
+        val newT = dispatch(field.t)
+        val nonnullT = TNonNullPointer(newT)
+        byValFieldSucc(field) =
+          new ADTFunction[Post](
+            Seq(new Variable(axiomType)(field.o)),
+            nonnullT,
+          )(field.o)
+        if (valueAsAxioms.isEmpty) {
+          // This is the first field
+          valueAsAxioms =
+            valueAsAxioms :+ new ADTAxiom[Post](forall(
+              axiomType,
+              body = { a =>
+                InlinePattern(adtFunctionInvocation[Post](
+                  valueAsFunctions.getOrElseUpdate(
+                    field.t,
+                    makeValueAsFunction(field.t.toString, newT),
+                  ).ref,
+                  typeArgs = Some((valueAdt.ref(()), Seq(axiomType))),
+                  args = Seq(a),
+                )) === adtFunctionInvocation(
+                  byValFieldSucc.ref(field),
+                  args = Seq(a),
+                )
+              },
+            ))
+
+          valueAsAxioms =
+            valueAsAxioms ++
+              (field.t match {
+                case t: TByValueClass[Pre] =>
+                  // TODO: If there are no fields we should ignore the first field and add the axioms for the second field
+                  t.cls.decl.decls
+                    .collectFirst({ case innerF: InstanceField[Pre] =>
+                      unwrapValueAs(
+                        axiomType,
+                        innerF.t,
+                        dispatch(innerF.t),
+                        byValFieldSucc.ref(field),
+                      )
+                    }).getOrElse(Nil)
+                case _ => Nil
+              })
+        }
+        (
+          byValFieldSucc(field),
+          new ADTFunction[Post](
+            Seq(new Variable(nonnullT)(field.o)),
+            axiomType,
+          )(
+            field.o.copy(
+              field.o.originContents.filterNot(_.isInstanceOf[SourceName])
+            ).where(name =
+              "inv_" + field.o.find[SourceName].map(_.name).getOrElse("unknown")
+            )
+          ),
+          nonnullT,
+        )
+      }.unzip3
+    val constructor =
+      new ADTFunction[Post](
+        fieldTypes.zipWithIndex.map { case (t, i) =>
+          new Variable(t)(Origin(
+            Seq(PreferredName(Seq("p_" + i)), LabelContext("classToRef"))
+          ))
+        },
+        axiomType,
+      )(
+        cls.o.copy(cls.o.originContents.filterNot(_.isInstanceOf[SourceName]))
+          .where(name =
+            "new_" + cls.o.find[SourceName].map(_.name).getOrElse("unknown")
+          )
+      )
+    // TAnyValue is a placeholder the pointer adt doesn't have type parameters
+    val indexFunction =
+      new ADTFunction[Post](
+        Seq(new Variable(TNonNullPointer(TAnyValue()))(Origin(
+          Seq(PreferredName(Seq("pointer")), LabelContext("classToRef"))
+        ))),
+        TInt(),
+      )(
+        cls.o.copy(cls.o.originContents.filterNot(_.isInstanceOf[SourceName]))
+          .where(name =
+            "index_" + cls.o.find[SourceName].map(_.name).getOrElse("unknown")
+          )
+      )
+    val injectivityAxiom =
+      new ADTAxiom[Post](foralls(
+        Seq(axiomType, axiomType),
+        body = { case Seq(a0, a1) =>
+          foldAnd(fieldFunctions.map { f =>
+            Implies(
+              Eq(
+                adtFunctionInvocation[Post](f.ref, args = Seq(a0)),
+                adtFunctionInvocation[Post](f.ref, args = Seq(a1)),
+              ),
+              a0 === a1,
+            )
+          })
+        },
+        triggers = { case Seq(a0, a1) =>
+          fieldFunctions.map { f =>
+            Seq(
+              adtFunctionInvocation[Post](f.ref, None, args = Seq(a0)),
+              adtFunctionInvocation[Post](f.ref, None, args = Seq(a1)),
+            )
+          }
+        },
+      ))
+    val destructorAxioms = fieldFunctions.zip(fieldInverses).map {
+      case (f, inv) =>
+        new ADTAxiom[Post](forall(
+          axiomType,
+          body = { a =>
+            adtFunctionInvocation[Post](
+              inv.ref,
+              None,
+              args = Seq(
+                adtFunctionInvocation[Post](f.ref, None, args = Seq(a))
+              ),
+            ) === a
+          },
+          triggers = { a =>
+            Seq(Seq(adtFunctionInvocation[Post](f.ref, None, args = Seq(a))))
+          },
+        ))
+    }
+    val indexAxioms = fieldFunctions.zipWithIndex.map { case (f, i) =>
+      new ADTAxiom[Post](forall(
+        axiomType,
+        body = { a =>
+          adtFunctionInvocation[Post](
+            indexFunction.ref,
+            None,
+            args = Seq(adtFunctionInvocation[Post](f.ref, None, args = Seq(a))),
+          ) === const(i)
+        },
+        triggers = { a =>
+          Seq(Seq(adtFunctionInvocation[Post](f.ref, None, args = Seq(a))))
+        },
+      ))
+    }
+    byValConsSucc(cls) = constructor
+    byValClassSucc(cls) =
+      new AxiomaticDataType[Post](
+        Seq(indexFunction, injectivityAxiom) ++ destructorAxioms ++
+          indexAxioms ++ fieldFunctions ++ fieldInverses ++ valueAsAxioms,
+        Nil,
+      )
+    globalDeclarations.succeed(cls, byValClassSucc(cls))
+  }
 
   def instantiate(cls: Class[Pre], target: Ref[Post, Variable[Post]])(
       implicit o: Origin
@@ -755,13 +723,13 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         },
       )
 
-    if (t.isInstanceOf[TByValueClass[Pre]]) {
-      constraint &*
-        t.asInstanceOf[TByValueClass[Pre]].cls.decl.decls.collectFirst {
-          case field: InstanceField[Pre] =>
-            unwrapCastConstraints(outerType, field.t)
+    t match {
+      case TByValueClass(Ref(cls), _) =>
+        constraint &* cls.decls.collectFirst { case field: InstanceField[Pre] =>
+          unwrapCastConstraints(outerType, field.t)
         }.getOrElse(tt)
-    } else { constraint }
+      case _ => constraint
+    }
   }
 
   private def makeCastHelper(t: Type[Pre]): Procedure[Post] = {
@@ -837,7 +805,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         ))(inv.o)
       case ThisObject(_) => diz.top
       case ptrOf @ AddrOf(Deref(obj, Ref(field)))
-          if obj.t.isInstanceOf[TByValueClass[Pre]] =>
+          if obj.t.asByValueClass.isDefined =>
         adtFunctionInvocation[Post](
           byValFieldSucc.ref(field),
           args = Seq(dispatch(obj)),

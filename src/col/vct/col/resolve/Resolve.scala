@@ -1143,6 +1143,7 @@ case object ResolveReferences extends LazyLogging {
         loop.headerBlock = Some(ctx.llvmBlocks(loop.header.decl))
         loop.latchBlock = Some(ctx.llvmBlocks(loop.latch.decl))
       case contract: LLVMFunctionContract[G] =>
+        // WONTFIX:
 //        implicit val o: Origin = contract.o
         val llvmFunction =
           ctx.currentResult.get.asInstanceOf[RefLLVMFunctionDefinition[G]].decl

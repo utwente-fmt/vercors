@@ -12,7 +12,7 @@ trait EndpointImpl[G]
   override def layout(implicit ctx: Ctx): Doc =
     Group(Text("endpoint") <+> ctx.name(this) <+> "=" <+> init)
 
-  def t: TClass[G] = TByReferenceClass(cls, typeArgs)
+  def t: TClass[G] = cls.decl.classType(typeArgs)
 
   override def check(ctx: CheckContext[G]): Seq[CheckError] = super.check(ctx)
 

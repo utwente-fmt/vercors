@@ -8,7 +8,11 @@ import vct.col.rewrite.NonLatchingRewriter
 import scala.reflect.ClassTag
 
 /** Substitute all references in expressions, resulting AST can be used for
-  * analysis but not output since it doesn't contain the right declarations
+  * analysis but not output since it doesn't contain the right declarations.
+  *
+  * This is unsafe for rewriting if the substituted declarations are not
+  * declared. In general, I would advise against using this class if you are not
+  * 100% certain this is what you need.
   */
 case class SubstituteReferences[G](subs: Map[Object, Object])
     extends NonLatchingRewriter[G, G] {

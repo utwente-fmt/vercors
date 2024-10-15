@@ -39,16 +39,14 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
     SuccessionMap()
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-    // TODO: Replace the isInstanceOf[TByReferenceClass] checks with something that more clearly communicates that we want to exclude all reference types
+    // TODO: Replace the asByReferenceClass checks with something that more clearly communicates that we want to exclude all reference types
     addressedSet.addAll(program.collect {
-      case AddrOf(Local(Ref(v))) if !v.t.isInstanceOf[TByReferenceClass[Pre]] =>
-        v
+      case AddrOf(Local(Ref(v))) if v.t.asByReferenceClass.isEmpty => v
       case AddrOf(DerefHeapVariable(Ref(v)))
-          if !v.t.isInstanceOf[TByReferenceClass[Pre]] =>
+          if v.t.asByReferenceClass.isEmpty =>
         v
       case AddrOf(Deref(o, Ref(f)))
-          if !f.t.isInstanceOf[TByReferenceClass[Pre]] &&
-            !o.t.isInstanceOf[TByValueClass[Pre]] =>
+          if f.t.asByReferenceClass.isEmpty && o.t.asByValueClass.isEmpty =>
         f
     })
     super.dispatch(program)

@@ -21,14 +21,12 @@ trait ClassImpl[G] extends Declarator[G] {
   def typeArgs: Seq[Variable[G]]
   def decls: Seq[ClassDeclaration[G]]
   def supports: Seq[Type[G]]
-  def intrinsicLockInvariant: Expr[G]
 
   def classType(typeArgs: Seq[Type[G]]): TClass[G]
 
   def transSupportArrowsHelper(
       seen: Set[TClass[G]]
   ): Seq[(TClass[G], TClass[G])] = {
-    // TODO: Does this break things if we have a ByValueClass with supers?
     val t: TClass[G] = classType(
       typeArgs.map((v: Variable[G]) => TVar(v.ref[Variable[G]]))
     )
@@ -49,9 +47,7 @@ trait ClassImpl[G] extends Declarator[G] {
 
   override def declarations: Seq[Declaration[G]] = decls ++ typeArgs
 
-  def layoutLockInvariant(implicit ctx: Ctx): Doc =
-    Text("lock_invariant") <+> Nest(intrinsicLockInvariant.show) <> ";" <+/>
-      Empty
+  def layoutLockInvariant(implicit ctx: Ctx): Doc
 
   def layoutLock(implicit ctx: Ctx): Doc =
     Text("Lock") <+> "intrinsicLock$" <+> "=" <+> "new" <+>
@@ -59,10 +55,7 @@ trait ClassImpl[G] extends Declarator[G] {
       "intrinsicLock$" <> "." <> "newCondition()" <> ";"
 
   def layoutJava(implicit ctx: Ctx): Doc =
-    (if (intrinsicLockInvariant == tt[G])
-       Empty
-     else
-       Doc.spec(Show.lazily(layoutLockInvariant(_)))) <+/> Group(
+    layoutLockInvariant <+/> Group(
       Text("class") <+> ctx.name(this) <>
         (if (typeArgs.nonEmpty)
            Text("<") <> Doc.args(typeArgs) <> ">"
@@ -78,10 +71,7 @@ trait ClassImpl[G] extends Declarator[G] {
     ) <>> Doc.stack2(layoutLock +: decls) <+/> "}"
 
   def layoutPvl(implicit ctx: Ctx): Doc =
-    (if (intrinsicLockInvariant == tt[G])
-       Empty
-     else
-       Doc.spec(Show.lazily(layoutLockInvariant(_)))) <+/> Group(
+    layoutLockInvariant <+/> Group(
       Text("class") <+> ctx.name(this) <>
         (if (typeArgs.nonEmpty)
            Text("<") <> Doc.args(typeArgs) <> ">"

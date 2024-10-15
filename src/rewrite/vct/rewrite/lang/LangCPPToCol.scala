@@ -2584,14 +2584,14 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteLifetimeScope(scope: CPPLifetimeScope[Pre]): Statement[Post] = {
     implicit val o: Origin = scope.o
 
-    syclBufferSuccessor.push(mutable.Map.empty)
+    val successorMap = mutable.Map.empty[Variable[Post], SYCLBuffer[Post]]
 
-    val rewrittenBody = rw.dispatch(scope.body)
+    val rewrittenBody =
+      syclBufferSuccessor.having(successorMap) { rw.dispatch(scope.body) }
 
     // Destroy all buffers and copy their data back to host
     val bufferDestructions: Seq[Statement[Post]] =
-      syclBufferSuccessor.pop().map(tuple => destroySYCLBuffer(tuple._2, scope))
-        .toSeq
+      successorMap.map(tuple => destroySYCLBuffer(tuple._2, scope)).toSeq
 
     Block[Post](rewrittenBody +: bufferDestructions)
   }

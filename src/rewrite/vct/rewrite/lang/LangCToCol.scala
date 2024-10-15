@@ -1057,7 +1057,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           )
         case None =>
           val newT =
-            if (t.isInstanceOf[TByValueClass[Post]]) { TNonNullPointer(t) }
+            if (t.asByValueClass.isDefined) { TNonNullPointer(t) }
             else { t }
           cGlobalNameSuccessor(RefCGlobalDeclaration(decl, idx)) = rw
             .globalDeclarations

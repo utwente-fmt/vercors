@@ -29,7 +29,7 @@ import vct.rewrite.adt.ImportSetCompat
 import vct.rewrite.{
   DisambiguatePredicateExpression,
   EncodeAutoValue,
-  PrepareByValueClass,
+  EncodeByValueClassUsage,
   EncodeRange,
   EncodeResourceValues,
   ExplicitResourceValues,
@@ -410,7 +410,7 @@ case class SilverTransformation(
         // flatten out functions in the rhs of assignments, making it harder to detect final field assignments where the
         // value is pure and therefore be put in the contract of the constant function.
         ConstantifyFinalFields,
-        PrepareByValueClass,
+        EncodeByValueClassUsage,
         // Resolve side effects including method invocations, for encodetrythrowsignals.
         ResolveExpressionSideChecks,
         ResolveExpressionSideEffects,
