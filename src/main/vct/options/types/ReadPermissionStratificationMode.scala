@@ -1,6 +1,9 @@
 package vct.options.types
 
-import vct.rewrite.veymont.verification.EncodePermissionStratification
+import vct.rewrite.veymont.verification.{
+  EncodePermissionStratification,
+  PermissionStratificationMode => Mode,
+}
 import EncodePermissionStratification.Mode
 
 case object ReadPermissionStratificationMode extends ReadEnum[Mode] {

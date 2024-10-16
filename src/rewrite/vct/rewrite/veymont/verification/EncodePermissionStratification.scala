@@ -15,22 +15,28 @@ import vct.rewrite.veymont.verification.EncodePermissionStratification.{
   ForwardExhaleFailedToChorRun,
   ForwardInvocationFailureToDeref,
   ForwardUnfoldFailedToDeref,
-  Mode,
   NoEndpointContext,
+  Mode,
 }
 
 import scala.collection.{mutable => mut}
 
-object EncodePermissionStratification extends RewriterBuilderArg[Mode] {
+// I would like to put this type in the companion object below, but then you get a problematic cyclic reference
+// Since this is contained in package veymont.verification anyway, I guess it's not too big of a problem to just
+// Put it at the top level
+
+sealed trait PermissionStratificationMode
+
+object EncodePermissionStratification
+    extends RewriterBuilderArg[PermissionStratificationMode] {
   override def key: String = "encodePermissionStratification"
   override def desc: String =
     "Encodes stratification of permissions by wrapping each permission in an opaque predicate, guarding the permission using an endpoint reference."
 
-  sealed trait Mode
   object Mode {
-    case object Inline extends Mode
-    case object Wrap extends Mode
-    case object None extends Mode
+    case object Inline extends PermissionStratificationMode
+    case object Wrap extends PermissionStratificationMode
+    case object None extends PermissionStratificationMode
   }
 
   case class ForwardExhaleFailedToChorRun(run: ChorRun[_])
@@ -66,8 +72,11 @@ object EncodePermissionStratification extends RewriterBuilderArg[Mode] {
 
 // Use booleans here because using the type of the inner enum in combination with the RewriterBuilder is annoying and
 // results in cycles
-case class EncodePermissionStratification[Pre <: Generation](mode: Mode)
-    extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
+case class EncodePermissionStratification[Pre <: Generation](
+    mode: PermissionStratificationMode
+) extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
+
+  import vct.rewrite.veymont.verification.{PermissionStratificationMode => Mode}
 
   val inChor = ScopedStack[Boolean]()
   var warnedAboutChor = false
@@ -258,10 +267,13 @@ case class EncodePermissionStratification[Pre <: Generation](mode: Mode)
       }
   }
 
-  override def dispatch(p: Program[Pre]): Program[Post] = {
-    mappings.program = p
-    super.dispatch(p)
-  }
+  override def dispatch(p: Program[Pre]): Program[Post] =
+    mode match {
+      case Mode.None => DropPermissionStratification().dispatch(p)
+      case _ =>
+        mappings.program = p
+        super.dispatch(p)
+    }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {

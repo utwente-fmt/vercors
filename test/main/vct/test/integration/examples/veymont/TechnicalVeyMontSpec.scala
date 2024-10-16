@@ -4,6 +4,39 @@ import vct.test.integration.helper.VeyMontSpec
 
 class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
+    desc = "Permission stratification can be turned off",
+    flag = "--veymont-ps=none",
+    pvl = """
+      class S { int x; }
+      choreography MyChoreography() {
+        endpoint a = S();
+        endpoint b = S();
+        requires Perm[b](a.x, 1);
+        run {
+          a.x := 3;
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "Permission stratification can be used in inline mode",
+    flag = "--veymont-ps=inline",
+    pvl = """
+      class S { int x; }
+      choreography MyChoreography() {
+        endpoint a = S();
+        endpoint b = S();
+        requires Perm[a](a.x, 1\2);
+        requires Perm[b](a.x, 1\2) ** (\endpoint b; a.x == 3);
+        run {
+          assert a.x == 3;
+        }
+      }
+    """,
+  )
+
+  choreography(
     desc =
       "When proving branch unanimity, it is not enough that one of the parties can prove branch unanimity",
     fail = "loopUnanimityNotMaintained",
@@ -15,7 +48,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
     desc =
       "Plain assignment is allowed, and works when using --veymont-sp-inline, but considered unsound",
-    flag = "--veymont-sp-inline",
+    flag = "--veymont-ps=inline",
     pvl = """
       class C { int x; }
       choreography Chor() {
@@ -109,7 +142,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
 
   choreography(
     desc = "example using communicate",
-    flags = Seq("--generate-permissions", "--veymont-sp-inline"),
+    flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     pvl = """
        class Storage {
           int x;
@@ -1029,12 +1062,12 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   val wd = "technical/veymont"
 
   choreography(
-    flags = Seq("--generate-permissions", "--veymont-sp-inline"),
+    flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     input = example(s"$wd/checkLTS/ltstest.pvl"),
   )
 
   choreography(
-    flags = Seq("--generate-permissions", "--veymont-sp-inline"),
+    flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     input = example(s"$wd/checkLTS/simpleifelse.pvl"),
   )
 
@@ -1159,7 +1192,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
     desc =
       "Functions that expect only wildcard permissions will succesfully verify, despite the partial encoding of stratified predicates",
-    flag = "--veymont-sp-inline",
+    flag = "--veymont-ps=inline",
     pvl = """
       resource P(C c) = Perm(c.x, 1) ** c.x == 0;
 
@@ -1190,7 +1223,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
     desc =
       "If you precisely half all permissions in a function, you can have exact permission amounts for predicates in a function contract, despite the partial encoding of stratified predicates.",
-    flag = "--veymont-sp-inline",
+    flag = "--veymont-ps=inline",
     pvl = """
       resource P(C c) = Perm(c.x, 1) ** c.x == 0;
 

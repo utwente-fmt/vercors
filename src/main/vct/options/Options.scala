@@ -5,11 +5,10 @@ import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
 import vct.main.stages.Parsing.Language
-import vct.rewrite.veymont.verification.EncodePermissionStratification.{
-  Mode => PermissionStratificationMode
-}
+import vct.rewrite.veymont.verification.PermissionStratificationMode
 import vct.options.types._
 import vct.resources.Resources
+import vct.rewrite.veymont.verification.EncodePermissionStratification
 
 import java.nio.file.{Path, Paths}
 import scala.collection.mutable
@@ -516,7 +515,7 @@ case class Options(
     veymontBranchUnanimity: Boolean = true,
     // Stratified permission settings
     veymontPermissionStratificationMode: PermissionStratificationMode =
-      PermissionStratificationMode.Wrap,
+      EncodePermissionStratification.Mode.Wrap,
     veymontSkipChoreographyVerification: Boolean = false,
     veymontSkipImplementationVerification: Boolean = false,
 
