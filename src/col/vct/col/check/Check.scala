@@ -152,8 +152,6 @@ sealed trait CheckError {
         Seq(context(m) -> s"Instance methods in choreographies cannot be pure.")
       case ChorNonTrivialContextEverywhere(e) =>
         Seq(context(e) -> s"Context everywhere is not supported here")
-      case EndpointExprInChor(e) =>
-        Seq(context(e) -> s"\\endpoint not allowed in \\chor")
       case ChorInEndpointExpr(e) =>
         Seq(context(e) -> s"\\chor not allowed in \\endpoint")
     }): _*)
@@ -262,9 +260,6 @@ case class SeqProgInstanceMethodPure(m: InstanceMethod[_]) extends CheckError {
 }
 case class ChorNonTrivialContextEverywhere(expr: Node[_]) extends CheckError {
   val subcode = "chorNonTrivialContextEverywhere"
-}
-case class EndpointExprInChor(expr: Node[_]) extends CheckError {
-  val subcode = "endpointExprInChor"
 }
 case class ChorInEndpointExpr(expr: Node[_]) extends CheckError {
   val subcode = "chorInEndpointExpr"

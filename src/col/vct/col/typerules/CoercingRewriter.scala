@@ -2123,7 +2123,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Receiver(_) => e
       case Message(_) => e
       case PVLEndpointExpr(endpoint, expr) => e
-      case EndpointExpr(ref, expr) => EndpointExpr(ref, res(expr))
+      case EndpointExpr(ref, expr) => e
       case ChorExpr(expr) => ChorExpr(bool(expr))
     }
   }

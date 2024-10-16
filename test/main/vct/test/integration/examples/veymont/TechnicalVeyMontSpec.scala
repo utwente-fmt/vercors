@@ -5,6 +5,15 @@ import vct.test.integration.helper.VeyMontSpec
 class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
     desc =
+      "When proving branch unanimity, it is not enough that one of the parties can prove branch unanimity",
+    fail = "loopUnanimityNotMaintained",
+    input = example(
+      "technical/veymont/branchUnanimityStratificationProblem.pvl"
+    ),
+  )
+
+  choreography(
+    desc =
       "Plain assignment is allowed, and works when using --veymont-sp-inline, but considered unsound",
     flag = "--veymont-sp-inline",
     pvl = """
@@ -15,21 +24,6 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
         run {
           a.x = 3;
           assert a.x == 3;
-        }
-      }
-        """,
-  )
-
-  choreography(
-    desc = "\\endpoint not allowed in \\chor",
-    error = "choreography:resolutionError:endpointExprInChor",
-    pvl = """
-      class C {}
-      choreography Chor() {
-        endpoint a = C();
-        requires (\chor (\endpoint a; true));
-        run {
-
         }
       }
         """,

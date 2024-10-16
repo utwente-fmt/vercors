@@ -538,6 +538,9 @@ case class EncodePermissionStratification[Pre <: Generation](
       case Value(loc: FieldLocation[Pre]) if specializing.nonEmpty =>
         markedPerm(specializing.top, loc, ReadPerm()(expr.o))(expr.o)
 
+      case Value(loc: PredicateLocation[Pre]) if specializing.nonEmpty =>
+        markedPredicate(loc, ReadPerm()(expr.o))(expr.o)
+
       case unfolding @ Unfolding(res: FoldTarget[Pre], inner)
           if specializing.nonEmpty =>
         implicit val o = unfolding.o
