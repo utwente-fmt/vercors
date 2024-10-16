@@ -5,6 +5,9 @@ import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
 import vct.main.stages.Parsing.Language
+import vct.rewrite.veymont.verification.EncodePermissionStratification.{
+  Mode => PermissionStratificationMode
+}
 import vct.options.types._
 import vct.resources.Resources
 
@@ -43,6 +46,9 @@ case object Options {
 
     import vct.options.types.Backend.read
     implicit val readLanguage: scopt.Read[Language] = ReadLanguage.read
+    implicit val readPermissionStratificationMode
+        : scopt.Read[PermissionStratificationMode] =
+      ReadPermissionStratificationMode.read
     import ReadEnum.readVerbosity
 
     implicit val readPathOrStd: scopt.Read[PathOrStd] = scopt.Read.reads {
@@ -338,14 +344,11 @@ case object Options {
         opt[Unit]("veymont-skip-implementation-verification").action((_, c) =>
           c.copy(veymontSkipImplementationVerification = true)
         ).text("Do not verify generated implementation"),
-        opt[Unit]("veymont-sp-wrap").action((_, c) =>
-          c.copy(veymontSpWrap = true, veymontSpInline = false)
+        opt[PermissionStratificationMode]("veymont-ps").action((mode, c) =>
+          c.copy(veymontPermissionStratificationMode = mode)
         ).text(
-          "Use the wrapping implementation of stratified permissions (default)"
+          "Specifies the implementation of stratified permissions to use. Possible options: wrap (default), inline and none."
         ),
-        opt[Unit]("veymont-sp-inline").action((_, c) =>
-          c.copy(veymontSpWrap = false, veymontSpInline = true)
-        ).text("Use the inline implementation of stratified permissions"),
       ),
       opt[Unit]("veymont-no-branch-unanimity").maybeHidden()
         .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
@@ -512,8 +515,8 @@ case class Options(
     veymontResourcePath: Path = Resources.getVeymontPath,
     veymontBranchUnanimity: Boolean = true,
     // Stratified permission settings
-    veymontSpInline: Boolean = false,
-    veymontSpWrap: Boolean = true,
+    veymontPermissionStratificationMode: PermissionStratificationMode =
+      PermissionStratificationMode.Wrap,
     veymontSkipChoreographyVerification: Boolean = false,
     veymontSkipImplementationVerification: Boolean = false,
 

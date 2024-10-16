@@ -5,7 +5,7 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.ref.Ref
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg2}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
@@ -21,8 +21,7 @@ import vct.rewrite.veymont.verification.EncodePermissionStratification.{
 
 import scala.collection.{mutable => mut}
 
-object EncodePermissionStratification
-    extends RewriterBuilderArg2[Boolean, Boolean] {
+object EncodePermissionStratification extends RewriterBuilderArg[Mode] {
   override def key: String = "encodePermissionStratification"
   override def desc: String =
     "Encodes stratification of permissions by wrapping each permission in an opaque predicate, guarding the permission using an endpoint reference."
@@ -31,6 +30,7 @@ object EncodePermissionStratification
   object Mode {
     case object Inline extends Mode
     case object Wrap extends Mode
+    case object None extends Mode
   }
 
   case class ForwardExhaleFailedToChorRun(run: ChorRun[_])
@@ -66,19 +66,11 @@ object EncodePermissionStratification
 
 // Use booleans here because using the type of the inner enum in combination with the RewriterBuilder is annoying and
 // results in cycles
-case class EncodePermissionStratification[Pre <: Generation](
-    useWrapStratifiedPermissions: Boolean,
-    useInlineStratifiedPermissions: Boolean,
-) extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
+case class EncodePermissionStratification[Pre <: Generation](mode: Mode)
+    extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
   val inChor = ScopedStack[Boolean]()
   var warnedAboutChor = false
-  val mode =
-    (useWrapStratifiedPermissions, useInlineStratifiedPermissions) match {
-      case (true, false) => Mode.Wrap
-      case (false, true) => Mode.Inline
-      case _ => ???
-    }
 
   lazy val specializedApplicables: Seq[Applicable[Pre]] =
     findInContext {
