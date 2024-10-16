@@ -70,7 +70,7 @@ object viper extends ScalaModule {
   }
 
   object siliconGit extends GitModule {
-    def url = T { "https://github.com/superaxander/silicon.git" }
+    def url = T { "https://github.com/viperproject/silicon.git" }
     def commitish = T { "2030e3eb63f4b1c92ddc8885f7c937673effc9bd" }
     def filteredRepo = T {
       val workspace = repo()
