@@ -134,7 +134,7 @@ case class EncodeResourceValues[Pre <: Generation]()
   val kindFunc: ScopedStack[ADTFunction[Post]] = ScopedStack()
   val arbitraryResourceValue: ScopedStack[Predicate[Post]] = ScopedStack()
 
-  def isGeneric(cls: Class[Pre]): Boolean = cls.typeArgs.isEmpty
+  def isGeneric(cls: Class[Pre]): Boolean = !cls.typeArgs.isEmpty
   def nonGeneric(cls: Class[Pre]): Unit =
     if (isGeneric(cls))
       throw GenericsNotSupported(cls)
