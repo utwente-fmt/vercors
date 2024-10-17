@@ -42,6 +42,7 @@ import vct.col.ast.{
   TArray,
   TBag,
   TBool,
+  TByReferenceClass,
   TChar,
   TClass,
   TEnum,
@@ -877,7 +878,7 @@ case object Java extends LazyLogging {
       case t: TFloat[G] => const(0)
       case TRational() => const(0)
       case TZFraction() => const(0)
-      case TClass(_, _) => Null()
+      case TByReferenceClass(_, _) => Null()
       case JavaTClass(_, _) => Null()
       case TEnum(_) => Null()
       case TAnyClass() => Null()

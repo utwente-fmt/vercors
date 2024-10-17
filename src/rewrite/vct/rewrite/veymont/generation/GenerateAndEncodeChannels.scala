@@ -5,6 +5,7 @@ import hre.util.ScopedStack
 import vct.col.ast.{
   Assign,
   Block,
+  ByReferenceClass,
   ChorRun,
   Choreography,
   Class,
@@ -37,6 +38,7 @@ import vct.col.ast.{
   Scope,
   Sender,
   Statement,
+  TByReferenceClass,
   TClass,
   TVar,
   ThisObject,
@@ -68,7 +70,10 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
   private lazy val channelPre =
     importer.loadAdt[Pre]("genericChannel").declarations
 
-  lazy val genericChannelClass = find[Pre, Class[Pre]](channelPre, "Channel")
+  lazy val genericChannelClass = find[Pre, ByReferenceClass[Pre]](
+    channelPre,
+    "Channel",
+  )
   lazy val genericChannelDecls = genericChannelClass.decls
   lazy val genericChannelConstructor = find[Pre, Constructor[Pre]](
     genericChannelDecls
@@ -90,7 +95,8 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
     "exchangeValue",
   )
 
-  val channelClassSucc = SuccessionMap[Communicate[Pre], Class[Post]]()
+  val channelClassSucc =
+    SuccessionMap[Communicate[Pre], ByReferenceClass[Post]]()
   val channelConstructorSucc =
     SuccessionMap[Communicate[Pre], Constructor[Post]]()
   val channelWriteSucc = SuccessionMap[Communicate[Pre], InstanceMethod[Post]]()
@@ -124,7 +130,7 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
     .LinkedHashMap[Communicate[Pre], Variable[Post]]()
 
   def channelType(comm: Communicate[Pre]): Type[Post] =
-    TClass[Post](channelClassSucc.ref(comm), Seq())
+    TByReferenceClass[Post](channelClassSucc.ref(comm), Seq())
 
   def generateChannel(comm: Communicate[Pre]): Unit =
     currentCommunicate.having(comm) { dispatch(genericChannelClass) }
@@ -253,7 +259,7 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
           }).succeed(chor)
         }
 
-      case cls: Class[Pre] if isEndpointClass(cls) =>
+      case cls: ByReferenceClass[Pre] if isEndpointClass(cls) =>
         // For each communicate in a choreography, add fields for the communicate channel to classes
         // of endpoints participating in the choreography
         cls.rewrite(decls =
@@ -294,7 +300,7 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
           ),
         ).succeed(cons)
 
-      case cls: Class[Pre] if cls == genericChannelClass =>
+      case cls: ByReferenceClass[Pre] if cls == genericChannelClass =>
         implicit val comm = currentCommunicate.top
         implicit val o = comm.o
         globalDeclarations.scope {

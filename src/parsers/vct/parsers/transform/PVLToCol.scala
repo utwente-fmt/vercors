@@ -161,7 +161,7 @@ case class PVLToCol[G](
         withContract(
           contract,
           contract => {
-            new Class(
+            new ByReferenceClass(
               decls = decls.flatMap(convert(_)),
               supports = Nil,
               intrinsicLockInvariant = AstBuildHelpers
@@ -412,8 +412,10 @@ case class PVLToCol[G](
     expr match {
       case UnaryExpr0(_, inner) => Not(convert(inner))
       case UnaryExpr1(_, inner) => UMinus(convert(inner))
-      case UnaryExpr2(op, inner) => convert(expr, op, convert(inner))
-      case UnaryExpr3(inner) => convert(inner)
+      case UnaryExpr2(_, inner) => DerefPointer(convert(inner))(blame(expr))
+      case UnaryExpr3(_, inner) => AddrOf(convert(inner))
+      case UnaryExpr4(op, inner) => convert(expr, op, convert(inner))
+      case UnaryExpr5(inner) => convert(inner)
     }
 
   def convert(implicit expr: NewExprContext): Expr[G] =
@@ -1027,6 +1029,8 @@ case class PVLToCol[G](
           case "pure" => collector.pure += mod
           case "inline" => collector.inline += mod
           case "thread_local" => collector.threadLocal += mod
+          case "bip_annotation" =>
+            fail(mod, "This modifier is not allowed here.")
         }
       case ValStatic(_) => collector.static += mod
     }

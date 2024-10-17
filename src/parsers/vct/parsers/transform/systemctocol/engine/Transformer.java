@@ -8,7 +8,7 @@ import de.tub.pes.syscir.sc_model.variables.SCClassInstance;
 import de.tub.pes.syscir.sc_model.variables.SCEvent;
 import de.tub.pes.syscir.sc_model.variables.SCKnownType;
 import de.tub.pes.syscir.sc_model.variables.SCTIMEUNIT;
-import vct.col.ast.Class;
+import vct.col.ast.ByReferenceClass;
 import vct.col.ast.InstanceField;
 import vct.parsers.transform.systemctocol.exceptions.SystemCFormatException;
 import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
@@ -324,14 +324,14 @@ public class Transformer<T> {
 
 				// Transform state class first, since process classes might call state class methods, but not the other way around
 				if (state_cls != null) {
-					Class<T> state_class = class_transformer.create_state_class(state_cls);
+					ByReferenceClass<T> state_class = class_transformer.create_state_class(state_cls);
 					col_system.add_global_declaration(state_class);
 					col_system.add_col_class_translation(state_cls, state_class);
 				}
 
 				// Then transform all process classes
 				for (ProcessClass process : col_system.get_processes(sc_inst)) {
-					Class<T> process_class = class_transformer.create_process_class(process);
+					ByReferenceClass<T> process_class = class_transformer.create_process_class(process);
 					col_system.add_global_declaration(process_class);
 					col_system.add_col_class_translation(process, process_class);
 				}

@@ -109,6 +109,9 @@ case class SourceName(name: String) extends NameStrategy {
     Some(SourceName.stringToName(name))
 }
 
+// Used to disambiguate whether to show a ByValueClass as a class or a struct
+case class TypeName(name: String) extends OriginContent
+
 /** Content that provides a bit of context here. By default, this assembles
   * further context from the remaining origin. contextHere and inlineContextHere
   * may optionally consume some more contents, otherwise they can just return

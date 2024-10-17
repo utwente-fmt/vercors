@@ -281,7 +281,7 @@ class SiliconMemberLogListener(
     if (log.traceBranchConditions) {
       val textCond =
         branchConditions.head match {
-          case BranchConditionExp(e) => e.toString()
+          case BranchConditionExp(e) => e.toString
           case BranchConditionTerm(e) => e.toString
           case BranchConditionNone(at, count) => s"alternative $at/$count"
         }

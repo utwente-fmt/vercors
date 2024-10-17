@@ -310,6 +310,9 @@ case object Options {
         .action((_, c) => c.copy(generatePermissions = true)).text(
           "Generates permissions for the entire program using a syntax-driven single-owner policy"
         ),
+      opt[PathOrStd]("contract-import-file").valueName("<path>")
+        .action((path, c) => c.copy(contractImportFile = Some(path)))
+        .text("Load function contracts from the specified file"),
       note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont").action((_, c) => c.copy(mode = Mode.VeyMont)).text(
@@ -535,6 +538,9 @@ case class Options(
     // Patch options
     patchFile: Path = null,
     patchOutput: Path = null,
+
+    // Pallas options
+    contractImportFile: Option[PathOrStd] = None,
 ) {
   def getParserDebugOptions: vct.parsers.debug.DebugOptions =
     vct.parsers.debug.DebugOptions(

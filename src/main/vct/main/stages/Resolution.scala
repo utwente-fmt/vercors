@@ -9,8 +9,8 @@ import vct.col.ast.{
   CGlobalDeclaration,
   Expr,
   GlobalDeclaration,
-  LlvmFunctionContract,
-  LlvmGlobal,
+  LLVMFunctionContract,
+  LLVMGlobalSpecification,
   Program,
   Refute,
   Verification,
@@ -27,7 +27,7 @@ import vct.col.origin.{
   ReadableOrigin,
 }
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
-import vct.col.rewrite.Generation
+import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.rewrite.bip.IsolateBipGlue
 import vct.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.importer.JavaLibraryLoader
@@ -36,7 +36,7 @@ import vct.options.Options
 import vct.options.types.ClassPathEntry
 import vct.parsers.debug.DebugOptions
 import vct.parsers.err.FileNotFound
-import vct.parsers.parser.{ColJavaParser, ColLLVMParser}
+import vct.parsers.parser.{ColJavaParser, ColLLVMContractParser, ColPVLParser}
 import vct.parsers.transform.BlameProvider
 import vct.parsers.{ParseResult, parser}
 import vct.resources.Resources
@@ -67,6 +67,14 @@ case object Resolution {
         case ClassPathEntry.SourcePath(root) =>
           ResolveTypes.JavaClassPathEntry.Path(root)
       },
+      if (options.contractImportFile.isDefined) {
+        val res = ColPVLParser(options.getParserDebugOptions, blameProvider)
+          .parse[G](
+            options.contractImportFile.get,
+            Origin(Seq(ReadableOrigin(options.contractImportFile.get))),
+          )
+        res.decls
+      } else { Seq() },
       options.generatePermissions,
     )
 }
@@ -83,7 +91,7 @@ case class MyLocalJavaParser(
 ) extends Resolve.SpecExprParser {
   override def parse[G](input: String, o: Origin): Expr[G] = {
     val sr = LiteralReadable("<string data>", input)
-    val cjp = parser.ColJavaParser(debugOptions, blameProvider)
+    val cjp = ColJavaParser(debugOptions, blameProvider)
     val x = cjp.parseExpr[G](sr)
     if (x._2.nonEmpty) { throw SpecExprParseError("...") }
     x._1
@@ -95,17 +103,17 @@ case class MyLocalLLVMSpecParser(
     debugOptions: DebugOptions,
 ) extends Resolve.SpecContractParser {
   override def parse[G](
-      input: LlvmFunctionContract[G],
+      input: LLVMFunctionContract[G],
       o: Origin,
   ): ApplicableContract[G] =
-    parser.ColLLVMContractParser(debugOptions, blameProvider)
+    ColLLVMContractParser(debugOptions, blameProvider)
       .parseFunctionContract[G](new StringReader(input.value), o)._1
 
   override def parse[G](
-      input: LlvmGlobal[G],
+      input: LLVMGlobalSpecification[G],
       o: Origin,
   ): Seq[GlobalDeclaration[G]] =
-    parser.ColLLVMContractParser(debugOptions, blameProvider)
+    ColLLVMContractParser(debugOptions, blameProvider)
       .parseReader[G](new StringReader(input.value), o).decls
 }
 
@@ -116,6 +124,7 @@ case class Resolution[G <: Generation](
       ResolveTypes.JavaClassPathEntry.Path(Resources.getJrePath),
       ResolveTypes.JavaClassPathEntry.SourcePackageRoot,
     ),
+    importedDeclarations: Seq[GlobalDeclaration[G]] = Seq(),
     generatePermissions: Boolean = false,
 ) extends Stage[ParseResult[G], Verification[_ <: Generation]]
     with LazyLogging {
@@ -136,11 +145,19 @@ case class Resolution[G <: Generation](
     val joinedProgram =
       Program(isolatedBipProgram.declarations ++ extraDecls)(blameProvider())
     val typedProgram = LangTypesToCol().dispatch(joinedProgram)
-    ResolveReferences.resolve(
-      typedProgram,
-      MyLocalJavaParser(blameProvider, parserDebugOptions),
-      MyLocalLLVMSpecParser(blameProvider, parserDebugOptions),
-    ) match {
+    val javaParser = MyLocalJavaParser(blameProvider, parserDebugOptions)
+    val llvmParser = MyLocalLLVMSpecParser(blameProvider, parserDebugOptions)
+    val typedImports =
+      if (importedDeclarations.isEmpty) { Seq() }
+      else {
+        val ast = LangTypesToCol()
+          .dispatch(Program(importedDeclarations)(blameProvider()))
+        ResolveReferences.resolve(ast, javaParser, llvmParser, Seq())
+        LangSpecificToCol(generatePermissions).dispatch(ast)
+          .asInstanceOf[Program[Rewritten[G]]].declarations
+      }
+    ResolveReferences
+      .resolve(typedProgram, javaParser, llvmParser, typedImports) match {
       case Nil => // ok
       case some => throw InputResolutionError(some)
     }

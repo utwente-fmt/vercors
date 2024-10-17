@@ -154,6 +154,12 @@ case class LangSpecificToCol[Pre <: Generation](
     }
   }
 
+  override def dispatch(program: Program[Pre]): Program[Post] = {
+    llvm.gatherBackEdges(program)
+    llvm.gatherTypeHints(program)
+    super.dispatch(program)
+  }
+
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case model: Model[Pre] =>
@@ -187,8 +193,9 @@ case class LangSpecificToCol[Pre <: Generation](
         cpp.storeIfSYCLFunction(func)
       }
 
-      case func: LlvmFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
-      case global: LlvmGlobal[Pre] => llvm.rewriteGlobal(global)
+      case func: LLVMFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
+      case global: LLVMGlobalSpecification[Pre] => llvm.rewriteGlobal(global)
+      case global: LLVMGlobalVariable[Pre] => llvm.rewriteGlobalVariable(global)
 
       case cls: Class[Pre] =>
         currentClass.having(cls) {
@@ -199,13 +206,20 @@ case class LangSpecificToCol[Pre <: Generation](
                 pvl.maybeDeclareDefaultConstructor(cls)
               }._1
 
-            globalDeclarations.succeed(cls, cls.rewrite(decls = decls))
+            globalDeclarations.succeed(
+              cls,
+              cls match {
+                case cls: ByReferenceClass[Pre] => cls.rewrite(decls = decls)
+                case cls: ByValueClass[Pre] => cls.rewrite(decls = decls)
+              },
+            )
           }
         }
 
       case glue: JavaBipGlueContainer[Pre] => bip.rewriteGlue(glue)
 
       case chor: PVLChoreography[Pre] => veymont.rewriteChoreography(chor)
+      case v: Variable[Pre] => llvm.rewriteLocalVariable(v)
 
       case other => rewriteDefault(other)
     }
@@ -244,6 +258,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case CPPDeclarationStatement(decl) => cpp.rewriteLocalDecl(decl)
       case scope: CPPLifetimeScope[Pre] => cpp.rewriteLifetimeScope(scope)
       case goto: CGoto[Pre] => c.rewriteGoto(goto)
+      case goto: Goto[Pre] => llvm.rewriteGoto(goto)
       case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
 
       case eval @ Eval(CPPInvocation(_, _, _, _)) =>
@@ -256,6 +271,10 @@ case class LangSpecificToCol[Pre <: Generation](
         cpp.checkPredicateFoldingAllowed(unfold.res)
         unfold.rewriteDefault()
 
+      case load: LLVMLoad[Pre] => llvm.rewriteLoad(load)
+      case store: LLVMStore[Pre] => llvm.rewriteStore(store)
+      case alloc: LLVMAllocA[Pre] => llvm.rewriteAllocA(alloc)
+      case block: LLVMBasicBlock[Pre] => llvm.rewriteBasicBlock(block)
       case other => other.rewriteDefault()
     }
 
@@ -272,7 +291,7 @@ case class LangSpecificToCol[Pre <: Generation](
           case ref: RefCGlobalDeclaration[Pre] => c.result(ref)
           case ref: RefCPPFunctionDefinition[Pre] => cpp.result(ref)
           case ref: RefCPPGlobalDeclaration[Pre] => cpp.result(ref)
-          case ref: RefLlvmFunctionDefinition[Pre] => llvm.result(ref)
+          case ref: RefLLVMFunctionDefinition[Pre] => llvm.result(ref)
           case RefFunction(decl) => Result[Post](anySucc(decl))
           case RefProcedure(decl) => Result[Post](anySucc(decl))
           case RefJavaMethod(decl) => Result[Post](java.javaMethod.ref(decl))
@@ -281,7 +300,7 @@ case class LangSpecificToCol[Pre <: Generation](
           case RefInstanceMethod(decl) => Result[Post](anySucc(decl))
           case RefInstanceOperatorFunction(decl) => Result[Post](anySucc(decl))
           case RefInstanceOperatorMethod(decl) => Result[Post](anySucc(decl))
-          case RefLlvmSpecFunction(decl) => Result[Post](anySucc(decl))
+          case RefLLVMSpecFunction(decl) => Result[Post](anySucc(decl))
         }
 
       case diz @ AmbiguousThis() => currentThis.top
@@ -317,17 +336,6 @@ case class LangSpecificToCol[Pre <: Generation](
       case cast: CCast[Pre] => c.cast(cast)
       case sizeof: SizeOf[Pre] => throw LangCToCol.UnsupportedSizeof(sizeof)
 
-      case Perm(a @ AmbiguousLocation(expr), perm)
-          if c.getBaseType(expr.t).isInstanceOf[CTStruct[Pre]] =>
-        c.getBaseType(expr.t) match {
-          case structType: CTStruct[Pre] =>
-            c.unwrapStructPerm(
-              dispatch(a).asInstanceOf[AmbiguousLocation[Post]],
-              perm,
-              structType,
-              e.o,
-            )
-        }
       case local: CPPLocal[Pre] => cpp.local(local)
       case deref: CPPClassMethodOrFieldAccess[Pre] => cpp.deref(deref)
       case inv: CPPInvocation[Pre] => cpp.invocation(inv)
@@ -360,10 +368,6 @@ case class LangSpecificToCol[Pre <: Generation](
           case _ =>
         }
         assign.target.t match {
-          case CPrimitiveType(specs) if specs.collectFirst {
-                case CSpecificationType(_: CTStruct[Pre]) => ()
-              }.isDefined =>
-            c.assignStruct(assign)
           case CPPPrimitiveType(_) => cpp.preAssignExpr(assign)
           case _ => rewriteDefault(assign)
         }
@@ -372,11 +376,16 @@ case class LangSpecificToCol[Pre <: Generation](
         silver.adtInvocation(inv)
       case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
 
-      case inv: LlvmFunctionInvocation[Pre] =>
+      case inv: LLVMFunctionInvocation[Pre] =>
         llvm.rewriteFunctionInvocation(inv)
-      case inv: LlvmAmbiguousFunctionInvocation[Pre] =>
+      case inv: LLVMAmbiguousFunctionInvocation[Pre] =>
         llvm.rewriteAmbiguousFunctionInvocation(inv)
-      case local: LlvmLocal[Pre] => llvm.rewriteLocal(local)
+      case local: LLVMLocal[Pre] => llvm.rewriteLocal(local)
+      case pointer: LLVMFunctionPointerValue[Pre] =>
+        llvm.rewriteFunctionPointer(pointer)
+      case pointer: LLVMPointerValue[Pre] => llvm.rewritePointerValue(pointer)
+      case gep: LLVMGetElementPointer[Pre] => llvm.rewriteGetElementPointer(gep)
+      case int: LLVMIntegerValue[Pre] => IntegerValue(int.value)(int.o)
 
       case other => rewriteDefault(other)
     }
@@ -389,6 +398,15 @@ case class LangSpecificToCol[Pre <: Generation](
       case t: TOpenCLVector[Pre] => c.vectorType(t)
       case t: CTArray[Pre] => c.arrayType(t)
       case t: CTStruct[Pre] => c.structType(t)
+      case t: LLVMTInt[Pre] => TInt()(t.o)
+      case t: LLVMTStruct[Pre] => llvm.structType(t)
+      case t: LLVMTPointer[Pre] => llvm.pointerType(t)
+      case t: LLVMTArray[Pre] => llvm.arrayType(t)
+      case t: LLVMTVector[Pre] => llvm.vectorType(t)
+      case t: LLVMTMetadata[Pre] =>
+        TInt()(
+          t.o
+        ) // TODO: Ignore these by just assuming they're integers... or could we do TVoid?
       case t: CPPTArray[Pre] => cpp.arrayType(t)
       case other => rewriteDefault(other)
     }

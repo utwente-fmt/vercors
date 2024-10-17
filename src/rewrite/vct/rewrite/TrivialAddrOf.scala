@@ -32,14 +32,19 @@ case object TrivialAddrOf extends RewriterBuilder {
 case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     e match {
+      case DerefPointer(PointerAdd(AddrOf(pointer), offset))
+          if offset.isInstanceOf[ConstantInt[Pre]] &&
+            offset.asInstanceOf[ConstantInt[Pre]].value.signum == 0 =>
+        dispatch(pointer)
       case AddrOf(DerefPointer(p)) => dispatch(p)
 
       case AddrOf(sub @ PointerSubscript(p, i)) =>
         PointerAdd(dispatch(p), dispatch(i))(SubscriptErrorAddError(sub))(e.o)
 
+      case AddrOf(Deref(_, _)) => e.rewriteDefault()
       case AddrOf(other) => throw UnsupportedLocation(other)
       case assign @ PreAssignExpression(target, AddrOf(value))
-          if value.t.isInstanceOf[TClass[Pre]] =>
+          if value.t.asByReferenceClass.isDefined =>
         implicit val o: Origin = assign.o
         val (newPointer, newTarget, newValue) = rewriteAssign(
           target,
@@ -55,13 +60,13 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
             newValue,
           )(assign.blame)
         With(newPointer, newAssign)
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
 
   override def dispatch(s: Statement[Pre]): Statement[Post] =
     s match {
       case assign @ Assign(target, AddrOf(value))
-          if value.t.isInstanceOf[TClass[Pre]] =>
+          if value.t.asByReferenceClass.isDefined =>
         implicit val o: Origin = assign.o
         val (newPointer, newTarget, newValue) = rewriteAssign(
           target,
@@ -77,7 +82,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
             newValue,
           )(assign.blame)
         Block(Seq(newPointer, newAssign))
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
 
   // TODO: AddressOff needs a more structured approach. Now you could assign a local structure to a pointer, and that pointer
@@ -98,7 +103,9 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
     val newPointer = Eval(
       PreAssignExpression(
         newTarget,
-        NewPointerArray(newValue.t, const[Post](1), fallible=false)(PanicBlame("Size is > 0")),
+        NewNonNullPointerArray(newValue.t, const[Post](1))(PanicBlame(
+          "Size is > 0"
+        )),
       )(blame)
     )
     (newPointer, newTarget, newValue)

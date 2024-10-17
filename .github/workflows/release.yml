@@ -9,7 +9,7 @@ on:
 
 jobs:
   Release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout VerCors
         uses: actions/checkout@v4
@@ -23,8 +23,8 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
-      - name: Enable VCLLVM compilation
-        run: touch .include-vcllvm
+      - name: Enable Pallas compilation
+        run: touch .include-pallas
       - name: Build Release
         run: ./mill -j 0 vercors.main.release
       - name: Set Properties

@@ -29,13 +29,16 @@ import vct.rewrite.adt.ImportSetCompat
 import vct.rewrite.{
   DisambiguatePredicateExpression,
   EncodeAutoValue,
+  EncodeByValueClassUsage,
   EncodeRange,
   EncodeResourceValues,
   ExplicitResourceValues,
   HeapVariableToRef,
+  LowerLocalHeapVariables,
   InlineTrivialLets,
   MonomorphizeClass,
   SmtlibToProverTypes,
+  VariableToPointer,
   GenerateSingleOwnerPermissions,
 }
 import vct.rewrite.lang.ReplaceSYCLTypes
@@ -345,6 +348,7 @@ case class SilverTransformation(
         EncodeString, // Encode spec string as seq<int>
         EncodeChar,
         CollectLocalDeclarations, // all decls in Scope
+        VariableToPointer, // should happen before ParBlockEncoder so it can distinguish between variables which can and can't altered in a parallel block
         DesugarPermissionOperators, // no PointsTo, \pointer, etc.
         ReadToValue, // resolve wildcard into fractional permission
         TrivialAddrOf,
@@ -414,7 +418,7 @@ case class SilverTransformation(
         // flatten out functions in the rhs of assignments, making it harder to detect final field assignments where the
         // value is pure and therefore be put in the contract of the constant function.
         ConstantifyFinalFields,
-
+        EncodeByValueClassUsage,
         // Resolve side effects including method invocations, for encodetrythrowsignals.
         ResolveExpressionSideChecks,
         ResolveExpressionSideEffects,
@@ -424,6 +428,7 @@ case class SilverTransformation(
         // No more classes
         ClassToRef,
         HeapVariableToRef,
+        LowerLocalHeapVariables,
         CheckContractSatisfiability.withArg(checkSat),
         DesugarCollectionOperators,
         EncodeNdIndex,

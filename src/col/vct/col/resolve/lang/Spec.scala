@@ -348,8 +348,8 @@ case object Spec {
 
   def findMethod[G](obj: Expr[G], name: String): Option[InstanceMethod[G]] =
     obj.t match {
-      case TClass(Ref(cls), _) =>
-        cls.decls.flatMap(Referrable.from).collectFirst {
+      case cls: TClass[G] =>
+        cls.cls.decl.decls.flatMap(Referrable.from).collectFirst {
           case ref @ RefInstanceMethod(decl) if ref.name == name => decl
         }
       case _ => None
@@ -360,8 +360,8 @@ case object Spec {
       name: String,
   ): Option[InstanceFunction[G]] =
     obj.t match {
-      case TClass(Ref(cls), _) =>
-        cls.decls.flatMap(Referrable.from).collectFirst {
+      case cls: TClass[G] =>
+        cls.cls.decl.decls.flatMap(Referrable.from).collectFirst {
           case ref @ RefInstanceFunction(decl) if ref.name == name => decl
         }
       case _ => None
@@ -372,8 +372,8 @@ case object Spec {
       name: String,
   ): Option[InstancePredicate[G]] =
     obj.t match {
-      case TClass(Ref(cls), _) =>
-        cls.decls.flatMap(Referrable.from).collectFirst {
+      case cls: TClass[G] =>
+        cls.cls.decl.decls.flatMap(Referrable.from).collectFirst {
           case ref @ RefInstancePredicate(decl) if ref.name == name => decl
         }
       case JavaTClass(Ref(cls), _) =>
@@ -385,8 +385,8 @@ case object Spec {
 
   def findField[G](obj: Expr[G], name: String): Option[InstanceField[G]] =
     obj.t match {
-      case TClass(Ref(cls), _) =>
-        cls.decls.flatMap(Referrable.from).collectFirst {
+      case cls: TClass[G] =>
+        cls.cls.decl.decls.flatMap(Referrable.from).collectFirst {
           case ref @ RefField(decl) if ref.name == name => decl
         }
       case _ => None

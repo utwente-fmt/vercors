@@ -275,7 +275,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case cons: JavaConstructor[Pre] =>
         logger.debug(s"Constructor for ${cons.o.inlineContextText}")
         implicit val o: Origin = cons.o
-        val t = TClass(ref, Seq())
+        val t = TByReferenceClass(ref, Seq())
         val `this` = ThisObject(ref)
 
         val results = currentJavaClass.top.modifiers.collect {
@@ -429,7 +429,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
       val instanceClass =
         rw.currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {
-          new Class[Post](
+          new ByReferenceClass[Post](
             rw.variables.dispatch(cls.typeParams)(rw),
             rw.classDeclarations.collect {
               makeJavaClass(
@@ -454,7 +454,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
       if (staticDecls.nonEmpty) {
         val staticsClass =
-          new Class[Post](
+          new ByReferenceClass[Post](
             Seq(),
             rw.classDeclarations.collect {
               rw.currentThis
@@ -472,7 +472,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           )(JavaStaticsClassOrigin(cls))
 
         rw.globalDeclarations.declare(staticsClass)
-        val t = TClass[Post](staticsClass.ref, Seq())
+        val t = TByReferenceClass[Post](staticsClass.ref, Seq())
         val singleton = withResult((res: Result[Post]) =>
           function(
             AbstractApplicable,
@@ -754,7 +754,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def classType(t: JavaTClass[Pre]): Type[Post] =
     t.ref.decl match {
       case classOrInterface: JavaClassOrInterface[Pre] =>
-        TClass(
+        TByReferenceClass(
           javaInstanceClassSuccessor.ref(classOrInterface),
           t.typeArgs.map(rw.dispatch),
         )

@@ -179,7 +179,7 @@ case class LangPVLToCol[Pre <: Generation](
     val PVLNew(t, typeArgs, args, givenMap, yields) = inv
     val classTypeArgs =
       t match {
-        case TClass(_, typeArgs) => typeArgs
+        case t: TClass[Pre] => t.typeArgs
         case _ => Seq()
       }
     implicit val o: Origin = inv.o

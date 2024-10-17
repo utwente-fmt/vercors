@@ -92,9 +92,6 @@ sealed trait Referrable[G] {
       case RefProverType(decl) => Referrable.originName(decl)
       case RefProverFunction(decl) => Referrable.originName(decl)
       case RefJavaBipGuard(decl) => Referrable.originName(decl)
-      case RefLlvmFunctionDefinition(decl) => Referrable.originName(decl)
-      case RefLlvmGlobal(decl, i) => Referrable.originName(decl.data.get(i))
-      case RefLlvmSpecFunction(decl) => Referrable.originName(decl)
       case RefBipComponent(decl) => Referrable.originName(decl)
       case RefBipGlue(decl) => ""
       case RefBipGuard(decl) => Referrable.originName(decl)
@@ -110,7 +107,10 @@ sealed trait Referrable[G] {
       case RefPVLEndpoint(decl) => decl.name
       case RefPVLChoreography(decl) => decl.name
       case RefPVLChorRun(_) => ""
-
+      case RefLLVMFunctionDefinition(decl) => Referrable.originName(decl)
+      case RefLLVMGlobalSpecification(decl, i) => Referrable.originName(decl)
+      case RefLLVMGlobalVariable(decl) => Referrable.originName(decl)
+      case RefLLVMSpecFunction(decl) => Referrable.originName(decl)
       case RefJavaBipGlueContainer() => ""
       case PVLBuiltinInstanceMethod(_) => ""
       case BuiltinField(_) => ""
@@ -201,13 +201,15 @@ case object Referrable {
       case decl: PVLConstructor[G] => RefPVLConstructor(decl)
       case decl: Choreography[G] => RefChoreography(decl)
       case decl: Endpoint[G] => RefEndpoint(decl)
-      case decl: LlvmFunctionDefinition[G] => RefLlvmFunctionDefinition(decl)
-      case decl: LlvmGlobal[G] =>
+      case decl: LLVMFunctionDefinition[G] => RefLLVMFunctionDefinition(decl)
+      case decl: LLVMGlobalSpecification[G] =>
         decl.data match {
-          case Some(data) => return data.indices.map(RefLlvmGlobal(decl, _))
-          case None => RefLlvmGlobal(decl, -1)
+          case Some(data) =>
+            return data.indices.map(RefLLVMGlobalSpecification(decl, _))
+          case None => RefLLVMGlobalSpecification(decl, -1)
         }
-      case decl: LlvmSpecFunction[G] => RefLlvmSpecFunction(decl)
+      case decl: LLVMSpecFunction[G] => RefLLVMSpecFunction(decl)
+      case decl: LLVMGlobalVariable[G] => RefLLVMGlobalVariable(decl)
       case decl: ProverType[G] => RefProverType(decl)
       case decl: ProverFunction[G] => RefProverFunction(decl)
       case decl: JavaBipGlueContainer[G] => RefJavaBipGlueContainer()
@@ -282,7 +284,7 @@ sealed trait JavaInvocationTarget[G] extends Referrable[G]
 sealed trait CInvocationTarget[G] extends Referrable[G]
 sealed trait CPPInvocationTarget[G] extends Referrable[G]
 sealed trait PVLInvocationTarget[G] extends Referrable[G]
-sealed trait LlvmInvocationTarget[G] extends Referrable[G]
+sealed trait LLVMInvocationTarget[G] extends Referrable[G]
 sealed trait SpecInvocationTarget[G]
     extends JavaInvocationTarget[G]
     with CNameTarget[G]
@@ -292,7 +294,7 @@ sealed trait SpecInvocationTarget[G]
     with CPPDerefTarget[G]
     with CPPInvocationTarget[G]
     with PVLInvocationTarget[G]
-    with LlvmInvocationTarget[G]
+    with LLVMInvocationTarget[G]
 
 sealed trait ThisTarget[G] extends Referrable[G]
 
@@ -454,9 +456,14 @@ case class RefJavaBipGuard[G](decl: JavaMethod[G])
     extends Referrable[G] with JavaNameTarget[G]
 case class RefJavaBipGlueContainer[G]()
     extends Referrable[G] // Bip glue jobs are not actually referrable
-case class RefLlvmFunctionDefinition[G](decl: LlvmFunctionDefinition[G])
-    extends Referrable[G] with LlvmInvocationTarget[G] with ResultTarget[G]
-case class RefLlvmGlobal[G](decl: LlvmGlobal[G], idx: Int) extends Referrable[G]
+case class RefLLVMFunctionDefinition[G](decl: LLVMFunctionDefinition[G])
+    extends Referrable[G] with LLVMInvocationTarget[G] with ResultTarget[G]
+case class RefLLVMGlobalSpecification[G](
+    decl: LLVMGlobalSpecification[G],
+    idx: Int,
+) extends Referrable[G]
+case class RefLLVMGlobalVariable[G](decl: LLVMGlobalVariable[G])
+    extends Referrable[G]
 case class RefBipComponent[G](decl: BipComponent[G]) extends Referrable[G]
 case class RefBipGlue[G](decl: BipGlue[G]) extends Referrable[G]
 case class RefBipGuard[G](decl: BipGuard[G]) extends Referrable[G]
@@ -478,9 +485,8 @@ case class RefPVLEndpoint[G](decl: PVLEndpoint[G])
 case class RefPVLChoreography[G](decl: PVLChoreography[G])
     extends Referrable[G] with ThisTarget[G]
 case class RefPVLChorRun[G](decl: PVLChorRun[G]) extends Referrable[G]
-
-case class RefLlvmSpecFunction[G](decl: LlvmSpecFunction[G])
-    extends Referrable[G] with LlvmInvocationTarget[G] with ResultTarget[G]
+case class RefLLVMSpecFunction[G](decl: LLVMSpecFunction[G])
+    extends Referrable[G] with LLVMInvocationTarget[G] with ResultTarget[G]
 case class RefChoreography[G](decl: Choreography[G])
     extends Referrable[G] with ThisTarget[G]
 case class RefEndpoint[G](decl: Endpoint[G]) extends Referrable[G]

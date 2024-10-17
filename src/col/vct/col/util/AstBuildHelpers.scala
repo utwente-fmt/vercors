@@ -116,6 +116,12 @@ object AstBuildHelpers {
       SilverLocalAssign(new DirectRef(left), right)
   }
 
+  implicit class LocalHeapVarBuildHelpers[G](left: LocalHeapVariable[G]) {
+    def get(blame: Blame[PointerDerefError])(
+        implicit origin: Origin
+    ): DerefPointer[G] = DerefPointer(HeapLocal[G](new DirectRef(left)))(blame)
+  }
+
   implicit class FieldBuildHelpers[G](left: SilverDeref[G]) {
     def <~(right: Expr[G])(
         implicit blame: Blame[AssignFailed],
@@ -137,7 +143,7 @@ object AstBuildHelpers {
         case function: ADTFunction[Pre] => function.rewrite(args = args)
         case process: ModelProcess[Pre] => process.rewrite(args = args)
         case action: ModelAction[Pre] => action.rewrite(args = args)
-        case llvm: LlvmFunctionDefinition[Pre] => llvm.rewrite(args = args)
+        case llvm: LLVMFunctionDefinition[Pre] => llvm.rewrite(args = args)
         case prover: ProverFunction[Pre] => prover.rewrite(args = args)
       }
   }
@@ -196,7 +202,7 @@ object AstBuildHelpers {
             inline = Some(inline),
             contract = contract,
           )
-        case function: LlvmSpecFunction[Pre] =>
+        case function: LLVMSpecFunction[Pre] =>
           function.rewrite(
             args = args,
             returnType = returnType,
@@ -212,6 +218,23 @@ object AstBuildHelpers {
             inline = inline,
             contract = contract,
           )
+      }
+  }
+
+  implicit class ClassBuildHelpers[Pre, Post](cls: Class[Pre])(
+      implicit rewriter: AbstractRewriter[Pre, Post]
+  ) {
+    def rewrite(
+        typeArgs: => Seq[Variable[Post]] = rewriter.variables
+          .dispatch(cls.typeArgs),
+        decls: => Seq[ClassDeclaration[Post]] = rewriter.classDeclarations
+          .dispatch(cls.decls),
+    ): Class[Post] =
+      cls match {
+        case cls: ByReferenceClass[Pre] =>
+          cls.rewrite(typeArgs = typeArgs, decls = decls)
+        case cls: ByValueClass[Pre] =>
+          cls.rewrite(typeArgs = typeArgs, decls = decls)
       }
   }
 
@@ -330,7 +353,7 @@ object AstBuildHelpers {
             threadLocal = Some(threadLocal),
             blame = blame,
           )
-        case function: LlvmSpecFunction[Pre] =>
+        case function: LLVMSpecFunction[Pre] =>
           function.rewrite(
             returnType = returnType,
             args = args,
@@ -377,7 +400,7 @@ object AstBuildHelpers {
       apply match {
         case inv: ADTFunctionInvocation[Pre] => inv.rewrite(args = args)
         case inv: ProverFunctionInvocation[Pre] => inv.rewrite(args = args)
-        case inv: LlvmFunctionInvocation[Pre] => inv.rewrite(args = args)
+        case inv: LLVMFunctionInvocation[Pre] => inv.rewrite(args = args)
         case apply: PredicateApplyExpr[Pre] =>
           PredicateApplyExpr(
             new ApplyAnyPredicateBuildHelpers(apply.apply).rewrite(args = args)
@@ -717,6 +740,13 @@ object AstBuildHelpers {
       yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil,
   )(implicit o: Origin): FunctionInvocation[G] =
     FunctionInvocation(ref, args, typeArgs, givenMap, yields)(blame)
+
+  def adtFunctionInvocation[G](
+      ref: Ref[G, ADTFunction[G]],
+      typeArgs: Option[(Ref[G, AxiomaticDataType[G]], Seq[Type[G]])] = None,
+      args: Seq[Expr[G]] = Nil,
+  )(implicit o: Origin): ADTFunctionInvocation[G] =
+    ADTFunctionInvocation(typeArgs, ref, args)
 
   def methodInvocation[G](
       blame: Blame[InstanceInvocationFailure],
