@@ -771,6 +771,7 @@ final class InstancePredicate[G](
 final class InstanceField[G](val t: Type[G], val flags: Seq[FieldFlag[G]])(
     implicit val o: Origin
 ) extends ClassDeclaration[G] with Field[G] with InstanceFieldImpl[G]
+@scopes[LabelDecl]
 final class RunMethod[G](
     val body: Option[Statement[G]],
     val contract: ApplicableContract[G],
