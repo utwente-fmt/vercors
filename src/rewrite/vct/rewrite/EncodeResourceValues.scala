@@ -12,6 +12,7 @@ import vct.col.util.DeclarationBox
 import vct.result.VerificationError.{SystemError, UserError}
 import vct.rewrite.EncodeResourceValues.{
   GenericsNotSupported,
+  ResourceValueReturnType,
   UnknownResourceValue,
   UnsupportedResourceValue,
   WrongResourcePattern,
@@ -44,6 +45,14 @@ case object EncodeResourceValues extends RewriterBuilder {
   case class WrongResourcePattern(node: Node[_]) extends SystemError {
     override def text: String =
       node.o.messageInContext("Wrong resource pattern encoding")
+  }
+
+  case class ResourceValueReturnType(m: AbstractMethod[_]) extends UserError {
+    override def text: String =
+      m.o.messageInContext(
+        "Resource values as method return types currently not supported because of https://github.com/utwente-fmt/vercors/issues/1267"
+      )
+    override def code: String = "resourceValueReturnType"
   }
 }
 
@@ -457,5 +466,12 @@ case class EncodeResourceValues[Pre <: Generation]()
     t match {
       case TResourceVal() => TAxiomatic(valAdt.top.ref, Nil)
       case other => rewriteDefault(other)
+    }
+
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    decl match {
+      case m: AbstractMethod[Pre] if m.returnType == TResourceVal[Pre]() =>
+        throw new ResourceValueReturnType(m)
+      case _ => super.dispatch(decl)
     }
 }
