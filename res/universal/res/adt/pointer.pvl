@@ -25,13 +25,16 @@ adt `pointer` {
 
   // pointer_of is injective: a (block, offset) pair indicates a unique pointer value
   axiom (∀`block` b, int offset;
-    {:pointer_block(pointer_of(b, offset)):} == b &&
-      {:pointer_offset(pointer_of(b, offset)):} == offset);
+    {:1:pointer_block(pointer_of(b, offset)):} == b &&
+      {:2:pointer_offset(pointer_of(b, offset)):} == offset);
 
   axiom (∀ ref r; ptr_deref({:pointer_inv(r):}) == r);
 
   axiom (∀ `pointer` p; pointer_inv({:ptr_deref(p):}) == p);
+
+  axiom ptr_add_axiom();
 }
+
 
 decreases;
 pure ref ptr_deref(`pointer` p) =
@@ -45,3 +48,12 @@ pure `pointer` ptr_add(`pointer` p, int offset) =
   `pointer`.pointer_of(
      `pointer`.pointer_block(p),
      `pointer`.pointer_offset(p) + offset);
+
+decreases;
+ensures (\forall `pointer` p1, int offset, int i;
+    0 <= `pointer`.pointer_offset(p1) + offset &&
+    `pointer`.pointer_offset(p1) + offset < `block`.block_length(`pointer`.pointer_block(p1)) &&
+    0 <= i &&
+    i < `block`.block_length(`pointer`.pointer_block(p1)) - `pointer`.pointer_offset(p1) - offset;
+    {:ptr_add(ptr_add(p1, offset), i):} == ptr_add(p1, offset + i));
+pure boolean ptr_add_axiom() = true;

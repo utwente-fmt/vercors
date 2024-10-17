@@ -12,6 +12,7 @@ class CSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/c/vector_add.c"
   vercors should verify using silicon example "concepts/c/vector_type.c"
   vercors should verify using silicon example "concepts/c/pointer_casts.c"
+  vercors should verify using silicon example "concepts/c/pointer_tests.c"
 
   vercors should error withCode "resolutionError:type" in "float should not be demoted" c
   """
