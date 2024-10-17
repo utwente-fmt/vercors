@@ -711,6 +711,7 @@ final class Procedure[G](
     val vesuv_entry: Boolean = false,
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends GlobalDeclaration[G] with AbstractMethod[G] with ProcedureImpl[G]
+@scopes[LabelDecl]
 final class VeSUVMainMethod[G](val body: Option[Statement[G]])(
     val blame: Blame[CallableFailure]
 )(implicit val o: Origin)
