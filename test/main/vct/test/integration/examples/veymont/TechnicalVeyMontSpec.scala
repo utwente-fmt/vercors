@@ -4,6 +4,63 @@ import vct.test.integration.helper.VeyMontSpec
 
 class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
+    desc = "`\\sender` also not allowed as message",
+    error = "choreography:resolutionError:onlyInChannelInvariant",
+    pvl = """
+      class C { C x; }
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+        run {
+          communicate alice: \sender -> bob.x;
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "`\\receiver` also not allowed as message",
+    error = "choreography:resolutionError:onlyInChannelInvariant",
+    pvl = """
+      class C { C x; }
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+        run {
+          communicate alice: \receiver -> bob.x;
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "`\\msg` only allowed in channel invariant",
+    error = "choreography:onlyInChannelInvariant",
+    pvl = """
+      requires \msg;
+      void m() { }
+    """,
+  )
+
+  choreography(
+    desc = "`\\receiver` only allowed in channel invariant",
+    error = "choreography:onlyInChannelInvariant",
+    pvl = """
+      requires \receiver;
+      void m() { }
+    """,
+  )
+
+  choreography(
+    desc = "`\\sender` only allowed in channel invariant",
+    error = "choreography:onlyInChannelInvariant",
+    pvl = """
+      requires \sender;
+      void m() { }
+    """,
+  )
+
+  choreography(
     desc = "Permission stratification can be turned off",
     flag = "--veymont-ps=none",
     pvl = """
