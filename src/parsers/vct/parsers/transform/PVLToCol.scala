@@ -38,7 +38,9 @@ case class PVLToCol[G](
   def convert(implicit enum: EnumDeclContext): Enum[G] =
     enum match {
       case EnumDecl0(_, name, _, Some(constants), _, _) =>
-        new vct.col.ast.Enum[G](convertConstants(constants))(origin(enum).sourceName(convert(name)))
+        new vct.col.ast.Enum[G](convertConstants(constants))(
+          origin(enum).sourceName(convert(name))
+        )
       case _ =>
         fail(enum, "This enumeration must specify at least one constant")
     }
@@ -1573,6 +1575,8 @@ case class PVLToCol[G](
       case ValOperatorName0("+") => OperatorLeftPlus()
       case ValOperatorName1(id, "+") if convert(id) == "right" =>
         OperatorRightPlus()
+      case ValOperatorName1(_, _) =>
+        fail(operator, "only operator name `right` is currently supported")
     }
 
   def convert(
