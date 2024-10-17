@@ -89,7 +89,9 @@ case class IndirectName(name: Name) extends NameStrategy {
 object SourceName {
   def stringToName(name: String): Name =
     Name.Preferred(
-      if (name.forall(c => !c.isLetter || c.isUpper))
+      if (name.matches("[_]+"))
+        Seq(name)
+      else if (name.forall(c => !c.isLetter || c.isUpper))
         name.split("[_]+").toIndexedSeq
       else
         name.split("[_]+").toIndexedSeq.flatMap(splitNameRec)
