@@ -13,13 +13,13 @@ class VeyMontExamplesSpec extends VeyMontSpec {
         s"$wd/TicTacToe/Move.pvl",
         s"$wd/TicTacToe/TicTacToe.pvl",
       ),
-      flags = Seq("--generate-permissions"),
+      flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     )
 
     choreography(
       desc = "Leader elect ring (generated permissions)",
       inputs = examples(s"$wd/leaderelectring.pvl"),
-      flags = Seq("--generate-permissions"),
+      flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     )
 
     choreography(
@@ -31,7 +31,7 @@ class VeyMontExamplesSpec extends VeyMontSpec {
     choreography(
       desc = "Paper-scissors-rock (generated permissions)",
       inputs = examples(s"$wd/paperscissorsrock.pvl"),
-      flags = Seq("--generate-permissions"),
+      flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     )
 
     choreography(

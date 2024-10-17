@@ -30,7 +30,7 @@ class IFM2024VeyMontPermissionsSpec extends VeyMontSpec {
       ),
       flags = Seq(
         "--generate-permissions",
-        "--veymont-sp-inline", // Inline such that \chor annotations actually work
+        "--veymont-ps=inline", // Inline such that \chor annotations actually work
       ),
     )
   }
