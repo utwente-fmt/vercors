@@ -45,6 +45,9 @@ import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont._
 import vct.rewrite.veymont.generation._
 import vct.rewrite.veymont.verification._
+import vct.rewrite.veymont.verification.EncodePermissionStratification.{
+  Mode => PermissionStratificationMode
+}
 
 import java.nio.file.Path
 import java.nio.file.Files
@@ -144,6 +147,8 @@ object Transformation extends LazyLogging {
           optimizeUnsafe = options.devUnsafeOptimization,
           generatePermissions = options.generatePermissions,
           veymontBranchUnanimity = options.veymontBranchUnanimity,
+          veymontPermissionStratificationMode =
+            options.veymontPermissionStratificationMode,
         )
     }
 
@@ -315,6 +320,8 @@ case class SilverTransformation(
     override val optimizeUnsafe: Boolean = false,
     generatePermissions: Boolean = false,
     veymontBranchUnanimity: Boolean = true,
+    veymontPermissionStratificationMode: PermissionStratificationMode =
+      PermissionStratificationMode.Wrap,
 ) extends Transformation(
       onPassEvent,
       Seq(
@@ -374,7 +381,8 @@ case class SilverTransformation(
         EncodeChorBranchUnanimity.withArg(veymontBranchUnanimity),
         EncodeEndpointInequalities,
         EncodeChannels,
-        EncodePermissionStratification.withArg(generatePermissions),
+        EncodePermissionStratification
+          .withArg(veymontPermissionStratificationMode),
         EncodeChoreography,
         // All VeyMont nodes should now be gone
 

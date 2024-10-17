@@ -13,6 +13,7 @@ import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, CPP, Java, LLVM, PVL, Spec}
 import vct.col.resolve.Resolve.{
   MalformedBipAnnotation,
+  OnlyInChannelInvariant,
   SpecContractParser,
   SpecExprParser,
   getLit,
@@ -82,6 +83,14 @@ case object Resolve {
     override def text: String =
       e.o.messageInContext(
         "This expression must either be a string literal or trivially resolve to one"
+      )
+  }
+
+  case class OnlyInChannelInvariant(e: Expr[_]) extends UserError {
+    override def code: String = "onlyInChannelInvariant"
+    override def text: String =
+      e.o.messageInContext(
+        "This expression is only inside within a `channel_invariant` clause."
       )
   }
 
@@ -1234,10 +1243,19 @@ case object ResolveReferences extends LazyLogging {
           .orElse(Some(getEndpoint(comm.msg)))
         comm.inferredReceiver = comm.receiver.map(_.ref.get.decl)
           .orElse(Some(getEndpoint(comm.target)))
-      case sender: PVLSender[G] => sender.ref = Some(ctx.currentCommunicate.get)
+      case sender: PVLSender[G] =>
+        sender.ref = Some(
+          ctx.currentCommunicate.getOrElse(throw OnlyInChannelInvariant(sender))
+        )
       case receiver: PVLReceiver[G] =>
-        receiver.ref = Some(ctx.currentCommunicate.get)
-      case msg: PVLMessage[G] => msg.ref = Some(ctx.currentCommunicate.get)
+        receiver.ref = Some(
+          ctx.currentCommunicate
+            .getOrElse(throw OnlyInChannelInvariant(receiver))
+        )
+      case msg: PVLMessage[G] =>
+        msg.ref = Some(
+          ctx.currentCommunicate.getOrElse(throw OnlyInChannelInvariant(msg))
+        )
       case _ =>
     }
 }

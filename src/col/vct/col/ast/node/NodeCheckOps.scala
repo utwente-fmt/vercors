@@ -1,6 +1,13 @@
 package vct.col.ast.node
 
-import vct.col.ast.{Applicable, Choreography, Declaration, Endpoint, Node}
+import vct.col.ast.{
+  Applicable,
+  Choreography,
+  Communicate,
+  Declaration,
+  Endpoint,
+  Node,
+}
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.util.CurrentCheckNodeContext
 import vct.result.VerificationError
@@ -54,6 +61,7 @@ trait NodeCheckOps[G] {
       enterCheckContextCurrentParticipatingEndpoints(context),
       enterCheckContextInChor(context),
       enterCheckContextInEndpointExpr(context),
+      enterCheckContextInCommunicateInvariant(context),
       enterCheckContextDeclarationStack(context),
     )
 
@@ -89,6 +97,9 @@ trait NodeCheckOps[G] {
   def enterCheckContextInEndpointExpr(
       context: CheckContext[G]
   ): Option[Endpoint[G]] = context.inEndpointExpr
+  def enterCheckContextInCommunicateInvariant(
+      context: CheckContext[G]
+  ): Option[Communicate[G]] = context.inCommunicateInvariant
   def enterCheckContextDeclarationStack(
       context: CheckContext[G]
   ): Seq[Declaration[G]] = context.declarationStack

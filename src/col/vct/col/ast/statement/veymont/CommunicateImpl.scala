@@ -1,14 +1,20 @@
 package vct.col.ast.statement.veymont
 
-import vct.col.ast.{Communicate, Endpoint, EndpointName, Type}
+import hre.data.BitString
+import vct.col.ast.declaration.DeclarationImpl
+import vct.col.ast.{Communicate, Endpoint, EndpointName, Node, Type}
 import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.print.{Ctx, Doc, Group, Nest, Text}
 import vct.col.ref.Ref
 import vct.col.ast.ops.CommunicateOps
 import vct.col.ast.ops.{CommunicateFamilyOps, CommunicateOps}
 
+import scala.collection.immutable.{AbstractSeq, LinearSeq}
+
 trait CommunicateImpl[G]
-    extends CommunicateOps[G] with CommunicateFamilyOps[G] {
+    extends CommunicateOps[G]
+    with CommunicateFamilyOps[G]
+    with DeclarationImpl[G] {
   comm: Communicate[G] =>
   override def layout(implicit ctx: Ctx): Doc =
     Text("channel_invariant") <+> Nest(invariant.show) <> ";" <+/> Group(
@@ -33,6 +39,17 @@ trait CommunicateImpl[G]
               .contains(receiver.get.decl) =>
         Seq(SeqProgParticipant(receiver.get.decl))
       case _ => Nil
+    }
+
+  override def checkContextRecursor[T](
+      context: CheckContext[G],
+      f: (CheckContext[G], Node[G]) => T,
+  ): Seq[T] =
+    subnodes match {
+      case invariant +: rest =>
+        f(context.withCommunicateInvariant(this), invariant) +:
+          rest.map(f(enterCheckContext(context), _))
+      case _ => ???
     }
 
   def participants: Seq[Endpoint[G]] = (sender.toSeq ++ receiver.toSeq)

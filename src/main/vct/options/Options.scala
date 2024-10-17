@@ -5,8 +5,10 @@ import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
 import vct.main.stages.Parsing.Language
+import vct.rewrite.veymont.verification.PermissionStratificationMode
 import vct.options.types._
 import vct.resources.Resources
+import vct.rewrite.veymont.verification.EncodePermissionStratification
 
 import java.nio.file.{Path, Paths}
 import scala.collection.mutable
@@ -43,6 +45,9 @@ case object Options {
 
     import vct.options.types.Backend.read
     implicit val readLanguage: scopt.Read[Language] = ReadLanguage.read
+    implicit val readPermissionStratificationMode
+        : scopt.Read[PermissionStratificationMode] =
+      ReadPermissionStratificationMode.read
     import ReadEnum.readVerbosity
 
     implicit val readPathOrStd: scopt.Read[PathOrStd] = scopt.Read.reads {
@@ -341,10 +346,15 @@ case object Options {
         opt[Unit]("veymont-skip-implementation-verification").action((_, c) =>
           c.copy(veymontSkipImplementationVerification = true)
         ).text("Do not verify generated implementation"),
+        opt[PermissionStratificationMode]("veymont-ps").action((mode, c) =>
+          c.copy(veymontPermissionStratificationMode = mode)
+        ).text(
+          "Specifies the implementation of stratified permissions to use. Possible options: wrap (default), inline and none."
+        ),
       ),
-      opt[Unit]("dev-veymont-no-branch-unanimity").maybeHidden()
+      opt[Unit]("veymont-no-branch-unanimity").maybeHidden()
         .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
-          "Disables generation of the branch unanimity check encoded by VeyMont, which verifies that choreographies do not deadlock during choreographic verification"
+          "Disables generation of the branch unanimity check encoded by VeyMont, which ensures that endpoints cannot disagree about which branch to take. This check cannot always be computed, but if it can, it saves the user from having to prove this informally."
         ),
       note(""),
       note("VeSUV Mode"),
@@ -506,6 +516,9 @@ case class Options(
     veymontOutput: Option[Path] = None,
     veymontResourcePath: Path = Resources.getVeymontPath,
     veymontBranchUnanimity: Boolean = true,
+    // Stratified permission settings
+    veymontPermissionStratificationMode: PermissionStratificationMode =
+      EncodePermissionStratification.Mode.Wrap,
     veymontSkipChoreographyVerification: Boolean = false,
     veymontSkipImplementationVerification: Boolean = false,
 

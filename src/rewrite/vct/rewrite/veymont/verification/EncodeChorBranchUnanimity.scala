@@ -1,5 +1,6 @@
 package vct.rewrite.veymont.verification
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin._
@@ -49,7 +50,7 @@ object EncodeChorBranchUnanimity extends RewriterBuilderArg[Boolean] {
 }
 
 case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
-    extends Rewriter[Pre] with VeymontContext[Pre] {
+    extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
   case class IdentityRewriter[Pre <: Generation]() extends Rewriter[Pre] {}
 
@@ -59,8 +60,12 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
     if (enabled) {
       mappings.program = program
       super.dispatch(program)
-    } else
+    } else {
+      logger.warn(
+        "Branch unanimity turned off. User should do an informal deadlock freedom proof."
+      )
       IdentityRewriter().dispatch(program)
+    }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
