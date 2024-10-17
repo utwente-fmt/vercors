@@ -80,7 +80,11 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
     desc = "Permission stratification can be used in inline mode",
     flag = "--veymont-ps=inline",
     pvl = """
-      class S { int x; }
+      class S {
+        int x;
+        ensures Perm(x, 1) ** x == 3;
+        constructor() { x = 3; }
+      }
       choreography MyChoreography() {
         endpoint a = S();
         endpoint b = S();
