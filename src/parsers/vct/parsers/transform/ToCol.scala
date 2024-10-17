@@ -221,7 +221,7 @@ abstract class ToCol[G](
     }
 
   def fail(tree: ParserRuleContext, message: String): Nothing = {
-    throw ParseError(OriginProvider(tree), message)
+    throw ParseError(origin(tree), message)
   }
 
   /** Print notice and exit, because a rule is unimplemented in the conversion
