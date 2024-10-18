@@ -348,10 +348,6 @@ case class SilverTransformation(
         DisambiguatePredicateExpression,
 
         // VeyMont choreography encoding
-        // Explicitly after InlineApplicables such that VeyMont doesn't care about inline predicates
-        // (Even though this makes inferring endpoint ownership annotations less complete)
-        // Also, VeyMont requires branches to be nested, instead of flat, because the false branch
-        // may refine the set of participating endpoints
         BranchToIfElse,
         GenerateSingleOwnerPermissions.withArg(generatePermissions),
         InferEndpointContexts,

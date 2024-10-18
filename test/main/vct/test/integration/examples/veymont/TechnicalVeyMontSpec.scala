@@ -4,6 +4,64 @@ import vct.test.integration.helper.VeyMontSpec
 
 class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
+    desc = "Endpoint annotations can be inferred for predicates",
+    pvl = """
+      class C {
+        inline resource inv() = true;
+      }
+
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+
+        requires alice.inv() ** bob.inv();
+        run { }
+      }
+    """,
+  )
+
+  choreography(
+    desc =
+      "Endpoint annotations cannot be inferred for predicates with multiple endpoints",
+    error = "choreography:multipleImplicitEndpoints",
+    pvl = """
+      class C {
+        inline resource inv(C other) = true;
+      }
+
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+
+        requires alice.inv(bob);
+        run { }
+      }
+    """,
+  )
+
+  choreography(
+    desc =
+      "Endpoint annotations cannot be inferred if no endpoints are involved",
+    error = "choreography:noImplicitEndpoint",
+    pvl = """
+      class C { }
+
+      ensures \result != null;
+      pure C globalC();
+
+      inline resource globalInv(C c1, C c2) = true;
+
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+
+        requires globalInv(globalC(), globalC());
+        run { }
+      }
+    """,
+  )
+
+  choreography(
     desc = "`\\sender` also not allowed as message",
     error = "choreography:resolutionError:onlyInChannelInvariant",
     pvl = """
