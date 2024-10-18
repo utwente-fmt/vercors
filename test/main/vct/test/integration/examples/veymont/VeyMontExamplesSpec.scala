@@ -25,7 +25,7 @@ class VeyMontExamplesSpec extends VeyMontSpec {
     choreography(
       desc = "Leader elect star (generated permissions)",
       inputs = examples(s"$wd/leaderelectstar.pvl"),
-      flags = Seq("--generate-permissions"),
+      flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     )
 
     choreography(
@@ -37,7 +37,7 @@ class VeyMontExamplesSpec extends VeyMontSpec {
     choreography(
       desc = "Parallel while (generated permissions)",
       inputs = examples(s"$wd/parallel_while.pvl"),
-      flags = Seq("--generate-permissions"),
+      flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     )
 
     // Disabled indefinitely until submethods are enabled again
