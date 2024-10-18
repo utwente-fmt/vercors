@@ -98,7 +98,7 @@ case class Silicon(
       "--z3ConfigArgs",
       z3Config,
     )
-    if (optimizeUnsafe)
+    if (true)
       siliconConfig ++= Seq("--parallelizeBranches")
     else
       siliconConfig ++= Seq("--ideModeAdvanced")
@@ -127,7 +127,7 @@ case class Silicon(
     logger.debug("Silicon command line: " + siliconConfig)
 
     silicon.parseCommandLine(siliconConfig)
-    if (!optimizeUnsafe)
+    if (!true)
       silicon.symbExLog = SiliconLogListener(
         reportOnNoProgress,
         traceBranchConditions,
