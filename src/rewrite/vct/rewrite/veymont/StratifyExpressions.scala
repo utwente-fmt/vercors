@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.check.SeqProgParticipant
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.util.AstBuildHelpers
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
 import vct.rewrite.veymont.InferEndpointContexts.{
@@ -47,7 +48,11 @@ case class StratifyExpressions[Pre <: Generation]()
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case chor: Choreography[Pre] =>
-        currentChoreography.having(chor) { chor.rewriteDefault().succeed(chor) }
+        currentChoreography.having(chor) {
+          // For the choreographic contract, we don't want the permissions to be stratified, so we force a default rewrite
+          // for that contract. This is important because otherwise the dispatch(ApplicableContract) below would pick it up.
+          chor.rewrite(contract = chor.contract.rewriteDefault()).succeed(chor)
+        }
       case decl => super.dispatch(decl)
     }
 
@@ -110,15 +115,17 @@ case class StratifyExpressions[Pre <: Generation]()
       case statement => statement.rewriteDefault()
     }
 
-  def stratifyExpr(e: Expr[Pre]): Expr[Post] = {
-    val exprs = {
-      // Ensure the "true" expression is kept
-      val es = unfoldStar(e)
-      if (es.isEmpty)
-        Seq(e)
-      else
-        es
+  def dumbUnfoldStar[G](expr: Expr[G]): Seq[Expr[G]] =
+    expr match {
+      case Star(left, right) =>
+        AstBuildHelpers.unfoldStar(left) ++ AstBuildHelpers.unfoldStar(right)
+      case And(left, right) =>
+        AstBuildHelpers.unfoldStar(left) ++ AstBuildHelpers.unfoldStar(right)
+      case other => Seq(other)
     }
+
+  def stratifyExpr(e: Expr[Pre]): Expr[Post] = {
+    val exprs = dumbUnfoldStar(e)
     foldAny(e.t)(
       exprs.map {
         case e: ChorExpr[Pre] => (None, e)

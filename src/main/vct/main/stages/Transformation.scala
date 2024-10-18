@@ -3,6 +3,7 @@ package vct.main.stages
 import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
 import hre.debug.TimeTravel.CauseWithBadEffect
+import hre.io.Readable
 import hre.progress.Progress
 import hre.stages.Stage
 import vct.col.ast.{Program, SimplificationRule, Verification}
@@ -23,6 +24,7 @@ import vct.main.stages.Transformation.{
 }
 import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
+import vct.parsers.debug.DebugOptions
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
@@ -33,13 +35,13 @@ import vct.rewrite.{
   EncodeRange,
   EncodeResourceValues,
   ExplicitResourceValues,
+  GenerateSingleOwnerPermissions,
   HeapVariableToRef,
-  LowerLocalHeapVariables,
   InlineTrivialLets,
+  LowerLocalHeapVariables,
   MonomorphizeClass,
   SmtlibToProverTypes,
   VariableToPointer,
-  GenerateSingleOwnerPermissions,
 }
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont._
@@ -100,9 +102,21 @@ object Transformation extends LazyLogging {
     }
   }
 
+  def loadPVLLibraryFileStage[G](
+      readable: Readable,
+      debugOptions: DebugOptions,
+  ): Program[G] =
+    Progress.stages(Seq((
+      s"Loading PVL library file ${readable.underlyingPath.getOrElse("<unknown>")}",
+      0,
+    ))) { _ =>
+      val x: Program[G] = Util.loadPVLLibraryFile(readable, debugOptions)
+      x
+    }
+
   def simplifierFor(path: PathOrStd, options: Options): RewriterBuilder =
     ApplyTermRewriter.BuilderFor(
-      ruleNodes = Util.loadPVLLibraryFile[InitialGeneration](
+      ruleNodes = loadPVLLibraryFileStage[InitialGeneration](
         path,
         options.getParserDebugOptions,
       ).declarations.collect {
