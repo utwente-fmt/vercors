@@ -12,7 +12,6 @@ import vct.col.ast.{
   Block,
   Branch,
   ByReferenceClass,
-  ChorPerm,
   ChorRun,
   ChorStatement,
   Choreography,
@@ -415,9 +414,6 @@ case class GenerateImplementation[Pre <: Generation]()
       expr: Expr[Pre]
   )(implicit endpoint: Endpoint[Pre]): Expr[Post] =
     expr match {
-      case ChorPerm(Ref(other), loc, perm) if endpoint == other =>
-        Perm(dispatch(loc), dispatch(perm))(expr.o)
-      case ChorPerm(Ref(other), _, _) if endpoint != other => tt
       case EndpointExpr(Ref(other), expr) if endpoint == other =>
         projectExpr(expr)
       case EndpointExpr(_, _) => tt

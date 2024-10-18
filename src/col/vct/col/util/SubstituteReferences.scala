@@ -52,8 +52,6 @@ case class SubstituteReferences[G](subs: Map[Object, Object])
       case ProcessApply(Ref(p), args) =>
         ProcessApply(substitute(p), args.map(dispatch))
       case EndpointName(Ref(e)) => EndpointName(substitute(e))
-      case ChorPerm(Ref(e), loc, perm) =>
-        ChorPerm(substitute(e), dispatch(loc), dispatch(perm))
       case Sender(Ref(s)) => Sender(substitute(s))
       case Receiver(Ref(r)) => Receiver(substitute(r))
       case Message(Ref(m)) => Message(substitute(m))

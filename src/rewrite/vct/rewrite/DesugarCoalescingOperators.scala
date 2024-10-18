@@ -84,8 +84,6 @@ case class DesugarCoalescingOperators[Pre <: Generation]()
         makeCoalesceConditional(v.loc, loc => v.rewrite(loc = loc))
       case p: PVLChorPerm[Pre] =>
         makeCoalesceConditional(p.loc, loc => p.rewrite(loc = loc))
-      case p: ChorPerm[Pre] =>
-        makeCoalesceConditional(p.loc, loc => p.rewrite(loc = loc))
 
       case other => other.rewriteDefault()
     }

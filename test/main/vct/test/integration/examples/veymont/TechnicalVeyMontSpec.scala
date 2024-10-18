@@ -4,6 +4,31 @@ import vct.test.integration.helper.VeyMontSpec
 
 class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
+    desc = "Endpoint expressions can be nested",
+    pvl = """
+      class C { }
+      choreography Chor() {
+        endpoint alice = C();
+        requires (\endpoint alice; (\endpoint alice; true));
+        run { }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "Endpoint expressions should be nested consistently",
+    pvl = """
+      class C { }
+      choreography Chor() {
+        endpoint alice = C();
+        endpoint bob = C();
+        requires (\endpoint alice; (\endpoint bob; true));
+        run { }
+      }
+    """,
+  )
+
+  choreography(
     desc = "Endpoint annotations can be inferred for predicates",
     pvl = """
       class C {

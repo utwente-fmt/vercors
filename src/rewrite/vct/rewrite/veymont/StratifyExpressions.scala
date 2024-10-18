@@ -127,7 +127,6 @@ case class StratifyExpressions[Pre <: Generation]()
     foldAny(e.t)(
       exprs.map {
         case e: ChorExpr[Pre] => (None, e)
-        case e: ChorPerm[Pre] => (None, e)
         case e: EndpointExpr[Pre] => (None, e)
         case expr => point(expr)
       }.map {

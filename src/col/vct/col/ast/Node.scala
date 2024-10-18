@@ -3894,12 +3894,6 @@ final case class CommunicateStatement[G](inner: Communicate[G])(
 final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(
     implicit val o: Origin
 ) extends Expr[G] with EndpointNameImpl[G]
-final case class ChorPerm[G](
-    endpoint: Ref[G, Endpoint[G]],
-    loc: Location[G],
-    perm: Expr[G],
-)(implicit val o: Origin)
-    extends Expr[G] with ChorPermImpl[G]
 final case class Sender[G](ref: Ref[G, Communicate[G]])(implicit val o: Origin)
     extends Expr[G] with SenderImpl[G]
 final case class Receiver[G](ref: Ref[G, Communicate[G]])(

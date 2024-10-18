@@ -6,7 +6,6 @@ import vct.col.ast.{
   Assign,
   Block,
   ChorExpr,
-  ChorPerm,
   ChorRun,
   ChorStatement,
   Choreography,
@@ -306,9 +305,9 @@ case class EncodeChoreography[Pre <: Generation]()
       case (_, Message(Ref(comm))) =>
         implicit val o = expr.o
         msgSucc(comm).get
-      case (_, _: ChorPerm[_] | _: ChorExpr[_] | _: EndpointExpr[_]) =>
+      case (_, _: ChorExpr[_] | _: EndpointExpr[_]) =>
         throw Unreachable(
-          "Encoding of ChorPerm, ChorExpr, EndpointExpr should happen in EncodePermissionStratification"
+          "Encoding of ChorExpr and EndpointExpr should happen in EncodePermissionStratification"
         )
       case (_, Perm(loc, ReadPerm())) =>
         // For now we manually translate the readperms away because we accidentally introduce them as well

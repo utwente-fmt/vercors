@@ -11,7 +11,6 @@ import vct.col.ast.{
   Block,
   BooleanValue,
   Branch,
-  ChorPerm,
   ChorRun,
   Choreography,
   Class,
@@ -198,26 +197,6 @@ case class InferEndpointContexts[Pre <: Generation]()
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
-      case p @ Perm(loc, perm)
-          if inChor.topOption.contains(true) && inEndpointExpr.nonEmpty =>
-        ChorPerm[Post](succ(inEndpointExpr.top), dispatch(loc), dispatch(perm))(
-          p.o
-        )
-      case v @ Value(loc)
-          if inChor.topOption.contains(true) && inEndpointExpr.nonEmpty =>
-        ChorPerm[Post](
-          succ(inEndpointExpr.top),
-          dispatch(loc),
-          ReadPerm()(v.o),
-        )(v.o)
-      case p @ Perm(loc, perm) if inChor.topOption.contains(true) =>
-        ChorPerm[Post](succ(getEndpoint(loc)), dispatch(loc), dispatch(perm))(
-          p.o
-        )
-      case v @ Value(loc) if inChor.topOption.contains(true) =>
-        ChorPerm[Post](succ(getEndpoint(loc)), dispatch(loc), ReadPerm()(v.o))(
-          v.o
-        )
       case expr @ EndpointExpr(Ref(endpoint), _) =>
         inEndpointExpr.having(endpoint) { expr.rewriteDefault() }
       case _ => expr.rewriteDefault()

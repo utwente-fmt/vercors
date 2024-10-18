@@ -101,7 +101,6 @@ case class EncodePermissionStratification[Pre <: Generation](
           // Get all T's from endpoint contexts
           case expr: EndpointExpr[Pre] => expr.collect(f)
           case stmt: EndpointStatement[Pre] => stmt.collect(f)
-          case perm: ChorPerm[Pre] => perm.collect(f)
         }.flatten
     )
 
@@ -258,8 +257,6 @@ case class EncodePermissionStratification[Pre <: Generation](
 
     override def dispatch(expr: Expr[Pre]): Expr[Post] =
       expr match {
-        case ChorPerm(_, loc, perm) =>
-          Perm(dispatch(loc), dispatch(perm))(expr.o)
         case ChorExpr(inner) => dispatch(inner)
         case EndpointExpr(_, inner) => dispatch(inner)
         case _ => expr.rewriteDefault()
@@ -515,23 +512,6 @@ case class EncodePermissionStratification[Pre <: Generation](
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
-      // TODO (RR):
-      //  Make a check in chorperm and endpointexpr to ensure that when nesting these types of nodes, they
-      //  all agree on one endpoint. So no nesting endpointexprs and chorperms with different endpoints.
-      //  For now we assume here that's all well and good.
-      //  Or just get rid of chorperm anyway
-      case cp @ ChorPerm(Ref(endpoint), loc: FieldLocation[Pre], perm) =>
-        specializing.having(EndpointName[Post](succ(cp.endpoint.decl))(cp.o)) {
-          markedPerm(EndpointName[Post](succ(endpoint))(expr.o), loc, perm)(
-            expr.o
-          )
-        }
-
-      case cp @ ChorPerm(Ref(endpoint), loc: PredicateLocation[Pre], perm) =>
-        specializing.having(EndpointName[Post](succ(endpoint))(cp.o)) {
-          markedPredicate(loc, perm)(expr.o)
-        }
-
       case Perm(loc: FieldLocation[Pre], perm) if specializing.nonEmpty =>
         markedPerm(specializing.top, loc, perm)(expr.o)
 
