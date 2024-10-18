@@ -13,31 +13,31 @@ class VeyMontExamplesSpec extends VeyMontSpec {
         s"$wd/TicTacToe/Move.pvl",
         s"$wd/TicTacToe/TicTacToe.pvl",
       ),
-      flags = Seq("--generate-permissions"),
+      flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     )
 
     choreography(
       desc = "Leader elect ring (generated permissions)",
       inputs = examples(s"$wd/leaderelectring.pvl"),
-      flags = Seq("--generate-permissions"),
+      flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     )
 
     choreography(
       desc = "Leader elect star (generated permissions)",
       inputs = examples(s"$wd/leaderelectstar.pvl"),
-      flags = Seq("--generate-permissions"),
+      flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     )
 
     choreography(
       desc = "Paper-scissors-rock (generated permissions)",
       inputs = examples(s"$wd/paperscissorsrock.pvl"),
-      flags = Seq("--generate-permissions"),
+      flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     )
 
     choreography(
       desc = "Parallel while (generated permissions)",
       inputs = examples(s"$wd/parallel_while.pvl"),
-      flags = Seq("--generate-permissions"),
+      flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     )
 
     // Disabled indefinitely until submethods are enabled again

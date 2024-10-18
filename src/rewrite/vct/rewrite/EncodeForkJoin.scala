@@ -257,7 +257,7 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
             Nil,
             Nil,
             Nil,
-            m.body.map(dispatch),
+            labelDecls.scope { m.body.map(dispatch) },
             dispatch(m.contract),
           )(m.blame)
         )

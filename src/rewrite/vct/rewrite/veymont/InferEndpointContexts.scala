@@ -16,6 +16,7 @@ import vct.col.ast.{
   Choreography,
   Class,
   ClassDeclaration,
+  CoalesceInstancePredicateApply,
   Communicate,
   CommunicateStatement,
   CommunicateX,
@@ -32,6 +33,7 @@ import vct.col.ast.{
   Fork,
   InstanceField,
   InstanceMethod,
+  InstancePredicateApply,
   JavaClass,
   JavaConstructor,
   JavaInvocation,
@@ -50,6 +52,7 @@ import vct.col.ast.{
   Node,
   Null,
   Perm,
+  PredicateApply,
   PredicateLocation,
   Procedure,
   Program,
@@ -90,7 +93,7 @@ object InferEndpointContexts extends RewriterBuilder {
   override def desc: String =
     "Infer endpoint context for ChorStatement nodes that require one but do not have it yet, such as assignment."
 
-  case class NoImplicitEndpointError(expr: Expr[_]) extends UserError {
+  case class NoImplicitEndpointError(expr: Node[_]) extends UserError {
     override def code: String = "noImplicitEndpoint"
     override def text: String =
       expr.o.messageInContext(
@@ -98,7 +101,7 @@ object InferEndpointContexts extends RewriterBuilder {
       )
   }
 
-  case class MultipleImplicitEndpointsError(expr: Expr[_]) extends UserError {
+  case class MultipleImplicitEndpointsError(expr: Node[_]) extends UserError {
     override def code: String = "multipleImplicitEndpoints"
     override def text: String =
       expr.o.messageInContext(
@@ -125,10 +128,28 @@ object InferEndpointContexts extends RewriterBuilder {
       case _ => throw MultipleImplicitEndpointsError(expr)
     }
 
+  def getEndpoint[G](
+      reportLocation: Node[_],
+      exprs: Seq[Expr[G]],
+  ): Endpoint[G] =
+    exprs.flatMap(getEndpoints).distinct match {
+      case Seq(endpoint) => endpoint
+      case Seq() => throw NoImplicitEndpointError(reportLocation)
+      case _ => throw MultipleImplicitEndpointsError(reportLocation)
+    }
+
   def getEndpoint[G](loc: Location[G]): Endpoint[G] =
     loc match {
       case FieldLocation(obj, _) => getEndpoint(obj)
       case AmbiguousLocation(deref) => getEndpoint(deref)
+      case PredicateLocation(inv) =>
+        inv match {
+          case PredicateApply(ref, args) => getEndpoint(loc, args)
+          case InstancePredicateApply(obj, ref, args) =>
+            getEndpoint(loc, obj +: args)
+          case CoalesceInstancePredicateApply(obj, ref, args) =>
+            getEndpoint(loc, obj +: args)
+        }
       case _ => throw EndpointInferenceUndefined(loc)
     }
 }

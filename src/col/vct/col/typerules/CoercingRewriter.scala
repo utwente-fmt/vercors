@@ -2143,7 +2143,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case LLVMRawVectorValue(value, vectorType) => e
       case LLVMZeroedAggregateValue(aggregateType) => e
       case PVLEndpointExpr(endpoint, expr) => e
-      case EndpointExpr(ref, expr) => EndpointExpr(ref, res(expr))
+      case EndpointExpr(ref, expr) => e
       case ChorExpr(expr) => ChorExpr(bool(expr))
     }
   }

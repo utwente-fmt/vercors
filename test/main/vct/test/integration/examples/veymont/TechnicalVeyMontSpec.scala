@@ -4,7 +4,170 @@ import vct.test.integration.helper.VeyMontSpec
 
 class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
-    desc = "Plain assignment is allowed, but considered unsound",
+    desc = "Endpoint annotations can be inferred for predicates",
+    pvl = """
+      class C {
+        inline resource inv() = true;
+      }
+
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+
+        requires alice.inv() ** bob.inv();
+        run { }
+      }
+    """,
+  )
+
+  choreography(
+    desc =
+      "Endpoint annotations cannot be inferred for predicates with multiple endpoints",
+    error = "choreography:multipleImplicitEndpoints",
+    pvl = """
+      class C {
+        inline resource inv(C other) = true;
+      }
+
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+
+        requires alice.inv(bob);
+        run { }
+      }
+    """,
+  )
+
+  choreography(
+    desc =
+      "Endpoint annotations cannot be inferred if no endpoints are involved",
+    error = "choreography:noImplicitEndpoint",
+    pvl = """
+      class C { }
+
+      ensures \result != null;
+      pure C globalC();
+
+      inline resource globalInv(C c1, C c2) = true;
+
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+
+        requires globalInv(globalC(), globalC());
+        run { }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "`\\sender` also not allowed as message",
+    error = "choreography:resolutionError:onlyInChannelInvariant",
+    pvl = """
+      class C { C x; }
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+        run {
+          communicate alice: \sender -> bob.x;
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "`\\receiver` also not allowed as message",
+    error = "choreography:resolutionError:onlyInChannelInvariant",
+    pvl = """
+      class C { C x; }
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+        run {
+          communicate alice: \receiver -> bob.x;
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "`\\msg` only allowed in channel invariant",
+    error = "choreography:onlyInChannelInvariant",
+    pvl = """
+      requires \msg;
+      void m() { }
+    """,
+  )
+
+  choreography(
+    desc = "`\\receiver` only allowed in channel invariant",
+    error = "choreography:onlyInChannelInvariant",
+    pvl = """
+      requires \receiver;
+      void m() { }
+    """,
+  )
+
+  choreography(
+    desc = "`\\sender` only allowed in channel invariant",
+    error = "choreography:onlyInChannelInvariant",
+    pvl = """
+      requires \sender;
+      void m() { }
+    """,
+  )
+
+  choreography(
+    desc = "Permission stratification can be turned off",
+    flag = "--veymont-ps=none",
+    pvl = """
+      class S { int x; }
+      choreography MyChoreography() {
+        endpoint a = S();
+        endpoint b = S();
+        requires Perm[b](a.x, 1);
+        run {
+          a.x := 3;
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "Permission stratification can be used in inline mode",
+    flag = "--veymont-ps=inline",
+    pvl = """
+      class S {
+        int x;
+        ensures Perm(x, 1) ** x == 3;
+        constructor() { x = 3; }
+      }
+      choreography MyChoreography() {
+        endpoint a = S();
+        endpoint b = S();
+        requires Perm[a](a.x, 1\2);
+        requires Perm[b](a.x, 1\2) ** (\endpoint b; a.x == 3);
+        run {
+          assert a.x == 3;
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc =
+      "When proving branch unanimity, it is not enough that one of the parties can prove branch unanimity",
+    fail = "loopUnanimityNotMaintained",
+    input = example(
+      "technical/veymont/branchUnanimityStratificationProblem.pvl"
+    ),
+  )
+
+  choreography(
+    desc =
+      "Plain assignment is allowed, and works when using --veymont-sp-inline, but considered unsound",
+    flag = "--veymont-ps=inline",
     pvl = """
       class C { int x; }
       choreography Chor() {
@@ -13,21 +176,6 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
         run {
           a.x = 3;
           assert a.x == 3;
-        }
-      }
-        """,
-  )
-
-  choreography(
-    desc = "\\endpoint not allowed in \\chor",
-    error = "choreography:resolutionError:endpointExprInChor",
-    pvl = """
-      class C {}
-      choreography Chor() {
-        endpoint a = C();
-        requires (\chor (\endpoint a; true));
-        run {
-
         }
       }
         """,
@@ -113,7 +261,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
 
   choreography(
     desc = "example using communicate",
-    flag = "--generate-permissions",
+    flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     pvl = """
        class Storage {
           int x;
@@ -1033,12 +1181,12 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   val wd = "technical/veymont"
 
   choreography(
-    flag = "--generate-permissions",
+    flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     input = example(s"$wd/checkLTS/ltstest.pvl"),
   )
 
   choreography(
-    flag = "--generate-permissions",
+    flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     input = example(s"$wd/checkLTS/simpleifelse.pvl"),
   )
 
@@ -1163,6 +1311,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
     desc =
       "Functions that expect only wildcard permissions will succesfully verify, despite the partial encoding of stratified predicates",
+    flag = "--veymont-ps=inline",
     pvl = """
       resource P(C c) = Perm(c.x, 1) ** c.x == 0;
 
@@ -1193,6 +1342,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
     desc =
       "If you precisely half all permissions in a function, you can have exact permission amounts for predicates in a function contract, despite the partial encoding of stratified predicates.",
+    flag = "--veymont-ps=inline",
     pvl = """
       resource P(C c) = Perm(c.x, 1) ** c.x == 0;
 
