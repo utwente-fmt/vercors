@@ -3,7 +3,7 @@ package vct.col.ast.expr.veymont
 import vct.col.ast.expr.ExprImpl
 import vct.col.ast.ops.EndpointExprOps
 import vct.col.ast.{Endpoint, EndpointExpr, TBool, TResource, Type}
-import vct.col.check.CheckContext
+import vct.col.check.{CheckContext, CheckError, InconsistentEndpointExprNesting}
 import vct.col.print._
 
 trait EndpointExprImpl[G] extends EndpointExprOps[G] with ExprImpl[G] {
@@ -16,5 +16,14 @@ trait EndpointExprImpl[G] extends EndpointExprOps[G] with ExprImpl[G] {
 
   override def enterCheckContextInEndpointExpr(
       context: CheckContext[G]
-  ): Option[Endpoint[G]] = Some(this.endpoint.decl)
+  ): Option[EndpointExpr[G]] = Some(this)
+
+  override def check(context: CheckContext[G]): Seq[CheckError] =
+    super.check(context) ++
+      (context.inEndpointExpr match {
+        case Some(endpointExpr)
+            if endpointExpr.endpoint.decl != this.endpoint.decl =>
+          Seq(InconsistentEndpointExprNesting(endpointExpr, this))
+        case _ => Seq()
+      })
 }

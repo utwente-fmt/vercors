@@ -6,6 +6,7 @@ import vct.col.ast.{
   Communicate,
   Declaration,
   Endpoint,
+  EndpointExpr,
   Node,
 }
 import vct.col.check.{CheckContext, CheckError}
@@ -96,7 +97,7 @@ trait NodeCheckOps[G] {
     context.inChor
   def enterCheckContextInEndpointExpr(
       context: CheckContext[G]
-  ): Option[Endpoint[G]] = context.inEndpointExpr
+  ): Option[EndpointExpr[G]] = context.inEndpointExpr
   def enterCheckContextInCommunicateInvariant(
       context: CheckContext[G]
   ): Option[Communicate[G]] = context.inCommunicateInvariant

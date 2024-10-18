@@ -88,11 +88,6 @@ case class EncodeChannels[Pre <: Generation]()
     expr match {
       case e if substitutions.topOption.exists(_.contains(e)) =>
         substitutions.top(e)
-      case InEndpoint(_, endpoint, Perm(loc, perm)) =>
-        ChorPerm[Post](succ(endpoint), dispatch(loc), dispatch(perm))(expr.o)
-      case InEndpoint(_, _, _: ChorPerm[Pre]) =>
-        assert(false);
-        ??? // TODO (RR): This is an error, remove when getting rid of ChorPerm as well
       case Message(Ref(comm)) => Local[Post](msgSucc.ref(comm))(comm.o)
       case Sender(Ref(comm)) =>
         EndpointName[Post](succ(comm.sender.get.decl))(expr.o)

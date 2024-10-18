@@ -4,29 +4,25 @@ import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.check.SeqProgParticipant
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.util.AstBuildHelpers
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.StratifyExpressions.{
-  MultipleEndpoints,
-  SeqProgParticipantErrors,
+import vct.rewrite.veymont.InferEndpointContexts.{
+  MultipleImplicitEndpoints,
+  NoImplicitEndpoint,
 }
+import vct.rewrite.veymont.StratifyExpressions.SeqProgParticipantErrors
 
 object StratifyExpressions extends RewriterBuilder {
   override def key: String = "stratifyExpressions"
   override def desc: String =
     "Stratifies expressions by putting all contracts, branch conditions and loop conditions within a choreography's run declaration into endpoint exprs, inferring endpoint contexts where required."
 
-  case class MultipleEndpoints(e: Expr[_]) extends UserError {
-    override def code: String = "multipleEndpoints"
-    override def text: String =
-      e.o.messageInContext("Cannot infer endpoint context for this expression")
-  }
-
   case class SeqProgParticipantErrors(es: Seq[SeqProgParticipant])
       extends UserError {
     override def code: String = "seqProgParticipantErrors"
     override def text: String =
-      es.map { case err: SeqProgParticipant => err.message { n => n.o } }
+      es.map { err: SeqProgParticipant => err.message { n => n.o } }
         .mkString("\n")
   }
 }
@@ -51,8 +47,12 @@ case class StratifyExpressions[Pre <: Generation]()
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
-      case prog: Choreography[Pre] =>
-        currentChoreography.having(prog) { prog.rewriteDefault().succeed(prog) }
+      case chor: Choreography[Pre] =>
+        currentChoreography.having(chor) {
+          // For the choreographic contract, we don't want the permissions to be stratified, so we force a default rewrite
+          // for that contract. This is important because otherwise the dispatch(ApplicableContract) below would pick it up.
+          chor.rewrite(contract = chor.contract.rewriteDefault()).succeed(chor)
+        }
       case decl => super.dispatch(decl)
     }
 
@@ -115,19 +115,20 @@ case class StratifyExpressions[Pre <: Generation]()
       case statement => statement.rewriteDefault()
     }
 
-  def stratifyExpr(e: Expr[Pre]): Expr[Post] = {
-    val exprs = {
-      // Ensure the "true" expression is kept
-      val es = unfoldStar(e)
-      if (es.isEmpty)
-        Seq(e)
-      else
-        es
+  def dumbUnfoldStar[G](expr: Expr[G]): Seq[Expr[G]] =
+    expr match {
+      case Star(left, right) =>
+        AstBuildHelpers.unfoldStar(left) ++ AstBuildHelpers.unfoldStar(right)
+      case And(left, right) =>
+        AstBuildHelpers.unfoldStar(left) ++ AstBuildHelpers.unfoldStar(right)
+      case other => Seq(other)
     }
+
+  def stratifyExpr(e: Expr[Pre]): Expr[Post] = {
+    val exprs = dumbUnfoldStar(e)
     foldAny(e.t)(
       exprs.map {
         case e: ChorExpr[Pre] => (None, e)
-        case e: ChorPerm[Pre] => (None, e)
         case e: EndpointExpr[Pre] => (None, e)
         case expr => point(expr)
       }.map {
@@ -144,10 +145,13 @@ case class StratifyExpressions[Pre <: Generation]()
       case Seq(endpoint) =>
         // expr is totally in context of one endpoint and whatever else is in scope
         (Some(endpoint), e)
+      // Expressions of type resource _must_ be pointed
+      case Seq() if e.t == TResource[Pre]() => throw NoImplicitEndpoint(e)
+      // Other expressions, presumably bool-typed, will be duplicated in stratifyUnpointedExpressions
       case Seq() => (None, e)
       case _ =>
         // Expr uses multiple endpoints - for now we should disallow that.
-        throw MultipleEndpoints(e)
+        throw MultipleImplicitEndpoints(e)
     }
   }
 }

@@ -27,9 +27,6 @@ case class ReadToValue[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
       case Perm(loc, ReadPerm()) => Value(dispatch(loc))(expr.o)
-      case cp @ ChorPerm(endpoint, loc, ReadPerm()) =>
-        implicit val o = cp.o
-        EndpointExpr(succ(endpoint.decl), Value(dispatch(loc)))
       case Scale(ReadPerm(), Perm(loc, WritePerm())) =>
         // Temporary solution for predicates: there should be a proper notion of scaling by read instead.
         Value(dispatch(loc))(expr.o)
