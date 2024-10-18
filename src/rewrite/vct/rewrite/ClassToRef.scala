@@ -9,6 +9,7 @@ import vct.col.rewrite.error.{ExcludedByPassOrder, ExtraNode}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.Referrable
 import vct.col.util.SuccessionMap
+import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
 
@@ -29,7 +30,7 @@ case object ClassToRef extends RewriterBuilder {
   private def CastHelperOrigin: Origin =
     Origin(Seq(LabelContext("classToRef cast helpers")))
 
-  case class InstanceNullPreconditionFailed(
+  private case class InstanceNullPreconditionFailed(
       inner: Blame[InstanceNull],
       inv: InvokingNode[_],
   ) extends Blame[PreconditionFailed] {
@@ -37,7 +38,7 @@ case object ClassToRef extends RewriterBuilder {
       inner.blame(InstanceNull(inv))
   }
 
-  case class DerefFieldPointerBlame(
+  private case class DerefFieldPointerBlame(
       inner: Blame[InsufficientPermission],
       node: HeapDeref[_],
       clazz: ByValueClass[_],
@@ -45,6 +46,29 @@ case object ClassToRef extends RewriterBuilder {
   ) extends Blame[PointerDerefError] {
     override def blame(error: PointerDerefError): Unit = {
       inner.blame(InsufficientPermission(node))
+    }
+  }
+
+  private case class RequiresExhaleModeError() extends UserError {
+    override def code: String = "requiresMce"
+
+    override def text: String =
+      "This program contains complex casts. If running through Silicon the verification likely failed because " +
+        "complex cast support requires Viper's more complete exhale mode.\nThis mode can be enabled with the options: " +
+        "--backend-option --exhaleMode=2 or --backend-option --exhaleMode=1"
+  }
+
+  private case class RequiresExhaleModeBlame()
+      extends Blame[PointerDerefError] {
+    override def blame(error: PointerDerefError): Unit = {
+      error match {
+        case _: CopyClassFailed | _: CopyClassFailedBeforeCall |
+            _: PointerLocationError =>
+          PanicBlame(
+            s"Permission should be framed, did not expect: ${error.desc}"
+          )
+        case _: PointerInsufficientPermission => throw RequiresExhaleModeError()
+      }
     }
   }
 }
@@ -697,9 +721,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                     .getOrElseUpdate(t, makeValueAsFunction(t.toString, newT))
                     .ref,
                   typeArgs = Some((valueAdt.ref(()), Seq(outerType))),
-                  args = Seq(DerefPointer(p)(PanicBlame(
-                    "Pointer deref is safe since the permission is framed"
-                  ))),
+                  args = Seq(DerefPointer(p)(RequiresExhaleModeBlame())),
                 )),
             tt,
           )
