@@ -76,8 +76,6 @@ case class EncodePermissionStratification[Pre <: Generation](
     mode: PermissionStratificationMode
 ) extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
-  import vct.rewrite.veymont.verification.{PermissionStratificationMode => Mode}
-
   val inChor = ScopedStack[Boolean]()
   var warnedAboutChor = false
 
@@ -103,6 +101,7 @@ case class EncodePermissionStratification[Pre <: Generation](
           // Get all T's from endpoint contexts
           case expr: EndpointExpr[Pre] => expr.collect(f)
           case stmt: EndpointStatement[Pre] => stmt.collect(f)
+          case perm: ChorPerm[Pre] => perm.collect(f)
         }.flatten
     )
 
@@ -490,6 +489,14 @@ case class EncodePermissionStratification[Pre <: Generation](
       case AmbiguousFoldTarget(_) => ??? // Shouldn't occur at this stage
     }
 
+  def markedPredicate(loc: PredicateLocation[Pre], perm: Expr[Pre])(
+      implicit o: Origin
+  ): Expr[Post] =
+    mode match {
+      case Mode.Inline => markedInlinePredicate(loc, perm)
+      case Mode.Wrap => markedWrapPredicate(loc, perm)
+    }
+
   // Incomplete encoding; see specializePredicateLocation
   def markedInlinePredicate(loc: PredicateLocation[Pre], perm: Expr[Pre])(
       implicit o: Origin
@@ -500,14 +507,6 @@ case class EncodePermissionStratification[Pre <: Generation](
         RatDiv(dispatch(perm), const(2))(NoZeroDiv),
       )
   }
-
-  def markedPredicate(loc: PredicateLocation[Pre], perm: Expr[Pre])(
-      implicit o: Origin
-  ): Expr[Post] =
-    mode match {
-      case Mode.Inline => markedInlinePredicate(loc, perm)
-      case Mode.Wrap => markedWrapPredicate(loc, perm)
-    }
 
   def markedWrapPredicate(loc: PredicateLocation[Pre], perm: Expr[Pre])(
       implicit o: Origin

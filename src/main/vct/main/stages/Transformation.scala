@@ -240,6 +240,8 @@ class Transformation(
           action(passes, Transformation.before, passIndex, result)
         }
 
+        logger.debug(s"Running transformation ${pass.key}")
+
         result =
           try { pass().dispatch(result) }
           catch {
@@ -247,6 +249,8 @@ class Transformation(
               logger.error(s"An error occurred in pass ${pass.key}")
               throw c
           }
+
+        logger.debug(s"Finished transformation ${pass.key}")
 
         onPassEvent.foreach { action =>
           action(passes, Transformation.after, passIndex, result)
