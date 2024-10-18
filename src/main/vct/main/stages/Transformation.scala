@@ -328,6 +328,8 @@ case class SilverTransformation(
         // Replace leftover SYCL types
         ReplaceSYCLTypes,
         CFloatIntCoercion,
+
+        // BIP transformations
         ComputeBipGlue,
         InstantiateBipSynchronizations,
         EncodeBipPermissions,
@@ -339,32 +341,11 @@ case class SilverTransformation(
         // Delete stuff that may be declared unsupported at a later stage
         FilterSpecIgnore,
 
-        // Normalize AST
+        // Disambiguate AST
         // Make sure Disambiguate comes after CFloatIntCoercion, so CInts are gone
         Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
         DisambiguateLocation, // Resolve location type
         DisambiguatePredicateExpression,
-        EncodeRangedFor,
-        EncodeString, // Encode spec string as seq<int>
-        EncodeChar,
-        CollectLocalDeclarations, // all decls in Scope
-        VariableToPointer, // should happen before ParBlockEncoder so it can distinguish between variables which can and can't altered in a parallel block
-        DesugarPermissionOperators, // no PointsTo, \pointer, etc.
-        ReadToValue, // resolve wildcard into fractional permission
-        TrivialAddrOf,
-        DesugarCoalescingOperators, // no ?.
-        PinCollectionTypes, // no anonymous sequences, sets, etc.
-        QuantifySubscriptAny, // no arr[*]
-        IterationContractToParBlock,
-        PropagateContextEverywhere, // inline context_everywhere into loop invariants
-        EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
-        GivenYieldsToArgs,
-        CheckProcessAlgebra,
-        EncodeCurrentThread,
-        EncodeIntrinsicLock,
-        EncodeForkJoin,
-        InlineApplicables,
-        InlineTrivialLets,
 
         // VeyMont choreography encoding
         // Explicitly after InlineApplicables such that VeyMont doesn't care about inline predicates
@@ -386,6 +367,28 @@ case class SilverTransformation(
         EncodeChoreography,
         // All VeyMont nodes should now be gone
 
+        // Desugar high-level COL constructs
+        EncodeRangedFor,
+        EncodeString, // Encode spec string as seq<int>
+        EncodeChar,
+        CollectLocalDeclarations, // all decls in Scope
+        VariableToPointer, // should happen before ParBlockEncoder so it can distinguish between variables which can and can't altered in a parallel block
+        DesugarPermissionOperators, // no PointsTo, \pointer, etc.
+        ReadToValue, // resolve wildcard into fractional permission
+        TrivialAddrOf,
+        DesugarCoalescingOperators, // no ?.
+        PinCollectionTypes, // no anonymous sequences, sets, etc.
+        QuantifySubscriptAny, // no arr[*]
+        IterationContractToParBlock,
+        PropagateContextEverywhere, // inline context_everywhere into loop invariants
+        EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
+        GivenYieldsToArgs,
+        CheckProcessAlgebra,
+        EncodeCurrentThread,
+        EncodeIntrinsicLock,
+        EncodeForkJoin,
+        InlineApplicables,
+        InlineTrivialLets,
         PureMethodsToFunctions,
         RefuteToInvertedAssert,
         ExplicitResourceValues,
