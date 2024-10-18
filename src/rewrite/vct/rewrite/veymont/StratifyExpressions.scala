@@ -6,27 +6,22 @@ import vct.col.check.SeqProgParticipant
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.StratifyExpressions.{
-  MultipleEndpoints,
-  SeqProgParticipantErrors,
+import vct.rewrite.veymont.InferEndpointContexts.{
+  MultipleImplicitEndpoints,
+  NoImplicitEndpoint,
 }
+import vct.rewrite.veymont.StratifyExpressions.SeqProgParticipantErrors
 
 object StratifyExpressions extends RewriterBuilder {
   override def key: String = "stratifyExpressions"
   override def desc: String =
     "Stratifies expressions by putting all contracts, branch conditions and loop conditions within a choreography's run declaration into endpoint exprs, inferring endpoint contexts where required."
 
-  case class MultipleEndpoints(e: Expr[_]) extends UserError {
-    override def code: String = "multipleEndpoints"
-    override def text: String =
-      e.o.messageInContext("Cannot infer endpoint context for this expression")
-  }
-
   case class SeqProgParticipantErrors(es: Seq[SeqProgParticipant])
       extends UserError {
     override def code: String = "seqProgParticipantErrors"
     override def text: String =
-      es.map { case err: SeqProgParticipant => err.message { n => n.o } }
+      es.map { err: SeqProgParticipant => err.message { n => n.o } }
         .mkString("\n")
   }
 }
@@ -51,8 +46,8 @@ case class StratifyExpressions[Pre <: Generation]()
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
-      case prog: Choreography[Pre] =>
-        currentChoreography.having(prog) { prog.rewriteDefault().succeed(prog) }
+      case chor: Choreography[Pre] =>
+        currentChoreography.having(chor) { chor.rewriteDefault().succeed(chor) }
       case decl => super.dispatch(decl)
     }
 
@@ -143,10 +138,13 @@ case class StratifyExpressions[Pre <: Generation]()
       case Seq(endpoint) =>
         // expr is totally in context of one endpoint and whatever else is in scope
         (Some(endpoint), e)
+      // Expressions of type resource _must_ be pointed
+      case Seq() if e.t == TResource[Pre]() => throw NoImplicitEndpoint(e)
+      // Other expressions, presumably bool-typed, will be duplicated in stratifyUnpointedExpressions
       case Seq() => (None, e)
       case _ =>
         // Expr uses multiple endpoints - for now we should disallow that.
-        throw MultipleEndpoints(e)
+        throw MultipleImplicitEndpoints(e)
     }
   }
 }

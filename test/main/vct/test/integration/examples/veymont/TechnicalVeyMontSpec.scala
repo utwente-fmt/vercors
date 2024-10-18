@@ -17,6 +17,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
 
   choreography(
     desc = "Endpoint expressions should be nested consistently",
+    error = "choreography:resolutionError:inconsistentEndpointExprNesting",
     pvl = """
       class C { }
       choreography Chor() {
@@ -32,15 +33,42 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
     desc = "Endpoint annotations can be inferred for predicates",
     pvl = """
       class C {
-        inline resource inv() = true;
+        resource inv() = true;
+        ensures inv();
+        constructor();
       }
 
       choreography MyChoreography() {
         endpoint alice = C();
         endpoint bob = C();
 
-        requires alice.inv() ** bob.inv();
-        run { }
+        requires alice.inv();
+        run {
+          assert (\[alice] alice.inv());
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "Endpoint annotations are actually added for predicates",
+    fail = "assertFailed:perm",
+    pvl = """
+      class C {
+        resource inv() = true;
+
+        ensures inv();
+        constructor();
+      }
+
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+
+        requires alice.inv();
+        run {
+          assert (\[bob] alice.inv());
+        }
       }
     """,
   )
@@ -51,7 +79,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
     error = "choreography:multipleImplicitEndpoints",
     pvl = """
       class C {
-        inline resource inv(C other) = true;
+        resource inv(C other) = true;
       }
 
       choreography MyChoreography() {
