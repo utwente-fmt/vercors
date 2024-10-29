@@ -1,7 +1,13 @@
 parser grammar CPPParser;
-options {tokenVocab = LangCPPLexer;}
+options {
+    superClass = CPPParserBase;
+    tokenVocab = LangCPPLexer;
+}
 import LangCPPParser, SpecParser;
 
+@header {
+    import vct.parsers.parser.CPPParserBase;
+}
 @parser::members {
     public int specLevel = 0;
 }
@@ -11,10 +17,12 @@ langId: clangppIdentifier;
 langConstInt: literal;
 langType: typeSpecifier;
 langStatement: statement;
-langStatic: EOF EOF;
+langStatic: NEVER;
 langGlobalDecl: declaration;
-langClassDecl: EOF EOF;
+langClassDecl: NEVER;
 valArg: parameterDeclaration;
+specTrue: NEVER;
+specFalse: NEVER;
 
 startSpec: LineStartSpec {specLevel++;} | BlockStartSpec {specLevel++;} | BlockStartSpecImmediate {specLevel++;};
 endSpec: EndSpec {specLevel--;};

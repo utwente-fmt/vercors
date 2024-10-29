@@ -15,6 +15,7 @@ import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
 import vct.parsers.transform.systemctocol.colmodel.StateClass;
 import vct.parsers.transform.systemctocol.util.OriGen;
+import vct.parsers.transform.systemctocol.util.Seqs;
 
 /**
  * Transforms a SystemC class into one or more COL classes.
@@ -44,12 +45,12 @@ public class ClassTransformer<T> {
      * @param process Process class in intermediate representation
      * @return A COL class encoding the semantics of the given process class
      */
-    public Class<T> create_process_class(ProcessClass process) {
+    public ByReferenceClass<T> create_process_class(ProcessClass process) {
         java.util.List<ClassDeclaration<T>> declarations = new java.util.ArrayList<>();
 
         // Transform class attributes
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
+        InstanceField<T> m = new InstanceField<>(new TByReferenceClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         declarations.add(m);
         col_system.add_class_main_ref(process, m);
         java.util.Map<SCVariable, InstanceField<T>> fields = create_fields(process.get_generating_function(), process.get_methods(),
@@ -74,7 +75,8 @@ public class ClassTransformer<T> {
         // Add all newly generated methods to the declarations as well
         declarations.addAll(generated_instance_methods);
 
-        return new Class<>(List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE,
+        return new ByReferenceClass<>(Seqs.empty(),
+                List.from(CollectionConverters.asScala(declarations)), Seqs.empty(), col_system.TRUE,
                 OriGen.create(create_name(process.get_generating_instance(), process.get_generating_function())));
     }
 
@@ -84,12 +86,12 @@ public class ClassTransformer<T> {
      * @param state_class State class in intermediate representation
      * @return A COL class encoding the semantics of the given state class
      */
-    public Class<T> create_state_class(StateClass state_class) {
+    public ByReferenceClass<T> create_state_class(StateClass state_class) {
         java.util.List<ClassDeclaration<T>> declarations = new java.util.ArrayList<>();
 
         // Transform class attributes
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
+        InstanceField<T> m = new InstanceField<>(new TByReferenceClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         declarations.add(m);
         col_system.add_class_main_ref(state_class, m);
         java.util.Map<SCVariable, InstanceField<T>> fields = create_fields(null, state_class.get_methods(),
@@ -124,7 +126,8 @@ public class ClassTransformer<T> {
         // Add newly generated methods to declaration list
         declarations.addAll(generated_instance_methods);
 
-        return new Class<>(List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE,
+        return new ByReferenceClass<>(Seqs.empty(),
+                List.from(CollectionConverters.asScala(declarations)), Seqs.empty(), col_system.TRUE,
                 OriGen.create(create_name(state_class.get_generating_instance())));
     }
 

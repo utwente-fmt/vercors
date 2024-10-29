@@ -6,19 +6,19 @@ parser grammar LangPVLParser;
 
 program  : programDecl* EOF EOF ;
 
-programDecl : valGlobalDeclaration | declClass | enumDecl | method | declVeyMontSeqProg;
+programDecl : valGlobalDeclaration | declClass | enumDecl | method | declVeyMontSeqProg | vesuvEntry ;
 
 enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
 
 declClass
- : contract 'class' identifier '{' classDecl* '}'
+ : contract 'class' identifier declaredTypeArgs? '{' classDecl* '}'
  ;
 
-declVeyMontSeqProg : contract 'seq_program' identifier '(' args? ')' '{' seqProgDecl* '}';
+declVeyMontSeqProg : contract 'choreography' identifier '(' args? ')' '{' seqProgDecl* '}';
 
 seqProgDecl
  : 'endpoint' identifier '=' classType '(' exprList? ')' ';' # pvlEndpoint
- | contract 'seq_run' block # pvlSeqRun
+ | contract 'run' block # pvlSeqRun
  | method # seqProgMethod
  ;
 
@@ -31,12 +31,14 @@ classDecl : valClassDeclaration | constructor | method | field | runMethod;
 finalFlag: 'final';
 field : finalFlag? type identifierList ';' ;
 
-method : contract valModifier* type identifier '(' args? ')' methodBody ;
+method : contract valModifier* type identifier declaredTypeArgs? '(' args? ')' methodBody ;
 methodBody : ';' | block ;
 
-constructor : contract 'constructor' '(' args? ')' methodBody ;
+constructor : contract 'constructor' declaredTypeArgs? '(' args? ')' methodBody ;
 
 runMethod : contract 'run' methodBody ;
+
+vesuvEntry : 'vesuv_entry' methodBody ;
 
 contract : valContractClause* ;
 
@@ -129,6 +131,8 @@ seqAddExpr
 unaryExpr
  : '!' unaryExpr
  | '-' unaryExpr
+ | '*' unaryExpr
+ | '&' unaryExpr
  | valPrefix unaryExpr
  | newExpr
  ;
@@ -147,17 +151,25 @@ postfixExpr
  ;
 
 unit
- : valExpr
- | 'this'
- | 'null'
- | NUMBER
- | DECIMAL_NUMBER
- | DECIMAL_NUMBER_F
- | STRING_LITERAL
- | CHARACTER_LITERAL
- | '(' expr ')'
- | identifier call?
- | valGenericAdtInvocation
+ : valExpr # pvlValExpr
+ | 'Perm' '[' identifier ']' '(' expr ',' expr ')' # pvlChorPerm
+ | '(' '\\endpoint' identifier ';' expr ')' # pvlLongEndpointExpr
+ | '(' '\\' '[' identifier ']' expr ')' # pvlShortEndpointExpr
+ | '(' '\\chor' expr ')' # pvlLongChorExpr
+ | '(' '\\' '[' ']' expr ')' # pvlShortChorExpr
+ | 'this' # pvlThis
+ | 'null' # pvlNull
+ | '\\sender' # pvlSender
+ | '\\receiver' # pvlReceiver
+ | '\\msg' # pvlMessage
+ | NUMBER # pvlNumber
+ | DECIMAL_NUMBER # pvlDecimal
+ | DECIMAL_NUMBER_F # pvlDecimalF
+ | STRING_LITERAL # pvlString
+ | CHARACTER_LITERAL # pvlChar
+ | '(' expr ')' # pvlParens
+ | identifier call? # pvlInvocation
+ | valGenericAdtInvocation # pvlValAdtInvocation
  ;
 
 call : typeArgs? tuple valGiven? valYields?;
@@ -174,6 +186,7 @@ statement
  | 'fork' expr ';' # pvlFork
  | 'join' expr ';' # pvlJoin
  | valStatement # pvlValStatement
+ | 'if' '(' '*' ')' statement elseBlock? # pvlIndetBranch
  | 'if' '(' expr ')' statement elseBlock? # pvlIf
  | 'barrier' '(' identifier barrierTags? ')' barrierBody # pvlBarrier
  | parRegion # pvlPar
@@ -187,8 +200,11 @@ statement
  | 'goto' identifier ';' # pvlGoto
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
- | 'communicate' access direction access ';' # pvlCommunicateStatement
- | identifier '.' identifier ':' '=' expr ';' # pvlSeqAssign
+ | channelInvariant? 'communicate' access direction access ';' # pvlCommunicateStatement
+ ;
+
+ channelInvariant
+ : 'channel_invariant' expr ';'
  ;
 
 direction
@@ -196,11 +212,8 @@ direction
  | '->'
  ;
 
-access: subject '.' identifier;
-subject
- : identifier
- | identifier '[' expr ']'
- | identifier '[' identifier ':' expr '..' expr ']';
+access: participant? expr;
+participant: identifier ':';
 
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;
@@ -211,6 +224,7 @@ allowedForStatement
  | expr # pvlEval
  | identifier ('++'|'--') # pvlIncDec
  | expr '=' expr # pvlAssign
+ | participant? expr ':' '=' expr # pvlSeqAssign
  ;
 
 forStatementList
@@ -266,6 +280,7 @@ quantifiedDim : '[' expr ']' ;
 anonDim : '[' ']' ;
 classType : identifier typeArgs?;
 typeArgs : '<' typeList '>';
+declaredTypeArgs: '<' identifierList '>';
 
 identifierList
  : identifier

@@ -14,6 +14,8 @@ langStatement: blockStatement;
 langStatic: 'static';
 langClassDecl: classBodyDeclaration;
 langGlobalDecl: typeDeclaration;
+specTrue: NEVER;
+specFalse: NEVER;
 
 startSpec
     : LineStartSpec {specLevel++;}

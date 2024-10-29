@@ -1,0 +1,17 @@
+choreography Main() {
+	endpoint a = Role(5);
+	endpoint b = Role(6);
+	endpoint c = Role(7);
+
+	run {
+		new Role(3); // Error
+	}
+}
+
+class Role {
+	int x;
+	
+	constructor(int v) {
+		x = v;
+	}
+}

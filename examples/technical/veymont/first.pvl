@@ -1,0 +1,23 @@
+class C {
+  ensures Perm(temp, 1) ** Perm(this.x, 1) ** this.x == x;
+  constructor(int x) {
+    this.x = x;
+  }
+  int x;
+  int temp;
+}
+
+choreography Example() {
+  endpoint alice = C(2);
+  endpoint bob = C(0);
+
+  requires Perm(alice.temp, 1) ** Perm(bob.temp, 1);
+  requires Perm[bob](alice.x, 1) ** (\[bob] alice.x == 2);
+  ensures Perm[alice](alice.x, 1) ** (\[alice] alice.x == 4);
+  run {
+    bob: alice.x := alice.x + 1;
+    channel_invariant Perm(\receiver.x, 1) ** \receiver.x == 3;
+    communicate bob.temp -> alice.temp;
+    alice.x := alice.x + 1;
+  }
+}

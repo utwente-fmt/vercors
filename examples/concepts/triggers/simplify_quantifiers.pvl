@@ -1,0 +1,122 @@
+  requires n==5 && m > 5 && o > 5;
+  requires h != null && h.length == n*m*o;
+  requires (∀* int x=0..h.length; Perm(h[x], write));
+
+  // Notice the warnings about the quantifier (binder) not containing triggers from VerCors.
+  requires (∀int i, int j, int k; 0 <= k*n*m + j*n + i && k*n*m + j*n + i < n*m*o; h[k*n*m + j*n + i] == i+j+k);
+void test1(int n, int m, int o, int[] h){
+  // Below cannot be proven  since the quantifier cannot be rewritten to 
+  // an equivalent 3D access quantifier
+  // assert h[4*5*6 + 5*5 + 3] == 12;
+
+  // Actually the quantifier covers multiple values of h[5], if for example if m==5,
+  // we could instantiate for i=0, j=1, k=0 : h[5] == 0+1+0
+  // but also for i=5, j=0, k=0 : h[5] == 5+0+0
+  // so it is not consistent.
+  // Meaning this quantifier definitely cannot be rewritten.
+}
+
+
+  requires n==5 && m > 5 && o > 5;
+  requires h != null && h.length == n*m*o;
+  requires (∀* int x=0..h.length; Perm(h[x], write));
+
+  // However if we write this quantifier, what exactly is how a three dimensional array is accessed
+  // the binder gets rewritten and we can prove things using this.
+  requires (∀int i=0..n, int j=0..m, int k=0..o; h[k*n*m + j*n + i] == i+j+k);
+void test2(int n, int m, int o, int[] h){
+  assert h[4*n*m + 5*n + 3] == 12;
+}
+
+  requires n==5 && m > 5 && o > 5;
+  requires h != null && h.length == n*m*o;
+  requires (∀* int x=0..h.length; Perm(h[x], write));
+
+  // Internally the above quantifier is rewritten towards
+  requires (∀int i_j_k=0..(n*m*o); {:h[i_j_k]:} == 
+    (\let int k=i_j_k/(m*n); 
+    (\let int j=(i_j_k%(m*n))/n;
+    (\let int i=(i_j_k%(m*n))%n;
+    i+j+k)))
+    );
+void test3(int n, int m, int o, int[] h){
+  
+  assert h[4*n*m + 5*n + 3] == 12;
+  // Which a user could do as well of course
+}
+
+void test4(){
+  int[] h = new int[5*6*7];
+  // However with a parallel block, we need the same information, but we cannot write 
+  // the quantifier ourself. Every condition below is automatically quantified over the 
+  // range of the parallel block and automatically gets rewritten to the correct form.
+    
+  par(int tk=0..7)
+    context (∀*int i=0..5, int j=0..6; Perm(h[tk*5*6 + j*5 + i], write));
+    ensures (∀int i=0..5, int j=0..6; h[tk*5*6 + j*5 + i] == i+j+tk );
+  {
+    par(int tj=0..6)
+      context (∀*int i=0..5; Perm(h[tk*5*6 + tj*5 + i], write));
+      ensures (∀int i=0..5; h[tk*5*6 + tj*5 + i] == i+tj+tk );
+    {
+      par(int ti=0..5)
+        context Perm(h[tk*5*6 + tj*5 + ti], write);
+        ensures h[tk*5*6 + tj*5 + ti] == ti+tj+tk;
+      {
+        h[tk*5*6 + tj*5 + ti] = ti+tj+tk;
+      }
+    }
+  }
+
+  // And this is proven.
+  assert (∀int i=0..5, int j=0..6, int k=0..7; h[k*5*6 + j*5 + i] == i+j+k);
+}
+
+  requires n==6 && m == 6 && o == 7;
+  requires h != null && h.length == n*m*o*2;
+  requires (∀* int x=0..h.length; Perm(h[x], write));
+
+  // We also allow access with a stride, so here we access every second element
+  requires (∀int i=0..n, int j=0..m, int k=0..o; h[2*(k*n*m + j*n + i)] == i+j+k);
+void test5(int n, int m, int o, int[] h){
+  
+  assert h[2*(4*n*m + 5*n + 3)] == 12;
+}
+
+  requires n==6 && m == 6 && o == 7;
+  requires h != null && h.length == n*m*o;
+  requires (∀* int x=0..h.length; Perm(h[x], write));
+
+  // Or the forall needs not have the complete range for all the dimensions
+  // as long as the used range is provable smaller than the actual range
+  requires (∀int i=0..4, int j=4..m, int k=0..o; h[(k*n*m + j*n + i)] == i+j+k);
+void test6(int n, int m, int o, int[] h){
+  assert h[(4*n*m + 5*n + 3)] == 12;
+}
+
+  requires n==6 && m == 6 && o == 7 && p == 8;
+  requires h != null && h.length == n*m*o*p;
+  requires (∀* int x=0..h.length; Perm(h[x], write));
+
+  // The forall can be of arbitrary dimension
+  requires (∀int i=0..n, int j=0..m, int k=0..o, int l=0..p; h[(l*o*n*m + k*n*m + j*n + i)] == i+j+k+l);
+void test7(int n, int m, int o, int p, int[] h){
+  assert h[(2*o*n*m+4*n*m + 5*n + 3)] == 14;
+}
+
+  requires n==6 && m == 6 && o == 7;
+  requires h != null && h.length == 37*o;
+  requires (∀* int x=0..h.length; Perm(h[x], write));
+
+  // Or the dimensions can have some irregularities
+  requires (∀int i=0..n, int j=0..m, int k=0..o; j*n + i<37 ==> h[(k*37 + j*n + i)] == i+j+k);
+void test8(int n, int m, int o, int[] h){
+  assert h[(4*37 + 5*n + 3)] == 12;
+}
+
+// Further note that in principle this rewriting can be done for arbitrary values of n, m, o
+// This is fine for the quantifiers. To test this, however, we access it with
+// an index like `(4*n*m + 5*n + 3)` which is non-linear arithmetic. And the (SMT) solvers
+// VerCors rely on, cannot consistently deal with non-linear arithmetic.
+// The reason the quantifier rewriting is not breaking here is, because internally,
+// we symbolically evaluate some expressions, instead of using an SMT solver everywhere. 

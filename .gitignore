@@ -20,6 +20,7 @@ vct-tool.jar
 .bsp/
 null/
 .compile-strict
+.include-vcllvm
 
 # Mac specific OS files
 .DS_Store
@@ -60,3 +61,6 @@ __pycache__
 
 # Misc
 *.pprof
+*.vpr
+test.pvl
+a.java

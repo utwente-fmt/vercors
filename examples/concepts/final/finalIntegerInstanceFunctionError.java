@@ -15,9 +15,7 @@ public class finalIntegerInstanceFunctionError {
     }
 
     private void test() {
-        /*[/expect assertFailed:false]*/
         //@ assert FIVE_FROM_METHOD_CALL == 5;
-        /*[/end]*/
     }
 
 }

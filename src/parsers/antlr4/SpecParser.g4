@@ -3,6 +3,7 @@ parser grammar SpecParser;
 /**
  imported grammar rules
    langExpr
+   langConstInt
    langId
    langType
    langModifier
@@ -156,6 +157,7 @@ valMapPairs
 valPrimaryCollectionConstructor
  : 'seq' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralSeq
  | 'set' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralSet
+ | 'vector' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralVector
  | 'set' '<' langType '>' '{' langExpr '|' valSetCompSelectors ';' langExpr '}' # valSetComprehension
  | 'bag' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralBag
  | 'map' '<' langType ',' langType '>' '{' valMapPairs? '}' # valTypedLiteralMap
@@ -166,13 +168,15 @@ valPrimaryCollectionConstructor
  | '[t:' langType ']' # valEmptySeq
  | '{t:' langType '}' # valEmptySet
  | 'b{t:' langType '}' # valEmptyBag
- | '{' langExpr '..' langExpr '}' # valRange
+ | '{' langExpr '..' langExpr '}' # valRangeSet
+ | '[' langExpr '..' langExpr ']' # valRange
  ;
 
 valPrimaryPermission
  : 'perm' '(' langExpr ')' # valCurPerm
  | 'Perm' '(' langExpr ',' langExpr ')' # valPerm
  | 'Value' '(' langExpr ')' # valValue
+ | 'AutoValue' '(' langExpr ')' # valAutoValue
  | 'PointsTo' '(' langExpr ',' langExpr ',' langExpr ')' #valPointsTo
  | 'HPerm' '(' langExpr ',' langExpr ')' # valHPerm
  | 'APerm' '(' langExpr ',' langExpr ')' # valAPerm
@@ -213,6 +217,7 @@ valPrimaryBinder
  : '(' valBinderSymbol valBindings ';' langExpr valBinderCont? ')' # valQuantifier
  | '(' '\\let' langType langId '=' langExpr ';' langExpr ')' # valLet
  | '(' '\\forperm' valArgList '\\in' langExpr ';' langExpr ')' #valForPerm
+ | '(' '\\forpermwithvalue' 'any' langId ';' langExpr ')' #valForPermWithValue
  ;
 
 valPrimaryVector
@@ -287,6 +292,12 @@ valPrimary
  | '\\nd_index' '(' langExpr ',' langExpr valExprPair* ')' # valNdIndex
  | '\\nd_partial_index' '(' valExpressionList ';' valExpressionList ')' # valNdLIndex
  | '\\nd_length' '(' valExpressionList ')' # ValNdLength
+ | '\\euclidean_div' '(' langExpr ',' langExpr ')' # valEuclideanDiv
+ | '\\euclidean_mod' '(' langExpr ',' langExpr ')' # valEuclideanMod
+ | '\\pow' '(' langExpr ',' langExpr ')' # valPow
+ | '\\is_int' '(' langExpr ')' # valIsInt
+ | '\\choose' '(' langExpr ')' # valChoose
+ | '\\choose_fresh' '(' langExpr ')' # valChooseFresh
  ;
 
 // Out spec: defined meaning: a language local
@@ -297,8 +308,8 @@ valKeywordExpr
  | 'read' # valRead
  | 'None' # valNoneOption
  | 'empty' # valEmpty
- | 'true' # valTrue
- | 'false' # valFalse
+ | specTrue # valTrue
+ | specFalse # valFalse
  ;
 
 // Out spec: defined meaning: a language local
@@ -334,6 +345,7 @@ valType
  : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool' | 'ref' | 'any' | 'nothing' | 'string') # valPrimaryType
  | 'seq' '<' langType '>' # valSeqType
  | 'set' '<' langType '>' # valSetType
+ | 'vector' '<' langType ',' langConstInt '>' # valVectorType
  | 'bag' '<' langType '>' # valBagType
  | 'option' '<' langType '>' # valOptionType
  | 'map' '<' langType ',' langType '>' # valMapType

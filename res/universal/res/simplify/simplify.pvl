@@ -44,6 +44,11 @@ axiom zero_mod { (∀int i; 0 % i == (0 then 1 % i;)) }
 
 axiom mod_def { (∀int num, int denom; (num/denom)*denom + (num%denom) == (num then 1/denom;)) }
 
+axiom mod_factor { (∀int num, int denom, int factor; (num+factor*denom) % denom == num%denom) }
+axiom mod_factor { (∀int num, int denom, int factor; (num+denom*factor) % denom == num%denom) }
+axiom mod_factor { (∀int num, int denom, int factor; (num-factor*denom) % denom == num%denom) }
+axiom mod_factor { (∀int num, int denom, int factor; (num-denom*factor) % denom == num%denom) }
+
 axiom not_true { !true == false }
 axiom not_false { !false == true }
 

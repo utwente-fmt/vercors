@@ -12,16 +12,18 @@ class ProgressAwareLogbackLayout extends LayoutBase[ILoggingEvent] {
     tpc.start()
   }
 
-  override def doLayout(event: ILoggingEvent): String =
-    Layout.withProgressDiscarded(
-      (if (event.getFormattedMessage.contains('\n')) {
-        event.getFormattedMessage.strip +
+  override def doLayout(event: ILoggingEvent): String = {
+    System.out.flush()
+    val message = event.getFormattedMessage
+    val baseMessage =
+      if (message.isBlank)
+        ""
+      else if (message.contains('\n'))
+        event.getFormattedMessage.strip + CoreConstants.LINE_SEPARATOR
+      else
+        s"[${event.getLevel}] " + event.getFormattedMessage +
           CoreConstants.LINE_SEPARATOR
-      } else {
-        s"[${event.getLevel}] " +
-          event.getFormattedMessage +
-          CoreConstants.LINE_SEPARATOR
-      }) +
-        tpc.convert(event)
-    )
+
+    Layout.commitProgressMessage(baseMessage + tpc.convert(event))
+  }
 }

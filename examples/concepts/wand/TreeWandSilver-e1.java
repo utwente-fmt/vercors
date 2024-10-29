@@ -59,7 +59,7 @@ final class Tree {
       //@ ghost seq<int> cur_contents = orig_contents;
       //@ assert cur_contents == tolist(left) + seq<int>{top.data} + tolist(top.right);
       //@ unfold left.state();
-      //@ package top.state_contains(target_contents) -* top.state_contains(target_contents) {}
+      //@ package cur.state_contains(cur_contents.tail) -* top.state_contains(target_contents) {}
 
       /*@
       loop_invariant Perm(cur.left,write) ** Perm(cur.data,write) ** Perm(cur.right,write);

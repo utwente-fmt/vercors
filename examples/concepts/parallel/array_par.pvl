@@ -10,7 +10,7 @@ class Ref {
   context Perm(x,1);
   context (\forall* int i;0 <= i && i < N ; Perm(ar[i],write));
   ensures (\forall int i;0 <= i && i < N ; ar[i]==0);
-  void vector(int N, int[N] ar){
+  void vectorZero(int N, int[N] ar){
     x=0;
     invariant inv( Perm(x,1\2) **
       (x==0 ==> (\forall* int k;0 <= k && k < N ; Perm(ar[k],write)))

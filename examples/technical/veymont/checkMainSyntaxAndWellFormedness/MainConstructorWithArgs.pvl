@@ -1,0 +1,22 @@
+class Role {
+	int i;
+
+	constructor(int v) {
+		i = v;
+	}
+}
+
+choreography main0(int va, int vb) {
+    endpoint a = Role(va);
+    endpoint b = Role(vb);
+
+	run {
+		communicate a.i <- b.i;
+	}
+}
+
+choreography main(Role v) {
+	endpoint a = Role(v.i);
+
+	run { }
+}

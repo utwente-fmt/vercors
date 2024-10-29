@@ -1059,7 +1059,7 @@ public class ExpressionTransformer<T> {
             case "+=" -> new Plus<>(left, right, OriGen.create());
             case "-=" -> new Minus<>(left, right, OriGen.create());
             case "*=" -> new Mult<>(left, right, OriGen.create());
-            case "/=" -> new Div<>(left, right, new GeneratedBlame<>(), OriGen.create());
+            case "/=" -> new RatDiv<>(left, right, new GeneratedBlame<>(), OriGen.create());
             case "%=" -> new Mod<>(left, right, new GeneratedBlame<>(), OriGen.create());
             case "&=" -> new AmbiguousComputationalAnd<>(left, right, OriGen.create());
             case "|=" -> new AmbiguousComputationalOr<>(left, right, OriGen.create());
@@ -1499,8 +1499,8 @@ public class ExpressionTransformer<T> {
         Type<T> array_type = col_system.parse_type(expr.getObjType());
         Expr<T> size = create_expression(expr.getSize(), sc_inst, obj);
 
-        if (size == null) return new NewArray<>(array_type, col_system.NO_EXPRS, 1, new GeneratedBlame<>(), OriGen.create());
-        else return new NewArray<>(array_type, List.from(CollectionConverters.asScala(java.util.List.of(size))), 0,
+        if (size == null) return new NewArray<>(array_type, col_system.NO_EXPRS, 1, true, new GeneratedBlame<>(), OriGen.create());
+        else return new NewArray<>(array_type, List.from(CollectionConverters.asScala(java.util.List.of(size))), 0, true,
                 new GeneratedBlame<>(), OriGen.create());
     }
 

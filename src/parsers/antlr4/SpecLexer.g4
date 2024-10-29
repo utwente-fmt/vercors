@@ -29,6 +29,8 @@ VAL_FALSE: 'false';
 VAL_PACKAGE: 'package';
 */
 
+NEVER: EOF '=';
+
 // Must be able to contain identifiers from any frontend, so it's fine to over-approximate valid identifiers a bit.
 LANG_ID_ESCAPE: '`' ~[`]+ '`';
 
@@ -41,6 +43,7 @@ VAL_REF: 'ref';
 VAL_RATIONAL: 'rational';
 VAL_SEQ: 'seq';
 VAL_SET: 'set';
+VAL_VECTOR: 'vector';
 VAL_BAG: 'bag';
 VAL_POINTER: 'pointer';
 VAL_MAP: 'map';
@@ -124,6 +127,7 @@ VAL_SOME: 'Some';
 VAL_LEFT: 'Left';
 VAL_RIGHT: 'Right';
 VAL_VALUE: 'Value';
+VAL_AUTO_VALUE: 'AutoValue';
 
 UNFOLDING: '\\unfolding';
 UNFOLDING_JAVA: '\\Unfolding';
@@ -134,11 +138,14 @@ FORALL_STAR: '\\forall*';
 FORALL: '\\forall';
 EXISTS: '\\exists';
 FORPERM: '\\forperm';
+FORPERMWITHVALUE: '\\forpermwithvalue';
 FORALL_UNICODE: '\u2200';
 FORALL_STAR_UNICODE: '\u2200*';
 EXISTS_UNICODE: '\u2203';
 LET: '\\let';
 SUM: '\\sum';
+CHOOSE: '\\choose';
+CHOOSE_FRESH: '\\choose_fresh';
 LENGTH: '\\length';
 OLD: '\\old';
 TYPEOF: '\\typeof';
@@ -166,6 +173,11 @@ VAL_PARTIAL_INDEX: '\\nd_partial_index';
 POLARITY_DEPENDENT: '\\polarity_dependent';
 SMT_LIB: '\\smtlib';
 BOOGIE: '\\boogie';
+
+EUCLIDIAN_DIV: '\\euclidean_div';
+EUCLIDIAN_MOD: '\\euclidean_mod';
+POW: '\\pow';
+IS_INT: '\\is_int';
 
 NONE: 'none';
 OPTION_NONE: 'None';

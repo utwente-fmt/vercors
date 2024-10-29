@@ -92,7 +92,7 @@ public class SpecificationTransformer<T> {
 
         // Always return permission to m and that m is set by m_param
         java.util.List<Expr<T>> conds = new java.util.ArrayList<>();
-        conds.add(new Perm<>(m_loc, new ReadPerm<>(OriGen.create()), OriGen.create()));
+        conds.add(new Perm<>(m_loc, new WritePerm<>(OriGen.create()), OriGen.create()));
         conds.add(new Eq<>(m_deref, m_param_local, OriGen.create()));
 
         // Add permissions and functional properties about all other fields as well
@@ -117,6 +117,8 @@ public class SpecificationTransformer<T> {
                 conds.add(new Perm<>(field_loc, new WritePerm<>(OriGen.create()), OriGen.create()));
             }
         }
+
+        if (col_class instanceof ProcessClass) conds.add(new IdleToken<>(col_system.THIS, OriGen.create()));
 
         // TODO: Add specifications for variables that are set by parameters or by constants
 
@@ -150,8 +152,8 @@ public class SpecificationTransformer<T> {
         Held<T> m_held = new Held<>(m_deref, OriGen.create());
         Ref<T, InstancePredicate<T>> global_inv_ref = new LazyRef<>(col_system::get_global_perms, Option.empty(),
                 ClassTag$.MODULE$.apply(InstancePredicate.class));
-        InstancePredicateApply<T> global_inv = new InstancePredicateApply<>(m_deref, global_inv_ref,
-                col_system.NO_EXPRS, new WritePerm<>(OriGen.create()), OriGen.create());
+        Expr<T> global_inv = col_system.fold_preds(new InstancePredicateApply<>(m_deref, global_inv_ref,
+                col_system.NO_EXPRS, OriGen.create()));
         Eq<T> this_this = new Eq<>(this_deref, col_system.THIS, OriGen.create());
 
         // Put everything together and return the condition

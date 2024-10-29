@@ -6,82 +6,129 @@ import vct.result.VerificationError.{SystemError, UserError}
 
 trait ResolutionError extends UserError
 
-case class MultipleForwardDeclarationContractError(declaration: GlobalDeclaration[_]) extends ResolutionError {
+case class MultipleForwardDeclarationContractError(
+    declaration: GlobalDeclaration[_]
+) extends ResolutionError {
   override def code: String = "multipleForwardDeclarationContract"
 
-  override def text: String = declaration.o.messageInContext("Cannot simultaneously bind a contract to multiple global declarations.")
+  override def text: String =
+    declaration.o.messageInContext(
+      "Cannot simultaneously bind a contract to multiple global declarations."
+    )
 }
 
-case class NoSuchNameError(kind: String, name: String, use: Node[_]) extends ResolutionError {
-  override def text: String = use.o.messageInContext(s"Could not find $kind named $name.")
+case class NoSuchNameError(kind: String, name: String, use: Node[_])
+    extends ResolutionError {
+  override def text: String =
+    use.o.messageInContext(s"Could not find $kind named $name.")
   override def code: String = "noSuchName"
 }
 
 case class NoSuchConstructor(use: Node[_]) extends ResolutionError {
-  override def text: String = use.o.messageInContext("Could not find a constructor matching the supplied arguments.")
+  override def text: String =
+    use.o.messageInContext(
+      "Could not find a constructor matching the supplied arguments."
+    )
   override def code: String = "noSuchConstructor"
 }
 
 case class NameLost(o: Origin) extends SystemError {
-  override def text: String = o.messageInContext("The origin of this node no longer carries its original name.")
+  override def text: String =
+    o.messageInContext(
+      "The origin of this node no longer carries its original name."
+    )
 }
 
-case class AnonymousMethodsUnsupported(decl: CDeclarator[_]) extends ResolutionError {
-  override def text: String = decl.o.messageInContext("Anonymous function declarations are not supported.")
+case class AnonymousMethodsUnsupported(decl: CDeclarator[_])
+    extends ResolutionError {
+  override def text: String =
+    decl.o
+      .messageInContext("Anonymous function declarations are not supported.")
   override def code: String = "anonFunction"
 }
 
 case class HasNoFields(obj: Expr[_]) extends ResolutionError {
-  override def text: String = obj.o.messageInContext("This object has no fields.")
+  override def text: String =
+    obj.o.messageInContext("This object has no fields.")
   override def code: String = "hasNoFields"
 }
 
 case class NotApplicable(obj: Expr[_]) extends ResolutionError {
-  override def text: String = obj.o.messageInContext("It is not possible to call this object")
+  override def text: String =
+    obj.o.messageInContext("It is not possible to call this object")
   override def code: String = "notApplicable"
 }
 
-case class ResultOutsideMethod(res: AmbiguousResult[_]) extends ResolutionError {
-  override def text: String = res.o.messageInContext("\\result may not occur outside a method.")
+case class ResultOutsideMethod(res: AmbiguousResult[_])
+    extends ResolutionError {
+  override def text: String =
+    res.o.messageInContext("\\result may not occur outside a method.")
   override def code: String = "resultOutsideMethod"
 }
 
 case class NoGivenYields(invocation: Node[_]) extends ResolutionError {
   override def code: String = "noGivenYields"
-  override def text: String = invocation.o.messageInContext("This kind of application or invocation does not take parameters via given or yields.")
+  override def text: String =
+    invocation.o.messageInContext(
+      "This kind of application or invocation does not take parameters via given or yields."
+    )
 }
 
-case class WrongArrayInitializer(initializer: JavaLiteralArray[_]) extends ResolutionError {
+case class WrongArrayInitializer(initializer: JavaLiteralArray[_])
+    extends ResolutionError {
   override def code: String = "wrongArrayInit"
-  override def text: String = initializer.o.messageInContext("This initializer does not initialize an array type.")
+  override def text: String =
+    initializer.o
+      .messageInContext("This initializer does not initialize an array type.")
 }
 
-case class OverlappingJavaImports[G](ns: JavaNamespace[G], kind: String, importedName: String) extends ResolutionError {
+case class OverlappingJavaImports[G](
+    ns: JavaNamespace[G],
+    kind: String,
+    importedName: String,
+) extends ResolutionError {
   override def code: String = "overlappingJavaImports"
-  override def text: String = ns.o.messageInContext(s"The $kind name $importedName is provided by multiple imports in this namespace")
+  override def text: String =
+    ns.o.messageInContext(
+      s"The $kind name $importedName is provided by multiple imports in this namespace"
+    )
 }
 
 case class WrongThisPosition[G](diz: AmbiguousThis[G]) extends ResolutionError {
   override def code: String = "wrongThisPosition"
-  override def text: String = diz.o.messageInContext("The `this` keyword does not refer to anything in this position.")
+  override def text: String =
+    diz.o.messageInContext(
+      "The `this` keyword does not refer to anything in this position."
+    )
 }
 
-case class ForbiddenEndpointNameType(endpoint: Node[_]) extends ResolutionError {
+case class ForbiddenEndpointNameType(endpoint: Node[_])
+    extends ResolutionError {
   override def code: String = "forbiddenEndpointNameType"
-  override def text: String = endpoint.o.messageInContext(s"In this endpoint position, a name is referred that is not an endpoint")
+  override def text: String =
+    endpoint.o.messageInContext(
+      s"In this endpoint position, a name is referred that is not an endpoint"
+    )
 }
 
-case class ForbiddenEndpointType(endpoint: PVLEndpoint[_]) extends ResolutionError {
+case class ForbiddenEndpointType(endpoint: PVLEndpoint[_])
+    extends ResolutionError {
   override def code: String = "forbiddenEndpointType"
-  override def text: String = endpoint.o.messageInContext(s"This endpoint is not of class type")
+  override def text: String =
+    endpoint.o.messageInContext(s"This endpoint is not of class type")
 }
 
-case class ConstructorNotFound(endpoint: PVLEndpoint[_]) extends ResolutionError {
+case class ConstructorNotFound(endpoint: PVLEndpoint[_])
+    extends ResolutionError {
   override def code: String = "constructorNotFound"
-  override def text: String = endpoint.o.messageInContext(s"Could not find a constructor that matches the types of the arguments of this endpoint.")
+  override def text: String =
+    endpoint.o.messageInContext(
+      s"Could not find a constructor that matches the types of the arguments of this endpoint."
+    )
 }
 
 case class UnassignableField(node: Node[_]) extends ResolutionError {
   override def code: String = "unassignableField"
-  override def text: String = node.o.messageInContext(s"The field in this node is not assignable")
+  override def text: String =
+    node.o.messageInContext(s"The field in this node is not assignable")
 }

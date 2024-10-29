@@ -1,0 +1,11 @@
+choreography Main() {
+    endpoint a = Role();
+
+	run {
+		a = new Role(); // Should error! Cannot reassign roles
+	}
+}
+
+class Role {
+
+}

@@ -1,0 +1,5 @@
+choreography Main() {
+	run {
+		wait null; // Not allowed
+	}
+}

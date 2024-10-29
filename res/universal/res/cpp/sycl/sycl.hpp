@@ -24,27 +24,34 @@ namespace sycl {
 
   // See SYCL spec 3.11.1 for the linearization formulas
   /*@
-    ghost
     requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1;
-    requires r0 >= 0 && r1 >= 0;
-    ensures \result == id1 + (id0 * r1);
+    requires r0 > 0 && r1 > 0;
+    ensures \result == sycl::linearize2formula(id0, id1, r1);
     ensures \result >= 0 && \result < r0 * r1;
+    ensures (\forall int ida0, int ida1;
+      ida0 >= 0 && ida0 < r0 &&
+      ida1 >= 0 && ida1 < r1 &&
+      (ida0 != id0 || ida1 != id1) ==>
+      \result != {: sycl::linearize2formula(ida0, ida1, r1) :}
+    );
     pure int linearize2(int id0, int id1, int r0, int r1);
 
-    ghost
+    pure int linearize2formula(int id0, int id1, int r1) = id1 + (id0 * r1);
+
     requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1 && id2 >= 0 && id2 < r2;
-    requires r0 >= 0 && r1 >= 0 && r2 >= 0;
-    ensures \result == id2 + (id1 * r2) + (id0 * r1 * r2);
+    requires r0 > 0 && r1 > 0 && r2 > 0;
+    ensures \result == sycl::linearize3formula(id0, id1, id2, r1, r2);
     ensures \result >= 0 && \result < r0 * r1 * r2;
+    ensures (\forall int ida0, int ida1, int ida2;
+      ida0 >= 0 && ida0 < r0 &&
+      ida1 >= 0 && ida1 < r1 &&
+      ida2 >= 0 && ida2 < r2 &&
+      (ida0 != id0 || ida1 != id1 || ida2 != id2) ==>
+      \result != {: sycl::linearize3formula(ida0, ida1, ida2, r1, r2) :}
+    );
     pure int linearize3(int id0, int id1, int id2, int r0, int r1, int r2);
 
-    ghost
-    requires |ids| == |ranges|;
-    requires (\forall int i; i >= 0 && i < |ids|; ids[i] >= 0 && ids[i] < ranges[i]);
-    ensures |ids| == 1 ==> \result == ids[0];
-    ensures |ids| == 2 ==> \result == sycl::linearize2(ids[0], ids[1], ranges[0], ranges[1]);
-    ensures |ids| == 3 ==> \result == sycl::linearize3(ids[0], ids[1], ids[2], ranges[0], ranges[1], ranges[2]);
-    pure int get_linear_id(seq<int> ids, seq<int> ranges);
+    pure int linearize3formula(int id0, int id1, int id2, int r1, int r2) = id2 + (id1 * r2) + (id0 * r1 * r2);
   */
 
   namespace item {
@@ -56,84 +63,25 @@ namespace sycl {
   }
 
   namespace nd_item {
-
 		int get_local_id(int dimension);
 
 		int get_local_range(int dimension);
 
 		int get_local_linear_id();
 
-		int get_group_id(int dimension);
+		int get_group(int dimension);
 
 		int get_group_range(int dimension);
 
 		int get_group_linear_id();
 
-		/*@
-			given seq<int> groupIds;
-			given seq<int> localIds;
-			given seq<int> groupRanges;
-			given seq<int> localRanges;
-			requires |groupIds| == |localIds| && |localIds| == |groupRanges| && |groupRanges| == |localRanges|;
-			requires dimension >= 0 && dimension < |groupIds|;
-			ensures \result == groupIds[dimension] + (localIds[dimension] * groupRanges[dimension]);
-			ensures \result >= 0 && \result < sycl::nd_item::get_global_range(dimension) given{groupRanges = groupRanges, localRanges = localRanges};
-		@*/
-		/*@ pure @*/ int get_global_id(int dimension);
+		int get_global_id(int dimension);
 
-		/*@
-		  ghost
-		  adt sycl_global_id {
+		//@ pure int get_global_range(int localRange, int groupRange) = localRange * groupRange;
 
-        axiom
-          (\forall int id1, int id2, int x, int y;
-            (id1 != id2 && y != 0) ==>
-            (x + (id1 * y)) != (x + (id2 * y))
-          );
+		int get_global_range(int dimension);
 
-        axiom
-          (\forall int x, int id1, int id2, int y;
-            (id1 != id2) ==>
-            (id1 + (x * y)) != (id2 + (x * y))
-          );
-      }
-		*/
-
-
-
-		/*@
-			given seq<int> groupRanges;
-			given seq<int> localRanges;
-			requires |groupRanges| == |localRanges|;
-			requires dimension >= 0 && dimension < |groupRanges|;
-			ensures \result == groupRanges[dimension] * localRanges[dimension];
-		@*/
-		/*@ pure @*/ int get_global_range(int dimension);
-
-		/*@
-			given seq<int> groupIds;
-			given seq<int> localIds;
-			given seq<int> groupRanges;
-			given seq<int> localRanges;
-			requires |groupIds| == |localIds| && |localIds| == |groupRanges| && |groupRanges| == |localRanges|;
-			requires (\forall int i; i >= 0 && i < |groupIds|;
-			  sycl::nd_item::get_global_id(i) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges, localRanges = localRanges} >= 0 &&
-			  sycl::nd_item::get_global_id(i) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges, localRanges = localRanges} < sycl::nd_item::get_global_range(i) given{groupRanges = groupRanges, localRanges = localRanges});
-			ensures |groupIds| == 1 ==> \result == sycl::nd_item::get_global_id(0) given {groupIds = groupIds, localIds = localIds, groupRanges = groupRanges, localRanges = localRanges};
-			ensures |groupIds| == 2 ==> \result == sycl::linearize2(
-				sycl::nd_item::get_global_id(0) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges, localRanges = localRanges},
-				sycl::nd_item::get_global_id(1) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges, localRanges = localRanges},
-				sycl::nd_item::get_global_range(0) given{groupRanges = groupRanges, localRanges = localRanges},
-				sycl::nd_item::get_global_range(1) given{groupRanges = groupRanges, localRanges = localRanges});
-			ensures |groupIds| == 3 ==> \result == sycl::linearize3(
-				sycl::nd_item::get_global_id(0) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges, localRanges = localRanges},
-				sycl::nd_item::get_global_id(1) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges, localRanges = localRanges},
-				sycl::nd_item::get_global_id(2) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges, localRanges = localRanges},
-				sycl::nd_item::get_global_range(0) given{groupRanges = groupRanges, localRanges = localRanges},
-				sycl::nd_item::get_global_range(1) given{groupRanges = groupRanges, localRanges = localRanges},
-				sycl::nd_item::get_global_range(2) given{groupRanges = groupRanges, localRanges = localRanges});
-		@*/
-		/*@ pure @*/ int get_global_linear_id();
+		int get_global_linear_id();
   }
   
   namespace accessor {

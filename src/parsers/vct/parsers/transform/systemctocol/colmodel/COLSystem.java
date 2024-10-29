@@ -31,6 +31,7 @@ import vct.parsers.transform.systemctocol.exceptions.SystemCFormatException;
 import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
 import vct.parsers.transform.systemctocol.util.OriGen;
+import vct.parsers.transform.systemctocol.util.Seqs;
 
 import java.util.stream.Collectors;
 
@@ -48,7 +49,7 @@ public class COLSystem<T> {
     // ============================================================================================================== //
 
     /** Constant empty set of field flags */
-    public final Set<FieldFlag<T>> NO_FLAGS;
+    public final Seq<FieldFlag<T>> NO_FLAGS;
     /** Constant empty list of variables */
     public final List<Variable<T>> NO_VARS;
     /** Constant empty list of expressions */
@@ -58,7 +59,7 @@ public class COLSystem<T> {
     /** Constant empty list of signals clauses */
     public final List<SignalsClause<T>> NO_SIGNALS;
     /** Constant empty list of class references */
-    public final List<Ref<T, Class<T>>> NO_CLS_REFS;
+    public final List<Ref<T, ByReferenceClass<T>>> NO_CLS_REFS;
     /** Constant empty list of mappings from variable references to expressions */
     public final List<Tuple2<Ref<T, Variable<T>>, Expr<T>>> NO_GIVEN;
     /** Constant empty list of mappings from expressions to variable references */
@@ -83,7 +84,7 @@ public class COLSystem<T> {
     /** Constant integer value for -3 */
     public final IntegerValue<T> MINUS_THREE = new IntegerValue<>(BigInt.apply(-3), OriGen.create());
     /** Constant value for 1\2 */
-    public final Expr<T> HALF = new Div<>(new IntegerValue<>(BigInt.apply(1), OriGen.create()), new IntegerValue<>(BigInt.apply(2), OriGen.create()),
+    public final Expr<T> HALF = new RatDiv<>(new IntegerValue<>(BigInt.apply(1), OriGen.create()), new IntegerValue<>(BigInt.apply(2), OriGen.create()),
             new GeneratedBlame<>(), OriGen.create());
     /** Constant null value */
     public final Null<T> NULL = new Null<>(OriGen.create());
@@ -134,6 +135,20 @@ public class COLSystem<T> {
      */
     public Expr<T> fold_star(java.util.List<Expr<T>> expressions) {
         return _fold_star(new java.util.ArrayList<>(expressions));
+    }
+
+    @SafeVarargs
+    public final Expr<T> fold_preds(ApplyAnyPredicate<T>... predicates) {
+        if(predicates.length == 0)
+            return TRUE;
+
+        Expr<T> result = new Perm<T>(new PredicateLocation<T>(predicates[0], OriGen.create()), ONE, OriGen.create());
+
+        for(int i = 1; i < predicates.length; i++) {
+            result = new Star(result, new Perm<T>(new PredicateLocation<T>(predicates[i], OriGen.create()), ONE, OriGen.create()), OriGen.create());
+        }
+
+        return result;
     }
 
     /**
@@ -297,7 +312,12 @@ public class COLSystem<T> {
     /**
      * The Main class of the COL encoding.
      */
-    private Class<T> main;
+    private ByReferenceClass<T> main;
+
+    /**
+     * The scheduler method in the Main class.
+     */
+    private InstanceMethod<T> main_method;
 
     /**
      * Global permission invariant.
@@ -353,7 +373,7 @@ public class COLSystem<T> {
     /**
      * A map from the intermediate representation of an intermediate representation class to its encoding in COL.
      */
-    private final java.util.Map<COLClass, Class<T>> col_class_translation;
+    private final java.util.Map<COLClass, ByReferenceClass<T>> col_class_translation;
 
     /**
      * A map from SystemC class instances to the state class that is generated for them. Since each SystemC instance can
@@ -507,7 +527,7 @@ public class COLSystem<T> {
         this.total_nr_primitive_channels = 0;
 
         java.util.List<FieldFlag<T>> no_flags = java.util.List.of();
-        this.NO_FLAGS = Set.from(CollectionConverters.asScala(no_flags));
+        this.NO_FLAGS = Seq.from(CollectionConverters.asScala(no_flags));
         java.util.List<Variable<T>> no_vars = java.util.List.of();
         this.NO_VARS = List.from(CollectionConverters.asScala(no_vars));
         java.util.List<Expr<T>> no_exprs = java.util.List.of();
@@ -516,7 +536,7 @@ public class COLSystem<T> {
         this.NO_TYPES = List.from(CollectionConverters.asScala(no_types));
         java.util.List<SignalsClause<T>> no_signals = java.util.List.of();
         this.NO_SIGNALS = List.from(CollectionConverters.asScala(no_signals));
-        java.util.List<Ref<T, Class<T>>> no_cls_refs = java.util.List.of();
+        java.util.List<Ref<T, ByReferenceClass<T>>> no_cls_refs = java.util.List.of();
         this.NO_CLS_REFS = List.from(CollectionConverters.asScala(no_cls_refs));
         java.util.List<Tuple2<Ref<T, Variable<T>>, Expr<T>>> no_given = java.util.List.of();
         this.NO_GIVEN = List.from(CollectionConverters.asScala(no_given));
@@ -539,6 +559,31 @@ public class COLSystem<T> {
                 List.from(CollectionConverters.asScala(expected_errors)));
     }
 
+    public void create_vesuv_entry() {
+        java.util.List<Statement<T>> body = new java.util.ArrayList<>();
+
+        // Create variable of Main class
+        TByReferenceClass<T> main_type = new TByReferenceClass<>(new DirectRef<>(main, ClassTag$.MODULE$.apply(Class.class)), Seqs.empty(), OriGen.create());
+        Variable<T> var = new Variable<>(main_type, OriGen.create("design"));
+
+        // Constructor call
+        PVLNew<T> new_expr = new PVLNew<>(main_type, Seqs.empty(), Seqs.empty(), NO_GIVEN, NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+        Local<T> m_deref = new Local<>(new DirectRef<>(var, ClassTag$.MODULE$.apply(Variable.class)), OriGen.create());
+
+        // main method call
+        Ref<T, InstanceMethod<T>> scheduler_ref = new DirectRef<>(main_method, ClassTag$.MODULE$.apply(InstanceMethod.class));
+        InvokeMethod<T> call_main = new InvokeMethod<>(m_deref, scheduler_ref, NO_EXPRS, NO_EXPRS, NO_TYPES, NO_GIVEN,
+                NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+
+        body.add(new LocalDecl<>(var, OriGen.create()));
+        body.add(new Assign<>(m_deref, new_expr, new GeneratedBlame<>(), OriGen.create()));
+        body.add(call_main);
+
+        Block<T> block = new Block<>(List.from(CollectionConverters.asScala(body)), OriGen.create());
+
+        global_declarations.add(new VeSUVMainMethod<>(Option.apply(block), new GeneratedBlame<>(), OriGen.create()));
+    }
+
     // ===================================================== //
     // ================ GETTERS AND SETTERS ================ //
     // ===================================================== //
@@ -557,7 +602,7 @@ public class COLSystem<T> {
      *
      * @param main_cls Main class
      */
-    public void set_main(Class<T> main_cls) {
+    public void set_main(ByReferenceClass<T> main_cls) {
         this.main = main_cls;
     }
 
@@ -567,8 +612,17 @@ public class COLSystem<T> {
      *
      * @return Main class of the encoded system
      */
-    public Class<T> get_main() {
+    public ByReferenceClass<T> get_main() {
         return main;
+    }
+
+    /**
+     * Registers the main scheduler method.
+     *
+     * @param main_method Scheduler method
+     */
+    public void set_main_method(InstanceMethod<T> main_method) {
+        this.main_method = main_method;
     }
 
     /**
@@ -777,7 +831,7 @@ public class COLSystem<T> {
      * @param col_class Intermediate representation class
      * @param translation Finalized COL class object
      */
-    public void add_col_class_translation(COLClass col_class, Class<T> translation) {
+    public void add_col_class_translation(COLClass col_class, ByReferenceClass<T> translation) {
         this.col_class_translation.put(col_class, translation);
     }
 
@@ -787,7 +841,7 @@ public class COLSystem<T> {
      * @param col_class Intermediate representation class
      * @return Finalized COL class object
      */
-    public Class<T> get_col_class_translation(COLClass col_class) {
+    public ByReferenceClass<T> get_col_class_translation(COLClass col_class) {
         return this.col_class_translation.get(col_class);
     }
 
@@ -873,7 +927,7 @@ public class COLSystem<T> {
      * @return A list of process classes that use the given function
      */
     public java.util.List<ProcessClass> get_function_usages(SCFunction function) {
-        return this.function_usages.get(function);
+        return this.function_usages.getOrDefault(function, new java.util.ArrayList<>());
     }
 
     /**

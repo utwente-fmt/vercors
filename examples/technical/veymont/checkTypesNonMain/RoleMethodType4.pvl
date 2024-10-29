@@ -1,0 +1,15 @@
+choreography Main() {
+  endpoint a = Role(new Other());
+
+	run { }
+}
+
+class Role {
+	Other x;
+	
+	constructor(Other v) {
+		x = v;
+	}
+}
+
+class Other { }

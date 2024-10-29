@@ -1,0 +1,40 @@
+// Commented lines should be uncommented when submethods are implemented again
+
+class Role {
+	int x, left;
+	
+	ensures x == v;
+	constructor(int v) {
+		x = v;
+	}
+
+	ensures x == \old(x);
+	void compute();
+}
+
+
+choreography Main() {
+	endpoint a = Role(0);
+	endpoint b = Role(8);
+	endpoint c = Role(4);
+
+	requires a.x == 0 && b.x == 8 && c.x == 4;
+	ensures (\chor a.x == b.x && b.x == c.x);
+	run {
+		b.x := 3;
+		// foo();
+		a.compute();
+		exhale Perm(a.x, 1) ** Perm(c.x, 1);
+		inhale Perm(a.x, 1) ** a.x == 8 ** Perm(c.x, 1) ** c.x == 8;
+		b.x := 8;
+	}
+
+  // requires a.x == 0 && c.x == 4;
+	// ensures a.x == 8;
+	// ensures c.x == 8;
+	// void foo() {
+	//     a.x := a.x + 8;
+	//     c.x := c.x + 4;
+	// }
+}
+

@@ -1,0 +1,70 @@
+#if !defined(__VECTOR_FUNCTIONS_H__)
+#define __VECTOR_FUNCTIONS_H__
+
+#include <vector_types.h>
+//@ ensures Perm(\result, write) ** (\result.x == x);
+int1 make_int1(int x);
+//@ ensures Perm(\result, write) ** (\result.x == x);
+uint1 make_uint1(unsigned int x);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y);
+int2 make_int2(int x, int y);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y);
+uint2 make_uint2(unsigned int x, unsigned int y);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.z == z);
+int3 make_int3(int x, int y, int z);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.z == z);
+uint3 make_uint3(unsigned int x, unsigned int y, unsigned int z);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.w == w);
+int4 make_int4(int x, int y, int z, int w);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.w == w);
+uint4 make_uint4(unsigned int x, unsigned int y, unsigned int z, unsigned int w);
+//@ ensures Perm(\result, write) ** (\result.x == x);
+long1 make_long1(long int x);
+//@ ensures Perm(\result, write) ** (\result.x == x);
+ulong1 make_ulong1(unsigned long int x);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y);
+long2 make_long2(long int x, long int y);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y);
+ulong2 make_ulong2(unsigned long int x, unsigned long int y);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.z == z);
+long3 make_long3(long int x, long int y, long int z);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.z == z);
+ulong3 make_ulong3(unsigned long int x, unsigned long int y, unsigned long int z);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.w == w);
+long4 make_long4(long int x, long int y, long int z, long int w);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.w == w);
+ulong4 make_ulong4(unsigned long int x, unsigned long int y, unsigned long int z, unsigned long int w);
+//@ ensures Perm(\result, write) ** (\result.x == x);
+float1 make_float1(float x);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y);
+float2 make_float2(float x, float y);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.z == z);
+float3 make_float3(float x, float y, float z);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.w == w);
+float4 make_float4(float x, float y, float z, float w);
+//@ ensures Perm(\result, write) ** (\result.x == x);
+longlong1 make_longlong1(long long int x);
+//@ ensures Perm(\result, write) ** (\result.x == x);
+ulonglong1 make_ulonglong1(unsigned long long int x);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y);
+longlong2 make_longlong2(long long int x, long long int y);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y);
+ulonglong2 make_ulonglong2(unsigned long long int x, unsigned long long int y);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.z == z);
+longlong3 make_longlong3(long long int x, long long int y, long long int z);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.z == z);
+ulonglong3 make_ulonglong3(unsigned long long int x, unsigned long long int y, unsigned long long int z);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.w == w);
+longlong4 make_longlong4(long long int x, long long int y, long long int z, long long int w);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.w == w);
+ulonglong4 make_ulonglong4(unsigned long long int x, unsigned long long int y, unsigned long long int z, unsigned long long int w);
+//@ ensures Perm(\result, write) ** (\result.x == x);
+double1 make_double1(double x);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y);
+double2 make_double2(double x, double y);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.z == z);
+double3 make_double3(double x, double y, double z);
+//@ ensures Perm(\result, write) ** (\result.x == x && \result.y == y && \result.w == w);
+double4 make_double4(double x, double y, double z, double w);
+
+#endif /* !__VECTOR_FUNCTIONS_H__ */

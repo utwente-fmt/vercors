@@ -1,0 +1,7 @@
+choreography Main() {
+	run {
+	    foo(); // Error: procedure calls are not allowed
+	}
+}
+
+void foo();

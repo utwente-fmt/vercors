@@ -12,15 +12,15 @@ sealed abstract class VerificationError extends RuntimeException {
   val contexts: ArrayBuffer[VerificationError.Context] = ArrayBuffer()
 
   def context[T](implicit tag: ClassTag[T]): Option[T] = {
-    contexts.collectFirst {
-      case x : T =>
-        x
-    }
+    contexts.collectFirst { case x: T => x }
   }
 
   def getContext[T](implicit tag: ClassTag[T]): T = context[T].get
 
-  def messageContext(message: String, backupContext: String => String = identity): String =
+  def messageContext(
+      message: String,
+      backupContext: String => String = identity,
+  ): String =
     // PB: note: the innermost context is added to contexts first, so we end up trying to use the most specific context
     // for rendering the message context first, which is what we want.
     contexts.foldLeft[Option[String]](None) {
@@ -51,14 +51,16 @@ object VerificationError {
   }
 
   trait Context {
-    def tryMessageContext(message: String, err: VerificationError): Option[String] = None
+    def tryMessageContext(
+        message: String,
+        err: VerificationError,
+    ): Option[String] = None
   }
 
   def withContext[T](ctx: Context)(f: => T): T = {
-    try {
-      f
-    } catch {
-      case e : VerificationError =>
+    try { f }
+    catch {
+      case e: VerificationError =>
         e.contexts += ctx
         throw e
       case NonFatal(e) =>

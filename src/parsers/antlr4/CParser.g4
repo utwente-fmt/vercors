@@ -9,11 +9,15 @@ import LangCParser, SpecParser;
 langExpr: assignmentExpression;
 langId: clangIdentifier;
 langConstInt: Constant;
-langType: typeSpecifier;
+langType: typeSpecifierWithPointerOrArray;
 langStatement: blockItem;
-langStatic: EOF EOF;
+langStatic: NEVER;
 langGlobalDecl: externalDeclaration;
-langClassDecl: EOF EOF;
+langClassDecl: NEVER;
+specTrue: 'true';
+specFalse: 'false';
 
 startSpec: LineStartSpec {specLevel++;} | BlockStartSpec {specLevel++;} | BlockStartSpecImmediate {specLevel++;};
 endSpec: EndSpec {specLevel--;};
+
+typeSpecifierWithPointerOrArray : typeSpecifier | typeSpecifier '[' ']' | typeSpecifier '*';

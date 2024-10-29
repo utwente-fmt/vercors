@@ -1,0 +1,8 @@
+adt `vector`<T> {
+  pure T vector_loc(`vector`<T> v, int i);
+}
+
+    decreases;
+    requires 0 <= i;
+    requires i < 4;
+pure T v4loc<T>(`vector`<T> a, int i) = `vector`<T>.vector_loc(a, i);

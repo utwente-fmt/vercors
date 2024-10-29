@@ -1,7 +1,7 @@
 package vct.test.integration.helper
 
 import ch.qos.logback.classic.{Level, Logger}
-import hre.io.{LiteralReadable, Readable}
+import hre.io.{CollectString, LiteralReadable, Readable}
 import org.scalactic.source
 import org.scalatest.Tag
 import org.scalatest.concurrent.TimeLimits.failAfter
@@ -11,11 +11,12 @@ import org.slf4j.LoggerFactory
 import scopt.OParser
 import vct.col.origin.{BlameUnreachable, VerificationFailure}
 import vct.col.rewrite.bip.BIP.Standalone.VerificationReport
-import vct.main.Main.TemporarilyUnsupported
+import vct.main.Main.{EXIT_CODE_ERROR, TemporarilyUnsupported}
 import vct.main.modes.Verify
+import vct.main.modes.Verify.logger
 import vct.options.{Options, types}
 import vct.options.types.{Backend, PathOrStd}
-import vct.parsers.ParseError
+import vct.parsers.err.ParseError
 import vct.result.VerificationError
 import vct.result.VerificationError.{SystemError, UserError}
 import vct.test.integration.helper.VercorsSpec.MATRIX_COUNT
@@ -89,7 +90,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
               Options.parse((Seq("--backend", "silicon") ++ flags).toArray).get,
               inputs
             )
-          case types.Backend.Carbon => Verify.verifyWithCarbon(inputs)
+          case types.Backend.Carbon =>
             Verify.verifyWithOptions(
               Options.parse((Seq("--backend", "carbon") ++ flags).toArray).get,
               inputs
@@ -114,9 +115,11 @@ abstract class VercorsSpec extends AnyFlatSpec {
       case Pass => value match {
         case Left(err: UserError) =>
           println(err)
+          println(err.text)
           fail(s"Expected the test to pass, but it returned an error with code ${err.code} instead.")
         case Left(err: SystemError) =>
           println(err)
+          println(CollectString(s => err.printStackTrace(s)))
           fail(s"Expected the test to pass, but it crashed with the above error instead.")
         case Right((Nil, _)) => // success
         case Right((fails, _)) =>
@@ -126,9 +129,11 @@ abstract class VercorsSpec extends AnyFlatSpec {
       case AnyFail => value match {
         case Left(err: UserError) =>
           println(err)
+          println(err.text)
           fail(s"Expected the test to fail, but it returned an error with code ${err.code} instead.")
         case Left(err: SystemError) =>
           println(err)
+          println(CollectString(s => err.printStackTrace(s)))
           fail(s"Expected the test to fail, but it crashed with the above error instead.")
         case Right((Nil, _)) =>
           fail("Expected the test to fail, but it passed instead.")
@@ -137,9 +142,11 @@ abstract class VercorsSpec extends AnyFlatSpec {
       case Fail(code) => value match {
         case Left(err: UserError) =>
           println(err)
+          println(err.text)
           fail(s"Expected the test to fail with code $code, but it returned an error with code ${err.code} instead.")
         case Left(err: SystemError) =>
           println(err)
+          println(CollectString(s => err.printStackTrace(s)))
           fail(s"Expected the test to fail with code $code, but it crashed with the above error instead.")
         case Right((Nil, _)) =>
           fail(s"Expected the test to fail with code $code, but it passed instead.")
@@ -154,10 +161,12 @@ abstract class VercorsSpec extends AnyFlatSpec {
         case Left(err: UserError) if err.code == code => // success
         case Left(err: UserError) =>
           println(err)
+          println(err.text)
           fail(f"Expected the test to error with code $code, but got ${err.code} instead.")
         case Left(err: BlameUnreachable) if code.equals("unreachable:schematic") && err.message.equals("schematic") =>
         case Left(err: SystemError) =>
           println(err)
+          println(CollectString(s => err.printStackTrace(s)))
           fail(f"Expected the test to error with code $code, but it crashed with the above error instead.")
         case Right(_) =>
           fail("Expected the test to error, but got a pass or fail instead.")
@@ -198,31 +207,22 @@ abstract class VercorsSpec extends AnyFlatSpec {
 
     def in(desc: String): DescPhrase = new DescPhrase(verdict, backends, desc, _flags)
 
-    def flags(args: Seq[String]): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, args)
-    def flag(arg: String): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, Seq(arg))
+    def flags(args: String*): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, _flags ++ args.toSeq)
+    def flag(arg: String): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, _flags :+ arg)
   }
 
   class DescPhrase(val verdict: Verdict, val backends: Seq[Backend], val desc: String, val flags: Seq[String]) {
-    def pvl(data: String)(implicit pos: source.Position): Unit = {
-      val inputs = Seq(LiteralReadable("test.pvl", data))
+    private def literal(suffix: String, data: String)(implicit pos: source.Position): Unit = {
+      val inputs = Seq(LiteralReadable(s"test.$suffix", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
       }
     }
 
-    def java(data: String)(implicit pos: source.Position): Unit = {
-      val inputs = Seq(LiteralReadable("test.java", data))
-      for(backend <- backends) {
-        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
-      }
-    }
-
-    def c(data: String)(implicit pos: source.Position): Unit = {
-      val inputs = Seq(LiteralReadable("test.c", data))
-      for(backend <- backends) {
-        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
-      }
-    }
+    def pvl(data: String)(implicit pos: source.Position): Unit = literal("pvl", data)
+    def java(data: String)(implicit pos: source.Position): Unit = literal("java", data)
+    def c(data: String)(implicit pos: source.Position): Unit = literal("c", data)
+    def cpp(data: String)(implicit pos: source.Position): Unit = literal("cpp", data)
   }
 
   val vercors: VercorsWord = new VercorsWord
@@ -233,4 +233,18 @@ abstract class VercorsSpec extends AnyFlatSpec {
   val silicon: Seq[Backend] = Seq(types.Backend.Silicon)
   val carbon: Seq[Backend] = Seq(types.Backend.Carbon)
   val anyBackend: Seq[Backend] = Seq(types.Backend.Silicon, types.Backend.Carbon)
+
+  def example(p: Path): Path = {
+    val path = Paths.get("examples").resolve(p)
+    coveredExamples ++= Seq(path)
+    path
+  }
+
+  def example(p: String): Path = example(Paths.get(p))
+
+  def examples(p: String*): Seq[Path] =
+    p.map(example)
+
+  def examplePaths(p: Path*): Seq[Path] =
+    p.map(example)
 }

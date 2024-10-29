@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+ROOT="$(dirname "$(dirname "$(readlink -f $0)")")"
+(cd "$ROOT"; ./mill -j 0 vercors.allTests.runScript)
+"$ROOT/out/vercors/allTests/runScript.dest/testSuite" -o "$@"

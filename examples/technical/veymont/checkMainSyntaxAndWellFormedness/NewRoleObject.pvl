@@ -1,0 +1,11 @@
+choreography Main() {
+	endpoint a = Role();
+
+	run {
+		a.some := new Role();
+	}
+}
+
+class Role {
+	Role some;
+}

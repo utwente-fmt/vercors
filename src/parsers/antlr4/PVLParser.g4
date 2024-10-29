@@ -8,8 +8,10 @@ langConstInt: NUMBER;
 langType: type;
 langStatement: statement;
 langStatic: 'static';
-langGlobalDecl: EOF EOF;
-langClassDecl: EOF EOF;
+langGlobalDecl: NEVER;
+langClassDecl: NEVER;
+specTrue: 'true';
+specFalse: 'false';
 
-startSpec: EOF EOF;
-endSpec: EOF EOF;
+startSpec: NEVER;
+endSpec: NEVER;

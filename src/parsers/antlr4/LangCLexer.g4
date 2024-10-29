@@ -382,9 +382,6 @@ Newline
 EXTENSION__: '__extension__';
 BUILTIN_VA_ARG: '__builtin_va_arg';
 BUILTIN_OFFSETOF: '__builtin_offsetof';
-M128: '__m128';
-M128D: '__m128d';
-M128I: '__m128i';
 TYPEOF__: '__typeof__';
 INLINE__: '__inline__';
 STDCALL: '__stdcall';
