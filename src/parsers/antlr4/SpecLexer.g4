@@ -148,6 +148,8 @@ CHOOSE: '\\choose';
 CHOOSE_FRESH: '\\choose_fresh';
 LENGTH: '\\length';
 OLD: '\\old';
+ASSERT_EXPR: '\\assert';
+ASSUME_EXPR: '\\assume';
 TYPEOF: '\\typeof';
 TYPEVALUE: '\\type';
 MATRIX: '\\matrix';

@@ -2002,6 +2002,13 @@ case class CToCol[G](
       case ValIsInt(_, _, arg, _) => SmtlibIsInt(convert(arg))
       case ValChoose(_, _, xs, _) => Choose(convert(xs))(blame(e))
       case ValChooseFresh(_, _, xs, _) => ChooseFresh(convert(xs))(blame(e))
+      case ValBoolAssumeExpr(_, _, assn, _) => AssumeExpr(convert(assn), tt)
+      case ValGenericAssumeExpr(_, _, assn, _, inner, _) =>
+        AssumeExpr(convert(assn), convert(inner))
+      case ValBoolAssertExpr(_, _, assn, _) =>
+        AssertExpr(convert(assn), tt)(blame(e))
+      case ValGenericAssertExpr(_, _, assn, _, inner, _) =>
+        AssertExpr(convert(assn), convert(inner))(blame(e))
     }
 
   def convert(implicit e: ValExprPairContext): (Expr[G], Expr[G]) =
