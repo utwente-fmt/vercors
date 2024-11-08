@@ -3791,13 +3791,18 @@ final case class TEndpoint[G](cls: Ref[G, Endpoint[G]])(
 
 final class PVLEndpoint[G](
     val name: String,
+    val range: Option[PVLFamily[G]],
     val cls: Ref[G, Class[G]],
     val typeArgs: Seq[Type[G]],
     val args: Seq[Expr[G]],
 )(val blame: Blame[InvocationFailure])(implicit val o: Origin)
-    extends ClassDeclaration[G] with PVLEndpointImpl[G] {
+    extends ClassDeclaration[G] with PVLEndpointImpl[G] with Declarator[G] {
   var ref: Option[PVLConstructorTarget[G]] = None
 }
+@family
+final case class PVLFamily[G](binder: Variable[G], low: Expr[G], high: Expr[G])(
+    implicit val o: Origin
+) extends NodeFamily[G] with PVLFamilyImpl[G]
 final class PVLChoreography[G](
     val name: String,
     val declarations: Seq[ClassDeclaration[G]],
@@ -3812,10 +3817,26 @@ final class PVLChorRun[G](
     extends ClassDeclaration[G] with PVLChorRunImpl[G]
 
 @family
-case class PVLEndpointName[G](name: String)(implicit val o: Origin)
-    extends PVLEndpointNameImpl[G] with NodeFamily[G] {
+sealed trait PVLEndpointSet[G] extends NodeFamily[G] with PVLEndpointSetImpl[G]
+final case class PVLEndpointName[G](name: String)(implicit val o: Origin)
+    extends PVLEndpointNameImpl[G] with PVLEndpointSet[G] {
   var ref: Option[RefPVLEndpoint[G]] = None
 }
+final case class PVLEndpointRange[G](
+    family: Expr[G],
+    binder: Variable[G],
+    low: Expr[G],
+    high: Expr[G],
+)(implicit val o: Origin)
+    extends PVLEndpointSet[G] with PVLEndpointRangeImpl[G]
+// Need a second one, because don't want to have one node in two node families (PVLEndpointSet and Expr)
+case class PVLEndpointRangeExpr[G](
+    family: Expr[G],
+    binder: Variable[G],
+    low: Expr[G],
+    high: Expr[G],
+)(implicit val o: Origin)
+    extends Expr[G] with PVLEndpointRangeExprImpl[G]
 
 // Resolution of invariant can depend on communicate's target/msg through \sender, \receiver, \msg. Therefore, definitions are nested like this,
 // to ensure that PVLCommunicate is fully resolved before the invariant is typechecked.
@@ -3827,9 +3848,9 @@ final case class PVLCommunicateStatement[G](
     extends Statement[G] with PVLCommunicateStatementImpl[G]
 @family
 final class PVLCommunicate[G](
-    val receiver: Option[PVLEndpointName[G]],
+    val receiver: Option[PVLEndpointSet[G]],
     val target: Expr[G],
-    val sender: Option[PVLEndpointName[G]],
+    val sender: Option[PVLEndpointSet[G]],
     val msg: Expr[G],
 )(val blame: Blame[PVLCommunicateFailure])(implicit val o: Origin)
     extends Declaration[G] with PVLCommunicateImpl[G] {
@@ -3837,12 +3858,12 @@ final class PVLCommunicate[G](
   var inferredReceiver: Option[PVLEndpoint[G]] = None
 }
 final case class PVLEndpointStatement[G](
-    endpoint: Option[PVLEndpointName[G]],
+    endpoint: Option[PVLEndpointSet[G]],
     inner: Statement[G],
 )(val blame: Blame[ChorStatementFailure])(implicit val o: Origin)
     extends Statement[G] with PVLEndpointStatementImpl[G]
 final case class PVLChorPerm[G](
-    endpoint: PVLEndpointName[G],
+    endpoint: PVLEndpointSet[G],
     loc: Location[G],
     perm: Expr[G],
 )(implicit val o: Origin)
@@ -3920,11 +3941,9 @@ final case class EndpointStatement[G](
 )(val blame: Blame[ChorStatementFailure])(implicit val o: Origin)
     extends Statement[G] with EndpointStatementImpl[G]
 
-final case class PVLEndpointExpr[G](
-    endpoint: PVLEndpointName[G],
-    expr: Expr[G],
-)(implicit val o: Origin)
-    extends Expr[G] with PVLEndpointExprImpl[G]
+final case class PVLEndpointExpr[G](endpoint: PVLEndpointSet[G], expr: Expr[G])(
+    implicit val o: Origin
+) extends Expr[G] with PVLEndpointExprImpl[G]
 final case class EndpointExpr[G](endpoint: Ref[G, Endpoint[G]], expr: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with EndpointExprImpl[G]

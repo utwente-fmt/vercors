@@ -660,7 +660,8 @@ case class PVLToCol[G](
       implicit participant: ParticipantContext
   ): PVLEndpointName[G] =
     participant match {
-      case Participant0(name, _) => PVLEndpointName(convert(name))
+      case Participant0(name, None, _) => PVLEndpointName(convert(name))
+      case Participant0(name, Some(_), _) => ???
     }
 
   def convert(implicit stat: ForStatementListContext): Statement[G] =

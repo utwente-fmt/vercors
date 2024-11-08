@@ -18,6 +18,7 @@ declVeyMontSeqProg : contract 'choreography' identifier '(' args? ')' '{' seqPro
 
 seqProgDecl
  : 'endpoint' identifier '=' classType '(' exprList? ')' ';' # pvlEndpoint
+ | 'endpoints' identifier familyIter '=' classType '(' exprList? ')' ';' # pvlEndpoints
  | contract 'run' block # pvlSeqRun
  | method # seqProgMethod
  ;
@@ -148,12 +149,14 @@ postfixExpr
  | postfixExpr '[' expr ']'
  | postfixExpr valPostfix
  | unit
+ | postfixExpr familyIter # pvlEndpointsRange
  ;
 
 unit
  : valExpr # pvlValExpr
  | 'Perm' '[' identifier ']' '(' expr ',' expr ')' # pvlChorPerm
  | '(' '\\endpoint' identifier ';' expr ')' # pvlLongEndpointExpr
+ | '(' '\\endpoints' identifier familyIter ';' expr ')' # pvlEndpointsExpr
  | '(' '\\' '[' identifier ']' expr ')' # pvlShortEndpointExpr
  | '(' '\\chor' expr ')' # pvlLongChorExpr
  | '(' '\\' '[' ']' expr ')' # pvlShortChorExpr
@@ -205,6 +208,7 @@ statement
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
  | channelInvariant? 'communicate' access direction access ';' # pvlCommunicateStatement
+ | ('endpoint' | 'endpoints') participant statement
  ;
 
  channelInvariant
@@ -217,7 +221,11 @@ direction
  ;
 
 access: participant? expr;
-participant: identifier ':';
+participant
+  : identifier familyIter? ':'
+  ;
+
+familyIter: '[' identifier ':' '=' expr '..' expr ']';
 
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;

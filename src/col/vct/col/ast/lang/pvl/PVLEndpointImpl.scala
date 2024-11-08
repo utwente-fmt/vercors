@@ -1,5 +1,6 @@
 package vct.col.ast.lang.pvl
 
+import vct.col.ast.Declaration
 import vct.col.ast.ops.PVLEndpointOps
 import vct.col.ast.{PVLEndpoint, TClass}
 
@@ -8,4 +9,6 @@ trait PVLEndpointImpl[G] extends PVLEndpointOps[G] {
   // override def layout(implicit ctx: Ctx): Doc = ???
 
   def t: TClass[G] = cls.decl.classType(typeArgs)
+
+  def declarations: Seq[Declaration[G]] = ???
 }

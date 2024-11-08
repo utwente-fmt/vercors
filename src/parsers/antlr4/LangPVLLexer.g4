@@ -58,6 +58,7 @@ RUN: 'run';
 VESUV_ENTRY: 'vesuv_entry';
 THREAD: 'thread';
 ENDPOINT: 'endpoint';
+ENDPOINTS: 'endpoints';
 
 IF: 'if';
 ELSE: 'else';
@@ -85,6 +86,7 @@ SENDER: '\\sender';
 RECEIVER: '\\receiver';
 MESSAGE: '\\msg';
 BENDPOINT: '\\endpoint';
+BENDPOINTS: '\\endpoints';
 BCHOR: '\\chor';
 
 THIS: 'this';
