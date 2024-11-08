@@ -34,7 +34,7 @@ import vct.rewrite.{
   EncodeByValueClassUsage,
   EncodeRange,
   EncodeResourceValues,
-  EncodeAssertAssumeExpr,
+  EncodeAssertingAssuming,
   ExplicitResourceValues,
   GenerateSingleOwnerPermissions,
   HeapVariableToRef,
@@ -117,9 +117,9 @@ object Transformation extends LazyLogging {
     Of course, this all while still retaining the functionality of making it possible to pass more simplification rules
     using command line flags.
      */
-    Progress.hiddenStage(
-      s"Loading PVL library file ${readable.underlyingPath.getOrElse("<unknown>")}"
-    ) { Util.loadPVLLibraryFile(readable, debugOptions) }
+    Progress.hiddenStage(s"Loading PVL library file ${readable.fileName}") {
+      Util.loadPVLLibraryFile(readable, debugOptions)
+    }
   }
 
   def simplifierFor(path: PathOrStd, options: Options): RewriterBuilder =
@@ -414,7 +414,7 @@ case class SilverTransformation(
         RefuteToInvertedAssert,
         ExplicitResourceValues,
         EncodeResourceValues,
-        EncodeAssertAssumeExpr,
+        EncodeAssertingAssuming,
 
         // Encode parallel blocks
         EncodeSendRecv,

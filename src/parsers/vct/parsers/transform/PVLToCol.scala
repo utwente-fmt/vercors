@@ -478,6 +478,13 @@ case class PVLToCol[G](
         )
       case PvlLongChorExpr(_, _, inner, _) => ChorExpr(convert(inner))
       case PvlShortChorExpr(_, _, _, _, inner, _) => ChorExpr(convert(inner))
+      case PvlBoolAsserting(_, _, assn, _) =>
+        Asserting(convert(assn), tt)(blame(expr))
+      case PvlAsserting(_, _, assn, _, inner, _) =>
+        Asserting(convert(assn), convert(inner))(blame(expr))
+      case PvlBoolAssuming(_, _, assn, _) => Assuming(convert(assn), tt)
+      case PvlAssuming(_, _, assn, _, inner, _) =>
+        Assuming(convert(assn), convert(inner))
       case PvlSender(_) => PVLSender()
       case PvlReceiver(_) => PVLReceiver()
       case PvlMessage(_) => PVLMessage()
@@ -1944,13 +1951,13 @@ case class PVLToCol[G](
       case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
       case ValChoose(_, _, xs, _) => Choose(convert(xs))(blame(e))
       case ValChooseFresh(_, _, xs, _) => ChooseFresh(convert(xs))(blame(e))
-      case ValBoolAssumeExpr(_, _, assn, _) => AssumeExpr(convert(assn), tt)
-      case ValGenericAssumeExpr(_, _, assn, _, inner, _) =>
-        AssumeExpr(convert(assn), convert(inner))
-      case ValBoolAssertExpr(_, _, assn, _) =>
-        AssertExpr(convert(assn), tt)(blame(e))
-      case ValGenericAssertExpr(_, _, assn, _, inner, _) =>
-        AssertExpr(convert(assn), convert(inner))(blame(e))
+      case ValBoolAssuming(_, _, assn, _) => Assuming(convert(assn), tt)
+      case ValAssuming(_, _, assn, _, inner, _) =>
+        Assuming(convert(assn), convert(inner))
+      case ValBoolAsserting(_, _, assn, _) =>
+        Asserting(convert(assn), tt)(blame(e))
+      case ValAsserting(_, _, assn, _, inner, _) =>
+        Asserting(convert(assn), convert(inner))(blame(e))
     }
 
   def convert(implicit e: ValExprPairContext): (Expr[G], Expr[G]) =
