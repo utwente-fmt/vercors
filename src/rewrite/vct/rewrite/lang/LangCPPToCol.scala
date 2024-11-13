@@ -658,6 +658,7 @@ case object LangCPPToCol {
       .withContent(SYCLGeneratedAccessorPermissions)
 }
 
+
 case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     extends LazyLogging {
   import LangCPPToCol._
@@ -673,7 +674,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   val cppNameSuccessor: SuccessionMap[CPPNameTarget[Pre], Variable[Post]] =
     SuccessionMap()
   val cppGlobalNameSuccessor
-      : SuccessionMap[CPPNameTarget[Pre], HeapVariable[Post]] = SuccessionMap()
+    : SuccessionMap[CPPNameTarget[Pre], HeapVariable[Post]] = SuccessionMap()
   val cppCurrentDefinitionParamSubstitutions
       : ScopedStack[Map[CPPParam[Pre], CPPParam[Pre]]] = ScopedStack()
 
@@ -1593,16 +1594,15 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       ParBlock[Post](
         decl = new ParBlockDecl[Post]()(o.where(name = "SYCL_BASIC_KERNEL")),
         iters = currentDimensionIterVars(GlobalScope()).toSeq,
-        context_everywhere = rw
-          .dispatch(kernelDeclaration.contract.contextEverywhere),
-        requires = foldStar(
-          currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++
-            idLimits ++ accessorParblockConditions :+ contractRequires
-        ),
-        ensures = foldStar(
-          currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++
-            idLimits ++ accessorParblockConditions :+ contractEnsures
-        ),
+        context_everywhere = foldStar(
+          (currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++
+            idLimits ++ accessorParblockConditions) :+
+          rw.dispatch(kernelDeclaration.contract.contextEverywhere)
+
+        )
+        ,
+        requires = contractRequires,
+        ensures = contractEnsures,
         content = rw.dispatch(kernelDeclaration.body),
       )(SYCLKernelParBlockFailureBlame(kernelDeclaration))
 
@@ -1946,7 +1946,15 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             Deref[Post](classObj, acc.instanceField.ref)(
               new SYCLAccessorDerefBlame(acc.instanceField)
             )(acc.instanceField.o),
-            rangeIndexDerefs.reduce((e1, e2) => (e1 * e2)(acc.buffer.o)),
+            rangeIndexDerefs.reduce((e1, e2) =>
+//                (e1 * e2)(acc.buffer.o)
+
+                  syclHelperFunctions("sycl_:_:mul")(
+                  Seq(e1,e2),
+                  new PanicBlame("Ömer's Test"),
+                  acc.instanceField.o,
+                )
+            ),
           )(acc.instanceField.o),
         )
       )(acc.instanceField.o),

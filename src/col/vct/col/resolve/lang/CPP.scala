@@ -188,7 +188,6 @@ case object CPP {
         getBaseTypeFromSpecs(returnedSpecs)
       case x => x
     }
-
   }
 
   def paramsFromDeclarator[G](declarator: CPPDeclarator[G]): Seq[CPPParam[G]] =
