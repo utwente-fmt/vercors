@@ -485,6 +485,17 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       val body = (pre1 && pre2 && access(i) === access(j)) ==> (i.get === j.get)
       Forall(Seq(i, j), Seq(triggerUnique), body)
     }
+
+    def makeCast(
+        access: Variable[Post] => Expr[Post],
+        innerType: Type[Post],
+    ): Expr[Post] = {
+      implicit val o: Origin = arrayCreationOrigin
+      val zero = const[Post](0)
+      val cast = Cast(access(i), TypeValue(TNonNullPointer(innerType)))
+      val body = (zero <= i.get && i.get < size) ==> (cast === access(i))
+      Forall(Seq(i), Seq(Seq(cast)), body)
+    }
   }
 
   def typeIsRef(t: Type[_]): Boolean =
@@ -553,6 +564,13 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         else
           ensures &* foldStar(permFields.map(_._1))
 
+      val innerType = dispatch(elementType)
+      ensures =
+        ensures &* makeStruct.makeCast(
+          i => PointerAdd(result, i.get)(FramedPtrOffset),
+          innerType,
+        )
+
       ensures =
         if (nullable) { Star(Implies(result !== Null(), ensures), tt) }
         else { ensures }
@@ -561,8 +579,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         blame = AbstractApplicable,
         contractBlame = TrueSatisfiable,
         returnType =
-          if (nullable) { TPointer(dispatch(elementType)) }
-          else { TNonNullPointer(dispatch(elementType)) },
+          if (nullable) { TPointer(innerType) }
+          else { TNonNullPointer(innerType) },
         args = Seq(sizeArg),
         requires = UnitAccountedPredicate(requires),
         ensures = UnitAccountedPredicate(ensures),

@@ -275,6 +275,8 @@ case class LangSpecificToCol[Pre <: Generation](
       case store: LLVMStore[Pre] => llvm.rewriteStore(store)
       case alloc: LLVMAllocA[Pre] => llvm.rewriteAllocA(alloc)
       case block: LLVMBasicBlock[Pre] => llvm.rewriteBasicBlock(block)
+      case unreachable: LLVMBranchUnreachable[Pre] =>
+        llvm.rewriteUnreachable(unreachable)
       case other => other.rewriteDefault()
     }
 
@@ -386,6 +388,12 @@ case class LangSpecificToCol[Pre <: Generation](
       case pointer: LLVMPointerValue[Pre] => llvm.rewritePointerValue(pointer)
       case gep: LLVMGetElementPointer[Pre] => llvm.rewriteGetElementPointer(gep)
       case int: LLVMIntegerValue[Pre] => IntegerValue(int.value)(int.o)
+      case float: LLVMFloatValue[Pre] =>
+        FloatValue(float.bigDecimalValue, dispatch(float.t))(float.o)
+      case sext: LLVMSignExtend[Pre] => llvm.rewriteSignExtend(sext)
+      case zext: LLVMZeroExtend[Pre] => llvm.rewriteZeroExtend(zext)
+      case trunc: LLVMTruncate[Pre] => llvm.rewriteTruncate(trunc)
+      case fpext: LLVMFloatExtend[Pre] => llvm.rewriteFloatExtend(fpext)
 
       case other => rewriteDefault(other)
     }
@@ -399,6 +407,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case t: CTArray[Pre] => c.arrayType(t)
       case t: CTStruct[Pre] => c.structType(t)
       case t: LLVMTInt[Pre] => TInt()(t.o)
+      case t: LLVMTFloat[Pre] => TFloat(t.exponent, t.mantissa)
       case t: LLVMTStruct[Pre] => llvm.structType(t)
       case t: LLVMTPointer[Pre] => llvm.pointerType(t)
       case t: LLVMTArray[Pre] => llvm.arrayType(t)

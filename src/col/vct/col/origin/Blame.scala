@@ -1312,6 +1312,17 @@ case class TransitionPreconditionFailed(
     s"Precondition of $node does not hold, in a particular synchronization, since $failure"
 }
 
+case class UnreachableReachedError(node: Node[_])
+    extends NodeVerificationFailure {
+  override def code: String = "unreachable"
+
+  override def descInContext: String =
+    "Location marked as unreachable was reached"
+
+  override def inlineDescWithSource(source: String): String =
+    s"Location `$source` was reached but was marked unreachable"
+}
+
 trait Blame[-T <: VerificationFailure] {
   def blame(error: T): Unit
 }

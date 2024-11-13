@@ -1,6 +1,7 @@
 #include "Passes/Module/ProtobufPrinter.h"
 #include "Passes/Module/RootContainer.h"
 #include "Util/Exceptions.h"
+#include <cstdlib>
 
 namespace pallas {
 const std::string SOURCE_LOC = "Passes::Module::ProtobufPrinter";
@@ -12,6 +13,7 @@ PreservedAnalyses ProtobufPrinter::run(Module &M, ModuleAnalysisManager &MAM) {
         llvm::errs() << "[ERROR] [pallas] Conversion failed with "
                      << ErrorReporter::getWarningCount() << " warnings and "
                      << ErrorReporter::getErrorCount() << " errors\n";
+        std::exit(1);
     } else {
         llvm::errs() << "[INFO] [pallas] Conversion succeeded with "
                      << ErrorReporter::getWarningCount() << "warnings\n";

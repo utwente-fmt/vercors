@@ -1,9 +1,3 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-//:: case CPointers
-//:: tool silicon
-//:: verdict Pass
-
-
 void test() {
     int x = 0;
     int *y = &x;
@@ -28,19 +22,7 @@ ensures \result == 1;
 int returnsOne() {
     int result;
     setOne(&result);
-    // destroyPermission(&result);
     return result;
-}
-
-void destroyArgument(int x) {
-    // destroyPermission(&x);
-}
-
-/*@
-requires \pointer(a, 1, write);
-@*/
-void destroyPermission(int *a) {
-    a[0] = 1;
 }
 
 /*@
@@ -81,7 +63,7 @@ void sort(int *data, int len) {
     } else {
         int mid = len / 2;
         sort(data, mid);
-        sort(data+mid, len-mid);
+        sort(data + mid, len-mid);
         merge(data, mid, &data[mid], len-mid);
     }
 }

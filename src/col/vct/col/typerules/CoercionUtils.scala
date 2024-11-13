@@ -199,6 +199,12 @@ case object CoercionUtils {
       case (TCInt(), TInt()) => CoerceCIntInt()
       case (LLVMTInt(_), TInt()) => CoerceLLVMIntInt()
       case (TInt(), LLVMTInt(_)) => CoerceIdentity(target)
+      case (l @ LLVMTFloat(_), TFloat(mantissa, exponent))
+          if l.mantissa == mantissa && l.exponent == exponent =>
+        CoerceIdentity(target)
+      case (TFloat(mantissa, exponent), r @ LLVMTFloat(_))
+          if r.mantissa == mantissa && r.exponent == exponent =>
+        CoerceIdentity(target)
 
       case (TBoundedInt(gte, lt), TFraction()) if gte >= 1 && lt <= 2 =>
         CoerceBoundIntFrac()
@@ -447,7 +453,7 @@ case object CoercionUtils {
       case t: CPPTArray[G] =>
         Some((CoerceCPPArrayPointer(t.innerType), TPointer(t.innerType)))
       case LLVMTPointer(None) =>
-        Some((CoerceIdentity(source), TPointer[G](TAnyValue())))
+        Some((CoerceIdentity(source), TPointer[G](TVoid())))
       case LLVMTPointer(Some(innerType)) =>
         Some((CoerceIdentity(source), TPointer(innerType)))
       case LLVMTArray(numElements, innerType) if numElements > 0 =>

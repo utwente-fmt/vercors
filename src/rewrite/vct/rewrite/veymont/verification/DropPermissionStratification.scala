@@ -3,7 +3,6 @@ package vct.rewrite.veymont.verification
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{
   ChorExpr,
-  ChorPerm,
   EndpointExpr,
   EndpointStatement,
   Expr,
@@ -32,8 +31,6 @@ case class DropPermissionStratification[Pre <: Generation]()
     expr match {
       case EndpointExpr(_, expr) => expr.rewriteDefault()
       case ChorExpr(expr) => expr.rewriteDefault()
-      case ChorPerm(_, loc, perm) =>
-        Perm(loc.rewriteDefault(), perm.rewriteDefault())(expr.o)
       case _ => expr.rewriteDefault()
     }
 }

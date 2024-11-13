@@ -16,5 +16,8 @@ void transformZExt(llvm::ZExtInst &sextInstruction, col::Block &colBlock,
 
 void transformTrunc(llvm::TruncInst &truncInstruction, col::Block &colBlock,
                     pallas::FunctionCursor &funcCursor);
+
+void transformFPExt(llvm::FPExtInst &fpextInstruction, col::Block &colBlock,
+                    pallas::FunctionCursor &funcCursor);
 } // namespace llvm2col
 #endif // PALLAS_CASTOPTRANSFORM_H

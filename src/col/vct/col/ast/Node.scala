@@ -3610,6 +3610,11 @@ final case class LLVMStore[G](
 )(val blame: Blame[VerificationFailure])(implicit val o: Origin)
     extends LLVMStatement[G] with LLVMStoreImpl[G]
 
+final case class LLVMBranchUnreachable[G]()(
+    val blame: Blame[UnreachableReachedError]
+)(implicit val o: Origin)
+    extends LLVMStatement[G] with LLVMBranchUnreachableImpl[G]
+
 final case class LLVMGetElementPointer[G](
     structureType: Type[G],
     resultType: Type[G],
@@ -3639,6 +3644,13 @@ final case class LLVMTruncate[G](
 )(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMTruncateImpl[G]
 
+final case class LLVMFloatExtend[G](
+    inputType: Type[G],
+    outputType: Type[G],
+    value: Expr[G],
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMFloatExtendImpl[G]
+
 final class LLVMGlobalSpecification[G](val value: String)(
     implicit val o: Origin
 ) extends GlobalDeclaration[G] with LLVMGlobalSpecificationImpl[G] {
@@ -3664,9 +3676,31 @@ final case class LLVMMemoryAcquireRelease[G]()(implicit val o: Origin)
 final case class LLVMMemorySequentiallyConsistent[G]()(implicit val o: Origin)
     extends LLVMMemoryOrdering[G] with LLVMMemorySequentiallyConsistentImpl[G]
 
+@family
+sealed trait LLVMFloatType[G] extends NodeFamily[G] with LLVMFloatTypeImpl[G]
+
+final case class F16[G]()(implicit val o: Origin)
+    extends LLVMFloatType[G] with F16Impl[G]
+final case class BF16[G]()(implicit val o: Origin)
+    extends LLVMFloatType[G] with BF16Impl[G]
+final case class F32[G]()(implicit val o: Origin)
+    extends LLVMFloatType[G] with F32Impl[G]
+final case class F64[G]()(implicit val o: Origin)
+    extends LLVMFloatType[G] with F64Impl[G]
+final case class F80[G]()(implicit val o: Origin)
+    extends LLVMFloatType[G] with F80Impl[G]
+final case class F128[G]()(implicit val o: Origin)
+    extends LLVMFloatType[G] with F128Impl[G]
+// https://www.ibm.com/docs/en/aix/7.3?topic=sepl-128-bit-long-double-floating-point-data-type
+final case class PPCF128[G]()(implicit val o: Origin)
+    extends LLVMFloatType[G] with PPCF128Impl[G]
+
 final case class LLVMIntegerValue[G](value: BigInt, integerType: Type[G])(
     implicit val o: Origin
 ) extends ConstantInt[G] with LLVMExpr[G] with LLVMIntegerValueImpl[G]
+final case class LLVMFloatValue[G](value: BigInt, floatType: LLVMFloatType[G])(
+    implicit val o: Origin
+) extends Constant[G] with LLVMExpr[G] with LLVMFloatValueImpl[G]
 final case class LLVMPointerValue[G](value: Ref[G, Declaration[G]])(
     implicit val o: Origin
 ) extends Constant[G] with LLVMExpr[G] with LLVMPointerValueImpl[G]
@@ -3697,6 +3731,9 @@ final case class LLVMZeroedAggregateValue[G](aggregateType: Type[G])(
 final case class LLVMTInt[G](bitWidth: Int)(
     implicit val o: Origin = DiagnosticOrigin
 ) extends IntType[G] with LLVMTIntImpl[G]
+final case class LLVMTFloat[G](floatType: LLVMFloatType[G])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends FloatType[G] with LLVMTFloatImpl[G]
 final case class LLVMTFunction[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with LLVMTFunctionImpl[G]
 final case class LLVMTPointer[G](innerType: Option[Type[G]])(
@@ -3894,12 +3931,6 @@ final case class CommunicateStatement[G](inner: Communicate[G])(
 final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(
     implicit val o: Origin
 ) extends Expr[G] with EndpointNameImpl[G]
-final case class ChorPerm[G](
-    endpoint: Ref[G, Endpoint[G]],
-    loc: Location[G],
-    perm: Expr[G],
-)(implicit val o: Origin)
-    extends Expr[G] with ChorPermImpl[G]
 final case class Sender[G](ref: Ref[G, Communicate[G]])(implicit val o: Origin)
     extends Expr[G] with SenderImpl[G]
 final case class Receiver[G](ref: Ref[G, Communicate[G]])(

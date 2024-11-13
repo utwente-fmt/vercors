@@ -1,11 +1,10 @@
 #include "Transform/Transform.h"
-
-#include <llvm/IR/Constants.h>
-#include <llvm/IR/DerivedTypes.h>
-
 #include "Origin/OriginProvider.h"
 #include "Passes/Function/FunctionBodyTransformer.h"
 #include "Util/Exceptions.h"
+
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/DerivedTypes.h>
 
 /**
  * Utility function that converts LLVM types to col types
@@ -34,6 +33,56 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType) {
             colInt->set_allocated_origin(generateTypeOrigin(llvmType));
         }
         break;
+    case llvm::Type::HalfTyID: {
+        col::LlvmtFloat *colFloat = colType.mutable_llvmt_float();
+        colFloat->mutable_float_type()->mutable_f16()->set_allocated_origin(
+            generateTypeOrigin(llvmType));
+        colFloat->set_allocated_origin(generateTypeOrigin(llvmType));
+        break;
+    }
+    case llvm::Type::BFloatTyID: {
+        col::LlvmtFloat *colFloat = colType.mutable_llvmt_float();
+        colFloat->mutable_float_type()->mutable_b_f16()->set_allocated_origin(
+            generateTypeOrigin(llvmType));
+        colFloat->set_allocated_origin(generateTypeOrigin(llvmType));
+        break;
+    }
+    case llvm::Type::FloatTyID: {
+        col::LlvmtFloat *colFloat = colType.mutable_llvmt_float();
+        colFloat->mutable_float_type()->mutable_f32()->set_allocated_origin(
+            generateTypeOrigin(llvmType));
+        colFloat->set_allocated_origin(generateTypeOrigin(llvmType));
+        break;
+    }
+    case llvm::Type::DoubleTyID: {
+        col::LlvmtFloat *colFloat = colType.mutable_llvmt_float();
+        colFloat->mutable_float_type()->mutable_f64()->set_allocated_origin(
+            generateTypeOrigin(llvmType));
+        colFloat->set_allocated_origin(generateTypeOrigin(llvmType));
+        break;
+    }
+    case llvm::Type::X86_FP80TyID: {
+        col::LlvmtFloat *colFloat = colType.mutable_llvmt_float();
+        colFloat->mutable_float_type()->mutable_f80()->set_allocated_origin(
+            generateTypeOrigin(llvmType));
+        colFloat->set_allocated_origin(generateTypeOrigin(llvmType));
+        break;
+    }
+    case llvm::Type::FP128TyID: {
+        col::LlvmtFloat *colFloat = colType.mutable_llvmt_float();
+        colFloat->mutable_float_type()->mutable_f128()->set_allocated_origin(
+            generateTypeOrigin(llvmType));
+        colFloat->set_allocated_origin(generateTypeOrigin(llvmType));
+        break;
+    }
+    case llvm::Type::PPC_FP128TyID: {
+        col::LlvmtFloat *colFloat = colType.mutable_llvmt_float();
+        colFloat->mutable_float_type()
+            ->mutable_ppc_f128()
+            ->set_allocated_origin(generateTypeOrigin(llvmType));
+        colFloat->set_allocated_origin(generateTypeOrigin(llvmType));
+        break;
+    }
     case llvm::Type::VoidTyID:
         colType.mutable_t_void()->set_allocated_origin(
             generateTypeOrigin(llvmType));
@@ -149,6 +198,77 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
             colInt->set_allocated_origin(generateTypeOrigin(*constType));
         }
         break;
+    case llvm::Type::HalfTyID: {
+        llvm::ConstantFP &llvmFp = llvm::cast<llvm::ConstantFP>(llvmConstant);
+        col::LlvmFloatValue *floatValue = colExpr.mutable_llvm_float_value();
+        floatValue->set_allocated_origin(origin);
+        llvm::APInt apInt = llvmFp.getValue().bitcastToAPInt();
+        transformAndSetBigInt(apInt, *floatValue->mutable_value());
+        floatValue->mutable_float_type()->mutable_f16()->set_allocated_origin(
+            generateTypeOrigin(*constType));
+        break;
+    }
+    case llvm::Type::BFloatTyID: {
+        llvm::ConstantFP &llvmFp = llvm::cast<llvm::ConstantFP>(llvmConstant);
+        col::LlvmFloatValue *floatValue = colExpr.mutable_llvm_float_value();
+        floatValue->set_allocated_origin(origin);
+        llvm::APInt apInt = llvmFp.getValue().bitcastToAPInt();
+        transformAndSetBigInt(apInt, *floatValue->mutable_value());
+        floatValue->mutable_float_type()->mutable_b_f16()->set_allocated_origin(
+            generateTypeOrigin(*constType));
+        break;
+    }
+    case llvm::Type::FloatTyID: {
+        llvm::ConstantFP &llvmFp = llvm::cast<llvm::ConstantFP>(llvmConstant);
+        col::LlvmFloatValue *floatValue = colExpr.mutable_llvm_float_value();
+        floatValue->set_allocated_origin(origin);
+        llvm::APInt apInt = llvmFp.getValue().bitcastToAPInt();
+        transformAndSetBigInt(apInt, *floatValue->mutable_value());
+        floatValue->mutable_float_type()->mutable_f32()->set_allocated_origin(
+            generateTypeOrigin(*constType));
+        break;
+    }
+    case llvm::Type::DoubleTyID: {
+        llvm::ConstantFP &llvmFp = llvm::cast<llvm::ConstantFP>(llvmConstant);
+        col::LlvmFloatValue *floatValue = colExpr.mutable_llvm_float_value();
+        floatValue->set_allocated_origin(origin);
+        llvm::APInt apInt = llvmFp.getValue().bitcastToAPInt();
+        transformAndSetBigInt(apInt, *floatValue->mutable_value());
+        floatValue->mutable_float_type()->mutable_f64()->set_allocated_origin(
+            generateTypeOrigin(*constType));
+        break;
+    }
+    case llvm::Type::X86_FP80TyID: {
+        llvm::ConstantFP &llvmFp = llvm::cast<llvm::ConstantFP>(llvmConstant);
+        col::LlvmFloatValue *floatValue = colExpr.mutable_llvm_float_value();
+        floatValue->set_allocated_origin(origin);
+        llvm::APInt apInt = llvmFp.getValue().bitcastToAPInt();
+        transformAndSetBigInt(apInt, *floatValue->mutable_value());
+        floatValue->mutable_float_type()->mutable_f80()->set_allocated_origin(
+            generateTypeOrigin(*constType));
+        break;
+    }
+    case llvm::Type::FP128TyID: {
+        llvm::ConstantFP &llvmFp = llvm::cast<llvm::ConstantFP>(llvmConstant);
+        col::LlvmFloatValue *floatValue = colExpr.mutable_llvm_float_value();
+        floatValue->set_allocated_origin(origin);
+        llvm::APInt apInt = llvmFp.getValue().bitcastToAPInt();
+        transformAndSetBigInt(apInt, *floatValue->mutable_value());
+        floatValue->mutable_float_type()->mutable_f128()->set_allocated_origin(
+            generateTypeOrigin(*constType));
+        break;
+    }
+    case llvm::Type::PPC_FP128TyID: {
+        llvm::ConstantFP &llvmFp = llvm::cast<llvm::ConstantFP>(llvmConstant);
+        col::LlvmFloatValue *floatValue = colExpr.mutable_llvm_float_value();
+        floatValue->set_allocated_origin(origin);
+        llvm::APInt apInt = llvmFp.getValue().bitcastToAPInt();
+        transformAndSetBigInt(apInt, *floatValue->mutable_value());
+        floatValue->mutable_float_type()
+            ->mutable_ppc_f128()
+            ->set_allocated_origin(generateTypeOrigin(*constType));
+        break;
+    }
     case llvm::Type::PointerTyID: {
         // Can't be a function since we caught that in transformAndSetExpr
         llvm::Value *stripped = llvmConstant.stripPointerCastsAndAliases();

@@ -159,6 +159,12 @@ sealed trait CheckError {
           context(e) ->
             s"This expression is only allowed within a `channel_invariant` clause."
         )
+      case InconsistentEndpointExprNesting(outer, inner) =>
+        Seq(
+          context(outer) ->
+            "The endpoint referenced in the outer expression here...",
+          context(inner) -> "...differs from the endpoint referenced here",
+        )
     }): _*)
 
   def subcode: String
@@ -272,6 +278,10 @@ case class ChorInEndpointExpr(expr: Node[_]) extends CheckError {
 case class OnlyInChannelInvariant(expr: Node[_]) extends CheckError {
   val subcode = "onlyInChannelInvariant"
 }
+case class InconsistentEndpointExprNesting(outer: Node[_], inner: Node[_])
+    extends CheckError {
+  val subcode = "inconsistentEndpointExprNesting"
+}
 
 case object CheckContext {
   case class ScopeFrame[G](
@@ -301,7 +311,7 @@ case class CheckContext[G](
     currentReceiverEndpoint: Option[Endpoint[G]] = None,
     currentParticipatingEndpoints: Option[Set[Endpoint[G]]] = None,
     inChor: Boolean = false,
-    inEndpointExpr: Option[Endpoint[G]] = None,
+    inEndpointExpr: Option[EndpointExpr[G]] = None,
     inCommunicateInvariant: Option[Communicate[G]] = None,
     declarationStack: Seq[Declaration[G]] = Nil,
 ) {

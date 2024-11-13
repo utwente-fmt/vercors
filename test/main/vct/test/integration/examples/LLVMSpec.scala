@@ -9,4 +9,21 @@ class LLVMSpec extends VercorsSpec {
   vercors should fail withCode "preFailed:false" using silicon example "concepts/llvm/date.ll"
   vercors should verify using silicon example "concepts/llvm/fib.c"
   vercors should verify using silicon example "concepts/llvm/fib.ll"
+  vercors should verify using silicon example "concepts/llvm/cubed.c"
+  vercors should verify using silicon flags("--contract-import-file", "examples/concepts/llvm/cubed-contracts.pvl") example "concepts/llvm/cubed.ll"
+  vercors should verify using silicon flags("--contract-import-file", "examples/concepts/llvm/void-contracts.pvl") example "concepts/llvm/void.ll"
+  vercors should fail withCode "unreachable" using silicon in "reaching an 'unreachable' statement" llvm
+  """
+  define void @foo() {
+    unreachable
+  }
+  """
+  vercors should verify using silicon in "an unreachable 'unreachable' statement" llvm
+    """
+  define void @foo() {
+    br i1 0, label %1, label %2
+    1: unreachable
+    2: ret void
+  }
+  """
 }

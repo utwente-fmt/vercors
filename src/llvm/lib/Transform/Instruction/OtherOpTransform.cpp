@@ -18,6 +18,10 @@ void llvm2col::transformOtherOp(llvm::Instruction &llvmInstruction,
         transformICmp(llvm::cast<llvm::ICmpInst>(llvmInstruction), colBlock,
                       funcCursor);
         break;
+    case llvm::Instruction::FCmp:
+        transformFCmp(llvm::cast<llvm::FCmpInst>(llvmInstruction), colBlock,
+                      funcCursor);
+        break;
     case llvm::Instruction::Call:
         transformCallExpr(llvm::cast<llvm::CallInst>(llvmInstruction), colBlock,
                           funcCursor);
@@ -48,12 +52,6 @@ void llvm2col::transformPhi(llvm::PHINode &phiInstruction,
 void llvm2col::transformICmp(llvm::ICmpInst &icmpInstruction,
                              col::Block &colBlock,
                              pallas::FunctionCursor &funcCursor) {
-    // we only support integer comparison
-    if (not icmpInstruction.getOperand(0)->getType()->isIntegerTy()) {
-        pallas::ErrorReporter::addError(SOURCE_LOC, "Unsupported compare type",
-                                        icmpInstruction);
-        return;
-    }
     col::Assign &assignment =
         funcCursor.createAssignmentAndDeclaration(icmpInstruction, colBlock);
     switch (llvm::ICmpInst::Predicate(icmpInstruction.getPredicate())) {
@@ -94,6 +92,93 @@ void llvm2col::transformICmp(llvm::ICmpInst &icmpInstruction,
     default:
         pallas::ErrorReporter::addError(SOURCE_LOC, "Unknown ICMP predicate",
                                         icmpInstruction);
+    }
+}
+
+void llvm2col::transformFCmp(llvm::FCmpInst &fcmpInstruction,
+                             col::Block &colBlock,
+                             pallas::FunctionCursor &funcCursor) {
+    // TODO: Deal with fastmath flags
+    // TODO: Deal with NaNs, LLVM generally pretends signalling NaNs don't
+    //       exist so we should probably also only worry about QNaNs but we
+    //       don't support NaNs at all right now in VerCors anyway so all this
+    //       doesn't matter yet.
+    col::Assign &assignment =
+        funcCursor.createAssignmentAndDeclaration(fcmpInstruction, colBlock);
+    switch (llvm::FCmpInst::Predicate(fcmpInstruction.getPredicate())) {
+    // From the documentation:
+    //    FCMP_FALSE = 0, ///< 0 0 0 0    Always false (always folded)
+    //    FCMP_OEQ = 1,   ///< 0 0 0 1    True if ordered and equal
+    //    FCMP_OGT = 2,   ///< 0 0 1 0    True if ordered and greater than
+    //    FCMP_OGE = 3,   ///< 0 0 1 1    True if ordered and greater than or
+    //    equal FCMP_OLT = 4,   ///< 0 1 0 0    True if ordered and less than
+    //    FCMP_OLE = 5,   ///< 0 1 0 1    True if ordered and less than or equal
+    //    FCMP_ONE = 6,   ///< 0 1 1 0    True if ordered and operands are
+    //    unequal FCMP_ORD = 7,   ///< 0 1 1 1    True if ordered (no nans)
+    //    FCMP_UNO = 8,   ///< 1 0 0 0    True if unordered: isnan(X) | isnan(Y)
+    //    FCMP_UEQ = 9,   ///< 1 0 0 1    True if unordered or equal
+    //    FCMP_UGT = 10,  ///< 1 0 1 0    True if unordered or greater than
+    //    FCMP_UGE = 11,  ///< 1 0 1 1    True if unordered, greater than, or
+    //    equal FCMP_ULT = 12,  ///< 1 1 0 0    True if unordered or less than
+    //    FCMP_ULE = 13,  ///< 1 1 0 1    True if unordered, less than, or equal
+    //    FCMP_UNE = 14,  ///< 1 1 1 0    True if unordered or not equal
+    //    FCMP_TRUE = 15, ///< 1 1 1 1    Always true (always folded)
+    case llvm::CmpInst::FCMP_FALSE: {
+        col::BooleanValue &boolean =
+            *assignment.mutable_value()->mutable_boolean_value();
+        boolean.set_value(false);
+        boolean.set_allocated_origin(generateBinExprOrigin(fcmpInstruction));
+    }
+    case llvm::CmpInst::FCMP_OEQ:
+    case llvm::CmpInst::FCMP_UEQ: {
+        col::Eq &eq = *assignment.mutable_value()->mutable_eq();
+        transformCmpExpr(fcmpInstruction, eq, funcCursor);
+        break;
+    }
+    case llvm::CmpInst::FCMP_OGT:
+    case llvm::CmpInst::FCMP_UGT: {
+        col::Greater &gt = *assignment.mutable_value()->mutable_greater();
+        transformCmpExpr(fcmpInstruction, gt, funcCursor);
+        break;
+    }
+    case llvm::CmpInst::FCMP_OGE:
+    case llvm::CmpInst::FCMP_UGE: {
+        col::GreaterEq &geq = *assignment.mutable_value()->mutable_greater_eq();
+        transformCmpExpr(fcmpInstruction, geq, funcCursor);
+        break;
+    }
+    case llvm::CmpInst::FCMP_OLT:
+    case llvm::CmpInst::FCMP_ULT: {
+        col::Less &lt = *assignment.mutable_value()->mutable_less();
+        transformCmpExpr(fcmpInstruction, lt, funcCursor);
+        break;
+    }
+    case llvm::CmpInst::FCMP_OLE:
+    case llvm::CmpInst::FCMP_ULE: {
+        col::LessEq &leq = *assignment.mutable_value()->mutable_less_eq();
+        transformCmpExpr(fcmpInstruction, leq, funcCursor);
+        break;
+    }
+    case llvm::CmpInst::FCMP_ONE:
+    case llvm::CmpInst::FCMP_UNE: {
+        col::Neq &neq = *assignment.mutable_value()->mutable_neq();
+        transformCmpExpr(fcmpInstruction, neq, funcCursor);
+        break;
+    }
+    case llvm::CmpInst::FCMP_TRUE: {
+        col::BooleanValue &boolean =
+            *assignment.mutable_value()->mutable_boolean_value();
+        boolean.set_value(true);
+        boolean.set_allocated_origin(generateBinExprOrigin(fcmpInstruction));
+    }
+    case llvm::CmpInst::FCMP_ORD:
+    case llvm::CmpInst::FCMP_UNO: {
+        pallas::ErrorReporter::addError(
+            SOURCE_LOC, "Checking for NaNs is unsupported", fcmpInstruction);
+    }
+    default:
+        pallas::ErrorReporter::addError(SOURCE_LOC, "Unknown FCMP predicate",
+                                        fcmpInstruction);
     }
 }
 

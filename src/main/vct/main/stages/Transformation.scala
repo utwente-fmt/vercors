@@ -3,6 +3,7 @@ package vct.main.stages
 import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
 import hre.debug.TimeTravel.CauseWithBadEffect
+import hre.io.Readable
 import hre.progress.Progress
 import hre.stages.Stage
 import vct.col.ast.{Program, SimplificationRule, Verification}
@@ -23,6 +24,7 @@ import vct.main.stages.Transformation.{
 }
 import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
+import vct.parsers.debug.DebugOptions
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
@@ -33,13 +35,13 @@ import vct.rewrite.{
   EncodeRange,
   EncodeResourceValues,
   ExplicitResourceValues,
+  GenerateSingleOwnerPermissions,
   HeapVariableToRef,
-  LowerLocalHeapVariables,
   InlineTrivialLets,
+  LowerLocalHeapVariables,
   MonomorphizeClass,
   SmtlibToProverTypes,
   VariableToPointer,
-  GenerateSingleOwnerPermissions,
 }
 import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.veymont._
@@ -100,9 +102,28 @@ object Transformation extends LazyLogging {
     }
   }
 
+  def loadPVLLibraryFileStage[G](
+      readable: Readable,
+      debugOptions: DebugOptions,
+  ): Program[G] = {
+    /* This is currently a hacky way to make time spent in the pvl simplification rule parser visible in the
+    CLI interface. Instead, we should follow the advice in the docs of `Progress.hiddenStage`:
+    A better design would be that the pvl library files are parsed when the appropriate
+    simplification pass is encountered. Then the transformation pass could, for user friendliness, check if the
+    simplification files exists before doing all the other transformations. This moves the time spent for loading
+    the files to the same place where the file is actually used, which sounds right.
+
+    Of course, this all while still retaining the functionality of making it possible to pass more simplification rules
+    using command line flags.
+     */
+    Progress.hiddenStage(
+      s"Loading PVL library file ${readable.underlyingPath.getOrElse("<unknown>")}"
+    ) { Util.loadPVLLibraryFile(readable, debugOptions) }
+  }
+
   def simplifierFor(path: PathOrStd, options: Options): RewriterBuilder =
     ApplyTermRewriter.BuilderFor(
-      ruleNodes = Util.loadPVLLibraryFile[InitialGeneration](
+      ruleNodes = loadPVLLibraryFileStage[InitialGeneration](
         path,
         options.getParserDebugOptions,
       ).declarations.collect {
@@ -355,7 +376,6 @@ case class SilverTransformation(
         BranchToIfElse,
         GenerateSingleOwnerPermissions.withArg(generatePermissions),
         InferEndpointContexts,
-        PushInChor.withArg(generatePermissions),
         StratifyExpressions,
         StratifyUnpointedExpressions,
         DeduplicateChorGuards,

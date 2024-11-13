@@ -19,5 +19,8 @@ void transformConditionalBranch(llvm::BranchInst &llvmBrInstruction,
 void transformUnConditionalBranch(llvm::BranchInst &llvmBrInstruction,
                                   col::Block &colBlock,
                                   pallas::FunctionCursor &funcCursor);
+void transformUnreachable(llvm::UnreachableInst &llvmUnreachableInstruction,
+                          col::Block &colBlock,
+                          pallas::FunctionCursor &funcCursor);
 } // namespace llvm2col
 #endif // PALLAS_TERMOPTRANSFORM_H

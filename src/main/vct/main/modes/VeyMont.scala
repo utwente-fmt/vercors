@@ -192,7 +192,7 @@ object VeyMont extends LazyLogging {
       options: Options,
       inputs: Seq[Readable],
   ): Either[VerificationError, StageResult] = {
-    Progress.stages(Seq(("VeyMont", 1))) { _ =>
+    Progress.hiddenStage("VeyMont") {
       Progress.stages(
         Seq(("Choreography", 10), ("Generate", 2), ("Implementation", 9))
       ) { next =>

@@ -852,20 +852,19 @@ case class CToCol[G](
 
   def convert(implicit expr: UnaryExpressionContext): Expr[G] =
     expr match {
-      case UnaryExpression0(inner) => convert(inner)
-      case UnaryExpression1(_, arg) =>
+      case UnaryExpression0(_, arg) =>
         val target = convert(arg)
         PreAssignExpression(
           target,
           col.AmbiguousPlus(target, c_const(1))(blame(expr)),
         )(blame(expr))
-      case UnaryExpression2(_, arg) =>
+      case UnaryExpression1(_, arg) =>
         val target = convert(arg)
         PreAssignExpression(
           target,
           col.AmbiguousMinus(target, c_const(1))(blame(expr)),
         )(blame(expr))
-      case UnaryExpression3(UnaryOperator0(op), arg) =>
+      case UnaryExpression2(UnaryOperator0(op), arg) =>
         op match {
           case "&" => AddrOf(convert(arg))
           case "*" => DerefPointer(convert(arg))(blame(expr))
@@ -874,10 +873,11 @@ case class CToCol[G](
           case "~" => BitNot(convert(arg))
           case "!" => col.Not(convert(arg))
         }
-      case UnaryExpression4(_, _) => ??(expr)
-      case UnaryExpression5(_, _, tname, _) => SizeOf(convert(tname))
-      case UnaryExpression6(_, _, _, _) => ??(expr)
-      case UnaryExpression7(_, _) => ??(expr)
+      case UnaryExpression3(_, _) => ??(expr)
+      case UnaryExpression4(_, _, tname, _) => SizeOf(convert(tname))
+      case UnaryExpression5(_, _, _, _) => ??(expr)
+      case UnaryExpression6(_, _) => ??(expr)
+      case UnaryExpression7(inner) => convert(inner)
       case UnaryExpression8(SpecPrefix0(op), inner) =>
         convert(expr, op, convert(inner))
     }

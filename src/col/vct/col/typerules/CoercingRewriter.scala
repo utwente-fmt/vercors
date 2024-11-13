@@ -363,6 +363,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: EndpointName[Pre] => coerce(node)
       case node: ApplyAnyPredicate[Pre] => coerce(node)
       case node: FoldTarget[Pre] => coerce(node)
+      case node: LLVMFloatType[Pre] => node
     }
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
@@ -1180,8 +1181,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case choose @ Choose(xs) => Choose(set(xs)._1)(choose.blame)
       case choose @ ChooseFresh(xs) => ChooseFresh(set(xs)._1)(choose.blame)
-      case p @ ChorPerm(endpoint, loc, perm) =>
-        ChorPerm(endpoint, loc, rat(perm))
       case CLiteralArray(exprs) => CLiteralArray(exprs)
       case CLocal(name) => e
       case c @ Committed(obj) => Committed(cls(obj))(c.blame)
@@ -2127,22 +2126,28 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Sender(_) => e
       case Receiver(_) => e
       case Message(_) => e
-      case LLVMLocal(name) => e
+      case LLVMLocal(_) => e
       case LLVMGetElementPointer(structureType, resultType, pointer, indices) =>
         LLVMGetElementPointer(structureType, resultType, pointer, indices)
-      case LLVMSignExtend(inputType, outputType, value) => e
-      case LLVMZeroExtend(inputType, outputType, value) => e
-      case LLVMTruncate(inputType, outputType, value) => e
-      case LLVMIntegerValue(value, integerType) => e
-      case LLVMPointerValue(value) => e
-      case LLVMFunctionPointerValue(value) => e
-      case LLVMStructValue(value, structType) => e
-      case LLVMArrayValue(value, arrayType) => e
-      case LLVMRawArrayValue(value, arrayType) => e
-      case LLVMVectorValue(value, vectorType) => e
-      case LLVMRawVectorValue(value, vectorType) => e
-      case LLVMZeroedAggregateValue(aggregateType) => e
-      case PVLEndpointExpr(endpoint, expr) => e
+      case LLVMSignExtend(inputType, outputType, value) =>
+        LLVMSignExtend(inputType, outputType, coerce(value, inputType))
+      case LLVMZeroExtend(inputType, outputType, value) =>
+        LLVMZeroExtend(inputType, outputType, coerce(value, inputType))
+      case LLVMTruncate(inputType, outputType, value) =>
+        LLVMTruncate(inputType, outputType, coerce(value, inputType))
+      case LLVMFloatExtend(inputType, outputType, value) =>
+        LLVMFloatExtend(inputType, outputType, coerce(value, inputType))
+      case LLVMIntegerValue(_, _) => e
+      case LLVMFloatValue(_, _) => e
+      case LLVMPointerValue(_) => e
+      case LLVMFunctionPointerValue(_) => e
+      case LLVMStructValue(_, _) => e
+      case LLVMArrayValue(_, _) => e
+      case LLVMRawArrayValue(_, _) => e
+      case LLVMVectorValue(_, _) => e
+      case LLVMRawVectorValue(_, _) => e
+      case LLVMZeroedAggregateValue(_) => e
+      case PVLEndpointExpr(_, _) => e
       case EndpointExpr(ref, expr) => e
       case ChorExpr(expr) => ChorExpr(bool(expr))
     }
@@ -2258,6 +2263,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         LLVMLoad(variable, loadType, p, ordering)(load.blame)
       case store @ LLVMStore(value, p, ordering) =>
         LLVMStore(value, p, ordering)(store.blame)
+      case unreachable: LLVMBranchUnreachable[Pre] => unreachable
       case ModelDo(model, perm, after, action, impl) =>
         ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)
@@ -2957,6 +2963,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: LLVMFunctionContract[Pre]): LLVMFunctionContract[Pre] = node
   def coerce(node: LLVMLoop[Pre]): LLVMLoop[Pre] = node
   def coerce(node: LLVMMemoryOrdering[Pre]): LLVMMemoryOrdering[Pre] = node
+  def coerce(node: LLVMFloatType[Pre]): LLVMFloatType[Pre] = node
 
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node
   def coerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node

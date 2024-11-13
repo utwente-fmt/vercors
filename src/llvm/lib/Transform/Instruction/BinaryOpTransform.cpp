@@ -36,11 +36,12 @@ void llvm2col::transformBinaryOp(llvm::Instruction &llvmInstruction,
             // XXX (Alexander): I'm not sure why we wouldn't support exact
             // division because it seems to me that it is simply a promise used
             // by optimisations that the right operand divides the left exactly
-            /* pallas::ErrorReporter::addError( */
-            /*     SOURCE_LOC, "Exact division not supported", llvmInstruction);
-             */
+            // XXX (Alexander): I just remembered, it's because this would
+            // return poison if rounding was needed
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC, "Exact division not supported", llvmInstruction);
         }
-        col::FloorDiv &expr = *assignment.mutable_value()->mutable_floor_div();
+        col::TruncDiv &expr = *assignment.mutable_value()->mutable_trunc_div();
         transformBinExpr(llvmInstruction, expr, funcCursor);
         expr.set_allocated_blame(new col::Blame());
         break;

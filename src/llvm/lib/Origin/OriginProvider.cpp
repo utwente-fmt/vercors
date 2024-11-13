@@ -27,7 +27,7 @@ col::Origin *llvm2col::generateProgramOrigin(llvm::Module &llvmModule) {
     col::OriginContent *contextContent = origin->add_content();
     col::Context *context = new col::Context();
     context->set_context(deriveModuleContext(llvmModule));
-    context->set_inline_context(deriveModuleContext(llvmModule));
+    context->set_inline_context(deriveModuleInlineContext(llvmModule));
     context->set_short_position(deriveModuleShortPosition(llvmModule));
     contextContent->set_allocated_context(context);
 
@@ -44,7 +44,7 @@ col::Origin *llvm2col::generateFuncDefOrigin(llvm::Function &llvmFunction) {
     col::OriginContent *contextContent = origin->add_content();
     col::Context *context = new col::Context();
     context->set_context(deriveFunctionContext(llvmFunction));
-    context->set_inline_context(deriveFunctionContext(llvmFunction));
+    context->set_inline_context(deriveFunctionInlineContext(llvmFunction));
     context->set_short_position(deriveFunctionShortPosition(llvmFunction));
     contextContent->set_allocated_context(context);
 
@@ -90,7 +90,7 @@ col::Origin *llvm2col::generateArgumentOrigin(llvm::Argument &llvmArgument) {
     col::Context *context = new col::Context();
     context->set_context(deriveFunctionContext(*llvmArgument.getParent()));
     context->set_inline_context(
-        deriveFunctionContext(*llvmArgument.getParent()));
+        deriveFunctionInlineContext(*llvmArgument.getParent()));
     context->set_short_position(
         deriveFunctionShortPosition(*llvmArgument.getParent()));
     contextContent->set_allocated_context(context);
@@ -108,7 +108,7 @@ col::Origin *llvm2col::generateBlockOrigin(llvm::BasicBlock &llvmBlock) {
     col::OriginContent *contextContent = origin->add_content();
     col::Context *context = new col::Context();
     context->set_context(deriveBlockContext(llvmBlock));
-    context->set_inline_context(deriveBlockContext(llvmBlock));
+    context->set_inline_context(deriveBlockInlineContext(llvmBlock));
     context->set_short_position(deriveBlockShortPosition(llvmBlock));
     contextContent->set_allocated_context(context);
 

@@ -1,5 +1,6 @@
 package vct.rewrite
 
+import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.ref._
 import vct.col.origin._
@@ -24,6 +25,16 @@ case object VariableToPointer extends RewriterBuilder {
         "Taking an address of this expression is not supported"
       )
   }
+
+  private case class CannotTakeAddressInFunction(arg: Variable[_])
+      extends UserError {
+    override def code: String = "addrOfFuncArg"
+
+    override def text: String =
+      arg.o.messageInContext(
+        "Taking the address of a pure function's argument is not supported"
+      )
+  }
 }
 
 case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
@@ -37,6 +48,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
     SuccessionMap()
   val fieldMap: SuccessionMap[InstanceField[Pre], InstanceField[Post]] =
     SuccessionMap()
+  val noTransform: ScopedStack[Unit] = ScopedStack()
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     // TODO: Replace the asByReferenceClass checks with something that more clearly communicates that we want to exclude all reference types
@@ -54,6 +66,58 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
+      case func: Function[Pre] => {
+        val arg = func.args.find(addressedSet.contains(_))
+        if (arg.nonEmpty) { throw CannotTakeAddressInFunction(arg.get) }
+        globalDeclarations.succeed(func, func.rewriteDefault())
+      }
+      case proc: Procedure[Pre] => {
+        val extraVars = mutable.ArrayBuffer[(Variable[Post], Variable[Post])]()
+        // Relies on args being evaluated before body
+        allScopes.anySucceed(
+          proc,
+          proc.rewrite(
+            args =
+              variables.collect {
+                proc.args.map { v =>
+                  val newV = variables.succeed(v, v.rewriteDefault())
+                  if (addressedSet.contains(v)) {
+                    variableMap(v) =
+                      new Variable(TNonNullPointer(dispatch(v.t)))(v.o)
+                    extraVars += ((newV, variableMap(v)))
+                  }
+                }
+              }._1,
+            body = {
+              if (proc.body.isEmpty) { None }
+              else {
+                if (extraVars.isEmpty) { Some(dispatch(proc.body.get)) }
+                else {
+                  variables.scope {
+                    val locals =
+                      variables.collect {
+                        extraVars.map { case (_, pointer) =>
+                          variables.declare(pointer)
+                        }
+                      }._1
+                    val block =
+                      Block(extraVars.map { case (normal, pointer) =>
+                        Assign(
+                          DerefPointer(pointer.get(normal.o))(PanicBlame(
+                            "Non-null pointer should always be initialized successfully"
+                          ))(normal.o),
+                          normal.get(normal.o),
+                        )(AssignLocalOk)(proc.o)
+                      }.toSeq :+ dispatch(proc.body.get))(proc.o)
+                    Some(Scope(locals, block)(proc.o))
+                  }
+                }
+              }
+            },
+            contract = { noTransform.having(()) { dispatch(proc.contract) } },
+          ),
+        )
+      }
       case v: HeapVariable[Pre] if addressedSet.contains(v) =>
         heapVariableMap(v) = globalDeclarations
           .succeed(v, new HeapVariable(TNonNullPointer(dispatch(v.t)))(v.o))
@@ -135,6 +199,8 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = expr.o
+    if (noTransform.nonEmpty)
+      return expr.rewriteDefault()
     expr match {
       case deref @ DerefHeapVariable(Ref(v)) if addressedSet.contains(v) =>
         DerefPointer(
@@ -191,6 +257,8 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(loc: Location[Pre]): Location[Post] = {
     implicit val o: Origin = loc.o
+    if (noTransform.nonEmpty)
+      return loc.rewriteDefault()
     loc match {
       case HeapVariableLocation(Ref(v)) if addressedSet.contains(v) =>
         PointerLocation(

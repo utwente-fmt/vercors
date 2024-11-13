@@ -223,6 +223,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
     def java(data: String)(implicit pos: source.Position): Unit = literal("java", data)
     def c(data: String)(implicit pos: source.Position): Unit = literal("c", data)
     def cpp(data: String)(implicit pos: source.Position): Unit = literal("cpp", data)
+    def llvm(data: String)(implicit pos: source.Position): Unit = literal("ll", data)
   }
 
   val vercors: VercorsWord = new VercorsWord

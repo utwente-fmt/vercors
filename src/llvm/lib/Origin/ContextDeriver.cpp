@@ -10,10 +10,22 @@ std::string llvm2col::deriveModuleContext(llvm::Module &llvmModule) {
     return context;
 }
 
+std::string llvm2col::deriveModuleInlineContext(llvm::Module &llvmModule) {
+    return llvmModule.getModuleIdentifier();
+}
+
 // function derivers
 std::string llvm2col::deriveFunctionContext(llvm::Function &llvmFunction) {
     std::string context;
     llvm::raw_string_ostream(context) << llvmFunction;
+    return context;
+}
+
+std::string
+llvm2col::deriveFunctionInlineContext(llvm::Function &llvmFunction) {
+    std::string context;
+    llvm::raw_string_ostream contextStream = llvm::raw_string_ostream(context);
+    llvmFunction.printAsOperand(contextStream, true, llvmFunction.getParent());
     return context;
 }
 
@@ -30,6 +42,13 @@ std::string llvm2col::deriveLabelContext(llvm::BasicBlock &llvmBlock) {
 std::string llvm2col::deriveBlockContext(llvm::BasicBlock &llvmBlock) {
     std::string context;
     llvm::raw_string_ostream(context) << llvmBlock;
+    return context;
+}
+
+std::string llvm2col::deriveBlockInlineContext(llvm::BasicBlock &llvmBlock) {
+    std::string context;
+    llvm::raw_string_ostream contextStream = llvm::raw_string_ostream(context);
+    llvmBlock.printAsOperand(contextStream, false, llvmBlock.getModule());
     return context;
 }
 

@@ -23,6 +23,11 @@ void llvm2col::transformTermOp(llvm::Instruction &llvmInstruction,
                                            funcCursor);
         break;
     }
+    case llvm::Instruction::Unreachable: {
+        transformUnreachable(cast<llvm::UnreachableInst>(llvmInstruction),
+                             colBlock, funcCursor);
+        break;
+    }
     default:
         reportUnsupportedOperatorError(SOURCE_LOC, llvmInstruction);
         break;
@@ -138,4 +143,14 @@ void llvm2col::transformUnConditionalBranch(
         llvm2col::generateSingleStatementOrigin(llvmBrInstruction));
     // pre-declare completion because the final goto is already present
     funcCursor.complete(colBlock);
+}
+
+void llvm2col::transformUnreachable(
+    llvm::UnreachableInst &llvmUnreachableInstruction, col::Block &colBlock,
+    pallas::FunctionCursor &funcCursor) {
+    col::LlvmBranchUnreachable *unreachableStatement =
+        colBlock.add_statements()->mutable_llvm_branch_unreachable();
+    unreachableStatement->set_allocated_origin(
+        generateSingleStatementOrigin(llvmUnreachableInstruction));
+    unreachableStatement->set_allocated_blame(new col::Blame());
 }

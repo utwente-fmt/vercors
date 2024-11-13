@@ -13,14 +13,17 @@
 namespace llvm2col {
 // module derivers
 std::string deriveModuleContext(llvm::Module &llvmModule);
+std::string deriveModuleInlineContext(llvm::Module &llvmModule);
 
 // function derivers
 std::string deriveFunctionContext(llvm::Function &llvmFunction);
+std::string deriveFunctionInlineContext(llvm::Function &llvmFunction);
 
 // block derivers
 std::string deriveLabelContext(llvm::BasicBlock &llvmBlock);
 
 std::string deriveBlockContext(llvm::BasicBlock &llvmBlock);
+std::string deriveBlockInlineContext(llvm::BasicBlock &llvmBlock);
 
 // instruction derivers
 std::string

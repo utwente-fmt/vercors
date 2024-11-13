@@ -33,6 +33,9 @@ void transformCmpExpr(llvm::CmpInst &cmpInstruction, auto &colCompareExpr,
 void transformCallExpr(llvm::CallInst &callInstruction, col::Block &colBlock,
                        pallas::FunctionCursor &funcCursor);
 
+void transformFCmp(llvm::FCmpInst &fcmpInstruction, col::Block &colBlock,
+                   pallas::FunctionCursor &funcCursor);
+
 bool checkCallSupport(llvm::CallInst &callInstruction);
 } // namespace llvm2col
 

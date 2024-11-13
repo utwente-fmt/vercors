@@ -478,6 +478,7 @@ case class PVLToCol[G](
         )
       case PvlLongChorExpr(_, _, inner, _) => ChorExpr(convert(inner))
       case PvlShortChorExpr(_, _, _, _, inner, _) => ChorExpr(convert(inner))
+      case PvlCastExpr(_, t, _, e) => Cast(convert(e), TypeValue(convert(t)))
       case PvlSender(_) => PVLSender()
       case PvlReceiver(_) => PVLReceiver()
       case PvlMessage(_) => PVLMessage()

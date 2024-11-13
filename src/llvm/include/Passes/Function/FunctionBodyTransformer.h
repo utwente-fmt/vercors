@@ -6,7 +6,6 @@
 #include <llvm/Analysis/LoopInfo.h>
 
 #include "FunctionDeclarer.h"
-#include "vct/col/ast/col.pb.h"
 /**
  * The FunctionBodyTransformer that transforms LLVM blocks and instructions into
  * suitable VerCors COL abstractions.

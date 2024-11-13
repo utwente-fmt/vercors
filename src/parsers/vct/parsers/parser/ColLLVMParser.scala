@@ -11,10 +11,10 @@ import vct.col.origin.{ExpectedError, Origin}
 import vct.col.ref.Ref
 import vct.parsers.transform.{BlameProvider, LLVMContractToCol, OriginProvider}
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
-import vct.parsers.{Parser, ParseResult}
+import vct.parsers.{ParseResult, Parser}
 import vct.parsers.debug.DebugOptions
 
-import java.io.{IOException, Reader}
+import java.io.{IOException, OutputStreamWriter, Reader}
 import java.nio.file.Path
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
@@ -25,21 +25,18 @@ case class ColLLVMParser(
     blameProvider: BlameProvider,
     pallas: Path,
 ) extends Parser with LazyLogging {
-  private case class LLVMParseError(
-      fileName: String,
-      errorCode: Int,
-      error: String,
-  ) extends UserError {
+  private case class LLVMParseError(errorCode: Int, error: String)
+      extends UserError {
     override def code: String = "LLVMParseError"
 
     override def text: String =
       messageContext(
-        s"[ERROR] Parsing file $fileName failed with exit code $errorCode:\n$error"
+        s"[ERROR] Parsing failed with exit code $errorCode:\n$error"
       )
   }
 
-  override def parse[G](
-      readable: Readable,
+  override def parseReader[G](
+      reader: Reader,
       baseOrigin: Origin = Origin(Nil),
   ): ParseResult[G] = {
     if (pallas == null) {
@@ -51,17 +48,28 @@ case class ColLLVMParser(
       "opt-17",
       s"--load-pass-plugin=$pallas",
       "--passes=module(pallas-declare-variables,pallas-collect-module-spec),function(pallas-declare-function,pallas-assign-pure,pallas-declare-function-contract,pallas-transform-function-body),module(pallas-print-protobuf)",
-      readable.fileName,
       "--disable-output",
     )
 
     val process = new ProcessBuilder(command: _*).start()
 
+    new Thread(
+      () => {
+        Using(new OutputStreamWriter(
+          process.getOutputStream,
+          StandardCharsets.UTF_8,
+        )) { writer =>
+          val written = reader.transferTo(writer)
+          logger.debug(s"Wrote $written bytes to opt")
+        }.get
+      },
+      "[VerCors] opt stdout writer",
+    ).start()
+
     val protoProgram =
       Using(process.getInputStream) { is => Program.parseFrom(is) }
         .recoverWith { case _: IOException =>
           Failure(LLVMParseError(
-            readable.fileName,
             process.exitValue(),
             new String(
               process.getErrorStream.readAllBytes(),
@@ -73,7 +81,6 @@ case class ColLLVMParser(
     process.waitFor()
     if (process.exitValue() != 0) {
       throw LLVMParseError(
-        readable.fileName,
         process.exitValue(),
         new String(
           process.getErrorStream.readAllBytes(),
@@ -82,14 +89,11 @@ case class ColLLVMParser(
       )
     }
 
+    // TODO: Print warnings emitted by frontend
+
     // Use the origin in the blame provider
     val COLProgram = Deserialize
       .deserializeProgram[G](protoProgram, _ => blameProvider.apply())
     ParseResult(COLProgram.declarations, Seq.empty)
   }
-
-  override def parseReader[G](
-      reader: Reader,
-      baseOrigin: Origin,
-  ): ParseResult[G] = throw new UnsupportedOperationException()
 }

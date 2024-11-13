@@ -416,14 +416,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case CCast(e, t) if e.t.asPointer.isDefined && t.asPointer.isDefined =>
         val newE = rw.dispatch(e)
         val newT = rw.dispatch(t)
+        val newEElement = newE.t.asPointer.get.element
+        val newTElement = newT.asPointer.get.element
         if (
-          CoercionUtils.firstElementIsType(
-            newE.t.asPointer.get.element,
-            newT.asPointer.get.element,
-          ) || CoercionUtils.firstElementIsType(
-            newT.asPointer.get.element,
-            newE.t.asPointer.get.element,
-          )
+          newEElement == TVoid[Post]() || newTElement == TVoid[Post]() ||
+          CoercionUtils.firstElementIsType(newEElement, newTElement) ||
+          CoercionUtils.firstElementIsType(newTElement, newEElement)
         ) { Cast(newE, TypeValue(newT)(t.o))(c.o) }
         else { throw UnsupportedCast(c) }
       case _ => throw UnsupportedCast(c)

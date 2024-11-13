@@ -2,18 +2,27 @@ package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
-import vct.col.origin.{DiagnosticOrigin, Origin, PanicBlame, TypeName}
+import vct.col.origin.{
+  AssertFailed,
+  Blame,
+  DiagnosticOrigin,
+  Origin,
+  PanicBlame,
+  TypeName,
+  UnreachableReachedError,
+}
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.resolve.ctx.RefLLVMFunctionDefinition
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.{CurrentProgramContext, SubstituteReferences, SuccessionMap}
-import vct.result.VerificationError.{SystemError, UserError}
+import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 
 import scala.collection.mutable
 
 case object LangLLVMToCol {
-  case class UnexpectedLLVMNode(node: Node[_]) extends SystemError {
+  private final case class UnexpectedLLVMNode(node: Node[_])
+      extends SystemError {
     override def text: String =
       context[CurrentProgramContext].map(_.highlight(node)).getOrElse(node.o)
         .messageInContext(
@@ -21,13 +30,51 @@ case object LangLLVMToCol {
         )
   }
 
-  case class NonConstantStructIndex(origin: Origin) extends UserError {
+  private final case class NonConstantStructIndex(origin: Origin)
+      extends UserError {
     override def code: String = "nonConstantStructIndex"
 
     override def text: String =
       origin.messageInContext(
         s"This struct indexing operation (getelementptr) uses a non-constant struct index which we do not support."
       )
+  }
+
+  private final case class UnsupportedSignExtension(sext: LLVMSignExtend[_])
+      extends UserError {
+    override def code: String = "unsupportedSignExtension"
+
+    override def text: String =
+      sext.o.messageInContext(
+        s"Unsupported sign extension from '${sext.inputType}' to '${sext.outputType}'"
+      )
+  }
+
+  private final case class UnsupportedZeroExtension(zext: LLVMZeroExtend[_])
+      extends UserError {
+    override def code: String = "unsupportedZeroExtension"
+
+    override def text: String =
+      zext.o.messageInContext(
+        s"Unsupported zero extension from '${zext.inputType}' to '${zext.outputType}'"
+      )
+  }
+
+  private final case class UnsupportedTruncate(trunc: LLVMTruncate[_])
+      extends UserError {
+    override def code: String = "unsupportedTruncate"
+
+    override def text: String =
+      trunc.o.messageInContext(
+        s"Unsupported truncation from '${trunc.inputType}' to '${trunc.outputType}'"
+      )
+  }
+
+  private final case class UnreachableReached(
+      unreachable: LLVMBranchUnreachable[_]
+  ) extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit =
+      unreachable.blame.blame(UnreachableReachedError(unreachable))
   }
 }
 
@@ -73,7 +120,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       (self, other) match {
         case (a, b) if a == b => false
         case (LLVMTPointer(None), _) => false
+        case (LLVMTPointer(Some(TVoid())), _) => false
+        case (TPointer(TVoid()), _) => false
         case (_, LLVMTPointer(None)) => true
+        case (_, LLVMTPointer(Some(TVoid()))) => true
+        case (_, TPointer(TVoid())) => true
         case (LLVMTPointer(Some(a)), LLVMTPointer(Some(b))) =>
           moreSpecific(a, b)
         case (LLVMTPointer(Some(a)), TPointer(b)) => moreSpecific(a, b)
@@ -106,6 +157,37 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
     }
 
+    def findSuperType(a: Type[Pre], b: Type[Pre]): Option[Type[Pre]] = {
+      (a, b) match {
+        case (a, b) if a == b => Some(a)
+        case (LLVMTPointer(None), _) => Some(a)
+        case (LLVMTPointer(Some(TVoid())), _) => Some(a)
+        case (TPointer(TVoid()), _) => Some(a)
+        case (_, LLVMTPointer(None)) => Some(b)
+        case (_, LLVMTPointer(Some(TVoid()))) => Some(b)
+        case (_, TPointer(TVoid())) => Some(b)
+        case (LLVMTPointer(Some(a)), LLVMTPointer(Some(b))) =>
+          Some(LLVMTPointer(findSuperType(a, b)))
+        case (LLVMTPointer(Some(a)), TPointer(b)) =>
+          Some(LLVMTPointer(findSuperType(a, b)))
+        case (TPointer(a), LLVMTPointer(Some(b))) =>
+          Some(LLVMTPointer(findSuperType(a, b)))
+        case (TPointer(a), TPointer(b)) =>
+          Some(LLVMTPointer(findSuperType(a, b)))
+        case _ => None
+      }
+    }
+
+    def findAcceptable(types: mutable.ArrayBuffer[Type[Pre]]): Type[Pre] = {
+      types.reduce { (a, b) =>
+        findSuperType(a, b).getOrElse(
+          throw Unreachable(
+            s"Failed to find super type of '$a' and '$b' even though both sides should be pointers"
+          )
+        )
+      }
+    }
+
     class TypeGuess(
         val depends: mutable.Set[Object] = mutable.Set(),
         val dependents: mutable.Set[Object] = mutable.Set(),
@@ -119,9 +201,14 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
 
       def update(): Boolean = {
-        val superType = findMostSpecific(getGuesses.map(_()))
-        if (superType.isEmpty) { false }
-        else {
+        val guessBuffer = getGuesses.map(_())
+        val superType = findMostSpecific(guessBuffer)
+        if (superType.isEmpty) {
+          val newType = findAcceptable(guessBuffer)
+          val updated = currentType == newType
+          currentType = newType
+          updated
+        } else {
           val updated = currentType == superType.get
           currentType = superType.get
           updated
@@ -347,7 +434,17 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = inv.o
     new ProcedureInvocation[Post](
       ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(inv.ref.decl)),
-      args = inv.args.map(rw.dispatch),
+      args = inv.args.zipWithIndex.map {
+        // TODO: This is really ugly, can we do the type inference in the resolve step and then do coercions to do this?
+        case (a, i) =>
+          val requiredType = localVariableInferredType
+            .getOrElse(inv.ref.decl.args(i), inv.ref.decl.args(i).t)
+          if (
+            a.t != requiredType && a.t.asPointer.isDefined &&
+            requiredType.asPointer.isDefined
+          ) { Cast(a, TypeValue(requiredType)) }
+          else { a }
+      }.map(rw.dispatch),
       givenMap = inv.givenMap.map { case (Ref(v), e) =>
         (rw.succ(v), rw.dispatch(e))
       },
@@ -638,6 +735,55 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     // Deref might not be the correct thing to use here since technically the pointer is only dereferenced in the load or store instruction
   }
 
+  def rewriteSignExtend(sext: LLVMSignExtend[Pre]): Expr[Post] = {
+    implicit val o: Origin = sext.o
+    // As long as we don't support integers as bitvectors this is mostly a no-op
+    (sext.inputType, sext.outputType) match {
+      // Both sides should become TInt
+      case (LLVMTInt(_), LLVMTInt(_)) => rw.dispatch(sext.value)
+      // Since this is sign extension we want all bits to be 1 if the value was true hence -1
+      case (TBool(), LLVMTInt(_)) =>
+        Select(rw.dispatch(sext.value) === tt, const(-1), const(0))
+      case (_, _) => throw UnsupportedSignExtension(sext)
+    }
+  }
+
+  def rewriteZeroExtend(zext: LLVMZeroExtend[Pre]): Expr[Post] = {
+    implicit val o: Origin = zext.o
+    // As long as we don't support integers as bitvectors this is mostly a no-op
+    (zext.inputType, zext.outputType) match {
+      // Both sides should become TInt
+      case (LLVMTInt(_), LLVMTInt(_)) => rw.dispatch(zext.value)
+      case (TBool(), LLVMTInt(_)) =>
+        Select(rw.dispatch(zext.value) === tt, const(1), const(0))
+      case (_, _) => throw UnsupportedZeroExtension(zext)
+    }
+  }
+
+  def rewriteTruncate(trunc: LLVMTruncate[Pre]): Expr[Post] = {
+    implicit val o: Origin = trunc.o
+    // As long as we don't support integers as bitvectors this is mostly a no-op
+    (trunc.inputType, trunc.outputType) match {
+      // Both sides should become TInt
+      case (LLVMTInt(_), LLVMTInt(_)) => rw.dispatch(trunc.value)
+      case (LLVMTInt(_), TBool()) =>
+        Select(rw.dispatch(trunc.value) === const(0), ff, tt)
+      case (_, _) => throw UnsupportedTruncate(trunc)
+    }
+  }
+
+  def rewriteFloatExtend(fpext: LLVMFloatExtend[Pre]): Expr[Post] = {
+    implicit val o: Origin = fpext.o
+    CastFloat(rw.dispatch(fpext.value), rw.dispatch(fpext.t))
+  }
+
+  def rewriteUnreachable(
+      unreachable: LLVMBranchUnreachable[Pre]
+  ): Statement[Post] = {
+    implicit val o: Origin = unreachable.o
+    Assert[Post](ff)(UnreachableReached(unreachable))
+  }
+
   private def getInferredType(e: Expr[Pre]): Type[Pre] =
     e match {
       case Local(Ref(v)) => localVariableInferredType.getOrElse(v, e.t)
@@ -652,25 +798,26 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = store.o
     val pointerInferredType = getInferredType(store.pointer)
     val valueInferredType = getInferredType(store.value)
-    val (pointer, inferredType) = derefUntil(
+    val pointer = derefUntil(
       rw.dispatch(store.pointer),
       pointerInferredType,
       valueInferredType,
-    ).map { case (pointer, typ) => (DerefPointer(pointer)(store.blame), typ) }
-      .getOrElse {
-        if (store.value.t.asPointer.isDefined) {
-          // TODO: How do we deal with this
-          ???
-        } else {
-          (
-            DerefPointer(Cast(
-              rw.dispatch(store.pointer),
-              TypeValue(TPointer(rw.dispatch(valueInferredType))),
-            ))(store.blame),
-            pointerInferredType,
-          )
-        }
+    ).map { case (pointer, typ) =>
+      if (typ == pointerInferredType) { DerefPointer(pointer)(store.blame) }
+      else {
+        DerefPointer(Cast(pointer, TypeValue(rw.dispatch(typ))))(store.blame)
       }
+    }.getOrElse {
+      if (store.value.t.asPointer.isDefined) {
+        // TODO: How do we deal with this
+        ???
+      } else {
+        DerefPointer(Cast(
+          rw.dispatch(store.pointer),
+          TypeValue(TPointer(rw.dispatch(valueInferredType))),
+        ))(store.blame)
+      }
+    }
     // TODO: Fix assignfailed blame
     Assign(pointer, rw.dispatch(store.value))(store.blame)
   }
@@ -875,7 +1022,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def pointerType(t: LLVMTPointer[Pre]): Type[Post] =
     t.innerType match {
       case Some(innerType) => TPointer[Post](rw.dispatch(innerType))(t.o)
-      case None => TPointer[Post](TAny())(t.o)
+      case None => TPointer[Post](TVoid())(t.o)
     }
 
   def arrayType(t: LLVMTArray[Pre]): Type[Post] =

@@ -10,53 +10,69 @@ import scala.collection.mutable
 import com.typesafe.scalalogging.LazyLogging;
 
 object SerializeOrigin extends LazyLogging {
-  private def fileMap: mutable.HashMap[Path, hre.io.Readable] =
-    mutable.HashMap()
+  private val fileMap: mutable.HashMap[Path, hre.io.Readable] = mutable
+    .HashMap()
 
   def deserialize(
       @unused
       origin: ser.Origin
   ): Origin =
-    Origin(origin.content.map(_.content).map {
-      case ser.OriginContent.Content.SourceName(name) => SourceName(name.name)
+    Origin(origin.content.map(_.content).flatMap {
+      case ser.OriginContent.Content.SourceName(name) =>
+        Seq(SourceName(name.name))
       case ser.OriginContent.Content.PreferredName(name) =>
-        PreferredName(name.preferredName)
+        Seq(PreferredName(name.preferredName))
       case ser.OriginContent.Content.Context(context) =>
-        DeserializedContext(
+        Seq(DeserializedContext(
           context.context,
           context.inlineContext,
           context.shortPosition,
-        )
+        ))
       case ser.OriginContent.Content.ReadableOrigin(context) =>
         val path = Path.of(context.directory, context.filename)
-        ReadableOrigin(fileMap.getOrElseUpdate(
+        val readable = fileMap.getOrElseUpdate(
           path, {
-            if (context.checksum.isDefined && context.checksumKind.isDefined) {
-              val file = ChecksumReadableFile(
-                path,
-                doWatch = false,
-                context.checksumKind.get,
+            if (context.filename == "<stdin>") {
+              logger.warn(
+                "The file was compiled from standard input, origin information will be missing"
               )
-              // TODO: Should we do the checksum check later? Potentially this causes a lot of file loading
-              if (file.getChecksum != context.checksum.get) {
-                logger.warn(
-                  "The checksum of the file " + path +
-                    " does not match the LLVM checksum error locations are likely inaccurate"
+              null
+            } else if (path.toFile.exists()) {
+              if (
+                context.checksum.isDefined && context.checksumKind.isDefined
+              ) {
+                val file = ChecksumReadableFile(
+                  path,
+                  doWatch = false,
+                  context.checksumKind.get,
                 )
-              }
-              file
-            } else { RWFile(path) }
+                // TODO: Should we do the checksum check later? Potentially this causes a lot of file loading
+                if (file.getChecksum != context.checksum.get) {
+                  logger.warn(
+                    s"The checksum of the file '$path' does not match the LLVM checksum error locations are likely inaccurate"
+                  )
+                }
+                file
+              } else { RWFile(path) }
+            } else {
+              logger.error(
+                f"File not found: '$path', origin information will be missing"
+              )
+              null
+            }
           },
-        ))
+        )
+        if (readable == null) { Nil }
+        else { Seq(ReadableOrigin(readable)) }
       case ser.OriginContent.Content.PositionRange(range) =>
         // TODO: Preserve the start col idx even if end col idx is missing and improve the origins in LangLLVMToCol? Maybe we could even set the preferred name correctly
-        PositionRange(
+        Seq(PositionRange(
           range.startLineIdx,
           range.endLineIdx,
           range.startColIdx.flatMap { start => range.endColIdx.map((start, _)) },
-        )
+        ))
       case ser.OriginContent.Content.LabelContext(label) =>
-        LabelContext(label.label)
+        Seq(LabelContext(label.label))
     })
 
   def serialize(

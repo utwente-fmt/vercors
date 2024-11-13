@@ -205,10 +205,9 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteExpr(expr: Expr[Pre]): Expr[Post] =
     expr match {
       case PVLChorPerm(endpoint, loc, perm) =>
-        ChorPerm[Post](
+        EndpointExpr(
           rewriteEndpointName(endpoint),
-          rw.dispatch(loc),
-          rw.dispatch(perm),
+          Perm(rw.dispatch(loc), rw.dispatch(perm))(expr.o),
         )(expr.o)
       case expr @ PVLSender() =>
         Sender[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
