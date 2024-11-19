@@ -2966,4 +2966,19 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: PVLEndpointName[Pre]): PVLEndpointName[Pre] = node
   def coerce(node: EndpointName[Pre]): EndpointName[Pre] = node
 
+  def coerce(node: PVLEndpointSet[Pre]): PVLEndpointSet[Pre] = {
+    implicit val o = node.o
+    node match {
+      case PVLEndpointName(name) => node
+      case PVLEndpointRange(name, binder, low, high) =>
+        PVLEndpointRange(name, binder, int(low), int(high))
+    }
+  }
+
+  def coerce(node: PVLFamily[Pre]): PVLFamily[Pre] = {
+    implicit val o = node.o
+    val PVLFamily(binder, low, high) = node
+    PVLFamily(binder, int(low), int(high))
+  }
+
 }

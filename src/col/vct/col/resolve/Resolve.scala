@@ -1239,10 +1239,12 @@ case object ResolveReferences extends LazyLogging {
                 expr.o.messageInContext("Too many endpoints possible")
               )
           }
-        comm.inferredSender = comm.sender.map(_.ref.get.decl)
-          .orElse(Some(getEndpoint(comm.msg)))
-        comm.inferredReceiver = comm.receiver.map(_.ref.get.decl)
-          .orElse(Some(getEndpoint(comm.target)))
+        comm.inferredSender =
+          ??? /* comm.sender.map(_.ref.get.decl)
+          .orElse(Some(getEndpoint(comm.msg))) */ // TODO (RR): Re-enable this ASAP
+        comm.inferredReceiver =
+          ??? /* comm.receiver.map(_.ref.get.decl)
+          .orElse(Some(getEndpoint(comm.target))) */ // TODO (RR): Re-enable this ASAP
       case sender: PVLSender[G] =>
         sender.ref = Some(
           ctx.currentCommunicate.getOrElse(throw OnlyInChannelInvariant(sender))

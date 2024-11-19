@@ -3823,20 +3823,24 @@ final case class PVLEndpointName[G](name: String)(implicit val o: Origin)
   var ref: Option[RefPVLEndpoint[G]] = None
 }
 final case class PVLEndpointRange[G](
-    family: Expr[G],
+    name: String,
     binder: Variable[G],
     low: Expr[G],
     high: Expr[G],
 )(implicit val o: Origin)
-    extends PVLEndpointSet[G] with PVLEndpointRangeImpl[G]
+    extends PVLEndpointSet[G] with PVLEndpointRangeImpl[G] {
+  var ref: Option[RefPVLEndpoint[G]] = None
+}
 // Need a second one, because don't want to have one node in two node families (PVLEndpointSet and Expr)
 case class PVLEndpointRangeExpr[G](
-    family: Expr[G],
+    name: String,
     binder: Variable[G],
     low: Expr[G],
     high: Expr[G],
 )(implicit val o: Origin)
-    extends Expr[G] with PVLEndpointRangeExprImpl[G]
+    extends Expr[G] with PVLEndpointRangeExprImpl[G] {
+  var ref: Option[RefPVLEndpoint[G]] = None
+}
 
 // Resolution of invariant can depend on communicate's target/msg through \sender, \receiver, \msg. Therefore, definitions are nested like this,
 // to ensure that PVLCommunicate is fully resolved before the invariant is typechecked.

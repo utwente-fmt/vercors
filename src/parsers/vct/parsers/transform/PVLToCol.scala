@@ -652,16 +652,26 @@ case class PVLToCol[G](
     }
     PVLCommunicateStatement(
       comm,
-      inv.map { case node @ ChannelInvariant0(_, inv, _) => convert(inv) },
+      inv.map { case ChannelInvariant0(_, inv, _) => convert(inv) },
     )(origin(node))
   }
 
   def convertParticipant(
       implicit participant: ParticipantContext
-  ): PVLEndpointName[G] =
+  ): PVLEndpointSet[G] =
     participant match {
       case Participant0(name, None, _) => PVLEndpointName(convert(name))
-      case Participant0(name, Some(_), _) => ???
+      case Participant0(
+            name,
+            Some(FamilyIter0(_, binder, _, _, low, _, high, _)),
+            _,
+          ) =>
+        PVLEndpointRange(
+          convert(name),
+          new Variable(TInt())(origin(binder).sourceName(convert(name))),
+          convert(low),
+          convert(high),
+        )
     }
 
   def convert(implicit stat: ForStatementListContext): Statement[G] =

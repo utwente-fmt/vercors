@@ -2,6 +2,21 @@ package vct.test.integration.examples.veymont
 
 import vct.test.integration.helper.VeyMontSpec
 
+class TechnicalVeyMontSpec2 extends VeyMontSpec {
+  choreography(
+    desc = "Can define families",
+    pvl = """
+      class C {
+        constructor(int tid);
+      }
+      requires N > 0;
+      choreography Chor(int N) {
+        endpoints nodes[tid := 0 .. N] = C(tid);
+      }
+    """,
+  )
+}
+
 class TechnicalVeyMontSpec extends VeyMontSpec {
   choreography(
     desc = "Endpoint expressions can be nested",
