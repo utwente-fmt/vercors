@@ -73,6 +73,36 @@ case class MakeRuntimeChecks[Pre <: Generation]()
   override def dispatch(program: Program[Pre]): Program[Post] = {
     implicit val o: Origin = program.o
 
+    // todo: a bit hack-y: use declaration to create include statement.
+    //  This means the include is followed by a ";", though
+    val includes: mutable.Buffer[GlobalDeclaration[Post]] = mutable.Buffer()
+    if (program.collect { case b: TBool[Pre] => b }.nonEmpty) {
+      val decl =
+        new CGlobalDeclaration[Post](CDeclaration(
+          emptyContract(),
+          tt,
+          Nil,
+          Seq(CInit(CName[Post]("#include<stdbool.h>"), None)),
+        ))
+      includes.append(decl)
+    }
+    if (
+      program.collect { case p: Procedure[Pre] => p }.collect { m =>
+        Namer.getSrcName(m.o) match {
+          case Some(name) if name == "__vercors_malloc" => m
+        }
+      }.nonEmpty
+    ) {
+      val decl =
+        new CGlobalDeclaration[Post](CDeclaration(
+          emptyContract(),
+          tt,
+          Nil,
+          Seq(CInit(CName[Post]("#include<stdlib.h>"), None)),
+        ))
+      includes.append(decl)
+    }
+
     // create abstract "reach_error" and "__verifier_nondet_int" methods;
     val declNames = Map.from(program.declarations.flatMap(d =>
       d match {
@@ -107,7 +137,7 @@ case class MakeRuntimeChecks[Pre <: Generation]()
       verifierAssume,
     ).filter(d => !declNames.contains(Namer.getSrcName(d.o).get))
 
-    program.rewrite(declarations = newDecls ++ decls)
+    program.rewrite(declarations = includes.toSeq ++ newDecls ++ decls)
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
@@ -134,7 +164,13 @@ case class MakeRuntimeChecks[Pre <: Generation]()
             emptyContract[Pre]()(pred.o),
           )(PanicBlame("predicate failed"))(pred.o)
         rewriteProcedure(p).succeed(pred)
-      case m: Procedure[Pre] => rewriteProcedure(m).succeed(m)
+      case m: Procedure[Pre] =>
+        Namer.getSrcName(m.o) match {
+          case Some(name)
+              if name == "__vercors_malloc" ||
+                name == "__vercors_free" => // nothing, i.e. drop
+          case _ => rewriteProcedure(m).succeed(m)
+        }
       case v: Variable[Pre] => super.dispatch(v)
       case _ => super.dispatch(decl)
     }
@@ -147,19 +183,6 @@ case class MakeRuntimeChecks[Pre <: Generation]()
       case Some(name) if name == abortName => return abort
       case Some(name) if name == verifierAssumeName => return verifierAssume
       case Some(name) if name == nondetIntName => return nondetInt
-      case Some(name) if name == "__vercors_malloc" =>
-        // todo: a bit hack-y: use classical malloc by turning this method
-        //  into include statement.
-        //  This means the include is followed by a ";", though
-        implicit val o: Origin = m.o
-        val decl =
-          new CGlobalDeclaration[Post](CDeclaration(
-            m.contract.rewriteDefault(),
-            tt,
-            Nil,
-            Seq(CInit(CName[Post]("#include<stdlib.h>"), None)),
-          ))
-        return decl
       case _ =>
     }
 
@@ -271,7 +294,7 @@ case class MakeRuntimeChecks[Pre <: Generation]()
                   logger.warn(
                     "at " + o.expr.o.shortPositionText +
                       ": unsupported old expression '" + o.expr.toString +
-                      "' (using local variables '" + locals.mkString(",") +
+                      "' (using local variables: '" + locals.mkString(",") +
                       "'). The 'old' wrapper will be dropped"
                   )
                   None
@@ -366,7 +389,7 @@ case class MakeRuntimeChecks[Pre <: Generation]()
                 Seq()
 
             // rewrite method with new body
-            val body = meth.body.map {
+            lazy val body = meth.body.map {
               case b: Block[Pre] =>
                 val newScope =
                   Scope[Post](
@@ -430,7 +453,9 @@ case class MakeRuntimeChecks[Pre <: Generation]()
           case Some(a) =>
             val body =
               Block[Post](Seq(a, loop.body.rewriteDefault()))(loop.body.o)
-            loop.rewrite(body = body, contract = contract)
+            Block[Post](Seq(loop.rewrite(body = body, contract = contract), a))(
+              loop.o
+            )
           case _ => loop.rewrite(contract = contract)
         }
       case _ => super.dispatch(loop) // todo? iterationContract, not handled yet
