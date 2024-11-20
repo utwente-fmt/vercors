@@ -83,6 +83,7 @@ case class PVLToCol[G](
           ) =>
         new PVLEndpoint(
           convert(name),
+          None,
           new UnresolvedRef[G, Class[G]](convert(endpointType)),
           typeArgs.map(convert(_)).getOrElse(Seq()),
           args.map(convert(_)).getOrElse(Nil),

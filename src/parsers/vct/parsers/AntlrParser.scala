@@ -152,7 +152,7 @@ abstract class AntlrParser extends Parser {
         convert(newConverter(baseOrigin, expectedErrors, tokenStream), main),
         expectedErrors.map(_._3),
       )
-    } catch { case m: MatchError => throw ParseMatchError(m.getMessage()) }
+    } catch { case m: MatchError => throw ParseMatchError(m) }
   }
 
   def parseReaderOrThrow[Ctx, G, Out](

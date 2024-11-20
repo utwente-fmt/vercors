@@ -83,11 +83,10 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   val currentStatement: ScopedStack[Statement[Pre]] = ScopedStack()
   val currentExpr: ScopedStack[Expr[Pre]] = ScopedStack()
 
-  lazy val warnedAboutAssign: Boolean = {
+  lazy val warnedAboutAssign: Unit = {
     logger.warn(
       "Plain assignment detected in choreography. This is allowed, but technically unsound. Use `:=` instead to also check endpoint ownership."
     )
-    true
   }
 
   def rewriteCommunicateStatement(
@@ -169,11 +168,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteStatement(stmt: Statement[Pre]): Statement[Post] =
     stmt match {
-      case stmt @ PVLEndpointStatement(endpointName, inner) =>
-        EndpointStatement[Post](
-          endpointName.map(rewriteEndpointName),
-          inner.rewriteDefault(),
-        )(stmt.blame)(stmt.o)
+      case stmt @ PVLEndpointStatement(endpointName, inner) => ???
+//        EndpointStatement[Post](
+//          endpointName.map(rewriteEndpointName),
+//          inner.rewriteDefault(),
+//        )(stmt.blame)(stmt.o)
       case eval: Eval[Pre] =>
         EndpointStatement[Post](None, eval.rewriteDefault())(PanicBlame(
           "Inner statement cannot fail"
@@ -191,7 +190,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case comm: PVLCommunicateStatement[Pre] =>
         rewriteCommunicateStatement(comm)
       case assign: Assign[Pre] =>
-        val dummyToTriggerPrint = warnedAboutAssign
+        warnedAboutAssign
         assign.rewriteDefault()
       // Any statement not listed here, we put in ChorStatement. ChorStatementImpl defines which leftover statement we tolerate in choreographies
       case stmt =>
@@ -204,19 +203,19 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteExpr(expr: Expr[Pre]): Expr[Post] =
     expr match {
-      case PVLChorPerm(endpoint, loc, perm) =>
-        EndpointExpr(
-          rewriteEndpointName(endpoint),
-          Perm(rw.dispatch(loc), rw.dispatch(perm))(expr.o),
-        )(expr.o)
+      case PVLChorPerm(endpoint, loc, perm) => ???
+//        EndpointExpr(
+//          rewriteEndpointName(endpoint),
+//          Perm(rw.dispatch(loc), rw.dispatch(perm))(expr.o),
+//        )(expr.o)
       case expr @ PVLSender() =>
         Sender[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
       case expr @ PVLReceiver() =>
         Receiver[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
       case expr @ PVLMessage() =>
         Message[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
-      case PVLEndpointExpr(endpoint, expr) =>
-        EndpointExpr(rewriteEndpointName(endpoint), rw.dispatch(expr))(expr.o)
+      case PVLEndpointExpr(endpoint, expr) => ???
+//        EndpointExpr(rewriteEndpointName(endpoint), rw.dispatch(expr))(expr.o)
       case expr => currentExpr.having(expr) { rw.dispatch(expr) }
     }
 }
