@@ -12,6 +12,7 @@ import vct.col.origin.{
   LoopUnanimityNotMaintained,
   Origin,
   PanicBlame,
+  UnsafeDontCare,
 }
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{RefField, RefPVLEndpoint}
@@ -19,20 +20,11 @@ import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangVeyMontToCol.{
-  AssignNotAllowed,
   ForwardBranchUnanimityFailed,
   ForwardLoopUnanimityFailed,
-  NoRunMethod,
 }
-import vct.rewrite.veymont.InferEndpointContexts
 
 case object LangVeyMontToCol {
-  case class NoRunMethod(prog: PVLChoreography[_]) extends UserError {
-    override def code: String = "noRunMethod"
-    override def text: String =
-      prog.o.messageInContext(s"This choreography has no `run` method.")
-  }
-
   case class AssignNotAllowed(assign: Assign[_]) extends UserError {
     override def code: String = "assignNotAllowed"
     override def text: String =
@@ -143,7 +135,14 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             None,
             prog.declarations.collectFirst { case run: PVLChorRun[Pre] =>
               rewriteRun(run)
-            }.getOrElse(throw NoRunMethod(prog)),
+            }.getOrElse(
+              ChorRun(
+                Block(Seq()),
+                contract(blame =
+                  UnsafeDontCare.Satisfiability("it is never unsat")
+                ),
+              )(PanicBlame("trivial contract"))
+            ),
             rw.classDeclarations.collect(prog.declarations.foreach {
               case _: PVLChorRun[Pre] =>
               case _: PVLEndpoint[Pre] =>

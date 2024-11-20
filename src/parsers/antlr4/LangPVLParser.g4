@@ -6,7 +6,7 @@ parser grammar LangPVLParser;
 
 program  : programDecl* EOF EOF ;
 
-programDecl : valGlobalDeclaration | declClass | enumDecl | method | declVeyMontSeqProg | vesuvEntry ;
+programDecl : valGlobalDeclaration | declClass | enumDecl | method | pvlChoreography | vesuvEntry ;
 
 enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
 
@@ -14,13 +14,13 @@ declClass
  : contract 'class' identifier declaredTypeArgs? '{' classDecl* '}'
  ;
 
-declVeyMontSeqProg : contract 'choreography' identifier '(' args? ')' '{' seqProgDecl* '}';
+pvlChoreography : contract 'choreography' identifier '(' args? ')' '{' choreographyDecl* '}';
 
-seqProgDecl
+choreographyDecl
  : 'endpoint' identifier '=' classType '(' exprList? ')' ';' # pvlEndpoint
  | 'endpoints' identifier familyIter '=' classType '(' exprList? ')' ';' # pvlEndpoints
  | contract 'run' block # pvlSeqRun
- | method # seqProgMethod
+ | method # choreographyMethod
  ;
 
 applicableReference

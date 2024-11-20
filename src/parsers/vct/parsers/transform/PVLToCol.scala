@@ -59,9 +59,9 @@ case class PVLToCol[G](
         )) +: convertConstants(tail)
     }
 
-  def convert(implicit decl: SeqProgDeclContext): ClassDeclaration[G] =
+  def convert(implicit decl: ChoreographyDeclContext): ClassDeclaration[G] =
     decl match {
-      case SeqProgMethod(method) => convert(method)
+      case ChoreographyMethod(method) => convert(method)
       case PvlSeqRun(contract, _, body) =>
         withContract(
           contract,
@@ -88,15 +88,43 @@ case class PVLToCol[G](
           typeArgs.map(convert(_)).getOrElse(Seq()),
           args.map(convert(_)).getOrElse(Nil),
         )(blame(decl))(origin(decl).sourceName(convert(name)))
+      case PvlEndpoints(
+            _,
+            name,
+            familyIter,
+            _,
+            ClassType0(endpointType, typeArgs),
+            _,
+            args,
+            _,
+            _,
+          ) =>
+        new PVLEndpoint(
+          convert(name),
+          Some(convert(familyIter)),
+          new UnresolvedRef[G, Class[G]](convert(endpointType)),
+          typeArgs.map(convert(_)).getOrElse(Seq()),
+          args.map(convert(_)).getOrElse(Nil),
+        )(blame(decl))(origin(decl).sourceName(convert(name)))
       case PvlEndpoint(_, name, _, t @ ClassType0(_, Some(_)), _, args, _, _) =>
         ??(t)
+      case PvlEndpoints(_, name, _, _, t, _, _, _, _) => ??(t)
     }
 
+  def convert(implicit familyIter: FamilyIterContext): PVLFamily[G] = {
+    val FamilyIter0(_, i, _, _, low, _, high, _) = familyIter
+    PVLFamily(
+      new Variable(TInt())(origin(i).sourceName(convert(i))),
+      convert(low),
+      convert(high),
+    )
+  }
+
   def convertChoreography(
-      implicit decl: DeclVeyMontSeqProgContext
+      implicit decl: PvlChoreographyContext
   ): PVLChoreography[G] =
     decl match {
-      case DeclVeyMontSeqProg0(contract, _, name, _, args, _, _, decls, _) =>
+      case PvlChoreography0(contract, _, name, _, args, _, _, decls, _) =>
         withContract(
           contract,
           contract => {

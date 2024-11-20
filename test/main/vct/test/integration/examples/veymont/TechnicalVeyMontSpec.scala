@@ -15,6 +15,19 @@ class TechnicalVeyMontSpec2 extends VeyMontSpec {
       }
     """,
   )
+
+  choreography(
+    desc = "Scoping of the binder of endpoint ranges is not handled properly",
+    pvl = """
+      class C {
+        constructor(int tid);
+      }
+      requires N > 0;
+      choreography Chor(int N) {
+        endpoints nodes[tid := tid .. tid] = C(tid);
+      }
+    """,
+  )
 }
 
 class TechnicalVeyMontSpec extends VeyMontSpec {
