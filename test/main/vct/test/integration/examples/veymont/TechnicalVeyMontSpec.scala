@@ -17,6 +17,27 @@ class TechnicalVeyMontSpec2 extends VeyMontSpec {
   )
 
   choreography(
+    desc = "Preconditions over endpoint ranges",
+    pvl = """
+      class C {
+        ensures this.tid() == tid;
+        constructor(int tid);
+
+        pure int tid();
+      }
+      requires N > 0;
+      choreography Chor(int N) {
+        endpoints nodes[tid := 0 .. N] = C(tid);
+
+        requires (\endpoints nodes[tid := 0 .. N]; nodes[tid].tid() == tid);
+        run {
+
+        }
+      }
+    """,
+  )
+
+  choreography(
     desc = "Scoping of the binder of endpoint ranges is not handled properly",
     pvl = """
       class C {

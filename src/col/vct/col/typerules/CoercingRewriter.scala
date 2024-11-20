@@ -364,6 +364,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: ApplyAnyPredicate[Pre] => coerce(node)
       case node: FoldTarget[Pre] => coerce(node)
       case node: PVLFamily[Pre] => coerce(node)
+      case node: PVLEndpointRange[Pre] => coerce(node)
     }
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl

@@ -3947,7 +3947,7 @@ final case class EndpointStatement[G](
 
 final case class PVLEndpointExpr[G](endpoint: PVLEndpointSet[G], expr: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with PVLEndpointExprImpl[G]
+) extends Expr[G] with PVLEndpointExprImpl[G] with Declarator[G]
 final case class EndpointExpr[G](endpoint: Ref[G, Endpoint[G]], expr: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with EndpointExprImpl[G]

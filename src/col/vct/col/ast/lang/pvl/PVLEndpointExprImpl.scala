@@ -1,7 +1,13 @@
 package vct.col.ast.lang.pvl
 
 import vct.col.ast.ops.PVLEndpointExprOps
-import vct.col.ast.{PVLEndpointExpr, Type}
+import vct.col.ast.{
+  Declaration,
+  PVLEndpointExpr,
+  PVLEndpointName,
+  PVLEndpointRange,
+  Type,
+}
 import vct.col.print._
 
 trait PVLEndpointExprImpl[G] extends PVLEndpointExprOps[G] {
@@ -10,4 +16,10 @@ trait PVLEndpointExprImpl[G] extends PVLEndpointExprOps[G] {
     Text("(\\[") <> endpoint <> "]" <+> expr <> ")"
 
   def t: Type[G] = expr.t
+
+  def declarations: Seq[Declaration[G]] =
+    endpoint match {
+      case PVLEndpointRange(_, binder, _, _) => Seq(binder)
+      case _ => Seq()
+    }
 }

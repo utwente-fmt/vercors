@@ -505,6 +505,24 @@ case class PVLToCol[G](
           PVLEndpointName(convert(endpoint))(origin(endpoint)),
           convert(inner),
         )
+      case PvlEndpointsExpr(
+            _,
+            _,
+            endpoint,
+            FamilyIter0(_, binder, _, _, low, _, high, _),
+            _,
+            inner,
+            _,
+          ) =>
+        PVLEndpointExpr(
+          PVLEndpointRange(
+            convert(endpoint),
+            new Variable(TInt())(origin(binder).sourceName(convert(binder))),
+            convert(low),
+            convert(high),
+          ),
+          convert(inner),
+        )
       case PvlLongChorExpr(_, _, inner, _) => ChorExpr(convert(inner))
       case PvlShortChorExpr(_, _, _, _, inner, _) => ChorExpr(convert(inner))
       case PvlBoolAsserting(_, _, assn, _) =>

@@ -25,14 +25,6 @@ import vct.rewrite.lang.LangVeyMontToCol.{
 }
 
 case object LangVeyMontToCol {
-  case class AssignNotAllowed(assign: Assign[_]) extends UserError {
-    override def code: String = "assignNotAllowed"
-    override def text: String =
-      assign.o.messageInContext(
-        "Plain assignment is not allowed in a choreography. Use `:=` instead."
-      )
-  }
-
   case class ForwardBranchUnanimityFailed(branch: PVLBranch[_])
       extends Blame[ChorStatementFailure]() {
     def blame(error: ChorStatementFailure): Unit =
