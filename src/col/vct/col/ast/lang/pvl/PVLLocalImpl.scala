@@ -1,10 +1,18 @@
 package vct.col.ast.lang.pvl
 
-import vct.col.ast.{PVLLocal, TClass, TEnum, TNotAValue, Type}
+import vct.col.ast.{
+  PVLLocal,
+  TClass,
+  TEnum,
+  TNotAValue,
+  TPVLEndpointFamily,
+  Type,
+}
 import vct.col.print.{Ctx, Doc, Text}
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
 import vct.col.ast.ops.PVLLocalOps
+import vct.col.ref.DirectRef
 
 trait PVLLocalImpl[G] extends PVLLocalOps[G] {
   this: PVLLocal[G] =>
@@ -17,7 +25,9 @@ trait PVLLocalImpl[G] extends PVLLocalOps[G] {
       case ref: RefField[G] => ref.decl.t
       case ref: RefModelField[G] => ref.decl.t
       case ref: RefEndpoint[G] => ref.decl.t
-      case ref: RefPVLEndpoint[G] => ref.decl.t
+      case RefPVLEndpoint(decl) if decl.isEndpoint => decl.t
+      case RefPVLEndpoint(decl) if decl.isFamily =>
+        TPVLEndpointFamily(new DirectRef(decl))
       case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
     }
 

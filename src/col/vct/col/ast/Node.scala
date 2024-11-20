@@ -246,9 +246,12 @@ final case class TEnum[G](enum: Ref[G, Enum[G]])(
 final case class TProverType[G](ref: Ref[G, ProverType[G]])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends DeclaredType[G] with TProverTypeImpl[G]
-final case class TVeyMontChannel[G](channelType: String)(
+final case class TPVLEndpointFamily[G](ref: Ref[G, PVLEndpoint[G]])(
     implicit val o: Origin = DiagnosticOrigin
-) extends DeclaredType[G] with TVeyMontChannelImpl[G]
+) extends DeclaredType[G] with TPVLEndpointFamilyImpl[G]
+final case class TEndpointFamily[G](ref: Ref[G, Endpoint[G]])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends DeclaredType[G] with TEndpointFamilyImpl[G]
 
 @family
 sealed trait ParRegion[G] extends NodeFamily[G] with ParRegionImpl[G]

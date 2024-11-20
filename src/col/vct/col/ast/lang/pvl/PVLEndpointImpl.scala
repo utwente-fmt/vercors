@@ -19,4 +19,7 @@ trait PVLEndpointImpl[G]
 
   override def declarations: Seq[Declaration[G]] =
     range.map(f => Seq(f.binder)).getOrElse(Seq())
+
+  def isFamily: Boolean = range.nonEmpty
+  def isEndpoint: Boolean = !isFamily
 }

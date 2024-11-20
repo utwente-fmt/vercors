@@ -650,6 +650,12 @@ abstract class CoercingRewriter[Pre <: Generation]()
         (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"(Seq ?)")
     }
+  def endpointFamily(e: Expr[Pre]): Expr[Pre] =
+    e.t match {
+      case TPVLEndpointFamily(_) => e
+      case TEndpointFamily(_) => e
+      case _ => throw IncoercibleText(e, "endpoint family")
+    }
 
   def arity(t: TClass[Pre]): TClass[Pre] =
     if (t.cls.decl.typeArgs.length == t.typeArgs.length)
@@ -1095,11 +1101,12 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case sub @ AmbiguousSubscript(collection, index) =>
         firstOk(
           e,
-          s"Expected collection to be a sequence, vector, array, pointer or map, but got ${collection.t}.",
+          s"Expected collection to be a sequence, vector, array, pointer, endpoint family or map, but got ${collection.t}.",
           AmbiguousSubscript(seq(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(vector(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(array(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(pointer(collection)._1, int(index))(sub.blame),
+          AmbiguousSubscript(endpointFamily(collection), int(index))(sub.blame),
           AmbiguousSubscript(
             map(collection)._1,
             coerce(index, map(collection)._2.key),
