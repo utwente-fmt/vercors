@@ -20,6 +20,9 @@ trait AmbiguousSubscriptImpl[G] extends AmbiguousSubscriptOps[G] {
   def isPointerOp: Boolean =
     CoercionUtils.getAnyPointerCoercion(collection.t).isDefined
   def isMapOp: Boolean = CoercionUtils.getAnyMapCoercion(collection.t).isDefined
+  def isEndpointOp: Boolean =
+    collection.t.asEndpointFamily.isDefined ||
+      collection.t.asPVLEndpointFamily.isDefined
 
   override lazy val t: Type[G] =
     if (isSeqOp)
@@ -36,6 +39,9 @@ trait AmbiguousSubscriptImpl[G] extends AmbiguousSubscriptOps[G] {
       collection.t.asPointer.get.element
     else if (isMapOp)
       collection.t.asMap.get.value
+    else if (isEndpointOp)
+      collection.t.asEndpointFamily.map(_.ref.decl.t)
+        .orElse(collection.t.asPVLEndpointFamily.map(_.ref.decl.t)).get
     else
       throw Unreachable(
         s"Trying to subscript ($this) a non subscriptable variable with type ${collection.t}"

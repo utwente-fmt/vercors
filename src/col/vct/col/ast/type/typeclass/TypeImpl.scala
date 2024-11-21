@@ -62,6 +62,16 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
       case _ => None
     }
   /*def asVector: Option[TVector] = optMatch(this) { case vec: TVector => vec }*/
+  def asPVLEndpointFamily: Option[TPVLEndpointFamily[G]] =
+    this match {
+      case t: TPVLEndpointFamily[G] => Some(t)
+      case _ => None
+    }
+  def asEndpointFamily: Option[TEndpointFamily[G]] =
+    this match {
+      case t: TEndpointFamily[G] => Some(t)
+      case _ => None
+    }
 
   def particularize(substitutions: Map[Variable[G], Type[G]]): Type[G] = {
     case object Particularize extends NonLatchingRewriter[G, G] {
