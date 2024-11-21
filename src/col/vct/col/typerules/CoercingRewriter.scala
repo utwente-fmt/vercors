@@ -360,11 +360,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: SmtlibFunctionSymbol[Pre] => node
       case node: ChorRun[Pre] => node
       case node: PVLEndpointName[Pre] => coerce(node)
-      case node: EndpointName[Pre] => coerce(node)
       case node: ApplyAnyPredicate[Pre] => coerce(node)
       case node: FoldTarget[Pre] => coerce(node)
-      case node: PVLFamily[Pre] => coerce(node)
       case node: PVLEndpointRange[Pre] => coerce(node)
+      case node: RangeBinder[Pre] => coerce(node)
     }
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
@@ -2489,6 +2488,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case chor: Choreography[Pre] => chor
       case endpoint: Endpoint[Pre] =>
         new Endpoint(
+          endpoint.range,
           endpoint.cls,
           endpoint.typeArgs,
           coerce(endpoint.init, endpoint.t),
@@ -2975,19 +2975,12 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: PVLEndpointName[Pre]): PVLEndpointName[Pre] = node
   def coerce(node: EndpointName[Pre]): EndpointName[Pre] = node
 
-  def coerce(node: PVLEndpointSet[Pre]): PVLEndpointSet[Pre] = {
-    implicit val o = node.o
-    node match {
-      case PVLEndpointName(name) => node
-      case PVLEndpointRange(name, binder, low, high) =>
-        PVLEndpointRange(name, binder, int(low), int(high))
-    }
-  }
+  def coerce(node: PVLEndpointSet[Pre]): PVLEndpointSet[Pre] = node
 
-  def coerce(node: PVLFamily[Pre]): PVLFamily[Pre] = {
+  def coerce(node: RangeBinder[Pre]): RangeBinder[Pre] = {
     implicit val o = node.o
-    val PVLFamily(binder, low, high) = node
-    PVLFamily(binder, int(low), int(high))
+    val RangeBinder(binder, low, high) = node
+    RangeBinder(binder, int(low), int(high))
   }
 
 }

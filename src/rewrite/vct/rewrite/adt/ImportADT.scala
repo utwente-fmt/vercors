@@ -89,7 +89,6 @@ case object ImportADT {
       case TSmtlibRoundingMode() => "roundingmode"
       case TSmtlibSeq(t) => "smtseq$" + typeText(t) + "$"
       case TSmtlibString() => "smtstr"
-      case TEndpoint(Ref(thread)) => thread.o.getPreferredNameOrElse().camel
       case TResourceVal() => "resource"
       case _: JavaType[_] => throw ExtraNode
       case _: CType[_] => throw ExtraNode

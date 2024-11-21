@@ -246,9 +246,6 @@ final case class TEnum[G](enum: Ref[G, Enum[G]])(
 final case class TProverType[G](ref: Ref[G, ProverType[G]])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends DeclaredType[G] with TProverTypeImpl[G]
-final case class TPVLEndpointFamily[G](ref: Ref[G, PVLEndpoint[G]])(
-    implicit val o: Origin = DiagnosticOrigin
-) extends DeclaredType[G] with TPVLEndpointFamilyImpl[G]
 final case class TEndpointFamily[G](ref: Ref[G, Endpoint[G]])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends DeclaredType[G] with TEndpointFamilyImpl[G]
@@ -3788,13 +3785,13 @@ final case class TChoreography[G](cls: Ref[G, Choreography[G]])(
 final case class TPVLChoreography[G](cls: Ref[G, PVLChoreography[G]])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends DeclaredType[G] with TPVLChoreographyImpl[G]
-final case class TEndpoint[G](cls: Ref[G, Endpoint[G]])(
+final case class TPVLEndpointFamily[G](ref: Ref[G, PVLEndpoint[G]])(
     implicit val o: Origin = DiagnosticOrigin
-) extends DeclaredType[G] with TEndpointImpl[G]
+) extends DeclaredType[G] with TPVLEndpointFamilyImpl[G]
 
 final class PVLEndpoint[G](
     val name: String,
-    val range: Option[PVLFamily[G]],
+    val range: Option[RangeBinder[G]],
     val cls: Ref[G, Class[G]],
     val typeArgs: Seq[Type[G]],
     val args: Seq[Expr[G]],
@@ -3803,9 +3800,12 @@ final class PVLEndpoint[G](
   var ref: Option[PVLConstructorTarget[G]] = None
 }
 @family
-final case class PVLFamily[G](binder: Variable[G], low: Expr[G], high: Expr[G])(
-    implicit val o: Origin
-) extends NodeFamily[G] with PVLFamilyImpl[G]
+final case class RangeBinder[G](
+    binder: Variable[G],
+    low: Expr[G],
+    high: Expr[G],
+)(implicit val o: Origin)
+    extends NodeFamily[G] with RangeBinderImpl[G]
 final class PVLChoreography[G](
     val name: String,
     val declarations: Seq[ClassDeclaration[G]],
@@ -3819,31 +3819,22 @@ final class PVLChorRun[G](
 )(val blame: Blame[ChorRunFailure])(implicit val o: Origin)
     extends ClassDeclaration[G] with PVLChorRunImpl[G]
 
+// Represents naming a specific endpoint, or a subrange of endpoints. Used in endpoint expressions, communicate statements to indicate sender/receiver,
+// and in communicate statements to indicate sender/receiver inline in the message/destination location.
 @family
 sealed trait PVLEndpointSet[G] extends NodeFamily[G] with PVLEndpointSetImpl[G]
 final case class PVLEndpointName[G](name: String)(implicit val o: Origin)
     extends PVLEndpointNameImpl[G] with PVLEndpointSet[G] {
   var ref: Option[RefPVLEndpoint[G]] = None
 }
-final case class PVLEndpointRange[G](
-    name: String,
-    binder: Variable[G],
-    low: Expr[G],
-    high: Expr[G],
-)(implicit val o: Origin)
-    extends PVLEndpointSet[G] with PVLEndpointRangeImpl[G] {
+final case class PVLEndpointRange[G](name: Expr[G], range: RangeBinder[G])(
+    implicit val o: Origin
+) extends PVLEndpointSet[G] with PVLEndpointRangeImpl[G] {
   var ref: Option[RefPVLEndpoint[G]] = None
 }
-// Need a second one, because don't want to have one node in two node families (PVLEndpointSet and Expr)
-case class PVLEndpointRangeExpr[G](
-    name: String,
-    binder: Variable[G],
-    low: Expr[G],
-    high: Expr[G],
-)(implicit val o: Origin)
-    extends Expr[G] with PVLEndpointRangeExprImpl[G] {
-  var ref: Option[RefPVLEndpoint[G]] = None
-}
+// Adapter node to also put endpoint naming inline in an expression, for communicate statements.
+case class PVLEndpointSetExpr[G](set: PVLEndpointSet[G])(implicit val o: Origin)
+    extends Expr[G] with PVLEndpointSetExprImpl[G]
 
 // Resolution of invariant can depend on communicate's target/msg through \sender, \receiver, \msg. Therefore, definitions are nested like this,
 // to ensure that PVLCommunicate is fully resolved before the invariant is typechecked.
@@ -3890,6 +3881,7 @@ final case class PVLMessage[G]()(implicit val o: Origin)
 
 @family
 final class Endpoint[G](
+    val range: Option[RangeBinder[G]],
     val cls: Ref[G, Class[G]],
     val typeArgs: Seq[Type[G]],
     val init: Expr[G],

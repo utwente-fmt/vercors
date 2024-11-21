@@ -91,7 +91,7 @@ case class PVLToCol[G](
       case PvlEndpoints(
             _,
             name,
-            familyIter,
+            rangeBinder,
             _,
             ClassType0(endpointType, typeArgs),
             _,
@@ -101,7 +101,7 @@ case class PVLToCol[G](
           ) =>
         new PVLEndpoint(
           convert(name),
-          Some(convert(familyIter)),
+          Some(convert(rangeBinder)),
           new UnresolvedRef[G, Class[G]](convert(endpointType)),
           typeArgs.map(convert(_)).getOrElse(Seq()),
           args.map(convert(_)).getOrElse(Nil),
@@ -111,9 +111,9 @@ case class PVLToCol[G](
       case PvlEndpoints(_, name, _, _, t, _, _, _, _) => ??(t)
     }
 
-  def convert(implicit familyIter: FamilyIterContext): PVLFamily[G] = {
-    val FamilyIter0(_, i, _, _, low, _, high, _) = familyIter
-    PVLFamily(
+  def convert(implicit rangeBinder: RangeBinderContext): RangeBinder[G] = {
+    val RangeBinder0(_, i, _, _, low, _, high, _) = rangeBinder
+    RangeBinder(
       new Variable(TInt())(origin(i).sourceName(convert(i))),
       convert(low),
       convert(high),
@@ -495,32 +495,30 @@ case class PVLToCol[G](
           AmbiguousLocation(convert(loc))(blame(expr)),
           convert(perm),
         )
-      case PvlLongEndpointExpr(_, _, endpoint, _, inner, _) =>
+      case PvlLongEndpointExpr(_, _, endpoint, None, _, inner, _) =>
         PVLEndpointExpr(
           PVLEndpointName(convert(endpoint))(origin(endpoint)),
           convert(inner),
         )
-      case PvlShortEndpointExpr(_, _, _, endpoint, _, inner, _) =>
-        PVLEndpointExpr(
-          PVLEndpointName(convert(endpoint))(origin(endpoint)),
-          convert(inner),
-        )
-      case PvlEndpointsExpr(
+      case PvlLongEndpointExpr(
             _,
             _,
             endpoint,
-            FamilyIter0(_, binder, _, _, low, _, high, _),
+            Some(rangeBinder),
             _,
             inner,
             _,
           ) =>
         PVLEndpointExpr(
           PVLEndpointRange(
-            convert(endpoint),
-            new Variable(TInt())(origin(binder).sourceName(convert(binder))),
-            convert(low),
-            convert(high),
+            local(endpoint, convert(endpoint)),
+            convert(rangeBinder),
           ),
+          convert(inner),
+        )
+      case PvlShortEndpointExpr(_, _, _, endpoint, _, inner, _) =>
+        PVLEndpointExpr(
+          PVLEndpointName(convert(endpoint))(origin(endpoint)),
           convert(inner),
         )
       case PvlLongChorExpr(_, _, inner, _) => ChorExpr(convert(inner))
@@ -554,6 +552,11 @@ case class PVLToCol[G](
           convertGiven(given),
           convertYields(yields),
         )(blame(expr))
+      case PvlEndpointsRange(
+            PostfixExpr3(PvlInvocation(name, None)),
+            rangeBinder,
+          ) =>
+        ???
       case PvlValAdtInvocation(inner) => convert(inner)
     }
 
@@ -708,17 +711,8 @@ case class PVLToCol[G](
   ): PVLEndpointSet[G] =
     participant match {
       case Participant0(name, None, _) => PVLEndpointName(convert(name))
-      case Participant0(
-            name,
-            Some(FamilyIter0(_, binder, _, _, low, _, high, _)),
-            _,
-          ) =>
-        PVLEndpointRange(
-          convert(name),
-          new Variable(TInt())(origin(binder).sourceName(convert(name))),
-          convert(low),
-          convert(high),
-        )
+      case Participant0(name, Some(rangeBinder), _) =>
+        PVLEndpointRange(local(name, convert(name)), convert(rangeBinder))
     }
 
   def convert(implicit stat: ForStatementListContext): Statement[G] =
@@ -736,6 +730,7 @@ case class PVLToCol[G](
       case PvlLocal(t, decls) => Block(convert(decls, convert(t)))
       case PvlEval(e) => Eval(convert(e))
       case PvlIncDec(name, op) =>
+        // Don't use the `local` method here so the blame can be pointed at stat instead of at name
         val target = PVLLocal[G](convert(name))(blame(stat))
         Eval(op match {
           case "++" =>

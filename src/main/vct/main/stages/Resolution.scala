@@ -40,7 +40,7 @@ import vct.parsers.parser.{ColJavaParser, ColLLVMContractParser, ColPVLParser}
 import vct.parsers.transform.BlameProvider
 import vct.parsers.{ParseResult, parser}
 import vct.resources.Resources
-import vct.result.VerificationError.UserError
+import vct.result.VerificationError.{SystemError, UserError}
 
 import java.io.{FileNotFoundException, Reader, StringReader}
 import java.nio.file.NoSuchFileException
@@ -50,6 +50,12 @@ case object Resolution {
     override def code: String =
       s"resolutionError:${errors.map(_.subcode).mkString(",")}"
     override def text: String = errors.map(_.message(_.o)).mkString("\n")
+  }
+
+  case class ResolutionWrapError(error: Throwable) extends SystemError {
+    initCause(error)
+    override def text: String =
+      s"An exception occurred while resolving (see below): ${error.getMessage}"
   }
 
   def ofOptions[G <: Generation](
@@ -163,7 +169,12 @@ case class Resolution[G <: Generation](
     }
     val resolvedProgram = LangSpecificToCol(generatePermissions)
       .dispatch(typedProgram)
-    resolvedProgram.check match {
+
+    val checkErrors =
+      try resolvedProgram.check
+      catch { case t: Throwable => throw Resolution.ResolutionWrapError(t) }
+
+    checkErrors match {
       case Nil => // ok
       // PB: This explicitly allows LangSpecificToCol to generate invalid ASTs, and will blame the input for them. The
       // alternative is that we duplicate a lot of checks (e.g. properties of Local hold for PVLLocal, JavaLocal, etc.)

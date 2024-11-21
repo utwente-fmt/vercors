@@ -89,25 +89,28 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     CommunicateStatement(newComm)(comm.o)
   }
 
-  def rewriteEndpointName(
-      name: PVLEndpointName[Pre]
-  ): Ref[Post, Endpoint[Post]] = endpointSucc.ref(name.ref.get.decl)
+  def rewriteEndpointSet(
+      name: PVLEndpointSet[Pre]
+  ): Nothing /* EndpointSet[Post] */ =
+    ??? // endpointSucc.ref(name.ref.get.decl)
 
   def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit = {
     val classTypeArgs = endpoint.typeArgs.map(rw.dispatch)
     endpointSucc(endpoint) = rw.endpoints.declare(
       new Endpoint[Post](
-        rw.succ[Class[Post]](endpoint.cls.decl),
-        classTypeArgs,
-        ConstructorInvocation(
-          rw.pvl.constructorSucc(endpoint.ref.get),
-          classTypeArgs,
-          endpoint.args.map(rw.dispatch),
-          Seq(),
-          Seq(),
-          Seq(),
-          Seq(),
-        )(endpoint.blame)(endpoint.o),
+        range = endpoint.range.map(rw.dispatch),
+        cls = rw.succ[Class[Post]](endpoint.cls.decl),
+        typeArgs = classTypeArgs,
+        init =
+          ConstructorInvocation(
+            rw.pvl.constructorSucc(endpoint.ref.get),
+            classTypeArgs,
+            endpoint.args.map(rw.dispatch),
+            Seq(),
+            Seq(),
+            Seq(),
+            Seq(),
+          )(endpoint.blame)(endpoint.o),
       )(endpoint.o)
     )
   }
@@ -194,19 +197,20 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteExpr(expr: Expr[Pre]): Expr[Post] =
     expr match {
-      case PVLChorPerm(endpoint, loc, perm) => ???
-//        EndpointExpr(
-//          rewriteEndpointName(endpoint),
-//          Perm(rw.dispatch(loc), rw.dispatch(perm))(expr.o),
-//        )(expr.o)
+      case PVLChorPerm(endpoint, loc, perm) =>
+        ???
+        EndpointExpr(
+          rewriteEndpointSet(endpoint),
+          Perm(rw.dispatch(loc), rw.dispatch(perm))(expr.o),
+        )(expr.o)
       case expr @ PVLSender() =>
         Sender[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
       case expr @ PVLReceiver() =>
         Receiver[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
       case expr @ PVLMessage() =>
         Message[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
-      case PVLEndpointExpr(endpoint, expr) => ???
-//        EndpointExpr(rewriteEndpointName(endpoint), rw.dispatch(expr))(expr.o)
+      case PVLEndpointExpr(endpoint, expr) =>
+        EndpointExpr(rewriteEndpointSet(endpoint), rw.dispatch(expr))(expr.o)
       case expr => currentExpr.having(expr) { rw.dispatch(expr) }
     }
 }

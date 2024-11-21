@@ -18,7 +18,7 @@ pvlChoreography : contract 'choreography' identifier '(' args? ')' '{' choreogra
 
 choreographyDecl
  : 'endpoint' identifier '=' classType '(' exprList? ')' ';' # pvlEndpoint
- | 'endpoints' identifier familyIter '=' classType '(' exprList? ')' ';' # pvlEndpoints
+ | 'endpoints' identifier rangeBinder '=' classType '(' exprList? ')' ';' # pvlEndpoints
  | contract 'run' block # pvlSeqRun
  | method # choreographyMethod
  ;
@@ -149,14 +149,12 @@ postfixExpr
  | postfixExpr '[' expr ']'
  | postfixExpr valPostfix
  | unit
- | postfixExpr familyIter # pvlEndpointsRange
  ;
 
 unit
  : valExpr # pvlValExpr
  | 'Perm' '[' identifier ']' '(' expr ',' expr ')' # pvlChorPerm
- | '(' '\\endpoint' identifier ';' expr ')' # pvlLongEndpointExpr
- | '(' '\\endpoints' identifier familyIter ';' expr ')' # pvlEndpointsExpr
+ | '(' ('\\endpoint' | '\\endpoints') identifier rangeBinder? ';' expr ')' # pvlLongEndpointExpr
  | '(' '\\' '[' identifier ']' expr ')' # pvlShortEndpointExpr
  | '(' '\\chor' expr ')' # pvlLongChorExpr
  | '(' '\\' '[' ']' expr ')' # pvlShortChorExpr
@@ -176,6 +174,7 @@ unit
  | CHARACTER_LITERAL # pvlChar
  | '(' expr ')' # pvlParens
  | identifier call? # pvlInvocation
+ | identifier rangeBinder # pvlEndpointsRange
  | valGenericAdtInvocation # pvlValAdtInvocation
  ;
 
@@ -222,10 +221,10 @@ direction
 
 access: participant? expr;
 participant
-  : identifier familyIter? ':'
+  : identifier rangeBinder? ':'
   ;
 
-familyIter: '[' identifier ':' '=' expr '..' expr ']';
+rangeBinder: '[' identifier ':' '=' expr '..' expr ']';
 
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;

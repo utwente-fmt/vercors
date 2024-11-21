@@ -19,7 +19,7 @@ trait PVLEndpointExprImpl[G] extends PVLEndpointExprOps[G] {
 
   def declarations: Seq[Declaration[G]] =
     endpoint match {
-      case PVLEndpointRange(_, binder, _, _) => Seq(binder)
+      case PVLEndpointRange(_, range) => Seq(range.binder)
       case _ => Seq()
     }
 }
