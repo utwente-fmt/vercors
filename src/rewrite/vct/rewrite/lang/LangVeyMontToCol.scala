@@ -76,12 +76,6 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteCommunicateStatement(
       comm: PVLCommunicateStatement[Pre]
   ): CommunicateStatement[Post] = {
-    /* TODO (RR):
-    This is a tricky part. In the resolver you also need to handle ambiguoussubscript and PVLLocal correctly.
-    Probably a good way to do this is to make inferredSender/inferredReceiver also PVLEndpointSets.
-    Then the resolution code converts any relevant PVLLocals into PVLEndpointSets.
-    If it can find PVLEndpointSets, even better, then we just put those in the ref vars.
-     */
     val inner = comm.comm
     val newComm: Communicate[Post] =
       (inner.inferredSender.get, inner.inferredReceiver.get) match {
