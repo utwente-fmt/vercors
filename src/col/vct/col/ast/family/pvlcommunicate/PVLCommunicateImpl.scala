@@ -7,5 +7,4 @@ import vct.col.ast.ops.{PVLCommunicateOps, PVLCommunicateFamilyOps}
 trait PVLCommunicateImpl[G]
     extends PVLCommunicateOps[G] with PVLCommunicateFamilyOps[G] {
   this: PVLCommunicate[G] =>
-
 }

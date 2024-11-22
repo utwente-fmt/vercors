@@ -1,21 +1,15 @@
 package vct.col.ast.statement.veymont
 
-import hre.data.BitString
 import vct.col.ast.declaration.DeclarationImpl
-import vct.col.ast.{Communicate, Endpoint, EndpointName, Node, Type}
+import vct.col.ast.ops.CommunicateOneOps
+import vct.col.ast.{CommunicateOne, Endpoint, EndpointName, Node, Type}
 import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.print.{Ctx, Doc, Group, Nest, Text}
 import vct.col.ref.Ref
-import vct.col.ast.ops.CommunicateOps
-import vct.col.ast.ops.{CommunicateFamilyOps, CommunicateOps}
 
-import scala.collection.immutable.{AbstractSeq, LinearSeq}
-
-trait CommunicateImpl[G]
-    extends CommunicateOps[G]
-    with CommunicateFamilyOps[G]
-    with DeclarationImpl[G] {
-  comm: Communicate[G] =>
+trait CommunicateOneImpl[G]
+    extends DeclarationImpl[G] with CommunicateOneOps[G] {
+  comm: CommunicateOne[G] =>
   override def layout(implicit ctx: Ctx): Doc =
     Text("channel_invariant") <+> Nest(invariant.show) <> ";" <+/> Group(
       Text("communicate") <+> layoutParticipant(receiver) <> target.show <+>
@@ -28,12 +22,12 @@ trait CommunicateImpl[G]
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
     this match {
-      case comm: Communicate[G]
+      case comm: CommunicateOne[G]
           if sender.isDefined &&
             !context.currentParticipatingEndpoints.get
               .contains(sender.get.decl) =>
         Seq(SeqProgParticipant(sender.get.decl))
-      case comm: Communicate[G]
+      case comm: CommunicateOne[G]
           if receiver.isDefined &&
             !context.currentParticipatingEndpoints.get
               .contains(receiver.get.decl) =>

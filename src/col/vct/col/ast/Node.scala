@@ -3822,17 +3822,18 @@ final class PVLChorRun[G](
 
 // Represents naming a specific endpoint, or a subrange of endpoints. Used in endpoint expressions, communicate statements to indicate sender/receiver,
 // and in communicate statements to indicate sender/receiver inline in the message/destination location.
+// TODO (RR): It's annoying here that we both use PVLLocal to refer to endpoint names, as well as the dedicated PVLEndpointName in the case where it's syntactically clear it's an endpoint...
 @family
 sealed trait PVLEndpointSet[G] extends NodeFamily[G] with PVLEndpointSetImpl[G]
 final case class PVLEndpointName[G](name: String)(implicit val o: Origin)
     extends PVLEndpointNameImpl[G] with PVLEndpointSet[G] {
   var ref: Option[RefPVLEndpoint[G]] = None
 }
-final case class PVLEndpointRange[G](name: Expr[G], range: RangeBinder[G])(
-    implicit val o: Origin
-) extends PVLEndpointSet[G] with PVLEndpointRangeImpl[G] {
-  var ref: Option[RefPVLEndpoint[G]] = None
-}
+final case class PVLEndpointRange[G](
+    name: PVLEndpointSet[G],
+    range: RangeBinder[G],
+)(implicit val o: Origin)
+    extends PVLEndpointSet[G] with PVLEndpointRangeImpl[G]
 // Adapter node to also put endpoint naming inline in an expression, for communicate statements.
 case class PVLEndpointSetExpr[G](set: PVLEndpointSet[G])(implicit val o: Origin)
     extends Expr[G] with PVLEndpointSetExprImpl[G]
@@ -3845,7 +3846,7 @@ final case class PVLCommunicateStatement[G](
     inv: Option[Expr[G]],
 )(implicit val o: Origin)
     extends Statement[G] with PVLCommunicateStatementImpl[G]
-@family
+@family @scopes[Variable]
 final class PVLCommunicate[G](
     val receiver: Option[PVLEndpointSet[G]],
     val target: Expr[G],
@@ -3907,14 +3908,23 @@ final case class ChorRun[G](
     extends NodeFamily[G] with ChorRunImpl[G]
 
 @family
-final class Communicate[G](
+sealed trait Communicate[G] extends CommunicateImpl[G] with Declaration[G]
+final class CommunicateOne[G](
     val invariant: Expr[G],
     val receiver: Option[Ref[G, Endpoint[G]]],
     val target: Expr[G],
     val sender: Option[Ref[G, Endpoint[G]]],
     val msg: Expr[G],
 )(val blame: Blame[CommunicateFailure])(implicit val o: Origin)
-    extends Declaration[G] with CommunicateImpl[G]
+    extends CommunicateOneImpl[G] with Communicate[G]
+final class CommunicatePar[G](
+    val invariant: Expr[G],
+    val receiver: (Ref[G, Endpoint[G]], RangeBinder[G]),
+    val target: Expr[G],
+    val sender: (Ref[G, Endpoint[G]], RangeBinder[G]),
+    val msg: Expr[G],
+)(val blame: Blame[CommunicateFailure])(implicit val o: Origin)
+    extends CommunicateParImpl[G] with Communicate[G]
 @scopes[Communicate]
 final case class CommunicateStatement[G](inner: Communicate[G])(
     implicit val o: Origin
@@ -3923,6 +3933,11 @@ final case class CommunicateStatement[G](inner: Communicate[G])(
 final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(
     implicit val o: Origin
 ) extends Expr[G] with EndpointNameImpl[G]
+final case class EndpointRange[G](
+    name: Ref[G, Endpoint[G]],
+    range: RangeBinder[G],
+)(implicit val o: Origin)
+    extends Expr[G] with EndpointRangeImpl[G]
 final case class Sender[G](ref: Ref[G, Communicate[G]])(implicit val o: Origin)
     extends Expr[G] with SenderImpl[G]
 final case class Receiver[G](ref: Ref[G, Communicate[G]])(
@@ -3940,6 +3955,12 @@ final case class EndpointStatement[G](
     inner: Statement[G],
 )(val blame: Blame[ChorStatementFailure])(implicit val o: Origin)
     extends Statement[G] with EndpointStatementImpl[G]
+final case class ParEndpointStatement[G](
+    endpoint: Ref[G, Endpoint[G]],
+    range: RangeBinder[G],
+    inner: Statement[G],
+)(implicit val o: Origin)
+    extends Statement[G] with ParEndpointStatementImpl[G]
 
 final case class PVLEndpointExpr[G](endpoint: PVLEndpointSet[G], expr: Expr[G])(
     implicit val o: Origin
@@ -3947,25 +3968,14 @@ final case class PVLEndpointExpr[G](endpoint: PVLEndpointSet[G], expr: Expr[G])(
 final case class EndpointExpr[G](endpoint: Ref[G, Endpoint[G]], expr: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with EndpointExprImpl[G]
+final case class ParEndpointExpr[G](
+    endpoint: Ref[G, Endpoint[G]],
+    range: RangeBinder[G],
+    expr: Expr[G],
+)(implicit val o: Origin)
+    extends Expr[G] with ParEndpointExprImpl[G]
 final case class ChorExpr[G](expr: Expr[G])(implicit val o: Origin)
     extends Expr[G] with ChorExprImpl[G]
-
-final case class VeyMontAssignExpression[G](
-    endpoint: Ref[G, Endpoint[G]],
-    assign: Statement[G],
-)(implicit val o: Origin)
-    extends Statement[G]
-    with ControlContainerStatement[G]
-    with VeyMontAssignExpressionImpl[G]
-final case class CommunicateX[G](
-    receiver: Ref[G, Endpoint[G]],
-    sender: Ref[G, Endpoint[G]],
-    chanType: Type[G],
-    assign: Statement[G],
-)(implicit val o: Origin)
-    extends Statement[G]
-    with ControlContainerStatement[G]
-    with CommunicateXImpl[G]
 
 sealed trait SilverExpr[G] extends Expr[G] with SilverExprImpl[G]
 final case class SilverDeref[G](obj: Expr[G], field: Ref[G, SilverField[G]])(
