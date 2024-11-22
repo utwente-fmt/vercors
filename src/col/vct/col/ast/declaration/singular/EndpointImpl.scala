@@ -1,7 +1,14 @@
 package vct.col.ast.declaration.singular
 
 import vct.col.ast.declaration.DeclarationImpl
-import vct.col.ast.{Endpoint, TByReferenceClass, TClass, Type}
+import vct.col.ast.{
+  Declaration,
+  Endpoint,
+  RangeBinder,
+  TByReferenceClass,
+  TClass,
+  Type,
+}
 import vct.col.print._
 import vct.col.ast.ops.{EndpointFamilyOps, EndpointOps}
 import vct.col.check.{CheckContext, CheckError}
@@ -14,6 +21,16 @@ trait EndpointImpl[G]
 
   def t: TClass[G] = cls.decl.classType(typeArgs)
 
-  override def check(ctx: CheckContext[G]): Seq[CheckError] = super.check(ctx)
+  override def enterCheckContextScopes(
+      context: CheckContext[G]
+  ): Seq[CheckContext.ScopeFrame[G]] = context.withScope(declarations)
 
+  override def declarations: Seq[Declaration[G]] =
+    getRange.map(r => Seq(r.binder)).getOrElse(Seq())
+
+  def isFamily: Boolean = range.nonEmpty
+  def isEndpoint: Boolean = !isFamily
+
+  def getRange: Option[RangeBinder[G]] =
+    this.range.map(_.asInstanceOf[RangeBinder[G]])
 }

@@ -10,11 +10,6 @@ trait PVLEndpointImpl[G]
     extends PVLEndpointOps[G] with ClassDeclarationImpl[G] {
   this: PVLEndpoint[G] =>
 
-  require(this.range match {
-    case Some(_: RangeBinder[G]) | None => true
-    case _ => false
-  })
-
   // override def layout(implicit ctx: Ctx): Doc = ???
 
   def t: TClass[G] = cls.decl.classType(typeArgs)

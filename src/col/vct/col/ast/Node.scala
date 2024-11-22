@@ -3789,6 +3789,7 @@ final case class TPVLEndpointFamily[G](ref: Ref[G, PVLEndpoint[G]])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends DeclaredType[G] with TPVLEndpointFamilyImpl[G]
 
+@scopes[Variable]
 final class PVLEndpoint[G](
     val name: String,
     val range: Option[RangeBinder[G]],
@@ -3879,14 +3880,14 @@ final case class PVLMessage[G]()(implicit val o: Origin)
   var ref: Option[PVLCommunicateStatement[G]] = None
 }
 
-@family
+@family @scopes[Variable]
 final class Endpoint[G](
     val range: Option[RangeBinder[G]],
     val cls: Ref[G, Class[G]],
     val typeArgs: Seq[Type[G]],
     val init: Expr[G],
 )(implicit val o: Origin)
-    extends Declaration[G] with EndpointImpl[G]
+    extends Declaration[G] with EndpointImpl[G] with Declarator[G]
 @scopes[Endpoint]
 @scopes[Variable]
 final class Choreography[G](

@@ -19,6 +19,7 @@ import vct.rewrite.lang.NoSupportSelfLoop
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.{
+  PassError,
   PassEventHandler,
   TransformationCheckError,
 }
@@ -30,11 +31,11 @@ import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
 import vct.rewrite.{
   DisambiguatePredicateExpression,
+  EncodeAssertingAssuming,
   EncodeAutoValue,
   EncodeByValueClassUsage,
   EncodeRange,
   EncodeResourceValues,
-  EncodeAssertingAssuming,
   ExplicitResourceValues,
   GenerateSingleOwnerPermissions,
   HeapVariableToRef,
@@ -208,6 +209,12 @@ object Transformation extends LazyLogging {
         Int,
         Verification[_ <: Generation],
     ) => Unit
+
+  case class PassError(passName: String, error: Throwable) extends SystemError {
+    initCause(error)
+    override def text: String =
+      s"An error occurred in pass $passName (see below): ${error.getMessage}"
+  }
 }
 
 /** Executes a sequence of rewriters. Currently the only concrete implementation
@@ -266,11 +273,7 @@ class Transformation(
 
         result =
           try { pass().dispatch(result) }
-          catch {
-            case c @ CauseWithBadEffect(effect) =>
-              logger.error(s"An error occurred in pass ${pass.key}")
-              throw c
-          }
+          catch { case c: CauseWithBadEffect => throw PassError(pass.key, c) }
 
         logger.debug(s"Finished transformation ${pass.key}")
 
