@@ -780,25 +780,27 @@ case class MakeRuntimeChecks[Pre <: Generation]()
     * @param node:
     *   body of outer invoked procedure
     * @param alreadyGathered:
-    *   Buffer of Procedures in call stack (to avoid recursion loop)
+    *   bodies of Procedures in call stack (to avoid recursion loop)
     */
   private def gatherInvocations(
       node: Statement[Pre],
-      alreadyGathered: mutable.Buffer[Procedure[Pre]] = mutable.Buffer(),
+      alreadyGathered: mutable.Buffer[Statement[Pre]] = mutable.Buffer(),
   ): Seq[Statement[Pre]] = {
     val procList = node.collect {
       case i: InvokeProcedure[Pre] => i.ref.decl
       case i: ProcedureInvocation[Pre] => i.ref.decl
     }
-    val res: mutable.Buffer[Statement[Pre]] = mutable.Buffer(node)
+    alreadyGathered.append(node)
     for (p <- procList) {
       p.body match {
         case Some(b) =>
-          if (!res.contains(b)) { res.appendAll(gatherInvocations(b)) }
+          if (!alreadyGathered.contains(b)) {
+            gatherInvocations(b, alreadyGathered)
+          }
         case None =>
       }
     }
-    res.toSeq
+    alreadyGathered.toSeq
   }
 
 }
