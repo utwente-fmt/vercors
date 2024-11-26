@@ -3944,17 +3944,19 @@ case class CommTargetIndex[G](ref: Ref[G, Endpoint[G]], index: Expr[G])(
     implicit val o: Origin
 ) extends CommunicateTarget[G] with CommTargetIndexImpl[G]
 
-final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(
-    implicit val o: Origin
-) extends Expr[G] with EndpointNameImpl[G]
-final case class EndpointRange[G](
-    name: Ref[G, Endpoint[G]],
-    range: RangeBinder[G],
-)(implicit val o: Origin)
-    extends Expr[G] with EndpointRangeImpl[G]
-final case class EndpointIndex[G](name: Ref[G, Endpoint[G]], index: Expr[G])(
-    implicit val o: Origin
-) extends Expr[G] with EndpointIndexImpl[G]
+final case class CtExpr[G](inner: CommunicateTarget[G])
+    extends Expr[G] with CtExprImpl[G]
+//final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(
+//    implicit val o: Origin
+//) extends Expr[G] with EndpointNameImpl[G]
+//final case class EndpointRange[G](
+//    name: Ref[G, Endpoint[G]],
+//    range: RangeBinder[G],
+//)(implicit val o: Origin)
+//    extends Expr[G] with EndpointRangeImpl[G]
+//final case class EndpointIndex[G](name: Ref[G, Endpoint[G]], index: Expr[G])(
+//    implicit val o: Origin
+//) extends Expr[G] with EndpointIndexImpl[G]
 final case class Sender[G](ref: Ref[G, Communicate[G]])(implicit val o: Origin)
     extends Expr[G] with SenderImpl[G]
 final case class Receiver[G](ref: Ref[G, Communicate[G]])(
