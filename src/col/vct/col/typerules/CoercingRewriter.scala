@@ -359,10 +359,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: ProverLanguage[Pre] => node
       case node: SmtlibFunctionSymbol[Pre] => node
       case node: ChorRun[Pre] => node
-      case node: PVLEndpointName[Pre] => coerce(node)
+      case node: PVLCommTargetEndpoint[Pre] => coerce(node)
       case node: ApplyAnyPredicate[Pre] => coerce(node)
       case node: FoldTarget[Pre] => coerce(node)
-      case node: PVLEndpointRange[Pre] => coerce(node)
+      case node: PVLCommTargetRange[Pre] => coerce(node)
       case node: RangeBinder[Pre] => coerce(node)
     }
 
@@ -2304,8 +2304,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case w @ Wait(obj) => Wait(cls(obj))(w.blame)
       case w @ WandApply(assn) => WandApply(res(assn))(w.blame)
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
-      case VeyMontAssignExpression(t, a) => VeyMontAssignExpression(t, a)
-      case CommunicateX(r, s, t, a) => CommunicateX(r, s, t, a)
       case PVLCommunicateStatement(comm, inv) =>
         PVLCommunicateStatement(comm, inv.map(res))
       case s: PVLEndpointStatement[Pre] => s
@@ -2972,15 +2970,24 @@ abstract class CoercingRewriter[Pre <: Generation]()
 
   def coerce(node: ChorRun[Pre]): ChorRun[Pre] = node
 
-  def coerce(node: PVLEndpointName[Pre]): PVLEndpointName[Pre] = node
+  def coerce(node: PVLCommTargetEndpoint[Pre]): PVLCommTargetEndpoint[Pre] = node
   def coerce(node: EndpointName[Pre]): EndpointName[Pre] = node
 
-  def coerce(node: PVLEndpointSet[Pre]): PVLEndpointSet[Pre] = node
+  def coerce(node: PVLCommunicateTarget[Pre]): PVLCommunicateTarget[Pre] = node
 
   def coerce(node: RangeBinder[Pre]): RangeBinder[Pre] = {
     implicit val o = node.o
     val RangeBinder(binder, low, high) = node
     RangeBinder(binder, int(low), int(high))
+  }
+
+  def coerce(node: CommunicateTarget[Pre]): CommunicateTarget[Pre] = {
+    implicit val o = node.o
+    node match {
+      case CommTargetEndpoint(ref) => CommTargetEndpoint(ref)
+      case CommTargetIndex(ref, index) => CommTargetIndex(ref, int(index))
+      case CommTargetRange(ref, range) => CommTargetRange(ref, range)
+    }
   }
 
 }

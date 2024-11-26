@@ -1,19 +1,22 @@
 package vct.col.ast.statement.veymont
 
 import vct.col.ast.declaration.DeclarationImpl
-import vct.col.ast.ops.CommunicateOneOps
-import vct.col.ast.{CommunicateOne, Endpoint, EndpointName, Node, Type}
+import vct.col.ast.{Communicate, Endpoint, EndpointName, Node, TClass, Type}
 import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.print.{Ctx, Doc, Group, Nest, Text}
 import vct.col.ref.Ref
+import vct.col.ast.ops.{CommunicateFamilyOps, CommunicateOps}
 
-trait CommunicateOneImpl[G]
-    extends DeclarationImpl[G] with CommunicateOneOps[G] {
-  comm: CommunicateOne[G] =>
+trait CommunicateImpl[G]
+    extends DeclarationImpl[G]
+    with CommunicateOps[G]
+    with CommunicateFamilyOps[G] {
+  comm: Communicate[G] =>
   override def layout(implicit ctx: Ctx): Doc =
     Text("channel_invariant") <+> Nest(invariant.show) <> ";" <+/> Group(
-      Text("communicate") <+> layoutParticipant(receiver) <> target.show <+>
-        "<-" <+> layoutParticipant(sender) <> msg.show <> ";"
+      Text("communicate") <+> receiver.map(_.show).getOrElse(Text("")) <>
+        target.show <+> "<-" <+> sender.map(_.show).getOrElse(Text("")) <>
+        msg.show <> ";"
     )
 
   def layoutParticipant(endpoint: Option[Ref[G, Endpoint[G]]])(
@@ -22,16 +25,16 @@ trait CommunicateOneImpl[G]
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
     this match {
-      case comm: CommunicateOne[G]
+      case comm: Communicate[G]
           if sender.isDefined &&
             !context.currentParticipatingEndpoints.get
-              .contains(sender.get.decl) =>
-        Seq(SeqProgParticipant(sender.get.decl))
-      case comm: CommunicateOne[G]
+              .contains(??? /* TODO (RR): sender.get.decl */ ) =>
+        Seq(SeqProgParticipant(??? /* TODO (RR): sender.get.decl */ ))
+      case comm: Communicate[G]
           if receiver.isDefined &&
             !context.currentParticipatingEndpoints.get
-              .contains(receiver.get.decl) =>
-        Seq(SeqProgParticipant(receiver.get.decl))
+              .contains(??? /* TODO (RR): receiver.get.decl */ ) =>
+        Seq(SeqProgParticipant(??? /* TODO (RR): receiver.get.decl */ ))
       case _ => Nil
     }
 
@@ -47,10 +50,10 @@ trait CommunicateOneImpl[G]
     }
 
   def participants: Seq[Endpoint[G]] = (sender.toSeq ++ receiver.toSeq)
-    .map(_.decl)
+    .map(_.endpoint)
 
   object t {
-    def sender = comm.sender.get.decl.t
-    def receiver = comm.receiver.get.decl.t
+    def sender: TClass[G] = comm.sender.get.endpoint.t
+    def receiver: TClass[G] = comm.receiver.get.endpoint.t
   }
 }

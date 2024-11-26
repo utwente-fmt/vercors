@@ -8,7 +8,9 @@ import vct.col.ast.{
   Class,
   Declaration,
   Endpoint,
+  EndpointIndex,
   EndpointName,
+  EndpointRange,
   EndpointStatement,
   Node,
 }
@@ -25,8 +27,11 @@ import vct.col.util.AstBuildHelpers.tt
 object ChoreographyImpl {
   def participants[G](node: Node[G]): ListSet[Endpoint[G]] =
     ListSet.from(node.collect {
-      case EndpointStatement(Some(Ref(endpoint)), Assign(_, _)) => Seq(endpoint)
+      case EndpointStatement(Some(commTarget), Assign(_, _)) =>
+        Seq(commTarget.endpoint)
       case EndpointName(Ref(endpoint)) => Seq(endpoint)
+      case range: EndpointRange[G] => Seq(range.name.decl)
+      case EndpointIndex(Ref(endpoint), _) => Seq(endpoint)
       case c @ ChorStatement(_) => c.participants.toSeq
     }.flatten)
 }

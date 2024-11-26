@@ -77,15 +77,15 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       comm: PVLCommunicateStatement[Pre]
   ): CommunicateStatement[Post] = {
     val inner = comm.comm
-    val newComm: Communicate[Post] =
-      (inner.inferredSender.get, inner.inferredReceiver.get) match {
+    val newComm: Communicate[Post] = ??? // TODO (RR)
+    /*(inner.inferredSender.get, inner.inferredReceiver.get) match {
         case (sender: PVLEndpoint[Pre], receiver: PVLEndpoint[Pre])
             if sender.isSingle && receiver.isSingle =>
-          new CommunicateOne(
+          new Communicate(
             rw.dispatch(comm.inv.getOrElse(tt[Pre])),
-            Some(endpointSucc.ref(receiver)),
+            rewrite(receiver),
             rw.dispatch(inner.target),
-            Some(endpointSucc.ref(sender)),
+            rewrite(sender),
             rw.dispatch(inner.msg),
           )(inner.blame)(comm.o)
         case (sender: PVLEndpointRange[Pre], receiver: PVLEndpointRange[Pre])
@@ -99,10 +99,13 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 //            rw.dispatch(inner.msg),
 //          )
         case _ => ???
-      }
+      }*/
     commSucc(inner) = newComm
     CommunicateStatement(newComm)(comm.o)
   }
+
+  def rewrite(commTarget: PVLCommunicateTarget[Pre]): CommunicateTarget[Post] =
+    ???
 
   def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit = {
     val classTypeArgs = endpoint.typeArgs.map(rw.dispatch)
@@ -172,16 +175,9 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteStatement(stmt: Statement[Pre]): Statement[Post] =
     stmt match {
-      case stmt @ PVLEndpointStatement(endpoint: PVLEndpointName[Pre], inner) =>
-        EndpointStatement(
-          Some(endpointSucc.ref(endpoint.ref.get.decl)),
-          rw.dispatch(inner),
-        )(stmt.blame)(stmt.o)
-      case PVLEndpointStatement(endpoints: PVLEndpointRange[Pre], inner) =>
-        ParEndpointStatement(
-          endpointSucc.ref(endpoints.name.asName.ref.get.decl),
-          rw.dispatch(endpoints.range),
-          rw.dispatch(inner),
+      case stmt @ PVLEndpointStatement(endpoint, inner) =>
+        EndpointStatement(endpoint.map(rewrite), rw.dispatch(inner))(
+          stmt.blame
         )(stmt.o)
       case eval: Eval[Pre] =>
         EndpointStatement[Post](None, eval.rewriteDefault())(PanicBlame(
@@ -214,8 +210,10 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteExpr(expr: Expr[Pre]): Expr[Post] =
     expr match {
       case PVLChorPerm(endpoint, loc, perm) =>
-        EndpointExpr(
-          endpointSucc.ref(endpoint.asName.ref.get.decl),
+        EndpointExpr[Post](
+          CommTargetEndpoint[Post](
+            endpointSucc.ref(endpoint.asName.ref.get.decl)
+          )(expr.o),
           Perm(rw.dispatch(loc), rw.dispatch(perm))(expr.o),
         )(expr.o)
       case expr @ PVLSender() =>
@@ -224,17 +222,8 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         Receiver[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
       case expr @ PVLMessage() =>
         Message[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
-      case PVLEndpointExpr(endpoint: PVLEndpointName[Pre], expr) =>
-        EndpointExpr(
-          endpointSucc.ref(endpoint.ref.get.decl),
-          rw.dispatch(expr),
-        )(expr.o)
-      case PVLEndpointExpr(PVLEndpointRange(set, range), inner) =>
-        ParEndpointExpr(
-          endpointSucc.ref(set.asName.ref.get.decl),
-          rw.dispatch(range),
-          rw.dispatch(inner),
-        )(expr.o)
+      case PVLEndpointExpr(endpoint, expr) =>
+        EndpointExpr(rewrite(endpoint), rw.dispatch(expr))(expr.o)
       case expr => currentExpr.having(expr) { rw.dispatch(expr) }
     }
 }

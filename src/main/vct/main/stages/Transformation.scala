@@ -382,7 +382,8 @@ case class SilverTransformation(
         InferEndpointContexts,
         StratifyExpressions,
         StratifyUnpointedExpressions,
-        DeduplicateChorGuards,
+        // TODO (RR): Can we really do without the next pass? I think it's just for syntactical niceness. But the later passes don't depend on it
+//        DeduplicateChorGuards,
         EncodeChorBranchUnanimity.withArg(veymontBranchUnanimity),
         EncodeEndpointInequalities,
         EncodeChannels,

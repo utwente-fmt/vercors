@@ -32,8 +32,9 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
   // in the case of unpointed expressions, meaning expressions in e.g. a branch without \endpoint.
   // These expressions are simply checked by _all_ participating endpoints, plus any
   // explicitly mentioned endpoints.
-  def explicitEndpoints: Seq[Endpoint[G]] =
-    exprs.collect { case EndpointExpr(Ref(endpoint), _) => endpoint }
+  def explicitEndpoints: Seq[Endpoint[G]] = {
+    exprs.collect { case EndpointExpr(commTarget, _) => commTarget.endpoint }
+  }
 
   def hasUnpointed: Boolean =
     exprs.exists {
@@ -57,8 +58,9 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
 
   def participants: Set[Endpoint[G]] =
     ListSet.from(collect {
-      case comm: Communicate[G] => comm.participants
-      case EndpointStatement(Some(Ref(endpoint)), Assign(_, _)) => Seq(endpoint)
+      case comm: Communicate[G] => ??? // comm.participants
+      case EndpointStatement(Some(commTarget), Assign(_, _)) =>
+        Seq(commTarget.endpoint)
       case c @ ChorStatement(_) => c.explicitEndpoints
     }.flatten)
 

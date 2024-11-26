@@ -8,7 +8,6 @@ import vct.col.ast.{
   Branch,
   Communicate,
   CommunicateStatement,
-  CommunicateX,
   Deref,
   Endpoint,
   EndpointName,
@@ -19,7 +18,6 @@ import vct.col.ast.{
   MethodInvocation,
   Scope,
   ThisChoreography,
-  VeyMontAssignExpression,
 }
 import vct.col.ast.ops.EndpointStatementOps
 import vct.col.ast.statement.StatementImpl
@@ -47,10 +45,12 @@ trait EndpointStatementImpl[G]
 
   override def layout(implicit ctx: Ctx): Doc =
     (endpoint match {
-      case Some(Ref(endpoint)) =>
-        Text(s"\\\\endpoint_statement") <+> ctx.name(endpoint) <> ";"
+      case Some(commTarget) =>
+        Text(s"\\\\endpoint_statement") <+> commTarget <> ";"
       case None => Text("\\\\unlabeled_endpoint_statement")
     }) <+> inner
+
+  // TODO (RR): Should go through the routines below once more. There might actually be subtle bugs lurking there, maybe these should all just be refactored to be separate nodes, instead of reusing col core nodes
 
   object eval {
     def enterCheckContextCurrentReceiverEndpoint(
@@ -59,11 +59,8 @@ trait EndpointStatementImpl[G]
         context: CheckContext[G],
     ): Option[Endpoint[G]] =
       (chorStmt.endpoint, node) match {
-        case (
-              Some(Ref(endpoint)),
-              Eval(MethodInvocation(_, _, _, _, _, _, _)),
-            ) =>
-          Some(endpoint)
+        case (Some(commTarget), Eval(MethodInvocation(_, _, _, _, _, _, _))) =>
+          Some(commTarget.endpoint)
         case (None, Eval(MethodInvocation(e, _, _, _, _, _, _)))
             if rootEndpoint(e).isDefined =>
           Some(rootEndpoint(e).get)
@@ -101,7 +98,7 @@ trait EndpointStatementImpl[G]
     def receiver(
         chorStmt: EndpointStatement[G],
         node: Assign[G],
-    ): Option[Endpoint[G]] = chorStmt.endpoint.map(_.decl)
+    ): Option[Endpoint[G]] = chorStmt.endpoint.map(_.endpoint)
 
     def enterCheckContextCurrentReceiverEndpoint(
         chorStmt: EndpointStatement[G],
@@ -139,8 +136,7 @@ trait EndpointStatementImpl[G]
       (inner match {
         case node: Eval[G] => eval.check(this, node, context)
         case node: Assign[G] => assign.check(this, node, context)
-        case _: CommunicateX[G] | _: CommunicateStatement[G] |
-            _: VeyMontAssignExpression[G] | _: Branch[G] | _: Loop[G] |
+        case _: CommunicateStatement[G] | _: Branch[G] | _: Loop[G] |
             _: Scope[G] | _: Block[G] | _: Assert[G] | _: Assume[G] |
             _: EndpointStatement[G] =>
           Seq()

@@ -663,7 +663,7 @@ case object ResolveReferences extends LazyLogging {
           Spec.findLocal(name, ctx)
             .getOrElse(throw NoSuchNameError("local", name, local))
         )
-      case local @ PVLEndpointName(name) =>
+      case local @ PVLCommTargetEndpoint(name) =>
         PVL.findName(name, ctx) match {
           case Some(ref: RefPVLEndpoint[G]) => local.ref = Some(ref)
           case Some(_) => throw ForbiddenEndpointNameType(local)

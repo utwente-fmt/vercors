@@ -491,34 +491,15 @@ case class PVLToCol[G](
       case PvlValExpr(inner) => convert(inner)
       case PvlChorPerm(_, _, endpoint, _, _, loc, _, perm, _) =>
         PVLChorPerm(
-          PVLEndpointName(convert(endpoint))(origin(endpoint)),
+          PVLCommTargetEndpoint(convert(endpoint))(origin(endpoint)),
           AmbiguousLocation(convert(loc))(blame(expr)),
           convert(perm),
         )
-      case PvlLongEndpointExpr(_, _, endpoint, None, _, inner, _) =>
-        PVLEndpointExpr(
-          PVLEndpointName(convert(endpoint))(origin(endpoint)),
-          convert(inner),
-        )
-      case PvlLongEndpointExpr(
-            _,
-            _,
-            endpoint,
-            Some(rangeBinder),
-            _,
-            inner,
-            _,
-          ) =>
-        PVLEndpointExpr(
-          PVLEndpointRange(
-            local(endpoint, convert(endpoint)),
-            convert(rangeBinder),
-          ),
-          convert(inner),
-        )
+      case PvlLongEndpointExpr(_, _, communicateTarget, _, inner, _) =>
+        PVLEndpointExpr(convert(communicateTarget), convert(inner))
       case PvlShortEndpointExpr(_, _, _, endpoint, _, inner, _) =>
         PVLEndpointExpr(
-          PVLEndpointName(convert(endpoint))(origin(endpoint)),
+          PVLCommTargetEndpoint(convert(endpoint))(origin(endpoint)),
           convert(inner),
         )
       case PvlLongChorExpr(_, _, inner, _) => ChorExpr(convert(inner))
@@ -552,11 +533,11 @@ case class PVLToCol[G](
           convertGiven(given),
           convertYields(yields),
         )(blame(expr))
-      case PvlEndpointsRange(
-            PostfixExpr3(PvlInvocation(name, None)),
-            rangeBinder,
-          ) =>
-        ???
+      case PvlEndpointsRange(name, rangeBinder) =>
+        PVLCommTargetExpr(PVLCommTargetRange(
+          PVLCommTargetEndpoint(convert(name)),
+          convert(rangeBinder),
+        ))
       case PvlValAdtInvocation(inner) => convert(inner)
     }
 
@@ -694,9 +675,9 @@ case class PVLToCol[G](
     val Access0(sender, msg) = from
     val comm = {
       new PVLCommunicate[G](
-        receiver.map(convertParticipant(_)),
+        receiver.map(convert(_)),
         convert(target),
-        sender.map(convertParticipant(_)),
+        sender.map(convert(_)),
         convert(msg),
       )(blame(node))
     }
@@ -706,13 +687,28 @@ case class PVLToCol[G](
     )(origin(node))
   }
 
-  def convertParticipant(
-      implicit participant: ParticipantContext
-  ): PVLEndpointSet[G] =
-    participant match {
-      case Participant0(name, None, _) => PVLEndpointName(convert(name))
-      case Participant0(name, Some(rangeBinder), _) =>
-        PVLEndpointRange(local(name, convert(name)), convert(rangeBinder))
+  def convert(
+      implicit commTargetLabel: CommunicateTargetLabelContext
+  ): PVLCommunicateTarget[G] =
+    commTargetLabel match {
+      case CommunicateTargetLabel0(commTarget, _) => convert(commTarget)
+    }
+
+  def convert(
+      implicit commTarget: CommunicateTargetContext
+  ): PVLCommunicateTarget[G] =
+    commTarget match {
+      case PvlCommTargetEndpoint(name) => PVLCommTargetEndpoint(convert(name))
+      case PvlCommTargetRange(name, rangeBinder) =>
+        PVLCommTargetRange(
+          PVLCommTargetEndpoint(convert(name))(origin(name)),
+          convert(rangeBinder),
+        )
+      case PvlCommTargetIndex(name, _, index, _) =>
+        PVLCommTargetIndex(
+          PVLCommTargetEndpoint(convert(name))(origin(name)),
+          convert(index),
+        )
     }
 
   def convert(implicit stat: ForStatementListContext): Statement[G] =
@@ -742,7 +738,7 @@ case class PVLToCol[G](
         Assign(convert(target), convert(value))(blame(stat))
       case PvlSeqAssign(participant, receiver, _, _, value) =>
         PVLEndpointStatement(
-          participant.map(convertParticipant(_)),
+          participant.map(convert(_)),
           Assign(convert(receiver), convert(value))(blame(stat)),
         )(blame(stat))
     }

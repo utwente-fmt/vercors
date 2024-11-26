@@ -173,10 +173,6 @@ object Utils {
       case ModelDo(_, _, _, _, impl) =>
         find_all_cases(impl, index.enter_scope(body))
       case CPPLifetimeScope(bod) => find_all_cases(bod, index.enter_scope(body))
-      case VeyMontAssignExpression(_, assign) =>
-        find_all_cases(assign, index.enter_scope(body))
-      case CommunicateX(_, _, _, assign) =>
-        find_all_cases(assign, index.enter_scope(body))
       // Recursion end
       case c: SwitchCase[G] => Seq((c, index))
       case _ => Seq()

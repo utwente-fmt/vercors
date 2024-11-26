@@ -115,8 +115,6 @@ trait LoopImpl[G] extends LoopOps[G] {
     stat match {
       case Eval(e) => Some(e.show)
       case a: Assign[G] => Some(a.layoutAsExpr)
-      case e: VeyMontAssignExpression[G] => simpleControlElements(e.assign)
-      case e: CommunicateX[G] => simpleControlElements(e.assign)
       case LocalDecl(local) => Some(local.show)
       case JavaLocalDeclarationStatement(local) => Some(local.show)
 

@@ -9,7 +9,7 @@ import vct.col.print._
 trait EndpointExprImpl[G] extends EndpointExprOps[G] with ExprImpl[G] {
   this: EndpointExpr[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Text("(\\[") <> ctx.name(endpoint) <> "]" <+> expr <> ")"
+    Text("(") <> "\\endpoint" <+> endpoint <> ";" <+> expr <> ")"
   override def precedence: Int = Precedence.ATOMIC
 
   override def t: Type[G] = expr.t
@@ -21,8 +21,9 @@ trait EndpointExprImpl[G] extends EndpointExprOps[G] with ExprImpl[G] {
   override def check(context: CheckContext[G]): Seq[CheckError] =
     super.check(context) ++
       (context.inEndpointExpr match {
-        case Some(endpointExpr)
-            if endpointExpr.endpoint.decl != this.endpoint.decl =>
+        // It has to be syntactically the same endpoint expr, otherwise you can't nest it
+        // You could do refinement in theory but that's way out of scope for now
+        case Some(endpointExpr) if endpointExpr.endpoint != this.endpoint =>
           Seq(InconsistentEndpointExprNesting(endpointExpr, this))
         case _ => Seq()
       })

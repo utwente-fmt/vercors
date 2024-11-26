@@ -185,9 +185,6 @@ object Index {
       case model_do: ModelDo[G] => ModelDoIndex(model_do)
       case cpp_lifetime_scope: CPPLifetimeScope[G] =>
         CPPLifetimeScopeIndex(cpp_lifetime_scope)
-      case veymont_assign_expression: VeyMontAssignExpression[G] =>
-        VeyMontAssignExpressionIndex(veymont_assign_expression)
-      case communicatex: CommunicateX[G] => CommunicateXIndex(communicatex)
       case statement: ExpressionContainerStatement[G] =>
         ExpressionContainerIndex(statement, index)
     }
@@ -886,32 +883,6 @@ case class CPPLifetimeScopeIndex[G](cpp_lifetime_scope: CPPLifetimeScope[G])
   override def equals(obj: scala.Any): Boolean =
     obj match {
       case CPPLifetimeScopeIndex(c) => c.equals(cpp_lifetime_scope)
-      case _ => false
-    }
-}
-
-case class VeyMontAssignExpressionIndex[G](
-    veymont_assign_expression: VeyMontAssignExpression[G]
-) extends Index[G] {
-  override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] =
-    Set((Outgoing(), None))
-  override def resolve(): Statement[G] = veymont_assign_expression.assign
-  override def equals(obj: scala.Any): Boolean =
-    obj match {
-      case VeyMontAssignExpressionIndex(v) =>
-        v.equals(veymont_assign_expression)
-      case _ => false
-    }
-}
-
-case class CommunicateXIndex[G](communicatex: CommunicateX[G])
-    extends Index[G] {
-  override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] =
-    Set((Outgoing(), None))
-  override def resolve(): Statement[G] = communicatex.assign
-  override def equals(obj: scala.Any): Boolean =
-    obj match {
-      case CommunicateXIndex(c) => c.equals(communicatex)
       case _ => false
     }
 }

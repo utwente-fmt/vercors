@@ -154,7 +154,7 @@ postfixExpr
 unit
  : valExpr # pvlValExpr
  | 'Perm' '[' identifier ']' '(' expr ',' expr ')' # pvlChorPerm
- | '(' ('\\endpoint' | '\\endpoints') identifier rangeBinder? ';' expr ')' # pvlLongEndpointExpr
+ | '(' ('\\endpoint' | '\\endpoints') communicateTarget ';' expr ')' # pvlLongEndpointExpr
  | '(' '\\' '[' identifier ']' expr ')' # pvlShortEndpointExpr
  | '(' '\\chor' expr ')' # pvlLongChorExpr
  | '(' '\\' '[' ']' expr ')' # pvlShortChorExpr
@@ -207,21 +207,29 @@ statement
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
  | channelInvariant? 'communicate' access direction access ';' # pvlCommunicateStatement
- | ('endpoint' | 'endpoints') participant statement
+ | ('endpoint' | 'endpoints') communicateTargetLabel statement
  ;
 
- channelInvariant
- : 'channel_invariant' expr ';'
- ;
+channelInvariant
+  : 'channel_invariant' expr ';'
+  ;
 
 direction
- : '<-'
- | '->'
- ;
+  : '<-'
+  | '->'
+  ;
 
-access: participant? expr;
-participant
-  : identifier rangeBinder? ':'
+access
+  : communicateTargetLabel? expr
+  ;
+
+communicateTarget
+  : identifier # pvlCommTargetEndpoint
+  | identifier rangeBinder # pvlCommTargetRange
+  | identifier '[' expr ']' # pvlCommTargetIndex
+  ;
+
+communicateTargetLabel : communicateTarget ':'
   ;
 
 rangeBinder: '[' identifier ':' '=' expr '..' expr ']';
@@ -235,7 +243,7 @@ allowedForStatement
  | expr # pvlEval
  | identifier ('++'|'--') # pvlIncDec
  | expr '=' expr # pvlAssign
- | participant? expr ':' '=' expr # pvlSeqAssign
+ | communicateTargetLabel? expr ':' '=' expr # pvlSeqAssign
  ;
 
 forStatementList

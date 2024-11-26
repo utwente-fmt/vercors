@@ -435,8 +435,6 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
         case extract: Extract[Pre] => rewriteDefault(extract)
         case branch: IndetBranch[Pre] => rewriteDefault(branch)
         case rangedFor: RangedFor[Pre] => rewriteDefault(rangedFor)
-        case assign: VeyMontAssignExpression[Pre] => rewriteDefault(assign)
-        case comm: CommunicateX[Pre] => rewriteDefault(comm)
         case comm: CommunicateStatement[Pre] => rewriteDefault(comm)
         case _: PVLBranch[Pre] => throw ExtraNode
         case _: PVLLoop[Pre] => throw ExtraNode

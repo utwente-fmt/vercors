@@ -7,10 +7,11 @@ import vct.col.util.AstBuildHelpers._
 
 import scala.collection.mutable
 
+// I think this pass is just nice to have from a syntactic point of view, but from a endpoint projection point of view it is not necessary
 object DeduplicateChorGuards extends RewriterBuilder {
-  override def key: String = "deduplicateSeqGuards"
+  override def key: String = "deduplicateChorGuards"
   override def desc: String =
-    "Deduplicates SeqGuard nodes with syntactically identical endpoints"
+    "Deduplicates expression on the choreography level in branch/loop conditions up to syntactically identical endpoints"
 }
 
 case class DeduplicateChorGuards[Pre <: Generation]()
@@ -42,20 +43,21 @@ case class DeduplicateChorGuards[Pre <: Generation]()
     }
 
   def dedup(expr: Expr[Pre]): Expr[Post] = {
-    implicit val o = expr.o
-    val m: mutable.LinkedHashMap[Endpoint[Pre], Seq[Expr[Pre]]] = mutable
-      .LinkedHashMap()
-    unfoldStar(expr).foreach {
-      case EndpointExpr(Ref(endpoint), expr) =>
-        m.updateWith(endpoint)(exprs => Some(exprs.toSeq.flatten :+ expr))
-      case _ =>
-    }
-    foldAnd(m.iterator.map {
-      case (endpoint, parts) if parts.size > 1 =>
-        // It's unclear how to properly combine the origins of the expressions here
-        EndpointExpr[Post](succ(endpoint), foldAnd(parts.map(dispatch)))
-      case (endpoint, parts) if parts.size == 1 =>
-        EndpointExpr[Post](succ(endpoint), dispatch(parts.head))(parts.head.o)
-    }.toSeq)
+    ???
+//    implicit val o = expr.o
+//    val m: mutable.LinkedHashMap[Endpoint[Pre], Seq[Expr[Pre]]] = mutable
+//      .LinkedHashMap()
+//    unfoldStar(expr).foreach {
+//      case EndpointExpr(Ref(endpoint), expr) =>
+//        m.updateWith(endpoint)(exprs => Some(exprs.toSeq.flatten :+ expr))
+//      case _ =>
+//    }
+//    foldAnd(m.iterator.map {
+//      case (endpoint, parts) if parts.size > 1 =>
+//         It's unclear how to properly combine the origins of the expressions here
+//        EndpointExpr[Post](succ(endpoint), foldAnd(parts.map(dispatch)))
+//      case (endpoint, parts) if parts.size == 1 =>
+//        EndpointExpr[Post](succ(endpoint), dispatch(parts.head))(parts.head.o)
+//    }.toSeq)
   }
 }

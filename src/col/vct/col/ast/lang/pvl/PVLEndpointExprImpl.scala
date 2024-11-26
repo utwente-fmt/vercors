@@ -4,8 +4,8 @@ import vct.col.ast.ops.PVLEndpointExprOps
 import vct.col.ast.{
   Declaration,
   PVLEndpointExpr,
-  PVLEndpointName,
-  PVLEndpointRange,
+  PVLCommTargetEndpoint,
+  PVLCommTargetRange,
   Type,
 }
 import vct.col.print._
@@ -19,7 +19,7 @@ trait PVLEndpointExprImpl[G] extends PVLEndpointExprOps[G] {
 
   def declarations: Seq[Declaration[G]] =
     endpoint match {
-      case PVLEndpointRange(_, range) => Seq(range.binder)
+      case PVLCommTargetRange(_, range) => Seq(range.binder)
       case _ => Seq()
     }
 }
