@@ -2970,7 +2970,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
 
   def coerce(node: ChorRun[Pre]): ChorRun[Pre] = node
 
-  def coerce(node: PVLCommTargetEndpoint[Pre]): PVLCommTargetEndpoint[Pre] = node
+  def coerce(node: PVLCommTargetEndpoint[Pre]): PVLCommTargetEndpoint[Pre] =
+    node
   def coerce(node: EndpointName[Pre]): EndpointName[Pre] = node
 
   def coerce(node: PVLCommunicateTarget[Pre]): PVLCommunicateTarget[Pre] = node

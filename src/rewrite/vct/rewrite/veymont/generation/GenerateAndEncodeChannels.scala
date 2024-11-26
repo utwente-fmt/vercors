@@ -137,8 +137,8 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
 
   def channelName(comm: Communicate[_]): Name =
     Name.names(
-      comm.sender.get.decl.o.getPreferredNameOrElse(),
-      comm.receiver.get.decl.o.getPreferredNameOrElse(),
+      comm.sender.get.endpoint.o.getPreferredNameOrElse(),
+      comm.receiver.get.endpoint.o.getPreferredNameOrElse(),
     )
 
   def senderField(
