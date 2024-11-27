@@ -1,5 +1,6 @@
 package vct.col.ast.unsorted
 
+import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.{
   CommTargetEndpoint,
   CommTargetIndex,
@@ -9,6 +10,7 @@ import vct.col.ast.{
 }
 import vct.col.print._
 import vct.col.ast.ops.CommunicateTargetFamilyOps
+import vct.col.check.{CheckContext, CheckError}
 import vct.col.ref.Ref
 
 trait CommunicateTargetImpl[G] extends CommunicateTargetFamilyOps[G] {
@@ -34,4 +36,6 @@ trait CommunicateTargetImpl[G] extends CommunicateTargetFamilyOps[G] {
       case target: CommTargetRange[G] => target
       case _ => ???
     }
+
+  override def check(context: CheckContext[G]): Seq[CheckError] = Nil
 }

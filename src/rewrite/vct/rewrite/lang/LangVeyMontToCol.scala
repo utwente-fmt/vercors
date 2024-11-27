@@ -105,8 +105,23 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     CommunicateStatement(newComm)(comm.o)
   }
 
+  def rewriteRef(
+      target: PVLCommTargetEndpoint[Pre]
+  ): Ref[Post, Endpoint[Post]] = endpointSucc.ref(target.ref.get.decl)
+
   def rewrite(commTarget: PVLCommunicateTarget[Pre]): CommunicateTarget[Post] =
-    ???
+    commTarget match {
+      case target: PVLCommTargetEndpoint[Pre] =>
+        CommTargetEndpoint(rewriteRef(target))(commTarget.o)
+      case PVLCommTargetIndex(name, index) =>
+        CommTargetIndex(rewriteRef(name.asName), rw.dispatch(index))(
+          commTarget.o
+        )
+      case PVLCommTargetRange(name, range) =>
+        CommTargetRange(rewriteRef(name.asName), rw.dispatch(range))(
+          commTarget.o
+        )
+    }
 
   def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit = {
     val classTypeArgs = endpoint.typeArgs.map(rw.dispatch)
@@ -166,7 +181,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteEndpointUse(
       endpoint: RefPVLEndpoint[Pre],
       local: PVLLocal[Pre],
-  ): CtExpr[Post] = EndpointName[Post](endpointSucc.ref(endpoint.decl))(local.o)
+  ): Expr[Post] = {
+    if (endpoint.decl.isFamily) {
+      EndpointFamilyExpr[Post](endpointSucc.ref(endpoint.decl))(local.o)
+    } else { EndpointName[Post](endpointSucc.ref(endpoint.decl))(local.o) }
+  }
 
   def rewriteRun(run: PVLChorRun[Pre]): ChorRun[Post] = {
     run.drop()

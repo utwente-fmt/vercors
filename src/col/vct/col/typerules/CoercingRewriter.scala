@@ -364,6 +364,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: FoldTarget[Pre] => coerce(node)
       case node: PVLCommTargetRange[Pre] => coerce(node)
       case node: RangeBinder[Pre] => coerce(node)
+      case node: CommunicateTarget[Pre] => coerce(node)
     }
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
@@ -1094,7 +1095,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case sub @ AmbiguousSubscript(collection, index) =>
         firstOk(
           e,
-          s"Expected collection to be a sequence, vector, array, pointer, endpoint family or map, but got ${collection.t}.",
+          s"Expected collection to be a sequence, vector, array, pointer or map, but got ${collection.t}.",
           AmbiguousSubscript(seq(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(vector(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(array(collection)._1, int(index))(sub.blame),
@@ -2145,6 +2146,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case ChorExpr(expr) => ChorExpr(bool(expr))
       case e @ Asserting(assn, inner) => Asserting(bool(assn), inner)(e.blame)
       case Assuming(assn, inner) => Assuming(bool(assn), inner)
+      case CtExpr(inner) => e
+      case EndpointFamilyExpr(ref) => e
     }
   }
 
