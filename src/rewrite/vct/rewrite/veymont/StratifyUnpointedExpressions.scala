@@ -28,7 +28,9 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
     decl match {
       case chor: Choreography[Pre] =>
         currentChoreography.having(chor) {
-          currentParticipants.having(ListSet.from(chor.endpoints)) {
+          currentParticipants.having(
+            ListSet.from(chor.endpoints.map(endpoint => endpoint.commTarget))
+          ) {
             chor.rewrite(contract = chor.contract.rewriteDefault())
               .succeed(chor)
           }
@@ -112,8 +114,8 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
       case expr @ (_: EndpointExpr[Pre] | _: ChorExpr[Pre]) =>
         Seq(expr.rewriteDefault())
       case expr =>
-        currentParticipants.top.map { endpoint =>
-          EndpointExpr[Post](succ(endpoint), dispatch(expr))
+        currentParticipants.top.map { commTarget =>
+          EndpointExpr[Post](dispatch(commTarget), dispatch(expr))
         }.toSeq
     })
   }

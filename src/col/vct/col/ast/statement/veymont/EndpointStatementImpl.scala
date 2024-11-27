@@ -8,6 +8,8 @@ import vct.col.ast.{
   Branch,
   Communicate,
   CommunicateStatement,
+  CommunicateTarget,
+  CtExpr,
   Deref,
   Endpoint,
   EndpointStatement,
@@ -57,10 +59,10 @@ trait EndpointStatementImpl[G]
         chorStmt: EndpointStatement[G],
         node: Eval[G],
         context: CheckContext[G],
-    ): Option[Endpoint[G]] =
+    ): Option[CommunicateTarget[G]] =
       (chorStmt.endpoint, node) match {
         case (Some(commTarget), Eval(MethodInvocation(_, _, _, _, _, _, _))) =>
-          Some(commTarget.endpoint)
+          Some(commTarget)
         case (None, Eval(MethodInvocation(e, _, _, _, _, _, _)))
             if rootEndpoint(e).isDefined =>
           Some(rootEndpoint(e).get)
@@ -86,13 +88,11 @@ trait EndpointStatementImpl[G]
       }
   }
 
-  def rootEndpoint(expr: Expr[G]): Option[Endpoint[G]] =
+  def rootEndpoint(expr: Expr[G]): Option[CommunicateTarget[G]] =
     expr match {
       case MethodInvocation(e, _, _, _, _, _, _) => rootEndpoint(e)
       case Deref(obj, _) => rootEndpoint(obj)
-      case EndpointName(Ref(e)) => Some(e)
-      case EndpointIndex(Ref(e), _) => Some(e)
-      case EndpointRange(Ref(e), _) => Some(e)
+      case CtExpr(target) => Some(target)
       case _ => None
     }
 
@@ -100,13 +100,13 @@ trait EndpointStatementImpl[G]
     def receiver(
         chorStmt: EndpointStatement[G],
         node: Assign[G],
-    ): Option[Endpoint[G]] = chorStmt.endpoint.map(_.endpoint)
+    ): Option[CommunicateTarget[G]] = chorStmt.endpoint
 
     def enterCheckContextCurrentReceiverEndpoint(
         chorStmt: EndpointStatement[G],
         node: Assign[G],
         context: CheckContext[G],
-    ): Option[Endpoint[G]] = receiver(chorStmt, node)
+    ): Option[CommunicateTarget[G]] = receiver(chorStmt, node)
 
     def check(
         chorStmt: EndpointStatement[G],
@@ -124,7 +124,7 @@ trait EndpointStatementImpl[G]
 
   override def enterCheckContextCurrentReceiverEndpoint(
       context: CheckContext[G]
-  ): Option[Endpoint[G]] =
+  ): Option[CommunicateTarget[G]] =
     inner match {
       case node: Eval[G] =>
         eval.enterCheckContextCurrentReceiverEndpoint(this, node, context)

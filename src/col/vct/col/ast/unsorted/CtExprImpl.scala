@@ -1,6 +1,6 @@
 package vct.col.ast.unsorted
 
-import vct.col.ast.{CtExpr, Type}
+import vct.col.ast.{CtExpr, TClass, Type}
 import vct.col.ast.ops.CtExprOps
 import vct.col.print._
 import vct.col.util.AstMatchHelpers.{EndpointIndex, EndpointName, EndpointRange}
@@ -9,7 +9,7 @@ trait CtExprImpl[G] extends CtExprOps[G] {
   this: CtExpr[G] =>
 //  override def layout(implicit ctx: Ctx): Doc = inner.layout
 
-  override def t: Type[G] = inner.endpoint.t
+  override def t: TClass[G] = inner.ref.decl.t
 
   def isName: Boolean =
     this match {

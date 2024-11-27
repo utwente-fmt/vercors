@@ -1,7 +1,14 @@
 package vct.col.ast.statement.veymont
 
 import vct.col.ast.declaration.DeclarationImpl
-import vct.col.ast.{Communicate, Endpoint, Node, TClass, Type}
+import vct.col.ast.{
+  Communicate,
+  CommunicateTarget,
+  Endpoint,
+  Node,
+  TClass,
+  Type,
+}
 import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.print.{Ctx, Doc, Group, Nest, Text}
 import vct.col.ref.Ref
@@ -49,11 +56,10 @@ trait CommunicateImpl[G]
       case _ => ???
     }
 
-  def participants: Seq[Endpoint[G]] = (sender.toSeq ++ receiver.toSeq)
-    .map(_.endpoint)
+  def participants: Seq[CommunicateTarget[G]] = sender.toSeq ++ receiver.toSeq
 
   object t {
-    def sender: TClass[G] = comm.sender.get.endpoint.t
-    def receiver: TClass[G] = comm.receiver.get.endpoint.t
+    def sender: TClass[G] = comm.sender.get.ref.decl.t
+    def receiver: TClass[G] = comm.receiver.get.ref.decl.t
   }
 }

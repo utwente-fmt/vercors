@@ -9,6 +9,7 @@ import vct.col.ast.{
   ChorRun,
   Choreography,
   Class,
+  CommTargetEndpoint,
   Committed,
   Communicate,
   CommunicateStatement,
@@ -17,7 +18,6 @@ import vct.col.ast.{
   Declaration,
   Deref,
   Endpoint,
-  EndpointName,
   EndpointStatement,
   Eval,
   Expr,
@@ -51,6 +51,7 @@ import vct.col.ref.Ref
 import vct.col.rewrite.adt.ImportADTImporter
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers.{value, _}
+import vct.col.util.AstMatchHelpers.EndpointName
 import vct.col.util.SuccessionMap
 import vct.rewrite.veymont.VeymontContext
 
@@ -137,8 +138,8 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
 
   def channelName(comm: Communicate[_]): Name =
     Name.names(
-      comm.sender.get.endpoint.o.getPreferredNameOrElse(),
-      comm.receiver.get.endpoint.o.getPreferredNameOrElse(),
+      comm.sender.get.asName.endpoint.o.getPreferredNameOrElse(),
+      comm.receiver.get.asName.endpoint.o.getPreferredNameOrElse(),
     )
 
   def senderField(
@@ -218,8 +219,8 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
               ConstructorInvocation[Post](
                 ref = channelConstructorSucc(comm).ref,
                 args = Seq(
-                  EndpointName(succ(comm.sender.get.decl)),
-                  EndpointName(succ(comm.receiver.get.decl)),
+                  EndpointName(succ(comm.sender.get.asName.endpoint)),
+                  EndpointName(succ(comm.receiver.get.asName.endpoint)),
                 ),
                 outArgs = Seq(),
                 typeArgs = Seq(),
@@ -312,10 +313,10 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
                   decls =
                     classDeclarations.collect {
                       senderFieldSucc(comm) = instanceField(
-                        dispatch(comm.sender.get.decl.t)
+                        dispatch(comm.sender.get.asName.endpoint.t)
                       )(o.where(name = "sender")).declare()
                       receiverFieldSucc(comm) = instanceField(
-                        dispatch(comm.receiver.get.decl.t)
+                        dispatch(comm.receiver.get.asName.endpoint.t)
                       )(o.where(name = "receiver")).declare()
                       cls.decls.foreach(dispatch)
                     }._1,
@@ -431,9 +432,9 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
             endpointComm(endpoint, comm)
           )(PanicBlame("Guaranteed not to be null")) &*
           (getSender(endpoint, comm) ===
-            EndpointName(succ(comm.sender.get.decl))) &*
+            EndpointName(succ(comm.sender.get.asName.endpoint))) &*
           (getReceiver(endpoint, comm) ===
-            EndpointName(succ(comm.receiver.get.decl)))
+            EndpointName(succ(comm.receiver.get.asName.endpoint)))
       }
     })
 
@@ -487,9 +488,9 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
 
   def sendOf(comm: Communicate[Pre]): Statement[Post] = {
     implicit val o = comm.o
-    val Some(Ref(sender)) = comm.sender
+    val sender = comm.sender.get.asName.endpoint
     EndpointStatement[Post](
-      Some(succ(sender)),
+      Some(CommTargetEndpoint(succ(sender))),
       Eval(methodInvocation[Post](
         obj =
           Deref[Post](
@@ -507,9 +508,9 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
 
   def receiveOf(comm: Communicate[Pre]): Statement[Post] = {
     implicit val o = comm.o
-    val Some(Ref(receiver)) = comm.receiver
+    val receiver = comm.receiver.get.asName.endpoint
     EndpointStatement[Post](
-      Some(succ[Endpoint[Post]](receiver)),
+      Some(CommTargetEndpoint(succ[Endpoint[Post]](receiver))),
       Assign(
         dispatch(comm.destination),
         methodInvocation[Post](

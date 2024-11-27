@@ -308,8 +308,8 @@ case class CheckContext[G](
     inPreCondition: Boolean = false,
     inPostCondition: Boolean = false,
     currentChoreography: Option[Choreography[G]] = None,
-    currentReceiverEndpoint: Option[Endpoint[G]] = None,
-    currentParticipatingEndpoints: Option[Set[Endpoint[G]]] = None,
+    currentReceiverEndpoint: Option[CommunicateTarget[G]] = None,
+    currentParticipatingEndpoints: Option[Set[CommunicateTarget[G]]] = None,
     inChor: Boolean = false,
     inEndpointExpr: Option[EndpointExpr[G]] = None,
     inCommunicateInvariant: Option[Communicate[G]] = None,
@@ -345,26 +345,27 @@ case class CheckContext[G](
   def withChoreography(prog: Choreography[G]): CheckContext[G] =
     copy(currentChoreography = Some(prog))
 
-  def withReceiverEndpoint(endpoint: Endpoint[G]): CheckContext[G] =
-    copy(currentReceiverEndpoint = Some(endpoint))
+  def withReceiverEndpoint(commTarget: CommunicateTarget[G]): CheckContext[G] =
+    copy(currentReceiverEndpoint = Some(commTarget))
 
   def withCommunicateInvariant(communicate: Communicate[G]): CheckContext[G] =
     copy(inCommunicateInvariant = Some(communicate))
 
   def withCurrentParticipatingEndpoints(
-      endpoints: Seq[Endpoint[G]]
-  ): Option[Set[Endpoint[G]]] =
+      endpoints: Seq[CommunicateTarget[G]]
+  ): CheckContext[G] =
     // ListSet to preserve insertion order
-    Some(ListSet.from(endpoints))
+    copy(currentParticipatingEndpoints = Some(ListSet.from(endpoints)))
 
-  def appendCurrentParticipatingEndpoints(
-      newEndpoints: Seq[Endpoint[G]]
-  ): Option[Set[Endpoint[G]]] =
-    // ListSet to preserve insertion order
-    currentParticipatingEndpoints match {
-      case None => withCurrentParticipatingEndpoints(newEndpoints)
-      case Some(endpoints) => Some(endpoints.union(ListSet.from(newEndpoints)))
-    }
+  // TODO (RR): Can be deleted
+//  def appendCurrentParticipatingEndpoints(
+//      newEndpoints: Seq[Endpoint[G]]
+//  ): Option[Set[Endpoint[G]]] =
+//    // ListSet to preserve insertion order
+//    currentParticipatingEndpoints match {
+//      case None => withCurrentParticipatingEndpoints(newEndpoints)
+//      case Some(endpoints) => Some(endpoints.union(ListSet.from(newEndpoints)))
+//    }
 
   def inScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
     !undeclared.exists(_.contains(ref.decl)) &&

@@ -32,8 +32,8 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
   // in the case of unpointed expressions, meaning expressions in e.g. a branch without \endpoint.
   // These expressions are simply checked by _all_ participating endpoints, plus any
   // explicitly mentioned endpoints.
-  def explicitEndpoints: Seq[Endpoint[G]] = {
-    exprs.collect { case EndpointExpr(commTarget, _) => commTarget.endpoint }
+  def explicitEndpoints: Seq[CommunicateTarget[G]] = {
+    exprs.collect { case EndpointExpr(commTarget, _) => commTarget }
   }
 
   def hasUnpointed: Boolean =
@@ -56,11 +56,10 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
       case _ => false
     }
 
-  def participants: Set[Endpoint[G]] =
+  def participants: Set[CommunicateTarget[G]] =
     ListSet.from(collect {
-      case comm: Communicate[G] => ??? // comm.participants
-      case EndpointStatement(Some(commTarget), Assign(_, _)) =>
-        Seq(commTarget.endpoint)
+      case comm: Communicate[G] => comm.participants
+      case EndpointStatement(Some(commTarget), Assign(_, _)) => Seq(commTarget)
       case c @ ChorStatement(_) => c.explicitEndpoints
     }.flatten)
 
@@ -89,17 +88,22 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
 
   override def enterCheckContextCurrentParticipatingEndpoints(
       context: CheckContext[G]
-  ): Option[Set[Endpoint[G]]] =
+  ): Option[Set[CommunicateTarget[G]]] =
     if (loopOrBranch) {
       // Assume SeqProg sets participatingEndpoints
       assert(context.currentParticipatingEndpoints.isDefined)
 
       if (hasUnpointed) {
         // Everyone that is participating keeps participating, as well as any endpoints explicitly mentioned
-        context.appendCurrentParticipatingEndpoints(explicitEndpoints)
+//        context.appendCurrentParticipatingEndpoints(explicitEndpoints) // TODO (RR): Can be deleted
+        Some(
+          context.currentParticipatingEndpoints.getOrElse(Set.empty)
+            .union(ListSet.from(explicitEndpoints))
+        )
       } else {
         // We can refine the set of participants down to the set of endpoints actually present in the guard
-        context.withCurrentParticipatingEndpoints(explicitEndpoints)
+//        context.withCurrentParticipatingEndpoints(explicitEndpoints) // TODO (RR): Can be deleted
+        Some(ListSet.from(explicitEndpoints))
       }
     } else { context.currentParticipatingEndpoints }
 }

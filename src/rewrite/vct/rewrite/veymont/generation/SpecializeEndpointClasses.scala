@@ -2,17 +2,17 @@ package vct.rewrite.veymont.generation
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{
-  ChorRun,
   ByReferenceClass,
+  ChorRun,
   Choreography,
   Class,
+  CommTargetEndpoint,
   Communicate,
   Constructor,
   Declaration,
   Deref,
   Endpoint,
   EndpointExpr,
-  EndpointName,
   Expr,
   FieldLocation,
   InstanceField,
@@ -32,6 +32,7 @@ import vct.col.origin.{Name, Origin, PanicBlame, PostBlameSplit}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.AstMatchHelpers.EndpointName
 import vct.col.util.SuccessionMap
 import vct.rewrite.veymont.VeymontContext
 
@@ -65,9 +66,13 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
       case EndpointName(Ref(endpoint)) =>
         readImplField(expr.rewriteDefault(), endpoint)(expr.o)
       case Sender(Ref(comm)) =>
-        readImplField(expr.rewriteDefault(), comm.sender.get.decl)(expr.o)
+        readImplField(expr.rewriteDefault(), comm.sender.get.asName.endpoint)(
+          expr.o
+        )
       case Receiver(Ref(comm)) =>
-        readImplField(expr.rewriteDefault(), comm.receiver.get.decl)(expr.o)
+        readImplField(expr.rewriteDefault(), comm.receiver.get.asName.endpoint)(
+          expr.o
+        )
       case _ => expr.rewriteDefault()
     }
 
@@ -137,8 +142,8 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
         )
 
       case comm: Communicate[Pre] =>
-        val sender = comm.sender.get.decl
-        val receiver = comm.receiver.get.decl
+        val sender = comm.sender.get.asName.endpoint
+        val receiver = comm.receiver.get.asName.endpoint
         val newComm: Ref[Post, Communicate[Post]] = succ(comm)
         implicit val o = comm.o
         comm.rewrite(invariant =
@@ -189,7 +194,7 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
     foldStar(chor.endpoints.flatMap { endpoint =>
       chor.endpoints.map { peer =>
         EndpointExpr[Post](
-          succ(endpoint),
+          CommTargetEndpoint(succ(endpoint)),
           Value(
             FieldLocation(EndpointName[Post](succ(peer)), implFields.ref(peer))
           ),

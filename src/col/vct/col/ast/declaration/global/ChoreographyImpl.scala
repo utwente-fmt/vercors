@@ -6,6 +6,7 @@ import vct.col.ast.{
   ChorStatement,
   Choreography,
   Class,
+  CommunicateTarget,
   Declaration,
   Endpoint,
   EndpointStatement,
@@ -21,16 +22,32 @@ import scala.collection.immutable.ListSet
 import vct.col.ast.ops.ChoreographyOps
 import vct.col.util.AstBuildHelpers.tt
 import vct.col.util.AstMatchHelpers.{EndpointIndex, EndpointName, EndpointRange}
+import vct.result.VerificationError.UserError
 
 object ChoreographyImpl {
+  case class OnlySingleEndpointsSupported(node: Node[_]) extends UserError {
+    override def code: String = "onlySingleEndpointsSupported"
+    override def text: String =
+      node.o.messageInContext(
+        "Only singular endpoint definitions are supported for permission generation"
+      )
+  }
+
+  // This method is _bad_ because it collects participants from a node in an unprincipled way.
+  // Instead, there should be a series of methods like this, that define it for nodes where it makes sense
+  // E.g. for a choreographies, because you can look at the endpoints directly.
+  // Maybe not for statements, because of unpointed expressions
+  // If you assume there are no unpointed expressions, and all other endpoint owner annotations are also explicit, maybe
+  //    it can make sense to define this method.
   def participants[G](node: Node[G]): ListSet[Endpoint[G]] =
     ListSet.from(node.collect {
-      case EndpointStatement(Some(commTarget), Assign(_, _)) =>
-        Seq(commTarget.endpoint)
       case EndpointName(Ref(endpoint)) => Seq(endpoint)
-      case EndpointRange(Ref(endpoint), range) => Seq(endpoint)
-      case EndpointIndex(Ref(endpoint), _) => Seq(endpoint)
-      case c @ ChorStatement(_) => c.participants.toSeq
+      case node @ EndpointRange(_, _) =>
+        throw OnlySingleEndpointsSupported(node) // Seq(endpoint)
+      case node @ EndpointIndex(_, _) =>
+        throw OnlySingleEndpointsSupported(node)
+      // Seq(endpoint)
+//      case c @ ChorStatement(_) => c.participants.toSeq
     }.flatten)
 }
 
@@ -54,8 +71,8 @@ trait ChoreographyImpl[G]
 
   override def enterCheckContextCurrentParticipatingEndpoints(
       context: CheckContext[G]
-  ): Option[Set[Endpoint[G]]] =
-    context.withCurrentParticipatingEndpoints(endpoints)
+  ): Option[Set[CommunicateTarget[G]]] =
+    Some(ListSet.from(endpoints.map(_.commTarget)))
 
   override def enterCheckContextCurrentChoreography(
       context: CheckContext[G]

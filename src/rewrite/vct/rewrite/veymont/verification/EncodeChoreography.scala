@@ -14,7 +14,6 @@ import vct.col.ast.{
   Declaration,
   Endpoint,
   EndpointExpr,
-  EndpointName,
   EndpointStatement,
   Eval,
   Expr,
@@ -39,6 +38,7 @@ import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.AstMatchHelpers.EndpointName
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.Unreachable
 
@@ -298,10 +298,10 @@ case class EncodeChoreography[Pre <: Generation]()
         )
       case (mode, Sender(Ref(comm))) =>
         implicit val o = expr.o
-        endpointSucc((mode, comm.sender.get.decl)).get
+        endpointSucc((mode, comm.sender.get.asName.endpoint)).get
       case (mode, Receiver(Ref(comm))) =>
         implicit val o = expr.o
-        endpointSucc((mode, comm.receiver.get.decl)).get
+        endpointSucc((mode, comm.receiver.get.asName.endpoint)).get
       case (_, Message(Ref(comm))) =>
         implicit val o = expr.o
         msgSucc(comm).get

@@ -7,6 +7,7 @@ import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.AstMatchHelpers.EndpointName
 import vct.col.util.SuccessionMap
 import vct.rewrite.veymont.VeymontContext
 import vct.rewrite.veymont.verification.EncodeChannels.ExhaleFailedToChannelInvariantNotEstablished
@@ -45,17 +46,17 @@ case class EncodeChannels[Pre <: Generation]()
     statement match {
       case CommunicateStatement(comm) =>
         implicit val o = comm.o
-        val sender = comm.sender.get.decl
-        val receiver = comm.receiver.get.decl
+        val sender = comm.sender.get.asName.endpoint
+        val receiver = comm.receiver.get.asName.endpoint
         val m = new Variable(dispatch(comm.msg.t))(comm.o.where(name = "m"))
         msgSucc(comm) = m
 
         // Helper for rewriting the invariant. Regular expressions we wrap in the EndpointExpr of the sender/receiver
         // ChorExpr's we leave untouched. Those will be encoded by the EncodeStratifiedPermissions pass.
         def wrapEndpointExpr(expr: Expr[Pre], ep: Endpoint[Pre]): Expr[Post] =
-          foldAny(comm.invariant.t)(unfoldStar(comm.invariant).map {
+          foldAny(expr.t)(unfoldStar(expr).map {
             case e: ChorExpr[Pre] => dispatch(e)
-            case e => EndpointExpr(succ(ep), dispatch(e))
+            case e => EndpointExpr(CommTargetEndpoint(succ(ep)), dispatch(e))
           })
 
         Scope(
@@ -63,18 +64,21 @@ case class EncodeChannels[Pre <: Generation]()
           Block(Seq(
             assignLocal(
               m.get,
-              EndpointExpr[Post](succ(sender), dispatch(comm.msg)),
+              EndpointExpr[Post](
+                CommTargetEndpoint(succ(sender)),
+                dispatch(comm.msg),
+              ),
             ),
-            Exhale(currentEndpoint.having(comm.sender.get.decl) {
+            Exhale(currentEndpoint.having(sender) {
               wrapEndpointExpr(comm.invariant, sender)
             })(ExhaleFailedToChannelInvariantNotEstablished(comm)),
             EndpointStatement[Post](
-              Some(succ(receiver)),
+              Some(CommTargetEndpoint(succ(receiver))),
               Assign(dispatch(comm.destination), m.get)(PanicBlame(
                 "Assignment blame is handled by target expression"
               )),
             )(PanicBlame("Unused blame")),
-            Inhale(currentEndpoint.having(comm.receiver.get.decl) {
+            Inhale(currentEndpoint.having(comm.receiver.get.asName.endpoint) {
               substitutions.having(Map.from(Seq(
                 (Message(new DirectRef(comm)), dispatch(comm.destination))
               ))) { wrapEndpointExpr(comm.invariant, receiver) }
@@ -90,9 +94,9 @@ case class EncodeChannels[Pre <: Generation]()
         substitutions.top(e)
       case Message(Ref(comm)) => Local[Post](msgSucc.ref(comm))(comm.o)
       case Sender(Ref(comm)) =>
-        EndpointName[Post](succ(comm.sender.get.decl))(expr.o)
+        EndpointName[Post](succ(comm.sender.get.asName.endpoint))(expr.o)
       case Receiver(Ref(comm)) =>
-        EndpointName[Post](succ(comm.receiver.get.decl))(expr.o)
+        EndpointName[Post](succ(comm.receiver.get.asName.endpoint))(expr.o)
       case _ => expr.rewriteDefault()
     }
 }

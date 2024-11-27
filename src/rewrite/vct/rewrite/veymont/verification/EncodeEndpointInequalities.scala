@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.AstMatchHelpers.EndpointName
 import vct.rewrite.veymont.VeymontContext
 import vct.rewrite.veymont.verification.EncodeChoreography.AssertFailedToParticipantsNotDistinct
 
@@ -116,8 +117,8 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
     statement match {
       case comm: CommunicateStatement[Pre] =>
         implicit val o = comm.o
-        val sender = comm.inner.sender.get.decl
-        val receiver = comm.inner.receiver.get.decl
+        val sender = comm.inner.sender.get.asName.endpoint
+        val receiver = comm.inner.receiver.get.asName.endpoint
         if (receiver.t == sender.t)
           Block(Seq(
             Assert(

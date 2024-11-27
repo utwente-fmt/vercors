@@ -83,9 +83,6 @@ case object Spec {
     Some(BuiltinField((obj.t, field) match {
       case (TArray(_), "length") => Length(_)(blame)
 
-      case (_: TPVLEndpointFamily[G] | _: TEndpointFamily[G], "length") =>
-        EndpointFamilyLength(_)
-
       case (_: SizedType[G], "isEmpty") => Empty(_)
       case (_: SizedType[G], "size") => Size(_)
 

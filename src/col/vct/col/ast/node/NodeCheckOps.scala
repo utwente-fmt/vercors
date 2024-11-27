@@ -4,6 +4,7 @@ import vct.col.ast.{
   Applicable,
   Choreography,
   Communicate,
+  CommunicateTarget,
   Declaration,
   Endpoint,
   EndpointExpr,
@@ -89,10 +90,10 @@ trait NodeCheckOps[G] {
   ): Option[Choreography[G]] = context.currentChoreography
   def enterCheckContextCurrentReceiverEndpoint(
       context: CheckContext[G]
-  ): Option[Endpoint[G]] = context.currentReceiverEndpoint
+  ): Option[CommunicateTarget[G]] = context.currentReceiverEndpoint
   def enterCheckContextCurrentParticipatingEndpoints(
       context: CheckContext[G]
-  ): Option[Set[Endpoint[G]]] = context.currentParticipatingEndpoints
+  ): Option[Set[CommunicateTarget[G]]] = context.currentParticipatingEndpoints
   def enterCheckContextInChor(context: CheckContext[G]): Boolean =
     context.inChor
   def enterCheckContextInEndpointExpr(

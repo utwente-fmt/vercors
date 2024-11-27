@@ -1,13 +1,6 @@
 package vct.col.ast.lang.pvl
 
-import vct.col.ast.{
-  PVLLocal,
-  TClass,
-  TEnum,
-  TNotAValue,
-  TPVLEndpointFamily,
-  Type,
-}
+import vct.col.ast.{PVLLocal, TClass, TEnum, TNotAValue, TSeq, Type}
 import vct.col.print.{Ctx, Doc, Text}
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
@@ -26,8 +19,7 @@ trait PVLLocalImpl[G] extends PVLLocalOps[G] {
       case ref: RefModelField[G] => ref.decl.t
       case ref: RefEndpoint[G] => ref.decl.t
       case RefPVLEndpoint(decl) if decl.isSingle => decl.t
-      case RefPVLEndpoint(decl) if decl.isFamily =>
-        TPVLEndpointFamily(new DirectRef(decl))
+      case RefPVLEndpoint(decl) if decl.isFamily => TSeq(decl.t)
       case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
     }
 

@@ -4,7 +4,6 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
   And,
-  TVoid,
   ApplicableContract,
   Assert,
   Assign,
@@ -22,7 +21,6 @@ import vct.col.ast.{
   Deref,
   Endpoint,
   EndpointExpr,
-  EndpointName,
   EndpointStatement,
   Eval,
   Exhale,
@@ -48,6 +46,7 @@ import vct.col.ast.{
   RunMethod,
   Scope,
   Statement,
+  TVoid,
   ThisObject,
   Type,
   Value,
@@ -58,6 +57,7 @@ import vct.col.origin.{Name, Origin, PanicBlame, PostBlameSplit}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.AstMatchHelpers.EndpointName
 import vct.col.util.SuccessionMap
 import vct.result.Message
 import vct.result.VerificationError.SystemError
@@ -332,7 +332,8 @@ case class GenerateImplementation[Pre <: Generation]()
               "Encountered ChorStatement without endpoint context"
             )
         }
-      case EndpointStatement(Some(Ref(other)), inner) if other == endpoint =>
+      case EndpointStatement(Some(target), inner)
+          if target.asName.endpoint == endpoint =>
         inner match {
           case assign: Assign[Pre] => assign.rewriteDefault()
           case eval: Eval[Pre] => eval.rewriteDefault()
@@ -414,7 +415,8 @@ case class GenerateImplementation[Pre <: Generation]()
       expr: Expr[Pre]
   )(implicit endpoint: Endpoint[Pre]): Expr[Post] =
     expr match {
-      case EndpointExpr(Ref(other), expr) if endpoint == other =>
+      case EndpointExpr(commTarget, expr)
+          if commTarget.asName.endpoint == endpoint =>
         projectExpr(expr)
       case EndpointExpr(_, _) => tt
       // Define transparent projections for basic operators

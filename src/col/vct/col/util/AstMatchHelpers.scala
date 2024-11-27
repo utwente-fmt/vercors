@@ -21,8 +21,9 @@ object AstMatchHelpers {
         case _ => None
       }
 
-    def apply[G](ref: Ref[G, Endpoint[G]])(implicit o: Origin): CtExpr[G] =
+    def apply[G](ref: Ref[G, Endpoint[G]])(implicit o: Origin): CtExpr[G] = {
       CtExpr(CommTargetEndpoint(ref))
+    }
   }
 
   object EndpointRange {

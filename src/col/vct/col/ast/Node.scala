@@ -246,9 +246,6 @@ final case class TEnum[G](enum: Ref[G, Enum[G]])(
 final case class TProverType[G](ref: Ref[G, ProverType[G]])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends DeclaredType[G] with TProverTypeImpl[G]
-final case class TEndpointFamily[G](ref: Ref[G, Endpoint[G]])(
-    implicit val o: Origin = DiagnosticOrigin
-) extends DeclaredType[G] with TEndpointFamilyImpl[G]
 
 @family
 sealed trait ParRegion[G] extends NodeFamily[G] with ParRegionImpl[G]
@@ -3785,9 +3782,6 @@ final case class TChoreography[G](cls: Ref[G, Choreography[G]])(
 final case class TPVLChoreography[G](cls: Ref[G, PVLChoreography[G]])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends DeclaredType[G] with TPVLChoreographyImpl[G]
-final case class TPVLEndpointFamily[G](ref: Ref[G, PVLEndpoint[G]])(
-    implicit val o: Origin = DiagnosticOrigin
-) extends DeclaredType[G] with TPVLEndpointFamilyImpl[G]
 
 @scopes[Variable]
 final class PVLEndpoint[G](
@@ -3946,17 +3940,9 @@ case class CommTargetIndex[G](ref: Ref[G, Endpoint[G]], index: Expr[G])(
 
 final case class CtExpr[G](inner: CommunicateTarget[G])(implicit val o: Origin)
     extends Expr[G] with CtExprImpl[G]
-//final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(
-//    implicit val o: Origin
-//) extends Expr[G] with EndpointNameImpl[G]
-//final case class EndpointRange[G](
-//    name: Ref[G, Endpoint[G]],
-//    range: RangeBinder[G],
-//)(implicit val o: Origin)
-//    extends Expr[G] with EndpointRangeImpl[G]
-//final case class EndpointIndex[G](name: Ref[G, Endpoint[G]], index: Expr[G])(
-//    implicit val o: Origin
-//) extends Expr[G] with EndpointIndexImpl[G]
+final case class EndpointFamilyExpr[G](ref: Ref[G, Endpoint[G]])(
+    implicit val o: Origin
+) extends Expr[G] with EndpointFamilyExprImpl[G]
 final case class Sender[G](ref: Ref[G, Communicate[G]])(implicit val o: Origin)
     extends Expr[G] with SenderImpl[G]
 final case class Receiver[G](ref: Ref[G, Communicate[G]])(
@@ -3985,8 +3971,6 @@ final case class EndpointExpr[G](endpoint: CommunicateTarget[G], expr: Expr[G])(
 ) extends Expr[G] with EndpointExprImpl[G]
 final case class ChorExpr[G](expr: Expr[G])(implicit val o: Origin)
     extends Expr[G] with ChorExprImpl[G]
-final case class EndpointFamilyLength[G](expr: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with EndpointFamilyLengthImpl[G]
 
 sealed trait SilverExpr[G] extends Expr[G] with SilverExprImpl[G]
 final case class SilverDeref[G](obj: Expr[G], field: Ref[G, SilverField[G]])(

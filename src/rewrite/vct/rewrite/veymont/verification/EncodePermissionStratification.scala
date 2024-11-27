@@ -7,6 +7,7 @@ import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.AstMatchHelpers.EndpointName
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 import vct.rewrite.veymont.VeymontContext
@@ -15,8 +16,8 @@ import vct.rewrite.veymont.verification.EncodePermissionStratification.{
   ForwardExhaleFailedToChorRun,
   ForwardInvocationFailureToDeref,
   ForwardUnfoldFailedToDeref,
-  NoEndpointContext,
   Mode,
+  NoEndpointContext,
 }
 
 import scala.collection.{mutable => mut}
@@ -554,10 +555,12 @@ case class EncodePermissionStratification[Pre <: Generation](
               .rewrite(res = specializeFoldTarget(res), body = dispatch(inner))
         }
 
-      case EndpointExpr(Ref(endpoint), inner) =>
+      case EndpointExpr(CommTargetEndpoint(Ref(endpoint)), inner) =>
         specializing.having(EndpointName[Post](succ(endpoint))(expr.o)) {
           dispatch(inner)
         }
+
+      case EndpointExpr(_, inner) => ???
 
       case deref @ Deref(obj, Ref(field)) if specializing.nonEmpty =>
         implicit val o = expr.o
@@ -609,18 +612,25 @@ case class EncodePermissionStratification[Pre <: Generation](
       case EndpointStatement(None, Assign(_, _)) =>
         throw NoEndpointContext(statement)
       case EndpointStatement(
-            Some(Ref(endpoint)),
+            Some(CommTargetEndpoint(Ref(endpoint))),
             assign @ Assign(Deref(_, Ref(_)), _),
           ) =>
         rewriteAssign(endpoint, assign)
-      case EndpointStatement(Some(Ref(endpoint)), assert: Assert[Pre]) =>
+      case EndpointStatement(
+            Some(CommTargetEndpoint(Ref(endpoint))),
+            assert: Assert[Pre],
+          ) =>
         specializing.having(EndpointName[Post](succ(endpoint))(statement.o)) {
           assert.rewriteDefault()
         }
-      case EndpointStatement(Some(Ref(endpoint)), eval: Eval[Pre]) =>
+      case EndpointStatement(
+            Some(CommTargetEndpoint(Ref(endpoint))),
+            eval: Eval[Pre],
+          ) =>
         specializing.having(EndpointName[Post](succ(endpoint))(statement.o)) {
           eval.rewriteDefault()
         }
+      case EndpointStatement(_, _) => ???
       case _ => statement.rewriteDefault()
     }
 
