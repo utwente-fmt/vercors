@@ -1,9 +1,10 @@
 package vct.rewrite
 
 import hre.util.ScopedStack
-import vct.col.ast.{EndpointName, Expr, Let, Local, Variable}
+import vct.col.ast.{Expr, Let, Local, Variable}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.util.AstMatchHelpers.EndpointName
 
 object InlineTrivialLets extends RewriterBuilder {
   override def key: String = "inlineTrivialLets"
@@ -17,11 +18,7 @@ case class InlineTrivialLets[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
-      case Let(
-            binder,
-            binding @ (_: EndpointName[Pre] | _: Local[Pre]),
-            inner,
-          ) =>
+      case Let(binder, binding @ (EndpointName(_) | _: Local[Pre]), inner) =>
         mappings.having(mapping.updated(binder, dispatch(binding))) {
           dispatch(inner)
         }

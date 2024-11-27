@@ -131,18 +131,18 @@ case class StratifyExpressions[Pre <: Generation]()
         case expr => point(expr)
       }.map {
         case (Some(endpoint), expr) =>
-          EndpointExpr[Post](succ(endpoint), dispatch(expr))(expr.o)
+          EndpointExpr[Post](dispatch(endpoint), dispatch(expr))(expr.o)
         case (None, expr) => expr.rewriteDefault()
       }
     )(e.o)
   }
 
   // "Points" an expression in the direction of an endpoint if possible
-  def point(e: Expr[Pre]): (Option[Endpoint[Pre]], Expr[Pre]) = {
-    InferEndpointContexts.getEndpoints(e) match {
-      case Seq(endpoint) =>
+  def point(e: Expr[Pre]): (Option[CommunicateTarget[Pre]], Expr[Pre]) = {
+    InferEndpointContexts.getTargets(e) match {
+      case Seq(target) =>
         // expr is totally in context of one endpoint and whatever else is in scope
-        (Some(endpoint), e)
+        (Some(target), e)
       // Expressions of type resource _must_ be pointed
       case Seq() if e.t == TResource[Pre]() => throw NoImplicitEndpoint(e)
       // Other expressions, presumably bool-typed, will be duplicated in stratifyUnpointedExpressions

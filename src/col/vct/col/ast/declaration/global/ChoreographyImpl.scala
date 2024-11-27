@@ -8,9 +8,6 @@ import vct.col.ast.{
   Class,
   Declaration,
   Endpoint,
-  EndpointIndex,
-  EndpointName,
-  EndpointRange,
   EndpointStatement,
   Node,
 }
@@ -23,6 +20,7 @@ import vct.col.ref.Ref
 import scala.collection.immutable.ListSet
 import vct.col.ast.ops.ChoreographyOps
 import vct.col.util.AstBuildHelpers.tt
+import vct.col.util.AstMatchHelpers.{EndpointIndex, EndpointName, EndpointRange}
 
 object ChoreographyImpl {
   def participants[G](node: Node[G]): ListSet[Endpoint[G]] =
@@ -30,7 +28,7 @@ object ChoreographyImpl {
       case EndpointStatement(Some(commTarget), Assign(_, _)) =>
         Seq(commTarget.endpoint)
       case EndpointName(Ref(endpoint)) => Seq(endpoint)
-      case range: EndpointRange[G] => Seq(range.name.decl)
+      case EndpointRange(Ref(endpoint), range) => Seq(endpoint)
       case EndpointIndex(Ref(endpoint), _) => Seq(endpoint)
       case c @ ChorStatement(_) => c.participants.toSeq
     }.flatten)

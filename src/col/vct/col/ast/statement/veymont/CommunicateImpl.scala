@@ -1,7 +1,7 @@
 package vct.col.ast.statement.veymont
 
 import vct.col.ast.declaration.DeclarationImpl
-import vct.col.ast.{Communicate, Endpoint, EndpointName, Node, TClass, Type}
+import vct.col.ast.{Communicate, Endpoint, Node, TClass, Type}
 import vct.col.check.{CheckContext, CheckError, SeqProgParticipant}
 import vct.col.print.{Ctx, Doc, Group, Nest, Text}
 import vct.col.ref.Ref
@@ -15,7 +15,7 @@ trait CommunicateImpl[G]
   override def layout(implicit ctx: Ctx): Doc =
     Text("channel_invariant") <+> Nest(invariant.show) <> ";" <+/> Group(
       Text("communicate") <+> receiver.map(_.show).getOrElse(Text("")) <>
-        target.show <+> "<-" <+> sender.map(_.show).getOrElse(Text("")) <>
+        destination.show <+> "<-" <+> sender.map(_.show).getOrElse(Text("")) <>
         msg.show <> ";"
     )
 

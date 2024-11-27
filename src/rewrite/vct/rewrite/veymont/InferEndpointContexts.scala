@@ -8,7 +8,7 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.{SystemError, UserError}
 import vct.rewrite.veymont.InferEndpointContexts.{
   EndpointInferenceUndefined,
-  getEndpoint,
+  getTarget,
 }
 
 import scala.collection.mutable
@@ -41,39 +41,38 @@ object InferEndpointContexts extends RewriterBuilder {
       )
   }
 
-  def getEndpoints[G](expr: Expr[G]): Seq[Endpoint[G]] =
-    mutable.LinkedHashSet.from(expr.collect {
-      case EndpointName(Ref(endpoint)) => endpoint
-    }).toSeq
+  def getTargets[G](expr: Expr[G]): Seq[CommunicateTarget[G]] =
+    mutable.LinkedHashSet.from(expr.collect { case CtExpr(target) => target })
+      .toSeq
 
-  def getEndpoint[G](expr: Expr[G]): Endpoint[G] =
-    getEndpoints(expr) match {
-      case Seq(endpoint) => endpoint
+  def getTarget[G](expr: Expr[G]): CommunicateTarget[G] =
+    getTargets(expr) match {
+      case Seq(target) => target
       case Seq() => throw NoImplicitEndpoint(expr)
       case _ => throw MultipleImplicitEndpoints(expr)
     }
 
-  def getEndpoint[G](
+  def getTarget[G](
       reportLocation: Node[_],
       exprs: Seq[Expr[G]],
-  ): Endpoint[G] =
-    exprs.flatMap(getEndpoints).distinct match {
+  ): CommunicateTarget[G] =
+    exprs.flatMap(getTargets).distinct match {
       case Seq(endpoint) => endpoint
       case Seq() => throw NoImplicitEndpoint(reportLocation)
       case _ => throw MultipleImplicitEndpoints(reportLocation)
     }
 
-  def getEndpoint[G](loc: Location[G]): Endpoint[G] =
+  def getTarget[G](loc: Location[G]): CommunicateTarget[G] =
     loc match {
-      case FieldLocation(obj, _) => getEndpoint(obj)
-      case AmbiguousLocation(deref) => getEndpoint(deref)
+      case FieldLocation(obj, _) => getTarget(obj)
+      case AmbiguousLocation(deref) => getTarget(deref)
       case PredicateLocation(inv) =>
         inv match {
-          case PredicateApply(ref, args) => getEndpoint(loc, args)
+          case PredicateApply(ref, args) => getTarget(loc, args)
           case InstancePredicateApply(obj, ref, args) =>
-            getEndpoint(loc, obj +: args)
+            getTarget(loc, obj +: args)
           case CoalesceInstancePredicateApply(obj, ref, args) =>
-            getEndpoint(loc, obj +: args)
+            getTarget(loc, obj +: args)
         }
       case _ => throw EndpointInferenceUndefined(loc)
     }
@@ -82,7 +81,6 @@ object InferEndpointContexts extends RewriterBuilder {
 case class InferEndpointContexts[Pre <: Generation]()
     extends Rewriter[Pre] with LazyLogging {
   val inChor = ScopedStack[Boolean]()
-  val inEndpointExpr = ScopedStack[Endpoint[Pre]]()
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
@@ -94,37 +92,26 @@ case class InferEndpointContexts[Pre <: Generation]()
       case comm: Communicate[Pre] =>
         implicit val o = comm.o
         comm.rewrite(
-          receiver = comm.receiver.map(_.decl)
-            .orElse(Some(getEndpoint[Pre](comm.target)))
-            .map(succ[Endpoint[Post]](_)),
-          sender = comm.sender.map(_.decl)
-            .orElse(Some(getEndpoint[Pre](comm.msg)))
-            .map(succ[Endpoint[Post]](_)),
+          receiver = comm.receiver
+            .orElse(Some(getTarget[Pre](comm.destination))).map(dispatch),
+          sender = comm.sender.orElse(Some(getTarget[Pre](comm.msg)))
+            .map(dispatch),
         ).succeed(comm)
       case _ => super.dispatch(decl)
     }
 
   override def dispatch(stmt: Statement[Pre]): Statement[Post] =
     stmt match {
-      // Whitelist statements that do not need a context
+      // Whitelist statements for which we can try and infer an endpoint context
       case s @ EndpointStatement(None, assign: Assign[Pre]) =>
-        val endpoint: Endpoint[Pre] = getEndpoint(assign.target)
-        s.rewrite(endpoint = Some(succ(endpoint)))
+        s.rewrite(endpoint = Some(dispatch(getTarget(assign.target))))
       case s @ EndpointStatement(None, Eval(invoke: MethodInvocation[Pre])) =>
-        val endpoint: Endpoint[Pre] = getEndpoint(invoke.obj)
-        s.rewrite(endpoint = Some(succ(endpoint)))
+        s.rewrite(endpoint = Some(dispatch(getTarget(invoke.obj))))
       case s @ EndpointStatement(None, _) => throw EndpointInferenceUndefined(s)
       case comm: CommunicateStatement[Pre] =>
         // Make inChor false because we don't want to infer endpoint contexts for expressions in the channel invariant
         // These should remain plain
         inChor.having(false) { comm.rewriteDefault() }
       case s => s.rewriteDefault()
-    }
-
-  override def dispatch(expr: Expr[Pre]): Expr[Post] =
-    expr match {
-      case expr @ EndpointExpr(Ref(endpoint), _) =>
-        inEndpointExpr.having(endpoint) { expr.rewriteDefault() }
-      case _ => expr.rewriteDefault()
     }
 }

@@ -7,7 +7,7 @@ import vct.col.ref.Ref
 
 trait CommunicateTargetImpl[G] extends CommunicateTargetFamilyOps[G] {
   this: CommunicateTarget[G] =>
-  // override def layout(implicit ctx: Ctx): Doc = ???
+//  override def layout(implicit ctx: Ctx): Doc = this.layout
 
   def ref: Ref[G, Endpoint[G]]
   def endpoint: Endpoint[G] = ref.decl

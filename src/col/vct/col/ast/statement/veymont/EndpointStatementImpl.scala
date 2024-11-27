@@ -10,7 +10,6 @@ import vct.col.ast.{
   CommunicateStatement,
   Deref,
   Endpoint,
-  EndpointName,
   EndpointStatement,
   Eval,
   Expr,
@@ -24,13 +23,14 @@ import vct.col.ast.statement.StatementImpl
 import vct.col.check.{
   CheckContext,
   CheckError,
+  ChorStatement,
   SeqProgInvocation,
   SeqProgNoParticipant,
   SeqProgParticipant,
-  ChorStatement,
 }
 import vct.col.print.{Ctx, Doc, Line, Text}
 import vct.col.ref.Ref
+import vct.col.util.AstMatchHelpers.{EndpointIndex, EndpointName, EndpointRange}
 
 trait EndpointStatementImpl[G]
     extends EndpointStatementOps[G] with StatementImpl[G] {
@@ -91,6 +91,8 @@ trait EndpointStatementImpl[G]
       case MethodInvocation(e, _, _, _, _, _, _) => rootEndpoint(e)
       case Deref(obj, _) => rootEndpoint(obj)
       case EndpointName(Ref(e)) => Some(e)
+      case EndpointIndex(Ref(e), _) => Some(e)
+      case EndpointRange(Ref(e), _) => Some(e)
       case _ => None
     }
 

@@ -16,7 +16,8 @@ object StratifyUnpointedExpressions extends RewriterBuilder {
 
 case class StratifyUnpointedExpressions[Pre <: Generation]()
     extends Rewriter[Pre] with VeymontContext[Pre] {
-  val currentParticipants: ScopedStack[ListSet[Endpoint[Pre]]] = ScopedStack()
+  val currentParticipants: ScopedStack[ListSet[CommunicateTarget[Pre]]] =
+    ScopedStack()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     mappings.program = p

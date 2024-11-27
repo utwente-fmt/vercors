@@ -511,7 +511,7 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
     EndpointStatement[Post](
       Some(succ[Endpoint[Post]](receiver)),
       Assign(
-        dispatch(comm.target),
+        dispatch(comm.destination),
         methodInvocation[Post](
           obj =
             Deref[Post](

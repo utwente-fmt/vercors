@@ -2,16 +2,23 @@ package vct.col.ast.declaration.singular
 
 import vct.col.ast.declaration.DeclarationImpl
 import vct.col.ast.{
+  CommTargetEndpoint,
+  CommTargetRange,
+  CommunicateTarget,
   Declaration,
   Endpoint,
+  EndpointFamilyLength,
   RangeBinder,
   TByReferenceClass,
   TClass,
   Type,
+  Variable,
 }
 import vct.col.print._
 import vct.col.ast.ops.{EndpointFamilyOps, EndpointOps}
 import vct.col.check.{CheckContext, CheckError}
+import vct.col.util.AstBuildHelpers
+import vct.col.util.AstMatchHelpers.{EndpointName, EndpointRange}
 
 trait EndpointImpl[G]
     extends EndpointOps[G] with EndpointFamilyOps[G] with DeclarationImpl[G] {
@@ -33,4 +40,18 @@ trait EndpointImpl[G]
 
   def getRange: Option[RangeBinder[G]] =
     this.range.map(_.asInstanceOf[RangeBinder[G]])
+
+  def commTarget: CommunicateTarget[G] =
+    range match {
+      case None => CommTargetEndpoint(this.ref)
+      case Some(_) =>
+        CommTargetRange(
+          this.ref,
+          RangeBinder(
+            new Variable(),
+            AstBuildHelpers.ZERO,
+            EndpointFamilyLength(this.ref),
+          ),
+        )
+    }
 }

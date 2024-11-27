@@ -1,9 +1,10 @@
 package vct.col.ast.statement.terminal
 
-import vct.col.ast.{Assign, EndpointName, Local}
+import vct.col.ast.{Assign, Local}
 import vct.col.check.{CheckContext, CheckError, SeqProgEndpointAssign}
 import vct.col.print._
 import vct.col.ast.ops.AssignOps
+import vct.col.util.AstMatchHelpers.EndpointName
 
 trait AssignImpl[G]
     extends NormallyCompletingStatementImpl[G] with AssignOps[G] {

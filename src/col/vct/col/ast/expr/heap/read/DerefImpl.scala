@@ -1,15 +1,7 @@
 package vct.col.ast.expr.heap.read
 
 import vct.col.ast.expr.ExprImpl
-import vct.col.ast.{
-  Deref,
-  EndpointName,
-  Expr,
-  FieldLocation,
-  TClass,
-  Type,
-  Value,
-}
+import vct.col.ast.{Deref, FieldLocation, Type, Value}
 import vct.col.check.{Check, CheckContext, CheckError, SeqProgReceivingEndpoint}
 import vct.col.print.{Ctx, Doc, Group, Precedence}
 import vct.col.ref.Ref

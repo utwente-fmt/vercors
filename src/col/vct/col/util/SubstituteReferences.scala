@@ -4,6 +4,7 @@ import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.NonLatchingRewriter
+import vct.col.util.AstMatchHelpers.{EndpointIndex, EndpointName, EndpointRange}
 
 import scala.reflect.ClassTag
 
@@ -52,6 +53,10 @@ case class SubstituteReferences[G](subs: Map[Object, Object])
       case ProcessApply(Ref(p), args) =>
         ProcessApply(substitute(p), args.map(dispatch))
       case EndpointName(Ref(e)) => EndpointName(substitute(e))
+      case EndpointIndex(Ref(e), index) =>
+        EndpointIndex(substitute(e), dispatch(index))
+      case EndpointRange(Ref(e), range) =>
+        EndpointRange(substitute(e), dispatch(range))
       case Sender(Ref(s)) => Sender(substitute(s))
       case Receiver(Ref(r)) => Receiver(substitute(r))
       case Message(Ref(m)) => Message(substitute(m))

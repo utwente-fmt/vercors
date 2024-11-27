@@ -1265,7 +1265,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
         Eq(coerce(left, sharedType), coerce(right, sharedType))
       case EitherLeft(e) => EitherLeft(e)
       case EitherRight(e) => EitherRight(e)
-      case EndpointName(ref) => EndpointName(ref)
       case Exists(bindings, triggers, body) =>
         Exists(bindings, triggers, bool(body))
       case exp @ Exp(left, right) =>
@@ -2153,6 +2152,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case ChorExpr(expr) => ChorExpr(bool(expr))
       case e @ Asserting(assn, inner) => Asserting(bool(assn), inner)(e.blame)
       case Assuming(assn, inner) => Assuming(bool(assn), inner)
+      case EndpointFamilyLength(ef) => endpointFamily(ef)
     }
   }
 
@@ -2543,18 +2543,19 @@ abstract class CoercingRewriter[Pre <: Generation]()
           c,
           s"The message should have type ${c.target.t}, but actually has type ${c.msg.t}.",
         )
-      case c: Communicate[Pre] if c.target.t == c.msg.t =>
+      case c: Communicate[Pre] if c.destination.t == c.msg.t =>
         new Communicate(
           res(c.invariant),
           c.receiver,
-          c.target,
+          c.destination,
           c.sender,
           c.msg,
         )(c.blame)
       case c: Communicate[Pre] =>
         throw IncoercibleExplanation(
           c,
-          s"The message should have type ${c.target.t}, but actually has type ${c.msg.t}.",
+          s"The message should have type ${c.destination
+              .t}, but actually has type ${c.msg.t}.",
         )
     }
   }
@@ -2972,7 +2973,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
 
   def coerce(node: PVLCommTargetEndpoint[Pre]): PVLCommTargetEndpoint[Pre] =
     node
-  def coerce(node: EndpointName[Pre]): EndpointName[Pre] = node
 
   def coerce(node: PVLCommunicateTarget[Pre]): PVLCommunicateTarget[Pre] = node
 

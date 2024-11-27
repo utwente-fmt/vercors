@@ -70,13 +70,13 @@ case class EncodeChannels[Pre <: Generation]()
             })(ExhaleFailedToChannelInvariantNotEstablished(comm)),
             EndpointStatement[Post](
               Some(succ(receiver)),
-              Assign(dispatch(comm.target), m.get)(PanicBlame(
+              Assign(dispatch(comm.destination), m.get)(PanicBlame(
                 "Assignment blame is handled by target expression"
               )),
             )(PanicBlame("Unused blame")),
             Inhale(currentEndpoint.having(comm.receiver.get.decl) {
               substitutions.having(Map.from(Seq(
-                (Message(new DirectRef(comm)), dispatch(comm.target))
+                (Message(new DirectRef(comm)), dispatch(comm.destination))
               ))) { wrapEndpointExpr(comm.invariant, receiver) }
             }),
           )),

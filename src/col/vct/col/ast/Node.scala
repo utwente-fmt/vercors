@@ -3921,7 +3921,7 @@ final case class ChorRun[G](
 final class Communicate[G](
     val invariant: Expr[G],
     val receiver: Option[CommunicateTarget[G]],
-    val target: Expr[G],
+    val destination: Expr[G],
     val sender: Option[CommunicateTarget[G]],
     val msg: Expr[G],
 )(val blame: Blame[CommunicateFailure])(implicit val o: Origin)
@@ -3944,7 +3944,7 @@ case class CommTargetIndex[G](ref: Ref[G, Endpoint[G]], index: Expr[G])(
     implicit val o: Origin
 ) extends CommunicateTarget[G] with CommTargetIndexImpl[G]
 
-final case class CtExpr[G](inner: CommunicateTarget[G])
+final case class CtExpr[G](inner: CommunicateTarget[G])(implicit val o: Origin)
     extends Expr[G] with CtExprImpl[G]
 //final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(
 //    implicit val o: Origin
@@ -3985,6 +3985,8 @@ final case class EndpointExpr[G](endpoint: CommunicateTarget[G], expr: Expr[G])(
 ) extends Expr[G] with EndpointExprImpl[G]
 final case class ChorExpr[G](expr: Expr[G])(implicit val o: Origin)
     extends Expr[G] with ChorExprImpl[G]
+final case class EndpointFamilyLength[G](expr: Expr[G])(implicit val o: Origin)
+    extends Expr[G] with EndpointFamilyLengthImpl[G]
 
 sealed trait SilverExpr[G] extends Expr[G] with SilverExprImpl[G]
 final case class SilverDeref[G](obj: Expr[G], field: Ref[G, SilverField[G]])(

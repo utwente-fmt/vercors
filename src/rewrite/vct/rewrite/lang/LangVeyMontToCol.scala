@@ -17,6 +17,7 @@ import vct.col.origin.{
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{RefField, RefPVLEndpoint}
 import vct.col.rewrite.{Generation, Rewritten}
+import vct.col.util.AstMatchHelpers.EndpointName
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangVeyMontToCol.{
@@ -165,8 +166,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteEndpointUse(
       endpoint: RefPVLEndpoint[Pre],
       local: PVLLocal[Pre],
-  ): EndpointName[Post] =
-    EndpointName[Post](endpointSucc.ref(endpoint.decl))(local.o)
+  ): CtExpr[Post] = EndpointName[Post](endpointSucc.ref(endpoint.decl))(local.o)
 
   def rewriteRun(run: PVLChorRun[Pre]): ChorRun[Post] = {
     run.drop()
