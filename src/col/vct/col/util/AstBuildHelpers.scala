@@ -372,6 +372,8 @@ object AstBuildHelpers {
     def rewrite(
         args: => Seq[Variable[Post]] = rewriter.variables
           .dispatch(predicate.args),
+        body: => Option[Expr[Post]] = predicate.body
+          .map((e: Expr[Pre]) => rewriter.dispatch(e)),
         inline: => Boolean = predicate.inline,
         threadLocal: => Boolean = predicate.threadLocal,
     ): AbstractPredicate[Post] =
@@ -379,12 +381,14 @@ object AstBuildHelpers {
         case predicate: Predicate[Pre] =>
           predicate.rewrite(
             args = args,
+            body = body,
             inline = Some(inline),
             threadLocal = Some(threadLocal),
           )
         case predicate: InstancePredicate[Pre] =>
           predicate.rewrite(
             args = args,
+            body = body,
             inline = Some(inline),
             threadLocal = Some(threadLocal),
           )

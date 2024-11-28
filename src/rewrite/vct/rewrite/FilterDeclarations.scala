@@ -8,6 +8,7 @@ import vct.col.ast.{
   AbstractPredicate,
   ApplicableContract,
   AxiomaticDataType,
+  ConstructorInvocation,
   ContractApplicable,
   Declaration,
   Deref,
@@ -16,6 +17,7 @@ import vct.col.ast.{
   FilterApplicable,
   FilterMode,
   Fold,
+  FoldTarget,
   Function,
   FunctionInvocation,
   Include,
@@ -26,9 +28,11 @@ import vct.col.ast.{
   InstanceMethod,
   InstancePredicate,
   InstancePredicateApply,
+  InvokeConstructor,
   InvokeMethod,
   InvokeProcedure,
   MethodInvocation,
+  NeutralFilterMode,
   Predicate,
   PredicateApply,
   Procedure,
@@ -42,13 +46,19 @@ import vct.col.ast.{
 }
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
-import vct.col.rewrite.FilterDeclarations.{filterAndAbstract, ignoreToFocus}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers.{MethodBuildHelpers, PredicateBuildHelpers}
-import vct.rewrite.FilterDeclarations.toIncludeOnly
+import vct.rewrite.FilterDeclarations.{filterAndAbstract, toIncludeOnly}
 
 import scala.collection.mutable
 
+/* TODO: Here ADTs are handled specially, such that they are removed if they are unused.
+    This is not ideal, as ADT axioms might still influence program verification.
+    In addition, I don't think removing an ADT can enable removing of other callables (method, predicate, etc.)
+    So optimizing unused ADTs away should be a separate pass (or triggered by a --minimize flag or smth)
+
+   TODO: Add a pass that optimizes unused ADTs away
+ */
 case object FilterDeclarations extends RewriterBuilder {
   override def key: String = "filterDeclarations"
 
@@ -73,7 +83,6 @@ case object FilterDeclarations extends RewriterBuilder {
   }
 
   case class ToIncludeOnly[Pre <: Generation]() extends Rewriter[Pre]() {
-    var containsFocus = false
     // Returns true if there are Include nodes in the program, and hence filtering needs to be done
     def rewrite(program: Program[Pre]): (Program[Post], Boolean) = {
       val excluded = program.collect {
@@ -95,39 +104,30 @@ case object FilterDeclarations extends RewriterBuilder {
         // Both includes/excludes: just drop the excludes, as the includes will trigger deletion of everything else
         // In theory the excludes could be left in. However, the invariant that after this pass there are only includes
         // and neutrals is nice.
-        case (includes, excludes) => (DropExcludes().dispatch(program), true)
+        case (_, _) => (DropExcludes().dispatch(program), true)
       }
     }
   }
 
   def toIncludeOnly[G <: Generation](
       p: Program[G]
-  ): (Program[Rewritten[G]], Boolean) = {
-    val pass = ToIncludeOnly[G]()
-    (pass.dispatch(p), pass.containsFocus)
-  }
+  ): (Program[Rewritten[G]], Boolean) = ToIncludeOnly[G]().rewrite(p)
 
   case class AbstractMaker[Pre <: Generation](
-      focusTargets: Seq[Declaration[Pre]]
+      includes: Set[FilterApplicable[Pre]]
   ) extends Rewriter[Pre] {
     var program: Program[Pre] = null
 
     lazy val openedPredicates: Set[AbstractPredicate[Pre]] =
       program.collect {
-        case Unfold(e) => getPredicate(e)
-        case Fold(e) => getPredicate(e)
-        case Unfolding(e, _) => getPredicate(e)
+        case Unfold(e) => e.apply.ref.decl
+        case Fold(e) => e.apply.ref.decl
+        case Unfolding(e, _) => e.apply.ref.decl
       }.toSet
-
-    def getPredicate(e: Expr[Pre]): AbstractPredicate[Pre] =
-      e match {
-        case InstancePredicateApply(_, Ref(p), _, _) => p
-        case PredicateApply(Ref(p), _, _) => p
-      }
 
     override def dispatch(decl: Declaration[Pre]): Unit = {
       decl match {
-        case m: AbstractMethod[Pre] if !focusTargets.contains(m) =>
+        case m: AbstractMethod[Pre] if !includes.contains(m) =>
           allScopes.anySucceedOnly(m, m.rewrite(body = None))
         case p: AbstractPredicate[Pre] if !openedPredicates.contains(p) =>
           allScopes.anySucceedOnly(p, p.rewrite(body = None))
@@ -142,115 +142,95 @@ case object FilterDeclarations extends RewriterBuilder {
   }
 
   // Get all predicate usages, method usages, field usages, adt usages, adt function usages
-  def getUsedDecls[G <: Generation](p: Program[G]): Seq[Declaration[G]] = {
+  // Messy because usages internal to the type (e.g. using an adt function in an axiom) should be ignored
+  def getUsedFilterApplicables[G <: Generation](
+      p: Program[G]
+  ): Set[FilterApplicable[G]] = {
     val collected = ScopedStack[mutable.Set[Declaration[G]]]()
 
     case class Collector() extends Rewriter[G] {
+      def decls: mutable.Set[Declaration[G]] = collected.top
+
       override def dispatch(expr: Expr[G]): Expr[Rewritten[G]] = {
         expr match {
-          case pi: ProcedureInvocation[G] => collected.top.add(pi.ref.decl)
-          case fi: FunctionInvocation[G] => collected.top.add(fi.ref.decl)
-          case ipi: MethodInvocation[G] => collected.top.add(ipi.ref.decl)
-          case ifi: InstanceFunctionInvocation[G] =>
-            collected.top.add(ifi.ref.decl)
-          case pa: PredicateApply[G] => collected.top.add(pa.ref.decl)
-          case pa: InstancePredicateApply[G] => collected.top.add(pa.ref.decl)
-          case afi: ADTFunctionInvocation[G] => collected.top.add(afi.ref.decl)
-          case Deref(_, r) => collected.top.add(r.decl)
+          // This whole match statement could be factored out into a common Uses[Declaration] trait.
+          // Or maybe reuse the Invocation/InvokingNode hierarchy?
+          // Then this whole getUsedDecls method could be generic. But I dislike increasing trait pressure in Node.scala
+          case pi: ProcedureInvocation[G] => decls.add(pi.ref.decl)
+          case fi: FunctionInvocation[G] => decls.add(fi.ref.decl)
+          case ipi: MethodInvocation[G] => decls.add(ipi.ref.decl)
+          case ifi: InstanceFunctionInvocation[G] => decls.add(ifi.ref.decl)
+          case pa: PredicateApply[G] => decls.add(pa.ref.decl)
+          case pa: InstancePredicateApply[G] => decls.add(pa.ref.decl)
+          case afi: ADTFunctionInvocation[G] => decls.add(afi.ref.decl)
+          case inv: ConstructorInvocation[G] => decls.add(inv.ref.decl)
+          case Deref(_, r) => decls.add(r.decl)
           case _ =>
         }
         super.dispatch(expr)
       }
 
-      override def dispatch(t: Type[G]): Type[Rewritten[G]] = {
-        t match {
-          case TAxiomatic(r, _) => collected.top.add(r.decl)
-          case _ =>
-        }
-        super.dispatch(t)
-      }
-
+      // Just in case this pass is moved, let's match on the low-level statements as well
       override def dispatch(s: Statement[G]): Statement[Rewritten[G]] = {
         s match {
-          case ip: InvokeProcedure[G] => collected.top.add(ip.ref.decl)
-          case ip: InvokeMethod[G] => collected.top.add(ip.ref.decl)
+          case ip: InvokeProcedure[G] => decls.add(ip.ref.decl)
+          case ip: InvokeMethod[G] => decls.add(ip.ref.decl)
+          case inv: InvokeConstructor[G] => decls.add(inv.ref.decl)
           case _ =>
         }
         super.dispatch(s)
       }
 
-      override def dispatch(decl: Declaration[G]): Unit =
-        decl match {
-          case _: Procedure[G] | _: Predicate[G] | _: Function[G] |
-              _: AxiomaticDataType[G] | _: InstanceMethod[G] |
-              _: InstanceFunction[G] =>
-            val newCollected = mutable.Set[Declaration[G]]()
-            collected.having(newCollected) { super.dispatch(decl) }
+      override def dispatch(declaration: Declaration[G]): Unit =
+        declaration match {
+          case app: FilterApplicable[G] =>
+            val newDecls = mutable.Set[Declaration[G]]()
+            collected.having(newDecls) { super.dispatch(declaration) }
             // A decl using itself should not be counted as an actual use
-            newCollected.remove(decl)
-            // Same for an adt using its own functions
-            decl match {
-              case a: AxiomaticDataType[G] =>
-                a.decls.foreach(f => newCollected.remove(f))
-              case _ =>
-            }
-            collected.top.addAll(newCollected)
+            newDecls.remove(declaration)
+            decls.addAll(newDecls)
           case d => super.dispatch(d)
         }
     }
 
-    val res = mutable.Set[Declaration[G]]()
-    collected.having(res) { Collector().dispatch(p) }
-    res.toSeq
+    val decls = mutable.Set[Declaration[G]]()
+    collected.having(decls) { Collector().dispatch(p) }
+    decls.toSet
   }
 
-  case class RemoveUnused[Pre <: Generation](used: Seq[Declaration[Pre]])
+  case class RemoveUnused[Pre <: Generation](used: Set[FilterApplicable[Pre]])
       extends Rewriter[Pre] with LazyLogging {
     var dropped: mutable.Set[Declaration[Pre]] = mutable.Set()
-
-    def adtIsUsed(a: AxiomaticDataType[Pre]): Boolean =
-      used.contains(a) || a.decls.exists(used.contains(_))
+    lazy val usedSet = used.toSet
 
     override def dispatch(decl: Declaration[Pre]): Unit = {
       decl match {
-        case _: Procedure[Pre] | _: Function[Pre] | _: Predicate[Pre] |
-            _: InstancePredicate[Pre] | _: InstanceField[Pre] |
-            _: InstanceMethod[Pre] | _: InstanceFunction[Pre]
-            if !used.contains(decl) =>
-          decl.drop()
-          dropped.add(decl)
-        case a: AxiomaticDataType[Pre] if !adtIsUsed(a) =>
-          a.drop()
-          a.decls.foreach({ d => d.drop(); dropped.add(d) })
-          dropped.add(decl)
-        case _ => rewriteDefault(decl)
+        case app: FilterApplicable[Pre] if !usedSet.contains(app) =>
+          app.drop()
+          dropped.add(app)
+        case _ => decl.rewriteDefault()
       }
     }
   }
 
   def filterAndAbstract[G <: Generation](
-      p: Program[G],
-      inputFocused: Seq[ContractApplicable[G]],
-  ): (Program[Rewritten[G]], Seq[Declaration[_]]) = {
-    val am = AbstractMaker(inputFocused)
-    var program = am.dispatch(p)
-    var focused = inputFocused
-      .map(am.anySucc[Declaration[Rewritten[G]]](_).decl)
-    var dropped: Seq[Declaration[_]] = Nil
-    var totalDropped: Seq[Declaration[_]] = Nil
+      program: Program[G],
+      included: Set[FilterApplicable[G]],
+  ): Program[_] = {
+    val am = AbstractMaker(included)
+    val abstractProgram = am.dispatch(program)
+    // Maintain set of applicables to retain through the transformation
+    val includedAbstract = included
+      .map(am.anySucc[FilterApplicable[Rewritten[G]]](_).decl)
 
-    do {
-      val ru = RemoveUnused[Rewritten[G]](getUsedDecls(program) ++ focused)
-      val reducedProgram = ru.dispatch(program)
-      program = reducedProgram.asInstanceOf[Program[Rewritten[G]]]
-      focused = focused
-        .map(ru.anySucc[Declaration[Rewritten[Rewritten[G]]]](_).decl)
-        .asInstanceOf[Seq[Declaration[Rewritten[G]]]]
-      dropped = ru.dropped.toSeq
-      totalDropped ++= dropped
-    } while (dropped.nonEmpty)
+    val removeUnused = RemoveUnused[Rewritten[G]](
+      getUsedFilterApplicables(abstractProgram).union(includedAbstract)
+    )
+    val reducedProgram = removeUnused.dispatch(abstractProgram)
 
-    (program, totalDropped)
+    if (removeUnused.dropped.nonEmpty) {
+      filterAndAbstract(reducedProgram, includedAbstract)
+    } else { reducedProgram }
   }
 }
 
@@ -263,22 +243,11 @@ case class FilterDeclarations[Pre <: Generation]()
     // If there are no includes, stop early
     if (!containsInclude) { return includeOnlyProgram }
 
-    val focused = focusedProgram.collect {
-      case FilterIndicator(
-            Ref(decl: ContractApplicable[Post]),
-            FilterFocus(),
-          ) =>
-        decl
+    val includes = includeOnlyProgram.collect {
+      case app: FilterApplicable[Post] if app.filter == Include[Post]() => app
     }
 
-    val (filteredProgram, dropped) = filterAndAbstract[Post](
-      focusedProgram,
-      focused,
-    )
-
-    if (dropped.nonEmpty) {
-      logger.info(s"Dropped ${dropped.length} declarations")
-    }
+    val filteredProgram = filterAndAbstract(includeOnlyProgram, includes)
 
     filteredProgram.asInstanceOf[Program[Post]]
   }
