@@ -2,7 +2,6 @@ package vct.rewrite
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers.{RewriteProcedure, RewriteProgram}
 import vct.col.ast.{
   ADTFunctionInvocation,
   AbstractMethod,
@@ -12,13 +11,15 @@ import vct.col.ast.{
   ContractApplicable,
   Declaration,
   Deref,
+  Exclude,
   Expr,
-  FilterFocus,
-  FilterIgnore,
-  FilterIndicator,
+  FilterApplicable,
+  FilterMode,
   Fold,
   Function,
   FunctionInvocation,
+  Include,
+  InlineableApplicable,
   InstanceField,
   InstanceFunction,
   InstanceFunctionInvocation,
@@ -42,60 +43,70 @@ import vct.col.ast.{
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.rewrite.FilterDeclarations.{filterAndAbstract, ignoreToFocus}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers.{MethodBuildHelpers, PredicateBuildHelpers}
+import vct.rewrite.FilterDeclarations.toIncludeOnly
 
 import scala.collection.mutable
 
 case object FilterDeclarations extends RewriterBuilder {
   override def key: String = "filterDeclarations"
 
-  override def desc: String = "Filter focused declarations appropriately"
+  override def desc: String =
+    "Filter declarations based on inclusion/exclusion attributes"
 
-  // Returns true if focusing work needs to be done
-  case class IgnoreToFocus[Pre <: Generation]() extends Rewriter[Pre]() {
+  case class InvertFilterModes[Pre <: Generation]() extends Rewriter[Pre]() {
+    override def dispatch(filterMode: FilterMode[Pre]): FilterMode[Post] =
+      filterMode match {
+        case Include() => Exclude()(filterMode.o)
+        case Exclude() => Include()(filterMode.o)
+        case _ => filterMode.rewriteDefault()
+      }
+  }
+
+  case class DropExcludes[Pre <: Generation]() extends Rewriter[Pre]() {
+    override def dispatch(filterMode: FilterMode[Pre]): FilterMode[Post] =
+      filterMode match {
+        case Exclude() => NeutralFilterMode()
+        case _ => filterMode.rewriteDefault()
+      }
+  }
+
+  case class ToIncludeOnly[Pre <: Generation]() extends Rewriter[Pre]() {
     var containsFocus = false
-    override def dispatch(p: Program[Pre]): Program[Post] = {
-      val ignored = p.collect {
-        case FilterIndicator(Ref(decl), FilterIgnore()) => decl
+    // Returns true if there are Include nodes in the program, and hence filtering needs to be done
+    def rewrite(program: Program[Pre]): (Program[Post], Boolean) = {
+      val excluded = program.collect {
+        case app: FilterApplicable[Pre] if app.filterMode == Some(Exclude()) =>
+          app
       }
-      val focused = p.collect {
-        case FilterIndicator(Ref(decl), FilterFocus()) => decl
+      val included = program.collect {
+        case app: FilterApplicable[Pre] if app.filterMode == Some(Include()) =>
+          app
       }
 
-      // Focus overrides ignore, so only need to do work if there are only ignores
-      if (focused.isEmpty && ignored.nonEmpty) {
-        containsFocus = true
-
-        val newFocused =
-          p.collect {
-            // Only select contractapplicables here, not sure how to handle non-contractapplicable decls
-            case ca: ContractApplicable[Pre] if !ignored.contains(ca) => ca
-          }.toSet
-
-        p.rewrite(globalDeclarations.collect {
-          p.declarations.foreach(dispatch(_))
-          newFocused.foreach { ca: ContractApplicable[Pre] =>
-            implicit val o = DiagnosticOrigin
-            globalDeclarations.declare(FilterIndicator(
-              anySucc[Declaration[Post]](ca.asInstanceOf[Declaration[Pre]]),
-              FilterFocus(),
-            ))
-          }
-        }._1)
-      } else {
-        containsFocus = focused.nonEmpty
-        // Sneakily use the old program
-        p.asInstanceOf[Program[Post]]
+      (included, excluded) match {
+        // No includes, excludes, program is in include-only form. Nothing to transform
+        case (Seq(), Seq()) => (program.asInstanceOf[Program[Post]], false)
+        // Only includes: program is already in include-only form. Nothing to transform
+        case (includes, Seq()) => (program.asInstanceOf[Program[Post]], true)
+        // Only ignores: invert filtermodes to "include", to only have includes of all non-annotated declarations
+        case (Seq(), ignored) => (InvertFilterModes().dispatch(program), true)
+        // Both includes/excludes: just drop the excludes, as the includes will trigger deletion of everything else
+        // In theory the excludes could be left in. However, the invariant that after this pass there are only includes
+        // and neutrals is nice.
+        case (includes, excludes) => (DropExcludes().dispatch(program), true)
       }
     }
   }
 
-  def ignoreToFocus[G <: Generation](
+  def toIncludeOnly[G <: Generation](
       p: Program[G]
   ): (Program[Rewritten[G]], Boolean) = {
-    val pass = IgnoreToFocus[G]()
+    val pass = ToIncludeOnly[G]()
     (pass.dispatch(p), pass.containsFocus)
   }
+
   case class AbstractMaker[Pre <: Generation](
       focusTargets: Seq[Declaration[Pre]]
   ) extends Rewriter[Pre] {
@@ -126,7 +137,7 @@ case object FilterDeclarations extends RewriterBuilder {
 
     override def dispatch(program: Program[Pre]): Program[Post] = {
       this.program = program
-      rewriteDefault(program)
+      program.rewriteDefault()
     }
   }
 
@@ -246,10 +257,11 @@ case object FilterDeclarations extends RewriterBuilder {
 case class FilterDeclarations[Pre <: Generation]()
     extends Rewriter[Pre]() with LazyLogging {
   override def dispatch(program: Program[Pre]): Program[Post] = {
-    // Turn all ignore directives into inverted focus directives
-    val (focusedProgram, containsFocus) = ignoreToFocus[Pre](program)
+    // Remove exclude directions by making everything else include
+    val (includeOnlyProgram, containsInclude) = toIncludeOnly[Pre](program)
 
-    if (!containsFocus) { return focusedProgram }
+    // If there are no includes, stop early
+    if (!containsInclude) { return includeOnlyProgram }
 
     val focused = focusedProgram.collect {
       case FilterIndicator(
