@@ -899,7 +899,9 @@ final class ParInvariantDecl[G]()(implicit val o: Origin)
 
 sealed trait Applicable[G] extends ApplicableImpl[G] with Declaration[G]
 sealed trait InlineableApplicable[G]
-    extends Applicable[G] with InlineableApplicableImpl[G]
+    extends Applicable[G]
+    with InlineableApplicableImpl[G]
+    with FocusApplicable[G]
 sealed trait AbstractPredicate[G]
     extends InlineableApplicable[G] with AbstractPredicateImpl[G]
 sealed trait ContractApplicable[G]
@@ -909,6 +911,8 @@ sealed trait AbstractFunction[G]
 sealed trait AbstractMethod[G]
     extends ContractApplicable[G] with AbstractMethodImpl[G]
 sealed trait Field[G] extends FieldImpl[G]
+
+sealed trait FocusApplicable[G]
 
 @family @scopes[Variable]
 @scopes[LocalHeapVariable]
