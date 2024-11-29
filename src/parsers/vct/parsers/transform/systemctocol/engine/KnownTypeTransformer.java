@@ -16,10 +16,7 @@ import vct.col.ref.LazyRef;
 import vct.col.ref.Ref;
 import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
-import vct.parsers.transform.systemctocol.util.Constants;
-import vct.parsers.transform.systemctocol.util.GeneratedBlame;
-import vct.parsers.transform.systemctocol.util.OriGen;
-import vct.parsers.transform.systemctocol.util.Seqs;
+import vct.parsers.transform.systemctocol.util.*;
 
 /**
  * Transforms an SCKnownType (i.e. a SystemC-predefined primitive channel instance) into a COL class. We currently
@@ -209,6 +206,7 @@ public class KnownTypeTransformer<T> {
         java.util.List<Expr<T>> comps = java.util.List.of(perm_fifo, fifo_not_null, perm_m, m_is_this, perm_buf, perm_read,
                 read_n_neg, read_in_bound, perm_written, buf_in_bound);
         return new InstancePredicate<>(col_system.NO_VARS, Option.apply(col_system.fold_star(comps)), false, true,
+                AstHelpers.neutral(),
                 OriGen.create(generate_class_name().toLowerCase() + "_permission_invariant"));
     }
 
@@ -337,6 +335,7 @@ public class KnownTypeTransformer<T> {
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS, col_system.NO_VARS,
                 col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         return new InstanceMethod<>(t, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract, false, false,
+                AstHelpers.neutral(),
                 new GeneratedBlame<>(), OriGen.create("fifo_read"));
     }
 
@@ -408,6 +407,7 @@ public class KnownTypeTransformer<T> {
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS, col_system.NO_VARS,
                 col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         return new InstanceMethod<>(col_system.T_VOID, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract, false, false,
+                AstHelpers.neutral(),
                 new GeneratedBlame<>(), OriGen.create("fifo_write"));
     }
 
@@ -511,7 +511,9 @@ public class KnownTypeTransformer<T> {
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS,
                 col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         return new InstanceMethod<>(col_system.T_VOID, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(),
-                contract, false, false, new GeneratedBlame<>(), OriGen.create("fifo_update"));
+                contract, false, false,
+                AstHelpers.neutral(),
+                new GeneratedBlame<>(), OriGen.create("fifo_update"));
     }
 
     /**
@@ -588,7 +590,9 @@ public class KnownTypeTransformer<T> {
         // Put it all together and return
         return new InstancePredicate<>(col_system.NO_VARS,
                 Option.apply(col_system.fold_star(java.util.List.of(perm_signal, signal_not_null, perm_m, m_is_this, perm_val, perm__val))),
-                false, true, OriGen.create(generate_class_name().toLowerCase() + "_permission_invariant"));
+                false, true,
+                AstHelpers.neutral(),
+                OriGen.create(generate_class_name().toLowerCase() + "_permission_invariant"));
     }
 
     /**
@@ -670,6 +674,7 @@ public class KnownTypeTransformer<T> {
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS, col_system.NO_VARS,
                 col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         return new InstanceMethod<>(t, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract, false, false,
+                AstHelpers.neutral(),
                 new GeneratedBlame<>(), OriGen.create("signal_read"));
     }
 
@@ -727,7 +732,9 @@ public class KnownTypeTransformer<T> {
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS,
                 col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         return new InstanceMethod<>(col_system.T_VOID, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract,
-                false, false, new GeneratedBlame<>(), OriGen.create("signal_write"));
+                false, false,
+                AstHelpers.neutral(),
+                new GeneratedBlame<>(), OriGen.create("signal_write"));
     }
 
     /**
@@ -800,7 +807,9 @@ public class KnownTypeTransformer<T> {
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS,
                 col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         return new InstanceMethod<>(col_system.T_VOID, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(),
-                contract, false, false, new GeneratedBlame<>(), OriGen.create("signal_update"));
+                contract, false, false,
+                AstHelpers.neutral(),
+                new GeneratedBlame<>(), OriGen.create("signal_update"));
     }
 
     /**

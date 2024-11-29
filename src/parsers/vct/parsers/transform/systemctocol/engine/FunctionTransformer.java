@@ -17,6 +17,7 @@ import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.colmodel.COLClass;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
+import vct.parsers.transform.systemctocol.util.AstHelpers;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
 import vct.parsers.transform.systemctocol.util.OriGen;
 import vct.parsers.transform.systemctocol.util.Seqs;
@@ -91,7 +92,7 @@ public class FunctionTransformer<T> {
 
         // Create method
         InstanceMethod<T> new_method = new InstanceMethod<>(return_type, parameters, col_system.NO_VARS, col_system.NO_VARS,
-                Option.apply(body), contract, false, pure, new GeneratedBlame<>(), OriGen.create(function.getName()));
+                Option.apply(body), contract, false, pure, AstHelpers.neutral(), new GeneratedBlame<>(), OriGen.create(function.getName()));
 
         // Register method in COL system context and return
         col_system.add_instance_method(function, sc_inst, process, new_method);

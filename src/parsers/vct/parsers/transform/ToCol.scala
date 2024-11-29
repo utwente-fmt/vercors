@@ -130,6 +130,9 @@ abstract class ToCol[G](
     val static: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
     val bipAnnotation: mutable.ArrayBuffer[ParserRuleContext] = mutable
       .ArrayBuffer()
+    val include: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
+    val exclude: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
+    // TODO (RR): Continue here. Need to extend modifierCollector a bit I think...
 
     def consume(buffer: mutable.ArrayBuffer[ParserRuleContext]): Boolean = {
       val result = buffer.nonEmpty
@@ -138,7 +141,8 @@ abstract class ToCol[G](
     }
 
     def nodes: Seq[ParserRuleContext] =
-      Seq(pure, inline, threadLocal, static, bipAnnotation).flatten
+      Seq(pure, inline, threadLocal, static, bipAnnotation, include, exclude)
+        .flatten
   }
 
   /** Used to convert ParserRuleContext nodes into origin implicitly

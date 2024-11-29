@@ -24,10 +24,7 @@ import vct.parsers.transform.systemctocol.colmodel.COLClass;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
 import vct.parsers.transform.systemctocol.colmodel.StateClass;
-import vct.parsers.transform.systemctocol.util.Constants;
-import vct.parsers.transform.systemctocol.util.GeneratedBlame;
-import vct.parsers.transform.systemctocol.util.OriGen;
-import vct.parsers.transform.systemctocol.util.Seqs;
+import vct.parsers.transform.systemctocol.util.*;
 
 /**
  * Generates a Main class encoding the SystemC scheduler. The Main class contains all class instances from the SystemC
@@ -255,7 +252,7 @@ public class MainTransformer<T> {
         // Put it all together and register the predicate in the COL system
         java.util.List<Expr<T>> conditions = java.util.List.of(update_perm, update_length);
         update_permission_invariant = new InstancePredicate<>(col_system.NO_VARS, Option.apply(col_system.fold_star(conditions)),
-                false, true, OriGen.create("update_permission_invariant"));
+                false, true, AstHelpers.neutral(), OriGen.create("update_permission_invariant"));
         col_system.set_update_perms(update_permission_invariant);
     }
 
@@ -314,7 +311,9 @@ public class MainTransformer<T> {
         // Put it all together and register the invariant in the COL system context
         java.util.List<Expr<T>> conditions = java.util.List.of(apply_update_perms, perm_to_proc, proc_length, perm_to_ev, ev_length, forall);
         scheduler_invariant = new InstancePredicate<>(col_system.NO_VARS, Option.apply(col_system.fold_star(conditions)),
-                false, true, OriGen.create("scheduler_invariant"));
+                false, true,
+                AstHelpers.neutral(),
+                OriGen.create("scheduler_invariant"));
         col_system.set_scheduler_perms(scheduler_invariant);
     }
 
@@ -346,7 +345,7 @@ public class MainTransformer<T> {
 
         // Put it all together and register the invariant in the COL system context
         parameter_invariant = new InstancePredicate<>(col_system.NO_VARS, Option.apply(col_system.fold_star(conditions)),
-                false, true, OriGen.create("parameter_invariant"));
+                false, true, AstHelpers.neutral(), OriGen.create("parameter_invariant"));
         col_system.set_parameter_perms(parameter_invariant);
     }
 
@@ -394,7 +393,7 @@ public class MainTransformer<T> {
 
         // Put the predicate together and register it in the COL system context
         global_invariant = new InstancePredicate<>(col_system.NO_VARS, Option.apply(col_system.fold_star(conditions)),
-                false, true, OriGen.create("global_invariant"));
+                false, true, AstHelpers.neutral(), OriGen.create("global_invariant"));
         col_system.set_global_perms(global_invariant);
     }
 
@@ -810,7 +809,7 @@ public class MainTransformer<T> {
         // Generate contract and method and return
         ApplicableContract<T> contract = col_system.to_applicable_contract(col_system.TRUE, col_system.fold_star(ensures));
         return new InstanceMethod<>(col_system.T_INT, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract,
-                false, true, new GeneratedBlame<>(), OriGen.create("find_minimum_advance"));
+                false, true, AstHelpers.neutral(), new GeneratedBlame<>(), OriGen.create("find_minimum_advance"));
     }
 
     /**
@@ -873,7 +872,7 @@ public class MainTransformer<T> {
         // Generate contract and method and return
         ApplicableContract<T> contract = col_system.to_applicable_contract(context, col_system.fold_star(ensures));
         return new InstanceMethod<>(col_system.T_VOID, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract,
-                false, false, new GeneratedBlame<>(), OriGen.create("update_events"));
+                false, false, AstHelpers.neutral(), new GeneratedBlame<>(), OriGen.create("update_events"));
     }
 
     /**
@@ -1039,7 +1038,7 @@ public class MainTransformer<T> {
      */
     private InstanceMethod<T> create_abstract_method(ApplicableContract<T> contract, String method_name) {
         return new InstanceMethod<>(col_system.T_VOID, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(),
-                contract, false, false, new GeneratedBlame<>(), OriGen.create(method_name));
+                contract, false, false, AstHelpers.neutral(), new GeneratedBlame<>(), OriGen.create(method_name));
     }
 
     /**
@@ -1052,7 +1051,7 @@ public class MainTransformer<T> {
         Expr<T> context = create_scheduler_contract();
         ApplicableContract<T> contract = col_system.to_applicable_contract(context, context);
         scheduler = new InstanceMethod<>(col_system.T_VOID, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS,
-                Option.apply(body), contract, false, false, new GeneratedBlame<>(), OriGen.create("main"));
+                Option.apply(body), contract, false, false, AstHelpers.neutral(), new GeneratedBlame<>(), OriGen.create("main"));
     }
 
     /**

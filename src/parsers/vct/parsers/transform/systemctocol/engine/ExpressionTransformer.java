@@ -22,10 +22,7 @@ import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.colmodel.COLClass;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
-import vct.parsers.transform.systemctocol.util.Constants;
-import vct.parsers.transform.systemctocol.util.GeneratedBlame;
-import vct.parsers.transform.systemctocol.util.OriGen;
-import vct.parsers.transform.systemctocol.util.Timing;
+import vct.parsers.transform.systemctocol.util.*;
 
 /*
 This class is responsible for translating SystemC intermediate representation expressions to either COL statements, if
@@ -1127,7 +1124,7 @@ public class ExpressionTransformer<T> {
                 new UnitAccountedPredicate<>(col_system.TRUE, OriGen.create()), col_system.TRUE, col_system.NO_SIGNALS,
                 col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         InstanceMethod<T> randomizer = new InstanceMethod<>(return_type, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS,
-                Option.empty(), contract, false, true, new GeneratedBlame<>(), OriGen.create(name));
+                Option.empty(), contract, false, true, AstHelpers.neutral(), new GeneratedBlame<>(), OriGen.create(name));
         newly_generated_methods.add(randomizer);
 
         // Return reference to the new method

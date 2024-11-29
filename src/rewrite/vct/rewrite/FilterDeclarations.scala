@@ -35,6 +35,7 @@ import vct.col.ast.{
   NeutralFilterMode,
   Predicate,
   PredicateApply,
+  PredicateApplyExpr,
   Procedure,
   ProcedureInvocation,
   Program,
@@ -57,7 +58,7 @@ import scala.collection.mutable
     In addition, I don't think removing an ADT can enable removing of other callables (method, predicate, etc.)
     So optimizing unused ADTs away should be a separate pass (or triggered by a --minimize flag or smth)
 
-   TODO: Add a pass that optimizes unused ADTs away
+   TODO: Add a pass that optimizes unused ADTs away, and also unused fields
  */
 case object FilterDeclarations extends RewriterBuilder {
   override def key: String = "filterDeclarations"
@@ -86,12 +87,10 @@ case object FilterDeclarations extends RewriterBuilder {
     // Returns true if there are Include nodes in the program, and hence filtering needs to be done
     def rewrite(program: Program[Pre]): (Program[Post], Boolean) = {
       val excluded = program.collect {
-        case app: FilterApplicable[Pre] if app.filterMode == Some(Exclude()) =>
-          app
+        case app: FilterApplicable[Pre] if app.filter == Exclude[Pre]() => app
       }
       val included = program.collect {
-        case app: FilterApplicable[Pre] if app.filterMode == Some(Include()) =>
-          app
+        case app: FilterApplicable[Pre] if app.filter == Include[Pre]() => app
       }
 
       (included, excluded) match {
@@ -146,10 +145,10 @@ case object FilterDeclarations extends RewriterBuilder {
   def getUsedFilterApplicables[G <: Generation](
       p: Program[G]
   ): Set[FilterApplicable[G]] = {
-    val collected = ScopedStack[mutable.Set[Declaration[G]]]()
+    val collected = ScopedStack[mutable.Set[FilterApplicable[G]]]()
 
     case class Collector() extends Rewriter[G] {
-      def decls: mutable.Set[Declaration[G]] = collected.top
+      def decls: mutable.Set[FilterApplicable[G]] = collected.top
 
       override def dispatch(expr: Expr[G]): Expr[Rewritten[G]] = {
         expr match {
@@ -160,11 +159,8 @@ case object FilterDeclarations extends RewriterBuilder {
           case fi: FunctionInvocation[G] => decls.add(fi.ref.decl)
           case ipi: MethodInvocation[G] => decls.add(ipi.ref.decl)
           case ifi: InstanceFunctionInvocation[G] => decls.add(ifi.ref.decl)
-          case pa: PredicateApply[G] => decls.add(pa.ref.decl)
-          case pa: InstancePredicateApply[G] => decls.add(pa.ref.decl)
-          case afi: ADTFunctionInvocation[G] => decls.add(afi.ref.decl)
+          case app: PredicateApplyExpr[G] => decls.add(app.apply.ref.decl)
           case inv: ConstructorInvocation[G] => decls.add(inv.ref.decl)
-          case Deref(_, r) => decls.add(r.decl)
           case _ =>
         }
         super.dispatch(expr)
@@ -184,16 +180,16 @@ case object FilterDeclarations extends RewriterBuilder {
       override def dispatch(declaration: Declaration[G]): Unit =
         declaration match {
           case app: FilterApplicable[G] =>
-            val newDecls = mutable.Set[Declaration[G]]()
-            collected.having(newDecls) { super.dispatch(declaration) }
+            val newDecls = mutable.Set[FilterApplicable[G]]()
+            collected.having(newDecls) { super.dispatch(app) }
             // A decl using itself should not be counted as an actual use
-            newDecls.remove(declaration)
+            newDecls.remove(app)
             decls.addAll(newDecls)
           case d => super.dispatch(d)
         }
     }
 
-    val decls = mutable.Set[Declaration[G]]()
+    val decls = mutable.Set[FilterApplicable[G]]()
     collected.having(decls) { Collector().dispatch(p) }
     decls.toSet
   }
@@ -227,9 +223,12 @@ case object FilterDeclarations extends RewriterBuilder {
       getUsedFilterApplicables(abstractProgram).union(includedAbstract)
     )
     val reducedProgram = removeUnused.dispatch(abstractProgram)
+    val includedReduced = includedAbstract.map(
+      removeUnused.anySucc[FilterApplicable[Rewritten[Rewritten[G]]]](_).decl
+    )
 
     if (removeUnused.dropped.nonEmpty) {
-      filterAndAbstract(reducedProgram, includedAbstract)
+      filterAndAbstract(reducedProgram, includedReduced)
     } else { reducedProgram }
   }
 }
@@ -243,9 +242,10 @@ case class FilterDeclarations[Pre <: Generation]()
     // If there are no includes, stop early
     if (!containsInclude) { return includeOnlyProgram }
 
-    val includes = includeOnlyProgram.collect {
-      case app: FilterApplicable[Post] if app.filter == Include[Post]() => app
-    }
+    val includes =
+      includeOnlyProgram.collect {
+        case app: FilterApplicable[Post] if app.filter == Include[Post]() => app
+      }.toSet
 
     val filteredProgram = filterAndAbstract(includeOnlyProgram, includes)
 
