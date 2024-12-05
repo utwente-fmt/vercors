@@ -1949,7 +1949,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             rangeIndexDerefs.reduce((e1, e2) =>
 //                (e1 * e2)(acc.buffer.o)
 
-                  syclHelperFunctions("sycl_:_:mul")(
+                  syclHelperFunctions("sycl_:_:h_:_:mul")(
                   Seq(e1,e2),
                   new PanicBlame("Ömer's Test"),
                   acc.instanceField.o,

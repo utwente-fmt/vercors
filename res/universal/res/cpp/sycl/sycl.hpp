@@ -1,5 +1,14 @@
 namespace sycl {
 
+  namespace h {
+    /*@
+      ensures (a>0 && b>0) ==> \result > 0;
+      ensures \result == a*b;
+      pure int mul(int a, int b) = a*b;
+
+    */
+  }
+
 	namespace event {
   	void wait();
   }
@@ -27,7 +36,7 @@ namespace sycl {
     requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1;
     requires r0 > 0 && r1 > 0;
     ensures \result == sycl::linearize2formula(id0, id1, r1);
-    ensures \result >= 0 && \result < sycl::mul(r0,r1);
+    ensures \result >= 0 && \result < sycl::h::mul(r0,r1);
     ensures (\forall int ida0, int ida1;
       ida0 >= 0 && ida0 < r0 &&
       ida1 >= 0 && ida1 < r1 &&
@@ -36,12 +45,7 @@ namespace sycl {
     );
     pure int linearize2(int id0, int id1, int r0, int r1);
 
-    pure int linearize2formula(int id0, int id1, int r1) = id1 + sycl::mul(id0, r1);
-
-    ensures (a>0 && b>0) ==> \result > 0;
-    ensures \result == a*b;
-    pure int mul(int a, int b) = a*b;
-
+    pure int linearize2formula(int id0, int id1, int r1) = id1 + sycl::h::mul(id0, r1);
 
     requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1 && id2 >= 0 && id2 < r2;
     requires r0 > 0 && r1 > 0 && r2 > 0;
