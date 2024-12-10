@@ -105,8 +105,6 @@ UNFOLDING_ESC: '\\unfolding';
 UNFOLDING: 'unfolding';
 IN_ESC: '\\in';
 IN: 'in';
-ASSERTING: 'asserting';
-ASSUMING: 'assuming';
 NEW: 'new';
 ID: 'id';
 

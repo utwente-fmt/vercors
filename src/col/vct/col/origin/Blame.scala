@@ -183,9 +183,7 @@ case class CopyClassFailedBeforeCall(
     s"Insufficient permission for call `$source`."
 }
 
-// Type of `node` here is `Node`, but only to easily allow using this failure for both
-// assert statements and assert expressions.
-case class AssertFailed(failure: ContractFailure, node: Node[_])
+case class AssertFailed(failure: ContractFailure, node: Assert[_])
     extends WithContractFailure {
   override def baseCode: String = "assertFailed"
   override def descInContext: String = "Assertion may not hold, since"
@@ -1527,9 +1525,6 @@ object NonNullPointerNull
 object UnsafeDontCare {
   case class Satisfiability(reason: String)
       extends UnsafeDontCare[NontrivialUnsatisfiable]
-  case class Contract(reason: String) extends UnsafeDontCare[ContractedFailure]
-  case class Invocation(reason: String)
-      extends UnsafeDontCare[InvocationFailure]
 }
 
 trait UnsafeDontCare[T <: VerificationFailure]

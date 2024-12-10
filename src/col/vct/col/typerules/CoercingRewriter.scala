@@ -2144,8 +2144,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case PVLEndpointExpr(endpoint, expr) => e
       case EndpointExpr(ref, expr) => e
       case ChorExpr(expr) => ChorExpr(bool(expr))
-      case e @ Asserting(assn, inner) => Asserting(bool(assn), inner)(e.blame)
-      case Assuming(assn, inner) => Assuming(bool(assn), inner)
       case CtExpr(inner) => e
       case EndpointFamilyExpr(ref) => e
     }

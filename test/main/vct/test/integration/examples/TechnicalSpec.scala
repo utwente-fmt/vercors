@@ -25,8 +25,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "resolutionError:thisInConsPre" in
-    "constructor using `this`" pvl """
+  vercors should error withCode "resolutionError:thisInConsPre" in "constructor using `this`" pvl """
     class err {
       int x;
 
@@ -38,22 +37,19 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "notALocation" in
-    "example asserting read permission over argument" pvl """
+  vercors should error withCode "notALocation" in "example asserting read permission over argument" pvl """
     class C {}
     requires Value(arg);
     void main(C arg);
   """
 
-  vercors should error withCode "notALocation" in
-    "example asserting permission over argument" pvl """
+  vercors should error withCode "notALocation" in "example asserting permission over argument" pvl """
     class C {}
     requires Perm(arg, write);
     void main(C arg);
   """
 
-  vercors should verify using anyBackend in
-    "example showing comparison of unrelated types" pvl """
+  vercors should verify using anyBackend in "example showing comparison of unrelated types" pvl """
     void test() {
       /*[/expect assertFailed:false]*/
       assert 1 == false;
@@ -61,8 +57,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "resolutionError:type" in
-    "example quantifying a resource with \\forall" pvl """
+  vercors should error withCode "resolutionError:type" in "example quantifying a resource with \\forall" pvl """
     class Test {
       int x;
       void test() {
@@ -71,8 +66,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "abstractFoldExpr" in
-    "example unfolding abstract predicate" pvl """
+  vercors should error withCode "abstractFoldExpr" in "example unfolding abstract predicate" pvl """
     resource p();
 
     requires p();
@@ -81,16 +75,14 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "abstractFoldExpr" in
-    "example unfolding abstract predicate inline" pvl """
+  vercors should error withCode "abstractFoldExpr" in "example unfolding abstract predicate inline" pvl """
     resource p();
 
     requires p();
     pure int f() = \Unfolding p() \in 0;
   """
 
-  vercors should verify using anyBackend in
-    "example with incorrect boolean logic" pvl """
+  vercors should verify using anyBackend in "example with incorrect boolean logic" pvl """
     /*[/expect postFailed:false]*/
     requires false || true;
     ensures false && true;
@@ -98,8 +90,7 @@ class TechnicalSpec extends VercorsSpec {
     /*[/end]*/
   """
 
-  vercors should verify using anyBackend in
-    "example with vacuously quantified read permission" pvl """
+  vercors should verify using anyBackend in "example with vacuously quantified read permission" pvl """
     class rewriterIssue {
       int x;
 
@@ -114,8 +105,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should verify using anyBackend in
-    "another example with vacuously quantified read permission" pvl """
+  vercors should verify using anyBackend in "another example with vacuously quantified read permission" pvl """
     class rewriterIssue {
       int x;
 
@@ -130,8 +120,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should verify using anyBackend in
-    "example showing negative scale of negative permission" pvl """
+  vercors should verify using anyBackend in "example showing negative scale of negative permission" pvl """
     class rewriterIssue {
       int x;
 
@@ -168,18 +157,13 @@ class TechnicalSpec extends VercorsSpec {
 //    }
 //  """
 
-  vercors should verify using anyBackend example
-    "technical/keywords/allowed-c.c"
-  vercors should verify using anyBackend example
-    "technical/keywords/allowed-java.java"
-  vercors should error withCode "emptyInlineDecl" example
-    "technical/keywords/disallowed-c-inline.c"
-  vercors should error withCode "parseError" example
-    "technical/keywords/disallowed-java-assert.java"
+  vercors should verify using anyBackend example "technical/keywords/allowed-c.c"
+  vercors should verify using anyBackend example "technical/keywords/allowed-java.java"
+  vercors should error withCode "emptyInlineDecl" example "technical/keywords/disallowed-c-inline.c"
+  vercors should error withCode "parseError" example "technical/keywords/disallowed-java-assert.java"
 
   vercors should verify using silicon example "technical/array-item-access.pvl"
-  vercors should error withCode "parseError" in
-    "example attaching contract to wrong constructor" java """
+  vercors should error withCode "parseError" in "example attaching contract to wrong constructor" java """
     class C {
       void m() {
         //@ loop_invariant true;
@@ -188,8 +172,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should verify using anyBackend in
-    "example assigning null to array type" java """
+  vercors should verify using anyBackend in "example assigning null to array type" java """
     public class BasicArray {
       public void test() {
         int[] a = null;
@@ -197,8 +180,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should verify using anyBackend in
-    "example with subscript after parentheses" pvl """
+  vercors should verify using anyBackend in "example with subscript after parentheses" pvl """
     requires 0 < |xs|;
     void test(seq<int> xs, seq<int> ys) {
         assert xs[0] == (xs + ys)[0];
@@ -206,14 +188,12 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should verify using anyBackend in
-    "example with function return class, implemented with = null" pvl """
+  vercors should verify using anyBackend in "example with function return class, implemented with = null" pvl """
     class Test {}
     pure Test f() = null;
   """
 
-  vercors should verify using anyBackend in
-    "example with given within parallel region" pvl """
+  vercors should verify using anyBackend in "example with given within parallel region" pvl """
     given frac p;
     void call();
 
@@ -224,8 +204,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should verify using anyBackend in
-    "example showing invocations in conditions are ok" pvl """
+  vercors should verify using anyBackend in "example showing invocations in conditions are ok" pvl """
     int bar() { return 0; }
     int foo() { return 0; }
 
@@ -246,25 +225,20 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should verify using anyBackend in
-    "example with return containing a non-direct invocation" pvl """
+  vercors should verify using anyBackend in "example with return containing a non-direct invocation" pvl """
     boolean isBlack() { return true; }
     boolean isRed() { return !isBlack(); }
   """
 
-  vercors should verify using anyBackend in
-    "example with implicit Exception present" java
+  vercors should verify using anyBackend in "example with implicit Exception present" java
     "class Test { void foo() { new Exception(); } }"
-  vercors should verify using anyBackend in
-    "example with implicit RuntimeException present" java
+  vercors should verify using anyBackend in "example with implicit RuntimeException present" java
     "class Test { void foo() { new RuntimeException(); } }"
-  vercors should verify using anyBackend in
-    "example containing an empty class" java "class OnlyClass {}"
-  vercors should verify using anyBackend in
-    "example containing an empty class extending something" java
+  vercors should verify using anyBackend in "example containing an empty class" java
+    "class OnlyClass {}"
+  vercors should verify using anyBackend in "example containing an empty class extending something" java
     "class OnlyClass extends Object {}"
-  vercors should verify using anyBackend in
-    "example asserting this instanceof the defining class" java """
+  vercors should verify using anyBackend in "example asserting this instanceof the defining class" java """
     class MyClass {
       void foo() {
         MyClass myClass = new MyClass();
@@ -272,8 +246,7 @@ class TechnicalSpec extends VercorsSpec {
       }
     }
   """
-  vercors should verify using anyBackend in
-    "example showing \\pointer iff forall i \\pointer_index" c """
+  vercors should verify using anyBackend in "example showing \\pointer iff forall i \\pointer_index" c """
     //@ context \pointer(ar, len, write);
     void test(int ar[], int len) {
         for(int i = 0; i < len; i++)
@@ -281,12 +254,9 @@ class TechnicalSpec extends VercorsSpec {
         {}
     }
   """
-  vercors should error withCode "parseError" in
-    "example with preceding garbage" pvl "} class Test{}"
-  vercors should error withCode "parseError" in
-    "example with trailing garbage" pvl "class Test{} }"
-  vercors should verify using anyBackend in
-    "example returning null for class type" java """
+  vercors should error withCode "parseError" in "example with preceding garbage" pvl "} class Test{}"
+  vercors should error withCode "parseError" in "example with trailing garbage" pvl "class Test{} }"
+  vercors should verify using anyBackend in "example returning null for class type" java """
     public class List {
       public List nothing() {
         return null;
@@ -294,8 +264,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
   vercors should verify using silicon example "technical/satcheck-check.pvl"
-  vercors should verify using silicon in
-    "example that shows 2*read does not imply disjointness" pvl """
+  vercors should verify using silicon in "example that shows 2*read does not imply disjointness" pvl """
     class Test { int x; }
 
     requires Value(left.x) ** Value(right.x);
@@ -307,9 +276,7 @@ class TechnicalSpec extends VercorsSpec {
       }
     }
   """
-  vercors should verify using silicon in
-    "example that shows 2*read does not imply disjointness, even with a nested field" pvl
-    """
+  vercors should verify using silicon in "example that shows 2*read does not imply disjointness, even with a nested field" pvl """
     class Test { Test t; }
 
     requires Value(left.t) ** Value(right.t);
@@ -322,13 +289,10 @@ class TechnicalSpec extends VercorsSpec {
       }
     }
   """
-  vercors should verify using silicon example
-    "technical/TestFuturePermsFail.pvl"
-  vercors should verify using silicon example
-    "technical/TestFuturePermsPass.pvl"
+  vercors should verify using silicon example "technical/TestFuturePermsFail.pvl"
+  vercors should verify using silicon example "technical/TestFuturePermsPass.pvl"
 
-  vercors should error withCode "resolutionError:outOfWriteScope" in
-    "example writing to variable within par-block" pvl """
+  vercors should error withCode "resolutionError:outOfWriteScope" in "example writing to variable within par-block" pvl """
     void test() {
       int x = 0;
       par {
@@ -337,8 +301,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should verify using silicon in
-    "example that requires correct associativity of scale" pvl """
+  vercors should verify using silicon in "example that requires correct associativity of scale" pvl """
     resource p();
 
     requires [1\2]p() ** [1\2]p();
@@ -347,8 +310,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should verify using anyBackend in
-    "example that shows given parameters clobber fields" java """
+  vercors should verify using anyBackend in "example that shows given parameters clobber fields" java """
     public class A {
       int i;
 
@@ -375,9 +337,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should verify using anyBackend in
-    "example that shows qualified names are equal types to their unqualified equivalent" java
-    """
+  vercors should verify using anyBackend in "example that shows qualified names are equal types to their unqualified equivalent" java """
     class QualifiedNames {
       void foo() {
           Exception e = new java.lang.Exception();
@@ -389,8 +349,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should verify using anyBackend in
-    "assigning results from impure method calls to final fields should preserve information" java
+  vercors should verify using anyBackend in "assigning results from impure method calls to final fields should preserve information" java
     """
       class C {
           final Integer x;
@@ -401,7 +360,8 @@ class TechnicalSpec extends VercorsSpec {
       }
     """
 
-  vercors should verify using silicon in "example using adts" java """
+  vercors should verify using silicon in "example using adts" java
+    """
     /*@ adt MyADT {
       pure boolean f();
       axiom f();
@@ -416,8 +376,8 @@ class TechnicalSpec extends VercorsSpec {
     }
     """
 
-  vercors should verify using silicon in
-    "example using negative array size" java """
+  vercors should verify using silicon in "example using negative array size" java
+    """
     class C {
       void m() {
       /*[/expect arraySize]*/
@@ -427,8 +387,8 @@ class TechnicalSpec extends VercorsSpec {
     }
     """
 
-  vercors should verify using silicon in
-    "example using negative array size in pvl" pvl """
+  vercors should verify using silicon in "example using negative array size in pvl" pvl
+    """
     void m() {
       /*[/expect arraySize]*/
         int[] arr = new int[-2];
@@ -436,7 +396,7 @@ class TechnicalSpec extends VercorsSpec {
     }
     """
 
-  vercors should verify using silicon in "example using string primitive" pvl
+vercors should verify using silicon in "example using string primitive" pvl
     """
     void g() {
         "xuz";
@@ -450,8 +410,8 @@ class TechnicalSpec extends VercorsSpec {
     }
     """
 
-  vercors should verify using silicon in
-    "example using plus operator overloading" pvl """
+  vercors should verify using silicon in "example using plus operator overloading" pvl
+    """
     class C {
       int x;
 
@@ -472,8 +432,7 @@ class TechnicalSpec extends VercorsSpec {
     }
     """
 
-  vercors should verify using anyBackend example
-    "technical/labeledEmbeddedStatement.c"
+  vercors should verify using anyBackend example "technical/labeledEmbeddedStatement.c"
 
   vercors should verify using anyBackend in "usage of given/yields in C" c """
     /*@
@@ -496,5 +455,5 @@ class TechnicalSpec extends VercorsSpec {
       }
     }
     """
-
 }
+

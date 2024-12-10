@@ -298,10 +298,6 @@ valPrimary
  | '\\is_int' '(' langExpr ')' # valIsInt
  | '\\choose' '(' langExpr ')' # valChoose
  | '\\choose_fresh' '(' langExpr ')' # valChooseFresh
- | '(' '\\assuming' langExpr ')' # valBoolAssuming
- | '(' '\\assuming' langExpr ';' langExpr ')' # valAssuming
- | '(' '\\asserting' langExpr ')' # valBoolAsserting
- | '(' '\\asserting' langExpr ';' langExpr ')' # valAsserting
  ;
 
 // Out spec: defined meaning: a language local
