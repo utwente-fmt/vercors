@@ -1220,14 +1220,16 @@ case object ResolveReferences extends LazyLogging {
       case comm: PVLCommunicate[G] =>
         /* Endpoint contexts for communicate are resolved early, because otherwise \sender, \receiver, \msg cannot be typed.
          */
-        def getEndpoints[G](expr: Expr[G]): Seq[PVLEndpoint[G]] =
-          mutable.LinkedHashSet.from(
-            expr.collect { case name: PVLLocal[G] => name.ref.get }.collect {
-              case RefPVLEndpoint(endpoint) => endpoint
-            }
-          ).toSeq
+        def getEndpoints[G](expr: Expr[G]): Seq[PVLCommunicateTarget[G]] =
+          mutable.LinkedHashSet.from(expr.collect { case name: PVLLocal[G] =>
+            (name, name.ref.get)
+          }.collect { case (local, ref @ RefPVLEndpoint(endpoint)) =>
+            val target = PVLCommTargetEndpoint[G](endpoint.name)(local.o)
+            target.ref = Some(ref)
+            target
+          } ++ expr.collect { case PVLCommTargetExpr(target) => target }).toSeq
 
-        def getEndpoint[G](expr: Expr[G]): PVLEndpoint[G] =
+        def getEndpoint[G](expr: Expr[G]): PVLCommunicateTarget[G] =
           getEndpoints(expr) match {
             case Seq(endpoint) => endpoint
             case Seq() =>
@@ -1239,12 +1241,9 @@ case object ResolveReferences extends LazyLogging {
                 expr.o.messageInContext("Too many endpoints possible")
               )
           }
-        comm.inferredSender =
-          ??? /* comm.sender.map(_.ref.get.decl)
-          .orElse(Some(getEndpoint(comm.msg))) */ // TODO (RR): Re-enable this ASAP
-        comm.inferredReceiver =
-          ??? /* comm.receiver.map(_.ref.get.decl)
-          .orElse(Some(getEndpoint(comm.target))) */ // TODO (RR): Re-enable this ASAP
+        comm.inferredSender = comm.sender.orElse(Some(getEndpoint(comm.msg)))
+        comm.inferredReceiver = comm.receiver
+          .orElse(Some(getEndpoint(comm.target)))
       case sender: PVLSender[G] =>
         sender.ref = Some(
           ctx.currentCommunicate.getOrElse(throw OnlyInChannelInvariant(sender))

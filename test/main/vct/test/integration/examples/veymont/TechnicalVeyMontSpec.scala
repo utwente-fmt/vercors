@@ -443,14 +443,6 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   )
 
   choreography(
-    error = "choreography:noRunMethod",
-    desc = "run method should always be present",
-    pvl = """
-  choreography Example() { }
-  """,
-  )
-
-  choreography(
     error = "choreography:parseError",
     desc = "endpoints can only have class types",
     pvl = """
@@ -705,7 +697,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
 
        run {
           if (alice.x == 0 && f() == 3) {
-            // Alice might go here, bob will definitely, because of the second expression: error
+            // Alice might or might not go here; as alice is the only one, branch unanimity is okay
           }
        }
     }

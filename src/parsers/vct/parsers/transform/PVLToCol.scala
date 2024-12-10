@@ -534,10 +534,9 @@ case class PVLToCol[G](
           convertYields(yields),
         )(blame(expr))
       case PvlEndpointsRange(name, rangeBinder) =>
-        PVLCommTargetExpr(PVLCommTargetRange(
-          PVLCommTargetEndpoint(convert(name)),
-          convert(rangeBinder),
-        ))
+        PVLCommTargetExpr(
+          PVLCommTargetRange(convert(name), convert(rangeBinder))
+        )
       case PvlValAdtInvocation(inner) => convert(inner)
     }
 
@@ -700,15 +699,9 @@ case class PVLToCol[G](
     commTarget match {
       case PvlCommTargetEndpoint(name) => PVLCommTargetEndpoint(convert(name))
       case PvlCommTargetRange(name, rangeBinder) =>
-        PVLCommTargetRange(
-          PVLCommTargetEndpoint(convert(name))(origin(name)),
-          convert(rangeBinder),
-        )
+        PVLCommTargetRange[G](convert(name), convert(rangeBinder))
       case PvlCommTargetIndex(name, _, index, _) =>
-        PVLCommTargetIndex(
-          PVLCommTargetEndpoint(convert(name))(origin(name)),
-          convert(index),
-        )
+        PVLCommTargetIndex(convert(name), convert(index))
     }
 
   def convert(implicit stat: ForStatementListContext): Statement[G] =

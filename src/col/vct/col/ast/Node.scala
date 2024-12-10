@@ -3826,16 +3826,16 @@ final case class PVLCommTargetEndpoint[G](name: String)(implicit val o: Origin)
     extends PVLCommTargetEndpointImpl[G] with PVLCommunicateTarget[G] {
   var ref: Option[RefPVLEndpoint[G]] = None
 }
-final case class PVLCommTargetIndex[G](
-    name: PVLCommunicateTarget[G],
-    index: Expr[G],
-)(implicit val o: Origin)
-    extends PVLCommTargetIndexImpl[G] with PVLCommunicateTarget[G]
-final case class PVLCommTargetRange[G](
-    name: PVLCommunicateTarget[G],
-    range: RangeBinder[G],
-)(implicit val o: Origin)
-    extends PVLCommunicateTarget[G] with PVLCommTargetRangeImpl[G]
+final case class PVLCommTargetIndex[G](name: String, index: Expr[G])(
+    implicit val o: Origin
+) extends PVLCommTargetIndexImpl[G] with PVLCommunicateTarget[G] {
+  var ref: Option[RefPVLEndpoint[G]] = None
+}
+final case class PVLCommTargetRange[G](name: String, range: RangeBinder[G])(
+    implicit val o: Origin
+) extends PVLCommunicateTarget[G] with PVLCommTargetRangeImpl[G] {
+  var ref: Option[RefPVLEndpoint[G]] = None
+}
 // Adapter node to also put endpoint naming inline in an expression, for communicate statements.
 // Only necessary for the pvlEndpointsRange rule in the PVL grammar
 case class PVLCommTargetExpr[G](set: PVLCommunicateTarget[G])(
@@ -3858,8 +3858,8 @@ final class PVLCommunicate[G](
     val msg: Expr[G],
 )(val blame: Blame[PVLCommunicateFailure])(implicit val o: Origin)
     extends Declaration[G] with PVLCommunicateImpl[G] {
-  var inferredSender: Option[PVLEndpoint[G]] = None
-  var inferredReceiver: Option[PVLEndpoint[G]] = None
+  var inferredSender: Option[PVLCommunicateTarget[G]] = None
+  var inferredReceiver: Option[PVLCommunicateTarget[G]] = None
 }
 final case class PVLEndpointStatement[G](
     endpoint: Option[PVLCommunicateTarget[G]],

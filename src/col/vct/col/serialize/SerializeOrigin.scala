@@ -27,7 +27,7 @@ object SerializeOrigin extends LazyLogging {
           context.inlineContext,
           context.shortPosition,
         )
-      case ser.OriginContent.Content.ReadableOrigin(context) =>
+      case ser.OriginContent.Content.ReadableOrigin(_) =>
         val path = Path.of(context.directory, context.filename)
         ReadableOrigin(fileMap.getOrElseUpdate(
           path, {

@@ -407,6 +407,7 @@ object vercors extends Module {
     }
     override def generatedSources = T { Seq(helpers.sources()) }
     override def moduleDeps = Seq(hre, serialize)
+    override def ivyDeps = Agg(ivy"com.lihaoyi::sourcecode:0.4.2")
 
     object test extends Tests
   }

@@ -78,29 +78,25 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       comm: PVLCommunicateStatement[Pre]
   ): CommunicateStatement[Post] = {
     val inner = comm.comm
-    val newComm: Communicate[Post] = ??? // TODO (RR)
-    /*(inner.inferredSender.get, inner.inferredReceiver.get) match {
-        case (sender: PVLEndpoint[Pre], receiver: PVLEndpoint[Pre])
-            if sender.isSingle && receiver.isSingle =>
-          new Communicate(
-            rw.dispatch(comm.inv.getOrElse(tt[Pre])),
-            rewrite(receiver),
-            rw.dispatch(inner.target),
-            rewrite(sender),
-            rw.dispatch(inner.msg),
-          )(inner.blame)(comm.o)
-        case (sender: PVLEndpointRange[Pre], receiver: PVLEndpointRange[Pre])
-            if sender.isFamily && receiver.isFamily =>
-          ???
-//          new CommunicatePar(
-//            rw.dispatch(comm.inv.getOrElse(tt[Pre])),
-//            Some(endpointSucc.ref(receiver)),
-//            rw.dispatch(inner.target),
-//            Some(endpointSucc.ref(sender)),
-//            rw.dispatch(inner.msg),
-//          )
-        case _ => ???
-      }*/
+    implicit val o = comm.o
+    val newComm =
+      new Communicate[Post](
+        comm.inv.map(rw.dispatch).getOrElse(tt),
+        receiver = Some(
+          rewrite(inner.receiver.orElse(inner.inferredReceiver).getOrElse(
+            throw new Exception(
+              comm.o.messageInContext("Receiver unclear for this communicate")
+            )
+          ))
+        ),
+        destination = rw.dispatch(inner.target),
+        sender = Some(
+          rewrite(inner.sender.orElse(inner.inferredSender).getOrElse(
+            throw new Exception("Sender unclear for this communicate")
+          ))
+        ),
+        msg = rw.dispatch(inner.msg),
+      )(comm.comm.blame)
     commSucc(inner) = newComm
     CommunicateStatement(newComm)(comm.o)
   }
@@ -109,18 +105,23 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       target: PVLCommTargetEndpoint[Pre]
   ): Ref[Post, Endpoint[Post]] = endpointSucc.ref(target.ref.get.decl)
 
-  def rewrite(commTarget: PVLCommunicateTarget[Pre]): CommunicateTarget[Post] =
-    commTarget match {
+  def rewrite(target: PVLCommunicateTarget[Pre]): CommunicateTarget[Post] =
+    target match {
       case target: PVLCommTargetEndpoint[Pre] =>
-        CommTargetEndpoint(rewriteRef(target))(commTarget.o)
-      case PVLCommTargetIndex(name, index) =>
-        CommTargetIndex(rewriteRef(name.asName), rw.dispatch(index))(
-          commTarget.o
-        )
-      case PVLCommTargetRange(name, range) =>
-        CommTargetRange(rewriteRef(name.asName), rw.dispatch(range))(
-          commTarget.o
-        )
+        require(target.ref.get.decl.isSingle)
+        CommTargetEndpoint(rewriteRef(target))(target.o)
+      case target @ PVLCommTargetIndex(_, index) =>
+        require(target.ref.get.decl.isFamily)
+        CommTargetIndex[Post](
+          endpointSucc.ref(target.ref.get.decl),
+          rw.dispatch(index),
+        )(target.o)
+      case target @ PVLCommTargetRange(_, range) =>
+        require(target.ref.get.decl.isFamily)
+        CommTargetRange[Post](
+          endpointSucc.ref(target.ref.get.decl),
+          rw.dispatch(range),
+        )(target.o)
     }
 
   def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit = {

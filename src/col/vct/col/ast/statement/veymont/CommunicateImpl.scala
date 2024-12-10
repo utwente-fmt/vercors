@@ -34,14 +34,12 @@ trait CommunicateImpl[G]
     this match {
       case comm: Communicate[G]
           if sender.isDefined &&
-            !context.currentParticipatingEndpoints.get
-              .contains(??? /* TODO (RR): sender.get.decl */ ) =>
-        Seq(SeqProgParticipant(??? /* TODO (RR): sender.get.decl */ ))
+            !context.currentParticipatingEndpoints.get.contains(sender.get) =>
+        Seq(SeqProgParticipant(sender.get))
       case comm: Communicate[G]
           if receiver.isDefined &&
-            !context.currentParticipatingEndpoints.get
-              .contains(??? /* TODO (RR): receiver.get.decl */ ) =>
-        Seq(SeqProgParticipant(??? /* TODO (RR): receiver.get.decl */ ))
+            !context.currentParticipatingEndpoints.get.contains(receiver.get) =>
+        Seq(SeqProgParticipant(receiver.get))
       case _ => Nil
     }
 

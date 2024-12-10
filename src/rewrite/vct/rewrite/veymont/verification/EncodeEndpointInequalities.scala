@@ -16,6 +16,18 @@ object EncodeEndpointInequalities extends RewriterBuilder {
     "Encodes inequalities of endpoints in contracts and loop invariants within choreographies, as well as required inequalities on the sender and receiver of communicate statements"
 }
 
+/*
+ * This pass is currently incomplete: for a set of singular endpoints E, and a set of endpoint families F, it only
+ * encodes:
+ *
+ * - forall a, b : E; a != b
+ * - forall i, j : {0..<|F|}; F[i] != F[j]
+ *
+ * This could be made more complete by actually mapping all endpoints, and endpoint families and their indices, to
+ * the ints and back. Probably similar to how the array encoding accomplishes this. The only tricky part is
+ * incorporating the singular endpoints in this encoding. Not theoretically difficult, just fiddly with the axioms.
+ *
+ */
 case class EncodeEndpointInequalities[Pre <: Generation]()
     extends Rewriter[Pre] with LazyLogging with VeymontContext[Pre] {
 
@@ -26,6 +38,7 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
       makeInequalities(currentChoreography.top),
     )
   def makeInequalities(chor: Choreography[Pre]): Expr[Post] = {
+    // TODO (RR): Include inequalities within families here
     // Computation of the inequality expression is done lazily such that when it is computed within a choreography,
     // the endpoints are in scope and their successors will be available to `succ`.
     def makeInequalitySets(
@@ -37,12 +50,13 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
           (endpoint, targets) +: makeInequalitySets(targets)
       }
     implicit val o = chor.o
+    val singleEndpoints = chor.endpoints.filter(_.isEndpoint)
     foldStar(
-      makeInequalitySets(chor.endpoints).flatMap { case (endpoint, others) =>
+      makeInequalitySets(singleEndpoints).flatMap { case (endpoint, others) =>
         others.map { other =>
           EndpointName[Post](succ(endpoint)) !== EndpointName[Post](succ(other))
         }
-      } ++ chor.endpoints.map { endpoint =>
+      } ++ singleEndpoints.map { endpoint =>
         EndpointName[Post](succ(endpoint)) !== Null()
       }
     )

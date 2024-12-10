@@ -521,7 +521,8 @@ case class VeyMontImplementationGeneration(
         InferEndpointContexts,
         StratifyExpressions,
         StratifyUnpointedExpressions,
-        DeduplicateChorGuards,
+        // TODO (RR): I think from a theoretical perspective we don't need this pass. Delete?
+//        DeduplicateChorGuards,
         SpecializeEndpointClasses,
         GenerateAndEncodeChannels.withArg(importer),
         GenerateImplementation,

@@ -5,6 +5,7 @@ import vct.col.ast.{
   PVLCommTargetIndex,
   PVLCommTargetRange,
   PVLCommunicateTarget,
+  Type,
 }
 import vct.col.ast.ops.PVLCommunicateTargetFamilyOps
 import vct.col.print._
@@ -27,5 +28,7 @@ trait PVLCommunicateTargetImpl[G] extends PVLCommunicateTargetFamilyOps[G] {
     require(this.isInstanceOf[PVLCommTargetIndex[G]])
     this.asInstanceOf[PVLCommTargetIndex[G]]
   }
+
+  def t: Type[G]
 
 }
