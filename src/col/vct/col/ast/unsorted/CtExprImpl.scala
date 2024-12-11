@@ -15,7 +15,8 @@ import vct.col.util.AstMatchHelpers.{EndpointIndex, EndpointName, EndpointRange}
 
 trait CtExprImpl[G] extends CtExprOps[G] {
   this: CtExpr[G] =>
-//  override def layout(implicit ctx: Ctx): Doc = inner.layout
+  override def layout(implicit ctx: Ctx): Doc = inner.show
+  override def precedence: Int = Precedence.ATOMIC
 
   // TODO (RR): I think this is wrong, but keeping it around for a few minutes
   override def t: TClass[G] = inner.ref.decl.t

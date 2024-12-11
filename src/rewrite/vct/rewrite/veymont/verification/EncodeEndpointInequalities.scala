@@ -50,7 +50,7 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
           (endpoint, targets) +: makeInequalitySets(targets)
       }
     implicit val o = chor.o
-    val singleEndpoints = chor.endpoints.filter(_.isEndpoint)
+    val singleEndpoints = chor.endpoints.filter(_.isSingle)
     foldStar(
       makeInequalitySets(singleEndpoints).flatMap { case (endpoint, others) =>
         others.map { other =>

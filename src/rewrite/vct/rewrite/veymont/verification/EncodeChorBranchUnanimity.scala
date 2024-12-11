@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin._
+import vct.col.ref.{Ref, DirectRef}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
 import vct.rewrite.veymont.VeymontContext
@@ -136,5 +137,32 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
           ensures = dispatch(ensures) &* allEqual(guards.map(dispatch)),
         )
       case _ => contract.rewriteDefault()
+    }
+
+  def min(a: Expr[Post], b: Expr[Post]): Expr[Post] = ???
+  def max(a: Expr[Post], b: Expr[Post]): Expr[Post] = ???
+
+  def intersect(
+      left: CommunicateTarget[Pre],
+      right: CommunicateTarget[Pre],
+  ): CommunicateTarget[Post] =
+    (left, right) match {
+      case (left, right) if left.isSingle && right.isSingle && left == right =>
+        dispatch(left)
+      case (
+            CommTargetRange(Ref(f), RangeBinder(_, fLow, fHigh)),
+            CommTargetRange(Ref(g), RangeBinder(_, gLow, gHigh)),
+          ) if f == g =>
+        implicit val o: Origin = TraceOrigin()
+        CommTargetRange[Post](
+          succ(f),
+          RangeBinder(
+            new Variable(TInt()),
+            max(fLow.rewriteDefault(), gLow.rewriteDefault()),
+            min(fHigh.rewriteDefault(), gHigh.rewriteDefault()),
+          ),
+        )
+      case (left, right) if right.isSingle => intersect(right, left)
+      case (left, right) => assert(left.isSingle && right.isRange)
     }
 }

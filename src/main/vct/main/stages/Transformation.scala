@@ -31,7 +31,6 @@ import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.ImportSetCompat
 import vct.rewrite.{
   DisambiguatePredicateExpression,
-  EncodeAssertingAssuming,
   EncodeAutoValue,
   EncodeByValueClassUsage,
   EncodeRange,

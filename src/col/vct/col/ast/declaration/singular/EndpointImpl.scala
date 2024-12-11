@@ -40,7 +40,7 @@ trait EndpointImpl[G]
     getRange.map(r => Seq(r.binder)).getOrElse(Seq())
 
   def isFamily: Boolean = range.nonEmpty
-  def isEndpoint: Boolean = !isFamily
+  def isSingle: Boolean = !isFamily
 
   def getRange: Option[RangeBinder[G]] =
     this.range.map(_.asInstanceOf[RangeBinder[G]])

@@ -37,5 +37,18 @@ trait CommunicateTargetImpl[G] extends CommunicateTargetFamilyOps[G] {
       case _ => ???
     }
 
+  def isSingle: Boolean =
+    this match {
+      case _: CommTargetEndpoint[G] => true
+      case _: CommTargetIndex[G] => true
+      case _ => false
+    }
+
+  def isRange: Boolean =
+    this match {
+      case _: CommTargetRange[G] => true
+      case _ => false
+    }
+
   override def check(context: CheckContext[G]): Seq[CheckError] = Nil
 }

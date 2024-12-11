@@ -9,7 +9,7 @@ import vct.col.print._
 trait CommTargetEndpointImpl[G]
     extends CommTargetEndpointOps[G] with CommunicateTargetImpl[G] {
   this: CommTargetEndpoint[G] =>
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc = Text(ctx.name(ref))
 
   def endpoint: Endpoint[G] = ref.decl
 
@@ -17,7 +17,7 @@ trait CommTargetEndpointImpl[G]
     super.check(context) ++ {
       // This is really a well-formedness requirement on the AST. Ideally it would be checked earlier, but this is not
       // possibly, as the ref might not be resolved yet.
-      require(endpoint.isEndpoint)
+      require(endpoint.isSingle)
       Seq()
     }
 }
