@@ -33,16 +33,6 @@ case class PropagateContextEverywhere[Pre <: Generation]()
   val invariants: ScopedStack[Seq[Expr[Pre]]] = ScopedStack()
   invariants.push(Nil)
 
-  def withInvariant[T](inv: Expr[Pre])(f: => T): T = {
-    val old = invariants.top
-    invariants.pop()
-    invariants.push(old ++ unfoldStar(inv))
-    val result = f
-    invariants.pop()
-    invariants.push(old)
-    result
-  }
-
   def freshInvariants()(implicit o: Origin): Expr[Post] =
     foldStar(invariants.top.map(dispatch))
 
@@ -51,7 +41,9 @@ case class PropagateContextEverywhere[Pre <: Generation]()
       case app: ContractApplicable[Pre] =>
         allScopes.anyDeclare(allScopes.anySucceedOnly(
           app,
-          withInvariant(app.contract.contextEverywhere) {
+          invariants.having(
+            invariants.top ++ unfoldStar(app.contract.contextEverywhere)
+          ) {
             app match {
               case func: AbstractFunction[Pre] =>
                 func.rewrite(blame =

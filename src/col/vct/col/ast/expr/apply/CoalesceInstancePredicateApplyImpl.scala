@@ -9,7 +9,7 @@ trait CoalesceInstancePredicateApplyImpl[G]
   this: CoalesceInstancePredicateApply[G] =>
   override def layout(implicit ctx: Ctx): Doc =
     Group(
-      obj.bind(Precedence.POSTFIX) <> "?." <>
-        ctx.name(ref) <> "(" <> Doc.args(args) <> ")"
+      obj.bind(Precedence.POSTFIX) <> "?." <> ctx.name(ref) <> "(" <>
+        Doc.args(args) <> ")"
     )
 }

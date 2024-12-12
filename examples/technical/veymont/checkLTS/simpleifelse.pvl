@@ -17,15 +17,15 @@ choreography Main() {
 
 	requires a.x == 0 && b.x == 8 && c.x == 4;
 	requires a.left == a.x && b.left == b.x && c.left == c.x;
-	ensures a.x == b.x && b.x == c.x;
+	ensures (\chor a.x == b.x && b.x == c.x);
 	run {
 		if(a.left != a.x && b.left != b.x && c.left != c.x) {
 			a.x := a.x + 1;
 		}
-		if(a.left != 2 && b.left != 3 && c.left != 4) {
+		if(a.left != 2 && b.left != 3 && c.left != 5) {
 			b.x := 5;
 		} else {
-		    c.x := 7;
+		  c.x := 7;
 		}
 		communicate a.x -> b.x;
 		communicate b.x -> c.x;

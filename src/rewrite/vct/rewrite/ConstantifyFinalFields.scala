@@ -80,11 +80,10 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
         implicit val o: Origin = field.o
         if (isFinal(field)) {
           val `this` =
-            new Variable[Post](TClass(
-              succ(currentClass.top),
-              currentClass.top.typeArgs.map { v: Variable[Pre] =>
-                TVar(succ(v))
-              },
+            new Variable(dispatch(
+              currentClass.top.classType(currentClass.top.typeArgs.map {
+                v: Variable[Pre] => TVar(v.ref)
+              })
             ))
           fieldFunction(field) = globalDeclarations
             .declare(withResult((result: Result[Post]) =>

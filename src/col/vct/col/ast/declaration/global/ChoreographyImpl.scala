@@ -13,13 +13,14 @@ import vct.col.ast.{
   Node,
 }
 import vct.col.ast.util.Declarator
-import vct.col.check.{CheckContext, CheckError}
+import vct.col.check.{CheckContext, CheckError, ChorNonTrivialContextEverywhere}
 import vct.col.origin.Origin
 import vct.col.print._
 import vct.col.ref.Ref
 
 import scala.collection.immutable.ListSet
 import vct.col.ast.ops.ChoreographyOps
+import vct.col.util.AstBuildHelpers.tt
 
 object ChoreographyImpl {
   def participants[G](node: Node[G]): ListSet[Endpoint[G]] =
@@ -41,11 +42,11 @@ trait ChoreographyImpl[G]
       Group(
         Text("choreography") <+> ctx.name(this) <> "(" <> Doc.args(params) <>
           ")"
-      ) <+> "{" <>> Doc.stack(
+      ) <+> "{" <>> Doc.fold(
         endpoints ++ decls :+
           preRun.map(preRun => Text("/* preRun */") <+> preRun.show)
             .getOrElse(Empty) :+ run
-      ) <+/> "}",
+      )(_ <> Line <> Line <> _) <+/> "}",
     ))
 
   override def enterCheckContextCurrentParticipatingEndpoints(
@@ -56,4 +57,11 @@ trait ChoreographyImpl[G]
   override def enterCheckContextCurrentChoreography(
       context: CheckContext[G]
   ): Option[Choreography[G]] = Some(this)
+
+  override def check(context: CheckContext[G]): Seq[CheckError] =
+    super.check(context) ++
+      (if (contract.contextEverywhere != tt[G])
+         Seq(ChorNonTrivialContextEverywhere(contract.contextEverywhere))
+       else
+         Seq())
 }

@@ -93,8 +93,8 @@ case class GlobalIndex[G](indices: mutable.Seq[Index[G]]) {
     val stack: mutable.Seq[Index[G]] = indices.dropWhile {
       case PVLLoopIndex(_, 0) | LoopIndex(_, 0) =>
         true // If some godless heathen calls break in the init of a loop, don't consider that loop
-      case PVLLoopIndex(_, _) | LoopIndex(_, _) | RangedForIndex(_) |
-          UnresolvedSeqLoopIndex(_, _) | SwitchIndex(_) =>
+      case PVLLoopIndex(_, _) | LoopIndex(_, _) |
+          RangedForIndex(_) | SwitchIndex(_) =>
         false
       case _ => true
     }
@@ -107,19 +107,13 @@ case class GlobalIndex[G](indices: mutable.Seq[Index[G]]) {
     // Find innermost loop that could be the target of continue
     val stack: mutable.Seq[Index[G]] = indices.dropWhile {
       case PVLLoopIndex(_, 0) | LoopIndex(_, 0) => true
-      case PVLLoopIndex(_, _) | LoopIndex(_, _) |
-          RangedForIndex(_) | UnresolvedSeqLoopIndex(_, _) =>
-        false
+      case PVLLoopIndex(_, _) | LoopIndex(_, _) | RangedForIndex(_) => false
       case _ => true
     }
     stack.head match {
       case PVLLoopIndex(pvl_loop, _) =>
         GlobalIndex(PVLLoopIndex(pvl_loop, 1) +: stack.tail)
       case LoopIndex(loop, _) => GlobalIndex(LoopIndex(loop, 1) +: stack.tail)
-      case UnresolvedSeqLoopIndex(unresolved_seq_loop, _) =>
-        GlobalIndex(
-          UnresolvedSeqLoopIndex(unresolved_seq_loop, 0) +: stack.tail
-        )
       case RangedForIndex(_) => GlobalIndex(stack)
     }
   }
@@ -191,10 +185,6 @@ object Index {
       case model_do: ModelDo[G] => ModelDoIndex(model_do)
       case cpp_lifetime_scope: CPPLifetimeScope[G] =>
         CPPLifetimeScopeIndex(cpp_lifetime_scope)
-      case unresolved_seq_branch: UnresolvedChorBranch[G] =>
-        UnresolvedSeqBranchIndex(unresolved_seq_branch, index)
-      case unresolved_seq_loop: UnresolvedChorLoop[G] =>
-        UnresolvedSeqLoopIndex(unresolved_seq_loop, index)
       case veymont_assign_expression: VeyMontAssignExpression[G] =>
         VeyMontAssignExpressionIndex(veymont_assign_expression)
       case communicatex: CommunicateX[G] => CommunicateXIndex(communicatex)
@@ -207,8 +197,7 @@ object Index {
 
 // TODO: Handle contract assertions for InitialIndex, RunMethodIndex, FramedProof, RangedForIndex, ???
 
-case class InitialIndex[G](instance_method: Procedure[G])
-    extends Index[G] {
+case class InitialIndex[G](instance_method: Procedure[G]) extends Index[G] {
   override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] =
     Set((Outgoing(), None))
   override def resolve(): Statement[G] = instance_method.body.get
@@ -897,85 +886,6 @@ case class CPPLifetimeScopeIndex[G](cpp_lifetime_scope: CPPLifetimeScope[G])
   override def equals(obj: scala.Any): Boolean =
     obj match {
       case CPPLifetimeScopeIndex(c) => c.equals(cpp_lifetime_scope)
-      case _ => false
-    }
-}
-
-case class UnresolvedSeqBranchIndex[G](
-    unresolved_seq_branch: UnresolvedChorBranch[G],
-    index: Int,
-) extends Index[G] {
-  override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = {
-    // Indices 0, 2, 4, ... are the conditions, indices 1, 3, 5, ... are the branch bodies
-    if (index % 2 == 0 && index < 2 * (unresolved_seq_branch.branches.size - 1))
-      Set(
-        (
-          Step(UnresolvedSeqBranchIndex(unresolved_seq_branch, index + 2)),
-          Some(Utils.negate(unresolved_seq_branch.branches.apply(index / 2)._1)),
-        ),
-        (
-          Step(UnresolvedSeqBranchIndex(unresolved_seq_branch, index + 1)),
-          Some(unresolved_seq_branch.branches.apply(index / 2)._1),
-        ),
-      )
-    else if (index == 2 * (unresolved_seq_branch.branches.size - 1))
-      Set(
-        (
-          Step(UnresolvedSeqBranchIndex(unresolved_seq_branch, index + 1)),
-          Some(unresolved_seq_branch.branches.apply(index / 2)._1),
-        ),
-        (
-          Outgoing(),
-          Some(Utils.negate(unresolved_seq_branch.branches.apply(index / 2)._1)),
-        ),
-      )
-    else
-      Set((Outgoing(), None))
-  }
-  override def resolve(): Statement[G] = {
-    if (index % 2 == 0)
-      Eval(unresolved_seq_branch.branches.apply(index / 2)._1)(
-        unresolved_seq_branch.branches.apply(index / 2)._1.o
-      )
-    else
-      unresolved_seq_branch.branches.apply((index - 1) / 2)._2
-  }
-  override def has_statement(): Boolean =
-    unresolved_seq_branch.branches.nonEmpty
-  override def equals(obj: scala.Any): Boolean =
-    obj match {
-      case UnresolvedSeqBranchIndex(u, i) =>
-        i == index && u.equals(unresolved_seq_branch)
-      case _ => false
-    }
-}
-
-case class UnresolvedSeqLoopIndex[G](
-    unresolved_seq_loop: UnresolvedChorLoop[G],
-    index: Int,
-) extends Index[G] {
-  override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] =
-    index match {
-      case 0 =>
-        Set(
-          (
-            Step(UnresolvedSeqLoopIndex(unresolved_seq_loop, 1)),
-            Some(unresolved_seq_loop.cond),
-          ),
-          (Outgoing(), Some(Utils.negate(unresolved_seq_loop.cond))),
-        )
-      case 1 =>
-        Set((Step(UnresolvedSeqLoopIndex(unresolved_seq_loop, 0)), None))
-    }
-  override def resolve(): Statement[G] =
-    index match {
-      case 0 => Eval(unresolved_seq_loop.cond)(unresolved_seq_loop.cond.o)
-      case 1 => unresolved_seq_loop.body
-    }
-  override def equals(obj: scala.Any): Boolean =
-    obj match {
-      case UnresolvedSeqLoopIndex(u, i) =>
-        i == index && u.equals(unresolved_seq_loop)
       case _ => false
     }
 }

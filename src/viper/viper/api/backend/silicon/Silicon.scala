@@ -98,8 +98,10 @@ case class Silicon(
       "--z3ConfigArgs",
       z3Config,
     )
-    if (optimizeUnsafe) siliconConfig ++= Seq("--parallelizeBranches")
-    else siliconConfig ++= Seq("--ideModeAdvanced")
+    if (optimizeUnsafe)
+      siliconConfig ++= Seq("--parallelizeBranches")
+    else
+      siliconConfig ++= Seq("--ideModeAdvanced")
 
     if (proverLogFile.isDefined) {
       // PB: note: enableTempDirectory works unexpectedly: it only enables the logging of smtlib provers and does
@@ -122,12 +124,15 @@ case class Silicon(
 
     siliconConfig :+= "-"
 
+    logger.debug("Silicon command line: " + siliconConfig)
+
     silicon.parseCommandLine(siliconConfig)
-    if (!optimizeUnsafe) silicon.symbExLog = SiliconLogListener(
-      reportOnNoProgress,
-      traceBranchConditions,
-      branchConditionReportInterval,
-    )
+    if (!optimizeUnsafe)
+      silicon.symbExLog = SiliconLogListener(
+        reportOnNoProgress,
+        traceBranchConditions,
+        branchConditionReportInterval,
+      )
 
     silicon.start()
 

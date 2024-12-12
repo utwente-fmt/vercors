@@ -95,7 +95,7 @@ case class CheckProcessAlgebra[Pre <: Generation]()
 
         val newClass =
           currentModel.having(model) {
-            new Class(
+            new ByReferenceClass(
               Seq(),
               classDeclarations.collect {
                 model.declarations.foreach(dispatch(_))

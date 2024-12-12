@@ -19,11 +19,6 @@ import vct.parsers.ParseResult
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
-/* TODO (RR): I messed this up for VeyMont & VeSUV, need to coordinate with Philip to get it in a nice shape
-      Philip does use the splitting up feature, so I'd need to rework that either into Output or into a separate stage
-      Also the writing to file feature he relies on.
- */
-
 case object Output {
   def vesuvOfOptions[G <: Generation](
       options: Options
@@ -38,15 +33,8 @@ case object Output {
       Some(options.vesuvOutput),
       Ctx.PVL,
       Files.isDirectory(options.vesuvOutput),
-    )).thenRun(FunctionStage((_: Seq[LiteralReadable]) =>
-        ()
-      )) // TODO: Not the prettiest, but I have no time for this. I blame Bob.
+    )).thenRun(FunctionStage((_: Seq[LiteralReadable]) => ()))
   }
-
-  def veymontOfOptions(
-      options: Options
-  ): Stage[Verification[_ <: Generation], Seq[LiteralReadable]] =
-    Output(options.veymontOutput, Ctx.PVL, false)
 }
 
 case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
@@ -79,14 +67,17 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
 
     val txts: Seq[LiteralReadable] =
       if (splitDecls) {
-        in.tasks.map(t => t.program).flatMap(p => p.declarations).zipWithIndex.map {
-          case (decl, i) =>
-            val name = names.getOrElse(decl.asInstanceOf[Declaration[Generation]], s"unknown$i")
+        in.tasks.map(t => t.program).flatMap(p => p.declarations).zipWithIndex
+          .map { case (decl, i) =>
+            val name = names.getOrElse(
+              decl.asInstanceOf[Declaration[Generation]],
+              s"unknown$i",
+            )
             val fileName = s"${name}.${extension(syntax)}"
             val buf = new StringBuffer()
             decl.write(buf)(ctx)
             LiteralReadable(fileName, buf.toString)
-        }
+          }
       } else {
         val buf = new StringBuffer()
         in.write(buf)(ctx)

@@ -212,26 +212,18 @@ abstract class VercorsSpec extends AnyFlatSpec {
   }
 
   class DescPhrase(val verdict: Verdict, val backends: Seq[Backend], val desc: String, val flags: Seq[String]) {
-    def pvl(data: String)(implicit pos: source.Position): Unit = {
-      val inputs = Seq(LiteralReadable("test.pvl", data))
+    private def literal(suffix: String, data: String)(implicit pos: source.Position): Unit = {
+      val inputs = Seq(LiteralReadable(s"test.$suffix", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
       }
     }
 
-    def java(data: String)(implicit pos: source.Position): Unit = {
-      val inputs = Seq(LiteralReadable("test.java", data))
-      for(backend <- backends) {
-        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
-      }
-    }
-
-    def c(data: String)(implicit pos: source.Position): Unit = {
-      val inputs = Seq(LiteralReadable("test.c", data))
-      for(backend <- backends) {
-        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
-      }
-    }
+    def pvl(data: String)(implicit pos: source.Position): Unit = literal("pvl", data)
+    def java(data: String)(implicit pos: source.Position): Unit = literal("java", data)
+    def c(data: String)(implicit pos: source.Position): Unit = literal("c", data)
+    def cpp(data: String)(implicit pos: source.Position): Unit = literal("cpp", data)
+    def llvm(data: String)(implicit pos: source.Position): Unit = literal("ll", data)
   }
 
   val vercors: VercorsWord = new VercorsWord
@@ -242,4 +234,18 @@ abstract class VercorsSpec extends AnyFlatSpec {
   val silicon: Seq[Backend] = Seq(types.Backend.Silicon)
   val carbon: Seq[Backend] = Seq(types.Backend.Carbon)
   val anyBackend: Seq[Backend] = Seq(types.Backend.Silicon, types.Backend.Carbon)
+
+  def example(p: Path): Path = {
+    val path = Paths.get("examples").resolve(p)
+    coveredExamples ++= Seq(path)
+    path
+  }
+
+  def example(p: String): Path = example(Paths.get(p))
+
+  def examples(p: String*): Seq[Path] =
+    p.map(example)
+
+  def examplePaths(p: Path*): Seq[Path] =
+    p.map(example)
 }

@@ -131,6 +131,8 @@ seqAddExpr
 unaryExpr
  : '!' unaryExpr
  | '-' unaryExpr
+ | '*' unaryExpr
+ | '&' unaryExpr
  | valPrefix unaryExpr
  | newExpr
  ;
@@ -155,6 +157,7 @@ unit
  | '(' '\\' '[' identifier ']' expr ')' # pvlShortEndpointExpr
  | '(' '\\chor' expr ')' # pvlLongChorExpr
  | '(' '\\' '[' ']' expr ')' # pvlShortChorExpr
+ | '(' type ')' expr #pvlCastExpr
  | 'this' # pvlThis
  | 'null' # pvlNull
  | '\\sender' # pvlSender

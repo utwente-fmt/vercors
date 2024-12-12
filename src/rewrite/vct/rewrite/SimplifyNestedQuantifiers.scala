@@ -4,7 +4,15 @@ import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.ast.util.{AnnotationVariableInfoGetter, ExpressionEqualityCheck}
 import vct.col.rewrite.util.Comparison
-import vct.col.origin.{ArrayInsufficientPermission, DiagnosticOrigin, LabelContext, Origin, PanicBlame, PointerBounds, PreferredName}
+import vct.col.origin.{
+  ArrayInsufficientPermission,
+  DiagnosticOrigin,
+  LabelContext,
+  Origin,
+  PanicBlame,
+  PointerBounds,
+  PreferredName,
+}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -49,7 +57,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
 
   var equalityChecker: ExpressionEqualityCheck[Pre] = ExpressionEqualityCheck()
   var topLevel: Boolean = false
-  var infoGetter: AnnotationVariableInfoGetter[Pre] = new AnnotationVariableInfoGetter[Pre]()
+  var infoGetter: AnnotationVariableInfoGetter[Pre] =
+    new AnnotationVariableInfoGetter[Pre]()
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     e match {
@@ -80,9 +89,13 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
         mapUnfoldedStar(
           e.body,
           (b: Expr[Pre]) =>
-            rewriteBinder(Starall(e.bindings, e.triggers, b)(e.blame)(e.o)),
+            if (TBool[Pre]().superTypeOf(b.t))
+              rewriteBinder(Forall(e.bindings, e.triggers, b)(e.o))
+            else
+              rewriteBinder(Starall(e.bindings, e.triggers, b)(e.blame)(e.o)),
         )
-      case other if topLevel => infoGetter.addInfo(other)
+      case other if topLevel =>
+        infoGetter.addInfo(other)
         topLevel = false
         other.rewriteDefault()
       case other => other.rewriteDefault()
@@ -121,10 +134,10 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = {
     stat match {
-        case Exhale(e) =>
-        case Inhale(e) =>
-        case proof: FramedProof[Pre] => return checkFramedProof(proof)
-        case _ => return stat.rewriteDefault()
+      case Exhale(e) =>
+      case Inhale(e) =>
+      case proof: FramedProof[Pre] => return checkFramedProof(proof)
+      case _ => return stat.rewriteDefault()
     }
     topLevel = true
     infoGetter.setupInfo()
@@ -149,12 +162,14 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     FramedProof[Post](pre, body, post)(proof.blame)(proof.o)
   }
 
-  override def dispatch(p: AccountedPredicate[Pre]) : AccountedPredicate[Post] = {
+  override def dispatch(
+      p: AccountedPredicate[Pre]
+  ): AccountedPredicate[Post] = {
     p match {
-      case u@UnitAccountedPredicate(pred) =>
+      case u @ UnitAccountedPredicate(pred) =>
         topLevel = true
         u.rewriteDefault()
-      case s@SplitAccountedPredicate(left, right) => s.rewriteDefault()
+      case s @ SplitAccountedPredicate(left, right) => s.rewriteDefault()
     }
   }
 
@@ -213,6 +228,18 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     )(contract.blame)(contract.o)
   }
 
+  private def hasTriggers(e: Binder[Pre]): Boolean =
+    e match {
+      case Forall(_, triggers, body) =>
+        triggers.exists(_.nonEmpty) || body.exists {
+          case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true
+        }
+      case Starall(_, triggers, body) =>
+        triggers.exists(_.nonEmpty) || body.exists {
+          case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true
+        }
+    }
+
   def rewriteLinearArray(e: Binder[Pre]): Option[Expr[Post]] = {
     val originalBody =
       e match {
@@ -225,11 +252,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
       return None
 
     // PB: do not attempt to reshape quantifiers that already have patterns
-    if (
-      originalBody.exists {
-        case InlinePattern(_, _, _) | InLinePatternLocation(_, _) => true
-      }
-    ) {
+    if (hasTriggers(e)) {
       logger.debug(s"Not rewriting $e because it contains patterns")
       return None
     }
@@ -292,7 +315,10 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
       getBounds(potentialBounds)
     }
 
-    def unfoldBody(prevConditions: Seq[Expr[Pre]], scales: Seq[Expr[Pre] => Expr[Pre]]): Seq[Expr[Pre]] = {
+    def unfoldBody(
+        prevConditions: Seq[Expr[Pre]],
+        scales: Seq[Expr[Pre] => Expr[Pre]],
+    ): Seq[Expr[Pre]] = {
       val (allConditions, mainBody) = unfoldImplies[Pre](body)
       val newConditions = prevConditions ++ allConditions
       val (newVars, secondBody) =
@@ -300,7 +326,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
           case Forall(newVars, _, secondBody) => (newVars, secondBody)
           case Starall(newVars, _, secondBody) => (newVars, secondBody)
           // Strip Scales
-          case s@Scale(scale, res) =>
+          case s @ Scale(scale, res) =>
             val newScales = scales :+ ((r: Expr[Pre]) => Scale(scale, r)(s.o))
             body = res
             return unfoldBody(newConditions, newScales)
@@ -976,11 +1002,9 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
                 Seq(SeqSubscript(newGen(seqIndex.array), xNewVar)(triggerBlame))
               )
             case arrayIndex: Pointer[Pre] =>
-              Seq(
-                Seq(PointerSubscript(newGen(arrayIndex.array), xNewVar)(
-                  triggerBlame
-                ))
-              )
+              Seq(Seq(PointerSubscript(newGen(arrayIndex.array), xNewVar)(
+                triggerBlame
+              )))
           }
 
         for (x <- vars) {

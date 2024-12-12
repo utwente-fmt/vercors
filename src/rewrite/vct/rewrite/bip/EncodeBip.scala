@@ -407,7 +407,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults)
         results.declare(component)
         implicit val o = DiagnosticOrigin
         val ref = succ[Class[Post]](classOf(constructor))
-        val t = TClass[Post](ref, Seq())
+        val t = TByReferenceClass[Post](ref, Seq())
         rewritingBipConstructorBody.having(component) {
           constructorSucc(constructor) = globalDeclarations.declare(
             new Procedure[Post](
@@ -525,7 +525,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults)
           transitions.flatMap { transition =>
             val v =
               new Variable[Post](
-                TClass(succ[Class[Post]](classOf(transition)), Seq())
+                TByReferenceClass(succ[Class[Post]](classOf(transition)), Seq())
               )(SynchronizationComponentVariableOrigin(
                 synchronization,
                 componentOf(transition),

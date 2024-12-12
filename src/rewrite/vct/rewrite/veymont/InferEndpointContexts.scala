@@ -2,92 +2,12 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{
-  AbstractRewriter,
-  AmbiguousLocation,
-  ApplicableContract,
-  Assert,
-  Assign,
-  Block,
-  BooleanValue,
-  Branch,
-  ChorPerm,
-  ChorRun,
-  Choreography,
-  Class,
-  ClassDeclaration,
-  Communicate,
-  CommunicateStatement,
-  CommunicateX,
-  ConstructorInvocation,
-  Declaration,
-  Deref,
-  Endpoint,
-  EndpointName,
-  EndpointStatement,
-  Eval,
-  Expr,
-  FieldLocation,
-  Fork,
-  InstanceField,
-  InstanceMethod,
-  JavaClass,
-  JavaConstructor,
-  JavaInvocation,
-  JavaLocal,
-  JavaMethod,
-  JavaNamedType,
-  JavaParam,
-  JavaPublic,
-  JavaTClass,
-  Join,
-  Local,
-  Location,
-  Loop,
-  MethodInvocation,
-  NewObject,
-  Node,
-  Null,
-  Perm,
-  PredicateLocation,
-  Procedure,
-  Program,
-  ReadPerm,
-  RunMethod,
-  Scope,
-  Statement,
-  TClass,
-  TVeyMontChannel,
-  TVoid,
-  ThisChoreography,
-  ThisObject,
-  Type,
-  UnitAccountedPredicate,
-  Value,
-  Variable,
-  VeyMontAssignExpression,
-}
-import vct.col.origin.{AssignLocalOk, Origin, PanicBlame}
+import vct.col.ast._
 import vct.col.ref.Ref
-import vct.col.resolve.ctx.RefJavaMethod
-import vct.col.rewrite.adt.ImportADTImporter
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
-import vct.col.util.SuccessionMap
-import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationError.{SystemError, Unreachable, UserError}
-import vct.rewrite.veymont.GenerateImplementation.{
-  ChannelFieldOrigin,
-  ParalleliseEndpointsError,
-  RunMethodOrigin,
-  ThreadClassOrigin,
-  getChannelClassName,
-  getThreadClassName,
-  getVarName,
-}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.result.VerificationError.{SystemError, UserError}
 import vct.rewrite.veymont.InferEndpointContexts.{
   EndpointInferenceUndefined,
-  MultipleImplicitEndpointsError,
-  NoImplicitEndpointError,
   getEndpoint,
 }
 
@@ -96,9 +16,9 @@ import scala.collection.mutable
 object InferEndpointContexts extends RewriterBuilder {
   override def key: String = "inferEndpointContexts"
   override def desc: String =
-    "Infer endpoint context for ChorStatement nodes that require one but do not have it yet, such as assignment."
+    "Infer endpoint context for nodes where the user could have put in manual annotations but did not: assignment, method invocations, and communicate."
 
-  case class NoImplicitEndpointError(expr: Expr[_]) extends UserError {
+  case class NoImplicitEndpoint(expr: Node[_]) extends UserError {
     override def code: String = "noImplicitEndpoint"
     override def text: String =
       expr.o.messageInContext(
@@ -106,7 +26,7 @@ object InferEndpointContexts extends RewriterBuilder {
       )
   }
 
-  case class MultipleImplicitEndpointsError(expr: Expr[_]) extends UserError {
+  case class MultipleImplicitEndpoints(expr: Node[_]) extends UserError {
     override def code: String = "multipleImplicitEndpoints"
     override def text: String =
       expr.o.messageInContext(
@@ -129,14 +49,32 @@ object InferEndpointContexts extends RewriterBuilder {
   def getEndpoint[G](expr: Expr[G]): Endpoint[G] =
     getEndpoints(expr) match {
       case Seq(endpoint) => endpoint
-      case Seq() => throw NoImplicitEndpointError(expr)
-      case _ => throw MultipleImplicitEndpointsError(expr)
+      case Seq() => throw NoImplicitEndpoint(expr)
+      case _ => throw MultipleImplicitEndpoints(expr)
+    }
+
+  def getEndpoint[G](
+      reportLocation: Node[_],
+      exprs: Seq[Expr[G]],
+  ): Endpoint[G] =
+    exprs.flatMap(getEndpoints).distinct match {
+      case Seq(endpoint) => endpoint
+      case Seq() => throw NoImplicitEndpoint(reportLocation)
+      case _ => throw MultipleImplicitEndpoints(reportLocation)
     }
 
   def getEndpoint[G](loc: Location[G]): Endpoint[G] =
     loc match {
       case FieldLocation(obj, _) => getEndpoint(obj)
       case AmbiguousLocation(deref) => getEndpoint(deref)
+      case PredicateLocation(inv) =>
+        inv match {
+          case PredicateApply(ref, args) => getEndpoint(loc, args)
+          case InstancePredicateApply(obj, ref, args) =>
+            getEndpoint(loc, obj +: args)
+          case CoalesceInstancePredicateApply(obj, ref, args) =>
+            getEndpoint(loc, obj +: args)
+        }
       case _ => throw EndpointInferenceUndefined(loc)
     }
 }
@@ -144,6 +82,7 @@ object InferEndpointContexts extends RewriterBuilder {
 case class InferEndpointContexts[Pre <: Generation]()
     extends Rewriter[Pre] with LazyLogging {
   val inChor = ScopedStack[Boolean]()
+  val inEndpointExpr = ScopedStack[Endpoint[Pre]]()
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
@@ -171,27 +110,21 @@ case class InferEndpointContexts[Pre <: Generation]()
       case s @ EndpointStatement(None, assign: Assign[Pre]) =>
         val endpoint: Endpoint[Pre] = getEndpoint(assign.target)
         s.rewrite(endpoint = Some(succ(endpoint)))
-      case s @ EndpointStatement(None, assert: Assert[Pre]) =>
-        val endpoint: Endpoint[Pre] = getEndpoint(assert.expr)
-        s.rewrite(endpoint = Some(succ(endpoint)))
       case s @ EndpointStatement(None, Eval(invoke: MethodInvocation[Pre])) =>
         val endpoint: Endpoint[Pre] = getEndpoint(invoke.obj)
         s.rewrite(endpoint = Some(succ(endpoint)))
       case s @ EndpointStatement(None, _) => throw EndpointInferenceUndefined(s)
+      case comm: CommunicateStatement[Pre] =>
+        // Make inChor false because we don't want to infer endpoint contexts for expressions in the channel invariant
+        // These should remain plain
+        inChor.having(false) { comm.rewriteDefault() }
       case s => s.rewriteDefault()
     }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
-      case p @ Perm(_: PredicateLocation[Pre], _) => p.rewriteDefault()
-      case p @ Perm(loc, perm) if inChor.topOption.contains(true) =>
-        ChorPerm[Post](succ(getEndpoint(loc)), dispatch(loc), dispatch(perm))(
-          p.o
-        )
-      case v @ Value(loc) if inChor.topOption.contains(true) =>
-        ChorPerm[Post](succ(getEndpoint(loc)), dispatch(loc), ReadPerm()(v.o))(
-          v.o
-        )
+      case expr @ EndpointExpr(Ref(endpoint), _) =>
+        inEndpointExpr.having(endpoint) { expr.rewriteDefault() }
       case _ => expr.rewriteDefault()
     }
 }

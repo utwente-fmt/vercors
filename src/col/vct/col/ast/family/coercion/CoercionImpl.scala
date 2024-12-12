@@ -87,5 +87,7 @@ trait CoercionImpl[G] extends CoercionFamilyOps[G] {
       case CoerceCFloatFloat(_, _) => true
       case CoerceDecreasePrecision(_, _) => false
       case CoerceCFloatCInt(_) => false
+
+      case CoerceLLVMIntInt() => true
     }
 }

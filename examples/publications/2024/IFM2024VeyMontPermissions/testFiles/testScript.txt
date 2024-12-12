@@ -1,0 +1,31 @@
+new G$().main();
+
+System.out.println(
+  "p1:\n" +
+  G$.p1Impl.c00 + " " +
+  G$.p1Impl.c01 + " " +
+  G$.p1Impl.c02 + "\n" +
+
+  G$.p1Impl.c10 + " " +
+  G$.p1Impl.c11 + " " +
+  G$.p1Impl.c12 + "\n" +
+
+  G$.p1Impl.c20 + " " +
+  G$.p1Impl.c21 + " " +
+  G$.p1Impl.c22
+);
+
+System.out.println(
+  "p2:\n" +
+  G$.p2Impl.c00 + " " +
+  G$.p2Impl.c01 + " " +
+  G$.p2Impl.c02 + "\n" +
+
+  G$.p2Impl.c10 + " " +
+  G$.p2Impl.c11 + " " +
+  G$.p2Impl.c12 + "\n" +
+
+  G$.p2Impl.c20 + " " +
+  G$.p2Impl.c21 + " " +
+  G$.p2Impl.c22
+);

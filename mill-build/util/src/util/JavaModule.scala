@@ -16,7 +16,7 @@ trait JavaModule extends BaseJavaModule {
 
   def unixClassPathArgumentFile =
     T {
-      val cpString = classPathFileElements().mkString(":")
+      val cpString = classPathFileElements().mkString("\"", ":", "\"")
       val cpArg = "-cp " + cpString
       os.write(T.dest / "classpath", cpArg)
       T.dest / "classpath"
@@ -40,7 +40,7 @@ trait JavaModule extends BaseJavaModule {
 
   def windowsClassPathArgumentFile =
     T {
-      val cpString = classPathFileElements().mkString(";")
+      val cpString = classPathFileElements().mkString("\"", ";", "\"")
       val cpArg = "-cp " + cpString
       os.write(T.dest / "classpath", cpArg)
       T.dest / "classpath"
@@ -57,12 +57,12 @@ trait JavaModule extends BaseJavaModule {
         val header = "@ 2>/dev/null # 2>nul & echo off & goto BOF"
         val unix = Seq(
           ":",
-          s"java ${forkArgs().mkString(" ")} @${unixClassPathArgumentFile()} $mainClass $quote$$@$quote",
+          s"java ${forkArgs().mkString(" ")} $quote@${unixClassPathArgumentFile()}$quote $mainClass $quote$$@$quote",
           "exit",
         )
         val batch = Seq(
           ":BOF",
-          s"java ${forkArgs().mkString(" ")} @${windowsClassPathArgumentFile()} $mainClass %*",
+          s"java ${forkArgs().mkString(" ")} $quote@${windowsClassPathArgumentFile()}$quote $mainClass %*",
           "exit /B %errorlevel%",
         )
         val script =

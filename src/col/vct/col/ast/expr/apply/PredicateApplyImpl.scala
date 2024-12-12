@@ -7,14 +7,10 @@ import vct.col.ast.ops.PredicateApplyOps
 trait PredicateApplyImpl[G] extends PredicateApplyOps[G] {
   this: PredicateApply[G] =>
   def layoutSilver(implicit ctx: Ctx): Doc =
-    Group(
-      Text("acc(") <> ctx.name(ref) <> "(" <> Doc.args(args) <> "), write)"
-    )
+    Group(Text("acc(") <> ctx.name(ref) <> "(" <> Doc.args(args) <> "), write)")
 
   def layoutSpec(implicit ctx: Ctx): Doc =
-    Group(
-      Text(ctx.name(ref)) <> "(" <> Doc.args(args) <> ")"
-    )
+    Group(Text(ctx.name(ref)) <> "(" <> Doc.args(args) <> ")")
 
   override def layout(implicit ctx: Ctx): Doc =
     ctx.syntax match {

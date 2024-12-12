@@ -151,29 +151,31 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         scale(dispatch(e))
       else
         variables.scope {
-          val range = quantVars.map(v =>
-            from(v) <= Local[Post](succ(v)) && Local[Post](succ(v)) < to(v)
-          ).reduceOption[Expr[Post]](And(_, _)).getOrElse(tt)
+          localHeapVariables.scope {
+            val range = quantVars.map(v =>
+              from(v) <= Local[Post](succ(v)) && Local[Post](succ(v)) < to(v)
+            ).reduceOption[Expr[Post]](And(_, _)).getOrElse(tt)
 
-          e match {
-            case Forall(bindings, Nil, body) =>
-              Forall(
-                variables.dispatch(bindings ++ quantVars),
-                Nil,
-                range ==> scale(dispatch(body)),
-              )(body.o)
-            case s @ Starall(bindings, Nil, body) =>
-              Starall(
-                variables.dispatch(bindings ++ quantVars),
-                Nil,
-                range ==> scale(dispatch(body)),
-              )(s.blame)(body.o)
-            case other =>
-              Starall(
-                variables.dispatch(quantVars),
-                Nil,
-                range ==> scale(dispatch(other)),
-              )(ParBlockNotInjective(block, other))(other.o)
+            e match {
+              case Forall(bindings, Nil, body) =>
+                Forall(
+                  variables.dispatch(bindings ++ quantVars),
+                  Nil,
+                  range ==> scale(dispatch(body)),
+                )(body.o)
+              case s @ Starall(bindings, Nil, body) =>
+                Starall(
+                  variables.dispatch(bindings ++ quantVars),
+                  Nil,
+                  range ==> scale(dispatch(body)),
+                )(s.blame)(body.o)
+              case other =>
+                Starall(
+                  variables.dispatch(quantVars),
+                  Nil,
+                  range ==> scale(dispatch(other)),
+                )(ParBlockNotInjective(block, other))(other.o)
+            }
           }
         }
     })
@@ -227,6 +229,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       case l: Local[_] if isConstType(l.t) => true
       case _: Constant[_] => true
       case op: BinExpr[Post] => isConstant(op.left) && isConstant(op.right)
+      case op: UnExpr[Post] => isConstant(op.arg)
       case _ => false
     }
 

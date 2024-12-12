@@ -1,16 +1,35 @@
 package hre.progress
 
-import com.typesafe.scalalogging.LazyLogging
+import hre.middleware.{Middleware, MiddlewareObject}
+import hre.progress.Layout.PROGRESS_BLOCKS
 import org.fusesource.jansi.{AnsiConsole, AnsiType}
+import org.slf4j.LoggerFactory
 
-case object Layout extends LazyLogging {
+case object Layout extends MiddlewareObject[Layout] {
+  val PROGRESS_BLOCKS = " ▏▎▍▌▋▊▉█"
   var forceProgress: Boolean = false
 
-  val PROGRESS_BLOCKS = " ▏▎▍▌▋▊▉█"
+  def withForceProgress(forceProgress: Boolean): this.type = {
+    Layout.forceProgress = forceProgress
+    Layout
+  }
 
-  def install(progress: Boolean): Unit = {
-    forceProgress = progress
-    AnsiConsole.systemInstall()
+  override def apply(): Layout = Layout(forceProgress)
+
+  def update(): Boolean = get.update()
+
+  def commitProgressMessage(outputBeforeProgress: String): String =
+    get.commitProgressMessage(outputBeforeProgress)
+}
+
+case class Layout(forceProgress: Boolean) extends Middleware {
+  private val logger = LoggerFactory.getLogger(classOf[Layout])
+
+  override protected def install(): Unit = AnsiConsole.systemInstall()
+
+  override protected def uninstall(): Unit = {
+    update()
+    AnsiConsole.systemUninstall()
   }
 
   private def wantProgress: Boolean =

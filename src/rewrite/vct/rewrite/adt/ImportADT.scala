@@ -71,7 +71,7 @@ case object ImportADT {
       case TZFraction() => "zfract"
       case TMap(key, value) =>
         "map$" + typeText(key) + "__" + typeText(value) + "$"
-      case TClass(Ref(cls), _) => cls.o.getPreferredNameOrElse().camel
+      case t: TClass[_] => t.cls.decl.o.getPreferredNameOrElse().camel
       case TVar(Ref(v)) => v.o.getPreferredNameOrElse().camel
       case TUnion(ts) => "union" + ts.map(typeText).mkString("$", "__", "$")
       case SilverPartialTAxiomatic(Ref(adt), _) =>

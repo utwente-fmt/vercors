@@ -294,7 +294,10 @@ trait SYCLTBufferImpl[G] extends SYCLTBufferOps[G] {
       hostData: Variable[G],
       len: Expr[G],
   ): FoldTarget[G] = {
-    ScaledPredicateApply(predApply(exclusiveAccessPredRef, hostData, len), WritePerm())
+    ScaledPredicateApply(
+      predApply(exclusiveAccessPredRef, hostData, len),
+      WritePerm(),
+    )
   }
 
   private def predApplyExpr(

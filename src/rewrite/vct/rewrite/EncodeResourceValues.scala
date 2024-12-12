@@ -12,6 +12,7 @@ import vct.col.util.DeclarationBox
 import vct.result.VerificationError.{SystemError, UserError}
 import vct.rewrite.EncodeResourceValues.{
   GenericsNotSupported,
+  ResourceValueReturnType,
   UnknownResourceValue,
   UnsupportedResourceValue,
   WrongResourcePattern,
@@ -44,6 +45,14 @@ case object EncodeResourceValues extends RewriterBuilder {
   case class WrongResourcePattern(node: Node[_]) extends SystemError {
     override def text: String =
       node.o.messageInContext("Wrong resource pattern encoding")
+  }
+
+  case class ResourceValueReturnType(m: AbstractMethod[_]) extends UserError {
+    override def text: String =
+      m.o.messageInContext(
+        "Resource values as method return types currently not supported because of https://github.com/utwente-fmt/vercors/issues/1267"
+      )
+    override def code: String = "resourceValueReturnType"
   }
 }
 
@@ -134,7 +143,7 @@ case class EncodeResourceValues[Pre <: Generation]()
   val kindFunc: ScopedStack[ADTFunction[Post]] = ScopedStack()
   val arbitraryResourceValue: ScopedStack[Predicate[Post]] = ScopedStack()
 
-  def isGeneric(cls: Class[Pre]): Boolean = cls.typeArgs.isEmpty
+  def isGeneric(cls: Class[Pre]): Boolean = !cls.typeArgs.isEmpty
   def nonGeneric(cls: Class[Pre]): Unit =
     if (isGeneric(cls))
       throw GenericsNotSupported(cls)
@@ -184,7 +193,7 @@ case class EncodeResourceValues[Pre <: Generation]()
             case ResourcePattern.HeapVariableLocation(_) => Nil
             case ResourcePattern.FieldLocation(f) =>
               nonGeneric(fieldOwner(f))
-              Seq(TClass(succ(fieldOwner(f)), Seq()))
+              Seq(dispatch(fieldOwner(f).classType(Nil)))
             case ResourcePattern.ModelLocation(f) =>
               Seq(TModel(succ(modelFieldOwner(f))))
             case ResourcePattern.SilverFieldLocation(_) => Seq(TRef())
@@ -196,8 +205,8 @@ case class EncodeResourceValues[Pre <: Generation]()
               ref.args.map(_.t).map(dispatch)
             case ResourcePattern.InstancePredicateLocation(ref) =>
               nonGeneric(predicateOwner(ref))
-              TClass[Post](succ(predicateOwner(ref)), Seq()) +:
-                ref.args.map(_.t).map(dispatch)
+              dispatch(predicateOwner(ref).classType(Nil)) +: ref.args.map(_.t)
+                .map(dispatch)
           }
 
         def freeTypes(pattern: ResourcePattern): Seq[Type[Post]] =
@@ -457,5 +466,12 @@ case class EncodeResourceValues[Pre <: Generation]()
     t match {
       case TResourceVal() => TAxiomatic(valAdt.top.ref, Nil)
       case other => rewriteDefault(other)
+    }
+
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    decl match {
+      case m: AbstractMethod[Pre] if m.returnType == TResourceVal[Pre]() =>
+        throw new ResourceValueReturnType(m)
+      case _ => super.dispatch(decl)
     }
 }

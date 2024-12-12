@@ -10,12 +10,12 @@ object LLVM {
   def findCallable[G](
       name: String,
       ctx: ReferenceResolutionContext[G],
-  ): Option[LlvmCallable[G]] = {
+  ): Option[LLVMCallable[G]] = {
     // look in context
     val callable = ctx.stack.flatten.map {
-      case RefLlvmGlobal(decl, i) =>
+      case RefLLVMGlobalSpecification(decl, i) =>
         decl.data.get(i) match {
-          case f: LlvmSpecFunction[G] if f.name == name => Some(f)
+          case f: LLVMSpecFunction[G] if f.name == name => Some(f)
           case _ => None
         }
       case _ => None
@@ -25,14 +25,22 @@ object LLVM {
       case Some(callable) => Some(callable)
       case None =>
         ctx.currentResult.get match {
-          case RefLlvmFunctionDefinition(decl) =>
-            decl.contract.invokableRefs.find(ref => ref._1 == name) match {
-              case Some(ref) => Some(ref._2.decl)
-              case None => None
+          case RefLLVMFunctionDefinition(decl) =>
+            decl.contract match {
+              case contract: VCLLVMFunctionContract[_] =>
+                contract.invokableRefs.find(ref => ref._1 == name) match {
+                  case Some(ref) => Some(ref._2.decl)
+                  case None => None
+                }
+              case _ => None
             }
           case _ => None
         }
     }
+  }
+
+  def scanBlocks[G](node: Node[G]): Map[LabelDecl[G], LLVMBasicBlock[G]] = {
+    node.collect { case b: LLVMBasicBlock[G] => (b.label, b) }.toMap
   }
 
 }

@@ -10,6 +10,7 @@ import vct.col.origin.{
   PreconditionFailed,
 }
 import vct.col.rewrite.Generation
+import vct.col.util.AstBuildHelpers._
 
 case object ImportOption extends ImportADTBuilder("option") {
   case class OptionNonePreconditionFailed(access: OptGet[_])
@@ -66,6 +67,21 @@ case class ImportOption[Pre <: Generation](importer: ImportADTImporter)
     t match {
       case TOption(element) => TAxiomatic(optionAdt.ref, Seq(dispatch(element)))
       case other => rewriteDefault(other)
+    }
+
+  override def preCoerce(e: Expr[Pre]): Expr[Pre] =
+    e match {
+      case OptEmpty(OptNone()) => tt
+      case OptEmpty(OptSome(_)) => ff
+      case OptGet(OptSome(inner)) => inner
+      case OptGet(OptSomeTyped(_, inner)) => inner
+      case OptGetOrElse(OptSome(inner), _) => inner
+      case OptGetOrElse(OptSomeTyped(_, inner), _) => inner
+      case OptSomeTyped(t, OptGet(inner))
+          if inner.t.asOption.get.element == t =>
+        inner
+      case OptSome(OptGet(inner)) => inner
+      case _ => super.preCoerce(e)
     }
 
   override def postCoerce(e: Expr[Pre]): Expr[Post] =

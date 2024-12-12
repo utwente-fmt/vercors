@@ -23,4 +23,25 @@ class CPPSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/cpp/methods/Permissions.cpp"
   vercors should verify using silicon example "concepts/cpp/methods/Predicates.cpp"
   vercors should verify using silicon example "concepts/cpp/methods/PureGhostMethod.cpp"
+
+  vercors should error withCode "preprocessorError" in "Source file with preprocessor error" cpp
+  """
+  #define foo(
+  """
+
+  vercors should verify using silicon in "Character literal" cpp
+  """
+  char a = 'a';
+  char b = '\u0062';
+  """
+
+  vercors should error withCode "parseError" in "Multicharacter literal" cpp
+  """
+  char c = 'bad!';
+  """
+
+  vercors should error withCode "parseError" in "Unrepresentable character literal" cpp
+  """
+  char d = 'é';
+  """
 }

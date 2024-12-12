@@ -5,9 +5,7 @@ import vct.col.ast.{Type, Unfolding}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.ast.ops.UnfoldingOps
 
-trait UnfoldingImpl[G]
-    extends NodeFamilyImpl[G]
-    with UnfoldingOps[G] {
+trait UnfoldingImpl[G] extends NodeFamilyImpl[G] with UnfoldingOps[G] {
   this: Unfolding[G] =>
   override def t: Type[G] = body.t
 
@@ -18,7 +16,7 @@ trait UnfoldingImpl[G]
     Group(Text("unfolding") <+> res.show <+> "in" <>> body)
 
   def layoutJava(implicit ctx: Ctx): Doc =
-    Group(Text("\\Unfolding") <+> res.show <+> "\\in" <>> body)
+    Group(Doc.inlineSpec(Text("\\Unfolding") <+> res.show <+> "\\in") <>> body)
 
   def layoutSpec(implicit ctx: Ctx): Doc =
     Group(Text("\\unfolding") <+> res.show <+> "\\in" <>> body)

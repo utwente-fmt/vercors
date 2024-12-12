@@ -1,14 +1,10 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers._
+import vct.col
 import vct.col.ast._
-import vct.col.origin.Origin
-import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.StratifyExpressions.MultipleEndpoints
 
 import scala.collection.immutable.ListSet
 
@@ -22,16 +18,22 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
     extends Rewriter[Pre] with VeymontContext[Pre] {
   val currentParticipants: ScopedStack[ListSet[Endpoint[Pre]]] = ScopedStack()
 
+  override def dispatch(p: Program[Pre]): Program[Post] = {
+    mappings.program = p
+    super.dispatch(p)
+  }
+
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case chor: Choreography[Pre] =>
         currentChoreography.having(chor) {
           currentParticipants.having(ListSet.from(chor.endpoints)) {
-            rewriteDefault(chor)
+            chor.rewrite(contract = chor.contract.rewriteDefault())
+              .succeed(chor)
           }
         }
 
-      case decl => rewriteDefault(decl)
+      case decl => super.dispatch(decl)
     }
 
   override def dispatch(
@@ -91,14 +93,22 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
           c.rewrite(inner = loop.rewrite(cond = stratifyExpr(loop.cond)))
         }
 
+      case InChor(_, c @ ChorStatement(assert: Assert[Pre])) =>
+        c.rewrite(inner = assert.rewrite(res = stratifyExpr(assert.res)))
+      case InChor(_, c @ ChorStatement(assume: Assume[Pre])) =>
+        c.rewrite(inner = assume.rewrite(assn = stratifyExpr(assume.assn)))
+      case InChor(_, c @ ChorStatement(inhale: Inhale[Pre])) =>
+        c.rewrite(inner = inhale.rewrite(res = stratifyExpr(inhale.res)))
+      case InChor(_, c @ ChorStatement(exhale: Exhale[Pre])) =>
+        c.rewrite(inner = exhale.rewrite(res = stratifyExpr(exhale.res)))
+
       case statement => statement.rewriteDefault()
     }
 
   def stratifyExpr(expr: Expr[Pre]): Expr[Post] = {
     implicit val o = expr.o
     foldAny(expr.t)(unfoldStar(expr).flatMap {
-      case expr @ (_: EndpointExpr[Pre] |
-          _: ChorExpr[Pre] | _: ChorPerm[Pre]) =>
+      case expr @ (_: EndpointExpr[Pre] | _: ChorExpr[Pre]) =>
         Seq(expr.rewriteDefault())
       case expr =>
         currentParticipants.top.map { endpoint =>

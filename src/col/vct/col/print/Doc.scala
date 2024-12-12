@@ -30,6 +30,8 @@ case object Doc {
   def fold(docs: Iterable[Show])(f: (Doc, Doc) => Doc)(implicit ctx: Ctx): Doc =
     docs.map(_.show).filter(_.nonEmpty).reduceLeftOption(f).getOrElse(Empty)
 
+  def concat(docs: Iterable[Show])(implicit ctx: Ctx): Doc = fold(docs)(_ <> _)
+
   def spread(docs: Iterable[Show])(implicit ctx: Ctx): Doc = fold(docs)(_ <+> _)
 
   def rspread(docs: Iterable[Show])(implicit ctx: Ctx): Doc =
@@ -39,6 +41,9 @@ case object Doc {
     fold(docs.map(Empty <+> _.show))(_ <> _)
 
   def stack(docs: Iterable[Show])(implicit ctx: Ctx): Doc = fold(docs)(_ <+/> _)
+
+  def stack2(docs: Iterable[Show])(implicit ctx: Ctx): Doc =
+    fold(docs)(_ <> Line <> Line <> _)
 
   def arg(doc: Show)(implicit ctx: Ctx): Doc =
     Nest(NonWsLine <> doc) <> NonWsLine
