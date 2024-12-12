@@ -34,6 +34,9 @@ NEVER: EOF '=';
 // Must be able to contain identifiers from any frontend, so it's fine to over-approximate valid identifiers a bit.
 LANG_ID_ESCAPE: '`' ~[`]+ '`';
 
+VAL_PrependOp : '+:';
+VAL_AppendOp : ':+';
+
 VAL_RESOURCE: 'resource';
 VAL_PROCESS: 'process';
 VAL_FRAC: 'frac';

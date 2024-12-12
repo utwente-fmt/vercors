@@ -1401,7 +1401,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     )
 
     // Create a block of code for the kernel body based on what type of kernel it is
-    val (kernelParBlock, contractRequires, contractEnsures) =
+    val (kernelParBlock, contractRequires, contractEnsures, contractContextEverywhere) =
       rangeType match {
         case SYCLTRange(_) =>
           createBasicKernelBody(
@@ -1454,6 +1454,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       ApplicableContract[Post](
         kernelRunnerPreCondition,
         kernelRunnerPostCondition,
+//        contractContextEverywhere,
         tt,
         Nil,
         Nil,
@@ -1546,7 +1547,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       kernelDimensions: Expr[Pre],
       kernelDeclaration: CPPLambdaDefinition[Pre],
       accessorParblockConditions: Seq[Expr[Post]],
-  ): (ParBlock[Post], Expr[Post], Expr[Post]) = {
+  ): (ParBlock[Post], Expr[Post], Expr[Post], Expr[Post]) = {
     // Register the kernel dimensions
     val range: Seq[Expr[Post]] =
       rw.dispatch(kernelDimensions) match {
@@ -1582,6 +1583,9 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       .dispatch(kernelDeclaration.contract.requires)
     val UnitAccountedPredicate(contractEnsures: Expr[Post]) = rw
       .dispatch(kernelDeclaration.contract.ensures)
+    val contractContextEverywhere: Expr[Post] = rw
+      .dispatch(kernelDeclaration.contract.contextEverywhere)
+
     val idLimits = currentDimensionIterVars(GlobalScope()).map(iterVar => {
       implicit val o: Origin = iterVar.o
       Local[Post](iterVar.variable.ref) >= c_const(0) &&
@@ -1597,8 +1601,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         context_everywhere = foldStar(
           (currentKernelType.get.getRangeFieldPermissions(currentThis.get) ++
             idLimits ++ accessorParblockConditions) :+
-          rw.dispatch(kernelDeclaration.contract.contextEverywhere)
-
+            contractContextEverywhere
         )
         ,
         requires = contractRequires,
@@ -1606,7 +1609,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         content = rw.dispatch(kernelDeclaration.body),
       )(SYCLKernelParBlockFailureBlame(kernelDeclaration))
 
-    (parBlock, contractRequires, contractEnsures)
+    (parBlock, contractRequires, contractEnsures, contractContextEverywhere)
   }
 
   private def createNDRangeKernelBody(
@@ -1614,7 +1617,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       kernelDeclaration: CPPLambdaDefinition[Pre],
       accessorParblockConditions: Seq[Expr[Post]],
       localAccessorDeclarations: Seq[CPPLocalDeclaration[Pre]],
-  ): (ParBlock[Post], Expr[Post], Expr[Post]) = {
+  ): (ParBlock[Post], Expr[Post], Expr[Post], Expr[Post]) = {
     // Register the kernel dimensions
     val (globalRange, localRange): (Seq[Expr[Post]], Seq[Expr[Post]]) =
       rw.dispatch(kernelDimensions) match {
@@ -1685,6 +1688,9 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       .dispatch(kernelDeclaration.contract.requires)
     val UnitAccountedPredicate(contractEnsures: Expr[Post]) = rw
       .dispatch(kernelDeclaration.contract.ensures)
+    val contractContextEverywhere: Expr[Post] = rw
+      .dispatch(kernelDeclaration.contract.contextEverywhere)
+
     val localIdLimits = currentDimensionIterVars(LocalScope()).map(iterVar => {
       implicit val o: Origin = iterVar.o
       Local[Post](iterVar.variable.ref) >= c_const(0) &&
@@ -1762,7 +1768,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         ),
       )(SYCLKernelParBlockFailureBlame(kernelDeclaration))
 
-    (workGroupParBlock, quantifiedContractRequires, quantifiedContractEnsures)
+    (workGroupParBlock, quantifiedContractRequires, quantifiedContractEnsures, contractContextEverywhere)
   }
 
   private def rewriteSYCLAccessorDeclarations(
