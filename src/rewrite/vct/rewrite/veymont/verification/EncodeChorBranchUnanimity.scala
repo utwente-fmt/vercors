@@ -2,9 +2,34 @@ package vct.rewrite.veymont.verification
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast._
+import vct.col.ast.{
+  ChorStatement,
+  Declaration,
+  Expr,
+  LoopContract,
+  EndpointExpr,
+  CommTargetEndpoint,
+  CommTargetIndex,
+  Declaration,
+  Choreography,
+  Program,
+  Loop,
+  Branch,
+  Statement,
+  Block,
+  Assert,
+  LoopInvariant,
+  IterationContract,
+  CommunicateTarget,
+  RangeBinder,
+  CommTargetRange,
+  Select,
+  Variable,
+  TInt,
+  TBool,
+}
 import vct.col.origin._
-import vct.col.ref.{Ref, DirectRef}
+import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
 import vct.rewrite.veymont.VeymontContext
@@ -139,30 +164,129 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
       case _ => contract.rewriteDefault()
     }
 
-  def min(a: Expr[Post], b: Expr[Post]): Expr[Post] = ???
-  def max(a: Expr[Post], b: Expr[Post]): Expr[Post] = ???
+  def unanimous(exprs: Expr[Pre]): Expr[Post] = {
+    val subExprs: Seq[EndpointExpr[Pre]] = unfoldAny(exprs).map {
+      case expr: EndpointExpr[Pre] => expr
+      case _ => ???
+    }
+    require(subExprs.nonEmpty)
+    val alphas = subExprs.map(_.endpoint)
+    // This is either an endpoint e or an indexed family F[i], meaning a singular endpoint
+    // All sub-conditions in the total condition will be checked to be equal to the condition of this endpoint
+    // For aesthetic purposes, we try to pick a singular endpoint from the list of alphas, but this is not strictly
+    // necessary. You could pick any of the endpoints participating in the condition.
+    val grounder = {
+      val singularCandidate = alphas.collectFirst {
+        case endpoint: CommTargetEndpoint[Pre] => endpoint
+        case index: CommTargetIndex[Pre] => index
+      }
+      singularCandidate match {
+        case Some(singular) => singular
+        case None =>
+          // No singular candidate in condition. Since the condition is nonempty,
+          // and there were no singular CommunicationTarget, it is guaranteed that the first is a CommTargetRange.
+          // We just pick that
+          alphas.head
+      }
+    }
+    // Drop all endpoint exprs that mention the grounder. This is incomplete, as we do only a syntactic check. But in the case
+    // of a singular CommunicateTarget it reduces the length of the filteredSubExprs list nicely.
+    val filteredSubExprs = subExprs.filter(_.endpoint != grounder)
+    val filteredAlphas = filteredSubExprs.map { _.endpoint }
+    implicit val o: Origin = TraceOrigin()
+    val groundCondition =
+      ??? // Kind of need to apply ground here, but that requires a groundCondition. I just want to apply the partial projection operator here... Hmm
+    foldAny1(exprs.t)(filteredAlphas.map { alpha =>
+      ground(filteredSubExprs, grounder, alpha)
+    })
+  }
 
-  def intersect(
-      left: CommunicateTarget[Pre],
-      right: CommunicateTarget[Pre],
-  ): CommunicateTarget[Post] =
-    (left, right) match {
-      case (left, right) if left.isSingle && right.isSingle && left == right =>
-        dispatch(left)
+  def ground(
+      groundCondition: Expr[Post],
+      exprs: Seq[EndpointExpr[Pre]],
+      mainTarget: CommunicateTarget[Pre],
+  )(implicit o: Origin): Expr[Post] =
+    groundCondition === foldAnd(exprs.map { expr =>
+      narrowCommunicateTarget(expr.endpoint, mainTarget).map { subTarget =>
+        expr.rewrite(endpoint = subTarget)
+      }.collect { case Some(expr) => expr }
+    })
+
+  // Either narrows a target in accordance with some context, or returns None if the two targets are
+  // not related - e.g. when narrowing an endpoint to the context of a endpoint range.
+  def narrowCommunicateTarget(
+      target: CommunicateTarget[Pre],
+      context: CommunicateTarget[Pre],
+  ): Option[CommunicateTarget[Post]] =
+    (target, context) match {
+      case (target, context) if target.isSingle && target == context =>
+        Some(dispatch(target))
       case (
-            CommTargetRange(Ref(f), RangeBinder(_, fLow, fHigh)),
-            CommTargetRange(Ref(g), RangeBinder(_, gLow, gHigh)),
-          ) if f == g =>
+            CommTargetRange(Ref(a), RangeBinder(binder, fLow, fHigh)),
+            CommTargetRange(Ref(b), RangeBinder(_, gLow, gHigh)),
+          ) if a == b =>
         implicit val o: Origin = TraceOrigin()
-        CommTargetRange[Post](
-          succ(f),
+        Some(CommTargetRange[Post](
+          succ(a),
           RangeBinder(
-            new Variable(TInt()),
+            variables.dispatch(binder),
             max(fLow.rewriteDefault(), gLow.rewriteDefault()),
             min(fHigh.rewriteDefault(), gHigh.rewriteDefault()),
           ),
-        )
-      case (left, right) if right.isSingle => intersect(right, left)
-      case (left, right) => assert(left.isSingle && right.isRange)
+        ))
+      case (
+            CommTargetIndex(ref @ Ref(a), i),
+            CommTargetRange(Ref(b), RangeBinder(_, low, high)),
+          ) if a == b =>
+        implicit val o: Origin = TraceOrigin()
+        // Implement support for this case by simulating the case of F[i] as a range F[i' := i .. i + 1]
+        // (in this cased, the i' variable does not need to be used: it is directly equal to i, so i can safely be used instead)
+        // (except that i is an expr and i' a var, but that's irrelevant here)
+        Some(CommTargetRange[Post](
+          endpoints.dispatch(ref),
+          RangeBinder(
+            new Variable(TInt()),
+            max(dispatch(i), dispatch(low)),
+            min(dispatch(i) + const(1), dispatch(high)),
+          ),
+        ))
+
     }
+
+  def compareFun(
+      op: (Expr[Post], Expr[Post]) => Expr[Post]
+  )(implicit o: Origin): Function[Post] = {
+    val x = new Variable[Post](TInt())(o.sourceName("x"))
+    val y = new Variable[Post](TInt())(o.sourceName("y"))
+    function[Post](
+      args = Seq(x, y),
+      returnType = TInt(),
+      body = Some(Select[Post](op(x.get, y.get), x.get, y.get)),
+      blame = TrivialContract(),
+      contractBlame = TrueSatisfiable,
+    ).declare()
+  }
+
+  lazy val minFun = {
+    implicit val o: Origin = TraceOrigin().sourceName("min")
+    compareFun((x, y) => x < y)
+  }
+  lazy val maxFun = {
+    implicit val o: Origin = TraceOrigin().sourceName("max")
+    compareFun((x, y) => x > y)
+  }
+
+  def min(a: Expr[Post], b: Expr[Post])(implicit o: Origin): Expr[Post] =
+    functionInvocation(
+      ref = minFun.ref,
+      args = Seq(a, b),
+      blame = TrivialContract(),
+    )
+  def max(a: Expr[Post], b: Expr[Post])(implicit o: Origin): Expr[Post] =
+    functionInvocation(
+      ref = maxFun.ref,
+      args = Seq(a, b),
+      blame = TrivialContract(),
+    )
+
 }

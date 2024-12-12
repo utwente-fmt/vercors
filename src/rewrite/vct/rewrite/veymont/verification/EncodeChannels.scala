@@ -54,7 +54,7 @@ case class EncodeChannels[Pre <: Generation]()
         // Helper for rewriting the invariant. Regular expressions we wrap in the EndpointExpr of the sender/receiver
         // ChorExpr's we leave untouched. Those will be encoded by the EncodeStratifiedPermissions pass.
         def wrapEndpointExpr(expr: Expr[Pre], ep: Endpoint[Pre]): Expr[Post] =
-          foldAny(expr.t)(unfoldStar(expr).map {
+          foldAny1(expr.t)(unfoldStar(expr).map {
             case e: ChorExpr[Pre] => dispatch(e)
             case e => EndpointExpr(CommTargetEndpoint(succ(ep)), dispatch(e))
           })

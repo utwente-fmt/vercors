@@ -965,11 +965,31 @@ object AstBuildHelpers {
   def foldAnd[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(And(_, _)).getOrElse(tt)
 
-  def foldAny[G](t: Type[_])(exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
-    t match {
-      case TBool() => foldAnd(exprs)
-      case TResource() => foldStar(exprs)
-      case _ => ???
+  def foldAny[G](
+      t: Type[_]
+  )(exprs: Seq[Expr[G]])(implicit o: Origin): Option[Expr[G]] = {
+    exprs match {
+      case Seq() => None
+      case exprs =>
+        t match {
+          case TBool() => Some(foldAnd(exprs))
+          case TResource() => Some(foldStar(exprs))
+          case _ => ???
+        }
+    }
+  }
+
+  def foldAny1[G](t: Type[_])(exprs: Seq[Expr[G]])(
+      implicit o: Origin
+  ): Expr[G] = foldAny(t)(exprs).get
+
+  // This is basically unfoldStar, except that it does not make the "true" case
+  // disappear into Nil.
+  def unfoldAny[G](expr: Expr[G]): Seq[Expr[G]] =
+    expr match {
+      case Star(left, right) => unfoldAny(left) ++ unfoldAny(right)
+      case And(left, right) => unfoldAny(left) ++ unfoldAny(right)
+      case other => Seq(other)
     }
 
   def loop[G](

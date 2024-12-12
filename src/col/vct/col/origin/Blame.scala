@@ -1415,9 +1415,30 @@ case class BlameUnreachable(message: String, failure: VerificationFailure)
         .toString.split('\n').mkString(" > ", "\n > ", "")}"
 }
 
-case class PanicBlame(message: String) extends Blame[VerificationFailure] {
-  override def blame(error: VerificationFailure): Unit =
-    throw BlameUnreachable(message, error)
+// Base PanicBlame object, not for general use. Instead, use
+// PanicBlame.apply or one of the extended PanicBlame object below.
+class PanicBlame(file: String, line: Int, message: String)
+    extends Blame[VerificationFailure] {
+  override def blame(error: VerificationFailure): Unit = {
+    if (file == null) { // Assuming file & line are either both null or both non-null
+      throw BlameUnreachable(message, error)
+    } else
+      throw BlameUnreachable(s"At $file:$line: $message", error)
+  }
+
+  def this(file: sourcecode.File, line: sourcecode.Line, message: String) =
+    this(file.value, line.value, message)
+
+  def this(message: String) = this(null, null, message)
+}
+
+// Plain PanicBlame for general use, if there is no pre-made PanicBlame
+// or your blame is too specific.
+object PanicBlame {
+  def apply(
+      message: String
+  )(implicit file: sourcecode.File, line: sourcecode.Line): PanicBlame =
+    new PanicBlame(file, line, message)
 }
 
 object NeverNone
@@ -1479,6 +1500,10 @@ object TriggerPatternBlame
     )
 object TrueSatisfiable
     extends PanicBlame("`requires true` is always satisfiable.")
+case class TrivialContract()(
+    implicit file: sourcecode.File,
+    line: sourcecode.Line,
+) extends PanicBlame(file, line, "the trivial contract cannot fail")
 object FramedPtrOffset
     extends PanicBlame(
       "pointer arithmetic in (0 <= \\pointer_block_offset(p)+i < \\pointer_block_length(p)) ? p+i : _ should always be ok."

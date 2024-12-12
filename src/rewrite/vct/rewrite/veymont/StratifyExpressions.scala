@@ -115,15 +115,8 @@ case class StratifyExpressions[Pre <: Generation]()
       case statement => statement.rewriteDefault()
     }
 
-  def dumbUnfoldStar[G](expr: Expr[G]): Seq[Expr[G]] =
-    expr match {
-      case Star(left, right) => dumbUnfoldStar(left) ++ dumbUnfoldStar(right)
-      case And(left, right) => dumbUnfoldStar(left) ++ dumbUnfoldStar(right)
-      case other => Seq(other)
-    }
-
   def stratifyExpr(e: Expr[Pre]): Expr[Post] = {
-    val exprs = dumbUnfoldStar(e)
+    val exprs = unfoldAny(e)
     foldAny(e.t)(
       exprs.map {
         case e: ChorExpr[Pre] => (None, e)
@@ -134,7 +127,7 @@ case class StratifyExpressions[Pre <: Generation]()
           EndpointExpr[Post](dispatch(endpoint), dispatch(expr))(expr.o)
         case (None, expr) => expr.rewriteDefault()
       }
-    )(e.o)
+    )(e.o).get
   }
 
   // "Points" an expression in the direction of an endpoint if possible
