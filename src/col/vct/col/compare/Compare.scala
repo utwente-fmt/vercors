@@ -4,6 +4,11 @@ import vct.col.ast.{Declaration, Node}
 
 import scala.collection.mutable
 
+/*
+Utility class to interface with the NodeCompare trait that each node has. Use `Compare.isIsomorphic` method for plain
+comparison of two ast nodes. You can also use `Compare.compare` to get the differences in a streaming manner, allowing
+early exit strategies.
+ */
 case object Compare {
   def compare[L, R](left: Node[L], right: Node[R])(
       toNormalForm: PartialFunction[Node[L], Node[L]]

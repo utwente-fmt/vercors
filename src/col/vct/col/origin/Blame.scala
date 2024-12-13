@@ -510,10 +510,10 @@ case class BranchUnanimityFailed(guard1: Node[_], guard2: Node[_])
 
   override def desc: String =
     Message.messagesInContext(
-      (guard1.o, "This condition..."),
+      (guard1.o, "The condition as evaluated for this participant"),
       (
         guard2.o,
-        "...should agree with this condition, but this might not be the case",
+        "...should agree with the condition as evaluted for this participant, but this might not be the case",
       ),
     )
 
@@ -1426,8 +1426,20 @@ class PanicBlame(file: String, line: Int, message: String)
       throw BlameUnreachable(s"At $file:$line: $message", error)
   }
 
+  // TODO: Refactor all PanicBlames below to work with sourcecode, and then remove the null-
+  //       supporting functionality, OR refactor it to be proper optionals
   def this(file: sourcecode.File, line: sourcecode.Line, message: String) =
-    this(file.value, line.value, message)
+    this(
+      if (file == null)
+        null
+      else
+        file.value,
+      if (line == null)
+        -1
+      else
+        line.value,
+      message,
+    )
 
   def this(message: String) = this(null, null, message)
 }

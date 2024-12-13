@@ -3,31 +3,33 @@ package vct.rewrite.veymont.verification
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
+  Assert,
+  Block,
+  Branch,
   ChorStatement,
-  Declaration,
-  Expr,
-  LoopContract,
-  EndpointExpr,
+  Choreography,
   CommTargetEndpoint,
   CommTargetIndex,
-  Declaration,
-  Choreography,
-  Program,
-  Loop,
-  Branch,
-  Statement,
-  Block,
-  Assert,
-  LoopInvariant,
-  IterationContract,
-  CommunicateTarget,
-  RangeBinder,
   CommTargetRange,
+  CommunicateTarget,
+  Declaration,
+  EndpointExpr,
+  Expr,
+  Function,
+  IterationContract,
+  Loop,
+  LoopContract,
+  LoopInvariant,
+  Node,
+  Program,
+  RangeBinder,
   Select,
-  Variable,
-  TInt,
+  Statement,
   TBool,
+  TInt,
+  Variable,
 }
+import vct.col.compare.Compare
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
@@ -39,6 +41,8 @@ import vct.rewrite.veymont.verification.EncodeChorBranchUnanimity.{
   ForwardLoopUnanimityNotMaintained,
 }
 
+import scala.collection.mutable
+
 object EncodeChorBranchUnanimity extends RewriterBuilderArg[Boolean] {
   override def key: String = "encodeChorBranchUnanimity"
   override def desc: String =
@@ -46,8 +50,8 @@ object EncodeChorBranchUnanimity extends RewriterBuilderArg[Boolean] {
 
   case class ForwardBranchUnanimity(
       chor: ChorStatement[_],
-      c1: Expr[_],
-      c2: Expr[_],
+      c1: Node[_],
+      c2: Node[_],
   ) extends Blame[AssertFailed] {
     require(chor.inner match { case _: Branch[_] => true; case _ => false })
     override def blame(error: AssertFailed): Unit =
@@ -75,6 +79,9 @@ object EncodeChorBranchUnanimity extends RewriterBuilderArg[Boolean] {
   }
 }
 
+// Adds assertions to check branch unanimity to the program. Not sure if this is the best way, as some kind of partial
+// projection hack is needed to do the encoding of the unanimity before the actual projection is done. Might as well
+// inline it in the EncodeChoreography pass.
 case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
     extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
@@ -82,7 +89,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
 
   val currentLoop = ScopedStack[Loop[Pre]]()
 
-  override def dispatch(program: Program[Pre]): Program[Post] =
+  override def dispatch(program: Program[Pre]): Program[Post] = {
     if (enabled) {
       mappings.program = program
       super.dispatch(program)
@@ -92,6 +99,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
       )
       IdentityRewriter().dispatch(program)
     }
+  }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
@@ -104,13 +112,11 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
     statement match {
       case InChor(_, c @ ChorStatement(branch: Branch[Pre])) =>
         implicit val o = statement.o
-        val guards = unfoldStar(branch.cond)
-        val assertions: Block[Post] = Block(guards.indices.init.map { i =>
-          Assert(dispatch(guards(i)) === dispatch(guards(i + 1)))(
-            ForwardBranchUnanimity(c, guards(i), guards(i + 1))
-          )
-        })
-
+        val assertions = Block(
+          unanimous(branch.cond).map { case (cond, (alpha, beta)) =>
+            Assert(cond)(ForwardBranchUnanimity(c, alpha, beta))
+          }
+        )
         Block(Seq(assertions, super.dispatch(branch)))
 
       case InChor(_, c @ ChorStatement(loop: Loop[Pre])) =>
@@ -164,53 +170,66 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
       case _ => contract.rewriteDefault()
     }
 
-  def unanimous(exprs: Expr[Pre]): Expr[Post] = {
+  def unanimous(
+      exprs: Expr[Pre]
+  ): Seq[(Expr[Post], (CommunicateTarget[Pre], CommunicateTarget[Pre]))] = {
+    implicit val o: Origin = TraceOrigin()
     val subExprs: Seq[EndpointExpr[Pre]] = unfoldAny(exprs).map {
       case expr: EndpointExpr[Pre] => expr
       case _ => ???
     }
     require(subExprs.nonEmpty)
     val alphas = subExprs.map(_.endpoint)
-    // This is either an endpoint e or an indexed family F[i], meaning a singular endpoint
-    // All sub-conditions in the total condition will be checked to be equal to the condition of this endpoint
+    // `grounder` is either a singular endpoint e or an indexed family F[i], meaning a singular endpoint. It is the
+    // endpoint of which the condition will be compared to all other conditions.
     // For aesthetic purposes, we try to pick a singular endpoint from the list of alphas, but this is not strictly
-    // necessary. You could pick any of the endpoints participating in the condition.
-    val grounder = {
-      val singularCandidate = alphas.collectFirst {
-        case endpoint: CommTargetEndpoint[Pre] => endpoint
-        case index: CommTargetIndex[Pre] => index
-      }
-      singularCandidate match {
-        case Some(singular) => singular
-        case None =>
-          // No singular candidate in condition. Since the condition is nonempty,
-          // and there were no singular CommunicationTarget, it is guaranteed that the first is a CommTargetRange.
-          // We just pick that
-          alphas.head
-      }
+    // necessary. Mostly because it might make the grounded condition smaller.
+    // You could pick any of the endpoints participating in the condition, in theory.
+    val grounder = alphas.find(_.isSingle).getOrElse(alphas.head)
+    val groundCondition = partialProject(exprs, grounder)
+    // Get all subexpressions that don't mention the grounder. This is not precise, as we do only a syntactic check.
+    // But in the case of a singular CommunicateTarget it reduces the length of the filteredSubExprs list nicely.
+    val filteredExprs = subExprs
+      // Keep all subexpressions for which the alphas are neither identity-equal, nor isomorphic
+      .filter(expr =>
+        expr.endpoint != grounder
+        /* TODO (RR): Would like to include isomorphism somehow, but "just" doing it like below is wrong.
+                      I think you need to do the isomorphism check on the contents of CommunicateTarget,
+                      but not on the endpoints with it.*/
+//          !Compare.isIsomorphic(expr.endpoint, grounder)
+      )
+    // If there are no filtered exprs, it means that only one endpoint is involved in the branch, meaning there is nothing to check
+    if (filteredExprs.isEmpty)
+      return Seq()
+    // This is the expression that the non-ground endpoints will evaluate
+    val filteredExpr = foldAny1(TBool())(filteredExprs)
+    // Apply the partial projection to the filtered expression for each other participant, and
+    // construct the aggregated branch condition
+    val nonGroundEndpoints =
+      // LinkedHashSet because it is order preserving
+      mutable.LinkedHashSet.from(filteredExprs.map(_.endpoint)).toSeq
+    nonGroundEndpoints.map { alpha =>
+      (
+        groundCondition === partialProject(filteredExpr, alpha),
+        (grounder, alpha),
+      )
     }
-    // Drop all endpoint exprs that mention the grounder. This is incomplete, as we do only a syntactic check. But in the case
-    // of a singular CommunicateTarget it reduces the length of the filteredSubExprs list nicely.
-    val filteredSubExprs = subExprs.filter(_.endpoint != grounder)
-    val filteredAlphas = filteredSubExprs.map { _.endpoint }
-    implicit val o: Origin = TraceOrigin()
-    val groundCondition =
-      ??? // Kind of need to apply ground here, but that requires a groundCondition. I just want to apply the partial projection operator here... Hmm
-    foldAny1(exprs.t)(filteredAlphas.map { alpha =>
-      ground(filteredSubExprs, grounder, alpha)
-    })
   }
 
-  def ground(
-      groundCondition: Expr[Post],
-      exprs: Seq[EndpointExpr[Pre]],
-      mainTarget: CommunicateTarget[Pre],
-  )(implicit o: Origin): Expr[Post] =
-    groundCondition === foldAnd(exprs.map { expr =>
-      narrowCommunicateTarget(expr.endpoint, mainTarget).map { subTarget =>
-        expr.rewrite(endpoint = subTarget)
+  // Does a lazy/partial projection by only modifying the endpoint expr nodes, leaving everything inside those expressions intact
+  def partialProject(expr: Expr[Pre], mainTarget: CommunicateTarget[Pre])(
+      implicit o: Origin
+  ): Expr[Post] =
+    foldAny1(TBool())(
+      unfoldAny(expr).map {
+        // Should be statically guaranteed that you only get EndpointExprs at this point
+        case expr: EndpointExpr[Pre] =>
+          narrowCommunicateTarget(expr.endpoint, mainTarget).map { subTarget =>
+            expr.rewrite(endpoint = subTarget)
+          }
+        case _ => ???
       }.collect { case Some(expr) => expr }
-    })
+    )
 
   // Either narrows a target in accordance with some context, or returns None if the two targets are
   // not related - e.g. when narrowing an endpoint to the context of a endpoint range.
@@ -221,6 +240,9 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
     (target, context) match {
       case (target, context) if target.isSingle && target == context =>
         Some(dispatch(target))
+      case (target, context)
+          if target.isSingle && context.isSingle && target != context =>
+        None
       case (
             CommTargetRange(Ref(a), RangeBinder(binder, fLow, fHigh)),
             CommTargetRange(Ref(b), RangeBinder(_, gLow, gHigh)),
@@ -250,6 +272,8 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
             min(dispatch(i) + const(1), dispatch(high)),
           ),
         ))
+      /* TODO (RR): What about the case when context if F[i} and target is a range? Do we then just collapse the range into the unit range of F[i]?
+                    Probably use min/max again to accomodate for when i is outside the range. */
 
     }
 

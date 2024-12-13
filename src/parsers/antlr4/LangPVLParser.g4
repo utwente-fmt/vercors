@@ -18,7 +18,7 @@ pvlChoreography : contract 'choreography' identifier '(' args? ')' '{' choreogra
 
 choreographyDecl
  : 'endpoint' identifier '=' classType '(' exprList? ')' ';' # pvlEndpoint
- | 'endpoints' identifier rangeBinder '=' classType '(' exprList? ')' ';' # pvlEndpoints
+ | ('endpoint' | 'endpoints') identifier rangeBinder '=' classType '(' exprList? ')' ';' # pvlEndpoints
  | contract 'run' block # pvlSeqRun
  | method # choreographyMethod
  ;

@@ -47,7 +47,6 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
         contract.rewrite(
           requires = (stratifyExpr(_)).accounted(contract.requires),
           ensures = (stratifyExpr(_)).accounted(contract.ensures),
-          contextEverywhere = stratifyExpr(contract.contextEverywhere),
         )
       case _ => contract.rewriteDefault()
     }

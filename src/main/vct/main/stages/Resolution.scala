@@ -19,6 +19,7 @@ import vct.col.ast.{
 import org.antlr.v4.runtime.CharStreams
 import vct.col.ast._
 import vct.col.check.CheckError
+import vct.col.compare.Compare
 import vct.col.origin.{
   FileSpanningOrigin,
   InlineBipContext,

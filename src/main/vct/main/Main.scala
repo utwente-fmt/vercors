@@ -86,6 +86,8 @@ case object Main extends LazyLogging {
       return 0
     }
 
+    classOf[Options]
+
     Middleware.using(
       true -> InterruptibleStdin,
       true -> Logging.withLogLevels(options.logLevels),
