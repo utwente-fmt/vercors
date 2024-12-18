@@ -84,6 +84,13 @@ object AstBuildHelpers {
     def &&(right: Expr[G])(implicit origin: Origin): And[G] = And(left, right)
     def ||(right: Expr[G])(implicit origin: Origin): Or[G] = Or(left, right)
     def &*(right: Expr[G])(implicit origin: Origin): Star[G] = Star(left, right)
+    def |&&|(right: Expr[G])(implicit origin: Origin): Expr[G] =
+      (left, right) match {
+        case (BooleanValue(true), BooleanValue(true)) => tt[G]
+        case (BooleanValue(true), e) => e
+        case (e, BooleanValue(true)) => e
+        case _ => And[G](left, right)
+      }
 
     def ==>(right: Expr[G])(implicit origin: Origin): Implies[G] =
       Implies(left, right)

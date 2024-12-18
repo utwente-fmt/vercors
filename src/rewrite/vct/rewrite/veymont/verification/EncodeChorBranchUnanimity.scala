@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
   Assert,
+  Endpoint,
   Block,
   Branch,
   ChorStatement,
@@ -28,6 +29,8 @@ import vct.col.ast.{
   TBool,
   TInt,
   Variable,
+  And,
+  BooleanValue,
 }
 import vct.col.compare.Compare
 import vct.col.origin._
@@ -169,6 +172,76 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
         )
       case _ => contract.rewriteDefault()
     }
+
+  def getAlphas(expr: Expr[Pre]): Seq[CommunicateTarget[Pre]] = ???
+
+  def sort(target: CommunicateTarget[Pre]): Endpoint[Pre] =
+    target match {
+      case CommTargetEndpoint(Ref(e)) => e
+      case CommTargetIndex(Ref(e), _) => e
+      case CommTargetRange(Ref(e), _) => e
+    }
+
+  // Here, r can only be a singular endpoint, not a range
+  // I fully expanded the match statement to make sure we cover every single case
+  def partialProjectNew(
+      expr: Expr[Pre],
+      r: CommunicateTarget[Pre],
+  ): Expr[Post] =
+    (expr, r) match {
+      case (expr @ And(p, q), r) =>
+        // Distribute over and
+        implicit val o: Origin = expr.o
+        partialProjectNew(p, r) |&&| partialProjectNew(q, r)
+      case (
+            expr @ EndpointExpr(alpha @ CommTargetEndpoint(Ref(a)), inner),
+            CommTargetEndpoint(Ref(b)),
+          ) if a == b =>
+        // a & b match, we keep the endpoint expr
+        expr.rewrite(endpoint = alpha.rewriteDefault(), expr = dispatch(inner))
+      case (
+            EndpointExpr(CommTargetIndex(Ref(f), i), inner),
+            CommTargetIndex(Ref(g), j),
+          ) if f == g =>
+        implicit val o: Origin = expr.o
+        // evaluate if the indices are the same
+        ((dispatch(i) === dispatch(j)) ==> dispatch(inner))
+      case (
+            EndpointExpr(
+              CommTargetRange(Ref(f), RangeBinder(Ref(v), low, high)),
+              inner,
+            ),
+            CommTargetIndex(Ref(g), j),
+          ) =>
+        implicit val o: Origin = expr.o
+        // Evaluate if j is within range
+        ??? // TODO (RR): Need to do some substitution in inner to replace v with j
+        (dispatch(low) <= dispatch(j)) && (dispatch(j) < dispatch(high)) ==>
+          dispatch(inner)
+      case (EndpointExpr(alpha, _), r) =>
+        // If none of the cases match, the endpoints of alpha & r cannot be the same, as otherwise there
+        // should have been a matching case.
+        assert(sort(alpha) != sort(r))
+        BooleanValue(true)(expr.o)
+    }
+
+  def ground(
+      expr: Expr[Pre],
+      alpha: CommunicateTarget[Pre],
+      b: Expr[Post],
+  ): Expr[Post] = {
+    implicit val o: Origin = expr.o
+    alpha match {
+      case r @ (_: CommTargetEndpoint[Pre] | _: CommTargetIndex[Pre]) =>
+        partialProjectNew(expr, r) === b
+      case CommTargetRange(Ref(f), RangeBinder(Ref(v), low, high)) =>
+        // forall int v = low .. high; partialProjectNew(expr, CommTargetIndex(f.ref, v.get)
+        ???
+
+    }
+  }
+
+  def unanimousNew(cond: Expr[Pre]): Expr[Post] = {}
 
   def unanimous(
       exprs: Expr[Pre]
