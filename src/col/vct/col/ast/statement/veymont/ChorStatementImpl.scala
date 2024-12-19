@@ -69,13 +69,14 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
 
   // There are participants in this if that have been excluded from participation: error
   def participantCheck(context: CheckContext[G]): Option[CheckError] =
-    if (
-      !Set.from(explicitEndpoints)
-        .subsetOf(context.currentParticipatingEndpoints.get)
-    )
-      Some(SeqProgParticipant(this))
-    else
-      None
+    // TODO (RR): Turn this into a semantic check with asserts
+//    if (
+//      !Set.from(explicitEndpoints)
+//        .subsetOf(context.currentParticipatingEndpoints.get)
+//    )
+//      Some(SeqProgParticipant(this))
+//    else
+    None
 
   override def check(context: CheckContext[G]): Seq[CheckError] = {
     assert(context.currentParticipatingEndpoints.isDefined)

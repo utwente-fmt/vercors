@@ -53,14 +53,11 @@ object EncodeChorBranchUnanimity extends RewriterBuilderArg[Boolean] {
   override def desc: String =
     "Encodes the branch unanimity requirement imposed by VeyMont on branches and loops in choreographies."
 
-  case class ForwardBranchUnanimity(
-      chor: ChorStatement[_],
-      c1: Node[_],
-      c2: Node[_],
-  ) extends Blame[AssertFailed] {
+  case class ForwardBranchUnanimity(chor: ChorStatement[_], c1: Node[_])
+      extends Blame[AssertFailed] {
     require(chor.inner match { case _: Branch[_] => true; case _ => false })
     override def blame(error: AssertFailed): Unit =
-      chor.blame.blame(BranchUnanimityFailed(c1, c2))
+      chor.blame.blame(BranchUnanimityFailed1(c1))
   }
 
   case class ForwardLoopUnanimityNotEstablished(
@@ -124,9 +121,9 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
 //        )
 //        Block(Seq(assertions, super.dispatch(branch)))
         Block(Seq(
-          Assert(unanimous(branch.cond))(PanicBlame(
-            c.o.messageInContext("Branch not unanimous")
-          )),
+          Assert(unanimous(branch.cond))(
+            ForwardBranchUnanimity(c, branch.cond)
+          ),
           super.dispatch(branch),
         ))
 
@@ -258,14 +255,15 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
       case r @ (_: CommTargetEndpoint[Pre] | _: CommTargetIndex[Pre]) =>
         partialProject(expr, r) |===| b
       case CommTargetRange(f, RangeBinder(oldV, low, high)) =>
-        forall(
+//        oldV.drop()
+        variables.scope(forall(
           TInt(),
           v => {
             variables.succeedOnly(oldV, v.ref.decl)
             ((dispatch(low) <= v) && (v < dispatch(high))) ==>
               partialProject(expr, CommTargetIndex(f, oldV.get))
           },
-        )
+        ))
 
     }
   }

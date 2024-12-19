@@ -32,18 +32,11 @@ trait EndpointImpl[G]
 
   def t: TClass[G] = cls.decl.classType(typeArgs)
 
-  override def enterCheckContextScopes(
-      context: CheckContext[G]
-  ): Seq[CheckContext.ScopeFrame[G]] = context.withScope(declarations)
-
   override def declarations: Seq[Declaration[G]] =
-    getRange.map(r => Seq(r.binder)).getOrElse(Seq())
+    range.map(r => Seq(r.binder)).getOrElse(Seq())
 
   def isFamily: Boolean = range.nonEmpty
   def isSingle: Boolean = !isFamily
-
-  def getRange: Option[RangeBinder[G]] =
-    this.range.map(_.asInstanceOf[RangeBinder[G]])
 
   def commTarget: CommunicateTarget[G] = {
     implicit val o = DiagnosticOrigin

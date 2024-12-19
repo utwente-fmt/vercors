@@ -6,7 +6,7 @@ import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import vct.col.origin.{
   Blame,
-  BranchUnanimityFailed,
+  BranchUnanimityFailed1,
   ChorStatementFailure,
   LoopUnanimityNotEstablished,
   LoopUnanimityNotMaintained,
@@ -30,7 +30,7 @@ case object LangVeyMontToCol {
       extends Blame[ChorStatementFailure]() {
     def blame(error: ChorStatementFailure): Unit =
       error match {
-        case error: BranchUnanimityFailed => branch.blame.blame(error)
+        case error: BranchUnanimityFailed1 => branch.blame.blame(error)
         case error =>
           PanicBlame(
             s"ChorStatement got error ${error.code}, but it only supports branch unanimity"

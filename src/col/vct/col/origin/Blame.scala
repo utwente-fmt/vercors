@@ -504,7 +504,7 @@ case class ChorRunContextEverywhereFailedInPre(
 
 sealed trait FrontendIfFailure extends VerificationFailure
 
-case class BranchUnanimityFailed(guard1: Node[_], guard2: Node[_])
+case class BranchUnanimityFailed2(guard1: Node[_], guard2: Node[_])
     extends FrontendIfFailure with ChorStatementFailure {
   override def code: String = "branchNotUnanimous"
 
@@ -520,6 +520,18 @@ case class BranchUnanimityFailed(guard1: Node[_], guard2: Node[_])
   override def position: String = guard1.o.shortPositionText
   override def inlineDesc: String =
     "Two conditions in this branch might disagree."
+}
+
+case class BranchUnanimityFailed1(condition: Node[_])
+    extends FrontendIfFailure with ChorStatementFailure {
+  override def code: String = "branchNotUnanimous"
+
+  override def desc: String = {
+    condition.o.messageInContext("This branch condition is not unanimous")
+  }
+
+  override def position: String = condition.o.shortPositionText
+  override def inlineDesc: String = "This branch condition is not unanimous."
 }
 
 sealed trait FrontEndLoopFailure extends VerificationFailure

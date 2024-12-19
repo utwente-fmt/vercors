@@ -63,6 +63,8 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
       case _ => contract.rewriteDefault()
     }
 
+  // TODO (RR): Not handling the RangeBinder in CommTargets here!
+
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
     statement match {
       case InChor(_, c @ ChorStatement(branch: Branch[Pre])) =>

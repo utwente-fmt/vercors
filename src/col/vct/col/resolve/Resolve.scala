@@ -669,6 +669,18 @@ case object ResolveReferences extends LazyLogging {
           case Some(_) => throw ForbiddenEndpointNameType(local)
           case None => throw NoSuchNameError("endpoint", name, local)
         }
+      case local @ PVLCommTargetIndex(name, index) =>
+        PVL.findName(name, ctx) match {
+          case Some(ref: RefPVLEndpoint[G]) => local.ref = Some(ref)
+          case Some(_) => throw ForbiddenEndpointNameType(local)
+          case None => throw NoSuchNameError("endpoint", name, local)
+        }
+      case local @ PVLCommTargetRange(name, range) =>
+        PVL.findName(name, ctx) match {
+          case Some(ref: RefPVLEndpoint[G]) => local.ref = Some(ref)
+          case Some(_) => throw ForbiddenEndpointNameType(local)
+          case None => throw NoSuchNameError("endpoint", name, local)
+        }
       case endpoint: PVLEndpoint[G] =>
         endpoint.ref = Some(
           PVL.findConstructor(
