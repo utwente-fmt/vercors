@@ -11,7 +11,7 @@
  * https://github.com/utwente-fmt/vercors/discussions/884
  */
 namespace llvm2col {
-std::string deriveOperandPreferredName(llvm::Value &llvmOperand);
+std::string deriveOperandPreferredName(const llvm::Value &llvmOperand);
 
 std::string deriveTypePreferredName(llvm::Type &llvmType);
 
@@ -19,5 +19,7 @@ std::string
 deriveMemoryOrderingPreferredName(llvm::AtomicOrdering &llvmOrdering);
 
 std::string deriveArgumentPreferredName(llvm::Argument &llvmArgument);
+
+std::string deriveFunctionPreferredName(const llvm::Function &f);
 } // namespace llvm2col
 #endif // PALLAS_PREFERREDNAMEDERIVER_H

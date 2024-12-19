@@ -4,6 +4,8 @@
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
 
+#include <llvm/IR/Constants.h>
+
 namespace pallas {
 const std::string SOURCE_LOC = "Passes::Function::PureAssigner";
 
@@ -24,36 +26,94 @@ static void reportError(Function &F, const std::string &explanation) {
 
 PreservedAnalyses PureAssignerPass::run(Function &F,
                                         FunctionAnalysisManager &FAM) {
-    std::ostringstream errorStream;
+    // Count how many annotation specify the purity of the function.
+    int pureAnnotationCount = 0;
+    bool isPure = false;
+
+    // Check if the function is annotated with the pure-metadata of VCLLVM
+    if (F.hasMetadata(pallas::constants::METADATA_PURE_KEYWORD)) {
+        pureAnnotationCount++;
+        MDNode *pureMDNode =
+            F.getMetadata(pallas::constants::METADATA_PURE_KEYWORD);
+        if (!isVcllvmPureWellformed(*pureMDNode, F))
+            return PreservedAnalyses::all();
+        // attempt down cast to ConstantInt (should workdue to previous checks)
+        auto *pureMDVal = cast<ValueAsMetadata>(pureMDNode->getOperand(0));
+        isPure = cast<ConstantAsMetadata>(pureMDVal)->getValue()->isOneValue();
+    }
+
+    // Check if the function is annotated with a pallas function contract
+    if (F.hasMetadata(pallas::constants::PALLAS_FUNC_CONTRACT)) {
+        pureAnnotationCount++;
+        MDNode *contractMDNode =
+            F.getMetadata(pallas::constants::PALLAS_FUNC_CONTRACT);
+        if (!isPallasPureWellformed(*contractMDNode, F))
+            return PreservedAnalyses::all();
+        // Extract pure-value (should work due to previous checks)
+        isPure = getPureValueFromPallasContract(*contractMDNode);
+    }
+
+    // Check if the function is marked as a pallas wrapper-function
+    if (F.hasMetadata(pallas::constants::PALLAS_WRAPPER_FUNC)) {
+        pureAnnotationCount++;
+        isPure = true;
+    }
+
+    // Check that no duplicate pure-definition is present
+    if (pureAnnotationCount > 1) {
+        reportError(F,
+                    "Function has multiple annotations that speciy its purity");
+        return PreservedAnalyses::all();
+    }
+
+    // Set the pure-flag of the function
     FDResult result = FAM.getResult<FunctionDeclarer>(F);
     col::LlvmFunctionDefinition &colFunction = result.getAssociatedColFuncDef();
-    // check if pure keyword is present, else assume unpure function
-    if (!F.hasMetadata(pallas::constants::METADATA_PURE_KEYWORD)) {
-        colFunction.set_pure(false);
-        return PreservedAnalyses::all();
-    }
+    colFunction.set_pure(isPure);
+    return PreservedAnalyses::all();
+}
+
+bool PureAssignerPass::isVcllvmPureWellformed(MDNode &pureMD, Function &f) {
+    std::ostringstream errorStream;
     // check if the 'pure' metadata has only 1 operand, else exit with error
-    MDNode *pureMDNode =
-        F.getMetadata(pallas::constants::METADATA_PURE_KEYWORD);
-    if (pureMDNode->getNumOperands() != 1) {
+    if (pureMD.getNumOperands() != 1) {
         errorStream << "Expected 1 argument but got "
-                    << pureMDNode->getNumOperands();
-        reportError(F, errorStream.str());
-        return PreservedAnalyses::all();
+                    << pureMD.getNumOperands();
+        reportError(f, errorStream.str());
+        return false;
     }
     // check if the only operand is of type 'i1', else exit with error
-    auto *pureMDValue = cast<ValueAsMetadata>(pureMDNode->getOperand(0));
+    auto *pureMDValue = cast<ValueAsMetadata>(pureMD.getOperand(0));
     if (!pureMDValue->getType()->isIntegerTy(1)) {
         errorStream << "MD node type must be of type \"i1\"";
-        reportError(F, errorStream.str());
-        return PreservedAnalyses::all();
+        reportError(f, errorStream.str());
+        return false;
     }
-    // attempt down cast to ConstantInt (which shouldn't fail given previous
-    // checks)
-    bool purity =
-        cast<ConstantAsMetadata>(pureMDValue)->getValue()->isOneValue();
-    colFunction.set_pure(purity);
-    return PreservedAnalyses::all();
+    return true;
+}
+
+bool PureAssignerPass::isPallasPureWellformed(MDNode &contractMD, Function &f) {
+    std::ostringstream errorStream;
+    // Check that the contract has at least 2 operands
+    if (contractMD.getNumOperands() < 2) {
+        reportError(f, "Ill-formed contract. Expected at least 2 operands");
+        return false;
+    }
+    // Check that the second operand is a boolean constant
+    auto *pureConst =
+        dyn_cast<ConstantAsMetadata>(contractMD.getOperand(1).get());
+    auto *pureVal = dyn_cast_if_present<ConstantInt>(pureConst->getValue());
+    if (pureVal == nullptr || (!pureVal->getBitWidth() == 1)) {
+        reportError(f, "Ill-formed contract. Second operand should be boolean");
+        return false;
+    }
+    return true;
+}
+
+bool PureAssignerPass::getPureValueFromPallasContract(MDNode &contractMD) {
+    auto *pureConst = cast<ConstantAsMetadata>(contractMD.getOperand(1).get());
+    auto *pureVal = cast<ConstantInt>(pureConst->getValue());
+    return pureVal->isOne();
 }
 
 } // namespace pallas

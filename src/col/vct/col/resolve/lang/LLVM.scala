@@ -26,9 +26,13 @@ object LLVM {
       case None =>
         ctx.currentResult.get match {
           case RefLLVMFunctionDefinition(decl) =>
-            decl.contract.invokableRefs.find(ref => ref._1 == name) match {
-              case Some(ref) => Some(ref._2.decl)
-              case None => None
+            decl.contract match {
+              case contract: VCLLVMFunctionContract[_] =>
+                contract.invokableRefs.find(ref => ref._1 == name) match {
+                  case Some(ref) => Some(ref._2.decl)
+                  case None => None
+                }
+              case _ => None
             }
           case _ => None
         }

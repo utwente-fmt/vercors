@@ -52,7 +52,12 @@ void llvm2col::transformLLVMBlock(llvm::BasicBlock &llvmBlock,
     for (auto &I : llvmBlock) {
         transformInstruction(functionCursor, I, colBlock);
     }
-    functionCursor.complete(colBlock);
+
+    // When the last instuction is a branch, the block already gets completed
+    // in the call to transformInstruction.
+    if (!functionCursor.isComplete(colBlock)) {
+        functionCursor.complete(colBlock);
+    }
 }
 
 void llvm2col::transformInstruction(pallas::FunctionCursor &funcCursor,

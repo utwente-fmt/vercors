@@ -212,11 +212,9 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
       case _ if inAssignment.nonEmpty => node.rewriteDefault()
       case Perm(ByValueClassLocation(e), p) =>
         unwrapClassPerm(dispatch(e), dispatch(p), e.t.asByValueClass.get)
-      case Perm(pl @ PointerLocation(dhv @ DerefHeapVariable(Ref(v))), p) =>
-        assert(
-          v.t.isInstanceOf[TNonNullPointer[Pre]],
-          "Frontends should ensure that HeapVariables are non-null pointers",
-        )
+      // Only doing this for TNonNullPointer pointers since those originate from the frontend and users can define heap variables of the normal TPointer pointer type
+      case Perm(pl @ PointerLocation(dhv @ DerefHeapVariable(Ref(v))), p)
+          if v.t.isInstanceOf[TNonNullPointer[Pre]] =>
         val t = v.t.asInstanceOf[TNonNullPointer[Pre]]
         if (t.element.asByValueClass.isDefined) {
           val newV: Ref[Post, HeapVariable[Post]] = succ(v)

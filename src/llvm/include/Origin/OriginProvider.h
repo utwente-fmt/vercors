@@ -37,6 +37,14 @@ col::Origin *generateLabelOrigin(llvm::BasicBlock &llvmBlock);
 
 col::Origin *generateLoopOrigin(llvm::Loop &llvmLoop);
 
+/**
+ * Generates an origin for a pallas function-contract.
+ * Assumes that the provided metadata-node is a well-formed encoding of a
+ * source-location (adhering to the location-format of pallas).
+ */
+col::Origin *generatePallasFunctionContractOrigin(const llvm::Function &f,
+                                                  const llvm::MDNode &mdSrcLoc);
+
 col::Origin *generateSingleStatementOrigin(llvm::Instruction &llvmInstruction);
 
 col::Origin *generateAssignTargetOrigin(llvm::Instruction &llvmInstruction);
@@ -44,6 +52,26 @@ col::Origin *generateAssignTargetOrigin(llvm::Instruction &llvmInstruction);
 col::Origin *generateBinExprOrigin(llvm::Instruction &llvmInstruction);
 
 col::Origin *generateFunctionCallOrigin(llvm::CallInst &callInstruction);
+
+/**
+ * Generates an origin for generated call to a wrapper function of the clause
+ * of a pallas function-contract.
+ * Assumes that the provided metadata-node is a well-formed encoding of a
+ * source-location (adhering to the location-format of pallas).
+ */
+col::Origin *generatePallasWrapperCallOrigin(const llvm::Function &wrapperFunc,
+                                             const llvm::MDNode &clauseSrcLoc);
+
+/**
+ * Generates an origin for a clause of a pallas function contract that is
+ * attached to the given function. Assumes that the provided metadata-node is a
+ * well-formed encoding of a source-location (adhering to the location-format of
+ * pallas).
+ */
+col::Origin *
+generatePallasFContractClauseOrigin(const llvm::Function &parentFunc,
+                                    const llvm::MDNode &clauseSrcLoc,
+                                    unsigned int clauseNum);
 
 col::Origin *generateOperandOrigin(llvm::Instruction &llvmInstruction,
                                    llvm::Value &llvmOperand);

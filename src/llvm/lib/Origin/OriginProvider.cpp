@@ -1,10 +1,17 @@
 #include "Origin/OriginProvider.h"
 
+#include <optional>
+#include <utility>
+
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/Instruction.h>
+#include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Module.h>
 
 #include "Origin/ContextDeriver.h"
 #include "Origin/PreferredNameDeriver.h"
 #include "Origin/ShortPositionDeriver.h"
+#include "Util/Constants.h"
 
 namespace col = vct::col::ast;
 
@@ -29,23 +36,6 @@ col::Origin *llvm2col::generateProgramOrigin(llvm::Module &llvmModule) {
     context->set_context(deriveModuleContext(llvmModule));
     context->set_inline_context(deriveModuleInlineContext(llvmModule));
     context->set_short_position(deriveModuleShortPosition(llvmModule));
-    contextContent->set_allocated_context(context);
-
-    return origin;
-}
-
-col::Origin *llvm2col::generateFuncDefOrigin(llvm::Function &llvmFunction) {
-    col::Origin *origin = new col::Origin();
-    col::OriginContent *preferredNameContent = origin->add_content();
-    col::PreferredName *preferredName = new col::PreferredName();
-    preferredName->add_preferred_name(llvmFunction.getName().str());
-    preferredNameContent->set_allocated_preferred_name(preferredName);
-
-    col::OriginContent *contextContent = origin->add_content();
-    col::Context *context = new col::Context();
-    context->set_context(deriveFunctionContext(llvmFunction));
-    context->set_inline_context(deriveFunctionInlineContext(llvmFunction));
-    context->set_short_position(deriveFunctionShortPosition(llvmFunction));
     contextContent->set_allocated_context(context);
 
     return origin;
@@ -132,26 +122,25 @@ col::Origin *llvm2col::generateLabelOrigin(llvm::BasicBlock &llvmBlock) {
     return origin;
 }
 
-bool generateDebugOrigin(const llvm::DebugLoc &loc, col::Origin *origin,
-                         const llvm::DebugLoc &endLoc = NULL) {
-    if (!loc)
-        return false;
-    int line = loc.getLine() - 1;
-    int col = loc.getCol() - 1;
+void generateSourceRangeOrigin(col::Origin *origin, const llvm::DIScope &scope,
+                               unsigned int startLine, unsigned int startCol,
+                               std::optional<unsigned int> &endLine,
+                               std::optional<unsigned int> &endCol) {
     col::OriginContent *positionRangeContent = origin->add_content();
     col::PositionRange *positionRange = new col::PositionRange();
-    positionRange->set_start_line_idx(line);
-    positionRange->set_start_col_idx(col);
-    if (endLoc) {
-        positionRange->set_end_line_idx(endLoc.getLine() - 1);
+    auto sLine = startLine - 1;
+    auto sCol = startCol - 1;
+    positionRange->set_start_line_idx(sLine);
+    positionRange->set_start_col_idx(sCol);
+    if (endLine.has_value() && endCol.has_value()) {
+        positionRange->set_end_line_idx(*endLine - 1);
         // Would it be better without setting the end col?
-        positionRange->set_end_col_idx(endLoc.getCol() - 1);
+        positionRange->set_end_col_idx(*endCol - 1);
     } else {
-        positionRange->set_end_line_idx(line);
+        positionRange->set_end_line_idx(sLine);
     }
     positionRangeContent->set_allocated_position_range(positionRange);
-    auto *scope = llvm::cast<llvm::DIScope>(loc.getScope());
-    auto *file = scope->getFile();
+    auto *file = scope.getFile();
     llvm::StringRef filename = file->getFilename();
     llvm::StringRef directory = file->getDirectory();
     auto checksumOpt = file->getChecksum();
@@ -181,6 +170,18 @@ bool generateDebugOrigin(const llvm::DebugLoc &loc, col::Origin *origin,
         }
     }
     readableOriginContent->set_allocated_readable_origin(readableOrigin);
+}
+
+bool generateDebugOrigin(const llvm::DebugLoc &loc, col::Origin *origin,
+                         const llvm::DebugLoc &endLoc = NULL) {
+    if (!loc)
+        return false;
+    unsigned int line = loc.getLine();
+    unsigned int col = loc.getCol();
+    auto endLine = endLoc ? std::make_optional(endLoc.getLine()) : std::nullopt;
+    auto endCol = endLoc ? std::make_optional(endLoc.getCol()) : std::nullopt;
+    auto *scope = llvm::cast<llvm::DIScope>(loc.getScope());
+    generateSourceRangeOrigin(origin, *scope, line, col, endLine, endCol);
     return true;
 }
 
@@ -196,6 +197,95 @@ col::Origin *llvm2col::generateLoopOrigin(llvm::Loop &llvmLoop) {
         context->set_short_position(deriveBlockShortPosition(*llvmBlock));
         contextContent->set_allocated_context(context);
     }
+    return origin;
+}
+
+namespace {
+unsigned int getIntValue(llvm::Metadata *md) {
+    return cast<llvm::ConstantInt>(
+               cast<llvm::ConstantAsMetadata>(md)->getValue())
+        ->getSExtValue();
+}
+
+std::pair<unsigned int, unsigned int> getEndPosFromMD(const llvm::Function &f) {
+    unsigned int maxLine = 0;
+    unsigned int maxCol = 0;
+
+    auto sProg = f.getSubprogram();
+    if (sProg != nullptr)
+        maxLine = sProg->getLine();
+
+    for (auto it = llvm::inst_begin(f), end = llvm::inst_end(f); it != end; ++it) {
+        const llvm::Instruction *inst = &*it;
+        auto &loc = inst->getDebugLoc();
+        if (!loc)
+            continue;
+        unsigned int line = loc.getLine();
+        unsigned int col = loc.getCol();
+        if (line > maxLine) {
+            maxLine = line; 
+            maxCol = col;
+        } else if (line == maxLine && col > maxCol) {
+            maxCol = col;
+        }   
+    }
+    return { maxLine, maxCol };
+}
+} // namespace
+
+col::Origin *llvm2col::generateFuncDefOrigin(llvm::Function &llvmFunction) {
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name(llvmFunction.getName().str());
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    // Try to get the source location of the function
+    auto *sProg = llvmFunction.getSubprogram();
+    if (sProg != nullptr) {
+        auto endPos = getEndPosFromMD(llvmFunction);
+        auto endLine = std::make_optional(endPos.first);
+        auto endCol = std::make_optional(endPos.second);;
+        generateSourceRangeOrigin(origin, *sProg, sProg->getLine(), 0,
+                                  endLine, endCol);
+        return origin;
+    }
+
+    // If the source-location is not available, use the IR
+    col::OriginContent *contextContent = origin->add_content();
+    col::Context *context = new col::Context();
+    context->set_context(deriveFunctionContext(llvmFunction));
+    context->set_inline_context(deriveFunctionInlineContext(llvmFunction));
+    context->set_short_position(deriveFunctionShortPosition(llvmFunction));
+    contextContent->set_allocated_context(context);
+
+    return origin;
+}
+
+col::Origin *
+llvm2col::generatePallasFunctionContractOrigin(const llvm::Function &f,
+                                               const llvm::MDNode &mdSrcLoc) {
+
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name("Function contract of " +
+                                      deriveOperandPreferredName(f));
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    if (f.getSubprogram() == nullptr) {
+        return origin;
+    }
+
+    llvm::DIScope *scope = f.getSubprogram();
+    auto startLine = getIntValue(mdSrcLoc.getOperand(1).get());
+    auto startCol = getIntValue(mdSrcLoc.getOperand(2).get());
+    auto endLine =
+        std::make_optional(getIntValue(mdSrcLoc.getOperand(3).get()));
+    auto endCol = std::make_optional(getIntValue(mdSrcLoc.getOperand(4).get()));
+    generateSourceRangeOrigin(origin, *scope, startLine, startCol, endLine,
+                              endCol);
+
     return origin;
 }
 
@@ -279,6 +369,66 @@ llvm2col::generateFunctionCallOrigin(llvm::CallInst &callInstruction) {
             deriveInstructionShortPosition(callInstruction));
         contextContent->set_allocated_context(context);
     }
+
+    return origin;
+}
+
+col::Origin *
+llvm2col::generatePallasWrapperCallOrigin(const llvm::Function &wrapperFunc,
+                                          const llvm::MDNode &clauseSrcLoc) {
+
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name("Contract clause represented by " +
+                                      deriveFunctionPreferredName(wrapperFunc));
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    auto *scope = wrapperFunc.getSubprogram();
+    if (scope == nullptr) {
+        return origin;
+    }
+
+    // Get the source-location from the clause
+    auto startLine = getIntValue(clauseSrcLoc.getOperand(1).get());
+    auto startCol = getIntValue(clauseSrcLoc.getOperand(2).get());
+    auto endLine =
+        std::make_optional(getIntValue(clauseSrcLoc.getOperand(3).get()));
+    auto endCol =
+        std::make_optional(getIntValue(clauseSrcLoc.getOperand(4).get()));
+    generateSourceRangeOrigin(origin, *scope, startLine, startCol, endLine,
+                              endCol);
+
+    return origin;
+}
+
+col::Origin *
+llvm2col::generatePallasFContractClauseOrigin(const llvm::Function &parentFunc,
+                                              const llvm::MDNode &clauseSrcLoc,
+                                              unsigned int clauseNum) {
+
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name("Clause " + std::to_string(clauseNum) +
+                                      " of contract of function " +
+                                      deriveFunctionPreferredName(parentFunc));
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    auto *scope = parentFunc.getSubprogram();
+    if (scope == nullptr) {
+        return origin;
+    }
+
+    // Get the source-location from the clause
+    auto startLine = getIntValue(clauseSrcLoc.getOperand(1).get());
+    auto startCol = getIntValue(clauseSrcLoc.getOperand(2).get());
+    auto endLine =
+        std::make_optional(getIntValue(clauseSrcLoc.getOperand(3).get()));
+    auto endCol =
+        std::make_optional(getIntValue(clauseSrcLoc.getOperand(4).get()));
+    generateSourceRangeOrigin(origin, *scope, startLine, startCol, endLine,
+                              endCol);
 
     return origin;
 }

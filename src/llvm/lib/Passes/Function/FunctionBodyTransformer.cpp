@@ -24,12 +24,18 @@ void FunctionCursor::addVariableMapEntry(Value &llvmValue,
                                          col::Variable &colVar) {
     variableMap.insert({&llvmValue, &colVar});
     // add reference to reference lut of function contract
-    col::Tuple2_String_Ref_VctColAstVariable *ref =
+    // (only if the contract is a vcllvm contract)
+    col::LlvmFunctionContract &contract =
         FAM.getResult<FunctionContractDeclarer>(llvmFunction)
-            .getAssociatedColFuncContract()
-            .add_variable_refs();
-    ref->set_v1(llvm2col::getValueName(llvmValue));
-    ref->mutable_v2()->set_id(colVar.id());
+            .getAssociatedColFuncContract();
+    if (contract.has_vcllvm_function_contract()) {
+        col::VcllvmFunctionContract *vcllvmContract =
+            contract.mutable_vcllvm_function_contract();
+        col::Tuple2_String_Ref_VctColAstVariable *ref =
+            vcllvmContract->add_variable_refs();
+        ref->set_v1(llvm2col::getValueName(llvmValue));
+        ref->mutable_v2()->set_id(colVar.id());
+    }
 }
 
 col::Variable &FunctionCursor::getVariableMapEntry(Value &llvmValue,
@@ -100,6 +106,25 @@ FunctionCursor::getOrSetLLVMBlock2LabeledColBlockEntry(BasicBlock &llvmBlock) {
         llvmBlock2LabeledColBlock.insert({&llvmBlock, labeledColBlock});
     }
     return llvmBlock2LabeledColBlock.at(&llvmBlock);
+}
+
+LabeledColBlock FunctionCursor::generateIntermediaryLabeledColBlock(
+    llvm::Instruction &originInstruction) {
+    // create basic block
+    col::LlvmBasicBlock *bb =
+        functionBody.add_statements()->mutable_llvm_basic_block();
+    bb->set_allocated_origin(
+        llvm2col::generateSingleStatementOrigin(originInstruction));
+    // create label declaration in buffer
+    col::LabelDecl *labelDecl = bb->mutable_label();
+    labelDecl->set_allocated_origin(
+        llvm2col::generateSingleStatementOrigin(originInstruction));
+    llvm2col::setColNodeId(labelDecl);
+    // create nested block
+    col::Block *block = bb->mutable_body()->mutable_block();
+    block->set_allocated_origin(
+        llvm2col::generateSingleStatementOrigin(originInstruction));
+    return {*bb, *block};
 }
 
 LabeledColBlock &FunctionCursor::visitLLVMBlock(BasicBlock &llvmBlock) {
@@ -210,14 +235,31 @@ col::Assign &FunctionCursor::createPhiAssignment(Instruction &llvmInstruction,
         // tracking assignments in their origin blocks. therefore we need to
         // swap the last two elements of the block (i.e. the goto statement and
         // the newest assignment)
-        int lastIndex = colBlock.statements_size() - 1;
         colBlock.add_statements()->set_allocated_assign(assignment);
+        int lastIndex = colBlock.statements_size() - 1;
         colBlock.mutable_statements()->SwapElements(lastIndex, lastIndex - 1);
     } else {
         // Buffer the phi assignments so they appear at the end
         phiAssignBuffer.insert({&colBlock, assignment});
     }
     return *assignment;
+}
+
+void FunctionCursor::addNewPhiAssignmentTargetBlock(col::Block &from,
+                                                    col::Block &toPhi,
+                                                    col::Block &newBlock) {
+    phiAssignmentTargetMap.insert({{&from, &toPhi}, &newBlock});
+}
+
+col::Block *FunctionCursor::getTargetForPhiAssignment(col::Block &from,
+                                                      col::Block &to) {
+    auto res = phiAssignmentTargetMap.find({&from, &to});
+    if (res == phiAssignmentTargetMap.end()) {
+        // If the map does not contain an entry, no intermediary block has been
+        // added.
+        return &from;
+    }
+    return res->second;
 }
 
 llvm::FunctionAnalysisManager &FunctionCursor::getFunctionAnalysisManager() {

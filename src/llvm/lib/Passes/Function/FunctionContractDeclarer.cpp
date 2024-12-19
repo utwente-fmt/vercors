@@ -44,15 +44,15 @@ PreservedAnalyses
 FunctionContractDeclarerPass::run(Function &F, FunctionAnalysisManager &FAM) {
     // get col contract
     FDCResult result = FAM.getResult<FunctionContractDeclarer>(F);
-    col::LlvmFunctionContract &colContract =
-        result.getAssociatedColFuncContract();
-    colContract.set_allocated_blame(new col::Blame());
-    colContract.set_name(F.getName());
+    col::VcllvmFunctionContract *colContract =
+        result.getAssociatedColFuncContract().mutable_vcllvm_function_contract();
+    colContract->set_allocated_blame(new col::Blame());
+    colContract->set_name(F.getName());
     // check if contract keyword is present
     if (!F.hasMetadata(pallas::constants::METADATA_CONTRACT_KEYWORD)) {
         // set contract to a tautology
-        colContract.set_value("requires true;");
-        colContract.set_allocated_origin(
+        colContract->set_value("requires true;");
+        colContract->set_allocated_origin(
             llvm2col::generateFunctionContractOrigin(F, "requires true;"));
         return PreservedAnalyses::all();
     }
@@ -71,15 +71,15 @@ FunctionContractDeclarerPass::run(Function &F, FunctionAnalysisManager &FAM) {
         }
         contractStream << contractLine->getString().str() << '\n';
     }
-    colContract.set_value(contractStream.str());
-    colContract.set_allocated_origin(
+    colContract->set_value(contractStream.str());
+    colContract->set_allocated_origin(
         llvm2col::generateFunctionContractOrigin(F, contractStream.str()));
     // add all callable functions to the contracts invokables
     for (auto &moduleF : F.getParent()->functions()) {
         std::string fName = '@' + moduleF.getName().str();
         int64_t fId = FAM.getResult<FunctionDeclarer>(moduleF).getFunctionId();
         col::Tuple2_String_Ref_VctColAstLlvmCallable *invokeRef =
-            colContract.add_invokable_refs();
+            colContract->add_invokable_refs();
         invokeRef->set_v1(fName);
         invokeRef->mutable_v2()->set_id(fId);
     }

@@ -12,7 +12,8 @@ void llvm2col::transformOtherOp(llvm::Instruction &llvmInstruction,
                                 pallas::FunctionCursor &funcCursor) {
     switch (llvm::Instruction::OtherOps(llvmInstruction.getOpcode())) {
     case llvm::Instruction::PHI:
-        transformPhi(llvm::cast<llvm::PHINode>(llvmInstruction), funcCursor);
+        transformPhi(llvm::cast<llvm::PHINode>(llvmInstruction), colBlock,
+                     funcCursor);
         break;
     case llvm::Instruction::ICmp:
         transformICmp(llvm::cast<llvm::ICmpInst>(llvmInstruction), colBlock,
@@ -31,15 +32,21 @@ void llvm2col::transformOtherOp(llvm::Instruction &llvmInstruction,
     }
 }
 
-void llvm2col::transformPhi(llvm::PHINode &phiInstruction,
+void llvm2col::transformPhi(llvm::PHINode &phiInstruction, col::Block &colBlock,
                             pallas::FunctionCursor &funcCursor) {
     col::Variable &varDecl = funcCursor.declareVariable(phiInstruction);
     for (auto &B : phiInstruction.blocks()) {
-        // add assignment of the variable to target block
+        // add assignment of the variable to the block of the conditional
+        // branch
         col::Block &targetBlock =
             funcCursor.getOrSetLLVMBlock2LabeledColBlockEntry(*B).block;
+        // In some cases, the phi-assignments needs to be re-targeted to an
+        // empty block.
+        col::Block *newTargetBlock =
+            funcCursor.getTargetForPhiAssignment(targetBlock, colBlock);
+
         col::Assign &assignment = funcCursor.createPhiAssignment(
-            phiInstruction, targetBlock, varDecl);
+            phiInstruction, *newTargetBlock, varDecl);
         // assign correct value by looking at the value-block pair of phi
         // instruction.
         col::Expr *value = assignment.mutable_value();

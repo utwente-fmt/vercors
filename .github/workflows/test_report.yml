@@ -11,6 +11,7 @@ permissions:
 jobs:
   GenerateTestReport:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure' }}
 
     steps:
     - name: Checkout VerCors

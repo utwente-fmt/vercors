@@ -359,6 +359,16 @@ case class ContextEverywhereFailedInPost(
   override def inlineDescWithSource(node: String, failure: String): String =
     s"Context of `$node` may not hold in the postcondition, since $failure."
 }
+case class ContextEverywhereFailedInRunPost(
+    failure: ContractFailure,
+    node: RunMethod[_],
+) extends ContractedFailure with WithContractFailure {
+  override def baseCode: String = "contextRunPostFailed"
+  override def descInContext: String =
+    "Context may not hold in postcondition, since"
+  override def inlineDescWithSource(node: String, failure: String): String =
+    s"Context of `$node` may not hold in the postcondition, since $failure."
+}
 case class AutoValueLeakCheckFailed(
     failure: ContractFailure,
     node: ContractApplicable[_],

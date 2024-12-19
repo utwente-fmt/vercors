@@ -24,6 +24,12 @@ case object PropagateContextEverywhere extends RewriterBuilder {
     override def blame(error: PostconditionFailed): Unit =
       app.blame.blame(ContextEverywhereFailedInPost(error.failure, app))
   }
+
+  case class ContextEverywhereRunPostconditionFailed(app: RunMethod[_])
+    extends Blame[PostconditionFailed] {
+    override def blame(error: PostconditionFailed): Unit =
+      app.blame.blame(ContextEverywhereFailedInRunPost(error.failure, app))
+  }
 }
 
 case class PropagateContextEverywhere[Pre <: Generation]()
@@ -60,6 +66,19 @@ case class PropagateContextEverywhere[Pre <: Generation]()
             }
           },
         ))
+      case runMethod: RunMethod[Pre] =>
+        allScopes.anyDeclare(allScopes.anySucceedOnly(
+          runMethod,
+          invariants.having(
+            invariants.top ++ unfoldStar(runMethod.contract.contextEverywhere)
+          ) {
+                runMethod.rewrite(blame =
+                  PostBlameSplit
+                    .left(ContextEverywhereRunPostconditionFailed(runMethod), runMethod.blame)
+                )
+          },
+        ))
+
       case other => rewriteDefault(other)
     }
 

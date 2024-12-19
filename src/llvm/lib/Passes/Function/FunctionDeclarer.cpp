@@ -113,8 +113,8 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
     if (F.isDeclaration()) {
         // Defined outside of this module so we don't know if it's pure or what
         // its contract is
-        col::LlvmFunctionContract *colContract =
-            llvmFuncDef->mutable_contract();
+        col::VcllvmFunctionContract *colContract =
+            llvmFuncDef->mutable_contract()->mutable_vcllvm_function_contract();
         colContract->set_allocated_blame(new col::Blame());
         colContract->set_value("requires true;");
         colContract->set_name(F.getName());

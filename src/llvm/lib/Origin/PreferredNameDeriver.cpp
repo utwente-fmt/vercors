@@ -1,10 +1,13 @@
 #include "Origin/PreferredNameDeriver.h"
 
 #include <llvm/IR/Argument.h>
+#include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Function.h>
 #include <llvm/Support/raw_ostream.h>
 
-std::string llvm2col::deriveOperandPreferredName(llvm::Value &llvmOperand) {
+std::string
+llvm2col::deriveOperandPreferredName(const llvm::Value &llvmOperand) {
     if (!llvmOperand.getName().empty())
         return std::string(llvmOperand.getName());
     std::string preferredName;
@@ -99,4 +102,14 @@ llvm2col::deriveArgumentPreferredName(llvm::Argument &llvmArgument) {
     preferredNameStream << "arg_";
     llvmArgument.printAsOperand(preferredNameStream, false);
     return preferredName;
+}
+
+std::string llvm2col::deriveFunctionPreferredName(const llvm::Function &f) {
+
+    auto *sProg = f.getSubprogram();
+    if (sProg != nullptr && !sProg->getName().empty()) {
+        return sProg->getName().str();
+    }
+
+    return f.getName().str();
 }

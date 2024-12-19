@@ -12,9 +12,10 @@ void transformOtherOp(llvm::Instruction &llvmInstruction, col::Block &colBlock,
  * and retroactively assign the variable in each originating COL block of each
  * phi pair.
  * @param phiInstruction
+ * @param colBlock Col-block of the phi instruction
  * @param funcCursor
  */
-void transformPhi(llvm::PHINode &phiInstruction,
+void transformPhi(llvm::PHINode &phiInstruction, col::Block &colBlock,
                   pallas::FunctionCursor &funcCursor);
 
 void transformICmp(llvm::ICmpInst &icmpInstruction, col::Block &colBlock,

@@ -26,4 +26,8 @@ class LLVMSpec extends VercorsSpec {
     2: ret void
   }
   """
+
+  // Pallas specifications:
+  vercors should verify using silicon example "concepts/llvm/pallas/pallas_function_contract.ll"
+  vercors should fail withCode "postFailed:false" using silicon example "concepts/llvm/pallas/pallas_function_contract_fail.ll"
 }

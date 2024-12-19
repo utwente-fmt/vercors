@@ -3492,15 +3492,22 @@ final case class BipTransitionSynchronization[G](
     extends GlobalDeclaration[G] with BipTransitionSynchronizationImpl[G]
 
 @family
-final class LLVMFunctionContract[G](
+sealed trait LLVMFunctionContract[G]
+    extends NodeFamily[G] with LLVMFunctionContractImpl[G]
+
+final class VCLLVMFunctionContract[G](
     val name: String,
     val value: String,
     val variableRefs: Seq[(String, Ref[G, Variable[G]])],
     val invokableRefs: Seq[(String, Ref[G, LLVMCallable[G]])],
 )(val blame: Blame[NontrivialUnsatisfiable])(implicit val o: Origin)
-    extends NodeFamily[G] with LLVMFunctionContractImpl[G] {
+    extends LLVMFunctionContract[G] with VCLLVMFunctionContractImpl[G] {
   var data: Option[ApplicableContract[G]] = None
 }
+final class PallasFunctionContract[G](val content: ApplicableContract[G])(
+    val blame: Blame[NontrivialUnsatisfiable]
+)(implicit val o: Origin)
+    extends LLVMFunctionContract[G] with PallasFunctionContractImpl[G] {}
 
 final case class LLVMGlobalVariable[G](
     variableType: Type[G],

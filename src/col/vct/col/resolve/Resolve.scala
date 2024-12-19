@@ -45,7 +45,7 @@ case object Resolve {
 
   trait SpecContractParser {
     def parse[G](
-        input: LLVMFunctionContract[G],
+        input: VCLLVMFunctionContract[G],
         o: Origin,
     ): ApplicableContract[G]
 
@@ -1130,14 +1130,19 @@ case object ResolveReferences extends LazyLogging {
         portName.data = Some((cls, getLit(name)))
 
       case func: LLVMFunctionDefinition[G] =>
-        val importedDecl = ctx.importedDeclarations.find {
-          case procedure: Procedure[G] =>
-            func.contract.name == procedure.o.get[SourceName].name
-        }
-        if (importedDecl.isDefined) {
-          val importedProcedure = importedDecl.get.asInstanceOf[Procedure[G]]
-          func.importedArguments = Some(importedProcedure.args)
-          func.importedReturnType = Some(importedProcedure.returnType)
+        func.contract match {
+          case contract: VCLLVMFunctionContract[G] =>
+            val importedDecl = ctx.importedDeclarations.find {
+              case procedure: Procedure[G] =>
+                contract.name == procedure.o.get[SourceName].name
+            }
+            if (importedDecl.isDefined) {
+              val importedProcedure = importedDecl.get
+                .asInstanceOf[Procedure[G]]
+              func.importedArguments = Some(importedProcedure.args)
+              func.importedReturnType = Some(importedProcedure.returnType)
+            }
+          case _ =>
         }
       case loop: LLVMLoop[G] =>
         loop.blocks = Some(loop.blockLabels.map { label =>
@@ -1151,7 +1156,7 @@ case object ResolveReferences extends LazyLogging {
         })
         loop.headerBlock = Some(ctx.llvmBlocks(loop.header.decl))
         loop.latchBlock = Some(ctx.llvmBlocks(loop.latch.decl))
-      case contract: LLVMFunctionContract[G] =>
+      case contract: VCLLVMFunctionContract[G] =>
         // WONTFIX:
 //        implicit val o: Origin = contract.o
         val llvmFunction =
@@ -1192,14 +1197,19 @@ case object ResolveReferences extends LazyLogging {
           )
         } else { contract.data = Some(applicableContract) }
         resolve(contract.data.get, ctx)
+      case contract: PallasFunctionContract[G] => resolve(contract.content, ctx)
       case local: LLVMLocal[G] =>
         local.ref =
           ctx.currentResult.get match {
             case RefLLVMFunctionDefinition(decl) =>
-              decl.contract.variableRefs
-                .find(ref => ref._1 == local.name) match {
-                case Some(ref) => Some(ref._2)
-                case None => throw NoSuchNameError("local", local.name, local)
+              decl.contract match {
+                case contract: VCLLVMFunctionContract[G] =>
+                  contract.variableRefs
+                    .find(ref => ref._1 == local.name) match {
+                    case Some(ref) => Some(ref._2)
+                    case None =>
+                      throw NoSuchNameError("local", local.name, local)
+                  }
               }
             case RefLLVMSpecFunction(_) =>
               Some(

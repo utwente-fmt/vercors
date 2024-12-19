@@ -386,7 +386,13 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 else
                   Some(rw.dispatch(functionBody))
             },
-          contract = rw.dispatch(func.contract.data.get),
+          contract =
+            func.contract match {
+              case contract: VCLLVMFunctionContract[Pre] =>
+                rw.dispatch(contract.data.get)
+              case contract: PallasFunctionContract[Pre] =>
+                rw.dispatch(contract.content)
+            },
           pure = func.pure,
         )(func.blame)
       )

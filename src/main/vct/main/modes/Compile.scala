@@ -8,6 +8,7 @@ import vct.main.Main
 import vct.main.stages.{Output, Parsing, Resolution, Transformation}
 import vct.options.Options
 import vct.parsers.transform.ConstantBlameProvider
+import vct.result.VerificationError
 
 import java.nio.file.Paths
 
@@ -19,13 +20,20 @@ case object Compile extends LazyLogging {
 
     val collector = BlameCollector()
     val blameProvider = ConstantBlameProvider(collector)
-    Parsing.ofOptions(options, blameProvider)
+    val result = Parsing.ofOptions(options, blameProvider)
       .thenRun(Resolution.ofOptions(options, blameProvider))
       .thenRun(Transformation.pvlJavaCompatOfOptions(options)).thenRun(Output(
         options.compileOutput.orElse(Some(Paths.get("a.java"))),
         Ctx.Java,
         false,
       )).run(options.inputs)
-    Main.EXIT_CODE_SUCCESS
+
+    result match {
+      case Left(err: VerificationError.UserError) =>
+        logger.error(err.text)
+        Main.EXIT_CODE_ERROR
+      case Left(err: VerificationError.SystemError) => throw err
+      case Right(_) => Main.EXIT_CODE_SUCCESS
+    }
   }
 }
