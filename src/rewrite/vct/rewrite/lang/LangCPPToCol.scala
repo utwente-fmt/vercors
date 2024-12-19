@@ -1449,13 +1449,18 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       )
     }
 
+    val kernelRunnerContextEverywhere = getKernelQuantifiedCondition(
+      kernelParBlock,
+      removeKernelClassInstancePermissions(contractContextEverywhere),
+    )(kernelDeclaration.contract.contextEverywhere.o)
+
     // Declare the newly generated kernel code inside a run-method
     val kernelRunnerContract =
       ApplicableContract[Post](
         kernelRunnerPreCondition,
         kernelRunnerPostCondition,
-//        contractContextEverywhere,
-        tt,
+        kernelRunnerContextEverywhere,
+//        tt,
         Nil,
         Nil,
         Nil,
@@ -2678,6 +2683,69 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case e => e
     }
   }
+
+  private def removeRangeAccesses(e: Expr[Post]): Expr[Post] = {
+    implicit val o = e.o
+    e match {
+      case s @ Starall(bindings, triggers, body) =>
+        Starall(bindings, triggers, removeRangeAccesses(body))(
+          s.blame
+        )
+      case ModelAbstractState(model, state) =>
+        ModelAbstractState(
+          removeRangeAccesses(model),
+          removeRangeAccesses(state),
+        )
+      case ModelState(model, perm, state) =>
+        ModelState(
+          removeRangeAccesses(model),
+          removeRangeAccesses(perm),
+          removeRangeAccesses(state),
+        )
+      case s @ Scale(expr, res) =>
+        Scale(
+          removeRangeAccesses(expr),
+          removeRangeAccesses(res),
+        )(s.blame)
+      case Star(left, right) =>
+        Star(
+          removeRangeAccesses(left),
+          removeRangeAccesses(right),
+        )
+      case Wand(left, right) =>
+        Wand(
+          removeRangeAccesses(left),
+          removeRangeAccesses(right),
+        )
+
+      case ActionPerm(Deref(obj, _), _) if obj.equals(this.currentThis.get) =>
+        tt
+      case ModelPerm(Deref(obj, _), _) if obj.equals(this.currentThis.get) => tt
+      case Perm(FieldLocation(obj, _), _) if obj.equals(this.currentThis.get) =>
+        tt
+      case PointsTo(FieldLocation(obj, _), _, _)
+        if obj.equals(this.currentThis.get) =>
+        tt
+      case Value(FieldLocation(obj, _)) if obj.equals(this.currentThis.get) =>
+        tt
+      case Perm(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)), _)
+        if obj.equals(this.currentThis.get) =>
+        tt
+      case PointsTo(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)), _, _)
+        if obj.equals(this.currentThis.get) =>
+        tt
+      case Value(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)))
+        if obj.equals(this.currentThis.get) =>
+        tt
+      case Implies(left, right) =>
+        Implies(
+          removeRangeAccesses(left),
+          removeRangeAccesses(right),
+        )
+      case e => e
+    }
+  }
+
 
   private def removeLocalAccessorConditions(
       conditions: Expr[Post],
