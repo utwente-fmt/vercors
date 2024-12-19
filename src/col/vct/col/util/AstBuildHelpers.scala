@@ -71,6 +71,12 @@ object AstBuildHelpers {
       Mod(left, right)(blame)
 
     def ===(right: Expr[G])(implicit origin: Origin): Eq[G] = Eq(left, right)
+    def |===|(right: Expr[G])(implicit origin: Origin): Expr[G] =
+      (left, right) match {
+        case (BooleanValue(l), BooleanValue(r)) if l == r => tt[G]
+        case (IntegerValue(l), IntegerValue(r)) if l == r => tt[G]
+        case _ => left === right
+      }
     def !==(right: Expr[G])(implicit origin: Origin): Neq[G] = Neq(left, right)
     def <(right: Expr[G])(implicit origin: Origin): Less[G] = Less(left, right)
     def >(right: Expr[G])(implicit origin: Origin): Greater[G] =

@@ -11,6 +11,12 @@ case object ScopedStack {
       (buf.toSeq, res)
     }
   }
+
+  def apply[T](t: T): ScopedStack[T] = {
+    val stack = ScopedStack[T]()
+    stack.push(t)
+    stack
+  }
 }
 
 case class ScopedStack[T]() {

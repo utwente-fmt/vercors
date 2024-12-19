@@ -1,5 +1,7 @@
 package hre.util
 
+import scala.collection.mutable
+
 case object FuncTools {
   def repeat[T](f: T => T, n: Int, arg: T): T = (0 until n)
     .foldLeft(arg)((res, _) => f(res))
@@ -11,4 +13,6 @@ case object FuncTools {
       data: Seq[In],
       func: Function[In, Option[Out]],
   ): Option[Out] = data.foldLeft(Option.empty[Out])(_ orElse func(_))
+
+  def unique[T](xs: Seq[T]): Seq[T] = mutable.LinkedHashSet(xs: _*).toSeq
 }
