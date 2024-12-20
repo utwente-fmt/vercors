@@ -8,7 +8,8 @@ import vct.col.check.{CheckContext, CheckError}
 trait CommTargetIndexImpl[G]
     extends CommTargetIndexOps[G] with CommunicateTargetImpl[G] {
   this: CommTargetIndex[G] =>
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc =
+    Text(ctx.name(ref)) <> "[" <> index <> "]"
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
     super.check(context) ++ {

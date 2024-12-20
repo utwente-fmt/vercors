@@ -291,6 +291,7 @@ final case class CatchClause[G](decl: Variable[G], body: Statement[G])(
     implicit val o: Origin
 ) extends NodeFamily[G] with CatchClauseImpl[G]
 
+// TODO (RR): Unify with RangeBinder...!
 @family
 final case class IterVariable[G](
     variable: Variable[G],

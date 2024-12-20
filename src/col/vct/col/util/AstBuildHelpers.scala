@@ -614,7 +614,7 @@ object AstBuildHelpers {
 
   def loopInvariant[G](
       blame: Blame[LoopInvariantFailure],
-      invariant: Expr[G] = null,
+      invariant: Expr[G] = tt[G],
       decreases: Option[DecreasesClause[G]] = None,
   )(implicit o: Origin): LoopContract[G] =
     LoopInvariant(invariant, decreases)(blame)

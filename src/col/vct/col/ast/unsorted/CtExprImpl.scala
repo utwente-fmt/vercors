@@ -18,7 +18,7 @@ trait CtExprImpl[G] extends CtExprOps[G] {
   override def layout(implicit ctx: Ctx): Doc = inner.show
   override def precedence: Int = Precedence.ATOMIC
 
-  override def t: TClass[G] =
+  override def t: Type[G] =
     inner match {
       case _: CommTargetEndpoint[G] | _: CommTargetIndex[G] =>
         inner.ref.decl.singleType

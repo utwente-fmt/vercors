@@ -18,17 +18,23 @@ import vct.col.ast.{
   Eval,
   Expr,
   InstanceMethod,
+  IterVariable,
   Local,
   Message,
   MethodInvocation,
   Perm,
   Procedure,
+  RangeBinder,
+  LoopContract,
+  LoopInvariant,
+  RangedFor,
   ReadPerm,
   Receiver,
   Scope,
   Sender,
   Statement,
   TByReferenceClass,
+  TInt,
   TVoid,
   ThisChoreography,
   Value,
@@ -141,10 +147,12 @@ case class EncodeChoreography[Pre <: Generation]()
           implicit val o = prog.o
           prog.endpoints.foreach(_.drop())
           prog.endpoints.foreach {
-            case endpoint: Endpoint[Pre] if endpoint.isSingle =>
+            case endpoint if endpoint.isSingle =>
               endpointSucc((mode, endpoint)) =
                 new Variable(dispatch(endpoint.singleType))(endpoint.o)
-            case endpoint: Endpoint[Pre] if endpoint.isFamily => ???
+            case endpoint if endpoint.isFamily =>
+              endpointSucc((mode, endpoint)) =
+                new Variable(dispatch(endpoint.rangeType))(endpoint.o)
           }
 
           // Maintain successor for seq_prog argument variables manually, as two contexts are maintained
@@ -154,12 +162,25 @@ case class EncodeChoreography[Pre <: Generation]()
             variableSucc((mode, arg)) = new Variable(dispatch(arg.t))(arg.o)
           }
 
+          // TODO (RR): I think this init we can maybe reuse for the endpoint projection routines as well, as it is also what I did in the summation case study
           // For each endpoint, make a local variable and initialize it using the constructor referenced in the endpoint
-          val endpointsInit = prog.endpoints.map { endpoint =>
-            Assign(
-              Local[Post](endpointSucc((mode, endpoint)).ref),
-              dispatch(endpoint.init),
-            )(AssignLocalOk)
+          val endpointsInit = prog.endpoints.map {
+            case endpoint if endpoint.isSingle =>
+              Assign(
+                Local[Post](endpointSucc((mode, endpoint)).ref),
+                dispatch(endpoint.init),
+              )(AssignLocalOk)
+            case endpoint if endpoint.isFamily =>
+              val RangeBinder(i, low, high) = endpoint.range.get
+              RangedFor(
+                IterVariable(
+                  variables.dispatch(i),
+                  dispatch(low),
+                  dispatch(high),
+                ),
+                loopInvariant(blame = PanicBlame("???")),
+                Block(Seq()),
+              )
           }
 
           val preRun = prog.preRun.map(dispatch).toSeq
@@ -233,10 +254,12 @@ case class EncodeChoreography[Pre <: Generation]()
 
     currentRun.having(run) {
       prog.endpoints.foreach {
-        case endpoint: Endpoint[Pre] if endpoint.isSingle =>
+        case endpoint if endpoint.isSingle =>
           endpointSucc((mode, endpoint)) =
             new Variable(dispatch(endpoint.singleType))(endpoint.o)
-        case family: Endpoint[Pre] if family.isFamily => ???
+        case endpoint if endpoint.isFamily =>
+          endpointSucc((mode, endpoint)) =
+            new Variable(dispatch(endpoint.rangeType))(endpoint.o)
       }
 
       for (arg <- prog.params) {
