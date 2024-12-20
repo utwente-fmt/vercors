@@ -85,13 +85,13 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
         implicit val o = endpoint.o
 
         val implField =
-          new InstanceField[Post](dispatch(endpoint.t), Seq())(
+          new InstanceField[Post](dispatch(endpoint.singleType), Seq())(
             o.where(name = "impl")
           )
         implFields(endpoint) = implField
 
         val constructor: Constructor[Post] = {
-          val implArg = new Variable(dispatch(endpoint.t))
+          val implArg = new Variable(dispatch(endpoint.singleType))
           val `this` = new ThisObject[Post](classOfEndpoint.ref(endpoint))
           new Constructor[Post](
             cls = classOfEndpoint.ref(endpoint),

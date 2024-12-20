@@ -17,7 +17,8 @@ trait PVLLocalImpl[G] extends PVLLocalOps[G] {
       case ref: RefClass[G] => Types.notAValue(ref)
       case ref: RefField[G] => ref.decl.t
       case ref: RefModelField[G] => ref.decl.t
-      case ref: RefEndpoint[G] => ref.decl.t
+      // TODO (RR): This next case shouldn't be necessary after LangSpecificToCol, as by then there should be dedicated nodes to refer to endpoints. Leaving it here for now in case it breaks soon. Otherwise can be deleted when parameterization is finished.
+//      case ref: RefEndpoint[G] => ref.decl.t
       case RefPVLEndpoint(decl) if decl.isSingle => decl.t
       case RefPVLEndpoint(decl) if decl.isFamily => TSeq(decl.t)
       case RefEnumConstant(enum, _) => TEnum(enum.get.ref)

@@ -10,7 +10,7 @@ trait ReceiverImpl[G] extends ReceiverOps[G] with ExprImpl[G] {
   this: Receiver[G] =>
   override def layout(implicit ctx: Ctx): Doc = Text("\\receiver")
   override def precedence: Int = Precedence.ATOMIC
-  override def t: Type[G] = ref.decl.receiver.get.ref.decl.t
+  override def t: Type[G] = ref.decl.receiver.get.ref.decl.singleType
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
     super.check(context) ++

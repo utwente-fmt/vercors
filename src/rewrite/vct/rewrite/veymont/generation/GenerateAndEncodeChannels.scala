@@ -313,10 +313,10 @@ case class GenerateAndEncodeChannels[Pre <: Generation](
                   decls =
                     classDeclarations.collect {
                       senderFieldSucc(comm) = instanceField(
-                        dispatch(comm.sender.get.asName.endpoint.t)
+                        dispatch(comm.sender.get.asName.endpoint.singleType)
                       )(o.where(name = "sender")).declare()
                       receiverFieldSucc(comm) = instanceField(
-                        dispatch(comm.receiver.get.asName.endpoint.t)
+                        dispatch(comm.receiver.get.asName.endpoint.singleType)
                       )(o.where(name = "receiver")).declare()
                       cls.decls.foreach(dispatch)
                     }._1,

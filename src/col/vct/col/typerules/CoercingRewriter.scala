@@ -2482,7 +2482,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           endpoint.range,
           endpoint.cls,
           endpoint.typeArgs,
-          coerce(endpoint.init, endpoint.t),
+          coerce(endpoint.init, endpoint.singleType),
         )
       case bc: BipConstructor[Pre] =>
         new BipConstructor(bc.args, bc.body, bc.requires)(bc.blame)

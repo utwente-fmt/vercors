@@ -18,12 +18,12 @@ trait CtExprImpl[G] extends CtExprOps[G] {
   override def layout(implicit ctx: Ctx): Doc = inner.show
   override def precedence: Int = Precedence.ATOMIC
 
-  // TODO (RR): I think this is wrong, but keeping it around for a few minutes
-  override def t: TClass[G] = inner.ref.decl.t
-//    inner match {
-//      case _: CommTargetEndpoint[G] | _: CommTargetIndex[G] => inner.ref.decl.t
-//      case _: CommTargetRange[G] => TSeq(inner.ref.decl.t)
-//    }
+  override def t: TClass[G] =
+    inner match {
+      case _: CommTargetEndpoint[G] | _: CommTargetIndex[G] =>
+        inner.ref.decl.singleType
+      case _: CommTargetRange[G] => inner.ref.decl.rangeType
+    }
 
   def isName: Boolean =
     this match {

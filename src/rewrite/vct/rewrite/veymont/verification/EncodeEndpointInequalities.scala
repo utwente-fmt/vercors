@@ -133,7 +133,7 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
         implicit val o = comm.o
         val sender = comm.inner.sender.get.asName.endpoint
         val receiver = comm.inner.receiver.get.asName.endpoint
-        if (receiver.t == sender.t)
+        if (receiver.singleType == sender.singleType)
           Block(Seq(
             Assert(
               EndpointName[Post](succ(receiver)) !==

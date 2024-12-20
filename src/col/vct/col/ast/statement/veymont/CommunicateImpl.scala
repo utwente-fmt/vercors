@@ -57,7 +57,7 @@ trait CommunicateImpl[G]
   def participants: Seq[CommunicateTarget[G]] = sender.toSeq ++ receiver.toSeq
 
   object t {
-    def sender: TClass[G] = comm.sender.get.ref.decl.t
-    def receiver: TClass[G] = comm.receiver.get.ref.decl.t
+    def sender: TClass[G] = comm.sender.get.ref.decl.singleType
+    def receiver: TClass[G] = comm.receiver.get.ref.decl.singleType
   }
 }

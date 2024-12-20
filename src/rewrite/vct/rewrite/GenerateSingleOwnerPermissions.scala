@@ -221,7 +221,7 @@ case class GenerateSingleOwnerPermissions[Pre <: Generation](
     }
 
   def endpointPerm(endpoint: Endpoint[Pre])(implicit o: Origin): Expr[Post] =
-    transitivePerm(EndpointName[Post](succ(endpoint)), endpoint.t)
+    transitivePerm(EndpointName[Post](succ(endpoint)), endpoint.singleType)
 
   def endpointsPerm(endpoints: Seq[Endpoint[Pre]])(
       implicit o: Origin

@@ -10,7 +10,7 @@ trait SenderImpl[G] extends SenderOps[G] with ExprImpl[G] {
   this: Sender[G] =>
   override def layout(implicit ctx: Ctx): Doc = Text("\\sender")
   override def precedence: Int = Precedence.ATOMIC
-  override def t: Type[G] = ref.decl.sender.get.ref.decl.t
+  override def t: Type[G] = ref.decl.sender.get.ref.decl.singleType
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
     super.check(context) ++

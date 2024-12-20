@@ -140,9 +140,11 @@ case class EncodeChoreography[Pre <: Generation]()
           // First set up the succesor variables that will be encoding the seq_program argument and endpoints
           implicit val o = prog.o
           prog.endpoints.foreach(_.drop())
-          for (endpoint <- prog.endpoints) {
-            endpointSucc((mode, endpoint)) =
-              new Variable(dispatch(endpoint.t))(endpoint.o)
+          prog.endpoints.foreach {
+            case endpoint: Endpoint[Pre] if endpoint.isSingle =>
+              endpointSucc((mode, endpoint)) =
+                new Variable(dispatch(endpoint.singleType))(endpoint.o)
+            case endpoint: Endpoint[Pre] if endpoint.isFamily => ???
           }
 
           // Maintain successor for seq_prog argument variables manually, as two contexts are maintained
@@ -230,9 +232,11 @@ case class EncodeChoreography[Pre <: Generation]()
       .where(name = currentProg.top.o.getPreferredNameOrElse().snake + "_run")
 
     currentRun.having(run) {
-      for (endpoint <- prog.endpoints) {
-        endpointSucc((mode, endpoint)) =
-          new Variable(dispatch(endpoint.t))(endpoint.o)
+      prog.endpoints.foreach {
+        case endpoint: Endpoint[Pre] if endpoint.isSingle =>
+          endpointSucc((mode, endpoint)) =
+            new Variable(dispatch(endpoint.singleType))(endpoint.o)
+        case family: Endpoint[Pre] if family.isFamily => ???
       }
 
       for (arg <- prog.params) {

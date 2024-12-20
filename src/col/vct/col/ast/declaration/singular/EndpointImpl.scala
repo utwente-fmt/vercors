@@ -13,6 +13,7 @@ import vct.col.ast.{
   TByReferenceClass,
   TClass,
   TInt,
+  TSeq,
   Type,
   Variable,
 }
@@ -30,7 +31,8 @@ trait EndpointImpl[G]
   override def layout(implicit ctx: Ctx): Doc =
     Group(Text("endpoint") <+> ctx.name(this) <+> "=" <+> init)
 
-  def t: TClass[G] = cls.decl.classType(typeArgs)
+  def singleType: TClass[G] = cls.decl.classType(typeArgs)
+  def rangeType: TSeq[G] = TSeq(singleType)
 
   override def declarations: Seq[Declaration[G]] =
     range.map(r => Seq(r.binder)).getOrElse(Seq())

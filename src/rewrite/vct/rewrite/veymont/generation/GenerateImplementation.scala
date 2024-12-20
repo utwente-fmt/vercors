@@ -152,7 +152,7 @@ case class GenerateImplementation[Pre <: Generation]()
 
           chor.endpoints.foreach(endpoint =>
             endpointLocals(endpoint) =
-              new Variable(dispatch(endpoint.t))(endpoint.o)
+              new Variable(dispatch(endpoint.singleType))(endpoint.o)
           )
 
           val initEndpoints = chor.endpoints.map { endpoint =>
@@ -253,7 +253,7 @@ case class GenerateImplementation[Pre <: Generation]()
   ): Unit =
     chor.endpoints.foreach { peer =>
       val f =
-        new InstanceField(dispatch(peer.t), Seq())(
+        new InstanceField(dispatch(peer.singleType), Seq())(
           endpoint.o
             .where(indirect = Name.names(peer.o.getPreferredNameOrElse()))
         )
