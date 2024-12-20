@@ -114,12 +114,6 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
     statement match {
       case InChor(_, c @ ChorStatement(branch: Branch[Pre])) =>
         implicit val o = statement.o
-//        val assertions = Block(
-//          unanimous(branch.cond).map { case (cond, (alpha, beta)) =>
-//            Assert(cond)(ForwardBranchUnanimity(c, alpha, beta))
-//          }
-//        )
-//        Block(Seq(assertions, super.dispatch(branch)))
         Block(Seq(
           Assert(unanimous(branch.cond))(
             ForwardBranchUnanimity(c, branch.cond)
@@ -227,7 +221,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
         // Evaluate if j is within range. Since j should be a mathematically expression (no method calls &
         // no heap dereferences) it's safe to duplicate it all over the place. Though it might be bad for prover performance.
         // We don't check for this constraint, though.
-        (dispatch(low) <= dispatch(j)) && (dispatch(j) < dispatch(high)) ==>
+        ((dispatch(low) <= dispatch(j)) && (dispatch(j) < dispatch(high))) ==>
           substitutions.having(substitutions.top.updated(v.get, dispatch(j))) {
             dispatch(inner)
           }
@@ -255,13 +249,12 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
       case r @ (_: CommTargetEndpoint[Pre] | _: CommTargetIndex[Pre]) =>
         partialProject(expr, r) |===| b
       case CommTargetRange(f, RangeBinder(oldV, low, high)) =>
-//        oldV.drop()
         variables.scope(forall(
           TInt(),
           v => {
             variables.succeedOnly(oldV, v.ref.decl)
             ((dispatch(low) <= v) && (v < dispatch(high))) ==>
-              partialProject(expr, CommTargetIndex(f, oldV.get))
+              partialProject(expr, CommTargetIndex(f, oldV.get)) |===| b
           },
         ))
 

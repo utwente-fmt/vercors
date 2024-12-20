@@ -560,6 +560,29 @@ case class EncodePermissionStratification[Pre <: Generation](
           dispatch(inner)
         }
 
+      case EndpointExpr(target: CommTargetIndex[Pre], inner) =>
+        specializing.having(CtExpr(target.rewrite())(target.o)) {
+          dispatch(inner)
+        }
+
+      case EndpointExpr(
+            target @ CommTargetRange(ref, RangeBinder(v, low, high)),
+            inner,
+          ) =>
+        implicit val o: Origin = target.o
+        forall(
+          TInt(),
+          i => {
+            // TODO (RR): `i` should have origin of `v` here...!
+            variables.succeedOnly(v, i.ref.decl)
+            ((dispatch(low) <= i) && (i < dispatch(high))) ==>
+              specializing
+                .having(CtExpr(CommTargetIndex(endpoints.dispatch(ref), i))) {
+                  dispatch(inner)
+                }
+          },
+        )
+
       case EndpointExpr(_, inner) => ???
 
       case deref @ Deref(obj, Ref(field)) if specializing.nonEmpty =>

@@ -111,7 +111,7 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
 
   def stratifyExpr(expr: Expr[Pre]): Expr[Post] = {
     implicit val o = expr.o
-    foldAny1(expr.t)(unfoldAny(expr).flatMap {
+    foldAny(expr.t)(unfoldStar(expr).flatMap {
       case expr @ (_: EndpointExpr[Pre] | _: ChorExpr[Pre]) =>
         Seq(expr.rewriteDefault())
       case expr =>
@@ -120,6 +120,6 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
             EndpointExpr[Post](dispatch(commTarget), dispatch(expr))
           }
         }.toSeq
-    })
+    }).getOrElse(tt)
   }
 }
