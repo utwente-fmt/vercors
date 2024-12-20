@@ -15,4 +15,6 @@ case class ReplaceSYCLTypes[Pre <: Generation]() extends Rewriter[Pre] {
       case _: SYCLTClass[Pre] => TRef()
       case _ => rewriteDefault(t)
     }
+
+  override def dispatch(decl: Declaration[Pre]): Unit = { super.dispatch(decl) }
 }

@@ -3853,6 +3853,7 @@ final class PVLCommunicate[G](
   var inferredSender: Option[PVLCommunicateTarget[G]] = None
   var inferredReceiver: Option[PVLCommunicateTarget[G]] = None
 }
+@scopes[Variable]
 final case class PVLEndpointStatement[G](
     endpoint: Option[PVLCommunicateTarget[G]],
     inner: Statement[G],
@@ -3947,6 +3948,7 @@ final case class ChorStatement[G](inner: Statement[G])(
     val blame: Blame[ChorStatementFailure]
 )(implicit val o: Origin)
     extends Statement[G] with ChorStatementImpl[G]
+@scopes[Variable]
 final case class EndpointStatement[G](
     endpoint: Option[CommunicateTarget[G]],
     inner: Statement[G],
@@ -3958,6 +3960,7 @@ final case class PVLEndpointExpr[G](
     expr: Expr[G],
 )(implicit val o: Origin)
     extends Expr[G] with PVLEndpointExprImpl[G] with Declarator[G]
+@scopes[Variable]
 final case class EndpointExpr[G](endpoint: CommunicateTarget[G], expr: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with EndpointExprImpl[G]
