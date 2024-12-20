@@ -8,7 +8,7 @@ import vct.col.check.{CheckContext, CheckError}
 trait CommTargetRangeImpl[G]
     extends CommTargetRangeOps[G] with CommunicateTargetImpl[G] {
   this: CommTargetRange[G] =>
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc = Text(ctx.name(ref)) <> range
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
     super.check(context) ++ {

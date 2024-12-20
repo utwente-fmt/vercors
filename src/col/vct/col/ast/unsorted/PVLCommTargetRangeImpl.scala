@@ -11,7 +11,7 @@ import vct.col.print._
 
 trait PVLCommTargetRangeImpl[G] extends PVLCommTargetRangeOps[G] {
   this: PVLCommTargetRange[G] =>
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc = Text(name) <> range
 
   override def t: Type[G] = ref.get.decl.t
 }

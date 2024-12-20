@@ -248,16 +248,16 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
     alpha match {
       case r @ (_: CommTargetEndpoint[Pre] | _: CommTargetIndex[Pre]) =>
         partialProject(expr, r) |===| b
-      case CommTargetRange(f, RangeBinder(oldV, low, high)) =>
-        variables.scope(forall(
-          TInt(),
-          v => {
-            variables.succeedOnly(oldV, v.ref.decl)
+      case target @ CommTargetRange(f, RangeBinder(oldV, low, high)) =>
+        variables.scope {
+          val newTarget = target.rewriteDefault()
+          val v = newTarget.range.binder.get
+          EndpointExpr(
+            newTarget,
             ((dispatch(low) <= v) && (v < dispatch(high))) ==>
-              partialProject(expr, CommTargetIndex(f, oldV.get)) |===| b
-          },
-        ))
-
+              partialProject(expr, CommTargetIndex(f, oldV.get)) |===| b,
+          )
+        }
     }
   }
 

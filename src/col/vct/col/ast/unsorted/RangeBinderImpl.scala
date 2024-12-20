@@ -8,6 +8,7 @@ import vct.col.ast.ops.{RangeBinderFamilyOps, RangeBinderOps}
 trait RangeBinderImpl[G]
     extends RangeBinderOps[G] with RangeBinderFamilyOps[G] {
   this: RangeBinder[G] =>
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc =
+    Text("[") <> ctx.name(binder) <+> ":=" <+> low <+> ".." <+> high <> "]"
   require(binder.t == TInt[G]())
 }
