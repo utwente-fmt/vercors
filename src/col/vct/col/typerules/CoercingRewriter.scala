@@ -364,6 +364,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: ApplyAnyPredicate[Pre] => coerce(node)
       case node: FoldTarget[Pre] => coerce(node)
       case node: LLVMFloatType[Pre] => node
+      case node: FilterMode[Pre] => coerce(node)
     }
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
@@ -2973,4 +2974,5 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: PVLEndpointName[Pre]): PVLEndpointName[Pre] = node
   def coerce(node: EndpointName[Pre]): EndpointName[Pre] = node
 
+  def coerce(node: FilterMode[Pre]): FilterMode[Pre] = node
 }

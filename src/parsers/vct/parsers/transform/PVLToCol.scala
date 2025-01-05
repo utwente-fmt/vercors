@@ -1032,6 +1032,8 @@ case class PVLToCol[G](
           case "thread_local" => collector.threadLocal += mod
           case "bip_annotation" =>
             fail(mod, "This modifier is not allowed here.")
+          case "include" => ???
+          case "exclude" => ???
         }
       case ValStatic(_) => collector.static += mod
     }

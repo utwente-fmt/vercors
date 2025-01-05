@@ -696,6 +696,7 @@ final class Function[G](
     val contract: ApplicableContract[G],
     val inline: Boolean = false,
     val threadLocal: Boolean = false,
+    val filter: FilterMode[G] = NeutralFilterMode[G](),
 )(val blame: Blame[ContractedFailure])(implicit val o: Origin)
     extends GlobalDeclaration[G] with AbstractFunction[G] with FunctionImpl[G]
 @scopes[LabelDecl]
@@ -709,6 +710,7 @@ final class Procedure[G](
     val inline: Boolean = false,
     val pure: Boolean = false,
     val vesuv_entry: Boolean = false,
+    val filter: FilterMode[G] = NeutralFilterMode[G](),
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends GlobalDeclaration[G] with AbstractMethod[G] with ProcedureImpl[G]
 @scopes[LabelDecl]
@@ -723,6 +725,7 @@ final class Predicate[G](
     val body: Option[Expr[G]],
     val threadLocal: Boolean = false,
     val inline: Boolean = false,
+    val filter: FilterMode[G] = NeutralFilterMode[G](),
 )(implicit val o: Origin)
     extends GlobalDeclaration[G] with AbstractPredicate[G] with PredicateImpl[G]
 final class Enum[G](val constants: Seq[EnumConstant[G]])(implicit val o: Origin)
@@ -760,6 +763,7 @@ final class InstanceFunction[G](
     val contract: ApplicableContract[G],
     val inline: Boolean,
     val threadLocal: Boolean = false,
+    val filter: FilterMode[G] = NeutralFilterMode[G](),
 )(val blame: Blame[ContractedFailure])(implicit val o: Origin)
     extends ClassDeclaration[G]
     with AbstractFunction[G]
@@ -773,6 +777,7 @@ final class Constructor[G](
     val body: Option[Statement[G]],
     val contract: ApplicableContract[G],
     val inline: Boolean = false,
+    val filter: FilterMode[G] = NeutralFilterMode[G](),
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends ClassDeclaration[G] with AbstractMethod[G] with ConstructorImpl[G]
 @scopes[LabelDecl]
@@ -785,6 +790,7 @@ final class InstanceMethod[G](
     val contract: ApplicableContract[G],
     val inline: Boolean = false,
     val pure: Boolean = false,
+    val filter: FilterMode[G] = NeutralFilterMode[G](),
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends ClassDeclaration[G]
     with AbstractMethod[G]
@@ -796,6 +802,7 @@ final class InstancePredicate[G](
     val body: Option[Expr[G]],
     val threadLocal: Boolean = false,
     val inline: Boolean = false,
+    val filter: FilterMode[G] = NeutralFilterMode[G](),
 )(implicit val o: Origin)
     extends ClassDeclaration[G]
     with AbstractPredicate[G]
@@ -817,6 +824,7 @@ final class InstanceOperatorFunction[G](
     val contract: ApplicableContract[G],
     val inline: Boolean,
     val threadLocal: Boolean = false,
+    val filter: FilterMode[G] = NeutralFilterMode[G](),
 )(val blame: Blame[ContractedFailure])(implicit val o: Origin)
     extends ClassDeclaration[G]
     with AbstractFunction[G]
@@ -829,6 +837,7 @@ final class InstanceOperatorMethod[G](
     val contract: ApplicableContract[G],
     val inline: Boolean = false,
     val pure: Boolean = false,
+    val filter: FilterMode[G] = NeutralFilterMode[G](),
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends ClassDeclaration[G]
     with AbstractMethod[G]
@@ -898,8 +907,10 @@ final class ParInvariantDecl[G]()(implicit val o: Origin)
     extends Declaration[G] with ParInvariantDeclImpl[G]
 
 sealed trait Applicable[G] extends ApplicableImpl[G] with Declaration[G]
+sealed trait FilterApplicable[G]
+    extends Applicable[G] with FilterApplicableImpl[G]
 sealed trait InlineableApplicable[G]
-    extends Applicable[G] with InlineableApplicableImpl[G]
+    extends FilterApplicable[G] with InlineableApplicableImpl[G]
 sealed trait AbstractPredicate[G]
     extends InlineableApplicable[G] with AbstractPredicateImpl[G]
 sealed trait ContractApplicable[G]
@@ -909,6 +920,16 @@ sealed trait AbstractFunction[G]
 sealed trait AbstractMethod[G]
     extends ContractApplicable[G] with AbstractMethodImpl[G]
 sealed trait Field[G] extends FieldImpl[G]
+
+@family
+sealed trait FilterMode[G] extends NodeFamily[G] with FilterModeImpl[G]
+case class Include[G]()(implicit val o: Origin = DiagnosticOrigin)
+    extends FilterMode[G] with IncludeImpl[G]
+case class Exclude[G]()(implicit val o: Origin = DiagnosticOrigin)
+    extends FilterMode[G] with ExcludeImpl[G]
+// Slightly longer name here to avoid claiming the keyword "Neutral", just Option[FilterMode] can be avoided.
+case class NeutralFilterMode[G]()(implicit val o: Origin = DiagnosticOrigin)
+    extends FilterMode[G] with NeutralFilterModeImpl[G]
 
 @family @scopes[Variable]
 @scopes[LocalHeapVariable]
@@ -3541,6 +3562,7 @@ final class LLVMSpecFunction[G](
     val contract: ApplicableContract[G],
     val inline: Boolean = false,
     val threadLocal: Boolean = false,
+    val filter: FilterMode[G] = NeutralFilterMode[G](),
 )(val blame: Blame[ContractedFailure])(implicit val o: Origin)
     extends LLVMCallable[G]
     with AbstractFunction[G]
