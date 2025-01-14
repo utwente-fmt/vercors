@@ -246,6 +246,12 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
   def above(): UncertainIntegerValue =
     above_eq() + UncertainIntegerValue.single(1)
 
+  def range(i: UncertainIntegerValue): UncertainIntegerValue =
+    UncertainIntegerValue(
+      value.below_max().intersection(i.value.above_min())
+        .union(value.above_min().intersection(i.value.below_max()))
+    )
+
   def ==(other: UncertainIntegerValue): UncertainBooleanValue =
     UncertainBooleanValue(can_be_equal(other), can_be_unequal(other))
   def !=(other: UncertainIntegerValue): UncertainBooleanValue =
@@ -422,6 +428,31 @@ case class UncertainSequence(
       values(i)._2
     else
       UncertainValue.uncertain_of(t)
+  }
+
+  def contains(value: UncertainValue): UncertainBooleanValue = {
+    // See if it definitely fits:
+    // The values that are known for sure cover it
+    val total_covered: UncertainValue = values.map(t => t._2)
+      .filter(v => !v.is_uncertain).reduce((v1, v2) => v1.union(v2))
+    if (value.is_subset_of(total_covered))
+      return UncertainBooleanValue.from(true)
+
+    // See if it definitely is not contained:
+    // All entries are known and none can be the given value
+    val total_known: UncertainIntegerValue = values.map(t => t._1)
+      .filter(v => !v.is_uncertain)
+      .reduce((v1, v2) => v1.union(v2).asInstanceOf[UncertainIntegerValue])
+    val total_possible: UncertainValue = values.map(t => t._2)
+      .reduce((v1, v2) => v1.union(v2))
+    if (
+      len.range(UncertainIntegerValue.single(0)).is_subset_of(total_known) &&
+      total_possible.intersection(value).is_impossible
+    )
+      return UncertainBooleanValue.from(false)
+
+    // Otherwise, there is no way to tell
+    UncertainBooleanValue.uncertain()
   }
 
   private def combine_values(

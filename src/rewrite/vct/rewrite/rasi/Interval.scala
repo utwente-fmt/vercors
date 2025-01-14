@@ -81,6 +81,10 @@ case class Infinite() extends IntervalSize {
   *   - <code>pow</code> NOT IMPLEMENTED
   *
   * ADMINISTRATIVE OPERATIONS
+  *   - <code>min()</code> returns the minimal value contained in this interval,
+  *     if it contains one
+  *   - <code>max()</code> returns the maximal value contained in this interval,
+  *     if it contains one
   *   - <code>sub_intervals()</code> returns the minimum set of contiguous
   *     intervals this interval is a union of
   *   - <code>try_to_resolve()</code> if this interval contains exactly one
@@ -107,6 +111,8 @@ sealed abstract class Interval {
   def %(other: Interval): Interval
   def unary_- : Interval
   def pow(other: Interval): Interval
+  def min(): Option[Int]
+  def max(): Option[Int]
   def sub_intervals(): Set[Interval] = Set(this)
   def values: Option[Set[Int]]
   def try_to_resolve(): Option[Int]
@@ -128,6 +134,8 @@ case object EmptyInterval extends Interval {
   override def %(other: Interval): Interval = this
   override def unary_- : Interval = this
   override def pow(other: Interval): Interval = this
+  override def min(): Option[Int] = None
+  override def max(): Option[Int] = None
   override def values: Option[Set[Int]] = Some(Set.empty[Int])
   override def try_to_resolve(): Option[Int] = None
   override def to_expression[G](variable: Expr[G]): Expr[G] =
@@ -230,6 +238,10 @@ case class MultiInterval(intervals: Set[Interval]) extends Interval {
   private def merge_intersecting(is: Set[Interval]): Set[Interval] =
     MultiInterval(is).sub_intervals().reduce((i1, i2) => i1.union(i2))
       .sub_intervals()
+
+  override def min(): Option[Int] = above_min().min()
+
+  override def max(): Option[Int] = below_max().max()
 
   override def sub_intervals(): Set[Interval] =
     intervals.flatMap(i => i.sub_intervals())
@@ -421,6 +433,10 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
           LowerBoundedInterval(0)
     }
 
+  override def min(): Option[Int] = Some(lower)
+
+  override def max(): Option[Int] = Some(upper)
+
   override def values: Option[Set[Int]] = Some(lower.to(upper).toSet)
 
   override def try_to_resolve(): Option[Int] = {
@@ -533,6 +549,10 @@ case class LowerBoundedInterval(lower: Int) extends Interval {
 
   override def pow(other: Interval): Interval = ???
 
+  override def min(): Option[Int] = Some(lower)
+
+  override def max(): Option[Int] = None
+
   override def values: Option[Set[Int]] = None
 
   override def try_to_resolve(): Option[Int] = None
@@ -633,6 +653,10 @@ case class UpperBoundedInterval(upper: Int) extends Interval {
 
   override def pow(other: Interval): Interval = ???
 
+  override def min(): Option[Int] = None
+
+  override def max(): Option[Int] = Some(upper)
+
   override def values: Option[Set[Int]] = None
 
   override def try_to_resolve(): Option[Int] = None
@@ -683,6 +707,8 @@ case object UnboundedInterval extends Interval {
     }
   override def unary_- : Interval = this
   override def pow(other: Interval): Interval = this
+  override def min(): Option[Int] = None
+  override def max(): Option[Int] = None
   override def values: Option[Set[Int]] = None
   override def try_to_resolve(): Option[Int] = None
   override def to_expression[G](variable: Expr[G]): Expr[G] =

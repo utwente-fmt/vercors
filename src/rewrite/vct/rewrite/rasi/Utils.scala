@@ -180,6 +180,61 @@ case object Utils {
       k -> v.intersection(v1.getOrElse(k, UncertainValue.uncertain_of(v.t[G])))
     }
 
+  /** Extracts the component parts of a conjunction.
+    *
+    * @param conj
+    *   Conjunction to be split
+    * @return
+    *   A sequence containing all subexpressions of the conjunction
+    */
+  def split_conjunction[G](conj: And[G]): Seq[Expr[G]] = {
+    val l: Seq[Expr[G]] =
+      conj.left match {
+        case l1: And[G] => split_conjunction(l1)
+        case _ => Seq(conj.left)
+      }
+    val r: Seq[Expr[G]] =
+      conj.right match {
+        case r1: And[G] => split_conjunction(r1)
+        case _ => Seq(conj.right)
+      }
+    l ++ r
+  }
+
+  /**
+   * Removes the iterating variables in a quantifier body and
+   *
+   * @param iterators
+   * @param body
+   * @param operator
+   * @tparam G
+   * @return
+   */
+  def replace_iterators_in_quantifier[G](
+      iterators: Map[Variable[G], (Int, Int)],
+      body: Expr[G],
+      operator: (Expr[G], Expr[G]) => Expr[G],
+  ): Expr[G] = {
+    val value_sets: Seq[Set[(Variable[G], Int)]] = iterators.toSeq
+      .map(t => (t._2._1 to t._2._2).map(i => t._1 -> i).toSet)
+    val value_maps: Seq[Map[Variable[G], Int]] =
+      cartesian_product(value_sets).map(s => Map.from(s)).toSeq
+    val expression_maps: Seq[Map[Expr[G], Expr[G]]] = value_maps.map(m =>
+      m.map(t =>
+        find_local_by_var(body, t._1).get -> IntegerValue(t._2)(body.o)
+      )
+    )
+    val instantiations: Seq[Expr[G]] = expression_maps
+      .map(m => Substitute(m).dispatch(body))
+    instantiations.reduce(operator)
+  }
+
+  private def find_local_by_var[G](
+      body: Expr[G],
+      variable: Variable[G],
+  ): Option[Local[G]] =
+    body.collectFirst { case l: Local[G] if l.ref.decl == variable => l }
+
   /** Prints out the graph defined by the given states and edges to DOT format.
     *
     * @param states
