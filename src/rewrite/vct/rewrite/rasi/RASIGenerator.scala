@@ -36,7 +36,7 @@ class RASIGenerator[G] extends LazyLogging {
       entry_point: Procedure[G],
       vars: Set[ConcreteVariable[G]],
       split_on: Option[Set[ConcreteVariable[G]]],
-      parameter_invariant: InstancePredicate[G],
+      parameter_invariant: Option[InstancePredicate[G]],
       program: Node[G],
   ): Seq[(String, Expr[G])] =
     generate_rasi(
@@ -50,7 +50,7 @@ class RASIGenerator[G] extends LazyLogging {
   def test(
       entry_point: Procedure[G],
       vars: Set[ConcreteVariable[G]],
-      parameter_invariant: InstancePredicate[G],
+      parameter_invariant: Option[InstancePredicate[G]],
       out_path: Path,
   ): Unit =
     print_state_space(
@@ -64,7 +64,7 @@ class RASIGenerator[G] extends LazyLogging {
       node: CFGEntry[G],
       vars: Set[ConcreteVariable[G]],
       split_on: Option[Set[ConcreteVariable[G]]],
-      parameter_invariant: InstancePredicate[G],
+      parameter_invariant: Option[InstancePredicate[G]],
       program: Node[G],
   ): Seq[(String, Expr[G])] = {
     explore(node, vars, parameter_invariant)
@@ -170,7 +170,7 @@ class RASIGenerator[G] extends LazyLogging {
   private def print_state_space(
       node: CFGEntry[G],
       vars: Set[ConcreteVariable[G]],
-      parameter_invariant: InstancePredicate[G],
+      parameter_invariant: Option[InstancePredicate[G]],
       out_path: Path,
   ): Unit = {
     explore(node, vars, parameter_invariant)
@@ -182,7 +182,7 @@ class RASIGenerator[G] extends LazyLogging {
   private def explore(
       node: CFGEntry[G],
       vars: Set[ConcreteVariable[G]],
-      parameter_invariant: InstancePredicate[G],
+      parameter_invariant: Option[InstancePredicate[G]],
   ): Unit = {
     logger.info("Starting RASI generation")
     val global_start_time: Long = System.nanoTime()
@@ -270,7 +270,7 @@ class RASIGenerator[G] extends LazyLogging {
   private def reset(
       node: CFGEntry[G],
       vars: Set[ConcreteVariable[G]],
-      parameter_invariant: InstancePredicate[G],
+      parameter_invariant: Option[InstancePredicate[G]],
   ): Long = {
     found_states.clear()
     found_edges.clear()
@@ -281,7 +281,7 @@ class RASIGenerator[G] extends LazyLogging {
       HashMap((AbstractProcess[G](Null()(Origin(Seq()))), node)),
       None,
       get_parameter_constraints(parameter_invariant),
-    ).with_condition(parameter_invariant.body)
+    ).with_condition(parameter_invariant.flatMap(p => p.body))
 
     found_states += initial_state
     current_branches += initial_state
@@ -296,9 +296,10 @@ class RASIGenerator[G] extends LazyLogging {
   }
 
   private def get_parameter_constraints(
-      parameter_invariant: InstancePredicate[G]
+      parameter_invariant: Option[InstancePredicate[G]]
   ): Map[FieldVariable[G], UncertainValue] = {
-    val pred = parameter_invariant.body.get
+    if (parameter_invariant.isEmpty) return Map.empty[FieldVariable[G], UncertainValue]
+    val pred = parameter_invariant.get.body.get
     val parameters: Seq[InstanceField[G]] = pred.collect { case f: Deref[G] =>
       f
     }.map(d => d.ref.decl)

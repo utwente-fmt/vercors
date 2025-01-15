@@ -63,7 +63,7 @@ case class GenerateRASI(
       vars.getOrElse(Seq()).map(s => resolve_variable(in, s)).toSet
     val split_on_variables: Option[Set[ConcreteVariable[Generation]]] = split
       .map(seq => seq.map(s => resolve_variable(in, s)).toSet)
-    val parameter_invariant: InstancePredicate[Generation] =
+    val parameter_invariant: Option[InstancePredicate[Generation]] =
       get_parameter_invariant(in)
     if (test) {
       new RASIGenerator().test(main_method, variables, parameter_invariant, out)
@@ -127,7 +127,7 @@ case class GenerateRASI(
       val var_name = name.substring(1, name.length - 1)
       return SizeVariable(in.collectFirst {
         case f: InstanceField[_]
-            if f.o.getPreferredName.get.snake.equals(var_name) =>
+            if name_matches(f.o, var_name) =>
           f
       }.get)
     }
@@ -145,7 +145,7 @@ case class GenerateRASI(
     val instance_field =
       in.collectFirst {
         case f: InstanceField[_]
-            if f.o.getPreferredName.get.snake.equals(var_name) =>
+            if name_matches(f.o, var_name) =>
           f
       }.get
     index match {
@@ -156,11 +156,16 @@ case class GenerateRASI(
 
   private def get_parameter_invariant(
       in: Node[Generation]
-  ): InstancePredicate[Generation] = {
+  ): Option[InstancePredicate[Generation]] = {
     in.collectFirst {
       case p: InstancePredicate[_]
           if p.o.getPreferredName.get.snake.equals("parameter_invariant") =>
         p
-    }.get
+    }
+  }
+
+  private def name_matches(o: Origin, name: String): Boolean = {
+    val preferred_name = o.getPreferredName.get
+    name.equals(preferred_name.snake) || name.equals(preferred_name.usnake) || name.equals(preferred_name.camel) || name.equals(preferred_name.ucamel)
   }
 }

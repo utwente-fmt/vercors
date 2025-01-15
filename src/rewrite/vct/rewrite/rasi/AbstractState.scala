@@ -840,7 +840,8 @@ case class AbstractState[G](
         UncertainBooleanValue
           .from(
             true
-          ) // TODO: The justification for this is that the program will be verified anyway,
+          )
+      // TODO: The justification for this is that the program will be verified anyway,
       //  so object equality does not need to be considered; does that make sense?
     }
 
