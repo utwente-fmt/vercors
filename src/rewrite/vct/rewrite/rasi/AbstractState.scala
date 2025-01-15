@@ -625,6 +625,8 @@ case class AbstractState[G](
       case Result(_) => UncertainBooleanValue.uncertain()
       case AmbiguousResult() => UncertainBooleanValue.uncertain()
       case SeqMember(x, xs) => resolve_seq_member(x, xs, is_old, is_contract)
+      case AmbiguousMember(x, xs) =>
+        resolve_seq_member(x, xs, is_old, is_contract)
       case InlinePattern(body, _, _) => resolve_boolean_expression(body)
     }
 
@@ -730,6 +732,11 @@ case class AbstractState[G](
           UncertainSequence.empty(ift_seq.t)
       case Old(expr, _) =>
         resolve_collection_expression(expr, is_old = true, is_contract)
+      case Result(applicable) =>
+        UncertainSequence.uncertain(
+          applicable.decl.returnType.asInstanceOf[CompositeType[G]]
+            .composingTypes.head
+        )
     }
 
   private def collection_from_variable(
@@ -836,11 +843,7 @@ case class AbstractState[G](
           equals
         else
           !equals
-      case _ =>
-        UncertainBooleanValue
-          .from(
-            true
-          )
+      case _ => UncertainBooleanValue.from(true)
       // TODO: The justification for this is that the program will be verified anyway,
       //  so object equality does not need to be considered; does that make sense?
     }
@@ -905,7 +908,12 @@ case class AbstractState[G](
               iterators,
               a,
             )
-            Utils.replace_iterators_in_quantifier(bounds, body, operator)
+            Utils.replace_iterators_in_quantifier(
+              bounds,
+              body,
+              operator,
+              BooleanValue(value = true)(body.o),
+            )
           }
           case _ =>
             throw new IllegalArgumentException(
@@ -932,6 +940,7 @@ case class AbstractState[G](
           bounds,
           body,
           (e1: Expr[G], e2: Expr[G]) => Or(e1, e2)(body.o),
+          BooleanValue(value = false)(body.o),
         )
       }
       case _ =>
@@ -1029,7 +1038,11 @@ case class AbstractState[G](
   }
 
   private def get_bound(e: Expr[G], offset: Int = 0): Int =
-    resolve_integer_expression(e).try_to_resolve().get + offset
+    e match {
+      case Size(obj) =>
+        resolve_collection_expression(obj).len.min().get + offset
+      case _ => resolve_integer_expression(e).try_to_resolve().get + offset
+    }
 
   private def left_is_iterator(
       iterator: Variable[G],

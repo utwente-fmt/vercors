@@ -214,6 +214,7 @@ case object Utils {
       iterators: Map[Variable[G], (Int, Int)],
       body: Expr[G],
       operator: (Expr[G], Expr[G]) => Expr[G],
+      default: Expr[G]
   ): Expr[G] = {
     val value_sets: Seq[Set[(Variable[G], Int)]] = iterators.toSeq
       .map(t => (t._2._1 to t._2._2).map(i => t._1 -> i).toSet)
@@ -226,7 +227,7 @@ case object Utils {
     )
     val instantiations: Seq[Expr[G]] = expression_maps
       .map(m => Substitute(m).dispatch(body))
-    instantiations.reduce(operator)
+    instantiations.fold(default)(operator)
   }
 
   private def find_local_by_var[G](
