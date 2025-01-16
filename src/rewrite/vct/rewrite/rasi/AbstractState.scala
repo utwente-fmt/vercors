@@ -8,6 +8,7 @@ import scala.collection.immutable.HashMap
 case class AbstractState[G](
     valuations: Map[ConcreteVariable[G], UncertainValue],
     processes: HashMap[AbstractProcess[G], CFGEntry[G]],
+    local: Map[LocalVariable[G], UncertainValue],
     lock: Option[AbstractProcess[G]],
     parameters: Map[FieldVariable[G], UncertainValue],
 ) {
@@ -34,10 +35,26 @@ case class AbstractState[G](
     AbstractState(
       valuations.map(v => v._1 -> UncertainValue.uncertain_of(v._1.t)),
       processes,
+      Map.empty[LocalVariable[G], UncertainValue],
       lock,
       parameters,
     )
   }
+
+  /** Returns the same state except with all knowledge of local variables
+    * cleared.
+    *
+    * @return
+    *   A copy of this state without the knowledge of local variables
+    */
+  def reset_locals: AbstractState[G] =
+    AbstractState(
+      valuations,
+      processes,
+      Map.empty[LocalVariable[G], UncertainValue],
+      lock,
+      parameters,
+    )
 
   /** Updates the state by changing the program counter for a process.
     *
@@ -56,6 +73,7 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes.removed(process) + (process -> position),
+      local,
       lock,
       parameters,
     )
@@ -68,7 +86,13 @@ case class AbstractState[G](
     *   An abstract state that is a copy of this one without the given process
     */
   def without_process(process: AbstractProcess[G]): AbstractState[G] =
-    AbstractState(valuations, processes.removed(process), lock, parameters)
+    AbstractState(
+      valuations,
+      processes.removed(process),
+      local,
+      lock,
+      parameters,
+    )
 
   /** Updates the state by locking the global lock.
     *
@@ -79,7 +103,7 @@ case class AbstractState[G](
     *   given process
     */
   def locked_by(process: AbstractProcess[G]): AbstractState[G] =
-    AbstractState(valuations, processes, Some(process), parameters)
+    AbstractState(valuations, processes, local, Some(process), parameters)
 
   /** Updates the state by unlocking the global lock.
     *
@@ -88,7 +112,7 @@ case class AbstractState[G](
     *   unlocked
     */
   def unlocked(): AbstractState[G] =
-    AbstractState(valuations, processes, None, parameters)
+    AbstractState(valuations, processes, local, None, parameters)
 
   /** Splits this state such that every variable for which this is possible only
     * has a single value in any of the resulting states. Variables for which
@@ -102,8 +126,9 @@ case class AbstractState[G](
   def split_values(): Set[AbstractState[G]] = {
     val valuation_sets: Iterable[Set[(ConcreteVariable[G], UncertainValue)]] =
       valuations.map(t => t._2.split.getOrElse(Set(t._2)).map(v => t._1 -> v))
-    Utils.cartesian_product(valuation_sets)
-      .map(vs => AbstractState(Map.from(vs), processes, lock, parameters))
+    Utils.cartesian_product(valuation_sets).map(vs =>
+      AbstractState(Map.from(vs), processes, local, lock, parameters)
+    )
   }
 
   /** Updates the state by adding a path condition to its knowledge of
@@ -137,6 +162,7 @@ case class AbstractState[G](
                  v._2)
           ),
           processes,
+          local,
           lock,
           parameters.map(v =>
             v._1 ->
@@ -147,6 +173,32 @@ case class AbstractState[G](
           ),
         )
     }
+
+  /** Resolves the effect of an assertion, like a loop invariant, on the
+    * knowledge about local variables.
+    *
+    * @param cond
+    *   Expression encoding the assertion to be processed
+    * @return
+    *   A copy of this state with local variables updated according to the
+    *   condition
+    */
+  def with_local_condition(cond: Expr[G]): AbstractState[G] = {
+    val c: Map[ResolvableVariable[G], UncertainValue] =
+      new ConstraintSolver(
+        this,
+        cond.collect { case l: Local[_] => l }.map(l => get_local_var(l)).toSet,
+        false,
+      ).resolve_assumption(cond).filter(m => !m.is_impossible)
+        .reduce((m1, m2) => m1 || m2).resolve
+    AbstractState(
+      valuations,
+      processes,
+      c.map(t => t._1.asInstanceOf[LocalVariable[G]] -> t._2),
+      lock,
+      parameters,
+    )
+  }
 
   /** Updates the state by updating the value of a certain variable.
     *
@@ -162,15 +214,27 @@ case class AbstractState[G](
       variable: Expr[G],
       value: UncertainValue,
   ): AbstractState[G] =
-    variable_from_expr(variable) match {
-      case Some(concrete_variable) =>
+    variable match {
+      case l: Local[_] =>
         AbstractState(
-          valuations + (concrete_variable -> value),
+          valuations,
           processes,
+          local + (get_local_var(l) -> value),
           lock,
           parameters,
         )
-      case None => this
+      case _ =>
+        variable_from_expr(variable) match {
+          case Some(concrete_variable) =>
+            AbstractState(
+              valuations + (concrete_variable -> value),
+              processes,
+              local,
+              lock,
+              parameters,
+            )
+          case None => this
+        }
     }
 
   /** Updates the state by adding a different valuation map to override or
@@ -185,7 +249,7 @@ case class AbstractState[G](
   def with_new_valuation(
       vals: Map[ConcreteVariable[G], UncertainValue]
   ): AbstractState[G] =
-    AbstractState(valuations ++ vals, processes, lock, parameters)
+    AbstractState(valuations ++ vals, processes, local, lock, parameters)
 
   /** Updates the state by updating all variables that are affected by an update
     * to a collection.
@@ -218,7 +282,13 @@ case class AbstractState[G](
     var vals: Map[ConcreteVariable[G], UncertainValue] = valuations
     by_index.foreach(t => vals = vals + (t._2 -> new_values.get(t._1)))
     size.foreach(t => vals = vals + (t -> new_values.len))
-    AbstractState(vals, processes, lock, parameters)
+    AbstractState(
+      vals,
+      processes,
+      local,
+      lock,
+      parameters,
+    ) // TODO: What about locals?
   }
 
   /** Updates the state by taking a specification in the form of an assumption
@@ -248,6 +318,7 @@ case class AbstractState[G](
         AbstractState(
           Utils.val_intersect(valuations, m),
           processes,
+          local, // TODO: Should the locals also be included in the assumption?
           lock,
           parameters,
         )
@@ -288,6 +359,7 @@ case class AbstractState[G](
         AbstractState(
           valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)),
           processes,
+          local,
           lock,
           parameters,
         )
@@ -418,7 +490,12 @@ case class AbstractState[G](
           case None =>
             resolve_integer_expression(exp, is_old = true, is_contract)
         }
-      case Local(_) | DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) |
+      case l: Local[_] =>
+        local.get(get_local_var(l)) match {
+          case Some(value) => value.asInstanceOf[UncertainIntegerValue]
+          case None => UncertainIntegerValue.uncertain()
+        }
+      case DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) |
           AmbiguousSubscript(_, _) | SeqSubscript(_, _) | ArraySubscript(_, _) |
           PointerSubscript(_, _) =>
         variable_from_expr(expr) match {
@@ -567,7 +644,12 @@ case class AbstractState[G](
           case None =>
             resolve_boolean_expression(exp, is_old = true, is_contract)
         }
-      case Local(_) | DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) |
+      case l: Local[_] =>
+        local.get(get_local_var(l)) match {
+          case Some(value) => value.asInstanceOf[UncertainBooleanValue]
+          case None => UncertainBooleanValue.uncertain()
+        }
+      case DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) |
           AmbiguousSubscript(_, _) | SeqSubscript(_, _) | ArraySubscript(_, _) |
           PointerSubscript(_, _) =>
         variable_from_expr(expr) match {
@@ -858,6 +940,14 @@ case class AbstractState[G](
   private def parameter_from_expr(variable: Expr[G]): Option[FieldVariable[G]] =
     parameters.keys.collectFirst {
       case f: FieldVariable[G] if f.is(variable, this) => f
+    }
+
+  private def get_local_var(variable: Local[G]): LocalVariable[G] =
+    local.keys.collectFirst {
+      case l: LocalVariable[G] if l.is(variable, this) => l
+    } match {
+      case Some(v) => v
+      case None => LocalVariable(variable.ref.decl)
     }
 
   /** Returns an expression to represent this state of the form <code>variable1

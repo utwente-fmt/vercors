@@ -279,6 +279,7 @@ class RASIGenerator[G] extends LazyLogging {
     val initial_state = AbstractState(
       get_initial_values(vars),
       HashMap((AbstractProcess[G](Null()(Origin(Seq()))), node)),
+      Map.empty[LocalVariable[G], UncertainValue],
       None,
       get_parameter_constraints(parameter_invariant),
     ).with_condition(parameter_invariant.flatMap(p => p.body))
@@ -298,7 +299,8 @@ class RASIGenerator[G] extends LazyLogging {
   private def get_parameter_constraints(
       parameter_invariant: Option[InstancePredicate[G]]
   ): Map[FieldVariable[G], UncertainValue] = {
-    if (parameter_invariant.isEmpty) return Map.empty[FieldVariable[G], UncertainValue]
+    if (parameter_invariant.isEmpty)
+      return Map.empty[FieldVariable[G], UncertainValue]
     val pred = parameter_invariant.get.body.get
     val parameters: Seq[InstanceField[G]] = pred.collect { case f: Deref[G] =>
       f

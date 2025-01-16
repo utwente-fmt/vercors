@@ -53,7 +53,8 @@ case class AbstractProcess[G](obj: Expr[G]) {
     // TODO: Special treatment for the scheduler? There must be a better algorithm for this...
     if (obj.isInstanceOf[Null[G]])
       successor.removed_states(looping + starting_state)
-    else successor
+    else
+      successor
   }
 
   /** Tests if another small step can be executed without breaking the current
@@ -144,7 +145,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
             (true, take_viable_edges(succ, state, state.with_assumption(assn)))
           case Inhale(res) =>
             (true, take_viable_edges(succ, state, state.with_assumption(res)))
-          // Abstract procedures, constructors and methods are defined by their postconditions      TODO: Handle local variables
+          // Abstract procedures, constructors and methods are defined by their postconditions
           case InvokeProcedure(ref, args, _, _, _, _) =>
             (
               true,
@@ -193,14 +194,13 @@ case class AbstractProcess[G](obj: Expr[G]) {
                   )
               },
             )
-          // TODO: Handle local variables
           case Return(result) =>
-            (true, take_viable_edges_from_state(succ, state))
+            (true, take_viable_edges_from_state(succ, state.reset_locals))
           // TODO: What do wait and notify do?
           case Wait(obj) => (true, take_viable_edges_from_state(succ, state))
           case Notify(obj) => (true, take_viable_edges_from_state(succ, state))
           // Lock and Unlock manipulate the global lock and are potentially blocking      TODO: Differentiate between locks!
-          case Lock(_) =>
+          case Lock(obj) =>
             state.lock match {
               case Some(proc) =>
                 if (!proc.equals(this))
@@ -219,7 +219,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
                   ),
                 )
             }
-          case Unlock(_) =>
+          case Unlock(obj) =>
             state.lock match { // Progress was made, but the atomic flag is still false to allow other processes to execute
               case Some(proc) =>
                 if (proc.equals(this))
@@ -281,6 +281,15 @@ case class AbstractProcess[G](obj: Expr[G]) {
               (true, take_viable_edges_from_state(succ, state))
             else
               (false, SingleSuccessor(state))
+          // At invariants, forget all local knowledge about locals
+          case Assert(res) =>
+            (
+              true,
+              take_viable_edges_from_state(
+                succ,
+                state.reset_locals.with_local_condition(res),
+              ),
+            )
           // Everything else does not affect the state, so simply go to the next step
           case _ => (true, take_viable_edges_from_state(succ, state))
         }
