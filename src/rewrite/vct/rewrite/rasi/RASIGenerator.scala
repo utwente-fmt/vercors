@@ -1,21 +1,7 @@
 package vct.rewrite.rasi
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.{
-  AmbiguousThis,
-  BooleanValue,
-  Class,
-  Declaration,
-  Deref,
-  Expr,
-  InstanceField,
-  InstancePredicate,
-  Node,
-  Null,
-  Or,
-  Procedure,
-  TClass,
-}
+import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.print.Ctx
 import vct.rewrite.cfg.{CFGEntry, CFGGenerator}
@@ -31,6 +17,9 @@ class RASIGenerator[G] extends LazyLogging {
     .ArrayBuffer()
   private val current_branches: mutable.ArrayBuffer[AbstractState[G]] = mutable
     .ArrayBuffer()
+  private var tracked_sequences
+      : Map[InstanceField[G], Set[ConcreteVariable[G]]] = Map
+    .empty[InstanceField[G], Set[ConcreteVariable[G]]]
 
   def execute(
       entry_point: Procedure[G],
@@ -38,10 +27,11 @@ class RASIGenerator[G] extends LazyLogging {
       split_on: Option[Set[ConcreteVariable[G]]],
       parameter_invariant: Option[InstancePredicate[G]],
       program: Node[G],
+      seqs: Set[InstanceField[G]],
   ): Seq[(String, Expr[G])] =
     generate_rasi(
       CFGGenerator().generate(entry_point),
-      vars,
+      handle_tracked_sequences(vars, seqs),
       split_on,
       parameter_invariant,
       program,
@@ -52,13 +42,22 @@ class RASIGenerator[G] extends LazyLogging {
       vars: Set[ConcreteVariable[G]],
       parameter_invariant: Option[InstancePredicate[G]],
       out_path: Path,
+      seqs: Set[InstanceField[G]],
   ): Unit =
     print_state_space(
       CFGGenerator().generate(entry_point),
-      vars,
+      handle_tracked_sequences(vars, seqs),
       parameter_invariant,
       out_path,
     )
+
+  private def handle_tracked_sequences(
+      vars: Set[ConcreteVariable[G]],
+      seqs: Set[InstanceField[G]],
+  ): Set[ConcreteVariable[G]] = {
+    tracked_sequences = Map.from(seqs.map(f => f -> Set(SizeVariable(f))))
+    vars + tracked_sequences.flatMap(t => t._2)
+  }
 
   private def generate_rasi(
       node: CFGEntry[G],
@@ -282,6 +281,7 @@ class RASIGenerator[G] extends LazyLogging {
       Map.empty[LocalVariable[G], UncertainValue],
       None,
       get_parameter_constraints(parameter_invariant),
+      tracked_sequences,
     ).with_condition(parameter_invariant.flatMap(p => p.body))
 
     found_states += initial_state
@@ -293,7 +293,10 @@ class RASIGenerator[G] extends LazyLogging {
   private def get_initial_values(
       vars: Set[ConcreteVariable[G]]
   ): Map[ConcreteVariable[G], UncertainValue] = {
-    Map.from(vars.map(v => (v, UncertainValue.uncertain_of(v.t))))
+    Map.from(vars.map(v => v -> (v match {
+      case SizeVariable(_) => UncertainIntegerValue.above(0)
+      case _ => UncertainValue.uncertain_of(v.t)
+    })))
   }
 
   private def get_parameter_constraints(

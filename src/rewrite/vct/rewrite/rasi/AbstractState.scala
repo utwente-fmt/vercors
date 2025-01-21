@@ -11,6 +11,7 @@ case class AbstractState[G](
     local: Map[LocalVariable[G], UncertainValue],
     lock: Option[AbstractProcess[G]],
     parameters: Map[FieldVariable[G], UncertainValue],
+    tracked_sequences: Map[InstanceField[G], Set[ConcreteVariable[G]]],
 ) {
 
   /** Main function of the abstract state. For all processes that could
@@ -38,6 +39,7 @@ case class AbstractState[G](
       Map.empty[LocalVariable[G], UncertainValue],
       lock,
       parameters,
+      tracked_sequences,
     )
   }
 
@@ -54,6 +56,7 @@ case class AbstractState[G](
       Map.empty[LocalVariable[G], UncertainValue],
       lock,
       parameters,
+      tracked_sequences,
     )
 
   /** Updates the state by changing the program counter for a process.
@@ -76,6 +79,7 @@ case class AbstractState[G](
       local,
       lock,
       parameters,
+      tracked_sequences,
     )
 
   /** Updates the state by removing a process from the active list.
@@ -92,6 +96,7 @@ case class AbstractState[G](
       local,
       lock,
       parameters,
+      tracked_sequences,
     )
 
   /** Updates the state by locking the global lock.
@@ -103,7 +108,14 @@ case class AbstractState[G](
     *   given process
     */
   def locked_by(process: AbstractProcess[G]): AbstractState[G] =
-    AbstractState(valuations, processes, local, Some(process), parameters)
+    AbstractState(
+      valuations,
+      processes,
+      local,
+      Some(process),
+      parameters,
+      tracked_sequences,
+    )
 
   /** Updates the state by unlocking the global lock.
     *
@@ -112,7 +124,14 @@ case class AbstractState[G](
     *   unlocked
     */
   def unlocked(): AbstractState[G] =
-    AbstractState(valuations, processes, local, None, parameters)
+    AbstractState(
+      valuations,
+      processes,
+      local,
+      None,
+      parameters,
+      tracked_sequences,
+    )
 
   /** Splits this state such that every variable for which this is possible only
     * has a single value in any of the resulting states. Variables for which
@@ -127,7 +146,14 @@ case class AbstractState[G](
     val valuation_sets: Iterable[Set[(ConcreteVariable[G], UncertainValue)]] =
       valuations.map(t => t._2.split.getOrElse(Set(t._2)).map(v => t._1 -> v))
     Utils.cartesian_product(valuation_sets).map(vs =>
-      AbstractState(Map.from(vs), processes, local, lock, parameters)
+      AbstractState(
+        Map.from(vs),
+        processes,
+        local,
+        lock,
+        parameters,
+        tracked_sequences,
+      )
     )
   }
 
@@ -171,6 +197,7 @@ case class AbstractState[G](
                else
                  v._2)
           ),
+          tracked_sequences,
         )
     }
 
@@ -197,6 +224,7 @@ case class AbstractState[G](
       c.map(t => t._1.asInstanceOf[LocalVariable[G]] -> t._2),
       lock,
       parameters,
+      tracked_sequences,
     )
   }
 
@@ -222,6 +250,7 @@ case class AbstractState[G](
           local + (get_local_var(l) -> value),
           lock,
           parameters,
+          tracked_sequences,
         )
       case _ =>
         variable_from_expr(variable) match {
@@ -232,6 +261,7 @@ case class AbstractState[G](
               local,
               lock,
               parameters,
+              tracked_sequences,
             )
           case None => this
         }
@@ -249,7 +279,14 @@ case class AbstractState[G](
   def with_new_valuation(
       vals: Map[ConcreteVariable[G], UncertainValue]
   ): AbstractState[G] =
-    AbstractState(valuations ++ vals, processes, local, lock, parameters)
+    AbstractState(
+      valuations ++ vals,
+      processes,
+      local,
+      lock,
+      parameters,
+      tracked_sequences,
+    )
 
   /** Updates the state by updating all variables that are affected by an update
     * to a collection.
@@ -263,6 +300,41 @@ case class AbstractState[G](
     *   variables that are affected by the collection updated accordingly
     */
   def with_updated_collection(
+      variable: Expr[G],
+      assigned: Expr[G],
+  ): AbstractState[G] =
+    if (is_tracked_sequence(variable))
+      with_updated_tracked_sequence(variable, assigned)
+    else
+      with_updated_collection_entries(variable, assigned)
+
+  private def is_tracked_sequence(variable: Expr[G]): Boolean =
+    variable match {
+      case Deref(_, ref) => tracked_sequences.contains(ref.decl)
+      case _ => false
+    }
+
+  private def with_updated_tracked_sequence(
+      variable: Expr[G],
+      assigned: Expr[G],
+  ): AbstractState[G] = {
+    val value: UncertainSequence = resolve_collection_expression(assigned)
+    val target: InstanceField[G] = variable.asInstanceOf[Deref[G]].ref.decl
+    val new_values: Map[ConcreteVariable[G], UncertainValue] =
+      Map.from(   // TODO: Should something be done with uncertain indices...?
+        value.certain_entries.map(t => IndexedVariable(target, t._1) -> t._2)
+      ) + (SizeVariable(target) -> value.len)
+    AbstractState(
+      valuations.removedAll(tracked_sequences(target)) ++ new_values,
+      processes,
+      local,
+      lock,
+      parameters,
+      tracked_sequences + (target -> new_values.keySet),
+    )
+  }
+
+  private def with_updated_collection_entries(
       variable: Expr[G],
       assigned: Expr[G],
   ): AbstractState[G] = {
@@ -288,6 +360,7 @@ case class AbstractState[G](
       local,
       lock,
       parameters,
+      tracked_sequences,
     ) // TODO: What about locals?
   }
 
@@ -321,6 +394,7 @@ case class AbstractState[G](
           local, // TODO: Should the locals also be included in the assumption?
           lock,
           parameters,
+          tracked_sequences,
         )
       ),
     )
@@ -362,6 +436,7 @@ case class AbstractState[G](
           local,
           lock,
           parameters,
+          tracked_sequences,
         )
       ),
     )

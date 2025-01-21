@@ -461,6 +461,10 @@ case class UncertainSequence(
     UncertainBooleanValue.uncertain()
   }
 
+  def certain_entries: Seq[(Int, UncertainValue)] =
+    values.map(t => (t._1.try_to_resolve(), t._2)).filter(t => t._1.nonEmpty)
+      .map(t => (t._1.get, t._2))
+
   private def combine_values(
       v1: Seq[(UncertainIntegerValue, UncertainValue)],
       v2: Seq[(UncertainIntegerValue, UncertainValue)],
