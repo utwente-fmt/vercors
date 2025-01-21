@@ -25,10 +25,10 @@ import vct.col.rewrite.Generation
 import vct.options.Options
 import vct.rewrite.rasi.{
   ConcreteVariable,
-  FieldVariable,
-  IndexedVariable,
+  FieldSimpleVariable,
+  FieldIndexedVariable,
   RASIGenerator,
-  SizeVariable,
+  FieldSizeVariable,
 }
 
 import java.nio.charset.StandardCharsets
@@ -147,7 +147,7 @@ case class GenerateRASI(
       // Handle size variables as special cases
       if (name.contains("|")) {
         val var_name = field_name(name.substring(1, name.length - 1))
-        concrete_variables += SizeVariable(in.collectFirst {
+        concrete_variables += FieldSizeVariable(in.collectFirst {
           case f: InstanceField[_] if name_matches(f.o, var_name) => f
         }.get)
       } else {
@@ -168,11 +168,11 @@ case class GenerateRASI(
           }.get
         index match {
           case Some(i) =>
-            concrete_variables += IndexedVariable(instance_field, i)
+            concrete_variables += FieldIndexedVariable(instance_field, i)
           case None =>
             instance_field.t match {
               case _: IntType[_] | TBool() =>
-                concrete_variables += FieldVariable(instance_field)
+                concrete_variables += FieldSimpleVariable(instance_field)
               case _ => tracked_sequences += instance_field
             }
         }

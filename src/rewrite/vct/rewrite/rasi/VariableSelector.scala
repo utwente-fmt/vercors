@@ -92,12 +92,12 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
             )
               Set()
             else
-              Set(FieldVariable(ref.decl))
+              Set(FieldSimpleVariable(ref.decl))
           case l @ Local(ref) =>
             if (state.valuations.exists(t => t._1.is(l, state)))
               Set()
             else
-              Set(LocalVariable(ref.decl))
+              Set(LocalSimpleVariable(ref.decl))
           case a @ AmbiguousSubscript(collection, index) =>
             create_indexed_var_if_needed(state, a, collection, index)
           case s @ SeqSubscript(seq, index) =>
@@ -108,7 +108,7 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
             if (state.valuations.exists(t => t._1.is(s, state)))
               Set()
             else
-              obj match { case Deref(_, ref) => Set(SizeVariable(ref.decl)) }
+              obj match { case Deref(_, ref) => Set(FieldSizeVariable(ref.decl)) }
           case _ =>
             expr.subnodes.toSet[Node[G]].collect[Expr[G]] { case e: Expr[_] =>
               e
@@ -139,7 +139,7 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
       if (index.isEmpty || index.get < 0)
         Set()
       else
-        Set(IndexedVariable(field, index.get))
+        Set(FieldIndexedVariable(field, index.get))
     }
   }
 

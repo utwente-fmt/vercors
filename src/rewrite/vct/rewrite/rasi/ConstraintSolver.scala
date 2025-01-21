@@ -433,10 +433,10 @@ class ConstraintSolver[G](
       else
         comp.right
     )
-    val indices: Set[(IndexedVariable[G], Int)] = get_contained_indices(
+    val indices: Set[(FieldIndexedVariable[G], Int)] = get_contained_indices(
       variable
     )
-    val size_vars: Set[SizeVariable[G]] = get_size_vars(variable)
+    val size_vars: Set[FieldSizeVariable[G]] = get_size_vars(variable)
 
     val index_update_map: Set[(ResolvableVariable[G], UncertainValue)] = indices
       .map(t => (t._1, value.get(t._2)))
@@ -458,13 +458,13 @@ class ConstraintSolver[G](
 
   private def get_contained_indices(
       variable: Expr[G]
-  ): Set[(IndexedVariable[G], Int)] =
+  ): Set[(FieldIndexedVariable[G], Int)] =
     variable match {
       case LiteralSeq(_, _) | UntypedLiteralSeq(_) | Old(_, _) => Set()
       case d: Deref[_] =>
-        val variables: Set[IndexedVariable[G]] = vars
+        val variables: Set[FieldIndexedVariable[G]] = vars
           .filter(v => v.is_contained_by(d, state)).collect {
-            case v: IndexedVariable[G] => v
+            case v: FieldIndexedVariable[G] => v
           }
         variables.map(v => (v, v.i))
       case Take(xs, count) =>
@@ -522,9 +522,9 @@ class ConstraintSolver[G](
       .resolve_assumption(Utils.remove_old(cond)).reduce((m1, m2) => m1 || m2)
   }
 
-  private def get_size_vars(variable: Expr[G]): Set[SizeVariable[G]] =
+  private def get_size_vars(variable: Expr[G]): Set[FieldSizeVariable[G]] =
     vars.filter(v => v.is_contained_by(variable, state)).collect {
-      case v: SizeVariable[G] => v
+      case v: FieldSizeVariable[G] => v
     }
 
   private def get_var(expr: Expr[G]): Option[ResolvableVariable[G]] =

@@ -57,7 +57,8 @@ case class ResultVariable[G](return_type: Type[G])
   override def t: Type[G] = return_type
 }
 
-/** A variable that can be tracked in the abstract state.
+/** A variable that tracks a concrete variable, either a local variable or a
+  * class attribute, in the source code.
   */
 sealed trait ConcreteVariable[G] extends ResolvableVariable[G] {
 
@@ -70,20 +71,6 @@ sealed trait ConcreteVariable[G] extends ResolvableVariable[G] {
 
   def get_declaration: Declaration[G]
 
-  protected def field_equals(expr: Expr[G], field: InstanceField[G]): Boolean =
-    expr match {
-      // TODO: Support other types of expressions? Take object into account?
-      case Deref(_, f) => f.decl.equals(field)
-      case _ => false
-    }
-
-  protected def variable_equals(expr: Expr[G], variable: Variable[G]): Boolean =
-    expr match {
-      // TODO: Are there other ways to refer to variables?
-      case Local(ref) => ref.decl.equals(variable)
-      case _ => false
-    }
-
   /** Defines an ordering among concrete variables.
     *
     * @param other
@@ -95,11 +82,85 @@ sealed trait ConcreteVariable[G] extends ResolvableVariable[G] {
   def compare(other: ConcreteVariable[G]): Boolean
 }
 
+sealed trait IndexedVariable[G] {
+  protected def indexed_equals(
+      expr: Expr[G],
+      i: Int,
+      decl_matches: Expr[G] => Boolean,
+      state: AbstractState[G],
+  ): Boolean =
+    expr match {
+      case AmbiguousSubscript(collection, index) =>
+        decl_matches(collection) && i == state.resolve_integer_expression(index)
+          .try_to_resolve().getOrElse(-1)
+      case SeqSubscript(seq, index) =>
+        decl_matches(seq) && i == state.resolve_integer_expression(index)
+          .try_to_resolve().getOrElse(-1)
+      case ArraySubscript(arr, index) =>
+        decl_matches(arr) && i == state.resolve_integer_expression(index)
+          .try_to_resolve().getOrElse(-1)
+      case PointerSubscript(pointer, index) =>
+        decl_matches(pointer) && i == state.resolve_integer_expression(index)
+          .try_to_resolve().getOrElse(-1)
+      case _ => false
+    }
+
+  protected def index_contained_in(
+      expr: Expr[G],
+      i: Int,
+      decl_matches: Expr[G] => Boolean,
+      state: AbstractState[G],
+  ): Boolean =
+    expr match {
+      // TODO: What about nested drops/takes?
+      case Drop(xs, count) =>
+        decl_matches(xs) && state.resolve_integer_expression(count)
+          .try_to_resolve().getOrElse(i + 1) < i
+      case Take(xs, count) =>
+        decl_matches(xs) && state.resolve_integer_expression(count)
+          .try_to_resolve().getOrElse(i - 1) >= i
+      case Slice(xs, from, to) =>
+        decl_matches(xs) && state.resolve_integer_expression(from)
+          .try_to_resolve().getOrElse(i + 1) < i &&
+        state.resolve_integer_expression(to).try_to_resolve()
+          .getOrElse(i - 1) >= i
+      case _ =>
+        decl_matches(expr) || indexed_equals(expr, i, decl_matches, state)
+    }
+
+  protected def generate_expression(
+      t: Type[G],
+      coll: Expr[G],
+      i: Int,
+  ): Expr[G] =
+    t match {
+      case TSeq(_) =>
+        SeqSubscript(coll, IntegerValue(i)(coll.o))(coll.o)(coll.o)
+      case TArray(_) =>
+        ArraySubscript(coll, IntegerValue(i)(coll.o))(coll.o)(coll.o)
+      case TPointer(_) =>
+        PointerSubscript(coll, IntegerValue(i)(coll.o))(coll.o)(coll.o)
+    }
+}
+
+abstract case class LocalVariable[G](v: Variable[G])
+    extends ConcreteVariable[G] {
+  override def get_declaration: Declaration[G] = v
+
+  protected def variable_equals(expr: Expr[G]): Boolean =
+    expr match {
+      // TODO: Are there other ways to refer to variables?
+      case Local(ref) => ref.decl.equals(v)
+      case _ => false
+    }
+}
+
 /** A variable that represents a local variable in the COL system.
   */
-case class LocalVariable[G](variable: Variable[G]) extends ConcreteVariable[G] {
+case class LocalSimpleVariable[G](variable: Variable[G])
+    extends LocalVariable[G](variable) {
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
-    variable_equals(expr, variable)
+    variable_equals(expr)
 
   override def is_contained_by(
       expr: Expr[G],
@@ -109,23 +170,77 @@ case class LocalVariable[G](variable: Variable[G]) extends ConcreteVariable[G] {
   override def to_expression(obj: Option[Expr[G]]): Expr[G] =
     Local[G](variable.ref)(variable.o)
 
-  override def get_declaration: Declaration[G] = variable
-
   override def t: Type[G] = variable.t
 
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
-      case LocalVariable(v) => v.toInlineString > variable.toInlineString
+      case LocalSimpleVariable(v) => v.toInlineString > variable.toInlineString
+      case _ => false
+    }
+}
+
+case class LocalSizeVariable[G](seq: Variable[G])
+    extends LocalVariable[G](seq) {
+  override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
+    expr match {
+      case Size(obj) => variable_equals(obj)
+      case _ => false
+    }
+
+  override def is_contained_by(
+      expr: Expr[G],
+      state: AbstractState[G],
+  ): Boolean = is(expr, state) || variable_equals(expr)
+
+  override def to_expression(obj: Option[Expr[G]]): Expr[G] =
+    Size(Local[G](seq.ref)(seq.o))(seq.o)
+
+  override def t: Type[G] = TInt()(seq.o)
+
+  override def compare(other: ConcreteVariable[G]): Boolean = ???
+}
+
+case class LocalIndexedVariable[G](seq: Variable[G], i: Int)
+    extends LocalVariable[G](seq) with IndexedVariable[G] {
+  override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
+    indexed_equals(expr, i, e => variable_equals(e), state)
+
+  override def is_contained_by(
+      expr: Expr[G],
+      state: AbstractState[G],
+  ): Boolean = index_contained_in(expr, i, e => variable_equals(e), state)
+
+  override def to_expression(obj: Option[Expr[G]]): Expr[G] =
+    generate_expression(seq.t, Local[G](seq.ref)(seq.o), i)
+
+  override def t: Type[G] =
+    seq.t match {
+      case TSeq(element) => element
+      case TArray(element) => element
+      case TPointer(element) => element
+    }
+
+  override def compare(other: ConcreteVariable[G]): Boolean = ???
+}
+
+abstract case class FieldVariable[G](f: InstanceField[G])
+    extends ConcreteVariable[G] {
+  override def get_declaration: Declaration[G] = f
+
+  protected def field_equals(expr: Expr[G]): Boolean =
+    expr match {
+      // TODO: Support other types of expressions? Take object into account?
+      case Deref(_, ref) => ref.decl.equals(f)
       case _ => false
     }
 }
 
 /** A variable representing a field (attribute) of a COL class.
   */
-case class FieldVariable[G](field: InstanceField[G])
-    extends ConcreteVariable[G] {
+case class FieldSimpleVariable[G](field: InstanceField[G])
+    extends FieldVariable[G](field) {
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
-    field_equals(expr, field)
+    field_equals(expr)
 
   override def is_contained_by(
       expr: Expr[G],
@@ -137,123 +252,69 @@ case class FieldVariable[G](field: InstanceField[G])
       field.o
     )
 
-  override def get_declaration: Declaration[G] = field
-
   override def t: Type[G] = field.t
 
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
-      case LocalVariable(_) => true
-      case FieldVariable(f) => f.toInlineString > field.toInlineString
-      case SizeVariable(_) => false
-      case IndexedVariable(_, _) => false
+      case LocalSimpleVariable(_) => true
+      case FieldSimpleVariable(f) => f.toInlineString > field.toInlineString
+      case FieldSizeVariable(_) => false
+      case FieldIndexedVariable(_, _) => false
     }
 }
 
-// TODO: Generalize size and indexed variables for local variables
-
 /** A variable representing the size of a collection.
   */
-case class SizeVariable[G](field: InstanceField[G])
-    extends ConcreteVariable[G] {
+case class FieldSizeVariable[G](field: InstanceField[G])
+    extends FieldVariable[G](field) {
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
     expr match {
-      case Size(obj) => field_equals(obj, field)
+      case Size(obj) => field_equals(obj)
       case _ => false
     }
 
   override def is_contained_by(
       expr: Expr[G],
       state: AbstractState[G],
-  ): Boolean = is(expr, state) || field_equals(expr, field)
+  ): Boolean = is(expr, state) || field_equals(expr)
 
   override def to_expression(obj: Option[Expr[G]]): Expr[G] =
     Size(Deref[G](obj.getOrElse(AmbiguousThis()(field.o)), field.ref)(field.o)(
       field.o
     ))(field.o)
 
-  override def get_declaration: Declaration[G] = field
-
   override def t: Type[G] = TInt()(field.o)
 
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
-      case LocalVariable(_) => true
-      case FieldVariable(_) => true
-      case SizeVariable(f) => f.toInlineString > field.toInlineString
-      case IndexedVariable(_, _) => false
+      case LocalSimpleVariable(_) => true
+      case FieldSimpleVariable(_) => true
+      case FieldSizeVariable(f) => f.toInlineString > field.toInlineString
+      case FieldIndexedVariable(_, _) => false
     }
 }
 
 /** A variable representing an index of a collection.
   */
-case class IndexedVariable[G](field: InstanceField[G], i: Int)
-    extends ConcreteVariable[G] {
+case class FieldIndexedVariable[G](field: InstanceField[G], i: Int)
+    extends FieldVariable[G](field) with IndexedVariable[G] {
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
-    expr match {
-      case AmbiguousSubscript(collection, index) =>
-        field_equals(collection, field) &&
-        i == state.resolve_integer_expression(index).try_to_resolve()
-          .getOrElse(-1)
-      case SeqSubscript(seq, index) =>
-        field_equals(seq, field) && i == state.resolve_integer_expression(index)
-          .try_to_resolve().getOrElse(-1)
-      case ArraySubscript(arr, index) =>
-        field_equals(arr, field) && i == state.resolve_integer_expression(index)
-          .try_to_resolve().getOrElse(-1)
-      case PointerSubscript(pointer, index) =>
-        field_equals(pointer, field) &&
-        i == state.resolve_integer_expression(index).try_to_resolve()
-          .getOrElse(-1)
-      case _ => false
-    }
+    indexed_equals(expr, i, e => field_equals(e), state)
 
   override def is_contained_by(
       expr: Expr[G],
       state: AbstractState[G],
-  ): Boolean =
-    expr match {
-      // TODO: What about nested drops/takes?
-      case Drop(xs, count) =>
-        field_equals(xs, field) && state.resolve_integer_expression(count)
-          .try_to_resolve().getOrElse(i + 1) < i
-      case Take(xs, count) =>
-        field_equals(xs, field) && state.resolve_integer_expression(count)
-          .try_to_resolve().getOrElse(i - 1) >= i
-      case Slice(xs, from, to) =>
-        field_equals(xs, field) && state.resolve_integer_expression(from)
-          .try_to_resolve().getOrElse(i + 1) < i &&
-        state.resolve_integer_expression(to).try_to_resolve()
-          .getOrElse(i - 1) >= i
-      case _ => field_equals(expr, field) || is(expr, state)
-    }
+  ): Boolean = index_contained_in(expr, i, e => field_equals(e), state)
 
-  override def to_expression(obj: Option[Expr[G]]): Expr[G] =
-    field.t match {
-      case TSeq(_) =>
-        SeqSubscript(
-          Deref[G](obj.getOrElse(AmbiguousThis()(field.o)), field.ref)(field.o)(
-            field.o
-          ),
-          IntegerValue(i)(field.o),
-        )(field.o)(field.o)
-      case TArray(_) =>
-        ArraySubscript(
-          Deref[G](obj.getOrElse(AmbiguousThis()(field.o)), field.ref)(field.o)(
-            field.o
-          ),
-          IntegerValue(i)(field.o),
-        )(field.o)(field.o)
-      case TPointer(_) =>
-        PointerSubscript(
-          Deref[G](obj.getOrElse(AmbiguousThis()(field.o)), field.ref)(field.o)(
-            field.o
-          ),
-          IntegerValue(i)(field.o),
-        )(field.o)(field.o)
-    }
-
-  override def get_declaration: Declaration[G] = field
+  override def to_expression(obj: Option[Expr[G]]): Expr[G] = {
+    generate_expression(
+      field.t,
+      Deref[G](obj.getOrElse(AmbiguousThis()(field.o)), field.ref)(field.o)(
+        field.o
+      ),
+      i,
+    )
+  }
 
   override def t: Type[G] =
     field.t match {
@@ -264,10 +325,10 @@ case class IndexedVariable[G](field: InstanceField[G], i: Int)
 
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
-      case LocalVariable(_) => true
-      case FieldVariable(_) => true
-      case SizeVariable(_) => true
-      case IndexedVariable(f, ind) =>
+      case _: LocalVariable[_] => true
+      case FieldSimpleVariable(_) => true
+      case FieldSizeVariable(_) => true
+      case FieldIndexedVariable(f, ind) =>
         if (f != field)
           f.toInlineString > field.toInlineString
         else

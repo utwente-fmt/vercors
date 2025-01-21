@@ -8,9 +8,9 @@ import scala.collection.immutable.HashMap
 case class AbstractState[G](
     valuations: Map[ConcreteVariable[G], UncertainValue],
     processes: HashMap[AbstractProcess[G], CFGEntry[G]],
-    local: Map[LocalVariable[G], UncertainValue],
+    local: Map[LocalSimpleVariable[G], UncertainValue],
     lock: Option[AbstractProcess[G]],
-    parameters: Map[FieldVariable[G], UncertainValue],
+    parameters: Map[FieldSimpleVariable[G], UncertainValue],
     tracked_sequences: Map[InstanceField[G], Set[ConcreteVariable[G]]],
 ) {
 
@@ -36,7 +36,7 @@ case class AbstractState[G](
     AbstractState(
       valuations.map(v => v._1 -> UncertainValue.uncertain_of(v._1.t)),
       processes,
-      Map.empty[LocalVariable[G], UncertainValue],
+      Map.empty[LocalSimpleVariable[G], UncertainValue],
       lock,
       parameters,
       tracked_sequences,
@@ -53,7 +53,7 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes,
-      Map.empty[LocalVariable[G], UncertainValue],
+      Map.empty[LocalSimpleVariable[G], UncertainValue],
       lock,
       parameters,
       tracked_sequences,
@@ -221,7 +221,7 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes,
-      c.map(t => t._1.asInstanceOf[LocalVariable[G]] -> t._2),
+      c.map(t => t._1.asInstanceOf[LocalSimpleVariable[G]] -> t._2),
       lock,
       parameters,
       tracked_sequences,
@@ -321,9 +321,10 @@ case class AbstractState[G](
     val value: UncertainSequence = resolve_collection_expression(assigned)
     val target: InstanceField[G] = variable.asInstanceOf[Deref[G]].ref.decl
     val new_values: Map[ConcreteVariable[G], UncertainValue] =
-      Map.from(   // TODO: Should something be done with uncertain indices...?
-        value.certain_entries.map(t => IndexedVariable(target, t._1) -> t._2)
-      ) + (SizeVariable(target) -> value.len)
+      Map.from( // TODO: Should something be done with uncertain indices...?
+        value.certain_entries
+          .map(t => FieldIndexedVariable(target, t._1) -> t._2)
+      ) + (FieldSizeVariable(target) -> value.len)
     AbstractState(
       valuations.removedAll(tracked_sequences(target)) ++ new_values,
       processes,
@@ -340,15 +341,15 @@ case class AbstractState[G](
   ): AbstractState[G] = {
     val affected: Set[ConcreteVariable[G]] = valuations.keySet
       .filter(v => v.is_contained_by(variable, this))
-    val indexed: Set[IndexedVariable[G]] = affected.collect {
-      case v: IndexedVariable[G] => v
+    val indexed: Set[FieldIndexedVariable[G]] = affected.collect {
+      case v: FieldIndexedVariable[G] => v
     }
-    val size: Set[SizeVariable[G]] = affected.collect {
-      case v: SizeVariable[G] => v
+    val size: Set[FieldSizeVariable[G]] = affected.collect {
+      case v: FieldSizeVariable[G] => v
     }
     if (affected.isEmpty)
       return this
-    val by_index: Map[Int, IndexedVariable[G]] = Map
+    val by_index: Map[Int, FieldIndexedVariable[G]] = Map
       .from(indexed.map(v => (v.i, v)))
     val new_values: UncertainSequence = resolve_collection_expression(assigned)
     var vals: Map[ConcreteVariable[G], UncertainValue] = valuations
@@ -901,13 +902,13 @@ case class AbstractState[G](
       is_old: Boolean,
       is_contract: Boolean,
   ): UncertainSequence = {
-    val affected: Set[IndexedVariable[G]] = valuations.keySet
+    val affected: Set[FieldIndexedVariable[G]] = valuations.keySet
       .filter(v => v.is_contained_by(deref, this)).collect {
-        case v: IndexedVariable[_] => v
+        case v: FieldIndexedVariable[_] => v
       }
-    val size_var: Option[SizeVariable[G]] = valuations.keySet
+    val size_var: Option[FieldSizeVariable[G]] = valuations.keySet
       .filter(v => v.is_contained_by(deref, this)).collectFirst {
-        case v: SizeVariable[_] => v
+        case v: FieldSizeVariable[_] => v
       }
     val len: Option[UncertainIntegerValue] = size_var
       .map(v => valuations(v).asInstanceOf[UncertainIntegerValue])
@@ -1012,17 +1013,19 @@ case class AbstractState[G](
       case c: ConcreteVariable[G] if c.is(variable, this) => c
     }
 
-  private def parameter_from_expr(variable: Expr[G]): Option[FieldVariable[G]] =
+  private def parameter_from_expr(
+      variable: Expr[G]
+  ): Option[FieldSimpleVariable[G]] =
     parameters.keys.collectFirst {
-      case f: FieldVariable[G] if f.is(variable, this) => f
+      case f: FieldSimpleVariable[G] if f.is(variable, this) => f
     }
 
-  private def get_local_var(variable: Local[G]): LocalVariable[G] =
+  private def get_local_var(variable: Local[G]): LocalSimpleVariable[G] =
     local.keys.collectFirst {
-      case l: LocalVariable[G] if l.is(variable, this) => l
+      case l: LocalSimpleVariable[G] if l.is(variable, this) => l
     } match {
       case Some(v) => v
-      case None => LocalVariable(variable.ref.decl)
+      case None => LocalSimpleVariable(variable.ref.decl)
     }
 
   /** Returns an expression to represent this state of the form <code>variable1

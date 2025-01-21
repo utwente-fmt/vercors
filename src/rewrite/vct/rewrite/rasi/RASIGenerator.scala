@@ -55,7 +55,7 @@ class RASIGenerator[G] extends LazyLogging {
       vars: Set[ConcreteVariable[G]],
       seqs: Set[InstanceField[G]],
   ): Set[ConcreteVariable[G]] = {
-    tracked_sequences = Map.from(seqs.map(f => f -> Set(SizeVariable(f))))
+    tracked_sequences = Map.from(seqs.map(f => f -> Set(FieldSizeVariable(f))))
     vars + tracked_sequences.flatMap(t => t._2)
   }
 
@@ -278,7 +278,7 @@ class RASIGenerator[G] extends LazyLogging {
     val initial_state = AbstractState(
       get_initial_values(vars),
       HashMap((AbstractProcess[G](Null()(Origin(Seq()))), node)),
-      Map.empty[LocalVariable[G], UncertainValue],
+      Map.empty[LocalSimpleVariable[G], UncertainValue],
       None,
       get_parameter_constraints(parameter_invariant),
       tracked_sequences,
@@ -294,22 +294,22 @@ class RASIGenerator[G] extends LazyLogging {
       vars: Set[ConcreteVariable[G]]
   ): Map[ConcreteVariable[G], UncertainValue] = {
     Map.from(vars.map(v => v -> (v match {
-      case SizeVariable(_) => UncertainIntegerValue.above(0)
+      case FieldSizeVariable(_) => UncertainIntegerValue.above(0)
       case _ => UncertainValue.uncertain_of(v.t)
     })))
   }
 
   private def get_parameter_constraints(
       parameter_invariant: Option[InstancePredicate[G]]
-  ): Map[FieldVariable[G], UncertainValue] = {
+  ): Map[FieldSimpleVariable[G], UncertainValue] = {
     if (parameter_invariant.isEmpty)
-      return Map.empty[FieldVariable[G], UncertainValue]
+      return Map.empty[FieldSimpleVariable[G], UncertainValue]
     val pred = parameter_invariant.get.body.get
     val parameters: Seq[InstanceField[G]] = pred.collect { case f: Deref[G] =>
       f
     }.map(d => d.ref.decl)
     Map.from(
-      parameters.map(f => FieldVariable(f) -> UncertainValue.uncertain_of(f.t))
+      parameters.map(f => FieldSimpleVariable(f) -> UncertainValue.uncertain_of(f.t))
     )
   }
 
@@ -337,22 +337,20 @@ class RASIGenerator[G] extends LazyLogging {
     var m: Map[ConcreteVariable[G], Expr[G]] = Map
       .empty[ConcreteVariable[G], Expr[G]]
 
-    val classes: Seq[Class[G]] = program.collect[Class[G]] { case c: Class[G] =>
-      c
-    }
+    val classes: Seq[Class[G]] = program.collect { case c: Class[G] => c }
     // TODO: Find differently, e.g. with lock invariant?
     val main_class: Class[G] =
       classes.find(c => c.o.getPreferredName.get.camel.startsWith("main")).get
 
     for (v <- vars) {
       v match {
-        case IndexedVariable(f, _) =>
+        case FieldIndexedVariable(f, _) =>
           m += (v -> find_field_object(classes, main_class, f))
-        case FieldVariable(f) =>
+        case FieldSimpleVariable(f) =>
           m += (v -> find_field_object(classes, main_class, f))
-        case SizeVariable(f) =>
+        case FieldSizeVariable(f) =>
           m += (v -> find_field_object(classes, main_class, f))
-        case LocalVariable(f) => m += (v -> AmbiguousThis()(f.o))
+        case LocalSimpleVariable(f) => m += (v -> AmbiguousThis()(f.o))
       }
     }
 
