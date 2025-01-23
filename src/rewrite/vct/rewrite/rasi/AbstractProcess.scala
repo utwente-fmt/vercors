@@ -135,9 +135,10 @@ case class AbstractProcess[G](obj: Expr[G]) {
               take_viable_edges(
                 succ,
                 state,
-                SingleSuccessor(
-                  state.with_valuation(loc, UncertainValue.uncertain_of(loc.t))
-                ),
+                SingleSuccessor(state.with_valuation(
+                  loc,
+                  UncertainSingleValue.uncertain_of(loc.t),
+                )),
               ),
             )
           // Statements that induce assumptions about the state, such as assume, inhale, or a method's postcondition, might change the state implicitly
@@ -322,8 +323,10 @@ case class AbstractProcess[G](obj: Expr[G]) {
       starting_state: AbstractState[G],
       new_states: RASISuccessor[G],
   ): RASISuccessor[G] = {
-    val enabled_edges: (Set[CFGEdge[G]], Set[FieldVariable[G]]) =
-      viable_edges(edges, starting_state)
+    val enabled_edges: (Set[CFGEdge[G]], Set[FieldVariable[G]]) = viable_edges(
+      edges,
+      starting_state,
+    )
     new_states.update_each(s =>
       RASISuccessor(
         enabled_edges._2,

@@ -157,7 +157,8 @@ sealed trait LocalVariable[G] extends ConcreteVariable[G] {
 
 /** A variable that represents a local variable in the COL system.
   */
-case class LocalSimpleVariable[G](variable: Variable[G]) extends LocalVariable[G] {
+case class LocalSimpleVariable[G](variable: Variable[G])
+    extends LocalVariable[G] {
   override def v: Variable[G] = variable
 
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
@@ -202,7 +203,8 @@ case class LocalSizeVariable[G](seq: Variable[G]) extends LocalVariable[G] {
   override def compare(other: ConcreteVariable[G]): Boolean = ???
 }
 
-case class LocalIndexedVariable[G](seq: Variable[G], i: Int) extends LocalVariable[G] with IndexedVariable[G] {
+case class LocalIndexedVariable[G](seq: Variable[G], i: Int)
+    extends LocalVariable[G] with IndexedVariable[G] {
   override def v: Variable[G] = seq
 
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
@@ -241,7 +243,8 @@ sealed trait FieldVariable[G] extends ConcreteVariable[G] {
 
 /** A variable representing a field (attribute) of a COL class.
   */
-case class FieldSimpleVariable[G](field: InstanceField[G]) extends FieldVariable[G] {
+case class FieldSimpleVariable[G](field: InstanceField[G])
+    extends FieldVariable[G] {
   override def f: InstanceField[G] = field
 
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
@@ -270,7 +273,8 @@ case class FieldSimpleVariable[G](field: InstanceField[G]) extends FieldVariable
 
 /** A variable representing the size of a collection.
   */
-case class FieldSizeVariable[G](field: InstanceField[G]) extends FieldVariable[G] {
+case class FieldSizeVariable[G](field: InstanceField[G])
+    extends FieldVariable[G] {
   override def f: InstanceField[G] = field
 
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
@@ -302,7 +306,8 @@ case class FieldSizeVariable[G](field: InstanceField[G]) extends FieldVariable[G
 
 /** A variable representing an index of a collection.
   */
-case class FieldIndexedVariable[G](field: InstanceField[G], i: Int) extends FieldVariable[G] with IndexedVariable[G] {
+case class FieldIndexedVariable[G](field: InstanceField[G], i: Int)
+    extends FieldVariable[G] with IndexedVariable[G] {
   override def f: InstanceField[G] = field
 
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =

@@ -146,7 +146,8 @@ case class DistinguishedSuccessor[G](
     // different result for some reason: states.intersect(successors)
     if (hit.nonEmpty)
       AlternativeSuccessor(
-        hit.map[RASISuccessor[G]](s => SingleSuccessor(s)) + this.removed_states(hit)
+        hit.map[RASISuccessor[G]](s => SingleSuccessor(s)) +
+          this.removed_states(hit)
       )
     else
       DistinguishedSuccessor(

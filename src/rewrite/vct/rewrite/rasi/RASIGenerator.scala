@@ -17,9 +17,8 @@ class RASIGenerator[G] extends LazyLogging {
     .ArrayBuffer()
   private val current_branches: mutable.ArrayBuffer[AbstractState[G]] = mutable
     .ArrayBuffer()
-  private var tracked_sequences
-      : Map[InstanceField[G], Set[FieldVariable[G]]] = Map
-    .empty[InstanceField[G], Set[FieldVariable[G]]]
+  private var tracked_sequences: Map[InstanceField[G], Set[FieldVariable[G]]] =
+    Map.empty[InstanceField[G], Set[FieldVariable[G]]]
 
   def execute(
       entry_point: Procedure[G],
@@ -134,12 +133,12 @@ class RASIGenerator[G] extends LazyLogging {
 
   private def get_var_value_pairs(
       split_on_vars: Set[FieldVariable[G]]
-  ): Set[(FieldVariable[G], UncertainValue)] =
+  ): Set[(FieldVariable[G], UncertainSingleValue)] =
     split_on_vars.flatMap(v => found_states.map(s => v -> s.valuations(v)))
 
   private def get_rasi_name(
       variable: ConcreteVariable[G],
-      value: UncertainValue,
+      value: UncertainSingleValue,
   ): String = {
     // Compute variable name
     val name_map: Map[Declaration[_], String] = Map.from(Seq(
@@ -278,7 +277,7 @@ class RASIGenerator[G] extends LazyLogging {
     val initial_state = AbstractState(
       get_initial_values(vars),
       HashMap((AbstractProcess[G](Null()(Origin(Seq()))), node)),
-      Map.empty[LocalVariable[G], UncertainValue],
+      Map.empty[LocalVariable[G], UncertainSingleValue],
       Map.empty[Variable[G], Set[FieldVariable[G]]],
       None,
       get_parameter_constraints(parameter_invariant),
@@ -293,25 +292,28 @@ class RASIGenerator[G] extends LazyLogging {
 
   private def get_initial_values(
       vars: Set[FieldVariable[G]]
-  ): Map[FieldVariable[G], UncertainValue] = {
-    Map.from(vars.map(v => v -> (v match {
-      case FieldSizeVariable(_) => UncertainIntegerValue.above(0)
-      case _ => UncertainValue.uncertain_of(v.t)
-    })))
+  ): Map[FieldVariable[G], UncertainSingleValue] = {
+    Map.from(vars.map(v =>
+      v ->
+        (v match {
+          case FieldSizeVariable(_) => UncertainIntegerValue.above(0)
+          case _ => UncertainSingleValue.uncertain_of(v.t)
+        })
+    ))
   }
 
   private def get_parameter_constraints(
       parameter_invariant: Option[InstancePredicate[G]]
-  ): Map[FieldSimpleVariable[G], UncertainValue] = {
+  ): Map[FieldSimpleVariable[G], UncertainSingleValue] = {
     if (parameter_invariant.isEmpty)
-      return Map.empty[FieldSimpleVariable[G], UncertainValue]
+      return Map.empty[FieldSimpleVariable[G], UncertainSingleValue]
     val pred = parameter_invariant.get.body.get
     val parameters: Seq[InstanceField[G]] = pred.collect { case f: Deref[G] =>
       f
     }.map(d => d.ref.decl)
-    Map.from(
-      parameters.map(f => FieldSimpleVariable(f) -> UncertainValue.uncertain_of(f.t))
-    )
+    Map.from(parameters.map(f =>
+      FieldSimpleVariable(f) -> UncertainSingleValue.uncertain_of(f.t)
+    ))
   }
 
   private def reduce_redundant_states()
@@ -335,17 +337,14 @@ class RASIGenerator[G] extends LazyLogging {
       program: Node[G],
       vars: Set[FieldVariable[G]],
   ): Map[FieldVariable[G], Expr[G]] = {
-    var m: Map[FieldVariable[G], Expr[G]] = Map
-      .empty[FieldVariable[G], Expr[G]]
+    var m: Map[FieldVariable[G], Expr[G]] = Map.empty[FieldVariable[G], Expr[G]]
 
     val classes: Seq[Class[G]] = program.collect { case c: Class[G] => c }
     // TODO: Find differently, e.g. with lock invariant?
     val main_class: Class[G] =
       classes.find(c => c.o.getPreferredName.get.camel.startsWith("main")).get
 
-    for (v <- vars) {
-      m += (v -> find_field_object(classes, main_class, v.f))
-    }
+    for (v <- vars) { m += (v -> find_field_object(classes, main_class, v.f)) }
 
     m
   }

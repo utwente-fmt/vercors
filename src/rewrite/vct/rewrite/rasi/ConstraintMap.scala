@@ -1,7 +1,7 @@
 package vct.rewrite.rasi
 
 case class ConstraintMap[G](
-    constraints: Map[ResolvableVariable[G], UncertainValue]
+    constraints: Map[ResolvableVariable[G], UncertainSingleValue]
 ) {
 
   /** Concatenates the constraints from two constraint maps into one. This is
@@ -15,8 +15,8 @@ case class ConstraintMap[G](
   def &&(other: ConstraintMap[G]): ConstraintMap[G] =
     ConstraintMap(constraints ++ other.constraints.map { case (k, v) =>
       k -> v.intersection(
-        constraints.getOrElse(k, UncertainValue.uncertain_of(v.t[G]))
-      )
+        constraints.getOrElse(k, UncertainSingleValue.uncertain_of(v.t[G]))
+      ).asInstanceOf[UncertainSingleValue]
     })
 
   /** Combines the constraints from two constraint maps into one that represents
@@ -31,10 +31,11 @@ case class ConstraintMap[G](
     *   A new constraint map representing the disjunction of the arguments
     */
   def ||(other: ConstraintMap[G]): ConstraintMap[G] =
-    ConstraintMap.from_cons(
-      constraints.keySet.intersect(other.constraints.keySet)
-        .map(k => k -> constraints(k).union(other.constraints(k)))
-    )
+    ConstraintMap
+      .from_cons(constraints.keySet.intersect(other.constraints.keySet).map(k =>
+        k -> constraints(k).union(other.constraints(k))
+          .asInstanceOf[UncertainSingleValue]
+      ))
 
   /** Resolves the various constraints placed on each variable in the map and
     * returns a simpler map mapping every variable to exactly one uncertain
@@ -44,7 +45,7 @@ case class ConstraintMap[G](
     *   A representation of this map in which each variable is mapped to one
     *   uncertain value
     */
-  def resolve: Map[ResolvableVariable[G], UncertainValue] = constraints
+  def resolve: Map[ResolvableVariable[G], UncertainSingleValue] = constraints
 
   /** Checks whether this map's valuation is impossible. A valuation is
     * impossible if any variable is mapped to an empty set of potential values.
@@ -64,20 +65,22 @@ case class ConstraintMap[G](
     *   <code>true</code> if the map does not constrain any variable,
     *   <code>false</code> otherwise
     */
-  def is_empty: Boolean = resolve.forall(v => v._2.is_uncertain)
+  def is_empty: Boolean = resolve.forall(v => v._2.fully_uncertain)
 }
 case object ConstraintMap {
   def from[G](
       variable: ResolvableVariable[G],
-      value: UncertainValue,
+      value: UncertainSingleValue,
   ): ConstraintMap[G] = ConstraintMap(Map.from(Seq(variable -> value)))
 
   def from_cons[G](
-      cons: Set[(ResolvableVariable[G], UncertainValue)]
+      cons: Set[(ResolvableVariable[G], UncertainSingleValue)]
   ): ConstraintMap[G] = ConstraintMap(Map.from(cons.map(t => t._1 -> t._2)))
 
   def empty[G]: ConstraintMap[G] = ConstraintMap(Map.empty)
 
   def impossible[G](vars: Set[_ <: ResolvableVariable[G]]): ConstraintMap[G] =
-    ConstraintMap(Map.from(vars.map(v => v -> UncertainValue.empty_of(v.t))))
+    ConstraintMap(
+      Map.from(vars.map(v => v -> UncertainSingleValue.empty_of(v.t)))
+    )
 }

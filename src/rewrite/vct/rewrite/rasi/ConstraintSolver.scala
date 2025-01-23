@@ -61,8 +61,10 @@ class ConstraintSolver[G](
         )
       // If there are variables in the state that are not tracked that make this valuation impossible, make an impossible constraint
       case e: Expr[G] if state.valuations.exists(v => v._1.is(e, state)) =>
-        val state_entry: Option[(ConcreteVariable[G], UncertainValue)] = state
-          .valuations.collectFirst { case (k, v) if k.is(e, state) => (k, v) }
+        val state_entry: Option[(ConcreteVariable[G], UncertainSingleValue)] =
+          state.valuations.collectFirst {
+            case (k, v) if k.is(e, state) => (k, v)
+          }
         if (
           state_entry.get._2.can_be_equal(UncertainBooleanValue.from(!negate))
         )
@@ -198,14 +200,16 @@ class ConstraintSolver[G](
   ): Set[ConstraintMap[G]] =
     comp.left.t match {
       case _: IntType[_] | _: TBool[_] =>
-        val left_val: UncertainValue = state.resolve_expression(comp.left)
-        val right_val: UncertainValue = state.resolve_expression(comp.right)
-        if (left_val.is_uncertain && right_val.is_uncertain)
+        val left_val: UncertainSingleValue = state.resolve_expression(comp.left)
+        val right_val: UncertainSingleValue = state
+          .resolve_expression(comp.right)
+        if (left_val.fully_uncertain && right_val.fully_uncertain)
           Set(ConstraintMap.empty[G])
         else {
           comp match {
             case _: Eq[_] | _: AmbiguousEq[_] =>
-              val value: UncertainValue = left_val.intersection(right_val)
+              val value: UncertainSingleValue = left_val.intersection(right_val)
+                .asInstanceOf[UncertainSingleValue]
               if (!negate)
                 Set(
                   expr_equals(comp.left, value) &&
@@ -214,7 +218,8 @@ class ConstraintSolver[G](
               else
                 Set(ConstraintMap.empty[G])
             case _: Neq[_] | _: AmbiguousNeq[_] =>
-              val value: UncertainValue = left_val.intersection(right_val)
+              val value: UncertainSingleValue = left_val.intersection(right_val)
+                .asInstanceOf[UncertainSingleValue]
               if (negate)
                 Set(
                   expr_equals(comp.left, value) &&
@@ -307,7 +312,7 @@ class ConstraintSolver[G](
         comp.right
       else
         comp.left
-    val value: UncertainValue =
+    val value: UncertainSingleValue =
       if (pure_left)
         state.resolve_expression(comp.left)
       else
@@ -380,7 +385,7 @@ class ConstraintSolver[G](
 
   private def expr_equals(
       expr: Expr[G],
-      value: UncertainValue,
+      value: UncertainSingleValue,
   ): ConstraintMap[G] = {
     if (get_var(expr).nonEmpty)
       ConstraintMap.from(get_var(expr).get, value)
@@ -438,9 +443,9 @@ class ConstraintSolver[G](
     )
     val size_vars: Set[FieldSizeVariable[G]] = get_size_vars(variable)
 
-    val index_update_map: Set[(ResolvableVariable[G], UncertainValue)] = indices
-      .map(t => (t._1, value.get(t._2)))
-    val size_update_map: Set[(ResolvableVariable[G], UncertainValue)] =
+    val index_update_map: Set[(ResolvableVariable[G], UncertainSingleValue)] =
+      indices.map(t => (t._1, value.get(t._2)))
+    val size_update_map: Set[(ResolvableVariable[G], UncertainSingleValue)] =
       size_vars.map(v => (v, value.len))
     val update_map = index_update_map ++ size_update_map
 

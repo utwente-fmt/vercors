@@ -159,8 +159,8 @@ case object Utils {
   def cast_resolvable_map[G, S <: ResolvableVariable[
     G
   ], T <: ResolvableVariable[G]](
-      m: Map[S, UncertainValue]
-  ): Map[T, UncertainValue] =
+      m: Map[S, UncertainSingleValue]
+  ): Map[T, UncertainSingleValue] =
     m.filter(t => t._1.isInstanceOf[T]).map(t => t._1.asInstanceOf[T] -> t._2)
 
   /** Computes the intersection of two variable valuations.
@@ -174,11 +174,13 @@ case object Utils {
     *   contained in both valuations mapped to the intersection of both
     */
   def val_intersect[G](
-      v1: Map[FieldVariable[G], UncertainValue],
-      v2: Map[FieldVariable[G], UncertainValue],
-  ): Map[FieldVariable[G], UncertainValue] =
+      v1: Map[FieldVariable[G], UncertainSingleValue],
+      v2: Map[FieldVariable[G], UncertainSingleValue],
+  ): Map[FieldVariable[G], UncertainSingleValue] =
     v1 ++ v2.map { case (k, v) =>
-      k -> v.intersection(v1.getOrElse(k, UncertainValue.uncertain_of(v.t[G])))
+      k -> v.intersection(
+        v1.getOrElse(k, UncertainSingleValue.uncertain_of(v.t[G]))
+      ).asInstanceOf[UncertainSingleValue]
     }
 
   /** Extracts the component parts of a conjunction.

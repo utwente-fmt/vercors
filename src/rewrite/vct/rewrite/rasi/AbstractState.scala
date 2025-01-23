@@ -6,12 +6,12 @@ import vct.rewrite.cfg.CFGEntry
 import scala.collection.immutable.HashMap
 
 case class AbstractState[G](
-    valuations: Map[FieldVariable[G], UncertainValue],
+    valuations: Map[FieldVariable[G], UncertainSingleValue],
     processes: HashMap[AbstractProcess[G], CFGEntry[G]],
-    local: Map[LocalVariable[G], UncertainValue],
+    local: Map[LocalVariable[G], UncertainSingleValue],
     local_dependencies: Map[Variable[G], Set[FieldVariable[G]]],
     lock: Option[AbstractProcess[G]],
-    parameters: Map[FieldSimpleVariable[G], UncertainValue],
+    parameters: Map[FieldSimpleVariable[G], UncertainSingleValue],
     tracked_sequences: Map[InstanceField[G], Set[FieldVariable[G]]],
 ) {
 
@@ -35,9 +35,9 @@ case class AbstractState[G](
     */
   def reset: AbstractState[G] = {
     AbstractState(
-      valuations.map(v => v._1 -> UncertainValue.uncertain_of(v._1.t)),
+      valuations.map(v => v._1 -> UncertainSingleValue.uncertain_of(v._1.t)),
       processes,
-      Map.empty[LocalVariable[G], UncertainValue],
+      Map.empty[LocalVariable[G], UncertainSingleValue],
       Map.empty[Variable[G], Set[FieldVariable[G]]],
       lock,
       parameters,
@@ -55,7 +55,7 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes,
-      Map.empty[LocalVariable[G], UncertainValue],
+      Map.empty[LocalVariable[G], UncertainSingleValue],
       Map.empty[Variable[G], Set[FieldVariable[G]]],
       lock,
       parameters,
@@ -150,11 +150,14 @@ case class AbstractState[G](
     *   that are as sharp as possible
     */
   def split_values(): Set[AbstractState[G]] = {
-    val valuation_sets: Iterable[Set[(ConcreteVariable[G], UncertainValue)]] =
+    val valuation_sets
+        : Iterable[Set[(ConcreteVariable[G], UncertainSingleValue)]] =
       valuations.map(t => t._2.split.getOrElse(Set(t._2)).map(v => t._1 -> v))
     Utils.cartesian_product(valuation_sets).map(vs =>
       AbstractState(
-        Utils.cast_resolvable_map[G, ConcreteVariable[G], FieldVariable[G]](Map.from(vs)),
+        Utils.cast_resolvable_map[G, ConcreteVariable[G], FieldVariable[G]](
+          Map.from(vs)
+        ),
         processes,
         local,
         local_dependencies,
@@ -179,7 +182,7 @@ case class AbstractState[G](
     cond match {
       case None => this
       case Some(expr) =>
-        val c: Map[ResolvableVariable[G], UncertainValue] =
+        val c: Map[ResolvableVariable[G], UncertainSingleValue] =
           new ConstraintSolver(
             this,
             valuations.keySet
@@ -191,7 +194,7 @@ case class AbstractState[G](
           valuations.map(v =>
             v._1 ->
               (if (c.contains(v._1))
-                 v._2.intersection(c(v._1))
+                 v._2.intersection(c(v._1)).asInstanceOf[UncertainSingleValue]
                else
                  v._2)
           ),
@@ -202,7 +205,7 @@ case class AbstractState[G](
           parameters.map(v =>
             v._1 ->
               (if (c.contains(v._1))
-                 v._2.intersection(c(v._1))
+                 v._2.intersection(c(v._1)).asInstanceOf[UncertainSingleValue]
                else
                  v._2)
           ),
@@ -220,7 +223,7 @@ case class AbstractState[G](
     *   condition
     */
   def with_local_condition(cond: Expr[G]): AbstractState[G] = {
-    val c: Map[ResolvableVariable[G], UncertainValue] =
+    val c: Map[ResolvableVariable[G], UncertainSingleValue] =
       new ConstraintSolver(
         this,
         cond.collect { case l: Local[_] => l }.map(l => get_local_var(l)).toSet,
@@ -250,7 +253,7 @@ case class AbstractState[G](
     */
   def with_valuation(
       variable: Expr[G],
-      value: UncertainValue,
+      value: UncertainSingleValue,
   ): AbstractState[G] =
     variable match {
       case l: Local[_] =>
@@ -289,7 +292,7 @@ case class AbstractState[G](
     *   An abstract state that is a copy of this one with the updated valuation
     */
   def with_new_valuation(
-      vals: Map[FieldVariable[G], UncertainValue]
+      vals: Map[FieldVariable[G], UncertainSingleValue]
   ): AbstractState[G] =
     AbstractState(
       valuations ++ vals,
@@ -331,11 +334,12 @@ case class AbstractState[G](
   ): AbstractState[G] = {
     val value: UncertainSequence = resolve_collection_expression(assigned)
     val target: InstanceField[G] = variable.ref.decl
-    val new_values: Map[FieldVariable[G], UncertainValue] =
+    val new_values: Map[FieldVariable[G], UncertainSingleValue] =
       Map.from( // TODO: Should something be done with uncertain indices...?
         value.certain_entries
           .map(t => FieldIndexedVariable(target, t._1) -> t._2)
-      ).asInstanceOf[Map[FieldVariable[G], UncertainValue]] + (FieldSizeVariable(target) -> value.len)
+      ).asInstanceOf[Map[FieldVariable[G], UncertainSingleValue]] +
+        (FieldSizeVariable(target) -> value.len)
     AbstractState(
       valuations.removedAll(tracked_sequences(target)) ++ new_values,
       processes,
@@ -364,7 +368,7 @@ case class AbstractState[G](
     val by_index: Map[Int, FieldIndexedVariable[G]] = Map
       .from(indexed.map(v => (v.i, v)))
     val new_values: UncertainSequence = resolve_collection_expression(assigned)
-    var vals: Map[FieldVariable[G], UncertainValue] = valuations
+    var vals: Map[FieldVariable[G], UncertainSingleValue] = valuations
     by_index.foreach(t => vals = vals + (t._2 -> new_values.get(t._1)))
     size.foreach(t => vals = vals + (t -> new_values.len))
     AbstractState(
@@ -383,11 +387,12 @@ case class AbstractState[G](
       assigned: Expr[G],
   ): AbstractState[G] = {
     val value: UncertainSequence = resolve_collection_expression(assigned)
-    val new_values: Map[LocalVariable[G], UncertainValue] =
+    val new_values: Map[LocalVariable[G], UncertainSingleValue] =
       Map.from( // TODO: Should something be done with uncertain indices...?
         value.certain_entries
           .map(t => LocalIndexedVariable(target, t._1) -> t._2)
-      ).asInstanceOf[Map[LocalVariable[G], UncertainValue]] + (LocalSizeVariable(target) -> value.len)
+      ).asInstanceOf[Map[LocalVariable[G], UncertainSingleValue]] +
+        (LocalSizeVariable(target) -> value.len)
     AbstractState(
       valuations,
       processes,
@@ -410,7 +415,7 @@ case class AbstractState[G](
     *   this state as the pre-state
     */
   def with_assumption(assumption: Expr[G]): RASISuccessor[G] = {
-    val constraints: Set[Map[FieldVariable[G], UncertainValue]] =
+    val constraints: Set[Map[FieldVariable[G], UncertainSingleValue]] =
       new ConstraintSolver(this, valuations.keySet, is_contract = false)
         .resolve_assumption(assumption).filter(m => !m.is_impossible).map(m =>
           Utils.cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[G]](
@@ -458,7 +463,7 @@ case class AbstractState[G](
   ): RASISuccessor[G] = {
     val assumption: Expr[G] = Utils
       .unify_expression(Utils.contract_to_expression(post), args)
-    val constraints: Set[Map[FieldVariable[G], UncertainValue]] =
+    val constraints: Set[Map[FieldVariable[G], UncertainSingleValue]] =
       new ConstraintSolver(this, valuations.keySet, is_contract = true)
         .resolve_assumption(assumption).filter(m => !m.is_impossible).map(m =>
           Utils.cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[G]](
@@ -499,7 +504,7 @@ case class AbstractState[G](
       expr: Expr[G],
       is_old: Boolean = false,
       is_contract: Boolean = false,
-  ): UncertainValue =
+  ): UncertainSingleValue =
     expr.t match {
       case _: IntType[_] =>
         resolve_integer_expression(expr, is_old, is_contract)
@@ -929,7 +934,7 @@ case class AbstractState[G](
         else if (condition.can_be_false)
           iff_seq
         else
-          UncertainSequence.empty(ift_seq.t)
+          UncertainSequence.empty(ift_seq.typ)
       case Old(expr, _) =>
         resolve_collection_expression(expr, is_old = true, is_contract)
       case Result(applicable) =>
@@ -983,7 +988,7 @@ case class AbstractState[G](
       post: AccountedPredicate[G],
       args: Map[Variable[G], Expr[G]],
       return_type: Type[G],
-  ): UncertainValue =
+  ): UncertainSingleValue =
     get_return(
       Utils.unify_expression(Utils.contract_to_expression(post), args),
       return_type,
@@ -992,16 +997,18 @@ case class AbstractState[G](
   private def get_return(
       contract: Expr[G],
       return_type: Type[G],
-  ): UncertainValue = {
+  ): UncertainSingleValue = {
     val result_var: ResultVariable[G] = ResultVariable(return_type)
     val result_set: Set[ResolvableVariable[G]] = Set(result_var)
     val constraints: Set[ConstraintMap[G]] =
       new ConstraintSolver(this, result_set, true).resolve_assumption(contract)
         .filter(m => !m.is_impossible)
-    val possible_vals: Set[UncertainValue] = constraints.map(m =>
-      m.resolve.getOrElse(result_var, UncertainValue.uncertain_of(return_type))
+    val possible_vals: Set[UncertainSingleValue] = constraints.map(m =>
+      m.resolve
+        .getOrElse(result_var, UncertainSingleValue.uncertain_of(return_type))
     )
-    possible_vals.reduce((v1, v2) => v1.union(v2))
+    possible_vals
+      .reduce((v1, v2) => v1.union(v2).asInstanceOf[UncertainSingleValue])
   }
 
   private def handle_equality(
@@ -1013,12 +1020,12 @@ case class AbstractState[G](
   ): UncertainBooleanValue =
     left.t match {
       case _: IntType[_] | TBool() =>
-        val left_val: UncertainValue = resolve_expression(
+        val left_val: UncertainSingleValue = resolve_expression(
           left,
           is_old,
           is_contract,
         )
-        val right_val: UncertainValue = resolve_expression(
+        val right_val: UncertainSingleValue = resolve_expression(
           right,
           is_old,
           is_contract,

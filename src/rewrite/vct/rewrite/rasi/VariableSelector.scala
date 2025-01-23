@@ -18,7 +18,7 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
     *   distinguished between at least two of the given valuations
     */
   def distinguishing_variables(
-      valuations: Set[Map[FieldVariable[G], UncertainValue]],
+      valuations: Set[Map[FieldVariable[G], UncertainSingleValue]],
       expr: Option[Expr[G]],
   ): Set[FieldVariable[G]] = {
     if (valuations.size <= 1)
@@ -143,16 +143,18 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
     // TODO: This causes some overapproximation, since constraints between the different variables are broken up. These
     //       should probably be handled as sets of constraint maps, but that makes the meaning much more difficult to
     //       keep track of
-    val c: Seq[Map[ConcreteVariable[G], UncertainValue]] = constraints.map(s =>
-      Utils.cast_resolvable_map[G, ResolvableVariable[G], ConcreteVariable[G]](
-        s.reduce((m1, m2) => m1 || m2).resolve
+    val c: Seq[Map[ConcreteVariable[G], UncertainSingleValue]] = constraints
+      .map(s =>
+        Utils
+          .cast_resolvable_map[G, ResolvableVariable[G], ConcreteVariable[G]](
+            s.reduce((m1, m2) => m1 || m2).resolve
+          )
       )
-    )
     val vars: Seq[ConcreteVariable[G]] = c.flatMap(m => m.keySet)
     var s: Set[ConcreteVariable[G]] = Set()
     for (v <- vars) {
-      val t: Seq[UncertainValue] = c
-        .map(m => m.getOrElse(v, UncertainValue.uncertain_of(v.t)))
+      val t: Seq[UncertainSingleValue] = c
+        .map(m => m.getOrElse(v, UncertainSingleValue.uncertain_of(v.t)))
       if (t.exists(_ != t.head))
         s += v
     }
