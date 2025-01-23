@@ -148,19 +148,20 @@ case object Utils {
       case _ => false
     }
 
-  /** Transforms a valuation on resolvable variables to a valuation on concrete
-    * variables.
+  /** Transforms a valuation on resolvable variables to a valuation on a new
+    * variable type.
     *
     * @param m
     *   Valuation on resolvable variables
     * @return
     *   Same valuation with all non-trackable variables removed
     */
-  def resolvable_to_concrete[G](
-      m: Map[ResolvableVariable[G], UncertainValue]
-  ): Map[ConcreteVariable[G], UncertainValue] =
-    m.filter(t => t._1.isInstanceOf[ConcreteVariable[G]])
-      .map(t => t._1.asInstanceOf[ConcreteVariable[G]] -> t._2)
+  def cast_resolvable_map[G, S <: ResolvableVariable[
+    G
+  ], T <: ResolvableVariable[G]](
+      m: Map[S, UncertainValue]
+  ): Map[T, UncertainValue] =
+    m.filter(t => t._1.isInstanceOf[T]).map(t => t._1.asInstanceOf[T] -> t._2)
 
   /** Computes the intersection of two variable valuations.
     *
@@ -173,9 +174,9 @@ case object Utils {
     *   contained in both valuations mapped to the intersection of both
     */
   def val_intersect[G](
-      v1: Map[ConcreteVariable[G], UncertainValue],
-      v2: Map[ConcreteVariable[G], UncertainValue],
-  ): Map[ConcreteVariable[G], UncertainValue] =
+      v1: Map[FieldVariable[G], UncertainValue],
+      v2: Map[FieldVariable[G], UncertainValue],
+  ): Map[FieldVariable[G], UncertainValue] =
     v1 ++ v2.map { case (k, v) =>
       k -> v.intersection(v1.getOrElse(k, UncertainValue.uncertain_of(v.t[G])))
     }
@@ -201,20 +202,19 @@ case object Utils {
     l ++ r
   }
 
-  /**
-   * Removes the iterating variables in a quantifier body and
-   *
-   * @param iterators
-   * @param body
-   * @param operator
-   * @tparam G
-   * @return
-   */
+  /** Removes the iterating variables in a quantifier body and
+    *
+    * @param iterators
+    * @param body
+    * @param operator
+    * @tparam G
+    * @return
+    */
   def replace_iterators_in_quantifier[G](
       iterators: Map[Variable[G], (Int, Int)],
       body: Expr[G],
       operator: (Expr[G], Expr[G]) => Expr[G],
-      default: Expr[G]
+      default: Expr[G],
   ): Expr[G] = {
     val value_sets: Seq[Set[(Variable[G], Int)]] = iterators.toSeq
       .map(t => (t._2._1 to t._2._2).map(i => t._1 -> i).toSet)

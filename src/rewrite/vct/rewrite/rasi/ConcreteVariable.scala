@@ -143,13 +143,13 @@ sealed trait IndexedVariable[G] {
     }
 }
 
-abstract case class LocalVariable[G](v: Variable[G])
-    extends ConcreteVariable[G] {
+sealed trait LocalVariable[G] extends ConcreteVariable[G] {
+  def v: Variable[G]
+
   override def get_declaration: Declaration[G] = v
 
   protected def variable_equals(expr: Expr[G]): Boolean =
     expr match {
-      // TODO: Are there other ways to refer to variables?
       case Local(ref) => ref.decl.equals(v)
       case _ => false
     }
@@ -157,8 +157,9 @@ abstract case class LocalVariable[G](v: Variable[G])
 
 /** A variable that represents a local variable in the COL system.
   */
-case class LocalSimpleVariable[G](variable: Variable[G])
-    extends LocalVariable[G](variable) {
+case class LocalSimpleVariable[G](variable: Variable[G]) extends LocalVariable[G] {
+  override def v: Variable[G] = variable
+
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
     variable_equals(expr)
 
@@ -179,8 +180,9 @@ case class LocalSimpleVariable[G](variable: Variable[G])
     }
 }
 
-case class LocalSizeVariable[G](seq: Variable[G])
-    extends LocalVariable[G](seq) {
+case class LocalSizeVariable[G](seq: Variable[G]) extends LocalVariable[G] {
+  override def v: Variable[G] = seq
+
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
     expr match {
       case Size(obj) => variable_equals(obj)
@@ -200,8 +202,9 @@ case class LocalSizeVariable[G](seq: Variable[G])
   override def compare(other: ConcreteVariable[G]): Boolean = ???
 }
 
-case class LocalIndexedVariable[G](seq: Variable[G], i: Int)
-    extends LocalVariable[G](seq) with IndexedVariable[G] {
+case class LocalIndexedVariable[G](seq: Variable[G], i: Int) extends LocalVariable[G] with IndexedVariable[G] {
+  override def v: Variable[G] = seq
+
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
     indexed_equals(expr, i, e => variable_equals(e), state)
 
@@ -223,8 +226,9 @@ case class LocalIndexedVariable[G](seq: Variable[G], i: Int)
   override def compare(other: ConcreteVariable[G]): Boolean = ???
 }
 
-abstract case class FieldVariable[G](f: InstanceField[G])
-    extends ConcreteVariable[G] {
+sealed trait FieldVariable[G] extends ConcreteVariable[G] {
+  def f: InstanceField[G]
+
   override def get_declaration: Declaration[G] = f
 
   protected def field_equals(expr: Expr[G]): Boolean =
@@ -237,8 +241,9 @@ abstract case class FieldVariable[G](f: InstanceField[G])
 
 /** A variable representing a field (attribute) of a COL class.
   */
-case class FieldSimpleVariable[G](field: InstanceField[G])
-    extends FieldVariable[G](field) {
+case class FieldSimpleVariable[G](field: InstanceField[G]) extends FieldVariable[G] {
+  override def f: InstanceField[G] = field
+
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
     field_equals(expr)
 
@@ -265,8 +270,9 @@ case class FieldSimpleVariable[G](field: InstanceField[G])
 
 /** A variable representing the size of a collection.
   */
-case class FieldSizeVariable[G](field: InstanceField[G])
-    extends FieldVariable[G](field) {
+case class FieldSizeVariable[G](field: InstanceField[G]) extends FieldVariable[G] {
+  override def f: InstanceField[G] = field
+
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
     expr match {
       case Size(obj) => field_equals(obj)
@@ -296,8 +302,9 @@ case class FieldSizeVariable[G](field: InstanceField[G])
 
 /** A variable representing an index of a collection.
   */
-case class FieldIndexedVariable[G](field: InstanceField[G], i: Int)
-    extends FieldVariable[G](field) with IndexedVariable[G] {
+case class FieldIndexedVariable[G](field: InstanceField[G], i: Int) extends FieldVariable[G] with IndexedVariable[G] {
+  override def f: InstanceField[G] = field
+
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
     indexed_equals(expr, i, e => field_equals(e), state)
 

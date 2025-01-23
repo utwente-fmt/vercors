@@ -18,13 +18,13 @@ class RASIGenerator[G] extends LazyLogging {
   private val current_branches: mutable.ArrayBuffer[AbstractState[G]] = mutable
     .ArrayBuffer()
   private var tracked_sequences
-      : Map[InstanceField[G], Set[ConcreteVariable[G]]] = Map
-    .empty[InstanceField[G], Set[ConcreteVariable[G]]]
+      : Map[InstanceField[G], Set[FieldVariable[G]]] = Map
+    .empty[InstanceField[G], Set[FieldVariable[G]]]
 
   def execute(
       entry_point: Procedure[G],
-      vars: Set[ConcreteVariable[G]],
-      split_on: Option[Set[ConcreteVariable[G]]],
+      vars: Set[FieldVariable[G]],
+      split_on: Option[Set[FieldVariable[G]]],
       parameter_invariant: Option[InstancePredicate[G]],
       program: Node[G],
       seqs: Set[InstanceField[G]],
@@ -39,7 +39,7 @@ class RASIGenerator[G] extends LazyLogging {
 
   def test(
       entry_point: Procedure[G],
-      vars: Set[ConcreteVariable[G]],
+      vars: Set[FieldVariable[G]],
       parameter_invariant: Option[InstancePredicate[G]],
       out_path: Path,
       seqs: Set[InstanceField[G]],
@@ -52,17 +52,17 @@ class RASIGenerator[G] extends LazyLogging {
     )
 
   private def handle_tracked_sequences(
-      vars: Set[ConcreteVariable[G]],
+      vars: Set[FieldVariable[G]],
       seqs: Set[InstanceField[G]],
-  ): Set[ConcreteVariable[G]] = {
+  ): Set[FieldVariable[G]] = {
     tracked_sequences = Map.from(seqs.map(f => f -> Set(FieldSizeVariable(f))))
-    vars + tracked_sequences.flatMap(t => t._2)
+    vars ++ tracked_sequences.flatMap(t => t._2)
   }
 
   private def generate_rasi(
       node: CFGEntry[G],
-      vars: Set[ConcreteVariable[G]],
-      split_on: Option[Set[ConcreteVariable[G]]],
+      vars: Set[FieldVariable[G]],
+      split_on: Option[Set[FieldVariable[G]]],
       parameter_invariant: Option[InstancePredicate[G]],
       program: Node[G],
   ): Seq[(String, Expr[G])] = {
@@ -124,7 +124,7 @@ class RASIGenerator[G] extends LazyLogging {
     if (rasi_states.isEmpty)
       return BooleanValue(value = false)(program.o)
 
-    val objs: Map[ConcreteVariable[G], Expr[G]] = find_fitting_objects(
+    val objs: Map[FieldVariable[G], Expr[G]] = find_fitting_objects(
       program,
       rasi_states.head.valuations.keySet,
     )
@@ -133,8 +133,8 @@ class RASIGenerator[G] extends LazyLogging {
   }
 
   private def get_var_value_pairs(
-      split_on_vars: Set[ConcreteVariable[G]]
-  ): Set[(ConcreteVariable[G], UncertainValue)] =
+      split_on_vars: Set[FieldVariable[G]]
+  ): Set[(FieldVariable[G], UncertainValue)] =
     split_on_vars.flatMap(v => found_states.map(s => v -> s.valuations(v)))
 
   private def get_rasi_name(
@@ -168,7 +168,7 @@ class RASIGenerator[G] extends LazyLogging {
 
   private def print_state_space(
       node: CFGEntry[G],
-      vars: Set[ConcreteVariable[G]],
+      vars: Set[FieldVariable[G]],
       parameter_invariant: Option[InstancePredicate[G]],
       out_path: Path,
   ): Unit = {
@@ -180,13 +180,13 @@ class RASIGenerator[G] extends LazyLogging {
 
   private def explore(
       node: CFGEntry[G],
-      vars: Set[ConcreteVariable[G]],
+      vars: Set[FieldVariable[G]],
       parameter_invariant: Option[InstancePredicate[G]],
   ): Unit = {
     logger.info("Starting RASI generation")
     val global_start_time: Long = System.nanoTime()
 
-    var considered_variables: Set[ConcreteVariable[G]] = vars
+    var considered_variables: Set[FieldVariable[G]] = vars
 
     var generation_start_time: Long = reset(
       node,
@@ -268,7 +268,7 @@ class RASIGenerator[G] extends LazyLogging {
 
   private def reset(
       node: CFGEntry[G],
-      vars: Set[ConcreteVariable[G]],
+      vars: Set[FieldVariable[G]],
       parameter_invariant: Option[InstancePredicate[G]],
   ): Long = {
     found_states.clear()
@@ -278,7 +278,8 @@ class RASIGenerator[G] extends LazyLogging {
     val initial_state = AbstractState(
       get_initial_values(vars),
       HashMap((AbstractProcess[G](Null()(Origin(Seq()))), node)),
-      Map.empty[LocalSimpleVariable[G], UncertainValue],
+      Map.empty[LocalVariable[G], UncertainValue],
+      Map.empty[Variable[G], Set[FieldVariable[G]]],
       None,
       get_parameter_constraints(parameter_invariant),
       tracked_sequences,
@@ -291,8 +292,8 @@ class RASIGenerator[G] extends LazyLogging {
   }
 
   private def get_initial_values(
-      vars: Set[ConcreteVariable[G]]
-  ): Map[ConcreteVariable[G], UncertainValue] = {
+      vars: Set[FieldVariable[G]]
+  ): Map[FieldVariable[G], UncertainValue] = {
     Map.from(vars.map(v => v -> (v match {
       case FieldSizeVariable(_) => UncertainIntegerValue.above(0)
       case _ => UncertainValue.uncertain_of(v.t)
@@ -332,10 +333,10 @@ class RASIGenerator[G] extends LazyLogging {
 
   private def find_fitting_objects(
       program: Node[G],
-      vars: Set[ConcreteVariable[G]],
-  ): Map[ConcreteVariable[G], Expr[G]] = {
-    var m: Map[ConcreteVariable[G], Expr[G]] = Map
-      .empty[ConcreteVariable[G], Expr[G]]
+      vars: Set[FieldVariable[G]],
+  ): Map[FieldVariable[G], Expr[G]] = {
+    var m: Map[FieldVariable[G], Expr[G]] = Map
+      .empty[FieldVariable[G], Expr[G]]
 
     val classes: Seq[Class[G]] = program.collect { case c: Class[G] => c }
     // TODO: Find differently, e.g. with lock invariant?
@@ -343,15 +344,7 @@ class RASIGenerator[G] extends LazyLogging {
       classes.find(c => c.o.getPreferredName.get.camel.startsWith("main")).get
 
     for (v <- vars) {
-      v match {
-        case FieldIndexedVariable(f, _) =>
-          m += (v -> find_field_object(classes, main_class, f))
-        case FieldSimpleVariable(f) =>
-          m += (v -> find_field_object(classes, main_class, f))
-        case FieldSizeVariable(f) =>
-          m += (v -> find_field_object(classes, main_class, f))
-        case LocalSimpleVariable(f) => m += (v -> AmbiguousThis()(f.o))
-      }
+      m += (v -> find_field_object(classes, main_class, v.f))
     }
 
     m

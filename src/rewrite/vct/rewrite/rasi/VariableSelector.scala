@@ -18,11 +18,11 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
     *   distinguished between at least two of the given valuations
     */
   def distinguishing_variables(
-      valuations: Set[Map[ConcreteVariable[G], UncertainValue]],
+      valuations: Set[Map[FieldVariable[G], UncertainValue]],
       expr: Option[Expr[G]],
-  ): Set[ConcreteVariable[G]] = {
+  ): Set[FieldVariable[G]] = {
     if (valuations.size <= 1)
-      return Set.empty[ConcreteVariable[G]]
+      return Set.empty[FieldVariable[G]]
 
     val states: Seq[AbstractState[G]] = valuations.toSeq
       .map(v => initial_state.with_new_valuation(v))
@@ -30,9 +30,9 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
       .map(s => satisfying_valuations(s, expr))
       .filter(s => s.exists(m => !m.is_empty))
     if (constraints.isEmpty)
-      Set.empty[ConcreteVariable[G]]
+      Set.empty[FieldVariable[G]]
     else
-      var_differences(constraints)
+      resolve_distinguishing_locals(var_differences(constraints))
   }
 
   /** Finds the untracked variables that distinguish between the given
@@ -47,16 +47,16 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
     */
   def deciding_variables(
       conditions: Set[Option[Expr[G]]]
-  ): Set[ConcreteVariable[G]] = {
+  ): Set[FieldVariable[G]] = {
     if (conditions.size <= 1)
-      return Set.empty[ConcreteVariable[G]]
+      return Set.empty[FieldVariable[G]]
 
     val constraints: Seq[Set[ConstraintMap[G]]] = conditions.toSeq
       .map(e => satisfying_valuations(initial_state, e))
     if (constraints.isEmpty)
-      Set.empty[ConcreteVariable[G]]
+      Set.empty[FieldVariable[G]]
     else
-      var_differences(constraints)
+      resolve_distinguishing_locals(var_differences(constraints))
   }
 
   private def satisfying_valuations(
@@ -108,7 +108,9 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
             if (state.valuations.exists(t => t._1.is(s, state)))
               Set()
             else
-              obj match { case Deref(_, ref) => Set(FieldSizeVariable(ref.decl)) }
+              obj match {
+                case Deref(_, ref) => Set(FieldSizeVariable(ref.decl))
+              }
           case _ =>
             expr.subnodes.toSet[Node[G]].collect[Expr[G]] { case e: Expr[_] =>
               e
@@ -124,23 +126,15 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
       subscript: Expr[G],
   ): Set[ResolvableVariable[G]] = {
     if (state.valuations.exists(t => t._1.is(expr, state)))
-      Set()
-    else {
-      val field: InstanceField[G] =
-        collection match {
-          case Deref(_, ref) => ref.decl
-          case _ =>
-            throw new IllegalStateException(
-              "Collection value is not dereferenced instance field!"
-            )
-        }
-      val index: Option[Int] = state.resolve_integer_expression(subscript)
-        .try_to_resolve()
-      if (index.isEmpty || index.get < 0)
-        Set()
-      else
-        Set(FieldIndexedVariable(field, index.get))
-    }
+      return Set()
+    val index: Option[Int] = state.resolve_integer_expression(subscript)
+      .try_to_resolve()
+    if (index.isEmpty || index.get < 0)
+      return Set()
+    Set(collection match {
+      case Deref(_, ref) => FieldIndexedVariable(ref.decl, index.get)
+      case Local(ref) => LocalIndexedVariable(ref.decl, index.get)
+    })
   }
 
   private def var_differences(
@@ -150,15 +144,26 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
     //       should probably be handled as sets of constraint maps, but that makes the meaning much more difficult to
     //       keep track of
     val c: Seq[Map[ConcreteVariable[G], UncertainValue]] = constraints.map(s =>
-      Utils.resolvable_to_concrete(s.reduce((m1, m2) => m1 || m2).resolve)
+      Utils.cast_resolvable_map[G, ResolvableVariable[G], ConcreteVariable[G]](
+        s.reduce((m1, m2) => m1 || m2).resolve
+      )
     )
     val vars: Seq[ConcreteVariable[G]] = c.flatMap(m => m.keySet)
     var s: Set[ConcreteVariable[G]] = Set()
     for (v <- vars) {
-      val t: Seq[UncertainValue] = c.map(m => m.getOrElse(v, UncertainValue.uncertain_of(v.t)))
+      val t: Seq[UncertainValue] = c
+        .map(m => m.getOrElse(v, UncertainValue.uncertain_of(v.t)))
       if (t.exists(_ != t.head))
         s += v
     }
     s
   }
+
+  private def resolve_distinguishing_locals(
+      vars: Set[ConcreteVariable[G]]
+  ): Set[FieldVariable[G]] =
+    vars.collect {
+      case v: FieldVariable[G] => Set(v)
+      case v: LocalVariable[G] => initial_state.local_dependencies(v.v)
+    }.flatten
 }

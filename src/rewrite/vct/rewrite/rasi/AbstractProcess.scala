@@ -322,7 +322,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
       starting_state: AbstractState[G],
       new_states: RASISuccessor[G],
   ): RASISuccessor[G] = {
-    val enabled_edges: (Set[CFGEdge[G]], Set[ConcreteVariable[G]]) =
+    val enabled_edges: (Set[CFGEdge[G]], Set[FieldVariable[G]]) =
       viable_edges(edges, starting_state)
     new_states.update_each(s =>
       RASISuccessor(
@@ -350,13 +350,13 @@ case class AbstractProcess[G](obj: Expr[G]) {
   private def viable_edges(
       edges: mutable.Set[CFGEdge[G]],
       state: AbstractState[G],
-  ): (Set[CFGEdge[G]], Set[ConcreteVariable[G]]) = {
+  ): (Set[CFGEdge[G]], Set[FieldVariable[G]]) = {
     val viable: Set[CFGEdge[G]] =
       edges.filter(e =>
         e.condition.isEmpty || state.resolve_boolean_expression(e.condition.get)
           .can_be_true
       ).toSet
-    val variables: Set[ConcreteVariable[G]] = new VariableSelector(state)
+    val variables: Set[FieldVariable[G]] = new VariableSelector(state)
       .deciding_variables(viable.map(e => e.condition))
     (viable, variables)
   }

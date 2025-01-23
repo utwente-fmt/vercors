@@ -2,14 +2,14 @@ package vct.rewrite.rasi
 
 case class RASIEdge[G](
     from: AbstractState[G],
-    vars: Set[ConcreteVariable[G]],
+    vars: Set[FieldVariable[G]],
     to: AbstractState[G],
 )
 
 sealed trait RASISuccessor[G] {
   def is_empty: Boolean
   def successors: Set[AbstractState[G]]
-  def distinguish_by: Set[ConcreteVariable[G]]
+  def distinguish_by: Set[FieldVariable[G]]
   def update_each(f: AbstractState[G] => RASISuccessor[G]): RASISuccessor[G]
   def edges(start: AbstractState[G]): Set[RASIEdge[G]]
   def removed_states(states: Set[AbstractState[G]]): RASISuccessor[G]
@@ -18,7 +18,7 @@ sealed trait RASISuccessor[G] {
 
 case object RASISuccessor {
   private def from[G](
-      variables: Set[ConcreteVariable[G]],
+      variables: Set[FieldVariable[G]],
       states: Set[AbstractState[G]],
   ): RASISuccessor[G] =
     if (states.isEmpty)
@@ -31,7 +31,7 @@ case object RASISuccessor {
       DistinguishedSuccessor(variables, states.map(s => SingleSuccessor(s)))
 
   def apply[G](
-      variables: Set[ConcreteVariable[G]],
+      variables: Set[FieldVariable[G]],
       states: Set[AbstractState[G]],
   ): RASISuccessor[G] = from(variables, states)
 
@@ -54,7 +54,7 @@ case class AlternativeSuccessor[G](successor_set: Set[RASISuccessor[G]])
   override def successors: Set[AbstractState[G]] =
     successor_set.flatMap(r => r.successors)
 
-  override def distinguish_by: Set[ConcreteVariable[G]] =
+  override def distinguish_by: Set[FieldVariable[G]] =
     successor_set.flatMap(r => r.distinguish_by)
 
   override def update_each(
@@ -86,7 +86,7 @@ case class SingleSuccessor[G](successor: AbstractState[G])
 
   override def successors: Set[AbstractState[G]] = Set(successor)
 
-  override def distinguish_by: Set[ConcreteVariable[G]] = Set()
+  override def distinguish_by: Set[FieldVariable[G]] = Set()
 
   override def update_each(
       f: AbstractState[G] => RASISuccessor[G]
@@ -106,7 +106,7 @@ case class SingleSuccessor[G](successor: AbstractState[G])
 }
 
 case class DistinguishedSuccessor[G](
-    distinguishing_variables: Set[ConcreteVariable[G]],
+    distinguishing_variables: Set[FieldVariable[G]],
     successor_set: Set[RASISuccessor[G]],
 ) extends RASISuccessor[G] {
   override def is_empty: Boolean = successor_set.forall(r => r.is_empty)
@@ -114,7 +114,7 @@ case class DistinguishedSuccessor[G](
   override def successors: Set[AbstractState[G]] =
     successor_set.flatMap(r => r.successors)
 
-  override def distinguish_by: Set[ConcreteVariable[G]] =
+  override def distinguish_by: Set[FieldVariable[G]] =
     distinguishing_variables ++ successor_set.flatMap(r => r.distinguish_by)
 
   override def update_each(

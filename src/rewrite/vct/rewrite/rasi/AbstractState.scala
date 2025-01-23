@@ -6,12 +6,13 @@ import vct.rewrite.cfg.CFGEntry
 import scala.collection.immutable.HashMap
 
 case class AbstractState[G](
-    valuations: Map[ConcreteVariable[G], UncertainValue],
+    valuations: Map[FieldVariable[G], UncertainValue],
     processes: HashMap[AbstractProcess[G], CFGEntry[G]],
-    local: Map[LocalSimpleVariable[G], UncertainValue],
+    local: Map[LocalVariable[G], UncertainValue],
+    local_dependencies: Map[Variable[G], Set[FieldVariable[G]]],
     lock: Option[AbstractProcess[G]],
     parameters: Map[FieldSimpleVariable[G], UncertainValue],
-    tracked_sequences: Map[InstanceField[G], Set[ConcreteVariable[G]]],
+    tracked_sequences: Map[InstanceField[G], Set[FieldVariable[G]]],
 ) {
 
   /** Main function of the abstract state. For all processes that could
@@ -36,7 +37,8 @@ case class AbstractState[G](
     AbstractState(
       valuations.map(v => v._1 -> UncertainValue.uncertain_of(v._1.t)),
       processes,
-      Map.empty[LocalSimpleVariable[G], UncertainValue],
+      Map.empty[LocalVariable[G], UncertainValue],
+      Map.empty[Variable[G], Set[FieldVariable[G]]],
       lock,
       parameters,
       tracked_sequences,
@@ -53,7 +55,8 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes,
-      Map.empty[LocalSimpleVariable[G], UncertainValue],
+      Map.empty[LocalVariable[G], UncertainValue],
+      Map.empty[Variable[G], Set[FieldVariable[G]]],
       lock,
       parameters,
       tracked_sequences,
@@ -77,6 +80,7 @@ case class AbstractState[G](
       valuations,
       processes.removed(process) + (process -> position),
       local,
+      local_dependencies,
       lock,
       parameters,
       tracked_sequences,
@@ -94,6 +98,7 @@ case class AbstractState[G](
       valuations,
       processes.removed(process),
       local,
+      local_dependencies,
       lock,
       parameters,
       tracked_sequences,
@@ -112,6 +117,7 @@ case class AbstractState[G](
       valuations,
       processes,
       local,
+      local_dependencies,
       Some(process),
       parameters,
       tracked_sequences,
@@ -128,6 +134,7 @@ case class AbstractState[G](
       valuations,
       processes,
       local,
+      local_dependencies,
       None,
       parameters,
       tracked_sequences,
@@ -147,9 +154,10 @@ case class AbstractState[G](
       valuations.map(t => t._2.split.getOrElse(Set(t._2)).map(v => t._1 -> v))
     Utils.cartesian_product(valuation_sets).map(vs =>
       AbstractState(
-        Map.from(vs),
+        Utils.cast_resolvable_map[G, ConcreteVariable[G], FieldVariable[G]](Map.from(vs)),
         processes,
         local,
+        local_dependencies,
         lock,
         parameters,
         tracked_sequences,
@@ -175,7 +183,7 @@ case class AbstractState[G](
           new ConstraintSolver(
             this,
             valuations.keySet
-              .union(parameters.keySet.asInstanceOf[Set[ConcreteVariable[G]]]),
+              .union(parameters.keySet.asInstanceOf[Set[FieldVariable[G]]]),
             false,
           ).resolve_assumption(expr).filter(m => !m.is_impossible)
             .reduce((m1, m2) => m1 || m2).resolve
@@ -189,6 +197,7 @@ case class AbstractState[G](
           ),
           processes,
           local,
+          local_dependencies,
           lock,
           parameters.map(v =>
             v._1 ->
@@ -221,7 +230,8 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes,
-      c.map(t => t._1.asInstanceOf[LocalSimpleVariable[G]] -> t._2),
+      Utils.cast_resolvable_map[G, ResolvableVariable[G], LocalVariable[G]](c),
+      local_dependencies, // TODO: Which untracked variables influence the locals?
       lock,
       parameters,
       tracked_sequences,
@@ -248,6 +258,7 @@ case class AbstractState[G](
           valuations,
           processes,
           local + (get_local_var(l) -> value),
+          local_dependencies,
           lock,
           parameters,
           tracked_sequences,
@@ -259,6 +270,7 @@ case class AbstractState[G](
               valuations + (concrete_variable -> value),
               processes,
               local,
+              local_dependencies,
               lock,
               parameters,
               tracked_sequences,
@@ -277,12 +289,13 @@ case class AbstractState[G](
     *   An abstract state that is a copy of this one with the updated valuation
     */
   def with_new_valuation(
-      vals: Map[ConcreteVariable[G], UncertainValue]
+      vals: Map[FieldVariable[G], UncertainValue]
   ): AbstractState[G] =
     AbstractState(
       valuations ++ vals,
       processes,
       local,
+      local_dependencies,
       lock,
       parameters,
       tracked_sequences,
@@ -303,32 +316,31 @@ case class AbstractState[G](
       variable: Expr[G],
       assigned: Expr[G],
   ): AbstractState[G] =
-    if (is_tracked_sequence(variable))
-      with_updated_tracked_sequence(variable, assigned)
-    else
-      with_updated_collection_entries(variable, assigned)
-
-  private def is_tracked_sequence(variable: Expr[G]): Boolean =
     variable match {
-      case Deref(_, ref) => tracked_sequences.contains(ref.decl)
-      case _ => false
+      case Local(ref) => local_updated_collection(ref.decl, assigned)
+      case d: Deref[G] =>
+        if (tracked_sequences.contains(d.ref.decl))
+          with_updated_tracked_sequence(d, assigned)
+        else
+          with_updated_collection_entries(d, assigned)
     }
 
   private def with_updated_tracked_sequence(
-      variable: Expr[G],
+      variable: Deref[G],
       assigned: Expr[G],
   ): AbstractState[G] = {
     val value: UncertainSequence = resolve_collection_expression(assigned)
-    val target: InstanceField[G] = variable.asInstanceOf[Deref[G]].ref.decl
-    val new_values: Map[ConcreteVariable[G], UncertainValue] =
+    val target: InstanceField[G] = variable.ref.decl
+    val new_values: Map[FieldVariable[G], UncertainValue] =
       Map.from( // TODO: Should something be done with uncertain indices...?
         value.certain_entries
           .map(t => FieldIndexedVariable(target, t._1) -> t._2)
-      ) + (FieldSizeVariable(target) -> value.len)
+      ).asInstanceOf[Map[FieldVariable[G], UncertainValue]] + (FieldSizeVariable(target) -> value.len)
     AbstractState(
       valuations.removedAll(tracked_sequences(target)) ++ new_values,
       processes,
       local,
+      local_dependencies,
       lock,
       parameters,
       tracked_sequences + (target -> new_values.keySet),
@@ -336,10 +348,10 @@ case class AbstractState[G](
   }
 
   private def with_updated_collection_entries(
-      variable: Expr[G],
+      variable: Deref[G],
       assigned: Expr[G],
   ): AbstractState[G] = {
-    val affected: Set[ConcreteVariable[G]] = valuations.keySet
+    val affected: Set[FieldVariable[G]] = valuations.keySet
       .filter(v => v.is_contained_by(variable, this))
     val indexed: Set[FieldIndexedVariable[G]] = affected.collect {
       case v: FieldIndexedVariable[G] => v
@@ -352,17 +364,39 @@ case class AbstractState[G](
     val by_index: Map[Int, FieldIndexedVariable[G]] = Map
       .from(indexed.map(v => (v.i, v)))
     val new_values: UncertainSequence = resolve_collection_expression(assigned)
-    var vals: Map[ConcreteVariable[G], UncertainValue] = valuations
+    var vals: Map[FieldVariable[G], UncertainValue] = valuations
     by_index.foreach(t => vals = vals + (t._2 -> new_values.get(t._1)))
     size.foreach(t => vals = vals + (t -> new_values.len))
     AbstractState(
       vals,
       processes,
       local,
+      local_dependencies,
       lock,
       parameters,
       tracked_sequences,
-    ) // TODO: What about locals?
+    )
+  }
+
+  private def local_updated_collection(
+      target: Variable[G],
+      assigned: Expr[G],
+  ): AbstractState[G] = {
+    val value: UncertainSequence = resolve_collection_expression(assigned)
+    val new_values: Map[LocalVariable[G], UncertainValue] =
+      Map.from( // TODO: Should something be done with uncertain indices...?
+        value.certain_entries
+          .map(t => LocalIndexedVariable(target, t._1) -> t._2)
+      ).asInstanceOf[Map[LocalVariable[G], UncertainValue]] + (LocalSizeVariable(target) -> value.len)
+    AbstractState(
+      valuations,
+      processes,
+      local.filter(t => !t._1.v.equals(target)) ++ new_values,
+      local_dependencies, // TODO: Which untracked variables influence the locals?
+      lock,
+      parameters,
+      tracked_sequences,
+    )
   }
 
   /** Updates the state by taking a specification in the form of an assumption
@@ -376,14 +410,17 @@ case class AbstractState[G](
     *   this state as the pre-state
     */
   def with_assumption(assumption: Expr[G]): RASISuccessor[G] = {
-    val constraints: Set[Map[ConcreteVariable[G], UncertainValue]] =
+    val constraints: Set[Map[FieldVariable[G], UncertainValue]] =
       new ConstraintSolver(this, valuations.keySet, is_contract = false)
-        .resolve_assumption(assumption).filter(m => !m.is_impossible)
-        .map(m => Utils.resolvable_to_concrete(m.resolve)).filter(m =>
+        .resolve_assumption(assumption).filter(m => !m.is_impossible).map(m =>
+          Utils.cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[G]](
+            m.resolve
+          )
+        ).filter(m =>
           m.forall(t => !t._2.intersection(valuations(t._1)).is_impossible)
         )
 
-    val variables: Set[ConcreteVariable[G]] = new VariableSelector(this)
+    val variables: Set[FieldVariable[G]] = new VariableSelector(this)
       .distinguishing_variables(constraints, Some(assumption))
 
     RASISuccessor(
@@ -393,6 +430,7 @@ case class AbstractState[G](
           Utils.val_intersect(valuations, m),
           processes,
           local, // TODO: Should the locals also be included in the assumption?
+          local_dependencies, // TODO: Which untracked variables influence the locals?
           lock,
           parameters,
           tracked_sequences,
@@ -420,12 +458,15 @@ case class AbstractState[G](
   ): RASISuccessor[G] = {
     val assumption: Expr[G] = Utils
       .unify_expression(Utils.contract_to_expression(post), args)
-    val constraints: Set[Map[ConcreteVariable[G], UncertainValue]] =
+    val constraints: Set[Map[FieldVariable[G], UncertainValue]] =
       new ConstraintSolver(this, valuations.keySet, is_contract = true)
-        .resolve_assumption(assumption).filter(m => !m.is_impossible)
-        .map(m => Utils.resolvable_to_concrete(m.resolve))
+        .resolve_assumption(assumption).filter(m => !m.is_impossible).map(m =>
+          Utils.cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[G]](
+            m.resolve
+          )
+        )
 
-    val variables: Set[ConcreteVariable[G]] = new VariableSelector(this)
+    val variables: Set[FieldVariable[G]] = new VariableSelector(this)
       .distinguishing_variables(constraints, Some(assumption))
 
     RASISuccessor(
@@ -435,6 +476,7 @@ case class AbstractState[G](
           valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)),
           processes,
           local,
+          local_dependencies,
           lock,
           parameters,
           tracked_sequences,
@@ -1006,11 +1048,9 @@ case class AbstractState[G](
       //  so object equality does not need to be considered; does that make sense?
     }
 
-  private def variable_from_expr(
-      variable: Expr[G]
-  ): Option[ConcreteVariable[G]] =
+  private def variable_from_expr(variable: Expr[G]): Option[FieldVariable[G]] =
     valuations.keys.collectFirst {
-      case c: ConcreteVariable[G] if c.is(variable, this) => c
+      case c: FieldVariable[G] if c.is(variable, this) => c
     }
 
   private def parameter_from_expr(
@@ -1034,9 +1074,7 @@ case class AbstractState[G](
     * @return
     *   An expression that encodes this state
     */
-  def to_expression(
-      objs: Option[Map[ConcreteVariable[G], Expr[G]]]
-  ): Expr[G] = {
+  def to_expression(objs: Option[Map[FieldVariable[G], Expr[G]]]): Expr[G] = {
     val sorted_valuations = valuations.toSeq
       .sortWith((t1, t2) => t1._1.compare(t2._1))
     sorted_valuations.map(v =>

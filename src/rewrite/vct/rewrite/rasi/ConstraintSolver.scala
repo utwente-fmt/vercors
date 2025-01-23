@@ -460,7 +460,8 @@ class ConstraintSolver[G](
       variable: Expr[G]
   ): Set[(FieldIndexedVariable[G], Int)] =
     variable match {
-      case LiteralSeq(_, _) | UntypedLiteralSeq(_) | Old(_, _) => Set()
+      case LiteralSeq(_, _) | UntypedLiteralSeq(_) | Old(_, _) | Local(_) =>
+        Set()
       case d: Deref[_] =>
         val variables: Set[FieldIndexedVariable[G]] = vars
           .filter(v => v.is_contained_by(d, state)).collect {

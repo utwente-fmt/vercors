@@ -3,33 +3,12 @@ package vct.main.stages
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.LiteralReadable
 import hre.stages.Stage
-import vct.col.ast.{
-  Declaration,
-  Deref,
-  Expr,
-  InstanceField,
-  InstanceMethod,
-  InstancePredicate,
-  IntType,
-  Node,
-  Predicate,
-  Procedure,
-  Program,
-  TBool,
-  Verification,
-  VerificationContext,
-}
+import vct.col.ast.{Declaration, Deref, Expr, InstanceField, InstancePredicate, IntType, Node, Predicate, Procedure, Program, TBool, Verification, VerificationContext}
 import vct.col.origin.{LabelContext, Origin, PreferredName}
 import vct.col.print.Ctx
 import vct.col.rewrite.Generation
 import vct.options.Options
-import vct.rewrite.rasi.{
-  ConcreteVariable,
-  FieldSimpleVariable,
-  FieldIndexedVariable,
-  RASIGenerator,
-  FieldSizeVariable,
-}
+import vct.rewrite.rasi.{FieldIndexedVariable, FieldSimpleVariable, FieldSizeVariable, FieldVariable, RASIGenerator}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
@@ -62,9 +41,9 @@ case class GenerateRASI(
     val main_method =
       in.collectFirst { case m: Procedure[_] if m.vesuv_entry => m }.get
     val (variables, tracked_sequences)
-        : (Set[ConcreteVariable[Generation]], Set[InstanceField[Generation]]) =
+        : (Set[FieldVariable[Generation]], Set[InstanceField[Generation]]) =
       resolve_variables(in, vars.getOrElse(Seq()))
-    val split_on_variables: Option[Set[ConcreteVariable[Generation]]] = split
+    val split_on_variables: Option[Set[FieldVariable[Generation]]] = split
       .map(s => resolve_split_variables(in, s))
     val parameter_invariant: Option[InstancePredicate[Generation]] =
       get_parameter_invariant(in)
@@ -132,14 +111,14 @@ case class GenerateRASI(
   private def resolve_split_variables(
       in: Node[Generation],
       names: Seq[String],
-  ): Set[ConcreteVariable[Generation]] = resolve_variables(in, names)._1
+  ): Set[FieldVariable[Generation]] = resolve_variables(in, names)._1
 
   private def resolve_variables(
       in: Node[Generation],
       names: Seq[String],
-  ): (Set[ConcreteVariable[Generation]], Set[InstanceField[Generation]]) = {
-    var concrete_variables: Set[ConcreteVariable[Generation]] = Set
-      .empty[ConcreteVariable[Generation]]
+  ): (Set[FieldVariable[Generation]], Set[InstanceField[Generation]]) = {
+    var concrete_variables: Set[FieldVariable[Generation]] = Set
+      .empty[FieldVariable[Generation]]
     var tracked_sequences: Set[InstanceField[Generation]] = Set
       .empty[InstanceField[Generation]]
 
