@@ -1,7 +1,7 @@
 #include <sycl/sycl.hpp>
 
 /*@
-  requires \pointer(a, 10, write);
+  context \pointer(a, 10, write);
 */
 void test(int* a) {
 	sycl::queue myQueue;
@@ -27,6 +27,8 @@ void test(int* a) {
       }
     );
   } // Leaving scope, which destroys aBuffer, which waits on the kernel to terminate as it uses aBuffer
+
+  //@ assert (\forall int i; 0 <= i && i < 10 ==> a[i] == a[sycl::linearize2(i/5, i%5, 2,5)]);
 
   //@ assert (\forall int i; i >= 0 && i < 10; a[i] == 10);
 
