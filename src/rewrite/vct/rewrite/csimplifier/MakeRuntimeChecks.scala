@@ -244,15 +244,19 @@ case class MakeRuntimeChecks[Pre <: Generation]()
           Nil,
           Nil,
         )(i.blame)(i.o)
-      case i: PredicateApply[Pre] =>
-        ProcedureInvocation[Post](
-          succ(i.ref.decl),
-          i.args.map(dispatch),
-          Nil,
-          Nil,
-          Nil,
-          Nil,
-        )(PanicBlame("failed to apply predicate"))(i.o)
+      case i: PredicateApplyExpr[Pre] =>
+        i.apply match {
+          case PredicateApply(ref, args) =>
+            ProcedureInvocation[Post](
+              succ(ref.decl),
+              args.map(dispatch),
+              Nil,
+              Nil,
+              Nil,
+              Nil,
+            )(PanicBlame("failed to apply predicate"))(i.o)
+          case _ => super.dispatch(node)
+        }
       case r: Scale[Pre] => dispatch(r.res)
       case i: Implies[Pre] =>
         Or(Not[Post](dispatch(i.left))(i.left.o), dispatch(i.right))(i.o)
