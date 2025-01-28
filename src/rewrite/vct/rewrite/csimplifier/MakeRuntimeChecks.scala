@@ -328,7 +328,7 @@ case class MakeRuntimeChecks[Pre <: Generation]()
 //              olds.top.addOne(r.ref.decl, old)
 //            }
 //          }
-          val cached = olds.top.map { case (e, old) =>
+          lazy val cached = olds.top.map { case (e, old) =>
             implicit val o: Origin = e.o
             assignLocal(old.get, dispatch(e))
           }
@@ -336,10 +336,11 @@ case class MakeRuntimeChecks[Pre <: Generation]()
           // generate new method body
           if (simplify) {
             // check preconditions
-            val pres = gatherConditions(meth.contract.requires).flatMap(assert)
+            lazy val pres = gatherConditions(meth.contract.requires)
+              .flatMap(assert)
 
             // havoc global assignment targets
-            val havocced =
+            lazy val havocced =
               meth.body match {
                 case Some(b) => havocGlobals(b)
                 case None => Seq()
@@ -347,7 +348,7 @@ case class MakeRuntimeChecks[Pre <: Generation]()
 
             // assume postcondition
             implicit val o: Origin = meth.o
-            val newBody =
+            lazy val newBody =
               if (meth.returnType == TVoid[Pre]()) {
                 val newPost = Scope[Post](
                   olds.top.values.toSeq,
@@ -382,11 +383,12 @@ case class MakeRuntimeChecks[Pre <: Generation]()
             )
             newProc
           } else { // i.e. not simplifying
-            // assume precondition
-            val pres = gatherConditions(meth.contract.requires).flatMap(assert)
+            // assert precondition
+            lazy val pres = gatherConditions(meth.contract.requires)
+              .flatMap(assert)
 
             // if non-void, then return statements check postcondition. if void, do it at end of method
-            val posts =
+            lazy val posts =
               if (meth.returnType == TVoid[Pre]())
                 gatherConditions(meth.contract.ensures).flatMap(assert)
               else
@@ -433,13 +435,13 @@ case class MakeRuntimeChecks[Pre <: Generation]()
         val posts = gatherConditions(meth.contract.ensures).flatMap(assert)
         if (posts.nonEmpty) {
           val d = LocalDecl(retV)(retV.o)
-          val asgn = dispatchExpr(r.result)
-            .map(e => assignLocal(retV.get(r.o), e)(r.o))
+          val asgn = dispatchExpr(r.result, false)
+            .map(e => assignLocal(retV.get(r.o), e._1)(r.o))
           val ret = Return(retV.get(r.o))(r.o)
           Block[Post](Seq(d) ++ asgn ++ posts ++ Seq(ret))(r.o)
         } else {
-          dispatchExpr(r.result) match {
-            case Some(e) => r.rewrite(result = e)
+          dispatchExpr(r.result, false) match {
+            case Some(e) => r.rewrite(result = e._1)
             case _ => Block[Post](Nil)(r.o)
           }
         }
@@ -457,9 +459,10 @@ case class MakeRuntimeChecks[Pre <: Generation]()
           case Some(a) =>
             val body =
               Block[Post](Seq(a, loop.body.rewriteDefault()))(loop.body.o)
-            Block[Post](Seq(loop.rewrite(body = body, contract = contract), a))(
-              loop.o
-            )
+            Block[Post](Seq(
+              loop.rewrite(body = body, contract = contract),
+              assert(inv.invariant).get,
+            ))(loop.o)
           case _ => loop.rewrite(contract = contract)
         }
       case _ => super.dispatch(loop) // todo? iterationContract, not handled yet
@@ -493,50 +496,71 @@ case class MakeRuntimeChecks[Pre <: Generation]()
     * permissions. Todo: Only looking at top level, not checking for e.g.
     * quantifiers inside equalities
     */
-  private def dispatchExpr(node: Expr[Pre]): Option[Expr[Post]] = {
+  private def dispatchExpr(
+      node: Expr[Pre],
+      isAssert: Boolean,
+  ): Option[(Expr[Post], Seq[Variable[Post]])] = {
     node match {
-      case _: Binder[Pre] => None // quantifiers
+      case _: Binder[Pre] => // quantifiers
+        node match {
+          case ex: Exists[Pre] if !isAssert =>
+            logger.info("ex vars: " + ex.bindings.toString())
+            val body = dispatchExpr(ex.body, isAssert)
+            val vars = variables.dispatch(ex.bindings)
+            body.map(pair => (pair._1, vars ++ pair._2))
+          case all: Forall[Pre] if isAssert =>
+//            all.rewriteDefault()
+            val body = dispatchExpr(all.body, isAssert)
+            val vars = variables.dispatch(all.bindings)
+            logger.info("forall: " + body.toString)
+            body.map(pair => (pair._1, vars ++ pair._2))
+          case _ => None
+        }
       case _: Perm[Pre] => None
       case _: Value[Pre] => None
       case _: PermPointer[Pre] => None
       case _: Wand[Pre] => None
       case a: Star[Pre] => // separating conjunct: check both subexpressions
-        dispatchExpr(a.left) match {
-          case Some(l) if l != tt[Post] =>
-            dispatchExpr(a.right) match {
-              case Some(r) if r != tt[Post] => Some(And[Post](l, r)(a.o))
+        dispatchExpr(a.left, isAssert) match {
+          case Some(l) if l._1 != tt[Post] =>
+            dispatchExpr(a.right, isAssert) match {
+              case Some(r) if r._1 != tt[Post] =>
+                Some((And[Post](l._1, r._1)(a.o), l._2 ++ r._2))
               case _ => Some(l)
             }
-          case _ => dispatchExpr(a.right)
+          case _ => dispatchExpr(a.right, isAssert)
         }
       case a: And[Pre] => // conjunction: check both subexpressions
-        dispatchExpr(a.left) match {
-          case Some(l) if l != tt[Post] =>
-            dispatchExpr(a.right) match {
-              case Some(r) if r != tt[Post] => Some(And[Post](l, r)(a.o))
+        dispatchExpr(a.left, isAssert) match {
+          case Some(l) if l._1 != tt[Post] =>
+            dispatchExpr(a.right, isAssert) match {
+              case Some(r) if r._1 != tt[Post] =>
+                Some((And[Post](l._1, r._1)(a.o), l._2 ++ r._2))
               case _ => Some(l)
             }
-          case _ => dispatchExpr(a.right)
+          case _ => dispatchExpr(a.right, isAssert)
         }
       case i: Implies[Pre] =>
-        dispatchExpr(i.right).flatMap(e =>
-          dispatchExpr(i.left).map(l => Or(Not[Post](l)(l.o), e)(i.o))
+        dispatchExpr(i.right, isAssert).flatMap(e =>
+          dispatchExpr(i.left, isAssert)
+            .map(l => (Or(Not[Post](l._1)(l._1.o), e._1)(i.o), l._2 ++ e._2))
         )
       case o: Or[Pre] =>
-        dispatchExpr(o.left) match {
-          case Some(l) if l != tt[Post] =>
-            dispatchExpr(o.right) match {
-              case Some(r) if r != tt[Post] => Some(Or[Post](l, r)(o.o))
+        dispatchExpr(o.left, isAssert) match {
+          case Some(l) if l._1 != tt[Post] =>
+            dispatchExpr(o.right, isAssert) match {
+              case Some(r) if r._1 != tt[Post] =>
+                Some((Or[Post](l._1, r._1)(o.o), l._2 ++ r._2))
               case _ => Some(l)
             }
           case _ =>
-            dispatchExpr(o.right) match {
-              case Some(r) if r != tt[Post] => Some(r)
+            dispatchExpr(o.right, isAssert) match {
+              case Some(r) if r._1 != tt[Post] => Some(r)
               case _ => None
             }
         }
       // TODO: filter other non-C expressions, e.g. seqs, \array
-      case _ => Some(dispatch(node))
+      case _ => Some((dispatch(node), Nil))
     }
   }
 
@@ -604,26 +628,31 @@ case class MakeRuntimeChecks[Pre <: Generation]()
     */
   def assert(expr: Expr[Pre]): Option[Statement[Post]] = {
     // TODO: figure out blame
-    val rewritten = dispatchExpr(expr)
-    rewritten match {
-      case Some(e) =>
-        if (e != tt[Post]) {
-          val tern =
-            Select(e, CIntegerValue(1)(expr.o), CIntegerValue(0)(expr.o))(
-              expr.o
+    variables.scope {
+      val rewritten = dispatchExpr(expr, true)
+      rewritten match {
+        case Some(e) =>
+          if (e._1 != tt[Post]) {
+            val tern =
+              Select(e._1, CIntegerValue(1)(expr.o), CIntegerValue(0)(expr.o))(
+                expr.o
+              )
+            Some(
+              Scope(
+                e._2,
+                InvokeProcedure[Post](
+                  verifierAssert.ref,
+                  Seq(tern),
+                  Nil,
+                  Nil,
+                  Nil,
+                  Nil,
+                )(PanicBlame("Assert failed"))(expr.o),
+              )(expr.o)
             )
-          Some(
-            InvokeProcedure[Post](
-              verifierAssert.ref,
-              Seq(tern),
-              Nil,
-              Nil,
-              Nil,
-              Nil,
-            )(PanicBlame("Assert failed"))(expr.o)
-          )
-        } else { None }
-      case None => None
+          } else { None }
+        case None => None
+      }
     }
   }
 
@@ -631,26 +660,31 @@ case class MakeRuntimeChecks[Pre <: Generation]()
     * for given expression (if it is an expression CPAchecker can handle)
     */
   def assume(expr: Expr[Pre]): Option[Statement[Post]] = {
-    val rewritten = dispatchExpr(expr)
-    rewritten match {
-      case Some(e) =>
-        if (e != tt[Post]) {
-          val tern =
-            Select(e, CIntegerValue(1)(expr.o), CIntegerValue(0)(expr.o))(
-              expr.o
+    variables.scope {
+      val rewritten = dispatchExpr(expr, false)
+      rewritten match {
+        case Some(e) =>
+          if (e._1 != tt[Post]) {
+            val tern =
+              Select(e._1, CIntegerValue(1)(expr.o), CIntegerValue(0)(expr.o))(
+                expr.o
+              )
+            Some(
+              Scope(
+                e._2,
+                InvokeProcedure[Post](
+                  verifierAssume.ref,
+                  Seq(tern),
+                  Nil,
+                  Nil,
+                  Nil,
+                  Nil,
+                )(PanicBlame("Assume failed"))(expr.o),
+              )(expr.o)
             )
-          Some(
-            InvokeProcedure[Post](
-              verifierAssume.ref,
-              Seq(tern),
-              Nil,
-              Nil,
-              Nil,
-              Nil,
-            )(PanicBlame("Assume failed"))(expr.o)
-          )
-        } else { None }
-      case None => None
+          } else { None }
+        case None => None
+      }
     }
   }
 
