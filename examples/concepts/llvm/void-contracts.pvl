@@ -1,0 +1,11 @@
+requires ptr != null;
+context is_float ==> Perm((pointer<float32>)ptr, write\2);
+context !is_float ==> Perm((pointer<int>)ptr, write\2);
+ensures is_float ==> \result == *((pointer<float32>)ptr) > 10.0;
+ensures !is_float ==> \result == *((pointer<int>)ptr) > 10;
+boolean gt10(pointer<void> ptr, boolean is_float);
+
+ensures \result == a > 10;
+boolean useInt(int a);
+ensures \result == a > 10.0;
+boolean useFloat(float32 a);

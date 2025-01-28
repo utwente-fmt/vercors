@@ -1,5 +1,0 @@
-choreography Main() {
-	run {
-		int i = 17; // Error, not allowed (yet)
-	}
-}

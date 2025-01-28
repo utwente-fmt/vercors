@@ -37,10 +37,12 @@ case class PVLToCol[G](
 
   def convert(implicit enum: EnumDeclContext): Enum[G] =
     enum match {
-      case EnumDecl0(_, name, _, constants, _, _) =>
-        new vct.col.ast.Enum[G](constants.map(convertConstants(_)).getOrElse(
-          Nil
-        ))(origin(enum).sourceName(convert(name)))
+      case EnumDecl0(_, name, _, Some(constants), _, _) =>
+        new vct.col.ast.Enum[G](convertConstants(constants))(
+          origin(enum).sourceName(convert(name))
+        )
+      case _ =>
+        fail(enum, "This enumeration must specify at least one constant")
     }
 
   def convertConstants(
@@ -64,7 +66,7 @@ case class PVLToCol[G](
         withContract(
           contract,
           contract =>
-            PVLChorRun(
+            new PVLChorRun(
               convert(body),
               contract.consumeApplicableContract(blame(decl)),
             )(blame(decl))(origin(decl).where(name = "run")),
@@ -159,7 +161,7 @@ case class PVLToCol[G](
         withContract(
           contract,
           contract => {
-            new Class(
+            new ByReferenceClass(
               decls = decls.flatMap(convert(_)),
               supports = Nil,
               intrinsicLockInvariant = AstBuildHelpers
@@ -305,7 +307,9 @@ case class PVLToCol[G](
   def convert(implicit expr: UnfoldingExprContext): Expr[G] =
     expr match {
       case UnfoldingExpr0(_, pred, _, body) =>
-        Unfolding(convert(pred), convert(body))(blame(expr))
+        Unfolding(AmbiguousFoldTarget(convert(pred)), convert(body))(blame(
+          expr
+        ))
       case UnfoldingExpr1(inner) => convert(inner)
     }
 
@@ -408,8 +412,10 @@ case class PVLToCol[G](
     expr match {
       case UnaryExpr0(_, inner) => Not(convert(inner))
       case UnaryExpr1(_, inner) => UMinus(convert(inner))
-      case UnaryExpr2(op, inner) => convert(expr, op, convert(inner))
-      case UnaryExpr3(inner) => convert(inner)
+      case UnaryExpr2(_, inner) => DerefPointer(convert(inner))(blame(expr))
+      case UnaryExpr3(_, inner) => AddrOf(convert(inner))
+      case UnaryExpr4(op, inner) => convert(expr, op, convert(inner))
+      case UnaryExpr5(inner) => convert(inner)
     }
 
   def convert(implicit expr: NewExprContext): Expr[G] =
@@ -472,6 +478,7 @@ case class PVLToCol[G](
         )
       case PvlLongChorExpr(_, _, inner, _) => ChorExpr(convert(inner))
       case PvlShortChorExpr(_, _, _, _, inner, _) => ChorExpr(convert(inner))
+      case PvlCastExpr(_, t, _, e) => Cast(convert(e), TypeValue(convert(t)))
       case PvlSender(_) => PVLSender()
       case PvlReceiver(_) => PVLReceiver()
       case PvlMessage(_) => PVLMessage()
@@ -629,18 +636,18 @@ case class PVLToCol[G](
   )(implicit node: ParserRuleContext): Statement[G] = {
     val Access0(receiver, target) = to
     val Access0(sender, msg) = from
-    val comm =
-      PVLCommunicate[G](
+    val comm = {
+      new PVLCommunicate[G](
         receiver.map(convertParticipant(_)),
         convert(target),
         sender.map(convertParticipant(_)),
         convert(msg),
       )(blame(node))
-    inv match {
-      case Some(node @ ChannelInvariant0(_, inv, _)) =>
-        PVLChannelInvariant[G](comm, convert(inv))(origin(node))
-      case None => comm
     }
+    PVLCommunicateStatement(
+      comm,
+      inv.map { case node @ ChannelInvariant0(_, inv, _) => convert(inv) },
+    )(origin(node))
   }
 
   def convertParticipant(
@@ -1023,6 +1030,8 @@ case class PVLToCol[G](
           case "pure" => collector.pure += mod
           case "inline" => collector.inline += mod
           case "thread_local" => collector.threadLocal += mod
+          case "bip_annotation" =>
+            fail(mod, "This modifier is not allowed here.")
         }
       case ValStatic(_) => collector.static += mod
     }
@@ -1220,12 +1229,11 @@ case class PVLToCol[G](
       case ValPostfix2(_, idx, _, v, _) =>
         SeqUpdate(xs, convert(idx), convert(v))
       case ValPostfix3(_, name, _, args, _) =>
-        CoalesceInstancePredicateApply(
+        PredicateApplyExpr(CoalesceInstancePredicateApply(
           xs,
           new UnresolvedRef[G, InstancePredicate[G]](convert(name)),
           args.map(convert(_)).getOrElse(Nil),
-          WritePerm(),
-        )
+        ))
     }
 
   def convert(
@@ -1260,8 +1268,10 @@ case class PVLToCol[G](
       case ValPackage(_, expr, innerStat) =>
         WandPackage(convert(expr), convert(innerStat))(blame(stat))
       case ValApplyWand(_, wand, _) => WandApply(convert(wand))(blame(stat))
-      case ValFold(_, predicate, _) => Fold(convert(predicate))(blame(stat))
-      case ValUnfold(_, predicate, _) => Unfold(convert(predicate))(blame(stat))
+      case ValFold(_, predicate, _) =>
+        Fold(AmbiguousFoldTarget(convert(predicate)))(blame(stat))
+      case ValUnfold(_, predicate, _) =>
+        Unfold(AmbiguousFoldTarget(convert(predicate)))(blame(stat))
       case ValOpen(_, _, _) => ??(stat)
       case ValClose(_, _, _) => ??(stat)
       case ValAssert(_, assn, _) => Assert(convert(assn))(blame(stat))
@@ -1570,6 +1580,8 @@ case class PVLToCol[G](
       case ValOperatorName0("+") => OperatorLeftPlus()
       case ValOperatorName1(id, "+") if convert(id) == "right" =>
         OperatorRightPlus()
+      case ValOperatorName1(_, _) =>
+        fail(operator, "only operator name `right` is currently supported")
     }
 
   def convert(
@@ -1907,7 +1919,9 @@ case class PVLToCol[G](
             groupText.toInt,
         )
       case ValUnfolding(_, predExpr, _, body) =>
-        Unfolding(convert(predExpr), convert(body))(blame(e))
+        Unfolding(AmbiguousFoldTarget(convert(predExpr)), convert(body))(blame(
+          e
+        ))
       case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
       case ValOldLabeled(_, _, label, _, _, expr, _) =>
         Old(

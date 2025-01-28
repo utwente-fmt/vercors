@@ -1,7 +1,7 @@
 package vct.col.ast.statement.exceptional
 
 import vct.col.ast._
-import vct.col.print.{Ctx, Doc, Empty, Text}
+import vct.col.print.{Ctx, Doc, Empty, Nest, Text}
 import vct.col.ast.ops.ReturnOps
 import vct.col.check.{CheckContext, CheckError, ReturnOutsideMethod}
 
@@ -13,7 +13,7 @@ trait ReturnImpl[G] extends ExceptionalStatementImpl[G] with ReturnOps[G] {
           _: InstanceOperatorMethod[G] =>
         ()
       case _: JavaMethod[G] | _: CFunctionDefinition[G] |
-          _: CPPFunctionDefinition[G] | _: LlvmFunctionDefinition[G] =>
+          _: CPPFunctionDefinition[G] | _: LLVMFunctionDefinition[G] =>
         ()
       case _: BipTransition[G] | _: BipGuard[G] | _: BipOutgoingData[G] => ()
     }
@@ -30,7 +30,7 @@ trait ReturnImpl[G] extends ExceptionalStatementImpl[G] with ReturnOps[G] {
       (if (result == Void[G]())
          Text(";")
        else
-         Empty <+> result <> ";")
+         Empty <+> Nest(result.show) <> ";")
 
   override def expr: Expr[G] = this.result
 }

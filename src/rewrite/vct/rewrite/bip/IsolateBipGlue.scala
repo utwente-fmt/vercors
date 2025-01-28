@@ -38,5 +38,5 @@ case object IsolateBipGlue extends LazyLogging {
   }
 
   def getBipGlues[G](d: Declaration[G]): Seq[JavaBipGlue[G]] =
-    d.transSubnodes.collect { case g @ JavaBipGlue(_) => g }
+    d.collect { case g @ JavaBipGlue(_) => g }
 }

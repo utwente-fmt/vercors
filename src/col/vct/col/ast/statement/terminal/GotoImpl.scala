@@ -8,7 +8,7 @@ import vct.col.ast.ops.GotoOps
 trait GotoImpl[G] extends GotoOps[G] {
   this: Goto[G] =>
   override def check(context: CheckContext[G]): Seq[CheckError] =
-    context.currentApplicable.get.body.get.transSubnodes.collectFirst {
+    context.currentApplicable.get.body.get.collectFirst {
       case label: LabelDecl[G] if label == lbl.decl => label
     } match {
       case Some(_) => Seq()

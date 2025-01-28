@@ -43,7 +43,7 @@ class AbstractRewriter extends AllFamiliesGenerator {
         def porcelainRefSeqSucc[RefDecl <: $Declaration[Post]](refs: $SeqType[$RefType[Pre, _]])(implicit tag: $ClassTag[RefDecl]): $OptionType[$SeqType[$RefType[Post, RefDecl]]] = None
 
         val allScopes: $AllScopes[Pre, Post] = $AllScopesObj()
-        def succProvider: $SuccessorsProvider[Pre, Post] = this.allScopes.freeze
+        def succProvider: $SuccessorsProvider[Pre, Post] = this.allScopes
 
         def anySucc[RefDecl <: $Declaration[Post]](`~decl`: $Declaration[Pre])(implicit tag: $ClassTag[RefDecl]): $RefType[Post, RefDecl] =
           succProvider.anySucc[RefDecl](`~decl`)(tag)

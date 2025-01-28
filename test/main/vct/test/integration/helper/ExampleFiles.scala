@@ -9,9 +9,6 @@ case object ExampleFiles {
     "examples/private/",
     "examples/archive/",
     "examples/concepts/resourceValues",
-    "examples/technical/veymont",
-    "examples/concepts/veymont",
-    "examples/publications/2023/VeyMontToolPaper",
   ).map(_.replaceAll("/", File.separator))
 
   val IGNORE_EXTS: Seq[String] = Seq(".h", ".bib", ".xml")
@@ -22,7 +19,6 @@ case object ExampleFiles {
     "Makefile",
     "README",
     "LICENSE.txt",
-    "veymont-tictactoemn-seq.pvl",
   )
 
   val MAIN_FILES: Set[String] = Set(
@@ -32,14 +28,24 @@ case object ExampleFiles {
     "examples/concepts/openmp/test-other.c",
   ).map(_.replaceAll("/", File.separator))
 
+  val CONTRACT_FILES: Set[String] = Set(
+    "examples/concepts/llvm/cubed-contracts.pvl",
+    "examples/concepts/llvm/void-contracts.pvl",
+    "examples/concepts/llvm/pallas/pallas_function_contract.c",
+    "examples/concepts/llvm/pallas/pallas_function_contract_fail.c",
+  ).map(_.replaceAll("/", File.separator))
+
   val EXCLUSIONS: Seq[Path => Boolean] = Seq(
     f => IGNORE_DIRS.exists(dir => f.toString.startsWith(dir)),
     f => MAIN_FILES.contains(f.toString),
+    f => CONTRACT_FILES.contains(f.toString),
     f => IGNORE_FILES.contains(f.getFileName.toString),
     f => IGNORE_EXTS.exists(ext => f.getFileName.toString.endsWith(ext)),
   )
 
   val FILES: Seq[Path] = find(Paths.get("examples"))
+
+  val PUBLICATIONS_DIR: Path = Paths.get("examples", "publications")
 
   def find(directory: Path): Seq[Path] =
     Files.list(directory).toScala(Seq).filterNot(f => EXCLUSIONS.exists(_(f)))

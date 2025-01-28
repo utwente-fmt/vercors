@@ -11,6 +11,7 @@ case class NodeInfo[T <: Node[_]](node: T) extends Info {
   var invariant: Option[LoopInvariant[_]] = None
   var starall: Option[Starall[_]] = None
   var unfolding: Option[Unfolding[_]] = None
+  var unfold: Option[Unfold[_]] = None
   var mapGet: Option[MapGet[_]] = None
   var dividingExpr: Option[DividingExpr[_]] = None
 

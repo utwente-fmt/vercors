@@ -17,7 +17,7 @@ class C {
 
     requires [1\4]r();
     void m2() {
-        unfold [1\2][1\2]r();
+        unfold [1\4]r();
         assert Perm(x, 1\4);
     }
 
@@ -30,7 +30,7 @@ class C {
 
     requires [1\8]s();
     void m4() {
-        fold [1\4][1\4]s();
+        fold [1\16]s();
         assert x == y;
         assert Perm(y, 1\16) ** Perm(x, 1\8);
     }

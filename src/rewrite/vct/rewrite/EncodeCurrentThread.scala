@@ -51,7 +51,7 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
       // PB: although a pure method will become a function, it should really be possible to mark a pure method as thread
       // local.
       case m: AbstractMethod[Pre] => !m.pure
-      case m: LlvmFunctionDefinition[Pre] => !m.pure
+      case m: LLVMFunctionDefinition[Pre] => !m.pure
 
       case _: ADTFunction[Pre] => false
       case _: ProverFunction[Pre] => false
@@ -74,6 +74,20 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
             )
           }),
         )
+      case chor: Choreography[Pre] =>
+        implicit val o = chor.o
+        // Assume the whole choreography gets analyzed in the context of one "currentThread".
+        // If someone makes choreographies callable in the future, they can decide if they
+        // also want distinct currentThread values for each endpoint.
+        val currentThreadVar = new Variable[Post](TInt())(currentThreadIdOrigin)
+        currentThreadId.having(currentThreadVar.get) {
+          chor.rewrite(params =
+            variables.collect {
+              currentThreadVar.declare()
+              chor.params.foreach(dispatch)
+            }._1
+          ).succeed(chor)
+        }
       case app: Applicable[Pre] =>
         if (wantsThreadLocal(app)) {
           val currentThreadVar =

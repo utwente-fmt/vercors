@@ -6,6 +6,7 @@ import vct.col.ast.{BooleanValue, Expr, IntType, Not, TBool, TInt, Type}
 trait UncertainValue {
   def can_be_equal(other: UncertainValue): Boolean
   def can_be_unequal(other: UncertainValue): Boolean
+  def is_uncertain: Boolean
   def is_impossible: Boolean
   def is_subset_of(other: UncertainValue): Boolean
   def complement(): UncertainValue
@@ -15,6 +16,7 @@ trait UncertainValue {
   def ==(other: UncertainValue): UncertainBooleanValue
   def !=(other: UncertainValue): UncertainBooleanValue
   def t[G]: Type[G]
+  def split: Option[Set[UncertainValue]]
 }
 case object UncertainValue {
   def uncertain_of(t: Type[_]): UncertainValue =
@@ -42,6 +44,8 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean)
       case UncertainBooleanValue(t, f) => can_be_true && f || can_be_false && t
       case _ => true
     }
+
+  override def is_uncertain: Boolean = can_be_true && can_be_false
 
   override def is_impossible: Boolean = !can_be_true && !can_be_false
 
@@ -98,6 +102,19 @@ case class UncertainBooleanValue(can_be_true: Boolean, can_be_false: Boolean)
     }
 
   override def t[G]: Type[G] = TBool[G]()
+
+  override def split: Option[Set[UncertainValue]] = {
+    if (is_impossible)
+      None
+    else {
+      var res: Set[UncertainValue] = Set.empty[UncertainValue]
+      if (can_be_true)
+        res += UncertainBooleanValue.from(true)
+      if (can_be_false)
+        res += UncertainBooleanValue.from(false)
+      Some(res)
+    }
+  }
 
   def try_to_resolve(): Option[Boolean] = {
     if (can_be_true && !can_be_false)
@@ -159,6 +176,8 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
       case _ => true
     }
 
+  override def is_uncertain: Boolean = value == UnboundedInterval
+
   override def is_impossible: Boolean = value.empty()
 
   override def is_subset_of(other: UncertainValue): Boolean =
@@ -209,6 +228,12 @@ case class UncertainIntegerValue(value: Interval) extends UncertainValue {
     }
 
   override def t[G]: Type[G] = TInt[G]()
+
+  override def split: Option[Set[UncertainValue]] =
+    value.values match {
+      case None => None
+      case Some(ints) => Some(ints.map(i => UncertainIntegerValue.single(i)))
+    }
 
   def try_to_resolve(): Option[Int] = value.try_to_resolve()
 
@@ -284,6 +309,7 @@ case class UncertainSequence(
       )
     )
       return UncertainBooleanValue.from(false)
+
     val length: Option[Int] = len.try_to_resolve()
     val other_length: Option[Int] = other.len.try_to_resolve()
     if (

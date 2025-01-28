@@ -7,6 +7,7 @@ import vct.col.rewrite.NonLatchingRewriter
 import vct.col.typerules.CoercionUtils
 import vct.col.print._
 import vct.col.ast.ops.TypeFamilyOps
+import vct.col.util.IdentitySuccessorsProvider
 
 trait TypeImpl[G] extends TypeFamilyOps[G] {
   this: Type[G] =>
@@ -49,19 +50,23 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
     CoercionUtils.getAnySmtlibArrayCoercion(this).map(_._2)
   def asSmtlibSeq: Option[TSmtlibSeq[G]] =
     CoercionUtils.getAnySmtlibSeqCoercion(this).map(_._2)
+  def asByReferenceClass: Option[TByReferenceClass[G]] =
+    this match {
+      // TODO: Check uses should this be a coercion to also catch null and the like?
+      case cls: TByReferenceClass[G] => Some(cls)
+      case _ => None
+    }
+  def asByValueClass: Option[TByValueClass[G]] =
+    this match {
+      case cls: TByValueClass[G] => Some(cls)
+      case _ => None
+    }
   /*def asVector: Option[TVector] = optMatch(this) { case vec: TVector => vec }*/
 
   def particularize(substitutions: Map[Variable[G], Type[G]]): Type[G] = {
     case object Particularize extends NonLatchingRewriter[G, G] {
-      case object IdentitySuccessorsProvider
-          extends SuccessorsProviderTrafo[G, G](allScopes.freeze) {
-        override def preTransform[I <: Declaration[G], O <: Declaration[G]](
-            pre: I
-        ): Option[O] = Some(pre.asInstanceOf[O])
-      }
-
-      override def succProvider: SuccessorsProvider[G, G] =
-        IdentitySuccessorsProvider
+      override val succProvider: SuccessorsProvider[G, G] =
+        new IdentitySuccessorsProvider
 
       override def dispatch(t: Type[G]): Type[G] =
         t match {

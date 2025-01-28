@@ -92,7 +92,7 @@ public class KnownTypeTransformer<T> {
 
         // Add channel field to COL system
         Ref<T, Class<T>> ref_to_cls = new DirectRef<>(cls, ClassTag$.MODULE$.apply(Class.class));
-        col_system.add_primitive_channel(sc_inst, new InstanceField<>(new TClass<>(ref_to_cls, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS,
+        col_system.add_primitive_channel(sc_inst, new InstanceField<>(new TByReferenceClass<>(ref_to_cls, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS,
                 OriGen.create(name.toLowerCase())));
     }
 
@@ -119,7 +119,7 @@ public class KnownTypeTransformer<T> {
     private Class<T> transform_fifo(Origin o, Type<T> t) {
         // Class fields
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
+        InstanceField<T> m = new InstanceField<>(new TByReferenceClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         InstanceField<T> buf = new InstanceField<>(new TSeq<>(t, OriGen.create()), col_system.NO_FLAGS, OriGen.create("buffer"));
         InstanceField<T> nr_read = new InstanceField<>(col_system.T_INT, col_system.NO_FLAGS, OriGen.create("num_read"));
         InstanceField<T> written = new InstanceField<>(new TSeq<>(t, OriGen.create()), col_system.NO_FLAGS, OriGen.create("written"));
@@ -144,7 +144,7 @@ public class KnownTypeTransformer<T> {
 
         // Create the class
         java.util.List<ClassDeclaration<T>> declarations = java.util.List.of(m, buf, nr_read, written, constructor, fifo_read, fifo_write, fifo_update);
-        return new Class<>(Seqs.empty(), List.from(CollectionConverters.asScala(declarations)), Seqs.empty(), col_system.TRUE, o);
+        return new ByReferenceClass<>(Seqs.empty(), List.from(CollectionConverters.asScala(declarations)), Seqs.empty(), col_system.TRUE, o);
     }
 
     /**
@@ -524,7 +524,7 @@ public class KnownTypeTransformer<T> {
     private Class<T> transform_signal(Origin o, Type<T> t) {
         // Class fields
         Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
-        InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
+        InstanceField<T> m = new InstanceField<>(new TByReferenceClass<>(main_cls_ref, Seqs.empty(), OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         InstanceField<T> val = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create("val"));
         InstanceField<T> _val = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create("_val"));
 
@@ -545,7 +545,7 @@ public class KnownTypeTransformer<T> {
 
         // Create the class
         java.util.List<ClassDeclaration<T>> class_content = java.util.List.of(m, val, _val, constructor, signal_read, signal_write, signal_update);
-        return new Class<>(Seqs.empty(),
+        return new ByReferenceClass<>(Seqs.empty(),
                 List.from(CollectionConverters.asScala(class_content)), Seqs.empty(), col_system.TRUE, o);
     }
 
@@ -838,15 +838,14 @@ public class KnownTypeTransformer<T> {
                 ClassTag$.MODULE$.apply(InstancePredicate.class));
 
         // Apply predicates
-        InstancePredicateApply<T> scheduler_perms = new InstancePredicateApply<>(m_deref, perm_inv, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create());
-        InstancePredicateApply<T> parameter_perms = new InstancePredicateApply<>(m_deref, param_inv, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create());
+        InstancePredicateApply<T> scheduler_perms = new InstancePredicateApply<>(m_deref, perm_inv, col_system.NO_EXPRS, OriGen.create());
+        InstancePredicateApply<T> parameter_perms = new InstancePredicateApply<>(m_deref, param_inv, col_system.NO_EXPRS, OriGen.create());
         Ref<T, InstancePredicate<T>> channel_inv = new DirectRef<>(col_system.get_prim_channel_inv(sc_inst), ClassTag$.MODULE$.apply(InstancePredicate.class));
-        InstancePredicateApply<T> channel_perms = new InstancePredicateApply<>(m_deref, channel_inv, col_system.NO_EXPRS,
-                new WritePerm<>(OriGen.create()), OriGen.create());
+        InstancePredicateApply<T> channel_perms = new InstancePredicateApply<>(m_deref, channel_inv, col_system.NO_EXPRS, OriGen.create());
+
+        Expr<T> predicates = col_system.fold_preds(scheduler_perms, parameter_perms, channel_perms);
 
         // Connect the individual conditions with stars and return
-        return col_system.fold_star(java.util.List.of(perm_m, m_not_null, held_m, scheduler_perms, parameter_perms, channel_perms, this_is_self));
+        return col_system.fold_star(java.util.List.of(perm_m, m_not_null, held_m, predicates, this_is_self));
     }
 }

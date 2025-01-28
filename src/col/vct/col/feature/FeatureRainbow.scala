@@ -15,7 +15,7 @@ class FeatureRainbow[G] {
   private var returnValues: Seq[Expr[G]] = Nil
 
   def scan(node: Node[G]): Unit =
-    node.transSubnodes.foreach(node =>
+    node.foreach(node =>
       scanFlatly(node).foreach(f => {
         features += f
         examples.getOrElseUpdate(f, ArrayBuffer()) += node
@@ -99,7 +99,6 @@ class FeatureRainbow[G] {
       case node: InstancePredicateApply[G] => Classes
       case node: CoalesceInstancePredicateApply[G] => Classes
       case node: InstanceFunctionInvocation[G] => Classes
-      case node: InstancePredicateLocation[G] => Classes
       case node: NewObject[G] => Classes
       case node: TClass[G] => Classes
       case node: Class[G] => Classes

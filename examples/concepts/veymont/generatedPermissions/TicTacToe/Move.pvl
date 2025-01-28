@@ -8,9 +8,15 @@ class Move {
 		token = mt;
 	}
 	
+	ensures \result != null;
 	ensures \result.i == i ** \result.j == j ** \result.token == token;
 	ensures i == \old(i) ** j == \old(j) ** token == \old(token);
 	Move clone() {
 	    return new Move(i,j,token);
 	}
+
+	pure boolean bounds() =
+	  (token == 0 || token == 1) &&
+	  (0 <= i && i <= 2) &&
+	  (0 <= j && j <= 2);
 }

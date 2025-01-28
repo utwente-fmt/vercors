@@ -22,8 +22,7 @@ trait AbstractMethodImpl[G] extends ContractApplicableImpl[G] {
   override def declarations: Seq[Declaration[G]] = super.declarations ++ outArgs
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
-    body.toSeq.flatMap(_.transSubnodes.flatMap {
-      case Return(e) => e.checkSubType(returnType)
-      case _ => Nil
+    body.toSeq.flatMap(_.flatCollect { case Return(e) =>
+      e.checkSubType(returnType)
     })
 }

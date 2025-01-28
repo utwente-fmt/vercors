@@ -65,8 +65,10 @@ case object Util extends LazyLogging {
     }
 
     Using(Files.newInputStream(result)) { in =>
-      Deserialize
-        .deserializeProgram[G](vct.col.ast.serialize.Program.parseFrom(in), 0)
+      Deserialize.deserializeProgram[G](
+        vct.col.ast.serialize.Program.parseFrom(in),
+        o => o,
+      )
     }.get
   }
 

@@ -7,7 +7,7 @@ import hre.util.Interrupt
 import scala.collection.mutable.ArrayBuffer
 
 abstract class AbstractTask {
-  val EPILSON = 0.001
+  val EPSILON = 0.001
 
   private val subTasks = ArrayBuffer[AbstractTask]()
 
@@ -19,12 +19,12 @@ abstract class AbstractTask {
 
   def progress: Double =
     synchronized {
-      val subtaksProgress = subTasks.map(t => t.progressWeight -> t.progress)
-      val knownWeightProgress = subtaksProgress.collect {
+      val subtaskProgress = subTasks.map(t => t.progressWeight -> t.progress)
+      val knownWeightProgress = subtaskProgress.collect {
         case Some(weight) -> progress => weight * progress
       }.sum[Double]
       val knownDone = progressDone + knownWeightProgress
-      val unknownWeightProgress = subtaksProgress.collect {
+      val unknownWeightProgress = subtaskProgress.collect {
         case None -> progress => progress
       }.sortBy(-_)
       val result =
@@ -33,7 +33,7 @@ abstract class AbstractTask {
             progress + ((1.0 - progress) * 0.1 * subtaskProgress)
         }
 
-      if (result < 0.0 - EPILSON || result > 1.0 + EPILSON) {
+      if (result < 0.0 - EPSILON || result > 1.0 + EPSILON) {
         throw new ProgressLogicError(profilingTrail, result)
       }
 

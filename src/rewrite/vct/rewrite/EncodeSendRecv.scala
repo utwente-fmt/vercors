@@ -68,7 +68,7 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
   val recvOfDecl: mutable.Map[SendDecl[Pre], Recv[Pre]] = mutable.Map()
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-    program.transSubnodes.foreach {
+    program.foreach {
       case send: Send[Pre] => sendOfDecl(send.decl) = send
       case _ =>
     }

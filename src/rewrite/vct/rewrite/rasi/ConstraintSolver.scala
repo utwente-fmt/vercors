@@ -179,8 +179,10 @@ class ConstraintSolver[G](
   ): Set[ConstraintMap[G]] = {
     val pure_left = is_pure(comp.left)
     val pure_right = is_pure(comp.right)
-    if (pure_left == pure_right)
-      return Set(ConstraintMap.empty[G])
+    if (pure_left && pure_right) { return Set(ConstraintMap.empty[G]) }
+    if (!pure_left && !pure_right) {
+      return handle_double_impure_update(comp, negate)
+    }
     // Now, exactly one side is pure, and the other contains a concrete variable
     // Resolve the variable and the other side of the equation
     comp.left.t match {
@@ -189,6 +191,97 @@ class ConstraintSolver[G](
       case _ => handle_single_update(comp, pure_left, negate)
     }
   }
+
+  private def handle_double_impure_update(
+      comp: Comparison[G],
+      negate: Boolean,
+  ): Set[ConstraintMap[G]] =
+    comp.left.t match {
+      case _: IntType[_] | _: TBool[_] =>
+        val left_val: UncertainValue = state.resolve_expression(comp.left)
+        val right_val: UncertainValue = state.resolve_expression(comp.right)
+        if (left_val.is_uncertain && right_val.is_uncertain)
+          Set(ConstraintMap.empty[G])
+        else {
+          comp match {
+            case _: Eq[_] | _: AmbiguousEq[_] =>
+              val value: UncertainValue = left_val.intersection(right_val)
+              if (!negate)
+                Set(
+                  expr_equals(comp.left, value) &&
+                    expr_equals(comp.right, value)
+                )
+              else
+                Set(ConstraintMap.empty[G])
+            case _: Neq[_] | _: AmbiguousNeq[_] =>
+              val value: UncertainValue = left_val.intersection(right_val)
+              if (negate)
+                Set(
+                  expr_equals(comp.left, value) &&
+                    expr_equals(comp.right, value)
+                )
+              else
+                Set(ConstraintMap.empty[G])
+            case _: Greater[_] | _: AmbiguousGreater[_] =>
+              Set(
+                limit_variable(
+                  comp.left,
+                  right_val.asInstanceOf[UncertainIntegerValue],
+                  !negate,
+                  negate,
+                ) && limit_variable(
+                  comp.right,
+                  left_val.asInstanceOf[UncertainIntegerValue],
+                  negate,
+                  negate,
+                )
+              )
+            case _: GreaterEq[_] | _: AmbiguousGreaterEq[_] =>
+              Set(
+                limit_variable(
+                  comp.left,
+                  right_val.asInstanceOf[UncertainIntegerValue],
+                  !negate,
+                  !negate,
+                ) && limit_variable(
+                  comp.right,
+                  left_val.asInstanceOf[UncertainIntegerValue],
+                  negate,
+                  !negate,
+                )
+              )
+            case _: LessEq[_] | _: AmbiguousLessEq[_] =>
+              Set(
+                limit_variable(
+                  comp.left,
+                  right_val.asInstanceOf[UncertainIntegerValue],
+                  negate,
+                  !negate,
+                ) && limit_variable(
+                  comp.right,
+                  left_val.asInstanceOf[UncertainIntegerValue],
+                  !negate,
+                  !negate,
+                )
+              )
+            case _: Less[_] | _: AmbiguousLess[_] =>
+              Set(
+                limit_variable(
+                  comp.left,
+                  right_val.asInstanceOf[UncertainIntegerValue],
+                  negate,
+                  negate,
+                ) && limit_variable(
+                  comp.right,
+                  left_val.asInstanceOf[UncertainIntegerValue],
+                  !negate,
+                  negate,
+                )
+              )
+          }
+        }
+      case _ => Set(ConstraintMap.empty[G]) // TODO: Handle collection values
+    }
 
   private def is_pure(node: Node[G]): Boolean =
     node match {
@@ -221,14 +314,14 @@ class ConstraintSolver[G](
         state.resolve_expression(comp.right)
 
     comp match {
-      case _: Eq[_] =>
+      case _: Eq[_] | _: AmbiguousEq[_] =>
         Set(
           if (!negate)
             expr_equals(expr, value)
           else
             expr_equals(expr, value.complement())
         )
-      case _: Neq[_] =>
+      case _: Neq[_] | _: AmbiguousNeq[_] =>
         Set(
           if (!negate)
             expr_equals(expr, value.complement())
@@ -236,33 +329,33 @@ class ConstraintSolver[G](
             expr_equals(expr, value)
         )
       case AmbiguousGreater(_, _) | Greater(_, _) =>
-        limit_variable(
+        Set(limit_variable(
           expr,
           value.asInstanceOf[UncertainIntegerValue],
           pure_left == negate,
           negate,
-        )
+        ))
       case AmbiguousGreaterEq(_, _) | GreaterEq(_, _) =>
-        limit_variable(
+        Set(limit_variable(
           expr,
           value.asInstanceOf[UncertainIntegerValue],
           pure_left == negate,
           !negate,
-        )
+        ))
       case AmbiguousLessEq(_, _) | LessEq(_, _) =>
-        limit_variable(
+        Set(limit_variable(
           expr,
           value.asInstanceOf[UncertainIntegerValue],
           pure_left != negate,
           !negate,
-        )
+        ))
       case AmbiguousLess(_, _) | Less(_, _) =>
-        limit_variable(
+        Set(limit_variable(
           expr,
           value.asInstanceOf[UncertainIntegerValue],
           pure_left != negate,
           negate,
-        )
+        ))
     }
   }
 
@@ -271,17 +364,17 @@ class ConstraintSolver[G](
       b: UncertainIntegerValue,
       var_greater: Boolean,
       can_be_equal: Boolean,
-  ): Set[ConstraintMap[G]] = {
+  ): ConstraintMap[G] = {
     if (var_greater) {
       if (can_be_equal)
-        Set(expr_equals(expr, b.above_eq()))
+        expr_equals(expr, b.above_eq())
       else
-        Set(expr_equals(expr, b.above()))
+        expr_equals(expr, b.above())
     } else {
       if (can_be_equal)
-        Set(expr_equals(expr, b.below_eq()))
+        expr_equals(expr, b.below_eq())
       else
-        Set(expr_equals(expr, b.below()))
+        expr_equals(expr, b.below())
     }
   }
 
@@ -352,8 +445,10 @@ class ConstraintSolver[G](
     val update_map = index_update_map ++ size_update_map
 
     comp match {
-      case _: Eq[_] if !negate => Set(ConstraintMap.from_cons(update_map))
-      case _: Neq[_] if negate => Set(ConstraintMap.from_cons(update_map))
+      case _: Eq[_] | _: AmbiguousEq[_] if !negate =>
+        Set(ConstraintMap.from_cons(update_map))
+      case _: Neq[_] | _: AmbiguousNeq[_] if negate =>
+        Set(ConstraintMap.from_cons(update_map))
       case _ =>
         throw new IllegalArgumentException(
           s"The operator ${comp.toInlineString} is not supported for collections"

@@ -1,0 +1,23 @@
+ensures i != null && res != null && n != null;
+ensures Perm(i, write) ** Perm(res, write) ** Perm(n, read);
+ensures *i >= 0;
+ensures *i <= *n;
+ensures *res == *i * (*n * *n) ;
+void cubed_loop1_invariant_assume(pointer<int> i, pointer<int> res, pointer<int> n);
+
+context i != null && res != null && n != null;
+context Perm(i, write) ** Perm(res, write) ** Perm(n, read);
+context *i >= 0;
+context *i <= *n;
+context *res == *i * (*n * *n);
+void cubed_loop1_invariant_assert (pointer<int> i, pointer<int> res, pointer<int> n);
+
+ensures \result == 10;
+int complicatedFunction();
+
+ensures \result == 10;
+int main(int argc, pointer<pointer<char>> argv);
+
+requires n >= 0;
+ensures \result == n * n * n;
+int cubed(int n);

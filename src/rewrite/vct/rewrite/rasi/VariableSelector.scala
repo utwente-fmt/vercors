@@ -53,7 +53,6 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
 
     val constraints: Seq[Set[ConstraintMap[G]]] = conditions.toSeq
       .map(e => satisfying_valuations(initial_state, e))
-      .filter(s => s.exists(m => !m.is_empty))
     if (constraints.isEmpty)
       Set.empty[ConcreteVariable[G]]
     else
@@ -87,7 +86,10 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
       case _: IntType[_] | _: TBool[_] | _: TResource[_] =>
         expr match {
           case d @ Deref(_, ref) =>
-            if (state.valuations.exists(t => t._1.is_contained_by(d, state)))
+            if (
+              (state.valuations ++ state.parameters)
+                .exists(t => t._1.is_contained_by(d, state))
+            )
               Set()
             else
               Set(FieldVariable(ref.decl))
@@ -134,7 +136,7 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
         }
       val index: Option[Int] = state.resolve_integer_expression(subscript)
         .try_to_resolve()
-      if (index.isEmpty)
+      if (index.isEmpty || index.get < 0)
         Set()
       else
         Set(IndexedVariable(field, index.get))

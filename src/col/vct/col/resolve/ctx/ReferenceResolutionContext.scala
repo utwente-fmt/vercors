@@ -12,6 +12,7 @@ import scala.collection.mutable
 case class ReferenceResolutionContext[G](
     javaParser: SpecExprParser,
     llvmSpecParser: SpecContractParser,
+    importedDeclarations: Seq[GlobalDeclaration[G]],
     stack: Seq[Seq[Referrable[G]]] = Nil,
     topLevelJavaDeref: Option[JavaDeref[G]] = None,
     externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] =
@@ -22,7 +23,7 @@ case class ReferenceResolutionContext[G](
     currentThis: Option[ThisTarget[G]] = None,
     currentResult: Option[ResultTarget[G]] = None,
     currentInitializerType: Option[Type[G]] = None,
-    currentCommunicate: Option[PVLCommunicate[G]] = None,
+    currentCommunicate: Option[PVLCommunicateStatement[G]] = None,
     inStaticJavaContext: Boolean = false,
     inGpuKernel: Boolean = false,
     javaBipStatePredicates: ListMap[Expr[G], JavaAnnotation[G]] =
@@ -32,6 +33,8 @@ case class ReferenceResolutionContext[G](
     // When true and resolving a local, guard names should also be considered
     javaBipGuardsEnabled: Boolean = false,
     typeEnv: Map[Variable[G], Type[G]] = Map.empty[Variable[G], Type[G]],
+    llvmBlocks: Map[LabelDecl[G], LLVMBasicBlock[G]] = Map
+      .empty[LabelDecl[G], LLVMBasicBlock[G]],
 ) {
   def asTypeResolutionContext: TypeResolutionContext[G] =
     TypeResolutionContext(

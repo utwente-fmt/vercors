@@ -1,0 +1,34 @@
+/*
+This test shows that, even though one of the parties know that the branch is unanimous, we still cannot show branch unanimity.
+This verifies just fine in combination with --veymont-no-branch-unanimity
+*/
+
+class Storage {
+  int x;
+  int temp;
+
+  ensures Perm(x, 1) ** x == 10 ** Perm(temp, 1);
+  constructor();
+}
+
+choreography Example() {
+  endpoint alice = Storage();
+  endpoint bob = Storage();
+
+  requires Perm(alice.x, 1) ** Perm[alice](bob.x, 1\2) ** Perm(alice.temp, 1);
+  requires Perm(bob.x, 1\2) ** Perm(bob.temp, 1);
+  requires alice.x == 10 && (\endpoint alice; bob.x == 10);
+  requires bob.x == 10;
+  run {
+    loop_invariant Perm(alice.x, 1) ** Perm[alice](bob.x, 1\2) ** Perm(alice.temp, 1);
+    loop_invariant (\endpoint alice; alice.x == bob.x);
+    loop_invariant Perm(bob.x, 1\2) ** Perm(bob.temp, 1);
+    loop_invariant alice.x >= 0 && bob.x >= 0;
+    while (alice.x > 0 && bob.x > 0) {
+      alice.x := alice.x - 1;
+      channel_invariant Perm(alice.x, 1\2) ** Perm(bob.x, 1\2);
+      communicate alice.x -> bob.temp;
+      bob.x := bob.x - 1;
+    }
+  }
+}

@@ -427,27 +427,21 @@ typeSpecifierSeq: typeSpecifier+ attributeSpecifierSeq?;
 trailingTypeSpecifierSeq:
 	trailingTypeSpecifier+ attributeSpecifierSeq?;
 
-simpleTypeLengthModifier:
-	Short
-	| Long;
-
-simpleTypeSignednessModifier:
-	Unsigned
-	| Signed;
-
 simpleTypeSpecifier:
 	nestedNameSpecifier? theTypeName
 	| nestedNameSpecifier Template simpleTemplateId
-	| simpleTypeSignednessModifier
-	| simpleTypeSignednessModifier? simpleTypeLengthModifier+
-	| simpleTypeSignednessModifier? Char
-	| simpleTypeSignednessModifier? Char16
-	| simpleTypeSignednessModifier? Char32
-	| simpleTypeSignednessModifier? Wchar
+	| Char
+	| Char16
+	| Char32
+	| Wchar
 	| Bool
-	| simpleTypeSignednessModifier? simpleTypeLengthModifier* Int
+	| Short
+	| Int
+	| Long
+	| Signed
+	| Unsigned
 	| Float
-	| simpleTypeLengthModifier? Double
+	| Double
 	| Void
 	| Auto
 	| {specLevel>0}? valType
@@ -610,28 +604,22 @@ abstractDeclarator:
 	| abstractPackDeclarator;
 
 pointerAbstractDeclarator:
-	noPointerAbstractDeclarator
-	| pointerOperatorWithDoubleStar+ noPointerAbstractDeclarator?;
+    pointerOperatorWithDoubleStar* (noPointerAbstractDeclarator | pointerOperatorWithDoubleStar);
 
 noPointerAbstractDeclarator:
-	noPointerAbstractDeclarator (
-		parametersAndQualifiers
-		| noPointerAbstractDeclarator LeftBracket constantExpression? RightBracket
-			attributeSpecifierSeq?
-	)
-	| parametersAndQualifiers
-	| LeftBracket constantExpression? RightBracket attributeSpecifierSeq?
-	| LeftParen pointerAbstractDeclarator RightParen;
+    (parametersAndQualifiers | LeftParen pointerAbstractDeclarator RightParen) (
+        parametersAndQualifiers
+        | LeftBracket constantExpression? RightBracket attributeSpecifierSeq?
+    )*;
 
 abstractPackDeclarator:
 	pointerOperatorWithDoubleStar* noPointerAbstractPackDeclarator;
 
 noPointerAbstractPackDeclarator:
-	noPointerAbstractPackDeclarator (
+	Ellipsis (
 		parametersAndQualifiers
 		| LeftBracket constantExpression? RightBracket attributeSpecifierSeq?
-	)
-	| Ellipsis;
+	)*;
 
 parameterDeclarationClause:
 	parameterDeclarationList parameterDeclarationVarargs?;
@@ -713,11 +701,10 @@ memberDeclaratorList:
 	memberDeclarator (Comma memberDeclarator)*;
 
 memberDeclarator:
-	declarator (
-		virtualSpecifierSeq? pureSpecifier?
-		| braceOrEqualInitializer?
-	)
-	| clangppIdentifier? attributeSpecifierSeq? Colon constantExpression;
+	 declarator (virtualSpecifierSeq | { this.IsPureSpecifierAllowed() }? pureSpecifier | { this.IsPureSpecifierAllowed() }? virtualSpecifierSeq pureSpecifier | braceOrEqualInitializer)
+    | declarator
+    | clangppIdentifier? attributeSpecifierSeq? Colon constantExpression
+    ;
 
 virtualSpecifierSeq: virtualSpecifier+;
 
@@ -727,8 +714,7 @@ virtualSpecifier: Override | Final;
  */
 
 pureSpecifier:
-	Assign val = OctalLiteral {if($val.text.compareTo("0")!=0) throw new InputMismatchException(this);
-		};
+    Assign IntegerLiteral;
 
 //Derived classes
 baseClause: Colon baseSpecifierList;

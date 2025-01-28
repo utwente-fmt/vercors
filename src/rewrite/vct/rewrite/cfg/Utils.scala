@@ -115,7 +115,11 @@ object Utils {
     }
 
   private def get_out_variable[G](cls: Ref[G, Class[G]], o: Origin): Local[G] =
-    Local(new DirectRef[G, Variable[G]](new Variable(TClass(cls, Seq()))(o)))(o)
+    Local(
+      new DirectRef[G, Variable[G]](new Variable(TByReferenceClass(cls, Seq()))(
+        o
+      ))
+    )(o)
 
   def find_all_cases[G](
       body: Statement[G],
@@ -169,12 +173,6 @@ object Utils {
       case ModelDo(_, _, _, _, impl) =>
         find_all_cases(impl, index.enter_scope(body))
       case CPPLifetimeScope(bod) => find_all_cases(bod, index.enter_scope(body))
-      case UnresolvedChorBranch(branches) =>
-        branches.zipWithIndex.flatMap(t =>
-          find_all_cases(t._1._2, index.enter_scope(body, t._2 * 2 + 1))
-        )
-      case UnresolvedChorLoop(_, _, bod) =>
-        find_all_cases(bod, index.enter_scope(body))
       case VeyMontAssignExpression(_, assign) =>
         find_all_cases(assign, index.enter_scope(body))
       case CommunicateX(_, _, _, assign) =>

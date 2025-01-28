@@ -83,9 +83,10 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
   val needsHeld: mutable.Set[Class[Pre]] = mutable.Set()
   val needsCommitted: mutable.Set[Class[Pre]] = mutable.Set()
 
-  def getClass(obj: Expr[Pre]): Class[Pre] =
+  def getClass(obj: Expr[Pre]): ByReferenceClass[Pre] =
     obj.t match {
-      case TClass(Ref(cls), _) => cls
+      case t: TByReferenceClass[Pre] =>
+        t.cls.decl.asInstanceOf[ByReferenceClass[Pre]]
       case _ =>
         throw UnreachableAfterTypeCheck(
           "This argument is not a class type.",
@@ -99,7 +100,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
-    program.transSubnodes.foreach {
+    program.foreach {
       case Lock(obj) => needHeld(obj)
       case Unlock(obj) => needHeld(obj)
       case Wait(obj) => needHeld(obj)
@@ -114,7 +115,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
     rewriteDefault(program)
   }
 
-  def needsInvariant(cls: Class[Pre]): Boolean =
+  def needsInvariant(cls: ByReferenceClass[Pre]): Boolean =
     cls.intrinsicLockInvariant != tt[Pre]
 
   def needsInvariant(e: Expr[Pre]): Boolean = needsInvariant(getClass(e))
@@ -122,22 +123,12 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
   def getInvariant(
       obj: Expr[Pre]
   )(implicit o: Origin): InstancePredicateApply[Post] =
-    InstancePredicateApply(
-      dispatch(obj),
-      invariant.ref(getClass(obj)),
-      Nil,
-      WritePerm(),
-    )
+    InstancePredicateApply(dispatch(obj), invariant.ref(getClass(obj)), Nil)
 
   def getHeld(
       obj: Expr[Pre]
   )(implicit o: Origin): InstancePredicateApply[Post] =
-    InstancePredicateApply(
-      dispatch(obj),
-      held.ref(getClass(obj)),
-      Nil,
-      WritePerm(),
-    )
+    InstancePredicateApply(dispatch(obj), held.ref(getClass(obj)), Nil)
 
   def getCommitted(obj: Expr[Pre])(
       blame: Blame[InstanceInvocationFailure]
@@ -153,7 +144,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
-      case cls: Class[Pre] =>
+      case cls: ByReferenceClass[Pre] =>
         globalDeclarations.succeed(
           cls,
           cls.rewrite(
@@ -202,7 +193,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
-      case Held(obj) => getHeld(obj)
+      case Held(obj) => Perm(PredicateLocation(getHeld(obj)), WritePerm())
       case c @ Committed(obj) => getCommitted(obj)(CommittedLockObjectNull(c))
       case other => rewriteDefault(other)
     }
@@ -224,35 +215,45 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
             Assert(getCommitted(obj)(LockLockObjectNull(lock)))(
               NotCommittedAssertFailed(lock)
             ),
-            Inhale(getInvariant(obj)),
-            Unfold(getInvariant(obj))(PanicBlame(
-              "Unfolding a predicate immediately after inhaling it should never fail."
-            )),
-            Inhale(getHeld(obj)),
+            Inhale(Perm(PredicateLocation(getInvariant(obj)), WritePerm())),
+            Unfold(ScaledPredicateApply(getInvariant(obj), WritePerm()))(
+              PanicBlame(
+                "Unfolding a predicate immediately after inhaling it should never fail."
+              )
+            ),
+            Inhale(Perm(PredicateLocation(getHeld(obj)), WritePerm())),
           ))
         else
           Block(Seq(
             Assert(getCommitted(obj)(LockLockObjectNull(lock)))(
               NotCommittedAssertFailed(lock)
             ),
-            Inhale(getHeld(obj)),
+            Inhale(Perm(PredicateLocation(getHeld(obj)), WritePerm())),
           ))
 
       case unlock @ Unlock(obj) =>
         if (needsInvariant(obj))
           Block(Seq(
-            Fold(getInvariant(obj))(UnlockInvariantFoldFailed(unlock)),
-            Exhale(getInvariant(obj))(PanicBlame(
-              "Exhaling a predicate immediately after folding it should never fail."
-            )),
-            Exhale(getHeld(obj))(UnlockHeldExhaleFailed(unlock)),
+            Fold(ScaledPredicateApply(getInvariant(obj), WritePerm()))(
+              UnlockInvariantFoldFailed(unlock)
+            ),
+            Exhale(Perm(PredicateLocation(getInvariant(obj)), WritePerm()))(
+              PanicBlame(
+                "Exhaling a predicate immediately after folding it should never fail."
+              )
+            ),
+            Exhale(Perm(PredicateLocation(getHeld(obj)), WritePerm()))(
+              UnlockHeldExhaleFailed(unlock)
+            ),
             Assume(getCommitted(obj)(PanicBlame(
               "Exhaling held predicate should imply != null"
             ))),
           ))
         else
           Block(Seq(
-            Exhale(getHeld(obj))(UnlockHeldExhaleFailed(unlock)),
+            Exhale(Perm(PredicateLocation(getHeld(obj)), WritePerm()))(
+              UnlockHeldExhaleFailed(unlock)
+            ),
             Assume(getCommitted(obj)(PanicBlame(
               "Exhaling held predicate should imply != null"
             ))),
@@ -265,15 +266,21 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
         )))
 
       case notify @ Notify(obj) =>
-        Assert(getHeld(obj))(NotifyAssertFailed(notify))
+        Assert(Perm(PredicateLocation(getHeld(obj)), WritePerm()))(
+          NotifyAssertFailed(notify)
+        )
 
       case commit @ Commit(obj) =>
         if (needsInvariant(obj))
           Block(Seq(
-            Fold(getInvariant(obj))(CommitFailedFoldFailed(commit)),
-            Exhale(getInvariant(obj))(PanicBlame(
-              "Exhaling a predicate immediately after folding it should never fail."
-            )),
+            Fold(ScaledPredicateApply(getInvariant(obj), WritePerm()))(
+              CommitFailedFoldFailed(commit)
+            ),
+            Exhale(Perm(PredicateLocation(getInvariant(obj)), WritePerm()))(
+              PanicBlame(
+                "Exhaling a predicate immediately after folding it should never fail."
+              )
+            ),
             Assume(getCommitted(obj)(PanicBlame(
               "Exhaling invariant predicate should imply != null"
             ))),

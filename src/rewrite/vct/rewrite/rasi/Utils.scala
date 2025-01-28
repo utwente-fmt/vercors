@@ -54,6 +54,24 @@ case object Utils {
   def prod_min(a1: Int, a2: Int, b1: Int, b2: Int): Int =
     Seq(a1 * b1, a1 * b2, a2 * b1, a2 * b2).min
 
+  /** Computes the cartesian product of an arbitrary number of input sequences.
+    *
+    * @param inputs
+    *   A collection containing all inputs for the cartesian product
+    * @tparam T
+    *   Element type of the input sets
+    * @return
+    *   Set of ordered sequences with one element for each input set
+    */
+  def cartesian_product[T](inputs: Iterable[Set[T]]): Set[Seq[T]] = {
+    if (inputs.isEmpty)
+      Set.empty[Seq[T]]
+    else if (inputs.size == 1)
+      inputs.head.map(v => Seq(v))
+    else
+      inputs.head.flatMap(e => cartesian_product(inputs.tail).map(s => e +: s))
+  }
+
   /** Transforms a loop contract to an invariant, if possible.
     *
     * @param contract
@@ -104,7 +122,7 @@ case object Utils {
     *   specifications removed
     */
   def remove_old[G](cond: Expr[G]): Expr[G] =
-    Substitute(Map.from[Expr[G], Expr[G]](cond.transSubnodes.collect {
+    Substitute(Map.from[Expr[G], Expr[G]](cond.collect {
       case o @ Old(expr, _) => o -> expr
     })).dispatch(cond)
 
@@ -119,7 +137,7 @@ case object Utils {
     */
   def contains_global_invariant[G](node: Node[G]): Boolean =
     node match {
-      case InstancePredicateApply(_, ref, _, _) =>
+      case InstancePredicateApply(_, ref, _) =>
         if (ref.decl.o.getPreferredName.get.snake.equals("global_invariant"))
           true
         else
@@ -183,7 +201,7 @@ case object Utils {
         node_names,
         edges,
         w,
-        states.head.to_expression.toInlineString.length > 100,
+        states.head.to_expression(None).toInlineString.length > 100,
       )
     )
   }
@@ -200,9 +218,9 @@ case object Utils {
         if (shorten_labels)
           t._2
         else
-          t._1.to_expression.toInlineString
+          t._1.to_expression(None).toInlineString
       ).append(s"${"\""}];${if (shorten_labels)
-          s" /* ${t._1.to_expression.toInlineString} */"
+          s" /* ${t._1.to_expression(None).toInlineString} */"
         else
           ""}\n")
     )

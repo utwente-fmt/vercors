@@ -7,6 +7,7 @@ import vct.col.ast.structure.Constants.{DeclarationName, RootNodeName}
 import scala.meta._
 
 object Constants {
+  val NothingType: Type = t"_root_.scala.Nothing"
   val SeqType: Type = t"_root_.scala.Seq"
   val SeqObj: Term = q"_root_.scala.Seq"
   val Unit: Type = t"_root_.scala.Unit"
@@ -47,6 +48,13 @@ object Constants {
     q"_root_.vct.col.err.InconsistentSuccessionTypes"
   val RefType: Type = t"_root_.vct.col.ref.Ref"
   val LazyRef: Type = t"_root_.vct.col.ref.LazyRef"
+  val SuccessorProvider: Type = t"_root_.vct.col.rewrite.SuccessorProvider"
+  val SuccessorProviderChain: Type =
+    t"_root_.vct.col.rewrite.SuccessorProviderChain"
+  val SuccessorProviderNothing: Type =
+    t"_root_.vct.col.rewrite.SuccessorProviderNothing"
+  val SuccessorProviderTrafo: Type =
+    t"_root_.vct.col.rewrite.SuccessorProviderTrafo"
 
   val AbstractRewriter: Type = t"_root_.vct.col.ast.AbstractRewriter"
   val Scopes: Type = t"_root_.vct.col.util.Scopes"

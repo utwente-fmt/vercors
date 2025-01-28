@@ -1,7 +1,7 @@
 package vct.rewrite.cfg
 
 import hre.io.RWFile
-import vct.col.ast.{BooleanValue, Expr, InstanceMethod}
+import vct.col.ast.{BooleanValue, Expr, Procedure}
 import vct.col.origin.Origin
 
 import java.io.Writer
@@ -33,7 +33,7 @@ case class CFGPrinter[G]() {
     writer.append("}")
   }
 
-  def print_ast_as_cfg(entry_point: InstanceMethod[G], path: Path): Unit = {
+  def print_ast_as_cfg(entry_point: Procedure[G], path: Path): Unit = {
     val cfg_root: CFGNode[G] = CFGGenerator().generate(entry_point)
     find_all_nodes(cfg_root)
     RWFile(path).write(w => print_cfg(w))

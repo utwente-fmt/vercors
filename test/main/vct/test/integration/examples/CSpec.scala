@@ -13,6 +13,10 @@ class CSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/c/structs.c"
   vercors should verify using silicon example "concepts/c/vector_add.c"
   vercors should verify using silicon example "concepts/c/vector_type.c"
+  vercors should verify using silicon example "concepts/c/pointer_casts.c"
+  vercors should verify using silicon example "concepts/c/pointer_tests.c"
+  vercors should verify using silicon flags("--backend-option", "--exhaleMode=2") example "concepts/c/tagged_pointer.c"
+  vercors should verify using silicon example "concepts/c/void.c"
 
   vercors should error withCode "resolutionError:type" in "float should not be demoted" c
   """
@@ -20,7 +24,7 @@ class CSpec extends VercorsSpec {
     int x = 4.0 % 1;
   }
   """
-  vercors should fail withCode "assignFieldFailed" using silicon in "cannot access field of struct after freeing" c
+  vercors should fail withCode "ptrPerm" using silicon in "cannot access field of struct after freeing" c
     """
     #include <stdlib.h>
 
@@ -35,6 +39,8 @@ class CSpec extends VercorsSpec {
 
     int main(){
       struct e* a = (struct e*) malloc(1*sizeof(struct e));
+      if (a == NULL) return 1;
+
       a->s.x = 1;
       struct d* b = &(a->s);
       free(a);
@@ -42,7 +48,28 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "ptrNull" using silicon in "free null pointer" c
+  vercors should fail withCode "ptrNull" using silicon in "use malloc result without null check" c
+    """
+      #include <stdlib.h>
+      int main(){
+          int* xs = (int*) malloc(1*sizeof(int));
+          *xs = 12;
+          free(xs);
+      }
+    """
+
+  vercors should verify using silicon in "free null pointer" c
+    """
+      #include <stdlib.h>
+      int main(){
+          int* xs = NULL;
+          free(xs);
+          free(xs);
+          free(xs);
+      }
+    """
+
+  vercors should fail withCode "ptrOffsetNonZero" using silicon in "free stack garbage pointer" c
     """
       #include <stdlib.h>
       int main(){
@@ -78,7 +105,7 @@ class CSpec extends VercorsSpec {
     int main(){
       struct d* xs = (struct d*) malloc(sizeof(struct d)*3);
       struct d* ys = (struct d*) malloc(sizeof(struct d)*3);
-      //@ exhale Perm(xs[0].x, 1\2);
+      //@ exhale Perm(&xs[0].x, 1\2);
       free(xs);
     }
     """
@@ -114,7 +141,7 @@ class CSpec extends VercorsSpec {
     int main(){
       struct d s1;
       struct d* s2 = &s1;
-      //@ exhale Perm(s2->x, 1\1);
+      //@ exhale Perm(&s2->x, 1\1);
       s2->x = 1;
     }
     """
@@ -126,7 +153,7 @@ class CSpec extends VercorsSpec {
     };
     int main(){
       struct d s;
-      //@ exhale Perm(s.x, 1\1);
+      //@ exhale Perm(&s.x, 1\1);
       s.x = 1;
     }
     """
@@ -138,12 +165,12 @@ class CSpec extends VercorsSpec {
     int main(){
       struct d s;
       s.x = 1;
-      //@ exhale Perm(s.x, 1\1);
+      //@ exhale Perm(&s.x, 1\1);
       int x = s.x;
     }
     """
 
-  vercors should error withCode "unsupportedCast" in "Cast ptr struct to int" c
+  vercors should verify using silicon in "Cast ptr struct to int" c
     """
     struct d{
       int x;
@@ -312,7 +339,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "copyStructFailedBeforeCall" using silicon in "Insufficient permission for field x to copy struct before call" c
+  vercors should fail withCode "copyClassFailedBeforeCall" using silicon in "Insufficient permission for field x to copy struct before call" c
     """
     struct d {
         int x;
@@ -325,12 +352,12 @@ class CSpec extends VercorsSpec {
 
     int main(){
         struct d s;
-        //@ exhale Perm(s.x, 1\1);
+        //@ exhale Perm(&s.x, 1\1);
         test(s);
     }
     """
 
-  vercors should fail withCode "copyStructFailed" using silicon in "Insufficient permission for field x to copy struct" c
+  vercors should fail withCode "copyClassFailed" using silicon in "Insufficient permission for field x to copy struct" c
     """
     struct d {
         int x;
@@ -343,9 +370,14 @@ class CSpec extends VercorsSpec {
 
     int main(){
         struct d s, t;
-        //@ exhale Perm(s.x, 1\1);
+        //@ exhale Perm(&s.x, 1\1);
         t = s;
     }
+    """
+
+    vercors should error withCode "preprocessorError" in "Source file with preprocessor error" c
+    """
+    #define foo(
     """
 
     vercors should verify using silicon in "Parallel omp loop with declarations inside" c
@@ -379,17 +411,18 @@ class CSpec extends VercorsSpec {
     #include <stdlib.h>
 
     struct nested {
-      struct nested *inner;  
+      struct nested *inner;
     };
 
     void main() {
-      int *ip = NULL;                              
-      double *dp = NULL;                           
-      struct nested *np = NULL;                    
-      np = (struct nested*) NULL;               
+      int *ip = NULL;
+      double *dp = NULL;
+      struct nested *np = NULL;
+      np = (struct nested*) NULL;
       np = (struct nested*) malloc(sizeof(struct nested));
+      if (np == NULL) return;
       np->inner = NULL;
-      np->inner = (struct nested*) NULL;         
+      np->inner = (struct nested*) NULL;
     }
     """
 
@@ -562,6 +595,24 @@ class CSpec extends VercorsSpec {
         int4 x = (int4)(alter_state(y), alter_state(y));
         //@ assert x.x == 1 && x.y == 1 && x.z == 2 && x.w == 2;
         return;
+    }
+    """
+
+  vercors should error withCode "unsupportedCast" in "Casting struct pointers only works for the first element" c
+    """
+    #include <stdbool.h>
+    struct A {
+        int integer;
+        bool boolean;
+    };
+
+    struct B {
+        struct A struct_a;
+    };
+    void cannotCastToBoolean() {
+        struct B struct_b;
+        struct_b.struct_a.boolean = true == true; // We currently don't support boolean literals
+        bool *pointer_to_boolean = (bool *)&struct_b;
     }
     """
 }

@@ -7,6 +7,7 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.ast.RewriteHelpers._
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 
 case object PureMethodsToFunctions extends RewriterBuilder {
@@ -94,18 +95,22 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
         }
         toExpression(impl, alt)
       case Assign(Local(ref), e) =>
-        alt match {
-          case Some(exprAlt) =>
-            Some(Let[Post](
-              variables.collect { dispatch(ref.decl) }._1.head,
-              dispatch(e),
-              exprAlt,
-            ))
-          case None =>
-            throw MethodCannotIntoFunction(
-              currentAbstractMethod.top,
-              "Pure method cannot end with assign statement",
-            )
+        localHeapVariables.scope {
+          variables.scope {
+            alt match {
+              case Some(exprAlt) =>
+                Some(Let[Post](
+                  variables.collect { dispatch(ref.decl) }._1.head,
+                  dispatch(e),
+                  exprAlt,
+                ))
+              case None =>
+                throw MethodCannotIntoFunction(
+                  currentAbstractMethod.top,
+                  "Pure method cannot end with assign statement",
+                )
+            }
+          }
         }
 
       case _ => None

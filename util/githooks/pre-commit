@@ -2,4 +2,29 @@
 echo "=== pre-commit tasks ==="
 echo "these may be skipped with git commit --no-verify"
 ./mill __.reformatStaged
+
+if [ -z "$CLANG_FMT" ]
+then
+    if command -v clang-format > /dev/null 2>&1
+    then
+        CLANG_FMT=clang-format
+    elif command -v clang-format-17 > /dev/null 2>&1
+    then
+        CLANG_FMT=clang-format-17
+    elif command -v clang-format-16 > /dev/null 2>&1
+    then
+        CLANG_FMT=clang-format-16
+
+    elif command -v clang-format-15 > /dev/null 2>&1
+    then
+        CLANG_FMT=clang-format-15
+    fi
+fi
+
+if [ -z "$CLANG_FMT" ]
+then
+    echo "[WARN] clang-format was not found so the cpp sources could not be formatted"
+    echo "[NOTE] you can set the CLANG_FMT environment variable to specify the clang-format executable that should be used if the one you want to use isn't automatically detected"
+fi
+find src -regex '.*\.\(h\|cpp\)' -print0 | xargs -0 $CLANG_FMT -i
 echo "=== end of pre-commit tasks ==="

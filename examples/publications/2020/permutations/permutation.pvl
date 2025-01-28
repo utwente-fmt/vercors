@@ -38,6 +38,7 @@ ensures (\forall T q; {:count<T>(xs[i -> e], q):} == (
 ));
 void lemma_count_of_replace<T>(seq<T> xs, int i, T e) {
     if(i != 0) {
+        assert xs[i -> e] == (xs.head :: xs.tail[i-1 -> e]);
         lemma_count_of_replace<T>(xs.tail, i-1, e);
     }
 }

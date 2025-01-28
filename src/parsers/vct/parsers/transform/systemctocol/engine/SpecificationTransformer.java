@@ -152,8 +152,8 @@ public class SpecificationTransformer<T> {
         Held<T> m_held = new Held<>(m_deref, OriGen.create());
         Ref<T, InstancePredicate<T>> global_inv_ref = new LazyRef<>(col_system::get_global_perms, Option.empty(),
                 ClassTag$.MODULE$.apply(InstancePredicate.class));
-        InstancePredicateApply<T> global_inv = new InstancePredicateApply<>(m_deref, global_inv_ref,
-                col_system.NO_EXPRS, new WritePerm<>(OriGen.create()), OriGen.create());
+        Expr<T> global_inv = col_system.fold_preds(new InstancePredicateApply<>(m_deref, global_inv_ref,
+                col_system.NO_EXPRS, OriGen.create()));
         Eq<T> this_this = new Eq<>(this_deref, col_system.THIS, OriGen.create());
 
         // Put everything together and return the condition

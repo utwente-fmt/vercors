@@ -30,20 +30,19 @@ case class InstantiateBipSynchronizations[Pre <: Generation]()
     extends Rewriter[Pre] with LazyLogging {
   var program: Program[Pre] = null
   lazy val ports: IndexedSeq[BipPort[Pre]] =
-    program.transSubnodes.collect { case p: BipPort[Pre] => p }.toIndexedSeq
+    program.collect { case p: BipPort[Pre] => p }.toIndexedSeq
   lazy val portToTransitions: ListMap[BipPort[Pre], Seq[BipTransition[Pre]]] = {
     ListMap.from(ports.map { port =>
       (
         port,
-        program.transSubnodes.collect {
+        program.collect {
           case t: BipTransition[Pre] if t.port.decl == port => t
         }.toIndexedSeq,
       )
     })
   }
   lazy val portSynchrons =
-    program.transSubnodes.collect { case s: BipPortSynchronization[Pre] => s }
-      .toIndexedSeq
+    program.collect { case s: BipPortSynchronization[Pre] => s }.toIndexedSeq
 
   val transitionSynchrons =
     new ArrayBuffer[BipTransitionSynchronization[Post]]()
