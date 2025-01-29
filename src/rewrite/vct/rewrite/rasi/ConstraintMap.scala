@@ -1,7 +1,7 @@
 package vct.rewrite.rasi
 
 case class ConstraintMap[G](
-    constraints: Map[ResolvableVariable[G], UncertainSingleValue]
+    constraints: Map[ResolvableVariable[G], UncertainValue]
 ) {
 
   /** Concatenates the constraints from two constraint maps into one. This is
@@ -15,8 +15,8 @@ case class ConstraintMap[G](
   def &&(other: ConstraintMap[G]): ConstraintMap[G] =
     ConstraintMap(constraints ++ other.constraints.map { case (k, v) =>
       k -> v.intersection(
-        constraints.getOrElse(k, UncertainSingleValue.uncertain_of(v.t[G]))
-      ).asInstanceOf[UncertainSingleValue]
+        constraints.getOrElse(k, UncertainValue.uncertain_of(v.t[G]))
+      )
     })
 
   /** Combines the constraints from two constraint maps into one that represents
@@ -45,7 +45,7 @@ case class ConstraintMap[G](
     *   A representation of this map in which each variable is mapped to one
     *   uncertain value
     */
-  def resolve: Map[ResolvableVariable[G], UncertainSingleValue] = constraints
+  def resolve: Map[ResolvableVariable[G], UncertainValue] = constraints
 
   /** Checks whether this map's valuation is impossible. A valuation is
     * impossible if any variable is mapped to an empty set of potential values.
@@ -70,17 +70,17 @@ case class ConstraintMap[G](
 case object ConstraintMap {
   def from[G](
       variable: ResolvableVariable[G],
-      value: UncertainSingleValue,
+      value: UncertainValue,
   ): ConstraintMap[G] = ConstraintMap(Map.from(Seq(variable -> value)))
 
   def from_cons[G](
-      cons: Set[(ResolvableVariable[G], UncertainSingleValue)]
+      cons: Set[(ResolvableVariable[G], UncertainValue)]
   ): ConstraintMap[G] = ConstraintMap(Map.from(cons.map(t => t._1 -> t._2)))
 
   def empty[G]: ConstraintMap[G] = ConstraintMap(Map.empty)
 
   def impossible[G](vars: Set[_ <: ResolvableVariable[G]]): ConstraintMap[G] =
     ConstraintMap(
-      Map.from(vars.map(v => v -> UncertainSingleValue.empty_of(v.t)))
+      Map.from(vars.map(v => v -> UncertainValue.empty_of(v.t)))
     )
 }

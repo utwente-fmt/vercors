@@ -115,7 +115,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
                     state,
                     SingleSuccessor(
                       state
-                        .with_valuation(target, state.resolve_expression(value))
+                        .with_valuation(target, state.resolve_single_expression(value))
                     ),
                   )
                 case _: TSeq[_] =>

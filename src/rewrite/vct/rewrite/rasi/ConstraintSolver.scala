@@ -200,9 +200,9 @@ class ConstraintSolver[G](
   ): Set[ConstraintMap[G]] =
     comp.left.t match {
       case _: IntType[_] | _: TBool[_] =>
-        val left_val: UncertainSingleValue = state.resolve_expression(comp.left)
+        val left_val: UncertainSingleValue = state.resolve_single_expression(comp.left)
         val right_val: UncertainSingleValue = state
-          .resolve_expression(comp.right)
+          .resolve_single_expression(comp.right)
         if (left_val.fully_uncertain && right_val.fully_uncertain)
           Set(ConstraintMap.empty[G])
         else {
@@ -314,9 +314,9 @@ class ConstraintSolver[G](
         comp.left
     val value: UncertainSingleValue =
       if (pure_left)
-        state.resolve_expression(comp.left)
+        state.resolve_single_expression(comp.left)
       else
-        state.resolve_expression(comp.right)
+        state.resolve_single_expression(comp.right)
 
     comp match {
       case _: Eq[_] | _: AmbiguousEq[_] =>

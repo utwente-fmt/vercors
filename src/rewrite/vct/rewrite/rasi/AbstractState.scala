@@ -190,6 +190,7 @@ case class AbstractState[G](
             false,
           ).resolve_assumption(expr).filter(m => !m.is_impossible)
             .reduce((m1, m2) => m1 || m2).resolve
+            .map(t => t._1 -> t._2.asInstanceOf[UncertainSingleValue])
         AbstractState(
           valuations.map(v =>
             v._1 ->
@@ -230,6 +231,7 @@ case class AbstractState[G](
         false,
       ).resolve_assumption(cond).filter(m => !m.is_impossible)
         .reduce((m1, m2) => m1 || m2).resolve
+        .map(t => t._1 -> t._2.asInstanceOf[UncertainSingleValue])
     AbstractState(
       valuations,
       processes,
@@ -416,10 +418,10 @@ case class AbstractState[G](
     */
   def with_assumption(assumption: Expr[G]): RASISuccessor[G] = {
     val constraints: Set[Map[FieldVariable[G], UncertainSingleValue]] =
-      new ConstraintSolver(this, valuations.keySet, is_contract = false)
+      new ConstraintSolver(this, valuations.keySet ++ local.keySet, is_contract = false)
         .resolve_assumption(assumption).filter(m => !m.is_impossible).map(m =>
           Utils.cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[G]](
-            m.resolve
+            m.resolve.map(t => t._1 -> t._2.asInstanceOf[UncertainSingleValue])
           )
         ).filter(m =>
           m.forall(t => !t._2.intersection(valuations(t._1)).is_impossible)
@@ -467,7 +469,7 @@ case class AbstractState[G](
       new ConstraintSolver(this, valuations.keySet, is_contract = true)
         .resolve_assumption(assumption).filter(m => !m.is_impossible).map(m =>
           Utils.cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[G]](
-            m.resolve
+            m.resolve.map(t => t._1 -> t._2.asInstanceOf[UncertainSingleValue])
           )
         )
 
@@ -475,7 +477,8 @@ case class AbstractState[G](
       .distinguishing_variables(constraints, Some(assumption))
 
     RASISuccessor(
-      variables, // A postcondition simply overwrites the values it specifies
+      variables,
+      // A postcondition simply overwrites the values it specifies
       constraints.map(m =>
         AbstractState(
           valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)),
@@ -490,6 +493,17 @@ case class AbstractState[G](
     )
   }
 
+  def resolve_expression(
+      expr: Expr[G],
+      is_old: Boolean = false,
+      is_contract: Boolean = false,
+  ): UncertainValue =
+    expr.t match {
+      case TSeq(_) | TArray(_) =>
+        resolve_collection_expression(expr, is_old, is_contract)
+      case _ => resolve_single_expression(expr, is_old, is_contract)
+    }
+
   /** Evaluates an expression and returns an uncertain value, depending on the
     * type of expression and the values it can take with the given level of
     * abstraction. This method can only handle single-value types, not
@@ -500,7 +514,7 @@ case class AbstractState[G](
     * @return
     *   An uncertain value of the correct type
     */
-  def resolve_expression(
+  def resolve_single_expression(
       expr: Expr[G],
       is_old: Boolean = false,
       is_contract: Boolean = false,
@@ -857,7 +871,7 @@ case class AbstractState[G](
           UncertainIntegerValue.single(values.size),
           values.zipWithIndex.map(t =>
             UncertainIntegerValue.single(t._2) ->
-              resolve_expression(t._1, is_old, is_contract)
+              resolve_single_expression(t._1, is_old, is_contract)
           ),
           element,
         )
@@ -866,12 +880,26 @@ case class AbstractState[G](
           UncertainIntegerValue.single(values.size),
           values.zipWithIndex.map(t =>
             UncertainIntegerValue.single(t._2) ->
-              resolve_expression(t._1, is_old, is_contract)
+              resolve_single_expression(t._1, is_old, is_contract)
           ),
           values.head.t,
         )
       // Variables
-      case d: Deref[_] => collection_from_variable(d, is_old, is_contract)
+      case Local(_) =>
+        collection_from_variable(
+          expr,
+          local.asInstanceOf[Map[ConcreteVariable[G], UncertainSingleValue]],
+          is_old,
+          is_contract,
+        )
+      case Deref(_, _) =>
+        collection_from_variable(
+          expr,
+          valuations
+            .asInstanceOf[Map[ConcreteVariable[G], UncertainSingleValue]],
+          is_old,
+          is_contract,
+        )
       // Array operations
       case Values(arr, from, to) =>
         resolve_collection_expression(arr, is_old, is_contract).slice(
@@ -884,7 +912,7 @@ case class AbstractState[G](
       // Sequence operations
       case Cons(x, xs) =>
         resolve_collection_expression(xs, is_old, is_contract)
-          .prepend(resolve_expression(x, is_old, is_contract))
+          .prepend(resolve_single_expression(x, is_old, is_contract))
       case AmbiguousPlus(xs, ys) =>
         resolve_collection_expression(xs, is_old, is_contract)
           .concat(resolve_collection_expression(ys, is_old, is_contract))
@@ -900,7 +928,7 @@ case class AbstractState[G](
       case SeqUpdate(xs, i, x) =>
         resolve_collection_expression(xs, is_old, is_contract).updated(
           resolve_integer_expression(i, is_old, is_contract),
-          resolve_expression(x, is_old, is_contract),
+          resolve_single_expression(x, is_old, is_contract),
         )
       case RemoveAt(xs, i) =>
         resolve_collection_expression(xs, is_old, is_contract)
@@ -937,7 +965,33 @@ case class AbstractState[G](
           UncertainSequence.empty(ift_seq.typ)
       case Old(expr, _) =>
         resolve_collection_expression(expr, is_old = true, is_contract)
-      case Result(applicable) =>
+      case ProcedureInvocation(ref, args, _, _, _, _) =>
+        get_subroutine_return(
+          ref.decl.contract.ensures,
+          Map.from(ref.decl.args.zip(args)),
+          ref.decl.returnType,
+        ).asInstanceOf[UncertainSequence]
+      case MethodInvocation(_, ref, args, _, _, _, _) =>
+        get_subroutine_return(
+          ref.decl.contract.ensures,
+          Map.from(ref.decl.args.zip(args)),
+          ref.decl.returnType,
+        ).asInstanceOf[UncertainSequence]
+      case FunctionInvocation(ref, args, _, _, _) =>
+        get_subroutine_return(
+          ref.decl.contract.ensures,
+          Map.from(ref.decl.args.zip(args)),
+          ref.decl.returnType,
+        ).asInstanceOf[UncertainSequence]
+      case InstanceFunctionInvocation(_, ref, args, _, _, _) =>
+        get_subroutine_return(
+          ref.decl.contract.ensures,
+          Map.from(ref.decl.args.zip(args)),
+          ref.decl.returnType,
+        ).asInstanceOf[UncertainSequence]
+      case Result(
+            applicable
+          ) => // TODO: Calculate this during the calculation of a contract
         UncertainSequence.uncertain(
           applicable.decl.returnType.asInstanceOf[CompositeType[G]]
             .composingTypes.head
@@ -945,27 +999,28 @@ case class AbstractState[G](
     }
 
   private def collection_from_variable(
-      deref: Deref[G],
+      expr: Expr[G],
+      variables_to_check: Map[ConcreteVariable[G], UncertainSingleValue],
       is_old: Boolean,
       is_contract: Boolean,
   ): UncertainSequence = {
-    val affected: Set[FieldIndexedVariable[G]] = valuations.keySet
-      .filter(v => v.is_contained_by(deref, this)).collect {
+    val affected: Set[FieldIndexedVariable[G]] = variables_to_check.keySet
+      .filter(v => v.is_contained_by(expr, this)).collect {
         case v: FieldIndexedVariable[_] => v
       }
-    val size_var: Option[FieldSizeVariable[G]] = valuations.keySet
-      .filter(v => v.is_contained_by(deref, this)).collectFirst {
+    val size_var: Option[FieldSizeVariable[G]] = variables_to_check.keySet
+      .filter(v => v.is_contained_by(expr, this)).collectFirst {
         case v: FieldSizeVariable[_] => v
       }
     val len: Option[UncertainIntegerValue] = size_var
-      .map(v => valuations(v).asInstanceOf[UncertainIntegerValue])
+      .map(v => variables_to_check(v).asInstanceOf[UncertainIntegerValue])
     val t: Type[G] =
-      deref.ref.decl.t match {
+      expr.t match {
         case TArray(element) => element
         case TSeq(element) => element
         case _ =>
           throw new IllegalArgumentException(
-            s"Unsupported collection type ${deref.ref.decl.t.toInlineString}"
+            s"Unsupported collection type ${expr.t.toInlineString}"
           )
       }
     if (is_contract && !is_old)
@@ -978,7 +1033,8 @@ case class AbstractState[G](
           else
             affected.map(v => v.i).max
         )),
-        affected.map(v => UncertainIntegerValue.single(v.i) -> valuations(v))
+        affected
+          .map(v => UncertainIntegerValue.single(v.i) -> variables_to_check(v))
           .toSeq,
         t,
       )
@@ -988,7 +1044,7 @@ case class AbstractState[G](
       post: AccountedPredicate[G],
       args: Map[Variable[G], Expr[G]],
       return_type: Type[G],
-  ): UncertainSingleValue =
+  ): UncertainValue =
     get_return(
       Utils.unify_expression(Utils.contract_to_expression(post), args),
       return_type,
@@ -997,15 +1053,14 @@ case class AbstractState[G](
   private def get_return(
       contract: Expr[G],
       return_type: Type[G],
-  ): UncertainSingleValue = {
+  ): UncertainValue = {
     val result_var: ResultVariable[G] = ResultVariable(return_type)
     val result_set: Set[ResolvableVariable[G]] = Set(result_var)
     val constraints: Set[ConstraintMap[G]] =
       new ConstraintSolver(this, result_set, true).resolve_assumption(contract)
         .filter(m => !m.is_impossible)
-    val possible_vals: Set[UncertainSingleValue] = constraints.map(m =>
-      m.resolve
-        .getOrElse(result_var, UncertainSingleValue.uncertain_of(return_type))
+    val possible_vals: Set[UncertainValue] = constraints.map(m =>
+      m.resolve.getOrElse(result_var, UncertainValue.uncertain_of(return_type))
     )
     possible_vals
       .reduce((v1, v2) => v1.union(v2).asInstanceOf[UncertainSingleValue])
@@ -1020,12 +1075,12 @@ case class AbstractState[G](
   ): UncertainBooleanValue =
     left.t match {
       case _: IntType[_] | TBool() =>
-        val left_val: UncertainSingleValue = resolve_expression(
+        val left_val: UncertainSingleValue = resolve_single_expression(
           left,
           is_old,
           is_contract,
         )
-        val right_val: UncertainSingleValue = resolve_expression(
+        val right_val: UncertainSingleValue = resolve_single_expression(
           right,
           is_old,
           is_contract,
@@ -1278,5 +1333,5 @@ case class AbstractState[G](
       is_contract: Boolean,
   ): UncertainBooleanValue =
     resolve_collection_expression(collection, is_old, is_contract)
-      .contains(resolve_expression(value, is_old, is_contract))
+      .contains(resolve_single_expression(value, is_old, is_contract))
 }
