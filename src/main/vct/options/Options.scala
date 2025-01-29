@@ -4,6 +4,7 @@ import hre.log.Verbosity
 import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
+import vct.main.modes.{TransformSystemC, VESUVMode}
 import vct.main.stages.Parsing.Language
 import vct.rewrite.veymont.verification.PermissionStratificationMode
 import vct.options.types._
@@ -364,9 +365,9 @@ case object Options {
         opt[Path]("vesuv-output").required().valueName("<path>")
           .action((path, c) => c.copy(vesuvOutput = path))
           .text("Output file for the result of the transformation"),
-        opt[Unit]("generate-rasi")
-          .action((_, c) => c.copy(vesuvGenerateRasi = true)).text(
-            "Instead of transforming a SystemC design to PVL, generate a global invariant for a PVL program"
+        opt[String]("vesuv-mode")
+          .action((m, c) => c.copy(vesuvMode = VESUVMode.of(m))).text(
+            "Selects the VESUV mode: systemc for SystemC-to-PVL transformation (default), freertos for FreeRTOS-to-PVL transformation and rasi for RASI generation"
           ).children(
             opt[Unit]("rasi-graph-output")
               .action((_, c) => c.copy(vesuvRasiTest = true)).text(
@@ -524,7 +525,7 @@ case class Options(
 
     // VeSUV options
     vesuvOutput: Path = null,
-    vesuvGenerateRasi: Boolean = false,
+    vesuvMode: VESUVMode = TransformSystemC,
     vesuvRasiTest: Boolean = false,
     vesuvRasiVariables: Option[Seq[String]] = None,
     vesuvRasiSplitVariables: Option[Seq[String]] = None,

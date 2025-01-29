@@ -24,3 +24,16 @@ case object VeSUV extends LazyLogging {
     }
   }
 }
+
+sealed trait VESUVMode
+case object VESUVMode {
+  def of(keyword: String): VESUVMode = keyword.toLowerCase match {
+    case "systemc" => TransformSystemC
+    case "freertos" => TransformFreeRTOS
+    case "rasi" => UseRASIGenerator
+    case _ => throw new IllegalArgumentException("Unsupported VESUV mode " + keyword)
+  }
+}
+case object TransformSystemC extends VESUVMode
+case object TransformFreeRTOS extends VESUVMode
+case object UseRASIGenerator extends VESUVMode

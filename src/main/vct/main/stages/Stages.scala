@@ -11,7 +11,7 @@ import hre.stages.{IdentityStage, Stages}
 import hre.stages.Stages.{applyIf, branch, saveInput, timed}
 import vct.col.origin.{BlameCollector, VerificationFailure}
 import vct.col.rewrite.bip.BIP
-import vct.main.modes.VeyMont
+import vct.main.modes.{TransformFreeRTOS, TransformSystemC, UseRASIGenerator, VeyMont}
 import vct.parsers.ParseResult
 import viper.api.backend.carbon.Carbon
 import viper.api.backend.silicon.Silicon
@@ -75,15 +75,10 @@ case object Stages extends LazyLogging {
   def vesuvOfOptions(
       options: Options,
       blameProvider: BlameProvider,
-  ): Stages[Seq[Readable], Unit] = {
-    if (options.vesuvGenerateRasi) {
-      Parsing.ofOptions(options, blameProvider)
-        .thenRun(Resolution.ofOptions(options, blameProvider))
-        .thenRun(GenerateRASI.ofOptions(options))
-    } else {
-      Parsing.ofOptions(options, blameProvider)
-        .thenRun(Output.vesuvOfOptions(options))
-    }
+  ): Stages[Seq[Readable], Unit] = options.vesuvMode match {
+    case TransformSystemC => Parsing.ofOptions(options, blameProvider).thenRun(Output.vesuvOfOptions(options))
+    case TransformFreeRTOS => Parsing.ofOptions(options, blameProvider).thenRun(EncodeRTOS.ofOptions(options)).thenRun(Output.vesuvOfOptions(options))
+    case UseRASIGenerator => Parsing.ofOptions(options, blameProvider).thenRun(Resolution.ofOptions(options, blameProvider)).thenRun(GenerateRASI.ofOptions(options))
   }
 
   def cfgTransformationOfOptions(
