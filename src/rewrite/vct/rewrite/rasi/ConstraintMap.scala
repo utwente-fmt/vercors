@@ -68,13 +68,13 @@ case class ConstraintMap[G](
   def is_empty: Boolean = resolve.forall(v => v._2.fully_uncertain)
 }
 case object ConstraintMap {
-  def from[G](
+  def from[G, T <: UncertainValue](
       variable: ResolvableVariable[G],
-      value: UncertainValue,
+      value: T,
   ): ConstraintMap[G] = ConstraintMap(Map.from(Seq(variable -> value)))
 
-  def from_cons[G](
-      cons: Set[(ResolvableVariable[G], UncertainValue)]
+  def from_cons[G, T <: UncertainValue](
+      cons: Set[(ResolvableVariable[G], T)]
   ): ConstraintMap[G] = ConstraintMap(Map.from(cons.map(t => t._1 -> t._2)))
 
   def empty[G]: ConstraintMap[G] = ConstraintMap(Map.empty)

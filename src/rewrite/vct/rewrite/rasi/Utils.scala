@@ -158,9 +158,9 @@ case object Utils {
     */
   def cast_resolvable_map[G, S <: ResolvableVariable[
     G
-  ], T <: ResolvableVariable[G]](
-      m: Map[S, UncertainSingleValue]
-  ): Map[T, UncertainSingleValue] =
+  ], T <: ResolvableVariable[G], U <: UncertainValue](
+      m: Map[S, U]
+  ): Map[T, U] =
     m.filter(t => t._1.isInstanceOf[T]).map(t => t._1.asInstanceOf[T] -> t._2)
 
   /** Computes the intersection of two variable valuations.

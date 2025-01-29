@@ -146,9 +146,11 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
     val c: Seq[Map[ConcreteVariable[G], UncertainSingleValue]] = constraints
       .map(s =>
         Utils
-          .cast_resolvable_map[G, ResolvableVariable[G], ConcreteVariable[G]](
-            s.reduce((m1, m2) => m1 || m2).resolve
-          )
+          .cast_resolvable_map[G, ResolvableVariable[G], ConcreteVariable[
+            G
+          ], UncertainValue](s.reduce((m1, m2) => m1 || m2).resolve)
+          .filter(t => t._2.isInstanceOf[UncertainSingleValue])
+          .map(t => t._1 -> t._2.asInstanceOf[UncertainSingleValue])
       )
     val vars: Seq[ConcreteVariable[G]] = c.flatMap(m => m.keySet)
     var s: Set[ConcreteVariable[G]] = Set()

@@ -155,7 +155,7 @@ case class AbstractState[G](
       valuations.map(t => t._2.split.getOrElse(Set(t._2)).map(v => t._1 -> v))
     Utils.cartesian_product(valuation_sets).map(vs =>
       AbstractState(
-        Utils.cast_resolvable_map[G, ConcreteVariable[G], FieldVariable[G]](
+        Utils.cast_resolvable_map[G, ConcreteVariable[G], FieldVariable[G], UncertainSingleValue](
           Map.from(vs)
         ),
         processes,
@@ -235,7 +235,7 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes,
-      Utils.cast_resolvable_map[G, ResolvableVariable[G], LocalVariable[G]](c),
+      Utils.cast_resolvable_map[G, ResolvableVariable[G], LocalVariable[G], UncertainSingleValue](c),
       local_dependencies, // TODO: Which untracked variables influence the locals?
       lock,
       parameters,
@@ -420,7 +420,7 @@ case class AbstractState[G](
     val constraints: Set[Map[FieldVariable[G], UncertainSingleValue]] =
       new ConstraintSolver(this, valuations.keySet ++ local.keySet, is_contract = false)
         .resolve_assumption(assumption).filter(m => !m.is_impossible).map(m =>
-          Utils.cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[G]](
+          Utils.cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[G], UncertainSingleValue](
             m.resolve.map(t => t._1 -> t._2.asInstanceOf[UncertainSingleValue])
           )
         ).filter(m =>
@@ -468,7 +468,7 @@ case class AbstractState[G](
     val constraints: Set[Map[FieldVariable[G], UncertainSingleValue]] =
       new ConstraintSolver(this, valuations.keySet, is_contract = true)
         .resolve_assumption(assumption).filter(m => !m.is_impossible).map(m =>
-          Utils.cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[G]](
+          Utils.cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[G], UncertainSingleValue](
             m.resolve.map(t => t._1 -> t._2.asInstanceOf[UncertainSingleValue])
           )
         )
