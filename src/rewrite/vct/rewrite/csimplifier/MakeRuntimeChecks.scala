@@ -509,11 +509,39 @@ case class MakeRuntimeChecks[Pre <: Generation]()
             val vars = variables.dispatch(ex.bindings)
             body.map(pair => (pair._1, vars ++ pair._2))
           case all: Forall[Pre] if isAssert =>
-//            all.rewriteDefault()
             val body = dispatchExpr(all.body, isAssert)
             val vars = variables.dispatch(all.bindings)
             logger.info("forall: " + body.toString)
             body.map(pair => (pair._1, vars ++ pair._2))
+          case all: Starall[Pre] if isAssert =>
+            val body = dispatchExpr(all.body, isAssert)
+            val vars = variables.dispatch(all.bindings)
+            logger.info("forall: " + body.toString)
+            body.map(pair => (pair._1, vars ++ pair._2))
+          case let: Let[Pre] =>
+            val body = dispatchExpr(let.main, isAssert)
+            val value = dispatchExpr(let.value, isAssert)
+            val vars = variables.dispatch(let.binding)
+            implicit val o = let.o
+            if (isAssert) {
+              value.flatMap(v =>
+                body.map(b =>
+                  (
+                    Or(Not(Eq(Local(vars.ref), v._1)), b._1),
+                    Seq(vars) ++ v._2 ++ b._2,
+                  )
+                )
+              )
+            } else {
+              value.flatMap(v =>
+                body.map(b =>
+                  (
+                    And(Eq(Local(vars.ref), v._1), b._1),
+                    Seq(vars) ++ v._2 ++ b._2,
+                  )
+                )
+              )
+            }
           case _ => None
         }
       case _: Perm[Pre] => None
@@ -559,6 +587,23 @@ case class MakeRuntimeChecks[Pre <: Generation]()
               case _ => None
             }
         }
+      case i: SeqMember[Pre] =>
+        i.xs match {
+          case r: Range[Pre] =>
+            implicit val o: Origin = i.o
+            val lo = dispatchExpr(r.from, isAssert)
+            val hi = dispatchExpr(r.to, isAssert)
+            val x1 = dispatchExpr(i.x, isAssert)
+            val x2 = dispatchExpr(i.x, isAssert)
+            if (lo.isDefined && hi.isDefined && x1.isDefined) {
+              Some((
+                And(LessEq(lo.get._1, x1.get._1), Less(x2.get._1, hi.get._1)),
+                lo.get._2 ++ x1.get._2 ++ hi.get._2,
+              ))
+            } else { None }
+          case _ => None
+        }
+
       // TODO: filter other non-C expressions, e.g. seqs, \array
       case _ => Some((dispatch(node), Nil))
     }
