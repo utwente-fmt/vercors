@@ -506,8 +506,8 @@ case class CToCol[G](
           new LabelDecl()(OriginProvider(stat).sourceName(convert(label))),
           convert(inner),
         )
-      case LabeledStatement1(_, _, _, _) => ??(stat)
-      case LabeledStatement2(_, _, _) => ??(stat)
+      case LabeledStatement1(_, constant, _, stmt) => ??(stat)
+      case LabeledStatement2(_, _, stmt) => ??(stat)
     }
 
   def convert(implicit stat: ExpressionStatementContext): Statement[G] =
@@ -524,7 +524,7 @@ case class CToCol[G](
         Branch(
           Seq((convert(cond), convert(whenTrue)), (tt, convert(whenFalse)))
         )
-      case SelectionStatement1(_, _, _, _, _) => ??(stat)
+      case SelectionStatement1(_, _, cond, _, stmt) => vct.col.ast.Switch(convert(cond), convert(stmt))
     }
 
   def convert(implicit stat: ElseBranchContext): Statement[G] =
@@ -961,7 +961,10 @@ case class CToCol[G](
 
   def parseInt(i: String)(implicit o: Origin): Option[Expr[G]] =
     try { Some(CIntegerValue(BigInt(i))) }
-    catch { case e: NumberFormatException => None }
+    catch { case e: NumberFormatException => if (i.isEmpty) None else i.last match {
+      case 'l' | 'L' | 'u' | 'U' => parseInt(i.substring(0, i.length - 1))
+      case _ => None
+    } }
 
   def convert(implicit expr: PrimaryExpressionContext): Expr[G] =
     expr match {

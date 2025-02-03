@@ -5,20 +5,12 @@ import hre.progress.Progress
 import hre.stages.Stage
 import vct.col.origin.{Origin, ReadableOrigin}
 import vct.col.rewrite.Generation
+import vct.main.modes.TransformFreeRTOS
 import vct.main.stages.Parsing.{Language, UnknownFileExtension}
 import vct.options.Options
 import vct.parsers._
 import vct.parsers.debug.DebugOptions
-import vct.parsers.parser.{
-  ColCPPParser,
-  ColCParser,
-  ColIPPParser,
-  ColIParser,
-  ColJavaParser,
-  ColLLVMParser,
-  ColPVLParser,
-  ColSystemCParser,
-}
+import vct.parsers.parser.{ColCPPParser, ColCParser, ColIPPParser, ColIParser, ColJavaParser, ColLLVMParser, ColPVLParser, ColSystemCParser}
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
@@ -71,7 +63,10 @@ case object Parsing {
       forceLanguage = options.language,
       cc = options.cc,
       cSystemInclude = options.cIncludePath,
-      cOtherIncludes = Nil,
+      cOtherIncludes = options.vesuvMode match {
+        case TransformFreeRTOS => Seq(Resources.getFreeRTOSIncludePath)
+        case _ => Nil
+      },
       cDefines = options.cDefine,
     )
 }
