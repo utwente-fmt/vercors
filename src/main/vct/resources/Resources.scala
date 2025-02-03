@@ -10,6 +10,7 @@ case object Resources {
 
   def getAdtPath: Path = getResource("/adt")
   def getCIncludePath: Path = getResource("/c")
+  def getFreeRTOSIncludePath: Path = getResource("/freertos")
   def getCPPIncludePath: Path = getResource("/cpp")
   def getJrePath: Path = getResource("/jdk")
   def getCcPath: Path = Paths.get("clang")

@@ -11,6 +11,10 @@ void *__vercors_malloc(size_t size);
 // Contract is generated, and make sure to completely remove write permission to all the malloced data.
 void __vercors_free(void *ptr);
 
+
+int /*@ pure @*/ rand();
+void srand( int in );
+
 #endif 
 
 
