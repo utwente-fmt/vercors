@@ -11,7 +11,8 @@ void vSemaphoreCreateBinary( SemaphoreHandle_t xSemaphore );
 #define xSemaphoreCreateBinaryStatic( pxSemaphoreBuffer )       xSemaphoreCreateBinary()
 SemaphoreHandle_t xSemaphoreCreateBinary();
 #define xSemaphoreCreateCountingStatic( uxMaxCount, uxInitialCount, pxSempahoreBuffer )             xSemaphoreCreateCounting( uxMaxCount, uxInitialCount )
-SemaphoreHandle_t xSemaphoreCreateCounting( UBaseType_t uxMaxCount, UBaseType_t uxInitialCount );
+// TODO: Counting semaphore stores multiple task IDs, difficult to keep track of
+// SemaphoreHandle_t xSemaphoreCreateCounting( UBaseType_t uxMaxCount, UBaseType_t uxInitialCount );
 #define xSemaphoreCreateMutexStatic( pxMutexBuffer )            xSemaphoreCreateMutex()
 SemaphoreHandle_t xSemaphoreCreateMutex();
 #define xSemaphoreCreateRecursiveMutexStatic( pxMutexBuffer )           xSemaphoreCreateRecursiveMutex()
