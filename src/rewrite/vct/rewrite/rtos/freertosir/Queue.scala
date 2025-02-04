@@ -35,10 +35,7 @@ case class Queue(capacity: Int) {
           Perm(Utils.loc_of(maxSize), Utils.read)(Utils.origen),
           Greater(Utils.deref_of(maxSize), Utils.int_val(0))(Utils.origen),
           Perm(Utils.loc_of(vals), Utils.write)(Utils.origen),
-          LessEq(
-            Utils.size(vals),
-            Utils.deref_of(maxSize),
-          )(Utils.origen),
+          LessEq(Utils.size(vals), Utils.deref_of(maxSize))(Utils.origen),
           Perm(Utils.loc_of(output), Utils.write)(Utils.origen),
         ))),
         false,
@@ -153,19 +150,12 @@ case class Queue(capacity: Int) {
       Star(
         Utils.predicate_apply(Utils.thiz, perms, Seq()),
         Star(
-          Eq(
-            Utils.deref_of(s),
-            Utils.local_of(s_param)
-          )(Utils.origen),
+          Eq(Utils.deref_of(s), Utils.local_of(s_param))(Utils.origen),
           Star(
-            Eq(
-              Utils.deref_of(maxSize),
-              Utils.local_of(size_param)
-            )(Utils.origen),
-            Eq(
-              Utils.size(vals),
-              Utils.int_val(0)
-            )(Utils.origen),
+            Eq(Utils.deref_of(maxSize), Utils.local_of(size_param))(
+              Utils.origen
+            ),
+            Eq(Utils.size(vals), Utils.int_val(0))(Utils.origen),
           )(Utils.origen),
         )(Utils.origen),
       )(Utils.origen)
@@ -214,10 +204,9 @@ case class Queue(capacity: Int) {
     // ensures \old(|vals|) < maxSize ==> (\result && vals == \old(vals) + seq<int> {value});
     val ensures1: Expr[N] =
       Implies(
-        Less(
-          Utils.old(Utils.size(vals)),
-          Utils.deref_of(maxSize),
-        )(Utils.origen),
+        Less(Utils.old(Utils.size(vals)), Utils.deref_of(maxSize))(
+          Utils.origen
+        ),
         And(
           Utils.result,
           Eq(
@@ -233,10 +222,9 @@ case class Queue(capacity: Int) {
     // ensures \old(|vals|) >= maxSize ==> (!\result && vals == \old(vals));
     val ensures2: Expr[N] =
       Implies(
-        GreaterEq(
-          Utils.old(Utils.size(vals)),
-          Utils.deref_of(maxSize),
-        )(Utils.origen),
+        GreaterEq(Utils.old(Utils.size(vals)), Utils.deref_of(maxSize))(
+          Utils.origen
+        ),
         And(
           Not(Utils.result)(Utils.origen),
           Eq(Utils.deref_of(vals), Utils.old(Utils.deref_of(vals)))(
@@ -248,34 +236,27 @@ case class Queue(capacity: Int) {
     // ensures \old(|vals|) == 0 ==> s.eventState == \old(s.eventState.update(???, 0));
     val ensures3: Expr[N] =
       Implies(
+        Eq(Utils.old(Utils.size(vals)), Utils.int_val(0))(Utils.origen),
         Eq(
-          Utils.old(Utils.size(vals)),
-          Utils.int_val(0),
-        )(Utils.origen),
-        Eq(
-          Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
+          Utils.deref_ref(event_ref, Utils.deref_of(s)),
           Utils.old(
             SeqUpdate(
-              Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
+              Utils.deref_ref(event_ref, Utils.deref_of(s)),
               Utils.int_val(write_event),
               Utils.int_val(0),
-            )(Utils.origen))
-        )(Utils.origen)
+            )(Utils.origen)
+          ),
+        )(Utils.origen),
       )(Utils.origen)
 
     // ensures \old(|vals|) != 0 ==> s.eventState == \old(s.eventState);
     val ensures4: Expr[N] =
       Implies(
-        Neq(
-          Utils.old(Utils.size(vals)),
-          Utils.int_val(0),
-        )(Utils.origen),
+        Neq(Utils.old(Utils.size(vals)), Utils.int_val(0))(Utils.origen),
         Eq(
-          Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
-          Utils.old(
-            Utils.deref_ref(event_ref, Some(Utils.deref_of(s)))
-          )
-        )(Utils.origen)
+          Utils.deref_ref(event_ref, Utils.deref_of(s)),
+          Utils.old(Utils.deref_ref(event_ref, Utils.deref_of(s))),
+        )(Utils.origen),
       )(Utils.origen)
 
     new InstanceMethod(
@@ -315,10 +296,9 @@ case class Queue(capacity: Int) {
     // ensures \old(|vals|) < maxSize ==> (\result && vals == seq<int> {value} + \old(vals));
     val ensures1: Expr[N] =
       Implies(
-        Less(
-          Utils.old(Utils.size(vals)),
-          Utils.deref_of(maxSize),
-        )(Utils.origen),
+        Less(Utils.old(Utils.size(vals)), Utils.deref_of(maxSize))(
+          Utils.origen
+        ),
         And(
           Utils.result,
           Eq(
@@ -334,10 +314,9 @@ case class Queue(capacity: Int) {
     // ensures \old(|vals|) >= maxSize ==> (!\result && vals == \old(vals));
     val ensures2: Expr[N] =
       Implies(
-        GreaterEq(
-          Utils.old(Utils.size(vals)),
-          Utils.deref_of(maxSize),
-        )(Utils.origen),
+        GreaterEq(Utils.old(Utils.size(vals)), Utils.deref_of(maxSize))(
+          Utils.origen
+        ),
         And(
           Not(Utils.result)(Utils.origen),
           Eq(Utils.deref_of(vals), Utils.old(Utils.deref_of(vals)))(
@@ -349,34 +328,27 @@ case class Queue(capacity: Int) {
     // ensures \old(|vals|) == 0 ==> s.eventState == \old(s.eventState.update(???, 0));
     val ensures3: Expr[N] =
       Implies(
+        Eq(Utils.old(Utils.size(vals)), Utils.int_val(0))(Utils.origen),
         Eq(
-          Utils.old(Utils.size(vals)),
-          Utils.int_val(0),
-        )(Utils.origen),
-        Eq(
-          Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
+          Utils.deref_ref(event_ref, Utils.deref_of(s)),
           Utils.old(
             SeqUpdate(
-              Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
+              Utils.deref_ref(event_ref, Utils.deref_of(s)),
               Utils.int_val(write_event),
               Utils.int_val(0),
-            )(Utils.origen))
-        )(Utils.origen)
+            )(Utils.origen)
+          ),
+        )(Utils.origen),
       )(Utils.origen)
 
     // ensures \old(|vals|) != 0 ==> s.eventState == \old(s.eventState);
     val ensures4: Expr[N] =
       Implies(
-        Neq(
-          Utils.old(Utils.size(vals)),
-          Utils.int_val(0),
-        )(Utils.origen),
+        Neq(Utils.old(Utils.size(vals)), Utils.int_val(0))(Utils.origen),
         Eq(
-          Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
-          Utils.old(
-            Utils.deref_ref(event_ref, Some(Utils.deref_of(s)))
-          )
-        )(Utils.origen)
+          Utils.deref_ref(event_ref, Utils.deref_of(s)),
+          Utils.old(Utils.deref_ref(event_ref, Utils.deref_of(s))),
+        )(Utils.origen),
       )(Utils.origen)
 
     new InstanceMethod(
@@ -415,58 +387,47 @@ case class Queue(capacity: Int) {
     // ensures \result;
     val ensures1: Expr[N] = Utils.result
 
-    //ensures \old(|vals|) > 0 ==> (vals == seq<int> {value} + \old(vals[1 .. |vals|]) && main.eventState == \old(main.eventState));
+    // ensures \old(|vals|) > 0 ==> (vals == seq<int> {value} + \old(vals[1 .. |vals|]) && main.eventState == \old(main.eventState));
     val ensures2: Expr[N] =
       Implies(
-        Greater(
-          Utils.old(Utils.size(vals)),
-          Utils.int_val(0),
-        )(Utils.origen),
+        Greater(Utils.old(Utils.size(vals)), Utils.int_val(0))(Utils.origen),
         And(
           Eq(
             Utils.deref_of(vals),
             Concat(
               Utils.seq_val(Seq(Utils.local_of(value))),
               Utils.old(
-                Slice(
-                  Utils.deref_of(vals),
-                  Utils.int_val(1),
-                  Utils.size(vals)
-                )(Utils.origen)
+                Slice(Utils.deref_of(vals), Utils.int_val(1), Utils.size(vals))(
+                  Utils.origen
+                )
               ),
             )(Utils.origen),
           )(Utils.origen),
           Eq(
-            Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
-            Utils.old(
-              Utils.deref_ref(event_ref, Some(Utils.deref_of(s)))
-            )
-          )(Utils.origen)
+            Utils.deref_ref(event_ref, Utils.deref_of(s)),
+            Utils.old(Utils.deref_ref(event_ref, Utils.deref_of(s))),
+          )(Utils.origen),
         )(Utils.origen),
       )(Utils.origen)
 
     // ensures \old(|vals|) == 0 ==> (vals == seq<int> {value} && main.eventState == \old(main.eventState.update(???, 0)));
     val ensures3: Expr[N] =
       Implies(
-        Eq(
-          Utils.old(Utils.size(vals)),
-          Utils.int_val(0),
-        )(Utils.origen),
+        Eq(Utils.old(Utils.size(vals)), Utils.int_val(0))(Utils.origen),
         And(
+          Eq(Utils.deref_of(vals), Utils.seq_val(Seq(Utils.local_of(value))))(
+            Utils.origen
+          ),
           Eq(
-            Utils.deref_of(vals),
-            Utils.seq_val(Seq(Utils.local_of(value))),
-          )(Utils.origen),
-          Eq(
-            Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
+            Utils.deref_ref(event_ref, Utils.deref_of(s)),
             Utils.old(
               SeqUpdate(
-                Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
+                Utils.deref_ref(event_ref, Utils.deref_of(s)),
                 Utils.int_val(write_event),
                 Utils.int_val(0),
               )(Utils.origen)
-            )
-          )(Utils.origen)
+            ),
+          )(Utils.origen),
         )(Utils.origen),
       )(Utils.origen)
 
@@ -497,10 +458,7 @@ case class Queue(capacity: Int) {
     val ensures: Expr[N] =
       And(
         Utils.result,
-        Eq(
-          Utils.deref_of(vals),
-          Utils.seq_val(Seq()),
-        )(Utils.origen)
+        Eq(Utils.deref_of(vals), Utils.seq_val(Seq()))(Utils.origen),
       )(Utils.origen)
 
     new InstanceMethod(
@@ -509,10 +467,7 @@ case class Queue(capacity: Int) {
       Seq(),
       Seq(),
       None,
-      Utils.to_app_contract(
-        context,
-        Utils.fold_star(Seq(context, ensures)),
-      ),
+      Utils.to_app_contract(context, Utils.fold_star(Seq(context, ensures))),
       false,
       false,
     )(Utils.origen)(Utils.origen("xQueueReset"))
@@ -539,86 +494,62 @@ case class Queue(capacity: Int) {
     // ensures \old(|vals|) > 0 ==> (\result && output == \old(vals[0]) && vals == \old(vals[1 .. |vals|]));
     val ensures1: Expr[N] =
       Implies(
-        Greater(
-          Utils.old(Utils.size(vals)),
-          Utils.int_val(0),
-        )(Utils.origen),
+        Greater(Utils.old(Utils.size(vals)), Utils.int_val(0))(Utils.origen),
         Utils.fold_and(Seq(
           Utils.result,
-          Eq(
-            Utils.deref_of(output),
-            Utils.old(
-              Utils.subscript(vals, 0),
-            ),
-          )(Utils.origen),
+          Eq(Utils.deref_of(output), Utils.old(Utils.subscript(vals, 0)))(
+            Utils.origen
+          ),
           Eq(
             Utils.deref_of(vals),
             Utils.old(
-              Slice(
-                Utils.deref_of(vals),
-                Utils.int_val(1),
-                Utils.size(vals)
-              )(Utils.origen)
+              Slice(Utils.deref_of(vals), Utils.int_val(1), Utils.size(vals))(
+                Utils.origen
+              )
             ),
-          )(Utils.origen)
-        ))
+          )(Utils.origen),
+        )),
       )(Utils.origen)
 
     // ensures \old(|vals|) == 0 ==> (!\result && vals == \old(vals) && s.eventState == \old(s.eventState));
     val ensures2: Expr[N] =
       Implies(
-        Eq(
-          Utils.old(Utils.size(vals)),
-          Utils.int_val(0),
-        )(Utils.origen),
+        Eq(Utils.old(Utils.size(vals)), Utils.int_val(0))(Utils.origen),
         Utils.fold_and(Seq(
           Not(Utils.result)(Utils.origen),
+          Eq(Utils.deref_of(vals), Utils.old(Utils.deref_of(vals)))(
+            Utils.origen
+          ),
           Eq(
-            Utils.deref_of(vals),
-            Utils.old(
-              Utils.deref_of(vals)
-            ),
+            Utils.deref_ref(event_ref, Utils.deref_of(s)),
+            Utils.old(Utils.deref_ref(event_ref, Utils.deref_of(s))),
           )(Utils.origen),
-          Eq(
-            Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
-            Utils.old(
-              Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
-            ),
-          )(Utils.origen)
-        ))
+        )),
       )(Utils.origen)
 
     // ensures \old(|vals|) == maxSize ==> s.eventState == \old(s.eventState.update(???, 0));
     val ensures3: Expr[N] =
       Implies(
+        Eq(Utils.old(Utils.size(vals)), Utils.deref_of(maxSize))(Utils.origen),
         Eq(
-          Utils.old(Utils.size(vals)),
-          Utils.deref_of(maxSize),
-        )(Utils.origen),
-        Eq(
-          Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
+          Utils.deref_ref(event_ref, Utils.deref_of(s)),
           Utils.old(
             SeqUpdate(
-              Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
+              Utils.deref_ref(event_ref, Utils.deref_of(s)),
               Utils.int_val(read_event),
               Utils.int_val(0),
             )(Utils.origen)
-          )
+          ),
         )(Utils.origen),
       )(Utils.origen)
 
     // ensures \old(|vals|) != maxSize ==> s.eventState == \old(s.eventState);
     val ensures4: Expr[N] =
       Implies(
-        Neq(
-          Utils.old(Utils.size(vals)),
-          Utils.deref_of(maxSize),
-        )(Utils.origen),
+        Neq(Utils.old(Utils.size(vals)), Utils.deref_of(maxSize))(Utils.origen),
         Eq(
-          Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
-          Utils.old(
-            Utils.deref_ref(event_ref, Some(Utils.deref_of(s))),
-          )
+          Utils.deref_ref(event_ref, Utils.deref_of(s)),
+          Utils.old(Utils.deref_ref(event_ref, Utils.deref_of(s))),
         )(Utils.origen),
       )(Utils.origen)
 
@@ -648,45 +579,30 @@ case class Queue(capacity: Int) {
 
     // ensures vals == \old(vals);
     val ensures1: Expr[N] =
-      Eq(
-        Utils.deref_of(vals),
-        Utils.old(Utils.deref_of(vals))
-      )(Utils.origen)
+      Eq(Utils.deref_of(vals), Utils.old(Utils.deref_of(vals)))(Utils.origen)
 
     // ensures \old(|vals|) > 0 ==> (\result && output == \old(vals[0]));
     val ensures2: Expr[N] =
       Implies(
-        Greater(
-          Utils.old(Utils.size(vals)),
-          Utils.int_val(0)
-        )(Utils.origen),
+        Greater(Utils.old(Utils.size(vals)), Utils.int_val(0))(Utils.origen),
         And(
           Utils.result,
-          Eq(
-            Utils.deref_of(output),
-            Utils.old(
-              Utils.subscript(vals, 0)
-            )
-          )(Utils.origen)
-        )(Utils.origen)
+          Eq(Utils.deref_of(output), Utils.old(Utils.subscript(vals, 0)))(
+            Utils.origen
+          ),
+        )(Utils.origen),
       )(Utils.origen)
 
     // ensures \old(|vals|) == 0 ==> (!\result && output == \old(output));
     val ensures3: Expr[N] =
       Implies(
-        Eq(
-          Utils.old(Utils.size(vals)),
-          Utils.int_val(0)
-        )(Utils.origen),
+        Eq(Utils.old(Utils.size(vals)), Utils.int_val(0))(Utils.origen),
         And(
           Not(Utils.result)(Utils.origen),
-          Eq(
-            Utils.deref_of(output),
-            Utils.old(
-              Utils.deref_of(output)
-            )
-          )(Utils.origen)
-        )(Utils.origen)
+          Eq(Utils.deref_of(output), Utils.old(Utils.deref_of(output)))(
+            Utils.origen
+          ),
+        )(Utils.origen),
       )(Utils.origen)
 
     new InstanceMethod(
@@ -716,10 +632,7 @@ case class Queue(capacity: Int) {
     val ensures: Expr[N] =
       Eq(
         Utils.result,
-        Minus(
-          Utils.deref_of(maxSize),
-          Utils.size(vals),
-        )(Utils.origen)
+        Minus(Utils.deref_of(maxSize), Utils.size(vals))(Utils.origen),
       )(Utils.origen)
 
     new InstanceMethod(
@@ -728,10 +641,7 @@ case class Queue(capacity: Int) {
       Seq(),
       Seq(),
       None,
-      Utils.to_app_contract(
-        requires,
-        ensures,
-      ),
+      Utils.to_app_contract(requires, ensures),
       false,
       true,
     )(Utils.origen)(Utils.origen("uxQueueSpacesAvailable"))
@@ -745,11 +655,7 @@ case class Queue(capacity: Int) {
     val requires: Expr[N] = Utils.predicate_apply(Utils.thiz, perms, Seq())
 
     // ensures \result == |vals|;
-    val ensures: Expr[N] =
-      Eq(
-        Utils.result,
-        Utils.size(vals),
-      )(Utils.origen)
+    val ensures: Expr[N] = Eq(Utils.result, Utils.size(vals))(Utils.origen)
 
     new InstanceMethod(
       Utils.tint,
@@ -757,10 +663,7 @@ case class Queue(capacity: Int) {
       Seq(),
       Seq(),
       None,
-      Utils.to_app_contract(
-        requires,
-        ensures,
-      ),
+      Utils.to_app_contract(requires, ensures),
       false,
       true,
     )(Utils.origen)(Utils.origen("uxQueueMessagesWaiting"))
@@ -775,13 +678,9 @@ case class Queue(capacity: Int) {
 
     // ensures \result == (|vals| == 0);
     val ensures: Expr[N] =
-      Eq(
-        Utils.result,
-        Eq(
-          Utils.size(vals),
-          Utils.int_val(0),
-        )(Utils.origen)
-      )(Utils.origen)
+      Eq(Utils.result, Eq(Utils.size(vals), Utils.int_val(0))(Utils.origen))(
+        Utils.origen
+      )
 
     new InstanceMethod(
       Utils.tbool,
@@ -789,10 +688,7 @@ case class Queue(capacity: Int) {
       Seq(),
       Seq(),
       None,
-      Utils.to_app_contract(
-        requires,
-        ensures,
-      ),
+      Utils.to_app_contract(requires, ensures),
       false,
       true,
     )(Utils.origen)(Utils.origen("xQueueIsQueueEmptyFromISR"))
@@ -810,10 +706,7 @@ case class Queue(capacity: Int) {
     val ensures: Expr[N] =
       Eq(
         Utils.result,
-        Eq(
-          Utils.size(vals),
-          Utils.deref_of(maxSize),
-        )(Utils.origen)
+        Eq(Utils.size(vals), Utils.deref_of(maxSize))(Utils.origen),
       )(Utils.origen)
 
     new InstanceMethod(
@@ -822,10 +715,7 @@ case class Queue(capacity: Int) {
       Seq(),
       Seq(),
       None,
-      Utils.to_app_contract(
-        requires,
-        ensures,
-      ),
+      Utils.to_app_contract(requires, ensures),
       false,
       true,
     )(Utils.origen)(Utils.origen("xQueueIsQueueFullFromISR"))

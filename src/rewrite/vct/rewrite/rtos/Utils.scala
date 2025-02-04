@@ -8,7 +8,7 @@ import vct.col.util.AstBuildHelpers.{ff, tt}
 import scala.annotation.tailrec
 
 case object Utils {
-  def try_expr_to_int(expr: Expr[_]): Option[Int] =
+  private def try_expr_to_int(expr: Expr[_]): Option[Int] =
     expr match {
       case IntegerValue(i) => Some(i.intValue)
       case CIntegerValue(i) => Some(i.intValue)
@@ -216,12 +216,9 @@ case object Utils {
 
   def deref_ref[N](
       ref: Ref[N, InstanceField[N]],
-      obj: Option[Expr[N]],
+      obj: Expr[N],
   ): Deref[N] =
-    obj match {
-      case Some(o) => Deref(o, ref)(origen)(origen)
-      case _ => Deref(thiz, ref)(origen)(origen)
-    }
+    Deref(obj, ref)(origen)(origen)
 
   def local_of[N](v: Variable[N]): Local[N] =
     Local(new DirectRef[N, Variable[N]](v))(origen)

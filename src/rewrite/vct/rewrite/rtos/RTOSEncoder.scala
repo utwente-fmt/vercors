@@ -38,38 +38,43 @@ object RTOSEncoder {
   ): Seq[Task[O]] =
     Utils.filter_by_name(calls, "vesuvTaskCreate").map(t => Task.of(t, decls))
 
-  private def get_timers[O](calls: Seq[CInvocation[O]],
-                            decls: Seq[CFunctionDefinition[O]]): Seq[Timer[O]] =
+  private def get_timers[O](
+      calls: Seq[CInvocation[O]],
+      decls: Seq[CFunctionDefinition[O]],
+  ): Seq[Timer[O]] =
     Utils.filter_by_name(calls, "vesuvTimerCreate").map(t => Timer.of(t, decls))
 
-  private def get_isrs[O](calls: Seq[CInvocation[O]],
-                          decls: Seq[CFunctionDefinition[O]]): Seq[ISR[O]] =
+  private def get_isrs[O](
+      calls: Seq[CInvocation[O]],
+      decls: Seq[CFunctionDefinition[O]],
+  ): Seq[ISR[O]] =
     Utils.filter_by_name(calls, "vesuvISRCreate").map(t => ISR.of(t, decls))
 
-  private def get_event_groups[O](
-                                   calls: Seq[CInvocation[O]]
-  ): Seq[EventGroup] =
+  private def get_event_groups[O](calls: Seq[CInvocation[O]]): Seq[EventGroup] =
     Utils.filter_by_name(calls, "xEventGroupCreate").map(_ => EventGroup())
 
-  private def get_semaphores[O](
-                                 calls: Seq[CInvocation[O]]
-  ): Seq[Semaphore] =
-    Utils.filter_by_name(calls, "xSemaphoreCreateBinary").map(_ => BinarySemaphore(false)) ++
-      Utils.filter_by_name(calls, "xSemaphoreCreateMutex").map(_ => BinarySemaphore(true)) ++
-      Utils.filter_by_name(calls, "xSemaphoreCreateRecursiveMutex").map(_ => RecursiveMutex())
+  private def get_semaphores[O](calls: Seq[CInvocation[O]]): Seq[Semaphore] =
+    Utils.filter_by_name(calls, "xSemaphoreCreateBinary")
+      .map(_ => BinarySemaphore(false)) ++
+      Utils.filter_by_name(calls, "xSemaphoreCreateMutex")
+        .map(_ => BinarySemaphore(true)) ++
+      Utils.filter_by_name(calls, "xSemaphoreCreateRecursiveMutex")
+        .map(_ => RecursiveMutex())
 
   private def get_queues[O](calls: Seq[CInvocation[O]]): Seq[Queue] =
     Utils.filter_by_name(calls, "xQueueCreate").map(v => Queue.of(v))
 
   private def get_stream_buffers[O](
-                                     calls: Seq[CInvocation[O]]
+      calls: Seq[CInvocation[O]]
   ): Seq[StreamBuffer] =
-    Utils.filter_by_name(calls, "xStreamBufferCreate").map(v => StreamBuffer.of(v))
+    Utils.filter_by_name(calls, "xStreamBufferCreate")
+      .map(v => StreamBuffer.of(v))
 
   private def get_message_buffers[O](
-                                      calls: Seq[CInvocation[O]]
+      calls: Seq[CInvocation[O]]
   ): Seq[MessageBuffer] =
-    Utils.filter_by_name(calls, "xMessageBufferCreate").map(v => MessageBuffer.of(v))
+    Utils.filter_by_name(calls, "xMessageBufferCreate")
+      .map(v => MessageBuffer.of(v))
 
   private def construct_encoded_system[O, N](
       tasks: Seq[Task[O]],
