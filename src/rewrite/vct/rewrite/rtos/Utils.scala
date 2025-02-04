@@ -1,6 +1,9 @@
 package vct.rewrite.rtos
 
 import vct.col.ast._
+import vct.col.origin.{LabelContext, Origin, PreferredName}
+import vct.col.ref.{DirectRef, Ref}
+import vct.col.util.AstBuildHelpers.{ff, tt}
 
 import scala.annotation.tailrec
 
@@ -14,10 +17,11 @@ case object Utils {
           case Some(i) => Some(-i)
           case None => None
         }
-      case BitNot(arg) => try_expr_to_int(arg) match {
-        case Some(i) => Some(~i)
-        case None => None
-      }
+      case BitNot(arg) =>
+        try_expr_to_int(arg) match {
+          case Some(i) => Some(~i)
+          case None => None
+        }
       case Plus(left, right) =>
         resolve_operator(left, right, (i1, i2) => i1 + i2)
       case AmbiguousPlus(left, right) =>
@@ -26,27 +30,52 @@ case object Utils {
         resolve_operator(left, right, (i1, i2) => i1 - i2)
       case AmbiguousMinus(left, right) =>
         resolve_operator(left, right, (i1, i2) => i1 - i2)
-      case AmbiguousMult(left, right) => resolve_operator(left, right, (i1, i2) => i1 * i2)
-      case Mult(left, right) => resolve_operator(left, right, (i1, i2) => i1 * i2)
-      case AmbiguousDiv(left, right) => resolve_operator(left, right, (i1, i2) => i1 / i2)
-      case AmbiguousTruncDiv(left, right) => resolve_operator(left, right, (i1, i2) => i1 / i2)
-      case FloorDiv(left, right) => resolve_operator(left, right, (i1, i2) => i1 / i2)
-      case AmbiguousMod(left, right) => resolve_operator(left, right, (i1, i2) => i1 % i2)
-      case AmbiguousTruncMod(left, right) => resolve_operator(left, right, (i1, i2) => i1 % i2)
-      case Mod(left, right) => resolve_operator(left, right, (i1, i2) => i1 % i2)
-      case Exp(left, right) => resolve_operator(left, right, (i1, i2) => BigDecimal(i1).pow(i2).intValue)
-      case AmbiguousComputationalOr(left, right) => resolve_operator(left, right, (i1, i2) => i1 | i2)
-      case ComputationalOr(left, right) => resolve_operator(left, right, (i1, i2) => i1 | i2)
-      case AmbiguousComputationalAnd(left, right) => resolve_operator(left, right, (i1, i2) => i1 & i2)
-      case ComputationalAnd(left, right) => resolve_operator(left, right, (i1, i2) => i1 & i2)
-      case AmbiguousComputationalXor(left, right) => resolve_operator(left, right, (i1, i2) => i1 ^ i2)
-      case ComputationalXor(left, right) => resolve_operator(left, right, (i1, i2) => i1 ^ i2)
-      case BitAnd(left, right) => resolve_operator(left, right, (i1, i2) => i1 & i2)
-      case BitOr(left, right) => resolve_operator(left, right, (i1, i2) => i1 | i2)
-      case BitXor(left, right) => resolve_operator(left, right, (i1, i2) => i1 ^ i2)
-      case BitShl(left, right) => resolve_operator(left, right, (i1, i2) => i1 << i2)
-      case BitShr(left, right) => resolve_operator(left, right, (i1, i2) => i1 >> i2)
-      case BitUShr(left, right) => resolve_operator(left, right, (i1, i2) => i1 >>> i2)
+      case AmbiguousMult(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 * i2)
+      case Mult(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 * i2)
+      case AmbiguousDiv(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 / i2)
+      case AmbiguousTruncDiv(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 / i2)
+      case FloorDiv(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 / i2)
+      case AmbiguousMod(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 % i2)
+      case AmbiguousTruncMod(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 % i2)
+      case Mod(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 % i2)
+      case Exp(left, right) =>
+        resolve_operator(
+          left,
+          right,
+          (i1, i2) => BigDecimal(i1).pow(i2).intValue,
+        )
+      case AmbiguousComputationalOr(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 | i2)
+      case ComputationalOr(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 | i2)
+      case AmbiguousComputationalAnd(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 & i2)
+      case ComputationalAnd(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 & i2)
+      case AmbiguousComputationalXor(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 ^ i2)
+      case ComputationalXor(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 ^ i2)
+      case BitAnd(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 & i2)
+      case BitOr(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 | i2)
+      case BitXor(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 ^ i2)
+      case BitShl(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 << i2)
+      case BitShr(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 >> i2)
+      case BitUShr(left, right) =>
+        resolve_operator(left, right, (i1, i2) => i1 >>> i2)
       case _ => None
     }
 
@@ -64,6 +93,39 @@ case object Utils {
       case None => None
     }
 
+  def creation_arg_assert[G](
+      invocation: CInvocation[G],
+      desired_arguments: Int,
+      error_message: String,
+  ): Unit =
+    if (invocation.args.length != desired_arguments)
+      throw new IllegalArgumentException(error_message)
+
+  def resolve_integer[G](expr: Expr[G], meaning: String): Int =
+    try_expr_to_int(expr).getOrElse(
+      throw new IllegalArgumentException(
+        "Could not resolve " + meaning + expr.toInlineString
+      )
+    )
+
+  def resolve_function[G](
+      invocation: CInvocation[G],
+      decls: Seq[CFunctionDefinition[G]],
+      meaning: String,
+  ): CFunctionDefinition[G] =
+    decls.find(f =>
+      get_declarator_name(f.declarator)
+        .equals(get_applicable_name(invocation.applicable))
+    ).getOrElse(
+      throw new IllegalArgumentException("Could not find " + meaning + "!")
+    )
+
+  def filter_by_name[O](
+      funcs: Seq[CInvocation[O]],
+      name: String,
+  ): Seq[CInvocation[O]] =
+    funcs.filter(i => Utils.get_applicable_name(i.applicable).equals(name))
+
   @tailrec
   def get_declarator_name(declarator: CDeclarator[_]): String =
     declarator match {
@@ -75,7 +137,7 @@ case object Utils {
       case CName(name) => name
     }
 
-  def get_applicable_name(applicable: Expr[_]): String =
+  private def get_applicable_name(applicable: Expr[_]): String =
     applicable match {
       case CLocal(name) => name
       case _ =>
@@ -84,4 +146,87 @@ case object Utils {
             " has unexpected node type!"
         )
     }
+
+  def thiz[N]: AmbiguousThis[N] = AmbiguousThis()(origen)
+  def nul[N]: Null[N] = Null()(origen)
+  def read[N]: ReadPerm[N] = ReadPerm()(origen)
+  def write[N]: WritePerm[N] = WritePerm()(origen)
+  def result[N]: Expr[N] = AmbiguousResult()(origen)
+  def seq_val[N](vals: Seq[Expr[N]]): LiteralSeq[N] =
+    LiteralSeq(tint, vals)(origen)
+  def int_val[N](value: Int): IntegerValue[N] =
+    IntegerValue(BigInt(value))(origen)
+
+  def tint[N]: TInt[N] = TInt()(origen)
+  def tbool[N]: TBool[N] = TBool()(origen)
+  def tseqint[N]: TSeq[N] = TSeq(TInt()(origen))(origen)
+
+  def fold_star[N](vals: Seq[Expr[N]]): Expr[N] =
+    vals.reduce((e1, e2) => Star(e1, e2)(origen))
+  def fold_and[N](vals: Seq[Expr[N]]): Expr[N] =
+    vals.reduce((e1, e2) => And(e1, e2)(origen))
+  def fold_or[N](vals: Seq[Expr[N]]): Expr[N] =
+    vals.reduce((e1, e2) => Or(e1, e2)(origen))
+
+  def predicate_apply[N](
+      obj: Expr[N],
+      ref: Ref[N, InstancePredicate[N]],
+      args: Seq[Expr[N]],
+  ): Expr[N] =
+    PredicateApplyExpr(InstancePredicateApply(obj, ref, args)(origen))(origen)
+
+  def old[N](expr: Expr[N]): Old[N] = Old(expr, None)(origen)(origen)
+
+  def size[N](f: InstanceField[N]): Size[N] = Size(deref_of(f))(origen)
+
+  def subscript[N](f: InstanceField[N], index: Int): SeqSubscript[N] =
+    SeqSubscript(deref_of(f), int_val(index))(origen)(origen)
+
+  def to_app_contract[N](
+      requires: Expr[N],
+      ensures: Expr[N],
+  ): ApplicableContract[N] =
+    ApplicableContract(
+      UnitAccountedPredicate(requires)(origen),
+      UnitAccountedPredicate(ensures)(origen),
+      tt,
+      Seq(),
+      Seq(),
+      Seq(),
+      None,
+    )(origen)(origen)
+
+  def loc_of[N](
+      f: InstanceField[N],
+      obj: Option[Expr[N]] = None,
+  ): FieldLocation[N] =
+    obj match {
+      case Some(o) =>
+        FieldLocation(o, new DirectRef[N, InstanceField[N]](f))(origen)
+      case _ =>
+        FieldLocation(thiz, new DirectRef[N, InstanceField[N]](f))(origen)
+    }
+  def deref_of[N](f: InstanceField[N], obj: Option[Expr[N]] = None): Deref[N] =
+    obj match {
+      case Some(o) =>
+        Deref(o, new DirectRef[N, InstanceField[N]](f))(origen)(origen)
+      case _ =>
+        Deref(thiz, new DirectRef[N, InstanceField[N]](f))(origen)(origen)
+    }
+
+  def deref_ref[N](
+      ref: Ref[N, InstanceField[N]],
+      obj: Option[Expr[N]],
+  ): Deref[N] =
+    obj match {
+      case Some(o) => Deref(o, ref)(origen)(origen)
+      case _ => Deref(thiz, ref)(origen)(origen)
+    }
+
+  def local_of[N](v: Variable[N]): Local[N] =
+    Local(new DirectRef[N, Variable[N]](v))(origen)
+
+  def origen(name: String): Origin =
+    origen.withContent(PreferredName(Seq(name)))
+  def origen: Origin = Origin(Seq(LabelContext("FreeRTOS")))
 }
