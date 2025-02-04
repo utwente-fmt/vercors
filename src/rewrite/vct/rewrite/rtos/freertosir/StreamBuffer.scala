@@ -7,13 +7,13 @@ import vct.rewrite.rtos.Utils
 
 case class StreamBuffer(size: Int, trigger_bytes: Int) {
   def transform[N](
-                    scheduler_ref: Ref[N, Class[N]],
-                    event_ref: Ref[N, InstanceField[N]],
-                    event_perms_ref: Ref[N, InstancePredicate[N]],
-                    read_event: Int,
-                    write_event: Int,
-                    name: String,
-                  ): Class[N] = {
+      scheduler_ref: Ref[N, Class[N]],
+      event_ref: Ref[N, InstanceField[N]],
+      event_perms_ref: Ref[N, InstancePredicate[N]],
+      read_event: Int,
+      write_event: Int,
+      name: String,
+  ): Class[N] = {
     val s: InstanceField[N] =
       new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
         Utils.origen("s")
@@ -36,7 +36,9 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
           Perm(Utils.loc_of(maxSize), Utils.read)(Utils.origen),
           Perm(Utils.loc_of(triggerLevel), Utils.read)(Utils.origen),
           Greater(Utils.deref_of(triggerLevel), Utils.int_val(0))(Utils.origen),
-          GreaterEq(Utils.deref_of(maxSize), Utils.deref_of(triggerLevel))(Utils.origen),
+          GreaterEq(Utils.deref_of(maxSize), Utils.deref_of(triggerLevel))(
+            Utils.origen
+          ),
           Perm(Utils.loc_of(buffer), Utils.write)(Utils.origen),
           Perm(Utils.loc_of(output), Utils.write)(Utils.origen),
         ))),
@@ -67,9 +69,25 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
     )
     val xStreamBufferSpacesAvailable: InstanceMethod[N] =
       create_xStreamBufferSpacesAvailable(buffer, maxSize, perms)
-    val xStreamBufferReceive: InstanceMethod[N] =
-      create_xStreamBufferReceive(s, buffer, output, perms, event_ref, event_perms_ref, read_event)
-    val xStreamBufferSend: InstanceMethod[N] = create_xStreamBufferSend(s, messageSizes, buffer, maxSize, perms, event_ref, event_perms_ref, write_event)
+    val xStreamBufferReceive: InstanceMethod[N] = create_xStreamBufferReceive(
+      s,
+      buffer,
+      output,
+      perms,
+      event_ref,
+      event_perms_ref,
+      read_event,
+    )
+    val xStreamBufferSend: InstanceMethod[N] = create_xStreamBufferSend(
+      s,
+      buffer,
+      maxSize,
+      triggerLevel,
+      perms,
+      event_ref,
+      event_perms_ref,
+      write_event,
+    )
     // TODO: val xStreamBufferReset: InstanceMethod[N] = ???
 
     new ByReferenceClass(
@@ -95,13 +113,13 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
   }
 
   private def create_constructor[N](
-                                     s: InstanceField[N],
-                                     buffer: InstanceField[N],
-                                     maxSize: InstanceField[N],
-                                    triggerLevel: InstanceField[N],
-                                     perms: Ref[N, InstancePredicate[N]],
-                                     scheduler_ref: Ref[N, Class[N]],
-                                   ): PVLConstructor[N] = {
+      s: InstanceField[N],
+      buffer: InstanceField[N],
+      maxSize: InstanceField[N],
+      triggerLevel: InstanceField[N],
+      perms: Ref[N, InstancePredicate[N]],
+      scheduler_ref: Ref[N, Class[N]],
+  ): PVLConstructor[N] = {
     val s_param: Variable[N] =
       new Variable(TByReferenceClass(scheduler_ref, Seq())(Utils.origen))(
         Utils.origen("s_param")
@@ -112,19 +130,22 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
       new Variable(Utils.tint)(Utils.origen("trigger_param"))
 
     // requires s_param != null && trigger_param > 0 && size_param >= trigger_param;
-    val requires: Expr[N] =
-      Utils.fold_and(Seq(
-        Neq(Utils.local_of(s_param), Utils.nul)(Utils.origen),
-        Greater(Utils.local_of(trigger_param), Utils.int_val(0))(Utils.origen),
-        GreaterEq(Utils.local_of(size_param), Utils.local_of(trigger_param))(Utils.origen),
-      ))
+    val requires: Expr[N] = Utils.fold_and(Seq(
+      Neq(Utils.local_of(s_param), Utils.nul)(Utils.origen),
+      Greater(Utils.local_of(trigger_param), Utils.int_val(0))(Utils.origen),
+      GreaterEq(Utils.local_of(size_param), Utils.local_of(trigger_param))(
+        Utils.origen
+      ),
+    ))
 
     // ensures sBufferPerms() ** s == s_param ** maxSize == size_param ** triggerLevel == trigger_param ** |buffer| == 0;
     val ensures: Expr[N] = Utils.fold_star(Seq(
       Utils.predicate_apply(Utils.thiz, perms, Seq()),
       Eq(Utils.deref_of(s), Utils.local_of(s_param))(Utils.origen),
       Eq(Utils.deref_of(maxSize), Utils.local_of(size_param))(Utils.origen),
-      Eq(Utils.deref_of(triggerLevel), Utils.local_of(trigger_param))(Utils.origen),
+      Eq(Utils.deref_of(triggerLevel), Utils.local_of(trigger_param))(
+        Utils.origen
+      ),
       Eq(Utils.size(buffer), Utils.int_val(0))(Utils.origen),
     ))
 
@@ -137,7 +158,9 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
         Assign(Utils.deref_of(maxSize), Utils.local_of(size_param))(
           Utils.origen
         )(Utils.origen),
-        Assign(Utils.deref_of(triggerLevel), Utils.local_of(trigger_param))(Utils.origen)(Utils.origen),
+        Assign(Utils.deref_of(triggerLevel), Utils.local_of(trigger_param))(
+          Utils.origen
+        )(Utils.origen),
         Assign(Utils.deref_of(buffer), Utils.seq_val(Seq()))(Utils.origen)(
           Utils.origen
         ),
@@ -152,18 +175,17 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
   }
 
   private def create_xStreamBufferIsEmpty[N](
-                                               buffer: InstanceField[N],
-                                               perms: Ref[N, InstancePredicate[N]],
-                                             ): InstanceMethod[N] = {
+      buffer: InstanceField[N],
+      perms: Ref[N, InstancePredicate[N]],
+  ): InstanceMethod[N] = {
     // requires mBufferPerms();
     val requires: Expr[N] = Utils.predicate_apply(Utils.thiz, perms, Seq())
 
     // ensures \result == (|buffer| == 0);
     val ensures: Expr[N] =
-      Eq(
-        Utils.result,
-        Eq(Utils.size(buffer), Utils.int_val(0))(Utils.origen),
-      )(Utils.origen)
+      Eq(Utils.result, Eq(Utils.size(buffer), Utils.int_val(0))(Utils.origen))(
+        Utils.origen
+      )
 
     new InstanceMethod(
       Utils.tbool,
@@ -178,10 +200,10 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
   }
 
   private def create_xStreamBufferIsFull[N](
-                                              buffer: InstanceField[N],
-                                              maxSize: InstanceField[N],
-                                              perms: Ref[N, InstancePredicate[N]],
-                                            ): InstanceMethod[N] = {
+      buffer: InstanceField[N],
+      maxSize: InstanceField[N],
+      perms: Ref[N, InstancePredicate[N]],
+  ): InstanceMethod[N] = {
     // requires mBufferPerms();
     val requires: Expr[N] = Utils.predicate_apply(Utils.thiz, perms, Seq())
 
@@ -189,10 +211,7 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
     val ensures: Expr[N] =
       Eq(
         Utils.result,
-        Eq(
-          Utils.size(buffer),
-          Utils.deref_of(maxSize),
-        )(Utils.origen),
+        Eq(Utils.size(buffer), Utils.deref_of(maxSize))(Utils.origen),
       )(Utils.origen)
 
     new InstanceMethod(
@@ -208,10 +227,10 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
   }
 
   private def create_xStreamBufferSpacesAvailable[N](
-                                                       buffer: InstanceField[N],
-                                                       maxSize: InstanceField[N],
-                                                       perms: Ref[N, InstancePredicate[N]],
-                                                     ): InstanceMethod[N] = {
+      buffer: InstanceField[N],
+      maxSize: InstanceField[N],
+      perms: Ref[N, InstancePredicate[N]],
+  ): InstanceMethod[N] = {
     // requires mBufferPerms();
     val requires: Expr[N] = Utils.predicate_apply(Utils.thiz, perms, Seq())
 
@@ -219,10 +238,7 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
     val ensures: Expr[N] =
       Eq(
         Utils.result,
-        Minus(
-          Utils.deref_of(maxSize),
-          Utils.size(buffer),
-        )(Utils.origen),
+        Minus(Utils.deref_of(maxSize), Utils.size(buffer))(Utils.origen),
       )(Utils.origen)
 
     new InstanceMethod(
@@ -238,14 +254,14 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
   }
 
   private def create_xStreamBufferReceive[N](
-                                               s: InstanceField[N],
-                                               buffer: InstanceField[N],
-                                               output: InstanceField[N],
-                                               perms: Ref[N, InstancePredicate[N]],
-                                               event_ref: Ref[N, InstanceField[N]],
-                                               event_perms_ref: Ref[N, InstancePredicate[N]],
-                                               read_event: Int,
-                                             ): InstanceMethod[N] = {
+      s: InstanceField[N],
+      buffer: InstanceField[N],
+      output: InstanceField[N],
+      perms: Ref[N, InstancePredicate[N]],
+      event_ref: Ref[N, InstanceField[N]],
+      event_perms_ref: Ref[N, InstancePredicate[N]],
+      read_event: Int,
+  ): InstanceMethod[N] = {
     val n: Variable[N] = new Variable(Utils.tint)(Utils.origen("n"))
 
     // requires sBufferPerms() ** s.eventPerms();
@@ -261,15 +277,11 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
     //                                  && buffer == \old(buffer[n .. |buffer|]));
     val ensures1: Expr[N] =
       Implies(
-        GreaterEq(
-          Utils.old(Utils.size(buffer)),
-          Utils.local_of(n),
-        )(Utils.origen),
+        GreaterEq(Utils.old(Utils.size(buffer)), Utils.local_of(n))(
+          Utils.origen
+        ),
         Utils.fold_and(Seq(
-          Eq(
-            Utils.result,
-            Utils.local_of(n),
-          )(Utils.origen),
+          Eq(Utils.result, Utils.local_of(n))(Utils.origen),
           Eq(
             Utils.deref_of(output),
             Utils.old(
@@ -277,7 +289,7 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
                 Utils.deref_of(buffer),
                 Utils.int_val(0),
                 Utils.local_of(n),
-              )(Utils.origen),
+              )(Utils.origen)
             ),
           )(Utils.origen),
           Eq(
@@ -287,10 +299,10 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
                 Utils.deref_of(buffer),
                 Utils.local_of(n),
                 Utils.size(buffer),
-              )(Utils.origen),
+              )(Utils.origen)
             ),
-          )(Utils.origen)
-        ))
+          )(Utils.origen),
+        )),
       )(Utils.origen)
 
     // ensures \old(|buffer|) < n ==> (   \result == \old(|buffer|)
@@ -298,33 +310,20 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
     //                                 && |buffer| == 0);
     val ensures2: Expr[N] =
       Implies(
-        Less(
-          Utils.old(Utils.size(buffer)),
-          Utils.local_of(n),
-        )(Utils.origen),
+        Less(Utils.old(Utils.size(buffer)), Utils.local_of(n))(Utils.origen),
         Utils.fold_and(Seq(
-          Eq(
-            Utils.result,
-            Utils.old(Utils.size(buffer)),
-          )(Utils.origen),
-          Eq(
-            Utils.deref_of(output),
-            Utils.old(Utils.deref_of(buffer)),
-          )(Utils.origen),
-          Eq(
-            Utils.size(buffer),
-            Utils.int_val(0),
-          )(Utils.origen)
-        ))
+          Eq(Utils.result, Utils.old(Utils.size(buffer)))(Utils.origen),
+          Eq(Utils.deref_of(output), Utils.old(Utils.deref_of(buffer)))(
+            Utils.origen
+          ),
+          Eq(Utils.size(buffer), Utils.int_val(0))(Utils.origen),
+        )),
       )(Utils.origen)
 
     // ensures n > 0 ==> s.eventState == \old(s.eventState.update(???, 0));
     val ensures3: Expr[N] =
       Implies(
-        Greater(
-          Utils.local_of(n),
-          Utils.int_val(0),
-        )(Utils.origen),
+        Greater(Utils.local_of(n), Utils.int_val(0))(Utils.origen),
         Eq(
           Utils.deref_ref(event_ref, Utils.deref_of(s)),
           Utils.old(
@@ -340,13 +339,10 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
     // ensures n == 0 ==> s.eventState == \old(s.eventState);
     val ensures4: Expr[N] =
       Implies(
-        Eq(
-          Utils.local_of(n),
-          Utils.int_val(0),
-        )(Utils.origen),
+        Eq(Utils.local_of(n), Utils.int_val(0))(Utils.origen),
         Eq(
           Utils.deref_ref(event_ref, Utils.deref_of(s)),
-          Utils.old(Utils.deref_ref(event_ref, Utils.deref_of(s)))
+          Utils.old(Utils.deref_ref(event_ref, Utils.deref_of(s))),
         )(Utils.origen),
       )(Utils.origen)
 
@@ -358,24 +354,23 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
       None,
       Utils.to_app_contract(
         context,
-        Utils.fold_star(Seq(context, ensures1, ensures2, ensures3, ensures4))
+        Utils.fold_star(Seq(context, ensures1, ensures2, ensures3, ensures4)),
       ),
       false,
       false,
     )(Utils.origen)(Utils.origen("xStreamBufferReceive"))
   }
 
-  private def create_xMessageBufferSend[N](
-                                            s: InstanceField[N],
-                                            buffer: InstanceField[N],
-                                            maxSize: InstanceField[N],
-                                            triggerLevel: InstanceField[N],
-                                            output: InstanceField[N],
-                                            perms: Ref[N, InstancePredicate[N]],
-                                            event_ref: Ref[N, InstanceField[N]],
-                                            event_perms_ref: Ref[N, InstancePredicate[N]],
-                                            write_event: Int,
-                                          ): InstanceMethod[N] = {
+  private def create_xStreamBufferSend[N](
+      s: InstanceField[N],
+      buffer: InstanceField[N],
+      maxSize: InstanceField[N],
+      triggerLevel: InstanceField[N],
+      perms: Ref[N, InstancePredicate[N]],
+      event_ref: Ref[N, InstanceField[N]],
+      event_perms_ref: Ref[N, InstancePredicate[N]],
+      write_event: Int,
+  ): InstanceMethod[N] = {
     val data: Variable[N] = new Variable(Utils.tseqint)(Utils.origen("data"))
 
     // requires sBufferPerms() ** s.eventPerms();
@@ -398,16 +393,14 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
           Utils.deref_of(maxSize),
         )(Utils.origen),
         And(
-          Eq(
-            Utils.result,
-            Size(Utils.local_of(data))(Utils.origen)
-          )(Utils.origen),
+          Eq(Utils.result, Size(Utils.local_of(data))(Utils.origen))(
+            Utils.origen
+          ),
           Eq(
             Utils.deref_of(buffer),
-            Concat(
-              Utils.old(Utils.deref_of(buffer)),
-              Utils.local_of(data),
-            )(Utils.origen),
+            Concat(Utils.old(Utils.deref_of(buffer)), Utils.local_of(data))(
+              Utils.origen
+            ),
           )(Utils.origen),
         )(Utils.origen),
       )(Utils.origen)
@@ -438,10 +431,9 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
               Slice(
                 Utils.local_of(data),
                 Utils.int_val(0),
-                Minus(
-                  Utils.deref_of(maxSize),
-                  Utils.old(Utils.size(buffer)),
-                )(Utils.origen),
+                Minus(Utils.deref_of(maxSize), Utils.old(Utils.size(buffer)))(
+                  Utils.origen
+                ),
               )(Utils.origen),
             )(Utils.origen),
           )(Utils.origen),
@@ -451,10 +443,9 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
     // ensures |buffer| >= triggerLevel ==> s.eventState == \old(s.eventState.update(???, 0));
     val ensures3: Expr[N] =
       Implies(
-        GreaterEq(
-          Utils.size(buffer),
-          Utils.deref_of(triggerLevel),
-        )(Utils.origen),
+        GreaterEq(Utils.size(buffer), Utils.deref_of(triggerLevel))(
+          Utils.origen
+        ),
         Eq(
           Utils.deref_ref(event_ref, Utils.deref_of(s)),
           Utils.old(
@@ -470,13 +461,10 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
     // ensures |buffer| < triggerLevel ==> s.eventState == \old(s.eventState);
     val ensures4: Expr[N] =
       Implies(
-        Less(
-          Utils.size(buffer),
-          Utils.deref_of(triggerLevel),
-        )(Utils.origen),
+        Less(Utils.size(buffer), Utils.deref_of(triggerLevel))(Utils.origen),
         Eq(
           Utils.deref_ref(event_ref, Utils.deref_of(s)),
-          Utils.old(Utils.deref_ref(event_ref, Utils.deref_of(s)))
+          Utils.old(Utils.deref_ref(event_ref, Utils.deref_of(s))),
         )(Utils.origen),
       )(Utils.origen)
 
@@ -488,7 +476,7 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
       None,
       Utils.to_app_contract(
         context,
-        Utils.fold_star(Seq(context, ensures1, ensures2, ensures3, ensures4))
+        Utils.fold_star(Seq(context, ensures1, ensures2, ensures3, ensures4)),
       ),
       false,
       false,
@@ -496,8 +484,8 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
   }
 
   /*
-  * TODO: Implement method for xStreamBufferReset
-  */
+   * TODO: Implement method for xStreamBufferReset
+   */
 }
 case object StreamBuffer {
   def of[O](invocation: CInvocation[O]): StreamBuffer = {

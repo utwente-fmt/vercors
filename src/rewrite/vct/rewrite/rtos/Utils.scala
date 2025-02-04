@@ -214,10 +214,7 @@ case object Utils {
         Deref(thiz, new DirectRef[N, InstanceField[N]](f))(origen)(origen)
     }
 
-  def deref_ref[N](
-      ref: Ref[N, InstanceField[N]],
-      obj: Expr[N],
-  ): Deref[N] =
+  def deref_ref[N](ref: Ref[N, InstanceField[N]], obj: Expr[N]): Deref[N] =
     Deref(obj, ref)(origen)(origen)
 
   def local_of[N](v: Variable[N]): Local[N] =

@@ -311,7 +311,7 @@ case class MessageBuffer(size: Int) {
             Utils.origen
           ),
         )(Utils.origen),
-        Utils.fold_and(Seq(
+        Utils.fold_and(Seq[Expr[N]](
           Eq(Utils.result, Utils.int_val(0))(Utils.origen),
           Eq(
             Utils.deref_of(messageSizes),
@@ -449,7 +449,7 @@ case class MessageBuffer(size: Int) {
           )(Utils.origen),
           Utils.deref_of(maxSize),
         )(Utils.origen),
-        Utils.fold_and(Seq(
+        Utils.fold_and(Seq[Expr[N]](
           Eq(Utils.result, Utils.int_val(0))(Utils.origen),
           Eq(
             Utils.deref_of(messageSizes),

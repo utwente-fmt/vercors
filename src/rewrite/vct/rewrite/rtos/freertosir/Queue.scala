@@ -495,7 +495,7 @@ case class Queue(capacity: Int) {
     val ensures1: Expr[N] =
       Implies(
         Greater(Utils.old(Utils.size(vals)), Utils.int_val(0))(Utils.origen),
-        Utils.fold_and(Seq(
+        Utils.fold_and(Seq[Expr[N]](
           Utils.result,
           Eq(Utils.deref_of(output), Utils.old(Utils.subscript(vals, 0)))(
             Utils.origen
@@ -515,7 +515,7 @@ case class Queue(capacity: Int) {
     val ensures2: Expr[N] =
       Implies(
         Eq(Utils.old(Utils.size(vals)), Utils.int_val(0))(Utils.origen),
-        Utils.fold_and(Seq(
+        Utils.fold_and(Seq[Expr[N]](
           Not(Utils.result)(Utils.origen),
           Eq(Utils.deref_of(vals), Utils.old(Utils.deref_of(vals)))(
             Utils.origen
