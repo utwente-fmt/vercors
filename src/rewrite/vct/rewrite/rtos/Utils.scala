@@ -157,6 +157,9 @@ case object Utils {
   def int_val[N](value: Int): IntegerValue[N] =
     IntegerValue(BigInt(value))(origen)
 
+  def skip[N]: Statement[N] = Block(Seq())(origen)
+
+  def tvoid[N]: TVoid[N] = TVoid()(origen)
   def tint[N]: TInt[N] = TInt()(origen)
   def tbool[N]: TBool[N] = TBool()(origen)
   def tseqint[N]: TSeq[N] = TSeq(TInt()(origen))(origen)
@@ -182,6 +185,45 @@ case object Utils {
   def subscript[N](f: InstanceField[N], index: Int): SeqSubscript[N] =
     SeqSubscript(deref_of(f), int_val(index))(origen)(origen)
 
+  def subscript_expr[N](f: InstanceField[N], index: Expr[N]): SeqSubscript[N] =
+    SeqSubscript(deref_of(f), index)(origen)(origen)
+
+  def unchanged[N](expr: Expr[N]): Eq[N] = Eq(expr, old(expr))(origen)
+
+  def single_var_forall[N](
+      i: Variable[N],
+      lower_incl: Expr[N],
+      upper_excl: Expr[N],
+      expr: Expr[N],
+  ): Forall[N] =
+    Forall(
+      Seq(i),
+      Seq(),
+      Implies(
+        And(
+          LessEq(lower_incl, local_of(i))(origen),
+          Less(local_of(i), upper_excl)(origen),
+        )(origen),
+        expr,
+      )(origen),
+    )(origen)
+
+  def single_var_exists[N](
+      i: Variable[N],
+      lower_incl: Expr[N],
+      upper_excl: Expr[N],
+      expr: Expr[N],
+  ): Exists[N] =
+    Exists(
+      Seq(i),
+      Seq(),
+      fold_and(Seq[Expr[N]](
+        LessEq(lower_incl, local_of(i))(origen),
+        Less(local_of(i), upper_excl)(origen),
+        expr,
+      )),
+    )(origen)
+
   def to_app_contract[N](
       requires: Expr[N],
       ensures: Expr[N],
@@ -195,6 +237,41 @@ case object Utils {
       Seq(),
       None,
     )(origen)(origen)
+
+  def to_loop_invariant[N](expr: Expr[N]): LoopContract[N] =
+    LoopInvariant(expr, None)(origen)(origen)
+
+  def invoke[N](
+      method: Ref[N, InstanceMethod[N]],
+      args: Seq[Expr[N]],
+      obj: Option[Expr[N]] = None,
+  ): MethodInvocation[N] =
+    obj match {
+      case Some(o) =>
+        MethodInvocation(o, method, args, Seq(), Seq(), Seq(), Seq())(origen)(
+          origen
+        )
+      case _ =>
+        MethodInvocation(thiz, method, args, Seq(), Seq(), Seq(), Seq())(
+          origen
+        )(origen)
+    }
+
+  def stmt_invoke[N](
+      method: Ref[N, InstanceMethod[N]],
+      args: Seq[Expr[N]],
+      obj: Option[Expr[N]] = None,
+  ): InvokeMethod[N] =
+    obj match {
+      case Some(o) =>
+        InvokeMethod(o, method, args, Seq(), Seq(), Seq(), Seq())(origen)(
+          origen
+        )
+      case _ =>
+        InvokeMethod(thiz, method, args, Seq(), Seq(), Seq(), Seq())(origen)(
+          origen
+        )
+    }
 
   def loc_of[N](
       f: InstanceField[N],
