@@ -364,23 +364,23 @@ case class Scheduler() {
     // Constructor body construction
     val statements: Seq[Statement[N]] =
       Seq(
-        Assign(
+        Assign[N](
           Utils.deref_of(eventState),
           Utils.seq_val(eventStateInit.map(i => Utils.int_val(i))),
         )(Utils.origen)(Utils.origen),
-        Assign(
+        Assign[N](
           Utils.deref_of(taskState),
           Utils.seq_val(taskStateInit.map(i => Utils.int_val(i))),
         )(Utils.origen)(Utils.origen),
-        Assign(
+        Assign[N](
           Utils.deref_of(taskPriority),
           Utils.seq_val(taskPriorityInit.map(i => Utils.int_val(i))),
         )(Utils.origen)(Utils.origen),
-        Assign(
+        Assign[N](
           Utils.deref_of(taskWaitTime),
           Utils.seq_val(taskWaitTimeInit.map(i => Utils.int_val(i))),
         )(Utils.origen)(Utils.origen),
-        Assign(
+        Assign[N](
           Utils.deref_of(runnableQueue),
           Utils.seq_val(runnableQueueInit.map(i => Utils.int_val(i))),
         )(Utils.origen)(Utils.origen),
@@ -1431,7 +1431,7 @@ case class Scheduler() {
             tt,
             Utils.skip,
             Utils.to_loop_invariant(tt),
-            Block(Seq(
+            Block(Seq[Statement[N]](
               Lock(Utils.thiz)(Utils.origen)(Utils.origen),
               Utils.stmt_invoke(schedule, Seq()),
               Unlock(Utils.thiz)(Utils.origen)(Utils.origen),
