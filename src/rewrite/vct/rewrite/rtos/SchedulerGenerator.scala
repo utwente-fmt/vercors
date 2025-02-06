@@ -4,25 +4,44 @@ import vct.col.ast._
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.util.AstBuildHelpers.tt
 
-case class Scheduler[O]() {
-  def generate[N](objs: Seq[ObjectInfo[O, N]], n_events: Int): Class[N] = {
+class SchedulerGenerator[O, N] {
+  private var eventState: InstanceField[N] = ???
+  private var taskState: InstanceField[N] = ???
+  private var taskPriority: InstanceField[N] = ???
+  private var taskWaitTime: InstanceField[N] = ???
+  private var runnableQueue: InstanceField[N] = ???
+  private var priorityPerms: InstancePredicate[N] = ???
+  private var eventPerms: InstancePredicate[N] = ???
+  private var schedulerPerms: InstancePredicate[N] = ???
+  private var globalInvariant: InstancePredicate[N] = ???
+  private var simulateTimePassing: InstanceMethod[N] = ???
+  private var executionTime: InstanceMethod[N] = ???
+
+  def get_eventState: InstanceField[N] = eventState
+  def get_taskState: InstanceField[N] = taskState
+  def get_taskPriority: InstanceField[N] = taskPriority
+  def get_taskWaitTime: InstanceField[N] = taskWaitTime
+  def get_runnableQueue: InstanceField[N] = runnableQueue
+  def get_priorityPerms: InstancePredicate[N] = priorityPerms
+  def get_eventPerms: InstancePredicate[N] = eventPerms
+  def get_schedulerPerms: InstancePredicate[N] = schedulerPerms
+  def get_globalInvariant: InstancePredicate[N] = globalInvariant
+  def get_simulateTimePassing: InstanceMethod[N] = simulateTimePassing
+  def get_executionTime: InstanceMethod[N] = executionTime
+
+  def generate(objs: Seq[ObjectInfo[O, N]], n_events: Int): Class[N] = {
     // Support calculations
     val n_tasks = objs.count(o => o.task_id.nonEmpty)
 
     // Scheduling variables
-    val eventState: InstanceField[N] =
-      new InstanceField(Utils.tseqint, Seq())(Utils.origen("eventState"))
-    val taskState: InstanceField[N] =
-      new InstanceField(Utils.tseqint, Seq())(Utils.origen("taskState"))
-    val taskPriority: InstanceField[N] =
-      new InstanceField(Utils.tseqint, Seq())(Utils.origen("taskPriority"))
-    val taskWaitTime: InstanceField[N] =
-      new InstanceField(Utils.tseqint, Seq())(Utils.origen("taskWaitTime"))
-    val runnableQueue: InstanceField[N] =
-      new InstanceField(Utils.tseqint, Seq())(Utils.origen("runnableQueue"))
+    eventState = new InstanceField(Utils.tseqint, Seq())(Utils.origen("eventState"))
+    taskState = new InstanceField(Utils.tseqint, Seq())(Utils.origen("taskState"))
+    taskPriority = new InstanceField(Utils.tseqint, Seq())(Utils.origen("taskPriority"))
+    taskWaitTime = new InstanceField(Utils.tseqint, Seq())(Utils.origen("taskWaitTime"))
+    runnableQueue = new InstanceField(Utils.tseqint, Seq())(Utils.origen("runnableQueue"))
 
     // Scheduler predicates
-    val priorityPerms: InstancePredicate[N] =
+    priorityPerms =
       new InstancePredicate(
         Seq(),
         Some(
@@ -36,7 +55,7 @@ case class Scheduler[O]() {
       )(Utils.origen("priorityPerms"))
     val priorityPerms_ref: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](priorityPerms)
-    val eventPerms: InstancePredicate[N] =
+    eventPerms =
       new InstancePredicate(
         Seq(),
         Some(
@@ -50,12 +69,7 @@ case class Scheduler[O]() {
       )(Utils.origen("eventPerms"))
     val eventPerms_ref: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](eventPerms)
-    val schedulerPerms: InstancePredicate[N] = create_schedulerPerms(
-      eventState,
-      taskState,
-      taskPriority,
-      taskWaitTime,
-      runnableQueue,
+    schedulerPerms = create_schedulerPerms(
       eventPerms_ref,
       priorityPerms_ref,
     )
@@ -79,7 +93,7 @@ case class Scheduler[O]() {
       )
     val globalProperties_ref: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](globalProperties)
-    val globalInvariant: InstancePredicate[N] =
+    globalInvariant =
       new InstancePredicate(
         Seq(),
         Some(
@@ -99,54 +113,29 @@ case class Scheduler[O]() {
       objs,
       n_events,
       n_tasks,
-      eventState,
-      taskState,
-      taskPriority,
-      taskWaitTime,
-      runnableQueue,
     )
 
     // Helper methods
     val nextEventDelay: InstanceMethod[N] = create_nextEventDelay(
-      eventState,
-      eventPerms_ref,
+      eventPerms_ref
     )
     val advanceTime: InstanceMethod[N] = create_advanceTime(
-      eventState,
-      eventPerms_ref,
+      eventPerms_ref
     )
     val resumeTasks: InstanceMethod[N] = create_resumeTasks(
-      eventState,
-      taskState,
-      taskPriority,
-      taskWaitTime,
-      runnableQueue,
-      schedulerPerms_ref,
+      schedulerPerms_ref
     )
     val resetEvents: InstanceMethod[N] = create_resetEvents(
-      eventState,
-      eventPerms_ref,
+      eventPerms_ref
     )
     val selectNextTask: InstanceMethod[N] = create_selectNextTask(
-      taskState,
-      taskPriority,
-      runnableQueue,
-      schedulerPerms_ref,
+      schedulerPerms_ref
     )
-    val simulateTimePassing: InstanceMethod[N] = create_simulateTimePassing(
-      eventState,
-      taskState,
-      taskPriority,
-      taskWaitTime,
-      runnableQueue,
-      schedulerPerms_ref,
-    )
-    val executionTime: InstanceMethod[N] = create_executionTime()
+    simulateTimePassing = create_simulateTimePassing(schedulerPerms_ref)
+    executionTime = create_executionTime()
 
     // Methods
     val schedule: InstanceMethod[N] = create_schedule(
-      taskState,
-      runnableQueue,
       new DirectRef[N, InstanceMethod[N]](nextEventDelay),
       new DirectRef[N, InstanceMethod[N]](advanceTime),
       new DirectRef[N, InstanceMethod[N]](resumeTasks),
@@ -197,12 +186,7 @@ case class Scheduler[O]() {
     )(Utils.origen("FreeRTOSScheduler"))
   }
 
-  private def create_schedulerPerms[N](
-      eventState: InstanceField[N],
-      taskState: InstanceField[N],
-      taskPriority: InstanceField[N],
-      taskWaitTime: InstanceField[N],
-      runnableQueue: InstanceField[N],
+  private def create_schedulerPerms(
       eventPerms_ref: Ref[N, InstancePredicate[N]],
       priorityPerms_ref: Ref[N, InstancePredicate[N]],
   ): InstancePredicate[N] = {
@@ -321,15 +305,10 @@ case class Scheduler[O]() {
     )
   }
 
-  private def create_constructor[N](
+  private def create_constructor(
       objs: Seq[ObjectInfo[O, N]],
       n_events: Int,
       n_tasks: Int,
-      eventState: InstanceField[N],
-      taskState: InstanceField[N],
-      taskPriority: InstanceField[N],
-      taskWaitTime: InstanceField[N],
-      runnableQueue: InstanceField[N],
   ): PVLConstructor[N] = {
     // Supporting calculations
     val launch_objs: Seq[ObjectInfo[O, N]] = objs.filter(o => o.launch)
@@ -413,9 +392,8 @@ case class Scheduler[O]() {
     )(Utils.origen)(Utils.origen)
   }
 
-  private def create_nextEventDelay[N](
-      eventState: InstanceField[N],
-      eventPerms_ref: Ref[N, InstancePredicate[N]],
+  private def create_nextEventDelay(
+      eventPerms_ref: Ref[N, InstancePredicate[N]]
   ): InstanceMethod[N] = {
     // Quantifier variables
     val i1: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
@@ -505,9 +483,8 @@ case class Scheduler[O]() {
     )(Utils.origen)(Utils.origen("nextEventDelay"))
   }
 
-  private def create_advanceTime[N](
-      eventState: InstanceField[N],
-      eventPerms_ref: Ref[N, InstancePredicate[N]],
+  private def create_advanceTime(
+      eventPerms_ref: Ref[N, InstancePredicate[N]]
   ): InstanceMethod[N] = {
     val advance: Variable[N] = new Variable(Utils.tint)(Utils.origen("advance"))
 
@@ -575,13 +552,8 @@ case class Scheduler[O]() {
     )(Utils.origen)(Utils.origen("advanceTime"))
   }
 
-  private def create_resumeTasks[N](
-      eventState: InstanceField[N],
-      taskState: InstanceField[N],
-      taskPriority: InstanceField[N],
-      taskWaitTime: InstanceField[N],
-      runnableQueue: InstanceField[N],
-      schedulerPerms_ref: Ref[N, InstancePredicate[N]],
+  private def create_resumeTasks(
+      schedulerPerms_ref: Ref[N, InstancePredicate[N]]
   ): InstanceMethod[N] = {
     // Quantifier variables
     val i3: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
@@ -756,9 +728,8 @@ case class Scheduler[O]() {
     )(Utils.origen)(Utils.origen("resumeTasks"))
   }
 
-  private def create_resetEvents[N](
-      eventState: InstanceField[N],
-      eventPerms_ref: Ref[N, InstancePredicate[N]],
+  private def create_resetEvents(
+      eventPerms_ref: Ref[N, InstancePredicate[N]]
   ): InstanceMethod[N] = {
     // Quantifier variables
     val i2: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
@@ -819,11 +790,8 @@ case class Scheduler[O]() {
 
   }
 
-  private def create_selectNextTask[N](
-      taskState: InstanceField[N],
-      taskPriority: InstanceField[N],
-      runnableQueue: InstanceField[N],
-      schedulerPerms_ref: Ref[N, InstancePredicate[N]],
+  private def create_selectNextTask(
+      schedulerPerms_ref: Ref[N, InstancePredicate[N]]
   ): InstanceMethod[N] = {
     // Quantifier variables
     val i2: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
@@ -931,13 +899,8 @@ case class Scheduler[O]() {
     )(Utils.origen)(Utils.origen("selectNextTask"))
   }
 
-  private def create_simulateTimePassing[N](
-      eventState: InstanceField[N],
-      taskState: InstanceField[N],
-      taskPriority: InstanceField[N],
-      taskWaitTime: InstanceField[N],
-      runnableQueue: InstanceField[N],
-      schedulerPerms_ref: Ref[N, InstancePredicate[N]],
+  private def create_simulateTimePassing(
+      schedulerPerms_ref: Ref[N, InstancePredicate[N]]
   ): InstanceMethod[N] = {
     val delay: Variable[N] = new Variable(Utils.tint)(Utils.origen("delay"))
 
@@ -1262,7 +1225,7 @@ case class Scheduler[O]() {
     )(Utils.origen)(Utils.origen("simulateTimePassing"))
   }
 
-  private def create_executionTime[N](): InstanceMethod[N] = {
+  private def create_executionTime(): InstanceMethod[N] = {
     val bcet: Variable[N] = new Variable(Utils.tint)(Utils.origen("bcet"))
     val wcet: Variable[N] = new Variable(Utils.tint)(Utils.origen("wcet"))
 
@@ -1285,9 +1248,7 @@ case class Scheduler[O]() {
     )(Utils.origen)(Utils.origen("executionTime"))
   }
 
-  private def create_schedule[N](
-      taskState: InstanceField[N],
-      runnableQueue: InstanceField[N],
+  private def create_schedule(
       nextEventDelay: Ref[N, InstanceMethod[N]],
       advanceTime: Ref[N, InstanceMethod[N]],
       resumeTasks: Ref[N, InstanceMethod[N]],
@@ -1398,7 +1359,7 @@ case class Scheduler[O]() {
     )(Utils.origen)(Utils.origen("schedule"))
   }
 
-  private def create_start[N](
+  private def create_start(
       to_launch: Seq[InstanceField[N]],
       preconditions: Seq[Expr[N]],
       schedule: Ref[N, InstanceMethod[N]],

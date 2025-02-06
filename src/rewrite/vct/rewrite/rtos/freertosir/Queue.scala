@@ -1,15 +1,96 @@
 package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
-import vct.col.ref.{DirectRef, Ref}
+import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.util.AstBuildHelpers.tt
-import vct.rewrite.rtos.{ObjectInfo, Utils}
+import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
 
-case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
-    extends FreeRTOSConstruct[O] {
-  override def convert[N]: ObjectInfo[O, N] = ???
+case class Queue[O, N](decl: Option[CLocal[O]], capacity: Int)
+    extends FreeRTOSConstruct[O, N] {
 
-  def transform[N](
+  private var s: InstanceField[N] = ???
+  private var maxSize: InstanceField[N] = ???
+  private var queuePerms: InstancePredicate[N] = ???
+  private var xQueueSendToBack: InstanceMethod[N] = ???
+  private var xQueueSendToFront: InstanceMethod[N] = ???
+  private var xQueueOverwrite: InstanceMethod[N] = ???
+  private var xQueueReset: InstanceMethod[N] = ???
+  private var xQueueReceive: InstanceMethod[N] = ???
+  private var xQueuePeek: InstanceMethod[N] = ???
+  private var uxQueueSpacesAvailable: InstanceMethod[N] = ???
+  private var uxQueueMessagesWaiting: InstanceMethod[N] = ???
+  private var xQueueIsQueueEmptyFromISR: InstanceMethod[N] = ???
+  private var xQueueIsQueueFullFromISR: InstanceMethod[N] = ???
+
+  private def class_name(idx: Int): String = decl match {
+    case Some(l) => "Queue" + l.name
+    case None => "QueueAnonymous" + idx
+  }
+
+  private def instance_name(idx: Int): String = decl match {
+    case Some(l) => l.name
+    case None => "unknownQueue" + idx
+  }
+
+  override def convert(col_ir: Transformer[O, N], idx: Int): ObjectInfo[O, N] = {
+    val cls: Class[N] = transform(
+      new LazyRef(col_ir.get_scheduler),
+      new LazyRef(col_ir.get_eventState),
+      new LazyRef(col_ir.get_eventPerms),
+      col_ir.reserve_event_id,
+      col_ir.reserve_event_id,
+      class_name(idx),
+    )
+    val tcls =
+      TByReferenceClass(new DirectRef[N, Class[N]](cls), Seq())(Utils.origen)
+
+    val field: InstanceField[N] =
+      new InstanceField(tcls, Seq())(Utils.origen(instance_name(idx)))
+
+    if (decl.nonEmpty) {
+      col_ir.add_to_api(decl.get, "xQueueSendToBack", field, xQueueSendToBack)
+      col_ir.add_to_api(decl.get, "xQueueSendToFront", field, xQueueSendToFront)
+      col_ir.add_to_api(decl.get, "xQueueOverwrite", field, xQueueOverwrite)
+      col_ir.add_to_api(decl.get, "xQueueReset", field, xQueueReset)
+      col_ir.add_to_api(decl.get, "xQueueReceive", field, xQueueReceive)
+      col_ir.add_to_api(decl.get, "xQueuePeek", field, xQueuePeek)
+      col_ir.add_to_api(decl.get, "uxQueueSpacesAvailable", field, uxQueueSpacesAvailable)
+      col_ir.add_to_api(decl.get, "uxQueueMessagesWaiting", field, uxQueueMessagesWaiting)
+      col_ir.add_to_api(decl.get, "xQueueIsQueueEmptyFromISR", field, xQueueIsQueueEmptyFromISR)
+      col_ir.add_to_api(decl.get, "xQueueIsQueueFullFromISR", field, xQueueIsQueueFullFromISR)
+    }
+
+    ObjectInfo(
+      decl,
+      field,
+      cls,
+      Seq[Expr[N]](Utils.thiz, Utils.int_val(capacity)),
+      Utils.fold_star(Seq[Expr[N]](
+        Perm(Utils.loc_of(field), Utils.read)(Utils.origen),
+        Utils.predicate_apply(
+          Utils.deref_of(field),
+          new DirectRef[N, InstancePredicate[N]](queuePerms),
+          Seq(),
+        ),
+        Eq(
+          Utils.deref_of(s, Some(Utils.deref_of(field))),
+          Utils.thiz,
+        )(Utils.origen),
+        Eq(
+          Utils.deref_of(maxSize, Some(Utils.deref_of(field))),
+          Utils.int_val(capacity),
+        )(Utils.origen),
+      )),
+      None,
+      None,
+      None,
+      None,
+      None,
+      launch = false,
+    )
+  }
+
+  def transform(
       scheduler_ref: Ref[N, Class[N]],
       event_ref: Ref[N, InstanceField[N]],
       event_perms_ref: Ref[N, InstancePredicate[N]],
@@ -17,19 +98,18 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
       write_event: Int,
       name: String,
   ): Class[N] = {
-    // TODO: Store correspondence of methods to their names
-    val s: InstanceField[N] =
+    s =
       new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
         Utils.origen("s")
       )
     val vals: InstanceField[N] =
       new InstanceField(Utils.tseqint, Seq())(Utils.origen("vals"))
-    val maxSize: InstanceField[N] =
+    maxSize =
       new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize"))
     val output: InstanceField[N] =
       new InstanceField(Utils.tint, Seq())(Utils.origen("output"))
 
-    val queuePerms: InstancePredicate[N] =
+    queuePerms =
       new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
@@ -56,7 +136,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
       scheduler_ref,
     )
 
-    val xQueueSendToBack: InstanceMethod[N] = create_xQueueSendToBack(
+    xQueueSendToBack = create_xQueueSendToBack(
       s,
       vals,
       maxSize,
@@ -65,7 +145,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
       event_perms_ref,
       write_event,
     )
-    val xQueueSendToFront: InstanceMethod[N] = create_xQueueSendToFront(
+    xQueueSendToFront = create_xQueueSendToFront(
       s,
       vals,
       maxSize,
@@ -74,7 +154,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
       event_perms_ref,
       write_event,
     )
-    val xQueueOverwrite: InstanceMethod[N] = create_xQueueOverwrite(
+    xQueueOverwrite = create_xQueueOverwrite(
       s,
       vals,
       perms,
@@ -82,8 +162,8 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
       event_perms_ref,
       write_event,
     )
-    val xQueueReset: InstanceMethod[N] = create_xQueueReset(vals, perms)
-    val xQueueReceive: InstanceMethod[N] = create_xQueueReceive(
+    xQueueReset = create_xQueueReset(vals, perms)
+    xQueueReceive = create_xQueueReceive(
       s,
       vals,
       maxSize,
@@ -93,14 +173,14 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
       event_perms_ref,
       read_event,
     )
-    val xQueuePeek: InstanceMethod[N] = create_xQueuePeek(vals, output, perms)
-    val uxQueueSpacesAvailable: InstanceMethod[N] =
+    xQueuePeek = create_xQueuePeek(vals, output, perms)
+    uxQueueSpacesAvailable =
       create_uxQueueSpacesAvailable(vals, maxSize, perms)
-    val uxQueueMessagesWaiting: InstanceMethod[N] =
+    uxQueueMessagesWaiting =
       create_uxQueueMessagesWaiting(vals, perms)
-    val xQueueIsQueueEmptyFromISR: InstanceMethod[N] =
+    xQueueIsQueueEmptyFromISR =
       create_xQueueIsQueueEmptyFromISR(vals, perms)
-    val xQueueIsQueueFullFromISR: InstanceMethod[N] =
+    xQueueIsQueueFullFromISR =
       create_xQueueIsQueueFullFromISR(vals, maxSize, perms)
 
     new ByReferenceClass(
@@ -128,7 +208,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
     )(Utils.origen(name))
   }
 
-  private def create_constructor[N](
+  private def create_constructor(
       s: InstanceField[N],
       vals: InstanceField[N],
       maxSize: InstanceField[N],
@@ -185,7 +265,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
     )(Utils.origen)(Utils.origen)
   }
 
-  private def create_xQueueSendToBack[N](
+  private def create_xQueueSendToBack(
       s: InstanceField[N],
       vals: InstanceField[N],
       maxSize: InstanceField[N],
@@ -277,7 +357,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
     )(Utils.origen)(Utils.origen("xQueueSendToBack"))
   }
 
-  private def create_xQueueSendToFront[N](
+  private def create_xQueueSendToFront(
       s: InstanceField[N],
       vals: InstanceField[N],
       maxSize: InstanceField[N],
@@ -369,7 +449,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
     )(Utils.origen)(Utils.origen("xQueueSendToFront"))
   }
 
-  private def create_xQueueOverwrite[N](
+  private def create_xQueueOverwrite(
       s: InstanceField[N],
       vals: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
@@ -449,7 +529,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
     )(Utils.origen)(Utils.origen("xQueueOverwrite"))
   }
 
-  private def create_xQueueReset[N](
+  private def create_xQueueReset(
       vals: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
   ): InstanceMethod[N] = {
@@ -476,7 +556,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
     )(Utils.origen)(Utils.origen("xQueueReset"))
   }
 
-  private def create_xQueueReceive[N](
+  private def create_xQueueReceive(
       s: InstanceField[N],
       vals: InstanceField[N],
       maxSize: InstanceField[N],
@@ -571,7 +651,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
     )(Utils.origen)(Utils.origen("xQueueReceive"))
   }
 
-  private def create_xQueuePeek[N](
+  private def create_xQueuePeek(
       vals: InstanceField[N],
       output: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
@@ -623,7 +703,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
     )(Utils.origen)(Utils.origen("xQueuePeek"))
   }
 
-  private def create_uxQueueSpacesAvailable[N](
+  private def create_uxQueueSpacesAvailable(
       vals: InstanceField[N],
       maxSize: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
@@ -650,7 +730,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
     )(Utils.origen)(Utils.origen("uxQueueSpacesAvailable"))
   }
 
-  private def create_uxQueueMessagesWaiting[N](
+  private def create_uxQueueMessagesWaiting(
       vals: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
   ): InstanceMethod[N] = {
@@ -672,7 +752,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
     )(Utils.origen)(Utils.origen("uxQueueMessagesWaiting"))
   }
 
-  private def create_xQueueIsQueueEmptyFromISR[N](
+  private def create_xQueueIsQueueEmptyFromISR(
       vals: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
   ): InstanceMethod[N] = {
@@ -697,7 +777,7 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
     )(Utils.origen)(Utils.origen("xQueueIsQueueEmptyFromISR"))
   }
 
-  private def create_xQueueIsQueueFullFromISR[N](
+  private def create_xQueueIsQueueFullFromISR(
       vals: InstanceField[N],
       maxSize: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
@@ -725,10 +805,10 @@ case class Queue[O](decl: Option[CLocal[O]], capacity: Int)
   }
 }
 case object Queue {
-  def of[O](
+  def of[O, N](
       variable: Option[CLocal[O]],
       invocation: CInvocation[O],
-  ): Queue[O] = {
+  ): Queue[O, N] = {
     Utils.creation_arg_assert(
       invocation,
       2,

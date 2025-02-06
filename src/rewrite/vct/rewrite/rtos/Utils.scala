@@ -121,7 +121,7 @@ case object Utils {
       throw new IllegalArgumentException("Could not find " + meaning + "!")
     )
 
-  def resolve_freertos_constructs[O, T <: FreeRTOSConstruct[O]](
+  def resolve_freertos_constructs[O, N, T <: FreeRTOSConstruct[O, N]](
       stmts: Seq[Expr[O]],
       func_name: String,
       op: (Option[CLocal[O]], CInvocation[O]) => T,

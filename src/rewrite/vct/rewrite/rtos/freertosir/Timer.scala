@@ -2,29 +2,29 @@ package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
 import vct.col.ref.Ref
-import vct.rewrite.rtos.{ObjectInfo, Utils}
+import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
 
-case class Timer[O](
+case class Timer[O, N](
     decl: Option[CLocal[O]],
     callback: CFunctionDefinition[O],
     period: Int,
     reload: Boolean,
     priority: Int,
-) extends FreeRTOSConstruct[O] {
-  override def convert[N]: ObjectInfo[O, N] = ???
+) extends FreeRTOSConstruct[O, N] {
+  override def convert(col_ir: Transformer[O, N], idx: Int): ObjectInfo[O, N] = ???
 
-  def transform[N](
+  def transform(
       scheduler_ref: Ref[N, Class[N]],
       tid: Int,
       assigned_eid: Int,
   ): Class[N] = ???
 }
 case object Timer {
-  def of[O](
+  def of[O, N](
       variable: Option[CLocal[O]],
       invocation: CInvocation[O],
       decls: Seq[CFunctionDefinition[O]],
-  ): Timer[O] = {
+  ): Timer[O, N] = {
     Utils.creation_arg_assert(
       invocation,
       4,

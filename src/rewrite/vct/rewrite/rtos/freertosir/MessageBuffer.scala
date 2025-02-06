@@ -1,28 +1,77 @@
 package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
-import vct.col.ref.{DirectRef, Ref}
+import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.util.AstBuildHelpers.tt
-import vct.rewrite.rtos.{ObjectInfo, Utils}
+import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
 
-case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
-    extends FreeRTOSConstruct[O] {
+case class MessageBuffer[O, N](decl: Option[CLocal[O]], size: Int)
+    extends FreeRTOSConstruct[O, N] {
   private val bit_width: Int = 4
 
-  override def convert[N]: ObjectInfo[O, N] = {
-    val cls: Class[N] = transform(???, ???, ???, ???, ???, ???)
+  private var s: InstanceField[N] = ???
+  private var maxSize: InstanceField[N] = ???
+  private var mBufferPerms: InstancePredicate[N] = ???
+  private var xMessageBufferIsEmpty: InstanceMethod[N] = ???
+  private var xMessageBufferIsFull: InstanceMethod[N] = ???
+  private var xMessageBufferSpacesAvailable: InstanceMethod[N] = ???
+  private var xMessageBufferReceive: InstanceMethod[N] = ???
+  private var xMessageBufferSend: InstanceMethod[N] = ???
+
+  private def class_name(idx: Int): String = decl match {
+    case Some(l) => "MBuffer" + l.name
+    case None => "MBufferAnonymous" + idx
+  }
+
+  private def instance_name(idx: Int): String = decl match {
+    case Some(l) => l.name
+    case None => "unknownMBuffer" + idx
+  }
+
+  override def convert(col_ir: Transformer[O, N], idx: Int): ObjectInfo[O, N] = {
+    val cls: Class[N] = transform(
+      new LazyRef(col_ir.get_scheduler),
+      new LazyRef(col_ir.get_eventState),
+      new LazyRef(col_ir.get_eventPerms),
+      col_ir.reserve_event_id,
+      col_ir.reserve_event_id,
+      class_name(idx),
+    )
     val tcls =
       TByReferenceClass(new DirectRef[N, Class[N]](cls), Seq())(Utils.origen)
+
     val field: InstanceField[N] =
-      new InstanceField(tcls, Seq())(Utils.origen(???))
+      new InstanceField(tcls, Seq())(Utils.origen(instance_name(idx)))
+
+    if (decl.nonEmpty) {
+      col_ir.add_to_api(decl.get, "xMessageBufferIsEmpty", field, xMessageBufferIsEmpty)
+      col_ir.add_to_api(decl.get, "xMessageBufferIsFull", field, xMessageBufferIsFull)
+      col_ir.add_to_api(decl.get, "xMessageBufferSpacesAvailable", field, xMessageBufferSpacesAvailable)
+      col_ir.add_to_api(decl.get, "xMessageBufferReceive", field, xMessageBufferReceive)
+      col_ir.add_to_api(decl.get, "xMessageBufferSend", field, xMessageBufferSend)
+    }
+
     ObjectInfo(
       decl,
       field,
       cls,
       Seq[Expr[N]](Utils.thiz, Utils.int_val(size)),
-      Utils.fold_star(
-        Seq[Expr[N]](Perm(Utils.loc_of(field), Utils.read)(Utils.origen))
-      ),
+      Utils.fold_star(Seq[Expr[N]](
+        Perm(Utils.loc_of(field), Utils.read)(Utils.origen),
+        Utils.predicate_apply(
+          Utils.deref_of(field),
+          new DirectRef[N, InstancePredicate[N]](mBufferPerms),
+          Seq(),
+        ),
+        Eq(
+          Utils.deref_of(s, Some(Utils.deref_of(field))),
+          Utils.thiz,
+        )(Utils.origen),
+        Eq(
+          Utils.deref_of(maxSize, Some(Utils.deref_of(field))),
+          Utils.int_val(size),
+        )(Utils.origen),
+      )),
       None,
       None,
       None,
@@ -32,7 +81,7 @@ case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
     )
   }
 
-  def transform[N](
+  def transform(
       scheduler_ref: Ref[N, Class[N]],
       event_ref: Ref[N, InstanceField[N]],
       event_perms_ref: Ref[N, InstancePredicate[N]],
@@ -40,7 +89,7 @@ case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
       write_event: Int,
       name: String,
   ): Class[N] = {
-    val s: InstanceField[N] =
+    s =
       new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
         Utils.origen("s")
       )
@@ -48,12 +97,11 @@ case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
       new InstanceField(Utils.tseqint, Seq())(Utils.origen("messageSizes"))
     val buffer: InstanceField[N] =
       new InstanceField(Utils.tseqint, Seq())(Utils.origen("buffer"))
-    val maxSize: InstanceField[N] =
-      new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize"))
+    maxSize = new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize"))
     val output: InstanceField[N] =
       new InstanceField(Utils.tseqint, Seq())(Utils.origen("output"))
 
-    val mBufferPerms: InstancePredicate[N] =
+    mBufferPerms =
       new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
@@ -90,19 +138,19 @@ case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
       scheduler_ref,
     )
 
-    val xMessageBufferIsEmpty: InstanceMethod[N] = create_xMessageBufferIsEmpty(
+    xMessageBufferIsEmpty = create_xMessageBufferIsEmpty(
       messageSizes,
       perms,
     )
-    val xMessageBufferIsFull: InstanceMethod[N] = create_xMessageBufferIsFull(
+    xMessageBufferIsFull = create_xMessageBufferIsFull(
       messageSizes,
       buffer,
       maxSize,
       perms,
     )
-    val xMessageBufferSpacesAvailable: InstanceMethod[N] =
+    xMessageBufferSpacesAvailable =
       create_xMessageBufferSpacesAvailable(messageSizes, buffer, maxSize, perms)
-    val xMessageBufferReceive: InstanceMethod[N] = create_xMessageBufferReceive(
+    xMessageBufferReceive = create_xMessageBufferReceive(
       s,
       messageSizes,
       buffer,
@@ -112,7 +160,7 @@ case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
       event_perms_ref,
       read_event,
     )
-    val xMessageBufferSend: InstanceMethod[N] = create_xMessageBufferSend(
+    xMessageBufferSend = create_xMessageBufferSend(
       s,
       messageSizes,
       buffer,
@@ -146,7 +194,7 @@ case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
     )(Utils.origen(name))
   }
 
-  private def create_constructor[N](
+  private def create_constructor(
       s: InstanceField[N],
       messageSizes: InstanceField[N],
       buffer: InstanceField[N],
@@ -202,7 +250,7 @@ case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
     )(Utils.origen)(Utils.origen)
   }
 
-  private def create_xMessageBufferIsEmpty[N](
+  private def create_xMessageBufferIsEmpty(
       messageSizes: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
   ): InstanceMethod[N] = {
@@ -228,7 +276,7 @@ case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
     )(Utils.origen)(Utils.origen("xMessageBufferIsEmpty"))
   }
 
-  private def create_xMessageBufferIsFull[N](
+  private def create_xMessageBufferIsFull(
       messageSizes: InstanceField[N],
       buffer: InstanceField[N],
       maxSize: InstanceField[N],
@@ -264,7 +312,7 @@ case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
     )(Utils.origen)(Utils.origen("xMessageBufferIsFull"))
   }
 
-  private def create_xMessageBufferSpacesAvailable[N](
+  private def create_xMessageBufferSpacesAvailable(
       messageSizes: InstanceField[N],
       buffer: InstanceField[N],
       maxSize: InstanceField[N],
@@ -300,7 +348,7 @@ case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
     )(Utils.origen)(Utils.origen("xMessageBufferSpacesAvailable"))
   }
 
-  private def create_xMessageBufferReceive[N](
+  private def create_xMessageBufferReceive(
       s: InstanceField[N],
       messageSizes: InstanceField[N],
       buffer: InstanceField[N],
@@ -430,7 +478,7 @@ case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
     )(Utils.origen)(Utils.origen("xMessageBufferReceive"))
   }
 
-  private def create_xMessageBufferSend[N](
+  private def create_xMessageBufferSend(
       s: InstanceField[N],
       messageSizes: InstanceField[N],
       buffer: InstanceField[N],
@@ -562,10 +610,10 @@ case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
    */
 }
 case object MessageBuffer {
-  def of[O](
+  def of[O, N](
       variable: Option[CLocal[O]],
       invocation: CInvocation[O],
-  ): MessageBuffer[O] = {
+  ): MessageBuffer[O, N] = {
     Utils.creation_arg_assert(
       invocation,
       1,

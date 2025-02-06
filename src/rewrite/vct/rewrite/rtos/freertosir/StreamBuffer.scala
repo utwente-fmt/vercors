@@ -3,16 +3,16 @@ package vct.rewrite.rtos.freertosir
 import vct.col.ast._
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.util.AstBuildHelpers.tt
-import vct.rewrite.rtos.{ObjectInfo, Utils}
+import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
 
-case class StreamBuffer[O](
+case class StreamBuffer[O, N](
     decl: Option[CLocal[O]],
     size: Int,
     trigger_bytes: Int,
-) extends FreeRTOSConstruct[O] {
-  override def convert[N]: ObjectInfo[O, N] = ???
+) extends FreeRTOSConstruct[O, N] {
+  override def convert(col_ir: Transformer[O, N], idx: Int): ObjectInfo[O, N] = ???
 
-  def transform[N](
+  def transform(
       scheduler_ref: Ref[N, Class[N]],
       event_ref: Ref[N, InstanceField[N]],
       event_perms_ref: Ref[N, InstancePredicate[N]],
@@ -118,7 +118,7 @@ case class StreamBuffer[O](
     )(Utils.origen(name))
   }
 
-  private def create_constructor[N](
+  private def create_constructor(
       s: InstanceField[N],
       buffer: InstanceField[N],
       maxSize: InstanceField[N],
@@ -180,7 +180,7 @@ case class StreamBuffer[O](
     )(Utils.origen)(Utils.origen)
   }
 
-  private def create_xStreamBufferIsEmpty[N](
+  private def create_xStreamBufferIsEmpty(
       buffer: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
   ): InstanceMethod[N] = {
@@ -205,7 +205,7 @@ case class StreamBuffer[O](
     )(Utils.origen)(Utils.origen("xStreamBufferIsEmpty"))
   }
 
-  private def create_xStreamBufferIsFull[N](
+  private def create_xStreamBufferIsFull(
       buffer: InstanceField[N],
       maxSize: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
@@ -232,7 +232,7 @@ case class StreamBuffer[O](
     )(Utils.origen)(Utils.origen("xStreamBufferIsFull"))
   }
 
-  private def create_xStreamBufferSpacesAvailable[N](
+  private def create_xStreamBufferSpacesAvailable(
       buffer: InstanceField[N],
       maxSize: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
@@ -259,7 +259,7 @@ case class StreamBuffer[O](
     )(Utils.origen)(Utils.origen("xStreamBufferSpacesAvailable"))
   }
 
-  private def create_xStreamBufferReceive[N](
+  private def create_xStreamBufferReceive(
       s: InstanceField[N],
       buffer: InstanceField[N],
       output: InstanceField[N],
@@ -367,7 +367,7 @@ case class StreamBuffer[O](
     )(Utils.origen)(Utils.origen("xStreamBufferReceive"))
   }
 
-  private def create_xStreamBufferSend[N](
+  private def create_xStreamBufferSend(
       s: InstanceField[N],
       buffer: InstanceField[N],
       maxSize: InstanceField[N],
@@ -494,10 +494,10 @@ case class StreamBuffer[O](
    */
 }
 case object StreamBuffer {
-  def of[O](
+  def of[O, N](
       variable: Option[CLocal[O]],
       invocation: CInvocation[O],
-  ): StreamBuffer[O] = {
+  ): StreamBuffer[O, N] = {
     Utils.creation_arg_assert(
       invocation,
       2,

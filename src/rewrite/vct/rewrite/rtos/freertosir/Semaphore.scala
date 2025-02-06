@@ -1,14 +1,12 @@
 package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
-import vct.col.ref.{DirectRef, Ref}
+import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.util.AstBuildHelpers.tt
-import vct.rewrite.rtos.{ObjectInfo, Utils}
+import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
 
-sealed trait Semaphore[O] extends FreeRTOSConstruct[O] {
-  override def convert[N]: ObjectInfo[O, N] = ???
-
-  def transform[N](
+sealed trait Semaphore[O, N] extends FreeRTOSConstruct[O, N] {
+  def transform(
       scheduler_ref: Ref[N, Class[N]],
       event_ref: Ref[N, InstanceField[N]],
       event_perms_ref: Ref[N, InstancePredicate[N]],
@@ -19,9 +17,12 @@ sealed trait Semaphore[O] extends FreeRTOSConstruct[O] {
   ): Class[N]
 }
 
-case class BinarySemaphore[O](decl: Option[CLocal[O]], is_mutex: Boolean)
-    extends Semaphore[O] {
-  override def transform[N](
+case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
+    extends Semaphore[O, N] {
+  override def convert(col_ir: Transformer[O, N], idx: Int): ObjectInfo[O, N] =
+    ???
+
+  override def transform(
       scheduler_ref: Ref[N, Class[N]],
       event_ref: Ref[N, InstanceField[N]],
       event_perms_ref: Ref[N, InstancePredicate[N]],
@@ -114,7 +115,7 @@ case class BinarySemaphore[O](decl: Option[CLocal[O]], is_mutex: Boolean)
     )(Utils.origen(name))
   }
 
-  private def create_constructor[N](
+  private def create_constructor(
       s: InstanceField[N],
       isMutex: InstanceField[N],
       task: InstanceField[N],
@@ -167,7 +168,7 @@ case class BinarySemaphore[O](decl: Option[CLocal[O]], is_mutex: Boolean)
     )(Utils.origen)(Utils.origen)
   }
 
-  private def create_uxSemaphoreGetCount[N](
+  private def create_uxSemaphoreGetCount(
       task: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
   ): InstanceMethod[N] = {
@@ -200,7 +201,7 @@ case class BinarySemaphore[O](decl: Option[CLocal[O]], is_mutex: Boolean)
     )(Utils.origen)(Utils.origen("uxSemaphoreGetCount"))
   }
 
-  private def create_xSemaphoreGetMutexHolder[N](
+  private def create_xSemaphoreGetMutexHolder(
       task: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
   ): InstanceMethod[N] = {
@@ -222,7 +223,7 @@ case class BinarySemaphore[O](decl: Option[CLocal[O]], is_mutex: Boolean)
     )(Utils.origen)(Utils.origen("xSemaphoreGetMutexHolder"))
   }
 
-  private def create_xSemaphoreGive[N](
+  private def create_xSemaphoreGive(
       s: InstanceField[N],
       isMutex: InstanceField[N],
       task: InstanceField[N],
@@ -343,7 +344,7 @@ case class BinarySemaphore[O](decl: Option[CLocal[O]], is_mutex: Boolean)
     )(Utils.origen)(Utils.origen("xSemaphoreGive"))
   }
 
-  private def create_xSemaphoreTake[N](
+  private def create_xSemaphoreTake(
       s: InstanceField[N],
       isMutex: InstanceField[N],
       task: InstanceField[N],
@@ -485,8 +486,14 @@ case class BinarySemaphore[O](decl: Option[CLocal[O]], is_mutex: Boolean)
   }
 }
 
-case class RecursiveMutex[O](decl: Option[CLocal[O]]) extends Semaphore[O] {
-  override def transform[N](
+case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
+    extends Semaphore[O, N] {
+  override def convert(
+      col_ir: Transformer[O, N],
+      idx: Int,
+  ): ObjectInfo[O, N] = { ??? }
+
+  override def transform(
       scheduler_ref: Ref[N, Class[N]],
       event_ref: Ref[N, InstanceField[N]],
       event_perms_ref: Ref[N, InstancePredicate[N]],
@@ -583,7 +590,7 @@ case class RecursiveMutex[O](decl: Option[CLocal[O]]) extends Semaphore[O] {
     )(Utils.origen(name))
   }
 
-  private def create_constructor[N](
+  private def create_constructor(
       s: InstanceField[N],
       recursionDepth: InstanceField[N],
       task: InstanceField[N],
@@ -634,7 +641,7 @@ case class RecursiveMutex[O](decl: Option[CLocal[O]]) extends Semaphore[O] {
     )(Utils.origen)(Utils.origen)
   }
 
-  private def create_uxSemaphoreGetCount[N](
+  private def create_uxSemaphoreGetCount(
       task: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
   ): InstanceMethod[N] = {
@@ -667,7 +674,7 @@ case class RecursiveMutex[O](decl: Option[CLocal[O]]) extends Semaphore[O] {
     )(Utils.origen)(Utils.origen("uxSemaphoreGetCount"))
   }
 
-  private def create_xSemaphoreGetMutexHolder[N](
+  private def create_xSemaphoreGetMutexHolder(
       task: InstanceField[N],
       perms: Ref[N, InstancePredicate[N]],
   ): InstanceMethod[N] = {
@@ -689,7 +696,7 @@ case class RecursiveMutex[O](decl: Option[CLocal[O]]) extends Semaphore[O] {
     )(Utils.origen)(Utils.origen("xSemaphoreGetMutexHolder"))
   }
 
-  private def create_xSemaphoreGiveRecursive[N](
+  private def create_xSemaphoreGiveRecursive(
       s: InstanceField[N],
       recursionDepth: InstanceField[N],
       task: InstanceField[N],
@@ -848,7 +855,7 @@ case class RecursiveMutex[O](decl: Option[CLocal[O]]) extends Semaphore[O] {
     )(Utils.origen)(Utils.origen("xSemaphoreGiveRecursive"))
   }
 
-  private def create_xSemaphoreTakeRecursive[N](
+  private def create_xSemaphoreTakeRecursive(
       s: InstanceField[N],
       recursionDepth: InstanceField[N],
       task: InstanceField[N],
