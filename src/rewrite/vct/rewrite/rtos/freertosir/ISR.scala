@@ -1,9 +1,10 @@
 package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
-import vct.rewrite.rtos.Utils
+import vct.rewrite.rtos.{ObjectInfo, Utils}
 
-case class ISR[O](isr: CFunctionDefinition[O]) {
+case class ISR[O](isr: CFunctionDefinition[O]) extends FreeRTOSConstruct[O] {
+  override def convert[N]: ObjectInfo[O, N] = ???
   def transform[N]: Class[N] = ???
 }
 case object ISR {

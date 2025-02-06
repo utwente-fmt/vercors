@@ -11,19 +11,18 @@ object RTOSEncoder {
       case f: CFunctionDefinition[O] => f
     }
     val main: CFunctionDefinition[O] = get_main_method(def_methods)
-    val calls: Seq[CInvocation[O]] = main.body.collect {
-      case call: CInvocation[O] => call
-    }
-    construct_encoded_system(
-      get_tasks(calls, def_methods),
-      get_timers(calls, def_methods),
-      get_isrs(calls, def_methods),
-      get_event_groups(calls),
-      get_semaphores(calls),
-      get_queues(calls),
-      get_stream_buffers(calls),
-      get_message_buffers(calls),
-    )
+    val stmts: Seq[Expr[O]] = main.body.collect { case Eval(expr) => expr }
+
+    new Transformer[O, N](
+      get_tasks(stmts, def_methods),
+      get_timers(stmts, def_methods),
+      get_isrs(stmts, def_methods),
+      get_event_groups(stmts),
+      get_semaphores(stmts),
+      get_queues(stmts),
+      get_stream_buffers(stmts),
+      get_message_buffers(stmts),
+    ).get_encoded_system
   }
 
   private def get_main_method[O](
@@ -33,57 +32,81 @@ object RTOSEncoder {
       .getOrElse(throw new IllegalStateException("No main method declared!"))
 
   private def get_tasks[O](
-      calls: Seq[CInvocation[O]],
+      stmts: Seq[Expr[O]],
       decls: Seq[CFunctionDefinition[O]],
-  ): Seq[Task[O]] =
-    Utils.filter_by_name(calls, "vesuvTaskCreate").map(t => Task.of(t, decls))
+  ): Seq[Task[O]] = {
+    Utils.resolve_freertos_constructs(
+      stmts,
+      "vesuvTaskCreate",
+      (v: Option[CLocal[O]], inv: CInvocation[O]) => Task.of(v, inv, decls),
+    )
+  }
 
   private def get_timers[O](
-      calls: Seq[CInvocation[O]],
+      stmts: Seq[Expr[O]],
       decls: Seq[CFunctionDefinition[O]],
-  ): Seq[Timer[O]] =
-    Utils.filter_by_name(calls, "vesuvTimerCreate").map(t => Timer.of(t, decls))
+  ): Seq[Timer[O]] = {
+    Utils.resolve_freertos_constructs(
+      stmts,
+      "vesuvTimerCreate",
+      (v: Option[CLocal[O]], inv: CInvocation[O]) => Timer.of(v, inv, decls),
+    )
+  }
 
   private def get_isrs[O](
-      calls: Seq[CInvocation[O]],
+      stmts: Seq[Expr[O]],
       decls: Seq[CFunctionDefinition[O]],
   ): Seq[ISR[O]] =
-    Utils.filter_by_name(calls, "vesuvISRCreate").map(t => ISR.of(t, decls))
+    Utils.resolve_freertos_constructs(
+      stmts,
+      "vesuvISRCreate",
+      (_: Option[CLocal[O]], inv: CInvocation[O]) => ISR.of(inv, decls),
+    )
 
-  private def get_event_groups[O](calls: Seq[CInvocation[O]]): Seq[EventGroup] =
-    Utils.filter_by_name(calls, "xEventGroupCreate").map(_ => EventGroup())
+  private def get_event_groups[O](stmts: Seq[Expr[O]]): Seq[EventGroup[O]] =
+    Utils.resolve_freertos_constructs(
+      stmts,
+      "xEventGroupCreate",
+      (v: Option[CLocal[O]], _: CInvocation[O]) => EventGroup(v),
+    )
 
-  private def get_semaphores[O](calls: Seq[CInvocation[O]]): Seq[Semaphore] =
-    Utils.filter_by_name(calls, "xSemaphoreCreateBinary")
-      .map(_ => BinarySemaphore(false)) ++
-      Utils.filter_by_name(calls, "xSemaphoreCreateMutex")
-        .map(_ => BinarySemaphore(true)) ++
-      Utils.filter_by_name(calls, "xSemaphoreCreateRecursiveMutex")
-        .map(_ => RecursiveMutex())
+  private def get_semaphores[O](stmts: Seq[Expr[O]]): Seq[Semaphore[O]] =
+    Utils.resolve_freertos_constructs(
+      stmts,
+      "xSemaphoreCreateBinary",
+      (v: Option[CLocal[O]], _: CInvocation[O]) =>
+        BinarySemaphore(v, is_mutex = false),
+    ) ++ Utils.resolve_freertos_constructs(
+      stmts,
+      "xSemaphoreCreateMutex",
+      (v: Option[CLocal[O]], _: CInvocation[O]) =>
+        BinarySemaphore(v, is_mutex = true),
+    ) ++ Utils.resolve_freertos_constructs(
+      stmts,
+      "xSemaphoreCreateRecursiveMutex",
+      (v: Option[CLocal[O]], _: CInvocation[O]) => RecursiveMutex(v),
+    )
 
-  private def get_queues[O](calls: Seq[CInvocation[O]]): Seq[Queue] =
-    Utils.filter_by_name(calls, "xQueueCreate").map(v => Queue.of(v))
+  private def get_queues[O](stmts: Seq[Expr[O]]): Seq[Queue[O]] =
+    Utils.resolve_freertos_constructs(
+      stmts,
+      "xQueueCreate",
+      (v: Option[CLocal[O]], inv: CInvocation[O]) => Queue.of(v, inv),
+    )
 
-  private def get_stream_buffers[O](
-      calls: Seq[CInvocation[O]]
-  ): Seq[StreamBuffer] =
-    Utils.filter_by_name(calls, "xStreamBufferCreate")
-      .map(v => StreamBuffer.of(v))
+  private def get_stream_buffers[O](stmts: Seq[Expr[O]]): Seq[StreamBuffer[O]] =
+    Utils.resolve_freertos_constructs(
+      stmts,
+      "xStreamBufferCreate",
+      (v: Option[CLocal[O]], inv: CInvocation[O]) => StreamBuffer.of(v, inv),
+    )
 
   private def get_message_buffers[O](
-      calls: Seq[CInvocation[O]]
-  ): Seq[MessageBuffer] =
-    Utils.filter_by_name(calls, "xMessageBufferCreate")
-      .map(v => MessageBuffer.of(v))
-
-  private def construct_encoded_system[O, N](
-      tasks: Seq[Task[O]],
-      timers: Seq[Timer[O]],
-      isrs: Seq[ISR[O]],
-      event_groups: Seq[EventGroup],
-      semaphores: Seq[Semaphore],
-      queues: Seq[Queue],
-      stream_buffers: Seq[StreamBuffer],
-      message_buffers: Seq[MessageBuffer],
-  ): Seq[Class[N]] = ???
+      stmts: Seq[Expr[O]]
+  ): Seq[MessageBuffer[O]] =
+    Utils.resolve_freertos_constructs(
+      stmts,
+      "xMessageBufferCreate",
+      (v: Option[CLocal[O]], inv: CInvocation[O]) => MessageBuffer.of(v, inv),
+    )
 }

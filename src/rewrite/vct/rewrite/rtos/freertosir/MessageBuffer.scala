@@ -3,10 +3,34 @@ package vct.rewrite.rtos.freertosir
 import vct.col.ast._
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.util.AstBuildHelpers.tt
-import vct.rewrite.rtos.Utils
+import vct.rewrite.rtos.{ObjectInfo, Utils}
 
-case class MessageBuffer(size: Int) {
+case class MessageBuffer[O](decl: Option[CLocal[O]], size: Int)
+    extends FreeRTOSConstruct[O] {
   private val bit_width: Int = 4
+
+  override def convert[N]: ObjectInfo[O, N] = {
+    val cls: Class[N] = transform(???, ???, ???, ???, ???, ???)
+    val tcls =
+      TByReferenceClass(new DirectRef[N, Class[N]](cls), Seq())(Utils.origen)
+    val field: InstanceField[N] =
+      new InstanceField(tcls, Seq())(Utils.origen(???))
+    ObjectInfo(
+      decl,
+      field,
+      cls,
+      Seq[Expr[N]](Utils.thiz, Utils.int_val(size)),
+      Utils.fold_star(
+        Seq[Expr[N]](Perm(Utils.loc_of(field), Utils.read)(Utils.origen))
+      ),
+      None,
+      None,
+      None,
+      None,
+      None,
+      launch = false,
+    )
+  }
 
   def transform[N](
       scheduler_ref: Ref[N, Class[N]],
@@ -538,7 +562,10 @@ case class MessageBuffer(size: Int) {
    */
 }
 case object MessageBuffer {
-  def of[O](invocation: CInvocation[O]): MessageBuffer = {
+  def of[O](
+      variable: Option[CLocal[O]],
+      invocation: CInvocation[O],
+  ): MessageBuffer[O] = {
     Utils.creation_arg_assert(
       invocation,
       1,
@@ -547,6 +574,9 @@ case object MessageBuffer {
 
     val size_arg: Expr[O] = invocation.args.head
 
-    MessageBuffer(Utils.resolve_integer(size_arg, "message buffer size"))
+    MessageBuffer(
+      variable,
+      Utils.resolve_integer(size_arg, "message buffer size"),
+    )
   }
 }

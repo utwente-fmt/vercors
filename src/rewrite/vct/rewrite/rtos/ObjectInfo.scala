@@ -1,9 +1,9 @@
 package vct.rewrite.rtos
 
-import vct.col.ast.{CDeclaration, Class, Expr, InstanceField}
+import vct.col.ast.{CLocal, Class, Expr, InstanceField}
 
-case class ObjectInfo[N](
-    decl: Option[CDeclaration[N]],
+case class ObjectInfo[O, N](
+    decl: Option[CLocal[O]],
     field: InstanceField[N],
     cls: Class[N],
     args: Seq[Expr[N]],

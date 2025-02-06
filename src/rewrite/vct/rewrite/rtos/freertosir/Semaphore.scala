@@ -3,9 +3,11 @@ package vct.rewrite.rtos.freertosir
 import vct.col.ast._
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.util.AstBuildHelpers.tt
-import vct.rewrite.rtos.Utils
+import vct.rewrite.rtos.{ObjectInfo, Utils}
 
-sealed trait Semaphore {
+sealed trait Semaphore[O] extends FreeRTOSConstruct[O] {
+  override def convert[N]: ObjectInfo[O, N] = ???
+
   def transform[N](
       scheduler_ref: Ref[N, Class[N]],
       event_ref: Ref[N, InstanceField[N]],
@@ -17,8 +19,8 @@ sealed trait Semaphore {
   ): Class[N]
 }
 
-
-case class BinarySemaphore(is_mutex: Boolean) extends Semaphore {
+case class BinarySemaphore[O](decl: Option[CLocal[O]], is_mutex: Boolean)
+    extends Semaphore[O] {
   override def transform[N](
       scheduler_ref: Ref[N, Class[N]],
       event_ref: Ref[N, InstanceField[N]],
@@ -483,8 +485,7 @@ case class BinarySemaphore(is_mutex: Boolean) extends Semaphore {
   }
 }
 
-
-case class RecursiveMutex() extends Semaphore {
+case class RecursiveMutex[O](decl: Option[CLocal[O]]) extends Semaphore[O] {
   override def transform[N](
       scheduler_ref: Ref[N, Class[N]],
       event_ref: Ref[N, InstanceField[N]],
@@ -511,7 +512,9 @@ case class RecursiveMutex() extends Semaphore {
           Perm(Utils.loc_of(s), Utils.read)(Utils.origen),
           Neq(Utils.deref_of(s), Utils.nul)(Utils.origen),
           Perm(Utils.loc_of(recursionDepth), Utils.write)(Utils.origen),
-          GreaterEq(Utils.deref_of(recursionDepth), Utils.int_val(0))(Utils.origen),
+          GreaterEq(Utils.deref_of(recursionDepth), Utils.int_val(0))(
+            Utils.origen
+          ),
           Perm(Utils.loc_of(task), Utils.write)(Utils.origen),
           Perm(Utils.loc_of(originalPriority), Utils.write)(Utils.origen),
         ))),
@@ -537,27 +540,29 @@ case class RecursiveMutex() extends Semaphore {
     )
     val xSemaphoreGetMutexHolder: InstanceMethod[N] =
       create_xSemaphoreGetMutexHolder(task, perms)
-    val xSemaphoreGiveRecursive: InstanceMethod[N] = create_xSemaphoreGiveRecursive(
-      s,
-      recursionDepth,
-      task,
-      originalPriority,
-      perms,
-      event_ref,
-      event_perms_ref,
-      priority_ref,
-      priority_perms_ref,
-      available_event,
-    )
-    val xSemaphoreTakeRecursive: InstanceMethod[N] = create_xSemaphoreTakeRecursive(
-      s,
-      recursionDepth,
-      task,
-      originalPriority,
-      perms,
-      priority_ref,
-      priority_perms_ref,
-    )
+    val xSemaphoreGiveRecursive: InstanceMethod[N] =
+      create_xSemaphoreGiveRecursive(
+        s,
+        recursionDepth,
+        task,
+        originalPriority,
+        perms,
+        event_ref,
+        event_perms_ref,
+        priority_ref,
+        priority_perms_ref,
+        available_event,
+      )
+    val xSemaphoreTakeRecursive: InstanceMethod[N] =
+      create_xSemaphoreTakeRecursive(
+        s,
+        recursionDepth,
+        task,
+        originalPriority,
+        perms,
+        priority_ref,
+        priority_perms_ref,
+      )
 
     new ByReferenceClass(
       Seq(),
@@ -579,16 +584,17 @@ case class RecursiveMutex() extends Semaphore {
   }
 
   private def create_constructor[N](
-                                     s: InstanceField[N],
-                                     recursionDepth: InstanceField[N],
-                                     task: InstanceField[N],
-                                     originalPriority: InstanceField[N],
-                                     perms: Ref[N, InstancePredicate[N]],
-                                     scheduler_ref: Ref[N, Class[N]],
-                                   ): PVLConstructor[N] = {
+      s: InstanceField[N],
+      recursionDepth: InstanceField[N],
+      task: InstanceField[N],
+      originalPriority: InstanceField[N],
+      perms: Ref[N, InstancePredicate[N]],
+      scheduler_ref: Ref[N, Class[N]],
+  ): PVLConstructor[N] = {
     val s_param: Variable[N] =
       new Variable(TByReferenceClass(scheduler_ref, Seq())(Utils.origen))(
-        Utils.origen("s_param"))
+        Utils.origen("s_param")
+      )
 
     // requires s_param != null;
     val requires: Expr[N] =
@@ -615,9 +621,9 @@ case class RecursiveMutex() extends Semaphore {
         Assign(Utils.deref_of(originalPriority), Utils.int_val(-1))(
           Utils.origen
         )(Utils.origen),
-        Assign(Utils.deref_of(recursionDepth), Utils.int_val(0))(
+        Assign(Utils.deref_of(recursionDepth), Utils.int_val(0))(Utils.origen)(
           Utils.origen
-        )(Utils.origen),
+        ),
       ))(Utils.origen)
 
     new PVLConstructor(
@@ -629,9 +635,9 @@ case class RecursiveMutex() extends Semaphore {
   }
 
   private def create_uxSemaphoreGetCount[N](
-                                             task: InstanceField[N],
-                                             perms: Ref[N, InstancePredicate[N]],
-                                           ): InstanceMethod[N] = {
+      task: InstanceField[N],
+      perms: Ref[N, InstancePredicate[N]],
+  ): InstanceMethod[N] = {
     // requires semaphorePerms();
     val requires: Expr[N] = Utils.predicate_apply(Utils.thiz, perms, Seq())
 
@@ -662,9 +668,9 @@ case class RecursiveMutex() extends Semaphore {
   }
 
   private def create_xSemaphoreGetMutexHolder[N](
-                                                  task: InstanceField[N],
-                                                  perms: Ref[N, InstancePredicate[N]],
-                                                ): InstanceMethod[N] = {
+      task: InstanceField[N],
+      perms: Ref[N, InstancePredicate[N]],
+  ): InstanceMethod[N] = {
     // requires semaphorePerms();
     val requires: Expr[N] = Utils.predicate_apply(Utils.thiz, perms, Seq())
 
@@ -684,17 +690,17 @@ case class RecursiveMutex() extends Semaphore {
   }
 
   private def create_xSemaphoreGiveRecursive[N](
-                                        s: InstanceField[N],
-                                        recursionDepth: InstanceField[N],
-                                        task: InstanceField[N],
-                                        originalPriority: InstanceField[N],
-                                        perms: Ref[N, InstancePredicate[N]],
-                                        event_ref: Ref[N, InstanceField[N]],
-                                        event_perms_ref: Ref[N, InstancePredicate[N]],
-                                        priority_ref: Ref[N, InstanceField[N]],
-                                        priority_perms_ref: Ref[N, InstancePredicate[N]],
-                                        available_event: Int,
-                                      ): InstanceMethod[N] = {
+      s: InstanceField[N],
+      recursionDepth: InstanceField[N],
+      task: InstanceField[N],
+      originalPriority: InstanceField[N],
+      perms: Ref[N, InstancePredicate[N]],
+      event_ref: Ref[N, InstanceField[N]],
+      event_perms_ref: Ref[N, InstancePredicate[N]],
+      priority_ref: Ref[N, InstanceField[N]],
+      priority_perms_ref: Ref[N, InstancePredicate[N]],
+      available_event: Int,
+  ): InstanceMethod[N] = {
     val taskID: Variable[N] = new Variable(Utils.tint)(Utils.origen("taskID"))
 
     // requires sBufferPerms() ** s.eventPerms() ** s.priorityPerms();
@@ -733,23 +739,15 @@ case class RecursiveMutex() extends Semaphore {
         ),
         And(
           Implies(
-            Eq(
-              Utils.deref_of(recursionDepth),
-              Utils.int_val(1),
-            )(Utils.origen),
+            Eq(Utils.deref_of(recursionDepth), Utils.int_val(1))(Utils.origen),
             Utils.fold_and(Seq[Expr[N]](
-              Eq(
-                Utils.deref_of(task),
-                Utils.int_val(-1),
-              )(Utils.origen),
-              Eq(
-                Utils.deref_of(originalPriority),
-                Utils.int_val(-1),
-              )(Utils.origen),
-              Eq(
-                Utils.deref_of(recursionDepth),
-                Utils.int_val(0),
-              )(Utils.origen),
+              Eq(Utils.deref_of(task), Utils.int_val(-1))(Utils.origen),
+              Eq(Utils.deref_of(originalPriority), Utils.int_val(-1))(
+                Utils.origen
+              ),
+              Eq(Utils.deref_of(recursionDepth), Utils.int_val(0))(
+                Utils.origen
+              ),
               Eq(
                 Utils.deref_ref(event_ref, Utils.deref_of(s)),
                 Utils.old(
@@ -770,18 +768,14 @@ case class RecursiveMutex() extends Semaphore {
                   )(Utils.origen)
                 ),
               )(Utils.origen),
-            ))
+            )),
           )(Utils.origen),
           Implies(
-            Neq(
-              Utils.deref_of(recursionDepth),
-              Utils.int_val(1),
-            )(Utils.origen),
+            Neq(Utils.deref_of(recursionDepth), Utils.int_val(1))(Utils.origen),
             Utils.fold_and(Seq[Expr[N]](
-              Eq(
-                Utils.deref_of(task),
-                Utils.old(Utils.deref_of(task)),
-              )(Utils.origen),
+              Eq(Utils.deref_of(task), Utils.old(Utils.deref_of(task)))(
+                Utils.origen
+              ),
               Eq(
                 Utils.deref_of(originalPriority),
                 Utils.old(Utils.deref_of(originalPriority)),
@@ -801,9 +795,9 @@ case class RecursiveMutex() extends Semaphore {
                 Utils.deref_ref(priority_ref, Utils.deref_of(s)),
                 Utils.old(Utils.deref_ref(priority_ref, Utils.deref_of(s))),
               )(Utils.origen),
-            ))
+            )),
           )(Utils.origen),
-        )(Utils.origen)
+        )(Utils.origen),
       )(Utils.origen)
 
     // ensures \old(task) != taskID ==> (   task == \old(task)
@@ -855,14 +849,14 @@ case class RecursiveMutex() extends Semaphore {
   }
 
   private def create_xSemaphoreTakeRecursive[N](
-                                        s: InstanceField[N],
-                                        recursionDepth: InstanceField[N],
-                                        task: InstanceField[N],
-                                        originalPriority: InstanceField[N],
-                                        perms: Ref[N, InstancePredicate[N]],
-                                        priority_ref: Ref[N, InstanceField[N]],
-                                        priority_perms_ref: Ref[N, InstancePredicate[N]],
-                                      ): InstanceMethod[N] = {
+      s: InstanceField[N],
+      recursionDepth: InstanceField[N],
+      task: InstanceField[N],
+      originalPriority: InstanceField[N],
+      perms: Ref[N, InstancePredicate[N]],
+      priority_ref: Ref[N, InstanceField[N]],
+      priority_perms_ref: Ref[N, InstancePredicate[N]],
+  ): InstanceMethod[N] = {
     val taskID: Variable[N] = new Variable(Utils.tint)(Utils.origen("taskID"))
 
     // requires sBufferPerms() ** s.priorityPerms();
@@ -897,10 +891,7 @@ case class RecursiveMutex() extends Semaphore {
               )(Utils.origen)(Utils.origen)
             ),
           )(Utils.origen),
-          Eq(
-            Utils.deref_of(recursionDepth),
-            Utils.int_val(1),
-          )(Utils.origen),
+          Eq(Utils.deref_of(recursionDepth), Utils.int_val(1))(Utils.origen),
           Eq(
             Utils.deref_ref(priority_ref, Utils.deref_of(s)),
             Utils.old(Utils.deref_ref(priority_ref, Utils.deref_of(s))),
@@ -928,15 +919,13 @@ case class RecursiveMutex() extends Semaphore {
         ),
         And(
           Implies(
-            Eq(
-              Utils.old(Utils.deref_of(task)),
-              Utils.local_of(taskID),
-            )(Utils.origen),
+            Eq(Utils.old(Utils.deref_of(task)), Utils.local_of(taskID))(
+              Utils.origen
+            ),
             Utils.fold_and(Seq[Expr[N]](
-              Eq(
-                Utils.deref_of(task),
-                Utils.old(Utils.deref_of(task)),
-              )(Utils.origen),
+              Eq(Utils.deref_of(task), Utils.old(Utils.deref_of(task)))(
+                Utils.origen
+              ),
               Eq(
                 Utils.deref_of(originalPriority),
                 Utils.old(Utils.deref_of(originalPriority)),
@@ -952,18 +941,16 @@ case class RecursiveMutex() extends Semaphore {
                 Utils.deref_ref(priority_ref, Utils.deref_of(s)),
                 Utils.old(Utils.deref_ref(priority_ref, Utils.deref_of(s))),
               )(Utils.origen),
-            ))
+            )),
           )(Utils.origen),
           Implies(
-            Neq(
-              Utils.old(Utils.deref_of(task)),
-              Utils.local_of(taskID),
-            )(Utils.origen),
+            Neq(Utils.old(Utils.deref_of(task)), Utils.local_of(taskID))(
+              Utils.origen
+            ),
             Utils.fold_and(Seq[Expr[N]](
-              Eq(
-                Utils.deref_of(task),
-                Utils.old(Utils.deref_of(task)),
-              )(Utils.origen),
+              Eq(Utils.deref_of(task), Utils.old(Utils.deref_of(task)))(
+                Utils.origen
+              ),
               Eq(
                 Utils.deref_of(originalPriority),
                 Utils.old(Utils.deref_of(originalPriority)),
@@ -1020,10 +1007,10 @@ case class RecursiveMutex() extends Semaphore {
                   Utils.deref_ref(priority_ref, Utils.deref_of(s)),
                   Utils.old(Utils.deref_ref(priority_ref, Utils.deref_of(s))),
                 )(Utils.origen),
-              )(Utils.origen)
-            ))
+              )(Utils.origen),
+            )),
           )(Utils.origen),
-        )(Utils.origen)
+        )(Utils.origen),
       )(Utils.origen)
 
     new InstanceMethod(

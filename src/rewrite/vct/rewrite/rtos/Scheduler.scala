@@ -4,8 +4,8 @@ import vct.col.ast._
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.util.AstBuildHelpers.tt
 
-case class Scheduler() {
-  def generate[N](objs: Seq[ObjectInfo[N]], n_events: Int): Class[N] = {
+case class Scheduler[O]() {
+  def generate[N](objs: Seq[ObjectInfo[O, N]], n_events: Int): Class[N] = {
     // Support calculations
     val n_tasks = objs.count(o => o.task_id.nonEmpty)
 
@@ -322,7 +322,7 @@ case class Scheduler() {
   }
 
   private def create_constructor[N](
-      objs: Seq[ObjectInfo[N]],
+      objs: Seq[ObjectInfo[O, N]],
       n_events: Int,
       n_tasks: Int,
       eventState: InstanceField[N],
@@ -332,7 +332,7 @@ case class Scheduler() {
       runnableQueue: InstanceField[N],
   ): PVLConstructor[N] = {
     // Supporting calculations
-    val launch_objs: Seq[ObjectInfo[N]] = objs.filter(o => o.launch)
+    val launch_objs: Seq[ObjectInfo[O, N]] = objs.filter(o => o.launch)
     // Find timers that have already been activated => their initial event state is their delay, not -1
     val timer_delay: Map[Int, Int] = Map.from(
       objs.filter(o => o.timer_period.nonEmpty)

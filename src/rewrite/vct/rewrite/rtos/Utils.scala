@@ -4,6 +4,7 @@ import vct.col.ast._
 import vct.col.origin.{LabelContext, Origin, PreferredName}
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.util.AstBuildHelpers.{ff, tt}
+import vct.rewrite.rtos.freertosir.FreeRTOSConstruct
 
 import scala.annotation.tailrec
 
@@ -93,26 +94,26 @@ case object Utils {
       case None => None
     }
 
-  def creation_arg_assert[G](
-      invocation: CInvocation[G],
+  def creation_arg_assert[O](
+      invocation: CInvocation[O],
       desired_arguments: Int,
       error_message: String,
   ): Unit =
     if (invocation.args.length != desired_arguments)
       throw new IllegalArgumentException(error_message)
 
-  def resolve_integer[G](expr: Expr[G], meaning: String): Int =
+  def resolve_integer[O](expr: Expr[O], meaning: String): Int =
     try_expr_to_int(expr).getOrElse(
       throw new IllegalArgumentException(
         "Could not resolve " + meaning + expr.toInlineString
       )
     )
 
-  def resolve_function[G](
-      invocation: CInvocation[G],
-      decls: Seq[CFunctionDefinition[G]],
+  def resolve_function[O](
+      invocation: CInvocation[O],
+      decls: Seq[CFunctionDefinition[O]],
       meaning: String,
-  ): CFunctionDefinition[G] =
+  ): CFunctionDefinition[O] =
     decls.find(f =>
       get_declarator_name(f.declarator)
         .equals(get_applicable_name(invocation.applicable))
@@ -120,11 +121,25 @@ case object Utils {
       throw new IllegalArgumentException("Could not find " + meaning + "!")
     )
 
-  def filter_by_name[O](
-      funcs: Seq[CInvocation[O]],
-      name: String,
-  ): Seq[CInvocation[O]] =
-    funcs.filter(i => Utils.get_applicable_name(i.applicable).equals(name))
+  def resolve_freertos_constructs[O, T <: FreeRTOSConstruct[O]](
+      stmts: Seq[Expr[O]],
+      func_name: String,
+      op: (Option[CLocal[O]], CInvocation[O]) => T,
+  ): Seq[T] =
+    stmts.collect {
+      case PreAssignExpression(target, value) if (value match {
+            case CInvocation(applicable, _, _, _) =>
+              get_applicable_name(applicable).equals(func_name)
+            case _ => false
+          }) =>
+        target match {
+          case t: CLocal[O] => op(Some(t), value.asInstanceOf[CInvocation[O]])
+          case _ => op(None, value.asInstanceOf[CInvocation[O]])
+        }
+      case inv @ CInvocation(applicable, _, _, _)
+          if get_applicable_name(applicable).equals(func_name) =>
+        op(None, inv)
+    }
 
   @tailrec
   def get_declarator_name(declarator: CDeclarator[_]): String =

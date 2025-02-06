@@ -2,20 +2,28 @@ package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
 import vct.col.ref.Ref
-import vct.rewrite.rtos.Utils
+import vct.rewrite.rtos.{ObjectInfo, Utils}
 
 case class Task[O](
-                    func: CFunctionDefinition[O],
-                    param: Expr[O],
-                    priority: Int,
-                  ) {
-  def transform[N](scheduler_ref: Ref[N, Class[N]], tid: Int, last_eid: Int): Class[N] = ???
+    decl: Option[CLocal[O]],
+    func: CFunctionDefinition[O],
+    param: Expr[O],
+    priority: Int,
+) extends FreeRTOSConstruct[O] {
+  override def convert[N]: ObjectInfo[O, N] = ???
+
+  def transform[N](
+      scheduler_ref: Ref[N, Class[N]],
+      tid: Int,
+      last_eid: Int,
+  ): Class[N] = ???
 }
 case object Task {
   def of[O](
-             invocation: CInvocation[O],
-             decls: Seq[CFunctionDefinition[O]],
-           ): Task[O] = {
+      variable: Option[CLocal[O]],
+      invocation: CInvocation[O],
+      decls: Seq[CFunctionDefinition[O]],
+  ): Task[O] = {
     Utils.creation_arg_assert(
       invocation,
       2,
@@ -29,6 +37,7 @@ case object Task {
     Utils.creation_arg_assert(call_arg, 1, "No task parameters given!")
 
     Task(
+      variable,
       Utils.resolve_function(call_arg, decls, "task method"),
       call_arg.args.head,
       Utils.resolve_integer(priority_arg, "task priority"),

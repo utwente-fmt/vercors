@@ -3,9 +3,15 @@ package vct.rewrite.rtos.freertosir
 import vct.col.ast._
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.util.AstBuildHelpers.tt
-import vct.rewrite.rtos.Utils
+import vct.rewrite.rtos.{ObjectInfo, Utils}
 
-case class StreamBuffer(size: Int, trigger_bytes: Int) {
+case class StreamBuffer[O](
+    decl: Option[CLocal[O]],
+    size: Int,
+    trigger_bytes: Int,
+) extends FreeRTOSConstruct[O] {
+  override def convert[N]: ObjectInfo[O, N] = ???
+
   def transform[N](
       scheduler_ref: Ref[N, Class[N]],
       event_ref: Ref[N, InstanceField[N]],
@@ -488,7 +494,10 @@ case class StreamBuffer(size: Int, trigger_bytes: Int) {
    */
 }
 case object StreamBuffer {
-  def of[O](invocation: CInvocation[O]): StreamBuffer = {
+  def of[O](
+      variable: Option[CLocal[O]],
+      invocation: CInvocation[O],
+  ): StreamBuffer[O] = {
     Utils.creation_arg_assert(
       invocation,
       2,
@@ -499,6 +508,7 @@ case object StreamBuffer {
     val trigger_arg: Expr[O] = invocation.args(1)
 
     StreamBuffer(
+      variable,
       Utils.resolve_integer(size_arg, "stream buffer size"),
       Utils.resolve_integer(trigger_arg, "stream buffer trigger level"),
     )
