@@ -6,6 +6,66 @@ import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
 
 sealed trait Semaphore[O, N] extends FreeRTOSConstruct[O, N] {
+  def get_decl: Option[CLocal[O]]
+  def cls_type: String
+  def perms_for_scheduler(field: InstanceField[N]): Seq[Expr[N]]
+  def additional_constructor_args: Seq[Expr[N]]
+  def function_mapping: Seq[(String, InstanceMethod[N])]
+
+  private def class_name(idx: Int): String =
+    get_decl match {
+      case Some(l) => cls_type + l.name
+      case None => cls_type + "Anonymous" + idx
+    }
+
+  private def instance_name(idx: Int): String =
+    get_decl match {
+      case Some(l) => l.name
+      case None => "unknown" + cls_type + idx
+    }
+
+  override def convert(
+      col_ir: Transformer[O, N],
+      idx: Int,
+  ): ObjectInfo[O, N] = {
+    val cls: Class[N] = transform(
+      new LazyRef(col_ir.get_scheduler),
+      new LazyRef(col_ir.get_eventState),
+      new LazyRef(col_ir.get_eventPerms),
+      new LazyRef(col_ir.get_taskPriority),
+      new LazyRef(col_ir.get_priorityPerms),
+      col_ir.reserve_event_id,
+      class_name(idx),
+    )
+    val tcls =
+      TByReferenceClass(new DirectRef[N, Class[N]](cls), Seq())(Utils.origen)
+
+    val field: InstanceField[N] =
+      new InstanceField(tcls, Seq())(Utils.origen(instance_name(idx)))
+
+    if (get_decl.nonEmpty) {
+      function_mapping
+        .foreach(t => col_ir.add_to_api(get_decl.get, t._1, field, t._2))
+    }
+
+    ObjectInfo(
+      get_decl,
+      field,
+      cls,
+      Seq[Expr[N]](Utils.thiz) ++ additional_constructor_args,
+      Utils.fold_star(
+        Seq[Expr[N]](Perm(Utils.loc_of(field), Utils.read)(Utils.origen)) ++
+          perms_for_scheduler(field)
+      ),
+      None,
+      None,
+      None,
+      None,
+      None,
+      launch = false,
+    )
+  }
+
   def transform(
       scheduler_ref: Ref[N, Class[N]],
       event_ref: Ref[N, InstanceField[N]],
@@ -19,8 +79,44 @@ sealed trait Semaphore[O, N] extends FreeRTOSConstruct[O, N] {
 
 case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
     extends Semaphore[O, N] {
-  override def convert(col_ir: Transformer[O, N], idx: Int): ObjectInfo[O, N] =
-    ???
+  def get_decl: Option[CLocal[O]] = decl
+  def cls_type: String =
+    if (is_mutex)
+      "Mutex"
+    else
+      "Semaphore"
+  def perms_for_scheduler(field: InstanceField[N]): Seq[Expr[N]] =
+    Seq(
+      Utils.predicate_apply(
+        Utils.deref_of(field),
+        new DirectRef[N, InstancePredicate[N]](semaphorePerms),
+        Seq(),
+      ),
+      Eq(Utils.deref_of(s, Some(Utils.deref_of(field))), Utils.thiz)(
+        Utils.origen
+      ),
+      if (is_mutex)
+        Utils.deref_of(isMutex, Some(Utils.deref_of(field)))
+      else
+        Not(Utils.deref_of(isMutex, Some(Utils.deref_of(field))))(Utils.origen),
+    )
+  def additional_constructor_args: Seq[Expr[N]] =
+    Seq(BooleanValue(value = is_mutex)(Utils.origen))
+  def function_mapping: Seq[(String, InstanceMethod[N])] =
+    Seq(
+      ("uxSemaphoreGetCount", uxSemaphoreGetCount),
+      ("xSemaphoreGetMutexHolder", xSemaphoreGetMutexHolder),
+      ("xSemaphoreGive", xSemaphoreGive),
+      ("xSemaphoreTake", xSemaphoreTake),
+    )
+
+  private var s: InstanceField[N] = ???
+  private var isMutex: InstanceField[N] = ???
+  private var semaphorePerms: InstancePredicate[N] = ???
+  private var uxSemaphoreGetCount: InstanceMethod[N] = ???
+  private var xSemaphoreGetMutexHolder: InstanceMethod[N] = ???
+  private var xSemaphoreGive: InstanceMethod[N] = ???
+  private var xSemaphoreTake: InstanceMethod[N] = ???
 
   override def transform(
       scheduler_ref: Ref[N, Class[N]],
@@ -31,18 +127,17 @@ case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
       available_event: Int,
       name: String,
   ): Class[N] = {
-    val s: InstanceField[N] =
+    s =
       new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
         Utils.origen("s")
       )
-    val isMutex: InstanceField[N] =
-      new InstanceField(Utils.tbool, Seq())(Utils.origen("isMutex"))
+    isMutex = new InstanceField(Utils.tbool, Seq())(Utils.origen("isMutex"))
     val task: InstanceField[N] =
       new InstanceField(Utils.tint, Seq())(Utils.origen("task"))
     val originalPriority: InstanceField[N] =
       new InstanceField(Utils.tint, Seq())(Utils.origen("originalPriority"))
 
-    val semaphorePerms: InstancePredicate[N] =
+    semaphorePerms =
       new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
@@ -68,13 +163,9 @@ case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
       scheduler_ref,
     )
 
-    val uxSemaphoreGetCount: InstanceMethod[N] = create_uxSemaphoreGetCount(
-      task,
-      perms,
-    )
-    val xSemaphoreGetMutexHolder: InstanceMethod[N] =
-      create_xSemaphoreGetMutexHolder(task, perms)
-    val xSemaphoreGive: InstanceMethod[N] = create_xSemaphoreGive(
+    uxSemaphoreGetCount = create_uxSemaphoreGetCount(task, perms)
+    xSemaphoreGetMutexHolder = create_xSemaphoreGetMutexHolder(task, perms)
+    xSemaphoreGive = create_xSemaphoreGive(
       s,
       isMutex,
       task,
@@ -86,7 +177,7 @@ case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
       priority_perms_ref,
       available_event,
     )
-    val xSemaphoreTake: InstanceMethod[N] = create_xSemaphoreTake(
+    xSemaphoreTake = create_xSemaphoreTake(
       s,
       isMutex,
       task,
@@ -488,10 +579,34 @@ case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
 
 case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
     extends Semaphore[O, N] {
-  override def convert(
-      col_ir: Transformer[O, N],
-      idx: Int,
-  ): ObjectInfo[O, N] = { ??? }
+  def get_decl: Option[CLocal[O]] = decl
+  def cls_type: String = "RecursiveMutex"
+  def perms_for_scheduler(field: InstanceField[N]): Seq[Expr[N]] =
+    Seq(
+      Utils.predicate_apply(
+        Utils.deref_of(field),
+        new DirectRef[N, InstancePredicate[N]](mutexPerms),
+        Seq(),
+      ),
+      Eq(Utils.deref_of(s, Some(Utils.deref_of(field))), Utils.thiz)(
+        Utils.origen
+      ),
+    )
+  def additional_constructor_args: Seq[Expr[N]] = Seq()
+  def function_mapping: Seq[(String, InstanceMethod[N])] =
+    Seq(
+      ("uxSemaphoreGetCount", uxSemaphoreGetCount),
+      ("xSemaphoreGetMutexHolder", xSemaphoreGetMutexHolder),
+      ("xSemaphoreGiveRecursive", xSemaphoreGiveRecursive),
+      ("xSemaphoreTakeRecursive", xSemaphoreTakeRecursive),
+    )
+
+  private var s: InstanceField[N] = ???
+  private var mutexPerms: InstancePredicate[N] = ???
+  private var uxSemaphoreGetCount: InstanceMethod[N] = ???
+  private var xSemaphoreGetMutexHolder: InstanceMethod[N] = ???
+  private var xSemaphoreGiveRecursive: InstanceMethod[N] = ???
+  private var xSemaphoreTakeRecursive: InstanceMethod[N] = ???
 
   override def transform(
       scheduler_ref: Ref[N, Class[N]],
@@ -502,7 +617,7 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
       available_event: Int,
       name: String,
   ): Class[N] = {
-    val s: InstanceField[N] =
+    s =
       new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
         Utils.origen("s")
       )
@@ -512,7 +627,7 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
       new InstanceField(Utils.tint, Seq())(Utils.origen("task"))
     val originalPriority: InstanceField[N] =
       new InstanceField(Utils.tint, Seq())(Utils.origen("originalPriority"))
-    val mutexPerms: InstancePredicate[N] =
+    mutexPerms =
       new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
@@ -541,35 +656,29 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
       scheduler_ref,
     )
 
-    val uxSemaphoreGetCount: InstanceMethod[N] = create_uxSemaphoreGetCount(
+    uxSemaphoreGetCount = create_uxSemaphoreGetCount(task, perms)
+    xSemaphoreGetMutexHolder = create_xSemaphoreGetMutexHolder(task, perms)
+    xSemaphoreGiveRecursive = create_xSemaphoreGiveRecursive(
+      s,
+      recursionDepth,
       task,
+      originalPriority,
       perms,
+      event_ref,
+      event_perms_ref,
+      priority_ref,
+      priority_perms_ref,
+      available_event,
     )
-    val xSemaphoreGetMutexHolder: InstanceMethod[N] =
-      create_xSemaphoreGetMutexHolder(task, perms)
-    val xSemaphoreGiveRecursive: InstanceMethod[N] =
-      create_xSemaphoreGiveRecursive(
-        s,
-        recursionDepth,
-        task,
-        originalPriority,
-        perms,
-        event_ref,
-        event_perms_ref,
-        priority_ref,
-        priority_perms_ref,
-        available_event,
-      )
-    val xSemaphoreTakeRecursive: InstanceMethod[N] =
-      create_xSemaphoreTakeRecursive(
-        s,
-        recursionDepth,
-        task,
-        originalPriority,
-        perms,
-        priority_ref,
-        priority_perms_ref,
-      )
+    xSemaphoreTakeRecursive = create_xSemaphoreTakeRecursive(
+      s,
+      recursionDepth,
+      task,
+      originalPriority,
+      perms,
+      priority_ref,
+      priority_perms_ref,
+    )
 
     new ByReferenceClass(
       Seq(),

@@ -1,7 +1,7 @@
 package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
-import vct.col.ref.{DirectRef, Ref}
+import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
 
@@ -10,7 +10,102 @@ case class StreamBuffer[O, N](
     size: Int,
     trigger_bytes: Int,
 ) extends FreeRTOSConstruct[O, N] {
-  override def convert(col_ir: Transformer[O, N], idx: Int): ObjectInfo[O, N] = ???
+  private var s: InstanceField[N] = ???
+  private var maxSize: InstanceField[N] = ???
+  private var triggerLevel: InstanceField[N] = ???
+  private var sBufferPerms: InstancePredicate[N] = ???
+  private var xStreamBufferIsEmpty: InstanceMethod[N] = ???
+  private var xStreamBufferIsFull: InstanceMethod[N] = ???
+  private var xStreamBufferSpacesAvailable: InstanceMethod[N] = ???
+  private var xStreamBufferReceive: InstanceMethod[N] = ???
+  private var xStreamBufferSend: InstanceMethod[N] = ???
+
+  private def class_name(idx: Int): String =
+    decl match {
+      case Some(l) => "SBuffer" + l.name
+      case None => "SBufferAnonymous" + idx
+    }
+
+  private def instance_name(idx: Int): String =
+    decl match {
+      case Some(l) => l.name
+      case None => "unknownSBuffer" + idx
+    }
+
+  override def convert(
+      col_ir: Transformer[O, N],
+      idx: Int,
+  ): ObjectInfo[O, N] = {
+    val cls: Class[N] = transform(
+      new LazyRef(col_ir.get_scheduler),
+      new LazyRef(col_ir.get_eventState),
+      new LazyRef(col_ir.get_eventPerms),
+      col_ir.reserve_event_id,
+      col_ir.reserve_event_id,
+      class_name(idx),
+    )
+    val tcls =
+      TByReferenceClass(new DirectRef[N, Class[N]](cls), Seq())(Utils.origen)
+
+    val field: InstanceField[N] =
+      new InstanceField(tcls, Seq())(Utils.origen(instance_name(idx)))
+
+    if (decl.nonEmpty) {
+      col_ir.add_to_api(
+        decl.get,
+        "xStreamBufferIsEmpty",
+        field,
+        xStreamBufferIsEmpty,
+      )
+      col_ir
+        .add_to_api(decl.get, "xStreamBufferIsFull", field, xStreamBufferIsFull)
+      col_ir.add_to_api(
+        decl.get,
+        "xStreamBufferSpacesAvailable",
+        field,
+        xStreamBufferSpacesAvailable,
+      )
+      col_ir.add_to_api(
+        decl.get,
+        "xStreamBufferReceive",
+        field,
+        xStreamBufferReceive,
+      )
+      col_ir.add_to_api(decl.get, "xStreamBufferSend", field, xStreamBufferSend)
+    }
+
+    ObjectInfo(
+      decl,
+      field,
+      cls,
+      Seq[Expr[N]](Utils.thiz, Utils.int_val(size)),
+      Utils.fold_star(Seq[Expr[N]](
+        Perm(Utils.loc_of(field), Utils.read)(Utils.origen),
+        Utils.predicate_apply(
+          Utils.deref_of(field),
+          new DirectRef[N, InstancePredicate[N]](sBufferPerms),
+          Seq(),
+        ),
+        Eq(Utils.deref_of(s, Some(Utils.deref_of(field))), Utils.thiz)(
+          Utils.origen
+        ),
+        Eq(
+          Utils.deref_of(maxSize, Some(Utils.deref_of(field))),
+          Utils.int_val(size),
+        )(Utils.origen),
+        Eq(
+          Utils.deref_of(triggerLevel, Some(Utils.deref_of(field))),
+          Utils.int_val(trigger_bytes),
+        )(Utils.origen),
+      )),
+      None,
+      None,
+      None,
+      None,
+      None,
+      launch = false,
+    )
+  }
 
   def transform(
       scheduler_ref: Ref[N, Class[N]],

@@ -2,19 +2,28 @@ package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
 import vct.col.ref.DirectRef
-import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
+import vct.col.util.AstBuildHelpers.tt
+import vct.rewrite.rtos.{ObjectInfo, StatementTransformer, Transformer, Utils}
 
-case class ISR[O, N](isr: CFunctionDefinition[O]) extends FreeRTOSConstruct[O, N] {
+case class ISR[O, N](isr: CFunctionDefinition[O])
+    extends FreeRTOSConstruct[O, N] {
 
-  private def class_name: String = "ISR_" + Utils.get_declarator_name(isr.declarator)
+  private def class_name: String =
+    "ISR_" + Utils.get_declarator_name(isr.declarator)
 
-  private def instance_name: String = "isr_" + Utils.get_declarator_name(isr.declarator)
+  private def instance_name: String =
+    "isr_" + Utils.get_declarator_name(isr.declarator)
 
-  override def convert(col_ir: Transformer[O, N], idx: Int): ObjectInfo[O, N] = {
-    val cls: Class[N] = transform(class_name)
-    val tcls: Type[N] = TByReferenceClass(new DirectRef[N, Class[N]](cls), Seq())(Utils.origen)
+  override def convert(
+      col_ir: Transformer[O, N],
+      idx: Int,
+  ): ObjectInfo[O, N] = {
+    val cls: Class[N] = transform(col_ir, class_name)
+    val tcls: Type[N] =
+      TByReferenceClass(new DirectRef[N, Class[N]](cls), Seq())(Utils.origen)
 
-    val field: InstanceField[N] = new InstanceField(tcls, Seq())(Utils.origen(instance_name))
+    val field: InstanceField[N] =
+      new InstanceField(tcls, Seq())(Utils.origen(instance_name))
 
     ObjectInfo(
       None,
@@ -26,10 +35,12 @@ case class ISR[O, N](isr: CFunctionDefinition[O]) extends FreeRTOSConstruct[O, N
         Neq(Utils.deref_of(field), Utils.nul)(Utils.origen),
         Committed(Utils.deref_of(field))(Utils.origen)(Utils.origen),
       )),
-      Some(Star(
-        Perm(Utils.loc_of(field), Utils.read)(Utils.origen),
-        Neq(Utils.deref_of(field), Utils.nul)(Utils.origen),
-      )(Utils.origen)),
+      Some(
+        Star(
+          Perm(Utils.loc_of(field), Utils.read)(Utils.origen),
+          Neq(Utils.deref_of(field), Utils.nul)(Utils.origen),
+        )(Utils.origen)
+      ),
       None,
       None,
       None,
@@ -38,13 +49,103 @@ case class ISR[O, N](isr: CFunctionDefinition[O]) extends FreeRTOSConstruct[O, N
     )
   }
 
-  def transform(name: String): Class[N] = ???
+  def transform(col_ir: Transformer[O, N], name: String): Class[N] = {
+    val variables: Seq[CLocal[O]] = get_variables
+
+    val fields: Seq[(InstanceField[N], Expr[N])] = variables
+      .map(v => transform_variable(v))
+
+    val isrPermissions: InstancePredicate[N] =
+      new InstancePredicate(
+        Seq(),
+        Some(Utils.fold_star(
+          fields.map(t => Perm(Utils.loc_of(t._1), Utils.write)(Utils.origen))
+        )),
+      )(Utils.origen("isrPermissions"))
+
+    val isrConstructor: PVLConstructor[N] = create_constructor(fields)
+
+    val runMethod: RunMethod[N] = create_runMethod(col_ir)
+
+    new ByReferenceClass(
+      Seq(),
+      fields.map(t => t._1) ++
+        Seq(
+          isrPermissions,
+          isrConstructor,
+          runMethod,
+        ), // TODO: Handle generated local methods
+      Seq(),
+      Utils.predicate_apply(
+        Utils.thiz,
+        new DirectRef[N, InstancePredicate[N]](isrPermissions),
+        Seq(),
+      ),
+    )(Utils.origen(name))
+  }
+
+  private def get_variables: Seq[CLocal[O]] = ???
+
+  // TODO: Handle variable initializations!
+  private def transform_variable(cvar: CLocal[O]): (InstanceField[N], Expr[N]) =
+    ???
+
+  private def create_constructor(
+      fields: Seq[(InstanceField[N], Expr[N])]
+  ): PVLConstructor[N] = {
+    val ensures: Expr[N] =
+      Star(
+        Committed(Utils.thiz)(Utils.origen)(Utils.origen),
+        IdleToken(Utils.thiz)(Utils.origen),
+      )(Utils.origen)
+
+    val body: Statement[N] =
+      Block(
+        fields.map(t =>
+          Assign(Utils.deref_of(t._1), t._2)(Utils.origen)(Utils.origen)
+        ) ++ Seq[Statement[N]](Commit(Utils.thiz)(Utils.origen)(Utils.origen))
+      )(Utils.origen)
+
+    new PVLConstructor(
+      Utils.to_app_contract(tt, ensures),
+      Seq(),
+      Seq(),
+      Some(body),
+    )(Utils.origen)(Utils.origen)
+  }
+
+  private def create_runMethod(col_ir: Transformer[O, N]): RunMethod[N] = {
+    val cond: Expr[N] = Committed(Utils.thiz)(Utils.origen)(Utils.origen)
+
+    val loop_body: Statement[N] =
+      Block(Seq[Statement[N]](
+        Lock(Utils.thiz)(Utils.origen)(Utils.origen),
+        new StatementTransformer[O, N](col_ir)
+          .convert(isr.body), // TODO: Transform method body!
+        Unlock(Utils.thiz)(Utils.origen)(Utils.origen),
+      ))(Utils.origen)
+
+    val body: Statement[N] =
+      Block(Seq[Statement[N]](
+        Loop(
+          Utils.skip,
+          tt,
+          Utils.skip,
+          Utils.to_loop_invariant(cond),
+          loop_body,
+        )(Utils.origen)
+      ))(Utils.origen)
+
+    new RunMethod(Some(body), Utils.to_app_contract(cond, cond))(Utils.origen)(
+      Utils.origen
+    )
+  }
 }
 case object ISR {
   def of[O, N](
-             invocation: CInvocation[O],
-             decls: Seq[CFunctionDefinition[O]],
-           ): ISR[O, N] = {
+      invocation: CInvocation[O],
+      decls: Seq[CFunctionDefinition[O]],
+  ): ISR[O, N] = {
     Utils.creation_arg_assert(
       invocation,
       1,

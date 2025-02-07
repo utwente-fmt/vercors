@@ -34,25 +34,26 @@ object RTOSEncoder {
   private def get_tasks[O, N](
       stmts: Seq[Expr[O]],
       decls: Seq[CFunctionDefinition[O]],
-  ): Seq[Task[O, N]] = {
+  ): Seq[Task[O, N]] =
     Utils.resolve_freertos_constructs[O, N, Task[O, N]](
       stmts,
       "vesuvTaskCreate",
       (v: Option[CLocal[O]], inv: CInvocation[O]) =>
         Task.of[O, N](v, inv, decls),
     )
-  }
 
   private def get_timers[O, N](
       stmts: Seq[Expr[O]],
       decls: Seq[CFunctionDefinition[O]],
   ): Seq[Timer[O, N]] = {
-    Utils.resolve_freertos_constructs[O, N, Timer[O, N]](
+    val timers = Utils.resolve_freertos_constructs[O, N, Timer[O, N]](
       stmts,
       "vesuvTimerCreate",
       (v: Option[CLocal[O]], inv: CInvocation[O]) =>
         Timer.of[O, N](v, inv, decls),
     )
+    activate(stmts, timers)
+    timers
   }
 
   private def get_isrs[O, N](
@@ -117,4 +118,29 @@ object RTOSEncoder {
       (v: Option[CLocal[O]], inv: CInvocation[O]) =>
         MessageBuffer.of[O, N](v, inv),
     )
+
+  private def activate[O, N](
+      stmts: Seq[Expr[O]],
+      timers: Seq[Timer[O, N]],
+  ): Unit = {
+    val timer_activations: Seq[CInvocation[O]] = stmts.collect {
+      case PreAssignExpression(_, value) if (value match {
+            case CInvocation(applicable, _, _, _) =>
+              Utils.get_applicable_name(applicable).equals("xTimerStart") ||
+              Utils.get_applicable_name(applicable).equals("xTimerReset")
+            case _ => false
+          }) =>
+        value.asInstanceOf[CInvocation[O]]
+      case inv: CInvocation[O]
+          if Utils.get_applicable_name(inv.applicable).equals("xTimerStart") ||
+            Utils.get_applicable_name(inv.applicable).equals("xTimerReset") =>
+        inv
+    }
+    val activated_timers: Seq[String] = timer_activations
+      .map(inv => inv.args.head.asInstanceOf[CLocal[O]].name)
+    timers.foreach(t =>
+      if (t.decl.nonEmpty && activated_timers.contains(t.decl.get.name))
+        t.activate()
+    )
+  }
 }

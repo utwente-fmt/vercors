@@ -152,7 +152,7 @@ case object Utils {
       case CName(name) => name
     }
 
-  private def get_applicable_name(applicable: Expr[_]): String =
+  def get_applicable_name(applicable: Expr[_]): String =
     applicable match {
       case CLocal(name) => name
       case _ =>

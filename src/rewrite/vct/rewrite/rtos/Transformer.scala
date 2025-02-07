@@ -51,6 +51,7 @@ class Transformer[O, N](
     // TODO: Event groups are transformed into events, not classes... or should it?
     event_groups.zipWithIndex.map(t => t._1.convert(this, t._2))
 
+    // Convert objects in FreeRTOS design to PVL
     val ir: Seq[ObjectInfo[O, N]] = {
       // First ISRs - they cannot use the FreeRTOS API
       isrs.zipWithIndex.map(t => t._1.convert(this, t._2)) ++
@@ -59,9 +60,10 @@ class Transformer[O, N](
         queues.zipWithIndex.map(t => t._1.convert(this, t._2)) ++
         stream_buffers.zipWithIndex.map(t => t._1.convert(this, t._2)) ++
         message_buffers.zipWithIndex.map(t => t._1.convert(this, t._2)) ++
-        // Then tasks and timers
-        tasks.zipWithIndex.map(t => t._1.convert(this, t._2)) ++
-        timers.zipWithIndex.map(t => t._1.convert(this, t._2))
+        // Then timers
+        timers.zipWithIndex.map(t => t._1.convert(this, t._2)) ++
+        // And finally tasks
+        tasks.zipWithIndex.map(t => t._1.convert(this, t._2))
     }
 
     scheduler = scheduler_generator.generate(ir, n_events)
@@ -112,4 +114,15 @@ class Transformer[O, N](
       ir_field: InstanceField[N],
       ir_method: InstanceMethod[N],
   ): Unit = freertos_api.put((cvar, func_name), (ir_field, ir_method))
+
+  def get_api(
+      cvar: CLocal[O],
+      func_name: String,
+  ): (InstanceField[N], InstanceMethod[N]) =
+    freertos_api.getOrElse(
+      (cvar, func_name),
+      throw new IllegalStateException(
+        "Trying to resolve function " + func_name + " before it is generated!"
+      ),
+    )
 }

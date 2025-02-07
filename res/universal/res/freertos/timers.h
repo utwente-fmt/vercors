@@ -23,8 +23,8 @@ typedef void (* TimerCallbackFunction_t)( TimerHandle_t xTimer );
 #define xTimerCreateStatic( pcTimerName, xTimerPeriod, uxAutoReload, pvTimerID, pxCallbackFunction, pxTimerBuffer )     vesuvTimerCreate( xTimerPeriod, uxAutoReload, configTIMER_TASK_PRIORITY, pxCallbackFunction() )
 #define xTimerCreate( pcTimerName, xTimerPeriod, uxAutoReload, pvTimerID, pxCallbackFunction )                          vesuvTimerCreate( xTimerPeriod, uxAutoReload, configTIMER_TASK_PRIORITY, pxCallbackFunction() )
 TimerHandle_t vesuvTimerCreate( const TickType_t xTimerPeriod, const UBaseType_t uxAutoReload, const UBaseType_t vesuvPriority, void *vesuvIGNORE );
-// Ignore, since we do not verify memory
-#define xTimerDelete( xTimer, xTicksToWait )
+// Ignore, since we do not verify memory - but it does stop the timer
+#define xTimerDelete( xTimer, xTicksToWait )            xTimerStop( xTimer, 0 )
 
 // Ignore timer name for verification
 #define pcTimerGetName( TimerHandle_t xTimer )        ""
