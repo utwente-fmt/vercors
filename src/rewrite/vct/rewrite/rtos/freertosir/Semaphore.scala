@@ -28,13 +28,15 @@ sealed trait Semaphore[O, N] extends FreeRTOSConstruct[O, N] {
       col_ir: Transformer[O, N],
       idx: Int,
   ): ObjectInfo[O, N] = {
+    val available_event: Int = col_ir.reserve_event_id
+
     val cls: Class[N] = transform(
       new LazyRef(col_ir.get_scheduler),
       new LazyRef(col_ir.get_eventState),
       new LazyRef(col_ir.get_eventPerms),
       new LazyRef(col_ir.get_taskPriority),
       new LazyRef(col_ir.get_priorityPerms),
-      col_ir.reserve_event_id,
+      available_event,
       class_name(idx),
     )
     val tcls =
@@ -47,6 +49,7 @@ sealed trait Semaphore[O, N] extends FreeRTOSConstruct[O, N] {
       function_mapping
         .foreach(t => col_ir.add_to_api(get_decl.get, t._1, field, t._2))
     }
+    col_ir.add_write_event(field, available_event)
 
     ObjectInfo(
       get_decl,
@@ -728,16 +731,16 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
     // s = s_param; isMutex = mutex_param; task = -1; originalPriority = -1;
     val body: Statement[N] =
       Block(Seq(
-        Assign(Utils.deref_of(s), Utils.local_of(s_param))(Utils.origen)(
+        Assign(Utils.deref_of(s), Utils.local_of(s_param))(Utils.blame)(
           Utils.origen
         ),
-        Assign(Utils.deref_of(task), Utils.int_val(-1))(Utils.origen)(
+        Assign(Utils.deref_of(task), Utils.int_val(-1))(Utils.blame)(
           Utils.origen
         ),
         Assign(Utils.deref_of(originalPriority), Utils.int_val(-1))(
           Utils.origen
         )(Utils.origen),
-        Assign(Utils.deref_of(recursionDepth), Utils.int_val(0))(Utils.origen)(
+        Assign(Utils.deref_of(recursionDepth), Utils.int_val(0))(Utils.blame)(
           Utils.origen
         ),
       ))(Utils.origen)
@@ -747,7 +750,7 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
       Seq(),
       Seq(s_param),
       Some(body),
-    )(Utils.origen)(Utils.origen)
+    )(Utils.blame)(Utils.origen)
   }
 
   private def create_uxSemaphoreGetCount(
@@ -780,7 +783,7 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
       Utils.to_app_contract(requires, Star(ensures1, ensures2)(Utils.origen)),
       false,
       true,
-    )(Utils.origen)(Utils.origen("uxSemaphoreGetCount"))
+    )(Utils.blame)(Utils.origen("uxSemaphoreGetCount"))
   }
 
   private def create_xSemaphoreGetMutexHolder(
@@ -802,7 +805,7 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
       Utils.to_app_contract(requires, ensures),
       false,
       true,
-    )(Utils.origen)(Utils.origen("xSemaphoreGetMutexHolder"))
+    )(Utils.blame)(Utils.origen("xSemaphoreGetMutexHolder"))
   }
 
   private def create_xSemaphoreGiveRecursive(
@@ -961,7 +964,7 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
       ),
       false,
       false,
-    )(Utils.origen)(Utils.origen("xSemaphoreGiveRecursive"))
+    )(Utils.blame)(Utils.origen("xSemaphoreGiveRecursive"))
   }
 
   private def create_xSemaphoreTakeRecursive(
@@ -1004,7 +1007,7 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
               SeqSubscript(
                 Utils.deref_ref(priority_ref, Utils.deref_of(s)),
                 Utils.local_of(taskID),
-              )(Utils.origen)(Utils.origen)
+              )(Utils.blame)(Utils.origen)
             ),
           )(Utils.origen),
           Eq(Utils.deref_of(recursionDepth), Utils.int_val(1))(Utils.origen),
@@ -1081,13 +1084,13 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
                     SeqSubscript(
                       Utils.deref_ref(priority_ref, Utils.deref_of(s)),
                       Utils.local_of(taskID),
-                    )(Utils.origen)(Utils.origen)
+                    )(Utils.blame)(Utils.origen)
                   ),
                   Utils.old(
                     SeqSubscript(
                       Utils.deref_ref(priority_ref, Utils.deref_of(s)),
                       Utils.deref_of(task),
-                    )(Utils.origen)(Utils.origen)
+                    )(Utils.blame)(Utils.origen)
                   ),
                 )(Utils.origen),
                 Eq(
@@ -1099,7 +1102,7 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
                       SeqSubscript(
                         Utils.deref_ref(priority_ref, Utils.deref_of(s)),
                         Utils.local_of(taskID),
-                      )(Utils.origen)(Utils.origen),
+                      )(Utils.blame)(Utils.origen),
                     )(Utils.origen)
                   ),
                 )(Utils.origen),
@@ -1110,13 +1113,13 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
                     SeqSubscript(
                       Utils.deref_ref(priority_ref, Utils.deref_of(s)),
                       Utils.local_of(taskID),
-                    )(Utils.origen)(Utils.origen)
+                    )(Utils.blame)(Utils.origen)
                   ),
                   Utils.old(
                     SeqSubscript(
                       Utils.deref_ref(priority_ref, Utils.deref_of(s)),
                       Utils.deref_of(task),
-                    )(Utils.origen)(Utils.origen)
+                    )(Utils.blame)(Utils.origen)
                   ),
                 )(Utils.origen),
                 Eq(
@@ -1141,6 +1144,6 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
       ),
       false,
       false,
-    )(Utils.origen)(Utils.origen("xSemaphoreTakeRecursive"))
+    )(Utils.blame)(Utils.origen("xSemaphoreTakeRecursive"))
   }
 }

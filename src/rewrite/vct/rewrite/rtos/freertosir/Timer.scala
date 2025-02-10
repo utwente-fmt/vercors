@@ -3,7 +3,7 @@ package vct.rewrite.rtos.freertosir
 import vct.col.ast._
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.util.AstBuildHelpers.tt
-import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
+import vct.rewrite.rtos.{ObjectInfo, StatementTransformer, Transformer, Utils}
 
 case class Timer[O, N](
     decl: Option[CLocal[O]],
@@ -16,6 +16,9 @@ case class Timer[O, N](
   private var timerPerms: InstancePredicate[N] = ???
 
   private var activated: Boolean = false
+  private var cls: Class[N] = ???
+
+  private def get_cls: Class[N] = cls
 
   // TODO: Activate if the main method activates the timer
   def activate(): Unit = { activated = true }
@@ -36,22 +39,21 @@ case class Timer[O, N](
       col_ir: Transformer[O, N],
       idx: Int,
   ): ObjectInfo[O, N] = {
+    val tcls: Type[N] =
+      TByReferenceClass(new LazyRef[N, Class[N]](get_cls), Seq())(Utils.origen)
+    val field: InstanceField[N] =
+      new InstanceField(tcls, Seq())(Utils.origen(instance_name(idx)))
     val tid: Int = col_ir.reserve_task_id
     val eid: Int = col_ir.reserve_event_id
 
-    val cls: Class[N] = transform(
+    cls = transform(
       new LazyRef(col_ir.get_scheduler),
-      new LazyRef(col_ir.get_globalInvariant),
       tid,
       eid,
+      col_ir,
+      field,
       class_name(idx),
     )
-
-    val tcls: Type[N] =
-      TByReferenceClass(new DirectRef[N, Class[N]](cls), Seq())(Utils.origen)
-
-    val field: InstanceField[N] =
-      new InstanceField(tcls, Seq())(Utils.origen(instance_name(idx)))
 
     ObjectInfo(
       decl,
@@ -92,9 +94,10 @@ case class Timer[O, N](
 
   def transform(
       scheduler_ref: Ref[N, Class[N]],
-      globalInvariant_ref: Ref[N, InstancePredicate[N]],
       tid: Int,
       assigned_eid: Int,
+      col_ir: Transformer[O, N],
+      field: InstanceField[N],
       name: String,
   ): Class[N] = {
     s =
@@ -116,13 +119,16 @@ case class Timer[O, N](
     val perms: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](timerPerms)
 
+    val transformer: StatementTransformer[O, N] =
+      new StatementTransformer(col_ir, Some(tid), Some(s), field)
+
     val taskConstructor: PVLConstructor[N] = create_constructor(
       scheduler_ref,
       perms,
     )
 
     // TODO:
-    val runMethod: RunMethod[N] = create_runMethod
+    val runMethod: RunMethod[N] = create_runMethod(transformer)
 
     new ByReferenceClass(
       Seq(),
@@ -151,7 +157,7 @@ case class Timer[O, N](
 
     val body: Statement[N] =
       Block(Seq[Statement[N]](
-        Assign(Utils.deref_of(s), Utils.local_of(s_param))(Utils.origen)(
+        Assign(Utils.deref_of(s), Utils.local_of(s_param))(Utils.blame)(
           Utils.origen
         )
       ))(Utils.origen)
@@ -161,10 +167,12 @@ case class Timer[O, N](
       Seq(),
       Seq(s_param),
       Some(body),
-    )(Utils.origen)(Utils.origen)
+    )(Utils.blame)(Utils.origen)
   }
 
-  private def create_runMethod: RunMethod[N] = ???
+  private def create_runMethod(
+      transformer: StatementTransformer[O, N]
+  ): RunMethod[N] = ???
 }
 case object Timer {
   def of[O, N](

@@ -1,12 +1,14 @@
 package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
-import vct.col.ref.DirectRef
+import vct.col.ref.{DirectRef, LazyRef}
 import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.rtos.{ObjectInfo, StatementTransformer, Transformer, Utils}
 
 case class ISR[O, N](isr: CFunctionDefinition[O])
     extends FreeRTOSConstruct[O, N] {
+  private var cls: Class[N] = ???
+  private def get_cls: Class[N] = cls
 
   private def class_name: String =
     "ISR_" + Utils.get_declarator_name(isr.declarator)
@@ -18,12 +20,17 @@ case class ISR[O, N](isr: CFunctionDefinition[O])
       col_ir: Transformer[O, N],
       idx: Int,
   ): ObjectInfo[O, N] = {
-    val cls: Class[N] = transform(col_ir, class_name)
     val tcls: Type[N] =
-      TByReferenceClass(new DirectRef[N, Class[N]](cls), Seq())(Utils.origen)
-
+      TByReferenceClass(new LazyRef[N, Class[N]](get_cls), Seq())(Utils.origen)
     val field: InstanceField[N] =
       new InstanceField(tcls, Seq())(Utils.origen(instance_name))
+
+    val transformer: StatementTransformer[O, N] =
+      new StatementTransformer(col_ir, None, None, field)
+
+    cls = transform(transformer, class_name)
+
+    col_ir.add_isr_lock(field)
 
     ObjectInfo(
       None,
@@ -33,7 +40,7 @@ case class ISR[O, N](isr: CFunctionDefinition[O])
       Utils.fold_star(Seq[Expr[N]](
         Perm(Utils.loc_of(field), Utils.read)(Utils.origen),
         Neq(Utils.deref_of(field), Utils.nul)(Utils.origen),
-        Committed(Utils.deref_of(field))(Utils.origen)(Utils.origen),
+        Committed(Utils.deref_of(field))(Utils.blame)(Utils.origen),
       )),
       Some(
         Star(
@@ -49,7 +56,10 @@ case class ISR[O, N](isr: CFunctionDefinition[O])
     )
   }
 
-  def transform(col_ir: Transformer[O, N], name: String): Class[N] = {
+  def transform(
+      transformer: StatementTransformer[O, N],
+      name: String,
+  ): Class[N] = {
     val variables: Seq[CLocal[O]] = get_variables
 
     val fields: Seq[(InstanceField[N], Expr[N])] = variables
@@ -65,7 +75,7 @@ case class ISR[O, N](isr: CFunctionDefinition[O])
 
     val isrConstructor: PVLConstructor[N] = create_constructor(fields)
 
-    val runMethod: RunMethod[N] = create_runMethod(col_ir)
+    val runMethod: RunMethod[N] = create_runMethod(transformer)
 
     new ByReferenceClass(
       Seq(),
@@ -95,15 +105,15 @@ case class ISR[O, N](isr: CFunctionDefinition[O])
   ): PVLConstructor[N] = {
     val ensures: Expr[N] =
       Star(
-        Committed(Utils.thiz)(Utils.origen)(Utils.origen),
+        Committed(Utils.thiz)(Utils.blame)(Utils.origen),
         IdleToken(Utils.thiz)(Utils.origen),
       )(Utils.origen)
 
     val body: Statement[N] =
       Block(
         fields.map(t =>
-          Assign(Utils.deref_of(t._1), t._2)(Utils.origen)(Utils.origen)
-        ) ++ Seq[Statement[N]](Commit(Utils.thiz)(Utils.origen)(Utils.origen))
+          Assign(Utils.deref_of(t._1), t._2)(Utils.blame)(Utils.origen)
+        ) ++ Seq[Statement[N]](Commit(Utils.thiz)(Utils.blame)(Utils.origen))
       )(Utils.origen)
 
     new PVLConstructor(
@@ -111,18 +121,19 @@ case class ISR[O, N](isr: CFunctionDefinition[O])
       Seq(),
       Seq(),
       Some(body),
-    )(Utils.origen)(Utils.origen)
+    )(Utils.blame)(Utils.origen)
   }
 
-  private def create_runMethod(col_ir: Transformer[O, N]): RunMethod[N] = {
-    val cond: Expr[N] = Committed(Utils.thiz)(Utils.origen)(Utils.origen)
+  private def create_runMethod(
+      transformer: StatementTransformer[O, N]
+  ): RunMethod[N] = {
+    val cond: Expr[N] = Committed(Utils.thiz)(Utils.blame)(Utils.origen)
 
     val loop_body: Statement[N] =
       Block(Seq[Statement[N]](
-        Lock(Utils.thiz)(Utils.origen)(Utils.origen),
-        new StatementTransformer[O, N](col_ir)
-          .convert(isr.body), // TODO: Transform method body!
-        Unlock(Utils.thiz)(Utils.origen)(Utils.origen),
+        Lock(Utils.thiz)(Utils.blame)(Utils.origen),
+        transformer.convert(isr.body),
+        Unlock(Utils.thiz)(Utils.blame)(Utils.origen),
       ))(Utils.origen)
 
     val body: Statement[N] =
@@ -136,7 +147,7 @@ case class ISR[O, N](isr: CFunctionDefinition[O])
         )(Utils.origen)
       ))(Utils.origen)
 
-    new RunMethod(Some(body), Utils.to_app_contract(cond, cond))(Utils.origen)(
+    new RunMethod(Some(body), Utils.to_app_contract(cond, cond))(Utils.blame)(
       Utils.origen
     )
   }

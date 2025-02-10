@@ -1,6 +1,7 @@
 package vct.rewrite.rtos
 
 import vct.col.ast._
+import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.rtos.freertosir.{
   EventGroup,
   ISR,
@@ -36,11 +37,28 @@ class Transformer[O, N](
   private var runnableQueue: InstanceField[N] = ???
   private var simulateTimePassing: InstanceMethod[N] = ???
   private var executionTime: InstanceMethod[N] = ???
+
   private val freertos_api: mutable.Map[
     (CLocal[O], String),
     (InstanceField[N], InstanceMethod[N]),
   ] = mutable.Map
     .empty[(CLocal[O], String), (InstanceField[N], InstanceMethod[N])]
+
+  private var isr_locks: Seq[InstanceField[N]] = Seq()
+  private val output_fields: mutable.Map[InstanceField[N], InstanceField[N]] =
+    mutable.Map.empty[InstanceField[N], InstanceField[N]]
+  private val read_event: mutable.Map[InstanceField[N], Int] = mutable.Map
+    .empty[InstanceField[N], Int]
+  private val write_event: mutable.Map[InstanceField[N], Int] = mutable.Map
+    .empty[InstanceField[N], Int]
+  private val cond_to_call: mutable.Map[InstanceMethod[N], Seq[Expr[N]] => Expr[N]] = mutable
+    .Map.empty[InstanceMethod[N], Seq[Expr[N]] => Expr[N]]
+
+  // TODO: var_to_tid and var_to_timer_event are never updated! Do some bookkeeping before the transformations
+  private val var_to_tid: mutable.Map[CLocal[O], Int] = mutable.Map
+    .empty[CLocal[O], Int]
+  private val var_to_timer_event: mutable.Map[CLocal[O], Int] = mutable.Map
+    .empty[CLocal[O], Int]
   private var n_events: Int = 0
   private var n_tasks: Int = 0
 
@@ -125,4 +143,70 @@ class Transformer[O, N](
         "Trying to resolve function " + func_name + " before it is generated!"
       ),
     )
+
+  def add_output_field(
+      field: InstanceField[N],
+      output: InstanceField[N],
+  ): Unit = output_fields.put(field, output)
+
+  def get_output_field(field: InstanceField[N]): InstanceField[N] =
+    output_fields.getOrElse(
+      field,
+      throw new IllegalStateException(
+        "Trying to get output field of " + field.toInlineString +
+          " before it is generated!"
+      ),
+    )
+
+  def add_read_event(field: InstanceField[N], eid: Int): Unit =
+    read_event.put(field, eid)
+
+  def get_read_event(field: InstanceField[N]): Int =
+    read_event.getOrElse(
+      field,
+      throw new IllegalStateException(
+        "Instance " + field.toInlineString + " does not have a read event."
+      ),
+    )
+
+  def add_write_event(field: InstanceField[N], eid: Int): Unit =
+    write_event.put(field, eid)
+
+  def get_write_event(field: InstanceField[N]): Int =
+    write_event.getOrElse(
+      field,
+      throw new IllegalStateException(
+        "Instance " + field.toInlineString + " does not have a write event."
+      ),
+    )
+
+  def add_call_condition(method: InstanceMethod[N], cond_gen: Seq[Expr[N]] => Expr[N]): Unit =
+    cond_to_call.put(method, cond_gen)
+
+  def get_call_condition(method: InstanceMethod[N]): Seq[Expr[N]] => Expr[N] =
+    cond_to_call.getOrElse(method, _ => tt)
+
+  def get_tid(variable: CLocal[O]): Int =
+    var_to_tid.getOrElse(
+      variable,
+      throw new IllegalStateException(
+        "Trying to get task ID for " + variable.name +
+          " but it does not have one!"
+      ),
+    )
+
+  def get_n_tasks: Int = tasks.size + timers.size
+
+  def get_timer_eid(variable: CLocal[O]): Int =
+    var_to_timer_event.getOrElse(
+      variable,
+      throw new IllegalStateException(
+        "Trying to get timer event ID for " + variable.name +
+          " but it does not have one!"
+      ),
+    )
+
+  def add_isr_lock(lock: InstanceField[N]): Unit = isr_locks = isr_locks :+ lock
+
+  def get_isr_locks: Seq[InstanceField[N]] = isr_locks
 }

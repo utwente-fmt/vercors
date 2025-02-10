@@ -13,6 +13,7 @@ case class StreamBuffer[O, N](
   private var s: InstanceField[N] = ???
   private var maxSize: InstanceField[N] = ???
   private var triggerLevel: InstanceField[N] = ???
+  private var output: InstanceField[N] = ???
   private var sBufferPerms: InstancePredicate[N] = ???
   private var xStreamBufferIsEmpty: InstanceMethod[N] = ???
   private var xStreamBufferIsFull: InstanceMethod[N] = ???
@@ -73,6 +74,7 @@ case class StreamBuffer[O, N](
       )
       col_ir.add_to_api(decl.get, "xStreamBufferSend", field, xStreamBufferSend)
     }
+    col_ir.add_output_field(field, output)
 
     ObjectInfo(
       decl,
@@ -115,20 +117,17 @@ case class StreamBuffer[O, N](
       write_event: Int,
       name: String,
   ): Class[N] = {
-    val s: InstanceField[N] =
+    s =
       new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
         Utils.origen("s")
       )
     val buffer: InstanceField[N] =
       new InstanceField(Utils.tseqint, Seq())(Utils.origen("buffer"))
-    val maxSize: InstanceField[N] =
-      new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize"))
-    val triggerLevel: InstanceField[N] =
-      new InstanceField(Utils.tint, Seq())(Utils.origen("triggerLevel"))
-    val output: InstanceField[N] =
-      new InstanceField(Utils.tseqint, Seq())(Utils.origen("output"))
+    maxSize = new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize"))
+    triggerLevel = new InstanceField(Utils.tint, Seq())(Utils.origen("triggerLevel"))
+    output = new InstanceField(Utils.tseqint, Seq())(Utils.origen("output"))
 
-    val sBufferPerms: InstancePredicate[N] =
+    sBufferPerms =
       new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
@@ -159,18 +158,18 @@ case class StreamBuffer[O, N](
       scheduler_ref,
     )
 
-    val xStreamBufferIsEmpty: InstanceMethod[N] = create_xStreamBufferIsEmpty(
+    xStreamBufferIsEmpty = create_xStreamBufferIsEmpty(
       buffer,
       perms,
     )
-    val xStreamBufferIsFull: InstanceMethod[N] = create_xStreamBufferIsFull(
+    xStreamBufferIsFull = create_xStreamBufferIsFull(
       buffer,
       maxSize,
       perms,
     )
-    val xStreamBufferSpacesAvailable: InstanceMethod[N] =
+    xStreamBufferSpacesAvailable =
       create_xStreamBufferSpacesAvailable(buffer, maxSize, perms)
-    val xStreamBufferReceive: InstanceMethod[N] = create_xStreamBufferReceive(
+    xStreamBufferReceive = create_xStreamBufferReceive(
       s,
       buffer,
       output,
@@ -179,7 +178,7 @@ case class StreamBuffer[O, N](
       event_perms_ref,
       read_event,
     )
-    val xStreamBufferSend: InstanceMethod[N] = create_xStreamBufferSend(
+    xStreamBufferSend = create_xStreamBufferSend(
       s,
       buffer,
       maxSize,
@@ -253,7 +252,7 @@ case class StreamBuffer[O, N](
     // s = s_param; maxSize = size_param; triggerLevel = trigger_param; buffer = seq<int>{};
     val body: Statement[N] =
       Block(Seq(
-        Assign(Utils.deref_of(s), Utils.local_of(s_param))(Utils.origen)(
+        Assign(Utils.deref_of(s), Utils.local_of(s_param))(Utils.blame)(
           Utils.origen
         ),
         Assign(Utils.deref_of(maxSize), Utils.local_of(size_param))(
@@ -262,7 +261,7 @@ case class StreamBuffer[O, N](
         Assign(Utils.deref_of(triggerLevel), Utils.local_of(trigger_param))(
           Utils.origen
         )(Utils.origen),
-        Assign(Utils.deref_of(buffer), Utils.seq_val(Seq()))(Utils.origen)(
+        Assign(Utils.deref_of(buffer), Utils.seq_val(Seq()))(Utils.blame)(
           Utils.origen
         ),
       ))(Utils.origen)
@@ -272,7 +271,7 @@ case class StreamBuffer[O, N](
       Seq(),
       Seq(s_param, size_param, trigger_param),
       Some(body),
-    )(Utils.origen)(Utils.origen)
+    )(Utils.blame)(Utils.origen)
   }
 
   private def create_xStreamBufferIsEmpty(
@@ -297,7 +296,7 @@ case class StreamBuffer[O, N](
       Utils.to_app_contract(requires, ensures),
       false,
       true,
-    )(Utils.origen)(Utils.origen("xStreamBufferIsEmpty"))
+    )(Utils.blame)(Utils.origen("xStreamBufferIsEmpty"))
   }
 
   private def create_xStreamBufferIsFull(
@@ -324,7 +323,7 @@ case class StreamBuffer[O, N](
       Utils.to_app_contract(requires, ensures),
       false,
       true,
-    )(Utils.origen)(Utils.origen("xStreamBufferIsFull"))
+    )(Utils.blame)(Utils.origen("xStreamBufferIsFull"))
   }
 
   private def create_xStreamBufferSpacesAvailable(
@@ -351,7 +350,7 @@ case class StreamBuffer[O, N](
       Utils.to_app_contract(requires, ensures),
       false,
       true,
-    )(Utils.origen)(Utils.origen("xStreamBufferSpacesAvailable"))
+    )(Utils.blame)(Utils.origen("xStreamBufferSpacesAvailable"))
   }
 
   private def create_xStreamBufferReceive(
@@ -459,7 +458,7 @@ case class StreamBuffer[O, N](
       ),
       false,
       false,
-    )(Utils.origen)(Utils.origen("xStreamBufferReceive"))
+    )(Utils.blame)(Utils.origen("xStreamBufferReceive"))
   }
 
   private def create_xStreamBufferSend(
@@ -581,7 +580,7 @@ case class StreamBuffer[O, N](
       ),
       false,
       false,
-    )(Utils.origen)(Utils.origen("xStreamBufferSend"))
+    )(Utils.blame)(Utils.origen("xStreamBufferSend"))
   }
 
   /*

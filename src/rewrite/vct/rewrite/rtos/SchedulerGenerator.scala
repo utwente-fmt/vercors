@@ -34,11 +34,16 @@ class SchedulerGenerator[O, N] {
     val n_tasks = objs.count(o => o.task_id.nonEmpty)
 
     // Scheduling variables
-    eventState = new InstanceField(Utils.tseqint, Seq())(Utils.origen("eventState"))
-    taskState = new InstanceField(Utils.tseqint, Seq())(Utils.origen("taskState"))
-    taskPriority = new InstanceField(Utils.tseqint, Seq())(Utils.origen("taskPriority"))
-    taskWaitTime = new InstanceField(Utils.tseqint, Seq())(Utils.origen("taskWaitTime"))
-    runnableQueue = new InstanceField(Utils.tseqint, Seq())(Utils.origen("runnableQueue"))
+    eventState =
+      new InstanceField(Utils.tseqint, Seq())(Utils.origen("eventState"))
+    taskState =
+      new InstanceField(Utils.tseqint, Seq())(Utils.origen("taskState"))
+    taskPriority =
+      new InstanceField(Utils.tseqint, Seq())(Utils.origen("taskPriority"))
+    taskWaitTime =
+      new InstanceField(Utils.tseqint, Seq())(Utils.origen("taskWaitTime"))
+    runnableQueue =
+      new InstanceField(Utils.tseqint, Seq())(Utils.origen("runnableQueue"))
 
     // Scheduler predicates
     priorityPerms =
@@ -69,10 +74,7 @@ class SchedulerGenerator[O, N] {
       )(Utils.origen("eventPerms"))
     val eventPerms_ref: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](eventPerms)
-    schedulerPerms = create_schedulerPerms(
-      eventPerms_ref,
-      priorityPerms_ref,
-    )
+    schedulerPerms = create_schedulerPerms(eventPerms_ref, priorityPerms_ref)
     val schedulerPerms_ref: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](schedulerPerms)
     val globalPerms: InstancePredicate[N] =
@@ -119,15 +121,9 @@ class SchedulerGenerator[O, N] {
     val nextEventDelay: InstanceMethod[N] = create_nextEventDelay(
       eventPerms_ref
     )
-    val advanceTime: InstanceMethod[N] = create_advanceTime(
-      eventPerms_ref
-    )
-    val resumeTasks: InstanceMethod[N] = create_resumeTasks(
-      schedulerPerms_ref
-    )
-    val resetEvents: InstanceMethod[N] = create_resetEvents(
-      eventPerms_ref
-    )
+    val advanceTime: InstanceMethod[N] = create_advanceTime(eventPerms_ref)
+    val resumeTasks: InstanceMethod[N] = create_resumeTasks(schedulerPerms_ref)
+    val resetEvents: InstanceMethod[N] = create_resetEvents(eventPerms_ref)
     val selectNextTask: InstanceMethod[N] = create_selectNextTask(
       schedulerPerms_ref
     )
@@ -262,10 +258,10 @@ class SchedulerGenerator[O, N] {
               ),
             )(Utils.origen),
             Neq(
-              SeqSubscript(Utils.result, Utils.local_of(i4))(Utils.origen)(
+              SeqSubscript(Utils.result, Utils.local_of(i4))(Utils.blame)(
                 Utils.origen
               ),
-              SeqSubscript(Utils.result, Utils.local_of(j4))(Utils.origen)(
+              SeqSubscript(Utils.result, Utils.local_of(j4))(Utils.blame)(
                 Utils.origen
               ),
             )(Utils.origen),
@@ -337,7 +333,7 @@ class SchedulerGenerator[O, N] {
       (launch_objs.map(o => o.precondition_in_scheduler.getOrElse(tt)) ++
         launch_objs
           .map(o => IdleToken(Utils.deref_of(o.field))(Utils.origen))) :+
-        Committed(Utils.thiz)(Utils.origen)(Utils.origen)
+        Committed(Utils.thiz)(Utils.blame)(Utils.origen)
     )
 
     // Constructor body construction
@@ -346,27 +342,27 @@ class SchedulerGenerator[O, N] {
         Assign[N](
           Utils.deref_of(eventState),
           Utils.seq_val(eventStateInit.map(i => Utils.int_val(i))),
-        )(Utils.origen)(Utils.origen),
+        )(Utils.blame)(Utils.origen),
         Assign[N](
           Utils.deref_of(taskState),
           Utils.seq_val(taskStateInit.map(i => Utils.int_val(i))),
-        )(Utils.origen)(Utils.origen),
+        )(Utils.blame)(Utils.origen),
         Assign[N](
           Utils.deref_of(taskPriority),
           Utils.seq_val(taskPriorityInit.map(i => Utils.int_val(i))),
-        )(Utils.origen)(Utils.origen),
+        )(Utils.blame)(Utils.origen),
         Assign[N](
           Utils.deref_of(taskWaitTime),
           Utils.seq_val(taskWaitTimeInit.map(i => Utils.int_val(i))),
-        )(Utils.origen)(Utils.origen),
+        )(Utils.blame)(Utils.origen),
         Assign[N](
           Utils.deref_of(runnableQueue),
           Utils.seq_val(runnableQueueInit.map(i => Utils.int_val(i))),
-        )(Utils.origen)(Utils.origen),
+        )(Utils.blame)(Utils.origen),
       ) ++ runnableQueueInit.zipWithIndex.map(t =>
         Assert[N](Eq(Utils.subscript(runnableQueue, t._2), Utils.int_val(t._1))(
           Utils.origen
-        ))(Utils.origen)(Utils.origen)
+        ))(Utils.blame)(Utils.origen)
       ) ++ objs.map(o =>
         Assign(
           Utils.deref_of(o.field),
@@ -378,9 +374,9 @@ class SchedulerGenerator[O, N] {
             o.args,
             Seq(),
             Seq(),
-          )(Utils.origen)(Utils.origen),
-        )(Utils.origen)(Utils.origen)
-      ) :+ Commit(Utils.thiz)(Utils.origen)(Utils.origen)
+          )(Utils.blame)(Utils.origen),
+        )(Utils.blame)(Utils.origen)
+      ) :+ Commit(Utils.thiz)(Utils.blame)(Utils.origen)
 
     val body: Statement[N] = Block(statements)(Utils.origen)
 
@@ -389,7 +385,7 @@ class SchedulerGenerator[O, N] {
       Seq(),
       Seq(),
       Some(body),
-    )(Utils.origen)(Utils.origen)
+    )(Utils.blame)(Utils.origen)
   }
 
   private def create_nextEventDelay(
@@ -480,7 +476,7 @@ class SchedulerGenerator[O, N] {
       ),
       false,
       true,
-    )(Utils.origen)(Utils.origen("nextEventDelay"))
+    )(Utils.blame)(Utils.origen("nextEventDelay"))
   }
 
   private def create_advanceTime(
@@ -549,7 +545,7 @@ class SchedulerGenerator[O, N] {
       ),
       false,
       false,
-    )(Utils.origen)(Utils.origen("advanceTime"))
+    )(Utils.blame)(Utils.origen("advanceTime"))
   }
 
   private def create_resumeTasks(
@@ -598,12 +594,12 @@ class SchedulerGenerator[O, N] {
       And(
         LessEq(
           Utils.int_val(0),
-          SeqSubscript(Utils.result, Utils.local_of(i3))(Utils.origen)(
+          SeqSubscript(Utils.result, Utils.local_of(i3))(Utils.blame)(
             Utils.origen
           ),
         )(Utils.origen),
         Less(
-          SeqSubscript(Utils.result, Utils.local_of(i3))(Utils.origen)(
+          SeqSubscript(Utils.result, Utils.local_of(i3))(Utils.blame)(
             Utils.origen
           ),
           Utils.size(taskState),
@@ -627,10 +623,10 @@ class SchedulerGenerator[O, N] {
             ),
           )(Utils.origen),
           Neq(
-            SeqSubscript(Utils.result, Utils.local_of(i4))(Utils.origen)(
+            SeqSubscript(Utils.result, Utils.local_of(i4))(Utils.blame)(
               Utils.origen
             ),
-            SeqSubscript(Utils.result, Utils.local_of(j4))(Utils.origen)(
+            SeqSubscript(Utils.result, Utils.local_of(j4))(Utils.blame)(
               Utils.origen
             ),
           )(Utils.origen),
@@ -725,7 +721,7 @@ class SchedulerGenerator[O, N] {
       ),
       false,
       false,
-    )(Utils.origen)(Utils.origen("resumeTasks"))
+    )(Utils.blame)(Utils.origen("resumeTasks"))
   }
 
   private def create_resetEvents(
@@ -786,7 +782,7 @@ class SchedulerGenerator[O, N] {
       ),
       false,
       false,
-    )(Utils.origen)(Utils.origen("resetEvents"))
+    )(Utils.blame)(Utils.origen("resetEvents"))
 
   }
 
@@ -896,7 +892,7 @@ class SchedulerGenerator[O, N] {
       ),
       false,
       true,
-    )(Utils.origen)(Utils.origen("selectNextTask"))
+    )(Utils.blame)(Utils.origen("selectNextTask"))
   }
 
   private def create_simulateTimePassing(
@@ -1117,12 +1113,12 @@ class SchedulerGenerator[O, N] {
       And(
         LessEq(
           Utils.int_val(0),
-          SeqSubscript(Utils.result, Utils.local_of(i4))(Utils.origen)(
+          SeqSubscript(Utils.result, Utils.local_of(i4))(Utils.blame)(
             Utils.origen
           ),
         )(Utils.origen),
         Less(
-          SeqSubscript(Utils.result, Utils.local_of(i4))(Utils.origen)(
+          SeqSubscript(Utils.result, Utils.local_of(i4))(Utils.blame)(
             Utils.origen
           ),
           Utils.size(taskState),
@@ -1146,10 +1142,10 @@ class SchedulerGenerator[O, N] {
             ),
           )(Utils.origen),
           Neq(
-            SeqSubscript(Utils.result, Utils.local_of(i5))(Utils.origen)(
+            SeqSubscript(Utils.result, Utils.local_of(i5))(Utils.blame)(
               Utils.origen
             ),
-            SeqSubscript(Utils.result, Utils.local_of(j5))(Utils.origen)(
+            SeqSubscript(Utils.result, Utils.local_of(j5))(Utils.blame)(
               Utils.origen
             ),
           )(Utils.origen),
@@ -1184,18 +1180,18 @@ class SchedulerGenerator[O, N] {
           Utils.old(
             SeqSubscript(
               Utils.deref_of(eventState),
-              SeqSubscript(Utils.result, Utils.local_of(j7))(Utils.origen)(
+              SeqSubscript(Utils.result, Utils.local_of(j7))(Utils.blame)(
                 Utils.origen
               ),
-            )(Utils.origen)(Utils.origen)
+            )(Utils.blame)(Utils.origen)
           ),
           Utils.old(
             SeqSubscript(
               Utils.deref_of(eventState),
-              SeqSubscript(Utils.result, Utils.local_of(i7))(Utils.origen)(
+              SeqSubscript(Utils.result, Utils.local_of(i7))(Utils.blame)(
                 Utils.origen
               ),
-            )(Utils.origen)(Utils.origen)
+            )(Utils.blame)(Utils.origen)
           ),
         )(Utils.origen),
       ),
@@ -1222,7 +1218,7 @@ class SchedulerGenerator[O, N] {
       ),
       false,
       false,
-    )(Utils.origen)(Utils.origen("simulateTimePassing"))
+    )(Utils.blame)(Utils.origen("simulateTimePassing"))
   }
 
   private def create_executionTime(): InstanceMethod[N] = {
@@ -1245,7 +1241,7 @@ class SchedulerGenerator[O, N] {
       Utils.to_app_contract(tt, ensures),
       false,
       true,
-    )(Utils.origen)(Utils.origen("executionTime"))
+    )(Utils.blame)(Utils.origen("executionTime"))
   }
 
   private def create_schedule(
@@ -1291,7 +1287,7 @@ class SchedulerGenerator[O, N] {
         Assign(
           Utils.local_of(schedulerDelay),
           Utils.invoke(nextEventDelay, Seq()),
-        )(Utils.origen)(Utils.origen),
+        )(Utils.blame)(Utils.origen),
         Branch(Seq((
           Or(
             Eq(Utils.local_of(schedulerDelay), Utils.int_val(0))(Utils.origen),
@@ -1308,7 +1304,7 @@ class SchedulerGenerator[O, N] {
           Block(Seq(
             Assert(Neq(Utils.local_of(schedulerDelay), Utils.int_val(0))(
               Utils.origen
-            ))(Utils.origen)(Utils.origen),
+            ))(Utils.blame)(Utils.origen),
             Utils.stmt_invoke(advanceTime, Seq(Utils.local_of(schedulerDelay))),
             Assign(
               Utils.deref_of(runnableQueue),
@@ -1316,14 +1312,14 @@ class SchedulerGenerator[O, N] {
                 Utils.deref_of(runnableQueue),
                 Utils.invoke(resumeTasks, Seq()),
               )(Utils.origen),
-            )(Utils.origen)(Utils.origen),
+            )(Utils.blame)(Utils.origen),
             Utils.stmt_invoke(resetEvents, Seq()),
           ))(Utils.origen),
         )))(Utils.origen),
         Assign(
           Utils.local_of(schedulerNext),
           Utils.invoke(selectNextTask, Seq()),
-        )(Utils.origen)(Utils.origen),
+        )(Utils.blame)(Utils.origen),
         Branch(Seq((
           Neq(Utils.local_of(schedulerNext), Utils.int_val(-1))(Utils.origen),
           Block(Seq(
@@ -1335,14 +1331,14 @@ class SchedulerGenerator[O, N] {
                   .subscript_expr(runnableQueue, Utils.local_of(schedulerNext)),
                 Utils.int_val(-2),
               )(Utils.origen),
-            )(Utils.origen)(Utils.origen),
+            )(Utils.blame)(Utils.origen),
             Assign(
               Utils.deref_of(runnableQueue),
               RemoveAt(
                 Utils.deref_of(runnableQueue),
                 Utils.local_of(schedulerNext),
               )(Utils.origen),
-            )(Utils.origen)(Utils.origen),
+            )(Utils.blame)(Utils.origen),
           ))(Utils.origen),
         )))(Utils.origen),
       ))(Utils.origen)
@@ -1356,7 +1352,7 @@ class SchedulerGenerator[O, N] {
       Utils.to_app_contract(lock_held, lock_held),
       false,
       false,
-    )(Utils.origen)(Utils.origen("schedule"))
+    )(Utils.blame)(Utils.origen("schedule"))
   }
 
   private def create_start(
@@ -1367,7 +1363,7 @@ class SchedulerGenerator[O, N] {
     val requires: Expr[N] = Utils.fold_star(
       (preconditions ++
         to_launch.map(f => IdleToken(Utils.deref_of(f))(Utils.origen))) :+
-        Committed(Utils.thiz)(Utils.origen)(Utils.origen)
+        Committed(Utils.thiz)(Utils.blame)(Utils.origen)
     )
 
     // lock this;
@@ -1382,20 +1378,20 @@ class SchedulerGenerator[O, N] {
     //     unlock this;
     // }
     val statements: Seq[Statement[N]] =
-      Seq[Statement[N]](Lock(Utils.thiz)(Utils.origen)(Utils.origen)) ++
+      Seq[Statement[N]](Lock(Utils.thiz)(Utils.blame)(Utils.origen)) ++
         to_launch
-          .map(f => Fork[N](Utils.deref_of(f))(Utils.origen)(Utils.origen)) ++
+          .map(f => Fork[N](Utils.deref_of(f))(Utils.blame)(Utils.origen)) ++
         Seq[Statement[N]](
-          Unlock(Utils.thiz)(Utils.origen)(Utils.origen),
+          Unlock(Utils.thiz)(Utils.blame)(Utils.origen),
           Loop(
             Utils.skip,
             tt,
             Utils.skip,
             Utils.to_loop_invariant(tt),
             Block(Seq[Statement[N]](
-              Lock(Utils.thiz)(Utils.origen)(Utils.origen),
+              Lock(Utils.thiz)(Utils.blame)(Utils.origen),
               Utils.stmt_invoke(schedule, Seq()),
-              Unlock(Utils.thiz)(Utils.origen)(Utils.origen),
+              Unlock(Utils.thiz)(Utils.blame)(Utils.origen),
             ))(Utils.origen),
           )(Utils.origen),
         )
@@ -1411,6 +1407,6 @@ class SchedulerGenerator[O, N] {
       Utils.to_app_contract(requires, tt),
       false,
       false,
-    )(Utils.origen)(Utils.origen("start"))
+    )(Utils.blame)(Utils.origen("start"))
   }
 }

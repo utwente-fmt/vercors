@@ -1,8 +1,8 @@
 package vct.rewrite.rtos
 
 import vct.col.ast._
-import vct.col.origin.{LabelContext, Origin, PreferredName}
-import vct.col.ref.{DirectRef, Ref}
+import vct.col.origin.{LabelContext, Origin, PanicBlame, PreferredName}
+import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.util.AstBuildHelpers.{ff, tt}
 import vct.rewrite.rtos.freertosir.FreeRTOSConstruct
 
@@ -102,10 +102,15 @@ case object Utils {
     if (invocation.args.length != desired_arguments)
       throw new IllegalArgumentException(error_message)
 
+  def exclude_isr[N](scheduler: Option[InstanceField[N]]): InstanceField[N] =
+    scheduler.getOrElse(
+      throw new IllegalArgumentException("ISR must not reference scheduler!")
+    )
+
   def resolve_integer[O](expr: Expr[O], meaning: String): Int =
     try_expr_to_int(expr).getOrElse(
       throw new IllegalArgumentException(
-        "Could not resolve " + meaning + expr.toInlineString
+        "Could not resolve " + meaning + " " + expr.toInlineString
       )
     )
 
@@ -183,8 +188,6 @@ case object Utils {
     vals.reduce((e1, e2) => Star(e1, e2)(origen))
   def fold_and[N](vals: Seq[Expr[N]]): Expr[N] =
     vals.reduce((e1, e2) => And(e1, e2)(origen))
-  def fold_or[N](vals: Seq[Expr[N]]): Expr[N] =
-    vals.reduce((e1, e2) => Or(e1, e2)(origen))
 
   def predicate_apply[N](
       obj: Expr[N],
@@ -193,15 +196,15 @@ case object Utils {
   ): Expr[N] =
     PredicateApplyExpr(InstancePredicateApply(obj, ref, args)(origen))(origen)
 
-  def old[N](expr: Expr[N]): Old[N] = Old(expr, None)(origen)(origen)
+  def old[N](expr: Expr[N]): Old[N] = Old(expr, None)(blame)(origen)
 
   def size[N](f: InstanceField[N]): Size[N] = Size(deref_of(f))(origen)
 
   def subscript[N](f: InstanceField[N], index: Int): SeqSubscript[N] =
-    SeqSubscript(deref_of(f), int_val(index))(origen)(origen)
+    SeqSubscript(deref_of(f), int_val(index))(blame)(origen)
 
   def subscript_expr[N](f: InstanceField[N], index: Expr[N]): SeqSubscript[N] =
-    SeqSubscript(deref_of(f), index)(origen)(origen)
+    SeqSubscript(deref_of(f), index)(blame)(origen)
 
   def unchanged[N](expr: Expr[N]): Eq[N] = Eq(expr, old(expr))(origen)
 
@@ -251,10 +254,10 @@ case object Utils {
       Seq(),
       Seq(),
       None,
-    )(origen)(origen)
+    )(blame)(origen)
 
   def to_loop_invariant[N](expr: Expr[N]): LoopContract[N] =
-    LoopInvariant(expr, None)(origen)(origen)
+    LoopInvariant(expr, None)(blame)(origen)
 
   def invoke[N](
       method: Ref[N, InstanceMethod[N]],
@@ -263,7 +266,7 @@ case object Utils {
   ): MethodInvocation[N] =
     obj match {
       case Some(o) =>
-        MethodInvocation(o, method, args, Seq(), Seq(), Seq(), Seq())(origen)(
+        MethodInvocation(o, method, args, Seq(), Seq(), Seq(), Seq())(blame)(
           origen
         )
       case _ =>
@@ -279,14 +282,82 @@ case object Utils {
   ): InvokeMethod[N] =
     obj match {
       case Some(o) =>
-        InvokeMethod(o, method, args, Seq(), Seq(), Seq(), Seq())(origen)(
-          origen
-        )
+        InvokeMethod(o, method, args, Seq(), Seq(), Seq(), Seq())(blame)(origen)
       case _ =>
-        InvokeMethod(thiz, method, args, Seq(), Seq(), Seq(), Seq())(origen)(
+        InvokeMethod(thiz, method, args, Seq(), Seq(), Seq(), Seq())(blame)(
           origen
         )
     }
+
+  def update_scheduling_variable[N](
+      f: => InstanceField[N],
+      scheduler: InstanceField[N],
+      idx: Expr[N],
+      new_val: Expr[N],
+  ): Assign[N] = {
+    val deref: Deref[N] = deref_ref(new LazyRef(f), deref_of(scheduler))
+    Assign(deref, SeqUpdate(deref, idx, new_val)(origen))(blame)(origen)
+  }
+
+  def scheduling_variable_entry[N](
+      f: => InstanceField[N],
+      scheduler: InstanceField[N],
+      idx: Expr[N],
+  ): SeqSubscript[N] = {
+    val deref: Deref[N] = deref_ref(new LazyRef(f), deref_of(scheduler))
+    SeqSubscript(deref, idx)(blame)(origen)
+  }
+
+  def task_wait[O, N](
+      col_ir: Transformer[O, N],
+      scheduler: InstanceField[N],
+      invariant: Expr[N],
+      tid: Int,
+      eid: Int,
+      timeout: Option[Expr[N]],
+  ): Statement[N] = {
+    var block: Seq[Statement[N]] = Seq(
+      update_scheduling_variable(
+        col_ir.get_taskState,
+        scheduler,
+        int_val(tid),
+        int_val(eid),
+      ),
+      update_scheduling_variable(
+        col_ir.get_taskWaitTime,
+        scheduler,
+        int_val(tid),
+        int_val(0),
+      ),
+      Loop(
+        skip,
+        Neq(
+          scheduling_variable_entry(
+            col_ir.get_taskState,
+            scheduler,
+            int_val(tid),
+          ),
+          int_val(-2),
+        )(origen),
+        skip,
+        to_loop_invariant(invariant),
+        Block(Seq(
+          Unlock(deref_of(scheduler))(blame)(origen),
+          Lock(deref_of(scheduler))(blame)(origen),
+        ))(origen),
+      )(origen),
+    )
+    if (timeout.nonEmpty) {
+      block =
+        update_scheduling_variable(
+          col_ir.get_eventState,
+          scheduler,
+          int_val(eid),
+          timeout.get,
+        ) +: block
+    }
+    Block(block)(origen)
+  }
 
   def loc_of[N](
       f: InstanceField[N],
@@ -301,13 +372,13 @@ case object Utils {
   def deref_of[N](f: InstanceField[N], obj: Option[Expr[N]] = None): Deref[N] =
     obj match {
       case Some(o) =>
-        Deref(o, new DirectRef[N, InstanceField[N]](f))(origen)(origen)
+        Deref(o, new DirectRef[N, InstanceField[N]](f))(blame)(origen)
       case _ =>
-        Deref(thiz, new DirectRef[N, InstanceField[N]](f))(origen)(origen)
+        Deref(thiz, new DirectRef[N, InstanceField[N]](f))(blame)(origen)
     }
 
   def deref_ref[N](ref: Ref[N, InstanceField[N]], obj: Expr[N]): Deref[N] =
-    Deref(obj, ref)(origen)(origen)
+    Deref(obj, ref)(blame)(origen)
 
   def local_of[N](v: Variable[N]): Local[N] =
     Local(new DirectRef[N, Variable[N]](v))(origen)
@@ -315,4 +386,5 @@ case object Utils {
   def origen(name: String): Origin =
     origen.withContent(PreferredName(Seq(name)))
   def origen: Origin = Origin(Seq(LabelContext("FreeRTOS")))
+  def blame: PanicBlame = PanicBlame("Error from FreeRTOS encoding output")
 }
