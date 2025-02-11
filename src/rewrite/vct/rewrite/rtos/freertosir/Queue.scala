@@ -2,11 +2,12 @@ package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
 import vct.col.ref.{DirectRef, LazyRef, Ref}
+import vct.col.rewrite.Generation
 import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
 
-case class Queue[O, N](decl: Option[CLocal[O]], capacity: Int)
-    extends FreeRTOSConstruct[O, N] {
+case class Queue[O <: Generation](decl: Option[CLocal[O]], capacity: Int)
+    extends FreeRTOSConstruct[O] {
 
   private var s: Option[InstanceField[N]] = None
   private var vals: Option[InstanceField[N]] = None
@@ -37,9 +38,9 @@ case class Queue[O, N](decl: Option[CLocal[O]], capacity: Int)
     }
 
   override def convert(
-      col_ir: Transformer[O, N],
+      col_ir: Transformer[O],
       idx: Int,
-  ): ObjectInfo[O, N] = {
+  ): ObjectInfo[O] = {
     val read_event: Int = col_ir.reserve_event_id
     val write_event: Int = col_ir.reserve_event_id
 
@@ -850,10 +851,10 @@ case class Queue[O, N](decl: Option[CLocal[O]], capacity: Int)
   }
 }
 case object Queue {
-  def of[O, N](
+  def of[O <: Generation](
       variable: Option[CLocal[O]],
       invocation: CInvocation[O],
-  ): Queue[O, N] = {
+  ): Queue[O] = {
     Utils.creation_arg_assert(
       invocation,
       2,

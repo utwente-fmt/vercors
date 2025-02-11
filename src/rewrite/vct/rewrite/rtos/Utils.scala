@@ -3,6 +3,7 @@ package vct.rewrite.rtos
 import vct.col.ast._
 import vct.col.origin.{LabelContext, Origin, PanicBlame, PreferredName}
 import vct.col.ref.{DirectRef, LazyRef, Ref}
+import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers.{ff, tt}
 import vct.rewrite.rtos.freertosir.FreeRTOSConstruct
 
@@ -126,7 +127,7 @@ case object Utils {
       throw new IllegalArgumentException("Could not find " + meaning + "!")
     )
 
-  def resolve_freertos_constructs[O, N, T <: FreeRTOSConstruct[O, N]](
+  def resolve_freertos_constructs[O <: Generation, T <: FreeRTOSConstruct[O]](
       stmts: Seq[Expr[O]],
       func_name: String,
       op: (Option[CLocal[O]], CInvocation[O]) => T,
@@ -308,15 +309,15 @@ case object Utils {
     SeqSubscript(deref, idx)(blame)(origen)
   }
 
-  def task_wait[O, N](
-      col_ir: Transformer[O, N],
-      scheduler: InstanceField[N],
-      invariant: Expr[N],
+  def task_wait[O <: Generation](
+      col_ir: Transformer[O],
+      scheduler: InstanceField[Rewritten[O]],
+      invariant: Expr[Rewritten[O]],
       tid: Int,
       eid: Int,
-      timeout: Option[Expr[N]],
-  ): Statement[N] = {
-    var block: Seq[Statement[N]] = Seq(
+      timeout: Option[Expr[Rewritten[O]]],
+  ): Statement[Rewritten[O]] = {
+    var block: Seq[Statement[Rewritten[O]]] = Seq(
       update_scheduling_variable(
         col_ir.get_taskState,
         scheduler,

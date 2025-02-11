@@ -2,9 +2,12 @@ package vct.rewrite.rtos
 
 import vct.col.ast._
 import vct.col.ref.{DirectRef, Ref}
+import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers.tt
 
-class SchedulerGenerator[O, N] {
+class SchedulerGenerator[O <: Generation] {
+  type N = Rewritten[O]
+
   private var eventState: Option[InstanceField[N]] = None
   private var taskState: Option[InstanceField[N]] = None
   private var taskPriority: Option[InstanceField[N]] = None
@@ -29,7 +32,7 @@ class SchedulerGenerator[O, N] {
   def get_simulateTimePassing: InstanceMethod[N] = simulateTimePassing.get
   def get_executionTime: InstanceMethod[N] = executionTime.get
 
-  def generate(objs: Seq[ObjectInfo[O, N]], n_events: Int): Class[N] = {
+  def generate(objs: Seq[ObjectInfo[O]], n_events: Int): Class[N] = {
     // Support calculations
     val n_tasks = objs.count(o => o.task_id.nonEmpty)
 
@@ -302,12 +305,12 @@ class SchedulerGenerator[O, N] {
   }
 
   private def create_constructor(
-      objs: Seq[ObjectInfo[O, N]],
+      objs: Seq[ObjectInfo[O]],
       n_events: Int,
       n_tasks: Int,
   ): PVLConstructor[N] = {
     // Supporting calculations
-    val launch_objs: Seq[ObjectInfo[O, N]] = objs.filter(o => o.launch)
+    val launch_objs: Seq[ObjectInfo[O]] = objs.filter(o => o.launch)
     // Find timers that have already been activated => their initial event state is their delay, not -1
     val timer_delay: Map[Int, Int] = Map.from(
       objs.filter(o => o.timer_period.nonEmpty)

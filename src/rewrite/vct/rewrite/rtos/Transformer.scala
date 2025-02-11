@@ -1,30 +1,24 @@
 package vct.rewrite.rtos
 
 import vct.col.ast._
+import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers.tt
-import vct.rewrite.rtos.freertosir.{
-  EventGroup,
-  ISR,
-  MessageBuffer,
-  Queue,
-  Semaphore,
-  StreamBuffer,
-  Task,
-  Timer,
-}
+import vct.rewrite.rtos.freertosir.{EventGroup, ISR, MessageBuffer, Queue, Semaphore, StreamBuffer, Task, Timer}
 
 import scala.collection.mutable
 
-class Transformer[O, N](
-    tasks: Seq[Task[O, N]],
-    timers: Seq[Timer[O, N]],
-    isrs: Seq[ISR[O, N]],
-    event_groups: Seq[EventGroup[O, N]],
-    semaphores: Seq[Semaphore[O, N]],
-    queues: Seq[Queue[O, N]],
-    stream_buffers: Seq[StreamBuffer[O, N]],
-    message_buffers: Seq[MessageBuffer[O, N]],
+class Transformer[O <: Generation](
+    tasks: Seq[Task[O]],
+    timers: Seq[Timer[O]],
+    isrs: Seq[ISR[O]],
+    event_groups: Seq[EventGroup[O]],
+    semaphores: Seq[Semaphore[O]],
+    queues: Seq[Queue[O]],
+    stream_buffers: Seq[StreamBuffer[O]],
+    message_buffers: Seq[MessageBuffer[O]],
 ) {
+  type N = Rewritten[O]
+
   private var scheduler: Option[Class[N]] = None
   private var schedulerPerms: Option[InstancePredicate[N]] = None
   private var eventPerms: Option[InstancePredicate[N]] = None
@@ -63,14 +57,14 @@ class Transformer[O, N](
   private var n_tasks: Int = 0
 
   def get_encoded_system: Seq[Class[N]] = {
-    val scheduler_generator: SchedulerGenerator[O, N] =
-      new SchedulerGenerator[O, N]
+    val scheduler_generator: SchedulerGenerator[O] =
+      new SchedulerGenerator[O]
 
     // TODO: Event groups are transformed into events, not classes... or should it?
     event_groups.zipWithIndex.map(t => t._1.convert(this, t._2))
 
     // Convert objects in FreeRTOS design to PVL
-    val ir: Seq[ObjectInfo[O, N]] = {
+    val ir: Seq[ObjectInfo[O]] = {
       // First ISRs - they cannot use the FreeRTOS API
       isrs.zipWithIndex.map(t => t._1.convert(this, t._2)) ++
         // Then FreeRTOS API

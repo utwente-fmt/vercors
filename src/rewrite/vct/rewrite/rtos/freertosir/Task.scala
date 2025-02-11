@@ -2,15 +2,16 @@ package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
 import vct.col.ref.{DirectRef, LazyRef, Ref}
+import vct.col.rewrite.Generation
 import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.rtos.{ObjectInfo, StatementTransformer, Transformer, Utils}
 
-case class Task[O, N](
+case class Task[O <: Generation](
     decl: Option[CLocal[O]],
     func: CFunctionDefinition[O],
     param: Expr[O],
     priority: Int,
-) extends FreeRTOSConstruct[O, N] {
+) extends FreeRTOSConstruct[O] {
   private var s: Option[InstanceField[N]] = None
   private var taskPerms: Option[InstancePredicate[N]] = None
   private var cls: Option[Class[N]] = None
@@ -24,9 +25,9 @@ case class Task[O, N](
     "t" + Utils.get_declarator_name(func.declarator)
 
   override def convert(
-      col_ir: Transformer[O, N],
+      col_ir: Transformer[O],
       idx: Int,
-  ): ObjectInfo[O, N] = {
+  ): ObjectInfo[O] = {
     val tcls: Type[N] =
       TByReferenceClass(new LazyRef[N, Class[N]](get_cls), Seq())(Utils.origen)
     val field: InstanceField[N] =
@@ -81,7 +82,7 @@ case class Task[O, N](
   def transform(
       scheduler_ref: Ref[N, Class[N]],
       tid: Int,
-      col_ir: Transformer[O, N],
+      col_ir: Transformer[O],
       field: InstanceField[N],
       name: String,
   ): Class[N] = {
@@ -104,7 +105,7 @@ case class Task[O, N](
     val perms: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](taskPerms.get)
 
-    val transformer: StatementTransformer[O, N] =
+    val transformer: StatementTransformer[O] =
       new StatementTransformer(col_ir, Some(tid), Some(s.get), field)
 
     val taskConstructor: PVLConstructor[N] = create_constructor(
@@ -156,15 +157,15 @@ case class Task[O, N](
   }
 
   private def create_runMethod(
-      transformer: StatementTransformer[O, N]
+      transformer: StatementTransformer[O]
   ): RunMethod[N] = ???
 }
 case object Task {
-  def of[O, N](
+  def of[O <: Generation](
       variable: Option[CLocal[O]],
       invocation: CInvocation[O],
       decls: Seq[CFunctionDefinition[O]],
-  ): Task[O, N] = {
+  ): Task[O] = {
     Utils.creation_arg_assert(
       invocation,
       2,

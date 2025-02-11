@@ -2,14 +2,15 @@ package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
 import vct.col.ref.{DirectRef, LazyRef, Ref}
+import vct.col.rewrite.Generation
 import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
 
-case class StreamBuffer[O, N](
+case class StreamBuffer[O <: Generation](
     decl: Option[CLocal[O]],
     size: Int,
     trigger_bytes: Int,
-) extends FreeRTOSConstruct[O, N] {
+) extends FreeRTOSConstruct[O] {
   private var s: Option[InstanceField[N]] = None
   private var buffer: Option[InstanceField[N]] = None
   private var maxSize: Option[InstanceField[N]] = None
@@ -35,9 +36,9 @@ case class StreamBuffer[O, N](
     }
 
   override def convert(
-      col_ir: Transformer[O, N],
+      col_ir: Transformer[O],
       idx: Int,
-  ): ObjectInfo[O, N] = {
+  ): ObjectInfo[O] = {
     val read_event: Int = col_ir.reserve_event_id
     val write_event: Int = col_ir.reserve_event_id
 
@@ -604,10 +605,10 @@ case class StreamBuffer[O, N](
    */
 }
 case object StreamBuffer {
-  def of[O, N](
+  def of[O <: Generation](
       variable: Option[CLocal[O]],
       invocation: CInvocation[O],
-  ): StreamBuffer[O, N] = {
+  ): StreamBuffer[O] = {
     Utils.creation_arg_assert(
       invocation,
       2,

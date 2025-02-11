@@ -2,10 +2,11 @@ package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
 import vct.col.ref.{DirectRef, LazyRef, Ref}
+import vct.col.rewrite.Generation
 import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
 
-sealed trait Semaphore[O, N] extends FreeRTOSConstruct[O, N] {
+sealed trait Semaphore[O <: Generation] extends FreeRTOSConstruct[O] {
   def get_decl: Option[CLocal[O]]
   def cls_type: String
   def perms_for_scheduler(field: InstanceField[N]): Seq[Expr[N]]
@@ -26,9 +27,9 @@ sealed trait Semaphore[O, N] extends FreeRTOSConstruct[O, N] {
     }
 
   override def convert(
-      col_ir: Transformer[O, N],
+      col_ir: Transformer[O],
       idx: Int,
-  ): ObjectInfo[O, N] = {
+  ): ObjectInfo[O] = {
     val available_event: Int = col_ir.reserve_event_id
 
     val cls: Class[N] = transform(
@@ -82,8 +83,8 @@ sealed trait Semaphore[O, N] extends FreeRTOSConstruct[O, N] {
   ): Class[N]
 }
 
-case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
-    extends Semaphore[O, N] {
+case class BinarySemaphore[O <: Generation](decl: Option[CLocal[O]], is_mutex: Boolean)
+    extends Semaphore[O] {
   override def get_decl: Option[CLocal[O]] = decl
   override def cls_type: String =
     if (is_mutex)
@@ -588,8 +589,8 @@ case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
   }
 }
 
-case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
-    extends Semaphore[O, N] {
+case class RecursiveMutex[O <: Generation](decl: Option[CLocal[O]])
+    extends Semaphore[O] {
   override def get_decl: Option[CLocal[O]] = decl
   override def cls_type: String = "RecursiveMutex"
   override def perms_for_scheduler(field: InstanceField[N]): Seq[Expr[N]] =

@@ -2,14 +2,19 @@ package vct.rewrite.rtos
 
 import vct.col.ast._
 import vct.col.ref.{DirectRef, LazyRef}
+import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers.{ff, tt}
 
-class StatementTransformer[O, N](
-    col_ir: Transformer[O, N],
+class StatementTransformer[O <: Generation](
+    col_ir: Transformer[O],
     tid: Option[Int],
-    scheduler: Option[InstanceField[N]],
-    this_in_scheduler: InstanceField[N],
-) {
+    scheduler: Option[InstanceField[Rewritten[O]]],
+    this_in_scheduler: InstanceField[Rewritten[O]],
+) extends Rewriter[O] {
+  type N = Rewritten[O]
+
+  override def dispatch(in: Statement[O]): Statement[N] = ???
+
   def convert(in: Statement[O]): Statement[N] =
     in match {
       case Block(statements) => Block(statements.map(s => convert(s)))(in.o)

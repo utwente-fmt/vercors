@@ -2,11 +2,12 @@ package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
 import vct.col.ref.{DirectRef, LazyRef}
+import vct.col.rewrite.Generation
 import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.rtos.{ObjectInfo, StatementTransformer, Transformer, Utils}
 
-case class ISR[O, N](isr: CFunctionDefinition[O])
-    extends FreeRTOSConstruct[O, N] {
+case class ISR[O <: Generation](isr: CFunctionDefinition[O])
+    extends FreeRTOSConstruct[O] {
   private var cls: Option[Class[N]] = None
   private def get_cls: Class[N] = cls.get
 
@@ -17,15 +18,15 @@ case class ISR[O, N](isr: CFunctionDefinition[O])
     "isr_" + Utils.get_declarator_name(isr.declarator)
 
   override def convert(
-      col_ir: Transformer[O, N],
+      col_ir: Transformer[O],
       idx: Int,
-  ): ObjectInfo[O, N] = {
+  ): ObjectInfo[O] = {
     val tcls: Type[N] =
       TByReferenceClass(new LazyRef[N, Class[N]](get_cls), Seq())(Utils.origen)
     val field: InstanceField[N] =
       new InstanceField(tcls, Seq())(Utils.origen(instance_name))
 
-    val transformer: StatementTransformer[O, N] =
+    val transformer: StatementTransformer[O] =
       new StatementTransformer(col_ir, None, None, field)
 
     cls = Some(transform(transformer, class_name))
@@ -57,7 +58,7 @@ case class ISR[O, N](isr: CFunctionDefinition[O])
   }
 
   def transform(
-      transformer: StatementTransformer[O, N],
+      transformer: StatementTransformer[O],
       name: String,
   ): Class[N] = {
     val variables: Seq[CLocal[O]] = get_variables
@@ -125,7 +126,7 @@ case class ISR[O, N](isr: CFunctionDefinition[O])
   }
 
   private def create_runMethod(
-      transformer: StatementTransformer[O, N]
+      transformer: StatementTransformer[O]
   ): RunMethod[N] = {
     val cond: Expr[N] = Committed(Utils.thiz)(Utils.blame)(Utils.origen)
 
@@ -153,10 +154,10 @@ case class ISR[O, N](isr: CFunctionDefinition[O])
   }
 }
 case object ISR {
-  def of[O, N](
+  def of[O <: Generation](
       invocation: CInvocation[O],
       decls: Seq[CFunctionDefinition[O]],
-  ): ISR[O, N] = {
+  ): ISR[O] = {
     Utils.creation_arg_assert(
       invocation,
       1,

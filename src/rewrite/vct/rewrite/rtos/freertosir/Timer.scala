@@ -2,16 +2,17 @@ package vct.rewrite.rtos.freertosir
 
 import vct.col.ast._
 import vct.col.ref.{DirectRef, LazyRef, Ref}
+import vct.col.rewrite.Generation
 import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.rtos.{ObjectInfo, StatementTransformer, Transformer, Utils}
 
-case class Timer[O, N](
+case class Timer[O <: Generation](
     decl: Option[CLocal[O]],
     callback: CFunctionDefinition[O],
     period: Int,
     reload: Boolean,
     priority: Int,
-) extends FreeRTOSConstruct[O, N] {
+) extends FreeRTOSConstruct[O] {
   private var s: Option[InstanceField[N]] = None
   private var timerPerms: Option[InstancePredicate[N]] = None
 
@@ -36,9 +37,9 @@ case class Timer[O, N](
     }
 
   override def convert(
-      col_ir: Transformer[O, N],
+      col_ir: Transformer[O],
       idx: Int,
-  ): ObjectInfo[O, N] = {
+  ): ObjectInfo[O] = {
     val tcls: Type[N] =
       TByReferenceClass(new LazyRef[N, Class[N]](get_cls), Seq())(Utils.origen)
     val field: InstanceField[N] =
@@ -96,7 +97,7 @@ case class Timer[O, N](
       scheduler_ref: Ref[N, Class[N]],
       tid: Int,
       assigned_eid: Int,
-      col_ir: Transformer[O, N],
+      col_ir: Transformer[O],
       field: InstanceField[N],
       name: String,
   ): Class[N] = {
@@ -119,7 +120,7 @@ case class Timer[O, N](
     val perms: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](timerPerms.get)
 
-    val transformer: StatementTransformer[O, N] =
+    val transformer: StatementTransformer[O] =
       new StatementTransformer(col_ir, Some(tid), s, field)
 
     val taskConstructor: PVLConstructor[N] = create_constructor(
@@ -171,15 +172,15 @@ case class Timer[O, N](
   }
 
   private def create_runMethod(
-      transformer: StatementTransformer[O, N]
+      transformer: StatementTransformer[O]
   ): RunMethod[N] = ???
 }
 case object Timer {
-  def of[O, N](
+  def of[O <: Generation](
       variable: Option[CLocal[O]],
       invocation: CInvocation[O],
       decls: Seq[CFunctionDefinition[O]],
-  ): Timer[O, N] = {
+  ): Timer[O] = {
     Utils.creation_arg_assert(
       invocation,
       4,
