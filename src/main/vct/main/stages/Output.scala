@@ -20,9 +20,9 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
 case object Output {
-  def vesuvOfOptions[G <: Generation](
+  def vesuvOfOptions(
       options: Options
-  ): Stages[ParseResult[G], Unit] = {
+  ): Stages[ParseResult[_ <: Generation], Unit] = {
     implicit val o: Origin = DiagnosticOrigin
     FunctionStage((pr: ParseResult[_ <: Generation]) =>
       Verification(
