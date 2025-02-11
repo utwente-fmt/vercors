@@ -80,7 +80,6 @@ class StatementTransformer[O, N](
               "uxQueueSpacesAvailable" | "uxQueueMessagesWaiting" |
               "xQueueIsQueueEmptyFromISR" | "xQueueIsQueueFullFromISR" |
               "uxSemaphoreGetCount" | "xSemaphoreGetMutexHolder" |
-              "xSemaphoreGive" | "xSemaphoreGiveRecursive" |
               /*TODO*/ "xStreamBufferBytesAvailable" | "xStreamBufferIsEmpty" |
               "xStreamBufferIsFull" | "xStreamBufferSpacesAvailable" |
               /*TODO*/ "xStreamBufferReset" | /*TODO*/ "xStreamBufferSetTriggerLevel" =>
@@ -119,11 +118,28 @@ class StatementTransformer[O, N](
               Some(col_ir.get_write_event),
               Some(args(1)),
             )
+          case "xSemaphoreGive" | "xSemaphoreGiveRecursive" =>
+            resolve_api_call(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              Some(Utils.int_val(tid.getOrElse(
+                throw new IllegalStateException(
+                  "Cannot invoke semaphore from ISR!"
+                )
+              ))),
+              None,
+              None,
+              None,
+            )
           case "xSemaphoreTakeRecursive" | "xSemaphoreTake" =>
             resolve_api_call(
               args.head.asInstanceOf[CLocal[O]],
               Utils.get_applicable_name(applicable),
-              None,
+              Some(Utils.int_val(tid.getOrElse(
+                throw new IllegalStateException(
+                  "Cannot invoke semaphore from ISR!"
+                )
+              ))),
               Some(args(1)),
               Some(col_ir.get_write_event),
               None,

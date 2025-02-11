@@ -11,6 +11,7 @@ case class StreamBuffer[O, N](
     trigger_bytes: Int,
 ) extends FreeRTOSConstruct[O, N] {
   private var s: InstanceField[N] = ???
+  private var buffer: InstanceField[N] = ???
   private var maxSize: InstanceField[N] = ???
   private var triggerLevel: InstanceField[N] = ???
   private var output: InstanceField[N] = ???
@@ -37,12 +38,15 @@ case class StreamBuffer[O, N](
       col_ir: Transformer[O, N],
       idx: Int,
   ): ObjectInfo[O, N] = {
+    val read_event: Int = col_ir.reserve_event_id
+    val write_event: Int = col_ir.reserve_event_id
+
     val cls: Class[N] = transform(
       new LazyRef(col_ir.get_scheduler),
       new LazyRef(col_ir.get_eventState),
       new LazyRef(col_ir.get_eventPerms),
-      col_ir.reserve_event_id,
-      col_ir.reserve_event_id,
+      read_event,
+      write_event,
       class_name(idx),
     )
     val tcls =
@@ -72,9 +76,25 @@ case class StreamBuffer[O, N](
         field,
         xStreamBufferReceive,
       )
+      col_ir.add_call_condition(
+        xStreamBufferReceive,
+        exprs => Less(Utils.size(buffer), exprs.head)(Utils.origen),
+      )
       col_ir.add_to_api(decl.get, "xStreamBufferSend", field, xStreamBufferSend)
+      col_ir.add_call_condition(
+        xStreamBufferSend,
+        exprs =>
+          Greater(
+            Plus(Utils.size(buffer), Size(exprs.head)(Utils.origen))(
+              Utils.origen
+            ),
+            Utils.deref_of(maxSize),
+          )(Utils.origen),
+      )
     }
     col_ir.add_output_field(field, output)
+    col_ir.add_read_event(field, read_event)
+    col_ir.add_write_event(field, write_event)
 
     ObjectInfo(
       decl,
@@ -121,10 +141,10 @@ case class StreamBuffer[O, N](
       new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
         Utils.origen("s")
       )
-    val buffer: InstanceField[N] =
-      new InstanceField(Utils.tseqint, Seq())(Utils.origen("buffer"))
+    buffer = new InstanceField(Utils.tseqint, Seq())(Utils.origen("buffer"))
     maxSize = new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize"))
-    triggerLevel = new InstanceField(Utils.tint, Seq())(Utils.origen("triggerLevel"))
+    triggerLevel =
+      new InstanceField(Utils.tint, Seq())(Utils.origen("triggerLevel"))
     output = new InstanceField(Utils.tseqint, Seq())(Utils.origen("output"))
 
     sBufferPerms =
@@ -158,17 +178,13 @@ case class StreamBuffer[O, N](
       scheduler_ref,
     )
 
-    xStreamBufferIsEmpty = create_xStreamBufferIsEmpty(
-      buffer,
-      perms,
-    )
-    xStreamBufferIsFull = create_xStreamBufferIsFull(
+    xStreamBufferIsEmpty = create_xStreamBufferIsEmpty(buffer, perms)
+    xStreamBufferIsFull = create_xStreamBufferIsFull(buffer, maxSize, perms)
+    xStreamBufferSpacesAvailable = create_xStreamBufferSpacesAvailable(
       buffer,
       maxSize,
       perms,
     )
-    xStreamBufferSpacesAvailable =
-      create_xStreamBufferSpacesAvailable(buffer, maxSize, perms)
     xStreamBufferReceive = create_xStreamBufferReceive(
       s,
       buffer,

@@ -11,6 +11,7 @@ sealed trait Semaphore[O, N] extends FreeRTOSConstruct[O, N] {
   def perms_for_scheduler(field: InstanceField[N]): Seq[Expr[N]]
   def additional_constructor_args: Seq[Expr[N]]
   def function_mapping: Seq[(String, InstanceMethod[N])]
+  def call_conditions: Seq[(InstanceMethod[N], Seq[Expr[N]] => Expr[N])]
 
   private def class_name(idx: Int): String =
     get_decl match {
@@ -48,6 +49,7 @@ sealed trait Semaphore[O, N] extends FreeRTOSConstruct[O, N] {
     if (get_decl.nonEmpty) {
       function_mapping
         .foreach(t => col_ir.add_to_api(get_decl.get, t._1, field, t._2))
+      call_conditions.foreach(t => col_ir.add_call_condition(t._1, t._2))
     }
     col_ir.add_write_event(field, available_event)
 
@@ -82,13 +84,13 @@ sealed trait Semaphore[O, N] extends FreeRTOSConstruct[O, N] {
 
 case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
     extends Semaphore[O, N] {
-  def get_decl: Option[CLocal[O]] = decl
-  def cls_type: String =
+  override def get_decl: Option[CLocal[O]] = decl
+  override def cls_type: String =
     if (is_mutex)
       "Mutex"
     else
       "Semaphore"
-  def perms_for_scheduler(field: InstanceField[N]): Seq[Expr[N]] =
+  override def perms_for_scheduler(field: InstanceField[N]): Seq[Expr[N]] =
     Seq(
       Utils.predicate_apply(
         Utils.deref_of(field),
@@ -103,17 +105,24 @@ case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
       else
         Not(Utils.deref_of(isMutex, Some(Utils.deref_of(field))))(Utils.origen),
     )
-  def additional_constructor_args: Seq[Expr[N]] =
+  override def additional_constructor_args: Seq[Expr[N]] =
     Seq(BooleanValue(value = is_mutex)(Utils.origen))
-  def function_mapping: Seq[(String, InstanceMethod[N])] =
+  override def function_mapping: Seq[(String, InstanceMethod[N])] =
     Seq(
       ("uxSemaphoreGetCount", uxSemaphoreGetCount),
       ("xSemaphoreGetMutexHolder", xSemaphoreGetMutexHolder),
       ("xSemaphoreGive", xSemaphoreGive),
       ("xSemaphoreTake", xSemaphoreTake),
     )
+  override def call_conditions
+      : Seq[(InstanceMethod[N], Seq[Expr[N]] => Expr[N])] =
+    Seq((
+      xSemaphoreTake,
+      _ => Less(Utils.deref_of(task), Utils.int_val(0))(Utils.origen),
+    ))
 
   private var s: InstanceField[N] = ???
+  private var task: InstanceField[N] = ???
   private var isMutex: InstanceField[N] = ???
   private var semaphorePerms: InstancePredicate[N] = ???
   private var uxSemaphoreGetCount: InstanceMethod[N] = ???
@@ -135,8 +144,7 @@ case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
         Utils.origen("s")
       )
     isMutex = new InstanceField(Utils.tbool, Seq())(Utils.origen("isMutex"))
-    val task: InstanceField[N] =
-      new InstanceField(Utils.tint, Seq())(Utils.origen("task"))
+    task = new InstanceField(Utils.tint, Seq())(Utils.origen("task"))
     val originalPriority: InstanceField[N] =
       new InstanceField(Utils.tint, Seq())(Utils.origen("originalPriority"))
 
@@ -582,9 +590,9 @@ case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
 
 case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
     extends Semaphore[O, N] {
-  def get_decl: Option[CLocal[O]] = decl
-  def cls_type: String = "RecursiveMutex"
-  def perms_for_scheduler(field: InstanceField[N]): Seq[Expr[N]] =
+  override def get_decl: Option[CLocal[O]] = decl
+  override def cls_type: String = "RecursiveMutex"
+  override def perms_for_scheduler(field: InstanceField[N]): Seq[Expr[N]] =
     Seq(
       Utils.predicate_apply(
         Utils.deref_of(field),
@@ -595,16 +603,23 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
         Utils.origen
       ),
     )
-  def additional_constructor_args: Seq[Expr[N]] = Seq()
-  def function_mapping: Seq[(String, InstanceMethod[N])] =
+  override def additional_constructor_args: Seq[Expr[N]] = Seq()
+  override def function_mapping: Seq[(String, InstanceMethod[N])] =
     Seq(
       ("uxSemaphoreGetCount", uxSemaphoreGetCount),
       ("xSemaphoreGetMutexHolder", xSemaphoreGetMutexHolder),
       ("xSemaphoreGiveRecursive", xSemaphoreGiveRecursive),
       ("xSemaphoreTakeRecursive", xSemaphoreTakeRecursive),
     )
+  override def call_conditions
+      : Seq[(InstanceMethod[N], Seq[Expr[N]] => Expr[N])] =
+    Seq((
+      xSemaphoreTakeRecursive,
+      _ => Less(Utils.deref_of(task), Utils.int_val(0))(Utils.origen),
+    ))
 
   private var s: InstanceField[N] = ???
+  private var task: InstanceField[N] = ???
   private var mutexPerms: InstancePredicate[N] = ???
   private var uxSemaphoreGetCount: InstanceMethod[N] = ???
   private var xSemaphoreGetMutexHolder: InstanceMethod[N] = ???
@@ -626,8 +641,7 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
       )
     val recursionDepth: InstanceField[N] =
       new InstanceField(Utils.tint, Seq())(Utils.origen("recursionDepth"))
-    val task: InstanceField[N] =
-      new InstanceField(Utils.tint, Seq())(Utils.origen("task"))
+    task = new InstanceField(Utils.tint, Seq())(Utils.origen("task"))
     val originalPriority: InstanceField[N] =
       new InstanceField(Utils.tint, Seq())(Utils.origen("originalPriority"))
     mutexPerms =
