@@ -2,7 +2,6 @@ package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.stages.Stage
-import vct.col.ast.CTranslationUnit
 import vct.col.rewrite.Generation
 import vct.options.Options
 import vct.parsers.ParseResult

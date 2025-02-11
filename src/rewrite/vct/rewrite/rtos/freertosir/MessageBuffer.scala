@@ -9,17 +9,17 @@ case class MessageBuffer[O, N](decl: Option[CLocal[O]], size: Int)
     extends FreeRTOSConstruct[O, N] {
   private val bit_width: Int = 4
 
-  private var s: InstanceField[N] = ???
-  private var buffer: InstanceField[N] = ???
-  private var messageSizes: InstanceField[N] = ???
-  private var maxSize: InstanceField[N] = ???
-  private var output: InstanceField[N] = ???
-  private var mBufferPerms: InstancePredicate[N] = ???
-  private var xMessageBufferIsEmpty: InstanceMethod[N] = ???
-  private var xMessageBufferIsFull: InstanceMethod[N] = ???
-  private var xMessageBufferSpacesAvailable: InstanceMethod[N] = ???
-  private var xMessageBufferReceive: InstanceMethod[N] = ???
-  private var xMessageBufferSend: InstanceMethod[N] = ???
+  private var s: Option[InstanceField[N]] = None
+  private var buffer: Option[InstanceField[N]] = None
+  private var messageSizes: Option[InstanceField[N]] = None
+  private var maxSize: Option[InstanceField[N]] = None
+  private var output: Option[InstanceField[N]] = None
+  private var mBufferPerms: Option[InstancePredicate[N]] = None
+  private var xMessageBufferIsEmpty: Option[InstanceMethod[N]] = None
+  private var xMessageBufferIsFull: Option[InstanceMethod[N]] = None
+  private var xMessageBufferSpacesAvailable: Option[InstanceMethod[N]] = None
+  private var xMessageBufferReceive: Option[InstanceMethod[N]] = None
+  private var xMessageBufferSend: Option[InstanceMethod[N]] = None
 
   private def class_name(idx: Int): String =
     decl match {
@@ -59,40 +59,40 @@ case class MessageBuffer[O, N](decl: Option[CLocal[O]], size: Int)
         decl.get,
         "xMessageBufferIsEmpty",
         field,
-        xMessageBufferIsEmpty,
+        xMessageBufferIsEmpty.get,
       )
       col_ir.add_to_api(
         decl.get,
         "xMessageBufferIsFull",
         field,
-        xMessageBufferIsFull,
+        xMessageBufferIsFull.get,
       )
       col_ir.add_to_api(
         decl.get,
         "xMessageBufferSpacesAvailable",
         field,
-        xMessageBufferSpacesAvailable,
+        xMessageBufferSpacesAvailable.get,
       )
       col_ir.add_to_api(
         decl.get,
         "xMessageBufferReceive",
         field,
-        xMessageBufferReceive,
+        xMessageBufferReceive.get,
       )
       col_ir.add_call_condition(
-        xMessageBufferReceive,
-        _ => Eq(Utils.size(messageSizes), Utils.int_val(0))(Utils.origen),
+        xMessageBufferReceive.get,
+        _ => Eq(Utils.size(messageSizes.get), Utils.int_val(0))(Utils.origen),
       )
       col_ir
-        .add_to_api(decl.get, "xMessageBufferSend", field, xMessageBufferSend)
+        .add_to_api(decl.get, "xMessageBufferSend", field, xMessageBufferSend.get)
       col_ir.add_call_condition(
-        xMessageBufferSend,
+        xMessageBufferSend.get,
         args =>
           Greater(
             Plus(
-              Utils.size(buffer),
+              Utils.size(buffer.get),
               Plus(
-                Mult(Utils.int_val(bit_width), Utils.size(messageSizes))(
+                Mult(Utils.int_val(bit_width), Utils.size(messageSizes.get))(
                   Utils.origen
                 ),
                 Plus(Utils.int_val(bit_width), Size(args.head)(Utils.origen))(
@@ -100,11 +100,11 @@ case class MessageBuffer[O, N](decl: Option[CLocal[O]], size: Int)
                 ),
               )(Utils.origen),
             )(Utils.origen),
-            Utils.deref_of(maxSize),
+            Utils.deref_of(maxSize.get),
           )(Utils.origen),
       )
     }
-    col_ir.add_output_field(field, output)
+    col_ir.add_output_field(field, output.get)
     col_ir.add_read_event(field, read_event)
     col_ir.add_write_event(field, write_event)
 
@@ -117,14 +117,14 @@ case class MessageBuffer[O, N](decl: Option[CLocal[O]], size: Int)
         Perm(Utils.loc_of(field), Utils.read)(Utils.origen),
         Utils.predicate_apply(
           Utils.deref_of(field),
-          new DirectRef[N, InstancePredicate[N]](mBufferPerms),
+          new DirectRef[N, InstancePredicate[N]](mBufferPerms.get),
           Seq(),
         ),
-        Eq(Utils.deref_of(s, Some(Utils.deref_of(field))), Utils.thiz)(
+        Eq(Utils.deref_of(s.get, Some(Utils.deref_of(field))), Utils.thiz)(
           Utils.origen
         ),
         Eq(
-          Utils.deref_of(maxSize, Some(Utils.deref_of(field))),
+          Utils.deref_of(maxSize.get, Some(Utils.deref_of(field))),
           Utils.int_val(size),
         )(Utils.origen),
       )),
@@ -146,102 +146,102 @@ case class MessageBuffer[O, N](decl: Option[CLocal[O]], size: Int)
       name: String,
   ): Class[N] = {
     s =
-      new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
+      Some(new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
         Utils.origen("s")
-      )
+      ))
     messageSizes =
-      new InstanceField(Utils.tseqint, Seq())(Utils.origen("messageSizes"))
-    buffer = new InstanceField(Utils.tseqint, Seq())(Utils.origen("buffer"))
-    maxSize = new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize"))
-    output = new InstanceField(Utils.tseqint, Seq())(Utils.origen("output"))
+      Some(new InstanceField(Utils.tseqint, Seq())(Utils.origen("messageSizes")))
+    buffer = Some(new InstanceField(Utils.tseqint, Seq())(Utils.origen("buffer")))
+    maxSize = Some(new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize")))
+    output = Some(new InstanceField(Utils.tseqint, Seq())(Utils.origen("output")))
 
     mBufferPerms =
-      new InstancePredicate(
+      Some(new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
-          Perm(Utils.loc_of(s), Utils.read)(Utils.origen),
-          Neq(Utils.deref_of(s), Utils.nul)(Utils.origen),
-          Perm(Utils.loc_of(maxSize), Utils.read)(Utils.origen),
-          Greater(Utils.deref_of(maxSize), Utils.int_val(0))(Utils.origen),
-          Perm(Utils.loc_of(messageSizes), Utils.write)(Utils.origen),
-          Perm(Utils.loc_of(buffer), Utils.write)(Utils.origen),
+          Perm(Utils.loc_of(s.get), Utils.read)(Utils.origen),
+          Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen),
+          Perm(Utils.loc_of(maxSize.get), Utils.read)(Utils.origen),
+          Greater(Utils.deref_of(maxSize.get), Utils.int_val(0))(Utils.origen),
+          Perm(Utils.loc_of(messageSizes.get), Utils.write)(Utils.origen),
+          Perm(Utils.loc_of(buffer.get), Utils.write)(Utils.origen),
           LessEq(
             Plus(
-              Utils.size(buffer),
-              Mult(Utils.int_val(bit_width), Utils.size(messageSizes))(
+              Utils.size(buffer.get),
+              Mult(Utils.int_val(bit_width), Utils.size(messageSizes.get))(
                 Utils.origen
               ),
             )(Utils.origen),
-            Utils.deref_of(maxSize),
+            Utils.deref_of(maxSize.get),
           )(Utils.origen),
-          Perm(Utils.loc_of(output), Utils.write)(Utils.origen),
+          Perm(Utils.loc_of(output.get), Utils.write)(Utils.origen),
         ))),
         false,
         true,
-      )(Utils.origen("mBufferPerms"))
+      )(Utils.origen("mBufferPerms")))
 
     val perms: Ref[N, InstancePredicate[N]] =
-      new DirectRef[N, InstancePredicate[N]](mBufferPerms)
+      new DirectRef[N, InstancePredicate[N]](mBufferPerms.get)
 
     val mBufferConstructor: PVLConstructor[N] = create_constructor(
-      s,
-      messageSizes,
-      buffer,
-      maxSize,
+      s.get,
+      messageSizes.get,
+      buffer.get,
+      maxSize.get,
       perms,
       scheduler_ref,
     )
 
-    xMessageBufferIsEmpty = create_xMessageBufferIsEmpty(messageSizes, perms)
-    xMessageBufferIsFull = create_xMessageBufferIsFull(
-      messageSizes,
-      buffer,
-      maxSize,
+    xMessageBufferIsEmpty = Some(create_xMessageBufferIsEmpty(messageSizes.get, perms))
+    xMessageBufferIsFull = Some(create_xMessageBufferIsFull(
+      messageSizes.get,
+      buffer.get,
+      maxSize.get,
       perms,
-    )
-    xMessageBufferSpacesAvailable = create_xMessageBufferSpacesAvailable(
-      messageSizes,
-      buffer,
-      maxSize,
+    ))
+    xMessageBufferSpacesAvailable = Some(create_xMessageBufferSpacesAvailable(
+      messageSizes.get,
+      buffer.get,
+      maxSize.get,
       perms,
-    )
-    xMessageBufferReceive = create_xMessageBufferReceive(
-      s,
-      messageSizes,
-      buffer,
-      output,
+    ))
+    xMessageBufferReceive = Some(create_xMessageBufferReceive(
+      s.get,
+      messageSizes.get,
+      buffer.get,
+      output.get,
       perms,
       event_ref,
       event_perms_ref,
       read_event,
-    )
-    xMessageBufferSend = create_xMessageBufferSend(
-      s,
-      messageSizes,
-      buffer,
-      maxSize,
+    ))
+    xMessageBufferSend = Some(create_xMessageBufferSend(
+      s.get,
+      messageSizes.get,
+      buffer.get,
+      maxSize.get,
       perms,
       event_ref,
       event_perms_ref,
       write_event,
-    )
+    ))
     // TODO: val xMessageBufferReset: InstanceMethod[N] = ???
 
     new ByReferenceClass(
       Seq(),
       Seq(
-        s,
-        messageSizes,
-        buffer,
-        maxSize,
-        output,
-        mBufferPerms,
+        s.get,
+        messageSizes.get,
+        buffer.get,
+        maxSize.get,
+        output.get,
+        mBufferPerms.get,
         mBufferConstructor,
-        xMessageBufferIsEmpty,
-        xMessageBufferIsFull,
-        xMessageBufferSpacesAvailable,
-        xMessageBufferReceive,
-        xMessageBufferSend,
+        xMessageBufferIsEmpty.get,
+        xMessageBufferIsFull.get,
+        xMessageBufferSpacesAvailable.get,
+        xMessageBufferReceive.get,
+        xMessageBufferSend.get,
         // TODO: xMessageBufferReset,
       ),
       Seq(),

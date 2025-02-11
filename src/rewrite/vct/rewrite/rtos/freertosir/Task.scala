@@ -11,11 +11,11 @@ case class Task[O, N](
     param: Expr[O],
     priority: Int,
 ) extends FreeRTOSConstruct[O, N] {
-  private var s: InstanceField[N] = ???
-  private var taskPerms: InstancePredicate[N] = ???
-  private var cls: Class[N] = ???
+  private var s: Option[InstanceField[N]] = None
+  private var taskPerms: Option[InstancePredicate[N]] = None
+  private var cls: Option[Class[N]] = None
 
-  private def get_cls: Class[N] = cls
+  private def get_cls: Class[N] = cls.get
 
   private def class_name: String =
     "Task" + Utils.get_declarator_name(func.declarator)
@@ -34,18 +34,18 @@ case class Task[O, N](
 
     val tid: Int = col_ir.reserve_task_id
 
-    cls = transform(
+    cls = Some(transform(
       new LazyRef(col_ir.get_scheduler),
       tid,
       col_ir,
       field,
       class_name,
-    )
+    ))
 
     ObjectInfo(
       decl,
       field,
-      cls,
+      cls.get,
       Seq[Expr[N]](
         Utils.thiz
       ), // TODO: incorporate param or have it be a parameter?
@@ -53,20 +53,20 @@ case class Task[O, N](
         Perm(Utils.loc_of(field), Utils.read)(Utils.origen),
         Utils.predicate_apply(
           Utils.deref_of(field),
-          new DirectRef[N, InstancePredicate[N]](taskPerms),
+          new DirectRef[N, InstancePredicate[N]](taskPerms.get),
           Seq(),
         ),
-        Eq(Utils.deref_of(s, Some(Utils.deref_of(field))), Utils.thiz)(
+        Eq(Utils.deref_of(s.get, Some(Utils.deref_of(field))), Utils.thiz)(
           Utils.origen
         ),
       )),
       Some(Utils.fold_star(Seq[Expr[N]](
         Perm(Utils.loc_of(field), Utils.read)(Utils.origen),
         Neq(Utils.deref_of(field), Utils.nul)(Utils.origen),
-        Perm(Utils.loc_of(s, Some(Utils.deref_of(field))), Utils.read)(
+        Perm(Utils.loc_of(s.get, Some(Utils.deref_of(field))), Utils.read)(
           Utils.origen
         ),
-        Eq(Utils.deref_of(s, Some(Utils.deref_of(field))), Utils.thiz)(
+        Eq(Utils.deref_of(s.get, Some(Utils.deref_of(field))), Utils.thiz)(
           Utils.origen
         ),
       ))),
@@ -86,26 +86,26 @@ case class Task[O, N](
       name: String,
   ): Class[N] = {
     s =
-      new InstanceField(TByValueClass(scheduler_ref, Seq()), Seq())(
+      Some(new InstanceField(TByValueClass(scheduler_ref, Seq()), Seq())(
         Utils.origen("s")
-      )
+      ))
 
     taskPerms =
-      new InstancePredicate(
+      Some(new InstancePredicate(
         Seq(),
         Some(
           Star(
-            Perm(Utils.loc_of(s), Utils.read)(Utils.origen),
-            Neq(Utils.deref_of(s), Utils.nul)(Utils.origen),
+            Perm(Utils.loc_of(s.get), Utils.read)(Utils.origen),
+            Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen),
           )(Utils.origen)
         ),
-      )(Utils.origen("taskPerms"))
+      )(Utils.origen("taskPerms")))
 
     val perms: Ref[N, InstancePredicate[N]] =
-      new DirectRef[N, InstancePredicate[N]](taskPerms)
+      new DirectRef[N, InstancePredicate[N]](taskPerms.get)
 
     val transformer: StatementTransformer[O, N] =
-      new StatementTransformer(col_ir, Some(tid), Some(s), field)
+      new StatementTransformer(col_ir, Some(tid), Some(s.get), field)
 
     val taskConstructor: PVLConstructor[N] = create_constructor(
       scheduler_ref,
@@ -117,7 +117,7 @@ case class Task[O, N](
 
     new ByReferenceClass(
       Seq(),
-      Seq(s, taskPerms, taskConstructor, runMethod),
+      Seq(s.get, taskPerms.get, taskConstructor, runMethod),
       Seq(),
       tt,
     )(Utils.origen(name))
@@ -132,17 +132,17 @@ case class Task[O, N](
         Utils.origen("s_param")
       )
 
-    val requires: Expr[N] = Neq(Utils.deref_of(s), Utils.nul)(Utils.origen)
+    val requires: Expr[N] = Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen)
 
     val ensures: Expr[N] = Utils.fold_star(Seq[Expr[N]](
       Utils.predicate_apply(Utils.thiz, perms, Seq()),
-      Eq(Utils.deref_of(s), Utils.local_of(s_param))(Utils.origen),
+      Eq(Utils.deref_of(s.get), Utils.local_of(s_param))(Utils.origen),
       IdleToken(Utils.thiz)(Utils.origen),
     ))
 
     val body: Statement[N] =
       Block(Seq[Statement[N]](
-        Assign(Utils.deref_of(s), Utils.local_of(s_param))(Utils.blame)(
+        Assign(Utils.deref_of(s.get), Utils.local_of(s_param))(Utils.blame)(
           Utils.origen
         )
       ))(Utils.origen)

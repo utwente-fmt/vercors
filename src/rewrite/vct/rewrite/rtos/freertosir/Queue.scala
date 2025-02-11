@@ -8,21 +8,21 @@ import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
 case class Queue[O, N](decl: Option[CLocal[O]], capacity: Int)
     extends FreeRTOSConstruct[O, N] {
 
-  private var s: InstanceField[N] = ???
-  private var vals: InstanceField[N] = ???
-  private var maxSize: InstanceField[N] = ???
-  private var output: InstanceField[N] = ???
-  private var queuePerms: InstancePredicate[N] = ???
-  private var xQueueSendToBack: InstanceMethod[N] = ???
-  private var xQueueSendToFront: InstanceMethod[N] = ???
-  private var xQueueOverwrite: InstanceMethod[N] = ???
-  private var xQueueReset: InstanceMethod[N] = ???
-  private var xQueueReceive: InstanceMethod[N] = ???
-  private var xQueuePeek: InstanceMethod[N] = ???
-  private var uxQueueSpacesAvailable: InstanceMethod[N] = ???
-  private var uxQueueMessagesWaiting: InstanceMethod[N] = ???
-  private var xQueueIsQueueEmptyFromISR: InstanceMethod[N] = ???
-  private var xQueueIsQueueFullFromISR: InstanceMethod[N] = ???
+  private var s: Option[InstanceField[N]] = None
+  private var vals: Option[InstanceField[N]] = None
+  private var maxSize: Option[InstanceField[N]] = None
+  private var output: Option[InstanceField[N]] = None
+  private var queuePerms: Option[InstancePredicate[N]] = None
+  private var xQueueSendToBack: Option[InstanceMethod[N]] = None
+  private var xQueueSendToFront: Option[InstanceMethod[N]] = None
+  private var xQueueOverwrite: Option[InstanceMethod[N]] = None
+  private var xQueueReset: Option[InstanceMethod[N]] = None
+  private var xQueueReceive: Option[InstanceMethod[N]] = None
+  private var xQueuePeek: Option[InstanceMethod[N]] = None
+  private var uxQueueSpacesAvailable: Option[InstanceMethod[N]] = None
+  private var uxQueueMessagesWaiting: Option[InstanceMethod[N]] = None
+  private var xQueueIsQueueEmptyFromISR: Option[InstanceMethod[N]] = None
+  private var xQueueIsQueueFullFromISR: Option[InstanceMethod[N]] = None
 
   private def class_name(idx: Int): String =
     decl match {
@@ -58,54 +58,54 @@ case class Queue[O, N](decl: Option[CLocal[O]], capacity: Int)
       new InstanceField(tcls, Seq())(Utils.origen(instance_name(idx)))
 
     if (decl.nonEmpty) {
-      col_ir.add_to_api(decl.get, "xQueueSendToBack", field, xQueueSendToBack)
+      col_ir.add_to_api(decl.get, "xQueueSendToBack", field, xQueueSendToBack.get)
       col_ir.add_call_condition(
-        xQueueSendToBack,
-        _ => GreaterEq(Utils.size(vals), Utils.deref_of(maxSize))(Utils.origen),
+        xQueueSendToBack.get,
+        _ => GreaterEq(Utils.size(vals.get), Utils.deref_of(maxSize.get))(Utils.origen),
       )
-      col_ir.add_to_api(decl.get, "xQueueSendToFront", field, xQueueSendToFront)
+      col_ir.add_to_api(decl.get, "xQueueSendToFront", field, xQueueSendToFront.get)
       col_ir.add_call_condition(
-        xQueueSendToFront,
-        _ => GreaterEq(Utils.size(vals), Utils.deref_of(maxSize))(Utils.origen),
+        xQueueSendToFront.get,
+        _ => GreaterEq(Utils.size(vals.get), Utils.deref_of(maxSize.get))(Utils.origen),
       )
-      col_ir.add_to_api(decl.get, "xQueueOverwrite", field, xQueueOverwrite)
-      col_ir.add_to_api(decl.get, "xQueueReset", field, xQueueReset)
-      col_ir.add_to_api(decl.get, "xQueueReceive", field, xQueueReceive)
+      col_ir.add_to_api(decl.get, "xQueueOverwrite", field, xQueueOverwrite.get)
+      col_ir.add_to_api(decl.get, "xQueueReset", field, xQueueReset.get)
+      col_ir.add_to_api(decl.get, "xQueueReceive", field, xQueueReceive.get)
       col_ir.add_call_condition(
-        xQueueReceive,
-        _ => Eq(Utils.size(vals), Utils.int_val(0))(Utils.origen),
+        xQueueReceive.get,
+        _ => Eq(Utils.size(vals.get), Utils.int_val(0))(Utils.origen),
       )
-      col_ir.add_to_api(decl.get, "xQueuePeek", field, xQueuePeek)
+      col_ir.add_to_api(decl.get, "xQueuePeek", field, xQueuePeek.get)
       col_ir.add_call_condition(
-        xQueuePeek,
-        _ => Eq(Utils.size(vals), Utils.int_val(0))(Utils.origen),
+        xQueuePeek.get,
+        _ => Eq(Utils.size(vals.get), Utils.int_val(0))(Utils.origen),
       )
       col_ir.add_to_api(
         decl.get,
         "uxQueueSpacesAvailable",
         field,
-        uxQueueSpacesAvailable,
+        uxQueueSpacesAvailable.get,
       )
       col_ir.add_to_api(
         decl.get,
         "uxQueueMessagesWaiting",
         field,
-        uxQueueMessagesWaiting,
+        uxQueueMessagesWaiting.get,
       )
       col_ir.add_to_api(
         decl.get,
         "xQueueIsQueueEmptyFromISR",
         field,
-        xQueueIsQueueEmptyFromISR,
+        xQueueIsQueueEmptyFromISR.get,
       )
       col_ir.add_to_api(
         decl.get,
         "xQueueIsQueueFullFromISR",
         field,
-        xQueueIsQueueFullFromISR,
+        xQueueIsQueueFullFromISR.get,
       )
     }
-    col_ir.add_output_field(field, output)
+    col_ir.add_output_field(field, output.get)
     col_ir.add_read_event(field, read_event)
     col_ir.add_write_event(field, write_event)
 
@@ -118,14 +118,14 @@ case class Queue[O, N](decl: Option[CLocal[O]], capacity: Int)
         Perm(Utils.loc_of(field), Utils.read)(Utils.origen),
         Utils.predicate_apply(
           Utils.deref_of(field),
-          new DirectRef[N, InstancePredicate[N]](queuePerms),
+          new DirectRef[N, InstancePredicate[N]](queuePerms.get),
           Seq(),
         ),
-        Eq(Utils.deref_of(s, Some(Utils.deref_of(field))), Utils.thiz)(
+        Eq(Utils.deref_of(s.get, Some(Utils.deref_of(field))), Utils.thiz)(
           Utils.origen
         ),
         Eq(
-          Utils.deref_of(maxSize, Some(Utils.deref_of(field))),
+          Utils.deref_of(maxSize.get, Some(Utils.deref_of(field))),
           Utils.int_val(capacity),
         )(Utils.origen),
       )),
@@ -147,106 +147,106 @@ case class Queue[O, N](decl: Option[CLocal[O]], capacity: Int)
       name: String,
   ): Class[N] = {
     s =
-      new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
+      Some(new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
         Utils.origen("s")
-      )
-    vals = new InstanceField(Utils.tseqint, Seq())(Utils.origen("vals"))
-    maxSize = new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize"))
-    output = new InstanceField(Utils.tint, Seq())(Utils.origen("output"))
+      ))
+    vals = Some(new InstanceField(Utils.tseqint, Seq())(Utils.origen("vals")))
+    maxSize = Some(new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize")))
+    output = Some(new InstanceField(Utils.tint, Seq())(Utils.origen("output")))
 
-    queuePerms =
+    queuePerms = Some(
       new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
-          Perm(Utils.loc_of(s), Utils.read)(Utils.origen),
-          Neq(Utils.deref_of(s), Utils.nul)(Utils.origen),
-          Perm(Utils.loc_of(maxSize), Utils.read)(Utils.origen),
-          Greater(Utils.deref_of(maxSize), Utils.int_val(0))(Utils.origen),
-          Perm(Utils.loc_of(vals), Utils.write)(Utils.origen),
-          LessEq(Utils.size(vals), Utils.deref_of(maxSize))(Utils.origen),
-          Perm(Utils.loc_of(output), Utils.write)(Utils.origen),
+          Perm(Utils.loc_of(s.get), Utils.read)(Utils.origen),
+          Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen),
+          Perm(Utils.loc_of(maxSize.get), Utils.read)(Utils.origen),
+          Greater(Utils.deref_of(maxSize.get), Utils.int_val(0))(Utils.origen),
+          Perm(Utils.loc_of(vals.get), Utils.write)(Utils.origen),
+          LessEq(Utils.size(vals.get), Utils.deref_of(maxSize.get))(Utils.origen),
+          Perm(Utils.loc_of(output.get), Utils.write)(Utils.origen),
         ))),
         false,
         true,
-      )(Utils.origen("queuePerms"))
+      )(Utils.origen("queuePerms")))
 
     val perms: Ref[N, InstancePredicate[N]] =
-      new DirectRef[N, InstancePredicate[N]](queuePerms)
+      new DirectRef[N, InstancePredicate[N]](queuePerms.get)
 
     val queueConstructor: PVLConstructor[N] = create_constructor(
-      s,
-      vals,
-      maxSize,
+      s.get,
+      vals.get,
+      maxSize.get,
       perms,
       scheduler_ref,
     )
 
-    xQueueSendToBack = create_xQueueSendToBack(
-      s,
-      vals,
-      maxSize,
+    xQueueSendToBack = Some(create_xQueueSendToBack(
+      s.get,
+      vals.get,
+      maxSize.get,
       perms,
       event_ref,
       event_perms_ref,
       write_event,
-    )
-    xQueueSendToFront = create_xQueueSendToFront(
-      s,
-      vals,
-      maxSize,
+    ))
+    xQueueSendToFront = Some(create_xQueueSendToFront(
+      s.get,
+      vals.get,
+      maxSize.get,
       perms,
       event_ref,
       event_perms_ref,
       write_event,
-    )
-    xQueueOverwrite = create_xQueueOverwrite(
-      s,
-      vals,
+    ))
+    xQueueOverwrite = Some(create_xQueueOverwrite(
+      s.get,
+      vals.get,
       perms,
       event_ref,
       event_perms_ref,
       write_event,
-    )
-    xQueueReset = create_xQueueReset(vals, perms)
-    xQueueReceive = create_xQueueReceive(
-      s,
-      vals,
-      maxSize,
-      output,
+    ))
+    xQueueReset = Some(create_xQueueReset(vals.get, perms))
+    xQueueReceive = Some(create_xQueueReceive(
+      s.get,
+      vals.get,
+      maxSize.get,
+      output.get,
       perms,
       event_ref,
       event_perms_ref,
       read_event,
-    )
-    xQueuePeek = create_xQueuePeek(vals, output, perms)
-    uxQueueSpacesAvailable = create_uxQueueSpacesAvailable(vals, maxSize, perms)
-    uxQueueMessagesWaiting = create_uxQueueMessagesWaiting(vals, perms)
-    xQueueIsQueueEmptyFromISR = create_xQueueIsQueueEmptyFromISR(vals, perms)
-    xQueueIsQueueFullFromISR = create_xQueueIsQueueFullFromISR(
-      vals,
-      maxSize,
+    ))
+    xQueuePeek = Some(create_xQueuePeek(vals.get, output.get, perms))
+    uxQueueSpacesAvailable = Some(create_uxQueueSpacesAvailable(vals.get, maxSize.get, perms))
+    uxQueueMessagesWaiting = Some(create_uxQueueMessagesWaiting(vals.get, perms))
+    xQueueIsQueueEmptyFromISR = Some(create_xQueueIsQueueEmptyFromISR(vals.get, perms))
+    xQueueIsQueueFullFromISR = Some(create_xQueueIsQueueFullFromISR(
+      vals.get,
+      maxSize.get,
       perms,
-    )
+    ))
 
     new ByReferenceClass(
       Seq(),
       Seq(
-        s,
-        vals,
-        maxSize,
-        output,
-        queuePerms,
+        s.get,
+        vals.get,
+        maxSize.get,
+        output.get,
+        queuePerms.get,
         queueConstructor,
-        xQueueSendToBack,
-        xQueueSendToFront,
-        xQueueOverwrite,
-        xQueueReset,
-        xQueueReceive,
-        xQueuePeek,
-        uxQueueSpacesAvailable,
-        uxQueueMessagesWaiting,
-        xQueueIsQueueEmptyFromISR,
-        xQueueIsQueueFullFromISR,
+        xQueueSendToBack.get,
+        xQueueSendToFront.get,
+        xQueueOverwrite.get,
+        xQueueReset.get,
+        xQueueReceive.get,
+        xQueuePeek.get,
+        uxQueueSpacesAvailable.get,
+        uxQueueMessagesWaiting.get,
+        xQueueIsQueueEmptyFromISR.get,
+        xQueueIsQueueFullFromISR.get,
       ),
       Seq(),
       tt,

@@ -94,41 +94,41 @@ case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
     Seq(
       Utils.predicate_apply(
         Utils.deref_of(field),
-        new DirectRef[N, InstancePredicate[N]](semaphorePerms),
+        new DirectRef[N, InstancePredicate[N]](semaphorePerms.get),
         Seq(),
       ),
-      Eq(Utils.deref_of(s, Some(Utils.deref_of(field))), Utils.thiz)(
+      Eq(Utils.deref_of(s.get, Some(Utils.deref_of(field))), Utils.thiz)(
         Utils.origen
       ),
       if (is_mutex)
-        Utils.deref_of(isMutex, Some(Utils.deref_of(field)))
+        Utils.deref_of(isMutex.get, Some(Utils.deref_of(field)))
       else
-        Not(Utils.deref_of(isMutex, Some(Utils.deref_of(field))))(Utils.origen),
+        Not(Utils.deref_of(isMutex.get, Some(Utils.deref_of(field))))(Utils.origen),
     )
   override def additional_constructor_args: Seq[Expr[N]] =
     Seq(BooleanValue(value = is_mutex)(Utils.origen))
   override def function_mapping: Seq[(String, InstanceMethod[N])] =
     Seq(
-      ("uxSemaphoreGetCount", uxSemaphoreGetCount),
-      ("xSemaphoreGetMutexHolder", xSemaphoreGetMutexHolder),
-      ("xSemaphoreGive", xSemaphoreGive),
-      ("xSemaphoreTake", xSemaphoreTake),
+      ("uxSemaphoreGetCount", uxSemaphoreGetCount.get),
+      ("xSemaphoreGetMutexHolder", xSemaphoreGetMutexHolder.get),
+      ("xSemaphoreGive", xSemaphoreGive.get),
+      ("xSemaphoreTake", xSemaphoreTake.get),
     )
   override def call_conditions
       : Seq[(InstanceMethod[N], Seq[Expr[N]] => Expr[N])] =
     Seq((
-      xSemaphoreTake,
-      _ => Less(Utils.deref_of(task), Utils.int_val(0))(Utils.origen),
+      xSemaphoreTake.get,
+      _ => Less(Utils.deref_of(task.get), Utils.int_val(0))(Utils.origen),
     ))
 
-  private var s: InstanceField[N] = ???
-  private var task: InstanceField[N] = ???
-  private var isMutex: InstanceField[N] = ???
-  private var semaphorePerms: InstancePredicate[N] = ???
-  private var uxSemaphoreGetCount: InstanceMethod[N] = ???
-  private var xSemaphoreGetMutexHolder: InstanceMethod[N] = ???
-  private var xSemaphoreGive: InstanceMethod[N] = ???
-  private var xSemaphoreTake: InstanceMethod[N] = ???
+  private var s: Option[InstanceField[N]] = None
+  private var task: Option[InstanceField[N]] = None
+  private var isMutex: Option[InstanceField[N]] = None
+  private var semaphorePerms: Option[InstancePredicate[N]] = None
+  private var uxSemaphoreGetCount: Option[InstanceMethod[N]] = None
+  private var xSemaphoreGetMutexHolder: Option[InstanceMethod[N]] = None
+  private var xSemaphoreGive: Option[InstanceMethod[N]] = None
+  private var xSemaphoreTake: Option[InstanceMethod[N]] = None
 
   override def transform(
       scheduler_ref: Ref[N, Class[N]],
@@ -140,46 +140,46 @@ case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
       name: String,
   ): Class[N] = {
     s =
-      new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
+      Some(new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
         Utils.origen("s")
-      )
-    isMutex = new InstanceField(Utils.tbool, Seq())(Utils.origen("isMutex"))
-    task = new InstanceField(Utils.tint, Seq())(Utils.origen("task"))
+      ))
+    isMutex = Some(new InstanceField(Utils.tbool, Seq())(Utils.origen("isMutex")))
+    task = Some(new InstanceField(Utils.tint, Seq())(Utils.origen("task")))
     val originalPriority: InstanceField[N] =
       new InstanceField(Utils.tint, Seq())(Utils.origen("originalPriority"))
 
     semaphorePerms =
-      new InstancePredicate(
+      Some(new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
-          Perm(Utils.loc_of(s), Utils.read)(Utils.origen),
-          Neq(Utils.deref_of(s), Utils.nul)(Utils.origen),
-          Perm(Utils.loc_of(isMutex), Utils.read)(Utils.origen),
-          Perm(Utils.loc_of(task), Utils.write)(Utils.origen),
+          Perm(Utils.loc_of(s.get), Utils.read)(Utils.origen),
+          Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen),
+          Perm(Utils.loc_of(isMutex.get), Utils.read)(Utils.origen),
+          Perm(Utils.loc_of(task.get), Utils.write)(Utils.origen),
           Perm(Utils.loc_of(originalPriority), Utils.write)(Utils.origen),
         ))),
         false,
         true,
-      )(Utils.origen("semaphorePerms"))
+      )(Utils.origen("semaphorePerms")))
 
     val perms: Ref[N, InstancePredicate[N]] =
-      new DirectRef[N, InstancePredicate[N]](semaphorePerms)
+      new DirectRef[N, InstancePredicate[N]](semaphorePerms.get)
 
     val semaphoreConstructor: PVLConstructor[N] = create_constructor(
-      s,
-      isMutex,
-      task,
+      s.get,
+      isMutex.get,
+      task.get,
       originalPriority,
       perms,
       scheduler_ref,
     )
 
-    uxSemaphoreGetCount = create_uxSemaphoreGetCount(task, perms)
-    xSemaphoreGetMutexHolder = create_xSemaphoreGetMutexHolder(task, perms)
-    xSemaphoreGive = create_xSemaphoreGive(
-      s,
-      isMutex,
-      task,
+    uxSemaphoreGetCount = Some(create_uxSemaphoreGetCount(task.get, perms))
+    xSemaphoreGetMutexHolder = Some(create_xSemaphoreGetMutexHolder(task.get, perms))
+    xSemaphoreGive = Some(create_xSemaphoreGive(
+      s.get,
+      isMutex.get,
+      task.get,
       originalPriority,
       perms,
       event_ref,
@@ -187,30 +187,30 @@ case class BinarySemaphore[O, N](decl: Option[CLocal[O]], is_mutex: Boolean)
       priority_ref,
       priority_perms_ref,
       available_event,
-    )
-    xSemaphoreTake = create_xSemaphoreTake(
-      s,
-      isMutex,
-      task,
+    ))
+    xSemaphoreTake = Some(create_xSemaphoreTake(
+      s.get,
+      isMutex.get,
+      task.get,
       originalPriority,
       perms,
       priority_ref,
       priority_perms_ref,
-    )
+    ))
 
     new ByReferenceClass(
       Seq(),
       Seq(
-        s,
-        isMutex,
-        task,
+        s.get,
+        isMutex.get,
+        task.get,
         originalPriority,
-        semaphorePerms,
+        semaphorePerms.get,
         semaphoreConstructor,
-        uxSemaphoreGetCount,
-        xSemaphoreGetMutexHolder,
-        xSemaphoreGive,
-        xSemaphoreTake,
+        uxSemaphoreGetCount.get,
+        xSemaphoreGetMutexHolder.get,
+        xSemaphoreGive.get,
+        xSemaphoreTake.get,
       ),
       Seq(),
       tt,
@@ -596,35 +596,35 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
     Seq(
       Utils.predicate_apply(
         Utils.deref_of(field),
-        new DirectRef[N, InstancePredicate[N]](mutexPerms),
+        new DirectRef[N, InstancePredicate[N]](mutexPerms.get),
         Seq(),
       ),
-      Eq(Utils.deref_of(s, Some(Utils.deref_of(field))), Utils.thiz)(
+      Eq(Utils.deref_of(s.get, Some(Utils.deref_of(field))), Utils.thiz)(
         Utils.origen
       ),
     )
   override def additional_constructor_args: Seq[Expr[N]] = Seq()
   override def function_mapping: Seq[(String, InstanceMethod[N])] =
     Seq(
-      ("uxSemaphoreGetCount", uxSemaphoreGetCount),
-      ("xSemaphoreGetMutexHolder", xSemaphoreGetMutexHolder),
-      ("xSemaphoreGiveRecursive", xSemaphoreGiveRecursive),
-      ("xSemaphoreTakeRecursive", xSemaphoreTakeRecursive),
+      ("uxSemaphoreGetCount", uxSemaphoreGetCount.get),
+      ("xSemaphoreGetMutexHolder", xSemaphoreGetMutexHolder.get),
+      ("xSemaphoreGiveRecursive", xSemaphoreGiveRecursive.get),
+      ("xSemaphoreTakeRecursive", xSemaphoreTakeRecursive.get),
     )
   override def call_conditions
       : Seq[(InstanceMethod[N], Seq[Expr[N]] => Expr[N])] =
     Seq((
-      xSemaphoreTakeRecursive,
-      _ => Less(Utils.deref_of(task), Utils.int_val(0))(Utils.origen),
+      xSemaphoreTakeRecursive.get,
+      _ => Less(Utils.deref_of(task.get), Utils.int_val(0))(Utils.origen),
     ))
 
-  private var s: InstanceField[N] = ???
-  private var task: InstanceField[N] = ???
-  private var mutexPerms: InstancePredicate[N] = ???
-  private var uxSemaphoreGetCount: InstanceMethod[N] = ???
-  private var xSemaphoreGetMutexHolder: InstanceMethod[N] = ???
-  private var xSemaphoreGiveRecursive: InstanceMethod[N] = ???
-  private var xSemaphoreTakeRecursive: InstanceMethod[N] = ???
+  private var s: Option[InstanceField[N]] = None
+  private var task: Option[InstanceField[N]] = None
+  private var mutexPerms: Option[InstancePredicate[N]] = None
+  private var uxSemaphoreGetCount: Option[InstanceMethod[N]] = None
+  private var xSemaphoreGetMutexHolder: Option[InstanceMethod[N]] = None
+  private var xSemaphoreGiveRecursive: Option[InstanceMethod[N]] = None
+  private var xSemaphoreTakeRecursive: Option[InstanceMethod[N]] = None
 
   override def transform(
       scheduler_ref: Ref[N, Class[N]],
@@ -636,49 +636,49 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
       name: String,
   ): Class[N] = {
     s =
-      new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
+      Some(new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
         Utils.origen("s")
-      )
+      ))
     val recursionDepth: InstanceField[N] =
       new InstanceField(Utils.tint, Seq())(Utils.origen("recursionDepth"))
-    task = new InstanceField(Utils.tint, Seq())(Utils.origen("task"))
+    task = Some(new InstanceField(Utils.tint, Seq())(Utils.origen("task")))
     val originalPriority: InstanceField[N] =
       new InstanceField(Utils.tint, Seq())(Utils.origen("originalPriority"))
     mutexPerms =
-      new InstancePredicate(
+      Some(new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
-          Perm(Utils.loc_of(s), Utils.read)(Utils.origen),
-          Neq(Utils.deref_of(s), Utils.nul)(Utils.origen),
+          Perm(Utils.loc_of(s.get), Utils.read)(Utils.origen),
+          Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen),
           Perm(Utils.loc_of(recursionDepth), Utils.write)(Utils.origen),
           GreaterEq(Utils.deref_of(recursionDepth), Utils.int_val(0))(
             Utils.origen
           ),
-          Perm(Utils.loc_of(task), Utils.write)(Utils.origen),
+          Perm(Utils.loc_of(task.get), Utils.write)(Utils.origen),
           Perm(Utils.loc_of(originalPriority), Utils.write)(Utils.origen),
         ))),
         false,
         true,
-      )(Utils.origen("mutexPerms"))
+      )(Utils.origen("mutexPerms")))
 
     val perms: Ref[N, InstancePredicate[N]] =
-      new DirectRef[N, InstancePredicate[N]](mutexPerms)
+      new DirectRef[N, InstancePredicate[N]](mutexPerms.get)
 
     val mutexConstructor: PVLConstructor[N] = create_constructor(
-      s,
+      s.get,
       recursionDepth,
-      task,
+      task.get,
       originalPriority,
       perms,
       scheduler_ref,
     )
 
-    uxSemaphoreGetCount = create_uxSemaphoreGetCount(task, perms)
-    xSemaphoreGetMutexHolder = create_xSemaphoreGetMutexHolder(task, perms)
-    xSemaphoreGiveRecursive = create_xSemaphoreGiveRecursive(
-      s,
+    uxSemaphoreGetCount = Some(create_uxSemaphoreGetCount(task.get, perms))
+    xSemaphoreGetMutexHolder = Some(create_xSemaphoreGetMutexHolder(task.get, perms))
+    xSemaphoreGiveRecursive = Some(create_xSemaphoreGiveRecursive(
+      s.get,
       recursionDepth,
-      task,
+      task.get,
       originalPriority,
       perms,
       event_ref,
@@ -686,30 +686,30 @@ case class RecursiveMutex[O, N](decl: Option[CLocal[O]])
       priority_ref,
       priority_perms_ref,
       available_event,
-    )
-    xSemaphoreTakeRecursive = create_xSemaphoreTakeRecursive(
-      s,
+    ))
+    xSemaphoreTakeRecursive = Some(create_xSemaphoreTakeRecursive(
+      s.get,
       recursionDepth,
-      task,
+      task.get,
       originalPriority,
       perms,
       priority_ref,
       priority_perms_ref,
-    )
+    ))
 
     new ByReferenceClass(
       Seq(),
       Seq(
-        s,
+        s.get,
         recursionDepth,
-        task,
+        task.get,
         originalPriority,
-        mutexPerms,
+        mutexPerms.get,
         mutexConstructor,
-        uxSemaphoreGetCount,
-        xSemaphoreGetMutexHolder,
-        xSemaphoreGiveRecursive,
-        xSemaphoreTakeRecursive,
+        uxSemaphoreGetCount.get,
+        xSemaphoreGetMutexHolder.get,
+        xSemaphoreGiveRecursive.get,
+        xSemaphoreTakeRecursive.get,
       ),
       Seq(),
       tt,

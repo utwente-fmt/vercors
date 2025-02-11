@@ -10,17 +10,17 @@ case class StreamBuffer[O, N](
     size: Int,
     trigger_bytes: Int,
 ) extends FreeRTOSConstruct[O, N] {
-  private var s: InstanceField[N] = ???
-  private var buffer: InstanceField[N] = ???
-  private var maxSize: InstanceField[N] = ???
-  private var triggerLevel: InstanceField[N] = ???
-  private var output: InstanceField[N] = ???
-  private var sBufferPerms: InstancePredicate[N] = ???
-  private var xStreamBufferIsEmpty: InstanceMethod[N] = ???
-  private var xStreamBufferIsFull: InstanceMethod[N] = ???
-  private var xStreamBufferSpacesAvailable: InstanceMethod[N] = ???
-  private var xStreamBufferReceive: InstanceMethod[N] = ???
-  private var xStreamBufferSend: InstanceMethod[N] = ???
+  private var s: Option[InstanceField[N]] = None
+  private var buffer: Option[InstanceField[N]] = None
+  private var maxSize: Option[InstanceField[N]] = None
+  private var triggerLevel: Option[InstanceField[N]] = None
+  private var output: Option[InstanceField[N]] = None
+  private var sBufferPerms: Option[InstancePredicate[N]] = None
+  private var xStreamBufferIsEmpty: Option[InstanceMethod[N]] = None
+  private var xStreamBufferIsFull: Option[InstanceMethod[N]] = None
+  private var xStreamBufferSpacesAvailable: Option[InstanceMethod[N]] = None
+  private var xStreamBufferReceive: Option[InstanceMethod[N]] = None
+  private var xStreamBufferSend: Option[InstanceMethod[N]] = None
 
   private def class_name(idx: Int): String =
     decl match {
@@ -60,39 +60,39 @@ case class StreamBuffer[O, N](
         decl.get,
         "xStreamBufferIsEmpty",
         field,
-        xStreamBufferIsEmpty,
+        xStreamBufferIsEmpty.get,
       )
       col_ir
-        .add_to_api(decl.get, "xStreamBufferIsFull", field, xStreamBufferIsFull)
+        .add_to_api(decl.get, "xStreamBufferIsFull", field, xStreamBufferIsFull.get)
       col_ir.add_to_api(
         decl.get,
         "xStreamBufferSpacesAvailable",
         field,
-        xStreamBufferSpacesAvailable,
+        xStreamBufferSpacesAvailable.get,
       )
       col_ir.add_to_api(
         decl.get,
         "xStreamBufferReceive",
         field,
-        xStreamBufferReceive,
+        xStreamBufferReceive.get,
       )
       col_ir.add_call_condition(
-        xStreamBufferReceive,
-        exprs => Less(Utils.size(buffer), exprs.head)(Utils.origen),
+        xStreamBufferReceive.get,
+        exprs => Less(Utils.size(buffer.get), exprs.head)(Utils.origen),
       )
-      col_ir.add_to_api(decl.get, "xStreamBufferSend", field, xStreamBufferSend)
+      col_ir.add_to_api(decl.get, "xStreamBufferSend", field, xStreamBufferSend.get)
       col_ir.add_call_condition(
-        xStreamBufferSend,
+        xStreamBufferSend.get,
         exprs =>
           Greater(
-            Plus(Utils.size(buffer), Size(exprs.head)(Utils.origen))(
+            Plus(Utils.size(buffer.get), Size(exprs.head)(Utils.origen))(
               Utils.origen
             ),
-            Utils.deref_of(maxSize),
+            Utils.deref_of(maxSize.get),
           )(Utils.origen),
       )
     }
-    col_ir.add_output_field(field, output)
+    col_ir.add_output_field(field, output.get)
     col_ir.add_read_event(field, read_event)
     col_ir.add_write_event(field, write_event)
 
@@ -105,18 +105,18 @@ case class StreamBuffer[O, N](
         Perm(Utils.loc_of(field), Utils.read)(Utils.origen),
         Utils.predicate_apply(
           Utils.deref_of(field),
-          new DirectRef[N, InstancePredicate[N]](sBufferPerms),
+          new DirectRef[N, InstancePredicate[N]](sBufferPerms.get),
           Seq(),
         ),
-        Eq(Utils.deref_of(s, Some(Utils.deref_of(field))), Utils.thiz)(
+        Eq(Utils.deref_of(s.get, Some(Utils.deref_of(field))), Utils.thiz)(
           Utils.origen
         ),
         Eq(
-          Utils.deref_of(maxSize, Some(Utils.deref_of(field))),
+          Utils.deref_of(maxSize.get, Some(Utils.deref_of(field))),
           Utils.int_val(size),
         )(Utils.origen),
         Eq(
-          Utils.deref_of(triggerLevel, Some(Utils.deref_of(field))),
+          Utils.deref_of(triggerLevel.get, Some(Utils.deref_of(field))),
           Utils.int_val(trigger_bytes),
         )(Utils.origen),
       )),
@@ -138,89 +138,89 @@ case class StreamBuffer[O, N](
       name: String,
   ): Class[N] = {
     s =
-      new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
+      Some(new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
         Utils.origen("s")
-      )
-    buffer = new InstanceField(Utils.tseqint, Seq())(Utils.origen("buffer"))
-    maxSize = new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize"))
+      ))
+    buffer = Some(new InstanceField(Utils.tseqint, Seq())(Utils.origen("buffer")))
+    maxSize = Some(new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize")))
     triggerLevel =
-      new InstanceField(Utils.tint, Seq())(Utils.origen("triggerLevel"))
-    output = new InstanceField(Utils.tseqint, Seq())(Utils.origen("output"))
+      Some(new InstanceField(Utils.tint, Seq())(Utils.origen("triggerLevel")))
+    output = Some(new InstanceField(Utils.tseqint, Seq())(Utils.origen("output")))
 
     sBufferPerms =
-      new InstancePredicate(
+      Some(new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
-          Perm(Utils.loc_of(s), Utils.read)(Utils.origen),
-          Neq(Utils.deref_of(s), Utils.nul)(Utils.origen),
-          Perm(Utils.loc_of(maxSize), Utils.read)(Utils.origen),
-          Perm(Utils.loc_of(triggerLevel), Utils.read)(Utils.origen),
-          Greater(Utils.deref_of(triggerLevel), Utils.int_val(0))(Utils.origen),
-          GreaterEq(Utils.deref_of(maxSize), Utils.deref_of(triggerLevel))(
+          Perm(Utils.loc_of(s.get), Utils.read)(Utils.origen),
+          Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen),
+          Perm(Utils.loc_of(maxSize.get), Utils.read)(Utils.origen),
+          Perm(Utils.loc_of(triggerLevel.get), Utils.read)(Utils.origen),
+          Greater(Utils.deref_of(triggerLevel.get), Utils.int_val(0))(Utils.origen),
+          GreaterEq(Utils.deref_of(maxSize.get), Utils.deref_of(triggerLevel.get))(
             Utils.origen
           ),
-          Perm(Utils.loc_of(buffer), Utils.write)(Utils.origen),
-          Perm(Utils.loc_of(output), Utils.write)(Utils.origen),
+          Perm(Utils.loc_of(buffer.get), Utils.write)(Utils.origen),
+          Perm(Utils.loc_of(output.get), Utils.write)(Utils.origen),
         ))),
         false,
         true,
-      )(Utils.origen("sBufferPerms"))
+      )(Utils.origen("sBufferPerms")))
 
     val perms: Ref[N, InstancePredicate[N]] =
-      new DirectRef[N, InstancePredicate[N]](sBufferPerms)
+      new DirectRef[N, InstancePredicate[N]](sBufferPerms.get)
 
     val sBufferConstructor: PVLConstructor[N] = create_constructor(
-      s,
-      buffer,
-      maxSize,
-      triggerLevel,
+      s.get,
+      buffer.get,
+      maxSize.get,
+      triggerLevel.get,
       perms,
       scheduler_ref,
     )
 
-    xStreamBufferIsEmpty = create_xStreamBufferIsEmpty(buffer, perms)
-    xStreamBufferIsFull = create_xStreamBufferIsFull(buffer, maxSize, perms)
-    xStreamBufferSpacesAvailable = create_xStreamBufferSpacesAvailable(
-      buffer,
-      maxSize,
+    xStreamBufferIsEmpty = Some(create_xStreamBufferIsEmpty(buffer.get, perms))
+    xStreamBufferIsFull = Some(create_xStreamBufferIsFull(buffer.get, maxSize.get, perms))
+    xStreamBufferSpacesAvailable = Some(create_xStreamBufferSpacesAvailable(
+      buffer.get,
+      maxSize.get,
       perms,
-    )
-    xStreamBufferReceive = create_xStreamBufferReceive(
-      s,
-      buffer,
-      output,
+    ))
+    xStreamBufferReceive = Some(create_xStreamBufferReceive(
+      s.get,
+      buffer.get,
+      output.get,
       perms,
       event_ref,
       event_perms_ref,
       read_event,
-    )
-    xStreamBufferSend = create_xStreamBufferSend(
-      s,
-      buffer,
-      maxSize,
-      triggerLevel,
+    ))
+    xStreamBufferSend = Some(create_xStreamBufferSend(
+      s.get,
+      buffer.get,
+      maxSize.get,
+      triggerLevel.get,
       perms,
       event_ref,
       event_perms_ref,
       write_event,
-    )
+    ))
     // TODO: val xStreamBufferReset: InstanceMethod[N] = ???
 
     new ByReferenceClass(
       Seq(),
       Seq(
-        s,
-        buffer,
-        maxSize,
-        triggerLevel,
-        output,
-        sBufferPerms,
+        s.get,
+        buffer.get,
+        maxSize.get,
+        triggerLevel.get,
+        output.get,
+        sBufferPerms.get,
         sBufferConstructor,
-        xStreamBufferIsEmpty,
-        xStreamBufferIsFull,
-        xStreamBufferSpacesAvailable,
-        xStreamBufferReceive,
-        xStreamBufferSend,
+        xStreamBufferIsEmpty.get,
+        xStreamBufferIsFull.get,
+        xStreamBufferSpacesAvailable.get,
+        xStreamBufferReceive.get,
+        xStreamBufferSend.get,
         // TODO: xStreamBufferReset,
       ),
       Seq(),

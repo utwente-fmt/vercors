@@ -7,8 +7,8 @@ import vct.rewrite.rtos.{ObjectInfo, StatementTransformer, Transformer, Utils}
 
 case class ISR[O, N](isr: CFunctionDefinition[O])
     extends FreeRTOSConstruct[O, N] {
-  private var cls: Class[N] = ???
-  private def get_cls: Class[N] = cls
+  private var cls: Option[Class[N]] = None
+  private def get_cls: Class[N] = cls.get
 
   private def class_name: String =
     "ISR_" + Utils.get_declarator_name(isr.declarator)
@@ -28,14 +28,14 @@ case class ISR[O, N](isr: CFunctionDefinition[O])
     val transformer: StatementTransformer[O, N] =
       new StatementTransformer(col_ir, None, None, field)
 
-    cls = transform(transformer, class_name)
+    cls = Some(transform(transformer, class_name))
 
     col_ir.add_isr_lock(field)
 
     ObjectInfo(
       None,
       field,
-      cls,
+      cls.get,
       Seq(),
       Utils.fold_star(Seq[Expr[N]](
         Perm(Utils.loc_of(field), Utils.read)(Utils.origen),

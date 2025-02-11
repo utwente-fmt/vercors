@@ -1,6 +1,7 @@
 package vct.rewrite.rtos
 
 import vct.col.ast._
+import vct.col.rewrite.{Generation, Rewritten}
 import vct.rewrite.rtos.freertosir._
 
 object RTOSEncoder {

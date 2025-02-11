@@ -25,18 +25,18 @@ class Transformer[O, N](
     stream_buffers: Seq[StreamBuffer[O, N]],
     message_buffers: Seq[MessageBuffer[O, N]],
 ) {
-  private var scheduler: Class[N] = ???
-  private var schedulerPerms: InstancePredicate[N] = ???
-  private var eventPerms: InstancePredicate[N] = ???
-  private var priorityPerms: InstancePredicate[N] = ???
-  private var globalInvariant: InstancePredicate[N] = ???
-  private var eventState: InstanceField[N] = ???
-  private var taskState: InstanceField[N] = ???
-  private var taskPriority: InstanceField[N] = ???
-  private var taskWaitTime: InstanceField[N] = ???
-  private var runnableQueue: InstanceField[N] = ???
-  private var simulateTimePassing: InstanceMethod[N] = ???
-  private var executionTime: InstanceMethod[N] = ???
+  private var scheduler: Option[Class[N]] = None
+  private var schedulerPerms: Option[InstancePredicate[N]] = None
+  private var eventPerms: Option[InstancePredicate[N]] = None
+  private var priorityPerms: Option[InstancePredicate[N]] = None
+  private var globalInvariant: Option[InstancePredicate[N]] = None
+  private var eventState: Option[InstanceField[N]] = None
+  private var taskState: Option[InstanceField[N]] = None
+  private var taskPriority: Option[InstanceField[N]] = None
+  private var taskWaitTime: Option[InstanceField[N]] = None
+  private var runnableQueue: Option[InstanceField[N]] = None
+  private var simulateTimePassing: Option[InstanceMethod[N]] = None
+  private var executionTime: Option[InstanceMethod[N]] = None
 
   private val freertos_api: mutable.Map[
     (CLocal[O], String),
@@ -84,35 +84,35 @@ class Transformer[O, N](
         tasks.zipWithIndex.map(t => t._1.convert(this, t._2))
     }
 
-    scheduler = scheduler_generator.generate(ir, n_events)
+    scheduler = Some(scheduler_generator.generate(ir, n_events))
     // The generation will have populated the remaining fields
-    schedulerPerms = scheduler_generator.get_schedulerPerms
-    eventPerms = scheduler_generator.get_eventPerms
-    priorityPerms = scheduler_generator.get_priorityPerms
-    globalInvariant = scheduler_generator.get_globalInvariant
-    eventState = scheduler_generator.get_eventState
-    taskState = scheduler_generator.get_taskState
-    taskPriority = scheduler_generator.get_taskPriority
-    taskWaitTime = scheduler_generator.get_taskWaitTime
-    runnableQueue = scheduler_generator.get_runnableQueue
-    simulateTimePassing = scheduler_generator.get_simulateTimePassing
-    executionTime = scheduler_generator.get_executionTime
+    schedulerPerms = Some(scheduler_generator.get_schedulerPerms)
+    eventPerms = Some(scheduler_generator.get_eventPerms)
+    priorityPerms = Some(scheduler_generator.get_priorityPerms)
+    globalInvariant = Some(scheduler_generator.get_globalInvariant)
+    eventState = Some(scheduler_generator.get_eventState)
+    taskState = Some(scheduler_generator.get_taskState)
+    taskPriority = Some(scheduler_generator.get_taskPriority)
+    taskWaitTime = Some(scheduler_generator.get_taskWaitTime)
+    runnableQueue = Some(scheduler_generator.get_runnableQueue)
+    simulateTimePassing = Some(scheduler_generator.get_simulateTimePassing)
+    executionTime = Some(scheduler_generator.get_executionTime)
 
-    ir.map(o => o.cls) :+ scheduler
+    ir.map(o => o.cls) :+ scheduler.get
   }
 
-  def get_scheduler: Class[N] = scheduler
-  def get_schedulerPerms: InstancePredicate[N] = schedulerPerms
-  def get_eventPerms: InstancePredicate[N] = eventPerms
-  def get_priorityPerms: InstancePredicate[N] = priorityPerms
-  def get_globalInvariant: InstancePredicate[N] = globalInvariant
-  def get_eventState: InstanceField[N] = eventState
-  def get_taskState: InstanceField[N] = taskState
-  def get_taskPriority: InstanceField[N] = taskPriority
-  def get_taskWaitTime: InstanceField[N] = taskWaitTime
-  def get_runnableQueue: InstanceField[N] = runnableQueue
-  def get_simulateTimePassing: InstanceMethod[N] = simulateTimePassing
-  def get_executionTime: InstanceMethod[N] = executionTime
+  def get_scheduler: Class[N] = scheduler.get
+  def get_schedulerPerms: InstancePredicate[N] = schedulerPerms.get
+  def get_eventPerms: InstancePredicate[N] = eventPerms.get
+  def get_priorityPerms: InstancePredicate[N] = priorityPerms.get
+  def get_globalInvariant: InstancePredicate[N] = globalInvariant.get
+  def get_eventState: InstanceField[N] = eventState.get
+  def get_taskState: InstanceField[N] = taskState.get
+  def get_taskPriority: InstanceField[N] = taskPriority.get
+  def get_taskWaitTime: InstanceField[N] = taskWaitTime.get
+  def get_runnableQueue: InstanceField[N] = runnableQueue.get
+  def get_simulateTimePassing: InstanceMethod[N] = simulateTimePassing.get
+  def get_executionTime: InstanceMethod[N] = executionTime.get
 
   def reserve_event_id: Int = {
     val res = n_events
