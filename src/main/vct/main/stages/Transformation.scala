@@ -50,7 +50,7 @@ import vct.rewrite.veymont.verification._
 import vct.rewrite.veymont.verification.EncodePermissionStratification.{
   Mode => PermissionStratificationMode
 }
-import vct.rewrite.csimplifier.MakeRuntimeChecks
+import vct.rewrite.csimplifier.{LinenumberTranslator, MakeRuntimeChecks}
 
 import java.nio.file.Path
 import java.nio.file.Files
@@ -191,11 +191,13 @@ object Transformation extends LazyLogging {
     )
 
   def cSimplifierOfOptions(options: Options): Transformation =
-    CSimplifier(onPassEvent =
-      options.outputIntermediatePrograms
-        .map(p => reportIntermediateProgram(p, "intermediate")).toSeq ++
-        writeOutFunctions(before, options.outputBeforePass) ++
-        writeOutFunctions(after, options.outputAfterPass)
+    CSimplifier(
+      options.cOutput.get,
+      onPassEvent =
+        options.outputIntermediatePrograms
+          .map(p => reportIntermediateProgram(p, "intermediate")).toSeq ++
+          writeOutFunctions(before, options.outputBeforePass) ++
+          writeOutFunctions(after, options.outputAfterPass),
     )
 
   def pvlJavaCompatOfOptions(options: Options): Transformation =
@@ -533,14 +535,17 @@ case class VeyMontImplementationGeneration(
       ),
     )
 
-case class CSimplifier(override val onPassEvent: Seq[PassEventHandler] = Nil)
-    extends Transformation(
+case class CSimplifier(
+    cOutput: Path,
+    override val onPassEvent: Seq[PassEventHandler] = Nil,
+) extends Transformation(
       onPassEvent,
       Seq(
         CIntBoolCoercion,
         QuantifySubscriptAny, // no arr[*]
         PropagateContextEverywhere, // inline context_everywhere into loop invariants
         MakeRuntimeChecks,
+        LinenumberTranslator.withArg(cOutput),
       ),
     )
 

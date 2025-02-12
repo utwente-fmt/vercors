@@ -573,6 +573,9 @@ case class MakeRuntimeChecks[Pre <: Generation]()
           dispatchExpr(i.left, isAssert)
             .map(l => (Or(Not[Post](l._1)(l._1.o), e._1)(i.o), l._2 ++ e._2))
         )
+      case n: Not[Pre] =>
+        // "not" switches polarity of isAssert!
+        dispatchExpr(n.arg, !isAssert).map(e => (Not[Post](e._1)(e._1.o), e._2))
       case o: Or[Pre] =>
         dispatchExpr(o.left, isAssert) match {
           case Some(l) if l._1 != tt[Post] =>

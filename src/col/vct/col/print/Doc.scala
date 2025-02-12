@@ -5,6 +5,7 @@ import vct.col.origin.InputOrigin.LINE_NUMBER_WIDTH
 
 import java.lang
 import scala.annotation.tailrec
+import scala.collection.mutable
 
 object Show {
   def lazily(f: Ctx => Doc): Show =
@@ -294,6 +295,32 @@ sealed trait Doc extends Show {
       lineWithIndex._1.foreach(_.write(sb))
     }
     sb.toString
+  }
+
+  /** for each node of interest, find it in the current doc and (if possible)
+    * map its new line number to its original one
+    * @param relevant
+    *   list of nodes of interest
+    * @param ctx
+    *   Ctx for generating the output
+    * @return
+    *   pairs of (new line number", "origin string")
+    */
+  def getLinenumberMapping(
+      relevant: Iterable[Node[_]]
+  )(implicit ctx: Ctx): Seq[(Int, String)] = {
+    val mapping: mutable.ListBuffer[(Int, String)] = mutable.ListBuffer()
+    val lns = lines.zipWithIndex
+    relevant.foreach(node => {
+      val elem = lns.find(_._1.contains(EStart(node)))
+      if (elem.isDefined) {
+        // line numbers should start with 1
+        val newLine = 1 + elem.get._2
+        val origin = node.o.shortPositionText
+        mapping.addOne((newLine, origin))
+      }
+    })
+    mapping.toSeq.sortBy(_._1)
   }
 }
 
