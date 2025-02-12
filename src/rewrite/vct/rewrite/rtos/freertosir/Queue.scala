@@ -4,7 +4,7 @@ import vct.col.ast._
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.rewrite.Generation
 import vct.col.util.AstBuildHelpers.tt
-import vct.rewrite.rtos.{ObjectInfo, Transformer, Utils}
+import vct.rewrite.rtos.{ObjectInfo, COLEncoder, Utils}
 
 case class Queue[O <: Generation](decl: Option[CLocal[O]], capacity: Int)
     extends FreeRTOSConstruct[O] {
@@ -38,8 +38,8 @@ case class Queue[O <: Generation](decl: Option[CLocal[O]], capacity: Int)
     }
 
   override def convert(
-      col_ir: Transformer[O],
-      idx: Int,
+                        col_ir: COLEncoder[O],
+                        idx: Int,
   ): ObjectInfo[O] = {
     val read_event: Int = col_ir.reserve_event_id
     val write_event: Int = col_ir.reserve_event_id

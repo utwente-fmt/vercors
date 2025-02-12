@@ -4,7 +4,7 @@ import vct.col.ast._
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.rewrite.Generation
 import vct.col.util.AstBuildHelpers.tt
-import vct.rewrite.rtos.{ObjectInfo, StatementTransformer, Transformer, Utils}
+import vct.rewrite.rtos.{ObjectInfo, Transformer, COLEncoder, Utils}
 
 case class Task[O <: Generation](
     decl: Option[CLocal[O]],
@@ -14,9 +14,12 @@ case class Task[O <: Generation](
 ) extends FreeRTOSConstruct[O] {
   private var s: Option[InstanceField[N]] = None
   private var taskPerms: Option[InstancePredicate[N]] = None
+  private var tid: Int = -1
   private var cls: Option[Class[N]] = None
 
   private def get_cls: Class[N] = cls.get
+
+  def set_tid(new_tid: Int): Unit = tid = new_tid
 
   private def class_name: String =
     "Task" + Utils.get_declarator_name(func.declarator)
@@ -25,15 +28,13 @@ case class Task[O <: Generation](
     "t" + Utils.get_declarator_name(func.declarator)
 
   override def convert(
-      col_ir: Transformer[O],
-      idx: Int,
+                        col_ir: COLEncoder[O],
+                        idx: Int,
   ): ObjectInfo[O] = {
     val tcls: Type[N] =
       TByReferenceClass(new LazyRef[N, Class[N]](get_cls), Seq())(Utils.origen)
     val field: InstanceField[N] =
       new InstanceField(tcls, Seq())(Utils.origen(instance_name))
-
-    val tid: Int = col_ir.reserve_task_id
 
     cls = Some(transform(
       new LazyRef(col_ir.get_scheduler),
@@ -79,12 +80,12 @@ case class Task[O <: Generation](
     )
   }
 
-  def transform(
-      scheduler_ref: Ref[N, Class[N]],
-      tid: Int,
-      col_ir: Transformer[O],
-      field: InstanceField[N],
-      name: String,
+  private def transform(
+                         scheduler_ref: Ref[N, Class[N]],
+                         tid: Int,
+                         col_ir: COLEncoder[O],
+                         field: InstanceField[N],
+                         name: String,
   ): Class[N] = {
     s =
       Some(new InstanceField(TByValueClass(scheduler_ref, Seq()), Seq())(
@@ -105,8 +106,8 @@ case class Task[O <: Generation](
     val perms: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](taskPerms.get)
 
-    val transformer: StatementTransformer[O] =
-      new StatementTransformer(col_ir, Some(tid), Some(s.get), field)
+    val transformer: Transformer[O] =
+      new Transformer(col_ir, Some(tid), Some(s.get), field)
 
     val taskConstructor: PVLConstructor[N] = create_constructor(
       scheduler_ref,
@@ -157,7 +158,7 @@ case class Task[O <: Generation](
   }
 
   private def create_runMethod(
-      transformer: StatementTransformer[O]
+      transformer: Transformer[O]
   ): RunMethod[N] = ???
 }
 case object Task {

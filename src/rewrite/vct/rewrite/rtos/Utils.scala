@@ -4,6 +4,7 @@ import vct.col.ast._
 import vct.col.origin.{LabelContext, Origin, PanicBlame, PreferredName}
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewritten}
+import vct.col.util.AstBuildHelpers
 import vct.col.util.AstBuildHelpers.{ff, tt}
 import vct.rewrite.rtos.freertosir.FreeRTOSConstruct
 
@@ -168,6 +169,30 @@ case object Utils {
         )
     }
 
+  def is_pure[O](f: CFunctionDefinition[O]): Boolean =
+    f.specs.collectFirst { case p: CPure[O] => p }.nonEmpty
+
+  def is_inline[O](f: CFunctionDefinition[O]): Boolean =
+    f.specs.collectFirst { case i: CInline[O] => i }.nonEmpty
+
+  def get_ctype[O <: Generation](
+      specs: Seq[CDeclarationSpecifier[O]]
+  ): Type[Rewritten[O]] = {
+    specs.collectFirst {
+      case _: CVoid[O] => tvoid[Rewritten[O]]
+      case _: CChar[O] => tint[Rewritten[O]]
+      case _: CShort[O] => tint[Rewritten[O]]
+      case _: CInt[O] => tint[Rewritten[O]]
+      case _: CLong[O] => tint[Rewritten[O]]
+      case _: CBool[O] => tbool[Rewritten[O]]
+      // TODO: case t: CTypedefName[O] => ???
+    }.getOrElse(throw new IllegalArgumentException("No or unsupported return type!"))
+  }
+
+  def args_of[O](f: CFunctionDefinition[O]): Seq[CParam[O]] = f.declarator match {
+    case CTypedFunctionDeclarator(params, _, _) => params
+  }
+
   def thiz[N]: AmbiguousThis[N] = AmbiguousThis()(origen)
   def nul[N]: Null[N] = Null()(origen)
   def read[N]: ReadPerm[N] = ReadPerm()(origen)
@@ -257,6 +282,9 @@ case object Utils {
       None,
     )(blame)(origen)
 
+  def contract_resolve[O](p: AccountedPredicate[O]): Expr[O] =
+    AstBuildHelpers.unfoldPredicate(p).reduce((e1, e2) => Star(e1, e2)(origen))
+
   def to_loop_invariant[N](expr: Expr[N]): LoopContract[N] =
     LoopInvariant(expr, None)(blame)(origen)
 
@@ -310,12 +338,12 @@ case object Utils {
   }
 
   def task_wait[O <: Generation](
-      col_ir: Transformer[O],
-      scheduler: InstanceField[Rewritten[O]],
-      invariant: Expr[Rewritten[O]],
-      tid: Int,
-      eid: Int,
-      timeout: Option[Expr[Rewritten[O]]],
+                                  col_ir: COLEncoder[O],
+                                  scheduler: InstanceField[Rewritten[O]],
+                                  invariant: Expr[Rewritten[O]],
+                                  tid: Int,
+                                  eid: Int,
+                                  timeout: Option[Expr[Rewritten[O]]],
   ): Statement[Rewritten[O]] = {
     var block: Seq[Statement[Rewritten[O]]] = Seq(
       update_scheduling_variable(

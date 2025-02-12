@@ -4,7 +4,7 @@ import vct.col.ast._
 import vct.col.ref.{DirectRef, LazyRef}
 import vct.col.rewrite.Generation
 import vct.col.util.AstBuildHelpers.tt
-import vct.rewrite.rtos.{ObjectInfo, StatementTransformer, Transformer, Utils}
+import vct.rewrite.rtos.{ObjectInfo, Transformer, COLEncoder, Utils}
 
 case class ISR[O <: Generation](isr: CFunctionDefinition[O])
     extends FreeRTOSConstruct[O] {
@@ -18,16 +18,16 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
     "isr_" + Utils.get_declarator_name(isr.declarator)
 
   override def convert(
-      col_ir: Transformer[O],
-      idx: Int,
+                        col_ir: COLEncoder[O],
+                        idx: Int,
   ): ObjectInfo[O] = {
     val tcls: Type[N] =
       TByReferenceClass(new LazyRef[N, Class[N]](get_cls), Seq())(Utils.origen)
     val field: InstanceField[N] =
       new InstanceField(tcls, Seq())(Utils.origen(instance_name))
 
-    val transformer: StatementTransformer[O] =
-      new StatementTransformer(col_ir, None, None, field)
+    val transformer: Transformer[O] =
+      new Transformer(col_ir, None, None, field)
 
     cls = Some(transform(transformer, class_name))
 
@@ -58,8 +58,8 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
   }
 
   def transform(
-      transformer: StatementTransformer[O],
-      name: String,
+                 transformer: Transformer[O],
+                 name: String,
   ): Class[N] = {
     val variables: Seq[CLocal[O]] = get_variables
 
@@ -85,7 +85,8 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
           isrPermissions,
           isrConstructor,
           runMethod,
-        ), // TODO: Handle generated local methods
+        ) ++
+        transformer.get_additional_methods,
       Seq(),
       Utils.predicate_apply(
         Utils.thiz,
@@ -126,7 +127,7 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
   }
 
   private def create_runMethod(
-      transformer: StatementTransformer[O]
+      transformer: Transformer[O]
   ): RunMethod[N] = {
     val cond: Expr[N] = Committed(Utils.thiz)(Utils.blame)(Utils.origen)
 

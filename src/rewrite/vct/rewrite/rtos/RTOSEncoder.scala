@@ -8,13 +8,21 @@ object RTOSEncoder {
   def transform[O <: Generation](
       c_model: Seq[GlobalDeclaration[O]]
   ): Seq[GlobalDeclaration[Rewritten[O]]] = {
+    val global_vars: Seq[CGlobalDeclaration[O]] = c_model.head.collect {
+      case d: CGlobalDeclaration[O] if d.decl.inits.nonEmpty && (d.decl.inits.head.decl match {
+        case _: CName[O] => true
+        case _ => false
+      }) => d
+    }
     val def_methods: Seq[CFunctionDefinition[O]] = c_model.head.collect {
       case f: CFunctionDefinition[O] => f
     }
     val main: CFunctionDefinition[O] = get_main_method(def_methods)
     val stmts: Seq[Expr[O]] = main.body.collect { case Eval(expr) => expr }
 
-    new Transformer[O](
+    new COLEncoder[O](
+      global_vars,
+      def_methods,
       get_tasks(stmts, def_methods),
       get_timers(stmts, def_methods),
       get_isrs(stmts, def_methods),

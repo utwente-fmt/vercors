@@ -1,206 +1,971 @@
 package vct.rewrite.rtos
 
+import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.rewrite.{Generation, Rewritten}
-import vct.col.util.AstBuildHelpers.tt
-import vct.rewrite.rtos.freertosir.{EventGroup, ISR, MessageBuffer, Queue, Semaphore, StreamBuffer, Task, Timer}
+import vct.col.ref.{DirectRef, LazyRef}
+import vct.col.rewrite.{Generation, Rewriter, Rewritten}
+import vct.col.util.AstBuildHelpers.{ff, tt}
 
 import scala.collection.mutable
 
 class Transformer[O <: Generation](
-    tasks: Seq[Task[O]],
-    timers: Seq[Timer[O]],
-    isrs: Seq[ISR[O]],
-    event_groups: Seq[EventGroup[O]],
-    semaphores: Seq[Semaphore[O]],
-    queues: Seq[Queue[O]],
-    stream_buffers: Seq[StreamBuffer[O]],
-    message_buffers: Seq[MessageBuffer[O]],
-) {
+    col_ir: COLEncoder[O],
+    tid: Option[Int],
+    scheduler: Option[InstanceField[Rewritten[O]]],
+    this_in_scheduler: InstanceField[Rewritten[O]],
+) extends Rewriter[O] {
   type N = Rewritten[O]
 
-  private var scheduler: Option[Class[N]] = None
-  private var schedulerPerms: Option[InstancePredicate[N]] = None
-  private var eventPerms: Option[InstancePredicate[N]] = None
-  private var priorityPerms: Option[InstancePredicate[N]] = None
-  private var globalInvariant: Option[InstancePredicate[N]] = None
-  private var eventState: Option[InstanceField[N]] = None
-  private var taskState: Option[InstanceField[N]] = None
-  private var taskPriority: Option[InstanceField[N]] = None
-  private var taskWaitTime: Option[InstanceField[N]] = None
-  private var runnableQueue: Option[InstanceField[N]] = None
-  private var simulateTimePassing: Option[InstanceMethod[N]] = None
-  private var executionTime: Option[InstanceMethod[N]] = None
+  private val pre_statement_buffer
+      : ScopedStack[mutable.ArrayBuffer[Statement[N]]] = ScopedStack()
+  private val additional_methods
+      : mutable.Map[CFunctionDefinition[O], InstanceMethod[N]] = mutable.Map
+    .empty[CFunctionDefinition[O], InstanceMethod[N]]
 
-  private val freertos_api: mutable.Map[
-    (CLocal[O], String),
-    (InstanceField[N], InstanceMethod[N]),
-  ] = mutable.Map
-    .empty[(CLocal[O], String), (InstanceField[N], InstanceMethod[N])]
+  def get_additional_methods: Seq[InstanceMethod[N]] =
+    Seq.from(additional_methods.values)
 
-  private var isr_locks: Seq[InstanceField[N]] = Seq()
-  private val output_fields: mutable.Map[InstanceField[N], InstanceField[N]] =
-    mutable.Map.empty[InstanceField[N], InstanceField[N]]
-  private val read_event: mutable.Map[InstanceField[N], Int] = mutable.Map
-    .empty[InstanceField[N], Int]
-  private val write_event: mutable.Map[InstanceField[N], Int] = mutable.Map
-    .empty[InstanceField[N], Int]
-  private val cond_to_call: mutable.Map[InstanceMethod[N], Seq[Expr[N]] => Expr[N]] = mutable
-    .Map.empty[InstanceMethod[N], Seq[Expr[N]] => Expr[N]]
+  override def dispatch(in: Statement[O]): Statement[N] = ???
 
-  // TODO: var_to_tid and var_to_timer_event are never updated! Do some bookkeeping before the transformations
-  private val var_to_tid: mutable.Map[CLocal[O], Int] = mutable.Map
-    .empty[CLocal[O], Int]
-  private val var_to_timer_event: mutable.Map[CLocal[O], Int] = mutable.Map
-    .empty[CLocal[O], Int]
-  private var n_events: Int = 0
-  private var n_tasks: Int = 0
-
-  def get_encoded_system: Seq[Class[N]] = {
-    val scheduler_generator: SchedulerGenerator[O] =
-      new SchedulerGenerator[O]
-
-    // TODO: Event groups are transformed into events, not classes... or should it?
-    event_groups.zipWithIndex.map(t => t._1.convert(this, t._2))
-
-    // Convert objects in FreeRTOS design to PVL
-    val ir: Seq[ObjectInfo[O]] = {
-      // First ISRs - they cannot use the FreeRTOS API
-      isrs.zipWithIndex.map(t => t._1.convert(this, t._2)) ++
-        // Then FreeRTOS API
-        semaphores.zipWithIndex.map(t => t._1.convert(this, t._2)) ++
-        queues.zipWithIndex.map(t => t._1.convert(this, t._2)) ++
-        stream_buffers.zipWithIndex.map(t => t._1.convert(this, t._2)) ++
-        message_buffers.zipWithIndex.map(t => t._1.convert(this, t._2)) ++
-        // Then timers
-        timers.zipWithIndex.map(t => t._1.convert(this, t._2)) ++
-        // And finally tasks
-        tasks.zipWithIndex.map(t => t._1.convert(this, t._2))
+  def convert(in: Statement[O]): Statement[N] =
+    in match {
+      case Block(statements) => Block(statements.map(s => convert(s)))(in.o)
+      case Scope(_, body) => Scope(Seq(), convert(body))(in.o)
+      case Branch(branches) =>
+        val expr_evals: Seq[(Seq[Statement[N]], Expr[N], Statement[N])] =
+          branches.map(t =>
+            expr_to_expr(t._1) match { case (s, e) => (s, e, convert(t._2)) }
+          )
+        val pre_statements: Seq[Statement[N]] = expr_evals.flatMap(t => t._1)
+        val branch: Branch[N] = Branch(expr_evals.map(t => t._2 -> t._3))(in.o)
+        combine_with_pre_statements(pre_statements, branch)
+      case Loop(init, cond, update, contract, body) =>
+        val (pre_statements: Seq[Statement[N]], cond_eval: Expr[N]) =
+          expr_to_expr(cond)
+        val loop: Loop[N] =
+          Loop(
+            convert(init),
+            cond_eval,
+            convert(update),
+            dispatch(contract),
+            convert(body),
+          )(in.o)
+        combine_with_pre_statements(pre_statements, loop)
+      case Eval(expr) => expr_to_statement(expr)
+      case CDeclarationStatement(decl) => ???
     }
 
-    scheduler = Some(scheduler_generator.generate(ir, n_events))
-    // The generation will have populated the remaining fields
-    schedulerPerms = Some(scheduler_generator.get_schedulerPerms)
-    eventPerms = Some(scheduler_generator.get_eventPerms)
-    priorityPerms = Some(scheduler_generator.get_priorityPerms)
-    globalInvariant = Some(scheduler_generator.get_globalInvariant)
-    eventState = Some(scheduler_generator.get_eventState)
-    taskState = Some(scheduler_generator.get_taskState)
-    taskPriority = Some(scheduler_generator.get_taskPriority)
-    taskWaitTime = Some(scheduler_generator.get_taskWaitTime)
-    runnableQueue = Some(scheduler_generator.get_runnableQueue)
-    simulateTimePassing = Some(scheduler_generator.get_simulateTimePassing)
-    executionTime = Some(scheduler_generator.get_executionTime)
+  private def expr_to_statement(in: Expr[O]): Statement[N] =
+    in match {
+      case PreAssignExpression(target, value) =>
+        val (v_pre: Seq[Statement[N]], v_expr: Expr[N]) = expr_to_expr(value)
+        val assign: Statement[N] =
+          Assign(expr_to_expr(target)._2, v_expr)(Utils.blame)(Utils.origen)
+        combine_with_pre_statements(v_pre, assign)
+      case PostAssignExpression(target, value) =>
+        val (v_pre: Seq[Statement[N]], v_expr: Expr[N]) = expr_to_expr(value)
+        val assign: Statement[N] =
+          Assign(expr_to_expr(target)._2, v_expr)(Utils.blame)(Utils.origen)
+        combine_with_pre_statements(v_pre, assign)
+      case CInvocation(applicable, args, _, _) =>
+        Utils.get_applicable_name(applicable) match {
+          // Functions that are allowed only in the main() function
+          case "vTaskStartScheduler" | "xEventGroupCreate" | "vesuvISRCreate" |
+              "xMessageBufferCreate" | "xQueueCreate" |
+              "xSemaphoreCreateBinary" | "xSemaphoreCreateMutex" |
+              "xSemaphoreCreateRecursiveMutex" | "xStreamBufferCreate" |
+              "vesuvTaskCreate" | "vesuvTimerCreate" =>
+            throw new IllegalArgumentException(
+              "Function " + Utils.get_applicable_name(applicable) +
+                " must not be called outside main()!"
+            )
+          // Event groups
+          case "xEventGroupClearBits" => ???
+          case "xEventGroupGetBits" => ???
+          case "xEventGroupSetBits" => ???
+          case "xEventGroupSync" => ???
+          case "xEventGroupWaitBits" => ???
+          // Interrupt management
+          case "vPortDisableInterrupts" =>
+            Block(col_ir.get_isr_locks.map(f =>
+              Lock(Utils.deref_of(
+                f,
+                Some(Utils.deref_of(Utils.exclude_isr(scheduler))),
+              ))(Utils.blame)(Utils.origen)
+            ))(Utils.origen)
+          case "vPortEnableInterrupts" =>
+            Block(col_ir.get_isr_locks.map(f =>
+              Unlock(Utils.deref_of(
+                f,
+                Some(Utils.deref_of(Utils.exclude_isr(scheduler))),
+              ))(Utils.blame)(Utils.origen)
+            ))(Utils.origen)
+          // Communication API functions - no parameters except API construct
+          case "xMessageBufferIsEmpty" | "xMessageBufferIsFull" |
+              "xMessageBufferSpacesAvailable" |
+              /*TODO*/ "xMessageBufferReset" | "xQueueReset" |
+              "uxQueueSpacesAvailable" | "uxQueueMessagesWaiting" |
+              "xQueueIsQueueEmptyFromISR" | "xQueueIsQueueFullFromISR" |
+              "uxSemaphoreGetCount" | "xSemaphoreGetMutexHolder" |
+              /*TODO*/ "xStreamBufferBytesAvailable" | "xStreamBufferIsEmpty" |
+              "xStreamBufferIsFull" | "xStreamBufferSpacesAvailable" |
+              /*TODO*/ "xStreamBufferReset" | /*TODO*/ "xStreamBufferSetTriggerLevel" =>
+            resolve_api_call_stmt(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              None,
+              None,
+              None,
+              None,
+            )
+          case "xQueueSendToBack" | "xQueueSendToFront" =>
+            resolve_api_call_stmt(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              Some(args(1)),
+              Some(args(2)),
+              Some(col_ir.get_read_event),
+              None,
+            )
+          case "xQueueOverwrite" =>
+            resolve_api_call_stmt(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              Some(args(1)),
+              None,
+              None,
+              None,
+            )
+          case "xQueueReceive" | "xQueuePeek" =>
+            resolve_api_call_stmt(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              None,
+              Some(args(2)),
+              Some(col_ir.get_write_event),
+              Some(args(1)),
+            )
+          case "xSemaphoreGive" | "xSemaphoreGiveRecursive" =>
+            resolve_api_call_stmt(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              Some(Utils.int_val(tid.getOrElse(
+                throw new IllegalStateException(
+                  "Cannot invoke semaphore from ISR!"
+                )
+              ))),
+              None,
+              None,
+              None,
+            )
+          case "xSemaphoreTakeRecursive" | "xSemaphoreTake" =>
+            resolve_api_call_stmt(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              Some(Utils.int_val(tid.getOrElse(
+                throw new IllegalStateException(
+                  "Cannot invoke semaphore from ISR!"
+                )
+              ))),
+              Some(args(1)),
+              Some(col_ir.get_write_event),
+              None,
+            )
+          // TODO: Support for these needs pointer resolution in the variable handling!
+          case "xMessageBufferSend" | "xStreamBufferSend" =>
+            resolve_api_call_stmt(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              Some(args(1)),
+              Some(args(3)),
+              Some(col_ir.get_read_event),
+              None,
+            )
+          case "xMessageBufferReceive" | "xStreamBufferReceive" =>
+            resolve_api_call_stmt(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              None,
+              Some(args(3)),
+              Some(col_ir.get_read_event),
+              Some(args(1)),
+            )
+          // Task functions
+          case "vTaskDelete" =>
+            // Make task wait for event that will never be scheduled
+            Utils.update_scheduling_variable(
+              col_ir.get_taskState,
+              Utils.exclude_isr(scheduler),
+              Utils.int_val(col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])),
+              Utils.int_val(col_ir.reserve_event_id),
+            )
+          case "vTaskDelay" =>
+            wait_loop(
+              col_ir.reserve_event_id,
+              Some(
+                Utils.int_val(Utils.resolve_integer(args.head, "task delay"))
+              ),
+            )
+          case "vTaskDelayUntil" =>
+            wait_loop(
+              col_ir.reserve_event_id,
+              Some(
+                Minus(
+                  Utils.int_val(Utils.resolve_integer(args.head, "task delay")),
+                  SeqSubscript(
+                    Utils.deref_ref(
+                      new LazyRef[N, InstanceField[N]](col_ir.get_taskWaitTime),
+                      Utils.deref_of(Utils.exclude_isr(scheduler)),
+                    ),
+                    Utils.int_val(tid.get),
+                  )(Utils.blame)(Utils.origen),
+                )(Utils.origen)
+              ),
+            )
+          case "xTaskAbortDelay" =>
+            Utils.update_scheduling_variable(
+              col_ir.get_taskState,
+              Utils.exclude_isr(scheduler),
+              Utils.int_val(col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])),
+              Utils.int_val(-1),
+            )
+          case "xTaskGetCurrentTaskHandle" =>
+            Eval(Utils.int_val(tid.get))(Utils.origen)
+          case "uxTaskGetNumberOfTasks" =>
+            Eval(Utils.int_val(col_ir.get_n_tasks))(Utils.origen)
+          case "uxTaskPriorityGet" =>
+            Eval(Utils.scheduling_variable_entry(
+              col_ir.get_taskPriority,
+              Utils.exclude_isr(scheduler),
+              Utils.int_val(col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])),
+            ))(Utils.origen)
+          case "vTaskPrioritySet" =>
+            Utils.update_scheduling_variable(
+              col_ir.get_taskPriority,
+              Utils.exclude_isr(scheduler),
+              Utils.int_val(col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])),
+              Utils.int_val(Utils.resolve_integer(args(1), "task priority")),
+            )
+          case "vTaskResume" =>
+            // TODO: This can also resume deleted tasks - check if task has been suspended before!
+            Utils.update_scheduling_variable(
+              col_ir.get_taskState,
+              Utils.exclude_isr(scheduler),
+              Utils.int_val(col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])),
+              Utils.int_val(-1),
+            )
+          case "vTaskSuspend" =>
+            // Make task wait for event that will never be scheduled
+            Utils.update_scheduling_variable(
+              col_ir.get_taskState,
+              Utils.exclude_isr(scheduler),
+              Utils.int_val(col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])),
+              Utils.int_val(col_ir.reserve_event_id),
+            )
+          case "taskYIELD" => wait_loop(col_ir.reserve_event_id, None)
+          // Task notification
+          case "xTaskNotify" => ???
+          case "xTaskNotifyAndQuery" => ???
+          case "xTaskNotifyGive" => ???
+          case "xTaskNotifyStateClear" => ???
+          case "ulTaskNotifyTake" => ???
+          case "xTaskNotifyWait" => ???
+          // Timer functions
+          case "xTimerGetPeriod" =>
+            Eval(Utils.int_val(
+              col_ir.get_timer_period(args.head.asInstanceOf[CLocal[O]])
+            ))(Utils.origen)
+          case "uxTimerGetReloadMode" =>
+            Eval(
+              BooleanValue(
+                col_ir.get_timer_reload(args.head.asInstanceOf[CLocal[O]])
+              )(Utils.origen)
+            )(Utils.origen)
+          case "xTimerIsTimerActive" =>
+            Eval(
+              GreaterEq(
+                Utils.scheduling_variable_entry(
+                  col_ir.get_eventState,
+                  Utils.exclude_isr(scheduler),
+                  Utils.int_val(
+                    col_ir.get_timer_eid(args.head.asInstanceOf[CLocal[O]])
+                  ),
+                ),
+                Utils.int_val(0),
+              )(Utils.origen)
+            )(Utils.origen)
+          case "xTimerReset" =>
+            val cvar: CLocal[O] = args.head.asInstanceOf[CLocal[O]]
+            Utils.update_scheduling_variable(
+              col_ir.get_eventState,
+              Utils.exclude_isr(scheduler),
+              Utils.int_val(col_ir.get_timer_eid(cvar)),
+              Utils.int_val(col_ir.get_timer_period(cvar)),
+            )
+          case "xTimerStart" =>
+            val cvar: CLocal[O] = args.head.asInstanceOf[CLocal[O]]
+            Utils.update_scheduling_variable(
+              col_ir.get_eventState,
+              Utils.exclude_isr(scheduler),
+              Utils.int_val(col_ir.get_timer_eid(cvar)),
+              Utils.int_val(col_ir.get_timer_period(cvar)),
+            )
+          case "xTimerStop" =>
+            Utils.update_scheduling_variable(
+              col_ir.get_eventState,
+              Utils.exclude_isr(scheduler),
+              Utils.int_val(
+                col_ir.get_timer_eid(args.head.asInstanceOf[CLocal[O]])
+              ),
+              Utils.int_val(-1),
+            )
+          case name =>
+            val args_next: Seq[(Seq[Statement[N]], Expr[N])] = args
+              .map(e => expr_to_expr(e))
+            combine_with_pre_statements(
+              args_next.flatMap(t => t._1),
+              resolve_function_call_stmt(
+                col_ir.get_function_definition(name),
+                args_next.map(t => t._2),
+              ),
+            )
+        }
+      case _ =>
+        val (pre_stmts: Seq[Statement[N]], expr: Expr[N]) = expr_to_expr(in)
+        combine_with_pre_statements(pre_stmts, Eval(expr)(Utils.origen))
+    }
 
-    ir.map(o => o.cls) :+ scheduler.get
-  }
+  override def dispatch(in: Expr[O]): Expr[N] = ???
 
-  def get_scheduler: Class[N] = scheduler.get
-  def get_schedulerPerms: InstancePredicate[N] = schedulerPerms.get
-  def get_eventPerms: InstancePredicate[N] = eventPerms.get
-  def get_priorityPerms: InstancePredicate[N] = priorityPerms.get
-  def get_globalInvariant: InstancePredicate[N] = globalInvariant.get
-  def get_eventState: InstanceField[N] = eventState.get
-  def get_taskState: InstanceField[N] = taskState.get
-  def get_taskPriority: InstanceField[N] = taskPriority.get
-  def get_taskWaitTime: InstanceField[N] = taskWaitTime.get
-  def get_runnableQueue: InstanceField[N] = runnableQueue.get
-  def get_simulateTimePassing: InstanceMethod[N] = simulateTimePassing.get
-  def get_executionTime: InstanceMethod[N] = executionTime.get
+  private def expr_to_expr(in: Expr[O]): (Seq[Statement[N]], Expr[N]) =
+    in match {
+      case CLocal(name) =>
+        name match {
+          case "pdFALSE" | "pdFAIL" => (Seq(), ff)
+          case "pdTRUE" | "pdPASS" => (Seq(), tt)
+          case _ => ??? // TODO: Handle variable conversion!
+        }
+      case PreAssignExpression(target, value) =>
+        val (v_pre: Seq[Statement[N]], v_expr: Expr[N]) = expr_to_expr(value)
+        val transformed_target: Expr[N] = expr_to_expr(target)._2
+        (
+          v_pre :+
+            Assign(transformed_target, v_expr)(Utils.blame)(Utils.origen),
+          transformed_target,
+        )
+      case PostAssignExpression(target, value) =>
+        val (v_pre: Seq[Statement[N]], v_expr: Expr[N]) = expr_to_expr(value)
+        val transformed_target: Expr[N] = expr_to_expr(target)._2
+        val new_var: Variable[N] = new Variable(v_expr.t)(Utils.origen)
+        val pre_statements: Seq[Statement[N]] =
+          v_pre ++ Seq[Statement[N]](
+            LocalDecl(new_var)(Utils.origen),
+            Assign(Utils.local_of(new_var), transformed_target)(Utils.blame)(
+              Utils.origen
+            ),
+            Assign(transformed_target, v_expr)(Utils.blame)(Utils.origen),
+          )
+        (pre_statements, Utils.local_of(new_var))
+      case CInvocation(applicable, args, _, _) =>
+        Utils.get_applicable_name(applicable) match {
+          // Functions that are allowed only in the main() function
+          case "xEventGroupCreate" | "xMessageBufferCreate" | "xQueueCreate" |
+              "xSemaphoreCreateBinary" | "xSemaphoreCreateMutex" |
+              "xSemaphoreCreateRecursiveMutex" | "xStreamBufferCreate" |
+              "vesuvTaskCreate" | "vesuvTimerCreate" =>
+            throw new IllegalArgumentException(
+              "Function " + Utils.get_applicable_name(applicable) +
+                " must not be called outside main()!"
+            )
+          // Event groups
+          case "xEventGroupClearBits" => ???
+          case "xEventGroupGetBits" => ???
+          case "xEventGroupSetBits" => ???
+          case "xEventGroupSync" => ???
+          case "xEventGroupWaitBits" => ???
+          // Communication API functions - no parameters except API construct
+          case "xMessageBufferIsEmpty" | "xMessageBufferIsFull" |
+              "xMessageBufferSpacesAvailable" |
+              /*TODO*/ "xMessageBufferReset" | "xQueueReset" |
+              "uxQueueSpacesAvailable" | "uxQueueMessagesWaiting" |
+              "xQueueIsQueueEmptyFromISR" | "xQueueIsQueueFullFromISR" |
+              "uxSemaphoreGetCount" | "xSemaphoreGetMutexHolder" |
+              /*TODO*/ "xStreamBufferBytesAvailable" | "xStreamBufferIsEmpty" |
+              "xStreamBufferIsFull" | "xStreamBufferSpacesAvailable" |
+              /*TODO*/ "xStreamBufferReset" | /*TODO*/ "xStreamBufferSetTriggerLevel" =>
+            resolve_api_call_expr(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              None,
+              None,
+              None,
+              None,
+            )
+          case "xQueueSendToBack" | "xQueueSendToFront" =>
+            resolve_api_call_expr(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              Some(args(1)),
+              Some(args(2)),
+              Some(col_ir.get_read_event),
+              None,
+            )
+          case "xQueueOverwrite" =>
+            resolve_api_call_expr(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              Some(args(1)),
+              None,
+              None,
+              None,
+            )
+          case "xQueueReceive" | "xQueuePeek" =>
+            resolve_api_call_expr(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              None,
+              Some(args(2)),
+              Some(col_ir.get_write_event),
+              Some(args(1)),
+            )
+          case "xSemaphoreGive" | "xSemaphoreGiveRecursive" =>
+            resolve_api_call_expr(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              Some(Utils.int_val(tid.getOrElse(
+                throw new IllegalStateException(
+                  "Cannot invoke semaphore from ISR!"
+                )
+              ))),
+              None,
+              None,
+              None,
+            )
+          case "xSemaphoreTakeRecursive" | "xSemaphoreTake" =>
+            resolve_api_call_expr(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              Some(Utils.int_val(tid.getOrElse(
+                throw new IllegalStateException(
+                  "Cannot invoke semaphore from ISR!"
+                )
+              ))),
+              Some(args(1)),
+              Some(col_ir.get_write_event),
+              None,
+            )
+          // TODO: Support for these needs pointer resolution in the variable handling!
+          case "xMessageBufferSend" | "xStreamBufferSend" =>
+            resolve_api_call_expr(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              Some(args(1)),
+              Some(args(3)),
+              Some(col_ir.get_read_event),
+              None,
+            )
+          case "xMessageBufferReceive" | "xStreamBufferReceive" =>
+            resolve_api_call_expr(
+              args.head.asInstanceOf[CLocal[O]],
+              Utils.get_applicable_name(applicable),
+              None,
+              Some(args(3)),
+              Some(col_ir.get_read_event),
+              Some(args(1)),
+            )
+          // Task functions
+          case "xTaskAbortDelay" =>
+            val new_var: Variable[N] = new Variable(Utils.tbool)(Utils.origen)
+            val target: Int = col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])
+            val successful: Expr[N] =
+              GreaterEq(
+                Utils.scheduling_variable_entry(
+                  col_ir.get_taskState,
+                  Utils.exclude_isr(scheduler),
+                  Utils.int_val(target),
+                ),
+                Utils.int_val(0),
+              )(Utils.origen)
+            (
+              Seq[Statement[N]](
+                LocalDecl(new_var)(Utils.origen),
+                Assign(Utils.local_of(new_var), successful)(Utils.blame)(
+                  Utils.origen
+                ),
+                Utils.update_scheduling_variable(
+                  col_ir.get_taskState,
+                  Utils.exclude_isr(scheduler),
+                  Utils.int_val(target),
+                  Utils.int_val(-1),
+                ),
+              ),
+              Utils.local_of(new_var),
+            )
+          case "xTaskGetCurrentTaskHandle" => (Seq(), Utils.int_val(tid.get))
+          case "uxTaskGetNumberOfTasks" =>
+            (Seq(), Utils.int_val(col_ir.get_n_tasks))
+          case "uxTaskPriorityGet" =>
+            (
+              Seq(),
+              Utils.scheduling_variable_entry(
+                col_ir.get_taskPriority,
+                Utils.exclude_isr(scheduler),
+                Utils.int_val(col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])),
+              ),
+            )
+          case "vTaskResume" =>
+            val tid: Int = col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])
+            (
+              Seq(Utils.update_scheduling_variable(
+                col_ir.get_taskState,
+                Utils.exclude_isr(scheduler),
+                Utils
+                  .int_val(col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])),
+                Utils.int_val(-1),
+              )),
+              // TODO: This just checks if the event the task is waiting on has
+              //  not been notified yet, which could be for different reasons
+              //  than the task being suspended
+              And(
+                GreaterEq(
+                  Utils.scheduling_variable_entry(
+                    col_ir.get_taskState,
+                    Utils.exclude_isr(scheduler),
+                    Utils.int_val(tid),
+                  ),
+                  Utils.int_val(0),
+                )(Utils.origen),
+                Eq(
+                  Utils.scheduling_variable_entry(
+                    col_ir.get_eventState,
+                    Utils.exclude_isr(scheduler),
+                    Utils.scheduling_variable_entry(
+                      col_ir.get_taskState,
+                      Utils.exclude_isr(scheduler),
+                      Utils.int_val(tid),
+                    ),
+                  ),
+                  Utils.int_val(-1),
+                )(Utils.origen),
+              )(Utils.origen),
+            )
+          // Task notification
+          case "xTaskNotify" => ???
+          case "xTaskNotifyAndQuery" => ???
+          case "xTaskNotifyGive" => ???
+          case "xTaskNotifyStateClear" => ???
+          case "ulTaskNotifyTake" => ???
+          case "xTaskNotifyWait" => ???
+          // Timer functions
+          case "xTimerGetPeriod" =>
+            (
+              Seq(),
+              Utils.int_val(
+                col_ir.get_timer_period(args.head.asInstanceOf[CLocal[O]])
+              ),
+            )
+          case "uxTimerGetReloadMode" =>
+            (
+              Seq(),
+              BooleanValue(
+                col_ir.get_timer_reload(args.head.asInstanceOf[CLocal[O]])
+              )(Utils.origen),
+            )
+          case "xTimerIsTimerActive" =>
+            (
+              Seq(),
+              GreaterEq(
+                Utils.scheduling_variable_entry(
+                  col_ir.get_eventState,
+                  Utils.exclude_isr(scheduler),
+                  Utils.int_val(
+                    col_ir.get_timer_eid(args.head.asInstanceOf[CLocal[O]])
+                  ),
+                ),
+                Utils.int_val(0),
+              )(Utils.origen),
+            )
+          case "xTimerReset" =>
+            val cvar: CLocal[O] = args.head.asInstanceOf[CLocal[O]]
+            (
+              Seq(Utils.update_scheduling_variable(
+                col_ir.get_eventState,
+                Utils.exclude_isr(scheduler),
+                Utils.int_val(col_ir.get_timer_eid(cvar)),
+                Utils.int_val(col_ir.get_timer_period(cvar)),
+              )),
+              tt,
+            )
+          case "xTimerStart" =>
+            val cvar: CLocal[O] = args.head.asInstanceOf[CLocal[O]]
+            (
+              Seq(Utils.update_scheduling_variable(
+                col_ir.get_eventState,
+                Utils.exclude_isr(scheduler),
+                Utils.int_val(col_ir.get_timer_eid(cvar)),
+                Utils.int_val(col_ir.get_timer_period(cvar)),
+              )),
+              tt,
+            )
+          case "xTimerStop" =>
+            (
+              Seq(Utils.update_scheduling_variable(
+                col_ir.get_eventState,
+                Utils.exclude_isr(scheduler),
+                Utils.int_val(
+                  col_ir.get_timer_eid(args.head.asInstanceOf[CLocal[O]])
+                ),
+                Utils.int_val(-1),
+              )),
+              tt,
+            )
+          case name =>
+            val args_next: Seq[(Seq[Statement[N]], Expr[N])] = args
+              .map(e => expr_to_expr(e))
+            (
+              args_next.flatMap(t => t._1),
+              resolve_function_call_expr(
+                col_ir.get_function_definition(name),
+                args_next.map(t => t._2),
+              ),
+            )
+        }
+      case AddrOf(e) => ???
+    }
 
-  def reserve_event_id: Int = {
-    val res = n_events
-    n_events += 1
-    res
-  }
-
-  def reserve_task_id: Int = {
-    val res = n_tasks
-    n_tasks += 1
-    res
-  }
-
-  def add_to_api(
+  private def resolve_api_call_stmt(
       cvar: CLocal[O],
       func_name: String,
-      ir_field: InstanceField[N],
-      ir_method: InstanceMethod[N],
-  ): Unit = freertos_api.put((cvar, func_name), (ir_field, ir_method))
+      arg: Option[Expr[O]],
+      delay: Option[Expr[O]],
+      get_eid: Option[InstanceField[N] => Int],
+      store: Option[Expr[O]],
+  ): Statement[N] = {
+    val (f: InstanceField[N], m: InstanceMethod[N]) = col_ir
+      .get_api(cvar, func_name)
+    val field: Deref[N] = Utils
+      .deref_of(f, Some(Utils.deref_of(Utils.exclude_isr(scheduler))))
+    val (pre_stmts: Seq[Statement[N]], args: Seq[Expr[N]]) =
+      arg match {
+        case Some(expr) =>
+          expr_to_expr(expr) match { case (s, e) => (s, Seq(e)) }
+        case None => (Seq(), Seq())
+      }
 
-  def get_api(
+    val method_call: InvokeMethod[N] =
+      InvokeMethod(
+        field,
+        new DirectRef[N, InstanceMethod[N]](m),
+        args,
+        Seq(),
+        Seq(),
+        Seq(),
+        Seq(),
+      )(Utils.blame)(Utils.origen)
+
+    Block(api_call_statements(
+      cvar,
+      func_name,
+      method_call,
+      args,
+      pre_stmts,
+      delay,
+      get_eid,
+      store,
+    ))(Utils.origen)
+  }
+
+  private def resolve_api_call_expr(
       cvar: CLocal[O],
       func_name: String,
-  ): (InstanceField[N], InstanceMethod[N]) =
-    freertos_api.getOrElse(
-      (cvar, func_name),
-      throw new IllegalStateException(
-        "Trying to resolve function " + func_name + " before it is generated!"
+      arg: Option[Expr[O]],
+      delay: Option[Expr[O]],
+      get_eid: Option[InstanceField[N] => Int],
+      store: Option[Expr[O]],
+  ): (Seq[Statement[N]], Expr[N]) = {
+    val (f: InstanceField[N], m: InstanceMethod[N]) = col_ir
+      .get_api(cvar, func_name)
+    val field: Deref[N] = Utils
+      .deref_of(f, Some(Utils.deref_of(Utils.exclude_isr(scheduler))))
+
+    val (pre_stmts: Seq[Statement[N]], args: Seq[Expr[N]]) =
+      arg match {
+        case Some(expr) =>
+          expr_to_expr(expr) match { case (s, e) => (s, Seq(e)) }
+        case None => (Seq(), Seq())
+      }
+
+    // Anonymous variable - let VerCors handle the naming
+    val tmp_var: Variable[N] = new Variable(m.returnType)(Utils.origen)
+
+    val method_call: MethodInvocation[N] =
+      MethodInvocation(
+        field,
+        new DirectRef[N, InstanceMethod[N]](m),
+        args,
+        Seq(),
+        Seq(),
+        Seq(),
+        Seq(),
+      )(Utils.blame)(Utils.origen)
+
+    val call_stmt: Statement[N] =
+      Block(Seq[Statement[N]](
+        LocalDecl(tmp_var)(Utils.origen),
+        Assign(Utils.local_of(tmp_var), method_call)(Utils.blame)(Utils.origen),
+      ))(Utils.origen)
+
+    (
+      api_call_statements(
+        cvar,
+        func_name,
+        call_stmt,
+        args,
+        pre_stmts,
+        delay,
+        get_eid,
+        store,
       ),
+      Utils.local_of(tmp_var),
+    )
+  }
+
+  private def api_call_statements(
+      cvar: CLocal[O],
+      func_name: String,
+      method_call: Statement[N],
+      args: Seq[Expr[N]],
+      pre_stmts: Seq[Statement[N]],
+      delay: Option[Expr[O]],
+      get_eid: Option[InstanceField[N] => Int],
+      store: Option[Expr[O]],
+  ): Seq[Statement[N]] = {
+    val (f: InstanceField[N], m: InstanceMethod[N]) = col_ir
+      .get_api(cvar, func_name)
+    val field: Deref[N] = Utils
+      .deref_of(f, Some(Utils.deref_of(Utils.exclude_isr(scheduler))))
+
+    val call_stmts: Seq[Statement[N]] =
+      delay match {
+        case Some(d) =>
+          create_delay_if_necessary(
+            d,
+            get_eid.getOrElse(
+              throw new IllegalArgumentException(
+                "Delay specified but event not found"
+              )
+            )(f),
+            col_ir.get_call_condition(m)(args),
+            method_call,
+          )
+        case None => Seq(method_call)
+      }
+
+    val (pre_store: Seq[Statement[N]], store_stmts: Seq[Statement[N]]) =
+      store match {
+        case Some(st) =>
+          expr_to_expr(st) match {
+            case (s, e) =>
+              (
+                s,
+                Seq(
+                  Assign(
+                    e,
+                    Utils.deref_of(col_ir.get_output_field(f), Some(field)),
+                  )(Utils.blame)(Utils.origen)
+                ),
+              )
+          }
+        case None => (Seq(), Seq())
+      }
+
+    pre_stmts ++ pre_store ++ call_stmts ++ store_stmts
+  }
+
+  private def create_delay_if_necessary(
+      delay_expr: Expr[O],
+      eid: Int,
+      cond: Expr[N],
+      call: Statement[N],
+  ): Seq[Statement[N]] =
+    delay_expr match {
+      case CLocal(name) if name.equals("portMAX_DELAY") =>
+        Seq(
+          Loop(
+            Utils.skip,
+            cond,
+            Utils.skip,
+            Utils.to_loop_invariant(
+              get_default_contract(holding_global_lock = true, runnable = true)
+            ),
+            wait_loop(eid, None),
+          )(Utils.origen),
+          call,
+        )
+      case _ =>
+        val delay: Int = Utils.resolve_integer(delay_expr, "API call wait time")
+        if (delay == 0)
+          Seq(call)
+        else
+          Seq(
+            Loop(
+              Utils.skip,
+              cond,
+              Utils.skip,
+              Utils.to_loop_invariant(get_default_contract(
+                holding_global_lock = true,
+                runnable = true,
+              )),
+              wait_loop(eid, Some(Utils.int_val(delay))),
+            )(Utils.origen),
+            call,
+          )
+    }
+
+  private def combine_with_pre_statements(
+      pre_statements: Seq[Statement[N]],
+      stmt: Statement[N],
+  ): Statement[N] =
+    if (pre_statements.isEmpty)
+      stmt
+    else
+      Block(pre_statements :+ stmt)(Utils.origen)
+
+  def wait_loop(eid: Int, timeout: Option[Expr[N]]): Statement[N] =
+    Utils.task_wait(
+      col_ir,
+      Utils.exclude_isr(scheduler),
+      get_default_contract(holding_global_lock = true, runnable = false),
+      tid.get,
+      eid,
+      timeout,
     )
 
-  def add_output_field(
-      field: InstanceField[N],
-      output: InstanceField[N],
-  ): Unit = output_fields.put(field, output)
+  override def dispatch(old: LoopContract[O]): LoopContract[N] =
+    old match {
+      case LoopInvariant(invariant, decreases) =>
+        Utils.to_loop_invariant(
+          Star(
+            get_default_contract(holding_global_lock = true, runnable = true),
+            dispatch(invariant),
+          )(Utils.origen)
+        )
+    }
 
-  def get_output_field(field: InstanceField[N]): InstanceField[N] =
-    output_fields.getOrElse(
-      field,
-      throw new IllegalStateException(
-        "Trying to get output field of " + field.toInlineString +
-          " before it is generated!"
+  def get_default_contract(
+      holding_global_lock: Boolean,
+      runnable: Boolean,
+  ): Expr[N] = {
+    val s: InstanceField[N] = Utils.exclude_isr(scheduler)
+    var conds: Seq[Expr[N]] = Seq(
+      Perm(Utils.loc_of(s), Utils.read)(Utils.origen),
+      Neq(Utils.deref_of(s), Utils.nul)(Utils.origen),
+      Committed(Utils.deref_of(s))(Utils.blame)(Utils.origen),
+    )
+    if (holding_global_lock) {
+      conds ++= Seq(
+        Held(Utils.deref_of(s))(Utils.origen),
+        Utils.predicate_apply(
+          Utils.deref_of(s),
+          new LazyRef(col_ir.get_globalInvariant),
+          Seq(),
+        ),
+      )
+    } else {
+      conds ++= Seq(
+        Perm(
+          Utils.loc_of(this_in_scheduler, Some(Utils.deref_of(s))),
+          Utils.read,
+        )(Utils.origen)
+      )
+    }
+    conds ++= Seq(
+      Eq(
+        Utils.thiz,
+        Utils.deref_of(this_in_scheduler, Some(Utils.deref_of(s))),
+      )(Utils.origen)
+    )
+    if (runnable) {
+      val taskState_deref: Deref[N] = Utils
+        .deref_ref(new LazyRef(col_ir.get_taskState), Utils.deref_of(s))
+      conds ++= Seq(
+        Eq(
+          SeqSubscript(taskState_deref, Utils.int_val(tid.get))(Utils.blame)(
+            Utils.origen
+          ),
+          Utils.int_val(-2),
+        )(Utils.origen)
+      )
+    }
+    Utils.fold_star(conds)
+  }
+
+  private def resolve_function_call_stmt(
+      f: CFunctionDefinition[O],
+      args: Seq[Expr[N]],
+  ): Statement[N] = {
+    val method: InstanceMethod[N] = transform_method(f)
+    InvokeMethod(
+      Utils.thiz,
+      new DirectRef[N, InstanceMethod[N]](method),
+      args,
+      Seq(),
+      Seq(),
+      Seq(),
+      Seq(),
+    )(Utils.blame)(Utils.origen)
+  }
+
+  private def resolve_function_call_expr(
+      f: CFunctionDefinition[O],
+      args: Seq[Expr[N]],
+  ): Expr[N] = {
+    val method: InstanceMethod[N] = transform_method(f)
+    MethodInvocation(
+      Utils.thiz,
+      new DirectRef[N, InstanceMethod[N]](method),
+      args,
+      Seq(),
+      Seq(),
+      Seq(),
+      Seq(),
+    )(Utils.blame)(Utils.origen)
+  }
+
+  private def transform_method(f: CFunctionDefinition[O]): InstanceMethod[N] = {
+    if (additional_methods.contains(f))
+      return additional_methods(f)
+
+    val params: Seq[CParam[O]] = Utils.args_of(f)
+
+    val new_method =
+      new InstanceMethod(
+        Utils.get_ctype(f.specs),
+        ???,
+        Seq(),
+        Seq(),
+        Some(dispatch(f.body)),
+        dispatch(f.contract),
+        inline = Utils.is_inline(f),
+        pure = Utils.is_pure(f),
+      )(Utils.blame)(Utils.origen(Utils.get_declarator_name(f.declarator)))
+
+    additional_methods.put(f, new_method)
+    new_method
+  }
+
+  override def dispatch(old: ApplicableContract[O]): ApplicableContract[N] = {
+    val default_contract: Expr[N] = get_default_contract(
+      holding_global_lock = true,
+      runnable = true,
+    )
+    Utils.to_app_contract(
+      Star(default_contract, dispatch(Utils.contract_resolve(old.requires)))(
+        Utils.origen
+      ),
+      Star(default_contract, dispatch(Utils.contract_resolve(old.ensures)))(
+        Utils.origen
       ),
     )
-
-  def add_read_event(field: InstanceField[N], eid: Int): Unit =
-    read_event.put(field, eid)
-
-  def get_read_event(field: InstanceField[N]): Int =
-    read_event.getOrElse(
-      field,
-      throw new IllegalStateException(
-        "Instance " + field.toInlineString + " does not have a read event."
-      ),
-    )
-
-  def add_write_event(field: InstanceField[N], eid: Int): Unit =
-    write_event.put(field, eid)
-
-  def get_write_event(field: InstanceField[N]): Int =
-    write_event.getOrElse(
-      field,
-      throw new IllegalStateException(
-        "Instance " + field.toInlineString + " does not have a write event."
-      ),
-    )
-
-  def add_call_condition(method: InstanceMethod[N], cond_gen: Seq[Expr[N]] => Expr[N]): Unit =
-    cond_to_call.put(method, cond_gen)
-
-  def get_call_condition(method: InstanceMethod[N]): Seq[Expr[N]] => Expr[N] =
-    cond_to_call.getOrElse(method, _ => tt)
-
-  def get_tid(variable: CLocal[O]): Int =
-    var_to_tid.getOrElse(
-      variable,
-      throw new IllegalStateException(
-        "Trying to get task ID for " + variable.name +
-          " but it does not have one!"
-      ),
-    )
-
-  def get_n_tasks: Int = tasks.size + timers.size
-
-  def get_timer_eid(variable: CLocal[O]): Int =
-    var_to_timer_event.getOrElse(
-      variable,
-      throw new IllegalStateException(
-        "Trying to get timer event ID for " + variable.name +
-          " but it does not have one!"
-      ),
-    )
-
-  def add_isr_lock(lock: InstanceField[N]): Unit = isr_locks = isr_locks :+ lock
-
-  def get_isr_locks: Seq[InstanceField[N]] = isr_locks
+  }
 }
