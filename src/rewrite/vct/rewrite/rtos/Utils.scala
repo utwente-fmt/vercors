@@ -342,22 +342,10 @@ case object Utils {
                                   scheduler: InstanceField[Rewritten[O]],
                                   invariant: Expr[Rewritten[O]],
                                   tid: Int,
-                                  eid: Int,
+                                  eid: Option[Int],
                                   timeout: Option[Expr[Rewritten[O]]],
   ): Statement[Rewritten[O]] = {
     var block: Seq[Statement[Rewritten[O]]] = Seq(
-      update_scheduling_variable(
-        col_ir.get_taskState,
-        scheduler,
-        int_val(tid),
-        int_val(eid),
-      ),
-      update_scheduling_variable(
-        col_ir.get_taskWaitTime,
-        scheduler,
-        int_val(tid),
-        int_val(0),
-      ),
       Loop(
         skip,
         Neq(
@@ -376,14 +364,30 @@ case object Utils {
         ))(origen),
       )(origen),
     )
-    if (timeout.nonEmpty) {
-      block =
+    if (eid.nonEmpty) {
+      block = Seq[Statement[Rewritten[O]]](
         update_scheduling_variable(
-          col_ir.get_eventState,
+          col_ir.get_taskState,
           scheduler,
-          int_val(eid),
-          timeout.get,
-        ) +: block
+          int_val(tid),
+          int_val(eid.get),
+        ),
+        update_scheduling_variable(
+          col_ir.get_taskWaitTime,
+          scheduler,
+          int_val(tid),
+          int_val(0),
+        ),
+      ) ++ block
+      if (timeout.nonEmpty) {
+        block =
+          update_scheduling_variable(
+            col_ir.get_eventState,
+            scheduler,
+            int_val(eid.get),
+            timeout.get,
+          ) +: block
+      }
     }
     Block(block)(origen)
   }

@@ -107,19 +107,19 @@ case class Task[O <: Generation](
       new DirectRef[N, InstancePredicate[N]](taskPerms.get)
 
     val transformer: Transformer[O] =
-      new Transformer(col_ir, Some(tid), Some(s.get), field)
+      new Transformer(col_ir, Some(tid), Some(s.get), field, Utils.args_of(func).map(p => p -> param))
 
     val taskConstructor: PVLConstructor[N] = create_constructor(
       scheduler_ref,
       perms,
     )
 
-    // TODO: Handle other generated methods
     val runMethod: RunMethod[N] = create_runMethod(transformer)
 
     new ByReferenceClass(
       Seq(),
-      Seq(s.get, taskPerms.get, taskConstructor, runMethod),
+      Seq(s.get, taskPerms.get, taskConstructor, runMethod) ++
+        transformer.get_additional_methods,
       Seq(),
       tt,
     )(Utils.origen(name))
@@ -158,8 +158,24 @@ case class Task[O <: Generation](
   }
 
   private def create_runMethod(
-      transformer: Transformer[O]
-  ): RunMethod[N] = ???
+                                transformer: Transformer[O]
+                              ): RunMethod[N] = {
+    val cond: Expr[N] = transformer.get_default_contract(holding_global_lock = false, runnable = false)
+
+    val wait_loop: Statement[N] = transformer.wait_loop(None, None)
+
+    val body: Statement[N] =
+      Block(Seq[Statement[N]](
+        Lock(Utils.thiz)(Utils.blame)(Utils.origen),
+        wait_loop,
+        transformer.convert(func.body),
+        Unlock(Utils.thiz)(Utils.blame)(Utils.origen),
+      ))(Utils.origen)
+
+    new RunMethod(Some(body), Utils.to_app_contract(cond, cond))(Utils.blame)(
+      Utils.origen
+    )
+  }
 }
 case object Task {
   def of[O <: Generation](

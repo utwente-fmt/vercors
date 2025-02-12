@@ -27,7 +27,7 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
       new InstanceField(tcls, Seq())(Utils.origen(instance_name))
 
     val transformer: Transformer[O] =
-      new Transformer(col_ir, None, None, field)
+      new Transformer(col_ir, None, None, field, Seq())
 
     cls = Some(transform(transformer, class_name))
 

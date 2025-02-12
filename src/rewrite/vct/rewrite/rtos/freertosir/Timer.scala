@@ -39,10 +39,7 @@ case class Timer[O <: Generation](
       case None => "unknownTimer" + idx
     }
 
-  override def convert(
-                        col_ir: COLEncoder[O],
-                        idx: Int,
-  ): ObjectInfo[O] = {
+  override def convert(col_ir: COLEncoder[O], idx: Int): ObjectInfo[O] = {
     val tcls: Type[N] =
       TByReferenceClass(new LazyRef[N, Class[N]](get_cls), Seq())(Utils.origen)
     val field: InstanceField[N] =
@@ -51,7 +48,6 @@ case class Timer[O <: Generation](
     cls = Some(transform(
       new LazyRef(col_ir.get_scheduler),
       tid,
-      eid,
       col_ir,
       field,
       class_name(idx),
@@ -95,20 +91,18 @@ case class Timer[O <: Generation](
   }
 
   def transform(
-                 scheduler_ref: Ref[N, Class[N]],
-                 tid: Int,
-                 assigned_eid: Int,
-                 col_ir: COLEncoder[O],
-                 field: InstanceField[N],
-                 name: String,
+      scheduler_ref: Ref[N, Class[N]],
+      tid: Int,
+      col_ir: COLEncoder[O],
+      field: InstanceField[N],
+      name: String,
   ): Class[N] = {
-    s =
-      Some(new InstanceField(TByValueClass(scheduler_ref, Seq()), Seq())(
-        Utils.origen("s")
-      ))
+    s = Some(new InstanceField(TByValueClass(scheduler_ref, Seq()), Seq())(
+      Utils.origen("s")
+    ))
 
-    timerPerms =
-      Some(new InstancePredicate(
+    timerPerms = Some(
+      new InstancePredicate(
         Seq(),
         Some(
           Star(
@@ -116,25 +110,25 @@ case class Timer[O <: Generation](
             Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen),
           )(Utils.origen)
         ),
-      )(Utils.origen("taskPerms")))
+      )(Utils.origen("taskPerms"))
+    )
 
     val perms: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](timerPerms.get)
 
     val transformer: Transformer[O] =
-      new Transformer(col_ir, Some(tid), s, field)
+      new Transformer(col_ir, Some(tid), s, field, Seq())
 
     val taskConstructor: PVLConstructor[N] = create_constructor(
       scheduler_ref,
       perms,
     )
 
-    // TODO:
     val runMethod: RunMethod[N] = create_runMethod(transformer)
 
     new ByReferenceClass(
       Seq(),
-      Seq(s.get, timerPerms.get, taskConstructor, runMethod),
+      Seq(s.get, timerPerms.get, taskConstructor, runMethod) ++ transformer.get_additional_methods,
       Seq(),
       tt,
     )(Utils.origen(name))
@@ -173,8 +167,42 @@ case class Timer[O <: Generation](
   }
 
   private def create_runMethod(
-      transformer: Transformer[O]
-  ): RunMethod[N] = ???
+      transformer: Transformer[O],
+  ): RunMethod[N] = {
+    val cond: Expr[N] = transformer
+      .get_default_contract(holding_global_lock = false, runnable = false)
+
+    val wait_loop: Statement[N] = transformer.wait_loop(None, None)
+
+    val func_body: Statement[N] = transformer.convert(callback.body)
+
+    val body: Statement[N] = {
+      Block(
+        Seq[Statement[N]](
+          Lock(Utils.thiz)(Utils.blame)(Utils.origen),
+          wait_loop,
+          if (reload)
+             Loop(
+               Utils.skip,
+               tt,
+               Utils.skip,
+               Utils.to_loop_invariant(transformer.get_default_contract(holding_global_lock = true, runnable = true)),
+               Block(Seq[Statement[N]](
+                 func_body,
+                 transformer.wait_loop(Some(eid), Some(Utils.int_val(period)))
+               ))(Utils.origen)
+             )(Utils.origen)
+           else
+             func_body,
+          Unlock(Utils.thiz)(Utils.blame)(Utils.origen)
+        )
+      )(Utils.origen)
+    }
+
+    new RunMethod(Some(body), Utils.to_app_contract(cond, cond))(Utils.blame)(
+      Utils.origen
+    )
+  }
 }
 case object Timer {
   def of[O <: Generation](

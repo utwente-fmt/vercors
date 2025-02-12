@@ -13,6 +13,7 @@ class Transformer[O <: Generation](
     tid: Option[Int],
     scheduler: Option[InstanceField[Rewritten[O]]],
     this_in_scheduler: InstanceField[Rewritten[O]],
+    known_parameters: Seq[(CParam[O], Expr[O])],
 ) extends Rewriter[O] {
   type N = Rewritten[O]
 
@@ -201,14 +202,14 @@ class Transformer[O <: Generation](
             )
           case "vTaskDelay" =>
             wait_loop(
-              col_ir.reserve_event_id,
+              Some(col_ir.reserve_event_id),
               Some(
                 Utils.int_val(Utils.resolve_integer(args.head, "task delay"))
               ),
             )
           case "vTaskDelayUntil" =>
             wait_loop(
-              col_ir.reserve_event_id,
+              Some(col_ir.reserve_event_id),
               Some(
                 Minus(
                   Utils.int_val(Utils.resolve_integer(args.head, "task delay")),
@@ -262,7 +263,7 @@ class Transformer[O <: Generation](
               Utils.int_val(col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])),
               Utils.int_val(col_ir.reserve_event_id),
             )
-          case "taskYIELD" => wait_loop(col_ir.reserve_event_id, None)
+          case "taskYIELD" => wait_loop(Some(col_ir.reserve_event_id), None)
           // Task notification
           case "xTaskNotify" => ???
           case "xTaskNotifyAndQuery" => ???
@@ -630,7 +631,7 @@ class Transformer[O <: Generation](
               ),
             )
         }
-      case AddrOf(e) => ???
+      case AddrOf(e) => expr_to_expr(e)
     }
 
   private def resolve_api_call_stmt(
@@ -798,7 +799,7 @@ class Transformer[O <: Generation](
             Utils.to_loop_invariant(
               get_default_contract(holding_global_lock = true, runnable = true)
             ),
-            wait_loop(eid, None),
+            wait_loop(Some(eid), None),
           )(Utils.origen),
           call,
         )
@@ -816,7 +817,7 @@ class Transformer[O <: Generation](
                 holding_global_lock = true,
                 runnable = true,
               )),
-              wait_loop(eid, Some(Utils.int_val(delay))),
+              wait_loop(Some(eid), Some(Utils.int_val(delay))),
             )(Utils.origen),
             call,
           )
@@ -831,7 +832,7 @@ class Transformer[O <: Generation](
     else
       Block(pre_statements :+ stmt)(Utils.origen)
 
-  def wait_loop(eid: Int, timeout: Option[Expr[N]]): Statement[N] =
+  def wait_loop(eid: Option[Int], timeout: Option[Expr[N]]): Statement[N] =
     Utils.task_wait(
       col_ir,
       Utils.exclude_isr(scheduler),
