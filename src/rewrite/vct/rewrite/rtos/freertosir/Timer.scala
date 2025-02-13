@@ -174,7 +174,7 @@ case class Timer[O <: Generation](
 
     val wait_loop: Statement[N] = transformer.wait_loop(None, None)
 
-    val func_body: Statement[N] = transformer.convert(callback.body)
+    val func_body: Statement[N] = transformer.dispatch(callback.body)
 
     val body: Statement[N] = {
       Block(

@@ -168,7 +168,7 @@ case class Task[O <: Generation](
       Block(Seq[Statement[N]](
         Lock(Utils.thiz)(Utils.blame)(Utils.origen),
         wait_loop,
-        transformer.convert(func.body),
+        transformer.dispatch(func.body),
         Unlock(Utils.thiz)(Utils.blame)(Utils.origen),
       ))(Utils.origen)
 

@@ -134,7 +134,7 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
     val loop_body: Statement[N] =
       Block(Seq[Statement[N]](
         Lock(Utils.thiz)(Utils.blame)(Utils.origen),
-        transformer.convert(isr.body),
+        transformer.dispatch(isr.body),
         Unlock(Utils.thiz)(Utils.blame)(Utils.origen),
       ))(Utils.origen)
 
