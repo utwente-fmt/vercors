@@ -128,7 +128,8 @@ case class Timer[O <: Generation](
 
     new ByReferenceClass(
       Seq(),
-      Seq(s.get, timerPerms.get, taskConstructor, runMethod) ++ transformer.get_additional_methods,
+      Seq(s.get, timerPerms.get, taskConstructor, runMethod) ++
+        transformer.get_additional_methods,
       Seq(),
       tt,
     )(Utils.origen(name))
@@ -166,9 +167,7 @@ case class Timer[O <: Generation](
     )(Utils.blame)(Utils.origen)
   }
 
-  private def create_runMethod(
-      transformer: Transformer[O],
-  ): RunMethod[N] = {
+  private def create_runMethod(transformer: Transformer[O]): RunMethod[N] = {
     val cond: Expr[N] = transformer
       .get_default_contract(holding_global_lock = false, runnable = false)
 
@@ -177,26 +176,27 @@ case class Timer[O <: Generation](
     val func_body: Statement[N] = transformer.dispatch(callback.body)
 
     val body: Statement[N] = {
-      Block(
-        Seq[Statement[N]](
-          Lock(Utils.thiz)(Utils.blame)(Utils.origen),
-          wait_loop,
-          if (reload)
-             Loop(
-               Utils.skip,
-               tt,
-               Utils.skip,
-               Utils.to_loop_invariant(transformer.get_default_contract(holding_global_lock = true, runnable = true)),
-               Block(Seq[Statement[N]](
-                 func_body,
-                 transformer.wait_loop(Some(eid), Some(Utils.int_val(period)))
-               ))(Utils.origen)
-             )(Utils.origen)
-           else
-             func_body,
-          Unlock(Utils.thiz)(Utils.blame)(Utils.origen)
-        )
-      )(Utils.origen)
+      Block(Seq[Statement[N]](
+        Lock(Utils.thiz)(Utils.blame)(Utils.origen),
+        wait_loop,
+        if (reload)
+          Loop(
+            Utils.skip,
+            tt,
+            Utils.skip,
+            Utils.to_loop_invariant(transformer.get_default_contract(
+              holding_global_lock = true,
+              runnable = true,
+            )),
+            Block(Seq[Statement[N]](
+              func_body,
+              transformer.wait_loop(Some(eid), Some(Utils.int_val(period))),
+            ))(Utils.origen),
+          )(Utils.origen)
+        else
+          func_body,
+        Unlock(Utils.thiz)(Utils.blame)(Utils.origen),
+      ))(Utils.origen)
     }
 
     new RunMethod(Some(body), Utils.to_app_contract(cond, cond))(Utils.blame)(

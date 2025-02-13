@@ -26,46 +26,55 @@ class Transformer[O <: Generation](
   def get_additional_methods: Seq[InstanceMethod[N]] =
     Seq.from(additional_methods.values)
 
-  override def dispatch(in: Statement[O]): Statement[N] = in match {
-    case Block(statements) => Block(statements.map(s => dispatch(s)))(in.o)
-    case Scope(_, body) => Scope(Seq(), dispatch(body))(in.o)
-    case Branch(branches) =>
-      val expr_evals: Seq[(Seq[Statement[N]], Expr[N], Statement[N])] =
-        branches.map(t =>
-          collect_pre_statements(t._1) match { case (s, e) => (s, e, dispatch(t._2)) }
-        )
-      val pre_statements: Seq[Statement[N]] = expr_evals.flatMap(t => t._1)
-      val branch: Branch[N] = Branch(expr_evals.map(t => t._2 -> t._3))(in.o)
-      combine_with_pre_statements(pre_statements, branch)
-    case Loop(init, cond, update, contract, body) =>
-      val (pre_statements: Seq[Statement[N]], cond_eval: Expr[N]) =
-        collect_pre_statements(cond)
-      val loop: Loop[N] =
-        Loop(
-          dispatch(init),
-          cond_eval,
-          dispatch(update),
-          dispatch(contract),
-          dispatch(body),
-        )(in.o)
-      combine_with_pre_statements(pre_statements, loop)
-    case Eval(expr) => expr_to_statement(expr)
-    case CDeclarationStatement(decl) => ???
-    // TODO: Other C statements?
-    case _ => in.rewriteDefault()
-  }
+  override def dispatch(in: Statement[O]): Statement[N] =
+    in match {
+      case Block(statements) => Block(statements.map(s => dispatch(s)))(in.o)
+      case Scope(_, body) => Scope(Seq(), dispatch(body))(in.o)
+      case Branch(branches) =>
+        val expr_evals: Seq[(Seq[Statement[N]], Expr[N], Statement[N])] =
+          branches.map(t =>
+            collect_pre_statements(t._1) match {
+              case (s, e) => (s, e, dispatch(t._2))
+            }
+          )
+        val pre_statements: Seq[Statement[N]] = expr_evals.flatMap(t => t._1)
+        val branch: Branch[N] = Branch(expr_evals.map(t => t._2 -> t._3))(in.o)
+        combine_with_pre_statements(pre_statements, branch)
+      case Loop(init, cond, update, contract, body) =>
+        val (pre_statements: Seq[Statement[N]], cond_eval: Expr[N]) =
+          collect_pre_statements(cond)
+        val loop: Loop[N] =
+          Loop(
+            dispatch(init),
+            cond_eval,
+            dispatch(update),
+            dispatch(contract),
+            dispatch(body),
+          )(in.o)
+        combine_with_pre_statements(pre_statements, loop)
+      case Eval(expr) => expr_to_statement(expr)
+      case CDeclarationStatement(decl) => ???
+      // TODO: Other C statements?
+      case _ => in.rewriteDefault()
+    }
 
   private def expr_to_statement(in: Expr[O]): Statement[N] =
     in match {
       case PreAssignExpression(target, value) =>
-        val (v_pre: Seq[Statement[N]], v_expr: Expr[N]) = collect_pre_statements(value)
+        val (v_pre: Seq[Statement[N]], v_expr: Expr[N]) =
+          collect_pre_statements(value)
         val assign: Statement[N] =
-          Assign(collect_pre_statements(target)._2, v_expr)(Utils.blame)(Utils.origen)
+          Assign(collect_pre_statements(target)._2, v_expr)(Utils.blame)(
+            Utils.origen
+          )
         combine_with_pre_statements(v_pre, assign)
       case PostAssignExpression(target, value) =>
-        val (v_pre: Seq[Statement[N]], v_expr: Expr[N]) = collect_pre_statements(value)
+        val (v_pre: Seq[Statement[N]], v_expr: Expr[N]) =
+          collect_pre_statements(value)
         val assign: Statement[N] =
-          Assign(collect_pre_statements(target)._2, v_expr)(Utils.blame)(Utils.origen)
+          Assign(collect_pre_statements(target)._2, v_expr)(Utils.blame)(
+            Utils.origen
+          )
         combine_with_pre_statements(v_pre, assign)
       case CInvocation(applicable, args, _, _) =>
         Utils.get_applicable_name(applicable) match {
@@ -331,26 +340,39 @@ class Transformer[O <: Generation](
             )
         }
       case _ =>
-        val (pre_stmts: Seq[Statement[N]], expr: Expr[N]) = collect_pre_statements(in)
+        val (pre_stmts: Seq[Statement[N]], expr: Expr[N]) =
+          collect_pre_statements(in)
         combine_with_pre_statements(pre_stmts, Eval(expr)(Utils.origen))
     }
 
-  private def collect_pre_statements(expr: Expr[O]): (Seq[Statement[N]], Expr[N]) = {
+  private def collect_pre_statements(
+      expr: Expr[O]
+  ): (Seq[Statement[N]], Expr[N]) = {
     val buffer: mutable.ArrayBuffer[Statement[N]] = mutable.ArrayBuffer()
     val result: Expr[N] = pre_statement_buffer.having(buffer)(dispatch(expr))
     (buffer.toSeq, result)
   }
 
+  private def add_to_pre_statement_buffer(
+      stmts: Seq[Statement[N]],
+      res: Expr[N],
+  ): Expr[N] =
+    pre_statement_buffer.topOption match {
+      case Some(buffer) => buffer.addAll(stmts); res
+      case None => throw new IllegalStateException("No pre-statement buffer!")
+    }
+
   private def combine_with_pre_statements(
-                                           pre_statements: Seq[Statement[N]],
-                                           stmt: Statement[N],
-                                         ): Statement[N] =
+      pre_statements: Seq[Statement[N]],
+      stmt: Statement[N],
+  ): Statement[N] =
     if (pre_statements.isEmpty)
       stmt
     else
       Block(pre_statements :+ stmt)(Utils.origen)
 
-  override def dispatch(in: Expr[O]): Expr[N] = in match {
+  override def dispatch(in: Expr[O]): Expr[N] =
+    in match {
       case CLocal(name) =>
         name match {
           case "pdFALSE" | "pdFAIL" => ff
@@ -358,7 +380,8 @@ class Transformer[O <: Generation](
           case _ => ??? // TODO: Handle variable conversion!
         }
       case PreAssignExpression(target, value) =>
-        val (v_pre: Seq[Statement[N]], v_expr: Expr[N]) = collect_pre_statements(value)
+        val (v_pre: Seq[Statement[N]], v_expr: Expr[N]) =
+          collect_pre_statements(value)
         val transformed_target: Expr[N] = dispatch(target)
         add_to_pre_statement_buffer(
           v_pre :+
@@ -366,7 +389,8 @@ class Transformer[O <: Generation](
           transformed_target,
         )
       case PostAssignExpression(target, value) =>
-        val (v_pre: Seq[Statement[N]], v_expr: Expr[N]) = collect_pre_statements(value)
+        val (v_pre: Seq[Statement[N]], v_expr: Expr[N]) =
+          collect_pre_statements(value)
         val transformed_target: Expr[N] = dispatch(target)
         val new_var: Variable[N] = new Variable(v_expr.t)(Utils.origen)
         val pre_statements: Seq[Statement[N]] =
@@ -405,93 +429,101 @@ class Transformer[O <: Generation](
               /*TODO*/ "xStreamBufferBytesAvailable" | "xStreamBufferIsEmpty" |
               "xStreamBufferIsFull" | "xStreamBufferSpacesAvailable" |
               /*TODO*/ "xStreamBufferReset" | /*TODO*/ "xStreamBufferSetTriggerLevel" =>
-            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) = resolve_api_call_expr(
-              args.head.asInstanceOf[CLocal[O]],
-              Utils.get_applicable_name(applicable),
-              None,
-              None,
-              None,
-              None,
-            )
+            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) =
+              resolve_api_call_expr(
+                args.head.asInstanceOf[CLocal[O]],
+                Utils.get_applicable_name(applicable),
+                None,
+                None,
+                None,
+                None,
+              )
             add_to_pre_statement_buffer(pre_stmts, call)
           case "xQueueSendToBack" | "xQueueSendToFront" =>
-            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) = resolve_api_call_expr(
-              args.head.asInstanceOf[CLocal[O]],
-              Utils.get_applicable_name(applicable),
-              Some(args(1)),
-              Some(args(2)),
-              Some(col_ir.get_read_event),
-              None,
-            )
+            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) =
+              resolve_api_call_expr(
+                args.head.asInstanceOf[CLocal[O]],
+                Utils.get_applicable_name(applicable),
+                Some(args(1)),
+                Some(args(2)),
+                Some(col_ir.get_read_event),
+                None,
+              )
             add_to_pre_statement_buffer(pre_stmts, call)
           case "xQueueOverwrite" =>
-            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) = resolve_api_call_expr(
-              args.head.asInstanceOf[CLocal[O]],
-              Utils.get_applicable_name(applicable),
-              Some(args(1)),
-              None,
-              None,
-              None,
-            )
+            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) =
+              resolve_api_call_expr(
+                args.head.asInstanceOf[CLocal[O]],
+                Utils.get_applicable_name(applicable),
+                Some(args(1)),
+                None,
+                None,
+                None,
+              )
             add_to_pre_statement_buffer(pre_stmts, call)
           case "xQueueReceive" | "xQueuePeek" =>
-            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) = resolve_api_call_expr(
-              args.head.asInstanceOf[CLocal[O]],
-              Utils.get_applicable_name(applicable),
-              None,
-              Some(args(2)),
-              Some(col_ir.get_write_event),
-              Some(args(1)),
-            )
+            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) =
+              resolve_api_call_expr(
+                args.head.asInstanceOf[CLocal[O]],
+                Utils.get_applicable_name(applicable),
+                None,
+                Some(args(2)),
+                Some(col_ir.get_write_event),
+                Some(args(1)),
+              )
             add_to_pre_statement_buffer(pre_stmts, call)
           case "xSemaphoreGive" | "xSemaphoreGiveRecursive" =>
-            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) = resolve_api_call_expr(
-              args.head.asInstanceOf[CLocal[O]],
-              Utils.get_applicable_name(applicable),
-              Some(Utils.int_val(tid.getOrElse(
-                throw new IllegalStateException(
-                  "Cannot invoke semaphore from ISR!"
-                )
-              ))),
-              None,
-              None,
-              None,
-            )
+            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) =
+              resolve_api_call_expr(
+                args.head.asInstanceOf[CLocal[O]],
+                Utils.get_applicable_name(applicable),
+                Some(Utils.int_val(tid.getOrElse(
+                  throw new IllegalStateException(
+                    "Cannot invoke semaphore from ISR!"
+                  )
+                ))),
+                None,
+                None,
+                None,
+              )
             add_to_pre_statement_buffer(pre_stmts, call)
           case "xSemaphoreTakeRecursive" | "xSemaphoreTake" =>
-            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) = resolve_api_call_expr(
-              args.head.asInstanceOf[CLocal[O]],
-              Utils.get_applicable_name(applicable),
-              Some(Utils.int_val(tid.getOrElse(
-                throw new IllegalStateException(
-                  "Cannot invoke semaphore from ISR!"
-                )
-              ))),
-              Some(args(1)),
-              Some(col_ir.get_write_event),
-              None,
-            )
+            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) =
+              resolve_api_call_expr(
+                args.head.asInstanceOf[CLocal[O]],
+                Utils.get_applicable_name(applicable),
+                Some(Utils.int_val(tid.getOrElse(
+                  throw new IllegalStateException(
+                    "Cannot invoke semaphore from ISR!"
+                  )
+                ))),
+                Some(args(1)),
+                Some(col_ir.get_write_event),
+                None,
+              )
             add_to_pre_statement_buffer(pre_stmts, call)
           // TODO: Support for these needs pointer resolution in the variable handling!
           case "xMessageBufferSend" | "xStreamBufferSend" =>
-            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) = resolve_api_call_expr(
-              args.head.asInstanceOf[CLocal[O]],
-              Utils.get_applicable_name(applicable),
-              Some(args(1)),
-              Some(args(3)),
-              Some(col_ir.get_read_event),
-              None,
-            )
+            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) =
+              resolve_api_call_expr(
+                args.head.asInstanceOf[CLocal[O]],
+                Utils.get_applicable_name(applicable),
+                Some(args(1)),
+                Some(args(3)),
+                Some(col_ir.get_read_event),
+                None,
+              )
             add_to_pre_statement_buffer(pre_stmts, call)
           case "xMessageBufferReceive" | "xStreamBufferReceive" =>
-            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) = resolve_api_call_expr(
-              args.head.asInstanceOf[CLocal[O]],
-              Utils.get_applicable_name(applicable),
-              None,
-              Some(args(3)),
-              Some(col_ir.get_read_event),
-              Some(args(1)),
-            )
+            val (pre_stmts: Seq[Statement[N]], call: Expr[N]) =
+              resolve_api_call_expr(
+                args.head.asInstanceOf[CLocal[O]],
+                Utils.get_applicable_name(applicable),
+                None,
+                Some(args(3)),
+                Some(col_ir.get_read_event),
+                Some(args(1)),
+              )
             add_to_pre_statement_buffer(pre_stmts, call)
           // Task functions
           case "xTaskAbortDelay" =>
@@ -523,11 +555,12 @@ class Transformer[O <: Generation](
             )
           case "xTaskGetCurrentTaskHandle" => Utils.int_val(tid.get)
           case "uxTaskGetNumberOfTasks" => Utils.int_val(col_ir.get_n_tasks)
-          case "uxTaskPriorityGet" => Utils.scheduling_variable_entry(
-                col_ir.get_taskPriority,
-                Utils.exclude_isr(scheduler),
-                Utils.int_val(col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])),
-              )
+          case "uxTaskPriorityGet" =>
+            Utils.scheduling_variable_entry(
+              col_ir.get_taskPriority,
+              Utils.exclude_isr(scheduler),
+              Utils.int_val(col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])),
+            )
           case "vTaskResume" =>
             val tid: Int = col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])
             add_to_pre_statement_buffer(
@@ -572,22 +605,25 @@ class Transformer[O <: Generation](
           case "ulTaskNotifyTake" => ???
           case "xTaskNotifyWait" => ???
           // Timer functions
-          case "xTimerGetPeriod" => Utils.int_val(
-                col_ir.get_timer_period(args.head.asInstanceOf[CLocal[O]])
-              )
-          case "uxTimerGetReloadMode" => BooleanValue(
-                col_ir.get_timer_reload(args.head.asInstanceOf[CLocal[O]])
-              )(Utils.origen)
-          case "xTimerIsTimerActive" => GreaterEq(
-                Utils.scheduling_variable_entry(
-                  col_ir.get_eventState,
-                  Utils.exclude_isr(scheduler),
-                  Utils.int_val(
-                    col_ir.get_timer_eid(args.head.asInstanceOf[CLocal[O]])
-                  ),
+          case "xTimerGetPeriod" =>
+            Utils.int_val(
+              col_ir.get_timer_period(args.head.asInstanceOf[CLocal[O]])
+            )
+          case "uxTimerGetReloadMode" =>
+            BooleanValue(
+              col_ir.get_timer_reload(args.head.asInstanceOf[CLocal[O]])
+            )(Utils.origen)
+          case "xTimerIsTimerActive" =>
+            GreaterEq(
+              Utils.scheduling_variable_entry(
+                col_ir.get_eventState,
+                Utils.exclude_isr(scheduler),
+                Utils.int_val(
+                  col_ir.get_timer_eid(args.head.asInstanceOf[CLocal[O]])
                 ),
-                Utils.int_val(0),
-              )(Utils.origen)
+              ),
+              Utils.int_val(0),
+            )(Utils.origen)
           case "xTimerReset" =>
             val cvar: CLocal[O] = args.head.asInstanceOf[CLocal[O]]
             add_to_pre_statement_buffer(
@@ -635,12 +671,6 @@ class Transformer[O <: Generation](
         }
       case AddrOf(e) => dispatch(e)
       // TODO: More C expressions?
-    }
-
-  private def add_to_pre_statement_buffer(stmts: Seq[Statement[N]], res: Expr[N]): Expr[N] =
-    pre_statement_buffer.topOption match {
-      case Some(buffer) => buffer.addAll(stmts); res
-      case None => throw new IllegalStateException("No pre-statement buffer!")
     }
 
   private def resolve_api_call_stmt(

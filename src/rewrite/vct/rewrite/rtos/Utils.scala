@@ -186,12 +186,13 @@ case object Utils {
       case _: CLong[O] => tint[Rewritten[O]]
       case _: CBool[O] => tbool[Rewritten[O]]
       // TODO: case t: CTypedefName[O] => ???
-    }.getOrElse(throw new IllegalArgumentException("No or unsupported return type!"))
+    }.getOrElse(
+      throw new IllegalArgumentException("No or unsupported return type!")
+    )
   }
 
-  def args_of[O](f: CFunctionDefinition[O]): Seq[CParam[O]] = f.declarator match {
-    case CTypedFunctionDeclarator(params, _, _) => params
-  }
+  def args_of[O](f: CFunctionDefinition[O]): Seq[CParam[O]] =
+    f.declarator match { case CTypedFunctionDeclarator(params, _, _) => params }
 
   def thiz[N]: AmbiguousThis[N] = AmbiguousThis()(origen)
   def nul[N]: Null[N] = Null()(origen)
@@ -338,12 +339,12 @@ case object Utils {
   }
 
   def task_wait[O <: Generation](
-                                  col_ir: COLEncoder[O],
-                                  scheduler: InstanceField[Rewritten[O]],
-                                  invariant: Expr[Rewritten[O]],
-                                  tid: Int,
-                                  eid: Option[Int],
-                                  timeout: Option[Expr[Rewritten[O]]],
+      col_ir: COLEncoder[O],
+      scheduler: InstanceField[Rewritten[O]],
+      invariant: Expr[Rewritten[O]],
+      tid: Int,
+      eid: Option[Int],
+      timeout: Option[Expr[Rewritten[O]]],
   ): Statement[Rewritten[O]] = {
     var block: Seq[Statement[Rewritten[O]]] = Seq(
       Loop(
@@ -362,23 +363,24 @@ case object Utils {
           Unlock(deref_of(scheduler))(blame)(origen),
           Lock(deref_of(scheduler))(blame)(origen),
         ))(origen),
-      )(origen),
+      )(origen)
     )
     if (eid.nonEmpty) {
-      block = Seq[Statement[Rewritten[O]]](
-        update_scheduling_variable(
-          col_ir.get_taskState,
-          scheduler,
-          int_val(tid),
-          int_val(eid.get),
-        ),
-        update_scheduling_variable(
-          col_ir.get_taskWaitTime,
-          scheduler,
-          int_val(tid),
-          int_val(0),
-        ),
-      ) ++ block
+      block =
+        Seq[Statement[Rewritten[O]]](
+          update_scheduling_variable(
+            col_ir.get_taskState,
+            scheduler,
+            int_val(tid),
+            int_val(eid.get),
+          ),
+          update_scheduling_variable(
+            col_ir.get_taskWaitTime,
+            scheduler,
+            int_val(tid),
+            int_val(0),
+          ),
+        ) ++ block
       if (timeout.nonEmpty) {
         block =
           update_scheduling_variable(

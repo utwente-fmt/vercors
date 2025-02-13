@@ -63,8 +63,10 @@ class COLEncoder[O <: Generation](
     .empty[CLocal[O], Int]
   private val var_to_timer_event: mutable.Map[CLocal[O], Int] = mutable.Map
     .empty[CLocal[O], Int]
-  private val var_to_timer_period: mutable.Map[CLocal[O], Int] = mutable.Map.empty[CLocal[O], Int]
-  private val var_to_timer_reload: mutable.Map[CLocal[O], Boolean] = mutable.Map.empty[CLocal[O], Boolean]
+  private val var_to_timer_period: mutable.Map[CLocal[O], Int] = mutable.Map
+    .empty[CLocal[O], Int]
+  private val var_to_timer_reload: mutable.Map[CLocal[O], Boolean] = mutable.Map
+    .empty[CLocal[O], Boolean]
   private var n_events: Int = 0
   private var n_tasks: Int = 0
 
@@ -113,7 +115,8 @@ class COLEncoder[O <: Generation](
       val tid = n_tasks
       n_tasks += 1
       t.set_tid(tid)
-      if (t.decl.nonEmpty) var_to_tid.put(t.decl.get, tid)
+      if (t.decl.nonEmpty)
+        var_to_tid.put(t.decl.get, tid)
     })
     timers.foreach(t => {
       val tid = n_tasks
@@ -235,16 +238,18 @@ class COLEncoder[O <: Generation](
     var_to_timer_period.getOrElse(
       variable,
       throw new IllegalStateException(
-        "Trying to get timer period for " + variable.name + " but it does not have one!"
-      )
+        "Trying to get timer period for " + variable.name +
+          " but it does not have one!"
+      ),
     )
 
   def get_timer_reload(variable: CLocal[O]): Boolean =
     var_to_timer_reload.getOrElse(
       variable,
       throw new IllegalStateException(
-        "Trying to get timer reload status for " + variable.name + " but it does not have one!"
-      )
+        "Trying to get timer reload status for " + variable.name +
+          " but it does not have one!"
+      ),
     )
 
   def add_isr_lock(lock: InstanceField[N]): Unit = isr_locks = isr_locks :+ lock

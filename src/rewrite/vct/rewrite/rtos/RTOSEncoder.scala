@@ -9,10 +9,13 @@ object RTOSEncoder {
       c_model: Seq[GlobalDeclaration[O]]
   ): Seq[GlobalDeclaration[Rewritten[O]]] = {
     val global_vars: Seq[CGlobalDeclaration[O]] = c_model.head.collect {
-      case d: CGlobalDeclaration[O] if d.decl.inits.nonEmpty && (d.decl.inits.head.decl match {
-        case _: CName[O] => true
-        case _ => false
-      }) => d
+      case d: CGlobalDeclaration[O]
+          if d.decl.inits.nonEmpty &&
+            (d.decl.inits.head.decl match {
+              case _: CName[O] => true
+              case _ => false
+            }) =>
+        d
     }
     val def_methods: Seq[CFunctionDefinition[O]] = c_model.head.collect {
       case f: CFunctionDefinition[O] => f
@@ -47,8 +50,7 @@ object RTOSEncoder {
     Utils.resolve_freertos_constructs[O, Task[O]](
       stmts,
       "vesuvTaskCreate",
-      (v: Option[CLocal[O]], inv: CInvocation[O]) =>
-        Task.of(v, inv, decls),
+      (v: Option[CLocal[O]], inv: CInvocation[O]) => Task.of(v, inv, decls),
     )
 
   private def get_timers[O <: Generation](
@@ -58,8 +60,7 @@ object RTOSEncoder {
     val timers = Utils.resolve_freertos_constructs[O, Timer[O]](
       stmts,
       "vesuvTimerCreate",
-      (v: Option[CLocal[O]], inv: CInvocation[O]) =>
-        Timer.of(v, inv, decls),
+      (v: Option[CLocal[O]], inv: CInvocation[O]) => Timer.of(v, inv, decls),
     )
     activate(stmts, timers)
     timers
@@ -84,7 +85,9 @@ object RTOSEncoder {
       (v: Option[CLocal[O]], _: CInvocation[O]) => EventGroup(v),
     )
 
-  private def get_semaphores[O <: Generation](stmts: Seq[Expr[O]]): Seq[Semaphore[O]] =
+  private def get_semaphores[O <: Generation](
+      stmts: Seq[Expr[O]]
+  ): Seq[Semaphore[O]] =
     Utils.resolve_freertos_constructs[O, Semaphore[O]](
       stmts,
       "xSemaphoreCreateBinary",
@@ -114,8 +117,7 @@ object RTOSEncoder {
     Utils.resolve_freertos_constructs[O, StreamBuffer[O]](
       stmts,
       "xStreamBufferCreate",
-      (v: Option[CLocal[O]], inv: CInvocation[O]) =>
-        StreamBuffer.of(v, inv),
+      (v: Option[CLocal[O]], inv: CInvocation[O]) => StreamBuffer.of(v, inv),
     )
 
   private def get_message_buffers[O <: Generation](
@@ -124,8 +126,7 @@ object RTOSEncoder {
     Utils.resolve_freertos_constructs[O, MessageBuffer[O]](
       stmts,
       "xMessageBufferCreate",
-      (v: Option[CLocal[O]], inv: CInvocation[O]) =>
-        MessageBuffer.of(v, inv),
+      (v: Option[CLocal[O]], inv: CInvocation[O]) => MessageBuffer.of(v, inv),
     )
 
   private def activate[O <: Generation](

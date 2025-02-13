@@ -34,10 +34,7 @@ case class MessageBuffer[O <: Generation](decl: Option[CLocal[O]], size: Int)
       case None => "unknownMBuffer" + idx
     }
 
-  override def convert(
-                        col_ir: COLEncoder[O],
-                        idx: Int,
-  ): ObjectInfo[O] = {
+  override def convert(col_ir: COLEncoder[O], idx: Int): ObjectInfo[O] = {
     val read_event: Int = col_ir.reserve_event_id
     val write_event: Int = col_ir.reserve_event_id
 
@@ -84,8 +81,12 @@ case class MessageBuffer[O <: Generation](decl: Option[CLocal[O]], size: Int)
         xMessageBufferReceive.get,
         _ => Eq(Utils.size(messageSizes.get), Utils.int_val(0))(Utils.origen),
       )
-      col_ir
-        .add_to_api(decl.get, "xMessageBufferSend", field, xMessageBufferSend.get)
+      col_ir.add_to_api(
+        decl.get,
+        "xMessageBufferSend",
+        field,
+        xMessageBufferSend.get,
+      )
       col_ir.add_call_condition(
         xMessageBufferSend.get,
         args =>
@@ -146,18 +147,24 @@ case class MessageBuffer[O <: Generation](decl: Option[CLocal[O]], size: Int)
       write_event: Int,
       name: String,
   ): Class[N] = {
-    s =
-      Some(new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
-        Utils.origen("s")
-      ))
-    messageSizes =
-      Some(new InstanceField(Utils.tseqint, Seq())(Utils.origen("messageSizes")))
-    buffer = Some(new InstanceField(Utils.tseqint, Seq())(Utils.origen("buffer")))
-    maxSize = Some(new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize")))
-    output = Some(new InstanceField(Utils.tseqint, Seq())(Utils.origen("output")))
+    s = Some(new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
+      Utils.origen("s")
+    ))
+    messageSizes = Some(
+      new InstanceField(Utils.tseqint, Seq())(Utils.origen("messageSizes"))
+    )
+    buffer = Some(
+      new InstanceField(Utils.tseqint, Seq())(Utils.origen("buffer"))
+    )
+    maxSize = Some(
+      new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize"))
+    )
+    output = Some(
+      new InstanceField(Utils.tseqint, Seq())(Utils.origen("output"))
+    )
 
-    mBufferPerms =
-      Some(new InstancePredicate(
+    mBufferPerms = Some(
+      new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
           Perm(Utils.loc_of(s.get), Utils.read)(Utils.origen),
@@ -179,7 +186,8 @@ case class MessageBuffer[O <: Generation](decl: Option[CLocal[O]], size: Int)
         ))),
         false,
         true,
-      )(Utils.origen("mBufferPerms")))
+      )(Utils.origen("mBufferPerms"))
+    )
 
     val perms: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](mBufferPerms.get)
@@ -193,7 +201,9 @@ case class MessageBuffer[O <: Generation](decl: Option[CLocal[O]], size: Int)
       scheduler_ref,
     )
 
-    xMessageBufferIsEmpty = Some(create_xMessageBufferIsEmpty(messageSizes.get, perms))
+    xMessageBufferIsEmpty = Some(
+      create_xMessageBufferIsEmpty(messageSizes.get, perms)
+    )
     xMessageBufferIsFull = Some(create_xMessageBufferIsFull(
       messageSizes.get,
       buffer.get,

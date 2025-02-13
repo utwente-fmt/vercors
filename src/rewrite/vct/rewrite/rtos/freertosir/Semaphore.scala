@@ -26,10 +26,7 @@ sealed trait Semaphore[O <: Generation] extends FreeRTOSConstruct[O] {
       case None => "unknown" + cls_type + idx
     }
 
-  override def convert(
-                        col_ir: COLEncoder[O],
-                        idx: Int,
-  ): ObjectInfo[O] = {
+  override def convert(col_ir: COLEncoder[O], idx: Int): ObjectInfo[O] = {
     val available_event: Int = col_ir.reserve_event_id
 
     val cls: Class[N] = transform(
@@ -83,8 +80,10 @@ sealed trait Semaphore[O <: Generation] extends FreeRTOSConstruct[O] {
   ): Class[N]
 }
 
-case class BinarySemaphore[O <: Generation](decl: Option[CLocal[O]], is_mutex: Boolean)
-    extends Semaphore[O] {
+case class BinarySemaphore[O <: Generation](
+    decl: Option[CLocal[O]],
+    is_mutex: Boolean,
+) extends Semaphore[O] {
   override def get_decl: Option[CLocal[O]] = decl
   override def cls_type: String =
     if (is_mutex)
@@ -104,7 +103,9 @@ case class BinarySemaphore[O <: Generation](decl: Option[CLocal[O]], is_mutex: B
       if (is_mutex)
         Utils.deref_of(isMutex.get, Some(Utils.deref_of(field)))
       else
-        Not(Utils.deref_of(isMutex.get, Some(Utils.deref_of(field))))(Utils.origen),
+        Not(Utils.deref_of(isMutex.get, Some(Utils.deref_of(field))))(
+          Utils.origen
+        ),
     )
   override def additional_constructor_args: Seq[Expr[N]] =
     Seq(BooleanValue(value = is_mutex)(Utils.origen))
@@ -140,17 +141,18 @@ case class BinarySemaphore[O <: Generation](decl: Option[CLocal[O]], is_mutex: B
       available_event: Int,
       name: String,
   ): Class[N] = {
-    s =
-      Some(new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
-        Utils.origen("s")
-      ))
-    isMutex = Some(new InstanceField(Utils.tbool, Seq())(Utils.origen("isMutex")))
+    s = Some(new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
+      Utils.origen("s")
+    ))
+    isMutex = Some(
+      new InstanceField(Utils.tbool, Seq())(Utils.origen("isMutex"))
+    )
     task = Some(new InstanceField(Utils.tint, Seq())(Utils.origen("task")))
     val originalPriority: InstanceField[N] =
       new InstanceField(Utils.tint, Seq())(Utils.origen("originalPriority"))
 
-    semaphorePerms =
-      Some(new InstancePredicate(
+    semaphorePerms = Some(
+      new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
           Perm(Utils.loc_of(s.get), Utils.read)(Utils.origen),
@@ -161,7 +163,8 @@ case class BinarySemaphore[O <: Generation](decl: Option[CLocal[O]], is_mutex: B
         ))),
         false,
         true,
-      )(Utils.origen("semaphorePerms")))
+      )(Utils.origen("semaphorePerms"))
+    )
 
     val perms: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](semaphorePerms.get)
@@ -176,7 +179,9 @@ case class BinarySemaphore[O <: Generation](decl: Option[CLocal[O]], is_mutex: B
     )
 
     uxSemaphoreGetCount = Some(create_uxSemaphoreGetCount(task.get, perms))
-    xSemaphoreGetMutexHolder = Some(create_xSemaphoreGetMutexHolder(task.get, perms))
+    xSemaphoreGetMutexHolder = Some(
+      create_xSemaphoreGetMutexHolder(task.get, perms)
+    )
     xSemaphoreGive = Some(create_xSemaphoreGive(
       s.get,
       isMutex.get,
@@ -636,17 +641,16 @@ case class RecursiveMutex[O <: Generation](decl: Option[CLocal[O]])
       available_event: Int,
       name: String,
   ): Class[N] = {
-    s =
-      Some(new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
-        Utils.origen("s")
-      ))
+    s = Some(new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
+      Utils.origen("s")
+    ))
     val recursionDepth: InstanceField[N] =
       new InstanceField(Utils.tint, Seq())(Utils.origen("recursionDepth"))
     task = Some(new InstanceField(Utils.tint, Seq())(Utils.origen("task")))
     val originalPriority: InstanceField[N] =
       new InstanceField(Utils.tint, Seq())(Utils.origen("originalPriority"))
-    mutexPerms =
-      Some(new InstancePredicate(
+    mutexPerms = Some(
+      new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
           Perm(Utils.loc_of(s.get), Utils.read)(Utils.origen),
@@ -660,7 +664,8 @@ case class RecursiveMutex[O <: Generation](decl: Option[CLocal[O]])
         ))),
         false,
         true,
-      )(Utils.origen("mutexPerms")))
+      )(Utils.origen("mutexPerms"))
+    )
 
     val perms: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](mutexPerms.get)
@@ -675,7 +680,9 @@ case class RecursiveMutex[O <: Generation](decl: Option[CLocal[O]])
     )
 
     uxSemaphoreGetCount = Some(create_uxSemaphoreGetCount(task.get, perms))
-    xSemaphoreGetMutexHolder = Some(create_xSemaphoreGetMutexHolder(task.get, perms))
+    xSemaphoreGetMutexHolder = Some(
+      create_xSemaphoreGetMutexHolder(task.get, perms)
+    )
     xSemaphoreGiveRecursive = Some(create_xSemaphoreGiveRecursive(
       s.get,
       recursionDepth,

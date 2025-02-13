@@ -35,10 +35,7 @@ case class StreamBuffer[O <: Generation](
       case None => "unknownSBuffer" + idx
     }
 
-  override def convert(
-                        col_ir: COLEncoder[O],
-                        idx: Int,
-  ): ObjectInfo[O] = {
+  override def convert(col_ir: COLEncoder[O], idx: Int): ObjectInfo[O] = {
     val read_event: Int = col_ir.reserve_event_id
     val write_event: Int = col_ir.reserve_event_id
 
@@ -63,8 +60,12 @@ case class StreamBuffer[O <: Generation](
         field,
         xStreamBufferIsEmpty.get,
       )
-      col_ir
-        .add_to_api(decl.get, "xStreamBufferIsFull", field, xStreamBufferIsFull.get)
+      col_ir.add_to_api(
+        decl.get,
+        "xStreamBufferIsFull",
+        field,
+        xStreamBufferIsFull.get,
+      )
       col_ir.add_to_api(
         decl.get,
         "xStreamBufferSpacesAvailable",
@@ -81,7 +82,8 @@ case class StreamBuffer[O <: Generation](
         xStreamBufferReceive.get,
         exprs => Less(Utils.size(buffer.get), exprs.head)(Utils.origen),
       )
-      col_ir.add_to_api(decl.get, "xStreamBufferSend", field, xStreamBufferSend.get)
+      col_ir
+        .add_to_api(decl.get, "xStreamBufferSend", field, xStreamBufferSend.get)
       col_ir.add_call_condition(
         xStreamBufferSend.get,
         exprs =>
@@ -138,34 +140,44 @@ case class StreamBuffer[O <: Generation](
       write_event: Int,
       name: String,
   ): Class[N] = {
-    s =
-      Some(new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
-        Utils.origen("s")
-      ))
-    buffer = Some(new InstanceField(Utils.tseqint, Seq())(Utils.origen("buffer")))
-    maxSize = Some(new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize")))
-    triggerLevel =
-      Some(new InstanceField(Utils.tint, Seq())(Utils.origen("triggerLevel")))
-    output = Some(new InstanceField(Utils.tseqint, Seq())(Utils.origen("output")))
+    s = Some(new InstanceField(TByReferenceClass(scheduler_ref, Seq()), Seq())(
+      Utils.origen("s")
+    ))
+    buffer = Some(
+      new InstanceField(Utils.tseqint, Seq())(Utils.origen("buffer"))
+    )
+    maxSize = Some(
+      new InstanceField(Utils.tint, Seq())(Utils.origen("maxSize"))
+    )
+    triggerLevel = Some(
+      new InstanceField(Utils.tint, Seq())(Utils.origen("triggerLevel"))
+    )
+    output = Some(
+      new InstanceField(Utils.tseqint, Seq())(Utils.origen("output"))
+    )
 
-    sBufferPerms =
-      Some(new InstancePredicate(
+    sBufferPerms = Some(
+      new InstancePredicate(
         Seq(),
         Some(Utils.fold_star(Seq(
           Perm(Utils.loc_of(s.get), Utils.read)(Utils.origen),
           Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen),
           Perm(Utils.loc_of(maxSize.get), Utils.read)(Utils.origen),
           Perm(Utils.loc_of(triggerLevel.get), Utils.read)(Utils.origen),
-          Greater(Utils.deref_of(triggerLevel.get), Utils.int_val(0))(Utils.origen),
-          GreaterEq(Utils.deref_of(maxSize.get), Utils.deref_of(triggerLevel.get))(
+          Greater(Utils.deref_of(triggerLevel.get), Utils.int_val(0))(
             Utils.origen
           ),
+          GreaterEq(
+            Utils.deref_of(maxSize.get),
+            Utils.deref_of(triggerLevel.get),
+          )(Utils.origen),
           Perm(Utils.loc_of(buffer.get), Utils.write)(Utils.origen),
           Perm(Utils.loc_of(output.get), Utils.write)(Utils.origen),
         ))),
         false,
         true,
-      )(Utils.origen("sBufferPerms")))
+      )(Utils.origen("sBufferPerms"))
+    )
 
     val perms: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](sBufferPerms.get)
@@ -180,12 +192,12 @@ case class StreamBuffer[O <: Generation](
     )
 
     xStreamBufferIsEmpty = Some(create_xStreamBufferIsEmpty(buffer.get, perms))
-    xStreamBufferIsFull = Some(create_xStreamBufferIsFull(buffer.get, maxSize.get, perms))
-    xStreamBufferSpacesAvailable = Some(create_xStreamBufferSpacesAvailable(
-      buffer.get,
-      maxSize.get,
-      perms,
-    ))
+    xStreamBufferIsFull = Some(
+      create_xStreamBufferIsFull(buffer.get, maxSize.get, perms)
+    )
+    xStreamBufferSpacesAvailable = Some(
+      create_xStreamBufferSpacesAvailable(buffer.get, maxSize.get, perms)
+    )
     xStreamBufferReceive = Some(create_xStreamBufferReceive(
       s.get,
       buffer.get,

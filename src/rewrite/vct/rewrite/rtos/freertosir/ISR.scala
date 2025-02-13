@@ -17,10 +17,7 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
   private def instance_name: String =
     "isr_" + Utils.get_declarator_name(isr.declarator)
 
-  override def convert(
-                        col_ir: COLEncoder[O],
-                        idx: Int,
-  ): ObjectInfo[O] = {
+  override def convert(col_ir: COLEncoder[O], idx: Int): ObjectInfo[O] = {
     val tcls: Type[N] =
       TByReferenceClass(new LazyRef[N, Class[N]](get_cls), Seq())(Utils.origen)
     val field: InstanceField[N] =
@@ -57,10 +54,7 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
     )
   }
 
-  def transform(
-                 transformer: Transformer[O],
-                 name: String,
-  ): Class[N] = {
+  def transform(transformer: Transformer[O], name: String): Class[N] = {
     val variables: Seq[CLocal[O]] = get_variables
 
     val fields: Seq[(InstanceField[N], Expr[N])] = variables
@@ -80,12 +74,7 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
 
     new ByReferenceClass(
       Seq(),
-      fields.map(t => t._1) ++
-        Seq(
-          isrPermissions,
-          isrConstructor,
-          runMethod,
-        ) ++
+      fields.map(t => t._1) ++ Seq(isrPermissions, isrConstructor, runMethod) ++
         transformer.get_additional_methods,
       Seq(),
       Utils.predicate_apply(
@@ -126,9 +115,7 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
     )(Utils.blame)(Utils.origen)
   }
 
-  private def create_runMethod(
-      transformer: Transformer[O]
-  ): RunMethod[N] = {
+  private def create_runMethod(transformer: Transformer[O]): RunMethod[N] = {
     val cond: Expr[N] = Committed(Utils.thiz)(Utils.blame)(Utils.origen)
 
     val loop_body: Statement[N] =
