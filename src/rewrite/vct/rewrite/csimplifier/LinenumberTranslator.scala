@@ -28,19 +28,21 @@ case class LinenumberTranslator[Pre <: Generation](path: Path)
     * JSON
     */
   override def dispatch(program: Program[Pre]): Program[Post] = {
-    exportLinenumberMapping(program)
-    program.rewriteDefault()
+    val p = program.rewriteDefault()
+    exportLinenumberMapping(p)
+    p
   }
 
-  private def exportLinenumberMapping(program: Program[Pre]): Unit = {
+  private def exportLinenumberMapping(program: Program[Post]): Unit = {
     // nodes whose line number we're interested in, such as loops and method calls
     val relevant = program.collect {
-      case l: Loop[Pre] => l
-      case p: Procedure[Pre] => p
-      case i: InvokeProcedure[Pre] => i
-      case i: ProcedureInvocation[Pre] => i
+      case l: Loop[Post] => l
+      case p: Procedure[Post] => p
+      case i: InvokeProcedure[Post] => i
+      case i: ProcedureInvocation[Post] => i
     }
-    val namer = Namer[Generation](Ctx.C, useSourceNames = true)
+    val namer = Namer[Post](Ctx.C, useSourceNames = true)
+    namer.name(program)
     val names = namer.finish
     implicit val ctx: Ctx = Ctx(
       syntax = Ctx.C,
@@ -48,7 +50,7 @@ case class LinenumberTranslator[Pre <: Generation](path: Path)
     )
 
     // pairs "(<new linenumber>, <origin (string)>)"
-    val mapping = program.layout.getLinenumberMapping(relevant)
+    val mapping = program.show.getLinenumberMapping(relevant)
     // generated methods have no proper origin -> filter them out
     val filtered = mapping.filter(p => p._2 != "multiple files")
     // name for JSON file
