@@ -76,16 +76,16 @@ case class MakeRuntimeChecks[Pre <: Generation]()
     // todo: a bit hack-y: use declaration to create include statement.
     //  This means the include is followed by a ";", though
     val includes: mutable.Buffer[GlobalDeclaration[Post]] = mutable.Buffer()
-    if (program.collect { case b: TBool[Pre] => b }.nonEmpty) {
-      val decl =
-        new CGlobalDeclaration[Post](CDeclaration(
-          emptyContract(),
-          tt,
-          Nil,
-          Seq(CInit(CName[Post]("#include<stdbool.h>"), None)),
-        ))
-      includes.append(decl)
-    }
+//    if (program.collect { case b: TBool[Pre] => b }.nonEmpty) {
+//      val decl =
+//        new CGlobalDeclaration[Post](CDeclaration(
+//          emptyContract(),
+//          tt,
+//          Nil,
+//          Seq(CInit(CName[Post]("#include<stdbool.h>"), None)),
+//        ))
+//      includes.append(decl)
+//    }
     if (
       program.collect { case p: Procedure[Pre] => p }.collect { m =>
         Namer.getSrcName(m.o) match {
@@ -261,6 +261,9 @@ case class MakeRuntimeChecks[Pre <: Generation]()
       case i: Implies[Pre] =>
         Or(Not[Post](dispatch(i.left))(i.left.o), dispatch(i.right))(i.o)
       case u: Unfolding[Pre] => dispatch(u.body)
+      case b: BooleanValue[Pre] =>
+        if (b.value) { CIntegerValue[Post](1)(b.o) }
+        else { CIntegerValue[Post](0)(b.o) }
       case _ => super.dispatch(node)
     }
   }
@@ -268,6 +271,7 @@ case class MakeRuntimeChecks[Pre <: Generation]()
   override def dispatch(node: Type[Pre]): Type[Post] = {
     node match {
       case _: TResource[Pre] => TCInt[Post]()
+      case _: TBool[Pre] => TCInt[Post]()
       case _ => super.dispatch(node)
     }
   }
@@ -680,25 +684,49 @@ case class MakeRuntimeChecks[Pre <: Generation]()
       val rewritten = dispatchExpr(expr, true)
       rewritten match {
         case Some(e) =>
-          if (e._1 != tt[Post]) {
-            val tern =
-              Select(e._1, CIntegerValue(1)(expr.o), CIntegerValue(0)(expr.o))(
-                expr.o
-              )
-            Some(
-              Scope(
-                e._2,
-                InvokeProcedure[Post](
-                  verifierAssert.ref,
-                  Seq(tern),
-                  Nil,
-                  Nil,
-                  Nil,
-                  Nil,
-                )(PanicBlame("Assert failed"))(expr.o),
-              )(expr.o)
-            )
-          } else { None }
+          e._1.t match {
+            case _: TCInt[Post] =>
+              e._1 match {
+                case i: CIntegerValue[Post] if i.value == 1 => None
+                case _ =>
+                  Some(
+                    Scope(
+                      e._2,
+                      InvokeProcedure[Post](
+                        verifierAssert.ref,
+                        Seq(e._1),
+                        Nil,
+                        Nil,
+                        Nil,
+                        Nil,
+                      )(PanicBlame("Assert failed"))(expr.o),
+                    )(expr.o)
+                  )
+              }
+            case _ =>
+              if (e._1 == tt[Post]) { None }
+              else {
+                val tern =
+                  Select(
+                    e._1,
+                    CIntegerValue(1)(expr.o),
+                    CIntegerValue(0)(expr.o),
+                  )(expr.o)
+                Some(
+                  Scope(
+                    e._2,
+                    InvokeProcedure[Post](
+                      verifierAssert.ref,
+                      Seq(tern),
+                      Nil,
+                      Nil,
+                      Nil,
+                      Nil,
+                    )(PanicBlame("Assert failed"))(expr.o),
+                  )(expr.o)
+                )
+              }
+          }
         case None => None
       }
     }
@@ -712,25 +740,50 @@ case class MakeRuntimeChecks[Pre <: Generation]()
       val rewritten = dispatchExpr(expr, false)
       rewritten match {
         case Some(e) =>
-          if (e._1 != tt[Post]) {
-            val tern =
-              Select(e._1, CIntegerValue(1)(expr.o), CIntegerValue(0)(expr.o))(
-                expr.o
-              )
-            Some(
-              Scope(
-                e._2,
-                InvokeProcedure[Post](
-                  verifierAssume.ref,
-                  Seq(tern),
-                  Nil,
-                  Nil,
-                  Nil,
-                  Nil,
-                )(PanicBlame("Assume failed"))(expr.o),
-              )(expr.o)
-            )
-          } else { None }
+          e._1.t match {
+            case _: TCInt[Post] =>
+              e._1 match {
+                case i: CIntegerValue[Post] if i.value == 1 => None
+                case _ =>
+                  Some(
+                    Scope(
+                      e._2,
+                      InvokeProcedure[Post](
+                        verifierAssume.ref,
+                        Seq(e._1),
+                        Nil,
+                        Nil,
+                        Nil,
+                        Nil,
+                      )(PanicBlame("Assume failed"))(expr.o),
+                    )(expr.o)
+                  )
+              }
+            case _ =>
+              if (e._1 == tt[Post]) { None }
+              else {
+                val tern =
+                  Select(
+                    e._1,
+                    CIntegerValue(1)(expr.o),
+                    CIntegerValue(0)(expr.o),
+                  )(expr.o)
+                Some(
+                  Scope(
+                    e._2,
+                    InvokeProcedure[Post](
+                      verifierAssume.ref,
+                      Seq(tern),
+                      Nil,
+                      Nil,
+                      Nil,
+                      Nil,
+                    )(PanicBlame("Assume failed"))(expr.o),
+                  )(expr.o)
+                )
+              }
+          }
+
         case None => None
       }
     }
