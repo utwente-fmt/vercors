@@ -70,7 +70,7 @@ case class LinenumberTranslator[Pre <: Generation](path: Path)
     writer.append("{\n  ")
     writer.append(
       mapping.map(p =>
-        "\"" + path.getFileName + ":" + p._1.toString + "\" : \"" + p._2 + "\""
+        "\"" + path.toString + ":" + p._1.toString + "\" : \"" + p._2 + "\""
       ).mkString(",\n  ")
     )
     writer.append("\n}")
