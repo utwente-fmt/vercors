@@ -11,6 +11,9 @@ object RTOSEncoder {
     val global_vars: Seq[(CInit[O], Type[Rewritten[O]])] = get_global_vars(
       c_model.head
     )
+    val abstract_functions: Seq[CGlobalDeclaration[O]] = get_abstract_functions(
+      c_model.head
+    )
     val def_methods: Seq[CFunctionDefinition[O]] = c_model.head.collect {
       case f: CFunctionDefinition[O] => f
     }
@@ -19,6 +22,7 @@ object RTOSEncoder {
 
     new COLEncoder[O](
       global_vars,
+      abstract_functions,
       def_methods,
       get_tasks(stmts, def_methods),
       get_timers(stmts, def_methods),
@@ -36,12 +40,22 @@ object RTOSEncoder {
   ): Seq[(CInit[O], Type[Rewritten[O]])] =
     decl.collect { case d: CGlobalDeclaration[O] => d }
       .flatMap(d => d.decl.inits.map(i => (i, Utils.get_ctype(d.decl.specs))))
-      .filter(d =>
-        d._1.decl match {
-          case CName(_) => true
-          case _ => false
-        }
-      )
+      .filter(d => is_var(d._1.decl))
+
+  private def get_abstract_functions[O <: Generation](
+      decl: GlobalDeclaration[O]
+  ): Seq[CGlobalDeclaration[O]] =
+    decl.collect {
+      case d: CGlobalDeclaration[O]
+          if d.decl.inits.length == 1 && !is_var(d.decl.inits.head.decl) =>
+        d
+    }
+
+  private def is_var[O <: Generation](d: CDeclarator[O]): Boolean =
+    d match {
+      case CName(_) => true
+      case _ => false
+    }
 
   private def get_main_method[O](
       decls: Seq[CFunctionDefinition[O]]

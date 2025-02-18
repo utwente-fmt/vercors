@@ -169,11 +169,11 @@ case object Utils {
         )
     }
 
-  def is_pure[O](f: CFunctionDefinition[O]): Boolean =
-    f.specs.collectFirst { case p: CPure[O] => p }.nonEmpty
+  def is_pure[O](specs: Seq[CDeclarationSpecifier[O]]): Boolean =
+    specs.collectFirst { case p: CPure[O] => p }.nonEmpty
 
-  def is_inline[O](f: CFunctionDefinition[O]): Boolean =
-    f.specs.collectFirst { case i: CInline[O] => i }.nonEmpty
+  def is_inline[O](specs: Seq[CDeclarationSpecifier[O]]): Boolean =
+    specs.collectFirst { case i: CInline[O] => i }.nonEmpty
 
   def get_ctype[O <: Generation](
       specs: Seq[CDeclarationSpecifier[O]]
@@ -191,8 +191,8 @@ case object Utils {
     )
   }
 
-  def args_of[O](f: CFunctionDefinition[O]): Seq[CParam[O]] =
-    f.declarator match { case CTypedFunctionDeclarator(params, _, _) => params }
+  def args_of[O](d: CDeclarator[O]): Seq[CParam[O]] =
+    d match { case CTypedFunctionDeclarator(params, _, _) => params }
 
   def thiz[N]: AmbiguousThis[N] = AmbiguousThis()(origen)
   def nul[N]: Null[N] = Null()(origen)
@@ -286,8 +286,8 @@ case object Utils {
   def contract_resolve[O](p: AccountedPredicate[O]): Expr[O] =
     AstBuildHelpers.unfoldPredicate(p).reduce((e1, e2) => Star(e1, e2)(origen))
 
-  def to_loop_invariant[N](expr: Expr[N]): LoopContract[N] =
-    LoopInvariant(expr, None)(blame)(origen)
+  def to_loop_invariant[N](expr: Expr[N], decreases: Option[DecreasesClause[N]] = None): LoopContract[N] =
+    LoopInvariant(expr, decreases)(blame)(origen)
 
   def invoke[N](
       method: Ref[N, InstanceMethod[N]],

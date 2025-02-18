@@ -23,8 +23,8 @@ class Transformer[O <: Generation](
       : ScopedStack[mutable.ArrayBuffer[Statement[N]]] = ScopedStack()
 
   private val additional_methods
-      : mutable.Map[CFunctionDefinition[O], InstanceMethod[N]] = mutable.Map
-    .empty[CFunctionDefinition[O], InstanceMethod[N]]
+      : mutable.Map[CDeclarator[O], InstanceMethod[N]] = mutable.Map
+    .empty[CDeclarator[O], InstanceMethod[N]]
 
   def get_additional_methods: Seq[InstanceMethod[N]] =
     Seq.from(additional_methods.values)
@@ -65,16 +65,25 @@ class Transformer[O <: Generation](
       case Eval(expr) => expr_to_statement(expr)
       case CDeclarationStatement(decl) =>
         val typ: Type[N] = Utils.get_ctype(decl.decl.specs)
-        val variables: Seq[(Variable[N], Option[Expr[N]])] = decl.decl.inits.map(i =>
-          (register_new_variable(Utils.get_declarator_name(i.decl), typ),
-            i.init.map(e => new Transformer(col_ir, None, None, this_in_scheduler, Seq()).dispatch(e))))
+        val variables: Seq[(Variable[N], Option[Expr[N]])] = decl.decl.inits
+          .map(i =>
+            (
+              register_new_variable(Utils.get_declarator_name(i.decl), typ),
+              i.init.map(e =>
+                new Transformer(col_ir, None, None, this_in_scheduler, Seq())
+                  .dispatch(e)
+              ),
+            )
+          )
         val declarations: Seq[Statement[N]] =
           variables.map(t => LocalDecl(t._1)(Utils.origen)) ++
             variables.filter(t => t._2.nonEmpty).map(t =>
               Assign(Utils.local_of(t._1), t._2.get)(Utils.blame)(Utils.origen)
             )
-        if (declarations.length == 1) declarations.head
-        else Block(declarations)(Utils.origen)
+        if (declarations.length == 1)
+          declarations.head
+        else
+          Block(declarations)(Utils.origen)
       // TODO: Other C statements?
       case _ => in.rewriteDefault()
     }
@@ -354,10 +363,7 @@ class Transformer[O <: Generation](
               .map(e => collect_pre_statements(e))
             combine_with_pre_statements(
               args_next.flatMap(t => t._1),
-              resolve_function_call_stmt(
-                col_ir.get_function_definition(name),
-                args_next.map(t => t._2),
-              ),
+              resolve_function_call_stmt(name, args_next.map(t => t._2)),
             )
         }
       case CCast(_, _) => Utils.skip
@@ -421,11 +427,30 @@ class Transformer[O <: Generation](
               case Some(v) => Utils.local_of(v)
               case None =>
                 unpack_known_parameters(name).getOrElse(scheduler match {
-                  case Some(s) => col_ir.access_global_variable(name, s, new Transformer(col_ir, None, None, this_in_scheduler, Seq()))
-                  case None =>
-                    Utils.deref_of(
-                      col_ir.register_isr_field(name, this_in_scheduler, new Transformer(col_ir, None, None, this_in_scheduler, Seq()))
+                  case Some(s) =>
+                    col_ir.access_global_variable(
+                      name,
+                      s,
+                      new Transformer(
+                        col_ir,
+                        None,
+                        None,
+                        this_in_scheduler,
+                        Seq(),
+                      ),
                     )
+                  case None =>
+                    Utils.deref_of(col_ir.register_isr_field(
+                      name,
+                      this_in_scheduler,
+                      new Transformer(
+                        col_ir,
+                        None,
+                        None,
+                        this_in_scheduler,
+                        Seq(),
+                      ),
+                    ))
                 })
             }
         }
@@ -713,15 +738,12 @@ class Transformer[O <: Generation](
               .map(e => collect_pre_statements(e))
             add_to_pre_statement_buffer(
               args_next.flatMap(t => t._1),
-              resolve_function_call_expr(
-                col_ir.get_function_definition(name),
-                args_next.map(t => t._2),
-              ),
+              resolve_function_call_expr(name, args_next.map(t => t._2)),
             )
         }
       case AddrOf(e) => dispatch(e)
       case CCast(expr, _) => dispatch(expr)
-      // TODO: More C expressions?
+      case _ => in.rewriteDefault()
     }
 
   private def resolve_api_call_stmt(
@@ -930,7 +952,8 @@ class Transformer[O <: Generation](
           Star(
             get_default_contract(holding_global_lock = true, runnable = true),
             dispatch(invariant),
-          )(Utils.origen)
+          )(Utils.origen),
+          decreases.map(c => c.rewriteDefault())
         )
     }
 
@@ -983,12 +1006,10 @@ class Transformer[O <: Generation](
   }
 
   private def resolve_function_call_stmt(
-      f: CFunctionDefinition[O],
+      name: String,
       args: Seq[Expr[N]],
   ): Statement[N] = {
-    val method: InstanceMethod[N] =
-      local_variables
-        .having(mutable.Map.empty[String, Variable[N]])(transform_method(f))
+    val method: InstanceMethod[N] = get_method(name)
     InvokeMethod(
       Utils.thiz,
       new DirectRef[N, InstanceMethod[N]](method),
@@ -1001,13 +1022,10 @@ class Transformer[O <: Generation](
   }
 
   private def resolve_function_call_expr(
-      f: CFunctionDefinition[O],
+      name: String,
       args: Seq[Expr[N]],
   ): Expr[N] = {
-    val method: InstanceMethod[N] =
-      // TODO: How to prevent the resolution from finding a variable from outside the method?
-      local_variables
-        .having(mutable.Map.empty[String, Variable[N]])(transform_method(f))
+    val method: InstanceMethod[N] = get_method(name)
     MethodInvocation(
       Utils.thiz,
       new DirectRef[N, InstanceMethod[N]](method),
@@ -1019,11 +1037,24 @@ class Transformer[O <: Generation](
     )(Utils.blame)(Utils.origen)
   }
 
-  private def transform_method(f: CFunctionDefinition[O]): InstanceMethod[N] = {
-    if (additional_methods.contains(f))
-      return additional_methods(f)
+  private def get_method(name: String): InstanceMethod[N] =
+    // TODO: How to prevent the resolution from finding a variable from outside the method?
+    local_variables.having(mutable.Map.empty[String, Variable[N]])(
+      col_ir.get_function_definition(name).map(f =>
+        transform_method(f.declarator, f.specs, Some(f.body), f.contract)
+      ).getOrElse(transform_abstract_function(name))
+    )
 
-    val params: Seq[CParam[O]] = Utils.args_of(f)
+  private def transform_method(
+      decl: CDeclarator[O],
+      specs: Seq[CDeclarationSpecifier[O]],
+      body: Option[Statement[O]],
+      contract: ApplicableContract[O],
+  ): InstanceMethod[N] = {
+    if (additional_methods.contains(decl))
+      return additional_methods(decl)
+
+    val params: Seq[CParam[O]] = Utils.args_of(decl)
     val new_params: Seq[Variable[N]] = params.map(p =>
       register_new_variable(
         Utils.get_declarator_name(p.declarator),
@@ -1033,21 +1064,38 @@ class Transformer[O <: Generation](
 
     val new_method =
       new InstanceMethod(
-        Utils.get_ctype(f.specs),
+        Utils.get_ctype(specs),
         new_params,
         Seq(),
         Seq(),
-        Some(dispatch(f.body)),
-        dispatch(f.contract),
-        inline = Utils.is_inline(f),
-        pure = Utils.is_pure(f),
-      )(Utils.blame)(Utils.origen(Utils.get_declarator_name(f.declarator)))
+        body.map(s => dispatch(s)),
+        resolve_contract(contract, body.nonEmpty || (!Utils.is_pure(specs))),
+        inline = Utils.is_inline(specs),
+        pure = Utils.is_pure(specs),
+      )(Utils.blame)(Utils.origen(Utils.get_declarator_name(decl)))
 
-    additional_methods.put(f, new_method)
+    additional_methods.put(decl, new_method)
     new_method
   }
 
-  override def dispatch(old: ApplicableContract[O]): ApplicableContract[N] = {
+  private def transform_abstract_function(name: String): InstanceMethod[N] = {
+    val f: CGlobalDeclaration[O] = col_ir.get_abstract_function(name).getOrElse(
+      throw new IllegalArgumentException("Cannot resolve function " + name)
+    )
+    if (f.decl.inits.length != 1)
+      throw new IllegalArgumentException(
+        "Function " + name + " is part of a multi-declaration!"
+      )
+
+    transform_method(
+      f.decl.inits.head.decl,
+      f.decl.specs,
+      None,
+      f.decl.contract,
+    )
+  }
+
+  private def resolve_contract(old: ApplicableContract[O], add_default: Boolean): ApplicableContract[N] = {
     val default_contract: Expr[N] = get_default_contract(
       holding_global_lock = true,
       runnable = true,

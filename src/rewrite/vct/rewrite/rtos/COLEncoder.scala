@@ -18,6 +18,7 @@ import scala.collection.mutable
 
 class COLEncoder[O <: Generation](
     global_vars: Seq[(CInit[O], Type[Rewritten[O]])],
+    abstract_functions: Seq[CGlobalDeclaration[O]],
     functions: Seq[CFunctionDefinition[O]],
     tasks: Seq[Task[O]],
     timers: Seq[Timer[O]],
@@ -266,13 +267,17 @@ class COLEncoder[O <: Generation](
 
   def get_isr_locks: Seq[InstanceField[N]] = isr_locks
 
-  def get_function_definition(name: String): CFunctionDefinition[O] =
+  def get_function_definition(name: String): Option[CFunctionDefinition[O]] =
     functions.collectFirst {
       case f: CFunctionDefinition[O]
           if Utils.get_declarator_name(f.declarator).equals(name) =>
         f
-    }.getOrElse(
-      throw new IllegalArgumentException("Referenced function not found!")
+    }
+
+  def get_abstract_function(name: String): Option[CGlobalDeclaration[O]] =
+    abstract_functions.find(d =>
+      d.decl.inits.length == 1 &&
+        Utils.get_declarator_name(d.decl.inits.head.decl).equals(name)
     )
 
   def register_isr_field(

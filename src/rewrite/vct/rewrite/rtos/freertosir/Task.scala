@@ -109,7 +109,7 @@ case class Task[O <: Generation](
         Some(tid),
         Some(s.get),
         field,
-        Utils.args_of(func).map(p => p -> param),
+        Utils.args_of(func.declarator).map(p => p -> param),
       )
 
     val taskConstructor: PVLConstructor[N] = create_constructor(
