@@ -32,7 +32,11 @@ class SchedulerGenerator[O <: Generation] {
   def get_simulateTimePassing: InstanceMethod[N] = simulateTimePassing.get
   def get_executionTime: InstanceMethod[N] = executionTime.get
 
-  def generate(objs: Seq[ObjectInfo[O]], n_events: Int): Class[N] = {
+  def generate(
+      objs: Seq[ObjectInfo[O]],
+      n_events: Int,
+      global_fields: Seq[(InstanceField[N], Option[Expr[N]])],
+  ): Class[N] = {
     // Support calculations
     val n_tasks = objs.count(o => o.task_id.nonEmpty)
 
@@ -98,7 +102,9 @@ class SchedulerGenerator[O <: Generation] {
         Seq(),
         Some(Utils.fold_star(
           Seq(Utils.predicate_apply(Utils.thiz, schedulerPerms_ref, Seq())) ++
-            objs.map(o => o.perms)
+            objs.map(o => o.perms) ++
+            global_fields
+              .map(f => Perm(Utils.loc_of(f._1), Utils.write)(Utils.origen))
         )),
         false,
         true,
@@ -132,6 +138,7 @@ class SchedulerGenerator[O <: Generation] {
       objs,
       n_events,
       n_tasks,
+      global_fields.filter(t => t._2.nonEmpty).map(t => (t._1, t._2.get))
     )
 
     // Helper methods
@@ -175,6 +182,8 @@ class SchedulerGenerator[O <: Generation] {
       ) ++
         // Object fields
         objs.map(o => o.field) ++
+        // Other global fields
+        global_fields.map(t => t._1) ++
         // Predicates
         Seq(
           priorityPerms.get,
@@ -332,6 +341,7 @@ class SchedulerGenerator[O <: Generation] {
       objs: Seq[ObjectInfo[O]],
       n_events: Int,
       n_tasks: Int,
+      fields_to_initialize: Seq[(InstanceField[N], Expr[N])]
   ): PVLConstructor[N] = {
     // Supporting calculations
     val launch_objs: Seq[ObjectInfo[O]] = objs.filter(o => o.launch)
@@ -404,6 +414,11 @@ class SchedulerGenerator[O <: Generation] {
             Seq(),
             Seq(),
           )(Utils.blame)(Utils.origen),
+        )(Utils.blame)(Utils.origen)
+      ) ++ fields_to_initialize.map(t =>
+        Assign(
+          Utils.deref_of(t._1),
+          t._2
         )(Utils.blame)(Utils.origen)
       ) :+ Commit(Utils.thiz)(Utils.blame)(Utils.origen)
 

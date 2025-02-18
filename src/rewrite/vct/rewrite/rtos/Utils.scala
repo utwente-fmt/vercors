@@ -187,7 +187,7 @@ case object Utils {
       case _: CBool[O] => tbool[Rewritten[O]]
       // TODO: case t: CTypedefName[O] => ???
     }.getOrElse(
-      throw new IllegalArgumentException("No or unsupported return type!")
+      throw new IllegalArgumentException("Unsupported function return type!")
     )
   }
 

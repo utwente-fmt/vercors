@@ -1,7 +1,7 @@
 package vct.rewrite.rtos
 
 import vct.col.ast._
-import vct.col.rewrite.{Generation, Rewritten}
+import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.rtos.freertosir.{
   EventGroup,
@@ -17,7 +17,7 @@ import vct.rewrite.rtos.freertosir.{
 import scala.collection.mutable
 
 class COLEncoder[O <: Generation](
-    global_vars: Seq[CGlobalDeclaration[O]],
+    global_vars: Seq[(CInit[O], Type[Rewritten[O]])],
     functions: Seq[CFunctionDefinition[O]],
     tasks: Seq[Task[O]],
     timers: Seq[Timer[O]],
@@ -67,6 +67,14 @@ class COLEncoder[O <: Generation](
     .empty[CLocal[O], Int]
   private val var_to_timer_reload: mutable.Map[CLocal[O], Boolean] = mutable.Map
     .empty[CLocal[O], Boolean]
+  private val isr_fields: mutable.Map[
+    String,
+    (InstanceField[N], InstanceField[N], Option[Expr[N]]),
+  ] = mutable.Map
+    .empty[String, (InstanceField[N], InstanceField[N], Option[Expr[N]])]
+  private val global_fields
+      : mutable.Map[String, (InstanceField[N], Option[Expr[N]])] = mutable.Map
+    .empty[String, (InstanceField[N], Option[Expr[N]])]
   private var n_events: Int = 0
   private var n_tasks: Int = 0
 
@@ -93,7 +101,9 @@ class COLEncoder[O <: Generation](
         tasks.zipWithIndex.map(t => t._1.convert(this, t._2))
     }
 
-    scheduler = Some(scheduler_generator.generate(ir, n_events))
+    scheduler = Some(
+      scheduler_generator.generate(ir, n_events, global_fields.values.toSeq)
+    )
     // The generation will have populated the remaining fields
     schedulerPerms = Some(scheduler_generator.get_schedulerPerms)
     eventPerms = Some(scheduler_generator.get_eventPerms)
@@ -264,4 +274,64 @@ class COLEncoder[O <: Generation](
     }.getOrElse(
       throw new IllegalArgumentException("Referenced function not found!")
     )
+
+  def register_isr_field(
+      name: String,
+      isr: InstanceField[N],
+      rewriter: Rewriter[O],
+  ): InstanceField[N] = {
+    if (isr_fields.contains(name)) {
+      if (!isr_fields(name)._1.equals(isr))
+        throw new IllegalStateException(
+          "Multiple ISRs accessing the same field " + name +
+            " is not supported!"
+        )
+      else
+        return isr_fields(name)._2
+    }
+
+    val (decl: CInit[O], typ: Type[N]) = get_decl_matching(name)
+    val new_field: InstanceField[N] =
+      new InstanceField(typ, Seq())(Utils.origen(name))
+    val init: Option[Expr[N]] = decl.init.map(e => rewriter.dispatch(e))
+    isr_fields.put(name, (isr, new_field, init))
+    new_field
+  }
+
+  def get_isr_fields(
+      isr: InstanceField[N]
+  ): Seq[(InstanceField[N], Option[Expr[N]])] =
+    isr_fields.values.toSeq.filter(t => t._1.equals(isr)).map(t => (t._2, t._3))
+
+  def access_global_variable(
+      name: String,
+      scheduler: InstanceField[N],
+      rewriter: Rewriter[O],
+  ): Expr[N] = {
+    val (decl: CInit[O], typ: Type[N]) = get_decl_matching(name)
+    if (isr_fields.contains(name)) {
+      val isr: InstanceField[N] = isr_fields(name)._1
+      val field: InstanceField[N] = isr_fields(name)._2
+      Utils.deref_of(
+        field,
+        Some(Utils.deref_of(isr, Some(Utils.deref_of(scheduler)))),
+      )
+    } else if (global_fields.contains(name)) {
+      Utils.deref_of(global_fields(name)._1, Some(Utils.deref_of(scheduler)))
+    } else {
+      val new_field: InstanceField[N] =
+        new InstanceField(typ, Seq())(Utils.origen(name))
+      val init: Option[Expr[N]] = decl.init.map(e => rewriter.dispatch(e))
+      global_fields.put(name, (new_field, init))
+      Utils.deref_of(new_field, Some(Utils.deref_of(scheduler)))
+    }
+  }
+
+  private def get_decl_matching(name: String): (CInit[O], Type[N]) =
+    global_vars.find(v => Utils.get_declarator_name(v._1.decl).equals(name))
+      .getOrElse(
+        throw new IllegalArgumentException(
+          "Could not find a global variable named " + name
+        )
+      )
 }

@@ -8,15 +8,9 @@ object RTOSEncoder {
   def transform[O <: Generation](
       c_model: Seq[GlobalDeclaration[O]]
   ): Seq[GlobalDeclaration[Rewritten[O]]] = {
-    val global_vars: Seq[CGlobalDeclaration[O]] = c_model.head.collect {
-      case d: CGlobalDeclaration[O]
-          if d.decl.inits.nonEmpty &&
-            (d.decl.inits.head.decl match {
-              case _: CName[O] => true
-              case _ => false
-            }) =>
-        d
-    }
+    val global_vars: Seq[(CInit[O], Type[Rewritten[O]])] = get_global_vars(
+      c_model.head
+    )
     val def_methods: Seq[CFunctionDefinition[O]] = c_model.head.collect {
       case f: CFunctionDefinition[O] => f
     }
@@ -36,6 +30,18 @@ object RTOSEncoder {
       get_message_buffers(stmts),
     ).get_encoded_system
   }
+
+  private def get_global_vars[O <: Generation](
+      decl: GlobalDeclaration[O]
+  ): Seq[(CInit[O], Type[Rewritten[O]])] =
+    decl.collect { case d: CGlobalDeclaration[O] => d }
+      .flatMap(d => d.decl.inits.map(i => (i, Utils.get_ctype(d.decl.specs))))
+      .filter(d =>
+        d._1.decl match {
+          case CName(_) => true
+          case _ => false
+        }
+      )
 
   private def get_main_method[O](
       decls: Seq[CFunctionDefinition[O]]

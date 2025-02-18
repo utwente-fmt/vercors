@@ -17,8 +17,11 @@ class Transformer[O <: Generation](
 ) extends Rewriter[O] {
   type N = Rewritten[O]
 
+  private val local_variables: ScopedStack[mutable.Map[String, Variable[N]]] =
+    ScopedStack()
   private val pre_statement_buffer
       : ScopedStack[mutable.ArrayBuffer[Statement[N]]] = ScopedStack()
+
   private val additional_methods
       : mutable.Map[CFunctionDefinition[O], InstanceMethod[N]] = mutable.Map
     .empty[CFunctionDefinition[O], InstanceMethod[N]]
@@ -26,10 +29,17 @@ class Transformer[O <: Generation](
   def get_additional_methods: Seq[InstanceMethod[N]] =
     Seq.from(additional_methods.values)
 
+  def get_registered_isr_fields: Seq[(InstanceField[N], Option[Expr[N]])] =
+    col_ir.get_isr_fields(this_in_scheduler)
+
   override def dispatch(in: Statement[O]): Statement[N] =
     in match {
       case Block(statements) => Block(statements.map(s => dispatch(s)))(in.o)
-      case Scope(_, body) => Scope(Seq(), dispatch(body))(in.o)
+      case Scope(_, body) =>
+        val map: mutable.Map[String, Variable[N]] = mutable.Map
+          .empty[String, Variable[N]]
+        val new_body: Statement[N] = local_variables.having(map)(dispatch(body))
+        Scope(map.values.toSeq, new_body)(Utils.origen)
       case Branch(branches) =>
         val expr_evals: Seq[(Seq[Statement[N]], Expr[N], Statement[N])] =
           branches.map(t =>
@@ -53,7 +63,18 @@ class Transformer[O <: Generation](
           )(in.o)
         combine_with_pre_statements(pre_statements, loop)
       case Eval(expr) => expr_to_statement(expr)
-      case CDeclarationStatement(decl) => ???
+      case CDeclarationStatement(decl) =>
+        val typ: Type[N] = Utils.get_ctype(decl.decl.specs)
+        val variables: Seq[(Variable[N], Option[Expr[N]])] = decl.decl.inits.map(i =>
+          (register_new_variable(Utils.get_declarator_name(i.decl), typ),
+            i.init.map(e => new Transformer(col_ir, None, None, this_in_scheduler, Seq()).dispatch(e))))
+        val declarations: Seq[Statement[N]] =
+          variables.map(t => LocalDecl(t._1)(Utils.origen)) ++
+            variables.filter(t => t._2.nonEmpty).map(t =>
+              Assign(Utils.local_of(t._1), t._2.get)(Utils.blame)(Utils.origen)
+            )
+        if (declarations.length == 1) declarations.head
+        else Block(declarations)(Utils.origen)
       // TODO: Other C statements?
       case _ => in.rewriteDefault()
     }
@@ -339,6 +360,7 @@ class Transformer[O <: Generation](
               ),
             )
         }
+      case CCast(_, _) => Utils.skip
       case _ =>
         val (pre_stmts: Seq[Statement[N]], expr: Expr[N]) =
           collect_pre_statements(in)
@@ -371,13 +393,41 @@ class Transformer[O <: Generation](
     else
       Block(pre_statements :+ stmt)(Utils.origen)
 
+  private def register_new_variable(name: String, typ: Type[N]): Variable[N] = {
+    val new_var: Variable[N] = new Variable(typ)(Utils.origen(name))
+    local_variables.topOption match {
+      case Some(m) => m.put(name, new_var)
+      case None => throw new IllegalStateException("No variable map!")
+    }
+    new_var
+  }
+
+  private def find_local_variable(name: String): Option[Variable[N]] =
+    local_variables.find(m => m.contains(name)).map(m => m(name))
+
+  private def unpack_known_parameters(name: String): Option[Expr[N]] =
+    known_parameters
+      .find(t => Utils.get_declarator_name(t._1.declarator).equals(name))
+      .map(t => dispatch(t._2))
+
   override def dispatch(in: Expr[O]): Expr[N] =
     in match {
       case CLocal(name) =>
         name match {
           case "pdFALSE" | "pdFAIL" => ff
           case "pdTRUE" | "pdPASS" => tt
-          case _ => ??? // TODO: Handle variable conversion!
+          case _ =>
+            find_local_variable(name) match {
+              case Some(v) => Utils.local_of(v)
+              case None =>
+                unpack_known_parameters(name).getOrElse(scheduler match {
+                  case Some(s) => col_ir.access_global_variable(name, s, new Transformer(col_ir, None, None, this_in_scheduler, Seq()))
+                  case None =>
+                    Utils.deref_of(
+                      col_ir.register_isr_field(name, this_in_scheduler, new Transformer(col_ir, None, None, this_in_scheduler, Seq()))
+                    )
+                })
+            }
         }
       case PreAssignExpression(target, value) =>
         val (v_pre: Seq[Statement[N]], v_expr: Expr[N]) =
@@ -670,6 +720,7 @@ class Transformer[O <: Generation](
             )
         }
       case AddrOf(e) => dispatch(e)
+      case CCast(expr, _) => dispatch(expr)
       // TODO: More C expressions?
     }
 
@@ -935,7 +986,9 @@ class Transformer[O <: Generation](
       f: CFunctionDefinition[O],
       args: Seq[Expr[N]],
   ): Statement[N] = {
-    val method: InstanceMethod[N] = transform_method(f)
+    val method: InstanceMethod[N] =
+      local_variables
+        .having(mutable.Map.empty[String, Variable[N]])(transform_method(f))
     InvokeMethod(
       Utils.thiz,
       new DirectRef[N, InstanceMethod[N]](method),
@@ -951,7 +1004,10 @@ class Transformer[O <: Generation](
       f: CFunctionDefinition[O],
       args: Seq[Expr[N]],
   ): Expr[N] = {
-    val method: InstanceMethod[N] = transform_method(f)
+    val method: InstanceMethod[N] =
+      // TODO: How to prevent the resolution from finding a variable from outside the method?
+      local_variables
+        .having(mutable.Map.empty[String, Variable[N]])(transform_method(f))
     MethodInvocation(
       Utils.thiz,
       new DirectRef[N, InstanceMethod[N]](method),
@@ -968,11 +1024,17 @@ class Transformer[O <: Generation](
       return additional_methods(f)
 
     val params: Seq[CParam[O]] = Utils.args_of(f)
+    val new_params: Seq[Variable[N]] = params.map(p =>
+      register_new_variable(
+        Utils.get_declarator_name(p.declarator),
+        Utils.get_ctype(p.specifiers),
+      )
+    )
 
     val new_method =
       new InstanceMethod(
         Utils.get_ctype(f.specs),
-        ???,
+        new_params,
         Seq(),
         Seq(),
         Some(dispatch(f.body)),

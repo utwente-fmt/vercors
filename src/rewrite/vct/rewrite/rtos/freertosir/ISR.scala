@@ -55,10 +55,10 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
   }
 
   def transform(transformer: Transformer[O], name: String): Class[N] = {
-    val variables: Seq[CLocal[O]] = get_variables
+    val runMethod: RunMethod[N] = create_runMethod(transformer)
 
-    val fields: Seq[(InstanceField[N], Expr[N])] = variables
-      .map(v => transform_variable(v))
+    val fields: Seq[(InstanceField[N], Option[Expr[N]])] =
+      transformer.get_registered_isr_fields
 
     val isrPermissions: InstancePredicate[N] =
       new InstancePredicate(
@@ -69,8 +69,6 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
       )(Utils.origen("isrPermissions"))
 
     val isrConstructor: PVLConstructor[N] = create_constructor(fields)
-
-    val runMethod: RunMethod[N] = create_runMethod(transformer)
 
     new ByReferenceClass(
       Seq(),
@@ -85,14 +83,8 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
     )(Utils.origen(name))
   }
 
-  private def get_variables: Seq[CLocal[O]] = ???
-
-  // TODO: Handle variable initializations!
-  private def transform_variable(cvar: CLocal[O]): (InstanceField[N], Expr[N]) =
-    ???
-
   private def create_constructor(
-      fields: Seq[(InstanceField[N], Expr[N])]
+      fields: Seq[(InstanceField[N], Option[Expr[N]])]
   ): PVLConstructor[N] = {
     val ensures: Expr[N] =
       Star(
@@ -102,8 +94,8 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
 
     val body: Statement[N] =
       Block(
-        fields.map(t =>
-          Assign(Utils.deref_of(t._1), t._2)(Utils.blame)(Utils.origen)
+        fields.filter(t => t._2.nonEmpty).map(t =>
+          Assign(Utils.deref_of(t._1), t._2.get)(Utils.blame)(Utils.origen)
         ) ++ Seq[Statement[N]](Commit(Utils.thiz)(Utils.blame)(Utils.origen))
       )(Utils.origen)
 

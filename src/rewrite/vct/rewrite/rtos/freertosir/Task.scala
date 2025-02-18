@@ -47,7 +47,7 @@ case class Task[O <: Generation](
       cls.get,
       Seq[Expr[N]](
         Utils.thiz
-      ), // TODO: incorporate param or have it be a parameter?
+      ),
       Utils.fold_star(Seq[Expr[N]](
         Perm(Utils.loc_of(field), Utils.read)(Utils.origen),
         Utils.predicate_apply(
