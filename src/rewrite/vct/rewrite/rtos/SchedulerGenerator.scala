@@ -15,7 +15,6 @@ class SchedulerGenerator[O <: Generation] {
   private var runnableQueue: Option[InstanceField[N]] = None
   private var priorityPerms: Option[InstancePredicate[N]] = None
   private var eventPerms: Option[InstancePredicate[N]] = None
-  private var schedulerPerms: Option[InstancePredicate[N]] = None
   private var globalInvariant: Option[InstancePredicate[N]] = None
   private var simulateTimePassing: Option[InstanceMethod[N]] = None
   private var executionTime: Option[InstanceMethod[N]] = None
@@ -27,7 +26,6 @@ class SchedulerGenerator[O <: Generation] {
   def get_runnableQueue: InstanceField[N] = runnableQueue.get
   def get_priorityPerms: InstancePredicate[N] = priorityPerms.get
   def get_eventPerms: InstancePredicate[N] = eventPerms.get
-  def get_schedulerPerms: InstancePredicate[N] = schedulerPerms.get
   def get_globalInvariant: InstancePredicate[N] = globalInvariant.get
   def get_simulateTimePassing: InstanceMethod[N] = simulateTimePassing.get
   def get_executionTime: InstanceMethod[N] = executionTime.get
@@ -92,11 +90,12 @@ class SchedulerGenerator[O <: Generation] {
     )
     val eventPerms_ref: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](eventPerms.get)
-    schedulerPerms = Some(
-      create_schedulerPerms(eventPerms_ref, priorityPerms_ref)
+    val schedulerPerms: InstancePredicate[N] = create_schedulerPerms(
+      eventPerms_ref,
+      priorityPerms_ref,
     )
     val schedulerPerms_ref: Ref[N, InstancePredicate[N]] =
-      new DirectRef[N, InstancePredicate[N]](schedulerPerms.get)
+      new DirectRef[N, InstancePredicate[N]](schedulerPerms)
     val globalPerms: InstancePredicate[N] =
       new InstancePredicate(
         Seq(),
@@ -188,7 +187,7 @@ class SchedulerGenerator[O <: Generation] {
         Seq(
           priorityPerms.get,
           eventPerms.get,
-          schedulerPerms.get,
+          schedulerPerms,
           globalPerms,
           globalProperties,
           globalInvariant.get,

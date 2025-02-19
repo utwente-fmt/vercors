@@ -32,7 +32,6 @@ class COLEncoder[O <: Generation](
   type N = Rewritten[O]
 
   private var scheduler: Option[Class[N]] = None
-  private var schedulerPerms: Option[InstancePredicate[N]] = None
   private var eventPerms: Option[InstancePredicate[N]] = None
   private var priorityPerms: Option[InstancePredicate[N]] = None
   private var globalInvariant: Option[InstancePredicate[N]] = None
@@ -106,7 +105,6 @@ class COLEncoder[O <: Generation](
       scheduler_generator.generate(ir, n_events, global_fields.values.toSeq)
     )
     // The generation will have populated the remaining fields
-    schedulerPerms = Some(scheduler_generator.get_schedulerPerms)
     eventPerms = Some(scheduler_generator.get_eventPerms)
     priorityPerms = Some(scheduler_generator.get_priorityPerms)
     globalInvariant = Some(scheduler_generator.get_globalInvariant)
@@ -145,7 +143,6 @@ class COLEncoder[O <: Generation](
   }
 
   def get_scheduler: Class[N] = scheduler.get
-  def get_schedulerPerms: InstancePredicate[N] = schedulerPerms.get
   def get_eventPerms: InstancePredicate[N] = eventPerms.get
   def get_priorityPerms: InstancePredicate[N] = priorityPerms.get
   def get_globalInvariant: InstancePredicate[N] = globalInvariant.get

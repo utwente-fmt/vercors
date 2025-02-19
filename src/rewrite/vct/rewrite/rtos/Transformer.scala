@@ -946,15 +946,105 @@ class Transformer[O <: Generation](
           )
     }
 
-  def wait_loop(eid: Option[Int], timeout: Option[Expr[N]]): Statement[N] =
-    Utils.task_wait(
-      col_ir,
-      Utils.exclude_isr(scheduler),
-      get_default_contract(holding_global_lock = true, runnable = false),
-      tid.get,
-      eid,
-      timeout,
+  def wait_loop(eid: Option[Int], timeout: Option[Expr[N]]): Statement[N] = {
+    val invariant: Expr[N] = get_default_contract(holding_global_lock = true, runnable = false)
+    val s: InstanceField[N] = Utils.exclude_isr(scheduler)
+    var block: Seq[Statement[N]] = Seq(
+      Loop(
+        Utils.skip,
+        Neq(
+          Utils.scheduling_variable_entry(
+            col_ir.get_taskState,
+            s,
+            Utils.int_val(tid.get),
+          ),
+          Utils.int_val(-2),
+        )(Utils.origen),
+        Utils.skip,
+        Utils.to_loop_invariant(invariant),
+        Block(Seq(
+          Unlock(Utils.deref_of(s))(Utils.blame)(Utils.origen),
+          Lock(Utils.deref_of(s))(Utils.blame)(Utils.origen),
+        ))(Utils.origen),
+      )(Utils.origen)
     )
+    if (eid.nonEmpty) {
+      block =
+        Seq[Statement[Rewritten[O]]](
+          Utils.update_scheduling_variable(
+            col_ir.get_taskState,
+            s,
+            Utils.int_val(tid.get),
+            Utils.int_val(eid.get),
+          ),
+          Utils.update_scheduling_variable(
+            col_ir.get_taskWaitTime,
+            s,
+            Utils.int_val(tid.get),
+            Utils.int_val(0),
+          ),
+        ) ++ block
+      if (timeout.nonEmpty) {
+        block =
+          Utils.update_scheduling_variable(
+            col_ir.get_eventState,
+            s,
+            Utils.int_val(eid.get),
+            timeout.get,
+          ) +: block
+      }
+    }
+    Block(block :+ execution_time(10, 10))(Utils.origen)
+  }
+
+  private def execution_time(bcet: Int, wcet: Int): Statement[N] = {
+    val executionTime: Variable[N] =
+      new Variable(Utils.tint)(Utils.origen("executionTime"))
+    val awoken: Variable[N] =
+      new Variable(Utils.tseqint)(Utils.origen("awoken"))
+    Block(Seq[Statement[N]](
+      LocalDecl(executionTime)(Utils.origen),
+      LocalDecl(awoken)(Utils.origen),
+      Assign(
+        Utils.local_of(executionTime),
+        Utils.invoke(
+          new LazyRef[N, InstanceMethod[N]](col_ir.get_executionTime),
+          Seq[Expr[N]](Utils.int_val(bcet), Utils.int_val(wcet)),
+          Some(Utils.deref_of(Utils.exclude_isr(scheduler))),
+        ),
+      )(Utils.blame)(Utils.origen),
+      Assign(
+        Utils.local_of(awoken),
+        Utils.invoke(
+          new LazyRef[N, InstanceMethod[N]](col_ir.get_simulateTimePassing),
+          Seq(Utils.local_of(executionTime)),
+          Some(Utils.deref_of(Utils.exclude_isr(scheduler))),
+        ),
+      )(Utils.blame)(Utils.origen),
+      Assign(
+        Utils.deref_unknown(col_ir.get_runnableQueue, Some(Utils.deref_of(Utils.exclude_isr(scheduler)))),
+        Concat(
+          Utils.deref_unknown(col_ir.get_runnableQueue, Some(Utils.deref_of(Utils.exclude_isr(scheduler)))),
+          Utils.local_of(awoken),
+        )(Utils.origen),
+      )(Utils.blame)(Utils.origen),
+      Assert(
+        Implies(
+          Greater(Size(Utils.local_of(awoken))(Utils.origen), Utils.int_val(0))(
+            Utils.origen
+          ),
+          Utils.fold_or(Seq.range(0, col_ir.get_n_tasks).map(i =>
+            Eq(
+              SeqSubscript(Utils.local_of(awoken), Utils.int_val(0))(
+                Utils.blame
+              )(Utils.origen),
+              Utils.int_val(i),
+            )(Utils.origen)
+          )),
+        )(Utils.origen)
+      )(Utils.blame)(Utils.origen),
+    ))(Utils.origen)
+  }
 
   override def dispatch(old: LoopContract[O]): LoopContract[N] =
     old match {
