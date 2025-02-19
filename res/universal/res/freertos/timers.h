@@ -7,7 +7,7 @@
 
 #define TimerHandle_t int
 
-typedef void (* TimerCallbackFunction_t)( TimerHandle_t xTimer );
+// typedef void (* TimerCallbackFunction_t)( TimerHandle_t xTimer );
 
 // Disallow unsupported functions
 //
@@ -27,7 +27,7 @@ TimerHandle_t vesuvTimerCreate( const TickType_t xTimerPeriod, const UBaseType_t
 #define xTimerDelete( xTimer, xTicksToWait )            xTimerStop( xTimer, 0 )
 
 // Ignore timer name for verification
-#define pcTimerGetName( TimerHandle_t xTimer )        ""
+#define pcTimerGetName( xTimer )        ""
 
 TickType_t xTimerGetPeriod( TimerHandle_t xTimer );
 TickType_t uxTimerGetReloadMode( TimerHandle_t xTimer );

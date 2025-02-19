@@ -5,102 +5,124 @@ import vct.col.origin.{
   LabelContext,
   Origin,
   PanicBlame,
-  PreferredName,
   RequiredName,
 }
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers
-import vct.col.util.AstBuildHelpers.{ff, tt}
+import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.rtos.freertosir.FreeRTOSConstruct
 
 import scala.annotation.tailrec
 
 case object Utils {
+  def resolve_integer(expr: Expr[_], meaning: String): Int =
+    try_expr_to_int(expr).getOrElse(
+      throw new IllegalArgumentException(
+        "Could not resolve " + meaning + " " + expr.toInlineString
+      )
+    )
+
   def try_expr_to_int(expr: Expr[_]): Option[Int] =
     expr match {
       case IntegerValue(i) => Some(i.intValue)
       case CIntegerValue(i) => Some(i.intValue)
-      case UMinus(arg) =>
-        try_expr_to_int(arg) match {
-          case Some(i) => Some(-i)
-          case None => None
-        }
-      case BitNot(arg) =>
-        try_expr_to_int(arg) match {
-          case Some(i) => Some(~i)
-          case None => None
-        }
+      case UMinus(arg) => try_expr_to_int(arg).map(i => -i)
+      case BitNot(arg) => try_expr_to_int(arg).map(i => ~i)
       case Plus(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 + i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 + i2)
       case AmbiguousPlus(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 + i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 + i2)
       case Minus(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 - i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 - i2)
       case AmbiguousMinus(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 - i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 - i2)
       case AmbiguousMult(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 * i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 * i2)
       case Mult(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 * i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 * i2)
       case AmbiguousDiv(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 / i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 / i2)
       case AmbiguousTruncDiv(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 / i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 / i2)
       case FloorDiv(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 / i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 / i2)
       case AmbiguousMod(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 % i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 % i2)
       case AmbiguousTruncMod(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 % i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 % i2)
       case Mod(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 % i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 % i2)
       case Exp(left, right) =>
-        resolve_operator(
+        resolve_int_operator(
           left,
           right,
           (i1, i2) => BigDecimal(i1).pow(i2).intValue,
         )
       case AmbiguousComputationalOr(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 | i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 | i2)
       case ComputationalOr(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 | i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 | i2)
       case AmbiguousComputationalAnd(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 & i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 & i2)
       case ComputationalAnd(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 & i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 & i2)
       case AmbiguousComputationalXor(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 ^ i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 ^ i2)
       case ComputationalXor(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 ^ i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 ^ i2)
       case BitAnd(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 & i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 & i2)
       case BitOr(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 | i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 | i2)
       case BitXor(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 ^ i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 ^ i2)
       case BitShl(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 << i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 << i2)
       case BitShr(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 >> i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 >> i2)
       case BitUShr(left, right) =>
-        resolve_operator(left, right, (i1, i2) => i1 >>> i2)
+        resolve_int_operator(left, right, (i1, i2) => i1 >>> i2)
       case _ => None
     }
 
-  private def resolve_operator(
+  private def resolve_int_operator(
       left: Expr[_],
       right: Expr[_],
       op: (Int, Int) => Int,
   ): Option[Int] =
     try_expr_to_int(left) match {
-      case Some(i1) =>
-        try_expr_to_int(right) match {
-          case Some(i2) => Some(op(i1, i2))
-          case None => None
-        }
+      case Some(i1) => try_expr_to_int(right).map(i2 => op(i1, i2))
       case None => None
     }
+
+  def resolve_boolean(expr: Expr[_], meaning: String): Boolean =
+    try_expr_to_bool(expr).getOrElse(
+      throw new IllegalArgumentException(
+        "Could not resolve " + meaning + " " + expr.toInlineString
+      )
+    )
+
+  def try_expr_to_bool(expr: Expr[_]): Option[Boolean] = expr match {
+    case BooleanValue(value) => Some(value)
+    case CLocal(name) => name match {
+      case "pdTRUE" | "pdPASS" => Some(true)
+      case "pdFALSE" | "pdFAIL" => Some(false)
+      case _ => None
+    }
+    case Not(arg) => try_expr_to_bool(arg).map(b => !b)
+    case And(left, right) => resolve_bool_operator(left, right, (b1, b2) => b1 && b2)
+    case Star(left, right) => resolve_bool_operator(left, right, (b1, b2) => b1 && b2)
+    case Or(left, right) => resolve_bool_operator(left, right, (b1, b2) => b1 || b2)
+    case AmbiguousOr(left, right) => resolve_bool_operator(left, right, (b1, b2) => b1 || b2)
+    case Implies(left, right) => resolve_bool_operator(left, right, (b1, b2) => !b1 || b2)
+    case _ => try_expr_to_int(expr).map(i => i != 0)
+  }
+
+  private def resolve_bool_operator(left: Expr[_], right: Expr[_], op: (Boolean, Boolean) => Boolean): Option[Boolean] = try_expr_to_bool(left) match {
+    case Some(b1) => try_expr_to_bool(right).map(b2 => op(b1, b2))
+    case None => None
+  }
 
   def creation_arg_assert[O](
       invocation: CInvocation[O],
@@ -113,13 +135,6 @@ case object Utils {
   def exclude_isr[N](scheduler: Option[InstanceField[N]]): InstanceField[N] =
     scheduler.getOrElse(
       throw new IllegalArgumentException("ISR must not reference scheduler!")
-    )
-
-  def resolve_integer[O](expr: Expr[O], meaning: String): Int =
-    try_expr_to_int(expr).getOrElse(
-      throw new IllegalArgumentException(
-        "Could not resolve " + meaning + " " + expr.toInlineString
-      )
     )
 
   def resolve_function[O](

@@ -229,7 +229,7 @@ case object Timer {
       variable,
       Utils.resolve_function(call_arg, decls, "timer callback function"),
       Utils.resolve_integer(period_arg, "timer period"),
-      Utils.resolve_integer(reload_arg, "timer reload") != 0,
+      Utils.resolve_boolean(reload_arg, "timer reload"),
       Utils.resolve_integer(priority_arg, "timer priority"),
     )
   }

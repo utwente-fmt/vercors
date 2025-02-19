@@ -805,8 +805,10 @@ class Transformer[O <: Generation](
       case AddrOf(e) => dispatch(e)
       case CCast(expr, _) => dispatch(expr)
       case _ =>
-        Utils.try_expr_to_int(in).map(i => Utils.int_val[N](i))
-          .getOrElse(in.rewriteDefault())
+        Utils.try_expr_to_int(in).map(i => Utils.int_val[N](i)).getOrElse(
+          Utils.try_expr_to_bool(in).map(b => BooleanValue[N](b)(Utils.origen))
+            .getOrElse(in.rewriteDefault())
+        )
     }
 
   private def resolve_api_call_stmt(
