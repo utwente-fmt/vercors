@@ -359,6 +359,13 @@ class Transformer[O <: Generation](
               ),
               Utils.int_val(-1),
             )
+          case "assert" =>
+            val (pre_stmts: Seq[Statement[N]], arg: Expr[N]) =
+              collect_pre_statements(args.head)
+            combine_with_pre_statements(
+              pre_stmts,
+              Assert(arg)(Utils.blame)(Utils.origen),
+            )
           case name =>
             val args_next: Seq[(Seq[Statement[N]], Expr[N])] = args
               .map(e => collect_pre_statements(e))

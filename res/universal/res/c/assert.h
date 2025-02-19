@@ -3,7 +3,12 @@
 #include<stdbool.h>
 
 /*@
- requires expression;
+ ensures \result;
+@*/
+bool alwaystrue();
+
+/*@
+ requires alwaystrue() ==> expression;
 @*/
 void assert(bool expression);
 
