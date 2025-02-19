@@ -66,6 +66,8 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
         Some(Utils.fold_star(
           fields.map(t => Perm(Utils.loc_of(t._1), Utils.write)(Utils.origen))
         )),
+        threadLocal = false,
+        inline = true,
       )(Utils.origen("isrPermissions"))
 
     val isrConstructor: PVLConstructor[N] = create_constructor(fields)
@@ -110,6 +112,7 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
   private def create_runMethod(transformer: Transformer[O]): RunMethod[N] = {
     val cond: Expr[N] = Committed(Utils.thiz)(Utils.blame)(Utils.origen)
 
+    // TODO: How to handle return statements?
     val loop_body: Statement[N] =
       Block(Seq[Statement[N]](
         Lock(Utils.thiz)(Utils.blame)(Utils.origen),

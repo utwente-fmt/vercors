@@ -2,7 +2,7 @@ package vct.rewrite.rtos
 
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
-import vct.col.util.AstBuildHelpers.tt
+import vct.col.util.AstBuildHelpers.ff
 import vct.rewrite.rtos.freertosir.{
   EventGroup,
   ISR,
@@ -58,8 +58,8 @@ class COLEncoder[O <: Generation](
   private val write_event: mutable.Map[InstanceField[N], Int] = mutable.Map
     .empty[InstanceField[N], Int]
   private val cond_to_call
-      : mutable.Map[InstanceMethod[N], Seq[Expr[N]] => Expr[N]] = mutable.Map
-    .empty[InstanceMethod[N], Seq[Expr[N]] => Expr[N]]
+      : mutable.Map[InstanceMethod[N], (Expr[N], Seq[Expr[N]]) => Expr[N]] =
+    mutable.Map.empty[InstanceMethod[N], (Expr[N], Seq[Expr[N]]) => Expr[N]]
   private val var_to_tid: mutable.Map[CLocal[O], Int] = mutable.Map
     .empty[CLocal[O], Int]
   private val var_to_timer_event: mutable.Map[CLocal[O], Int] = mutable.Map
@@ -219,11 +219,13 @@ class COLEncoder[O <: Generation](
 
   def add_call_condition(
       method: InstanceMethod[N],
-      cond_gen: Seq[Expr[N]] => Expr[N],
+      cond_gen: (Expr[N], Seq[Expr[N]]) => Expr[N],
   ): Unit = cond_to_call.put(method, cond_gen)
 
-  def get_call_condition(method: InstanceMethod[N]): Seq[Expr[N]] => Expr[N] =
-    cond_to_call.getOrElse(method, _ => tt)
+  def get_call_condition(
+      method: InstanceMethod[N]
+  ): (Expr[N], Seq[Expr[N]]) => Expr[N] =
+    cond_to_call.getOrElse(method, (_, _) => ff)
 
   def get_tid(variable: CLocal[O]): Int =
     var_to_tid.getOrElse(

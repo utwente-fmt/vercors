@@ -250,7 +250,8 @@ class Transformer[O <: Generation](
               Some(col_ir.reserve_event_id),
               Some(
                 Minus(
-                  Utils.int_val(Utils.resolve_integer(args.head, "task delay")),
+                  // TODO: This ignores pxPreviousWakeTime, i.e. assumes that it starts exactly when woken initially
+                  Utils.int_val(Utils.resolve_integer(args(1), "task delay")),
                   SeqSubscript(
                     Utils.deref_ref(
                       new LazyRef[N, InstanceField[N]](col_ir.get_taskWaitTime),
@@ -868,7 +869,10 @@ class Transformer[O <: Generation](
                 "Delay specified but event not found"
               )
             )(f),
-            col_ir.get_call_condition(m)(args),
+            col_ir.get_call_condition(m)(
+              Utils.deref_of(Utils.exclude_isr(scheduler)),
+              args,
+            ),
             method_call,
           )
         case None => Seq(method_call)
@@ -953,7 +957,7 @@ class Transformer[O <: Generation](
             get_default_contract(holding_global_lock = true, runnable = true),
             dispatch(invariant),
           )(Utils.origen),
-          decreases.map(c => c.rewriteDefault())
+          decreases.map(c => c.rewriteDefault()),
         )
     }
 
@@ -1069,7 +1073,7 @@ class Transformer[O <: Generation](
         Seq(),
         Seq(),
         body.map(s => dispatch(s)),
-        resolve_contract(contract, body.nonEmpty || (!Utils.is_pure(specs))),
+        resolve_contract(contract, body.nonEmpty),
         inline = Utils.is_inline(specs),
         pure = Utils.is_pure(specs),
       )(Utils.blame)(Utils.origen(Utils.get_declarator_name(decl)))
@@ -1095,18 +1099,21 @@ class Transformer[O <: Generation](
     )
   }
 
-  private def resolve_contract(old: ApplicableContract[O], add_default: Boolean): ApplicableContract[N] = {
-    val default_contract: Expr[N] = get_default_contract(
-      holding_global_lock = true,
-      runnable = true,
-    )
-    Utils.to_app_contract(
-      Star(default_contract, dispatch(Utils.contract_resolve(old.requires)))(
-        Utils.origen
-      ),
-      Star(default_contract, dispatch(Utils.contract_resolve(old.ensures)))(
-        Utils.origen
-      ),
-    )
+  private def resolve_contract(
+      old: ApplicableContract[O],
+      add_default: Boolean,
+  ): ApplicableContract[N] = {
+    var requires: Expr[N] = dispatch(Utils.contract_resolve(old.requires))
+    var ensures: Expr[N] = dispatch(Utils.contract_resolve(old.ensures))
+    if (add_default) {
+      val default_contract: Expr[N] = get_default_contract(
+        holding_global_lock = true,
+        runnable = true,
+      )
+      Utils.to_app_contract(
+        Star(default_contract, requires)(Utils.origen),
+        Star(default_contract, ensures)(Utils.origen),
+      )
+    } else { Utils.to_app_contract(requires, ensures) }
   }
 }

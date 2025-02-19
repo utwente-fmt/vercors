@@ -79,7 +79,14 @@ case class MessageBuffer[O <: Generation](decl: Option[CLocal[O]], size: Int)
       )
       col_ir.add_call_condition(
         xMessageBufferReceive.get,
-        _ => Eq(Utils.size(messageSizes.get), Utils.int_val(0))(Utils.origen),
+        (scheduler, _) =>
+          Eq(
+            Utils.size(
+              messageSizes.get,
+              Some(Utils.deref_of(field, Some(scheduler))),
+            ),
+            Utils.int_val(0),
+          )(Utils.origen),
       )
       col_ir.add_to_api(
         decl.get,
@@ -89,20 +96,28 @@ case class MessageBuffer[O <: Generation](decl: Option[CLocal[O]], size: Int)
       )
       col_ir.add_call_condition(
         xMessageBufferSend.get,
-        args =>
+        (scheduler, args) =>
           Greater(
             Plus(
-              Utils.size(buffer.get),
+              Utils
+                .size(buffer.get, Some(Utils.deref_of(field, Some(scheduler)))),
               Plus(
-                Mult(Utils.int_val(bit_width), Utils.size(messageSizes.get))(
-                  Utils.origen
-                ),
+                Mult(
+                  Utils.int_val(bit_width),
+                  Utils.size(
+                    messageSizes.get,
+                    Some(Utils.deref_of(field, Some(scheduler))),
+                  ),
+                )(Utils.origen),
                 Plus(Utils.int_val(bit_width), Size(args.head)(Utils.origen))(
                   Utils.origen
                 ),
               )(Utils.origen),
             )(Utils.origen),
-            Utils.deref_of(maxSize.get),
+            Utils.deref_of(
+              maxSize.get,
+              Some(Utils.deref_of(field, Some(scheduler))),
+            ),
           )(Utils.origen),
       )
     }

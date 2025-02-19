@@ -60,31 +60,41 @@ case class Queue[O <: Generation](decl: Option[CLocal[O]], capacity: Int)
         .add_to_api(decl.get, "xQueueSendToBack", field, xQueueSendToBack.get)
       col_ir.add_call_condition(
         xQueueSendToBack.get,
-        _ =>
-          GreaterEq(Utils.size(vals.get), Utils.deref_of(maxSize.get))(
-            Utils.origen
-          ),
+        (scheduler, _) =>
+          GreaterEq(
+            Utils.size(vals.get, Some(Utils.deref_of(field, Some(scheduler)))),
+            Utils.deref_of(maxSize.get),
+          )(Utils.origen),
       )
       col_ir
         .add_to_api(decl.get, "xQueueSendToFront", field, xQueueSendToFront.get)
       col_ir.add_call_condition(
         xQueueSendToFront.get,
-        _ =>
-          GreaterEq(Utils.size(vals.get), Utils.deref_of(maxSize.get))(
-            Utils.origen
-          ),
+        (scheduler, _) =>
+          GreaterEq(
+            Utils.size(vals.get, Some(Utils.deref_of(field, Some(scheduler)))),
+            Utils.deref_of(maxSize.get),
+          )(Utils.origen),
       )
       col_ir.add_to_api(decl.get, "xQueueOverwrite", field, xQueueOverwrite.get)
       col_ir.add_to_api(decl.get, "xQueueReset", field, xQueueReset.get)
       col_ir.add_to_api(decl.get, "xQueueReceive", field, xQueueReceive.get)
       col_ir.add_call_condition(
         xQueueReceive.get,
-        _ => Eq(Utils.size(vals.get), Utils.int_val(0))(Utils.origen),
+        (scheduler, _) =>
+          Eq(
+            Utils.size(vals.get, Some(Utils.deref_of(field, Some(scheduler)))),
+            Utils.int_val(0),
+          )(Utils.origen),
       )
       col_ir.add_to_api(decl.get, "xQueuePeek", field, xQueuePeek.get)
       col_ir.add_call_condition(
         xQueuePeek.get,
-        _ => Eq(Utils.size(vals.get), Utils.int_val(0))(Utils.origen),
+        (scheduler, _) =>
+          Eq(
+            Utils.size(vals.get, Some(Utils.deref_of(field, Some(scheduler)))),
+            Utils.int_val(0),
+          )(Utils.origen),
       )
       col_ir.add_to_api(
         decl.get,

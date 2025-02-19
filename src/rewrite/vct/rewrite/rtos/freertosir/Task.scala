@@ -97,6 +97,8 @@ case class Task[O <: Generation](
             Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen),
           )(Utils.origen)
         ),
+        threadLocal = false,
+        inline = true,
       )(Utils.origen("taskPerms"))
     )
 
@@ -137,7 +139,7 @@ case class Task[O <: Generation](
         Utils.origen("s_param")
       )
 
-    val requires: Expr[N] = Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen)
+    val requires: Expr[N] = Neq(Utils.local_of(s_param), Utils.nul)(Utils.origen)
 
     val ensures: Expr[N] = Utils.fold_star(Seq[Expr[N]](
       Utils.predicate_apply(Utils.thiz, perms, Seq()),
@@ -168,10 +170,10 @@ case class Task[O <: Generation](
 
     val body: Statement[N] =
       Block(Seq[Statement[N]](
-        Lock(Utils.thiz)(Utils.blame)(Utils.origen),
+        Lock(Utils.deref_of(s.get))(Utils.blame)(Utils.origen),
         wait_loop,
         transformer.dispatch(func.body),
-        Unlock(Utils.thiz)(Utils.blame)(Utils.origen),
+        Unlock(Utils.deref_of(s.get))(Utils.blame)(Utils.origen),
       ))(Utils.origen)
 
     new RunMethod(Some(body), Utils.to_app_contract(cond, cond))(Utils.blame)(

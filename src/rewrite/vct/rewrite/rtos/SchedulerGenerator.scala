@@ -128,7 +128,7 @@ class SchedulerGenerator[O <: Generation] {
         ),
         false,
         true,
-      )(Utils.origen)
+      )(Utils.origen("globalInvariant"))
     )
     val globalInvariant_ref: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](globalInvariant.get)
@@ -191,6 +191,7 @@ class SchedulerGenerator[O <: Generation] {
           schedulerPerms.get,
           globalPerms,
           globalProperties,
+          globalInvariant.get,
         ) ++
         // Methods
         Seq(
@@ -282,24 +283,20 @@ class SchedulerGenerator[O <: Generation] {
       Utils.single_var_forall(
         i4,
         Utils.int_val(0),
-        Size(Utils.result)(Utils.origen),
+        Utils.size(runnableQueue.get),
         Forall(
           Seq(j4),
           Seq(),
           Implies(
             And(
               Less(Utils.local_of(i4), Utils.local_of(j4))(Utils.origen),
-              Less(Utils.local_of(j4), Size(Utils.result)(Utils.origen))(
+              Less(Utils.local_of(j4), Utils.size(runnableQueue.get))(
                 Utils.origen
               ),
             )(Utils.origen),
             Neq(
-              SeqSubscript(Utils.result, Utils.local_of(i4))(Utils.blame)(
-                Utils.origen
-              ),
-              SeqSubscript(Utils.result, Utils.local_of(j4))(Utils.blame)(
-                Utils.origen
-              ),
+              Utils.subscript_expr(runnableQueue.get, Utils.local_of(i4)),
+              Utils.subscript_expr(runnableQueue.get, Utils.local_of(j4)),
             )(Utils.origen),
           )(Utils.origen),
         )(Utils.origen),

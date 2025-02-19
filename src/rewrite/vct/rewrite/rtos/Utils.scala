@@ -192,7 +192,10 @@ case object Utils {
   }
 
   def args_of[O](d: CDeclarator[O]): Seq[CParam[O]] =
-    d match { case CTypedFunctionDeclarator(params, _, _) => params }
+    d match {
+      case CTypedFunctionDeclarator(params, _, _) => params
+      case CAnonymousFunctionDeclarator(params, _) if params.isEmpty => Seq()
+    }
 
   def thiz[N]: AmbiguousThis[N] = AmbiguousThis()(origen)
   def nul[N]: Null[N] = Null()(origen)
@@ -225,7 +228,7 @@ case object Utils {
 
   def old[N](expr: Expr[N]): Old[N] = Old(expr, None)(blame)(origen)
 
-  def size[N](f: InstanceField[N]): Size[N] = Size(deref_of(f))(origen)
+  def size[N](f: InstanceField[N], obj: Option[Expr[N]] = None): Size[N] = Size(deref_of(f, obj))(origen)
 
   def subscript[N](f: InstanceField[N], index: Int): SeqSubscript[N] =
     SeqSubscript(deref_of(f), int_val(index))(blame)(origen)

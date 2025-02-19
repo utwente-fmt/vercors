@@ -80,18 +80,28 @@ case class StreamBuffer[O <: Generation](
       )
       col_ir.add_call_condition(
         xStreamBufferReceive.get,
-        exprs => Less(Utils.size(buffer.get), exprs.head)(Utils.origen),
+        (scheduler, exprs) =>
+          Less(
+            Utils
+              .size(buffer.get, Some(Utils.deref_of(field, Some(scheduler)))),
+            exprs.head,
+          )(Utils.origen),
       )
       col_ir
         .add_to_api(decl.get, "xStreamBufferSend", field, xStreamBufferSend.get)
       col_ir.add_call_condition(
         xStreamBufferSend.get,
-        exprs =>
+        (scheduler, exprs) =>
           Greater(
-            Plus(Utils.size(buffer.get), Size(exprs.head)(Utils.origen))(
-              Utils.origen
+            Plus(
+              Utils
+                .size(buffer.get, Some(Utils.deref_of(field, Some(scheduler)))),
+              Size(exprs.head)(Utils.origen),
+            )(Utils.origen),
+            Utils.deref_of(
+              maxSize.get,
+              Some(Utils.deref_of(field, Some(scheduler))),
             ),
-            Utils.deref_of(maxSize.get),
           )(Utils.origen),
       )
     }

@@ -38,8 +38,6 @@
 // void vTaskGetTaskInfo( TaskHandle_t xTask, TaskStatus_t *pxTaskStatus, BaseType_t xGetFreeStackSpace, eTaskState eState );
 // void *pvTaskGetThreadLocalStoragePointer( TaskHandle_t xTaskToQuery, BaseType_t xIndex );
 // void vTaskSetThreadLocalStoragePointer( TaskHandle_t xTaskToSet, BaseType_t xIndex, void *pvValue );
-// TickType_t xTaskGetTickCount( void );
-// TickType_t xTaskGetTickCountFromISR( void );
 // void vTaskList( char *pcWriteBuffer );
 // BaseType_t xTaskResumeAll( void );
 // void vTaskSuspendAll( void );
@@ -52,6 +50,9 @@
 #define xTaskCreateStatic( pvTaskCode, pcName, ulStackDepth, pvParameters, uxPriority, puxStackBuffer, pxTaskBuffer )       vesuvTaskCreate( pvTaskCode( pvParameters ), uxPriority )
 BaseType_t vesuvTaskCreate( void vesuvIGNORE, UBaseType_t uxPriority );
 void vTaskDelete( TaskHandle_t pxTask );
+
+#define xTaskGetTickCount()           0
+#define xTaskGetTickCountFromISR()    0
 
 void vTaskDelay( TickType_t xTicksToDelay );
 void vTaskDelayUntil( TickType_t *pxPreviousWakeTime, TickType_t xTimeIncrement );

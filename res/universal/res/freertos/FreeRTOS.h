@@ -4,6 +4,7 @@
 #include "FreeRTOSConfig.h"
 #include <stdint.h>
 #include <stddef.h>
+#include <assert.h>
 
 #define BaseType_t int
 #define UBaseType_t int
@@ -18,6 +19,9 @@
 #endif
 #ifndef pdTICKS_TO_MS
     #define pdTICKS_TO_MS( xTimeInTicks )    ( ( xTimeInTicks * 1000U ) / configTICK_RATE_HZ )
+#endif
+#ifndef configASSERT
+    #define configASSERT( x )       assert(x != 0)
 #endif
 
 const int portMAX_DELAY;

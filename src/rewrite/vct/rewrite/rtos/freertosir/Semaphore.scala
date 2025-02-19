@@ -12,7 +12,9 @@ sealed trait Semaphore[O <: Generation] extends FreeRTOSConstruct[O] {
   def perms_for_scheduler(field: InstanceField[N]): Seq[Expr[N]]
   def additional_constructor_args: Seq[Expr[N]]
   def function_mapping: Seq[(String, InstanceMethod[N])]
-  def call_conditions: Seq[(InstanceMethod[N], Seq[Expr[N]] => Expr[N])]
+  def call_conditions(
+      field: InstanceField[N]
+  ): Seq[(InstanceMethod[N], (Expr[N], Seq[Expr[N]]) => Expr[N])]
 
   private def class_name(idx: Int): String =
     get_decl match {
@@ -47,7 +49,7 @@ sealed trait Semaphore[O <: Generation] extends FreeRTOSConstruct[O] {
     if (get_decl.nonEmpty) {
       function_mapping
         .foreach(t => col_ir.add_to_api(get_decl.get, t._1, field, t._2))
-      call_conditions.foreach(t => col_ir.add_call_condition(t._1, t._2))
+      call_conditions(field).foreach(t => col_ir.add_call_condition(t._1, t._2))
     }
     col_ir.add_write_event(field, available_event)
 
@@ -116,11 +118,17 @@ case class BinarySemaphore[O <: Generation](
       ("xSemaphoreGive", xSemaphoreGive.get),
       ("xSemaphoreTake", xSemaphoreTake.get),
     )
-  override def call_conditions
-      : Seq[(InstanceMethod[N], Seq[Expr[N]] => Expr[N])] =
+  override def call_conditions(
+      field: InstanceField[N]
+  ): Seq[(InstanceMethod[N], (Expr[N], Seq[Expr[N]]) => Expr[N])] =
     Seq((
       xSemaphoreTake.get,
-      _ => Less(Utils.deref_of(task.get), Utils.int_val(0))(Utils.origen),
+      (scheduler, _) =>
+        Less(
+          Utils
+            .deref_of(task.get, Some(Utils.deref_of(field, Some(scheduler)))),
+          Utils.int_val(0),
+        )(Utils.origen),
     ))
 
   private var s: Option[InstanceField[N]] = None
@@ -617,11 +625,17 @@ case class RecursiveMutex[O <: Generation](decl: Option[CLocal[O]])
       ("xSemaphoreGiveRecursive", xSemaphoreGiveRecursive.get),
       ("xSemaphoreTakeRecursive", xSemaphoreTakeRecursive.get),
     )
-  override def call_conditions
-      : Seq[(InstanceMethod[N], Seq[Expr[N]] => Expr[N])] =
+  override def call_conditions(
+      field: InstanceField[N]
+  ): Seq[(InstanceMethod[N], (Expr[N], Seq[Expr[N]]) => Expr[N])] =
     Seq((
       xSemaphoreTakeRecursive.get,
-      _ => Less(Utils.deref_of(task.get), Utils.int_val(0))(Utils.origen),
+      (scheduler, _) =>
+        Less(
+          Utils
+            .deref_of(task.get, Some(Utils.deref_of(field, Some(scheduler)))),
+          Utils.int_val(0),
+        )(Utils.origen),
     ))
 
   private var s: Option[InstanceField[N]] = None
