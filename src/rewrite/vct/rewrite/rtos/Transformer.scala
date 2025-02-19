@@ -39,7 +39,7 @@ class Transformer[O <: Generation](
         val map: mutable.Map[String, Variable[N]] = mutable.Map
           .empty[String, Variable[N]]
         val new_body: Statement[N] = local_variables.having(map)(dispatch(body))
-        Scope(map.values.toSeq, new_body)(Utils.origen)
+        Scope( /*map.values.toSeq*/ Seq(), new_body)(Utils.origen)
       case Branch(branches) =>
         val expr_evals: Seq[(Seq[Statement[N]], Expr[N], Statement[N])] =
           branches.map(t =>

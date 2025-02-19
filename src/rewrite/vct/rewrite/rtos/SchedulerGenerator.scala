@@ -138,7 +138,7 @@ class SchedulerGenerator[O <: Generation] {
       objs,
       n_events,
       n_tasks,
-      global_fields.filter(t => t._2.nonEmpty).map(t => (t._1, t._2.get))
+      global_fields.filter(t => t._2.nonEmpty).map(t => (t._1, t._2.get)),
     )
 
     // Helper methods
@@ -338,7 +338,7 @@ class SchedulerGenerator[O <: Generation] {
       objs: Seq[ObjectInfo[O]],
       n_events: Int,
       n_tasks: Int,
-      fields_to_initialize: Seq[(InstanceField[N], Expr[N])]
+      fields_to_initialize: Seq[(InstanceField[N], Expr[N])],
   ): PVLConstructor[N] = {
     // Supporting calculations
     val launch_objs: Seq[ObjectInfo[O]] = objs.filter(o => o.launch)
@@ -360,7 +360,8 @@ class SchedulerGenerator[O <: Generation] {
     val taskPriorityInit: Seq[Int] = objs.filter(o => o.task_id.nonEmpty)
       .sortBy(o => o.task_id.get).map(o => o.task_priority.get)
     val taskWaitTimeInit: Seq[Int] = Seq.fill(n_tasks)(0)
-    val runnableQueueInit: Seq[Int] = taskStateInit.filter(i => i == -1)
+    val runnableQueueInit: Seq[Int] = taskStateInit.zipWithIndex
+      .filter(t => t._1 == -1).map(t => t._2)
 
     // Constructor contract
     val ensures: Expr[N] = Utils.fold_star(
@@ -413,10 +414,7 @@ class SchedulerGenerator[O <: Generation] {
           )(Utils.blame)(Utils.origen),
         )(Utils.blame)(Utils.origen)
       ) ++ fields_to_initialize.map(t =>
-        Assign(
-          Utils.deref_of(t._1),
-          t._2
-        )(Utils.blame)(Utils.origen)
+        Assign(Utils.deref_of(t._1), t._2)(Utils.blame)(Utils.origen)
       ) :+ Commit(Utils.thiz)(Utils.blame)(Utils.origen)
 
     val body: Statement[N] = Block(statements)(Utils.origen)
