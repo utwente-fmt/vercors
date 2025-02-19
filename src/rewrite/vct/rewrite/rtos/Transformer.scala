@@ -17,6 +17,9 @@ class Transformer[O <: Generation](
 ) extends Rewriter[O] {
   type N = Rewritten[O]
 
+  private var executionTime: Option[Variable[N]] = None
+  private var awoken: Option[Variable[N]] = None
+
   private val local_variables: ScopedStack[mutable.Map[String, Variable[N]]] =
     ScopedStack()
   private val pre_statement_buffer
@@ -31,6 +34,36 @@ class Transformer[O <: Generation](
 
   def get_registered_isr_fields: Seq[(InstanceField[N], Option[Expr[N]])] =
     col_ir.get_isr_fields(this_in_scheduler)
+
+  private def transform_method(
+      decl: CDeclarator[O],
+      specs: Seq[CDeclarationSpecifier[O]],
+      body: Option[Statement[O]],
+      contract: ApplicableContract[O],
+      known_methods: mutable.Map[CDeclarator[O], InstanceMethod[N]],
+  ): InstanceMethod[N] =
+    local_variables.having(mutable.Map.empty[String, Variable[N]])({
+      additional_methods.addAll(known_methods)
+
+      val params: Seq[CParam[O]] = Utils.args_of(decl)
+      val new_params: Seq[Variable[N]] = params.map(p =>
+        register_new_variable(
+          Utils.get_declarator_name(p.declarator),
+          Utils.get_ctype(p.specifiers),
+        )
+      )
+
+      new InstanceMethod(
+        Utils.get_ctype(specs),
+        new_params,
+        Seq(),
+        Seq(),
+        body.map(s => dispatch(s)),
+        resolve_contract(contract, body.nonEmpty),
+        inline = Utils.is_inline(specs),
+        pure = Utils.is_pure(specs),
+      )(Utils.blame)(Utils.origen(Utils.get_declarator_name(decl)))
+    })
 
   override def dispatch(in: Statement[O]): Statement[N] =
     in match {
@@ -50,19 +83,6 @@ class Transformer[O <: Generation](
         val pre_statements: Seq[Statement[N]] = expr_evals.flatMap(t => t._1)
         val branch: Branch[N] = Branch(expr_evals.map(t => t._2 -> t._3))(in.o)
         combine_with_pre_statements(pre_statements, branch)
-      case Loop(init, cond, update, contract, body) =>
-        val (pre_statements: Seq[Statement[N]], cond_eval: Expr[N]) =
-          collect_pre_statements(cond)
-        val loop: Loop[N] =
-          Loop(
-            dispatch(init),
-            cond_eval,
-            dispatch(update),
-            dispatch(contract),
-            dispatch(body),
-          )(in.o)
-        combine_with_pre_statements(pre_statements, loop)
-      case Eval(expr) => expr_to_statement(expr)
       case CDeclarationStatement(decl) =>
         val typ: Type[N] = Utils.get_ctype(decl.decl.specs)
         val variables: Seq[(Variable[N], Option[Expr[N]])] = decl.decl.inits
@@ -84,9 +104,42 @@ class Transformer[O <: Generation](
           declarations.head
         else
           Block(declarations)(Utils.origen)
-      // TODO: Other C statements?
+      case Eval(expr) => expr_to_statement(expr)
+      case l @ Loop(init, cond, update, contract, body) =>
+        handle_expression_container(
+          cond,
+          e =>
+            Loop(
+              dispatch(init),
+              e,
+              dispatch(update),
+              dispatch(contract),
+              dispatch(body),
+            )(l.o),
+        )
+      case ret @ Return(result) =>
+        handle_expression_container(result, e => Return(e)(ret.o))
+      case exh @ Exhale(res) =>
+        handle_expression_container(res, e => Exhale(e)(exh.blame)(exh.o))
+      case asm @ Assume(res) =>
+        handle_expression_container(res, e => Assume(e)(asm.o))
+      case ast @ Assert(res) =>
+        handle_expression_container(res, e => Assert(e)(ast.blame)(ast.o))
+      case ref @ Refute(assn) =>
+        handle_expression_container(assn, e => Refute(e)(ref.blame)(ref.o))
+      case inh @ Inhale(res) =>
+        handle_expression_container(res, e => Inhale(e)(inh.o))
       case _ => in.rewriteDefault()
     }
+
+  private def handle_expression_container(
+      e: Expr[O],
+      f: Expr[N] => Statement[N],
+  ): Statement[N] = {
+    val (pre_statements: Seq[Statement[N]], expr: Expr[N]) =
+      collect_pre_statements(e)
+    combine_with_pre_statements(pre_statements, f(expr))
+  }
 
   private def expr_to_statement(in: Expr[O]): Statement[N] =
     in match {
@@ -751,7 +804,9 @@ class Transformer[O <: Generation](
         }
       case AddrOf(e) => dispatch(e)
       case CCast(expr, _) => dispatch(expr)
-      case _ => in.rewriteDefault()
+      case _ =>
+        Utils.try_expr_to_int(in).map(i => Utils.int_val[N](i))
+          .getOrElse(in.rewriteDefault())
     }
 
   private def resolve_api_call_stmt(
@@ -947,7 +1002,10 @@ class Transformer[O <: Generation](
     }
 
   def wait_loop(eid: Option[Int], timeout: Option[Expr[N]]): Statement[N] = {
-    val invariant: Expr[N] = get_default_contract(holding_global_lock = true, runnable = false)
+    val invariant: Expr[N] = get_default_contract(
+      holding_global_lock = true,
+      runnable = false,
+    )
     val s: InstanceField[N] = Utils.exclude_isr(scheduler)
     var block: Seq[Statement[N]] = Seq(
       Loop(
@@ -998,52 +1056,77 @@ class Transformer[O <: Generation](
   }
 
   private def execution_time(bcet: Int, wcet: Int): Statement[N] = {
-    val executionTime: Variable[N] =
-      new Variable(Utils.tint)(Utils.origen("executionTime"))
-    val awoken: Variable[N] =
-      new Variable(Utils.tseqint)(Utils.origen("awoken"))
-    Block(Seq[Statement[N]](
-      LocalDecl(executionTime)(Utils.origen),
-      LocalDecl(awoken)(Utils.origen),
-      Assign(
-        Utils.local_of(executionTime),
-        Utils.invoke(
-          new LazyRef[N, InstanceMethod[N]](col_ir.get_executionTime),
-          Seq[Expr[N]](Utils.int_val(bcet), Utils.int_val(wcet)),
-          Some(Utils.deref_of(Utils.exclude_isr(scheduler))),
-        ),
-      )(Utils.blame)(Utils.origen),
-      Assign(
-        Utils.local_of(awoken),
-        Utils.invoke(
-          new LazyRef[N, InstanceMethod[N]](col_ir.get_simulateTimePassing),
-          Seq(Utils.local_of(executionTime)),
-          Some(Utils.deref_of(Utils.exclude_isr(scheduler))),
-        ),
-      )(Utils.blame)(Utils.origen),
-      Assign(
-        Utils.deref_unknown(col_ir.get_runnableQueue, Some(Utils.deref_of(Utils.exclude_isr(scheduler)))),
-        Concat(
-          Utils.deref_unknown(col_ir.get_runnableQueue, Some(Utils.deref_of(Utils.exclude_isr(scheduler)))),
-          Utils.local_of(awoken),
-        )(Utils.origen),
-      )(Utils.blame)(Utils.origen),
-      Assert(
-        Implies(
-          Greater(Size(Utils.local_of(awoken))(Utils.origen), Utils.int_val(0))(
-            Utils.origen
+    val (execTime: Variable[N], exec_decl: Seq[Statement[N]]) =
+      if (executionTime.nonEmpty)
+        (executionTime.get, Seq())
+      else {
+        executionTime = Some(
+          new Variable(Utils.tint)(Utils.origen("executionTime"))
+        )
+        (executionTime.get, Seq(LocalDecl(executionTime.get)(Utils.origen)))
+      }
+    val (awok: Variable[N], awok_decl: Seq[Statement[N]]) =
+      if (awoken.nonEmpty)
+        (awoken.get, Seq())
+      else {
+        awoken = Some(new Variable(Utils.tseqint)(Utils.origen("awoken")))
+        (awoken.get, Seq(LocalDecl(awoken.get)(Utils.origen)))
+      }
+    Block(
+      exec_decl ++ awok_decl ++ Seq[Statement[N]](
+        Assign(
+          Utils.local_of(execTime),
+          Utils.invoke(
+            new LazyRef[N, InstanceMethod[N]](col_ir.get_executionTime),
+            Seq[Expr[N]](Utils.int_val(bcet), Utils.int_val(wcet)),
+            Some(Utils.deref_of(Utils.exclude_isr(scheduler))),
           ),
-          Utils.fold_or(Seq.range(0, col_ir.get_n_tasks).map(i =>
-            Eq(
-              SeqSubscript(Utils.local_of(awoken), Utils.int_val(0))(
-                Utils.blame
-              )(Utils.origen),
-              Utils.int_val(i),
-            )(Utils.origen)
-          )),
-        )(Utils.origen)
-      )(Utils.blame)(Utils.origen),
-    ))(Utils.origen)
+        )(Utils.blame)(Utils.origen),
+        Assign(
+          Utils.local_of(awok),
+          Utils.invoke(
+            new LazyRef[N, InstanceMethod[N]](col_ir.get_simulateTimePassing),
+            Seq(Utils.local_of(execTime)),
+            Some(Utils.deref_of(Utils.exclude_isr(scheduler))),
+          ),
+        )(Utils.blame)(Utils.origen),
+        Assign(
+          Utils.deref_unknown(
+            col_ir.get_runnableQueue,
+            Some(Utils.deref_of(Utils.exclude_isr(scheduler))),
+          ),
+          Concat(
+            Utils.deref_unknown(
+              col_ir.get_runnableQueue,
+              Some(Utils.deref_of(Utils.exclude_isr(scheduler))),
+            ),
+            Utils.local_of(awok),
+          )(Utils.origen),
+        )(Utils.blame)(Utils.origen),
+        Utils.stmt_invoke(
+          new LazyRef[N, InstanceMethod[N]](
+            col_ir.get_instantiateEventTriggers
+          ),
+          Seq(),
+          Some(Utils.deref_of(Utils.exclude_isr(scheduler))),
+        ),
+        Assert(
+          Implies(
+            Greater(Size(Utils.local_of(awok))(Utils.origen), Utils.int_val(0))(
+              Utils.origen
+            ),
+            Utils.fold_or(Seq.range(0, col_ir.get_n_tasks).map(i =>
+              Eq(
+                SeqSubscript(Utils.local_of(awok), Utils.int_val(0))(
+                  Utils.blame
+                )(Utils.origen),
+                Utils.int_val(i),
+              )(Utils.origen)
+            )),
+          )(Utils.origen)
+        )(Utils.blame)(Utils.origen),
+      )
+    )(Utils.origen)
   }
 
   override def dispatch(old: LoopContract[O]): LoopContract[N] =
@@ -1139,12 +1222,9 @@ class Transformer[O <: Generation](
   }
 
   private def get_method(name: String): InstanceMethod[N] =
-    // TODO: How to prevent the resolution from finding a variable from outside the method?
-    local_variables.having(mutable.Map.empty[String, Variable[N]])(
-      col_ir.get_function_definition(name).map(f =>
-        transform_method(f.declarator, f.specs, Some(f.body), f.contract)
-      ).getOrElse(transform_abstract_function(name))
-    )
+    col_ir.get_function_definition(name).map(f =>
+      transform_method(f.declarator, f.specs, Some(f.body), f.contract)
+    ).getOrElse(transform_abstract_function(name))
 
   private def transform_method(
       decl: CDeclarator[O],
@@ -1155,26 +1235,13 @@ class Transformer[O <: Generation](
     if (additional_methods.contains(decl))
       return additional_methods(decl)
 
-    val params: Seq[CParam[O]] = Utils.args_of(decl)
-    val new_params: Seq[Variable[N]] = params.map(p =>
-      register_new_variable(
-        Utils.get_declarator_name(p.declarator),
-        Utils.get_ctype(p.specifiers),
-      )
-    )
+    val transformer: Transformer[O] =
+      new Transformer(col_ir, tid, scheduler, this_in_scheduler, Seq())
+    val new_method = transformer
+      .transform_method(decl, specs, body, contract, additional_methods)
 
-    val new_method =
-      new InstanceMethod(
-        Utils.get_ctype(specs),
-        new_params,
-        Seq(),
-        Seq(),
-        body.map(s => dispatch(s)),
-        resolve_contract(contract, body.nonEmpty),
-        inline = Utils.is_inline(specs),
-        pure = Utils.is_pure(specs),
-      )(Utils.blame)(Utils.origen(Utils.get_declarator_name(decl)))
-
+    additional_methods.clear()
+    additional_methods.addAll(transformer.additional_methods)
     additional_methods.put(decl, new_method)
     new_method
   }

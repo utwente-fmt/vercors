@@ -42,6 +42,7 @@ class COLEncoder[O <: Generation](
   private var runnableQueue: Option[InstanceField[N]] = None
   private var simulateTimePassing: Option[InstanceMethod[N]] = None
   private var executionTime: Option[InstanceMethod[N]] = None
+  private var instantiateEventTriggers: Option[InstanceMethod[N]] = None
 
   private val freertos_api: mutable.Map[
     (CLocal[O], String),
@@ -115,6 +116,9 @@ class COLEncoder[O <: Generation](
     runnableQueue = Some(scheduler_generator.get_runnableQueue)
     simulateTimePassing = Some(scheduler_generator.get_simulateTimePassing)
     executionTime = Some(scheduler_generator.get_executionTime)
+    instantiateEventTriggers = Some(
+      scheduler_generator.get_instantiateEventTriggers
+    )
 
     ir.map(o => o.cls) :+ scheduler.get
   }
@@ -153,6 +157,8 @@ class COLEncoder[O <: Generation](
   def get_runnableQueue: InstanceField[N] = runnableQueue.get
   def get_simulateTimePassing: InstanceMethod[N] = simulateTimePassing.get
   def get_executionTime: InstanceMethod[N] = executionTime.get
+  def get_instantiateEventTriggers: InstanceMethod[N] =
+    instantiateEventTriggers.get
 
   def reserve_event_id: Int = {
     val res = n_events

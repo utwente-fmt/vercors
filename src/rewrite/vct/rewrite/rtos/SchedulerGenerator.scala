@@ -18,6 +18,7 @@ class SchedulerGenerator[O <: Generation] {
   private var globalInvariant: Option[InstancePredicate[N]] = None
   private var simulateTimePassing: Option[InstanceMethod[N]] = None
   private var executionTime: Option[InstanceMethod[N]] = None
+  private var instantiateEventTriggers: Option[InstanceMethod[N]] = None
 
   def get_eventState: InstanceField[N] = eventState.get
   def get_taskState: InstanceField[N] = taskState.get
@@ -29,6 +30,8 @@ class SchedulerGenerator[O <: Generation] {
   def get_globalInvariant: InstancePredicate[N] = globalInvariant.get
   def get_simulateTimePassing: InstanceMethod[N] = simulateTimePassing.get
   def get_executionTime: InstanceMethod[N] = executionTime.get
+  def get_instantiateEventTriggers: InstanceMethod[N] =
+    instantiateEventTriggers.get
 
   def generate(
       objs: Seq[ObjectInfo[O]],
@@ -152,6 +155,9 @@ class SchedulerGenerator[O <: Generation] {
     )
     simulateTimePassing = Some(create_simulateTimePassing(schedulerPerms_ref))
     executionTime = Some(create_executionTime())
+    instantiateEventTriggers = Some(
+      create_instantiateEventTriggers(eventPerms_ref, n_events)
+    )
 
     // Methods
     val schedule: InstanceMethod[N] = create_schedule(
@@ -204,6 +210,7 @@ class SchedulerGenerator[O <: Generation] {
           selectNextTask,
           simulateTimePassing.get,
           executionTime.get,
+          instantiateEventTriggers.get,
         )
 
     new ByReferenceClass(
@@ -1294,6 +1301,33 @@ class SchedulerGenerator[O <: Generation] {
       false,
       true,
     )(Utils.blame)(Utils.origen("executionTime"))
+  }
+
+  private def create_instantiateEventTriggers(
+      eventPerms_ref: Ref[N, InstancePredicate[N]],
+      n_events: Int,
+  ): InstanceMethod[N] = {
+    // requires eventPerms();
+    val requires1: Expr[N] = Utils
+      .predicate_apply(Utils.thiz, eventPerms_ref, Seq())
+
+    // requires eventState[0] >= -1 && ... && eventState[__n__] >= -1;
+    val requires2: Expr[N] = Utils.fold_and(Seq.range(0, n_events).map(i =>
+      GreaterEq(Utils.subscript(eventState.get, i), Utils.int_val(-1))(
+        Utils.origen
+      )
+    ))
+
+    new InstanceMethod(
+      Utils.tvoid,
+      Seq(),
+      Seq(),
+      Seq(),
+      None,
+      Utils.to_app_contract(Star(requires1, requires2)(Utils.origen), tt),
+      false,
+      true,
+    )(Utils.blame)(Utils.origen("instantiateEventTriggers"))
   }
 
   private def create_schedule(

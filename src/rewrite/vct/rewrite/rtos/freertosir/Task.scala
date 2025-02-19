@@ -45,9 +45,7 @@ case class Task[O <: Generation](
       decl,
       field,
       cls.get,
-      Seq[Expr[N]](
-        Utils.thiz
-      ),
+      Seq[Expr[N]](Utils.thiz),
       Utils.fold_star(Seq[Expr[N]](
         Perm(Utils.loc_of(field), Utils.read)(Utils.origen),
         Utils.predicate_apply(
@@ -139,7 +137,8 @@ case class Task[O <: Generation](
         Utils.origen("s_param")
       )
 
-    val requires: Expr[N] = Neq(Utils.local_of(s_param), Utils.nul)(Utils.origen)
+    val requires: Expr[N] =
+      Neq(Utils.local_of(s_param), Utils.nul)(Utils.origen)
 
     val ensures: Expr[N] = Utils.fold_star(Seq[Expr[N]](
       Utils.predicate_apply(Utils.thiz, perms, Seq()),

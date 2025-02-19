@@ -1,7 +1,13 @@
 package vct.rewrite.rtos
 
 import vct.col.ast._
-import vct.col.origin.{LabelContext, Origin, PanicBlame, PreferredName, RequiredName}
+import vct.col.origin.{
+  LabelContext,
+  Origin,
+  PanicBlame,
+  PreferredName,
+  RequiredName,
+}
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers
@@ -11,7 +17,7 @@ import vct.rewrite.rtos.freertosir.FreeRTOSConstruct
 import scala.annotation.tailrec
 
 case object Utils {
-  private def try_expr_to_int(expr: Expr[_]): Option[Int] =
+  def try_expr_to_int(expr: Expr[_]): Option[Int] =
     expr match {
       case IntegerValue(i) => Some(i.intValue)
       case CIntegerValue(i) => Some(i.intValue)
@@ -302,16 +308,24 @@ case object Utils {
       args: Seq[Expr[N]],
       obj: Option[Expr[N]] = None,
   ): MethodInvocation[N] =
-        MethodInvocation(obj.getOrElse(thiz), method, args, Seq(), Seq(), Seq(), Seq())(blame)(
-          origen
-        )
+    MethodInvocation(
+      obj.getOrElse(thiz),
+      method,
+      args,
+      Seq(),
+      Seq(),
+      Seq(),
+      Seq(),
+    )(blame)(origen)
 
   def stmt_invoke[N](
       method: Ref[N, InstanceMethod[N]],
       args: Seq[Expr[N]],
       obj: Option[Expr[N]] = None,
   ): InvokeMethod[N] =
-        InvokeMethod(obj.getOrElse(thiz), method, args, Seq(), Seq(), Seq(), Seq())(blame)(origen)
+    InvokeMethod(obj.getOrElse(thiz), method, args, Seq(), Seq(), Seq(), Seq())(
+      blame
+    )(origen)
 
   def update_scheduling_variable[N](
       f: => InstanceField[N],
@@ -348,7 +362,8 @@ case object Utils {
   def deref_unknown[N](
       f: => InstanceField[N],
       obj: Option[Expr[N]] = None,
-  ): Deref[N] = deref_ref(new LazyRef[N, InstanceField[N]](f), obj.getOrElse(thiz))
+  ): Deref[N] =
+    deref_ref(new LazyRef[N, InstanceField[N]](f), obj.getOrElse(thiz))
 
   def deref_ref[N](ref: Ref[N, InstanceField[N]], obj: Expr[N]): Deref[N] =
     Deref(obj, ref)(blame)(origen)
@@ -356,8 +371,7 @@ case object Utils {
   def local_of[N](v: Variable[N]): Local[N] =
     Local(new DirectRef[N, Variable[N]](v))(origen)
 
-  def origen(name: String): Origin =
-    origen.withContent(RequiredName(name))
+  def origen(name: String): Origin = origen.withContent(RequiredName(name))
   def origen: Origin = Origin(Seq(LabelContext("FreeRTOS")))
   def blame: PanicBlame = PanicBlame("Error from FreeRTOS encoding output")
 }

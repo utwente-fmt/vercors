@@ -146,7 +146,8 @@ case class Timer[O <: Generation](
         Utils.origen("s_param")
       )
 
-    val requires: Expr[N] = Neq(Utils.local_of(s_param), Utils.nul)(Utils.origen)
+    val requires: Expr[N] =
+      Neq(Utils.local_of(s_param), Utils.nul)(Utils.origen)
 
     val ensures: Expr[N] = Utils.fold_star(Seq[Expr[N]](
       Utils.predicate_apply(Utils.thiz, perms, Seq()),
