@@ -19,6 +19,7 @@ class SchedulerGenerator[O <: Generation] {
   private var simulateTimePassing: Option[InstanceMethod[N]] = None
   private var executionTime: Option[InstanceMethod[N]] = None
   private var instantiateEventTriggers: Option[InstanceMethod[N]] = None
+  private var start: Option[InstanceMethod[N]] = None
 
   def get_eventState: InstanceField[N] = eventState.get
   def get_taskState: InstanceField[N] = taskState.get
@@ -32,6 +33,7 @@ class SchedulerGenerator[O <: Generation] {
   def get_executionTime: InstanceMethod[N] = executionTime.get
   def get_instantiateEventTriggers: InstanceMethod[N] =
     instantiateEventTriggers.get
+  def get_start: InstanceMethod[N] = start.get
 
   def generate(
       objs: Seq[ObjectInfo[O]],
@@ -168,12 +170,12 @@ class SchedulerGenerator[O <: Generation] {
       new DirectRef[N, InstanceMethod[N]](selectNextTask),
       globalInvariant_ref,
     )
-    val start: InstanceMethod[N] = create_start(
+    start = Some(create_start(
       objs.filter(o => o.launch).map(o => o.field),
       objs.filter(o => o.launch)
         .map(o => o.precondition_in_scheduler.getOrElse(tt)),
       new DirectRef[N, InstanceMethod[N]](schedule),
-    )
+    ))
 
     // Finalize class
     val decls: Seq[ClassDeclaration[N]] =
@@ -201,7 +203,7 @@ class SchedulerGenerator[O <: Generation] {
         // Methods
         Seq(
           schedulerConstructor,
-          start,
+          start.get,
           schedule,
           nextEventDelay,
           advanceTime,

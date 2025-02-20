@@ -1,6 +1,7 @@
 package vct.rewrite.rtos
 
 import vct.col.ast._
+import vct.col.ref.DirectRef
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers.ff
 import vct.rewrite.rtos.freertosir.{
@@ -79,7 +80,7 @@ class COLEncoder[O <: Generation](
   private var n_events: Int = 0
   private var n_tasks: Int = 0
 
-  def get_encoded_system: Seq[Class[N]] = {
+  def get_encoded_system: Seq[GlobalDeclaration[N]] = {
     val scheduler_generator: SchedulerGenerator[O] = new SchedulerGenerator[O]
 
     preprocess_tasks()
@@ -120,7 +121,8 @@ class COLEncoder[O <: Generation](
       scheduler_generator.get_instantiateEventTriggers
     )
 
-    ir.map(o => o.cls) :+ scheduler.get
+    ir.map(o => o.cls) ++
+      Seq(scheduler.get, create_entry(scheduler_generator.get_start))
   }
 
   private def preprocess_tasks(): Unit = {
@@ -144,6 +146,30 @@ class COLEncoder[O <: Generation](
         var_to_timer_reload.put(t.decl.get, t.reload)
       }
     })
+  }
+
+  private def create_entry(start: InstanceMethod[N]): VeSUVMainMethod[N] = {
+    val cls_type: TByReferenceClass[N] = TByReferenceClass(
+      new DirectRef[N, Class[N]](scheduler.get),
+      Seq(),
+    )
+    val s_var: Variable[N] = new Variable(cls_type)(Utils.origen("scheduler"))
+    new VeSUVMainMethod(Some(
+      Block(Seq[Statement[N]](
+        LocalDecl(s_var)(Utils.origen),
+        Assign(
+          Utils.local_of(s_var),
+          PVLNew(cls_type, Seq(), Seq(), Seq(), Seq())(Utils.blame)(
+            Utils.origen
+          ),
+        )(Utils.blame)(Utils.origen),
+        Utils.stmt_invoke(
+          new DirectRef[N, InstanceMethod[N]](start),
+          Seq(),
+          Some(Utils.local_of(s_var)),
+        ),
+      ))(Utils.origen)
+    ))(Utils.blame)(Utils.origen)
   }
 
   def get_scheduler: Class[N] = scheduler.get
