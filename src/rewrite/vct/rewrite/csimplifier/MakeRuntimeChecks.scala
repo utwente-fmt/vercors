@@ -86,22 +86,22 @@ case class MakeRuntimeChecks[Pre <: Generation]()
 //        ))
 //      includes.append(decl)
 //    }
-    if (
-      program.collect { case p: Procedure[Pre] => p }.collect { m =>
-        Namer.getSrcName(m.o) match {
-          case Some(name) if name == "__vercors_malloc" => m
-        }
-      }.nonEmpty
-    ) {
-      val decl =
-        new CGlobalDeclaration[Post](CDeclaration(
-          emptyContract(),
-          tt,
-          Nil,
-          Seq(CInit(CName[Post]("#include<stdlib.h>"), None)),
-        ))
-      includes.append(decl)
-    }
+//    if (
+//      program.collect { case p: Procedure[Pre] => p }.collect { m =>
+//        Namer.getSrcName(m.o) match {
+//          case Some(name) if name == "__vercors_malloc" => m
+//        }
+//      }.nonEmpty
+//    ) {
+//      val decl =
+//        new CGlobalDeclaration[Post](CDeclaration(
+//          emptyContract(),
+//          tt,
+//          Nil,
+//          Seq(CInit(CName[Post]("#include<stdlib.h>"), None)),
+//        ))
+//      includes.append(decl)
+//    }
 
     // create abstract "reach_error" and "__verifier_nondet_int" methods;
     val declNames = Map.from(program.declarations.flatMap(d =>
@@ -196,6 +196,30 @@ case class MakeRuntimeChecks[Pre <: Generation]()
     rewritten
   }
 
+  private def replaceNewNonNullArray(
+      s: Seq[Statement[Pre]]
+  ): Seq[Statement[Post]] = {
+    s match {
+      case Nil => Nil
+      case (ld @ LocalDecl(v)) +:
+          (a @ Assign(Local(r), NewNonNullPointerArray(t, s))) +: rem =>
+        if (r.decl == v) {
+//          val nv = new Variable[Pre](CTArray(Some(s), t)(PanicBlame("Array Size error")))(v.o)
+          lazy val rv = v.rewrite(t =
+            CTArray(Some(dispatch(s)), dispatch(t))(PanicBlame(
+              "Array Size error"
+            ))
+          ).succeedOnly(v)
+//          variables.declare(rv)
+          lazy val nl = ld.rewrite(local = rv)
+//          LocalDecl(rv)(a.o) +: replaceNewNonNullArray(rem)
+          nl +: replaceNewNonNullArray(rem)
+//          Seq(Scope[Post](Seq(rv),Block(replaceNewNonNullArray(rem))(a.o))(a.o))
+        } else { Seq(dispatch(ld), dispatch(a)) ++ replaceNewNonNullArray(rem) }
+      case x +: rem => dispatch(x) +: replaceNewNonNullArray(rem)
+    }
+  }
+
   override def dispatch(stat: Statement[Pre]): Statement[Post] = {
     stat match {
       case a: Assert[Pre] =>
@@ -208,6 +232,13 @@ case class MakeRuntimeChecks[Pre <: Generation]()
       case _: WandPackage[Pre] => Block[Post](Nil)(stat.o)
       case _: Fold[Pre] => Block[Post](Nil)(stat.o)
       case _: Unfold[Pre] => Block[Post](Nil)(stat.o)
+//      case b@Block(Seq(_)++Seq(LocalDecl(v), Assign(l, NewNonNullPointerArray(t,s)), _)) =>
+//        val nv = new Variable[Post](CTArray(Some(dispatch(s)), dispatch(t))(PanicBlame("Array Size error")))(v.o)
+//        LocalDecl(nv)(b.o)
+      case b: Block[Pre] =>
+        b.rewrite(statements = replaceNewNonNullArray(b.statements))
+//        val nb = Block[Pre](replaceNewNonNullArray(b.statements))(b.o)
+//        super.dispatch(nb)
       case _ => super.dispatch(stat)
     }
   }
