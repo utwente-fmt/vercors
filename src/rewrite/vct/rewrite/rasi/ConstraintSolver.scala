@@ -17,12 +17,12 @@ class ConstraintSolver[G](
     * @return
     *   A set of constraint maps mapping variables to possible values
     */
-  def resolve_assumption(expr: Expr[G]): Set[ConstraintMap[G]] = resolve(expr)
+  def resolve_assumption(expr: Expr[G]): Set[ConstraintMap[G]] = resolve(expr)(expr)
 
   private def resolve(
       expr: Expr[G],
       negate: Boolean = false,
-  ): Set[ConstraintMap[G]] =
+  )(implicit context: Expr[G]): Set[ConstraintMap[G]] =
     expr match {
       // Consider boolean/separation logic operators
       case Not(arg) => this.resolve(arg, !negate)
@@ -80,11 +80,11 @@ class ConstraintSolver[G](
       right: Expr[G],
       neg_left: Boolean = false,
       neg_right: Boolean = false,
-  ): Set[ConstraintMap[G]] = {
+  )(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
     val left_is_possible: UncertainBooleanValue = state
-      .resolve_boolean_expression(left, is_old = false, is_contract)
+      .resolve_boolean_expression(left, is_old = false, is_contract)(context)
     val right_is_possible: UncertainBooleanValue = state
-      .resolve_boolean_expression(right, is_old = false, is_contract)
+      .resolve_boolean_expression(right, is_old = false, is_contract)(context)
     val possible_left: Boolean = (neg_left && left_is_possible.can_be_false) ||
       (!neg_left && left_is_possible.can_be_true)
     val possible_right: Boolean =
@@ -105,11 +105,11 @@ class ConstraintSolver[G](
       right: Expr[G],
       neg_left: Boolean = false,
       neg_right: Boolean = false,
-  ): Set[ConstraintMap[G]] = {
+  )(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
     val left_is_possible: UncertainBooleanValue = state
-      .resolve_boolean_expression(left, is_old = false, is_contract)
+      .resolve_boolean_expression(left, is_old = false, is_contract)(context)
     val right_is_possible: UncertainBooleanValue = state
-      .resolve_boolean_expression(right, is_old = false, is_contract)
+      .resolve_boolean_expression(right, is_old = false, is_contract)(context)
     val possible_left: Boolean = (neg_left && left_is_possible.can_be_false) ||
       (!neg_left && left_is_possible.can_be_true)
     val possible_right: Boolean =
@@ -144,9 +144,9 @@ class ConstraintSolver[G](
       right: Expr[G],
       neg_left: Boolean = false,
       neg_right: Boolean = false,
-  ): Set[ConstraintMap[G]] = {
+  )(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
     val resolve_left: UncertainBooleanValue = state
-      .resolve_boolean_expression(left, is_old = false, is_contract)
+      .resolve_boolean_expression(left, is_old = false, is_contract)(context)
     var res: Set[ConstraintMap[G]] = Set()
     if (
       neg_left && resolve_left.can_be_false || (!neg_left) &&

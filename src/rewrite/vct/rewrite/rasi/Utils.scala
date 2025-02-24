@@ -158,9 +158,7 @@ case object Utils {
     */
   def cast_resolvable_map[G, S <: ResolvableVariable[
     G
-  ], T <: ResolvableVariable[G], U <: UncertainValue](
-      m: Map[S, U]
-  ): Map[T, U] =
+  ], T <: ResolvableVariable[G], U <: UncertainValue](m: Map[S, U]): Map[T, U] =
     m.filter(t => t._1.isInstanceOf[T]).map(t => t._1.asInstanceOf[T] -> t._2)
 
   /** Computes the intersection of two variable valuations.
@@ -190,18 +188,10 @@ case object Utils {
     * @return
     *   A sequence containing all subexpressions of the conjunction
     */
-  def split_conjunction[G](conj: And[G]): Seq[Expr[G]] = {
-    val l: Seq[Expr[G]] =
-      conj.left match {
-        case l1: And[G] => split_conjunction(l1)
-        case _ => Seq(conj.left)
-      }
-    val r: Seq[Expr[G]] =
-      conj.right match {
-        case r1: And[G] => split_conjunction(r1)
-        case _ => Seq(conj.right)
-      }
-    l ++ r
+  def split_conjunction[G](conj: Expr[G]): Seq[Expr[G]] = conj match {
+    case And(left, right) => split_conjunction(left) ++ split_conjunction(right)
+    case Star(left, right) => split_conjunction(left) ++ split_conjunction(right)
+    case _ => Seq(conj)
   }
 
   /** Removes the iterating variables in a quantifier body and

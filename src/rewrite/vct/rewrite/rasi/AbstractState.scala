@@ -155,9 +155,10 @@ case class AbstractState[G](
       valuations.map(t => t._2.split.getOrElse(Set(t._2)).map(v => t._1 -> v))
     Utils.cartesian_product(valuation_sets).map(vs =>
       AbstractState(
-        Utils.cast_resolvable_map[G, ConcreteVariable[G], FieldVariable[G], UncertainSingleValue](
-          Map.from(vs)
-        ),
+        Utils
+          .cast_resolvable_map[G, ConcreteVariable[G], FieldVariable[
+            G
+          ], UncertainSingleValue](Map.from(vs)),
         processes,
         local,
         local_dependencies,
@@ -227,7 +228,13 @@ case class AbstractState[G](
     val c: Map[ResolvableVariable[G], UncertainSingleValue] =
       new ConstraintSolver(
         this,
-        cond.collect { case l: Local[_] => l }.map(l => get_local_var(l)).toSet,
+        cond.collect {
+          case l: Local[_] if (l.t match {
+                case _: IntType[_] | _: TBool[_] | _: TSeq[_] => true
+                case _ => false
+              }) =>
+            l
+        }.map(l => get_local_var(l)).toSet,
         false,
       ).resolve_assumption(cond).filter(m => !m.is_impossible)
         .reduce((m1, m2) => m1 || m2).resolve
@@ -235,7 +242,10 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes,
-      Utils.cast_resolvable_map[G, ResolvableVariable[G], LocalVariable[G], UncertainSingleValue](c),
+      Utils
+        .cast_resolvable_map[G, ResolvableVariable[G], LocalVariable[
+          G
+        ], UncertainSingleValue](c),
       local_dependencies, // TODO: Which untracked variables influence the locals?
       lock,
       parameters,
@@ -418,14 +428,20 @@ case class AbstractState[G](
     */
   def with_assumption(assumption: Expr[G]): RASISuccessor[G] = {
     val constraints: Set[Map[FieldVariable[G], UncertainSingleValue]] =
-      new ConstraintSolver(this, valuations.keySet ++ local.keySet, is_contract = false)
-        .resolve_assumption(assumption).filter(m => !m.is_impossible).map(m =>
-          Utils.cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[G], UncertainSingleValue](
-            m.resolve.map(t => t._1 -> t._2.asInstanceOf[UncertainSingleValue])
-          )
-        ).filter(m =>
-          m.forall(t => !t._2.intersection(valuations(t._1)).is_impossible)
-        )
+      new ConstraintSolver(
+        this,
+        valuations.keySet ++ local.keySet,
+        is_contract = false,
+      ).resolve_assumption(assumption).filter(m => !m.is_impossible).map(m =>
+        Utils
+          .cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[
+            G
+          ], UncertainSingleValue](m.resolve.map(t =>
+            t._1 -> t._2.asInstanceOf[UncertainSingleValue]
+          ))
+      ).filter(m =>
+        m.forall(t => !t._2.intersection(valuations(t._1)).is_impossible)
+      )
 
     val variables: Set[FieldVariable[G]] = new VariableSelector(this)
       .distinguishing_variables(constraints, Some(assumption))
@@ -468,9 +484,12 @@ case class AbstractState[G](
     val constraints: Set[Map[FieldVariable[G], UncertainSingleValue]] =
       new ConstraintSolver(this, valuations.keySet, is_contract = true)
         .resolve_assumption(assumption).filter(m => !m.is_impossible).map(m =>
-          Utils.cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[G], UncertainSingleValue](
-            m.resolve.map(t => t._1 -> t._2.asInstanceOf[UncertainSingleValue])
-          )
+          Utils
+            .cast_resolvable_map[G, ResolvableVariable[G], FieldVariable[
+              G
+            ], UncertainSingleValue](m.resolve.map(t =>
+              t._1 -> t._2.asInstanceOf[UncertainSingleValue]
+            ))
         )
 
     val variables: Set[FieldVariable[G]] = new VariableSelector(this)
@@ -706,7 +725,7 @@ case class AbstractState[G](
       expr: Expr[G],
       is_old: Boolean = false,
       is_contract: Boolean = false,
-  ): UncertainBooleanValue =
+  )(implicit context: Expr[G] = expr): UncertainBooleanValue =
     expr match {
       case BooleanValue(value) => UncertainBooleanValue.from(value)
       case Not(arg) => !resolve_boolean_expression(arg)
@@ -836,17 +855,22 @@ case class AbstractState[G](
           is_old,
           is_contract,
         ) // TODO: Do anything with permission fraction?
-      case PredicateApplyExpr(_) => UncertainBooleanValue.from(true)
-      case Perm(_, _) =>
-        UncertainBooleanValue
-          .from(true) // TODO: Do anything with permissions/resources?
-      case q: Binder[_] => resolve_boolean_expression(unroll_quantifier(q))
+      case q: Binder[_] =>
+        resolve_boolean_expression(unroll_quantifier(q, context))
       case Result(_) => UncertainBooleanValue.uncertain()
       case AmbiguousResult() => UncertainBooleanValue.uncertain()
-      case SeqMember(x, xs) => resolve_seq_member(x, xs, is_old, is_contract)
+      case SeqMember(x, xs) =>
+        resolve_collection_expression(xs, is_old, is_contract)
+          .contains(resolve_single_expression(x, is_old, is_contract))
       case AmbiguousMember(x, xs) =>
-        resolve_seq_member(x, xs, is_old, is_contract)
+        resolve_collection_expression(xs, is_old, is_contract)
+          .contains(resolve_single_expression(x, is_old, is_contract))
       case InlinePattern(body, _, _) => resolve_boolean_expression(body)
+      // TODO: Should these be evaluated in some way?
+      case IdleToken(_) => UncertainBooleanValue.from(true)
+      case PredicateApplyExpr(_) => UncertainBooleanValue.from(true)
+      case Perm(_, _) => UncertainBooleanValue.from(true)
+      case Committed(_) => UncertainBooleanValue.from(true)
     }
 
   /** Evaluates a collection expression and returns an uncertain collection
@@ -1146,43 +1170,47 @@ case class AbstractState[G](
     ).reduce((e1, e2) => And(e1, e2)(e1.o))
   }
 
-  private def unroll_quantifier(q: Binder[G]): Expr[G] =
+  private def unroll_quantifier(q: Binder[G], context: Expr[G]): Expr[G] =
     q match {
       case Forall(bindings, _, body) =>
         resolve_forall(
           bindings,
           body,
           (e1: Expr[G], e2: Expr[G]) => And(e1, e2)(q.o),
+          context,
         )
       case Starall(bindings, _, body) =>
         resolve_forall(
           bindings,
           body,
           (e1: Expr[G], e2: Expr[G]) => Star(e1, e2)(q.o),
+          context,
         )
-      case Exists(bindings, _, body) => resolve_exists(bindings, body)
+      case Exists(bindings, _, body) => resolve_exists(bindings, body, context)
     }
 
   private def resolve_forall(
       iterators: Seq[Variable[G]],
       body: Expr[G],
       operator: (Expr[G], Expr[G]) => Expr[G],
+      context: Expr[G],
   ): Expr[G] =
     body match {
       case Implies(left, _) =>
         left match {
-          case a: And[G] => {
-            val bounds: Map[Variable[G], (Int, Int)] = quantifier_bounds(
+          case a: And[G] =>
+            assemble_quantifier(
               iterators,
               a,
+              context,
+              bounds =>
+                Utils.replace_iterators_in_quantifier(
+                  bounds,
+                  body,
+                  operator,
+                  BooleanValue(value = true)(body.o),
+                ),
             )
-            Utils.replace_iterators_in_quantifier(
-              bounds,
-              body,
-              operator,
-              BooleanValue(value = true)(body.o),
-            )
-          }
           case _ =>
             throw new IllegalArgumentException(
               "Unsupported universal quantifier format " + body.toInlineString
@@ -1197,141 +1225,186 @@ case class AbstractState[G](
   private def resolve_exists(
       iterators: Seq[Variable[G]],
       body: Expr[G],
+      context: Expr[G],
   ): Expr[G] =
     body match {
-      case a: And[G] => {
-        val bounds: Map[Variable[G], (Int, Int)] = quantifier_bounds(
+      case a: And[G] =>
+        assemble_quantifier(
           iterators,
           a,
+          context,
+          bounds =>
+            Utils.replace_iterators_in_quantifier(
+              bounds,
+              body,
+              (e1: Expr[G], e2: Expr[G]) => Or(e1, e2)(body.o),
+              BooleanValue(value = false)(body.o),
+            ),
         )
-        Utils.replace_iterators_in_quantifier(
-          bounds,
-          body,
-          (e1: Expr[G], e2: Expr[G]) => Or(e1, e2)(body.o),
-          BooleanValue(value = false)(body.o),
-        )
-      }
       case _ =>
         throw new IllegalArgumentException(
           "Unsupported existential quantifier format " + body.toInlineString
         )
     }
 
-  private def quantifier_bounds(
+  private def assemble_quantifier(
       iterators: Seq[Variable[G]],
-      cond: And[G],
-  ): Map[Variable[G], (Int, Int)] =
-    Map.from(
-      iterators.map(v => v -> iterator_bounds(v, Utils.split_conjunction(cond)))
-    )
-
-  private def iterator_bounds(
-      iterator: Variable[G],
-      conds: Seq[Expr[G]],
-  ): (Int, Int) = {
-    val bounds = conds.collect {
-      case l @ Less(left, right)
-          if left_is_iterator(iterator, left, right).nonEmpty =>
-        l
-      case le @ LessEq(left, right)
-          if left_is_iterator(iterator, left, right).nonEmpty =>
-        le
-      case g @ Greater(left, right)
-          if left_is_iterator(iterator, left, right).nonEmpty =>
-        g
-      case ge @ GreaterEq(left, right)
-          if left_is_iterator(iterator, left, right).nonEmpty =>
-        ge
-      case al @ AmbiguousLess(left, right)
-          if left_is_iterator(iterator, left, right).nonEmpty =>
-        al
-      case ale @ AmbiguousLessEq(left, right)
-          if left_is_iterator(iterator, left, right).nonEmpty =>
-        ale
-      case ag @ AmbiguousGreater(left, right)
-          if left_is_iterator(iterator, left, right).nonEmpty =>
-        ag
-      case age @ AmbiguousGreaterEq(left, right)
-          if left_is_iterator(iterator, left, right).nonEmpty =>
-        age
-    }
-    if (bounds.size != 2)
-      throw new IllegalArgumentException(
-        "Malformed quantifier: Should declare iterator bounds!"
+      bound_condition: And[G],
+      context: Expr[G],
+      assemble: Map[Variable[G], (Int, Int)] => Expr[G],
+  ): Expr[G] = {
+    val bounds_expressions: Map[Variable[G], ((Expr[G], Int), (Expr[G], Int))] =
+      Map.from(iterators.map(v => v -> get_iterator_bounds(v, bound_condition)))
+    val bounds_ranges: Map[Variable[G], ((Int, Int), (Int, Int))] =
+      bounds_expressions.map(t =>
+        t._1 ->
+          (
+            resolve_bound_expression(t._2._1._1, t._2._1._2, context),
+            resolve_bound_expression(t._2._2._1, t._2._2._2, context),
+          )
       )
-    var lower, upper = -1
-    bounds.foreach {
-      case Less(l, r) =>
-        if (left_is_iterator(iterator, l, r).get)
-          upper = get_bound(r, -1)
-        else
-          lower = get_bound(l, 1)
-      case AmbiguousLess(l, r) =>
-        if (left_is_iterator(iterator, l, r).get)
-          upper = get_bound(r, -1)
-        else
-          lower = get_bound(l, 1)
-      case LessEq(l, r) =>
-        if (left_is_iterator(iterator, l, r).get)
-          upper = get_bound(r)
-        else
-          lower = get_bound(l)
-      case AmbiguousLessEq(l, r) =>
-        if (left_is_iterator(iterator, l, r).get)
-          upper = get_bound(r)
-        else
-          lower = get_bound(l)
-      case Greater(l, r) =>
-        if (left_is_iterator(iterator, l, r).get)
-          lower = get_bound(r, 1)
-        else
-          upper = get_bound(l, -1)
-      case AmbiguousGreater(l, r) =>
-        if (left_is_iterator(iterator, l, r).get)
-          lower = get_bound(r, 1)
-        else
-          upper = get_bound(l, -1)
-      case GreaterEq(l, r) =>
-        if (left_is_iterator(iterator, l, r).get)
-          lower = get_bound(r)
-        else
-          upper = get_bound(l)
-      case AmbiguousGreaterEq(l, r) =>
-        if (left_is_iterator(iterator, l, r).get)
-          lower = get_bound(r)
-        else
-          upper = get_bound(l)
-    }
-    (lower, upper)
+    val (
+      certain_ranges: Map[Variable[G], ((Int, Int), (Int, Int))],
+      uncertain_ranges: Map[Variable[G], ((Int, Int), (Int, Int))],
+    ) = bounds_ranges
+      .partition(t => t._2._1._1 == t._2._1._2 && t._2._2._1 == t._2._2._2)
+    val certain: Map[Variable[G], (Int, Int)] = certain_ranges
+      .map(t => t._1 -> (t._2._1._1, t._2._2._1))
+
+    if (uncertain_ranges.isEmpty)
+      assemble(certain)
+    else
+      ???
   }
 
-  private def get_bound(e: Expr[G], offset: Int = 0): Int =
-    e match {
-      case Size(obj) =>
-        resolve_collection_expression(obj).len.min().get + offset
-      case _ => resolve_integer_expression(e).try_to_resolve().get + offset
-    }
-
-  private def left_is_iterator(
+  private def get_iterator_bounds(
       iterator: Variable[G],
-      e1: Expr[G],
-      e2: Expr[G],
-  ): Option[Boolean] =
-    e1 match {
-      case Local(ref) if ref.decl == iterator => Some(true)
-      case _ =>
-        e2 match {
-          case Local(ref) if ref.decl == iterator => Some(false)
-          case _ => None
-        }
-    }
+      cond: And[G],
+  ): ((Expr[G], Int), (Expr[G], Int)) = {
+    def iterator_is_left(e1: Expr[G], e2: Expr[G]): Option[Boolean] =
+      e1 match {
+        case Local(ref) if ref.decl == iterator => Some(true)
+        case _ =>
+          e2 match {
+            case Local(ref) if ref.decl == iterator => Some(false)
+            case _ => None
+          }
+      }
+    val conds: Seq[Expr[G]] = Utils.split_conjunction(cond)
+    (
+      iterator_bound(iterator_is_left, conds, lower = true),
+      iterator_bound(iterator_is_left, conds, lower = false),
+    )
+  }
 
-  private def resolve_seq_member(
-      value: Expr[G],
-      collection: Expr[G],
-      is_old: Boolean,
-      is_contract: Boolean,
-  ): UncertainBooleanValue =
-    resolve_collection_expression(collection, is_old, is_contract)
-      .contains(resolve_single_expression(value, is_old, is_contract))
+  private def iterator_bound(
+      iterator_is_left: (Expr[G], Expr[G]) => Option[Boolean],
+      conds: Seq[Expr[G]],
+      lower: Boolean,
+  ): (Expr[G], Int) =
+    conds.collectFirst {
+      case Less(left, right)
+          if iterator_is_left(left, right).contains(!lower) =>
+        if (lower)
+          (left, 1)
+        else
+          (right, -1)
+      case LessEq(left, right)
+          if iterator_is_left(left, right).contains(!lower) =>
+        if (lower)
+          (left, 0)
+        else
+          (right, 0)
+      case Greater(left, right)
+          if iterator_is_left(left, right).contains(lower) =>
+        if (lower)
+          (right, -1)
+        else
+          (left, 1)
+      case GreaterEq(left, right)
+          if iterator_is_left(left, right).contains(lower) =>
+        if (lower)
+          (right, 0)
+        else
+          (left, 0)
+      case AmbiguousLess(left, right)
+          if iterator_is_left(left, right).contains(!lower) =>
+        if (lower)
+          (left, 1)
+        else
+          (right, -1)
+      case AmbiguousLessEq(left, right)
+          if iterator_is_left(left, right).contains(!lower) =>
+        if (lower)
+          (left, 0)
+        else
+          (right, 0)
+      case AmbiguousGreater(left, right)
+          if iterator_is_left(left, right).contains(lower) =>
+        if (lower)
+          (right, -1)
+        else
+          (left, 1)
+      case AmbiguousGreaterEq(left, right)
+          if iterator_is_left(left, right).contains(lower) =>
+        if (lower)
+          (right, 0)
+        else
+          (left, 0)
+    }.getOrElse(
+      throw new IllegalStateException(
+        "Malformed quantifier: Quantifier must declare iterator bounds!"
+      )
+    )
+
+  private def resolve_bound_expression(
+      e: Expr[G],
+      offset: Int,
+      context: Expr[G],
+  ): (Int, Int) = {
+    val resolved: Option[Int] = try_to_get_bound(e)
+    if (resolved.nonEmpty)
+      (resolved.get + offset, resolved.get + offset)
+    else {
+      def left_is_equal_to_expression(
+          e1: Expr[G],
+          e2: Expr[G],
+      ): Option[Boolean] =
+        if (e1.equals(e))
+          Some(true)
+        else if (e2.equals(e))
+          Some(false)
+        else
+          None
+      val conds: Seq[Expr[G]] = Utils.split_conjunction(context)
+      val (min_expr: Expr[G], min_offset: Int) = iterator_bound(
+        left_is_equal_to_expression,
+        conds,
+        lower = true,
+      )
+      val (max_expr: Expr[G], max_offset: Int) = iterator_bound(
+        left_is_equal_to_expression,
+        conds,
+        lower = false,
+      )
+      (
+        resolve_integer_expression(min_expr).try_to_resolve().getOrElse(
+          throw new IllegalStateException(
+            "Could not find a lower context bound for " + e.toInlineString
+          )
+        ) + min_offset,
+        resolve_integer_expression(max_expr).try_to_resolve().getOrElse(
+          throw new IllegalStateException(
+            "Could not find an upper context bound for " + e.toInlineString
+          )
+        ) + max_offset,
+      )
+    }
+  }
+
+  private def try_to_get_bound(e: Expr[G]): Option[Int] =
+    e match {
+      case Size(obj) => resolve_collection_expression(obj).len.min()
+      case _ => resolve_integer_expression(e).try_to_resolve()
+    }
 }
