@@ -1273,8 +1273,77 @@ case class AbstractState[G](
 
     if (uncertain_ranges.isEmpty)
       assemble(certain)
-    else
-      ???
+    else {
+      val uncertain: Map[Variable[G], (Seq[(Int, Int)], (Boolean, Boolean))] =
+        uncertain_ranges.map(t =>
+          t._1 ->
+            (
+              for {
+                x <- t._2._1._1 to t._2._1._2; y <- t._2._2._1 to t._2._2._2
+              } yield (x, y),
+              (t._2._1._1 != t._2._1._2, t._2._2._1 != t._2._2._2),
+            )
+        )
+      val certain_set: Seq[Map[Variable[G], ((Int, Int), (Boolean, Boolean))]] =
+        Utils
+          .extract_uncertainty[(Variable[G], (Boolean, Boolean)), (Int, Int)](
+            uncertain.map(t => (t._1, t._2._2) -> t._2._1)
+          ).map(m => m.map(t => t._1._1 -> (t._2, t._1._2)))
+      val implications: Seq[Expr[G]] = certain_set.map(m =>
+        get_quantifier_implication(
+          certain,
+          m,
+          bounds_expressions.map(t =>
+            t._1 -> ((t._2._1._1, t._2._2._1), (t._2._1._2, t._2._2._2))
+          ),
+          assemble,
+        )
+      )
+      Utils.fold_and(implications)
+    }
+  }
+
+  private def get_quantifier_implication(
+      certain_vars: Map[Variable[G], (Int, Int)],
+      uncertain_vars: Map[Variable[G], ((Int, Int), (Boolean, Boolean))],
+      expr_lookup: Map[Variable[G], ((Expr[G], Expr[G]), (Int, Int))],
+      assemble: Map[Variable[G], (Int, Int)] => Expr[G],
+  ): Implies[G] = {
+    val conds: Seq[Expr[G]] =
+      uncertain_vars.map(t =>
+        get_instance_condition(
+          t._2._1,
+          t._2._2,
+          expr_lookup(t._1)._1,
+          expr_lookup(t._1)._2,
+        )
+      ).toSeq
+    val quantifier_instance: Expr[G] = assemble(
+      certain_vars ++ uncertain_vars.map(t => t._1 -> t._2._1)
+    )
+    Implies(Utils.fold_and(conds), quantifier_instance)(Utils.origen)
+  }
+
+  private def get_instance_condition(
+      bounds: (Int, Int),
+      uncertain: (Boolean, Boolean),
+      exprs: (Expr[G], Expr[G]),
+      offsets: (Int, Int),
+  ): Expr[G] = {
+    val lower_condition: Eq[G] =
+      Eq(exprs._1, IntegerValue(bounds._1 - offsets._1)(Utils.origen))(
+        Utils.origen
+      )
+    val upper_condition: Eq[G] =
+      Eq(exprs._2, IntegerValue(bounds._2 - offsets._2)(Utils.origen))(
+        Utils.origen
+      )
+    var conds: Seq[Expr[G]] = Seq()
+    if (uncertain._1)
+      conds = conds :+ lower_condition
+    if (uncertain._2)
+      conds = conds :+ upper_condition
+    Utils.fold_and(conds)
   }
 
   private def get_iterator_bounds(

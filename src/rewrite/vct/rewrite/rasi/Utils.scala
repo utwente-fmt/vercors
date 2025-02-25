@@ -2,6 +2,7 @@ package vct.rewrite.rasi
 
 import hre.io.RWFile
 import vct.col.ast._
+import vct.col.origin.{LabelContext, Origin}
 import vct.col.util.{AstBuildHelpers, Substitute}
 
 import java.io.Writer
@@ -70,6 +71,18 @@ case object Utils {
       inputs.head.map(v => Seq(v))
     else
       inputs.head.flatMap(e => cartesian_product(inputs.tail).map(s => e +: s))
+  }
+
+  def extract_uncertainty[C, T](in: Map[C, Seq[T]]): Seq[Map[C, T]] = {
+    if (in.isEmpty) Seq(Map.empty[C, T])
+    else if (in.size == 1) {
+      val (const: C, uncertain: Seq[T]) = in.head
+      uncertain.map(v => Map.from(Seq(const -> v)))
+    }
+    else {
+      val (const: C, uncertain: Seq[T]) = in.head
+      extract_uncertainty(in.removed(const)).flatMap(m => uncertain.map(v => m + (const -> v)))
+    }
   }
 
   /** Transforms a loop contract to an invariant, if possible.
@@ -188,11 +201,14 @@ case object Utils {
     * @return
     *   A sequence containing all subexpressions of the conjunction
     */
-  def split_conjunction[G](conj: Expr[G]): Seq[Expr[G]] = conj match {
-    case And(left, right) => split_conjunction(left) ++ split_conjunction(right)
-    case Star(left, right) => split_conjunction(left) ++ split_conjunction(right)
-    case _ => Seq(conj)
-  }
+  def split_conjunction[G](conj: Expr[G]): Seq[Expr[G]] =
+    conj match {
+      case And(left, right) =>
+        split_conjunction(left) ++ split_conjunction(right)
+      case Star(left, right) =>
+        split_conjunction(left) ++ split_conjunction(right)
+      case _ => Seq(conj)
+    }
 
   /** Removes the iterating variables in a quantifier body and
     *
@@ -227,6 +243,16 @@ case object Utils {
       variable: Variable[G],
   ): Option[Local[G]] =
     body.collectFirst { case l: Local[G] if l.ref.decl == variable => l }
+
+  def fold_and[G](conds: Seq[Expr[G]]): Expr[G] =
+    if (conds.length == 1)
+      conds.head
+    else
+      conds.fold(BooleanValue[G](value = true)(origen))((e1, e2) =>
+        And(e1, e2)(origen)
+      )
+
+  def origen: Origin = Origin(Seq(LabelContext("RASI Generation")))
 
   /** Prints out the graph defined by the given states and edges to DOT format.
     *
