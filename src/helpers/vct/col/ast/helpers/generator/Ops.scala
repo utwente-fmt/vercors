@@ -9,7 +9,8 @@ import scala.meta._
 
 class Ops extends NodeGenerator {
   override def generate(out: Path, node: NodeDefinition): Unit =
-    ResultStream.write(out.resolve(s"${node.name.base}Ops.scala"),
+    ResultStream.write(
+      out.resolve(s"${node.name.base}Ops.scala"),
       source"""
         package $OpsPackage
 
@@ -19,6 +20,6 @@ class Ops extends NodeGenerator {
           with ${Init(t"${subnodesType(node)}[G]", Name.Anonymous(), Nil)}
           with ${Init(t"${serializeType(node)}[G]", Name.Anonymous(), Nil)}
         { this: ${typ(node)}[G] => }
-      """
+      """,
     )
 }

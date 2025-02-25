@@ -4,8 +4,12 @@ import vct.col.ast.Node
 import vct.col.print.Doc
 import vct.result.VerificationError
 
-case class CurrentRewriteNodeContext(node: Node[_]) extends VerificationError.Context {
-  override def tryMessageContext(message: String, err: VerificationError): Option[String] =
+case class CurrentRewriteNodeContext(node: Node[_])
+    extends VerificationError.Context {
+  override def tryMessageContext(
+      message: String,
+      err: VerificationError,
+  ): Option[String] =
     err.context[CurrentRewriteProgramContext].map { ctx =>
       ctx.program.highlight(node).messageInContext(message)
     }

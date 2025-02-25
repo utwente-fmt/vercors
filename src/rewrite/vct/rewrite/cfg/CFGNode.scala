@@ -7,7 +7,8 @@ import scala.collection.mutable
 sealed trait CFGEntry[G] {
   def get_successors: mutable.Set[CFGEdge[G]]
 }
-case class CFGNode[G](ast_node: Node[G], successors: mutable.Set[CFGEdge[G]]) extends CFGEntry[G] {
+case class CFGNode[G](ast_node: Node[G], successors: mutable.Set[CFGEdge[G]])
+    extends CFGEntry[G] {
   override def get_successors: mutable.Set[CFGEdge[G]] = successors
   override def toString: String = ast_node.toInlineString
 }

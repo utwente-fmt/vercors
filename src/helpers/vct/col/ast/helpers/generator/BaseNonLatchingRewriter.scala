@@ -9,10 +9,20 @@ import java.nio.file.Path
 import scala.meta._
 
 class BaseNonLatchingRewriter extends AllFamiliesGenerator {
-  override def generate(out: Path, declaredFamilies: Seq[structure.Name], structuralFamilies: Seq[structure.Name]): Unit =
-    ResultStream.write(out.resolve("BaseNonLatchingRewriter.scala"), rw(declaredFamilies, structuralFamilies))
+  override def generate(
+      out: Path,
+      declaredFamilies: Seq[structure.Name],
+      structuralFamilies: Seq[structure.Name],
+  ): Unit =
+    ResultStream.write(
+      out.resolve("BaseNonLatchingRewriter.scala"),
+      rw(declaredFamilies, structuralFamilies),
+    )
 
-  def rw(declaredFamilies: Seq[structure.Name], structuralFamilies: Seq[structure.Name]): Source =
+  def rw(
+      declaredFamilies: Seq[structure.Name],
+      structuralFamilies: Seq[structure.Name],
+  ): Source =
     source"""
       package vct.col.ast.rewrite
 

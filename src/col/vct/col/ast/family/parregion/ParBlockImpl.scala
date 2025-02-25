@@ -9,30 +9,45 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
 import vct.col.ast.ops.ParBlockOps
 
-trait ParBlockImpl[G] extends ParRegionImpl[G] with Declarator[G] with ParBlockOps[G] { this: ParBlock[G] =>
+trait ParBlockImpl[G]
+    extends ParRegionImpl[G] with Declarator[G] with ParBlockOps[G] {
+  this: ParBlock[G] =>
   override def declarations: Seq[Declaration[G]] = iters.map(_.variable)
 
   def quantify(expr: Expr[G], blame: Blame[ReceiverNotInjective]): Expr[G] = {
-    val quantVars = iters.map(_.variable).map(v => v -> new Variable[G](v.t)(v.o)).toMap
-    val body = Substitute(quantVars.map { case (l, r) => Local[G](l.ref) -> Local[G](r.ref) }.toMap[Expr[G], Expr[G]]).dispatch(expr)
+    val quantVars =
+      iters.map(_.variable).map(v => v -> new Variable[G](v.t)(v.o)).toMap
+    val body = Substitute(
+      quantVars.map { case (l, r) => Local[G](l.ref) -> Local[G](r.ref) }
+        .toMap[Expr[G], Expr[G]]
+    ).dispatch(expr)
     iters.foldLeft(body)((body, iter) => {
       val v = quantVars(iter.variable)
-      Starall(Seq(v), Nil, (iter.from <= v.get && v.get < iter.to) ==> body)(blame)
+      Starall(Seq(v), Nil, (iter.from <= v.get && v.get < iter.to) ==> body)(
+        blame
+      )
     })
   }
 
   override def enterCheckContextRoScopes(context: CheckContext[G]): Int =
     context.scopes.size
 
-  override def enterCheckContextRoScopeReason(context: CheckContext[G]): Option[Node[G]] =
-    Some(this)
+  override def enterCheckContextRoScopeReason(
+      context: CheckContext[G]
+  ): Option[Node[G]] = Some(this)
 
-  override def enterCheckContextScopes(context: CheckContext[G]): Seq[CheckContext.ScopeFrame[G]] =
-    context.withScope(declarations)
+  override def enterCheckContextScopes(
+      context: CheckContext[G]
+  ): Seq[CheckContext.ScopeFrame[G]] = context.withScope(declarations)
 
   override def layout(implicit ctx: Ctx): Doc = {
-    val header = Group(Text("par") <+> ctx.name(decl) <>
-      (if(iters.nonEmpty) Text("(") <> Doc.args(iters) <> ")" else Empty))
+    val header = Group(
+      Text("par") <+> ctx.name(decl) <>
+        (if (iters.nonEmpty)
+           Text("(") <> Doc.args(iters) <> ")"
+         else
+           Empty)
+    )
 
     val contract = Doc.stack(Seq(
       DocUtil.clauses("context_everywhere", context_everywhere),

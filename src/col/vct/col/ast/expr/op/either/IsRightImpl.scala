@@ -4,7 +4,8 @@ import vct.col.ast.{IsRight, TBool, Type}
 import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.ast.ops.IsRightOps
 
-trait IsRightImpl[G] extends IsRightOps[G] { this: IsRight[G] =>
+trait IsRightImpl[G] extends IsRightOps[G] {
+  this: IsRight[G] =>
   override def t: Type[G] = TBool()
 
   override def precedence: Int = Precedence.POSTFIX

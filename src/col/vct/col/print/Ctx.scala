@@ -17,11 +17,11 @@ object Ctx {
 }
 
 case class Ctx(
-  syntax: Ctx.Syntax = Ctx.PVL,
-  width: Int = 120,
-  tabWidth: Int = 4,
-  names: Map[Declaration[_], String] = Map.empty,
-  inSpec: Boolean = false,
+    syntax: Ctx.Syntax = Ctx.PVL,
+    width: Int = 120,
+    tabWidth: Int = 4,
+    names: Map[Declaration[_], String] = Map.empty,
+    inSpec: Boolean = false,
 ) {
   def namesIn[G](node: Node[G]): Ctx =
     copy(names = {
@@ -31,9 +31,14 @@ case class Ctx(
     })
 
   def name(decl: Declaration[_]): String = {
-    val name = names.getOrElse(decl, s"${decl.o.getPreferredNameOrElse().ucamel}_${decl.hashCode()}")
-    if((inSpec || syntax == Ctx.PVL) && Keywords.SPEC.contains(name)) "`" + name + "`"
-    else name
+    val name = names.getOrElse(
+      decl,
+      s"${decl.o.getPreferredNameOrElse().ucamel}_${decl.hashCode()}",
+    )
+    if ((inSpec || syntax == Ctx.PVL) && Keywords.SPEC.contains(name))
+      "`" + name + "`"
+    else
+      name
   }
 
   def name(ref: Ref[_, _ <: Declaration[_]]): String =

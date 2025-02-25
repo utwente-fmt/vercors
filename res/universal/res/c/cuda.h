@@ -1,6 +1,10 @@
 #ifndef CUDA_H
 #define CUDA_H
 
+#include <stdint.h>
+typedef uint32_t cuuint32_t;
+typedef uint64_t cuuint64_t;
+
 #define __global__ __cuda_kernel__
 #define __shared__ __vercors_local_memory__
 

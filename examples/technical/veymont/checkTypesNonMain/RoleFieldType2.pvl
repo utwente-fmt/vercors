@@ -1,9 +1,9 @@
-seq_program Main() {
+choreography Main() {
 	endpoint a = Role();
 	endpoint b = Role();
 	endpoint c = Role();
 
-	seq_run {
+	run {
 		a.x := new Other();
 	}
 }

@@ -4,7 +4,8 @@ import vct.col.ast.{OptSomeTyped, TOption, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 import vct.col.ast.ops.OptSomeTypedOps
 
-trait OptSomeTypedImpl[G] extends OptSomeTypedOps[G] { this: OptSomeTyped[G] =>
+trait OptSomeTypedImpl[G] extends OptSomeTypedOps[G] {
+  this: OptSomeTyped[G] =>
   override def t: Type[G] = TOption(element)
 
   override def precedence: Int = Precedence.POSTFIX

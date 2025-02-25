@@ -1,2 +1,2 @@
--Xss32m
--Xmx2G
+-Xss128m
+-Xmx4G

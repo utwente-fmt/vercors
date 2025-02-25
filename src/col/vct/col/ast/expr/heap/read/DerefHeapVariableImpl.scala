@@ -4,7 +4,8 @@ import vct.col.ast.{DerefHeapVariable, Type}
 import vct.col.print._
 import vct.col.ast.ops.DerefHeapVariableOps
 
-trait DerefHeapVariableImpl[G] extends DerefHeapVariableOps[G] { this: DerefHeapVariable[G] =>
+trait DerefHeapVariableImpl[G] extends DerefHeapVariableOps[G] {
+  this: DerefHeapVariable[G] =>
   override def t: Type[G] = ref.decl.t
 
   override def precedence: Int = Precedence.ATOMIC

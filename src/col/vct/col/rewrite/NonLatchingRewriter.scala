@@ -5,7 +5,8 @@ import vct.col.ast.rewrite.BaseNonLatchingRewriter
 import vct.col.util.CurrentRewriteProgramContext
 import vct.result.VerificationError
 
-class NonLatchingRewriter[Pre, Post]() extends BaseNonLatchingRewriter[Pre, Post] {
+class NonLatchingRewriter[Pre, Post]()
+    extends BaseNonLatchingRewriter[Pre, Post] {
   override def dispatch(program: Program[Pre]): Program[Post] =
     VerificationError.withContext(CurrentRewriteProgramContext(program)) {
       program.rewriteDefault()

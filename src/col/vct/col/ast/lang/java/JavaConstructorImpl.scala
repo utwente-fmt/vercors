@@ -5,19 +5,30 @@ import vct.col.ast.{Declaration, JavaConstructor}
 import vct.col.print._
 import vct.col.ast.ops.JavaConstructorOps
 
-trait JavaConstructorImpl[G] extends Declarator[G] with JavaConstructorOps[G] { this: JavaConstructor[G] =>
-  override def declarations: Seq[Declaration[G]] = parameters ++ typeParameters ++ contract.givenArgs ++ contract.yieldsArgs
+trait JavaConstructorImpl[G] extends Declarator[G] with JavaConstructorOps[G] {
+  this: JavaConstructor[G] =>
+  override def declarations: Seq[Declaration[G]] =
+    parameters ++ typeParameters ++ contract.givenArgs ++ contract.yieldsArgs
   override def isStatic = false
 
   def layoutTypeArgs(implicit ctx: Ctx): Doc =
-    if(typeParameters.isEmpty) Empty else Text("<") <> Doc.args(typeParameters) <> ">"
+    if (typeParameters.isEmpty)
+      Empty
+    else
+      Text("<") <> Doc.args(typeParameters) <> ">"
 
   def layoutSignals(implicit ctx: Ctx): Doc =
-    if(signals.isEmpty) Empty else Empty <>> Group(Text("throws") <+> Doc.args(signals))
+    if (signals.isEmpty)
+      Empty
+    else
+      Empty <>> Group(Text("throws") <+> Doc.args(signals))
 
   override def layout(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
       contract,
-      Group(Doc.spread(modifiers :+ layoutTypeArgs :+ Text(name)) <> "(" <> Doc.args(parameters) <> ")" <> layoutSignals) <+> body.layoutAsBlock,
+      Group(
+        Doc.spread(modifiers :+ layoutTypeArgs :+ Text(name)) <> "(" <>
+          Doc.args(parameters) <> ")" <> layoutSignals
+      ) <+> body.layoutAsBlock,
     ))
 }

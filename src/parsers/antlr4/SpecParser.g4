@@ -3,6 +3,7 @@ parser grammar SpecParser;
 /**
  imported grammar rules
    langExpr
+   langConstInt
    langId
    langType
    langModifier
@@ -156,6 +157,7 @@ valMapPairs
 valPrimaryCollectionConstructor
  : 'seq' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralSeq
  | 'set' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralSet
+ | 'vector' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralVector
  | 'set' '<' langType '>' '{' langExpr '|' valSetCompSelectors ';' langExpr '}' # valSetComprehension
  | 'bag' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralBag
  | 'map' '<' langType ',' langType '>' '{' valMapPairs? '}' # valTypedLiteralMap
@@ -174,6 +176,7 @@ valPrimaryPermission
  : 'perm' '(' langExpr ')' # valCurPerm
  | 'Perm' '(' langExpr ',' langExpr ')' # valPerm
  | 'Value' '(' langExpr ')' # valValue
+ | 'AutoValue' '(' langExpr ')' # valAutoValue
  | 'PointsTo' '(' langExpr ',' langExpr ',' langExpr ')' #valPointsTo
  | 'HPerm' '(' langExpr ',' langExpr ')' # valHPerm
  | 'APerm' '(' langExpr ',' langExpr ')' # valAPerm
@@ -182,6 +185,7 @@ valPrimaryPermission
  | '\\array'  '(' langExpr ',' langExpr ')' # valArray
  | '\\pointer' '(' langExpr ',' langExpr ',' langExpr ')' # valPointer
  | '\\pointer_index' '(' langExpr ',' langExpr ',' langExpr ')' # valPointerIndex
+ | '\\pointer_block' '(' langExpr ')' # valPointerBlock
  | '\\pointer_block_length' '(' langExpr ')' # valPointerBlockLength
  | '\\pointer_block_offset' '(' langExpr ')' # valPointerBlockOffset
  | '\\pointer_length' '(' langExpr ')' # valPointerLength
@@ -295,6 +299,10 @@ valPrimary
  | '\\is_int' '(' langExpr ')' # valIsInt
  | '\\choose' '(' langExpr ')' # valChoose
  | '\\choose_fresh' '(' langExpr ')' # valChooseFresh
+ | '(' '\\assuming' langExpr ')' # valBoolAssuming
+ | '(' '\\assuming' langExpr ';' langExpr ')' # valAssuming
+ | '(' '\\asserting' langExpr ')' # valBoolAsserting
+ | '(' '\\asserting' langExpr ';' langExpr ')' # valAsserting
  ;
 
 // Out spec: defined meaning: a language local
@@ -342,6 +350,7 @@ valType
  : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool' | 'ref' | 'any' | 'nothing' | 'string') # valPrimaryType
  | 'seq' '<' langType '>' # valSeqType
  | 'set' '<' langType '>' # valSetType
+ | 'vector' '<' langType ',' langConstInt '>' # valVectorType
  | 'bag' '<' langType '>' # valBagType
  | 'option' '<' langType '>' # valOptionType
  | 'map' '<' langType ',' langType '>' # valMapType
@@ -415,6 +424,11 @@ valModifier
  | langStatic # valStatic
  ;
 
+valTypeQualifier
+  : 'unique' '<' langConstInt '>' # valUnique
+  | 'unique_pointer_field' '<' langId ',' langConstInt '>' # valUniquePointerField
+  ;
+
 valArgList
  : valArg
  | valArg ',' valArgList
@@ -457,3 +471,8 @@ valEmbedModifier
  : startSpec valModifier endSpec
  | {specLevel>0}? valModifier
  ;
+
+ valEmbedTypeQualifier
+  : startSpec valTypeQualifier endSpec
+  | {specLevel>0}? valTypeQualifier
+  ;

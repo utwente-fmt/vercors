@@ -1,5 +1,0 @@
-seq_program Main() {
-	seq_run {
-		int i = 17; // Error, not allowed (yet)
-	}
-}

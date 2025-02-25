@@ -4,7 +4,8 @@ import vct.col.ast.{SilverCurPredPerm, TRational, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Text, Group}
 import vct.col.ast.ops.SilverCurPredPermOps
 
-trait SilverCurPredPermImpl[G] extends SilverCurPredPermOps[G] { this: SilverCurPredPerm[G] =>
+trait SilverCurPredPermImpl[G] extends SilverCurPredPermOps[G] {
+  this: SilverCurPredPerm[G] =>
   override def t: Type[G] = TRational()
 
   override def precedence: Int = Precedence.POSTFIX

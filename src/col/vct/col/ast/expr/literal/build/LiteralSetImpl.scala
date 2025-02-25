@@ -4,7 +4,8 @@ import vct.col.ast.{LiteralSet, TSet, Type}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.ast.ops.LiteralSetOps
 
-trait LiteralSetImpl[G] extends LiteralSetOps[G] { this: LiteralSet[G] =>
+trait LiteralSetImpl[G] extends LiteralSetOps[G] {
+  this: LiteralSet[G] =>
   override def t: Type[G] = TSet(element)
 
   override def precedence: Int = Precedence.POSTFIX

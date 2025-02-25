@@ -1,0 +1,78 @@
+class Endpoint {
+	int rank, maxVal, c, n;
+
+	ensures rank == v && maxVal == v && c < v;
+	ensures n == 0;
+	constructor(int v);
+	
+	ensures c > \old(maxVal) ? maxVal == c : maxVal == \old(maxVal);
+	ensures n == \old(n) + 1;
+	ensures rank == \old(rank);
+	ensures c == \old(c);
+	void updateMax();
+}
+
+class StarPoint {
+	int rank, maxVal, a, b, d, n;
+	
+	ensures rank == v && maxVal == v && a < v && b < v && d < v;
+	ensures n == 0;
+	constructor(int v);
+	
+	ensures maxVal == maxVal(a,b,d,\old(maxVal));
+	ensures n == \old(n) + 1;
+	ensures rank == \old(rank);
+	ensures a == \old(a) && b == \old(b) && d == \old(d);
+	void updateMax();
+	
+	ensures \result >= a && \result >= b && \result >= c && \result >= d;
+	ensures \result == a || \result == b || \result == c || \result == d;
+	pure int maxVal(int a, int b, int c, int d);
+}
+
+
+choreography leaderElectStar() {
+	endpoint a = Endpoint(0);
+	endpoint b = Endpoint(8);
+	endpoint c = StarPoint(4);
+	endpoint d = Endpoint(5);
+
+	context (\chor a.rank != b.rank && a.rank != c.rank && a.rank != d.rank && b.rank != c.rank && b.rank != d.rank && c.rank != d.rank);
+	requires (\chor c.n == 0 && a.n == c.n && b.n == c.n && d.n == c.n);
+	requires a.maxVal == a.rank && b.maxVal == b.rank && c.maxVal == c.rank && d.maxVal == d.rank;
+	ensures (\chor c.maxVal == a.maxVal && c.maxVal == b.maxVal && c.maxVal == d.maxVal);
+	ensures (\chor c.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank));
+	ensures (\chor c.maxVal == a.rank || c.maxVal == b.rank || c.maxVal == c.rank || c.maxVal == d.rank);
+	run {
+	  loop_invariant a.rank == \old(a.rank) ** b.rank == \old(b.rank) ** c.rank == \old(c.rank) ** d.rank == \old(d.rank);
+		loop_invariant (\chor a.rank != b.rank && a.rank != c.rank && a.rank != d.rank && b.rank != c.rank && b.rank != d.rank && c.rank != d.rank);
+		loop_invariant 0 <= c.n && c.n <= 2;
+		loop_invariant (\chor a.n == c.n && b.n == c.n && d.n == c.n);
+		loop_invariant (\chor
+		  (c.n == 0 ==> (a.maxVal == a.rank && b.maxVal == b.rank &&  c.maxVal == c.rank &&  d.maxVal == d.rank))
+		  && (c.n == 1 ==> (c.rank > a.rank ? a.maxVal == c.rank : a.maxVal == a.rank))
+		  && (c.n == 1 ==> (c.rank > b.rank ? b.maxVal == c.rank : b.maxVal == b.rank))
+		  && (c.n == 1 ==> (c.rank > d.rank ? d.maxVal == c.rank : d.maxVal == d.rank))
+		  && (c.n >= 1 ==> c.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank))
+		  && (c.n == 2 ==> a.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank))
+		  && (c.n == 2 ==> b.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank))
+		  && (c.n == 2 ==> d.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank))
+		  && ((a.n < 2) == (b.n < 2))
+		  && ((b.n < 2) == (d.n < 2))
+		  && ((d.n < 2) == (c.n < 2)));
+		while(a.n < 2 && b.n < 2 && c.n < 2 && d.n < 2) {
+			communicate a.c <- c.maxVal;
+			communicate b.c <- c.maxVal;
+			communicate d.c <- c.maxVal;
+			communicate c.a <- a.maxVal;
+			communicate c.b <- b.maxVal;
+			communicate c.d <- d.maxVal;
+			a.updateMax();
+			b.updateMax();
+			c.updateMax();
+			d.updateMax();
+		}
+	}
+}
+
+

@@ -45,11 +45,11 @@ PERCENT: '%';
 INC: '++';
 DEC: '--';
 CONS: '::';
+AMPERSAND: '&';
 
 ENUM: 'enum';
 CLASS: 'class';
-SEQ_PROGRAM: 'seq_program';
-SEQ_RUN: 'seq_run';
+SEQ_PROGRAM: 'choreography';
 KERNEL: 'kernel';
 BARRIER: 'barrier';
 INVARIANT: 'invariant';
@@ -79,7 +79,13 @@ NOTIFY: 'notify';
 FORK: 'fork';
 JOIN: 'join';
 
+CHANNEL_INV: 'channel_invariant';
 COMMUNICATE: 'communicate';
+SENDER: '\\sender';
+RECEIVER: '\\receiver';
+MESSAGE: '\\msg';
+BENDPOINT: '\\endpoint';
+BCHOR: '\\chor';
 
 THIS: 'this';
 NULL: 'null';
@@ -97,6 +103,8 @@ UNFOLDING_ESC: '\\unfolding';
 UNFOLDING: 'unfolding';
 IN_ESC: '\\in';
 IN: 'in';
+ASSERTING: 'asserting';
+ASSUMING: 'assuming';
 NEW: 'new';
 ID: 'id';
 

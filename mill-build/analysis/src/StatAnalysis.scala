@@ -55,7 +55,7 @@ case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
           paramss.size == 2 || paramss.size == 3,
           rawStat.ctor,
           """Node definitions must have two or three parameter lists:
-            | - a list of fields dat define the structure of the AST
+            | - a list of fields that define the structure of the AST
             | - (optional) one parameter named `blame` of type `Blame[T]`, where T is a verification failure category
             | - an implicit parameter `val o: Origin`""".stripMargin
         ).get

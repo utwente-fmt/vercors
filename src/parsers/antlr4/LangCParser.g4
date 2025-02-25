@@ -32,7 +32,7 @@ import LangOMPParser, LangGPGPUParser;
 
 primaryExpression
     :   valExpr
-    |   clangIdentifier
+    |   {!isTypedefName($ctx)}? clangIdentifier
     |   Constant
     |   StringLiteral+
     |   '(' expression ')'
@@ -87,14 +87,14 @@ argumentExpressionList
     ;
 
 unaryExpression
-    :   postfixExpression
-    |   '++' unaryExpression
+    :   '++' unaryExpression
     |   '--' unaryExpression
     |   unaryOperator castExpression
     |   'sizeof' unaryExpression
     |   'sizeof' '(' typeName ')'
     |   '_Alignof' '(' typeName ')'
     |   '&&'  clangIdentifier // GCC extension address of label
+    |   postfixExpression
     |   specPrefix unaryExpression
     ;
 
@@ -107,9 +107,9 @@ unaryOperator
     ;
 
 castExpression
-    :   unaryExpression
-    |   '(' typeName ')' castExpression
+    : '(' typeName ')' castExpression
     |   '__extension__' '(' typeName ')' castExpression
+    | unaryExpression
     ;
 
 prependExpression
@@ -224,7 +224,7 @@ constantExpression
     ;
 
 declaration
-    :   valEmbedContract? declarationSpecifiers initDeclaratorList? ';'
+    :   valEmbedContract? declarationSpecifiers initDeclaratorList? ';' {collectTypedef();}
     |   staticAssertDeclaration
     ;
 
@@ -280,16 +280,14 @@ typeSpecifier
     |   'unsigned'
     |   '_Bool'
     |   '_Complex'
-    |   '__m128'
-    |   '__m128d'
-    |   '__m128i')
-    |   '__extension__' '(' ('__m128' | '__m128d' | '__m128i') ')'
+    )
     |   {specLevel>0}? valType
     |   atomicTypeSpecifier
     |   structOrUnionSpecifier
     |   enumSpecifier
     |   typedefName
     |   '__typeof__' '(' constantExpression ')' // GCC extension
+    |   OPENCL_VECTOR_TYPE '(' typeName ',' Constant  ')'
     ;
 
 structOrUnionSpecifier
@@ -357,6 +355,7 @@ typeQualifier
     |   'restrict'
     |   'volatile'
     |   '_Atomic'
+    |   valEmbedTypeQualifier
     ;
 
 functionSpecifier
@@ -409,7 +408,8 @@ gccAttributeListNonEmpty
     ;
 
 gccAttribute
-    :   ~(',' | '(' | ')') // relaxed def for "identifier or reserved word"
+//    :   ~(',' | '(' | ')') // relaxed def for "identifier or reserved word"
+    : clangIdentifier // LvdH: No clue how to get the above working, the parser crashes for my examples
         parenthesizedArgumentExpressionList?
     |   // empty
     ;
@@ -475,7 +475,7 @@ directAbstractDeclarator
     ;
 
 typedefName
-    :   clangIdentifier
+    :  {isTypedefName($ctx)}? Identifier
     ;
 
 initializer

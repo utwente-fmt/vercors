@@ -11,106 +11,156 @@ import vct.result.VerificationError.UserError
 
 case object GivenYieldsToArgs extends RewriterBuilder {
   override def key: String = "givenYields"
-  override def desc: String = "Promote given and yields parameters into inlined arguments and out-parameters."
+  override def desc: String =
+    "Promote given and yields parameters into inlined arguments and out-parameters."
 
-  case class MissingGivenArg(inv: InvokingNode[_], missing: Variable[_]) extends UserError {
+  case class MissingGivenArg(inv: InvokingNode[_], missing: Variable[_])
+      extends UserError {
     override def code: String = "missingGiven"
     override def text: String =
-      inv.o.messageInContext(s"This invocation is missing the 'given' parameter $missing")
+      inv.o.messageInContext(
+        s"This invocation is missing the 'given' parameter $missing"
+      )
   }
 
-  private def YieldDummy(forArg: Variable[_]): Origin = forArg.o.where(context = "dummy yield receiver", prefix = "dummy")
+  private def YieldDummy(forArg: Variable[_]): Origin =
+    forArg.o.where(context = "dummy yield receiver", prefix = "dummy")
 }
 
 case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
-  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case method: AbstractMethod[Pre] =>
-      allScopes.anySucceedOnly(method, allScopes.anyDeclare(method.rewrite(
-        args = variables.collect {
-          method.args.foreach(dispatch)
-          method.contract.givenArgs.foreach(dispatch)
-        }._1,
-        outArgs = variables.collect {
-          method.outArgs.foreach(dispatch)
-          method.contract.yieldsArgs.foreach(dispatch)
-        }._1,
-      )))
-    case func: AbstractFunction[Pre] =>
-      allScopes.anySucceedOnly(func, allScopes.anyDeclare(func.rewrite(
-        args = variables.collect {
-          func.args.foreach(dispatch)
-          func.contract.givenArgs.foreach(dispatch)
-        }._1,
-      )))
-    case other => rewriteDefault(other)
-  }
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    decl match {
+      case method: AbstractMethod[Pre] =>
+        allScopes.anySucceedOnly(
+          method,
+          allScopes.anyDeclare(method.rewrite(
+            args =
+              variables.collect {
+                method.args.foreach(dispatch)
+                method.contract.givenArgs.foreach(dispatch)
+              }._1,
+            outArgs =
+              variables.collect {
+                method.outArgs.foreach(dispatch)
+                method.contract.yieldsArgs.foreach(dispatch)
+              }._1,
+          )),
+        )
+      case func: AbstractFunction[Pre] =>
+        allScopes.anySucceedOnly(
+          func,
+          allScopes.anyDeclare(func.rewrite(args =
+            variables.collect {
+              func.args.foreach(dispatch)
+              func.contract.givenArgs.foreach(dispatch)
+            }._1
+          )),
+        )
+      case other => rewriteDefault(other)
+    }
 
-  override def dispatch(node: ApplicableContract[Pre]): ApplicableContract[Post] =
-    node.rewrite(givenArgs = Nil, yieldsArgs = Nil)
+  override def dispatch(
+      node: ApplicableContract[Pre]
+  ): ApplicableContract[Post] = node.rewrite(givenArgs = Nil, yieldsArgs = Nil)
 
-  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case inv: AnyMethodInvocation[Pre] =>
-      val givenMap = inv.givenMap.map { case (givenArg, value) => (givenArg.decl, value) }.toMap
-      val yields = inv.yields.map { case (target, yieldArg) => (yieldArg.decl, target) }.toMap
+  override def dispatch(e: Expr[Pre]): Expr[Post] =
+    e match {
+      case inv: AnyMethodInvocation[Pre] =>
+        val givenMap =
+          inv.givenMap.map { case (givenArg, value) => (givenArg.decl, value) }
+            .toMap
+        val yields =
+          inv.yields.map { case (target, yieldArg) => (yieldArg.decl, target) }
+            .toMap
 
-      val orderedGivenValues = inv.ref.decl.contract.givenArgs.map(givenArg => givenMap.get(givenArg) match {
-        case Some(value) => dispatch(value)
-        case None => throw MissingGivenArg(inv, givenArg)
-      })
-
-      val (yieldDummies, orderedYieldTargets: Seq[Expr[Post]]) =
-        variables.collect {
-          inv.ref.decl.contract.yieldsArgs.map(yieldArg => yields.get(yieldArg) match {
+        val orderedGivenValues = inv.ref.decl.contract.givenArgs.map(givenArg =>
+          givenMap.get(givenArg) match {
             case Some(value) => dispatch(value)
-            case None => variables.declare(new Variable[Post](dispatch(yieldArg.t))(YieldDummy(yieldArg))).get(inv.o)
-          })
-        }
+            case None => throw MissingGivenArg(inv, givenArg)
+          }
+        )
 
-      val newInv = inv.rewrite(
-        args = inv.args.map(dispatch) ++ orderedGivenValues,
-        outArgs = inv.outArgs.map(dispatch) ++ orderedYieldTargets,
-        givenMap = Nil, yields = Nil,
-      )
+        val (yieldDummies, orderedYieldTargets: Seq[Expr[Post]]) = variables
+          .collect {
+            inv.ref.decl.contract.yieldsArgs.map(yieldArg =>
+              yields.get(yieldArg) match {
+                case Some(value) => dispatch(value)
+                case None =>
+                  variables.declare(new Variable[Post](dispatch(yieldArg.t))(
+                    YieldDummy(yieldArg)
+                  )).get(inv.o)
+              }
+            )
+          }
 
-      yieldDummies match {
-        case Nil => newInv
-        case _ => ScopedExpr(yieldDummies, newInv)(e.o)
-      }
-    case inv: AnyFunctionInvocation[Pre] =>
-      val givenMap = inv.givenMap.map { case (givenArg, value) => (givenArg.decl, value) }.toMap
-      val orderedGivenValues = inv.ref.decl.contract.givenArgs.map(givenArg => givenMap.get(givenArg) match {
-        case Some(value) => dispatch(value)
-        case None => throw MissingGivenArg(inv, givenArg)
-      })
-      inv.rewrite(args = inv.args.map(dispatch) ++ orderedGivenValues, givenMap = Nil, yields = Nil)
-    case e => rewriteDefault(e)
-  }
-
-  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case inv: InvocationStatement[Pre] =>
-      val givenMap = inv.givenMap.map { case (givenArg, value) => (givenArg.decl, value) }.toMap
-      val yields = inv.yields.map { case (target, yieldArg) => (yieldArg.decl, target) }.toMap
-
-      val orderedGivenValues = inv.ref.decl.contract.givenArgs.map(givenArg => givenMap.get(givenArg) match {
-        case Some(value) => dispatch(value)
-        case None => throw MissingGivenArg(inv, givenArg)
-      })
-
-      val (yieldDummies, orderedYieldTargets: Seq[Expr[Post]]) =
-        variables.collect {
-          inv.ref.decl.contract.yieldsArgs.map(yieldArg => yields.get(yieldArg) match {
-            case Some(value) => dispatch(value)
-            case None => variables.declare(new Variable[Post](dispatch(yieldArg.t))(YieldDummy(yieldArg))).get(inv.o)
-          })
-        }
-
-      Scope(yieldDummies,
-        inv.rewrite(
+        val newInv = inv.rewrite(
           args = inv.args.map(dispatch) ++ orderedGivenValues,
           outArgs = inv.outArgs.map(dispatch) ++ orderedYieldTargets,
-          givenMap = Nil, yields = Nil,
+          givenMap = Nil,
+          yields = Nil,
         )
-      )(inv.o)
-    case other => rewriteDefault(other)
-  }
+
+        yieldDummies match {
+          case Nil => newInv
+          case _ => ScopedExpr(yieldDummies, newInv)(e.o)
+        }
+      case inv: AnyFunctionInvocation[Pre] =>
+        val givenMap =
+          inv.givenMap.map { case (givenArg, value) => (givenArg.decl, value) }
+            .toMap
+        val orderedGivenValues = inv.ref.decl.contract.givenArgs.map(givenArg =>
+          givenMap.get(givenArg) match {
+            case Some(value) => dispatch(value)
+            case None => throw MissingGivenArg(inv, givenArg)
+          }
+        )
+        inv.rewrite(
+          args = inv.args.map(dispatch) ++ orderedGivenValues,
+          givenMap = Nil,
+          yields = Nil,
+        )
+      case e => rewriteDefault(e)
+    }
+
+  override def dispatch(stat: Statement[Pre]): Statement[Post] =
+    stat match {
+      case inv: InvocationStatement[Pre] =>
+        val givenMap =
+          inv.givenMap.map { case (givenArg, value) => (givenArg.decl, value) }
+            .toMap
+        val yields =
+          inv.yields.map { case (target, yieldArg) => (yieldArg.decl, target) }
+            .toMap
+
+        val orderedGivenValues = inv.ref.decl.contract.givenArgs.map(givenArg =>
+          givenMap.get(givenArg) match {
+            case Some(value) => dispatch(value)
+            case None => throw MissingGivenArg(inv, givenArg)
+          }
+        )
+
+        val (yieldDummies, orderedYieldTargets: Seq[Expr[Post]]) = variables
+          .collect {
+            inv.ref.decl.contract.yieldsArgs.map(yieldArg =>
+              yields.get(yieldArg) match {
+                case Some(value) => dispatch(value)
+                case None =>
+                  variables.declare(new Variable[Post](dispatch(yieldArg.t))(
+                    YieldDummy(yieldArg)
+                  )).get(inv.o)
+              }
+            )
+          }
+
+        Scope(
+          yieldDummies,
+          inv.rewrite(
+            args = inv.args.map(dispatch) ++ orderedGivenValues,
+            outArgs = inv.outArgs.map(dispatch) ++ orderedYieldTargets,
+            givenMap = Nil,
+            yields = Nil,
+          ),
+        )(inv.o)
+      case other => rewriteDefault(other)
+    }
 }

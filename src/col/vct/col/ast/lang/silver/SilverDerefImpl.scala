@@ -4,7 +4,8 @@ import vct.col.ast.{SilverDeref, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 import vct.col.ast.ops.SilverDerefOps
 
-trait SilverDerefImpl[G] extends SilverDerefOps[G] { this: SilverDeref[G] =>
+trait SilverDerefImpl[G] extends SilverDerefOps[G] {
+  this: SilverDeref[G] =>
   override def t: Type[G] = field.decl.t
 
   override def precedence: Int = Precedence.POSTFIX

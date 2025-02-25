@@ -4,10 +4,10 @@ import vct.col.ast.{EitherLeft, TEither, TNothing, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 import vct.col.ast.ops.EitherLeftOps
 
-trait EitherLeftImpl[G] extends EitherLeftOps[G] { this: EitherLeft[G] =>
+trait EitherLeftImpl[G] extends EitherLeftOps[G] {
+  this: EitherLeft[G] =>
   override def t: Type[G] = TEither(e.t, TNothing())
 
   override def precedence: Int = Precedence.ATOMIC
-  override def layout(implicit ctx: Ctx): Doc =
-    Text("Left(") <> e <> ")"
+  override def layout(implicit ctx: Ctx): Doc = Text("Left(") <> e <> ")"
 }

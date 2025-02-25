@@ -9,6 +9,12 @@ class CSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/c/math.c"
   vercors should verify using silicon example "concepts/c/mod_div.c"
   vercors should verify using silicon example "concepts/c/structs.c"
+  vercors should verify using silicon example "concepts/c/vector_add.c"
+  vercors should verify using silicon example "concepts/c/vector_type.c"
+  vercors should verify using silicon example "concepts/c/pointer_casts.c"
+  vercors should verify using silicon example "concepts/c/pointer_tests.c"
+  vercors should verify using silicon flags("--backend-option", "--exhaleMode=2") example "concepts/c/tagged_struct.c"
+  vercors should verify using silicon example "concepts/c/void.c"
 
   vercors should error withCode "resolutionError:type" in "float should not be demoted" c
   """
@@ -16,7 +22,7 @@ class CSpec extends VercorsSpec {
     int x = 4.0 % 1;
   }
   """
-  vercors should fail withCode "assignFieldFailed" using silicon in "cannot access field of struct after freeing" c
+  vercors should fail withCode "ptrPerm" using silicon in "cannot access field of struct after freeing" c
     """
     #include <stdlib.h>
 
@@ -31,6 +37,8 @@ class CSpec extends VercorsSpec {
 
     int main(){
       struct e* a = (struct e*) malloc(1*sizeof(struct e));
+      if (a == NULL) return 1;
+
       a->s.x = 1;
       struct d* b = &(a->s);
       free(a);
@@ -38,7 +46,28 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "ptrNull" using silicon in "free null pointer" c
+  vercors should fail withCode "ptrNull" using silicon in "use malloc result without null check" c
+    """
+      #include <stdlib.h>
+      int main(){
+          int* xs = (int*) malloc(1*sizeof(int));
+          *xs = 12;
+          free(xs);
+      }
+    """
+
+  vercors should verify using silicon in "free null pointer" c
+    """
+      #include <stdlib.h>
+      int main(){
+          int* xs = NULL;
+          free(xs);
+          free(xs);
+          free(xs);
+      }
+    """
+
+  vercors should fail withCode "ptrOffsetNonZero" using silicon in "free stack garbage pointer" c
     """
       #include <stdlib.h>
       int main(){
@@ -74,7 +103,7 @@ class CSpec extends VercorsSpec {
     int main(){
       struct d* xs = (struct d*) malloc(sizeof(struct d)*3);
       struct d* ys = (struct d*) malloc(sizeof(struct d)*3);
-      //@ exhale Perm(xs[0].x, 1\2);
+      //@ exhale Perm(&xs[0].x, 1\2);
       free(xs);
     }
     """
@@ -110,7 +139,7 @@ class CSpec extends VercorsSpec {
     int main(){
       struct d s1;
       struct d* s2 = &s1;
-      //@ exhale Perm(s2->x, 1\1);
+      //@ exhale Perm(&s2->x, 1\1);
       s2->x = 1;
     }
     """
@@ -122,7 +151,7 @@ class CSpec extends VercorsSpec {
     };
     int main(){
       struct d s;
-      //@ exhale Perm(s.x, 1\1);
+      //@ exhale Perm(&s.x, 1\1);
       s.x = 1;
     }
     """
@@ -134,12 +163,12 @@ class CSpec extends VercorsSpec {
     int main(){
       struct d s;
       s.x = 1;
-      //@ exhale Perm(s.x, 1\1);
+      //@ exhale Perm(&s.x, 1\1);
       int x = s.x;
     }
     """
 
-  vercors should error withCode "unsupportedCast" in "Cast ptr struct to int" c
+  vercors should verify using silicon in "Cast ptr struct to int" c
     """
     struct d{
       int x;
@@ -175,27 +204,38 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should error withCode "unsupportedMalloc" in "Unsupported malloc without sizeof" c
+  vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" in "Supported malloc without sizeof" c
     """
     #include <stdlib.h>
     int main(){
-      int *x = (int*) malloc(5*4);
+      int size = 5 * sizeof(int);
+      int *x = (int*) malloc(size);
+      //@ assert x == NULL || \pointer_block_length(x) == 5;
     }
     """
 
-  vercors should error withCode "unsupportedMalloc" in "Unsupported malloc with wrong cast" c
+  vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" in "Malloc with wrong cast" c
     """
     #include <stdlib.h>
     int main(){
-      float *x = (float* ) malloc(sizeof(int)*4);
+      float *x = (float*) malloc(sizeof(int)*4);
+      //@ assert x == NULL || \pointer_block_length(x) == 4;
     }
     """
 
-  vercors should error withCode "unsupportedSizeof" in "Unsupported use of sizeof" c
+  vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" in "Use of sizeof with a target" c
     """
-    #include <stdlib.h>
     int main(){
       int x = sizeof(int);
+      //@ assert x == 4;
+    }
+    """
+
+  vercors should fail withCode "assertFailed:false" using silicon in "Use of sizeof without a target" c
+    """
+    int main(){
+      int x = sizeof(int);
+      //@ assert x == 4;
     }
     """
 
@@ -308,7 +348,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "copyStructFailedBeforeCall" using silicon in "Insufficient permission for field x to copy struct before call" c
+  vercors should fail withCode "copyClassFailedBeforeCall" using silicon in "Insufficient permission for field x to copy struct before call" c
     """
     struct d {
         int x;
@@ -321,12 +361,12 @@ class CSpec extends VercorsSpec {
 
     int main(){
         struct d s;
-        //@ exhale Perm(s.x, 1\1);
+        //@ exhale Perm(&s.x, 1\1);
         test(s);
     }
     """
 
-  vercors should fail withCode "copyStructFailed" using silicon in "Insufficient permission for field x to copy struct" c
+  vercors should fail withCode "copyClassFailed" using silicon in "Insufficient permission for field x to copy struct" c
     """
     struct d {
         int x;
@@ -339,9 +379,14 @@ class CSpec extends VercorsSpec {
 
     int main(){
         struct d s, t;
-        //@ exhale Perm(s.x, 1\1);
+        //@ exhale Perm(&s.x, 1\1);
         t = s;
     }
+    """
+
+    vercors should error withCode "preprocessorError" in "Source file with preprocessor error" c
+    """
+    #define foo(
     """
 
     vercors should verify using silicon in "Parallel omp loop with declarations inside" c
@@ -375,17 +420,224 @@ class CSpec extends VercorsSpec {
     #include <stdlib.h>
 
     struct nested {
-      struct nested *inner;  
+      struct nested *inner;
     };
 
     void main() {
-      int *ip = NULL;                              
-      double *dp = NULL;                           
-      struct nested *np = NULL;                    
-      np = (struct nested*) NULL;               
+      int *ip = NULL;
+      double *dp = NULL;
+      struct nested *np = NULL;
+      np = (struct nested*) NULL;
       np = (struct nested*) malloc(sizeof(struct nested));
+      if (np == NULL) return;
       np->inner = NULL;
-      np->inner = (struct nested*) NULL;         
+      np->inner = (struct nested*) NULL;
+    }
+    """
+
+    vercors should error withCode "wrongCType" in "Vector initialized with to much arguments" c
+    """
+    // wrongCType
+    #include <immintrin.h>
+
+    void test(){
+        __m128i x = {0,1,2,3};
+    }
+    """
+
+    vercors should error withCode "resolutionError:type" in "Vector literal with wrong types" c
+    """
+    // type
+    #include <immintrin.h>
+
+    void test(){
+        __m128i x = {0.1, 0.1};
+    }
+    """
+
+    vercors should error withCode "resolutionError:type" in "Vector initialized with wrong type" c
+    """
+    // type
+    #include <immintrin.h>
+
+    void test(){
+        __m128i x = {0.1, 0.1};
+    }
+    """
+
+    vercors should error withCode "wrongVectorType" in "Vector type wrong declaration" c
+    """
+    typedef int v4si __attribute__ ((vector_size (sizeof(float)*4)));
+
+    void test(){
+        v4si x = {0, 1, 2, 3};
+    }
+    """
+
+    vercors should error withCode "wrongVectorType" in "Vector type wrong declaration 2" c
+    """
+    typedef int v4si __attribute__ ((vector_size (16)));
+
+    void test(){
+        v4si x = {0, 1, 2, 3};
+    }
+    """
+
+    vercors should fail withCode "vecIndexExceedsLength" using silicon in "Vector index exceeds length" c
+    """
+    // vecIndexExceedsLength
+    typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
+
+    void test(){
+        v4si x = {0, 1, 2, 3};
+        x[5] = 3;
+    }
+    """
+
+    vercors should fail withCode "vecIndexNegative" using silicon in "Vector negative indexed" c
+    """
+    // vecIndexNegative
+    typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
+
+    void test(){
+        v4si x = {0, 1, 2, 3};
+        x[-1] = 3;
+    }
+    """
+
+    vercors should fail withCode "vecIndexNegative" using silicon in "Vector value negative indexed" c
+    """
+    // vecIndexNegative
+    typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
+
+    void test(){
+        v4si x = {0, 1, 2, 3};
+        int y = x[-1];
+    }
+    """
+
+    vercors should fail withCode "vectorDivByZero" using silicon in "Vector divide by zero" c
+    """
+    // vecIndexNegative
+    typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
+
+    void test(){
+        v4si x = {0, 1, 2, 3};
+        v4si y = {1, 0, 1, 1};
+        y = x / y;
+    }
+    """
+
+  vercors should error withCode "resolutionError:type" in "OpenCL Vector wrong type initializer" c
+    """
+    // type
+    #include <opencl.h>
+
+    __kernel void test(__global bool* a) {
+        int2 x = (int4)(0, 0, 0, 0);
+        return;
+    }
+    """
+
+  vercors should error withCode "noSuchName" in "OpenCL Vector wrong field name" c
+    """
+    // field not found
+    #include <opencl.h>
+
+    __kernel void test(__global bool* a) {
+        int4 x = (int4)(0, 0, 0, 0);
+        int y = x.s5;
+        return;
+    }
+    """
+
+  vercors should error withCode "noSuchName" in "OpenCL Vector wrong field name letter" c
+    """
+    // field not found
+    #include <opencl.h>
+
+    __kernel void test(__global bool* a) {
+        int2 x = (int2)(0, 0);
+        int y = x.w;
+        return;
+    }
+    """
+
+  vercors should error withCode "wrongOpenCLLiteralVector" in "OpenCL Vector field assign" c
+    """
+    // wrongOpenCLLiteralVector
+    #include <opencl.h>
+
+    __kernel void test(__global bool* a) {
+        int2 x = (int2)(0, 0);
+        x.xx = x;
+        return;
+    }
+    """
+
+  vercors should error withCode "wrongOpenCLLiteralVector" in "OpenCL Vector initialize wrong type" c
+    """
+    // wrongOpenCLLiteralVector
+    #include <opencl.h>
+
+    __kernel void test(__global bool* a) {
+        int4 x = (int4)((int2)(0,1), 0.0f, 0);
+        return;
+    }
+    """
+
+  vercors should verify using silicon in "OpenCL vector initializer correctly uses stateful function" c
+    """
+   // pass
+    #include <opencl.h>
+
+    /*@ context y != NULL && \pointer_length(y) == 1 ** Perm(&*y, write);
+      ensures \old(*y)+1 == *y && \result.x == *y && \result.y == *y;
+    @*/
+    int2 alter_state(int* y){
+        *y = *y+1;
+        return (int2)(*y,*y);
+    }
+
+    __kernel void test(__global bool* a) {
+        int y[1] = {0};
+        int4 x = (int4)(alter_state(y), alter_state(y));
+        //@ assert x.x == 1 && x.y == 1 && x.z == 2 && x.w == 2;
+        return;
+    }
+    """
+
+  vercors should error withCode "unsupportedCast" in "Casting struct pointers only works for the first element" c
+    """
+    #include <stdbool.h>
+    struct A {
+        int integer;
+        bool boolean;
+    };
+
+    struct B {
+        struct A struct_a;
+    };
+    void cannotCastToBoolean() {
+        struct B struct_b;
+        struct_b.struct_a.boolean = true == true; // We currently don't support boolean literals
+        bool *pointer_to_boolean = (bool *)&struct_b;
+    }
+    """
+  vercors should verify using silicon example "concepts/c/mismatched_provenance.c"
+  vercors should verify using silicon example "concepts/c/ptr_comparisons.c"
+  vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" example "concepts/c/pointer_tag.c"
+  vercors should verify using silicon in "Pointer address correctly offset based on type size" c
+    """
+    #include <stdint.h>
+    #include <stdlib.h>
+
+    void main(){
+        int *array = (int *)malloc(sizeof(int) * 10);
+        if (array == NULL) return;
+        uintptr_t a0 = (uintptr_t)array;
+        uintptr_t a1 = (uintptr_t)&array[1];
+        //@ assert a0 + sizeof(int) == a1;
     }
     """
 }

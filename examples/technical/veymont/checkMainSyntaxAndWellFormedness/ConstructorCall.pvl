@@ -1,9 +1,9 @@
-seq_program Main() {
+choreography Main() {
 	endpoint a = Role(5);
 	endpoint b = Role(6);
 	endpoint c = Role(7);
 
-	seq_run {
+	run {
 		new Role(3); // Error
 	}
 }

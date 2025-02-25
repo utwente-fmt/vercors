@@ -1,10 +1,10 @@
-seq_program main() {
+choreography main() {
 
 	endpoint a = Role(5);
 	endpoint b = Role(6);
 	endpoint c = Role(7);
 
-	seq_run {
+	run {
 		if(a.x >= 5 && b.x == 6){ // Error here! Branch unanimity
 			a.x := 5;
 		} else {

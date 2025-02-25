@@ -7,5 +7,6 @@ object Seqs {
 
   def singleton[T](t: T): Seq[T] = Seq(t)
 
-  @varargs def make[T](ts: T*): Seq[T] = Seq(ts: _*)
+  @varargs
+  def make[T](ts: T*): Seq[T] = Seq(ts: _*)
 }

@@ -5,8 +5,11 @@ import vct.col.ast.{CDeclaration, TResource}
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.print._
 
-trait CDeclarationImpl[G] extends CDeclarationOps[G] with CDeclarationFamilyOps[G] { this: CDeclaration[G] =>
-  override def check(context: CheckContext[G]): Seq[CheckError] = kernelInvariant.checkSubType(TResource())
+trait CDeclarationImpl[G]
+    extends CDeclarationOps[G] with CDeclarationFamilyOps[G] {
+  this: CDeclaration[G] =>
+  override def check(context: CheckContext[G]): Seq[CheckError] =
+    kernelInvariant.checkSubType(TResource())
 
   // PB: Please keep in sync with ApplicableContractImpl
   def layoutContract(implicit ctx: Ctx): Doc =
@@ -21,11 +24,8 @@ trait CDeclarationImpl[G] extends CDeclarationOps[G] with CDeclarationFamilyOps[
       Doc.stack(contract.signals),
     ))
 
+  require(true)
+
   override def layout(implicit ctx: Ctx): Doc =
-    Doc.stack(Seq(
-      layoutContract,
-      Group(
-        Doc.spread(specs) <>> Doc.args(inits)
-      ),
-    ))
+    Doc.stack(Seq(layoutContract, Group(Doc.spread(specs) <>> Doc.args(inits))))
 }

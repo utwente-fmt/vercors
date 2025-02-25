@@ -1,6 +1,13 @@
 package vct.col.ast.helpers.generator
 
-import vct.col.ast.helpers.defn.Constants.{AbstractRewriter, ApplyCoercionPat, Coercion, Expr, ExprName, Origin}
+import vct.col.ast.helpers.defn.Constants.{
+  AbstractRewriter,
+  ApplyCoercionPat,
+  Coercion,
+  Expr,
+  ExprName,
+  Origin,
+}
 import vct.col.ast.helpers.defn.Naming.typ
 import vct.col.ast.structure
 import vct.col.ast.structure.AllFamiliesGenerator
@@ -9,8 +16,13 @@ import java.nio.file.Path
 import scala.meta._
 
 class BaseCoercingRewriter extends AllFamiliesGenerator {
-  override def generate(out: Path, declaredFamilies: Seq[structure.Name], structuralFamilies: Seq[structure.Name]): Unit =
-    ResultStream.write(out.resolve("BaseCoercingRewriter.scala"), crw(structuralFamilies))
+  override def generate(
+      out: Path,
+      declaredFamilies: Seq[structure.Name],
+      structuralFamilies: Seq[structure.Name],
+  ): Unit =
+    ResultStream
+      .write(out.resolve("BaseCoercingRewriter.scala"), crw(structuralFamilies))
 
   def crw(families: Seq[structure.Name]): Source =
     source"""
@@ -27,8 +39,10 @@ class BaseCoercingRewriter extends AllFamiliesGenerator {
     """
 
   def dispatch(family: structure.Name): Defn.Def =
-    if(family == ExprName) dispatchExpr
-    else dispatchNonExpr(family)
+    if (family == ExprName)
+      dispatchExpr
+    else
+      dispatchNonExpr(family)
 
   def dispatchExpr: Defn.Def =
     q"""

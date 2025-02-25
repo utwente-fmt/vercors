@@ -5,7 +5,9 @@ import vct.col.ref.{LazyRef, Ref}
 
 import scala.reflect.ClassTag
 
-case class DeclarationBox[G, Decl <: Declaration[G]]()(implicit tag: ClassTag[Decl]) {
+case class DeclarationBox[G, Decl <: Declaration[G]]()(
+    implicit tag: ClassTag[Decl]
+) {
   private var decl: Option[Decl] = None
 
   def ref: Ref[G, Decl] = new LazyRef(decl.get)
