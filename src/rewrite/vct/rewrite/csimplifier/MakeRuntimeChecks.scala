@@ -196,27 +196,23 @@ case class MakeRuntimeChecks[Pre <: Generation]()
     rewritten
   }
 
-  private def replaceNewNonNullArray(
-      s: Seq[Statement[Pre]]
-  ): Seq[Statement[Post]] = {
+  private def replaceNewNonNullArray(s: Seq[Statement[Pre]]): Seq[Statement[Post]] = {
     s match {
       case Nil => Nil
-      case (ld @ LocalDecl(v)) +:
-          (a @ Assign(Local(r), NewNonNullPointerArray(t, s))) +: rem =>
-        if (r.decl == v) {
+      case (ld@LocalDecl(v)) +: (a@Assign(Local(r), NewNonNullPointerArray(t,s))) +: rem =>
+        if(r.decl==v) {
 //          val nv = new Variable[Pre](CTArray(Some(s), t)(PanicBlame("Array Size error")))(v.o)
-          lazy val rv = v.rewrite(t =
-            CTArray(Some(dispatch(s)), dispatch(t))(PanicBlame(
-              "Array Size error"
-            ))
-          ).succeedOnly(v)
+          lazy val rv = v.rewrite(t=CTArray(Some(dispatch(s)), dispatch(t))(PanicBlame("Array Size error"))).succeedOnly(v)
 //          variables.declare(rv)
-          lazy val nl = ld.rewrite(local = rv)
+          lazy val nl = ld.rewrite(local=rv)
 //          LocalDecl(rv)(a.o) +: replaceNewNonNullArray(rem)
           nl +: replaceNewNonNullArray(rem)
 //          Seq(Scope[Post](Seq(rv),Block(replaceNewNonNullArray(rem))(a.o))(a.o))
-        } else { Seq(dispatch(ld), dispatch(a)) ++ replaceNewNonNullArray(rem) }
-      case x +: rem => dispatch(x) +: replaceNewNonNullArray(rem)
+        } else {
+          Seq(dispatch(ld), dispatch(a)) ++ replaceNewNonNullArray(rem)
+        }
+      case x +: rem =>
+        dispatch(x) +: replaceNewNonNullArray(rem)
     }
   }
 
@@ -236,7 +232,7 @@ case class MakeRuntimeChecks[Pre <: Generation]()
 //        val nv = new Variable[Post](CTArray(Some(dispatch(s)), dispatch(t))(PanicBlame("Array Size error")))(v.o)
 //        LocalDecl(nv)(b.o)
       case b: Block[Pre] =>
-        b.rewrite(statements = replaceNewNonNullArray(b.statements))
+        b.rewrite(statements=replaceNewNonNullArray(b.statements))
 //        val nb = Block[Pre](replaceNewNonNullArray(b.statements))(b.o)
 //        super.dispatch(nb)
       case _ => super.dispatch(stat)
@@ -585,9 +581,9 @@ case class MakeRuntimeChecks[Pre <: Generation]()
       case _: Wand[Pre] => None
       case a: Star[Pre] => // separating conjunct: check both subexpressions
         dispatchExpr(a.left, isAssert) match {
-          case Some(l) if l._1 != tt[Post] =>
+          case Some(l) if l._1 != tt[Post] && l._1 != CIntegerValue[Post](1)(l._1.o) =>
             dispatchExpr(a.right, isAssert) match {
-              case Some(r) if r._1 != tt[Post] =>
+              case Some(r) if r._1 != tt[Post] && r._1 != CIntegerValue[Post](1)(r._1.o) =>
                 Some((And[Post](l._1, r._1)(a.o), l._2 ++ r._2))
               case _ => Some(l)
             }
@@ -595,9 +591,9 @@ case class MakeRuntimeChecks[Pre <: Generation]()
         }
       case a: And[Pre] => // conjunction: check both subexpressions
         dispatchExpr(a.left, isAssert) match {
-          case Some(l) if l._1 != tt[Post] =>
+          case Some(l) if l._1 != tt[Post] && l._1 != CIntegerValue[Post](1)(l._1.o) =>
             dispatchExpr(a.right, isAssert) match {
-              case Some(r) if r._1 != tt[Post] =>
+              case Some(r) if r._1 != tt[Post] && r._1 != CIntegerValue[Post](1)(r._1.o) =>
                 Some((And[Post](l._1, r._1)(a.o), l._2 ++ r._2))
               case _ => Some(l)
             }
@@ -839,13 +835,18 @@ case class MakeRuntimeChecks[Pre <: Generation]()
       */
     class SubscriptHavoccer extends NonLatchingRewriter[Pre, Post] {
       override val allScopes: AllScopes[Pre, Post] = outer.allScopes
-      var indices: Seq[Variable[Post]] = Seq()
+      // the new index variable, and its upper limit (if defined)
+      var indices: Seq[(Variable[Post], Option[Expr[Post]])] = Seq()
 
       override def dispatch(e: Expr[Pre]): Expr[Post] = {
         e match {
           case s @ AmbiguousSubscript(a, i) =>
             val idx = new Variable[Post](TCInt())(i.o.sourceName("idx"))
-            indices :+= idx
+            val siz = a.t match {
+              case a: CTArray[Pre] => a.size.map(dispatch)
+              case _ => None
+            }
+            indices :+= ((idx, siz))
             AmbiguousSubscript[Post](dispatch(a), Local[Post](idx.ref)(i.o))(
               s.blame
             )(e.o)
@@ -858,7 +859,13 @@ case class MakeRuntimeChecks[Pre <: Generation]()
       val rwrtr = new SubscriptHavoccer()
       val target = rwrtr.dispatch(t)
       // havoc all index variables created by rwrtr
-      val indices = rwrtr.indices.flatMap(v =>
+      val indices = rwrtr.indices.flatMap { case (v, siz) =>
+        // assure that havocced idx is in range
+        var chk: Expr[Post] = GreaterEq(Local[Post](v.ref)(v.o), CIntegerValue(0)(v.o))(v.o)
+        if(siz.isDefined) {
+          val up = Less(Local[Post](v.ref)(v.o), siz.get)(v.o)
+          chk = And(chk, up)(v.o)
+        }
         Seq(
           LocalDecl(v)(v.o),
           Assign[Post](
@@ -867,12 +874,12 @@ case class MakeRuntimeChecks[Pre <: Generation]()
               PanicBlame("havoc failed")
             )(t.o),
           )(b)(t.o),
-          // add assumption "idx >= 0 ? 1 : 0"
-          InvokeProcedure[Post](
+        // add assumption for chk (i.e. that idx is in range)
+        InvokeProcedure[Post](
             verifierAssume.ref,
             Seq(
               Select(
-                GreaterEq(Local[Post](v.ref)(v.o), CIntegerValue(0)(v.o))(v.o),
+                chk,
                 CIntegerValue(1)(v.o),
                 CIntegerValue(0)(v.o),
               )(v.o)
@@ -881,9 +888,10 @@ case class MakeRuntimeChecks[Pre <: Generation]()
             Nil,
             Nil,
             Nil,
-          )(PanicBlame("Assume failed"))(t.o),
+          )(PanicBlame("Assume failed"))(t.o)
+        ,
         )
-      )
+      }
       val asgn =
         Assign[Post](
           target,
