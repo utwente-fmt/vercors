@@ -50,7 +50,11 @@ import vct.rewrite.veymont.verification._
 import vct.rewrite.veymont.verification.EncodePermissionStratification.{
   Mode => PermissionStratificationMode
 }
-import vct.rewrite.csimplifier.{LinenumberTranslator, MakeRuntimeChecks}
+import vct.rewrite.csimplifier.{
+  LinenumberTranslator,
+  MakeRuntimeChecks,
+  RestoreCArrays,
+}
 
 import java.nio.file.Path
 import java.nio.file.Files
@@ -544,6 +548,7 @@ case class CSimplifier(
         CIntBoolCoercion,
         QuantifySubscriptAny, // no arr[*]
         PropagateContextEverywhere, // inline context_everywhere into loop invariants
+        RestoreCArrays,
         MakeRuntimeChecks,
         LinenumberTranslator.withArg(cOutput),
       ),

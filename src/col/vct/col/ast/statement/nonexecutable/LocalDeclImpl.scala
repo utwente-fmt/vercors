@@ -12,7 +12,8 @@ trait LocalDeclImpl[G] extends LocalDeclOps[G] {
         local.t match {
           case a: CTArray[G] =>
             val (spec, decl) = a.innerType.layoutSplitDeclarator
-            spec <+> decl <> ctx.name(local) <> Text("[")<> a.size.map(_.show).getOrElse(Text("")) <> Text("]") <> Text(";")
+            spec <+> decl <> ctx.name(local) <> Text("[") <> a.size.map(_.show)
+              .getOrElse(Text("")) <> Text("]") <> Text(";")
           case _ => local.show <> ";"
         }
       case Ctx.Silver => Text("var") <+> local.show
