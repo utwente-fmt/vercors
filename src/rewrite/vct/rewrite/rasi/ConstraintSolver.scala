@@ -401,6 +401,13 @@ class ConstraintSolver[G](
           minus_equals(left, right, value.asInstanceOf[UncertainIntegerValue])
         case Minus(left, right) =>
           minus_equals(left, right, value.asInstanceOf[UncertainIntegerValue])
+        case Size(obj) if get_var(obj).nonEmpty =>
+          val variable: ResolvableVariable[G] = get_var(obj).get
+          ConstraintMap.from(variable, UncertainSequence(value.asInstanceOf[UncertainIntegerValue], Seq(), variable.t.asInstanceOf[CompositeType[G]].composingTypes.head))
+        case SeqSubscript(seq, i) if get_var(seq).nonEmpty =>
+          val variable: ResolvableVariable[G] = get_var(seq).get
+          val index: UncertainIntegerValue = state.resolve_integer_expression(i)
+          ConstraintMap.from(variable, UncertainSequence(index.above_eq(), Seq((index, value)), variable.t.asInstanceOf[CompositeType[G]].composingTypes.head))
         case _ => ConstraintMap.empty[G]
       }
   }

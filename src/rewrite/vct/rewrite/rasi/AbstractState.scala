@@ -1078,7 +1078,7 @@ case class AbstractState[G](
       contract: Expr[G],
       return_type: Type[G],
   ): UncertainValue = {
-    val result_var: ResultVariable[G] = ResultVariable(return_type)
+    val result_var: ResultSimpleVariable[G] = ResultSimpleVariable(return_type)
     val result_set: Set[ResolvableVariable[G]] = Set(result_var)
     val constraints: Set[ConstraintMap[G]] =
       new ConstraintSolver(this, result_set, true).resolve_assumption(contract)

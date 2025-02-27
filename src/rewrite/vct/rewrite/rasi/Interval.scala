@@ -1,6 +1,7 @@
 package vct.rewrite.rasi
 
 import vct.col.ast._
+import vct.col.origin.{LabelContext, Origin}
 
 sealed abstract class IntervalSize {
   def get: Int
@@ -104,9 +105,7 @@ sealed abstract class Interval {
   def above_min(): Interval
   def +(other: Interval): Interval
   def -(other: Interval): Interval = this.+(-other)
-  def *(
-      other: Interval
-  ): Interval // TODO: Modeling the multiple of an interval as an interval is imprecise
+  def *(other: Interval): Interval
   def /(other: Interval): Interval
   def %(other: Interval): Interval
   def unary_- : Interval
@@ -116,7 +115,8 @@ sealed abstract class Interval {
   def sub_intervals(): Set[Interval] = Set(this)
   def values: Option[Set[Int]]
   def try_to_resolve(): Option[Int]
-  def to_expression[G](variable: Expr[G]): Expr[G] // TODO: Use proper origin
+  def to_expression[G](variable: Expr[G]): Expr[G]
+  protected def origen: Origin = Origin(Seq(LabelContext("Interval expression")))
 }
 
 case object EmptyInterval extends Interval {
@@ -139,7 +139,7 @@ case object EmptyInterval extends Interval {
   override def values: Option[Set[Int]] = Some(Set.empty[Int])
   override def try_to_resolve(): Option[Int] = None
   override def to_expression[G](variable: Expr[G]): Expr[G] =
-    BooleanValue(value = false)(variable.o)
+    BooleanValue(value = false)(origen)
 }
 
 case class MultiInterval(intervals: Set[Interval]) extends Interval {
@@ -266,7 +266,7 @@ case class MultiInterval(intervals: Set[Interval]) extends Interval {
     val sorted: Seq[Interval] = merge_intersecting(intervals).toSeq
       .sortWith((i1, i2) => i1.below_max().is_subset_of(i2.below_max()))
     sorted.map(i => i.to_expression(variable))
-      .reduce((e1, e2) => Or(e1, e2)(variable.o))
+      .reduce((e1, e2) => Or(e1, e2)(origen))
   }
 }
 
@@ -380,8 +380,8 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
   override def /(other: Interval): Interval =
     other match {
       case EmptyInterval => other
-      case MultiInterval(intervals) => ???
-      case BoundedInterval(low, up) => ???
+      case MultiInterval(intervals) => UnboundedInterval // TODO: Implement
+      case BoundedInterval(low, up) => UnboundedInterval // TODO: Implement
       case LowerBoundedInterval(low) =>
         if (low < 0)
           BoundedInterval(
@@ -393,7 +393,7 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
             scala.math.min(lower / low, 0),
             scala.math.max(upper / low, 0),
           )
-      case UpperBoundedInterval(up) => ???
+      case UpperBoundedInterval(up) => UnboundedInterval // TODO: Implement
       case UnboundedInterval =>
         BoundedInterval(
           -Utils.abs_max(lower, upper),
@@ -404,11 +404,8 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
   override def %(other: Interval): Interval =
     other match {
       case EmptyInterval => other
-      case MultiInterval(intervals) => ???
-      case BoundedInterval(low, up) => ???
-      case LowerBoundedInterval(low) => ???
-      case UpperBoundedInterval(up) => ???
-      case UnboundedInterval =>
+      case BoundedInterval(low, up) if (low == up) => UnboundedInterval // TODO: Implement
+      case _ =>
         if (lower < 0)
           BoundedInterval(lower, scala.math.max(0, upper))
         else
@@ -420,10 +417,10 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
   override def pow(other: Interval): Interval =
     other match {
       case EmptyInterval => other
-      case MultiInterval(intervals) => ???
-      case BoundedInterval(low, up) => ???
-      case LowerBoundedInterval(low) => ???
-      case UpperBoundedInterval(up) => ???
+      case MultiInterval(intervals) => UnboundedInterval // TODO: Implement
+      case BoundedInterval(low, up) => UnboundedInterval // TODO: Implement
+      case LowerBoundedInterval(low) => UnboundedInterval // TODO: Implement
+      case UpperBoundedInterval(up) => UnboundedInterval // TODO: Implement
       case UnboundedInterval =>
         if (lower < -1)
           other
@@ -448,12 +445,12 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
 
   override def to_expression[G](variable: Expr[G]): Expr[G] = {
     if (lower == upper)
-      Eq(variable, IntegerValue(upper)(variable.o))(variable.o)
+      Eq(variable, IntegerValue(upper)(origen))(origen)
     else
       And(
-        LessEq(variable, IntegerValue(upper)(variable.o))(variable.o),
-        GreaterEq(variable, IntegerValue(lower)(variable.o))(variable.o),
-      )(variable.o)
+        LessEq(variable, IntegerValue(upper)(origen))(origen),
+        GreaterEq(variable, IntegerValue(lower)(origen))(origen),
+      )(origen)
   }
 }
 
@@ -541,13 +538,13 @@ case class LowerBoundedInterval(lower: Int) extends Interval {
           UpperBoundedInterval(up * lower)
     }
 
-  override def /(other: Interval): Interval = ???
+  override def /(other: Interval): Interval = UnboundedInterval // TODO: Implement
 
-  override def %(other: Interval): Interval = ???
+  override def %(other: Interval): Interval = UnboundedInterval // TODO: Implement
 
   override def unary_- : Interval = UpperBoundedInterval(-lower)
 
-  override def pow(other: Interval): Interval = ???
+  override def pow(other: Interval): Interval = UnboundedInterval // TODO: Implement
 
   override def min(): Option[Int] = Some(lower)
 
@@ -558,7 +555,7 @@ case class LowerBoundedInterval(lower: Int) extends Interval {
   override def try_to_resolve(): Option[Int] = None
 
   override def to_expression[G](variable: Expr[G]): Expr[G] =
-    GreaterEq(variable, IntegerValue(lower)(variable.o))(variable.o)
+    GreaterEq(variable, IntegerValue(lower)(origen))(origen)
 }
 
 case class UpperBoundedInterval(upper: Int) extends Interval {
@@ -645,13 +642,13 @@ case class UpperBoundedInterval(upper: Int) extends Interval {
           LowerBoundedInterval(up * upper)
     }
 
-  override def /(other: Interval): Interval = ???
+  override def /(other: Interval): Interval = UnboundedInterval // TODO: Implement
 
-  override def %(other: Interval): Interval = ???
+  override def %(other: Interval): Interval = UnboundedInterval // TODO: Implement
 
   override def unary_- : Interval = LowerBoundedInterval(-upper)
 
-  override def pow(other: Interval): Interval = ???
+  override def pow(other: Interval): Interval = UnboundedInterval // TODO: Implement
 
   override def min(): Option[Int] = None
 
@@ -662,7 +659,7 @@ case class UpperBoundedInterval(upper: Int) extends Interval {
   override def try_to_resolve(): Option[Int] = None
 
   override def to_expression[G](variable: Expr[G]): Expr[G] =
-    LessEq(variable, IntegerValue(upper)(variable.o))(variable.o)
+    LessEq(variable, IntegerValue(upper)(origen))(origen)
 }
 
 case object UnboundedInterval extends Interval {
@@ -712,5 +709,5 @@ case object UnboundedInterval extends Interval {
   override def values: Option[Set[Int]] = None
   override def try_to_resolve(): Option[Int] = None
   override def to_expression[G](variable: Expr[G]): Expr[G] =
-    BooleanValue(value = true)(variable.o)
+    BooleanValue(value = true)(origen)
 }

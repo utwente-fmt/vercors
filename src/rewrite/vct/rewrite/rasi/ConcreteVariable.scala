@@ -40,46 +40,29 @@ sealed trait ResolvableVariable[G] {
     */
   def t: Type[G]
 }
-
-/** A virtual variable representing a subroutine return.
-  */
-case class ResultVariable[G](return_type: Type[G])
-    extends ResolvableVariable[G] {
-  override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
+object ResolvableVariable {
+  def single_from[G](expr: Expr[G], typ: Type[G]): ResolvableVariable[G] =
     expr match {
-      case AmbiguousResult() | Result(_) => true
-      case _ => false
+      case _: AmbiguousResult[_] | _: Result[_] => ResultSimpleVariable(typ)
+      case Deref(_, ref) => FieldSimpleVariable(ref.decl)
+      case Local(ref) => LocalSimpleVariable(ref.decl)
     }
-  override def is_contained_by(
+  def indexed_from[G](
       expr: Expr[G],
-      state: AbstractState[G],
-  ): Boolean = is(expr, state)
-  override def t: Type[G] = return_type
-}
-
-/** A variable that tracks a concrete variable, either a local variable or a
-  * class attribute, in the source code.
-  */
-sealed trait ConcreteVariable[G] extends ResolvableVariable[G] {
-
-  /** Creates an expression that represents this variable in COL.
-    *
-    * @return
-    *   A COL expression representing this variable
-    */
-  def to_expression(obj: Option[Expr[G]]): Expr[G]
-
-  def get_declaration: Declaration[G]
-
-  /** Defines an ordering among concrete variables.
-    *
-    * @param other
-    *   Variable to be compared to
-    * @return
-    *   <code>true</code> if <code>this > other</code>, <code>false</code>
-    *   otherwise
-    */
-  def compare(other: ConcreteVariable[G]): Boolean
+      typ: Type[G],
+      index: Int,
+  ): ResolvableVariable[G] =
+    expr match {
+      case _: AmbiguousResult[_] | _: Result[_] => ResultSimpleVariable(typ)
+      case Deref(_, ref) => FieldIndexedVariable(ref.decl, index)
+      case Local(ref) => LocalIndexedVariable(ref.decl, index)
+    }
+  def size_from[G](expr: Expr[G], typ: Type[G]): ResolvableVariable[G] =
+    expr match {
+      case _: AmbiguousResult[_] | _: Result[_] => ResultSimpleVariable(typ)
+      case Deref(_, ref) => FieldSizeVariable(ref.decl)
+      case Local(ref) => LocalSizeVariable(ref.decl)
+    }
 }
 
 sealed trait IndexedVariable[G] {
@@ -143,6 +126,85 @@ sealed trait IndexedVariable[G] {
     }
 }
 
+/** A virtual variable representing a subroutine return.
+  */
+sealed trait ResultVariable[G] extends ResolvableVariable[G] {
+  protected def is_result(expr: Expr[G]): Boolean =
+    expr match {
+      case AmbiguousResult() | Result(_) => true
+      case _ => false
+    }
+}
+
+case class ResultSimpleVariable[G](return_type: Type[G])
+    extends ResultVariable[G] {
+  override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
+    is_result(expr)
+
+  override def is_contained_by(
+      expr: Expr[G],
+      state: AbstractState[G],
+  ): Boolean = is_result(expr)
+
+  override def t: Type[G] = return_type
+}
+
+case class ResultSizeVariable[G](return_type: Type[G])
+    extends ResultVariable[G] {
+  override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
+    expr match {
+      case Size(obj) if is_result(obj) => true
+      case _ => false
+    }
+
+  override def is_contained_by(
+      expr: Expr[G],
+      state: AbstractState[G],
+  ): Boolean = is(expr, state) || is_result(expr)
+
+  override def t: Type[G] = return_type
+}
+
+case class ResultIndexedVariable[G](return_type: Type[G], i: Int)
+    extends ResultVariable[G] with IndexedVariable[G] {
+
+  override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
+    indexed_equals(expr, i, e => is_result(e), state)
+
+  override def is_contained_by(
+      expr: Expr[G],
+      state: AbstractState[G],
+  ): Boolean = index_contained_in(expr, i, e => is_result(e), state)
+
+  override def t: Type[G] = return_type
+}
+
+/** A variable that tracks a concrete variable, either a local variable or a
+  * class attribute, in the source code.
+  */
+sealed trait ConcreteVariable[G] extends ResolvableVariable[G] {
+
+  /** Creates an expression that represents this variable in COL.
+    *
+    * @return
+    *   A COL expression representing this variable
+    */
+  def to_expression(obj: Option[Expr[G]]): Expr[G]
+
+  def get_declaration: Declaration[G]
+
+  /** Defines an ordering among concrete variables, to create a predictable and
+    * repeatable order for output.
+    *
+    * @param other
+    *   Variable to be compared to
+    * @return
+    *   <code>true</code> if <code>this > other</code>, <code>false</code>
+    *   otherwise
+    */
+  def compare(other: ConcreteVariable[G]): Boolean
+}
+
 sealed trait LocalVariable[G] extends ConcreteVariable[G] {
   def v: Variable[G]
 
@@ -200,7 +262,12 @@ case class LocalSizeVariable[G](seq: Variable[G]) extends LocalVariable[G] {
 
   override def t: Type[G] = TInt()(seq.o)
 
-  override def compare(other: ConcreteVariable[G]): Boolean = ???
+  override def compare(other: ConcreteVariable[G]): Boolean =
+    other match {
+      case LocalSimpleVariable(_) => true
+      case LocalSizeVariable(s) => s.toInlineString > seq.toInlineString
+      case _ => false
+    }
 }
 
 case class LocalIndexedVariable[G](seq: Variable[G], i: Int)
@@ -225,7 +292,16 @@ case class LocalIndexedVariable[G](seq: Variable[G], i: Int)
       case TPointer(element) => element
     }
 
-  override def compare(other: ConcreteVariable[G]): Boolean = ???
+  override def compare(other: ConcreteVariable[G]): Boolean =
+    other match {
+      case _: LocalSimpleVariable[G] | _: LocalSizeVariable[_] => true
+      case LocalIndexedVariable(s, index) =>
+        if (s != seq)
+          s.toInlineString > seq.toInlineString
+        else
+          index > i
+      case _ => false
+    }
 }
 
 sealed trait FieldVariable[G] extends ConcreteVariable[G] {
@@ -264,7 +340,7 @@ case class FieldSimpleVariable[G](field: InstanceField[G])
 
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
-      case LocalSimpleVariable(_) => true
+      case _: LocalVariable[G] => true
       case FieldSimpleVariable(f) => f.toInlineString > field.toInlineString
       case FieldSizeVariable(_) => false
       case FieldIndexedVariable(_, _) => false
@@ -297,7 +373,7 @@ case class FieldSizeVariable[G](field: InstanceField[G])
 
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
-      case LocalSimpleVariable(_) => true
+      case _: LocalVariable[G] => true
       case FieldSimpleVariable(_) => true
       case FieldSizeVariable(f) => f.toInlineString > field.toInlineString
       case FieldIndexedVariable(_, _) => false
@@ -337,7 +413,7 @@ case class FieldIndexedVariable[G](field: InstanceField[G], i: Int)
 
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
-      case _: LocalVariable[_] => true
+      case _: LocalVariable[G] => true
       case FieldSimpleVariable(_) => true
       case FieldSizeVariable(_) => true
       case FieldIndexedVariable(f, ind) =>

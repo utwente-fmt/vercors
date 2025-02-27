@@ -162,7 +162,7 @@ case class GenerateRASI(
   }
 
   private def field_name(name: String): String =
-    name//.split(".").last // TODO: Consider the entire path to relax assumption
+    name.split("\\.").last // TODO: Consider the entire path to relax assumption
   //                              on differently-named variables
 
   private def get_parameter_invariant(
