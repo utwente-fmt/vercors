@@ -44,6 +44,7 @@ case class Infinite() extends IntervalSize {
   * An interval supports the following operations:
   *
   * SIZE OPERATIONS
+  *
   *   - <code>empty()</code> returns <code>true</code> if the interval is empty
   *     and <code>false</code> otherwise
   *   - <code>non_empty()</code> returns <code>false</code> if the interval is
@@ -53,6 +54,7 @@ case class Infinite() extends IntervalSize {
   *     <code>n</code>, or <code>Infinite()</code> otherwise
   *
   * SET OPERATIONS
+  *
   *   - <code>intersection(Interval)</code> returns the intersection between
   *     this interval and the argument
   *   - <code>union(Interval)</code> returns the union of this interval and the
@@ -61,31 +63,48 @@ case class Infinite() extends IntervalSize {
   *     that are not contained in this interval
   *
   * ARITHMETIC OPERATIONS
+  *
+  * These operations approximate arithmetic operations on intervals. In some
+  * cases, such as <code>+</code>, this is possible with perfect precision. In
+  * many others, the operations do not result in a contiguous interval, or even
+  * one that is representable with a finite number of subintervals. These
+  * methods attempt to get as close as feasible to the true result, but they
+  * guarantee only that the resulting interval is an overapproximation of the
+  * true set of outcomes. Especially for complex operations between inconvenient
+  * intervals, this may mean that an unbounded interval is returned.
+  *
+  * Note that for division operations, non-zero division is assumed, not
+  * guaranteed. Further, integer arithmetic is used.
+  *
+  *   - <code>+</code> returns the interval representing the set of sums of
+  *     entries in both intervals
+  *   - <code>-</code> returns the interval representing the set of subtractions
+  *     of entries of the second interval from entries in the first
+  *   - <code>*</code> returns an interval overapproximating the set of products
+  *     of entries from both intervals
+  *   - <code>unary_-</code> returns the element-wise negation of this interval
+  *   - <code>/</code> returns an interval overapproximating the set of results
+  *     of dividing elements of the first interval by elements of the second
+  *     interval
+  *   - <code>%</code> returns an interval overapproximating the set of
+  *     remainders of divisions of elements of the first interval by elements of
+  *     the second interval
+  *   - <code>pow</code> returns an interval overapproximating the set of
+  *     results of taking elements of the first interval to the power of
+  *     elements from the second interval
+  *
+  * ADMINISTRATIVE OPERATIONS
+  *
+  *   - <code>min()</code> returns the minimal value contained in this interval,
+  *     if it has one
+  *   - <code>max()</code> returns the maximal value contained in this interval,
+  *     if it has one
   *   - <code>below_max()</code> returns an interval whose upper bound is the
   *     maximum entry in this interval, or an unbounded interval if there is no
   *     maximum
   *   - <code>above_min()</code> returns an interval whose lower bound is the
   *     minimum entry in this interval, or an unbounded interval if there is no
   *     minimum
-  *   - <code>+</code> returns the interval representing the set of sums of
-  *     entries in both intervals
-  *   - <code>-</code> returns the interval representing the set of subtractions
-  *     of entries of the second interval from entries in the first
-  *   - <code>*</code> returns the interval overapproximating the set of
-  *     products from both intervals. Since this is not generally a contiguous
-  *     interval, this overapproximates to the interval between the minimum and
-  *     maximum product or, if multiple such intervals can be defined, to the
-  *     union of these intervals
-  *   - <code>unary_-</code> returns the element-wise negation of this interval
-  *   - <code>/</code> NOT IMPLEMENTED
-  *   - <code>%</code> NOT IMPLEMENTED
-  *   - <code>pow</code> NOT IMPLEMENTED
-  *
-  * ADMINISTRATIVE OPERATIONS
-  *   - <code>min()</code> returns the minimal value contained in this interval,
-  *     if it contains one
-  *   - <code>max()</code> returns the maximal value contained in this interval,
-  *     if it contains one
   *   - <code>sub_intervals()</code> returns the minimum set of contiguous
   *     intervals this interval is a union of
   *   - <code>try_to_resolve()</code> if this interval contains exactly one
@@ -101,8 +120,6 @@ sealed abstract class Interval {
   def union(other: Interval): Interval
   def complement(): Interval
   def is_subset_of(other: Interval): Boolean
-  def below_max(): Interval
-  def above_min(): Interval
   def +(other: Interval): Interval
   def -(other: Interval): Interval = this.+(-other)
   def *(other: Interval): Interval
@@ -112,11 +129,14 @@ sealed abstract class Interval {
   def pow(other: Interval): Interval
   def min(): Option[Int]
   def max(): Option[Int]
+  def below_max(): Interval
+  def above_min(): Interval
   def sub_intervals(): Set[Interval] = Set(this)
   def values: Option[Set[Int]]
   def try_to_resolve(): Option[Int]
   def to_expression[G](variable: Expr[G]): Expr[G]
-  protected def origen: Origin = Origin(Seq(LabelContext("Interval expression")))
+  protected def origen: Origin =
+    Origin(Seq(LabelContext("Interval expression")))
 }
 
 case object EmptyInterval extends Interval {
@@ -380,21 +400,30 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
   override def /(other: Interval): Interval =
     other match {
       case EmptyInterval => other
-      case MultiInterval(intervals) => UnboundedInterval // TODO: Implement
-      case BoundedInterval(low, up) => UnboundedInterval // TODO: Implement
-      case LowerBoundedInterval(low) =>
-        if (low < 0)
+      case MultiInterval(_) =>
+        this./(other.below_max().intersection(other.above_min()))
+      case BoundedInterval(low, up) if low == up =>
+        if (low == 0)
+          EmptyInterval
+        else {
           BoundedInterval(
-            -Utils.abs_max(lower, upper),
-            Utils.abs_max(lower, upper),
+            scala.math.min(lower / low, upper / low),
+            scala.math.max(lower / low, upper / low),
           )
-        else
-          BoundedInterval(
-            scala.math.min(lower / low, 0),
-            scala.math.max(upper / low, 0),
-          )
-      case UpperBoundedInterval(up) => UnboundedInterval // TODO: Implement
-      case UnboundedInterval =>
+        }
+      case BoundedInterval(low, up) if low > 0 =>
+        BoundedInterval(
+          scala.math.min(lower / low, lower / up),
+          scala.math.max(upper / low, upper / up),
+        )
+      case LowerBoundedInterval(low) if low >= 0 =>
+        BoundedInterval(
+          scala.math.min(lower / low, 0),
+          scala.math.max(upper / low, 0),
+        )
+      case UpperBoundedInterval(up) if up <= 0 =>
+        -this./(LowerBoundedInterval(-up))
+      case _ =>
         BoundedInterval(
           -Utils.abs_max(lower, upper),
           Utils.abs_max(lower, upper),
@@ -404,7 +433,24 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
   override def %(other: Interval): Interval =
     other match {
       case EmptyInterval => other
-      case BoundedInterval(low, up) if (low == up) => UnboundedInterval // TODO: Implement
+      case MultiInterval(_) =>
+        this.%(other.below_max().intersection(other.above_min()))
+      case BoundedInterval(low, up) if low == up =>
+        if (low == 0)
+          EmptyInterval
+        else {
+          val max: Int =
+            if (upper > 0)
+              scala.math.abs(low) - 1
+            else
+              0
+          val min: Int =
+            if (lower < 0)
+              scala.math.max(lower, -scala.math.abs(low) + 1)
+            else
+              0
+          BoundedInterval(min, max)
+        }
       case _ =>
         if (lower < 0)
           BoundedInterval(lower, scala.math.max(0, upper))
@@ -417,15 +463,43 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
   override def pow(other: Interval): Interval =
     other match {
       case EmptyInterval => other
-      case MultiInterval(intervals) => UnboundedInterval // TODO: Implement
-      case BoundedInterval(low, up) => UnboundedInterval // TODO: Implement
-      case LowerBoundedInterval(low) => UnboundedInterval // TODO: Implement
-      case UpperBoundedInterval(up) => UnboundedInterval // TODO: Implement
-      case UnboundedInterval =>
+      case MultiInterval(_) =>
+        this.pow(other.below_max().intersection(other.above_min()))
+      case BoundedInterval(low, up) if low == up && lower == upper =>
+        val res: Int = scala.math.pow(lower, low).toInt
+        BoundedInterval(res, res)
+      case BoundedInterval(_, up) =>
+        if (up < 0 && upper < 0)
+          EmptyInterval // No complex numbers
+        else {
+          val lower_up: Int = scala.math.pow(scala.math.abs(lower), up).toInt
+          val upper_up: Int = scala.math.pow(scala.math.abs(upper), up).toInt
+          val max: Int = scala.math.max(lower_up, upper_up)
+          if (lower < 0)
+            BoundedInterval(-max, max)
+          else
+            BoundedInterval(0, max)
+        }
+      case UpperBoundedInterval(up) =>
+        if (up < 0 && upper < 0)
+          EmptyInterval // No complex numbers
+        else {
+          val lower_up: Int = scala.math.pow(scala.math.abs(lower), up).toInt
+          val upper_up: Int = scala.math.pow(scala.math.abs(upper), up).toInt
+          val max: Int = scala.math.max(lower_up, upper_up)
+          if (lower < 0)
+            BoundedInterval(-max, max)
+          else
+            BoundedInterval(0, max)
+        }
+      case _ =>
         if (lower < -1)
-          other
+          UnboundedInterval
         else if (lower == -1)
-          LowerBoundedInterval(-1)
+          if (upper <= 1)
+            this
+          else
+            LowerBoundedInterval(-1)
         else
           LowerBoundedInterval(0)
     }
@@ -538,13 +612,66 @@ case class LowerBoundedInterval(lower: Int) extends Interval {
           UpperBoundedInterval(up * lower)
     }
 
-  override def /(other: Interval): Interval = UnboundedInterval // TODO: Implement
+  override def /(other: Interval): Interval =
+    other match {
+      case EmptyInterval => other
+      case MultiInterval(_) =>
+        this./(other.below_max().intersection(other.above_min()))
+      case BoundedInterval(low, up) =>
+        if (low < 0 && up < 0)
+          UpperBoundedInterval(scala.math.max(lower / low, lower / up))
+        else if (low < 0)
+          UnboundedInterval
+        else if (low == 0 && up == 0)
+          EmptyInterval
+        else if (low == 0)
+          LowerBoundedInterval(scala.math.min(lower, lower / up))
+        else
+          LowerBoundedInterval(scala.math.min(lower / low, lower / up))
+      case LowerBoundedInterval(low) if low >= 0 =>
+        LowerBoundedInterval(scala.math.min(lower / low, 0))
+      case UpperBoundedInterval(up) if up <= 0 =>
+        UpperBoundedInterval(scala.math.max(lower / up, 0))
+      case _ => UnboundedInterval
+    }
 
-  override def %(other: Interval): Interval = UnboundedInterval // TODO: Implement
+  override def %(other: Interval): Interval =
+    other match {
+      case EmptyInterval => other
+      case MultiInterval(_) =>
+        this.%(other.below_max().intersection(other.above_min()))
+      case BoundedInterval(low, up) if low == up =>
+        if (low == 0)
+          EmptyInterval
+        else if (lower < -scala.math.abs(low))
+          BoundedInterval(-scala.math.abs(low) + 1, scala.math.abs(low) - 1)
+        else
+          BoundedInterval(Seq(0, lower % low).min, scala.math.abs(low) - 1)
+      case _ => UnboundedInterval
+    }
 
   override def unary_- : Interval = UpperBoundedInterval(-lower)
 
-  override def pow(other: Interval): Interval = UnboundedInterval // TODO: Implement
+  override def pow(other: Interval): Interval =
+    other match {
+      case EmptyInterval => other
+      case MultiInterval(_) =>
+        this.pow(other.below_max().intersection(other.above_min()))
+      case BoundedInterval(low, up) if low == up =>
+        if (low == 0)
+          BoundedInterval(1, 1)
+        else if (low < 0) {
+          val bound: Int = scala.math.pow(lower, low).toInt
+          if (low % 2 == 0)
+            BoundedInterval(0, bound)
+          else
+            BoundedInterval(-bound, bound)
+        } else if (low % 2 == 0)
+          LowerBoundedInterval(0)
+        else
+          UnboundedInterval
+      case _ => UnboundedInterval
+    }
 
   override def min(): Option[Int] = Some(lower)
 
@@ -642,13 +769,70 @@ case class UpperBoundedInterval(upper: Int) extends Interval {
           LowerBoundedInterval(up * upper)
     }
 
-  override def /(other: Interval): Interval = UnboundedInterval // TODO: Implement
+  override def /(other: Interval): Interval =
+    other match {
+      case EmptyInterval => other
+      case MultiInterval(_) =>
+        this./(other.below_max().intersection(other.above_min()))
+      case BoundedInterval(low, up) =>
+        if (low < 0 && up < 0)
+          LowerBoundedInterval(scala.math.min(upper / low, upper / up))
+        else if (low < 0)
+          UnboundedInterval
+        else if (low == 0 && up == 0)
+          EmptyInterval
+        else if (low == 0)
+          UpperBoundedInterval(scala.math.max(upper, upper / up))
+        else
+          UpperBoundedInterval(scala.math.max(upper / low, upper / up))
+      case LowerBoundedInterval(low) if low >= 0 =>
+        UpperBoundedInterval(scala.math.max(upper / low, 0))
+      case UpperBoundedInterval(up) if up <= 0 =>
+        LowerBoundedInterval(scala.math.min(upper / up, 0))
+      case _ => UnboundedInterval
+    }
 
-  override def %(other: Interval): Interval = UnboundedInterval // TODO: Implement
+  override def %(other: Interval): Interval =
+    other match {
+      case EmptyInterval => other
+      case MultiInterval(_) =>
+        this.%(other.below_max().intersection(other.above_min()))
+      case BoundedInterval(low, up) if low == up =>
+        if (low == 0)
+          EmptyInterval
+        else if (upper > scala.math.abs(low))
+          BoundedInterval(-scala.math.abs(low) + 1, scala.math.abs(low) - 1)
+        else
+          BoundedInterval(-scala.math.abs(low) + 1, Seq(0, upper % low).max)
+      case _ => UnboundedInterval
+    }
 
   override def unary_- : Interval = LowerBoundedInterval(-upper)
 
-  override def pow(other: Interval): Interval = UnboundedInterval // TODO: Implement
+  override def pow(other: Interval): Interval =
+    other match {
+      case EmptyInterval => other
+      case MultiInterval(_) =>
+        this.pow(other.below_max().intersection(other.above_min()))
+      case BoundedInterval(low, up) if low == up =>
+        if (low == 0)
+          BoundedInterval(1, 1)
+        else if (low < 0) {
+          if (upper < 0)
+            EmptyInterval
+          else {
+            val bound: Int = scala.math.pow(upper, low).toInt
+            if (low % 2 == 0)
+              BoundedInterval(0, bound)
+            else
+              BoundedInterval(-bound, bound)
+          }
+        } else if (low % 2 == 0)
+          LowerBoundedInterval(0)
+        else
+          UnboundedInterval
+      case _ => UnboundedInterval
+    }
 
   override def min(): Option[Int] = None
 
@@ -671,31 +855,27 @@ case object UnboundedInterval extends Interval {
   override def is_subset_of(other: Interval): Boolean = other == this
   override def below_max(): Interval = this
   override def above_min(): Interval = this
-  override def +(other: Interval): Interval = this
-  override def *(other: Interval): Interval = this
-  override def /(other: Interval): Interval = this
+  override def +(other: Interval): Interval =
+    other match {
+      case EmptyInterval => other
+      case _ => this
+    }
+  override def *(other: Interval): Interval =
+    other match {
+      case EmptyInterval => other
+      case _ => this
+    }
+  override def /(other: Interval): Interval =
+    other match {
+      case EmptyInterval => other
+      case BoundedInterval(low, up) if low == up && low == 0 => EmptyInterval
+      case _ => this
+    }
   override def %(other: Interval): Interval =
     other match {
       case UnboundedInterval | EmptyInterval => other
-      case mi: MultiInterval =>
-        val intvs = mi.sub_intervals()
-        if (
-          intvs.collect {
-            case LowerBoundedInterval(_) | UpperBoundedInterval(_) |
-                UnboundedInterval =>
-              0
-          }.nonEmpty
-        )
-          return this
-        val max =
-          intvs.map {
-            case EmptyInterval => 0;
-            case BoundedInterval(lower, upper) => Utils.abs_max(lower, upper)
-          }.max - 1
-        if (max <= 0)
-          EmptyInterval
-        else
-          BoundedInterval(-max, max)
+      case MultiInterval(_) =>
+        this.%(other.above_min().intersection(other.below_max()))
       case BoundedInterval(lower, upper) =>
         val max = Utils.abs_max(lower, upper) - 1
         BoundedInterval(-max, max)
@@ -703,7 +883,13 @@ case object UnboundedInterval extends Interval {
       case UpperBoundedInterval(_) => this
     }
   override def unary_- : Interval = this
-  override def pow(other: Interval): Interval = this
+  override def pow(other: Interval): Interval =
+    other match {
+      case EmptyInterval => other
+      case BoundedInterval(low, up) if low == up && low % 2 == 0 =>
+        LowerBoundedInterval(0)
+      case _ => this
+    }
   override def min(): Option[Int] = None
   override def max(): Option[Int] = None
   override def values: Option[Set[Int]] = None
