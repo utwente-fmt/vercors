@@ -866,9 +866,9 @@ case class AbstractState[G](
         resolve_collection_expression(xs, is_old, is_contract)
           .contains(resolve_single_expression(x, is_old, is_contract))
       case InlinePattern(body, _, _) => resolve_boolean_expression(body)
+      case PredicateApplyExpr(apply) => resolve_predicate_apply(apply)
       // TODO: Should these be evaluated in some way?
       case IdleToken(_) => UncertainBooleanValue.from(true)
-      case PredicateApplyExpr(_) => UncertainBooleanValue.from(true)
       case Perm(_, _) => UncertainBooleanValue.from(true)
       case Committed(_) => UncertainBooleanValue.from(true)
     }
@@ -891,21 +891,33 @@ case class AbstractState[G](
     expr match {
       // Literals
       case LiteralSeq(element, values) =>
-        UncertainSequence(
-          UncertainIntegerValue.single(values.size),
+        val elements: Seq[(UncertainIntegerValue, UncertainSingleValue)] =
           values.zipWithIndex.map(t =>
             UncertainIntegerValue.single(t._2) ->
               resolve_single_expression(t._1, is_old, is_contract)
-          ),
+          )
+        UncertainSequence(
+          UncertainIntegerValue.single(values.size),
+          elements,
+          elements.map(t => t._1)
+            .fold(UncertainSingleValue.uncertain_of(element))((v1, v2) =>
+              v1.union(v2).asInstanceOf[UncertainSingleValue]
+            ),
           element,
         )
       case UntypedLiteralSeq(values) =>
-        UncertainSequence(
-          UncertainIntegerValue.single(values.size),
+        val elements: Seq[(UncertainIntegerValue, UncertainSingleValue)] =
           values.zipWithIndex.map(t =>
             UncertainIntegerValue.single(t._2) ->
               resolve_single_expression(t._1, is_old, is_contract)
-          ),
+          )
+        UncertainSequence(
+          UncertainIntegerValue.single(values.size),
+          elements,
+          elements.map(t => t._1)
+            .fold(UncertainSingleValue.uncertain_of(values.head.t))((v1, v2) =>
+              v1.union(v2).asInstanceOf[UncertainSingleValue]
+            ),
           values.head.t,
         )
       // Variables
@@ -1060,6 +1072,7 @@ case class AbstractState[G](
         affected
           .map(v => UncertainIntegerValue.single(v.i) -> variables_to_check(v))
           .toSeq,
+        UncertainSingleValue.uncertain_of(t),
         t,
       )
   }
@@ -1154,20 +1167,27 @@ case class AbstractState[G](
       case None => LocalSimpleVariable(variable.ref.decl)
     }
 
-  /** Returns an expression to represent this state of the form <code>variable1
-    * \== value1 && variable2 == value2 && ...</code>
-    *
-    * @return
-    *   An expression that encodes this state
-    */
-  def to_expression(objs: Option[Map[FieldVariable[G], Expr[G]]]): Expr[G] = {
-    val sorted_valuations = valuations.toSeq
-      .sortWith((t1, t2) => t1._1.compare(t2._1))
-    sorted_valuations.map(v =>
-      v._2.to_expression(
-        v._1.to_expression(Option.when(objs.nonEmpty)(objs.get.apply(v._1)))
-      )
-    ).reduce((e1, e2) => And(e1, e2)(e1.o))
+  private def resolve_predicate_apply(
+      pred: ApplyAnyPredicate[G]
+  ): UncertainBooleanValue = {
+    val (body: Expr[G], params: Seq[Variable[G]], vals: Seq[Expr[G]]) =
+      pred match {
+        case PredicateApply(ref, args) =>
+          (
+            ref.decl.body.getOrElse(return UncertainBooleanValue.from(true)),
+            ref.decl.args,
+            args,
+          )
+        case InstancePredicateApply(_, ref, args) =>
+          (
+            ref.decl.body.getOrElse(return UncertainBooleanValue.from(true)),
+            ref.decl.args,
+            args,
+          )
+      }
+    resolve_boolean_expression(
+      Utils.unify_expression(body, Map.from(params.zip(vals)))
+    )
   }
 
   private def unroll_quantifier(q: Binder[G], context: Expr[G]): Expr[G] =
@@ -1476,4 +1496,20 @@ case class AbstractState[G](
       case Size(obj) => resolve_collection_expression(obj).len.min()
       case _ => resolve_integer_expression(e).try_to_resolve()
     }
+
+  /** Returns an expression to represent this state of the form <code>variable1
+    * \== value1 && variable2 == value2 && ...</code>
+    *
+    * @return
+    *   An expression that encodes this state
+    */
+  def to_expression(objs: Option[Map[FieldVariable[G], Expr[G]]]): Expr[G] = {
+    val sorted_valuations = valuations.toSeq
+      .sortWith((t1, t2) => t1._1.compare(t2._1))
+    sorted_valuations.map(v =>
+      v._2.to_expression(
+        v._1.to_expression(Option.when(objs.nonEmpty)(objs.get.apply(v._1)))
+      )
+    ).reduce((e1, e2) => And(e1, e2)(e1.o))
+  }
 }

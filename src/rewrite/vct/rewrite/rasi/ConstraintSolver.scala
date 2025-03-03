@@ -17,12 +17,12 @@ class ConstraintSolver[G](
     * @return
     *   A set of constraint maps mapping variables to possible values
     */
-  def resolve_assumption(expr: Expr[G]): Set[ConstraintMap[G]] = resolve(expr)(expr)
+  def resolve_assumption(expr: Expr[G]): Set[ConstraintMap[G]] =
+    resolve(expr)(expr)
 
-  private def resolve(
-      expr: Expr[G],
-      negate: Boolean = false,
-  )(implicit context: Expr[G]): Set[ConstraintMap[G]] =
+  private def resolve(expr: Expr[G], negate: Boolean = false)(
+      implicit context: Expr[G]
+  ): Set[ConstraintMap[G]] =
     expr match {
       // Consider boolean/separation logic operators
       case Not(arg) => this.resolve(arg, !negate)
@@ -53,6 +53,33 @@ class ConstraintSolver[G](
           handle_and(left, right, neg_right = true)
       // Atomic comparisons, if they contain a concrete variable, can actually affect the state
       case c: Comparison[G] => handle_update(c, negate)
+      // Sequence membership or non-membership
+      case AmbiguousMember(x, xs) if vars.exists(v => v.is(xs, state)) =>
+        val x_val: UncertainSingleValue = state.resolve_single_expression(x)
+        if (negate)
+          Set(
+            ConstraintMap
+              .from(get_var(xs).get, UncertainSequence.exclude(x_val, x.t))
+          )
+        else
+          Set(ConstraintMap.from(
+            get_var(xs).get,
+            UncertainSequence
+              .of(Seq((UncertainIntegerValue.above(0), x_val)), x.t),
+          ))
+      case SeqMember(x, xs) if vars.exists(v => v.is(xs, state)) =>
+        val x_val: UncertainSingleValue = state.resolve_single_expression(x)
+        if (negate)
+          Set(
+            ConstraintMap
+              .from(get_var(xs).get, UncertainSequence.exclude(x_val, x.t))
+          )
+        else
+          Set(ConstraintMap.from(
+            get_var(xs).get,
+            UncertainSequence
+              .of(Seq((UncertainIntegerValue.above(0), x_val)), x.t),
+          ))
       // Boolean variables could appear in the assumption without any comparison
       case e: Expr[G] if vars.exists(v => v.is(e, state)) =>
         Set(
@@ -81,10 +108,12 @@ class ConstraintSolver[G](
       neg_left: Boolean = false,
       neg_right: Boolean = false,
   )(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
-    val left_is_possible: UncertainBooleanValue = state
-      .resolve_boolean_expression(left, is_old = false, is_contract)(context)
-    val right_is_possible: UncertainBooleanValue = state
-      .resolve_boolean_expression(right, is_old = false, is_contract)(context)
+    val left_is_possible: UncertainBooleanValue =
+      state
+        .resolve_boolean_expression(left, is_old = false, is_contract)(context)
+    val right_is_possible: UncertainBooleanValue =
+      state
+        .resolve_boolean_expression(right, is_old = false, is_contract)(context)
     val possible_left: Boolean = (neg_left && left_is_possible.can_be_false) ||
       (!neg_left && left_is_possible.can_be_true)
     val possible_right: Boolean =
@@ -106,10 +135,12 @@ class ConstraintSolver[G](
       neg_left: Boolean = false,
       neg_right: Boolean = false,
   )(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
-    val left_is_possible: UncertainBooleanValue = state
-      .resolve_boolean_expression(left, is_old = false, is_contract)(context)
-    val right_is_possible: UncertainBooleanValue = state
-      .resolve_boolean_expression(right, is_old = false, is_contract)(context)
+    val left_is_possible: UncertainBooleanValue =
+      state
+        .resolve_boolean_expression(left, is_old = false, is_contract)(context)
+    val right_is_possible: UncertainBooleanValue =
+      state
+        .resolve_boolean_expression(right, is_old = false, is_contract)(context)
     val possible_left: Boolean = (neg_left && left_is_possible.can_be_false) ||
       (!neg_left && left_is_possible.can_be_true)
     val possible_right: Boolean =
@@ -145,8 +176,9 @@ class ConstraintSolver[G](
       neg_left: Boolean = false,
       neg_right: Boolean = false,
   )(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
-    val resolve_left: UncertainBooleanValue = state
-      .resolve_boolean_expression(left, is_old = false, is_contract)(context)
+    val resolve_left: UncertainBooleanValue =
+      state
+        .resolve_boolean_expression(left, is_old = false, is_contract)(context)
     var res: Set[ConstraintMap[G]] = Set()
     if (
       neg_left && resolve_left.can_be_false || (!neg_left) &&
@@ -200,7 +232,8 @@ class ConstraintSolver[G](
   ): Set[ConstraintMap[G]] =
     comp.left.t match {
       case _: IntType[_] | _: TBool[_] =>
-        val left_val: UncertainSingleValue = state.resolve_single_expression(comp.left)
+        val left_val: UncertainSingleValue = state
+          .resolve_single_expression(comp.left)
         val right_val: UncertainSingleValue = state
           .resolve_single_expression(comp.right)
         if (left_val.fully_uncertain && right_val.fully_uncertain)
@@ -403,11 +436,23 @@ class ConstraintSolver[G](
           minus_equals(left, right, value.asInstanceOf[UncertainIntegerValue])
         case Size(obj) if get_var(obj).nonEmpty =>
           val variable: ResolvableVariable[G] = get_var(obj).get
-          ConstraintMap.from(variable, UncertainSequence(value.asInstanceOf[UncertainIntegerValue], Seq(), variable.t.asInstanceOf[CompositeType[G]].composingTypes.head))
+          ConstraintMap.from(
+            variable,
+            UncertainSequence.with_length(
+              value.asInstanceOf[UncertainIntegerValue],
+              variable.t.asInstanceOf[CompositeType[G]].composingTypes.head,
+            ),
+          )
         case SeqSubscript(seq, i) if get_var(seq).nonEmpty =>
           val variable: ResolvableVariable[G] = get_var(seq).get
           val index: UncertainIntegerValue = state.resolve_integer_expression(i)
-          ConstraintMap.from(variable, UncertainSequence(index.above_eq(), Seq((index, value)), variable.t.asInstanceOf[CompositeType[G]].composingTypes.head))
+          ConstraintMap.from(
+            variable,
+            UncertainSequence.of(
+              Seq((index, value)),
+              variable.t.asInstanceOf[CompositeType[G]].composingTypes.head,
+            ),
+          )
         case _ => ConstraintMap.empty[G]
       }
   }

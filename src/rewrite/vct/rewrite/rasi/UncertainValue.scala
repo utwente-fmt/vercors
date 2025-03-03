@@ -21,11 +21,15 @@ case object UncertainValue {
   def empty_of(t: Type[_]): UncertainValue =
     t match {
       case TSeq(element) => UncertainSequence.empty(element)
-      case _ => UncertainSingleValue.uncertain_of(t)
+      case _ => UncertainSingleValue.empty_of(t)
     }
 }
 
 sealed trait UncertainSingleValue extends UncertainValue {
+  def intersect(other: UncertainSingleValue): UncertainSingleValue =
+    this.intersection(other).asInstanceOf[UncertainSingleValue]
+  def union_single(other: UncertainSingleValue): UncertainSingleValue =
+    this.union(other).asInstanceOf[UncertainSingleValue]
   def can_be_equal(other: UncertainSingleValue): Boolean
   def can_be_unequal(other: UncertainSingleValue): Boolean
   def is_subset_of(other: UncertainSingleValue): Boolean
@@ -319,6 +323,7 @@ case object UncertainIntegerValue {
 case class UncertainSequence(
     len: UncertainIntegerValue,
     values: Seq[(UncertainIntegerValue, UncertainSingleValue)],
+    invariant: UncertainSingleValue,
     typ: Type[_],
 ) extends UncertainValue {
   override def is_certain: Boolean =
@@ -334,7 +339,7 @@ case class UncertainSequence(
 
   override def intersection(other: UncertainValue): UncertainValue =
     other match {
-      case UncertainSequence(ol, ov, ot) if typ == ot =>
+      case UncertainSequence(ol, ov, oi, ot) if typ == ot =>
         val (
           certain_tvals: Seq[(UncertainIntegerValue, UncertainSingleValue)],
           uncertain_tvals: Seq[(UncertainIntegerValue, UncertainSingleValue)],
@@ -360,20 +365,26 @@ case class UncertainSequence(
           common_tvals.map(t =>
             (
               t._1,
-              t._2.intersection(
+              t._2.intersect(
                 certain_ovals.find(o =>
                   t._1.try_to_resolve().get == o._1.try_to_resolve().get
                 ).get._2
-              ).asInstanceOf[UncertainSingleValue],
+              ),
             )
           )
 
-        val length: UncertainIntegerValue = len.intersection(ol)
+        val length: UncertainIntegerValue = len.intersect(ol)
           .asInstanceOf[UncertainIntegerValue]
         val vals: Seq[(UncertainIntegerValue, UncertainSingleValue)] =
           common_vals ++ other_tvals ++ other_ovals ++ uncertain_tvals ++
             uncertain_ovals
-        UncertainSequence(length, vals, typ)
+        val inv: UncertainSingleValue = invariant.intersect(oi)
+        UncertainSequence(
+          length,
+          vals.map(t => (t._1, t._2.intersect(inv))),
+          inv,
+          typ,
+        )
       case _ =>
         throw new IllegalArgumentException(
           "Trying to intersect sequence with a different type!"
@@ -382,12 +393,7 @@ case class UncertainSequence(
 
   override def union(other: UncertainValue): UncertainValue =
     other match {
-      case UncertainSequence(ol, ov, ot) if typ == ot =>
-        val length: UncertainIntegerValue = len.union(ol)
-          .asInstanceOf[UncertainIntegerValue]
-        val vals: Seq[(UncertainIntegerValue, UncertainSingleValue)] = values
-          .intersect(ov)
-        UncertainSequence(length, vals, typ)
+      case seq: UncertainSequence => this.union(seq)
       case _ =>
         throw new IllegalArgumentException(
           "Trying to union sequence with a different type!"
@@ -396,17 +402,12 @@ case class UncertainSequence(
 
   override def ==(other: UncertainValue): UncertainBooleanValue =
     other match {
-      case UncertainSequence(ol, ov, ot) if typ.equals(ot) =>
+      case UncertainSequence(ol, ov, oi, ot) if typ.equals(ot) =>
         if (len.intersection(ol).is_impossible)
           return UncertainBooleanValue.from(false)
-        if (
-          values.exists(t1 =>
-            t1._1.try_to_resolve().nonEmpty && ov.exists(t2 =>
-              !t2._1.intersection(t1._1).is_impossible &&
-                t2._2.can_be_unequal(t1._2)
-            )
-          )
-        )
+        if (invariant.intersect(oi).is_impossible)
+          return UncertainBooleanValue.from(false)
+        if (values.exists(t1 => ov.exists(t2 => !t1._1.can_be_unequal(t2._1) && !t1._2.intersect(invariant).can_be_equal(t2._2.intersect(oi)))))
           return UncertainBooleanValue.from(false)
 
         val length: Option[Int] = len.try_to_resolve()
@@ -421,18 +422,19 @@ case class UncertainSequence(
             val other_values_index: Int = ov
               .indexWhere(t => t._1.try_to_resolve().getOrElse(-1) == i)
             if (values_index >= 0 && other_values_index >= 0) {
-              val value = values(values_index)._2
-              val other_value = ov(other_values_index)._2
-              if (!value.can_be_unequal(other_value))
+              val value = values(values_index)._2.intersect(invariant)
+              val other_value = ov(other_values_index)._2.intersect(oi)
+              if (value.can_be_unequal(other_value))
                 return UncertainBooleanValue.uncertain()
             } else
               return UncertainBooleanValue.uncertain()
           }
         } else
           return UncertainBooleanValue.uncertain()
-        // Only if the lengths are exactly the same and perfectly certain,
-        // and every value in between is defined in both sequences and perfectly certain and equal,
-        // only then are two uncertain sequences definitely equal
+
+        // Two sequences are certainly equal if both lengths and all entries in
+        // both sequences are perfectly certain and equal - i.e. if they are not
+        // certainly unequal and no uncertainty could be detected
         UncertainBooleanValue.from(true)
       case _ => UncertainBooleanValue.from(false)
     }
@@ -450,18 +452,25 @@ case class UncertainSequence(
     UncertainSequence(
       len.union(other.len).asInstanceOf[UncertainIntegerValue],
       combine_values(values, other.values),
+      invariant.union_single(other.invariant),
       typ,
     )
   }
 
   def concat(other: UncertainSequence): UncertainSequence =
-    UncertainSequence(len + other.len, values ++ shift(other.values, len), typ)
+    UncertainSequence(
+      len + other.len,
+      values ++ shift(other.values, len),
+      invariant.union_single(other.invariant),
+      typ,
+    )
 
   def prepend(value: UncertainSingleValue): UncertainSequence =
     UncertainSequence(
       len + UncertainIntegerValue.single(1),
       (UncertainIntegerValue.single(0) -> value) +:
         shift(values, UncertainIntegerValue.single(1)),
+      invariant.union_single(value),
       typ,
     )
 
@@ -472,6 +481,7 @@ case class UncertainSequence(
     UncertainSequence(
       len,
       values.filter(e => !e._1.can_be_equal(index)) :+ index -> value,
+      invariant.union_single(value),
       typ,
     )
 
@@ -481,6 +491,7 @@ case class UncertainSequence(
     UncertainSequence(
       len - UncertainIntegerValue.single(1),
       before ++ shift(after, UncertainIntegerValue.single(-1)),
+      invariant,
       typ,
     )
   }
@@ -492,6 +503,7 @@ case class UncertainSequence(
         t._1.intersection(num.below()).asInstanceOf[UncertainIntegerValue] ->
           t._2
       ),
+      invariant,
       typ,
     )
 
@@ -509,6 +521,7 @@ case class UncertainSequence(
       else
         UncertainIntegerValue.single(0),
       shift(remaining, -red),
+      invariant,
       typ,
     )
   }
@@ -525,18 +538,18 @@ case class UncertainSequence(
       )
     val i = values.indexWhere(t => t._1.try_to_resolve().getOrElse(-1) == index)
     if (i >= 0)
-      values(i)._2
+      values(i)._2.intersect(invariant)
     else
-      UncertainSingleValue.uncertain_of(typ)
+      invariant
   }
 
   def contains(value: UncertainSingleValue): UncertainBooleanValue = {
     // See if it definitely fits:
     // The values that are known for sure cover it
     val total_covered: UncertainSingleValue =
-      values.map(t => t._2).filter(v => v.is_certain)
+      values.map(t => t._2.intersect(invariant)).filter(v => v.is_certain)
         .fold(UncertainSingleValue.empty_of(typ))((v1, v2) =>
-          v1.union(v2).asInstanceOf[UncertainSingleValue]
+          v1.union_single(v2)
         )
     if (value.is_subset_of(total_covered))
       return UncertainBooleanValue.from(true)
@@ -550,7 +563,7 @@ case class UncertainSequence(
         )
     val total_possible: UncertainSingleValue =
       values.map(t => t._2).fold(UncertainSingleValue.empty_of(typ))((v1, v2) =>
-        v1.union(v2).asInstanceOf[UncertainSingleValue]
+        v1.union_single(v2)
       )
     if (
       len.range(UncertainIntegerValue.single(0)).is_subset_of(total_known) &&
@@ -590,7 +603,39 @@ case class UncertainSequence(
 }
 case object UncertainSequence {
   def uncertain(t: Type[_]): UncertainSequence =
-    UncertainSequence(UncertainIntegerValue.above(0), Seq(), t)
+    UncertainSequence(
+      UncertainIntegerValue.above(0),
+      Seq(),
+      UncertainSingleValue.uncertain_of(t),
+      t,
+    )
   def empty(t: Type[_]): UncertainSequence =
-    UncertainSequence(UncertainIntegerValue.empty(), Seq(), t)
+    UncertainSequence(
+      UncertainIntegerValue.empty(),
+      Seq(),
+      UncertainSingleValue.uncertain_of(t),
+      t,
+    )
+  def exclude(excluded: UncertainSingleValue, t: Type[_]): UncertainSequence =
+    UncertainSequence(
+      UncertainIntegerValue.above(0),
+      Seq(),
+      excluded.complement(),
+      t,
+    )
+  def of(
+      elems: Seq[(UncertainIntegerValue, UncertainSingleValue)],
+      t: Type[_],
+  ): UncertainSequence =
+    UncertainSequence(
+      elems.map(t => t._1.above_eq())
+        .fold(UncertainIntegerValue.above(0))((v1, v2) =>
+          v1.intersection(v2).asInstanceOf[UncertainIntegerValue]
+        ),
+      elems,
+      UncertainSingleValue.uncertain_of(t),
+      t,
+    )
+  def with_length(len: UncertainIntegerValue, t: Type[_]): UncertainSequence =
+    UncertainSequence(len, Seq(), UncertainSingleValue.uncertain_of(t), t)
 }
