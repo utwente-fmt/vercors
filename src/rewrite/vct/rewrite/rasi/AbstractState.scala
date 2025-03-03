@@ -1,6 +1,7 @@
 package vct.rewrite.rasi
 
 import vct.col.ast._
+import vct.col.origin.SourceName
 import vct.rewrite.cfg.CFGEntry
 
 import scala.collection.immutable.HashMap
@@ -332,7 +333,7 @@ case class AbstractState[G](
       assigned: Expr[G],
   ): AbstractState[G] =
     variable match {
-      case Local(ref) => local_updated_collection(ref.decl, assigned)
+      case l: Local[G] => local_updated_collection(l, assigned)
       case d: Deref[G] =>
         if (tracked_sequences.contains(d.ref.decl))
           with_updated_tracked_sequence(d, assigned)
@@ -347,11 +348,7 @@ case class AbstractState[G](
     val value: UncertainSequence = resolve_collection_expression(assigned)
     val target: InstanceField[G] = variable.ref.decl
     val new_values: Map[FieldVariable[G], UncertainSingleValue] =
-      Map.from( // TODO: Should something be done with uncertain indices...?
-        value.certain_entries
-          .map(t => FieldIndexedVariable(target, t._1) -> t._2)
-      ).asInstanceOf[Map[FieldVariable[G], UncertainSingleValue]] +
-        (FieldSizeVariable(target) -> value.len)
+      new_collection_values[FieldVariable[G]](variable, value)
     AbstractState(
       valuations.removedAll(tracked_sequences(target)) ++ new_values,
       processes,
@@ -395,16 +392,13 @@ case class AbstractState[G](
   }
 
   private def local_updated_collection(
-      target: Variable[G],
+      variable: Local[G],
       assigned: Expr[G],
   ): AbstractState[G] = {
+    val target = variable.ref.decl
     val value: UncertainSequence = resolve_collection_expression(assigned)
     val new_values: Map[LocalVariable[G], UncertainSingleValue] =
-      Map.from( // TODO: Should something be done with uncertain indices...?
-        value.certain_entries
-          .map(t => LocalIndexedVariable(target, t._1) -> t._2)
-      ).asInstanceOf[Map[LocalVariable[G], UncertainSingleValue]] +
-        (LocalSizeVariable(target) -> value.len)
+      new_collection_values[LocalVariable[G]](variable, value)
     AbstractState(
       valuations,
       processes,
@@ -414,6 +408,36 @@ case class AbstractState[G](
       parameters,
       tracked_sequences,
     )
+  }
+
+  private def new_collection_values[V <: ResolvableVariable[G]](
+      collection: Expr[G],
+      value: UncertainSequence,
+  ): Map[V, UncertainSingleValue] = {
+    val certain_indices: Seq[Int] = value.certain_entries.map(t => t._1)
+    val certain_values: Seq[(V, UncertainSingleValue)] = value.certain_entries
+      .map(t =>
+        ResolvableVariable.indexed_from(collection, collection.t, t._1)
+          .asInstanceOf[V] -> t._2
+      )
+
+    val size_value: (V, UncertainIntegerValue) =
+      (
+        ResolvableVariable.size_from(collection, TInt[G]()).asInstanceOf[V],
+        value.len,
+      )
+
+    val up_to_index: Int =
+      (certain_indices :+ size_value._2.try_to_resolve().getOrElse(0) - 1).max
+
+    val uncertain_indices: Seq[Int] = (0 to up_to_index).diff(certain_indices)
+    val uncertain_values: Seq[(V, UncertainSingleValue)] = uncertain_indices
+      .map(i =>
+        ResolvableVariable.indexed_from(collection, collection.t, i)
+          .asInstanceOf[V] -> value.get(i)
+      )
+
+    Map.from(certain_values ++ uncertain_values :+ size_value)
   }
 
   /** Updates the state by taking a specification in the form of an assumption
@@ -689,24 +713,28 @@ case class AbstractState[G](
           ref.decl.contract.ensures,
           Map.from(ref.decl.args.zip(args)),
           ref.decl.returnType,
+          ref.decl.pure,
         ).asInstanceOf[UncertainIntegerValue]
       case MethodInvocation(_, ref, args, _, _, _, _) =>
         get_subroutine_return(
           ref.decl.contract.ensures,
           Map.from(ref.decl.args.zip(args)),
           ref.decl.returnType,
+          ref.decl.pure,
         ).asInstanceOf[UncertainIntegerValue]
       case FunctionInvocation(ref, args, _, _, _) =>
         get_subroutine_return(
           ref.decl.contract.ensures,
           Map.from(ref.decl.args.zip(args)),
           ref.decl.returnType,
+          pure = true,
         ).asInstanceOf[UncertainIntegerValue]
       case InstanceFunctionInvocation(_, ref, args, _, _, _) =>
         get_subroutine_return(
           ref.decl.contract.ensures,
           Map.from(ref.decl.args.zip(args)),
           ref.decl.returnType,
+          pure = true,
         ).asInstanceOf[UncertainIntegerValue]
       case Result(_) => UncertainIntegerValue.uncertain()
       case AmbiguousResult() => UncertainIntegerValue.uncertain()
@@ -825,24 +853,28 @@ case class AbstractState[G](
           ref.decl.contract.ensures,
           Map.from(ref.decl.args.zip(args)),
           ref.decl.returnType,
+          ref.decl.pure,
         ).asInstanceOf[UncertainBooleanValue]
       case MethodInvocation(_, ref, args, _, _, _, _) =>
         get_subroutine_return(
           ref.decl.contract.ensures,
           Map.from(ref.decl.args.zip(args)),
           ref.decl.returnType,
+          ref.decl.pure,
         ).asInstanceOf[UncertainBooleanValue]
       case FunctionInvocation(ref, args, _, _, _) =>
         get_subroutine_return(
           ref.decl.contract.ensures,
           Map.from(ref.decl.args.zip(args)),
           ref.decl.returnType,
+          pure = true,
         ).asInstanceOf[UncertainBooleanValue]
       case InstanceFunctionInvocation(_, ref, args, _, _, _) =>
         get_subroutine_return(
           ref.decl.contract.ensures,
           Map.from(ref.decl.args.zip(args)),
           ref.decl.returnType,
+          pure = true,
         ).asInstanceOf[UncertainBooleanValue]
       case Held(_) =>
         UncertainBooleanValue
@@ -1006,24 +1038,28 @@ case class AbstractState[G](
           ref.decl.contract.ensures,
           Map.from(ref.decl.args.zip(args)),
           ref.decl.returnType,
+          ref.decl.pure,
         ).asInstanceOf[UncertainSequence]
       case MethodInvocation(_, ref, args, _, _, _, _) =>
         get_subroutine_return(
           ref.decl.contract.ensures,
           Map.from(ref.decl.args.zip(args)),
           ref.decl.returnType,
+          ref.decl.pure,
         ).asInstanceOf[UncertainSequence]
       case FunctionInvocation(ref, args, _, _, _) =>
         get_subroutine_return(
           ref.decl.contract.ensures,
           Map.from(ref.decl.args.zip(args)),
           ref.decl.returnType,
+          pure = true,
         ).asInstanceOf[UncertainSequence]
       case InstanceFunctionInvocation(_, ref, args, _, _, _) =>
         get_subroutine_return(
           ref.decl.contract.ensures,
           Map.from(ref.decl.args.zip(args)),
           ref.decl.returnType,
+          pure = true,
         ).asInstanceOf[UncertainSequence]
       case Result(
             applicable
@@ -1081,21 +1117,24 @@ case class AbstractState[G](
       post: AccountedPredicate[G],
       args: Map[Variable[G], Expr[G]],
       return_type: Type[G],
+      pure: Boolean,
   ): UncertainValue =
     get_return(
       Utils.unify_expression(Utils.contract_to_expression(post), args),
       return_type,
+      pure,
     )
 
   private def get_return(
       contract: Expr[G],
       return_type: Type[G],
+      pure: Boolean,
   ): UncertainValue = {
     val result_var: ResultSimpleVariable[G] = ResultSimpleVariable(return_type)
     val result_set: Set[ResolvableVariable[G]] = Set(result_var)
     val constraints: Set[ConstraintMap[G]] =
-      new ConstraintSolver(this, result_set, true).resolve_assumption(contract)
-        .filter(m => !m.is_impossible)
+      new ConstraintSolver(this, result_set, true, pure)
+        .resolve_assumption(contract).filter(m => !m.is_impossible)
     val possible_vals: Set[UncertainValue] = constraints.map(m =>
       m.resolve.getOrElse(result_var, UncertainValue.uncertain_of(return_type))
     )

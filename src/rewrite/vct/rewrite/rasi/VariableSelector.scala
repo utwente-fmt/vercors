@@ -168,6 +168,6 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
   ): Set[FieldVariable[G]] =
     vars.collect {
       case v: FieldVariable[G] => Set(v)
-      case v: LocalVariable[G] => initial_state.local_dependencies(v.v)
+      case v: LocalVariable[G] => initial_state.local_dependencies.getOrElse(v.v, Set())
     }.flatten
 }

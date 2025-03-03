@@ -168,7 +168,7 @@ object Index {
       case invoke_method: InvokeMethod[G] =>
         InvokeMethodIndex(invoke_method, index)
       case block: Block[G] => BlockIndex(block, index)
-      case scope: Scope[G] => ScopeIndex(scope)
+      case scope: Scope[G] => ScopeIndex(scope, index)
       case branch: Branch[G] => BranchIndex(branch, index)
       case indet_branch: IndetBranch[G] => IndetBranchIndex(indet_branch, index)
       case switch: Switch[G] => SwitchIndex(switch)
@@ -659,13 +659,20 @@ case class BlockIndex[G](block: Block[G], index: Int) extends Index[G] {
     }
 }
 
-case class ScopeIndex[G](scope: Scope[G]) extends Index[G] {
-  override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] =
-    Set((Outgoing(), None))
-  override def resolve(): Statement[G] = scope.body
+case class ScopeIndex[G](scope: Scope[G], index: Int) extends Index[G] {
+  override def make_step(): Set[(NextIndex[G], Option[Expr[G]])] = {
+    if (index < scope.locals.length)
+      Set((Step(ScopeIndex(scope, index + 1)), None))
+    else
+      Set((Outgoing(), None))
+  }
+  override def resolve(): Statement[G] = {
+    if (index < scope.locals.length) LocalDecl(scope.locals(index))(scope.o)
+    else scope.body
+  }
   override def equals(obj: scala.Any): Boolean =
     obj match {
-      case ScopeIndex(s) => s.equals(scope)
+      case ScopeIndex(s, i) => s.equals(scope) && i == index
       case _ => false
     }
 }

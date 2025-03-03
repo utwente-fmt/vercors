@@ -53,7 +53,7 @@ object ResolvableVariable {
       index: Int,
   ): ResolvableVariable[G] =
     expr match {
-      case _: AmbiguousResult[_] | _: Result[_] => ResultSimpleVariable(typ)
+      case _: AmbiguousResult[G] | _: Result[G] => ResultSimpleVariable(typ)
       case Deref(_, ref) => FieldIndexedVariable(ref.decl, index)
       case Local(ref) => LocalIndexedVariable(ref.decl, index)
     }

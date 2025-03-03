@@ -147,7 +147,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
           case Inhale(res) =>
             (true, take_viable_edges(succ, state, state.with_assumption(res)))
           // Abstract procedures, constructors and methods are defined by their postconditions
-          case InvokeProcedure(ref, args, _, _, _, _) =>
+          case InvokeProcedure(ref, args, _, _, _, _) if !ref.decl.pure =>
             (
               true,
               ref.decl.body match {
@@ -179,7 +179,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
                   )
               },
             )
-          case InvokeMethod(_, ref, args, _, _, _, _) =>
+          case InvokeMethod(_, ref, args, _, _, _, _) if !ref.decl.pure =>
             (
               true,
               ref.decl.body match {

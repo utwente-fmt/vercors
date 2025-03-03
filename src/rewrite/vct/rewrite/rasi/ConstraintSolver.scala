@@ -6,6 +6,7 @@ class ConstraintSolver[G](
     state: AbstractState[G],
     vars: Set[_ <: ResolvableVariable[G]],
     is_contract: Boolean,
+    is_pure: Boolean = false,
 ) {
 
   /** Resolves the constraints necessary to make the given boolean expression
@@ -48,7 +49,7 @@ class ConstraintSolver[G](
           handle_and(left, right, neg_left = true, neg_right = true)
       case Implies(left, right) =>
         if (!negate)
-          handle_or(left, right, neg_left = true)
+          handle_implication(left, right)
         else
           handle_and(left, right, neg_right = true)
       // Atomic comparisons, if they contain a concrete variable, can actually affect the state
@@ -110,10 +111,10 @@ class ConstraintSolver[G](
   )(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
     val left_is_possible: UncertainBooleanValue =
       state
-        .resolve_boolean_expression(left, is_old = false, is_contract)(context)
+        .resolve_boolean_expression(left, is_pure, is_contract)(context)
     val right_is_possible: UncertainBooleanValue =
       state
-        .resolve_boolean_expression(right, is_old = false, is_contract)(context)
+        .resolve_boolean_expression(right, is_pure, is_contract)(context)
     val possible_left: Boolean = (neg_left && left_is_possible.can_be_false) ||
       (!neg_left && left_is_possible.can_be_true)
     val possible_right: Boolean =
@@ -137,10 +138,10 @@ class ConstraintSolver[G](
   )(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
     val left_is_possible: UncertainBooleanValue =
       state
-        .resolve_boolean_expression(left, is_old = false, is_contract)(context)
+        .resolve_boolean_expression(left, is_pure, is_contract)(context)
     val right_is_possible: UncertainBooleanValue =
       state
-        .resolve_boolean_expression(right, is_old = false, is_contract)(context)
+        .resolve_boolean_expression(right, is_pure, is_contract)(context)
     val possible_left: Boolean = (neg_left && left_is_possible.can_be_false) ||
       (!neg_left && left_is_possible.can_be_true)
     val possible_right: Boolean =
@@ -170,6 +171,17 @@ class ConstraintSolver[G](
     }
   }
 
+  private def handle_implication(left: Expr[G], right: Expr[G])(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
+    /* val left_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(left)(context)
+    if (left_is_possible.can_be_true) {
+      ???
+    }
+    if (left_is_possible.can_be_false) {
+      ???
+    } TODO */
+    handle_or(left, right, neg_left = true)
+  }
+
   private def handle_implies(
       left: Expr[G],
       right: Expr[G],
@@ -178,11 +190,11 @@ class ConstraintSolver[G](
   )(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
     val resolve_left: UncertainBooleanValue =
       state
-        .resolve_boolean_expression(left, is_old = false, is_contract)(context)
+        .resolve_boolean_expression(left, is_pure, is_contract)(context)
     var res: Set[ConstraintMap[G]] = Set()
     if (
-      neg_left && resolve_left.can_be_false || (!neg_left) &&
-      resolve_left.can_be_true
+      (neg_left && resolve_left.can_be_false) ||
+      ((!neg_left) && resolve_left.can_be_true)
     ) {
       val constraints: Set[ConstraintMap[G]] = resolve(right, neg_right)
       val variables = vars.asInstanceOf[Set[ResolvableVariable[G]]]
@@ -197,11 +209,16 @@ class ConstraintSolver[G](
       res = res ++ constraints.map(m => m && path_condition)
     }
     if (
-      neg_left && resolve_left.can_be_true || (!neg_left) &&
-      resolve_left.can_be_false
+      (neg_left && resolve_left.can_be_true) ||
+      ((!neg_left) && resolve_left.can_be_false)
     ) {
-      val path_condition: ConstraintMap[G] = ConstraintMap
-        .empty[G] // TODO: resolve_path_condition(if (neg_left) left else Not(left)(left.o), vars)
+      val path_condition: ConstraintMap[G] = resolve_path_condition(
+        if (neg_left)
+          left
+        else
+          Not(left)(left.o),
+        vars,
+      )
       res = res + path_condition
     }
     res
@@ -563,7 +580,7 @@ class ConstraintSolver[G](
               .map(t => (t._1, t._2 + i))
         }
       case Select(cond, ift, iff) =>
-        val condition = state.resolve_boolean_expression(cond)
+        val condition = state.resolve_boolean_expression(cond, is_pure, is_contract)
         if (condition.can_be_true && !condition.can_be_false)
           get_contained_indices(ift)
         else if (condition.can_be_false && !condition.can_be_true)
@@ -576,7 +593,7 @@ class ConstraintSolver[G](
       cond: Expr[G],
       variables: Set[_ <: ResolvableVariable[G]],
   ): ConstraintMap[G] = {
-    new ConstraintSolver(state, variables, false)
+    new ConstraintSolver(state, variables, false, false)
       .resolve_assumption(Utils.remove_old(cond)).reduce((m1, m2) => m1 || m2)
   }
 
