@@ -105,6 +105,17 @@ case class AbstractState[G](
       tracked_sequences,
     )
 
+  def without_valuation_of(vars: Set[FieldVariable[G]]): AbstractState[G] =
+    AbstractState(
+      valuations.removedAll(vars),
+      processes,
+      local,
+      local_dependencies,
+      lock,
+      parameters,
+      tracked_sequences,
+    )
+
   /** Updates the state by locking the global lock.
     *
     * @param process
@@ -898,7 +909,8 @@ case class AbstractState[G](
         resolve_collection_expression(xs, is_old, is_contract)
           .contains(resolve_single_expression(x, is_old, is_contract))
       case InlinePattern(body, _, _) => resolve_boolean_expression(body)
-      case PredicateApplyExpr(apply) => UncertainBooleanValue.from(true)//TODO:resolve_predicate_apply(apply)
+      case PredicateApplyExpr(apply) =>
+        UncertainBooleanValue.from(true) // TODO:resolve_predicate_apply(apply)
       // TODO: Should these be evaluated in some way?
       case IdleToken(_) => UncertainBooleanValue.from(true)
       case Perm(_, _) => UncertainBooleanValue.from(true)
@@ -1542,8 +1554,8 @@ case class AbstractState[G](
     *   An expression that encodes this state
     */
   def to_expression(objs: Option[Map[FieldVariable[G], Expr[G]]]): Expr[G] = {
-    val sorted_valuations = valuations.toSeq
-      .sortWith((t1, t2) => t1._1.compare(t2._1))
+    val sorted_valuations: Seq[(FieldVariable[G], UncertainSingleValue)] =
+      valuations.toSeq.sortWith((t1, t2) => t1._1.compare(t2._1))
     sorted_valuations.map(v =>
       v._2.to_expression(
         v._1.to_expression(Option.when(objs.nonEmpty)(objs.get.apply(v._1)))

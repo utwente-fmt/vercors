@@ -125,10 +125,19 @@ class RASIGenerator[G] extends LazyLogging {
 
     val objs: Map[FieldVariable[G], Expr[G]] = find_fitting_objects(
       program,
-      rasi_states.head.valuations.keySet,
+      rasi_states.map(s => s.valuations.keySet).reduce((s1, s2) => s1 ++ s2),
     )
-    rasi_states.map(s => s.to_expression(Some(objs)))
-      .reduce((e1, e2) => Or(e1, e2)(Utils.origen))
+
+    val always_known: Set[FieldVariable[G]] = rasi_states.map(s => s.valuations.keySet).reduce((s1, s2) => s1.intersect(s2))
+    val always_the_same: Set[FieldVariable[G]] = always_known.filter(v => rasi_states.map(s => s.valuations(v)).distinct.size == 1)
+    val constants: Seq[Expr[G]] = always_the_same.toSeq.sortWith((v1, v2) => v1.compare(v2)).map(v => rasi_states.head.valuations(v).to_expression(v.to_expression(objs.get(v))))
+    val remainder: Expr[G] = rasi_states.map(s => s.without_valuation_of(always_the_same).to_expression(Some(objs))).reduce((e1, e2) => Or(e1, e2)(Utils.origen))
+
+    if (constants.isEmpty) remainder
+    else And(
+      constants.reduce((e1, e2) => And(e1, e2)(Utils.origen)),
+      remainder,
+    )(Utils.origen)
   }
 
   private def get_var_value_pairs(
