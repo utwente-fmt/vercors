@@ -3,15 +3,28 @@ package vct.main.stages
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.LiteralReadable
 import hre.stages.Stage
-import vct.col.ast.{Declaration, Deref, Expr, InstanceField, InstancePredicate, IntType, Node, Predicate, Procedure, Program, TBool, Verification, VerificationContext}
-import vct.col.origin.{LabelContext, Origin, PreferredName, RequiredName, SourceName}
+import vct.col.ast._
+import vct.col.origin.{
+  LabelContext,
+  Origin,
+  PreferredName,
+  RequiredName,
+  SourceName,
+}
 import vct.col.print.Ctx
 import vct.col.rewrite.Generation
 import vct.options.Options
-import vct.rewrite.rasi.{FieldIndexedVariable, FieldSimpleVariable, FieldSizeVariable, FieldVariable, RASIGenerator}
+import vct.rewrite.rasi.{
+  FieldIndexedVariable,
+  FieldSimpleVariable,
+  FieldSizeVariable,
+  FieldVariable,
+  RASIGenerator,
+}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
+import scala.annotation.tailrec
 
 case object GenerateRASI {
   def ofOptions(options: Options): Stage[Node[_ <: Generation], Unit] = {
@@ -37,14 +50,14 @@ case class GenerateRASI(
   override def progressWeight: Int = 0
 
   override def run(in1: Node[_ <: Generation]): Unit = {
-    val in = in1.asInstanceOf[Node[Generation]]
-    val main_method =
+    val in: Node[Generation] = in1.asInstanceOf[Node[Generation]]
+    val main_method: Procedure[Generation] =
       in.collectFirst { case m: Procedure[_] if m.vesuv_entry => m }.get
     val (variables, tracked_sequences)
         : (Set[FieldVariable[Generation]], Set[InstanceField[Generation]]) =
-      resolve_variables(in, vars.getOrElse(Seq()))
+      resolve_variables(main_method, vars.getOrElse(Seq()))
     val split_on_variables: Option[Set[FieldVariable[Generation]]] = split
-      .map(s => resolve_split_variables(in, s))
+      .map(s => resolve_variables(main_method, s)._1)
     val parameter_invariant: Option[InstancePredicate[Generation]] =
       get_parameter_invariant(in)
     if (test) {
@@ -85,9 +98,8 @@ case class GenerateRASI(
 
   private def extract_name(o: Origin): String = {
     o.find[SourceName].map(s => s.name).getOrElse(
-      o.find[RequiredName].map(r => r.requiredName).getOrElse(
-        o.getPreferredName.get.snake
-      )
+      o.find[RequiredName].map(r => r.requiredName)
+        .getOrElse(o.getPreferredName.get.snake)
     )
   }
 
@@ -115,13 +127,8 @@ case class GenerateRASI(
     Files.write(out, txt.data.getBytes(StandardCharsets.UTF_8))
   }
 
-  private def resolve_split_variables(
-      in: Node[Generation],
-      names: Seq[String],
-  ): Set[FieldVariable[Generation]] = resolve_variables(in, names)._1
-
   private def resolve_variables(
-      in: Node[Generation],
+      main_method: Procedure[Generation],
       names: Seq[String],
   ): (Set[FieldVariable[Generation]], Set[InstanceField[Generation]]) = {
     var concrete_variables: Set[FieldVariable[Generation]] = Set
@@ -129,29 +136,34 @@ case class GenerateRASI(
     var tracked_sequences: Set[InstanceField[Generation]] = Set
       .empty[InstanceField[Generation]]
 
+    val main_cls: ByReferenceClass[Generation] = get_cls_from_type(
+      main_method.collectFirst { case v: Variable[Generation] => v.t }.get
+    )
+
     for (name <- names) {
       // Handle size variables as special cases
       if (name.contains("|")) {
-        val var_name = field_name(name.substring(1, name.length - 1))
-        concrete_variables += FieldSizeVariable(in.collectFirst {
-          case f: InstanceField[_] if name_matches(f.o, var_name) => f
-        }.get)
+        val var_name: Seq[String] = field_path(
+          name.substring(1, name.length - 1)
+        )
+        concrete_variables +=
+          FieldSizeVariable(resolve_field_by_name(main_cls, var_name))
       } else {
         val name_len = name.indexOf("[")
-        val var_name =
+        val var_name: Seq[String] =
           if (name_len == -1)
-            field_name(name)
+            field_path(name)
           else
-            field_name(name.substring(0, name_len))
+            field_path(name.substring(0, name_len))
         val index: Option[Integer] =
           if (name_len == -1)
             None
           else
             Some(Integer.valueOf(name.substring(name_len + 1, name.length - 1)))
-        val instance_field: InstanceField[Generation] =
-          in.collectFirst {
-            case f: InstanceField[_] if name_matches(f.o, var_name) => f
-          }.get
+        val instance_field: InstanceField[Generation] = resolve_field_by_name(
+          main_cls,
+          var_name,
+        )
         index match {
           case Some(i) =>
             concrete_variables += FieldIndexedVariable(instance_field, i)
@@ -168,9 +180,30 @@ case class GenerateRASI(
     (concrete_variables, tracked_sequences)
   }
 
-  private def field_name(name: String): String =
-    name.split("\\.").last // TODO: Consider the entire path to relax assumption
-  //                              on differently-named variables
+  private def field_path(name: String): Seq[String] = name.split("\\.")
+
+  @tailrec
+  private def resolve_field_by_name(
+      cls: ByReferenceClass[Generation],
+      names: Seq[String],
+  ): InstanceField[Generation] = {
+    val field: InstanceField[Generation] =
+      cls.decls.collectFirst {
+        case f: InstanceField[_] if name_matches(f.o, names.head) => f
+      }.get
+
+    if (names.length == 1)
+      field
+    else
+      resolve_field_by_name(get_cls_from_type(field.t), names.tail)
+  }
+
+  // TODO: This only works in the VESUV structure!
+  private def get_cls_from_type(
+      t: Type[Generation]
+  ): ByReferenceClass[Generation] =
+    t.asInstanceOf[TByReferenceClass[Generation]].cls.decl
+      .asInstanceOf[ByReferenceClass[Generation]]
 
   private def get_parameter_invariant(
       in: Node[Generation]
@@ -182,9 +215,6 @@ case class GenerateRASI(
     }
   }
 
-  private def name_matches(o: Origin, name: String): Boolean = {
-    val preferred_name = o.getPreferredName.get
-    name.equals(preferred_name.snake) || name.equals(preferred_name.usnake) ||
-    name.equals(preferred_name.camel) || name.equals(preferred_name.ucamel)
-  }
+  private def name_matches(o: Origin, name: String): Boolean =
+    extract_name(o).equals(name)
 }

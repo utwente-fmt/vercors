@@ -2,7 +2,6 @@ package vct.rewrite.rasi
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
-import vct.col.origin.Origin
 import vct.col.print.Ctx
 import vct.rewrite.cfg.{CFGEntry, CFGGenerator}
 
@@ -285,7 +284,7 @@ class RASIGenerator[G] extends LazyLogging {
 
     val initial_state = AbstractState(
       get_initial_values(vars),
-      HashMap((AbstractProcess[G](Null()(Origin(Seq()))), node)),
+      HashMap((AbstractProcess[G](Null()(Utils.origen)), node)),
       Map.empty[LocalVariable[G], UncertainSingleValue],
       Map.empty[Variable[G], Set[FieldVariable[G]]],
       None,
