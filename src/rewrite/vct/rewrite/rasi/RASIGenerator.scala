@@ -121,14 +121,14 @@ class RASIGenerator[G] extends LazyLogging {
       .distinctBy(s => s.valuations)
 
     if (rasi_states.isEmpty)
-      return BooleanValue(value = false)(program.o)
+      return BooleanValue(value = false)(Utils.origen)
 
     val objs: Map[FieldVariable[G], Expr[G]] = find_fitting_objects(
       program,
       rasi_states.head.valuations.keySet,
     )
     rasi_states.map(s => s.to_expression(Some(objs)))
-      .reduce((e1, e2) => Or(e1, e2)(e1.o))
+      .reduce((e1, e2) => Or(e1, e2)(Utils.origen))
   }
 
   private def get_var_value_pairs(

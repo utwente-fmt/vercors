@@ -898,7 +898,7 @@ case class AbstractState[G](
         resolve_collection_expression(xs, is_old, is_contract)
           .contains(resolve_single_expression(x, is_old, is_contract))
       case InlinePattern(body, _, _) => resolve_boolean_expression(body)
-      case PredicateApplyExpr(apply) => resolve_predicate_apply(apply)
+      case PredicateApplyExpr(apply) => UncertainBooleanValue.from(true)//TODO:resolve_predicate_apply(apply)
       // TODO: Should these be evaluated in some way?
       case IdleToken(_) => UncertainBooleanValue.from(true)
       case Perm(_, _) => UncertainBooleanValue.from(true)
@@ -1138,8 +1138,7 @@ case class AbstractState[G](
     val possible_vals: Set[UncertainValue] = constraints.map(m =>
       m.resolve.getOrElse(result_var, UncertainValue.uncertain_of(return_type))
     )
-    possible_vals
-      .reduce((v1, v2) => v1.union(v2).asInstanceOf[UncertainSingleValue])
+    possible_vals.reduce((v1, v2) => v1.union(v2))
   }
 
   private def handle_equality(
@@ -1229,7 +1228,7 @@ case class AbstractState[G](
     )
   }
 
-  private def unroll_quantifier(q: Binder[G], context: Expr[G]): Expr[G] =
+  def unroll_quantifier(q: Binder[G], context: Expr[G]): Expr[G] =
     q match {
       case Forall(bindings, _, body) =>
         resolve_forall(

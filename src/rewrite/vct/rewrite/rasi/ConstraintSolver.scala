@@ -49,7 +49,7 @@ class ConstraintSolver[G](
           handle_and(left, right, neg_left = true, neg_right = true)
       case Implies(left, right) =>
         if (!negate)
-          handle_implication(left, right)
+          handle_or(left, right, neg_left = true)
         else
           handle_and(left, right, neg_right = true)
       // Atomic comparisons, if they contain a concrete variable, can actually affect the state
@@ -99,6 +99,7 @@ class ConstraintSolver[G](
           Set(ConstraintMap.empty[G])
         else
           Set(ConstraintMap.impossible(Set(state_entry.get._1)))
+      case q: Binder[G] => resolve(state.unroll_quantifier(q, context), negate)
       // TODO: What other expressions could affect the state?
       case _ => Set(ConstraintMap.empty[G])
     }
@@ -110,11 +111,9 @@ class ConstraintSolver[G](
       neg_right: Boolean = false,
   )(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
     val left_is_possible: UncertainBooleanValue =
-      state
-        .resolve_boolean_expression(left, is_pure, is_contract)(context)
+      state.resolve_boolean_expression(left, is_pure, is_contract)(context)
     val right_is_possible: UncertainBooleanValue =
-      state
-        .resolve_boolean_expression(right, is_pure, is_contract)(context)
+      state.resolve_boolean_expression(right, is_pure, is_contract)(context)
     val possible_left: Boolean = (neg_left && left_is_possible.can_be_false) ||
       (!neg_left && left_is_possible.can_be_true)
     val possible_right: Boolean =
@@ -137,11 +136,9 @@ class ConstraintSolver[G](
       neg_right: Boolean = false,
   )(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
     val left_is_possible: UncertainBooleanValue =
-      state
-        .resolve_boolean_expression(left, is_pure, is_contract)(context)
+      state.resolve_boolean_expression(left, is_pure, is_contract)(context)
     val right_is_possible: UncertainBooleanValue =
-      state
-        .resolve_boolean_expression(right, is_pure, is_contract)(context)
+      state.resolve_boolean_expression(right, is_pure, is_contract)(context)
     val possible_left: Boolean = (neg_left && left_is_possible.can_be_false) ||
       (!neg_left && left_is_possible.can_be_true)
     val possible_right: Boolean =
@@ -171,17 +168,6 @@ class ConstraintSolver[G](
     }
   }
 
-  private def handle_implication(left: Expr[G], right: Expr[G])(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
-    /* val left_is_possible: UncertainBooleanValue = state.resolve_boolean_expression(left)(context)
-    if (left_is_possible.can_be_true) {
-      ???
-    }
-    if (left_is_possible.can_be_false) {
-      ???
-    } TODO */
-    handle_or(left, right, neg_left = true)
-  }
-
   private def handle_implies(
       left: Expr[G],
       right: Expr[G],
@@ -189,14 +175,16 @@ class ConstraintSolver[G](
       neg_right: Boolean = false,
   )(implicit context: Expr[G]): Set[ConstraintMap[G]] = {
     val resolve_left: UncertainBooleanValue =
-      state
-        .resolve_boolean_expression(left, is_pure, is_contract)(context)
+      state.resolve_boolean_expression(left, is_pure, is_contract)(context)
     var res: Set[ConstraintMap[G]] = Set()
     if (
       (neg_left && resolve_left.can_be_false) ||
       ((!neg_left) && resolve_left.can_be_true)
     ) {
-      val constraints: Set[ConstraintMap[G]] = resolve(right, neg_right)
+      val constraints_left: Set[ConstraintMap[G]] = resolve(left, neg_left)
+      val constraints_right: Set[ConstraintMap[G]] = resolve(right, neg_right)
+      val constraints: Set[ConstraintMap[G]] = constraints_left
+        .flatMap(ml => constraints_right.map(mr => ml && mr))
       val variables = vars.asInstanceOf[Set[ResolvableVariable[G]]]
         .diff(constraints.flatMap(c => c.resolve.keySet))
       val path_condition: ConstraintMap[G] = resolve_path_condition(
@@ -580,7 +568,8 @@ class ConstraintSolver[G](
               .map(t => (t._1, t._2 + i))
         }
       case Select(cond, ift, iff) =>
-        val condition = state.resolve_boolean_expression(cond, is_pure, is_contract)
+        val condition = state
+          .resolve_boolean_expression(cond, is_pure, is_contract)
         if (condition.can_be_true && !condition.can_be_false)
           get_contained_indices(ift)
         else if (condition.can_be_false && !condition.can_be_true)

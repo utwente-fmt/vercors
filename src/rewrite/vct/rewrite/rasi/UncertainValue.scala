@@ -1,6 +1,6 @@
 package vct.rewrite.rasi
 
-import vct.col.ast.{BooleanValue, Expr, IntType, Not, TBool, TInt, TSeq, Type}
+import vct.col.ast._
 
 sealed trait UncertainValue {
   def is_certain: Boolean
@@ -407,7 +407,14 @@ case class UncertainSequence(
           return UncertainBooleanValue.from(false)
         if (invariant.intersect(oi).is_impossible)
           return UncertainBooleanValue.from(false)
-        if (values.exists(t1 => ov.exists(t2 => !t1._1.can_be_unequal(t2._1) && !t1._2.intersect(invariant).can_be_equal(t2._2.intersect(oi)))))
+        if (
+          values.exists(t1 =>
+            ov.exists(t2 =>
+              !t1._1.can_be_unequal(t2._1) &&
+                !t1._2.intersect(invariant).can_be_equal(t2._2.intersect(oi))
+            )
+          )
+        )
           return UncertainBooleanValue.from(false)
 
         val length: Option[Int] = len.try_to_resolve()
@@ -416,7 +423,7 @@ case class UncertainSequence(
           length.nonEmpty && other_length.nonEmpty &&
           length.get == other_length.get
         ) {
-          for (i <- Range(0, length.get)) {
+          for (i <- 0 until length.get) {
             val values_index: Int = values
               .indexWhere(t => t._1.try_to_resolve().getOrElse(-1) == i)
             val other_values_index: Int = ov
@@ -607,21 +614,21 @@ case object UncertainSequence {
       UncertainIntegerValue.above(0),
       Seq(),
       UncertainSingleValue.uncertain_of(t),
-      t,
+      normalize_type(t),
     )
   def empty(t: Type[_]): UncertainSequence =
     UncertainSequence(
       UncertainIntegerValue.empty(),
       Seq(),
       UncertainSingleValue.uncertain_of(t),
-      t,
+      normalize_type(t),
     )
   def exclude(excluded: UncertainSingleValue, t: Type[_]): UncertainSequence =
     UncertainSequence(
       UncertainIntegerValue.above(0),
       Seq(),
       excluded.complement(),
-      t,
+      normalize_type(t),
     )
   def of(
       elems: Seq[(UncertainIntegerValue, UncertainSingleValue)],
@@ -634,8 +641,19 @@ case object UncertainSequence {
         ),
       elems,
       UncertainSingleValue.uncertain_of(t),
-      t,
+      normalize_type(t),
     )
   def with_length(len: UncertainIntegerValue, t: Type[_]): UncertainSequence =
-    UncertainSequence(len, Seq(), UncertainSingleValue.uncertain_of(t), t)
+    UncertainSequence(
+      len,
+      Seq(),
+      UncertainSingleValue.uncertain_of(t),
+      normalize_type(t),
+    )
+
+  private def normalize_type[G](typ: Type[G]): Type[G] =
+    typ match {
+      case _: IntType[G] => TInt[G]()
+      case _: TBool[G] => TBool[G]()
+    }
 }

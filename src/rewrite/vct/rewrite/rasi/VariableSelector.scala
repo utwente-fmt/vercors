@@ -110,6 +110,7 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
             else
               obj match {
                 case Deref(_, ref) => Set(FieldSizeVariable(ref.decl))
+                case _ => Set()
               }
           case _ =>
             expr.subnodes.toSet[Node[G]].collect[Expr[G]] { case e: Expr[_] =>
