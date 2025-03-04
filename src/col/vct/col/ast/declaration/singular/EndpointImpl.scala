@@ -29,7 +29,10 @@ trait EndpointImpl[G]
     extends EndpointOps[G] with DeclarationImpl[G] with EndpointFamilyOps[G] {
   this: Endpoint[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("endpoint") <+> ctx.name(this) <+> "=" <+> init)
+    Group(
+      Text("endpoint") <+> ctx.name(this) <> range.map(_.show)
+        .getOrElse(Empty) <+> "=" <+> init <> ";"
+    )
 
   def singleType: TClass[G] = cls.decl.classType(typeArgs)
   def rangeType: TSeq[G] = TSeq(singleType)

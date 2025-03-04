@@ -4,16 +4,21 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
   Assign,
+  Assume,
   Block,
   ChorExpr,
   ChorRun,
   ChorStatement,
   Choreography,
-  Class,
+  CommTargetEndpoint,
+  CommTargetIndex,
+  CommTargetRange,
   Communicate,
+  CtExpr,
   Declaration,
   Endpoint,
   EndpointExpr,
+  EndpointFamilyExpr,
   EndpointStatement,
   Eval,
   Expr,
@@ -25,16 +30,13 @@ import vct.col.ast.{
   Perm,
   Procedure,
   RangeBinder,
-  LoopContract,
-  LoopInvariant,
   RangedFor,
   ReadPerm,
   Receiver,
   Scope,
   Sender,
+  SeqSubscript,
   Statement,
-  TByReferenceClass,
-  TInt,
   TVoid,
   ThisChoreography,
   Value,
@@ -44,8 +46,7 @@ import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.col.util.AstMatchHelpers.EndpointName
-import vct.col.util.SuccessionMap
+import vct.col.util.{Scopes, SuccessionMap}
 import vct.result.VerificationError.Unreachable
 
 import scala.collection.{mutable => mut}
@@ -96,190 +97,171 @@ case class EncodeChoreography[Pre <: Generation]()
 
   val currentProg: ScopedStack[Choreography[Pre]] = ScopedStack()
   val currentRun: ScopedStack[ChorRun[Pre]] = ScopedStack()
-  val currentInstanceMethod: ScopedStack[InstanceMethod[Pre]] = ScopedStack()
   val currentCommunicate: ScopedStack[Communicate[Pre]] = ScopedStack()
 
-  sealed trait Mode
-  case object Top extends Mode
-  case class InProg(prog: Choreography[Pre]) extends Mode
-  case class InRun(prog: Choreography[Pre], run: ChorRun[Pre]) extends Mode
-  case class InMethod(prog: Choreography[Pre], method: InstanceMethod[Pre])
-      extends Mode
+  val sender: ScopedStack[Expr[Post]] = ScopedStack()
+  val receiver: ScopedStack[Expr[Post]] = ScopedStack()
+  val message: ScopedStack[Expr[Post]] = ScopedStack()
 
-  def mode: Mode =
-    (
-      currentProg.topOption,
-      currentRun.topOption,
-      currentInstanceMethod.topOption,
-    ) match {
-      case (None, None, None) => Top
-      case (Some(prog), None, None) => InProg(prog)
-      case (Some(prog), Some(run), None) => InRun(prog, run)
-      case (Some(prog), None, Some(method)) => InMethod(prog, method)
-      case (None, None, Some(_)) => Top
-      case (_, _, _) =>
-        throw Unreachable("AST structure should prevent this case")
-    }
+  val eps: Scopes[Pre, Post, Endpoint[Pre], Variable[Post]] = new Scopes()
 
-  val runSucc: mut.Map[ChorRun[Pre], Procedure[Post]] = mut.LinkedHashMap()
-  val progSucc: SuccessionMap[Choreography[Pre], Procedure[Post]] =
-    SuccessionMap()
   val methodSucc: SuccessionMap[InstanceMethod[Pre], Procedure[Post]] =
-    SuccessionMap()
-  val endpointSucc: SuccessionMap[(Mode, Endpoint[Pre]), Variable[Post]] =
-    SuccessionMap()
-  val variableSucc: SuccessionMap[(Mode, Variable[Pre]), Variable[Post]] =
     SuccessionMap()
   val msgSucc: SuccessionMap[Communicate[Pre], Variable[Post]] = SuccessionMap()
 
   override def dispatch(decl: Declaration[Pre]): Unit =
-    (mode, decl) match {
-      case (Top, prog: Choreography[Pre]) =>
-        currentProg.having(prog) {
-          // First generate a procedure that implements the run method
-          rewriteRun(prog)
-
-          // And also process all auxiliary instance methods
-          prog.decls.foreach(dispatch)
-
-          // Then generate a procedure that initializes all the endpoints and calls the run procedure
-          // First set up the succesor variables that will be encoding the seq_program argument and endpoints
-          implicit val o = prog.o
-          prog.endpoints.foreach(_.drop())
-          prog.endpoints.foreach {
-            case endpoint if endpoint.isSingle =>
-              endpointSucc((mode, endpoint)) =
-                new Variable(dispatch(endpoint.singleType))(endpoint.o)
-            case endpoint if endpoint.isFamily =>
-              endpointSucc((mode, endpoint)) =
-                new Variable(dispatch(endpoint.rangeType))(endpoint.o)
-          }
-
-          // Maintain successor for seq_prog argument variables manually, as two contexts are maintained
-          // The main procedure context and run procedure contex
-          prog.params.foreach(_.drop())
-          for (arg <- prog.params) {
-            variableSucc((mode, arg)) = new Variable(dispatch(arg.t))(arg.o)
-          }
-
-          // TODO (RR): I think this init we can maybe reuse for the endpoint projection routines as well, as it is also what I did in the summation case study
-          // For each endpoint, make a local variable and initialize it using the constructor referenced in the endpoint
-          val endpointsInit = prog.endpoints.map {
-            case endpoint if endpoint.isSingle =>
-              Assign(
-                Local[Post](endpointSucc((mode, endpoint)).ref),
-                dispatch(endpoint.init),
-              )(AssignLocalOk)
-            case endpoint if endpoint.isFamily =>
-              val RangeBinder(i, low, high) = endpoint.range.get
-              RangedFor(
-                IterVariable(
-                  variables.dispatch(i),
-                  dispatch(low),
-                  dispatch(high),
-                ),
-                loopInvariant(blame = PanicBlame("???")),
-                Block(Seq()),
-              )
-          }
-
-          val preRun = prog.preRun.map(dispatch).toSeq
-
-          // Invoke the run procedure with the seq_program arguments, as well as all the endpoints
-          val invokeRun = Eval(procedureInvocation[Post](
-            ref = runSucc(prog.run).ref,
-            args =
-              prog.params
-                .map(arg => Local[Post](variableSucc((mode, arg)).ref)) ++
-                prog.endpoints.map(endpoint =>
-                  Local[Post](endpointSucc((mode, endpoint)).ref)
-                ),
-            blame = InvocationFailureToChorRunFailure(prog.run),
-          ))
-
-          // Scope the endpoint vars and combine initialization and run method invocation
-          val body = Scope(
-            prog.endpoints.map(endpoint => endpointSucc((mode, endpoint))),
-            Block((endpointsInit ++ preRun) :+ invokeRun),
-          )
-
-          progSucc(prog) = globalDeclarations.declare(
-            new Procedure(
-              returnType = TVoid(),
-              outArgs = Seq(),
-              typeArgs = Seq(),
-              args = prog.params.map(arg => variableSucc((mode, arg))),
-              contract = dispatch(prog.contract),
-              body = Some(body),
-            )(CallableFailureToContractedFailure(prog.blame))
-          )
-        }
-
-      case (InProg(prog), method: InstanceMethod[Pre]) =>
-        currentInstanceMethod.having(method) {
-          for (endpoint <- prog.endpoints) {
-            endpointSucc((mode, endpoint)) =
-              new Variable(
-                TByReferenceClass(succ[Class[Post]](endpoint.cls.decl), Seq())
-              )(endpoint.o)
-          }
-
-          prog.params.foreach(_.drop())
-          for (arg <- prog.params) {
-            variableSucc((mode, arg)) = new Variable(dispatch(arg.t))(arg.o)
-          }
-
-          methodSucc(method) = globalDeclarations.declare(
-            new Procedure(
-              args =
-                prog.params.map(arg => variableSucc((mode, arg))) ++
-                  prog.endpoints
-                    .map(endpoint => endpointSucc((mode, endpoint))),
-              body = method.body.map(dispatch),
-              outArgs = Nil,
-              typeArgs = Nil,
-              returnType = dispatch(method.returnType),
-              contract = dispatch(method.contract),
-            )(method.blame)(method.o)
-          )
-        }
+    decl match {
+      case chor: Choreography[Pre] => rewriteChoreography(chor)
 
       case _ => super.dispatch(decl)
     }
 
-  def rewriteRun(prog: Choreography[Pre]): Unit = {
-    val run = prog.run
-    implicit val o: Origin = run.o
-      .where(name = currentProg.top.o.getPreferredNameOrElse().snake + "_run")
+  def rewriteChoreography(chor: Choreography[Pre]): Procedure[Post] =
+    currentProg.having(chor) {
+      eps.scope {
+        // First generate a procedure that implements the run method
+        val runProc = rewriteRun(chor)
 
-    currentRun.having(run) {
-      prog.endpoints.foreach {
-        case endpoint if endpoint.isSingle =>
-          endpointSucc((mode, endpoint)) =
-            new Variable(dispatch(endpoint.singleType))(endpoint.o)
-        case endpoint if endpoint.isFamily =>
-          endpointSucc((mode, endpoint)) =
-            new Variable(dispatch(endpoint.rangeType))(endpoint.o)
-      }
+        // And also process all auxiliary instance methods
+        rewriteChorMethods(chor)
 
-      for (arg <- prog.params) {
-        variableSucc((mode, arg)) = new Variable(dispatch(arg.t))(arg.o)
-      }
+        // Then generate a procedure that initializes all the endpoints and calls the run procedure
+        // First set up the successor variables that will be encoding the choreography argument and endpoints
+        implicit val o = chor.o
+        chor.endpoints.foreach(_.drop())
+        declareChorEndpointVars(chor)
 
-      runSucc(run) = globalDeclarations.declare(
-        new Procedure(
+        // Maintain successor for choreography argument variables manually, as two contexts are maintained
+        // The main procedure context and run procedure contex
+        chor.params.foreach(_.drop())
+        declareChorParamVars(chor)
+
+        // TODO (RR): I think this init we can maybe reuse for the endpoint projection routines as well, as it is also what I did in the summation case study
+        // For each endpoint, make a local variable and initialize it using the constructor referenced in the endpoint
+        val endpointsInit = chor.endpoints.map {
+          case endpoint if endpoint.isSingle =>
+            Assign(Local[Post](eps(endpoint).ref), dispatch(endpoint.init))(
+              AssignLocalOk
+            )
+          case endpoint if endpoint.isFamily =>
+            val RangeBinder(i, low, high) = endpoint.range.get
+            RangedFor(
+              IterVariable(
+                variables.dispatch(i),
+                dispatch(low),
+                dispatch(high),
+              ),
+              loopInvariant(blame = PanicBlame("???")),
+              Block(Seq(Assume[Post](ff))),
+            )
+        }
+
+        val preRun = chor.preRun.map(dispatch).toSeq
+
+        // Invoke the run procedure with the seq_program arguments, as well as all the endpoints
+        val invokeRun = Eval(procedureInvocation[Post](
+          ref = runProc.ref,
           args =
-            prog.params.map(arg => variableSucc((mode, arg))) ++
-              prog.endpoints.map(endpoint => endpointSucc((mode, endpoint))),
-          contract = dispatch(run.contract),
-          body = Some(dispatch(run.body)),
-          outArgs = Seq(),
-          typeArgs = Seq(),
-          returnType = TVoid(),
-        )(CallableFailureToContractedFailure(run.blame))
-      )
+            chor.params.map(arg => Local[Post](succ(arg))) ++
+              chor.endpoints
+                .map(endpoint => Local[Post](eps.freeze.succ(endpoint))),
+          blame = InvocationFailureToChorRunFailure(chor.run),
+        ))
+
+        // Scope the endpoint vars and combine initialization and run method invocation
+        val body = Scope(
+          chor.endpoints.map(eps(_)),
+          Block((endpointsInit ++ preRun) :+ invokeRun),
+        )
+
+        chor.drop()
+        globalDeclarations.declare(
+          new Procedure(
+            returnType = TVoid(),
+            outArgs = Seq(),
+            typeArgs = Seq(),
+            args = chor.params.map(variables(_)),
+            contract = dispatch(chor.contract),
+            body = Some(body),
+          )(CallableFailureToContractedFailure(chor.blame))
+        )
+      }
+    }
+
+  def rewriteChorMethods(chor: Choreography[Pre]): Seq[Procedure[Post]] =
+    chor.decls.collect { case m: InstanceMethod[Pre] =>
+      rewriteChorMethod(chor, m)
+    }
+
+  def chorContextVariables(chor: Choreography[Pre]): Seq[Variable[Post]] =
+    chor.params.map(arg => variables(arg)) ++
+      chor.endpoints.map(endpoint => eps(endpoint))
+
+  def rewriteChorMethod(
+      chor: Choreography[Pre],
+      method: InstanceMethod[Pre],
+  ): Procedure[Post] = {
+    assert(method.args.isEmpty) // TODO: Pretty error
+    eps.scope {
+      variables.scope {
+        declareChorEndpointVars(chor)
+        declareChorParamVars(chor)
+
+        methodSucc(method) = globalDeclarations.declare(
+          new Procedure(
+            args = chorContextVariables(chor),
+            body = method.body.map(dispatch),
+            outArgs = Nil,
+            typeArgs = Nil,
+            returnType = dispatch(method.returnType),
+            contract = dispatch(method.contract),
+          )(method.blame)(method.o)
+        )
+        methodSucc(method)
+      }
     }
   }
+
+  def declareChorEndpointVars(chor: Choreography[Pre]): Unit =
+    for (ep <- chor.endpoints) {
+      val t =
+        if (ep.isSingle)
+          ep.singleType
+        else
+          ep.rangeType
+      eps.succeedOnly(ep, new Variable(dispatch(t))(ep.o))
+    }
+
+  def declareChorParamVars(chor: Choreography[Pre]): Unit =
+    for (arg <- chor.params) {
+      variables.succeedOnly(arg, new Variable(dispatch(arg.t))(arg.o))
+    }
+
+  def rewriteRun(chor: Choreography[Pre]): Procedure[Post] =
+    eps.scope {
+      variables.scope {
+        val run = chor.run
+        implicit val o: Origin = run.o.where(name =
+          currentProg.top.o.getPreferredNameOrElse().snake + "_run"
+        )
+
+        currentRun.having(run) {
+          declareChorEndpointVars(chor)
+          declareChorParamVars(chor)
+
+          globalDeclarations.declare(
+            new Procedure(
+              args = chorContextVariables(chor),
+              contract = dispatch(run.contract),
+              body = Some(dispatch(run.body)),
+              outArgs = Seq(),
+              typeArgs = Seq(),
+              returnType = TVoid(),
+            )(CallableFailureToContractedFailure(run.blame))
+          )
+        }
+      }
+    }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
     stat match {
@@ -292,51 +274,48 @@ case class EncodeChoreography[Pre <: Generation]()
     }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
-    (mode, expr) match {
-      case (mode, EndpointName(Ref(endpoint))) =>
-        endpointSucc((mode, endpoint)).get(expr.o)
-      case (mode, Local(Ref(v)))
-          if mode != Top && currentProg.top.params.contains(v) =>
-        variableSucc((mode, v)).get(expr.o)
-      case (
-            mode,
-            invocation @ MethodInvocation(
-              ThisChoreography(_),
-              Ref(method),
-              args,
-              _,
-              _,
-              _,
-              _,
-            ),
-          ) if mode != Top =>
-        implicit val o = invocation.o
+    expr match {
+      case CtExpr(target) =>
+        implicit val o = expr.o
+        target match {
+          case CommTargetEndpoint(Ref(endpoint)) => Local(eps(endpoint).ref)
+          case CommTargetIndex(Ref(endpoint), i) =>
+            SeqSubscript(Local[Post](eps(endpoint).ref), dispatch(i))(
+              PanicBlame("Should forward to CtExpr here...")
+            )
+          case CommTargetRange(Ref(endpoint), range) =>
+            // TODO: This case will be gone when we remove CtExpr.
+            ???
+        }
+      case EndpointFamilyExpr(Ref(ep)) => Local[Post](eps(ep).ref)(expr.o)
+      case inv @ MethodInvocation(
+            ThisChoreography(_),
+            Ref(method),
+            _,
+            _,
+            _,
+            _,
+            _,
+          ) =>
+        implicit val o = inv.o
         val prog = currentProg.top
-        assert(args.isEmpty)
         procedureInvocation(
           ref = methodSucc.ref(method),
           args =
             prog.params
-              .map(arg => Local[Post](variableSucc.ref((mode, arg)))(arg.o)) ++
-              prog.endpoints.map(endpoint =>
-                Local[Post](endpointSucc.ref((mode, endpoint)))(invocation.o)
-              ),
-          blame = invocation.blame,
+              .map(arg => Local[Post](variables.freeze.succ(arg))(arg.o)) ++
+              prog.endpoints
+                .map(endpoint => Local[Post](eps.freeze.succ(endpoint))(inv.o)),
+          blame = inv.blame,
         )
-      case (mode, Sender(Ref(comm))) =>
-        implicit val o = expr.o
-        endpointSucc((mode, comm.sender.get.asName.endpoint)).get
-      case (mode, Receiver(Ref(comm))) =>
-        implicit val o = expr.o
-        endpointSucc((mode, comm.receiver.get.asName.endpoint)).get
-      case (_, Message(Ref(comm))) =>
-        implicit val o = expr.o
-        msgSucc(comm).get
-      case (_, _: ChorExpr[_] | _: EndpointExpr[_]) =>
+      case Sender(Ref(comm)) => sender.top
+      case Receiver(Ref(comm)) => receiver.top
+      case Message(Ref(comm)) => message.top
+      case _: ChorExpr[_] | _: EndpointExpr[_] =>
         throw Unreachable(
           "Encoding of ChorExpr and EndpointExpr should happen in EncodePermissionStratification"
         )
-      case (_, Perm(loc, ReadPerm())) =>
+      case Perm(loc, ReadPerm()) =>
         // For now we manually translate the readperms away because we accidentally introduce them as well
         Value(dispatch(loc))(expr.o)
       case _ => expr.rewriteDefault()

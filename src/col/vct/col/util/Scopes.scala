@@ -119,6 +119,18 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[
     succeedOnly(pre, post)
   }
 
+  def get(decl: PreDecl): Option[PostDecl] = {
+    for (succ <- successors) {
+      succ.get(decl) match {
+        case Some(postDecl) => return Some(postDecl)
+        case None =>
+      }
+    }
+    None
+  }
+
+  def apply(decl: PreDecl): PostDecl = get(decl).get
+
   def dispatch(
       decl: PreDecl
   )(implicit rw: AbstractRewriter[Pre, Post]): PostDecl = {
