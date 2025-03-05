@@ -253,12 +253,10 @@ case class UncertainIntegerValue(value: Interval) extends UncertainSingleValue {
   override def t[G]: Type[G] = TInt[G]()
 
   override def split: Option[Set[UncertainSingleValue]] =
-    value.values match {
-      case None => None
-      case Some(ints) => Some(ints.map(i => UncertainIntegerValue.single(i)))
-    }
+    value.values.map(ints => ints.map(i => UncertainIntegerValue.single(i)))
 
   def try_to_resolve(): Option[Int] = value.try_to_resolve()
+  def values(): Option[Seq[Int]] = value.values.map(s => s.toSeq)
   def min(): Option[Int] = value.min()
   def max(): Option[Int] = value.max()
 

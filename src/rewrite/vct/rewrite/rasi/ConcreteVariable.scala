@@ -41,27 +41,47 @@ sealed trait ResolvableVariable[G] {
   def t: Type[G]
 }
 object ResolvableVariable {
-  def single_from[G](expr: Expr[G], typ: Type[G]): ResolvableVariable[G] =
+  def single_from[G](expr: Expr[G]): ResolvableVariable[G] =
     expr match {
-      case _: AmbiguousResult[_] | _: Result[_] => ResultSimpleVariable(typ)
+      case _: AmbiguousResult[_] | _: Result[_] => ResultSimpleVariable(expr.t)
       case Deref(_, ref) => FieldSimpleVariable(ref.decl)
       case Local(ref) => LocalSimpleVariable(ref.decl)
+      case _ =>
+        throw new IllegalArgumentException(
+          "Cannot synthesize variable from expression" + expr.toInlineString
+        )
     }
-  def indexed_from[G](
-      expr: Expr[G],
-      typ: Type[G],
-      index: Int,
-  ): ResolvableVariable[G] =
+  def indexed_from[G](expr: Expr[G], index: Int): ResolvableVariable[G] =
     expr match {
-      case _: AmbiguousResult[G] | _: Result[G] => ResultSimpleVariable(typ)
+      case _: AmbiguousResult[G] | _: Result[G] => ResultSimpleVariable(expr.t)
       case Deref(_, ref) => FieldIndexedVariable(ref.decl, index)
       case Local(ref) => LocalIndexedVariable(ref.decl, index)
+      case _ =>
+        throw new IllegalArgumentException(
+          "Cannot synthesize indexed variable from expression" +
+            expr.toInlineString
+        )
     }
-  def size_from[G](expr: Expr[G], typ: Type[G]): ResolvableVariable[G] =
+  def size_from[G](expr: Expr[G]): ResolvableVariable[G] =
     expr match {
-      case _: AmbiguousResult[_] | _: Result[_] => ResultSimpleVariable(typ)
+      case _: AmbiguousResult[_] | _: Result[_] => ResultSimpleVariable(expr.t)
       case Deref(_, ref) => FieldSizeVariable(ref.decl)
       case Local(ref) => LocalSizeVariable(ref.decl)
+      case _ =>
+        throw new IllegalArgumentException(
+          "Cannot synthesize size variable from expression" +
+            expr.toInlineString
+        )
+    }
+  def from[G](expr: Expr[G], resolve: Expr[G] => Int): ResolvableVariable[G] =
+    expr match {
+      case AmbiguousSubscript(collection, index) =>
+        indexed_from(collection, resolve(index))
+      case SeqSubscript(seq, index) => indexed_from(seq, resolve(index))
+      case ArraySubscript(arr, index) => indexed_from(arr, resolve(index))
+      case Size(obj) => size_from(obj)
+      case Length(arr) => size_from(arr)
+      case _ => single_from(expr)
     }
 }
 

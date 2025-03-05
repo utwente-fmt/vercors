@@ -74,14 +74,15 @@ case object Utils {
   }
 
   def extract_uncertainty[C, T](in: Map[C, Seq[T]]): Seq[Map[C, T]] = {
-    if (in.isEmpty) Seq(Map.empty[C, T])
+    if (in.isEmpty)
+      Seq(Map.empty[C, T])
     else if (in.size == 1) {
       val (const: C, uncertain: Seq[T]) = in.head
       uncertain.map(v => Map.from(Seq(const -> v)))
-    }
-    else {
+    } else {
       val (const: C, uncertain: Seq[T]) = in.head
-      extract_uncertainty(in.removed(const)).flatMap(m => uncertain.map(v => m + (const -> v)))
+      extract_uncertainty(in.removed(const))
+        .flatMap(m => uncertain.map(v => m + (const -> v)))
     }
   }
 
@@ -210,13 +211,27 @@ case object Utils {
       case _ => Seq(conj)
     }
 
-  /** Removes the iterating variables in a quantifier body and
+  /** Unrolls a quantifier and substitutes in concrete values for known iterator
+    * values as well as, if necessary, bounds that had to be narrowed down to a
+    * single possibility.
     *
     * @param iterators
+    *   A map from the quantifier iterator variables to their respective ranges,
+    *   represented as a tuple of a lower and upper bound
     * @param body
+    *   The body of the quantifier
+    * @param substitutions
+    *   A map of substitutions for known values other than the iterator
+    *   variables
     * @param operator
-    * @tparam G
+    *   Combination operator for the individual instances of the quantifier,
+    *   i.e. conjunction for universal and disjunction for existential
+    *   quantifiers
+    * @param default
+    *   Neutral element of the <code>operator</code>
     * @return
+    *   An expression that is logically equivalent to the quantifier, but
+    *   unrolled with all instantiations
     */
   def replace_iterators_in_quantifier[G](
       iterators: Map[Variable[G], (Int, Int)],
