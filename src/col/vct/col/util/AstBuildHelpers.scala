@@ -832,6 +832,17 @@ object AstBuildHelpers {
     Forall(bindings = Seq(i_var), triggers = triggers(i), body = body(i))
   }
 
+  def forallAny[G](indicator: Type[_])(
+      blame: Blame[ReceiverNotInjective],
+      t: Type[G],
+      body: Local[G] => Expr[G],
+      triggers: Local[G] => Seq[Seq[Expr[G]]] = (_: Local[G]) => Nil,
+  ): Expr[G] =
+    indicator match {
+      case TBool() => forall(t, body, triggers)
+      case TResource() => starall(blame, t, body, triggers)
+    }
+
   def forrange[G](high: Expr[G], body: Local[G] => Expr[G]): Forall[G] =
     forrange(const(0)(DiagnosticOrigin), high, body, (_: Local[G]) => Nil)
 

@@ -38,6 +38,28 @@ class TechnicalVeyMontSpec2 extends VeyMontSpec {
   )
 
   choreography(
+    desc = "Branch unanimity is checked of parameterized choreographies",
+    pvl = """
+      class Storage {
+         int x;
+      }
+
+      requires N >= 0;
+      choreography Example(int N) {
+         endpoint nodes[tid := 0 .. N] = Storage();
+
+         requires N >= 0;
+         requires (\endpoint nodes[i := 0 .. N]; Perm(nodes[i].x, read) ** nodes[i].x > 0);
+         run {
+            if ((\endpoint nodes[i := 0 .. N]; nodes[i].x > 0)) {
+
+            }
+         }
+      }
+    """,
+  )
+
+  choreography(
     desc = "Scoping of the binder of endpoint ranges is not handled properly",
     pvl = """
       class C {

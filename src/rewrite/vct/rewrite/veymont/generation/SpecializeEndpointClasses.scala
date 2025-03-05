@@ -64,6 +64,7 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
       case EndpointName(Ref(endpoint)) =>
+        assert(endpoint.isSingle)
         readImplField(expr.rewriteDefault(), endpoint)(expr.o)
       case Sender(Ref(comm)) =>
         readImplField(expr.rewriteDefault(), comm.sender.get.asName.endpoint)(
@@ -83,6 +84,7 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
 
       case endpoint: Endpoint[Pre] =>
         implicit val o = endpoint.o
+        assert(endpoint.isSingle)
 
         val implField =
           new InstanceField[Post](dispatch(endpoint.singleType), Seq())(
@@ -192,6 +194,7 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
       chor: Choreography[Pre]
   )(implicit o: Origin): Expr[Post] = {
     foldStar(chor.endpoints.flatMap { endpoint =>
+      assert(endpoint.isSingle)
       chor.endpoints.map { peer =>
         EndpointExpr[Post](
           CommTargetEndpoint(succ(endpoint)),

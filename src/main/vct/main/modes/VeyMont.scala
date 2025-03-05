@@ -207,14 +207,20 @@ object VeyMont extends LazyLogging {
 
         next()
 
-        val implementation =
-          generateWithOptions(options, program)
-            .fold[GenerateResult](err => return Left(err), lit => lit)
-            .implementation
+        if (!options.veymontSkipImplementationGeneration) {
+          val implementation =
+            generateWithOptions(options, program)
+              .fold[GenerateResult](err => return Left(err), lit => lit)
+              .implementation
 
-        next()
+          next()
 
-        implementationWithOptions(options, implementation)
+          implementationWithOptions(options, implementation)
+        } else {
+          assert(options.veymontSkipImplementationVerification);
+          logger.warn("Skipping implementation generation and verification")
+          Right(ImplementationResult(Seq()))
+        }
       }
     }
   }

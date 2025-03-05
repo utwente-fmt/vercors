@@ -259,7 +259,28 @@ case class EncodePermissionStratification[Pre <: Generation](
     override def dispatch(expr: Expr[Pre]): Expr[Post] =
       expr match {
         case ChorExpr(inner) => dispatch(inner)
-        case EndpointExpr(_, inner) => dispatch(inner)
+        case EndpointExpr(
+              CommTargetEndpoint(_) | CommTargetIndex(_, _),
+              inner,
+            ) =>
+          dispatch(inner)
+        case EndpointExpr(
+              CommTargetRange(ep, RangeBinder(v, low, high)),
+              inner,
+            ) =>
+          variables.scope {
+            starrange(
+              // TODO (RR): Forward injectivity
+              PanicBlame("Need to forward injectivity"),
+              dispatch(low),
+              dispatch(high),
+              i => {
+                // TODO (RR): i must have same name as v above
+                variables.succeedOnly(v, i.ref.decl)
+                dispatch(inner)
+              },
+            )
+          }
         case _ => expr.rewriteDefault()
       }
   }
@@ -571,7 +592,9 @@ case class EncodePermissionStratification[Pre <: Generation](
           ) =>
         implicit val o: Origin = target.o
         variables.scope {
-          forall(
+          forallAny(inner.t)(
+            // TODO (RR): Forward injectivity
+            PanicBlame("Need to forward injectivity..."),
             TInt(),
             i => {
               // TODO (RR): `i` should have origin of `v` here...!

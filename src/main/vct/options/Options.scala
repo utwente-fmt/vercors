@@ -319,7 +319,10 @@ case object Options {
         "Enable VeyMont mode: decompose the global program from the input files into several local programs that can be executed in parallel"
       ).children(
         opt[Unit]("choreography").abbr("chor").action((_, c) =>
-          c.copy(veymontSkipImplementationVerification = true)
+          c.copy(
+            veymontSkipImplementationGeneration = true,
+            veymontSkipImplementationVerification = true,
+          )
         ).text("Only perform verification of the choreography."),
         opt[Unit]("implementation").abbr("impl")
           .action((_, c) => c.copy(veymontSkipChoreographyVerification = true))
@@ -341,8 +344,16 @@ case object Options {
         opt[Unit]("veymont-skip-choreography-verification")
           .action((_, c) => c.copy(veymontSkipChoreographyVerification = true))
           .text(
-            "Do not verify choreographies, skipping to implementation generation & verification immediately"
+            "Do not verify choreographies, skipping to implementation generation & verification immediately."
           ),
+        opt[Unit]("veymont-skip-implementation-generation").action((_, c) =>
+          c.copy(
+            veymontSkipImplementationGeneration = true,
+            veymontSkipImplementationVerification = true,
+          )
+        ).text(
+          "Do not generate an implementation. Implies `--veymont-skip-implementation-verification`."
+        ),
         opt[Unit]("veymont-skip-implementation-verification").action((_, c) =>
           c.copy(veymontSkipImplementationVerification = true)
         ).text("Do not verify generated implementation"),
@@ -520,6 +531,7 @@ case class Options(
     veymontPermissionStratificationMode: PermissionStratificationMode =
       EncodePermissionStratification.Mode.Wrap,
     veymontSkipChoreographyVerification: Boolean = false,
+    veymontSkipImplementationGeneration: Boolean = false,
     veymontSkipImplementationVerification: Boolean = false,
 
     // VeSUV options
