@@ -58,9 +58,17 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
         }
       } ++ singleEndpoints.map { endpoint =>
         EndpointName[Post](succ(endpoint)) !== Null()
-      }
+      } ++ bounds(chor)
     )
   }
+
+  def bounds(chor: Choreography[Pre]): Seq[Expr[Post]] =
+    chor.endpoints.collect {
+      case ep if ep.isFamily =>
+        implicit val o = ep.o
+        Size(EndpointFamilyExpr[Post](succ(ep))) ===
+          (dispatch(ep.range.get.high) - dispatch(ep.range.get.low))
+    }
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     mappings.program = p

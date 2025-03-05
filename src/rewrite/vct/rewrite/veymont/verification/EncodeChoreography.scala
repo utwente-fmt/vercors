@@ -3,6 +3,7 @@ package vct.rewrite.veymont.verification
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
+  ApplicableContract,
   Assign,
   Assume,
   Block,
@@ -95,7 +96,7 @@ case class EncodeChoreography[Pre <: Generation]()
     extends Rewriter[Pre] with LazyLogging {
   import EncodeChoreography._
 
-  val currentProg: ScopedStack[Choreography[Pre]] = ScopedStack()
+  val currentChor: ScopedStack[Choreography[Pre]] = ScopedStack()
   val currentRun: ScopedStack[ChorRun[Pre]] = ScopedStack()
   val currentCommunicate: ScopedStack[Communicate[Pre]] = ScopedStack()
 
@@ -117,7 +118,7 @@ case class EncodeChoreography[Pre <: Generation]()
     }
 
   def rewriteChoreography(chor: Choreography[Pre]): Procedure[Post] =
-    currentProg.having(chor) {
+    currentChor.having(chor) {
       eps.scope {
         // First generate a procedure that implements the run method
         val runProc = rewriteRun(chor)
@@ -242,7 +243,7 @@ case class EncodeChoreography[Pre <: Generation]()
       variables.scope {
         val run = chor.run
         implicit val o: Origin = run.o.where(name =
-          currentProg.top.o.getPreferredNameOrElse().snake + "_run"
+          currentChor.top.o.getPreferredNameOrElse().snake + "_run"
         )
 
         currentRun.having(run) {
@@ -298,7 +299,7 @@ case class EncodeChoreography[Pre <: Generation]()
             _,
           ) =>
         implicit val o = inv.o
-        val prog = currentProg.top
+        val prog = currentChor.top
         procedureInvocation(
           ref = methodSucc.ref(method),
           args =
