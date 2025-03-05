@@ -927,7 +927,11 @@ case class AbstractState[G](
           is_contract,
         ) // TODO: Do anything with permission fraction?
       case q: Binder[_] =>
-        resolve_boolean_expression(unroll_quantifier(q, context))
+        resolve_boolean_expression(
+          unroll_quantifier(q, context),
+          is_old,
+          is_contract,
+        )
       case Result(_) => UncertainBooleanValue.uncertain()
       case AmbiguousResult() => UncertainBooleanValue.uncertain()
       case SeqMember(x, xs) =>
@@ -1392,8 +1396,12 @@ case class AbstractState[G](
           )
       )
     val (
-      certain_ranges: Map[Variable[G], (UncertainIntegerValue, UncertainIntegerValue)],
-      uncertain_ranges: Map[Variable[G], (UncertainIntegerValue, UncertainIntegerValue)],
+      certain_ranges: Map[Variable[
+        G
+      ], (UncertainIntegerValue, UncertainIntegerValue)],
+      uncertain_ranges: Map[Variable[
+        G
+      ], (UncertainIntegerValue, UncertainIntegerValue)],
     ) = bounds_ranges.partition(t => t._2._1.is_certain && t._2._2.is_certain)
     val certain: Map[Variable[G], (Int, Int)] = certain_ranges.map(t =>
       (t._1, (t._2._1.try_to_resolve().get, t._2._2.try_to_resolve().get))
@@ -1404,21 +1412,23 @@ case class AbstractState[G](
     else {
       val uncertain: Map[Variable[G], (Seq[(Int, Int)], (Boolean, Boolean))] =
         uncertain_ranges.map(t =>
-          (t._1,
+          (
+            t._1,
             (
               for {
                 x <- t._2._1.values().getOrElse(
                   throw new IllegalStateException(
                     "Unbounded quantifier lower bound!"
                   )
-                ); y <- t._2._2.values().getOrElse(
+                )
+                y <- t._2._2.values().getOrElse(
                   throw new IllegalStateException(
                     "Unbounded quantifier upper bound!"
                   )
                 )
               } yield (x, y),
               (!t._2._1.is_certain, !t._2._2.is_certain),
-            )
+            ),
           )
         )
       val certain_set: Seq[Map[Variable[G], ((Int, Int), (Boolean, Boolean))]] =

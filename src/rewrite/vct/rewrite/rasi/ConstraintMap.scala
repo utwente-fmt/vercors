@@ -80,7 +80,5 @@ case object ConstraintMap {
   def empty[G]: ConstraintMap[G] = ConstraintMap(Map.empty)
 
   def impossible[G](vars: Set[_ <: ResolvableVariable[G]]): ConstraintMap[G] =
-    ConstraintMap(
-      Map.from(vars.map(v => v -> UncertainValue.empty_of(v.t)))
-    )
+    ConstraintMap(Map.from(vars.map(v => v -> UncertainValue.empty_of(v.t))))
 }

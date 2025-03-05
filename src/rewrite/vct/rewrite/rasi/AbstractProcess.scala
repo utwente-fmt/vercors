@@ -113,10 +113,10 @@ case class AbstractProcess[G](obj: Expr[G]) {
                   take_viable_edges(
                     succ,
                     state,
-                    SingleSuccessor(
-                      state
-                        .with_valuation(target, state.resolve_single_expression(value))
-                    ),
+                    SingleSuccessor(state.with_valuation(
+                      target,
+                      state.resolve_single_expression(value),
+                    )),
                   )
                 case _: TSeq[_] =>
                   take_viable_edges(
