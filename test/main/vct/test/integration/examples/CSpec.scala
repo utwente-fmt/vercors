@@ -640,4 +640,14 @@ class CSpec extends VercorsSpec {
         //@ assert a0 + sizeof(int) == a1;
     }
     """
+
+  vercors should verify using silicon in "Taking sizeof of typedef" c
+    """
+    #include <stdlib.h>
+    typedef int test;
+    int main(){
+        test* x = (test *) malloc(sizeof ( test ) );
+        int y = (test) 5.0;
+    }
+    """
 }

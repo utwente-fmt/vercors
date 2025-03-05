@@ -1,6 +1,14 @@
 package vct.col.ast.expr.heap.read
 
-import vct.col.ast.{AddrOf, TPointer, Type, DerefPointer, AmbiguousSubscript}
+import vct.col.ast.{
+  AddrOf,
+  AddrOfConstCast,
+  TPointer,
+  TConstPointer,
+  Type,
+  DerefPointer,
+  AmbiguousSubscript,
+}
 import vct.col.print._
 import vct.col.ast.ops.AddrOfOps
 
@@ -10,6 +18,7 @@ trait AddrOfImpl[G] extends AddrOfOps[G] {
     e match {
       case DerefPointer(p) => p.t
       case AmbiguousSubscript(p, i) => p.t
+      case AddrOfConstCast(e) => TConstPointer(e.t)
       case _ => TPointer(e.t, None)
     }
   }

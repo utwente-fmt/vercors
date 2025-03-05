@@ -891,8 +891,8 @@ case class CToCol[G](
           case "~" => BitNot(convert(arg), 0, signed = true)(blame(expr))
           case "!" => col.Not(convert(arg))
         }
-      case UnaryExpression3(_, _) => ??(expr)
-      case UnaryExpression4(_, _, tname, _) => SizeOf(convert(tname))
+      case UnaryExpression4(_, _) => ??(expr)
+      case UnaryExpression3(_, _, tname, _) => SizeOf(convert(tname))
       case UnaryExpression5(_, _, _, _) => ??(expr)
       case UnaryExpression6(_, _) => ??(expr)
       case UnaryExpression7(inner) => convert(inner)

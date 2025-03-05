@@ -159,10 +159,10 @@ final case class TPointer[G](element: Type[G], unique: Option[BigInt])(
 final case class TNonNullPointer[G](element: Type[G], unique: Option[BigInt])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends PointerType[G] with TNonNullPointerImpl[G]
-final case class TConstPointer[G](pureElement: Type[G])(
+final case class TConstPointer[G](element: Type[G])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends PointerType[G] with TConstPointerImpl[G]
-final case class TNonNullConstPointer[G](pureElement: Type[G])(
+final case class TNonNullConstPointer[G](element: Type[G])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends PointerType[G] with TNonNullConstPointerImpl[G]
 
@@ -696,8 +696,9 @@ final case class ModelDo[G](
 @family
 sealed trait GlobalDeclaration[G]
     extends Declaration[G] with GlobalDeclarationImpl[G]
-final class HeapVariable[G](val t: Type[G])(implicit val o: Origin)
-    extends GlobalDeclaration[G] with HeapVariableImpl[G]
+final class HeapVariable[G](val t: Type[G], val init: Option[Expr[G]])(
+    implicit val o: Origin
+) extends GlobalDeclaration[G] with HeapVariableImpl[G]
 final class SimplificationRule[G](val axiom: Expr[G])(implicit val o: Origin)
     extends GlobalDeclaration[G] with SimplificationRuleImpl[G]
 @scopes[Variable]
@@ -1497,6 +1498,8 @@ final case class PointerAdd[G](pointer: Expr[G], offset: Expr[G])(
     extends Expr[G] with PointerAddImpl[G]
 final case class AddrOf[G](e: Expr[G])(implicit val o: Origin)
     extends Expr[G] with AddrOfImpl[G]
+final case class AddrOfConstCast[G](e: Expr[G])(implicit val o: Origin)
+    extends Expr[G] with AddrOfConstCastImpl[G]
 final case class FunctionOf[G](
     binding: Ref[G, Variable[G]],
     vars: Seq[Ref[G, Variable[G]]],

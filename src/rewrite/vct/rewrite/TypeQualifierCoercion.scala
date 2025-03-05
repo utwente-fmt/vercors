@@ -1,12 +1,20 @@
 package vct.rewrite
 
-import vct.col.ast.{Expr, Type, _}
-import vct.col.origin.Origin
+import vct.col.ast._
+import vct.col.origin.{
+  AbstractApplicable,
+  AssignLocalOk,
+  Origin,
+  PanicBlame,
+  TrueSatisfiable,
+}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.typerules.CoercingRewriter
+import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
 import hre.util.ScopedStack
-import vct.col.ref.{LazyRef, Ref}
+import vct.col.ref.LazyRef
+import vct.col.util.SuccessionMap
 
 import scala.collection.mutable
 
@@ -57,9 +65,12 @@ case object TypeQualifierCoercion extends RewriterBuilder {
   def getUniqueMap[G](t: TClassUnique[G]): Map[InstanceField[G], BigInt] = {
     t.uniqueMap.map { case (ref, unique) => (ref.decl, unique) }.toMap
   }
-
 }
 
+/* This rewrite step removes type qualifiers TUnique, TConst and TClassUnique.
+ * Some of them were okay to coerce, thus we the node `UniquePointerCoercion` which the pass
+ * MakeUniqueMethodCopies removes again to make the coercion correct by adding method/function copies
+ */
 case class TypeQualifierCoercion[Pre <: Generation]()
     extends CoercingRewriter[Pre] {
 
@@ -71,6 +82,8 @@ case class TypeQualifierCoercion[Pre <: Generation]()
     (InstanceField[Pre], Map[InstanceField[Pre], BigInt]),
     InstanceField[Post],
   ] = mutable.Map()
+  private val constGlobalHeapsSucc
+      : SuccessionMap[HeapVariable[Pre], Function[Post]] = SuccessionMap()
 
   def createUniqueClassCopy(
       original: Class[Pre],
@@ -115,6 +128,28 @@ case class TypeQualifierCoercion[Pre <: Generation]()
       })
     })
   }
+
+  override def coerce(decl: Declaration[Pre]): Declaration[Pre] =
+    decl match {
+      // Turn of coercions for a sec, otherwise we cannot use our constGlobalHeapsSucc successfully
+      case h: HeapVariable[Pre] if isConstElement(h.t) => h
+      case other => super.coerce(other)
+    }
+
+  override def postCoerce(d: Declaration[Pre]): Unit =
+    d match {
+      case h: HeapVariable[Pre] if isConstElement(h.t) =>
+        val f = globalDeclarations.declare({
+          function(
+            blame = AbstractApplicable,
+            contractBlame = TrueSatisfiable,
+            returnType = dispatch(h.t),
+            body = h.init.map(dispatch),
+          )(h.o)
+        })
+        constGlobalHeapsSucc(h) = f
+      case other => allScopes.anySucceed(other, other.rewriteDefault())
+    }
 
   override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(
       implicit o: Origin
@@ -208,7 +243,35 @@ case class TypeQualifierCoercion[Pre <: Generation]()
             d.rewrite(ref = uniqueField(ref.decl, map).ref)
           case _ => d.rewriteDefault()
         }
-
+      case DerefHeapVariable(ref) if isConstElement(ref.decl.t) =>
+        functionInvocation(TrueSatisfiable, constGlobalHeapsSucc.ref(ref.decl))
+      case a @ AddrOf(deref @ DerefHeapVariable(ref))
+          if isConstElement(ref.decl.t) =>
+        implicit val o: Origin = a.o
+        val t = dispatch(ref.decl.t)
+        val v = new Variable[Post](TNonNullConstPointer(t))
+        val l = Local[Post](v.ref)
+        val newP =
+          NewNonNullConstPointerArray(dispatch(ref.decl.t), const(1))(
+            PanicBlame("Size >0")
+          )(a.o)
+        ScopedExpr(
+          Seq(v),
+          With[Post](
+            Block(Seq(
+              Assign(l, newP)(AssignLocalOk),
+              Assume(
+                DerefPointer(l)(PanicBlame("Not null & Size>0")) ===
+                  dispatch(deref)
+              ),
+            )),
+            l,
+          ),
+        )
+      case a @ AddrOf(e) if isConstElement(e.t) =>
+        if (e.collectFirst { case Deref(_, _) => () }.isDefined)
+          throw DisallowedQualifiedType(e)
+        AddrOf(AddrOfConstCast(postCoerce(e)))
       case other => other.rewriteDefault()
     }
   }

@@ -783,6 +783,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         ActionApply(action, coerceArgs(args, action.decl))
       case ActionPerm(loc, perm) => ActionPerm(loc, rat(perm))
       case AddrOf(e) => AddrOf(e)
+      case AddrOfConstCast(e) => AddrOfConstCast(e)
       case ADTFunctionInvocation(typeArgs, ref, args) =>
         typeArgs match {
           case Some((adt, typeArgs)) =>
@@ -2422,7 +2423,11 @@ abstract class CoercingRewriter[Pre <: Generation]()
         new CTranslationUnit(unit.declarations)
       case unit: CPPTranslationUnit[Pre] =>
         new CPPTranslationUnit(unit.declarations)
-      case variable: HeapVariable[Pre] => new HeapVariable(variable.t)
+      case variable: HeapVariable[Pre] =>
+        new HeapVariable(
+          variable.t,
+          variable.init.map(i => coerce(i, variable.t)),
+        )
       case rule: SimplificationRule[Pre] =>
         new SimplificationRule[Pre](bool(rule.axiom))
       case dataType: AxiomaticDataType[Pre] => dataType

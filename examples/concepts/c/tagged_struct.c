@@ -7,9 +7,6 @@ struct FElement { struct Element e; float *d; };
 
 void print_int(int v);
 
-//@ context_everywhere Perm(INT_TAG, read);
-//@ context_everywhere Perm(FLOAT_TAG, read);
-//@ context_everywhere INT_TAG != FLOAT_TAG;
 void baz() {
     int a = 1; // o6
     float f; // o7

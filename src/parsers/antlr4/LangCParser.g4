@@ -90,8 +90,8 @@ unaryExpression
     :   '++' unaryExpression
     |   '--' unaryExpression
     |   unaryOperator castExpression
-    |   'sizeof' unaryExpression
     |   'sizeof' '(' typeName ')'
+    |   'sizeof' unaryExpression
     |   '_Alignof' '(' typeName ')'
     |   '&&'  clangIdentifier // GCC extension address of label
     |   postfixExpression

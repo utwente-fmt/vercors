@@ -13,6 +13,7 @@ class ConstQualifierSpec extends VercorsSpec {
   vercors should error withCode "disallowedConstAssignment" in "Assign to param pointer of const" c """void f(const int *x){x[0] = 1;}"""
 
   vercors should verify using silicon in "Assign const array to const pointer" c """void f(const int* y){const int x[2] = {0, 2}; y = x;}"""
+
   vercors should error withCode "resolutionError:type" in "Assign const array to non-const pointer" c """void f(int* y){const int x[2] = {0, 2}; x = y;}"""
 
   vercors should error withCode "disallowedConstAssignment" in "Assign const pointer" c """void f(int* const y){int* const x; y = x;}"""
@@ -69,6 +70,68 @@ int f(struct vec v){
 @*/
 void f(const int* x){
   int y = x[0];
+}
+"""
+
+  vercors should verify using silicon in "Return head of const pointer" c
+    """
+//@ context a!= NULL ** \pointer_length(a)==1;
+int foo(const int *a) {
+    return *a;
+}
+"""
+
+  vercors should verify using silicon in "Take address of const int" c
+    """
+int f() {
+    const int a = 0;
+    const int *b = &a;
+    return *b;
+}
+"""
+
+  vercors should error withCode "disallowedQualifiedType" in "Cannot take address for unique pointer" c
+    """
+int f() {
+    /*@unique<1>@*/ int a = 0;
+    /*@unique<1>@*/ int *b = &a;
+    return *b;
+}
+"""
+
+  vercors should verify using silicon in "Take address of const int param" c
+    """
+int f(const int a) {
+    const int *b = &a;
+    return *b;
+}
+"""
+
+
+  /* TODO: This is possible if we want it. But it would be best to do this in one go together
+   *  with making unique types work for pointer fields && it takes quite some work.
+   */
+  vercors should error withCode "disallowedQualifiedType" in  "Take address of const int field" c
+    """
+struct vec {
+  const int a;
+};
+
+//@ context Perm(v, 1\2);
+int f(struct vec v) {
+  const int *b = &v.a;
+  return *b;
+}
+"""
+
+  vercors should verify using silicon in "Take address of const global int" c
+    """
+const int a = 5;
+
+//@ ensures \result == 5;
+int foo() {
+   const int * b = &a;
+   return *b;
 }
 """
 }

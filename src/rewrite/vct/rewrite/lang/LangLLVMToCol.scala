@@ -681,7 +681,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                   Seq(),
                 )(struct.o),
                 None,
-              )(struct.o)
+              )(struct.o),
+              decl.value.map(rw.dispatch),
             )(decl.o)
           ),
         )
@@ -691,7 +692,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           decl,
           rw.globalDeclarations.declare(
             new HeapVariable[Post](
-              new TPointer[Post](rw.dispatch(array.elementType), None)(array.o)
+              new TPointer[Post](rw.dispatch(array.elementType), None)(array.o),
+              None,
             )(decl.o)
           ),
         )
@@ -703,7 +705,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             new HeapVariable[Post](
               new TPointer[Post](rw.dispatch(vector.elementType), None)(
                 vector.o
-              )
+              ),
+              None,
             )(decl.o)
           ),
         )

@@ -978,7 +978,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             declared = true
           case None =>
             cppGlobalNameSuccessor(RefCPPGlobalDeclaration(decl, idx)) = rw
-              .globalDeclarations.declare(new HeapVariable(t)(namedO))
+              .globalDeclarations
+              .declare(new HeapVariable(t, init.init.map(rw.dispatch))(namedO))
         }
       }
     }
