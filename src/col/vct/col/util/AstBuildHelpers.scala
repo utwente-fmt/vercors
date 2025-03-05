@@ -832,6 +832,55 @@ object AstBuildHelpers {
     Forall(bindings = Seq(i_var), triggers = triggers(i), body = body(i))
   }
 
+  def forrange[G](high: Expr[G], body: Local[G] => Expr[G]): Forall[G] =
+    forrange(const(0)(DiagnosticOrigin), high, body, (_: Local[G]) => Nil)
+
+  def forrange[G](
+      low: Expr[G],
+      high: Expr[G],
+      body: Local[G] => Expr[G],
+      triggers: Local[G] => Seq[Seq[Expr[G]]] = (_: Local[G]) => Nil,
+  ): Forall[G] = {
+    implicit val o: Origin = GeneratedQuantifier
+    val i_var = new Variable[G](TInt())
+    val i = Local[G](i_var.ref)
+    Forall(
+      bindings = Seq(i_var),
+      triggers = triggers(i),
+      body = ((low <= i) && (i < high)) ==> body(i),
+    )
+  }
+
+  def starrange[G](
+      blame: Blame[ReceiverNotInjective],
+      high: Expr[G],
+      body: Local[G] => Expr[G],
+  ): Starall[G] =
+    starrange(
+      blame,
+      const(0)(DiagnosticOrigin),
+      high,
+      body,
+      (_: Local[G]) => Nil,
+    )
+
+  def starrange[G](
+      blame: Blame[ReceiverNotInjective],
+      low: Expr[G],
+      high: Expr[G],
+      body: Local[G] => Expr[G],
+      triggers: Local[G] => Seq[Seq[Expr[G]]] = (_: Local[G]) => Nil,
+  ): Starall[G] = {
+    implicit val o: Origin = GeneratedQuantifier
+    val i_var = new Variable[G](TInt())
+    val i = Local[G](i_var.ref)
+    Starall(
+      bindings = Seq(i_var),
+      triggers = triggers(i),
+      body = ((low <= i) && (i < high)) ==> body(i),
+    )(blame)
+  }
+
   def foralls[G](
       ts: Seq[Type[G]],
       body: Seq[Local[G]] => Expr[G],

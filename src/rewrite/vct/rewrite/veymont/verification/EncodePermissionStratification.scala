@@ -570,18 +570,20 @@ case class EncodePermissionStratification[Pre <: Generation](
             inner,
           ) =>
         implicit val o: Origin = target.o
-        forall(
-          TInt(),
-          i => {
-            // TODO (RR): `i` should have origin of `v` here...!
-            variables.succeedOnly(v, i.ref.decl)
-            ((dispatch(low) <= i) && (i < dispatch(high))) ==>
-              specializing
-                .having(CtExpr(CommTargetIndex(endpoints.dispatch(ref), i))) {
-                  dispatch(inner)
-                }
-          },
-        )
+        variables.scope {
+          forall(
+            TInt(),
+            i => {
+              // TODO (RR): `i` should have origin of `v` here...!
+              variables.succeedOnly(v, i.ref.decl)
+              ((dispatch(low) <= i) && (i < dispatch(high))) ==>
+                specializing
+                  .having(CtExpr(CommTargetIndex(endpoints.dispatch(ref), i))) {
+                    dispatch(inner)
+                  }
+            },
+          )
+        }
 
       case EndpointExpr(_, inner) => ???
 

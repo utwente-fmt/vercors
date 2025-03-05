@@ -3,6 +3,7 @@ package vct.rewrite.veymont.verification
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{
+  AllScopes,
   ApplicableContract,
   Assign,
   Assume,
@@ -15,6 +16,7 @@ import vct.col.ast.{
   CommTargetIndex,
   CommTargetRange,
   Communicate,
+  ConstructorInvocation,
   CtExpr,
   Declaration,
   Endpoint,
@@ -23,8 +25,12 @@ import vct.col.ast.{
   EndpointStatement,
   Eval,
   Expr,
+  AccountedPredicate,
+  UnitAccountedPredicate,
+  SplitAccountedPredicate,
   InstanceMethod,
   IterVariable,
+  LiteralSeq,
   Local,
   Message,
   MethodInvocation,
@@ -37,9 +43,12 @@ import vct.col.ast.{
   Scope,
   Sender,
   SeqSubscript,
+  Size,
   Statement,
+  TInt,
   TVoid,
   ThisChoreography,
+  ThisObject,
   Value,
   Variable,
 }
@@ -110,6 +119,25 @@ case class EncodeChoreography[Pre <: Generation]()
     SuccessionMap()
   val msgSucc: SuccessionMap[Communicate[Pre], Variable[Post]] = SuccessionMap()
 
+  case class ExtractPostcondition(newThis: Expr[Post]) extends Rewriter[Pre] {
+    override val allScopes: AllScopes[Pre, Post] =
+      EncodeChoreography.this.allScopes
+
+    override def dispatch(expr: Expr[Pre]): Expr[Post] =
+      expr match {
+        case ThisObject(_) => newThis
+        case _ => expr.rewriteDefault()
+      }
+
+    def fromAccounted(pred: AccountedPredicate[Pre]): Expr[Post] =
+      pred match {
+        case UnitAccountedPredicate(pred) => dispatch(pred)
+        case SplitAccountedPredicate(left, right) =>
+          implicit val o = pred.o
+          fromAccounted(left) &* fromAccounted(right)
+      }
+  }
+
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case chor: Choreography[Pre] => rewriteChoreography(chor)
@@ -141,20 +169,33 @@ case class EncodeChoreography[Pre <: Generation]()
         // For each endpoint, make a local variable and initialize it using the constructor referenced in the endpoint
         val endpointsInit = chor.endpoints.map {
           case endpoint if endpoint.isSingle =>
-            Assign(Local[Post](eps(endpoint).ref), dispatch(endpoint.init))(
-              AssignLocalOk
-            )
+            assignLocal(Local[Post](eps(endpoint).ref), dispatch(endpoint.init))
           case endpoint if endpoint.isFamily =>
-            val RangeBinder(i, low, high) = endpoint.range.get
-            RangedFor(
-              IterVariable(
-                variables.dispatch(i),
-                dispatch(low),
-                dispatch(high),
+            val RangeBinder(_, low, high) = endpoint.range.get
+            val i = new Variable[Post](TInt())(endpoint.o.where(name = "i"))
+            val fam = Local[Post](eps(endpoint).ref)
+            val cons = endpoint.init.asInstanceOf[ConstructorInvocation[Pre]]
+            Block(Seq(
+              assignLocal(
+                fam,
+                LiteralSeq(dispatch(endpoint.singleType), Seq()),
               ),
-              loopInvariant(blame = PanicBlame("???")),
-              Block(Seq(Assume[Post](ff))),
-            )
+              RangedFor(
+                IterVariable(i, dispatch(low), dispatch(high)),
+                loopInvariant(
+                  blame = PanicBlame("Cannot fail"),
+                  (Size(fam) === i.get) &* starrange(
+                    PanicBlame("Oops not injective!"),
+                    Size(fam),
+                    i =>
+                      ExtractPostcondition(SeqSubscript(fam, i)(PanicBlame(
+                        "Index guaranteed to be in bounds"
+                      ))).fromAccounted(cons.ref.decl.contract.ensures),
+                  ),
+                ),
+                Block(Seq(Assume[Post](ff))),
+              ),
+            ))
         }
 
         val preRun = chor.preRun.map(dispatch).toSeq
