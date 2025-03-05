@@ -481,7 +481,12 @@ case object ResolveReferences extends LazyLogging {
         ctx.copy(currentThis = Some(RefPVLChoreography(chor)))
           .declare(chor.args).declare(chor.declarations)
       case comm: PVLCommunicateStatement[G] =>
-        ctx.copy(currentCommunicate = Some(comm))
+        // TODO (RR): This allows nodes[i := i .. i], which should instead be an error
+        (comm.comm.sender match {
+          case Some(PVLCommTargetRange(_, RangeBinder(v, _, _))) =>
+            ctx.declare(Seq(v))
+          case _ => ctx
+        }).copy(currentCommunicate = Some(comm))
       case method: JavaMethod[G] =>
         ctx.copy(currentResult = Some(RefJavaMethod(method)))
           .copy(inStaticJavaContext =

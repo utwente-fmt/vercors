@@ -364,6 +364,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: FoldTarget[Pre] => coerce(node)
       case node: PVLCommTargetRange[Pre] => coerce(node)
       case node: RangeBinder[Pre] => coerce(node)
+      case node: PVLCommunicateTarget[Pre] => coerce(node)
       case node: CommunicateTarget[Pre] => coerce(node)
     }
 
