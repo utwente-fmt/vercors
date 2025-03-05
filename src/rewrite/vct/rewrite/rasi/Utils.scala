@@ -221,6 +221,7 @@ case object Utils {
   def replace_iterators_in_quantifier[G](
       iterators: Map[Variable[G], (Int, Int)],
       body: Expr[G],
+      substitutions: Map[Expr[G], Expr[G]],
       operator: (Expr[G], Expr[G]) => Expr[G],
       default: Expr[G],
   ): Expr[G] = {
@@ -234,7 +235,7 @@ case object Utils {
       )
     )
     val instantiations: Seq[Expr[G]] = expression_maps
-      .map(m => Substitute(m).dispatch(body))
+      .map(m => Substitute(m ++ substitutions).dispatch(body))
     instantiations.fold(default)(operator)
   }
 

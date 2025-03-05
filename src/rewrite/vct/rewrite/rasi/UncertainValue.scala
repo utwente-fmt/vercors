@@ -540,15 +540,29 @@ case class UncertainSequence(
 
   def get(index: Int): UncertainSingleValue = {
     if (index < 0)
-      throw new IllegalArgumentException(
-        s"Trying to access negative index $index"
-      )
+      return UncertainSingleValue.empty_of(typ)
     val i = values.indexWhere(t => t._1.try_to_resolve().getOrElse(-1) == index)
     if (i >= 0)
       values(i)._2.intersect(invariant)
     else
       invariant
   }
+
+  def get_uncertain(index: UncertainIntegerValue): UncertainSingleValue =
+    index.try_to_resolve().map(i => get(i)).getOrElse({
+      val certain: Seq[(Int, UncertainSingleValue)] = certain_entries
+      if (
+        index.is_subset_of(
+          certain.map(t => UncertainIntegerValue.single(t._1)).fold(
+            UncertainIntegerValue.empty()
+          )((i1, i2) => i1.union(i2).asInstanceOf[UncertainIntegerValue])
+        )
+      )
+        certain.map(t => t._2).reduce((v1, v2) => v1.union_single(v2))
+          .intersect(invariant)
+      else
+        invariant
+    })
 
   def contains(value: UncertainSingleValue): UncertainBooleanValue = {
     // See if it definitely fits:
