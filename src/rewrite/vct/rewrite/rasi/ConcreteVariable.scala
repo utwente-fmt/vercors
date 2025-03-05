@@ -265,6 +265,7 @@ case class LocalSizeVariable[G](seq: Variable[G]) extends LocalVariable[G] {
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
       case LocalSimpleVariable(_) => true
+      case LocalIndexedVariable(_, _) => true
       case LocalSizeVariable(s) => s.toInlineString > seq.toInlineString
       case _ => false
     }
@@ -294,7 +295,7 @@ case class LocalIndexedVariable[G](seq: Variable[G], i: Int)
 
   override def compare(other: ConcreteVariable[G]): Boolean =
     other match {
-      case _: LocalSimpleVariable[G] | _: LocalSizeVariable[_] => true
+      case _: LocalSimpleVariable[G] => true
       case LocalIndexedVariable(s, index) =>
         if (s != seq)
           s.toInlineString > seq.toInlineString
@@ -375,8 +376,8 @@ case class FieldSizeVariable[G](field: InstanceField[G])
     other match {
       case _: LocalVariable[G] => true
       case FieldSimpleVariable(_) => true
+      case FieldIndexedVariable(_, _) => true
       case FieldSizeVariable(f) => f.toInlineString > field.toInlineString
-      case FieldIndexedVariable(_, _) => false
     }
 }
 
@@ -415,11 +416,11 @@ case class FieldIndexedVariable[G](field: InstanceField[G], i: Int)
     other match {
       case _: LocalVariable[G] => true
       case FieldSimpleVariable(_) => true
-      case FieldSizeVariable(_) => true
       case FieldIndexedVariable(f, ind) =>
         if (f != field)
           f.toInlineString > field.toInlineString
         else
           ind > i
+      case FieldSizeVariable(_) => false
     }
 }

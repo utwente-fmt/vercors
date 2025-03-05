@@ -105,6 +105,14 @@ case class AbstractState[G](
       tracked_sequences,
     )
 
+  /** Removes a given set of variables from the tracked variables.
+    *
+    * @param vars
+    *   Variables to be removed from the tracked set
+    * @return
+    *   A copy of this state without knowledge of the variables in
+    *   <code>vars</code>
+    */
   def without_valuation_of(vars: Set[FieldVariable[G]]): AbstractState[G] =
     AbstractState(
       valuations.removedAll(vars),
@@ -1562,4 +1570,8 @@ case class AbstractState[G](
       )
     ).reduce((e1, e2) => And(e1, e2)(e1.o))
   }
+
+  /** For debugging purposes.
+    */
+  override def toString: String = to_expression(None).toString
 }
