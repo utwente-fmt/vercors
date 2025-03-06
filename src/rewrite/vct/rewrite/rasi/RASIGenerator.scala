@@ -6,7 +6,6 @@ import vct.col.print.Ctx
 import vct.rewrite.cfg.{CFGEntry, CFGGenerator}
 
 import java.nio.file.Path
-import scala.collection.immutable.HashMap
 import scala.collection.mutable
 
 class RASIGenerator[G] extends LazyLogging {
@@ -25,6 +24,7 @@ class RASIGenerator[G] extends LazyLogging {
       split_on: Option[Set[FieldVariable[G]]],
       parameter_invariant: Option[InstancePredicate[G]],
       program: Node[G],
+      main_class: Class[G],
       seqs: Set[InstanceField[G]],
   ): Seq[(String, Expr[G])] =
     generate_rasi(
@@ -33,6 +33,7 @@ class RASIGenerator[G] extends LazyLogging {
       split_on,
       parameter_invariant,
       program,
+      main_class,
     )
 
   def test(
@@ -63,6 +64,7 @@ class RASIGenerator[G] extends LazyLogging {
       split_on: Option[Set[FieldVariable[G]]],
       parameter_invariant: Option[InstancePredicate[G]],
       program: Node[G],
+      main_class: Class[G],
   ): Seq[(String, Expr[G])] = {
     explore(node, vars, parameter_invariant)
     val distinct: Int = found_states.distinctBy(s => s.valuations).size
@@ -71,7 +73,7 @@ class RASIGenerator[G] extends LazyLogging {
     if (split_on.isEmpty)
       return Seq((
         "reachable_abstract_states_invariant",
-        get_rasi_expression(_ => true, None, program),
+        get_rasi_expression(_ => true, None, program, main_class),
       ))
 
     val all_processes: Set[AbstractProcess[G]] = found_states.toSet
@@ -79,7 +81,7 @@ class RASIGenerator[G] extends LazyLogging {
 
     var res: Seq[(String, Expr[G])] = Seq((
       "interleaving_states",
-      get_rasi_expression(s => s.lock.isEmpty, None, program),
+      get_rasi_expression(s => s.lock.isEmpty, None, program, main_class),
     ))
 
     get_var_value_pairs(split_on.get).foreach(t =>
@@ -91,6 +93,7 @@ class RASIGenerator[G] extends LazyLogging {
               s => s.valuations(t._1) == t._2,
               Some(get_associated_process(t._1, all_processes)),
               program,
+              main_class,
             ),
           )
     )
@@ -114,6 +117,7 @@ class RASIGenerator[G] extends LazyLogging {
       f: AbstractState[G] => Boolean,
       proc: Option[AbstractProcess[G]],
       program: Node[G],
+      main_class: Class[G],
   ): Expr[G] = {
     val rasi_states = found_states.filter(f)
       .filter(s => proc.isEmpty || s.lock.isEmpty || s.lock.get == proc.get)
@@ -124,6 +128,7 @@ class RASIGenerator[G] extends LazyLogging {
 
     val objs: Map[FieldVariable[G], Expr[G]] = find_fitting_objects(
       program,
+      main_class,
       rasi_states.map(s => s.valuations.keySet).reduce((s1, s2) => s1 ++ s2),
     )
 
@@ -293,7 +298,7 @@ class RASIGenerator[G] extends LazyLogging {
 
     val initial_state = AbstractState(
       get_initial_values(vars),
-      HashMap((AbstractProcess[G](Null()(Utils.origen)), node)),
+      Map.from(Seq((AbstractProcess[G](Null()(Utils.origen)), node))),
       Map.empty[LocalVariable[G], UncertainSingleValue],
       Map.empty[Variable[G], Set[FieldVariable[G]]],
       None,
@@ -352,14 +357,12 @@ class RASIGenerator[G] extends LazyLogging {
 
   private def find_fitting_objects(
       program: Node[G],
+      main_class: Class[G],
       vars: Set[FieldVariable[G]],
   ): Map[FieldVariable[G], Expr[G]] = {
     var m: Map[FieldVariable[G], Expr[G]] = Map.empty[FieldVariable[G], Expr[G]]
 
     val classes: Seq[Class[G]] = program.collect { case c: Class[G] => c }
-    // TODO: Find differently, e.g. with lock invariant?
-    val main_class: Class[G] =
-      classes.find(c => c.o.getPreferredName.get.camel.startsWith("main")).get
 
     for (v <- vars) { m += (v -> find_field_object(classes, main_class, v.f)) }
 

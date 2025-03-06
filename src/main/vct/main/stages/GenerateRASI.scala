@@ -53,13 +53,18 @@ case class GenerateRASI(
     val in: Node[Generation] = in1.asInstanceOf[Node[Generation]]
     val main_method: Procedure[Generation] =
       in.collectFirst { case m: Procedure[_] if m.vesuv_entry => m }.get
+    val main_cls: ByReferenceClass[Generation] = get_cls_from_type(
+      main_method.collectFirst { case v: Variable[Generation] => v.t }.get
+    )
+
     val (variables, tracked_sequences)
         : (Set[FieldVariable[Generation]], Set[InstanceField[Generation]]) =
-      resolve_variables(main_method, vars.getOrElse(Seq()))
+      resolve_variables(main_cls, vars.getOrElse(Seq()))
     val split_on_variables: Option[Set[FieldVariable[Generation]]] = split
-      .map(s => resolve_variables(main_method, s)._1)
+      .map(s => resolve_variables(main_cls, s)._1)
     val parameter_invariant: Option[InstancePredicate[Generation]] =
       get_parameter_invariant(in)
+
     if (test) {
       new RASIGenerator().test(
         main_method,
@@ -75,8 +80,10 @@ case class GenerateRASI(
         split_on_variables,
         parameter_invariant,
         in,
+        main_cls,
         tracked_sequences,
       )
+
       val predicates: Seq[Predicate[Generation]] = rasis
         .map(t => rasi_predicate(t._1, t._2))
       implicit val o: Origin = Origin(Seq(LabelContext("rasi-generation")))
@@ -128,17 +135,13 @@ case class GenerateRASI(
   }
 
   private def resolve_variables(
-      main_method: Procedure[Generation],
+      main_cls: ByReferenceClass[Generation],
       names: Seq[String],
   ): (Set[FieldVariable[Generation]], Set[InstanceField[Generation]]) = {
     var concrete_variables: Set[FieldVariable[Generation]] = Set
       .empty[FieldVariable[Generation]]
     var tracked_sequences: Set[InstanceField[Generation]] = Set
       .empty[InstanceField[Generation]]
-
-    val main_cls: ByReferenceClass[Generation] = get_cls_from_type(
-      main_method.collectFirst { case v: Variable[Generation] => v.t }.get
-    )
 
     for (name <- names) {
       // Handle size variables as special cases

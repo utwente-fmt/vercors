@@ -5,11 +5,9 @@ import vct.col.origin.SourceName
 import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.cfg.CFGEntry
 
-import scala.collection.immutable.HashMap
-
 case class AbstractState[G](
     valuations: Map[FieldVariable[G], UncertainSingleValue],
-    processes: HashMap[AbstractProcess[G], CFGEntry[G]],
+    processes: Map[AbstractProcess[G], CFGEntry[G]],
     local: Map[LocalVariable[G], UncertainSingleValue],
     local_dependencies: Map[Variable[G], Set[FieldVariable[G]]],
     lock: Option[AbstractProcess[G]],
