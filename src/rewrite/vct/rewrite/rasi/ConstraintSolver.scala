@@ -200,13 +200,8 @@ class ConstraintSolver[G](
       (neg_left && resolve_left.can_be_true) ||
       ((!neg_left) && resolve_left.can_be_false)
     ) {
-      val path_condition: ConstraintMap[G] = resolve_path_condition(
-        if (neg_left)
-          left
-        else
-          Not(left)(left.o),
-        vars,
-      )
+      val path_condition: ConstraintMap[G] = ConstraintMap.empty[G]
+      // TODO: resolve_path_condition(if (neg_left) left else Not(left)(left.o), vars)
       res = res + path_condition
     }
     res

@@ -698,26 +698,32 @@ case class AbstractState[G](
           .map(v => v.asInstanceOf[UncertainIntegerValue])
           .getOrElse(UncertainIntegerValue.uncertain())
       case AmbiguousSubscript(collection, index) =>
-        try_to_resolve_known_value(expr, is_contract, is_old)
-          .map(v => v.asInstanceOf[UncertainIntegerValue]).getOrElse(
-            resolve_collection_expression(collection)
-              .get_uncertain(resolve_integer_expression(index))
-              .asInstanceOf[UncertainIntegerValue]
-          )
+        resolve_known_collection_entry(
+          expr,
+          collection,
+          index,
+          UncertainIntegerValue.uncertain(),
+          is_contract,
+          is_old,
+        )
       case SeqSubscript(seq, index) =>
-        try_to_resolve_known_value(expr, is_contract, is_old)
-          .map(v => v.asInstanceOf[UncertainIntegerValue]).getOrElse(
-            resolve_collection_expression(seq)
-              .get_uncertain(resolve_integer_expression(index))
-              .asInstanceOf[UncertainIntegerValue]
-          )
+        resolve_known_collection_entry(
+          expr,
+          seq,
+          index,
+          UncertainIntegerValue.uncertain(),
+          is_contract,
+          is_old,
+        )
       case ArraySubscript(arr, index) =>
-        try_to_resolve_known_value(expr, is_contract, is_old)
-          .map(v => v.asInstanceOf[UncertainIntegerValue]).getOrElse(
-            resolve_collection_expression(arr)
-              .get_uncertain(resolve_integer_expression(index))
-              .asInstanceOf[UncertainIntegerValue]
-          )
+        resolve_known_collection_entry(
+          expr,
+          arr,
+          index,
+          UncertainIntegerValue.uncertain(),
+          is_contract,
+          is_old,
+        )
       case Length(arr) =>
         variable_from_expr(expr) match {
           case Some(v) =>
@@ -867,26 +873,32 @@ case class AbstractState[G](
           .map(v => v.asInstanceOf[UncertainBooleanValue])
           .getOrElse(UncertainBooleanValue.uncertain())
       case AmbiguousSubscript(collection, index) =>
-        try_to_resolve_known_value(expr, is_contract, is_old)
-          .map(v => v.asInstanceOf[UncertainBooleanValue]).getOrElse(
-            resolve_collection_expression(collection)
-              .get_uncertain(resolve_integer_expression(index))
-              .asInstanceOf[UncertainBooleanValue]
-          )
+        resolve_known_collection_entry(
+          expr,
+          collection,
+          index,
+          UncertainBooleanValue.uncertain(),
+          is_contract,
+          is_old,
+        )
       case SeqSubscript(seq, index) =>
-        try_to_resolve_known_value(expr, is_contract, is_old)
-          .map(v => v.asInstanceOf[UncertainBooleanValue]).getOrElse(
-            resolve_collection_expression(seq)
-              .get_uncertain(resolve_integer_expression(index))
-              .asInstanceOf[UncertainBooleanValue]
-          )
+        resolve_known_collection_entry(
+          expr,
+          seq,
+          index,
+          UncertainBooleanValue.uncertain(),
+          is_contract,
+          is_old,
+        )
       case ArraySubscript(arr, index) =>
-        try_to_resolve_known_value(expr, is_contract, is_old)
-          .map(v => v.asInstanceOf[UncertainBooleanValue]).getOrElse(
-            resolve_collection_expression(arr)
-              .get_uncertain(resolve_integer_expression(index))
-              .asInstanceOf[UncertainBooleanValue]
-          )
+        resolve_known_collection_entry(
+          expr,
+          arr,
+          index,
+          UncertainBooleanValue.uncertain(),
+          is_contract,
+          is_old,
+        )
       case ProcedureInvocation(ref, args, _, _, _, _) =>
         get_subroutine_return(
           ref.decl.contract.ensures,
@@ -1228,6 +1240,23 @@ case class AbstractState[G](
       // TODO: The justification for this is that the program will be verified anyway,
       //  so object equality does not need to be considered; does that make sense?
     }
+
+  private def resolve_known_collection_entry[V <: UncertainSingleValue](
+      entry_expr: Expr[G],
+      coll: Expr[G],
+      index: Expr[G],
+      uncertain: V,
+      is_contract: Boolean,
+      is_old: Boolean,
+  ): V =
+    try_to_resolve_known_value(entry_expr, is_contract, is_old)
+      .map(v => v.asInstanceOf[V]).getOrElse(
+        if (is_contract && !is_old)
+          uncertain
+        else
+          resolve_collection_expression(coll)
+            .get_uncertain(resolve_integer_expression(index)).asInstanceOf[V]
+      )
 
   private def try_to_resolve_known_value(
       expr: Expr[G],
@@ -1584,7 +1613,7 @@ case class AbstractState[G](
       val without_quantifiers: Seq[Expr[G]] = conds
         .filter(e => e.collect { case b: Binder[G] => b }.isEmpty)
       val path_condition: Option[Expr[G]] = conds.collectFirst {
-        case Implies(pc, b) if b == binder => pc
+        case Implies(pc, b) if Utils.split_conjunction(b).contains(binder) => pc
       }
       val all_conditions: Expr[G] = Utils
         .fold_and(without_quantifiers :+ path_condition.getOrElse(tt))
@@ -1596,9 +1625,14 @@ case class AbstractState[G](
             throw new IllegalStateException("Could not resolve index")
           ),
       )
-      new ConstraintSolver(this, Set(variable), false, false)
-        .resolve_assumption(all_conditions).filter(m => !m.is_impossible)
-        .reduce((m1, m2) => m1 || m2).resolve.getOrElse(
+      val constraints: Set[ConstraintMap[G]] =
+        new ConstraintSolver(this, Set(variable), false, false)
+          .resolve_assumption(all_conditions).filter(m => !m.is_impossible)
+
+      if (constraints.isEmpty)
+        UncertainIntegerValue.empty()
+      else
+        constraints.reduce((m1, m2) => m1 || m2).resolve.getOrElse(
           variable,
           throw new IllegalStateException(
             "Could not resolve quantifier bounds for " + e.toInlineString +
