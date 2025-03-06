@@ -129,6 +129,8 @@ case object Main extends LazyLogging {
         CFG.runOptions(options)
       case Mode.Compile => Compile.runOptions(options)
       case Mode.Patcher => Patcher.runOptions(options)
-      case Mode.ColPrinter => ColPrinter.runOptions(options)
+      case Mode.ColPrinter =>
+        ColPrinter.runOptions(options)
+        EXIT_CODE_SUCCESS
     }
 }
