@@ -53,40 +53,45 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
       )
     globalDeclarations.declare(adt)
 
-    if (chor.endpoints.isEmpty) { return tt; }
+    def appf(args: Expr[Post]*): Expr[Post] =
+      ADTFunctionInvocation[Post](None, f.ref, args)
 
-    // TODO (RR): Still needs identity case!! i.e. f_inv(f(ns[i])) == ns[i]
+    def appinv(args: Expr[Post]*): Expr[Post] =
+      ADTFunctionInvocation[Post](None, inv.ref, args)
+
+    // TODO (RR): Is the constriant involving appinv even necessary?
+    //            Distinctiveness already follows from mapping to integers, right
+    // TODO (RR): Probably will want to put the constraints below into a function. It makes the generated code
+    //            hard to read.
 
     val (_, constraints): (Expr[Post], Expr[Post]) =
       chor.endpoints.foldLeft[(Expr[Post], Expr[Post])]((const(0), tt)) {
         case ((baseInt, constraints), endpoint) if endpoint.isSingle =>
           val newBaseInt: Expr[Post] = baseInt + const(1)
+          val newEp = CtExpr(CommTargetEndpoint[Post](succ(endpoint)))
           val newConstraints: Expr[Post] =
-            constraints && ADTFunctionInvocation[Post](
-              None,
-              f.ref,
-              Seq(CtExpr(CommTargetEndpoint[Post](succ(endpoint)))),
-            ) === baseInt
+            constraints |&&| (appf(newEp) === baseInt) |&&|
+              appinv(appf(newEp)) === newEp
+
           (newBaseInt, newConstraints)
         case ((baseInt, constraints), endpoint) if endpoint.isFamily =>
           val fam = EndpointFamilyExpr[Post](succ(endpoint))
           val newBaseInt: Expr[Post] = baseInt + Size(fam)
           val newConstraints: Expr[Post] =
-            constraints && forrange[Post](
+            constraints |&&| forrange[Post](
               Size(fam),
-              (i: Local[Post]) =>
-                ADTFunctionInvocation[Post](
-                  None,
-                  f.ref,
-                  Seq(SeqSubscript(fam, i)(PanicBlame(
+              (i: Local[Post]) => {
+                val fam_i =
+                  SeqSubscript(fam, i)(PanicBlame(
                     "Should not go out of bounds"
-                  ))),
-                ) === baseInt + i,
+                  ))
+                (appf(fam_i) === baseInt + i) |&&| appinv(appf(fam_i)) === fam_i
+              },
             )
           (newBaseInt, newConstraints)
       }
 
-    constraints && foldAnd(bounds(chor))
+    constraints |&&| foldAnd(bounds(chor))
   }
 
   def bounds(chor: Choreography[Pre]): Seq[Expr[Post]] =
