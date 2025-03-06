@@ -511,9 +511,9 @@ case class BinarySemaphore[O <: Generation](
 
     // ensures \old(task) >= 0 ==> (   task == \old(task)
     //                              && originalPriority == \old(originalPriority)
-    //                              && (    (isMutex && \old(s.taskPriority[taskID]) > \old(s.taskPriority[task]))
+    //                              && (    (\old(isMutex) && \old(s.taskPriority[taskID]) > \old(s.taskPriority[task]))
     //                                  ==> s.taskPriority == \old(s.taskPriority.update(task, s.taskPriority[taskID])))
-    //                              && (    (!isMutex || \old(s.taskPriority[taskID]) <= \old(s.taskPriority[task]))
+    //                              && (    (!\old(isMutex) || \old(s.taskPriority[taskID]) <= \old(s.taskPriority[task]))
     //                                  ==> s.taskPriority == \old(s.taskPriority)));
     val ensures3: Expr[N] =
       Implies(
@@ -530,7 +530,7 @@ case class BinarySemaphore[O <: Generation](
           )(Utils.origen),
           Implies(
             And(
-              Utils.deref_of(isMutex),
+              Utils.old(Utils.deref_of(isMutex)),
               Greater(
                 Utils.old(
                   SeqSubscript(
@@ -562,7 +562,7 @@ case class BinarySemaphore[O <: Generation](
           )(Utils.origen),
           Implies(
             Or(
-              Not(Utils.deref_of(isMutex))(Utils.origen),
+              Not(Utils.old(Utils.deref_of(isMutex)))(Utils.origen),
               LessEq(
                 Utils.old(
                   SeqSubscript(
@@ -875,13 +875,13 @@ case class RecursiveMutex[O <: Generation](decl: Option[CLocal[O]])
         ),
       )(Utils.origen)
 
-    // ensures \old(task) == taskID ==>    (    recursionDepth == 1
+    // ensures \old(task) == taskID ==>    (    \old(recursionDepth) == 1
     //                                      ==> (   task == -1
     //                                           && originalPriority == -1
     //                                           && recursionDepth == 0
     //                                           && main.eventState == \old(main.eventState.update(???, 0))
     //                                           && main.taskPriority == \old(main.taskPriority.update(task, originalPriority))))
-    //                                  && (    recursionDepth != 1
+    //                                  && (    \old(recursionDepth) != 1
     //                                      ==> (   task == \old(task)
     //                                           && originalPriority == \old(originalPriority)
     //                                           && recursionDepth == \old(recursionDepth) - 1
@@ -894,7 +894,9 @@ case class RecursiveMutex[O <: Generation](decl: Option[CLocal[O]])
         ),
         And(
           Implies(
-            Eq(Utils.deref_of(recursionDepth), Utils.int_val(1))(Utils.origen),
+            Eq(Utils.old(Utils.deref_of(recursionDepth)), Utils.int_val(1))(
+              Utils.origen
+            ),
             Utils.fold_and(Seq[Expr[N]](
               Eq(Utils.deref_of(task), Utils.int_val(-1))(Utils.origen),
               Eq(Utils.deref_of(originalPriority), Utils.int_val(-1))(
@@ -926,7 +928,9 @@ case class RecursiveMutex[O <: Generation](decl: Option[CLocal[O]])
             )),
           )(Utils.origen),
           Implies(
-            Neq(Utils.deref_of(recursionDepth), Utils.int_val(1))(Utils.origen),
+            Neq(Utils.old(Utils.deref_of(recursionDepth)), Utils.int_val(1))(
+              Utils.origen
+            ),
             Utils.fold_and(Seq[Expr[N]](
               Eq(Utils.deref_of(task), Utils.old(Utils.deref_of(task)))(
                 Utils.origen

@@ -353,10 +353,10 @@ case class Queue[O <: Generation](decl: Option[CLocal[O]], capacity: Int)
         Utils.predicate_apply(Utils.deref_of(s), event_perms_ref, Seq()),
       )(Utils.origen)
 
-    // ensures \old(|vals|) < maxSize ==> (\result && vals == \old(vals) + seq<int> {value});
+    // ensures \old(|vals|) < \old(maxSize) ==> (\result && vals == \old(vals) + seq<int> {value});
     val ensures1: Expr[N] =
       Implies(
-        Less(Utils.old(Utils.size(vals)), Utils.deref_of(maxSize))(
+        Less(Utils.old(Utils.size(vals)), Utils.old(Utils.deref_of(maxSize)))(
           Utils.origen
         ),
         And(
@@ -371,12 +371,13 @@ case class Queue[O <: Generation](decl: Option[CLocal[O]], capacity: Int)
         )(Utils.origen),
       )(Utils.origen)
 
-    // ensures \old(|vals|) >= maxSize ==> (!\result && vals == \old(vals));
+    // ensures \old(|vals|) >= \old(maxSize) ==> (!\result && vals == \old(vals));
     val ensures2: Expr[N] =
       Implies(
-        GreaterEq(Utils.old(Utils.size(vals)), Utils.deref_of(maxSize))(
-          Utils.origen
-        ),
+        GreaterEq(
+          Utils.old(Utils.size(vals)),
+          Utils.old(Utils.deref_of(maxSize)),
+        )(Utils.origen),
         And(
           Not(Utils.result)(Utils.origen),
           Eq(Utils.deref_of(vals), Utils.old(Utils.deref_of(vals)))(
@@ -445,10 +446,10 @@ case class Queue[O <: Generation](decl: Option[CLocal[O]], capacity: Int)
         Utils.predicate_apply(Utils.deref_of(s), event_perms_ref, Seq()),
       )(Utils.origen)
 
-    // ensures \old(|vals|) < maxSize ==> (\result && vals == seq<int> {value} + \old(vals));
+    // ensures \old(|vals|) < \old(maxSize) ==> (\result && vals == seq<int> {value} + \old(vals));
     val ensures1: Expr[N] =
       Implies(
-        Less(Utils.old(Utils.size(vals)), Utils.deref_of(maxSize))(
+        Less(Utils.old(Utils.size(vals)), Utils.old(Utils.deref_of(maxSize)))(
           Utils.origen
         ),
         And(
@@ -463,12 +464,13 @@ case class Queue[O <: Generation](decl: Option[CLocal[O]], capacity: Int)
         )(Utils.origen),
       )(Utils.origen)
 
-    // ensures \old(|vals|) >= maxSize ==> (!\result && vals == \old(vals));
+    // ensures \old(|vals|) >= \old(maxSize) ==> (!\result && vals == \old(vals));
     val ensures2: Expr[N] =
       Implies(
-        GreaterEq(Utils.old(Utils.size(vals)), Utils.deref_of(maxSize))(
-          Utils.origen
-        ),
+        GreaterEq(
+          Utils.old(Utils.size(vals)),
+          Utils.old(Utils.deref_of(maxSize)),
+        )(Utils.origen),
         And(
           Not(Utils.result)(Utils.origen),
           Eq(Utils.deref_of(vals), Utils.old(Utils.deref_of(vals)))(
@@ -679,10 +681,12 @@ case class Queue[O <: Generation](decl: Option[CLocal[O]], capacity: Int)
         )),
       )(Utils.origen)
 
-    // ensures \old(|vals|) == maxSize ==> s.eventState == \old(s.eventState.update(???, 0));
+    // ensures \old(|vals|) == \old(maxSize) ==> s.eventState == \old(s.eventState.update(???, 0));
     val ensures3: Expr[N] =
       Implies(
-        Eq(Utils.old(Utils.size(vals)), Utils.deref_of(maxSize))(Utils.origen),
+        Eq(Utils.old(Utils.size(vals)), Utils.old(Utils.deref_of(maxSize)))(
+          Utils.origen
+        ),
         Eq(
           Utils.deref_ref(event_ref, Utils.deref_of(s)),
           Utils.old(
@@ -695,10 +699,12 @@ case class Queue[O <: Generation](decl: Option[CLocal[O]], capacity: Int)
         )(Utils.origen),
       )(Utils.origen)
 
-    // ensures \old(|vals|) != maxSize ==> s.eventState == \old(s.eventState);
+    // ensures \old(|vals|) != \old(maxSize) ==> s.eventState == \old(s.eventState);
     val ensures4: Expr[N] =
       Implies(
-        Neq(Utils.old(Utils.size(vals)), Utils.deref_of(maxSize))(Utils.origen),
+        Neq(Utils.old(Utils.size(vals)), Utils.old(Utils.deref_of(maxSize)))(
+          Utils.origen
+        ),
         Eq(
           Utils.deref_ref(event_ref, Utils.deref_of(s)),
           Utils.old(Utils.deref_ref(event_ref, Utils.deref_of(s))),

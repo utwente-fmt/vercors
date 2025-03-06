@@ -520,8 +520,8 @@ case class StreamBuffer[O <: Generation](
         Utils.predicate_apply(Utils.deref_of(s), event_perms_ref, Seq()),
       )(Utils.origen)
 
-    // ensures \old(|buffer|) + |data| <= maxSize ==> (   \result == |data|
-    //                                                 && buffer == \old(buffer) + data);
+    // ensures \old(|buffer|) + |data| <= \old(maxSize) ==> (   \result == |data|
+    //                                                       && buffer == \old(buffer) + data);
     val ensures1: Expr[N] =
       Implies(
         LessEq(
@@ -529,7 +529,7 @@ case class StreamBuffer[O <: Generation](
             Utils.old(Utils.size(buffer)),
             Size(Utils.local_of(data))(Utils.origen),
           )(Utils.origen),
-          Utils.deref_of(maxSize),
+          Utils.old(Utils.deref_of(maxSize)),
         )(Utils.origen),
         And(
           Eq(Utils.result, Size(Utils.local_of(data))(Utils.origen))(
@@ -544,8 +544,8 @@ case class StreamBuffer[O <: Generation](
         )(Utils.origen),
       )(Utils.origen)
 
-    // ensures \old(|buffer|) + |data| > maxSize ==> (   \result == maxSize - |buffer|
-    //                                                && buffer == \old(buffer) + data[0 .. maxSize - \old(|buffer|)]);
+    // ensures \old(|buffer|) + |data| > \old(maxSize) ==> (   \result == maxSize - |buffer|
+    //                                                      && buffer == \old(buffer) + data[0 .. maxSize - \old(|buffer|)]);
     val ensures2: Expr[N] =
       Implies(
         Greater(
@@ -553,7 +553,7 @@ case class StreamBuffer[O <: Generation](
             Utils.old(Utils.size(buffer)),
             Size(Utils.local_of(data))(Utils.origen),
           )(Utils.origen),
-          Utils.deref_of(maxSize),
+          Utils.old(Utils.deref_of(maxSize)),
         )(Utils.origen),
         And(
           Eq(
@@ -579,10 +579,10 @@ case class StreamBuffer[O <: Generation](
         )(Utils.origen),
       )(Utils.origen)
 
-    // ensures |buffer| >= triggerLevel ==> s.eventState == \old(s.eventState.update(???, 0));
+    // ensures |buffer| >= \old(triggerLevel) ==> s.eventState == \old(s.eventState.update(???, 0));
     val ensures3: Expr[N] =
       Implies(
-        GreaterEq(Utils.size(buffer), Utils.deref_of(triggerLevel))(
+        GreaterEq(Utils.size(buffer), Utils.old(Utils.deref_of(triggerLevel)))(
           Utils.origen
         ),
         Eq(
@@ -597,10 +597,12 @@ case class StreamBuffer[O <: Generation](
         )(Utils.origen),
       )(Utils.origen)
 
-    // ensures |buffer| < triggerLevel ==> s.eventState == \old(s.eventState);
+    // ensures |buffer| < \old(triggerLevel) ==> s.eventState == \old(s.eventState);
     val ensures4: Expr[N] =
       Implies(
-        Less(Utils.size(buffer), Utils.deref_of(triggerLevel))(Utils.origen),
+        Less(Utils.size(buffer), Utils.old(Utils.deref_of(triggerLevel)))(
+          Utils.origen
+        ),
         Eq(
           Utils.deref_ref(event_ref, Utils.deref_of(s)),
           Utils.old(Utils.deref_ref(event_ref, Utils.deref_of(s))),

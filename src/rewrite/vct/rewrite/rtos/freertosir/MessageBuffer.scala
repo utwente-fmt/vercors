@@ -579,7 +579,7 @@ case class MessageBuffer[O <: Generation](decl: Option[CLocal[O]], size: Int)
         Utils.predicate_apply(Utils.deref_of(s), event_perms_ref, Seq()),
       )(Utils.origen)
 
-    // ensures     \old(|buffer|) + 4 * \old(|messageSizes|) + 4 + |data| > maxSize
+    // ensures     \old(|buffer|) + 4 * \old(|messageSizes|) + 4 + |data| > \old(maxSize)
     //         ==> (   \result == 0
     //              && messageSizes == \old(messageSizes)
     //              && buffer == \old(buffer)
@@ -600,7 +600,7 @@ case class MessageBuffer[O <: Generation](decl: Option[CLocal[O]], size: Int)
               )(Utils.origen),
             )(Utils.origen),
           )(Utils.origen),
-          Utils.deref_of(maxSize),
+          Utils.old(Utils.deref_of(maxSize)),
         )(Utils.origen),
         Utils.fold_and(Seq[Expr[N]](
           Eq(Utils.result, Utils.int_val(0))(Utils.origen),
@@ -618,7 +618,7 @@ case class MessageBuffer[O <: Generation](decl: Option[CLocal[O]], size: Int)
         )),
       )(Utils.origen)
 
-    // ensures     \old(|buffer|) + 4 * \old(|messageSizes|) + 4 + |data| <= maxSize
+    // ensures     \old(|buffer|) + 4 * \old(|messageSizes|) + 4 + |data| <= \old(maxSize)
     //         ==> (   \result == |data|
     //              && messageSizes == \old(messageSizes) + seq<int> {|data|}
     //              && buffer == \old(buffer) + data
@@ -639,7 +639,7 @@ case class MessageBuffer[O <: Generation](decl: Option[CLocal[O]], size: Int)
               )(Utils.origen),
             )(Utils.origen),
           )(Utils.origen),
-          Utils.deref_of(maxSize),
+          Utils.old(Utils.deref_of(maxSize)),
         )(Utils.origen),
         Utils.fold_and(Seq(
           Eq(Utils.result, Size(Utils.local_of(data))(Utils.origen))(
