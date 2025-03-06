@@ -19,6 +19,7 @@ import vct.rewrite.lang.NoSupportSelfLoop
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.{
+  CheckAfterPassError,
   PassError,
   PassEventHandler,
   TransformationCheckError,
@@ -214,6 +215,13 @@ object Transformation extends LazyLogging {
     override def text: String =
       s"An error occurred in pass $passName (see below): ${error.getMessage}"
   }
+
+  case class CheckAfterPassError(passName: String, error: Throwable)
+      extends SystemError {
+    initCause(error)
+    override def text: String =
+      s"An error occurred during the well-formedness check after pass $passName (see below): ${error.getMessage}"
+  }
 }
 
 /** Executes a sequence of rewriters. Currently the only concrete implementation
@@ -280,12 +288,17 @@ class Transformation(
           action(passes, Transformation.after, passIndex, result)
         }
 
-        if (!optimizeUnsafe)
-          result.tasks.map(_.program)
-            .flatMap(program => program.check.map(program -> _)) match {
-            case Nil => // ok
-            case errors => throw TransformationCheckError(pass, errors)
+        if (!optimizeUnsafe) {
+          try {
+            result.tasks.map(_.program)
+              .flatMap(program => program.check.map(program -> _)) match {
+              case Nil => // ok
+              case errors => throw TransformationCheckError(pass, errors)
+            }
+          } catch {
+            case t: Throwable => throw CheckAfterPassError(pass.key, t)
           }
+        }
 
         result = PrettifyBlocks().dispatch(result)
       }

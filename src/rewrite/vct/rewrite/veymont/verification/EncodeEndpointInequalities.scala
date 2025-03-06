@@ -2,6 +2,7 @@ package vct.rewrite.veymont.verification
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
+import vct.col.origin.PanicBlame
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.AstMatchHelpers.EndpointName
@@ -32,34 +33,60 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
     extends Rewriter[Pre] with LazyLogging with VeymontContext[Pre] {
 
   val inequalityMap = mutable.LinkedHashMap[Choreography[Pre], Expr[Post]]()
-  def currentInequality: Expr[Post] =
-    inequalityMap.getOrElseUpdate(
-      currentChoreography.top,
-      makeInequalities(currentChoreography.top),
-    )
+  def getInequality(chor: Choreography[Pre]): Expr[Post] =
+    inequalityMap
+      .getOrElseUpdate(chor, makeInequalities(currentChoreography.top))
+
   def makeInequalities(chor: Choreography[Pre]): Expr[Post] = {
-    // TODO (RR): Include inequalities within families here
-    // Computation of the inequality expression is done lazily such that when it is computed within a choreography,
-    // the endpoints are in scope and their successors will be available to `succ`.
-    def makeInequalitySets(
-        endpoints: Seq[Endpoint[Pre]]
-    ): Seq[(Endpoint[Pre], Seq[Endpoint[Pre]])] =
-      endpoints match {
-        case xs if xs.length <= 1 => Seq()
-        case endpoint +: targets =>
-          (endpoint, targets) +: makeInequalitySets(targets)
-      }
     implicit val o = chor.o
-    val singleEndpoints = chor.endpoints.filter(_.isSingle)
-    foldStar(
-      makeInequalitySets(singleEndpoints).flatMap { case (endpoint, others) =>
-        others.map { other =>
-          EndpointName[Post](succ(endpoint)) !== EndpointName[Post](succ(other))
-        }
-      } ++ singleEndpoints.map { endpoint =>
-        EndpointName[Post](succ(endpoint)) !== Null()
-      } ++ bounds(chor)
-    )
+    val f =
+      new ADTFunction[Post](Seq(new Variable(TAnyValue())), TInt())(
+        o.where(name = "f")
+      )
+    val inv =
+      new ADTFunction[Post](Seq(new Variable(TInt())), TAnyValue())(
+        o.where(name = "f_inv")
+      )
+    val adt =
+      new AxiomaticDataType[Post](Seq(f, inv), Seq())(
+        o.where(name = o.getPreferredNameOrElse().camel.take(2) + "_B")
+      )
+    globalDeclarations.declare(adt)
+
+    if (chor.endpoints.isEmpty) { return tt; }
+
+    // TODO (RR): Still needs identity case!! i.e. f_inv(f(ns[i])) == ns[i]
+
+    val (_, constraints): (Expr[Post], Expr[Post]) =
+      chor.endpoints.foldLeft[(Expr[Post], Expr[Post])]((const(0), tt)) {
+        case ((baseInt, constraints), endpoint) if endpoint.isSingle =>
+          val newBaseInt: Expr[Post] = baseInt + const(1)
+          val newConstraints: Expr[Post] =
+            constraints && ADTFunctionInvocation[Post](
+              None,
+              f.ref,
+              Seq(CtExpr(CommTargetEndpoint[Post](succ(endpoint)))),
+            ) === baseInt
+          (newBaseInt, newConstraints)
+        case ((baseInt, constraints), endpoint) if endpoint.isFamily =>
+          val fam = EndpointFamilyExpr[Post](succ(endpoint))
+          val newBaseInt: Expr[Post] = baseInt + Size(fam)
+          val newConstraints: Expr[Post] =
+            constraints && forrange[Post](
+              Size(fam),
+              (i: Local[Post]) =>
+                ADTFunctionInvocation[Post](
+                  None,
+                  f.ref,
+                  Seq(SeqSubscript(fam, i)(PanicBlame(
+                    "Should not go out of bounds"
+                  ))),
+                ) === baseInt + i,
+            )
+          (newBaseInt, newConstraints)
+      }
+
+    constraints && foldAnd(bounds(chor))
   }
 
   def bounds(chor: Choreography[Pre]): Seq[Expr[Post]] =
@@ -85,17 +112,7 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
               val preRun = chor.preRun.map(dispatch)
                 .getOrElse(Block(Seq())(chor.o))
               implicit val o = chor.o
-              val endpointPairs =
-                if (chor.endpoints.nonEmpty)
-                  chor.endpoints.zip(chor.endpoints.tail)
-                else
-                  Seq()
-              Some(Block(Seq(
-                preRun,
-                Assume[Post](foldAnd(endpointPairs.map { case (alice, bob) =>
-                  Neq[Post](EndpointName(succ(alice)), EndpointName(succ(bob)))
-                })),
-              )))
+              Some(Block(Seq(preRun, Assume[Post](getInequality(chor)))))
             },
           ).succeed(chor)
         }
@@ -106,15 +123,15 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
       contract: ApplicableContract[Pre]
   ): ApplicableContract[Post] =
     contract match {
-      case InChor(_, contract) =>
+      case InChor(chor, contract) =>
         implicit val o = contract.o
         contract.rewrite(
           requires = SplitAccountedPredicate(
-            UnitAccountedPredicate(currentInequality),
+            UnitAccountedPredicate(getInequality(chor)),
             dispatch(contract.requires),
           ),
           ensures = SplitAccountedPredicate(
-            UnitAccountedPredicate(currentInequality),
+            UnitAccountedPredicate(getInequality(chor)),
             dispatch(contract.ensures),
           ),
         )
@@ -123,30 +140,32 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
 
   override def dispatch(contract: LoopContract[Pre]): LoopContract[Post] =
     contract match {
-      case InChor(_, inv: LoopInvariant[Pre]) =>
+      case InChor(chor, inv: LoopInvariant[Pre]) =>
         implicit val o = contract.o
-        inv.rewrite(currentInequality &* dispatch(inv.invariant))
-      case InChor(_, contract: IterationContract[Pre]) =>
+        inv.rewrite(getInequality(chor) &* dispatch(inv.invariant))
+      case InChor(chor, contract: IterationContract[Pre]) =>
         implicit val o = contract.o
         contract.rewrite(
-          requires = currentInequality &* dispatch(contract.requires),
-          ensures = currentInequality &* dispatch(contract.ensures),
+          requires = getInequality(chor) &* dispatch(contract.requires),
+          ensures = getInequality(chor) &* dispatch(contract.ensures),
         )
       case _ => super.dispatch(contract)
     }
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] =
     statement match {
-      case comm: CommunicateStatement[Pre] =>
+      case comm: CommunicateStatement[Pre]
+          if comm.inner.sender.get.isSingle &&
+            comm.inner.receiver.get.isSingle =>
+        // TODO (RR): I guess for endpoint families we should implement an overlapping check here
         implicit val o = comm.o
-        val sender = comm.inner.sender.get.asName.endpoint
-        val receiver = comm.inner.receiver.get.asName.endpoint
-        if (receiver.singleType == sender.singleType)
+        val sender = comm.inner.sender.get
+        val receiver = comm.inner.receiver.get
+        if (receiver.ref.decl.singleType == sender.ref.decl.singleType)
           Block(Seq(
-            Assert(
-              EndpointName[Post](succ(receiver)) !==
-                EndpointName[Post](succ(sender))
-            )(AssertFailedToParticipantsNotDistinct(comm.inner)),
+            Assert(CtExpr(dispatch(receiver)) !== CtExpr(dispatch(sender)))(
+              AssertFailedToParticipantsNotDistinct(comm.inner)
+            ),
             comm.rewriteDefault(),
           ))
         else

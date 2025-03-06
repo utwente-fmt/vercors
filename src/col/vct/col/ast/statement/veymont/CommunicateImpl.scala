@@ -31,27 +31,32 @@ trait CommunicateImpl[G]
   comm: Communicate[G] =>
   override def layout(implicit ctx: Ctx): Doc =
     Text("channel_invariant") <+> Nest(invariant.show) <> ";" <+/> Group(
-      Text("communicate") <+> receiver.map(_.show).getOrElse(Text("")) <>
-        destination.show <+> "<-" <+> sender.map(_.show).getOrElse(Text("")) <>
-        msg.show <> ";"
+      Text("communicate") <+> receiver.map(_.show <> " ").getOrElse(Text("")) <>
+        destination.show <+> "<-" <+> sender.map(_.show <> " ")
+          .getOrElse(Text("")) <> msg.show <> ";"
     )
 
   def layoutParticipant(endpoint: Option[Ref[G, Endpoint[G]]])(
       implicit ctx: Ctx
   ) = endpoint.map(ref => Text(ctx.name(ref)) <> ": ").getOrElse(Text(""))
 
-  override def check(context: CheckContext[G]): Seq[CheckError] =
-    this match {
-      case comm: Communicate[G]
-          if sender.isDefined && sender.get.isSingle &&
-            !context.currentParticipatingEndpoints.get.contains(sender.get) =>
-        Seq(SeqProgParticipant(sender.get))
-      case comm: Communicate[G]
-          if receiver.isDefined && receiver.get.isSingle &&
-            !context.currentParticipatingEndpoints.get.contains(receiver.get) =>
-        Seq(SeqProgParticipant(receiver.get))
-      case _ => Nil
-    }
+  override def check(context: CheckContext[G]): Seq[CheckError] = {
+    if (sender.get.isRange || receiver.get.isRange)
+      Seq()
+    else
+      this match {
+        case comm: Communicate[G]
+            if sender.isDefined &&
+              !context.currentParticipatingEndpoints.get.contains(sender.get) =>
+          Seq(SeqProgParticipant(sender.get))
+        case comm: Communicate[G]
+            if receiver.isDefined &&
+              !context.currentParticipatingEndpoints.get
+                .contains(receiver.get) =>
+          Seq(SeqProgParticipant(receiver.get))
+        case _ => Nil
+      }
+  }
 
   case class TooManyRangeBinders(ex1: Node[_], ex2: Node[_]) extends UserError {
     override def code: String = "tooManyRangeBinders"
