@@ -22,10 +22,10 @@ case class AbstractState[G](
     *   The set of possible successor states
     */
   def successors(): RASISuccessor[G] =
-    RASISuccessor(
+    RASISuccessor(Map.from(
       processes.keySet.filter(p => lock.isEmpty || lock.get.equals(p))
-        .map(p => p.atomic_step(this))
-    )
+        .map(p => p -> p.atomic_step(this).removed_states(Set(this)))
+    ))
 
   /** Returns a state with the same tracked variables, but with no knowledge of
     * their values.
