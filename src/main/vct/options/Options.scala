@@ -4,6 +4,7 @@ import hre.log.Verbosity
 import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
+import vct.main.modes.ColPrinter
 import vct.main.stages.Parsing.Language
 import vct.rewrite.veymont.verification.PermissionStratificationMode
 import vct.options.types._
@@ -430,6 +431,15 @@ case object Options {
         ),
       ),
       note(""),
+      note("COL printer mode"),
+      opt[Unit]("col-printer").action((_, c) => c.copy(mode = Mode.ColPrinter))
+        .text("Prints the COL representation of an input").children(
+          opt[Unit]("col-printer-pre")
+            .action((_, c) => c.copy(format = ColPrinter.Format.PreCol)),
+          opt[Unit]("col-printer-core")
+            .action((_, c) => c.copy(format = ColPrinter.Format.CoreCol)),
+        ),
+      note(""),
       note(""),
       arg[PathOrStd]("<path>...").unbounded().optional()
         .action((path, c) => c.copy(inputs = c.inputs :+ path))
@@ -550,6 +560,9 @@ case class Options(
     // Patch options
     patchFile: Path = null,
     patchOutput: Path = null,
+
+    // ColPrinter options
+    format: ColPrinter.Format = ColPrinter.Format.CoreCol,
 
     // Pallas options
     contractImportFile: Option[PathOrStd] = None,

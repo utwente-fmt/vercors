@@ -12,7 +12,15 @@ import org.slf4j.LoggerFactory
 import scopt.OParser
 import vct.col.ast.Node
 import vct.debug.CrashReport
-import vct.main.modes.{CFG, Compile, Patcher, VeSUV, Verify, VeyMont}
+import vct.main.modes.{
+  CFG,
+  ColPrinter,
+  Compile,
+  Patcher,
+  VeSUV,
+  Verify,
+  VeyMont,
+}
 import vct.main.stages.Transformation
 import vct.options.Options
 import vct.options.types.Mode
@@ -86,8 +94,6 @@ case object Main extends LazyLogging {
       return 0
     }
 
-    classOf[Options]
-
     Middleware.using(
       true -> InterruptibleStdin,
       true -> Logging.withLogLevels(options.logLevels),
@@ -123,5 +129,6 @@ case object Main extends LazyLogging {
         CFG.runOptions(options)
       case Mode.Compile => Compile.runOptions(options)
       case Mode.Patcher => Patcher.runOptions(options)
+      case Mode.ColPrinter => ColPrinter.runOptions(options)
     }
 }

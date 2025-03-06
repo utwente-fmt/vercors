@@ -43,11 +43,11 @@ trait CommunicateImpl[G]
   override def check(context: CheckContext[G]): Seq[CheckError] =
     this match {
       case comm: Communicate[G]
-          if sender.isDefined &&
+          if sender.isDefined && sender.get.isSingle &&
             !context.currentParticipatingEndpoints.get.contains(sender.get) =>
         Seq(SeqProgParticipant(sender.get))
       case comm: Communicate[G]
-          if receiver.isDefined &&
+          if receiver.isDefined && receiver.get.isSingle &&
             !context.currentParticipatingEndpoints.get.contains(receiver.get) =>
         Seq(SeqProgParticipant(receiver.get))
       case _ => Nil
