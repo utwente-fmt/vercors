@@ -683,18 +683,17 @@ case class EncodePermissionStratification[Pre <: Generation](
     }
 
   def rewriteAssign(
-      endpoint: Endpoint[Pre],
+      endpoint: CommunicateTarget[Pre],
       assign: Assign[Pre],
   ): Statement[Post] = {
     val Assign(deref @ Deref(obj, Ref(field)), _) = assign
     implicit val o = assign.o
     val apply = {
-      val newEndpoint: Ref[Post, Endpoint[Post]] = succ(endpoint)
       val ref = markerPredicate(obj.t.asClass.get, field)
       PredicateApply(
         ref,
         Seq(
-          EndpointName(newEndpoint),
+          CtExpr(dispatch(endpoint)),
           specializing.having(EndpointName[Post](succ(endpoint))) {
             dispatch(obj)
           },
