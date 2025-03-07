@@ -2,13 +2,20 @@ package vct.rewrite.rasi
 
 import hre.io.RWFile
 import vct.col.ast._
-import vct.col.origin.{LabelContext, Origin}
+import vct.col.origin.{LabelContext, Origin, RequiredName, SourceName}
 import vct.col.util.{AstBuildHelpers, Substitute}
 
 import java.io.Writer
 import java.nio.file.Path
 
 case object Utils {
+
+  def extract_name(o: Origin): String = {
+    o.find[SourceName].map(s => s.name).getOrElse(
+      o.find[RequiredName].map(r => r.requiredName)
+        .getOrElse(o.getPreferredName.get.snake)
+    )
+  }
 
   /** Returns the maximum absolute value between the two arguments.
     *

@@ -100,9 +100,70 @@ class ConstraintSolver[G](
         else
           Set(ConstraintMap.impossible(Set(state_entry.get._1)))
       case q: Binder[G] => resolve(state.unroll_quantifier(q, context), negate)
+      case PredicateApplyExpr(apply) => handle_predicate(apply)
       // TODO: What other expressions could affect the state?
       case _ => Set(ConstraintMap.empty[G])
     }
+
+  private def handle_predicate(
+      apply: ApplyAnyPredicate[G]
+  ): Set[ConstraintMap[G]] = {
+    val (
+      body: Expr[G],
+      params: Seq[Variable[G]],
+      vals: Seq[Expr[G]],
+      inline: Boolean,
+      name: String,
+    ) =
+      apply match {
+        case PredicateApply(ref, args) =>
+          (
+            ref.decl.body.getOrElse(return Set.empty[ConstraintMap[G]]),
+            ref.decl.args,
+            args,
+            ref.decl.inline,
+            Utils.extract_name(ref.decl.o),
+          )
+        case InstancePredicateApply(_, ref, args) =>
+          (
+            ref.decl.body.getOrElse(return Set.empty[ConstraintMap[G]]),
+            ref.decl.args,
+            args,
+            ref.decl.inline,
+            Utils.extract_name(ref.decl.o),
+          )
+      }
+    if (name.equals("vesuv_limit_entries")) {
+      val lower_bound: Int = state
+        .resolve_integer_expression(vals(1), is_pure, is_contract)
+        .try_to_resolve().getOrElse(return Set.empty[ConstraintMap[G]])
+      val upper_bound: Int =
+        state.resolve_integer_expression(vals(2), is_pure, is_contract)
+          .try_to_resolve().getOrElse(return Set.empty[ConstraintMap[G]]) - 1
+      val range: UncertainIntegerValue = UncertainIntegerValue
+        .range(lower_bound, upper_bound)
+
+      val contained: Set[(FieldIndexedVariable[G], Int)] =
+        get_contained_indices(vals.head)
+      val variable: Option[_ <: ResolvableVariable[G]] = vars
+        .find(v => v.is(vals.head, state))
+      var cond_map: Set[(ResolvableVariable[G], UncertainValue)] = contained
+        .map(t => t._1 -> range)
+      if (variable.nonEmpty)
+        cond_map =
+          cond_map ++
+            Set((variable.get, UncertainSequence.with_invariant(range, TInt[G]())))
+      Set(ConstraintMap.from_cons(cond_map))
+    }
+    // TODO: Consider predicate resolution for inline predicates!
+    else if (false && inline) {
+      val expr: Expr[G] = Utils
+        .unify_expression(body, Map.from(params.zip(vals)))
+      // Start in a new context, since the predicate must be self-contained
+      resolve(expr)(expr)
+    } else
+      Set.empty[ConstraintMap[G]]
+  }
 
   private def handle_and(
       left: Expr[G],
@@ -571,6 +632,7 @@ class ConstraintSolver[G](
           get_contained_indices(iff)
         else
           ???
+      case _ => Set()
     }
 
   private def resolve_path_condition(

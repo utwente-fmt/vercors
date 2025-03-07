@@ -1,7 +1,7 @@
 package vct.rewrite.rasi
 
 import vct.col.ast._
-import vct.col.origin.SourceName
+import vct.col.origin.{Origin, SourceName}
 import vct.col.util.AstBuildHelpers.tt
 import vct.rewrite.cfg.CFGEntry
 
@@ -244,7 +244,7 @@ case class AbstractState[G](
     *   condition
     */
   def with_local_condition(cond: Expr[G]): AbstractState[G] = {
-    val c: Map[ResolvableVariable[G], UncertainSingleValue] =
+    val constraints: Set[ConstraintMap[G]] =
       new ConstraintSolver(
         this,
         cond.collect {
@@ -256,8 +256,13 @@ case class AbstractState[G](
         }.map(l => get_local_var(l)).toSet,
         false,
       ).resolve_assumption(cond).filter(m => !m.is_impossible)
-        .reduce((m1, m2) => m1 || m2).resolve
-        .map(t => t._1 -> t._2.asInstanceOf[UncertainSingleValue])
+
+    val c: Map[ResolvableVariable[G], UncertainSingleValue] =
+      if (constraints.isEmpty)
+        Map.empty[ResolvableVariable[G], UncertainSingleValue]
+      else
+        constraints.reduce((m1, m2) => m1 || m2).resolve
+          .map(t => t._1 -> t._2.asInstanceOf[UncertainSingleValue])
     AbstractState(
       valuations,
       processes,
@@ -692,7 +697,7 @@ case class AbstractState[G](
         }
       case DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) |
           PointerSubscript(_, _) =>
-        try_to_resolve_known_value(expr, is_contract, is_old)
+        try_to_resolve_known_value(expr, is_old, is_contract)
           .map(v => v.asInstanceOf[UncertainIntegerValue])
           .getOrElse(UncertainIntegerValue.uncertain())
       case AmbiguousSubscript(collection, index) =>
@@ -701,8 +706,8 @@ case class AbstractState[G](
           collection,
           index,
           UncertainIntegerValue.uncertain(),
-          is_contract,
           is_old,
+          is_contract,
         )
       case SeqSubscript(seq, index) =>
         resolve_known_collection_entry(
@@ -710,8 +715,8 @@ case class AbstractState[G](
           seq,
           index,
           UncertainIntegerValue.uncertain(),
-          is_contract,
           is_old,
+          is_contract,
         )
       case ArraySubscript(arr, index) =>
         resolve_known_collection_entry(
@@ -719,8 +724,8 @@ case class AbstractState[G](
           arr,
           index,
           UncertainIntegerValue.uncertain(),
-          is_contract,
           is_old,
+          is_contract,
         )
       case Length(arr) =>
         variable_from_expr(expr) match {
@@ -867,7 +872,7 @@ case class AbstractState[G](
         }
       case DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) |
           PointerSubscript(_, _) =>
-        try_to_resolve_known_value(expr, is_contract, is_old)
+        try_to_resolve_known_value(expr, is_old, is_contract)
           .map(v => v.asInstanceOf[UncertainBooleanValue])
           .getOrElse(UncertainBooleanValue.uncertain())
       case AmbiguousSubscript(collection, index) =>
@@ -876,8 +881,8 @@ case class AbstractState[G](
           collection,
           index,
           UncertainBooleanValue.uncertain(),
-          is_contract,
           is_old,
+          is_contract,
         )
       case SeqSubscript(seq, index) =>
         resolve_known_collection_entry(
@@ -885,8 +890,8 @@ case class AbstractState[G](
           seq,
           index,
           UncertainBooleanValue.uncertain(),
-          is_contract,
           is_old,
+          is_contract,
         )
       case ArraySubscript(arr, index) =>
         resolve_known_collection_entry(
@@ -894,8 +899,8 @@ case class AbstractState[G](
           arr,
           index,
           UncertainBooleanValue.uncertain(),
-          is_contract,
           is_old,
+          is_contract,
         )
       case ProcedureInvocation(ref, args, _, _, _, _) =>
         get_subroutine_return(
@@ -950,9 +955,10 @@ case class AbstractState[G](
       case AmbiguousMember(x, xs) =>
         resolve_collection_expression(xs, is_old, is_contract)
           .contains(resolve_single_expression(x, is_old, is_contract))
-      case InlinePattern(body, _, _) => resolve_boolean_expression(body)
+      case InlinePattern(body, _, _) =>
+        resolve_boolean_expression(body, is_old, is_contract)
       case PredicateApplyExpr(apply) =>
-        UncertainBooleanValue.from(true) // TODO:resolve_predicate_apply(apply)
+        resolve_predicate_apply(apply, is_old, is_contract)
       // TODO: Should these be evaluated in some way?
       case IdleToken(_) => UncertainBooleanValue.from(true)
       case Perm(_, _) => UncertainBooleanValue.from(true)
@@ -1122,6 +1128,8 @@ case class AbstractState[G](
           applicable.decl.returnType.asInstanceOf[CompositeType[G]]
             .composingTypes.head
         )
+      // TODO: Figure out type of ambiguous result!
+      case AmbiguousResult() => UncertainSequence.uncertain(TInt[G]())
     }
 
   private def collection_from_variable(
@@ -1244,10 +1252,10 @@ case class AbstractState[G](
       coll: Expr[G],
       index: Expr[G],
       uncertain: V,
-      is_contract: Boolean,
       is_old: Boolean,
+      is_contract: Boolean,
   ): V =
-    try_to_resolve_known_value(entry_expr, is_contract, is_old)
+    try_to_resolve_known_value(entry_expr, is_old, is_contract)
       .map(v => v.asInstanceOf[V]).getOrElse(
         if (is_contract && !is_old)
           uncertain
@@ -1258,8 +1266,8 @@ case class AbstractState[G](
 
   private def try_to_resolve_known_value(
       expr: Expr[G],
-      is_contract: Boolean,
       is_old: Boolean,
+      is_contract: Boolean,
   ): Option[UncertainSingleValue] =
     variable_from_expr(expr) match {
       case Some(v) =>
@@ -1295,26 +1303,63 @@ case class AbstractState[G](
     }
 
   private def resolve_predicate_apply(
-      pred: ApplyAnyPredicate[G]
+      pred: ApplyAnyPredicate[G],
+      is_old: Boolean,
+      is_contract: Boolean,
   ): UncertainBooleanValue = {
-    val (body: Expr[G], params: Seq[Variable[G]], vals: Seq[Expr[G]]) =
+    val (
+      body: Expr[G],
+      params: Seq[Variable[G]],
+      vals: Seq[Expr[G]],
+      inline: Boolean,
+      name: String,
+    ) =
       pred match {
         case PredicateApply(ref, args) =>
           (
             ref.decl.body.getOrElse(return UncertainBooleanValue.from(true)),
             ref.decl.args,
             args,
+            ref.decl.inline,
+            Utils.extract_name(ref.decl.o),
           )
         case InstancePredicateApply(_, ref, args) =>
           (
             ref.decl.body.getOrElse(return UncertainBooleanValue.from(true)),
             ref.decl.args,
             args,
+            ref.decl.inline,
+            Utils.extract_name(ref.decl.o),
           )
       }
-    resolve_boolean_expression(
-      Utils.unify_expression(body, Map.from(params.zip(vals)))
-    )
+    if (name.equals("vesuv_limit_entries")) {
+      val collection: UncertainSequence = resolve_collection_expression(
+        vals.head,
+        is_old,
+        is_contract,
+      )
+      val lower_bound: Int = resolve_integer_expression(
+        vals(1),
+        is_old,
+        is_contract,
+      ).try_to_resolve().getOrElse(return UncertainBooleanValue.uncertain())
+      val upper_bound: Int =
+        resolve_integer_expression(vals(2), is_old, is_contract)
+          .try_to_resolve()
+          .getOrElse(return UncertainBooleanValue.uncertain()) - 1
+      val range: UncertainIntegerValue = UncertainIntegerValue
+        .range(lower_bound, upper_bound)
+      collection.is_limited_by(range)
+    }
+    // TODO: Consider predicate resolution for inline predicates!
+    else if (false && inline)
+      resolve_boolean_expression(
+        Utils.unify_expression(body, Map.from(params.zip(vals))),
+        is_contract,
+        is_old,
+      )
+    else
+      UncertainBooleanValue.from(true)
   }
 
   def unroll_quantifier(q: Binder[G], context: Expr[G]): Expr[G] =

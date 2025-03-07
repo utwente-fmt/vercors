@@ -314,8 +314,12 @@ case object UncertainIntegerValue {
     UncertainIntegerValue(UnboundedInterval)
   def above(int: Int): UncertainIntegerValue =
     UncertainIntegerValue(LowerBoundedInterval(int))
+  def below(int: Int): UncertainIntegerValue =
+    UncertainIntegerValue(UpperBoundedInterval(int))
   def single(int: Int): UncertainIntegerValue =
     UncertainIntegerValue(BoundedInterval(int, int))
+  def range(lower: Int, upper: Int): UncertainIntegerValue =
+    UncertainIntegerValue(BoundedInterval(lower, upper))
 }
 
 case class UncertainSequence(
@@ -598,6 +602,31 @@ case class UncertainSequence(
     values.map(t => (t._1.try_to_resolve(), t._2)).filter(t => t._1.nonEmpty)
       .map(t => (t._1.get, t._2))
 
+  def is_limited_by(range: UncertainSingleValue): UncertainBooleanValue = {
+    // It is certainly true if the invariant subsumes the given value or if
+    // there are enough unique index-value pairs to subsume it
+    val unique_entries: Seq[(UncertainIntegerValue, UncertainSingleValue)] =
+      unique_values
+    if (
+      range.is_subset_of(invariant) ||
+      len.is_subset_of(UncertainIntegerValue.below(unique_entries.length)) &&
+      range.is_subset_of(
+        unique_entries.map(t => t._2).fold(UncertainSingleValue.empty_of(typ))(
+          (v1, v2) => v1.union_single(v2)
+        ).intersect(invariant)
+      )
+    )
+      UncertainBooleanValue.from(true)
+
+    // It is certainly false if a value exists that is outside the range
+    else if (values.exists(t => t._2.intersect(range).is_impossible))
+      UncertainBooleanValue.from(false)
+
+    // Otherwise, there is no telling
+    else
+      UncertainBooleanValue.uncertain()
+  }
+
   private def combine_values(
       v1: Seq[(UncertainIntegerValue, UncertainSingleValue)],
       v2: Seq[(UncertainIntegerValue, UncertainSingleValue)],
@@ -619,6 +648,21 @@ case class UncertainSequence(
       value: UncertainIntegerValue,
   ): Seq[(UncertainIntegerValue, UncertainSingleValue)] =
     sequence.map(e => (e._1 + value, e._2))
+
+  private def unique_values
+      : Seq[(UncertainIntegerValue, UncertainSingleValue)] = {
+    var res: Seq[(UncertainIntegerValue, UncertainSingleValue)] = Seq()
+    values.foreach(v =>
+      if (
+        res.forall(r =>
+          r._1.intersect(v._1).is_impossible ||
+            r._2.intersect(v._2).is_impossible
+        )
+      )
+        res = res :+ v
+    )
+    res
+  }
 }
 case object UncertainSequence {
   def uncertain(t: Type[_]): UncertainSequence =
@@ -635,13 +679,15 @@ case object UncertainSequence {
       UncertainSingleValue.uncertain_of(t),
       normalize_type(t),
     )
-  def exclude(excluded: UncertainSingleValue, t: Type[_]): UncertainSequence =
+  def with_invariant(inv: UncertainSingleValue, t: Type[_]): UncertainSequence =
     UncertainSequence(
       UncertainIntegerValue.above(0),
       Seq(),
-      excluded.complement(),
+      inv,
       normalize_type(t),
     )
+  def exclude(excluded: UncertainSingleValue, t: Type[_]): UncertainSequence =
+    with_invariant(excluded.complement(), t)
   def of(
       elems: Seq[(UncertainIntegerValue, UncertainSingleValue)],
       t: Type[_],

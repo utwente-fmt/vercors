@@ -4,13 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.io.LiteralReadable
 import hre.stages.Stage
 import vct.col.ast._
-import vct.col.origin.{
-  LabelContext,
-  Origin,
-  PreferredName,
-  RequiredName,
-  SourceName,
-}
+import vct.col.origin.{LabelContext, Origin, PreferredName}
 import vct.col.print.Ctx
 import vct.col.rewrite.Generation
 import vct.options.Options
@@ -20,6 +14,7 @@ import vct.rewrite.rasi.{
   FieldSizeVariable,
   FieldVariable,
   RASIGenerator,
+  Utils,
 }
 
 import java.nio.charset.StandardCharsets
@@ -95,19 +90,12 @@ case class GenerateRASI(
       val name_map: Map[Declaration[_], String] = Map
         .from(predicates.flatMap(p =>
           p.collect {
-            case Deref(_, ref) => ref.decl -> extract_name(ref.decl.o)
-            case p: Predicate[_] => p -> extract_name(p.o)
+            case Deref(_, ref) => ref.decl -> Utils.extract_name(ref.decl.o)
+            case p: Predicate[_] => p -> Utils.extract_name(p.o)
           }
         ))
       print(verification, name_map)
     }
-  }
-
-  private def extract_name(o: Origin): String = {
-    o.find[SourceName].map(s => s.name).getOrElse(
-      o.find[RequiredName].map(r => r.requiredName)
-        .getOrElse(o.getPreferredName.get.snake)
-    )
   }
 
   private def rasi_predicate(
@@ -219,5 +207,5 @@ case class GenerateRASI(
   }
 
   private def name_matches(o: Origin, name: String): Boolean =
-    extract_name(o).equals(name)
+    Utils.extract_name(o).equals(name)
 }
