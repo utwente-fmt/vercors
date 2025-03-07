@@ -660,22 +660,19 @@ case class EncodePermissionStratification[Pre <: Generation](
       case EndpointStatement(None, Assign(_, _)) =>
         throw NoEndpointContext(statement)
       case EndpointStatement(
-            Some(CommTargetEndpoint(Ref(endpoint))),
+            Some(endpoint),
             assign @ Assign(Deref(_, Ref(_)), _),
           ) =>
+        assert(endpoint.isSingle)
         rewriteAssign(endpoint, assign)
-      case EndpointStatement(
-            Some(CommTargetEndpoint(Ref(endpoint))),
-            assert: Assert[Pre],
-          ) =>
-        specializing.having(EndpointName[Post](succ(endpoint))(statement.o)) {
-          assert.rewriteDefault()
+      case EndpointStatement(Some(endpoint), check: Assert[Pre]) =>
+        assert(endpoint.isSingle)
+        specializing.having(CtExpr(dispatch(endpoint))(statement.o)) {
+          check.rewriteDefault()
         }
-      case EndpointStatement(
-            Some(CommTargetEndpoint(Ref(endpoint))),
-            eval: Eval[Pre],
-          ) =>
-        specializing.having(EndpointName[Post](succ(endpoint))(statement.o)) {
+      case EndpointStatement(Some(endpoint), eval: Eval[Pre]) =>
+        assert(endpoint.isSingle)
+        specializing.having(CtExpr(dispatch(endpoint))(statement.o)) {
           eval.rewriteDefault()
         }
       case EndpointStatement(_, _) => ???
@@ -686,6 +683,8 @@ case class EncodePermissionStratification[Pre <: Generation](
       endpoint: CommunicateTarget[Pre],
       assign: Assign[Pre],
   ): Statement[Post] = {
+    assert(endpoint.isSingle)
+    val newEndpoint = dispatch(endpoint)
     val Assign(deref @ Deref(obj, Ref(field)), _) = assign
     implicit val o = assign.o
     val apply = {
@@ -693,10 +692,8 @@ case class EncodePermissionStratification[Pre <: Generation](
       PredicateApply(
         ref,
         Seq(
-          CtExpr(dispatch(endpoint)),
-          specializing.having(EndpointName[Post](succ(endpoint))) {
-            dispatch(obj)
-          },
+          CtExpr(newEndpoint),
+          specializing.having(CtExpr(newEndpoint)) { dispatch(obj) },
         ),
       )
     }
@@ -704,7 +701,7 @@ case class EncodePermissionStratification[Pre <: Generation](
       new Variable(dispatch(assign.value.t))(
         assign.o.where(name = "intermediate")
       )
-    specializing.having(EndpointName[Post](succ(endpoint))) {
+    specializing.having(CtExpr(newEndpoint)) {
       val evalStatement = assignLocal(intermediate.get, dispatch(assign.value))
       val actualAssign = assign.rewrite(
         // Use rewriteDefault to prevent triggering rewriting into a read function. We just want the
