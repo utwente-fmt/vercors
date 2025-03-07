@@ -6,6 +6,7 @@ import vct.col.ast.{
   Assume,
   Block,
   Branch,
+  CommTargetEndpoint,
   Communicate,
   CommunicateStatement,
   CommunicateTarget,
@@ -114,8 +115,8 @@ trait EndpointStatementImpl[G]
         context: CheckContext[G],
     ): Seq[CheckError] = {
       receiver(chorStmt, node) match {
-        case Some(endpoint)
-            if !context.currentParticipatingEndpoints.get.contains(endpoint) =>
+        case Some(ct @ CommTargetEndpoint(_))
+            if !context.currentParticipatingEndpoints.get.contains(ct) =>
           Seq(SeqProgParticipant(chorStmt))
         case _ => Nil
       }

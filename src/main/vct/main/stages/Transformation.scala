@@ -280,7 +280,7 @@ class Transformation(
 
         result =
           try { pass().dispatch(result) }
-          catch { case c: CauseWithBadEffect => throw PassError(pass.key, c) }
+          catch { case c: Throwable => throw PassError(pass.key, c) }
 
         logger.debug(s"Finished transformation ${pass.key}")
 
