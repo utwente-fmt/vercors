@@ -16,6 +16,7 @@ class SchedulerGenerator[O <: Generation] {
   private var priorityPerms: Option[InstancePredicate[N]] = None
   private var eventPerms: Option[InstancePredicate[N]] = None
   private var globalInvariant: Option[InstancePredicate[N]] = None
+  private var awokenAfterDelay: Option[InstanceMethod[N]] = None
   private var simulateTimePassing: Option[InstanceMethod[N]] = None
   private var executionTime: Option[InstanceMethod[N]] = None
   private var instantiateEventTriggers: Option[InstanceMethod[N]] = None
@@ -29,6 +30,7 @@ class SchedulerGenerator[O <: Generation] {
   def get_priorityPerms: InstancePredicate[N] = priorityPerms.get
   def get_eventPerms: InstancePredicate[N] = eventPerms.get
   def get_globalInvariant: InstancePredicate[N] = globalInvariant.get
+  def get_awokenAfterDelay: InstanceMethod[N] = awokenAfterDelay.get
   def get_simulateTimePassing: InstanceMethod[N] = simulateTimePassing.get
   def get_executionTime: InstanceMethod[N] = executionTime.get
   def get_instantiateEventTriggers: InstanceMethod[N] =
@@ -59,6 +61,11 @@ class SchedulerGenerator[O <: Generation] {
     runnableQueue = Some(
       new InstanceField(Utils.tseqint, Seq())(Utils.origen("runnableQueue"))
     )
+
+    // Helper predicate
+    val vesuv_limit_entries: InstancePredicate[N] = create_vesuv_limit_entries()
+    val vesuv_limit_entries_ref: Ref[N, InstancePredicate[N]] =
+      new DirectRef[N, InstancePredicate[N]](vesuv_limit_entries)
 
     // Scheduler predicates
     priorityPerms = Some(
@@ -98,6 +105,7 @@ class SchedulerGenerator[O <: Generation] {
     val schedulerPerms: InstancePredicate[N] = create_schedulerPerms(
       eventPerms_ref,
       priorityPerms_ref,
+      vesuv_limit_entries_ref,
     )
     val schedulerPerms_ref: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](schedulerPerms)
@@ -150,10 +158,17 @@ class SchedulerGenerator[O <: Generation] {
       eventPerms_ref
     )
     val advanceTime: InstanceMethod[N] = create_advanceTime(eventPerms_ref)
+    val newRunnableTasks: InstanceMethod[N] = create_newRunnableTasks(
+      schedulerPerms_ref,
+      vesuv_limit_entries_ref,
+    )
     val resumeTasks: InstanceMethod[N] = create_resumeTasks(schedulerPerms_ref)
     val resetEvents: InstanceMethod[N] = create_resetEvents(eventPerms_ref)
     val selectNextTask: InstanceMethod[N] = create_selectNextTask(
       schedulerPerms_ref
+    )
+    awokenAfterDelay = Some(
+      create_awokenAfterDelay(schedulerPerms_ref, vesuv_limit_entries_ref)
     )
     simulateTimePassing = Some(create_simulateTimePassing(schedulerPerms_ref))
     executionTime = Some(create_executionTime())
@@ -165,6 +180,7 @@ class SchedulerGenerator[O <: Generation] {
     val schedule: InstanceMethod[N] = create_schedule(
       new DirectRef[N, InstanceMethod[N]](nextEventDelay),
       new DirectRef[N, InstanceMethod[N]](advanceTime),
+      new DirectRef[N, InstanceMethod[N]](newRunnableTasks),
       new DirectRef[N, InstanceMethod[N]](resumeTasks),
       new DirectRef[N, InstanceMethod[N]](resetEvents),
       new DirectRef[N, InstanceMethod[N]](selectNextTask),
@@ -193,6 +209,7 @@ class SchedulerGenerator[O <: Generation] {
         global_fields.map(t => t._1) ++
         // Predicates
         Seq(
+          vesuv_limit_entries,
           priorityPerms.get,
           eventPerms.get,
           schedulerPerms,
@@ -207,9 +224,11 @@ class SchedulerGenerator[O <: Generation] {
           schedule,
           nextEventDelay,
           advanceTime,
+          newRunnableTasks,
           resumeTasks,
           resetEvents,
           selectNextTask,
+          awokenAfterDelay.get,
           simulateTimePassing.get,
           executionTime.get,
           instantiateEventTriggers.get,
@@ -223,49 +242,74 @@ class SchedulerGenerator[O <: Generation] {
     )(Utils.origen("FreeRTOSScheduler"))
   }
 
+  private def create_vesuv_limit_entries(): InstancePredicate[N] = {
+    val xs: Variable[N] = new Variable(Utils.tseqint)(Utils.origen("xs"))
+    val l: Variable[N] = new Variable(Utils.tint)(Utils.origen("l"))
+    val u: Variable[N] = new Variable(Utils.tint)(Utils.origen("u"))
+
+    val i: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
+
+    val body: Expr[N] = Utils.single_var_forall(
+      i,
+      Utils.int_val(0),
+      Size(Utils.local_of(xs))(Utils.origen),
+      And(
+        GreaterEq(
+          SeqSubscript(Utils.local_of(xs), Utils.local_of(i))(Utils.blame)(
+            Utils.origen
+          ),
+          Utils.local_of(l),
+        )(Utils.origen),
+        Less(
+          SeqSubscript(Utils.local_of(xs), Utils.local_of(i))(Utils.blame)(
+            Utils.origen
+          ),
+          Utils.local_of(u),
+        )(Utils.origen),
+      )(Utils.origen),
+    )
+
+    new InstancePredicate(Seq(xs, l, u), Some(body), false, true)(
+      Utils.origen("vesuv_limit_entries")
+    )
+  }
+
   private def create_schedulerPerms(
       eventPerms_ref: Ref[N, InstancePredicate[N]],
       priorityPerms_ref: Ref[N, InstancePredicate[N]],
+      vesuv_limit_entries_ref: Ref[N, InstancePredicate[N]],
   ): InstancePredicate[N] = {
     // Quantifier variables
     val i1: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
     val i2: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
     val i3: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
     val i4: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
-    val i5: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
-    val i6: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
-    val j4: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
+    val j2: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
 
     val conds: Seq[Expr[N]] = Seq[Expr[N]](
       Utils.predicate_apply(Utils.thiz, priorityPerms_ref, Seq()),
       Utils.predicate_apply(Utils.thiz, eventPerms_ref, Seq()),
       Perm(Utils.loc_of(taskState.get), Utils.write)(Utils.origen),
       Eq(Utils.size(taskState.get), Utils.size(taskPriority.get))(Utils.origen),
-      Utils.single_var_forall(
-        i1,
-        Utils.int_val(0),
-        Utils.size(taskState.get),
-        And(
-          GreaterEq(
-            Utils.subscript_expr(taskState.get, Utils.local_of(i1)),
-            Utils.int_val(-2),
-          )(Utils.origen),
-          Less(
-            Utils.subscript_expr(taskState.get, Utils.local_of(i1)),
-            Utils.size(eventState.get),
-          )(Utils.origen),
-        )(Utils.origen),
+      Utils.predicate_apply(
+        Utils.thiz,
+        vesuv_limit_entries_ref,
+        Seq(
+          Utils.deref_of(taskState.get),
+          Utils.int_val(-2),
+          Utils.size(eventState.get),
+        ),
       ),
       Perm(Utils.loc_of(taskWaitTime.get), Utils.write)(Utils.origen),
       Eq(Utils.size(taskWaitTime.get), Utils.size(taskPriority.get))(
         Utils.origen
       ),
       Utils.single_var_forall(
-        i2,
+        i1,
         Utils.int_val(0),
         Utils.size(taskWaitTime.get),
         GreaterEq(
-          Utils.subscript_expr(taskWaitTime.get, Utils.local_of(i2)),
+          Utils.subscript_expr(taskWaitTime.get, Utils.local_of(i1)),
           Utils.int_val(0),
         )(Utils.origen),
       ),
@@ -273,64 +317,58 @@ class SchedulerGenerator[O <: Generation] {
       LessEq(Utils.size(runnableQueue.get), Utils.size(taskPriority.get))(
         Utils.origen
       ),
-      Utils.single_var_forall(
-        i3,
-        Utils.int_val(0),
-        Utils.size(runnableQueue.get),
-        And(
-          GreaterEq(
-            Utils.subscript_expr(runnableQueue.get, Utils.local_of(i3)),
-            Utils.int_val(0),
-          )(Utils.origen),
-          Less(
-            Utils.subscript_expr(runnableQueue.get, Utils.local_of(i3)),
-            Utils.size(taskPriority.get),
-          )(Utils.origen),
-        )(Utils.origen),
+      Utils.predicate_apply(
+        Utils.thiz,
+        vesuv_limit_entries_ref,
+        Seq(
+          Utils.deref_of(runnableQueue.get),
+          Utils.int_val(0),
+          Utils.size(taskPriority.get),
+        ),
       ),
       Utils.single_var_forall(
-        i4,
+        i2,
         Utils.int_val(0),
         Utils.size(runnableQueue.get),
         Forall(
-          Seq(j4),
+          Seq(j2),
           Seq(),
           Implies(
             And(
-              Less(Utils.local_of(i4), Utils.local_of(j4))(Utils.origen),
-              Less(Utils.local_of(j4), Utils.size(runnableQueue.get))(
+              Less(Utils.local_of(i2), Utils.local_of(j2))(Utils.origen),
+              Less(Utils.local_of(j2), Utils.size(runnableQueue.get))(
                 Utils.origen
               ),
             )(Utils.origen),
             Neq(
-              Utils.subscript_expr(runnableQueue.get, Utils.local_of(i4)),
-              Utils.subscript_expr(runnableQueue.get, Utils.local_of(j4)),
+              Utils.subscript_expr(runnableQueue.get, Utils.local_of(i2)),
+              Utils.subscript_expr(runnableQueue.get, Utils.local_of(j2)),
             )(Utils.origen),
           )(Utils.origen),
         )(Utils.origen),
       ),
       Utils.single_var_forall(
-        i5,
+        i3,
         Utils.int_val(0),
         Utils.size(runnableQueue.get),
         Eq(
           Utils.subscript_expr(
             taskState.get,
-            Utils.subscript_expr(runnableQueue.get, Utils.local_of(i5)),
+            Utils.subscript_expr(runnableQueue.get, Utils.local_of(i3)),
           ),
           Utils.int_val(-1),
         )(Utils.origen),
       ),
       Utils.single_var_forall(
-        i6,
+        i4,
         Utils.int_val(0),
         Utils.size(taskState.get),
         Implies(
           Eq(
-            Utils.subscript_expr(taskState.get, Utils.local_of(i6)),
+            Utils.subscript_expr(taskState.get, Utils.local_of(i4)),
             Utils.int_val(-1),
           )(Utils.origen),
-          SeqMember(Utils.local_of(i6), Utils.deref_of(runnableQueue.get))(
+          SeqMember(Utils.local_of(i4), Utils.deref_of(runnableQueue.get))(
             Utils.origen
           ),
         )(Utils.origen),
@@ -595,15 +633,136 @@ class SchedulerGenerator[O <: Generation] {
     )(Utils.blame)(Utils.origen("advanceTime"))
   }
 
-  private def create_resumeTasks(
-      schedulerPerms_ref: Ref[N, InstancePredicate[N]]
+  private def create_newRunnableTasks(
+      schedulerPerms_ref: Ref[N, InstancePredicate[N]],
+      vesuv_limit_entries_ref: Ref[N, InstancePredicate[N]],
   ): InstanceMethod[N] = {
     // Quantifier variables
     val i3: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
     val i4: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
     val i5: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
-    val i6: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
-    val j4: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
+    val j5: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
+
+    // requires schedulerPerms();
+    val requires: Expr[N] = Utils
+      .predicate_apply(Utils.thiz, schedulerPerms_ref, Seq())
+
+    // ensures |runnableQueue| + |\result| <= |taskPriority|;
+    val ensures1: Expr[N] =
+      LessEq(
+        Plus(Utils.size(runnableQueue.get), Size(Utils.result)(Utils.origen))(
+          Utils.origen
+        ),
+        Utils.size(taskPriority.get),
+      )(Utils.origen)
+
+    // ensures vesuv_limit_entries(\result, 0, |taskState|);
+    val ensures2: Expr[N] = Utils.predicate_apply(
+      Utils.thiz,
+      vesuv_limit_entries_ref,
+      Seq(Utils.result, Utils.int_val(0), Utils.size(taskState.get)),
+    )
+
+    // ensures (\forall int i; 0 <= i && i < |taskState| && taskState[i] >= 0 && eventState[taskState[i]] == 0 ==> i in \result);
+    val ensures3: Expr[N] = Utils.single_var_forall(
+      i3,
+      Utils.int_val(0),
+      Utils.size(taskState.get),
+      Implies(
+        And(
+          GreaterEq(
+            Utils.subscript_expr(taskState.get, Utils.local_of(i3)),
+            Utils.int_val(0),
+          )(Utils.origen),
+          Eq(
+            Utils.subscript_expr(
+              eventState.get,
+              Utils.subscript_expr(taskState.get, Utils.local_of(i3)),
+            ),
+            Utils.int_val(0),
+          )(Utils.origen),
+        )(Utils.origen),
+        SeqMember(Utils.local_of(i3), Utils.result)(Utils.origen),
+      )(Utils.origen),
+    )
+
+    // ensures (\forall int i; 0 <= i && i < |taskState| && !(taskState[i] >= 0 && eventState[taskState[i]] == 0) ==> !(i in \result));
+    val ensures4: Expr[N] = Utils.single_var_forall(
+      i4,
+      Utils.int_val(0),
+      Utils.size(taskState.get),
+      Implies(
+        Not(
+          And(
+            GreaterEq(
+              Utils.subscript_expr(taskState.get, Utils.local_of(i4)),
+              Utils.int_val(0),
+            )(Utils.origen),
+            Eq(
+              Utils.subscript_expr(
+                eventState.get,
+                Utils.subscript_expr(taskState.get, Utils.local_of(i4)),
+              ),
+              Utils.int_val(0),
+            )(Utils.origen),
+          )(Utils.origen)
+        )(Utils.origen),
+        Not(SeqMember(Utils.local_of(i4), Utils.result)(Utils.origen))(
+          Utils.origen
+        ),
+      )(Utils.origen),
+    )
+
+    // ensures (\forall int i; 0 <= i && i < |\result| ==> (\forall int j; i < j && j < |\result| ==> \result[i] != \result[j]));
+    val ensures5: Expr[N] = Utils.single_var_forall(
+      i5,
+      Utils.int_val(0),
+      Size(Utils.result)(Utils.origen),
+      Forall(
+        Seq(j5),
+        Seq(),
+        Implies(
+          And(
+            Less(Utils.local_of(i5), Utils.local_of(j5))(Utils.origen),
+            Less(Utils.local_of(j5), Size(Utils.result)(Utils.origen))(
+              Utils.origen
+            ),
+          )(Utils.origen),
+          Neq(
+            SeqSubscript(Utils.result, Utils.local_of(i5))(Utils.blame)(
+              Utils.origen
+            ),
+            SeqSubscript(Utils.result, Utils.local_of(j5))(Utils.blame)(
+              Utils.origen
+            ),
+          )(Utils.origen),
+        )(Utils.origen),
+      )(Utils.origen),
+    )
+
+    new InstanceMethod(
+      Utils.tseqint,
+      Seq(),
+      Seq(),
+      Seq(),
+      None,
+      Utils.to_app_contract(
+        requires,
+        Utils.fold_star(
+          Seq[Expr[N]](ensures1, ensures2, ensures3, ensures4, ensures5)
+        ),
+      ),
+      false,
+      true,
+    )(Utils.blame)(Utils.origen("newRunnableTasks"))
+  }
+
+  private def create_resumeTasks(
+      schedulerPerms_ref: Ref[N, InstancePredicate[N]]
+  ): InstanceMethod[N] = {
+    // Quantifier variables
+    val i2: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
+    val i3: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
 
     // requires schedulerPerms();
     // ensures schedulerPerms();
@@ -623,102 +782,43 @@ class SchedulerGenerator[O <: Generation] {
       Utils.unchanged(Utils.size(taskWaitTime.get)),
     ))
 
-    // ensures \old(|runnableQueue|) + |\result| <= \old(|taskPriority|);
-    val ensures2: Expr[N] =
-      LessEq(
-        Plus(
-          Utils.old(Utils.size(runnableQueue.get)),
-          Size(Utils.result)(Utils.origen),
-        )(Utils.origen),
-        Utils.old(Utils.size(taskPriority.get)),
-      )(Utils.origen)
-
-    // ensures (\forall int i; 0 <= i && i < |\result| ==> 0 <= \result[i] && \result[i] < \old(|taskState|));
-    val ensures3: Expr[N] = Utils.single_var_forall(
-      i3,
-      Utils.int_val(0),
-      Size(Utils.result)(Utils.origen),
-      And(
-        LessEq(
-          Utils.int_val(0),
-          SeqSubscript(Utils.result, Utils.local_of(i3))(Utils.blame)(
-            Utils.origen
-          ),
-        )(Utils.origen),
-        Less(
-          SeqSubscript(Utils.result, Utils.local_of(i3))(Utils.blame)(
-            Utils.origen
-          ),
-          Utils.old(Utils.size(taskState.get)),
-        )(Utils.origen),
-      )(Utils.origen),
-    )
-
-    // ensures (\forall int i; 0 <= i && i < |\result| ==> (\forall int j; i < j && j < |\result| ==> \result[i] != \result[j]));
-    val ensures4: Expr[N] = Utils.single_var_forall(
-      i4,
-      Utils.int_val(0),
-      Size(Utils.result)(Utils.origen),
-      Forall(
-        Seq(j4),
-        Seq(),
-        Implies(
-          And(
-            Less(Utils.local_of(i4), Utils.local_of(j4))(Utils.origen),
-            Less(Utils.local_of(j4), Size(Utils.result)(Utils.origen))(
-              Utils.origen
-            ),
-          )(Utils.origen),
-          Neq(
-            SeqSubscript(Utils.result, Utils.local_of(i4))(Utils.blame)(
-              Utils.origen
-            ),
-            SeqSubscript(Utils.result, Utils.local_of(j4))(Utils.blame)(
-              Utils.origen
-            ),
-          )(Utils.origen),
-        )(Utils.origen),
-      )(Utils.origen),
-    )
-
     // ensures (\forall int i; 0 <= i && i < \old(|taskState|) && \old(taskState[i]) >= 0 && \old(eventState[taskState[i]]) == 0
-    //                                                      ==> taskState[i] == -1 && i in \result && taskWaitTime[i] == 0);
-    val ensures5: Expr[N] = Utils.single_var_forall(
-      i5,
+    //                                                      ==> taskState[i] == -1 && taskWaitTime[i] == 0);
+    val ensures2: Expr[N] = Utils.single_var_forall(
+      i2,
       Utils.int_val(0),
       Utils.old(Utils.size(taskState.get)),
       Implies(
         And(
           GreaterEq(
-            Utils.old(Utils.subscript_expr(taskState.get, Utils.local_of(i5))),
+            Utils.old(Utils.subscript_expr(taskState.get, Utils.local_of(i2))),
             Utils.int_val(0),
           )(Utils.origen),
           Eq(
             Utils.old(Utils.subscript_expr(
               eventState.get,
-              Utils.subscript_expr(taskState.get, Utils.local_of(i5)),
+              Utils.subscript_expr(taskState.get, Utils.local_of(i2)),
             )),
             Utils.int_val(0),
           )(Utils.origen),
         )(Utils.origen),
-        Utils.fold_and(Seq[Expr[N]](
+        And(
           Eq(
-            Utils.subscript_expr(taskState.get, Utils.local_of(i5)),
+            Utils.subscript_expr(taskState.get, Utils.local_of(i2)),
             Utils.int_val(-1),
           )(Utils.origen),
-          SeqMember(Utils.local_of(i5), Utils.result)(Utils.origen),
           Eq(
-            Utils.subscript_expr(taskWaitTime.get, Utils.local_of(i5)),
+            Utils.subscript_expr(taskWaitTime.get, Utils.local_of(i2)),
             Utils.int_val(0),
           )(Utils.origen),
-        )),
+        )(Utils.origen),
       )(Utils.origen),
     )
 
     // ensures (\forall int i; 0 <= i && i < \old(|taskState|) && !(\old(taskState[i]) >= 0 && \old(eventState[taskState[i]]) == 0)
-    //                                                      ==> taskState[i] == \old(taskState[i]) && !(i in \result) && taskWaitTime[i] == \old(taskWaitTime[i]));
-    val ensures6: Expr[N] = Utils.single_var_forall(
-      i6,
+    //                                                      ==> taskState[i] == \old(taskState[i]) && taskWaitTime[i] == \old(taskWaitTime[i]));
+    val ensures3: Expr[N] = Utils.single_var_forall(
+      i3,
       Utils.int_val(0),
       Utils.old(Utils.size(taskState.get)),
       Implies(
@@ -726,48 +826,37 @@ class SchedulerGenerator[O <: Generation] {
           And(
             GreaterEq(
               Utils
-                .old(Utils.subscript_expr(taskState.get, Utils.local_of(i6))),
+                .old(Utils.subscript_expr(taskState.get, Utils.local_of(i3))),
               Utils.int_val(0),
             )(Utils.origen),
             Eq(
               Utils.old(Utils.subscript_expr(
                 eventState.get,
-                Utils.subscript_expr(taskState.get, Utils.local_of(i6)),
+                Utils.subscript_expr(taskState.get, Utils.local_of(i3)),
               )),
               Utils.int_val(0),
             )(Utils.origen),
           )(Utils.origen)
         )(Utils.origen),
-        Utils.fold_and(Seq[Expr[N]](
+        And(
           Utils
-            .unchanged(Utils.subscript_expr(taskState.get, Utils.local_of(i6))),
-          Not(SeqMember(Utils.local_of(i6), Utils.result)(Utils.origen))(
-            Utils.origen
-          ),
+            .unchanged(Utils.subscript_expr(taskState.get, Utils.local_of(i3))),
           Utils.unchanged(
-            Utils.subscript_expr(taskWaitTime.get, Utils.local_of(i6))
+            Utils.subscript_expr(taskWaitTime.get, Utils.local_of(i3))
           ),
-        )),
+        )(Utils.origen),
       )(Utils.origen),
     )
 
     new InstanceMethod(
-      Utils.tseqint,
+      Utils.tvoid,
       Seq(),
       Seq(),
       Seq(),
       None,
       Utils.to_app_contract(
         context,
-        Utils.fold_star(Seq[Expr[N]](
-          context,
-          ensures1,
-          ensures2,
-          ensures3,
-          ensures4,
-          ensures5,
-          ensures6,
-        )),
+        Utils.fold_star(Seq[Expr[N]](context, ensures1, ensures2, ensures3)),
       ),
       false,
       false,
@@ -834,7 +923,6 @@ class SchedulerGenerator[O <: Generation] {
       false,
       false,
     )(Utils.blame)(Utils.origen("resetEvents"))
-
   }
 
   private def create_selectNextTask(
@@ -946,6 +1034,207 @@ class SchedulerGenerator[O <: Generation] {
     )(Utils.blame)(Utils.origen("selectNextTask"))
   }
 
+  private def create_awokenAfterDelay(
+      schedulerPerms_ref: Ref[N, InstancePredicate[N]],
+      vesuv_limit_entries_ref: Ref[N, InstancePredicate[N]],
+  ): InstanceMethod[N] = {
+    val delay: Variable[N] = new Variable(Utils.tint)(Utils.origen("delay"))
+
+    // Quantifier variables
+    val i1: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
+    val i2: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
+    val i5: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
+    val i6: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
+    val j11: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
+    val j12: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
+    val j13: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
+    val j5: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
+    val j6: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
+
+    // requires schedulerPerms();
+    val requires: Expr[N] = Utils
+      .predicate_apply(Utils.thiz, schedulerPerms_ref, Seq())
+
+    // ensures (\forall int i; 0 <= i && i < |eventState| ==>
+    //                 (   (eventState[i] <= -1 ==> (\forall int j; 0 <= j && j < |taskState| && taskState[j] == i ==> !(j in \result)))
+    //                  && ((0 <= eventState[i] && eventState[i] <= delay) ==> (\forall int j; 0 <= j && j < |taskState| && taskState[j] == i ==> j in \result))
+    //                  && (eventState[i] > delay ==> (\forall int j; 0 <= j && j < |taskState| && taskState[j] == i ==> !(j in \result)))
+    //                 )
+    //         );
+    val ensures1: Expr[N] = Utils.single_var_forall(
+      i1,
+      Utils.int_val(0),
+      Utils.size(eventState.get),
+      Utils.fold_and(Seq[Expr[N]](
+        Implies(
+          LessEq(
+            Utils.subscript_expr(eventState.get, Utils.local_of(i1)),
+            Utils.int_val(-1),
+          )(Utils.origen),
+          Utils.single_var_forall(
+            j11,
+            Utils.int_val(0),
+            Utils.size(taskState.get),
+            Implies(
+              Eq(
+                Utils.subscript_expr(taskState.get, Utils.local_of(j11)),
+                Utils.local_of(i1),
+              )(Utils.origen),
+              Not(SeqMember(Utils.local_of(j11), Utils.result)(Utils.origen))(
+                Utils.origen
+              ),
+            )(Utils.origen),
+          ),
+        )(Utils.origen),
+        Implies(
+          And(
+            LessEq(
+              Utils.int_val(0),
+              Utils.subscript_expr(eventState.get, Utils.local_of(i1)),
+            )(Utils.origen),
+            LessEq(
+              Utils.subscript_expr(eventState.get, Utils.local_of(i1)),
+              Utils.local_of(delay),
+            )(Utils.origen),
+          )(Utils.origen),
+          Utils.single_var_forall(
+            j12,
+            Utils.int_val(0),
+            Utils.size(taskState.get),
+            Implies(
+              Eq(
+                Utils.subscript_expr(taskState.get, Utils.local_of(j12)),
+                Utils.local_of(i1),
+              )(Utils.origen),
+              SeqMember(Utils.local_of(j12), Utils.result)(Utils.origen),
+            )(Utils.origen),
+          ),
+        )(Utils.origen),
+        Implies(
+          Greater(
+            Utils.subscript_expr(eventState.get, Utils.local_of(i1)),
+            Utils.local_of(delay),
+          )(Utils.origen),
+          Utils.single_var_forall(
+            j13,
+            Utils.int_val(0),
+            Utils.size(taskState.get),
+            Implies(
+              Eq(
+                Utils.subscript_expr(taskState.get, Utils.local_of(j13)),
+                Utils.local_of(i1),
+              )(Utils.origen),
+              Not(SeqMember(Utils.local_of(j13), Utils.result)(Utils.origen))(
+                Utils.origen
+              ),
+            )(Utils.origen),
+          ),
+        )(Utils.origen),
+      )),
+    )
+
+    // ensures (\forall int i; 0 <= i && i < |taskState| && taskState[i] < 0 ==> !(i in \result));
+    val ensures2: Expr[N] = Utils.single_var_forall(
+      i2,
+      Utils.int_val(0),
+      Utils.size(taskState.get),
+      Implies(
+        Less(
+          Utils.subscript_expr(taskState.get, Utils.local_of(i2)),
+          Utils.int_val(0),
+        )(Utils.origen),
+        Not(SeqMember(Utils.local_of(i2), Utils.result)(Utils.origen))(
+          Utils.origen
+        ),
+      )(Utils.origen),
+    )
+
+    // ensures vesuv_limit_entries(\result, 0, |taskState|);
+    val ensures3: Expr[N] = Utils.predicate_apply(
+      Utils.thiz,
+      vesuv_limit_entries_ref,
+      Seq(Utils.result, Utils.int_val(0), Utils.size(taskState.get)),
+    )
+
+    // ensures |runnableQueue| + |\result| <= |taskPriority|;
+    val ensures4: Expr[N] =
+      LessEq(
+        Plus(Utils.size(runnableQueue.get), Size(Utils.result)(Utils.origen))(
+          Utils.origen
+        ),
+        Utils.size(taskPriority.get),
+      )(Utils.origen)
+
+    // ensures (\forall int i; 0 <= i && i < |\result| ==> (\forall int j; i < j && j < |\result| ==> \result[i] != \result[j]));
+    val ensures5: Expr[N] = Utils.single_var_forall(
+      i5,
+      Utils.int_val(0),
+      Size(Utils.result)(Utils.origen),
+      Forall(
+        Seq(j5),
+        Seq(),
+        Implies(
+          And(
+            Less(Utils.local_of(i5), Utils.local_of(j5))(Utils.origen),
+            Less(Utils.local_of(j5), Size(Utils.result)(Utils.origen))(
+              Utils.origen
+            ),
+          )(Utils.origen),
+          Neq(
+            SeqSubscript(Utils.result, Utils.local_of(i5))(Utils.blame)(
+              Utils.origen
+            ),
+            SeqSubscript(Utils.result, Utils.local_of(j5))(Utils.blame)(
+              Utils.origen
+            ),
+          )(Utils.origen),
+        )(Utils.origen),
+      )(Utils.origen),
+    )
+
+    // ensures (\forall int i; 0 <= i && i < |\result| ==> (\forall int j; 0 <= j && j < i ==> (eventState[\result[j]] <= eventState[\result[i]])));
+    val ensures6: Expr[N] = Utils.single_var_forall(
+      i6,
+      Utils.int_val(0),
+      Size(Utils.result)(Utils.origen),
+      Utils.single_var_forall(
+        j6,
+        Utils.int_val(0),
+        Utils.local_of(i6),
+        LessEq(
+          SeqSubscript(
+            Utils.deref_of(eventState.get),
+            SeqSubscript(Utils.result, Utils.local_of(j6))(Utils.blame)(
+              Utils.origen
+            ),
+          )(Utils.blame)(Utils.origen),
+          SeqSubscript(
+            Utils.deref_of(eventState.get),
+            SeqSubscript(Utils.result, Utils.local_of(i6))(Utils.blame)(
+              Utils.origen
+            ),
+          )(Utils.blame)(Utils.origen),
+        )(Utils.origen),
+      ),
+    )
+
+    new InstanceMethod(
+      Utils.tseqint,
+      Seq(delay),
+      Seq(),
+      Seq(),
+      None,
+      Utils.to_app_contract(
+        requires,
+        Utils.fold_star(
+          Seq(ensures1, ensures2, ensures3, ensures4, ensures5, ensures6)
+        ),
+      ),
+      false,
+      true,
+    )(Utils.blame)(Utils.origen("awokenAfterDelay"))
+  }
+
   private def create_simulateTimePassing(
       schedulerPerms_ref: Ref[N, InstancePredicate[N]]
   ): InstanceMethod[N] = {
@@ -954,14 +1243,9 @@ class SchedulerGenerator[O <: Generation] {
     // Quantifier variables
     val i2: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
     val i3: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
-    val i4: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
-    val i5: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
-    val i7: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
     val j21: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
     val j22: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
     val j23: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
-    val j5: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
-    val j7: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
 
     // requires schedulerPerms();
     // ensures schedulerPerms();
@@ -985,17 +1269,17 @@ class SchedulerGenerator[O <: Generation] {
     //                 (   (    \old(eventState[i]) <= -1
     //                      ==> (   {: eventState[i] :} == -1
     //                           && (\forall int j; 0 <= j && j < \old(|taskState|) && \old(taskState[j]) == i ==>
-    //                                      ({: taskState[j] :} == \old(taskState[j]) && !(j in \result) && taskWaitTime[j] == \old(taskWaitTime[j]))
+    //                                      ({: taskState[j] :} == \old(taskState[j]) && taskWaitTime[j] == \old(taskWaitTime[j]))
     //                              )))
     //                  && (    (0 <= \old(eventState[i]) && \old(eventState[i]) <= delay)
     //                      ==> (   eventState[i] == -1
     //                           && (\forall int j; 0 <= j && j < \old(|taskState|) && \old(taskState[j]) == i ==>
-    //                                      ({: taskState[j] :} == -1 && j in \result && taskWaitTime[j] == delay - \old(eventState[i]))
+    //                                      ({: taskState[j] :} == -1 && taskWaitTime[j] == delay - \old(eventState[i]))
     //                              )))
     //                  && (    \old(eventState[i]) > delay
     //                      ==> (   eventState[i] == \old(eventState[i]) - delay
     //                           && (\forall int j; 0 <= j && j < \old(|taskState|) && \old(taskState[j]) == i ==>
-    //                                      ({:1: taskState[j] :} == \old(taskState[j]) && !(j in \result) && {:2: taskWaitTime[j] :} == \old(taskWaitTime[j]))
+    //                                      ({:1: taskState[j] :} == \old(taskState[j]) && {:2: taskWaitTime[j] :} == \old(taskWaitTime[j]))
     //                              )))
     //                 )
     //         );
@@ -1025,17 +1309,14 @@ class SchedulerGenerator[O <: Generation] {
                   ),
                   Utils.local_of(i2),
                 )(Utils.origen),
-                Utils.fold_and(Seq[Expr[N]](
+                And(
                   Utils.unchanged(
                     Utils.subscript_expr(taskState.get, Utils.local_of(j21))
                   ),
-                  Not(
-                    SeqMember(Utils.local_of(j21), Utils.result)(Utils.origen)
-                  )(Utils.origen),
                   Utils.unchanged(
                     Utils.subscript_expr(taskWaitTime.get, Utils.local_of(j21))
                   ),
-                )),
+                )(Utils.origen),
               )(Utils.origen),
             ),
           )(Utils.origen),
@@ -1069,12 +1350,11 @@ class SchedulerGenerator[O <: Generation] {
                   ),
                   Utils.local_of(i2),
                 )(Utils.origen),
-                Utils.fold_and(Seq[Expr[N]](
+                And(
                   Eq(
                     Utils.subscript_expr(taskState.get, Utils.local_of(j22)),
                     Utils.int_val(-1),
                   )(Utils.origen),
-                  SeqMember(Utils.local_of(j22), Utils.result)(Utils.origen),
                   Eq(
                     Utils.subscript_expr(taskWaitTime.get, Utils.local_of(j22)),
                     Minus(
@@ -1084,7 +1364,7 @@ class SchedulerGenerator[O <: Generation] {
                       ),
                     )(Utils.origen),
                   )(Utils.origen),
-                )),
+                )(Utils.origen),
               )(Utils.origen),
             ),
           )(Utils.origen),
@@ -1115,17 +1395,14 @@ class SchedulerGenerator[O <: Generation] {
                   ),
                   Utils.local_of(i2),
                 )(Utils.origen),
-                Utils.fold_and(Seq[Expr[N]](
+                And(
                   Utils.unchanged(
                     Utils.subscript_expr(taskState.get, Utils.local_of(j23))
                   ),
-                  Not(
-                    SeqMember(Utils.local_of(j23), Utils.result)(Utils.origen)
-                  )(Utils.origen),
                   Utils.unchanged(
                     Utils.subscript_expr(taskWaitTime.get, Utils.local_of(j23))
                   ),
-                )),
+                )(Utils.origen),
               )(Utils.origen),
             ),
           )(Utils.origen),
@@ -1134,7 +1411,7 @@ class SchedulerGenerator[O <: Generation] {
     )
 
     // ensures (\forall int i; 0 <= i && i < \old(|taskState|) && \old(taskState[i]) < 0 ==>
-    //                (taskState[i] == \old(taskState[i]) && !(i in \result) && taskWaitTime[i] == \old(taskWaitTime[i]) + delay)
+    //                (taskState[i] == \old(taskState[i]) && taskWaitTime[i] == \old(taskWaitTime[i]) + delay)
     //        );
     val ensures3: Expr[N] = Utils.single_var_forall(
       i3,
@@ -1145,12 +1422,9 @@ class SchedulerGenerator[O <: Generation] {
           Utils.old(Utils.subscript_expr(taskState.get, Utils.local_of(i3))),
           Utils.int_val(0),
         )(Utils.origen),
-        Utils.fold_and(Seq(
+        And(
           Utils
             .unchanged(Utils.subscript_expr(taskState.get, Utils.local_of(i3))),
-          Not(SeqMember(Utils.local_of(i3), Utils.result)(Utils.origen))(
-            Utils.origen
-          ),
           Eq(
             Utils.subscript_expr(taskWaitTime.get, Utils.local_of(i3)),
             Plus(
@@ -1160,122 +1434,19 @@ class SchedulerGenerator[O <: Generation] {
               Utils.local_of(delay),
             )(Utils.origen),
           )(Utils.origen),
-        )),
-      )(Utils.origen),
-    )
-
-    // ensures (\forall int i; 0 <= i && i < |\result| ==>
-    //                 (0 <= \result[i] && \result[i] < \old(|taskState|))
-    //         );
-    val ensures4: Expr[N] = Utils.single_var_forall(
-      i4,
-      Utils.int_val(0),
-      Size(Utils.result)(Utils.origen),
-      And(
-        LessEq(
-          Utils.int_val(0),
-          SeqSubscript(Utils.result, Utils.local_of(i4))(Utils.blame)(
-            Utils.origen
-          ),
-        )(Utils.origen),
-        Less(
-          SeqSubscript(Utils.result, Utils.local_of(i4))(Utils.blame)(
-            Utils.origen
-          ),
-          Utils.old(Utils.size(taskState.get)),
         )(Utils.origen),
       )(Utils.origen),
-    )
-
-    // ensures (\forall int i; 0 <= i && i < |\result| ==> (\forall int j; i < j && j < |\result| ==> \result[i] != \result[j]));
-    val ensures5: Expr[N] = Utils.single_var_forall(
-      i5,
-      Utils.int_val(0),
-      Size(Utils.result)(Utils.origen),
-      Forall(
-        Seq(j5),
-        Seq(),
-        Implies(
-          And(
-            Less(Utils.local_of(i5), Utils.local_of(j5))(Utils.origen),
-            Less(Utils.local_of(j5), Size(Utils.result)(Utils.origen))(
-              Utils.origen
-            ),
-          )(Utils.origen),
-          Neq(
-            SeqSubscript(Utils.result, Utils.local_of(i5))(Utils.blame)(
-              Utils.origen
-            ),
-            SeqSubscript(Utils.result, Utils.local_of(j5))(Utils.blame)(
-              Utils.origen
-            ),
-          )(Utils.origen),
-        )(Utils.origen),
-      )(Utils.origen),
-    )
-
-    // ensures \old(|runnableQueue|) + |\result| <= \old(|taskPriority|);
-    val ensures6: Expr[N] =
-      LessEq(
-        Plus(
-          Utils.old(Utils.size(runnableQueue.get)),
-          Size(Utils.result)(Utils.origen),
-        )(Utils.origen),
-        Utils.old(Utils.size(taskPriority.get)),
-      )(Utils.origen)
-
-    // ensures (\forall int i; 0 <= i && i < |\result| ==>
-    //                 (\forall int j; 0 <= j && j < i ==>
-    //                         (\old(eventState[\result[j]]) <= \old(eventState[\result[i]]))
-    //                 )
-    //         );
-    val ensures7: Expr[N] = Utils.single_var_forall(
-      i7,
-      Utils.int_val(0),
-      Size(Utils.result)(Utils.origen),
-      Utils.single_var_forall(
-        j7,
-        Utils.int_val(0),
-        Utils.local_of(i7),
-        LessEq(
-          Utils.old(
-            SeqSubscript(
-              Utils.deref_of(eventState.get),
-              SeqSubscript(Utils.result, Utils.local_of(j7))(Utils.blame)(
-                Utils.origen
-              ),
-            )(Utils.blame)(Utils.origen)
-          ),
-          Utils.old(
-            SeqSubscript(
-              Utils.deref_of(eventState.get),
-              SeqSubscript(Utils.result, Utils.local_of(i7))(Utils.blame)(
-                Utils.origen
-              ),
-            )(Utils.blame)(Utils.origen)
-          ),
-        )(Utils.origen),
-      ),
     )
 
     new InstanceMethod(
-      Utils.tseqint,
+      Utils.tvoid,
       Seq(delay),
       Seq(),
       Seq(),
       None,
       Utils.to_app_contract(
         context,
-        Utils.fold_star(Seq(
-          context,
-          ensures1,
-          ensures2,
-          ensures3,
-          ensures4,
-          ensures5,
-          ensures6,
-          ensures7,
-        )),
+        Utils.fold_star(Seq(context, ensures1, ensures2, ensures3)),
       ),
       false,
       false,
@@ -1335,6 +1506,7 @@ class SchedulerGenerator[O <: Generation] {
   private def create_schedule(
       nextEventDelay: Ref[N, InstanceMethod[N]],
       advanceTime: Ref[N, InstanceMethod[N]],
+      newRunnableTasks: Ref[N, InstanceMethod[N]],
       resumeTasks: Ref[N, InstanceMethod[N]],
       resetEvents: Ref[N, InstanceMethod[N]],
       selectNextTask: Ref[N, InstanceMethod[N]],
@@ -1344,6 +1516,8 @@ class SchedulerGenerator[O <: Generation] {
       new Variable(Utils.tint)(Utils.origen("schedulerDelay"))
     val schedulerNext: Variable[N] =
       new Variable(Utils.tint)(Utils.origen("schedulerNext"))
+    val awoken: Variable[N] =
+      new Variable(Utils.tseqint)(Utils.origen("awoken"))
 
     // Quantifier variables
     val i: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
@@ -1358,9 +1532,10 @@ class SchedulerGenerator[O <: Generation] {
     // int schedulerNext;
     // schedulerDelay = nextEventDelay();
     // if (schedulerDelay == 0 || (\forall int i; 0 <= i && i < |taskState| ==> taskState[i] >= 0)) {
-    //     assert schedulerDelay != -1;
+    //     // assert schedulerDelay != -1;
     //     advanceTime(schedulerDelay);
-    //     runnableQueue = runnableQueue + resumeTasks();
+    //     runnableQueue = runnableQueue + newRunnableTasks();
+    //     resumeTasks();
     //     resetEvents();
     // }
     // schedulerNext = selectNextTask();
@@ -1390,16 +1565,21 @@ class SchedulerGenerator[O <: Generation] {
             ),
           )(Utils.origen),
           Block(Seq(
-            Assert(Neq(Utils.local_of(schedulerDelay), Utils.int_val(0))(
+            LocalDecl(awoken)(Utils.origen),
+            /* Assert(Neq(Utils.local_of(schedulerDelay), Utils.int_val(0))(
               Utils.origen
-            ))(Utils.blame)(Utils.origen),
+            ))(Utils.blame)(Utils.origen), */
             Utils.stmt_invoke(advanceTime, Seq(Utils.local_of(schedulerDelay))),
             Assign(
+              Utils.local_of(awoken),
+              Utils.invoke(newRunnableTasks, Seq()),
+            )(Utils.blame)(Utils.origen),
+            Utils.stmt_invoke(resumeTasks, Seq()),
+            Assign(
               Utils.deref_of(runnableQueue.get),
-              Concat(
-                Utils.deref_of(runnableQueue.get),
-                Utils.invoke(resumeTasks, Seq()),
-              )(Utils.origen),
+              Concat(Utils.deref_of(runnableQueue.get), Utils.local_of(awoken))(
+                Utils.origen
+              ),
             )(Utils.blame)(Utils.origen),
             Utils.stmt_invoke(resetEvents, Seq()),
           ))(Utils.origen),

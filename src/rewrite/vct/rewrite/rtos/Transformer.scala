@@ -1087,11 +1087,16 @@ class Transformer[O <: Generation](
         Assign(
           Utils.local_of(awok),
           Utils.invoke(
-            new LazyRef[N, InstanceMethod[N]](col_ir.get_simulateTimePassing),
+            new LazyRef[N, InstanceMethod[N]](col_ir.get_awokenAfterDelay),
             Seq(Utils.local_of(execTime)),
             Some(Utils.deref_of(Utils.exclude_isr(scheduler))),
           ),
         )(Utils.blame)(Utils.origen),
+        Utils.stmt_invoke(
+          new LazyRef[N, InstanceMethod[N]](col_ir.get_simulateTimePassing),
+          Seq(Utils.local_of(execTime)),
+          Some(Utils.deref_of(Utils.exclude_isr(scheduler))),
+        ),
         Assign(
           Utils.deref_unknown(
             col_ir.get_runnableQueue,

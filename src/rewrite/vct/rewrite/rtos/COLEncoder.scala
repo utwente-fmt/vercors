@@ -41,6 +41,7 @@ class COLEncoder[O <: Generation](
   private var taskPriority: Option[InstanceField[N]] = None
   private var taskWaitTime: Option[InstanceField[N]] = None
   private var runnableQueue: Option[InstanceField[N]] = None
+  private var awokenAfterDelay: Option[InstanceMethod[N]] = None
   private var simulateTimePassing: Option[InstanceMethod[N]] = None
   private var executionTime: Option[InstanceMethod[N]] = None
   private var instantiateEventTriggers: Option[InstanceMethod[N]] = None
@@ -115,6 +116,7 @@ class COLEncoder[O <: Generation](
     taskPriority = Some(scheduler_generator.get_taskPriority)
     taskWaitTime = Some(scheduler_generator.get_taskWaitTime)
     runnableQueue = Some(scheduler_generator.get_runnableQueue)
+    awokenAfterDelay = Some(scheduler_generator.get_awokenAfterDelay)
     simulateTimePassing = Some(scheduler_generator.get_simulateTimePassing)
     executionTime = Some(scheduler_generator.get_executionTime)
     instantiateEventTriggers = Some(
@@ -181,6 +183,7 @@ class COLEncoder[O <: Generation](
   def get_taskPriority: InstanceField[N] = taskPriority.get
   def get_taskWaitTime: InstanceField[N] = taskWaitTime.get
   def get_runnableQueue: InstanceField[N] = runnableQueue.get
+  def get_awokenAfterDelay: InstanceMethod[N] = awokenAfterDelay.get
   def get_simulateTimePassing: InstanceMethod[N] = simulateTimePassing.get
   def get_executionTime: InstanceMethod[N] = executionTime.get
   def get_instantiateEventTriggers: InstanceMethod[N] =
