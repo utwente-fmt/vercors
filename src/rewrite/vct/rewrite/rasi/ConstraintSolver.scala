@@ -118,7 +118,7 @@ class ConstraintSolver[G](
       apply match {
         case PredicateApply(ref, args) =>
           (
-            ref.decl.body.getOrElse(return Set.empty[ConstraintMap[G]]),
+            ref.decl.body.getOrElse(return Set(ConstraintMap.empty[G])),
             ref.decl.args,
             args,
             ref.decl.inline,
@@ -126,7 +126,7 @@ class ConstraintSolver[G](
           )
         case InstancePredicateApply(_, ref, args) =>
           (
-            ref.decl.body.getOrElse(return Set.empty[ConstraintMap[G]]),
+            ref.decl.body.getOrElse(return Set(ConstraintMap.empty[G])),
             ref.decl.args,
             args,
             ref.decl.inline,
@@ -136,10 +136,10 @@ class ConstraintSolver[G](
     if (name.equals("vesuv_limit_entries")) {
       val lower_bound: Int = state
         .resolve_integer_expression(vals(1), is_pure, is_contract)
-        .try_to_resolve().getOrElse(return Set.empty[ConstraintMap[G]])
+        .try_to_resolve().getOrElse(return Set(ConstraintMap.empty[G]))
       val upper_bound: Int =
         state.resolve_integer_expression(vals(2), is_pure, is_contract)
-          .try_to_resolve().getOrElse(return Set.empty[ConstraintMap[G]]) - 1
+          .try_to_resolve().getOrElse(return Set(ConstraintMap.empty[G])) - 1
       val range: UncertainIntegerValue = UncertainIntegerValue
         .range(lower_bound, upper_bound)
 
@@ -162,7 +162,7 @@ class ConstraintSolver[G](
       // Start in a new context, since the predicate must be self-contained
       resolve(expr)(expr)
     } else
-      Set.empty[ConstraintMap[G]]
+      Set(ConstraintMap.empty[G])
   }
 
   private def handle_and(
