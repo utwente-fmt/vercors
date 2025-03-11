@@ -1508,7 +1508,7 @@ case class AbstractState[G](
           .extract_uncertainty[(Variable[G], (Boolean, Boolean)), (Int, Int)](
             uncertain.map(t => (t._1, t._2._2) -> t._2._1)
           ).map(m => m.map(t => t._1._1 -> (t._2, t._1._2)))
-      val implications: Seq[Expr[G]] = certain_set.map(m =>
+      val instantiations: Seq[Expr[G]] = certain_set.map(m =>
         get_quantifier_implication(
           certain,
           m,
@@ -1518,7 +1518,7 @@ case class AbstractState[G](
           assemble,
         )
       )
-      Utils.fold_and(implications)
+      Utils.fold_or(instantiations)
     }
   }
 
@@ -1527,7 +1527,7 @@ case class AbstractState[G](
       uncertain_vars: Map[Variable[G], ((Int, Int), (Boolean, Boolean))],
       expr_lookup: Map[Variable[G], ((Expr[G], Expr[G]), (Int, Int))],
       assemble: (Map[Variable[G], (Int, Int)], Map[Expr[G], Expr[G]]) => Expr[G],
-  ): Implies[G] = {
+  ): Expr[G] = {
     val conds: Seq[(Expr[G], Expr[G])] = uncertain_vars.toSeq.flatMap(t =>
       get_instance_condition(
         t._2._1,
@@ -1540,10 +1540,9 @@ case class AbstractState[G](
       certain_vars ++ uncertain_vars.map(t => t._1 -> t._2._1),
       Map.from(conds),
     )
-    Implies(
-      Utils.fold_and(conds.map(t => Eq(t._1, t._2)(Utils.origen))),
-      quantifier_instance,
-    )(Utils.origen)
+    Utils.fold_and(
+      conds.map(t => Eq(t._1, t._2)(Utils.origen)) :+ quantifier_instance
+    )
   }
 
   private def get_instance_condition(
@@ -1643,12 +1642,13 @@ case class AbstractState[G](
     )
 
   private def resolve_bound_expression(
-                                        expr: Expr[G],
-                                        offset: Int,
-                                        context: Expr[G],
-                                        binder: Binder[G],
+      expr: Expr[G],
+      offset: Int,
+      context: Expr[G],
+      binder: Binder[G],
   ): UncertainIntegerValue = {
-    val resolved: Option[Int] = resolve_integer_expression(expr).try_to_resolve()
+    val resolved: Option[Int] = resolve_integer_expression(expr)
+      .try_to_resolve()
     if (resolved.nonEmpty)
       UncertainIntegerValue.single(resolved.get + offset)
     else {
@@ -1681,7 +1681,8 @@ case class AbstractState[G](
             "Could not resolve quantifier bounds for " + expr.toInlineString +
               " from " + all_conditions.toInlineString
           ),
-        ).asInstanceOf[UncertainIntegerValue] + UncertainIntegerValue.single(offset)
+        ).asInstanceOf[UncertainIntegerValue] +
+          UncertainIntegerValue.single(offset)
     }
   }
 

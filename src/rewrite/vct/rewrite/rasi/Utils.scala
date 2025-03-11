@@ -275,6 +275,11 @@ case object Utils {
         And(e1, e2)(origen)
       )
 
+  def fold_or[G](conds: Seq[Expr[G]]): Expr[G] =
+    if (conds.length == 1)
+      conds.head
+    else conds.fold(BooleanValue[G](value = false)(origen))((e1, e2) => Or(e1, e2)(origen))
+
   def origen: Origin = Origin(Seq(LabelContext("RASI Generation")))
 
   /** Prints out the graph defined by the given states and edges to DOT format.
