@@ -30,6 +30,22 @@ case class EncodeChannels[Pre <: Generation]()
   val msgSucc = SuccessionMap[Communicate[Pre], Variable[Post]]()
   val substitutions = ScopedStack[Map[Expr[Pre], Expr[Post]]]()
 
+  case class ChannelInvInliner(
+      message: Expr[Post],
+      sender: Expr[Post],
+      receiver: Expr[Post],
+  ) extends Rewriter[Pre] {
+    override val allScopes: AllScopes[Pre, Post] = EncodeChannels.this.allScopes
+
+    override def dispatch(expr: Expr[Pre]): Expr[Post] =
+      expr match {
+        case Message(_) => message
+        case Sender(_) => sender
+        case Receiver(_) => receiver
+        case _ => expr.rewriteDefault()
+      }
+  }
+
   override def dispatch(p: Program[Pre]): Program[Post] = {
     mappings.program = p
     super.dispatch(p)
@@ -139,31 +155,97 @@ case class EncodeChannels[Pre <: Generation]()
 
       case CommunicateStatement(comm)
           if comm.sender.get.isRange || comm.receiver.get.isRange =>
+        // For now we only support the sender defining the range
         assert(comm.sender.get.isRange)
         implicit val o = comm.o
 
+        // Check in a hacky way that the msg/dst is also a field assignment
+        val Deref(_, Ref(srcField)) = comm.msg
+        val Deref(_, Ref(dstField)) = comm.destination
         val CommTargetRange(Ref(sender), RangeBinder(v, low, high)) =
           comm.sender.get
         val CommTargetIndex(Ref(receiver), i) = comm.receiver.get
 
+        /*
+        - define new p in ADT of type senderClass -> TRational
+        - assume ALL i : low .. high; 0 < p(sender[i]) && p(sender[i]) < CurPerm(sender[i].f)
+        - add to requires, ensures of par block
+        - add inv as endpoint expr to requires, ensures
+        - replace sender, receiver, msg appropriately
+         */
+
+        val eps =
+          function(
+            args = Seq(new Variable(dispatch(sender.singleType))),
+            returnType = TRational(),
+            blame = PanicBlame("TODO"),
+            contractBlame = PanicBlame("TODO"),
+          )(comm.o.where(name = "eps"))
+        globalDeclarations.declare(eps)
+
+        val epsSpec = Assume[Post](forrange[Post](
+          dispatch(low),
+          dispatch(high),
+          (i: Local[Post]) => {
+            val target = CommTargetIndex[Post](succ(sender), i)
+            val obj = CtExpr(target)
+            val frac = functionInvocation[Post](
+              ref = eps.ref,
+              args = Seq(obj),
+              blame = PanicBlame("TODO"),
+            )
+            (const(0) < frac) &&
+            (frac < EndpointExpr(
+              target,
+              CurPerm(FieldLocation[Post](obj, succ(srcField))),
+            ))
+          },
+        ))
+
         variables.scope {
           val parV = variables.succeedOnly(v, v.rewriteDefault())
+
+          val senderTarget = CommTargetIndex[Post](
+            succ(sender),
+            Local(parV.ref),
+          )
+          val senderExpr = CtExpr(senderTarget)
+          val receiverTarget = CommTargetIndex[Post](
+            succ(receiver),
+            dispatch(i),
+          )
+          val receiverExpr = CtExpr(receiverTarget)
+          val msgPerm: Expr[Post] = Perm(
+            FieldLocation(senderExpr, succ(srcField)),
+            functionInvocation[Post](
+              ref = eps.ref,
+              args = Seq(senderExpr),
+              blame = PanicBlame("TODO"),
+            ),
+          )
 
           val block =
             ParBlock(
               new ParBlockDecl()(o.where(name = "c")),
               Seq(IterVariable(parV, dispatch(low), dispatch(high))),
               tt,
-              tt,
-              tt,
-              singleMessageExchange(
-                comm,
-                CommTargetIndex[Post](succ(sender), Local(parV.ref)),
-                CommTargetIndex[Post](succ(receiver), dispatch(i)),
+              msgPerm |&*| EndpointExpr(
+                senderTarget,
+                ChannelInvInliner(dispatch(comm.msg), senderExpr, receiverExpr)
+                  .dispatch(comm.invariant),
               ),
+              msgPerm |&*| EndpointExpr(
+                receiverTarget,
+                ChannelInvInliner(
+                  dispatch(comm.destination),
+                  senderExpr,
+                  receiverExpr,
+                ).dispatch(comm.invariant),
+              ),
+              singleMessageExchange(comm, senderTarget, receiverTarget),
             )(PanicBlame("Unexpected error from par block encoding a comm!"))
 
-          ParStatement(block)
+          Block(Seq(epsSpec, ParStatement(block)))
         }
 
       case _ => statement.rewriteDefault()
