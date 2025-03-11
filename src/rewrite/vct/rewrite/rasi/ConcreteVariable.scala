@@ -53,7 +53,7 @@ object ResolvableVariable {
     }
   def indexed_from[G](expr: Expr[G], index: Int): ResolvableVariable[G] =
     expr match {
-      case _: AmbiguousResult[G] | _: Result[G] => ResultSimpleVariable(expr.t)
+      case _: AmbiguousResult[G] | _: Result[G] => ResultIndexedVariable(expr.t, index)
       case Deref(_, ref) => FieldIndexedVariable(ref.decl, index)
       case Local(ref) => LocalIndexedVariable(ref.decl, index)
       case _ =>
@@ -64,7 +64,7 @@ object ResolvableVariable {
     }
   def size_from[G](expr: Expr[G]): ResolvableVariable[G] =
     expr match {
-      case _: AmbiguousResult[_] | _: Result[_] => ResultSimpleVariable(expr.t)
+      case _: AmbiguousResult[_] | _: Result[_] => ResultSizeVariable(expr.t)
       case Deref(_, ref) => FieldSizeVariable(ref.decl)
       case Local(ref) => LocalSizeVariable(ref.decl)
       case _ =>
@@ -85,7 +85,9 @@ object ResolvableVariable {
     }
 }
 
-sealed trait IndexedVariable[G] {
+sealed trait SimpleVariable[G] extends ResolvableVariable[G]
+sealed trait SizeVariable[G] extends ResolvableVariable[G]
+sealed trait IndexedVariable[G] extends ResolvableVariable[G] {
   protected def indexed_equals(
       expr: Expr[G],
       i: Int,
@@ -157,7 +159,7 @@ sealed trait ResultVariable[G] extends ResolvableVariable[G] {
 }
 
 case class ResultSimpleVariable[G](return_type: Type[G])
-    extends ResultVariable[G] {
+    extends ResultVariable[G] with SimpleVariable[G] {
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
     is_result(expr)
 
@@ -170,7 +172,7 @@ case class ResultSimpleVariable[G](return_type: Type[G])
 }
 
 case class ResultSizeVariable[G](return_type: Type[G])
-    extends ResultVariable[G] {
+    extends ResultVariable[G] with SizeVariable[G] {
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
     expr match {
       case Size(obj) if is_result(obj) => true
@@ -240,7 +242,7 @@ sealed trait LocalVariable[G] extends ConcreteVariable[G] {
 /** A variable that represents a local variable in the COL system.
   */
 case class LocalSimpleVariable[G](variable: Variable[G])
-    extends LocalVariable[G] {
+    extends LocalVariable[G] with SimpleVariable[G] {
   override def v: Variable[G] = variable
 
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
@@ -263,7 +265,7 @@ case class LocalSimpleVariable[G](variable: Variable[G])
     }
 }
 
-case class LocalSizeVariable[G](seq: Variable[G]) extends LocalVariable[G] {
+case class LocalSizeVariable[G](seq: Variable[G]) extends LocalVariable[G] with SizeVariable[G] {
   override def v: Variable[G] = seq
 
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
@@ -341,7 +343,7 @@ sealed trait FieldVariable[G] extends ConcreteVariable[G] {
 /** A variable representing a field (attribute) of a COL class.
   */
 case class FieldSimpleVariable[G](field: InstanceField[G])
-    extends FieldVariable[G] {
+    extends FieldVariable[G] with SimpleVariable[G] {
   override def f: InstanceField[G] = field
 
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
@@ -371,7 +373,7 @@ case class FieldSimpleVariable[G](field: InstanceField[G])
 /** A variable representing the size of a collection.
   */
 case class FieldSizeVariable[G](field: InstanceField[G])
-    extends FieldVariable[G] {
+    extends FieldVariable[G] with SizeVariable[G] {
   override def f: InstanceField[G] = field
 
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =

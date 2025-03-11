@@ -19,7 +19,23 @@ class ConstraintSolver[G](
     *   A set of constraint maps mapping variables to possible values
     */
   def resolve_assumption(expr: Expr[G]): Set[ConstraintMap[G]] =
-    resolve(expr)(expr)
+    known_information(resolve(expr)(expr))
+
+  private def known_information(
+      constraints: Set[ConstraintMap[G]]
+  ): Set[ConstraintMap[G]] = {
+    val size_vars: Set[SizeVariable[G]] = vars.collect {
+      case s: SizeVariable[G]
+          if constraints
+            .exists(m => !m.is_impossible && m.constraints.contains(s)) =>
+        s
+    }
+    val size_constraints: ConstraintMap[G] = ConstraintMap
+      .from_cons[G, UncertainIntegerValue](size_vars.map(v =>
+        v -> UncertainIntegerValue.above(0)
+      ))
+    constraints.map(m => m && size_constraints)
+  }
 
   private def resolve(expr: Expr[G], negate: Boolean = false)(
       implicit context: Expr[G]
@@ -151,8 +167,9 @@ class ConstraintSolver[G](
         .map(t => t._1 -> range)
       if (variable.nonEmpty)
         cond_map =
-          cond_map ++
-            Set((variable.get, UncertainSequence.with_invariant(range, TInt[G]())))
+          cond_map ++ Set(
+            (variable.get, UncertainSequence.with_invariant(range, TInt[G]()))
+          )
       Set(ConstraintMap.from_cons(cond_map))
     }
     // TODO: Consider predicate resolution for inline predicates!
@@ -559,7 +576,7 @@ class ConstraintSolver[G](
     val index_update_map: Set[(ResolvableVariable[G], UncertainSingleValue)] =
       indices.map(t => (t._1, value.get(t._2)))
     val size_update_map: Set[(ResolvableVariable[G], UncertainSingleValue)] =
-      size_vars.map(v => (v, value.len))
+      size_vars.map(v => (v, value.get_len))
     val update_map = index_update_map ++ size_update_map
 
     comp match {
@@ -610,14 +627,16 @@ class ConstraintSolver[G](
             }
         }
       case Concat(left, right) =>
-        state.resolve_collection_expression(left).len.try_to_resolve() match {
+        state.resolve_collection_expression(left).get_len
+          .try_to_resolve() match {
           case None => ???
           case Some(i) =>
             get_contained_indices(left) ++ get_contained_indices(right)
               .map(t => (t._1, t._2 + i))
         }
       case AmbiguousPlus(left, right) =>
-        state.resolve_collection_expression(left).len.try_to_resolve() match {
+        state.resolve_collection_expression(left).get_len
+          .try_to_resolve() match {
           case None => ???
           case Some(i) =>
             get_contained_indices(left) ++ get_contained_indices(right)

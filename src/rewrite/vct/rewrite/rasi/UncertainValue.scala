@@ -329,14 +329,14 @@ case class UncertainSequence(
     typ: Type[_],
 ) extends UncertainValue {
   override def is_certain: Boolean =
-    len.is_certain && values.forall(t => t._1.is_certain && t._2.is_certain) &&
+    get_len.is_certain && values.forall(t => t._1.is_certain && t._2.is_certain) &&
       certain_entries.size == len.try_to_resolve().get
 
   override def fully_uncertain: Boolean =
     UncertainIntegerValue.above(0).is_subset_of(len) && values.isEmpty
 
   override def is_impossible: Boolean =
-    len.is_impossible ||
+    get_len.is_impossible ||
       values.exists(t => t._1.is_impossible || t._2.is_impossible)
 
   override def intersection(other: UncertainValue): UncertainValue =
@@ -539,6 +539,9 @@ case class UncertainSequence(
       lower: UncertainIntegerValue,
       upper: UncertainIntegerValue,
   ): UncertainSequence = take(upper).drop(lower)
+
+  def get_len: UncertainIntegerValue =
+    len.intersect(UncertainIntegerValue.above(unique_values.length)).asInstanceOf[UncertainIntegerValue]
 
   def get(index: Int): UncertainSingleValue = {
     if (index < 0)

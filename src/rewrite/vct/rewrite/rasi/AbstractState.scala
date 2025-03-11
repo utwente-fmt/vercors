@@ -402,7 +402,7 @@ case class AbstractState[G](
     val new_values: UncertainSequence = resolve_collection_expression(assigned)
     var vals: Map[FieldVariable[G], UncertainSingleValue] = valuations
     by_index.foreach(t => vals = vals + (t._2 -> new_values.get(t._1)))
-    size.foreach(t => vals = vals + (t -> new_values.len))
+    size.foreach(t => vals = vals + (t -> new_values.get_len))
     AbstractState(
       vals,
       processes,
@@ -445,10 +445,10 @@ case class AbstractState[G](
       )
 
     val size_value: (V, UncertainIntegerValue) =
-      (ResolvableVariable.size_from(collection).asInstanceOf[V], value.len)
+      (ResolvableVariable.size_from(collection).asInstanceOf[V], value.get_len)
 
     val up_to_index: Int =
-      (certain_indices :+ size_value._2.try_to_resolve().getOrElse(0) - 1).max
+      (certain_indices :+ size_value._2.min().getOrElse(0) - 1).max
 
     val uncertain_indices: Seq[Int] = (0 to up_to_index).diff(certain_indices)
     val uncertain_values: Seq[(V, UncertainSingleValue)] = uncertain_indices
@@ -734,7 +734,7 @@ case class AbstractState[G](
               UncertainIntegerValue.above(0)
             else
               valuations(v).asInstanceOf[UncertainIntegerValue]
-          case None => resolve_collection_expression(arr).len
+          case None => resolve_collection_expression(arr).get_len
         }
       case Size(obj) =>
         variable_from_expr(expr) match {
@@ -743,7 +743,7 @@ case class AbstractState[G](
               UncertainIntegerValue.above(0)
             else
               valuations(v).asInstanceOf[UncertainIntegerValue]
-          case None => resolve_collection_expression(obj).len
+          case None => resolve_collection_expression(obj).get_len
         }
       case ProcedureInvocation(ref, args, _, _, _, _) =>
         get_subroutine_return(
@@ -1643,12 +1643,12 @@ case class AbstractState[G](
     )
 
   private def resolve_bound_expression(
-      e: Expr[G],
-      offset: Int,
-      context: Expr[G],
-      binder: Binder[G],
+                                        expr: Expr[G],
+                                        offset: Int,
+                                        context: Expr[G],
+                                        binder: Binder[G],
   ): UncertainIntegerValue = {
-    val resolved: Option[Int] = try_to_get_bound(e)
+    val resolved: Option[Int] = resolve_integer_expression(expr).try_to_resolve()
     if (resolved.nonEmpty)
       UncertainIntegerValue.single(resolved.get + offset)
     else {
@@ -1662,9 +1662,9 @@ case class AbstractState[G](
         .fold_and(without_quantifiers :+ path_condition.getOrElse(tt))
 
       val variable: ResolvableVariable[G] = ResolvableVariable.from(
-        e,
-        expr =>
-          resolve_integer_expression(expr).try_to_resolve().getOrElse(
+        expr,
+        e =>
+          resolve_integer_expression(e).try_to_resolve().getOrElse(
             throw new IllegalStateException("Could not resolve index")
           ),
       )
@@ -1678,18 +1678,12 @@ case class AbstractState[G](
         constraints.reduce((m1, m2) => m1 || m2).resolve.getOrElse(
           variable,
           throw new IllegalStateException(
-            "Could not resolve quantifier bounds for " + e.toInlineString +
+            "Could not resolve quantifier bounds for " + expr.toInlineString +
               " from " + all_conditions.toInlineString
           ),
-        ).asInstanceOf[UncertainIntegerValue]
+        ).asInstanceOf[UncertainIntegerValue] + UncertainIntegerValue.single(offset)
     }
   }
-
-  private def try_to_get_bound(e: Expr[G]): Option[Int] =
-    e match {
-      case Size(obj) => resolve_collection_expression(obj).len.min()
-      case _ => resolve_integer_expression(e).try_to_resolve()
-    }
 
   /** Returns an expression to represent this state of the form <code>variable1
     * \== value1 && variable2 == value2 && ...</code>
