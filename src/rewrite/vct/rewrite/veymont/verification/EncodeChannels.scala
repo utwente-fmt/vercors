@@ -227,17 +227,24 @@ case class EncodeChannels[Pre <: Generation]()
             ),
           )
 
+          val dstPerm: Expr[Post] = EndpointExpr(
+            receiverTarget,
+            Perm(FieldLocation(receiverExpr, succ(dstField)), WritePerm()),
+          )
+
+          // TODO (RR): Check injectivity!
+
           val block =
             ParBlock(
               new ParBlockDecl()(o.where(name = "c")),
               Seq(IterVariable(parV, dispatch(low), dispatch(high))),
               tt,
-              msgPerm &* EndpointExpr(
+              msgPerm &* dstPerm &* EndpointExpr(
                 senderTarget,
                 ChannelInvInliner(dispatch(comm.msg), senderExpr, receiverExpr)
                   .dispatch(comm.invariant),
               ),
-              msgPerm &* EndpointExpr(
+              msgPerm &* dstPerm &* EndpointExpr(
                 receiverTarget,
                 ChannelInvInliner(
                   dispatch(comm.destination),
