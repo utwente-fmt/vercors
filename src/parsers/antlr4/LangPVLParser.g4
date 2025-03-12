@@ -203,7 +203,7 @@ statement
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
  | channelInvariant? 'communicate' access direction access ';' # pvlCommunicateStatement
- | ('endpoint' | 'endpoints') communicateTargetLabel statement
+ | ('endpoint' | 'endpoints') communicateTargetLabel statement # pvlEndpointStatement
  ;
 
 channelInvariant

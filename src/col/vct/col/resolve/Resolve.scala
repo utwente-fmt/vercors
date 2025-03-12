@@ -487,6 +487,13 @@ case object ResolveReferences extends LazyLogging {
             ctx.declare(Seq(v))
           case _ => ctx
         }).copy(currentCommunicate = Some(comm))
+      case stmt: PVLEndpointStatement[G] =>
+        // TODO (RR): This allows nodes[i := i .. i], which should instead be an error
+        stmt.endpoint match {
+          case Some(PVLCommTargetRange(_, RangeBinder(v, _, _))) =>
+            ctx.declare(Seq(v))
+          case _ => ctx
+        }
       case method: JavaMethod[G] =>
         ctx.copy(currentResult = Some(RefJavaMethod(method)))
           .copy(inStaticJavaContext =

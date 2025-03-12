@@ -656,6 +656,8 @@ case class PVLToCol[G](
             _,
           ) =>
         convertCommunicate(inv, to, from)(comm)
+      case PvlEndpointStatement(_, target, stmt) =>
+        PVLEndpointStatement(Some(convert(target)), convert(stmt))(blame(stat))
     }
 
   def convertCommunicate(
