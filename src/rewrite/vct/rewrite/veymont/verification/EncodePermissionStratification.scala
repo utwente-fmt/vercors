@@ -80,9 +80,13 @@ case class EncodePermissionStratification[Pre <: Generation](
   val inChor = ScopedStack[Boolean]()
   var warnedAboutChor = false
 
+  def isHeapDependent[G](f: AbstractFunction[G]): Boolean =
+    f.contract.requires.t != TBool()
+
   lazy val specializedApplicables: Seq[Applicable[Pre]] =
     findInContext {
-      case inv: AnyFunctionInvocation[Pre] => inv.ref.decl
+      case inv: AnyFunctionInvocation[Pre] if isHeapDependent(inv.ref.decl) =>
+        inv.ref.decl
       case inv: MethodInvocation[Pre] => inv.ref.decl
       case app: ApplyAnyPredicate[Pre] => app.ref.decl
     }.toSeq
@@ -546,8 +550,21 @@ case class EncodePermissionStratification[Pre <: Generation](
       case Value(loc: PredicateLocation[Pre]) if specializing.nonEmpty =>
         markedPredicate(loc, ReadPerm()(expr.o))(expr.o)
 
-      case CurPerm(loc: FieldLocation[Pre]) if specializing.nonEmpty => ???
-      case CurPerm(loc: PredicateLocation[Pre]) if specializing.nonEmpty => ???
+      case perm @ CurPerm(loc: FieldLocation[Pre]) if specializing.nonEmpty =>
+        implicit val o = perm.o
+        val predRef =
+          markerPredicate(loc.obj.t.asClass.get, loc.field.decl)(expr.o)
+        perm.rewrite(loc =
+          PredicateLocation(
+            PredicateApply(predRef, Seq(specializing.top, dispatch(loc.obj)))
+          )
+        )
+
+      case perm @ CurPerm(loc: PredicateLocation[Pre])
+          if specializing.nonEmpty =>
+        perm.rewrite(loc =
+          PredicateLocation(specializePredicateApply(loc.inv))(perm.o)
+        )
 
       case unfolding @ Unfolding(res: FoldTarget[Pre], inner)
           if specializing.nonEmpty =>
@@ -640,12 +657,14 @@ case class EncodePermissionStratification[Pre <: Generation](
           if inChor.topOption.contains(true) =>
         inv.rewriteDefault()
 
-      case inv: FunctionInvocation[Pre] if specializing.nonEmpty =>
+      case inv: FunctionInvocation[Pre]
+          if specializing.nonEmpty && isHeapDependent(inv.ref.decl) =>
         inv.rewrite(
           ref = specializedApplicableSucc.ref(inv.ref.decl),
           args = specializing.top +: inv.args.map(dispatch),
         )
-      case inv: InstanceFunctionInvocation[Pre] if specializing.nonEmpty =>
+      case inv: InstanceFunctionInvocation[Pre]
+          if specializing.nonEmpty && isHeapDependent(inv.ref.decl) =>
         inv.rewrite(
           ref = specializedApplicableSucc.ref(inv.ref.decl),
           args = specializing.top +: inv.args.map(dispatch),

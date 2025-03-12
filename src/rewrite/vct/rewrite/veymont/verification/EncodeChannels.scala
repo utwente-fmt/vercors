@@ -215,12 +215,15 @@ case class EncodeChannels[Pre <: Generation]()
             dispatch(i),
           )
           val receiverExpr = CtExpr(receiverTarget)
-          val msgPerm: Expr[Post] = Perm(
-            FieldLocation(senderExpr, succ(srcField)),
-            functionInvocation[Post](
-              ref = eps.ref,
-              args = Seq(senderExpr),
-              blame = PanicBlame("TODO"),
+          val msgPerm: Expr[Post] = EndpointExpr(
+            senderTarget,
+            Perm(
+              FieldLocation(senderExpr, succ(srcField)),
+              functionInvocation[Post](
+                ref = eps.ref,
+                args = Seq(senderExpr),
+                blame = PanicBlame("TODO"),
+              ),
             ),
           )
 
@@ -229,12 +232,12 @@ case class EncodeChannels[Pre <: Generation]()
               new ParBlockDecl()(o.where(name = "c")),
               Seq(IterVariable(parV, dispatch(low), dispatch(high))),
               tt,
-              msgPerm |&*| EndpointExpr(
+              msgPerm &* EndpointExpr(
                 senderTarget,
                 ChannelInvInliner(dispatch(comm.msg), senderExpr, receiverExpr)
                   .dispatch(comm.invariant),
               ),
-              msgPerm |&*| EndpointExpr(
+              msgPerm &* EndpointExpr(
                 receiverTarget,
                 ChannelInvInliner(
                   dispatch(comm.destination),

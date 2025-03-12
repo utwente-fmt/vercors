@@ -1,6 +1,6 @@
 package vct.col.ast.family.accountedpredicate
 
-import vct.col.ast.AccountedPredicate
+import vct.col.ast.{AccountedPredicate, Type}
 import vct.col.ast.ops.AccountedPredicateFamilyOps
 
 /** A tree of assertions that represents the separating conjunction of the
@@ -15,4 +15,5 @@ import vct.col.ast.ops.AccountedPredicateFamilyOps
 trait AccountedPredicateImpl[G] extends AccountedPredicateFamilyOps[G] {
   this: AccountedPredicate[G] =>
 
+  def t: Type[G]
 }

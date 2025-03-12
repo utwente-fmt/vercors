@@ -506,9 +506,12 @@ case class ColToSilver(program: col.Program[_]) {
 
       case res @ col
             .Perm(col.PredicateLocation(app: col.PredicateApply[_]), perm) =>
+        val permValue = exp(perm)
+        permValue.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode =
+          Some(res)
         silver.PredicateAccessPredicate(
           pred(app, info = Some(expInfo(res))),
-          exp(perm),
+          permValue,
         )(pos = pos(res), info = expInfo(res))
 
       case col.Wand(left, right) =>
