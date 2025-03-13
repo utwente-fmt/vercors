@@ -399,6 +399,7 @@ case class SilverTransformation(
         EncodeChorBranchUnanimity.withArg(veymontBranchUnanimity),
         EncodeEndpointInequalities,
         EncodeChannels,
+        EncodeParameterizedEndpointStatements,
         EncodePermissionStratification
           .withArg(veymontPermissionStratificationMode),
         EncodeChoreography,

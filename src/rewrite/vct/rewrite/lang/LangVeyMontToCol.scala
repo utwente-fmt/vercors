@@ -196,9 +196,10 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteStatement(stmt: Statement[Pre]): Statement[Post] =
     stmt match {
       case stmt @ PVLEndpointStatement(endpoint, inner) =>
-        EndpointStatement(endpoint.map(rewrite), rw.dispatch(inner))(
-          stmt.blame
-        )(stmt.o)
+        EndpointStatement(
+          endpoint.map(rewrite),
+          currentStatement.having(inner) { rw.dispatch(inner) },
+        )(stmt.blame)(stmt.o)
       case eval: Eval[Pre] =>
         EndpointStatement[Post](None, eval.rewriteDefault())(PanicBlame(
           "Inner statement cannot fail"

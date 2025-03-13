@@ -7,6 +7,7 @@ import vct.col.ast.{
   Block,
   Branch,
   CommTargetEndpoint,
+  CommTargetRange,
   Communicate,
   CommunicateStatement,
   CommunicateTarget,
@@ -18,8 +19,11 @@ import vct.col.ast.{
   Expr,
   Loop,
   MethodInvocation,
+  Node,
+  RangeBinder,
   Scope,
   ThisChoreography,
+  Variable,
 }
 import vct.col.ast.ops.EndpointStatementOps
 import vct.col.ast.statement.StatementImpl
@@ -85,7 +89,14 @@ trait EndpointStatementImpl[G]
         case (Some(_), MethodInvocation(e, _, _, _, _, _, _))
             if rootEndpoint(e).isDefined =>
           Seq()
-        case _ => Seq(SeqProgInvocation(node))
+        /* TODO (RR): In parameterized endpoint statements we want to restrict method calls to form
+                      `nodes[i].m()`, where `i` has to be the iteration variable. But we ignore this
+                      for now as automatically checking this is not so important yet.
+                      For non-parameterized endpoint statements any form is allowed because VerCors
+                      can easily compute the footprint.
+         */
+//        case _ => Seq(SeqProgInvocation(node))
+        case _ => Seq()
       }
   }
 
@@ -145,4 +156,20 @@ trait EndpointStatementImpl[G]
           Seq()
         case _ => Seq(ChorStatement(this))
       })
+
+  // Even though we use seq here, it's a bug if there's ever more than one (for example if also the inline range binder syntax is used)
+  def rangeBinder: Seq[Variable[G]] =
+    endpoint match {
+      case Some(CommTargetRange(_, RangeBinder(v, _, _))) => Seq(v)
+      case _ => Seq()
+    }
+
+  override def checkContextRecursor[T](
+      context: CheckContext[G],
+      f: (CheckContext[G], Node[G]) => T,
+  ): Seq[T] = {
+    // Add i to scope of the inner statement
+    val ctxRangeBinder = context.copy(scopes = context.withScope(rangeBinder))
+    endpoint.map(f(context, _)).toSeq ++ Seq(f(ctxRangeBinder, inner))
+  }
 }
