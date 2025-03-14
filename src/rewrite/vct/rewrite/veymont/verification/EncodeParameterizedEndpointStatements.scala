@@ -53,6 +53,7 @@ case class EncodeParameterizedEndpointStatements[Pre <: Generation]()
       expr match {
         case ThisObject(_) => thisObj
         case old @ Old(_, None) => old.rewrite(at = Some(oldLabel.ref))
+        case _ => expr.rewriteDefault()
       }
   }
 
@@ -83,17 +84,23 @@ case class EncodeParameterizedEndpointStatements[Pre <: Generation]()
         v.drop()
 
         val label = new LabelDecl[Post]()(o.where(name = "pre"))
-        val parV = new Variable[Post](TInt())
-        val target = CommTargetIndex(succ(f), Local[Post](parV.ref))
-        val endpoint = CtExpr(target)
-        val extractor = ContractExtractor(???)
+        val parV = new Variable[Post](TInt())(o.where(name = "i"))
+        val target = CommTargetIndex[Post](succ(f), Local[Post](parV.ref))
+        val endpoint = CtExpr[Post](target)
+        val extractor = ContractExtractor(endpoint, label)
         val par =
           ParBlock(
             new ParBlockDecl()(o.where(name = "s")),
             Seq(IterVariable(parV, dispatch(l), dispatch(h))),
             tt,
-            EndpointExpr(target, extractor.dispatch(m.contract.requires)),
-            EndpointExpr(target, extractor.dispatch(m.contract.ensures)),
+            EndpointExpr(
+              target,
+              unaccount(extractor.dispatch(m.contract.requires)),
+            ),
+            EndpointExpr(
+              target,
+              unaccount(extractor.dispatch(m.contract.ensures)),
+            ),
             Inhale(ff), // Statement
           )(PanicBlame("Unexpected error from par block"))
 

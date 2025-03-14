@@ -282,25 +282,27 @@ case class EncodeChoreography[Pre <: Generation]()
   def rewriteRun(chor: Choreography[Pre]): Procedure[Post] =
     eps.scope {
       variables.scope {
-        val run = chor.run
-        implicit val o: Origin = run.o.where(name =
-          currentChor.top.o.getPreferredNameOrElse().snake + "_run"
-        )
-
-        currentRun.having(run) {
-          declareChorEndpointVars(chor)
-          declareChorParamVars(chor)
-
-          globalDeclarations.declare(
-            new Procedure(
-              args = chorContextVariables(chor),
-              contract = dispatch(run.contract),
-              body = Some(dispatch(run.body)),
-              outArgs = Seq(),
-              typeArgs = Seq(),
-              returnType = TVoid(),
-            )(CallableFailureToContractedFailure(run.blame))
+        labelDecls.scope {
+          val run = chor.run
+          implicit val o: Origin = run.o.where(name =
+            currentChor.top.o.getPreferredNameOrElse().snake + "_run"
           )
+
+          currentRun.having(run) {
+            declareChorEndpointVars(chor)
+            declareChorParamVars(chor)
+
+            globalDeclarations.declare(
+              new Procedure(
+                args = chorContextVariables(chor),
+                contract = dispatch(run.contract),
+                body = Some(dispatch(run.body)),
+                outArgs = Seq(),
+                typeArgs = Seq(),
+                returnType = TVoid(),
+              )(CallableFailureToContractedFailure(run.blame))
+            )
+          }
         }
       }
     }

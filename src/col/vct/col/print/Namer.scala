@@ -77,6 +77,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
       case _: PVLConstructor[G] => ()
       case _: CFunctionDefinition[G] => ()
       case _: CPPFunctionDefinition[G] => ()
+      case _: ChorRun[G] => ()
     }
 
   def unpackName(name: String): (String, Int) = {

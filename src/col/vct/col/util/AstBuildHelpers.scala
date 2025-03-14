@@ -1072,6 +1072,13 @@ object AstBuildHelpers {
       case other => Seq(other)
     }
 
+  def unaccount[G](accounted: AccountedPredicate[G]): Expr[G] =
+    accounted match {
+      case UnitAccountedPredicate(pred) => pred
+      case acc @ SplitAccountedPredicate(left, right) =>
+        Star(unaccount(left), unaccount(right))(acc.o)
+    }
+
   def loop[G](
       cond: Expr[G],
       body: Statement[G],

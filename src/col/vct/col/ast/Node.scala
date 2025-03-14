@@ -3898,7 +3898,7 @@ final class Choreography[G](
     val decls: Seq[ClassDeclaration[G]],
 )(val blame: Blame[ChoreographyFailure])(implicit val o: Origin)
     extends GlobalDeclaration[G] with ChoreographyImpl[G]
-@family
+@family @scopes[LabelDecl]
 final case class ChorRun[G](
     body: Statement[G],
     contract: ApplicableContract[G],
