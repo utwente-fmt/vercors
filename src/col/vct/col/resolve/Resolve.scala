@@ -1242,15 +1242,26 @@ case object ResolveReferences extends LazyLogging {
       case glob: LLVMGlobalSpecification[G] =>
         glob.data.get.foreach(resolve(_, ctx))
       case comm: PVLCommunicate[G] =>
+        // TODO (RR): This should really be a pass before the resolve pass somehow... It's too bad we require locals to be already resolved before we can infer senders/receivers
         /* Endpoint contexts for communicate are resolved early, because otherwise \sender, \receiver, \msg cannot be typed.
          */
         def getEndpoints[G](expr: Expr[G]): Seq[PVLCommunicateTarget[G]] =
-          mutable.LinkedHashSet.from(expr.collect { case name: PVLLocal[G] =>
-            (name, name.ref.get)
-          }.collect { case (local, ref @ RefPVLEndpoint(endpoint)) =>
-            val target = PVLCommTargetEndpoint[G](endpoint.name)(local.o)
-            target.ref = Some(ref)
-            target
+          mutable.LinkedHashSet.from(expr.collect {
+            case name: PVLLocal[G] => (name, name.ref.get)
+            case sub @ AmbiguousSubscript(name: PVLLocal[G], _) =>
+              (sub, name.ref.get)
+          }.collect {
+            case (local, ref @ RefPVLEndpoint(endpoint)) if endpoint.isSingle =>
+              val target = PVLCommTargetEndpoint[G](endpoint.name)(local.o)
+              target.ref = Some(ref)
+              target
+            case (
+                  sub @ AmbiguousSubscript(name, i),
+                  ref @ RefPVLEndpoint(endpoint),
+                ) if endpoint.isFamily =>
+              val target = PVLCommTargetIndex[G](endpoint.name, i)(sub.o)
+              target.ref = Some(ref)
+              target
           } ++ expr.collect { case PVLCommTargetExpr(target) => target }).toSeq
 
         def getEndpoint[G](expr: Expr[G]): PVLCommunicateTarget[G] =
@@ -1265,6 +1276,7 @@ case object ResolveReferences extends LazyLogging {
                 expr.o.messageInContext("Too many endpoints possible")
               )
           }
+
         comm.inferredSender = comm.sender.orElse(Some(getEndpoint(comm.msg)))
         comm.inferredReceiver = comm.receiver
           .orElse(Some(getEndpoint(comm.target)))

@@ -82,6 +82,7 @@ case class EncodeChannels[Pre <: Generation]()
       Seq(m),
       Block(Seq(
         assignLocal(m.get, EndpointExpr[Post](sender, dispatch(comm.msg))),
+        // TODO: Need to set the proper replacements for sender, receiver, msg here
         Exhale(wrapEndpointExpr(comm.invariant, sender))(
           ExhaleFailedToChannelInvariantNotEstablished(comm)
         ),

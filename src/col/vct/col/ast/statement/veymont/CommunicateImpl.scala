@@ -3,6 +3,7 @@ package vct.col.ast.statement.veymont
 import hre.data.BitString
 import vct.col.ast.declaration.DeclarationImpl
 import vct.col.ast.{
+  CommTargetEndpoint,
   CommTargetRange,
   Communicate,
   CommunicateTarget,
@@ -48,12 +49,20 @@ trait CommunicateImpl[G]
         case comm: Communicate[G]
             if sender.isDefined &&
               !context.currentParticipatingEndpoints.get.contains(sender.get) =>
-          Seq(SeqProgParticipant(sender.get))
+          comm.sender match {
+            case Some(CommTargetEndpoint(_)) =>
+              Seq(SeqProgParticipant(sender.get))
+            case _ => Seq() // Ignore this check for parameterized endpoint
+          }
         case comm: Communicate[G]
             if receiver.isDefined &&
               !context.currentParticipatingEndpoints.get
                 .contains(receiver.get) =>
-          Seq(SeqProgParticipant(receiver.get))
+          comm.receiver match {
+            case Some(CommTargetEndpoint(_)) =>
+              Seq(SeqProgParticipant(receiver.get))
+            case _ => Seq() // Ignore this check for parameterized endpoint
+          }
         case _ => Nil
       }
   }

@@ -1,0 +1,107 @@
+class Node {
+  // When this was a plain "int v", verification kept getting stuck on calculating the right permission amounts to divide over the par block.
+  final int v;
+
+  // ensures 0 <= \result && \result < |nodes()|;
+  final int tid;
+
+  // !! different: properly encoded as ADT now
+  // ensures |\result| > 0;
+  // final seq<Node> nodes;
+
+  int inMessage, outMessage, dummySend, dummyReceive, total;
+  int n, frontN, backN;
+
+  // requires |Ns.get()| > 0;
+  // requires 0 <= tid && tid < |Ns.get()|;
+  // ensures 0 <= \result && \result < |Ns.get()|;
+  // /* !! different: global knowledge is used here. But nextTid is intended to be a concrete function.
+  //    So need to be careful that ghost knowledge is not mixed with concrete execution here.
+  //  */
+  // pure int nextTid() = next(tid, |Ns.get()|);
+
+  // requires |Ns.get()| > 0;
+  // requires 0 <= tid && tid < |Ns.get()|;
+  // ensures \result != null;
+  // pure Node nextNode() = Ns.get()[nextTid()];
+
+  // pure boolean wf() =
+  //   |Ns.get()| >= 1 &&
+  //   0 <= tid && tid < |Ns.get()|;
+
+  ensures Perm(outMessage,1) ** Perm(inMessage,1) ** Perm(n,1) ** Perm(frontN, 1) ** Perm(backN, 1) ** Perm(total,1) **
+    Perm(dummySend, 1) ** Perm(dummyReceive, 1);
+  ensures v == myValue ** outMessage == v ** inMessage == -1 ** n == 0 ** total == v ** tid == myTid **
+    frontN == 0 ** backN == 0;
+  constructor(int myValue, int myTid) {
+    v = myValue;
+    outMessage = v;
+    inMessage = -1;
+    n = 0;
+    total = v;
+    tid = myTid;
+    frontN = 0;
+    backN = 0;
+  }
+
+
+  context Perm(outMessage,1) ** Perm(inMessage,1\2) ** Perm(n,1) ** Perm(total, 1);
+  ensures n == \old(n) + 1;
+  ensures inMessage == \old(inMessage);
+  ensures total == inMessage + v;
+  ensures outMessage == total;
+  boolean processMessage() {
+    total = inMessage + v;
+    outMessage = total;
+    n++;
+  }
+
+
+  requires 0 <= tid && tid < |nodes|;
+  ensures getTotal(nodes, tid, |nodes| - 1) == getTotal(nodes, 0, |nodes| - 1);
+  void generalizeResult(seq<Node> nodes) {
+    lemmaTotalShift(nodes, tid, 0);
+  }
+
+  context Perm(backN, 1) ** Perm(n, 1\2);
+  ensures backN == n;
+  void updateBackN() {
+    backN = n;
+  }
+
+  context Perm(frontN, 1) ** Perm(n, 1\2);
+  ensures frontN == n;
+  void updateFrontN() {
+    frontN = n;
+  }
+}
+
+requires nn(nodes);
+requires 0 <= i && i < |nodes|;
+requires 0 <= rounds && rounds <= |nodes|;
+pure int getTotal(seq<Node> nodes, int i, int rounds) =
+  // TODO: What is this forall doing here? It's excluded by "nn(nodes)", but still...?
+  (\forall int i = 0 .. |nodes|; nodes[i] != null) ? (
+  rounds == 0
+    ? nodes[i].v
+    : (\let int nextI = next(i, |nodes|);
+      (\let int nextTotal = getTotal(nodes, nextI, rounds - 1);
+        nextTotal + nodes[i].v))
+        ) : 0;
+
+requires size > 0;
+requires 0 <= i && i < size;
+ensures 0 <= \result && \result < size;
+pure int next(int i, int size) = mod(i - 1, size);
+
+requires size > 0;
+requires 0 <= i && i < size;
+ensures 0 <= \result && \result < size;
+pure int prev(int i, int size) = mod(i + 1, size);
+
+requires (\forall* int i = 0 .. |nodes|; Perm(nodes[i].n, read));
+pure boolean nLessThanLength(seq<Node> nodes) =
+  (\forall int j=0..|nodes|; nodes[j].n < |nodes| - 1);
+
+inline resource wfNodes(seq<Node> nodes) = nn(nodes);
+
