@@ -180,8 +180,7 @@ class ConstraintSolver[G](
           ConstraintMap.from(variable, UncertainSequence.injective(TInt[G]()))
         )
       case _ =>
-        // TODO: Consider predicate resolution for inline predicates!
-        if (false && inline) {
+        if (inline) {
           val expr: Expr[G] = Utils
             .unify_expression(body, Map.from(params.zip(vals)))
           // Start in a new context, since the predicate must be self-contained

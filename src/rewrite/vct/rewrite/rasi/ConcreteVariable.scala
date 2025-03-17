@@ -53,7 +53,8 @@ object ResolvableVariable {
     }
   def indexed_from[G](expr: Expr[G], index: Int): ResolvableVariable[G] =
     expr match {
-      case _: AmbiguousResult[G] | _: Result[G] => ResultIndexedVariable(expr.t, index)
+      case _: AmbiguousResult[G] | _: Result[G] =>
+        ResultIndexedVariable(expr.t, index)
       case Deref(_, ref) => FieldIndexedVariable(ref.decl, index)
       case Local(ref) => LocalIndexedVariable(ref.decl, index)
       case _ =>
@@ -97,8 +98,9 @@ sealed trait IndexedVariable[G] extends ResolvableVariable[G] {
   ): Boolean =
     expr match {
       case AmbiguousSubscript(collection, idx) =>
-        decl_matches(collection) && index == state.resolve_integer_expression(idx)
-          .try_to_resolve().getOrElse(-1)
+        decl_matches(collection) &&
+        index == state.resolve_integer_expression(idx).try_to_resolve()
+          .getOrElse(-1)
       case SeqSubscript(seq, idx) =>
         decl_matches(seq) && index == state.resolve_integer_expression(idx)
           .try_to_resolve().getOrElse(-1)
@@ -129,8 +131,7 @@ sealed trait IndexedVariable[G] extends ResolvableVariable[G] {
           .try_to_resolve().getOrElse(index + 1) < index &&
         state.resolve_integer_expression(to).try_to_resolve()
           .getOrElse(index - 1) >= index
-      case _ =>
-        decl_matches(expr) || indexed_equals(expr, decl_matches, state)
+      case _ => decl_matches(expr) || indexed_equals(expr, decl_matches, state)
     }
 
   protected def generate_expression(
@@ -266,7 +267,8 @@ case class LocalSimpleVariable[G](variable: Variable[G])
     }
 }
 
-case class LocalSizeVariable[G](seq: Variable[G]) extends LocalVariable[G] with SizeVariable[G] {
+case class LocalSizeVariable[G](seq: Variable[G])
+    extends LocalVariable[G] with SizeVariable[G] {
   override def v: Variable[G] = seq
 
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =

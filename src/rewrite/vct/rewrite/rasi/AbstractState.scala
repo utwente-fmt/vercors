@@ -1146,14 +1146,12 @@ case class AbstractState[G](
       is_old: Boolean,
       is_contract: Boolean,
   ): UncertainSequence = {
-    val affected: Set[ConcreteVariable[G] with IndexedVariable[G]] = variables_to_check.keySet
-      .filter(v => v.is_contained_by(expr, this)).collect {
-        case v: IndexedVariable[G] => v
-      }
-    val size_var: Option[ConcreteVariable[G] with SizeVariable[G]] = variables_to_check.keySet
-      .filter(v => v.is_contained_by(expr, this)).collectFirst {
-        case v: SizeVariable[G] => v
-      }
+    val affected: Set[ConcreteVariable[G] with IndexedVariable[G]] =
+      variables_to_check.keySet.filter(v => v.is_contained_by(expr, this))
+        .collect { case v: IndexedVariable[G] => v }
+    val size_var: Option[ConcreteVariable[G] with SizeVariable[G]] =
+      variables_to_check.keySet.filter(v => v.is_contained_by(expr, this))
+        .collectFirst { case v: SizeVariable[G] => v }
     val len: Option[UncertainIntegerValue] = size_var
       .map(v => variables_to_check(v).asInstanceOf[UncertainIntegerValue])
     val t: Type[G] =
@@ -1175,9 +1173,9 @@ case class AbstractState[G](
           else
             affected.map(v => v.index).max
         )),
-        affected
-          .map(v => UncertainIntegerValue.single(v.index) -> variables_to_check(v))
-          .toSeq,
+        affected.map(v =>
+          UncertainIntegerValue.single(v.index) -> variables_to_check(v)
+        ).toSeq,
         UncertainSingleValue.uncertain_of(t),
         injective = false,
         t,
@@ -1372,8 +1370,7 @@ case class AbstractState[G](
         else
           UncertainBooleanValue.uncertain()
       case _ =>
-        // TODO: Consider predicate resolution for inline predicates!
-        if (false && inline)
+        if (inline)
           resolve_boolean_expression(
             Utils.unify_expression(body, Map.from(params.zip(vals))),
             is_contract,

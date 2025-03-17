@@ -301,8 +301,10 @@ case class BoundedInterval(lower: Int, upper: Int) extends Interval {
       case EmptyInterval => other
       case mi: MultiInterval => mi.intersection(this)
       case BoundedInterval(low, up) =>
-        if (up <= upper && up >= lower || low <= upper && low >= lower)
-          BoundedInterval(scala.math.max(low, lower), scala.math.min(up, upper))
+        val l: Int = scala.math.max(low, lower)
+        val u: Int = scala.math.min(up, upper)
+        if (l <= u)
+          BoundedInterval(l, u)
         else
           EmptyInterval
       case LowerBoundedInterval(low) =>
