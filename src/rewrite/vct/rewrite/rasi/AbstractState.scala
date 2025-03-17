@@ -995,6 +995,7 @@ case class AbstractState[G](
             .fold(UncertainSingleValue.uncertain_of(element))((v1, v2) =>
               v1.union(v2).asInstanceOf[UncertainSingleValue]
             ),
+          injective(elements.map(t => t._2)),
           element,
         )
       case UntypedLiteralSeq(values) =>
@@ -1010,6 +1011,7 @@ case class AbstractState[G](
             .fold(UncertainSingleValue.uncertain_of(values.head.t))((v1, v2) =>
               v1.union(v2).asInstanceOf[UncertainSingleValue]
             ),
+          injective(elements.map(t => t._2)),
           values.head.t,
         )
       // Variables
@@ -1132,19 +1134,25 @@ case class AbstractState[G](
       case AmbiguousResult() => UncertainSequence.uncertain(TInt[G]())
     }
 
+  private def injective(values: Seq[UncertainSingleValue]): Boolean =
+    values.zipWithIndex.forall(t1 =>
+      values.zipWithIndex
+        .forall(t2 => t1._2 == t2._2 || !(t1._1 == t2._1).can_be_true)
+    )
+
   private def collection_from_variable(
       expr: Expr[G],
       variables_to_check: Map[ConcreteVariable[G], UncertainSingleValue],
       is_old: Boolean,
       is_contract: Boolean,
   ): UncertainSequence = {
-    val affected: Set[FieldIndexedVariable[G]] = variables_to_check.keySet
+    val affected: Set[ConcreteVariable[G] with IndexedVariable[G]] = variables_to_check.keySet
       .filter(v => v.is_contained_by(expr, this)).collect {
-        case v: FieldIndexedVariable[_] => v
+        case v: IndexedVariable[G] => v
       }
-    val size_var: Option[FieldSizeVariable[G]] = variables_to_check.keySet
+    val size_var: Option[ConcreteVariable[G] with SizeVariable[G]] = variables_to_check.keySet
       .filter(v => v.is_contained_by(expr, this)).collectFirst {
-        case v: FieldSizeVariable[_] => v
+        case v: SizeVariable[G] => v
       }
     val len: Option[UncertainIntegerValue] = size_var
       .map(v => variables_to_check(v).asInstanceOf[UncertainIntegerValue])
@@ -1165,12 +1173,13 @@ case class AbstractState[G](
           if (affected.isEmpty)
             0
           else
-            affected.map(v => v.i).max
+            affected.map(v => v.index).max
         )),
         affected
-          .map(v => UncertainIntegerValue.single(v.i) -> variables_to_check(v))
+          .map(v => UncertainIntegerValue.single(v.index) -> variables_to_check(v))
           .toSeq,
         UncertainSingleValue.uncertain_of(t),
+        injective = false,
         t,
       )
   }
@@ -1332,34 +1341,47 @@ case class AbstractState[G](
             Utils.extract_name(ref.decl.o),
           )
       }
-    if (name.equals("vesuv_limit_entries")) {
-      val collection: UncertainSequence = resolve_collection_expression(
-        vals.head,
-        is_old,
-        is_contract,
-      )
-      val lower_bound: Int = resolve_integer_expression(
-        vals(1),
-        is_old,
-        is_contract,
-      ).try_to_resolve().getOrElse(return UncertainBooleanValue.uncertain())
-      val upper_bound: Int =
-        resolve_integer_expression(vals(2), is_old, is_contract)
-          .try_to_resolve()
-          .getOrElse(return UncertainBooleanValue.uncertain()) - 1
-      val range: UncertainIntegerValue = UncertainIntegerValue
-        .range(lower_bound, upper_bound)
-      collection.is_limited_by(range)
+    name match {
+      case "vesuv_limit_entries" =>
+        val collection: UncertainSequence = resolve_collection_expression(
+          vals.head,
+          is_old,
+          is_contract,
+        )
+        val lower_bound: Int = resolve_integer_expression(
+          vals(1),
+          is_old,
+          is_contract,
+        ).try_to_resolve().getOrElse(return UncertainBooleanValue.uncertain())
+        val upper_bound: Int =
+          resolve_integer_expression(vals(2), is_old, is_contract)
+            .try_to_resolve()
+            .getOrElse(return UncertainBooleanValue.uncertain()) - 1
+        val range: UncertainIntegerValue = UncertainIntegerValue
+          .range(lower_bound, upper_bound)
+        collection.is_limited_by(range)
+      case "vesuv_injective" =>
+        val collection: UncertainSequence = resolve_collection_expression(
+          vals.head,
+          is_old,
+          is_contract,
+        )
+        if (collection.injective)
+          UncertainBooleanValue.from(true)
+        // TODO: Store information that a sequence is definitely NOT injective?
+        else
+          UncertainBooleanValue.uncertain()
+      case _ =>
+        // TODO: Consider predicate resolution for inline predicates!
+        if (false && inline)
+          resolve_boolean_expression(
+            Utils.unify_expression(body, Map.from(params.zip(vals))),
+            is_contract,
+            is_old,
+          )
+        else
+          UncertainBooleanValue.from(true)
     }
-    // TODO: Consider predicate resolution for inline predicates!
-    else if (false && inline)
-      resolve_boolean_expression(
-        Utils.unify_expression(body, Map.from(params.zip(vals))),
-        is_contract,
-        is_old,
-      )
-    else
-      UncertainBooleanValue.from(true)
   }
 
   def unroll_quantifier(q: Binder[G], context: Expr[G]): Expr[G] =

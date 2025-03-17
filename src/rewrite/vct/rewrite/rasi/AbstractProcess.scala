@@ -288,7 +288,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
               true,
               take_viable_edges_from_state(
                 succ,
-                state.reset_locals.with_local_condition(res),
+                state,//.reset_locals.with_local_condition(res),
               ),
             )
           // Everything else does not affect the state, so simply go to the next step

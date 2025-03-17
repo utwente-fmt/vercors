@@ -326,10 +326,12 @@ case class UncertainSequence(
     len: UncertainIntegerValue,
     values: Seq[(UncertainIntegerValue, UncertainSingleValue)],
     invariant: UncertainSingleValue,
+    injective: Boolean,
     typ: Type[_],
 ) extends UncertainValue {
   override def is_certain: Boolean =
-    get_len.is_certain && values.forall(t => t._1.is_certain && t._2.is_certain) &&
+    get_len.is_certain &&
+      values.forall(t => t._1.is_certain && t._2.is_certain) &&
       certain_entries.size == len.try_to_resolve().get
 
   override def fully_uncertain: Boolean =
@@ -341,7 +343,7 @@ case class UncertainSequence(
 
   override def intersection(other: UncertainValue): UncertainValue =
     other match {
-      case UncertainSequence(ol, ov, oi, ot) if typ == ot =>
+      case UncertainSequence(ol, ov, oi, on, ot) if typ == ot =>
         val (
           certain_tvals: Seq[(UncertainIntegerValue, UncertainSingleValue)],
           uncertain_tvals: Seq[(UncertainIntegerValue, UncertainSingleValue)],
@@ -381,11 +383,13 @@ case class UncertainSequence(
           common_vals ++ other_tvals ++ other_ovals ++ uncertain_tvals ++
             uncertain_ovals
         val inv: UncertainSingleValue = invariant.intersect(oi)
-        UncertainSequence(
-          length,
-          vals.map(t => (t._1, t._2.intersect(inv))),
-          inv,
+        val inj: Boolean = injective || on
+        UncertainSequence.assemble(
           typ,
+          length_constraint = length,
+          entries = vals,
+          invariant = Some(inv),
+          injective = inj,
         )
       case _ =>
         throw new IllegalArgumentException(
@@ -404,7 +408,7 @@ case class UncertainSequence(
 
   override def ==(other: UncertainValue): UncertainBooleanValue =
     other match {
-      case UncertainSequence(ol, ov, oi, ot) if typ.equals(ot) =>
+      case UncertainSequence(ol, ov, oi, on, ot) if typ.equals(ot) =>
         if (len.intersection(ol).is_impossible)
           return UncertainBooleanValue.from(false)
         if (invariant.intersect(oi).is_impossible)
@@ -462,6 +466,7 @@ case class UncertainSequence(
       len.union(other.len).asInstanceOf[UncertainIntegerValue],
       combine_values(values, other.values),
       invariant.union_single(other.invariant),
+      injective && other.injective,
       typ,
     )
   }
@@ -471,6 +476,7 @@ case class UncertainSequence(
       len + other.len,
       values ++ shift(other.values, len),
       invariant.union_single(other.invariant),
+      injective = false,
       typ,
     )
 
@@ -480,6 +486,7 @@ case class UncertainSequence(
       (UncertainIntegerValue.single(0) -> value) +:
         shift(values, UncertainIntegerValue.single(1)),
       invariant.union_single(value),
+      injective = false,
       typ,
     )
 
@@ -491,6 +498,7 @@ case class UncertainSequence(
       len,
       values.filter(e => !e._1.can_be_equal(index)) :+ index -> value,
       invariant.union_single(value),
+      injective = false,
       typ,
     )
 
@@ -501,6 +509,7 @@ case class UncertainSequence(
       len - UncertainIntegerValue.single(1),
       before ++ shift(after, UncertainIntegerValue.single(-1)),
       invariant,
+      injective,
       typ,
     )
   }
@@ -513,6 +522,7 @@ case class UncertainSequence(
           t._2
       ),
       invariant,
+      injective,
       typ,
     )
 
@@ -531,6 +541,7 @@ case class UncertainSequence(
         UncertainIntegerValue.single(0),
       shift(remaining, -red),
       invariant,
+      injective,
       typ,
     )
   }
@@ -541,7 +552,8 @@ case class UncertainSequence(
   ): UncertainSequence = take(upper).drop(lower)
 
   def get_len: UncertainIntegerValue =
-    len.intersect(UncertainIntegerValue.above(unique_values.length)).asInstanceOf[UncertainIntegerValue]
+    len.intersect(UncertainIntegerValue.above(unique_values.length))
+      .asInstanceOf[UncertainIntegerValue]
 
   def get(index: Int): UncertainSingleValue = {
     if (index < 0)
@@ -668,53 +680,156 @@ case class UncertainSequence(
   }
 }
 case object UncertainSequence {
-  def uncertain(t: Type[_]): UncertainSequence =
-    UncertainSequence(
-      UncertainIntegerValue.above(0),
-      Seq(),
-      UncertainSingleValue.uncertain_of(t),
-      normalize_type(t),
-    )
+  def uncertain(t: Type[_]): UncertainSequence = assemble(t)
+
   def empty(t: Type[_]): UncertainSequence =
-    UncertainSequence(
-      UncertainIntegerValue.empty(),
-      Seq(),
-      UncertainSingleValue.uncertain_of(t),
-      normalize_type(t),
-    )
+    assemble(t, length_constraint = UncertainIntegerValue.empty())
+
   def with_invariant(inv: UncertainSingleValue, t: Type[_]): UncertainSequence =
-    UncertainSequence(
-      UncertainIntegerValue.above(0),
-      Seq(),
-      inv,
-      normalize_type(t),
-    )
+    assemble(t, invariant = Some(inv))
+
   def exclude(excluded: UncertainSingleValue, t: Type[_]): UncertainSequence =
-    with_invariant(excluded.complement(), t)
+    assemble(t, invariant = Some(excluded.complement()))
+
   def of(
       elems: Seq[(UncertainIntegerValue, UncertainSingleValue)],
       t: Type[_],
-  ): UncertainSequence =
-    UncertainSequence(
-      elems.map(t => t._1.above_eq())
-        .fold(UncertainIntegerValue.above(0))((v1, v2) =>
-          v1.intersection(v2).asInstanceOf[UncertainIntegerValue]
-        ),
-      elems,
-      UncertainSingleValue.uncertain_of(t),
-      normalize_type(t),
-    )
-  def with_length(len: UncertainIntegerValue, t: Type[_]): UncertainSequence =
-    UncertainSequence(
-      len,
-      Seq(),
-      UncertainSingleValue.uncertain_of(t),
-      normalize_type(t),
-    )
+  ): UncertainSequence = assemble(t, entries = elems)
 
-  private def normalize_type[G](typ: Type[G]): Type[G] =
-    typ match {
-      case _: IntType[G] => TInt[G]()
-      case _: TBool[G] => TBool[G]()
-    }
+  def with_length(len: UncertainIntegerValue, t: Type[_]): UncertainSequence =
+    assemble(t, length_constraint = len)
+
+  def injective(t: Type[_]): UncertainSequence = assemble(t, injective = true)
+
+  private def assemble[G](
+      typ: Type[G],
+      length_constraint: UncertainIntegerValue = UncertainIntegerValue.above(0),
+      entries: Seq[(UncertainIntegerValue, UncertainSingleValue)] = Seq(),
+      invariant: Option[UncertainSingleValue] = None,
+      injective: Boolean = false,
+  ): UncertainSequence = {
+    // Normalize type - integer types might be bounded and prevent comparison
+    // between uncertain sequences
+    val t: Type[G] =
+      typ match {
+        case _: IntType[G] => TInt[G]()
+        case _: TBool[G] => TBool[G]()
+      }
+    // Unpack invariant
+    val inv: UncertainSingleValue = invariant
+      .getOrElse(UncertainSingleValue.uncertain_of(t))
+
+    // Entries cannot have indices larger than the length, nor can they have
+    // values outside the invariant range
+    val constrained_vals: Seq[(UncertainIntegerValue, UncertainSingleValue)] =
+      entries.map(t =>
+        t._1.intersect(length_constraint.below())
+          .intersect(UncertainIntegerValue.above(0))
+          .asInstanceOf[UncertainIntegerValue] -> t._2.intersect(inv)
+      )
+
+    // Find minimum length to accommodate the entries that are for sure distinct
+    val unique_vals: Seq[(UncertainIntegerValue, UncertainSingleValue)] =
+      select_unique(constrained_vals)
+    val len_lower_bound: UncertainIntegerValue = UncertainIntegerValue
+      .above(unique_vals.length)
+
+    // If the sequence is injective and has a bounded value range, this imposes
+    // a maximum length constraint
+    val num_possible_vals: UncertainIntegerValue = inv.split
+      .map(s => UncertainIntegerValue.below(s.size))
+      .getOrElse(UncertainIntegerValue.uncertain())
+    val len_upper_bound: UncertainIntegerValue =
+      if (injective)
+        num_possible_vals
+      else
+        UncertainIntegerValue.uncertain()
+
+    // The constraints on the sequence length are precisely known at this point
+    val len: UncertainIntegerValue = length_constraint
+      .intersect(len_lower_bound).intersect(len_upper_bound)
+      .asInstanceOf[UncertainIntegerValue]
+
+    // Restrict entries to new length and resolve conflicts with regard to
+    // indices and, if the sequence is injective, values
+    val final_vals: Seq[(UncertainIntegerValue, UncertainSingleValue)] =
+      resolve_conflicts(
+        constrained_vals.map(t =>
+          t._1.intersect(len.below()).asInstanceOf[UncertainIntegerValue] ->
+            t._2
+        ),
+        injective,
+      )
+
+    // Finally, after all constraints have been taken care of, assemble the
+    // sequence
+    UncertainSequence(len, final_vals, inv, injective, t)
+  }
+
+  private def select_unique(
+      entries: Seq[(UncertainIntegerValue, UncertainSingleValue)]
+  ): Seq[(UncertainIntegerValue, UncertainSingleValue)] = {
+    var res: Seq[(UncertainIntegerValue, UncertainSingleValue)] = Seq()
+    entries.foreach(v =>
+      if (
+        res.forall(r =>
+          r._1.intersect(v._1).is_impossible ||
+            r._2.intersect(v._2).is_impossible
+        )
+      )
+        res = res :+ v
+    )
+    res
+  }
+
+  private def resolve_conflicts(
+      entries: Seq[(UncertainIntegerValue, UncertainSingleValue)],
+      injective: Boolean,
+  ): Seq[(UncertainIntegerValue, UncertainSingleValue)] = {
+    val (
+      certain_index_entries: Seq[(UncertainIntegerValue, UncertainSingleValue)],
+      uncertain_index_entries: Seq[
+        (UncertainIntegerValue, UncertainSingleValue)
+      ],
+    ) = entries.partition(t => t._1.is_certain)
+    val certain_value_entries
+        : Seq[(UncertainIntegerValue, UncertainSingleValue)] =
+      if (injective)
+        uncertain_index_entries.filter(t => !t._1.is_certain && t._2.is_certain)
+      else
+        Seq()
+
+    val restricted: Seq[(UncertainIntegerValue, UncertainSingleValue)] =
+      uncertain_index_entries.map(t => {
+        val relevant_index_entries
+            : Seq[(UncertainIntegerValue, UncertainSingleValue)] =
+          certain_index_entries.filter(ct =>
+            !ct._1.intersect(t._1).is_impossible && ct._2.intersect(t._2)
+              .is_impossible
+          )
+        val relevant_value_entries
+            : Seq[(UncertainIntegerValue, UncertainSingleValue)] =
+          certain_value_entries.filter(ct =>
+            ct._1.intersect(t._1).is_impossible && !ct._2.intersect(t._2)
+              .is_impossible
+          )
+        val remaining_indices: UncertainIntegerValue = relevant_index_entries
+          .map(_._1).fold(UncertainIntegerValue.empty())((v1, v2) =>
+            v1.union_single(v2).asInstanceOf[UncertainIntegerValue]
+          ).complement().asInstanceOf[UncertainIntegerValue]
+        val new_index: UncertainIntegerValue = t._1.intersect(remaining_indices)
+          .asInstanceOf[UncertainIntegerValue]
+        val new_value: UncertainSingleValue =
+          if (relevant_value_entries.isEmpty)
+            t._2
+          else
+            t._2.intersect(
+              relevant_value_entries.map(_._2)
+                .reduce((v1, v2) => v1.union_single(v2)).complement()
+            )
+        new_index -> new_value
+      })
+
+    certain_index_entries ++ restricted
+  }
 }

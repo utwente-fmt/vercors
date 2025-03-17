@@ -88,31 +88,31 @@ object ResolvableVariable {
 sealed trait SimpleVariable[G] extends ResolvableVariable[G]
 sealed trait SizeVariable[G] extends ResolvableVariable[G]
 sealed trait IndexedVariable[G] extends ResolvableVariable[G] {
+  def index: Int
+
   protected def indexed_equals(
       expr: Expr[G],
-      i: Int,
       decl_matches: Expr[G] => Boolean,
       state: AbstractState[G],
   ): Boolean =
     expr match {
-      case AmbiguousSubscript(collection, index) =>
-        decl_matches(collection) && i == state.resolve_integer_expression(index)
+      case AmbiguousSubscript(collection, idx) =>
+        decl_matches(collection) && index == state.resolve_integer_expression(idx)
           .try_to_resolve().getOrElse(-1)
-      case SeqSubscript(seq, index) =>
-        decl_matches(seq) && i == state.resolve_integer_expression(index)
+      case SeqSubscript(seq, idx) =>
+        decl_matches(seq) && index == state.resolve_integer_expression(idx)
           .try_to_resolve().getOrElse(-1)
-      case ArraySubscript(arr, index) =>
-        decl_matches(arr) && i == state.resolve_integer_expression(index)
+      case ArraySubscript(arr, idx) =>
+        decl_matches(arr) && index == state.resolve_integer_expression(idx)
           .try_to_resolve().getOrElse(-1)
-      case PointerSubscript(pointer, index) =>
-        decl_matches(pointer) && i == state.resolve_integer_expression(index)
+      case PointerSubscript(pointer, idx) =>
+        decl_matches(pointer) && index == state.resolve_integer_expression(idx)
           .try_to_resolve().getOrElse(-1)
       case _ => false
     }
 
   protected def index_contained_in(
       expr: Expr[G],
-      i: Int,
       decl_matches: Expr[G] => Boolean,
       state: AbstractState[G],
   ): Boolean =
@@ -120,17 +120,17 @@ sealed trait IndexedVariable[G] extends ResolvableVariable[G] {
       // TODO: What about nested drops/takes?
       case Drop(xs, count) =>
         decl_matches(xs) && state.resolve_integer_expression(count)
-          .try_to_resolve().getOrElse(i + 1) < i
+          .try_to_resolve().getOrElse(index + 1) < index
       case Take(xs, count) =>
         decl_matches(xs) && state.resolve_integer_expression(count)
-          .try_to_resolve().getOrElse(i - 1) >= i
+          .try_to_resolve().getOrElse(index - 1) >= index
       case Slice(xs, from, to) =>
         decl_matches(xs) && state.resolve_integer_expression(from)
-          .try_to_resolve().getOrElse(i + 1) < i &&
+          .try_to_resolve().getOrElse(index + 1) < index &&
         state.resolve_integer_expression(to).try_to_resolve()
-          .getOrElse(i - 1) >= i
+          .getOrElse(index - 1) >= index
       case _ =>
-        decl_matches(expr) || indexed_equals(expr, i, decl_matches, state)
+        decl_matches(expr) || indexed_equals(expr, decl_matches, state)
     }
 
   protected def generate_expression(
@@ -189,14 +189,15 @@ case class ResultSizeVariable[G](return_type: Type[G])
 
 case class ResultIndexedVariable[G](return_type: Type[G], i: Int)
     extends ResultVariable[G] with IndexedVariable[G] {
+  override def index: Int = i
 
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
-    indexed_equals(expr, i, e => is_result(e), state)
+    indexed_equals(expr, e => is_result(e), state)
 
   override def is_contained_by(
       expr: Expr[G],
       state: AbstractState[G],
-  ): Boolean = index_contained_in(expr, i, e => is_result(e), state)
+  ): Boolean = index_contained_in(expr, e => is_result(e), state)
 
   override def t: Type[G] = return_type
 }
@@ -297,13 +298,15 @@ case class LocalIndexedVariable[G](seq: Variable[G], i: Int)
     extends LocalVariable[G] with IndexedVariable[G] {
   override def v: Variable[G] = seq
 
+  override def index: Int = i
+
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
-    indexed_equals(expr, i, e => variable_equals(e), state)
+    indexed_equals(expr, e => variable_equals(e), state)
 
   override def is_contained_by(
       expr: Expr[G],
       state: AbstractState[G],
-  ): Boolean = index_contained_in(expr, i, e => variable_equals(e), state)
+  ): Boolean = index_contained_in(expr, e => variable_equals(e), state)
 
   override def to_expression(obj: Option[Expr[G]]): Expr[G] =
     generate_expression(seq.t, Local[G](seq.ref)(seq.o), i)
@@ -409,13 +412,15 @@ case class FieldIndexedVariable[G](field: InstanceField[G], i: Int)
     extends FieldVariable[G] with IndexedVariable[G] {
   override def f: InstanceField[G] = field
 
+  override def index: Int = i
+
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
-    indexed_equals(expr, i, e => field_equals(e), state)
+    indexed_equals(expr, e => field_equals(e), state)
 
   override def is_contained_by(
       expr: Expr[G],
       state: AbstractState[G],
-  ): Boolean = index_contained_in(expr, i, e => field_equals(e), state)
+  ): Boolean = index_contained_in(expr, e => field_equals(e), state)
 
   override def to_expression(obj: Option[Expr[G]]): Expr[G] = {
     generate_expression(
