@@ -607,17 +607,24 @@ case class ChannelInvariantNotEstablished(
     s"The channel invariant at `$node` cannot be established, since $failure"
 }
 
-sealed trait DerefInsufficientPermission extends FrontendDerefError
-case class InsufficientPermission(node: HeapDeref[_])
-    extends DerefInsufficientPermission with NodeVerificationFailure {
+sealed trait DerefError extends FrontendDerefError with NodeVerificationFailure
+// Even though it says HeapDeref here, this error is only intended for Deref and ModelDeref
+// HeapVariableDeref cannot be done on null references by syntactical exclusion
+case class ObjNull(node: HeapDeref[_]) extends DerefError {
+  override def code: String = "objNull"
+  override def descInContext: String =
+    "The object of this field derefence might be `null`."
+  override def inlineDescWithSource(source: String): String =
+    s"The object of `$source` might be null.`"
+}
+case class InsufficientPermission(node: HeapDeref[_]) extends DerefError {
   override def code: String = "perm"
   override def descInContext: String =
     "There may be insufficient permission to access this field here."
   override def inlineDescWithSource(source: String): String =
     s"There may be insufficient permission to access `$source`."
 }
-case class ModelInsufficientPermission(node: ModelDeref[_])
-    extends DerefInsufficientPermission with NodeVerificationFailure {
+case class ModelInsufficientPermission(node: ModelDeref[_]) extends DerefError {
   override def code: String = "modelPerm"
   override def descInContext: String =
     "There may be insufficient permission to access this model field here."

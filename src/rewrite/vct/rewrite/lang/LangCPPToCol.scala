@@ -419,23 +419,23 @@ case object LangCPPToCol {
 
   private case class SYCLAccessorFieldInsufficientReferencePermissionBlame(
       local: CPPLocal[_]
-  ) extends Blame[InsufficientPermission] {
+  ) extends Blame[DerefError] {
     private case class SYCLAccessorFieldInsufficientReferencePermissionError(
-        error: InsufficientPermission
+        error: DerefError
     ) extends UserError {
       override def code: String =
         "syclAccessorFieldInsufficientReferencePermission"
       override def text: String = local.o.messageInContext(error.descInContext)
     }
 
-    override def blame(error: InsufficientPermission): Unit =
+    override def blame(error: DerefError): Unit =
       throw SYCLAccessorFieldInsufficientReferencePermissionError(error)
   }
 
   private case class SYCLAccessorRangeIndexFieldInsufficientReferencePermissionBlame(
       inv: CPPInvocation[_]
-  ) extends Blame[InsufficientPermission] {
-    override def blame(error: InsufficientPermission): Unit =
+  ) extends Blame[DerefError] {
+    override def blame(error: DerefError): Unit =
       PanicBlame(inv.o.messageInContext(
         s"There was not enough permission to access" +
           s" a field containing the size of an accessor dimension. This should not be possible."

@@ -21,8 +21,8 @@ case object EncodeByValueClassUsage extends RewriterBuilder {
       assign: Node[_],
       clazz: ByValueClass[_],
       field: InstanceField[_],
-  ) extends Blame[InsufficientPermission] {
-    override def blame(error: InsufficientPermission): Unit = {
+  ) extends Blame[DerefError] {
+    override def blame(error: DerefError): Unit = {
       if (blame.isInstanceOf[PanicBlame]) {
         assign.o
           .blame(CopyClassFailed(assign, clazz, Referrable.originName(field)))
@@ -38,8 +38,8 @@ case object EncodeByValueClassUsage extends RewriterBuilder {
       inv: Invocation[_],
       clazz: ByValueClass[_],
       field: InstanceField[_],
-  ) extends Blame[InsufficientPermission] {
-    override def blame(error: InsufficientPermission): Unit = {
+  ) extends Blame[DerefError] {
+    override def blame(error: DerefError): Unit = {
       blame.blame(
         CopyClassFailedBeforeCall(inv, clazz, Referrable.originName(field))
       )
@@ -133,7 +133,7 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
   private def copyClassValue(
       obj: Expr[Post],
       t: TByValueClass[Pre],
-      blame: InstanceField[Pre] => Blame[InsufficientPermission],
+      blame: InstanceField[Pre] => Blame[DerefError],
   ): Expr[Post] = {
     implicit val o: Origin = obj.o
     val ov = new Variable[Post](obj.t)(o.where(name = "original"))

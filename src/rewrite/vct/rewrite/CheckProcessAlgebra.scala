@@ -39,8 +39,8 @@ case class CheckProcessAlgebra[Pre <: Generation]()
   }
 
   case class InsufficientPermissionForModelField(modelDeref: ModelDeref[_])
-      extends Blame[InsufficientPermission] {
-    override def blame(error: InsufficientPermission): Unit =
+      extends Blame[DerefError] {
+    override def blame(error: DerefError): Unit =
       modelDeref.blame.blame(ModelInsufficientPermission(modelDeref))
   }
 
