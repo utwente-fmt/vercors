@@ -272,9 +272,12 @@ class Transformation(
         passes.indices.zip(passes),
         { case (_, pass) => pass.key },
       ) { case (passIndex, pass) =>
-        onPassEvent.foreach { action =>
-          action(passes, Transformation.before, passIndex, result)
-        }
+        // Executed on a separate thread to not block the main transformation thread
+        new Thread(() =>
+          onPassEvent.foreach { action =>
+            action(passes, Transformation.before, passIndex, result)
+          }
+        ).start()
 
         logger.debug(s"Running transformation ${pass.key}")
 
@@ -284,9 +287,12 @@ class Transformation(
 
         logger.debug(s"Finished transformation ${pass.key}")
 
-        onPassEvent.foreach { action =>
-          action(passes, Transformation.after, passIndex, result)
-        }
+        // Executed on a separate thread to not block the main transformation thread
+        new Thread(() =>
+          onPassEvent.foreach { action =>
+            action(passes, Transformation.after, passIndex, result)
+          }
+        ).start()
 
         if (!optimizeUnsafe) {
           try {

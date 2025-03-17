@@ -630,7 +630,8 @@ case class EncodePermissionStratification[Pre <: Generation](
 
       case EndpointExpr(_, inner) => ???
 
-      case deref @ Deref(obj, Ref(field)) if specializing.nonEmpty =>
+      case deref @ Deref(obj, Ref(field))
+          if specializing.nonEmpty && !field.isFinal =>
         implicit val o = expr.o
         functionInvocation(
           ref = readFunction(obj.t.asClass.get, field)(expr.o),

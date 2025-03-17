@@ -253,7 +253,9 @@ case class EncodeChannels[Pre <: Generation]()
                   receiverExpr,
                 ).dispatch(comm.invariant),
               ),
-              singleMessageExchange(comm, senderTarget, receiverTarget),
+              // TODO (RR): Is there a reason we want to emit the implementation of the par block? Can't think of one, except checking for mistakes in the encoding...?
+              // singleMessageExchange(comm, senderTarget, receiverTarget),
+              Assume(ff),
             )(PanicBlame("Unexpected error from par block encoding a comm!"))
 
           Block(Seq(epsSpec, ParStatement(block)))

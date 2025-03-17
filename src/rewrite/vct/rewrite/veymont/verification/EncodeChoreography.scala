@@ -119,13 +119,19 @@ case class EncodeChoreography[Pre <: Generation]()
     SuccessionMap()
   val msgSucc: SuccessionMap[Communicate[Pre], Variable[Post]] = SuccessionMap()
 
-  case class ExtractPostcondition(newThis: Expr[Post]) extends Rewriter[Pre] {
+  case class ExtractPostcondition(
+      newThis: Expr[Post],
+      args: Seq[(Variable[Pre], Expr[Post])],
+  ) extends Rewriter[Pre] {
     override val allScopes: AllScopes[Pre, Post] =
       EncodeChoreography.this.allScopes
+
+    val argMap = Map.from(args)
 
     override def dispatch(expr: Expr[Pre]): Expr[Post] =
       expr match {
         case ThisObject(_) => newThis
+        case Local(Ref(v)) if argMap.contains(v) => argMap(v)
         case _ => expr.rewriteDefault()
       }
 
@@ -171,10 +177,12 @@ case class EncodeChoreography[Pre <: Generation]()
           case endpoint if endpoint.isSingle =>
             assignLocal(Local[Post](eps(endpoint).ref), dispatch(endpoint.init))
           case endpoint if endpoint.isFamily =>
-            val RangeBinder(_, low, high) = endpoint.range.get
-            val i = new Variable[Post](TInt())(endpoint.o.where(name = "i"))
+            val RangeBinder(oldI, low, high) = endpoint.range.get
+            val i = new Variable[Post](TInt())(oldI.o)
+            variables.succeedOnly(oldI, i)
             val fam = Local[Post](eps(endpoint).ref)
-            val cons = endpoint.init.asInstanceOf[ConstructorInvocation[Pre]]
+            val ConstructorInvocation(Ref(cons), _, args, _, _, _, _) =
+              endpoint.init
             Block(Seq(
               assignLocal(
                 fam,
@@ -188,9 +196,12 @@ case class EncodeChoreography[Pre <: Generation]()
                     PanicBlame("Oops not injective!"),
                     Size(fam),
                     i =>
-                      ExtractPostcondition(SeqSubscript(fam, i)(PanicBlame(
-                        "Index guaranteed to be in bounds"
-                      ))).fromAccounted(cons.ref.decl.contract.ensures),
+                      ExtractPostcondition(
+                        SeqSubscript(fam, i)(PanicBlame(
+                          "Index guaranteed to be in bounds"
+                        )),
+                        cons.args.zip(args.map(dispatch)),
+                      ).fromAccounted(cons.ref.decl.contract.ensures),
                   ),
                 ),
                 Block(Seq(Assume[Post](ff))),

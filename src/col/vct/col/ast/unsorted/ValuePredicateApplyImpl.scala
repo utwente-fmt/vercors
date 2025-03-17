@@ -6,5 +6,6 @@ import vct.col.print._
 
 trait ValuePredicateApplyImpl[G] extends ValuePredicateApplyOps[G] {
   this: ValuePredicateApply[G] =>
-  // override def layout(implicit ctx: Ctx): Doc = ???
+  override def layout(implicit ctx: Ctx): Doc =
+    Text("Value(") <> this.apply <> ")"
 }

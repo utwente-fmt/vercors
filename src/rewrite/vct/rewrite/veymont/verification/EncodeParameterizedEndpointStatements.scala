@@ -44,15 +44,21 @@ object EncodeParameterizedEndpointStatements extends RewriterBuilder {
 case class EncodeParameterizedEndpointStatements[Pre <: Generation]()
     extends Rewriter[Pre] with LazyLogging() {
 
-  case class ContractExtractor(thisObj: Expr[Post], oldLabel: LabelDecl[Post])
-      extends Rewriter[Pre] {
+  case class ContractExtractor(
+      thisObj: Expr[Post],
+      oldLabel: LabelDecl[Post],
+      args: Seq[(Variable[Pre], Expr[Post])],
+  ) extends Rewriter[Pre] {
     override val allScopes: AllScopes[Pre, Post] =
       EncodeParameterizedEndpointStatements.this.allScopes
+
+    val argMap: Map[Variable[Pre], Expr[Post]] = Map.from(args)
 
     override def dispatch(expr: Expr[Pre]): Expr[Post] =
       expr match {
         case ThisObject(_) => thisObj
         case old @ Old(_, None) => old.rewrite(at = Some(oldLabel.ref))
+        case Local(Ref(v)) if argMap.contains(v) => argMap(v)
         case _ => expr.rewriteDefault()
       }
   }
@@ -65,7 +71,7 @@ case class EncodeParameterizedEndpointStatements[Pre <: Generation]()
               MethodInvocation(
                 SeqSubscript(EndpointFamilyExpr(Ref(otherF)), Local(Ref(i))),
                 Ref(m),
-                Seq(),
+                args,
                 Seq(),
                 Seq(),
                 Seq(),
@@ -87,7 +93,11 @@ case class EncodeParameterizedEndpointStatements[Pre <: Generation]()
         val parV = new Variable[Post](TInt())(o.where(name = "i"))
         val target = CommTargetIndex[Post](succ(f), Local[Post](parV.ref))
         val endpoint = CtExpr[Post](target)
-        val extractor = ContractExtractor(endpoint, label)
+        val extractor = ContractExtractor(
+          endpoint,
+          label,
+          m.args.zip(args.map(dispatch)),
+        )
         val par =
           ParBlock(
             new ParBlockDecl()(o.where(name = "s")),

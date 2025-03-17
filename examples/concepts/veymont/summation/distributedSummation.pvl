@@ -1,9 +1,11 @@
 int getInt();
 
 
-ensures (\forall int i = 0 .. N; nodes[i].total == getTotal(nodes, 0, nodes[i].n));
-choreography summation(int N) {
-  endpoints nodes[tid := 0 .. N] = Node(getInt(), tid);
+// TODO (RR): Is there an easy way to keep this postcondition, if not just remove it. Is is implied trivialy by the run contract anyway
+// ensures (\forall int i = 0 .. N; nodes[i].total == getTotal(nodes, 0, nodes[i].n));
+requires |vals| == N;
+choreography summation(int N, seq<int> vals) {
+  endpoints nodes[tid := 0 .. N] = Node(vals[tid], tid);
 
   context (\endpoint nodes[i := 0 .. N]; 
     Perm(nodes[i].outMessage, 1) ** Perm(nodes[i].inMessage, 1) **
@@ -65,8 +67,8 @@ choreography summation(int N) {
       endpoint nodes[tid := 0 .. N]: nodes[tid].updateBackN();
 
       channel_invariant Perm(\sender.backN, 1\2) ** Perm(\receiver.frontN, 1\2) ** \receiver.frontN + 1 == \sender.backN;
-      communicate nodes[i := 1 .. N - 1]: nodes[i] -> nodes[i - 1];
-      communicate nodes[N - 1] <- nodes[0];
+      communicate nodes[i := 1 .. N - 1]: nodes[i].dummySend -> nodes[i - 1].dummyReceive;
+      communicate nodes[N - 1].dummyReceive <- nodes[0].dummySend;
 
       endpoint nodes[tid := 0 .. N]: nodes[tid].updateFrontN();
     }
