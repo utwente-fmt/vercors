@@ -200,8 +200,8 @@ case class AbstractProcess[G](obj: Expr[G]) {
           // TODO: What do wait and notify do?
           case Wait(obj) => (true, take_viable_edges_from_state(succ, state))
           case Notify(obj) => (true, take_viable_edges_from_state(succ, state))
-          // Lock and Unlock manipulate the global lock and are potentially blocking      TODO: Differentiate between locks!
-          case Lock(obj) =>
+          // Lock and Unlock manipulate the global lock and are potentially blocking
+          case Lock(obj) if is_global_lock(obj) =>
             state.lock match {
               case Some(proc) =>
                 if (!proc.equals(this))
@@ -220,7 +220,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
                   ),
                 )
             }
-          case Unlock(obj) =>
+          case Unlock(obj) if is_global_lock(obj) =>
             state.lock match { // Progress was made, but the atomic flag is still false to allow other processes to execute
               case Some(proc) =>
                 if (proc.equals(this))
@@ -295,6 +295,14 @@ case class AbstractProcess[G](obj: Expr[G]) {
           case _ => (true, take_viable_edges_from_state(succ, state))
         }
     }
+
+  private def is_global_lock(lock: Expr[G]): Boolean = lock match {
+    case AmbiguousThis() | _: ThisDeclaration[G] => obj == Null[G]()(Utils.origen)
+    case Deref(o, _) => o match {
+      case AmbiguousThis() | _: ThisDeclaration[G] => true
+      case _ => false
+    }
+  }
 
   /** Helper function for <code>take_viable_edges</code> if there is no other
     * change to the state.
