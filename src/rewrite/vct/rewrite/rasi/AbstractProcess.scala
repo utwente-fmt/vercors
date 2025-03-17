@@ -296,13 +296,17 @@ case class AbstractProcess[G](obj: Expr[G]) {
         }
     }
 
-  private def is_global_lock(lock: Expr[G]): Boolean = lock match {
-    case AmbiguousThis() | _: ThisDeclaration[G] => obj == Null[G]()(Utils.origen)
-    case Deref(o, _) => o match {
-      case AmbiguousThis() | _: ThisDeclaration[G] => true
-      case _ => false
+  private def is_global_lock(lock: Expr[G]): Boolean =
+    // TODO: Make a nicer check for the global lock, e.g. using types
+    lock match {
+      case AmbiguousThis() | _: ThisDeclaration[G] =>
+        obj == Null[G]()(Utils.origen)
+      case Deref(o, _) =>
+        o match {
+          case AmbiguousThis() | _: ThisDeclaration[G] => true
+          case _ => false
+        }
     }
-  }
 
   /** Helper function for <code>take_viable_edges</code> if there is no other
     * change to the state.
