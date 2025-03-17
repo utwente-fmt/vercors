@@ -62,10 +62,13 @@ class SchedulerGenerator[O <: Generation] {
       new InstanceField(Utils.tseqint, Seq())(Utils.origen("runnableQueue"))
     )
 
-    // Helper predicate
+    // Helper predicates
     val vesuv_limit_entries: InstancePredicate[N] = create_vesuv_limit_entries()
     val vesuv_limit_entries_ref: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](vesuv_limit_entries)
+    val vesuv_injective: InstancePredicate[N] = create_vesuv_injective()
+    val vesuv_injective_ref: Ref[N, InstancePredicate[N]] =
+      new DirectRef[N, InstancePredicate[N]](vesuv_injective)
 
     // Scheduler predicates
     priorityPerms = Some(
@@ -106,6 +109,7 @@ class SchedulerGenerator[O <: Generation] {
       eventPerms_ref,
       priorityPerms_ref,
       vesuv_limit_entries_ref,
+      vesuv_injective_ref,
     )
     val schedulerPerms_ref: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](schedulerPerms)
@@ -161,6 +165,7 @@ class SchedulerGenerator[O <: Generation] {
     val newRunnableTasks: InstanceMethod[N] = create_newRunnableTasks(
       schedulerPerms_ref,
       vesuv_limit_entries_ref,
+      vesuv_injective_ref,
     )
     val resumeTasks: InstanceMethod[N] = create_resumeTasks(schedulerPerms_ref)
     val resetEvents: InstanceMethod[N] = create_resetEvents(eventPerms_ref)
@@ -168,7 +173,7 @@ class SchedulerGenerator[O <: Generation] {
       schedulerPerms_ref
     )
     awokenAfterDelay = Some(
-      create_awokenAfterDelay(schedulerPerms_ref, vesuv_limit_entries_ref)
+      create_awokenAfterDelay(schedulerPerms_ref, vesuv_limit_entries_ref, vesuv_injective_ref)
     )
     simulateTimePassing = Some(create_simulateTimePassing(schedulerPerms_ref))
     executionTime = Some(create_executionTime())
@@ -210,6 +215,7 @@ class SchedulerGenerator[O <: Generation] {
         // Predicates
         Seq(
           vesuv_limit_entries,
+          vesuv_injective,
           priorityPerms.get,
           eventPerms.get,
           schedulerPerms,
@@ -274,17 +280,56 @@ class SchedulerGenerator[O <: Generation] {
     )
   }
 
+  private def create_vesuv_injective(): InstancePredicate[N] = {
+    val xs: Variable[N] = new Variable(Utils.tseqint)(Utils.origen("xs"))
+
+    val i: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
+    val j: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
+
+    val body: Expr[N] = Utils.single_var_forall(
+      i,
+      Utils.int_val(0),
+      Size(Utils.local_of(xs))(Utils.origen),
+      Forall(
+        Seq(j),
+        Seq(),
+        Implies(
+          And(
+            Less(Utils.local_of(i), Utils.local_of(j))(Utils.origen),
+            Less(Utils.local_of(j), Size(Utils.local_of(xs))(Utils.origen))(
+              Utils.origen
+            ),
+          )(Utils.origen),
+          Neq(
+            SeqSubscript(Utils.local_of(xs), Utils.local_of(i))(Utils.blame)(
+              Utils.origen
+            ),
+            SeqSubscript(Utils.local_of(xs), Utils.local_of(j))(Utils.blame)(
+              Utils.origen
+            ),
+          )(Utils.origen),
+        )(Utils.origen),
+      )(Utils.origen),
+    )
+
+    new InstancePredicate(
+      Seq(xs),
+      Some(body),
+      false,
+      true,
+    )(Utils.origen("vesuv_injective"))
+  }
+
   private def create_schedulerPerms(
       eventPerms_ref: Ref[N, InstancePredicate[N]],
       priorityPerms_ref: Ref[N, InstancePredicate[N]],
       vesuv_limit_entries_ref: Ref[N, InstancePredicate[N]],
+      vesuv_injective_ref: Ref[N, InstancePredicate[N]],
   ): InstancePredicate[N] = {
     // Quantifier variables
     val i1: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
     val i2: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
     val i3: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
-    val i4: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
-    val j2: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
 
     val conds: Seq[Expr[N]] = Seq[Expr[N]](
       Utils.predicate_apply(Utils.thiz, priorityPerms_ref, Seq()),
@@ -326,49 +371,33 @@ class SchedulerGenerator[O <: Generation] {
           Utils.size(taskPriority.get),
         ),
       ),
-      Utils.single_var_forall(
-        i2,
-        Utils.int_val(0),
-        Utils.size(runnableQueue.get),
-        Forall(
-          Seq(j2),
-          Seq(),
-          Implies(
-            And(
-              Less(Utils.local_of(i2), Utils.local_of(j2))(Utils.origen),
-              Less(Utils.local_of(j2), Utils.size(runnableQueue.get))(
-                Utils.origen
-              ),
-            )(Utils.origen),
-            Neq(
-              Utils.subscript_expr(runnableQueue.get, Utils.local_of(i2)),
-              Utils.subscript_expr(runnableQueue.get, Utils.local_of(j2)),
-            )(Utils.origen),
-          )(Utils.origen),
-        )(Utils.origen),
+      Utils.predicate_apply(
+        Utils.thiz,
+        vesuv_injective_ref,
+        Seq(Utils.deref_of(runnableQueue.get))
       ),
       Utils.single_var_forall(
-        i3,
+        i2,
         Utils.int_val(0),
         Utils.size(runnableQueue.get),
         Eq(
           Utils.subscript_expr(
             taskState.get,
-            Utils.subscript_expr(runnableQueue.get, Utils.local_of(i3)),
+            Utils.subscript_expr(runnableQueue.get, Utils.local_of(i2)),
           ),
           Utils.int_val(-1),
         )(Utils.origen),
       ),
       Utils.single_var_forall(
-        i4,
+        i3,
         Utils.int_val(0),
         Utils.size(taskState.get),
         Implies(
           Eq(
-            Utils.subscript_expr(taskState.get, Utils.local_of(i4)),
+            Utils.subscript_expr(taskState.get, Utils.local_of(i3)),
             Utils.int_val(-1),
           )(Utils.origen),
-          SeqMember(Utils.local_of(i4), Utils.deref_of(runnableQueue.get))(
+          SeqMember(Utils.local_of(i3), Utils.deref_of(runnableQueue.get))(
             Utils.origen
           ),
         )(Utils.origen),
@@ -636,12 +665,11 @@ class SchedulerGenerator[O <: Generation] {
   private def create_newRunnableTasks(
       schedulerPerms_ref: Ref[N, InstancePredicate[N]],
       vesuv_limit_entries_ref: Ref[N, InstancePredicate[N]],
+      vesuv_injective_ref: Ref[N, InstancePredicate[N]],
   ): InstanceMethod[N] = {
     // Quantifier variables
     val i3: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
     val i4: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
-    val i5: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
-    val j5: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
 
     // requires schedulerPerms();
     val requires: Expr[N] = Utils
@@ -663,8 +691,15 @@ class SchedulerGenerator[O <: Generation] {
       Seq(Utils.result, Utils.int_val(0), Utils.size(taskState.get)),
     )
 
+    // ensures vesuv_injective(\result);
+    val ensures3: Expr[N] = Utils.predicate_apply(
+      Utils.thiz,
+      vesuv_injective_ref,
+      Seq(Utils.result),
+    )
+
     // ensures (\forall int i; 0 <= i && i < |taskState| && taskState[i] >= 0 && eventState[taskState[i]] == 0 ==> i in \result);
-    val ensures3: Expr[N] = Utils.single_var_forall(
+    val ensures4: Expr[N] = Utils.single_var_forall(
       i3,
       Utils.int_val(0),
       Utils.size(taskState.get),
@@ -687,7 +722,7 @@ class SchedulerGenerator[O <: Generation] {
     )
 
     // ensures (\forall int i; 0 <= i && i < |taskState| && !(taskState[i] >= 0 && eventState[taskState[i]] == 0) ==> !(i in \result));
-    val ensures4: Expr[N] = Utils.single_var_forall(
+    val ensures5: Expr[N] = Utils.single_var_forall(
       i4,
       Utils.int_val(0),
       Utils.size(taskState.get),
@@ -710,33 +745,6 @@ class SchedulerGenerator[O <: Generation] {
         Not(SeqMember(Utils.local_of(i4), Utils.result)(Utils.origen))(
           Utils.origen
         ),
-      )(Utils.origen),
-    )
-
-    // ensures (\forall int i; 0 <= i && i < |\result| ==> (\forall int j; i < j && j < |\result| ==> \result[i] != \result[j]));
-    val ensures5: Expr[N] = Utils.single_var_forall(
-      i5,
-      Utils.int_val(0),
-      Size(Utils.result)(Utils.origen),
-      Forall(
-        Seq(j5),
-        Seq(),
-        Implies(
-          And(
-            Less(Utils.local_of(i5), Utils.local_of(j5))(Utils.origen),
-            Less(Utils.local_of(j5), Size(Utils.result)(Utils.origen))(
-              Utils.origen
-            ),
-          )(Utils.origen),
-          Neq(
-            SeqSubscript(Utils.result, Utils.local_of(i5))(Utils.blame)(
-              Utils.origen
-            ),
-            SeqSubscript(Utils.result, Utils.local_of(j5))(Utils.blame)(
-              Utils.origen
-            ),
-          )(Utils.origen),
-        )(Utils.origen),
       )(Utils.origen),
     )
 
@@ -1037,18 +1045,17 @@ class SchedulerGenerator[O <: Generation] {
   private def create_awokenAfterDelay(
       schedulerPerms_ref: Ref[N, InstancePredicate[N]],
       vesuv_limit_entries_ref: Ref[N, InstancePredicate[N]],
+      vesuv_injective_ref: Ref[N, InstancePredicate[N]],
   ): InstanceMethod[N] = {
     val delay: Variable[N] = new Variable(Utils.tint)(Utils.origen("delay"))
 
     // Quantifier variables
     val i1: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
     val i2: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
-    val i5: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
     val i6: Variable[N] = new Variable(Utils.tint)(Utils.origen("i"))
     val j11: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
     val j12: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
     val j13: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
-    val j5: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
     val j6: Variable[N] = new Variable(Utils.tint)(Utils.origen("j"))
 
     // requires schedulerPerms();
@@ -1156,41 +1163,21 @@ class SchedulerGenerator[O <: Generation] {
       Seq(Utils.result, Utils.int_val(0), Utils.size(taskState.get)),
     )
 
+    // ensures vesuv_injective(\result);
+    val ensures4: Expr[N] = Utils.predicate_apply(
+      Utils.thiz,
+      vesuv_injective_ref,
+      Seq(Utils.result),
+    )
+
     // ensures |runnableQueue| + |\result| <= |taskPriority|;
-    val ensures4: Expr[N] =
+    val ensures5: Expr[N] =
       LessEq(
         Plus(Utils.size(runnableQueue.get), Size(Utils.result)(Utils.origen))(
           Utils.origen
         ),
         Utils.size(taskPriority.get),
       )(Utils.origen)
-
-    // ensures (\forall int i; 0 <= i && i < |\result| ==> (\forall int j; i < j && j < |\result| ==> \result[i] != \result[j]));
-    val ensures5: Expr[N] = Utils.single_var_forall(
-      i5,
-      Utils.int_val(0),
-      Size(Utils.result)(Utils.origen),
-      Forall(
-        Seq(j5),
-        Seq(),
-        Implies(
-          And(
-            Less(Utils.local_of(i5), Utils.local_of(j5))(Utils.origen),
-            Less(Utils.local_of(j5), Size(Utils.result)(Utils.origen))(
-              Utils.origen
-            ),
-          )(Utils.origen),
-          Neq(
-            SeqSubscript(Utils.result, Utils.local_of(i5))(Utils.blame)(
-              Utils.origen
-            ),
-            SeqSubscript(Utils.result, Utils.local_of(j5))(Utils.blame)(
-              Utils.origen
-            ),
-          )(Utils.origen),
-        )(Utils.origen),
-      )(Utils.origen),
-    )
 
     // ensures (\forall int i; 0 <= i && i < |\result| ==> (\forall int j; 0 <= j && j < i ==> (eventState[\result[j]] <= eventState[\result[i]])));
     val ensures6: Expr[N] = Utils.single_var_forall(
