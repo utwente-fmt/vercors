@@ -82,15 +82,10 @@ case class EncodeParameterizedEndpointStatements[Pre <: Generation]()
         assert(f == otherF)
         assert(v == i)
         implicit val o = stmt.o
-        /* Since we match on the exact syntax of the endpoint statement, we don't need
-           need to keep the relation between v and the par block iter variable intact.
-           If we ever allow more complicated formats probably there should be a succ
-           call between v and the par block iter variable
-         */
-        v.drop()
 
         val label = new LabelDecl[Post]()(o.where(name = "pre"))
         val parV = new Variable[Post](TInt())(o.where(name = "i"))
+        variables.succeedOnly(v, parV)
         val target = CommTargetIndex[Post](succ(f), Local[Post](parV.ref))
         val endpoint = CtExpr[Post](target)
         val extractor = ContractExtractor(

@@ -108,7 +108,6 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewrite(target: PVLCommunicateTarget[Pre]): CommunicateTarget[Post] =
     target match {
       case target: PVLCommTargetEndpoint[Pre] =>
-        println(target.o.messageInContext("This one"))
         require(target.ref.get.decl.isSingle)
         CommTargetEndpoint(rewriteRef(target))(target.o)
       case target @ PVLCommTargetIndex(_, index) =>

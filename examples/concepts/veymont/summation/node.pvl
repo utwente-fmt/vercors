@@ -1,3 +1,7 @@
+resource syncd(Node node, Node next) =
+  Perm(node.frontN, 1\10) ** Perm(next.backN, 1\10) **
+  node.frontN == next.backN;
+
 class Node {
   // When this was a plain "int v", verification kept getting stuck on calculating the right permission amounts to divide over the par block.
   final int v;
@@ -56,8 +60,20 @@ class Node {
     n++;
   }
 
+  requires Perm(frontN, 1\10) ** Perm(next.backN, 1\10) ** frontN == next.backN;
+  ensures syncd(this, next);
+  void couple(Node next) {
+    fold syncd(this, next);
+  }
+
+  requires syncd(this, next);
+  ensures Perm(frontN, 1\10) ** Perm(next.backN, 1\10) ** frontN == next.backN;
+  void uncouple(Node next) {
+    unfold syncd(this, next);
+  }
 
   requires 0 <= tid && tid < |nodes|;
+  requires nn(nodes);
   ensures getTotal(nodes, tid, |nodes| - 1) == getTotal(nodes, 0, |nodes| - 1);
   void generalizeResult(seq<Node> nodes) {
     lemmaTotalShift(nodes, tid, 0);

@@ -1,50 +1,63 @@
-int getInt();
-
+class Dummy { }
 
 // TODO (RR): Is there an easy way to keep this postcondition, if not just remove it. Is is implied trivialy by the run contract anyway
 // ensures (\forall int i = 0 .. N; nodes[i].total == getTotal(nodes, 0, nodes[i].n));
 requires |vals| == N;
+requires N >= 2;
 choreography summation(int N, seq<int> vals) {
+  endpoint `witness` = Dummy();
   endpoints nodes[tid := 0 .. N] = Node(vals[tid], tid);
 
-  context (\endpoint nodes[i := 0 .. N]; 
-    Perm(nodes[i].outMessage, 1) ** Perm(nodes[i].inMessage, 1) **
-    Perm(nodes[i].total, 1) ** Perm(nodes[i].n, 1) **
-    Perm(nodes[i].frontN, 1) ** Perm(nodes[i].backN, 1) **
-    Perm(nodes[i].dummySend, 1) ** Perm(nodes[i].dummyReceive, 1));
-  requires (\endpoint nodes[i := 0 .. N]; nodes[i].n == 0 && nodes[i].frontN == nodes[i].n && nodes[i].backN == nodes[i].n);
+  requires (\endpoint `witness`; N >= 2);
+  requires (\endpoint nodes[i := 0 .. N];
+    Perm({: nodes[i].outMessage :}, 1) ** Perm({: nodes[i].inMessage :}, 1) **
+    Perm({: nodes[i].total :}, 1) ** Perm({: nodes[i].n :}, 1) **
+    Perm({: nodes[i].dummySend :}, 1) ** Perm({: nodes[i].dummyReceive :}, 1));
+  requires (\endpoint nodes[i := 0 .. N - 1];
+    Perm({: nodes[i].frontN :}, 1) ** Perm({: nodes[i].backN :}, 1\2) ** Perm(nodes[i+1].backN, 1\2)
+  );
+  requires (\endpoint nodes[N - 1];
+    Perm(nodes[N-1].frontN, 1) ** Perm(nodes[N-1].backN, 1\2) ** Perm(nodes[0].backN, 1\2)
+  );
+  requires (\endpoint nodes[i := 0 .. N - 1]; nodes[i].n == 0 && nodes[i].frontN == nodes[i].n && nodes[i].backN == nodes[i].n && nodes[i + 1].backN == nodes[i].n);
+  requires (\endpoint nodes[N - 1]; nodes[N - 1].n == 0 && nodes[N - 1].frontN == nodes[N - 1].n && nodes[N - 1].backN == nodes[N - 1].n && nodes[0].backN == nodes[N - 1].n);
   requires (\endpoint nodes[i := 0 .. N]; nodes[i].total == nodes[i].v);
   requires (\endpoint nodes[i := 0 .. N]; nodes[i].inMessage == -1);
   requires (\endpoint nodes[i := 0 .. N]; nodes[i].outMessage == nodes[i].v);
   requires (\endpoint nodes[tid := 0 .. N]; (\forall int i = 0 .. N; nodes[i].tid == i));
-  ensures (\endpoint nodes[i := 0 .. N]; nodes[i].n == N - 1);
-  ensures (\endpoint nodes[i := 0 .. N]; nodes[i].total == getTotal(nodes, 0, nodes[i].n));
+  // ensures (\endpoint nodes[i := 0 .. N]; nodes[i].n == N - 1);
+  // ensures (\endpoint nodes[i := 0 .. N]; nodes[i].total == getTotal(nodes, 0, nodes[i].n));
   run {
+    endpoint nodes[i := 0 .. N - 1]: nodes[i].couple(nodes[i + 1]);
+    endpoint nodes[N - 1]: nodes[N - 1].couple(nodes[0]);
+
     // Parallel loop invariant
-    loop_invariant (\endpoint nodes[i := 0 .. N - 1]; Perm(nodes[i].outMessage, 1));
     loop_invariant (\endpoint nodes[i := 0 .. N - 1]; (\let Node node = nodes[i];
-      Perm(node.inMessage, 1) ** Perm(node.total, 1) **
-      Perm(node.n, 1) ** Perm(node.frontN, 1) ** Perm(node.backN, 1\2) **
+      Perm(node.outMessage, 1) ** Perm(node.inMessage, 1) ** Perm(node.total, 1) **
+      Perm(nodes[i].n, 1) ** Perm(node.frontN, 1) ** Perm(node.backN, 1\2) **
       Perm(node.dummySend, 1) ** Perm(node.dummyReceive, 1) **
       Perm(nodes[i + 1].backN, 1\2) **
       0 <= node.n ** node.n <= N - 1 **
       node.total == getTotal(nodes, node.tid, node.n) **
       node.total == node.outMessage **
-      node.n == node.frontN ** node.n == node.backN **
-      node.frontN == nodes[i+1].backN
+      node.n == node.frontN ** node.n == node.backN
+      // **
+      // node.frontN == nodes[i+1].backN
+      ** syncd(nodes[i], nodes[i+1])
       ));
     loop_invariant (\endpoint nodes[N - 1]; (\let int i = N - 1; (\let Node node = nodes[i];
       Perm(node.outMessage, 1) ** Perm(node.inMessage, 1) ** Perm(node.total, 1) **
-      Perm(node.n, 1) ** Perm(node.frontN, 1) ** Perm(node.backN, 1\2) **
+      Perm(nodes[N - 1].n, 1) ** Perm(node.frontN, 1) ** Perm(node.backN, 1\2) **
       Perm(node.dummySend, 1) ** Perm(node.dummyReceive, 1) **
       Perm(nodes[0].backN, 1\2) **
       0 <= node.n ** node.n <= N - 1 ** node.tid == i **
       node.total == getTotal(nodes, node.tid, node.n) **
       node.total == node.outMessage **
-      node.n == node.frontN ** node.n == node.backN **
-      node.frontN == nodes[0].backN
+      node.n == node.frontN ** node.n == node.backN
+      // **
+      // node.frontN == nodes[0].backN
+      ** syncd(nodes[N - 1], nodes[0])
       )));
-
     // Choreographic loop invariant, required for choreographic verification. Without it, the only fact
     // the verifier gets at the beginning of the loop is that nodes[i].n < N - 1, for all indices i. However,
     // this inequality does not imply that they are actually equal. Hence, after incrementing each nodes[i].n by one,
@@ -52,7 +65,7 @@ choreography summation(int N, seq<int> vals) {
     // the choreographic invariant, branch unanimity is maintained. The invariant must be used with the `\chor`
     // primitive because it is not representable at the endpoint projection level: PVL permissions are not flexible
     // enough to allow both 1) write access for a particular nodes[i], and 2) read access for all nodes[j] with j != i.
-    loop_invariant (\chor (\forall int j = 0..N, int k = 0..N; nodes[j].n == nodes[k].n));
+    loop_invariant (\chor (\forall int j = 0..N, int k = 0..N; (\endpoint nodes[j]; {: nodes[j].n :}) == (\endpoint nodes[k]; {: nodes[k].n :})));
     while ((\endpoint nodes[i := 0..N]; nodes[i].n < N - 1)) {
 
       channel_invariant

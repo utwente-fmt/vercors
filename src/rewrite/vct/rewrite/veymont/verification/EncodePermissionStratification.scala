@@ -278,12 +278,12 @@ case class EncodePermissionStratification[Pre <: Generation](
               PanicBlame("Need to forward injectivity"),
               dispatch(low),
               dispatch(high),
-              i => {
+              (i: Local[Post]) => {
                 // TODO (RR): i must have same name as v above
                 variables.succeedOnly(v, i.ref.decl)
                 dispatch(inner)
               },
-            )
+            )(expr.o)
           }
         case _ => expr.rewriteDefault()
       }
@@ -610,7 +610,7 @@ case class EncodePermissionStratification[Pre <: Generation](
             target @ CommTargetRange(ref, RangeBinder(v, low, high)),
             inner,
           ) =>
-        implicit val o: Origin = target.o
+        implicit val o: Origin = expr.o
         variables.scope {
           forallAny(inner.t)(
             // TODO (RR): Forward injectivity

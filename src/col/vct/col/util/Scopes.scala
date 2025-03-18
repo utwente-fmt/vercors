@@ -21,10 +21,17 @@ object Scopes {
       )
   }
 
-  case class NoScope(kind: ClassTag[_]) extends SystemError {
+  case class NoSuccessorScope(kind: ClassTag[_]) extends SystemError {
     override def text: String =
       messageContext(
-        s"There is no scope to place a declaration of kind ${kind.runtimeClass.getSimpleName} in."
+        s"There is no active call of `.scope` to register a successor relation of kind ${kind.runtimeClass.getSimpleName} in."
+      )
+  }
+
+  case class NoDeclareScope(kind: ClassTag[_]) extends SystemError {
+    override def text: String =
+      messageContext(
+        s"There is no active call of `.collect` to declare of kind ${kind.runtimeClass.getSimpleName} in."
       )
   }
 
@@ -99,7 +106,7 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[
   def declare[T <: PostDecl](decl: T): T = {
     collectionBuffer.topOption match {
       case Some(buffer) => buffer += decl; decl
-      case None => throw NoScope(tag)
+      case None => throw NoDeclareScope(tag)
     }
   }
 
@@ -109,7 +116,7 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[
     successors.topOption match {
       case Some(map) if !map.contains(pre) => map(pre) = post; post
       case Some(map) => throw DuplicateSuccessor(pre, map(pre), post)
-      case None => throw NoScope(tag)
+      case None => throw NoSuccessorScope(tag)
     }
 
   def succeed[T <: PostDecl](pre: PreDecl, post: T)(

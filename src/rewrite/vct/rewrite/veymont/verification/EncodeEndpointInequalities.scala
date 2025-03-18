@@ -39,6 +39,27 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
 
   def makeInequalities(chor: Choreography[Pre]): Expr[Post] = {
     implicit val o = chor.o
+    injectiveEndpointObjects(chor) |&&| bounds(chor) |&&|
+      nonNullEndpointObjects(chor)
+  }
+
+  def nonNullEndpointObjects(chor: Choreography[Pre]): Expr[Post] = {
+    implicit val o = chor.o
+    foldAnd(chor.endpoints.map {
+      case ep if ep.isSingle =>
+        implicit val o = chor.o
+        CtExpr(CommTargetEndpoint[Post](succ(ep))) !== Null()
+      case ep if ep.isFamily =>
+        forrange(
+          dispatch(ep.range.get.high),
+          (i: Local[Post]) =>
+            CtExpr(CommTargetIndex[Post](succ(ep), i)) !== Null(),
+        )
+    })
+  }
+
+  def injectiveEndpointObjects(chor: Choreography[Pre]): Expr[Post] = {
+    implicit val o = chor.o
     val f =
       new ADTFunction[Post](Seq(new Variable(TAnyValue())), TInt())(
         o.where(name = "f")
@@ -91,16 +112,16 @@ case class EncodeEndpointInequalities[Pre <: Generation]()
           (newBaseInt, newConstraints)
       }
 
-    constraints |&&| foldAnd(bounds(chor))
+    constraints
   }
 
-  def bounds(chor: Choreography[Pre]): Seq[Expr[Post]] =
-    chor.endpoints.collect {
+  def bounds(chor: Choreography[Pre]): Expr[Post] =
+    foldAnd(chor.endpoints.collect {
       case ep if ep.isFamily =>
         implicit val o = ep.o
         Size(EndpointFamilyExpr[Post](succ(ep))) ===
           (dispatch(ep.range.get.high) - dispatch(ep.range.get.low))
-    }
+    })(chor.o)
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     mappings.program = p

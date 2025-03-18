@@ -19,6 +19,7 @@ object AstBuildHelpers {
       extends UserError {
     override def text: String =
       f"Expected types to numeric, but got: ${left.t} and ${right.t} for $left and $right"
+
     override def code: String = "numericDividingError"
   }
 
@@ -47,9 +48,12 @@ object AstBuildHelpers {
     */
   implicit class ExprBuildHelpers[G](left: Expr[G]) {
     def +(right: Expr[G])(implicit origin: Origin): Plus[G] = Plus(left, right)
+
     def -(right: Expr[G])(implicit origin: Origin): Minus[G] =
       Minus(left, right)
+
     def *(right: Expr[G])(implicit origin: Origin): Mult[G] = Mult(left, right)
+
     def /(
         right: Expr[G]
     )(implicit origin: Origin, blame: Blame[DivByZero]): DividingExpr[G] = {
@@ -61,35 +65,47 @@ object AstBuildHelpers {
         case _ => throw NumericDividingError(left, right)
       }
     }
+
     def /:/(
         right: Expr[G]
     )(implicit origin: Origin, blame: Blame[DivByZero]): RatDiv[G] =
       RatDiv(left, right)(blame)
+
     def %(
         right: Expr[G]
     )(implicit origin: Origin, blame: Blame[DivByZero]): Mod[G] =
       Mod(left, right)(blame)
 
     def ===(right: Expr[G])(implicit origin: Origin): Eq[G] = Eq(left, right)
+
     def |===|(right: Expr[G])(implicit origin: Origin): Expr[G] =
       (left, right) match {
         case (BooleanValue(l), BooleanValue(r)) if l == r => tt[G]
         case (IntegerValue(l), IntegerValue(r)) if l == r => tt[G]
         case _ => left === right
       }
+
     def !==(right: Expr[G])(implicit origin: Origin): Neq[G] = Neq(left, right)
+
     def <(right: Expr[G])(implicit origin: Origin): Less[G] = Less(left, right)
+
     def >(right: Expr[G])(implicit origin: Origin): Greater[G] =
       Greater(left, right)
+
     def <=(right: Expr[G])(implicit origin: Origin): LessEq[G] =
       LessEq(left, right)
+
     def >=(right: Expr[G])(implicit origin: Origin): GreaterEq[G] =
       GreaterEq(left, right)
 
     def unary_!(implicit origin: Origin): Not[G] = Not(left)
+
     def &&(right: Expr[G])(implicit origin: Origin): And[G] = And(left, right)
+
     def ||(right: Expr[G])(implicit origin: Origin): Or[G] = Or(left, right)
+
     def &*(right: Expr[G])(implicit origin: Origin): Star[G] = Star(left, right)
+
     def |&&|(right: Expr[G])(implicit origin: Origin): Expr[G] =
       (left, right) match {
         case (BooleanValue(true), BooleanValue(true)) => tt[G]
@@ -97,6 +113,7 @@ object AstBuildHelpers {
         case (e, BooleanValue(true)) => e
         case _ => And[G](left, right)
       }
+
     def |&*|(right: Expr[G])(implicit origin: Origin): Expr[G] =
       (left, right) match {
         case (BooleanValue(true), BooleanValue(true)) => tt[G]
@@ -125,6 +142,7 @@ object AstBuildHelpers {
   implicit class AccountedBuildHelpers[G](left: AccountedPredicate[G]) {
     def &*(right: Expr[G])(implicit o: Origin): SplitAccountedPredicate[G] =
       SplitAccountedPredicate(left, right.accounted)
+
     def &*(right: AccountedPredicate[G])(
         implicit o: Origin
     ): SplitAccountedPredicate[G] = SplitAccountedPredicate(left, right)
@@ -132,6 +150,7 @@ object AstBuildHelpers {
 
   implicit class VarBuildHelpers[G](left: Variable[G]) {
     def get(implicit origin: Origin): Local[G] = Local(new DirectRef(left))
+
     def <~(right: Expr[G])(implicit origin: Origin): SilverLocalAssign[G] =
       SilverLocalAssign(new DirectRef(left), right)
   }
@@ -585,6 +604,7 @@ object AstBuildHelpers {
     Origin(Seq(LabelContext(s"constant ${value}")))
 
   def tt[G]: BooleanValue[G] = BooleanValue(true)(constOrigin(true))
+
   def ff[G]: BooleanValue[G] = BooleanValue(false)(constOrigin(false))
 
   def const[G](i: Int)(implicit o: Origin): IntegerValue[G] = IntegerValue(i)
@@ -819,8 +839,7 @@ object AstBuildHelpers {
       t: Type[G],
       body: Local[G] => Expr[G],
       triggers: Local[G] => Seq[Seq[Expr[G]]] = (_: Local[G]) => Nil,
-  ): Starall[G] = {
-    implicit val o: Origin = GeneratedQuantifier
+  )(implicit o: Origin): Starall[G] = {
     val i_var = new Variable[G](t)
     val i = Local[G](i_var.ref)
     Starall(bindings = Seq(i_var), triggers = triggers(i), body = body(i))(
@@ -832,8 +851,7 @@ object AstBuildHelpers {
       t: Type[G],
       body: Local[G] => Expr[G],
       triggers: Local[G] => Seq[Seq[Expr[G]]] = (_: Local[G]) => Nil,
-  ): Forall[G] = {
-    implicit val o: Origin = GeneratedQuantifier
+  )(implicit o: Origin): Forall[G] = {
     val i_var = new Variable[G](t)
     val i = Local[G](i_var.ref)
     Forall(bindings = Seq(i_var), triggers = triggers(i), body = body(i))
@@ -844,13 +862,15 @@ object AstBuildHelpers {
       t: Type[G],
       body: Local[G] => Expr[G],
       triggers: Local[G] => Seq[Seq[Expr[G]]] = (_: Local[G]) => Nil,
-  ): Expr[G] =
+  )(implicit o: Origin): Expr[G] =
     indicator match {
       case TBool() => forall(t, body, triggers)
       case TResource() => starall(blame, t, body, triggers)
     }
 
-  def forrange[G](high: Expr[G], body: Local[G] => Expr[G]): Forall[G] =
+  def forrange[G](high: Expr[G], body: Local[G] => Expr[G])(
+      implicit o: Origin
+  ): Forall[G] =
     forrange(const(0)(DiagnosticOrigin), high, body, (_: Local[G]) => Nil)
 
   def forrange[G](
@@ -858,8 +878,7 @@ object AstBuildHelpers {
       high: Expr[G],
       body: Local[G] => Expr[G],
       triggers: Local[G] => Seq[Seq[Expr[G]]] = (_: Local[G]) => Nil,
-  ): Forall[G] = {
-    implicit val o: Origin = GeneratedQuantifier
+  )(implicit o: Origin): Forall[G] = {
     val i_var = new Variable[G](TInt())
     val i = Local[G](i_var.ref)
     Forall(
@@ -873,7 +892,7 @@ object AstBuildHelpers {
       blame: Blame[ReceiverNotInjective],
       high: Expr[G],
       body: Local[G] => Expr[G],
-  ): Starall[G] =
+  )(implicit o: Origin): Starall[G] =
     starrange(
       blame,
       const(0)(DiagnosticOrigin),
@@ -888,8 +907,7 @@ object AstBuildHelpers {
       high: Expr[G],
       body: Local[G] => Expr[G],
       triggers: Local[G] => Seq[Seq[Expr[G]]] = (_: Local[G]) => Nil,
-  ): Starall[G] = {
-    implicit val o: Origin = GeneratedQuantifier
+  )(implicit o: Origin): Starall[G] = {
     val i_var = new Variable[G](TInt())
     val i = Local[G](i_var.ref)
     Starall(
@@ -903,8 +921,7 @@ object AstBuildHelpers {
       ts: Seq[Type[G]],
       body: Seq[Local[G]] => Expr[G],
       triggers: Seq[Local[G]] => Seq[Seq[Expr[G]]] = (_: Seq[Local[G]]) => Nil,
-  ): Forall[G] = {
-    implicit val o: Origin = GeneratedQuantifier
+  )(implicit o: Origin): Forall[G] = {
     val i_vars: Seq[Variable[G]] = ts.map(new Variable[G](_))
     val is: Seq[Local[G]] = i_vars.map((x: Variable[G]) => Local[G](x.ref))
     Forall(bindings = i_vars, triggers = triggers(is), body = body(is))
@@ -913,8 +930,9 @@ object AstBuildHelpers {
   private def GeneratedLet: Origin =
     Origin(Seq(PreferredName(Seq("x")), LabelContext("generated let")))
 
-  def let[G](t: Type[G], x: Expr[G], body: Local[G] => Expr[G]): Let[G] = {
-    implicit val o: Origin = GeneratedQuantifier
+  def let[G](t: Type[G], x: Expr[G], body: Local[G] => Expr[G])(
+      implicit o: Origin = GeneratedLet
+  ): Let[G] = {
     val x_var: Variable[G] = new Variable[G](t)
     val x_local: Local[G] = Local(x_var.ref)
     Let(x_var, x, body(x_local))

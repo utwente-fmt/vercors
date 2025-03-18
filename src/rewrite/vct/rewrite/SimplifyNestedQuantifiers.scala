@@ -114,7 +114,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
             val trigger = e.o.inlineContext(false).map(_.last)
               .getOrElse("unknown context")
             logger.warn(
-              f"The binder `${e.o.shortPositionText}`:`${trigger} contains no triggers`"
+              f"The binder `${e.o.shortPositionText}`:`${trigger}` contains no triggers"
             )
           case Forall(_, Nil, body) if !body.exists {
                 case InlinePattern(_, _, _) | InLinePatternLocation(_, _) =>
@@ -123,7 +123,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
             val trigger = e.o.inlineContext(false).map(_.last)
               .getOrElse("unknown context")
             logger.warn(
-              f"The binder `${e.o.shortPositionText}`:`${trigger} contains no triggers`"
+              f"The binder `${e.o.shortPositionText}`:`${trigger}` contains no triggers"
             )
           case _ =>
         }
