@@ -8,6 +8,7 @@ import vct.col.ast.{
   Endpoint,
   Expr,
   RangeBinder,
+  Type,
 }
 import vct.col.origin.Origin
 import vct.col.ref.Ref
@@ -50,5 +51,13 @@ object AstMatchHelpers {
     def apply[G](ref: Ref[G, Endpoint[G]], index: Expr[G])(
         implicit o: Origin
     ): CtExpr[G] = CtExpr(CommTargetIndex(ref, index))
+  }
+
+  object ::: {
+    def unapply[G](e: Expr[G]): Option[(Expr[G], Type[G])] = Some(e, e.t)
+  }
+
+  object HasType {
+    def unapply[G](e: Expr[G]): Option[(Expr[G], Type[G])] = Some(e, e.t)
   }
 }

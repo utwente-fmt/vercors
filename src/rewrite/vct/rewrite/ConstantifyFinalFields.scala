@@ -82,6 +82,13 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
     super.dispatch(decl)
   }
 
+  object |- {
+    def unapply[G](e: Expr[G]): Option[(Expr[G], Type[G])] = Some(e, e.t)
+  }
+
+  val x: Expr[Pre] = null
+  x match { case e |- t => }
+
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case cls: Class[Pre] => currentClass.having(cls) { rewriteDefault(cls) }
