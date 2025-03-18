@@ -1,12 +1,7 @@
 package vct.rewrite.rtos
 
 import vct.col.ast._
-import vct.col.origin.{
-  LabelContext,
-  Origin,
-  PanicBlame,
-  RequiredName,
-}
+import vct.col.origin.{LabelContext, Origin, PanicBlame, RequiredName}
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers
@@ -103,26 +98,38 @@ case object Utils {
       )
     )
 
-  def try_expr_to_bool(expr: Expr[_]): Option[Boolean] = expr match {
-    case BooleanValue(value) => Some(value)
-    case CLocal(name) => name match {
-      case "pdTRUE" | "pdPASS" => Some(true)
-      case "pdFALSE" | "pdFAIL" => Some(false)
-      case _ => None
+  def try_expr_to_bool(expr: Expr[_]): Option[Boolean] =
+    expr match {
+      case BooleanValue(value) => Some(value)
+      case CLocal(name) =>
+        name match {
+          case "pdTRUE" | "pdPASS" => Some(true)
+          case "pdFALSE" | "pdFAIL" => Some(false)
+          case _ => None
+        }
+      case Not(arg) => try_expr_to_bool(arg).map(b => !b)
+      case And(left, right) =>
+        resolve_bool_operator(left, right, (b1, b2) => b1 && b2)
+      case Star(left, right) =>
+        resolve_bool_operator(left, right, (b1, b2) => b1 && b2)
+      case Or(left, right) =>
+        resolve_bool_operator(left, right, (b1, b2) => b1 || b2)
+      case AmbiguousOr(left, right) =>
+        resolve_bool_operator(left, right, (b1, b2) => b1 || b2)
+      case Implies(left, right) =>
+        resolve_bool_operator(left, right, (b1, b2) => !b1 || b2)
+      case _ => try_expr_to_int(expr).map(i => i != 0)
     }
-    case Not(arg) => try_expr_to_bool(arg).map(b => !b)
-    case And(left, right) => resolve_bool_operator(left, right, (b1, b2) => b1 && b2)
-    case Star(left, right) => resolve_bool_operator(left, right, (b1, b2) => b1 && b2)
-    case Or(left, right) => resolve_bool_operator(left, right, (b1, b2) => b1 || b2)
-    case AmbiguousOr(left, right) => resolve_bool_operator(left, right, (b1, b2) => b1 || b2)
-    case Implies(left, right) => resolve_bool_operator(left, right, (b1, b2) => !b1 || b2)
-    case _ => try_expr_to_int(expr).map(i => i != 0)
-  }
 
-  private def resolve_bool_operator(left: Expr[_], right: Expr[_], op: (Boolean, Boolean) => Boolean): Option[Boolean] = try_expr_to_bool(left) match {
-    case Some(b1) => try_expr_to_bool(right).map(b2 => op(b1, b2))
-    case None => None
-  }
+  private def resolve_bool_operator(
+      left: Expr[_],
+      right: Expr[_],
+      op: (Boolean, Boolean) => Boolean,
+  ): Option[Boolean] =
+    try_expr_to_bool(left) match {
+      case Some(b1) => try_expr_to_bool(right).map(b2 => op(b1, b2))
+      case None => None
+    }
 
   def creation_arg_assert[O](
       invocation: CInvocation[O],

@@ -125,30 +125,14 @@ class ConstraintSolver[G](
       apply: ApplyAnyPredicate[G]
   ): Set[ConstraintMap[G]] = {
     val (
-      body: Expr[G],
+      body_option: Option[Expr[G]],
       params: Seq[Variable[G]],
       vals: Seq[Expr[G]],
       inline: Boolean,
       name: String,
-    ) =
-      apply match {
-        case PredicateApply(ref, args) =>
-          (
-            ref.decl.body.getOrElse(return Set(ConstraintMap.empty[G])),
-            ref.decl.args,
-            args,
-            ref.decl.inline,
-            Utils.extract_name(ref.decl.o),
-          )
-        case InstancePredicateApply(_, ref, args) =>
-          (
-            ref.decl.body.getOrElse(return Set(ConstraintMap.empty[G])),
-            ref.decl.args,
-            args,
-            ref.decl.inline,
-            Utils.extract_name(ref.decl.o),
-          )
-      }
+    ) = Utils.get_predicate_info(apply)
+    val body = body_option.getOrElse(return Set(ConstraintMap.empty[G]))
+
     name match {
       case "vesuv_limit_entries" =>
         val lower_bound: Int = state

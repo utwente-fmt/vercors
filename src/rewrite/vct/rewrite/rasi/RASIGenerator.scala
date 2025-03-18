@@ -24,7 +24,7 @@ class RASIGenerator[G] extends LazyLogging {
       split_on: Option[Set[FieldVariable[G]]],
       parameter_invariant: Option[InstancePredicate[G]],
       program: Node[G],
-      main_class: Class[G],
+      main_class: ByReferenceClass[G],
       seqs: Set[InstanceField[G]],
   ): Seq[(String, Expr[G])] =
     generate_rasi(
@@ -64,9 +64,14 @@ class RASIGenerator[G] extends LazyLogging {
       split_on: Option[Set[FieldVariable[G]]],
       parameter_invariant: Option[InstancePredicate[G]],
       program: Node[G],
-      main_class: Class[G],
+      main_class: ByReferenceClass[G],
   ): Seq[(String, Expr[G])] = {
-    explore(node, vars, parameter_invariant)
+    explore(
+      node,
+      vars,
+      parameter_invariant,
+      resolve_global_invariant(main_class),
+    )
     val distinct: Int = found_states.distinctBy(s => s.valuations).size
     logger.info(s"$distinct distinct states found")
 
@@ -100,6 +105,62 @@ class RASIGenerator[G] extends LazyLogging {
 
     res
   }
+
+  private def resolve_global_invariant(
+      main: ByReferenceClass[G]
+  ): Map[FieldVariable[G], UncertainSingleValue] = {
+    // TODO: Take into account constraints other than equalities?
+    Map.from(
+      Utils.split_conjunction(
+        main.intrinsicLockInvariant,
+        unfold_predicates = true,
+      ).collect {
+        case Eq(left, right) => (left, right)
+        case AmbiguousEq(left, right, _) => (left, right)
+      }.map(e => constraint_to_valuation(e._1, e._2)).filter(c => c.nonEmpty)
+        .map(c => c.get)
+    )
+  }
+
+  private def constraint_to_valuation(
+      left: Expr[G],
+      right: Expr[G],
+  ): Option[(FieldVariable[G], UncertainSingleValue)] =
+    left match {
+      case Deref(_, ref) =>
+        right match {
+          case IntegerValue(value) =>
+            Some((
+              FieldSimpleVariable(ref.decl),
+              UncertainIntegerValue.single(value.intValue),
+            ))
+          case _ => None
+        }
+      case Size(Deref(_, ref)) =>
+        right match {
+          case IntegerValue(value) =>
+            Some((
+              FieldSizeVariable(ref.decl),
+              UncertainIntegerValue.single(value.intValue),
+            ))
+          case _ => None
+        }
+      case IntegerValue(value) =>
+        left match {
+          case Deref(_, ref) =>
+            Some((
+              FieldSimpleVariable(ref.decl),
+              UncertainIntegerValue.single(value.intValue),
+            ))
+          case Size(Deref(_, ref)) =>
+            Some((
+              FieldSizeVariable(ref.decl),
+              UncertainIntegerValue.single(value.intValue),
+            ))
+          case _ => None
+        }
+      case _ => None
+    }
 
   private def get_associated_process(
       of: ConcreteVariable[G],
@@ -193,7 +254,7 @@ class RASIGenerator[G] extends LazyLogging {
       parameter_invariant: Option[InstancePredicate[G]],
       out_path: Path,
   ): Unit = {
-    explore(node, vars, parameter_invariant)
+    explore(node, vars, parameter_invariant, Map.empty)
     val (ns, es) = reduce_redundant_states()
     logger.info(s"${ns.size} distinct states found")
     Utils.print(ns, es, out_path)
@@ -203,16 +264,19 @@ class RASIGenerator[G] extends LazyLogging {
       node: CFGEntry[G],
       vars: Set[FieldVariable[G]],
       parameter_invariant: Option[InstancePredicate[G]],
+      invariant_knowledge: Map[FieldVariable[G], UncertainSingleValue],
   ): Unit = {
     logger.info("Starting RASI generation")
     val global_start_time: Long = System.nanoTime()
 
     var considered_variables: Set[FieldVariable[G]] = vars
+      .filter(v => !invariant_knowledge.contains(v))
 
     var generation_start_time: Long = reset(
       node,
       considered_variables,
       parameter_invariant,
+      invariant_knowledge,
     )
     var last_measurement_time: Long = generation_start_time
     var initial_state: AbstractState[G] = current_branches.head
@@ -241,6 +305,7 @@ class RASIGenerator[G] extends LazyLogging {
           node,
           considered_variables,
           parameter_invariant,
+          invariant_knowledge,
         )
         last_measurement_time = generation_start_time
         initial_state = current_branches.head
@@ -291,6 +356,7 @@ class RASIGenerator[G] extends LazyLogging {
       node: CFGEntry[G],
       vars: Set[FieldVariable[G]],
       parameter_invariant: Option[InstancePredicate[G]],
+      invariant_knowledge: Map[FieldVariable[G], UncertainSingleValue],
   ): Long = {
     found_states.clear()
     found_edges.clear()
@@ -299,6 +365,7 @@ class RASIGenerator[G] extends LazyLogging {
     val initial_state = AbstractState(
       get_initial_values(vars),
       Map.from(Seq((AbstractProcess[G](Null()(Utils.origen)), node))),
+      invariant_knowledge,
       Map.empty[LocalVariable[G], UncertainSingleValue],
       Map.empty[Variable[G], Set[FieldVariable[G]]],
       None,

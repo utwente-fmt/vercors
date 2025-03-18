@@ -87,14 +87,15 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
         expr match {
           case d @ Deref(_, ref) =>
             if (
-              (state.valuations ++ state.parameters)
+              (state.valuations ++ state.parameters ++
+                state.invariant_knowledge)
                 .exists(t => t._1.is_contained_by(d, state))
             )
               Set()
             else
               Set(FieldSimpleVariable(ref.decl))
           case l @ Local(ref) =>
-            if (state.valuations.exists(t => t._1.is(l, state)))
+            if (state.local.exists(t => t._1.is(l, state)))
               Set()
             else
               Set(LocalSimpleVariable(ref.decl))
@@ -105,7 +106,7 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
           case a @ ArraySubscript(arr, index) =>
             create_indexed_var_if_needed(state, a, arr, index)
           case s @ Size(obj) =>
-            if (state.valuations.exists(t => t._1.is(s, state)))
+            if (is_already_tracked(s, state))
               Set()
             else
               obj match {
@@ -126,7 +127,7 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
       collection: Expr[G],
       subscript: Expr[G],
   ): Set[ResolvableVariable[G]] = {
-    if (state.valuations.exists(t => t._1.is(expr, state)))
+    if (is_already_tracked(expr, state))
       return Set()
     val index: Option[Int] = state.resolve_integer_expression(subscript)
       .try_to_resolve()
@@ -137,6 +138,13 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
       case Local(ref) => LocalIndexedVariable(ref.decl, index.get)
     })
   }
+
+  private def is_already_tracked(
+      expr: Expr[G],
+      state: AbstractState[G],
+  ): Boolean =
+    state.valuations.exists(t => t._1.is(expr, state)) ||
+      state.invariant_knowledge.exists(t => t._1.is(expr, state))
 
   private def var_differences(
       constraints: Seq[Set[ConstraintMap[G]]]

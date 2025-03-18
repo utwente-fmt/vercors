@@ -206,16 +206,70 @@ case object Utils {
     *
     * @param conj
     *   Conjunction to be split
+    * @param unfold_predicates
+    *   States whether this operation should unroll inline predicates in the
+    *   process
     * @return
     *   A sequence containing all subexpressions of the conjunction
     */
-  def split_conjunction[G](conj: Expr[G]): Seq[Expr[G]] =
+  def split_conjunction[G](
+      conj: Expr[G],
+      unfold_predicates: Boolean = false,
+  ): Seq[Expr[G]] =
     conj match {
       case And(left, right) =>
-        split_conjunction(left) ++ split_conjunction(right)
+        split_conjunction(left, unfold_predicates) ++
+          split_conjunction(right, unfold_predicates)
       case Star(left, right) =>
-        split_conjunction(left) ++ split_conjunction(right)
+        split_conjunction(left, unfold_predicates) ++
+          split_conjunction(right, unfold_predicates)
+      case PredicateApplyExpr(apply) if unfold_predicates =>
+        val (
+          body_option: Option[Expr[G]],
+          params: Seq[Variable[G]],
+          vals: Seq[Expr[G]],
+          inline: Boolean,
+          _: String,
+        ) = get_predicate_info(apply)
+        val body = body_option.getOrElse(return Seq(conj))
+
+        if (inline)
+          split_conjunction(
+            unify_expression(body, Map.from(params.zip(vals))),
+            unfold_predicates,
+          )
+        else
+          Seq(conj)
       case _ => Seq(conj)
+    }
+
+  /** Extracts the body, parameters, arguments, inline indicator and name from a
+    * predicate application.
+    *
+    * @param pred
+    *   Predicate to unpack
+    * @return
+    */
+  def get_predicate_info[G](
+      pred: ApplyAnyPredicate[G]
+  ): (Option[Expr[G]], Seq[Variable[G]], Seq[Expr[G]], Boolean, String) =
+    pred match {
+      case PredicateApply(ref, args) =>
+        (
+          ref.decl.body,
+          ref.decl.args,
+          args,
+          ref.decl.inline,
+          Utils.extract_name(ref.decl.o),
+        )
+      case InstancePredicateApply(_, ref, args) =>
+        (
+          ref.decl.body,
+          ref.decl.args,
+          args,
+          ref.decl.inline,
+          Utils.extract_name(ref.decl.o),
+        )
     }
 
   /** Unrolls a quantifier and substitutes in concrete values for known iterator

@@ -713,7 +713,7 @@ case object UncertainSequence {
     val t: Type[G] =
       typ match {
         case _: IntType[G] => TInt[G]()
-        case _: TBool[G] => TBool[G]()
+        case _: TBool[G] | _: TResource[G] => TBool[G]()
       }
     // Unpack invariant
     val inv: UncertainSingleValue = invariant

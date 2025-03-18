@@ -8,6 +8,7 @@ import vct.rewrite.cfg.CFGEntry
 case class AbstractState[G](
     valuations: Map[FieldVariable[G], UncertainSingleValue],
     processes: Map[AbstractProcess[G], CFGEntry[G]],
+    invariant_knowledge: Map[FieldVariable[G], UncertainSingleValue],
     local: Map[LocalVariable[G], UncertainSingleValue],
     local_dependencies: Map[Variable[G], Set[FieldVariable[G]]],
     lock: Option[AbstractProcess[G]],
@@ -37,6 +38,7 @@ case class AbstractState[G](
     AbstractState(
       valuations.map(v => v._1 -> UncertainSingleValue.uncertain_of(v._1.t)),
       processes,
+      invariant_knowledge,
       Map.empty[LocalVariable[G], UncertainSingleValue],
       Map.empty[Variable[G], Set[FieldVariable[G]]],
       lock,
@@ -55,6 +57,7 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes,
+      invariant_knowledge,
       Map.empty[LocalVariable[G], UncertainSingleValue],
       Map.empty[Variable[G], Set[FieldVariable[G]]],
       lock,
@@ -79,6 +82,7 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes.removed(process) + (process -> position),
+      invariant_knowledge,
       local,
       local_dependencies,
       lock,
@@ -97,6 +101,7 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes.removed(process),
+      invariant_knowledge,
       local,
       local_dependencies,
       lock,
@@ -116,6 +121,7 @@ case class AbstractState[G](
     AbstractState(
       valuations.removedAll(vars),
       processes,
+      invariant_knowledge,
       local,
       local_dependencies,
       lock,
@@ -135,6 +141,7 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes,
+      invariant_knowledge,
       local,
       local_dependencies,
       Some(process),
@@ -152,6 +159,7 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes,
+      invariant_knowledge,
       local,
       local_dependencies,
       None,
@@ -179,6 +187,7 @@ case class AbstractState[G](
             G
           ], UncertainSingleValue](Map.from(vs)),
         processes,
+        invariant_knowledge,
         local,
         local_dependencies,
         lock,
@@ -220,6 +229,7 @@ case class AbstractState[G](
                  v._2)
           ),
           processes,
+          invariant_knowledge,
           local,
           local_dependencies,
           lock,
@@ -266,6 +276,7 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes,
+      invariant_knowledge,
       Utils
         .cast_resolvable_map[G, ResolvableVariable[G], LocalVariable[
           G
@@ -296,6 +307,7 @@ case class AbstractState[G](
         AbstractState(
           valuations,
           processes,
+          invariant_knowledge,
           local + (get_local_var(l) -> value),
           local_dependencies,
           lock,
@@ -308,6 +320,7 @@ case class AbstractState[G](
             AbstractState(
               valuations + (concrete_variable -> value),
               processes,
+              invariant_knowledge,
               local,
               local_dependencies,
               lock,
@@ -333,6 +346,7 @@ case class AbstractState[G](
     AbstractState(
       valuations ++ vals,
       processes,
+      invariant_knowledge,
       local,
       local_dependencies,
       lock,
@@ -375,6 +389,7 @@ case class AbstractState[G](
     AbstractState(
       valuations.removedAll(tracked_sequences(target)) ++ new_values,
       processes,
+      invariant_knowledge,
       local,
       local_dependencies,
       lock,
@@ -406,6 +421,7 @@ case class AbstractState[G](
     AbstractState(
       vals,
       processes,
+      invariant_knowledge,
       local,
       local_dependencies,
       lock,
@@ -425,6 +441,7 @@ case class AbstractState[G](
     AbstractState(
       valuations,
       processes,
+      invariant_knowledge,
       local.filter(t => !t._1.v.equals(target)) ++ new_values,
       local_dependencies, // TODO: Which untracked variables influence the locals?
       lock,
@@ -457,7 +474,11 @@ case class AbstractState[G](
           value.get(i)
       )
 
-    Map.from(certain_values ++ uncertain_values :+ size_value)
+    Map.from((certain_values ++ uncertain_values :+ size_value).filter(t =>
+      !invariant_knowledge
+        .asInstanceOf[Map[ResolvableVariable[G], UncertainSingleValue]]
+        .contains(t._1)
+    ))
   }
 
   /** Updates the state by taking a specification in the form of an assumption
@@ -496,6 +517,7 @@ case class AbstractState[G](
         AbstractState(
           Utils.val_intersect(valuations, m),
           processes,
+          invariant_knowledge,
           local, // TODO: Should the locals also be included in the assumption?
           local_dependencies, // TODO: Which untracked variables influence the locals?
           lock,
@@ -546,6 +568,7 @@ case class AbstractState[G](
         AbstractState(
           valuations.map(e => e._1 -> m.getOrElse(e._1, e._2)),
           processes,
+          invariant_knowledge,
           local,
           local_dependencies,
           lock,
@@ -1025,7 +1048,7 @@ case class AbstractState[G](
       case Deref(_, _) =>
         collection_from_variable(
           expr,
-          valuations
+          (valuations ++ invariant_knowledge)
             .asInstanceOf[Map[ConcreteVariable[G], UncertainSingleValue]],
           is_old,
           is_contract,
@@ -1282,11 +1305,7 @@ case class AbstractState[G](
           None
         else
           Some(valuations(v))
-      case None =>
-        parameter_from_expr(expr) match {
-          case Some(v) => Some(parameters(v))
-          case None => None
-        }
+      case None => resolve_parameter_or_constant(expr)
     }
 
   private def variable_from_expr(variable: Expr[G]): Option[FieldVariable[G]] =
@@ -1294,12 +1313,14 @@ case class AbstractState[G](
       case c: FieldVariable[G] if c.is(variable, this) => c
     }
 
-  private def parameter_from_expr(
+  private def resolve_parameter_or_constant(
       variable: Expr[G]
-  ): Option[FieldSimpleVariable[G]] =
-    parameters.keys.collectFirst {
-      case f: FieldSimpleVariable[G] if f.is(variable, this) => f
-    }
+  ): Option[UncertainSingleValue] = {
+    parameters.collectFirst { case (v, e) if v.is(variable, this) => e }
+      .orElse(invariant_knowledge.collectFirst {
+        case (v, e) if v.is(variable, this) => e
+      })
+  }
 
   private def get_local_var(variable: Local[G]): LocalSimpleVariable[G] =
     local.keys.collectFirst {
@@ -1315,30 +1336,14 @@ case class AbstractState[G](
       is_contract: Boolean,
   ): UncertainBooleanValue = {
     val (
-      body: Expr[G],
+      body_option: Option[Expr[G]],
       params: Seq[Variable[G]],
       vals: Seq[Expr[G]],
       inline: Boolean,
       name: String,
-    ) =
-      pred match {
-        case PredicateApply(ref, args) =>
-          (
-            ref.decl.body.getOrElse(return UncertainBooleanValue.from(true)),
-            ref.decl.args,
-            args,
-            ref.decl.inline,
-            Utils.extract_name(ref.decl.o),
-          )
-        case InstancePredicateApply(_, ref, args) =>
-          (
-            ref.decl.body.getOrElse(return UncertainBooleanValue.from(true)),
-            ref.decl.args,
-            args,
-            ref.decl.inline,
-            Utils.extract_name(ref.decl.o),
-          )
-      }
+    ) = Utils.get_predicate_info(pred)
+    val body = body_option.getOrElse(return UncertainBooleanValue.from(true))
+
     name match {
       case "vesuv_limit_entries" =>
         val collection: UncertainSequence = resolve_collection_expression(

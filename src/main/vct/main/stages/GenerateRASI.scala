@@ -8,18 +8,12 @@ import vct.col.origin.{LabelContext, Origin, PreferredName}
 import vct.col.print.Ctx
 import vct.col.rewrite.Generation
 import vct.options.Options
-import vct.rewrite.rasi.{
-  FieldIndexedVariable,
-  FieldSimpleVariable,
-  FieldSizeVariable,
-  FieldVariable,
-  RASIGenerator,
-  Utils,
-}
+import vct.rewrite.rasi.{FieldIndexedVariable, FieldSimpleVariable, FieldSizeVariable, FieldVariable, RASIGenerator, Utils}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 import scala.annotation.tailrec
+import scala.collection.compat.immutable.ArraySeq
 
 case object GenerateRASI {
   def ofOptions(options: Options): Stage[Node[_ <: Generation], Unit] = {
@@ -171,7 +165,7 @@ case class GenerateRASI(
     (concrete_variables, tracked_sequences)
   }
 
-  private def field_path(name: String): Seq[String] = name.split("\\.")
+  private def field_path(name: String): Seq[String] = ArraySeq.unsafeWrapArray(name.split("\\."))
 
   @tailrec
   private def resolve_field_by_name(
