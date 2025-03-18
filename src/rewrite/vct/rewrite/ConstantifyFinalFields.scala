@@ -5,7 +5,16 @@ import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
-import vct.col.origin.{AbstractApplicable, Origin, PanicBlame, TrueSatisfiable}
+import vct.col.origin.{
+  AbstractApplicable,
+  Blame,
+  DerefError,
+  InvocationFailure,
+  ObjNull,
+  Origin,
+  PanicBlame,
+  TrueSatisfiable,
+}
 import vct.col.ref.Ref
 import vct.col.rewrite.ConstantifyFinalFields.FinalFieldPerm
 import vct.col.util.SuccessionMap
@@ -112,7 +121,7 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
     e match {
       case ThisObject(_) if substituteThisObject.nonEmpty =>
         substituteThisObject.top
-      case Deref(obj, Ref(field)) =>
+      case deref @ Deref(obj, Ref(field)) =>
         implicit val o: Origin = e.o
         if (isFinal(field))
           FunctionInvocation[Post](
@@ -121,7 +130,7 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
             Nil,
             Nil,
             Nil,
-          )(PanicBlame("requires nothing"))
+          )(_ => deref.blame.blame(ObjNull(deref)))
         else
           rewriteDefault(e)
       case other => rewriteDefault(other)
