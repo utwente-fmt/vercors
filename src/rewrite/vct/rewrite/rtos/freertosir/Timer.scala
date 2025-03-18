@@ -174,7 +174,12 @@ case class Timer[O <: Generation](
     val cond: Expr[N] = transformer
       .get_default_contract(holding_global_lock = false, runnable = false)
 
-    val wait_loop: Statement[N] = transformer.wait_loop(None, None)
+    val wait_loop: Statement[N] = transformer.wait_loop(
+      None,
+      None,
+      subtract_wait_time = false,
+      include_execution_time = true,
+    )
 
     val func_body: Statement[N] = transformer.dispatch(callback.body)
 
@@ -193,7 +198,12 @@ case class Timer[O <: Generation](
             )),
             Block(Seq[Statement[N]](
               func_body,
-              transformer.wait_loop(Some(eid), Some(Utils.int_val(period))),
+              transformer.wait_loop(
+                Some(eid),
+                Some(Utils.int_val(period)),
+                subtract_wait_time = true,
+                include_execution_time = true,
+              ),
             ))(Utils.origen),
           )(Utils.origen)
         else

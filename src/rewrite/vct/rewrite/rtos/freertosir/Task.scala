@@ -165,7 +165,12 @@ case class Task[O <: Generation](
     val cond: Expr[N] = transformer
       .get_default_contract(holding_global_lock = false, runnable = false)
 
-    val wait_loop: Statement[N] = transformer.wait_loop(None, None)
+    val wait_loop: Statement[N] = transformer.wait_loop(
+      None,
+      None,
+      subtract_wait_time = false,
+      include_execution_time = true,
+    )
 
     val body: Statement[N] =
       Block(Seq[Statement[N]](

@@ -297,23 +297,16 @@ class Transformer[O <: Generation](
               Some(
                 Utils.int_val(Utils.resolve_integer(args.head, "task delay"))
               ),
+              subtract_wait_time = false,
+              include_execution_time = true,
             )
           case "vTaskDelayUntil" =>
             wait_loop(
               Some(col_ir.reserve_event_id),
-              Some(
-                Minus(
-                  // TODO: This ignores pxPreviousWakeTime, i.e. assumes that it starts exactly when woken initially
-                  Utils.int_val(Utils.resolve_integer(args(1), "task delay")),
-                  SeqSubscript(
-                    Utils.deref_ref(
-                      new LazyRef[N, InstanceField[N]](col_ir.get_taskWaitTime),
-                      Utils.deref_of(Utils.exclude_isr(scheduler)),
-                    ),
-                    Utils.int_val(tid.get),
-                  )(Utils.blame)(Utils.origen),
-                )(Utils.origen)
-              ),
+              // TODO: This ignores pxPreviousWakeTime, i.e. assumes that it starts exactly when woken initially
+              Some(Utils.int_val(Utils.resolve_integer(args(1), "task delay"))),
+              subtract_wait_time = true,
+              include_execution_time = true,
             )
           case "xTaskAbortDelay" =>
             Utils.update_scheduling_variable(
@@ -355,7 +348,13 @@ class Transformer[O <: Generation](
               Utils.int_val(col_ir.get_tid(args.head.asInstanceOf[CLocal[O]])),
               Utils.int_val(col_ir.reserve_event_id),
             )
-          case "taskYIELD" => wait_loop(Some(col_ir.reserve_event_id), None)
+          case "taskYIELD" =>
+            wait_loop(
+              Some(col_ir.reserve_event_id),
+              None,
+              subtract_wait_time = false,
+              include_execution_time = true,
+            )
           // Task notification
           case "xTaskNotify" => ???
           case "xTaskNotifyAndQuery" => ???
@@ -979,7 +978,12 @@ class Transformer[O <: Generation](
             Utils.to_loop_invariant(
               get_default_contract(holding_global_lock = true, runnable = true)
             ),
-            wait_loop(Some(eid), None),
+            wait_loop(
+              Some(eid),
+              None,
+              subtract_wait_time = false,
+              include_execution_time = true,
+            ),
           )(Utils.origen),
           call,
         )
@@ -997,13 +1001,23 @@ class Transformer[O <: Generation](
                 holding_global_lock = true,
                 runnable = true,
               )),
-              wait_loop(Some(eid), Some(Utils.int_val(delay))),
+              wait_loop(
+                Some(eid),
+                Some(Utils.int_val(delay)),
+                subtract_wait_time = false,
+                include_execution_time = true,
+              ),
             )(Utils.origen),
             call,
           )
     }
 
-  def wait_loop(eid: Option[Int], timeout: Option[Expr[N]]): Statement[N] = {
+  def wait_loop(
+      eid: Option[Int],
+      timeout: Option[Expr[N]],
+      subtract_wait_time: Boolean,
+      include_execution_time: Boolean,
+  ): Statement[N] = {
     val invariant: Expr[N] = get_default_contract(
       holding_global_lock = true,
       runnable = false,
@@ -1045,16 +1059,32 @@ class Transformer[O <: Generation](
           ),
         ) ++ block
       if (timeout.nonEmpty) {
+        val delay: Expr[N] =
+          if (subtract_wait_time)
+            Minus(
+              timeout.get,
+              SeqSubscript(
+                Utils.deref_ref(
+                  new LazyRef[N, InstanceField[N]](col_ir.get_taskWaitTime),
+                  Utils.deref_of(Utils.exclude_isr(scheduler)),
+                ),
+                Utils.int_val(tid.get),
+              )(Utils.blame)(Utils.origen),
+            )(Utils.origen)
+          else
+            timeout.get
         block =
           Utils.update_scheduling_variable(
             col_ir.get_eventState,
             s,
             Utils.int_val(eid.get),
-            timeout.get,
+            delay,
           ) +: block
       }
     }
-    Block(block :+ execution_time(10, 10))(Utils.origen)
+    if (include_execution_time)
+      block = block :+ execution_time(10, 10)
+    Block(block)(Utils.origen)
   }
 
   private def execution_time(bcet: Int, wcet: Int): Statement[N] = {
