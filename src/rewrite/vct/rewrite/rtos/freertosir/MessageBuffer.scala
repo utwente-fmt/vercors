@@ -128,6 +128,7 @@ case class MessageBuffer[O <: Generation](decl: Option[CLocal[O]], size: Int)
     ObjectInfo(
       decl,
       field,
+      None,
       cls,
       Seq[Expr[N]](Utils.thiz, Utils.int_val(size)),
       Utils.fold_star(Seq[Expr[N]](

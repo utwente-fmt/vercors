@@ -24,7 +24,7 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
       new InstanceField(tcls, Seq())(Utils.origen(instance_name))
 
     val transformer: Transformer[O] =
-      new Transformer(col_ir, None, None, field, Seq())
+      new Transformer(col_ir, None, None, field, None, Seq())
 
     cls = Some(transform(transformer, class_name))
 
@@ -33,6 +33,7 @@ case class ISR[O <: Generation](isr: CFunctionDefinition[O])
     ObjectInfo(
       None,
       field,
+      None,
       cls.get,
       Seq(),
       Utils.fold_star(Seq[Expr[N]](

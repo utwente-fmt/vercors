@@ -128,6 +128,7 @@ case class Queue[O <: Generation](decl: Option[CLocal[O]], capacity: Int)
     ObjectInfo(
       decl,
       field,
+      None,
       cls,
       Seq[Expr[N]](Utils.thiz, Utils.int_val(capacity)),
       Utils.fold_star(Seq[Expr[N]](

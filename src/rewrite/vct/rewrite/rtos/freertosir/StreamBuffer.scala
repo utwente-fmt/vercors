@@ -112,6 +112,7 @@ case class StreamBuffer[O <: Generation](
     ObjectInfo(
       decl,
       field,
+      None,
       cls,
       Seq[Expr[N]](Utils.thiz, Utils.int_val(size)),
       Utils.fold_star(Seq[Expr[N]](

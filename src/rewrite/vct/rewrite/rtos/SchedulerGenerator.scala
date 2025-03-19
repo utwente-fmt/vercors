@@ -198,6 +198,17 @@ class SchedulerGenerator[O <: Generation] {
       objs.filter(o => o.launch).map(o => o.field),
       objs.filter(o => o.launch)
         .map(o => o.precondition_in_scheduler.getOrElse(tt)),
+      objs.filter(o => o.program_counter.nonEmpty).map(o =>
+        Star(
+          Utils
+            .half_perm_of(o.program_counter.get, Some(Utils.deref_of(o.field))),
+          Eq(
+            Utils
+              .deref_of(o.program_counter.get, Some(Utils.deref_of(o.field))),
+            Utils.int_val(0),
+          )(Utils.origen),
+        )(Utils.origen)
+      ),
       new DirectRef[N, InstanceMethod[N]](schedule),
     ))
 
@@ -416,6 +427,8 @@ class SchedulerGenerator[O <: Generation] {
   ): PVLConstructor[N] = {
     // Supporting calculations
     val launch_objs: Seq[ObjectInfo[O]] = objs.filter(o => o.launch)
+    val pc_objs: Seq[ObjectInfo[O]] = objs
+      .filter(o => o.program_counter.nonEmpty)
     // Find timers that have already been activated => their initial event state is their delay, not -1
     val timer_delay: Map[Int, Int] = Map.from(
       objs.filter(o => o.timer_period.nonEmpty)
@@ -440,6 +453,19 @@ class SchedulerGenerator[O <: Generation] {
     // Constructor contract
     val ensures: Expr[N] = Utils.fold_star(
       (launch_objs.map(o => o.precondition_in_scheduler.getOrElse(tt)) ++
+        pc_objs.map(o =>
+          Star(
+            Utils.half_perm_of(
+              o.program_counter.get,
+              Some(Utils.deref_of(o.field)),
+            ),
+            Eq(
+              Utils
+                .deref_of(o.program_counter.get, Some(Utils.deref_of(o.field))),
+              Utils.int_val(0),
+            )(Utils.origen),
+          )(Utils.origen)
+        ) ++
         launch_objs
           .map(o => IdleToken(Utils.deref_of(o.field))(Utils.origen))) :+
         Committed(Utils.thiz)(Utils.blame)(Utils.origen)
@@ -1575,10 +1601,11 @@ class SchedulerGenerator[O <: Generation] {
   private def create_start(
       to_launch: Seq[InstanceField[N]],
       preconditions: Seq[Expr[N]],
+      pc_perms: Seq[Expr[N]],
       schedule: Ref[N, InstanceMethod[N]],
   ): InstanceMethod[N] = {
     val requires: Expr[N] = Utils.fold_star(
-      (preconditions ++
+      (preconditions ++ pc_perms ++
         to_launch.map(f => IdleToken(Utils.deref_of(f))(Utils.origen))) :+
         Committed(Utils.thiz)(Utils.blame)(Utils.origen)
     )

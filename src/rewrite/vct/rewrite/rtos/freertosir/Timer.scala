@@ -45,17 +45,22 @@ case class Timer[O <: Generation](
     val field: InstanceField[N] =
       new InstanceField(tcls, Seq())(Utils.origen(instance_name(idx)))
 
+    val program_counter: InstanceField[N] =
+      new InstanceField(Utils.tint, Seq())(Utils.origen("pc"))
+
     cls = Some(transform(
       new LazyRef(col_ir.get_scheduler),
       tid,
       col_ir,
       field,
+      program_counter,
       class_name(idx),
     ))
 
     ObjectInfo(
       decl,
       field,
+      Some(program_counter),
       cls.get,
       Seq[Expr[N]](Utils.thiz),
       Utils.fold_star(Seq[Expr[N]](
@@ -95,6 +100,7 @@ case class Timer[O <: Generation](
       tid: Int,
       col_ir: COLEncoder[O],
       field: InstanceField[N],
+      program_counter: InstanceField[N],
       name: String,
   ): Class[N] = {
     s = Some(new InstanceField(TByValueClass(scheduler_ref, Seq()), Seq())(
@@ -104,12 +110,11 @@ case class Timer[O <: Generation](
     timerPerms = Some(
       new InstancePredicate(
         Seq(),
-        Some(
-          Star(
-            Perm(Utils.loc_of(s.get), Utils.read)(Utils.origen),
-            Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen),
-          )(Utils.origen)
-        ),
+        Some(Utils.fold_star(Seq[Expr[N]](
+          Perm(Utils.loc_of(s.get), Utils.read)(Utils.origen),
+          Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen),
+          Utils.half_perm_of(program_counter),
+        ))),
         threadLocal = false,
         inline = true,
       )(Utils.origen("taskPerms"))
@@ -119,18 +124,19 @@ case class Timer[O <: Generation](
       new DirectRef[N, InstancePredicate[N]](timerPerms.get)
 
     val transformer: Transformer[O] =
-      new Transformer(col_ir, Some(tid), s, field, Seq())
+      new Transformer(col_ir, Some(tid), s, field, Some(program_counter), Seq())
 
     val taskConstructor: PVLConstructor[N] = create_constructor(
       scheduler_ref,
       perms,
+      program_counter,
     )
 
-    val runMethod: RunMethod[N] = create_runMethod(transformer)
+    val runMethod: RunMethod[N] = create_runMethod(transformer, program_counter)
 
     new ByReferenceClass(
       Seq(),
-      Seq(s.get, timerPerms.get, taskConstructor, runMethod) ++
+      Seq(s.get, program_counter, timerPerms.get, taskConstructor, runMethod) ++
         transformer.get_additional_methods,
       Seq(),
       tt,
@@ -140,6 +146,7 @@ case class Timer[O <: Generation](
   private def create_constructor(
       scheduler_ref: Ref[N, Class[N]],
       perms: Ref[N, InstancePredicate[N]],
+      program_counter: InstanceField[N],
   ): PVLConstructor[N] = {
     val s_param: Variable[N] =
       new Variable(TByReferenceClass(scheduler_ref, Seq()))(
@@ -152,6 +159,8 @@ case class Timer[O <: Generation](
     val ensures: Expr[N] = Utils.fold_star(Seq[Expr[N]](
       Utils.predicate_apply(Utils.thiz, perms, Seq()),
       Eq(Utils.deref_of(s.get), Utils.local_of(s_param))(Utils.origen),
+      Utils.half_perm_of(program_counter),
+      Eq(Utils.deref_of(program_counter), Utils.int_val(0))(Utils.origen),
       IdleToken(Utils.thiz)(Utils.origen),
     ))
 
@@ -159,7 +168,10 @@ case class Timer[O <: Generation](
       Block(Seq[Statement[N]](
         Assign(Utils.deref_of(s.get), Utils.local_of(s_param))(Utils.blame)(
           Utils.origen
-        )
+        ),
+        Assign(Utils.deref_of(program_counter), Utils.int_val(0))(Utils.blame)(
+          Utils.origen
+        ),
       ))(Utils.origen)
 
     new PVLConstructor(
@@ -170,9 +182,17 @@ case class Timer[O <: Generation](
     )(Utils.blame)(Utils.origen)
   }
 
-  private def create_runMethod(transformer: Transformer[O]): RunMethod[N] = {
+  private def create_runMethod(
+      transformer: Transformer[O],
+      program_counter: InstanceField[N],
+  ): RunMethod[N] = {
     val cond: Expr[N] = transformer
       .get_default_contract(holding_global_lock = false, runnable = false)
+    val requires: Expr[N] =
+      Star(
+        cond,
+        Eq(Utils.deref_of(program_counter), Utils.int_val(0))(Utils.origen),
+      )(Utils.origen)
 
     val wait_loop: Statement[N] = transformer.wait_loop(
       None,
@@ -212,9 +232,9 @@ case class Timer[O <: Generation](
       ))(Utils.origen)
     }
 
-    new RunMethod(Some(body), Utils.to_app_contract(cond, cond))(Utils.blame)(
-      Utils.origen
-    )
+    new RunMethod(Some(body), Utils.to_app_contract(requires, cond))(
+      Utils.blame
+    )(Utils.origen)
   }
 }
 case object Timer {

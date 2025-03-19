@@ -13,6 +13,7 @@ class Transformer[O <: Generation](
     tid: Option[Int],
     scheduler: Option[InstanceField[Rewritten[O]]],
     this_in_scheduler: InstanceField[Rewritten[O]],
+    program_counter: Option[InstanceField[Rewritten[O]]],
     known_parameters: Seq[(CParam[O], Expr[O])],
 ) extends Rewriter[O] {
   type N = Rewritten[O]
@@ -90,8 +91,14 @@ class Transformer[O <: Generation](
             (
               register_new_variable(Utils.get_declarator_name(i.decl), typ),
               i.init.map(e =>
-                new Transformer(col_ir, None, None, this_in_scheduler, Seq())
-                  .dispatch(e)
+                new Transformer(
+                  col_ir,
+                  None,
+                  None,
+                  this_in_scheduler,
+                  None,
+                  Seq(),
+                ).dispatch(e)
               ),
             )
           )
@@ -496,6 +503,7 @@ class Transformer[O <: Generation](
                         None,
                         None,
                         this_in_scheduler,
+                        None,
                         Seq(),
                       ),
                     )
@@ -508,6 +516,7 @@ class Transformer[O <: Generation](
                         None,
                         None,
                         this_in_scheduler,
+                        None,
                         Seq(),
                       ),
                     ))
@@ -1223,6 +1232,9 @@ class Transformer[O <: Generation](
         )(Utils.origen)
       )
     }
+    if (program_counter.nonEmpty) {
+      conds ++= Seq(Utils.half_perm_of(program_counter.get))
+    }
     Utils.fold_star(conds)
   }
 
@@ -1273,7 +1285,14 @@ class Transformer[O <: Generation](
       return additional_methods(decl)
 
     val transformer: Transformer[O] =
-      new Transformer(col_ir, tid, scheduler, this_in_scheduler, Seq())
+      new Transformer(
+        col_ir,
+        tid,
+        scheduler,
+        this_in_scheduler,
+        program_counter,
+        Seq(),
+      )
     val new_method = transformer
       .transform_method(decl, specs, body, contract, additional_methods)
 
@@ -1304,8 +1323,8 @@ class Transformer[O <: Generation](
       old: ApplicableContract[O],
       add_default: Boolean,
   ): ApplicableContract[N] = {
-    var requires: Expr[N] = dispatch(Utils.contract_resolve(old.requires))
-    var ensures: Expr[N] = dispatch(Utils.contract_resolve(old.ensures))
+    val requires: Expr[N] = dispatch(Utils.contract_resolve(old.requires))
+    val ensures: Expr[N] = dispatch(Utils.contract_resolve(old.ensures))
     if (add_default) {
       val default_contract: Expr[N] = get_default_contract(
         holding_global_lock = true,

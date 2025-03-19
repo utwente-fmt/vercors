@@ -56,6 +56,7 @@ sealed trait Semaphore[O <: Generation] extends FreeRTOSConstruct[O] {
     ObjectInfo(
       get_decl,
       field,
+      None,
       cls,
       Seq[Expr[N]](Utils.thiz) ++ additional_constructor_args,
       Utils.fold_star(

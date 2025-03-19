@@ -6,6 +6,7 @@ import vct.col.rewrite.{Generation, Rewritten}
 case class ObjectInfo[O <: Generation](
     decl: Option[CLocal[O]],
     field: InstanceField[Rewritten[O]],
+    program_counter: Option[InstanceField[Rewritten[O]]],
     cls: Class[Rewritten[O]],
     args: Seq[Expr[Rewritten[O]]],
     perms: Expr[Rewritten[O]],

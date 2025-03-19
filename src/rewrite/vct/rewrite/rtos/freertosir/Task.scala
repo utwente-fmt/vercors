@@ -33,17 +33,22 @@ case class Task[O <: Generation](
     val field: InstanceField[N] =
       new InstanceField(tcls, Seq())(Utils.origen(instance_name))
 
+    val program_counter: InstanceField[N] =
+      new InstanceField(Utils.tint, Seq())(Utils.origen("pc"))
+
     cls = Some(transform(
       new LazyRef(col_ir.get_scheduler),
       tid,
       col_ir,
       field,
+      program_counter,
       class_name,
     ))
 
     ObjectInfo(
       decl,
       field,
+      Some(program_counter),
       cls.get,
       Seq[Expr[N]](Utils.thiz),
       Utils.fold_star(Seq[Expr[N]](
@@ -80,6 +85,7 @@ case class Task[O <: Generation](
       tid: Int,
       col_ir: COLEncoder[O],
       field: InstanceField[N],
+      program_counter: InstanceField[N],
       name: String,
   ): Class[N] = {
     s = Some(new InstanceField(TByValueClass(scheduler_ref, Seq()), Seq())(
@@ -89,12 +95,11 @@ case class Task[O <: Generation](
     taskPerms = Some(
       new InstancePredicate(
         Seq(),
-        Some(
-          Star(
-            Perm(Utils.loc_of(s.get), Utils.read)(Utils.origen),
-            Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen),
-          )(Utils.origen)
-        ),
+        Some(Utils.fold_star(Seq[Expr[N]](
+          Utils.read_perm_of(s.get),
+          Neq(Utils.deref_of(s.get), Utils.nul)(Utils.origen),
+          Utils.half_perm_of(program_counter),
+        ))),
         threadLocal = false,
         inline = true,
       )(Utils.origen("taskPerms"))
@@ -107,21 +112,23 @@ case class Task[O <: Generation](
       new Transformer(
         col_ir,
         Some(tid),
-        Some(s.get),
+        s,
         field,
+        Some(program_counter),
         Utils.args_of(func.declarator).map(p => p -> param),
       )
 
     val taskConstructor: PVLConstructor[N] = create_constructor(
       scheduler_ref,
       perms,
+      program_counter,
     )
 
-    val runMethod: RunMethod[N] = create_runMethod(transformer)
+    val runMethod: RunMethod[N] = create_runMethod(transformer, program_counter)
 
     new ByReferenceClass(
       Seq(),
-      Seq(s.get, taskPerms.get, taskConstructor, runMethod) ++
+      Seq(s.get, program_counter, taskPerms.get, taskConstructor, runMethod) ++
         transformer.get_additional_methods,
       Seq(),
       tt,
@@ -131,6 +138,7 @@ case class Task[O <: Generation](
   private def create_constructor(
       scheduler_ref: Ref[N, Class[N]],
       perms: Ref[N, InstancePredicate[N]],
+      program_counter: InstanceField[N],
   ): PVLConstructor[N] = {
     val s_param: Variable[N] =
       new Variable(TByReferenceClass(scheduler_ref, Seq()))(
@@ -143,6 +151,8 @@ case class Task[O <: Generation](
     val ensures: Expr[N] = Utils.fold_star(Seq[Expr[N]](
       Utils.predicate_apply(Utils.thiz, perms, Seq()),
       Eq(Utils.deref_of(s.get), Utils.local_of(s_param))(Utils.origen),
+      Utils.half_perm_of(program_counter),
+      Eq(Utils.deref_of(program_counter), Utils.int_val(0))(Utils.origen),
       IdleToken(Utils.thiz)(Utils.origen),
     ))
 
@@ -150,7 +160,10 @@ case class Task[O <: Generation](
       Block(Seq[Statement[N]](
         Assign(Utils.deref_of(s.get), Utils.local_of(s_param))(Utils.blame)(
           Utils.origen
-        )
+        ),
+        Assign(Utils.deref_of(program_counter), Utils.int_val(0))(Utils.blame)(
+          Utils.origen
+        ),
       ))(Utils.origen)
 
     new PVLConstructor(
@@ -161,9 +174,17 @@ case class Task[O <: Generation](
     )(Utils.blame)(Utils.origen)
   }
 
-  private def create_runMethod(transformer: Transformer[O]): RunMethod[N] = {
+  private def create_runMethod(
+      transformer: Transformer[O],
+      program_counter: InstanceField[N],
+  ): RunMethod[N] = {
     val cond: Expr[N] = transformer
       .get_default_contract(holding_global_lock = false, runnable = false)
+    val requires: Expr[N] =
+      Star(
+        cond,
+        Eq(Utils.deref_of(program_counter), Utils.int_val(0))(Utils.origen),
+      )(Utils.origen)
 
     val wait_loop: Statement[N] = transformer.wait_loop(
       None,
@@ -180,9 +201,9 @@ case class Task[O <: Generation](
         Unlock(Utils.deref_of(s.get))(Utils.blame)(Utils.origen),
       ))(Utils.origen)
 
-    new RunMethod(Some(body), Utils.to_app_contract(cond, cond))(Utils.blame)(
-      Utils.origen
-    )
+    new RunMethod(Some(body), Utils.to_app_contract(requires, cond))(
+      Utils.blame
+    )(Utils.origen)
   }
 }
 case object Task {

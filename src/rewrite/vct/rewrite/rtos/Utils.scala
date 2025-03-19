@@ -376,6 +376,27 @@ case object Utils {
       origen
     )
 
+  def write_perm_of[N](
+      f: InstanceField[N],
+      obj: Option[Expr[N]] = None,
+  ): Perm[N] = perm_of(f, obj, write)
+
+  def read_perm_of[N](
+      f: InstanceField[N],
+      obj: Option[Expr[N]] = None,
+  ): Perm[N] = perm_of(f, obj, read)
+
+  def half_perm_of[N](
+      f: InstanceField[N],
+      obj: Option[Expr[N]] = None,
+  ): Perm[N] = perm_of(f, obj, RatDiv(int_val(1), int_val(2))(blame)(origen))
+
+  private def perm_of[N](
+      f: InstanceField[N],
+      obj: Option[Expr[N]] = None,
+      amount: Expr[N],
+  ): Perm[N] = Perm(loc_of(f, obj), amount)(origen)
+
   def deref_of[N](f: InstanceField[N], obj: Option[Expr[N]] = None): Deref[N] =
     Deref(obj.getOrElse(thiz), new DirectRef[N, InstanceField[N]](f))(blame)(
       origen
