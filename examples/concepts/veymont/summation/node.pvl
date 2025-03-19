@@ -48,6 +48,13 @@ class Node {
     backN = 0;
   }
 
+// TODO: How about using sub(add(tid, 1), 1)?
+  requires Perm(nodes[X.add(tid, 1) - 1].backN, 1\2);
+  requires Perm(nodes[tid].backN, 1\2);
+  ensures Perm(nodes[tid].backN, 1) ** nodes[tid].backN == \old(nodes[tid].backN);
+  void mergeBackNPerms(seq<Node> nodes) {
+
+  }
 
   context Perm(outMessage,1) ** Perm(inMessage,1\2) ** Perm(n,1) ** Perm(total, 1);
   ensures n == \old(n) + 1;
