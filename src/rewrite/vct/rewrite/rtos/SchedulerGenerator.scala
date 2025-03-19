@@ -106,6 +106,7 @@ class SchedulerGenerator[O <: Generation] {
     val eventPerms_ref: Ref[N, InstancePredicate[N]] =
       new DirectRef[N, InstancePredicate[N]](eventPerms.get)
     val schedulerPerms: InstancePredicate[N] = create_schedulerPerms(
+      n_tasks,
       eventPerms_ref,
       priorityPerms_ref,
       vesuv_limit_entries_ref,
@@ -320,6 +321,7 @@ class SchedulerGenerator[O <: Generation] {
   }
 
   private def create_schedulerPerms(
+      n_tasks: Int,
       eventPerms_ref: Ref[N, InstancePredicate[N]],
       priorityPerms_ref: Ref[N, InstancePredicate[N]],
       vesuv_limit_entries_ref: Ref[N, InstancePredicate[N]],
@@ -334,7 +336,7 @@ class SchedulerGenerator[O <: Generation] {
       Utils.predicate_apply(Utils.thiz, priorityPerms_ref, Seq()),
       Utils.predicate_apply(Utils.thiz, eventPerms_ref, Seq()),
       Perm(Utils.loc_of(taskState.get), Utils.write)(Utils.origen),
-      Eq(Utils.size(taskState.get), Utils.size(taskPriority.get))(Utils.origen),
+      Eq(Utils.size(taskState.get), Utils.int_val(n_tasks))(Utils.origen),
       Utils.predicate_apply(
         Utils.thiz,
         vesuv_limit_entries_ref,
@@ -345,9 +347,7 @@ class SchedulerGenerator[O <: Generation] {
         ),
       ),
       Perm(Utils.loc_of(taskWaitTime.get), Utils.write)(Utils.origen),
-      Eq(Utils.size(taskWaitTime.get), Utils.size(taskPriority.get))(
-        Utils.origen
-      ),
+      Eq(Utils.size(taskWaitTime.get), Utils.int_val(n_tasks))(Utils.origen),
       Utils.single_var_forall(
         i1,
         Utils.int_val(0),
@@ -358,7 +358,7 @@ class SchedulerGenerator[O <: Generation] {
         )(Utils.origen),
       ),
       Perm(Utils.loc_of(runnableQueue.get), Utils.write)(Utils.origen),
-      LessEq(Utils.size(runnableQueue.get), Utils.size(taskPriority.get))(
+      LessEq(Utils.size(runnableQueue.get), Utils.size(taskState.get))(
         Utils.origen
       ),
       Utils.predicate_apply(
@@ -1513,7 +1513,7 @@ class SchedulerGenerator[O <: Generation] {
           )(Utils.origen),
           Block(Seq(
             LocalDecl(awoken)(Utils.origen),
-            Assert(Neq(Utils.local_of(schedulerDelay), Utils.int_val(0))(
+            Assert(Neq(Utils.local_of(schedulerDelay), Utils.int_val(-1))(
               Utils.origen
             ))(Utils.blame)(Utils.origen),
             Utils.stmt_invoke(advanceTime, Seq(Utils.local_of(schedulerDelay))),

@@ -76,6 +76,7 @@ object ResolvableVariable {
     }
   def from[G](expr: Expr[G], resolve: Expr[G] => Int): ResolvableVariable[G] =
     expr match {
+      case Old(e, _) => from(e, resolve)
       case AmbiguousSubscript(collection, index) =>
         indexed_from(collection, resolve(index))
       case SeqSubscript(seq, index) => indexed_from(seq, resolve(index))
