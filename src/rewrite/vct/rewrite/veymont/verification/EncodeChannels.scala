@@ -269,10 +269,13 @@ case class EncodeChannels[Pre <: Generation]()
       case e if substitutions.topOption.exists(_.contains(e)) =>
         substitutions.top(e)
       case Message(Ref(comm)) => Local[Post](msgSucc.ref(comm))(comm.o)
-      case Sender(Ref(comm)) =>
-        EndpointName[Post](succ(comm.sender.get.asName.endpoint))(expr.o)
-      case Receiver(Ref(comm)) =>
-        EndpointName[Post](succ(comm.receiver.get.asName.endpoint))(expr.o)
+      case Sender(Ref(comm)) => CtExpr(dispatch(comm.sender.get))(expr.o)
+      // TODO (RR): The sender/receiver case only work in the case of singular endpoints.
+      //            The par case is avoided by using ChannelInvInliner somewhere else.
+      //            I should probably refactor these two approaches into one.
+//        EndpointName[Post](succ(comm.sender.get.asName.endpoint))(expr.o)
+      case Receiver(Ref(comm)) => CtExpr(dispatch(comm.receiver.get))(expr.o)
+//        EndpointName[Post](succ(comm.receiver.get.asName.endpoint))(expr.o)
       case _ => expr.rewriteDefault()
     }
 }
