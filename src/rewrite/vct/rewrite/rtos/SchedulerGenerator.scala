@@ -1513,9 +1513,9 @@ class SchedulerGenerator[O <: Generation] {
           )(Utils.origen),
           Block(Seq(
             LocalDecl(awoken)(Utils.origen),
-            /* Assert(Neq(Utils.local_of(schedulerDelay), Utils.int_val(0))(
+            Assert(Neq(Utils.local_of(schedulerDelay), Utils.int_val(0))(
               Utils.origen
-            ))(Utils.blame)(Utils.origen), */
+            ))(Utils.blame)(Utils.origen),
             Utils.stmt_invoke(advanceTime, Seq(Utils.local_of(schedulerDelay))),
             Assign(
               Utils.local_of(awoken),
