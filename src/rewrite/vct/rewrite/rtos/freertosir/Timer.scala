@@ -198,7 +198,7 @@ case class Timer[O <: Generation](
       None,
       None,
       subtract_wait_time = false,
-      include_execution_time = true,
+      include_execution_time = false,
     )
 
     val func_body: Statement[N] = transformer.dispatch(callback.body)
@@ -217,12 +217,13 @@ case class Timer[O <: Generation](
               runnable = true,
             )),
             Block(Seq[Statement[N]](
+              transformer.execution_time(10, 10),
               func_body,
               transformer.wait_loop(
                 Some(eid),
                 Some(Utils.int_val(period)),
                 subtract_wait_time = true,
-                include_execution_time = true,
+                include_execution_time = false,
               ),
             ))(Utils.origen),
           )(Utils.origen)

@@ -1096,7 +1096,7 @@ class Transformer[O <: Generation](
     Block(block)(Utils.origen)
   }
 
-  private def execution_time(bcet: Int, wcet: Int): Statement[N] = {
+  def execution_time(bcet: Int, wcet: Int): Statement[N] = {
     val (execTime: Variable[N], exec_decl: Seq[Statement[N]]) =
       if (executionTime.nonEmpty)
         (executionTime.get, Seq())
