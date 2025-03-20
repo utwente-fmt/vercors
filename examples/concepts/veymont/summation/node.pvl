@@ -48,13 +48,13 @@ class Node {
     backN = 0;
   }
 
-// TODO: How about using sub(add(tid, 1), 1)?
-  requires Perm(nodes[X.add(tid, 1) - 1].backN, 1\2);
-  requires Perm(nodes[tid].backN, 1\2);
-  ensures Perm(nodes[tid].backN, 1) ** nodes[tid].backN == \old(nodes[tid].backN);
-  void mergeBackNPerms(seq<Node> nodes) {
-
-  }
+  // // TODO: How about using sub(add(tid, 1), 1)?
+  // requires Perm(nodes[X.add(tid, 1) - 1].backN, 1\2);
+  // requires Perm(nodes[tid].backN, 1\2);
+  // ensures Perm(nodes[tid].backN, 1) ** nodes[tid].backN ==//  \old(nodes[tid].backN);
+  // void mergeBackNPerms(seq<Node> nodes) {
+  //
+  // }
 
   context Perm(outMessage,1) ** Perm(inMessage,1\2) ** Perm(n,1) ** Perm(total, 1);
   ensures n == \old(n) + 1;
@@ -86,9 +86,14 @@ class Node {
     lemmaTotalShift(nodes, tid, 0);
   }
 
-  context Perm(backN, 1) ** Perm(n, 1\2);
+  requires 0 <= tid && tid < |nodes|;
+  requires Perm(backN, 1\2);
+  requires Perm(nodes[X.add(prevId, 1)].backN, 1\2);
+  requires X.sub(tid, 1) == prevId;
+  context Perm(n, 1\2);
+  ensures Perm(backN, 1);
   ensures backN == n;
-  void updateBackN() {
+  void updateBackN(seq<Node> nodes, int prevId) {
     backN = n;
   }
 

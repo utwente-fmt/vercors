@@ -52,10 +52,10 @@ choreography summation(int N, seq<int> vals) {
     loop_invariant (\endpoint nodes[i := 0 .. N - 1]; Perm(nodes[i + 1].backN, 1\2));
     loop_invariant (\endpoint nodes[N - 1]; Perm(nodes[0].backN, 1\2));
     loop_invariant (\endpoint nodes[i := 0 .. N - 1];
-      0 <= nodes[i].n ** nodes[i].n <= N - 1 **
-      nodes[i].total == getTotal(nodes, nodes[i].tid, nodes[i].n) **
-      nodes[i].total == nodes[i].outMessage **
-      nodes[i].n == nodes[i].frontN ** nodes[i].n == nodes[i].backN
+      0 <= {: nodes[i].n :} ** {: nodes[i].n :} <= N - 1 **
+      {: nodes[i].total :} == getTotal(nodes, nodes[i].tid, nodes[i].n) **
+      nodes[i].total == {: nodes[i].outMessage :} **
+      nodes[i].n == {: nodes[i].frontN :} ** nodes[i].n == {: nodes[i].backN :}
     );
     // WARNING: Must be after all permission inhales, because trigger on frontN includes heap argument (.frontN is encoded as function readN, which is heap dependent)
     // If placed before an inhale of a new frontN permission, the heap argument used in the trigger will never appear again later when the quantifier is needed to prove an assertion.
@@ -93,10 +93,11 @@ choreography summation(int N, seq<int> vals) {
       endpoint nodes[tid := 0 .. N]: nodes[tid].processMessage();
       // endpoint nodes[tid := 0 .. N]: nodes[tid].getTotalProofStep();
       // endpoint nodes[tid := 0 .. N]: nodes[tid].mergeBackNPerms(nodes);
-      endpoint nodes[tid := 0 .. N]: nodes[tid].updateBackN();
+      endpoint nodes[tid := 0 .. N]: nodes[tid].updateBackN(nodes, tid - 1);
 
+      // TODO (RR): \receiver.frontN fails here. Probably something with sub/add again?
       channel_invariant Perm(\sender.backN, 1\2) ** Perm(\receiver.frontN, 1\2) ** \receiver.frontN + 1 == {: \sender.backN :};
-      communicate nodes[i := 1 .. N - 1]: nodes[i].dummySend -> nodes[X.sub(i, 1)].dummyReceive;
+      communicate nodes[i := 1 .. N]: nodes[i].dummySend -> nodes[X.sub(i, 1)].dummyReceive;
       channel_invariant Perm(\sender.backN, 1\2) ** Perm(\receiver.frontN, 1\2) ** \receiver.frontN + 1 == \sender.backN;
       communicate nodes[N - 1].dummyReceive <- nodes[0].dummySend;
 
