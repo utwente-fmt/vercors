@@ -53,6 +53,8 @@ class Transformer[O <: Generation](
           Utils.get_ctype(p.specifiers),
         )
       )
+      
+      val is_pure: Boolean = Utils.is_pure(specs)
 
       new InstanceMethod(
         Utils.get_ctype(specs),
@@ -60,9 +62,9 @@ class Transformer[O <: Generation](
         Seq(),
         Seq(),
         body.map(s => dispatch(s)),
-        resolve_contract(contract, body.nonEmpty),
+        resolve_contract(contract, body.nonEmpty, is_pure),
         inline = Utils.is_inline(specs),
-        pure = Utils.is_pure(specs),
+        pure = is_pure,
       )(Utils.blame)(Utils.origen(Utils.get_declarator_name(decl)))
     })
 
@@ -1322,6 +1324,7 @@ class Transformer[O <: Generation](
   private def resolve_contract(
       old: ApplicableContract[O],
       add_default: Boolean,
+      is_pure: Boolean,
   ): ApplicableContract[N] = {
     val requires: Expr[N] = dispatch(Utils.contract_resolve(old.requires))
     val ensures: Expr[N] = dispatch(Utils.contract_resolve(old.ensures))
@@ -1332,7 +1335,7 @@ class Transformer[O <: Generation](
       )
       Utils.to_app_contract(
         Star(default_contract, requires)(Utils.origen),
-        Star(default_contract, ensures)(Utils.origen),
+        if (is_pure) ensures else Star(default_contract, ensures)(Utils.origen),
       )
     } else { Utils.to_app_contract(requires, ensures) }
   }
