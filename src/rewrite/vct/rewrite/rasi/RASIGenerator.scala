@@ -93,7 +93,7 @@ class RASIGenerator[G] extends LazyLogging {
       res =
         res :+
           (
-            get_rasi_name(t._1, t._2),
+            get_rasi_name(t._1, t._2, program, main_class),
             get_rasi_expression(
               s => s.valuations(t._1) == t._2,
               Some(get_associated_process(t._1, all_processes)),
@@ -197,14 +197,19 @@ class RASIGenerator[G] extends LazyLogging {
       .map(s => s.valuations.keySet).reduce((s1, s2) => s1.intersect(s2))
     val always_the_same: Set[FieldVariable[G]] = always_known
       .filter(v => rasi_states.map(s => s.valuations(v)).distinct.size == 1)
-    val constants: Seq[Expr[G]] = always_the_same.toSeq
+    val factor_out: Set[FieldVariable[G]] = always_the_same.filter(v =>
+      v.isInstanceOf[FieldSizeVariable[G]] ||
+        always_the_same
+          .exists(s => s.isInstanceOf[FieldSizeVariable[G]] && s.f == v.f)
+    )
+    val constants: Seq[Expr[G]] = factor_out.toSeq
       .sortWith((v1, v2) => v1.compare(v2)).map(v =>
         rasi_states.head.valuations(v)
           .to_expression(v.to_expression(objs.get(v)))
       )
-    val remainder: Expr[G] = rasi_states.map(s =>
-      s.without_valuation_of(always_the_same).to_expression(Some(objs))
-    ).reduce((e1, e2) => Or(e1, e2)(Utils.origen))
+    val remainder: Expr[G] = rasi_states
+      .map(s => s.without_valuation_of(factor_out).to_expression(Some(objs)))
+      .reduce((e1, e2) => Or(e1, e2)(Utils.origen))
 
     if (constants.isEmpty)
       remainder
@@ -220,17 +225,35 @@ class RASIGenerator[G] extends LazyLogging {
     split_on_vars.flatMap(v => found_states.map(s => v -> s.valuations(v)))
 
   private def get_rasi_name(
-      variable: ConcreteVariable[G],
+      variable: FieldVariable[G],
       value: UncertainSingleValue,
+      program: Node[G],
+      main_class: ByReferenceClass[G],
   ): String = {
+    // Compute involved objects
+    val classes: Seq[Class[G]] = program.collect { case c: Class[G] => c }
+    val containing_field: Option[InstanceField[G]] = get_object(
+      classes,
+      main_class,
+      variable.f,
+    )
+    val container_expr: Expr[G] = container_to_expr(containing_field)
+
     // Compute variable name
-    val name_map: Map[Declaration[_], String] = Map.from(Seq(
-      variable.get_declaration ->
-        variable.get_declaration.o.getPreferredName.get.snake
-    ))
+    val name_map: Map[Declaration[_], String] = Map.from(
+      if (containing_field.isEmpty)
+        Seq()
+      else
+        Seq(
+          containing_field.get -> Utils.extract_name(containing_field.get.o)
+        ) :+
+          variable.get_declaration ->
+          Utils.extract_name(variable.get_declaration.o)
+    )
     implicit val context: Ctx = Ctx(syntax = Ctx.PVL, names = name_map)
-    val var_name: String = variable.to_expression(None).toStringWithContext
-      .replace("]", "").replace("[", "").replace("this.", "")
+    val var_name: String = variable.to_expression(Some(container_expr))
+      .toStringWithContext.replace("]", "").replace("[", "")
+      .replace("this.", "").replace(".", "_")
 
     // Compute value string
     val value_string: String =
@@ -431,27 +454,29 @@ class RASIGenerator[G] extends LazyLogging {
 
     val classes: Seq[Class[G]] = program.collect { case c: Class[G] => c }
 
-    for (v <- vars) { m += (v -> find_field_object(classes, main_class, v.f)) }
+    for (v <- vars) {
+      m += (v -> container_to_expr(get_object(classes, main_class, v.f)))
+    }
 
     m
   }
 
-  private def find_field_object(
+  private def container_to_expr(field: Option[InstanceField[G]]): Expr[G] =
+    field.map(f =>
+      Deref[G](AmbiguousThis()(Utils.origen), f.ref)(Utils.origen)(Utils.origen)
+    ).getOrElse(AmbiguousThis()(Utils.origen))
+
+  private def get_object(
       classes: Seq[Class[G]],
       main: Class[G],
       field: InstanceField[G],
-  ): Expr[G] = {
+  ): Option[InstanceField[G]] = {
     val type_class: Class[G] = classes.find(c => c.decls.contains(field)).get
-    if (type_class == main)
-      return AmbiguousThis()(field.o)
-
-    val obj: InstanceField[G] =
-      main.decls.collectFirst {
-        case f: InstanceField[G]
-            if f.t.isInstanceOf[TClass[G]] &&
-              f.t.asInstanceOf[TClass[G]].cls.decl == type_class =>
-          f
-      }.get
-    Deref[G](AmbiguousThis()(field.o), obj.ref)(field.o)(field.o)
+    main.decls.collectFirst {
+      case f: InstanceField[G]
+          if f.t.isInstanceOf[TClass[G]] &&
+            f.t.asInstanceOf[TClass[G]].cls.decl == type_class =>
+        f
+    }
   }
 }
