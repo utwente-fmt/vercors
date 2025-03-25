@@ -80,6 +80,12 @@ case object Utils {
       inputs.head.flatMap(e => cartesian_product(inputs.tail).map(s => e +: s))
   }
 
+  def is_injective(vals: Seq[UncertainSingleValue]): Boolean =
+    vals.zipWithIndex.forall(t1 =>
+      vals.zipWithIndex
+        .forall(t2 => t1._2 == t2._2 || t1._1.intersect(t2._1).is_impossible)
+    )
+
   def extract_uncertainty[C, T](in: Map[C, Seq[T]]): Seq[Map[C, T]] = {
     if (in.isEmpty)
       Seq(Map.empty[C, T])

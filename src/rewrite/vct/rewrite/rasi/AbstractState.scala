@@ -368,14 +368,16 @@ case class AbstractState[G](
   def with_updated_collection(
       variable: Expr[G],
       assigned: Expr[G],
-  ): AbstractState[G] =
+  ): RASISuccessor[G] =
     variable match {
       case l: Local[G] => local_updated_collection(l, assigned)
       case d: Deref[G] =>
-        if (tracked_sequences.contains(d.ref.decl))
-          with_updated_tracked_sequence(d, assigned)
-        else
-          with_updated_collection_entries(d, assigned)
+        SingleSuccessor(
+          if (tracked_sequences.contains(d.ref.decl))
+            with_updated_tracked_sequence(d, assigned)
+          else
+            with_updated_collection_entries(d, assigned)
+        )
     }
 
   private def with_updated_tracked_sequence(
@@ -433,20 +435,27 @@ case class AbstractState[G](
   private def local_updated_collection(
       variable: Local[G],
       assigned: Expr[G],
-  ): AbstractState[G] = {
+  ): RASISuccessor[G] = {
     val target = variable.ref.decl
     val value: UncertainSequence = resolve_collection_expression(assigned)
-    val new_values: Map[LocalVariable[G], UncertainSingleValue] =
-      new_collection_values[LocalVariable[G]](variable, value)
-    AbstractState(
-      valuations,
-      processes,
-      invariant_knowledge,
-      local.filter(t => !t._1.v.equals(target)) ++ new_values,
-      local_dependencies, // TODO: Which untracked variables influence the locals?
-      lock,
-      parameters,
-      tracked_sequences,
+    val possible_values: Set[UncertainSequence] = value.seq_split
+      .getOrElse(Set(value))
+    RASISuccessor(
+      Set(),
+      possible_values.map(s => {
+        val new_values: Map[LocalVariable[G], UncertainSingleValue] =
+          new_collection_values[LocalVariable[G]](variable, s)
+        AbstractState(
+          valuations,
+          processes,
+          invariant_knowledge,
+          local.filter(t => !t._1.v.equals(target)) ++ new_values,
+          local_dependencies, // TODO: Which untracked variables influence the locals?
+          lock,
+          parameters,
+          tracked_sequences,
+        )
+      }),
     )
   }
 
@@ -1018,7 +1027,7 @@ case class AbstractState[G](
             .fold(UncertainSingleValue.uncertain_of(element))((v1, v2) =>
               v1.union(v2).asInstanceOf[UncertainSingleValue]
             ),
-          injective(elements.map(t => t._2)),
+          Utils.is_injective(elements.map(t => t._2)),
           element,
         )
       case UntypedLiteralSeq(values) =>
@@ -1034,7 +1043,7 @@ case class AbstractState[G](
             .fold(UncertainSingleValue.uncertain_of(values.head.t))((v1, v2) =>
               v1.union(v2).asInstanceOf[UncertainSingleValue]
             ),
-          injective(elements.map(t => t._2)),
+          Utils.is_injective(elements.map(t => t._2)),
           values.head.t,
         )
       // Variables
@@ -1156,12 +1165,6 @@ case class AbstractState[G](
       // TODO: Figure out type of ambiguous result!
       case AmbiguousResult() => UncertainSequence.uncertain(TInt[G]())
     }
-
-  private def injective(values: Seq[UncertainSingleValue]): Boolean =
-    values.zipWithIndex.forall(t1 =>
-      values.zipWithIndex
-        .forall(t2 => t1._2 == t2._2 || !(t1._1 == t2._1).can_be_true)
-    )
 
   private def collection_from_variable(
       expr: Expr[G],

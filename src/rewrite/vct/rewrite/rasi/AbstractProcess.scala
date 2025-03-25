@@ -122,9 +122,7 @@ case class AbstractProcess[G](obj: Expr[G]) {
                   take_viable_edges(
                     succ,
                     state,
-                    SingleSuccessor(
-                      state.with_updated_collection(target, value)
-                    ),
+                    state.with_updated_collection(target, value),
                   ) // TODO: Consider arrays
                 case _ => take_viable_edges_from_state(succ, state)
               },

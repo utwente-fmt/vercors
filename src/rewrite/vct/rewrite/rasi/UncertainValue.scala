@@ -642,6 +642,39 @@ case class UncertainSequence(
       UncertainBooleanValue.uncertain()
   }
 
+  def seq_split: Option[Set[UncertainSequence]] = {
+    if (is_certain)
+      return None
+
+    len.try_to_resolve() match {
+      case None => None
+      case Some(l) =>
+        if (
+          values.forall(t =>
+            t._1.is_certain ||
+              len.is_subset_of(t._1) && invariant.is_subset_of(t._2)
+          ) && invariant.split.nonEmpty
+        ) {
+          val certain: Seq[(Int, UncertainSingleValue)] = certain_entries
+          Some(sequences_from(
+            (0 until l).map(i =>
+              certain.find(t => t._1 == i).map(t => t._2.split.get)
+                .getOrElse(invariant.split.get)
+            ),
+            injective,
+          ))
+        } else if (
+          injective && values.length == l &&
+          Utils.is_injective(values.map(t => t._2)) && values.forall(t =>
+            UncertainIntegerValue.range(0, l - 1).is_subset_of(t._1)
+          )
+        ) {
+          Some(sequences_from((0 until l).map(_ => invariant.split.get), injective))
+        } else
+          None // TODO: What to do with constraints such as "there must be at least one value in range X somewhere in this range of indices"?
+    }
+  }
+
   private def combine_values(
       v1: Seq[(UncertainIntegerValue, UncertainSingleValue)],
       v2: Seq[(UncertainIntegerValue, UncertainSingleValue)],
@@ -678,6 +711,33 @@ case class UncertainSequence(
     )
     res
   }
+
+  private def sequences_from(
+      possible_values: Seq[Set[UncertainSingleValue]],
+      injective: Boolean,
+  ): Set[UncertainSequence] =
+    combine_sequences(possible_values, injective)
+      .map(seq => UncertainSequence.from(seq, t))
+
+  private def combine_sequences(
+      possible_values: Seq[Set[UncertainSingleValue]],
+      injective: Boolean,
+  ): Set[Seq[UncertainSingleValue]] = {
+    if (possible_values.exists(s => s.isEmpty))
+      return Set()
+    if (possible_values.isEmpty)
+      return Set(Seq())
+
+    possible_values.head.flatMap(v =>
+      combine_sequences(
+        if (injective)
+          possible_values.tail.map(s => s.removedAll(Set(v)))
+        else
+          possible_values.tail,
+        injective,
+      ).map(s => v +: s)
+    )
+  }
 }
 case object UncertainSequence {
   def uncertain(t: Type[_]): UncertainSequence = assemble(t)
@@ -700,6 +760,19 @@ case object UncertainSequence {
     assemble(t, length_constraint = len)
 
   def injective(t: Type[_]): UncertainSequence = assemble(t, injective = true)
+
+  def from(seq: Seq[UncertainSingleValue], t: Type[_]): UncertainSequence = {
+    if (seq.isEmpty)
+      assemble(t, length_constraint = UncertainIntegerValue.single(0))
+    else
+      UncertainSequence(
+        UncertainIntegerValue.single(seq.length),
+        seq.zipWithIndex.map(t => (UncertainIntegerValue.single(t._2), t._1)),
+        seq.reduce((v1, v2) => v1.union_single(v2)),
+        Utils.is_injective(seq),
+        t,
+      )
+  }
 
   private def assemble[G](
       typ: Type[G],
