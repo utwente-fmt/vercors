@@ -53,7 +53,7 @@ class Transformer[O <: Generation](
           Utils.get_ctype(p.specifiers),
         )
       )
-      
+
       val is_pure: Boolean = Utils.is_pure(specs)
 
       new InstanceMethod(
@@ -1334,8 +1334,14 @@ class Transformer[O <: Generation](
         runnable = true,
       )
       Utils.to_app_contract(
-        Star(default_contract, requires)(Utils.origen),
-        if (is_pure) ensures else Star(default_contract, ensures)(Utils.origen),
+        if (is_pure)
+          requires
+        else
+          Star(default_contract, requires)(Utils.origen),
+        if (is_pure)
+          ensures
+        else
+          Star(default_contract, ensures)(Utils.origen),
       )
     } else { Utils.to_app_contract(requires, ensures) }
   }
