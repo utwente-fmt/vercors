@@ -70,7 +70,7 @@ valStatement
  | 'unfold' langExpr ';' # valUnfold
  | 'open' langExpr ';' # valOpen
  | 'close' langExpr ';' # valClose
- | 'assert' langExpr ';' # valAssert
+ | ('assert' | '\u22a2') langExpr ';' # valAssert
  | 'assume' langExpr ';' # valAssume
  | 'inhale' langExpr ';' # valInhale
  | 'exhale' langExpr ';' # valExhale
@@ -192,7 +192,7 @@ valPrimaryPermission
  ;
 
 valForall: '\\forall' | '\u2200';
-valStarall: '\\forall*' | '\u2200*';
+valStarall: '\\forall*' | '\u2200*' | '\u273B';
 valExists: '\\exists' | '\u2203';
 
 valBinderSymbol
