@@ -1165,7 +1165,7 @@ class SchedulerGenerator[O <: Generation] {
         Utils.size(taskPriority.get),
       )(Utils.origen)
 
-    // ensures (\forall int i; 0 <= i && i < |\result| ==> (\forall int j; 0 <= j && j < i ==> (eventState[\result[j]] <= eventState[\result[i]])));
+    // ensures (\forall int i; 0 <= i && i < |\result| ==> (\forall int j; 0 <= j && j < i ==> (eventState[taskState[\result[j]]] <= eventState[taskState[\result[i]]])));
     val ensures6: Expr[N] = Utils.single_var_forall(
       i6,
       Utils.int_val(0),
@@ -1177,15 +1177,21 @@ class SchedulerGenerator[O <: Generation] {
         LessEq(
           SeqSubscript(
             Utils.deref_of(eventState.get),
-            SeqSubscript(Utils.result, Utils.local_of(j6))(Utils.blame)(
-              Utils.origen
-            ),
+            SeqSubscript(
+              Utils.deref_of(taskState.get),
+              SeqSubscript(Utils.result, Utils.local_of(j6))(Utils.blame)(
+                Utils.origen
+              ),
+            )(Utils.blame)(Utils.origen)
           )(Utils.blame)(Utils.origen),
           SeqSubscript(
             Utils.deref_of(eventState.get),
-            SeqSubscript(Utils.result, Utils.local_of(i6))(Utils.blame)(
-              Utils.origen
-            ),
+            SeqSubscript(
+              Utils.deref_of(taskState.get),
+              SeqSubscript(Utils.result, Utils.local_of(i6))(Utils.blame)(
+                Utils.origen
+              ),
+            )(Utils.blame)(Utils.origen)
           )(Utils.blame)(Utils.origen),
         )(Utils.origen),
       ),
