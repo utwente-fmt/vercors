@@ -1,0 +1,1333 @@
+domain WellFoundedOrder[T]  {
+  
+  function bounded(v1: T): Bool 
+  
+  function decreasing(v1: T, v2: T): Bool 
+}
+
+domain IntOrder  {
+  
+  axiom {
+    (forall i: Int ::0 <= i == (bounded(i): Bool))
+  }
+  
+  axiom {
+    (forall i: Int ::(forall j: Int ::i < j == (decreasing(i, j): Bool)))
+  }
+}
+
+domain X  {
+  
+  function add(x: Int, y: Int): Int 
+  
+  function sub(x: Int, y: Int): Int 
+  
+  axiom {
+    (forall x: Int, y: Int :: { add(x, y) } add(x, y) == x + y)
+  }
+  
+  axiom {
+    (forall x: Int, y: Int :: { sub(x, y) } sub(x, y) == x - y)
+  }
+}
+
+domain Any  {
+  
+  
+}
+
+domain SuB  {
+  
+  function f(summation1: Any): Int 
+  
+  function f_inv(summation1: Int): Any 
+}
+
+domain Void  {
+  
+  function unit(): Void 
+  
+  axiom {
+    (forall v1: Void ::true ==> unit() == v1)
+  }
+}
+
+domain Frac  {
+  
+  function frac_val(f1: Frac): Perm 
+  
+  axiom {
+    (forall f1: Frac, g: Frac ::
+      { frac_val(f1), frac_val(g) }
+      frac_val(f1) == frac_val(g) ==> f1 == g)
+  }
+  
+  axiom {
+    (forall f1: Frac ::
+      { frac_val(f1) }
+      true ==> none < frac_val(f1) && frac_val(f1) <= write)
+  }
+}
+
+domain Ns  {
+  
+  function get(): Seq[Ref] 
+  
+  axiom {
+    (forall i: Int ::
+      { get()[i] }
+      0 <= i && i < |get()| ==> get()[i] != null)
+  }
+}
+
+field n: Int
+
+field dummyReceive: Int
+
+field outMessage: Int
+
+field total: Int
+
+field backN: Int
+
+field inMessage: Int
+
+field frontN: Int
+
+field dummySend: Int
+
+function anyAs(t: Any): Any
+  decreases 
+
+
+function asAny(t: Any): Any
+  decreases 
+  ensures anyAs(result) == t
+
+
+function eps(unknown: Ref): Perm
+  decreases 
+
+
+function eps1(unknown: Ref): Perm
+  decreases 
+
+
+function readN(endpoint1: Any, obj: Ref): Int
+  requires acc(epOwnerN(endpoint1, obj), wildcard)
+  decreases 
+{
+  (unfolding acc(epOwnerN(endpoint1, obj), wildcard) in obj.n)
+}
+
+function readFrontN(endpoint1: Any, obj: Ref): Int
+  requires acc(epOwnerFrontN(endpoint1, obj), wildcard)
+  decreases 
+{
+  (unfolding acc(epOwnerFrontN(endpoint1, obj), wildcard) in obj.frontN)
+}
+
+function readBackN(endpoint1: Any, obj: Ref): Int
+  requires acc(epOwnerBackN(endpoint1, obj), wildcard)
+  decreases 
+{
+  (unfolding acc(epOwnerBackN(endpoint1, obj), wildcard) in obj.backN)
+}
+
+function readTotal(endpoint1: Any, obj: Ref): Int
+  requires acc(epOwnerTotal(endpoint1, obj), wildcard)
+  decreases 
+{
+  (unfolding acc(epOwnerTotal(endpoint1, obj), wildcard) in obj.total)
+}
+
+function readInMessage(endpoint1: Any, obj: Ref): Int
+  requires acc(epOwnerInMessage(endpoint1, obj), wildcard)
+  decreases 
+{
+  (unfolding acc(epOwnerInMessage(endpoint1, obj), wildcard) in
+    obj.inMessage)
+}
+
+function readOutMessage(endpoint1: Any, obj: Ref): Int
+  requires acc(epOwnerOutMessage(endpoint1, obj), wildcard)
+  decreases 
+{
+  (unfolding acc(epOwnerOutMessage(endpoint1, obj), wildcard) in
+    obj.outMessage)
+}
+
+function readDummySend(endpoint1: Any, obj: Ref): Int
+  requires acc(epOwnerDummySend(endpoint1, obj), wildcard)
+  decreases 
+{
+  (unfolding acc(epOwnerDummySend(endpoint1, obj), wildcard) in
+    obj.dummySend)
+}
+
+function setChoose(xs: Set[Any]): Any
+  requires !(|xs| == 0)
+  decreases 
+  ensures (result in xs)
+
+
+function setRange(l: Int, r: Int): Set[Int]
+  ensures (forall i: Int ::
+      { (i in result) }
+      (i in result) == (l <= i && i < r))
+  ensures (l <= r ? |result| == r - l : |result| == 0)
+
+
+function seqRange(l: Int, r: Int): Seq[Int]
+  ensures (forall i: Int ::
+      { (i in result) }
+      (i in result) == (l >= i && i < r))
+  ensures (l <= r ? |result| == r - l : |result| == 0)
+  ensures (forall i: Int ::
+      { result[i] }
+      0 <= i && i < r - l ==> result[i] == l + i)
+
+
+function anyAs1(t: Any): Ref
+  decreases 
+
+
+function asAny1(t: Ref): Any
+  decreases 
+  ensures anyAs1(result) == t
+
+
+function v(v1: Ref): Int
+  requires v1 != null
+  decreases 
+
+
+function tid(tid1: Ref): Int
+  requires tid1 != null
+  decreases 
+
+
+function getTotal(nodes: Seq[Ref], i: Int, rounds: Int): Int
+  requires nn(nodes)
+  requires 0 <= i
+  requires i < |nodes|
+  requires 0 <= rounds
+  requires rounds <= |nodes|
+{
+  ((forall i1: Int ::
+    { nodes[i1] }
+    0 <= i1 && i1 < |nodes| ==> nodes[i1] != null) ?
+    (rounds == 0 ?
+      v(nodes[i]) :
+      (let nextI ==
+        (next(i, |nodes|)) in
+        (let nextTotal ==
+          (getTotal(nodes, nextI, rounds - 1)) in
+          nextTotal + v(nodes[i])))) :
+    0)
+}
+
+function getTotalStrat(endpointCtx: Any, nodes: Seq[Ref], i: Int, rounds: Int): Int
+  requires nn(nodes)
+  requires 0 <= i
+  requires i < |nodes|
+  requires 0 <= rounds
+  requires rounds <= |nodes|
+{
+  ((forall i1: Int ::
+    { nodes[i1] }
+    0 <= i1 && i1 < |nodes| ==> nodes[i1] != null) ?
+    (rounds == 0 ?
+      v(nodes[i]) :
+      (let nextI ==
+        (nextStrat(endpointCtx, i, |nodes|)) in
+        (let nextTotal ==
+          (getTotalStrat(endpointCtx, nodes, nextI, rounds - 1)) in
+          nextTotal + v(nodes[i])))) :
+    0)
+}
+
+function next(i: Int, size: Int): Int
+  requires 0 < size
+  requires 0 <= i
+  requires i < size
+  ensures 0 <= result
+  ensures result < size
+{
+  mod(i - 1, size)
+}
+
+function nextStrat(endpointCtx: Any, i: Int, size: Int): Int
+  requires 0 < size
+  requires 0 <= i
+  requires i < size
+  ensures 0 <= result
+  ensures result < size
+{
+  modStrat(endpointCtx, i - 1, size)
+}
+
+function prev(i: Int, size: Int): Int
+  requires 0 < size
+  requires 0 <= i
+  requires i < size
+  ensures 0 <= result
+  ensures result < size
+{
+  mod(i + 1, size)
+}
+
+function nLessThanLength(nodes: Seq[Ref]): Bool
+  requires (forall i: Int ::
+      { nodes[i] }
+      0 <= i && i < |nodes| ==> acc(nodes[i].n, wildcard))
+{
+  (forall j: Int ::
+    { nodes[j] }
+    0 <= j && j < |nodes| ==> nodes[j].n < |nodes| - 1)
+}
+
+function newFrac(p: Perm): Frac
+  requires none < p
+  requires p <= write
+  decreases 
+  ensures frac_val(result) == p
+
+
+function mod(i: Int, n1: Int): Int
+  requires 0 < n1
+  requires -n1 <= i
+  requires i < n1 + n1
+  ensures 0 <= result
+  ensures result < n1
+{
+  (i < 0 ? i + n1 : (n1 <= i ? i - n1 : i))
+}
+
+function modStrat(endpointCtx: Any, i: Int, n1: Int): Int
+  requires 0 < n1
+  requires -n1 <= i
+  requires i < n1 + n1
+  ensures 0 <= result
+  ensures result < n1
+{
+  (i < 0 ? i + n1 : (n1 <= i ? i - n1 : i))
+}
+
+function nn(xs: Seq[Ref]): Bool
+{
+  (forall i: Int :: { xs[i] } 0 <= i && i < |xs| ==> xs[i] != null)
+}
+
+function type(type1: Ref): Int
+  decreases 
+  ensures result >= 0
+  ensures result <= 2
+  ensures type1 == null ==> result == 0
+  ensures type1 != null ==> result != 0
+
+
+function subtype(subtype1: Int, subtype2: Int): Bool
+  requires subtype1 >= 0
+  requires subtype1 <= 2
+  requires subtype2 >= 0
+  requires subtype2 <= 2
+  decreases 
+{
+  (subtype1 == 0 ==> true) &&
+  ((subtype1 == 2 ==> subtype2 == 2) && (subtype1 == 1 ==> subtype2 == 1))
+}
+
+predicate epOwnerOutMessage(endpoint1: Any, obj: Ref) {
+  acc(obj.outMessage, write)
+}
+
+predicate epOwnerInMessage(endpoint1: Any, obj: Ref) {
+  acc(obj.inMessage, write)
+}
+
+predicate epOwnerTotal(endpoint1: Any, obj: Ref) {
+  acc(obj.total, write)
+}
+
+predicate epOwnerN(endpoint1: Any, obj: Ref) {
+  acc(obj.n, write)
+}
+
+predicate epOwnerDummySend(endpoint1: Any, obj: Ref) {
+  acc(obj.dummySend, write)
+}
+
+predicate epOwnerDummyReceive(endpoint1: Any, obj: Ref) {
+  acc(obj.dummyReceive, write)
+}
+
+predicate epOwnerFrontN(endpoint1: Any, obj: Ref) {
+  acc(obj.frontN, write)
+}
+
+predicate epOwnerBackN(endpoint1: Any, obj: Ref) {
+  acc(obj.backN, write)
+}
+
+predicate syncd(node: Ref, next1: Ref) {
+  acc(node.frontN, 1 * write / 10) && acc(next1.backN, 1 * write / 10) &&
+  node.frontN == next1.backN
+}
+
+method constructordummy(tid1: Int) returns (this: Ref)
+  ensures this != null
+  ensures type(this) == 1
+{
+  {
+    var exc: Ref
+    this := new()
+    inhale type(this) == 1
+    exc := null
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method setChooseFresh(xs: Set[Any]) returns (res: Any)
+  requires !(|xs| == 0)
+  decreases 
+  ensures (res in xs)
+
+
+method setChooseFresh1(xs: Set[Int]) returns (res: Int)
+  requires !(|xs| == 0)
+  decreases 
+  ensures (res in xs)
+
+
+method summationRun(tid1: Int, n1: Int, vals: Seq[Int], witness: Ref, nodes: Seq[Ref])
+  returns (res: Void)
+  requires f(asAny1(witness)) == 0
+  requires f_inv(f(asAny1(witness))) == asAny1(witness)
+  requires (forall summation1: Int ::
+      { nodes[summation1] }
+      0 <= summation1 && summation1 < |nodes| ==>
+      f(asAny1(nodes[summation1])) == 1 + summation1)
+  requires (forall summation1: Int ::
+      { nodes[summation1] }
+      0 <= summation1 && summation1 < |nodes| ==>
+      f_inv(f(asAny1(nodes[summation1]))) == asAny1(nodes[summation1]))
+  requires |nodes| == n1
+  requires witness != null
+  requires (forall summation1: Int ::
+      { nodes[summation1] }
+      0 <= summation1 && summation1 < n1 ==> nodes[summation1] != null)
+  requires 2 <= n1
+  requires (forall unknown: Int ::
+      { nodes[unknown] }
+      0 <= unknown && unknown < n1 ==>
+      acc(epOwnerOutMessage(asAny1(nodes[unknown]), nodes[unknown]), 1 *
+      write))
+  requires (forall unknown: Int ::
+      { nodes[unknown] }
+      0 <= unknown && unknown < n1 ==>
+      acc(epOwnerInMessage(asAny1(nodes[unknown]), nodes[unknown]), 1 *
+      write))
+  requires (forall unknown: Int ::
+      { nodes[unknown] }
+      0 <= unknown && unknown < n1 ==>
+      acc(epOwnerTotal(asAny1(nodes[unknown]), nodes[unknown]), 1 * write))
+  requires (forall unknown: Int ::
+      { nodes[unknown] }
+      0 <= unknown && unknown < n1 ==>
+      acc(epOwnerN(asAny1(nodes[unknown]), nodes[unknown]), 1 * write))
+  requires (forall unknown: Int ::
+      { nodes[unknown] }
+      0 <= unknown && unknown < n1 ==>
+      acc(epOwnerDummySend(asAny1(nodes[unknown]), nodes[unknown]), 1 *
+      write))
+  requires (forall unknown: Int ::
+      { nodes[unknown] }
+      0 <= unknown && unknown < n1 ==>
+      acc(epOwnerDummyReceive(asAny1(nodes[unknown]), nodes[unknown]), 1 *
+      write))
+  requires (forall unknown: Int ::
+      { nodes[unknown] }
+      0 <= unknown && unknown < n1 - 1 ==>
+      acc(epOwnerFrontN(asAny1(nodes[unknown]), nodes[unknown]), 1 * write))
+  requires (forall unknown: Int ::
+      { nodes[unknown] }
+      0 <= unknown && unknown < n1 - 1 ==>
+      acc(epOwnerBackN(asAny1(nodes[unknown]), nodes[unknown]), 1 * write /
+      2))
+  requires (forall ii: Int, jj: Int ::
+      0 <= ii && ii < n1 - 1 && jj == ii + 1 ==>
+      acc(epOwnerBackN(asAny1(nodes[ii]), nodes[jj]), 1 *
+      write /
+      2))
+  requires acc(epOwnerFrontN(asAny1(nodes[n1 - 1]), nodes[n1 - 1]), 1 *
+    write)
+  requires acc(epOwnerBackN(asAny1(nodes[n1 - 1]), nodes[n1 - 1]), 1 *
+    write /
+    2)
+  requires acc(epOwnerBackN(asAny1(nodes[n1 - 1]), nodes[0]), 1 * write / 2)
+  requires (forall unknown: Int ::
+      { readN(asAny1(nodes[unknown]), nodes[unknown]) }
+      0 <= unknown && unknown < n1 - 1 ==>
+      readN(asAny1(nodes[unknown]), nodes[unknown]) == 0)
+  requires (forall unknown: Int ::
+      { readFrontN(asAny1(nodes[unknown]), nodes[unknown]) }
+      0 <= unknown && unknown < n1 - 1 ==>
+      readFrontN(asAny1(nodes[unknown]), nodes[unknown]) ==
+      readN(asAny1(nodes[unknown]), nodes[unknown]))
+  requires (forall unknown: Int ::
+      { readBackN(asAny1(nodes[unknown]), nodes[unknown]) }
+      0 <= unknown && unknown < n1 - 1 ==>
+      readBackN(asAny1(nodes[unknown]), nodes[unknown]) ==
+      readN(asAny1(nodes[unknown]), nodes[unknown]))
+  requires (forall ii: Int, jj: Int ::
+      { readBackN(asAny1(nodes[ii]), nodes[jj]) }
+      0 <= ii && ii < n1 - 1  && jj == ii + 1 ==>
+      readBackN(asAny1(nodes[ii]), nodes[jj]) ==
+      readN(asAny1(nodes[ii]), nodes[ii]))
+  requires readN(asAny1(nodes[n1 - 1]), nodes[n1 - 1]) == 0
+  requires readFrontN(asAny1(nodes[n1 - 1]), nodes[n1 - 1]) ==
+    readN(asAny1(nodes[n1 - 1]), nodes[n1 - 1])
+  requires readBackN(asAny1(nodes[n1 - 1]), nodes[n1 - 1]) ==
+    readN(asAny1(nodes[n1 - 1]), nodes[n1 - 1])
+  requires readBackN(asAny1(nodes[n1 - 1]), nodes[0]) ==
+    readN(asAny1(nodes[n1 - 1]), nodes[n1 - 1])
+  requires (forall unknown: Int ::
+      { readTotal(asAny1(nodes[unknown]), nodes[unknown]) }
+      0 <= unknown && unknown < n1 ==>
+      readTotal(asAny1(nodes[unknown]), nodes[unknown]) ==
+      v(nodes[unknown]))
+  requires (forall unknown: Int ::
+      { readInMessage(asAny1(nodes[unknown]), nodes[unknown]) }
+      0 <= unknown && unknown < n1 ==>
+      readInMessage(asAny1(nodes[unknown]), nodes[unknown]) == -1)
+  requires (forall unknown: Int ::
+      { readOutMessage(asAny1(nodes[unknown]), nodes[unknown]) }
+      0 <= unknown && unknown < n1 ==>
+      readOutMessage(asAny1(nodes[unknown]), nodes[unknown]) ==
+      v(nodes[unknown]))
+  requires 0 < n1 ==>
+    (forall i: Int ::
+      { tid(nodes[i]) }
+      0 <= i && i < n1 ==> tid(nodes[i]) == i)
+  ensures f(asAny1(witness)) == 0
+  ensures f_inv(f(asAny1(witness))) == asAny1(witness)
+  ensures (forall summation1: Int ::
+      { nodes[summation1] }
+      0 <= summation1 && summation1 < |nodes| ==>
+      f(asAny1(nodes[summation1])) == 1 + summation1)
+  ensures (forall summation1: Int ::
+      { nodes[summation1] }
+      0 <= summation1 && summation1 < |nodes| ==>
+      f_inv(f(asAny1(nodes[summation1]))) == asAny1(nodes[summation1]))
+  ensures |nodes| == n1
+  ensures witness != null
+  ensures (forall summation1: Int ::
+      { nodes[summation1] }
+      0 <= summation1 && summation1 < n1 ==> nodes[summation1] != null)
+{
+  {
+    var exc: Ref
+    var return: Void
+    var m: Int
+    var intermediate: Int
+    var m1: Int
+    var intermediate1: Int
+    var i: Int
+    var i1: Int
+    var i2: Int
+    var i3: Int
+    var i4: Int
+    var i5: Int
+    var i6: Int
+    var i7: Int
+    var i8: Int
+    var i9: Int
+    var i10: Int
+    var i11: Int
+    var i12: Int
+    var i13: Int
+    var i14: Int
+    var indet: Int
+    var once: Bool
+    var indet1: Int
+    var once1: Bool
+    var indet2: Int
+    var once2: Bool
+    var indet3: Int
+    var once3: Bool
+    var indet4: Int
+    var once4: Bool
+    var flatten: Int
+    var flatten1: Ref
+    var flatten2: Int
+    var res1: Int
+    var flatten3: Int
+    var flatten4: Bool
+    var flatten5: Bool
+    var flatten6: Int
+    var res2: Int
+    var flatten7: Int
+    var flatten8: Bool
+    var flatten9: Bool
+    var flatten10: Int
+    var res3: Int
+    var flatten11: Int
+    var flatten12: Bool
+    var flatten13: Bool
+    var flatten14: Int
+    var flatten15: Ref
+    var flatten16: Int
+    var res4: Int
+    var flatten17: Int
+    var flatten18: Bool
+    var flatten19: Bool
+    var flatten20: Int
+    var res5: Int
+    var flatten21: Int
+    var flatten22: Bool
+    var flatten23: Bool
+    var excbeforeloop: Ref
+    var excbeforeloop1: Ref
+    var excbeforeloop2: Ref
+    var excbeforeloop3: Ref
+    var excbeforeloop4: Ref
+    var excbeforeloop5: Ref
+    exc := null
+    label LOOP
+    excbeforeloop := exc
+    while ((forall unknown: Int ::
+      { nodes[unknown] }
+      0 <= unknown && unknown < n1 ==>
+      readN(asAny1(nodes[unknown]), nodes[unknown]) < n1 - 1))
+      invariant exc == excbeforeloop
+      invariant f(asAny1(witness)) == 0
+      invariant f_inv(f(asAny1(witness))) == asAny1(witness)
+      invariant (forall summation1: Int ::
+          { nodes[summation1] }
+          0 <= summation1 && summation1 < |nodes| ==>
+          f(asAny1(nodes[summation1])) == 1 + summation1)
+      invariant (forall summation1: Int ::
+          { nodes[summation1] }
+          0 <= summation1 && summation1 < |nodes| ==>
+          f_inv(f(asAny1(nodes[summation1]))) == asAny1(nodes[summation1]))
+      invariant |nodes| == n1
+      invariant witness != null
+      invariant (forall summation1: Int ::
+          { nodes[summation1] }
+          0 <= summation1 && summation1 < n1 ==> nodes[summation1] != null)
+      invariant (forall unknown: Int ::
+          { nodes[unknown] }
+          0 <= unknown && unknown < n1 ==>
+          acc(epOwnerOutMessage(asAny1(nodes[unknown]), nodes[unknown]), 1 *
+          write))
+      invariant (forall unknown: Int ::
+          { nodes[unknown] }
+          0 <= unknown && unknown < n1 ==>
+          acc(epOwnerInMessage(asAny1(nodes[unknown]), nodes[unknown]), 1 *
+          write))
+      invariant (forall unknown: Int ::
+          { nodes[unknown] }
+          0 <= unknown && unknown < n1 ==>
+          acc(epOwnerTotal(asAny1(nodes[unknown]), nodes[unknown]), 1 *
+          write))
+      invariant (forall unknown: Int ::
+          { nodes[unknown] }
+          0 <= unknown && unknown < n1 ==>
+          acc(epOwnerN(asAny1(nodes[unknown]), nodes[unknown]), 1 * write))
+      invariant (forall unknown: Int ::
+          { nodes[unknown] }
+          0 <= unknown && unknown < n1 ==>
+          acc(epOwnerFrontN(asAny1(nodes[unknown]), nodes[unknown]), 1 *
+          write))
+      invariant (forall unknown: Int ::
+          { nodes[unknown] }
+          0 <= unknown && unknown < n1 ==>
+          acc(epOwnerBackN(asAny1(nodes[unknown]), nodes[unknown]), 1 *
+          write /
+          2))
+      invariant (forall unknown: Int ::
+          { nodes[unknown] }
+          0 <= unknown && unknown < n1 ==>
+          acc(epOwnerDummySend(asAny1(nodes[unknown]), nodes[unknown]), 1 *
+          write))
+      invariant (forall unknown: Int ::
+          { nodes[unknown] }
+          0 <= unknown && unknown < n1 ==>
+          acc(epOwnerDummyReceive(asAny1(nodes[unknown]), nodes[unknown]), 1 *
+          write))
+      // invariant (forall unknown: Int ::
+      //     { nodes[unknown] }
+      //     0 <= unknown && unknown < n1 - 1 ==>
+      //     acc(epOwnerBackN(asAny1(nodes[unknown]), nodes[unknown + 1]), 1 *
+      //     write /
+      //     2))
+      invariant
+        (forall i15: Int, j: Int ::0 <= i15 && i15 < n1 - 1 && 1 <= j &&
+          j < n1 &&
+          j == i15 + 1 ==>
+          acc(epOwnerBackN(asAny1(nodes[i15]), nodes[j]), 1 * write / 2))
+      invariant acc(epOwnerBackN(asAny1(nodes[n1 - 1]), nodes[0]), 1 *
+        write /
+        2)
+      invariant (forall unknown: Int ::
+          { readN(asAny1(nodes[unknown]), nodes[unknown]) }
+          0 <= unknown && unknown < n1 - 1 ==>
+          0 <= readN(asAny1(nodes[unknown]), nodes[unknown]))
+      invariant (forall unknown: Int ::
+          { readN(asAny1(nodes[unknown]), nodes[unknown]) }
+          0 <= unknown && unknown < n1 - 1 ==>
+          readN(asAny1(nodes[unknown]), nodes[unknown]) <= n1 - 1)
+      invariant (forall unknown: Int ::
+          { readTotal(asAny1(nodes[unknown]), nodes[unknown]) }
+          0 <= unknown && unknown < n1 - 1 ==>
+          readTotal(asAny1(nodes[unknown]), nodes[unknown]) ==
+          getTotalStrat(asAny1(nodes[unknown]), nodes, tid(nodes[unknown]),
+          readN(asAny1(nodes[unknown]), nodes[unknown])))
+      invariant (forall unknown: Int ::
+          { readOutMessage(asAny1(nodes[unknown]), nodes[unknown]) }
+          0 <= unknown && unknown < n1 - 1 ==>
+          readTotal(asAny1(nodes[unknown]), nodes[unknown]) ==
+          readOutMessage(asAny1(nodes[unknown]), nodes[unknown]))
+      invariant (forall unknown: Int ::
+          { readFrontN(asAny1(nodes[unknown]), nodes[unknown]) }
+          0 <= unknown && unknown < n1 - 1 ==>
+          readN(asAny1(nodes[unknown]), nodes[unknown]) ==
+          readFrontN(asAny1(nodes[unknown]), nodes[unknown]))
+      invariant (forall unknown: Int ::
+          { readBackN(asAny1(nodes[unknown]), nodes[unknown]) }
+          0 <= unknown && unknown < n1 - 1 ==>
+          readN(asAny1(nodes[unknown]), nodes[unknown]) ==
+          readBackN(asAny1(nodes[unknown]), nodes[unknown]))
+      invariant (forall ii: Int, jj: Int ::
+          { readBackN(asAny1(nodes[ii]), nodes[jj]) }
+          0 <= ii && ii < n1 - 1 && jj == ii + 1 ==>
+          readFrontN(asAny1(nodes[ii]), nodes[ii]) ==
+          readBackN(asAny1(nodes[ii]), nodes[jj]))
+      invariant 0 <= readN(asAny1(nodes[n1 - 1]), nodes[n1 - 1])
+      invariant readN(asAny1(nodes[n1 - 1]), nodes[n1 - 1]) <= n1 - 1
+      invariant tid(nodes[n1 - 1]) == n1 - 1
+      invariant readTotal(asAny1(nodes[n1 - 1]), nodes[n1 - 1]) ==
+        getTotalStrat(asAny1(nodes[n1 - 1]), nodes, tid(nodes[n1 - 1]), readN(asAny1(nodes[n1 -
+        1]), nodes[n1 - 1]))
+      invariant readTotal(asAny1(nodes[n1 - 1]), nodes[n1 - 1]) ==
+        readOutMessage(asAny1(nodes[n1 - 1]), nodes[n1 - 1])
+      invariant readN(asAny1(nodes[n1 - 1]), nodes[n1 - 1]) ==
+        readFrontN(asAny1(nodes[n1 - 1]), nodes[n1 - 1])
+      invariant readN(asAny1(nodes[n1 - 1]), nodes[n1 - 1]) ==
+        readBackN(asAny1(nodes[n1 - 1]), nodes[n1 - 1])
+      invariant readFrontN(asAny1(nodes[n1 - 1]), nodes[n1 - 1]) ==
+        readBackN(asAny1(nodes[n1 - 1]), nodes[0])
+      invariant (forall j: Int, k: Int ::
+          { readN(asAny1(nodes[j]), nodes[j]), readN(asAny1(nodes[k]), nodes[k]) }
+          0 <= j && j < n1 && (0 <= k && k < n1) ==>
+          readN(asAny1(nodes[j]), nodes[j]) ==
+          readN(asAny1(nodes[k]), nodes[k])) 
+    {
+      inhale (forall unknown: Int ::
+          { nodes[unknown] }
+          0 <= unknown && unknown < n1 - 1 ==>
+          0 * write < eps(nodes[unknown])) &&
+        (forall unknown: Int ::
+          { nodes[unknown] }
+          0 <= unknown && unknown < n1 - 1 ==>
+          eps(nodes[unknown]) <
+          perm(epOwnerOutMessage(asAny1(nodes[unknown]), nodes[unknown])))
+      exhale (forall i15: Int ::
+          { nodes[i15] }
+          0 <= i15 && i15 < n1 - 1 ==>
+          acc(epOwnerOutMessage(asAny1(nodes[i15]), nodes[i15]), eps(nodes[i15]))) &&
+        (forall j: Int ::
+          { nodes[j] }
+          0 <= j - 1 && j - 1 < -1 + n1 ==>
+          acc(epOwnerInMessage(asAny1(nodes[j]), nodes[j]), write)) &&
+        ((forall i15: Int ::0 <= i15 && i15 < n1 - 1 ==>
+          acc(epOwnerFrontN(asAny1(nodes[i15]), nodes[i15]), 1 * write / 2)) &&
+        (forall i15: Int, j: Int ::0 <= i15 && i15 < n1 - 1 && 1 <= j &&
+          j < n1 &&
+          j == i15 + 1 ==>
+          acc(epOwnerBackN(asAny1(nodes[i15]), nodes[j]), 1 * write / 2)) &&
+        (forall i15: Int, j: Int ::0 <= i15 && i15 < n1 - 1 &&
+          (1 <= j && j < n1) &&
+          j == i15 + 1 ==>
+          readFrontN(asAny1(nodes[i15]), nodes[i15]) ==
+          readBackN(asAny1(nodes[i15]), nodes[j])) &&
+        (forall i15: Int :: 0 <= i15 && i15 < n1 - 1 ==>
+          0 <= readFrontN(asAny1(nodes[i15]), nodes[i15])) &&
+        (forall i15: Int :: 0 <= i15 && i15 < n1 - 1 ==>
+          readFrontN(asAny1(nodes[i15]), nodes[i15]) <= n1) &&
+        (forall i15: Int :: 0 <= i15 && i15 < n1 - 1 ==>
+          readOutMessage(asAny1(nodes[i15]), nodes[i15]) ==
+          getTotalStrat(asAny1(nodes[i15]), nodes, tid(nodes[i15]), readFrontN(asAny1(nodes[i15]),
+          nodes[i15]))))
+      inhale (forall i15: Int, j: Int ::
+          { epOwnerOutMessage(asAny1(nodes[j]), nodes[i15]) }
+          0 <= i15 && i15 < n1 - 1 && 1 <= j &&
+          j < n1 &&
+          i15 + 1 == j ==>
+          acc(epOwnerOutMessage(asAny1(nodes[j]), nodes[i15]), eps(nodes[i15])))
+        && (forall j: Int ::
+          { epOwnerInMessage(asAny1(nodes[j]), nodes[j]) }
+          0 <= j - 1 && j - 1 < -1 + n1 ==>
+          acc(epOwnerInMessage(asAny1(nodes[j]), nodes[j]), write))
+        && (forall i15: Int, j: Int ::
+          { epOwnerFrontN(asAny1(nodes[j]), nodes[i15]) }
+          0 <= i15 && i15 < n1 - 1 && 1 <= j &&
+          j < n1 &&
+          j == i15 + 1 ==>
+          acc(epOwnerFrontN(asAny1(nodes[j]), nodes[i15]), 1 * write / 2))
+      inhale (forall j: Int ::
+          { epOwnerBackN(asAny1(nodes[j]), nodes[j]) }
+          1 <= j && j < n1 ==>
+          acc(epOwnerBackN(asAny1(nodes[j]), nodes[j]), 1 * write / 2))
+        && (forall i15: Int, j: Int ::
+          { readFrontN(asAny1(nodes[j]), nodes[i15]), readBackN(asAny1(nodes[j]), nodes[j]) }
+          0 <= i15 && i15 < n1 - 1 &&
+          (1 <= j && j < n1) &&
+          j == i15 + 1 ==>
+          readFrontN(asAny1(nodes[j]), nodes[i15]) ==
+          readBackN(asAny1(nodes[j]), nodes[j]))
+        && (forall i15: Int, j: Int ::
+          { readFrontN(asAny1(nodes[j]), nodes[i15]) }
+          0 <= i15 && i15 < n1 - 1 &&
+          (1 <= j && j < n1) &&
+          j == i15 + 1 ==>
+          0 <= readFrontN(asAny1(nodes[j]), nodes[i15]))
+        && (forall i15: Int, j: Int ::
+          { readFrontN(asAny1(nodes[j]), nodes[i15]) }
+          0 <= i15 && i15 < n1 - 1 &&
+          (1 <= j && j < n1) &&
+          j == i15 + 1 ==>
+          readFrontN(asAny1(nodes[j]), nodes[i15]) <= n1)
+      inhale (forall i15: Int, j: Int ::
+          { readOutMessage(asAny1(nodes[j]), nodes[i15]) }
+          0 <= i15 && i15 < n1 - 1 &&
+          (1 <= j && j < n1) &&
+          j == i15 + 1 ==>
+          readOutMessage(asAny1(nodes[j]), nodes[i15]) ==
+          getTotalStrat(asAny1(nodes[j]), nodes, tid(nodes[i15]), readFrontN(asAny1(nodes[i15]),
+          nodes[i15])))
+        
+      inhale false
+    }
+    inhale false
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method summation(tid1: Int, n1: Int, vals: Seq[Int]) returns (res: Void)
+  requires |vals| == n1
+  requires 2 <= n1
+
+method constructornode(tid1: Int, myValue: Int, myTid: Int)
+  returns (this: Ref)
+  ensures this != null
+  ensures type(this) == 2
+  ensures acc(this.outMessage, 1 * write)
+  ensures acc(this.inMessage, 1 * write)
+  ensures acc(this.n, 1 * write)
+  ensures acc(this.frontN, 1 * write)
+  ensures acc(this.backN, 1 * write)
+  ensures acc(this.total, 1 * write)
+  ensures acc(this.dummySend, 1 * write)
+  ensures acc(this.dummyReceive, 1 * write)
+  ensures v(this) == myValue
+  ensures this.outMessage == v(this)
+  ensures this.inMessage == -1
+  ensures this.n == 0
+  ensures this.total == v(this)
+  ensures tid(this) == myTid
+  ensures this.frontN == 0
+  ensures this.backN == 0
+
+method processMessage(this: Ref, tid1: Int) returns (res: Bool)
+  requires this != null
+  requires acc(this.outMessage, 1 * write)
+  requires acc(this.inMessage, 1 * write / 2)
+  requires acc(this.n, 1 * write)
+  requires acc(this.total, 1 * write)
+  ensures acc(this.outMessage, 1 * write)
+  ensures acc(this.inMessage, 1 * write / 2)
+  ensures acc(this.n, 1 * write)
+  ensures acc(this.total, 1 * write)
+  ensures this.n == old(this.n) + 1
+  ensures this.inMessage == old(this.inMessage)
+  ensures this.total == this.inMessage + v(this)
+  ensures this.outMessage == this.total
+
+
+method couple(this: Ref, tid1: Int, next1: Ref) returns (res: Void)
+  requires this != null
+  requires acc(this.frontN, 1 * write / 10)
+  requires acc(next1.backN, 1 * write / 10)
+  requires this.frontN == next1.backN
+  ensures acc(syncd(this, next1), write)
+
+
+
+
+method uncouple(this: Ref, tid1: Int, next1: Ref) returns (res: Void)
+  requires this != null
+  requires acc(syncd(this, next1), write)
+  ensures acc(this.frontN, 1 * write / 10)
+  ensures acc(next1.backN, 1 * write / 10)
+  ensures this.frontN == next1.backN
+{
+  {
+    var exc: Ref
+    var return: Void
+    exc := null
+    unfold acc(syncd(this, next1), write)
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method generalizeResult(this: Ref, tid1: Int, nodes: Seq[Ref])
+  returns (res: Void)
+  requires this != null
+  requires 0 <= tid(this)
+  requires tid(this) < |nodes|
+  requires nn(nodes)
+  ensures getTotal(nodes, tid(this), |nodes| - 1) ==
+    getTotal(nodes, 0, |nodes| - 1)
+{
+  {
+    var exc: Ref
+    var return: Void
+    var res1: Void
+    exc := null
+    res1 := lemmaTotalShift(tid1, nodes, tid(this), 0)
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method updateBackN(this: Ref, tid1: Int, nodes: Seq[Ref], prevId: Int)
+  returns (res: Void)
+  requires this != null
+  requires 0 <= tid(this)
+  requires tid(this) < |nodes|
+  requires 0 <= prevId
+  requires prevId < |nodes| - 1
+  requires acc(this.backN, 1 * write / 2)
+  requires acc(nodes[add(prevId, 1)].backN, 1 * write / 2)
+  requires sub(tid(this), 1) == prevId
+  requires acc(this.n, 1 * write / 2)
+  ensures acc(this.n, 1 * write / 2)
+  ensures acc(this.backN, 1 * write)
+  ensures this.backN == this.n
+{
+  {
+    var exc: Ref
+    var return: Void
+    var flatten: Ref
+    var flatten1: Int
+    exc := null
+    inhale false
+    assert prevId == tid(this) - 1
+    flatten := this
+    flatten1 := this.n
+    flatten.backN := flatten1
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method updateFrontN(this: Ref, tid1: Int) returns (res: Void)
+  requires this != null
+  requires acc(this.frontN, 1 * write)
+  requires acc(this.n, 1 * write / 2)
+  ensures acc(this.frontN, 1 * write)
+  ensures acc(this.n, 1 * write / 2)
+  ensures this.frontN == this.n
+{
+  {
+    var exc: Ref
+    var return: Void
+    var flatten: Ref
+    var flatten1: Int
+    exc := null
+    flatten := this
+    flatten1 := this.n
+    flatten.frontN := flatten1
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method lemmaGetTotalHead(tid1: Int, nodes: Seq[Ref], i: Int, rounds: Int)
+  returns (res: Void)
+  requires nn(nodes)
+  requires 0 <= i
+  requires i < |nodes|
+  requires 1 <= rounds
+  requires rounds <= |nodes|
+  ensures nn(nodes)
+  ensures getTotal(nodes, i, rounds) ==
+    getTotal(nodes, next(i, |nodes|), rounds - 1) + v(nodes[i])
+{
+  {
+    var exc: Ref
+    var return: Void
+    exc := null
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method lemmaGetTotalLast(tid1: Int, nodes: Seq[Ref], i: Int, rounds: Int)
+  returns (res: Void)
+  requires nn(nodes)
+  requires 0 <= i
+  requires i < |nodes|
+  requires 1 <= rounds
+  requires rounds <= |nodes|
+  ensures nn(nodes)
+  ensures getTotal(nodes, i, rounds) ==
+    getTotal(nodes, i, rounds - 1) + v(nodes[mod(i - rounds, |nodes|)])
+{
+  {
+    var exc: Ref
+    var return: Void
+    var res1: Void
+    exc := null
+    inhale false
+    if (rounds == 1) {
+      assert getTotal(nodes, i, rounds) ==
+        v(nodes[i]) + getTotal(nodes, next(i, |nodes|), rounds - 1)
+    } else {
+      res1 := lemmaGetTotalLast(tid1, nodes, next(i, |nodes|), rounds - 1)
+      assert getTotal(nodes, next(i, |nodes|), rounds - 1) ==
+        getTotal(nodes, next(i, |nodes|), rounds - 1 - 1) +
+        v(nodes[mod(next(i, |nodes|) - rounds - 1, |nodes|)])
+    }
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method lemmaTotalAB(tid1: Int, nodes: Seq[Ref], a: Int, b: Int, p: Frac)
+  returns (res: Void)
+  requires 0 * write < frac_val(p)
+  requires frac_val(p) < write
+  requires 2 < |nodes|
+  requires 0 <= a
+  requires a < |nodes|
+  requires 0 <= b
+  requires b < |nodes|
+  requires nn(nodes)
+  requires (forall i: Int ::
+      { nodes[i] }
+      0 <= i && i < |nodes| ==> acc(nodes[i].total, frac_val(p)))
+  requires nodes[a].total == getTotal(nodes, a, |nodes| - 1)
+  requires nodes[b].total == getTotal(nodes, b, |nodes| - 1)
+  requires mod(a + 1, |nodes|) == b
+  ensures 0 * write < frac_val(p)
+  ensures frac_val(p) < write
+  ensures 2 < |nodes|
+  ensures 0 <= a
+  ensures a < |nodes|
+  ensures 0 <= b
+  ensures b < |nodes|
+  ensures nn(nodes)
+  ensures (forall i: Int ::
+      { nodes[i] }
+      0 <= i && i < |nodes| ==> acc(nodes[i].total, frac_val(p)))
+  ensures nodes[a].total == nodes[b].total
+{
+  {
+    var exc: Ref
+    var return: Void
+    var res1: Void
+    var res2: Void
+    exc := null
+    assert nodes[a].total == getTotal(nodes, a, |nodes| - 1)
+    assert nodes[a].total ==
+      getTotal(nodes, next(a, |nodes|), |nodes| - 1 - 1) + v(nodes[a])
+    res1 := lemmaGetTotalLast(tid1, nodes, next(a, |nodes|), |nodes| - 1 -
+      1)
+    assert nodes[a].total ==
+      getTotal(nodes, next(a, |nodes|), |nodes| - 1 - 1 - 1) + v(nodes[b]) +
+      v(nodes[a])
+    assert nodes[b].total == getTotal(nodes, b, |nodes| - 1)
+    res2 := lemmaGetTotalHead(tid1, nodes, next(b, |nodes|), |nodes| - 1 -
+      1)
+    assert nodes[b].total ==
+      getTotal(nodes, next(next(b, |nodes|), |nodes|), |nodes| - 1 - 1 - 1) +
+      v(nodes[a]) +
+      v(nodes[b])
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method lemmaTotalShiftRight1(tid1: Int, nodes: Seq[Ref], a: Int)
+  returns (res: Void)
+  requires 2 < |nodes|
+  requires nn(nodes)
+  requires 0 <= a
+  requires a < |nodes| - 1
+  ensures 2 < |nodes|
+  ensures nn(nodes)
+  ensures 0 <= a
+  ensures a < |nodes| - 1
+  ensures getTotal(nodes, a, |nodes| - 1) ==
+    getTotal(nodes, a + 1, |nodes| - 1)
+{
+  {
+    var exc: Ref
+    var return: Void
+    var b: Int
+    var flatten: Int
+    var res1: Void
+    exc := null
+    flatten := a + 1
+    b := flatten
+    assert getTotal(nodes, a, |nodes| - 1) ==
+      getTotal(nodes, next(a, |nodes|), |nodes| - 1 - 1) + v(nodes[a])
+    res1 := lemmaGetTotalLast(tid1, nodes, next(a, |nodes|), |nodes| - 1 -
+      1)
+    assert getTotal(nodes, a, |nodes| - 1) ==
+      getTotal(nodes, next(a, |nodes|), |nodes| - 1 - 1 - 1) + v(nodes[b]) +
+      v(nodes[a])
+    assert getTotal(nodes, b, |nodes| - 1) ==
+      getTotal(nodes, next(b, |nodes|), |nodes| - 1 - 1) + v(nodes[b])
+    assert a == next(b, |nodes|)
+    assert getTotal(nodes, b, |nodes| - 1) ==
+      getTotal(nodes, a, |nodes| - 1)
+    assert getTotal(nodes, a, |nodes| - 1) ==
+      getTotal(nodes, b, |nodes| - 1)
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method lemmaTotalShiftRight(tid1: Int, nodes: Seq[Ref], a: Int, b: Int)
+  returns (res: Void)
+  requires 2 < |nodes|
+  requires nn(nodes)
+  requires 0 <= a
+  requires a < |nodes|
+  requires 0 <= b
+  requires b < |nodes|
+  requires a < b
+  ensures 2 < |nodes|
+  ensures nn(nodes)
+  ensures 0 <= a
+  ensures a < |nodes|
+  ensures 0 <= b
+  ensures b < |nodes|
+  ensures getTotal(nodes, a, |nodes| - 1) ==
+    getTotal(nodes, b, |nodes| - 1)
+{
+  {
+    var exc: Ref
+    var return: Void
+    var i: Int
+    var i1: Int
+    var flatten: Int
+    var res1: Void
+    var excbeforeloop: Ref
+    exc := null
+    inhale false
+    label LOOP
+    excbeforeloop := exc
+    i1 := a
+    while (i < b)
+      invariant exc == excbeforeloop
+      invariant a <= i
+      invariant i < b + 1
+      invariant getTotal(nodes, a, |nodes| - 1) ==
+        getTotal(nodes, i, |nodes| - 1) 
+    {
+      res1 := lemmaTotalShiftRight1(tid1, nodes, i)
+      flatten := i + 1
+      i := flatten
+    }
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method lemmaTotalShift(tid1: Int, nodes: Seq[Ref], a: Int, b: Int)
+  returns (res: Void)
+  requires nn(nodes)
+  requires 0 <= a
+  requires a < |nodes|
+  requires 0 <= b
+  requires b < |nodes|
+  ensures nn(nodes)
+  ensures 0 <= a
+  ensures a < |nodes|
+  ensures 0 <= b
+  ensures b < |nodes|
+  ensures getTotal(nodes, a, |nodes| - 1) ==
+    getTotal(nodes, b, |nodes| - 1)
+{
+  {
+    var exc: Ref
+    var return: Void
+    var res1: Void
+    var res2: Void
+    exc := null
+    if (a == b) {
+    } elseif (|nodes| < 2) {
+    } elseif (|nodes| == 2) {
+      assert getTotal(nodes, a, |nodes| - 1) ==
+        v(nodes[a]) + getTotal(nodes, next(a, |nodes|), |nodes| - 2)
+      assert getTotal(nodes, b, |nodes| - 1) ==
+        v(nodes[b]) + getTotal(nodes, next(b, |nodes|), |nodes| - 2)
+    } elseif (a < b) {
+      res1 := lemmaTotalShiftRight(tid1, nodes, a, b)
+    } else {
+      res2 := lemmaTotalShiftRight(tid1, nodes, b, a)}
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method lemmaTotal2(tid1: Int, nodes: Seq[Ref], p: Frac) returns (res: Void)
+  requires 0 * write < frac_val(p)
+  requires frac_val(p) < write
+  requires nn(nodes)
+  requires (forall i: Int ::
+      { nodes[i] }
+      0 <= i && i < |nodes| ==> acc(nodes[i].total, frac_val(p)))
+  requires (forall i: Int ::
+      { nodes[i].total }
+      0 <= i && i < |nodes| ==>
+      nodes[i].total == getTotal(nodes, i, |nodes| - 1))
+  requires |nodes| == 2
+  ensures 0 * write < frac_val(p)
+  ensures frac_val(p) < write
+  ensures nn(nodes)
+  ensures (forall i: Int ::
+      { nodes[i] }
+      0 <= i && i < |nodes| ==> acc(nodes[i].total, frac_val(p)))
+  ensures (forall i: Int ::
+      { nodes[i].total }
+      0 <= i && i < |nodes| ==>
+      nodes[i].total == getTotal(nodes, i, |nodes| - 1))
+  ensures (forall i: Int ::
+      { nodes[i] }
+      0 <= i && i < |nodes| ==> nodes[0].total == nodes[i].total)
+{
+  {
+    var exc: Ref
+    var return: Void
+    exc := null
+    assert nodes[0].total ==
+      v(nodes[0]) + getTotal(nodes, 1, |nodes| - 1 - 1)
+    assert nodes[0].total == v(nodes[0]) + v(nodes[1])
+    assert nodes[1].total ==
+      v(nodes[1]) + getTotal(nodes, 0, |nodes| - 1 - 1)
+    assert nodes[1].total == v(nodes[1]) + v(nodes[0])
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method lemmaTotal(tid1: Int, nodes: Seq[Ref], p: Frac) returns (res: Void)
+  requires nn(nodes)
+  requires (forall i: Int ::
+      { nodes[i] }
+      0 <= i && i < |nodes| ==> acc(nodes[i].total, frac_val(p)))
+  requires (forall i: Int ::
+      { nodes[i].total }
+      0 <= i && i < |nodes| ==>
+      nodes[i].total == getTotal(nodes, i, |nodes| - 1))
+  requires 0 * write < frac_val(p)
+  requires frac_val(p) < write
+  ensures nn(nodes)
+  ensures (forall i: Int ::
+      { nodes[i] }
+      0 <= i && i < |nodes| ==> acc(nodes[i].total, frac_val(p)))
+  ensures (forall i: Int ::
+      { nodes[i].total }
+      0 <= i && i < |nodes| ==>
+      nodes[i].total == getTotal(nodes, i, |nodes| - 1))
+  ensures 0 * write < frac_val(p)
+  ensures frac_val(p) < write
+  ensures (forall i: Int ::
+      { nodes[i] }
+      0 <= i && i < |nodes| ==> nodes[0].total == nodes[i].total)
+{
+  {
+    var exc: Ref
+    var return: Void
+    var i: Int
+    var i1: Int
+    var res1: Void
+    var flatten: Int
+    var flatten1: Int
+    var res2: Void
+    var excbeforeloop: Ref
+    exc := null
+    inhale false
+    if (|nodes| < 2) {
+    } elseif (|nodes| == 2) {
+      res1 := lemmaTotal2(tid1, nodes, newFrac(frac_val(p) / 2))
+    } else {
+      label LOOP
+      excbeforeloop := exc
+      flatten := 1
+      i1 := flatten
+      while (i < |nodes|)
+        invariant exc == excbeforeloop
+        invariant nn(nodes)
+        invariant (forall i2: Int ::
+            { nodes[i2] }
+            0 <= i2 && i2 < |nodes| ==> acc(nodes[i2].total, frac_val(p)))
+        invariant (forall i2: Int ::
+            { nodes[i2].total }
+            0 <= i2 && i2 < |nodes| ==>
+            nodes[i2].total == getTotal(nodes, i2, |nodes| - 1))
+        invariant 1 <= i
+        invariant i < |nodes| + 1
+        invariant (forall j: Int ::
+            { nodes[j].total }
+            0 <= j && j < i ==> nodes[0].total == nodes[j].total) 
+      {
+        res2 := lemmaTotalAB(tid1, nodes, i - 1, i, newFrac(frac_val(p) / 2))
+        flatten1 := i + 1
+        i := flatten1
+      }
+    }
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method pickBoolean(tid1: Int) returns (res: Bool)
+
+
+method arbitraryInt(tid1: Int) returns (res: Int)

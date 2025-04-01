@@ -63,7 +63,7 @@ unfoldingExpr
  ;
 
 iteExpr
- : implicationExpr '?' implicationExpr ':' iteExpr
+ : implicationExpr '?' expr ':' iteExpr
  | implicationExpr
  ;
 
