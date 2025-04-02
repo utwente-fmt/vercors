@@ -635,7 +635,7 @@ class SchedulerGenerator[O <: Generation] {
     // ensures |eventState| == \old(|eventState|);
     val ensures1: Expr[N] = Utils.unchanged(Utils.size(eventState.get))
 
-    // ensures (\forall int i; 0 <= i && i < \old(|eventState|) && \old(eventState[i]) < 0 ==> eventState[i] == -1);
+    // ensures (\forall int i; 0 <= i && i < \old(|eventState|) && \old(eventState[i]) < 0 ==> eventState[i] == \old(eventState[i]));
     val ensures2: Expr[N] = Utils.single_var_forall(
       i2,
       Utils.int_val(0),
@@ -645,10 +645,8 @@ class SchedulerGenerator[O <: Generation] {
           Utils.old(Utils.subscript_expr(eventState.get, Utils.local_of(i2))),
           Utils.int_val(0),
         )(Utils.origen),
-        Eq(
-          Utils.subscript_expr(eventState.get, Utils.local_of(i2)),
-          Utils.int_val(-1),
-        )(Utils.origen),
+        Utils
+          .unchanged(Utils.subscript_expr(eventState.get, Utils.local_of(i2))),
       )(Utils.origen),
     )
 
@@ -1182,7 +1180,7 @@ class SchedulerGenerator[O <: Generation] {
               SeqSubscript(Utils.result, Utils.local_of(j6))(Utils.blame)(
                 Utils.origen
               ),
-            )(Utils.blame)(Utils.origen)
+            )(Utils.blame)(Utils.origen),
           )(Utils.blame)(Utils.origen),
           SeqSubscript(
             Utils.deref_of(eventState.get),
@@ -1191,7 +1189,7 @@ class SchedulerGenerator[O <: Generation] {
               SeqSubscript(Utils.result, Utils.local_of(i6))(Utils.blame)(
                 Utils.origen
               ),
-            )(Utils.blame)(Utils.origen)
+            )(Utils.blame)(Utils.origen),
           )(Utils.blame)(Utils.origen),
         )(Utils.origen),
       ),
@@ -1246,19 +1244,19 @@ class SchedulerGenerator[O <: Generation] {
 
     // ensures (\forall int i; 0 <= i && i < \old(|eventState|) ==>
     //                 (   (    \old(eventState[i]) <= -1
-    //                      ==> (   {: eventState[i] :} == -1
+    //                      ==> (   eventState[i] == \old(eventState[i])
     //                           && (\forall int j; 0 <= j && j < \old(|taskState|) && \old(taskState[j]) == i ==>
-    //                                      ({: taskState[j] :} == \old(taskState[j]) && taskWaitTime[j] == \old(taskWaitTime[j]))
+    //                                      (taskState[j] == \old(taskState[j]) && taskWaitTime[j] == \old(taskWaitTime[j]))
     //                              )))
     //                  && (    (0 <= \old(eventState[i]) && \old(eventState[i]) <= delay)
     //                      ==> (   eventState[i] == -1
     //                           && (\forall int j; 0 <= j && j < \old(|taskState|) && \old(taskState[j]) == i ==>
-    //                                      ({: taskState[j] :} == -1 && taskWaitTime[j] == delay - \old(eventState[i]))
+    //                                      (taskState[j] == -1 && taskWaitTime[j] == delay - \old(eventState[i]))
     //                              )))
     //                  && (    \old(eventState[i]) > delay
     //                      ==> (   eventState[i] == \old(eventState[i]) - delay
     //                           && (\forall int j; 0 <= j && j < \old(|taskState|) && \old(taskState[j]) == i ==>
-    //                                      ({:1: taskState[j] :} == \old(taskState[j]) && {:2: taskWaitTime[j] :} == \old(taskWaitTime[j]))
+    //                                      (taskState[j] == \old(taskState[j]) && taskWaitTime[j] == \old(taskWaitTime[j]))
     //                              )))
     //                 )
     //         );
@@ -1273,10 +1271,9 @@ class SchedulerGenerator[O <: Generation] {
             Utils.int_val(-1),
           )(Utils.origen),
           And(
-            Eq(
-              Utils.subscript_expr(eventState.get, Utils.local_of(i2)),
-              Utils.int_val(-1),
-            )(Utils.origen),
+            Utils.unchanged(
+              Utils.subscript_expr(eventState.get, Utils.local_of(i2))
+            ),
             Utils.single_var_forall(
               j21,
               Utils.int_val(0),
