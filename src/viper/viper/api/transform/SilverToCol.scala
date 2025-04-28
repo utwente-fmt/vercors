@@ -448,7 +448,7 @@ case class SilverToCol[G](
             f(loc.rcv),
             new UnresolvedRef(loc.field.name),
           ),
-          f(perm),
+          f(perm.getOrElse(silver.FullPerm()())),
         )
       case silver.Forall(variables, triggers, exp) =>
         if (exp.isPure)
@@ -520,7 +520,7 @@ case class SilverToCol[G](
             perm,
           ) =>
         col.Scale[G](
-          f(perm),
+          f(perm.getOrElse(silver.FullPerm()())),
           col.PredicateApplyExpr(
             col.PredicateApply(new UnresolvedRef(predicateName), args.map(f))
           ),

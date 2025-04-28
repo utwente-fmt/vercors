@@ -54,7 +54,14 @@ case class SiliconLogListener(
       member: Member,
       pcs: PathConditionStack,
   ): SiliconMemberLogListener = {
-    val log = new SiliconMemberLogListener(this, member, pcs, superTask)
+    val log =
+      new SiliconMemberLogListener(
+        this,
+        member,
+        pcs,
+        superTask,
+        new AssertionProfiler(),
+      )
     SiliconLogListener.logs += log
     log
   }
@@ -65,6 +72,7 @@ class SiliconMemberLogListener(
     member: Member,
     pcs: PathConditionStack,
     superTask: Option[AbstractTask],
+    val profiler: AssertionProfiler,
 ) extends MemberSymbExLogger(log, member, pcs) with LazyLogging {
   var openScopeFrames: List[mutable.LinkedHashMap[Int, DataRecord]] = List(
     mutable.LinkedHashMap()
@@ -322,7 +330,11 @@ class SiliconMemberLogListener(
     r match {
       case r: CloseScopeRecord =>
         if (openScopeFrames.head.contains(r.refId)) {
-          openScopeFrames.head.remove(r.refId)
+          openScopeFrames.head.remove(r.refId) match {
+            case Some(record: ProverAssertRecord) =>
+              profiler.addAssertionLog(record)
+            case _ =>
+          }
         } else { branchScopeCloseRecords.head += r.refId }
       case _: OpenScopeRecord => // This is just done from datarecord; safe to ignore.
     }

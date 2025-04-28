@@ -503,14 +503,14 @@ case class ColToSilver(program: col.Program[_]) {
             pos = pos(res),
             info = expInfo(res),
           ),
-          permValue,
+          Some(permValue),
         )(pos = pos(res), info = expInfo(res))
 
       case res @ col
             .Perm(col.PredicateLocation(app: col.PredicateApply[_]), perm) =>
         silver.PredicateAccessPredicate(
           pred(app, info = Some(expInfo(res))),
-          exp(perm),
+          Some(exp(perm)),
         )(pos = pos(res), info = expInfo(res))
 
       case col.Wand(left, right) =>
@@ -541,7 +541,7 @@ case class ColToSilver(program: col.Program[_]) {
                 pos = pos(loc),
                 info = expInfo(e),
               ),
-              silver.WildcardPerm()(),
+              Some(silver.WildcardPerm()()),
             )(pos = pos(e), info = expInfo(e))
           case col
                 .PredicateLocation(col.PredicateApply(Ref(predicate), args)) =>
@@ -550,7 +550,7 @@ case class ColToSilver(program: col.Program[_]) {
                 pos = pos(loc),
                 info = expInfo(e),
               ),
-              silver.WildcardPerm()(),
+              Some(silver.WildcardPerm()()),
             )(pos = pos(e), expInfo(e))
           case default => ??(default)
         }
@@ -741,14 +741,14 @@ case class ColToSilver(program: col.Program[_]) {
   def fold(f: col.FoldTarget[_]): silver.PredicateAccessPredicate =
     f match {
       case col.ScaledPredicateApply(inv: col.PredicateApply[_], perm) =>
-        silver.PredicateAccessPredicate(pred(inv, Some(expInfo(f))), exp(perm))(
-          pos = pos(f),
-          info = expInfo(f),
-        )
+        silver.PredicateAccessPredicate(
+          pred(inv, Some(expInfo(f))),
+          Some(exp(perm)),
+        )(pos = pos(f), info = expInfo(f))
       case col.ValuePredicateApply(inv: col.PredicateApply[_]) =>
         silver.PredicateAccessPredicate(
           pred(inv, Some(expInfo(f))),
-          silver.WildcardPerm()(pos = pos(f), info = expInfo(f)),
+          Some(silver.WildcardPerm()(pos = pos(f), info = expInfo(f))),
         )(pos = pos(f), info = expInfo(f))
       case other => ??(other)
     }

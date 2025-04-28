@@ -3,6 +3,7 @@ package viper.api.backend.silicon
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, Logger}
 import ch.qos.logback.core.AppenderBase
+import hre.io.RWFile
 import org.slf4j.LoggerFactory
 import org.slf4j.LoggerFactory.getLogger
 import vct.col.ast.{Expr, Node}
@@ -249,9 +250,15 @@ case class Silicon(
 
   override def stopVerifier(verifier: Verifier): Unit = {
     verifier.stop()
-    SiliconLogListener.logs.foreach(_.done())
+    val profiler = new AssertionProfiler()
+    SiliconLogListener.logs.foreach { log =>
+      log.done()
+      log.profiler.mergeInto(profiler)
+    }
     SiliconLogListener.logs.clear()
     // SymbExLogger.reset()
+
+    profiler.outputLog(RWFile(Path.of("profiler_output.log"), doWatch = false))
 
     if (printQuantifierStatistics) {
       intermediatePrinterTimer.cancel()
