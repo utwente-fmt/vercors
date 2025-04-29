@@ -154,7 +154,7 @@ postfixExpr
 unit
  : valExpr # pvlValExpr
  | 'Perm' '[' identifier ']' '(' expr ',' expr ')' # pvlChorPerm
- | '(' ('\\endpoint' | '\\endpoints') communicateTarget ';' expr ')' # pvlLongEndpointExpr
+ | '(' ('\\endpoint' | '\\endpoints') communicateTarget forallPart? ';' expr ')' # pvlLongEndpointExpr
  | '(' '\\' '[' identifier ']' expr ')' # pvlShortEndpointExpr
  | '(' '\\chor' expr ')' # pvlLongChorExpr
  | '(' '\\' '[' ']' expr ')' # pvlShortChorExpr
@@ -229,6 +229,8 @@ communicateTargetLabel : communicateTarget ':'
   ;
 
 rangeBinder: '[' identifier ':' '=' expr '..' expr ']';
+
+forallPart: ',' valForall valBindings;
 
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;

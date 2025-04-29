@@ -29,7 +29,7 @@ case class DropPermissionStratification[Pre <: Generation]()
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
-      case EndpointExpr(_, expr) => expr.rewriteDefault()
+      case EndpointExpr(_, _, expr) => expr.rewriteDefault()
       case ChorExpr(expr) => expr.rewriteDefault()
       case _ => expr.rewriteDefault()
     }

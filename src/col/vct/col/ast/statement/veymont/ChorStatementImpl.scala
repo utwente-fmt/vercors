@@ -33,7 +33,7 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
   // These expressions are simply checked by _all_ participating endpoints, plus any
   // explicitly mentioned endpoints.
   def explicitEndpoints: Seq[CommunicateTarget[G]] = {
-    exprs.collect { case EndpointExpr(commTarget, _) => commTarget }
+    exprs.collect { case EndpointExpr(commTarget, _, _) => commTarget }
   }
 
   def hasUnpointed: Boolean =

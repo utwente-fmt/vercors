@@ -198,6 +198,7 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
       chor.endpoints.map { peer =>
         EndpointExpr[Post](
           CommTargetEndpoint(succ(endpoint)),
+          Seq(),
           Value(
             FieldLocation(EndpointName[Post](succ(peer)), implFields.ref(peer))
           ),

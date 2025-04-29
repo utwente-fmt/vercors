@@ -124,7 +124,7 @@ case class StratifyExpressions[Pre <: Generation]()
         case expr => point(expr)
       }.map {
         case (Some(endpoint), expr) =>
-          EndpointExpr[Post](dispatch(endpoint), dispatch(expr))(expr.o)
+          EndpointExpr[Post](dispatch(endpoint), Seq(), dispatch(expr))(expr.o)
         case (None, expr) => expr.rewriteDefault()
       }
     )(e.o).get

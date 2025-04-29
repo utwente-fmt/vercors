@@ -100,10 +100,12 @@ case class EncodeParameterizedEndpointStatements[Pre <: Generation]()
             tt,
             EndpointExpr(
               target,
+              Seq(),
               unaccount(extractor.dispatch(m.contract.requires)),
             ),
             EndpointExpr(
               target,
+              Seq(),
               unaccount(extractor.dispatch(m.contract.ensures)),
             ),
             Inhale(ff), // Statement

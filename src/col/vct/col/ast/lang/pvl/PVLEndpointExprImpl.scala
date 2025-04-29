@@ -13,13 +13,19 @@ import vct.col.print._
 trait PVLEndpointExprImpl[G] extends PVLEndpointExprOps[G] {
   this: PVLEndpointExpr[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Text("(\\[") <> endpoint <> "]" <+> expr <> ")"
+    Text("(\\endpoint") <+> endpoint <> forallPart <> ";" <+> expr <> ")"
+
+  def forallPart(implicit ctx: Ctx): Doc =
+    bindings match {
+      case Seq() => Empty
+      case bindings => Text(", ∀") <> Doc.args(bindings.map(_.show))
+    }
 
   def t: Type[G] = expr.t
 
   def declarations: Seq[Declaration[G]] =
-    endpoint match {
+    ((endpoint match {
       case PVLCommTargetRange(_, range) => Seq(range.binder)
       case _ => Seq()
-    }
+    }) ++ bindings)
 }

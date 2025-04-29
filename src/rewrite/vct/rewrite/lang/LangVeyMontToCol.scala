@@ -235,6 +235,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           CommTargetEndpoint[Post](
             endpointSucc.ref(endpoint.asName.ref.get.decl)
           )(expr.o),
+          Seq(),
           Perm(rw.dispatch(loc), rw.dispatch(perm))(expr.o),
         )(expr.o)
       case expr @ PVLSender() =>
@@ -243,8 +244,12 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         Receiver[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
       case expr @ PVLMessage() =>
         Message[Post](commSucc.ref(expr.ref.get.comm))(expr.o)
-      case PVLEndpointExpr(endpoint, expr) =>
-        EndpointExpr(rewrite(endpoint), rw.dispatch(expr))(expr.o)
+      case PVLEndpointExpr(endpoint, bindings, expr) =>
+        EndpointExpr(
+          rewrite(endpoint),
+          rw.variables.dispatch(bindings),
+          rw.dispatch(expr),
+        )(expr.o)
       case expr => currentExpr.having(expr) { rw.dispatch(expr) }
     }
 }

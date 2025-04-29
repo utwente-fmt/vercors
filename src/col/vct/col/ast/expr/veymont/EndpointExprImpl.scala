@@ -6,6 +6,7 @@ import vct.col.ast.{
   CommTargetEndpoint,
   CommTargetIndex,
   CommTargetRange,
+  Declaration,
   Endpoint,
   EndpointExpr,
   TBool,
@@ -18,8 +19,14 @@ import vct.col.print._
 trait EndpointExprImpl[G] extends EndpointExprOps[G] with ExprImpl[G] {
   this: EndpointExpr[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Text("(") <> "\\endpoint" <+> endpoint <> ";" <+> expr <> ")"
+    Text("(\\endpoint") <+> endpoint <> forallPart <> ";" <+> expr <> ")"
   override def precedence: Int = Precedence.ATOMIC
+
+  def forallPart(implicit ctx: Ctx): Doc =
+    bindings match {
+      case Seq() => Empty
+      case bindings => Text(", ∀") <> Doc.args(bindings.map(_.show))
+    }
 
   override def t: Type[G] = expr.t
 
@@ -27,12 +34,18 @@ trait EndpointExprImpl[G] extends EndpointExprOps[G] with ExprImpl[G] {
       context: CheckContext[G]
   ): Option[EndpointExpr[G]] = Some(this)
 
+  def declarations: Seq[Declaration[G]] =
+    ((endpoint match {
+      case CommTargetRange(_, range) => Seq(range.binder)
+      case _ => Seq()
+    }) ++ bindings)
+
   override def enterCheckContextScopes(
       context: CheckContext[G]
   ): Seq[CheckContext.ScopeFrame[G]] =
-    endpoint match {
-      case CommTargetRange(ref, range) => context.withScope(Seq(range.binder))
-      case _ => context.scopes
+    declarations match {
+      case Seq() => context.scopes
+      case decls => context.withScope(decls)
     }
 
   override def check(context: CheckContext[G]): Seq[CheckError] =

@@ -415,10 +415,11 @@ case class GenerateImplementation[Pre <: Generation]()
       expr: Expr[Pre]
   )(implicit endpoint: Endpoint[Pre]): Expr[Post] =
     expr match {
-      case EndpointExpr(commTarget, expr)
+      case EndpointExpr(commTarget, _, expr)
           if commTarget.asName.endpoint == endpoint =>
+        ??? // TODO (RR): Handle bindings
         projectExpr(expr)
-      case EndpointExpr(_, _) => tt
+      case EndpointExpr(_, _, _) => tt
       // Define transparent projections for basic operators
       case and: And[Pre] =>
         and.rewrite(projectExpr(and.left), projectExpr(and.right))

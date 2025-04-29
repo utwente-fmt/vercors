@@ -495,11 +495,27 @@ case class PVLToCol[G](
           AmbiguousLocation(convert(loc))(blame(expr)),
           convert(perm),
         )
-      case PvlLongEndpointExpr(_, _, communicateTarget, _, inner, _) =>
-        PVLEndpointExpr(convert(communicateTarget), convert(inner))
+      case PvlLongEndpointExpr(_, _, communicateTarget, None, _, inner, _) =>
+        PVLEndpointExpr(convert(communicateTarget), Seq(), convert(inner))
+      case PvlLongEndpointExpr(
+            _,
+            _,
+            communicateTarget,
+            Some(ForallPart0(_, _, bindings)),
+            _,
+            inner,
+            _,
+          ) =>
+        val (vars, conditions) = convert(bindings)
+        PVLEndpointExpr(
+          convert(communicateTarget),
+          vars,
+          implies(conditions, convert(inner)),
+        )
       case PvlShortEndpointExpr(_, _, _, endpoint, _, inner, _) =>
         PVLEndpointExpr(
           PVLCommTargetEndpoint(convert(endpoint))(origin(endpoint)),
+          Seq(),
           convert(inner),
         )
       case PvlLongChorExpr(_, _, inner, _) => ChorExpr(convert(inner))
@@ -1845,6 +1861,11 @@ case class PVLToCol[G](
           Local(variable.ref),
           Range(convert(from), convert(to)),
         )
+        (variable, Seq(cond))
+      case ValLetBinding(t, id, _, e) =>
+        val variable =
+          new Variable[G](convert(t))(origin(id).sourceName(convert(id)))
+        val cond = Eq[G](Local(variable.ref), convert(e))
         (variable, Seq(cond))
       case ValNormalBinding(arg) => (convert(arg), Nil)
     }

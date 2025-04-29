@@ -203,6 +203,7 @@ valBinderSymbol
 
 valBinding
  : langType langId '=' langExpr '..' langExpr # valRangeBinding
+ | langType langId '=' langExpr # valLetBinding
  | valArg # valNormalBinding
  ;
 

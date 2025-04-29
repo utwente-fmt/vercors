@@ -75,13 +75,16 @@ case class EncodeChannels[Pre <: Generation]()
     ): Expr[Post] =
       foldAny(expr.t)(unfoldStar(expr).map {
         case e: ChorExpr[Pre] => dispatch(e)
-        case e => EndpointExpr(ct, dispatch(e))
+        case e => EndpointExpr(ct, Seq(), dispatch(e))
       }).getOrElse(tt)
 
     Scope(
       Seq(m),
       Block(Seq(
-        assignLocal(m.get, EndpointExpr[Post](sender, dispatch(comm.msg))),
+        assignLocal(
+          m.get,
+          EndpointExpr[Post](sender, Seq(), dispatch(comm.msg)),
+        ),
         // TODO: Need to set the proper replacements for sender, receiver, msg here
         Exhale(wrapEndpointExpr(comm.invariant, sender))(
           ExhaleFailedToChannelInvariantNotEstablished(comm)
@@ -198,6 +201,7 @@ case class EncodeChannels[Pre <: Generation]()
             (const(0) < frac) &&
             (frac < EndpointExpr(
               target,
+              Seq(),
               CurPerm(FieldLocation[Post](obj, succ(srcField))),
             ))
           },
@@ -218,6 +222,7 @@ case class EncodeChannels[Pre <: Generation]()
           val receiverExpr = CtExpr(receiverTarget)
           val msgPerm: Expr[Post] = EndpointExpr(
             senderTarget,
+            Seq(),
             Perm(
               FieldLocation(senderExpr, succ(srcField)),
               functionInvocation[Post](
@@ -230,6 +235,7 @@ case class EncodeChannels[Pre <: Generation]()
 
           val dstPerm: Expr[Post] = EndpointExpr(
             receiverTarget,
+            Seq(),
             Perm(FieldLocation(receiverExpr, succ(dstField)), WritePerm()),
           )
 
@@ -242,11 +248,13 @@ case class EncodeChannels[Pre <: Generation]()
               tt,
               msgPerm &* dstPerm &* EndpointExpr(
                 senderTarget,
+                Seq(),
                 ChannelInvInliner(dispatch(comm.msg), senderExpr, receiverExpr)
                   .dispatch(comm.invariant),
               ),
               msgPerm &* dstPerm &* EndpointExpr(
                 receiverTarget,
+                Seq(),
                 ChannelInvInliner(
                   dispatch(comm.destination),
                   senderExpr,

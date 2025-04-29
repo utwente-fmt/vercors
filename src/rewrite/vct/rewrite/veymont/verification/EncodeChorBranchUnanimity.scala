@@ -175,7 +175,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
   def getAlphas(expr: Expr[Pre]): Seq[CommunicateTarget[Pre]] =
     expr match {
       case And(l, r) => Seq(l, r).flatMap(getAlphas)
-      case EndpointExpr(alpha, _) => Seq(alpha)
+      case EndpointExpr(alpha, _, _) => Seq(alpha)
     }
 
   def sort(target: CommunicateTarget[Pre]): Endpoint[Pre] =
@@ -198,13 +198,13 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
         implicit val o: Origin = expr.o
         partialProject(p, r) |&&| partialProject(q, r)
       case (
-            expr @ EndpointExpr(alpha @ CommTargetEndpoint(Ref(a)), inner),
+            expr @ EndpointExpr(alpha @ CommTargetEndpoint(Ref(a)), _, inner),
             CommTargetEndpoint(Ref(b)),
           ) if a == b =>
         // a & b match, we keep the endpoint expr
         expr.rewrite(endpoint = alpha.rewriteDefault(), expr = dispatch(inner))
       case (
-            EndpointExpr(CommTargetIndex(Ref(f), i), inner),
+            EndpointExpr(CommTargetIndex(Ref(f), i), _, inner),
             CommTargetIndex(Ref(g), j),
           ) if f == g =>
         implicit val o: Origin = expr.o
@@ -213,6 +213,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
       case (
             EndpointExpr(
               CommTargetRange(Ref(f), RangeBinder(v, low, high)),
+              _,
               inner,
             ),
             CommTargetIndex(Ref(g), j),
@@ -225,7 +226,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
           substitutions.having(substitutions.top.updated(v.get, dispatch(j))) {
             dispatch(inner)
           }
-      case (EndpointExpr(alpha, _), r) =>
+      case (EndpointExpr(alpha, _, _), r) =>
         // If none of the cases match, the endpoints of alpha & r cannot be the same, as otherwise there
         // should have been a matching case.
         assert(sort(alpha) != sort(r))
@@ -254,6 +255,7 @@ case class EncodeChorBranchUnanimity[Pre <: Generation](enabled: Boolean)
           val v = newTarget.range.binder.get
           EndpointExpr(
             newTarget,
+            Seq(),
             ((dispatch(low) <= v) && (v < dispatch(high))) ==>
               partialProject(expr, CommTargetIndex(f, oldV.get)) |===| b,
           )

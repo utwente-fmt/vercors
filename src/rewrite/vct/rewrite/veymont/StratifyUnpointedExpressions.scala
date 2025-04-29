@@ -117,7 +117,7 @@ case class StratifyUnpointedExpressions[Pre <: Generation]()
       case expr =>
         currentParticipants.top.map { commTarget =>
           variables.scope {
-            EndpointExpr[Post](dispatch(commTarget), dispatch(expr))
+            EndpointExpr[Post](dispatch(commTarget), Seq(), dispatch(expr))
           }
         }.toSeq
     }).getOrElse(tt)

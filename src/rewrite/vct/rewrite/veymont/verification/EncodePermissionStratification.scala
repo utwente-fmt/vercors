@@ -265,11 +265,13 @@ case class EncodePermissionStratification[Pre <: Generation](
         case ChorExpr(inner) => dispatch(inner)
         case EndpointExpr(
               CommTargetEndpoint(_) | CommTargetIndex(_, _),
+              _,
               inner,
             ) =>
           dispatch(inner)
         case EndpointExpr(
               CommTargetRange(ep, RangeBinder(v, low, high)),
+              _,
               inner,
             ) =>
           variables.scope {
@@ -596,20 +598,30 @@ case class EncodePermissionStratification[Pre <: Generation](
               .rewrite(res = specializeFoldTarget(res), body = dispatch(inner))
         }
 
-      case EndpointExpr(CommTargetEndpoint(Ref(endpoint)), inner) =>
+      case EndpointExpr(CommTargetEndpoint(Ref(endpoint)), bindings, inner) =>
+        assert(
+          bindings.isEmpty,
+          "Endpoint expressions with a singular endpoint and a binding are not supported",
+        )
         specializing.having(EndpointName[Post](succ(endpoint))(expr.o)) {
           dispatch(inner)
         }
 
-      case EndpointExpr(target: CommTargetIndex[Pre], inner) =>
+      case EndpointExpr(target: CommTargetIndex[Pre], bindings, inner) =>
+        assert(
+          bindings.isEmpty,
+          "Endpoint expressions with a singular endpoint and a binding are not supported",
+        )
         specializing.having(CtExpr(target.rewrite())(target.o)) {
           dispatch(inner)
         }
 
       case EndpointExpr(
             target @ CommTargetRange(ref, RangeBinder(v, low, high)),
+            bindings,
             inner,
           ) =>
+        ??? // TODO (RR): Handle bindings
         implicit val o: Origin = expr.o
         variables.scope {
           forallAny(inner.t)(
@@ -628,7 +640,7 @@ case class EncodePermissionStratification[Pre <: Generation](
           )
         }
 
-      case EndpointExpr(_, inner) => ???
+      case EndpointExpr(_, _, inner) => ???
 
       case deref @ Deref(obj, Ref(field))
           if specializing.nonEmpty && !field.isFinal =>

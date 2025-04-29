@@ -3955,13 +3955,17 @@ final case class EndpointStatement[G](
 
 final case class PVLEndpointExpr[G](
     endpoint: PVLCommunicateTarget[G],
+    bindings: Seq[Variable[G]],
     expr: Expr[G],
 )(implicit val o: Origin)
     extends Expr[G] with PVLEndpointExprImpl[G] with Declarator[G]
 @scopes[Variable]
-final case class EndpointExpr[G](endpoint: CommunicateTarget[G], expr: Expr[G])(
-    implicit val o: Origin
-) extends Expr[G] with EndpointExprImpl[G]
+final case class EndpointExpr[G](
+    endpoint: CommunicateTarget[G],
+    bindings: Seq[Variable[G]],
+    expr: Expr[G],
+)(implicit val o: Origin)
+    extends Expr[G] with EndpointExprImpl[G]
 final case class ChorExpr[G](expr: Expr[G])(implicit val o: Origin)
     extends Expr[G] with ChorExprImpl[G]
 
