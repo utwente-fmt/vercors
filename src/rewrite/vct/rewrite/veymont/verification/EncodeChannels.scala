@@ -8,7 +8,7 @@ import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.AstMatchHelpers.EndpointName
-import vct.col.util.SuccessionMap
+import vct.col.util.{AstBuildHelpers, SuccessionMap}
 import vct.rewrite.veymont.VeymontContext
 import vct.rewrite.veymont.verification.EncodeChannels.ExhaleFailedToChannelInvariantNotEstablished
 
@@ -241,6 +241,7 @@ case class EncodeChannels[Pre <: Generation]()
 
           // TODO (RR): Check injectivity!
 
+          // TODO (RR): Implement as specified in huge comment below
           val block =
             ParBlock(
               new ParBlockDecl()(o.where(name = "c")),
@@ -268,6 +269,51 @@ case class EncodeChannels[Pre <: Generation]()
 
           Block(Seq(epsSpec, ParStatement(block)))
         }
+
+      /*
+        Given the sender family F
+        Given the receiver family G
+        Given ctx : { \sender, \receiver }
+        Given ranges of sender, low and high
+        Given (v, i_dst) where v occurs in i_dst, which is the destination expression symbolically
+
+        def rangeOf(ctx) = ctx match
+          case ctx == \sender:
+            (dispatch(low), dispatch(high))
+          case ctx == \receiver:
+            (dispatch(i_dst, v -> low), dispatch(i_dst, v -> high))
+
+        Each e of unfold(** and /\ , inv):
+          ---- If \msg is in e, the index of the sender will end up in e'. See definition of msg below.
+          ---- Therefore just checking for \sender is not enough
+          val includeSender = \sender : e \/ (\msg : e /\ \sender = ctx)
+          ---- Same for includeReceiver
+          val includeReceiver = \receiver : e \/ (\msg : e /\ \receiver = ctx)
+
+          ---- Construct message based on the context
+          val msg = ctx match
+            \sender => F[senderIdx.local].f
+            \receiver => G[receiverIdx.local].g
+
+          ---- If neither sender/receiver is in e, we don't need to add a forall. It concerns a pure fact
+          if !includeSender /\ !includeReceiver: dispatch(e)
+          ---- Otherwise, wrap the fact in a quantifier with only the binders that will occur in e'
+          else:
+            val senderIdx = new Var(TInt())("i")
+            val receiverIdx = new Var(TInt())("j")
+
+            Forall(
+              (includeSender ? Seq(senderIdx) : Seq()) ++ (includeReceiver ? Seq(receiverIdx) : Seq()),
+              Seq(),
+              (if (includeSender) senderIdx.local : rangeOf(\sender) else tt) ==>
+                (if (includeReceiver) receiverIdx.local : rangeOf(\receiver) else tt) ==>
+                dispatch(e,
+                  \sender -> F[senderIdx.local],
+                  \receiver -> G[receiverIdx.local],
+                  \msg -> msg
+                )
+            )
+       */
 
       case _ => statement.rewriteDefault()
     }
