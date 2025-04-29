@@ -265,26 +265,31 @@ case class EncodePermissionStratification[Pre <: Generation](
         case ChorExpr(inner) => dispatch(inner)
         case EndpointExpr(
               CommTargetEndpoint(_) | CommTargetIndex(_, _),
-              _,
+              bindings,
               inner,
             ) =>
+          assert(
+            bindings.isEmpty,
+            "Endpoint expressions with a singular endpoint and a binding are not supported",
+          )
           dispatch(inner)
         case EndpointExpr(
               CommTargetRange(ep, RangeBinder(v, low, high)),
-              _,
+              bindings,
               inner,
             ) =>
+          implicit val o = expr.o
           variables.scope {
-            starrange(
+            val vBinder = variables.dispatch(v)
+            val vLocal = Local[Post](vBinder.ref)(vBinder.o)
+            Starall(
+              Seq(vBinder) ++ variables.dispatch(bindings),
+              Seq(),
+              ((dispatch(low) <= vLocal) && (vLocal < dispatch(high))) ==>
+                dispatch(inner),
+            )(
               // TODO (RR): Forward injectivity
-              PanicBlame("Need to forward injectivity"),
-              dispatch(low),
-              dispatch(high),
-              (i: Local[Post]) => {
-                // TODO (RR): i must have same name as v above
-                variables.succeedOnly(v, i.ref.decl)
-                dispatch(inner)
-              },
+              PanicBlame("Need to forward injectivity")
             )(expr.o)
           }
         case _ => expr.rewriteDefault()
@@ -617,27 +622,56 @@ case class EncodePermissionStratification[Pre <: Generation](
         }
 
       case EndpointExpr(
-            target @ CommTargetRange(ref, RangeBinder(v, low, high)),
+            target @ CommTargetRange(
+              ref,
+              rangeBinder @ RangeBinder(v, low, high),
+            ),
             bindings,
             inner,
           ) =>
-        ??? // TODO (RR): Handle bindings
         implicit val o: Origin = expr.o
         variables.scope {
-          forallAny(inner.t)(
-            // TODO (RR): Forward injectivity
-            PanicBlame("Need to forward injectivity..."),
-            TInt(),
-            i => {
-              // TODO (RR): `i` should have origin of `v` here...!
-              variables.succeedOnly(v, i.ref.decl)
-              ((dispatch(low) <= i) && (i < dispatch(high))) ==>
-                specializing
-                  .having(CtExpr(CommTargetIndex(endpoints.dispatch(ref), i))) {
-                    dispatch(inner)
-                  }
-            },
-          )
+//          val x: Expr[Post] =
+//            forallAny(inner.t)(
+//              // TODO (RR): Forward injectivity
+//              PanicBlame("Need to forward injectivity..."),
+//              TInt(),
+//              i => {
+//                // TODO (RR): `i` should have origin of `v` here...!
+//                variables.succeedOnly(v, i.ref.decl)
+//                ((dispatch(low) <= i) && (i < dispatch(high))) ==>
+//                  specializing.having(CtExpr(
+//                    CommTargetIndex(endpoints.dispatch(ref), i)
+//                  )) { dispatch(inner) }
+//              },
+//            )
+
+          def quantifier(
+              t: Type[Pre]
+          )(bindings: Seq[Variable[Post]], body: Expr[Post])(
+              implicit o: Origin
+          ): Expr[Post] =
+            t match {
+              case TBool() => Forall(bindings, Seq(), body)
+              case TResource() =>
+                // TODO (RR): Forward injectivity
+                Starall(bindings, Seq(), body)(PanicBlame(
+                  "Need to forward injectivity..."
+                ))
+            }
+
+          val vBinder = variables.dispatch(v)
+          val vLocal = Local[Post](vBinder.ref)(rangeBinder.o)
+          val y =
+            quantifier(inner.t)(
+              Seq(vBinder) ++ variables.dispatch(bindings),
+              ((dispatch(low) <= vLocal) && (vLocal < dispatch(high))) ==>
+                specializing.having(CtExpr(
+                  CommTargetIndex(endpoints.dispatch(ref), vLocal)
+                )) { dispatch(inner) },
+            )
+
+          y
         }
 
       case EndpointExpr(_, _, inner) => ???

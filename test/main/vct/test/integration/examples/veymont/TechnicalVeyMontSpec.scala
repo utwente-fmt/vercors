@@ -4,6 +4,11 @@ import vct.test.integration.helper.VeyMontSpec
 
 class TechnicalVeyMontSpec2 extends VeyMontSpec {
   choreography(
+    desc = "Can add extra universal binders to endpoint expressions",
+    input = example("technical/veymont/endpointExprForall.pvl"),
+  )
+
+  choreography(
     desc = "Can define families",
     pvl = """
       class C {

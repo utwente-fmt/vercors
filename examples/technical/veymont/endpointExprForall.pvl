@@ -1,0 +1,21 @@
+adt X {
+  pure int fst(int a, int b);
+
+  axiom (∀int a, int b; {: fst(a, b) :} == a);
+}
+
+class C {
+  int x;
+  ensures Perm(x, 1) ** x == i + 1;
+  constructor(int i);
+}
+
+choreography Test(int N) {
+  endpoints nodes[tid := 0 .. N] = C(tid + 1);
+
+  requires (\endpoint nodes[i := 0 .. N], ∀ int j = i + 1; Perm(nodes[{: X.fst(i, j) :}].x, 1) ** nodes[{: X.fst(i, j) :}].x == j);
+  ensures (\endpoint nodes[i := 0 .. N]; Perm(nodes[X.fst(i, i + 1)].x, 1) ** nodes[X.fst(i, i + 1)].x == i + 1);
+  run {
+
+  }
+}
