@@ -3934,11 +3934,12 @@ final case class CtExpr[G](inner: CommunicateTarget[G])(implicit val o: Origin)
 final case class EndpointFamilyExpr[G](ref: Ref[G, Endpoint[G]])(
     implicit val o: Origin
 ) extends Expr[G] with EndpointFamilyExprImpl[G]
+sealed trait ChannelInvPrimitive[G]
 final case class Sender[G](ref: Ref[G, Communicate[G]])(implicit val o: Origin)
-    extends Expr[G] with SenderImpl[G]
+    extends Expr[G] with SenderImpl[G] with ChannelInvPrimitive[G]
 final case class Receiver[G](ref: Ref[G, Communicate[G]])(
     implicit val o: Origin
-) extends Expr[G] with ReceiverImpl[G]
+) extends Expr[G] with ReceiverImpl[G] with ChannelInvPrimitive[G]
 final case class Message[G](ref: Ref[G, Communicate[G]])(implicit val o: Origin)
     extends Expr[G] with MessageImpl[G]
 

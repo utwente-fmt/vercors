@@ -241,82 +241,191 @@ case class EncodeChannels[Pre <: Generation]()
 
           // TODO (RR): Check injectivity!
 
-          // TODO (RR): Implement as specified in huge comment below
-          val block =
-            ParBlock(
-              new ParBlockDecl()(o.where(name = "c")),
-              Seq(IterVariable(parV, dispatch(low), dispatch(high))),
-              tt,
-              msgPerm &* dstPerm &* EndpointExpr(
-                senderTarget,
-                Seq(),
-                ChannelInvInliner(dispatch(comm.msg), senderExpr, receiverExpr)
-                  .dispatch(comm.invariant),
-              ),
-              msgPerm &* dstPerm &* EndpointExpr(
-                receiverTarget,
-                Seq(),
-                ChannelInvInliner(
-                  dispatch(comm.destination),
-                  senderExpr,
-                  receiverExpr,
-                ).dispatch(comm.invariant),
-              ),
-              // TODO (RR): Is there a reason we want to emit the implementation of the par block? Can't think of one, except checking for mistakes in the encoding...?
-              // singleMessageExchange(comm, senderTarget, receiverTarget),
-              Assume(ff),
-            )(PanicBlame("Unexpected error from par block encoding a comm!"))
+          // First the exhale
+          val exhale =
+            Exhale(foldStar(unfoldStar(comm.invariant).map { e =>
+              quantifyInvPart(
+                comm.ref,
+                succ(sender),
+                succ(srcField),
+                succ(receiver),
+                succ(dstField),
+                Sender(comm.ref),
+                low,
+                high,
+                v,
+                i,
+                e,
+              )(comm.o)
+            }))(PanicBlame("TODO: Forward exhale failed"))
+          val inhale = Inhale(foldStar(unfoldStar(comm.invariant).map { e =>
+            quantifyInvPart(
+              comm.ref,
+              succ(sender),
+              succ(srcField),
+              succ(receiver),
+              succ(dstField),
+              Receiver(comm.ref),
+              low,
+              high,
+              v,
+              i,
+              e,
+            )(comm.o)
+          }))
 
-          Block(Seq(epsSpec, ParStatement(block)))
+//          val block =
+//            ParBlock(
+//              new ParBlockDecl()(o.where(name = "c")),
+//              Seq(IterVariable(parV, dispatch(low), dispatch(high))),
+//              tt,
+//              msgPerm &* dstPerm &* EndpointExpr(
+//                senderTarget,
+//                Seq(),
+//                ChannelInvInliner(dispatch(comm.msg), senderExpr, receiverExpr)
+//                  .dispatch(comm.invariant),
+//              ),
+//              msgPerm &* dstPerm &* EndpointExpr(
+//                receiverTarget,
+//                Seq(),
+//                ChannelInvInliner(
+//                  dispatch(comm.destination),
+//                  senderExpr,
+//                  receiverExpr,
+//                ).dispatch(comm.invariant),
+//              ),
+//              // TODO (RR): Is there a reason we want to emit the implementation of the par block? Can't think of one, except checking for mistakes in the encoding...?
+//              // singleMessageExchange(comm, senderTarget, receiverTarget),
+//              Assume(ff),
+//            )(PanicBlame("Unexpected error from par block encoding a comm!"))
+
+//          Block(Seq(epsSpec, ParStatement(block)))
+          Block(Seq(epsSpec, exhale, inhale))
         }
-
-      /*
-        Given the sender family F
-        Given the receiver family G
-        Given ctx : { \sender, \receiver }
-        Given ranges of sender, low and high
-        Given (v, i_dst) where v occurs in i_dst, which is the destination expression symbolically
-
-        def rangeOf(ctx) = ctx match
-          case ctx == \sender:
-            (dispatch(low), dispatch(high))
-          case ctx == \receiver:
-            (dispatch(i_dst, v -> low), dispatch(i_dst, v -> high))
-
-        Each e of unfold(** and /\ , inv):
-          ---- If \msg is in e, the index of the sender will end up in e'. See definition of msg below.
-          ---- Therefore just checking for \sender is not enough
-          val includeSender = \sender : e \/ (\msg : e /\ \sender = ctx)
-          ---- Same for includeReceiver
-          val includeReceiver = \receiver : e \/ (\msg : e /\ \receiver = ctx)
-
-          ---- Construct message based on the context
-          val msg = ctx match
-            \sender => F[senderIdx.local].f
-            \receiver => G[receiverIdx.local].g
-
-          ---- If neither sender/receiver is in e, we don't need to add a forall. It concerns a pure fact
-          if !includeSender /\ !includeReceiver: dispatch(e)
-          ---- Otherwise, wrap the fact in a quantifier with only the binders that will occur in e'
-          else:
-            val senderIdx = new Var(TInt())("i")
-            val receiverIdx = new Var(TInt())("j")
-
-            Forall(
-              (includeSender ? Seq(senderIdx) : Seq()) ++ (includeReceiver ? Seq(receiverIdx) : Seq()),
-              Seq(),
-              (if (includeSender) senderIdx.local : rangeOf(\sender) else tt) ==>
-                (if (includeReceiver) receiverIdx.local : rangeOf(\receiver) else tt) ==>
-                dispatch(e,
-                  \sender -> F[senderIdx.local],
-                  \receiver -> G[receiverIdx.local],
-                  \msg -> msg
-                )
-            )
-       */
 
       case _ => statement.rewriteDefault()
     }
+
+  case class PureRewriter(substitutions: Map[Expr[Pre], Expr[Post]])
+      extends Rewriter[Pre] {
+    override val allScopes: AllScopes[Pre, Post] = EncodeChannels.this.allScopes
+
+    override def dispatch(expr: Expr[Pre]): Expr[Post] = {
+      substitutions.get(expr) match {
+        case Some(value) => value
+        case None => expr.rewriteDefault()
+      }
+    }
+  }
+
+  def pureRewrite(
+      e: Expr[Pre],
+      substitutions: (Expr[Pre], Expr[Post])*
+  ): Expr[Post] = PureRewriter(substitutions.toMap).dispatch(e)
+
+  // Encodes a part of a channel invariant "e", such that it only receives binders for the indices of the sender/receiver
+  // when these binders are actually used in "e". E.g. if the channel inv contains "\msg == 3", then when exhaling the
+  // invariant this could be encoded as "∀int i = low .. high; F[i].f == 3". Note how only the sending range is included,
+  // not the receiving range. Another example: "\sender.x == \msg" has to be encoded when inhaling (= receiving) as:
+  // ∀int i := low .. high, j := i + 1; F[i].x == G[j].g
+  // where "i + 1" is the destination index expression from the communicate statement.
+  // TODO (RR): Change this to take primaryParty (\sender or \receiver) and dependentParty (the other). This will probably require that we actually define the inverse function. This is then used to compute the index of primaryParty when the context is dependentParty at the inhale site.
+  def quantifyInvPart(
+      comm: Ref[Pre, Communicate[
+        Pre
+      ]], // The communicate statement where e appears in the channel inv
+      F: Ref[Post, Endpoint[Post]], // Sender family
+      f: Ref[Post, InstanceField[Post]], // Sender field
+      G: Ref[Post, Endpoint[Post]], // Receiving family
+      g: Ref[Post, InstanceField[Post]], // Receiver field
+      ctx: ChannelInvPrimitive[Pre],
+      // low..high range of the sender
+      low: Expr[Pre],
+      high: Expr[Pre],
+      // Destination index expression and index variable of the range
+      v: Variable[Pre],
+      destinationIdx: Expr[Pre],
+      // Invariant part to be encoded
+      e: Expr[Pre],
+  )(implicit o: Origin): Expr[Post] = {
+    def rangeOf(ctx: ChannelInvPrimitive[_]) = {
+      ctx match {
+        case Sender(_) => (dispatch(low), dispatch(high))
+        case Receiver(_) =>
+          (
+            pureRewrite(destinationIdx, v.get -> dispatch(low)),
+            pureRewrite(destinationIdx, v.get -> dispatch(high)),
+          )
+      }
+    }
+
+    // Include sender/receiver either because of the context or because the respective keyword is present
+    val ctxIsSender = ctx match { case Sender(_) => true; case _ => false }
+    val includeSender = ctxIsSender || e.exists { case Sender(_) => true }
+    val ctxIsReceiver = ctx match { case Receiver(_) => true; case _ => false }
+    val includeReceiver = ctxIsReceiver || e.exists { case Receiver(_) => true }
+
+    //// Binders to occur in the wrapping quantifier
+    val senderIdx = new Variable[Post](TInt())(o.where(name = "i"))
+    val receiverIdx = new Variable[Post](TInt())(o.where(name = "j"))
+
+    //// Construct message based on the context
+    val sender = CtExpr(CommTargetIndex(F, senderIdx.get))
+    val receiver = CtExpr(CommTargetIndex(G, receiverIdx.get))
+    val msg =
+      ctx match {
+        case Sender(_) =>
+          Deref(sender, f)(PanicBlame("TODO: Forward blame properly"))
+        case Receiver(_) =>
+          Deref(receiver, g)(PanicBlame("TODO: Forward blame properly"))
+      }
+
+    val newE = pureRewrite(
+      e,
+      Sender(comm) -> sender,
+      Receiver(comm) -> receiver,
+      Message(comm) -> msg,
+    )
+
+    //// If there is both the sender and receiver, the ranges are i := low .. high, j := destinationIdx(v -> i)
+    //// If it's just the sender, i := low .. high
+    //// If it's just the receiver, j := d(low) .. d(high)
+    (includeSender, includeReceiver) match {
+      case (true, true) =>
+        // (\endpoint F[senderIdx := low' .. high'], ∀int j = desinationIdx(v -> i); e')
+        EndpointExpr(
+          CommTargetRange(
+            F,
+            RangeBinder(senderIdx, dispatch(low), dispatch(high)),
+          ),
+          Seq(receiverIdx),
+          (receiverIdx.get ===
+            pureRewrite(destinationIdx, v.get -> senderIdx.get)) ==> newE,
+        )(e.o)
+      case (true, false) =>
+        // (\endpoint F[senderIdx := low' .. high']; e')
+        EndpointExpr(
+          CommTargetRange(
+            F,
+            RangeBinder(senderIdx, dispatch(low), dispatch(high)),
+          ),
+          Seq(),
+          newE,
+        )(e.o)
+      case (false, true) =>
+        // (\endpoint G[receiverIdx := destinationIdx(v -> low) .. destinationIdx(v -> high); e')
+        val (newLow, newHigh) = rangeOf(Receiver(comm))
+        EndpointExpr(
+          CommTargetRange(
+            G,
+            RangeBinder(receiverIdx, dispatch(low), dispatch(high)),
+          ),
+          Seq(),
+          newE,
+        )(e.o)
+      case (false, false) => ??? // Cannot happen
+    }
+  }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {

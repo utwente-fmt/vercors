@@ -21,9 +21,8 @@ choreography summation(int N, seq<int> vals) {
     Perm(nodes[i].outMessage, 1) ** Perm(nodes[i].inMessage, 1) **
     Perm(nodes[i].total, 1) ** Perm(nodes[i].n, 1) **
     Perm(nodes[i].dummySend, 1) ** Perm(nodes[i].dummyReceive, 1));
-  requires (\endpoint nodes[i := 0 .. N - 1];
-    Perm(nodes[i].frontN, 1) ** Perm(nodes[i].backN, 1\2) ** Perm(nodes[i+1].backN, 1\2)
-  );
+  requires (\endpoint nodes[i := 0 .. N - 1]; Perm(nodes[i].frontN, 1) ** Perm(nodes[i].backN, 1\2));
+  requires (\endpoint nodes[i := 0 .. N - 1], ∀int j = i + 1; Perm(nodes[j].backN, 1\2));
   requires (\endpoint nodes[N - 1];
     Perm(nodes[N-1].frontN, 1) ** Perm(nodes[N-1].backN, 1\2) ** Perm(nodes[0].backN, 1\2)
   );
@@ -81,9 +80,9 @@ choreography summation(int N, seq<int> vals) {
 
       channel_invariant
         Perm(\sender.frontN, 1\2) ** Perm(\receiver.backN, 1\2) **
-        {: \sender.frontN :} == \receiver.backN ** 0 <= {: \sender.frontN :} ** {: \sender.frontN :} <= N **
-        {: \msg :} == getTotal(nodes, \sender.tid, \sender.frontN);
-      communicate nodes[i := 0 .. N - 1]: nodes[i].outMessage -> nodes[X.add(i, 1)].inMessage;
+        {: \sender.frontN :} == {: \receiver.backN :} ** 0 <= {: \sender.frontN :} ** {: \sender.frontN :} <= N **
+        {: \msg :} == {: getTotal(nodes, \sender.tid, \sender.frontN) :};
+      communicate nodes[i := 0 .. N - 1]: nodes[i].outMessage -> nodes[i + 1].inMessage;
       channel_invariant
         Perm(\sender.frontN, 1\2) ** Perm(\receiver.backN, 1\2) **
         \sender.frontN == \receiver.backN ** 0 <= \sender.frontN ** \sender.frontN <= N **
@@ -97,8 +96,8 @@ choreography summation(int N, seq<int> vals) {
       endpoint nodes[tid := 0 .. N]: nodes[tid].updateBackN(nodes, tid - 1);
 
       // TODO (RR): \receiver.frontN fails here. Probably something with sub/add again?
-      channel_invariant Perm(\sender.backN, 1\2) ** Perm(\receiver.frontN, 1\2) ** \receiver.frontN + 1 == {: \sender.backN :};
-      communicate nodes[i := 1 .. N]: nodes[i].dummySend -> nodes[X.sub(i, 1)].dummyReceive;
+      channel_invariant Perm(\sender.backN, 1\2) ** Perm(\receiver.frontN, 1\2) ** {: \receiver.frontN :} + 1 == {: \sender.backN :};
+      communicate nodes[i := 1 .. N]: nodes[i].dummySend -> nodes[i - 1].dummyReceive;
       channel_invariant Perm(\sender.backN, 1\2) ** Perm(\receiver.frontN, 1\2) ** \receiver.frontN + 1 == \sender.backN;
       communicate nodes[N - 1].dummyReceive <- nodes[0].dummySend;
 
