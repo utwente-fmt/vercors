@@ -10,5 +10,8 @@ trait NewNonNullPointerArrayImpl[G] extends NewNonNullPointerArrayOps[G] {
 
   override def layout(implicit ctx: Ctx): Doc =
     Text("new") <>
-    (if(unique.nonEmpty) Text(" unique<" + unique.get.toString + ">") else Text("")) <+> element <> "[" <> size <> "]"
+      (if (unique.nonEmpty)
+         Text(" unique<" + unique.get.toString + ">")
+       else
+         Text("")) <+> element <> "[" <> size <> "]"
 }

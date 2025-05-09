@@ -4,7 +4,8 @@ import vct.col.ast.{TConstPointer, TConst, Type}
 import vct.col.ast.ops.TConstPointerOps
 import vct.col.print._
 
-trait TConstPointerImpl[G] extends TConstPointerOps[G] { this: TConstPointer[G] =>
+trait TConstPointerImpl[G] extends TConstPointerOps[G] {
+  this: TConstPointer[G] =>
   val unique: Option[BigInt] = None
 
   val isConst = true

@@ -17,6 +17,12 @@ trait TPointerImpl[G] extends TPointerOps[G] {
   }
 
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text(
-      (if(unique.isDefined) "unique<"+unique.get.toString+">" else "")+"pointer") <> open <> element <> close)
+    Group(
+      Text(
+        (if (unique.isDefined)
+           "unique<" + unique.get.toString + ">"
+         else
+           "") + "pointer"
+      ) <> open <> element <> close
+    )
 }
