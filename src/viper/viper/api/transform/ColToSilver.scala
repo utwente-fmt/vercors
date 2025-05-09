@@ -42,6 +42,7 @@ case class ColToSilver(program: col.Program[_]) {
   val currentInvariant: ScopedStack[col.LoopInvariant[_]] = ScopedStack()
   val currentStarall: ScopedStack[col.Starall[_]] = ScopedStack()
   val currentUnfolding: ScopedStack[col.Unfolding[_]] = ScopedStack()
+  val currentAsserting: ScopedStack[col.Asserting[_]] = ScopedStack()
   val currentMapGet: ScopedStack[col.MapGet[_]] = ScopedStack()
   val currentDividingExpr: ScopedStack[col.DividingExpr[_]] = ScopedStack()
 
@@ -103,8 +104,9 @@ case class ColToSilver(program: col.Program[_]) {
   def name(decl: col.Declaration[_], nameF: Name => String): String =
     if (names.contains(decl)) { ??? }
     else {
-      var (name, index) = unpackName(nameF(decl.o.getPreferredNameOrElse()))
-      name = sanitize(name)
+      var (name, index) = unpackName(
+        sanitize(nameF(decl.o.getPreferredNameOrElse()))
+      )
       while (
         names.values.exists(_ == (name, index)) ||
         silver.utility.Consistency.reservedNames.contains(packName(name, index))
@@ -230,7 +232,16 @@ case class ColToSilver(program: col.Program[_]) {
               function.contract.decreases.toSeq.map(decreases),
             accountedPred(function.contract.ensures),
             function.body.map(exp),
-          )(pos = pos(function), info = NodeInfo(function))
+          )(
+            pos = pos(function),
+            info =
+              if (function.opaque) {
+                silver.ConsInfo(
+                  NodeInfo(function),
+                  silver.AnnotationInfo(Map("opaque" -> Seq())),
+                )
+              } else { NodeInfo(function) },
+          )
         }
       case procedure: col.Procedure[_]
           if procedure.returnType == col.TVoid() && !procedure.inline &&
@@ -297,17 +308,17 @@ case class ColToSilver(program: col.Program[_]) {
       case col.DecreasesClauseAssume() =>
         DecreasesWildcard(condition = None)(
           pos = pos(clause),
-          info = NodeInfo(clause),
+          info = expInfo(clause),
         )
       case col.DecreasesClauseNoRecursion() =>
         DecreasesTuple(Nil, condition = None)(
           pos = pos(clause),
-          info = NodeInfo(clause),
+          info = expInfo(clause),
         )
       case col.DecreasesClauseTuple(exprs) =>
         DecreasesTuple(exprs.map(exp), condition = None)(
           pos = pos(clause),
-          info = NodeInfo(clause),
+          info = expInfo(clause),
         )
     }
 
@@ -365,6 +376,7 @@ case class ColToSilver(program: col.Program[_]) {
     result.invariant = currentInvariant.topOption
     result.starall = currentStarall.topOption
     result.unfolding = currentUnfolding.topOption
+    result.asserting = currentAsserting.topOption
     result.mapGet = currentMapGet.topOption
     result.dividingExpr = currentDividingExpr.topOption
     result
@@ -501,14 +513,14 @@ case class ColToSilver(program: col.Program[_]) {
             pos = pos(res),
             info = expInfo(res),
           ),
-          permValue,
+          Some(permValue),
         )(pos = pos(res), info = expInfo(res))
 
       case res @ col
             .Perm(col.PredicateLocation(app: col.PredicateApply[_]), perm) =>
         silver.PredicateAccessPredicate(
           pred(app, info = Some(expInfo(res))),
-          exp(perm),
+          Some(exp(perm)),
         )(pos = pos(res), info = expInfo(res))
 
       case col.Wand(left, right) =>
@@ -539,7 +551,7 @@ case class ColToSilver(program: col.Program[_]) {
                 pos = pos(loc),
                 info = expInfo(e),
               ),
-              silver.WildcardPerm()(),
+              Some(silver.WildcardPerm()()),
             )(pos = pos(e), info = expInfo(e))
           case col
                 .PredicateLocation(col.PredicateApply(Ref(predicate), args)) =>
@@ -548,7 +560,7 @@ case class ColToSilver(program: col.Program[_]) {
                 pos = pos(loc),
                 info = expInfo(e),
               ),
-              silver.WildcardPerm()(),
+              Some(silver.WildcardPerm()()),
             )(pos = pos(e), expInfo(e))
           case default => ??(default)
         }
@@ -559,10 +571,15 @@ case class ColToSilver(program: col.Program[_]) {
           pos = pos(e),
           info = expInfo(e),
         )
-      case col.FunctionInvocation(f, args, Nil, Nil, Nil) =>
+      case col.FunctionInvocation(f, args, Nil, Nil, Nil, reveal) =>
         silver.FuncApp(ref(f), args.map(exp))(
           pos(e),
-          expInfo(e),
+          if (reveal) {
+            silver.ConsInfo(
+              expInfo(e),
+              silver.AnnotationInfo(Map("reveal" -> Seq())),
+            )
+          } else { expInfo(e) },
           typ(f.decl.returnType),
           silver.NoTrafos,
         )
@@ -589,6 +606,11 @@ case class ColToSilver(program: col.Program[_]) {
         silver.Unfolding(currentUnfolding.having(u) { fold(p) }, exp(body))(
           pos = pos(e),
           info = expInfo(e),
+        )
+      case a @ col.Asserting(cond, body) =>
+        silver.Asserting(currentAsserting.having(a) { exp(cond) }, exp(body))(
+          pos = pos(e),
+          info = NodeInfo(e),
         )
       case col.Select(condition, whenTrue, whenFalse) =>
         silver.CondExp(exp(condition), exp(whenTrue), exp(whenFalse))(
@@ -734,14 +756,14 @@ case class ColToSilver(program: col.Program[_]) {
   def fold(f: col.FoldTarget[_]): silver.PredicateAccessPredicate =
     f match {
       case col.ScaledPredicateApply(inv: col.PredicateApply[_], perm) =>
-        silver.PredicateAccessPredicate(pred(inv, Some(expInfo(f))), exp(perm))(
-          pos = pos(f),
-          info = expInfo(f),
-        )
+        silver.PredicateAccessPredicate(
+          pred(inv, Some(expInfo(f))),
+          Some(exp(perm)),
+        )(pos = pos(f), info = expInfo(f))
       case col.ValuePredicateApply(inv: col.PredicateApply[_]) =>
         silver.PredicateAccessPredicate(
           pred(inv, Some(expInfo(f))),
-          silver.WildcardPerm()(pos = pos(f), info = expInfo(f)),
+          Some(silver.WildcardPerm()(pos = pos(f), info = expInfo(f))),
         )(pos = pos(f), info = expInfo(f))
       case other => ??(other)
     }

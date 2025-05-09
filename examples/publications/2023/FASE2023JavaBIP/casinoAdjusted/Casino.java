@@ -127,13 +127,15 @@ public class Casino {
     @Pure
     @Guard(name = IS_OPERATOR)
     public boolean isOperator(@Data(name = OPERATOR) Integer sender) {
-        return sender == operator;
+        //@ ghost int x = (\assuming sender != null; sender.intValue());
+        return sender.intValue() == operator;
     }
 
     @Pure
     @Guard(name = IS_NOT_OPERATOR)
     public boolean isNotOperator(@Data(name = PLAYER) Integer sender) {
-        return sender != operator;
+        //@ ghost int x = (\assuming sender != null; sender.intValue());
+        return sender.intValue() != operator;
     }
 
     @Pure
@@ -153,11 +155,11 @@ public class Casino {
     public int getPot() {
         return pot;
     }
-    
+
     @Pure
     @Guard(name = ENOUGH_FUNDS)
     public boolean enoughFunds(@Data(name = INCOMING_FUNDS) int funds) {
-        return funds <= pot; 
+        return funds <= pot;
     }
 
     @Pure

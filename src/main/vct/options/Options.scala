@@ -5,8 +5,10 @@ import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
 import vct.main.stages.Parsing.Language
+import vct.rewrite.veymont.verification.PermissionStratificationMode
 import vct.options.types._
 import vct.resources.Resources
+import vct.rewrite.veymont.verification.EncodePermissionStratification
 
 import java.nio.file.{Path, Paths}
 import scala.collection.mutable
@@ -43,6 +45,9 @@ case object Options {
 
     import vct.options.types.Backend.read
     implicit val readLanguage: scopt.Read[Language] = ReadLanguage.read
+    implicit val readPermissionStratificationMode
+        : scopt.Read[PermissionStratificationMode] =
+      ReadPermissionStratificationMode.read
     import ReadEnum.readVerbosity
 
     implicit val readPathOrStd: scopt.Read[PathOrStd] = scopt.Read.reads {
@@ -305,6 +310,22 @@ case object Options {
         .action((_, c) => c.copy(generatePermissions = true)).text(
           "Generates permissions for the entire program using a syntax-driven single-owner policy"
         ),
+      opt[PathOrStd]("contract-import-file").valueName("<path>")
+        .action((path, c) => c.copy(contractImportFile = Some(path)))
+        .text("Load function contracts from the specified file"),
+      opt[String]("target").valueName("<target string>|unset")
+        .action((target, c) =>
+          if (target.trim().equalsIgnoreCase("unset"))
+            c.copy(targetString = None)
+          else { c.copy(targetString = Some(target)) }
+        ).text(
+          "Set the target string used for determining type sizes, or 'unset' to make no assumptions about sizes"
+        ),
+      opt[Unit]("opaque-bitwise-operators").action((_, c) =>
+        c.copy(opaqueBitwiseOperators = true)
+      ).text(
+        "Replace bitwise operations (&, |, ^, <<, >>, ~) with opaque functions"
+      ),
       note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont").action((_, c) => c.copy(mode = Mode.VeyMont)).text(
@@ -338,10 +359,15 @@ case object Options {
         opt[Unit]("veymont-skip-implementation-verification").action((_, c) =>
           c.copy(veymontSkipImplementationVerification = true)
         ).text("Do not verify generated implementation"),
+        opt[PermissionStratificationMode]("veymont-ps").action((mode, c) =>
+          c.copy(veymontPermissionStratificationMode = mode)
+        ).text(
+          "Specifies the implementation of stratified permissions to use. Possible options: wrap (default), inline and none."
+        ),
       ),
-      opt[Unit]("dev-veymont-no-branch-unanimity").maybeHidden()
+      opt[Unit]("veymont-no-branch-unanimity").maybeHidden()
         .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
-          "Disables generation of the branch unanimity check encoded by VeyMont, which verifies that choreographies do not deadlock during choreographic verification"
+          "Disables generation of the branch unanimity check encoded by VeyMont, which ensures that endpoints cannot disagree about which branch to take. This check cannot always be computed, but if it can, it saves the user from having to prove this informally."
         ),
       note(""),
       note("VeSUV Mode"),
@@ -371,6 +397,12 @@ case object Options {
               ),
           ),
       ),
+      note(""),
+      note("Pallas options"),
+      opt[Unit]("pallas-sroa").action((_, c) => c.copy(pallasRunSroa = true))
+        .text(
+          "Apply the SROA-pass of LLVM to the loaded IR before processing it."
+        ),
       note(""),
       note("Control flow graph"),
       opt[Unit]("build-cfg").action((_, c) => c.copy(mode = Mode.CFG)).text(
@@ -474,6 +506,8 @@ case class Options(
     bipReportFile: Option[PathOrStd] = None,
     inferHeapContextIntoFrame: Boolean = true,
     generatePermissions: Boolean = false,
+    targetString: Option[String] = None,
+    opaqueBitwiseOperators: Boolean = false,
 
     // Verify options - hidden
     devParserReportAmbiguities: Boolean = false,
@@ -503,8 +537,14 @@ case class Options(
     veymontOutput: Option[Path] = None,
     veymontResourcePath: Path = Resources.getVeymontPath,
     veymontBranchUnanimity: Boolean = true,
+    // Stratified permission settings
+    veymontPermissionStratificationMode: PermissionStratificationMode =
+      EncodePermissionStratification.Mode.Wrap,
     veymontSkipChoreographyVerification: Boolean = false,
     veymontSkipImplementationVerification: Boolean = false,
+
+    // Pallas options
+    pallasRunSroa: Boolean = false,
 
     // VeSUV options
     vesuvOutput: Path = null,
@@ -522,6 +562,9 @@ case class Options(
     // Patch options
     patchFile: Path = null,
     patchOutput: Path = null,
+
+    // Pallas options
+    contractImportFile: Option[PathOrStd] = None,
 ) {
   def getParserDebugOptions: vct.parsers.debug.DebugOptions =
     vct.parsers.debug.DebugOptions(

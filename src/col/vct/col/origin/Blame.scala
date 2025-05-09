@@ -158,27 +158,43 @@ case class AssignFieldFailed(node: SilverFieldAssign[_])
     s"Insufficient permission for assignment `$source`."
 }
 
-case class CopyStructFailed(node: Expr[_], field: String)
-    extends AssignFailed with NodeVerificationFailure {
-  override def code: String = "copyStructFailed"
+case class CopyClassFailed(node: Node[_], clazz: ByValueClass[_], field: String)
+    extends PointerDerefError
+    with InvocationFailure
+    with NodeVerificationFailure {
+  override def code: String = "copyClassFailed"
   override def descInContext: String =
-    s"Insufficient read permission for field '$field' to copy struct."
+    s"Insufficient read permission for field '$field' to copy ${clazz.o
+        .find[TypeName].map(_.name).getOrElse("class")}."
   override def inlineDescWithSource(source: String): String =
     s"Insufficient permission for assignment `$source`."
 }
 
-case class CopyStructFailedBeforeCall(node: Expr[_], field: String)
-    extends AssignFailed
-    with FrontendInvocationError
+case class CopyClassFailedBeforeCall(
+    node: Node[_],
+    clazz: ByValueClass[_],
+    field: String,
+) extends PointerDerefError
+    with InvocationFailure
     with NodeVerificationFailure {
-  override def code: String = "copyStructFailedBeforeCall"
+  override def code: String = "copyClassFailedBeforeCall"
   override def descInContext: String =
-    s"Insufficient read permission for field '$field' to copy struct before call."
+    s"Insufficient read permission for field '$field' to copy ${clazz.o
+        .find[TypeName].map(_.name).getOrElse("class")} before call."
   override def inlineDescWithSource(source: String): String =
     s"Insufficient permission for call `$source`."
 }
 
-case class AssertFailed(failure: ContractFailure, node: Assert[_])
+case class TypeSizeMayBeZero(node: CCast[_])
+    extends FrontendInvocationError with NodeVerificationFailure {
+  override def code: String = "typeSizeZero"
+  override def descInContext: String =
+    s"The size of '${node.castType}' may be zero"
+  override def inlineDescWithSource(source: String): String =
+    s"The size of '${node.castType}' may be zero for cast `$source`"
+}
+
+case class AssertFailed(failure: ContractFailure, node: Node[_])
     extends WithContractFailure {
   override def baseCode: String = "assertFailed"
   override def descInContext: String = "Assertion may not hold, since"
@@ -328,11 +344,14 @@ case class PostconditionFailed(
   override def inlineDescWithSource(node: String, failure: String): String =
     s"Postcondition of `$node` may not hold, since $failure."
 }
-case class TerminationMeasureFailed(
+
+sealed trait TerminationMeasureFailed extends ContractedFailure
+
+case class DecreaseTerminationMeasureFailed(
     applicable: ContractApplicable[_],
-    apply: Invocation[_],
+    apply: InvokingNode[_],
     measure: DecreasesClause[_],
-) extends ContractedFailure with VerificationFailure {
+) extends TerminationMeasureFailed {
   override def code: String = "decreasesFailed"
   override def position: String = measure.o.shortPositionText
   override def desc: String =
@@ -344,11 +363,47 @@ case class TerminationMeasureFailed(
   override def inlineDesc: String =
     s"${apply.o.inlineContextText} may not terminate, since `${measure.o.inlineContextText}` is not decreased or not bounded"
 }
+
+case class DecreaseTerminationMeasureFailedDueToWhile(node: Loop[_])
+    extends LoopInvariantFailure with NodeVerificationFailure {
+  override def code: String = "loopTerminationFailed"
+  override def position: String = node.o.shortPositionText
+  override def descInContext: String =
+    "Loop may not terminate, since no decrease clause is given"
+  override def inlineDescWithSource(source: String): String =
+    s"Loop may not terminate, since ${node.o.inlineContextText} is not proven to be decreasing with a decrease clause"
+}
+
+case class CallTerminationMeasureFailed(
+    apply: InvokingNode[_],
+    calledMethod: ContractApplicable[_],
+) extends TerminationMeasureFailed {
+  override def code: String = "callDecreasesFailed"
+  override def position: String = calledMethod.o.shortPositionText
+  override def desc: String =
+    Message.messagesInContext(
+      apply.o -> "The invocation does not terminate, since ...",
+      calledMethod.o -> "... this called method may not decrease.",
+    )
+  override def inlineDesc: String =
+    s"The invocation ${apply.o.inlineContextText} may not terminate, since `${calledMethod.o.inlineContextText}` is not decreasing"
+}
+
 case class ContextEverywhereFailedInPost(
     failure: ContractFailure,
     node: ContractApplicable[_],
 ) extends ContractedFailure with WithContractFailure {
   override def baseCode: String = "contextPostFailed"
+  override def descInContext: String =
+    "Context may not hold in postcondition, since"
+  override def inlineDescWithSource(node: String, failure: String): String =
+    s"Context of `$node` may not hold in the postcondition, since $failure."
+}
+case class ContextEverywhereFailedInRunPost(
+    failure: ContractFailure,
+    node: RunMethod[_],
+) extends ContractedFailure with WithContractFailure {
+  override def baseCode: String = "contextRunPostFailed"
   override def descInContext: String =
     "Context may not hold in postcondition, since"
   override def inlineDescWithSource(node: String, failure: String): String =
@@ -994,6 +1049,16 @@ case class ArrayValuesPerm(node: Values[_]) extends ArrayValuesError {
     "there may be insufficient permission to access the array at the specified range"
 }
 
+// TODO: Signed-ness
+case class IntegerOutOfBounds(node: Node[_], bits: Int)
+    extends NodeVerificationFailure {
+  override def code: String = "intBounds"
+  override def descInContext: String =
+    s"Integer may be out of bounds, expected a `$bits`-bit integer"
+  override def inlineDescWithSource(source: String) =
+    s"Integer `$source` may be out of bounds, expected a `$bits`-bit integer"
+}
+
 sealed trait PointerSubscriptError extends FrontendSubscriptError
 sealed trait PointerDerefError
     extends PointerSubscriptError with FrontendDerefError
@@ -1307,6 +1372,17 @@ case class TransitionPreconditionFailed(
     s"Precondition of $node does not hold, in a particular synchronization, since $failure"
 }
 
+case class UnreachableReachedError(node: Node[_])
+    extends NodeVerificationFailure {
+  override def code: String = "unreachable"
+
+  override def descInContext: String =
+    "Location marked as unreachable was reached"
+
+  override def inlineDescWithSource(source: String): String =
+    s"Location `$source` was reached but was marked unreachable"
+}
+
 trait Blame[-T <: VerificationFailure] {
   def blame(error: T): Unit
 }
@@ -1514,9 +1590,20 @@ object JavaArrayInitializerBlame
       "The explicit initialization of an array in Java should never generate an assignment that exceeds the bounds of the array"
     )
 
+object NonNullPointerNull
+    extends PanicBlame("A non-null pointer can never be null")
+
+object LLVMSretPerm
+    extends PanicBlame(
+      "Contracts always contain write-permission for function-arguments with an LLVM sret-attribute."
+    )
+
 object UnsafeDontCare {
   case class Satisfiability(reason: String)
       extends UnsafeDontCare[NontrivialUnsatisfiable]
+  case class Contract(reason: String) extends UnsafeDontCare[ContractedFailure]
+  case class Invocation(reason: String)
+      extends UnsafeDontCare[InvocationFailure]
 }
 
 trait UnsafeDontCare[T <: VerificationFailure]

@@ -3,6 +3,7 @@ package vct.col.ast.lang.c
 import vct.col.ast.CTArray
 import vct.col.print.{Ctx, Doc, Group}
 import vct.col.ast.ops.CTArrayOps
+import vct.col.typerules.TypeSize
 
 trait CTArrayImpl[G] extends CTArrayOps[G] {
   this: CTArray[G] =>

@@ -1,0 +1,27 @@
+adt `const_pointer`<A> {
+  pure `const_pointer`<A> const_pointer_of(seq<A> b, int offset);
+  pure seq<A> const_pointer_block(`const_pointer`<A> p);
+  pure int const_pointer_offset(`const_pointer`<A> p);
+
+  // the block offset is valid wrt the length of the block
+  axiom (∀ `const_pointer`<A> p;
+    const_pointer_offset(p) >= 0 &&
+      const_pointer_offset(p) < |const_pointer_block(p)|);
+
+  // const_pointer_of is injective: a (block, offset) pair indicates a unique const_pointer value
+  axiom (∀seq<A> b, int offset;
+    {:const_pointer_block(const_pointer_of(b, offset)):} == b &&
+      {:const_pointer_offset(const_pointer_of(b, offset)):} == offset);
+}
+
+decreases;
+pure A const_ptr_deref<A>(`const_pointer`<A> p) =
+  `const_pointer`<A>.const_pointer_block(p)[`const_pointer`<A>.const_pointer_offset(p)];
+
+decreases;
+requires 0 <= `const_pointer`<A>.const_pointer_offset(p) + offset;
+requires `const_pointer`<A>.const_pointer_offset(p) + offset < |`const_pointer`<A>.const_pointer_block(p)|;
+pure `const_pointer`<A> const_ptr_add<A>(`const_pointer`<A> p, int offset) =
+  `const_pointer`<A>.const_pointer_of(
+     `const_pointer`<A>.const_pointer_block(p),
+     `const_pointer`<A>.const_pointer_offset(p) + offset);

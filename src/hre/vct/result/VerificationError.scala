@@ -39,6 +39,9 @@ object VerificationError {
    * should be a (documented) UserError. */
   abstract class SystemError extends VerificationError
 
+  /* We reached the timeout value specified by --dev-total-timeout */
+  case class TimeOut(text: String) extends VerificationError
+
   case class Unreachable(reason: String) extends SystemError {
     override def text: String = messageContext(reason)
   }

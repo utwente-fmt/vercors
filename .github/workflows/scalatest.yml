@@ -16,7 +16,7 @@ concurrency:
 jobs:
   Compile:
     if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout VerCors
         uses: actions/checkout@v4
@@ -33,20 +33,20 @@ jobs:
           restore-keys: |
             vercors-ci-ubuntu-${{ hashFiles('build.sc') }}
             vercors-ci-ubuntu
-      - name: Enable VCLLVM compilation
-        run: touch .include-vcllvm
+      - name: Enable Pallas compilation
+        run: touch .include-pallas
       - name: Compile
-        run: ./mill -j 0 vercors.allTests.assembly + vercors.vcllvm.compile
+        run: ./mill -j 0 vercors.allTests.assembly + vercors.pallas.compile
       - name: Upload VerCors
         uses: actions/upload-artifact@v4
         with:
           name: allTests
           path: out/vercors/allTests/assembly.dest/out.jar
-      - name: Upload VCLLVM
+      - name: Upload Pallas
         uses: actions/upload-artifact@v4
         with:
-          name: vcllvm
-          path: out/vercors/vcllvm/compile.dest/vcllvm
+          name: pallas
+          path: out/vercors/pallas/compile.dest/pallas
       - name: Delete Uncached Files
         run: |
           find out -type f -name upstreamAssembly.json -print -exec rm -rf {} +
@@ -69,18 +69,6 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
-      - name: Cache LLVM and Clang
-        id: cache-llvm
-        uses: actions/cache@v2
-        with:
-          path: ${{ runner.temp }}/llvm
-          key: llvm-10.0
-      - name: Install LLVM and Clang
-        uses: KyleMayes/install-llvm-action@v1
-        with:
-          version: "10.0"
-          directory: ${{ runner.temp }}/llvm
-          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
       - name: Download VerCors
         uses: actions/download-artifact@v4
         with:
@@ -108,8 +96,6 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
-      - name: Install clang
-        run: brew install llvm
       - name: Download VerCors
         uses: actions/download-artifact@v4
         with:
@@ -133,7 +119,7 @@ jobs:
       matrix:
         batch: ["-n MATRIX[0]", "-n MATRIX[1]", "-n MATRIX[2]", "-n MATRIX[3]", "-n MATRIX[4]", "-n MATRIX[5]", "-n MATRIX[6]", "-n MATRIX[7]", "-l MATRIX"]
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout VerCors
         uses: actions/checkout@v4
@@ -147,13 +133,11 @@ jobs:
         with:
           name: allTests
           path: '.'
-      - name: Download VCLLVM
+      - name: Download Pallas
         uses: actions/download-artifact@v4
         with:
-          name: vcllvm
+          name: pallas
           path: '.'
-      - name: Make VCLLVM executable
-        run: chmod +x vcllvm
       - name: ls
         run: ls -lasFhR
       - name: Run scalatest

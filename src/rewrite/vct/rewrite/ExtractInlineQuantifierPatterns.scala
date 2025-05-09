@@ -4,7 +4,6 @@ import vct.col.ast._
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.RewriteProgram
 import vct.col.ref.Ref
-import vct.col.rewrite.ExtractInlineQuantifierPatterns.NotAllowedInTrigger
 import vct.result.VerificationError.UserError
 
 import scala.collection.mutable.ArrayBuffer
@@ -13,14 +12,6 @@ case object ExtractInlineQuantifierPatterns extends RewriterBuilder {
   override def key: String = "inlineQuantifierPattern"
   override def desc: String =
     "Rewrite inline quantifier patterns into triggers."
-
-  case class NotAllowedInTrigger(e: Expr[_]) extends UserError {
-    override def code: String = "notAllowedInTrigger"
-    override def text: String =
-      e.o.messageInContext(
-        "Arithmetic and logic operators are not allowed in triggers."
-      )
-  }
 }
 
 case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
@@ -47,26 +38,7 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
 
     override def dispatch(e: Expr[Pre]): Expr[Post] =
       e match {
-        // PB: don't add nodes here just to be conservative: in general all terms are allowable in patterns, *except*
-        // that z3 disallows all Bool-related operators, and Viper additionally disallows all arithmetic operators. Any
-        // other operators is necessarily encoded as an smt function (allowed), or banned due to being a side effect
-        // (later dealt with rigorously).
         case e if inScale.nonEmpty => e.rewriteDefault()
-
-        case And(_, _) | Or(_, _) | Implies(_, _) | Star(_, _) | Wand(_, _) |
-            PolarityDependent(_, _) =>
-          throw NotAllowedInTrigger(e)
-
-        case _: Forall[Pre] | _: Starall[Pre] | _: Exists[Pre] =>
-          throw NotAllowedInTrigger(e)
-
-        case Eq(_, _) | Neq(_, _) | Less(_, _) | Greater(_, _) | LessEq(_, _) |
-            GreaterEq(_, _) =>
-          throw NotAllowedInTrigger(e)
-
-        case Plus(_, _) | Minus(_, _) | Mult(_, _) | FloatDiv(_, _) |
-            RatDiv(_, _) | FloorDiv(_, _) | Mod(_, _) =>
-          throw NotAllowedInTrigger(e)
 
         case InlinePattern(inner, _, _) => dispatch(inner)
 
@@ -76,7 +48,7 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
         case p @ PredicateApplyExpr(apply: PredicateApply[Pre]) =>
           PredicateApplyExpr(dispatch(apply))(p.o)
 
-        case e => rewriteDefault(e)
+        case e => e.rewriteDefault()
       }
   }
 
@@ -88,13 +60,13 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
       case InLinePatternLocation(loc, pat) =>
         dispatch(pat)
         dispatch(loc)
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     e match {
       case Let(binding, value, _) =>
-        letBindings.top.having(binding -> value) { rewriteDefault(e) }
+        letBindings.top.having(binding -> value) { e.rewriteDefault() }
 
       case i: InlinePattern[Pre] =>
         if (patterns.toSeq.isDefinedAt(i.parent)) {
@@ -106,52 +78,58 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
 
       case f: Forall[Pre] =>
         variables.scope {
-          val (patternsHere, body) = patterns.collect {
-            // We only want to inline lets that are defined inside the quantifier
-            letBindings.having(ScopedStack()) { dispatch(f.body) }
+          localHeapVariables.scope {
+            val (patternsHere, body) = patterns.collect {
+              // We only want to inline lets that are defined inside the quantifier
+              letBindings.having(ScopedStack()) { dispatch(f.body) }
+            }
+            val unsortedGroups = patternsHere.groupBy(_.group)
+            val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
+            val triggers = sortedGroups.map(_.map(_.make()))
+            Forall(
+              bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
+              triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
+              body = body,
+            )(f.o)
           }
-          val unsortedGroups = patternsHere.groupBy(_.group)
-          val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
-          val triggers = sortedGroups.map(_.map(_.make()))
-          Forall(
-            bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
-            triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
-            body = body,
-          )(f.o)
         }
 
       case f: Starall[Pre] =>
         variables.scope {
-          val (patternsHere, body) = patterns.collect {
-            // We only want to inline lets that are defined inside the quantifier
-            letBindings.having(ScopedStack()) { dispatch(f.body) }
+          localHeapVariables.scope {
+            val (patternsHere, body) = patterns.collect {
+              // We only want to inline lets that are defined inside the quantifier
+              letBindings.having(ScopedStack()) { dispatch(f.body) }
+            }
+            val unsortedGroups = patternsHere.groupBy(_.group)
+            val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
+            val triggers = sortedGroups.map(_.map(_.make()))
+            Starall(
+              bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
+              triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
+              body = body,
+            )(f.blame)(f.o)
           }
-          val unsortedGroups = patternsHere.groupBy(_.group)
-          val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
-          val triggers = sortedGroups.map(_.map(_.make()))
-          Starall(
-            bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
-            triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
-            body = body,
-          )(f.blame)(f.o)
         }
 
       case f: Exists[Pre] =>
         variables.scope {
-          val (patternsHere, body) = patterns.collect {
-            // We only want to inline lets that are defined inside the quantifier
-            letBindings.having(ScopedStack()) { dispatch(f.body) }
+          localHeapVariables.scope {
+            val (patternsHere, body) = patterns.collect {
+              // We only want to inline lets that are defined inside the quantifier
+              letBindings.having(ScopedStack()) { dispatch(f.body) }
+            }
+            val unsortedGroups = patternsHere.groupBy(_.group)
+            val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
+            val triggers = sortedGroups.map(_.map(_.make()))
+            Exists(
+              bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
+              triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
+              body = body,
+            )(f.o)
           }
-          val unsortedGroups = patternsHere.groupBy(_.group)
-          val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
-          val triggers = sortedGroups.map(_.map(_.make()))
-          Exists(
-            bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
-            triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
-            body = body,
-          )(f.o)
         }
 
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
 }

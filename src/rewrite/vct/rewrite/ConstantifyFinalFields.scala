@@ -43,7 +43,7 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
       case ThisObject(_) => true
       case IntegerValue(_) => true
       case LiteralSeq(_, vals) => vals.forall(isAllowedValue)
-      case FunctionInvocation(func, args, _, givenMap, _) =>
+      case FunctionInvocation(func, args, _, givenMap, _, _) =>
         func.decl.contract.decreases.isDefined &&
         func.decl.contract.contextEverywhere.t.equals(TBool[Pre]()) &&
         unfoldPredicate(func.decl.contract.requires)
@@ -80,11 +80,10 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
         implicit val o: Origin = field.o
         if (isFinal(field)) {
           val `this` =
-            new Variable[Post](TClass(
-              succ(currentClass.top),
-              currentClass.top.typeArgs.map { v: Variable[Pre] =>
-                TVar(succ(v))
-              },
+            new Variable(dispatch(
+              currentClass.top.classType(currentClass.top.typeArgs.map {
+                v: Variable[Pre] => TVar(v.ref)
+              })
             ))
           fieldFunction(field) = globalDeclarations
             .declare(withResult((result: Result[Post]) =>

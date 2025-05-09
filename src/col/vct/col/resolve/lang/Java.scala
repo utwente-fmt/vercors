@@ -42,6 +42,7 @@ import vct.col.ast.{
   TArray,
   TBag,
   TBool,
+  TByReferenceClass,
   TChar,
   TClass,
   TEnum,
@@ -641,7 +642,7 @@ case object Java extends LazyLogging {
         }
       case _ => None
     }): Option[JavaDerefTarget[G]])
-      .orElse[JavaDerefTarget[G]](Spec.builtinField(obj, name, blame))
+      .orElse[JavaDerefTarget[G]](Spec.builtinField(obj.t, name, blame, obj.o))
 
   def findMethodInClass[G](
       cls: JavaClassOrInterface[G],
@@ -861,7 +862,7 @@ case object Java extends LazyLogging {
   def zeroValue[G](t: Type[G]): Expr[G] =
     t match {
       case TArray(_) => Null()
-      case TPointer(_) => Null()
+      case TPointer(_, _) => Null()
       case TSeq(element) => LiteralSeq(element, Nil)
       case TSet(element) => LiteralSet(element, Nil)
       case TBag(element) => LiteralBag(element, Nil)
@@ -877,7 +878,7 @@ case object Java extends LazyLogging {
       case t: TFloat[G] => const(0)
       case TRational() => const(0)
       case TZFraction() => const(0)
-      case TClass(_, _) => Null()
+      case TByReferenceClass(_, _) => Null()
       case JavaTClass(_, _) => Null()
       case TEnum(_) => Null()
       case TAnyClass() => Null()

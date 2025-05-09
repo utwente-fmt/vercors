@@ -11,7 +11,7 @@ import vct.col.ast.{
   Assume,
   Block,
   Branch,
-  ChorPerm,
+  ByReferenceClass,
   ChorRun,
   ChorStatement,
   Choreography,
@@ -117,7 +117,7 @@ case class GenerateImplementation[Pre <: Generation]()
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case p: Procedure[Pre] => super.dispatch(p)
-      case cls: Class[Pre] if isEndpointClass(cls) =>
+      case cls: ByReferenceClass[Pre] if isEndpointClass(cls) =>
         val chor = choreographyOf(cls)
         val endpoint = endpointOf(cls)
         currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {
@@ -414,9 +414,6 @@ case class GenerateImplementation[Pre <: Generation]()
       expr: Expr[Pre]
   )(implicit endpoint: Endpoint[Pre]): Expr[Post] =
     expr match {
-      case ChorPerm(Ref(other), loc, perm) if endpoint == other =>
-        Perm(dispatch(loc), dispatch(perm))(expr.o)
-      case ChorPerm(Ref(other), _, _) if endpoint != other => tt
       case EndpointExpr(Ref(other), expr) if endpoint == other =>
         projectExpr(expr)
       case EndpointExpr(_, _) => tt

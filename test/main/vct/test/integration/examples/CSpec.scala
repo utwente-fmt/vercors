@@ -11,6 +11,10 @@ class CSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/c/structs.c"
   vercors should verify using silicon example "concepts/c/vector_add.c"
   vercors should verify using silicon example "concepts/c/vector_type.c"
+  vercors should verify using silicon example "concepts/c/pointer_casts.c"
+  vercors should verify using silicon example "concepts/c/pointer_tests.c"
+  vercors should verify using silicon flags("--backend-option", "--exhaleMode=2") example "concepts/c/tagged_struct.c"
+  vercors should verify using silicon example "concepts/c/void.c"
 
   vercors should error withCode "resolutionError:type" in "float should not be demoted" c
   """
@@ -86,7 +90,7 @@ class CSpec extends VercorsSpec {
       #include <stdlib.h>
       int main(){
           int* xs = (int*) malloc(sizeof(int)*3);
-          //@ exhale Perm(&xs[0], 1\2);
+          //@ exhale Perm(xs[0], 1\2);
           free(xs);
       }
     """
@@ -114,7 +118,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "ptrPerm" using silicon in "Deref field of zero perm ptr" c
+  vercors should fail withCode "assignFieldFailed" using silicon in "Deref field of zero perm ptr" c
     """
     struct d{
       int x;
@@ -122,7 +126,7 @@ class CSpec extends VercorsSpec {
     int main(){
       struct d s1;
       struct d* s2 = &s1;
-      //@ exhale Perm(s2, 1\1);
+      //@ exhale Perm(s2->x, 1\1);
       s2->x = 1;
     }
     """
@@ -164,7 +168,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should error withCode "unsupportedCast" in "Cast ptr struct to int" c
+  vercors should verify using silicon in "Cast ptr struct to int" c
     """
     struct d{
       int x;
@@ -200,27 +204,38 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should error withCode "unsupportedMalloc" in "Unsupported malloc without sizeof" c
+  vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" in "Supported malloc without sizeof" c
     """
     #include <stdlib.h>
     int main(){
-      int *x = (int*) malloc(5*4);
+      int size = 5 * sizeof(int);
+      int *x = (int*) malloc(size);
+      //@ assert x == NULL || \pointer_block_length(x) == 5;
     }
     """
 
-  vercors should error withCode "unsupportedMalloc" in "Unsupported malloc with wrong cast" c
+  vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" in "Malloc with wrong cast" c
     """
     #include <stdlib.h>
     int main(){
-      float *x = (float* ) malloc(sizeof(int)*4);
+      float *x = (float*) malloc(sizeof(int)*4);
+      //@ assert x == NULL || \pointer_block_length(x) == 4;
     }
     """
 
-  vercors should error withCode "unsupportedSizeof" in "Unsupported use of sizeof" c
+  vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" in "Use of sizeof with a target" c
     """
-    #include <stdlib.h>
     int main(){
       int x = sizeof(int);
+      //@ assert x == 4;
+    }
+    """
+
+  vercors should fail withCode "assertFailed:false" using silicon in "Use of sizeof without a target" c
+    """
+    int main(){
+      int x = sizeof(int);
+      //@ assert x == 4;
     }
     """
 
@@ -281,7 +296,7 @@ class CSpec extends VercorsSpec {
         assert(test(1) == 2);
     }
     """
-  vercors should error withCode "unsupportedStructPerm" in "cylic struct" c
+  vercors should error withCode "cyclicStruct" in "cylic struct" c
     """
     struct d {
       int x;
@@ -333,7 +348,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "copyStructFailedBeforeCall" using silicon in "Insufficient permission for field x to copy struct before call" c
+  vercors should fail withCode "copyClassFailedBeforeCall" using silicon in "Insufficient permission for field x to copy struct before call" c
     """
     struct d {
         int x;
@@ -351,7 +366,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "copyStructFailed" using silicon in "Insufficient permission for field x to copy struct" c
+  vercors should fail withCode "copyClassFailed" using silicon in "Insufficient permission for field x to copy struct" c
     """
     struct d {
         int x;
@@ -386,7 +401,7 @@ class CSpec extends VercorsSpec {
         for(int i=0;i<3;i++)
         /*@
             context 0 <= i && i <3;
-            context Perm(&sum[i], write);
+            context Perm(sum[i], write);
             requires sum[i] == 0;
             ensures sum[i] == i;
         @*/
@@ -405,18 +420,18 @@ class CSpec extends VercorsSpec {
     #include <stdlib.h>
 
     struct nested {
-      struct nested *inner;  
+      struct nested *inner;
     };
 
     void main() {
-      int *ip = NULL;                              
-      double *dp = NULL;                           
-      struct nested *np = NULL;                    
-      np = (struct nested*) NULL;               
+      int *ip = NULL;
+      double *dp = NULL;
+      struct nested *np = NULL;
+      np = (struct nested*) NULL;
       np = (struct nested*) malloc(sizeof(struct nested));
       if (np == NULL) return;
       np->inner = NULL;
-      np->inner = (struct nested*) NULL;         
+      np->inner = (struct nested*) NULL;
     }
     """
 
@@ -571,12 +586,12 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should verify using silicon in "OpenCL vector initializer correctly uses statefull function" c
+  vercors should verify using silicon in "OpenCL vector initializer correctly uses stateful function" c
     """
    // pass
     #include <opencl.h>
 
-    /*@ context y != NULL && \pointer_length(y) == 1 ** Perm(&*y, write);
+    /*@ context y != NULL && \pointer_length(y) == 1 ** Perm(*y, write);
       ensures \old(*y)+1 == *y && \result.x == *y && \result.y == *y;
     @*/
     int2 alter_state(int* y){
@@ -591,4 +606,152 @@ class CSpec extends VercorsSpec {
         return;
     }
     """
+
+  vercors should error withCode "unsupportedCast" in "Casting struct pointers only works for the first element" c
+    """
+    #include <stdbool.h>
+    struct A {
+        int integer;
+        bool boolean;
+    };
+
+    struct B {
+        struct A struct_a;
+    };
+    void cannotCastToBoolean() {
+        struct B struct_b;
+        struct_b.struct_a.boolean = true == true; // We currently don't support boolean literals
+        bool *pointer_to_boolean = (bool *)&struct_b;
+    }
+    """
+  vercors should verify using silicon example "concepts/c/mismatched_provenance.c"
+  vercors should verify using silicon example "concepts/c/ptr_comparisons.c"
+  vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" flag "--dev-no-sat" example "concepts/c/pointer_tag.c"
+  vercors should verify using silicon in "Pointer address correctly offset based on type size" c
+    """
+    #include <stdint.h>
+    #include <stdlib.h>
+
+    void main(){
+        int *array = (int *)malloc(sizeof(int) * 10);
+        if (array == NULL) return;
+        uintptr_t a0 = (uintptr_t)array;
+        uintptr_t a1 = (uintptr_t)&array[1];
+        //@ assert a0 + sizeof(int) == a1;
+    }
+    """
+
+  vercors should verify using silicon in "Taking sizeof of typedef" c
+    """
+    #include <stdlib.h>
+    typedef int test;
+    int main(){
+        test* x = (test *) malloc(sizeof ( test ) );
+        int y = (test) 5.0;
+    }
+    """
+
+  vercors should verify using silicon in "Trigger specified for pointer with helper function" c
+  """
+/*@
+ghost
+  requires nx > 0 && ny > 0;
+  requires 0 <= x && x<nx;
+  requires 0 <= y && y<ny;
+  ensures \euclidean_mod(x + nx*y, nx) == x;
+  ensures \euclidean_div(x + nx*y, nx) == y;
+  ensures \result;
+  ensures 0 <= x + nx*y && x + nx*y < nx*ny;
+  decreases;
+pure bool get_facts(int x, int y, int nx, int ny);
+@*/
+
+/*@
+  requires nx > 0 && ny > 0;
+  requires 0 <= x && x<nx;
+  requires 0 <= y && y<ny;
+  ensures get_facts(x, y, nx, ny);
+  ensures 0 <= x + y*nx && x + y*nx < nx*ny;
+  decreases;
+@*/
+/*@ pure @*/ int a2d(int x, int y, int nx, int ny) {
+  return x + nx*y;
 }
+
+/*@
+  context_everywhere nx>0 && ny>0;
+  context_everywhere xs != NULL ** \pointer_length(xs) == nx*ny;
+  context_everywhere (\forall* int x, int y;
+    0 <= x && x < nx && 0 <= y && y < ny;
+    Perm({:xs[a2d(x, y, nx, ny)]:}, 1\1));
+  ensures (\forall int x, int y;
+    0 <= x && x < nx && 0 <= y && y < ny;
+    {:xs[a2d(x, y, nx, ny)]:} == x + y);
+@*/
+void test(int* xs, int nx, int ny){
+  /*@
+  loop_invariant 0 <= y && y <= ny;
+  loop_invariant (\forall int x, int yf;
+    0 <= x && x < nx && 0 <= yf && yf < y;
+    {:xs[a2d(x, yf, nx, ny)]:} == x + yf);
+  @*/
+  for(int y = 0; y < ny; y++){
+    /*@
+    loop_invariant 0 <= x && x <= nx;
+    loop_invariant (\forall int x, int yf;
+      0 <= x && x < nx && 0 <= yf && yf < y;
+      {:xs[a2d(x, yf, nx, ny)]:} == x + yf);
+    loop_invariant (\forall int xf;
+      0 <= xf && xf < x;
+      {:xs[a2d(xf, y, nx, ny)]:} == xf + y);
+    @*/
+    for(int x = 0; x < nx; x++){
+      xs[a2d(x, y, nx, ny)] = x + y;
+    }
+    //@ assert (\forall int x; 0 <= x && x < nx; {:xs[a2d(x, y, nx, ny)]:} == x + y);
+  }
+}
+  """
+  vercors should verify using silicon in "Struct from pointer subscript passed by value" c
+  """
+#include <assert.h>
+
+struct s {int x; int y;};
+
+/*@
+ requires Perm(v, write);
+ //ensures v.x == \old(v.x);
+ ensures Perm(\result, write);
+ ensures \result.x == x;
+*/
+struct s set_x(struct s v, int x) {
+  v.x = x;
+  return v;
+}
+
+/*@
+ requires p != NULL ** \pointer_length(p) == 1 ** Perm(p->x, read);
+ ensures \result == p->x;
+*/
+/*@ pure */int get_x(struct s *p) {
+    return p->x;
+}
+
+void main(){
+    struct s p[1];
+    p[0].x = 5;
+    p[0].y = 10;
+    int x = get_x(p);
+    // Gets the correct value
+    assert(x == 5);
+    struct s v2 = set_x(p[0], 3);
+    // Since p[0] is passed by value, it is not changed
+    //@ assert(p[0].x == 5);
+    assert(p[0].x == 5);
+    assert(p[0].y == 10);
+    // But the returned valued is changed
+    assert(v2.x == 3 && p[0].y == 10);
+}
+  """
+}
+

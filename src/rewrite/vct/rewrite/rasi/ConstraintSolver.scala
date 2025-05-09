@@ -328,28 +328,28 @@ class ConstraintSolver[G](
           else
             expr_equals(expr, value)
         )
-      case AmbiguousGreater(_, _) | Greater(_, _) =>
+      case AmbiguousGreater(_, _, _) | Greater(_, _) =>
         Set(limit_variable(
           expr,
           value.asInstanceOf[UncertainIntegerValue],
           pure_left == negate,
           negate,
         ))
-      case AmbiguousGreaterEq(_, _) | GreaterEq(_, _) =>
+      case AmbiguousGreaterEq(_, _, _) | GreaterEq(_, _) =>
         Set(limit_variable(
           expr,
           value.asInstanceOf[UncertainIntegerValue],
           pure_left == negate,
           !negate,
         ))
-      case AmbiguousLessEq(_, _) | LessEq(_, _) =>
+      case AmbiguousLessEq(_, _, _) | LessEq(_, _) =>
         Set(limit_variable(
           expr,
           value.asInstanceOf[UncertainIntegerValue],
           pure_left != negate,
           !negate,
         ))
-      case AmbiguousLess(_, _) | Less(_, _) =>
+      case AmbiguousLess(_, _, _) | Less(_, _) =>
         Set(limit_variable(
           expr,
           value.asInstanceOf[UncertainIntegerValue],

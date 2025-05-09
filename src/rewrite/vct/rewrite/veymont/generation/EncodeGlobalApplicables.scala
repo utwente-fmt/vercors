@@ -6,6 +6,7 @@ import vct.col.ast.{
   Block,
   Assert,
   Assume,
+  ByReferenceClass,
   Class,
   Constructor,
   Declaration,
@@ -27,7 +28,7 @@ import vct.col.ast.{
   Program,
   Result,
   Statement,
-  TClass,
+  TByReferenceClass,
 }
 import vct.col.origin.{
   Blame,
@@ -123,7 +124,7 @@ case class EncodeGlobalApplicables[Pre <: Generation]() extends Rewriter[Pre] {
     decl match {
       // Functions and procedures are moved into the global statics class
       case _: Function[Pre] | _: Procedure[Pre] => decl.drop()
-      case cls: Class[Pre] =>
+      case cls: ByReferenceClass[Pre] =>
         cls.rewrite(intrinsicLockInvariant = spec {
           cls.intrinsicLockInvariant.rewriteDefault()
         }).succeed(cls)
@@ -153,7 +154,7 @@ case class EncodeGlobalApplicables[Pre <: Generation]() extends Rewriter[Pre] {
 
   def createGlobalClass(program: Program[Pre]): Unit = {
     globals.fill(
-      new Class(
+      new ByReferenceClass(
         decls =
           classDeclarations.collect {
             globalsConstructor.fill(
@@ -181,7 +182,7 @@ case class EncodeGlobalApplicables[Pre <: Generation]() extends Rewriter[Pre] {
         blame = PanicBlame("Trivial contract"),
         contractBlame = TrueSatisfiable,
         ensures = (result !== Null()).accounted,
-        returnType = TClass[Post](globals.ref, Seq()),
+        returnType = TByReferenceClass[Post](globals.ref, Seq()),
       )(program.o.where(name = "g$")).declare()
     ))
   }

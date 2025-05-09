@@ -1,19 +1,16 @@
 package vct.parsers.transform
 
-import hre.data.BitString
 import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.antlr4.generated.LLVMSpecParser._
 import vct.antlr4.generated.LLVMSpecParserPatterns
 import vct.antlr4.generated.LLVMSpecParserPatterns._
 import vct.col.ast._
 import vct.col.origin.{ExpectedError, Origin}
-import vct.col.ref.{Ref, UnresolvedRef}
+import vct.col.ref.UnresolvedRef
 import vct.col.util.AstBuildHelpers.{ff, foldAnd, implies, tt}
 import vct.parsers.err.ParseError
 
 import scala.annotation.nowarn
-import scala.collection.immutable.{AbstractSeq, LinearSeq}
-import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
 case class LLVMContractToCol[G](
@@ -23,7 +20,7 @@ case class LLVMContractToCol[G](
 ) extends ToCol(baseOrigin, blameProvider, errors) {
 
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
-    LlvmLocal(name)(blame(ctx))(origin(ctx))
+    LLVMLocal(name)(blame(ctx))(origin(ctx))
 
   def createVariable(
       ctx: ParserRuleContext,
@@ -145,7 +142,7 @@ case class LLVMContractToCol[G](
     callOp match {
       case CallInstruction0(_, id, _, exprList, _) =>
         val args: Seq[Expr[G]] = convert(exprList)
-        LlvmAmbiguousFunctionInvocation(id, args, Nil, Nil)(blame(callOp))
+        LLVMAmbiguousFunctionInvocation(id, args, Nil, Nil)(blame(callOp))
     }
 
   def convert(implicit binOp: BinOpInstructionContext): Expr[G] =
@@ -177,9 +174,11 @@ case class LLVMContractToCol[G](
             }
           case TInt() =>
             bitOp match {
-              case LLVMSpecParserPatterns.And(_) => BitAnd(left, right)
-              case LLVMSpecParserPatterns.Or(_) => BitOr(left, right)
-              case Xor(_) => BitXor(left, right)
+              case LLVMSpecParserPatterns.And(_) =>
+                BitAnd(left, right, 0, signed = true)(blame(bitOp))
+              case LLVMSpecParserPatterns.Or(_) =>
+                BitOr(left, right, 0, signed = true)(blame(bitOp))
+              case Xor(_) => BitXor(left, right, 0, signed = true)(blame(bitOp))
             }
           case other =>
             throw ParseError(
@@ -388,6 +387,7 @@ case class LLVMContractToCol[G](
         PermPointer(convert(ptr), convert(n), convert(perm))
       case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) =>
         PermPointerIndex(convert(ptr), convert(idx), convert(perm))
+      case ValPointerBlock(_, _, ptr, _) => PointerBlock(convert(ptr))(blame(e))
       case ValPointerBlockLength(_, _, ptr, _) =>
         PointerBlockLength(convert(ptr))(blame(e))
       case ValPointerBlockOffset(_, _, ptr, _) =>
@@ -549,7 +549,7 @@ case class LLVMContractToCol[G](
         modifiers.foreach(convert(_, modifierCollector))
 
         val namedOrigin = origin(decl).sourceName(convert(name))
-        new LlvmSpecFunction(
+        new LLVMSpecFunction(
           convert(name),
           convert(t),
           args.map(convert(_)).getOrElse(Nil),

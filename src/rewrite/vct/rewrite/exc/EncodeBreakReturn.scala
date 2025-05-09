@@ -1,18 +1,20 @@
 package vct.col.rewrite.exc
 
 import vct.col.ast._
-import RewriteHelpers._
-import hre.util.ScopedStack
-import vct.col.rewrite.error.ExcludedByPassOrder
-import vct.col.origin.{LabelContext, Origin, PanicBlame, PreferredName}
-import vct.col.ref.{LazyRef, Ref}
+import vct.col.rewrite.error.{ExcludedByPassOrder, ExtraNode}
+import vct.col.origin.{
+  AssignLocalOk,
+  LabelContext,
+  Origin,
+  PanicBlame,
+  PreferredName,
+}
+import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.SuccessionMap
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
-import scala.reflect.ClassTag
 
 case object EncodeBreakReturn extends RewriterBuilder {
   override def key: String = "breakReturn"
@@ -50,15 +52,15 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
 
   def needReturn(method: AbstractMethod[Pre]): Boolean =
     method match {
-      case procedure: Procedure[Pre] => true
-      case constructor: Constructor[Pre] => false
-      case method: InstanceMethod[Pre] => true
-      case method: InstanceOperatorMethod[Pre] => true
+      case _: Procedure[Pre] => true
+      case _: Constructor[Pre] => false
+      case _: InstanceMethod[Pre] => true
+      case _: InstanceOperatorMethod[Pre] => true
     }
 
   case class BreakReturnToGoto(
       returnTarget: Option[LabelDecl[Post]],
-      resultVariable: Option[Local[Post]],
+      resultVariable: Option[Expr[Post]],
   ) extends Rewriter[Pre] {
     val breakLabels: mutable.Set[LabelDecl[Pre]] = mutable.Set()
     val postLabeledStatement: SuccessionMap[LabelDecl[Pre], LabelDecl[Post]] =
@@ -97,11 +99,35 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
 
         case Return(result) =>
           Block(Seq(
-            assignLocal(resultVariable.get, dispatch(result)),
+            Assign(resultVariable.get, dispatch(result))(AssignLocalOk),
             Goto(returnTarget.get.ref),
           ))
 
-        case other => rewriteDefault(other)
+        case other => super.dispatch(other)
+      }
+    }
+
+    override def dispatch(contract: LoopContract[Pre]): LoopContract[Post] = {
+      implicit val o: Origin = contract.o
+      resultVariable match {
+        case Some(dp @ DerefPointer(HeapLocal(_))) =>
+          val perm = Perm(
+            ByValueClassLocation(dp)(PanicBlame(
+              "Lost permission to return variable"
+            )),
+            WritePerm(),
+          )
+          contract match {
+            case inv @ LoopInvariant(invariant, _) =>
+              inv.rewrite(invariant = dispatch(invariant) &* perm)
+            case it @ IterationContract(requires, ensures, _) =>
+              it.rewrite(
+                requires = dispatch(requires) &* perm,
+                ensures = dispatch(ensures) &* perm,
+              )
+            case LLVMLoopContract(_) => throw ExtraNode
+          }
+        case _ => super.dispatch(contract)
       }
     }
   }
@@ -130,7 +156,9 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
               after = Block(Nil),
               catches = Seq(CatchClause(
                 decl =
-                  new Variable(TClass(breakLabelException.ref(decl), Seq())),
+                  new Variable(
+                    TByReferenceClass(breakLabelException.ref(decl), Seq())
+                  ),
                 body = Block(Nil),
               )),
             )
@@ -147,8 +175,9 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
         case Break(Some(Ref(label))) =>
           val cls = breakLabelException.getOrElseUpdate(
             label,
-            globalDeclarations
-              .declare(new Class[Post](Nil, Nil, Nil, tt)(BreakException)),
+            globalDeclarations.declare(
+              new ByReferenceClass[Post](Nil, Nil, Nil, tt)(BreakException)
+            ),
           )
 
           Throw(NewObject[Post](cls.ref))(PanicBlame(
@@ -156,7 +185,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
           ))
 
         case Return(result) =>
-          val exc = new Variable[Post](TClass(returnClass.get.ref, Seq()))
+          val exc = new Variable[Post](returnClass.get.classType(Seq()))
           Scope(
             Seq(exc),
             Block(Seq(
@@ -173,7 +202,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
             )),
           )
 
-        case other => rewriteDefault(other)
+        case other => super.dispatch(other)
       }
     }
   }
@@ -182,7 +211,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
     decl match {
       case method: AbstractMethod[Pre] =>
         method.body match {
-          case None => rewriteDefault(method)
+          case None => super.dispatch(method)
           case Some(body) =>
             allScopes.anyDeclare(allScopes.anySucceedOnly(
               method,
@@ -196,13 +225,16 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
                         ReturnField
                       )
                     val returnClass =
-                      new Class[Post](Nil, Seq(returnField), Nil, tt)(
-                        ReturnClass
-                      )
+                      new ByReferenceClass[Post](
+                        Nil,
+                        Seq(returnField),
+                        Nil,
+                        tt,
+                      )(ReturnClass)
                     globalDeclarations.declare(returnClass)
 
                     val caughtReturn =
-                      new Variable[Post](TClass(returnClass.ref, Seq()))
+                      new Variable[Post](returnClass.classType(Seq()))
 
                     TryCatchFinally(
                       body = BreakReturnToException(
@@ -225,26 +257,53 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
 
                   if (needReturn(method)) {
                     val resultTarget = new LabelDecl[Post]()(ReturnTarget)
-                    val resultVar =
-                      new Variable(dispatch(method.returnType))(ReturnVariable)
-                    val newBody = BreakReturnToGoto(
-                      Some(resultTarget),
-                      Some(resultVar.get(ReturnVariable)),
-                    ).dispatch(body)
 
-                    Scope(
-                      Seq(resultVar),
-                      Block(Seq(
-                        newBody,
-                        Label(resultTarget, Block(Nil)),
-                        Return(resultVar.get),
-                      )),
-                    )
+                    if (method.returnType.asByValueClass.isDefined) {
+                      val v =
+                        new LocalHeapVariable(
+                          TNonNullPointer(dispatch(method.returnType), None)
+                        )(ReturnVariable)
+                      val getter =
+                        v.get(PanicBlame("Missing access to return variable"))(
+                          ReturnVariable
+                        )
+                      val newBody = BreakReturnToGoto(
+                        Some(resultTarget),
+                        Some(getter),
+                      ).dispatch(body)
+                      Scope(
+                        Nil,
+                        Block(Seq(
+                          HeapLocalDecl(v),
+                          newBody,
+                          Label(resultTarget, Block(Nil)),
+                          Return(getter),
+                        )),
+                      )
+                    } else {
+                      val v =
+                        new Variable(dispatch(method.returnType))(
+                          ReturnVariable
+                        )
+                      val getter = v.get(ReturnVariable)
+                      val newBody = BreakReturnToGoto(
+                        Some(resultTarget),
+                        Some(getter),
+                      ).dispatch(body)
+                      Scope(
+                        Seq(v),
+                        Block(Seq(
+                          newBody,
+                          Label(resultTarget, Block(Nil)),
+                          Return(getter),
+                        )),
+                      )
+                    }
                   } else { BreakReturnToGoto(None, None).dispatch(body) }
                 }
               })),
             ))
         }
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
 }

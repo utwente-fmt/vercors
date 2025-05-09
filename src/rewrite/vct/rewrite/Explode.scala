@@ -72,7 +72,7 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
 
     def funcUsage: Seq[Function[Pre]] =
       scanNodes.flatMap(_.collect {
-        case FunctionInvocation(Ref(f), _, _, _, _) => f
+        case FunctionInvocation(Ref(f), _, _, _, _, _) => f
       }).distinct
 
     def predUsage: Seq[Predicate[Pre]] =
@@ -92,7 +92,7 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
     def procUsage: Seq[Procedure[Pre]] =
       scanNodes.flatMap(_.collect {
         case InvokeProcedure(Ref(p), _, _, _, _, _) => p
-        case ProcedureInvocation(Ref(p), _, _, _, _, _) => p
+        case ProcedureInvocation(Ref(p), _, _, _, _, _, _) => p
       })
 
     def step: FocusedProgram =

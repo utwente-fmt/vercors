@@ -1,18 +1,19 @@
 package vct.rewrite.lang
 
-import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, CPP}
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg, Rewritten}
+import vct.col.typerules.PlatformContext
+import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangTypesToCol.{EmptyInlineDecl, IncompleteTypeArgs}
 
 import scala.reflect.ClassTag
 
-case object LangTypesToCol extends RewriterBuilder {
+case object LangTypesToCol extends RewriterBuilderArg[PlatformContext] {
   override def key: String = "langTypes"
   override def desc: String =
     "Translate language-specific types (such as named types) to specific internal types."
@@ -34,7 +35,13 @@ case object LangTypesToCol extends RewriterBuilder {
   }
 }
 
-case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
+case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
+    extends Rewriter[Pre] {
+
+  val cStructFieldsSuccessor: SuccessionMap[(CStructMemberDeclarator[
+    Pre
+  ]), CStructMemberDeclarator[Post]] = SuccessionMap()
+
   override def porcelainRefSucc[RefDecl <: Declaration[Rewritten[Pre]]](
       ref: Ref[Pre, _]
   )(implicit tag: ClassTag[RefDecl]): Option[Ref[Rewritten[Pre], RefDecl]] =
@@ -88,12 +95,18 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       case t @ PVLNamedType(_, typeArgs) =>
         t.ref.get match {
           case spec: SpecTypeNameTarget[Pre] => specType(spec, typeArgs)
-          case RefClass(decl) => TClass(succ(decl), typeArgs.map(dispatch))
+          case RefClass(decl: Class[Pre]) => dispatch(decl.classType(typeArgs))
         }
       case t @ CPrimitiveType(specs) =>
-        dispatch(C.getPrimitiveType(specs, context = Some(t)))
+        dispatch(
+          C.getPrimitiveType(specs, Some(platformContext), context = Some(t))
+        )
       case t @ CPPPrimitiveType(specs) =>
         dispatch(CPP.getBaseTypeFromSpecs(specs, context = Some(t)))
+      case t @ CTStructUnique(inner, pointerFieldRef, unique) =>
+        val fieldSucc: Ref[Post, CStructMemberDeclarator[Post]] =
+          cStructFieldsSuccessor(pointerFieldRef.decl).ref
+        t.rewrite(pointerFieldRef = fieldSucc)
       case t @ SilverPartialTAxiomatic(Ref(adt), partialTypeArgs) =>
         if (partialTypeArgs.map(_._1.decl).toSet != adt.typeArgs.toSet)
           throw IncompleteTypeArgs(t)
@@ -103,7 +116,28 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
             dispatch(t.partialTypeArgs.find(_._1.decl == arg).get._2)
           ),
         )
-      case other => rewriteDefault(other)
+      case p: TPointer[Pre] =>
+        val pointer = super.dispatch(p)
+        pointer.storedBits = platformContext.pointerSize
+        pointer
+      case p: TNonNullPointer[Pre] =>
+        val pointer = super.dispatch(p)
+        pointer.storedBits = platformContext.pointerSize
+        pointer
+      case p: CTPointer[Pre] =>
+        val pointer = super.dispatch(p)
+        pointer.storedBits = platformContext.pointerSize
+        pointer
+      case t @ TCInt() =>
+        val cint = TCInt[Post]()
+        cint.storedBits = t.storedBits
+        cint.signed = t.signed
+        cint
+      case other => {
+        val newOther = super.dispatch(other)
+        newOther.storedBits = other.storedBits
+        newOther
+      }
     }
   }
 
@@ -115,12 +149,16 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       implicit o: Origin
   ): (Seq[CDeclarationSpecifier[Post]], CDeclarator[Post]) = {
     val info = C.getDeclaratorInfo(declarator)
-    val baseType = C.getPrimitiveType(specifiers, context)
-    val otherSpecifiers = specifiers
-      .filter(!_.isInstanceOf[CTypeSpecifier[Pre]]).map(dispatch)
-    val newSpecifiers =
+    val (specs, otherSpecifiers) = specifiers.partition({
+      case _: CTypeSpecifier[Pre] => true;
+      case _: CTypeQualifierDeclarationSpecifier[Pre] => true;
+      case _ => false
+    })
+    val newOtherSpecifiers = otherSpecifiers.map(dispatch)
+    val baseType = C.getPrimitiveType(specs, Some(platformContext), context)
+    val newSpecifiers: Seq[CDeclarationSpecifier[LangTypesToCol.this.Post]] =
       CSpecificationType[Post](dispatch(info.typeOrReturnType(baseType))) +:
-        otherSpecifiers
+        newOtherSpecifiers
     val newDeclarator =
       info.params match {
         case Some(params) =>
@@ -202,6 +240,25 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
           case CDeclaration(_, _, Seq(_: CStructDeclaration[Pre]), Seq()) =>
             globalDeclarations
               .succeed(declaration, declaration.rewriteDefault())
+          case decl @ CDeclaration(
+                _,
+                _,
+                Seq(td: CTypedef[Pre], struct: CStructDeclaration[Pre]),
+                Seq(init),
+              ) =>
+            val structDecl =
+              new CGlobalDeclaration[Post](
+                CDeclaration[Post](
+                  dispatch(decl.contract),
+                  dispatch(decl.kernelInvariant),
+                  Seq(dispatch(struct)),
+                  Seq(),
+                )(decl.o)
+              )(decl.o)
+            val structSpec = CStructSpecifier[Post](struct.name.get)(decl.o)
+            structSpec.ref = Some(RefCStruct(structDecl))
+
+            globalDeclarations.succeed(declaration, structDecl)
           case decl =>
             decl.inits.foreach(init => {
               implicit val o: Origin = init.o
@@ -226,8 +283,10 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
             decl,
             context = Some(declaration),
           )
-          cStructMemberDeclarators
-            .declare(declaration.rewrite(specs = specs, decls = Seq(newDecl)))
+          val newMember = declaration
+            .rewrite(specs = specs, decls = Seq(newDecl))
+          cStructFieldsSuccessor(declaration) = newMember
+          cStructMemberDeclarators.declare(newMember)
         })
       case declaration: CFunctionDefinition[Pre] =>
         implicit val o: Origin = declaration.o
@@ -285,8 +344,8 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
         )
         globalDeclarations
           .declare(declaration.rewrite(specs = specs, declarator = decl))
-      case cls: JavaClass[Pre] => rewriteDefault(cls)
-      case other => rewriteDefault(other)
+      case cls: JavaClass[Pre] => super.dispatch(cls)
+      case other => super.dispatch(other)
     }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
@@ -303,6 +362,6 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
         val (locals, _) = cPPLocalDeclarations.collect { dispatch(local) }
         Block(locals.map(CPPDeclarationStatement(_)(stat.o)))(stat.o)
 
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
 }

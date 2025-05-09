@@ -1,20 +1,25 @@
 name: Build and add wiki release
 # Only run when the wiki is updated
-on: gollum
+on:
+  - gollum
+  - workflow_dispatch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   make_pdf:
     runs-on: ubuntu-latest
     steps:
-      - uses: technote-space/auto-cancel-redundant-workflow@v1
       - uses: actions/checkout@v4
       - run: sudo apt install pandoc texlive-xetex
       - working-directory: util/wiki
-        run: pip3 install -r requirements.txt
+        run: |
+          python3 -m venv venv
+          venv/bin/pip3 install -r requirements.txt
       - run: pandoc --version
       - working-directory: util/wiki
         run: |
           git clone https://github.com/utwente-fmt/vercors.wiki.git
-          python3 ./generate_wiki_pdf.py -i vercors.wiki --html wiki.html --pdf wiki.pdf
+          venv/bin/python3 ./generate_wiki_pdf.py -i vercors.wiki --html wiki.html --pdf wiki.pdf
       - working-directory: util/wiki
         run: ls
       - name: Set wiki pdf tag in github repo
@@ -27,7 +32,7 @@ jobs:
           git remote set-url origin https://${GITHUB_TOKEN}@github.com/utwente-fmt/vercors.git
           git push --force --tags
       - name: Create Wiki PDF release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@v1.14.0
         with:
           allowUpdates: true
           artifacts: "util/wiki/wiki.pdf,util/wiki/wiki.html"

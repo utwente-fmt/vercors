@@ -115,6 +115,7 @@ valWith: 'with' langStatement;
 valThen: 'then' langStatement;
 valGiven: 'given' '{' valGivenMappings '}';
 valYields: 'yields' '{' valYieldsMappings '}';
+valReveal: 'reveal';
 
 valGivenMappings
  : langId '=' langExpr
@@ -185,6 +186,7 @@ valPrimaryPermission
  | '\\array'  '(' langExpr ',' langExpr ')' # valArray
  | '\\pointer' '(' langExpr ',' langExpr ',' langExpr ')' # valPointer
  | '\\pointer_index' '(' langExpr ',' langExpr ',' langExpr ')' # valPointerIndex
+ | '\\pointer_block' '(' langExpr ')' # valPointerBlock
  | '\\pointer_block_length' '(' langExpr ')' # valPointerBlockLength
  | '\\pointer_block_offset' '(' langExpr ')' # valPointerBlockOffset
  | '\\pointer_length' '(' langExpr ')' # valPointerLength
@@ -298,6 +300,10 @@ valPrimary
  | '\\is_int' '(' langExpr ')' # valIsInt
  | '\\choose' '(' langExpr ')' # valChoose
  | '\\choose_fresh' '(' langExpr ')' # valChooseFresh
+ | '(' '\\assuming' langExpr ')' # valBoolAssuming
+ | '(' '\\assuming' langExpr ';' langExpr ')' # valAssuming
+ | '(' '\\asserting' langExpr ')' # valBoolAsserting
+ | '(' '\\asserting' langExpr ';' langExpr ')' # valAsserting
  ;
 
 // Out spec: defined meaning: a language local
@@ -329,7 +335,7 @@ valKeywordNonExpr: (
  | VAL_LOOP_INVARIANT | VAL_KERNEL_INVARIANT | VAL_LOCK_INVARIANT | VAL_SIGNALS | VAL_DECREASES
  // Statement keywords
  | VAL_APPLY | VAL_FOLD | VAL_UNFOLD | VAL_OPEN | VAL_CLOSE | VAL_ASSUME | VAL_INHALE
- | VAL_EXHALE | VAL_LABEL | VAL_REFUTE | VAL_WITNESS | VAL_GHOST | VAL_SEND | VAL_WORD_TO | VAL_RECV | VAL_FROM
+ | VAL_EXHALE | VAL_LABEL | VAL_REFUTE | VAL_WITNESS | VAL_GHOST | VAL_SEND | VAL_RECV
  | VAL_TRANSFER | VAL_CSL_SUBJECT | VAL_SPEC_IGNORE | VAL_ACTION | VAL_ATOMIC
  | VAL_EXTRACT | VAL_FRAME
  // Spec function keywords
@@ -415,9 +421,14 @@ valImpureDef
  ;
 
 valModifier
- : ('pure' | 'inline' | 'thread_local' | 'bip_annotation')
+ : ('pure' | 'inline' | 'thread_local' | 'bip_annotation' | 'opaque')
  | langStatic # valStatic
  ;
+
+valTypeQualifier
+  : 'unique' '<' langConstInt '>' # valUnique
+  | 'unique_pointer_field' '<' langId ',' langConstInt '>' # valUniquePointerField
+  ;
 
 valArgList
  : valArg
@@ -446,6 +457,7 @@ valEmbedWith: startSpec valWith? endSpec | {specLevel>0}? valWith;
 valEmbedThen: startSpec valThen? endSpec | {specLevel>0}? valThen;
 valEmbedGiven: startSpec valGiven? endSpec | {specLevel>0}? valGiven;
 valEmbedYields: startSpec valYields? endSpec | {specLevel>0}? valYields;
+valEmbedReveal: startSpec valReveal? endSpec | {specLevel>0}? valReveal;
 
 valEmbedGlobalDeclarationBlock
  : startSpec valGlobalDeclaration* endSpec
@@ -461,3 +473,8 @@ valEmbedModifier
  : startSpec valModifier endSpec
  | {specLevel>0}? valModifier
  ;
+
+ valEmbedTypeQualifier
+  : startSpec valTypeQualifier endSpec
+  | {specLevel>0}? valTypeQualifier
+  ;

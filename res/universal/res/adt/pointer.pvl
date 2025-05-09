@@ -1,32 +1,49 @@
 adt `block` {
   pure int block_length(`block` b);
   pure ref loc(`block` b, int i);
+  pure int block_address(`block` b);
 
   pure `block` loc_inv_1(ref r);
   pure int loc_inv_2(ref r);
 
+  pure `block` addr_inv(int address);
+
   // block length is non-negative
-  axiom (\forall `block` b; block_length(b) >= 0);
+  axiom (\forall `block` b; {:block_length(b):} >= 0);
 
   // loc is injective: a (block, index) pair indicates a unique ref
-  axiom (∀ `block` b, int i; loc_inv_1({:loc(b, i):}) == b && loc_inv_2(loc(b, i)) == i);
+  axiom (∀ `block` b, int i; loc_inv_1({:loc(b, i):}) == b && loc_inv_2({:loc(b, i):}) == i);
+
+  // a block must be based higher than 0
+  axiom (∀ `block` b; {:block_address(b):} > 0);
 }
 
 adt `pointer` {
-  pure `pointer` pointer_of(`block` b, int offset);
   pure `block` pointer_block(`pointer` p);
   pure int pointer_offset(`pointer` p);
+  pure `pointer` pointer_inv(ref r);
+  pure int ptr_address(`pointer` p, int stride);
 
   // the block offset is valid wrt the length of the block
   axiom (∀ `pointer` p;
-    pointer_offset(p) >= 0 &&
-      pointer_offset(p) < `block`.block_length(pointer_block(p)));
+    {:pointer_offset(p):} >= 0 &&
+      {:pointer_offset(p):} < `block`.block_length(pointer_block(p)));
 
-  // pointer_of is injective: a (block, offset) pair indicates a unique pointer value
-  axiom (∀`block` b, int offset;
-    {:pointer_block(pointer_of(b, offset)):} == b &&
-      {:pointer_offset(pointer_of(b, offset)):} == offset);
+  axiom (∀ ref r; ptr_deref({:pointer_inv(r):}) == r);
+
+  axiom (∀ `pointer` p; pointer_inv({:ptr_deref(p):}) == p);
+
+  axiom (∀ `pointer` p, int stride; stride > 0; {:ptr_address(p, stride):} == `block`.block_address(`pointer`.pointer_block(p)) + (`pointer`.pointer_offset(p) * stride));
+
+  axiom (∀ `pointer` p, int stride; stride > 0; {:ptr_address(p, stride):} > 0);
+
+  axiom (∀ `pointer` p1, `pointer` p2, int stride; stride > 0 && ({:ptr_address(p1, stride):} == {:ptr_address(p2, stride):} && {:pointer_block(p1):} == {:pointer_block(p2):}) ==> p1 == p2);
+
+  axiom ptr_add_axiom();
+
+  axiom ptr_add_axiom2();
 }
+
 
 decreases;
 pure ref ptr_deref(`pointer` p) =
@@ -35,7 +52,31 @@ pure ref ptr_deref(`pointer` p) =
 decreases;
 requires 0 <= `pointer`.pointer_offset(p) + offset;
 requires `pointer`.pointer_offset(p) + offset < `block`.block_length(`pointer`.pointer_block(p));
-pure `pointer` ptr_add(`pointer` p, int offset) =
-  `pointer`.pointer_of(
-     `pointer`.pointer_block(p),
-     `pointer`.pointer_offset(p) + offset);
+// Assumed here for performance reasons
+ensures offset == 0 ==> \result == p;
+ensures `pointer`.pointer_offset(\result) == `pointer`.pointer_offset(p) + offset;
+ensures `pointer`.pointer_block(\result) == `pointer`.pointer_block(p);
+pure `pointer` ptr_add(`pointer` p, int offset);
+
+decreases;
+ensures \polarity_dependent((\forall `pointer` p, int offset, int i;
+    0 <= `pointer`.pointer_offset(p) + offset &&
+    `pointer`.pointer_offset(p) + offset < `block`.block_length(`pointer`.pointer_block(p)) &&
+    0 <= `pointer`.pointer_offset(p) + offset + i &&
+    `pointer`.pointer_offset(p) + offset + i < `block`.block_length(`pointer`.pointer_block(p));
+    {:ptr_add(ptr_add(p, offset), i):} == ptr_add(p, offset + i)), true);
+pure boolean ptr_add_axiom() = true;
+
+decreases;
+ensures (∀ `pointer` p, int i, int j;
+    0 <= `pointer`.pointer_offset(p) + i &&
+    `pointer`.pointer_offset(p) + i < `block`.block_length(`pointer`.pointer_block(p)) &&
+    0 <= `pointer`.pointer_offset(p) + j &&
+    `pointer`.pointer_offset(p) + j < `block`.block_length(`pointer`.pointer_block(p)); (i == j) == ({:ptr_add(p, i):} == {:ptr_add(p, j):}));
+pure boolean ptr_add_axiom2() = true;
+
+decreases;
+requires stride > 0;
+ensures `pointer`.ptr_address(\result, stride) == address;
+pure `pointer` ptr_from_address(int address, int stride);
+

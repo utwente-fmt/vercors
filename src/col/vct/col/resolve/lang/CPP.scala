@@ -75,7 +75,7 @@ case object CPP {
             innerInfo.params,
             t =>
               innerInfo.typeOrReturnType(
-                FuncTools.repeat[Type[G]](TPointer(_), operators.size, t)
+                FuncTools.repeat[Type[G]](TPointer(_, None), operators.size, t)
               ),
             innerInfo.name,
           )
@@ -107,7 +107,11 @@ case object CPP {
     specs.collect { case spec: CPPTypeSpecifier[G] => spec } match {
       case Seq(CPPVoid()) => TVoid()
       case Seq(CPPChar()) => TChar()
-      case t if CPP.NUMBER_LIKE_SPECIFIERS.contains(t) => TCInt()
+      case t if CPP.NUMBER_LIKE_SPECIFIERS.contains(t) => {
+        val cint = TCInt[G]()
+        cint.signed = isSigned(specs);
+        cint
+      }
       case Seq(CPPSpecificationType(t @ TCFloat(_, _))) => t
       case Seq(CPPBool()) => TBool()
       case Seq(SYCLClassDefName("event", Seq())) => SYCLTEvent()
@@ -116,7 +120,7 @@ case object CPP {
       case Seq(
             SYCLClassDefName(
               name,
-              Seq(CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)),
+              Seq(CPPExprOrTypeSpecifier(Some(CIntegerValue(dim, _)), None)),
             )
           ) =>
         name match {
@@ -131,7 +135,7 @@ case object CPP {
               name,
               Seq(
                 CPPExprOrTypeSpecifier(None, Some(typ)),
-                CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None),
+                CPPExprOrTypeSpecifier(Some(CIntegerValue(dim, _)), None),
               ),
             )
           ) =>
@@ -147,7 +151,7 @@ case object CPP {
               "accessor",
               Seq(
                 CPPExprOrTypeSpecifier(None, Some(typ)),
-                CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None),
+                CPPExprOrTypeSpecifier(Some(CIntegerValue(dim, _)), None),
                 CPPExprOrTypeSpecifier(
                   None,
                   Some(SYCLClassDefName(accessMode, Nil)),
@@ -169,6 +173,10 @@ case object CPP {
       case spec +: _ => throw CPPTypeNotSupported(context.orElse(Some(spec)))
       case _ => throw CPPTypeNotSupported(context)
     }
+
+  // XXX: We assume that everything's signed unless specified otherwise, this is not actually defined in the spec though
+  def isSigned(specs: Seq[CPPDeclarationSpecifier[_]]): Boolean =
+    specs.collect { case t: CPPTypeSpecifier[_] => t }.contains(CPPUnsigned())
 
   def unwrappedType[G](t: Type[G]): Type[G] =
     t match {
@@ -251,7 +259,8 @@ case object CPP {
               if decl.isInstanceOf[CPPInvocationTarget[G]] =>
             decl
         })
-      case _ => Spec.builtinField(obj, name, blame).toSeq
+      case _ =>
+        Spec.builtinField(CPP.unwrappedType(obj.t), name, blame, obj.o).toSeq
     }
 
   def findForwardDeclaration[G](

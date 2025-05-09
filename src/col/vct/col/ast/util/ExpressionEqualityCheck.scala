@@ -21,6 +21,10 @@ object ExpressionEqualityCheck {
   def equalExpressions[G](lhs: Expr[G], rhs: Expr[G]): Boolean = {
     ExpressionEqualityCheck().equalExpressions(lhs, rhs)
   }
+
+  trait Sign
+  case class Pos() extends Sign
+  case class Neg() extends Sign
 }
 
 case class InconsistentVariableEquality(v: Local[_], x: BigInt, y: BigInt)
@@ -31,12 +35,20 @@ case class InconsistentVariableEquality(v: Local[_], x: BigInt, y: BigInt)
 }
 
 class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
+  import ExpressionEqualityCheck._
+
   var replacerDepth = 0
-  var replacerDepthInt = 0
   val max_depth = 100
 
+  def usefulConditions(): Set[Expr[G]] = {
+    info match {
+      case None => Set()
+      case Some(info) => info.usefulConditions
+    }
+  }
+
   def isConstantInt(e: Expr[G]): Option[BigInt] = {
-    replacerDepthInt = 0
+    replacerDepth = 0
     isConstantIntRecurse(e)
   }
 
@@ -67,29 +79,15 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
       d
   }
 
-  def isConstantIntRecurse(e: Expr[G]): Option[BigInt] =
+  private def isConstantIntRecurse(e: Expr[G]): Option[BigInt] =
     e match {
       case e: Local[G] =>
         // Does it have a direct int value?
-        info.flatMap(_.variableValues.get(e)) match {
-          case Some(x) => Some(x)
-          case None =>
-            info.flatMap(_.variableEqualities.get(e)) match {
-              case None => None
-              case Some(equals) =>
-                for (eq <- equals) {
-                  // Make sure we do not loop indefinitely by keep replacing the same expressions somehow
-                  if (replacerDepthInt > max_depth)
-                    return None
-                  replacerDepthInt += 1
-                  val res = isConstantIntRecurse(eq)
-                  if (res.isDefined)
-                    return res
-                }
-                None
-            }
-        }
-
+        info.flatMap(_.variableValues.get(e)).foreach(x => return Some(x))
+        replaceVariable(e).foreach(
+          _.foreach(e => isConstantIntRecurse(e).foreach(x => return Some(x)))
+        )
+        None
       case i: ConstantInt[G] => Some(i.value)
       case Exp(e1, e2) =>
         for {
@@ -137,7 +135,7 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
         } yield i1 % i2
       case UMinus(e1) => for { i1 <- isConstantIntRecurse(e1) } yield -i1
 
-      case BitAnd(e1, e2) =>
+      case BitAnd(e1, e2, _, _) =>
         for {
           i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)
         } yield i1 & i2
@@ -149,7 +147,7 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
         for {
           i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)
         } yield i1 & i2
-      case BitOr(e1, e2) =>
+      case BitOr(e1, e2, _, _) =>
         for {
           i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)
         } yield i1 | i2
@@ -161,7 +159,7 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
         for {
           i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)
         } yield i1 | i2
-      case BitXor(e1, e2) =>
+      case BitXor(e1, e2, _, _) =>
         for {
           i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)
         } yield i1 ^ i2
@@ -173,15 +171,15 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
         for {
           i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)
         } yield i1 ^ i2
-      case BitShl(e1, e2) =>
+      case BitShl(e1, e2, _, _) =>
         for {
           i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)
         } yield i1 << i2.toInt
-      case BitShr(e1, e2) =>
+      case BitShr(e1, e2, _) =>
         for {
           i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)
         } yield i1 >> i2.toInt
-      case BitUShr(e1, e2) =>
+      case BitUShr(e1, e2, _, _) =>
         for {
           i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)
         } yield i1.toInt >>> i2.toInt
@@ -194,31 +192,37 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     equalExpressionsRecurse(lhs, rhs)
   }
 
-  def upperBound(e: Expr[G]): Option[BigInt] = { getBound(e, isLower = false) }
+  def upperBound(e: Expr[G]): Option[BigInt] = {
+    replacerDepth = 0; upperBoundRecurse(e)
+  }
+  def lowerBound(e: Expr[G]): Option[BigInt] = {
+    replacerDepth = 0; lowerBoundRecurse(e)
+  }
+  private def upperBoundRecurse(e: Expr[G]): Option[BigInt] = {
+    getBound(e, isLower = false)
+  }
+  private def lowerBoundRecurse(e: Expr[G]): Option[BigInt] = {
+    getBound(e, isLower = true)
+  }
 
-  def lowerBound(e: Expr[G]): Option[BigInt] = { getBound(e, isLower = true) }
+  private def getBound(e: Expr[G], isLower: Boolean): Option[BigInt] = {
+    isConstantIntRecurse(e).foreach { i => return Some(i) }
 
-  def getBound(e: Expr[G], isLower: Boolean): Option[BigInt] = {
-    isConstantInt(e).foreach { i => return Some(i) }
-
-    val normalBound =
-      if (isLower)
-        lowerBound _
-      else
-        upperBound _
-    val reverseBound =
-      if (isLower)
-        upperBound _
-      else
-        lowerBound _
+    val normalBound = getBound(_, isLower)
+    val reverseBound = getBound(_, !isLower)
 
     e match {
       case v: Local[G] =>
         info.foreach { i =>
-          return if (isLower)
-            i.lowerBound.get(v)
+          if (isLower)
+            i.lowerBound.get(v).foreach(b => return Some(b))
           else
-            i.upperBound.get(v)
+            i.upperBound.get(v).foreach(b => return Some(b))
+        }
+        replaceVariable(v) match {
+          case Some(es) =>
+            es.foreach(e => getBound(e, isLower).foreach(r => return Some(r)))
+          case None =>
         }
       case Plus(e1, e2) =>
         return for {
@@ -231,7 +235,7 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
           b2 <- reverseBound(e2)
         } yield b1 - b2
       case Mult(e1, e2) =>
-        isConstantInt(e1).foreach { i =>
+        isConstantIntRecurse(e1).foreach { i =>
           if (i > 0)
             normalBound(e2).foreach { b2 => return Some(i * b2) }
           if (i < 0)
@@ -240,7 +244,7 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
             return Some(0)
         }
 
-        isConstantInt(e2).foreach { i =>
+        isConstantIntRecurse(e2).foreach { i =>
           if (i > 0)
             normalBound(e1).foreach { b1 => return Some(i * b1) }
           if (i < 0)
@@ -255,9 +259,48 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
               return Some(b1 * b2)
           }
         }
-      // THe other cases are to complicated, so we do not consider them
       case Mod(e1, e2) if isLower => return Some(0)
-      case Mod(e1, e2) => isConstantInt(e2)
+      case Mod(e1, e2) => isConstantIntRecurse(e2)
+      case FloorDiv(e1, e2) if isConstantIntRecurse(e2).isDefined =>
+        val divisor = isConstantIntRecurse(e2).get
+        if (divisor == 0)
+          return None
+        else if (divisor > 0) {
+          normalBound(e1) match {
+            case Some(num) if num >= 0 => return Some(num / divisor)
+            case Some(num) if num < 0 =>
+              // So we have something like -10/3 (FloorDiv = Eucledian division) The lower bound for this is: -4
+              // Since -10/3 gives back -3 in scala (uses truncated division) we should fix that
+              // So if num % divisor != 0, we have to subtract one extra
+              return Some(
+                num / divisor -
+                  (if (num % divisor != 0)
+                     1
+                   else
+                     0)
+              )
+            case None =>
+          }
+        } else if (divisor > 0) {
+          // dividing by negative number reverses the bound
+          reverseBound(e1) match {
+            case Some(num) if num >= 0 =>
+              // This goes alright, since something like 10/-3 is the same for both eucledian as truncated div
+              return Some(num / divisor)
+            case Some(num) if num < 0 =>
+              // So we have something like -10/-3 (FloorDiv = Eucledian division) The lower bound for this is: 4
+              // Since -10/-3 gives back 3 in scala (uses truncated division) we should fix that
+              // So if num % divisor != 0, we have to add one extra
+              return Some(
+                num / divisor +
+                  (if (num % divisor != 0)
+                     1
+                   else
+                     0)
+              )
+            case None =>
+          }
+        }
       case _ =>
     }
 
@@ -265,8 +308,13 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
   }
 
   def lessThenEq(lhs: Expr[G], rhs: Expr[G]): Option[Boolean] = {
+    replacerDepth = 0
+    lessThenEqRecurse(lhs, rhs)
+  }
+
+  private def lessThenEqRecurse(lhs: Expr[G], rhs: Expr[G]): Option[Boolean] = {
     // Compare values directly
-    (isConstantInt(lhs), isConstantInt(rhs)) match {
+    (isConstantIntRecurse(lhs), isConstantIntRecurse(rhs)) match {
       case (Some(i1), Some(i2)) => return Some(i1 <= i2)
       case _ =>
     }
@@ -283,7 +331,7 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     }
 
     // Compare upper and lower bounds of two variables
-    (upperBound(lhs), lowerBound(rhs)) match {
+    (upperBoundRecurse(lhs), lowerBoundRecurse(rhs)) match {
       case (Some(x), Some(y)) if x <= y => return Some(true)
       case _ =>
     }
@@ -291,12 +339,106 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     None
   }
 
-  def isNonZero(e: Expr[G]): Boolean =
+  def isNonZero(e: Expr[G]): Option[Boolean] = {
+    replacerDepth = 0
+    isNonZeroRecurse(e)
+  }
+
+  private def isNonZeroRecurse(e: Expr[G]): Option[Boolean] = {
     e match {
-      case v: Local[G] => info.exists(_.variableNotZero.contains(v))
-      case _ => isConstantInt(e).getOrElse(0) != 0
-      case _ => lessThenEq(const(1)(e.o), e).getOrElse(false)
+      case v: Local[G] if info.exists(_.variableNotZero.contains(v)) =>
+        return Some(true)
+      case v: Local[G] =>
+        replaceVariable(v) match {
+          case Some(es) =>
+            es.foreach(e => isNonZeroRecurse(e).foreach(r => return Some(r)))
+          case None =>
+        }
+      case Mult(l, r) =>
+        (isNonZeroRecurse(l), isNonZeroRecurse(r)) match {
+          case (Some(l), Some(r)) => return Some(l && r)
+          case _ =>
+        }
+      case _ =>
     }
+    isConstantIntRecurse(e).map(i => i != 0) orElse upperBoundRecurse(e)
+      .flatMap(i =>
+        if (i < 0)
+          Some(true)
+        else
+          None
+      ) orElse lowerBoundRecurse(e).flatMap(i =>
+      if (i > 0)
+        Some(true)
+      else
+        None
+    ) orElse lessThenEq(const(1)(e.o), e) orElse lessThenEq(e, const(-1)(e.o))
+  }
+
+  def isSameSign(e1: Expr[G], e2: Expr[G]): Option[Boolean] = {
+    replacerDepth = 0;
+    isSameSignRecurse(e1, e2)
+  }
+
+  private def isSameSignRecurse(e1: Expr[G], e2: Expr[G]): Option[Boolean] = {
+    // Try to gets signs
+    (getSign(e1), getSign(e2)) match {
+      case (Some(s1), Some(s2)) => return Some(s1 == s2)
+      case _ =>
+    }
+
+    // Determine equal parts of a multiplication
+    val (rest_e1, rest_e2) = removeEqExprs(
+      unfoldComm[Mult[G]](e1),
+      unfoldComm[Mult[G]](e2),
+    )
+
+    if (rest_e1.isEmpty && rest_e2.isEmpty)
+      return Some(true)
+
+    // Check polarity of rest terms. A negative pol changes the sign.
+    val polarity1 =
+      rest_e1.map(getSign).foldLeft(true)({
+        case (_, None) => return None
+        case (p, Some(Pos())) => p
+        case (p, Some(Neg())) => !p
+      })
+
+    val polarity2 =
+      rest_e2.map(getSign).foldLeft(true)({
+        case (_, None) => return None
+        case (p, Some(Pos())) => p
+        case (p, Some(Neg())) => !p
+      })
+
+    Some(polarity1 == polarity2)
+  }
+
+  def isPos(b: Boolean): Sign =
+    if (b)
+      Pos()
+    else
+      Neg()
+
+  def isPos(s: Sign): Boolean =
+    s match {
+      case Pos() => true
+      case Neg() => false
+    }
+
+  def getSign(e: Expr[G]): Option[Sign] = {
+    isConstantInt(e).map(i => isPos(i >= 0)) orElse lowerBound(e).flatMap(i =>
+      if (i >= 0)
+        Some(Pos())
+      else
+        None
+    ) orElse upperBound(e).flatMap(i =>
+      if (i < 0)
+        Some(Neg())
+      else
+        None
+    ) orElse lessThenEq(const(0)(e.o), e).map(isPos)
+  }
 
   def unfoldComm[B <: BinExpr[G]](
       e: Expr[G]
@@ -307,69 +449,75 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     }
   }
 
-  //
-  def equalExpressionsRecurse(lhs: Expr[G], rhs: Expr[G]): Boolean = {
-    (isConstantInt(lhs), isConstantInt(rhs)) match {
+  def partitionOptionList[A, B](
+      xs: Seq[A],
+      f: A => Option[B],
+  ): (Seq[A], Seq[B]) = {
+    var resLeft: Seq[A] = Seq()
+    var resRight: Seq[B] = Seq()
+    for (x <- xs) {
+      f(x) match {
+        case Some(b) => resRight ++= Seq(b)
+        case None => resLeft ++= Seq(x)
+      }
+    }
+    (resLeft, resRight)
+  }
+
+  private def removeEqExprs(
+      e1s: Seq[Expr[G]],
+      e2s: Seq[Expr[G]],
+  ): (Seq[Expr[G]], Seq[Expr[G]]) = {
+    var resultingE2: Seq[Expr[G]] = e2s
+    var resultingE1: Seq[Expr[G]] = Seq()
+
+    for (x <- e1s) {
+      var found = false
+      val freezeAvailable = resultingE2
+      for (y <- freezeAvailable) {
+        if (!found && equalExpressionsRecurse(x, y)) {
+          found = true
+          resultingE2 = resultingE2.diff(Seq(y))
+        }
+      }
+      if (!found)
+        resultingE1 = resultingE1 :+ x
+    }
+    (resultingE1, resultingE2)
+  }
+
+  private def commAssoc[B <: BinExpr[G]](e1: B, e2: B)(
+      implicit tag: ClassTag[B]
+  ): Boolean = {
+    val e1s = unfoldComm[B](e1)
+    val e2s = unfoldComm[B](e2)
+
+    val (e1rest, e1Ints) = partitionOptionList(e1s, isConstantInt)
+    val (e2rest, e2Ints) = partitionOptionList(e2s, isConstantInt)
+
+    if (e1rest.size != e2rest.size)
+      return false
+
+    val res1: Boolean =
+      e1 match {
+        case _: Plus[G] => e1Ints.sum == e2Ints.sum
+        case _: Mult[G] => e1Ints.product == e2Ints.product
+        // Should not be reachable
+        case _ => ???
+      }
+    if (!res1)
+      return false
+
+    val (e1restrest, e2restrest) = removeEqExprs(e1rest, e2rest)
+    return e1restrest.isEmpty && e2restrest.isEmpty
+  }
+
+  private def equalExpressionsRecurse(lhs: Expr[G], rhs: Expr[G]): Boolean = {
+    (isConstantIntRecurse(lhs), isConstantIntRecurse(rhs)) match {
       case (Some(i1), Some(i2)) => return i1 == i2
       case (None, None) => ()
       // If one is a constant expression, and the other is not, this cannot be the same
       case _ => return false
-    }
-
-    def partitionOptionList[A, B](
-        xs: Seq[A],
-        f: A => Option[B],
-    ): (Seq[A], Seq[B]) = {
-      var resLeft: Seq[A] = Seq()
-      var resRight: Seq[B] = Seq()
-      for (x <- xs) {
-        f(x) match {
-          case Some(b) => resRight ++= Seq(b)
-          case None => resLeft ++= Seq(x)
-        }
-      }
-      (resLeft, resRight)
-    }
-
-    def commAssoc[B <: BinExpr[G]](e1: B, e2: B)(
-        implicit tag: ClassTag[B]
-    ): Boolean = {
-      val e1s = unfoldComm[B](e1)
-      val e2s = unfoldComm[B](e2)
-
-      val (e1rest, e1Ints) = partitionOptionList(e1s, isConstantInt)
-      val (e2rest, e2Ints) = partitionOptionList(e2s, isConstantInt)
-
-      if (e1rest.size != e2rest.size)
-        return false
-
-      val res1: Boolean =
-        e1 match {
-          case _: Plus[G] => e1Ints.sum == e2Ints.sum
-          case _: Mult[G] => e1Ints.product == e2Ints.product
-          // Should not be reachable
-          case _ => ???
-        }
-      if (!res1)
-        return false
-
-      var available: Seq[Expr[G]] = e2rest
-
-      for (x <- e1rest) {
-        var found = false
-        val freezeAvailable = available
-
-        for (y <- freezeAvailable) {
-          if (!found && equalExpressionsRecurse(x, y)) {
-            found = true
-            available = available.diff(Seq(y))
-          }
-        }
-        if (!found)
-          return false
-      }
-
-      true
     }
 
     def comm(
@@ -388,11 +536,11 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
       // Commutative operators
       case (lhs @ Plus(_, _), rhs @ Plus(_, _)) => commAssoc[Plus[G]](lhs, rhs)
       case (lhs @ Mult(_, _), rhs @ Mult(_, _)) => commAssoc[Mult[G]](lhs, rhs)
-      case (BitAnd(lhs1, lhs2), BitAnd(rhs1, rhs2)) =>
+      case (BitAnd(lhs1, lhs2, _, _), BitAnd(rhs1, rhs2, _, _)) =>
         comm(lhs1, lhs2, rhs1, rhs2)
-      case (BitOr(lhs1, lhs2), BitOr(rhs1, rhs2)) =>
+      case (BitOr(lhs1, lhs2, _, _), BitOr(rhs1, rhs2, _, _)) =>
         comm(lhs1, lhs2, rhs1, rhs2)
-      case (BitXor(lhs1, lhs2), BitXor(rhs1, rhs2)) =>
+      case (BitXor(lhs1, lhs2, _, _), BitXor(rhs1, rhs2, _, _)) =>
         comm(lhs1, lhs2, rhs1, rhs2)
       case (And(lhs1, lhs2), And(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)
       case (Or(lhs1, lhs2), Or(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)
@@ -429,9 +577,16 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
           }
         } else
           false
-      case (name1: Local[G], e2) => replaceVariable(name1, e2)
-      case (e1, name2: Local[G]) => replaceVariable(name2, e1)
-
+      case (name1: Local[G], e2) =>
+        replaceVariable(name1) match {
+          case Some(es) => es.exists(e => equalExpressionsRecurse(e, e2))
+          case None => false
+        }
+      case (e1, name2: Local[G]) =>
+        replaceVariable(name2) match {
+          case Some(es) => es.exists(e => equalExpressionsRecurse(e1, e))
+          case None => false
+        }
       case (inv: MethodInvocation[G], _) if !inv.ref.decl.pure => false
       case (_, inv: MethodInvocation[G]) if !inv.ref.decl.pure => false
 
@@ -440,34 +595,23 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     }
   }
 
-  def replaceVariable(name: Local[G], other_e: Expr[G]): Boolean = {
-    if (info.isDefined) {
-      info.get.variableEqualities.get(name) match {
-        case None => false
-        case Some(equals) =>
-          for (eq <- equals) {
-            // Make sure we do not loop indefinitely by keep replacing the same expressions somehow
-            if (replacerDepth > max_depth)
-              return false
-            replacerDepth += 1
-            if (equalExpressionsRecurse(eq, other_e))
-              return true
-          }
-          false
-      }
-    } else { false }
+  def replaceVariable(name: Local[G]): Option[Set[Expr[G]]] = {
+    if (replacerDepth > max_depth) { return None }
+    info.map(_.variableEqualities).flatMap(_.get(name).map(x => {
+      replacerDepth += 1; x
+    }))
   }
 }
 
 case class AnnotationVariableInfo[G](
-    variableEqualities: Map[Local[G], List[Expr[G]]],
+    variableEqualities: Map[Local[G], Set[Expr[G]]],
     variableValues: Map[Local[G], BigInt],
-    variableSynonyms: Map[Local[G], Int],
+    variableSynonyms: Map[Local[G], BigInt],
     variableNotZero: Set[Local[G]],
     lessThanEqVars: Map[Local[G], Set[Local[G]]],
     upperBound: Map[Local[G], BigInt],
     lowerBound: Map[Local[G], BigInt],
-    usefullConditions: mutable.ArrayBuffer[Expr[G]],
+    usefulConditions: Set[Expr[G]],
 )
 
 /** This class gathers information about variables, such as: `requires x == 0`
@@ -475,26 +619,34 @@ case class AnnotationVariableInfo[G](
   * steps This information is returned with ```getInfo(annotations:
   * Iterable[Expr[G]])```
   */
-class AnnotationVariableInfoGetter[G]() {
+class AnnotationVariableInfoGetter[G](
+    val variableEqualities: mutable.Map[Local[G], mutable.ListBuffer[Expr[G]]],
+    val variableValues: mutable.Map[Local[G], BigInt],
+    // We put synonyms in the same group and give them a group number, to identify the same synonym groups
+    val variableSynonyms: mutable.Map[Local[G], BigInt],
+    val variableNotZero: mutable.Set[Local[G]],
+    val lessThanEqVars: mutable.Map[Local[G], mutable.Set[Local[G]]],
+    // upperBound(v) = 5 Captures that variable v is less than or equal to 5
+    val upperBound: mutable.Map[Local[G], BigInt],
+    // lowerBound(v) = 5 Captures that variable v is greater than or equal to 5
+    val lowerBound: mutable.Map[Local[G], BigInt],
+    val usefulConditions: mutable.ArrayBuffer[Expr[G]],
+) {
 
-  val variableEqualities: mutable.Map[Local[G], mutable.ListBuffer[Expr[G]]] =
-    mutable.Map()
-  val variableValues: mutable.Map[Local[G], BigInt] = mutable.Map()
-  // We put synonyms in the same group and give them a group number, to identify the same synonym groups
-  val variableSynonyms: mutable.Map[Local[G], Int] = mutable.Map()
-  val variableNotZero: mutable.Set[Local[G]] = mutable.Set()
+  def this() = {
+    this(
+      mutable.Map[Local[G], mutable.ListBuffer[Expr[G]]](),
+      mutable.Map[Local[G], BigInt](),
+      mutable.Map[Local[G], BigInt](),
+      mutable.Set[Local[G]](),
+      mutable.Map[Local[G], mutable.Set[Local[G]]](),
+      mutable.Map[Local[G], BigInt](),
+      mutable.Map[Local[G], BigInt](),
+      mutable.ArrayBuffer[Expr[G]](),
+    )
+  }
   var currentSynonymGroup = 0
   var equalCheck: ExpressionEqualityCheck[G] = ExpressionEqualityCheck()
-
-  // lessThanEqVars(v) = {a,b,c} Captures that variable v is less than or eq to {a,b,c}
-  val lessThanEqVars: mutable.Map[Local[G], mutable.Set[Local[G]]] = mutable
-    .Map()
-  // upperBound(v) = 5 Captures that variable v is less than or equal to 5
-  val upperBound: mutable.Map[Local[G], BigInt] = mutable.Map()
-  // lowerBound(v) = 5 Captures that variable v is greater than or equal to 5
-  val lowerBound: mutable.Map[Local[G], BigInt] = mutable.Map()
-
-  val usefullConditions: mutable.ArrayBuffer[Expr[G]] = mutable.ArrayBuffer()
 
   def extractEqualities(e: Expr[G]): Unit = {
     e match {
@@ -629,8 +781,8 @@ class AnnotationVariableInfoGetter[G]() {
         }
       case Less(e1, e2) => lt(e1, e2, equal = false)
       case LessEq(e1, e2) => lt(e1, e2, equal = true)
-      case Greater(e1, e2) => lt(e2, e1, equal = true)
-      case GreaterEq(e1, e2) => lt(e2, e1, equal = false)
+      case Greater(e1, e2) => lt(e2, e1, equal = false)
+      case GreaterEq(e1, e2) => lt(e2, e1, equal = true)
       case SeqMember(e1, Range(from, to)) =>
         lt(from, e1, equal = true)
         lt(e1, to, equal = false)
@@ -704,35 +856,117 @@ class AnnotationVariableInfoGetter[G]() {
 
     if (isSimpleExpr(annotation)) {
       val res = AnnotationVariableInfo[G](
-        variableEqualities.view.mapValues(_.toList).toMap,
+        variableEqualities.view.mapValues(_.toSet).toMap,
         variableValues.toMap,
         variableSynonyms.toMap,
         Set[Local[G]](),
         Map[Local[G], Set[Local[G]]](),
         Map[Local[G], BigInt](),
         Map[Local[G], BigInt](),
-        usefullConditions,
+        usefulConditions.toSet,
       )
 
       equalCheck = ExpressionEqualityCheck(Some(res))
       extractComparisons(annotation)
-      usefullConditions.addOne(annotation)
+      usefulConditions.addOne(annotation)
     }
   }
 
-  def finalInfo(): AnnotationVariableInfo[G] = {
+  def mergeIntMaps(
+      maps: Seq[Map[Local[G], BigInt]],
+      combineInt: (Local[G], BigInt, BigInt) => BigInt,
+  ): Map[Local[G], BigInt] = {
+    val grouped = maps.flatMap(_.toSeq).groupBy(_._1)
+    grouped.map({ case (k, vs) =>
+      (k, vs.map(_._2).reduce((l, r) => combineInt(k, l, r)))
+    })
+  }
+
+  def mergeMaps[K, V](
+      maps: Seq[mutable.Map[K, V]],
+      combine: (K, V, V) => V,
+  ): Map[K, V] = {
+    val grouped = maps.flatMap(_.toSeq).groupBy(_._1)
+    grouped.map({ case (k, vs) =>
+      (k, vs.map(_._2).reduce((l, r) => combine(k, l, r)))
+    })
+  }
+
+  def finalInfo(
+      prev: Seq[AnnotationVariableInfoGetter[G]]
+  ): AnnotationVariableInfo[G] = {
     distributeInfo()
 
-    AnnotationVariableInfo(
-      variableEqualities.view.mapValues(_.toList).toMap,
-      variableValues.toMap,
-      variableSynonyms.toMap,
-      variableNotZero.toSet,
-      lessThanEqVars.view.mapValues(_.toSet).toMap,
-      upperBound.toMap,
-      lowerBound.toMap,
-      usefullConditions,
+    val varEq = mergeMaps[Local[G], mutable.ListBuffer[Expr[G]]](
+      prev.map(_.variableEqualities) :+ variableEqualities,
+      (_, l, r) => l ++ r,
     )
+    val varVal = mergeMaps[Local[G], BigInt](
+      prev.map(_.variableValues) :+ variableValues,
+      (v, x, y) =>
+        if (x != y)
+          throw InconsistentVariableEquality(v, x, y)
+        else
+          x,
+    )
+    val varSyn: mutable.Map[Local[G], BigInt] = variableSynonyms
+    for (p <- prev) {
+      for ((v, synonym_nr) <- p.variableSynonyms) {
+        if (varSyn.contains(v) && varSyn(v) != synonym_nr) {
+          val old_nr = varSyn(v)
+          // Update varSyns to new nr
+          varSyn.mapValuesInPlace((k, nr) =>
+            if (nr == old_nr)
+              synonym_nr
+            else
+              nr
+          )
+        } else
+          varSyn(v) = synonym_nr
+      }
+    }
+    val varNotZero = prev.flatMap(_.variableNotZero) ++ variableNotZero
+    val varLessThen = mergeMaps[Local[G], mutable.Set[Local[G]]](
+      prev.map(_.lessThanEqVars) :+ lessThanEqVars,
+      (_, l, r) => l ++ r,
+    )
+    // Take the lowest upper bound
+    val varUpper = mergeMaps[Local[G], BigInt](
+      prev.map(_.upperBound) :+ upperBound,
+      (_, l, r) => l.min(r),
+    )
+    // Take the highest lower bound
+    val varLower = mergeMaps[Local[G], BigInt](
+      prev.map(_.lowerBound) :+ lowerBound,
+      (_, l, r) => l.max(r),
+    )
+    val useful = (prev.flatMap(_.usefulConditions) ++ usefulConditions).toSet
+
+    AnnotationVariableInfo(
+      varEq.view.mapValues(_.toSet).toMap,
+      varVal,
+      varSyn.toMap,
+      varNotZero.toSet,
+      varLessThen.view.mapValues(_.toSet).toMap,
+      varUpper,
+      varLower,
+      useful,
+    )
+  }
+
+  override def clone(): AnnotationVariableInfoGetter[G] = {
+    val res =
+      new AnnotationVariableInfoGetter[G](
+        variableEqualities.clone(),
+        variableValues.clone(),
+        variableSynonyms.clone(),
+        variableNotZero.clone(),
+        lessThanEqVars.clone(),
+        upperBound.clone(),
+        lowerBound.clone(),
+        usefulConditions.clone(),
+      )
+    res
   }
 
   def setupInfo(): Unit = {
@@ -744,8 +978,50 @@ class AnnotationVariableInfoGetter[G]() {
     lessThanEqVars.clear()
     upperBound.clear()
     lowerBound.clear()
-    usefullConditions.clear()
+    usefulConditions.clear()
   }
+
+  def filterInfo(assignedVars: Set[Variable[G]]): Unit = {
+    def const: Expr[G] => Boolean = isConstant(_, assignedVars)
+    def constantVar(l: Local[G]): Boolean =
+      constantType(l.t) && !assignedVars.contains(l.ref.decl)
+
+    variableEqualities
+      .filterInPlace((l, v) => constantVar(l) && v.forall(const))
+    variableValues.filterInPlace((l, _) => constantVar(l))
+    variableSynonyms.filterInPlace((l, _) => constantVar(l))
+    variableNotZero.filterInPlace(constantVar)
+    lessThanEqVars.filterInPlace((l, _) => constantVar(l))
+    lessThanEqVars.mapValuesInPlace((_, eqs) => eqs.filterInPlace(constantVar))
+    upperBound.filterInPlace((l, _) => constantVar(l))
+    lowerBound.filterInPlace((l, _) => constantVar(l))
+    usefulConditions.filterInPlace(const)
+  }
+
+  def isConstant(e: Expr[G], assignedVars: Set[Variable[G]]): Boolean = {
+    def rec(e: Expr[G]) = isConstant(e, assignedVars)
+    e match {
+      case l @ Local(ref)
+          if constantType(l.t) && !assignedVars.contains(ref.decl) =>
+        true
+      case _: Constant[G] => true
+      case e: UnExpr[G] => rec(e.arg)
+      case e: BinExpr[G] => rec(e.left) && rec(e.right)
+      case FunctionInvocation(_, args, _, given, yields, _) =>
+        args.forall(rec) && given.map(_._2).forall(rec) && yields.map(_._1)
+          .forall(rec)
+      case _ => false
+    }
+  }
+
+  // Types which contain values not stored on the heap
+  def constantType(t: Type[G]): Boolean =
+    t match {
+      case _: PrimitiveType[G] => true
+      case c: CompositeType[G] => c.subtypes.forall(constantType)
+      case TUnion(ts) => ts.forall(constantType)
+      case _ => false
+    }
 
   def distributeInfo(): Unit = {
     // First check if expressions have become integers
@@ -760,7 +1036,7 @@ class AnnotationVariableInfoGetter[G]() {
     }
 
     // Group synonym sets
-    val synonymSets: mutable.Map[Int, mutable.Set[Local[G]]] = mutable.Map()
+    val synonymSets: mutable.Map[BigInt, mutable.Set[Local[G]]] = mutable.Map()
     variableSynonyms.foreach { case (v, groupId) =>
       synonymSets.getOrElse(groupId, mutable.Set()).add(v)
     }

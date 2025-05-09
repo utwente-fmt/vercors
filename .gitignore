@@ -64,3 +64,9 @@ __pycache__
 *.vpr
 test.pvl
 a.java
+
+# Pallas
+.include-pallas
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/settings.json

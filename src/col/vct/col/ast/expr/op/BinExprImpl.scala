@@ -3,19 +3,26 @@ package vct.col.ast.expr.op
 import vct.col.ast.`type`.typeclass.TFloats.getFloatMax
 import vct.col.ast.{
   BinExpr,
+  BitwiseType,
+  CPrimitiveType,
+  CSpecificationType,
   Expr,
   IntType,
+  LLVMTInt,
+  TAnyValue,
   TBool,
   TCInt,
   TInt,
   TProcess,
   TRational,
   TString,
+  TUnique,
   TVector,
   Type,
 }
 import vct.col.origin.Origin
-import vct.col.typerules.{CoercionUtils, Types}
+import vct.col.resolve.lang.C
+import vct.col.typerules.{CoercionUtils, TypeSize, Types}
 import vct.result.VerificationError
 
 object BinOperatorTypes {
@@ -34,6 +41,12 @@ object BinOperatorTypes {
   def isBoolOp[G](lt: Type[G], rt: Type[G]): Boolean =
     CoercionUtils.getCoercion(lt, TBool()).isDefined &&
       CoercionUtils.getCoercion(rt, TBool()).isDefined
+
+  def isLLVMIntOp[G](lt: Type[G], rt: Type[G]): Boolean =
+    (lt, rt) match {
+      case (LLVMTInt(_), LLVMTInt(_)) => true
+      case _ => false
+    }
 
   def isStringOp[G](lt: Type[G], rt: Type[G]): Boolean =
     CoercionUtils.getCoercion(lt, TString()).isDefined
@@ -75,12 +88,6 @@ object BinOperatorTypes {
         TVector[G](sizeL, getNumericType(eL, eR, o))).get
   }
 
-  def getIntType[G](lt: Type[G], rt: Type[G]): IntType[G] =
-    if (isCIntOp(lt, rt))
-      TCInt()
-    else
-      TInt()
-
   case class NumericBinError(lt: Type[_], rt: Type[_], o: Origin)
       extends VerificationError.UserError {
     override def text: String =
@@ -88,11 +95,60 @@ object BinOperatorTypes {
     override def code: String = "numericBinError"
   }
 
+  def getBits[G](t: Type[G]): Int =
+    t.bits match {
+      case TypeSize.Unknown() => 0
+      case TypeSize.Exact(size) => size.intValue
+      case TypeSize.Minimally(_) => 0
+    }
+
   def getNumericType[G](lt: Type[G], rt: Type[G], o: Origin): Type[G] = {
     if (isCIntOp(lt, rt))
-      TCInt[G]()
+      (lt, rt) match {
+        case (l: BitwiseType[G], r: BitwiseType[G])
+            if l.signed == r.signed && getBits(l) != 0 &&
+              getBits(l) >= getBits(r) =>
+          l
+        case (TUnique(l: BitwiseType[G], _), TUnique(r: BitwiseType[G], _))
+            if l.signed == r.signed && getBits(l) != 0 &&
+              getBits(l) >= getBits(r) =>
+          l
+        case (l: BitwiseType[G], TUnique(r: BitwiseType[G], _))
+            if l.signed == r.signed && getBits(l) != 0 &&
+              getBits(l) >= getBits(r) =>
+          l
+        case (TUnique(l: BitwiseType[G], _), r: BitwiseType[G])
+            if l.signed == r.signed && getBits(l) != 0 &&
+              getBits(l) >= getBits(r) =>
+          l
+        case (l: BitwiseType[G], r: BitwiseType[G])
+            if l.signed == r.signed && getBits(r) != 0 &&
+              getBits(r) >= getBits(l) =>
+          r
+        case (TUnique(l: BitwiseType[G], _), TUnique(r: BitwiseType[G], _))
+            if l.signed == r.signed && getBits(r) != 0 &&
+              getBits(r) >= getBits(l) =>
+          r
+        case (l: BitwiseType[G], TUnique(r: BitwiseType[G], _))
+            if l.signed == r.signed && getBits(r) != 0 &&
+              getBits(r) >= getBits(l) =>
+          r
+        case (TUnique(l: BitwiseType[G], _), r: BitwiseType[G])
+            if l.signed == r.signed && getBits(r) != 0 &&
+              getBits(r) >= getBits(l) =>
+          r
+        case _ => TCInt[G]()
+      }
+    else if (isLLVMIntOp(lt, rt))
+      Types.leastCommonSuperType(lt, rt).asInstanceOf[LLVMTInt[G]]
     else if (isIntOp(lt, rt))
       TInt[G]()
+    // TODO (AS): This TAnyValue check is because we do not yet have the correct types for pointer variables during
+    //            LangLLVMToCol therefore querying the type of a binary operator which has operands whose values derive
+    //            from the type of these pointers will yield the NumericBinError below. By making the dereference of
+    //            these pointers return TAnyValue() and checking for it here we delay this check until a later pass.
+    else if (lt == TAnyValue[G]() || rt == TAnyValue[G]())
+      TAnyValue[G]()
     else
       getFloatMax[G](lt, rt) getOrElse
         (if (isRationalOp(lt, rt))
@@ -113,6 +169,8 @@ trait BinExprImpl[G] {
 
   def isRationalOp: Boolean = BinOperatorTypes.isRationalOp(left.t, right.t)
 
+  def isLLVMIntOp: Boolean = BinOperatorTypes.isLLVMIntOp(left.t, right.t)
+
   def isBoolOp: Boolean = BinOperatorTypes.isBoolOp(left.t, right.t)
 
   def isStringOp: Boolean = BinOperatorTypes.isStringOp(left.t, right.t)
@@ -125,8 +183,6 @@ trait BinExprImpl[G] {
   def isSetOp: Boolean = BinOperatorTypes.isSetOp(left.t, right.t)
   def isVectorOp: Boolean = BinOperatorTypes.isVectorOp(left.t, right.t)
   def isVectorIntOp: Boolean = BinOperatorTypes.isVectorIntOp(left.t, right.t)
-
-  lazy val getIntType: IntType[G] = BinOperatorTypes.getIntType(left.t, right.t)
 
   lazy val getNumericType: Type[G] = BinOperatorTypes
     .getNumericType(left.t, right.t, o)

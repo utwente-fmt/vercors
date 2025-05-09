@@ -81,7 +81,7 @@ case class LangPVLToCol[Pre <: Generation](
             args = rw.variables.dispatch(cons.args),
             outArgs = Nil,
             typeArgs = Nil,
-            body = cons.body.map(rw.dispatch),
+            body = rw.labelDecls.scope { cons.body.map(rw.dispatch) },
             contract = rw.dispatch(cons.contract),
           )(cons.blame)(cons.o.where(name =
             s"constructor${rw.currentClass.top.o.getPreferredNameOrElse().ucamel}"
@@ -156,7 +156,7 @@ case class LangPVLToCol[Pre <: Generation](
   }
 
   def invocation(inv: PVLInvocation[Pre]): Expr[Post] = {
-    val PVLInvocation(obj, _, args, typeArgs, givenMap, yields) = inv
+    val PVLInvocation(obj, _, args, typeArgs, givenMap, yields, reveal) = inv
     implicit val o: Origin = inv.o
 
     inv.ref.get match {
@@ -168,6 +168,7 @@ case class LangPVLToCol[Pre <: Generation](
           args,
           givenMap,
           yields,
+          reveal,
           inv,
           inv.blame,
         )
@@ -179,7 +180,7 @@ case class LangPVLToCol[Pre <: Generation](
     val PVLNew(t, typeArgs, args, givenMap, yields) = inv
     val classTypeArgs =
       t match {
-        case TClass(_, typeArgs) => typeArgs
+        case t: TClass[Pre] => t.typeArgs
         case _ => Seq()
       }
     implicit val o: Origin = inv.o

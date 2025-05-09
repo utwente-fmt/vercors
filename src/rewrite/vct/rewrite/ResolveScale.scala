@@ -94,6 +94,13 @@ case class ResolveScale[Pre <: Generation]() extends Rewriter[Pre] {
       case l: Let[Pre] => l.rewrite(main = scale(l.main, amount))
       case InlinePattern(inner, parent, group) =>
         InlinePattern(scale(inner, amount), parent, group)
+      case a @ Asserting(condition, body) =>
+        a.rewrite(
+          condition = scale(condition, amount),
+          body = scale(body, amount),
+        )
+      case a @ Assuming(assn, inner) =>
+        a.rewrite(assn = scale(assn, amount), inner = scale(inner, amount))
       case other => throw WrongScale(other)
     }
   }

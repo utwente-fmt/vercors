@@ -1042,7 +1042,7 @@ case class JavaToCol[G](
         }
       case JavaPrefixOp2(preOp, inner) =>
         preOp match {
-          case "~" => BitNot(convert(inner))
+          case "~" => BitNot(convert(inner), 0, signed = true)(blame(expr))
           case "!" => Not(convert(inner))
         }
       case JavaValPrefix(PrefixOp0(op), inner) =>
@@ -1067,16 +1067,24 @@ case class JavaToCol[G](
         }
       case JavaShift(left, shift, right) =>
         shift match {
-          case ShiftOp0(_, _) => BitShl(convert(left), convert(right))
-          case ShiftOp1(_, _, _) => BitUShr(convert(left), convert(right))
-          case ShiftOp2(_, _) => BitShr(convert(left), convert(right))
+          case ShiftOp0(_, _) =>
+            BitShl(convert(left), convert(right), 0, signed = true)(blame(expr))
+          case ShiftOp1(_, _, _) =>
+            BitUShr(convert(left), convert(right), 0, signed = true)(blame(
+              expr
+            ))
+          case ShiftOp2(_, _) =>
+            BitShr(convert(left), convert(right), 0)(blame(expr))
         }
       case JavaRel(left, comp, right) =>
         comp match {
-          case RelOp0("<=") => AmbiguousLessEq(convert(left), convert(right))
-          case RelOp0(">=") => AmbiguousGreaterEq(convert(left), convert(right))
-          case RelOp0(">") => AmbiguousGreater(convert(left), convert(right))
-          case RelOp0("<") => AmbiguousLess(convert(left), convert(right))
+          case RelOp0("<=") =>
+            AmbiguousLessEq(convert(left), convert(right), None)
+          case RelOp0(">=") =>
+            AmbiguousGreaterEq(convert(left), convert(right), None)
+          case RelOp0(">") =>
+            AmbiguousGreater(convert(left), convert(right), None)
+          case RelOp0("<") => AmbiguousLess(convert(left), convert(right), None)
           case RelOp1(valOp) =>
             convert(expr, valOp, convert(left), convert(right))
         }
@@ -1084,8 +1092,8 @@ case class JavaToCol[G](
         InstanceOf(convert(obj), TypeValue(convert(t)))
       case JavaEquals(left, eq, right) =>
         eq match {
-          case "==" => AmbiguousEq(convert(left), convert(right), TInt())
-          case "!=" => AmbiguousNeq(convert(left), convert(right), TInt())
+          case "==" => AmbiguousEq(convert(left), convert(right), TInt(), None)
+          case "!=" => AmbiguousNeq(convert(left), convert(right), TInt(), None)
         }
       case JavaBitAnd(left, _, right) =>
         AmbiguousComputationalAnd(convert(left), convert(right))
@@ -1119,11 +1127,11 @@ case class JavaToCol[G](
             case "*=" => AmbiguousMult(target, value)
             case "/=" => AmbiguousTruncDiv(target, value)(blame(expr))
             case "&=" => AmbiguousComputationalAnd(target, value)
-            case "|=" => BitOr(target, value)
-            case "^=" => BitXor(target, value)
-            case ">>=" => BitShr(target, value)
-            case ">>>=" => BitUShr(target, value)
-            case "<<=" => BitShl(target, value)
+            case "|=" => BitOr(target, value, 0, signed = true)(blame(expr))
+            case "^=" => BitXor(target, value, 0, signed = true)(blame(expr))
+            case ">>=" => BitShr(target, value, 0)(blame(expr))
+            case ">>>=" => BitUShr(target, value, 0, signed = true)(blame(expr))
+            case "<<=" => BitShl(target, value, 0, signed = true)(blame(expr))
             case "%=" => AmbiguousTruncMod(target, value)(blame(expr))
           },
         )(blame(expr))
@@ -2265,7 +2273,7 @@ case class JavaToCol[G](
         TMap(convert(key), convert(value))
       case ValTupleType(_, _, t1, _, t2, _) =>
         TTuple(Seq(convert(t1), convert(t2)))
-      case ValPointerType(_, _, element, _) => TPointer(convert(element))
+      case ValPointerType(_, _, element, _) => TPointer(convert(element), None)
       case ValTypeType(_, _, element, _) => TType(convert(element))
       case ValEitherType(_, _, left, _, right, _) =>
         TEither(convert(left), convert(right))
@@ -2370,6 +2378,7 @@ case class JavaToCol[G](
         PermPointer(convert(ptr), convert(n), convert(perm))
       case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) =>
         PermPointerIndex(convert(ptr), convert(idx), convert(perm))
+      case ValPointerBlock(_, _, ptr, _) => PointerBlock(convert(ptr))(blame(e))
       case ValPointerBlockLength(_, _, ptr, _) =>
         PointerBlockLength(convert(ptr))(blame(e))
       case ValPointerBlockOffset(_, _, ptr, _) =>
@@ -2532,6 +2541,13 @@ case class JavaToCol[G](
       case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
       case ValChoose(_, _, xs, _) => Choose(convert(xs))(blame(e))
       case ValChooseFresh(_, _, xs, _) => ChooseFresh(convert(xs))(blame(e))
+      case ValBoolAssuming(_, _, assn, _) => Assuming(convert(assn), tt)
+      case ValAssuming(_, _, assn, _, inner, _) =>
+        Assuming(convert(assn), convert(inner))
+      case ValBoolAsserting(_, _, assn, _) =>
+        Asserting(convert(assn), tt)(blame(e))
+      case ValAsserting(_, _, assn, _, inner, _) =>
+        Asserting(convert(assn), convert(inner))(blame(e))
     }
 
   def convert(implicit e: ValExprPairContext): (Expr[G], Expr[G]) =

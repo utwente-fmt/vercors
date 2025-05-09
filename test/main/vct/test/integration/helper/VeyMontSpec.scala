@@ -44,24 +44,35 @@ object ResultModel {
     else
       Fail(fails.map(_.code))
 
+  // String output is a user-readable string representation of the verification run. Useful for manual inspection.
   def ofFrontendOutput(
       res: Either[VerificationError, StageResult]
-  ): ResultModel =
+  ): (ResultModel, String) =
     res match {
-      case Left(error: UserError) => Error(error.code)
-      case Left(crash: SystemError) => Crash(crash)
+      case Left(error: UserError) => (Error(error.code), error.text)
+      case Left(crash: SystemError) => (Crash(crash), crash.text)
       case Right(stageResult) =>
         stageResult match {
-          case VeyMont.ChoreographyResult(_, fails) => ofFailure(fails)
-          case VeyMont.GenerateResult(_) => Pass
-          case VeyMont.ImplementationResult(fails) => ofFailure(fails)
+          case VeyMont.ChoreographyResult(_, fails) =>
+            (ofFailure(fails), fails.map(_.desc).mkString("\n"))
+          case VeyMont.GenerateResult(_) => (Pass, "(no tool output)")
+          case VeyMont.ImplementationResult(fails) =>
+            (ofFailure(fails), fails.map(_.desc).mkString("\n"))
         }
     }
 
+  // We use strings here because the Fail & Error type needs to be useable as both a test spec (meaning, derivable from
+  // a fail/error code that we can write down) and actual test output. If we'd use the actual
+  // VerificationFailure/UserError types here, we couldn't specify the expected outputs up front, as that would require
+  // actually instantiating these entire objects, which is a lengthy process and requires annoying imports. So we use
+  // strings as a handy abstraction that works for both test spec & actual output.
   case class Fail(codes: Seq[String]) extends ResultModel {
     require(codes.nonEmpty)
   }
   case class Error(code: String) extends ResultModel
+  // Since a crash is not supposed to happen, we don't put a code or something here, but the actual SystemError
+  // that was thrown. Conversely, you cannot write a test that expects a crash, in that case it should either be a
+  // verification failure or a user error.
   case class Crash(err: SystemError) extends ResultModel
   case object Pass extends ResultModel
 }
@@ -189,15 +200,16 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
 
         failAfter(Span(400, Seconds)) {
           val expectedResult = ResultModel.ofTestSpec(fail, fails, error)
-          val actualResult = ResultModel.ofFrontendOutput(VeyMont.ofOptions(
-            Options.parse(
-              (Seq("--veymont") ++ outputFlags ++ flags ++ Option(flag).toSeq)
-                .toArray
-            ).get,
-            actualInputs,
-          ))
+          val (actualResult, humanReadableResult) = ResultModel
+            .ofFrontendOutput(VeyMont.ofOptions(
+              Options.parse(
+                (Seq("--veymont") ++ outputFlags ++ flags ++ Option(flag).toSeq)
+                  .toArray
+              ).get,
+              actualInputs,
+            ))
 
-          processResult(expectedResult, actualResult)
+          processResult(expectedResult, actualResult, humanReadableResult)
 
           Option(processImplementation).foreach(f => f(tempSource))
         }
@@ -205,15 +217,18 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
     }
   }
 
-  def processResult(expected: ResultModel, actual: ResultModel): Unit = {
+  def processResult(
+      expected: ResultModel,
+      actual: ResultModel,
+      humanReadableResult: String,
+  ): Unit = {
     info(s"Expected: $expected")
     info(s"Actual: $actual")
 
     def show(res: ResultModel): String =
       res match {
         case R.Fail(Seq(code)) => s"fail with code $code"
-        case R.Fail(codes) =>
-          s"fail with codes: ${codes.mkString("- ", "\n- ", "")}"
+        case R.Fail(codes) => s"fail with codes: ${codes.mkString(", ")}"
         case R.Error(code) => s"error with code $code"
         case R.Crash(err) => s"crash with message:\n${err.text}"
         case R.Pass => "pass"
@@ -221,7 +236,7 @@ class VeyMontSpec extends VercorsSpec with LazyLogging {
 
     assert(
       expected == actual,
-      s"\nExpected test result: ${show(expected)}\nActual test result: ${show(actual)}",
+      s"\nExpected test result: ${show(expected)}\nActual test result: ${show(actual)}\n--- Output string representation ---\n$humanReadableResult",
     )
   }
 }

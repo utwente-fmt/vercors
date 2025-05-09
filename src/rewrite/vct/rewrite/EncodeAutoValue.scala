@@ -63,20 +63,25 @@ case object EncodeAutoValue extends RewriterBuilder {
     override def blame(error: PostconditionFailed): Unit =
       app.blame.blame(AutoValueLeakCheckFailed(error.failure, app))
   }
+
+  private case class ConditionContext[Pre <: Generation](
+      context: PreOrPost,
+      prePostMap: mutable.ArrayBuffer[(Expr[Pre], Expr[Rewritten[Pre]])] =
+        mutable.ArrayBuffer[(Expr[Pre], Expr[Rewritten[Pre]])](),
+      autoValueLocations: mutable.HashSet[Location[Rewritten[Pre]]] = mutable
+        .HashSet[Location[Rewritten[Pre]]](),
+      normalLocations: mutable.HashSet[Location[Rewritten[Pre]]] = mutable
+        .HashSet[Location[Rewritten[Pre]]](),
+  )
 }
 
 case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
 
   import EncodeAutoValue._
 
-  private val conditionContext: ScopedStack[
-    (
-        PreOrPost,
-        mutable.ArrayBuffer[(Expr[Pre], Expr[Post])],
-        mutable.HashSet[Location[Post]],
-        mutable.HashSet[Location[Post]],
-    )
-  ] = ScopedStack()
+  private val conditionContext: ScopedStack[Option[ConditionContext[Pre]]] =
+    ScopedStack()
+  conditionContext.push(None)
   private val inFunction: ScopedStack[Unit] = ScopedStack()
 
   private lazy val anyRead: Function[Post] = {
@@ -122,14 +127,14 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
     val postMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
     node.rewrite(
       requires =
-        conditionContext.having(
-          (InPrecondition(), preMap, mutable.HashSet(), mutable.HashSet())
-        ) { dispatch(node.requires) },
+        conditionContext.having(Some(
+          ConditionContext(InPrecondition(), prePostMap = preMap)
+        )) { dispatch(node.requires) },
       ensures = {
         val predicate =
-          conditionContext.having(
-            ((InPostcondition(), postMap, mutable.HashSet(), mutable.HashSet()))
-          ) { dispatch(node.ensures) }
+          conditionContext.having(Some(
+            ConditionContext(InPostcondition(), prePostMap = postMap)
+          )) { dispatch(node.ensures) }
         val filtered = preMap.filterNot(pre =>
           postMap.exists(post => {
             Compare.isIsomorphic(pre._1, post._1, matchFreeVariables = true)
@@ -145,12 +150,13 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
-    if (conditionContext.isEmpty) {
+    if (conditionContext.top.isEmpty) {
       e match {
         case AutoValue(_) => throw InvalidAutoValue(e)
         case _ => e.rewriteDefault()
       }
     } else {
+      val context = conditionContext.top.get
       e match {
         case AutoValue(loc) if inFunction.nonEmpty => Value(dispatch(loc))
         case AutoValue(loc) => {
@@ -161,8 +167,13 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
               case SilverFieldLocation(obj, field) =>
                 (SilverFieldLocation(x.get, field), obj)
             }
-          conditionContext.top match {
-            case (InPrecondition(), preMap, avLocations, locations) =>
+          context match {
+            case ConditionContext(
+                  InPrecondition(),
+                  preMap,
+                  avLocations,
+                  locations,
+                ) =>
               preMap +=
                 ((
                   e,
@@ -187,7 +198,12 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
                   !ForPerm(Seq(x), genericLocation, ff) &*
                     !ForPerm(Seq(x), genericLocation, x.get !== obj),
               )
-            case (InPostcondition(), postMap, avLocations, locations) =>
+            case ConditionContext(
+                  InPostcondition(),
+                  postMap,
+                  avLocations,
+                  locations,
+                ) =>
               postMap += ((e, tt))
               avLocations += postLoc
               if (locations.contains(postLoc)) {
@@ -206,8 +222,8 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
         }
         case Perm(loc, perm) => {
           val postLoc = dispatch(loc)
-          conditionContext.top match {
-            case (_, _, avLocations, locations) => {
+          context match {
+            case ConditionContext(_, _, avLocations, locations) => {
               locations += postLoc;
               if (avLocations.contains(postLoc)) {
                 throw CombinedAutoValue(avLocations.find(_ == postLoc).get, e)
@@ -218,63 +234,54 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
         }
         case Let(binding, value, main) =>
           variables.scope {
-            val top = conditionContext.pop()
-            val (b, v) =
-              try { (variables.dispatch(binding), dispatch(value)) }
-              finally { conditionContext.push(top) }
-            val mMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
-            val m =
-              conditionContext.having((
-                conditionContext.top._1,
-                mMap,
-                conditionContext.top._3,
-                conditionContext.top._4,
-              )) { dispatch(main) }
-            if (mMap.isEmpty) { Let(b, v, m) }
-            else {
-              mMap.foreach(postM =>
-                conditionContext.top._2
-                  .append((Let(binding, value, postM._1), Let(b, v, postM._2)))
-              )
-              conditionContext.top._1 match {
-                case InPrecondition() => Let(b, v, m)
-                case InPostcondition() =>
-                  Let(
-                    b,
-                    Old(v, None)(PanicBlame(
-                      "Old should always be valid in a postcondition"
-                    )),
-                    m,
+            localHeapVariables.scope {
+              val (b, v) =
+                conditionContext.having(None) {
+                  (variables.dispatch(binding), dispatch(value))
+                }
+              val mMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
+              val m =
+                conditionContext.having(Some(context.copy(prePostMap = mMap))) {
+                  dispatch(main)
+                }
+              if (mMap.isEmpty) { Let(b, v, m) }
+              else {
+                mMap.foreach(postM =>
+                  context.prePostMap.append(
+                    (Let(binding, value, postM._1), Let(b, v, postM._2))
                   )
+                )
+                context.context match {
+                  case InPrecondition() => Let(b, v, m)
+                  case InPostcondition() =>
+                    Let(
+                      b,
+                      Old(v, None)(PanicBlame(
+                        "Old should always be valid in a postcondition"
+                      )),
+                      m,
+                    )
+                }
               }
             }
           }
         case Select(condition, left, right) =>
-          val top = conditionContext.pop()
-          val c =
-            try { dispatch(condition) }
-            finally { conditionContext.push(top) }
+          val c = conditionContext.having(None) { dispatch(condition) }
           val lMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
           val rMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
           val l =
-            conditionContext.having((
-              conditionContext.top._1,
-              lMap,
-              conditionContext.top._3,
-              conditionContext.top._4,
-            )) { dispatch(left) }
+            conditionContext.having(Some(context.copy(prePostMap = lMap))) {
+              dispatch(left)
+            }
           val r =
-            conditionContext.having((
-              conditionContext.top._1,
-              rMap,
-              conditionContext.top._3,
-              conditionContext.top._4,
-            )) { dispatch(right) }
+            conditionContext.having(Some(context.copy(prePostMap = rMap))) {
+              dispatch(right)
+            }
           if (lMap.isEmpty && rMap.isEmpty)
             Select(c, l, r)
           else {
             lMap.foreach(postL =>
-              conditionContext.top._2.append((
+              context.prePostMap.append((
                 Select(condition, postL._1, tt),
                 Select(
                   Old(c, None)(PanicBlame(
@@ -286,7 +293,7 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
               ))
             )
             rMap.foreach(postR =>
-              conditionContext.top._2.append((
+              context.prePostMap.append((
                 Select(condition, tt, postR._1),
                 Select(
                   Old(c, None)(PanicBlame(
@@ -297,7 +304,7 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
                 ),
               ))
             )
-            conditionContext.top._1 match {
+            context.context match {
               case InPrecondition() => Select(c, l, r)
               case InPostcondition() =>
                 Select(
@@ -311,22 +318,16 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
           }
         case Implies(left, right) =>
           val rMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
-          val top = conditionContext.pop()
-          val l =
-            try { dispatch(left) }
-            finally { conditionContext.push(top); }
+          val l = conditionContext.having(None) { dispatch(left) }
           val r =
-            conditionContext.having((
-              conditionContext.top._1,
-              rMap,
-              conditionContext.top._3,
-              conditionContext.top._4,
-            )) { dispatch(right) }
+            conditionContext.having(Some(context.copy(prePostMap = rMap))) {
+              dispatch(right)
+            }
           if (rMap.nonEmpty) {
-            conditionContext.top._1 match {
+            context.context match {
               case InPrecondition() =>
                 rMap.foreach(postR =>
-                  conditionContext.top._2
+                  context.prePostMap
                     .append((Implies(left, postR._1), Implies(l, postR._2)))
                 )
                 Implies(l, r)
@@ -335,7 +336,7 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
                 // duplicates therefore we don't include the old here since
                 // otherwise it wouldn't match the precondition case
                 rMap.foreach(postR =>
-                  conditionContext.top._2.append((Implies(left, postR._1), tt))
+                  context.prePostMap.append((Implies(left, postR._1), tt))
                 )
                 Implies(
                   Old(l, None)(PanicBlame(
@@ -346,26 +347,20 @@ case class EncodeAutoValue[Pre <: Generation]() extends Rewriter[Pre] {
             }
           } else { Implies(l, r) }
         case Star(left, right) =>
-          val top = conditionContext.pop()
-          try {
-            val lMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
-            val rMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
-            val l =
-              conditionContext.having((top._1, lMap, top._3, top._4)) {
-                dispatch(left)
-              }
-            val r =
-              conditionContext.having((top._1, rMap, top._3, top._4)) {
-                dispatch(right)
-              }
-            top._2.addAll(lMap)
-            top._2.addAll(rMap)
-            Star(l, r)
-          } finally { conditionContext.push(top); }
-        case _ =>
-          val top = conditionContext.pop()
-          try { e.rewriteDefault() }
-          finally { conditionContext.push(top); }
+          val lMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
+          val rMap = mutable.ArrayBuffer[(Expr[Pre], Expr[Post])]()
+          val l =
+            conditionContext.having(Some(context.copy(prePostMap = lMap))) {
+              dispatch(left)
+            }
+          val r =
+            conditionContext.having(Some(context.copy(prePostMap = rMap))) {
+              dispatch(right)
+            }
+          context.prePostMap.addAll(lMap)
+          context.prePostMap.addAll(rMap)
+          Star(l, r)
+        case _ => conditionContext.having(None) { e.rewriteDefault() }
       }
     }
   }

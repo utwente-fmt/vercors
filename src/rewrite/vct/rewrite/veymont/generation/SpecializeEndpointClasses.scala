@@ -3,6 +3,7 @@ package vct.rewrite.veymont.generation
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{
   ChorRun,
+  ByReferenceClass,
   Choreography,
   Class,
   Communicate,
@@ -111,7 +112,7 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
         }
 
         val wrapperClass =
-          new Class[Post](
+          new ByReferenceClass[Post](
             typeArgs = Seq(),
             supports = Seq(),
             intrinsicLockInvariant = tt,

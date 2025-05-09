@@ -32,28 +32,95 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
       case TFloat(e, m) => s"f${e}_$m"
     }
 
-  private val nonDetFloatOrigin: Origin = Origin(
+  private val floatOrigin: Origin = Origin(
     Seq(LabelContext("float to rational conversion"))
   )
 
-  val nonDetFloat: mutable.Map[Unit, Function[Post]] = mutable.Map()
+  val specialFloats: mutable.Map[String, Function[Post]] = mutable.Map()
+  val floatDiv: mutable.Map[Unit, Function[Post]] = mutable.Map()
 
-  def getNonDetFloat(): Expr[Post] = {
-    val nondetFunc = nonDetFloat.getOrElseUpdate((), makeNondetFloatFunc())
+  def NaN(implicit o: Origin): Expr[Post] = makeSpecialFloatInv("NaN")
+  def posInf(implicit o: Origin): Expr[Post] = makeSpecialFloatInv("PosInf")
+  def negInf(implicit o: Origin): Expr[Post] = UMinus(posInf)
+
+  def makeSpecialFloatInv(
+      name: String
+  )(implicit o: Origin): FunctionInvocation[Post] = {
+    val nondetFunc = specialFloats.getOrElseUpdate(name, makeSpecialFloat(name))
     FunctionInvocation[Post](nondetFunc.ref, Seq(), Nil, Nil, Nil)(
       TrueSatisfiable
-    )(nonDetFloatOrigin)
+    )(o)
   }
 
-  def makeNondetFloatFunc(): Function[Post] = {
+  def getFloatDiv(a: Expr[Post], b: Expr[Post])(
+      implicit o: Origin
+  ): FunctionInvocation[Post] = {
+    val nondetFunc = floatDiv.getOrElseUpdate((), makeFloatDiv())
+    FunctionInvocation[Post](nondetFunc.ref, Seq(a, b), Nil, Nil, Nil)(
+      TrueSatisfiable
+    )(o)
+  }
+
+  def isInf(a: Expr[Post]): Expr[Post] = {
+    implicit val o: Origin = floatOrigin
+    a === posInf || a === negInf
+  }
+
+  def z: Expr[Post] = {
+    implicit val o: Origin = floatOrigin
+    const[Post](0) /:/ const(1)
+  }
+
+  def makeFloatOp(
+      body: (Expr[Post], Expr[Post]) => Expr[Post],
+      name: String,
+  ): Function[Post] = {
+    implicit val o: Origin = floatOrigin
+    val new_t = TRational[Post]()
+    val a_var = new Variable[Post](new_t)(floatOrigin.where(name = "a"))
+    val b_var = new Variable[Post](new_t)(floatOrigin.where(name = "b"))
+
+    val a = Local[Post](a_var.ref)
+    val b = Local[Post](b_var.ref)
+
     globalDeclarations.declare(
-      withResult((result: Result[Post]) =>
-        function[Post](
-          blame = AbstractApplicable,
-          contractBlame = TrueSatisfiable,
-          returnType = TRational(),
-        )(nonDetFloatOrigin.where(name = "nonDetFloat"))
-      )(nonDetFloatOrigin)
+      function[Post](
+        blame = AbstractApplicable,
+        contractBlame = TrueSatisfiable,
+        returnType = TRational(),
+        args = Seq(a_var, b_var),
+        body = Some(body(a, b)),
+      )(floatOrigin.where(name = name))
+    )
+  }
+
+  // Normally floats don't fail on division by zero, they get the `inf` value.
+  // Thus we use this function for division
+  def makeFloatDiv(): Function[Post] = {
+    val body =
+      (a: Expr[Post], b: Expr[Post]) => {
+        implicit val o: Origin = floatOrigin
+        // If we want to support NaN, this would look like the following:
+        // Select((b === z && a === z) || (isInf(b) && isInf(a)) || a === NaN || b === NaN, NaN,
+        // Anyway I think this complicates stuff atm, since you can never really check calculations anymore, since
+        // something could be NaN and then NaN keeps propagating. To properly do this we need an ADT for floats
+        // Strictly speaking we need 1/inf == 0, but if we add that here, you'd always have to say that a certain value
+        // is not inf. Even 5/1 does not work, since the prover thinks that 5 could be inf.
+
+        // +/-a/0=+/-inf (also if a is inf, see:
+        Select(b === z, Select(a > z, posInf, negInf), a /:/ b)
+      }
+
+    makeFloatOp(body, "floatDiv")
+  }
+
+  def makeSpecialFloat(name: String): Function[Post] = {
+    globalDeclarations.declare(
+      function[Post](
+        blame = AbstractApplicable,
+        contractBlame = TrueSatisfiable,
+        returnType = TRational(),
+      )(floatOrigin.where(name = name))
     )
   }
 
@@ -78,21 +145,29 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
           denominator = denominator * 10
         }
         const[Post](numerator.toBigIntExact.get) /:/ const(denominator)
+      /* We should define for all operators working on floats (+, -, *, /, <, >, <=, >= !=, ==) how they interact with
+       * inf and NaN. But we do not atm. This should be based on the IEEE754 standard
+       * However, C/C++ programs only work with this, when the hardware actually adheres to this standard.
+       * This can be checked with `#ifdef NAN`
+       * So it depends on the hardware we run on. This is something we should then implement as well
+       *
+       * This was the best reference I could find so far:
+       * https://www.gnu.org/software/libc/manual/html_node/Infinity-and-NaN.html
+       *
+       * To really properly address this I think float should be encoded in a ADT, and then we have separate values for
+       * quiet NaN, signaling NaN , +Inf, -Inf, -Zero and Value, were value contains a rational value
+       */
       case div @ FloatDiv(left, right) =>
-        // Normally floats don't fail on division by zero, they get the `inf` value. Rewriting this to not fail on division by zero.
         implicit val o: Origin = div.o
-        val newRight = dispatch(right)
-        Select(
-          newRight !== const[Post](0) /:/ const(1),
-          RatDiv(dispatch(left), newRight)(div.blame)(div.o),
-          getNonDetFloat(),
-        )(div.o)
-      case e => rewriteDefault(e)
+        getFloatDiv(dispatch(left), dispatch(right))
+      case FloatNaN(_) => NaN(expr.o)
+      case FloatInf(_) => posInf(expr.o)
+      case e => e.rewriteDefault()
     }
 
   override def dispatch(t: Type[Pre]): Type[Post] =
     t match {
       case TFloat(_, _) => TRational()(t.o)
-      case t => rewriteDefault(t)
+      case t => t.rewriteDefault()
     }
 }

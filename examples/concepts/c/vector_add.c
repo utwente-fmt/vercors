@@ -10,9 +10,9 @@
     context_everywhere a != NULL && \pointer_length(a) >= n;
     context_everywhere b != NULL && \pointer_length(b) >= n;
     context_everywhere c != NULL && \pointer_length(c) >= n;
-    context_everywhere (\forall* int i; 0<=i && i<n; Perm(&a[i], 1\2));
-    context_everywhere (\forall* int i; 0<=i && i<n; Perm(&b[i], 1\2));
-    context_everywhere (\forall* int i; 0<=i && i<n; Perm(&c[i], write));
+    context_everywhere (\forall* int i; 0<=i && i<n; Perm(a[i], 1\2));
+    context_everywhere (\forall* int i; 0<=i && i<n; Perm(b[i], 1\2));
+    context_everywhere (\forall* int i; 0<=i && i<n; Perm(c[i], write));
     ensures (\forall int j; 0 <= j && j<n; {:c[j]:} == a[j] + b[j]);
 @*/
 void vector_add(int *a, int *b, int *c, int n){
@@ -44,8 +44,8 @@ int main(){
     int b[4*100];
     /*@
         loop_invariant 0<=i && i<=4*100;
-        loop_invariant (\forall* int j; 0 <= j && j<4*100; Perm(&a[j],write));
-        loop_invariant (\forall* int j; 0 <= j && j<4*100; Perm(&b[j],write));
+        loop_invariant (\forall* int j; 0 <= j && j<4*100; Perm(a[j],write));
+        loop_invariant (\forall* int j; 0 <= j && j<4*100; Perm(b[j],write));
         loop_invariant (\forall int j; 0 <= j && j<i; a[j] == j);
         loop_invariant (\forall int j; 0 <= j && j<i; b[j] == 400-j);
     @*/
@@ -58,7 +58,7 @@ int main(){
     //@ assert((\forall int j; 0 <= j && j<4*100; c[j] == 400));
     /*@
         loop_invariant 0<=i && i<=4*100;
-        loop_invariant (\forall* int j; 0 <= j && j<4*100; Perm(&c[j],write));
+        loop_invariant (\forall* int j; 0 <= j && j<4*100; Perm(c[j],write));
         loop_invariant (\forall int j; 0 <= j && j<4*100; c[j] == 400);
     @*/
     for(int i=0; i<4*100; i++){

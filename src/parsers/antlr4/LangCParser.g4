@@ -32,7 +32,7 @@ import LangOMPParser, LangGPGPUParser;
 
 primaryExpression
     :   valExpr
-    |   clangIdentifier
+    |   {!isTypedefName($ctx)}? clangIdentifier
     |   Constant
     |   StringLiteral+
     |   '(' expression ')'
@@ -41,6 +41,8 @@ primaryExpression
     |   '__builtin_va_arg' '(' unaryExpression ',' typeName ')'
     |   '__builtin_offsetof' '(' typeName ',' unaryExpression ')'
     |   'NULL'
+    |   'vercorsNAN'
+    |   'vercorsINFINITY'
     ;
 
 annotatedPrimaryExpression
@@ -65,6 +67,7 @@ postfixExpression
     :   annotatedPrimaryExpression
     |   postfixExpression '[' expression ']'
     |   postfixExpression '(' argumentExpressionList? ')' valEmbedGiven? valEmbedYields?
+    |   valEmbedReveal postfixExpression '(' argumentExpressionList? ')' valEmbedGiven? valEmbedYields?
     |   postfixExpression '.' clangIdentifier
     |   postfixExpression '->' clangIdentifier
     |   postfixExpression '++'
@@ -87,14 +90,14 @@ argumentExpressionList
     ;
 
 unaryExpression
-    :   postfixExpression
-    |   '++' unaryExpression
+    :   '++' unaryExpression
     |   '--' unaryExpression
     |   unaryOperator castExpression
-    |   'sizeof' unaryExpression
     |   'sizeof' '(' typeName ')'
+    |   'sizeof' unaryExpression
     |   '_Alignof' '(' typeName ')'
     |   '&&'  clangIdentifier // GCC extension address of label
+    |   postfixExpression
     |   specPrefix unaryExpression
     ;
 
@@ -107,9 +110,9 @@ unaryOperator
     ;
 
 castExpression
-    :   unaryExpression
-    |   '(' typeName ')' castExpression
+    : {isTypedefName($ctx)}? '(' typeName ')' castExpression
     |   '__extension__' '(' typeName ')' castExpression
+    | unaryExpression
     ;
 
 prependExpression
@@ -224,7 +227,7 @@ constantExpression
     ;
 
 declaration
-    :   valEmbedContract? declarationSpecifiers initDeclaratorList? ';'
+    :   valEmbedContract? declarationSpecifiers initDeclaratorList? ';' {collectTypedef();}
     |   staticAssertDeclaration
     ;
 
@@ -355,6 +358,7 @@ typeQualifier
     |   'restrict'
     |   'volatile'
     |   '_Atomic'
+    |   valEmbedTypeQualifier
     ;
 
 functionSpecifier
@@ -474,7 +478,7 @@ directAbstractDeclarator
     ;
 
 typedefName
-    :   clangIdentifier
+    :  {isTypedefName($ctx)}? Identifier
     ;
 
 initializer
@@ -507,15 +511,15 @@ staticAssertDeclaration
     ;
 
 statement
-    :   labeledStatement
+    :   valEmbedStatementBlock
+    |   {specLevel>0}? valStatement
+    |   labeledStatement
     |   compoundStatement
     |   expressionStatement
     |   selectionStatement
     |   iterationStatement
     |   jumpStatement
     |   ('__asm' | '__asm__') ('volatile' | '__volatile__') '(' logicalOrExpressionList? logicalOrExpressionListColonList ')' ';'
-    |   valEmbedStatementBlock
-    |   {specLevel>0}? valStatement
     |   gpgpuBarrier
     |   gpgpuAtomicBlock
     ;

@@ -1,7 +1,7 @@
 package vct.col.typerules
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.util.FuncTools
+import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.ast.rewrite.BaseCoercingRewriter
 import vct.col.ast.`type`.typeclass.TFloats
@@ -53,6 +53,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
   import CoercingRewriter._
 
   type Post = Rewritten[Pre]
+  val resultType: ScopedStack[Type[Pre]] = ScopedStack()
 
   val coercedDeclaration: SuccessionMap[Declaration[Pre], Declaration[Pre]] =
     SuccessionMap()
@@ -263,11 +264,22 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceBoolResource() => e
       case CoerceResourceResourceVal() => e
       case CoerceResourceValResource() => e
+      case CoerceFromConst(_) => e
+      case CoerceToConst(_) => e
+      case CoerceFromUnique(_, _) => e
+      case CoerceToUnique(_, _) => e
+      case CoerceBetweenUnique(_, _, _) => e
       case CoerceBoundIntFrac() => e
       case CoerceBoundIntZFrac(_) => e
       case CoerceBoundIntFloat(_, _) => e
       case CoerceJoinUnion(_, _, _) => e
       case CoerceSelectUnion(inner, _, _, _) => applyCoercion(e, inner)
+
+      case CoerceFromUniquePointer(_, _) => e
+      case CoerceToUniquePointer(_, _) => e
+      case CoerceBetweenUniquePointer(_, _) => e
+      case CoerceBetweenUniqueStruct(_, _) => e
+      case CoerceBetweenUniqueClass(_, _) => e
 
       case CoerceSupports(_, _) => e
       case CoerceClassAnyClass(_, _) => e
@@ -283,6 +295,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceNullJavaClass(_) => e
       case CoerceNullAnyClass() => e
       case CoerceNullPointer(_) => e
+      case CoerceNonNullPointer(_) => e
       case CoerceFracZFrac() => e
       case CoerceZFracRat() => e
       case CoerceFloatRat(_) => e
@@ -301,8 +314,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceDecreasePrecision(_, _) => e
       case CoerceCFloatCInt(_) => e
       case CoerceCIntCFloat(_) => e
-      case CoerceCIntInt() => e
+      case CoerceCIntInt(_) => e
       case CoerceCFloatFloat(_, _) => e
+
+      case CoerceLLVMIntInt() => e
     }
   }
 
@@ -351,8 +366,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: BipGlueAccepts[Pre] => node
       case node: BipGlueDataWire[Pre] => node
       case node: BipTransitionSignature[Pre] => node
-      case node: LlvmFunctionContract[Pre] => node
-      case node: LlvmLoopContract[Pre] => node
+      case node: LLVMFunctionContract[Pre] => node
+      case node: LLVMMemoryOrdering[Pre] => node
       case node: ProverLanguage[Pre] => node
       case node: SmtlibFunctionSymbol[Pre] => node
       case node: ChorRun[Pre] => node
@@ -360,15 +375,23 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: EndpointName[Pre] => coerce(node)
       case node: ApplyAnyPredicate[Pre] => coerce(node)
       case node: FoldTarget[Pre] => coerce(node)
+      case node: LLVMFloatType[Pre] => node
     }
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
   def postCoerce(decl: Declaration[Pre]): Unit =
     allScopes.anySucceed(decl, decl.rewriteDefault())
   override final def dispatch(decl: Declaration[Pre]): Unit = {
-    val coercedDecl = coerce(preCoerce(decl))
-    coercedDeclaration(decl) = coercedDecl
-    postCoerce(coercedDecl)
+    def rewrite(): Unit = {
+      val coercedDecl = coerce(preCoerce(decl))
+      coercedDeclaration(decl) = coercedDecl
+      postCoerce(coercedDecl)
+    }
+    decl match {
+      case m: AbstractMethod[Pre] =>
+        resultType.having(m.returnType)({ rewrite() })
+      case _ => rewrite()
+    }
   }
 
   def coerce(node: Coercion[Pre]): Coercion[Pre] = {
@@ -540,7 +563,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"two-dimensional array")
     }
-  def pointer(e: Expr[Pre]): (Expr[Pre], TPointer[Pre]) =
+  def pointer(e: Expr[Pre]): (Expr[Pre], PointerType[Pre]) =
     CoercionUtils.getAnyPointerCoercion(e.t) match {
       case Some((coercion, t)) =>
         (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
@@ -721,6 +744,25 @@ abstract class CoercingRewriter[Pre <: Generation]()
     }
   }
 
+  def nonAny(
+      e: Expr[Pre],
+      left: Expr[Pre],
+      right: Expr[Pre],
+      cons: (Expr[Pre], Expr[Pre]) => Expr[Pre],
+  ): Expr[Pre] =
+    (left.t, right.t) match {
+      case (TAnyValue(), _) | (_, TAnyValue()) =>
+        cons(coerce(left, TAnyValue()), coerce(right, TAnyValue()))
+      case (lt, rt) =>
+        val sharedType = Types.leastCommonSuperType(lt, rt)
+        if (sharedType == TAnyValue[Pre]()) {
+          throw IncoercibleExplanation(
+            e,
+            "Coercion of the two operands of this operator yielded the `any` type, this is likely unintended and therefore disallowed. To use this operator with two differently-typed operands make sure one of the operands is already of the `any` type.",
+          )
+        } else { cons(coerce(left, sharedType), coerce(right, sharedType)) }
+    }
+
   override def postCoerce(e: Expr[Pre]): Expr[Post] =
     e match {
       case ApplyCoercion(e, coercion) =>
@@ -738,6 +780,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         ActionApply(action, coerceArgs(args, action.decl))
       case ActionPerm(loc, perm) => ActionPerm(loc, rat(perm))
       case AddrOf(e) => AddrOf(e)
+      case AddrOfConstCast(e) => AddrOfConstCast(e)
+      case AddrOfUniqueCast(e, unique) => AddrOfUniqueCast(e, unique)
       case ADTFunctionInvocation(typeArgs, ref, args) =>
         typeArgs match {
           case Some((adt, typeArgs)) =>
@@ -794,21 +838,16 @@ abstract class CoercingRewriter[Pre <: Generation]()
           vectorIntOp2(div, (l, r) => AmbiguousDiv(l, r)(div.blame)),
           vectorFloatOp2(div, (l, r) => AmbiguousDiv(l, r)(div.blame)),
         )
-      case AmbiguousEq(left, right, vectorInnerType) =>
-        val sharedType = Types.leastCommonSuperType(left.t, right.t)
-        AmbiguousEq(
-          coerce(left, sharedType),
-          coerce(right, sharedType),
-          vectorInnerType,
-        )
-      case g @ AmbiguousGreater(left, right) =>
+      case AmbiguousEq(left, right, vectorInnerType, elementSize) =>
+        nonAny(e, left, right, AmbiguousEq(_, _, vectorInnerType, elementSize))
+      case g @ AmbiguousGreater(left, right, elementSize) =>
         firstOk(
           e,
-          s"Expected both operands to be numeric, a set, or a bag, but got ${left
+          s"Expected both operands to be numeric, a set, a bag, or a pointer but got ${left
               .t} and ${right.t}.",
-          AmbiguousGreater(int(left), int(right)),
-          floatOp2(g, (l, r) => AmbiguousGreater(l, r)),
-          AmbiguousGreater(rat(left), rat(right)), {
+          AmbiguousGreater(int(left), int(right), elementSize),
+          floatOp2(g, (l, r) => AmbiguousGreater(l, r, elementSize)),
+          AmbiguousGreater(rat(left), rat(right), elementSize), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
             val sharedType = Types
@@ -816,6 +855,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
             AmbiguousGreater(
               coerce(coercedLeft, TSet(sharedType)),
               coerce(coercedRight, TSet(sharedType)),
+              elementSize,
             )
           }, {
             val (coercedLeft, leftBag) = bag(left)
@@ -825,17 +865,19 @@ abstract class CoercingRewriter[Pre <: Generation]()
             AmbiguousGreater(
               coerce(coercedLeft, TBag(sharedType)),
               coerce(coercedRight, TBag(sharedType)),
+              elementSize,
             )
           },
+          AmbiguousGreater(pointer(left)._1, pointer(right)._1, elementSize),
         )
-      case g @ AmbiguousGreaterEq(left, right) =>
+      case g @ AmbiguousGreaterEq(left, right, elementSize) =>
         firstOk(
           e,
-          s"Expected both operands to be numeric, a set, or a bag, but got ${left
+          s"Expected both operands to be numeric, a set, a bag, or a pointer but got ${left
               .t} and ${right.t}.",
-          AmbiguousGreaterEq(int(left), int(right)),
-          floatOp2(g, (l, r) => AmbiguousGreaterEq(l, r)),
-          AmbiguousGreaterEq(rat(left), rat(right)), {
+          AmbiguousGreaterEq(int(left), int(right), elementSize),
+          floatOp2(g, (l, r) => AmbiguousGreaterEq(l, r, elementSize)),
+          AmbiguousGreaterEq(rat(left), rat(right), elementSize), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
             val sharedType = Types
@@ -843,6 +885,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
             AmbiguousGreaterEq(
               coerce(coercedLeft, TSet(sharedType)),
               coerce(coercedRight, TSet(sharedType)),
+              elementSize,
             )
           }, {
             val (coercedLeft, leftBag) = bag(left)
@@ -852,17 +895,19 @@ abstract class CoercingRewriter[Pre <: Generation]()
             AmbiguousGreaterEq(
               coerce(coercedLeft, TBag(sharedType)),
               coerce(coercedRight, TBag(sharedType)),
+              elementSize,
             )
           },
+          AmbiguousGreaterEq(pointer(left)._1, pointer(right)._1, elementSize),
         )
-      case l @ AmbiguousLess(left, right) =>
+      case less @ AmbiguousLess(left, right, elementSize) =>
         firstOk(
           e,
-          s"Expected both operands to be numeric, a set, or a bag, but got ${left
+          s"Expected both operands to be numeric, a set, a bag, or a pointer but got ${left
               .t} and ${right.t}.",
-          AmbiguousLess(int(left), int(right)),
-          floatOp2(l, (l, r) => AmbiguousLess(l, r)),
-          AmbiguousLess(rat(left), rat(right)), {
+          AmbiguousLess(int(left), int(right), elementSize),
+          floatOp2(less, (l, r) => AmbiguousLess(l, r, elementSize)),
+          AmbiguousLess(rat(left), rat(right), elementSize), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
             val sharedType = Types
@@ -870,6 +915,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
             AmbiguousLess(
               coerce(coercedLeft, TSet(sharedType)),
               coerce(coercedRight, TSet(sharedType)),
+              elementSize,
             )
           }, {
             val (coercedLeft, leftBag) = bag(left)
@@ -879,17 +925,19 @@ abstract class CoercingRewriter[Pre <: Generation]()
             AmbiguousLess(
               coerce(coercedLeft, TBag(sharedType)),
               coerce(coercedRight, TBag(sharedType)),
+              elementSize,
             )
           },
+          AmbiguousLess(pointer(left)._1, pointer(right)._1, elementSize),
         )
-      case l @ AmbiguousLessEq(left, right) =>
+      case less @ AmbiguousLessEq(left, right, elementSize) =>
         firstOk(
           e,
-          s"Expected both operands to be numeric, a set, or a bag, but got ${left
+          s"Expected both operands to be numeric, a set, a bag, or a pointer but got ${left
               .t} and ${right.t}.",
-          AmbiguousLessEq(int(left), int(right)),
-          floatOp2(l, (l, r) => AmbiguousLessEq(l, r)),
-          AmbiguousLessEq(rat(left), rat(right)), {
+          AmbiguousLessEq(int(left), int(right), elementSize),
+          floatOp2(less, (l, r) => AmbiguousLessEq(l, r, elementSize)),
+          AmbiguousLessEq(rat(left), rat(right), elementSize), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
             val sharedType = Types
@@ -897,6 +945,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
             AmbiguousLessEq(
               coerce(coercedLeft, TSet(sharedType)),
               coerce(coercedRight, TSet(sharedType)),
+              elementSize,
             )
           }, {
             val (coercedLeft, leftBag) = bag(left)
@@ -906,8 +955,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
             AmbiguousLessEq(
               coerce(coercedLeft, TBag(sharedType)),
               coerce(coercedRight, TBag(sharedType)),
+              elementSize,
             )
           },
+          AmbiguousLessEq(pointer(left)._1, pointer(right)._1, elementSize),
         )
       case minus @ AmbiguousMinus(left, right) =>
         firstOk(
@@ -1004,13 +1055,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
             )
           },
         )
-      case AmbiguousNeq(left, right, vectorInnerType) =>
-        val sharedType = Types.leastCommonSuperType(left.t, right.t)
-        AmbiguousNeq(
-          coerce(left, sharedType),
-          coerce(right, sharedType),
-          vectorInnerType,
-        )
+      case AmbiguousNeq(left, right, vectorInnerType, elementSize) =>
+        nonAny(e, left, right, AmbiguousNeq(_, _, vectorInnerType, elementSize))
       case AmbiguousOr(left, right) =>
         firstOk(
           e,
@@ -1156,14 +1202,27 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case bgi @ BipGuardInvocation(obj, ref) =>
         BipGuardInvocation(cls(obj), ref)
-      case BitAnd(left, right) => BitAnd(int(left), int(right))
-      case BitNot(arg) => BitNot(int(arg))
-      case BitOr(left, right) => BitOr(int(left), int(right))
-      case BitShl(left, right) => BitShl(int(left), int(right))
-      case BitShr(left, right) => BitShr(int(left), int(right))
-      case BitUShr(left, right) => BitUShr(int(left), int(right))
-      case BitXor(left, right) => BitXor(int(left), int(right))
+      case op @ BitAnd(left, right, bits, signed) =>
+        BitAnd(int(left), int(right), bits, signed)(op.blame)
+      case op @ BitNot(arg, bits, signed) =>
+        BitNot(int(arg), bits, signed)(op.blame)
+      case op @ BitOr(left, right, bits, signed) =>
+        BitOr(int(left), int(right), bits, signed)(op.blame)
+      case op @ BitShl(left, right, bits, signed) =>
+        BitShl(int(left), int(right), bits, signed)(op.blame)
+      case op @ AmbiguousBitShr(left, right) =>
+        AmbiguousBitShr(int(left), int(right))(op.blame)
+      case op @ BitShr(left, right, bits) =>
+        BitShr(int(left), int(right), bits)(op.blame)
+      case op @ BitUShr(left, right, bits, signed) =>
+        BitUShr(int(left), int(right), bits, signed)(op.blame)
+      case op @ BitXor(left, right, bits, signed) =>
+        BitXor(int(left), int(right), bits, signed)(op.blame)
       case Cast(value, typeValue) => Cast(value, typeValue)
+      case PointerCast(value, typeValue, fromSize, toSize) =>
+        PointerCast(value, typeValue, fromSize, toSize)
+      case IntegerPointerCast(value, typeValue, elementSize) =>
+        IntegerPointerCast(value, typeValue, elementSize)
       case CastFloat(e, t) =>
         firstOk(
           e,
@@ -1173,12 +1232,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case CCast(e, t) => CCast(e, t)
       case c @ CharValue(_) => c
-      case inv @ CInvocation(applicable, args, givenArgs, yields) =>
-        CInvocation(applicable, args, givenArgs, yields)(inv.blame)
+      case inv @ CInvocation(applicable, args, givenArgs, yields, reveal) =>
+        CInvocation(applicable, args, givenArgs, yields, reveal)(inv.blame)
       case choose @ Choose(xs) => Choose(set(xs)._1)(choose.blame)
       case choose @ ChooseFresh(xs) => ChooseFresh(set(xs)._1)(choose.blame)
-      case p @ ChorPerm(endpoint, loc, perm) =>
-        ChorPerm(endpoint, loc, rat(perm))
       case CLiteralArray(exprs) => CLiteralArray(exprs)
       case CLocal(name) => e
       case c @ Committed(obj) => Committed(cls(obj))(c.blame)
@@ -1251,9 +1308,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Empty(obj) => Empty(sized(obj)._1)
       case EmptyProcess() => EmptyProcess()
       case use @ EnumUse(enum, const) => use
-      case Eq(left, right) =>
-        val sharedType = Types.leastCommonSuperType(left.t, right.t)
-        Eq(coerce(left, sharedType), coerce(right, sharedType))
+      case Eq(left, right) => nonAny(e, left, right, Eq(_, _))
       case EitherLeft(e) => EitherLeft(e)
       case EitherRight(e) => EitherRight(e)
       case EndpointName(ref) => EndpointName(ref)
@@ -1276,7 +1331,14 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case ForPerm(bindings, loc, body) => ForPerm(bindings, loc, bool(body))
       case ForPermWithValue(binding, body) =>
         ForPermWithValue(binding, bool(body))
-      case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
+      case inv @ FunctionInvocation(
+            ref,
+            args,
+            typeArgs,
+            givenMap,
+            yields,
+            reveal,
+          ) =>
         arity(
           FunctionInvocation(
             ref,
@@ -1284,6 +1346,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
             typeArgs,
             coerceGiven(givenMap, canCDemote = true),
             coerceYields(yields, inv),
+            reveal,
           )(inv.blame)
         )
       case get @ GetLeft(e) => GetLeft(either(e)._1)(get.blame)
@@ -1406,6 +1469,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case LiteralTuple(ts, values) =>
         LiteralTuple(ts, values.zip(ts).map { case (v, t) => coerce(v, t) })
       case Local(ref) => Local(ref)
+      case HeapLocal(ref) => HeapLocal(ref)
       case LocalThreadId() => LocalThreadId()
       case MapCons(m, k, v) =>
         val (coercedMap, mapType) = map(m)
@@ -1547,14 +1611,19 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case NdLength(dimensions) => NdLength(dimensions.map(int))
       case NdPartialIndex(indices, linearIndex, dimensions) =>
         NdPartialIndex(indices.map(int), int(linearIndex), dimensions.map(int))
-      case Neq(left, right) =>
-        val sharedType = Types.leastCommonSuperType(left.t, right.t)
-        Neq(coerce(left, sharedType), coerce(right, sharedType))
+      case Neq(left, right) => nonAny(e, left, right, Neq(_, _))
       case na @ NewArray(element, dims, moreDims, initialize) =>
         NewArray(element, dims.map(int), moreDims, initialize)(na.blame)
-      case na @ NewPointerArray(element, size, fallible) =>
-        NewPointerArray(element, size, fallible)(na.blame)
+      case na @ NewPointerArray(element, size, unique) =>
+        NewPointerArray(element, size, unique)(na.blame)
+      case nca @ NewConstPointerArray(element, size) =>
+        NewConstPointerArray(element, size)(nca.blame)
+      case na @ NewNonNullPointerArray(element, size, unique) =>
+        NewNonNullPointerArray(element, size, unique)(na.blame)
+      case nca @ NewNonNullConstPointerArray(element, size) =>
+        NewNonNullConstPointerArray(element, size)(nca.blame)
       case NewObject(cls) => NewObject(cls)
+      case NewObjectUnique(cls, m) => NewObjectUnique(cls, m)
       case NoPerm() => NoPerm()
       case Not(arg) => Not(bool(arg))
       case Null() => Null()
@@ -1597,6 +1666,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case add @ PointerAdd(p, offset) =>
         PointerAdd(pointer(p)._1, int(offset))(add.blame)
+      case to @ PointerToAdt(p, t) => PointerToAdt(pointer(p)._1, t)(to.blame)
+      case blck @ PointerBlock(p) => PointerBlock(pointer(p)._1)(blck.blame)
+      case addr @ PointerAddress(p, elementSize) =>
+        PointerAddress(pointer(p)._1, elementSize)(addr.blame)
       case len @ PointerBlockLength(p) =>
         PointerBlockLength(pointer(p)._1)(len.blame)
       case off @ PointerBlockOffset(p) =>
@@ -1604,6 +1677,18 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case len @ PointerLength(p) => PointerLength(pointer(p)._1)(len.blame)
       case get @ PointerSubscript(p, index) =>
         PointerSubscript(pointer(p)._1, int(index))(get.blame)
+      case PointerEq(l, r, elementSize) =>
+        PointerEq(pointer(l)._1, pointer(r)._1, elementSize)
+      case PointerNeq(l, r, elementSize) =>
+        PointerNeq(pointer(l)._1, pointer(r)._1, elementSize)
+      case PointerGreater(l, r, elementSize) =>
+        PointerGreater(pointer(l)._1, pointer(r)._1, elementSize)
+      case PointerLess(l, r, elementSize) =>
+        PointerLess(pointer(l)._1, pointer(r)._1, elementSize)
+      case PointerGreaterEq(l, r, elementSize) =>
+        PointerGreaterEq(pointer(l)._1, pointer(r)._1, elementSize)
+      case PointerLessEq(l, r, elementSize) =>
+        PointerLessEq(pointer(l)._1, pointer(r)._1, elementSize)
       case PointsTo(loc, perm, value) =>
         PointsTo(loc, rat(perm), coerce(value, loc.t))
       case PolarityDependent(onInhale, onExhale) =>
@@ -1625,6 +1710,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
             typeArgs,
             givenMap,
             yields,
+            reveal,
           ) =>
         arity(
           ProcedureInvocation(
@@ -1634,17 +1720,18 @@ abstract class CoercingRewriter[Pre <: Generation]()
             typeArgs,
             coerceGiven(givenMap, canCDemote = true),
             coerceYields(yields, inv),
+            reveal,
           )(inv.blame)
         )
-      case inv @ LlvmFunctionInvocation(ref, args, givenMap, yields) =>
-        LlvmFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
-      case inv @ LlvmAmbiguousFunctionInvocation(
+      case inv @ LLVMFunctionInvocation(ref, args, givenMap, yields) =>
+        LLVMFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
+      case inv @ LLVMAmbiguousFunctionInvocation(
             name,
             args,
             givenMap,
             yields,
           ) =>
-        LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields)(inv.blame)
+        LLVMAmbiguousFunctionInvocation(name, args, givenMap, yields)(inv.blame)
       case ProcessApply(process, args) =>
         ProcessApply(process, coerceArgs(args, process.decl))
       case ProcessChoice(left, right) =>
@@ -1660,7 +1747,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case p @ PVLChorPerm(endpoint, loc, perm) =>
         PVLChorPerm(endpoint, loc, rat(perm))
       case PVLDeref(obj, field) => e
-      case PVLInvocation(obj, method, args, typeArgs, givenArgs, yields) => e
+      case PVLInvocation(obj, method, args, typeArgs, givenArgs, yields, _) => e
       case PVLLocal(name) => e
       case PVLNew(t, typeArgs, args, givenMap, yields) => e
       case Range(from, to) => Range(int(from), int(to))
@@ -1768,6 +1855,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case SmtlibBvUDiv(left, right) => bitvec2(left, right, SmtlibBvUDiv(_, _))
       case SmtlibBvULt(left, right) => bitvec2(left, right, SmtlibBvULt(_, _))
       case SmtlibBvURem(left, right) => bitvec2(left, right, SmtlibBvURem(_, _))
+      case SmtlibBv2Nat(expr) => SmtlibBv2Nat(bitvec(expr)._1)
+      case SmtlibInt2Bv(expr, size) => SmtlibInt2Bv(int(expr), size)
       case SmtlibConcat(left, right) => bitvec2(left, right, SmtlibConcat(_, _))
       case SmtlibExtract(inclusiveEndIndexFromRight, startIndexFromRight, bv) =>
         SmtlibExtract(
@@ -1970,7 +2059,11 @@ abstract class CoercingRewriter[Pre <: Generation]()
           UMinus(float(arg)),
           UMinus(rat(arg)),
         )
+      case u: UniquePointerCoercion[Pre] => u
       case u @ Unfolding(pred, body) => Unfolding(pred, body)(u.blame)
+      case a @ Asserting(condition, body) =>
+        Asserting(res(condition), body)(a.blame)
+      case Assuming(assn, inner) => Assuming(bool(assn), inner)
       case UntypedLiteralBag(values) =>
         val sharedType = Types.leastCommonSuperType(values.map(_.t))
         UntypedLiteralBag(values.map(coerce(_, sharedType)))
@@ -1987,6 +2080,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case value: CIntegerValue[Pre] => e
       case value: IntegerValue[Pre] => e
       case value: FloatValue[Pre] => e
+      case value: FloatNaN[Pre] => e
+      case value: FloatInf[Pre] => e
       case value @ Value(loc) => Value(loc)
       case value @ AutoValue(loc) => value
       case values @ Values(arr, from, to) =>
@@ -2065,6 +2160,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Z3BvSShr(left, right) => bitvec2(left, right, Z3BvSShr(_, _))
       case Z3BvSub(left, right) => bitvec2(left, right, Z3BvSub(_, _))
       case Z3BvXnor(left, right) => bitvec2(left, right, Z3BvXnor(_, _))
+      case Z3BvXor(left, right) => bitvec2(left, right, Z3BvXor(_, _))
+      case Z3BvSLt(left, right) => bitvec2(left, right, Z3BvSLt(_, _))
       case Z3SeqAt(seq, offset) => Z3SeqAt(z3seq(seq)._1, int(offset))
       case Z3SeqConcat(left, right) =>
         Z3SeqConcat(z3seq(left)._1, z3seq(right)._1)
@@ -2115,15 +2212,51 @@ abstract class CoercingRewriter[Pre <: Generation]()
         Z3TransitiveClosure(ref, coerceArgs(args, ref.ref.decl))
       case localIncoming: BipLocalIncomingData[Pre] => localIncoming
       case glue: JavaBipGlue[Pre] => glue
-      case LlvmLocal(name) => e
       case PVLSender() => e
       case PVLReceiver() => e
       case PVLMessage() => e
       case Sender(_) => e
       case Receiver(_) => e
       case Message(_) => e
-      case PVLEndpointExpr(endpoint, expr) => e
-      case EndpointExpr(ref, expr) => EndpointExpr(ref, res(expr))
+      case LLVMLocal(_) => e
+      case LLVMGetElementPointer(structureType, resultType, pointer, indices) =>
+        LLVMGetElementPointer(structureType, resultType, pointer, indices)
+      case LLVMSignExtend(inputType, outputType, value) =>
+        LLVMSignExtend(inputType, outputType, coerce(value, inputType))
+      case LLVMZeroExtend(inputType, outputType, value) =>
+        LLVMZeroExtend(inputType, outputType, coerce(value, inputType))
+      case LLVMTruncate(inputType, outputType, value) =>
+        LLVMTruncate(inputType, outputType, coerce(value, inputType))
+      case LLVMFloatExtend(inputType, outputType, value) =>
+        LLVMFloatExtend(inputType, outputType, coerce(value, inputType))
+      case LLVMIntegerValue(_, _) => e
+      case LLVMFloatValue(_, _) => e
+      case LLVMPointerValue(_) => e
+      case LLVMFunctionPointerValue(_) => e
+      case LLVMStructValue(_, _) => e
+      case LLVMArrayValue(_, _) => e
+      case LLVMRawArrayValue(_, _) => e
+      case LLVMVectorValue(_, _) => e
+      case LLVMRawVectorValue(_, _) => e
+      case LLVMZeroedAggregateValue(_) => e
+      case LLVMResult(_) => e
+      case LLVMIntermediaryResult(_, _) => e
+      case LLVMPerm(_, _) => e
+      case LLVMPtrBlockLength(_) => e
+      case LLVMPtrBlockOffset(_) => e
+      case LLVMPtrLength(_) => e
+      case LLVMImplies(_, _) => e
+      case LLVMAnd(_, _) => e
+      case LLVMOr(_, _) => e
+      case LLVMStar(_, _) => e
+      case LLVMOld(_) => e
+      case LLVMBoundVar(_, _) => e
+      case LLVMForall(_, _) => e
+      case LLVMSepForall(_, _) => e
+      case LLVMExists(_, _) => e
+      case LLVMExtractValue(_, _, _, _) => e
+      case PVLEndpointExpr(_, _) => e
+      case EndpointExpr(ref, expr) => e
       case ChorExpr(expr) => ChorExpr(bool(expr))
     }
   }
@@ -2133,13 +2266,11 @@ abstract class CoercingRewriter[Pre <: Generation]()
     stat match {
       case a @ Assert(assn) => Assert(res(assn))(a.blame)
       case a @ Assign(target, value) =>
-        try {
-          Assign(target, coerce(value, target.t, canCDemote = true))(a.blame)
-        } catch {
-          case err: Incoercible =>
-            println(err.text)
-            throw err
-        }
+        Assign(target, coerce(value, target.t, canCDemote = true))(a.blame)
+      case a @ AssignInitial(target, value) =>
+        AssignInitial(target, coerce(value, target.t, canCDemote = true))(
+          a.blame
+        )
       case Assume(assn) => Assume(bool(assn))
       case Block(statements) => Block(statements)
       case Branch(branches) =>
@@ -2178,7 +2309,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
             givenMap,
             yields,
           ) =>
-        val cls = TClass(ref.decl.cls, classTypeArgs)
         InvokeConstructor(
           ref,
           classTypeArgs,
@@ -2228,11 +2358,23 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case j @ Join(obj) => Join(cls(obj))(j.blame)
       case Label(decl, stat) => Label(decl, stat)
       case LocalDecl(local) => LocalDecl(local)
+      case HeapLocalDecl(local) => HeapLocalDecl(local)
       case l @ Lock(obj) => Lock(cls(obj))(l.blame)
       case Loop(init, cond, update, contract, body) =>
         Loop(init, bool(cond), update, contract, body)
-      case LlvmLoop(cond, contract, body) =>
-        LlvmLoop(bool(cond), contract, body)
+      case block: LLVMBasicBlock[Pre] => block
+      case LLVMAllocA(variable, allocationType, numElements) =>
+        LLVMAllocA(variable, allocationType, int(numElements))
+      case load @ LLVMLoad(variable, loadType, p, ordering) =>
+        LLVMLoad(variable, loadType, p, ordering)(load.blame)
+      case store @ LLVMStore(value, p, ordering) =>
+        LLVMStore(value, p, ordering)(store.blame)
+      case fracOf: LLVMFracOf[Pre] => fracOf
+      case unreachable: LLVMBranchUnreachable[Pre] => unreachable
+      case add: LLVMAddWithOverflow[Pre] => add
+      case sub: LLVMSubWithOverflow[Pre] => sub
+      case mult: LLVMMultWithOverflow[Pre] => mult
+      case memset: LLVMMemset[Pre] => memset
       case ModelDo(model, perm, after, action, impl) =>
         ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)
@@ -2246,7 +2388,11 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Recv(ref) => Recv(ref)
       case r @ Refute(assn) => Refute(res(assn))(r.blame)
       case Return(result) =>
-        Return(result) // TODO coerce return, make AmbiguousReturn?
+        if (resultType.nonEmpty) {
+          Return(
+            coerce(result, resultType.top)
+          ) // TODO coerce return, make AmbiguousReturn?
+        } else { Return(result) }
       case Scope(locals, body) => Scope(locals, body)
       case send @ Send(decl, offset, resource) =>
         Send(decl, offset, res(resource))(send.blame)
@@ -2295,17 +2441,22 @@ abstract class CoercingRewriter[Pre <: Generation]()
         new CTranslationUnit(unit.declarations)
       case unit: CPPTranslationUnit[Pre] =>
         new CPPTranslationUnit(unit.declarations)
-      case variable: HeapVariable[Pre] => new HeapVariable(variable.t)
+      case variable: HeapVariable[Pre] =>
+        new HeapVariable(
+          variable.t,
+          variable.init.map(i => coerce(i, variable.t)),
+        )
       case rule: SimplificationRule[Pre] =>
         new SimplificationRule[Pre](bool(rule.axiom))
       case dataType: AxiomaticDataType[Pre] => dataType
-      case clazz: Class[Pre] =>
-        new Class[Pre](
+      case clazz: ByReferenceClass[Pre] =>
+        new ByReferenceClass[Pre](
           clazz.typeArgs,
           clazz.decls,
           clazz.supports,
           res(clazz.intrinsicLockInvariant),
         )
+      case clazz: ByValueClass[Pre] => clazz
       case enum: Enum[Pre] => enum
       case enumConstant: EnumConstant[Pre] => enumConstant
       case model: Model[Pre] => model
@@ -2316,8 +2467,9 @@ abstract class CoercingRewriter[Pre <: Generation]()
           function.typeArgs,
           function.body.map(coerce(_, function.returnType)),
           function.contract,
-          function.inline,
-          function.threadLocal,
+          inline = function.inline,
+          threadLocal = function.threadLocal,
+          opaque = function.opaque,
         )(function.blame)
       case procedure: Procedure[Pre] => procedure
       case main_method: VeSUVMainMethod[Pre] => main_method
@@ -2424,6 +2576,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case axiom: ADTAxiom[Pre] => new ADTAxiom[Pre](bool(axiom.axiom))
       case function: ADTFunction[Pre] => function
       case variable: Variable[Pre] => variable
+      case variable: LocalHeapVariable[Pre] => variable
       case decl: LabelDecl[Pre] => decl
       case decl: SendDecl[Pre] => decl
       case decl: ParBlockDecl[Pre] => decl
@@ -2483,11 +2636,11 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case glue: BipGlue[Pre] => glue
       case synchronization: BipPortSynchronization[Pre] => synchronization
       case synchronization: BipTransitionSynchronization[Pre] => synchronization
-      case definition: LlvmFunctionDefinition[Pre] => definition
+      case definition: LLVMFunctionDefinition[Pre] => definition
       case typ: ProverType[Pre] => typ
       case func: ProverFunction[Pre] => func
-      case function: LlvmSpecFunction[Pre] =>
-        new LlvmSpecFunction[Pre](
+      case function: LLVMSpecFunction[Pre] =>
+        new LLVMSpecFunction[Pre](
           function.name,
           function.returnType,
           function.args,
@@ -2497,7 +2650,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
           function.inline,
           function.threadLocal,
         )(function.blame)
-      case glob: LlvmGlobal[Pre] => glob
+      case glob: LLVMGlobalSpecification[Pre] => glob
+      case glob: LLVMGlobalVariable[Pre] => glob
       case endpoint: PVLEndpoint[Pre] => endpoint
       case seqProg: PVLChoreography[Pre] => seqProg
       case seqRun: PVLChorRun[Pre] => seqRun
@@ -2570,7 +2724,9 @@ abstract class CoercingRewriter[Pre <: Generation]()
   // PB: types may very well contain expressions eventually, but for now they don't.
   def coerce(node: Type[Pre]): Type[Pre] =
     node match {
-      case t @ TClass(cls, args) => arity(TClass(cls, args))
+      case t @ TByReferenceClass(cls, args) =>
+        arity(TByReferenceClass(cls, args))
+      case t @ TByValueClass(cls, args) => arity(TByValueClass(cls, args))
       case _ => node
     }
 
@@ -2583,6 +2739,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         IterationContract(res(requires), res(ensures), res(context_everywhere))(
           ic.blame
         )
+      case lc @ LLVMLoopContract(invariant) =>
+        LLVMLoopContract(res(invariant))(lc.blame)
     }
   }
 
@@ -2649,7 +2807,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
 
   def coerce(node: FieldFlag[Pre]): FieldFlag[Pre] = {
     implicit val o: Origin = node.o
-    node match { case value: Final[_] => value }
+    node match {
+      case value: Final[_] => value
+      case value: Unique[_] => value
+    }
   }
 
   def coerce(node: Location[Pre]): Location[Pre] = {
@@ -2664,6 +2825,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         ArrayLocation(array(arrayObj)._1, int(subscript))(a.blame)
       case p @ PointerLocation(pointerExp) =>
         PointerLocation(pointer(pointerExp)._1)(p.blame)
+      case ByValueClassLocation(expr) => node
       case PredicateLocation(inv) => PredicateLocation(inv)
       case al @ AmbiguousLocation(expr) => AmbiguousLocation(expr)(al.blame)
       case patLoc @ InLinePatternLocation(loc, pat) =>
@@ -2674,6 +2836,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Pre] = {
     implicit val o: Origin = node.o
     node match {
+      case COpaque() => COpaque()
       case CPure() => CPure()
       case CInline() => CInline()
       case CTypedef() => CTypedef()
@@ -2923,8 +3086,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Pre] = node
   def coerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Pre] = node
 
-  def coerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Pre] = node
-  def coerce(node: LlvmLoopContract[Pre]): LlvmLoopContract[Pre] = node
+  def coerce(node: LLVMFunctionContract[Pre]): LLVMFunctionContract[Pre] = node
+  def coerce(node: LLVMLoop[Pre]): LLVMLoop[Pre] = node
+  def coerce(node: LLVMMemoryOrdering[Pre]): LLVMMemoryOrdering[Pre] = node
+  def coerce(node: LLVMFloatType[Pre]): LLVMFloatType[Pre] = node
 
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node
   def coerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node

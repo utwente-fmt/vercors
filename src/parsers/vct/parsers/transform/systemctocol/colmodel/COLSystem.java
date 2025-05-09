@@ -59,7 +59,7 @@ public class COLSystem<T> {
     /** Constant empty list of signals clauses */
     public final List<SignalsClause<T>> NO_SIGNALS;
     /** Constant empty list of class references */
-    public final List<Ref<T, Class<T>>> NO_CLS_REFS;
+    public final List<Ref<T, ByReferenceClass<T>>> NO_CLS_REFS;
     /** Constant empty list of mappings from variable references to expressions */
     public final List<Tuple2<Ref<T, Variable<T>>, Expr<T>>> NO_GIVEN;
     /** Constant empty list of mappings from expressions to variable references */
@@ -312,7 +312,7 @@ public class COLSystem<T> {
     /**
      * The Main class of the COL encoding.
      */
-    private Class<T> main;
+    private ByReferenceClass<T> main;
 
     /**
      * The scheduler method in the Main class.
@@ -373,7 +373,7 @@ public class COLSystem<T> {
     /**
      * A map from the intermediate representation of an intermediate representation class to its encoding in COL.
      */
-    private final java.util.Map<COLClass, Class<T>> col_class_translation;
+    private final java.util.Map<COLClass, ByReferenceClass<T>> col_class_translation;
 
     /**
      * A map from SystemC class instances to the state class that is generated for them. Since each SystemC instance can
@@ -536,7 +536,7 @@ public class COLSystem<T> {
         this.NO_TYPES = List.from(CollectionConverters.asScala(no_types));
         java.util.List<SignalsClause<T>> no_signals = java.util.List.of();
         this.NO_SIGNALS = List.from(CollectionConverters.asScala(no_signals));
-        java.util.List<Ref<T, Class<T>>> no_cls_refs = java.util.List.of();
+        java.util.List<Ref<T, ByReferenceClass<T>>> no_cls_refs = java.util.List.of();
         this.NO_CLS_REFS = List.from(CollectionConverters.asScala(no_cls_refs));
         java.util.List<Tuple2<Ref<T, Variable<T>>, Expr<T>>> no_given = java.util.List.of();
         this.NO_GIVEN = List.from(CollectionConverters.asScala(no_given));
@@ -563,7 +563,7 @@ public class COLSystem<T> {
         java.util.List<Statement<T>> body = new java.util.ArrayList<>();
 
         // Create variable of Main class
-        TClass<T> main_type = new TClass<>(new DirectRef<>(main, ClassTag$.MODULE$.apply(Class.class)), Seqs.empty(), OriGen.create());
+        TByReferenceClass<T> main_type = new TByReferenceClass<>(new DirectRef<>(main, ClassTag$.MODULE$.apply(Class.class)), Seqs.empty(), OriGen.create());
         Variable<T> var = new Variable<>(main_type, OriGen.create("design"));
 
         // Constructor call
@@ -602,7 +602,7 @@ public class COLSystem<T> {
      *
      * @param main_cls Main class
      */
-    public void set_main(Class<T> main_cls) {
+    public void set_main(ByReferenceClass<T> main_cls) {
         this.main = main_cls;
     }
 
@@ -612,7 +612,7 @@ public class COLSystem<T> {
      *
      * @return Main class of the encoded system
      */
-    public Class<T> get_main() {
+    public ByReferenceClass<T> get_main() {
         return main;
     }
 
@@ -831,7 +831,7 @@ public class COLSystem<T> {
      * @param col_class Intermediate representation class
      * @param translation Finalized COL class object
      */
-    public void add_col_class_translation(COLClass col_class, Class<T> translation) {
+    public void add_col_class_translation(COLClass col_class, ByReferenceClass<T> translation) {
         this.col_class_translation.put(col_class, translation);
     }
 
@@ -841,7 +841,7 @@ public class COLSystem<T> {
      * @param col_class Intermediate representation class
      * @return Finalized COL class object
      */
-    public Class<T> get_col_class_translation(COLClass col_class) {
+    public ByReferenceClass<T> get_col_class_translation(COLClass col_class) {
         return this.col_class_translation.get(col_class);
     }
 

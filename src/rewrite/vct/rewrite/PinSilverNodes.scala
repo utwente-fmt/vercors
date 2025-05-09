@@ -29,7 +29,9 @@ case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
               dispatch(value),
             )(assn.blame)(stat.o)
           case other =>
-            throw Unreachable("Invalid assignment target (check missing?)")
+            throw Unreachable(
+              s"Invalid assignment target (check missing?): $other"
+            )
         }
       case other => rewriteDefault(other)
     }

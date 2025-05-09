@@ -82,7 +82,7 @@ case class GenerateSingleOwnerPermissions[Pre <: Generation](
           ),
         )
 
-      case cls: Class[Pre] if enabled =>
+      case cls: ByReferenceClass[Pre] if enabled =>
         currentPerm.having(classPerm(cls)) { cls.rewriteDefault().succeed(cls) }
 
       case fun: InstanceFunction[Pre] if enabled =>
@@ -238,8 +238,8 @@ case class GenerateSingleOwnerPermissions[Pre <: Generation](
   def resultPerm(app: ContractApplicable[Pre])(implicit o: Origin): Expr[Post] =
     transitivePerm(Result[Post](anySucc(app)), app.returnType)
 
-  def classPerm(cls: Class[Pre]): Expr[Post] =
-    transitivePerm(ThisObject[Post](succ(cls))(cls.o), TClass(cls.ref, Seq()))(
+  def classPerm(cls: ByReferenceClass[Pre]): Expr[Post] =
+    transitivePerm(ThisObject[Post](succ(cls))(cls.o), cls.classType(Seq()))(
       cls.o
     )
 
@@ -287,13 +287,13 @@ case class GenerateSingleOwnerPermissions[Pre <: Generation](
                 u,
               )),
         )
-      case TClass(Ref(cls), _) if !generatingClasses.contains(cls) =>
+      case TByReferenceClass(Ref(cls), _) if !generatingClasses.contains(cls) =>
         generatingClasses.having(cls) {
           foldStar(cls.collect { case f: InstanceField[Pre] =>
             fieldTransitivePerm(e, f)(f.o)
           })
         }
-      case TClass(Ref(cls), _) =>
+      case TByReferenceClass(Ref(cls), _) =>
         // The class we are generating permission for has already been encountered when going through the chain
         // of fields. So we cut off the computation
         if (!warnedClasses.contains(cls)) {
@@ -311,7 +311,7 @@ case class GenerateSingleOwnerPermissions[Pre <: Generation](
   ): Expr[Post] = {
     val left = fieldPerm[Post](`this`, succ(f), WritePerm())
     f.t match {
-      case _: TClass[Pre] | _: TArray[Pre] =>
+      case _: TByReferenceClass[Pre] | _: TArray[Pre] =>
         left &* transitivePerm(
           Deref[Post](`this`, succ(f))(PanicBlame(
             "Permission for this field is already established"

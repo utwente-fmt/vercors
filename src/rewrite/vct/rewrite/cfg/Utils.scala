@@ -58,6 +58,7 @@ object Utils {
             typeArgs,
             givenMap,
             yields,
+            _,
           ) =>
         Seq(
           InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields)(
@@ -115,7 +116,11 @@ object Utils {
     }
 
   private def get_out_variable[G](cls: Ref[G, Class[G]], o: Origin): Local[G] =
-    Local(new DirectRef[G, Variable[G]](new Variable(TClass(cls, Seq()))(o)))(o)
+    Local(
+      new DirectRef[G, Variable[G]](new Variable(TByReferenceClass(cls, Seq()))(
+        o
+      ))
+    )(o)
 
   def find_all_cases[G](
       body: Statement[G],

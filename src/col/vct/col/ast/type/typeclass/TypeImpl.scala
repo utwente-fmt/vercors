@@ -4,13 +4,17 @@ import vct.col.ast._
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.ref.Ref
 import vct.col.rewrite.NonLatchingRewriter
-import vct.col.typerules.CoercionUtils
+import vct.col.typerules.{CoercionUtils, TypeSize}
 import vct.col.print._
 import vct.col.ast.ops.TypeFamilyOps
 import vct.col.util.IdentitySuccessorsProvider
 
 trait TypeImpl[G] extends TypeFamilyOps[G] {
   this: Type[G] =>
+  var storedBits: TypeSize = TypeSize.Unknown()
+
+  def bits: TypeSize = storedBits
+
   def superTypeOf(other: Type[G]): Boolean =
     CoercionUtils.getCoercion(other, this).isDefined
 
@@ -21,7 +25,7 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
   def asVector: Option[TVector[G]] =
     CoercionUtils.getAnyVectorCoercion(this).map(_._2)
   def asBag: Option[TBag[G]] = CoercionUtils.getAnyBagCoercion(this).map(_._2)
-  def asPointer: Option[TPointer[G]] =
+  def asPointer: Option[PointerType[G]] =
     CoercionUtils.getAnyPointerCoercion(this).map(_._2)
   def asArray: Option[TArray[G]] =
     CoercionUtils.getAnyArrayCoercion(this).map(_._2)
@@ -50,6 +54,17 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
     CoercionUtils.getAnySmtlibArrayCoercion(this).map(_._2)
   def asSmtlibSeq: Option[TSmtlibSeq[G]] =
     CoercionUtils.getAnySmtlibSeqCoercion(this).map(_._2)
+  def asByReferenceClass: Option[TByReferenceClass[G]] =
+    this match {
+      // TODO: Check uses should this be a coercion to also catch null and the like?
+      case cls: TByReferenceClass[G] => Some(cls)
+      case _ => None
+    }
+  def asByValueClass: Option[TByValueClass[G]] =
+    this match {
+      case cls: TByValueClass[G] => Some(cls)
+      case _ => None
+    }
   /*def asVector: Option[TVector] = optMatch(this) { case vec: TVector => vec }*/
 
   def particularize(substitutions: Map[Variable[G], Type[G]]): Type[G] = {

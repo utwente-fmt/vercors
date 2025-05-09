@@ -24,6 +24,8 @@ trait CDeclarationImpl[G]
       Doc.stack(contract.signals),
     ))
 
+  require(true)
+
   override def layout(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(layoutContract, Group(Doc.spread(specs) <>> Doc.args(inits))))
 }

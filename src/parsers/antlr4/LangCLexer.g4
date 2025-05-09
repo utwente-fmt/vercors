@@ -124,6 +124,9 @@ Arrow : '->';
 Dot : '.';
 Ellipsis : '...';
 
+NAN: 'vercorsNAN';
+INFINITY: 'vercorsINFINITY';
+
 fragment
 IdentifierNondigit
     :   Nondigit

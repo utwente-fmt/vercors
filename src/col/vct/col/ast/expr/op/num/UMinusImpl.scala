@@ -20,7 +20,7 @@ trait UMinusImpl[G] extends UMinusOps[G] {
   override def t: Type[G] = {
     CoercionUtils.getCoercion(arg.t, TInt())
       .orElse(CoercionUtils.getCoercion(arg.t, TRational())) match {
-      case Some(CoerceCIntInt()) => TCInt()
+      case Some(CoerceCIntInt(t)) => t
       case Some(CoerceUnboundInt(TBoundedInt(gte, lt), _)) =>
         TBoundedInt(-lt + 1, -gte + 1)
       case Some(CoerceFloatRat(source)) => source

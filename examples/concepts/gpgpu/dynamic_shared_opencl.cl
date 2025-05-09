@@ -13,13 +13,13 @@
   context \pointer_length(out) == n;
   context n > 0;
   context get_local_size(0) * get_num_groups(0) >= n;
-  context Perm(&in[0], write \ (get_local_size(0) * get_num_groups(0)));
-  context \gtid<n ==> Perm(&out[\gtid], write);
+  context Perm(in[0], write \ (get_local_size(0) * get_num_groups(0)));
+  context \gtid<n ==> Perm({:out[\gtid]:}, write);
 
   context \shared_mem_size(s) == 1;
-  requires \ltid == 0 ==> Perm(&s[0], write);
+  requires \ltid == 0 ==> Perm(s[0], write);
 
-  ensures \gtid<n ==> out[\gtid] == \old(out[\gtid]) + in[0];
+  ensures \gtid<n ==> {:out[\gtid]:} == \old(out[\gtid]) + in[0];
 @*/
 __kernel void blur_x(global int* in, global int* out, int n, local int* s) {
   int tid = get_group_id(0) * get_local_size(0) + get_local_id(0);
@@ -28,14 +28,14 @@ __kernel void blur_x(global int* in, global int* out, int n, local int* s) {
   }
 
   /*@
-    context Perm(&in[0], write \ (get_local_size(0) * get_num_groups(0)));
-    context get_group_id(0) * get_local_size(0) + get_local_id(0)<n ==> Perm(&out[get_group_id(0) * get_local_size(0) + get_local_id(0)], write);
-    context get_group_id(0) * get_local_size(0) + get_local_id(0)<n ==> \old(out[get_group_id(0) * get_local_size(0) + get_local_id(0)]) == out[get_group_id(0) * get_local_size(0) + get_local_id(0)];
+    context Perm(in[0], write \ (get_local_size(0) * get_num_groups(0)));
+    context get_group_id(0) * get_local_size(0) + get_local_id(0)<n ==> Perm({:out[get_group_id(0) * get_local_size(0) + get_local_id(0)]:}, write);
+    context get_group_id(0) * get_local_size(0) + get_local_id(0)<n ==> \old(out[get_group_id(0) * get_local_size(0) + get_local_id(0)]) == {:out[get_group_id(0) * get_local_size(0) + get_local_id(0)]:};
 
-    requires get_local_id(0) == 0 ==> Perm(&s[0], write);
+    requires get_local_id(0) == 0 ==> Perm(s[0], write);
     requires get_local_id(0) == 0 ==> s[0] == in[0];
 
-    ensures Perm(&s[0], write \ get_local_size(0));
+    ensures Perm(s[0], write \ get_local_size(0)); 
 
     ensures s[0] == in[0];
   @*/

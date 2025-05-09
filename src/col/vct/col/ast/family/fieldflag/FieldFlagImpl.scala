@@ -6,5 +6,4 @@ import vct.col.ast.ops.FieldFlagFamilyOps
 
 trait FieldFlagImpl[G] extends FieldFlagFamilyOps[G] {
   this: FieldFlag[G] =>
-  override def layout(implicit ctx: Ctx): Doc = Text("final")
 }

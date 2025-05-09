@@ -15,12 +15,15 @@ import vct.col.origin.{
   WithContractFailure,
 }
 import vct.col.ref.Ref
-import vct.col.rewrite.Disambiguate.OperatorToInvocation
+import vct.col.rewrite.Disambiguate.{
+  MissingSizeInformation,
+  OperatorToInvocation,
+}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.typerules.CoercionUtils
 import vct.col.util.AstBuildHelpers.withResult
 import vct.col.util.SuccessionMap
-import vct.result.VerificationError.Unreachable
+import vct.result.VerificationError.{SystemError, Unreachable}
 
 case object Disambiguate extends RewriterBuilder {
   override def key: String = "disambiguate"
@@ -35,6 +38,14 @@ case object Disambiguate extends RewriterBuilder {
         case failure: WithContractFailure =>
           blame.blame(PlusProviderInvocationFailed(failure))
       }
+  }
+
+  private case class MissingSizeInformation(node: Node[_]) extends SystemError {
+
+    override def text: String =
+      node.o.messageInContext(
+        "Missing size information for this node, this is a bug!"
+      )
   }
 }
 
@@ -219,57 +230,87 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
       case cmp: AmbiguousComparison[Pre] =>
         if (cmp.isMapOp)
           cmp match {
-            case AmbiguousEq(left, right, _) =>
+            case AmbiguousEq(left, right, _, _) =>
               MapEq(dispatch(left), dispatch(right))
-            case AmbiguousNeq(left, right, _) =>
+            case AmbiguousNeq(left, right, _, _) =>
               Not(MapEq(dispatch(left), dispatch(right)))
           }
         else if (cmp.isVectorOp)
           cmp match {
-            case AmbiguousEq(left, right, _) =>
+            case AmbiguousEq(left, right, _, _) =>
               VectorEq(dispatch(left), dispatch(right))
-            case AmbiguousNeq(left, right, _) =>
+            case AmbiguousNeq(left, right, _, _) =>
               VectorNeq(dispatch(left), dispatch(right))
+          }
+        else if (cmp.isPointerOp)
+          cmp match {
+            case AmbiguousEq(left, right, _, Some(size)) =>
+              PointerEq(dispatch(left), dispatch(right), dispatch(size))
+            case e @ AmbiguousEq(_, _, _, None) =>
+              throw MissingSizeInformation(e)
+            case AmbiguousNeq(left, right, _, Some(size)) =>
+              PointerNeq(dispatch(left), dispatch(right), dispatch(size))
+            case e @ AmbiguousNeq(_, _, _, None) =>
+              throw MissingSizeInformation(e)
           }
         else
           cmp match {
-            case AmbiguousEq(left, right, _) =>
+            case AmbiguousEq(left, right, _, _) =>
               Eq(dispatch(left), dispatch(right))
-            case AmbiguousNeq(left, right, _) =>
+            case AmbiguousNeq(left, right, _, _) =>
               Neq(dispatch(left), dispatch(right))
           }
       case cmp: AmbiguousOrderOp[Pre] =>
         if (cmp.isBagOp)
           cmp match {
-            case AmbiguousGreater(left, right) =>
+            case AmbiguousGreater(left, right, _) =>
               SubBag(dispatch(right), dispatch(left))
-            case AmbiguousLess(left, right) =>
+            case AmbiguousLess(left, right, _) =>
               SubBag(dispatch(left), dispatch(right))
-            case AmbiguousGreaterEq(left, right) =>
+            case AmbiguousGreaterEq(left, right, _) =>
               SubBagEq(dispatch(right), dispatch(left))
-            case AmbiguousLessEq(left, right) =>
+            case AmbiguousLessEq(left, right, _) =>
               SubBagEq(dispatch(left), dispatch(right))
           }
         else if (cmp.isSetOp)
           cmp match {
-            case AmbiguousGreater(left, right) =>
+            case AmbiguousGreater(left, right, _) =>
               SubSet(dispatch(right), dispatch(left))
-            case AmbiguousLess(left, right) =>
+            case AmbiguousLess(left, right, _) =>
               SubSet(dispatch(left), dispatch(right))
-            case AmbiguousGreaterEq(left, right) =>
+            case AmbiguousGreaterEq(left, right, _) =>
               SubSetEq(dispatch(right), dispatch(left))
-            case AmbiguousLessEq(left, right) =>
+            case AmbiguousLessEq(left, right, _) =>
               SubSetEq(dispatch(left), dispatch(right))
+          }
+        else if (cmp.isPointerOp)
+          cmp match {
+            case AmbiguousGreater(left, right, Some(size)) =>
+              PointerGreater(dispatch(left), dispatch(right), dispatch(size))
+            case e @ AmbiguousGreater(_, _, None) =>
+              throw MissingSizeInformation(e)
+            case AmbiguousLess(left, right, Some(size)) =>
+              PointerLess(dispatch(left), dispatch(right), dispatch(size))
+            case e @ AmbiguousLess(_, _, None) =>
+              throw MissingSizeInformation(e)
+            case AmbiguousGreaterEq(left, right, Some(size)) =>
+              PointerGreaterEq(dispatch(left), dispatch(right), dispatch(size))
+            case e @ AmbiguousGreaterEq(_, _, None) =>
+              throw MissingSizeInformation(e)
+            case AmbiguousLessEq(left, right, Some(size)) =>
+              PointerLessEq(dispatch(left), dispatch(right), dispatch(size))
+            case e @ AmbiguousLessEq(_, _, None) =>
+              throw MissingSizeInformation(e)
           }
         else
           cmp match {
-            case AmbiguousGreater(left, right) =>
+            case AmbiguousGreater(left, right, _) =>
               Greater(dispatch(left), dispatch(right))
-            case AmbiguousLess(left, right) =>
+            case AmbiguousLess(left, right, _) =>
               Less(dispatch(left), dispatch(right))
-            case AmbiguousGreaterEq(left, right) =>
+            case AmbiguousGreaterEq(left, right, _) =>
               GreaterEq(dispatch(left), dispatch(right))
-            case AmbiguousLessEq(left, right) =>
+            case AmbiguousLessEq(left, right, _) =>
               LessEq(dispatch(left), dispatch(right))
           }
       case r @ Result(_) if currentResult.nonEmpty =>

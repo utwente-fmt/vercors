@@ -1,17 +1,19 @@
 package vct.col.ast.`type`.typeclass
 
 import vct.col.ast.`type`.TCFloats.fromTCFloat
+import vct.col.ast.lang.llvm.LLVMTFloats.fromLLVMTFloat
 import vct.col.ast.{
   CPrimitiveType,
   CSpecificationType,
   FloatType,
+  LLVMTFloat,
   TCFloat,
   TFloat,
   Type,
 }
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.print.{Ctx, Doc, Text}
-import vct.col.typerules.CoercionUtils
+import vct.col.typerules.{CoercionUtils, PlatformContext}
 import vct.col.resolve.lang.C
 
 // https://en.wikipedia.org/wiki/Single-precision_floating-point_format#IEEE_754_standard:_binary32
@@ -44,6 +46,7 @@ object TFloats {
           fromTCFloat(t)
         else
           t
+      case t: LLVMTFloat[G] => fromLLVMTFloat(t)
       case t: TFloat[G] => t
     }
 
@@ -71,8 +74,8 @@ object TFloats {
 
 trait FloatTypeImpl[G] {
   this: FloatType[G] =>
-  val exponent: Int
-  val mantissa: Int
+  def exponent: Int
+  def mantissa: Int
   assert(this.exponent > 0)
   assert(this.mantissa > 0)
 
