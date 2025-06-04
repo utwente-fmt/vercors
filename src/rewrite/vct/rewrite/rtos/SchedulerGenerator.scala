@@ -192,7 +192,9 @@ class SchedulerGenerator[O <: Generation] {
       new DirectRef[N, InstanceMethod[N]](resumeTasks),
       new DirectRef[N, InstanceMethod[N]](resetEvents),
       new DirectRef[N, InstanceMethod[N]](selectNextTask),
+      new DirectRef[N, InstanceMethod[N]](instantiateEventTriggers.get),
       globalInvariant_ref,
+      n_tasks,
     )
     start = Some(create_start(
       objs.filter(o => o.launch).map(o => o.field),
@@ -1486,7 +1488,9 @@ class SchedulerGenerator[O <: Generation] {
       resumeTasks: Ref[N, InstanceMethod[N]],
       resetEvents: Ref[N, InstanceMethod[N]],
       selectNextTask: Ref[N, InstanceMethod[N]],
+      instantiateEventTriggers: Ref[N, InstanceMethod[N]],
       globalInvariant_ref: Ref[N, InstancePredicate[N]],
+      n_tasks: Int,
   ): InstanceMethod[N] = {
     val schedulerDelay: Variable[N] =
       new Variable(Utils.tint)(Utils.origen("schedulerDelay"))
@@ -1506,18 +1510,22 @@ class SchedulerGenerator[O <: Generation] {
 
     // int schedulerDelay;
     // int schedulerNext;
-    // schedulerDelay = nextEventDelay();
-    // if (schedulerDelay == 0 || (\forall int i; 0 <= i && i < |taskState| ==> taskState[i] >= 0)) {
-    //     // assert schedulerDelay != -1;
-    //     advanceTime(schedulerDelay);
-    //     runnableQueue = runnableQueue + newRunnableTasks();
-    //     resumeTasks();
-    //     resetEvents();
+    // schedulerDelay = this.nextEventDelay();
+    // if (schedulerDelay == 0 || (\forall int i; 0 <= i && i < |this.taskState| ==> this.taskState[i] >= 0)) {
+    //     seq<int> awoken;
+    //     assert schedulerDelay != -1;
+    //     this.advanceTime(schedulerDelay);
+    //     awoken = this.newRunnableTasks();
+    //     this.instantiateEventTriggers();
+    //     assert |awoken| > 0 ==> awoken[0] == 0 || awoken[0] == 1 || ... || awoken[0] == |this.taskState| - 1;
+    //     this.resumeTasks();
+    //     this.runnableQueue = this.runnableQueue + awoken;
+    //     this.resetEvents();
     // }
-    // schedulerNext = selectNextTask();
+    // schedulerNext = this.selectNextTask();
     // if (schedulerNext != -1) {
-    //     taskState = taskState.update(runnableQueue[schedulerNext], -2);
-    //     runnableQueue = runnableQueue.removeAt(schedulerNext);
+    //     this.taskState = this.taskState.update(this.runnableQueue[schedulerNext], -2);
+    //     this.runnableQueue = this.runnableQueue.removeAt(schedulerNext);
     // }
     val body: Statement[N] =
       Block(Seq(
@@ -1549,6 +1557,22 @@ class SchedulerGenerator[O <: Generation] {
             Assign(
               Utils.local_of(awoken),
               Utils.invoke(newRunnableTasks, Seq()),
+            )(Utils.blame)(Utils.origen),
+            Utils.stmt_invoke(instantiateEventTriggers, Seq(), None),
+            Assert(
+              Implies(
+                Greater(Size(Utils.local_of(awoken))(Utils.origen), Utils.int_val(0))(
+                  Utils.origen
+                ),
+                Utils.fold_or(Seq.range(0, n_tasks).map(i =>
+                  Eq(
+                    SeqSubscript(Utils.local_of(awoken), Utils.int_val(0))(
+                      Utils.blame
+                    )(Utils.origen),
+                    Utils.int_val(i),
+                  )(Utils.origen)
+                )),
+              )(Utils.origen),
             )(Utils.blame)(Utils.origen),
             Utils.stmt_invoke(resumeTasks, Seq()),
             Assign(
