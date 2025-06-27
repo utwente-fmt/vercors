@@ -614,19 +614,7 @@ case class EncodePointerArrays[Pre <: Generation]()
         axiomType,
       )(o.where(name = s"from_${element}_pointer"))
     fromPointerSucc((element, dimensions, unique, isConst)) = invFunction
-    val invAxiom1 =
-      new ADTAxiom[Post](forall(
-        axiomType,
-        { term =>
-          adtFunctionInvocation[Post](
-            invFunction.ref,
-            args = Seq(InlinePattern(
-              adtFunctionInvocation(pointerFunction.ref, args = Seq(term))
-            )),
-          ) === term
-        },
-      ))
-    val invAxiom2 =
+    val invAxiom =
       new ADTAxiom[Post](forall(
         pointerType,
         { term =>
@@ -648,26 +636,20 @@ case class EncodePointerArrays[Pre <: Generation]()
           InlinePattern(
             PointerBlockLength(ptr(term))(NonNullPointerNull),
             group = 1,
+          ) - InlinePattern(
+            PointerBlockOffset(ptr(term))(NonNullPointerNull),
+            group = 2,
           ) ===
             dimFunctions
               .map(f => adtFunctionInvocation[Post](f.ref, args = Seq(term)))
-              .reduce((a: Expr[Post], b: Expr[Post]) => Mult(a, b)) &&
-            InlinePattern(
-              PointerBlockOffset(ptr(term))(NonNullPointerNull),
-              group = 2,
-            ) === const(0)
+              .reduce((a: Expr[Post], b: Expr[Post]) => Mult(a, b))
         },
       ))
     arraySucc((element, dimensions, unique, isConst)) = globalDeclarations
       .declare(
         new AxiomaticDataType(
-          dimFunctions ++ Seq(
-            pointerFunction,
-            invFunction,
-            invAxiom1,
-            invAxiom2,
-            boundsAxiom,
-          ),
+          dimFunctions ++
+            Seq(pointerFunction, invFunction, invAxiom, boundsAxiom),
           Nil,
         )(o.where(name =
           if (isConst) { s"const_pointer_${dimensions}_array_$element" }
@@ -684,16 +666,17 @@ case class EncodePointerArrays[Pre <: Generation]()
         args = args,
         requires = UnitAccountedPredicate(foldAnd(args.map(_.get > const(0)))),
         ensures = {
+          val max = args.map(_.get).reduce[Expr[Post]] { (a, b) => a * b }
           val range =
-            (term: Local[Post]) =>
-              const[Post](0) <= term && term < args.map(_.get)
-                .reduce[Expr[Post]] { (a, b) => a * b }
+            (term: Local[Post]) => const[Post](0) <= term && term < max
           val trigger =
             (term: Local[Post]) =>
               PointerSubscript(ptr(result), term)(FramedPtrOffset)
-          val bounds = foldAnd(dimFunctions.zip(args).map { case (f, a) =>
-            adtFunctionInvocation[Post](f.ref, args = Seq(result)) === a.get
-          })
+          val bounds =
+            foldAnd(dimFunctions.zip(args).map { case (f, a) =>
+              adtFunctionInvocation[Post](f.ref, args = Seq(result)) === a.get
+            }) && PointerBlockLength(ptr(result))(NonNullPointerNull) === max &&
+              PointerBlockOffset(ptr(result))(NonNullPointerNull) === const(0)
           val l =
             if (isConst)
               bounds

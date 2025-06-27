@@ -283,11 +283,7 @@ case object CoercionUtils {
       case (
             TPointer(elementL, uniqueL),
             TPointerArray(elementR, dimensions, uniqueR),
-          )
-          if uniqueL == uniqueR && dimensions.length == 1 ||
-            elementL.asPointerArray.isDefined &&
-            elementL.asPointerArray.get.dimensions.length ==
-            dimensions.length - 1 =>
+          ) if uniqueL == uniqueR && dimensions.length == 1 =>
         CoercionSequence(Seq(
           CoercePointerNonNull(TNonNullPointer(elementL, uniqueL)),
           getPointerCoercion(source, target, elementL, elementR)
@@ -297,11 +293,7 @@ case object CoercionUtils {
       case (
             TNonNullPointer(elementL, uniqueL),
             TPointerArray(elementR, dimensions, uniqueR),
-          )
-          if uniqueL == uniqueR && dimensions.length == 1 ||
-            elementL.asPointerArray.isDefined &&
-            elementL.asPointerArray.get.dimensions.length ==
-            dimensions.length - 1 =>
+          ) if uniqueL == uniqueR && dimensions.length == 1 =>
         CoercionSequence(Seq(
           getPointerCoercion(source, target, elementL, elementR)
             .getOrElse(return None),
@@ -323,10 +315,7 @@ case object CoercionUtils {
             .getOrElse(return None),
         ))
       case (TConstPointer(elementL), TConstPointerArray(elementR, dimensions))
-          if dimensions.length == 1 ||
-            elementL.asPointerArray.isDefined &&
-            elementL.asPointerArray.get.dimensions.length ==
-            dimensions.length - 1 =>
+          if dimensions.length == 1 =>
         CoercionSequence(Seq(
           CoercePointerNonNull(TNonNullConstPointer(elementL)),
           getPointerCoercion(source, target, elementL, elementR)
@@ -336,11 +325,7 @@ case object CoercionUtils {
       case (
             TNonNullConstPointer(elementL),
             TConstPointerArray(elementR, dimensions),
-          )
-          if dimensions.length == 1 ||
-            elementL.asPointerArray.isDefined &&
-            elementL.asPointerArray.get.dimensions.length ==
-            dimensions.length - 1 =>
+          ) if dimensions.length == 1 =>
         CoercionSequence(Seq(
           getPointerCoercion(source, target, elementL, elementR)
             .getOrElse(return None),
