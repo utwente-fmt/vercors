@@ -2,6 +2,7 @@
 #include "Util/Constants.h"
 #include <llvm/Support/Casting.h>
 
+#include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/Function.h>
 
 namespace pallas::utils {
@@ -37,7 +38,7 @@ bool isWellformedPallasLocation(const llvm::MDNode *mdNode) {
     if (mdNode == nullptr)
         return false;
 
-    if (mdNode->getNumOperands() != 5)
+    if (mdNode->getNumOperands() != 6)
         return false;
 
     // Check that first operand is a string-identifier
@@ -48,11 +49,16 @@ bool isWellformedPallasLocation(const llvm::MDNode *mdNode) {
         return false;
     }
 
-    // Check that the last four operands are integer constants
+    // Check that the next four operands are integer constants
     if (!isConstantInt(mdNode->getOperand(1).get()) ||
         !isConstantInt(mdNode->getOperand(2).get()) ||
         !isConstantInt(mdNode->getOperand(3).get()) ||
         !isConstantInt(mdNode->getOperand(4).get())) {
+        return false;
+    }
+
+    // Check that the last operand points to a DIFile
+    if (!llvm::isa<llvm::DIFile>(mdNode->getOperand(5).get())) {
         return false;
     }
 

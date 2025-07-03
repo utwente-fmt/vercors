@@ -20,6 +20,8 @@
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <optional>
+
 namespace pallas {
 const std::string SOURCE_LOC =
     "Passes::Function::PallasFunctionContractDeclarerPass";
@@ -30,6 +32,19 @@ namespace {
 void addError(llvm::Function &func, const std::string &msg) {
     pallas::ErrorReporter::addError(SOURCE_LOC, msg, func);
 }
+
+std::optional<bool> getAssumedFlag(const MDNode &contractMD) {
+    if (contractMD.getNumOperands() < 3)
+        return std::nullopt;
+    auto *constMD =
+        dyn_cast<ConstantAsMetadata>(contractMD.getOperand(2).get());
+    auto *assumedVal = dyn_cast_if_present<ConstantInt>(constMD->getValue());
+    if (assumedVal == nullptr || (!assumedVal->getBitWidth() == 1)) {
+        return std::nullopt;
+    }
+    return assumedVal->isOne();
+}
+
 } // namespace
 
 /*
@@ -65,9 +80,9 @@ PallasFunctionContractDeclarerPass::run(Function &f,
 
     // Check wellformedness of the contract-metadata
     auto *contractNode = f.getMetadata(pallas::constants::PALLAS_FUNC_CONTRACT);
-    if (contractNode->getNumOperands() < 2) {
+    if (contractNode->getNumOperands() < 3) {
         pallas::ErrorReporter::addError(
-            SOURCE_LOC, "Ill-formed contract. Expected at least 2 operands", f);
+            SOURCE_LOC, "Ill-formed contract. Expected at least 3 operands", f);
         return PreservedAnalyses::all();
     }
 
@@ -86,12 +101,20 @@ PallasFunctionContractDeclarerPass::run(Function &f,
     colContract->set_allocated_origin(
         llvm2col::generatePallasFunctionContractOrigin(f, *mdSrcLoc));
 
+    // Set assumed-flag
+    auto assumedFlag = getAssumedFlag(*contractNode);
+    if (!assumedFlag.has_value()) {
+        addError(f, "Malformed function contract (assumed-flag)");
+        return PreservedAnalyses::all();
+    }
+    colPallasContract->set_assumed(assumedFlag.value());
+
     // Handle contract clauses
-    unsigned int clauseIdx = 2;
+    unsigned int clauseIdx = 3;
     while (clauseIdx < contractNode->getNumOperands()) {
         auto addClauseSuccess = addClauseToContract(
             *colContract, contractNode->getOperand(clauseIdx).get(), fam, f,
-            clauseIdx - 1, *mdSrcLoc);
+            clauseIdx - 2, *mdSrcLoc);
         if (!addClauseSuccess)
             return PreservedAnalyses::all();
         ++clauseIdx;

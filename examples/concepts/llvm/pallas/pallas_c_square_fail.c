@@ -6,7 +6,7 @@ declare DEF_RESULT(int);
 
 /*@
 requires n >= 0;
-ensures RESULT(int)() == n * n;
+ensures _result(int) == n * n;
 @*/
 int bad_square(int n) {
     int res = 0;

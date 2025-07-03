@@ -26,7 +26,7 @@ int fibRec(int n) {
 // Iterative implementation of the fibonacci sequence.
 /*@
 requires n >= 0;
-ensures RESULT(int)() == fibRec(n);
+ensures _result(int) == fibRec(n);
 @*/
 int fibIt(int n) {
      if (n == 0) {

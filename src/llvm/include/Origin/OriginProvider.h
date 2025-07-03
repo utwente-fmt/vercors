@@ -85,15 +85,13 @@ col::Origin *generatePallasSpecStmntOrigin(const llvm::Instruction &llvmInstr,
  * Pallas and with the given preferred name.
  */
 col::Origin *generatePallasSpecOrigin(const llvm::MDNode &srcLoc,
-                                      const llvm::Function &parentFunc,
                                       const std::string &preferedName);
 
 /**
  * Adds the source-location that is encoded by the given MD-node in the
  * specification format of Pallas to the given origin.
  */
-void addSourceLocFromPallasMD(col::Origin *origin, const llvm::MDNode &srcLoc,
-                              const llvm::DIScope &scope);
+void addSourceLocFromPallasMD(col::Origin *origin, const llvm::MDNode &srcLoc);
 
 col::Origin *generateOperandOrigin(llvm::Instruction &llvmInstruction,
                                    llvm::Value &llvmOperand);

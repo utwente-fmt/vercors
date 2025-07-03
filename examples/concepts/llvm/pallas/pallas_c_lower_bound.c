@@ -7,14 +7,14 @@ declare DEF_RESULT(int);
 
 /*@
 requires arr != NULL && n > 0;
-requires ptr_length(arr) == n;
-requires forallS(_and(0 <= BV(int)("i"),
-                           BV(int)("i") < n), Perm(&arr[BV(int)("i")], fracOf(1, 2)));
-ensures ptr_length(arr) == n;
-ensures forallS(_and(0 <= BV(int)("i"),
-                          BV(int)("i") < n), Perm(&arr[BV(int)("i")], fracOf(1, 2)));
-ensures forall(_and(0 <= BV(int)("i"),
-                         BV(int)("i") < n), arr[BV(int)("i")] >= RESULT(int)());
+requires _ptr_length(arr) == n;
+requires _forallS(_and(0 <= _bv(int, i),
+                            _bv(int, i) < n), _Perm(&arr[_bv(int, i)], _fracOf(1, 2)));
+ensures _ptr_length(arr) == n;
+ensures _forallS(_and(0 <= _bv(int, i),
+                           _bv(int, i) < n), _Perm(&arr[_bv(int, i)], _fracOf(1, 2)));
+ensures _forall(_and(0 <= _bv(int, i),
+                          _bv(int, i) < n), arr[_bv(int, i)] >= _result(int));
 @*/
 int foo(int* arr, int n) {
     int idx = 1;
@@ -23,11 +23,11 @@ int foo(int* arr, int n) {
     /*@
     loop_invariant arr != NULL;
     loop_invariant _and(1 <= idx, idx <= n);
-    loop_invariant ptr_length(arr) == n;
-    loop_invariant forallS(_and(0 <= BV(int)("i"),
-                                     BV(int)("i") < n), Perm(&arr[BV(int)("i")], fracOf(1, 2)));
-    loop_invariant forall(_and(0 <= BV(int)("i"),
-                                    BV(int)("i") < idx), arr[BV(int)("i")] >= min);
+    loop_invariant _ptr_length(arr) == n;
+    loop_invariant _forallS(_and(0 <= _bv(int, i),
+                                      _bv(int, i) < n), _Perm(&arr[_bv(int, i)], _fracOf(1, 2)));
+    loop_invariant _forall(_and(0 <= _bv(int, i),
+                                     _bv(int, i) < idx), arr[_bv(int, i)] >= min);
     @*/
     while (idx < n) {
         if (arr[idx] < min)
