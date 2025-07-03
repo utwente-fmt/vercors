@@ -32,6 +32,7 @@ case object ExampleFiles {
     "examples/concepts/llvm/cubed-contracts.pvl",
     "examples/concepts/llvm/void-contracts.pvl",
     // Files that are used to generate the .ll-versions of the examples
+    "examples/concepts/llvm/pallas/generate_llvm_examples.sh",
     "examples/concepts/llvm/pallas/pallas_function_contract.c",
     "examples/concepts/llvm/pallas/pallas_function_contract_fail.c",
     "examples/concepts/llvm/pallas/pallas_result.c",

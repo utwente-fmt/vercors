@@ -64,3 +64,5 @@ echo "=============================================="
 translate_swift_file pallas_swift_assert.swift pallas_swift_assert.ll "-mem2reg"
 translate_swift_file pallas_swift_fib.swift pallas_swift_fib.ll "-mem2reg"
 translate_swift_file pallas_swift_fib_fail.swift pallas_swift_fib_fail.ll "-mem2reg"
+
+rm -r $W_DIR
