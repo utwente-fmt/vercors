@@ -1092,7 +1092,8 @@ case class IntegerOutOfBounds(node: Node[_], bits: Int)
     s"Integer `$source` may be out of bounds, expected a `$bits`-bit integer"
 }
 
-sealed trait PointerSubscriptError extends FrontendSubscriptError
+sealed trait PointerArraySubscriptError extends FrontendSubscriptError
+sealed trait PointerSubscriptError extends PointerArraySubscriptError
 sealed trait PointerDerefError
     extends PointerSubscriptError with FrontendDerefError
 sealed trait PointerLocationError extends PointerDerefError
@@ -1161,6 +1162,15 @@ case class PointerInsufficientPermission(node: Expr[_])
     "There may be insufficient permission to dereference the pointer."
   override def inlineDescWithSource(source: String): String =
     s"There may be insufficient permission to dereference `$source`."
+}
+
+case class PointerArrayBounds(node: Node[_])
+    extends PointerArraySubscriptError with NodeVerificationFailure {
+  override def code: String = "ptrArrayBounds"
+  override def descInContext: String =
+    "The offsets in this array access may be outside the bounds of the array."
+  override def inlineDescWithSource(source: String): String =
+    s"The offsets in `$source`  may be outside the bounds of the array."
 }
 
 sealed trait LockRegionFailure extends VerificationFailure

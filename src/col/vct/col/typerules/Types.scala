@@ -86,8 +86,8 @@ object Types {
 
       case (_: TNull[G], pt: PointerType[G]) => pt.asNullable
       case (pt: PointerType[G], _: TNull[G]) => pt.asNullable
-      case (_: TNull[G], p: TPointerArray[G]) => TPointer(p.element, p.unique)
-      case (p: TPointerArray[G], _: TNull[G]) => TPointer(p.element, p.unique)
+      case (_: TNull[G], p: PointerArrayType[G]) => p.asNullable
+      case (p: PointerArrayType[G], _: TNull[G]) => p.asNullable
       case (_: TNull[G], p: TConstPointerArray[G]) => TConstPointer(p.element)
       case (p: TConstPointerArray[G], _: TNull[G]) => TConstPointer(p.element)
 

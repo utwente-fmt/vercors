@@ -295,6 +295,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceNullJavaClass(_) => e
       case CoerceNullAnyClass() => e
       case CoerceNullPointer(_) => e
+      case CoerceNullPointerArray(_) => e
       case CoerceNonNullPointer(_) => e
       case CoercePointerNonNull(_) => e
       case CoerceFracZFrac() => e
@@ -310,7 +311,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoercePointerArrayPointer(_, _, _) => e
       case CoerceConstPointerArrayPointer(_, _) => e
       case CoercePointerPointerArray(_, _, _) => e
-      case CoerceConstPointerPointerArray(_, _) => e
+      case CoercePointerNonNullPointerArray(_, _, _) => e
       case CoerceNullEnum(_) => e
 
       case CoerceIntRat() => e

@@ -37,6 +37,7 @@ object ExpressionEqualityCheck {
   def isValidSymbolicTerm(term: SymbolicTerm[_]): Boolean =
     term match {
       case Local(_) => true
+      case OptEmpty(inner) => stricterIsConstant(inner)
       case ADTFunctionInvocation(_, _, _) => true
       case ProverFunctionInvocation(_, _) => true
       case invocation: AnyFunctionInvocation[_] =>
@@ -1004,6 +1005,7 @@ class AnnotationVariableInfoGetter[G](
       case SetMember(e1, RangeSet(from, to)) =>
         isSimpleExpr(e1) && isSimpleExpr(from) && isSimpleExpr(to)
       case e: BinExpr[G] => isSimpleExpr(e.left) && isSimpleExpr(e.right)
+      case e: UnExpr[G] => isSimpleExpr(e.arg)
       case t: SymbolicTerm[G] if isValidSymbolicTerm(t) => true
       case _: Constant[G] => true
       case _ => false
@@ -1118,24 +1120,114 @@ class AnnotationVariableInfoGetter[G](
   }
 
   def addInfo(annotation: Expr[G]): Unit = {
-    extractEqualities(annotation)
-
-    if (isSimpleExpr(annotation)) {
-      val res = AnnotationVariableInfo[G](
-        variableEqualities.view.mapValues(_.toSet).toMap,
-        variableValues.toMap,
-        variableSynonyms.toMap,
-        Set[SymbolicTerm[G]](),
-        Map[SymbolicTerm[G], Set[SymbolicTerm[G]]](),
-        Map[SymbolicTerm[G], BigInt](),
-        Map[SymbolicTerm[G], BigInt](),
-        usefulConditions.toSet,
-      )
-
-      equalCheck = ExpressionEqualityCheck(Some(res))
-      extractComparisons(annotation)
-      usefulConditions.addOne(annotation)
+    var ann = annotation
+    usefulConditions.foreach { c =>
+      // If a known true condition appears, literally in the annotation replace it with true. Ideally this would be a
+      // better check since we do not catch a condition `!c` which appears in the annotation as `c` This replacement
+      // isn't necessary when using the SMT solver but not every check in SimplifyNestedQuantifiers uses an SMT solver.
+      val simple = replaceWithTrueAndSimplify(ann, c)
+      if (simple.isDefined) { ann = simple.get }
     }
+    extractEqualities(ann)
+
+    if (isSimpleExpr(ann)) {
+      addSimpleAnnotation(ann)
+      Seq.range(0, usefulConditions.length).foreach { i =>
+        // See if we can redo with a simpler expression
+        val simple = replaceWithTrueAndSimplify(usefulConditions(i), ann)
+        if (simple.isDefined) {
+          extractEqualities(simple.get)
+          addSimpleAnnotation(simple.get)
+          usefulConditions(i) = simple.get
+        }
+      }
+      if (ann != tt[G]) { usefulConditions.addOne(ann) }
+    }
+  }
+
+  private def replaceWithTrueAndSimplify(
+      original: Expr[G],
+      replacer: Expr[G],
+  ): Option[Expr[G]] = {
+    implicit val o: Origin = original.o
+    original match {
+      case it if it == replacer => Some(tt)
+      case And(l, r) =>
+        (
+          replaceWithTrueAndSimplify(l, replacer),
+          replaceWithTrueAndSimplify(r, replacer),
+        ) match {
+          case (Some(BooleanValue(true)), newR) => Some(newR.getOrElse(r))
+          case (Some(BooleanValue(false)), _) => Some(ff)
+          case (newL, Some(BooleanValue(true))) => Some(newL.getOrElse(l))
+          case (_, Some(BooleanValue(false))) => Some(ff)
+          case (Some(l), newR) => Some(l && newR.getOrElse(r))
+          case (newL, Some(r)) => Some(newL.getOrElse(l) && r)
+          case (None, None) => None
+        }
+      case Star(l, r) =>
+        (
+          replaceWithTrueAndSimplify(l, replacer),
+          replaceWithTrueAndSimplify(r, replacer),
+        ) match {
+          case (Some(BooleanValue(true)), newR) => Some(newR.getOrElse(r))
+          case (Some(BooleanValue(false)), _) => Some(ff)
+          case (newL, Some(BooleanValue(true))) => Some(newL.getOrElse(l))
+          case (_, Some(BooleanValue(false))) => Some(ff)
+          case (Some(l), newR) => Some(l &* newR.getOrElse(r))
+          case (newL, Some(r)) => Some(newL.getOrElse(l) &* r)
+          case (None, None) => None
+        }
+      case Or(l, r) =>
+        (
+          replaceWithTrueAndSimplify(l, replacer),
+          replaceWithTrueAndSimplify(r, replacer),
+        ) match {
+          case (Some(BooleanValue(true)), _) => Some(tt)
+          case (Some(BooleanValue(false)), newR) => Some(newR.getOrElse(r))
+          case (_, Some(BooleanValue(true))) => Some(tt)
+          case (newL, Some(BooleanValue(false))) => Some(newL.getOrElse(l))
+          case (Some(l), newR) => Some(l || newR.getOrElse(r))
+          case (newL, Some(r)) => Some(newL.getOrElse(l) || r)
+          case (None, None) => None
+        }
+      case Implies(l, r) =>
+        (
+          replaceWithTrueAndSimplify(l, replacer),
+          replaceWithTrueAndSimplify(r, replacer),
+        ) match {
+          case (Some(BooleanValue(true)), newR) => Some(newR.getOrElse(r))
+          case (Some(BooleanValue(false)), _) => Some(tt)
+          case (_, Some(BooleanValue(true))) => Some(tt)
+          case (newL, Some(BooleanValue(false))) => Some(!newL.getOrElse(l))
+          case (Some(l), newR) => Some(l ==> newR.getOrElse(r))
+          case (newL, Some(r)) => Some(newL.getOrElse(l) ==> r)
+          case (None, None) => None
+        }
+      case Not(e) =>
+        replaceWithTrueAndSimplify(e, replacer) match {
+          case Some(BooleanValue(true)) => Some(ff)
+          case Some(BooleanValue(false)) => Some(tt)
+          case newE => newE.map(!_)
+        }
+      case _ => None
+    }
+  }
+
+  private def addSimpleAnnotation(annotation: Expr[G]): Unit = {
+    val res = AnnotationVariableInfo[G](
+      variableEqualities.view.mapValues(_.toSet).toMap,
+      variableValues.toMap,
+      variableSynonyms.toMap,
+      Set[SymbolicTerm[G]](),
+      Map[SymbolicTerm[G], Set[SymbolicTerm[G]]](),
+      Map[SymbolicTerm[G], BigInt](),
+      Map[SymbolicTerm[G], BigInt](),
+      usefulConditions.toSet,
+    )
+
+    equalCheck = ExpressionEqualityCheck(Some(res))
+    extractComparisons(annotation)
   }
 
   def mergeIntMaps(
