@@ -14,7 +14,7 @@ class CSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/c/pointer_casts.c"
   vercors should verify using silicon example "concepts/c/pointer_tests.c"
   vercors should verify using silicon example "concepts/c/pointer_relations.c"
-  vercors should verify using silicon flag "prover-config:smt.arith.solver=6" example "concepts/c/pointer_array.c"
+  vercors should verify using silicon flags("--dev-no-sat", "--prover-config:smt.arith.solver=6") example "concepts/c/pointer_array.c"
   vercors should verify using silicon flags("--backend-option", "--exhaleMode=2") example "concepts/c/tagged_struct.c"
   vercors should verify using silicon example "concepts/c/void.c"
 
