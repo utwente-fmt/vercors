@@ -273,7 +273,7 @@ case class EncodePointerArrays[Pre <: Generation]()
               OptEmpty(e),
               Null(),
               adtFunctionInvocation[Post](
-                pointerSucc.ref((element, dimensions, None, false)),
+                pointerSucc.ref((element, dimensions, unique, false)),
                 args = Seq(OptGet(e)(PanicBlame(
                   "Can never be null since this is ensured in the conditional expression"
                 ))),
@@ -281,7 +281,7 @@ case class EncodePointerArrays[Pre <: Generation]()
             )
           case TAxiomatic(_, _) =>
             adtFunctionInvocation[Post](
-              pointerSucc.ref((element, dimensions, None, false)),
+              pointerSucc.ref((element, dimensions, unique, false)),
               args = Seq(e),
             )
           case _ => e
@@ -321,7 +321,7 @@ case class EncodePointerArrays[Pre <: Generation]()
               )
             else
               Select(
-                e === Null(),
+                PointerEq(e, Null(), const(0)),
                 OptNoneTyped(TAxiomatic(
                   arraySucc.ref(element, dimensions.length, unique, t.isConst),
                   Nil,
@@ -392,28 +392,52 @@ case class EncodePointerArrays[Pre <: Generation]()
         )
       case PointerEq(Null() | ApplyCoercion(Null(), _), p, _)
           if p.t.asPointerArray.isDefined =>
-        OptEmpty(dispatch(p))
+        if (p.t.asPointerArray.get.isNonNull)
+          ff
+        else
+          OptEmpty(dispatch(p))
       case PointerEq(Null() | ApplyCoercion(Null(), _), ApplyCoercion(p, _), _)
           if p.t.asPointerArray.isDefined =>
-        OptEmpty(dispatch(p))
+        if (p.t.asPointerArray.get.isNonNull)
+          ff
+        else
+          OptEmpty(dispatch(p))
       case PointerEq(p, Null() | ApplyCoercion(Null(), _), _)
           if p.t.asPointerArray.isDefined =>
-        OptEmpty(dispatch(p))
+        if (p.t.asPointerArray.get.isNonNull)
+          ff
+        else
+          OptEmpty(dispatch(p))
       case PointerEq(ApplyCoercion(p, _), Null() | ApplyCoercion(Null(), _), _)
           if p.t.asPointerArray.isDefined =>
-        OptEmpty(dispatch(p))
+        if (p.t.asPointerArray.get.isNonNull)
+          ff
+        else
+          OptEmpty(dispatch(p))
       case PointerNeq(Null() | ApplyCoercion(Null(), _), p, _)
           if p.t.asPointerArray.isDefined =>
-        !OptEmpty(dispatch(p))
+        if (p.t.asPointerArray.get.isNonNull)
+          tt
+        else
+          !OptEmpty(dispatch(p))
       case PointerNeq(Null() | ApplyCoercion(Null(), _), ApplyCoercion(p, _), _)
           if p.t.asPointerArray.isDefined =>
-        !OptEmpty(dispatch(p))
+        if (p.t.asPointerArray.get.isNonNull)
+          tt
+        else
+          !OptEmpty(dispatch(p))
       case PointerNeq(p, Null() | ApplyCoercion(Null(), _), _)
           if p.t.asPointerArray.isDefined =>
-        !OptEmpty(dispatch(p))
+        if (p.t.asPointerArray.get.isNonNull)
+          tt
+        else
+          !OptEmpty(dispatch(p))
       case PointerNeq(ApplyCoercion(p, _), Null() | ApplyCoercion(Null(), _), _)
           if p.t.asPointerArray.isDefined =>
-        !OptEmpty(dispatch(p))
+        if (p.t.asPointerArray.get.isNonNull)
+          tt
+        else
+          !OptEmpty(dispatch(p))
       case AddrOf(sub @ PointerArraySubscript(a, _)) => calculatePointer(sub)
       case AddrOf(ApplyCoercion(sub @ PointerArraySubscript(_, _), _)) =>
         calculatePointer(sub)
@@ -430,6 +454,7 @@ case class EncodePointerArrays[Pre <: Generation]()
           if inner.t.asPointerArray.isDefined &&
             inner.t.asPointerArray.get.isNonNull =>
         val t = inner.t.asPointerArray.get
+        initialiseAdt(t.element, t.dimensions.length, t.unique, t.isConst)
         adtFunctionInvocation(
           pointerSucc
             .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
@@ -465,6 +490,12 @@ case class EncodePointerArrays[Pre <: Generation]()
       case IntegerPointerCast(value, t, size)
           if value.t.asPointerArray.isDefined =>
         val arrayT = value.t.asPointerArray.get
+        initialiseAdt(
+          arrayT.element,
+          arrayT.dimensions.length,
+          arrayT.unique,
+          arrayT.isConst,
+        )
         IntegerPointerCast(
           adtFunctionInvocation(
             pointerSucc.ref((
@@ -650,7 +681,8 @@ case class EncodePointerArrays[Pre <: Generation]()
     t match {
       case a: PointerArrayType[Pre] =>
         val axiomType = TAxiomatic[Post](
-          arraySucc.ref((a.element, a.dimensions.length, a.unique, a.isConst)),
+          initialiseAdt(a.element, a.dimensions.length, a.unique, a.isConst)
+            .ref,
           Nil,
         )
         if (a.isNonNull) { axiomType }
@@ -800,7 +832,7 @@ case class EncodePointerArrays[Pre <: Generation]()
       dimensions: Int,
       unique: Option[BigInt],
       isConst: Boolean,
-  ) = {
+  ): AxiomaticDataType[Post] = {
     arraySucc.getOrElseUpdate(
       (element, dimensions, unique, isConst), {
         implicit val o: Origin = ConstructorOrigin

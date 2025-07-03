@@ -206,7 +206,9 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           requiresT
         else
           requiresT ++ permFields
-      val requiresPred = foldPredicate(requiresT.map((ptr !== Null()) ==> _._1))
+      val requiresPred = foldPredicate(
+        requiresT.map((PointerNeq(ptr, Null(), const(0))) ==> _._1)
+      )
       errors = requiresT.map(_._2)
 
       procedure(
@@ -596,8 +598,9 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       val innerType = dispatch(elementType)
 
       ensures =
-        if (nullable) { Star(Implies(result !== Null(), ensures), tt) }
-        else { ensures }
+        if (nullable) {
+          Star(Implies(PointerNeq(result, Null(), const(0)), ensures), tt)
+        } else { ensures }
 
       val returnT = {
         if (isConst && !nullable)

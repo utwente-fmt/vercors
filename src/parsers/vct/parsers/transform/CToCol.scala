@@ -55,6 +55,8 @@ case class CToCol[G](
       .find(i => indicatorStream.get(i).getLine - 1 >= lineIdx)
       .getOrElse(return None)
 
+    // TODO: This will actually always assume that the file is the input file whereas it may be in a library
+    //       we should look at the path that is given here, because this can cause confusing errors
     for (tokIdx <- firstTokenAtOrPastLine to 0 by -1) {
       val markerToken = indicatorStream.get(tokIdx)
       if (markerToken.getChannel == LangCLexer.LINE_DIRECTIVE_CHANNEL) {

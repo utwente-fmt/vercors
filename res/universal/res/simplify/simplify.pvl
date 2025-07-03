@@ -109,8 +109,10 @@ axiom collapse_nested_implies {
     (a ==> b ==> c) == ((a && b) ==> c))
 }
 
-axiom push_implies_and { (∀boolean a, boolean b, boolean c; (a ==> b && c) == ((a ==> b) && (a ==> c))) }
-axiom push_implies_star { (∀boolean a, resource b, resource c; (a ==> b ** c) == ((a ==> b) ** (a ==> c))) }
+// AS: I think these only made sense in combination with forall_and and starall_star, now they just increase the size of
+//     the quantifier. I had a verification that become 4x slower due to these rules
+// axiom push_implies_and { (∀boolean a, boolean b, boolean c; (a ==> b && c) == ((a ==> b) && (a ==> c))) }
+// axiom push_implies_star { (∀boolean a, resource b, resource c; (a ==> b ** c) == ((a ==> b) ** (a ==> c))) }
 
 axiom select_def { (∀boolean cond; (cond ? true : false) == cond) }
 axiom select_inv_def { (∀boolean cond; (cond ? false : true) == !cond) }
