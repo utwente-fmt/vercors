@@ -21,7 +21,7 @@ PreservedAnalyses GlobalVariableDeclarerPass::run(Module &M,
                                       *colGlobal->mutable_variable_type());
         if (global.hasInitializer()) {
             // Skip the entry-point global from swift, as it contains currently
-            // unsupported poitner-casting and is not needed for verification.
+            // unsupported pointer-casting and is not needed for verification.
             if (global.getSection().str() != constants::SWIFT_ENTRY_SECTION) {
                 llvm2col::transformAndSetConstExpr(
                     MAM.getResult<FunctionAnalysisManagerModuleProxy>(M)

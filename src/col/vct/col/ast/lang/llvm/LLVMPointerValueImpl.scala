@@ -14,8 +14,7 @@ trait LLVMPointerValueImpl[G] extends LLVMPointerValueOps[G] {
   this: LLVMPointerValue[G] =>
   override lazy val t: Type[G] = {
     value.decl match {
-      case LLVMGlobalVariable(variableType, _, _) =>
-        LLVMTPointer(Some(variableType))
+      case gv: LLVMGlobalVariable[G] => LLVMTPointer(Some(gv.variableType))
       case v: HeapVariable[G] => LLVMTPointer(Some(v.t))
     }
   }

@@ -3846,10 +3846,10 @@ final case class LLVMLoopContract[G](invariant: Expr[G])(
 )(implicit val o: Origin)
     extends LoopContract[G] with LLVMLoopContractImpl[G]
 
-final case class LLVMGlobalVariable[G](
-    variableType: Type[G],
-    value: Option[Expr[G]],
-    constant: Boolean,
+final class LLVMGlobalVariable[G](
+    val variableType: Type[G],
+    val value: Option[Expr[G]],
+    val constant: Boolean,
 )(implicit val o: Origin)
     extends GlobalDeclaration[G] with LLVMGlobalVariableImpl[G]
 
