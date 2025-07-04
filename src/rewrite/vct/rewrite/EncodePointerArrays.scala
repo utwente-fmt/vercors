@@ -213,10 +213,6 @@ case class EncodePointerArrays[Pre <: Generation]()
       : SuccessionMap[(Type[Pre], Int, Option[BigInt], Boolean), ADTFunction[
         Post
       ]] = SuccessionMap()
-  private val triggerSucc
-      : SuccessionMap[(Type[Pre], Int, Option[BigInt], Boolean), ADTFunction[
-        Post
-      ]] = SuccessionMap()
   private val dimSucc: SuccessionMap[
     (Type[Pre], Int, Option[BigInt], Int, Boolean),
     ADTFunction[Post],
@@ -226,7 +222,6 @@ case class EncodePointerArrays[Pre <: Generation]()
     .HashSet()
 
   private val globalBlame: ScopedStack[Blame[UnsafeCoercion]] = ScopedStack()
-  private val inPattern: ScopedStack[Option[InlinePattern[Pre]]] = ScopedStack()
 
   override def postCoerce(program: Program[Pre]): Program[Post] = {
     globalBlame.having(program.blame) {
@@ -360,36 +355,10 @@ case class EncodePointerArrays[Pre <: Generation]()
       case other => super.applyCoercion(e, other)
     }
 
-  override def postCoerce(l: Location[Pre]): Location[Post] =
-    l match {
-      case l @ InLinePatternLocation(_, e) =>
-        l.rewrite(pattern = inPattern.having(None) { dispatch(e) })
-      case _ => super.postCoerce(l)
-    }
-
   override def postCoerce(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o;
 
     e match {
-      case p @ InlinePattern(e, parent, group) =>
-        val (expr, overwritten) =
-          inPattern.having(Some(p)) { (dispatch(e), inPattern.top.isEmpty) }
-        if (overwritten)
-          expr
-        else
-          InlinePattern(expr, parent, group)
-      case f: Forall[Pre] =>
-        f.rewrite(triggers =
-          inPattern.having(None) { f.triggers.map(_.map(dispatch)) }
-        )
-      case e: Exists[Pre] =>
-        e.rewrite(triggers =
-          inPattern.having(None) { e.triggers.map(_.map(dispatch)) }
-        )
-      case s: Starall[Pre] =>
-        s.rewrite(triggers =
-          inPattern.having(None) { s.triggers.map(_.map(dispatch)) }
-        )
       case PointerEq(Null() | ApplyCoercion(Null(), _), p, _)
           if p.t.asPointerArray.isDefined =>
         if (p.t.asPointerArray.get.isNonNull)
@@ -753,54 +722,14 @@ case class EncodePointerArrays[Pre <: Generation]()
     val arrayT = sub.array.t.asPointerArray.get
     val (obj, index, length) = calculateOffset(sub, arrayT.dimensions.length)
     initialiseAdt(arrayT.element, length, arrayT.unique, arrayT.isConst)
-    val add =
-      PointerAdd(
-        adtFunctionInvocation[Post](
-          pointerSucc
-            .ref((arrayT.element, length, arrayT.unique, arrayT.isConst)),
-          args = Seq(unwrapOption(obj, sub.blame)),
-        ),
-        index,
-      )(CalculatedPointerAddBlame(sub.blame))
-    val stripped =
-      sub.copy(
-        array = stripCoercions(sub.array),
-        index = stripCoercions(sub.index),
-      )(sub.blame)(sub.o)
-    if (inPattern.isEmpty || inPattern.top.exists(_.inner == stripped)) {
-      Asserting[Post](
-        adtFunctionInvocation(
-          triggerSucc
-            .ref((arrayT.element, length, arrayT.unique, arrayT.isConst)),
-          args =
-            unwrapOption(obj, sub.blame) +: indices(sub).padTo(length, const(0))
-              .map(dispatch),
-        ),
-        if (inPattern.topOption.exists(_.exists(_.inner == stripped))) {
-          // There is no utility method for this pop because this is a bit hacky
-          val pattern = inPattern.stack.pop().get
-          inPattern.push(None)
-          InlinePattern(add, pattern.parent, pattern.group)
-        } else { add },
-      )(ArrayIndexAssertingBlame(sub.blame, sub))
-    } else {
-      // We're in a pattern so SimplifyNestedQuantifiers so get rid of the asserting
-      add
-    }
-  }
-
-  private def stripCoercions(e: Expr[Pre]): Expr[Pre] =
-    e match {
-      case ApplyCoercion(e, _) => e
-      case e => e
-    }
-
-  private def indices(sub: PointerArraySubscript[Pre]): Seq[Expr[Pre]] = {
-    sub.array match {
-      case p: InlinePattern[Pre] => throw InvalidPatternLocation(p)
-      case inner: PointerArraySubscript[Pre] => indices(inner) :+ sub.index
-      case _ => Seq(sub.index)
-    }
+    PointerAdd(
+      adtFunctionInvocation[Post](
+        pointerSucc
+          .ref((arrayT.element, length, arrayT.unique, arrayT.isConst)),
+        args = Seq(unwrapOption(obj, sub.blame)),
+      ),
+      index,
+    )(CalculatedPointerAddBlame(sub.blame))
   }
 
   private def calculateOffset(
@@ -905,47 +834,11 @@ case class EncodePointerArrays[Pre <: Generation]()
             },
           ))
         )
-        val dimInts = Seq.fill(dimensions)(TInt[Post]())
-        val triggerFunction =
-          new ADTFunction[Post](
-            new Variable(axiomType) +: dimInts.map(new Variable(_)),
-            TBool(),
-          )
-        triggerSucc((element, dimensions, unique, isConst)) = triggerFunction
-        val linearAxiom =
-          new ADTAxiom[Post](foralls(
-            axiomType +: dimInts,
-            { case a +: ints =>
-              val calc = ints.zipWithIndex.map { case (i, j) =>
-                dimFunctions.slice(j + 1, dimFunctions.length)
-                  .map(f => adtFunctionInvocation[Post](f.ref, args = Seq(a)))
-                  .foldLeft[Expr[Post]](i)(Mult[Post](_, _))
-              }.reduce(Plus[Post](_, _))
-
-              foldAnd(ints.zip(dimFunctions).map { case (i, f) =>
-                const[Post](0) <= i &&
-                i < adtFunctionInvocation[Post](f.ref, args = Seq(a))
-              }) ==>
-                (InlinePattern(adtFunctionInvocation[Post](
-                  triggerFunction.ref,
-                  args = a +: ints,
-                )) && const[Post](0) <= calc &&
-                  calc <
-                  dimFunctions
-                    .map(f => adtFunctionInvocation[Post](f.ref, args = Seq(a)))
-                    .reduce((a: Expr[Post], b: Expr[Post]) => Mult(a, b)))
-            },
-          ))
         globalDeclarations.declare(
           new AxiomaticDataType(
-            dimFunctions ++ Seq(
-              pointerFunction,
-              invFunction,
-              triggerFunction,
-              invAxiom,
-              boundsAxiom,
-              linearAxiom,
-            ) ++ dimAxioms,
+            dimFunctions ++
+              Seq(pointerFunction, invFunction, invAxiom, boundsAxiom) ++
+              dimAxioms,
             Nil,
           )(o.where(name =
             if (isConst) { s"const_pointer_${dimensions}_array_$element" }

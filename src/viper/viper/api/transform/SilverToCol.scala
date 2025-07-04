@@ -15,6 +15,8 @@ import viper.silver.ast.{
   AbstractSourcePosition,
   FilePosition,
   LineColumnPosition,
+  LocationAccess,
+  MagicWand,
   NoPosition,
   SourcePosition,
   VirtualPosition,
@@ -314,14 +316,17 @@ case class SilverToCol[G](
           Seq((transform(cond), transform(thn)), (tt[G], transform(els)))
         )(origin(s))
       case silver.While(cond, invs, body) =>
+        val (invariants, decreases) = partitionDecreases(invs)
+        if (decreases.length > 1) { ??(decreases(1)) }
         col.Loop(
           init = col.Block(Nil)(origin(s)),
           cond = transform(cond),
           update = col.Block(Nil)(origin(s)),
           contract =
-            col.LoopInvariant(foldStar(invs.map(transform))(origin(s)), None)(
-              blame(s)
-            )(origin(s)),
+            col.LoopInvariant(
+              foldStar(invariants.map(transform))(origin(s)),
+              decreases.headOption.flatMap(transform),
+            )(blame(s))(origin(s)),
           body = transform(body),
         )(origin(s))
       case silver.Label(name, invs) =>
@@ -544,7 +549,12 @@ case class SilverToCol[G](
       case silver.Asserting(a, body) => col.Asserting(f(a), f(body))(blame(e))
       case silver.WildcardPerm() => col.ReadPerm()
 
-      case silver.ForPerm(variables, resource, body) => ??(e)
+      case silver.ForPerm(variables, resource, body) =>
+        col.ForPerm(
+          variables.map(transform),
+          col.AmbiguousLocation(f(resource))(blame(resource)),
+          f(body),
+        )
       case silver.EpsilonPerm() => ??(e)
       case silver.InhaleExhaleExp(in, ex) => col.PolarityDependent(f(in), f(ex))
       case silver.MagicWand(left, right) => ??(e)
