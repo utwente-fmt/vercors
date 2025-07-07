@@ -178,6 +178,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   private val assignedInLoop: ScopedStack[mutable.Set[Variable[Pre]]] =
     ScopedStack()
 
+  // Tracks the label of the current loop
+  private val currentLoopLabel: ScopedStack[LabelDecl[Pre]] = ScopedStack()
+
   // Initializer-functions for the tuples that are returned by the llvm intrinsics
   // for arithmetic operaitons with overflows.
   private val overflowOpInitializers
@@ -1564,21 +1567,23 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           assignedVars.add(v)
         }
       }
-      Label(
-        rw.labelDecls.dispatch(block.label),
-        Loop(
-          Block(Nil)(block.o),
-          tt[Post],
-          Block(Nil)(block.o),
-          assignedInLoop.having(assignedVars) { rw.dispatch(loop.contract) },
-          Block(
-            blockToLabel(loop.headerBlock.get) +: loop.blocks.get.filterNot {
-              b => b == loop.headerBlock.get || b == loop.latchBlock.get
-            }.map(b => blockToLabel(b)) :+
-              blockToLabel(loop.latchBlock.get, true)
+      currentLoopLabel.having(block.label) {
+        Label(
+          rw.labelDecls.dispatch(block.label),
+          Loop(
+            Block(Nil)(block.o),
+            tt[Post],
+            Block(Nil)(block.o),
+            assignedInLoop.having(assignedVars) { rw.dispatch(loop.contract) },
+            Block(
+              blockToLabel(loop.headerBlock.get) +: loop.blocks.get.filterNot {
+                b => b == loop.headerBlock.get || b == loop.latchBlock.get
+              }.map(b => blockToLabel(b)) :+
+                blockToLabel(loop.latchBlock.get, true)
+            )(block.o),
           )(block.o),
-        )(block.o),
-      )(block.o)
+        )(block.o)
+      }
     }
   }
 
@@ -1588,19 +1593,26 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = llvmContract.o
     // Add Permission for alloca-variables
     var extendedInv = rw.dispatch(llvmContract.invariant)
+    val locPermBlame = PanicBlame("Generated locals always have permission")
     allocaVars.topOption.getOrElse(mutable.Set.empty).foreach { v =>
-      // If the variable is assigned to, assert write-perm, otherwise read perm
-      val perm =
-        if (assignedInLoop.topOption.getOrElse(mutable.Set.empty).contains(v)) {
-          WritePerm[Post]()
-        } else { ReadPerm[Post]() }
-      extendedInv =
-        Perm(
-          PointerLocation[Post](Local(rw.succ(v)))(PanicBlame(
-            "Generated locals always have permission"
-          )),
-          perm,
-        ) &* extendedInv
+      if (!assignedInLoop.topOption.getOrElse(mutable.Set.empty).contains(v)) {
+        // If the variable is not assigned to, specify that the value does not change
+        // TODO: We might have to check that the pointer to v is not passed to other functions in the loop
+        // \old(*v, loop_header) == *v
+        val oldClause =
+          Old[Post](
+            DerefPointer[Post](Local(rw.succ(v)))(locPermBlame),
+            Option(rw.succ(currentLoopLabel.top)),
+          )(PanicBlame("Header-label always precedes loop")) ===
+            DerefPointer[Post](Local(rw.succ(v)))(locPermBlame)
+        extendedInv = oldClause &* extendedInv
+      }
+
+      val permClause = Perm(
+        PointerLocation[Post](Local(rw.succ(v)))(locPermBlame),
+        WritePerm[Post](),
+      )
+      extendedInv = permClause &* extendedInv
     }
     LoopInvariant[Post](extendedInv, None)(llvmContract.blame)
   }
