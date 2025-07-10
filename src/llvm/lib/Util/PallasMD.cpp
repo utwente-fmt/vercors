@@ -25,6 +25,20 @@ bool hasPallasContract(const llvm::Function &f) {
     return f.hasMetadata(pallas::constants::PALLAS_FUNC_CONTRACT);
 }
 
+llvm::MDNode *getPallasContract(const llvm::Function &f) {
+    if (hasPallasContract(f)) {
+        return f.getMetadata(pallas::constants::PALLAS_FUNC_CONTRACT);
+    }
+    if (hasExternalPallasContract(f)) {
+        return f.getMetadata(pallas::constants::PALLAS_EXT_CONTRACT);
+    }
+    return nullptr;
+}
+
+bool hasExternalPallasContract(const llvm::Function &f) {
+    return f.hasMetadata(pallas::constants::PALLAS_EXT_CONTRACT);
+}
+
 bool hasVcllvmContract(const llvm::Function &f) {
     return f.hasMetadata(pallas::constants::METADATA_CONTRACT_KEYWORD);
 }

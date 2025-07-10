@@ -83,7 +83,8 @@ class PallasFunctionContractDeclarerPass
                              Metadata *clauseOperand,
                              FunctionAnalysisManager &fam, Function &parentFunc,
                              unsigned int clauseNum,
-                             const MDNode &contractSrcLoc);
+                             const MDNode &contractSrcLoc,
+                             const bool isExternal);
 
     /**
      * Tries to extract the wrapper-function from the given metadata-node that
@@ -94,6 +95,21 @@ class PallasFunctionContractDeclarerPass
      * ctxFunc is used to build error messages.
      */
     Function *getWrapperFuncFromClause(MDNode &clause, Function &ctxFunc);
+
+    /**
+     * Resolve the DIVariables from a given MD-nodes that encodes a contract-
+     * clause into col-variables.
+     */
+    std::optional<SmallVector<col::Variable *, 8>>
+    getContractArgs(const MDNode &clause, Function &parentFunc,
+                    FunctionAnalysisManager &fam);
+
+    /**
+     * Get the arguments for a call to a wrapper-function that is part of the 
+     * given parent-function's contract.
+     */
+    std::optional<SmallVector<col::Variable *, 8>>
+    getExternalContractArgs(Function &parentFunc, FunctionAnalysisManager &fam);
 
     /**
      * Takes a function and a DIVariable that describes an argument of

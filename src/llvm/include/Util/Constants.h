@@ -8,6 +8,7 @@ namespace pallas::constants {
 
 // Pallas constants
 const std::string PALLAS_FUNC_CONTRACT = "pallas.fcontract";
+const std::string PALLAS_EXT_CONTRACT = "pallas.extContract";
 const std::string PALLAS_REQUIRES = "pallas.requires";
 const std::string PALLAS_ENSURES = "pallas.ensures";
 const std::string PALLAS_WRAPPER_FUNC = "pallas.exprWrapper";

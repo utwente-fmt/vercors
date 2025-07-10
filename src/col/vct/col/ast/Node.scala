@@ -3838,6 +3838,7 @@ final class VCLLVMFunctionContract[G](
 final class PallasFunctionContract[G](
     val content: ApplicableContract[G],
     val assumed: Boolean = false,
+    val external: Boolean,
 )(val blame: Blame[NontrivialUnsatisfiable])(implicit val o: Origin)
     extends LLVMFunctionContract[G] with PallasFunctionContractImpl[G] {}
 
