@@ -33,7 +33,7 @@ mkdir -p $W_DIR
 
 # C Tests
 echo "=============================================="
-echo " Translating C-Tests"
+echo " Translating C Tests"
 echo "=============================================="
 translate_c_file pallas_c_assert.c pallas_c_assert.ll "-mem2reg"
 translate_c_file pallas_c_assert.c pallas_c_assert.ll "-mem2reg"
@@ -57,9 +57,17 @@ translate_c_file pallas_function_contract_fail.c pallas_function_contract_fail.l
 translate_c_file pallas_loop_goto.c pallas_loop_goto.ll "-mem2reg"
 translate_c_file pallas_result.c pallas_result.ll ""
 
+# C++ Tests
+echo "=============================================="
+echo " Translating C++ Tests"
+echo "=============================================="
+translate_cpp_file extContracts/pallas_cpp_extContr.cpp extContracts/pallas_cpp_extContr.ll "--cLib=extContracts/pallas_cpp_extContr.h"
+translate_cpp_file extContracts/pallas_cpp_extContr.cpp extContracts/pallas_cpp_extContr_fail.ll "--cLib=extContracts/pallas_cpp_extContr_fail.h"
+
+
 # Swift Tests
 echo "=============================================="
-echo " Translating Swift-Tests"
+echo " Translating Swift Tests"
 echo "=============================================="
 translate_swift_file pallas_swift_assert.swift pallas_swift_assert.ll "-mem2reg"
 translate_swift_file pallas_swift_fib.swift pallas_swift_fib.ll "-mem2reg"

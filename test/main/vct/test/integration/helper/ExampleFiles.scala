@@ -56,6 +56,9 @@ case object ExampleFiles {
     "examples/concepts/llvm/pallas/pallas_swift_assert.swift",
     "examples/concepts/llvm/pallas/pallas_c_loop_unused.c",
     "examples/concepts/llvm/pallas/pallas_c_assume.c",
+    "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.h",
+    "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.cpp",
+    "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.h",
   ).map(_.replaceAll("/", File.separator))
 
   val EXCLUSIONS: Seq[Path => Boolean] = Seq(
