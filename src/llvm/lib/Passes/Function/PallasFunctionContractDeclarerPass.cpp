@@ -51,18 +51,27 @@ std::optional<bool> getAssumedFlag(const MDNode &contractMD) {
  * Pallas Function Contract Declarer Pass
  */
 PreservedAnalyses
-PallasFunctionContractDeclarerPass::run(Function &f,
-                                        FunctionAnalysisManager &fam) {
+PallasFunctionContractDeclarerPass::run(Module &m, ModuleAnalysisManager &mam) {
+    auto &fam = mam.getResult<FunctionAnalysisManagerModuleProxy>(m)
+                        .getManager();
+    for (auto &f : m.functions()) {
+        runOnFunction(f, fam);
+    }
+    return PreservedAnalyses::all();
+}
+
+void PallasFunctionContractDeclarerPass::runOnFunction(
+    Function &f, FunctionAnalysisManager &fam) {
     // Check that f does not have a VCLLVM AND a Pallas contract
     if (hasConflictingContract(f))
-        return PreservedAnalyses::all();
+        return;
     // Skip, if f has a non-empty vcllvm-contract, or no contract at all
     // If it does not have a contract, we need an empty VCLLVM contract instead
     // of an empty Pallas contract. Otherwise the mechanism for loading
     // contracts from a PVL-file does not get invoked.
     if (utils::hasVcllvmContract(f) ||
-        !(utils::hasPallasContract(f) || utils::hasExternalPallasContract(f))) 
-        return PreservedAnalyses::all();
+        !(utils::hasPallasContract(f) || utils::hasExternalPallasContract(f)))
+        return;
 
     // Setup a fresh Pallas-contract
     FDCResult cResult = fam.getResult<FunctionContractDeclarer>(f);
@@ -87,7 +96,7 @@ PallasFunctionContractDeclarerPass::run(Function &f,
     if (contractNode->getNumOperands() < 3) {
         pallas::ErrorReporter::addError(
             SOURCE_LOC, "Ill-formed contract. Expected at least 3 operands", f);
-        return PreservedAnalyses::all();
+        return;
     }
 
     auto *mdSrcLoc = dyn_cast<MDNode>(contractNode->getOperand(0).get());
@@ -96,7 +105,7 @@ PallasFunctionContractDeclarerPass::run(Function &f,
             SOURCE_LOC,
             "Ill-formed contract. First operand should encode source-location.",
             f);
-        return PreservedAnalyses::all();
+        return;
     }
 
     // Build origin based on the source-location
@@ -109,7 +118,7 @@ PallasFunctionContractDeclarerPass::run(Function &f,
     auto assumedFlag = getAssumedFlag(*contractNode);
     if (!assumedFlag.has_value()) {
         addError(f, "Malformed function contract (assumed-flag)");
-        return PreservedAnalyses::all();
+        return;
     }
     colPallasContract->set_assumed(assumedFlag.value());
 
@@ -120,7 +129,7 @@ PallasFunctionContractDeclarerPass::run(Function &f,
             *colContract, contractNode->getOperand(clauseIdx).get(), fam, f,
             clauseIdx - 2, *mdSrcLoc, isExternal);
         if (!addClauseSuccess)
-            return PreservedAnalyses::all();
+            return;
         ++clauseIdx;
     }
 
@@ -130,7 +139,6 @@ PallasFunctionContractDeclarerPass::run(Function &f,
     addEmptyEnsures(*colContract, f);
     addEmptyContextEverywhere(*colContract, f);
     addEmptyKernelInvariant(*colContract, f);
-    return PreservedAnalyses::all();
 }
 
 std::optional<SmallVector<col::Variable *, 8>>
