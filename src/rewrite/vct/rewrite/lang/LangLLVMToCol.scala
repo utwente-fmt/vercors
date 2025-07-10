@@ -536,6 +536,17 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteFunctionDef(func: LLVMFunctionDefinition[Pre]): Unit = {
     implicit val o: Origin = func.o
+    // If the function has a contract that is marked as assumed, drop the body.
+    val assumeBody =
+      func.contract match {
+        case c: PallasFunctionContract[Pre] if c.assumed => true
+        case _ => false
+      }
+    if (assumeBody && func.functionBody.isDefined) {
+      val fName = func.o.getPreferredNameOrElse().ucamel
+      logger.warn(s"Assuming contract-compliance for function $fName")
+    }
+
     val procedure = rw.labelDecls.scope {
       allocaVars.having(mutable.Set[Variable[Pre]]()) {
         val newArgs = func.importedArguments.getOrElse(func.args).map { it =>
@@ -571,17 +582,20 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               outArgs = Nil,
               typeArgs = Nil,
               body =
-                inWrapperFunction.having(isWrapper) {
-                  func.functionBody match {
-                    case None => None
-                    case Some(functionBody) =>
-                      if (func.pure)
-                        Some(GotoEliminator(functionBody match {
-                          case scope: Scope[Pre] => scope;
-                          case other => throw UnexpectedLLVMNode(other)
-                        }).eliminate())
-                      else
-                        Some(rw.dispatch(functionBody))
+                if (assumeBody) { None }
+                else {
+                  inWrapperFunction.having(isWrapper) {
+                    func.functionBody match {
+                      case None => None
+                      case Some(functionBody) =>
+                        if (func.pure)
+                          Some(GotoEliminator(functionBody match {
+                            case scope: Scope[Pre] => scope;
+                            case other => throw UnexpectedLLVMNode(other)
+                          }).eliminate())
+                        else
+                          Some(rw.dispatch(functionBody))
+                    }
                   }
                 },
               contract =

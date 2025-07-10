@@ -52,8 +52,8 @@ std::optional<bool> getAssumedFlag(const MDNode &contractMD) {
  */
 PreservedAnalyses
 PallasFunctionContractDeclarerPass::run(Module &m, ModuleAnalysisManager &mam) {
-    auto &fam = mam.getResult<FunctionAnalysisManagerModuleProxy>(m)
-                        .getManager();
+    auto &fam =
+        mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
     for (auto &f : m.functions()) {
         runOnFunction(f, fam);
     }

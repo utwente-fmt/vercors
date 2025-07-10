@@ -75,7 +75,7 @@ ExprWrapperMapper::Result ExprWrapperMapper::run(Function &F,
 
         if (parentF.isDeclaration()) {
             continue;
-        } 
+        }
 
         // Check all loop-contracts
         LoopInfo &loopInfo = FAM.getResult<LoopAnalysis>(parentF);
