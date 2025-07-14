@@ -56,6 +56,7 @@ translate_c_file pallas_function_contract.c pallas_function_contract.ll ""
 translate_c_file pallas_function_contract_fail.c pallas_function_contract_fail.ll ""
 translate_c_file pallas_loop_goto.c pallas_loop_goto.ll "-mem2reg"
 translate_c_file pallas_result.c pallas_result.ll ""
+translate_c_file extContracts/pallas_c_genContrAssume.c extContracts/pallas_c_genContrAssume.ll ""
 
 # C++ Tests
 echo "=============================================="
@@ -63,7 +64,7 @@ echo " Translating C++ Tests"
 echo "=============================================="
 translate_cpp_file extContracts/pallas_cpp_extContr.cpp extContracts/pallas_cpp_extContr.ll "--cLib=extContracts/pallas_cpp_extContr.h"
 translate_cpp_file extContracts/pallas_cpp_extContr.cpp extContracts/pallas_cpp_extContr_fail.ll "--cLib=extContracts/pallas_cpp_extContr_fail.h"
-
+translate_cpp_file extContracts/pallas_cpp_genContr.cpp extContracts/pallas_cpp_genContr.ll
 
 # Swift Tests
 echo "=============================================="
