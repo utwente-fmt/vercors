@@ -1,6 +1,5 @@
 package vct.col.resolve.lang
 
-import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.ast.`type`.typeclass.TFloats.{C_ieee754_32bit, C_ieee754_64bit}
 import vct.col.origin._
@@ -352,6 +351,18 @@ case object C {
 
   def paramsFromDeclarator[G](declarator: CDeclarator[G]): Seq[CParam[G]] =
     getDeclaratorInfo(declarator).params.get
+
+  @tailrec
+  def isFunctionDeclarator(declarator: CDeclarator[_]): Boolean =
+    declarator match {
+      case CTypedFunctionDeclarator(_, _, _) |
+          CAnonymousFunctionDeclarator(_, _) =>
+        true
+      case CName(_) => false
+      case CPointerDeclarator(_, inner) => isFunctionDeclarator(inner)
+      case CArrayDeclarator(_, _, inner) => isFunctionDeclarator(inner)
+      case CTypeExtensionDeclarator(_, inner) => isFunctionDeclarator(inner)
+    }
 
   def findCTypeName[G](
       name: String,
