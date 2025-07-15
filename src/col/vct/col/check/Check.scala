@@ -172,6 +172,11 @@ sealed trait CheckError {
         )
       case OldInPrecondition(expr) =>
         Seq(context(expr) -> s"\\old may not be used in a precondition")
+      case ResourceInPostcondition(expr) =>
+        Seq(
+          context(expr) ->
+            s"Resource terms may not appear in the postcondition of functions (a.k.a pure procedures)"
+        )
     }): _*)
 
   def subcode: String
@@ -294,6 +299,9 @@ case class SupportNotAClass(cls: Node[_], support: Type[_]) extends CheckError {
 }
 case class OldInPrecondition(expr: Node[_]) extends CheckError {
   val subcode = "oldInPrecondition"
+}
+case class ResourceInPostcondition(node: Node[_]) extends CheckError {
+  val subcode = "resourceInPostcondition"
 }
 
 case object CheckContext {
