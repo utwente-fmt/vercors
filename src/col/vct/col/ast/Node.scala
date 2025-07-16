@@ -1312,7 +1312,7 @@ sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 // For terms which we can safely reason about in ExpressionEqualityCheck
 sealed trait SymbolicTerm[G] extends Expr[G]
 // For terms which introduce a resource in a function precondition, invocations of these functions must be excluded from SymbolicTerms that are collected
-sealed trait ResourceTerm[G] extends Expr[G]
+sealed trait ResourceTerm[G] extends Expr[G] with ResourceTermImpl[G]
 
 sealed trait Constant[G] extends Expr[G] with ConstantImpl[G]
 sealed trait ConstantInt[G] extends Constant[G] with ConstantIntImpl[G]

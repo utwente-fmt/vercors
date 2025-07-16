@@ -591,8 +591,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
         effect(Assign(target, value)(ass.blame)(e.o))
         stored(value, oldValue.t)
       case ass @ PostAssignExpression(oldTarget, value) =>
+        val cachedTarget = stored(inlined(oldTarget), oldTarget.t)
         val target = assignTarget(oldTarget)
-        val cachedTarget = stored(target, oldTarget.t)
         effect(Assign(target, inlined(value))(ass.blame)(e.o))
         stored(cachedTarget, oldTarget.t)
       case With(pre, value) =>
