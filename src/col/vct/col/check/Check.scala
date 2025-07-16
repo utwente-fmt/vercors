@@ -171,11 +171,19 @@ sealed trait CheckError {
             s"This class cannot extend or implement the type $support since it is not a class"
         )
       case OldInPrecondition(expr) =>
-        Seq(context(expr) -> s"\\old may not be used in a precondition")
+        Seq(context(expr) -> "\\old may not be used in a precondition")
       case ResourceInPostcondition(expr) =>
         Seq(
           context(expr) ->
-            s"Resource terms may not appear in the postcondition of functions (a.k.a pure procedures)"
+            "Resource terms may not appear in the postcondition of functions (a.k.a pure procedures)"
+        )
+      case RecursiveFunctionWithoutTerminationMeasure(expr, suggestResult) =>
+        Seq(
+          context(expr) ->
+            ("Recursive function calls in contracts are only allowed for functions with a termination measure" +
+              (if (suggestResult) {
+                 " (Hint: use \\result to refer to the output of the function)"
+               } else { "" }))
         )
     }): _*)
 
@@ -302,6 +310,12 @@ case class OldInPrecondition(expr: Node[_]) extends CheckError {
 }
 case class ResourceInPostcondition(node: Node[_]) extends CheckError {
   val subcode = "resourceInPostcondition"
+}
+case class RecursiveFunctionWithoutTerminationMeasure(
+    node: Node[_],
+    suggestResult: Boolean,
+) extends CheckError {
+  val subcode = "missingTerminationMeasure"
 }
 
 case object CheckContext {
