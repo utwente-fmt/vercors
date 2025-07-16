@@ -106,6 +106,12 @@ case object SimplifyNestedQuantifiers extends RewriterBuilder {
 trait FailReason {
   def text: String
 }
+case class SpecialOperators(pattern: Expr[_]) extends FailReason {
+  def text: String =
+    pattern.o.messageInContext(
+      "This pattern contains operators that are not allowed in triggers, and which we cannot rewrite"
+    )
+}
 case class NotLinear(pattern: Expr[_]) extends FailReason {
   def text: String =
     pattern.o.messageInContext(
@@ -1014,7 +1020,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
       special.foreach(p =>
         p.collectFirst {
           case Local(ref) if nonMentionedVars.contains(ref.decl) =>
-            throw InvalidTrigger(p, Seq())
+            throw InvalidTrigger(p, Seq(SpecialOperators(p)))
         }
       )
       introducePatterns = introducePatterns ++ special
