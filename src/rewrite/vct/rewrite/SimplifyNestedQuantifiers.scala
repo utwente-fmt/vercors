@@ -16,7 +16,6 @@ import vct.col.ref.Ref
 import vct.col.rewrite.SimplifyNestedQuantifiers.{
   InvalidTrigger,
   InvalidTriggerPair,
-  InvalidTriggerVars,
   NotAllowedInTrigger,
   NotAllowedInTriggerSet,
 }
@@ -64,19 +63,6 @@ case object SimplifyNestedQuantifiers extends RewriterBuilder {
       e.o.messageInContext(
         "We tried to rewrite multiple trigger sets for this forall, but that is only possible if they contain exactly the same" +
           " arithmetic or special expressions."
-      )
-  }
-
-  case class InvalidTriggerVars(
-      triggers: Seq[Expr[_]],
-      missing: Set[Variable[_]],
-  ) extends UserError {
-    override def code: String = "invalidTriggerVars"
-
-    override def text: String =
-      Message.messagesInContext(
-        triggers.map(err => err.o -> s"... these triggers.") ++
-          missing.map(v => (v.o, ".. do not mention this var.")): _*
       )
   }
 
@@ -957,14 +943,6 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
 
     def lookForLinearAccesses(): Option[Expr[Post]] = {
       val linearAccesses = new FindLinearArrayAccesses(this)
-      // Each trigger set should mention all forall vars
-      triggers.foreach { t =>
-        val mentionedVars = t.flatMap(collectForallVars)
-        val nonMentionedVars: Set[Variable[Pre]] =
-          bindings.toSet -- mentionedVars
-        if (nonMentionedVars.nonEmpty)
-          throw InvalidTriggerVars(t, nonMentionedVars.toSet)
-      }
 
       // If there are multiple trigger sets, they should contain the same special && arithmetic expressions
       // We split the triggers in 'patterns'. E.g each function argument is a 'pattern' and the index of an array is a
