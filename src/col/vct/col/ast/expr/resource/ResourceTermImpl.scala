@@ -9,9 +9,9 @@ trait ResourceTermImpl[G] extends NodeImpl[G] {
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
     if (
-      context.inPostCondition &&
-      context.currentApplicable.exists { case a: ContractApplicable[G] =>
-        a.pure
+      context.inPostCondition && context.currentApplicable.exists {
+        case a: ContractApplicable[G] => a.pure
+        case _ => false
       }
     ) { Seq(ResourceInPostcondition(this)) }
     else { Nil }
