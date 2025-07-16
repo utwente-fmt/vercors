@@ -1049,7 +1049,7 @@ int get_first_two(/*@unique<1>@*/ int* xs){
   vercors should error withCode "disallowedQualifiedMethodCoercionNest" in "Method has func in contract - 2" c
     """
  /*@
-  context xs != NULL ** \pointer_length(xs)>2 ** Perm(xs[0], 1\100);
+  requires xs != NULL ** \pointer_length(xs)>2 ** Perm(xs[0], 1\100);
   ensures \result == xs[0];
 @*/
 /*@ pure @*/ int id(/*@unique<2>@*/ int* xs){
