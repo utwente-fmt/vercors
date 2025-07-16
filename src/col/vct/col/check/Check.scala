@@ -185,6 +185,11 @@ sealed trait CheckError {
                  " (Hint: use \\result to refer to the output of the function)"
                } else { "" }))
         )
+      case IncorrectArgumentAmount(expr, gotCount, expectedCount) =>
+        Seq(
+          context(expr) ->
+            s"This invocation has the wrong number of arguments, got: $gotCount expected: $expectedCount"
+        )
     }): _*)
 
   def subcode: String
@@ -316,6 +321,14 @@ case class RecursiveFunctionWithoutTerminationMeasure(
     suggestResult: Boolean,
 ) extends CheckError {
   val subcode = "missingTerminationMeasure"
+}
+// Mostly for catching wrong generated calls (Resolution catches most of these when they come from the user)
+case class IncorrectArgumentAmount(
+    node: Node[_],
+    gotCount: Int,
+    expectedCount: Int,
+) extends CheckError {
+  val subcode = "incorrectArgumentAmount"
 }
 
 case object CheckContext {
