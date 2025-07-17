@@ -1,11 +1,11 @@
 package vct.col.ast.expr.binder
 
-import hre.util.ScopedStack
 import vct.col.ast.{
   Expr,
   InlinePattern,
   Let,
   Local,
+  Node,
   PossibleTrigger,
   TriggeredQuantifier,
   Variable,
@@ -16,11 +16,12 @@ import vct.col.check.{
   CheckError,
   DisallowedTriggerExpression,
   InvalidTriggerVars,
+  TriggerWithoutDependentVars,
 }
 import vct.col.ref.Ref
+import vct.col.util.AstBuildHelpers.unfoldImplies
 
 import scala.annotation.tailrec
-import scala.collection.mutable
 
 trait TriggeredQuantifierImpl[G] extends NodeFamilyImpl[G] {
   this: TriggeredQuantifier[G] =>
@@ -28,17 +29,14 @@ trait TriggeredQuantifierImpl[G] extends NodeFamilyImpl[G] {
   def triggers: Seq[Seq[Expr[G]]]
   def body: Expr[G]
 
-  // This is not quite as good as the implementation in ExtractInlineQuantifierPatterns since it doesn't inline Lets
-  def collectInlinePatterns: Seq[Seq[Expr[G]]] = {
-    var depth = 0;
-    body.flatCollect {
-      case _: TriggeredQuantifier[G] =>
-        depth += 1
-        None
-      case InlinePattern(e, group, inner) if inner - depth == 0 =>
-        Seq((e, group))
-    }.groupBy { case (_, group) => group }.values.map(_.map(_._1)).toSeq
-  }
+  private def collectLetBindings(e: Node[G]): Map[Variable[G], Expr[G]] =
+    e match {
+      case Let(binding, value, main) =>
+        collectLetBindings(main) + (binding -> value)
+      case _ =>
+        e.subnodes.map(collectLetBindings(_))
+          .fold[Map[Variable[G], Expr[G]]](Map.empty) { case (a, b) => a ++ b }
+    }
 
   @tailrec
   private def isPossibleTrigger(
@@ -47,40 +45,58 @@ trait TriggeredQuantifierImpl[G] extends NodeFamilyImpl[G] {
   ): Boolean =
     e match {
       case pt: PossibleTrigger[G] => pt.isPossibleTrigger
-      case Let(binding, value, main) =>
-        isPossibleTrigger(main, bindings + (binding -> value))
       case Local(Ref(v)) if bindings.contains(v) =>
         isPossibleTrigger(bindings(v), bindings)
       case _ => false
     }
 
+  private def findMentionedVars(
+      e: Node[G],
+      bindings: Seq[Variable[G]],
+      letBindings: Map[Variable[G], Expr[G]],
+  ): Set[Variable[G]] =
+    e match {
+      case Local(Ref(v)) if bindings.contains(v) => Set(v)
+      case Local(Ref(v)) if letBindings.contains(v) =>
+        findMentionedVars(letBindings(v), bindings, letBindings)
+      case _ =>
+        e.subnodes.flatMap(findMentionedVars(_, bindings, letBindings)).toSet
+    }
+
+  def checkTriggers(triggerSets: Seq[Seq[Expr[G]]]): Seq[CheckError] = {
+    if (triggerSets.isEmpty || triggerSets.forall(_.isEmpty))
+      return Nil
+    var result: Seq[CheckError] = Nil
+    val letBindings = collectLetBindings(body)
+
+    // TODO: This is not quite good enough probably since this doesn't strip scales like unfoldBody in
+    //       SimplifyNestedQuantifiers does.
+    val (_, inner) = unfoldImplies(body)
+    val dependentVars = findMentionedVars(inner, bindings, letBindings)
+    if (dependentVars.isEmpty) { return Seq(TriggerWithoutDependentVars(this)) }
+    // Each trigger set should mention all forall vars
+    triggerSets.foreach { t =>
+      val mentionedVars = t.flatMap(findMentionedVars(_, bindings, letBindings))
+      val nonMentionedVars: Set[Variable[G]] = dependentVars -- mentionedVars
+      if (nonMentionedVars.nonEmpty)
+        result = result :+ InvalidTriggerVars(t, nonMentionedVars.toSet)
+    }
+
+    // Each trigger should be an expression that will eventually become one of Viper's AST nodes implementing PossibleTrigger
+    result ++ triggerSets.flatMap[CheckError](
+      _.filter(!isPossibleTrigger(_, letBindings))
+        .map(DisallowedTriggerExpression)
+    )
+  }
+
   override def check(context: CheckContext[G]): Seq[CheckError] = {
-    var result = super.check(context)
+    val result = super.check(context)
 
     // If variables haven't been resolved yet we cannot properly check if the binding match/ Luckily the checks after
     // LangSpecificToCol *also* get blamed on the user so it's fine to not do these check immediately.
     if (context.inResolution)
       return result
 
-    val allTriggers = collectInlinePatterns ++ triggers
-
-    // Each trigger set should mention all forall vars
-    allTriggers.foreach { t =>
-      val mentionedVars = t.flatMap(_.collect {
-        case Local(Ref(v)) if bindings.contains(v) => v
-      })
-      val nonMentionedVars: Set[Variable[G]] = bindings.toSet -- mentionedVars
-      if (nonMentionedVars.nonEmpty)
-        result = result :+ InvalidTriggerVars(t, nonMentionedVars.toSet)
-    }
-
-    // Each trigger should be an expression that will eventually become one of Viper's AST nodes implementing PossibleTrigger
-    result =
-      result ++ allTriggers.flatMap[CheckError](
-        _.filter(!isPossibleTrigger(_, Map.empty))
-          .map(DisallowedTriggerExpression)
-      )
-
-    result
+    result ++ checkTriggers(triggers)
   }
 }

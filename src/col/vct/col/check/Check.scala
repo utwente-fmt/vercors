@@ -200,6 +200,11 @@ sealed trait CheckError {
           missing.map(v => (v.o, ".. do not mention this var."))
       case DisallowedTriggerExpression(expr) =>
         Seq(context(expr) -> "This expression is not a valid trigger")
+      case TriggerWithoutDependentVars(expr) =>
+        Seq(
+          context(expr) ->
+            "This quantifier has triggers but its body doesn't use its dependent variables (Hint: use {:<:trigger:} to add a trigger for an outer quantifier)"
+        )
     }): _*)
 
   def subcode: String
@@ -349,6 +354,9 @@ case class InvalidTriggerVars(triggers: Seq[Expr[_]], missing: Set[Variable[_]])
 }
 case class DisallowedTriggerExpression(node: Node[_]) extends CheckError {
   val subcode: String = "disallowedTrigger"
+}
+case class TriggerWithoutDependentVars(node: Node[_]) extends CheckError {
+  val subcode: String = "triggerWithoutDependentVars"
 }
 
 case object CheckContext {

@@ -1348,16 +1348,16 @@ final case class LiteralBag[G](element: Type[G], values: Seq[Expr[G]])(
 ) extends Expr[G] with LiteralBagImpl[G] with PossibleTrigger[G]
 final case class LiteralTuple[G](ts: Seq[Type[G]], values: Seq[Expr[G]])(
     implicit val o: Origin
-) extends Expr[G] with LiteralTupleImpl[G]
+) extends Expr[G] with LiteralTupleImpl[G] with PossibleTrigger[G]
 final case class LiteralMap[G](
     k: Type[G],
     v: Type[G],
     values: Seq[(Expr[G], Expr[G])],
 )(implicit val o: Origin)
-    extends Expr[G] with LiteralMapImpl[G]
+    extends Expr[G] with LiteralMapImpl[G] with PossibleTrigger[G]
 final case class LiteralVector[G](element: Type[G], values: Seq[Expr[G]])(
     implicit val o: Origin
-) extends Expr[G] with LiteralVectorImpl[G]
+) extends Expr[G] with LiteralVectorImpl[G] with PossibleTrigger[G]
 final case class UntypedLiteralSeq[G](values: Seq[Expr[G]])(
     implicit val o: Origin
 ) extends Expr[G] with UntypedLiteralSeqImpl[G] with PossibleTrigger[G]
@@ -1376,25 +1376,25 @@ final case class NoPerm[G]()(implicit val o: Origin)
 final case class WritePerm[G]()(implicit val o: Origin)
     extends Expr[G] with WritePermImpl[G]
 final case class OptSome[G](e: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with OptSomeImpl[G]
+    extends Expr[G] with OptSomeImpl[G] with PossibleTrigger[G]
 final case class OptSomeTyped[G](element: Type[G], e: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with OptSomeTypedImpl[G]
+) extends Expr[G] with OptSomeTypedImpl[G] with PossibleTrigger[G]
 final case class OptNone[G]()(implicit val o: Origin)
-    extends Expr[G] with OptNoneImpl[G]
+    extends Expr[G] with OptNoneImpl[G] with PossibleTrigger[G]
 final case class OptNoneTyped[G](element: Type[G])(implicit val o: Origin)
-    extends Expr[G] with OptNoneTypedImpl[G]
+    extends Expr[G] with OptNoneTypedImpl[G] with PossibleTrigger[G]
 final case class Range[G](from: Expr[G], to: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with RangeImpl[G]
+    extends Expr[G] with RangeImpl[G] with PossibleTrigger[G]
 final case class RangeSet[G](from: Expr[G], to: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with RangeSetImpl[G]
+    extends Expr[G] with RangeSetImpl[G] with PossibleTrigger[G]
 final case class EitherLeft[G](e: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with EitherLeftImpl[G]
+    extends Expr[G] with EitherLeftImpl[G] with PossibleTrigger[G]
 final case class EitherRight[G](e: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with EitherRightImpl[G]
+    extends Expr[G] with EitherRightImpl[G] with PossibleTrigger[G]
 final case class MapCons[G](map: Expr[G], k: Expr[G], v: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with MapConsImpl[G]
+) extends Expr[G] with MapConsImpl[G] with PossibleTrigger[G]
 
 final case class AmbiguousThis[G]()(implicit val o: Origin)
     extends Expr[G] with AmbiguousThisImpl[G] {
@@ -1807,7 +1807,8 @@ final case class TruncMod[G](left: Expr[G], right: Expr[G])(
 )(implicit val o: Origin)
     extends BinExpr[G] with DividingExpr[G] with TruncModImpl[G]
 
-sealed trait VectorBinExpr[G] extends BinExpr[G] with VectorBinExprImpl[G]
+sealed trait VectorBinExpr[G]
+    extends BinExpr[G] with VectorBinExprImpl[G] with PossibleTrigger[G]
 final case class VectorPlus[G](left: Expr[G], right: Expr[G])(
     implicit val o: Origin
 ) extends VectorBinExpr[G] with VectorPlusImpl[G]
@@ -2187,7 +2188,7 @@ final case class FreePointer[G](pointer: Expr[G])(
 final case class Old[G](expr: Expr[G], at: Option[Ref[G, LabelDecl[G]]])(
     val blame: Blame[LabelNotReached]
 )(implicit val o: Origin)
-    extends Expr[G] with OldImpl[G]
+    extends Expr[G] with OldImpl[G] with PossibleTrigger[G]
 final case class AmbiguousSubscript[G](collection: Expr[G], index: Expr[G])(
     val blame: Blame[FrontendSubscriptError]
 )(implicit val o: Origin)
@@ -2241,15 +2242,15 @@ final case class SharedMemSize[G](pointer: Expr[G])(implicit val o: Origin)
     extends Expr[G] with SharedMemSizeImpl[G]
 final case class NdIndex[G](indices: Seq[Expr[G]], dimensions: Seq[Expr[G]])(
     implicit val o: Origin
-) extends Expr[G] with NdIndexImpl[G]
+) extends Expr[G] with NdIndexImpl[G] with PossibleTrigger[G]
 final case class NdPartialIndex[G](
     indices: Seq[Expr[G]],
     linearIndex: Expr[G],
     dimensions: Seq[Expr[G]],
 )(implicit val o: Origin)
-    extends Expr[G] with NdPartialIndexImpl[G]
+    extends Expr[G] with NdPartialIndexImpl[G] with PossibleTrigger[G]
 final case class NdLength[G](dimensions: Seq[Expr[G]])(implicit val o: Origin)
-    extends Expr[G] with NdLengthImpl[G]
+    extends Expr[G] with NdLengthImpl[G] with PossibleTrigger[G]
 
 final case class Cons[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin)
     extends Expr[G] with ConsImpl[G] with PossibleTrigger[G]
@@ -2316,16 +2317,16 @@ final case class OptEmpty[G](opt: Expr[G])(implicit val o: Origin)
     extends Expr[G] with OptEmptyImpl[G]
 final case class OptGet[G](opt: Expr[G])(val blame: Blame[OptionNone])(
     implicit val o: Origin
-) extends Expr[G] with OptGetImpl[G]
+) extends Expr[G] with OptGetImpl[G] with PossibleTrigger[G]
 final case class OptGetOrElse[G](opt: Expr[G], alt: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with OptGetOrElseImpl[G]
+) extends Expr[G] with OptGetOrElseImpl[G] with PossibleTrigger[G]
 final case class MapGet[G](map: Expr[G], k: Expr[G])(
     val blame: Blame[MapKeyError]
 )(implicit val o: Origin)
     extends Expr[G] with MapGetImpl[G] with PossibleTrigger[G]
 final case class TupGet[G](tup: Expr[G], index: Int)(implicit val o: Origin)
-    extends Expr[G] with TupGetImpl[G]
+    extends Expr[G] with TupGetImpl[G] with PossibleTrigger[G]
 
 sealed trait EitherOp[G] extends Expr[G] with EitherOpImpl[G]
 final case class GetLeft[G](either: Expr[G])(val blame: Blame[NotLeft])(
@@ -2369,23 +2370,23 @@ final case class InstanceOf[G](value: Expr[G], typeValue: Expr[G])(
 ) extends Expr[G] with InstanceOfImpl[G]
 final case class Cast[G](value: Expr[G], typeValue: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with CastImpl[G]
+) extends Expr[G] with CastImpl[G] with PossibleTrigger[G]
 final case class ToNonNull[G](value: Expr[G])(val blame: Blame[PointerNull])(
     implicit val o: Origin
-) extends Expr[G] with ToNonNullImpl[G]
+) extends Expr[G] with ToNonNullImpl[G] with PossibleTrigger[G]
 final case class PointerCast[G](
     value: Expr[G],
     t: Type[G],
     fromSize: Expr[G],
     toSize: Expr[G],
 )(implicit val o: Origin)
-    extends Expr[G] with PointerCastImpl[G]
+    extends Expr[G] with PointerCastImpl[G] with PossibleTrigger[G]
 final case class IntegerPointerCast[G](
     value: Expr[G],
     t: Type[G],
     elementSize: Expr[G],
 )(implicit val o: Origin)
-    extends Expr[G] with IntegerPointerCastImpl[G]
+    extends Expr[G] with IntegerPointerCastImpl[G] with PossibleTrigger[G]
 
 sealed trait TypeComparison[G] extends Comparison[G] with TypeComparisonImpl[G]
 final case class SubType[G](left: Expr[G], right: Expr[G])(
