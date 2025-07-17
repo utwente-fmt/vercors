@@ -1,5 +1,6 @@
 package vct.col.ast.expr.binder
 
+import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{
   Expr,
   InlinePattern,
@@ -23,7 +24,7 @@ import vct.col.util.AstBuildHelpers.unfoldImplies
 
 import scala.annotation.tailrec
 
-trait TriggeredQuantifierImpl[G] extends NodeFamilyImpl[G] {
+trait TriggeredQuantifierImpl[G] extends NodeFamilyImpl[G] with LazyLogging {
   this: TriggeredQuantifier[G] =>
 
   def triggers: Seq[Seq[Expr[G]]]
@@ -64,7 +65,21 @@ trait TriggeredQuantifierImpl[G] extends NodeFamilyImpl[G] {
     }
 
   def checkTriggers(triggerSets: Seq[Seq[Expr[G]]]): Seq[CheckError] = {
-    if (triggerSets.isEmpty || triggerSets.forall(_.isEmpty))
+    val filteredTriggerSets = triggerSets.filter { t =>
+      val present = t.forall((e: Node[G]) => body.exists(_ == e))
+      // This is necessary since sometimes a pass (like simplify) removes terms from the body without removing them from
+      // the triggers. Unfortunately this may also cause this check to ignore certain patterns that would otherwise be
+      // caught as invalid. Therefore, it is possible that we get a crash at the end because we fail consistency checks.
+      // This also happens quite a lot when the pattern is the Location inside a Perm/Value. However since that is a
+      // restricted location anyway it should not be possible to get an invalid trigger in there.
+      if (!present) {
+        logger.debug(
+          s"Ignoring trigger set: $t because it does not appear in the body of: $this"
+        )
+      }
+      present
+    }
+    if (filteredTriggerSets.isEmpty || filteredTriggerSets.forall(_.isEmpty))
       return Nil
     var result: Seq[CheckError] = Nil
     val letBindings = collectLetBindings(body)
@@ -75,7 +90,7 @@ trait TriggeredQuantifierImpl[G] extends NodeFamilyImpl[G] {
     val dependentVars = findMentionedVars(inner, bindings, letBindings)
     if (dependentVars.isEmpty) { return Seq(TriggerWithoutDependentVars(this)) }
     // Each trigger set should mention all forall vars
-    triggerSets.foreach { t =>
+    filteredTriggerSets.foreach { t =>
       val mentionedVars = t.flatMap(findMentionedVars(_, bindings, letBindings))
       val nonMentionedVars: Set[Variable[G]] = dependentVars -- mentionedVars
       if (nonMentionedVars.nonEmpty)
@@ -83,7 +98,7 @@ trait TriggeredQuantifierImpl[G] extends NodeFamilyImpl[G] {
     }
 
     // Each trigger should be an expression that will eventually become one of Viper's AST nodes implementing PossibleTrigger
-    result ++ triggerSets.flatMap[CheckError](
+    result ++ filteredTriggerSets.flatMap[CheckError](
       _.filter(!isPossibleTrigger(_, letBindings))
         .map(DisallowedTriggerExpression)
     )

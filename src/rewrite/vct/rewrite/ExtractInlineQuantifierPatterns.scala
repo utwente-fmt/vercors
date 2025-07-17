@@ -66,8 +66,10 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
       case other => other.rewriteDefault()
     }
 
-  private def getTriggers(f: TriggeredQuantifier[Pre]): Seq[Seq[Expr[Post]]] = {
-    val (patternsHere, _) = patterns.collect {
+  private def getTriggers(
+      f: TriggeredQuantifier[Pre]
+  ): (Expr[Post], Seq[Seq[Expr[Post]]]) = {
+    val (patternsHere, body) = patterns.collect {
       // We only want to inline lets that are defined inside the quantifier
       letBindings.having(ScopedStack()) { dispatch(f.body) }
     }
@@ -80,7 +82,7 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
       // because if a pass generates an InlinePattern this will blame the user instead of the pass
       throw InvalidInlineTrigger(errors)
     }
-    sortedGroups.map(_.map(_.make()))
+    (body, sortedGroups.map(_.map(_.make())))
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] =
@@ -96,7 +98,11 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
         }
         dispatch(i.inner)
       case q: TriggeredQuantifier[Pre] =>
-        q.rewrite(triggers = q.triggers.map(_.map(dispatch)) ++ getTriggers(q))
+        lazy val bodyTriggers = getTriggers(q)
+        q.rewrite(
+          body = bodyTriggers._1,
+          triggers = q.triggers.map(_.map(dispatch)) ++ bodyTriggers._2,
+        )
       case other => other.rewriteDefault()
     }
 }
