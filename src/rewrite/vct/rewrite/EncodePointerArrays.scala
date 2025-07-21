@@ -9,7 +9,6 @@ import vct.col.ast.{
   AnyFunctionInvocation,
   AnyMethodInvocation,
   ApplyCoercion,
-  Asserting,
   AssignExpression,
   AssignStmt,
   AxiomaticDataType,
@@ -24,12 +23,9 @@ import vct.col.ast.{
   ContractApplicable,
   Declaration,
   DerefPointer,
-  Exists,
   Expr,
-  Forall,
   FramedProof,
   FunctionInvocation,
-  InLinePatternLocation,
   InlinePattern,
   InstanceFunctionInvocation,
   IntegerPointerCast,
@@ -42,7 +38,6 @@ import vct.col.ast.{
   IterationContract,
   LLVMLoopContract,
   Local,
-  Location,
   Loop,
   LoopInvariant,
   MethodInvocation,
@@ -61,7 +56,6 @@ import vct.col.ast.{
   ParRegion,
   ParSequential,
   Perm,
-  Plus,
   PointerAdd,
   PointerArraySubscript,
   PointerArrayType,
@@ -80,10 +74,8 @@ import vct.col.ast.{
   Scope,
   Select,
   SplitAccountedPredicate,
-  Starall,
   Statement,
   TAxiomatic,
-  TBool,
   TInt,
   TNonNullConstPointer,
   TNonNullPointer,
@@ -96,7 +88,6 @@ import vct.col.ast.{
 }
 import vct.col.origin.{
   AbstractApplicable,
-  AssertFailed,
   Blame,
   FramedPtrOffset,
   InstanceInvocationFailure,
@@ -110,7 +101,6 @@ import vct.col.origin.{
   Origin,
   PanicBlame,
   PointerAddError,
-  PointerArrayBounds,
   PointerArraySubscriptError,
   PointerBounds,
   PointerNull,
@@ -178,14 +168,6 @@ case object EncodePointerArrays extends RewriterBuilder {
       expr: Expr[_],
   ) extends Blame[OptionNone] {
     override def blame(error: OptionNone): Unit = inner.blame(PointerNull(expr))
-  }
-
-  private case class ArrayIndexAssertingBlame(
-      blame: Blame[PointerArraySubscriptError],
-      sub: Node[_],
-  ) extends Blame[AssertFailed] {
-    override def blame(error: AssertFailed): Unit =
-      blame.blame(PointerArrayBounds(sub))
   }
 
   private val ConstructorOrigin: Origin = Origin(
@@ -407,7 +389,7 @@ case class EncodePointerArrays[Pre <: Generation]()
           tt
         else
           !OptEmpty(dispatch(p))
-      case AddrOf(sub @ PointerArraySubscript(a, _)) => calculatePointer(sub)
+      case AddrOf(sub @ PointerArraySubscript(_, _)) => calculatePointer(sub)
       case AddrOf(ApplyCoercion(sub @ PointerArraySubscript(_, _), _)) =>
         calculatePointer(sub)
       case AddrOf(ApplyCoercion(inner, c)) =>

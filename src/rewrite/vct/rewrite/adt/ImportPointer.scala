@@ -112,10 +112,6 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
     pointerAdt,
     "ptr_address",
   )
-  private lazy val pointerFromAddress = find[Function[Post]](
-    pointerFile,
-    "ptr_from_address",
-  )
   private lazy val pointerCastHelperAdt = find[AxiomaticDataType[Post]](
     pointerFile,
     "PointerCastHelper",
@@ -199,7 +195,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       function[Post](
         AbstractApplicable,
         TrueSatisfiable,
-        ensures = UnitAccountedPredicate(And(
+        ensures = UnitAccountedPredicate(
           result === functionInvocation[Post](
             TrueSatisfiable,
             fromCastHelperFunctions
@@ -210,15 +206,19 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
                 .getOrElseUpdate(from, makeToCastHelperFunction(from)).ref,
               Seq(value.get),
             )),
-          ),
-          adtFunctionInvocation[Post](
+          ) && adtFunctionInvocation[Post](
             pointerAddress.ref,
             args = Seq(result, dispatch(toSize)),
           ) === adtFunctionInvocation[Post](
             pointerAddress.ref,
             args = Seq(value.get, dispatch(fromSize)),
-          ),
-        )),
+          ) &&
+            adtFunctionInvocation[Post](
+              pointerBlock.ref,
+              args = Seq(result),
+            ) ===
+            adtFunctionInvocation[Post](pointerBlock.ref, args = Seq(value.get))
+        ),
         returnType = TAxiomatic(pointerAdt.ref, Nil),
         args = Seq(value),
       )
@@ -328,8 +328,9 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
 
   override def postCoerce(program: Program[Pre]): Program[Post] = {
     casts =
-      program.flatCollect { case PointerCast(from, to, _, _) =>
-        Seq(from.t.asPointer.get.element, to.asPointer.get.element)
+      program.flatCollect {
+        case PointerCast(from, to, _, _) if from.t != to =>
+          Seq(from.t.asPointer.get.element, to.asPointer.get.element)
       }.toSet
     super.postCoerce(program)
   }
@@ -670,6 +671,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       case PointerCast(value, targetType, fromSize, toSize) =>
         val newValue = dispatch(value)
         (targetType, value.t) match {
+          case (a, b) if a == b => newValue
           case (target: PointerType[Pre], value: PointerType[Pre])
               if target.unique != value.unique &&
                 target.element == value.element =>
@@ -723,63 +725,6 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
             throw Unreachable(
               s"Pointer cast with unknown pointer types: $targetType and ${value.t}"
             )
-        }
-      case IntegerPointerCast(value, targetType, typeSize) =>
-        val newValue = dispatch(value)
-        (targetType, value.t) match {
-          case (TInt() | TBoundedInt(_, _), TPointer(_, None)) =>
-            letIfNonTrivial(
-              dispatch(value.t),
-              newValue,
-              { v =>
-                Select[Post](
-                  OptEmpty(v),
-                  const(0),
-                  adtFunctionInvocation[Post](
-                    ref = pointerAddress.ref,
-                    args = Seq(
-                      OptGet(v)(PanicBlame(
-                        "Can never be null since this is ensured in the conditional expression"
-                      )),
-                      dispatch(typeSize),
-                    ),
-                  ),
-                )
-              },
-            )
-          case (TInt() | TBoundedInt(_, _), TNonNullPointer(_, _)) =>
-            adtFunctionInvocation[Post](
-              ref = pointerAddress.ref,
-              args = Seq(newValue, dispatch(typeSize)),
-            )
-          case (TPointer(_, None), TInt() | TBoundedInt(_, _)) =>
-            letIfNonTrivial(
-              dispatch(value.t),
-              newValue,
-              { v =>
-                Select[Post](
-                  v === const(0),
-                  OptNoneTyped(TAxiomatic(pointerAdt.ref, Nil)),
-                  OptSome(
-                    FunctionInvocation[Post](
-                      ref = pointerFromAddress.ref,
-                      args = Seq(v, dispatch(typeSize)),
-                      typeArgs = Nil,
-                      Nil,
-                      Nil,
-                    )(PanicBlame("Stride > 0"))
-                  ),
-                )
-              },
-            )
-          case (TNonNullPointer(_, None), TInt() | TBoundedInt(_, _)) =>
-            FunctionInvocation[Post](
-              ref = pointerFromAddress.ref,
-              args = Seq(newValue, dispatch(typeSize)),
-              typeArgs = Nil,
-              Nil,
-              Nil,
-            )(PanicBlame("Stride > 0")) // TODO: Blame??
         }
       case blck @ PointerBlock(p) =>
         ADTFunctionInvocation[Post](
