@@ -69,7 +69,7 @@ case class EncodeIntegerPointerCast[Pre <: Generation]() extends Rewriter[Pre] {
         val newToType = dispatch(targetType)
         val newSize = dispatch(typeSize)
         (targetType, value.t) match {
-          case (TInt() | TBoundedInt(_, _), TPointer(_, None)) =>
+          case (TInt() | TBoundedInt(_, _), TPointer(_, unique)) =>
             letIfNonTrivial(
               newFromType,
               newValue,
@@ -82,7 +82,7 @@ case class EncodeIntegerPointerCast[Pre <: Generation]() extends Rewriter[Pre] {
                       ToNonNull(v)(PanicBlame(
                         "Cannot be null since this was ensured in the conditional"
                       )),
-                      TNonNullPointer(TVoid(), None),
+                      TNonNullPointer(TVoid(), unique),
                       newSize,
                       const(1),
                     ),
@@ -91,11 +91,11 @@ case class EncodeIntegerPointerCast[Pre <: Generation]() extends Rewriter[Pre] {
                 )
               },
             )
-          case (TInt() | TBoundedInt(_, _), TNonNullPointer(_, None)) =>
+          case (TInt() | TBoundedInt(_, _), TNonNullPointer(_, unique)) =>
             PointerAddress(
               PointerCast(
                 dispatch(value),
-                TNonNullPointer(TVoid(), None),
+                TNonNullPointer(TVoid(), unique),
                 newSize,
                 const(1),
               ),

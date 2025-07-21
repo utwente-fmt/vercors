@@ -212,12 +212,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
           ) === adtFunctionInvocation[Post](
             pointerAddress.ref,
             args = Seq(value.get, dispatch(fromSize)),
-          ) &&
-            adtFunctionInvocation[Post](
-              pointerBlock.ref,
-              args = Seq(result),
-            ) ===
-            adtFunctionInvocation[Post](pointerBlock.ref, args = Seq(value.get))
+          )
         ),
         returnType = TAxiomatic(pointerAdt.ref, Nil),
         args = Seq(value),
