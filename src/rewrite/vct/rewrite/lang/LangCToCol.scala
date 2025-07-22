@@ -712,7 +712,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   private def getStride(t: Type[Pre], o: Origin): Expr[Post] =
     t match {
-      case TVoid() => c_const(1)(o)
+      case t @ CTArray(_, _) => sizeOf(getArrayType(t), o)
       case _ => sizeOf(t, o)
     }
 
