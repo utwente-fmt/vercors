@@ -331,6 +331,22 @@ case object Options {
         "Replace bitwise operations (&, |, ^, <<, >>, ~) with opaque functions"
       ),
       note(""),
+      note("Benchmarking"),
+      opt[Unit]("benchmark").action((_, c) => c.copy(benchmark = true))
+        .text("Enable benchmarking mode"),
+      opt[Int]("benchmark-warmup").valueName("<amount>")
+        .action((_, c) => c.copy(benchmark = true))
+        .text("Set the amount of warmup runs to do before benchmarking starts"),
+      opt[Int]("benchmark-runs").valueName("<amount>")
+        .action((_, c) => c.copy(benchmark = true))
+        .text("Set the amount of runs to do in the benchmark"),
+      opt[String]("offset-encoding").valueName("<default|fixed|complex>")
+        .action((v, c) => c.copy(offsetEncoding = v))
+        .text("Sets the encoding to use for pointer offsets"),
+      opt[String]("array-encoding").valueName("<inline|nested|sequenced>")
+        .action((v, c) => c.copy(arrayEncoding = v))
+        .text("Sets the encoding to use for pointer arrays"),
+      note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont").action((_, c) => c.copy(mode = Mode.VeyMont)).text(
         "Enable VeyMont mode: decompose the global program from the input files into several local programs that can be executed in parallel"
@@ -570,6 +586,11 @@ case class Options(
 
     // Pallas options
     contractImportFile: Option[PathOrStd] = None,
+
+    // Benchmark options:
+    benchmark: Boolean = false,
+    offsetEncoding: String = "default",
+    arrayEncoding: String = "inline",
 ) {
   def getParserDebugOptions: vct.parsers.debug.DebugOptions =
     vct.parsers.debug.DebugOptions(

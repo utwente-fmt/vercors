@@ -46,6 +46,7 @@ VAL_SET: 'set';
 VAL_VECTOR: 'vector';
 VAL_BAG: 'bag';
 VAL_POINTER: 'pointer';
+VAL_NON_NULL_POINTER: 'non_null_pointer';
 VAL_MAP: 'map';
 VAL_OPTION: 'option';
 VAL_EITHER: 'either';

@@ -357,6 +357,7 @@ valType
  | 'map' '<' langType ',' langType '>' # valMapType
  | 'tuple' '<' langType ',' langType '>' # valTupleType
  | 'pointer' '<' langType '>' # valPointerType
+ | 'non_null_pointer' '<' langType '>' # valNonNullPointerType
  | 'type' '<' langType '>' # valTypeType
  | 'either' '<' langType ',' langType '>' # valEitherType
  ;

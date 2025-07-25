@@ -2302,6 +2302,8 @@ case class JavaToCol[G](
       case ValTupleType(_, _, t1, _, t2, _) =>
         TTuple(Seq(convert(t1), convert(t2)))
       case ValPointerType(_, _, element, _) => TPointer(convert(element), None)
+      case ValNonNullPointerType(_, _, element, _) =>
+        TNonNullPointer(convert(element), None)
       case ValTypeType(_, _, element, _) => TType(convert(element))
       case ValEitherType(_, _, left, _, right, _) =>
         TEither(convert(left), convert(right))

@@ -182,6 +182,7 @@ object Transformation extends LazyLogging {
           veymontPermissionStratificationMode =
             options.veymontPermissionStratificationMode,
           opaqueBitwiseOperators = options.opaqueBitwiseOperators,
+          arrayEncoding = options.arrayEncoding,
         )
     }
 
@@ -360,6 +361,7 @@ case class SilverTransformation(
     veymontPermissionStratificationMode: PermissionStratificationMode =
       PermissionStratificationMode.Wrap,
     opaqueBitwiseOperators: Boolean = false,
+    arrayEncoding: String = "inline",
 ) extends Transformation(
       onPassEvent,
       Seq(
@@ -420,7 +422,7 @@ case class SilverTransformation(
         IterationContractToParBlock,
         PropagateContextEverywhere, // inline context_everywhere into loop invariants
         EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
-        EncodePointerArrays,
+        EncodePointerArrays.withArg(adtImporter, arrayEncoding),
         GivenYieldsToArgs,
         CheckProcessAlgebra,
         EncodeCurrentThread,
