@@ -333,7 +333,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case goto: CGoto[Pre] => c.rewriteGoto(goto)
       case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
       case atomic: GpgpuAtomic[Pre] => c.gpuAtomic(atomic)
-      
+
       case eval @ Eval(CPPInvocation(_, _, _, _)) =>
         cpp.invocationStatement(eval)
 
@@ -468,7 +468,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case pointer: LLVMPointerValue[Pre] => llvm.rewritePointerValue(pointer)
       case gep: LLVMGetElementPointer[Pre] => llvm.rewriteGetElementPointer(gep)
       case extrVal: LLVMExtractValue[Pre] => llvm.rewriteExtractValue(extrVal)
-      case int: LLVMIntegerValue[Pre] => IntegerValue(int.value)(int.o)
+      case int: LLVMIntegerValue[Pre] => llvm.rewriteIntegerValue(int)
       case float: LLVMFloatValue[Pre] =>
         FloatValue(float.bigDecimalValue, dispatch(float.t))(float.o)
       case sext: LLVMSignExtend[Pre] => llvm.rewriteSignExtend(sext)
@@ -585,7 +585,7 @@ case class LangSpecificToCol[Pre <: Generation](
         case t: CTArray[Pre] => c.arrayType(t)
         case t: CTStruct[Pre] => c.structType(t)
         case t: CTStructUnique[Pre] => c.structType(t)
-        case t: LLVMTInt[Pre] => TInt()(t.o)
+        case t: LLVMTInt[Pre] => llvm.intType(t)
         case t: LLVMTFloat[Pre] => TFloat(t.exponent, t.mantissa)
         case t: LLVMTStruct[Pre] => llvm.structType(t)
         case t: LLVMTPointer[Pre] => llvm.pointerType(t)

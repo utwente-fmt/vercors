@@ -463,8 +463,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           .foreach { case (arg, idx) =>
             // Infer type of variable that is used as arg in function call
             // from function definition
-            getVariable(inv.args(idx))
-              .foreach(v => addTypeGuess(v, Set.empty, _ => arg.t))
+            if (inv.args(idx).t.asPointer.isDefined) {
+              getVariable(inv.args(idx))
+                .foreach(v => addTypeGuess(v, Set.empty, _ => arg.t))
+            }
 
             // If the invoked function is a wrapper function, we infer the
             // type of the pointer-typed argument from the call-site.
@@ -1631,6 +1633,15 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     LoopInvariant[Post](extendedInv, None)(llvmContract.blame)
   }
 
+  def rewriteIntegerValue(iVal: LLVMIntegerValue[Pre]): Expr[Post] = {
+    implicit val o: Origin = iVal.o
+
+    iVal match {
+      case LLVMIntegerValue(v, LLVMTInt(1)) => BooleanValue(v != 0)
+      case _ => IntegerValue(iVal.value)
+    }
+  }
+
   /*
   Elimination works by replacing every goto with the block its referring too
   effectively transforming the CFG into a tree. More efficient restructuring algorithms but this works for now.
@@ -1715,7 +1726,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   def structType(t: LLVMTStruct[Pre]): Type[Post] = {
-    // TODO: Remove this. The check for the golbalDeclarations is required because
+    // TODO: Remove this. The check for the globalDeclarations is required because
     //  the function-type is called in the post-comparisson in derefUntil, outside of
     //  a scope. Once that is removed, this should no longe be required.
     if (!rw.globalDeclarations.isEmpty) { // <--
@@ -1723,6 +1734,13 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
     val targetClass = new LazyRef[Post, Class[Post]](structMap(t))
     TByValueClass[Post](targetClass, Seq())(t.o)
+  }
+
+  def intType(t: LLVMTInt[Pre]): Type[Post] = {
+    t match {
+      case LLVMTInt(1) => TBool()(t.o)
+      case _ => TInt()(t.o)
+    }
   }
 
   def pointerType(t: LLVMTPointer[Pre]): Type[Post] =
