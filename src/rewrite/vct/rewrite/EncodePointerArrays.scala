@@ -190,10 +190,15 @@ case class EncodePointerArrays[Pre <: Generation]()
     ADTFunction[Post],
   ] = SuccessionMap()
 
-  private val currentVariableContext: mutable.HashSet[Variable[Pre]] = mutable
-    .HashSet()
+  private val currentVariableContext
+      : ScopedStack[mutable.HashSet[Variable[Pre]]] = ScopedStack()
+  currentVariableContext.push(mutable.HashSet())
 
   private val globalBlame: ScopedStack[Blame[UnsafeCoercion]] = ScopedStack()
+
+  private def removeVarsFromStack(variables: Seq[Variable[Pre]]): Unit = {
+    currentVariableContext.foreach(c => c --= variables)
+  }
 
   override def postCoerce(program: Program[Pre]): Program[Post] = {
     globalBlame.having(program.blame) {
@@ -354,7 +359,7 @@ case class EncodePointerArrays[Pre <: Generation]()
         }
       case e: AssignExpression[Pre] =>
         e.target match {
-          case Local(Ref(v)) => currentVariableContext += v
+          case Local(Ref(v)) => currentVariableContext.top += v
           case _ =>
         }
         e.rewriteDefault()
@@ -387,12 +392,15 @@ case class EncodePointerArrays[Pre <: Generation]()
     s match {
       case Scope(variables, _) =>
         // Not adding variables until they're assigned since VerCors scopes don't match normal programming scopes since you can refer to a variable before its declaration
-        val res = s.rewriteDefault()
-        currentVariableContext --= variables
+        val res =
+          currentVariableContext.having(mutable.HashSet[Variable[Pre]]()) {
+            s.rewriteDefault()
+          }
+        removeVarsFromStack(variables)
         res
       case s: AssignStmt[Pre] =>
         s.target match {
-          case Local(Ref(v)) => currentVariableContext += v
+          case Local(Ref(v)) => currentVariableContext.top += v
           case _ =>
         }
         s.rewriteDefault()
@@ -414,11 +422,15 @@ case class EncodePointerArrays[Pre <: Generation]()
       case loop: Loop[Pre] =>
         loop.contract match {
           case inv @ LoopInvariant(invariant, _) =>
-            loop.rewrite(contract =
-              inv.rewrite(invariant =
-                getDimensionExpr &* super.dispatch(invariant)
+            // Scope the body of a loop, vars which only gets assigned in the loop
+            // should not overflow to other contracts
+            currentVariableContext.having(mutable.HashSet[Variable[Pre]]()) {
+              loop.rewrite(contract =
+                inv.rewrite(invariant =
+                  getDimensionExpr &* super.dispatch(invariant)
+                )
               )
-            )
+            }
           case _: IterationContract[Pre] => throw ExtraNode
           case _: LLVMLoopContract[Pre] => throw ExtraNode
         }
@@ -428,10 +440,12 @@ case class EncodePointerArrays[Pre <: Generation]()
           ensures = getDimensionExpr &* dispatch(bar.ensures),
         )
       case frame: FramedProof[Pre] =>
-        frame.rewrite(
-          pre = getDimensionExpr &* dispatch(frame.pre),
-          post = getDimensionExpr &* dispatch(frame.post),
-        )
+        currentVariableContext.having(mutable.HashSet[Variable[Pre]]()) {
+          frame.rewrite(
+            pre = getDimensionExpr &* dispatch(frame.pre),
+            post = getDimensionExpr &* dispatch(frame.post),
+          )
+        }
       case _ => super.postCoerce(s)
     }
   }
@@ -451,20 +465,21 @@ case class EncodePointerArrays[Pre <: Generation]()
   }
 
   private def getDimensionExpr(implicit o: Origin): Expr[Post] = {
+    val vars: Set[Variable[Pre]] =
+      currentVariableContext.toSeq.flatMap(_.toSet).toSet
     foldAnd(
-      currentVariableContext.flatMap(v => v.t.asPointerArray.map((v, _)))
-        .flatMap { case (v, t) =>
-          implicit val o: Origin = v.o.where(context = "Dimension invariant")
-          val dimensions = t.dimensions.length
-          initialiseAdt(t.element, dimensions, t.unique, t.isConst)
-          t.dimensions.zipWithIndex.filter { case (d, _) => d.isDefined }
-            .map { case (d, i) =>
-              adtFunctionInvocation[Post](
-                dimSucc.ref((t.element, dimensions, t.unique, i, t.isConst)),
-                args = Seq(Local(succ(v))),
-              ) === dispatch(d.get)
-            }
-        }
+      vars.flatMap(v => v.t.asPointerArray.map((v, _))).flatMap { case (v, t) =>
+        implicit val o: Origin = v.o.where(context = "Dimension invariant")
+        val dimensions = t.dimensions.length
+        initialiseAdt(t.element, dimensions, t.unique, t.isConst)
+        t.dimensions.zipWithIndex.filter { case (d, _) => d.isDefined }
+          .map { case (d, i) =>
+            adtFunctionInvocation[Post](
+              dimSucc.ref((t.element, dimensions, t.unique, i, t.isConst)),
+              args = Seq(Local(succ(v))),
+            ) === dispatch(d.get)
+          }
+      }
     )
   }
 
@@ -501,9 +516,9 @@ case class EncodePointerArrays[Pre <: Generation]()
             }.foldLeft(oldRequires) { case (r, l) =>
               SplitAccountedPredicate(l, r)
             }
-        currentVariableContext ++= app.args
-        currentVariableContext ++= app.contract.givenArgs
-        currentVariableContext ++= app.contract.yieldsArgs
+        currentVariableContext.top ++= app.args
+        currentVariableContext.top ++= app.contract.givenArgs
+        currentVariableContext.top ++= app.contract.yieldsArgs
         allScopes.anySucceed(
           app,
           app.rewrite(contract =
@@ -512,16 +527,16 @@ case class EncodePointerArrays[Pre <: Generation]()
             )
           ),
         )
-        currentVariableContext --= app.args
-        currentVariableContext --= app.contract.givenArgs
-        currentVariableContext --= app.contract.yieldsArgs
+        currentVariableContext.top --= app.args
+        currentVariableContext.top --= app.contract.givenArgs
+        currentVariableContext.top --= app.contract.yieldsArgs
       case p: Predicate[Pre] if p.body.isDefined =>
-        currentVariableContext ++= p.args
+        currentVariableContext.top ++= p.args
         globalDeclarations.succeed(
           p,
           p.rewrite(body = Some(getDimensionExpr &* dispatch(p.body.get))),
         )
-        currentVariableContext --= p.args
+        currentVariableContext.top --= p.args
       case _ => super.postCoerce(decl)
     }
   }
