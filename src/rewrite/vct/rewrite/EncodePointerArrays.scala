@@ -22,6 +22,7 @@ import vct.col.ast.{
   ConstructorInvocation,
   ContractApplicable,
   Declaration,
+  DecreasesClauseNoRecursion,
   DerefPointer,
   Expr,
   FramedProof,
