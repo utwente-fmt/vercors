@@ -518,9 +518,11 @@ final case class FramedProof[G](
     extends NormallyCompletingStatement[G]
     with ControlContainerStatement[G]
     with FramedProofImpl[G]
-final case class Extract[G](contractedStatement: Statement[G])(
-    implicit val o: Origin
-) extends NormallyCompletingStatement[G]
+final case class Extract[G](
+    contractedStatement: Statement[G],
+    decreases: Option[DecreasesClause[G]],
+)(val blame: Blame[ExtractTerminationMeasureFailed])(implicit val o: Origin)
+    extends NormallyCompletingStatement[G]
     with ControlContainerStatement[G]
     with ExtractImpl[G]
 

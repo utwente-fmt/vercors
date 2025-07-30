@@ -413,6 +413,9 @@ trait SilverBackend
       case TerminationConditionFalse(node: Infoed) =>
         val procedure = get[col.ContractApplicable[_]](node)
         blame.CallTerminationMeasureFailed(invoking, procedure)
+      case TupleConditionFalse(node: Infoed) =>
+        val procedure = get[col.ContractApplicable[_]](node)
+        blame.CallTerminationMeasureFailed(invoking, procedure)
       case _ =>
         blame.DecreaseTerminationMeasureFailed(
           invoking.ref.decl,
@@ -424,15 +427,10 @@ trait SilverBackend
 
   def getDecreasesClause(reason: ErrorReason): col.DecreasesClause[_] =
     reason match {
-      case TerminationConditionFalse(node) =>
+      case TerminationConditionFalse(node: Infoed) =>
         throw NotSupported(
           "Vercors does not support termination measure conditions from Viper"
         )
-      case TupleConditionFalse(_) =>
-        throw NotSupported(
-          "Vercors does not support termination measure conditions from Viper"
-        )
-
       case TupleSimpleFalse(node: Infoed) =>
         // PB: simple == (not decreasing || not bounded)
         get[col.DecreasesClause[_]](node)
