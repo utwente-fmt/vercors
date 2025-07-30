@@ -743,6 +743,7 @@ case class EncodePointerArrays[Pre <: Generation]()
             )
           } else { l })
         },
+        decreases = Some(DecreasesClauseNoRecursion[Post]()),
       )(o.where(name =
         if (isConst) { s"create_const_pointer_${dimensions}_array_$element" }
         else { s"create_pointer_${dimensions}_array_$element" }
