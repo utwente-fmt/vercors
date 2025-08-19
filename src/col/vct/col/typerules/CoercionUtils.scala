@@ -6,6 +6,8 @@ import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.resolve.lang.{C, CPP}
 import vct.col.resolve.lang.CPP.getBaseTypeFromSpecs
 
+import scala.annotation.tailrec
+
 case object CoercionUtils {
   private implicit val o: Origin = DiagnosticOrigin
 
@@ -272,6 +274,12 @@ case object CoercionUtils {
             l.unique == r.unique &&
             l.dimensions.length == r.dimensions.length =>
         getPointerCoercion(source, target, l.element, r.element)
+          .getOrElse(return None)
+      case (CTArray(_, elementL), pt: PointerType[G]) =>
+        getPointerCoercion(source, target, unwrapCArray(elementL), pt.element)
+          .getOrElse(return None)
+      case (pt: PointerType[G], CTArray(_, elementR)) =>
+        getPointerCoercion(source, target, pt.element, unwrapCArray(elementR))
           .getOrElse(return None)
       case (
             TPointerArray(elementL, dimensions, uniqueL),
@@ -1008,5 +1016,12 @@ case object CoercionUtils {
         }
       case t: TSmtlibSeq[G] => Some((CoerceIdentity(source), t))
       case _ => None
+    }
+
+  @tailrec
+  private def unwrapCArray[G](element: Type[G]): Type[G] =
+    element match {
+      case CTArray(_, element) => unwrapCArray(element)
+      case _ => element
     }
 }
