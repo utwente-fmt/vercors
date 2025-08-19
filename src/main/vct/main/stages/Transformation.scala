@@ -490,7 +490,7 @@ case class SilverTransformation(
         ImportArray.withArg(adtImporter),
         ImportConstPointer.withArg(adtImporter),
         EncodeIntegerPointerCast,
-        ImportPointer.withArg(adtImporter),
+        ImportPointer.withArg(adtImporter, arrayEncoding),
         ImportMapCompat.withArg(adtImporter),
         ImportEither.withArg(adtImporter),
         ImportTuple.withArg(adtImporter),
