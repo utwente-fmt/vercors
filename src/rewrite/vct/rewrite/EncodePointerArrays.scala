@@ -715,8 +715,8 @@ case class EncodePointerArrays[Pre <: Generation](
         encoding match {
           case "inline" => dimensionBlames
           case "sequenced" =>
-            PanicBlame("Amount of array dimensions do not match!") +:
-              dimensionBlames
+            dimensionBlames :+
+              PanicBlame("Amount of array dimensions do not match!")
           case _ => throw UnknownEncoding(encoding)
         }
       }.foldLeft(inBlame) { case (r, l) => PreBlameSplit.left(l, r) }
@@ -895,18 +895,7 @@ case class EncodePointerArrays[Pre <: Generation](
                           ) === dispatch(d.get)
                         }
                       case "sequenced" =>
-                        (
-                          Size(adtFunctionInvocation[Post](
-                            sequencedDim.ref,
-                            args = Seq(newV),
-                            typeArgs = Some((
-                              arraySucc.ref(
-                                (t.element, dimensions, t.unique, t.isConst)
-                              ),
-                              Seq(dispatch(t.element)),
-                            )),
-                          )) === const(t.dimensions.length)
-                        ) +: t.dimensions.zipWithIndex.filter { case (d, _) =>
+                        t.dimensions.zipWithIndex.filter { case (d, _) =>
                           d.isDefined
                         }.map { case (d, i) =>
                           SeqSubscript(
@@ -924,22 +913,19 @@ case class EncodePointerArrays[Pre <: Generation](
                           )(PanicBlame(
                             "Amount of dimensions assured in lhs of and"
                           )) === dispatch(d.get)
-                        }
+                        } :+
+                          (Size(adtFunctionInvocation[Post](
+                            sequencedDim.ref,
+                            args = Seq(newV),
+                            typeArgs = Some((
+                              arraySucc.ref(
+                                (t.element, dimensions, t.unique, t.isConst)
+                              ),
+                              Seq(dispatch(t.element)),
+                            )),
+                          )) === const(t.dimensions.length))
                       case _ => throw UnknownEncoding(encoding)
                     }
-//                    t.dimensions.zipWithIndex.filter { case (d, _) =>
-//                      d.isDefined
-//                    }.map { case (d, i) =>
-//                      adtFunctionInvocation[Post](
-//                        dimSucc
-//                          .ref((t.element, dimensions, t.unique, i, t.isConst)),
-//                        args = Seq(newV),typeArgs = encoding match {
-//                          case "inline" => None
-//                          case "sequenced" => Some((arraySucc.ref((t.element, dimensions, t.unique, t.isConst)), Seq(dispatch(t.element))))
-//                          case _ => throw UnknownEncoding(encoding)
-//                        }
-//                      ) === dispatch(d.get)
-//                    }
                   }
 
                 (if (t.isNonNull) { calcDim(Local(succ(v))) }
@@ -1035,11 +1021,18 @@ case class EncodePointerArrays[Pre <: Generation](
         adtFunctionInvocation[Post](
           dimSucc.ref(arrayT.element, length, arrayT.unique, i, arrayT.isConst),
           args = Seq(unwrapOption(obj, sub.blame)),
-          typeArgs = Some((
-            arraySucc
-              .ref((arrayT.element, length, arrayT.unique, arrayT.isConst)),
-            Seq(dispatch(arrayT.element)),
-          )),
+          typeArgs =
+            encoding match {
+              case "inline" => None
+              case "sequenced" =>
+                Some((
+                  arraySucc.ref(
+                    (arrayT.element, length, arrayT.unique, arrayT.isConst)
+                  ),
+                  Seq(dispatch(arrayT.element)),
+                ))
+              case _ => throw UnknownEncoding(encoding)
+            },
         )
       ).fold(super.dispatch(sub.index))(Mult(_, _)) + index
     }

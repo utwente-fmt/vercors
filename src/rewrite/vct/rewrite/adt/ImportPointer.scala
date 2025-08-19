@@ -5,14 +5,15 @@ import ImportADT.typeText
 import hre.util.ScopedStack
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.rewrite.{ClassToRef, Generation}
+import vct.col.rewrite.{ClassToRef, Generation, RewriterBuilderArg2}
 import vct.col.util.AstBuildHelpers.{functionInvocation, _}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.Unreachable
 
 import scala.collection.mutable
 
-case object ImportPointer extends ImportADTBuilder("pointer") {
+case object ImportPointer
+    extends RewriterBuilderArg2[ImportADTImporter, String] {
   private def PointerField(t: Type[_], uniqueId: Option[BigInt]): Origin =
     Origin(Seq(
       PreferredName(Seq(typeText(t) + uniqueId.map(_.toString).getOrElse(""))),
@@ -75,10 +76,17 @@ case object ImportPointer extends ImportADTBuilder("pointer") {
 
   private sealed trait Context
   private final case class InAxiom() extends Context
+
+  override def key: String = "adtPointer"
+
+  override def desc: String =
+    s"Import types into vercors that are defined externally, usually via an axiomatic datatype. This pass imports pointer."
 }
 
-case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
-    extends ImportADT[Pre](importer) {
+case class ImportPointer[Pre <: Generation](
+    importer: ImportADTImporter,
+    arrayEncoding: String,
+) extends ImportADT[Pre](importer) {
   import ImportPointer._
 
   private lazy val pointerFile = parse("pointer")
@@ -385,6 +393,39 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
                           Seq(p),
                         )),
                       )) === p
+                    },
+                  )))
+                }
+
+                if (arrayEncoding == "sequenced") {
+                  val blockSucc = succ[ADTFunction[Post]](
+                    adt.decls.collectFirst {
+                      case f: ADTFunction[Pre]
+                          if f.o.find[SourceName]
+                            .exists(_.name == "pointer_block") =>
+                        f
+                    }.get
+                  )
+                  val offsetSucc = succ[ADTFunction[Post]](
+                    adt.decls.collectFirst {
+                      case f: ADTFunction[Pre]
+                          if f.o.find[SourceName]
+                            .exists(_.name == "pointer_offset") =>
+                        f
+                    }.get
+                  )
+                  aDTDeclarations.declare(new ADTAxiom[Post](foralls(
+                    Seq(TAxiomatic(adtSucc, Nil), TAxiomatic(adtSucc, Nil)),
+                    body = { case Seq(p1, p2) =>
+                      (InlinePattern(
+                        adtFunctionInvocation(blockSucc, args = Seq(p1))
+                      ) === InlinePattern(
+                        adtFunctionInvocation(blockSucc, args = Seq(p2))
+                      ) && InlinePattern(
+                        adtFunctionInvocation(offsetSucc, args = Seq(p1))
+                      ) === InlinePattern(
+                        adtFunctionInvocation(offsetSucc, args = Seq(p2))
+                      )) ==> (p1 === p2)
                     },
                   )))
                 }

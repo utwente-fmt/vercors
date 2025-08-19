@@ -6,14 +6,26 @@ adt pointer_array<T> {
 
     axiom (∀ pointer_array<T> a, seq<int> i; pa_loc_inv_1({:pa_loc(a, i):}) == a && pa_loc_inv_2({:pa_loc(a, i):}) == i);
 
+    axiom (∀ pointer_array<T> a, int i = 0..|pa_dim(a)|; {:pa_dim(a)[i]:} > 0);
+
     axiom (∀ pointer_array<T> a, seq<int> i;
-    |i| == |pa_dim(a)| && (∀ int j = 0..|i|; 0 <= {:i[j]:} && {:i[j]:} < pa_dim(a)[j]);
-    \pointer_block(pa_loc(a, first(pa_dim(a)))) == \pointer_block({:pa_loc(a, i):}) && \pointer_block_offset({:pa_loc(a, i):}) == calculate_offset(pa_dim(a), i));
+    |i| == |pa_dim(a)| &&
+    (∀ int j = 0..|i|; 0 <= {:i[j]:} && {:i[j]:} < pa_dim(a)[j]);
+    \pointer_block(pa_loc(a, first(pa_dim(a)))) == \pointer_block({:pa_loc(a, i):}) &&
+    \pointer_block_offset({:pa_loc(a, i):}) == calculate_offset(pa_dim(a), i)
+    && \pointer_block_length(pa_loc(a, first(pa_dim(a)))) == total_size(pa_dim(a)));
+
 }
 
 ensures |\result| == |dims|;
 ensures (∀ int i = 0..|\result|; {:\result[i]:} == 0);
+ensures |dims| == 2 ==> \result == seq<int>{0, 0};
 pure seq<int> first(seq<int> dims) = |dims| == 0 ? seq<int> {} : 0 :: first(dims[1..]);
+
+ensures |dims| == 0 ==> \result == 1;
+ensures |dims| == 1 ==> \result == dims[0];
+ensures |dims| == 2 ==> \result == dims[0] * dims[1];
+pure int total_size(seq<int> dims) = |dims| == 0 ? 1 : dims[0] * total_size(dims[1..]);
 
 ensures |dims| == 0 ==> \result == 0;
 ensures |dims| == |i| && |dims| == 1 ==> \result == i[0];
