@@ -397,7 +397,7 @@ case class ImportPointer[Pre <: Generation](
                   )))
                 }
 
-                if (arrayEncoding == "sequenced") {
+                if (arrayEncoding == "sequenced" || arrayEncoding == "nested") {
                   val blockSucc = succ[ADTFunction[Post]](
                     adt.decls.collectFirst {
                       case f: ADTFunction[Pre]

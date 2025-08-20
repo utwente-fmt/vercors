@@ -1,6 +1,5 @@
 package vct.rewrite
 
-import hre.util.ScopedStack
 import vct.col.ast.{
   ADTAxiom,
   ADTFunction,
@@ -121,6 +120,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 case object EncodePointerArrays
@@ -193,6 +193,18 @@ case class EncodePointerArrays[Pre <: Generation](
   import EncodePointerArrays._
 
   private lazy val nestedFile = parse("pointer_array_parameterised")
+
+  private lazy val nestedAdt = find[AxiomaticDataType[Post]](
+    nestedFile,
+    "pointer_array",
+  )
+  private lazy val nestedAccess = find[ADTFunction[Post]](nestedAdt, "pa_loc")
+  private lazy val nestedInverse = find[ADTFunction[Post]](
+    nestedAdt,
+    "pa_loc_inv_1",
+  )
+  private lazy val nestedLen = find[ADTFunction[Post]](nestedAdt, "pa_length")
+
   private lazy val sequencedFile = parse("pointer_array_seq")
 
   private lazy val sequencedAdt = find[AxiomaticDataType[Post]](
@@ -272,54 +284,27 @@ case class EncodePointerArrays[Pre <: Generation](
             Select(
               OptEmpty(e),
               Null(),
-              adtFunctionInvocation[Post](
+              digToPointer(
                 pointerSucc.ref((element, dimensions, unique, false)),
-                args =
-                  Seq(OptGet(e)(PanicBlame(
-                    "Can never be null since this is ensured in the conditional expression"
-                  ))) ++
-                    (encoding match {
-                      case "inline" => Nil
-                      case "sequenced" =>
-                        Seq(LiteralSeq(
-                          TInt(),
-                          Seq.fill(dimensions)(const[Post](0)),
-                        ))
-                    }),
-                typeArgs =
-                  encoding match {
-                    case "inline" => None
-                    case "sequenced" =>
-                      Some((
-                        arraySucc.ref((element, dimensions, unique, false)),
-                        Seq(dispatch(element)),
-                      ))
-                    case _ => throw UnknownEncoding(encoding)
-                  },
+                arraySucc.ref((element, dimensions, unique, false)),
+                OptGet(e)(PanicBlame(
+                  "Can never be null since this is ensured in the conditional expression"
+                )),
+                dimensions,
+                element,
+                unique,
+                isConst = false,
               ),
             )
           case TAxiomatic(_, _) =>
-            adtFunctionInvocation[Post](
+            digToPointer(
               pointerSucc.ref((element, dimensions, unique, false)),
-              args =
-                Seq(e) ++
-                  (encoding match {
-                    case "inline" => Nil
-                    case "sequenced" =>
-                      Seq(
-                        LiteralSeq(TInt(), Seq.fill(dimensions)(const[Post](0)))
-                      )
-                  }),
-              typeArgs =
-                encoding match {
-                  case "inline" => None
-                  case "sequenced" =>
-                    Some((
-                      arraySucc.ref((element, dimensions, unique, false)),
-                      Seq(dispatch(element)),
-                    ))
-                  case _ => throw UnknownEncoding(encoding)
-                },
+              arraySucc.ref((element, dimensions, unique, false)),
+              e,
+              dimensions,
+              element,
+              unique,
+              isConst = false,
             )
           case _ => e
         }
@@ -332,54 +317,27 @@ case class EncodePointerArrays[Pre <: Generation](
             Select(
               OptEmpty(e),
               Null(),
-              adtFunctionInvocation[Post](
+              digToPointer(
                 pointerSucc.ref((element, dimensions, None, true)),
-                args =
-                  Seq(OptGet(e)(PanicBlame(
-                    "Can never be null since this is ensured in the conditional expression"
-                  ))) ++
-                    (encoding match {
-                      case "inline" => Nil
-                      case "sequenced" =>
-                        Seq(LiteralSeq(
-                          TInt(),
-                          Seq.fill(dimensions)(const[Post](0)),
-                        ))
-                    }),
-                typeArgs =
-                  encoding match {
-                    case "inline" => None
-                    case "sequenced" =>
-                      Some((
-                        arraySucc.ref((element, dimensions, None, true)),
-                        Seq(dispatch(element)),
-                      ))
-                    case _ => throw UnknownEncoding(encoding)
-                  },
+                arraySucc.ref((element, dimensions, None, true)),
+                OptGet(e)(PanicBlame(
+                  "Can never be null since this is ensured in the conditional expression"
+                )),
+                dimensions,
+                element,
+                None,
+                isConst = true,
               ),
             )
           case TAxiomatic(_, _) =>
-            adtFunctionInvocation[Post](
+            digToPointer(
               pointerSucc.ref((element, dimensions, None, true)),
-              args =
-                Seq(e) ++
-                  (encoding match {
-                    case "inline" => Nil
-                    case "sequenced" =>
-                      Seq(
-                        LiteralSeq(TInt(), Seq.fill(dimensions)(const[Post](0)))
-                      )
-                  }),
-              typeArgs =
-                encoding match {
-                  case "inline" => None
-                  case "sequenced" =>
-                    Some((
-                      arraySucc.ref((element, dimensions, None, true)),
-                      Seq(dispatch(element)),
-                    ))
-                  case _ => throw UnknownEncoding(encoding)
-                },
+              arraySucc.ref((element, dimensions, None, true)),
+              e,
+              dimensions,
+              element,
+              None,
+              isConst = true,
             )
           case _ => e
         }
@@ -387,46 +345,34 @@ case class EncodePointerArrays[Pre <: Generation](
         initialiseAdt(element, dimensions.length, unique, isConst = false)
         e.t match {
           case t: PointerType[Post] =>
-            if (t.isNonNull)
-              adtFunctionInvocation[Post](
+            if (t.isNonNull) {
+              pointerToArray(
                 fromPointerSucc
                   .ref((element, dimensions.length, unique, false)),
-                args = Seq(e),
-                typeArgs =
-                  encoding match {
-                    case "inline" => None
-                    case "sequenced" =>
-                      Some((
-                        arraySucc
-                          .ref((element, dimensions.length, unique, false)),
-                        Seq(dispatch(element)),
-                      ))
-                    case _ => throw UnknownEncoding(encoding)
-                  },
+                arraySucc.ref((element, dimensions.length, unique, false)),
+                e,
+                element,
+                dimensions.length,
+                unique,
+                isConst = false,
               )
-            else
+            } else
               Select(
                 PointerEq(e, Null(), const(0)),
                 OptNoneTyped(
                   getAxiomType(element, dimensions.length, unique, t.isConst)
                 ),
-                OptSome(adtFunctionInvocation[Post](
+                OptSome(pointerToArray(
                   fromPointerSucc
                     .ref((element, dimensions.length, unique, false)),
-                  args = Seq(ToNonNull(e)(PanicBlame(
+                  arraySucc.ref((element, dimensions.length, unique, false)),
+                  ToNonNull(e)(PanicBlame(
                     "Can never be null since this is ensured in the conditional expression"
-                  ))),
-                  typeArgs =
-                    encoding match {
-                      case "inline" => None
-                      case "sequenced" =>
-                        Some((
-                          arraySucc
-                            .ref((element, dimensions.length, unique, false)),
-                          Seq(dispatch(element)),
-                        ))
-                      case _ => throw UnknownEncoding(encoding)
-                    },
+                  )),
+                  element,
+                  dimensions.length,
+                  unique,
+                  isConst = false,
                 )),
               )
           case _ => e
@@ -436,40 +382,26 @@ case class EncodePointerArrays[Pre <: Generation](
         e.t match {
           case t: PointerType[Post] =>
             if (t.isNonNull) {
-              adtFunctionInvocation[Post](
+              pointerToArray(
                 fromPointerSucc
                   .ref((element, dimensions.length, unique, false)),
-                args = Seq(e),
-                typeArgs =
-                  encoding match {
-                    case "inline" => None
-                    case "sequenced" =>
-                      Some((
-                        arraySucc
-                          .ref((element, dimensions.length, unique, false)),
-                        Seq(dispatch(element)),
-                      ))
-                    case _ => throw UnknownEncoding(encoding)
-                  },
+                arraySucc.ref((element, dimensions.length, unique, false)),
+                e,
+                element,
+                dimensions.length,
+                unique,
+                isConst = false,
               )
             } else {
-              adtFunctionInvocation[Post](
+              pointerToArray(
                 fromPointerSucc
                   .ref((element, dimensions.length, unique, false)),
-                args = Seq(
-                  ToNonNull(e)(NonNullCoercionBlame(globalBlame.top, e))
-                ),
-                typeArgs =
-                  encoding match {
-                    case "inline" => None
-                    case "sequenced" =>
-                      Some((
-                        arraySucc
-                          .ref((element, dimensions.length, unique, false)),
-                        Seq(dispatch(element)),
-                      ))
-                    case _ => throw UnknownEncoding(encoding)
-                  },
+                arraySucc.ref((element, dimensions.length, unique, false)),
+                ToNonNull(e)(NonNullCoercionBlame(globalBlame.top, e)),
+                element,
+                dimensions.length,
+                unique,
+                isConst = false,
               )
             }
           case _ => e
@@ -546,30 +478,15 @@ case class EncodePointerArrays[Pre <: Generation](
             inner.t.asPointerArray.get.isNonNull =>
         val t = inner.t.asPointerArray.get
         initialiseAdt(t.element, t.dimensions.length, t.unique, t.isConst)
-        adtFunctionInvocation(
+        digToPointer(
           pointerSucc
             .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
-          args =
-            Seq(dispatch(inner)) ++
-              (encoding match {
-                case "inline" => Nil
-                case "sequenced" =>
-                  Seq(LiteralSeq(
-                    TInt(),
-                    Seq.fill(t.dimensions.length)(const[Post](0)),
-                  ))
-              }),
-          typeArgs =
-            encoding match {
-              case "inline" => None
-              case "sequenced" =>
-                Some((
-                  arraySucc
-                    .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
-                  Seq(dispatch(t.element)),
-                ))
-              case _ => throw UnknownEncoding(encoding)
-            },
+          arraySucc.ref((t.element, t.dimensions.length, t.unique, t.isConst)),
+          dispatch(inner),
+          t.dimensions.length,
+          t.element,
+          t.unique,
+          t.isConst,
         )
       case sub @ PointerArraySubscript(a, _)
           if a.t.asPointerArray.get.dimensions.length == 1 =>
@@ -608,40 +525,24 @@ case class EncodePointerArrays[Pre <: Generation](
           arrayT.isConst,
         )
         IntegerPointerCast(
-          adtFunctionInvocation(
+          digToPointer(
             pointerSucc.ref((
               arrayT.element,
               arrayT.dimensions.length,
               arrayT.unique,
               arrayT.isConst,
             )),
-            args =
-              Seq(
-                unwrapOption(value, NonNullCoercionBlame(globalBlame.top, e))
-              ) ++
-                (encoding match {
-                  case "inline" => Nil
-                  case "sequenced" =>
-                    Seq(LiteralSeq(
-                      TInt(),
-                      Seq.fill(arrayT.dimensions.length)(const[Post](0)),
-                    ))
-                }),
-            typeArgs =
-              encoding match {
-                case "inline" => None
-                case "sequenced" =>
-                  Some((
-                    arraySucc.ref((
-                      arrayT.element,
-                      arrayT.dimensions.length,
-                      arrayT.unique,
-                      arrayT.isConst,
-                    )),
-                    Seq(dispatch(arrayT.element)),
-                  ))
-                case _ => throw UnknownEncoding(encoding)
-              },
+            arraySucc.ref((
+              arrayT.element,
+              arrayT.dimensions.length,
+              arrayT.unique,
+              arrayT.isConst,
+            )),
+            unwrapOption(value, NonNullCoercionBlame(globalBlame.top, e)),
+            arrayT.dimensions.length,
+            arrayT.element,
+            arrayT.unique,
+            arrayT.isConst,
           ),
           dispatch(t),
           dispatch(size),
@@ -714,6 +615,9 @@ case class EncodePointerArrays[Pre <: Generation](
         )
         encoding match {
           case "inline" => dimensionBlames
+          case "nested" =>
+            dimensionBlames :+
+              PanicBlame("Size of pointer does not match array definition")
           case "sequenced" =>
             dimensionBlames :+
               PanicBlame("Amount of array dimensions do not match!")
@@ -811,6 +715,62 @@ case class EncodePointerArrays[Pre <: Generation](
                       args = Seq(newV),
                     ) === dispatch(d.get)
                   }
+                case "nested" =>
+                  val axiomType = getAxiomType(
+                    t.element,
+                    dimensions,
+                    t.unique,
+                    t.isConst,
+                  )
+                  val ptr = digToPointer(
+                    nestedAccess.ref,
+                    nestedAdt.ref,
+                    newV,
+                    t.dimensions.length,
+                    t.element,
+                    t.unique,
+                    t.isConst,
+                  )
+                  val pbl = PointerBlockLength(ptr)(NonNullPointerNull)
+                  val minLen = t.dimensions.filter(_.isDefined).map(_.get)
+                    .map(dispatch).reduceOption((a, b) => Mult[Post](a, b))
+                  (PointerBlockOffset(ptr)(NonNullPointerNull) ===
+                    const[Post](0) &&
+                    (if (t.dimensions.forall(_.isDefined)) {
+                       pbl === minLen.get
+                     } else { pbl >= minLen.getOrElse(const[Post](1)) })) +:
+                    t.dimensions
+                      .foldLeft[(Expr[Post], Seq[Type[Post]], Seq[Expr[Post]])](
+                        (newV, axiomType.args, Nil)
+                      ) {
+                        case (
+                              (
+                                array: Expr[Post],
+                                args: Seq[Type[Post]],
+                                exprs: Seq[Expr[Post]],
+                              ),
+                              dim: Option[Expr[Pre]],
+                            ) =>
+                          (
+                            adtFunctionInvocation[Post](
+                              nestedAccess.ref,
+                              args = Seq(array, const(0)),
+                              typeArgs = Some((nestedAdt.ref, args)),
+                            ),
+                            args.head match {
+                              case TAxiomatic(_, args) => args
+                              case _ => args
+                            },
+                            if (dim.isDefined) {
+                              exprs :+
+                                (adtFunctionInvocation[Post](
+                                  nestedLen.ref,
+                                  args = Seq(array),
+                                  typeArgs = Some((nestedAdt.ref, args)),
+                                ) === dispatch(dim.get))
+                            } else { exprs },
+                          )
+                      }._3
                 case "sequenced" =>
                   (Size(adtFunctionInvocation[Post](
                     sequencedDim.ref,
@@ -894,6 +854,65 @@ case class EncodePointerArrays[Pre <: Generation](
                             args = Seq(newV),
                           ) === dispatch(d.get)
                         }
+                      case "nested" =>
+                        val axiomType = getAxiomType(
+                          t.element,
+                          dimensions,
+                          t.unique,
+                          t.isConst,
+                        )
+                        val ptr = digToPointer(
+                          nestedAccess.ref,
+                          nestedAdt.ref,
+                          newV,
+                          t.dimensions.length,
+                          t.element,
+                          t.unique,
+                          t.isConst,
+                        )
+                        val pbl = PointerBlockLength(ptr)(NonNullPointerNull)
+                        val minLen = t.dimensions.filter(_.isDefined).map(_.get)
+                          .map(dispatch)
+                          .reduceOption((a, b) => Mult[Post](a, b))
+                        (PointerBlockOffset(ptr)(NonNullPointerNull) ===
+                          const[Post](0) &&
+                          (if (t.dimensions.forall(_.isDefined)) {
+                             pbl === minLen.get
+                           } else {
+                             pbl >= minLen.getOrElse(const[Post](1))
+                           })) +:
+                          t.dimensions
+                            .foldLeft[
+                              (Expr[Post], Seq[Type[Post]], Seq[Expr[Post]])
+                            ]((newV, axiomType.args, Nil)) {
+                              case (
+                                    (
+                                      array: Expr[Post],
+                                      args: Seq[Type[Post]],
+                                      exprs: Seq[Expr[Post]],
+                                    ),
+                                    dim: Option[Expr[Pre]],
+                                  ) =>
+                                (
+                                  adtFunctionInvocation[Post](
+                                    nestedAccess.ref,
+                                    args = Seq(array, const(0)),
+                                    typeArgs = Some((nestedAdt.ref, args)),
+                                  ),
+                                  args.head match {
+                                    case TAxiomatic(_, args) => args
+                                    case _ => args
+                                  },
+                                  if (dim.isDefined) {
+                                    exprs :+
+                                      (adtFunctionInvocation[Post](
+                                        nestedLen.ref,
+                                        args = Seq(array),
+                                        typeArgs = Some((nestedAdt.ref, args)),
+                                      ) === dispatch(dim.get))
+                                  } else { exprs },
+                                )
+                            }._3
                       case "sequenced" =>
                         t.dimensions.zipWithIndex.filter { case (d, _) =>
                           d.isDefined
@@ -977,6 +996,25 @@ case class EncodePointerArrays[Pre <: Generation](
           ),
           index,
         )(CalculatedPointerAddBlame(sub.blame))
+      case "nested" =>
+        extendIndices(getIndices(sub), length).foldLeft((
+          unwrapOption(obj, sub.blame),
+          getAxiomType(arrayT.element, length, arrayT.unique, arrayT.isConst)
+            .args,
+        )) { case ((array, args), index) =>
+          (
+            adtFunctionInvocation[Post](
+              nestedAccess.ref,
+              args = Seq(array, index),
+              typeArgs = Some((nestedAdt.ref, args)),
+            ),
+            args.head match {
+              case TAxiomatic(_, args) => args
+              // Does not matter what we use here this is always the last iteration
+              case _ => args
+            },
+          )
+        }._1
       case "sequenced" =>
         adtFunctionInvocation[Post](
           sequencedAccess.ref,
@@ -1024,13 +1062,8 @@ case class EncodePointerArrays[Pre <: Generation](
           typeArgs =
             encoding match {
               case "inline" => None
-              case "sequenced" =>
-                Some((
-                  arraySucc.ref(
-                    (arrayT.element, length, arrayT.unique, arrayT.isConst)
-                  ),
-                  Seq(dispatch(arrayT.element)),
-                ))
+              // This doesn't matter since for "sequenced" and "nested" we only look at the length output of this function
+              case "sequenced" | "nested" => None
               case _ => throw UnknownEncoding(encoding)
             },
         )
@@ -1138,6 +1171,11 @@ case class EncodePointerArrays[Pre <: Generation](
             fromPointerSucc((element, dimensions, unique, isConst)) =
               sequencedInverse
             sequencedAdt
+          case "nested" =>
+            pointerSucc((element, dimensions, unique, isConst)) = nestedAccess
+            fromPointerSucc((element, dimensions, unique, isConst)) =
+              nestedInverse
+            nestedAdt
           case _ => throw UnknownEncoding(encoding)
         }
       },
@@ -1162,16 +1200,44 @@ case class EncodePointerArrays[Pre <: Generation](
               args = Seq(obj),
             )
           }
-          case "sequenced" => { (obj: Expr[Post]) =>
-            SeqSubscript(
+          case "sequenced" =>
+            (obj: Expr[Post]) =>
+              SeqSubscript(
+                adtFunctionInvocation[Post](
+                  sequencedDim.ref,
+                  typeArgs = Some(sequencedAdt.ref, Seq(dispatch(element))),
+                  args = Seq(obj),
+                ),
+                const(i),
+              )(PanicBlame("Should not access dimension that is out of range"))
+          case "nested" =>
+            (obj: Expr[Post]) =>
               adtFunctionInvocation[Post](
-                sequencedDim.ref,
-                typeArgs = Some(sequencedAdt.ref, Seq(dispatch(element))),
-                args = Seq(obj),
-              ),
-              const(i),
-            )(PanicBlame("Should not access dimension that is out of range"))
-          }
+                nestedLen.ref,
+                args = Seq(
+                  Seq.range(0, i).foldLeft((obj, axiomType.args.head)) {
+                    case ((obj, t), _) =>
+                      (
+                        adtFunctionInvocation[Post](
+                          nestedAccess.ref,
+                          args = Seq(obj, const(0)),
+                          typeArgs = Some((nestedAdt.ref, Seq(t))),
+                        ),
+                        t match {
+                          case TAxiomatic(_, Seq(t)) => t
+                          // Does not matter what we use here this is always the last iteration
+                          case _ => t
+                        },
+                      )
+                  }._1
+                ),
+                typeArgs = Some(
+                  nestedAdt.ref,
+                  Seq.range(0, i).foldLeft(axiomType.args)((a, _) =>
+                    a.head.asInstanceOf[TAxiomatic[Post]].args
+                  ),
+                ),
+              )
           case _ => throw UnknownEncoding(encoding)
         }
       )
@@ -1191,28 +1257,14 @@ case class EncodePointerArrays[Pre <: Generation](
             (term: Local[Post]) => const[Post](0) <= term && term < max
           val ptr =
             () =>
-              adtFunctionInvocation[Post](
+              digToPointer(
                 pointerSucc.ref((element, dimensions, unique, isConst)),
-                args =
-                  encoding match {
-                    case "inline" => Seq(result)
-                    case "sequenced" =>
-                      Seq(
-                        result,
-                        LiteralSeq(TInt(), Seq.fill(dimensions)(const[Post](0))),
-                      )
-                    case _ => throw UnknownEncoding(encoding)
-                  },
-                typeArgs =
-                  encoding match {
-                    case "inline" => None
-                    case "sequenced" =>
-                      Some((
-                        arraySucc.ref((element, dimensions, unique, isConst)),
-                        Seq(dispatch(element)),
-                      ))
-                    case _ => throw UnknownEncoding(encoding)
-                  },
+                arraySucc.ref((element, dimensions, unique, isConst)),
+                result,
+                dimensions,
+                element,
+                unique,
+                isConst,
               )
           val trigger =
             (term: Local[Post]) =>
@@ -1224,7 +1276,7 @@ case class EncodePointerArrays[Pre <: Generation](
               PointerBlockOffset(ptr())(NonNullPointerNull) === const(0)
           val extendedBounds =
             encoding match {
-              case "inline" => bounds
+              case "inline" | "nested" => bounds
               case "sequenced" =>
                 (Size(adtFunctionInvocation[Post](
                   sequencedDim.ref,
@@ -1257,39 +1309,68 @@ case class EncodePointerArrays[Pre <: Generation](
                         triggers = t => Seq(Seq(trigger(t))),
                       )
                     case "sequenced" =>
+                      val ptrAcc =
+                        (terms: Seq[Expr[Post]]) =>
+                          adtFunctionInvocation[Post](
+                            sequencedAccess.ref,
+                            typeArgs = Some(
+                              (sequencedAdt.ref, Seq(dispatch(element)))
+                            ),
+                            args = Seq(result, LiteralSeq(TInt(), terms)),
+                          )
                       staralls(
                         IteratedPtrInjective,
                         Seq.fill(dimensions)(TInt()),
                         body = { terms =>
                           foldAnd[Post](terms.zip(args).map {
-                            case (term, arg) => (
+                            case (term, arg) =>
                               (const[Post](0) <= term) && (term <= arg.get)
-                            )
                           }) ==> Perm(
-                            PointerLocation(adtFunctionInvocation[Post](
-                              sequencedAccess.ref,
-                              typeArgs = Some((
-                                arraySucc
-                                  .ref((element, dimensions, unique, isConst)),
-                                Seq(dispatch(element)),
-                              )),
-                              args = Seq(result, LiteralSeq(TInt(), terms)),
-                            ))(NonNullPointerNull),
+                            PointerLocation(ptrAcc(terms))(NonNullPointerNull),
                             WritePerm(),
                           )
                         },
                         triggers = { terms =>
-                          Seq(Seq(
-                            DerefPointer(adtFunctionInvocation[Post](
-                              sequencedAccess.ref,
-                              typeArgs = Some((
-                                arraySucc
-                                  .ref((element, dimensions, unique, isConst)),
-                                Seq(dispatch(element)),
-                              )),
-                              args = Seq(result, LiteralSeq(TInt(), terms)),
-                            ))(NonNullPointerNull)
-                          ))
+                          Seq(
+                            Seq(DerefPointer(ptrAcc(terms))(NonNullPointerNull))
+                          )
+                        },
+                      )
+                    case "nested" =>
+                      val ptrAcc =
+                        (terms: Seq[Expr[Post]]) =>
+                          terms.foldLeft[(Expr[Post], Type[Post])](
+                            (result, axiomType.args.head)
+                          ) { case ((obj, t), i) =>
+                            (
+                              adtFunctionInvocation[Post](
+                                nestedAccess.ref,
+                                typeArgs = Some((nestedAdt.ref, Seq(t))),
+                                args = Seq(obj, i),
+                              ),
+                              t match {
+                                case TAxiomatic(_, Seq(t)) => t
+                                // Does not matter what we use here this is always the last iteration
+                                case _ => t
+                              },
+                            )
+                          }._1
+                      staralls(
+                        IteratedPtrInjective,
+                        Seq.fill(dimensions)(TInt()),
+                        body = { terms =>
+                          foldAnd[Post](terms.zip(args).map {
+                            case (term, arg) =>
+                              (const[Post](0) <= term) && (term <= arg.get)
+                          }) ==> Perm(
+                            PointerLocation(ptrAcc(terms))(NonNullPointerNull),
+                            WritePerm(),
+                          )
+                        },
+                        triggers = { terms =>
+                          Seq(
+                            Seq(DerefPointer(ptrAcc(terms))(NonNullPointerNull))
+                          )
                         },
                       )
                     case _ => throw UnknownEncoding(encoding)
@@ -1316,42 +1397,72 @@ case class EncodePointerArrays[Pre <: Generation](
                         triggers = t => Seq(Seq(trigger(t))),
                       )
                     case "sequenced" =>
+                      val ptrAcc =
+                        (terms: Seq[Expr[Post]]) =>
+                          adtFunctionInvocation[Post](
+                            sequencedAccess.ref,
+                            typeArgs = Some(
+                              (sequencedAdt.ref, Seq(dispatch(element)))
+                            ),
+                            args = Seq(result, LiteralSeq(TInt(), terms)),
+                          )
                       staralls(
                         IteratedPtrInjective,
                         Seq.fill(dimensions)(TInt()),
                         body = { terms =>
                           foldAnd[Post](terms.zip(args).map {
-                            case (term, arg) => (
+                            case (term, arg) =>
                               (const[Post](0) <= term) && (term <= arg.get)
-                            )
                           }) ==> Perm(
                             ByValueClassLocation(
-                              DerefPointer(adtFunctionInvocation[Post](
-                                sequencedAccess.ref,
-                                typeArgs = Some((
-                                  arraySucc.ref(
-                                    (element, dimensions, unique, isConst)
-                                  ),
-                                  Seq(dispatch(element)),
-                                )),
-                                args = Seq(result, LiteralSeq(TInt(), terms)),
-                              ))(NonNullPointerNull)
+                              DerefPointer(ptrAcc(terms))(NonNullPointerNull)
                             ),
                             WritePerm(),
                           )
                         },
                         triggers = { terms =>
-                          Seq(Seq(
-                            DerefPointer(adtFunctionInvocation[Post](
-                              sequencedAccess.ref,
-                              typeArgs = Some((
-                                arraySucc
-                                  .ref((element, dimensions, unique, isConst)),
-                                Seq(dispatch(element)),
-                              )),
-                              args = Seq(result, LiteralSeq(TInt(), terms)),
-                            ))(NonNullPointerNull)
-                          ))
+                          Seq(
+                            Seq(DerefPointer(ptrAcc(terms))(NonNullPointerNull))
+                          )
+                        },
+                      )
+                    case "nested" =>
+                      val ptrAcc =
+                        (terms: Seq[Expr[Post]]) =>
+                          terms.foldLeft[(Expr[Post], Type[Post])](
+                            (result, axiomType.args.head)
+                          ) { case ((obj, t), i) =>
+                            (
+                              adtFunctionInvocation[Post](
+                                nestedAccess.ref,
+                                typeArgs = Some((nestedAdt.ref, Seq(t))),
+                                args = Seq(obj, i),
+                              ),
+                              t match {
+                                case TAxiomatic(_, Seq(t)) => t
+                                // Does not matter what we use here this is always the last iteration
+                                case _ => t
+                              },
+                            )
+                          }._1
+                      staralls(
+                        IteratedPtrInjective,
+                        Seq.fill(dimensions)(TInt()),
+                        body = { terms =>
+                          foldAnd[Post](terms.zip(args).map {
+                            case (term, arg) =>
+                              (const[Post](0) <= term) && (term <= arg.get)
+                          }) ==> Perm(
+                            ByValueClassLocation(
+                              DerefPointer(ptrAcc(terms))(NonNullPointerNull)
+                            ),
+                            WritePerm(),
+                          )
+                        },
+                        triggers = { terms =>
+                          Seq(
+                            Seq(DerefPointer(ptrAcc(terms))(NonNullPointerNull))
+                          )
                         },
                       )
                     case _ => throw UnknownEncoding(encoding)
@@ -1379,8 +1490,128 @@ case class EncodePointerArrays[Pre <: Generation](
       encoding match {
         case "inline" => Nil
         case "sequenced" => Seq(dispatch(element))
+        case "nested" =>
+          Seq(
+            if (dimensions == 1)
+              if (isConst) { TNonNullConstPointer(dispatch(element)) }
+              else { TNonNullPointer(dispatch(element), unique) }
+            else { getAxiomType(element, dimensions - 1, unique, isConst) }
+          )
         case _ => throw UnknownEncoding(encoding)
       },
     )
   }
+
+  @tailrec
+  private def digToPointer(
+      pointerFunc: Ref[Post, ADTFunction[Post]],
+      adt: Ref[Post, AxiomaticDataType[Post]],
+      array: Expr[Post],
+      dimensions: Int,
+      element: Type[Pre],
+      unique: Option[BigInt],
+      isConst: Boolean,
+  )(implicit o: Origin): Expr[Post] =
+    encoding match {
+      case "inline" =>
+        adtFunctionInvocation[Post](
+          pointerFunc,
+          args = Seq(array),
+          typeArgs = None,
+        )
+      case "sequenced" =>
+        adtFunctionInvocation[Post](
+          pointerFunc,
+          args = Seq(
+            array,
+            LiteralSeq(TInt(), Seq.fill(dimensions)(const[Post](0))),
+          ),
+          typeArgs = Some((adt, Seq(dispatch(element)))),
+        )
+      case "nested" =>
+        if (dimensions == 1) {
+          adtFunctionInvocation[Post](
+            pointerFunc,
+            args = Seq(array, const(0)),
+            typeArgs = Some((
+              adt,
+              Seq(if (isConst) { TNonNullConstPointer(dispatch(element)) }
+              else { TNonNullPointer(dispatch(element), unique) }),
+            )),
+          )
+        } else {
+          digToPointer(
+            pointerFunc,
+            adt,
+            adtFunctionInvocation[Post](
+              pointerFunc,
+              args = Seq(array, const(0)),
+              // Note that values for unique and isConst don't matter here!
+              typeArgs = Some((
+                adt,
+                Seq(getAxiomType(element, dimensions - 1, unique, isConst)),
+              )),
+            ),
+            dimensions - 1,
+            element,
+            unique,
+            isConst,
+          )
+        }
+      case _ => throw UnknownEncoding(encoding)
+    }
+
+  private def pointerToArray(
+      fromPointerFunc: Ref[Post, ADTFunction[Post]],
+      adt: Ref[Post, AxiomaticDataType[Post]],
+      pointer: Expr[Post],
+      element: Type[Pre],
+      dimensions: Int,
+      unique: Option[BigInt],
+      isConst: Boolean,
+  )(implicit o: Origin): Expr[Post] =
+    encoding match {
+      case "inline" =>
+        adtFunctionInvocation[Post](
+          fromPointerFunc,
+          args = Seq(pointer),
+          typeArgs = None,
+        )
+      case "sequenced" =>
+        adtFunctionInvocation[Post](
+          fromPointerFunc,
+          args = Seq(pointer),
+          typeArgs = Some((adt, Seq(dispatch(element)))),
+        )
+
+      case "nested" =>
+        if (dimensions == 1) {
+          adtFunctionInvocation(
+            fromPointerFunc,
+            args = Seq(pointer),
+            typeArgs = Some((
+              adt,
+              Seq(if (isConst) { TNonNullConstPointer(dispatch(element)) }
+              else { TNonNullPointer(dispatch(element), unique) }),
+            )),
+          )
+        } else {
+          adtFunctionInvocation(
+            fromPointerFunc,
+            args = Seq(pointerToArray(
+              fromPointerFunc,
+              adt,
+              pointer,
+              element,
+              dimensions - 1,
+              unique,
+              isConst,
+            )),
+            typeArgs = Some(
+              (adt, Seq(getAxiomType(element, dimensions - 1, unique, isConst)))
+            ),
+          )
+        }
+      case _ => throw UnknownEncoding(encoding)
+    }
 }

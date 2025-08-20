@@ -1,0 +1,26 @@
+adt pointer_array<T> {
+    pure T pa_loc(pointer_array<T> a, int i);
+    pure int pa_length(pointer_array<T> a);
+    pure pointer_array<T> pa_loc_inv_1(T loc);
+    pure int pa_loc_inv_2(T loc);
+
+    axiom (∀ pointer_array<T> a; {:pa_length(a):} > 0);
+
+    axiom (∀ pointer_array<T> a, int i; pa_loc_inv_1({:pa_loc(a, i):}) == a && pa_loc_inv_2({:pa_loc(a, i):}) == i);
+
+    axiom (∀ pointer_array<pointer_array<T>> a, int i, int j; {:pa_length(pointer_array<pointer_array<T>>.pa_loc(a, i)):} == {:pa_length(pointer_array<pointer_array<T>>.pa_loc(a, j)):});
+
+    axiom (∀ pointer_array<non_null_pointer<T>> p, int i; \pointer_block({:pointer_array<non_null_pointer<T>>.pa_loc(p, i):}) == \pointer_block(pointer_array<non_null_pointer<T>>.pa_loc(p, 0)) && \pointer_block_offset(pointer_array<non_null_pointer<T>>.pa_loc(p, i)) == \pointer_block_offset(pointer_array<non_null_pointer<T>>.pa_loc(p, 0)) + i);
+
+    axiom (∀ pointer_array<pointer_array<non_null_pointer<T>>> p, int i, int j;
+     \pointer_block(
+     {:
+        pointer_array<non_null_pointer<T>>.pa_loc(
+            pointer_array<pointer_array<non_null_pointer<T>>>.pa_loc(p, i), j)
+     :}) == \pointer_block(pointer_array<non_null_pointer<T>>.pa_loc(pointer_array<pointer_array<non_null_pointer<T>>>.pa_loc(p, 0), 0)) &&
+      \pointer_block_offset(
+        pointer_array<non_null_pointer<T>>.pa_loc(
+            pointer_array<pointer_array<non_null_pointer<T>>>.pa_loc(p, i), j
+        )) ==
+       \pointer_block_offset(pointer_array<non_null_pointer<T>>.pa_loc(pointer_array<pointer_array<non_null_pointer<T>>>.pa_loc(p, 0), 0)) + i * pointer_array<non_null_pointer<T>>.pa_length(pointer_array<pointer_array<non_null_pointer<T>>>.pa_loc(p, 0)) + j);
+}
