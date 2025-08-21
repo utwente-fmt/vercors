@@ -270,7 +270,16 @@ case object CoercionUtils {
       case (TNonNullPointer(TVoid(), _), TNonNullPointer(_, _)) =>
         CoerceIdentity(target)
       case (l: PointerArrayType[G], r: PointerArrayType[G])
-          if (l.isNonNull || !r.isNonNull) && l.isConst == r.isConst &&
+          if (l.isNonNull && !r.isNonNull) && l.isConst == r.isConst &&
+            l.unique == r.unique &&
+            l.dimensions.length == r.dimensions.length =>
+        CoercionSequence(Seq(
+          getPointerCoercion(source, target, l.element, r.element)
+            .getOrElse(return None),
+          CoerceNonNullPointerArray(target),
+        ))
+      case (l: PointerArrayType[G], r: PointerArrayType[G])
+          if (l.isNonNull && r.isNonNull) && l.isConst == r.isConst &&
             l.unique == r.unique &&
             l.dimensions.length == r.dimensions.length =>
         getPointerCoercion(source, target, l.element, r.element)

@@ -14,6 +14,7 @@ import vct.col.ast.{
   AxiomaticDataType,
   ByValueClassLocation,
   CoerceConstPointerArrayPointer,
+  CoerceNonNullPointerArray,
   CoerceNullPointerArray,
   CoercePointerArrayPointer,
   CoercePointerNonNullPointerArray,
@@ -334,6 +335,7 @@ case class EncodePointerArrays[Pre <: Generation]()
             }
           case _ => e
         }
+      case CoerceNonNullPointerArray(_) => OptSome(e)
       case other => super.applyCoercion(e, other)
     }
 

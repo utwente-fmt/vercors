@@ -1153,6 +1153,9 @@ final case class CoerceNullLLVMPointer[G](elementType: Option[Type[G]])(
 final case class CoerceNullPointerArray[G](target: Type[G])(
     implicit val o: Origin
 ) extends Coercion[G] with CoerceNullPointerArrayImpl[G]
+final case class CoerceNonNullPointerArray[G](target: Type[G])(
+    implicit val o: Origin
+) extends Coercion[G] with CoerceNonNullPointerArrayImpl[G]
 final case class CoercePointerArrayPointer[G](
     elementType: Type[G],
     dimensions: Int,
