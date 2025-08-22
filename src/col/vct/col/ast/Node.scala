@@ -424,9 +424,12 @@ final case class DefaultCase[G]()(implicit val o: Origin)
     with DefaultCaseImpl[G]
 final case class Case[G](pattern: Expr[G])(implicit val o: Origin)
     extends SwitchCase[G] with PurelySequentialStatement[G] with CaseImpl[G]
-final case class Label[G](decl: LabelDecl[G], stat: Statement[G])(
-    implicit val o: Origin
-) extends NormallyCompletingStatement[G]
+final case class Label[G](
+    decl: LabelDecl[G],
+    stat: Statement[G],
+    contract: LoopContract[G],
+)(implicit val o: Origin)
+    extends NormallyCompletingStatement[G]
     with ControlContainerStatement[G]
     with LabelImpl[G]
 final case class Goto[G](lbl: Ref[G, LabelDecl[G]])(implicit val o: Origin)

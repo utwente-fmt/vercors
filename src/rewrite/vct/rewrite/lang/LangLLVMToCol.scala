@@ -1537,7 +1537,13 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val newBody = Block[Post](bodyStmnts)
 
     if (elidedBackEdges.contains(block.label)) { newBody }
-    else { Label(rw.labelDecls.dispatch(block.label), newBody)(block.o) }
+    else {
+      Label(
+        rw.labelDecls.dispatch(block.label),
+        newBody,
+        LoopInvariant(tt, None)(TrueSatisfiable)(block.o),
+      )(block.o)
+    }
   }
 
   private def countBackedges(loop: LLVMLoop[Pre]): Int = {
@@ -1578,6 +1584,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               blockToLabel(loop.latchBlock.get, true)
           )(block.o),
         )(block.o),
+        LoopInvariant(tt, None)(TrueSatisfiable)(block.o),
       )(block.o)
     }
   }

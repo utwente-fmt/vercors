@@ -330,9 +330,15 @@ case class SilverToCol[G](
           body = transform(body),
         )(origin(s))
       case silver.Label(name, invs) =>
+        val (invariants, decreases) = partitionDecreases(invs)
+        if (decreases.length > 1) { ??(decreases(1)) }
         col.Label[G](
           new col.LabelDecl()(origin(s, name)),
           col.Block(Nil)(origin(s)),
+          col.LoopInvariant(
+            foldStar(invariants.map(transform))(origin(s)),
+            decreases.headOption.flatMap(transform),
+          )(blame(s))(origin(s)),
         )(origin(s))
       case silver.Goto(target) =>
         col.Goto[G](new UnresolvedRef(target))(origin(s))

@@ -2369,7 +2369,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case JavaLocalDeclarationStatement(decl) =>
         JavaLocalDeclarationStatement(decl)
       case j @ Join(obj) => Join(cls(obj))(j.blame)
-      case Label(decl, stat) => Label(decl, stat)
+      case Label(decl, stat, contract) => Label(decl, stat, contract)
       case LocalDecl(local) => LocalDecl(local)
       case HeapLocalDecl(local) => HeapLocalDecl(local)
       case l @ Lock(obj) => Lock(cls(obj))(l.blame)

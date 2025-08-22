@@ -74,7 +74,7 @@ valStatement
  | 'assume' langExpr ';' # valAssume
  | 'inhale' langExpr ';' # valInhale
  | 'exhale' langExpr ';' # valExhale
- | 'label' langId ';' # valLabel
+ | valContractClause* 'label' langId ';' # valLabel
  | 'refute' langExpr ';' # valRefute
  | 'witness' langExpr ';' # valWitness
  | 'ghost' langStatement # valGhost

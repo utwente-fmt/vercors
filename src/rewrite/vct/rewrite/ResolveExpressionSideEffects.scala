@@ -1,7 +1,6 @@
 package vct.col.rewrite
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
 import vct.col.rewrite.error.ExtraNode
@@ -12,6 +11,7 @@ import vct.col.origin.{
   Origin,
   PreferredName,
   SubscriptAssignTarget,
+  TrueSatisfiable,
 }
 import vct.col.ref.Ref
 import vct.col.rewrite.{
@@ -156,7 +156,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
                 Local[Post](ResolveExpressionSideEffects.this.succ(preV))(e.o)
               }
           }
-        case other => rewriteDefault(other)
+        case other => super.dispatch(other)
       }
 
     /** In case we want to reinline a declaration, we do not want to rewrite it,
@@ -339,7 +339,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
                 )(inv.blame),
               ),
           )
-        case decl: LocalDecl[Pre] => rewriteDefault(decl)
+        case decl: LocalDecl[Pre] => super.dispatch(decl)
         case decl: HeapLocalDecl[Pre] => decl.rewriteDefault()
         case Return(result) =>
           frame(
@@ -349,8 +349,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
           )
         case ass @ Assign(target, value) =>
           frame(PreAssignExpression[Pre](target, value)(ass.blame), Eval(_))
-        case block: Block[Pre] => rewriteDefault(block)
-        case scope: Scope[Pre] => rewriteDefault(scope)
+        case block: Block[Pre] => super.dispatch(block)
+        case scope: Scope[Pre] => super.dispatch(scope)
         case Branch(branches) => doBranches(branches)
         case Switch(expr, body) => frame(expr, Switch(_, dispatch(body)))
         case loop @ Loop(init, cond, update, contract, body) =>
@@ -382,34 +382,39 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
                     dispatch(body),
                   )),
                 ),
-                Label(break, Block(Nil)),
+                Label(
+                  break,
+                  Block(Nil),
+                  LoopInvariant(tt, None)(TrueSatisfiable),
+                ),
               ))
           }
-        case attempt: TryCatchFinally[Pre] => rewriteDefault(attempt)
+        case attempt: TryCatchFinally[Pre] => super.dispatch(attempt)
         case sync @ Synchronized(obj, body) =>
           frame(obj, Synchronized(_, dispatch(body))(sync.blame))
-        case inv: ParInvariant[Pre] => rewriteDefault(inv)
-        case atomic: ParAtomic[Pre] => rewriteDefault(atomic)
-        case barrier: ParBarrier[Pre] => rewriteDefault(barrier)
+        case inv: ParInvariant[Pre] => super.dispatch(inv)
+        case atomic: ParAtomic[Pre] => super.dispatch(atomic)
+        case barrier: ParBarrier[Pre] => super.dispatch(barrier)
         case vec: VecBlock[Pre] =>
-          rewriteDefault(
-            vec
-          ) // PB: conceivably we can support side effect in iterator ranges; let's see if someone wants that :)
-        case send: Send[Pre] => rewriteDefault(send)
-        case recv: Recv[Pre] => rewriteDefault(recv)
-        case default: DefaultCase[Pre] => rewriteDefault(default)
+          super
+            .dispatch(
+              vec
+            ) // PB: conceivably we can support side effect in iterator ranges; let's see if someone wants that :)
+        case send: Send[Pre] => super.dispatch(send)
+        case recv: Recv[Pre] => super.dispatch(recv)
+        case default: DefaultCase[Pre] => super.dispatch(default)
         case Case(pattern) => Case(dispatch(pattern))
-        case label: Label[Pre] => rewriteDefault(label)
-        case goto: Goto[Pre] => rewriteDefault(goto)
-        case exhale: Exhale[Pre] => rewriteDefault(exhale)
+        case label: Label[Pre] => super.dispatch(label)
+        case goto: Goto[Pre] => super.dispatch(goto)
+        case exhale: Exhale[Pre] => super.dispatch(exhale)
         case assert @ Assert(expr) if TBool().superTypeOf(expr.t) =>
           frame(expr, Assert(_)(assert.blame))
-        case assert: Assert[Pre] => rewriteDefault(assert)
-        case refute: Refute[Pre] => rewriteDefault(refute)
-        case inhale: Inhale[Pre] => rewriteDefault(inhale)
+        case assert: Assert[Pre] => super.dispatch(assert)
+        case refute: Refute[Pre] => super.dispatch(refute)
+        case inhale: Inhale[Pre] => super.dispatch(inhale)
         case Assume(expr) => frame(expr, Assume(_))
-        case ignore: SpecIgnoreStart[Pre] => rewriteDefault(ignore)
-        case ignore: SpecIgnoreEnd[Pre] => rewriteDefault(ignore)
+        case ignore: SpecIgnoreStart[Pre] => super.dispatch(ignore)
+        case ignore: SpecIgnoreEnd[Pre] => super.dispatch(ignore)
         case t @ Throw(obj) => frame(obj, Throw(_)(t.blame))
         case wait @ Wait(obj) => frame(obj, Wait(_)(wait.blame))
         case notify @ Notify(obj) => frame(obj, Notify(_)(notify.blame))
@@ -417,27 +422,27 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
         case j @ Join(obj) => frame(obj, Join(_)(j.blame))
         case l @ Lock(obj) => frame(obj, Lock(_)(l.blame))
         case unlock @ Unlock(obj) => frame(obj, Unlock(_)(unlock.blame))
-        case fold: Fold[Pre] => rewriteDefault(fold)
-        case unfold: Unfold[Pre] => rewriteDefault(unfold)
-        case create: WandPackage[Pre] => rewriteDefault(create)
-        case apply: WandApply[Pre] => rewriteDefault(apply)
-        case modelDo: ModelDo[Pre] => rewriteDefault(modelDo)
+        case fold: Fold[Pre] => super.dispatch(fold)
+        case unfold: Unfold[Pre] => super.dispatch(unfold)
+        case create: WandPackage[Pre] => super.dispatch(create)
+        case apply: WandApply[Pre] => super.dispatch(apply)
+        case modelDo: ModelDo[Pre] => super.dispatch(modelDo)
         case havoc: Havoc[Pre] =>
-          rewriteDefault(havoc) // PB: pretty sure you can only havoc locals?
-        case break: Break[Pre] => rewriteDefault(break)
-        case continue: Continue[Pre] => rewriteDefault(continue)
-        case commit: Commit[Pre] => rewriteDefault(commit)
-        case par: ParStatement[Pre] => rewriteDefault(par)
-        case n: SilverNewRef[Pre] => rewriteDefault(n)
-        case assn: SilverFieldAssign[Pre] => rewriteDefault(assn)
-        case assn: SilverLocalAssign[Pre] => rewriteDefault(assn)
-        case proof: FramedProof[Pre] => rewriteDefault(proof)
-        case extract: Extract[Pre] => rewriteDefault(extract)
-        case branch: IndetBranch[Pre] => rewriteDefault(branch)
-        case rangedFor: RangedFor[Pre] => rewriteDefault(rangedFor)
-        case assign: VeyMontAssignExpression[Pre] => rewriteDefault(assign)
-        case comm: CommunicateX[Pre] => rewriteDefault(comm)
-        case comm: CommunicateStatement[Pre] => rewriteDefault(comm)
+          super.dispatch(havoc) // PB: pretty sure you can only havoc locals?
+        case break: Break[Pre] => super.dispatch(break)
+        case continue: Continue[Pre] => super.dispatch(continue)
+        case commit: Commit[Pre] => super.dispatch(commit)
+        case par: ParStatement[Pre] => super.dispatch(par)
+        case n: SilverNewRef[Pre] => super.dispatch(n)
+        case assn: SilverFieldAssign[Pre] => super.dispatch(assn)
+        case assn: SilverLocalAssign[Pre] => super.dispatch(assn)
+        case proof: FramedProof[Pre] => super.dispatch(proof)
+        case extract: Extract[Pre] => super.dispatch(extract)
+        case branch: IndetBranch[Pre] => super.dispatch(branch)
+        case rangedFor: RangedFor[Pre] => super.dispatch(rangedFor)
+        case assign: VeyMontAssignExpression[Pre] => super.dispatch(assign)
+        case comm: CommunicateX[Pre] => super.dispatch(comm)
+        case comm: CommunicateStatement[Pre] => super.dispatch(comm)
         case _: PVLBranch[Pre] => throw ExtraNode
         case _: PVLLoop[Pre] => throw ExtraNode
         case _: CStatement[Pre] => throw ExtraNode
@@ -450,7 +455,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
-      case cons: Constructor[Pre] => rewriteDefault(cons)
+      case cons: Constructor[Pre] => super.dispatch(cons)
       case method: AbstractMethod[Pre] =>
         val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
         currentResultVar.having(Local[Post](res.ref)(ResultVar)) {
@@ -466,7 +471,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
             ),
           ))
         }
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] =
@@ -482,7 +487,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
           _: With[Pre] | _: Then[Pre] | _: MethodInvocation[Pre] |
           _: ProcedureInvocation[Pre] =>
         throw DisallowedSideEffect(e)
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
 
   def inlined(e: Expr[Pre]): Expr[Post] =
@@ -687,6 +692,6 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
         variables.succeed(res.asInstanceOf[Variable[Pre]], res)
         effect(Instantiate[Post](succ(cls), res.get(ResultVar))(e.o))
         stored(res.get(SideEffectOrigin), cls.ref.decl.classType(Seq()))
-      case other => stored(ReInliner().dispatch(rewriteDefault(other)), other.t)
+      case other => stored(ReInliner().dispatch(super.dispatch(other)), other.t)
     }
 }

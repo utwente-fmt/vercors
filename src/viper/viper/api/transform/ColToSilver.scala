@@ -846,8 +846,17 @@ case class ColToSilver(program: col.Program[_]) {
           },
           block(body),
         )(pos = pos(s), info = NodeInfo(s))
-      case col.Label(decl, col.Block(Nil)) =>
-        silver.Label(ref(decl), Seq())(pos = pos(s), info = NodeInfo(s))
+      case col.Label(
+            decl,
+            col.Block(Nil),
+            invNode @ col.LoopInvariant(inv, decrClause),
+          ) =>
+        silver.Label(
+          ref(decl),
+          currentInvariant.having(invNode) {
+            unfoldStar(inv).map(exp) ++ decrClause.map(decreases).toSeq
+          },
+        )(pos = pos(s), info = NodeInfo(s))
       case col.Goto(lbl) =>
         silver.Goto(ref(lbl))(pos = pos(s), info = NodeInfo(s))
       case col.Return(col.Void()) =>
