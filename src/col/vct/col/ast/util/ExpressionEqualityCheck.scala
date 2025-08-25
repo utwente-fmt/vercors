@@ -47,7 +47,7 @@ object ExpressionEqualityCheck {
         invocation.args.forall(stricterIsConstant)
     }
 
-  private def stricterIsConstant(e: Expr[_]): Boolean = {
+  def stricterIsConstant(e: Expr[_]): Boolean = {
     def rec(e: Expr[_]) = stricterIsConstant(e)
     e match {
       case inv: AnyFunctionInvocation[_] =>

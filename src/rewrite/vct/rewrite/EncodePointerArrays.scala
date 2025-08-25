@@ -1,6 +1,7 @@
 package vct.rewrite
 
 import hre.util.ScopedStack
+import vct.col.ast.util.ExpressionEqualityCheck
 import vct.col.ast.{
   ADTAxiom,
   ADTFunction,
@@ -38,6 +39,8 @@ import vct.col.ast.{
   InvokingNode,
   IterationContract,
   LLVMLoopContract,
+  Label,
+  LabelDecl,
   Local,
   Loop,
   LoopInvariant,
@@ -47,6 +50,7 @@ import vct.col.ast.{
   NewPointerArray,
   Node,
   Null,
+  Old,
   OptEmpty,
   OptGet,
   OptNoneTyped,
@@ -203,6 +207,12 @@ case class EncodePointerArrays[Pre <: Generation]()
 
   private val currentVariableContext: mutable.HashSet[Variable[Pre]] = mutable
     .HashSet()
+
+  private val variableHeapLabel: SuccessionMap[Variable[Pre], LabelDecl[Post]] =
+    SuccessionMap()
+
+  private val currentStatementLabel
+      : ScopedStack[mutable.ArrayBuffer[LabelDecl[Post]]] = ScopedStack()
 
   private val globalBlame: ScopedStack[Blame[UnsafeCoercion]] = ScopedStack()
 
@@ -504,7 +514,15 @@ case class EncodePointerArrays[Pre <: Generation]()
         }
       case e: AssignExpression[Pre] =>
         e.target match {
-          case Local(Ref(v)) => currentVariableContext += v
+          case Local(Ref(v))
+              if v.t.asPointerArray.isDefined &&
+                currentVariableContext.add(v) =>
+            variableHeapLabel(v) =
+              if (currentStatementLabel.top.isEmpty) {
+                val l = new LabelDecl[Post]()
+                currentStatementLabel.top.addOne(l)
+                l
+              } else { currentStatementLabel.top.head }
           case _ =>
         }
         e.rewriteDefault()
@@ -534,7 +552,7 @@ case class EncodePointerArrays[Pre <: Generation]()
 
   override def postCoerce(s: Statement[Pre]): Statement[Post] = {
     implicit val o: Origin = s.o
-    s match {
+    val (labels, newS) = currentStatementLabel.collect(s match {
       case Scope(variables, _) =>
         // Not adding variables until they're assigned since VerCors scopes don't match normal programming scopes since you can refer to a variable before its declaration
         val res = s.rewriteDefault()
@@ -542,10 +560,18 @@ case class EncodePointerArrays[Pre <: Generation]()
         res
       case s: AssignStmt[Pre] =>
         s.target match {
-          case Local(Ref(v)) => currentVariableContext += v
-          case _ =>
+          case Local(Ref(v))
+              if v.t.asPointerArray.isDefined &&
+                currentVariableContext.add(v) =>
+            val l = new LabelDecl[Post]()
+            variableHeapLabel(v) = l
+            Label(
+              l,
+              s.rewriteDefault(),
+              LoopInvariant(tt, None)(TrueSatisfiable),
+            )
+          case _ => s.rewriteDefault()
         }
-        s.rewriteDefault()
       case inv: InvocationStatement[Pre] =>
         inv match {
           case inv: InvokeProcedure[Pre] =>
@@ -566,7 +592,7 @@ case class EncodePointerArrays[Pre <: Generation]()
           case inv @ LoopInvariant(invariant, _) =>
             loop.rewrite(contract =
               inv.rewrite(invariant =
-                getDimensionExpr &* super.dispatch(invariant)
+                getDimensionExpr() &* super.dispatch(invariant)
               )
             )
           case _: IterationContract[Pre] => throw ExtraNode
@@ -574,16 +600,18 @@ case class EncodePointerArrays[Pre <: Generation]()
         }
       case bar: ParBarrier[Pre] =>
         bar.rewrite(
-          requires = getDimensionExpr &* dispatch(bar.requires),
-          ensures = getDimensionExpr &* dispatch(bar.ensures),
+          requires = getDimensionExpr() &* dispatch(bar.requires),
+          ensures = getDimensionExpr() &* dispatch(bar.ensures),
         )
       case frame: FramedProof[Pre] =>
         frame.rewrite(
-          pre = getDimensionExpr &* dispatch(frame.pre),
-          post = getDimensionExpr &* dispatch(frame.post),
+          pre = getDimensionExpr() &* dispatch(frame.pre),
+          post = getDimensionExpr() &* dispatch(frame.post),
         )
       case _ => super.postCoerce(s)
-    }
+    })
+    if (labels.isEmpty) { newS }
+    else { Label(labels.head, newS, LoopInvariant(tt, None)(TrueSatisfiable)) }
   }
 
   override def postCoerce(parRegion: ParRegion[Pre]): ParRegion[Post] = {
@@ -592,41 +620,51 @@ case class EncodePointerArrays[Pre <: Generation]()
     parRegion match {
       case block: ParBlock[Pre] =>
         block.rewrite(
-          requires = getDimensionExpr &* dispatch(block.requires),
-          ensures = getDimensionExpr &* dispatch(block.ensures),
+          requires = getDimensionExpr() &* dispatch(block.requires),
+          ensures = getDimensionExpr() &* dispatch(block.ensures),
         )
       case _: ParParallel[Pre] | _: ParSequential[Pre] =>
         parRegion.rewriteDefault()
     }
   }
 
-  private def getDimensionExpr(implicit o: Origin): Expr[Post] = {
+  private def getDimensionExpr(
+      useOld: Boolean = true
+  )(implicit o: Origin): Expr[Post] = {
     foldAnd(
-      currentVariableContext.flatMap(v => v.t.asPointerArray.map((v, _)))
-        .flatMap { case (v, t) =>
-          implicit val o: Origin = v.o.where(context = "Dimension invariant")
-          val dimensions = t.dimensions.length
-          initialiseAdt(t.element, dimensions, t.unique, t.isConst)
+      currentVariableContext.flatMap(v =>
+        v.t.asPointerArray.map((v, _, variableHeapLabel.get(v).map(_.ref)))
+      ).flatMap { case (v, t, l) =>
+        implicit val o: Origin = v.o.where(context = "Dimension invariant")
+        val dimensions = t.dimensions.length
+        initialiseAdt(t.element, dimensions, t.unique, t.isConst)
 
-          val calcDim =
-            (newV: Expr[Post]) => {
-              t.dimensions.zipWithIndex.filter { case (d, _) => d.isDefined }
-                .map { case (d, i) =>
-                  adtFunctionInvocation[Post](
-                    dimSucc
-                      .ref((t.element, dimensions, t.unique, i, t.isConst)),
-                    args = Seq(newV),
-                  ) === dispatch(d.get)
-                }
-            }
-
-          if (t.isNonNull) { calcDim(Local(succ(v))) }
-          else {
-            calcDim(OptGet[Post](Local(succ(v)))(PanicBlame(
-              "Can never be null since this is ensured in the conditional expression"
-            ))).map(!OptEmpty(Local[Post](succ(v))) ==> _)
+        val calcDim =
+          (newV: Expr[Post]) => {
+            t.dimensions.zipWithIndex.filter { case (d, _) => d.isDefined }
+              .map { case (d, i) =>
+                adtFunctionInvocation[Post](
+                  dimSucc.ref((t.element, dimensions, t.unique, i, t.isConst)),
+                  args = Seq(newV),
+                ) ===
+                  (if (
+                     useOld &&
+                     !ExpressionEqualityCheck.stricterIsConstant(d.get)
+                   ) {
+                     Old(dispatch(d.get), l)(PanicBlame(
+                       "Rewrite order should ensure that we only add dimension expressions for variables that have been initialised. This program probably contains some sort of control flow we were not expecting"
+                     ))
+                   } else { dispatch(d.get) })
+              }
           }
+
+        if (t.isNonNull) { calcDim(Local(succ(v))) }
+        else {
+          calcDim(OptGet[Post](Local(succ(v)))(PanicBlame(
+            "Can never be null since this is ensured in the conditional expression"
+          ))).map(!OptEmpty(Local[Post](succ(v))) ==> _)
         }
+      }
     )
   }
 
@@ -694,7 +732,9 @@ case class EncodePointerArrays[Pre <: Generation]()
         currentVariableContext ++= p.args
         globalDeclarations.succeed(
           p,
-          p.rewrite(body = Some(getDimensionExpr &* dispatch(p.body.get))),
+          p.rewrite(body =
+            Some(getDimensionExpr(useOld = false) &* dispatch(p.body.get))
+          ),
         )
         currentVariableContext --= p.args
       case _ => super.postCoerce(decl)
