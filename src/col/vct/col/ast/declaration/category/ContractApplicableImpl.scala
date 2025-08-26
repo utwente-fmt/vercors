@@ -12,6 +12,8 @@ trait ContractApplicableImpl[G] extends InlineableApplicableImpl[G] {
   this: ContractApplicable[G] =>
   def contract: ApplicableContract[G]
   def blame: Blame[ContractedFailure]
+  def pure: Boolean
+
   override def declarations: Seq[Declaration[G]] =
     super.declarations ++ contract.givenArgs ++ contract.yieldsArgs ++ typeArgs
 

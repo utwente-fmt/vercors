@@ -1647,10 +1647,6 @@ object DerefAssignTarget
     extends PanicBlame(
       "Assigning to a field should trigger an error on the assignment, and not on the dereference."
     )
-object SubscriptAssignTarget
-    extends PanicBlame(
-      "Assigning to a subscript should trigger an error on the assignment, and not on the subscript."
-    )
 object DerefPerm
     extends PanicBlame(
       "Dereferencing a field in a permission should trigger an error on the permission, not on the dereference."

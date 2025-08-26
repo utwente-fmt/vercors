@@ -399,8 +399,10 @@ case class ColToSilver(program: col.Program[_]) {
       case col.Result(Ref(app)) =>
         silver.Result(typ(app.returnType))(pos = pos(e), info = expInfo(e))
 
-      case col.NoPerm() => silver.NoPerm()(pos = pos(e), info = expInfo(e))
-      case col.WritePerm() => silver.FullPerm()(pos = pos(e), info = expInfo(e))
+      case col.NoPerm() =>
+        silver.IntLit(BigInt(0))(pos = pos(e), info = expInfo(e))
+      case col.WritePerm() =>
+        silver.IntLit(BigInt(1))(pos = pos(e), info = expInfo(e))
 
       case col.LiteralSeq(t, Nil) =>
         silver.EmptySeq(typ(t))(pos = pos(e), info = expInfo(e))

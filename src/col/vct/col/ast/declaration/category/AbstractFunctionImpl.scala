@@ -6,6 +6,8 @@ import vct.col.origin.{Blame, ContractedFailure}
 
 trait AbstractFunctionImpl[G] extends ContractApplicableImpl[G] {
   this: AbstractFunction[G] =>
+
+  override def pure: Boolean = false
   override def body: Option[Expr[G]]
   def threadLocal: Boolean
   override def check(context: CheckContext[G]): Seq[CheckError] =

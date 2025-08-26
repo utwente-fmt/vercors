@@ -520,17 +520,17 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
           SilverDeref[Post](notInlined(obj), succ(f))(DerefAssignTarget)(
             target.o
           )
-        case ArraySubscript(arr, index) =>
-          ArraySubscript[Post](notInlined(arr), notInlined(index))(
-            SubscriptAssignTarget
-          )(target.o)
+        case sub @ ArraySubscript(arr, index) =>
+          ArraySubscript[Post](notInlined(arr), notInlined(index))(sub.blame)(
+            target.o
+          )
         case PointerSubscript(arr, index)
             if arr.t.isInstanceOf[TConstPointer[_]] =>
           throw DisallowedAssignmentTarget(target)
-        case PointerSubscript(arr, index) =>
-          PointerSubscript[Post](notInlined(arr), notInlined(index))(
-            SubscriptAssignTarget
-          )(target.o)
+        case sub @ PointerSubscript(arr, index) =>
+          PointerSubscript[Post](notInlined(arr), notInlined(index))(sub.blame)(
+            target.o
+          )
         case deref @ DerefPointer(ptr) =>
           DerefPointer[Post](notInlined(ptr))(deref.blame)(target.o)
         case VectorSubscript(_, _) => throw DisallowedAssignmentTarget(target)
@@ -597,8 +597,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
         effect(Assign(target, value)(ass.blame)(e.o))
         stored(value, oldValue.t)
       case ass @ PostAssignExpression(oldTarget, value) =>
+        val cachedTarget = stored(inlined(oldTarget), oldTarget.t)
         val target = assignTarget(oldTarget)
-        val cachedTarget = stored(target, oldTarget.t)
         effect(Assign(target, inlined(value))(ass.blame)(e.o))
         stored(cachedTarget, oldTarget.t)
       case With(pre, value) =>
