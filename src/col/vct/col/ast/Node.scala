@@ -1647,7 +1647,7 @@ final case class ValuePredicateApply[G](apply: ApplyAnyPredicate[G])(
 final case class AmbiguousFoldTarget[G](target: Expr[G])(implicit val o: Origin)
     extends FoldTarget[G] with AmbiguousFoldTargetImpl[G]
 
-sealed trait InvokingNode[G] extends Node[G] with InvokingNodeImpl[G]
+sealed trait InvokingNode[G] extends NodeFamily[G] with InvokingNodeImpl[G]
 sealed trait Invocation[G]
     extends ApplyInlineable[G] with InvokingNode[G] with InvocationImpl[G]
 

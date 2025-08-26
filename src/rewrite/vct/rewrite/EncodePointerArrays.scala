@@ -489,26 +489,26 @@ case class EncodePointerArrays[Pre <: Generation]()
             inv match {
               case inv: ProcedureInvocation[Pre] =>
                 inv.rewrite(blame =
-                  rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
+                  rewriteBlame(inv, inv.ref.decl.args, inv.blame)
                 )
               case inv: MethodInvocation[Pre] =>
                 inv.rewrite(blame =
-                  rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
+                  rewriteBlame(inv, inv.ref.decl.args, inv.blame)
                 )
               case inv: ConstructorInvocation[Pre] =>
                 inv.rewrite(blame =
-                  rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
+                  rewriteBlame(inv, inv.ref.decl.args, inv.blame)
                 )
             }
           case inv: AnyFunctionInvocation[Pre] =>
             inv match {
               case inv: FunctionInvocation[Pre] =>
                 inv.rewrite(blame =
-                  rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
+                  rewriteBlame(inv, inv.ref.decl.args, inv.blame)
                 )
               case inv: InstanceFunctionInvocation[Pre] =>
                 inv.rewrite(blame =
-                  rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
+                  rewriteBlame(inv, inv.ref.decl.args, inv.blame)
                 )
             }
         }
@@ -533,22 +533,16 @@ case class EncodePointerArrays[Pre <: Generation]()
 
   private def rewriteBlame[T >: InvocationFailure <: InstanceInvocationFailure](
       invokingNode: InvokingNode[Pre],
-      args: Seq[Expr[Pre]],
       declArgs: Seq[Variable[Pre]],
       inBlame: Blame[T],
   ): Blame[T] =
-    args.zipWithIndex.flatMap { case (v, i) => v.t.asPointerArray.map((_, i)) }
-      .flatMap { case (t, i) =>
+    declArgs.flatMap { v => v.t.asPointerArray.map((v, _)) }.flatMap {
+      case (v, t) =>
         initialiseAdt(t.element, t.dimensions.length, t.unique, t.isConst)
         t.dimensions.filter(_.isDefined).map(d =>
-          MismatchedArrayDimensionBlame(
-            invokingNode,
-            d.get,
-            declArgs(i),
-            inBlame,
-          )
+          MismatchedArrayDimensionBlame(invokingNode, d.get, v, inBlame)
         )
-      }.foldLeft(inBlame) { case (r, l) => PreBlameSplit.left(l, r) }
+    }.foldLeft(inBlame) { case (r, l) => PreBlameSplit.left(l, r) }
 
   override def postCoerce(s: Statement[Pre]): Statement[Post] = {
     implicit val o: Origin = s.o
@@ -575,17 +569,11 @@ case class EncodePointerArrays[Pre <: Generation]()
       case inv: InvocationStatement[Pre] =>
         inv match {
           case inv: InvokeProcedure[Pre] =>
-            inv.rewrite(blame =
-              rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
-            )
+            inv.rewrite(blame = rewriteBlame(inv, inv.ref.decl.args, inv.blame))
           case inv: InvokeConstructor[Pre] =>
-            inv.rewrite(blame =
-              rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
-            )
+            inv.rewrite(blame = rewriteBlame(inv, inv.ref.decl.args, inv.blame))
           case inv: InvokeMethod[Pre] =>
-            inv.rewrite(blame =
-              rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
-            )
+            inv.rewrite(blame = rewriteBlame(inv, inv.ref.decl.args, inv.blame))
         }
       case loop: Loop[Pre] =>
         loop.contract match {
