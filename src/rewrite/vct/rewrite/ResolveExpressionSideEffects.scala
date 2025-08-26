@@ -6,20 +6,12 @@ import vct.col.ast._
 import vct.col.rewrite.error.ExtraNode
 import vct.col.origin.{
   DerefAssignTarget,
-  DiagnosticOrigin,
   LabelContext,
   Origin,
   PreferredName,
-  SubscriptAssignTarget,
   TrueSatisfiable,
 }
 import vct.col.ref.Ref
-import vct.col.rewrite.{
-  Generation,
-  NonLatchingRewriter,
-  Rewriter,
-  RewriterBuilder,
-}
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.mutable
