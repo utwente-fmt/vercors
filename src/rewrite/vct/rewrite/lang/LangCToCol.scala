@@ -1608,10 +1608,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             if (isConst(t)) { t }
             else { TNonNullPointer(t, getUnique(t)) }
           cGlobalNameSuccessor(RefCGlobalDeclaration(decl, idx)) = rw
-            .globalDeclarations
-            .declare(new HeapVariable(newT, init.init.map(rw.dispatch))(
-              init.o.sourceName(info.name)
-            ))
+            .globalDeclarations.declare(
+              new HeapVariable(
+                newT,
+                if (isConst(t)) { init.init.map(rw.dispatch) }
+                else
+                  None,
+              )(init.o.sourceName(info.name))
+            )
       }
     }
   }
