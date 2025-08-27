@@ -148,7 +148,7 @@ case class ImportConstPointer[Pre <: Generation](importer: ImportADTImporter)
         )(PanicBlame("ptr_deref requires nothing."))
       case add @ PointerAdd(pointer, offset) if isConstPointer(pointer) =>
         val inner = dispatch(getInner(pointer.t))
-        OptSome(
+        val inv =
           FunctionInvocation[Post](
             ref = pointerAdd.ref,
             args = Seq(
@@ -159,7 +159,10 @@ case class ImportConstPointer[Pre <: Generation](importer: ImportADTImporter)
             Nil,
             Nil,
           )(NoContext(PointerBoundsPreconditionFailed(add.blame, pointer)))
-        )
+        pointer.t match {
+          case TConstPointer(_) => OptSome(inv)
+          case TNonNullConstPointer(_) => inv
+        }
       case deref @ DerefPointer(pointer) if isConstPointer(pointer) =>
         val inner = dispatch(getInner(pointer.t))
         FunctionInvocation[Post](

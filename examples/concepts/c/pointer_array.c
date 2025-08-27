@@ -32,22 +32,25 @@ void simple() {
     //@ [/end]
 }
 
+//@ requires a != NULL;
 //@ requires (\forall* int i = 0 .. n, int j = 0 .. m; Perm({:a[j][i]:}, write));
 void fromType(int n, int m, int a[m][n]) {
-    //@ assert \pointer_block_length(a) == n * m;
+    //@ assert \pointer_length(a) == n * m;
     //@ [/expect assertFailed:false]
     //@ assert false;
     //@ [/end]
 }
 
+//@ requires a != NULL;
 //@ requires (\forall* int i = 0 .. n; Perm({:a[0][i]:}, write));
 void partialFromType(int n, int a[][n]) {
-    //@ assert \pointer_block_length(a) >= n;
+    //@ assert \pointer_length(a) >= n;
     //@ [/expect assertFailed:false]
     //@ assert false;
     //@ [/end]
 }
 
+//@ requires a != NULL;
 //@ requires \pointer_length(a) == n * m;
 //@ requires (\forall* int i = 0 .. n, int j = 0 .. m; Perm({:a[j][i]:}, write));
 void fromTypeAndContract(int n, int m, int a[][n]) {
@@ -56,36 +59,8 @@ void fromTypeAndContract(int n, int m, int a[][n]) {
     //@ [/end]
 }
 
-/*@ ghost
-ensures \result;
-pure _Bool dummy(int x);*/
-
-/*@ ghost
-ensures \result;
-pure _Bool dummy2(int x, int y);*/
-
-// Provable using smt.arith.solver == 6
-/*@ ghost
-requires 0 <= i && i < n;
-requires 0 <= idx && idx < m * n;
-requires idx % n == i;
-ensures (idx - i) % n == 0;
-ensures 0 <= (idx - i) / n;
-ensures (idx - i) / n < m;
-ensures \result;
-pure _Bool lemma(int n, int m, int i, int idx);*/
-
-
-// Provable using smt.arith.solver == 6
-/*@ ghost
-requires 0 <= j && j < m;
-requires 0 <= idx - j * n && idx - j * n < n;
-ensures 0 <= idx;
-ensures idx < m * n;
-ensures \result;
-pure _Bool lemma2(int n, int m, int j, int idx);*/
-
-// This one is difficult because of the unnatural iteration order
+// Needs to be context_everywhere such it appears before the quantifier
+//@ context_everywhere a != NULL;
 //@ requires n > 0 && m > 0;
 //@ context_everywhere (\forall* int i = 0 .. n, int j = 0 .. m; Perm({:a[j][i]:}, write));
 //@ ensures (\forall int i = 0 .. n, int j = 0 .. m; {:a[j][i]:} == j * n + i);
@@ -96,15 +71,10 @@ void parameterInLoop(int n, int m, int a[m][n]) {
         //@ loop_invariant 0 <= i && i <= n;
         //@ loop_invariant 0 <= j && j <= m;
         //@ loop_invariant (\forall int k = 0 .. i, int l = 0 .. m; {:a[l][k]:} == l * n + k);
-        //@ loop_invariant (\forall int l = 0 .. j; {:dummy(l):}; l * n + i < \pointer_block_length(a));
-        //@ loop_invariant (\forall int l = 0 .. j; dummy(l); {:a[l][i]:} == l * n + i);
+        //@ loop_invariant (\forall int l = 0 .. j; {:a[l][i]:} == l * n + i);
         for (int j = 0; j < m; j++) {
-            // Assumption provable within smt.arith.solver == 6
-            //@ assume j * n + i < n * m;
             a[j][i] = j * n + i;
         }
-        //@ assert (\forall int idx = 0 .. (m * n); idx % n < i; {:*(a + idx):} == (idx / n) * n + (idx % n));
-        //@ assert (\forall int idx = 0 .. (m * n); idx % n == i; lemma(n, m, i, idx) ==> {:*(a + idx):} == (idx / n) * n + (idx % n));
     }
 }
 
@@ -120,18 +90,13 @@ int *localInLoop(int n, int m) {
     //@ loop_invariant (\forall int k = 0 .. i, int j = 0 .. m; {:a[j][k]:} == j * n + k);
     for (int i = 0; i < n; i++) {
         //@ loop_invariant (\forall* int k = 0 .. n, int l = 0 .. m; Perm({:a[l][k]:}, write));
-        //@ loop_invariant 0 <= i && i <= n;
+        //@ loop_invariant 0 <= i && i < n;
         //@ loop_invariant 0 <= j && j <= m;
         //@ loop_invariant (\forall int k = 0 .. i, int l = 0 .. m; {:a[l][k]:} == l * n + k);
-        //@ loop_invariant (\forall int l = 0 .. j; {:dummy(l):}; l * n + i < \pointer_block_length(a));
-        //@ loop_invariant (\forall int l = 0 .. j; dummy(l); {:a[l][i]:} == l * n + i);
+        //@ loop_invariant (\forall int l = 0 .. j; {:a[l][i]:} == l * n + i);
         for (int j = 0; j < m; j++) {
-            // Assumption provable within smt.arith.solver == 6
-            //@ assume j * n + i < n * m;
             a[j][i] = j * n + i;
         }
-        //@ assert (\forall int idx = 0 .. (m * n); idx % n < i; {:*(a + idx):} == (idx / n) * n + (idx % n));
-        //@ assert (\forall int idx = 0 .. (m * n); idx % n == i; lemma(n, m, i, idx) ==> {:*(a + idx):} == (idx / n) * n + (idx % n));
     }
 
     // Not a good example since we're returning stack memory. Once we add leak checks this will fail
@@ -139,14 +104,15 @@ int *localInLoop(int n, int m) {
 }
 
 //@ requires n > 0 && m > 0;
+//@ requires a != NULL;
 //@ context (\forall* int i = 0 .. n, int j = 0 .. m; Perm({:a[j][i]:}, write));
 //@ ensures (\forall int i = 0 .. n, int j = 0 .. m; {:a[j][i]:} == j * n + i);
 void parameterInParBlock(int n, int m, int a[m][n]) {
-    //@ context (\forall* int i = 0 .. n; lemma2(n, m, j, j * n + i); Perm({:a[j][i]:}, write));
-    //@ ensures (\forall* int i = 0 .. n; lemma2(n, m, j, j * n + i); {:a[j][i]:} == j * n + i);
+    //@ context (\forall* int i = 0 .. n; Perm({:a[j][i]:}, write));
+    //@ ensures (\forall* int i = 0 .. n; {:a[j][i]:} == j * n + i);
     for (int j = 0; j < m; j++) {
-        //@ context lemma2(n, m, j, j * n + i) ==> Perm({:a[j][i]:}, write);
-        //@ ensures lemma2(n, m, j, j * n + i) ==> {:a[j][i]:} == j * n + i;
+        //@ context Perm({:a[j][i]:}, write);
+        //@ ensures {:a[j][i]:} == j * n + i;
         for (int i = 0; i < n; i++) {
             a[j][i] = j * n + i;
         }

@@ -8,6 +8,7 @@ import vct.col.origin.{
   Origin,
   PanicBlame,
   PreferredName,
+  TrueSatisfiable,
 }
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
@@ -72,19 +73,26 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
     override def dispatch(stat: Statement[Pre]): Statement[Post] = {
       implicit val o: Origin = stat.o
       stat match {
-        case Label(decl, stat) =>
+        case Label(decl, stat, contract) =>
           val newBody = dispatch(stat)
 
           if (breakLabels.contains(decl)) {
             postLabeledStatement(decl) =
               new LabelDecl()(PostLabeledStatementOrigin(decl))
             Block(Seq(
-              Label(labelDecls.dispatch(decl), Block(Nil)),
+              Label(labelDecls.dispatch(decl), Block(Nil), dispatch(contract)),
               newBody,
-              Label(postLabeledStatement(decl), Block(Nil)),
+              Label(
+                postLabeledStatement(decl),
+                Block(Nil),
+                LoopInvariant(tt, None)(TrueSatisfiable),
+              ),
             ))
           } else {
-            Block(Seq(Label(labelDecls.dispatch(decl), Block(Nil)), newBody))
+            Block(Seq(
+              Label(labelDecls.dispatch(decl), Block(Nil), dispatch(contract)),
+              newBody,
+            ))
           }
 
         case Break(None) =>
@@ -140,14 +148,19 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
     override def dispatch(stat: Statement[Pre]): Statement[Post] = {
       implicit val o: Origin = stat.o
       stat match {
-        case Label(decl, stat) =>
+        case Label(decl, stat, contract) =>
           val newBody = dispatch(stat)
 
           if (breakLabelException.contains(decl)) {
             TryCatchFinally(
-              body = Block(
-                Seq(Label(labelDecls.dispatch(decl), Block(Nil)), newBody)
-              ),
+              body = Block(Seq(
+                Label(
+                  labelDecls.dispatch(decl),
+                  Block(Nil),
+                  dispatch(contract),
+                ),
+                newBody,
+              )),
               after = Block(Nil),
               catches = Seq(CatchClause(
                 decl =
@@ -158,7 +171,10 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
               )),
             )
           } else {
-            Block(Seq(Label(labelDecls.dispatch(decl), Block(Nil)), newBody))
+            Block(Seq(
+              Label(labelDecls.dispatch(decl), Block(Nil), dispatch(contract)),
+              newBody,
+            ))
           }
 
         case Break(None) =>
@@ -271,7 +287,11 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
                         Block(Seq(
                           HeapLocalDecl(v),
                           newBody,
-                          Label(resultTarget, Block(Nil)),
+                          Label(
+                            resultTarget,
+                            Block(Nil),
+                            LoopInvariant(tt, None)(TrueSatisfiable),
+                          ),
                           Return(getter),
                         )),
                       )
@@ -289,7 +309,11 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
                         Seq(v),
                         Block(Seq(
                           newBody,
-                          Label(resultTarget, Block(Nil)),
+                          Label(
+                            resultTarget,
+                            Block(Nil),
+                            LoopInvariant(tt, None)(TrueSatisfiable),
+                          ),
                           Return(getter),
                         )),
                       )
