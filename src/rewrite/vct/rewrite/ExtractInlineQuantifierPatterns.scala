@@ -2,8 +2,9 @@ package vct.col.rewrite
 
 import vct.col.ast._
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers.RewriteProgram
+import vct.col.check.CheckError
 import vct.col.ref.Ref
+import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
 
 import scala.collection.mutable.ArrayBuffer
@@ -12,11 +13,19 @@ case object ExtractInlineQuantifierPatterns extends RewriterBuilder {
   override def key: String = "inlineQuantifierPattern"
   override def desc: String =
     "Rewrite inline quantifier patterns into triggers."
+
+  private case class InvalidInlineTrigger(errors: Seq[CheckError])
+      extends UserError {
+    override def code: String =
+      s"inlinedPatterns:${errors.map(_.subcode).mkString(",")}"
+    override def text: String = errors.map(_.message(_.o)).mkString("\n")
+  }
 }
 
 case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
     extends Rewriter[Pre] {
   outer =>
+  import ExtractInlineQuantifierPatterns._
   // PB: letBindingsHere are all let bindings valid at the site where the trigger is defined: they need to be inlined,
   // since the extraction of the trigger may cross the body of the let.
   case class Pattern(
@@ -27,26 +36,20 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
     def make(): Expr[Post] = MakePattern(this).dispatch(pattern)
   }
 
-  type LetBinding = (Variable[Pre], Expr[Pre])
+  private type LetBinding = (Variable[Pre], Expr[Pre])
 
-  val patterns: ScopedStack[ArrayBuffer[Pattern]] = ScopedStack()
-  val letBindings: ScopedStack[ScopedStack[LetBinding]] = ScopedStack()
+  private val patterns: ScopedStack[ArrayBuffer[Pattern]] = ScopedStack()
+  private val letBindings: ScopedStack[ScopedStack[LetBinding]] = ScopedStack()
 
-  case class MakePattern(pattern: Pattern) extends Rewriter[Pre] {
+  private case class MakePattern(pattern: Pattern) extends Rewriter[Pre] {
     override val allScopes = outer.allScopes
-    val inScale: ScopedStack[Unit] = ScopedStack()
 
     override def dispatch(e: Expr[Pre]): Expr[Post] =
       e match {
-        case e if inScale.nonEmpty => e.rewriteDefault()
-
         case InlinePattern(inner, _, _) => dispatch(inner)
 
         case Local(Ref(v)) if pattern.letBindingsHere.contains(v) =>
           dispatch(pattern.letBindingsHere(v))
-
-        case p @ PredicateApplyExpr(apply: PredicateApply[Pre]) =>
-          PredicateApplyExpr(dispatch(apply))(p.o)
 
         case e => e.rewriteDefault()
       }
@@ -63,6 +66,25 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
       case other => other.rewriteDefault()
     }
 
+  private def getTriggers(
+      f: TriggeredQuantifier[Pre]
+  ): (Expr[Post], Seq[Seq[Expr[Post]]]) = {
+    val (patternsHere, body) = patterns.collect {
+      // We only want to inline lets that are defined inside the quantifier
+      letBindings.having(ScopedStack()) { dispatch(f.body) }
+    }
+    val unsortedGroups = patternsHere.groupBy(_.group)
+    val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
+    val preTriggers = sortedGroups.map(_.map(_.pattern))
+    val errors = f.checkTriggers(preTriggers)
+    if (errors.nonEmpty) {
+      // Thrown here such that the checks in between passes don't blame this pass for invalid triggers, this isn't perfect
+      // because if a pass generates an InlinePattern this will blame the user instead of the pass
+      throw InvalidInlineTrigger(errors)
+    }
+    (body, sortedGroups.map(_.map(_.make())))
+  }
+
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     e match {
       case Let(binding, value, _) =>
@@ -75,61 +97,12 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
             Pattern(i.group, i.inner, letBindings.top.toSeq.toMap)
         }
         dispatch(i.inner)
-
-      case f: Forall[Pre] =>
-        variables.scope {
-          localHeapVariables.scope {
-            val (patternsHere, body) = patterns.collect {
-              // We only want to inline lets that are defined inside the quantifier
-              letBindings.having(ScopedStack()) { dispatch(f.body) }
-            }
-            val unsortedGroups = patternsHere.groupBy(_.group)
-            val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
-            val triggers = sortedGroups.map(_.map(_.make()))
-            Forall(
-              bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
-              triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
-              body = body,
-            )(f.o)
-          }
-        }
-
-      case f: Starall[Pre] =>
-        variables.scope {
-          localHeapVariables.scope {
-            val (patternsHere, body) = patterns.collect {
-              // We only want to inline lets that are defined inside the quantifier
-              letBindings.having(ScopedStack()) { dispatch(f.body) }
-            }
-            val unsortedGroups = patternsHere.groupBy(_.group)
-            val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
-            val triggers = sortedGroups.map(_.map(_.make()))
-            Starall(
-              bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
-              triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
-              body = body,
-            )(f.blame)(f.o)
-          }
-        }
-
-      case f: Exists[Pre] =>
-        variables.scope {
-          localHeapVariables.scope {
-            val (patternsHere, body) = patterns.collect {
-              // We only want to inline lets that are defined inside the quantifier
-              letBindings.having(ScopedStack()) { dispatch(f.body) }
-            }
-            val unsortedGroups = patternsHere.groupBy(_.group)
-            val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
-            val triggers = sortedGroups.map(_.map(_.make()))
-            Exists(
-              bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
-              triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
-              body = body,
-            )(f.o)
-          }
-        }
-
+      case q: TriggeredQuantifier[Pre] =>
+        lazy val bodyTriggers = getTriggers(q)
+        q.rewrite(
+          body = bodyTriggers._1,
+          triggers = q.triggers.map(_.map(dispatch)) ++ bodyTriggers._2,
+        )
       case other => other.rewriteDefault()
     }
 }

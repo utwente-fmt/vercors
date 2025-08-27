@@ -1,7 +1,8 @@
 package vct.col.ast.expr.misc
 
+import vct.col.ast.expr.binder.PossibleTriggerImpl
 import vct.col.ast.node.NodeFamilyImpl
-import vct.col.ast.{ContractApplicable, Old, Type}
+import vct.col.ast.{ContractApplicable, Old, PossibleTrigger, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 import vct.col.ast.ops.OldOps
 import vct.col.check.{
@@ -11,7 +12,8 @@ import vct.col.check.{
   OldInPrecondition,
 }
 
-trait OldImpl[G] extends OldOps[G] with NodeFamilyImpl[G] {
+trait OldImpl[G]
+    extends OldOps[G] with NodeFamilyImpl[G] with PossibleTriggerImpl[G] {
   this: Old[G] =>
   override def t: Type[G] = expr.t
 
@@ -40,4 +42,10 @@ trait OldImpl[G] extends OldOps[G] with NodeFamilyImpl[G] {
 
     result
   }
+
+  override def isPossibleTrigger: Boolean =
+    expr match {
+      case t: PossibleTrigger[G] => t.isPossibleTrigger
+      case _ => false
+    }
 }
