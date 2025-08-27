@@ -1620,7 +1620,10 @@ sealed trait InstanceApply[G] extends Node[G] with InstanceApplyImpl[G]
 
 final case class PredicateApplyExpr[G](apply: ApplyAnyPredicate[G])(
     implicit val o: Origin
-) extends ApplyInlineable[G] with PredicateApplyExprImpl[G] with ResourceTerm[G]
+) extends ApplyInlineable[G]
+    with PredicateApplyExprImpl[G]
+    with ResourceTerm[G]
+    with PossibleTrigger[G]
 @family
 sealed trait ApplyAnyPredicate[G]
     extends NodeFamily[G] with ApplyAnyPredicateImpl[G]
@@ -1995,7 +1998,7 @@ final case class InLinePatternLocation[G](loc: Location[G], pattern: Expr[G])(
 
 final case class Perm[G](loc: Location[G], perm: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with PermImpl[G] with ResourceTerm[G]
+) extends Expr[G] with PermImpl[G] with ResourceTerm[G] with PossibleTrigger[G]
 final case class PointsTo[G](loc: Location[G], perm: Expr[G], value: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with PointsToImpl[G] with ResourceTerm[G]
@@ -2003,7 +2006,10 @@ final case class CurPerm[G](loc: Location[G])(implicit val o: Origin)
     extends Expr[G] with CurPermImpl[G] with ResourceTerm[G]
 
 final case class Value[G](loc: Location[G])(implicit val o: Origin)
-    extends Expr[G] with ValueImpl[G] with ResourceTerm[G]
+    extends Expr[G]
+    with ValueImpl[G]
+    with ResourceTerm[G]
+    with PossibleTrigger[G]
 final case class AutoValue[G](loc: Location[G])(implicit val o: Origin)
     extends Expr[G] with AutoValueImpl[G] with ResourceTerm[G]
 

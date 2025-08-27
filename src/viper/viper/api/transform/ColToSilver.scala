@@ -764,7 +764,14 @@ case class ColToSilver(program: col.Program[_]) {
     }
 
   def trigger(patterns: Seq[col.Expr[_]]): silver.Trigger =
-    silver.Trigger(patterns.map(exp))()
+    silver.Trigger(patterns.map {
+      // Move trigger inside the accessibility predicate if it's a predicate application
+      case col.Perm(col.PredicateLocation(app: col.PredicateApply[_]), _) =>
+        pred(app)
+      case col.Value(col.PredicateLocation(app: col.PredicateApply[_])) =>
+        pred(app)
+      case e => exp(e)
+    })()
 
   def fold(f: col.FoldTarget[_]): silver.PredicateAccessPredicate =
     f match {
