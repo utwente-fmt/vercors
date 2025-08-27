@@ -3,7 +3,6 @@ package vct.col.ast.expr.binder
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{
   Expr,
-  InlinePattern,
   Let,
   Local,
   Node,

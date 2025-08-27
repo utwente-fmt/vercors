@@ -1910,12 +1910,12 @@ final case class Wand[G](left: Expr[G], right: Expr[G])(implicit val o: Origin)
 final case class Scale[G](scale: Expr[G], res: Expr[G])(
     val blame: Blame[ScaleNegative]
 )(implicit val o: Origin)
-    extends Expr[G] with ScaleImpl[G]
+    extends Expr[G] with ScaleImpl[G] with PossibleTrigger[G]
 final case class ScaleByParBlock[G](
     block: Ref[G, ParBlockDecl[G]],
     res: Expr[G],
 )(implicit val o: Origin)
-    extends Expr[G] with ScaleByParBlockImpl[G]
+    extends Expr[G] with ScaleByParBlockImpl[G] with PossibleTrigger[G]
 final case class PolarityDependent[G](onInhale: Expr[G], onExhale: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with PolarityDependentImpl[G]
