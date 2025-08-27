@@ -25,7 +25,8 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
           Block(Seq(
             Continue[G](Some(loopLabel.ref))
           ))
-        )
+        ),
+        LoopInvariant(BooleanValue(true), None)(blame)
       )
     }
 
@@ -41,9 +42,11 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
           Label(continueLoopLabel,
             Block(Seq(
               Break[G](Some(continueLoopLabel.ref))
-            ))
+            )),
+            LoopInvariant(BooleanValue(true), None)(blame)
           )
-        )
+        ),
+        LoopInvariant(BooleanValue(true), None)(blame)
       )
     }
 
@@ -71,9 +74,11 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
               Block(Seq(
                 Continue(Some(outerLoop.ref))
               ))
-            )(o)
+            )(o),
+            LoopInvariant(BooleanValue(true), None)(blame)
           )
-        )
+        ),
+        LoopInvariant(BooleanValue(true), None)(blame)
       )
     }
 
@@ -98,10 +103,13 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
                 Block(Seq(
                   Break(Some(continueOuterLoop.ref))
                 ))
-              )(o)
-            )
+              )(o),
+              LoopInvariant(BooleanValue(true), None)(blame)
+            ),
+            LoopInvariant(BooleanValue(true), None)(blame)
           )
-        )
+        ),
+        LoopInvariant(BooleanValue(true), None)(blame)
       )
     }
 

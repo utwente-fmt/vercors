@@ -36,7 +36,8 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
             Case(IntegerValue(5)),
             Break(Some(switchLabel.ref)),
           ))
-        )
+        ),
+        LoopInvariant(BooleanValue(true), None)(TrueSatisfiable)
       )
     }
 
@@ -57,7 +58,8 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
             Case(IntegerValue(5)),
             Break(None),
           ))
-        )
+        ),
+        LoopInvariant(BooleanValue(true), None)(TrueSatisfiable)
       )
     }
 
@@ -72,7 +74,8 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
             Case(IntegerValue(5)),
             Break(Some(switchLabel.ref)),
           ))
-        )
+        ),
+        LoopInvariant(BooleanValue(true), None)(TrueSatisfiable)
       )
     }
 
@@ -91,7 +94,8 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
             Case(IntegerValue(0)),
             Break(Some(switchLabel.ref)),
           ))
-        )
+        ),
+        LoopInvariant(BooleanValue(true), None)(TrueSatisfiable)
       )
     }
 
@@ -104,7 +108,8 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
             Case(IntegerValue(0)),
             Break(Some(switchLabel.ref)),
           ))
-        )
+        ),
+        LoopInvariant(BooleanValue(true), None)(TrueSatisfiable)
       )
     }
 
@@ -128,7 +133,8 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
               Break(None),
             ))
           )
-        )
+        ),
+        LoopInvariant(BooleanValue(true), None)(TrueSatisfiable)
       )
     }
 
@@ -145,9 +151,11 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
                 Case(IntegerValue(5)),
                 Break(Some(switchLabelB.ref))
               ))
-            )
+            ),
+            LoopInvariant(BooleanValue(true), None)(TrueSatisfiable)
           )
-        )
+        ),
+        LoopInvariant(BooleanValue(true), None)(TrueSatisfiable)
       )
     }
 

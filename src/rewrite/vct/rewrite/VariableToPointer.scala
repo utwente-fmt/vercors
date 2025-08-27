@@ -70,7 +70,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
       case _ => false
     }
 
-  def makeNewPointerArray(
+  def makeNewPointer(
       t: Type[Post]
   )(implicit o: Origin): PointerConstructor[Post] =
     t match {
@@ -89,8 +89,10 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
       isConst: Boolean = false,
   ): Option[(Node[Pre], PointerSort)] =
     e match {
+      // Nullable PointerArrays (i.e. those in parameters) are not special cased in EncodePointerArrays
       case Local(Ref(v))
-          if v.t.asByReferenceClass.isEmpty && v.t.asPointerArray.isEmpty =>
+          if v.t.asByReferenceClass.isEmpty &&
+            (v.t.asPointerArray.isEmpty || !v.t.asPointerArray.get.isNonNull) =>
         Some(v, getPointerSort(isConst, None))
       case AddrOfConstCast(e) => getAddresses(e, isConst = true)
       case AddrOfUniqueCast(Local(Ref(v)), unique) =>
@@ -211,7 +213,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
               implicit val o: Origin = local.o
               Assign(
                 Local[Post](variableMap.ref(local)),
-                makeNewPointerArray(variableMap(local).t),
+                makeNewPointer(variableMap(local).t),
               )(PanicBlame("Initialisation should always succeed"))
             } ++ Seq(dispatch(s.body))),
         )

@@ -135,6 +135,10 @@ case object Options {
       opt[String]("backend-option").unbounded().keyName("<option>,...")
         .action((opt, c) => c.copy(backendFlags = c.backendFlags :+ opt))
         .text("Provide custom flags to Viper"),
+      opt[(String, String)]("prover-config").unbounded()
+        .keyValueName("<option>", "<value>").action((opt, c) =>
+          c.copy(proverConfigArgs = c.proverConfigArgs + (opt._1 -> opt._2))
+        ).text("Provide custom options to the SMT solver"),
       opt[Unit]("skip-backend").action((_, c) => c.copy(skipBackend = true))
         .text(
           "Stop VerCors successfully before the backend is used to verify the program"
@@ -481,6 +485,7 @@ case class Options(
     outputBeforePass: Map[String, PathOrStd] = Map.empty,
     outputIntermediatePrograms: Option[Path] = None,
     backendFlags: Seq[String] = Nil,
+    proverConfigArgs: Map[String, String] = Map.empty,
     skipBackend: Boolean = false,
     skipTranslation: Boolean = false,
     skipTranslationAfter: Option[String] = None,

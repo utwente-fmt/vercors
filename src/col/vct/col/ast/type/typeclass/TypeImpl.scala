@@ -35,8 +35,7 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
     CoercionUtils.getAnyCPPArrayCoercion(this).map(_._2)
   def asPointerArray: Option[PointerArrayType[G]] =
     this match {
-      case p: TPointerArray[G] => Some(p)
-      case p: TConstPointerArray[G] => Some(p)
+      case p: PointerArrayType[G] => Some(p)
       case _ => None
     }
   def asOption: Option[TOption[G]] =

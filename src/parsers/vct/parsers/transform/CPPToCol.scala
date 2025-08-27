@@ -1699,10 +1699,15 @@ case class CPPToCol[G](
       case ValAssume(_, assn, _) => Assume(convert(assn))
       case ValInhale(_, resource, _) => Inhale(convert(resource))
       case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
-      case ValLabel(_, label, _) =>
-        Label(
-          new LabelDecl()(origin(stat).sourceName(convert(label))),
-          Block(Nil),
+      case ValLabel(contract, _, label, _) =>
+        withContract(
+          contract,
+          c =>
+            Label(
+              new LabelDecl()(origin(stat).sourceName(convert(label))),
+              Block(Nil),
+              c.consumeLoopContract(stat),
+            ),
         )
       case ValRefute(_, assn, _) => Refute(convert(assn))(blame(stat))
       case ValWitness(_, _, _) => ??(stat)

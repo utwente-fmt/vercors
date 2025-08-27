@@ -137,11 +137,22 @@ final case class TPointerArray[G](
     unique: Option[BigInt],
 )(implicit val o: Origin = DiagnosticOrigin)
     extends PointerArrayType[G] with TPointerArrayImpl[G]
+final case class TNonNullPointerArray[G](
+    element: Type[G],
+    dimensions: Seq[Option[Expr[G]]],
+    unique: Option[BigInt],
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends PointerArrayType[G] with TNonNullPointerArrayImpl[G]
 final case class TConstPointerArray[G](
     element: Type[G],
     dimensions: Seq[Option[Expr[G]]],
 )(implicit val o: Origin = DiagnosticOrigin)
     extends PointerArrayType[G] with TConstPointerArrayImpl[G]
+final case class TNonNullConstPointerArray[G](
+    element: Type[G],
+    dimensions: Seq[Option[Expr[G]]],
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends PointerArrayType[G] with TNonNullConstPointerArrayImpl[G]
 
 final case class TPointerBlock[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with TPointerBlockImpl[G]
@@ -413,9 +424,12 @@ final case class DefaultCase[G]()(implicit val o: Origin)
     with DefaultCaseImpl[G]
 final case class Case[G](pattern: Expr[G])(implicit val o: Origin)
     extends SwitchCase[G] with PurelySequentialStatement[G] with CaseImpl[G]
-final case class Label[G](decl: LabelDecl[G], stat: Statement[G])(
-    implicit val o: Origin
-) extends NormallyCompletingStatement[G]
+final case class Label[G](
+    decl: LabelDecl[G],
+    stat: Statement[G],
+    contract: LoopContract[G],
+)(implicit val o: Origin)
+    extends NormallyCompletingStatement[G]
     with ControlContainerStatement[G]
     with LabelImpl[G]
 final case class Goto[G](lbl: Ref[G, LabelDecl[G]])(implicit val o: Origin)
@@ -1139,6 +1153,12 @@ final case class CoerceCVectorVector[G](size: BigInt, elementType: Type[G])(
 final case class CoerceNullLLVMPointer[G](elementType: Option[Type[G]])(
     implicit val o: Origin
 ) extends Coercion[G] with CoerceNullLLVMPointerImpl[G]
+final case class CoerceNullPointerArray[G](target: Type[G])(
+    implicit val o: Origin
+) extends Coercion[G] with CoerceNullPointerArrayImpl[G]
+final case class CoerceNonNullPointerArray[G](target: Type[G])(
+    implicit val o: Origin
+) extends Coercion[G] with CoerceNonNullPointerArrayImpl[G]
 final case class CoercePointerArrayPointer[G](
     elementType: Type[G],
     dimensions: Int,
@@ -1156,11 +1176,12 @@ final case class CoercePointerPointerArray[G](
     unique: Option[BigInt],
 )(implicit val o: Origin)
     extends Coercion[G] with CoercePointerPointerArrayImpl[G]
-final case class CoerceConstPointerPointerArray[G](
+final case class CoercePointerNonNullPointerArray[G](
     elementType: Type[G],
     dimensions: Seq[Option[Expr[G]]],
+    unique: Option[BigInt],
 )(implicit val o: Origin)
-    extends Coercion[G] with CoerceConstPointerPointerArrayImpl[G]
+    extends Coercion[G] with CoercePointerNonNullPointerArrayImpl[G]
 
 final case class CoerceFracZFrac[G]()(implicit val o: Origin)
     extends Coercion[G] with CoerceFracZFracImpl[G]
@@ -1634,7 +1655,7 @@ final case class ValuePredicateApply[G](apply: ApplyAnyPredicate[G])(
 final case class AmbiguousFoldTarget[G](target: Expr[G])(implicit val o: Origin)
     extends FoldTarget[G] with AmbiguousFoldTargetImpl[G]
 
-sealed trait InvokingNode[G] extends Node[G] with InvokingNodeImpl[G]
+sealed trait InvokingNode[G] extends NodeFamily[G] with InvokingNodeImpl[G]
 sealed trait Invocation[G]
     extends ApplyInlineable[G]
     with InvokingNode[G]
@@ -2210,7 +2231,7 @@ final case class PointerSubscript[G](pointer: Expr[G], index: Expr[G])(
 )(implicit val o: Origin)
     extends Expr[G] with PointerSubscriptImpl[G] with PossibleTrigger[G]
 final case class PointerArraySubscript[G](array: Expr[G], index: Expr[G])(
-    val blame: Blame[PointerSubscriptError]
+    val blame: Blame[PointerArraySubscriptError]
 )(implicit val o: Origin)
     extends Expr[G] with PointerArraySubscriptImpl[G] with PossibleTrigger[G]
 final case class Length[G](arr: Expr[G])(val blame: Blame[ArrayNull])(
@@ -2314,7 +2335,7 @@ final case class Permutation[G](xs: Expr[G], ys: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with PermutationImpl[G]
 final case class OptEmpty[G](opt: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with OptEmptyImpl[G]
+    extends Expr[G] with OptEmptyImpl[G] with SymbolicTerm[G]
 final case class OptGet[G](opt: Expr[G])(val blame: Blame[OptionNone])(
     implicit val o: Origin
 ) extends Expr[G] with OptGetImpl[G] with PossibleTrigger[G]
