@@ -562,6 +562,26 @@ object AstBuildHelpers {
       }
   }
 
+  implicit class TriggeredQuantifierBuildHelpers[Pre, Post](
+      quantifier: TriggeredQuantifier[Pre]
+  )(implicit rewriter: AbstractRewriter[Pre, Post]) {
+    def rewrite(
+        bindings: => Seq[Variable[Post]] = rewriter.variables
+          .dispatch(quantifier.bindings),
+        triggers: => Seq[Seq[Expr[Post]]] = quantifier.triggers
+          .map(_.map(rewriter.dispatch)),
+        body: => Expr[Post] = rewriter.dispatch(quantifier.body),
+    ): TriggeredQuantifier[Post] =
+      quantifier match {
+        case q: Forall[Pre] =>
+          q.rewrite(bindings = bindings, triggers = triggers, body = body)
+        case q: Starall[Pre] =>
+          q.rewrite(bindings = bindings, triggers = triggers, body = body)
+        case q: Exists[Pre] =>
+          q.rewrite(bindings = bindings, triggers = triggers, body = body)
+      }
+  }
+
   private def constOrigin(value: scala.Any): Origin =
     Origin(Seq(LabelContext(s"constant ${value}")))
 

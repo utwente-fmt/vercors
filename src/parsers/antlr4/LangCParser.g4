@@ -535,7 +535,7 @@ logicalOrExpressionList
     ;
 
 labeledStatement
-    :   clangIdentifier ':' statement
+    :   valEmbedContract? clangIdentifier ':' statement
     |   'case' constantExpression ':' statement
     |   'default' ':' statement
     ;

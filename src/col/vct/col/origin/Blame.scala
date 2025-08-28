@@ -3,7 +3,7 @@ package vct.col.origin
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.result.{Message, VerificationError}
-import vct.result.VerificationError.SystemError
+import vct.result.VerificationError.{SystemError, Unreachable}
 
 sealed trait ContractFailure {
   def code: String
@@ -1492,6 +1492,21 @@ case class PostBlameSplit[T >: PostconditionFailed <: VerificationFailure](
         }
       case other => default.blame(other)
     }
+
+  def checkConsistency(predicate: AccountedPredicate[_]): Unit =
+    predicate match {
+      case UnitAccountedPredicate(_) =>
+        throw Unreachable("PostBlameSplit with UnitAccountedPredicate")
+      case SplitAccountedPredicate(left, right) =>
+        blames(FailLeft) match {
+          case s: PostBlameSplit[_] => s.checkConsistency(left)
+          case _ =>
+        }
+        blames(FailRight) match {
+          case s: PostBlameSplit[_] => s.checkConsistency(right)
+          case _ =>
+        }
+    }
 }
 
 case object PreBlameSplit {
@@ -1529,6 +1544,21 @@ case class PreBlameSplit[T >: PreconditionFailed <: VerificationFailure](
               .blame(PreconditionFailed(tail, failure, invokable))
         }
       case other => default.blame(other)
+    }
+
+  def checkConsistency(predicate: AccountedPredicate[_]): Unit =
+    predicate match {
+      case UnitAccountedPredicate(_) =>
+        throw Unreachable("PreBlameSplit with UnitAccountedPredicate")
+      case SplitAccountedPredicate(left, right) =>
+        blames(FailLeft) match {
+          case s: PreBlameSplit[_] => s.checkConsistency(left)
+          case _ =>
+        }
+        blames(FailRight) match {
+          case s: PreBlameSplit[_] => s.checkConsistency(right)
+          case _ =>
+        }
     }
 }
 
@@ -1616,10 +1646,6 @@ object AssignLocalOk extends PanicBlame("Assigning to a local can never fail.")
 object DerefAssignTarget
     extends PanicBlame(
       "Assigning to a field should trigger an error on the assignment, and not on the dereference."
-    )
-object SubscriptAssignTarget
-    extends PanicBlame(
-      "Assigning to a subscript should trigger an error on the assignment, and not on the subscript."
     )
 object DerefPerm
     extends PanicBlame(

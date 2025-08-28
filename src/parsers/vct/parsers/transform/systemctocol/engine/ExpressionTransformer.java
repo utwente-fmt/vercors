@@ -1173,7 +1173,7 @@ public class ExpressionTransformer<T> {
 
         LabelDecl<T> label = new LabelDecl<>(OriGen.create(expr_label));
         col_system.add_label(expr_label, label);
-        return new Label<>(label, col_system.get_empty_block(), OriGen.create(expr_label));
+        return new Label<>(label, col_system.get_empty_block(), new LoopInvariant<>(col_system.TRUE, Option.empty(), new GeneratedBlame<>(), OriGen.create(expr_label)), OriGen.create(expr_label));
     }
 
     /**

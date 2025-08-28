@@ -47,7 +47,7 @@ object ExpressionEqualityCheck {
         invocation.args.forall(stricterIsConstant)
     }
 
-  private def stricterIsConstant(e: Expr[_]): Boolean = {
+  def stricterIsConstant(e: Expr[_]): Boolean = {
     def rec(e: Expr[_]) = stricterIsConstant(e)
     e match {
       case inv: AnyFunctionInvocation[_] =>
@@ -1491,8 +1491,13 @@ class AnnotationVariableInfoGetter[G](
       // Collect all vars that are greater than
       val greaterVars: mutable.Set[SymbolicTerm[G]] = mutable.Set()
       vars.foreach { v =>
-        lessThanEqVars.get(v).toSeq.flatMap(_.map(variableSynonyms(_)))
-          .foreach { i => greaterVars.addAll(synonymSets(i)) }
+        lessThanEqVars.get(v).foreach(ltSet =>
+          ltSet.foreach(lt =>
+            variableSynonyms.get(lt).foreach { i =>
+              greaterVars.addAll(synonymSets(i))
+            }
+          )
+        )
       }
       // Redistribute all greater vars again
       vars.foreach { lessThanEqVars.get(_).foreach(_.addAll(greaterVars)) }

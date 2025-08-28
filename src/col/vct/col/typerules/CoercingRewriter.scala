@@ -308,6 +308,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceCPPArrayPointer(_) => e
       case CoerceCVectorVector(_, _) => e
       case CoerceNullLLVMPointer(_) => e
+      case CoerceNonNullPointerArray(_) => e
       case CoercePointerArrayPointer(_, _, _) => e
       case CoerceConstPointerArrayPointer(_, _) => e
       case CoercePointerPointerArray(_, _, _) => e
@@ -2296,7 +2297,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CPPDeclarationStatement(decl) => CPPDeclarationStatement(decl)
       case CPPLifetimeScope(body) => CPPLifetimeScope(body)
       case DefaultCase() => DefaultCase()
-      case Eval(expr) => Eval(expr)
+      case Eval(expr) => Eval(coerce(expr, TAnyValue()))
       case e @ Exhale(assn) => Exhale(res(assn))(e.blame)
       case Extract(body) => Extract(body)
       case f @ Fold(assn) => Fold(assn)(f.blame)
@@ -2368,7 +2369,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case JavaLocalDeclarationStatement(decl) =>
         JavaLocalDeclarationStatement(decl)
       case j @ Join(obj) => Join(cls(obj))(j.blame)
-      case Label(decl, stat) => Label(decl, stat)
+      case Label(decl, stat, contract) => Label(decl, stat, contract)
       case LocalDecl(local) => LocalDecl(local)
       case HeapLocalDecl(local) => HeapLocalDecl(local)
       case l @ Lock(obj) => Lock(cls(obj))(l.blame)

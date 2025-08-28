@@ -203,7 +203,7 @@ statement
  | contract 'for' '(' iter ')' statement # pvlRangedFor
  | block # pvlBlock
  | 'goto' identifier ';' # pvlGoto
- | 'label' identifier ';' # pvlLabel
+ | contract 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
  | channelInvariant? 'communicate' access direction access ';' # pvlCommunicateStatement
  ;

@@ -1,5 +1,7 @@
 package vct.rewrite
 
+import hre.util.ScopedStack
+import vct.col.ast.util.ExpressionEqualityCheck
 import vct.col.ast.{
   ADTAxiom,
   ADTFunction,
@@ -13,6 +15,7 @@ import vct.col.ast.{
   AxiomaticDataType,
   ByValueClassLocation,
   CoerceConstPointerArrayPointer,
+  CoerceNonNullPointerArray,
   CoerceNullPointerArray,
   CoercePointerArrayPointer,
   CoercePointerNonNullPointerArray,
@@ -37,6 +40,8 @@ import vct.col.ast.{
   IterationContract,
   LLVMLoopContract,
   LiteralSeq,
+  Label,
+  LabelDecl,
   Local,
   Loop,
   LoopInvariant,
@@ -46,6 +51,7 @@ import vct.col.ast.{
   NewPointerArray,
   Node,
   Null,
+  Old,
   OptEmpty,
   OptGet,
   OptNoneTyped,
@@ -248,6 +254,12 @@ case class EncodePointerArrays[Pre <: Generation](
   private val currentVariableContext: mutable.HashSet[Variable[Pre]] = mutable
     .HashSet()
 
+  private val variableHeapLabel: SuccessionMap[Variable[Pre], LabelDecl[Post]] =
+    SuccessionMap()
+
+  private val currentStatementLabel
+      : ScopedStack[mutable.ArrayBuffer[LabelDecl[Post]]] = ScopedStack()
+
   // NOTE 1: We currently do not handle expressions that introduce new variables (Binders, ScopedExpr) of the PointerArray type, the size will not be available in these expressions
   // NOTE 2: This rewriter is a bit aggressive with adding its dimensions requirements everywhere (it basically replicates PropagateContextEverywhere) even if this would be unnecessary. I don't believe this'll significantly hurt performance though
 
@@ -406,6 +418,7 @@ case class EncodePointerArrays[Pre <: Generation](
             }
           case _ => e
         }
+      case CoerceNonNullPointerArray(_) => OptSome(e)
       case other => super.applyCoercion(e, other)
     }
 
@@ -562,32 +575,40 @@ case class EncodePointerArrays[Pre <: Generation](
             inv match {
               case inv: ProcedureInvocation[Pre] =>
                 inv.rewrite(blame =
-                  rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
+                  rewriteBlame(inv, inv.ref.decl.args, inv.blame)
                 )
               case inv: MethodInvocation[Pre] =>
                 inv.rewrite(blame =
-                  rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
+                  rewriteBlame(inv, inv.ref.decl.args, inv.blame)
                 )
               case inv: ConstructorInvocation[Pre] =>
                 inv.rewrite(blame =
-                  rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
+                  rewriteBlame(inv, inv.ref.decl.args, inv.blame)
                 )
             }
           case inv: AnyFunctionInvocation[Pre] =>
             inv match {
               case inv: FunctionInvocation[Pre] =>
                 inv.rewrite(blame =
-                  rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
+                  rewriteBlame(inv, inv.ref.decl.args, inv.blame)
                 )
               case inv: InstanceFunctionInvocation[Pre] =>
                 inv.rewrite(blame =
-                  rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
+                  rewriteBlame(inv, inv.ref.decl.args, inv.blame)
                 )
             }
         }
       case e: AssignExpression[Pre] =>
         e.target match {
-          case Local(Ref(v)) => currentVariableContext += v
+          case Local(Ref(v))
+              if v.t.asPointerArray.isDefined &&
+                currentVariableContext.add(v) =>
+            variableHeapLabel(v) =
+              if (currentStatementLabel.top.isEmpty) {
+                val l = new LabelDecl[Post]()
+                currentStatementLabel.top.addOne(l)
+                l
+              } else { currentStatementLabel.top.head }
           case _ =>
         }
         e.rewriteDefault()
@@ -598,20 +619,14 @@ case class EncodePointerArrays[Pre <: Generation](
 
   private def rewriteBlame[T >: InvocationFailure <: InstanceInvocationFailure](
       invokingNode: InvokingNode[Pre],
-      args: Seq[Expr[Pre]],
       declArgs: Seq[Variable[Pre]],
       inBlame: Blame[T],
   ): Blame[T] =
-    args.zipWithIndex.flatMap { case (v, i) => v.t.asPointerArray.map((_, i)) }
-      .flatMap { case (t, i) =>
+    declArgs.flatMap { v => v.t.asPointerArray.map((v, _)) }.flatMap {
+      case (v, t) =>
         initialiseAdt(t.element, t.dimensions.length, t.unique, t.isConst)
         val dimensionBlames = t.dimensions.filter(_.isDefined).map(d =>
-          MismatchedArrayDimensionBlame(
-            invokingNode,
-            d.get,
-            declArgs(i),
-            inBlame,
-          )
+          MismatchedArrayDimensionBlame(invokingNode, d.get, v, inBlame)
         )
         encoding match {
           case "inline" => dimensionBlames
@@ -623,11 +638,11 @@ case class EncodePointerArrays[Pre <: Generation](
               PanicBlame("Amount of array dimensions do not match!")
           case _ => throw UnknownEncoding(encoding)
         }
-      }.foldLeft(inBlame) { case (r, l) => PreBlameSplit.left(l, r) }
+    }.foldLeft(inBlame) { case (r, l) => PreBlameSplit.left(l, r) }
 
   override def postCoerce(s: Statement[Pre]): Statement[Post] = {
     implicit val o: Origin = s.o
-    s match {
+    val (labels, newS) = currentStatementLabel.collect(s match {
       case Scope(variables, _) =>
         // Not adding variables until they're assigned since VerCors scopes don't match normal programming scopes since you can refer to a variable before its declaration
         val res = s.rewriteDefault()
@@ -635,31 +650,33 @@ case class EncodePointerArrays[Pre <: Generation](
         res
       case s: AssignStmt[Pre] =>
         s.target match {
-          case Local(Ref(v)) => currentVariableContext += v
-          case _ =>
+          case Local(Ref(v))
+              if v.t.asPointerArray.isDefined &&
+                currentVariableContext.add(v) =>
+            val l = new LabelDecl[Post]()
+            variableHeapLabel(v) = l
+            Label(
+              l,
+              s.rewriteDefault(),
+              LoopInvariant(tt, None)(TrueSatisfiable),
+            )
+          case _ => s.rewriteDefault()
         }
-        s.rewriteDefault()
       case inv: InvocationStatement[Pre] =>
         inv match {
           case inv: InvokeProcedure[Pre] =>
-            inv.rewrite(blame =
-              rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
-            )
+            inv.rewrite(blame = rewriteBlame(inv, inv.ref.decl.args, inv.blame))
           case inv: InvokeConstructor[Pre] =>
-            inv.rewrite(blame =
-              rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
-            )
+            inv.rewrite(blame = rewriteBlame(inv, inv.ref.decl.args, inv.blame))
           case inv: InvokeMethod[Pre] =>
-            inv.rewrite(blame =
-              rewriteBlame(inv, inv.args, inv.ref.decl.args, inv.blame)
-            )
+            inv.rewrite(blame = rewriteBlame(inv, inv.ref.decl.args, inv.blame))
         }
       case loop: Loop[Pre] =>
         loop.contract match {
           case inv @ LoopInvariant(invariant, _) =>
             loop.rewrite(contract =
               inv.rewrite(invariant =
-                getDimensionExpr &* super.dispatch(invariant)
+                getDimensionExpr() &* super.dispatch(invariant)
               )
             )
           case _: IterationContract[Pre] => throw ExtraNode
@@ -667,16 +684,18 @@ case class EncodePointerArrays[Pre <: Generation](
         }
       case bar: ParBarrier[Pre] =>
         bar.rewrite(
-          requires = getDimensionExpr &* dispatch(bar.requires),
-          ensures = getDimensionExpr &* dispatch(bar.ensures),
+          requires = getDimensionExpr() &* dispatch(bar.requires),
+          ensures = getDimensionExpr() &* dispatch(bar.ensures),
         )
       case frame: FramedProof[Pre] =>
         frame.rewrite(
-          pre = getDimensionExpr &* dispatch(frame.pre),
-          post = getDimensionExpr &* dispatch(frame.post),
+          pre = getDimensionExpr() &* dispatch(frame.pre),
+          post = getDimensionExpr() &* dispatch(frame.post),
         )
       case _ => super.postCoerce(s)
-    }
+    })
+    if (labels.isEmpty) { newS }
+    else { Label(labels.head, newS, LoopInvariant(tt, None)(TrueSatisfiable)) }
   }
 
   override def postCoerce(parRegion: ParRegion[Pre]): ParRegion[Post] = {
@@ -685,132 +704,139 @@ case class EncodePointerArrays[Pre <: Generation](
     parRegion match {
       case block: ParBlock[Pre] =>
         block.rewrite(
-          requires = getDimensionExpr &* dispatch(block.requires),
-          ensures = getDimensionExpr &* dispatch(block.ensures),
+          requires = getDimensionExpr() &* dispatch(block.requires),
+          ensures = getDimensionExpr() &* dispatch(block.ensures),
         )
       case _: ParParallel[Pre] | _: ParSequential[Pre] =>
         parRegion.rewriteDefault()
     }
   }
 
-  private def getDimensionExpr(implicit o: Origin): Expr[Post] = {
+  private def getDimensionExpr(
+      useOld: Boolean = true
+  )(implicit o: Origin): Expr[Post] = {
     foldAnd(
-      currentVariableContext.flatMap(v => v.t.asPointerArray.map((v, _)))
-        .flatMap { case (v, t) =>
-          implicit val o: Origin = v.o.where(context = "Dimension invariant")
-          val dimensions = t.dimensions.length
-          initialiseAdt(t.element, dimensions, t.unique, t.isConst)
+      currentVariableContext.flatMap(v =>
+        v.t.asPointerArray.map((v, _, variableHeapLabel.get(v).map(_.ref)))
+      ).flatMap { case (v, t, l) =>
+        implicit val o: Origin = v.o.where(context = "Dimension invariant")
+        val dimensions = t.dimensions.length
+        initialiseAdt(t.element, dimensions, t.unique, t.isConst)
 
-          val calcDim =
-            (newV: Expr[Post]) => {
+        val calcDim =
+          (newV: Expr[Post]) => {
 
-              encoding match {
-                case "inline" =>
-                  t.dimensions.zipWithIndex.filter { case (d, _) =>
-                    d.isDefined
-                  }.map { case (d, i) =>
+            encoding match {
+              case "inline" =>
+                t.dimensions.zipWithIndex.filter { case (d, _) => d.isDefined }
+                  .map { case (d, i) =>
                     adtFunctionInvocation[Post](
                       dimSucc
                         .ref((t.element, dimensions, t.unique, i, t.isConst)),
                       args = Seq(newV),
+                    ) ===
+                      (if (
+                         useOld &&
+                         !ExpressionEqualityCheck.stricterIsConstant(d.get)
+                       ) {
+                         Old(dispatch(d.get), l)(PanicBlame(
+                           "Rewrite order should ensure that we only add dimension expressions for variables that have been initialised. This program probably contains some sort of control flow we were not expecting"
+                         ))
+                       } else { dispatch(d.get) })
+                  }
+              case "nested" =>
+                val axiomType = getAxiomType(
+                  t.element,
+                  dimensions,
+                  t.unique,
+                  t.isConst,
+                )
+                val ptr = digToPointer(
+                  nestedAccess.ref,
+                  nestedAdt.ref,
+                  newV,
+                  t.dimensions.length,
+                  t.element,
+                  t.unique,
+                  t.isConst,
+                )
+                val pbl = PointerBlockLength(ptr)(NonNullPointerNull)
+                val minLen = t.dimensions.filter(_.isDefined).map(_.get)
+                  .map(dispatch).reduceOption((a, b) => Mult[Post](a, b))
+                (PointerBlockOffset(ptr)(NonNullPointerNull) ===
+                  const[Post](0) &&
+                  (if (t.dimensions.forall(_.isDefined)) { pbl === minLen.get }
+                   else { pbl >= minLen.getOrElse(const[Post](1)) })) +:
+                  t.dimensions
+                    .foldLeft[(Expr[Post], Seq[Type[Post]], Seq[Expr[Post]])](
+                      (newV, axiomType.args, Nil)
+                    ) {
+                      case (
+                            (
+                              array: Expr[Post],
+                              args: Seq[Type[Post]],
+                              exprs: Seq[Expr[Post]],
+                            ),
+                            dim: Option[Expr[Pre]],
+                          ) =>
+                        (
+                          adtFunctionInvocation[Post](
+                            nestedAccess.ref,
+                            args = Seq(array, const(0)),
+                            typeArgs = Some((nestedAdt.ref, args)),
+                          ),
+                          args.head match {
+                            case TAxiomatic(_, args) => args
+                            case _ => args
+                          },
+                          if (dim.isDefined) {
+                            exprs :+
+                              (adtFunctionInvocation[Post](
+                                nestedLen.ref,
+                                args = Seq(array),
+                                typeArgs = Some((nestedAdt.ref, args)),
+                              ) === dispatch(dim.get))
+                          } else { exprs },
+                        )
+                    }._3
+              case "sequenced" =>
+                (Size(adtFunctionInvocation[Post](
+                  sequencedDim.ref,
+                  args = Seq(newV),
+                  typeArgs = Some((
+                    arraySucc.ref((t.element, dimensions, t.unique, t.isConst)),
+                    Seq(dispatch(t.element)),
+                  )),
+                )) === const(t.dimensions.length)) +:
+                  t.dimensions.zipWithIndex.filter { case (d, _) =>
+                    d.isDefined
+                  }.map { case (d, i) =>
+                    SeqSubscript(
+                      adtFunctionInvocation[Post](
+                        sequencedDim.ref,
+                        args = Seq(newV),
+                        typeArgs = Some((
+                          arraySucc
+                            .ref((t.element, dimensions, t.unique, t.isConst)),
+                          Seq(dispatch(t.element)),
+                        )),
+                      ),
+                      const(i),
+                    )(
+                      PanicBlame("Amount of dimensions assured in lhs of and")
                     ) === dispatch(d.get)
                   }
-                case "nested" =>
-                  val axiomType = getAxiomType(
-                    t.element,
-                    dimensions,
-                    t.unique,
-                    t.isConst,
-                  )
-                  val ptr = digToPointer(
-                    nestedAccess.ref,
-                    nestedAdt.ref,
-                    newV,
-                    t.dimensions.length,
-                    t.element,
-                    t.unique,
-                    t.isConst,
-                  )
-                  val pbl = PointerBlockLength(ptr)(NonNullPointerNull)
-                  val minLen = t.dimensions.filter(_.isDefined).map(_.get)
-                    .map(dispatch).reduceOption((a, b) => Mult[Post](a, b))
-                  (PointerBlockOffset(ptr)(NonNullPointerNull) ===
-                    const[Post](0) &&
-                    (if (t.dimensions.forall(_.isDefined)) {
-                       pbl === minLen.get
-                     } else { pbl >= minLen.getOrElse(const[Post](1)) })) +:
-                    t.dimensions
-                      .foldLeft[(Expr[Post], Seq[Type[Post]], Seq[Expr[Post]])](
-                        (newV, axiomType.args, Nil)
-                      ) {
-                        case (
-                              (
-                                array: Expr[Post],
-                                args: Seq[Type[Post]],
-                                exprs: Seq[Expr[Post]],
-                              ),
-                              dim: Option[Expr[Pre]],
-                            ) =>
-                          (
-                            adtFunctionInvocation[Post](
-                              nestedAccess.ref,
-                              args = Seq(array, const(0)),
-                              typeArgs = Some((nestedAdt.ref, args)),
-                            ),
-                            args.head match {
-                              case TAxiomatic(_, args) => args
-                              case _ => args
-                            },
-                            if (dim.isDefined) {
-                              exprs :+
-                                (adtFunctionInvocation[Post](
-                                  nestedLen.ref,
-                                  args = Seq(array),
-                                  typeArgs = Some((nestedAdt.ref, args)),
-                                ) === dispatch(dim.get))
-                            } else { exprs },
-                          )
-                      }._3
-                case "sequenced" =>
-                  (Size(adtFunctionInvocation[Post](
-                    sequencedDim.ref,
-                    args = Seq(newV),
-                    typeArgs = Some((
-                      arraySucc
-                        .ref((t.element, dimensions, t.unique, t.isConst)),
-                      Seq(dispatch(t.element)),
-                    )),
-                  )) === const(t.dimensions.length)) +:
-                    t.dimensions.zipWithIndex.filter { case (d, _) =>
-                      d.isDefined
-                    }.map { case (d, i) =>
-                      SeqSubscript(
-                        adtFunctionInvocation[Post](
-                          sequencedDim.ref,
-                          args = Seq(newV),
-                          typeArgs = Some((
-                            arraySucc.ref(
-                              (t.element, dimensions, t.unique, t.isConst)
-                            ),
-                            Seq(dispatch(t.element)),
-                          )),
-                        ),
-                        const(i),
-                      )(PanicBlame(
-                        "Amount of dimensions assured in lhs of and"
-                      )) === dispatch(d.get)
-                    }
-                case _ => throw UnknownEncoding(encoding)
-              }
+              case _ => throw UnknownEncoding(encoding)
             }
-
-          if (t.isNonNull) { calcDim(Local(succ(v))) }
-          else {
-            calcDim(OptGet[Post](Local(succ(v)))(PanicBlame(
-              "Can never be null since this is ensured in the conditional expression"
-            ))).map(!OptEmpty(Local[Post](succ(v))) ==> _)
           }
+
+        if (t.isNonNull) { calcDim(Local(succ(v))) }
+        else {
+          calcDim(OptGet[Post](Local(succ(v)))(PanicBlame(
+            "Can never be null since this is ensured in the conditional expression"
+          ))).map(!OptEmpty(Local[Post](succ(v))) ==> _)
         }
+      }
     )
   }
 
@@ -974,7 +1000,9 @@ case class EncodePointerArrays[Pre <: Generation](
         currentVariableContext ++= p.args
         globalDeclarations.succeed(
           p,
-          p.rewrite(body = Some(getDimensionExpr &* dispatch(p.body.get))),
+          p.rewrite(body =
+            Some(getDimensionExpr(useOld = false) &* dispatch(p.body.get))
+          ),
         )
         currentVariableContext --= p.args
       case _ => super.postCoerce(decl)

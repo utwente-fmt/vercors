@@ -399,8 +399,10 @@ case class ColToSilver(program: col.Program[_]) {
       case col.Result(Ref(app)) =>
         silver.Result(typ(app.returnType))(pos = pos(e), info = expInfo(e))
 
-      case col.NoPerm() => silver.NoPerm()(pos = pos(e), info = expInfo(e))
-      case col.WritePerm() => silver.FullPerm()(pos = pos(e), info = expInfo(e))
+      case col.NoPerm() =>
+        silver.IntLit(BigInt(0))(pos = pos(e), info = expInfo(e))
+      case col.WritePerm() =>
+        silver.IntLit(BigInt(1))(pos = pos(e), info = expInfo(e))
 
       case col.LiteralSeq(t, Nil) =>
         silver.EmptySeq(typ(t))(pos = pos(e), info = expInfo(e))
@@ -762,7 +764,14 @@ case class ColToSilver(program: col.Program[_]) {
     }
 
   def trigger(patterns: Seq[col.Expr[_]]): silver.Trigger =
-    silver.Trigger(patterns.map(exp))()
+    silver.Trigger(patterns.map {
+      // Move trigger inside the accessibility predicate if it's a predicate application
+      case col.Perm(col.PredicateLocation(app: col.PredicateApply[_]), _) =>
+        pred(app)
+      case col.Value(col.PredicateLocation(app: col.PredicateApply[_])) =>
+        pred(app)
+      case e => exp(e)
+    })()
 
   def fold(f: col.FoldTarget[_]): silver.PredicateAccessPredicate =
     f match {
@@ -846,8 +855,17 @@ case class ColToSilver(program: col.Program[_]) {
           },
           block(body),
         )(pos = pos(s), info = NodeInfo(s))
-      case col.Label(decl, col.Block(Nil)) =>
-        silver.Label(ref(decl), Seq())(pos = pos(s), info = NodeInfo(s))
+      case col.Label(
+            decl,
+            col.Block(Nil),
+            invNode @ col.LoopInvariant(inv, decrClause),
+          ) =>
+        silver.Label(
+          ref(decl),
+          currentInvariant.having(invNode) {
+            unfoldStar(inv).map(exp) ++ decrClause.map(decreases).toSeq
+          },
+        )(pos = pos(s), info = NodeInfo(s))
       case col.Goto(lbl) =>
         silver.Goto(ref(lbl))(pos = pos(s), info = NodeInfo(s))
       case col.Return(col.Void()) =>
