@@ -39,9 +39,9 @@ import vct.col.ast.{
   InvokingNode,
   IterationContract,
   LLVMLoopContract,
-  LiteralSeq,
   Label,
   LabelDecl,
+  LiteralSeq,
   Local,
   Loop,
   LoopInvariant,
@@ -68,6 +68,7 @@ import vct.col.ast.{
   PointerBlockLength,
   PointerBlockOffset,
   PointerEq,
+  PointerLength,
   PointerLocation,
   PointerNeq,
   PointerSubscript,
@@ -474,8 +475,27 @@ case class EncodePointerArrays[Pre <: Generation](
           tt
         else
           !OptEmpty(dispatch(p))
-      case AddrOf(sub @ PointerArraySubscript(_, _, _)) => calculatePointer(sub)
-      case AddrOf(ApplyCoercion(sub @ PointerArraySubscript(_, _, _), _)) =>
+      case AddrOf(sub @ PointerArraySubscript(a, _, typeSize)) =>
+        val arrayT = a.t.asPointerArray.get
+        initialiseAdt(
+          arrayT.element,
+          arrayT.dimensions.length,
+          arrayT.unique,
+          arrayT.isConst,
+          dispatch(typeSize),
+        )
+        calculatePointer(sub)
+      case AddrOf(
+            ApplyCoercion(sub @ PointerArraySubscript(a, _, typeSize), _)
+          ) =>
+        val arrayT = a.t.asPointerArray.get
+        initialiseAdt(
+          arrayT.element,
+          arrayT.dimensions.length,
+          arrayT.unique,
+          arrayT.isConst,
+          dispatch(typeSize),
+        )
         calculatePointer(sub)
       case AddrOf(ApplyCoercion(inner, c)) =>
         applyCoercion(dispatch(inner), c) match {
@@ -501,11 +521,35 @@ case class EncodePointerArrays[Pre <: Generation](
           t.unique,
           t.isConst,
         )
-      case sub @ PointerArraySubscript(a, _, _)
+      case sub @ PointerArraySubscript(a, _, typeSize)
           if a.t.asPointerArray.get.dimensions.length == 1 =>
+        val arrayT = a.t.asPointerArray.get
+        initialiseAdt(
+          arrayT.element,
+          arrayT.dimensions.length,
+          arrayT.unique,
+          arrayT.isConst,
+          dispatch(typeSize),
+        )
         DerefPointer(calculatePointer(sub))(sub.blame)
-      case sub @ PointerArraySubscript(_, _, _) => calculatePointer(sub)
+      case sub @ PointerArraySubscript(a, _, typeSize) =>
+        val arrayT = a.t.asPointerArray.get
+        initialiseAdt(
+          arrayT.element,
+          arrayT.dimensions.length,
+          arrayT.unique,
+          arrayT.isConst,
+          dispatch(typeSize),
+        )
+        calculatePointer(sub)
       case npa @ NewPointerArray(element, dimensions, unique, typeSize) =>
+        initialiseAdt(
+          element,
+          dimensions.length,
+          unique,
+          isConst = false,
+          dispatch(typeSize),
+        )
         procedureInvocation(
           PointerArrayCreationFailed(npa, npa.blame),
           constructors.getOrElseUpdate(
@@ -521,6 +565,13 @@ case class EncodePointerArrays[Pre <: Generation](
           dimensions.map(dispatch),
         )
       case npa @ NewConstPointerArray(element, dimensions, typeSize) =>
+        initialiseAdt(
+          element,
+          dimensions.length,
+          None,
+          isConst = true,
+          dispatch(typeSize),
+        )
         procedureInvocation(
           PointerArrayCreationFailed(npa, npa.blame),
           constructors.getOrElseUpdate(
@@ -623,6 +674,54 @@ case class EncodePointerArrays[Pre <: Generation](
 
       case _ => super.postCoerce(e)
     }
+  }
+
+  override def preCoerce(e: Expr[Pre]): Expr[Pre] = {
+    e match {
+      case PointerAdd(p, _, typeSize) =>
+        p.t.asPointerArray.foreach(t =>
+          initialiseAdt(
+            t.element,
+            t.dimensions.length,
+            t.unique,
+            t.isConst,
+            dispatch(typeSize),
+          )
+        )
+      case PointerBlockOffset(p, typeSize) =>
+        p.t.asPointerArray.foreach(t =>
+          initialiseAdt(
+            t.element,
+            t.dimensions.length,
+            t.unique,
+            t.isConst,
+            dispatch(typeSize),
+          )
+        )
+      case PointerBlockLength(p, typeSize) =>
+        p.t.asPointerArray.foreach(t =>
+          initialiseAdt(
+            t.element,
+            t.dimensions.length,
+            t.unique,
+            t.isConst,
+            dispatch(typeSize),
+          )
+        )
+      case PointerLength(p, typeSize) =>
+        p.t.asPointerArray.foreach(t =>
+          initialiseAdt(
+            t.element,
+            t.dimensions.length,
+            t.unique,
+            t.isConst,
+            dispatch(typeSize),
+          )
+        )
+      case _ =>
+
+    }
+    super.preCoerce(e)
   }
 
   private def rewriteBlame[T >: InvocationFailure <: InstanceInvocationFailure](
