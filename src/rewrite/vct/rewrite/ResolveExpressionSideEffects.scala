@@ -516,13 +516,15 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
           ArraySubscript[Post](notInlined(arr), notInlined(index))(sub.blame)(
             target.o
           )
-        case PointerSubscript(arr, index)
+        case PointerSubscript(arr, index, _)
             if arr.t.isInstanceOf[TConstPointer[_]] =>
           throw DisallowedAssignmentTarget(target)
-        case sub @ PointerSubscript(arr, index) =>
-          PointerSubscript[Post](notInlined(arr), notInlined(index))(sub.blame)(
-            target.o
-          )
+        case sub @ PointerSubscript(arr, index, size) =>
+          PointerSubscript[Post](
+            notInlined(arr),
+            notInlined(index),
+            notInlined(size),
+          )(sub.blame)(target.o)
         case deref @ DerefPointer(ptr) =>
           DerefPointer[Post](notInlined(ptr))(deref.blame)(target.o)
         case VectorSubscript(_, _) => throw DisallowedAssignmentTarget(target)

@@ -661,7 +661,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 )(c.o),
               )
           }
-        NewPointer(rw.dispatch(t2), size, None)(ArrayMallocFailed(inv))(c.o)
+        NewPointer(rw.dispatch(t2), size, None, sizeOf(t2, c.o))(
+          ArrayMallocFailed(inv)
+        )(c.o)
       case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _, _), _) =>
         throw UnsupportedMalloc(c)
       case CCast(n @ Null(), t) if t.asPointer.isDefined => rw.dispatch(n)
@@ -960,6 +962,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             cNameSuccessor(d).t.asPointer.get.element,
             Local(v.ref),
             None,
+            ???,
           )(PanicBlame("Shared memory sizes cannot be negative.")),
         )
         declarations ++= Seq(cNameSuccessor(d))
@@ -974,6 +977,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             cNameSuccessor(d).t.asPointer.get.element,
             c_const(size),
             None,
+            ???,
           )(blame.get),
         )
         declarations ++= Seq(cNameSuccessor(d))
@@ -1624,12 +1628,17 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       array: Variable[Post],
       exprs: Seq[Expr[Pre]],
       origin: Origin,
+      arrayType: Type[Pre],
   ): Seq[Statement[Post]] = {
     implicit val o: Origin = origin
     (exprs.zipWithIndex.map { case (value, index) =>
       // Since we model const arrays with sequences internally, we cannot assign to them, so we assume their values
       Assume[Post](
-        AmbiguousSubscript(array.get, c_const(index))(PanicBlame(
+        AmbiguousSubscript(
+          array.get,
+          c_const(index),
+          sizeOf(arrayType, origin),
+        )(PanicBlame(
           "The explicit initialization of an array in C should never exceed the bounds of the array"
         )) === rw.dispatch(value)
       )
@@ -1706,7 +1715,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             }
             val dimensions = optDimensions.map(_.get)
             val newArr =
-              NewPointerArray[Post](innerMostType, dimensions, None)(cta.blame)
+              NewPointerArray[Post](
+                innerMostType,
+                dimensions,
+                None,
+                sizeOf(getArrayType(cta), cta.o),
+              )(cta.blame)
             Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
           case (None, Some(CLiteralArray(exprs))) =>
             oldT match {
@@ -1718,10 +1732,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 innerMostType,
                 Seq(c_const[Post](exprs.size)),
                 None,
+                sizeOf(getArrayType(cta), cta.o),
               )(cta.blame)
             Block(
               Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++
-                assignliteralArray(v, exprs, o)
+                assignliteralArray(v, exprs, o, getArrayType(cta))
             )
           case (Some(size), Some(CLiteralArray(exprs))) =>
             oldT match {
@@ -1737,10 +1752,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 innerMostType,
                 Seq(c_const[Post](realSize)),
                 None,
+                sizeOf(getArrayType(cta), cta.o),
               )(cta.blame)
             Block(
               Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++
-                assignliteralArray(v, exprs.take(realSize.intValue), o)
+                assignliteralArray(
+                  v,
+                  exprs.take(realSize.intValue),
+                  o,
+                  getArrayType(cta),
+                )
             )
           case _ => throw WrongCType(decl)
         }
@@ -1894,8 +1915,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def searchNames(e: Expr[Pre], original: Node[Pre]): Seq[CNameTarget[Pre]] =
     e match {
       case arr: CLocal[Pre] => Seq(arr.ref.get)
-      case PointerAdd(arr: CLocal[Pre], _) => Seq(arr.ref.get)
-      case AmbiguousSubscript(arr: CLocal[Pre], _) => Seq(arr.ref.get)
+      case PointerAdd(arr: CLocal[Pre], _, _) => Seq(arr.ref.get)
+      case AmbiguousSubscript(arr: CLocal[Pre], _, _) => Seq(arr.ref.get)
       case AmbiguousPlus(l, r) if isPointer(l.t) && isNumeric(r.t) =>
         searchNames(l, original)
       case AddrOf(inner) => searchNames(inner, original)
@@ -1909,7 +1930,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     loc match {
       case ArrayLocation(arr: CLocal[Pre], _) => Seq(arr.ref.get)
       case PointerLocation(arr: CLocal[Pre]) => Seq(arr.ref.get)
-      case PointerLocation(PointerAdd(arr: CLocal[Pre], _)) => Seq(arr.ref.get)
+      case PointerLocation(PointerAdd(arr: CLocal[Pre], _, _)) =>
+        Seq(arr.ref.get)
       case AmbiguousLocation(expr) => searchNames(expr, original)
       case _ => throw UnsupportedBarrierPermission(original)
     }
@@ -1920,8 +1942,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case Perm(loc, _) => searchNames(loc, e)
       case PointsTo(loc, _, _) => searchNames(loc, e)
       case CurPerm(loc) => searchNames(loc, e)
-      case PermPointer(pointer, _, _) => searchNames(pointer, e)
-      case PermPointerIndex(pointer, _, _) => searchNames(pointer, e)
+      case PermPointer(pointer, _, _, _) => searchNames(pointer, e)
+      case PermPointerIndex(pointer, _, _, _) => searchNames(pointer, e)
       case _ => e.subnodes.flatMap(searchPermission)
     }
   }
@@ -2019,7 +2041,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
 
     def getVector(i: BigInt): Expr[Post] =
-      AmbiguousSubscript(rw.dispatch(deref.obj), const(i))(PanicBlame(
+      AmbiguousSubscript(rw.dispatch(deref.obj), const(i), ???)(PanicBlame(
         "Should be okay"
       ))
 
@@ -2107,7 +2129,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       val req = Seq(c_const[Post](0) <= i.get, i.get < c_const[Post](size))
 
       val vals: Seq[Expr[Post]] = Seq.range(0, size).map(j =>
-        AmbiguousSubscript(x.get, c_const[Post](j))(PanicBlame("Checked"))
+        AmbiguousSubscript(x.get, c_const[Post](j), ???)(PanicBlame("Checked"))
       )
       def f: Int => Expr[Post] =
         j => LiteralVector(elementType, vals.updated(j, v.get))
@@ -2136,7 +2158,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def assignSubscriptVector(assign: PreAssignExpression[Pre]): Expr[Post] = {
 
-    val sub @ AmbiguousSubscript(v, i) = assign.target
+    val sub @ AmbiguousSubscript(v, i, _) = assign.target
     val t =
       v.t match {
         case t: CTVector[Pre] => t
@@ -2184,7 +2206,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         Seq.tabulate(t.size.toInt)((i: Int) => {
           val c = intIdxs.count(j => j == i)
           if (c == 0)
-            AmbiguousSubscript(lhs_vec, c_const[Post](i)(assign.target.o))(
+            AmbiguousSubscript(lhs_vec, c_const[Post](i)(assign.target.o), ???)(
               PanicBlame("Type checked")
             )(assign.o)
           else
@@ -2213,7 +2235,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         if (c > 1)
           throw WrongOpenCLLiteralVector(assign)
         else if (c == 0)
-          AmbiguousSubscript(lhs_vec, c_const[Post](i)(assign.target.o))(
+          AmbiguousSubscript(lhs_vec, c_const[Post](i)(assign.target.o), ???)(
             PanicBlame("Type checked")
           )(assign.o)
         else {
@@ -2221,6 +2243,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           AmbiguousSubscript(
             rhs_val.get(rhs.o),
             c_const[Post](j)(assign.target.o),
+            ???,
           )(PanicBlame("Type checked"))(assign.o)
         }
       })
@@ -2247,16 +2270,15 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     e.t match {
       case t if t == askedType => Seq(e)
       case t: TVector[Post] =>
-        Seq.tabulate(t.size.toInt)(i => i)
-          .flatMap(i =>
-            indexVectors(
-              AmbiguousSubscript(e, c_const(i)(e.o))(PanicBlame(
-                "Type Checked"
-              ))(e.o),
-              askedType,
-              cast,
-            )
+        Seq.tabulate(t.size.toInt)(i => i).flatMap(i =>
+          indexVectors(
+            AmbiguousSubscript(e, c_const(i)(e.o), ???)(PanicBlame(
+              "Type Checked"
+            ))(e.o),
+            askedType,
+            cast,
           )
+        )
       case _ => throw WrongOpenCLLiteralVector(cast)
     }
 
@@ -2310,6 +2332,40 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case other => ???
     }
   }
+
+  def rewritePointerAdd(plus: AmbiguousPlus[Pre]): Expr[Post] = {
+    implicit val o: Origin = plus.o
+    unfoldPointerAdd(
+      PointerAdd(
+        rw.dispatch(plus.left),
+        rw.dispatch(plus.right),
+        sizeOf(plus.left.t.asPointer.get.element, plus.o),
+      )(plus.blame)
+    )
+  }
+
+  def rewritePointerSubtract(minus: AmbiguousMinus[Pre]): Expr[Post] = {
+    implicit val o: Origin = minus.o
+    unfoldPointerAdd(
+      PointerAdd(
+        rw.dispatch(minus.left),
+        -rw.dispatch(minus.right),
+        sizeOf(minus.left.t.asPointer.get.element, minus.o),
+      )(minus.blame)
+    )
+  }
+
+  def unfoldPointerAdd(e: PointerAdd[Post]): PointerAdd[Post] =
+    e.pointer match {
+      case inner @ PointerAdd(_, _, _) =>
+        val PointerAdd(pointerInner, offsetInner, size) = unfoldPointerAdd(
+          inner
+        )
+        PointerAdd(pointerInner, Plus(offsetInner, e.offset)(e.o), size)(
+          e.blame
+        )(e.o)
+      case _ => e
+    }
 
   def invocation(inv: CInvocation[Pre]): Expr[Post] = {
     val CInvocation(applicable, args, givenMap, yields, reveal) = inv
@@ -2512,7 +2568,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     (e.name, args, givenMap, yields) match {
       case (_, _, g, y) if g.nonEmpty || y.nonEmpty =>
       case ("__vercors_free", Seq(xs), _, _) if isPointer(xs.t) =>
-        return FreePointer[Post](rw.dispatch(xs))(inv.blame)(inv.o)
+        return FreePointer[Post](
+          rw.dispatch(xs),
+          sizeOf(xs.t.asPointer.get.element, inv.o),
+        )(inv.blame)(inv.o)
       case _ => ()
     }
 

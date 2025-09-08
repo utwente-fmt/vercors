@@ -1141,17 +1141,22 @@ abstract class CoercingRewriter[Pre <: Generation]()
           },
         )
       case AmbiguousResult() => e
-      case sub @ AmbiguousSubscript(collection, index) =>
+      case sub @ AmbiguousSubscript(collection, index, size) =>
         firstOk(
           e,
           s"Expected collection to be a sequence, vector, array, pointer or map, but got ${collection.t}.",
-          AmbiguousSubscript(seq(collection)._1, int(index))(sub.blame),
-          AmbiguousSubscript(vector(collection)._1, int(index))(sub.blame),
-          AmbiguousSubscript(array(collection)._1, int(index))(sub.blame),
-          AmbiguousSubscript(pointer(collection)._1, int(index))(sub.blame),
+          AmbiguousSubscript(seq(collection)._1, int(index), size)(sub.blame),
+          AmbiguousSubscript(vector(collection)._1, int(index), size)(
+            sub.blame
+          ),
+          AmbiguousSubscript(array(collection)._1, int(index), size)(sub.blame),
+          AmbiguousSubscript(pointer(collection)._1, int(index), size)(
+            sub.blame
+          ),
           AmbiguousSubscript(
             map(collection)._1,
             coerce(index, map(collection)._2.key),
+            size,
           )(sub.blame),
         )
       case AmbiguousThis() => e
@@ -1398,7 +1403,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case IdleToken(thread) => IdleToken(cls(thread))
       case Implies(left, right) => Implies(bool(left), res(right))
       case FunctionOf(e, ref) => FunctionOf(e, ref)
-      case f @ FreePointer(p) => FreePointer(pointer(p)._1)(f.blame)
+      case f @ FreePointer(p, size) => FreePointer(pointer(p)._1, size)(f.blame)
       case InlinePattern(inner, parent, group) =>
         InlinePattern(inner, parent, group)
       case inv @ InstanceFunctionInvocation(
@@ -1623,18 +1628,18 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Neq(left, right) => nonAny(e, left, right, Neq(_, _))
       case na @ NewArray(element, dims, moreDims, initialize) =>
         NewArray(element, dims.map(int), moreDims, initialize)(na.blame)
-      case na @ NewPointer(element, size, unique) =>
-        NewPointer(element, size, unique)(na.blame)
-      case nca @ NewConstPointer(element, size) =>
-        NewConstPointer(element, size)(nca.blame)
-      case na @ NewNonNullPointer(element, size, unique) =>
-        NewNonNullPointer(element, size, unique)(na.blame)
-      case nca @ NewNonNullConstPointer(element, size) =>
-        NewNonNullConstPointer(element, size)(nca.blame)
-      case npa @ NewPointerArray(element, dimensions, unique) =>
-        NewPointerArray(element, dimensions, unique)(npa.blame)
-      case npa @ NewConstPointerArray(element, dimensions) =>
-        NewConstPointerArray(element, dimensions)(npa.blame)
+      case na @ NewPointer(element, size, unique, typeSize) =>
+        NewPointer(element, size, unique, typeSize)(na.blame)
+      case nca @ NewConstPointer(element, size, typeSize) =>
+        NewConstPointer(element, size, typeSize)(nca.blame)
+      case na @ NewNonNullPointer(element, size, unique, typeSize) =>
+        NewNonNullPointer(element, size, unique, typeSize)(na.blame)
+      case nca @ NewNonNullConstPointer(element, size, typeSize) =>
+        NewNonNullConstPointer(element, size, typeSize)(nca.blame)
+      case npa @ NewPointerArray(element, dimensions, unique, typeSize) =>
+        NewPointerArray(element, dimensions, unique, typeSize)(npa.blame)
+      case npa @ NewConstPointerArray(element, dimensions, typeSize) =>
+        NewConstPointerArray(element, dimensions, typeSize)(npa.blame)
       case NewObject(cls) => NewObject(cls)
       case NewObjectUnique(cls, m) => NewObjectUnique(cls, m)
       case NoPerm() => NoPerm()
@@ -1656,10 +1661,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case OptSomeTyped(t, e) => OptSomeTyped(t, coerce(e, t))
       case Or(left, right) => Or(bool(left), bool(right))
       case Perm(loc, perm) => Perm(loc, rat(perm))
-      case PermPointer(p, len, perm) =>
-        PermPointer(pointer(p)._1, int(len), rat(perm))
-      case PermPointerIndex(p, idx, perm) =>
-        PermPointerIndex(pointer(p)._1, int(idx), rat(perm))
+      case PermPointer(p, len, perm, size) =>
+        PermPointer(pointer(p)._1, int(len), rat(perm), size)
+      case PermPointerIndex(p, idx, perm, size) =>
+        PermPointerIndex(pointer(p)._1, int(idx), rat(perm), size)
       case Permutation(left, right) =>
         val (coercedLeft, leftType) = seq(left)
         val (coercedRight, rightType) = seq(right)
@@ -1677,24 +1682,25 @@ abstract class CoercingRewriter[Pre <: Generation]()
           floatOp2(plus, (l, r) => Plus(l, r)),
           Plus(rat(left), rat(right)),
         )
-      case add @ PointerAdd(p, offset) =>
-        PointerAdd(pointer(p)._1, int(offset))(add.blame)
+      case add @ PointerAdd(p, offset, size) =>
+        PointerAdd(pointer(p)._1, int(offset), size)(add.blame)
       case to @ PointerToAdt(p, t) => PointerToAdt(pointer(p)._1, t)(to.blame)
       case blck @ PointerBlock(p) => PointerBlock(pointer(p)._1)(blck.blame)
       case addr @ PointerAddress(p, elementSize) =>
         PointerAddress(pointer(p)._1, elementSize)(addr.blame)
-      case len @ PointerBlockLength(p) =>
-        PointerBlockLength(pointer(p)._1)(len.blame)
-      case off @ PointerBlockOffset(p) =>
-        PointerBlockOffset(pointer(p)._1)(off.blame)
-      case len @ PointerLength(p) => PointerLength(pointer(p)._1)(len.blame)
-      case get @ PointerArraySubscript(a, index) =>
+      case len @ PointerBlockLength(p, size) =>
+        PointerBlockLength(pointer(p)._1, size)(len.blame)
+      case off @ PointerBlockOffset(p, size) =>
+        PointerBlockOffset(pointer(p)._1, size)(off.blame)
+      case len @ PointerLength(p, size) =>
+        PointerLength(pointer(p)._1, size)(len.blame)
+      case get @ PointerArraySubscript(a, index, size) =>
         if (a.t.asPointerArray.isDefined)
-          PointerArraySubscript(a, int(index))(get.blame)
+          PointerArraySubscript(a, int(index), size)(get.blame)
         else
           throw IncoercibleText(a, s"pointer array")
-      case get @ PointerSubscript(p, index) =>
-        PointerSubscript(pointer(p)._1, int(index))(get.blame)
+      case get @ PointerSubscript(p, index, size) =>
+        PointerSubscript(pointer(p)._1, int(index), size)(get.blame)
       case PointerEq(l, r, elementSize) =>
         PointerEq(pointer(l)._1, pointer(r)._1, elementSize)
       case PointerNeq(l, r, elementSize) =>

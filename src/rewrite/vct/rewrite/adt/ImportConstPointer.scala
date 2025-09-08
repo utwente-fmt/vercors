@@ -117,8 +117,8 @@ case class ImportConstPointer[Pre <: Generation](importer: ImportADTImporter)
   override def preCoerce(e: Expr[Pre]): Expr[Pre] = {
     implicit val o: Origin = e.o
     e match {
-      case d @ DerefPointer(a @ PointerAdd(p, i)) =>
-        PointerSubscript(p, i)(DerefAddToSubscriptBlame(d.blame, a.blame))
+      case d @ DerefPointer(a @ PointerAdd(p, i, s)) =>
+        PointerSubscript(p, i, s)(DerefAddToSubscriptBlame(d.blame, a.blame))
       case _ => super.preCoerce(e)
     }
   }
@@ -126,7 +126,8 @@ case class ImportConstPointer[Pre <: Generation](importer: ImportADTImporter)
   override def postCoerce(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
-      case sub @ PointerSubscript(pointer, index) if isConstPointer(pointer) =>
+      case sub @ PointerSubscript(pointer, index, _)
+          if isConstPointer(pointer) =>
         val inner = dispatch(getInner(pointer.t))
         FunctionInvocation[Post](
           ref = pointerDeref.ref,
@@ -146,7 +147,7 @@ case class ImportConstPointer[Pre <: Generation](importer: ImportADTImporter)
           Nil,
           Nil,
         )(PanicBlame("ptr_deref requires nothing."))
-      case add @ PointerAdd(pointer, offset) if isConstPointer(pointer) =>
+      case add @ PointerAdd(pointer, offset, _) if isConstPointer(pointer) =>
         val inner = dispatch(getInner(pointer.t))
         val inv =
           FunctionInvocation[Post](
@@ -186,7 +187,7 @@ case class ImportConstPointer[Pre <: Generation](importer: ImportADTImporter)
           Nil,
           Nil,
         )(PanicBlame("ptr_deref requires nothing."))
-      case len @ PointerBlockLength(pointer) if isConstPointer(pointer) =>
+      case len @ PointerBlockLength(pointer, _) if isConstPointer(pointer) =>
         val inner = dispatch(getInner(pointer.t))
         Size(ADTFunctionInvocation[Post](
           typeArgs = Some((pointerAdt.ref, Seq(inner))),
@@ -195,7 +196,7 @@ case class ImportConstPointer[Pre <: Generation](importer: ImportADTImporter)
             getPointer(pointer, PointerNullOptNone(len.blame, pointer))
           ),
         ))
-      case off @ PointerBlockOffset(pointer) if isConstPointer(pointer) =>
+      case off @ PointerBlockOffset(pointer, _) if isConstPointer(pointer) =>
         val inner = dispatch(getInner(pointer.t))
         ADTFunctionInvocation[Post](
           typeArgs = Some((pointerAdt.ref, Seq(inner))),
@@ -204,10 +205,11 @@ case class ImportConstPointer[Pre <: Generation](importer: ImportADTImporter)
             getPointer(pointer, PointerNullOptNone(off.blame, pointer))
           ),
         )
-      case pointerLen @ PointerLength(pointer) if isConstPointer(pointer) =>
+      case pointerLen @ PointerLength(pointer, size)
+          if isConstPointer(pointer) =>
         postCoerce(
-          PointerBlockLength(pointer)(pointerLen.blame) -
-            PointerBlockOffset(pointer)(pointerLen.blame)
+          PointerBlockLength(pointer, size)(pointerLen.blame) -
+            PointerBlockOffset(pointer, size)(pointerLen.blame)
         )
       case to @ ToNonNull(value) if value.t.asPointer.get.isConst =>
         getPointer(value, PointerNullOptNone(to.blame, value))

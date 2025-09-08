@@ -253,26 +253,42 @@ case class TypeQualifierCoercion[Pre <: Generation]()
       case PostAssignExpression(target, _)
           if target.t.isInstanceOf[TConst[Pre]] =>
         throw DisallowedConstAssignment(target)
-      case npa @ NewPointer(t, size, _) =>
+      case npa @ NewPointer(t, size, _, typeSize) =>
         val (info, newT) = getUnqualified(t)
         if (info.const)
-          NewConstPointer(newT, dispatch(size))(npa.blame)
+          NewConstPointer(newT, dispatch(size), dispatch(typeSize))(npa.blame)
         else
-          NewPointer(newT, dispatch(size), info.unique)(npa.blame)
-      case npa @ NewPointerArray(t, dimensions, _) =>
-        val (info, newT) = getUnqualified(t)
-        if (info.const)
-          NewConstPointerArray(newT, dimensions.map(dispatch))(npa.blame)
-        else
-          NewPointerArray(newT, dimensions.map(dispatch), info.unique)(
+          NewPointer(newT, dispatch(size), info.unique, dispatch(typeSize))(
             npa.blame
           )
-      case npa @ NewNonNullPointer(t, size, _) =>
+      case npa @ NewPointerArray(t, dimensions, _, typeSize) =>
         val (info, newT) = getUnqualified(t)
         if (info.const)
-          NewNonNullConstPointer(newT, dispatch(size))(npa.blame)
+          NewConstPointerArray(
+            newT,
+            dimensions.map(dispatch),
+            dispatch(typeSize),
+          )(npa.blame)
         else
-          NewNonNullPointer(newT, dispatch(size), info.unique)(npa.blame)
+          NewPointerArray(
+            newT,
+            dimensions.map(dispatch),
+            info.unique,
+            dispatch(typeSize),
+          )(npa.blame)
+      case npa @ NewNonNullPointer(t, size, _, typeSize) =>
+        val (info, newT) = getUnqualified(t)
+        if (info.const)
+          NewNonNullConstPointer(newT, dispatch(size), dispatch(typeSize))(
+            npa.blame
+          )
+        else
+          NewNonNullPointer(
+            newT,
+            dispatch(size),
+            info.unique,
+            dispatch(typeSize),
+          )(npa.blame)
       case newO @ NewObjectUnique(cls, _) =>
         val map = TypeQualifierCoercion
           .getUniqueMap(newO.t.asInstanceOf[TClassUnique[Pre]])
@@ -300,9 +316,9 @@ case class TypeQualifierCoercion[Pre <: Generation]()
         val v = new Variable[Post](TNonNullConstPointer(t))
         val l = Local[Post](v.ref)
         val newP =
-          NewNonNullConstPointer(dispatch(ref.decl.t), const(1))(PanicBlame(
-            "Size >0"
-          ))(a.o)
+          NewNonNullConstPointer(dispatch(ref.decl.t), const(1), ???)(
+            PanicBlame("Size >0")
+          )(a.o)
         ScopedExpr(
           Seq(v),
           With[Post](
@@ -866,7 +882,7 @@ case class MakeUniqueMethodCopies[Pre <: Generation]() extends Rewriter[Pre] {
       // So this is awkward, but...
       // A lot of times we just coerced to 'pointer', as with subscripting. In this case we don't care if the return gets
       // coerced.
-      case e @ AmbiguousSubscript(p, _) =>
+      case e @ AmbiguousSubscript(p, _, _) =>
         e.rewrite(collection = rewriteAnyPointerReturn(p))
       case d @ Deref(obj, ref) =>
         val newField = getNewField(obj.t, ref.decl)
@@ -874,12 +890,13 @@ case class MakeUniqueMethodCopies[Pre <: Generation]() extends Rewriter[Pre] {
         else { d.rewriteDefault() }
       case e @ DerefPointer(p) =>
         e.rewrite(pointer = rewriteAnyPointerReturn(p))
-      case e @ FreePointer(p) => e.rewrite(pointer = rewriteAnyPointerReturn(p))
-      case e @ PointerBlockLength(p) =>
+      case e @ FreePointer(p, _) =>
         e.rewrite(pointer = rewriteAnyPointerReturn(p))
-      case e @ PointerLength(p) =>
+      case e @ PointerBlockLength(p, _) =>
         e.rewrite(pointer = rewriteAnyPointerReturn(p))
-      case e @ PointerBlockOffset(p) =>
+      case e @ PointerLength(p, _) =>
+        e.rewrite(pointer = rewriteAnyPointerReturn(p))
+      case e @ PointerBlockOffset(p, _) =>
         e.rewrite(pointer = rewriteAnyPointerReturn(p))
       case e @ SharedMemSize(p) =>
         e.rewrite(pointer = rewriteAnyPointerReturn(p))

@@ -333,7 +333,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case goto: CGoto[Pre] => c.rewriteGoto(goto)
       case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
       case atomic: GpgpuAtomic[Pre] => c.gpuAtomic(atomic)
-      
+
       case eval @ Eval(CPPInvocation(_, _, _, _)) =>
         cpp.invocationStatement(eval)
 
@@ -429,7 +429,14 @@ case class LangSpecificToCol[Pre <: Generation](
       case inv: CPPInvocation[Pre] => cpp.invocation(inv)
       case lambda: CPPLambdaDefinition[Pre] =>
         cpp.rewriteLambdaDefinition(lambda)
-      case arrSub @ AmbiguousSubscript(_, _) => cpp.rewriteSubscript(arrSub)
+      case arrSub @ AmbiguousSubscript(obj, idx, _)
+          if obj.t.asPointer.isDefined =>
+        AmbiguousSubscript(
+          dispatch(obj),
+          dispatch(idx),
+          c.sizeOf(obj.t.asPointer.get.element, arrSub.o),
+        )(arrSub.blame)(arrSub.o)
+      case arrSub @ AmbiguousSubscript(_, _, _) => cpp.rewriteSubscript(arrSub)
       case unfolding: Unfolding[Pre] => {
         cpp.checkPredicateFoldingAllowed(unfolding.res)
         super.dispatch(unfolding)
@@ -437,7 +444,7 @@ case class LangSpecificToCol[Pre <: Generation](
 
       case assign: PreAssignExpression[Pre] =>
         assign.target match {
-          case AmbiguousSubscript(v, _) =>
+          case AmbiguousSubscript(v, _, _) =>
             v.t match {
               case _: CTVector[Pre] => return c.assignSubscriptVector(assign)
               case _ =>
@@ -555,7 +562,38 @@ case class LangSpecificToCol[Pre <: Generation](
 
       case cmp: AmbiguousComparison[Pre] => c.rewriteComparison(cmp)
       case ord: AmbiguousOrderOp[Pre] => c.rewriteComparison(ord)
-
+      case plus: AmbiguousPlus[Pre] if plus.left.t.asPointer.isDefined =>
+        c.rewritePointerAdd(plus)
+      case minus: AmbiguousMinus[Pre] if minus.left.t.asPointer.isDefined =>
+        c.rewritePointerSubtract(minus)
+      case pp @ PermPointer(p, len, perm, _) =>
+        PermPointer[Post](
+          dispatch(p),
+          dispatch(len),
+          dispatch(perm),
+          c.sizeOf(p.t.asPointer.get.element, pp.o),
+        )(pp.o)
+      case pp @ PermPointerIndex(p, idx, perm, _) =>
+        PermPointerIndex[Post](
+          dispatch(p),
+          dispatch(idx),
+          dispatch(perm),
+          c.sizeOf(p.t.asPointer.get.element, pp.o),
+        )(pp.o)
+      case pbl @ PointerBlockLength(p, _) =>
+        PointerBlockLength[Post](
+          dispatch(p),
+          c.sizeOf(p.t.asPointer.get.element, pbl.o),
+        )(pbl.blame)(pbl.o)
+      case pbo @ PointerBlockOffset(p, _) =>
+        PointerBlockOffset(
+          dispatch(p),
+          c.sizeOf(p.t.asPointer.get.element, pbo.o),
+        )(pbo.blame)(pbo.o)
+      case pl @ PointerLength(p, _) =>
+        PointerLength(dispatch(p), c.sizeOf(p.t.asPointer.get.element, pl.o))(
+          pl.blame
+        )(pl.o)
       case other => super.dispatch(other)
     }
 

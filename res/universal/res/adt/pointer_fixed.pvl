@@ -1,0 +1,60 @@
+adt PointerCastHelper {}
+
+adt `block` {
+  pure int block_length(`block` b);
+  pure int block_address(`block` b);
+
+  // block length is non-negative
+  axiom (\forall `block` b; {:block_length(b):} >= 0);
+  axiom (\forall `block` b; {:block_address(b):} > 0);
+}
+
+adt `pointer` {
+  pure `block` pointer_block(`pointer` p);
+  pure int ptr_address(`pointer` p);
+  pure ref loc(`pointer` p);
+  pure `pointer` loc_inv(ref r);
+
+  // the block offset is valid wrt the length of the block
+  axiom (∀ `pointer` p;
+    {:ptr_address(p):} >= `block`.block_address(pointer_block(p)) &&
+      {:ptr_address(p):} < `block`.block_length(pointer_block(p)));
+
+  axiom (∀ ref r; loc({:loc_inv(r):}) == r);
+
+  axiom (∀ `pointer` p; loc_inv({:loc(p):}) == p);
+
+  axiom ptr_add_axiom();
+
+  axiom ptr_add_axiom2();
+}
+
+decreases;
+requires stride > 0;
+requires `block`.block_address(`pointer`.pointer_block(p)) <= `pointer`.ptr_address(p) + offset * stride;
+requires `pointer`.ptr_address(p) + offset * stride < `block`.block_address(`pointer`.pointer_block(p)) + `block`.block_length(`pointer`.pointer_block(p));
+// Assumed here for performance reasons
+ensures offset == 0 ==> \result == p;
+ensures `pointer`.ptr_address(\result) == `pointer`.ptr_address(p) + offset * stride;
+ensures `pointer`.pointer_block(\result) == `pointer`.pointer_block(p);
+pure `pointer` ptr_add(`pointer` p, int offset, int stride);
+
+decreases;
+ensures \polarity_dependent((\forall `pointer` p, int offset, int i, int stride;
+    stride > 0 &&
+    `block`.block_address(`pointer`.pointer_block(p)) <= `pointer`.ptr_address(p) + offset * stride &&
+    `pointer`.ptr_address(p) + offset * stride < `block`.block_address(`pointer`.pointer_block(p)) + `block`.block_length(`pointer`.pointer_block(p)) &&
+    `block`.block_address(`pointer`.pointer_block(p)) <= `pointer`.ptr_address(p) + offset * stride + i * stride &&
+    `pointer`.ptr_address(p) + offset * stride + i * stride < `block`.block_address(`pointer`.pointer_block(p)) + `block`.block_length(`pointer`.pointer_block(p));
+    {:ptr_add(ptr_add(p, offset, stride), i, stride):} == ptr_add(p, offset + i, stride)), true);
+pure boolean ptr_add_axiom() = true;
+
+decreases;
+ensures (∀ `pointer` p, int i, int j, int stride;
+    stride > 0 &&
+    `block`.block_address(`pointer`.pointer_block(p)) <= `pointer`.ptr_address(p) + i * stride &&
+    `pointer`.ptr_address(p) + i * stride < `block`.block_address(`pointer`.pointer_block(p)) + `block`.block_length(`pointer`.pointer_block(p)) &&
+    `block`.block_address(`pointer`.pointer_block(p)) <= `pointer`.ptr_address(p) + j * stride &&
+    `pointer`.ptr_address(p) + j * stride < `block`.block_address(`pointer`.pointer_block(p)) + `block`.block_length(`pointer`.pointer_block(p));
+     (i == j) == ({:ptr_add(p, i, stride):} == {:ptr_add(p, j, stride):}));
+pure boolean ptr_add_axiom2() = true;

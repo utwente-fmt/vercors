@@ -857,6 +857,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           PointerSubscript[Post](
             DerefPointer(pointer)(pointer.o),
             IntegerValue(BigInt(0)),
+            rw.c.sizeOf(elementType, pointer.o),
           )(pointer.o),
           elementType,
           untilType,
@@ -866,7 +867,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
       case LLVMTArray(numElements, elementType) => {
         derefUntil(
-          PointerSubscript[Post](pointer, IntegerValue(BigInt(0)))(pointer.o),
+          PointerSubscript[Post](
+            pointer,
+            IntegerValue(BigInt(0)),
+            rw.c.sizeOf(elementType, pointer.o),
+          )(pointer.o),
           elementType,
           untilType,
         ).map { case (expr, inner) =>
@@ -878,6 +883,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           PointerSubscript[Post](
             DerefPointer(pointer)(pointer.o),
             IntegerValue(BigInt(0)),
+            rw.c.sizeOf(elementType, pointer.o),
           )(pointer.o),
           elementType,
           untilType,
@@ -887,7 +893,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
       case LLVMTVector(numElements, elementType) => {
         derefUntil(
-          PointerSubscript[Post](pointer, IntegerValue(BigInt(0)))(pointer.o),
+          PointerSubscript[Post](
+            pointer,
+            IntegerValue(BigInt(0)),
+            rw.c.sizeOf(elementType, pointer.o),
+          )(pointer.o),
           elementType,
           untilType,
         ).map { case (expr, inner) =>
@@ -951,6 +961,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         PointerAdd[Post](
           rw.dispatch(gep.pointer),
           rw.dispatch(gep.indices.head),
+          rw.c.sizeOf(t, gep.o),
         )(InvalidGEP)
       case struct: LLVMTStruct[Pre] => {
         // TODO: We don't support variables in GEP yet and this just assumes all the indices are integer constants
@@ -963,6 +974,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 PointerAdd(
                   rw.dispatch(gep.pointer),
                   rw.dispatch(gep.indices.head),
+                  const(1),
                 )(InvalidGEP)
               )(InvalidGEP)
             AddrOf(rewritePointerChain(structPointer, struct, gep.indices.tail))
@@ -972,6 +984,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 PointerAdd(
                   rw.dispatch(gep.pointer),
                   rw.dispatch(gep.indices.head),
+                  rw.c.sizeOf(t, gep.o),
                 )(InvalidGEP)
               )(InvalidGEP)
             AddrOf(rewritePointerChain(structPointer, struct, gep.indices.tail))
@@ -992,7 +1005,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             ))
             val structPointer =
               DerefPointer(
-                PointerAdd(pointer, rw.dispatch(gep.indices.head))(InvalidGEP)
+                PointerAdd(
+                  pointer,
+                  rw.dispatch(gep.indices.head),
+                  rw.c.sizeOf(t, gep.o),
+                )(InvalidGEP)
               )(InvalidGEP)
             val ret = AddrOf(
               rewritePointerChain(structPointer, struct, gep.indices.tail)
@@ -1310,9 +1327,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val elements = rw.dispatch(alloc.numElements)
     assignLocal(
       v,
-      NewNonNullPointer[Post](newT, elements, None)(PanicBlame(
-        "allocation should never fail"
-      )),
+      NewNonNullPointer[Post](newT, elements, None, rw.c.sizeOf(t, o))(
+        PanicBlame("allocation should never fail")
+      ),
     )
   }
 
@@ -1409,7 +1426,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewritePtrBlockLength(llvmPBL: LLVMPtrBlockLength[Pre]): Expr[Post] = {
     requireInWrapper(llvmPBL)
     implicit val o: Origin = llvmPBL.o
-    PointerBlockLength[Post](Local[Post](rw.succ(llvmPBL.ptr.decl)))(
+    PointerBlockLength[Post](Local[Post](rw.succ(llvmPBL.ptr.decl)), ???)(
       llvmPBL.blame
     )
   }
@@ -1417,7 +1434,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewritePtrBlockOffset(llvmPBO: LLVMPtrBlockOffset[Pre]): Expr[Post] = {
     requireInWrapper(llvmPBO)
     implicit val o: Origin = llvmPBO.o
-    PointerBlockOffset[Post](Local[Post](rw.succ(llvmPBO.ptr.decl)))(
+    PointerBlockOffset[Post](Local[Post](rw.succ(llvmPBO.ptr.decl)), ???)(
       llvmPBO.blame
     )
   }
@@ -1425,7 +1442,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewritePtrLength(llvmPL: LLVMPtrLength[Pre]): Expr[Post] = {
     requireInWrapper(llvmPL)
     implicit val o: Origin = llvmPL.o
-    PointerLength[Post](Local[Post](rw.succ(llvmPL.ptr.decl)))(llvmPL.blame)
+    PointerLength[Post](Local[Post](rw.succ(llvmPL.ptr.decl)), ???)(
+      llvmPL.blame
+    )
   }
 
   def rewriteImplies(llvmImply: LLVMImplies[Pre]): Expr[Post] = {

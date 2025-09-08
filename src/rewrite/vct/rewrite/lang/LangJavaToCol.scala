@@ -716,7 +716,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             )),
           ) +: arr.exprs.zipWithIndex.map { case (value, index) =>
             Assign[Post](
-              AmbiguousSubscript(array.get, const(index))(
+              AmbiguousSubscript(array.get, const(index), ???)(
                 JavaArrayInitializerBlame
               ),
               rw.dispatch(value),

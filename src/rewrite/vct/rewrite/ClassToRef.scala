@@ -794,11 +794,12 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         Star[Post](v.rewrite(), dispatch(inv.obj) !== Null())
       case dp @ DerefPointer(ptr) if dp.t.asByValueClass.isDefined =>
         PointerToAdt(dispatch(ptr), dispatch(dp.t))(dp.blame)(dp.o)
-      case ps @ PointerSubscript(ptr, index) if ps.t.asByValueClass.isDefined =>
+      case ps @ PointerSubscript(ptr, index, size)
+          if ps.t.asByValueClass.isDefined =>
         PointerToAdt(
-          PointerAdd(dispatch(ptr), dispatch(index))(SubscriptToAddBlame(
-            ps.blame
-          ))(ps.o),
+          PointerAdd(dispatch(ptr), dispatch(index), dispatch(size))(
+            SubscriptToAddBlame(ps.blame)
+          )(ps.o),
           dispatch(ps.t),
         )(ps.blame)(ps.o)
       case _ => super.dispatch(e)

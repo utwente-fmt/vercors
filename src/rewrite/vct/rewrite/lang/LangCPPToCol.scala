@@ -2486,7 +2486,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteSubscript(sub: AmbiguousSubscript[Pre]): Expr[Post] =
     sub match {
-      case AmbiguousSubscript(base: CPPLocal[Pre], index)
+      case AmbiguousSubscript(base: CPPLocal[Pre], index, _)
           if CPP.unwrappedType(base.t).isInstanceOf[SYCLTAccessor[Pre]] =>
         CPP.unwrappedType(base.t) match {
           case SYCLTAccessor(_, 1, _) =>
@@ -2504,8 +2504,9 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           case _ => ???
         }
       case AmbiguousSubscript(
-            AmbiguousSubscript(base: CPPLocal[Pre], indexX),
+            AmbiguousSubscript(base: CPPLocal[Pre], indexX, _),
             indexY,
+            _,
           ) if CPP.unwrappedType(base.t).isInstanceOf[SYCLTAccessor[Pre]] =>
         implicit val o: Origin = sub.o
         val accessor = syclAccessorSuccessor(base.ref.get)
@@ -2541,10 +2542,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         }
       case AmbiguousSubscript(
             AmbiguousSubscript(
-              AmbiguousSubscript(base: CPPLocal[Pre], indexX),
+              AmbiguousSubscript(base: CPPLocal[Pre], indexX, _),
               indexY,
+              _,
             ),
             indexZ,
+            _,
           ) if CPP.unwrappedType(base.t).isInstanceOf[SYCLTAccessor[Pre]] =>
         implicit val o: Origin = sub.o
         val accessor = syclAccessorSuccessor(base.ref.get)
@@ -2719,7 +2722,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = origin
     (exprs.zipWithIndex.map { case (value, index) =>
       Assign[Post](
-        AmbiguousSubscript(array.get, c_const(index))(PanicBlame(
+        AmbiguousSubscript(array.get, c_const(index), ???)(PanicBlame(
           "The explicit initialization of an array in CPP should never generate an assignment that exceeds the bounds of the array"
         )),
         rw.dispatch(value),
@@ -2745,11 +2748,13 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           case (None, None) => throw WrongCPPType(decl)
           case (Some(size), None) =>
             val newArr =
-              NewNonNullPointer[Post](t, rw.dispatch(size), None)(cta.blame)
+              NewNonNullPointer[Post](t, rw.dispatch(size), None, ???)(
+                cta.blame
+              )
             Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
           case (None, Some(CPPLiteralArray(exprs))) =>
             val newArr =
-              NewNonNullPointer[Post](t, c_const[Post](exprs.size), None)(
+              NewNonNullPointer[Post](t, c_const[Post](exprs.size), None, ???)(
                 cta.blame
               )
             Block(
@@ -2762,7 +2767,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             if (realSize < exprs.size)
               logger.warn(s"Excess elements in array initializer: '${decl}'")
             val newArr =
-              NewNonNullPointer[Post](t, c_const[Post](realSize), None)(
+              NewNonNullPointer[Post](t, c_const[Post](realSize), None, ???)(
                 cta.blame
               )
             Block(

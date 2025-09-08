@@ -140,35 +140,42 @@ case class DesugarPermissionOperators[Pre <: Generation]()
                     (row0 === row1)),
             ),
         )
-      case PermPointer(p, len, perm) =>
+      case PermPointer(p, len, perm, size) =>
         (PointerNeq(dispatch(p), Null(), const(0))) &*
-          PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(
-            len
-          ) <= PointerBlockLength(dispatch(p))(FramedPtrBlockLength) &* starall(
+          PointerBlockOffset(dispatch(p), dispatch(size))(
+            FramedPtrBlockOffset
+          ) + dispatch(len) <= PointerBlockLength(dispatch(p), dispatch(size))(
+            FramedPtrBlockLength
+          ) &* starall(
             IteratedPtrInjective,
             TInt(),
             body =
               i =>
-                (const(0) <= i && i < dispatch(len)) ==>
-                  Perm(
-                    PointerLocation(
-                      PointerAdd(dispatch(p), i)(FramedPtrOffset)
-                    )(FramedPtrOffset),
-                    dispatch(perm),
-                  ),
+                (const(0) <= i && i < dispatch(len)) ==> Perm(
+                  PointerLocation(
+                    PointerAdd(dispatch(p), i, dispatch(size))(FramedPtrOffset)
+                  )(FramedPtrOffset),
+                  dispatch(perm),
+                ),
             triggers =
-              i => Seq(Seq(PointerSubscript(dispatch(p), i)(FramedPtrOffset))),
+              i =>
+                Seq(Seq(PointerSubscript(dispatch(p), i, dispatch(size))(
+                  FramedPtrOffset
+                ))),
           )
-      case PermPointerIndex(p, idx, perm) =>
+      case PermPointerIndex(p, idx, perm, size) =>
         (PointerNeq(dispatch(p), Null(), const(0))) &*
-          const(0) <= PointerBlockOffset(dispatch(p))(
+          const(0) <= PointerBlockOffset(dispatch(p), dispatch(size))(
             FramedPtrBlockOffset
-          ) + dispatch(idx) &*
-          PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(
-            idx
-          ) < PointerBlockLength(dispatch(p))(FramedPtrBlockLength) &* Perm(
+          ) + dispatch(idx) &* PointerBlockOffset(dispatch(p), dispatch(size))(
+            FramedPtrBlockOffset
+          ) + dispatch(idx) < PointerBlockLength(dispatch(p), dispatch(size))(
+            FramedPtrBlockLength
+          ) &* Perm(
             PointerLocation(
-              PointerAdd(dispatch(p), dispatch(idx))(FramedPtrOffset)
+              PointerAdd(dispatch(p), dispatch(idx), dispatch(size))(
+                FramedPtrOffset
+              )
             )(FramedPtrOffset),
             dispatch(perm),
           )

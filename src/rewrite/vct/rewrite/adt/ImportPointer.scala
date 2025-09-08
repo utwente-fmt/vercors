@@ -5,15 +5,15 @@ import ImportADT.typeText
 import hre.util.ScopedStack
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.rewrite.{ClassToRef, Generation, RewriterBuilderArg2}
+import vct.col.rewrite.{ClassToRef, Generation, RewriterBuilderArg3}
 import vct.col.util.AstBuildHelpers.{functionInvocation, _}
 import vct.col.util.SuccessionMap
-import vct.result.VerificationError.Unreachable
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.mutable
 
 case object ImportPointer
-    extends RewriterBuilderArg2[ImportADTImporter, String] {
+    extends RewriterBuilderArg3[ImportADTImporter, String, String] {
   private def PointerField(t: Type[_], uniqueId: Option[BigInt]): Origin =
     Origin(Seq(
       PreferredName(Seq(typeText(t) + uniqueId.map(_.toString).getOrElse(""))),
@@ -73,6 +73,12 @@ case object ImportPointer
         case bounds: PointerBounds => addBlame.blame(bounds)
       }
   }
+  private case class UnknownEncoding(encoding: String) extends UserError {
+    override def code: String = "unknownEncoding"
+
+    override def text: String =
+      s"Offset encoding `$encoding` is not known, expected: `default`, `fixed`, or `sequenced`"
+  }
 
   private sealed trait Context
   private final case class InAxiom() extends Context
@@ -86,16 +92,25 @@ case object ImportPointer
 case class ImportPointer[Pre <: Generation](
     importer: ImportADTImporter,
     arrayEncoding: String,
+    offsetEncoding: String,
 ) extends ImportADT[Pre](importer) {
   import ImportPointer._
 
-  private lazy val pointerFile = parse("pointer")
+  private lazy val pointerFile =
+    offsetEncoding match {
+      case "default" => parse("pointer")
+      case "fixed" => parse("pointer_fixed")
+      case _ => throw UnknownEncoding(offsetEncoding)
+    }
 
   private lazy val blockAdt = find[AxiomaticDataType[Post]](
     pointerFile,
     "block",
   )
-  private lazy val blockBase = find[ADTFunction[Post]](blockAdt, "base_addr")
+  private lazy val blockAddress = find[ADTFunction[Post]](
+    blockAdt,
+    "block_address",
+  )
   private lazy val blockLength = find[ADTFunction[Post]](
     blockAdt,
     "block_length",
@@ -115,6 +130,7 @@ case class ImportPointer[Pre <: Generation](
     "pointer_offset",
   )
   private lazy val pointerDeref = find[Function[Post]](pointerFile, "ptr_deref")
+  private lazy val pointerLoc = find[ADTFunction[Post]](pointerAdt, "loc")
   private lazy val pointerAdd = find[Function[Post]](pointerFile, "ptr_add")
   private lazy val pointerAddress = find[ADTFunction[Post]](
     pointerAdt,
@@ -214,19 +230,26 @@ case class ImportPointer[Pre <: Generation](
                 .getOrElseUpdate(from, makeToCastHelperFunction(from)).ref,
               Seq(value.get),
             )),
-          ) && adtFunctionInvocation[Post](
-            pointerAddress.ref,
-            args = Seq(result, dispatch(toSize)),
-          ) === adtFunctionInvocation[Post](
-            pointerAddress.ref,
-            args = Seq(value.get, dispatch(fromSize)),
-          )
+          ) &&
+            getAddress(result, dispatch(toSize)) ===
+            getAddress(value.get, dispatch(fromSize))
         ),
         returnType = TAxiomatic(pointerAdt.ref, Nil),
         args = Seq(value),
       )
     ))
   }
+
+  private def getAddress(p: Expr[Post], size: Expr[Post])(
+      implicit o: Origin
+  ): Expr[Post] =
+    offsetEncoding match {
+      case "default" =>
+        adtFunctionInvocation[Post](pointerAddress.ref, args = Seq(p, size))
+      case "fixed" =>
+        adtFunctionInvocation[Post](pointerAddress.ref, args = Seq(p))
+      case _ => throw UnknownEncoding(offsetEncoding)
+    }
 
   private def makePointerCreationMethod(
       pointerT: TNonNullPointer[Pre],
@@ -248,11 +271,25 @@ case class ImportPointer[Pre <: Generation](
           args = Seq(result.get),
         )),
       ) === const(1)) &*
-        (ADTFunctionInvocation[Post](
-          typeArgs = Some((pointerAdt.ref, Nil)),
-          ref = pointerOffset.ref,
-          args = Seq(result.get),
-        ) === const(0))
+        (offsetEncoding match {
+          case "default" =>
+            ADTFunctionInvocation[Post](
+              typeArgs = Some((pointerAdt.ref, Nil)),
+              ref = pointerOffset.ref,
+              args = Seq(result.get),
+            ) === const(0)
+          case "fixed" =>
+            adtFunctionInvocation[Post](
+              pointerAddress.ref,
+              args = Seq(result.get),
+            ) === adtFunctionInvocation[Post](
+              blockAddress.ref,
+              args = Seq(
+                adtFunctionInvocation(pointerBlock.ref, args = Seq(result.get))
+              ),
+            )
+          case _ => throw UnknownEncoding(offsetEncoding)
+        })
     pointerT.element match {
       // TODO: Using a label to keep track of this information is quite ugly and I should replace it with something better
       case TAxiomatic(adt, _)
@@ -262,14 +299,7 @@ case class ImportPointer[Pre <: Generation](
         ensures =
           ensures &* Perm(
             SilverFieldLocation(
-              obj =
-                FunctionInvocation[Post](
-                  ref = pointerDeref.ref,
-                  args = Seq(result.get),
-                  typeArgs = Nil,
-                  Nil,
-                  Nil,
-                )(PanicBlame("ptr_deref requires nothing.")),
+              obj = derefPointer(result.get),
               field =
                 pointerField.getOrElseUpdate(
                   (newT, pointerT.unique), {
@@ -430,21 +460,38 @@ case class ImportPointer[Pre <: Generation](
                   )))
                 }
 
-                aDTDeclarations.declare(new ADTAxiom[Post](foralls(
-                  Seq(TAxiomatic(adtSucc, Nil), TInt()),
-                  body = { case Seq(p, stride) =>
-                    // TODO: Stop hardcoding this number!
-                    LessEq(
-                      adtFunctionInvocation(addrSucc, args = Seq(p, stride)),
-                      const(BigInt("18446744073709551615")),
-                    )
-                  },
-                  triggers = { case Seq(p, stride) =>
-                    Seq(Seq(
-                      adtFunctionInvocation(addrSucc, args = Seq(p, stride))
+                aDTDeclarations.declare(offsetEncoding match {
+                  case "default" =>
+                    new ADTAxiom[Post](foralls(
+                      Seq(TAxiomatic(adtSucc, Nil), TInt()),
+                      body = { case Seq(p, stride) =>
+                        // TODO: Stop hardcoding this number!
+                        LessEq(
+                          adtFunctionInvocation(
+                            addrSucc,
+                            args = Seq(p, stride),
+                          ),
+                          const(BigInt("18446744073709551615")),
+                        )
+                      },
+                      triggers = { case Seq(p, stride) =>
+                        Seq(Seq(
+                          adtFunctionInvocation(addrSucc, args = Seq(p, stride))
+                        ))
+                      },
                     ))
-                  },
-                )))
+                  case "fixed" =>
+                    new ADTAxiom[Post](forall(
+                      TAxiomatic(adtSucc, Nil),
+                      body = { p =>
+                        LessEq(
+                          adtFunctionInvocation(addrSucc, args = Seq(p)),
+                          const(BigInt("18446744073709551615")),
+                        )
+                      },
+                    ))
+                  case _ => throw UnknownEncoding(offsetEncoding)
+                })
               }._1
             }),
           )
@@ -460,6 +507,17 @@ case class ImportPointer[Pre <: Generation](
       case other => super.postCoerce(other)
     }
 
+  private def ptrAdd(p: Expr[Post], offset: Expr[Post], stride: Expr[Post])(
+      blame: Blame[InvocationFailure]
+  )(implicit o: Origin): Expr[Post] =
+    offsetEncoding match {
+      case "default" =>
+        functionInvocation(blame, pointerAdd.ref, args = Seq(p, offset))
+      case "fixed" =>
+        functionInvocation(blame, pointerAdd.ref, args = Seq(p, offset, stride))
+      case _ => throw UnknownEncoding(offsetEncoding)
+    }
+
   override def postCoerce(location: Location[Pre]): Location[Post] = {
     implicit val o: Origin = location.o
     location match {
@@ -470,23 +528,12 @@ case class ImportPointer[Pre <: Generation](
                 if ref.decl == pointerAdd.ref.decl =>
               inv
             case ptr =>
-              FunctionInvocation[Post](
-                ref = pointerAdd.ref,
-                args = Seq(ptr, const(0)),
-                typeArgs = Nil,
-                Nil,
-                Nil,
-              )(PanicBlame("ptrAdd(ptr, 0) should be infallible"))
+              ptrAdd(ptr, const(0), const(1))(PanicBlame(
+                "ptrAdd(ptr, 0) should be infallible"
+              ))
           }
         SilverFieldLocation(
-          obj =
-            FunctionInvocation[Post](
-              ref = pointerDeref.ref,
-              args = Seq(arg),
-              typeArgs = Nil,
-              Nil,
-              Nil,
-            )(PanicBlame("ptr_deref requires nothing."))(pointer.o),
+          obj = derefPointer(arg)(pointer.o),
           field = getPointerField(pointer),
         )
       case other => other.rewriteDefault()
@@ -536,65 +583,36 @@ case class ImportPointer[Pre <: Generation](
   ): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
-      case add @ PointerAdd(pointer, offset) =>
-        FunctionInvocation[Post](
-          ref = pointerAdd.ref,
-          args = Seq(unwrapOption(pointer, add.blame), dispatch(offset)),
-          typeArgs = Nil,
-          Nil,
-          Nil,
+      case add @ PointerAdd(pointer, offset, size) =>
+        ptrAdd(
+          unwrapOption(pointer, add.blame),
+          dispatch(offset),
+          dispatch(size),
         )(NoContext(PointerBoundsPreconditionFailed(add.blame, pointer)))
-      case sub @ PointerSubscript(pointer, index) =>
-        FunctionInvocation[Post](
-          ref = pointerDeref.ref,
-          args = Seq(
-            FunctionInvocation[Post](
-              ref = pointerAdd.ref,
-              args = Seq(unwrapOption(pointer, sub.blame), dispatch(index)),
-              typeArgs = Nil,
-              Nil,
-              Nil,
-            )(NoContext(PointerBoundsPreconditionFailed(sub.blame, index)))
-          ),
-          typeArgs = Nil,
-          Nil,
-          Nil,
-        )(PanicBlame("ptr_deref requires nothing."))
-      case DerefPointer(add @ PointerAdd(pointer, offset)) =>
-        FunctionInvocation[Post](
-          ref = pointerDeref.ref,
-          args = Seq(
-            FunctionInvocation[Post](
-              ref = pointerAdd.ref,
-              args = Seq(unwrapOption(pointer, add.blame), dispatch(offset)),
-              typeArgs = Nil,
-              Nil,
-              Nil,
-            )(NoContext(PointerBoundsPreconditionFailed(add.blame, pointer)))
-          ),
-          typeArgs = Nil,
-          Nil,
-          Nil,
-        )(PanicBlame("ptr_deref requires nothing."))
+      case sub @ PointerSubscript(pointer, index, size) =>
+        derefPointer(
+          ptrAdd(
+            unwrapOption(pointer, sub.blame),
+            dispatch(index),
+            dispatch(size),
+          )(NoContext(PointerBoundsPreconditionFailed(sub.blame, pointer)))
+        )
+      case DerefPointer(add @ PointerAdd(pointer, offset, size)) =>
+        derefPointer(
+          ptrAdd(
+            unwrapOption(pointer, add.blame),
+            dispatch(offset),
+            dispatch(size),
+          )(NoContext(PointerBoundsPreconditionFailed(add.blame, pointer)))
+        )
       case deref @ DerefPointer(pointer) =>
-        FunctionInvocation[Post](
-          ref = pointerDeref.ref,
-          args = Seq(if (!context.topOption.contains(InAxiom())) {
-            FunctionInvocation[Post](
-              ref = pointerAdd.ref,
-              // Always index with zero, otherwise quantifiers with pointers do not get triggered
-              args = Seq(unwrapOption(pointer, deref.blame), const(0)),
-              typeArgs = Nil,
-              Nil,
-              Nil,
-            )(NoContext(
+        derefPointer(if (!context.topOption.contains(InAxiom())) {
+          ptrAdd(unwrapOption(pointer, deref.blame), const(0), const(1))(
+            NoContext(
               DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
-            ))
-          } else { unwrapOption(pointer, deref.blame) }),
-          typeArgs = Nil,
-          Nil,
-          Nil,
-        )(PanicBlame("ptr_deref requires nothing."))
+            )
+          )
+        } else { unwrapOption(pointer, deref.blame) })
       case other => dispatch(other)
     }
   }
@@ -602,8 +620,8 @@ case class ImportPointer[Pre <: Generation](
   override def preCoerce(e: Expr[Pre]): Expr[Pre] = {
     implicit val o: Origin = e.o
     e match {
-      case d @ DerefPointer(a @ PointerAdd(p, i)) =>
-        PointerSubscript(p, i)(DerefAddToSubscriptBlame(d.blame, a.blame))
+      case d @ DerefPointer(a @ PointerAdd(p, i, size)) =>
+        PointerSubscript(p, i, size)(DerefAddToSubscriptBlame(d.blame, a.blame))
       case _ => super.preCoerce(e)
     }
   }
@@ -625,34 +643,23 @@ case class ImportPointer[Pre <: Generation](
         e.rewrite(triggers =
           triggers.map(_.map(rewriteTopLevelPointerSubscriptInTrigger))
         )
-      case sub @ PointerSubscript(pointer, index) =>
+      case sub @ PointerSubscript(pointer, index, size) =>
         SilverDeref(
-          obj =
-            FunctionInvocation[Post](
-              ref = pointerDeref.ref,
-              args = Seq(
-                FunctionInvocation[Post](
-                  ref = pointerAdd.ref,
-                  args = Seq(unwrapOption(pointer, sub.blame), dispatch(index)),
-                  typeArgs = Nil,
-                  Nil,
-                  Nil,
-                )(NoContext(PointerBoundsPreconditionFailed(sub.blame, index)))
-              ),
-              typeArgs = Nil,
-              Nil,
-              Nil,
-            )(PanicBlame("ptr_deref requires nothing.")),
+          obj = derefPointer(
+            ptrAdd(
+              unwrapOption(pointer, sub.blame),
+              dispatch(index),
+              dispatch(size),
+            )(NoContext(PointerBoundsPreconditionFailed(sub.blame, pointer)))
+          ),
           field = getPointerField(pointer),
         )(PointerFieldInsufficientPermission(sub.blame, sub))
-      case add @ PointerAdd(pointer, offset) =>
+      case add @ PointerAdd(pointer, offset, size) =>
         val inv =
-          FunctionInvocation[Post](
-            ref = pointerAdd.ref,
-            args = Seq(unwrapOption(pointer, add.blame), dispatch(offset)),
-            typeArgs = Nil,
-            Nil,
-            Nil,
+          ptrAdd(
+            unwrapOption(pointer, add.blame),
+            dispatch(offset),
+            dispatch(size),
           )(NoContext(PointerBoundsPreconditionFailed(add.blame, pointer)))
         pointer.t match {
           case TPointer(_, _) => OptSome(inv)
@@ -660,29 +667,40 @@ case class ImportPointer[Pre <: Generation](
         }
       case deref @ DerefPointer(pointer) =>
         SilverDeref(
-          obj =
-            FunctionInvocation[Post](
-              ref = pointerDeref.ref,
-              args = Seq(if (!context.topOption.contains(InAxiom())) {
-                FunctionInvocation[Post](
-                  ref = pointerAdd.ref,
-                  // Always index with zero, otherwise quantifiers with pointers do not get triggered
-                  args = Seq(unwrapOption(pointer, deref.blame), const(0)),
-                  typeArgs = Nil,
-                  Nil,
-                  Nil,
-                )(NoContext(
-                  DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
-                ))
-              } else { unwrapOption(pointer, deref.blame) }),
-              typeArgs = Nil,
-              Nil,
-              Nil,
-            )(PanicBlame("ptr_deref requires nothing.")),
+          obj = derefPointer(if (!context.topOption.contains(InAxiom())) {
+            ptrAdd(unwrapOption(pointer, deref.blame), const(0), const(1))(
+              NoContext(
+                DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
+              )
+            )
+          } else { unwrapOption(pointer, deref.blame) }),
           field = getPointerField(pointer),
         )(PointerFieldInsufficientPermission(deref.blame, deref))
-      case len @ PointerBlockLength(pointer) =>
-        ADTFunctionInvocation[Post](
+      case InlinePattern(
+            len @ PointerBlockLength(pointer, size),
+            parent,
+            group,
+          ) =>
+        val length = InlinePattern(
+          ADTFunctionInvocation[Post](
+            typeArgs = Some((blockAdt.ref, Nil)),
+            ref = blockLength.ref,
+            args = Seq(ADTFunctionInvocation[Post](
+              typeArgs = Some((pointerAdt.ref, Nil)),
+              ref = pointerBlock.ref,
+              args = Seq(unwrapOption(pointer, len.blame)),
+            )),
+          ),
+          parent,
+          group,
+        )
+        offsetEncoding match {
+          case "default" => length
+          case "fixed" => length / dispatch(size)
+          case _ => throw UnknownEncoding(offsetEncoding)
+        }
+      case len @ PointerBlockLength(pointer, size) =>
+        val length = ADTFunctionInvocation[Post](
           typeArgs = Some((blockAdt.ref, Nil)),
           ref = blockLength.ref,
           args = Seq(ADTFunctionInvocation[Post](
@@ -691,16 +709,64 @@ case class ImportPointer[Pre <: Generation](
             args = Seq(unwrapOption(pointer, len.blame)),
           )),
         )
-      case off @ PointerBlockOffset(pointer) =>
-        ADTFunctionInvocation[Post](
-          typeArgs = Some((pointerAdt.ref, Nil)),
-          ref = pointerOffset.ref,
-          args = Seq(unwrapOption(pointer, off.blame)),
-        )
-      case pointerLen @ PointerLength(pointer) =>
+        offsetEncoding match {
+          case "default" => length
+          case "fixed" => length / dispatch(size)
+          case _ => throw UnknownEncoding(offsetEncoding)
+        }
+
+      case InlinePattern(
+            off @ PointerBlockOffset(pointer, size),
+            parent,
+            group,
+          ) =>
+        offsetEncoding match {
+          case "default" =>
+            InlinePattern(
+              ADTFunctionInvocation[Post](
+                typeArgs = Some((pointerAdt.ref, Nil)),
+                ref = pointerOffset.ref,
+                args = Seq(unwrapOption(pointer, off.blame)),
+              ),
+              parent,
+              group,
+            )
+          case "fixed" =>
+            InlinePattern(
+              adtFunctionInvocation[Post](
+                pointerAddress.ref,
+                args = Seq(unwrapOption(pointer, off.blame)),
+              ),
+              parent,
+              group,
+            ) - adtFunctionInvocation[Post](
+              blockAddress.ref,
+              args = Seq(postCoerce(PointerBlock(pointer)(off.blame))),
+            ) / dispatch(size)
+          case _ => throw UnknownEncoding(offsetEncoding)
+        }
+      case off @ PointerBlockOffset(pointer, size) =>
+        offsetEncoding match {
+          case "default" =>
+            ADTFunctionInvocation[Post](
+              typeArgs = Some((pointerAdt.ref, Nil)),
+              ref = pointerOffset.ref,
+              args = Seq(unwrapOption(pointer, off.blame)),
+            )
+          case "fixed" =>
+            (adtFunctionInvocation[Post](
+              pointerAddress.ref,
+              args = Seq(unwrapOption(pointer, off.blame)),
+            ) - adtFunctionInvocation[Post](
+              blockAddress.ref,
+              args = Seq(postCoerce(PointerBlock(pointer)(off.blame))),
+            )) / dispatch(size)
+          case _ => throw UnknownEncoding(offsetEncoding)
+        }
+      case pointerLen @ PointerLength(pointer, size) =>
         postCoerce(
-          PointerBlockLength(pointer)(pointerLen.blame) -
-            PointerBlockOffset(pointer)(pointerLen.blame)
+          PointerBlockLength(pointer, size)(pointerLen.blame) -
+            PointerBlockOffset(pointer, size)(pointerLen.blame)
         )
       case to @ ToNonNull(value) =>
         OptGet(dispatch(value))(PointerNullOptNone(to.blame, value))
@@ -769,10 +835,7 @@ case class ImportPointer[Pre <: Generation](
           args = Seq(unwrapOption(p, blck.blame)),
         )
       case addr @ PointerAddress(p, elementSize) =>
-        adtFunctionInvocation[Post](
-          ref = pointerAddress.ref,
-          args = Seq(unwrapOption(p, addr.blame), dispatch(elementSize)),
-        )
+        getAddress(unwrapOption(p, addr.blame), dispatch(elementSize))
       case to @ PointerToAdt(p, TAxiomatic(Ref(adt), args)) =>
         functionInvocation(
           TrueSatisfiable,
@@ -816,21 +879,46 @@ case class ImportPointer[Pre <: Generation](
               },
             ).ref,
           args = Seq(p match {
-            case PointerAdd(_, _) => unwrapOption(p, to.blame)
+            case PointerAdd(_, _, _) => unwrapOption(p, to.blame)
             case _ if context.topOption.contains(InAxiom()) =>
               unwrapOption(p, to.blame)
             case _ =>
-              FunctionInvocation[Post](
-                ref = pointerAdd.ref,
-                args = Seq(unwrapOption(p, to.blame), const(0)),
-                typeArgs = Nil,
-                Nil,
-                Nil,
-              )(PanicBlame(
+              ptrAdd(unwrapOption(p, to.blame), const(0), const(1))(PanicBlame(
                 "Pointer out of bounds, but this should not be possible since index equals 0"
               ))
           }),
         )
+      case q: TriggeredQuantifier[Pre] =>
+        q.rewrite(triggers = q.triggers.map {
+          _.map {
+            case off @ PointerBlockOffset(pointer, _) =>
+              offsetEncoding match {
+                case "default" =>
+                  ADTFunctionInvocation[Post](
+                    typeArgs = Some((pointerAdt.ref, Nil)),
+                    ref = pointerOffset.ref,
+                    args = Seq(unwrapOption(pointer, off.blame)),
+                  )
+                case "fixed" =>
+                  adtFunctionInvocation[Post](
+                    pointerAddress.ref,
+                    args = Seq(unwrapOption(pointer, off.blame)),
+                  )
+                case _ => throw UnknownEncoding(offsetEncoding)
+              }
+            case len @ PointerBlockLength(pointer, size) =>
+              ADTFunctionInvocation[Post](
+                typeArgs = Some((blockAdt.ref, Nil)),
+                ref = blockLength.ref,
+                args = Seq(ADTFunctionInvocation[Post](
+                  typeArgs = Some((pointerAdt.ref, Nil)),
+                  ref = pointerBlock.ref,
+                  args = Seq(unwrapOption(pointer, len.blame)),
+                )),
+              )
+            case t => dispatch(t)
+          }
+        })
       case other => super.postCoerce(other)
     }
   }
@@ -849,19 +937,12 @@ case class ImportPointer[Pre <: Generation](
       fromSize,
       toSize,
       preExpr match {
-        case PointerAdd(_, _) => postExpr
+        case PointerAdd(_, _, _) => postExpr
         // Don't add ptrAdd in an ADT axiom since we cannot use functions with preconditions there
         case _ if context.topOption.contains(InAxiom()) => postExpr
         case _ =>
-          FunctionInvocation[Post](
-            ref = pointerAdd.ref,
-            // Always index with zero, otherwise quantifiers with pointers do not get triggered
-            args = Seq(postExpr, const(0)),
-            typeArgs = Nil,
-            Nil,
-            Nil,
-          )(PanicBlame(
-            "Pointer out of bounds in pointer cast (no appropriate blame available)"
+          ptrAdd(postExpr, const(0), const(1))(PanicBlame(
+            "Pointer out of bounds, but this should not be possible since index equals 0"
           ))
       },
     )
@@ -883,4 +964,18 @@ case class ImportPointer[Pre <: Generation](
       Seq(expr),
     )
   }
+
+  private def derefPointer(p: Expr[Post])(implicit o: Origin): Expr[Post] =
+    offsetEncoding match {
+      case "default" =>
+        FunctionInvocation[Post](
+          ref = pointerDeref.ref,
+          args = Seq(p),
+          typeArgs = Nil,
+          Nil,
+          Nil,
+        )(PanicBlame("ptr_deref requires nothing."))
+      case "fixed" => adtFunctionInvocation(pointerLoc.ref, args = Seq(p))
+      case _ => throw UnknownEncoding(offsetEncoding)
+    }
 }

@@ -341,7 +341,7 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
         )
       case dp @ DerefPointer(_) =>
         rewriteInCopyContext2(dispatch(dp), dp.blame, t, target, context)
-      case ps @ PointerSubscript(_, _) =>
+      case ps @ PointerSubscript(_, _, _) =>
         rewriteInCopyContext2(dispatch(ps), ps.blame, t, target, context)
       case deref @ Deref(_, _) =>
         // TODO: Improve blame message here

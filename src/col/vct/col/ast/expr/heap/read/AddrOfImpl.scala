@@ -24,7 +24,7 @@ trait AddrOfImpl[G] extends AddrOfOps[G] {
     e match {
       case DerefPointer(p) => p.t
       // commented out because if p is a CTArray this gives the wrong type case AmbiguousSubscript(p, _) => p.t
-      case PointerSubscript(p, _) => p.t
+      case PointerSubscript(p, _, _) => p.t
       case AddrOfConstCast(e) => TConstPointer(e.t)
       case AddrOfUniqueCast(e, unique) => TPointer(e.t, Some(unique))
       case d @ Deref(_, Ref(f)) =>

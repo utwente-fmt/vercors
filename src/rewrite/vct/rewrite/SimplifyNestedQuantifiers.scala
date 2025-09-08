@@ -1204,9 +1204,9 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
         getPatterns(subscript) ++ getPatterns(e)
       case SeqSubscript(e, subscript) =>
         getPatterns(subscript) ++ getPatterns(e)
-      case PointerSubscript(e, subscript) =>
+      case PointerSubscript(e, subscript, _) =>
         getPatterns(subscript) ++ getPatterns(e)
-      case PointerAdd(e, offset) => getPatterns(offset) ++ getPatterns(e)
+      case PointerAdd(e, offset, _) => getPatterns(offset) ++ getPatterns(e)
       case VectorSubscript(e, offset) => getPatterns(offset) ++ getPatterns(e)
       case FunctionInvocation(_, args, Seq(), given, _, _) =>
         args.flatMap(getPatterns) ++ given.flatMap(g => getPatterns(g._2))

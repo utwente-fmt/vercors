@@ -32,16 +32,18 @@ case object TrivialAddrOf extends RewriterBuilder {
 case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     e match {
-      case DerefPointer(PointerAdd(AddrOf(pointer), offset))
+      case DerefPointer(PointerAdd(AddrOf(pointer), offset, _))
           if offset.isInstanceOf[ConstantInt[Pre]] &&
             offset.asInstanceOf[ConstantInt[Pre]].value.signum == 0 =>
         dispatch(pointer)
       case AddrOf(DerefPointer(p)) => dispatch(p)
 
-      case AddrOf(sub @ PointerSubscript(p, i)) =>
-        PointerAdd(dispatch(p), dispatch(i))(SubscriptErrorAddError(sub))(e.o)
+      case AddrOf(sub @ PointerSubscript(p, i, typeSize)) =>
+        PointerAdd(dispatch(p), dispatch(i), dispatch(typeSize))(
+          SubscriptErrorAddError(sub)
+        )(e.o)
       // Handled by EncodePointerArrays
-      case AddrOf(PointerArraySubscript(_, _)) => e.rewriteDefault()
+      case AddrOf(PointerArraySubscript(_, _, _)) => e.rewriteDefault()
       case AddrOf(Deref(_, _)) => e.rewriteDefault()
       // Nullable PointerArrays (i.e. those in parameters) are not special cased in EncodePointerArrays
       case AddrOf(other)
@@ -59,7 +61,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
         )
         val newAssign =
           PreAssignExpression(
-            PointerSubscript(newTarget, const[Post](0))(PanicBlame(
+            PointerSubscript(newTarget, const[Post](0), ???)(PanicBlame(
               "Should always be accessible"
             )),
             newValue,
@@ -81,7 +83,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
         )
         val newAssign =
           Assign(
-            PointerSubscript(newTarget, const[Post](0))(PanicBlame(
+            PointerSubscript(newTarget, const[Post](0), ???)(PanicBlame(
               "Should always be accessible"
             )),
             newValue,
@@ -108,7 +110,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
     val newPointer = Eval(
       PreAssignExpression(
         newTarget,
-        NewNonNullPointer(newValue.t, const[Post](1), None)(PanicBlame(
+        NewNonNullPointer(newValue.t, const[Post](1), None, ???)(PanicBlame(
           "Size is > 0"
         )),
       )(blame)

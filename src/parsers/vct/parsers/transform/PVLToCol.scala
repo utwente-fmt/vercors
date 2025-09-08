@@ -454,7 +454,7 @@ case class PVLToCol[G](
           false,
         )(blame(expr))
       case PostfixExpr1(xs, _, i, _) =>
-        AmbiguousSubscript(convert(xs), convert(i))(blame(expr))
+        AmbiguousSubscript(convert(xs), convert(i), const(0))(blame(expr))
       case PostfixExpr2(obj, specOp) => convert(expr, specOp, convert(obj))
       case PostfixExpr3(inner) => convert(inner)
     }
@@ -1809,16 +1809,16 @@ case class PVLToCol[G](
       case ValArray(_, _, arr, _, dim, _) =>
         ValidArray(convert(arr), convert(dim))
       case ValPointer(_, _, ptr, _, n, _, perm, _) =>
-        PermPointer(convert(ptr), convert(n), convert(perm))
+        PermPointer(convert(ptr), convert(n), convert(perm), const(0))
       case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) =>
-        PermPointerIndex(convert(ptr), convert(idx), convert(perm))
+        PermPointerIndex(convert(ptr), convert(idx), convert(perm), const(0))
       case ValPointerBlock(_, _, ptr, _) => PointerBlock(convert(ptr))(blame(e))
       case ValPointerBlockLength(_, _, ptr, _) =>
-        PointerBlockLength(convert(ptr))(blame(e))
+        PointerBlockLength(convert(ptr), const(0))(blame(e))
       case ValPointerBlockOffset(_, _, ptr, _) =>
-        PointerBlockOffset(convert(ptr))(blame(e))
+        PointerBlockOffset(convert(ptr), const(0))(blame(e))
       case ValPointerLength(_, _, ptr, _) =>
-        PointerLength(convert(ptr))(blame(e))
+        PointerLength(convert(ptr), const(0))(blame(e))
       case ValPolarityDependent(_, _, onInhale, _, onExhale, _) =>
         PolarityDependent(convert(onInhale), convert(onExhale))
     }

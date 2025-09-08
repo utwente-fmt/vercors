@@ -191,7 +191,7 @@ case class IndexedVariable[G](field: InstanceField[G], i: Int)
     extends ConcreteVariable[G] {
   override def is(expr: Expr[G], state: AbstractState[G]): Boolean =
     expr match {
-      case AmbiguousSubscript(collection, index) =>
+      case AmbiguousSubscript(collection, index, _) =>
         field_equals(collection, field) &&
         i == state.resolve_integer_expression(index).try_to_resolve()
           .getOrElse(-1)
@@ -201,7 +201,7 @@ case class IndexedVariable[G](field: InstanceField[G], i: Int)
       case ArraySubscript(arr, index) =>
         field_equals(arr, field) && i == state.resolve_integer_expression(index)
           .try_to_resolve().getOrElse(-1)
-      case PointerSubscript(pointer, index) =>
+      case PointerSubscript(pointer, index, _) =>
         field_equals(pointer, field) &&
         i == state.resolve_integer_expression(index).try_to_resolve()
           .getOrElse(-1)
@@ -250,6 +250,7 @@ case class IndexedVariable[G](field: InstanceField[G], i: Int)
             field.o
           ),
           IntegerValue(i)(field.o),
+          IntegerValue(BigInt(0))(field.o),
         )(field.o)(field.o)
     }
 

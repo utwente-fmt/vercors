@@ -1573,9 +1573,11 @@ final case class DerefPointer[G](pointer: Expr[G])(
     val blame: Blame[PointerDerefError]
 )(implicit val o: Origin)
     extends Expr[G] with DerefPointerImpl[G] with PossibleTrigger[G]
-final case class PointerAdd[G](pointer: Expr[G], offset: Expr[G])(
-    val blame: Blame[PointerAddError]
-)(implicit val o: Origin)
+final case class PointerAdd[G](
+    pointer: Expr[G],
+    offset: Expr[G],
+    typeSize: Expr[G],
+)(val blame: Blame[PointerAddError])(implicit val o: Origin)
     extends Expr[G] with PointerAddImpl[G] with PossibleTrigger[G]
 final case class PointerToAdt[G](pointer: Expr[G], t: Type[G])(
     val blame: Blame[PointerNull]
@@ -2020,12 +2022,20 @@ final case class ValidMatrix[G](mat: Expr[G], w: Expr[G], h: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with ValidMatrixImpl[G] with ResourceTerm[G]
 
-final case class PermPointer[G](p: Expr[G], len: Expr[G], perm: Expr[G])(
-    implicit val o: Origin
-) extends Expr[G] with PermPointerImpl[G] with ResourceTerm[G]
-final case class PermPointerIndex[G](p: Expr[G], idx: Expr[G], perm: Expr[G])(
-    implicit val o: Origin
-) extends Expr[G] with PermPointerIndexImpl[G] with ResourceTerm[G]
+final case class PermPointer[G](
+    p: Expr[G],
+    len: Expr[G],
+    perm: Expr[G],
+    typeSize: Expr[G],
+)(implicit val o: Origin)
+    extends Expr[G] with PermPointerImpl[G] with ResourceTerm[G]
+final case class PermPointerIndex[G](
+    p: Expr[G],
+    idx: Expr[G],
+    perm: Expr[G],
+    typeSize: Expr[G],
+)(implicit val o: Origin)
+    extends Expr[G] with PermPointerIndexImpl[G] with ResourceTerm[G]
 
 final case class ResourceOfResourceValue[G](res: Expr[G])(
     implicit val o: Origin
@@ -2176,39 +2186,47 @@ final case class NewPointer[G](
     element: Type[G],
     size: Expr[G],
     unique: Option[BigInt],
+    typeSize: Expr[G],
 )(val blame: Blame[ArraySizeError])(implicit val o: Origin)
     extends PointerConstructor[G] with NewPointerImpl[G]
-final case class NewConstPointer[G](element: Type[G], size: Expr[G])(
-    val blame: Blame[ArraySizeError]
-)(implicit val o: Origin)
+final case class NewConstPointer[G](
+    element: Type[G],
+    size: Expr[G],
+    typeSize: Expr[G],
+)(val blame: Blame[ArraySizeError])(implicit val o: Origin)
     extends PointerConstructor[G] with NewConstPointerImpl[G]
 final case class NewNonNullPointer[G](
     element: Type[G],
     size: Expr[G],
     unique: Option[BigInt],
+    typeSize: Expr[G],
 )(val blame: Blame[ArraySizeError])(implicit val o: Origin)
     extends PointerConstructor[G] with NewNonNullPointerImpl[G]
-final case class NewNonNullConstPointer[G](element: Type[G], size: Expr[G])(
-    val blame: Blame[ArraySizeError]
-)(implicit val o: Origin)
+final case class NewNonNullConstPointer[G](
+    element: Type[G],
+    size: Expr[G],
+    typeSize: Expr[G],
+)(val blame: Blame[ArraySizeError])(implicit val o: Origin)
     extends PointerConstructor[G] with NewNonNullConstPointerImpl[G]
 
 final case class NewPointerArray[G](
     element: Type[G],
     dimensions: Seq[Expr[G]],
     unique: Option[BigInt],
+    typeSize: Expr[G],
 )(val blame: Blame[ArraySizeError])(implicit val o: Origin)
     extends Expr[G] with NewPointerArrayImpl[G]
 final case class NewConstPointerArray[G](
     element: Type[G],
     dimensions: Seq[Expr[G]],
+    typeSize: Expr[G],
 )(val blame: Blame[ArraySizeError])(implicit val o: Origin)
     extends Expr[G] with NewConstPointerArrayImpl[G]
 
 final case class UniquePointerCoercion[G](e: Expr[G], t: Type[G])(
     implicit val o: Origin
 ) extends Expr[G] with UniquePointerCoercionImpl[G]
-final case class FreePointer[G](pointer: Expr[G])(
+final case class FreePointer[G](pointer: Expr[G], typeSize: Expr[G])(
     val blame: Blame[PointerFreeError]
 )(implicit val o: Origin)
     extends Expr[G] with FreePointerImpl[G]
@@ -2216,9 +2234,11 @@ final case class Old[G](expr: Expr[G], at: Option[Ref[G, LabelDecl[G]]])(
     val blame: Blame[LabelNotReached]
 )(implicit val o: Origin)
     extends Expr[G] with OldImpl[G] with PossibleTrigger[G]
-final case class AmbiguousSubscript[G](collection: Expr[G], index: Expr[G])(
-    val blame: Blame[FrontendSubscriptError]
-)(implicit val o: Origin)
+final case class AmbiguousSubscript[G](
+    collection: Expr[G],
+    index: Expr[G],
+    typeSize: Expr[G],
+)(val blame: Blame[FrontendSubscriptError])(implicit val o: Origin)
     extends Expr[G] with AmbiguousSubscriptImpl[G] with PossibleTrigger[G]
 final case class SeqSubscript[G](seq: Expr[G], index: Expr[G])(
     val blame: Blame[SeqBoundFailure]
@@ -2232,13 +2252,17 @@ final case class ArraySubscript[G](arr: Expr[G], index: Expr[G])(
     val blame: Blame[ArraySubscriptError]
 )(implicit val o: Origin)
     extends Expr[G] with ArraySubscriptImpl[G] with PossibleTrigger[G]
-final case class PointerSubscript[G](pointer: Expr[G], index: Expr[G])(
-    val blame: Blame[PointerSubscriptError]
-)(implicit val o: Origin)
+final case class PointerSubscript[G](
+    pointer: Expr[G],
+    index: Expr[G],
+    typeSize: Expr[G],
+)(val blame: Blame[PointerSubscriptError])(implicit val o: Origin)
     extends Expr[G] with PointerSubscriptImpl[G] with PossibleTrigger[G]
-final case class PointerArraySubscript[G](array: Expr[G], index: Expr[G])(
-    val blame: Blame[PointerArraySubscriptError]
-)(implicit val o: Origin)
+final case class PointerArraySubscript[G](
+    array: Expr[G],
+    index: Expr[G],
+    typeSize: Expr[G],
+)(val blame: Blame[PointerArraySubscriptError])(implicit val o: Origin)
     extends Expr[G] with PointerArraySubscriptImpl[G] with PossibleTrigger[G]
 final case class Length[G](arr: Expr[G])(val blame: Blame[ArrayNull])(
     implicit val o: Origin
@@ -2253,15 +2277,15 @@ final case class PointerAddress[G](pointer: Expr[G], elementSize: Expr[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
     extends Expr[G] with PointerAddressImpl[G] with PossibleTrigger[G]
-final case class PointerBlockLength[G](pointer: Expr[G])(
+final case class PointerBlockLength[G](pointer: Expr[G], typeSize: Expr[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
     extends Expr[G] with PointerBlockLengthImpl[G] with PossibleTrigger[G]
-final case class PointerBlockOffset[G](pointer: Expr[G])(
+final case class PointerBlockOffset[G](pointer: Expr[G], typeSize: Expr[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
     extends Expr[G] with PointerBlockOffsetImpl[G] with PossibleTrigger[G]
-final case class PointerLength[G](pointer: Expr[G])(
+final case class PointerLength[G](pointer: Expr[G], typeSize: Expr[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
     extends Expr[G] with PointerLengthImpl[G]

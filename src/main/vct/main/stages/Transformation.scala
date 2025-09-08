@@ -183,6 +183,7 @@ object Transformation extends LazyLogging {
             options.veymontPermissionStratificationMode,
           opaqueBitwiseOperators = options.opaqueBitwiseOperators,
           arrayEncoding = options.arrayEncoding,
+          offsetEncoding = options.offsetEncoding,
         )
     }
 
@@ -362,6 +363,7 @@ case class SilverTransformation(
       PermissionStratificationMode.Wrap,
     opaqueBitwiseOperators: Boolean = false,
     arrayEncoding: String = "inline",
+    offsetEncoding: String = "default",
 ) extends Transformation(
       onPassEvent,
       Seq(
@@ -490,7 +492,7 @@ case class SilverTransformation(
         ImportArray.withArg(adtImporter),
         ImportConstPointer.withArg(adtImporter),
         EncodeIntegerPointerCast,
-        ImportPointer.withArg(adtImporter, arrayEncoding),
+        ImportPointer.withArg(adtImporter, arrayEncoding, offsetEncoding),
         ImportMapCompat.withArg(adtImporter),
         ImportEither.withArg(adtImporter),
         ImportTuple.withArg(adtImporter),

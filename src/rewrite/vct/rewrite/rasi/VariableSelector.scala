@@ -98,7 +98,7 @@ class VariableSelector[G](initial_state: AbstractState[G]) {
               Set()
             else
               Set(LocalVariable(ref.decl))
-          case a @ AmbiguousSubscript(collection, index) =>
+          case a @ AmbiguousSubscript(collection, index, _) =>
             create_indexed_var_if_needed(state, a, collection, index)
           case s @ SeqSubscript(seq, index) =>
             create_indexed_var_if_needed(state, s, seq, index)

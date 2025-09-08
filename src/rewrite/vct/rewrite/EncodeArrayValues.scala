@@ -130,6 +130,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
   def makeFree(
       oldElement: Type[Pre],
       pointerT: PointerType[Post],
+      typeSize: Expr[Post],
   ): (Procedure[Post], FreePointer[Pre] => PointerFreeFailed[Pre]) = {
     implicit val o: Origin = freeFuncOrigin
     var errors: Seq[Expr[Pre] => PointerFreeError] = Seq()
@@ -141,12 +142,13 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         Local[Post](a_var.ref)
       }
       val zero = const[Post](0)
-      val size = PointerBlockLength(ptr)(FramedPtrBlockLength)
+      val size = PointerBlockLength(ptr, typeSize)(FramedPtrBlockLength)
 
       val i = new Variable[Post](TInt())(o.where(name = "i"))
       val j = new Variable[Post](TInt())(o.where(name = "j"))
       val access =
-        (i: Variable[Post]) => PointerSubscript(ptr, i.get)(FramedPtrOffset)
+        (i: Variable[Post]) =>
+          PointerSubscript(ptr, i.get, typeSize)(FramedPtrOffset)
 
       val makeStruct = MakeAnns(
         i,
@@ -167,7 +169,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         (and recurse for struct fields)
        */
       var requiresT: Seq[(Expr[Post], Expr[Pre] => PointerFreeError)] = Seq((
-        PointerBlockOffset(ptr)(FramedPtrBlockOffset) === zero,
+        PointerBlockOffset(ptr, typeSize)(FramedPtrBlockOffset) === zero,
         (p: Expr[Pre]) => PointerOffsetNonZero(p),
       ))
       if (pointerT.element.asByValueClass.isEmpty) {
@@ -176,9 +178,9 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
             (
               makeStruct.makePerm(
                 i =>
-                  PointerLocation(PointerAdd(ptr, i.get)(FramedPtrOffset))(
-                    FramedPtrOffset
-                  ),
+                  PointerLocation(
+                    PointerAdd(ptr, i.get, typeSize)(FramedPtrOffset)
+                  )(FramedPtrOffset),
                 IteratedPtrInjective,
               ),
               (p: Expr[Pre]) => PointerInsufficientFreePermission(p),
@@ -537,6 +539,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       nullable: Boolean,
       unique: Option[BigInt],
       isConst: Boolean,
+      typeSize: Expr[Post],
   ) = {
     implicit val o: Origin = arrayCreationOrigin
     // !nullable? then 'ar != null ==> ...'; otherwise 'ar != null ** ...'
@@ -553,7 +556,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       val i = new Variable[Post](TInt())(o.where(name = "i"))
       val j = new Variable[Post](TInt())(o.where(name = "j"))
       val access =
-        (i: Variable[Post]) => PointerSubscript(result, i.get)(FramedPtrOffset)
+        (i: Variable[Post]) =>
+          PointerSubscript(result, i.get, typeSize)(FramedPtrOffset)
 
       val makeStruct = MakeAnns(
         i,
@@ -564,17 +568,18 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       )
 
       var ensures =
-        (PointerBlockLength(result)(FramedPtrBlockLength) === sizeArg.get) &*
-          (PointerBlockOffset(result)(FramedPtrBlockOffset) === zero)
+        (PointerBlockLength(result, typeSize)(FramedPtrBlockLength) ===
+          sizeArg.get) &*
+          (PointerBlockOffset(result, typeSize)(FramedPtrBlockOffset) === zero)
 
       // Pointer location needs pointer add, not pointer subscript
       if (!isConst && elementType.asByValueClass.isEmpty) {
         ensures =
           ensures &* makeStruct.makePerm(
             i =>
-              PointerLocation(PointerAdd(result, i.get)(FramedPtrOffset))(
-                FramedPtrOffset
-              ),
+              PointerLocation(
+                PointerAdd(result, i.get, typeSize)(FramedPtrOffset)
+              )(FramedPtrOffset),
             IteratedPtrInjective,
           )
       }
@@ -660,7 +665,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
         )(ArrayCreationFailed(newArr))
-      case newPointerArr @ NewPointer(element, size, unique) =>
+      case newPointerArr @ NewPointer(element, size, unique, typeSize) =>
         val method = pointerArrayCreationMethods.getOrElseUpdate(
           (element, unique),
           makePointerCreationMethodFor(
@@ -668,6 +673,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
             nullable = true,
             unique,
             isConst = false,
+            dispatch(typeSize),
           ),
         )
         ProcedureInvocation[Post](
@@ -678,7 +684,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
         )(PointerArrayCreationFailed(newPointerArr, newPointerArr.blame))
-      case newPointerArr @ NewNonNullPointer(element, size, unique) =>
+      case newPointerArr @ NewNonNullPointer(element, size, unique, typeSize) =>
         val method = nonNullPointerArrayCreationMethods.getOrElseUpdate(
           (element, unique),
           makePointerCreationMethodFor(
@@ -686,6 +692,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
             nullable = false,
             unique,
             isConst = false,
+            dispatch(typeSize),
           ),
         )
         ProcedureInvocation[Post](
@@ -696,7 +703,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
         )(PointerArrayCreationFailed(newPointerArr, newPointerArr.blame))
-      case ncpa @ NewConstPointer(element, size) =>
+      case ncpa @ NewConstPointer(element, size, typeSize) =>
         val method = constPointerArrayCreationMethods.getOrElseUpdate(
           (element),
           makePointerCreationMethodFor(
@@ -704,6 +711,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
             nullable = true,
             None,
             isConst = true,
+            dispatch(typeSize),
           ),
         )
         ProcedureInvocation[Post](
@@ -714,7 +722,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
         )(PointerArrayCreationFailed(ncpa, ncpa.blame))
-      case ncpa @ NewNonNullConstPointer(element, size) =>
+      case ncpa @ NewNonNullConstPointer(element, size, typeSize) =>
         val method = constPointerArrayCreationMethods.getOrElseUpdate(
           (element),
           makePointerCreationMethodFor(
@@ -722,6 +730,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
             nullable = false,
             None,
             isConst = true,
+            dispatch(typeSize),
           ),
         )
         ProcedureInvocation[Post](
@@ -732,11 +741,13 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
         )(PointerArrayCreationFailed(ncpa, ncpa.blame))
-      case free @ FreePointer(xs) =>
+      case free @ FreePointer(xs, typeSize) =>
         val newXs = dispatch(xs)
         val newT = newXs.t.asPointer.get
-        val (freeFunc, freeBlame) = freeMethods
-          .getOrElseUpdate(newT, makeFree(xs.t.asPointer.get.element, newT))
+        val (freeFunc, freeBlame) = freeMethods.getOrElseUpdate(
+          newT,
+          makeFree(xs.t.asPointer.get.element, newT, dispatch(typeSize)),
+        )
         ProcedureInvocation[Post](freeFunc.ref, Seq(newXs), Nil, Nil, Nil, Nil)(
           freeBlame(free)
         )(free.o)

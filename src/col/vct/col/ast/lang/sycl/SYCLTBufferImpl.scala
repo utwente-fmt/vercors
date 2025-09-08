@@ -103,6 +103,7 @@ trait SYCLTBufferImpl[G] extends SYCLTBufferOps[G] {
         Local[G](hostDataVar.ref),
         Local[G](sizeVar.ref),
         WritePerm(),
+        ???,
       )),
     )(o.where(name = "exclusive_hostData_access"))
   }
@@ -136,6 +137,7 @@ trait SYCLTBufferImpl[G] extends SYCLTBufferOps[G] {
                 Local[G](hostDataVar.ref),
                 Local[G](sizeVar.ref),
                 WritePerm(),
+                ???,
               ),
             )),
             ensures = UnitAccountedPredicate(foldStar(Seq(
@@ -143,6 +145,7 @@ trait SYCLTBufferImpl[G] extends SYCLTBufferOps[G] {
                 Local[G](hostDataVar.ref),
                 Local[G](sizeVar.ref),
                 WritePerm(),
+                ???,
               ),
               validArray(
                 result,
@@ -166,6 +169,7 @@ trait SYCLTBufferImpl[G] extends SYCLTBufferOps[G] {
                     PointerSubscript(
                       Local[G](hostDataVar.ref),
                       Local[G](indexVar.ref),
+                      ???,
                     )(copyHostdataToBufferBlame),
                   ),
               ),
@@ -241,6 +245,7 @@ trait SYCLTBufferImpl[G] extends SYCLTBufferOps[G] {
                   PointerSubscript(
                     Local[G](hostDataVar.ref),
                     Local[G](indexVar.ref),
+                    ???,
                   )(copyBufferToHostdataBlame)
                 )),
                 body =
@@ -252,6 +257,7 @@ trait SYCLTBufferImpl[G] extends SYCLTBufferOps[G] {
                     PointerSubscript(
                       Local[G](hostDataVar.ref),
                       Local[G](indexVar.ref),
+                      ???,
                     )(copyBufferToHostdataBlame),
                     ArraySubscript[G](
                       Local[G](bufferVar.ref),

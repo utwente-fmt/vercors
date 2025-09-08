@@ -84,12 +84,14 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
       case expr if expr.t.asByValueClass.isDefined =>
         ByValueClassLocation(dispatch(expr))
       case dp @ DerefPointer(p) => PointerLocation(dispatch(p))(dp.blame)
-      case pas @ PointerArraySubscript(_, _) =>
+      case pas @ PointerArraySubscript(_, _, _) =>
         PointerLocation(AddrOf(dispatch(pas)))(pas.blame)
-      case ps @ PointerSubscript(p, index) =>
-        PointerLocation(PointerAdd(dispatch(p), dispatch(index))(
-          PointerSubscriptToAddBlame(ps.blame)
-        ))(ps.blame)
+      case ps @ PointerSubscript(p, index, size) =>
+        PointerLocation(
+          PointerAdd(dispatch(p), dispatch(index), dispatch(size))(
+            PointerSubscriptToAddBlame(ps.blame)
+          )
+        )(ps.blame)
       case DerefHeapVariable(ref) => HeapVariableLocation(succ(ref.decl))
       case Deref(obj, ref) => FieldLocation(dispatch(obj), succ(ref.decl))
       case ModelDeref(obj, ref) => ModelLocation(dispatch(obj), succ(ref.decl))
