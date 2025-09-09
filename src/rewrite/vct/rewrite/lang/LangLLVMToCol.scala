@@ -269,14 +269,39 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       types.map(Some(_)).reduce[Option[Type[Pre]]] { (a, b) =>
         (a, b) match {
           case (None, _) | (_, None) => None
-          case (Some(a), Some(b))
-              // TODO: This should be removed as soon as we have proper contracts we load from LLVM instead of mixing PVL and LLVM. Comparing in Post is really bad
-              if a == b || rw.dispatch(a) == rw.dispatch(b) ||
-                moreSpecific(a, b) =>
-            Some(a)
+          // TODO: This can be removed as soon as we have proper contracts for LLVM
+          case (Some(a), Some(b)) if pvlLLVMEqual(a, b) => Some(a)
+          case (Some(a), Some(b)) if moreSpecific(a, b) => Some(a)
           case (Some(a), Some(b)) if moreSpecific(b, a) => Some(b)
           case _ => None
         }
+      }
+    }
+
+    // TODO: This should be removed once the support for mixing PVL and LLVM is no longer needed
+    // Defines which LLVM and PVL types are considered equal when LLVM and PVL are mixed
+    def pvlLLVMEqual(a: Type[Pre], b: Type[Pre]): Boolean = {
+      def isVoidPtr(t: Type[Pre]): Boolean = {
+        t match {
+          case LLVMTPointer(None) => true
+          case LLVMTPointer(Some(TVoid())) => true
+          case TPointer(TVoid(), _) => true
+          case _ => false
+        }
+      }
+
+      (a, b) match {
+        case (t1, t2) if t1 == t2 => true
+        case (TInt(), LLVMTInt(_)) => true
+        case (LLVMTInt(_), TInt()) => true
+        case (TFloat(_, _), LLVMTFloat(_)) => true
+        case (LLVMTFloat(_), TFloat(_, _)) => true
+        case (p1, p2) if isVoidPtr(p1) && isVoidPtr(p2) => true
+        case (LLVMTPointer(Some(t1)), LLVMTPointer(Some(t2))) =>
+          pvlLLVMEqual(t1, t2)
+        case (LLVMTPointer(Some(t1)), TPointer(t2, _)) => pvlLLVMEqual(t1, t2)
+        case (TPointer(t1, _), LLVMTPointer(Some(t2))) => pvlLLVMEqual(t1, t2)
+        case _ => false
       }
     }
 
@@ -1696,12 +1721,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   def structType(t: LLVMTStruct[Pre]): Type[Post] = {
-    // TODO: Remove this. The check for the golbalDeclarations is required because
-    //  the function-type is called in the post-comparisson in derefUntil, outside of
-    //  a scope. Once that is removed, this should no longe be required.
-    if (!rw.globalDeclarations.isEmpty) { // <--
-      if (!structMap.contains(t)) { rewriteStruct(t) }
-    }
+    if (!structMap.contains(t)) { rewriteStruct(t) }
     val targetClass = new LazyRef[Post, Class[Post]](structMap(t))
     TByValueClass[Post](targetClass, Seq())(t.o)
   }
