@@ -261,9 +261,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         case (s1: LLVMTStruct[Pre], s2: LLVMTStruct[Pre])
             if moreSpecificLitStruct(s2, s1) =>
           false
-        case (LLVMTStruct(_, _, _, a), LLVMTStruct(_, _, _, b)) =>
+        case (LLVMTStruct(_, _, _, a, _), LLVMTStruct(_, _, _, b, _)) =>
           a.headOption.exists(ta => b.exists(tb => moreSpecific(ta, tb)))
-        case (LLVMTStruct(_, _, _, _), _) => true
+        case (LLVMTStruct(_, _, _, _, _), _) => true
         case (LLVMTArray(_, a), LLVMTArray(_, b)) => moreSpecific(a, b)
         case (LLVMTArray(_, _), _) => true
         case _ => false
@@ -277,7 +277,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         other: LLVMTStruct[Pre],
     ): Boolean = {
       !self.isLiteral && other.isLiteral && self.packed == other.packed &&
-      self.elements == other.elements
+      self.elements == other.elements && self.sizeBytes == other.sizeBytes
     }
 
     // TODO: This sorting is non-stable which might cause nondeterministic bugs if there's something wrong with moreSpecific
@@ -772,7 +772,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   def rewriteStruct(t: LLVMTStruct[Pre]): Unit = {
-    val LLVMTStruct(name, packed, literal, elements) = t
+    val LLVMTStruct(name, packed, literal, elements, size) = t
     val newStruct =
       new ByValueClass[Post](
         Seq(),
@@ -938,7 +938,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         }
       }
       case LLVMTPointer(
-            Some(struct @ LLVMTStruct(name, packed, literal, elements))
+            Some(struct @ LLVMTStruct(name, packed, literal, elements, size))
           ) => {
         derefUntil(
           Deref[Post](
@@ -951,12 +951,12 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           (
             expr,
             LLVMTPointer[Pre](Some(
-              LLVMTStruct(name, packed, literal, inner +: elements.tail)
+              LLVMTStruct(name, packed, literal, inner +: elements.tail, size)
             )),
           )
         }
       }
-      case struct @ LLVMTStruct(name, packed, literal, elements) => {
+      case struct @ LLVMTStruct(name, packed, literal, elements, size) => {
         derefUntil(
           Deref[Post](pointer, structFieldMap.ref((struct, 0)))(pointer.o),
           elements.head,
@@ -964,7 +964,13 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         ).map { case (expr, inner) =>
           (
             expr,
-            LLVMTStruct[Pre](name, packed, literal, inner +: elements.tail),
+            LLVMTStruct[Pre](
+              name,
+              packed,
+              literal,
+              inner +: elements.tail,
+              size,
+            ),
           )
         }
       }
@@ -1143,6 +1149,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 _,
                 _,
                 Seq(res: LLVMTInt[Pre], flag: TBool[Pre]),
+                _,
               ) =>
             (res, flag)
         }
@@ -1371,13 +1378,16 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteMemset(memset: LLVMMemset[Pre]): Statement[Post] = {
     implicit val o: Origin = memset.o
+
     // Curently only memset with constant value of 0 is supported
     memset.value match {
       case LLVMIntegerValue(v, _) if v.intValue == 0 =>
       case _ => throw UnsupportedMemset(memset)
     }
     // TODO: Make this more more generic
-    //  Currently, only very basic type-wrapper structs are supported (i.e. a packed struct with one integer value)
+    // Currently only structs where all fields are integers are supported.
+    // Also, the number of bytes of the memset must exactly match the size
+    // of the struct type.
     val numBytes =
       memset.len match {
         case LLVMIntegerValue(bytes, _) => bytes
@@ -1388,10 +1398,39 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         case Local(Ref(v)) =>
           v.t match {
             case LLVMTPointer(Some(s: LLVMTStruct[Pre])) => s
-            case _ => throw throw UnsupportedMemset(memset)
+            case _ => throw UnsupportedMemset(memset)
           }
         case _ => throw UnsupportedMemset(memset)
       }
+
+    if (structType.sizeBytes != numBytes.intValue) {
+      throw UnsupportedMemset(memset)
+    }
+
+    // TODO: Slap a block here to put the assignments in
+    // val fieldAssignments = mutable.Seq[Assign[Post]]
+
+    // Set all fields of the struct to 0
+    structType.elements.zipWithIndex.foreach { case (fieldT, idx) =>
+      val intT =
+        fieldT match {
+          case t: LLVMTInt[Pre] => t
+          case _ => throw UnsupportedMemset(memset)
+        }
+      val structField = structFieldMap((structType, idx))
+      Assign[Post](
+        Deref[Post](
+          DerefPointer(rw.dispatch(memset.dest))(memset.blame),
+          structField.ref,
+        )(memset.blame),
+        // TODO: Change this to the correct integer type
+        rw.dispatch(LLVMIntegerValue[Pre](0, intT)),
+        // rw.dispatch(memset.value),
+      )(memset.blame)
+
+    }
+
+    /*
     if (!structType.packed || !(structType.elements.size == 1)) {
       throw UnsupportedMemset(memset)
     }
@@ -1409,6 +1448,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       )(memset.blame),
       rw.dispatch(memset.value),
     )(memset.blame)
+     */
   }
 
   def rewritePointerValue(pointer: LLVMPointerValue[Pre]): Expr[Post] = {

@@ -238,6 +238,7 @@ void llvm2col::transformCmpExpr(llvm::CmpInst &cmpInstruction,
 void llvm2col::transformExtractValueInst(
     llvm::ExtractValueInst &llvmInstruction, col::LlvmBasicBlock &colBlock,
     pallas::FunctionCursor &funcCursor) {
+    const auto &dataLayout = llvmInstruction.getModule()->getDataLayout();
     col::Assign &assignment =
         funcCursor.createAssignmentAndDeclaration(llvmInstruction, colBlock);
     col::LlvmExtractValue *extrVal =
@@ -247,10 +248,10 @@ void llvm2col::transformExtractValueInst(
     // Aggregate type
     llvm2col::transformAndSetType(
         *llvmInstruction.getAggregateOperand()->getType(),
-        *extrVal->mutable_aggregate_type());
+        *extrVal->mutable_aggregate_type(), dataLayout);
     // Result type
     llvm2col::transformAndSetType(*llvmInstruction.getType(),
-                                  *extrVal->mutable_result_type());
+                                  *extrVal->mutable_result_type(), dataLayout);
     // Value
     llvm2col::transformAndSetExpr(funcCursor, llvmInstruction,
                                   *llvmInstruction.getAggregateOperand(),
@@ -812,7 +813,9 @@ void llvm2col::transformPallasBoundVar(llvm::CallInst &callInstruction,
         auto strRepr = constArr->isCString() ? constArr->getAsCString()
                                              : constArr->getAsString();
         bv->set_id(strRepr.str());
-        llvm2col::transformAndSetType(*type, *bv->mutable_var_type());
+        llvm2col::transformAndSetType(
+            *type, *bv->mutable_var_type(),
+            callInstruction.getModule()->getDataLayout());
     } else {
         pallas::ErrorReporter::addError(
             SOURCE_LOC, "Unsupported use of bound variable.", callInstruction);

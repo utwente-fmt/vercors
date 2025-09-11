@@ -4272,6 +4272,7 @@ final case class LLVMTStruct[G](
     packed: Boolean,
     isLiteral: Boolean,
     elements: Seq[Type[G]],
+    sizeBytes: Int, // Number of bytes that are allocated for this type
 )(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with LLVMTStructImpl[G]
 final case class LLVMTArray[G](numElements: Long, elementType: Type[G])(

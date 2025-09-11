@@ -15,13 +15,16 @@ const std::string SOURCE_LOC = "Transform::Transform";
 namespace col = vct::col::ast;
 
 void llvm2col::transformAndSetPointerType(llvm::Type &llvmType,
-                                          col::Type &colType) {
+                                          col::Type &colType,
+                                          const llvm::DataLayout &dataLayout) {
     col::LlvmtPointer *pointerType = colType.mutable_llvmt_pointer();
     pointerType->set_allocated_origin(generateTypeOrigin(llvmType));
-    llvm2col::transformAndSetType(llvmType, *pointerType->mutable_inner_type());
+    llvm2col::transformAndSetType(llvmType, *pointerType->mutable_inner_type(),
+                                  dataLayout);
 }
 
-void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType) {
+void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType,
+                                   const llvm::DataLayout &dataLayout) {
     switch (llvmType.getTypeID()) {
     case llvm::Type::IntegerTyID:
         if (llvmType.getIntegerBitWidth() == 1) {
@@ -106,10 +109,12 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType) {
             // won't be set for literal types
             colStruct->set_name(structType.getName().str());
         }
+        colStruct->set_size_bytes(dataLayout.getTypeAllocSize(&structType));
         colStruct->set_is_literal(structType.isLiteral());
         colStruct->set_packed(structType.isPacked());
         for (llvm::Type *element : structType.elements()) {
-            llvm2col::transformAndSetType(*element, *colStruct->add_elements());
+            llvm2col::transformAndSetType(*element, *colStruct->add_elements(),
+                                          dataLayout);
         }
         break;
     }
@@ -118,7 +123,8 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType) {
         col::LlvmtArray *colArray = colType.mutable_llvmt_array();
         colArray->set_allocated_origin(generateTypeOrigin(llvmType));
         llvm2col::transformAndSetType(*arrayType.getElementType(),
-                                      *colArray->mutable_element_type());
+                                      *colArray->mutable_element_type(),
+                                      dataLayout);
         colArray->set_num_elements(arrayType.getNumElements());
         break;
     }
@@ -128,7 +134,8 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType) {
         col::LlvmtVector *colVector = colType.mutable_llvmt_vector();
         colVector->set_allocated_origin(generateTypeOrigin(llvmType));
         llvm2col::transformAndSetType(*vectorType.getElementType(),
-                                      *colVector->mutable_element_type());
+                                      *colVector->mutable_element_type(),
+                                      dataLayout);
         colVector->set_num_elements(
             vectorType.getElementCount().getKnownMinValue());
         break;
@@ -147,7 +154,8 @@ void llvm2col::transformAndSetExpr(pallas::FunctionCursor &functionCursor,
     if (llvm::isa<llvm::Constant>(llvmOperand)) {
         transformAndSetConstExpr(
             functionCursor.getFunctionAnalysisManager(), origin,
-            llvm::cast<llvm::Constant>(llvmOperand), colExpr);
+            llvm::cast<llvm::Constant>(llvmOperand), colExpr,
+            llvmInstruction.getModule()->getDataLayout());
     } else {
         transformAndSetVarExpr(functionCursor, origin,
                                llvmInstruction.getOpcode() ==
@@ -170,14 +178,16 @@ void llvm2col::transformAndSetVarExpr(pallas::FunctionCursor &functionCursor,
 void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
                                         col::Origin *origin,
                                         llvm::Constant &llvmConstant,
-                                        col::Expr &colExpr) {
+                                        col::Expr &colExpr,
+                                        const llvm::DataLayout &dataLayout) {
     if (llvm::isa<llvm::ConstantAggregateZero>(llvmConstant)) {
         col::LlvmZeroedAggregateValue *colZero =
             colExpr.mutable_llvm_zeroed_aggregate_value();
 
         colZero->set_allocated_origin(origin);
         llvm2col::transformAndSetType(*llvmConstant.getType(),
-                                      *colZero->mutable_aggregate_type());
+                                      *colZero->mutable_aggregate_type(),
+                                      dataLayout);
         return;
     }
     llvm::Type *constType = llvmConstant.getType();
@@ -321,11 +331,12 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
             llvm2col::transformAndSetConstExpr(
                 FAM, llvm2col::deepenOperandOrigin(*origin, *operand.get()),
                 llvm::cast<llvm::Constant>(*operand.get()),
-                *colStruct->add_value());
+                *colStruct->add_value(), dataLayout);
         }
         colStruct->set_allocated_origin(origin);
         llvm2col::transformAndSetType(*llvmStruct.getType(),
-                                      *colStruct->mutable_struct_type());
+                                      *colStruct->mutable_struct_type(),
+                                      dataLayout);
 
         break;
     }
@@ -339,11 +350,12 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
                 llvm2col::transformAndSetConstExpr(
                     FAM, llvm2col::deepenOperandOrigin(*origin, *operand.get()),
                     llvm::cast<llvm::Constant>(*operand.get()),
-                    *colArray->add_value());
+                    *colArray->add_value(), dataLayout);
             }
             colArray->set_allocated_origin(origin);
             llvm2col::transformAndSetType(*llvmArray.getType(),
-                                          *colArray->mutable_array_type());
+                                          *colArray->mutable_array_type(),
+                                          dataLayout);
         } else {
             llvm::ConstantDataArray &llvmArray =
                 llvm::cast<llvm::ConstantDataArray>(llvmConstant);
@@ -358,7 +370,8 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
             llvm::errs() << "Array constant " << llvmArray << " has type "
                          << *llvmArray.getType() << "\n";
             llvm2col::transformAndSetType(*llvmArray.getType(),
-                                          *colArray->mutable_array_type());
+                                          *colArray->mutable_array_type(),
+                                          dataLayout);
         }
 
         break;
@@ -374,11 +387,12 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
                 llvm2col::transformAndSetConstExpr(
                     FAM, llvm2col::deepenOperandOrigin(*origin, *operand.get()),
                     llvm::cast<llvm::Constant>(*operand.get()),
-                    *colVector->add_value());
+                    *colVector->add_value(), dataLayout);
             }
             colVector->set_allocated_origin(origin);
             llvm2col::transformAndSetType(*llvmVector.getType(),
-                                          *colVector->mutable_vector_type());
+                                          *colVector->mutable_vector_type(),
+                                          dataLayout);
         } else {
             llvm::ConstantDataVector &llvmVector =
                 llvm::cast<llvm::ConstantDataVector>(llvmConstant);
@@ -391,7 +405,8 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
             colVector->set_value(llvmVector.getRawDataValues().str());
             colVector->set_allocated_origin(origin);
             llvm2col::transformAndSetType(*llvmVector.getType(),
-                                          *colVector->mutable_vector_type());
+                                          *colVector->mutable_vector_type(),
+                                          dataLayout);
         }
 
         break;
