@@ -11,6 +11,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.util.{CurrentProgramContext, SubstituteReferences, SuccessionMap}
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 
+import scala.:+
 import scala.collection.mutable
 
 case object LangLLVMToCol {
@@ -1407,48 +1408,24 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       throw UnsupportedMemset(memset)
     }
 
-    // TODO: Slap a block here to put the assignments in
-    // val fieldAssignments = mutable.Seq[Assign[Post]]
-
     // Set all fields of the struct to 0
-    structType.elements.zipWithIndex.foreach { case (fieldT, idx) =>
-      val intT =
-        fieldT match {
-          case t: LLVMTInt[Pre] => t
-          case _ => throw UnsupportedMemset(memset)
-        }
-      val structField = structFieldMap((structType, idx))
-      Assign[Post](
-        Deref[Post](
-          DerefPointer(rw.dispatch(memset.dest))(memset.blame),
-          structField.ref,
-        )(memset.blame),
-        // TODO: Change this to the correct integer type
-        rw.dispatch(LLVMIntegerValue[Pre](0, intT)),
-        // rw.dispatch(memset.value),
-      )(memset.blame)
-
+    val fieldAssignments = structType.elements.zipWithIndex.map {
+      case (fieldT, idx) =>
+        val intT =
+          fieldT match {
+            case t: LLVMTInt[Pre] => t
+            case _ => throw UnsupportedMemset(memset)
+          }
+        val structField = structFieldMap((structType, idx))
+        Assign[Post](
+          Deref[Post](
+            DerefPointer(rw.dispatch(memset.dest))(memset.blame),
+            structField.ref,
+          )(memset.blame),
+          rw.dispatch(LLVMIntegerValue[Pre](0, intT))
+        )(memset.blame)
     }
-
-    /*
-    if (!structType.packed || !(structType.elements.size == 1)) {
-      throw UnsupportedMemset(memset)
-    }
-    structType.elements.head match {
-      case LLVMTInt(bits) if (bits / 8) == numBytes =>
-      case _ => throw UnsupportedMemset(memset)
-    }
-
-    // Set field of the struct to 0
-    val structField = structFieldMap((structType, 0))
-    Assign[Post](
-      Deref[Post](
-        DerefPointer(rw.dispatch(memset.dest))(memset.blame),
-        structField.ref,
-      )(memset.blame),
-      rw.dispatch(memset.value),
-    )(memset.blame)
-     */
+    Block(fieldAssignments)
   }
 
   def rewritePointerValue(pointer: LLVMPointerValue[Pre]): Expr[Post] = {
