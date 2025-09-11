@@ -106,6 +106,7 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType) {
             // won't be set for literal types
             colStruct->set_name(structType.getName().str());
         }
+        colStruct->set_is_literal(structType.isLiteral());
         colStruct->set_packed(structType.isPacked());
         for (llvm::Type *element : structType.elements()) {
             llvm2col::transformAndSetType(*element, *colStruct->add_elements());

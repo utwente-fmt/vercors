@@ -4270,6 +4270,7 @@ final case class LLVMTMetadata[G]()(implicit val o: Origin = DiagnosticOrigin)
 final case class LLVMTStruct[G](
     name: Option[String],
     packed: Boolean,
+    isLiteral: Boolean,
     elements: Seq[Type[G]],
 )(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with LLVMTStructImpl[G]
