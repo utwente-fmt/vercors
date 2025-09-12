@@ -1397,7 +1397,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val structType =
       memset.dest match {
         case Local(Ref(v)) =>
-          v.t match {
+          getLocalVarType(v) match {
             case LLVMTPointer(Some(s: LLVMTStruct[Pre])) => s
             case _ => throw UnsupportedMemset(memset)
           }
@@ -1422,7 +1422,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             DerefPointer(rw.dispatch(memset.dest))(memset.blame),
             structField.ref,
           )(memset.blame),
-          rw.dispatch(LLVMIntegerValue[Pre](0, intT))
+          rw.dispatch(LLVMIntegerValue[Pre](0, intT)),
         )(memset.blame)
     }
     Block(fieldAssignments)
