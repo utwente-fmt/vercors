@@ -8,8 +8,6 @@ adt `block` {
   pure `block` loc_inv_1(ref r);
   pure int loc_inv_2(ref r);
 
-  pure `block` addr_inv(int address);
-
   // block length is non-negative
   axiom (\forall `block` b; {:block_length(b):} >= 0);
 
