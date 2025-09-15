@@ -1569,7 +1569,7 @@ final case class ModelDeref[G](obj: Expr[G], ref: Ref[G, ModelField[G]])(
     val blame: Blame[ModelInsufficientPermission]
 )(implicit val o: Origin)
     extends Expr[G] with ModelDerefImpl[G]
-final case class DerefPointer[G](pointer: Expr[G])(
+final case class DerefPointer[G](pointer: Expr[G], typeSize: Expr[G])(
     val blame: Blame[PointerDerefError]
 )(implicit val o: Origin)
     extends Expr[G] with DerefPointerImpl[G] with PossibleTrigger[G]
@@ -1579,17 +1579,24 @@ final case class PointerAdd[G](
     typeSize: Expr[G],
 )(val blame: Blame[PointerAddError])(implicit val o: Origin)
     extends Expr[G] with PointerAddImpl[G] with PossibleTrigger[G]
-final case class PointerToAdt[G](pointer: Expr[G], t: Type[G])(
-    val blame: Blame[PointerNull]
-)(implicit val o: Origin)
+final case class PointerToAdt[G](
+    pointer: Expr[G],
+    t: Type[G],
+    typeSize: Expr[G],
+)(val blame: Blame[PointerNull])(implicit val o: Origin)
     extends Expr[G] with PointerToAdtImpl[G] with PossibleTrigger[G]
-final case class AddrOf[G](e: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with AddrOfImpl[G]
-final case class AddrOfConstCast[G](e: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with AddrOfConstCastImpl[G]
-final case class AddrOfUniqueCast[G](e: Expr[G], unique: BigInt)(
+final case class AddrOf[G](e: Expr[G], typeSize: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with AddrOfUniqueCastImpl[G]
+) extends Expr[G] with AddrOfImpl[G]
+final case class AddrOfConstCast[G](e: Expr[G], typeSize: Expr[G])(
+    implicit val o: Origin
+) extends Expr[G] with AddrOfConstCastImpl[G]
+final case class AddrOfUniqueCast[G](
+    e: Expr[G],
+    unique: BigInt,
+    typeSize: Expr[G],
+)(implicit val o: Origin)
+    extends Expr[G] with AddrOfUniqueCastImpl[G]
 final case class FunctionOf[G](
     binding: Ref[G, Variable[G]],
     vars: Seq[Ref[G, Variable[G]]],
@@ -1981,7 +1988,7 @@ final case class ArrayLocation[G](array: Expr[G], subscript: Expr[G])(
     val blame: Blame[ArrayLocationError]
 )(implicit val o: Origin)
     extends Location[G] with ArrayLocationImpl[G]
-final case class PointerLocation[G](pointer: Expr[G])(
+final case class PointerLocation[G](pointer: Expr[G], typeSize: Expr[G])(
     val blame: Blame[PointerLocationError]
 )(implicit val o: Origin)
     extends Location[G] with PointerLocationImpl[G]
@@ -1990,7 +1997,7 @@ final case class ByValueClassLocation[G](expr: Expr[G])(implicit val o: Origin)
 final case class PredicateLocation[G](inv: ApplyAnyPredicate[G])(
     implicit val o: Origin
 ) extends Location[G] with PredicateLocationImpl[G]
-final case class AmbiguousLocation[G](expr: Expr[G])(
+final case class AmbiguousLocation[G](expr: Expr[G], typeSize: Expr[G])(
     val blame: Blame[PointerLocationError]
 )(implicit val o: Origin)
     extends Location[G] with AmbiguousLocationImpl[G]

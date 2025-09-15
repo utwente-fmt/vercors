@@ -199,7 +199,10 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
       case AutoValue(ByValueClassLocation(e)) =>
         unwrapClassPerm(dispatch(e), AutoValue(_), e.t.asByValueClass.get)
       // Only doing this for TNonNullPointer pointers since those originate from the frontend and users can define heap variables of the normal TPointer pointer type
-      case Perm(pl @ PointerLocation(dhv @ DerefHeapVariable(Ref(v))), p)
+      case Perm(
+            pl @ PointerLocation(dhv @ DerefHeapVariable(Ref(v)), typeSize),
+            p,
+          )
           if v.t.isInstanceOf[TNonNullPointer[Pre]] ||
             v.t.isInstanceOf[TNonNullConstPointer[Pre]] =>
         val t = v.t.asPointer.get
@@ -207,7 +210,10 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
           val newV: Ref[Post, HeapVariable[Post]] = succ(v)
           val newP = dispatch(p)
           Perm(HeapVariableLocation(newV), newP) &* Perm(
-            PointerLocation(DerefHeapVariable(newV)(dhv.blame))(pl.blame),
+            PointerLocation(
+              DerefHeapVariable(newV)(dhv.blame),
+              dispatch(typeSize),
+            )(pl.blame),
             newP,
           )
         } else { node.rewriteDefault() }
@@ -248,7 +254,12 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
         })
       case Local(Ref(v))
           if inContract.isEmpty && heapLocalArgSucc.contains(v) =>
-        heapLocalArgSucc(v).get(PanicBlame(
+        DerefPointer(
+          HeapLocal[Post](heapLocalArgSucc.ref(v)),
+          dispatch(
+            v.t.asByValueClass.get.cls.asInstanceOf[ByValueClass[Pre]].size
+          ),
+        )(PanicBlame(
           "Missing permission to procedure argument of struct type, no suitable blame available"
         ))
       case _ => node.rewriteDefault()
@@ -270,14 +281,20 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
                 localHeapVariables.scope {
                   Block(byValueArgs.flatMap { v =>
                     val newVar =
-                      new LocalHeapVariable(
+                      new LocalHeapVariable[Post](
                         TNonNullPointer(dispatch(v.t), None)
                       )
                     heapLocalArgSucc(v) = newVar
                     Seq(
                       HeapLocalDecl(newVar),
                       Assign(
-                        newVar.get(PanicBlame(
+                        DerefPointer(
+                          HeapLocal[Post](newVar.ref),
+                          dispatch(
+                            v.t.asByValueClass.get.cls
+                              .asInstanceOf[ByValueClass[Pre]].size
+                          ),
+                        )(PanicBlame(
                           "Should always have access to local variable just after declaration"
                         )),
                         Local[Post](succ(v)),
@@ -339,7 +356,7 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
           target,
           context,
         )
-      case dp @ DerefPointer(_) =>
+      case dp @ DerefPointer(_, _) =>
         rewriteInCopyContext2(dispatch(dp), dp.blame, t, target, context)
       case ps @ PointerSubscript(_, _, _) =>
         rewriteInCopyContext2(dispatch(ps), ps.blame, t, target, context)
@@ -352,7 +369,12 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
         Block(Seq(dispatch(pre), doCopy(value, target, t, context)))(e.o)
       case Local(Ref(v)) if heapLocalArgSucc.contains(v) =>
         rewriteInCopyContext2(
-          heapLocalArgSucc(v).get(PanicBlame(
+          DerefPointer(
+            HeapLocal[Post](heapLocalArgSucc.ref(v))(e.o),
+            dispatch(
+              v.t.asByValueClass.get.cls.asInstanceOf[ByValueClass[Pre]].size
+            ),
+          )(PanicBlame(
             "Missing permission to procedure argument of struct type, no suitable blame available"
           ))(e.o),
           PanicBlame(

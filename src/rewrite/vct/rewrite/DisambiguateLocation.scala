@@ -22,7 +22,7 @@ case object DisambiguateLocation extends RewriterBuilder {
     private def hint: Option[String] =
       if (expr.t.asPointer.isDefined) {
         expr match {
-          case AddrOf(_) =>
+          case AddrOf(_, _) =>
             Some(
               " (Hint: perhaps you meant to access this location, i.e. remove the `&`)"
             )
@@ -83,14 +83,19 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
         )(expr.o)
       case expr if expr.t.asByValueClass.isDefined =>
         ByValueClassLocation(dispatch(expr))
-      case dp @ DerefPointer(p) => PointerLocation(dispatch(p))(dp.blame)
-      case pas @ PointerArraySubscript(_, _, _) =>
-        PointerLocation(AddrOf(dispatch(pas)))(pas.blame)
+      case dp @ DerefPointer(p, typeSize) =>
+        PointerLocation(dispatch(p), dispatch(typeSize))(dp.blame)
+      case pas @ PointerArraySubscript(_, _, typeSize) =>
+        PointerLocation(
+          AddrOf(dispatch(pas), dispatch(typeSize)),
+          dispatch(typeSize),
+        )(pas.blame)
       case ps @ PointerSubscript(p, index, size) =>
         PointerLocation(
           PointerAdd(dispatch(p), dispatch(index), dispatch(size))(
             PointerSubscriptToAddBlame(ps.blame)
-          )
+          ),
+          dispatch(size),
         )(ps.blame)
       case DerefHeapVariable(ref) => HeapVariableLocation(succ(ref.decl))
       case Deref(obj, ref) => FieldLocation(dispatch(obj), succ(ref.decl))
@@ -105,7 +110,7 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(loc: Location[Pre]): Location[Post] =
     loc match {
-      case location @ AmbiguousLocation(expr) =>
+      case location @ AmbiguousLocation(expr, _) =>
         exprToLoc(expr, location.blame)(loc.o)
       case other => super.dispatch(other)
     }

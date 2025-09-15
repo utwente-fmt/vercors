@@ -5,6 +5,7 @@ import vct.col.ast.{
   Assign,
   AutoValue,
   Block,
+  ByValueClass,
   ByValueClassLocation,
   DecreasesClauseNoRecursion,
   Deref,
@@ -99,7 +100,10 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
         contractBlame = TrueSatisfiable,
         returnType = TNonNullPointer(dispatch(t), unique),
         ensures = UnitAccountedPredicate(unwrapClassPerm(
-          DerefPointer(result)(NonNullPointerNull),
+          DerefPointer(
+            result,
+            dispatch(t.cls.decl.asInstanceOf[ByValueClass[Pre]].size),
+          )(NonNullPointerNull),
           Perm(_, WritePerm()),
           t,
         )),
@@ -142,7 +146,7 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     val dereferencedHeapLocals = program.collect {
-      case DerefPointer(hl @ HeapLocal(_)) => System.identityHashCode(hl)
+      case DerefPointer(hl @ HeapLocal(_), _) => System.identityHashCode(hl)
     }
     val nakedHeapLocals = program.collect {
       case hl @ HeapLocal(Ref(v))
@@ -150,9 +154,9 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
         v
     }
     val dereferencedHeapGlobals = program.collect {
-      case PointerLocation(hl @ DerefHeapVariable(_)) =>
+      case PointerLocation(hl @ DerefHeapVariable(_), _) =>
         System.identityHashCode(hl)
-      case DerefPointer(hl @ DerefHeapVariable(_)) =>
+      case DerefPointer(hl @ DerefHeapVariable(_), _) =>
         System.identityHashCode(hl)
     }
     val nakedHeapGlobals = program.collect {
@@ -246,9 +250,9 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(node: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = node.o
     node match {
-      case DerefPointer(HeapLocal(Ref(v))) if localStripped.contains(v) =>
+      case DerefPointer(HeapLocal(Ref(v)), _) if localStripped.contains(v) =>
         localStripped(v).get
-      case DerefPointer(deref @ DerefHeapVariable(Ref(v)))
+      case DerefPointer(deref @ DerefHeapVariable(Ref(v)), _)
           if globalStripped.contains(v) =>
         DerefHeapVariable[Post](globalStripped(v).ref)(deref.blame)
       case HeapLocal(Ref(v)) if localLowered.contains(v) => {
@@ -258,7 +262,7 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
       // This case originates from HeapVariableLocations
       case Perm(
             f @ FieldLocation(
-              DerefPointer(deref @ DerefHeapVariable(Ref(v))),
+              DerefPointer(deref @ DerefHeapVariable(Ref(v)), _),
               field,
             ),
             perm,
@@ -276,7 +280,7 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
         )
       case Value(
             f @ FieldLocation(
-              DerefPointer(deref @ DerefHeapVariable(Ref(v))),
+              DerefPointer(deref @ DerefHeapVariable(Ref(v)), _),
               field,
             )
           ) if globalStripped.contains(v) =>
@@ -292,7 +296,7 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
         )
       case AutoValue(
             f @ FieldLocation(
-              DerefPointer(deref @ DerefHeapVariable(Ref(v))),
+              DerefPointer(deref @ DerefHeapVariable(Ref(v)), _),
               field,
             )
           ) if globalStripped.contains(v) =>
@@ -308,7 +312,7 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
         )
       case Perm(location, _) =>
         val nonStripped = location.collect {
-          case DerefPointer(DerefHeapVariable(Ref(v)))
+          case DerefPointer(DerefHeapVariable(Ref(v)), _)
               if !globalStripped.contains(v) =>
             v
         }
@@ -319,7 +323,7 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
         )
       case Value(location) =>
         val nonStripped = location.collect {
-          case DerefPointer(DerefHeapVariable(Ref(v)))
+          case DerefPointer(DerefHeapVariable(Ref(v)), _)
               if !globalStripped.contains(v) =>
             v
         }
@@ -330,7 +334,7 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
         )
       case AutoValue(location) =>
         val nonStripped = location.collect {
-          case DerefPointer(DerefHeapVariable(Ref(v)))
+          case DerefPointer(DerefHeapVariable(Ref(v)), _)
               if !globalStripped.contains(v) =>
             v
         }
@@ -346,7 +350,7 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(loc: Location[Pre]): Location[Post] = {
     implicit val o: Origin = loc.o
     loc match {
-      case PointerLocation(DerefHeapVariable(Ref(v)))
+      case PointerLocation(DerefHeapVariable(Ref(v)), _)
           if globalStripped.contains(v) =>
         HeapVariableLocation[Post](globalStripped(v).ref)
       case _ => loc.rewriteDefault()

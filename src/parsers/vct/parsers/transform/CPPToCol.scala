@@ -612,9 +612,10 @@ case class CPPToCol[G](
           target,
           col.AmbiguousMinus(target, c_const(1))(blame(expr)),
         )(blame(expr))
-      case UnaryExpression3(UnaryOperator0(_), arg) => AddrOf(convert(arg))
+      case UnaryExpression3(UnaryOperator0(_), arg) =>
+        AddrOf(convert(arg), const(0))
       case UnaryExpression3(UnaryOperator1(_), arg) =>
-        DerefPointer(convert(arg))(blame(expr))
+        DerefPointer(convert(arg), const(0))(blame(expr))
       case UnaryExpression3(UnaryOperator2(_), arg) => convert(arg)
       case UnaryExpression3(UnaryOperator3(_), arg) => UMinus(convert(arg))
       case UnaryExpression3(UnaryOperator5(_), arg) => col.Not(convert(arg))
@@ -2129,16 +2130,16 @@ case class CPPToCol[G](
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] =
     e match {
       case ValCurPerm(_, _, loc, _) =>
-        CurPerm(AmbiguousLocation(convert(loc))(blame(e)))
+        CurPerm(AmbiguousLocation(convert(loc), const(0))(blame(e)))
       case ValPerm(_, _, loc, _, perm, _) =>
-        Perm(AmbiguousLocation(convert(loc))(blame(e)), convert(perm))
+        Perm(AmbiguousLocation(convert(loc), const(0))(blame(e)), convert(perm))
       case ValValue(_, _, loc, _) =>
-        Value(AmbiguousLocation(convert(loc))(blame(e)))
+        Value(AmbiguousLocation(convert(loc), const(0))(blame(e)))
       case ValAutoValue(_, _, loc, _) =>
-        AutoValue(AmbiguousLocation(convert(loc))(blame(e)))
+        AutoValue(AmbiguousLocation(convert(loc), const(0))(blame(e)))
       case ValPointsTo(_, _, loc, _, perm, _, v, _) =>
         PointsTo(
-          AmbiguousLocation(convert(loc))(blame(e)),
+          AmbiguousLocation(convert(loc), const(0))(blame(e)),
           convert(perm),
           convert(v),
         )
@@ -2219,7 +2220,7 @@ case class CPPToCol[G](
       case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
         ForPerm(
           convert(bindings),
-          AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)),
+          AmbiguousLocation(convert(loc), const(0))(blame(loc))(origin(loc)),
           convert(body),
         )
       case ValForPermWithValue(_, _, _, id, _, body, _) =>

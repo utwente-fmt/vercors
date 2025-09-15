@@ -361,16 +361,16 @@ case class LLVMContractToCol[G](
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] =
     e match {
       case ValCurPerm(_, _, loc, _) =>
-        CurPerm(AmbiguousLocation(convert(loc))(blame(e)))
+        CurPerm(AmbiguousLocation(convert(loc), const(0))(blame(e)))
       case ValPerm(_, _, loc, _, perm, _) =>
-        Perm(AmbiguousLocation(convert(loc))(blame(e)), convert(perm))
+        Perm(AmbiguousLocation(convert(loc), const(0))(blame(e)), convert(perm))
       case ValValue(_, _, loc, _) =>
-        Value(AmbiguousLocation(convert(loc))(blame(e)))
+        Value(AmbiguousLocation(convert(loc), const(0))(blame(e)))
       case ValAutoValue(_, _, loc, _) =>
-        AutoValue(AmbiguousLocation(convert(loc))(blame(e)))
+        AutoValue(AmbiguousLocation(convert(loc), const(0))(blame(e)))
       case ValPointsTo(_, _, loc, _, perm, _, v, _) =>
         PointsTo(
-          AmbiguousLocation(convert(loc))(blame(e)),
+          AmbiguousLocation(convert(loc), const(0))(blame(e)),
           convert(perm),
           convert(v),
         )
@@ -422,7 +422,7 @@ case class LLVMContractToCol[G](
       case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
         ForPerm(
           convert(bindings),
-          AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)),
+          AmbiguousLocation(convert(loc), const(0))(blame(loc))(origin(loc)),
           convert(body),
         )
     }

@@ -2658,13 +2658,16 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         tt
       case Value(FieldLocation(obj, _)) if obj.equals(this.currentThis.get) =>
         tt
-      case Perm(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)), _)
+      case Perm(AmbiguousLocation(ArraySubscript(Deref(obj, _), _), _), _)
           if obj.equals(this.currentThis.get) =>
         tt
-      case PointsTo(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)), _, _)
-          if obj.equals(this.currentThis.get) =>
+      case PointsTo(
+            AmbiguousLocation(ArraySubscript(Deref(obj, _), _), _),
+            _,
+            _,
+          ) if obj.equals(this.currentThis.get) =>
         tt
-      case Value(AmbiguousLocation(ArraySubscript(Deref(obj, _), _)))
+      case Value(AmbiguousLocation(ArraySubscript(Deref(obj, _), _), _))
           if obj.equals(this.currentThis.get) =>
         tt
       case Implies(left, right) =>

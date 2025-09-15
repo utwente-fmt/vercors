@@ -179,7 +179,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
               makeStruct.makePerm(
                 i =>
                   PointerLocation(
-                    PointerAdd(ptr, i.get, typeSize)(FramedPtrOffset)
+                    PointerAdd(ptr, i.get, typeSize)(FramedPtrOffset),
+                    typeSize,
                   )(FramedPtrOffset),
                 IteratedPtrInjective,
               ),
@@ -578,7 +579,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           ensures &* makeStruct.makePerm(
             i =>
               PointerLocation(
-                PointerAdd(result, i.get, typeSize)(FramedPtrOffset)
+                PointerAdd(result, i.get, typeSize)(FramedPtrOffset),
+                typeSize,
               )(FramedPtrOffset),
             IteratedPtrInjective,
           )

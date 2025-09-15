@@ -22,11 +22,11 @@ trait AddrOfImpl[G] extends AddrOfOps[G] {
   this: AddrOf[G] =>
   override lazy val t: Type[G] = {
     e match {
-      case DerefPointer(p) => p.t
+      case DerefPointer(p, _) => p.t
       // commented out because if p is a CTArray this gives the wrong type case AmbiguousSubscript(p, _) => p.t
       case PointerSubscript(p, _, _) => p.t
-      case AddrOfConstCast(e) => TConstPointer(e.t)
-      case AddrOfUniqueCast(e, unique) => TPointer(e.t, Some(unique))
+      case AddrOfConstCast(e, _) => TConstPointer(e.t)
+      case AddrOfUniqueCast(e, unique, _) => TPointer(e.t, Some(unique))
       case d @ Deref(_, Ref(f)) =>
         TNonNullPointer(
           d.t,

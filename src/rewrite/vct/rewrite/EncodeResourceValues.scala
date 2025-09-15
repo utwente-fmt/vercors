@@ -83,7 +83,8 @@ case class EncodeResourceValues[Pre <: Generation]()
     final case class SilverFieldLocation(ref: col.SilverField[Pre])
         extends ResourcePatternLoc
     final case class ArrayLocation(t: Type[Pre]) extends ResourcePatternLoc
-    final case class PointerLocation(t: Type[Pre]) extends ResourcePatternLoc
+    final case class PointerLocation(t: Type[Pre], typeSize: Expr[Pre])
+        extends ResourcePatternLoc
     final case class PredicateLocation(ref: col.Predicate[Pre])
         extends ResourcePatternLoc
     final case class InstancePredicateLocation(ref: col.InstancePredicate[Pre])
@@ -98,8 +99,8 @@ case class EncodeResourceValues[Pre <: Generation]()
           SilverFieldLocation(field.decl)
         case col.ArrayLocation(arr, _) =>
           ArrayLocation(arr.t.asArray.get.element)
-        case col.PointerLocation(ptr) =>
-          PointerLocation(ptr.t.asPointer.get.element)
+        case col.PointerLocation(ptr, size) =>
+          PointerLocation(ptr.t.asPointer.get.element, size)
         case col.PredicateLocation(PredicateApply(predicate, _)) =>
           PredicateLocation(predicate.decl)
         case col.PredicateLocation(InstancePredicateApply(_, predicate, _)) =>
@@ -107,7 +108,7 @@ case class EncodeResourceValues[Pre <: Generation]()
         case col.PredicateLocation(CoalesceInstancePredicateApply(obj, _, _)) =>
           throw UnknownResourceValue(obj)
         case col.InLinePatternLocation(loc, _) => scan(loc)
-        case AmbiguousLocation(expr) => throw UnknownResourceValue(expr)
+        case AmbiguousLocation(expr, _) => throw UnknownResourceValue(expr)
       }
 
     def scan(e: Expr[Pre]): ResourcePattern =
@@ -205,7 +206,7 @@ case class EncodeResourceValues[Pre <: Generation]()
             case ResourcePattern.SilverFieldLocation(_) => Seq(TRef())
             case ResourcePattern.ArrayLocation(t) =>
               Seq(TArray(dispatch(t)), TInt())
-            case ResourcePattern.PointerLocation(t) =>
+            case ResourcePattern.PointerLocation(t, _) =>
               Seq(TPointer(dispatch(t), None))
             case ResourcePattern.PredicateLocation(ref) =>
               ref.args.map(_.t).map(dispatch)
@@ -293,7 +294,8 @@ case class EncodeResourceValues[Pre <: Generation]()
               Seq(dispatch(ref))
             case ResourcePattern.ArrayLocation(_) -> ArrayLocation(arr, idx) =>
               Seq(dispatch(arr), dispatch(idx))
-            case ResourcePattern.PointerLocation(_) -> PointerLocation(ptr) =>
+            case ResourcePattern.PointerLocation(_, _) ->
+                PointerLocation(ptr, _) =>
               Seq(dispatch(ptr))
             case ResourcePattern.PredicateLocation(_) ->
                 PredicateLocation(PredicateApply(_, args)) =>
@@ -339,8 +341,8 @@ case class EncodeResourceValues[Pre <: Generation]()
               ArrayLocation(getters(0), getters(1))(PanicBlame(
                 "Design flaw: the structure should include wf somehow"
               ))
-            case ResourcePattern.PointerLocation(t) =>
-              PointerLocation(getters.head)(PanicBlame(
+            case ResourcePattern.PointerLocation(t, size) =>
+              PointerLocation(getters.head, dispatch(size))(PanicBlame(
                 "Design flaw: the structure should include wf somehow"
               ))
             case ResourcePattern.PredicateLocation(ref) =>

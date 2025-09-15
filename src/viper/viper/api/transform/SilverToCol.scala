@@ -423,7 +423,7 @@ case class SilverToCol[G](
           col.BagAdd(f(left), f(right))
       case silver.CondExp(cond, thn, els) => col.Select(f(cond), f(thn), f(els))
       case silver.CurrentPerm(res) =>
-        col.CurPerm(col.AmbiguousLocation(f(res))(
+        col.CurPerm(col.AmbiguousLocation(f(res), const(0))(
           vct.col.origin.PanicBlame("Silver does not have pointers.")
         ))
       case silver.Div(left, right) => col.FloorDiv(f(left), f(right))(blame(e))
@@ -558,7 +558,7 @@ case class SilverToCol[G](
       case silver.ForPerm(variables, resource, body) =>
         col.ForPerm(
           variables.map(transform),
-          col.AmbiguousLocation(f(resource))(blame(resource)),
+          col.AmbiguousLocation(f(resource), const(0))(blame(resource)),
           f(body),
         )
       case silver.EpsilonPerm() => ??(e)

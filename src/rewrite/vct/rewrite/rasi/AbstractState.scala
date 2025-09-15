@@ -419,7 +419,7 @@ case class AbstractState[G](
           case None =>
             resolve_integer_expression(exp, is_old = true, is_contract)
         }
-      case Local(_) | DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) |
+      case Local(_) | DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_, _) |
           AmbiguousSubscript(_, _, _) | SeqSubscript(_, _) |
           ArraySubscript(_, _) | PointerSubscript(_, _, _) =>
         variable_from_expr(expr) match {
@@ -567,7 +567,7 @@ case class AbstractState[G](
           case None =>
             resolve_boolean_expression(exp, is_old = true, is_contract)
         }
-      case Local(_) | DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_) |
+      case Local(_) | DerefHeapVariable(_) | Deref(_, _) | DerefPointer(_, _) |
           AmbiguousSubscript(_, _, _) | SeqSubscript(_, _) |
           ArraySubscript(_, _) | PointerSubscript(_, _, _) =>
         variable_from_expr(expr) match {

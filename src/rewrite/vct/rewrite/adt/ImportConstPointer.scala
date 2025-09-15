@@ -117,7 +117,7 @@ case class ImportConstPointer[Pre <: Generation](importer: ImportADTImporter)
   override def preCoerce(e: Expr[Pre]): Expr[Pre] = {
     implicit val o: Origin = e.o
     e match {
-      case d @ DerefPointer(a @ PointerAdd(p, i, s)) =>
+      case d @ DerefPointer(a @ PointerAdd(p, i, s), _) =>
         PointerSubscript(p, i, s)(DerefAddToSubscriptBlame(d.blame, a.blame))
       case _ => super.preCoerce(e)
     }
@@ -164,7 +164,7 @@ case class ImportConstPointer[Pre <: Generation](importer: ImportADTImporter)
           case TConstPointer(_) => OptSome(inv)
           case TNonNullConstPointer(_) => inv
         }
-      case deref @ DerefPointer(pointer) if isConstPointer(pointer) =>
+      case deref @ DerefPointer(pointer, _) if isConstPointer(pointer) =>
         val inner = dispatch(getInner(pointer.t))
         FunctionInvocation[Post](
           ref = pointerDeref.ref,

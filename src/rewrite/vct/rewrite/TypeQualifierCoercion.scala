@@ -220,7 +220,7 @@ case class TypeQualifierCoercion[Pre <: Generation]()
 
   override def postCoerce(loc: Location[Pre]): Location[Post] =
     loc match {
-      case AmbiguousLocation(pointer) if isConstElement(pointer.t) =>
+      case AmbiguousLocation(pointer, _) if isConstElement(pointer.t) =>
         throw NoPermissionForConstPointer(loc)
       case other => other.rewriteDefault()
     }
@@ -309,39 +309,48 @@ case class TypeQualifierCoercion[Pre <: Generation]()
         }
       case DerefHeapVariable(ref) if isConstElement(ref.decl.t) =>
         functionInvocation(TrueSatisfiable, constGlobalHeapsSucc.ref(ref.decl))
-      case a @ AddrOf(deref @ DerefHeapVariable(ref))
+      case a @ AddrOf(deref @ DerefHeapVariable(ref), typeSize)
           if isConstElement(ref.decl.t) =>
         implicit val o: Origin = a.o
         val t = dispatch(ref.decl.t)
         val v = new Variable[Post](TNonNullConstPointer(t))
         val l = Local[Post](v.ref)
         val newP =
-          NewNonNullConstPointer(dispatch(ref.decl.t), const(1), ???)(
-            PanicBlame("Size >0")
-          )(a.o)
+          NewNonNullConstPointer(
+            dispatch(ref.decl.t),
+            const(1),
+            dispatch(typeSize),
+          )(PanicBlame("Size >0"))(a.o)
         ScopedExpr(
           Seq(v),
           With[Post](
             Block(Seq(
               Assign(l, newP)(AssignLocalOk),
               Assume(
-                DerefPointer(l)(PanicBlame("Not null & Size>0")) ===
-                  dispatch(deref)
+                DerefPointer(l, dispatch(typeSize))(PanicBlame(
+                  "Not null & Size>0"
+                )) === dispatch(deref)
               ),
             )),
             l,
           ),
         )
-      case a @ AddrOf(e) if isConstElement(e.t) =>
+      case a @ AddrOf(e, typeSize) if isConstElement(e.t) =>
         if (e.collectFirst { case Deref(_, _) => () }.isDefined)
           throw DisallowedQualifiedType(e)
-        AddrOf(AddrOfConstCast(postCoerce(e)))
-      case a @ AddrOf(e @ Local(_)) =>
+        AddrOf(
+          AddrOfConstCast(postCoerce(e), dispatch(typeSize)),
+          dispatch(typeSize),
+        )
+      case a @ AddrOf(e @ Local(_), typeSize) =>
         e.t match {
           case TUnique(_, unique) =>
             // Call getUnqualified to check if const and unique are mixed
             val _ = getUnqualified(e.t)
-            AddrOf(AddrOfUniqueCast(postCoerce(e), unique))
+            AddrOf(
+              AddrOfUniqueCast(postCoerce(e), unique, dispatch(typeSize)),
+              dispatch(typeSize),
+            )
           case _ => a.rewriteDefault()
         }
       case other => other.rewriteDefault()
@@ -888,7 +897,7 @@ case class MakeUniqueMethodCopies[Pre <: Generation]() extends Rewriter[Pre] {
         val newField = getNewField(obj.t, ref.decl)
         if (newField.isDefined) { d.rewrite(ref = newField.get.ref) }
         else { d.rewriteDefault() }
-      case e @ DerefPointer(p) =>
+      case e @ DerefPointer(p, _) =>
         e.rewrite(pointer = rewriteAnyPointerReturn(p))
       case e @ FreePointer(p, _) =>
         e.rewrite(pointer = rewriteAnyPointerReturn(p))

@@ -787,9 +787,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case ActionApply(action, args) =>
         ActionApply(action, coerceArgs(args, action.decl))
       case ActionPerm(loc, perm) => ActionPerm(loc, rat(perm))
-      case AddrOf(e) => AddrOf(e)
-      case AddrOfConstCast(e) => AddrOfConstCast(e)
-      case AddrOfUniqueCast(e, unique) => AddrOfUniqueCast(e, unique)
+      case AddrOf(e, typeSize) => AddrOf(e, typeSize)
+      case AddrOfConstCast(e, typeSize) => AddrOfConstCast(e, typeSize)
+      case AddrOfUniqueCast(e, unique, typeSize) =>
+        AddrOfUniqueCast(e, unique, typeSize)
       case ADTFunctionInvocation(typeArgs, ref, args) =>
         typeArgs match {
           case Some((adt, typeArgs)) =>
@@ -1317,7 +1318,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       // DerefVeyMontThread( TVeyMontThread[Pre](ref))
       case deref @ Deref(obj, ref) => Deref(cls(obj), ref)(deref.blame)
       case deref @ DerefHeapVariable(ref) => DerefHeapVariable(ref)(deref.blame)
-      case deref @ DerefPointer(p) => DerefPointer(pointer(p)._1)(deref.blame)
+      case deref @ DerefPointer(p, typeSize) =>
+        DerefPointer(pointer(p)._1, typeSize)(deref.blame)
       case Drop(xs, count) => Drop(seq(xs)._1, int(count))
       case Empty(obj) => Empty(sized(obj)._1)
       case EmptyProcess() => EmptyProcess()
@@ -1684,7 +1686,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case add @ PointerAdd(p, offset, size) =>
         PointerAdd(pointer(p)._1, int(offset), size)(add.blame)
-      case to @ PointerToAdt(p, t) => PointerToAdt(pointer(p)._1, t)(to.blame)
+      case to @ PointerToAdt(p, t, size) =>
+        PointerToAdt(pointer(p)._1, t, size)(to.blame)
       case blck @ PointerBlock(p) => PointerBlock(pointer(p)._1)(blck.blame)
       case addr @ PointerAddress(p, elementSize) =>
         PointerAddress(pointer(p)._1, elementSize)(addr.blame)
@@ -2844,11 +2847,12 @@ abstract class CoercingRewriter[Pre <: Generation]()
         SilverFieldLocation(ref(obj), field)
       case a @ ArrayLocation(arrayObj, subscript) =>
         ArrayLocation(array(arrayObj)._1, int(subscript))(a.blame)
-      case p @ PointerLocation(pointerExp) =>
-        PointerLocation(pointer(pointerExp)._1)(p.blame)
+      case p @ PointerLocation(pointerExp, typeSize) =>
+        PointerLocation(pointer(pointerExp)._1, typeSize)(p.blame)
       case ByValueClassLocation(expr) => node
       case PredicateLocation(inv) => PredicateLocation(inv)
-      case al @ AmbiguousLocation(expr) => AmbiguousLocation(expr)(al.blame)
+      case al @ AmbiguousLocation(expr, typeSize) =>
+        AmbiguousLocation(expr, typeSize)(al.blame)
       case patLoc @ InLinePatternLocation(loc, pat) =>
         InLinePatternLocation(loc, pat)
     }

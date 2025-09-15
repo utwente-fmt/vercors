@@ -88,10 +88,12 @@ case class DesugarPermissionOperators[Pre <: Generation]()
         ArraySubscript(array, subscript)(FramedArraySubscriptBlame(node.blame))(
           loc.o
         )
-      case node @ PointerLocation(pointer) =>
-        DerefPointer(pointer)(FramedPointerDerefBlame(node.blame))(loc.o)
+      case node @ PointerLocation(pointer, typeSize) =>
+        DerefPointer(pointer, typeSize)(FramedPointerDerefBlame(node.blame))(
+          loc.o
+        )
       case PredicateLocation(_) => throw PredicateValueError(loc)
-      case AmbiguousLocation(expr) => expr
+      case AmbiguousLocation(expr, _) => expr
       case InLinePatternLocation(loc, _) => extractValueFromLocation(loc)
     }
   }
@@ -153,7 +155,8 @@ case class DesugarPermissionOperators[Pre <: Generation]()
               i =>
                 (const(0) <= i && i < dispatch(len)) ==> Perm(
                   PointerLocation(
-                    PointerAdd(dispatch(p), i, dispatch(size))(FramedPtrOffset)
+                    PointerAdd(dispatch(p), i, dispatch(size))(FramedPtrOffset),
+                    dispatch(size),
                   )(FramedPtrOffset),
                   dispatch(perm),
                 ),
@@ -175,7 +178,8 @@ case class DesugarPermissionOperators[Pre <: Generation]()
             PointerLocation(
               PointerAdd(dispatch(p), dispatch(idx), dispatch(size))(
                 FramedPtrOffset
-              )
+              ),
+              dispatch(size),
             )(FramedPtrOffset),
             dispatch(perm),
           )

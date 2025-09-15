@@ -1788,9 +1788,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       Block(Seq(
         HeapLocalDecl(v),
         Assign(
-          v.get(PanicBlame(
-            "Dereferencing freshly declared struct should never fail"
-          )),
+          DerefPointer(HeapLocal[Post](v.ref), sizeOf(structT, init.o))(
+            PanicBlame(
+              "Dereferencing freshly declared struct should never fail"
+            )
+          ),
           rw.dispatch(init.init.get),
         )(AssignLocalOk),
       ))
@@ -1919,7 +1921,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case AmbiguousSubscript(arr: CLocal[Pre], _, _) => Seq(arr.ref.get)
       case AmbiguousPlus(l, r) if isPointer(l.t) && isNumeric(r.t) =>
         searchNames(l, original)
-      case AddrOf(inner) => searchNames(inner, original)
+      case AddrOf(inner, _) => searchNames(inner, original)
       case _ => throw UnsupportedBarrierPermission(original)
     }
 
@@ -1929,10 +1931,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   ): Seq[CNameTarget[Pre]] =
     loc match {
       case ArrayLocation(arr: CLocal[Pre], _) => Seq(arr.ref.get)
-      case PointerLocation(arr: CLocal[Pre]) => Seq(arr.ref.get)
-      case PointerLocation(PointerAdd(arr: CLocal[Pre], _, _)) =>
+      case PointerLocation(arr: CLocal[Pre], _) => Seq(arr.ref.get)
+      case PointerLocation(PointerAdd(arr: CLocal[Pre], _, _), _) =>
         Seq(arr.ref.get)
-      case AmbiguousLocation(expr) => searchNames(expr, original)
+      case AmbiguousLocation(expr, _) => searchNames(expr, original)
       case _ => throw UnsupportedBarrierPermission(original)
     }
 
@@ -2012,16 +2014,17 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 local.blame
               )
             if (isConst(t)) { derefHeap }
-            else { DerefPointer(derefHeap)(local.blame) }
+            else { DerefPointer(derefHeap, sizeOf(t, local.o))(local.blame) }
           case Some(_) =>
             // Is this ever possible? I.e. would it not be a RefCFunctionDefinition?
             throw NotAValue(local)
         }
       case ref: RefCLocalDeclaration[Pre]
           if cLocalHeapNameSuccessor.contains(ref) =>
-        DerefPointer(HeapLocal[Post](cLocalHeapNameSuccessor.ref(ref)))(
-          local.blame
-        )
+        DerefPointer(
+          HeapLocal[Post](cLocalHeapNameSuccessor.ref(ref)),
+          sizeOf(local.t, local.o),
+        )(local.blame)
       case ref: RefCLocalDeclaration[Pre] => Local(cNameSuccessor.ref(ref))
       case _: RefCudaVec[Pre] => throw NotAValue(local)
     }
@@ -2098,7 +2101,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             case t => throw WrongStructType(t)
           }
         Deref[Post](
-          DerefPointer(rw.dispatch(deref.struct))(b),
+          DerefPointer(
+            rw.dispatch(deref.struct),
+            sizeOf(deref.struct.t.asPointer.get.element, deref.o),
+          )(b),
           cStructFieldsSuccessor.ref((structRef.decl, struct.decls)),
         )(deref.blame)(deref.o)
     }

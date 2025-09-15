@@ -1210,7 +1210,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
       case VectorSubscript(e, offset) => getPatterns(offset) ++ getPatterns(e)
       case FunctionInvocation(_, args, Seq(), given, _, _) =>
         args.flatMap(getPatterns) ++ given.flatMap(g => getPatterns(g._2))
-      case DerefPointer(p) => getPatterns(p)
+      case DerefPointer(p, _) => getPatterns(p)
       case e: Expr[Pre] => Seq(e)
       case _ => Seq()
     }

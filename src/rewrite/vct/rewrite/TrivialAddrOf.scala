@@ -32,25 +32,25 @@ case object TrivialAddrOf extends RewriterBuilder {
 case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     e match {
-      case DerefPointer(PointerAdd(AddrOf(pointer), offset, _))
+      case DerefPointer(PointerAdd(AddrOf(pointer, _), offset, _), _)
           if offset.isInstanceOf[ConstantInt[Pre]] &&
             offset.asInstanceOf[ConstantInt[Pre]].value.signum == 0 =>
         dispatch(pointer)
-      case AddrOf(DerefPointer(p)) => dispatch(p)
+      case AddrOf(DerefPointer(p, _), _) => dispatch(p)
 
-      case AddrOf(sub @ PointerSubscript(p, i, typeSize)) =>
+      case AddrOf(sub @ PointerSubscript(p, i, typeSize), _) =>
         PointerAdd(dispatch(p), dispatch(i), dispatch(typeSize))(
           SubscriptErrorAddError(sub)
         )(e.o)
       // Handled by EncodePointerArrays
-      case AddrOf(PointerArraySubscript(_, _, _)) => e.rewriteDefault()
-      case AddrOf(Deref(_, _)) => e.rewriteDefault()
+      case AddrOf(PointerArraySubscript(_, _, _), _) => e.rewriteDefault()
+      case AddrOf(Deref(_, _), _) => e.rewriteDefault()
       // Nullable PointerArrays (i.e. those in parameters) are not special cased in EncodePointerArrays
-      case AddrOf(other)
+      case AddrOf(other, _)
           if other.t.asPointerArray.isEmpty ||
             !other.t.asPointerArray.get.isNonNull =>
         throw UnsupportedLocation(other)
-      case assign @ PreAssignExpression(target, AddrOf(value))
+      case assign @ PreAssignExpression(target, AddrOf(value, typeSize))
           if value.t.asByReferenceClass.isDefined =>
         implicit val o: Origin = assign.o
         val (newPointer, newTarget, newValue) = rewriteAssign(
@@ -58,12 +58,13 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
           value,
           assign.blame,
           assign.o,
+          dispatch(typeSize),
         )
         val newAssign =
           PreAssignExpression(
-            PointerSubscript(newTarget, const[Post](0), ???)(PanicBlame(
-              "Should always be accessible"
-            )),
+            PointerSubscript(newTarget, const[Post](0), dispatch(typeSize))(
+              PanicBlame("Should always be accessible")
+            ),
             newValue,
           )(assign.blame)
         With(newPointer, newAssign)
@@ -72,7 +73,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(s: Statement[Pre]): Statement[Post] =
     s match {
-      case assign @ Assign(target, AddrOf(value))
+      case assign @ Assign(target, AddrOf(value, typeSize))
           if value.t.asByReferenceClass.isDefined =>
         implicit val o: Origin = assign.o
         val (newPointer, newTarget, newValue) = rewriteAssign(
@@ -80,12 +81,13 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
           value,
           assign.blame,
           assign.o,
+          dispatch(typeSize),
         )
         val newAssign =
           Assign(
-            PointerSubscript(newTarget, const[Post](0), ???)(PanicBlame(
-              "Should always be accessible"
-            )),
+            PointerSubscript(newTarget, const[Post](0), dispatch(typeSize))(
+              PanicBlame("Should always be accessible")
+            ),
             newValue,
           )(assign.blame)
         Block(Seq(newPointer, newAssign))
@@ -103,6 +105,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
       value: Expr[Pre],
       blame: Blame[AssignFailed],
       assignO: Origin,
+      typeSize: Expr[Post],
   ): (Statement[Post], Expr[Post], Expr[Post]) = {
     implicit val o: Origin = assignO
     val newTarget = dispatch(target)
@@ -110,9 +113,9 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
     val newPointer = Eval(
       PreAssignExpression(
         newTarget,
-        NewNonNullPointer(newValue.t, const[Post](1), None, ???)(PanicBlame(
-          "Size is > 0"
-        )),
+        NewNonNullPointer(newValue.t, const[Post](1), None, typeSize)(
+          PanicBlame("Size is > 0")
+        ),
       )(blame)
     )
     (newPointer, newTarget, newValue)

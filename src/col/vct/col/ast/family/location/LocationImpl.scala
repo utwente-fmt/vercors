@@ -28,9 +28,9 @@ trait LocationImpl[G] extends NodeFamilyImpl[G] with LocationFamilyOps[G] {
       case ModelLocation(obj, field) => field.decl.t
       case SilverFieldLocation(obj, field) => field.decl.t
       case ArrayLocation(array, subscript) => array.t.asArray.get.element
-      case PointerLocation(pointer) => pointer.t.asPointer.get.element
+      case PointerLocation(pointer, _) => pointer.t.asPointer.get.element
       case PredicateLocation(inv) => ???
-      case AmbiguousLocation(expr) => expr.t
+      case AmbiguousLocation(expr, _) => expr.t
       case InLinePatternLocation(loc, _) => loc.t
       case HeapVariableLocation(ref) => ref.decl.t
     }

@@ -413,8 +413,9 @@ case class PVLToCol[G](
     expr match {
       case UnaryExpr0(_, inner) => Not(convert(inner))
       case UnaryExpr1(_, inner) => UMinus(convert(inner))
-      case UnaryExpr2(_, inner) => DerefPointer(convert(inner))(blame(expr))
-      case UnaryExpr3(_, inner) => AddrOf(convert(inner))
+      case UnaryExpr2(_, inner) =>
+        DerefPointer(convert(inner), const(0))(blame(expr))
+      case UnaryExpr3(_, inner) => AddrOf(convert(inner), const(0))
       case UnaryExpr4(op, inner) => convert(expr, op, convert(inner))
       case UnaryExpr5(inner) => convert(inner)
     }
@@ -465,7 +466,7 @@ case class PVLToCol[G](
       case PvlChorPerm(_, _, endpoint, _, _, loc, _, perm, _) =>
         PVLChorPerm(
           PVLEndpointName(convert(endpoint))(origin(endpoint)),
-          AmbiguousLocation(convert(loc))(blame(expr)),
+          AmbiguousLocation(convert(loc), const(0))(blame(expr)),
           convert(perm),
         )
       case PvlLongEndpointExpr(_, _, endpoint, _, inner, _) =>
@@ -1786,16 +1787,16 @@ case class PVLToCol[G](
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] =
     e match {
       case ValCurPerm(_, _, loc, _) =>
-        CurPerm(AmbiguousLocation(convert(loc))(blame(e)))
+        CurPerm(AmbiguousLocation(convert(loc), const(0))(blame(e)))
       case ValPerm(_, _, loc, _, perm, _) =>
-        Perm(AmbiguousLocation(convert(loc))(blame(e)), convert(perm))
+        Perm(AmbiguousLocation(convert(loc), const(0))(blame(e)), convert(perm))
       case ValValue(_, _, loc, _) =>
-        Value(AmbiguousLocation(convert(loc))(blame(e)))
+        Value(AmbiguousLocation(convert(loc), const(0))(blame(e)))
       case ValAutoValue(_, _, loc, _) =>
-        AutoValue(AmbiguousLocation(convert(loc))(blame(e)))
+        AutoValue(AmbiguousLocation(convert(loc), const(0))(blame(e)))
       case ValPointsTo(_, _, loc, _, perm, _, v, _) =>
         PointsTo(
-          AmbiguousLocation(convert(loc))(blame(e)),
+          AmbiguousLocation(convert(loc), const(0))(blame(e)),
           convert(perm),
           convert(v),
         )
@@ -1876,7 +1877,7 @@ case class PVLToCol[G](
       case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
         ForPerm(
           convert(bindings),
-          AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)),
+          AmbiguousLocation(convert(loc), const(0))(blame(loc))(origin(loc)),
           convert(body),
         )
       case ValForPermWithValue(_, _, _, id, _, body, _) =>

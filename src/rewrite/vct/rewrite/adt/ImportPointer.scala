@@ -521,14 +521,14 @@ case class ImportPointer[Pre <: Generation](
   override def postCoerce(location: Location[Pre]): Location[Post] = {
     implicit val o: Origin = location.o
     location match {
-      case loc @ PointerLocation(pointer) =>
+      case loc @ PointerLocation(pointer, typeSize) =>
         val arg =
           unwrapOption(pointer, loc.blame) match {
             case inv @ FunctionInvocation(ref, _, _, _, _, _)
                 if ref.decl == pointerAdd.ref.decl =>
               inv
             case ptr =>
-              ptrAdd(ptr, const(0), const(1))(PanicBlame(
+              ptrAdd(ptr, const(0), dispatch(typeSize))(PanicBlame(
                 "ptrAdd(ptr, 0) should be infallible"
               ))
           }
@@ -583,6 +583,31 @@ case class ImportPointer[Pre <: Generation](
   ): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
+      case off @ PointerBlockOffset(pointer, _) =>
+        offsetEncoding match {
+          case "default" =>
+            ADTFunctionInvocation[Post](
+              typeArgs = Some((pointerAdt.ref, Nil)),
+              ref = pointerOffset.ref,
+              args = Seq(unwrapOption(pointer, off.blame)),
+            )
+          case "fixed" =>
+            adtFunctionInvocation[Post](
+              pointerAddress.ref,
+              args = Seq(unwrapOption(pointer, off.blame)),
+            )
+          case _ => throw UnknownEncoding(offsetEncoding)
+        }
+      case len @ PointerBlockLength(pointer, size) =>
+        ADTFunctionInvocation[Post](
+          typeArgs = Some((blockAdt.ref, Nil)),
+          ref = blockLength.ref,
+          args = Seq(ADTFunctionInvocation[Post](
+            typeArgs = Some((pointerAdt.ref, Nil)),
+            ref = pointerBlock.ref,
+            args = Seq(unwrapOption(pointer, len.blame)),
+          )),
+        )
       case add @ PointerAdd(pointer, offset, size) =>
         ptrAdd(
           unwrapOption(pointer, add.blame),
@@ -597,7 +622,7 @@ case class ImportPointer[Pre <: Generation](
             dispatch(size),
           )(NoContext(PointerBoundsPreconditionFailed(sub.blame, pointer)))
         )
-      case DerefPointer(add @ PointerAdd(pointer, offset, size)) =>
+      case DerefPointer(add @ PointerAdd(pointer, offset, size), _) =>
         derefPointer(
           ptrAdd(
             unwrapOption(pointer, add.blame),
@@ -605,13 +630,15 @@ case class ImportPointer[Pre <: Generation](
             dispatch(size),
           )(NoContext(PointerBoundsPreconditionFailed(add.blame, pointer)))
         )
-      case deref @ DerefPointer(pointer) =>
+      case deref @ DerefPointer(pointer, typeSize) =>
         derefPointer(if (!context.topOption.contains(InAxiom())) {
-          ptrAdd(unwrapOption(pointer, deref.blame), const(0), const(1))(
-            NoContext(
-              DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
-            )
-          )
+          ptrAdd(
+            unwrapOption(pointer, deref.blame),
+            const(0),
+            dispatch(typeSize),
+          )(NoContext(
+            DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
+          ))
         } else { unwrapOption(pointer, deref.blame) })
       case other => dispatch(other)
     }
@@ -620,7 +647,7 @@ case class ImportPointer[Pre <: Generation](
   override def preCoerce(e: Expr[Pre]): Expr[Pre] = {
     implicit val o: Origin = e.o
     e match {
-      case d @ DerefPointer(a @ PointerAdd(p, i, size)) =>
+      case d @ DerefPointer(a @ PointerAdd(p, i, size), _) =>
         PointerSubscript(p, i, size)(DerefAddToSubscriptBlame(d.blame, a.blame))
       case _ => super.preCoerce(e)
     }
@@ -665,14 +692,16 @@ case class ImportPointer[Pre <: Generation](
           case TPointer(_, _) => OptSome(inv)
           case TNonNullPointer(_, _) => inv
         }
-      case deref @ DerefPointer(pointer) =>
+      case deref @ DerefPointer(pointer, typeSize) =>
         SilverDeref(
           obj = derefPointer(if (!context.topOption.contains(InAxiom())) {
-            ptrAdd(unwrapOption(pointer, deref.blame), const(0), const(1))(
-              NoContext(
-                DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
-              )
-            )
+            ptrAdd(
+              unwrapOption(pointer, deref.blame),
+              const(0),
+              dispatch(typeSize),
+            )(NoContext(
+              DerefPointerBoundsPreconditionFailed(deref.blame, pointer)
+            ))
           } else { unwrapOption(pointer, deref.blame) }),
           field = getPointerField(pointer),
         )(PointerFieldInsufficientPermission(deref.blame, deref))
@@ -836,7 +865,7 @@ case class ImportPointer[Pre <: Generation](
         )
       case addr @ PointerAddress(p, elementSize) =>
         getAddress(unwrapOption(p, addr.blame), dispatch(elementSize))
-      case to @ PointerToAdt(p, TAxiomatic(Ref(adt), args)) =>
+      case to @ PointerToAdt(p, TAxiomatic(Ref(adt), args), typeSize) =>
         functionInvocation(
           TrueSatisfiable,
           ref =
@@ -879,46 +908,19 @@ case class ImportPointer[Pre <: Generation](
               },
             ).ref,
           args = Seq(p match {
-            case PointerAdd(_, _, _) => unwrapOption(p, to.blame)
+            case ApplyCoercion(PointerAdd(_, _, _), CoerceIdentity(_)) |
+                PointerAdd(_, _, _) =>
+              unwrapOption(p, to.blame)
             case _ if context.topOption.contains(InAxiom()) =>
               unwrapOption(p, to.blame)
             case _ =>
-              ptrAdd(unwrapOption(p, to.blame), const(0), const(1))(PanicBlame(
-                "Pointer out of bounds, but this should not be possible since index equals 0"
-              ))
+              ptrAdd(unwrapOption(p, to.blame), const(0), dispatch(typeSize))(
+                PanicBlame(
+                  "Pointer out of bounds, but this should not be possible since index equals 0"
+                )
+              )
           }),
         )
-      case q: TriggeredQuantifier[Pre] =>
-        q.rewrite(triggers = q.triggers.map {
-          _.map {
-            case off @ PointerBlockOffset(pointer, _) =>
-              offsetEncoding match {
-                case "default" =>
-                  ADTFunctionInvocation[Post](
-                    typeArgs = Some((pointerAdt.ref, Nil)),
-                    ref = pointerOffset.ref,
-                    args = Seq(unwrapOption(pointer, off.blame)),
-                  )
-                case "fixed" =>
-                  adtFunctionInvocation[Post](
-                    pointerAddress.ref,
-                    args = Seq(unwrapOption(pointer, off.blame)),
-                  )
-                case _ => throw UnknownEncoding(offsetEncoding)
-              }
-            case len @ PointerBlockLength(pointer, size) =>
-              ADTFunctionInvocation[Post](
-                typeArgs = Some((blockAdt.ref, Nil)),
-                ref = blockLength.ref,
-                args = Seq(ADTFunctionInvocation[Post](
-                  typeArgs = Some((pointerAdt.ref, Nil)),
-                  ref = pointerBlock.ref,
-                  args = Seq(unwrapOption(pointer, len.blame)),
-                )),
-              )
-            case t => dispatch(t)
-          }
-        })
       case other => super.postCoerce(other)
     }
   }
@@ -937,11 +939,13 @@ case class ImportPointer[Pre <: Generation](
       fromSize,
       toSize,
       preExpr match {
-        case PointerAdd(_, _, _) => postExpr
+        case ApplyCoercion(PointerAdd(_, _, _), CoerceIdentity(_)) |
+            PointerAdd(_, _, _) =>
+          postExpr
         // Don't add ptrAdd in an ADT axiom since we cannot use functions with preconditions there
         case _ if context.topOption.contains(InAxiom()) => postExpr
         case _ =>
-          ptrAdd(postExpr, const(0), const(1))(PanicBlame(
+          ptrAdd(postExpr, const(0), dispatch(toSize))(PanicBlame(
             "Pointer out of bounds, but this should not be possible since index equals 0"
           ))
       },

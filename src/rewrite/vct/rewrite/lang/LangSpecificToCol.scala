@@ -594,7 +594,21 @@ case class LangSpecificToCol[Pre <: Generation](
         PointerLength(dispatch(p), c.sizeOf(p.t.asPointer.get.element, pl.o))(
           pl.blame
         )(pl.o)
+      case AddrOf(obj, _) =>
+        AddrOf[Post](dispatch(obj), c.sizeOf(obj.t, e.o))(e.o)
+      case dp @ DerefPointer(p, _) =>
+        DerefPointer[Post](
+          dispatch(p),
+          c.sizeOf(p.t.asPointer.get.element, dp.o),
+        )(dp.blame)(dp.o)
       case other => super.dispatch(other)
+    }
+
+  override def dispatch(loc: Location[Pre]): Location[Post] =
+    loc match {
+      case l @ AmbiguousLocation(e, _) =>
+        AmbiguousLocation(dispatch(e), c.sizeOf(e.t, loc.o))(l.blame)(l.o)
+      case _ => super.dispatch(loc)
     }
 
   private def setSize(t: Type[Post], size: TypeSize): Type[Post] = {

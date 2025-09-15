@@ -525,8 +525,10 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
             notInlined(index),
             notInlined(size),
           )(sub.blame)(target.o)
-        case deref @ DerefPointer(ptr) =>
-          DerefPointer[Post](notInlined(ptr))(deref.blame)(target.o)
+        case deref @ DerefPointer(ptr, typeSize) =>
+          DerefPointer[Post](notInlined(ptr), notInlined(typeSize))(
+            deref.blame
+          )(target.o)
         case VectorSubscript(_, _) => throw DisallowedAssignmentTarget(target)
         case SeqSubscript(_, _) => throw DisallowedAssignmentTarget(target)
         case other => ???

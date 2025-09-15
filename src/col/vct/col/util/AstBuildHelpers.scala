@@ -117,12 +117,6 @@ object AstBuildHelpers {
       SilverLocalAssign(new DirectRef(left), right)
   }
 
-  implicit class LocalHeapVarBuildHelpers[G](left: LocalHeapVariable[G]) {
-    def get(blame: Blame[PointerDerefError])(
-        implicit origin: Origin
-    ): DerefPointer[G] = DerefPointer(HeapLocal[G](new DirectRef(left)))(blame)
-  }
-
   implicit class FieldBuildHelpers[G](left: SilverDeref[G]) {
     def <~(right: Expr[G])(
         implicit blame: Blame[AssignFailed],

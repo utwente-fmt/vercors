@@ -227,7 +227,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                   val local = JavaLocal[Pre](fields.decls(decl).name)(DerefPerm)
                   local.ref = Some(RefJavaField[Pre](fields, decl))
                   Perm(
-                    AmbiguousLocation(local)(PanicBlame(
+                    AmbiguousLocation(local, ???)(PanicBlame(
                       "Field location is not a pointer."
                     )),
                     WritePerm(),

@@ -66,7 +66,7 @@ object InferEndpointContexts extends RewriterBuilder {
   def getEndpoint[G](loc: Location[G]): Endpoint[G] =
     loc match {
       case FieldLocation(obj, _) => getEndpoint(obj)
-      case AmbiguousLocation(deref) => getEndpoint(deref)
+      case AmbiguousLocation(deref, _) => getEndpoint(deref)
       case PredicateLocation(inv) =>
         inv match {
           case PredicateApply(ref, args) => getEndpoint(loc, args)

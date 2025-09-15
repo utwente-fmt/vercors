@@ -168,7 +168,9 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         ) === PointerCast(
           adtFunctionInvocation(
             fieldRef,
-            args = Seq(PointerToAdt(a, axiomType)(NonNullPointerNull)),
+            args = Seq(
+              PointerToAdt(a, axiomType, structSize)(NonNullPointerNull)
+            ),
           ),
           TNonNullPointer(newT, unique),
           fieldSize,
@@ -375,7 +377,9 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                   dispatch(cls.childSizes.head),
                 )) === adtFunctionInvocation(
                   byValFieldSucc.ref(field),
-                  args = Seq(PointerToAdt(a, axiomType)(NonNullPointerNull)),
+                  args = Seq(PointerToAdt(a, axiomType, dispatch(cls.size))(
+                    NonNullPointerNull
+                  )),
                 )
               },
             ))
@@ -469,7 +473,9 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                     adtFunctionInvocation[Post](
                       fieldFunctions.head.ref,
                       None,
-                      args = Seq(PointerToAdt(a, axiomType)(NonNullPointerNull)),
+                      args = Seq(PointerToAdt(a, axiomType, dispatch(cls.size))(
+                        NonNullPointerNull
+                      )),
                     ),
                     TInt(),
                     dispatch(cls.childSizes.head),
@@ -492,7 +498,9 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                     adtFunctionInvocation[Post](
                       fieldFunctions.last.ref,
                       None,
-                      args = Seq(PointerToAdt(a, axiomType)(NonNullPointerNull)),
+                      args = Seq(PointerToAdt(a, axiomType, dispatch(cls.size))(
+                        NonNullPointerNull
+                      )),
                     ),
                     TInt(),
                     dispatch(cls.childSizes.last),
@@ -673,7 +681,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             .left(PanicBlame("incorrect instance function type?"), inv.blame),
         ))(inv.o)
       case ThisObject(_) => diz.top
-      case ptrOf @ AddrOf(Deref(obj, Ref(field)))
+      case ptrOf @ AddrOf(Deref(obj, Ref(field)), _)
           if obj.t.asByValueClass.isDefined =>
         adtFunctionInvocation[Post](
           byValFieldSucc.ref(field),
@@ -693,6 +701,10 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                   args = Seq(dispatch(obj)),
                 )(deref.o),
                 dispatch(field.t),
+                dispatch(
+                  field.t.asByValueClass.get.cls.decl
+                    .asInstanceOf[ByValueClass[Pre]].size
+                ),
               )(DerefFieldPointerBlame(
                 deref.blame,
                 deref,
@@ -704,7 +716,11 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                 adtFunctionInvocation[Post](
                   byValFieldSucc.ref(field),
                   args = Seq(dispatch(obj)),
-                )(deref.o)
+                )(deref.o),
+                dispatch(
+                  t.cls.decl.asInstanceOf[ByValueClass[Pre]]
+                    .childSizes(t.cls.decl.fields.indexOf(field))
+                ),
               )(DerefFieldPointerBlame(
                 deref.blame,
                 deref,
@@ -792,8 +808,10 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       case v @ Value(PredicateLocation(inv: InstancePredicateApply[Pre])) =>
         implicit val o: Origin = e.o
         Star[Post](v.rewrite(), dispatch(inv.obj) !== Null())
-      case dp @ DerefPointer(ptr) if dp.t.asByValueClass.isDefined =>
-        PointerToAdt(dispatch(ptr), dispatch(dp.t))(dp.blame)(dp.o)
+      case dp @ DerefPointer(ptr, typeSize) if dp.t.asByValueClass.isDefined =>
+        PointerToAdt(dispatch(ptr), dispatch(dp.t), dispatch(typeSize))(
+          dp.blame
+        )(dp.o)
       case ps @ PointerSubscript(ptr, index, size)
           if ps.t.asByValueClass.isDefined =>
         PointerToAdt(
@@ -801,6 +819,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             SubscriptToAddBlame(ps.blame)
           )(ps.o),
           dispatch(ps.t),
+          dispatch(size),
         )(ps.blame)(ps.o)
       case _ => super.dispatch(e)
     }
@@ -825,13 +844,17 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             SilverFieldLocation[Post](dispatch(obj), byRefFieldSucc.ref(field))(
               loc.o
             )
-          case _: TByValueClass[Pre] =>
+          case t: TByValueClass[Pre] =>
             PointerLocation[Post](
               adtFunctionInvocation[Post](
                 byValFieldSucc.ref(field),
                 None,
                 args = Seq(dispatch(obj)),
-              )(loc.o)
+              )(loc.o),
+              dispatch(
+                t.cls.decl.asInstanceOf[ByValueClass[Pre]]
+                  .childSizes(t.cls.decl.fields.indexOf(field))
+              ),
             )(NonNullPointerNull)(loc.o)
         }
       case default => super.dispatch(default)

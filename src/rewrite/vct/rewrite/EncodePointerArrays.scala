@@ -475,7 +475,7 @@ case class EncodePointerArrays[Pre <: Generation](
           tt
         else
           !OptEmpty(dispatch(p))
-      case AddrOf(sub @ PointerArraySubscript(a, _, typeSize)) =>
+      case AddrOf(sub @ PointerArraySubscript(a, _, typeSize), _) =>
         val arrayT = a.t.asPointerArray.get
         initialiseAdt(
           arrayT.element,
@@ -486,7 +486,8 @@ case class EncodePointerArrays[Pre <: Generation](
         )
         calculatePointer(sub)
       case AddrOf(
-            ApplyCoercion(sub @ PointerArraySubscript(a, _, typeSize), _)
+            ApplyCoercion(sub @ PointerArraySubscript(a, _, typeSize), _),
+            _,
           ) =>
         val arrayT = a.t.asPointerArray.get
         initialiseAdt(
@@ -497,7 +498,7 @@ case class EncodePointerArrays[Pre <: Generation](
           dispatch(typeSize),
         )
         calculatePointer(sub)
-      case AddrOf(ApplyCoercion(inner, c)) =>
+      case AddrOf(ApplyCoercion(inner, c), _) =>
         applyCoercion(dispatch(inner), c) match {
           case PointerArraySubscript(_, _, _) =>
             throw Unreachable(
@@ -506,11 +507,17 @@ case class EncodePointerArrays[Pre <: Generation](
           case _ => super.postCoerce(e)
         }
       // We only do AddrOf of non-null PointerArrays here since those have the address equal to their inner pointer. For nullable ones (i.e. in parameters) it should be the address of the parameter not the data
-      case AddrOf(inner)
+      case AddrOf(inner, typeSize)
           if inner.t.asPointerArray.isDefined &&
             inner.t.asPointerArray.get.isNonNull =>
         val t = inner.t.asPointerArray.get
-        // initialiseAdt(t.element, t.dimensions.length, t.unique, t.isConst)
+        initialiseAdt(
+          t.element,
+          t.dimensions.length,
+          t.unique,
+          t.isConst,
+          dispatch(typeSize),
+        )
         digToPointer(
           pointerSucc
             .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
@@ -531,7 +538,7 @@ case class EncodePointerArrays[Pre <: Generation](
           arrayT.isConst,
           dispatch(typeSize),
         )
-        DerefPointer(calculatePointer(sub))(sub.blame)
+        DerefPointer(calculatePointer(sub), dispatch(typeSize))(sub.blame)
       case sub @ PointerArraySubscript(a, _, typeSize) =>
         val arrayT = a.t.asPointerArray.get
         initialiseAdt(
@@ -1450,7 +1457,10 @@ case class EncodePointerArrays[Pre <: Generation](
                         body = { term =>
                           range(term) ==> Perm(
                             PointerLocation(
-                              PointerAdd(ptr(), term, typeSize)(FramedPtrOffset)
+                              PointerAdd(ptr(), term, typeSize)(
+                                FramedPtrOffset
+                              ),
+                              typeSize,
                             )(NonNullPointerNull),
                             WritePerm(),
                           )
@@ -1475,14 +1485,16 @@ case class EncodePointerArrays[Pre <: Generation](
                             case (term, arg) =>
                               (const[Post](0) <= term) && (term <= arg.get)
                           }) ==> Perm(
-                            PointerLocation(ptrAcc(terms))(NonNullPointerNull),
+                            PointerLocation(ptrAcc(terms), typeSize)(
+                              NonNullPointerNull
+                            ),
                             WritePerm(),
                           )
                         },
                         triggers = { terms =>
-                          Seq(
-                            Seq(DerefPointer(ptrAcc(terms))(NonNullPointerNull))
-                          )
+                          Seq(Seq(DerefPointer(ptrAcc(terms), typeSize)(
+                            NonNullPointerNull
+                          )))
                         },
                       )
                     case "nested" =>
@@ -1512,14 +1524,16 @@ case class EncodePointerArrays[Pre <: Generation](
                             case (term, arg) =>
                               (const[Post](0) <= term) && (term <= arg.get)
                           }) ==> Perm(
-                            PointerLocation(ptrAcc(terms))(NonNullPointerNull),
+                            PointerLocation(ptrAcc(terms), typeSize)(
+                              NonNullPointerNull
+                            ),
                             WritePerm(),
                           )
                         },
                         triggers = { terms =>
-                          Seq(
-                            Seq(DerefPointer(ptrAcc(terms))(NonNullPointerNull))
-                          )
+                          Seq(Seq(DerefPointer(ptrAcc(terms), typeSize)(
+                            NonNullPointerNull
+                          )))
                         },
                       )
                     case _ => throw UnknownEncoding(encoding)
@@ -1566,15 +1580,17 @@ case class EncodePointerArrays[Pre <: Generation](
                               (const[Post](0) <= term) && (term <= arg.get)
                           }) ==> Perm(
                             ByValueClassLocation(
-                              DerefPointer(ptrAcc(terms))(NonNullPointerNull)
+                              DerefPointer(ptrAcc(terms), typeSize)(
+                                NonNullPointerNull
+                              )
                             ),
                             WritePerm(),
                           )
                         },
                         triggers = { terms =>
-                          Seq(
-                            Seq(DerefPointer(ptrAcc(terms))(NonNullPointerNull))
-                          )
+                          Seq(Seq(DerefPointer(ptrAcc(terms), typeSize)(
+                            NonNullPointerNull
+                          )))
                         },
                       )
                     case "nested" =>
@@ -1605,15 +1621,17 @@ case class EncodePointerArrays[Pre <: Generation](
                               (const[Post](0) <= term) && (term <= arg.get)
                           }) ==> Perm(
                             ByValueClassLocation(
-                              DerefPointer(ptrAcc(terms))(NonNullPointerNull)
+                              DerefPointer(ptrAcc(terms), typeSize)(
+                                NonNullPointerNull
+                              )
                             ),
                             WritePerm(),
                           )
                         },
                         triggers = { terms =>
-                          Seq(
-                            Seq(DerefPointer(ptrAcc(terms))(NonNullPointerNull))
-                          )
+                          Seq(Seq(DerefPointer(ptrAcc(terms), typeSize)(
+                            NonNullPointerNull
+                          )))
                         },
                       )
                     case _ => throw UnknownEncoding(encoding)

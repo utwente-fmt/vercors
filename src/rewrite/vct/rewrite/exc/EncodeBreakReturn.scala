@@ -118,7 +118,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
     override def dispatch(contract: LoopContract[Pre]): LoopContract[Post] = {
       implicit val o: Origin = contract.o
       resultVariable match {
-        case Some(dp @ DerefPointer(HeapLocal(_))) =>
+        case Some(dp @ DerefPointer(HeapLocal(_), _)) =>
           val perm = Perm(ByValueClassLocation(dp), WritePerm())
           contract match {
             case inv @ LoopInvariant(invariant, _) =>
@@ -271,11 +271,17 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
 
                     if (method.returnType.asByValueClass.isDefined) {
                       val v =
-                        new LocalHeapVariable(
+                        new LocalHeapVariable[Post](
                           TNonNullPointer(dispatch(method.returnType), None)
                         )(ReturnVariable)
                       val getter =
-                        v.get(PanicBlame("Missing access to return variable"))(
+                        DerefPointer(
+                          HeapLocal[Post](v.ref),
+                          dispatch(
+                            method.returnType.asByValueClass.get.cls
+                              .asInstanceOf[ByValueClass[Pre]].size
+                          ),
+                        )(PanicBlame("Missing access to return variable"))(
                           ReturnVariable
                         )
                       val newBody = BreakReturnToGoto(
