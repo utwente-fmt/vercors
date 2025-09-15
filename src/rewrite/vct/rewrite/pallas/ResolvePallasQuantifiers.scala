@@ -43,8 +43,7 @@ case class ResolvePallasQuantifiers[Pre <: Generation]() extends Rewriter[Pre] {
     expr match {
       case q @ LLVMForall(bindingExpr, bodyExpr) =>
         implicit val o: Origin = expr.o
-        val newBVMap = gatherBoundVars(q)
-        val newBindings = newBVMap.values.toSeq
+        val (newBVMap, newBindings) = gatherBoundVars(q)
         boundVars.having(newBVMap) {
           Forall[Post](
             newBindings,
@@ -54,8 +53,7 @@ case class ResolvePallasQuantifiers[Pre <: Generation]() extends Rewriter[Pre] {
         }
       case q @ LLVMSepForall(bindingExpr, bodyExpr) =>
         implicit val o: Origin = expr.o
-        val newBVMap = gatherBoundVars(q)
-        val newBindings = newBVMap.values.toSeq
+        val (newBVMap, newBindings) = gatherBoundVars(q)
         boundVars.having(newBVMap) {
           Starall[Post](
             newBindings,
@@ -65,8 +63,7 @@ case class ResolvePallasQuantifiers[Pre <: Generation]() extends Rewriter[Pre] {
         }
       case q @ LLVMExists(bindingExpr, bodyExpr) =>
         implicit val o: Origin = expr.o
-        val newBVMap = gatherBoundVars(q)
-        val newBindings = newBVMap.values.toSeq
+        val (newBVMap, newBindings) = gatherBoundVars(q)
         boundVars.having(newBVMap) {
           Exists[Post](
             newBindings,
@@ -86,29 +83,33 @@ case class ResolvePallasQuantifiers[Pre <: Generation]() extends Rewriter[Pre] {
 
   /** Gathers the bound variables that are available in a quantifier with the
     * given binding expression.
+    * Returns the new mapping an the variables that are newly declared in the
+    * given quantifier.
     */
   private def gatherBoundVars(
       q: LLVMQuantifier[Pre]
-  ): Map[(String, Type[Pre]), Variable[Post]] = {
+  ): (Map[(String, Type[Pre]), Variable[Post]], Seq[Variable[Post]]) = {
     val oldBVMap = boundVars.topOption.getOrElse(Map.empty)
     // Gather all new bound variables from the binding expression
     val bVars = q.bindingExpr.collect { case LLVMBoundVar(id, vType) =>
       (id, vType)
-    }.filterNot(t => oldBVMap.contains(t))
+    }.filterNot(t => oldBVMap.contains(t)).distinct
 
     // Declare variables for new BVs & update stack
     var newBVMap = oldBVMap
+    var newVars = Seq[Variable[Post]]()
     variables.scope {
       localHeapVariables.scope {
         bVars.foreach { case (id, vType) =>
           val v = new Variable[Post](dispatch(vType))(q.o.where(name = id))
+          newVars = newVars :+ v
           newBVMap = newBVMap.updated((id, vType), v)
         }
       }
     }
 
-    if (newBVMap.isEmpty) { throw MissingBoundVariable(q) }
-    newBVMap
+    if (newVars.isEmpty) { throw MissingBoundVariable(q) }
+    (newBVMap, newVars)
   }
 
 }
