@@ -257,7 +257,7 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
         DerefPointer(
           HeapLocal[Post](heapLocalArgSucc.ref(v)),
           dispatch(
-            v.t.asByValueClass.get.cls.asInstanceOf[ByValueClass[Pre]].size
+            v.t.asByValueClass.get.cls.decl.asInstanceOf[ByValueClass[Pre]].size
           ),
         )(PanicBlame(
           "Missing permission to procedure argument of struct type, no suitable blame available"
@@ -291,7 +291,7 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
                         DerefPointer(
                           HeapLocal[Post](newVar.ref),
                           dispatch(
-                            v.t.asByValueClass.get.cls
+                            v.t.asByValueClass.get.cls.decl
                               .asInstanceOf[ByValueClass[Pre]].size
                           ),
                         )(PanicBlame(

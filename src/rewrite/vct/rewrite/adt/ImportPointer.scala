@@ -583,6 +583,8 @@ case class ImportPointer[Pre <: Generation](
   ): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
+      case ApplyCoercion(expr, coercion) =>
+        applyCoercion(rewriteTopLevelPointerSubscriptInTrigger(expr), coercion)
       case off @ PointerBlockOffset(pointer, _) =>
         offsetEncoding match {
           case "default" =>
@@ -657,8 +659,8 @@ case class ImportPointer[Pre <: Generation](
     implicit val o: Origin = e.o
     e match {
       case f @ Forall(_, triggers, _)
-          if !f.o.find[LabelContext]
-            .exists(_.label == "generated quantifier") =>
+          /*if !f.o.find[LabelContext]
+            .exists(_.label == "generated quantifier")*/ =>
         f.rewrite(triggers =
           triggers.map(_.map(rewriteTopLevelPointerSubscriptInTrigger))
         )
