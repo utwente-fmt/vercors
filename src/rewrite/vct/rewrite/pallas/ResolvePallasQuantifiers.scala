@@ -68,7 +68,7 @@ case class ResolvePallasQuantifiers[Pre <: Generation]() extends Rewriter[Pre] {
           Exists[Post](
             newBindings,
             Seq.empty,
-            Implies(dispatch(bindingExpr), dispatch(bodyExpr)),
+            And(dispatch(bindingExpr), dispatch(bodyExpr)),
           )
         }
       case bv @ LLVMBoundVar(id, varType) =>
@@ -82,18 +82,17 @@ case class ResolvePallasQuantifiers[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   /** Gathers the bound variables that are available in a quantifier with the
-    * given binding expression.
-    * Returns the new mapping an the variables that are newly declared in the
-    * given quantifier.
+    * given binding expression. Returns the new mapping an the variables that
+    * are newly declared in the given quantifier.
     */
   private def gatherBoundVars(
       q: LLVMQuantifier[Pre]
   ): (Map[(String, Type[Pre]), Variable[Post]], Seq[Variable[Post]]) = {
     val oldBVMap = boundVars.topOption.getOrElse(Map.empty)
     // Gather all new bound variables from the binding expression
-    val bVars = q.bindingExpr.collect { case LLVMBoundVar(id, vType) =>
-      (id, vType)
-    }.filterNot(t => oldBVMap.contains(t)).distinct
+    val bVars =
+      q.bindingExpr.collect { case LLVMBoundVar(id, vType) => (id, vType) }
+        .filterNot(t => oldBVMap.contains(t)).distinct
 
     // Declare variables for new BVs & update stack
     var newBVMap = oldBVMap
