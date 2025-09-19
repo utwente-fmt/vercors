@@ -278,7 +278,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
                         DerefPointer(
                           HeapLocal[Post](v.ref),
                           dispatch(
-                            method.returnType.asByValueClass.get.cls
+                            method.returnType.asByValueClass.get.cls.decl
                               .asInstanceOf[ByValueClass[Pre]].size
                           ),
                         )(PanicBlame("Missing access to return variable"))(
