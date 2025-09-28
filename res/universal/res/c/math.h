@@ -116,6 +116,7 @@ float /*@ pure @*/ floorf(float x);
 
 /*@
   ensures \result == (\is_int(x) ? x : (float)((int)x + 1));
+  ensures !\is_int(x) ==> ((int)\result) == ((int)x + 1);
   decreases;
 @*/
 float /*@ pure @*/ ceilf(float x);
@@ -232,6 +233,7 @@ double /*@ pure @*/ floor(double x);
 
 /*@
   ensures \result == (\is_int(x) ? x : (double)((int)x + 1));
+  ensures !\is_int(x) ==> ((int)\result) == ((int)x + 1);
   decreases;
 @*/
 double /*@ pure @*/ ceil(double x);
