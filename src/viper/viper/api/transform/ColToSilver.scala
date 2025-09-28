@@ -235,9 +235,9 @@ case class ColToSilver(program: col.Program[_]) {
             ref(function),
             function.args.map(variable),
             typ(function.returnType),
-            accountedPred(function.contract.requires) ++
+            accountedPred(function.contract.requires),
+            accountedPred(function.contract.ensures) ++
               function.contract.decreases.toSeq.map(decreases),
-            accountedPred(function.contract.ensures),
             function.body.map(exp),
           )(
             pos = pos(function),
@@ -265,9 +265,9 @@ case class ColToSilver(program: col.Program[_]) {
             ref(procedure),
             procedure.args.map(variable),
             procedure.outArgs.map(variable),
-            accountedPred(procedure.contract.requires) ++
+            accountedPred(procedure.contract.requires),
+            accountedPred(procedure.contract.ensures) ++
               procedure.contract.decreases.toSeq.map(decreases),
-            accountedPred(procedure.contract.ensures),
             procedure.body.map(body =>
               silver.Seqn(Seq(block(body)), labelDecls)(
                 pos = pos(body),
@@ -764,7 +764,14 @@ case class ColToSilver(program: col.Program[_]) {
     }
 
   def trigger(patterns: Seq[col.Expr[_]]): silver.Trigger =
-    silver.Trigger(patterns.map(exp))()
+    silver.Trigger(patterns.map {
+      // Move trigger inside the accessibility predicate if it's a predicate application
+      case col.Perm(col.PredicateLocation(app: col.PredicateApply[_]), _) =>
+        pred(app)
+      case col.Value(col.PredicateLocation(app: col.PredicateApply[_])) =>
+        pred(app)
+      case e => exp(e)
+    })()
 
   def fold(f: col.FoldTarget[_]): silver.PredicateAccessPredicate =
     f match {
@@ -848,8 +855,17 @@ case class ColToSilver(program: col.Program[_]) {
           },
           block(body),
         )(pos = pos(s), info = NodeInfo(s))
-      case col.Label(decl, col.Block(Nil)) =>
-        silver.Label(ref(decl), Seq())(pos = pos(s), info = NodeInfo(s))
+      case col.Label(
+            decl,
+            col.Block(Nil),
+            invNode @ col.LoopInvariant(inv, decrClause),
+          ) =>
+        silver.Label(
+          ref(decl),
+          currentInvariant.having(invNode) {
+            unfoldStar(inv).map(exp) ++ decrClause.map(decreases).toSeq
+          },
+        )(pos = pos(s), info = NodeInfo(s))
       case col.Goto(lbl) =>
         silver.Goto(ref(lbl))(pos = pos(s), info = NodeInfo(s))
       case col.Return(col.Void()) =>

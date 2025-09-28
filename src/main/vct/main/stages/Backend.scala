@@ -47,7 +47,8 @@ case object Backend {
           else { options.devSiliconNumVerifiers }
         SilverBackend(
           Silicon(
-            z3Settings = (printRawQuantifier ++ z3LogFile).toMap,
+            z3Settings = (printRawQuantifier ++ z3LogFile).toMap ++
+              options.proverConfigArgs,
             z3Path = options.z3Path,
             numberOfParallelVerifiers = numberOfParallelVerifiers,
             timeoutValue = options.devSiliconAssertTimeout,

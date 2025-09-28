@@ -64,6 +64,7 @@ trait NodeCheckOps[G] {
       enterCheckContextInEndpointExpr(context),
       enterCheckContextInCommunicateInvariant(context),
       enterCheckContextDeclarationStack(context),
+      enterCheckContextInResolution(context),
     )
 
   def enterCheckContextScopes(
@@ -104,4 +105,6 @@ trait NodeCheckOps[G] {
   def enterCheckContextDeclarationStack(
       context: CheckContext[G]
   ): Seq[Declaration[G]] = context.declarationStack
+  def enterCheckContextInResolution(context: CheckContext[G]): Boolean =
+    context.inResolution
 }

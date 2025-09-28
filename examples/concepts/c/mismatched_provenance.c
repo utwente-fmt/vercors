@@ -4,28 +4,22 @@
 int failing() {
     int a[] = {5, 6, 7, 8};
     int b[] = {1, 2, 3, 4};
-    intptr_t c = (intptr_t)&a[3];
+    intptr_t c = (uintptr_t)&a[3];
     int *d = (int *)(c + 4);
     // The compiler is allowed to assume d==b includes checking for provenance (i.e. it may be false even if the adress is equal)
     if (d == b) {
-        // At runtime no such provenance check occurs so accessing *d is UB if we do not have provenance
-        /*[/expect ptrPerm]*/
+        //@ assert (uintptr_t)d == (uintptr_t)b;
         //@ assert *d == 1;
-        /*[/end]*/
         return 1;
     } else {
+        // Since the provenance is not equal here we may not assume that the address of d and b are distinct when d != b
+        /*[/expect assertFailed:false]*/
+        //@ assert (uintptr_t)d != (uintptr_t)b;
+        /*[/end]*/
         return 0;
     }
 }
 
-// We can attempt some trickery to see if pointers are equal without knowing the provenance, but it won't work luckily
-/*[/expect postFailed:false]*/
-//@ requires (p == q) || (p != q);
-//@ ensures \result == (p == q);
-bool pointerEq(int *p, int *q) {
-    return p == q;
-}
-/*[/end]*/
 
 int passing() {
     int a[] = {5, 6, 7, 8};

@@ -129,7 +129,7 @@ object Utils {
     body match {
       case Switch(_, _) => Seq()
       // Recursion on statements that can contain case statements
-      case Label(_, stat) => find_all_cases(stat, index.enter_scope(body))
+      case Label(_, stat, _) => find_all_cases(stat, index.enter_scope(body))
       case Block(statements) =>
         statements.zipWithIndex
           .flatMap(t => find_all_cases(t._1, index.enter_scope(body, t._2)))

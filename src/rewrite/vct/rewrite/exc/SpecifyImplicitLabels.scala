@@ -1,10 +1,10 @@
 package vct.col.rewrite.exc
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.Origin
+import vct.col.origin.{Origin, TrueSatisfiable}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.util.AstBuildHelpers.tt
 import vct.result.VerificationError.UserError
 
 case object SpecifyImplicitLabels extends RewriterBuilder {
@@ -40,15 +40,21 @@ case class SpecifyImplicitLabels[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
     stat match {
-      case Label(decl, impl) if isBreakable(impl) =>
+      case Label(decl, impl, contract) if isBreakable(impl) =>
         val newLabel = decl.rewrite()
         labelDecls.succeedOnly(decl, newLabel)
         val newImpl = labelStack.having(newLabel) { impl.rewriteDefault() }
-        Label(newLabel, newImpl)(stat.o)
+        Label(newLabel, newImpl, dispatch(contract))(stat.o)
       case stat if isBreakable(stat) =>
         implicit val o: Origin = stat.o
         val labelDecl = new LabelDecl[Post]()(ImplicitLabelOrigin(o))
-        labelStack.having(labelDecl) { Label(labelDecl, stat.rewriteDefault()) }
+        labelStack.having(labelDecl) {
+          Label(
+            labelDecl,
+            stat.rewriteDefault(),
+            LoopInvariant(tt, None)(TrueSatisfiable),
+          )
+        }
       case Continue(None) if labelStack.isEmpty =>
         throw UnexpectedControlFlow(stat)
       case c @ Continue(None) => c.rewrite(Some(labelStack.top.ref))

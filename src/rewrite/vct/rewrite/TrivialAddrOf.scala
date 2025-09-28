@@ -43,7 +43,10 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
       // Handled by EncodePointerArrays
       case AddrOf(PointerArraySubscript(_, _)) => e.rewriteDefault()
       case AddrOf(Deref(_, _)) => e.rewriteDefault()
-      case AddrOf(other) if other.t.asPointerArray.isEmpty =>
+      // Nullable PointerArrays (i.e. those in parameters) are not special cased in EncodePointerArrays
+      case AddrOf(other)
+          if other.t.asPointerArray.isEmpty ||
+            !other.t.asPointerArray.get.isNonNull =>
         throw UnsupportedLocation(other)
       case assign @ PreAssignExpression(target, AddrOf(value))
           if value.t.asByReferenceClass.isDefined =>

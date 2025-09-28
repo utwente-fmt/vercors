@@ -76,9 +76,3 @@ ensures (∀ `pointer` p, int i, int j;
     0 <= `pointer`.pointer_offset(p) + j &&
     `pointer`.pointer_offset(p) + j < `block`.block_length(`pointer`.pointer_block(p)); (i == j) == ({:ptr_add(p, i):} == {:ptr_add(p, j):}));
 pure boolean ptr_add_axiom2() = true;
-
-decreases;
-requires stride > 0;
-ensures `pointer`.ptr_address(\result, stride) == address;
-pure `pointer` ptr_from_address(int address, int stride);
-

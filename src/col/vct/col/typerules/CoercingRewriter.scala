@@ -295,6 +295,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceNullJavaClass(_) => e
       case CoerceNullAnyClass() => e
       case CoerceNullPointer(_) => e
+      case CoerceNullPointerArray(_) => e
       case CoerceNonNullPointer(_) => e
       case CoercePointerNonNull(_) => e
       case CoerceFracZFrac() => e
@@ -307,10 +308,11 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceCPPArrayPointer(_) => e
       case CoerceCVectorVector(_, _) => e
       case CoerceNullLLVMPointer(_) => e
+      case CoerceNonNullPointerArray(_) => e
       case CoercePointerArrayPointer(_, _, _) => e
       case CoerceConstPointerArrayPointer(_, _) => e
       case CoercePointerPointerArray(_, _, _) => e
-      case CoerceConstPointerPointerArray(_, _) => e
+      case CoercePointerNonNullPointerArray(_, _, _) => e
       case CoerceNullEnum(_) => e
 
       case CoerceIntRat() => e
@@ -2367,7 +2369,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case JavaLocalDeclarationStatement(decl) =>
         JavaLocalDeclarationStatement(decl)
       case j @ Join(obj) => Join(cls(obj))(j.blame)
-      case Label(decl, stat) => Label(decl, stat)
+      case Label(decl, stat, contract) => Label(decl, stat, contract)
       case LocalDecl(local) => LocalDecl(local)
       case HeapLocalDecl(local) => HeapLocalDecl(local)
       case l @ Lock(obj) => Lock(cls(obj))(l.blame)

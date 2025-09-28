@@ -124,7 +124,7 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
       case s @ Break(Some(Ref(label))) => label -> s
     }
 
-    val targets = body.collect { case Label(decl, _) => decl }.toSet
+    val targets = body.collect { case Label(decl, _, _) => decl }.toSet
 
     for ((label, s) <- jumps) {
       if (!targets.contains(label)) {
@@ -178,10 +178,11 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] =
     stat match {
-      case e @ Extract(Label(decl, body), decreases) =>
+      case e @ Extract(Label(decl, body, contract), decreases) =>
         Label(
           labelDecls.dispatch(decl),
           dispatch(Extract(body, decreases)(e.blame)(stat.o)),
+          dispatch(contract),
         )(stat.o)
 
       case extract @ Extract(body, decreases) =>

@@ -195,6 +195,16 @@ sealed trait CheckError {
           context(expr) ->
             s"This invocation has the wrong number of arguments, got: $gotCount expected: $expectedCount"
         )
+      case InvalidTriggerVars(triggers, missing) =>
+        triggers.map(err => err.o -> s"... these triggers.") ++
+          missing.map(v => (v.o, ".. do not mention this var."))
+      case DisallowedTriggerExpression(expr) =>
+        Seq(context(expr) -> "This expression is not a valid trigger")
+      case TriggerWithoutDependentVars(expr) =>
+        Seq(
+          context(expr) ->
+            "This quantifier has triggers but its body doesn't use its dependent variables (Hint: use {:<:trigger:} to add a trigger for an outer quantifier)"
+        )
     }): _*)
 
   def subcode: String
@@ -338,6 +348,16 @@ case class IncorrectArgumentAmount(
 ) extends CheckError {
   val subcode = "incorrectArgumentAmount"
 }
+case class InvalidTriggerVars(triggers: Seq[Expr[_]], missing: Set[Variable[_]])
+    extends CheckError {
+  val subcode: String = "invalidTriggerVars"
+}
+case class DisallowedTriggerExpression(node: Node[_]) extends CheckError {
+  val subcode: String = "disallowedTrigger"
+}
+case class TriggerWithoutDependentVars(node: Node[_]) extends CheckError {
+  val subcode: String = "triggerWithoutDependentVars"
+}
 
 case object CheckContext {
   case class ScopeFrame[G](
@@ -370,6 +390,7 @@ case class CheckContext[G](
     inEndpointExpr: Option[EndpointExpr[G]] = None,
     inCommunicateInvariant: Option[Communicate[G]] = None,
     declarationStack: Seq[Declaration[G]] = Nil,
+    inResolution: Boolean = false,
 ) {
   def withScope(decls: Seq[Declaration[G]]): Seq[CheckContext.ScopeFrame[G]] =
     scopes :+ CheckContext.ScopeFrame(decls, Nil)

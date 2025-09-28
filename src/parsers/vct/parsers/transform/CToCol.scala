@@ -55,6 +55,8 @@ case class CToCol[G](
       .find(i => indicatorStream.get(i).getLine - 1 >= lineIdx)
       .getOrElse(return None)
 
+    // TODO: This will actually always assume that the file is the input file whereas it may be in a library
+    //       we should look at the path that is given here, because this can cause confusing errors
     for (tokIdx <- firstTokenAtOrPastLine to 0 by -1) {
       val markerToken = indicatorStream.get(tokIdx)
       if (markerToken.getChannel == LangCLexer.LINE_DIRECTIVE_CHANNEL) {
@@ -516,10 +518,15 @@ case class CToCol[G](
 
   def convert(implicit stat: LabeledStatementContext): Statement[G] =
     stat match {
-      case LabeledStatement0(label, _, inner) =>
-        Label(
-          new LabelDecl()(OriginProvider(stat).sourceName(convert(label))),
-          convert(inner),
+      case LabeledStatement0(contract, label, _, inner) =>
+        withContract(
+          contract,
+          c =>
+            Label(
+              new LabelDecl()(OriginProvider(stat).sourceName(convert(label))),
+              convert(inner),
+              c.consumeLoopContract(stat),
+            ),
         )
       case LabeledStatement1(_, _, _, _) => ??(stat)
       case LabeledStatement2(_, _, _) => ??(stat)
@@ -1526,10 +1533,15 @@ case class CToCol[G](
       case ValAssume(_, assn, _) => Assume(convert(assn))
       case ValInhale(_, resource, _) => Inhale(convert(resource))
       case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
-      case ValLabel(_, label, _) =>
-        Label(
-          new LabelDecl()(origin(stat).sourceName(convert(label))),
-          Block(Nil),
+      case ValLabel(contract, _, label, _) =>
+        withContract(
+          contract,
+          c =>
+            Label(
+              new LabelDecl()(origin(stat).sourceName(convert(label))),
+              Block(Nil),
+              c.consumeLoopContract(stat),
+            ),
         )
       case ValRefute(_, assn, _) => Refute(convert(assn))(blame(stat))
       case ValWitness(_, _, _) => ??(stat)
