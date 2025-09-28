@@ -110,6 +110,7 @@ float /*@ pure @*/ powf(float x, float y);
 
 /*@
   ensures \result == (float)((int)x);
+  ensures !\is_int(x) ==> ((int)\result) == ((int)x);
   decreases;
 @*/
 float /*@ pure @*/ floorf(float x);
@@ -123,6 +124,7 @@ float /*@ pure @*/ ceilf(float x);
 
 /*@
   ensures !(x < 0 && \is_int(x-0.5)) ==> \result == (float)(int)(x + 0.5);
+  ensures !(x < 0 && \is_int(x-0.5)) ==> ((int)\result) == (int)(x + 0.5);
   ensures (x < 0 && \is_int(x-0.5)) ==> \result == x-0.5;
   decreases;
 @*/
@@ -227,6 +229,7 @@ double /*@ pure @*/ pow(double x, double y);
 
 /*@
   ensures \result == (double)((int)x);
+  ensures !\is_int(x) ==> ((int)\result) == ((int)x);
   decreases;
 @*/
 double /*@ pure @*/ floor(double x);
@@ -240,6 +243,7 @@ double /*@ pure @*/ ceil(double x);
 
 /*@
   ensures !(x < 0 && \is_int(x-0.5)) ==> \result == (double)(int)(x + 0.5);
+  ensures !(x < 0 && \is_int(x-0.5)) ==> ((int)\result) == (int)(x + 0.5);
   ensures (x < 0 && \is_int(x-0.5)) ==> \result == x-0.5;
   decreases;
 @*/
