@@ -109,8 +109,9 @@ float /*@ pure @*/ logf(float x);
 float /*@ pure @*/ powf(float x, float y);
 
 /*@
-  ensures \result == (float)((int)x);
+  ensures !\is_int(x) ==> \result == (float)((int)x);
   ensures !\is_int(x) ==> ((int)\result) == ((int)x);
+  ensures \is_int(x) ==> \result == x;
   decreases;
 @*/
 float /*@ pure @*/ floorf(float x);
@@ -230,6 +231,7 @@ double /*@ pure @*/ pow(double x, double y);
 /*@
   ensures \result == (double)((int)x);
   ensures !\is_int(x) ==> ((int)\result) == ((int)x);
+  ensures \is_int(x) ==> \result == x;
   decreases;
 @*/
 double /*@ pure @*/ floor(double x);
