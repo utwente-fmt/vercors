@@ -2299,7 +2299,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case DefaultCase() => DefaultCase()
       case Eval(expr) => Eval(coerce(expr, TAnyValue()))
       case e @ Exhale(assn) => Exhale(res(assn))(e.blame)
-      case Extract(body) => Extract(body)
+      case e @ Extract(body, decreases) => Extract(body, decreases)(e.blame)
       case f @ Fold(assn) => Fold(assn)(f.blame)
       case f @ Fork(obj) => Fork(cls(obj))(f.blame)
       case proof @ FramedProof(pre, body, post) =>

@@ -84,10 +84,14 @@ case class LLVMContractToCol[G](
             SignalsClause(variable, convert(exp))(OriginProvider(contract)),
           ))
       // case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
-      case ValContractClause12(_, None, _) =>
-        collector.decreases += ((contract, DecreasesClauseNoRecursion()))
-      case ValContractClause12(_, Some(clause), _) =>
-        collector.decreases += ((contract, convert(clause)))
+      case ValContractClause12(decreases, _) =>
+        collector.decreases += ((contract, convert(decreases)))
+    }
+
+  def convert(implicit decreases: ValDecreasesContext): DecreasesClause[G] =
+    decreases match {
+      case ValDecreases0(_, None) => DecreasesClauseNoRecursion()
+      case ValDecreases0(_, Some(clause)) => convert(clause)
     }
 
   def convert(implicit t: LangTypeContext): Type[G] =

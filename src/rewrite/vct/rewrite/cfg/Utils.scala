@@ -143,7 +143,7 @@ object Utils {
           .flatMap(t => find_all_cases(t._1, index.enter_scope(body, t._2)))
       case FramedProof(_, bod, _) =>
         find_all_cases(bod, index.enter_scope(body))
-      case Extract(contractedStatement) =>
+      case Extract(contractedStatement, decreases) =>
         find_all_cases(contractedStatement, index.enter_scope(body))
       case Branch(branches) =>
         branches.zipWithIndex.flatMap(t =>

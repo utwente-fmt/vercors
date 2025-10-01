@@ -411,6 +411,35 @@ case class CallTerminationMeasureFailed(
     s"The invocation ${apply.o.inlineContextText} may not terminate, since `${calledMethod.o.inlineContextText}` is not decreasing"
 }
 
+sealed trait ExtractTerminationMeasureFailed extends TerminationMeasureFailed
+
+case class ExtractTerminationMeasureFailedNoClause(extract: Extract[_])
+    extends ExtractTerminationMeasureFailed {
+  override def code: String = "extractDecreasesFailedNoClause"
+  override def position: String = extract.o.shortPositionText
+  override def desc: String =
+    Message.messagesInContext(
+      extract.o ->
+        "This extract may not terminate, since no decreases measure was specified."
+    )
+  override def inlineDesc: String =
+    s"The extract ${extract.o.inlineContextText} may not terminate, since no decreases measure was specified"
+}
+
+case class ExtractTerminationMeasureFailedClause(
+    extract: Extract[_],
+    failure: TerminationMeasureFailed,
+) extends ExtractTerminationMeasureFailed {
+  override def code: String = "extractDecreasesFailedClause"
+  override def position: String = extract.o.shortPositionText
+  override def desc: String =
+    Message.messagesInContext(
+      extract.o -> s"This extract may not terminate, since...\n $failure "
+    )
+  override def inlineDesc: String =
+    s"The extract ${extract.o.inlineContextText} may not terminate, since no decreases measure was specified"
+}
+
 case class ContextEverywhereFailedInPost(
     failure: ContractFailure,
     node: ContractApplicable[_],
