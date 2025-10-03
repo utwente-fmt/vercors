@@ -707,29 +707,149 @@ case class ImportPointer[Pre <: Generation](
           } else { unwrapOption(pointer, deref.blame) }),
           field = getPointerField(pointer),
         )(PointerFieldInsufficientPermission(deref.blame, deref))
-      case InlinePattern(
-            len @ PointerBlockLength(pointer, size),
-            parent,
-            group,
-          ) =>
-        val length = InlinePattern(
-          ADTFunctionInvocation[Post](
-            typeArgs = Some((blockAdt.ref, Nil)),
-            ref = blockLength.ref,
-            args = Seq(ADTFunctionInvocation[Post](
-              typeArgs = Some((pointerAdt.ref, Nil)),
-              ref = pointerBlock.ref,
-              args = Seq(unwrapOption(pointer, len.blame)),
-            )),
-          ),
-          parent,
-          group,
-        )
+      case Eq(off @ PointerBlockOffset(pointer, size), right) =>
         offsetEncoding match {
-          case "default" => length
-          case "fixed" => length / dispatch(size)
-          case _ => throw UnknownEncoding(offsetEncoding)
+          case "default" => super.postCoerce(e)
+          case "fixed" =>
+            Eq(
+              adtFunctionInvocation[Post](
+                pointerAddress.ref,
+                args = Seq(unwrapOption(pointer, off.blame)),
+              ) - adtFunctionInvocation[Post](
+                blockAddress.ref,
+                args = Seq(postCoerce(PointerBlock(pointer)(off.blame))),
+              ),
+              dispatch(right) * dispatch(size),
+            )
         }
+
+      case Eq(
+            ApplyCoercion(
+              off @ PointerBlockOffset(pointer, size),
+              CoerceIdentity(_),
+            ),
+            right,
+          ) =>
+        offsetEncoding match {
+          case "default" => super.postCoerce(e)
+          case "fixed" =>
+            Eq(
+              adtFunctionInvocation[Post](
+                pointerAddress.ref,
+                args = Seq(unwrapOption(pointer, off.blame)),
+              ) - adtFunctionInvocation[Post](
+                blockAddress.ref,
+                args = Seq(postCoerce(PointerBlock(pointer)(off.blame))),
+              ),
+              dispatch(right) * dispatch(size),
+            )
+        }
+      case Eq(len @ PointerBlockLength(pointer, size), right) =>
+        offsetEncoding match {
+          case "default" => super.postCoerce(e)
+          case "fixed" =>
+            Eq(
+              ADTFunctionInvocation[Post](
+                typeArgs = Some((blockAdt.ref, Nil)),
+                ref = blockLength.ref,
+                args = Seq(ADTFunctionInvocation[Post](
+                  typeArgs = Some((pointerAdt.ref, Nil)),
+                  ref = pointerBlock.ref,
+                  args = Seq(unwrapOption(pointer, len.blame)),
+                )),
+              ),
+              dispatch(right) * dispatch(size),
+            )
+        }
+
+      case Eq(
+            ApplyCoercion(
+              len @ PointerBlockLength(pointer, size),
+              CoerceIdentity(_),
+            ),
+            right,
+          ) =>
+        offsetEncoding match {
+          case "default" => super.postCoerce(e)
+          case "fixed" =>
+            Eq(
+              ADTFunctionInvocation[Post](
+                typeArgs = Some((blockAdt.ref, Nil)),
+                ref = blockLength.ref,
+                args = Seq(ADTFunctionInvocation[Post](
+                  typeArgs = Some((pointerAdt.ref, Nil)),
+                  ref = pointerBlock.ref,
+                  args = Seq(unwrapOption(pointer, len.blame)),
+                )),
+              ),
+              dispatch(right) * dispatch(size),
+            )
+        }
+
+      case Eq(
+            Minus(
+              len @ PointerBlockLength(p1, size),
+              off @ PointerBlockOffset(p2, _),
+            ),
+            other,
+          ) if p1 == p2 =>
+        offsetEncoding match {
+          case "default" => super.postCoerce(e)
+          case "fixed" =>
+            Eq(
+              ADTFunctionInvocation[Post](
+                typeArgs = Some((blockAdt.ref, Nil)),
+                ref = blockLength.ref,
+                args = Seq(ADTFunctionInvocation[Post](
+                  typeArgs = Some((pointerAdt.ref, Nil)),
+                  ref = pointerBlock.ref,
+                  args = Seq(unwrapOption(p1, len.blame)),
+                )),
+              ) -
+                (adtFunctionInvocation[Post](
+                  pointerAddress.ref,
+                  args = Seq(unwrapOption(p1, off.blame)),
+                ) - adtFunctionInvocation[Post](
+                  blockAddress.ref,
+                  args = Seq(postCoerce(PointerBlock(p1)(off.blame))),
+                )),
+              dispatch(other) * dispatch(size),
+            )
+        }
+      case Eq(
+            ApplyCoercion(
+              Minus(
+                len @ PointerBlockLength(p1, size),
+                off @ PointerBlockOffset(p2, _),
+              ),
+              CoerceIdentity(_),
+            ),
+            other,
+          ) if p1 == p2 =>
+        offsetEncoding match {
+          case "default" => super.postCoerce(e)
+          case "fixed" =>
+            Eq(
+              ADTFunctionInvocation[Post](
+                typeArgs = Some((blockAdt.ref, Nil)),
+                ref = blockLength.ref,
+                args = Seq(ADTFunctionInvocation[Post](
+                  typeArgs = Some((pointerAdt.ref, Nil)),
+                  ref = pointerBlock.ref,
+                  args = Seq(unwrapOption(p1, len.blame)),
+                )),
+              ) -
+                (adtFunctionInvocation[Post](
+                  pointerAddress.ref,
+                  args = Seq(unwrapOption(p1, off.blame)),
+                ) - adtFunctionInvocation[Post](
+                  blockAddress.ref,
+                  args = Seq(postCoerce(PointerBlock(p1)(off.blame))),
+                )),
+              dispatch(other) * dispatch(size),
+            )
+        }
+
       case len @ PointerBlockLength(pointer, size) =>
         val length = ADTFunctionInvocation[Post](
           typeArgs = Some((blockAdt.ref, Nil)),
@@ -743,37 +863,6 @@ case class ImportPointer[Pre <: Generation](
         offsetEncoding match {
           case "default" => length
           case "fixed" => length / dispatch(size)
-          case _ => throw UnknownEncoding(offsetEncoding)
-        }
-
-      case InlinePattern(
-            off @ PointerBlockOffset(pointer, size),
-            parent,
-            group,
-          ) =>
-        offsetEncoding match {
-          case "default" =>
-            InlinePattern(
-              ADTFunctionInvocation[Post](
-                typeArgs = Some((pointerAdt.ref, Nil)),
-                ref = pointerOffset.ref,
-                args = Seq(unwrapOption(pointer, off.blame)),
-              ),
-              parent,
-              group,
-            )
-          case "fixed" =>
-            InlinePattern(
-              adtFunctionInvocation[Post](
-                pointerAddress.ref,
-                args = Seq(unwrapOption(pointer, off.blame)),
-              ),
-              parent,
-              group,
-            ) - adtFunctionInvocation[Post](
-              blockAddress.ref,
-              args = Seq(postCoerce(PointerBlock(pointer)(off.blame))),
-            ) / dispatch(size)
           case _ => throw UnknownEncoding(offsetEncoding)
         }
       case off @ PointerBlockOffset(pointer, size) =>
