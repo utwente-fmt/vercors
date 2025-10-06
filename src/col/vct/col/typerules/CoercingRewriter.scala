@@ -782,6 +782,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
     implicit val o: Origin = e.o
 
     e match {
+      case CanaryExpr() => e
       case ApplyCoercion(_, _) => e
 
       case ActionApply(action, args) =>

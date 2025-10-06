@@ -14,6 +14,7 @@ import vct.col.ast.{
   AssignStmt,
   AxiomaticDataType,
   ByValueClassLocation,
+  CanaryExpr,
   CoerceConstPointerArrayPointer,
   CoerceNonNullPointerArray,
   CoerceNullPointerArray,
@@ -85,6 +86,7 @@ import vct.col.ast.{
   SplitAccountedPredicate,
   Statement,
   TAxiomatic,
+  TCInt,
   TInt,
   TNonNullConstPointer,
   TNonNullPointer,
@@ -874,10 +876,11 @@ case class EncodePointerArrays[Pre <: Generation](
                   t.unique,
                   t.isConst,
                 )
-                val pbl = PointerBlockLength(ptr, ???)(NonNullPointerNull)
+                val pbl =
+                  PointerBlockLength(ptr, CanaryExpr())(NonNullPointerNull)
                 val minLen = t.dimensions.filter(_.isDefined).map(_.get)
                   .map(dispatch).reduceOption((a, b) => Mult[Post](a, b))
-                (PointerBlockOffset(ptr, ???)(NonNullPointerNull) ===
+                (PointerBlockOffset(ptr, CanaryExpr())(NonNullPointerNull) ===
                   const[Post](0) &&
                   (if (t.dimensions.forall(_.isDefined)) { pbl === minLen.get }
                    else { pbl >= minLen.getOrElse(const[Post](1)) })) +:
@@ -956,6 +959,8 @@ case class EncodePointerArrays[Pre <: Generation](
 
   override def postCoerce(t: Type[Pre]): Type[Post] =
     t match {
+      // Temporary measure since the nested/sequenced ADTs create some more sizeof functions which return TCInts
+      case _: TCInt[Pre] => TInt()
       case a: PointerArrayType[Pre] =>
         // initialiseAdt(a.element, a.dimensions.length, a.unique, a.isConst)
         val axiomType = getAxiomType(
@@ -1011,12 +1016,15 @@ case class EncodePointerArrays[Pre <: Generation](
                           t.isConst,
                         )
                         val pbl =
-                          PointerBlockLength(ptr, ???)(NonNullPointerNull)
+                          PointerBlockLength(ptr, CanaryExpr())(
+                            NonNullPointerNull
+                          )
                         val minLen = t.dimensions.filter(_.isDefined).map(_.get)
                           .map(dispatch)
                           .reduceOption((a, b) => Mult[Post](a, b))
-                        (PointerBlockOffset(ptr, ???)(NonNullPointerNull) ===
-                          const[Post](0) &&
+                        (PointerBlockOffset(ptr, CanaryExpr())(
+                          NonNullPointerNull
+                        ) === const[Post](0) &&
                           (if (t.dimensions.forall(_.isDefined)) {
                              pbl === minLen.get
                            } else {

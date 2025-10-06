@@ -1330,6 +1330,10 @@ final case class CoerceLLVMIntInt[G]()(implicit val o: Origin)
 @family
 sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 
+// To give an error if this term ever reaches ColToSilver
+final case class CanaryExpr[G]()(implicit val o: Origin)
+    extends Expr[G] with CanaryExprImpl[G]
+
 // For terms which we can safely reason about in ExpressionEqualityCheck
 sealed trait SymbolicTerm[G] extends Expr[G]
 // For terms which introduce a resource in a function precondition, invocations of these functions must be excluded from SymbolicTerms that are collected
