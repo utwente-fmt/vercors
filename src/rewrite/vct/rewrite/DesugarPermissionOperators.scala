@@ -142,6 +142,8 @@ case class DesugarPermissionOperators[Pre <: Generation]()
         )
       case PermPointer(p, len, perm) =>
         (PointerNeq(dispatch(p), Null(), const(0))) &*
+          const(0) <=
+          PointerBlockOffset(dispatch(p))(FramedPtrOffset) + dispatch(len) &*
           PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(
             len
           ) <= PointerBlockLength(dispatch(p))(FramedPtrBlockLength) &* starall(
