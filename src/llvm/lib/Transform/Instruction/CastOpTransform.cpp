@@ -25,6 +25,14 @@ void llvm2col::transformCastOp(llvm::Instruction &llvmInstruction,
         transformTrunc(llvm::cast<llvm::TruncInst>(llvmInstruction), colBlock,
                        funcCursor);
         break;
+    case llvm::Instruction::PtrToInt:
+        transformPtrToInt(llvm::cast<llvm::PtrToIntInst>(llvmInstruction),
+                          colBlock, funcCursor);
+        break;
+    case llvm::Instruction::IntToPtr:
+        transformIntToPtr(llvm::cast<llvm::IntToPtrInst>(llvmInstruction),
+                          colBlock, funcCursor);
+        break;
     default:
         reportUnsupportedOperatorError(SOURCE_LOC, llvmInstruction);
     }
@@ -104,4 +112,42 @@ void llvm2col::transformFPExt(llvm::FPExtInst &fpextInstruction,
     llvm2col::transformAndSetExpr(funcCursor, fpextInstruction,
                                   *fpextInstruction.getOperand(0),
                                   *fpext->mutable_value());
+}
+
+void llvm2col::transformPtrToInt(llvm::PtrToIntInst &ptoiInstruction,
+                                 col::LlvmBasicBlock &colBlock,
+                                 pallas::FunctionCursor &funcCursor) {
+    col::Assign &assignment =
+        funcCursor.createAssignmentAndDeclaration(ptoiInstruction, colBlock);
+    col::Expr *castExpr = assignment.mutable_value();
+    col::LlvmIntegerPointerCast *cast =
+        castExpr->mutable_llvm_integer_pointer_cast();
+    cast->set_allocated_origin(
+        llvm2col::generateSingleStatementOrigin(ptoiInstruction));
+    llvm2col::transformAndSetExpr(funcCursor, ptoiInstruction,
+                                  *ptoiInstruction.getOperand(0),
+                                  *cast->mutable_value());
+    llvm2col::transformAndSetType(*ptoiInstruction.getSrcTy(),
+                                  *cast->mutable_input_type());
+    llvm2col::transformAndSetType(*ptoiInstruction.getDestTy(),
+                                  *cast->mutable_output_type());
+}
+
+void llvm2col::transformIntToPtr(llvm::IntToPtrInst &itopInstruction,
+                                 col::LlvmBasicBlock &colBlock,
+                                 pallas::FunctionCursor &funcCursor) {
+    col::Assign &assignment =
+        funcCursor.createAssignmentAndDeclaration(itopInstruction, colBlock);
+    col::Expr *castExpr = assignment.mutable_value();
+    col::LlvmIntegerPointerCast *cast =
+        castExpr->mutable_llvm_integer_pointer_cast();
+    cast->set_allocated_origin(
+        llvm2col::generateSingleStatementOrigin(itopInstruction));
+    llvm2col::transformAndSetExpr(funcCursor, itopInstruction,
+                                  *itopInstruction.getOperand(0),
+                                  *cast->mutable_value());
+    llvm2col::transformAndSetType(*itopInstruction.getSrcTy(),
+                                  *cast->mutable_input_type());
+    llvm2col::transformAndSetType(*itopInstruction.getDestTy(),
+                                  *cast->mutable_output_type());
 }

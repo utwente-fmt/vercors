@@ -24,5 +24,13 @@ void transformTrunc(llvm::TruncInst &truncInstruction,
 void transformFPExt(llvm::FPExtInst &fpextInstruction,
                     col::LlvmBasicBlock &colBlock,
                     pallas::FunctionCursor &funcCursor);
+
+void transformPtrToInt(llvm::PtrToIntInst &fpextInstruction,
+                       col::LlvmBasicBlock &colBlock,
+                       pallas::FunctionCursor &funcCursor);
+
+void transformIntToPtr(llvm::IntToPtrInst &fpextInstruction,
+                       col::LlvmBasicBlock &colBlock,
+                       pallas::FunctionCursor &funcCursor);
 } // namespace llvm2col
 #endif // PALLAS_CASTOPTRANSFORM_H

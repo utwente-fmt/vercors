@@ -333,7 +333,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case goto: CGoto[Pre] => c.rewriteGoto(goto)
       case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
       case atomic: GpgpuAtomic[Pre] => c.gpuAtomic(atomic)
-      
+
       case eval @ Eval(CPPInvocation(_, _, _, _)) =>
         cpp.invocationStatement(eval)
 
@@ -475,6 +475,8 @@ case class LangSpecificToCol[Pre <: Generation](
       case zext: LLVMZeroExtend[Pre] => llvm.rewriteZeroExtend(zext)
       case trunc: LLVMTruncate[Pre] => llvm.rewriteTruncate(trunc)
       case fpext: LLVMFloatExtend[Pre] => llvm.rewriteFloatExtend(fpext)
+      case cast: LLVMIntegerPointerCast[Pre] =>
+        llvm.rewriteIntegerPointerCast(cast)
       case result: LLVMResult[Pre] => llvm.rewriteResult(result)
       case llvmPerm: LLVMPerm[Pre] => llvm.rewritePerm(llvmPerm)
       case llvmPBL: LLVMPtrBlockLength[Pre] =>

@@ -2242,6 +2242,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         LLVMTruncate(inputType, outputType, coerce(value, inputType))
       case LLVMFloatExtend(inputType, outputType, value) =>
         LLVMFloatExtend(inputType, outputType, coerce(value, inputType))
+      case LLVMIntegerPointerCast(_, _, _) => e
       case LLVMIntegerValue(_, _) => e
       case LLVMFloatValue(_, _) => e
       case LLVMPointerValue(_) => e

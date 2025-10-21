@@ -389,9 +389,6 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       expr.collect {
         case Local(Ref(v)) => v
         case LLVMPointerValue(Ref(g)) => g
-        // These two below probably don't do anything
-        case v: Variable[Pre] => v
-        case v: LLVMGlobalVariable[Pre] => v
       }.toSet
     }
 
@@ -424,6 +421,23 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         case _ => None
       }
     }
+
+    // Returns variable and functions to strip and "rewrap" the type
+    def getVariablePossiblyWrapped(
+        expr: Expr[Pre]
+    ): Option[(Object, Type[Pre] => Type[Pre], Type[Pre] => Type[Pre])] =
+      expr match {
+        case Local(Ref(v)) => Some((v, t => t, t => t))
+        case LLVMPointerValue(Ref(g)) => Some((g, t => t, t => t))
+        case DerefPointer(p) =>
+          getVariablePossiblyWrapped(p).map { case (v, strip, wrap) =>
+            (
+              v,
+              { t: Type[Pre] => strip(t).asPointer.get.element },
+              { t: Type[Pre] => LLVMTPointer(Some(wrap(t))) },
+            )
+          }
+      }
 
     def addTypeGuess(
         obj: Object,
@@ -518,6 +532,19 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 dependencies,
                 _ => replaceWithGuesses(inv.args(idx), dependencies).t,
               )
+
+              getVariablePossiblyWrapped(inv.args(idx))
+                .foreach { case (v, strip, wrap) =>
+                  addTypeGuess(
+                    v,
+                    Set(arg),
+                    _ =>
+                      wrap(
+                        typeGuesses.get(arg).map(_.currentType)
+                          .getOrElse(inv.args(idx).t)
+                      ),
+                  )
+                }
             }
           }
       // Propagate pointer types across \old
@@ -1136,6 +1163,19 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteFloatExtend(fpext: LLVMFloatExtend[Pre]): Expr[Post] = {
     implicit val o: Origin = fpext.o
     CastFloat(rw.dispatch(fpext.value), rw.dispatch(fpext.t))
+  }
+
+  def rewriteIntegerPointerCast(
+      cast: LLVMIntegerPointerCast[Pre]
+  ): Expr[Post] = {
+    implicit val o: Origin = cast.o
+    val inputType = getInferredType(cast.value)
+    val outputType = getInferredType(cast)
+    val size =
+      if (cast.inputType.asPointer.isDefined) {
+        rw.c.sizeOf(inputType.asPointer.get.element, o)
+      } else { rw.c.sizeOf(outputType.asPointer.get.element, o) }
+    IntegerPointerCast(rw.dispatch(cast.value), rw.dispatch(outputType), size)
   }
 
   private def getInitializerForArithOpWithOverflow(

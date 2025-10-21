@@ -4061,6 +4061,13 @@ final case class LLVMFloatExtend[G](
 )(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMFloatExtendImpl[G]
 
+final case class LLVMIntegerPointerCast[G](
+    inputType: Type[G],
+    outputType: Type[G],
+    value: Expr[G],
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMIntegerPointerCastImpl[G]
+
 sealed trait LLVMArithOpWithOverflow[G]
     extends LLVMStatement[G] with LLVMArithOpWithOverflowImpl[G]
 

@@ -1,16 +1,16 @@
 #include <stdint.h>
 
+struct B {
+    int e;
+    float f;
+    char g;
+};
+
 struct A {
     struct B a;
     char b;
     int c;
     float d;
-};
-
-struct B {
-    int e;
-    float f;
-    char g;
 };
 
 
