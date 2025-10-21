@@ -19,7 +19,5 @@ trait LLVMTStructImpl[G] extends LLVMTStructOps[G] {
       (layoutPacked(Text("{") <> Doc.args(elements) <> "}"))
   }
 
-  override def bits: TypeSize =
-    if (packed) { TypeSize.packed(elements.map(_.bits): _*) }
-    else { TypeSize.struct(elements.map(_.bits): _*) }
+  override def bits: TypeSize = { TypeSize.Exact(sizeBytes * 8) }
 }

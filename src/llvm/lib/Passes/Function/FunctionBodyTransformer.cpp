@@ -129,12 +129,13 @@ col::Variable &FunctionCursor::declareVariable(Instruction &llvmInstruction,
     }
     // set type of declaration
     try {
+        const auto &dataLayout = llvmInstruction.getModule()->getDataLayout();
         if (llvmPointerType == nullptr) {
             llvm2col::transformAndSetType(*llvmInstruction.getType(),
-                                          *varDecl->mutable_t());
+                                          *varDecl->mutable_t(), dataLayout);
         } else {
-            llvm2col::transformAndSetPointerType(*llvmPointerType,
-                                                 *varDecl->mutable_t());
+            llvm2col::transformAndSetPointerType(
+                *llvmPointerType, *varDecl->mutable_t(), dataLayout);
         }
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;

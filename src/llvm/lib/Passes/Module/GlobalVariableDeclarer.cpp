@@ -18,7 +18,8 @@ PreservedAnalyses GlobalVariableDeclarerPass::run(Module &M,
             globDecl->mutable_llvm_global_variable();
 
         llvm2col::transformAndSetType(*global.getType(),
-                                      *colGlobal->mutable_variable_type());
+                                      *colGlobal->mutable_variable_type(),
+                                      M.getDataLayout());
         if (global.hasInitializer()) {
             // Skip the entry-point global from swift, as it contains currently
             // unsupported poitner-casting and is not needed for verification.
@@ -28,10 +29,12 @@ PreservedAnalyses GlobalVariableDeclarerPass::run(Module &M,
                         .getManager(),
                     llvm2col::generateGlobalVariableInitializerOrigin(
                         M, global, *global.getInitializer()),
-                    *global.getInitializer(), *colGlobal->mutable_value());
+                    *global.getInitializer(), *colGlobal->mutable_value(),
+                    M.getDataLayout());
             }
             llvm2col::transformAndSetType(*global.getInitializer()->getType(),
-                                          *colGlobal->mutable_variable_type());
+                                          *colGlobal->mutable_variable_type(),
+                                          M.getDataLayout());
         } else {
             // We don't know more about the type because we don't have an
             // initializer
@@ -39,7 +42,8 @@ PreservedAnalyses GlobalVariableDeclarerPass::run(Module &M,
             // declaration type is the inner type of the pointer. We should
             // instead set the type to be TAny maybe?
             llvm2col::transformAndSetType(*global.getType(),
-                                          *colGlobal->mutable_variable_type());
+                                          *colGlobal->mutable_variable_type(),
+                                          M.getDataLayout());
         }
         colGlobal->set_constant(global.isConstant());
         colGlobal->set_allocated_origin(
