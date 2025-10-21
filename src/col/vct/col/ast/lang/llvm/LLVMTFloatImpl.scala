@@ -3,6 +3,7 @@ package vct.col.ast.lang.llvm
 import vct.col.ast.ops.LLVMTFloatOps
 import vct.col.ast._
 import vct.col.print._
+import vct.col.typerules.TypeSize
 
 object LLVMTFloats {
   def fromLLVMTFloat[G](t: LLVMTFloat[G]): TFloat[G] =
@@ -40,4 +41,5 @@ trait LLVMTFloatImpl[G] extends LLVMTFloatOps[G] {
     }
 
   override def layout(implicit ctx: Ctx): Doc = floatType.show
+  override def bits: TypeSize = TypeSize.Exact(exponent + mantissa)
 }

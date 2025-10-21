@@ -117,6 +117,7 @@ void llvm2col::transformFPExt(llvm::FPExtInst &fpextInstruction,
 void llvm2col::transformPtrToInt(llvm::PtrToIntInst &ptoiInstruction,
                                  col::LlvmBasicBlock &colBlock,
                                  pallas::FunctionCursor &funcCursor) {
+    const auto &dataLayout = ptoiInstruction.getModule()->getDataLayout();
     col::Assign &assignment =
         funcCursor.createAssignmentAndDeclaration(ptoiInstruction, colBlock);
     col::Expr *castExpr = assignment.mutable_value();
@@ -128,14 +129,15 @@ void llvm2col::transformPtrToInt(llvm::PtrToIntInst &ptoiInstruction,
                                   *ptoiInstruction.getOperand(0),
                                   *cast->mutable_value());
     llvm2col::transformAndSetType(*ptoiInstruction.getSrcTy(),
-                                  *cast->mutable_input_type());
+                                  *cast->mutable_input_type(), dataLayout);
     llvm2col::transformAndSetType(*ptoiInstruction.getDestTy(),
-                                  *cast->mutable_output_type());
+                                  *cast->mutable_output_type(), dataLayout);
 }
 
 void llvm2col::transformIntToPtr(llvm::IntToPtrInst &itopInstruction,
                                  col::LlvmBasicBlock &colBlock,
                                  pallas::FunctionCursor &funcCursor) {
+    const auto &dataLayout = itopInstruction.getModule()->getDataLayout();
     col::Assign &assignment =
         funcCursor.createAssignmentAndDeclaration(itopInstruction, colBlock);
     col::Expr *castExpr = assignment.mutable_value();
@@ -147,7 +149,7 @@ void llvm2col::transformIntToPtr(llvm::IntToPtrInst &itopInstruction,
                                   *itopInstruction.getOperand(0),
                                   *cast->mutable_value());
     llvm2col::transformAndSetType(*itopInstruction.getSrcTy(),
-                                  *cast->mutable_input_type());
+                                  *cast->mutable_input_type(), dataLayout);
     llvm2col::transformAndSetType(*itopInstruction.getDestTy(),
-                                  *cast->mutable_output_type());
+                                  *cast->mutable_output_type(), dataLayout);
 }
