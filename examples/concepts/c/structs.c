@@ -65,7 +65,6 @@ void alter_copy_struct(struct point p){
     p.y = 0;
 }
 
-// TODO: Should be auto-generated
 /*@
   context Perm(p, 1\1);
 @*/
@@ -81,47 +80,22 @@ void alter_copy_struct_2(struct point p){
 int avr_x(struct triangle *r){
     return (r->p1.x + r->p2.x + r->p3.x)/3;
 }
-/*@
- decreases assume;
- //decreases n is broken atm https://github.com/viperproject/silicon/issues/768 for this example
- //decreases n;
- requires n >= 0;
- requires inp != NULL && \pointer_length(inp) >= n;
- requires (\forall int i, int j; 0<=i && i<n && 0<=j && j<n; i != j ==> {:inp[i]:} != {:inp[j]:});
- requires (\forall* int i; 0 <= i && i < n; Perm(inp[i].x, 1\10));
- ensures |\result| == n;
- ensures (\forall int i; 0 <= i && i < n; \result[i] == inp[i].x);
- //ensures n>0 ==> \result == inp_to_seq(inp, n-1) + [inp[n-1].x];
-pure seq<int> inp_to_seq(struct point *inp, int n) = n == 0 ? [t: int ] : inp_to_seq(inp, n-1) + [inp[n-1].x];
-
- decreases |xs|;
- ensures |xs| == 0 ==> \result == 0;
- ensures |xs| > 0 ==> \result == sum_seq(xs[.. (|xs|-1)]) + xs[ |xs|-1 ];
-pure int sum_seq(seq<int> xs) = |xs| == 0 ? 0 : sum_seq(xs[.. (|xs|-1)]) + xs[ |xs|-1 ];
-@*/
 
 
 /*@
   requires len > 0;
   context p != NULL ** Perm(*p, 1\2);
   context p->ps != NULL && \pointer_length(p->ps) >= len;
-  context (\forall int i, int j; 0<=i && i<len && 0<=j && j<len; i != j ==> {:p->ps[i]:} != {:p->ps[j]:});
   context (\forall* int i; 0<=i && i<len; Perm(p->ps[i], 1\2));
-  // This hangs for bigger numbers than 3, and is incredibly slow for 3, so we leave it out for now
-  // ensures len == 3 ==> \result == sum_seq(inp_to_seq(p->ps, len))/len;
   ensures len == 3 ==> \result == (p->ps[0].x + p->ps[1].x + p->ps[2].x)/len;
 @*/
 int avr_x_pol(struct polygon *p, int len){
     int sum = 0;
-    // ghost seq<int> xs = inp_to_seq(p->ps, len);
     /*@
       loop_invariant 0<=i && i<=len;
       loop_invariant p != NULL ** Perm(*p, 1\2);
       loop_invariant p->ps != NULL && \pointer_length(p->ps) >= len;
-      loop_invariant (\forall int i, int j; 0<=i && i<len && 0<=j && j<len; i != j ==> {:p->ps[i]:} != {:p->ps[j]:});
       loop_invariant (\forall* int i; 0<=i && i<len; Perm(p->ps[i], 1\2));
-      //loop_invariant (\forall int i; 0<=i && i<len; p->ps[i].x == xs[i]);
-      //loop_invariant sum == sum_seq(xs[..i]);
       loop_invariant i == 0 ==> sum == (0);
       loop_invariant i == 1 ==> sum == (p->ps[0].x);
       loop_invariant i == 2 ==> sum == (p->ps[0].x + p->ps[1].x);
@@ -129,21 +103,17 @@ int avr_x_pol(struct polygon *p, int len){
     @*/
     for(int i=0; i<len; i++){
         sum += p->ps[i].x;
-        // assert xs[.. i+1][.. i] == xs[.. i];
     }
 
-    // assert xs[..len] == xs;
     return sum/len;
 }
 
 
 int main(){
     struct point p;
-    // struct point pp[1];
     struct point *pp;
     pp = &p;
 
-    /* //@ assert (pp[0] != NULL ); */
     assert (pp != NULL );
 
     p.x = 1;
@@ -157,13 +127,13 @@ int main(){
     alter_struct(pp);
     assert(pp->x == 0);
     assert(p.x == 0);
-    alter_struct_1(pp); //alter_struct_1(&p) is not supported yet
+    alter_struct_1(pp);
     assert(p.x == 1 && p.y == 1);
 
     struct point p1, p2, p3;
     p1.x = 1; p1.y = 1;
-    p2.x = 2; p1.y = 2;
-    p3.x = 3; p1.y = 3;
+    p2.x = 2; p2.y = 2;
+    p3.x = 3; p3.y = 3;
     struct triangle r, *rr;
     rr = &r;
     r.p1 = p1;
@@ -175,7 +145,6 @@ int main(){
     ppols = &pol;
     pol.ps = ps;
     int avr_pol = avr_x_pol(ppols, 3);
-    // assert sum_seq(inp_to_seq(ppols->ps, 3)) == 6;
     assert(avr_pol == 2);
 
     return 0;
