@@ -49,18 +49,6 @@ case object LangSpecificToCol extends RewriterBuilderArg[Boolean] {
       )
   }
 
-  private case class IncompatibleBitVectorSize(
-      op: Expr[_],
-      l: BigInt,
-      r: BigInt,
-  ) extends UserError {
-    override def code: String = "incompatibleBVSize"
-    override def text: String =
-      op.o.messageInContext(
-        s"The sizes of the operands for this bitwise operation are `$l` and `$r` respectively. Only operations on equal sizes are supported"
-      )
-  }
-
   private case class IndeterminableBitVectorSign(op: Expr[_])
       extends UserError {
     override def code: String = "unknownBVSign"
@@ -93,6 +81,13 @@ case object LangSpecificToCol extends RewriterBuilderArg[Boolean] {
     override def text: String =
       op.o.messageInContext(
         "It is not possible to perform an arithmetic right-shift on an unsigned value"
+      )
+  }
+  case class InvalidPointerComparison(cmp: Origin) extends UserError {
+    override def code: String = "incompatiblePointerComparison"
+    override def text: String =
+      cmp.messageInContext(
+        "Comparison between pointers of different types is not supported"
       )
   }
 }
@@ -460,8 +455,6 @@ case class LangSpecificToCol[Pre <: Generation](
 
       case inv: LLVMFunctionInvocation[Pre] =>
         llvm.rewriteFunctionInvocation(inv)
-      case inv: LLVMAmbiguousFunctionInvocation[Pre] =>
-        llvm.rewriteAmbiguousFunctionInvocation(inv)
       case local: LLVMLocal[Pre] => llvm.rewriteLocal(local)
       case pointer: LLVMFunctionPointerValue[Pre] =>
         llvm.rewriteFunctionPointer(pointer)
@@ -489,6 +482,24 @@ case class LangSpecificToCol[Pre <: Generation](
       case llvmOr: LLVMOr[Pre] => llvm.rewriteOr(llvmOr)
       case llvmStar: LLVMStar[Pre] => llvm.rewriteStar(llvmStar)
       case llvmOld: LLVMOld[Pre] => llvm.rewriteOld(llvmOld)
+      case eq: AmbiguousEq[Pre] =>
+        llvm.correctPointerComparison(
+          eq.left,
+          eq.right,
+          AmbiguousEq(_, _, dispatch(eq.vectorInnerType), _)(e.o),
+        )(e.o)
+      case neq: AmbiguousNeq[Pre] =>
+        llvm.correctPointerComparison(
+          neq.left,
+          neq.right,
+          AmbiguousNeq(_, _, dispatch(neq.vectorInnerType), _)(e.o),
+        )(e.o)
+      case sel: Select[Pre] =>
+        llvm.correctPointerComparison(
+          sel.whenTrue,
+          sel.whenFalse,
+          (l, r, _) => Select(dispatch(sel.condition), l, r)(e.o),
+        )(e.o)
       case b @ BitAnd(left, right, 0, true) =>
         BitAnd(
           dispatch(left),

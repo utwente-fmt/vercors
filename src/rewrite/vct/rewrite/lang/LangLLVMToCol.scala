@@ -7,11 +7,12 @@ import vct.col.origin._
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.resolve.ctx.RefLLVMFunctionDefinition
 import vct.col.rewrite.{Generation, Rewritten}
+import vct.col.typerules.CoercionUtils
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.{CurrentProgramContext, SubstituteReferences, SuccessionMap}
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
+import vct.rewrite.lang.LangSpecificToCol.InvalidPointerComparison
 
-import scala.:+
 import scala.collection.mutable
 
 case object LangLLVMToCol {
@@ -97,6 +98,19 @@ case object LangLLVMToCol {
 
     override def text: String =
       memset.o.messageInContext(s"Unsupported memset operation")
+  }
+
+  private final case class InvalidPointerEquality(
+      o: Origin,
+      lt: Type[_],
+      rt: Type[_],
+  ) extends UserError {
+    override def code: String = "invalidPointerEquality"
+
+    override def text: String =
+      o.messageInContext(
+        s"Expected types `$lt` and `$rt` to be interchangeable, there might be too little information for type inference"
+      )
   }
 
   private final case class UnreachableReached(
@@ -450,6 +464,15 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     // TODO: This could be made more generic and also work with Assign nodes
     program.collect {
+      case Assign(target, value) =>
+        getVariable(target).foreach(v => {
+          val dependencies = findDependencies(value)
+          addTypeGuess(
+            v,
+            dependencies,
+            _ => replaceWithGuesses(value, dependencies).t,
+          )
+        })
       case func: LLVMFunctionDefinition[Pre] =>
         func.args.zipWithIndex.foreach { case (a, i) =>
           addTypeGuess(
@@ -692,65 +715,66 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
-  def rewriteAmbiguousFunctionInvocation(
-      inv: LLVMAmbiguousFunctionInvocation[Pre]
-  ): Invocation[Post] = {
-    implicit val o: Origin = inv.o
-    inv.ref.get.decl match {
-      case func: LLVMFunctionDefinition[Pre] =>
-        new ProcedureInvocation[Post](
-          ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(func)),
-          args = inv.args.map(rw.dispatch),
-          givenMap = inv.givenMap.map { case (Ref(v), e) =>
-            (rw.succ(v), rw.dispatch(e))
-          },
-          yields = inv.yields.map { case (e, Ref(v)) =>
-            (rw.dispatch(e), rw.succ(v))
-          },
-          outArgs = Seq.empty,
-          typeArgs = Seq.empty,
-        )(inv.blame)
-      case func: LLVMSpecFunction[Pre] =>
-        new FunctionInvocation[Post](
-          ref = new LazyRef[Post, Function[Post]](specFunctionMap(func)),
-          args = inv.args.map(rw.dispatch),
-          givenMap = inv.givenMap.map { case (Ref(v), e) =>
-            (rw.succ(v), rw.dispatch(e))
-          },
-          yields = inv.yields.map { case (e, Ref(v)) =>
-            (rw.dispatch(e), rw.succ(v))
-          },
-          typeArgs = Seq.empty,
-        )(inv.blame)
-    }
-
-  }
-
   def rewriteFunctionInvocation(
       inv: LLVMFunctionInvocation[Pre]
   ): ProcedureInvocation[Post] = {
     implicit val o: Origin = inv.o
 
-    new ProcedureInvocation[Post](
-      ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(inv.ref.decl)),
-      args = inv.args.zipWithIndex.map {
-        // TODO: This is really ugly, can we do the type inference in the resolve step and then do coercions to do this?
-        case (a, i) =>
-          val requiredType = localVariableInferredType
-            .getOrElse(inv.ref.decl.args(i), inv.ref.decl.args(i).t)
-          val givenType = getInferredType(a)
-          if (
-            givenType != requiredType && givenType.asPointer.isDefined &&
-            requiredType.asPointer.isDefined
+    def addCast(arg: Expr[Pre], v: Variable[Pre]): Expr[Post] = {
+      arg match {
+        case dp @ DerefPointer(p) => {
+          val pt = getInferredType(p)
+          val et = pt.asPointer.get.element
+          val vt = getLocalVarType(v)
+          if (CoercionUtils.getAnyCoercion(et, vt).isDefined) {
+            rw.dispatch(arg)
+          } else if (
+            et == TVoid[Pre]() || CoercionUtils.firstElementIsType(et, vt) ||
+            CoercionUtils.firstElementIsType(vt, et)
+          ) {
+            DerefPointer(
+              PointerCast(
+                rw.dispatch(arg),
+                TPointer(rw.dispatch(vt), None),
+                rw.c.sizeOf(et, p.o),
+                rw.c.sizeOf(vt, v.o),
+              )(dp.o)
+            )(dp.blame)(dp.o)
+          } else { throw InvalidPointerEquality(inv.o, vt, et) }
+        }
+        case _ if arg.t.asPointer.isDefined => {
+          val pt = getInferredType(arg)
+          val pet = pt.asPointer.get.element
+          val vt = getLocalVarType(v)
+          val vet = vt.asPointer.get.element
+          if (CoercionUtils.getAnyCoercion(pet, vet).isDefined) {
+            rw.dispatch(arg)
+          } else if (
+            pet == TVoid[Pre]() || CoercionUtils.firstElementIsType(pet, vet) ||
+            CoercionUtils.firstElementIsType(vet, pet)
           ) {
             PointerCast(
-              rw.dispatch(a),
-              rw.dispatch(requiredType),
-              rw.c.sizeOf(givenType.asPointer.get.element, inv.o),
-              rw.c.sizeOf(requiredType.asPointer.get.element, inv.o),
-            )
-          } else { rw.dispatch(a) }
-      },
+              rw.dispatch(arg),
+              rw.dispatch(vt),
+              rw.c.sizeOf(pet, arg.o),
+              rw.c.sizeOf(vet, v.o),
+            )(arg.o)
+          } else { throw InvalidPointerEquality(inv.o, vet, pet) }
+        }
+        case _ => rw.dispatch(arg)
+      }
+    }
+
+    val given = inv.givenMap.map { case (Ref(v), e) =>
+      (rw.succ[Variable[Post]](v), addCast(e, v))
+    }
+    val yields = inv.yields.map { case (e, Ref(v)) =>
+      (addCast(e, v), rw.succ[Variable[Post]](v))
+    }
+
+    new ProcedureInvocation[Post](
+      ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(inv.ref.decl)),
+      args = inv.args.zip(inv.ref.decl.args).map(p => addCast(p._1, p._2)),
       givenMap = inv.givenMap.map { case (Ref(v), e) =>
         (rw.succ(v), rw.dispatch(e))
       },
@@ -816,7 +840,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         t.packed,
         rw.c.sizeOf(t, t.o),
         elements.collect { t => rw.c.sizeOf(t, t.o) },
-      )(t.o.withContent(TypeName("struct")))
+      )(
+        t.o.withContent(TypeName("struct"))
+          .where(name = name.getOrElse("unknown"))
+      )
 
     rw.globalDeclarations.declare(newStruct)
     structMap(t) = newStruct
@@ -1578,6 +1605,50 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     requireInWrapper(llvmOld)
     implicit val o: Origin = llvmOld.o
     LLVMOld[Post](rw.succ(llvmOld.v.decl))
+  }
+
+  def correctPointerComparison[T <: Expr[Post]](
+      left: Expr[Pre],
+      right: Expr[Pre],
+      op: (Expr[Post], Expr[Post], Option[Expr[Post]]) => T,
+  )(implicit o: Origin): T = {
+    val lt = getInferredType(left)
+    val rt = getInferredType(right)
+    val nl = rw.dispatch(left)
+    val nr = rw.dispatch(right)
+
+    def cast(e: Expr[Post], fromType: Type[Pre], toType: Type[Pre]) =
+      PointerCast(
+        e,
+        TPointer(rw.dispatch(toType), None),
+        rw.c.sizeOf(fromType, o),
+        rw.c.sizeOf(toType, o),
+      )
+
+    (lt, rt) match {
+      case (l, r) if l == r =>
+        op(nl, nr, l.asPointer.map(p => rw.c.sizeOf(p.element, o)))
+      case (LLVMTPointer(None), LLVMTPointer(None)) =>
+        op(nl, nr, Some(rw.c.sizeOf(TAnyValue(), o)))
+      case (LLVMTPointer(Some(lt)), LLVMTPointer(None)) =>
+        op(nl, cast(nr, TAnyValue(), lt), Some(rw.c.sizeOf(lt, o)))
+      case (LLVMTPointer(None), LLVMTPointer(Some(rt))) =>
+        op(cast(nl, TAnyValue(), rt), nr, Some(rw.c.sizeOf(rt, o)))
+      case (LLVMTPointer(Some(lt)), LLVMTPointer(Some(rt))) =>
+        if (CoercionUtils.firstElementIsType(lt, rt)) {
+          op(nl, cast(nr, rt, lt), Some(rw.c.sizeOf(lt, o)))
+        } else if (CoercionUtils.firstElementIsType(rt, lt)) {
+          op(cast(nl, lt, rt), nr, Some(rw.c.sizeOf(rt, o)))
+        } else { throw InvalidPointerEquality(o, lt, rt) }
+      case (l, r) if l.asPointer.isDefined && r.asPointer.isDefined =>
+        if (
+          CoercionUtils
+            .getAnyCoercion(l.asPointer.get.element, r.asPointer.get.element)
+            .isDefined
+        ) { op(nl, nr, Some(rw.c.sizeOf(l.asPointer.get.element, o))) }
+        else { throw InvalidPointerComparison(o) }
+      case (_, _) => op(nl, nr, None)
+    }
   }
 
   def result(ref: RefLLVMFunctionDefinition[Pre])(
