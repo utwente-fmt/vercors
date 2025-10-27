@@ -464,7 +464,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     // TODO: This could be made more generic and also work with Assign nodes
     program.collect {
-      case Assign(target, value) =>
+      case Assign(target, value)
+          if target.t.isInstanceOf[LLVMTPointer[Pre]] ||
+            value.t.isInstanceOf[LLVMTPointer[Pre]] =>
         getVariable(target).foreach(v => {
           val dependencies = findDependencies(value)
           addTypeGuess(
