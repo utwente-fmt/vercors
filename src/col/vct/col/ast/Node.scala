@@ -1339,9 +1339,14 @@ sealed trait ResourceTerm[G] extends Expr[G] with ResourceTermImpl[G]
 // Trait mirroring Viper's PossibleTrigger should be implemented by all expressions that eventually become nodes that implement Viper's trait
 sealed trait PossibleTrigger[G] extends Expr[G] with PossibleTriggerImpl[G]
 
+final case class DummyConstant[G](t: Type[G])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends Expr[G] with DummyConstantImpl[G]
+
 sealed trait Constant[G] extends Expr[G] with ConstantImpl[G]
 sealed trait ConstantInt[G] extends Constant[G] with ConstantIntImpl[G]
 sealed trait ConstantFloat[G] extends Constant[G]
+// Dummy constant, used for type inference, should not appear in the AST after a rewrite (therefore there is no entry in CoercingRewriter ensuring we crash)
 final case class CIntegerValue[G](value: BigInt, t: Type[G])(
     implicit val o: Origin
 ) extends ConstantInt[G] with Expr[G] with CIntegerValueImpl[G]
@@ -4011,6 +4016,14 @@ final case class LLVMMemset[G](
     volatile: Expr[G],
 )(val blame: Blame[VerificationFailure])(implicit val o: Origin)
     extends LLVMStatement[G] with LLVMMemsetImpl[G]
+
+final case class LLVMMemcpy[G](
+    dst: Expr[G],
+    src: Expr[G],
+    len: Expr[G],
+    volatile: Expr[G],
+)(val blame: Blame[VerificationFailure])(implicit val o: Origin)
+    extends LLVMStatement[G] with LLVMMemcpyImpl[G]
 
 final case class LLVMBranchUnreachable[G]()(
     val blame: Blame[UnreachableReachedError]

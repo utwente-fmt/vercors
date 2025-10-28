@@ -2389,6 +2389,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case sub: LLVMSubWithOverflow[Pre] => sub
       case mult: LLVMMultWithOverflow[Pre] => mult
       case memset: LLVMMemset[Pre] => memset
+      case memcpy: LLVMMemcpy[Pre] => memcpy
       case ModelDo(model, perm, after, action, impl) =>
         ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)

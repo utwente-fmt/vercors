@@ -2,6 +2,7 @@ package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
+import vct.col.ast.expr.op.BinOperatorTypes
 import vct.col.ast.{Expr, _}
 import vct.col.origin._
 import vct.col.ref.{DirectRef, LazyRef, Ref}
@@ -727,7 +728,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         val vt = getLocalVarType(v)
         if (CoercionUtils.getAnyCoercion(et, vt).isDefined) { rw.dispatch(arg) }
         else if (
-          et == TVoid[Pre]() || CoercionUtils.firstElementIsType(et, vt) ||
+          vt == TVoid[Pre]() || et == TVoid[Pre]() ||
+          CoercionUtils.firstElementIsType(et, vt) ||
           CoercionUtils.firstElementIsType(vt, et)
         ) {
           DerefPointer(
@@ -748,7 +750,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         if (CoercionUtils.getAnyCoercion(pet, vet).isDefined) {
           rw.dispatch(arg)
         } else if (
-          pet == TVoid[Pre]() || CoercionUtils.firstElementIsType(pet, vet) ||
+          vet == TVoid[Pre]() || pet == TVoid[Pre]() ||
+          CoercionUtils.firstElementIsType(pet, vet) ||
           CoercionUtils.firstElementIsType(vet, pet)
         ) {
           PointerCast(
@@ -1364,8 +1367,85 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         val innerT = getInferredType(inner)
         innerT match {
           case LLVMTPointer(Some(innerPtrT)) => innerPtrT
+          case t: PointerType[Pre] => t.element
           case _ => e.t
         }
+      // All BinExprs that use getNumericType
+      case b @ AmbiguousMinus(l, r) =>
+        AmbiguousMinus(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.blame)(b.o).t
+      case b @ AmbiguousMult(l, r) =>
+        AmbiguousMult(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.o).t
+      case b @ AmbiguousPlus(l, r) =>
+        AmbiguousPlus(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.blame)(b.o).t
+      case b @ BitShr(l, r, bits) =>
+        BitShr(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+          bits,
+        )(b.blame)(b.o).t
+      case b @ BitOr(l, r, bits, signed) =>
+        BitOr(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+          bits,
+          signed,
+        )(b.blame)(b.o).t
+      case b @ BitShl(l, r, bits, signed) =>
+        BitShl(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+          bits,
+          signed,
+        )(b.blame)(b.o).t
+      case b @ BitUShr(l, r, bits, signed) =>
+        BitUShr(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+          bits,
+          signed,
+        )(b.blame)(b.o).t
+      case b @ BitXor(l, r, bits, signed) =>
+        BitXor(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+          bits,
+          signed,
+        )(b.blame)(b.o).t
+      case b: NumericBinExpr[Pre] =>
+        BinOperatorTypes.getNumericType(
+          getInferredType(b.left),
+          getInferredType(b.right),
+          b.o,
+        )
+      case b @ SmtlibPow(l, r) =>
+        SmtlibPow(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.o).t
+      case b @ AmbiguousComputationalAnd(l, r) =>
+        AmbiguousComputationalAnd(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.o).t
+      case b @ AmbiguousComputationalOr(l, r) =>
+        AmbiguousComputationalOr(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.o).t
+      case b @ AmbiguousComputationalXor(l, r) =>
+        AmbiguousComputationalXor(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.o).t
       case _ => e.t
     }
 
