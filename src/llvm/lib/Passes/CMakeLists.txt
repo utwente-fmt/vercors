@@ -16,6 +16,6 @@ add_library(Passes STATIC
 target_link_libraries(Passes COL)
 target_include_directories(Passes PRIVATE
     "${CMAKE_SOURCE_DIR}/include"
-    "${PROTO_BINARY_DIR}"
 )
+target_precompile_headers(Passes REUSE_FROM COL)
 

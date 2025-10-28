@@ -16,5 +16,6 @@ add_library(Transform STATIC
 target_link_libraries(Transform COL Util Origin)
 target_include_directories(Transform PRIVATE
     "${CMAKE_SOURCE_DIR}/include"
-    "${PROTO_BINARY_DIR}"
 )
+target_precompile_headers(Transform REUSE_FROM COL)
+

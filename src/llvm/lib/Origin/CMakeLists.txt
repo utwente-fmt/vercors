@@ -7,5 +7,6 @@ add_library(Origin STATIC
 target_link_libraries(Origin COL)
 target_include_directories(Origin PRIVATE
     "${CMAKE_SOURCE_DIR}/include"
-    "${PROTO_BINARY_DIR}"
 )
+target_precompile_headers(Origin REUSE_FROM COL)
+

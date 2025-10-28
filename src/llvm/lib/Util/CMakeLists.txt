@@ -8,5 +8,6 @@ add_library(Util STATIC
 target_link_libraries(Util Transform COL Origin)
 target_include_directories(Util PRIVATE
     "${CMAKE_SOURCE_DIR}/include"
-    "${PROTO_BINARY_DIR}"
 )
+target_precompile_headers(Util REUSE_FROM COL)
+

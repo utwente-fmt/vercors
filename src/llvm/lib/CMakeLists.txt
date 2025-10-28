@@ -8,5 +8,6 @@ add_library(Plugin OBJECT
 target_link_libraries(Plugin COL Transform Passes Origin Util)
 target_include_directories(Plugin PRIVATE
     "${CMAKE_SOURCE_DIR}/include"
-    "${PROTO_BINARY_DIR}"
 )
+target_precompile_headers(Plugin REUSE_FROM COL)
+

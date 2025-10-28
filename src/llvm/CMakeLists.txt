@@ -60,6 +60,7 @@ target_link_libraries(COL PUBLIC protobuf::libprotobuf)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/generated")
 set(PROTO_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_include_directories(COL PUBLIC "$<BUILD_INTERFACE:${PROTO_BINARY_DIR}>")
+target_precompile_headers(COL PRIVATE "$<BUILD_INTERFACE:${PROTO_BINARY_DIR}>/vct/col/ast/col.pb.h")
 
 protobuf_generate(
         TARGET COL
