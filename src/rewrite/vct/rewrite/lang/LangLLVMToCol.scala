@@ -717,55 +717,88 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
+  private def addCast(arg: Expr[Pre], v: Variable[Pre]): Expr[Post] = {
+    arg match {
+      case dp @ DerefPointer(p) => {
+        val pt = getInferredType(p)
+        val et = pt.asPointer.get.element
+        val vt = getLocalVarType(v)
+        if (CoercionUtils.getAnyCoercion(et, vt).isDefined) { rw.dispatch(arg) }
+        else if (
+          et == TVoid[Pre]() || CoercionUtils.firstElementIsType(et, vt) ||
+          CoercionUtils.firstElementIsType(vt, et)
+        ) {
+          DerefPointer(
+            PointerCast(
+              rw.dispatch(arg),
+              TPointer(rw.dispatch(vt), None),
+              rw.c.sizeOf(et, p.o),
+              rw.c.sizeOf(vt, v.o),
+            )(dp.o)
+          )(dp.blame)(dp.o)
+        } else { throw InvalidPointerEquality(inv.o, vt, et) }
+      }
+      case _ if arg.t.asPointer.isDefined => {
+        val pt = getInferredType(arg)
+        val pet = pt.asPointer.get.element
+        val vt = getLocalVarType(v)
+        val vet = vt.asPointer.get.element
+        if (CoercionUtils.getAnyCoercion(pet, vet).isDefined) {
+          rw.dispatch(arg)
+        } else if (
+          pet == TVoid[Pre]() || CoercionUtils.firstElementIsType(pet, vet) ||
+          CoercionUtils.firstElementIsType(vet, pet)
+        ) {
+          PointerCast(
+            rw.dispatch(arg),
+            rw.dispatch(vt),
+            rw.c.sizeOf(pet, arg.o),
+            rw.c.sizeOf(vet, v.o),
+          )(arg.o)
+        } else { throw InvalidPointerEquality(inv.o, vet, pet) }
+      }
+      case _ => rw.dispatch(arg)
+    }
+  }
+
+  def rewriteAmbiguousFunctionInvocation(
+      inv: LLVMAmbiguousFunctionInvocation[Pre]
+  ): Invocation[Post] = {
+    implicit val o: Origin = inv.o
+
+    val given = inv.givenMap.map { case (Ref(v), e) =>
+      (rw.succ[Variable[Post]](v), addCast(e, v))
+    }
+    val yields = inv.yields.map { case (e, Ref(v)) =>
+      (addCast(e, v), rw.succ[Variable[Post]](v))
+    }
+
+    inv.ref.get.decl match {
+      case func: LLVMFunctionDefinition[Pre] =>
+        new ProcedureInvocation[Post](
+          ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(func)),
+          args = inv.args.zip(func.args).map(p => addCast(p._1, p._2)),
+          givenMap = given,
+          yields = yields,
+          outArgs = Seq.empty,
+          typeArgs = Seq.empty,
+        )(inv.blame)
+      case func: LLVMSpecFunction[Pre] =>
+        new FunctionInvocation[Post](
+          ref = new LazyRef[Post, Function[Post]](specFunctionMap(func)),
+          args = inv.args.zip(func.args).map(p => addCast(p._1, p._2)),
+          givenMap = given,
+          yields = yields,
+          typeArgs = Seq.empty,
+        )(inv.blame)
+    }
+
+  }
+
   def rewriteFunctionInvocation(
       inv: LLVMFunctionInvocation[Pre]
   ): ProcedureInvocation[Post] = {
     implicit val o: Origin = inv.o
-
-    def addCast(arg: Expr[Pre], v: Variable[Pre]): Expr[Post] = {
-      arg match {
-        case dp @ DerefPointer(p) => {
-          val pt = getInferredType(p)
-          val et = pt.asPointer.get.element
-          val vt = getLocalVarType(v)
-          if (CoercionUtils.getAnyCoercion(et, vt).isDefined) {
-            rw.dispatch(arg)
-          } else if (
-            et == TVoid[Pre]() || CoercionUtils.firstElementIsType(et, vt) ||
-            CoercionUtils.firstElementIsType(vt, et)
-          ) {
-            DerefPointer(
-              PointerCast(
-                rw.dispatch(arg),
-                TPointer(rw.dispatch(vt), None),
-                rw.c.sizeOf(et, p.o),
-                rw.c.sizeOf(vt, v.o),
-              )(dp.o)
-            )(dp.blame)(dp.o)
-          } else { throw InvalidPointerEquality(inv.o, vt, et) }
-        }
-        case _ if arg.t.asPointer.isDefined => {
-          val pt = getInferredType(arg)
-          val pet = pt.asPointer.get.element
-          val vt = getLocalVarType(v)
-          val vet = vt.asPointer.get.element
-          if (CoercionUtils.getAnyCoercion(pet, vet).isDefined) {
-            rw.dispatch(arg)
-          } else if (
-            pet == TVoid[Pre]() || CoercionUtils.firstElementIsType(pet, vet) ||
-            CoercionUtils.firstElementIsType(vet, pet)
-          ) {
-            PointerCast(
-              rw.dispatch(arg),
-              rw.dispatch(vt),
-              rw.c.sizeOf(pet, arg.o),
-              rw.c.sizeOf(vet, v.o),
-            )(arg.o)
-          } else { throw InvalidPointerEquality(inv.o, vet, pet) }
-        }
-        case _ => rw.dispatch(arg)
-      }
-    }
 
     val given = inv.givenMap.map { case (Ref(v), e) =>
       (rw.succ[Variable[Post]](v), addCast(e, v))
@@ -777,12 +810,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     new ProcedureInvocation[Post](
       ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(inv.ref.decl)),
       args = inv.args.zip(inv.ref.decl.args).map(p => addCast(p._1, p._2)),
-      givenMap = inv.givenMap.map { case (Ref(v), e) =>
-        (rw.succ(v), rw.dispatch(e))
-      },
-      yields = inv.yields.map { case (e, Ref(v)) =>
-        (rw.dispatch(e), rw.succ(v))
-      },
+      givenMap = given,
+      yields = yields,
       outArgs = Seq.empty,
       typeArgs = Seq.empty,
     )(inv.blame)

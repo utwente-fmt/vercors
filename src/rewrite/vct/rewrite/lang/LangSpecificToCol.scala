@@ -453,6 +453,8 @@ case class LangSpecificToCol[Pre <: Generation](
         silver.adtInvocation(inv)
       case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
 
+      case inv: LLVMAmbiguousFunctionInvocation[Pre] =>
+        llvm.rewriteAmbiguousFunctionInvocation(inv)
       case inv: LLVMFunctionInvocation[Pre] =>
         llvm.rewriteFunctionInvocation(inv)
       case local: LLVMLocal[Pre] => llvm.rewriteLocal(local)
