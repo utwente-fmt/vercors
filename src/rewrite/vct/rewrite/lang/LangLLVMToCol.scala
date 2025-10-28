@@ -717,7 +717,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
-  private def addCast(arg: Expr[Pre], v: Variable[Pre]): Expr[Post] = {
+  private def addCast(arg: Expr[Pre], v: Variable[Pre])(
+      implicit o: Origin
+  ): Expr[Post] = {
     arg match {
       case dp @ DerefPointer(p) => {
         val pt = getInferredType(p)
@@ -736,7 +738,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               rw.c.sizeOf(vt, v.o),
             )(dp.o)
           )(dp.blame)(dp.o)
-        } else { throw InvalidPointerEquality(inv.o, vt, et) }
+        } else { throw InvalidPointerEquality(o, vt, et) }
       }
       case _ if arg.t.asPointer.isDefined => {
         val pt = getInferredType(arg)
@@ -755,7 +757,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             rw.c.sizeOf(pet, arg.o),
             rw.c.sizeOf(vet, v.o),
           )(arg.o)
-        } else { throw InvalidPointerEquality(inv.o, vet, pet) }
+        } else { throw InvalidPointerEquality(o, vet, pet) }
       }
       case _ => rw.dispatch(arg)
     }
