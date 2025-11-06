@@ -11,6 +11,7 @@ add_library(Passes STATIC
     Module/ModuleSpecCollector.cpp
     Module/ProtobufPrinter.cpp
     Module/RootContainer.cpp
+    Module/StructConsolidator.cpp
 )
 
 target_link_libraries(Passes COL)
