@@ -1995,9 +1995,7 @@ final case class ByValueClassLocation[G](expr: Expr[G])(implicit val o: Origin)
 final case class PredicateLocation[G](inv: ApplyAnyPredicate[G])(
     implicit val o: Origin
 ) extends Location[G] with PredicateLocationImpl[G]
-final case class AmbiguousLocation[G](expr: Expr[G])(
-    val blame: Blame[PointerLocationError]
-)(implicit val o: Origin)
+final case class AmbiguousLocation[G](expr: Expr[G])(implicit val o: Origin)
     extends Location[G] with AmbiguousLocationImpl[G]
 final case class InLinePatternLocation[G](loc: Location[G], pattern: Expr[G])(
     implicit val o: Origin
@@ -4144,7 +4142,7 @@ final case class LLVMFracOf[G](
 final case class LLVMPerm[G](
     loc: Ref[G, Variable[G]],
     perm: Ref[G, Variable[G]],
-)(val blame: Blame[PointerLocationError])(implicit val o: Origin)
+)(val blame: Blame[PointerDerefError])(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMPermImpl[G]
 
 final case class LLVMImplies[G](

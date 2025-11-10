@@ -175,6 +175,39 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           toSize,
         )
       },
+    )) :+ new ADTAxiom[Post](foralls(
+      Seq(TNonNullPointer(newT, unique), TNonNullPointer(axiomType, None)),
+      body = { case Seq(a, b) =>
+        (a === PointerCast(
+          adtFunctionInvocation(
+            fieldRef,
+            args = Seq(
+              InlinePattern(PointerToAdt(b, axiomType)(NonNullPointerNull))
+            ),
+          ),
+          TNonNullPointer(newT, unique),
+          fieldSize,
+          toSize,
+        )) ==>
+          (InlinePattern(
+            PointerCast(a, TNonNullPointer(axiomType, None), toSize, structSize)
+          ) === b)
+      },
+    )) :+ new ADTAxiom[Post](foralls(
+      Seq(TNonNullPointer(TVoid(), None), TNonNullPointer(axiomType, None)),
+      body = { case Seq(x, y) =>
+        (x === InlinePattern(
+          PointerCast(y, TNonNullPointer(TVoid(), None), structSize, const(1))
+        )) ==>
+          (InlinePattern(
+            PointerCast(x, TNonNullPointer(newT, unique), const(1), fieldSize)
+          ) === PointerCast(
+            y,
+            TNonNullPointer(newT, unique),
+            structSize,
+            fieldSize,
+          ))
+      },
     ))
   }
 
@@ -377,6 +410,49 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                   byValFieldSucc.ref(field),
                   args = Seq(PointerToAdt(a, axiomType)(NonNullPointerNull)),
                 )
+              },
+            )) :+ new ADTAxiom[Post](foralls(
+              Seq(
+                TNonNullPointer(newT, unique),
+                TNonNullPointer(axiomType, None),
+              ),
+              body = { case Seq(a, b) =>
+                (a === adtFunctionInvocation(
+                  byValFieldSucc.ref(field),
+                  args = Seq(InlinePattern(
+                    PointerToAdt(b, axiomType)(NonNullPointerNull)
+                  )),
+                )) ==>
+                  (InlinePattern(PointerCast(
+                    a,
+                    TNonNullPointer(axiomType, None),
+                    dispatch(cls.childSizes.head),
+                    dispatch(cls.size),
+                  )) === b)
+              },
+            )) :+ new ADTAxiom[Post](foralls(
+              Seq(
+                TNonNullPointer(TVoid(), None),
+                TNonNullPointer(axiomType, None),
+              ),
+              body = { case Seq(x, y) =>
+                (x === InlinePattern(PointerCast(
+                  y,
+                  TNonNullPointer(TVoid(), None),
+                  dispatch(cls.size),
+                  const(1),
+                ))) ==>
+                  (InlinePattern(PointerCast(
+                    x,
+                    TNonNullPointer(newT, unique),
+                    const(1),
+                    dispatch(cls.childSizes.head),
+                  )) === PointerCast(
+                    y,
+                    TNonNullPointer(newT, unique),
+                    dispatch(cls.size),
+                    dispatch(cls.childSizes.head),
+                  ))
               },
             ))
 

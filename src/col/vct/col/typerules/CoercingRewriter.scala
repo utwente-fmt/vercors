@@ -2844,7 +2844,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         PointerLocation(pointer(pointerExp)._1)(p.blame)
       case ByValueClassLocation(expr) => node
       case PredicateLocation(inv) => PredicateLocation(inv)
-      case al @ AmbiguousLocation(expr) => AmbiguousLocation(expr)(al.blame)
+      case al @ AmbiguousLocation(expr) => AmbiguousLocation(expr)
       case patLoc @ InLinePatternLocation(loc, pat) =>
         InLinePatternLocation(loc, pat)
     }

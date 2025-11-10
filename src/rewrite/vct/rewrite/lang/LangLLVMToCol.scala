@@ -193,6 +193,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   // are assigned using store-instructions.
   private val assignedInLoop: ScopedStack[mutable.Set[Variable[Pre]]] =
     ScopedStack()
+  private val usedInLoop: ScopedStack[mutable.Set[Variable[Pre]]] =
+    ScopedStack()
 
   // Initializer-functions for the tuples that are returned by the llvm intrinsics
   // for arithmetic operaitons with overflows.
@@ -708,9 +710,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         implicit val o: Origin = pallasResArgPermOrigin
         c.rewrite(contextEverywhere =
           (PointerNeq(Local(arg), Null(), const(0))) &* Perm(
-            AmbiguousLocation(DerefPointer(Local(arg))(LLVMSretPerm))(
-              LLVMSretPerm
-            ),
+            AmbiguousLocation(DerefPointer(Local(arg))(LLVMSretPerm)),
             WritePerm[Post](),
           ) &* rw.dispatch(c.contextEverywhere)
         )
@@ -1651,7 +1651,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = llvmPerm.o
     val locExpr = Local[Post](rw.succ(llvmPerm.loc.decl))
     Perm[Post](
-      PointerLocation[Post](locExpr)(llvmPerm.blame),
+      AmbiguousLocation[Post](DerefPointer(locExpr)(llvmPerm.blame)),
       Local[Post](rw.succ(llvmPerm.perm.decl)),
     )
   }
@@ -1859,9 +1859,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       loopBlocks.addAll(loop.blocks.get)
       // Determine which variables are assigned using store-instructions
       val assignedVars = mutable.Set[Variable[Pre]]()
+      val usedVars = mutable.Set[Variable[Pre]]()
       loop.blocks.getOrElse(mutable.Set.empty).foreach { b =>
-        b.body.collect { case LLVMStore(_, Local(Ref(v)), _) =>
-          assignedVars.add(v)
+        b.body.collect {
+          case LLVMStore(_, Local(Ref(v)), _) => assignedVars.add(v)
+          case Local(Ref(v)) => usedVars.add(v)
         }
       }
       Label(
@@ -1870,7 +1872,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           Block(Nil)(block.o),
           tt[Post],
           Block(Nil)(block.o),
-          assignedInLoop.having(assignedVars) { rw.dispatch(loop.contract) },
+          assignedInLoop.having(assignedVars) {
+            usedInLoop.having(usedVars) { rw.dispatch(loop.contract) }
+          },
           Block(
             blockToLabel(loop.headerBlock.get) +: loop.blocks.get.filterNot {
               b => b == loop.headerBlock.get || b == loop.latchBlock.get
@@ -1889,20 +1893,23 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = llvmContract.o
     // Add Permission for alloca-variables
     var extendedInv = rw.dispatch(llvmContract.invariant)
-    allocaVars.topOption.getOrElse(mutable.Set.empty).foreach { v =>
-      // If the variable is assigned to, assert write-perm, otherwise read perm
-      val perm =
-        if (assignedInLoop.topOption.getOrElse(mutable.Set.empty).contains(v)) {
-          WritePerm[Post]()
-        } else { ReadPerm[Post]() }
-      extendedInv =
-        Perm(
-          PointerLocation[Post](Local(rw.succ(v)))(PanicBlame(
-            "Generated locals always have permission"
-          )),
-          perm,
-        ) &* extendedInv
-    }
+    allocaVars.topOption.getOrElse(mutable.Set.empty)
+      .intersect(usedInLoop.topOption.getOrElse(mutable.Set.empty))
+      .foreach { v =>
+        // If the variable is assigned to, assert write-perm, otherwise read perm
+        val perm =
+          if (
+            assignedInLoop.topOption.getOrElse(mutable.Set.empty).contains(v)
+          ) { WritePerm[Post]() }
+          else { ReadPerm[Post]() }
+        extendedInv =
+          Perm(
+            AmbiguousLocation[Post](DerefPointer(Local[Post](rw.succ(v)))(
+              PanicBlame("Generated locals always have permission")
+            )),
+            perm,
+          ) &* extendedInv
+      }
     LoopInvariant[Post](extendedInv, None)(llvmContract.blame)
   }
 
