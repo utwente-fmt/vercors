@@ -1,7 +1,6 @@
 #ifndef PALLAS_EXPRWRAPPERMAPPER_H
 #define PALLAS_EXPRWRAPPERMAPPER_H
 
-#include "vct/col/ast/col.pb.h"
 #include <llvm/IR/Function.h>
 #include <llvm/IR/PassManager.h>
 #include <optional>

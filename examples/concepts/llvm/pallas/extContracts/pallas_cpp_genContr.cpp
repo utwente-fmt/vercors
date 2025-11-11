@@ -12,7 +12,7 @@ class ClassyClass {
     // Contract for the generated constructor
     /*@
     contract for generated src ClassyClass;
-    requires this != nullptr;
+    requires &*this != nullptr;
     requires _sep(_Perm(&this->i, _write), _Perm(&this->j, _write));
     ensures  _sep(_Perm(&this->i, _write), _Perm(&this->j, _write));
     ensures this->i == 1;

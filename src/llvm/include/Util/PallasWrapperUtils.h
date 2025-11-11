@@ -1,7 +1,15 @@
 #ifndef PALLAS_WRAPPER_UTILS_H
 #define PALLAS_WRAPPER_UTILS_H
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Woverflow"
+#endif // __GNUC__
 #include "vct/col/ast/col.pb.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif // __GNUC__
 
 #include "Passes/Function/FunctionBodyTransformer.h"
 

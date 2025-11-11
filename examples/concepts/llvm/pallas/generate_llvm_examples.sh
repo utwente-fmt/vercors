@@ -57,6 +57,8 @@ translate_c_file pallas_function_contract_fail.c pallas_function_contract_fail.l
 translate_c_file pallas_loop_goto.c pallas_loop_goto.ll "-mem2reg"
 translate_c_file pallas_result.c pallas_result.ll ""
 translate_c_file extContracts/pallas_c_genContrAssume.c extContracts/pallas_c_genContrAssume.ll ""
+translate_c_file ../pointer_casts.c ../pointer_casts.ll
+translate_c_file ../../c/pointer_relations.c ../pointer_relations.ll
 
 # C++ Tests
 echo "=============================================="

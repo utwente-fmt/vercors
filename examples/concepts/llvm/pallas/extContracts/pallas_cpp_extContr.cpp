@@ -23,11 +23,14 @@ int foo(int n) {
     /*@
     loop_invariant 0 <= i && i <= n + 1;
     loop_invariant res >= 0 ;
-    loop_invariant oldN == n;
     @*/
     for (int i = 0; i <= n; i++) {
         res += i;
     }
+
+    /*@
+    assert oldN == n;
+    @*/
 
     res += anAmazingExternalFunction(res, 1);
     return res;

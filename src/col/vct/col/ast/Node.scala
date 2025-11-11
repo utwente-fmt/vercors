@@ -1339,9 +1339,14 @@ sealed trait ResourceTerm[G] extends Expr[G] with ResourceTermImpl[G]
 // Trait mirroring Viper's PossibleTrigger should be implemented by all expressions that eventually become nodes that implement Viper's trait
 sealed trait PossibleTrigger[G] extends Expr[G] with PossibleTriggerImpl[G]
 
+final case class DummyConstant[G](t: Type[G])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends Expr[G] with DummyConstantImpl[G]
+
 sealed trait Constant[G] extends Expr[G] with ConstantImpl[G]
 sealed trait ConstantInt[G] extends Constant[G] with ConstantIntImpl[G]
 sealed trait ConstantFloat[G] extends Constant[G]
+// Dummy constant, used for type inference, should not appear in the AST after a rewrite (therefore there is no entry in CoercingRewriter ensuring we crash)
 final case class CIntegerValue[G](value: BigInt, t: Type[G])(
     implicit val o: Origin
 ) extends ConstantInt[G] with Expr[G] with CIntegerValueImpl[G]
@@ -1990,9 +1995,7 @@ final case class ByValueClassLocation[G](expr: Expr[G])(implicit val o: Origin)
 final case class PredicateLocation[G](inv: ApplyAnyPredicate[G])(
     implicit val o: Origin
 ) extends Location[G] with PredicateLocationImpl[G]
-final case class AmbiguousLocation[G](expr: Expr[G])(
-    val blame: Blame[PointerLocationError]
-)(implicit val o: Origin)
+final case class AmbiguousLocation[G](expr: Expr[G])(implicit val o: Origin)
     extends Location[G] with AmbiguousLocationImpl[G]
 final case class InLinePatternLocation[G](loc: Location[G], pattern: Expr[G])(
     implicit val o: Origin
@@ -4014,6 +4017,14 @@ final case class LLVMMemset[G](
 )(val blame: Blame[VerificationFailure])(implicit val o: Origin)
     extends LLVMStatement[G] with LLVMMemsetImpl[G]
 
+final case class LLVMMemcpy[G](
+    dst: Expr[G],
+    src: Expr[G],
+    len: Expr[G],
+    volatile: Expr[G],
+)(val blame: Blame[VerificationFailure])(implicit val o: Origin)
+    extends LLVMStatement[G] with LLVMMemcpyImpl[G]
+
 final case class LLVMBranchUnreachable[G]()(
     val blame: Blame[UnreachableReachedError]
 )(implicit val o: Origin)
@@ -4062,6 +4073,13 @@ final case class LLVMFloatExtend[G](
     value: Expr[G],
 )(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMFloatExtendImpl[G]
+
+final case class LLVMIntegerPointerCast[G](
+    inputType: Type[G],
+    outputType: Type[G],
+    value: Expr[G],
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMIntegerPointerCastImpl[G]
 
 sealed trait LLVMArithOpWithOverflow[G]
     extends LLVMStatement[G] with LLVMArithOpWithOverflowImpl[G]
@@ -4126,7 +4144,7 @@ final case class LLVMFracOf[G](
 final case class LLVMPerm[G](
     loc: Ref[G, Variable[G]],
     perm: Ref[G, Variable[G]],
-)(val blame: Blame[PointerLocationError])(implicit val o: Origin)
+)(val blame: Blame[PointerDerefError])(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMPermImpl[G]
 
 final case class LLVMImplies[G](

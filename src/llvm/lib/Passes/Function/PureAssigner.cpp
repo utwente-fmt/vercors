@@ -102,7 +102,7 @@ bool PureAssignerPass::isPallasPureWellformed(MDNode &contractMD, Function &f) {
     auto *pureConst =
         dyn_cast<ConstantAsMetadata>(contractMD.getOperand(1).get());
     auto *pureVal = dyn_cast_if_present<ConstantInt>(pureConst->getValue());
-    if (pureVal == nullptr || (!pureVal->getBitWidth() == 1)) {
+    if (pureVal == nullptr || (pureVal->getBitWidth() != 1)) {
         reportError(f, "Ill-formed contract. Second operand should be boolean");
         return false;
     }

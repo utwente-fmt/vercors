@@ -381,6 +381,8 @@ case object CoercionUtils {
             getAnyCoercion(element, innerType).getOrElse(return None),
           ))
         }
+      // We do not check correct typing on the LLVMTPointers yet, leaving this for after type inference
+      case (LLVMTPointer(_), LLVMTPointer(_)) => CoerceIdentity(source)
       case (TFraction(), TZFraction()) => CoerceFracZFrac()
       case (TFraction(), TRational()) =>
         CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat()))
@@ -722,7 +724,7 @@ case object CoercionUtils {
       case t: CPPTArray[G] =>
         Some((CoerceCPPArrayPointer(t.innerType), TPointer(t.innerType, None)))
       case LLVMTPointer(None) =>
-        Some((CoerceIdentity(source), TPointer[G](TAnyValue(), None)))
+        Some((CoerceIdentity(source), TPointer[G](TVoid(), None)))
       case LLVMTPointer(Some(innerType)) =>
         Some((CoerceIdentity(source), TPointer(innerType, None)))
       case LLVMTArray(numElements, innerType) if numElements > 0 =>

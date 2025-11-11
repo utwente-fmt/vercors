@@ -2242,6 +2242,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         LLVMTruncate(inputType, outputType, coerce(value, inputType))
       case LLVMFloatExtend(inputType, outputType, value) =>
         LLVMFloatExtend(inputType, outputType, coerce(value, inputType))
+      case LLVMIntegerPointerCast(_, _, _) => e
       case LLVMIntegerValue(_, _) => e
       case LLVMFloatValue(_, _) => e
       case LLVMPointerValue(_) => e
@@ -2388,6 +2389,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case sub: LLVMSubWithOverflow[Pre] => sub
       case mult: LLVMMultWithOverflow[Pre] => mult
       case memset: LLVMMemset[Pre] => memset
+      case memcpy: LLVMMemcpy[Pre] => memcpy
       case ModelDo(model, perm, after, action, impl) =>
         ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)
@@ -2842,7 +2844,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         PointerLocation(pointer(pointerExp)._1)(p.blame)
       case ByValueClassLocation(expr) => node
       case PredicateLocation(inv) => PredicateLocation(inv)
-      case al @ AmbiguousLocation(expr) => AmbiguousLocation(expr)(al.blame)
+      case al @ AmbiguousLocation(expr) => AmbiguousLocation(expr)
       case patLoc @ InLinePatternLocation(loc, pat) =>
         InLinePatternLocation(loc, pat)
     }

@@ -9,6 +9,7 @@
 #include "Passes/Module/ModuleSpecCollector.h"
 #include "Passes/Module/ProtobufPrinter.h"
 #include "Passes/Module/RootContainer.h"
+#include "Passes/Module/StructConsolidator.h"
 
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
@@ -47,6 +48,9 @@ llvm::PassPluginLibraryInfo getPallasPluginInfo() {
                             return true;
                         } else if (Name == "pallas-print-protobuf") {
                             MPM.addPass(pallas::ProtobufPrinter());
+                            return true;
+                        } else if (Name == "pallas-consolidate-structs") {
+                            MPM.addPass(pallas::StructConsolidatorPass());
                             return true;
                         }
                         return false;

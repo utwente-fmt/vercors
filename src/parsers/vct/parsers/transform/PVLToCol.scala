@@ -465,7 +465,7 @@ case class PVLToCol[G](
       case PvlChorPerm(_, _, endpoint, _, _, loc, _, perm, _) =>
         PVLChorPerm(
           PVLEndpointName(convert(endpoint))(origin(endpoint)),
-          AmbiguousLocation(convert(loc))(blame(expr)),
+          AmbiguousLocation(convert(loc)),
           convert(perm),
         )
       case PvlLongEndpointExpr(_, _, endpoint, _, inner, _) =>
@@ -1815,20 +1815,14 @@ case class PVLToCol[G](
 
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] =
     e match {
-      case ValCurPerm(_, _, loc, _) =>
-        CurPerm(AmbiguousLocation(convert(loc))(blame(e)))
+      case ValCurPerm(_, _, loc, _) => CurPerm(AmbiguousLocation(convert(loc)))
       case ValPerm(_, _, loc, _, perm, _) =>
-        Perm(AmbiguousLocation(convert(loc))(blame(e)), convert(perm))
-      case ValValue(_, _, loc, _) =>
-        Value(AmbiguousLocation(convert(loc))(blame(e)))
+        Perm(AmbiguousLocation(convert(loc)), convert(perm))
+      case ValValue(_, _, loc, _) => Value(AmbiguousLocation(convert(loc)))
       case ValAutoValue(_, _, loc, _) =>
-        AutoValue(AmbiguousLocation(convert(loc))(blame(e)))
+        AutoValue(AmbiguousLocation(convert(loc)))
       case ValPointsTo(_, _, loc, _, perm, _, v, _) =>
-        PointsTo(
-          AmbiguousLocation(convert(loc))(blame(e)),
-          convert(perm),
-          convert(v),
-        )
+        PointsTo(AmbiguousLocation(convert(loc)), convert(perm), convert(v))
       case ValHPerm(_, _, loc, _, perm, _) =>
         ModelPerm(convert(loc), convert(perm))
       case ValAPerm(_, _, loc, _, perm, _) =>
@@ -1906,7 +1900,7 @@ case class PVLToCol[G](
       case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
         ForPerm(
           convert(bindings),
-          AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)),
+          AmbiguousLocation(convert(loc))(origin(loc)),
           convert(body),
         )
       case ValForPermWithValue(_, _, _, id, _, body, _) =>
