@@ -1,5 +1,5 @@
 ; ModuleID = 'tmp/tmp_ir_source0.ll'
-source_filename = "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_c_perm_fail_3.c"
+source_filename = "examples/concepts/llvm/pallas/pallas_c_perm_fail_3.c"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -8,7 +8,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @llvm.used = appending global [2 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1], section "llvm.metadata"
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local i32 @foo(ptr noundef %0) #0 !dbg !14 !pallas.fcontract !21 {
+define dso_local i32 @foo(ptr noundef %0) #0 !dbg !14 !pallas.fcontract !20 {
   %2 = alloca ptr, align 8
   store ptr %0, ptr %2, align 8
   call void @llvm.dbg.declare(metadata ptr %2, metadata !25, metadata !DIExpression()), !dbg !28
@@ -68,7 +68,7 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !llvm.ident = !{!13, !13}
 
 !0 = distinct !DICompileUnit(language: DW_LANG_C11, file: !1, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
-!1 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_c_perm_fail_3.c", directory: ".", checksumkind: CSK_MD5, checksum: "f4230a7fb4eaa07f45d248e201af7902")
+!1 = !DIFile(filename: "examples/concepts/llvm/pallas/pallas_c_perm_fail_3.c", directory: ".", checksumkind: CSK_MD5, checksum: "f4230a7fb4eaa07f45d248e201af7902")
 !2 = distinct !DICompileUnit(language: DW_LANG_C11, file: !3, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, retainedTypes: !4, splitDebugInlining: false, nameTableKind: None)
 !3 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "acad0770d37554821ef0983f754f3c97")
 !4 = !{!5}
@@ -81,38 +81,38 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !11 = !{i32 7, !"uwtable", i32 2}
 !12 = !{i32 7, !"frame-pointer", i32 2}
 !13 = !{!"clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)"}
-!14 = distinct !DISubprogram(name: "foo", scope: !15, file: !15, line: 6, type: !16, scopeLine: 6, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !20)
-!15 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_c_perm_fail_3.c", directory: "", checksumkind: CSK_MD5, checksum: "f4230a7fb4eaa07f45d248e201af7902")
-!16 = !DISubroutineType(types: !17)
-!17 = !{!18, !19}
-!18 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)
-!19 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !18, size: 64)
-!20 = !{}
-!21 = !{!22, i1 false, i1 false, !23, !26}
-!22 = !{!"pallas.srcLoc", i64 2, i64 1, i64 5, i64 1, !15}
+!14 = distinct !DISubprogram(name: "foo", scope: !1, file: !1, line: 6, type: !15, scopeLine: 6, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !19)
+!15 = !DISubroutineType(types: !16)
+!16 = !{!17, !18}
+!17 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)
+!18 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !17, size: 64)
+!19 = !{}
+!20 = !{!21, i1 false, i1 false, !23, !26}
+!21 = !{!"pallas.srcLoc", i64 2, i64 1, i64 5, i64 1, !22}
+!22 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_c_perm_fail_3.c", directory: "", checksumkind: CSK_MD5, checksum: "f4230a7fb4eaa07f45d248e201af7902")
 !23 = !{!"pallas.requires", !24, ptr @PALLAS_SPEC_0, !25}
-!24 = !{!"pallas.srcLoc", i64 3, i64 1, i64 3, i64 52, !15}
-!25 = !DILocalVariable(name: "iPtr", arg: 1, scope: !14, file: !15, line: 6, type: !19)
+!24 = !{!"pallas.srcLoc", i64 3, i64 1, i64 3, i64 52, !22}
+!25 = !DILocalVariable(name: "iPtr", arg: 1, scope: !14, file: !1, line: 6, type: !18)
 !26 = !{!"pallas.ensures", !27, ptr @PALLAS_SPEC_1, !25}
-!27 = !{!"pallas.srcLoc", i64 4, i64 1, i64 4, i64 67, !15}
+!27 = !{!"pallas.srcLoc", i64 4, i64 1, i64 4, i64 67, !22}
 !28 = !DILocation(line: 6, column: 14, scope: !14)
 !29 = !DILocation(line: 7, column: 13, scope: !14)
 !30 = !DILocation(line: 7, column: 12, scope: !14)
 !31 = !DILocation(line: 7, column: 18, scope: !14)
 !32 = !DILocation(line: 7, column: 5, scope: !14)
-!33 = distinct !DISubprogram(name: "PALLAS_SPEC_0", scope: !15, file: !15, line: 3, type: !34, scopeLine: 3, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !20)
+!33 = distinct !DISubprogram(name: "PALLAS_SPEC_0", scope: !1, file: !1, line: 3, type: !34, scopeLine: 3, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !19)
 !34 = !DISubroutineType(types: !35)
-!35 = !{!36, !19}
+!35 = !{!36, !18}
 !36 = !DIBasicType(name: "_Bool", size: 8, encoding: DW_ATE_boolean)
 !37 = !{!""}
-!38 = !DILocalVariable(name: "iPtr", arg: 1, scope: !33, file: !15, line: 3, type: !19)
+!38 = !DILocalVariable(name: "iPtr", arg: 1, scope: !33, file: !1, line: 3, type: !18)
 !39 = !DILocation(line: 0, scope: !33)
 !40 = !DILocation(line: 3, column: 15, scope: !33)
 !41 = !DILocation(line: 3, column: 23, scope: !33)
 !42 = !DILocation(line: 3, column: 38, scope: !33)
 !43 = !DILocation(line: 3, column: 26, scope: !33)
-!44 = distinct !DISubprogram(name: "PALLAS_SPEC_1", scope: !15, file: !15, line: 4, type: !34, scopeLine: 4, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !20)
-!45 = !DILocalVariable(name: "iPtr", arg: 1, scope: !44, file: !15, line: 4, type: !19)
+!44 = distinct !DISubprogram(name: "PALLAS_SPEC_1", scope: !1, file: !1, line: 4, type: !34, scopeLine: 4, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !19)
+!45 = !DILocalVariable(name: "iPtr", arg: 1, scope: !44, file: !1, line: 4, type: !18)
 !46 = !DILocation(line: 0, scope: !44)
 !47 = !DILocation(line: 4, column: 26, scope: !44)
 !48 = !DILocation(line: 4, column: 14, scope: !44)

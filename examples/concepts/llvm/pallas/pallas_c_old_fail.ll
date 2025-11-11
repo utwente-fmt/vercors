@@ -1,5 +1,5 @@
 ; ModuleID = 'tmp/tmp_ir_source0.ll'
-source_filename = "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_c_old_fail.c"
+source_filename = "examples/concepts/llvm/pallas/pallas_c_old_fail.c"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -8,7 +8,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @llvm.used = appending global [3 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1, ptr @PALLAS_SPEC_2], section "llvm.metadata"
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local void @foo(ptr noundef %0) #0 !dbg !14 !pallas.fcontract !21 {
+define dso_local void @foo(ptr noundef %0) #0 !dbg !14 !pallas.fcontract !20 {
   %2 = alloca ptr, align 8
   store ptr %0, ptr %2, align 8
   call void @llvm.dbg.declare(metadata ptr %2, metadata !25, metadata !DIExpression()), !dbg !30
@@ -85,7 +85,7 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !llvm.ident = !{!13, !13}
 
 !0 = distinct !DICompileUnit(language: DW_LANG_C11, file: !1, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
-!1 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_c_old_fail.c", directory: ".", checksumkind: CSK_MD5, checksum: "b04e79a5ef02564cc0d0a97292ad686f")
+!1 = !DIFile(filename: "examples/concepts/llvm/pallas/pallas_c_old_fail.c", directory: ".", checksumkind: CSK_MD5, checksum: "b04e79a5ef02564cc0d0a97292ad686f")
 !2 = distinct !DICompileUnit(language: DW_LANG_C11, file: !3, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, retainedTypes: !4, splitDebugInlining: false, nameTableKind: None)
 !3 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "bd912f3af77aeb7ebec07336ff7812d0")
 !4 = !{!5}
@@ -98,22 +98,22 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !11 = !{i32 7, !"uwtable", i32 2}
 !12 = !{i32 7, !"frame-pointer", i32 2}
 !13 = !{!"clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)"}
-!14 = distinct !DISubprogram(name: "foo", scope: !15, file: !15, line: 13, type: !16, scopeLine: 13, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !20)
-!15 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_c_old_fail.c", directory: "", checksumkind: CSK_MD5, checksum: "b04e79a5ef02564cc0d0a97292ad686f")
-!16 = !DISubroutineType(types: !17)
-!17 = !{null, !18}
-!18 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !19, size: 64)
-!19 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)
-!20 = !{}
-!21 = !{!22, i1 false, i1 false, !23, !26, !28}
-!22 = !{!"pallas.srcLoc", i64 8, i64 1, i64 12, i64 1, !15}
+!14 = distinct !DISubprogram(name: "foo", scope: !1, file: !1, line: 13, type: !15, scopeLine: 13, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !19)
+!15 = !DISubroutineType(types: !16)
+!16 = !{null, !17}
+!17 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !18, size: 64)
+!18 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)
+!19 = !{}
+!20 = !{!21, i1 false, i1 false, !23, !26, !28}
+!21 = !{!"pallas.srcLoc", i64 8, i64 1, i64 12, i64 1, !22}
+!22 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_c_old_fail.c", directory: "", checksumkind: CSK_MD5, checksum: "b04e79a5ef02564cc0d0a97292ad686f")
 !23 = !{!"pallas.requires", !24, ptr @PALLAS_SPEC_0, !25}
-!24 = !{!"pallas.srcLoc", i64 9, i64 1, i64 9, i64 52, !15}
-!25 = !DILocalVariable(name: "iPtr", arg: 1, scope: !14, file: !15, line: 13, type: !18)
+!24 = !{!"pallas.srcLoc", i64 9, i64 1, i64 9, i64 52, !22}
+!25 = !DILocalVariable(name: "iPtr", arg: 1, scope: !14, file: !1, line: 13, type: !17)
 !26 = !{!"pallas.ensures", !27, ptr @PALLAS_SPEC_1, !25}
-!27 = !{!"pallas.srcLoc", i64 10, i64 1, i64 10, i64 52, !15}
+!27 = !{!"pallas.srcLoc", i64 10, i64 1, i64 10, i64 52, !22}
 !28 = !{!"pallas.ensures", !29, ptr @PALLAS_SPEC_2, !25}
-!29 = !{!"pallas.srcLoc", i64 11, i64 1, i64 11, i64 38, !15}
+!29 = !{!"pallas.srcLoc", i64 11, i64 1, i64 11, i64 38, !22}
 !30 = !DILocation(line: 13, column: 15, scope: !14)
 !31 = !DILocation(line: 14, column: 14, scope: !14)
 !32 = !DILocation(line: 14, column: 13, scope: !14)
@@ -121,26 +121,26 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !34 = !DILocation(line: 14, column: 6, scope: !14)
 !35 = !DILocation(line: 14, column: 11, scope: !14)
 !36 = !DILocation(line: 15, column: 1, scope: !14)
-!37 = distinct !DISubprogram(name: "PALLAS_SPEC_0", scope: !15, file: !15, line: 9, type: !38, scopeLine: 9, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !20)
+!37 = distinct !DISubprogram(name: "PALLAS_SPEC_0", scope: !1, file: !1, line: 9, type: !38, scopeLine: 9, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !19)
 !38 = !DISubroutineType(types: !39)
-!39 = !{!40, !18}
+!39 = !{!40, !17}
 !40 = !DIBasicType(name: "_Bool", size: 8, encoding: DW_ATE_boolean)
 !41 = !{!""}
-!42 = !DILocalVariable(name: "iPtr", arg: 1, scope: !37, file: !15, line: 9, type: !18)
+!42 = !DILocalVariable(name: "iPtr", arg: 1, scope: !37, file: !1, line: 9, type: !17)
 !43 = !DILocation(line: 0, scope: !37)
 !44 = !DILocation(line: 9, column: 15, scope: !37)
 !45 = !DILocation(line: 9, column: 23, scope: !37)
 !46 = !DILocation(line: 9, column: 38, scope: !37)
 !47 = !DILocation(line: 9, column: 26, scope: !37)
-!48 = distinct !DISubprogram(name: "PALLAS_SPEC_1", scope: !15, file: !15, line: 10, type: !38, scopeLine: 10, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !20)
-!49 = !DILocalVariable(name: "iPtr", arg: 1, scope: !48, file: !15, line: 10, type: !18)
+!48 = distinct !DISubprogram(name: "PALLAS_SPEC_1", scope: !1, file: !1, line: 10, type: !38, scopeLine: 10, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !19)
+!49 = !DILocalVariable(name: "iPtr", arg: 1, scope: !48, file: !1, line: 10, type: !17)
 !50 = !DILocation(line: 0, scope: !48)
 !51 = !DILocation(line: 10, column: 15, scope: !48)
 !52 = !DILocation(line: 10, column: 23, scope: !48)
 !53 = !DILocation(line: 10, column: 38, scope: !48)
 !54 = !DILocation(line: 10, column: 26, scope: !48)
-!55 = distinct !DISubprogram(name: "PALLAS_SPEC_2", scope: !15, file: !15, line: 11, type: !38, scopeLine: 11, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !20)
-!56 = !DILocalVariable(name: "iPtr", arg: 1, scope: !55, file: !15, line: 11, type: !18)
+!55 = distinct !DISubprogram(name: "PALLAS_SPEC_2", scope: !1, file: !1, line: 11, type: !38, scopeLine: 11, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !19)
+!56 = !DILocalVariable(name: "iPtr", arg: 1, scope: !55, file: !1, line: 11, type: !17)
 !57 = !DILocation(line: 0, scope: !55)
 !58 = !DILocation(line: 11, column: 9, scope: !55)
 !59 = !DILocation(line: 11, column: 28, scope: !55)
