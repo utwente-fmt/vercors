@@ -48,8 +48,9 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
         col::TypeValue *tVal = cast->mutable_type_value()->mutable_type_value();
         tVal->set_allocated_origin(
             llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
-        llvm2col::transformAndSetPointerType(*expectedTy,
-                                             *tVal->mutable_value());
+        llvm2col::transformAndSetPointerType(
+            *expectedTy, *tVal->mutable_value(),
+            llvmAlloca.getModule()->getDataLayout());
         local = cast->mutable_value()->mutable_local();
     } else {
         local = ptrDeref->mutable_pointer()->mutable_local();
@@ -95,7 +96,8 @@ bool buildArgExprFromDbgValue(col::LlvmFunctionInvocation &wrapperCall,
             // TODO: Put a more precise origin here!
             llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc), 
             *constVal, 
-            *argExpr
+            *argExpr, 
+            llvmParentFunc.getParent()->getDataLayout()
         );
         return true;
     }

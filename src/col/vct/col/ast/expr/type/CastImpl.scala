@@ -1,11 +1,12 @@
 package vct.col.ast.expr.`type`
 
+import vct.col.ast.expr.binder.PossibleTriggerImpl
 import vct.col.ast.{Cast, TType, Type}
 import vct.col.check.UnreachableAfterTypeCheck
 import vct.col.print.{Ctx, Doc, Group, Precedence, Show, Text}
 import vct.col.ast.ops.CastOps
 
-trait CastImpl[G] extends CastOps[G] {
+trait CastImpl[G] extends CastOps[G] with PossibleTriggerImpl[G] {
   this: Cast[G] =>
   override def t: Type[G] =
     typeValue.t match {
@@ -17,4 +18,8 @@ trait CastImpl[G] extends CastOps[G] {
   override def precedence: Int = Precedence.PREFIX
   override def layout(implicit ctx: Ctx): Doc =
     Text("(") <> typeValue <> ")" <> assoc(value)
+
+  // Only casts with non-null pointers can be cleanly turned into functions
+  override def isPossibleTrigger: Boolean =
+    t.asPointer.exists(_.isNonNull) || value.t.asPointer.exists(_.isNonNull)
 }

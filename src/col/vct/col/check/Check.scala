@@ -171,7 +171,40 @@ sealed trait CheckError {
             s"This class cannot extend or implement the type $support since it is not a class"
         )
       case OldInPrecondition(expr) =>
-        Seq(context(expr) -> s"\\old may not be used in a precondition")
+        Seq(context(expr) -> "\\old may not be used in a precondition")
+      case OldInFunctionContract(expr) =>
+        Seq(
+          context(expr) ->
+            "\\old may not be used in function (a.k.a pure procedure) contracts"
+        )
+      case ResourceInPostcondition(expr) =>
+        Seq(
+          context(expr) ->
+            "Resource terms may not appear in the postcondition of functions (a.k.a pure procedures)"
+        )
+      case RecursiveFunctionWithoutTerminationMeasure(expr, suggestResult) =>
+        Seq(
+          context(expr) ->
+            ("Recursive function calls in contracts are only allowed for functions with a termination measure" +
+              (if (suggestResult) {
+                 " (Hint: use \\result to refer to the output of the function)"
+               } else { "" }))
+        )
+      case IncorrectArgumentAmount(expr, gotCount, expectedCount) =>
+        Seq(
+          context(expr) ->
+            s"This invocation has the wrong number of arguments, got: $gotCount expected: $expectedCount"
+        )
+      case InvalidTriggerVars(triggers, missing) =>
+        triggers.map(err => err.o -> s"... these triggers.") ++
+          missing.map(v => (v.o, ".. do not mention this var."))
+      case DisallowedTriggerExpression(expr) =>
+        Seq(context(expr) -> "This expression is not a valid trigger")
+      case TriggerWithoutDependentVars(expr) =>
+        Seq(
+          context(expr) ->
+            "This quantifier has triggers but its body doesn't use its dependent variables (Hint: use {:<:trigger:} to add a trigger for an outer quantifier)"
+        )
     }): _*)
 
   def subcode: String
@@ -295,6 +328,36 @@ case class SupportNotAClass(cls: Node[_], support: Type[_]) extends CheckError {
 case class OldInPrecondition(expr: Node[_]) extends CheckError {
   val subcode = "oldInPrecondition"
 }
+case class OldInFunctionContract(expr: Node[_]) extends CheckError {
+  val subcode = "oldInFunction"
+}
+case class ResourceInPostcondition(node: Node[_]) extends CheckError {
+  val subcode = "resourceInPostcondition"
+}
+case class RecursiveFunctionWithoutTerminationMeasure(
+    node: Node[_],
+    suggestResult: Boolean,
+) extends CheckError {
+  val subcode = "missingTerminationMeasure"
+}
+// Mostly for catching wrong generated calls (Resolution catches most of these when they come from the user)
+case class IncorrectArgumentAmount(
+    node: Node[_],
+    gotCount: Int,
+    expectedCount: Int,
+) extends CheckError {
+  val subcode = "incorrectArgumentAmount"
+}
+case class InvalidTriggerVars(triggers: Seq[Expr[_]], missing: Set[Variable[_]])
+    extends CheckError {
+  val subcode: String = "invalidTriggerVars"
+}
+case class DisallowedTriggerExpression(node: Node[_]) extends CheckError {
+  val subcode: String = "disallowedTrigger"
+}
+case class TriggerWithoutDependentVars(node: Node[_]) extends CheckError {
+  val subcode: String = "triggerWithoutDependentVars"
+}
 
 case object CheckContext {
   case class ScopeFrame[G](
@@ -327,6 +390,7 @@ case class CheckContext[G](
     inEndpointExpr: Option[EndpointExpr[G]] = None,
     inCommunicateInvariant: Option[Communicate[G]] = None,
     declarationStack: Seq[Declaration[G]] = Nil,
+    inResolution: Boolean = false,
 ) {
   def withScope(decls: Seq[Declaration[G]]): Seq[CheckContext.ScopeFrame[G]] =
     scopes :+ CheckContext.ScopeFrame(decls, Nil)

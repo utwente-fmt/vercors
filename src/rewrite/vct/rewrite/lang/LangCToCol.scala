@@ -336,6 +336,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   private var kernelSpecifier: Option[CGpgpuKernelSpecifier[Pre]] = None
   private val functionPointers
       : mutable.Map[CFunctionDefinition[Pre], Function[Post]] = mutable.Map()
+  private val parameterContext: ScopedStack[Unit] = ScopedStack()
 
   private def CStructOrigin(sdecl: CStructDeclaration[_]): Origin =
     sdecl.o.sourceName(sdecl.name.get).withContent(TypeName("struct"))
@@ -711,7 +712,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   private def getStride(t: Type[Pre], o: Origin): Expr[Post] =
     t match {
-      case TVoid() => c_const(1)(o)
+      case t @ CTArray(_, _) => sizeOf(getArrayType(t), o)
       case _ => sizeOf(t, o)
     }
 
@@ -749,33 +750,36 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           throw WrongGPUKernelParameterType(cParam)
     }
 
-    val v =
+    val v = {
       new Variable[Post](cParam.specifiers.collectFirst {
         case t: CSpecificationType[Pre] => rw.dispatch(t.t)
       }.get)(varO)
+    }
     cNameSuccessor(cRef) = v
     rw.variables.declare(v)
   }
 
   def rewriteParam(cParam: CParam[Pre]): Unit = {
-    if (kernelSpecifier.isDefined)
-      return rewriteGPUParam(cParam, kernelSpecifier.get)
-    cParam.specifiers.collectFirst {
-      case GPULocal() => throw WrongGPUType(cParam)
-      case GPUGlobal() => throw WrongGPUType(cParam)
-    }
-    val prop = new TypeProperties(cParam.specifiers, cParam)
-    if (!prop.validCParam)
-      throw WrongCType(cParam)
-    val specType = rw.dispatch(prop.mainType.get)
+    parameterContext.having(()) {
+      if (kernelSpecifier.isDefined)
+        return rewriteGPUParam(cParam, kernelSpecifier.get)
+      cParam.specifiers.collectFirst {
+        case GPULocal() => throw WrongGPUType(cParam)
+        case GPUGlobal() => throw WrongGPUType(cParam)
+      }
+      val prop = new TypeProperties(cParam.specifiers, cParam)
+      if (!prop.validCParam)
+        throw WrongCType(cParam)
+      val specType = rw.dispatch(prop.mainType.get)
 
-    cParam.drop()
-    val v =
-      new Variable[Post](specType)(
-        cParam.o.sourceName(C.getDeclaratorInfo(cParam.declarator).name)
-      )
-    cNameSuccessor(RefCParam(cParam)) = v
-    rw.variables.declare(v)
+      cParam.drop()
+      val v =
+        new Variable[Post](specType)(
+          cParam.o.sourceName(C.getDeclaratorInfo(cParam.declarator).name)
+        )
+      cNameSuccessor(RefCParam(cParam)) = v
+      rw.variables.declare(v)
+    }
   }
 
   def rewriteFunctionDef(func: CFunctionDefinition[Pre]): Unit = {
@@ -1486,10 +1490,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           t +: getFirstTypes(t)
         }.getOrElse(Nil)
       case TArray(element) => element +: getFirstTypes(element)
-      case LLVMTStruct(_, _, elements) =>
+      case LLVMTStruct(_, _, _, elements, _) =>
         elements.headOption.map { field => field +: getFirstTypes(field) }
           .getOrElse(Nil)
-      case LLVMTStruct(_, _, elements) =>
+      case LLVMTStruct(_, _, _, elements, _) =>
         elements.head +: getFirstTypes(elements.head)
       case LLVMTArray(_, elementType) =>
         elementType +: getFirstTypes(elementType)
@@ -1604,10 +1608,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             if (isConst(t)) { t }
             else { TNonNullPointer(t, getUnique(t)) }
           cGlobalNameSuccessor(RefCGlobalDeclaration(decl, idx)) = rw
-            .globalDeclarations
-            .declare(new HeapVariable(newT, init.init.map(rw.dispatch))(
-              init.o.sourceName(info.name)
-            ))
+            .globalDeclarations.declare(
+              new HeapVariable(
+                newT,
+                if (isConst(t)) { init.init.map(rw.dispatch) }
+                else
+                  None,
+              )(init.o.sourceName(info.name))
+            )
       }
     }
   }
@@ -1685,9 +1693,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         val optDimensions = getDimensions(cta)
         val innerMostType = rw.dispatch(getArrayType(cta))
         val v =
-          new Variable[Post](TPointerArray(innerMostType, optDimensions, None))(
-            o.sourceName(info.name)
-          )
+          new Variable[Post](
+            TNonNullPointerArray(innerMostType, optDimensions, None)
+          )(o.sourceName(info.name))
         cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
 
         (sizeOption, init.init) match {
@@ -2562,7 +2570,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def arrayType(t: CTArray[Pre]): Type[Post] = {
     // The size of an array for an parameter is ignored
-    TPointerArray(rw.dispatch(getArrayType(t)), getDimensions(t), None)
+    if (parameterContext.isEmpty) {
+      TNonNullPointerArray(rw.dispatch(getArrayType(t)), getDimensions(t), None)
+    } else {
+      TPointerArray(rw.dispatch(getArrayType(t)), getDimensions(t), None)
+    }
   }
 
   def structType(t: CType[Pre]): TClass[Post] =

@@ -3,7 +3,7 @@ package vct.col.origin
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.result.{Message, VerificationError}
-import vct.result.VerificationError.SystemError
+import vct.result.VerificationError.{SystemError, Unreachable}
 
 sealed trait ContractFailure {
   def code: String
@@ -409,6 +409,35 @@ case class CallTerminationMeasureFailed(
     )
   override def inlineDesc: String =
     s"The invocation ${apply.o.inlineContextText} may not terminate, since `${calledMethod.o.inlineContextText}` is not decreasing"
+}
+
+sealed trait ExtractTerminationMeasureFailed extends TerminationMeasureFailed
+
+case class ExtractTerminationMeasureFailedNoClause(extract: Extract[_])
+    extends ExtractTerminationMeasureFailed {
+  override def code: String = "extractDecreasesFailedNoClause"
+  override def position: String = extract.o.shortPositionText
+  override def desc: String =
+    Message.messagesInContext(
+      extract.o ->
+        "This extract may not terminate, since no decreases measure was specified."
+    )
+  override def inlineDesc: String =
+    s"The extract ${extract.o.inlineContextText} may not terminate, since no decreases measure was specified"
+}
+
+case class ExtractTerminationMeasureFailedClause(
+    extract: Extract[_],
+    failure: TerminationMeasureFailed,
+) extends ExtractTerminationMeasureFailed {
+  override def code: String = "extractDecreasesFailedClause"
+  override def position: String = extract.o.shortPositionText
+  override def desc: String =
+    Message.messagesInContext(
+      extract.o -> s"This extract may not terminate, since...\n $failure "
+    )
+  override def inlineDesc: String =
+    s"The extract ${extract.o.inlineContextText} may not terminate, since no decreases measure was specified"
 }
 
 case class ContextEverywhereFailedInPost(
@@ -1092,7 +1121,8 @@ case class IntegerOutOfBounds(node: Node[_], bits: Int)
     s"Integer `$source` may be out of bounds, expected a `$bits`-bit integer"
 }
 
-sealed trait PointerSubscriptError extends FrontendSubscriptError
+sealed trait PointerArraySubscriptError extends FrontendSubscriptError
+sealed trait PointerSubscriptError extends PointerArraySubscriptError
 sealed trait PointerDerefError
     extends PointerSubscriptError with FrontendDerefError
 sealed trait PointerLocationError extends PointerDerefError
@@ -1161,6 +1191,15 @@ case class PointerInsufficientPermission(node: Expr[_])
     "There may be insufficient permission to dereference the pointer."
   override def inlineDescWithSource(source: String): String =
     s"There may be insufficient permission to dereference `$source`."
+}
+
+case class PointerArrayBounds(node: Node[_])
+    extends PointerArraySubscriptError with NodeVerificationFailure {
+  override def code: String = "ptrArrayBounds"
+  override def descInContext: String =
+    "The offsets in this array access may be outside the bounds of the array."
+  override def inlineDescWithSource(source: String): String =
+    s"The offsets in `$source`  may be outside the bounds of the array."
 }
 
 sealed trait LockRegionFailure extends VerificationFailure
@@ -1482,6 +1521,21 @@ case class PostBlameSplit[T >: PostconditionFailed <: VerificationFailure](
         }
       case other => default.blame(other)
     }
+
+  def checkConsistency(predicate: AccountedPredicate[_]): Unit =
+    predicate match {
+      case UnitAccountedPredicate(_) =>
+        throw Unreachable("PostBlameSplit with UnitAccountedPredicate")
+      case SplitAccountedPredicate(left, right) =>
+        blames(FailLeft) match {
+          case s: PostBlameSplit[_] => s.checkConsistency(left)
+          case _ =>
+        }
+        blames(FailRight) match {
+          case s: PostBlameSplit[_] => s.checkConsistency(right)
+          case _ =>
+        }
+    }
 }
 
 case object PreBlameSplit {
@@ -1519,6 +1573,21 @@ case class PreBlameSplit[T >: PreconditionFailed <: VerificationFailure](
               .blame(PreconditionFailed(tail, failure, invokable))
         }
       case other => default.blame(other)
+    }
+
+  def checkConsistency(predicate: AccountedPredicate[_]): Unit =
+    predicate match {
+      case UnitAccountedPredicate(_) =>
+        throw Unreachable("PreBlameSplit with UnitAccountedPredicate")
+      case SplitAccountedPredicate(left, right) =>
+        blames(FailLeft) match {
+          case s: PreBlameSplit[_] => s.checkConsistency(left)
+          case _ =>
+        }
+        blames(FailRight) match {
+          case s: PreBlameSplit[_] => s.checkConsistency(right)
+          case _ =>
+        }
     }
 }
 
@@ -1606,10 +1675,6 @@ object AssignLocalOk extends PanicBlame("Assigning to a local can never fail.")
 object DerefAssignTarget
     extends PanicBlame(
       "Assigning to a field should trigger an error on the assignment, and not on the dereference."
-    )
-object SubscriptAssignTarget
-    extends PanicBlame(
-      "Assigning to a subscript should trigger an error on the assignment, and not on the subscript."
     )
 object DerefPerm
     extends PanicBlame(

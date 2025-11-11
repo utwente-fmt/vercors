@@ -1,6 +1,7 @@
 #ifndef PALLAS_TRANSFORM_H
 #define PALLAS_TRANSFORM_H
 
+#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/Support/Casting.h>
 
@@ -15,9 +16,11 @@ namespace llvm2col {
 namespace col = vct::col::ast;
 
 // type transformers
-void transformAndSetPointerType(llvm::Type &llvmType, col::Type &colType);
+void transformAndSetPointerType(llvm::Type &llvmType, col::Type &colType,
+                                const llvm::DataLayout &dataLayout);
 
-void transformAndSetType(llvm::Type &llvmType, col::Type &colType);
+void transformAndSetType(llvm::Type &llvmType, col::Type &colType,
+                         const llvm::DataLayout &dataLayout);
 
 /**
  * ATTEMPTS to convert any integer constant to a BigInt representation.
@@ -46,7 +49,8 @@ void transformAndSetExpr(pallas::FunctionCursor &functionCursor,
  */
 void transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
                               col::Origin *origin, llvm::Constant &llvmConstant,
-                              col::Expr &colExpr);
+                              col::Expr &colExpr,
+                              const llvm::DataLayout &dataLayout);
 
 /**
  * Used by TransformAndSetExpr

@@ -82,6 +82,7 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
             llvm2col::generateFuncDefOrigin(F));
     }
     FDResult result = FDResult(*llvmFuncDef, funcScopedBody, functionId);
+    const auto &dataLayout = F.getParent()->getDataLayout();
     // set args (if present)
     for (llvm::Argument &llvmArg : F.args()) {
         // set in buffer
@@ -91,7 +92,7 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
         llvm2col::setColNodeId(colArg);
         try {
             llvm2col::transformAndSetType(*llvmArg.getType(),
-                                          *colArg->mutable_t());
+                                          *colArg->mutable_t(), dataLayout);
         } catch (pallas::UnsupportedTypeException &e) {
             std::stringstream errorStream;
             errorStream << e.what() << " in argument #" << llvmArg.getArgNo();
@@ -105,7 +106,8 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
     // set return type in protobuf of function
     try {
         llvm2col::transformAndSetType(*F.getReturnType(),
-                                      *llvmFuncDef->mutable_return_type());
+                                      *llvmFuncDef->mutable_return_type(),
+                                      dataLayout);
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;
         errorStream << e.what() << " in return signature";
@@ -130,12 +132,14 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
             auto retIdxT = llvmFuncDef->mutable_return_in_param();
             retIdxT->set_v1(0);
             llvm2col::transformAndSetPointerType(*F.getParamStructRetType(0),
-                                                 *retIdxT->mutable_v2());
+                                                 *retIdxT->mutable_v2(),
+                                                 dataLayout);
         } else if (F.getParamStructRetType(1) != nullptr) {
             auto retIdxT = llvmFuncDef->mutable_return_in_param();
             retIdxT->set_v1(1);
             llvm2col::transformAndSetPointerType(*F.getParamStructRetType(1),
-                                                 *retIdxT->mutable_v2());
+                                                 *retIdxT->mutable_v2(),
+                                                 dataLayout);
         }
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;

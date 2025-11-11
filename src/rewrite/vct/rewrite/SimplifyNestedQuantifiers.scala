@@ -16,7 +16,6 @@ import vct.col.ref.Ref
 import vct.col.rewrite.SimplifyNestedQuantifiers.{
   InvalidTrigger,
   InvalidTriggerPair,
-  InvalidTriggerVars,
   NotAllowedInTrigger,
   NotAllowedInTriggerSet,
 }
@@ -67,19 +66,6 @@ case object SimplifyNestedQuantifiers extends RewriterBuilder {
       )
   }
 
-  case class InvalidTriggerVars(
-      triggers: Seq[Expr[_]],
-      missing: Set[Variable[_]],
-  ) extends UserError {
-    override def code: String = "invalidTriggerVars"
-
-    override def text: String =
-      Message.messagesInContext(
-        triggers.map(err => err.o -> s"... these triggers.") ++
-          missing.map(v => (v.o, ".. do not mention this var.")): _*
-      )
-  }
-
   case class InvalidTrigger(e: Expr[_], reasons: Seq[FailReason])
       extends UserError {
     override def code: String = "invalidTrigger"
@@ -105,6 +91,12 @@ case object SimplifyNestedQuantifiers extends RewriterBuilder {
 // Reasons for not rewriting
 trait FailReason {
   def text: String
+}
+case class SpecialOperators(pattern: Expr[_]) extends FailReason {
+  def text: String =
+    pattern.o.messageInContext(
+      "This pattern contains operators that are not allowed in triggers, and which we cannot rewrite"
+    )
 }
 case class NotLinear(pattern: Expr[_]) extends FailReason {
   def text: String =
@@ -951,14 +943,6 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
 
     def lookForLinearAccesses(): Option[Expr[Post]] = {
       val linearAccesses = new FindLinearArrayAccesses(this)
-      // Each trigger set should mention all forall vars
-      triggers.foreach { t =>
-        val mentionedVars = t.flatMap(collectForallVars)
-        val nonMentionedVars: Set[Variable[Pre]] =
-          bindings.toSet -- mentionedVars
-        if (nonMentionedVars.nonEmpty)
-          throw InvalidTriggerVars(t, nonMentionedVars.toSet)
-      }
 
       // If there are multiple trigger sets, they should contain the same special && arithmetic expressions
       // We split the triggers in 'patterns'. E.g each function argument is a 'pattern' and the index of an array is a
@@ -1014,7 +998,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
       special.foreach(p =>
         p.collectFirst {
           case Local(ref) if nonMentionedVars.contains(ref.decl) =>
-            throw InvalidTrigger(p, Seq())
+            throw InvalidTrigger(p, Seq(SpecialOperators(p)))
         }
       )
       introducePatterns = introducePatterns ++ special

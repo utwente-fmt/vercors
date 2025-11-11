@@ -9,6 +9,9 @@ trait PointerArrayTypeImpl[G] {
   val dimensions: Seq[Option[Expr[G]]]
   val unique: Option[BigInt]
   val isConst: Boolean
+  val isNonNull: Boolean
 
   def descend: PointerArrayType[G]
+  def asNonNull: Type[G]
+  def asNullable: Type[G]
 }

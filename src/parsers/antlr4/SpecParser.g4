@@ -51,7 +51,11 @@ valContractClause
  | 'kernel_invariant' langExpr ';'
  | 'signals' '(' langType langId ')' langExpr ';'
  | 'lock_invariant' langExpr ';'
- | 'decreases' valDecreasesMeasure? ';'
+ | valDecreases ';'
+ ;
+
+valDecreases
+ : 'decreases' valDecreasesMeasure?
  ;
 
 valDecreasesMeasure
@@ -74,7 +78,7 @@ valStatement
  | 'assume' langExpr ';' # valAssume
  | 'inhale' langExpr ';' # valInhale
  | 'exhale' langExpr ';' # valExhale
- | 'label' langId ';' # valLabel
+ | valContractClause* 'label' langId ';' # valLabel
  | 'refute' langExpr ';' # valRefute
  | 'witness' langExpr ';' # valWitness
  | 'ghost' langStatement # valGhost
@@ -87,7 +91,7 @@ valStatement
  | 'action' '(' langExpr ',' langExpr ',' langExpr ',' langExpr ')' valActionImpl # valActionModel
  | 'atomic' '(' langId ')' langStatement # valAtomic
  | 'commit' langExpr ';' # valCommit
- | 'extract' langStatement # valExtract
+ | 'extract' valDecreases? langStatement # valExtract
  | 'frame' valContractClause* langStatement # valFrame
  ;
 
@@ -449,8 +453,9 @@ valEmbedContractBlock
 valEmbedStatementBlock
  : startSpec valStatement* endSpec
  | {specLevel>0}? valStatement+
- | startSpec 'extract' endSpec langStatement
+ | startSpec 'extract' valDecreases? endSpec langStatement
  | startSpec 'frame' valContractClause* '{' endSpec langStatement* startSpec '}' endSpec
+ | startSpec 'extract' valDecreases? 'frame' valContractClause* '{' endSpec langStatement* startSpec '}' endSpec
  ;
 
 valEmbedWith: startSpec valWith? endSpec | {specLevel>0}? valWith;

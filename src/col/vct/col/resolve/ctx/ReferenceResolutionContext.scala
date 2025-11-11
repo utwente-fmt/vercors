@@ -17,7 +17,7 @@ case class ReferenceResolutionContext[G](
     topLevelJavaDeref: Option[JavaDeref[G]] = None,
     externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] =
       mutable.ArrayBuffer[GlobalDeclaration[G]](),
-    checkContext: CheckContext[G] = CheckContext[G](),
+    checkContext: CheckContext[G] = CheckContext[G](inResolution = true),
     currentJavaNamespace: Option[JavaNamespace[G]] = None,
     currentJavaClass: Option[JavaClassOrInterface[G]] = None,
     currentThis: Option[ThisTarget[G]] = None,

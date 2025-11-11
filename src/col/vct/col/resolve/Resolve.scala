@@ -1,9 +1,8 @@
 package vct.col.resolve
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.data.BitString
 import hre.util.FuncTools
-import vct.col.ast.{CUniquePointerField, _}
+import vct.col.ast._
 import vct.col.ast.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
@@ -13,6 +12,7 @@ import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, CPP, Java, LLVM, PVL, Spec}
 import vct.col.resolve.Resolve.{
   MalformedBipAnnotation,
+  MissingFunctionParameters,
   OnlyInChannelInvariant,
   SpecContractParser,
   SpecExprParser,
@@ -30,11 +30,10 @@ import vct.col.resolve.lang.JavaAnnotationData.{
   BipTransition,
 }
 import vct.col.rewrite.InitialGeneration
-import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, VarBuildHelpers}
+import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
 import vct.result.VerificationError.{Unreachable, UserError}
 
-import scala.collection.immutable.{AbstractSeq, LinearSeq}
 import scala.collection.mutable
 
 case object Resolve {
@@ -92,6 +91,14 @@ case object Resolve {
       e.o.messageInContext(
         "This expression is only inside within a `channel_invariant` clause."
       )
+  }
+
+  case class MissingFunctionParameters(declarator: Node[_]) extends UserError {
+    override def code: String = "missingFunctionParameters"
+
+    override def text: String =
+      declarator.o
+        .messageInContext("Missing function parameters for this declaration")
   }
 
   def getLit(e: Expr[_]): String =
@@ -545,6 +552,9 @@ case object ResolveReferences extends LazyLogging {
           })
         )
       case func: CFunctionDefinition[G] =>
+        if (!C.isFunctionDeclarator(func.declarator)) {
+          throw MissingFunctionParameters(func.declarator)
+        }
         var res = ctx.copy(currentResult = Some(RefCFunctionDefinition(func)))
           .declare(
             C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++
@@ -569,6 +579,9 @@ case object ResolveReferences extends LazyLogging {
           )
         }
       case func: CPPFunctionDefinition[G] =>
+        if (!CPP.isFunctionDeclarator(func.declarator)) {
+          throw MissingFunctionParameters(func.declarator)
+        }
         ctx.copy(currentResult = Some(RefCPPFunctionDefinition(func))).declare(
           CPP.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++
             func.contract.givenArgs ++ func.contract.yieldsArgs
