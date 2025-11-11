@@ -91,7 +91,9 @@ object BinOperatorTypes {
   case class NumericBinError(lt: Type[_], rt: Type[_], o: Origin)
       extends VerificationError.UserError {
     override def text: String =
-      o.messageInContext(f"Expected types to numeric, but got: ${lt} and ${rt}")
+      o.messageInContext(
+        f"Expected types to be numeric, but got: ${lt} and ${rt}"
+      )
     override def code: String = "numericBinError"
   }
 

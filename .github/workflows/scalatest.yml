@@ -36,7 +36,7 @@ jobs:
       - name: Enable Pallas compilation
         run: touch .include-pallas
       - name: Compile
-        run: ./mill -j 0 vercors.allTests.assembly + vercors.pallas.compile
+        run: ./mill -j 0 vercors.allTests.assembly + vercors.pallas.cMakeBuild
       - name: Upload VerCors
         uses: actions/upload-artifact@v4
         with:
@@ -45,8 +45,8 @@ jobs:
       - name: Upload Pallas
         uses: actions/upload-artifact@v4
         with:
-          name: pallas
-          path: out/vercors/pallas/compile.dest/pallas
+          name: libPallas.so
+          path: out/vercors/pallas/cMakeSetupBuild.dest/lib/libPallas.so
       - name: Delete Uncached Files
         run: |
           find out -type f -name upstreamAssembly.json -print -exec rm -rf {} +
@@ -136,7 +136,7 @@ jobs:
       - name: Download Pallas
         uses: actions/download-artifact@v4
         with:
-          name: pallas
+          name: libPallas.so
           path: '.'
       - name: ls
         run: ls -lasFhR

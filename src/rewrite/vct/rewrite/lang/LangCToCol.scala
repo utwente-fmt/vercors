@@ -5,7 +5,7 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.ast.lang.c.CTVector.WrongVectorType
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
-import vct.rewrite.lang.LangSpecificToCol.NotAValue
+import vct.rewrite.lang.LangSpecificToCol.{NotAValue, InvalidPointerComparison}
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.lang.C
@@ -21,7 +21,6 @@ import vct.result.VerificationError.{Unreachable, UserError}
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
-import vct.col.ref.UnresolvedRef
 
 case object LangCToCol {
   private case class MultipleSharedMemoryDeclaration(decl: Node[_])
@@ -272,15 +271,6 @@ case object LangCToCol {
     override def blame(error: DivByZero): Unit =
       blame.blame(TypeSizeMayBeZero(c))
   }
-
-  private case class InvalidPointerComparison(cmp: Expr[_]) extends UserError {
-    override def code: String = "incompatiblePointerComparison"
-    override def text: String =
-      cmp.o.messageInContext(
-        "Comparison between pointers of different types is not supported"
-      )
-  }
-
 }
 
 case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
@@ -614,7 +604,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           case e @ AmbiguousLessEq(_, _, _) =>
             e.rewrite(elementSize = elementSize)
         }
-      } else { throw InvalidPointerComparison(cmp) }
+      } else { throw InvalidPointerComparison(cmp.o) }
     } else { cmp.rewriteDefault() }
   }
 

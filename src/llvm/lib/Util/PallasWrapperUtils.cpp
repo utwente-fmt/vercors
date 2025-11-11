@@ -23,11 +23,6 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
                             pallas::FunctionCursor &functionCursor) {
     col::Variable &colVar =
         functionCursor.getVariableMapEntry(llvmAlloca, false);
-    // Ptr deref
-    auto *ptrDeref = wrapperCall.add_args()->mutable_deref_pointer();
-    ptrDeref->set_allocated_origin(
-        llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
-    ptrDeref->set_allocated_blame(new col::Blame());
 
     // Cast, if type is packed struct with single element
     auto *structTy =
@@ -37,19 +32,32 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
                            structTy->getNumElements() == 1;
 
     col::Local *local = nullptr;
-    if (structTy != expectedTy && isTrivialStruct &&
-        structTy->getElementType(0) == expectedTy) {
-        auto *cast = ptrDeref->mutable_pointer()->mutable_cast();
-        cast->set_allocated_origin(
-            llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
-        col::TypeValue *tVal = cast->mutable_type_value()->mutable_type_value();
-        tVal->set_allocated_origin(
-            llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
-        llvm2col::transformAndSetPointerType(
-            *expectedTy, *tVal->mutable_value(),
-            llvmAlloca.getModule()->getDataLayout());
-        local = cast->mutable_value()->mutable_local();
+    if (structTy != nullptr && structTy != expectedTy) {
+        if (isTrivialStruct && structTy->getElementType(0) == expectedTy) {
+            auto *ptrDeref = wrapperCall.add_args()->mutable_deref_pointer();
+            ptrDeref->set_allocated_origin(
+                llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
+            ptrDeref->set_allocated_blame(new col::Blame());
+            auto *cast = ptrDeref->mutable_pointer()->mutable_cast();
+            cast->set_allocated_origin(
+                llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
+            col::TypeValue *tVal =
+                cast->mutable_type_value()->mutable_type_value();
+            tVal->set_allocated_origin(
+                llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
+            llvm2col::transformAndSetPointerType(
+                *expectedTy, *tVal->mutable_value(),
+                llvmAlloca.getModule()->getDataLayout());
+            local = cast->mutable_value()->mutable_local();
+        } else {
+            local = wrapperCall.add_args()->mutable_local();
+        }
     } else {
+        // Ptr deref
+        auto *ptrDeref = wrapperCall.add_args()->mutable_deref_pointer();
+        ptrDeref->set_allocated_origin(
+            llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
+        ptrDeref->set_allocated_blame(new col::Blame());
         local = ptrDeref->mutable_pointer()->mutable_local();
     }
 

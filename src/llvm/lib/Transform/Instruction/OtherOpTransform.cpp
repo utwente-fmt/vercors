@@ -103,36 +103,46 @@ void llvm2col::transformICmp(llvm::ICmpInst &icmpInstruction,
         funcCursor.createAssignmentAndDeclaration(icmpInstruction, colBlock);
     switch (llvm::ICmpInst::Predicate(icmpInstruction.getPredicate())) {
     case llvm::CmpInst::ICMP_EQ: {
-        col::Eq &eq = *assignment.mutable_value()->mutable_eq();
+        col::AmbiguousEq &eq =
+            *assignment.mutable_value()->mutable_ambiguous_eq();
+        eq.mutable_vector_inner_type()->mutable_t_int()->set_allocated_origin(
+            generateBinExprOrigin(icmpInstruction));
         transformCmpExpr(icmpInstruction, eq, funcCursor);
         break;
     }
     case llvm::CmpInst::ICMP_NE: {
-        col::Neq &neq = *assignment.mutable_value()->mutable_neq();
+        col::AmbiguousNeq &neq =
+            *assignment.mutable_value()->mutable_ambiguous_neq();
+        neq.mutable_vector_inner_type()->mutable_t_int()->set_allocated_origin(
+            generateBinExprOrigin(icmpInstruction));
         transformCmpExpr(icmpInstruction, neq, funcCursor);
         break;
     }
     case llvm::CmpInst::ICMP_SGT:
     case llvm::CmpInst::ICMP_UGT: {
-        col::Greater &gt = *assignment.mutable_value()->mutable_greater();
+        col::AmbiguousGreater &gt =
+            *assignment.mutable_value()->mutable_ambiguous_greater();
         transformCmpExpr(icmpInstruction, gt, funcCursor);
         break;
     }
     case llvm::CmpInst::ICMP_SGE:
     case llvm::CmpInst::ICMP_UGE: {
-        col::GreaterEq &geq = *assignment.mutable_value()->mutable_greater_eq();
+        col::AmbiguousGreaterEq &geq =
+            *assignment.mutable_value()->mutable_ambiguous_greater_eq();
         transformCmpExpr(icmpInstruction, geq, funcCursor);
         break;
     }
     case llvm::CmpInst::ICMP_SLT:
     case llvm::CmpInst::ICMP_ULT: {
-        col::Less &lt = *assignment.mutable_value()->mutable_less();
+        col::AmbiguousLess &lt =
+            *assignment.mutable_value()->mutable_ambiguous_less();
         transformCmpExpr(icmpInstruction, lt, funcCursor);
         break;
     }
     case llvm::CmpInst::ICMP_SLE:
     case llvm::CmpInst::ICMP_ULE: {
-        col::LessEq &leq = *assignment.mutable_value()->mutable_less_eq();
+        col::AmbiguousLessEq &leq =
+            *assignment.mutable_value()->mutable_ambiguous_less_eq();
         transformCmpExpr(icmpInstruction, leq, funcCursor);
         break;
     }
@@ -175,40 +185,51 @@ void llvm2col::transformFCmp(llvm::FCmpInst &fcmpInstruction,
             *assignment.mutable_value()->mutable_boolean_value();
         boolean.set_value(false);
         boolean.set_allocated_origin(generateBinExprOrigin(fcmpInstruction));
+        break;
     }
     case llvm::CmpInst::FCMP_OEQ:
     case llvm::CmpInst::FCMP_UEQ: {
-        col::Eq &eq = *assignment.mutable_value()->mutable_eq();
+        col::AmbiguousEq &eq =
+            *assignment.mutable_value()->mutable_ambiguous_eq();
+        eq.mutable_vector_inner_type()->mutable_t_int()->set_allocated_origin(
+            generateBinExprOrigin(fcmpInstruction));
         transformCmpExpr(fcmpInstruction, eq, funcCursor);
         break;
     }
     case llvm::CmpInst::FCMP_OGT:
     case llvm::CmpInst::FCMP_UGT: {
-        col::Greater &gt = *assignment.mutable_value()->mutable_greater();
+        col::AmbiguousGreater &gt =
+            *assignment.mutable_value()->mutable_ambiguous_greater();
         transformCmpExpr(fcmpInstruction, gt, funcCursor);
         break;
     }
     case llvm::CmpInst::FCMP_OGE:
     case llvm::CmpInst::FCMP_UGE: {
-        col::GreaterEq &geq = *assignment.mutable_value()->mutable_greater_eq();
+        col::AmbiguousGreaterEq &geq =
+            *assignment.mutable_value()->mutable_ambiguous_greater_eq();
         transformCmpExpr(fcmpInstruction, geq, funcCursor);
         break;
     }
     case llvm::CmpInst::FCMP_OLT:
     case llvm::CmpInst::FCMP_ULT: {
-        col::Less &lt = *assignment.mutable_value()->mutable_less();
+        col::AmbiguousLess &lt =
+            *assignment.mutable_value()->mutable_ambiguous_less();
         transformCmpExpr(fcmpInstruction, lt, funcCursor);
         break;
     }
     case llvm::CmpInst::FCMP_OLE:
     case llvm::CmpInst::FCMP_ULE: {
-        col::LessEq &leq = *assignment.mutable_value()->mutable_less_eq();
+        col::AmbiguousLessEq &leq =
+            *assignment.mutable_value()->mutable_ambiguous_less_eq();
         transformCmpExpr(fcmpInstruction, leq, funcCursor);
         break;
     }
     case llvm::CmpInst::FCMP_ONE:
     case llvm::CmpInst::FCMP_UNE: {
-        col::Neq &neq = *assignment.mutable_value()->mutable_neq();
+        col::AmbiguousNeq &neq =
+            *assignment.mutable_value()->mutable_ambiguous_neq();
+        neq.mutable_vector_inner_type()->mutable_t_int()->set_allocated_origin(
+            generateBinExprOrigin(fcmpInstruction));
         transformCmpExpr(fcmpInstruction, neq, funcCursor);
         break;
     }
@@ -217,11 +238,13 @@ void llvm2col::transformFCmp(llvm::FCmpInst &fcmpInstruction,
             *assignment.mutable_value()->mutable_boolean_value();
         boolean.set_value(true);
         boolean.set_allocated_origin(generateBinExprOrigin(fcmpInstruction));
+        break;
     }
     case llvm::CmpInst::FCMP_ORD:
     case llvm::CmpInst::FCMP_UNO: {
         pallas::ErrorReporter::addError(
             SOURCE_LOC, "Checking for NaNs is unsupported", fcmpInstruction);
+        break;
     }
     default:
         pallas::ErrorReporter::addError(SOURCE_LOC, "Unknown FCMP predicate",

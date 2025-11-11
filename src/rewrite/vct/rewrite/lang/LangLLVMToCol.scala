@@ -2,16 +2,18 @@ package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
+import vct.col.ast.expr.op.BinOperatorTypes
 import vct.col.ast.{Expr, _}
 import vct.col.origin._
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.resolve.ctx.RefLLVMFunctionDefinition
 import vct.col.rewrite.{Generation, Rewritten}
+import vct.col.typerules.CoercionUtils
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.{CurrentProgramContext, SubstituteReferences, SuccessionMap}
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
+import vct.rewrite.lang.LangSpecificToCol.InvalidPointerComparison
 
-import scala.:+
 import scala.collection.mutable
 
 case object LangLLVMToCol {
@@ -99,6 +101,19 @@ case object LangLLVMToCol {
       memset.o.messageInContext(s"Unsupported memset operation")
   }
 
+  private final case class InvalidPointerEquality(
+      o: Origin,
+      lt: Type[_],
+      rt: Type[_],
+  ) extends UserError {
+    override def code: String = "invalidPointerEquality"
+
+    override def text: String =
+      o.messageInContext(
+        s"Expected types `$lt` and `$rt` to be interchangeable, there might be too little information for type inference"
+      )
+  }
+
   private final case class UnreachableReached(
       unreachable: LLVMBranchUnreachable[_]
   ) extends Blame[AssertFailed] {
@@ -177,6 +192,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   // When a loop is constructed, this keeps track of the variables that
   // are assigned using store-instructions.
   private val assignedInLoop: ScopedStack[mutable.Set[Variable[Pre]]] =
+    ScopedStack()
+  private val usedInLoop: ScopedStack[mutable.Set[Variable[Pre]]] =
     ScopedStack()
 
   // Initializer-functions for the tuples that are returned by the llvm intrinsics
@@ -389,9 +406,6 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       expr.collect {
         case Local(Ref(v)) => v
         case LLVMPointerValue(Ref(g)) => g
-        // These two below probably don't do anything
-        case v: Variable[Pre] => v
-        case v: LLVMGlobalVariable[Pre] => v
       }.toSet
     }
 
@@ -425,17 +439,47 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
     }
 
+    // Returns variable and functions to strip and "rewrap" the type
+    def getVariablePossiblyWrapped(
+        expr: Expr[Pre]
+    ): Option[(Object, Type[Pre] => Type[Pre], Type[Pre] => Type[Pre])] =
+      expr match {
+        case Local(Ref(v)) => Some((v, t => t, t => t))
+        case LLVMPointerValue(Ref(g)) => Some((g, t => t, t => t))
+        case DerefPointer(p) =>
+          getVariablePossiblyWrapped(p).map { case (v, strip, wrap) =>
+            (
+              v,
+              { t: Type[Pre] => strip(t).asPointer.get.element },
+              { t: Type[Pre] => LLVMTPointer(Some(wrap(t))) },
+            )
+          }
+      }
+
     def addTypeGuess(
         obj: Object,
         dependencies: Set[Object],
         inferType: Unit => Type[Pre],
-    ): Unit =
+    ): Unit = {
+      val inferred = inferType()
       typeGuesses
         .getOrElseUpdate(obj, new TypeGuess(currentType = inferType(())))
         .add(dependencies, inferType)
+    }
 
     // TODO: This could be made more generic and also work with Assign nodes
     program.collect {
+      case Assign(target, value)
+          if target.t.isInstanceOf[LLVMTPointer[Pre]] ||
+            value.t.isInstanceOf[LLVMTPointer[Pre]] =>
+        getVariable(target).foreach(v => {
+          val dependencies = findDependencies(value)
+          addTypeGuess(
+            v,
+            dependencies,
+            _ => replaceWithGuesses(value, dependencies).t,
+          )
+        })
       case func: LLVMFunctionDefinition[Pre] =>
         func.args.zipWithIndex.foreach { case (a, i) =>
           addTypeGuess(
@@ -518,6 +562,19 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 dependencies,
                 _ => replaceWithGuesses(inv.args(idx), dependencies).t,
               )
+
+              getVariablePossiblyWrapped(inv.args(idx))
+                .foreach { case (v, strip, wrap) =>
+                  addTypeGuess(
+                    v,
+                    Set(arg),
+                    _ =>
+                      wrap(
+                        typeGuesses.get(arg).map(_.currentType)
+                          .getOrElse(inv.args(idx).t)
+                      ),
+                  )
+                }
             }
           }
       // Propagate pointer types across \old
@@ -655,9 +712,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         implicit val o: Origin = pallasResArgPermOrigin
         c.rewrite(contextEverywhere =
           (PointerNeq(Local(arg), Null(), const(0))) &* Perm(
-            AmbiguousLocation(DerefPointer(Local(arg))(LLVMSretPerm))(
-              LLVMSretPerm
-            ),
+            AmbiguousLocation(DerefPointer(Local(arg))(LLVMSretPerm)),
             WritePerm[Post](),
           ) &* rw.dispatch(c.contextEverywhere)
         )
@@ -665,34 +720,82 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
+  private def addCast(arg: Expr[Pre], v: Variable[Pre])(
+      implicit o: Origin
+  ): Expr[Post] = {
+    arg match {
+      case dp @ DerefPointer(p) => {
+        val pt = getInferredType(p)
+        val et = pt.asPointer.get.element
+        val vt = getLocalVarType(v)
+        if (CoercionUtils.getAnyCoercion(et, vt).isDefined) { rw.dispatch(arg) }
+        else if (
+          vt == TVoid[Pre]() || et == TVoid[Pre]() ||
+          CoercionUtils.firstElementIsType(et, vt) ||
+          CoercionUtils.firstElementIsType(vt, et)
+        ) {
+          DerefPointer(
+            PointerCast(
+              rw.dispatch(arg),
+              TPointer(rw.dispatch(vt), None),
+              rw.c.sizeOf(et, p.o),
+              rw.c.sizeOf(vt, v.o),
+            )(dp.o)
+          )(dp.blame)(dp.o)
+        } else { throw InvalidPointerEquality(o, vt, et) }
+      }
+      case _ if arg.t.asPointer.isDefined => {
+        val pt = getInferredType(arg)
+        val pet = pt.asPointer.get.element
+        val vt = getLocalVarType(v)
+        val vet = vt.asPointer.get.element
+        if (CoercionUtils.getAnyCoercion(pet, vet).isDefined) {
+          rw.dispatch(arg)
+        } else if (
+          vet == TVoid[Pre]() || pet == TVoid[Pre]() ||
+          CoercionUtils.firstElementIsType(pet, vet) ||
+          CoercionUtils.firstElementIsType(vet, pet)
+        ) {
+          PointerCast(
+            rw.dispatch(arg),
+            rw.dispatch(vt),
+            rw.c.sizeOf(pet, arg.o),
+            rw.c.sizeOf(vet, v.o),
+          )(arg.o)
+        } else { throw InvalidPointerEquality(o, vet, pet) }
+      }
+      case _ => rw.dispatch(arg)
+    }
+  }
+
   def rewriteAmbiguousFunctionInvocation(
       inv: LLVMAmbiguousFunctionInvocation[Pre]
   ): Invocation[Post] = {
     implicit val o: Origin = inv.o
+
+    val given = inv.givenMap.map { case (Ref(v), e) =>
+      (rw.succ[Variable[Post]](v), addCast(e, v))
+    }
+    val yields = inv.yields.map { case (e, Ref(v)) =>
+      (addCast(e, v), rw.succ[Variable[Post]](v))
+    }
+
     inv.ref.get.decl match {
       case func: LLVMFunctionDefinition[Pre] =>
         new ProcedureInvocation[Post](
           ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(func)),
-          args = inv.args.map(rw.dispatch),
-          givenMap = inv.givenMap.map { case (Ref(v), e) =>
-            (rw.succ(v), rw.dispatch(e))
-          },
-          yields = inv.yields.map { case (e, Ref(v)) =>
-            (rw.dispatch(e), rw.succ(v))
-          },
+          args = inv.args.zip(func.args).map(p => addCast(p._1, p._2)),
+          givenMap = given,
+          yields = yields,
           outArgs = Seq.empty,
           typeArgs = Seq.empty,
         )(inv.blame)
       case func: LLVMSpecFunction[Pre] =>
         new FunctionInvocation[Post](
           ref = new LazyRef[Post, Function[Post]](specFunctionMap(func)),
-          args = inv.args.map(rw.dispatch),
-          givenMap = inv.givenMap.map { case (Ref(v), e) =>
-            (rw.succ(v), rw.dispatch(e))
-          },
-          yields = inv.yields.map { case (e, Ref(v)) =>
-            (rw.dispatch(e), rw.succ(v))
-          },
+          args = inv.args.zip(func.args).map(p => addCast(p._1, p._2)),
+          givenMap = given,
+          yields = yields,
           typeArgs = Seq.empty,
         )(inv.blame)
     }
@@ -704,32 +807,18 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   ): ProcedureInvocation[Post] = {
     implicit val o: Origin = inv.o
 
+    val given = inv.givenMap.map { case (Ref(v), e) =>
+      (rw.succ[Variable[Post]](v), addCast(e, v))
+    }
+    val yields = inv.yields.map { case (e, Ref(v)) =>
+      (addCast(e, v), rw.succ[Variable[Post]](v))
+    }
+
     new ProcedureInvocation[Post](
       ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(inv.ref.decl)),
-      args = inv.args.zipWithIndex.map {
-        // TODO: This is really ugly, can we do the type inference in the resolve step and then do coercions to do this?
-        case (a, i) =>
-          val requiredType = localVariableInferredType
-            .getOrElse(inv.ref.decl.args(i), inv.ref.decl.args(i).t)
-          val givenType = getInferredType(a)
-          if (
-            givenType != requiredType && givenType.asPointer.isDefined &&
-            requiredType.asPointer.isDefined
-          ) {
-            PointerCast(
-              rw.dispatch(a),
-              rw.dispatch(requiredType),
-              rw.c.sizeOf(givenType.asPointer.get.element, inv.o),
-              rw.c.sizeOf(requiredType.asPointer.get.element, inv.o),
-            )
-          } else { rw.dispatch(a) }
-      },
-      givenMap = inv.givenMap.map { case (Ref(v), e) =>
-        (rw.succ(v), rw.dispatch(e))
-      },
-      yields = inv.yields.map { case (e, Ref(v)) =>
-        (rw.dispatch(e), rw.succ(v))
-      },
+      args = inv.args.zip(inv.ref.decl.args).map(p => addCast(p._1, p._2)),
+      givenMap = given,
+      yields = yields,
       outArgs = Seq.empty,
       typeArgs = Seq.empty,
     )(inv.blame)
@@ -789,7 +878,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         t.packed,
         rw.c.sizeOf(t, t.o),
         elements.collect { t => rw.c.sizeOf(t, t.o) },
-      )(t.o.withContent(TypeName("struct")))
+      )(
+        t.o.withContent(TypeName("struct"))
+          .where(name = name.getOrElse("unknown"))
+      )
 
     rw.globalDeclarations.declare(newStruct)
     structMap(t) = newStruct
@@ -1138,6 +1230,19 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     CastFloat(rw.dispatch(fpext.value), rw.dispatch(fpext.t))
   }
 
+  def rewriteIntegerPointerCast(
+      cast: LLVMIntegerPointerCast[Pre]
+  ): Expr[Post] = {
+    implicit val o: Origin = cast.o
+    val inputType = getInferredType(cast.value)
+    val outputType = getInferredType(cast)
+    val size =
+      if (cast.inputType.asPointer.isDefined) {
+        rw.c.sizeOf(inputType.asPointer.get.element, o)
+      } else { rw.c.sizeOf(outputType.asPointer.get.element, o) }
+    IntegerPointerCast(rw.dispatch(cast.value), rw.dispatch(outputType), size)
+  }
+
   private def getInitializerForArithOpWithOverflow(
       structT: LLVMTStruct[Pre]
   ): Procedure[Post] = {
@@ -1264,8 +1369,85 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         val innerT = getInferredType(inner)
         innerT match {
           case LLVMTPointer(Some(innerPtrT)) => innerPtrT
+          case t: PointerType[Pre] => t.element
           case _ => e.t
         }
+      // All BinExprs that use getNumericType
+      case b @ AmbiguousMinus(l, r) =>
+        AmbiguousMinus(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.blame)(b.o).t
+      case b @ AmbiguousMult(l, r) =>
+        AmbiguousMult(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.o).t
+      case b @ AmbiguousPlus(l, r) =>
+        AmbiguousPlus(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.blame)(b.o).t
+      case b @ BitShr(l, r, bits) =>
+        BitShr(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+          bits,
+        )(b.blame)(b.o).t
+      case b @ BitOr(l, r, bits, signed) =>
+        BitOr(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+          bits,
+          signed,
+        )(b.blame)(b.o).t
+      case b @ BitShl(l, r, bits, signed) =>
+        BitShl(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+          bits,
+          signed,
+        )(b.blame)(b.o).t
+      case b @ BitUShr(l, r, bits, signed) =>
+        BitUShr(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+          bits,
+          signed,
+        )(b.blame)(b.o).t
+      case b @ BitXor(l, r, bits, signed) =>
+        BitXor(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+          bits,
+          signed,
+        )(b.blame)(b.o).t
+      case b: NumericBinExpr[Pre] =>
+        BinOperatorTypes.getNumericType(
+          getInferredType(b.left),
+          getInferredType(b.right),
+          b.o,
+        )
+      case b @ SmtlibPow(l, r) =>
+        SmtlibPow(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.o).t
+      case b @ AmbiguousComputationalAnd(l, r) =>
+        AmbiguousComputationalAnd(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.o).t
+      case b @ AmbiguousComputationalOr(l, r) =>
+        AmbiguousComputationalOr(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.o).t
+      case b @ AmbiguousComputationalXor(l, r) =>
+        AmbiguousComputationalXor(
+          DummyConstant(getInferredType(l)),
+          DummyConstant(getInferredType(r)),
+        )(b.o).t
       case _ => e.t
     }
 
@@ -1471,7 +1653,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = llvmPerm.o
     val locExpr = Local[Post](rw.succ(llvmPerm.loc.decl))
     Perm[Post](
-      PointerLocation[Post](locExpr)(llvmPerm.blame),
+      AmbiguousLocation[Post](DerefPointer(locExpr)(llvmPerm.blame)),
       Local[Post](rw.succ(llvmPerm.perm.decl)),
     )
   }
@@ -1538,6 +1720,50 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     requireInWrapper(llvmOld)
     implicit val o: Origin = llvmOld.o
     LLVMOld[Post](rw.succ(llvmOld.v.decl))
+  }
+
+  def correctPointerComparison[T <: Expr[Post]](
+      left: Expr[Pre],
+      right: Expr[Pre],
+      op: (Expr[Post], Expr[Post], Option[Expr[Post]]) => T,
+  )(implicit o: Origin): T = {
+    val lt = getInferredType(left)
+    val rt = getInferredType(right)
+    val nl = rw.dispatch(left)
+    val nr = rw.dispatch(right)
+
+    def cast(e: Expr[Post], fromType: Type[Pre], toType: Type[Pre]) =
+      PointerCast(
+        e,
+        TPointer(rw.dispatch(toType), None),
+        rw.c.sizeOf(fromType, o),
+        rw.c.sizeOf(toType, o),
+      )
+
+    (lt, rt) match {
+      case (l, r) if l == r =>
+        op(nl, nr, l.asPointer.map(p => rw.c.sizeOf(p.element, o)))
+      case (LLVMTPointer(None), LLVMTPointer(None)) =>
+        op(nl, nr, Some(rw.c.sizeOf(TAnyValue(), o)))
+      case (LLVMTPointer(Some(lt)), LLVMTPointer(None)) =>
+        op(nl, cast(nr, TAnyValue(), lt), Some(rw.c.sizeOf(lt, o)))
+      case (LLVMTPointer(None), LLVMTPointer(Some(rt))) =>
+        op(cast(nl, TAnyValue(), rt), nr, Some(rw.c.sizeOf(rt, o)))
+      case (LLVMTPointer(Some(lt)), LLVMTPointer(Some(rt))) =>
+        if (CoercionUtils.firstElementIsType(lt, rt)) {
+          op(nl, cast(nr, rt, lt), Some(rw.c.sizeOf(lt, o)))
+        } else if (CoercionUtils.firstElementIsType(rt, lt)) {
+          op(cast(nl, lt, rt), nr, Some(rw.c.sizeOf(rt, o)))
+        } else { throw InvalidPointerEquality(o, lt, rt) }
+      case (l, r) if l.asPointer.isDefined && r.asPointer.isDefined =>
+        if (
+          CoercionUtils
+            .getAnyCoercion(l.asPointer.get.element, r.asPointer.get.element)
+            .isDefined
+        ) { op(nl, nr, Some(rw.c.sizeOf(l.asPointer.get.element, o))) }
+        else { throw InvalidPointerComparison(o) }
+      case (_, _) => op(nl, nr, None)
+    }
   }
 
   def result(ref: RefLLVMFunctionDefinition[Pre])(
@@ -1635,9 +1861,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       loopBlocks.addAll(loop.blocks.get)
       // Determine which variables are assigned using store-instructions
       val assignedVars = mutable.Set[Variable[Pre]]()
+      val usedVars = mutable.Set[Variable[Pre]]()
       loop.blocks.getOrElse(mutable.Set.empty).foreach { b =>
-        b.body.collect { case LLVMStore(_, Local(Ref(v)), _) =>
-          assignedVars.add(v)
+        b.body.collect {
+          case LLVMStore(_, Local(Ref(v)), _) => assignedVars.add(v)
+          case Local(Ref(v)) => usedVars.add(v)
         }
       }
       Label(
@@ -1646,7 +1874,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           Block(Nil)(block.o),
           tt[Post],
           Block(Nil)(block.o),
-          assignedInLoop.having(assignedVars) { rw.dispatch(loop.contract) },
+          assignedInLoop.having(assignedVars) {
+            usedInLoop.having(usedVars) { rw.dispatch(loop.contract) }
+          },
           Block(
             blockToLabel(loop.headerBlock.get) +: loop.blocks.get.filterNot {
               b => b == loop.headerBlock.get || b == loop.latchBlock.get
@@ -1665,20 +1895,23 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = llvmContract.o
     // Add Permission for alloca-variables
     var extendedInv = rw.dispatch(llvmContract.invariant)
-    allocaVars.topOption.getOrElse(mutable.Set.empty).foreach { v =>
-      // If the variable is assigned to, assert write-perm, otherwise read perm
-      val perm =
-        if (assignedInLoop.topOption.getOrElse(mutable.Set.empty).contains(v)) {
-          WritePerm[Post]()
-        } else { ReadPerm[Post]() }
-      extendedInv =
-        Perm(
-          PointerLocation[Post](Local(rw.succ(v)))(PanicBlame(
-            "Generated locals always have permission"
-          )),
-          perm,
-        ) &* extendedInv
-    }
+    allocaVars.topOption.getOrElse(mutable.Set.empty)
+      .intersect(usedInLoop.topOption.getOrElse(mutable.Set.empty))
+      .foreach { v =>
+        // If the variable is assigned to, assert write-perm, otherwise read perm
+        val perm =
+          if (
+            assignedInLoop.topOption.getOrElse(mutable.Set.empty).contains(v)
+          ) { WritePerm[Post]() }
+          else { ReadPerm[Post]() }
+        extendedInv =
+          Perm(
+            AmbiguousLocation[Post](DerefPointer(Local[Post](rw.succ(v)))(
+              PanicBlame("Generated locals always have permission")
+            )),
+            perm,
+          ) &* extendedInv
+      }
     LoopInvariant[Post](extendedInv, None)(llvmContract.blame)
   }
 

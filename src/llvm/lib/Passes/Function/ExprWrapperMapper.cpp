@@ -1,9 +1,16 @@
 #include "Passes/Function/ExprWrapperMapper.h"
-#include "Passes/Function/FunctionDeclarer.h"
 
-#include "Origin/OriginProvider.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Woverflow"
+#endif // __GNUC__
+#include "vct/col/ast/col.pb.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif // __GNUC__
+
 #include "Util/Constants.h"
-#include "Util/Exceptions.h"
 #include "Util/PallasMD.h"
 
 #include <llvm/Analysis/LoopInfo.h>
@@ -45,7 +52,8 @@ ExprWrapperMapper::Result ExprWrapperMapper::run(Function &F,
     // wrapper-function in a specification.
     for (Function &parentF : llvmModule->functions()) {
         // Skip wrapper-functions and intrinsics
-        if (utils::isPallasExprWrapper(parentF) || parentF.isIntrinsic()) {
+        if (utils::isPallasExprWrapper(parentF) || parentF.isIntrinsic() ||
+            utils::isPallasSpecLib(parentF)) {
             continue;
         }
 
@@ -72,6 +80,9 @@ ExprWrapperMapper::Result ExprWrapperMapper::run(Function &F,
                 }
             }
         }
+
+        if (parentF.isDeclaration())
+            continue;
 
         // Check all loop-contracts
         LoopInfo &loopInfo = FAM.getResult<LoopAnalysis>(parentF);
