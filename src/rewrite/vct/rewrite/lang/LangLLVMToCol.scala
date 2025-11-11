@@ -460,10 +460,12 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         obj: Object,
         dependencies: Set[Object],
         inferType: Unit => Type[Pre],
-    ): Unit =
+    ): Unit = {
+      val inferred = inferType()
       typeGuesses
         .getOrElseUpdate(obj, new TypeGuess(currentType = inferType(())))
         .add(dependencies, inferType)
+    }
 
     // TODO: This could be made more generic and also work with Assign nodes
     program.collect {

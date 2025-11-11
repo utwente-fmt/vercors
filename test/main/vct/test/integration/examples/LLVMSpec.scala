@@ -11,6 +11,7 @@ class LLVMSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/llvm/fib.ll"
   vercors should verify using silicon example "concepts/llvm/cubed.c"
   vercors should verify using silicon example "concepts/llvm/pointer_relations.ll"
+  vercors should verify using silicon example "concepts/llvm/pointer_casts.ll"
   vercors should verify using silicon flags("--contract-import-file", "examples/concepts/llvm/cubed-contracts.pvl") example "concepts/llvm/cubed.ll"
   vercors should verify using silicon flags("--contract-import-file", "examples/concepts/llvm/void-contracts.pvl") example "concepts/llvm/void.ll"
   vercors should fail withCode "unreachable" using silicon in "reaching an 'unreachable' statement" llvm

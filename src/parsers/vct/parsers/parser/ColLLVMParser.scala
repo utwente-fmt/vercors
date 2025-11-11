@@ -52,7 +52,7 @@ case class ColLLVMParser(
     val command = Seq(
       "opt-17",
       s"--load-pass-plugin=$pallas",
-      s"--passes=function($prePStr),module(pallas-declare-variables,pallas-collect-module-spec),function(pallas-declare-function,pallas-assign-pure,llvm-declare-function-contract,pallas-declare-function-contract,pallas-transform-function-body),module(pallas-print-protobuf)",
+      s"--passes=function($prePStr),module(pallas-consolidate-structs,pallas-declare-variables,pallas-collect-module-spec),function(pallas-declare-function,pallas-assign-pure,llvm-declare-function-contract,pallas-declare-function-contract,pallas-transform-function-body),module(pallas-print-protobuf)",
       "--disable-output",
     )
 
