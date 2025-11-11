@@ -42,6 +42,10 @@ llvm::PassPluginLibraryInfo getPallasPluginInfo() {
                         } else if (Name == "pallas-declare-variables") {
                             MPM.addPass(pallas::GlobalVariableDeclarerPass());
                             return true;
+                        } else if (Name == "pallas-declare-function-contract") {
+                            MPM.addPass(
+                                pallas::PallasFunctionContractDeclarerPass());
+                            return true;
                         } else if (Name == "pallas-print-protobuf") {
                             MPM.addPass(pallas::ProtobufPrinter());
                             return true;
@@ -62,10 +66,6 @@ llvm::PassPluginLibraryInfo getPallasPluginInfo() {
                             return true;
                         } else if (Name == "llvm-declare-function-contract") {
                             FPM.addPass(pallas::FunctionContractDeclarerPass());
-                            return true;
-                        } else if (Name == "pallas-declare-function-contract") {
-                            FPM.addPass(
-                                pallas::PallasFunctionContractDeclarerPass());
                             return true;
                         } else if (Name == "pallas-transform-function-body") {
                             FPM.addPass(pallas::FunctionBodyTransformerPass());

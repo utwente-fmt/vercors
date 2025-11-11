@@ -15,12 +15,17 @@
 
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Metadata.h>
+#include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 
 /**
  * Pass that transforms Pallas function contracts that are defined as
  * metadata that is attached to an LLVM-function into
  * LlvmfunctionContract objects.
+ *
+ * This is a module-pass instead of a function-pass to ensure that it is also
+ * applied to function declarations which can be equiped with an
+ * external contract.
  *
  * This pass expects to be run after the following passes
  * - FunctionContractDeclarer
@@ -43,9 +48,14 @@ class PallasFunctionContractDeclarerPass
      * The value-filed of the contract is left empty, because the
      * ApplicableContract is constructed directly.
      */
-    PreservedAnalyses run(Function &f, FunctionAnalysisManager &fam);
+    PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
 
   private:
+    /**
+     * Run the transformation on the given function.
+     */
+    void runOnFunction(Function &f, FunctionAnalysisManager &fam);
+
     /**
      * Initializes the given ApplicableContract so that it represents a
      * trivial contract (i.e. it only contains a requires-true-clause).
@@ -91,7 +101,8 @@ class PallasFunctionContractDeclarerPass
                              Metadata *clauseOperand,
                              FunctionAnalysisManager &fam, Function &parentFunc,
                              unsigned int clauseNum,
-                             const MDNode &contractSrcLoc);
+                             const MDNode &contractSrcLoc,
+                             const bool isExternal);
 
     /**
      * Tries to extract the wrapper-function from the given metadata-node that
@@ -102,6 +113,21 @@ class PallasFunctionContractDeclarerPass
      * ctxFunc is used to build error messages.
      */
     Function *getWrapperFuncFromClause(MDNode &clause, Function &ctxFunc);
+
+    /**
+     * Resolve the DIVariables from a given MD-nodes that encodes a contract-
+     * clause into col-variables.
+     */
+    std::optional<SmallVector<col::Variable *, 8>>
+    getContractArgs(const MDNode &clause, Function &parentFunc,
+                    FunctionAnalysisManager &fam);
+
+    /**
+     * Get the arguments for a call to a wrapper-function that is part of the
+     * given parent-function's contract.
+     */
+    std::optional<SmallVector<col::Variable *, 8>>
+    getExternalContractArgs(Function &parentFunc, FunctionAnalysisManager &fam);
 
     /**
      * Takes a function and a DIVariable that describes an argument of

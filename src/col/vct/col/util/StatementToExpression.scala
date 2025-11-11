@@ -28,11 +28,13 @@ case class StatementToExpression[Pre <: Generation, Post <: Generation](
       case Branch(Nil) => alt
       case Branch((BooleanValue(true), impl) +: _) => toExpression(impl, alt)
       case Branch((cond, impl) +: branches) =>
-        Some(Select(
-          rw.dispatch(cond),
-          toExpression(impl, alt).getOrElse(return None),
-          toExpression(Branch(branches), alt).getOrElse(return None),
-        ))
+        Some(
+          Select(
+            rw.dispatch(cond),
+            toExpression(impl, alt).getOrElse(return None),
+            toExpression(Branch(branches), alt).getOrElse(return None),
+          )(stat.o)
+        )
       case Scope(locals, impl) =>
         if (!locals.forall(countAssignments(_, impl).exists(_ <= 1))) {
           throw errorBuilder("Variables may only be assigned once.")

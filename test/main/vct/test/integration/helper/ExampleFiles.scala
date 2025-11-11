@@ -32,6 +32,7 @@ case object ExampleFiles {
     "examples/concepts/llvm/cubed-contracts.pvl",
     "examples/concepts/llvm/void-contracts.pvl",
     // Files that are used to generate the .ll-versions of the examples
+    "examples/concepts/llvm/pallas/generate_llvm_examples.sh",
     "examples/concepts/llvm/pallas/pallas_function_contract.c",
     "examples/concepts/llvm/pallas/pallas_function_contract_fail.c",
     "examples/concepts/llvm/pallas/pallas_result.c",
@@ -55,6 +56,11 @@ case object ExampleFiles {
     "examples/concepts/llvm/pallas/pallas_swift_assert.swift",
     "examples/concepts/llvm/pallas/pallas_c_loop_unused.c",
     "examples/concepts/llvm/pallas/pallas_c_assume.c",
+    "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.h",
+    "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.cpp",
+    "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.h",
+    "examples/concepts/llvm/pallas/extContracts/pallas_c_genContrAssume.c",
+    "examples/concepts/llvm/pallas/extContracts/pallas_cpp_genContr.cpp",
     "examples/concepts/llvm/pointer_casts.c"
   ).map(_.replaceAll("/", File.separator))
 

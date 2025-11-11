@@ -44,10 +44,8 @@ PreservedAnalyses PureAssignerPass::run(Function &F,
     }
 
     // Check if the function is annotated with a pallas function contract
-    if (F.hasMetadata(pallas::constants::PALLAS_FUNC_CONTRACT)) {
+    if (auto *contractMDNode = utils::getPallasContract(F)) {
         pureAnnotationCount++;
-        MDNode *contractMDNode =
-            F.getMetadata(pallas::constants::PALLAS_FUNC_CONTRACT);
         if (!isPallasPureWellformed(*contractMDNode, F))
             return PreservedAnalyses::all();
         // Extract pure-value (should work due to previous checks)

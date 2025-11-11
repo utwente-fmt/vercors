@@ -10,7 +10,7 @@ int fibRec(int n) {
 }
 
 /*@ requires n >= 0;
-    ensures RESULT(int)() == fibRec(n); @*/
+    ensures _result(int) == fibRec(n); @*/
 int fibIt(int n) {
     if (n <= 1) { return n;}
     int prevRes = 0;

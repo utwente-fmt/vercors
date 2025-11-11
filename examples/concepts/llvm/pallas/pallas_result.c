@@ -24,7 +24,7 @@ typedef struct s {
 // Test that \result works with large structs that are returned in an sret-argument.
 
 /*@
-ensures RESULT(BigStruct)().a >= 0;
+ensures _result(BigStruct).a >= 0;
 @*/
 BigStruct fun (int a) {
     BigStruct s;
@@ -35,7 +35,7 @@ BigStruct fun (int a) {
 
 // Test that \result works with regular values.
 /*@
-ensures RESULT(int)() >= 0;
+ensures _result(int) >= 0;
 @*/
 int bar (int x) {
     int y = x > 0 ? x : -x;

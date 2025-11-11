@@ -196,6 +196,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   private val usedInLoop: ScopedStack[mutable.Set[Variable[Pre]]] =
     ScopedStack()
 
+  // Tracks the label of the current loop
+  private val currentLoopLabel: ScopedStack[LabelDecl[Pre]] = ScopedStack()
+
   // Initializer-functions for the tuples that are returned by the llvm intrinsics
   // for arithmetic operaitons with overflows.
   private val overflowOpInitializers
@@ -548,8 +551,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           .foreach { case (arg, idx) =>
             // Infer type of variable that is used as arg in function call
             // from function definition
-            getVariable(inv.args(idx))
-              .foreach(v => addTypeGuess(v, Set.empty, _ => arg.t))
+            if (inv.args(idx).t.asPointer.isDefined) {
+              getVariable(inv.args(idx))
+                .foreach(v => addTypeGuess(v, Set.empty, _ => arg.t))
+            }
 
             // If the invoked function is a wrapper function, we infer the
             // type of the pointer-typed argument from the call-site.
@@ -634,6 +639,17 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteFunctionDef(func: LLVMFunctionDefinition[Pre]): Unit = {
     implicit val o: Origin = func.o
+    // If the function has a contract that is marked as assumed, drop the body.
+    val assumeBody =
+      func.contract match {
+        case c: PallasFunctionContract[Pre] if c.assumed => true
+        case _ => false
+      }
+    if (assumeBody && func.functionBody.isDefined) {
+      val fName = func.o.getPreferredNameOrElse().ucamel
+      logger.warn(s"Assuming contract-compliance for function $fName")
+    }
+
     val procedure = rw.labelDecls.scope {
       allocaVars.having(mutable.Set[Variable[Pre]]()) {
         val newArgs = func.importedArguments.getOrElse(func.args).map { it =>
@@ -669,17 +685,20 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               outArgs = Nil,
               typeArgs = Nil,
               body =
-                inWrapperFunction.having(isWrapper) {
-                  func.functionBody match {
-                    case None => None
-                    case Some(functionBody) =>
-                      if (func.pure)
-                        Some(GotoEliminator(functionBody match {
-                          case scope: Scope[Pre] => scope;
-                          case other => throw UnexpectedLLVMNode(other)
-                        }).eliminate())
-                      else
-                        Some(rw.dispatch(functionBody))
+                if (assumeBody) { None }
+                else {
+                  inWrapperFunction.having(isWrapper) {
+                    func.functionBody match {
+                      case None => None
+                      case Some(functionBody) =>
+                        if (func.pure)
+                          Some(GotoEliminator(functionBody match {
+                            case scope: Scope[Pre] => scope;
+                            case other => throw UnexpectedLLVMNode(other)
+                          }).eliminate())
+                        else
+                          Some(rw.dispatch(functionBody))
+                    }
                   }
                 },
               contract =
@@ -1868,24 +1887,26 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           case Local(Ref(v)) => usedVars.add(v)
         }
       }
-      Label(
-        rw.labelDecls.dispatch(block.label),
-        Loop(
-          Block(Nil)(block.o),
-          tt[Post],
-          Block(Nil)(block.o),
-          assignedInLoop.having(assignedVars) {
-            usedInLoop.having(usedVars) { rw.dispatch(loop.contract) }
-          },
-          Block(
-            blockToLabel(loop.headerBlock.get) +: loop.blocks.get.filterNot {
-              b => b == loop.headerBlock.get || b == loop.latchBlock.get
-            }.map(b => blockToLabel(b)) :+
-              blockToLabel(loop.latchBlock.get, true)
+      currentLoopLabel.having(block.label) {
+        Label(
+          rw.labelDecls.dispatch(block.label),
+          Loop(
+            Block(Nil)(block.o),
+            tt[Post],
+            Block(Nil)(block.o),
+            assignedInLoop.having(assignedVars) {
+              usedInLoop.having(usedVars) { rw.dispatch(loop.contract) }
+            },
+            Block(
+              blockToLabel(loop.headerBlock.get) +: loop.blocks.get.filterNot {
+                b => b == loop.headerBlock.get || b == loop.latchBlock.get
+              }.map(b => blockToLabel(b)) :+
+                blockToLabel(loop.latchBlock.get, true)
+            )(block.o),
           )(block.o),
-        )(block.o),
-        LoopInvariant(tt, None)(TrueSatisfiable)(block.o),
-      )(block.o)
+          LoopInvariant(tt, None)(TrueSatisfiable)(block.o),
+        )(block.o)
+      }
     }
   }
 
@@ -1895,24 +1916,43 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = llvmContract.o
     // Add Permission for alloca-variables
     var extendedInv = rw.dispatch(llvmContract.invariant)
+    val locPermBlame = PanicBlame("Generated locals always have permission")
     allocaVars.topOption.getOrElse(mutable.Set.empty)
       .intersect(usedInLoop.topOption.getOrElse(mutable.Set.empty))
       .foreach { v =>
-        // If the variable is assigned to, assert write-perm, otherwise read perm
-        val perm =
-          if (
-            assignedInLoop.topOption.getOrElse(mutable.Set.empty).contains(v)
-          ) { WritePerm[Post]() }
-          else { ReadPerm[Post]() }
-        extendedInv =
-          Perm(
-            AmbiguousLocation[Post](DerefPointer(Local[Post](rw.succ(v)))(
-              PanicBlame("Generated locals always have permission")
-            )),
-            perm,
-          ) &* extendedInv
+        if (
+          !assignedInLoop.topOption.getOrElse(mutable.Set.empty).contains(v)
+        ) {
+          // If the variable is not assigned to, specify that the value does not change
+          // TODO: We might have to check that the pointer to v is not passed to other functions in the loop
+          // \old(*v, loop_header) == *v
+          val oldClause =
+            Old[Post](
+              DerefPointer[Post](Local(rw.succ(v)))(locPermBlame),
+              Option(rw.succ(currentLoopLabel.top)),
+            )(PanicBlame("Header-label always precedes loop")) ===
+              DerefPointer[Post](Local(rw.succ(v)))(locPermBlame)
+          extendedInv = oldClause &* extendedInv
+        }
+
+        val permClause = Perm(
+          AmbiguousLocation[Post](
+            DerefPointer(Local[Post](rw.succ(v)))(locPermBlame)
+          ),
+          WritePerm[Post](),
+        )
+        extendedInv = permClause &* extendedInv
       }
     LoopInvariant[Post](extendedInv, None)(llvmContract.blame)
+  }
+
+  def rewriteIntegerValue(iVal: LLVMIntegerValue[Pre]): Expr[Post] = {
+    implicit val o: Origin = iVal.o
+
+    iVal match {
+      case LLVMIntegerValue(v, LLVMTInt(1)) => BooleanValue(v != 0)
+      case _ => IntegerValue(iVal.value)
+    }
   }
 
   /*
@@ -2002,6 +2042,13 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     if (!structMap.contains(t)) { rewriteStruct(t) }
     val targetClass = new LazyRef[Post, Class[Post]](structMap(t))
     TByValueClass[Post](targetClass, Seq())(t.o)
+  }
+
+  def intType(t: LLVMTInt[Pre]): Type[Post] = {
+    t match {
+      case LLVMTInt(1) => TBool()(t.o)
+      case _ => TInt()(t.o)
+    }
   }
 
   def pointerType(t: LLVMTPointer[Pre]): Type[Post] =

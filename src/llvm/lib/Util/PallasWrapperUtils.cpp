@@ -5,9 +5,12 @@
 
 #include <llvm/ADT/SmallSet.h>
 #include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Constant.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Dominators.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Type.h>
+#include <llvm/Support/raw_ostream.h>
 
 namespace pallas::utils {
 namespace col = vct::col::ast;
@@ -76,6 +79,36 @@ bool buildArgExprFromDbgValue(col::LlvmFunctionInvocation &wrapperCall,
         return false;
     }
     auto *llvmValue = dbgVal.getValue();
+
+    // TODO: Extend this to handle general casting instructions (where sound).
+
+    // Booleans are often extended to larger bitwidths and the debug-intrinsc is
+    // attached to the extended value.
+    // However the wrapper-function expects the original i1.
+    // In this case, we must 'skip' the zext-instruction.
+    if (llvmWFunc.getFunctionType()->getParamType(argIdx)->isIntegerTy(1) &&
+        llvmValue->getType()->isIntegerTy() &&
+        !llvmValue->getType()->isIntegerTy(1)) {
+        // Attempt to skip zext
+        if (auto *zext = llvm::dyn_cast<llvm::ZExtInst>(llvmValue)) {
+            if (zext->getSrcTy()->isIntegerTy(1))
+                llvmValue = zext->getOperand(0);
+        }
+    }
+
+    // Handle the case where the debug-info references a constant value. 
+    if (auto *constVal = llvm::dyn_cast<llvm::Constant>(llvmValue)) {
+        auto *argExpr = wrapperCall.add_args();
+        llvm2col::transformAndSetConstExpr(
+            functionCursor.getFunctionAnalysisManager(), 
+            // TODO: Put a more precise origin here!
+            llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc), 
+            *constVal, 
+            *argExpr, 
+            llvmParentFunc.getParent()->getDataLayout()
+        );
+        return true;
+    }
 
     col::Variable *colVar = nullptr;
     if (auto *arg = llvm::dyn_cast<llvm::Argument>(llvmValue)) {

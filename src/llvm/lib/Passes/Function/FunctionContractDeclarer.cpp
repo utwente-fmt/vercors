@@ -53,8 +53,8 @@ FunctionContractDeclarerPass::run(Function &F, FunctionAnalysisManager &FAM) {
     // Add a "requires false"-contract to Swift's fatalError-function
     // (Since we currently do not support all instructions that it uses).
     if (F.getName().str() == constants::SWIFT_FATAL_ERROR) {
-        ErrorReporter::addWarning(SOURCE_LOC,
-                                  "Generating contract forswift fatalError", F);
+        ErrorReporter::addWarning(
+            SOURCE_LOC, "Generating contract for swift fatalError", F);
         colContract->set_value("requires false;");
         colContract->set_allocated_origin(
             llvm2col::generateFunctionContractOrigin(F, "requires false;"));

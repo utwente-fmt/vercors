@@ -58,9 +58,9 @@ ExprWrapperMapper::Result ExprWrapperMapper::run(Function &F,
         }
 
         // If the function has a pallas-contract, check all clauses
-        if (utils::hasPallasContract(parentF)) {
-            auto *contract =
-                parentF.getMetadata(constants::PALLAS_FUNC_CONTRACT);
+        if (utils::hasPallasContract(parentF) ||
+            utils::hasExternalPallasContract(parentF)) {
+            auto *contract = utils::getPallasContract(parentF);
             // For all clauses, check if they reference the wrapper function
             auto numOps = contract->getNumOperands();
             unsigned int clauseIdx = 2;

@@ -3881,9 +3881,11 @@ final class VCLLVMFunctionContract[G](
     extends LLVMFunctionContract[G] with VCLLVMFunctionContractImpl[G] {
   var data: Option[ApplicableContract[G]] = None
 }
-final class PallasFunctionContract[G](val content: ApplicableContract[G])(
-    val blame: Blame[NontrivialUnsatisfiable]
-)(implicit val o: Origin)
+final class PallasFunctionContract[G](
+    val content: ApplicableContract[G],
+    val assumed: Boolean = false,
+    val external: Boolean,
+)(val blame: Blame[NontrivialUnsatisfiable])(implicit val o: Origin)
     extends LLVMFunctionContract[G] with PallasFunctionContractImpl[G] {}
 
 final case class LLVMLoopContract[G](invariant: Expr[G])(
@@ -3891,10 +3893,10 @@ final case class LLVMLoopContract[G](invariant: Expr[G])(
 )(implicit val o: Origin)
     extends LoopContract[G] with LLVMLoopContractImpl[G]
 
-final case class LLVMGlobalVariable[G](
-    variableType: Type[G],
-    value: Option[Expr[G]],
-    constant: Boolean,
+final class LLVMGlobalVariable[G](
+    val variableType: Type[G],
+    val value: Option[Expr[G]],
+    val constant: Boolean,
 )(implicit val o: Origin)
     extends GlobalDeclaration[G] with LLVMGlobalVariableImpl[G]
 

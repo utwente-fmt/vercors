@@ -32,6 +32,17 @@ std::optional<std::string> isPallasSpecLib(const llvm::Function &f);
 bool hasPallasContract(const llvm::Function &f);
 
 /**
+ * Checks if the given function has a metadata-node that is labeled as an
+ * external Pallas contract.
+ */
+bool hasExternalPallasContract(const llvm::Function &f);
+
+/**
+ * If f has an external or a normal pallas-contract, return this contract.
+ */
+llvm::MDNode *getPallasContract(const llvm::Function &f);
+
+/**
  * Checks if the given function has a metadata-node that is labeled as a
  * VCLLVM contract.
  */
