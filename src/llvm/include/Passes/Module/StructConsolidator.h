@@ -32,19 +32,28 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
         SmallVector<ArgInfo> Arguments;
         AllocaInst *Alloc;
         AllocaInst *Intermediary;
-        DenseMap<CallBase *, FieldMap> Calls;
+        DenseMap<CallBase *, std::pair<FieldMap, AllocaInst *>> Calls;
         bool Valid;
     };
+
+    struct Fail {};
+    struct Found {};
+    struct FoundAll {
+        AllocaInst *Intermediary;
+    };
+    using DigToFieldResult = std::variant<Fail, Found, FoundAll>;
 
     using WriteVec = SmallVector<Write>;
     using AllocaMap = DenseMap<AllocaInst *, WriteVec>;
     using ReplaceableVec = SmallVector<ReplaceableArgSet>;
 
-    void removeRecursively(Value *V);
+    void removeRecursively(Value *V, SmallSet<Value *, 8> &Visited);
     void removeParentless(Value *V);
-    bool digToField(Value *V, const DataLayout &L, const StructType &ST,
-                    FieldMap &Fields, ArgInfo &A, APInt SourceOffset,
-                    uint64_t FieldOffset, size_t Depth);
+    DigToFieldResult digToField(const Function &F, Value *V,
+                                const DataLayout &L, StructType &ST,
+                                FieldMap &Fields, ArgInfo &A,
+                                APInt SourceOffset, uint64_t FieldOffset,
+                                size_t Depth);
     void gatherUseData(const Function &F, const DataLayout &L,
                        ReplaceableArgSet &Set);
     bool gatherWrites(const Function &F, const DataLayout &L, uint64_t Size,

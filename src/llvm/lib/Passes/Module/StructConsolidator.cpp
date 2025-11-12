@@ -27,6 +27,7 @@
 #include <llvm/Support/Debug.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/Utils/Local.h>
+#include <variant>
 
 namespace pallas {
 const std::string SOURCE_LOC = "Passes::Module::StructConsolidator";
@@ -80,11 +81,15 @@ struct IntervalSet {
 };
 
 // WARNING: This can remove a lot of things, be very careful when calling this
-void StructConsolidatorPass::removeRecursively(Value *V) {
-    while (!V->user_empty()) {
-        removeRecursively(V->user_back());
+void StructConsolidatorPass::removeRecursively(Value *V,
+                                               SmallSet<Value *, 8> &Visited) {
+    if (!Visited.insert(V).second)
+        return;
+    while (!V->use_empty()) {
+        removeRecursively(V->user_back(), Visited);
     }
     if (auto *I = dyn_cast<Instruction>(V)) {
+        salvageDebugInfo(*I);
         for (Use &U : I->operands()) {
             Value *OpV = U.get();
             U.set(nullptr);
@@ -92,7 +97,7 @@ void StructConsolidatorPass::removeRecursively(Value *V) {
             if (!OpV->use_empty())
                 continue;
 
-            RecursivelyDeleteTriviallyDeadInstructions(OpV);
+            removeRecursively(OpV, Visited);
         }
         I->eraseFromParent();
     }
@@ -109,105 +114,290 @@ void StructConsolidatorPass::removeParentless(Value *V) {
     }
 }
 
-bool StructConsolidatorPass::digToField(Value *V, const DataLayout &L,
-                                        const StructType &ST, FieldMap &Fields,
-                                        ArgInfo &A, APInt SourceOffset,
-                                        uint64_t FieldOffset, size_t Depth) {
+StructConsolidatorPass::DigToFieldResult StructConsolidatorPass::digToField(
+    const Function &F, Value *V, const DataLayout &L, StructType &ST,
+    FieldMap &Fields, ArgInfo &A, APInt SourceOffset, uint64_t FieldOffset,
+    size_t Depth) {
     // For now let's not consider deeper nesting
     if (Depth > 1)
-        return false;
+        return Fail{};
 
     auto &[Idx, Field] = Fields[A.Offset + FieldOffset];
     Type *ET = ST.getStructElementType(Idx);
     // We only want to find one source for each field
     if (Field != NULL)
-        return false;
+        return Fail{};
     if (Depth == 0 && V->getType() == ET) {
         // We found a good source!
         Field = V;
-        return true;
+        return Found{};
     }
 
     if (auto *Load = dyn_cast<LoadInst>(V)) {
-        return digToField(Load->getPointerOperand(), L, ST, Fields, A,
+        return digToField(F, Load->getPointerOperand(), L, ST, Fields, A,
                           SourceOffset, FieldOffset, Depth + 1);
     }
 
     if (auto *GEP = dyn_cast<GetElementPtrInst>(V)) {
         if (!GEP->accumulateConstantOffset(L, SourceOffset))
-            return false;
+            return Fail{};
 
-        return digToField(GEP->getPointerOperand(), L, ST, Fields, A,
+        return digToField(F, GEP->getPointerOperand(), L, ST, Fields, A,
                           SourceOffset, FieldOffset, Depth);
     }
 
-    if (auto *AllocA = dyn_cast<AllocaInst>(V)) {
-        assert(Depth == 1);
+    auto *AllocA = dyn_cast<AllocaInst>(V);
 
-        if (ST.getElementType(Idx) == AllocA->getAllocatedType()) {
-            // This is our source, we just need to load it
-            // Byte-align is fine since we're never generating this code
-            Field = new LoadInst(ET, V, Twine("insertedLoad"), false, Align());
-            return true;
-        }
+    if (!AllocA)
+        return Fail{};
 
-        if (!isa<StructType>(AllocA->getAllocatedType())) {
-            // While this could technically be an intermediary there should be
-            // no need to generate it like that since you could have a direct
-            // Load instruction
-            return false;
-        }
+    assert(Depth == 1);
 
-        StructType *AllocST = cast<StructType>(AllocA->getAllocatedType());
-        const StructLayout *structLayout = L.getStructLayout(AllocST);
-
-        // Decompose into available fields!
-        // We have A.size bytes that we are reading from this allocation
-        // We will get all fields starting from field[A.offset +
-        // offsetIntoField]
-        int64_t Remaining = A.Size;
-        while (Remaining > 0) {
-            auto &[InnerIdx, InnerField] = Fields[A.Offset + FieldOffset];
-            assert(InnerField == NULL);
-            int sourceIndex = structLayout->getElementContainingOffset(
-                SourceOffset.getLimitedValue());
-
-            // Somehow we've ended up misaligned somewhere
-            if (SourceOffset != structLayout->getElementOffset(sourceIndex))
-                return false;
-
-            if (ST.getStructElementType(InnerIdx) ==
-                AllocST->getStructElementType(sourceIndex)) {
-                // Found a match
-                InnerField = new LoadInst(
-                    ET,
-                    GetElementPtrInst::Create(
-                        AllocST, V,
-                        ArrayRef(
-                            new Value *[] {
-                                ConstantInt::get(ST.getContext(), APInt(32, 0)),
-                                    ConstantInt::get(ST.getContext(),
-                                                     APInt(32, InnerIdx))
-                            },
-                            2)),
-                    Twine("insertedLoad"), false, Align());
-                const TypeSize Offset =
-                    L.getTypeAllocSize(ST.getStructElementType(InnerIdx));
-                SourceOffset += Offset;
-                FieldOffset += Offset.getFixedValue();
-                Remaining -= Offset.getFixedValue();
-            } else {
-                // This must be an intermediary struct
-                // TODO: Find memcpy
-                return false;
-            }
-        }
-        assert(Remaining == 0);
-
-        return true;
+    if (ST.getElementType(Idx) == AllocA->getAllocatedType()) {
+        // This is our source, we just need to load it
+        // Byte-align is fine since we're never generating this code
+        Field = new LoadInst(ET, V, Twine("insertedLoad"), false, Align());
+        return Found{};
     }
 
-    return false;
+    if (!isa<StructType>(AllocA->getAllocatedType())) {
+        // While this could technically be an intermediary there should be
+        // no need to generate it like that since you could have a direct
+        // Load instruction
+        return Fail{};
+    }
+
+    StructType *AllocST = cast<StructType>(AllocA->getAllocatedType());
+    const StructLayout *structLayout = L.getStructLayout(AllocST);
+
+    // Decompose into available fields!
+    // We have A.size bytes that we are reading from this allocation
+    // We will get all fields starting from field[A.offset +
+    // offsetIntoField]
+    bool IsIntermediary = false;
+    int64_t Remaining = A.Size;
+    while (Remaining > 0) {
+        auto &[InnerIdx, InnerField] = Fields[A.Offset + FieldOffset];
+        assert(InnerField == NULL);
+        int sourceIndex = structLayout->getElementContainingOffset(
+            SourceOffset.getLimitedValue());
+
+        // Somehow we've ended up misaligned somewhere
+        if (SourceOffset != structLayout->getElementOffset(sourceIndex))
+            return Fail{};
+
+        if (ST.getStructElementType(InnerIdx) !=
+            AllocST->getStructElementType(sourceIndex)) {
+            // This must be an intermediary struct
+            IsIntermediary = true;
+            break;
+        }
+
+        // Found a match
+        InnerField = new LoadInst(
+            ET,
+            GetElementPtrInst::Create(
+                AllocST, V,
+                ArrayRef(
+                    new Value *[] {
+                        ConstantInt::get(ST.getContext(), APInt(32, 0)),
+                            ConstantInt::get(ST.getContext(),
+                                             APInt(32, InnerIdx))
+                    },
+                    2)),
+            Twine("insertedLoad"), false, Align());
+        const TypeSize FieldSize =
+            L.getTypeAllocSize(ST.getStructElementType(InnerIdx));
+        SourceOffset += FieldSize;
+        FieldOffset += FieldSize.getFixedValue();
+        Remaining -= FieldSize.getFixedValue();
+    }
+
+    if (!IsIntermediary) {
+        assert(Remaining == 0);
+        return Found{};
+    }
+
+    // We only support memcpys of the whole struct (this is easily extendable to
+    // more cases in the future)
+    if (FieldOffset != 0 || !SourceOffset.isZero()) {
+        std::string M;
+        {
+            raw_string_ostream S(M);
+            S << "Not simplifying function `";
+            F.printAsOperand(S, true, F.getParent());
+            S << "`, because caller uses intermediary `";
+            AllocA->printAsOperand(S, true);
+            S << "` at offset (we only support whole array copies)";
+        }
+        ErrorReporter::addWarning(SOURCE_LOC, M);
+        return Fail{};
+    }
+
+    // Find memcpy
+    bool Found = false;
+    for (const Use &U : AllocA->uses()) {
+        if (auto *GEP = dyn_cast<GetElementPtrInst>(U.getUser())) {
+            for (const User *GEPUser : GEP->users()) {
+                if (!isa<LoadInst>(GEPUser) &&
+                    (!isa<CallInst>(GEPUser) ||
+                     cast<CallInst>(GEPUser)->getCalledFunction() != &F)) {
+                    std::string M;
+                    {
+                        raw_string_ostream S(M);
+                        S << "Not simplifying function `";
+                        F.printAsOperand(S, true, F.getParent());
+                        S << "`, because caller uses intermediary `";
+                        AllocA->printAsOperand(S, true);
+                        S << "` with unexpected instruction: `";
+                        GEPUser->print(S);
+                        S << "`";
+                    }
+                    ErrorReporter::addWarning(SOURCE_LOC, M);
+                    return Fail{};
+                }
+            }
+            continue;
+        }
+
+        auto *Call = dyn_cast<CallInst>(U.getUser());
+        if (!Call) {
+            std::string M;
+            {
+                raw_string_ostream S(M);
+                S << "Not simplifying function `";
+                F.printAsOperand(S, true, F.getParent());
+                S << "`, because caller uses intermediary `";
+                AllocA->printAsOperand(S, true);
+                S << "` with unexpected instruction: `";
+                U.getUser()->print(S);
+                S << "`";
+            }
+            ErrorReporter::addWarning(SOURCE_LOC, M);
+            return Fail{};
+        }
+        if (Found) {
+            std::string M;
+            {
+                raw_string_ostream S(M);
+                S << "Not simplifying function `";
+                F.printAsOperand(S, true, F.getParent());
+                S << "`, because caller writes to intermediary  `";
+                AllocA->printAsOperand(S, true);
+                S << "` more than once";
+            }
+            ErrorReporter::addWarning(SOURCE_LOC, M);
+            return Fail{};
+        }
+
+        // Check for memcpy
+        Function *IF = Call->getCalledFunction();
+        // If we are calling a spec lib function then it will not have
+        // side-effects
+        if (IF->hasMetadata(constants::PALLAS_SPEC_LIB_MARKER))
+            continue;
+
+        if (IF->getIntrinsicID() != Intrinsic::memcpy)
+            return Fail{};
+
+        // Check if we are the destination (otherwise there is an additional
+        // read which we cannot simplify away)
+        if (U.getOperandNo() != 0) {
+            std::string M;
+            {
+                raw_string_ostream S(M);
+                S << "Not simplifying function `";
+                F.printAsOperand(S, true, F.getParent());
+                S << "`, because caller uses intermediary `";
+                AllocA->printAsOperand(S, true);
+                S << "` in unexpected way: `";
+                Call->print(S);
+                S << "`";
+            }
+            ErrorReporter::addWarning(SOURCE_LOC, M);
+            return Fail{};
+        }
+
+        Value *Src = Call->getArgOperand(1);
+        // Expecting src is an alloca of a struct with the same size as our
+        // struct
+        if (!isa<AllocaInst>(Src)) {
+            std::string M;
+            {
+                raw_string_ostream S(M);
+                S << "Not simplifying function `";
+                F.printAsOperand(S, true, F.getParent());
+                S << "`, because caller writes to intermediary `";
+                AllocA->printAsOperand(S, true);
+                S << "` from an invalid source/offset: `";
+                Call->print(S);
+                S << "`";
+            }
+            ErrorReporter::addWarning(SOURCE_LOC, M);
+            return Fail{};
+        }
+
+        AllocaInst *SrcI = cast<AllocaInst>(Src);
+        auto SrcSize = SrcI->getAllocationSize(L);
+        Value *Length = Call->getArgOperand(2);
+        const TypeSize StructSize = L.getTypeAllocSize(&ST);
+        // Expecting Length is an integer equal to the size of our struct
+        if (!SrcSize.has_value() || *SrcSize < StructSize ||
+            !isa<ConstantInt>(Length) ||
+            !cast<ConstantInt>(Length)->equalsInt(StructSize)) {
+            std::string M;
+            {
+                raw_string_ostream S(M);
+                S << "Not simplifying function `";
+                F.printAsOperand(S, true, F.getParent());
+                S << "`, because caller writes to intermediary `";
+                AllocA->printAsOperand(S, true);
+                S << "` with an invalid size: `";
+                Call->print(S);
+                S << "`";
+            }
+            ErrorReporter::addWarning(SOURCE_LOC, M);
+            return Fail{};
+        }
+
+        for (auto &[_Offset, IndexField] : Fields) {
+            auto &[FieldIdx, FieldGetter] = IndexField;
+            if (FieldGetter != nullptr) {
+                std::string M;
+                {
+                    raw_string_ostream S(M);
+                    S << "Not simplifying function `";
+                    F.printAsOperand(S, true, F.getParent());
+                    S << "`, because caller mixes intermediary  `";
+                    AllocA->printAsOperand(S, true);
+                    S << "` and other origins";
+                }
+                ErrorReporter::addWarning(SOURCE_LOC, M);
+                return Fail{};
+            }
+
+            FieldGetter = new LoadInst(
+                ET,
+                GetElementPtrInst::Create(
+                    &ST, SrcI,
+                    ArrayRef(
+                        new Value *[] {
+                            ConstantInt::get(ST.getContext(), APInt(32, 0)),
+                                ConstantInt::get(ST.getContext(),
+                                                 APInt(32, FieldIdx))
+                        },
+                        2)),
+                Twine("insertedLoad"), false, Align());
+        }
+        Found = true;
+    }
+
+    // TODO: Maybe error message on no memcpy found?
+    if (Found) {
+        return FoundAll{cast<AllocaInst>(V)};
+    } else {
+        return Fail{};
+    }
 }
 
 void StructConsolidatorPass::gatherUseData(const Function &F,
@@ -216,6 +406,7 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
     auto *ST = cast<StructType>(Set.Alloc->getAllocatedType());
     const StructLayout *SL = L.getStructLayout(ST);
     const auto Offsets = SL->getMemberOffsets();
+    AllocaInst *Intermediary = nullptr;
     for (const Use &U : F.uses()) {
         FieldMap Fields(Offsets.size());
         for (size_t Idx = 0, E = Offsets.size(); Idx < E; ++Idx) {
@@ -260,16 +451,18 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
         // Find operands for every arg in set.arguments
         for (const Argument *FA = F.arg_begin(), *E = F.arg_end(); FA != E;
              ++FA, ++P) {
-            bool Found = false;
+            DigToFieldResult Result = Fail{};
             for (ArgInfo &SA : Set.Arguments) {
-                if (FA != SA.Arg)
+                if (FA != SA.Arg) {
                     continue;
-                if (digToField(
-                        P->get(), L, *ST, Fields, SA,
-                        APInt(L.getPointerSizeInBits(F.getAddressSpace()), 0,
-                              false),
-                        0, 0)) {
-                    Found = true;
+                }
+                Result = digToField(
+                    F, P->get(), L, *ST, Fields, SA,
+                    APInt(L.getPointerSizeInBits(F.getAddressSpace()), 0,
+                          false),
+                    0, 0);
+
+                if (!std::holds_alternative<Fail>(Result)) {
                     break;
                 }
                 Set.Valid = false;
@@ -281,9 +474,15 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
                 }
                 return;
             }
-            if (!Found) {
+
+            if (std::holds_alternative<Fail>(Result)) {
                 Set.Valid = false;
                 return;
+            } else if (auto FA = std::get_if<FoundAll>(&Result)) {
+                Intermediary = FA->Intermediary;
+                break;
+            } else {
+                assert(std::holds_alternative<Found>(Result));
             }
         }
         // For each operand move up until we find a variable of type
@@ -294,7 +493,7 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
         //  align 4; call void f(%3, %2))
         // If found store origin (and intermediary), we'll allow multiple
         // origins as long as they're all of the appropriate type
-        Set.Calls.insert({Call, Fields});
+        Set.Calls.insert({Call, {Fields, Intermediary}});
     }
 }
 
@@ -327,9 +526,10 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
                                             NewF->getAddressSpace(),
                                             Twine("InsertedAllocA"), Call);
         bool Found = false;
-        for (const auto &[C, F] : Set.Calls) {
+        for (const auto &[C, P] : Set.Calls) {
             if (C != Call)
                 continue;
+            auto &[F, _Intermediary] = P;
             for (const auto &[_Offset, Source] : F) {
                 const auto &[Idx, Field] = Source;
                 auto *GEP = GetElementPtrInst::CreateInBounds(
@@ -402,6 +602,18 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
             continue;
 
         RecursivelyDeleteTriviallyDeadInstructions(OpV);
+    }
+
+    for (const auto &Set : Sets) {
+        for (const auto &[C, P] : Set.Calls) {
+            if (C != Call)
+                continue;
+            auto &[F, Intermediary] = P;
+            if (Intermediary != nullptr) {
+                SmallSet<Value *, 8> Visited;
+                removeRecursively(Intermediary, Visited);
+            }
+        }
     }
     Call->eraseFromParent();
 }
@@ -512,7 +724,7 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L) {
     };
     const unsigned int AS = L.getAllocaAddrSpace();
     ReplaceableVec Sets;
-    DenseMap<const AllocaInst *, size_t> Intermediaries;
+    SmallSet<const AllocaInst *, 8> Intermediaries;
     AllocaMap AllocAs;
     // Find alloca's
     // Find indexes into the allocated object
@@ -600,7 +812,7 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L) {
         }
         if (Set.Valid) {
             if (Set.Intermediary != NULL)
-                Intermediaries.insert({Set.Intermediary, Sets.size()});
+                Intermediaries.insert(Set.Intermediary);
             llvm::sort(Set.Arguments.begin(), Set.Arguments.end(), CompareArgs);
 
             assert(std::unique(Set.Arguments.begin(), Set.Arguments.end(),
@@ -609,22 +821,33 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L) {
         }
     }
     for (auto &Set : Sets) {
-        if (auto U = Intermediaries.find(Set.Alloc);
-            U != Intermediaries.end()) {
-            if (Set.Intermediary) {
-                // We do not allow chaining intermediaries
-                Set.Valid = false;
-                Sets[U->second].Valid = false;
-                continue;
-            }
-            SmallVector<ArgInfo> &OtherArgs = Sets[U->second].Arguments;
-            for (ArgInfo A : Set.Arguments) {
-                OtherArgs.push_back(A);
-            }
-            llvm::sort(OtherArgs.begin(), OtherArgs.end(), CompareArgs);
+        if (!Set.Valid || Intermediaries.contains(Set.Alloc))
+            continue;
 
-            assert(std::unique(OtherArgs.begin(), OtherArgs.end(), EqualArgs) ==
-                   OtherArgs.end());
+        if (Set.Intermediary) {
+            ReplaceableArgSet *OtherSet = nullptr;
+
+            for (ReplaceableArgSet *OS = Sets.begin(), *E = Sets.end(); OS != E;
+                 ++OS) {
+                if (OS->Alloc == Set.Intermediary) {
+                    OtherSet = OS;
+                    break;
+                }
+            }
+
+            assert(OtherSet != nullptr);
+
+            if (OtherSet->Valid) {
+                for (ArgInfo A : OtherSet->Arguments) {
+                    Set.Arguments.push_back(A);
+                }
+                llvm::sort(Set.Arguments.begin(), Set.Arguments.end(),
+                           CompareArgs);
+
+                assert(std::unique(Set.Arguments.begin(), Set.Arguments.end(),
+                                   EqualArgs) == Set.Arguments.end());
+                OtherSet->Valid = false;
+            }
         }
 
         gatherUseData(F, L, Set);
@@ -734,7 +957,7 @@ StructConsolidatorPass::updateFunction(Function &F,
     for (const auto &set : Sets) {
         Params.push_back(PointerType::get(F.getContext(), F.getAddressSpace()));
         AttrBuilder B(F.getContext());
-        B.addByValAttr(set.Alloc->getAllocatedType());
+        B.addByRefAttr(set.Alloc->getAllocatedType());
         B.addAttribute(Attribute::NoUndef);
         ArgAttrVec.push_back(AttributeSet::get(F.getContext(), B));
     }
@@ -783,7 +1006,8 @@ StructConsolidatorPass::updateFunction(Function &F,
         Set.Alloc->replaceAllUsesWith(NF->getArg(ArgI));
         Set.Alloc->eraseFromParent();
         if (Set.Intermediary) {
-            RecursivelyDeleteTriviallyDeadInstructions(Set.Intermediary);
+            SmallSet<Value *, 8> Visited;
+            removeRecursively(Set.Intermediary, Visited);
         }
     }
 
@@ -829,7 +1053,8 @@ StructConsolidatorPass::updateFunction(Function &F,
 
     for (Argument *I = F.arg_begin(), *E = F.arg_end(); I != E; ++I) {
         if (ToBeRemoved.contains(I)) {
-            removeRecursively(I);
+            SmallSet<Value *, 8> Visited;
+            removeRecursively(I, Visited);
         }
     }
 
