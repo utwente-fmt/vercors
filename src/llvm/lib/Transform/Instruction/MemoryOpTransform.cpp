@@ -162,6 +162,7 @@ void llvm2col::transformGetElementPtr(llvm::GetElementPtrInst &gepInstruction,
         gepExpr->mutable_llvm_get_element_pointer();
     gep->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(gepInstruction));
+    gep->set_allocated_blame(new col::Blame());
     llvm2col::transformAndSetType(*gepInstruction.getSourceElementType(),
                                   *gep->mutable_structure_type(), dataLayout);
     llvm2col::transformAndSetType(*gepInstruction.getResultElementType(),

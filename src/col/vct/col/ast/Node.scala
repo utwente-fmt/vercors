@@ -4035,7 +4035,7 @@ final case class LLVMGetElementPointer[G](
     resultType: Type[G],
     pointer: Expr[G],
     indices: Seq[Expr[G]],
-)(implicit val o: Origin)
+)(val blame: Blame[PointerSubscriptError])(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMGetElementPointerImpl[G]
 
 final case class LLVMExtractValue[G](
@@ -4043,7 +4043,7 @@ final case class LLVMExtractValue[G](
     resultType: Type[G],
     value: Expr[G],
     indices: Seq[Int],
-)(implicit val o: Origin)
+)(val blame: Blame[InsufficientPermission])(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMExtractValueImpl[G]
 
 final case class LLVMSignExtend[G](

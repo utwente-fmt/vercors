@@ -44,16 +44,6 @@ case object ClassToRef extends RewriterBuilder {
       inner.blame(InsufficientPermission(node))
     }
   }
-
-  private case class SubscriptToAddBlame(blame: Blame[PointerSubscriptError])
-      extends Blame[PointerAddError] {
-    override def blame(error: PointerAddError): Unit = {
-      error match {
-        case e @ PointerNull(_) => blame.blame(e)
-        case e @ PointerBounds(_) => blame.blame(e)
-      }
-    }
-  }
 }
 
 case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
@@ -872,7 +862,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         PointerToAdt(dispatch(ptr), dispatch(dp.t))(dp.blame)(dp.o)
       case ps @ PointerSubscript(ptr, index) if ps.t.asByValueClass.isDefined =>
         PointerToAdt(
-          PointerAdd(dispatch(ptr), dispatch(index))(SubscriptToAddBlame(
+          PointerAdd(dispatch(ptr), dispatch(index))(PointerSubscriptToAddBlame(
             ps.blame
           ))(ps.o),
           dispatch(ps.t),

@@ -121,6 +121,13 @@ case object LangLLVMToCol {
       unreachable.blame.blame(UnreachableReachedError(unreachable))
   }
 
+  private final case class PointerSubscriptToInsufficientPermissionBlame(
+      blame: Blame[PointerSubscriptError]
+  ) extends Blame[InsufficientPermission] {
+    override def blame(error: InsufficientPermission): Unit =
+      blame.blame(PointerInsufficientPermission(error.node))
+  }
+
   private val pallasResArgPermOrigin: Origin = Origin(Seq(
     PreferredName(Seq("resArg context")),
     LabelContext("Generated context for resArg"),
@@ -136,9 +143,6 @@ case object LangLLVMToCol {
     PreferredName(Seq("getNondet")),
   ))
 
-  // TODO: This should be replaced with the correct blames!
-  private object InvalidGEP
-      extends PanicBlame("Invalid use of getelementpointer!")
 }
 
 case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
@@ -222,6 +226,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         typeSubstitutions(v) = TResource()
         typeSubstitutions(left) = TResource()
         typeSubstitutions(right) = TResource()
+      case Assign(Local(Ref(v)), LLVMImplies(Ref(left), Ref(right)))
+          if typeSubstitutions.get(right).contains(TResource[Pre]()) =>
+        typeSubstitutions(v) = TResource()
       // Rational
       case LLVMFracOf(Ref(v), _, _) => typeSubstitutions(v) = TRational()
       case LLVMPerm(_, Ref(v)) => typeSubstitutions(v) = TRational()
@@ -248,6 +255,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         case Assign(Local(Ref(targetVar)), Local(Ref(sourceVar))) =>
           typeSubstitutions.get(sourceVar)
             .foreach(sT => typeSubstitutions(targetVar) = sT)
+        case Assign(Local(Ref(v)), LLVMImplies(Ref(left), Ref(right)))
+            if typeSubstitutions.get(right).contains(TResource[Pre]()) =>
+          typeSubstitutions(v) = TResource()
       }
     }
   }
@@ -963,6 +973,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       pointer: Expr[Post],
       t: Type[Pre],
       indices: Seq[Expr[Pre]],
+      blame: Blame[InsufficientPermission],
   )(implicit o: Origin): Expr[Post] = {
     if (indices.isEmpty) { return pointer }
     t match {
@@ -974,18 +985,20 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               Deref[Post](
                 pointer,
                 structFieldMap.ref((struct, value.value.intValue)),
-              )(InvalidGEP),
+              )(blame),
               struct.elements(value.value.intValue),
               indices.tail,
+              blame,
             )
           case value: IntegerValue[Pre] =>
             rewritePointerChain(
               Deref[Post](
                 pointer,
                 structFieldMap.ref((struct, value.value.intValue)),
-              )(InvalidGEP),
+              )(blame),
               struct.elements(value.value.intValue),
               indices.tail,
+              blame,
             )
           case _ => throw NonConstantStructIndex(o)
         }
@@ -1117,7 +1130,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         PointerAdd[Post](
           rw.dispatch(gep.pointer),
           rw.dispatch(gep.indices.head),
-        )(InvalidGEP)
+        )(PointerSubscriptToAddBlame(gep.blame))
       case struct: LLVMTStruct[Pre] => {
         // TODO: We don't support variables in GEP yet and this just assumes all the indices are integer constants
         // TODO: Use an actual Blame
@@ -1129,18 +1142,28 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 PointerAdd(
                   rw.dispatch(gep.pointer),
                   rw.dispatch(gep.indices.head),
-                )(InvalidGEP)
-              )(InvalidGEP)
-            AddrOf(rewritePointerChain(structPointer, struct, gep.indices.tail))
+                )(PointerSubscriptToAddBlame(gep.blame))
+              )(gep.blame)
+            AddrOf(rewritePointerChain(
+              structPointer,
+              struct,
+              gep.indices.tail,
+              PointerSubscriptToInsufficientPermissionBlame(gep.blame),
+            ))
           case LLVMTPointer(Some(inner)) if inner == t =>
             val structPointer =
               DerefPointer(
                 PointerAdd(
                   rw.dispatch(gep.pointer),
                   rw.dispatch(gep.indices.head),
-                )(InvalidGEP)
-              )(InvalidGEP)
-            AddrOf(rewritePointerChain(structPointer, struct, gep.indices.tail))
+                )(PointerSubscriptToAddBlame(gep.blame))
+              )(gep.blame)
+            AddrOf(rewritePointerChain(
+              structPointer,
+              struct,
+              gep.indices.tail,
+              PointerSubscriptToInsufficientPermissionBlame(gep.blame),
+            ))
           case LLVMTPointer(Some(_)) =>
             val pointerInferredType = getInferredType(gep.pointer)
             val (pointer, inferredType) = derefUntil(
@@ -1157,12 +1180,15 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               t,
             ))
             val structPointer =
-              DerefPointer(
-                PointerAdd(pointer, rw.dispatch(gep.indices.head))(InvalidGEP)
-              )(InvalidGEP)
-            val ret = AddrOf(
-              rewritePointerChain(structPointer, struct, gep.indices.tail)
-            )
+              DerefPointer(PointerAdd(pointer, rw.dispatch(gep.indices.head))(
+                PointerSubscriptToAddBlame(gep.blame)
+              ))(gep.blame)
+            val ret = AddrOf(rewritePointerChain(
+              structPointer,
+              struct,
+              gep.indices.tail,
+              PointerSubscriptToInsufficientPermissionBlame(gep.blame),
+            ))
             ret
         }
       }
@@ -1172,18 +1198,22 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     // Deref might not be the correct thing to use here since technically the pointer is only dereferenced in the load or store instruction
   }
 
-  def derefStructIndexChain(value: Expr[Post], t: Type[Pre], indices: Seq[Int])(
-      implicit o: Origin
-  ): Expr[Post] = {
+  def derefStructIndexChain(
+      value: Expr[Post],
+      t: Type[Pre],
+      indices: Seq[Int],
+      blame: Blame[InsufficientPermission],
+  )(implicit o: Origin): Expr[Post] = {
     if (indices.isEmpty) { return value }
     t match {
       case struct: LLVMTStruct[Pre] =>
         if (!structMap.contains(struct)) { rewriteStruct(struct) }
         val idx = indices.head
         derefStructIndexChain(
-          Deref[Post](value, structFieldMap.ref((struct, idx)))(InvalidGEP),
+          Deref[Post](value, structFieldMap.ref((struct, idx)))(blame),
           struct.elements(idx),
           indices.tail,
+          blame,
         )
       case _ => throw UnsupportedExtractValueType(o)
     }
@@ -1203,6 +1233,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           rw.dispatch(extrVal.value),
           extrVal.aggregateType,
           extrVal.indices,
+          extrVal.blame,
         )
     }
   }

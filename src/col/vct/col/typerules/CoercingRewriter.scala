@@ -2232,8 +2232,15 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Receiver(_) => e
       case Message(_) => e
       case LLVMLocal(_) => e
-      case LLVMGetElementPointer(structureType, resultType, pointer, indices) =>
-        LLVMGetElementPointer(structureType, resultType, pointer, indices)
+      case gep @ LLVMGetElementPointer(
+            structureType,
+            resultType,
+            pointer,
+            indices,
+          ) =>
+        LLVMGetElementPointer(structureType, resultType, pointer, indices)(
+          gep.blame
+        )
       case LLVMSignExtend(inputType, outputType, value) =>
         LLVMSignExtend(inputType, outputType, coerce(value, inputType))
       case LLVMZeroExtend(inputType, outputType, value) =>

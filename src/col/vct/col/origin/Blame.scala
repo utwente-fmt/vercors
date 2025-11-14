@@ -1735,3 +1735,14 @@ case class NoContext(inner: Blame[PreconditionFailed])
         ).blame(ctx)
     }
 }
+
+// Adapters below here
+case class PointerSubscriptToAddBlame(blame: Blame[PointerSubscriptError])
+    extends Blame[PointerAddError] {
+  override def blame(error: PointerAddError): Unit = {
+    error match {
+      case e @ PointerNull(_) => blame.blame(e)
+      case e @ PointerBounds(_) => blame.blame(e)
+    }
+  }
+}
