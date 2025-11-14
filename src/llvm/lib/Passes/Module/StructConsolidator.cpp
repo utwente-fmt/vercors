@@ -957,7 +957,9 @@ StructConsolidatorPass::updateFunction(Function &F,
     for (const auto &set : Sets) {
         Params.push_back(PointerType::get(F.getContext(), F.getAddressSpace()));
         AttrBuilder B(F.getContext());
-        B.addByRefAttr(set.Alloc->getAllocatedType());
+        // TODO: This should be byref for wrapper functions (I don't think it
+        // matters though)
+        B.addByValAttr(set.Alloc->getAllocatedType());
         B.addAttribute(Attribute::NoUndef);
         ArgAttrVec.push_back(AttributeSet::get(F.getContext(), B));
     }

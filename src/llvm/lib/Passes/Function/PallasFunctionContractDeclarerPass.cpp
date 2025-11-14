@@ -397,12 +397,20 @@ Argument *PallasFunctionContractDeclarerPass::mapDIVarToArg(Function &f,
             if (storeInst == nullptr) {
                 return nullptr;
             }
-            auto *arg =
-                dyn_cast_if_present<Argument>(storeInst->getValueOperand());
-            if (arg == nullptr || arg->getParent() != &f) {
-                return nullptr;
+
+            if (auto *arg = dyn_cast<Argument>(storeInst->getValueOperand())) {
+                assert(arg->getParent() == &f);
+                return arg;
             }
-            return arg;
+            if (auto *cast = dyn_cast<CastInst>(storeInst->getValueOperand())) {
+                // We only go one layer deep here, but we might require more
+                // depending on what compilers do
+                if (auto *arg = dyn_cast<Argument>(cast->getOperand(0))) {
+                    assert(arg->getParent() == &f);
+                    return arg;
+                }
+            }
+            return nullptr;
         }
         return nullptr;
     }
