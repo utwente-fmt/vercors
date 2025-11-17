@@ -3,6 +3,7 @@
 
 #include <llvm/ADT/SmallSet.h>
 #include <llvm/IR/DataLayout.h>
+#include <llvm/IR/Dominators.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Value.h>
@@ -19,6 +20,7 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
         uint64_t Offset;
         uint64_t Size;
         Value *Src;
+        Instruction *WriteI;
     };
 
     struct ArgInfo {
@@ -28,11 +30,18 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
     };
 
     using FieldMap = DenseMap<uint64_t, std::pair<size_t, Value *>>;
+
+    struct CallInfo {
+        FieldMap Fields;
+        AllocaInst *Intermediary;
+        MDNode *StmntBlock;
+    };
+
     struct ReplaceableArgSet {
         SmallVector<ArgInfo> Arguments;
         AllocaInst *Alloc;
         AllocaInst *Intermediary;
-        DenseMap<CallBase *, std::pair<FieldMap, AllocaInst *>> Calls;
+        DenseMap<CallBase *, CallInfo> Calls;
         bool Valid;
     };
 
@@ -53,18 +62,20 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
                                 const DataLayout &L, StructType &ST,
                                 FieldMap &Fields, ArgInfo &A,
                                 APInt SourceOffset, uint64_t FieldOffset,
-                                size_t Depth);
+                                size_t Depth, MDNode **StmntBlock);
     void gatherUseData(const Function &F, const DataLayout &L,
                        ReplaceableArgSet &Set);
     bool gatherWrites(const Function &F, const DataLayout &L, uint64_t Size,
-                      const Value &V, APInt Offset, WriteVec &Writes);
+                      const Value &V, APInt Offset, WriteVec &Writes,
+                      SmallVectorImpl<Instruction *> &LaterWrites);
     void replaceWrapperCalls(Function *F, Function *NF,
                              SmallSet<const Argument *, 8> &ToBeRemoved,
                              MDNode *MD, SmallSet<MDNode *, 8> &Visited);
     const Function &updateFunction(Function &F, const ReplaceableVec &Sets);
     void replaceFunctionUse(CallInst *Call, const Function &OldF,
                             Function *NewF, const ReplaceableVec &Sets);
-    ReplaceableVec findReplaceableSets(Function &F, const DataLayout &L);
+    ReplaceableVec findReplaceableSets(Function &F, const DataLayout &L,
+                                       const DominatorTree &DT);
 };
 
 } // namespace pallas

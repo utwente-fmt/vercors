@@ -268,6 +268,7 @@ void llvm2col::transformExtractValueInst(
         assignment.mutable_value()->mutable_llvm_extract_value();
     extrVal->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(llvmInstruction));
+    extrVal->set_allocated_blame(new col::Blame{});
     // Aggregate type
     llvm2col::transformAndSetType(
         *llvmInstruction.getAggregateOperand()->getType(),

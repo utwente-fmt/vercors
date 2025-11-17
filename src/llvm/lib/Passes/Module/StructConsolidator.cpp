@@ -3,6 +3,7 @@
 #include "Util/Exceptions.h"
 #include "Util/PallasMD.h"
 #include <algorithm>
+#include <llvm-17/llvm/IR/Dominators.h>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/STLExtras.h>
@@ -117,10 +118,25 @@ void StructConsolidatorPass::removeParentless(Value *V) {
 StructConsolidatorPass::DigToFieldResult StructConsolidatorPass::digToField(
     const Function &F, Value *V, const DataLayout &L, StructType &ST,
     FieldMap &Fields, ArgInfo &A, APInt SourceOffset, uint64_t FieldOffset,
-    size_t Depth) {
+    size_t Depth, MDNode **StmntBlock) {
     // For now let's not consider deeper nesting
     if (Depth > 1)
         return Fail{};
+
+    if (auto *I = dyn_cast<Instruction>(V)) {
+        if (MDNode *Block =
+                I->getMetadata(constants::PALLAS_SPEC_STMNT_BLOCK)) {
+            if (*StmntBlock != nullptr && *StmntBlock != Block) {
+                ErrorReporter::addWarning(
+                    SOURCE_LOC,
+                    "Multiple StmntBlock annotations in argument building for "
+                    "call, we won't consolidate this struct",
+                    *I);
+                return Fail{};
+            }
+            *StmntBlock = Block;
+        }
+    }
 
     auto &[Idx, Field] = Fields[A.Offset + FieldOffset];
     Type *ET = ST.getStructElementType(Idx);
@@ -135,7 +151,7 @@ StructConsolidatorPass::DigToFieldResult StructConsolidatorPass::digToField(
 
     if (auto *Load = dyn_cast<LoadInst>(V)) {
         return digToField(F, Load->getPointerOperand(), L, ST, Fields, A,
-                          SourceOffset, FieldOffset, Depth + 1);
+                          SourceOffset, FieldOffset, Depth + 1, StmntBlock);
     }
 
     if (auto *GEP = dyn_cast<GetElementPtrInst>(V)) {
@@ -143,7 +159,7 @@ StructConsolidatorPass::DigToFieldResult StructConsolidatorPass::digToField(
             return Fail{};
 
         return digToField(F, GEP->getPointerOperand(), L, ST, Fields, A,
-                          SourceOffset, FieldOffset, Depth);
+                          SourceOffset, FieldOffset, Depth, StmntBlock);
     }
 
     auto *AllocA = dyn_cast<AllocaInst>(V);
@@ -447,6 +463,7 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
             Set.Valid = false;
             return;
         }
+        MDNode *StmntBlock = nullptr;
         const Use *P = Call->arg_begin();
         // Find operands for every arg in set.arguments
         for (const Argument *FA = F.arg_begin(), *E = F.arg_end(); FA != E;
@@ -460,7 +477,7 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
                     F, P->get(), L, *ST, Fields, SA,
                     APInt(L.getPointerSizeInBits(F.getAddressSpace()), 0,
                           false),
-                    0, 0);
+                    0, 0, &StmntBlock);
 
                 if (!std::holds_alternative<Fail>(Result)) {
                     break;
@@ -493,7 +510,7 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
         //  align 4; call void f(%3, %2))
         // If found store origin (and intermediary), we'll allow multiple
         // origins as long as they're all of the appropriate type
-        Set.Calls.insert({Call, {Fields, Intermediary}});
+        Set.Calls.insert({Call, {Fields, Intermediary, StmntBlock}});
     }
 }
 
@@ -521,16 +538,27 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
     std::vector<AllocaInst *> AllocAs;
     AllocAs.reserve(Sets.size());
 
+    MDNode *StmntBlock = Call->getMetadata(constants::PALLAS_SPEC_STMNT_BLOCK);
+
     for (const auto &Set : Sets) {
         AllocaInst *AllocA = new AllocaInst(Set.Alloc->getAllocatedType(),
                                             NewF->getAddressSpace(),
                                             Twine("InsertedAllocA"), Call);
         bool Found = false;
-        for (const auto &[C, P] : Set.Calls) {
+        for (const auto &[C, CallInfo] : Set.Calls) {
             if (C != Call)
                 continue;
-            auto &[F, _Intermediary] = P;
-            for (const auto &[_Offset, Source] : F) {
+            if (CallInfo.StmntBlock != nullptr) {
+                if (StmntBlock != nullptr &&
+                    StmntBlock != CallInfo.StmntBlock) {
+                    ErrorReporter::addError(
+                        SOURCE_LOC,
+                        "Transformation failed, multiple stmnt blocks in call",
+                        *Call);
+                }
+                StmntBlock = CallInfo.StmntBlock;
+            }
+            for (const auto &[_Offset, Source] : CallInfo.Fields) {
                 const auto &[Idx, Field] = Source;
                 auto *GEP = GetElementPtrInst::CreateInBounds(
                     Set.Alloc->getAllocatedType(), AllocA,
@@ -589,6 +617,8 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
     newCall->setCallingConv(Call->getCallingConv());
     newCall->setAttributes(PAL);
     newCall->copyMetadata(*Call, {LLVMContext::MD_prof, LLVMContext::MD_dbg});
+    if (StmntBlock != nullptr)
+        newCall->setMetadata(constants::PALLAS_SPEC_STMNT_BLOCK, StmntBlock);
 
     Call->replaceAllUsesWith(newCall);
     newCall->takeName(Call);
@@ -605,23 +635,22 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
     }
 
     for (const auto &Set : Sets) {
-        for (const auto &[C, P] : Set.Calls) {
+        for (const auto &[C, CallInfo] : Set.Calls) {
             if (C != Call)
                 continue;
-            auto &[F, Intermediary] = P;
-            if (Intermediary != nullptr) {
+            if (CallInfo.Intermediary != nullptr) {
                 SmallSet<Value *, 8> Visited;
-                removeRecursively(Intermediary, Visited);
+                removeRecursively(CallInfo.Intermediary, Visited);
             }
         }
     }
     Call->eraseFromParent();
 }
 
-bool StructConsolidatorPass::gatherWrites(const Function &F,
-                                          const DataLayout &L, uint64_t Size,
-                                          const Value &V, APInt Offset,
-                                          WriteVec &Writes) {
+bool StructConsolidatorPass::gatherWrites(
+    const Function &F, const DataLayout &L, uint64_t Size, const Value &V,
+    APInt Offset, WriteVec &Writes,
+    SmallVectorImpl<Instruction *> &LaterWrites) {
     for (const Use &U : V.uses()) {
         User *I = U.getUser();
         if (auto *GEP = dyn_cast<GetElementPtrInst>(I)) {
@@ -631,7 +660,7 @@ bool StructConsolidatorPass::gatherWrites(const Function &F,
             APInt NewOffset = Offset;
             if (!GEP->accumulateConstantOffset(L, NewOffset))
                 return false;
-            if (!gatherWrites(F, L, Size, *GEP, NewOffset, Writes))
+            if (!gatherWrites(F, L, Size, *GEP, NewOffset, Writes, LaterWrites))
                 return false;
         } else if (auto *Store = dyn_cast<StoreInst>(I)) {
             TypeSize size =
@@ -640,13 +669,17 @@ bool StructConsolidatorPass::gatherWrites(const Function &F,
             if (size.isScalable())
                 return false;
             // We only allow store's originating from arguments
-            if (!isa<Argument>(Store->getValueOperand()))
-                return false;
+            if (!isa<Argument>(Store->getValueOperand())) {
+                LaterWrites.push_back(Store);
+                continue;
+            }
             // We only allow byte-aligned stores
-            if (size.getFixedValue() % 8 != 0)
-                return false;
+            if (size.getFixedValue() % 8 != 0) {
+                LaterWrites.push_back(Store);
+                continue;
+            }
             Write W = {Offset.getLimitedValue(), size.getFixedValue() / 8,
-                       Store->getValueOperand()};
+                       Store->getValueOperand(), Store};
             Writes.push_back(W);
         } else if (auto *Call = dyn_cast<CallInst>(I)) {
             // Check for memcpy
@@ -656,17 +689,16 @@ bool StructConsolidatorPass::gatherWrites(const Function &F,
             if (IF->hasMetadata(constants::PALLAS_SPEC_LIB_MARKER))
                 continue;
 
-            if (IF->getIntrinsicID() != Intrinsic::memcpy)
-                return false;
-
             // Check if we are indeed writing to our value (otherwise we are the
             // destination, skip)
             if (U.getOperandNo() != 0)
                 continue;
 
             // We only support memcpys of the whole struct
-            if (!Offset.isZero())
+            if (IF->getIntrinsicID() != Intrinsic::memcpy || !Offset.isZero()) {
+                LaterWrites.push_back(Store);
                 return false;
+            }
 
             Value *Src = Call->getArgOperand(1);
             // Expecting src is an alloca of a struct with the same size as our
@@ -685,29 +717,12 @@ bool StructConsolidatorPass::gatherWrites(const Function &F,
             if (!cast<ConstantInt>(Length)->equalsInt(Size))
                 return false;
 
-            Write W = {Offset.getLimitedValue(), Size, SrcI};
+            Write W = {Offset.getLimitedValue(), Size, SrcI, Call};
             Writes.push_back(W);
         } else if (isa<LoadInst>(I)) {
             // Don't traverse further when we find a load
         } else if (!F.hasMetadata(constants::PALLAS_WRAPPER_FUNC)) {
-            // For wrapper functions we allow arbitrary use of the alloca and
-            // derivates for now, we need to evaluate how safe that is. Since
-            // these wrapper functions are inlined it makes sense to talk about,
-            // for example, the address of the caller's struct instead of the
-            // address of the local struct.
-
-            // What to do with other uses? Loads are fine but other stuff might
-            // not be allowable
-            std::string message;
-            {
-                raw_string_ostream stream(message);
-                stream << "Not considering `";
-                V.printAsOperand(stream, true, F.getParent());
-                stream << "` valid due to: `";
-                I->print(stream);
-            }
-            ErrorReporter::addError(SOURCE_LOC, message);
-            return false;
+            LaterWrites.push_back(Store);
         }
     }
 
@@ -715,7 +730,8 @@ bool StructConsolidatorPass::gatherWrites(const Function &F,
 }
 
 StructConsolidatorPass::ReplaceableVec
-StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L) {
+StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
+                                            const DominatorTree &DT) {
     const auto CompareArgs = [&](const ArgInfo &X, const ArgInfo &Y) {
         return X.Arg < Y.Arg;
     };
@@ -723,6 +739,7 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L) {
         return X.Arg == Y.Arg;
     };
     const unsigned int AS = L.getAllocaAddrSpace();
+
     ReplaceableVec Sets;
     SmallSet<const AllocaInst *, 8> Intermediaries;
     AllocaMap AllocAs;
@@ -753,10 +770,26 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L) {
                 continue;
 
             SmallVector<Write> Writes;
+            SmallVector<Instruction *> LaterWrites;
             if (!gatherWrites(F, L, Size.getFixedValue() / 8, *AllocA,
                               APInt(L.getPointerSizeInBits(AS), 0, false),
-                              Writes))
+                              Writes, LaterWrites))
                 continue;
+
+            bool Valid = true;
+
+            for (const Instruction *I : LaterWrites) {
+                for (const Write &W : Writes) {
+                    if (!DT.dominates(W.WriteI, I)) {
+                        Valid = false;
+                        break;
+                    }
+                }
+            }
+
+            if (!Valid)
+                continue;
+
             const auto *SL = L.getStructLayout(ST);
 
             IntervalSet Intervals;
@@ -764,7 +797,6 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L) {
                 Intervals.add(W.Offset, W.Offset + W.Size);
             }
 
-            bool Valid = true;
             for (size_t Idx = 0, E = ST->getNumElements(); Idx < E; ++Idx) {
                 if (SL->getElementOffset(Idx).isScalable()) {
                     Valid = false;
@@ -1074,6 +1106,9 @@ PreservedAnalyses StructConsolidatorPass::run(Module &M,
     bool MadeChanges = false;
     const DataLayout &L = M.getDataLayout();
 
+    FunctionAnalysisManager &FAM =
+        MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
+
     DenseMap<Function *, ReplaceableVec> transformableFunctions;
 
     for (Function &F : M) {
@@ -1091,7 +1126,9 @@ PreservedAnalyses StructConsolidatorPass::run(Module &M,
             continue;
         }
 
-        if (ReplaceableVec Sets = findReplaceableSets(F, L); !Sets.empty()) {
+        if (ReplaceableVec Sets = findReplaceableSets(
+                F, L, FAM.getResult<DominatorTreeAnalysis>(F));
+            !Sets.empty()) {
             transformableFunctions.insert({&F, Sets});
         }
     }

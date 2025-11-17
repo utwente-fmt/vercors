@@ -393,6 +393,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         var currentType: Type[Pre],
     ) {
       def add(dependencies: Set[Object], inferType: Unit => Type[Pre]): Unit = {
+        if (
+          currentType.asPointer.isDefined != inferType().asPointer.isDefined
+        ) { logger.warn(s"Unexpected type: ${inferType()}") }
         depends.addAll(dependencies)
         getGuesses.addOne(inferType)
       }
