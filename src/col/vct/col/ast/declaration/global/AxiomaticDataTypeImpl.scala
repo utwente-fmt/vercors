@@ -10,6 +10,11 @@ trait AxiomaticDataTypeImpl[G]
   this: AxiomaticDataType[G] =>
   override def declarations: Seq[Declaration[G]] = decls ++ typeArgs
 
+  def layoutIsar(implicit ctx: Ctx): Doc =
+    Group(
+      Text("locale") <+> ctx.name(this) <> "_signature" <+/> "begin" <+/> "end"
+    )
+
   def layoutSilver(implicit ctx: Ctx): Doc =
     Group(
       Text("domain") <+> ctx.name(this) <>
@@ -31,6 +36,7 @@ trait AxiomaticDataTypeImpl[G]
   override def layout(implicit ctx: Ctx): Doc =
     ctx.syntax match {
       case Ctx.Silver => layoutSilver
+      case Ctx.Isar => layoutIsar
       case _ => Doc.spec(Show.lazily(layoutSpec(_)))
     }
 }

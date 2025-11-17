@@ -14,6 +14,7 @@ object Ctx {
   case object CPP extends Syntax
   case object Cuda extends Syntax
   case object OpenCL extends Syntax
+  case object Isar extends Syntax
 }
 
 case class Ctx(

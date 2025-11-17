@@ -53,6 +53,7 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
       case Ctx.CPP => "cpp"
       case Ctx.Cuda => "cu"
       case Ctx.OpenCL => "cl"
+      case Ctx.Isar  => "thy"
     }
 
   override def run(in: Verification[_ <: Generation]): Seq[LiteralReadable] = {

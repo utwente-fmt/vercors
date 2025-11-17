@@ -13,6 +13,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
     syntax match {
       case Ctx.PVL => Keywords.PVL
       case Ctx.Silver => Set()
+      case Ctx.Isar => Set()
       case Ctx.Java => Keywords.JAVA
       case Ctx.C => Keywords.C_CPP_GPGPU
       case Ctx.CPP => Keywords.C_CPP_GPGPU
