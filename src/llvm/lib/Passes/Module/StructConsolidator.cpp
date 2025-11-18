@@ -668,8 +668,14 @@ bool StructConsolidatorPass::gatherWrites(
             // We don't support type sizes parameterized with vscale
             if (size.isScalable())
                 return false;
+
+            Value *InnerV = Store->getValueOperand();
+            while (auto *Cast = dyn_cast<CastInst>(InnerV)) {
+                // Loop until V become the argument
+                InnerV = Cast->getOperand(0);
+            }
             // We only allow store's originating from arguments
-            if (!isa<Argument>(Store->getValueOperand())) {
+            if (!isa<Argument>(InnerV)) {
                 LaterWrites.push_back(Store);
                 continue;
             }
@@ -679,7 +685,7 @@ bool StructConsolidatorPass::gatherWrites(
                 continue;
             }
             Write W = {Offset.getLimitedValue(), size.getFixedValue() / 8,
-                       Store->getValueOperand(), Store};
+                       InnerV, Store};
             Writes.push_back(W);
         } else if (auto *Call = dyn_cast<CallInst>(I)) {
             // Check for memcpy
