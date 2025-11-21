@@ -12,6 +12,7 @@ const std::string PALLAS_EXT_CONTRACT = "pallas.extContract";
 const std::string PALLAS_REQUIRES = "pallas.requires";
 const std::string PALLAS_ENSURES = "pallas.ensures";
 const std::string PALLAS_WRAPPER_FUNC = "pallas.exprWrapper";
+const std::string PALLAS_PRED_DEF = "pallas.predDef";
 const std::string PALLAS_SRC_LOC_ID = "pallas.srcLoc";
 const std::string PALLAS_LOOP_CONTR_ID = "pallas.loopInv";
 const std::string PALLAS_SPEC_STMNT_BLOCK = "pallas.stmntBlock";

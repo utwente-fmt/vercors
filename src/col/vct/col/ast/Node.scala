@@ -3900,6 +3900,17 @@ final class LLVMGlobalVariable[G](
 )(implicit val o: Origin)
     extends GlobalDeclaration[G] with LLVMGlobalVariableImpl[G]
 
+@family
+sealed trait LLVMFunctionType[G]
+    extends NodeFamily[G] with LLVMFunctionTypeImpl[G]
+
+final case class NormalFunction[G]()(implicit val o: Origin)
+    extends LLVMFunctionType[G] with NormalFunctionImpl[G]
+final case class WrapperFunction[G]()(implicit val o: Origin)
+    extends LLVMFunctionType[G] with WrapperFunctionImpl[G]
+final case class PredicateDefinition[G]()(implicit val o: Origin)
+    extends LLVMFunctionType[G] with PredicateDefinitionImpl[G]
+
 sealed trait LLVMCallable[G] extends GlobalDeclaration[G]
 @scopes[LabelDecl]
 final class LLVMFunctionDefinition[G](
@@ -3911,9 +3922,7 @@ final class LLVMFunctionDefinition[G](
     // If the result is returned in an sret-argument, this contains the index
     // and the type of the sret-argument.
     val returnInParam: Option[(Int, Type[G])] = None,
-    // If this function is a wrapper function for an expression of a
-    // pallas specification of a function F, then this field references F.
-    val pallasExprWrapperFor: Option[Ref[G, LLVMFunctionDefinition[G]]],
+    val functionType: LLVMFunctionType[G],
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends LLVMCallable[G]
     with Applicable[G]

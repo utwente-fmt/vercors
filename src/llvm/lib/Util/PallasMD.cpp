@@ -47,6 +47,10 @@ bool isPallasExprWrapper(const llvm::Function &f) {
     return f.hasMetadata(pallas::constants::PALLAS_WRAPPER_FUNC);
 }
 
+bool isPallasPredDef(const llvm::Function &f) {
+    return f.hasMetadata(pallas::constants::PALLAS_PRED_DEF);
+}
+
 bool isWellformedPallasLocation(const llvm::MDNode *mdNode) {
 
     if (mdNode == nullptr)

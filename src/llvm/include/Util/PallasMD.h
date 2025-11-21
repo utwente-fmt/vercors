@@ -55,6 +55,11 @@ bool hasVcllvmContract(const llvm::Function &f);
 bool isPallasExprWrapper(const llvm::Function &f);
 
 /**
+ * Checks if the given llvm function is marked as a predicate definition.
+ */
+bool isPallasPredDef(const llvm::Function &f);
+
+/**
  * Checks if the given metadata-node is a wellformed encoding of a
  * pallas source-location.
  */

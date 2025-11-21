@@ -384,6 +384,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: ApplyAnyPredicate[Pre] => coerce(node)
       case node: FoldTarget[Pre] => coerce(node)
       case node: LLVMFloatType[Pre] => node
+      case node: LLVMFunctionType[Pre] => node
     }
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
@@ -3107,7 +3108,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: LLVMLoop[Pre]): LLVMLoop[Pre] = node
   def coerce(node: LLVMMemoryOrdering[Pre]): LLVMMemoryOrdering[Pre] = node
   def coerce(node: LLVMFloatType[Pre]): LLVMFloatType[Pre] = node
-
+  def coerce(node: LLVMFunctionType[Pre]): LLVMFunctionType[Pre] = node
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node
   def coerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node
 
