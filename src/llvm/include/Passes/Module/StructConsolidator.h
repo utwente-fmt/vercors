@@ -1,5 +1,5 @@
 #ifndef PALLAS_STRUCTCONSOLIDATOR_H
-#define PALLAS_MODULESPECCOLLECTOR_H
+#define PALLAS_STRUCTCONSOLIDATOR_H
 
 #include <llvm/ADT/SmallSet.h>
 #include <llvm/IR/DataLayout.h>
@@ -70,7 +70,8 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
                       SmallVectorImpl<Instruction *> &LaterWrites);
     void replaceWrapperCalls(Function *F, Function *NF,
                              SmallSet<const Argument *, 8> &ToBeRemoved,
-                             MDNode *MD, SmallSet<MDNode *, 8> &Visited);
+                             MDNode *MD, const ReplaceableVec &Sets,
+                             SmallSet<MDNode *, 8> &Visited);
     const Function &updateFunction(Function &F, const ReplaceableVec &Sets);
     void replaceFunctionUse(CallInst *Call, const Function &OldF,
                             Function *NewF, const ReplaceableVec &Sets);

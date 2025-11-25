@@ -270,12 +270,12 @@ void llvm2col::transformExtractValueInst(
         llvm2col::generateSingleStatementOrigin(llvmInstruction));
     extrVal->set_allocated_blame(new col::Blame{});
     // Aggregate type
-    llvm2col::transformAndSetType(
-        *llvmInstruction.getAggregateOperand()->getType(),
+    llvm2col::transformAndSetValueType(
+        *llvmInstruction.getAggregateOperand(), nullptr,
         *extrVal->mutable_aggregate_type(), dataLayout);
     // Result type
-    llvm2col::transformAndSetType(*llvmInstruction.getType(),
-                                  *extrVal->mutable_result_type(), dataLayout);
+    llvm2col::transformAndSetValueType(
+        llvmInstruction, nullptr, *extrVal->mutable_result_type(), dataLayout);
     // Value
     llvm2col::transformAndSetExpr(funcCursor, llvmInstruction,
                                   *llvmInstruction.getAggregateOperand(),
@@ -785,7 +785,6 @@ void llvm2col::transformPallasOld(llvm::CallInst &callInstruction,
 
     // "Normal" return and pass of value.
     if (isRegularReturn && isRegularPass) {
-        auto *type = llvmSpecFunc->getReturnType();
         col::Assign &assignment = funcCursor.createAssignmentAndDeclaration(
             callInstruction, colBlock);
         auto *old = assignment.mutable_value()->mutable_llvm_old();
@@ -837,9 +836,17 @@ void llvm2col::transformPallasBoundVar(llvm::CallInst &callInstruction,
         auto strRepr = constArr->isCString() ? constArr->getAsCString()
                                              : constArr->getAsString();
         bv->set_id(strRepr.str());
-        llvm2col::transformAndSetType(
-            *type, *bv->mutable_var_type(),
-            callInstruction.getModule()->getDataLayout());
+        if (auto *subProgram = llvmSpecFunc->getSubprogram()) {
+            auto diType = dyn_cast<llvm::DIType>(
+                subProgram->getType()->getTypeArray()->getOperand(0));
+            llvm2col::transformAndSetTypeWithDebugInfo(
+                llvmSpecFunc->getReturnType(), diType, *bv->mutable_var_type(),
+                callInstruction.getModule()->getDataLayout());
+        } else {
+            llvm2col::transformAndSetType(
+                *type, *bv->mutable_var_type(),
+                callInstruction.getModule()->getDataLayout());
+        }
     } else {
         pallas::ErrorReporter::addError(
             SOURCE_LOC, "Unsupported use of bound variable.", callInstruction);

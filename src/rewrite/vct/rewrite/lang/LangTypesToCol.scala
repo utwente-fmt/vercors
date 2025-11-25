@@ -1,5 +1,6 @@
 package vct.rewrite.lang
 
+import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.ref.{Ref, UnresolvedRef}
@@ -10,6 +11,7 @@ import vct.col.typerules.PlatformContext
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case object LangTypesToCol extends RewriterBuilderArg[PlatformContext] {
@@ -51,9 +53,11 @@ case object LangTypesToCol extends RewriterBuilderArg[PlatformContext] {
 }
 
 case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
-    extends Rewriter[Pre] {
+    extends Rewriter[Pre] with LazyLogging {
   import LangTypesToCol._
 
+  val structTypeMap: mutable.Map[LLVMTStruct[Pre], LLVMTStruct[Pre]] = mutable
+    .Map()
   val cStructFieldsSuccessor: SuccessionMap[(CStructMemberDeclarator[
     Pre
   ]), CStructMemberDeclarator[Post]] = SuccessionMap()
@@ -90,6 +94,97 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
       case RefProverType(typ) => TProverType[Post](succ(typ))
       case RefVariable(decl) => TVar[Post](succ(decl))
     }
+
+  private def structEq(s: LLVMTStruct[Pre], o: LLVMTStruct[Pre]): Boolean = {
+    // TODO: Might have to get rid of packed since we don't have that in the DIType
+    s.isLiteral ==
+      o.isLiteral && /*(s.name.isEmpty || s.name.intersect(o.name).nonEmpty) &&*/
+      s.elements.size == o.elements.size && s.sizeInBits == o.sizeInBits &&
+      s.elements.zip(o.elements).forall { case (a, b) =>
+        a.offset == b.offset && a.size == b.size &&
+        (a.t == b.t ||
+          ((a.t, b.t) match {
+            case (LLVMTPointer(None), LLVMTPointer(Some(_))) |
+                (LLVMTPointer(Some(_)), LLVMTPointer(None)) =>
+              true
+            case (
+                  LLVMTPointer(Some(sa: LLVMTStruct[Pre])),
+                  LLVMTPointer(Some(sb: LLVMTStruct[Pre])),
+                ) =>
+              structEq(sa, sb)
+            case (sa: LLVMTStruct[Pre], sb: LLVMTStruct[Pre]) =>
+              structEq(sa, sb)
+            case (LLVMTInt(_), TBool()) | (TBool(), LLVMTInt(_)) => true
+            case _ => false
+          }))
+      }
+  }
+
+  private def structUnion(
+      s: LLVMTStruct[Pre],
+      o: LLVMTStruct[Pre],
+  ): LLVMTStruct[Pre] = {
+    // TODO: Merge origins
+    LLVMTStruct(
+      s.name.toSet.union(o.name.toSet).toSeq,
+      s.packed,
+      s.isLiteral,
+      s.elements.zip(o.elements).map {
+        case (
+              f @ LLVMFieldDefinition(offset, size, l: LLVMTStruct[Pre]),
+              LLVMFieldDefinition(_, _, r: LLVMTStruct[Pre]),
+            ) =>
+          LLVMFieldDefinition(offset, size, structUnion(l, r))(f.o)
+        case (
+              f @ LLVMFieldDefinition(offset, size, LLVMTInt(_)),
+              LLVMFieldDefinition(_, _, b @ TBool()),
+            ) =>
+          LLVMFieldDefinition(offset, size, b)(f.o)
+        case (
+              f @ LLVMFieldDefinition(offset, size, b @ TBool()),
+              LLVMFieldDefinition(_, _, LLVMTInt(_)),
+            ) =>
+          LLVMFieldDefinition(offset, size, b)(f.o)
+        case (l, _) => l
+      },
+      s.sizeInBits,
+    )(s.o)
+  }
+
+  override def dispatch(program: Program[Pre]): Program[Post] = {
+    val queue = mutable.ArrayDeque[LLVMTStruct[Pre]]()
+    program.foreach {
+      case s: LLVMTStruct[Pre] =>
+        structTypeMap(s) = s
+        queue += s
+      case _ =>
+    }
+
+    while (queue.nonEmpty) {
+      val s = queue.removeHead()
+      var toBeMerged =
+        structTypeMap.filter { case (_, v) => structEq(s, v) }.flatMap {
+          case (k, v) => Seq(k, v)
+        }.toSet
+      if (toBeMerged.nonEmpty) {
+        toBeMerged = toBeMerged + s
+        val newType = toBeMerged.reduce(structUnion)
+        toBeMerged.foreach { t => structTypeMap(t) = newType }
+        structTypeMap(newType) = newType
+        queue.removeAll(toBeMerged.contains)
+        if (!toBeMerged.contains(newType)) {
+          // Also add any inner structs that might've been merged
+          newType.foreach {
+            case s: LLVMTStruct[Pre] => queue += s
+            case _ =>
+          }
+        }
+      }
+    }
+
+    structTypeMap.foreach { case (k, v) => logger.info(f"`$k`: `$v`") }
+    super.dispatch(program)
+  }
 
   override def dispatch(t: Type[Pre]): Type[Post] = {
     implicit val o: Origin = t.o
@@ -149,11 +244,11 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
         cint.storedBits = t.storedBits
         cint.signed = t.signed
         cint
-      case other => {
+      case t: LLVMTStruct[Pre] => super.dispatch(structTypeMap(t))
+      case other =>
         val newOther = super.dispatch(other)
         newOther.storedBits = other.storedBits
         newOther
-      }
     }
   }
 

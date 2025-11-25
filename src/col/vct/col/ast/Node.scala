@@ -3988,7 +3988,7 @@ final case class LLVMAmbiguousFunctionInvocation[G](
 // TODO: It would probably be more consistent if LLVMAllocA and LLVMLoad use the Expr type for the variable but it should never be necessary
 final case class LLVMAllocA[G](
     variable: Ref[G, Variable[G]],
-    allocationType: Type[G],
+    returnType: Type[G],
     numElements: Expr[G],
 )(implicit val o: Origin)
     extends LLVMStatement[G] with LLVMAllocAImpl[G]
@@ -4290,13 +4290,17 @@ final case class LLVMTPointer[G](innerType: Option[Type[G]])(
 final case class LLVMTMetadata[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with LLVMTMetadataImpl[G]
 final case class LLVMTStruct[G](
-    name: Option[String],
+    name: Seq[String],
     packed: Boolean,
     isLiteral: Boolean,
-    elements: Seq[Type[G]],
-    sizeBytes: Int, // Number of bytes that are allocated for this type
+    elements: Seq[LLVMFieldDefinition[G]],
+    sizeInBits: Int, // Number of bits that are allocated for this type
 )(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with LLVMTStructImpl[G]
+@family
+final case class LLVMFieldDefinition[G](offset: Int, size: Int, t: Type[G])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends NodeFamily[G] with LLVMFieldDefinitionImpl[G]
 final case class LLVMTArray[G](numElements: Long, elementType: Type[G])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends Type[G] with LLVMTArrayImpl[G]

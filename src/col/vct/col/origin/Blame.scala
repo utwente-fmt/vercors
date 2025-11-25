@@ -3,7 +3,7 @@ package vct.col.origin
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.result.{Message, VerificationError}
-import vct.result.VerificationError.{SystemError, Unreachable}
+import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 
 sealed trait ContractFailure {
   def code: String
@@ -1200,6 +1200,15 @@ case class PointerArrayBounds(node: Node[_])
     "The offsets in this array access may be outside the bounds of the array."
   override def inlineDescWithSource(source: String): String =
     s"The offsets in `$source`  may be outside the bounds of the array."
+}
+
+case class NonConstantStructIndex(origin: Origin) extends UserError {
+  override def code: String = "nonConstantStructIndex"
+
+  override def text: String =
+    origin.messageInContext(
+      s"This struct indexing operation (getelementptr) uses a non-constant struct index which we do not support."
+    )
 }
 
 sealed trait LockRegionFailure extends VerificationFailure

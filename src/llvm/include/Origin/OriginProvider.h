@@ -116,6 +116,8 @@ col::Origin *generateVoidOperandOrigin(llvm::Instruction &llvmInstruction);
 
 col::Origin *generateTypeOrigin(llvm::Type &llvmType);
 
+col::Origin *generateDITypeOrigin(llvm::DIType &debugType);
+
 col::Origin *generateMemoryOrderingOrigin(llvm::AtomicOrdering &llvmOrdering);
 
 std::string extractShortPosition(const col::Origin &origin);

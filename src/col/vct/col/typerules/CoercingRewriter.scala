@@ -375,7 +375,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: BipGlueDataWire[Pre] => node
       case node: BipTransitionSignature[Pre] => node
       case node: LLVMFunctionContract[Pre] => node
+      case node: LLVMLoop[Pre] => node
       case node: LLVMMemoryOrdering[Pre] => node
+      case node: LLVMFloatType[Pre] => node
+      case node: LLVMFieldDefinition[Pre] => node
       case node: ProverLanguage[Pre] => node
       case node: SmtlibFunctionSymbol[Pre] => node
       case node: ChorRun[Pre] => node
@@ -383,7 +386,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: EndpointName[Pre] => coerce(node)
       case node: ApplyAnyPredicate[Pre] => coerce(node)
       case node: FoldTarget[Pre] => coerce(node)
-      case node: LLVMFloatType[Pre] => node
     }
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
@@ -1229,7 +1231,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Cast(value, typeValue) => Cast(value, typeValue)
       case t @ ToNonNull(value) => ToNonNull(pointer(value)._1)(t.blame)
       case PointerCast(value, typeValue, fromSize, toSize) =>
-        PointerCast(value, typeValue, fromSize, toSize)
+        PointerCast(pointer(value)._1, typeValue, fromSize, toSize)
       case IntegerPointerCast(value, typeValue, elementSize) =>
         IntegerPointerCast(value, typeValue, elementSize)
       case CastFloat(e, t) =>
@@ -2384,8 +2386,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case Loop(init, cond, update, contract, body) =>
         Loop(init, bool(cond), update, contract, body)
       case block: LLVMBasicBlock[Pre] => block
-      case LLVMAllocA(variable, allocationType, numElements) =>
-        LLVMAllocA(variable, allocationType, int(numElements))
+      case LLVMAllocA(variable, returnType, numElements) =>
+        LLVMAllocA(variable, returnType, int(numElements))
       case load @ LLVMLoad(variable, loadType, p, ordering) =>
         LLVMLoad(variable, loadType, p, ordering)(load.blame)
       case store @ LLVMStore(value, p, ordering) =>
@@ -3114,6 +3116,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: LLVMLoop[Pre]): LLVMLoop[Pre] = node
   def coerce(node: LLVMMemoryOrdering[Pre]): LLVMMemoryOrdering[Pre] = node
   def coerce(node: LLVMFloatType[Pre]): LLVMFloatType[Pre] = node
+  def coerce(node: LLVMFieldDefinition[Pre]): LLVMFieldDefinition[Pre] = node
 
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node
   def coerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node

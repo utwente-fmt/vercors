@@ -24,4 +24,11 @@ case object TypeSize {
     }
 }
 
-sealed trait TypeSize {}
+sealed trait TypeSize {
+  def getExact: BigInt =
+    this match {
+      case TypeSize.Unknown() | TypeSize.Minimally(_) =>
+        throw new IllegalArgumentException("Expected an exact size")
+      case TypeSize.Exact(size) => size
+    }
+}

@@ -3,7 +3,6 @@
 #include "Util/Exceptions.h"
 #include "Util/PallasMD.h"
 #include <algorithm>
-#include <llvm-17/llvm/IR/Dominators.h>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/STLExtras.h>
@@ -17,6 +16,7 @@
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Dominators.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/Instructions.h>
@@ -906,12 +906,12 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
 
 void StructConsolidatorPass::replaceWrapperCalls(
     Function *F, Function *NF, SmallSet<const Argument *, 8> &ToBeRemoved,
-    MDNode *MD, SmallSet<MDNode *, 8> &Visited) {
+    MDNode *MD, const ReplaceableVec &Sets, SmallSet<MDNode *, 8> &Visited) {
     if (!Visited.insert(MD).second)
         return;
     for (const MDOperand &O : MD->operands()) {
         if (auto *NO = dyn_cast_if_present<MDNode>(O.get())) {
-            replaceWrapperCalls(F, NF, ToBeRemoved, NO, Visited);
+            replaceWrapperCalls(F, NF, ToBeRemoved, NO, Sets, Visited);
         }
     }
     if (MD->getNumOperands() < 2)
@@ -952,15 +952,30 @@ void StructConsolidatorPass::replaceWrapperCalls(
             NewOperands.push_back(MD->getOperand(Offset + ArgI).get());
         }
     }
-    ArgI = 0;
-    for (Argument *I = F->arg_begin(), *E = F->arg_end(); I != E; ++I, ++ArgI) {
-        if (ToBeRemoved.contains(I)) {
-            NewOperands.push_back(MD->getOperand(Offset + ArgI).get());
+
+    for (const ReplaceableArgSet &Set : Sets) {
+        ArgI = 0;
+        for (Argument *I = F->arg_begin(), *E = F->arg_end(); I != E;
+             ++I, ++ArgI) {
+            bool found = false;
+            for (const auto &A : Set.Arguments) {
+                if (A.Arg == I) {
+                    NewOperands.push_back(MD->getOperand(Offset + ArgI).get());
+                    found = true;
+                    break;
+                }
+            }
+            if (found)
+                break;
         }
     }
 
     for (ArgI = 0; ArgI < MD->getNumOperands(); ++ArgI) {
-        MD->replaceOperandWith(ArgI, NewOperands[ArgI]);
+        if (NewOperands.size() >= ArgI) {
+            MD->replaceOperandWith(ArgI, NewOperands[ArgI]);
+        } else {
+            MD->replaceOperandWith(ArgI, nullptr);
+        }
     }
 }
 
@@ -1087,7 +1102,7 @@ StructConsolidatorPass::updateFunction(Function &F,
         }
         for (MDNode *MD : Metas) {
             SmallSet<MDNode *, 8> Visited;
-            replaceWrapperCalls(&F, NF, ToBeRemoved, MD, Visited);
+            replaceWrapperCalls(&F, NF, ToBeRemoved, MD, Sets, Visited);
         }
     }
 
