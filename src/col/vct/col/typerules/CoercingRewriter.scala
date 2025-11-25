@@ -2653,6 +2653,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case synchronization: BipPortSynchronization[Pre] => synchronization
       case synchronization: BipTransitionSynchronization[Pre] => synchronization
       case definition: LLVMFunctionDefinition[Pre] => definition
+      case llvmPred: LLVMPredicateDefinition[Pre] => llvmPred
       case typ: ProverType[Pre] => typ
       case func: ProverFunction[Pre] => func
       case function: LLVMSpecFunction[Pre] =>
@@ -3075,6 +3076,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )(node.o)
       case PredicateApply(ref, args) =>
         PredicateApply(ref, coerceArgs(args, ref.decl))(node.o)
+      case LLVMPredicateApply(ref, args) =>
+        LLVMPredicateApply(ref, coerceArgs(args, ref.decl))(node.o)
     }
 
   def coerce(node: FoldTarget[Pre]): FoldTarget[Pre] =

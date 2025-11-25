@@ -7,6 +7,7 @@ import vct.col.ast.ops.LLVMFunctionDefinitionOps
 import vct.col.print._
 import vct.col.ast.NormalFunction
 import vct.col.ast.WrapperFunction
+import vct.col.ast.PredicateDefinition
 
 trait LLVMFunctionDefinitionImpl[G]
     extends Declarator[G]
@@ -31,6 +32,12 @@ trait LLVMFunctionDefinitionImpl[G]
   val isWrapper: Boolean =
     functionType match {
       case _: WrapperFunction[G] => true
-      case _ => false;
+      case _ => false
+    }
+
+  val isPredicate: Boolean =
+    functionType match {
+      case _: PredicateDefinition[G] => true
+      case _ => false
     }
 }
