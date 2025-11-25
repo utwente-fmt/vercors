@@ -175,7 +175,11 @@ ExprWrapperMapper::getContextForSpecStmnt(const llvm::MDNode &stmnt) {
             ctx = PallasWrapperContext::AssertStmnt;
         } else if (stmntTypeStr == pallas::constants::PALLAS_ASSUME) {
             ctx = PallasWrapperContext::AssumeStmnt;
-        }
+        } else if (stmntTypeStr == pallas::constants::PALLAS_FOLD) {
+            ctx = PallasWrapperContext::FoldStmnt;
+        } else if (stmntTypeStr == pallas::constants::PALLAS_UNFOLD) {
+            ctx = PallasWrapperContext::UnfoldStmnt;
+        } 
     }
     return ctx;
 }
