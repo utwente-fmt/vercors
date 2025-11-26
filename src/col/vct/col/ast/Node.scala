@@ -3909,8 +3909,9 @@ final case class NormalFunction[G]()(implicit val o: Origin)
     extends LLVMFunctionType[G] with NormalFunctionImpl[G]
 final case class WrapperFunction[G]()(implicit val o: Origin)
     extends LLVMFunctionType[G] with WrapperFunctionImpl[G]
-final case class PredicateDefinition[G]()(implicit val o: Origin)
-    extends LLVMFunctionType[G] with PredicateDefinitionImpl[G]
+final case class PredicateDefinition[G](val inlined: Boolean)(
+    implicit val o: Origin
+) extends LLVMFunctionType[G] with PredicateDefinitionImpl[G]
 
 sealed trait LLVMCallable[G] extends GlobalDeclaration[G]
 @scopes[LabelDecl]

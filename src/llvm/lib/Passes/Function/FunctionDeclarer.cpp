@@ -125,8 +125,15 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
         fType->mutable_wrapper_function()->set_allocated_origin(
             llvm2col::generateFuncDefOrigin(F));
     } else if (utils::isPallasPredDef(F)) {
-        fType->mutable_predicate_definition()->set_allocated_origin(
-            llvm2col::generateFuncDefOrigin(F));
+        auto isInline = utils::isPallasPredInline(F);
+        if (isInline.has_value()) {
+            auto *predTy = fType->mutable_predicate_definition();
+            predTy->set_allocated_origin(llvm2col::generateFuncDefOrigin(F));
+            predTy->set_inlined(*isInline);
+        } else {
+            pallas::ErrorReporter::addError(SOURCE_LOC,
+                                            "Invalid predicate definition!", F);
+        }
     } else {
         fType->mutable_normal_function()->set_allocated_origin(
             llvm2col::generateFuncDefOrigin(F));

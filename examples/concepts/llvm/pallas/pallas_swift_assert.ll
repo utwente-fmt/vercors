@@ -7,7 +7,7 @@ target triple = "x86_64-unknown-linux-gnu"
 
 @"\01l_entry_point" = private constant { i32, i32 } { i32 trunc (i64 sub (i64 ptrtoint (ptr @main to i64), i64 ptrtoint (ptr @"\01l_entry_point" to i64)) to i32), i32 0 }, section "swift5_entry", align 4
 @_swift1_autolink_entries = private constant [102 x i8] c"-lswiftSwiftOnoneSupport\00-lswiftCore\00-lswift_Concurrency\00-lswift_StringProcessing\00-lswift_RegexParser\00", section ".swift1_autolink_entries", no_sanitize_address, align 8
-@llvm.used = appending global [8 x ptr] [ptr @main, ptr @"$s13tmp_ir_source3fooyS2i_SitF", ptr @"\01l_entry_point", ptr @__swift_reflection_version, ptr @_swift1_autolink_entries, ptr @"$s13tmp_ir_source13PALLAS_SPEC_01a1b0A0SbSi_S2itF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_11a1b0A0SbSi_S2itF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_21a1b0A0SbSi_S2itF"], section "llvm.metadata"
+@llvm.used = appending global [8 x ptr] [ptr @main, ptr @"$s13tmp_ir_source3fooyS2i_SitF", ptr @"\01l_entry_point", ptr @__swift_reflection_version, ptr @_swift1_autolink_entries, ptr @"$s13tmp_ir_source13PALLAS_SPEC_21a1b0A0SbSi_S2itF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_11a1b0A0SbSi_S2itF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_01a1b0A0SbSi_S2itF"], section "llvm.metadata"
 @__swift_reflection_version = linkonce_odr hidden constant i16 3
 
 define protected i32 @main(i32 %0, ptr %1) #0 !dbg !45 {
@@ -94,13 +94,14 @@ declare void @llvm.lifetime.end.p0(i64 immarg, ptr nocapture) #2
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
 declare { i64, i1 } @llvm.smul.with.overflow.i64(i64, i64) #1
 
-define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_01a1b0A0SbSi_S2itF"(i64 %0, i64 %1, i64 %2) #0 !dbg !98 !pallas.exprWrapper !102 {
+define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_21a1b0A0SbSi_S2itF"(i64 %0, i64 %1, i64 %2) #0 !dbg !98 !pallas.exprWrapper !102 {
 entry:
   call void @llvm.dbg.value(metadata i64 %0, metadata !103, metadata !DIExpression()), !dbg !104
   call void @llvm.dbg.value(metadata i64 %1, metadata !105, metadata !DIExpression()), !dbg !104
   call void @llvm.dbg.value(metadata i64 %2, metadata !106, metadata !DIExpression()), !dbg !104
-  %3 = icmp slt i64 0, %2, !dbg !107
-  ret i1 %3, !dbg !104
+  %3 = icmp slt i64 %2, 0, !dbg !107
+  %4 = xor i1 %3, true, !dbg !107
+  ret i1 %4, !dbg !104
 }
 
 define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_11a1b0A0SbSi_S2itF"(i64 %0, i64 %1, i64 %2) #0 !dbg !108 !pallas.exprWrapper !102 {
@@ -123,14 +124,13 @@ entry:
   unreachable, !dbg !115
 }
 
-define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_21a1b0A0SbSi_S2itF"(i64 %0, i64 %1, i64 %2) #0 !dbg !117 !pallas.exprWrapper !102 {
+define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_01a1b0A0SbSi_S2itF"(i64 %0, i64 %1, i64 %2) #0 !dbg !117 !pallas.exprWrapper !102 {
 entry:
   call void @llvm.dbg.value(metadata i64 %0, metadata !118, metadata !DIExpression()), !dbg !119
   call void @llvm.dbg.value(metadata i64 %1, metadata !120, metadata !DIExpression()), !dbg !119
   call void @llvm.dbg.value(metadata i64 %2, metadata !121, metadata !DIExpression()), !dbg !119
-  %3 = icmp slt i64 %2, 0, !dbg !122
-  %4 = xor i1 %3, true, !dbg !122
-  ret i1 %4, !dbg !119
+  %3 = icmp slt i64 0, %2, !dbg !122
+  ret i1 %3, !dbg !119
 }
 
 attributes #0 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx16,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
@@ -243,16 +243,16 @@ attributes #5 = { cold noreturn nounwind }
 !95 = distinct !DISubprogram(name: "Swift runtime failure: arithmetic overflow", scope: !52, file: !52, type: !96, flags: DIFlagArtificial, spFlags: DISPFlagDefinition, unit: !0)
 !96 = !DISubroutineType(types: null)
 !97 = !DILocation(line: 0, scope: !95, inlinedAt: !84)
-!98 = distinct !DISubprogram(name: "PALLAS_SPEC_0", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_01a1b0A0SbSi_S2itF", scope: !4, file: !1, line: 9, type: !99, scopeLine: 9, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
+!98 = distinct !DISubprogram(name: "PALLAS_SPEC_2", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_21a1b0A0SbSi_S2itF", scope: !4, file: !1, line: 17, type: !99, scopeLine: 17, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
 !99 = !DISubroutineType(types: !100)
 !100 = !{!101, !56, !56, !56}
 !101 = !DICompositeType(tag: DW_TAG_structure_type, name: "$sSbD", scope: !6, flags: DIFlagFwdDecl, runtimeLang: DW_LANG_Swift)
 !102 = !{!""}
-!103 = !DILocalVariable(name: "a", arg: 1, scope: !98, file: !1, line: 9, type: !61)
+!103 = !DILocalVariable(name: "a", arg: 1, scope: !98, file: !1, line: 17, type: !61)
 !104 = !DILocation(line: 0, scope: !98)
-!105 = !DILocalVariable(name: "b", arg: 2, scope: !98, file: !1, line: 9, type: !61)
-!106 = !DILocalVariable(name: "tmp", arg: 3, scope: !98, file: !1, line: 9, type: !61)
-!107 = !DILocation(line: 9, column: 20, scope: !98)
+!105 = !DILocalVariable(name: "b", arg: 2, scope: !98, file: !1, line: 17, type: !61)
+!106 = !DILocalVariable(name: "tmp", arg: 3, scope: !98, file: !1, line: 17, type: !61)
+!107 = !DILocation(line: 17, column: 20, scope: !98)
 !108 = distinct !DISubprogram(name: "PALLAS_SPEC_1", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_11a1b0A0SbSi_S2itF", scope: !4, file: !1, line: 11, type: !99, scopeLine: 11, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
 !109 = !DILocalVariable(name: "a", arg: 1, scope: !108, file: !1, line: 11, type: !61)
 !110 = !DILocation(line: 0, scope: !108)
@@ -262,9 +262,9 @@ attributes #5 = { cold noreturn nounwind }
 !114 = !DILocation(line: 11, column: 20, scope: !108)
 !115 = !DILocation(line: 0, scope: !116, inlinedAt: !113)
 !116 = distinct !DISubprogram(name: "Swift runtime failure: arithmetic overflow", scope: !52, file: !52, type: !96, flags: DIFlagArtificial, spFlags: DISPFlagDefinition, unit: !19)
-!117 = distinct !DISubprogram(name: "PALLAS_SPEC_2", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_21a1b0A0SbSi_S2itF", scope: !4, file: !1, line: 17, type: !99, scopeLine: 17, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
-!118 = !DILocalVariable(name: "a", arg: 1, scope: !117, file: !1, line: 17, type: !61)
+!117 = distinct !DISubprogram(name: "PALLAS_SPEC_0", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_01a1b0A0SbSi_S2itF", scope: !4, file: !1, line: 9, type: !99, scopeLine: 9, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
+!118 = !DILocalVariable(name: "a", arg: 1, scope: !117, file: !1, line: 9, type: !61)
 !119 = !DILocation(line: 0, scope: !117)
-!120 = !DILocalVariable(name: "b", arg: 2, scope: !117, file: !1, line: 17, type: !61)
-!121 = !DILocalVariable(name: "tmp", arg: 3, scope: !117, file: !1, line: 17, type: !61)
-!122 = !DILocation(line: 17, column: 20, scope: !117)
+!120 = !DILocalVariable(name: "b", arg: 2, scope: !117, file: !1, line: 9, type: !61)
+!121 = !DILocalVariable(name: "tmp", arg: 3, scope: !117, file: !1, line: 9, type: !61)
+!122 = !DILocation(line: 9, column: 20, scope: !117)

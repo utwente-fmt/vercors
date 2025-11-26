@@ -179,7 +179,7 @@ ExprWrapperMapper::getContextForSpecStmnt(const llvm::MDNode &stmnt) {
             ctx = PallasWrapperContext::FoldStmnt;
         } else if (stmntTypeStr == pallas::constants::PALLAS_UNFOLD) {
             ctx = PallasWrapperContext::UnfoldStmnt;
-        } 
+        }
     }
     return ctx;
 }

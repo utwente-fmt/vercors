@@ -732,6 +732,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewritePredicateDef(pred: LLVMFunctionDefinition[Pre]): Unit = {
     implicit val o: Origin = pred.o
+    val isInlinePred =
+      pred.functionType match { case t: PredicateDefinition[Pre] => t.inlined }
     // Turn LLVMFunctionDefinitions that encode predicate definitions into
     // LLVMPredicateDefinitions. These are turned into a ´real´ predicate
     // in a separate pass
@@ -765,6 +767,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 }
               }
             },
+          inline = isInlinePred,
         )
       }
     }
