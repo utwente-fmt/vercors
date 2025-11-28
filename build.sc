@@ -41,7 +41,7 @@ object external extends Module {
 object viper extends ScalaModule {
   object silverGit extends GitModule {
     def url = T { "https://github.com/viperproject/silver.git" }
-    def commitish = T { "52953937ac318914e9e88f0103fdcea7072b985f" }
+    def commitish = T { "e61ca81bd46612a5e126c40b757fe27966965b7e" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -51,7 +51,7 @@ object viper extends ScalaModule {
 
   object siliconGit extends GitModule {
     def url = T { "https://github.com/viperproject/silicon.git" }
-    def commitish = T { "19bbbb524c4d2555abdbde68870a52f5abec49b4" }
+    def commitish = T { "3e24b7a87a1b2d7af95a96edf8af5d207465672b" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -62,7 +62,7 @@ object viper extends ScalaModule {
 
   object carbonGit extends GitModule {
     def url = T { "https://github.com/viperproject/carbon.git" }
-    def commitish = T { "e6d2393f85b5d8b53639b0f22e59c84004379ee7" }
+    def commitish = T { "7c5c1df49844ce2cd27d42d4d95859bbc3ad0142" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
