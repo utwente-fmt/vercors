@@ -11,7 +11,7 @@ class TechnicalStaticSpec extends VercorsSpec{
   vercors should verify using anyBackend example "technical/staticResolve/TestImport.java"
 
   // displays that without an explicit import, we cannot use static fields from classes outside our package
-  vercors should error withCode "resolutionError:type" example "technical/staticResolve/subPackage/ForgetImport.java"
+  vercors should error withCode "notAValue" example "technical/staticResolve/subPackage/ForgetImport.java"
 
   // displays that without an explicit import, we cannot use static methods from classes outside our package
   vercors should error withCode "noSuchName" example "technical/staticResolve/subPackage/ForgetMethodImport.java"
