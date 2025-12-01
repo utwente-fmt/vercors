@@ -1,11 +1,13 @@
 package vct.col.ast.util
 
+import com.typesafe.scalalogging.LazyLogging
 import org.sosy_lab.common.ShutdownNotifier
 import org.sosy_lab.common.configuration.Configuration
 import org.sosy_lab.common.log.LogManager
 import org.sosy_lab.java_smt.SolverContextFactory
 import org.sosy_lab.java_smt.SolverContextFactory.Solvers
 import org.sosy_lab.java_smt.api.NumeralFormula.IntegerFormula
+import org.sosy_lab.java_smt.api.SolverContext.ProverOptions
 import org.sosy_lab.java_smt.api._
 import vct.col.ast.util.ExpressionEqualityCheck.{
   isConstantInt,
@@ -21,7 +23,7 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 import scala.util.Using
 
-object ExpressionEqualityCheck {
+object ExpressionEqualityCheck extends LazyLogging {
   def apply[G](
       info: Option[AnnotationVariableInfo[G]] = None
   ): ExpressionEqualityCheck[G] = new ExpressionEqualityCheck[G](info)
@@ -81,7 +83,7 @@ object ExpressionEqualityCheck {
 
     def check(): Boolean = {
       val options = Configuration.builder()
-        .setOption("solver.nonLinearArithmetic", "APPROXIMATE_FALLBACK");
+        .setOption("solver.nonLinearArithmetic", "APPROXIMATE_FALLBACK")
       val config = options.build()
       val logManager = LogManager.createNullLogManager
       val shutDown = ShutdownNotifier.createDummy
@@ -93,158 +95,186 @@ object ExpressionEqualityCheck {
         shutDown,
         Solvers.SMTINTERPOL,
       )) { ctx =>
-        Using(ctx.newProverEnvironment()) { prover =>
-          val fmgr = ctx.getFormulaManager
-          val varIntMap: mutable.Map[SymbolicTerm[G], IntegerFormula] = mutable
-            .Map()
-          val varBoolMap: mutable.Map[SymbolicTerm[G], BooleanFormula] = mutable
-            .Map()
-          val bmgr = fmgr.getBooleanFormulaManager
-          val imgr = fmgr.getIntegerFormulaManager
+        Using(ctx.newProverEnvironment(ProverOptions.GENERATE_MODELS)) {
+          prover =>
+            val fmgr = ctx.getFormulaManager
+            val varIntMap: mutable.Map[SymbolicTerm[G], IntegerFormula] =
+              mutable.Map()
+            val varBoolMap: mutable.Map[SymbolicTerm[G], BooleanFormula] =
+              mutable.Map()
 
-          def tdiv(a: Expr[G], b: Expr[G]): Expr[G] =
-            Select(
-              a >= const(0) || a % b === const(0),
-              a / b,
-              a / b + Select(b > const(0), const(1), const(-1)),
-            )
+            val takenNames: mutable.Set[String] = mutable.Set()
+            val bmgr = fmgr.getBooleanFormulaManager
+            val imgr = fmgr.getIntegerFormulaManager
 
-          def tmod(a: Expr[G], b: Expr[G]): Expr[G] =
-            Select(
-              a >= const(0) || a % b === const(0),
-              a % b,
-              a % b - Select(b > const(0), b, -b),
-            )
+            def tdiv(a: Expr[G], b: Expr[G]): Expr[G] =
+              Select(
+                a >= const(0) || a % b === const(0),
+                a / b,
+                a / b + Select(b > const(0), const(1), const(-1)),
+              )
 
-          def addConstraint(e: Expr[G]): Boolean = {
-            addBool(e) match {
-              case Some(b1) => prover.addConstraint(b1); true
-              case None => false
+            def tmod(a: Expr[G], b: Expr[G]): Expr[G] =
+              Select(
+                a >= const(0) || a % b === const(0),
+                a % b,
+                a % b - Select(b > const(0), b, -b),
+              )
+
+            def addConstraint(e: Expr[G]): Boolean = {
+              addBool(e) match {
+                case Some(b1) => prover.addConstraint(b1); true
+                case None => false
+              }
             }
-          }
 
-          def addBool(e: Expr[G]): Option[BooleanFormula] = {
-            e match {
-              case Select(c, t, f) =>
-                for {
-                  c1 <- addBool(c); t1 <- addBool(t); f1 <- addBool(f)
-                } yield bmgr.ifThenElse(c1, t1, f1)
-              case SeqMember(e1, Range(from, to)) =>
-                for {
-                  i1 <- addInt(e1); fromi <- addInt(from); toi <- addInt(to)
-                } yield bmgr
-                  .and(imgr.lessOrEquals(fromi, i1), imgr.lessThan(i1, toi))
-              case SetMember(e1, RangeSet(from, to)) =>
-                for {
-                  i1 <- addInt(e1); fromi <- addInt(from); toi <- addInt(to)
-                } yield bmgr
-                  .and(imgr.lessOrEquals(fromi, i1), imgr.lessThan(i1, toi))
-              case Or(e1, e2) =>
-                for {
-                  b1 <- addBool(e1); b2 <- addBool(e2)
-                } yield bmgr.or(b1, b2)
-              case And(e1, e2) =>
-                for {
-                  b1 <- addBool(e1); b2 <- addBool(e2)
-                } yield bmgr.and(b1, b2)
-              case Implies(e1, e2) =>
-                for {
-                  b1 <- addBool(e1); b2 <- addBool(e2)
-                } yield bmgr.implication(b1, b2)
-              case Not(e1) => for { b1 <- addBool(e1) } yield bmgr.not(b1)
-              case Eq(e1, e2) if isBool(e1) && isBool(e2) =>
-                for {
-                  b1 <- addBool(e1); b2 <- addBool(e2)
-                } yield bmgr.equivalence(b1, b2)
-              case Eq(e1, e2) if isInt(e1) && isInt(e2) =>
-                for {
-                  b1 <- addInt(e1); b2 <- addInt(e2)
-                } yield imgr.equal(b1, b2)
-              case Neq(e1, e2) if isInt(e1) && isInt(e2) =>
-                for {
-                  b1 <- addInt(e1); b2 <- addInt(e2)
-                } yield bmgr.not(imgr.equal(b1, b2))
-              case Less(e1, e2) if isInt(e1) && isInt(e2) =>
-                for {
-                  b1 <- addInt(e1); b2 <- addInt(e2)
-                } yield imgr.lessThan(b1, b2)
-              case LessEq(e1, e2) if isInt(e1) && isInt(e2) =>
-                for {
-                  b1 <- addInt(e1); b2 <- addInt(e2)
-                } yield imgr.lessOrEquals(b1, b2)
-              case Greater(e1, e2) if isInt(e1) && isInt(e2) =>
-                for {
-                  b1 <- addInt(e1); b2 <- addInt(e2)
-                } yield imgr.greaterThan(b1, b2)
-              case GreaterEq(e1, e2) if isInt(e1) && isInt(e2) =>
-                for {
-                  b1 <- addInt(e1); b2 <- addInt(e2)
-                } yield imgr.greaterOrEquals(b1, b2)
-              case BooleanValue(b) => Some(bmgr.makeBoolean(b))
-              case t: SymbolicTerm[G] if isBool(e) && isValidSymbolicTerm(t) =>
-                if (varBoolMap.contains(t))
-                  Some(varBoolMap(t))
-                else {
-                  val x = bmgr.makeVariable(s"b$id")
+            def getName(t: SymbolicTerm[G]): String = {
+              val name = t.o.getPreferredNameOrElse().camel
+              var pname = name
+              var i = 0
+              while (takenNames.contains(pname)) {
+                pname = s"$name$i"
+                i += 1
+              }
+              if (!fmgr.isValidName(pname)) {
+                pname = s"b$id"
+                while (takenNames.contains(pname)) {
                   id += 1
-                  varBoolMap(t) = x
-                  Some(x)
+                  pname = s"b$id"
                 }
-              case _ => None
+                id += 1
+              }
+              takenNames.add(pname)
+              pname
             }
-          }
 
-          def addInt(e: Expr[G]): Option[IntegerFormula] = {
-            e match {
-              case Select(c, t, f) =>
-                for {
-                  c1 <- addBool(c); t1 <- addInt(t); f1 <- addInt(f)
-                } yield bmgr.ifThenElse(c1, t1, f1)
-              case Plus(e1, e2) =>
-                for {
-                  i1 <- addInt(e1); i2 <- addInt(e2)
-                } yield imgr.add(i1, i2)
-              case Minus(e1, e2) =>
-                for {
-                  i1 <- addInt(e1); i2 <- addInt(e2)
-                } yield imgr.subtract(i1, i2)
-              case Mult(e1, e2) =>
-                for {
-                  i1 <- addInt(e1); i2 <- addInt(e2)
-                } yield imgr.multiply(i1, i2)
-              case FloorDiv(e1, e2) =>
-                for {
-                  i1 <- addInt(e1); i2 <- addInt(e2)
-                } yield imgr.divide(i1, i2)
-              // Ugly, but the SMT library does not allow us to define functions..
-              case TruncDiv(e1, e2) => addInt(tdiv(e1, e2))
-              case TruncMod(e1, e2) => addInt(tmod(e1, e2))
-              case Mod(e1, e2) =>
-                for {
-                  i1 <- addInt(e1); i2 <- addInt(e2)
-                } yield imgr.modulo(i1, i2)
-              case UMinus(e1) => for { i1 <- addInt(e1) } yield imgr.negate(i1)
-              case IntegerValue(i) => Some(imgr.makeNumber(i.toInt))
-              case t: SymbolicTerm[G] if isInt(e) && isValidSymbolicTerm(t) =>
-                if (varIntMap.contains(t))
-                  Some(varIntMap(t))
-                else {
-                  val x = imgr.makeVariable(s"i$id")
-                  id += 1
-                  varIntMap(t) = x
-                  Some(x)
-                }
-              case _ => None
+            def addBool(e: Expr[G]): Option[BooleanFormula] = {
+              e match {
+                case Select(c, t, f) =>
+                  for {
+                    c1 <- addBool(c); t1 <- addBool(t); f1 <- addBool(f)
+                  } yield bmgr.ifThenElse(c1, t1, f1)
+                case SeqMember(e1, Range(from, to)) =>
+                  for {
+                    i1 <- addInt(e1); fromi <- addInt(from); toi <- addInt(to)
+                  } yield bmgr
+                    .and(imgr.lessOrEquals(fromi, i1), imgr.lessThan(i1, toi))
+                case SetMember(e1, RangeSet(from, to)) =>
+                  for {
+                    i1 <- addInt(e1); fromi <- addInt(from); toi <- addInt(to)
+                  } yield bmgr
+                    .and(imgr.lessOrEquals(fromi, i1), imgr.lessThan(i1, toi))
+                case Or(e1, e2) =>
+                  for {
+                    b1 <- addBool(e1); b2 <- addBool(e2)
+                  } yield bmgr.or(b1, b2)
+                case And(e1, e2) =>
+                  for {
+                    b1 <- addBool(e1); b2 <- addBool(e2)
+                  } yield bmgr.and(b1, b2)
+                case Implies(e1, e2) =>
+                  for {
+                    b1 <- addBool(e1); b2 <- addBool(e2)
+                  } yield bmgr.implication(b1, b2)
+                case Not(e1) => for { b1 <- addBool(e1) } yield bmgr.not(b1)
+                case Eq(e1, e2) if isBool(e1) && isBool(e2) =>
+                  for {
+                    b1 <- addBool(e1); b2 <- addBool(e2)
+                  } yield bmgr.equivalence(b1, b2)
+                case Eq(e1, e2) if isInt(e1) && isInt(e2) =>
+                  for {
+                    b1 <- addInt(e1); b2 <- addInt(e2)
+                  } yield imgr.equal(b1, b2)
+                case Neq(e1, e2) if isInt(e1) && isInt(e2) =>
+                  for {
+                    b1 <- addInt(e1); b2 <- addInt(e2)
+                  } yield bmgr.not(imgr.equal(b1, b2))
+                case Less(e1, e2) if isInt(e1) && isInt(e2) =>
+                  for {
+                    b1 <- addInt(e1); b2 <- addInt(e2)
+                  } yield imgr.lessThan(b1, b2)
+                case LessEq(e1, e2) if isInt(e1) && isInt(e2) =>
+                  for {
+                    b1 <- addInt(e1); b2 <- addInt(e2)
+                  } yield imgr.lessOrEquals(b1, b2)
+                case Greater(e1, e2) if isInt(e1) && isInt(e2) =>
+                  for {
+                    b1 <- addInt(e1); b2 <- addInt(e2)
+                  } yield imgr.greaterThan(b1, b2)
+                case GreaterEq(e1, e2) if isInt(e1) && isInt(e2) =>
+                  for {
+                    b1 <- addInt(e1); b2 <- addInt(e2)
+                  } yield imgr.greaterOrEquals(b1, b2)
+                case BooleanValue(b) => Some(bmgr.makeBoolean(b))
+                case t: SymbolicTerm[G]
+                    if isBool(e) && isValidSymbolicTerm(t) =>
+                  if (varBoolMap.contains(t))
+                    Some(varBoolMap(t))
+                  else {
+                    val name = getName(t)
+                    val x = bmgr.makeVariable(name)
+                    varBoolMap(t) = x
+                    Some(x)
+                  }
+                case _ => None
+              }
             }
-          }
 
-          for (c <- constraints) {
-            if (!addConstraint(c))
+            def addInt(e: Expr[G]): Option[IntegerFormula] = {
+              e match {
+                case Select(c, t, f) =>
+                  for {
+                    c1 <- addBool(c); t1 <- addInt(t); f1 <- addInt(f)
+                  } yield bmgr.ifThenElse(c1, t1, f1)
+                case Plus(e1, e2) =>
+                  for {
+                    i1 <- addInt(e1); i2 <- addInt(e2)
+                  } yield imgr.add(i1, i2)
+                case Minus(e1, e2) =>
+                  for {
+                    i1 <- addInt(e1); i2 <- addInt(e2)
+                  } yield imgr.subtract(i1, i2)
+                case Mult(e1, e2) =>
+                  for {
+                    i1 <- addInt(e1); i2 <- addInt(e2)
+                  } yield imgr.multiply(i1, i2)
+                case FloorDiv(e1, e2) =>
+                  for {
+                    i1 <- addInt(e1); i2 <- addInt(e2)
+                  } yield imgr.divide(i1, i2)
+                // Ugly, but the SMT library does not allow us to define functions..
+                case TruncDiv(e1, e2) => addInt(tdiv(e1, e2))
+                case TruncMod(e1, e2) => addInt(tmod(e1, e2))
+                case Mod(e1, e2) =>
+                  for {
+                    i1 <- addInt(e1); i2 <- addInt(e2)
+                  } yield imgr.modulo(i1, i2)
+                case UMinus(e1) =>
+                  for { i1 <- addInt(e1) } yield imgr.negate(i1)
+                case IntegerValue(i) => Some(imgr.makeNumber(i.toInt))
+                case t: SymbolicTerm[G] if isInt(e) && isValidSymbolicTerm(t) =>
+                  if (varIntMap.contains(t))
+                    Some(varIntMap(t))
+                  else {
+                    val name = getName(t)
+                    val x = imgr.makeVariable(name)
+                    varIntMap(t) = x
+                    Some(x)
+                  }
+                case _ => None
+              }
+            }
+
+            for (c <- constraints) {
+              if (!addConstraint(c))
+                return false
+            }
+            if (prover.isUnsat) {
+              logger.warn("Prover is already unsat when checked")
+            }
+            if (!addConstraint(!test))
               return false
-          }
-          if (!addConstraint(!test))
-            return false
-          prover.isUnsat
+            prover.isUnsat
         }
       }
     }.get.get
@@ -535,6 +565,34 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
           }
         }
       case _ =>
+    }
+
+    for (c <- usefulConditions()) {
+      c match {
+        case Less(left, right) if isLower && right == e =>
+          isConstantIntRecurse(left).map(l => return Some(l + 1))
+        case LessEq(left, right) if isLower && right == e =>
+          isConstantIntRecurse(left).map(l => return Some(l))
+        case Greater(left, right) if isLower && left == e =>
+          isConstantIntRecurse(right).map(l => return Some(l + 1))
+        case GreaterEq(left, right) if isLower && left == e =>
+          isConstantIntRecurse(right).map(l => return Some(l))
+
+        case Less(left, right) if !isLower && left == e =>
+          isConstantIntRecurse(right).map(l => return Some(l + 1))
+        case LessEq(left, right) if !isLower && left == e =>
+          isConstantIntRecurse(right).map(l => return Some(l))
+        case Greater(left, right) if !isLower && right == e =>
+          isConstantIntRecurse(left).map(l => return Some(l + 1))
+        case GreaterEq(left, right) if !isLower && right == e =>
+          isConstantIntRecurse(left).map(l => return Some(l))
+
+        case Eq(left, right) if left == e =>
+          isConstantIntRecurse(right).map(l => return Some(l))
+        case Eq(left, right) if right == e =>
+          isConstantIntRecurse(left).map(l => return Some(l))
+        case _ =>
+      }
     }
 
     None
