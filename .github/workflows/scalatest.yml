@@ -77,7 +77,7 @@ jobs:
       - name: ls
         run: ls
       - name: Run scalatest
-        run: java -Xss64m -cp "out.jar;res/universal/deps;res/universal/res" org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
+        run: java -Xss128m -cp "out.jar;res/universal/deps;res/universal/res" org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v4
@@ -104,7 +104,7 @@ jobs:
       - name: ls
         run: ls
       - name: Run scalatest
-        run: java -Xss64m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
+        run: java -Xss128m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v4
@@ -141,7 +141,7 @@ jobs:
       - name: ls
         run: ls -lasFhR
       - name: Run scalatest
-        run: java -Xss64m -Xmx2G -cp out.jar:res/universal/deps:res/universal/res:. org.scalatest.tools.Runner -R out.jar -o -u report -w vct ${{matrix.batch}}
+        run: java -Xss128m -Xmx2G -cp out.jar:res/universal/deps:res/universal/res:. org.scalatest.tools.Runner -R out.jar -o -u report -w vct ${{matrix.batch}}
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v4
