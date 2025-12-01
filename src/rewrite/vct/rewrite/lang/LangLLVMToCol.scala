@@ -152,6 +152,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   private val llvmFunctionMap
       : SuccessionMap[LLVMFunctionDefinition[Pre], Procedure[Post]] =
     SuccessionMap()
+  private val llvmPredicateMap: SuccessionMap[LLVMFunctionDefinition[
+    Pre
+  ], LLVMPredicateDefinition[Post]] = SuccessionMap()
   private val specFunctionMap
       : SuccessionMap[LLVMSpecFunction[Pre], Function[Post]] = SuccessionMap()
   private val globalVariableMap
@@ -182,8 +185,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   private val wrappersInAssume: mutable.Set[LLVMFunctionDefinition[Pre]] =
     mutable.Set()
 
-  // Keeps track if the currently transformed function is a wrapper-function.
-  private val inWrapperFunction: ScopedStack[Boolean] = ScopedStack()
+  // Keeps track if the currently transformed function is a definition of specifications
+  // (i.e. a wrapper-function or a predicate definition).
+  private val inSpecDefFunction: ScopedStack[Boolean] = ScopedStack()
 
   // Local variables that were allocated using alloca in the current function.
   private val allocaVars: ScopedStack[mutable.Set[Variable[Pre]]] =
@@ -222,6 +226,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         typeSubstitutions(v) = TResource()
         typeSubstitutions(left) = TResource()
         typeSubstitutions(right) = TResource()
+      case Assign(Local(Ref(v)), inv: LLVMFunctionInvocation[Pre])
+          if inv.ref.decl.isPredicate =>
+        typeSubstitutions(v) = TResource()
       // Rational
       case LLVMFracOf(Ref(v), _, _) => typeSubstitutions(v) = TRational()
       case LLVMPerm(_, Ref(v)) => typeSubstitutions(v) = TRational()
@@ -546,7 +553,6 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         )
       case inv: LLVMFunctionInvocation[Pre] =>
         val calledFunc = inv.ref.decl
-        val isWrapperFunc = calledFunc.pallasExprWrapperFor.isDefined
         calledFunc.importedArguments.getOrElse(calledFunc.args).zipWithIndex
           .foreach { case (arg, idx) =>
             // Infer type of variable that is used as arg in function call
@@ -558,7 +564,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
             // If the invoked function is a wrapper function, we infer the
             // type of the pointer-typed argument from the call-site.
-            if (isWrapperFunc && arg.t.asPointer.isDefined) {
+            if (calledFunc.isWrapper && arg.t.asPointer.isDefined) {
               val dependencies = findDependencies(inv.args(idx))
               // TODO: Check if this can be simplified I.e. the expression
               //  should almost always be resolvable with getVariable
@@ -614,8 +620,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def gatherWrappersInAssume(program: Program[Pre]): Unit = {
     program.collect {
-      case Assume(LLVMFunctionInvocation(Ref(f), _, _, _))
-          if f.pallasExprWrapperFor.isDefined =>
+      case Assume(LLVMFunctionInvocation(Ref(f), _, _, _)) if f.isWrapper =>
         wrappersInAssume.add(f);
     }
   }
@@ -639,6 +644,12 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteFunctionDef(func: LLVMFunctionDefinition[Pre]): Unit = {
     implicit val o: Origin = func.o
+
+    if (func.isPredicate) {
+      rewritePredicateDef(func)
+      return
+    }
+
     // If the function has a contract that is marked as assumed, drop the body.
     val assumeBody =
       func.contract match {
@@ -670,7 +681,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             case Some((idx, _)) => Some(argList(idx).ref)
             case None => None
           }
-        val isWrapper = func.pallasExprWrapperFor.isDefined
+        val isWrapper = func.isWrapper
         val returnT =
           if (isWrapper && !wrappersInAssume.contains(func)) {
             TResource[Post]()
@@ -687,7 +698,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               body =
                 if (assumeBody) { None }
                 else {
-                  inWrapperFunction.having(isWrapper) {
+                  inSpecDefFunction.having(isWrapper) {
                     func.functionBody match {
                       case None => None
                       case Some(functionBody) =>
@@ -717,6 +728,51 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
     }
     llvmFunctionMap.update(func, procedure)
+  }
+
+  def rewritePredicateDef(pred: LLVMFunctionDefinition[Pre]): Unit = {
+    implicit val o: Origin = pred.o
+    val isInlinePred =
+      pred.functionType match { case t: PredicateDefinition[Pre] => t.inlined }
+    // Turn LLVMFunctionDefinitions that encode predicate definitions into
+    // LLVMPredicateDefinitions. These are turned into a ´real´ predicate
+    // in a separate pass
+    val newPred = rw.labelDecls.scope {
+      val argList =
+        rw.variables.collect {
+          pred.args.foreach { a =>
+            rw.variables.succeed(
+              a,
+              new Variable(
+                rw.dispatch(localVariableInferredType.getOrElse(a, a.t))
+              )(a.o),
+            )
+          }
+        }._1
+
+      // TODO: Check if we need to set funcRetType
+      rw.globalDeclarations.declare {
+        new LLVMPredicateDefinition[Post](
+          args = argList,
+          body =
+            inSpecDefFunction.having(true) {
+              allocaVars.having(mutable.Set[Variable[Pre]]()) {
+                pred.body match {
+                  case None => None
+                  case Some(fBody) =>
+                    Some(GotoEliminator(fBody match {
+                      case scope: Scope[Pre] => scope;
+                      case other => throw UnexpectedLLVMNode(other)
+                    }).eliminate())
+                }
+              }
+            },
+          inline = isInlinePred,
+        )
+      }
+    }
+
+    llvmPredicateMap.update(pred, newPred)
   }
 
   /** If the function returns in an argument, extend the contract with
@@ -789,7 +845,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteAmbiguousFunctionInvocation(
       inv: LLVMAmbiguousFunctionInvocation[Pre]
-  ): Invocation[Post] = {
+  ): Expr[Post] = {
     implicit val o: Origin = inv.o
 
     val given = inv.givenMap.map { case (Ref(v), e) =>
@@ -800,7 +856,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
 
     inv.ref.get.decl match {
-      case func: LLVMFunctionDefinition[Pre] =>
+      case func: LLVMFunctionDefinition[Pre] if !func.isPredicate =>
         new ProcedureInvocation[Post](
           ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(func)),
           args = inv.args.zip(func.args).map(p => addCast(p._1, p._2)),
@@ -809,6 +865,14 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           outArgs = Seq.empty,
           typeArgs = Seq.empty,
         )(inv.blame)
+      case func: LLVMFunctionDefinition[Pre] if func.isPredicate =>
+        PredicateApplyExpr[Post](new LLVMPredicateApply[Post](
+          ref =
+            new LazyRef[Post, LLVMPredicateDefinition[Post]](llvmPredicateMap(
+              func
+            )),
+          args = inv.args.zip(func.args).map(p => addCast(p._1, p._2)),
+        ))
       case func: LLVMSpecFunction[Pre] =>
         new FunctionInvocation[Post](
           ref = new LazyRef[Post, Function[Post]](specFunctionMap(func)),
@@ -823,24 +887,35 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteFunctionInvocation(
       inv: LLVMFunctionInvocation[Pre]
-  ): ProcedureInvocation[Post] = {
+  ): Expr[Post] = {
     implicit val o: Origin = inv.o
 
-    val given = inv.givenMap.map { case (Ref(v), e) =>
-      (rw.succ[Variable[Post]](v), addCast(e, v))
-    }
-    val yields = inv.yields.map { case (e, Ref(v)) =>
-      (addCast(e, v), rw.succ[Variable[Post]](v))
+    if (!inv.ref.decl.isPredicate) {
+      val given = inv.givenMap.map { case (Ref(v), e) =>
+        (rw.succ[Variable[Post]](v), addCast(e, v))
+      }
+      val yields = inv.yields.map { case (e, Ref(v)) =>
+        (addCast(e, v), rw.succ[Variable[Post]](v))
+      }
+
+      new ProcedureInvocation[Post](
+        ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(inv.ref.decl)),
+        args = inv.args.zip(inv.ref.decl.args).map(p => addCast(p._1, p._2)),
+        givenMap = given,
+        yields = yields,
+        outArgs = Seq.empty,
+        typeArgs = Seq.empty,
+      )(inv.blame)
+    } else {
+      new PredicateApplyExpr[Post](new LLVMPredicateApply[Post](
+        ref =
+          new LazyRef[Post, LLVMPredicateDefinition[Post]](llvmPredicateMap(
+            inv.ref.decl
+          )),
+        args = inv.args.zip(inv.ref.decl.args).map(p => addCast(p._1, p._2)),
+      ))
     }
 
-    new ProcedureInvocation[Post](
-      ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(inv.ref.decl)),
-      args = inv.args.zip(inv.ref.decl.args).map(p => addCast(p._1, p._2)),
-      givenMap = given,
-      yields = yields,
-      outArgs = Seq.empty,
-      typeArgs = Seq.empty,
-    )(inv.blame)
   }
 
   def rewriteGlobal(decl: LLVMGlobalSpecification[Pre]): Unit = {
@@ -873,10 +948,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       pointer: LLVMFunctionPointerValue[Pre]
   ): LLVMFunctionPointerValue[Post] = {
     implicit val o: Origin = pointer.o
+    val fDef = pointer.value.decl.asInstanceOf[LLVMFunctionDefinition[Pre]]
+    if (fDef.isPredicate) { throw UnexpectedLLVMNode(fDef) }
+
     new LLVMFunctionPointerValue[Post](value =
-      new LazyRef[Post, GlobalDeclaration[Post]](llvmFunctionMap(
-        pointer.value.decl.asInstanceOf[LLVMFunctionDefinition[Pre]]
-      ))
+      new LazyRef[Post, GlobalDeclaration[Post]](llvmFunctionMap(fDef))
     )
   }
 
@@ -1352,7 +1428,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     // If we are in a wrapper-function, the type needs to be set to bool.
     // The default-type of Resource causes isses in the col->viper conversion
     val t =
-      if (!inWrapperFunction.isEmpty && inWrapperFunction.top) { TBool[Post]() }
+      if (!inSpecDefFunction.isEmpty && inSpecDefFunction.top) { TBool[Post]() }
       else { funcRetType.top }
     val nondetGetter = getNondetValFunc(t)
     val r = Return[Post](
@@ -1556,7 +1632,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     not needed and causes problems when converting the wrapper into
     an expression
      */
-    if (!inWrapperFunction.isEmpty && inWrapperFunction.top) {
+    if (!inSpecDefFunction.isEmpty && inSpecDefFunction.top) {
       // Skip the initialization if we are in a wrapper function.
       return Block(Seq())
     }
@@ -1642,6 +1718,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteResult(res: LLVMResult[Pre]): LLVMIntermediaryResult[Post] = {
     requireInWrapper(res)
     implicit val o: Origin = res.o
+    if (res.func.decl.isPredicate) { throw UnexpectedLLVMNode(res) }
     LLVMIntermediaryResult(
       applicable =
         new LazyRef[Post, Procedure[Post]](llvmFunctionMap(res.func.decl)),
@@ -2033,7 +2110,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   private def requireInWrapper(node: Node[_]): Unit = {
-    if (inWrapperFunction.isEmpty || !inWrapperFunction.top) {
+    if (inSpecDefFunction.isEmpty || !inSpecDefFunction.top) {
       throw UnexpectedLLVMNode(node)
     }
   }

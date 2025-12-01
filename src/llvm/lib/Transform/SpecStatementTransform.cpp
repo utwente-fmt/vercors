@@ -191,7 +191,7 @@ void llvm2col::transformSpecStmnt(llvm::MDNode &specStmnt,
         }
     }
 
-    // Build Assume or Assert node
+    // Node for the statement
     col::Block &body = pallas::bodyAsBlock(colBlock);
     if (typeStrMD->getString().str() == pallas::constants::PALLAS_ASSERT) {
         // Build Assert
@@ -208,6 +208,29 @@ void llvm2col::transformSpecStmnt(llvm::MDNode &specStmnt,
         assume->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
             llvmInstr, *srcLoc, "assume"));
         assume->mutable_assn()->set_allocated_llvm_function_invocation(wCall);
+    } else if (typeStrMD->getString().str() == pallas::constants::PALLAS_FOLD) {
+        // Build Fold
+        col::Fold *fold = body.add_statements()->mutable_fold();
+        fold->set_allocated_blame(new col::Blame());
+        fold->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
+            llvmInstr, *srcLoc, "fold"));
+        col::AmbiguousFoldTarget *target =
+            fold->mutable_res()->mutable_ambiguous_fold_target();
+        target->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
+            llvmInstr, *srcLoc, "fold"));
+        target->mutable_target()->set_allocated_llvm_function_invocation(wCall);
+    } else if (typeStrMD->getString().str() ==
+               pallas::constants::PALLAS_UNFOLD) {
+        // Build Unfold
+        col::Unfold *unfold = body.add_statements()->mutable_unfold();
+        unfold->set_allocated_blame(new col::Blame());
+        unfold->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
+            llvmInstr, *srcLoc, "unfold"));
+        col::AmbiguousFoldTarget *target =
+            unfold->mutable_res()->mutable_ambiguous_fold_target();
+        target->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
+            llvmInstr, *srcLoc, "unfold"));
+        target->mutable_target()->set_allocated_llvm_function_invocation(wCall);
     } else {
         printSpecStmntError(llvmInstr, "Unknown statement-type");
     }

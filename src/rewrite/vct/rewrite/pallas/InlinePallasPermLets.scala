@@ -19,7 +19,7 @@ object InlinePallasPermLets extends RewriterBuilder {
 
 case class InlinePallasPermLets[Pre <: Generation]() extends Rewriter[Pre] {
 
-  private val inPallasFunc: ScopedStack[Boolean] = ScopedStack()
+  private val inPallasSpec: ScopedStack[Boolean] = ScopedStack()
 
   private val substitutions: ScopedStack[Map[Variable[Pre], Expr[Post]]] =
     ScopedStack()
@@ -29,7 +29,9 @@ case class InlinePallasPermLets[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case p: Procedure[Pre] =>
-        inPallasFunc.having(p.pallasFunction) { rewriteDefault(decl) }
+        inPallasSpec.having(p.pallasFunction) { rewriteDefault(decl) }
+      case p: Predicate[Pre] =>
+        inPallasSpec.having(p.pallasPredicate) { rewriteDefault(decl) }
       case _ => rewriteDefault(decl)
     }
   }
@@ -37,7 +39,7 @@ case class InlinePallasPermLets[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(expr: Expr[Pre]): Expr[Post] = {
 
     // Only inline things when we are in a Pallas-function
-    if (inPallasFunc.isEmpty || inPallasFunc.top == false) {
+    if (inPallasSpec.isEmpty || !inPallasSpec.top) {
       return expr.rewriteDefault()
     }
 

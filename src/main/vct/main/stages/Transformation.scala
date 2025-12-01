@@ -54,6 +54,7 @@ import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.pallas.{
   InlinePallasPermLets,
   InlinePallasWrappers,
+  ResolvePallasPredicates,
   ResolvePallasQuantifiers,
 }
 import vct.rewrite.veymont._
@@ -370,6 +371,7 @@ case class SilverTransformation(
         MakeUniqueMethodCopies,
         // Inline pallas-specifications
         InlinePallasWrappers,
+        ResolvePallasPredicates,
         InlinePallasPermLets,
         ResolvePallasQuantifiers,
         // BIP transformations

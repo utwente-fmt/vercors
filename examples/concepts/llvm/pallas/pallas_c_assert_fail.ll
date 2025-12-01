@@ -3,7 +3,7 @@ source_filename = "examples/concepts/llvm/pallas/pallas_c_assert_fail.c"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
-@llvm.used = appending global [4 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1, ptr @PALLAS_SPEC_2, ptr @PALLAS_SPEC_3], section "llvm.metadata"
+@llvm.used = appending global [4 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1, ptr @PALLAS_SPEC_3, ptr @PALLAS_SPEC_2], section "llvm.metadata"
 
 ; Function Attrs: noinline nounwind uwtable
 define dso_local i32 @foo(i32 noundef %0, i32 noundef %1) #0 !dbg !12 !pallas.fcontract !17 {
@@ -60,31 +60,31 @@ define dso_local zeroext i1 @PALLAS_SPEC_0(i32 noundef %0, i32 noundef %1) #0 !d
 define dso_local zeroext i1 @PALLAS_SPEC_1(i32 noundef %0, i32 noundef %1) #0 !dbg !58 !pallas.exprWrapper !51 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !59, metadata !DIExpression()), !dbg !60
   call void @llvm.dbg.value(metadata i32 %1, metadata !61, metadata !DIExpression()), !dbg !60
-  %3 = call i32 @pallas.result.0(), !dbg !62
+  %3 = call i32 @"pallas.result i32"(), !dbg !62
   %4 = icmp sgt i32 %3, 0, !dbg !63
   ret i1 %4, !dbg !60
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_2(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !64 !pallas.exprWrapper !51 {
+define dso_local zeroext i1 @PALLAS_SPEC_3(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !64 !pallas.exprWrapper !51 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !67, metadata !DIExpression()), !dbg !68
   call void @llvm.dbg.value(metadata i32 %1, metadata !69, metadata !DIExpression()), !dbg !68
   call void @llvm.dbg.value(metadata i32 %2, metadata !70, metadata !DIExpression()), !dbg !68
-  %4 = icmp sgt i32 %2, 0, !dbg !71
-  ret i1 %4, !dbg !68
+  %4 = add nsw i32 %0, %1, !dbg !71
+  %5 = icmp sgt i32 %2, %4, !dbg !72
+  ret i1 %5, !dbg !68
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_3(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !72 !pallas.exprWrapper !51 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !73, metadata !DIExpression()), !dbg !74
-  call void @llvm.dbg.value(metadata i32 %1, metadata !75, metadata !DIExpression()), !dbg !74
-  call void @llvm.dbg.value(metadata i32 %2, metadata !76, metadata !DIExpression()), !dbg !74
-  %4 = add nsw i32 %0, %1, !dbg !77
-  %5 = icmp sgt i32 %2, %4, !dbg !78
-  ret i1 %5, !dbg !74
+define dso_local zeroext i1 @PALLAS_SPEC_2(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !73 !pallas.exprWrapper !51 {
+  call void @llvm.dbg.value(metadata i32 %0, metadata !74, metadata !DIExpression()), !dbg !75
+  call void @llvm.dbg.value(metadata i32 %1, metadata !76, metadata !DIExpression()), !dbg !75
+  call void @llvm.dbg.value(metadata i32 %2, metadata !77, metadata !DIExpression()), !dbg !75
+  %4 = icmp sgt i32 %2, 0, !dbg !78
+  ret i1 %4, !dbg !75
 }
 
-declare !pallas.specLib !79 i32 @pallas.result.0()
+declare !pallas.specLib !79 i32 @"pallas.result i32"()
 
 attributes #0 = { noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
@@ -96,7 +96,7 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !0 = distinct !DICompileUnit(language: DW_LANG_C11, file: !1, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
 !1 = !DIFile(filename: "examples/concepts/llvm/pallas/pallas_c_assert_fail.c", directory: ".", checksumkind: CSK_MD5, checksum: "455f5e90dde899bbae9b8c904f093ec8")
 !2 = distinct !DICompileUnit(language: DW_LANG_C11, file: !3, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
-!3 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "fc7e9348d2b05a8f444712470f442ff4")
+!3 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "8dcda8ee677565f59f875b40faeb7f12")
 !4 = !{i32 7, !"Dwarf Version", i32 5}
 !5 = !{i32 2, !"Debug Info Version", i32 3}
 !6 = !{i32 1, !"wchar_size", i32 4}
@@ -157,19 +157,19 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !61 = !DILocalVariable(name: "b", arg: 2, scope: !58, file: !1, line: 12, type: !15)
 !62 = !DILocation(line: 12, column: 10, scope: !58)
 !63 = !DILocation(line: 12, column: 23, scope: !58)
-!64 = distinct !DISubprogram(name: "PALLAS_SPEC_2", scope: !1, file: !1, line: 16, type: !65, scopeLine: 16, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
+!64 = distinct !DISubprogram(name: "PALLAS_SPEC_3", scope: !1, file: !1, line: 22, type: !65, scopeLine: 22, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
 !65 = !DISubroutineType(types: !66)
 !66 = !{!50, !15, !15, !15}
-!67 = !DILocalVariable(name: "a", arg: 1, scope: !64, file: !1, line: 16, type: !15)
+!67 = !DILocalVariable(name: "a", arg: 1, scope: !64, file: !1, line: 22, type: !15)
 !68 = !DILocation(line: 0, scope: !64)
-!69 = !DILocalVariable(name: "b", arg: 2, scope: !64, file: !1, line: 16, type: !15)
-!70 = !DILocalVariable(name: "tmp", arg: 3, scope: !64, file: !1, line: 16, type: !15)
-!71 = !DILocation(line: 16, column: 20, scope: !64)
-!72 = distinct !DISubprogram(name: "PALLAS_SPEC_3", scope: !1, file: !1, line: 22, type: !65, scopeLine: 22, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
-!73 = !DILocalVariable(name: "a", arg: 1, scope: !72, file: !1, line: 22, type: !15)
-!74 = !DILocation(line: 0, scope: !72)
-!75 = !DILocalVariable(name: "b", arg: 2, scope: !72, file: !1, line: 22, type: !15)
-!76 = !DILocalVariable(name: "tmp", arg: 3, scope: !72, file: !1, line: 22, type: !15)
-!77 = !DILocation(line: 22, column: 24, scope: !72)
-!78 = !DILocation(line: 22, column: 20, scope: !72)
+!69 = !DILocalVariable(name: "b", arg: 2, scope: !64, file: !1, line: 22, type: !15)
+!70 = !DILocalVariable(name: "tmp", arg: 3, scope: !64, file: !1, line: 22, type: !15)
+!71 = !DILocation(line: 22, column: 24, scope: !64)
+!72 = !DILocation(line: 22, column: 20, scope: !64)
+!73 = distinct !DISubprogram(name: "PALLAS_SPEC_2", scope: !1, file: !1, line: 16, type: !65, scopeLine: 16, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
+!74 = !DILocalVariable(name: "a", arg: 1, scope: !73, file: !1, line: 16, type: !15)
+!75 = !DILocation(line: 0, scope: !73)
+!76 = !DILocalVariable(name: "b", arg: 2, scope: !73, file: !1, line: 16, type: !15)
+!77 = !DILocalVariable(name: "tmp", arg: 3, scope: !73, file: !1, line: 16, type: !15)
+!78 = !DILocation(line: 16, column: 20, scope: !73)
 !79 = !{!"pallas.result"}

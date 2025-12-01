@@ -3,7 +3,7 @@ source_filename = "examples/concepts/llvm/pallas/pallas_c_assume.c"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
-@llvm.used = appending global [3 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1, ptr @PALLAS_SPEC_2], section "llvm.metadata"
+@llvm.used = appending global [3 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_2, ptr @PALLAS_SPEC_1], section "llvm.metadata"
 
 ; Function Attrs: noinline nounwind uwtable
 define dso_local i32 @foo(i32 noundef %0, i32 noundef %1) #0 !dbg !12 !pallas.fcontract !17 {
@@ -57,20 +57,20 @@ define dso_local zeroext i1 @PALLAS_SPEC_0(i32 noundef %0, i32 noundef %1) #0 !d
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_1(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !56 !pallas.exprWrapper !49 {
+define dso_local zeroext i1 @PALLAS_SPEC_2(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !56 !pallas.exprWrapper !49 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !59, metadata !DIExpression()), !dbg !60
   call void @llvm.dbg.value(metadata i32 %1, metadata !61, metadata !DIExpression()), !dbg !60
   call void @llvm.dbg.value(metadata i32 %2, metadata !62, metadata !DIExpression()), !dbg !60
-  %4 = icmp slt i32 %2, 0, !dbg !63
-  ret i1 %4, !dbg !60
+  ret i1 false, !dbg !60
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_2(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !64 !pallas.exprWrapper !49 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !65, metadata !DIExpression()), !dbg !66
-  call void @llvm.dbg.value(metadata i32 %1, metadata !67, metadata !DIExpression()), !dbg !66
-  call void @llvm.dbg.value(metadata i32 %2, metadata !68, metadata !DIExpression()), !dbg !66
-  ret i1 false, !dbg !66
+define dso_local zeroext i1 @PALLAS_SPEC_1(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !63 !pallas.exprWrapper !49 {
+  call void @llvm.dbg.value(metadata i32 %0, metadata !64, metadata !DIExpression()), !dbg !65
+  call void @llvm.dbg.value(metadata i32 %1, metadata !66, metadata !DIExpression()), !dbg !65
+  call void @llvm.dbg.value(metadata i32 %2, metadata !67, metadata !DIExpression()), !dbg !65
+  %4 = icmp slt i32 %2, 0, !dbg !68
+  ret i1 %4, !dbg !65
 }
 
 attributes #0 = { noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
@@ -83,7 +83,7 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !0 = distinct !DICompileUnit(language: DW_LANG_C11, file: !1, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
 !1 = !DIFile(filename: "examples/concepts/llvm/pallas/pallas_c_assume.c", directory: ".", checksumkind: CSK_MD5, checksum: "00c1312a5879ddcb9e3d548233a7e7d7")
 !2 = distinct !DICompileUnit(language: DW_LANG_C11, file: !3, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
-!3 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "438b62d260bb8837cd3b90afd68d4372")
+!3 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "b41ded655911604cb2b45c1968ae01de")
 !4 = !{i32 7, !"Dwarf Version", i32 5}
 !5 = !{i32 2, !"Debug Info Version", i32 3}
 !6 = !{i32 1, !"wchar_size", i32 4}
@@ -136,16 +136,16 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !53 = !DILocation(line: 11, column: 12, scope: !45)
 !54 = !DILocation(line: 11, column: 16, scope: !45)
 !55 = !DILocation(line: 11, column: 21, scope: !45)
-!56 = distinct !DISubprogram(name: "PALLAS_SPEC_1", scope: !1, file: !1, line: 17, type: !57, scopeLine: 17, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
+!56 = distinct !DISubprogram(name: "PALLAS_SPEC_2", scope: !1, file: !1, line: 24, type: !57, scopeLine: 24, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
 !57 = !DISubroutineType(types: !58)
 !58 = !{!48, !15, !15, !15}
-!59 = !DILocalVariable(name: "a", arg: 1, scope: !56, file: !1, line: 17, type: !15)
+!59 = !DILocalVariable(name: "a", arg: 1, scope: !56, file: !1, line: 24, type: !15)
 !60 = !DILocation(line: 0, scope: !56)
-!61 = !DILocalVariable(name: "b", arg: 2, scope: !56, file: !1, line: 17, type: !15)
-!62 = !DILocalVariable(name: "tmp", arg: 3, scope: !56, file: !1, line: 17, type: !15)
-!63 = !DILocation(line: 17, column: 16, scope: !56)
-!64 = distinct !DISubprogram(name: "PALLAS_SPEC_2", scope: !1, file: !1, line: 24, type: !57, scopeLine: 24, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
-!65 = !DILocalVariable(name: "a", arg: 1, scope: !64, file: !1, line: 24, type: !15)
-!66 = !DILocation(line: 0, scope: !64)
-!67 = !DILocalVariable(name: "b", arg: 2, scope: !64, file: !1, line: 24, type: !15)
-!68 = !DILocalVariable(name: "tmp", arg: 3, scope: !64, file: !1, line: 24, type: !15)
+!61 = !DILocalVariable(name: "b", arg: 2, scope: !56, file: !1, line: 24, type: !15)
+!62 = !DILocalVariable(name: "tmp", arg: 3, scope: !56, file: !1, line: 24, type: !15)
+!63 = distinct !DISubprogram(name: "PALLAS_SPEC_1", scope: !1, file: !1, line: 17, type: !57, scopeLine: 17, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
+!64 = !DILocalVariable(name: "a", arg: 1, scope: !63, file: !1, line: 17, type: !15)
+!65 = !DILocation(line: 0, scope: !63)
+!66 = !DILocalVariable(name: "b", arg: 2, scope: !63, file: !1, line: 17, type: !15)
+!67 = !DILocalVariable(name: "tmp", arg: 3, scope: !63, file: !1, line: 17, type: !15)
+!68 = !DILocation(line: 17, column: 16, scope: !63)
