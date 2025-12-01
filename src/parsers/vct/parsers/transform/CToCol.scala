@@ -1516,6 +1516,34 @@ case class CToCol[G](
           ),
           decreases.map(convert(_)),
         )(blame(block))
+      case ValEmbedStatementBlock5(
+            _,
+            _,
+            decreases,
+            _,
+            _,
+            clauses,
+            _,
+            _,
+            _,
+            body,
+            _,
+            _,
+            _,
+          ) =>
+        Extract(
+          withContract(
+            clauses,
+            contract => {
+              FramedProof(
+                AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+                Block(body.map(convert(_))),
+                AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
+              )(blame(block))
+            },
+          ),
+          decreases.map(convert(_)),
+        )(blame(block))
     }
 
   def convert(implicit stat: ValStatementContext): Statement[G] =

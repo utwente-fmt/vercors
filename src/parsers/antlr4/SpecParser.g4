@@ -456,6 +456,7 @@ valEmbedStatementBlock
  | startSpec 'extract' valDecreases? endSpec langStatement
  | startSpec 'frame' valContractClause* '{' endSpec langStatement* startSpec '}' endSpec
  | startSpec 'extract' valDecreases? 'frame' valContractClause* '{' endSpec langStatement* startSpec '}' endSpec
+ | startSpec 'extract' valDecreases? 'frame' endSpec valEmbedContract? startSpec '{' endSpec langStatement* startSpec '}' endSpec
  ;
 
 valEmbedWith: startSpec valWith? endSpec | {specLevel>0}? valWith;
