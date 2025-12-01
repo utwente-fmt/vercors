@@ -37,7 +37,7 @@ trait OldImpl[G]
       }
     )
       result = result :+ OldInFunctionContract(this)
-    else if (context.inPreCondition)
+    else if (context.inPreCondition && !context.inGPUKernel)
       result = result :+ OldInPrecondition(this)
 
     result
