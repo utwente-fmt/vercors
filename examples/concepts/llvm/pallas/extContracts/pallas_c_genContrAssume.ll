@@ -42,19 +42,19 @@ define dso_local i32 @main() #0 !dbg !28 !pallas.fcontract !29 {
 
 ; Function Attrs: noinline nounwind uwtable
 define dso_local zeroext i1 @PALLAS_SPEC_0() #0 !dbg !42 !pallas.exprWrapper !46 {
-  %1 = call i32 @pallas.result.0(), !dbg !47
+  %1 = call i32 @"pallas.result i32"(), !dbg !47
   %2 = icmp eq i32 %1, 2, !dbg !48
   ret i1 %2, !dbg !49
 }
 
 ; Function Attrs: noinline nounwind uwtable
 define dso_local zeroext i1 @PALLAS_SPEC_1() #0 !dbg !50 !pallas.exprWrapper !46 {
-  %1 = call i32 @pallas.result.0(), !dbg !51
+  %1 = call i32 @"pallas.result i32"(), !dbg !51
   %2 = icmp eq i32 %1, 3, !dbg !52
   ret i1 %2, !dbg !53
 }
 
-declare !pallas.specLib !54 i32 @pallas.result.0()
+declare !pallas.specLib !54 i32 @"pallas.result i32"()
 
 attributes #0 = { noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }

@@ -112,7 +112,7 @@ define dso_local zeroext i1 @PALLAS_SPEC_1(i32 noundef %0) #0 !dbg !100 !pallas.
 ; Function Attrs: noinline nounwind uwtable
 define dso_local zeroext i1 @PALLAS_SPEC_2(i32 noundef %0) #0 !dbg !104 !pallas.exprWrapper !96 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !105, metadata !DIExpression()), !dbg !106
-  %2 = call i32 @pallas.result.0(), !dbg !107
+  %2 = call i32 @"pallas.result i32"(), !dbg !107
   %3 = call i32 @fibRec(i32 noundef %0), !dbg !108
   %4 = icmp eq i32 %2, %3, !dbg !109
   ret i1 %4, !dbg !106
@@ -155,7 +155,7 @@ define dso_local zeroext i1 @PALLAS_SPEC_3(i32 noundef %0, i32 noundef %1, i32 n
   ret i1 %8, !dbg !132
 }
 
-declare !pallas.specLib !140 i32 @pallas.result.0()
+declare !pallas.specLib !140 i32 @"pallas.result i32"()
 
 declare !pallas.specLib !141 i1 @pallas.scAnd(i1, i1)
 

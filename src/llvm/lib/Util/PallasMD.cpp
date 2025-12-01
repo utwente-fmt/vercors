@@ -53,12 +53,12 @@ bool isPallasPredDef(const llvm::Function &f) {
 
 std::optional<bool> isPallasPredInline(const llvm::Function &f) {
     if (!isPallasPredDef(f))
-        return std::nullopt; 
-    auto *predDefMD =  f.getMetadata(pallas::constants::PALLAS_PRED_DEF);
+        return std::nullopt;
+    auto *predDefMD = f.getMetadata(pallas::constants::PALLAS_PRED_DEF);
     if (predDefMD->getNumOperands() != 1)
         return std::nullopt;
-    auto *inlineConst =
-        llvm::dyn_cast<llvm::ConstantAsMetadata>(predDefMD->getOperand(0).get());
+    auto *inlineConst = llvm::dyn_cast<llvm::ConstantAsMetadata>(
+        predDefMD->getOperand(0).get());
     auto *inlineVal =
         llvm::dyn_cast_if_present<llvm::ConstantInt>(inlineConst->getValue());
     if (inlineVal == nullptr || (inlineVal->getBitWidth() != 1))

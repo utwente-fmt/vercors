@@ -54,7 +54,7 @@ define dso_local i32 @bar(i32 noundef %0) #0 !dbg !46 !pallas.fcontract !49 {
 define dso_local zeroext i1 @PALLAS_SPEC_0(i32 noundef %0) #0 !dbg !64 !pallas.exprWrapper !68 {
   %2 = alloca %struct.s, align 8
   call void @llvm.dbg.value(metadata i32 %0, metadata !69, metadata !DIExpression()), !dbg !70
-  call void @pallas.result.0(ptr sret(%struct.s) align 8 %2), !dbg !71
+  call void @"pallas.result sret(%struct.s) align 8 void"(ptr sret(%struct.s) align 8 %2), !dbg !71
   %3 = getelementptr inbounds %struct.s, ptr %2, i32 0, i32 0, !dbg !72
   %4 = load i64, ptr %3, align 8, !dbg !72
   %5 = icmp sge i64 %4, 0, !dbg !73
@@ -64,7 +64,7 @@ define dso_local zeroext i1 @PALLAS_SPEC_0(i32 noundef %0) #0 !dbg !64 !pallas.e
 ; Function Attrs: noinline nounwind uwtable
 define dso_local zeroext i1 @PALLAS_SPEC_1(i32 noundef %0) #0 !dbg !74 !pallas.exprWrapper !68 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !75, metadata !DIExpression()), !dbg !76
-  %2 = call i32 @pallas.result.1(), !dbg !77
+  %2 = call i32 @"pallas.result i32"(), !dbg !77
   %3 = icmp sge i32 %2, 0, !dbg !78
   ret i1 %3, !dbg !76
 }
@@ -72,9 +72,9 @@ define dso_local zeroext i1 @PALLAS_SPEC_1(i32 noundef %0) #0 !dbg !74 !pallas.e
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
 declare void @llvm.dbg.value(metadata, metadata, metadata) #1
 
-declare !pallas.specLib !79 void @pallas.result.0(ptr sret(%struct.s) align 8)
+declare !pallas.specLib !79 void @"pallas.result sret(%struct.s) align 8 void"(ptr sret(%struct.s) align 8)
 
-declare !pallas.specLib !79 i32 @pallas.result.1()
+declare !pallas.specLib !79 i32 @"pallas.result i32"()
 
 attributes #0 = { noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }

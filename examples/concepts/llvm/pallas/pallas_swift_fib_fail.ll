@@ -219,7 +219,7 @@ entry:
 define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_21nSbSi_tF"(i64 %0) #0 !dbg !168 !pallas.exprWrapper !160 {
 entry:
   call void @llvm.dbg.value(metadata i64 %0, metadata !169, metadata !DIExpression()), !dbg !170
-  %1 = call i64 @pallas.result.0(), !dbg !171
+  %1 = call i64 @"pallas.result i64"(), !dbg !171
   %2 = call swiftcc i64 @"$s13tmp_ir_source6fibRecyS2iF"(i64 %0), !dbg !172
   %3 = icmp eq i64 %1, %2, !dbg !173
   ret i1 %3, !dbg !170
@@ -312,7 +312,7 @@ declare swiftcc void @"$ss17_assertionFailure__4file4line5flagss5NeverOs12Static
 ; Function Attrs: nounwind
 declare ptr @swift_bridgeObjectRetain(ptr returned) #7
 
-declare !pallas.specLib !213 i64 @pallas.result.0()
+declare !pallas.specLib !213 i64 @"pallas.result i64"()
 
 declare !pallas.specLib !214 i1 @pallas.scAnd(i1, i1)
 

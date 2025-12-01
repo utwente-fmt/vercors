@@ -68,7 +68,7 @@ define dso_local zeroext i1 @PALLAS_SPEC_1(i32 noundef %0, i32 noundef %1) #0 !d
 define dso_local zeroext i1 @PALLAS_SPEC_2(i32 noundef %0, i32 noundef %1) #0 !dbg !72 !pallas.exprWrapper !62 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !73, metadata !DIExpression()), !dbg !74
   call void @llvm.dbg.value(metadata i32 %1, metadata !75, metadata !DIExpression()), !dbg !74
-  %3 = call i32 @pallas.result.0(), !dbg !76
+  %3 = call i32 @"pallas.result i32"(), !dbg !76
   %4 = mul nsw i32 %0, %1, !dbg !77
   %5 = icmp eq i32 %3, %4, !dbg !78
   ret i1 %5, !dbg !74
@@ -100,7 +100,7 @@ define dso_local zeroext i1 @PALLAS_SPEC_3(i32 noundef %0, i32 noundef %1, i32 n
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
 declare void @llvm.dbg.value(metadata, metadata, metadata) #1
 
-declare !pallas.specLib !98 i32 @pallas.result.0()
+declare !pallas.specLib !98 i32 @"pallas.result i32"()
 
 declare !pallas.specLib !99 i1 @pallas.scAnd(i1, i1)
 

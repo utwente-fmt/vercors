@@ -60,10 +60,10 @@ bool isPallasExprWrapper(const llvm::Function &f);
 bool isPallasPredDef(const llvm::Function &f);
 
 /**
- * Checks if the given function that represents a pallas predicate definition 
- * is marked as inline or not. 
- * If the function is not a valid predicate or if the metadata is malformed, 
- * a nullopt is returned. 
+ * Checks if the given function that represents a pallas predicate definition
+ * is marked as inline or not.
+ * If the function is not a valid predicate or if the metadata is malformed,
+ * a nullopt is returned.
  */
 std::optional<bool> isPallasPredInline(const llvm::Function &f);
 

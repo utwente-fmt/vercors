@@ -37,6 +37,7 @@ const std::string PALLAS_SPEC_BV = "pallas.boundVar";
 const std::string PALLAS_SPEC_FORALL = "pallas.forall";
 const std::string PALLAS_SPEC_SEPFORALL = "pallas.forallSep";
 const std::string PALLAS_SPEC_EXISTS = "pallas.exists";
+const std::string PALLAS_SPEC_UNFOLDING = "pallas.unfolding";
 
 // Legacy VCLLVM constants
 const std::string VC_PREFIX = "VC.";

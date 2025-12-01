@@ -89,7 +89,7 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_0i(i32 noundef %0) #3 !dbg 
 ; Function Attrs: mustprogress noinline uwtable
 define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_1i(i32 noundef %0) #0 !dbg !187 !pallas.exprWrapper !183 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !188, metadata !DIExpression()), !dbg !189
-  %2 = call noundef i32 @pallas.result.0(), !dbg !190
+  %2 = call noundef i32 @"pallas.result noundef i32"(), !dbg !190
   %3 = icmp sge i32 %2, 0, !dbg !191
   ret i1 %3, !dbg !189
 }
@@ -152,7 +152,7 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_2ii(i32 noundef %0, i32 nou
 define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_3ii(i32 noundef %0, i32 noundef %1) #0 !dbg !228 !pallas.exprWrapper !183 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !229, metadata !DIExpression()), !dbg !230
   call void @llvm.dbg.value(metadata i32 %1, metadata !231, metadata !DIExpression()), !dbg !230
-  %3 = call noundef i32 @pallas.result.0(), !dbg !232
+  %3 = call noundef i32 @"pallas.result noundef i32"(), !dbg !232
   %4 = icmp sge i32 %3, 0, !dbg !233
   ret i1 %4, !dbg !230
 }
@@ -160,7 +160,7 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_3ii(i32 noundef %0, i32 nou
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
 declare void @llvm.dbg.value(metadata, metadata, metadata) #1
 
-declare !pallas.specLib !234 noundef i32 @pallas.result.0()
+declare !pallas.specLib !234 noundef i32 @"pallas.result noundef i32"()
 
 attributes #0 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }

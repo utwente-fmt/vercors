@@ -60,7 +60,7 @@ define dso_local zeroext i1 @PALLAS_SPEC_0(i32 noundef %0, i32 noundef %1) #0 !d
 define dso_local zeroext i1 @PALLAS_SPEC_1(i32 noundef %0, i32 noundef %1) #0 !dbg !58 !pallas.exprWrapper !51 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !59, metadata !DIExpression()), !dbg !60
   call void @llvm.dbg.value(metadata i32 %1, metadata !61, metadata !DIExpression()), !dbg !60
-  %3 = call i32 @pallas.result.0(), !dbg !62
+  %3 = call i32 @"pallas.result i32"(), !dbg !62
   %4 = icmp sgt i32 %3, 0, !dbg !63
   ret i1 %4, !dbg !60
 }
@@ -84,7 +84,7 @@ define dso_local zeroext i1 @PALLAS_SPEC_2(i32 noundef %0, i32 noundef %1, i32 n
   ret i1 %4, !dbg !75
 }
 
-declare !pallas.specLib !79 i32 @pallas.result.0()
+declare !pallas.specLib !79 i32 @"pallas.result i32"()
 
 attributes #0 = { noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }

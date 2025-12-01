@@ -140,7 +140,7 @@ define dso_local zeroext i1 @PALLAS_SPEC_1(i32 noundef %0, i32 noundef %1, i32 n
   call void @llvm.dbg.value(metadata i32 %0, metadata !146, metadata !DIExpression()), !dbg !147
   call void @llvm.dbg.value(metadata i32 %1, metadata !148, metadata !DIExpression()), !dbg !147
   call void @llvm.dbg.value(metadata i32 %2, metadata !149, metadata !DIExpression()), !dbg !147
-  %4 = call i32 @pallas.result.0(), !dbg !150
+  %4 = call i32 @"pallas.result i32"(), !dbg !150
   %5 = mul nsw i32 %0, %1, !dbg !151
   %6 = add nsw i32 %5, %2, !dbg !152
   %7 = icmp sge i32 %4, %6, !dbg !153
@@ -167,7 +167,7 @@ define dso_local zeroext i1 @PALLAS_SPEC_2(i32 noundef %0, i32 noundef %1) #0 !d
 define dso_local zeroext i1 @PALLAS_SPEC_3(i32 noundef %0, i32 noundef %1) #0 !dbg !163 !pallas.exprWrapper !135 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !164, metadata !DIExpression()), !dbg !165
   call void @llvm.dbg.value(metadata i32 %1, metadata !166, metadata !DIExpression()), !dbg !165
-  %3 = call i32 @pallas.result.0(), !dbg !167
+  %3 = call i32 @"pallas.result i32"(), !dbg !167
   %4 = icmp sgt i32 %3, 0, !dbg !168
   ret i1 %4, !dbg !165
 }
@@ -276,7 +276,7 @@ define dso_local zeroext i1 @PALLAS_SPEC_12(i32 noundef %0, i32 noundef %1, i32 
   ret i1 %6, !dbg !237
 }
 
-declare !pallas.specLib !243 i32 @pallas.result.0()
+declare !pallas.specLib !243 i32 @"pallas.result i32"()
 
 declare !pallas.specLib !244 i1 @pallas.imply(i1, i1)
 

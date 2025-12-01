@@ -179,12 +179,12 @@ define dso_local zeroext i1 @PALLAS_SPEC_8(ptr noundef %0, i32 noundef %1) #0 !d
   %3 = alloca %pallas.fracT, align 8
   call void @llvm.dbg.value(metadata ptr %0, metadata !150, metadata !DIExpression()), !dbg !151
   call void @llvm.dbg.value(metadata i32 %1, metadata !152, metadata !DIExpression()), !dbg !151
-  %4 = call i32 @pallas.boundVar.0(ptr @.str), !dbg !153
+  %4 = call i32 @"pallas.boundVar i32"(ptr @.str), !dbg !153
   %5 = icmp sle i32 0, %4, !dbg !154
-  %6 = call i32 @pallas.boundVar.0(ptr @.str), !dbg !155
+  %6 = call i32 @"pallas.boundVar i32"(ptr @.str), !dbg !155
   %7 = icmp slt i32 %6, %1, !dbg !156
   %8 = call i1 @pallas.scAnd(i1 %5, i1 %7), !dbg !157
-  %9 = call i32 @pallas.boundVar.0(ptr @.str), !dbg !158
+  %9 = call i32 @"pallas.boundVar i32"(ptr @.str), !dbg !158
   %10 = sext i32 %9 to i64, !dbg !159
   %11 = getelementptr inbounds i32, ptr %0, i64 %10, !dbg !159
   call void @pallas.fracOf(ptr sret(%pallas.fracT) %3, i32 noundef 1, i32 noundef 1), !dbg !160
@@ -208,12 +208,12 @@ define dso_local zeroext i1 @PALLAS_SPEC_10(ptr noundef %0, i32 noundef %1) #0 !
   %3 = alloca %pallas.fracT, align 8
   call void @llvm.dbg.value(metadata ptr %0, metadata !171, metadata !DIExpression()), !dbg !172
   call void @llvm.dbg.value(metadata i32 %1, metadata !173, metadata !DIExpression()), !dbg !172
-  %4 = call i32 @pallas.boundVar.0(ptr @.str), !dbg !174
+  %4 = call i32 @"pallas.boundVar i32"(ptr @.str), !dbg !174
   %5 = icmp sle i32 0, %4, !dbg !175
-  %6 = call i32 @pallas.boundVar.0(ptr @.str), !dbg !176
+  %6 = call i32 @"pallas.boundVar i32"(ptr @.str), !dbg !176
   %7 = icmp slt i32 %6, %1, !dbg !177
   %8 = call i1 @pallas.scAnd(i1 %5, i1 %7), !dbg !178
-  %9 = call i32 @pallas.boundVar.0(ptr @.str), !dbg !179
+  %9 = call i32 @"pallas.boundVar i32"(ptr @.str), !dbg !179
   %10 = sext i32 %9 to i64, !dbg !180
   %11 = getelementptr inbounds i32, ptr %0, i64 %10, !dbg !180
   call void @pallas.fracOf(ptr sret(%pallas.fracT) %3, i32 noundef 1, i32 noundef 1), !dbg !181
@@ -226,12 +226,12 @@ define dso_local zeroext i1 @PALLAS_SPEC_10(ptr noundef %0, i32 noundef %1) #0 !
 define dso_local zeroext i1 @PALLAS_SPEC_11(ptr noundef %0, i32 noundef %1) #0 !dbg !184 !pallas.exprWrapper !77 {
   call void @llvm.dbg.value(metadata ptr %0, metadata !185, metadata !DIExpression()), !dbg !186
   call void @llvm.dbg.value(metadata i32 %1, metadata !187, metadata !DIExpression()), !dbg !186
-  %3 = call i32 @pallas.boundVar.0(ptr @.str), !dbg !188
+  %3 = call i32 @"pallas.boundVar i32"(ptr @.str), !dbg !188
   %4 = icmp sle i32 0, %3, !dbg !189
-  %5 = call i32 @pallas.boundVar.0(ptr @.str), !dbg !190
+  %5 = call i32 @"pallas.boundVar i32"(ptr @.str), !dbg !190
   %6 = icmp slt i32 %5, %1, !dbg !191
   %7 = call i1 @pallas.scAnd(i1 %4, i1 %6), !dbg !192
-  %8 = call i32 @pallas.boundVar.0(ptr @.str), !dbg !193
+  %8 = call i32 @"pallas.boundVar i32"(ptr @.str), !dbg !193
   %9 = sext i32 %8 to i64, !dbg !194
   %10 = getelementptr inbounds i32, ptr %0, i64 %9, !dbg !194
   %11 = load i32, ptr %10, align 4, !dbg !194
@@ -261,7 +261,7 @@ declare !pallas.specLib !204 i1 @pallas.exists(i1, i1)
 
 declare !pallas.specLib !205 i1 @pallas.scAnd(i1, i1)
 
-declare !pallas.specLib !206 i32 @pallas.boundVar.0(ptr)
+declare !pallas.specLib !206 i32 @"pallas.boundVar i32"(ptr)
 
 attributes #0 = { noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }

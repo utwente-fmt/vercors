@@ -55,7 +55,7 @@ define dso_local zeroext i1 @PALLAS_SPEC_0(i32 noundef %0) #0 !dbg !56 !pallas.e
 ; Function Attrs: noinline nounwind uwtable
 define dso_local zeroext i1 @PALLAS_SPEC_1(i32 noundef %0) #0 !dbg !64 !pallas.exprWrapper !60 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !65, metadata !DIExpression()), !dbg !66
-  %2 = call i32 @pallas.result.0(), !dbg !67
+  %2 = call i32 @"pallas.result i32"(), !dbg !67
   %3 = mul nsw i32 %0, %0, !dbg !68
   %4 = icmp eq i32 %2, %3, !dbg !69
   ret i1 %4, !dbg !66
@@ -92,7 +92,7 @@ define dso_local zeroext i1 @PALLAS_SPEC_2(i32 noundef %0, i32 noundef %1, i32 n
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
 declare void @llvm.dbg.value(metadata, metadata, metadata) #1
 
-declare !pallas.specLib !91 i32 @pallas.result.0()
+declare !pallas.specLib !91 i32 @"pallas.result i32"()
 
 attributes #0 = { noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
