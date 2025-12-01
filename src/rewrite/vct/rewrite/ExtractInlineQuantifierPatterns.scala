@@ -93,10 +93,13 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
       case i: InlinePattern[Pre] =>
         if (patterns.toSeq.isDefinedAt(i.parent)) {
           // We only inline let bindings defined inside the current quantifier
-          patterns.toSeq(i.parent) +=
-            Pattern(i.group, i.inner, letBindings.top.toSeq.toMap)
-        }
-        dispatch(i.inner)
+          val pattern = Pattern(i.group, i.inner, letBindings.top.toSeq.toMap)
+          patterns.toSeq(i.parent) += pattern
+          // Dispatch for the inner, maybe it contains more triggers?
+          dispatch(i.inner)
+          // But return the made pattern, which inlined the lets.
+          pattern.make()
+        } else { dispatch(i.inner) }
       case q: TriggeredQuantifier[Pre] =>
         lazy val bodyTriggers = getTriggers(q)
         q.rewrite(
