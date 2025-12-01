@@ -96,14 +96,13 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = assignO
     val newTarget = dispatch(target)
     val newValue = dispatch(value)
-    val newPointer = Eval(
-      PreAssignExpression(
+    val newPointer =
+      Assign(
         newTarget,
         NewNonNullPointer(newValue.t, const[Post](1), None)(PanicBlame(
           "Size is > 0"
         )),
       )(blame)
-    )
     (newPointer, newTarget, newValue)
   }
 }

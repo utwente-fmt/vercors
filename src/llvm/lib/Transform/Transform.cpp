@@ -337,7 +337,8 @@ bool llvm2col::transformAndSetCompositeTypeWithDebugInfo(
                 field->set_size(
                     pallas::utils::stripIgnored(member->getBaseType())
                         ->getSizeInBits());
-                field->set_allocated_origin(generateDITypeOrigin(*member));
+                field->set_allocated_origin(
+                    generateStructMemberOrigin(*member));
                 llvm2col::transformAndSetTypeWithDebugInfo(
                     nullptr, member->getBaseType(), *field->mutable_t(),
                     dataLayout);
@@ -397,7 +398,8 @@ bool llvm2col::transformAndSetCompositeTypeWithDebugInfo(
             if (diMember == nullptr) {
                 field->set_allocated_origin(generateTypeOrigin(*llvmMember));
             } else {
-                field->set_allocated_origin(generateDITypeOrigin(*diMember));
+                field->set_allocated_origin(
+                    generateStructMemberOrigin(*diMember));
             }
             llvm2col::transformAndSetTypeWithDebugInfo(
                 llvmMember,

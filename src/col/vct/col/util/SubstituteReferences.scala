@@ -55,7 +55,6 @@ case class SubstituteReferences[G](subs: Map[Object, Object])
       case Sender(Ref(s)) => Sender(substitute(s))
       case Receiver(Ref(r)) => Receiver(substitute(r))
       case Message(Ref(m)) => Message(substitute(m))
-      case LLVMOld(Ref(v)) => LLVMOld(substitute(v))
       case _ => e.rewriteDefault()
     }
   }

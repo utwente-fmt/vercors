@@ -131,24 +131,38 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
       s.isLiteral,
       s.elements.zip(o.elements).map {
         case (
-              f @ LLVMFieldDefinition(offset, size, l: LLVMTStruct[Pre]),
-              LLVMFieldDefinition(_, _, r: LLVMTStruct[Pre]),
+              lf @ LLVMFieldDefinition(offset, size, l: LLVMTStruct[Pre]),
+              rf @ LLVMFieldDefinition(_, _, r: LLVMTStruct[Pre]),
             ) =>
-          LLVMFieldDefinition(offset, size, structUnion(l, r))(f.o)
+          LLVMFieldDefinition(offset, size, structUnion(l, r))(
+            if (
+              rf.o.getPreferredNameOrElse(Seq("t_struct")).snake == "t_struct"
+            ) { lf.o }
+            else { rf.o }
+          )
         case (
-              f @ LLVMFieldDefinition(offset, size, LLVMTInt(_)),
-              LLVMFieldDefinition(_, _, b @ TBool()),
+              LLVMFieldDefinition(offset, size, LLVMTInt(_)),
+              rf @ LLVMFieldDefinition(_, _, b @ TBool()),
             ) =>
-          LLVMFieldDefinition(offset, size, b)(f.o)
+          LLVMFieldDefinition(offset, size, b)(rf.o)
         case (
-              f @ LLVMFieldDefinition(offset, size, b @ TBool()),
+              lf @ LLVMFieldDefinition(offset, size, b @ TBool()),
               LLVMFieldDefinition(_, _, LLVMTInt(_)),
             ) =>
-          LLVMFieldDefinition(offset, size, b)(f.o)
-        case (l, _) => l
+          LLVMFieldDefinition(offset, size, b)(lf.o)
+        case (l, r) =>
+          LLVMFieldDefinition(l.offset, l.size, l.t)(
+            if (
+              r.o.getPreferredNameOrElse(Seq("t_unknown")).snake
+                .startsWith("t_")
+            ) { l.o }
+            else { r.o }
+          )
       },
       s.sizeInBits,
-    )(s.o)
+    )(if (o.o.getPreferredNameOrElse(Seq("t_struct")).snake == "t_struct") {
+      s.o
+    } else { o.o })
   }
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
@@ -182,7 +196,7 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
       }
     }
 
-    structTypeMap.foreach { case (k, v) => logger.info(f"`$k`: `$v`") }
+    structTypeMap.foreach { case (k, v) => logger.debug(f"`$k`: `$v`") }
     super.dispatch(program)
   }
 

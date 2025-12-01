@@ -425,6 +425,7 @@ case object CoercionUtils {
       case (TCInt(), TInt()) => CoerceCIntInt(source)
       case (LLVMTInt(_), TInt()) => CoerceLLVMIntInt()
       case (TInt(), LLVMTInt(_)) => CoerceIdentity(target)
+      case (LLVMTInt(_), TBool()) => CoerceLLVMIntBool()
       case (l @ LLVMTFloat(_), TFloat(mantissa, exponent))
           if l.mantissa == mantissa && l.exponent == exponent =>
         CoerceIdentity(target)

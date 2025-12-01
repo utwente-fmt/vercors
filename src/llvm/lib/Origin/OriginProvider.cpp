@@ -554,6 +554,17 @@ col::Origin *llvm2col::generateDITypeOrigin(llvm::DIType &debugType) {
 }
 
 col::Origin *
+llvm2col::generateStructMemberOrigin(llvm::DIDerivedType &memberType) {
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name(memberType.getName());
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    return origin;
+}
+
+col::Origin *
 llvm2col::generateMemoryOrderingOrigin(llvm::AtomicOrdering &llvmOrdering) {
     col::Origin *origin = new col::Origin();
     col::OriginContent *preferredNameContent = origin->add_content();

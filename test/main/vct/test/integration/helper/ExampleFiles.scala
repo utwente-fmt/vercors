@@ -61,7 +61,8 @@ case object ExampleFiles {
     "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.h",
     "examples/concepts/llvm/pallas/extContracts/pallas_c_genContrAssume.c",
     "examples/concepts/llvm/pallas/extContracts/pallas_cpp_genContr.cpp",
-    "examples/concepts/llvm/pointer_casts.c"
+    "examples/concepts/llvm/pointer_casts.c",
+    "examples/concepts/llvm/structs.c"
   ).map(_.replaceAll("/", File.separator))
 
   val EXCLUSIONS: Seq[Path => Boolean] = Seq(

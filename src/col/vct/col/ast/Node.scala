@@ -1328,6 +1328,8 @@ final case class CoerceZFracFrac[G]()(implicit val o: Origin)
 
 final case class CoerceLLVMIntInt[G]()(implicit val o: Origin)
     extends Coercion[G] with CoerceLLVMIntIntImpl[G]
+final case class CoerceLLVMIntBool[G]()(implicit val o: Origin)
+    extends Coercion[G] with CoerceLLVMIntBoolImpl[G]
 
 @family
 sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
@@ -4131,7 +4133,7 @@ final case class LLVMIntermediaryResult[G](
 )(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMIntermediaryResultImpl[G]
 
-final case class LLVMOld[G](v: Ref[G, Variable[G]])(implicit val o: Origin)
+final case class LLVMOld[G](v: Expr[G])(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMOldImpl[G]
 
 final case class LLVMFracOf[G](
@@ -4141,35 +4143,26 @@ final case class LLVMFracOf[G](
 )(val blame: Blame[DivByZero])(implicit val o: Origin)
     extends ExceptionalStatement[G] with LLVMFracOfImpl[G]
 
-final case class LLVMPerm[G](
-    loc: Ref[G, Variable[G]],
-    perm: Ref[G, Variable[G]],
-)(val blame: Blame[PointerDerefError])(implicit val o: Origin)
+final case class LLVMPerm[G](loc: Expr[G], perm: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMPermImpl[G]
 
-final case class LLVMImplies[G](
-    left: Ref[G, Variable[G]],
-    right: Ref[G, Variable[G]],
-)(implicit val o: Origin)
-    extends LLVMExpr[G] with LLVMImpliesImpl[G]
+final case class LLVMImplies[G](left: Expr[G], right: Expr[G])(
+    implicit val o: Origin
+) extends LLVMExpr[G] with LLVMImpliesImpl[G]
 
-final case class LLVMAnd[G](
-    left: Ref[G, Variable[G]],
-    right: Ref[G, Variable[G]],
-)(implicit val o: Origin)
-    extends LLVMExpr[G] with LLVMAndImpl[G]
+final case class LLVMAnd[G](left: Expr[G], right: Expr[G])(
+    implicit val o: Origin
+) extends LLVMExpr[G] with LLVMAndImpl[G]
 
-final case class LLVMOr[G](
-    left: Ref[G, Variable[G]],
-    right: Ref[G, Variable[G]],
-)(implicit val o: Origin)
-    extends LLVMExpr[G] with LLVMOrImpl[G]
+final case class LLVMOr[G](left: Expr[G], right: Expr[G])(
+    implicit val o: Origin
+) extends LLVMExpr[G] with LLVMOrImpl[G]
 
-final case class LLVMStar[G](
-    left: Ref[G, Variable[G]],
-    right: Ref[G, Variable[G]],
-)(implicit val o: Origin)
-    extends LLVMExpr[G] with LLVMStarImpl[G]
+final case class LLVMStar[G](left: Expr[G], right: Expr[G])(
+    implicit val o: Origin
+) extends LLVMExpr[G] with LLVMStarImpl[G]
 
 final case class LLVMBoundVar[G](id: String, varType: Type[G])(
     implicit val o: Origin
@@ -4190,20 +4183,19 @@ final case class LLVMExists[G](bindingExpr: Expr[G], bodyExpr: Expr[G])(
     implicit val o: Origin
 ) extends LLVMQuantifier[G] with LLVMExistsImpl[G]
 
-final case class LLVMPtrBlockLength[G](ptr: Ref[G, Variable[G]])(
+final case class LLVMPtrBlockLength[G](ptr: Expr[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
     extends Expr[G] with LLVMPtrBlockLengthImpl[G]
 
-final case class LLVMPtrBlockOffset[G](ptr: Ref[G, Variable[G]])(
+final case class LLVMPtrBlockOffset[G](ptr: Expr[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
     extends Expr[G] with LLVMPtrBlockOffsetImpl[G]
 
-final case class LLVMPtrLength[G](ptr: Ref[G, Variable[G]])(
-    val blame: Blame[PointerNull]
-)(implicit val o: Origin)
-    extends Expr[G] with LLVMPtrLengthImpl[G]
+final case class LLVMPtrLength[G](ptr: Expr[G])(val blame: Blame[PointerNull])(
+    implicit val o: Origin
+) extends Expr[G] with LLVMPtrLengthImpl[G]
 
 @family
 sealed trait LLVMMemoryOrdering[G]

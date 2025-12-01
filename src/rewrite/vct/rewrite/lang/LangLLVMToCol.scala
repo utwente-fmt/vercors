@@ -91,6 +91,14 @@ case object LangLLVMToCol {
       memset.o.messageInContext(s"Unsupported memset operation")
   }
 
+  private final case class UnsupportedMemcpy(memcpy: LLVMMemcpy[_])
+      extends UserError {
+    override def code: String = "unsupportedMemcpy"
+
+    override def text: String =
+      memcpy.o.messageInContext(s"Unsupported memcpy operation")
+  }
+
   private final case class InvalidPointerEquality(
       o: Origin,
       lt: Type[_],
@@ -206,22 +214,32 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   // Return type of the LLVMFunction that is currently rewritten
   private val funcRetType: ScopedStack[Type[Post]] = ScopedStack()
 
+  private var heapVariables: Seq[Variable[Pre]] = Seq()
+
+  private val heapVariableSucc
+      : SuccessionMap[Variable[Pre], LocalHeapVariable[Post]] = SuccessionMap()
+
   def gatherPallasTypeSubst(program: Program[Pre]): Unit = {
     // Get all variables that are assigned a new type directly
     program.collect {
       // Resource
       case Assign(Local(Ref(v)), LLVMPerm(_, _)) =>
         typeSubstitutions(v) = TResource()
-      case Assign(Local(Ref(v)), LLVMStar(Ref(left), Ref(right))) =>
+      case Assign(
+            Local(Ref(v)),
+            LLVMStar(Local(Ref(left)), Local(Ref(right))),
+          ) =>
         typeSubstitutions(v) = TResource()
         typeSubstitutions(left) = TResource()
         typeSubstitutions(right) = TResource()
-      case Assign(Local(Ref(v)), LLVMImplies(Ref(left), Ref(right)))
-          if typeSubstitutions.get(right).contains(TResource[Pre]()) =>
+      case Assign(
+            Local(Ref(v)),
+            LLVMImplies(Local(Ref(left)), Local(Ref(right))),
+          ) if typeSubstitutions.get(right).contains(TResource[Pre]()) =>
         typeSubstitutions(v) = TResource()
       // Rational
       case LLVMFracOf(Ref(v), _, _) => typeSubstitutions(v) = TRational()
-      case LLVMPerm(_, Ref(v)) => typeSubstitutions(v) = TRational()
+      case LLVMPerm(_, Local(Ref(v))) => typeSubstitutions(v) = TRational()
       // Tuples
       case op: LLVMArithOpWithOverflow[Pre] =>
         op.target match {
@@ -245,11 +263,19 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         case Assign(Local(Ref(targetVar)), Local(Ref(sourceVar))) =>
           typeSubstitutions.get(sourceVar)
             .foreach(sT => typeSubstitutions(targetVar) = sT)
-        case Assign(Local(Ref(v)), LLVMImplies(Ref(left), Ref(right)))
-            if typeSubstitutions.get(right).contains(TResource[Pre]()) =>
+        case Assign(
+              Local(Ref(v)),
+              LLVMImplies(Local(Ref(left)), Local(Ref(right))),
+            ) if typeSubstitutions.get(right).contains(TResource[Pre]()) =>
           typeSubstitutions(v) = TResource()
       }
     }
+  }
+
+  // We're lifitng all AllocA'd variables to heap variables
+  def gatherHeapVariables(program: Program[Pre]): Unit = {
+    heapVariables =
+      program.collect { case LLVMAllocA(Ref(v), _, n) => Seq(v) }.flatten
   }
 
   def gatherBackEdges(program: Program[Pre]): Unit = {
@@ -387,10 +413,6 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         var currentType: Type[Pre],
     ) {
       def add(dependencies: Set[Object], inferType: Unit => Type[Pre]): Unit = {
-        if (
-          inferType().toString.contains("point") &&
-          currentType.toString.contains("polygon")
-        ) { logger.info("Oh no") }
         depends.addAll(dependencies)
         getGuesses.addOne(inferType)
       }
@@ -522,7 +544,19 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               )),
           )
         )
-        addTypeGuess(load.variable.decl, Set.empty, _ => load.variable.decl.t)
+        addTypeGuess(load.variable.decl, Set.empty, _ => load.loadType)
+        // We don't want to override loads of a primitive type (we might not have permission to load more than the first field)
+        if (load.loadType.asPointer.isDefined) {
+          val dependencies = findDependencies(load.pointer)
+          addTypeGuess(
+            load.variable.decl,
+            dependencies,
+            _ =>
+              replaceWithGuesses(load.pointer, dependencies).t
+                .asInstanceOf[LLVMTPointer[Pre]].innerType
+                .getOrElse(load.variable.decl.t),
+          )
+        }
       case store: LLVMStore[Pre] =>
         val dependencies = findDependencies(store.value)
         getVariable(store.pointer).foreach(v =>
@@ -535,19 +569,25 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               ),
           )
         )
-        getVariable(store.value).foreach(v =>
-          getVariable(store.pointer).foreach(p =>
-            addTypeGuess(
-              v,
-              Set(p),
-              _ =>
-                typeGuesses.get(p).map(_.currentType) match {
-                  case Some(LLVMTPointer(Some(innerType))) => innerType
-                  case _ => store.value.t
-                },
+        getVariable(store.value)
+          .foreach(v => addTypeGuess(v, Set.empty, _ => store.value.t))
+
+        // We don't want to override stores of a primitive type (storing more than the first field is changing the semantics)
+        if (store.value.t.asPointer.isDefined) {
+          getVariable(store.value).foreach(v =>
+            getVariable(store.pointer).foreach(p =>
+              addTypeGuess(
+                v,
+                Set(p),
+                _ =>
+                  typeGuesses.get(p).map(_.currentType) match {
+                    case Some(LLVMTPointer(Some(innerType))) => innerType
+                    case _ => store.value.t
+                  },
+              )
             )
           )
-        )
+        }
       case inv: LLVMFunctionInvocation[Pre] =>
         val calledFunc = inv.ref.decl
         val isWrapperFunc = calledFunc.pallasExprWrapperFor.isDefined
@@ -587,7 +627,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             }
           }
       // Propagate pointer types across \old
-      case Assign(Local(Ref(tVar)), LLVMOld(Ref(sVar))) =>
+      case Assign(Local(Ref(tVar)), LLVMOld(Local(Ref(sVar)))) =>
         addTypeGuess(
           tVar,
           Set(sVar),
@@ -624,9 +664,24 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
-  def rewriteLocal(local: LLVMLocal[Pre]): Expr[Post] = {
+  def rewriteLocal(local: Local[Pre]): Expr[Post] = {
     implicit val o: Origin = local.o
-    Local(rw.succ(local.ref.get.decl))
+    val v = local.ref.decl
+    if (
+      (inWrapperFunction.isEmpty || !inWrapperFunction.top) &&
+      heapVariables.contains(v)
+    ) { HeapLocal(heapVariableSucc.ref(v)) }
+    else { Local(rw.succ(v)) }
+  }
+
+  def rewriteNamedLocal(local: LLVMLocal[Pre]): Expr[Post] = {
+    implicit val o: Origin = local.o
+    val v = local.ref.get.decl
+    if (
+      (inWrapperFunction.isEmpty || !inWrapperFunction.top) &&
+      heapVariables.contains(v)
+    ) { HeapLocal(heapVariableSucc.ref(v)) }
+    else { Local(rw.succ(v)) }
   }
 
   /** Return the type of the given variable after applying type-substitutions
@@ -638,7 +693,14 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteLocalVariable(v: Variable[Pre]): Unit = {
     implicit val o: Origin = v.o
-    rw.variables.succeed(v, new Variable[Post](rw.dispatch(getLocalVarType(v))))
+    // Need to check for wrapper functions since there alloca is skipped
+    if (
+      (!inWrapperFunction.isEmpty && inWrapperFunction.top) ||
+      !heapVariables.contains(v)
+    ) {
+      rw.variables
+        .succeed(v, new Variable[Post](rw.dispatch(getLocalVarType(v))))
+    }
   }
 
   def rewriteFunctionDef(func: LLVMFunctionDefinition[Pre]): Unit = {
@@ -1212,10 +1274,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteZeroExtend(zext: LLVMZeroExtend[Pre]): Expr[Post] = {
     implicit val o: Origin = zext.o
     // As long as we don't support integers as bitvectors this is mostly a no-op
-    (zext.inputType, zext.outputType) match {
-      // Both sides should become TInt, or bools should stay bools
-      case (LLVMTInt(_), LLVMTInt(_)) | (TBool(), LLVMTInt(_)) =>
-        rw.dispatch(zext.value)
+    (getInferredType(zext.value), zext.outputType) match {
+      // Both sides should become TInt
+      case (LLVMTInt(_), LLVMTInt(_)) => rw.dispatch(zext.value)
+      case (TBool(), LLVMTInt(_)) =>
+        Select(rw.dispatch(zext.value), const(1), const(0))
       case (_, _) => throw UnsupportedZeroExtension(zext)
     }
   }
@@ -1223,11 +1286,12 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteTruncate(trunc: LLVMTruncate[Pre]): Expr[Post] = {
     implicit val o: Origin = trunc.o
     // As long as we don't support integers as bitvectors this is mostly a no-op
-    (trunc.inputType, trunc.outputType) match {
+    (getInferredType(trunc.value), trunc.outputType) match {
       // Both sides should become TInt
       case (LLVMTInt(_), LLVMTInt(_)) => rw.dispatch(trunc.value)
       case (LLVMTInt(_), TBool()) =>
         Select(rw.dispatch(trunc.value) === const(0), ff, tt)
+      case (TBool(), TBool()) => rw.dispatch(trunc.value)
       case (_, _) => throw UnsupportedTruncate(trunc)
     }
   }
@@ -1557,20 +1621,44 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       // Skip the initialization if we are in a wrapper function.
       return Block(Seq())
     }
-    allocaVars.top.add(alloc.variable.decl)
 
     val t =
       localVariableInferredType.getOrElse(alloc.variable.decl, alloc.returnType)
         .asPointer.get.element
     val newT = rw.dispatch(t)
-    val v = Local[Post](rw.succ(alloc.variable.decl))
-    val elements = rw.dispatch(alloc.numElements)
-    assignLocal(
-      v,
-      NewNonNullPointer[Post](newT, elements, None)(PanicBlame(
-        "allocation should never fail"
-      )),
-    )
+
+    if (heapVariables.contains(alloc.variable.decl)) {
+      val lhv = new LocalHeapVariable(TNonNullPointer(newT, None))
+      heapVariableSucc(alloc.variable.decl) = lhv
+      val decl = HeapLocalDecl(lhv)
+      t match {
+        case arr: LLVMTArray[Pre] =>
+          val newArrT = arrayType(arr)
+          val pb = PanicBlame("Just allocated pointer should be assignable")
+          Block(Seq(
+            decl,
+            Assign(
+              lhv.get(pb),
+              NewPointerArray(
+                newArrT.element,
+                newArrT.dimensions.map(_.get),
+                None,
+              )(PanicBlame("Invalid array size allocation")),
+            )(pb),
+          ))
+        case _ => decl
+      }
+    } else {
+      allocaVars.top.add(alloc.variable.decl)
+      val v = Local[Post](rw.succ(alloc.variable.decl))
+      val elements = rw.dispatch(alloc.numElements)
+      assignLocal(
+        v,
+        NewNonNullPointer[Post](newT, elements, None)(PanicBlame(
+          "allocation should never fail"
+        )),
+      )
+    }
   }
 
   def rewriteMemset(memset: LLVMMemset[Pre]): Statement[Post] = {
@@ -1608,7 +1696,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
-  def memsetStruct(
+  private def memsetStruct(
       memset: LLVMMemset[Pre],
       structType: LLVMTStruct[Pre],
   ): Statement[Post] = {
@@ -1631,6 +1719,56 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         )(memset.blame)
     }
     Block(fieldAssignments)
+  }
+
+  def rewriteMemcpy(memcpy: LLVMMemcpy[Pre]): Statement[Post] = {
+    implicit val o: Origin = memcpy.o
+
+    val srcType = getInferredType(memcpy.src).asPointer.get.element
+    val dstType = getInferredType(memcpy.dst).asPointer.get.element
+    if (srcType != dstType)
+      throw UnsupportedMemcpy(memcpy)
+
+    // TODO: Array case should be done with some memcpy function (such that we can return a different heap, assume would just lead to inconsistencies)
+    srcType match {
+      case s: LLVMTStruct[Pre] =>
+        memcpyStruct(
+          memcpy,
+          rw.dispatch(memcpy.src),
+          rw.dispatch(memcpy.dst),
+          s,
+        )
+      case _ => throw UnsupportedMemcpy(memcpy)
+    }
+  }
+
+  private def memcpyStruct(
+      memcpy: LLVMMemcpy[Pre],
+      src: Expr[Post],
+      dst: Expr[Post],
+      s: LLVMTStruct[Pre],
+  ): Statement[Post] = {
+    implicit val o: Origin = memcpy.o
+
+    Block[Post](s.elements.zipWithIndex.map { case (f, i) =>
+      val srcField =
+        Deref[Post](
+          DerefPointer[Post](src)(memcpy.blame),
+          structFieldMap.ref((s, i)),
+        )(memcpy.blame)
+      val dstField =
+        Deref[Post](
+          DerefPointer[Post](dst)(memcpy.blame),
+          structFieldMap.ref((s, i)),
+        )(memcpy.blame)
+      f.t match {
+        case inner: LLVMTStruct[Pre] =>
+          memcpyStruct(memcpy, srcField, dstField, inner)
+        case _: LLVMTArray[Pre] | _: LLVMTVector[Pre] =>
+          throw UnsupportedMemcpy(memcpy)
+        case _ => Assign(dstField, srcField)(memcpy.blame)
+      }
+    })
   }
 
   def rewritePointerValue(pointer: LLVMPointerValue[Pre]): Expr[Post] = {
@@ -1663,86 +1801,77 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     requireInWrapper(fracOf)
     implicit val o: Origin = fracOf.o
     // fracOf(v, num, denom) --> v = num / denom.
-    assignLocal(
-      Local(rw.succ(fracOf.sret.decl)),
+    val value =
       new RatDiv[Post](rw.dispatch(fracOf.num), rw.dispatch(fracOf.denom))(
         fracOf.blame
-      ),
-    )
+      )
+    if (
+      (inWrapperFunction.isEmpty || !inWrapperFunction.top) &&
+      heapVariables.contains(fracOf.sret.decl)
+    ) {
+      Assign(HeapLocal[Post](heapVariableSucc.ref(fracOf.sret.decl)), value)(
+        AssignLocalOk
+      )
+    } else { assignLocal(Local[Post](rw.succ(fracOf.sret.decl)), value) }
   }
 
   def rewritePerm(llvmPerm: LLVMPerm[Pre]): Expr[Post] = {
     requireInWrapper(llvmPerm)
     implicit val o: Origin = llvmPerm.o
-    val locExpr = Local[Post](rw.succ(llvmPerm.loc.decl))
     Perm[Post](
-      AmbiguousLocation[Post](DerefPointer(locExpr)(llvmPerm.blame)),
-      Local[Post](rw.succ(llvmPerm.perm.decl)),
+      AmbiguousLocation[Post](
+        DerefPointer(rw.dispatch(llvmPerm.loc))(llvmPerm.blame)
+      ),
+      rw.dispatch(llvmPerm.perm),
     )
   }
 
   def rewritePtrBlockLength(llvmPBL: LLVMPtrBlockLength[Pre]): Expr[Post] = {
     requireInWrapper(llvmPBL)
     implicit val o: Origin = llvmPBL.o
-    PointerBlockLength[Post](Local[Post](rw.succ(llvmPBL.ptr.decl)))(
-      llvmPBL.blame
-    )
+    PointerBlockLength[Post](rw.dispatch(llvmPBL.ptr))(llvmPBL.blame)
   }
 
   def rewritePtrBlockOffset(llvmPBO: LLVMPtrBlockOffset[Pre]): Expr[Post] = {
     requireInWrapper(llvmPBO)
     implicit val o: Origin = llvmPBO.o
-    PointerBlockOffset[Post](Local[Post](rw.succ(llvmPBO.ptr.decl)))(
-      llvmPBO.blame
-    )
+    PointerBlockOffset[Post](rw.dispatch(llvmPBO.ptr))(llvmPBO.blame)
   }
 
   def rewritePtrLength(llvmPL: LLVMPtrLength[Pre]): Expr[Post] = {
     requireInWrapper(llvmPL)
     implicit val o: Origin = llvmPL.o
-    PointerLength[Post](Local[Post](rw.succ(llvmPL.ptr.decl)))(llvmPL.blame)
+    PointerLength[Post](rw.dispatch(llvmPL.ptr))(llvmPL.blame)
   }
 
   def rewriteImplies(llvmImply: LLVMImplies[Pre]): Expr[Post] = {
     requireInWrapper(llvmImply)
     implicit val o: Origin = llvmImply.o
-    Implies[Post](
-      Local[Post](rw.succ(llvmImply.left.decl)),
-      Local[Post](rw.succ(llvmImply.right.decl)),
-    )
+    Implies[Post](rw.dispatch(llvmImply.left), rw.dispatch(llvmImply.right))
   }
 
   def rewriteAnd(llvmAnd: LLVMAnd[Pre]): Expr[Post] = {
     requireInWrapper(llvmAnd)
     implicit val o: Origin = llvmAnd.o
-    And[Post](
-      Local[Post](rw.succ(llvmAnd.left.decl)),
-      Local[Post](rw.succ(llvmAnd.right.decl)),
-    )
+    And[Post](rw.dispatch(llvmAnd.left), rw.dispatch(llvmAnd.right))
   }
 
   def rewriteOr(llvmOr: LLVMOr[Pre]): Expr[Post] = {
     requireInWrapper(llvmOr)
     implicit val o: Origin = llvmOr.o
-    Or[Post](
-      Local[Post](rw.succ(llvmOr.left.decl)),
-      Local[Post](rw.succ(llvmOr.right.decl)),
-    )
+    Or[Post](rw.dispatch(llvmOr.left), rw.dispatch(llvmOr.right))
   }
 
   def rewriteStar(llvmStar: LLVMStar[Pre]): Expr[Post] = {
     requireInWrapper(llvmStar)
     implicit val o: Origin = llvmStar.o
-    Star[Post](
-      Local[Post](rw.succ(llvmStar.left.decl)),
-      Local[Post](rw.succ(llvmStar.right.decl)),
-    )
+    Star[Post](rw.dispatch(llvmStar.left), rw.dispatch(llvmStar.right))
   }
 
   def rewriteOld(llvmOld: LLVMOld[Pre]): Expr[Post] = {
     requireInWrapper(llvmOld)
     implicit val o: Origin = llvmOld.o
-    LLVMOld[Post](rw.succ(llvmOld.v.decl))
+    LLVMOld[Post](rw.dispatch(llvmOld.v))
   }
 
   def correctPointerComparison[T <: Expr[Post]](
@@ -2061,8 +2190,18 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case None => TPointer[Post](TVoid(), None)(t.o)
     }
 
-  def arrayType(t: LLVMTArray[Pre]): Type[Post] =
-    TPointer(rw.dispatch(t.elementType), None)(t.o)
+  def arrayType(t: LLVMTArray[Pre]): TPointerArray[Post] = {
+    var current: Type[Pre] = t
+    var dimensions = Seq[Expr[Post]]()
+    while (current.isInstanceOf[LLVMTArray[Pre]]) {
+      val LLVMTArray(elems, inner) = current
+      dimensions = dimensions :+ const[Post](elems)(inner.o)
+      current = inner
+    }
+    TPointerArray[Post](rw.dispatch(current), dimensions.map(Some(_)), None)(
+      t.o
+    )
+  }
 
   def vectorType(t: LLVMTVector[Pre]): Type[Post] =
     TPointer(rw.dispatch(t.elementType), None)(t.o)
