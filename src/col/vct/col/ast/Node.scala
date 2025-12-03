@@ -803,6 +803,7 @@ final class Predicate[G](
     val body: Option[Expr[G]],
     val threadLocal: Boolean = false,
     val inline: Boolean = false,
+    val pallasPredicate: Boolean = false,
 )(implicit val o: Origin)
     extends GlobalDeclaration[G] with AbstractPredicate[G] with PredicateImpl[G]
 final class Enum[G](val constants: Seq[EnumConstant[G]])(implicit val o: Origin)
@@ -3902,6 +3903,18 @@ final class LLVMGlobalVariable[G](
 )(implicit val o: Origin)
     extends GlobalDeclaration[G] with LLVMGlobalVariableImpl[G]
 
+@family
+sealed trait LLVMFunctionType[G]
+    extends NodeFamily[G] with LLVMFunctionTypeImpl[G]
+
+final case class NormalFunction[G]()(implicit val o: Origin)
+    extends LLVMFunctionType[G] with NormalFunctionImpl[G]
+final case class WrapperFunction[G]()(implicit val o: Origin)
+    extends LLVMFunctionType[G] with WrapperFunctionImpl[G]
+final case class PredicateDefinition[G](val inlined: Boolean)(
+    implicit val o: Origin
+) extends LLVMFunctionType[G] with PredicateDefinitionImpl[G]
+
 sealed trait LLVMCallable[G] extends GlobalDeclaration[G]
 @scopes[LabelDecl]
 final class LLVMFunctionDefinition[G](
@@ -3913,9 +3926,7 @@ final class LLVMFunctionDefinition[G](
     // If the result is returned in an sret-argument, this contains the index
     // and the type of the sret-argument.
     val returnInParam: Option[(Int, Type[G])] = None,
-    // If this function is a wrapper function for an expression of a
-    // pallas specification of a function F, then this field references F.
-    val pallasExprWrapperFor: Option[Ref[G, LLVMFunctionDefinition[G]]],
+    val functionType: LLVMFunctionType[G],
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends LLVMCallable[G]
     with Applicable[G]
@@ -3923,6 +3934,18 @@ final class LLVMFunctionDefinition[G](
   var importedArguments: Option[Seq[Variable[G]]] = None
   var importedReturnType: Option[Type[G]] = None
 }
+// Intermediary node for LLVM-predicates where the body has not yet been turned into an expression.
+@scopes[Variable]
+@scopes[LocalHeapVariable]
+final class LLVMPredicateDefinition[G](
+    val args: Seq[Variable[G]],
+    val body: Option[Statement[G]],
+    val threadLocal: Boolean = false,
+    val inline: Boolean = false,
+)(implicit val o: Origin)
+    extends GlobalDeclaration[G]
+    with AbstractPredicate[G]
+    with LLVMPredicateDefinitionImpl[G]
 @scopes[LabelDecl]
 final class LLVMSpecFunction[G](
     val name: String,
@@ -3944,6 +3967,11 @@ final case class LLVMFunctionInvocation[G](
     yields: Seq[(Expr[G], Ref[G, Variable[G]])],
 )(val blame: Blame[InvocationFailure])(implicit val o: Origin)
     extends Apply[G] with LLVMFunctionInvocationImpl[G]
+final case class LLVMPredicateApply[G](
+    ref: Ref[G, LLVMPredicateDefinition[G]],
+    args: Seq[Expr[G]],
+)(implicit val o: Origin)
+    extends ApplyAnyPredicate[G] with LLVMPredicateApplyImpl[G]
 
 final class LLVMBasicBlock[G](
     val label: LabelDecl[G],

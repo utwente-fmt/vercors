@@ -418,6 +418,8 @@ void llvm2col::transformPallasSpecLibCall(llvm::CallInst &callInstruction,
         transformPallasSepForall(callInstruction, colBlock, funcCursor);
     } else if (specLibType == pallas::constants::PALLAS_SPEC_EXISTS) {
         transformPallasExists(callInstruction, colBlock, funcCursor);
+    } else if (specLibType == pallas::constants::PALLAS_SPEC_UNFOLDING) {
+        transformPallasUnfolding(callInstruction, colBlock, funcCursor);
     } else {
         pallas::ErrorReporter::addError(
             SOURCE_LOC, "Unsupported Pallas specification function ",
@@ -916,4 +918,44 @@ void llvm2col::transformPallasExists(llvm::CallInst &callInstruction,
     llvm2col::transformAndSetExpr(funcCursor, callInstruction,
                                   *callInstruction.getArgOperand(1),
                                   *quantifier->mutable_body_expr());
+}
+
+void llvm2col::transformPallasUnfolding(llvm::CallInst &callInstruction,
+                                        col::LlvmBasicBlock &colBlock,
+                                        pallas::FunctionCursor &funcCursor) {
+    auto *llvmSpecFunc = callInstruction.getCalledFunction();
+    bool isRegularReturn = !llvmSpecFunc->getReturnType()->isVoidTy();
+    bool isRegularPass =
+        llvmSpecFunc->arg_size() == 2 &&
+        !llvmSpecFunc->getArg(1)->hasByValAttr() &&
+        (llvmSpecFunc->getArg(1)->getType() == llvmSpecFunc->getReturnType());
+    bool isBoolPred = llvmSpecFunc->arg_size() > 1 &&
+                      llvmSpecFunc->getArg(0)->getType()->isIntegerTy(1);
+
+    // "Normal" return and pass of value.
+    if (isRegularReturn && isRegularPass && isBoolPred) {
+        auto *type = llvmSpecFunc->getReturnType();
+        col::Assign &assignment = funcCursor.createAssignmentAndDeclaration(
+            callInstruction, colBlock);
+        auto *unfolding = assignment.mutable_value()->mutable_unfolding();
+        unfolding->set_allocated_origin(
+            llvm2col::generateFunctionCallOrigin(callInstruction));
+        unfolding->set_allocated_blame(new col::Blame());
+        auto *target =
+            unfolding->mutable_res()->mutable_ambiguous_fold_target();
+        target->set_allocated_origin(llvm2col::generateOperandOrigin(
+            callInstruction, *callInstruction.getArgOperand(0)));
+        llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                      *callInstruction.getArgOperand(0),
+                                      *target->mutable_target());
+        llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                      *callInstruction.getArgOperand(1),
+                                      *unfolding->mutable_body());
+    } else {
+        pallas::ErrorReporter::addError(
+            SOURCE_LOC, "Unsupported use of _unfolding.", callInstruction);
+        return;
+    }
+
+    // TODO: Handle other cases (big structs, small structs, ...)
 }

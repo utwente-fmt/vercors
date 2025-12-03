@@ -400,7 +400,7 @@ llvm2col::generatePallasWrapperCallOrigin(const llvm::Function &wrapperFunc,
     col::Origin *origin = new col::Origin();
     col::OriginContent *preferredNameContent = origin->add_content();
     col::PreferredName *preferredName = new col::PreferredName();
-    preferredName->add_preferred_name("Contract clause represented by " +
+    preferredName->add_preferred_name("Specification represented by " +
                                       deriveFunctionPreferredName(wrapperFunc));
     preferredNameContent->set_allocated_preferred_name(preferredName);
 

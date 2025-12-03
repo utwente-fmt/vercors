@@ -40,6 +40,7 @@ case object ExampleFiles {
     "examples/concepts/llvm/pallas/pallas_c_perm_fail_1.c",
     "examples/concepts/llvm/pallas/pallas_c_perm_fail_2.c",
     "examples/concepts/llvm/pallas/pallas_c_perm_fail_3.c",
+    "examples/concepts/llvm/pallas/pallas_c_pred.c",
     "examples/concepts/llvm/pallas/pallas_c_old.c",
     "examples/concepts/llvm/pallas/pallas_c_old_fail.c",
     "examples/concepts/llvm/pallas/pallas_c_quantifier.c",

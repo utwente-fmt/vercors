@@ -922,7 +922,9 @@ void StructConsolidatorPass::replaceWrapperCalls(
     const MDOperand &First = MD->getOperand(0);
     size_t Offset;
     if (First && (First.equalsStr(constants::PALLAS_ASSERT) ||
-                  First.equalsStr(constants::PALLAS_ASSUME))) {
+                  First.equalsStr(constants::PALLAS_ASSUME) ||
+                  First.equalsStr(constants::PALLAS_FOLD) ||
+                  First.equalsStr(constants::PALLAS_UNFOLD))) {
         auto *Loc = dyn_cast_if_present<MDNode>(MD->getOperand(1).get());
         if (!Loc || !utils::isWellformedPallasLocation(Loc))
             return;

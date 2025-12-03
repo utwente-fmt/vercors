@@ -140,18 +140,39 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
         }
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;
-        errorStream << e.what() << " in return signature";
+        errorStream << " in return signature";
         pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(), F);
+    }
+
+    // Set type-flag of the function
+    auto *fType = llvmFuncDef->mutable_function_type();
+    if (utils::isPallasExprWrapper(F) && utils::isPallasPredDef(F)) {
+        std::stringstream errorStream;
+        errorStream << "Functions may not be marked as both "
+                    << " a wrapper AND a predicate definition!";
+        pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(), F);
+    } else if (utils::isPallasExprWrapper(F)) {
+        fType->mutable_wrapper_function()->set_allocated_origin(
+            llvm2col::generateFuncDefOrigin(F));
+    } else if (utils::isPallasPredDef(F)) {
+        auto isInline = utils::isPallasPredInline(F);
+        if (isInline.has_value()) {
+            auto *predTy = fType->mutable_predicate_definition();
+            predTy->set_allocated_origin(llvm2col::generateFuncDefOrigin(F));
+            predTy->set_inlined(*isInline);
+        } else {
+            pallas::ErrorReporter::addError(SOURCE_LOC,
+                                            "Invalid predicate definition!", F);
+        }
+    } else {
+        fType->mutable_normal_function()->set_allocated_origin(
+            llvm2col::generateFuncDefOrigin(F));
     }
 
     if (utils::isPallasExprWrapper(F)) {
         auto mapperResult = FAM.getResult<pallas::ExprWrapperMapper>(F);
         auto *wrapperParent = mapperResult.getParentFunc();
-        if (wrapperParent != nullptr) {
-            auto colParent = FAM.getResult<FunctionDeclarer>(*wrapperParent);
-            llvmFuncDef->mutable_pallas_expr_wrapper_for()->set_id(
-                colParent.getFunctionId());
-        } else {
+        if (wrapperParent == nullptr) {
             pallas::ErrorReporter::addError(
                 SOURCE_LOC, "Wrapper-function without parent!", F);
         }

@@ -16,7 +16,9 @@ enum PallasWrapperContext {
     FuncContractPost,
     LoopContractInv,
     AssertStmnt,
-    AssumeStmnt
+    AssumeStmnt,
+    FoldStmnt,
+    UnfoldStmnt
 };
 
 class EWMResult {
