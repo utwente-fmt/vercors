@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Run from the root of the VerCors dir. 
+# Run from the root of the VerCors dir.
 # Put path to the spec2ir-repo here
 SPEC2IR_ROOT=/home/rme/repos/pallas_spec2ir
 SPEC2IR="${SPEC2IR_ROOT}/build/bin/pallasSpec2ir"
@@ -37,7 +37,6 @@ echo "=============================================="
 echo " Translating C Tests"
 echo "=============================================="
 translate_c_file examples/concepts/llvm/pallas/pallas_c_assert.c examples/concepts/llvm/pallas/pallas_c_assert.ll "-mem2reg"
-translate_c_file examples/concepts/llvm/pallas/pallas_c_assert.c examples/concepts/llvm/pallas/pallas_c_assert.ll "-mem2reg"
 translate_c_file examples/concepts/llvm/pallas/pallas_c_assert_fail.c examples/concepts/llvm/pallas/pallas_c_assert_fail.ll "-mem2reg"
 translate_c_file examples/concepts/llvm/pallas/pallas_c_assume.c examples/concepts/llvm/pallas/pallas_c_assume.ll "-mem2reg"
 translate_c_file examples/concepts/llvm/pallas/pallas_c_fibonacci.c examples/concepts/llvm/pallas/pallas_c_fibonacci.ll "-mem2reg"
@@ -50,6 +49,7 @@ translate_c_file examples/concepts/llvm/pallas/pallas_c_perm.c examples/concepts
 translate_c_file examples/concepts/llvm/pallas/pallas_c_perm_fail_1.c examples/concepts/llvm/pallas/pallas_c_perm_fail_1.ll ""
 translate_c_file examples/concepts/llvm/pallas/pallas_c_perm_fail_2.c examples/concepts/llvm/pallas/pallas_c_perm_fail_2.ll ""
 translate_c_file examples/concepts/llvm/pallas/pallas_c_perm_fail_3.c examples/concepts/llvm/pallas/pallas_c_perm_fail_3.ll ""
+translate_c_file examples/concepts/llvm/pallas/pallas_c_pred.c examples/concepts/llvm/pallas/pallas_c_pred.ll ""
 translate_c_file examples/concepts/llvm/pallas/pallas_c_quantifier.c examples/concepts/llvm/pallas/pallas_c_quantifier.ll ""
 translate_c_file examples/concepts/llvm/pallas/pallas_c_quantifier_fail.c examples/concepts/llvm/pallas/pallas_c_quantifier_fail.ll ""
 translate_c_file examples/concepts/llvm/pallas/pallas_c_square_fail.c examples/concepts/llvm/pallas/pallas_c_square_fail.ll ""
@@ -60,6 +60,7 @@ translate_c_file examples/concepts/llvm/pallas/pallas_result.c examples/concepts
 translate_c_file examples/concepts/llvm/pallas/extContracts/pallas_c_genContrAssume.c examples/concepts/llvm/pallas/extContracts/pallas_c_genContrAssume.ll ""
 translate_c_file examples/concepts/llvm/pointer_casts.c examples/concepts/llvm/pointer_casts.ll
 translate_c_file examples/concepts/c/pointer_relations.c examples/concepts/llvm/pointer_relations.ll
+translate_c_file examples/concepts/llvm/structs.c examples/concepts/llvm/structs.ll
 
 # C++ Tests
 echo "=============================================="

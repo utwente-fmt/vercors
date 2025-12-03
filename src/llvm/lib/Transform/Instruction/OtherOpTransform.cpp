@@ -268,13 +268,14 @@ void llvm2col::transformExtractValueInst(
         assignment.mutable_value()->mutable_llvm_extract_value();
     extrVal->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(llvmInstruction));
+    extrVal->set_allocated_blame(new col::Blame{});
     // Aggregate type
-    llvm2col::transformAndSetType(
-        *llvmInstruction.getAggregateOperand()->getType(),
+    llvm2col::transformAndSetValueType(
+        *llvmInstruction.getAggregateOperand(), nullptr,
         *extrVal->mutable_aggregate_type(), dataLayout);
     // Result type
-    llvm2col::transformAndSetType(*llvmInstruction.getType(),
-                                  *extrVal->mutable_result_type(), dataLayout);
+    llvm2col::transformAndSetValueType(
+        llvmInstruction, nullptr, *extrVal->mutable_result_type(), dataLayout);
     // Value
     llvm2col::transformAndSetExpr(funcCursor, llvmInstruction,
                                   *llvmInstruction.getAggregateOperand(),
@@ -417,6 +418,8 @@ void llvm2col::transformPallasSpecLibCall(llvm::CallInst &callInstruction,
         transformPallasSepForall(callInstruction, colBlock, funcCursor);
     } else if (specLibType == pallas::constants::PALLAS_SPEC_EXISTS) {
         transformPallasExists(callInstruction, colBlock, funcCursor);
+    } else if (specLibType == pallas::constants::PALLAS_SPEC_UNFOLDING) {
+        transformPallasUnfolding(callInstruction, colBlock, funcCursor);
     } else {
         pallas::ErrorReporter::addError(
             SOURCE_LOC, "Unsupported Pallas specification function ",
@@ -620,12 +623,12 @@ void llvm2col::transformPallasPerm(llvm::CallInst &callInstruction,
     perm->set_allocated_origin(
         llvm2col::generateFunctionCallOrigin(callInstruction));
     perm->set_allocated_blame(new col::Blame());
-    perm->mutable_loc()->set_id(
-        funcCursor.getVariableMapEntry(*callInstruction.getArgOperand(0), false)
-            .id());
-    perm->mutable_perm()->set_id(
-        funcCursor.getVariableMapEntry(*callInstruction.getArgOperand(1), false)
-            .id());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(0),
+                                  *perm->mutable_loc());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(1),
+                                  *perm->mutable_perm());
 }
 
 void llvm2col::transformPallasPtrBlockLength(
@@ -642,9 +645,9 @@ void llvm2col::transformPallasPtrBlockLength(
     pbl->set_allocated_origin(
         llvm2col::generateFunctionCallOrigin(callInstruction));
     pbl->set_allocated_blame(new col::Blame());
-    pbl->mutable_ptr()->set_id(
-        funcCursor.getVariableMapEntry(*callInstruction.getArgOperand(0), false)
-            .id());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(0),
+                                  *pbl->mutable_ptr());
 }
 
 void llvm2col::transformPallasPtrBlockOffset(
@@ -661,9 +664,9 @@ void llvm2col::transformPallasPtrBlockOffset(
     pbo->set_allocated_origin(
         llvm2col::generateFunctionCallOrigin(callInstruction));
     pbo->set_allocated_blame(new col::Blame());
-    pbo->mutable_ptr()->set_id(
-        funcCursor.getVariableMapEntry(*callInstruction.getArgOperand(0), false)
-            .id());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(0),
+                                  *pbo->mutable_ptr());
 }
 
 void llvm2col::transformPallasPtrLength(llvm::CallInst &callInstruction,
@@ -680,9 +683,9 @@ void llvm2col::transformPallasPtrLength(llvm::CallInst &callInstruction,
     pl->set_allocated_origin(
         llvm2col::generateFunctionCallOrigin(callInstruction));
     pl->set_allocated_blame(new col::Blame());
-    pl->mutable_ptr()->set_id(
-        funcCursor.getVariableMapEntry(*callInstruction.getArgOperand(0), false)
-            .id());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(0),
+                                  *pl->mutable_ptr());
 }
 
 void llvm2col::transformPallasImply(llvm::CallInst &callInstruction,
@@ -699,12 +702,12 @@ void llvm2col::transformPallasImply(llvm::CallInst &callInstruction,
     auto *imply = assignment.mutable_value()->mutable_llvm_implies();
     imply->set_allocated_origin(
         llvm2col::generateFunctionCallOrigin(callInstruction));
-    imply->mutable_left()->set_id(
-        funcCursor.getVariableMapEntry(*callInstruction.getArgOperand(0), false)
-            .id());
-    imply->mutable_right()->set_id(
-        funcCursor.getVariableMapEntry(*callInstruction.getArgOperand(1), false)
-            .id());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(0),
+                                  *imply->mutable_left());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(1),
+                                  *imply->mutable_right());
 }
 
 void llvm2col::transformPallasAnd(llvm::CallInst &callInstruction,
@@ -720,12 +723,12 @@ void llvm2col::transformPallasAnd(llvm::CallInst &callInstruction,
     auto *imply = assignment.mutable_value()->mutable_llvm_and();
     imply->set_allocated_origin(
         llvm2col::generateFunctionCallOrigin(callInstruction));
-    imply->mutable_left()->set_id(
-        funcCursor.getVariableMapEntry(*callInstruction.getArgOperand(0), false)
-            .id());
-    imply->mutable_right()->set_id(
-        funcCursor.getVariableMapEntry(*callInstruction.getArgOperand(1), false)
-            .id());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(0),
+                                  *imply->mutable_left());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(1),
+                                  *imply->mutable_right());
 }
 
 void llvm2col::transformPallasOr(llvm::CallInst &callInstruction,
@@ -741,12 +744,12 @@ void llvm2col::transformPallasOr(llvm::CallInst &callInstruction,
     auto *imply = assignment.mutable_value()->mutable_llvm_or();
     imply->set_allocated_origin(
         llvm2col::generateFunctionCallOrigin(callInstruction));
-    imply->mutable_left()->set_id(
-        funcCursor.getVariableMapEntry(*callInstruction.getArgOperand(0), false)
-            .id());
-    imply->mutable_right()->set_id(
-        funcCursor.getVariableMapEntry(*callInstruction.getArgOperand(1), false)
-            .id());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(0),
+                                  *imply->mutable_left());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(1),
+                                  *imply->mutable_right());
 }
 
 void llvm2col::transformPallasStar(llvm::CallInst &callInstruction,
@@ -764,12 +767,12 @@ void llvm2col::transformPallasStar(llvm::CallInst &callInstruction,
     auto *star = assignment.mutable_value()->mutable_llvm_star();
     star->set_allocated_origin(
         llvm2col::generateFunctionCallOrigin(callInstruction));
-    star->mutable_left()->set_id(
-        funcCursor.getVariableMapEntry(*callInstruction.getArgOperand(0), false)
-            .id());
-    star->mutable_right()->set_id(
-        funcCursor.getVariableMapEntry(*callInstruction.getArgOperand(1), false)
-            .id());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(0),
+                                  *star->mutable_left());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(1),
+                                  *star->mutable_right());
 }
 
 void llvm2col::transformPallasOld(llvm::CallInst &callInstruction,
@@ -784,16 +787,14 @@ void llvm2col::transformPallasOld(llvm::CallInst &callInstruction,
 
     // "Normal" return and pass of value.
     if (isRegularReturn && isRegularPass) {
-        auto *type = llvmSpecFunc->getReturnType();
         col::Assign &assignment = funcCursor.createAssignmentAndDeclaration(
             callInstruction, colBlock);
         auto *old = assignment.mutable_value()->mutable_llvm_old();
         old->set_allocated_origin(
             llvm2col::generateFunctionCallOrigin(callInstruction));
-        old->mutable_v()->set_id(
-            funcCursor
-                .getVariableMapEntry(*callInstruction.getArgOperand(0), false)
-                .id());
+        llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                      *callInstruction.getArgOperand(0),
+                                      *old->mutable_v());
     } else {
         pallas::ErrorReporter::addError(SOURCE_LOC, "Unsupported use of \\old.",
                                         callInstruction);
@@ -836,9 +837,17 @@ void llvm2col::transformPallasBoundVar(llvm::CallInst &callInstruction,
         auto strRepr = constArr->isCString() ? constArr->getAsCString()
                                              : constArr->getAsString();
         bv->set_id(strRepr.str());
-        llvm2col::transformAndSetType(
-            *type, *bv->mutable_var_type(),
-            callInstruction.getModule()->getDataLayout());
+        if (auto *subProgram = llvmSpecFunc->getSubprogram()) {
+            auto diType = dyn_cast<llvm::DIType>(
+                subProgram->getType()->getTypeArray()->getOperand(0));
+            llvm2col::transformAndSetTypeWithDebugInfo(
+                llvmSpecFunc->getReturnType(), diType, *bv->mutable_var_type(),
+                callInstruction.getModule()->getDataLayout());
+        } else {
+            llvm2col::transformAndSetType(
+                *type, *bv->mutable_var_type(),
+                callInstruction.getModule()->getDataLayout());
+        }
     } else {
         pallas::ErrorReporter::addError(
             SOURCE_LOC, "Unsupported use of bound variable.", callInstruction);
@@ -909,4 +918,44 @@ void llvm2col::transformPallasExists(llvm::CallInst &callInstruction,
     llvm2col::transformAndSetExpr(funcCursor, callInstruction,
                                   *callInstruction.getArgOperand(1),
                                   *quantifier->mutable_body_expr());
+}
+
+void llvm2col::transformPallasUnfolding(llvm::CallInst &callInstruction,
+                                        col::LlvmBasicBlock &colBlock,
+                                        pallas::FunctionCursor &funcCursor) {
+    auto *llvmSpecFunc = callInstruction.getCalledFunction();
+    bool isRegularReturn = !llvmSpecFunc->getReturnType()->isVoidTy();
+    bool isRegularPass =
+        llvmSpecFunc->arg_size() == 2 &&
+        !llvmSpecFunc->getArg(1)->hasByValAttr() &&
+        (llvmSpecFunc->getArg(1)->getType() == llvmSpecFunc->getReturnType());
+    bool isBoolPred = llvmSpecFunc->arg_size() > 1 &&
+                      llvmSpecFunc->getArg(0)->getType()->isIntegerTy(1);
+
+    // "Normal" return and pass of value.
+    if (isRegularReturn && isRegularPass && isBoolPred) {
+        auto *type = llvmSpecFunc->getReturnType();
+        col::Assign &assignment = funcCursor.createAssignmentAndDeclaration(
+            callInstruction, colBlock);
+        auto *unfolding = assignment.mutable_value()->mutable_unfolding();
+        unfolding->set_allocated_origin(
+            llvm2col::generateFunctionCallOrigin(callInstruction));
+        unfolding->set_allocated_blame(new col::Blame());
+        auto *target =
+            unfolding->mutable_res()->mutable_ambiguous_fold_target();
+        target->set_allocated_origin(llvm2col::generateOperandOrigin(
+            callInstruction, *callInstruction.getArgOperand(0)));
+        llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                      *callInstruction.getArgOperand(0),
+                                      *target->mutable_target());
+        llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                      *callInstruction.getArgOperand(1),
+                                      *unfolding->mutable_body());
+    } else {
+        pallas::ErrorReporter::addError(
+            SOURCE_LOC, "Unsupported use of _unfolding.", callInstruction);
+        return;
+    }
+
+    // TODO: Handle other cases (big structs, small structs, ...)
 }

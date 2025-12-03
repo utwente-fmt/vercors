@@ -111,7 +111,7 @@ define linkonce_odr dso_local noundef zeroext i1 @_ZN11ClassyClass13PALLAS_SPEC_
 
 ; Function Attrs: mustprogress noinline uwtable
 define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_5v() #3 !dbg !205 !pallas.exprWrapper !170 {
-  %1 = call noundef i32 @pallas.result.0(), !dbg !208
+  %1 = call noundef i32 @"pallas.result noundef i32"(), !dbg !208
   %2 = icmp eq i32 %1, 3, !dbg !209
   ret i1 %2, !dbg !210
 }
@@ -125,7 +125,7 @@ declare !pallas.specLib !212 i1 @pallas.perm(ptr noundef, ptr noundef byval(%pal
 
 declare !pallas.specLib !213 void @pallas.fracOf(ptr sret(%pallas.fracT), i32 noundef, i32 noundef)
 
-declare !pallas.specLib !214 noundef i32 @pallas.result.0()
+declare !pallas.specLib !214 noundef i32 @"pallas.result noundef i32"()
 
 attributes #0 = { mustprogress noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }

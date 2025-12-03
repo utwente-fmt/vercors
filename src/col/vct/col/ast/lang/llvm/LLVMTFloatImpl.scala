@@ -26,20 +26,18 @@ trait LLVMTFloatImpl[G] extends LLVMTFloatOps[G] {
 
   override val is_ieee754_32bit: Boolean = floatType == F32[G]()
   override val is_ieee754_64bit: Boolean = floatType == F64[G]()
-  // Integer part bit that is implicit, is included here.
   override lazy val mantissa: Int =
     floatType match {
-      case F16() => 11
-      case BF16() => 8
-      case F32() => 24
-      case F64() => 53
-      // Special in the sense that the 64th bit is actually stored (if I'm reading wikipedia correctly)
+      case F16() => 10
+      case BF16() => 7
+      case F32() => 23
+      case F64() => 52
       case F80() => 64
-      case F128() => 113
+      case F128() => 112
       // TODO: This is variable, see https://www.ibm.com/docs/en/aix/7.3?topic=sepl-128-bit-long-double-floating-point-data-type
       case PPCF128() => ???
     }
 
   override def layout(implicit ctx: Ctx): Doc = floatType.show
-  override def bits: TypeSize = TypeSize.Exact(exponent + mantissa)
+  override def bits: TypeSize = TypeSize.Exact(1 + exponent + mantissa)
 }

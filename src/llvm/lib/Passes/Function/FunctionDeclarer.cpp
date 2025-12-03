@@ -5,7 +5,12 @@
 #include "Passes/Module/RootContainer.h"
 #include "Transform/Transform.h"
 #include "Util/Exceptions.h"
+#include "Util/PallasDIMapping.h"
 #include "Util/PallasMD.h"
+#include <llvm/IR/Attributes.h>
+#include <llvm/IR/Metadata.h>
+#include <llvm/IR/Type.h>
+#include <llvm/Support/Casting.h>
 
 namespace pallas {
 const std::string SOURCE_LOC = "Passes::Function::FunctionDeclarer";
@@ -82,6 +87,14 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
             llvm2col::generateFuncDefOrigin(F));
     }
     FDResult result = FDResult(*llvmFuncDef, funcScopedBody, functionId);
+    llvm::DITypeRefArray typeArray = nullptr;
+    if (const auto *subProgram = F.getSubprogram()) {
+        if (const auto *subProgramType =
+                llvm::dyn_cast_or_null<DISubroutineType>(
+                    subProgram->getType())) {
+            typeArray = subProgramType->getTypeArray();
+        }
+    }
     const auto &dataLayout = F.getParent()->getDataLayout();
     // set args (if present)
     for (llvm::Argument &llvmArg : F.args()) {
@@ -90,9 +103,20 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
         // set origin
         colArg->set_allocated_origin(llvm2col::generateArgumentOrigin(llvmArg));
         llvm2col::setColNodeId(colArg);
+        llvm::Type *pointerType = llvmArg.getParamStructRetType();
+        if (pointerType == nullptr)
+            pointerType = llvmArg.getParamByRefType();
+        if (pointerType == nullptr)
+            pointerType = llvmArg.getParamByValType();
+        if (pointerType == nullptr)
+            pointerType = llvmArg.getParamInAllocaType();
+        if (pointerType == nullptr &&
+            llvmArg.hasAttribute(llvm::Attribute::ElementType))
+            pointerType = llvmArg.getAttribute(llvm::Attribute::ElementType)
+                              .getValueAsType();
         try {
-            llvm2col::transformAndSetType(*llvmArg.getType(),
-                                          *colArg->mutable_t(), dataLayout);
+            llvm2col::transformAndSetValueType(
+                llvmArg, pointerType, *colArg->mutable_t(), dataLayout);
         } catch (pallas::UnsupportedTypeException &e) {
             std::stringstream errorStream;
             errorStream << e.what() << " in argument #" << llvmArg.getArgNo();
@@ -105,23 +129,50 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
     // complete the function declaration in proto buffer
     // set return type in protobuf of function
     try {
-        llvm2col::transformAndSetType(*F.getReturnType(),
-                                      *llvmFuncDef->mutable_return_type(),
-                                      dataLayout);
+        if (typeArray.size() > 0) {
+            llvm2col::transformAndSetTypeWithDebugInfo(
+                F.getReturnType(), typeArray[0],
+                *llvmFuncDef->mutable_return_type(), dataLayout);
+        } else {
+            llvm2col::transformAndSetType(*F.getReturnType(),
+                                          *llvmFuncDef->mutable_return_type(),
+                                          dataLayout);
+        }
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;
-        errorStream << e.what() << " in return signature";
+        errorStream << " in return signature";
         pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(), F);
+    }
+
+    // Set type-flag of the function
+    auto *fType = llvmFuncDef->mutable_function_type();
+    if (utils::isPallasExprWrapper(F) && utils::isPallasPredDef(F)) {
+        std::stringstream errorStream;
+        errorStream << "Functions may not be marked as both "
+                    << " a wrapper AND a predicate definition!";
+        pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(), F);
+    } else if (utils::isPallasExprWrapper(F)) {
+        fType->mutable_wrapper_function()->set_allocated_origin(
+            llvm2col::generateFuncDefOrigin(F));
+    } else if (utils::isPallasPredDef(F)) {
+        auto isInline = utils::isPallasPredInline(F);
+        if (isInline.has_value()) {
+            auto *predTy = fType->mutable_predicate_definition();
+            predTy->set_allocated_origin(llvm2col::generateFuncDefOrigin(F));
+            predTy->set_inlined(*isInline);
+        } else {
+            pallas::ErrorReporter::addError(SOURCE_LOC,
+                                            "Invalid predicate definition!", F);
+        }
+    } else {
+        fType->mutable_normal_function()->set_allocated_origin(
+            llvm2col::generateFuncDefOrigin(F));
     }
 
     if (utils::isPallasExprWrapper(F)) {
         auto mapperResult = FAM.getResult<pallas::ExprWrapperMapper>(F);
         auto *wrapperParent = mapperResult.getParentFunc();
-        if (wrapperParent != nullptr) {
-            auto colParent = FAM.getResult<FunctionDeclarer>(*wrapperParent);
-            llvmFuncDef->mutable_pallas_expr_wrapper_for()->set_id(
-                colParent.getFunctionId());
-        } else {
+        if (wrapperParent == nullptr) {
             pallas::ErrorReporter::addError(
                 SOURCE_LOC, "Wrapper-function without parent!", F);
         }

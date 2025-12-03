@@ -3,7 +3,7 @@ source_filename = "examples/concepts/llvm/pallas/pallas_c_assert.c"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
-@llvm.used = appending global [13 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1, ptr @PALLAS_SPEC_2, ptr @PALLAS_SPEC_3, ptr @PALLAS_SPEC_4, ptr @PALLAS_SPEC_5, ptr @PALLAS_SPEC_8, ptr @PALLAS_SPEC_6, ptr @PALLAS_SPEC_7, ptr @PALLAS_SPEC_9, ptr @PALLAS_SPEC_10, ptr @PALLAS_SPEC_11, ptr @PALLAS_SPEC_12], section "llvm.metadata"
+@llvm.used = appending global [13 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1, ptr @PALLAS_SPEC_2, ptr @PALLAS_SPEC_3, ptr @PALLAS_SPEC_5, ptr @PALLAS_SPEC_4, ptr @PALLAS_SPEC_7, ptr @PALLAS_SPEC_6, ptr @PALLAS_SPEC_8, ptr @PALLAS_SPEC_9, ptr @PALLAS_SPEC_10, ptr @PALLAS_SPEC_11, ptr @PALLAS_SPEC_12], section "llvm.metadata"
 
 ; Function Attrs: noinline nounwind uwtable
 define dso_local i32 @bar(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !12 !pallas.fcontract !17 {
@@ -140,7 +140,7 @@ define dso_local zeroext i1 @PALLAS_SPEC_1(i32 noundef %0, i32 noundef %1, i32 n
   call void @llvm.dbg.value(metadata i32 %0, metadata !146, metadata !DIExpression()), !dbg !147
   call void @llvm.dbg.value(metadata i32 %1, metadata !148, metadata !DIExpression()), !dbg !147
   call void @llvm.dbg.value(metadata i32 %2, metadata !149, metadata !DIExpression()), !dbg !147
-  %4 = call i32 @pallas.result.0(), !dbg !150
+  %4 = call i32 @"pallas.result i32"(), !dbg !150
   %5 = mul nsw i32 %0, %1, !dbg !151
   %6 = add nsw i32 %5, %2, !dbg !152
   %7 = icmp sge i32 %4, %6, !dbg !153
@@ -167,120 +167,118 @@ define dso_local zeroext i1 @PALLAS_SPEC_2(i32 noundef %0, i32 noundef %1) #0 !d
 define dso_local zeroext i1 @PALLAS_SPEC_3(i32 noundef %0, i32 noundef %1) #0 !dbg !163 !pallas.exprWrapper !135 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !164, metadata !DIExpression()), !dbg !165
   call void @llvm.dbg.value(metadata i32 %1, metadata !166, metadata !DIExpression()), !dbg !165
-  %3 = call i32 @pallas.result.0(), !dbg !167
+  %3 = call i32 @"pallas.result i32"(), !dbg !167
   %4 = icmp sgt i32 %3, 0, !dbg !168
   ret i1 %4, !dbg !165
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_4(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #0 !dbg !169 !pallas.exprWrapper !135 {
+define dso_local zeroext i1 @PALLAS_SPEC_5(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #0 !dbg !169 !pallas.exprWrapper !135 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !172, metadata !DIExpression()), !dbg !173
   call void @llvm.dbg.value(metadata i32 %1, metadata !174, metadata !DIExpression()), !dbg !173
   call void @llvm.dbg.value(metadata i32 %2, metadata !175, metadata !DIExpression()), !dbg !173
   call void @llvm.dbg.value(metadata i32 %3, metadata !176, metadata !DIExpression()), !dbg !173
   call void @llvm.dbg.value(metadata i32 %4, metadata !177, metadata !DIExpression()), !dbg !173
-  %6 = icmp sle i32 0, %4, !dbg !178
-  br i1 %6, label %7, label %9, !dbg !179
+  %6 = mul nsw i32 %4, %0, !dbg !178
+  %7 = icmp eq i32 %3, %6, !dbg !179
+  ret i1 %7, !dbg !173
+}
+
+; Function Attrs: noinline nounwind uwtable
+define dso_local zeroext i1 @PALLAS_SPEC_4(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #0 !dbg !180 !pallas.exprWrapper !135 {
+  call void @llvm.dbg.value(metadata i32 %0, metadata !181, metadata !DIExpression()), !dbg !182
+  call void @llvm.dbg.value(metadata i32 %1, metadata !183, metadata !DIExpression()), !dbg !182
+  call void @llvm.dbg.value(metadata i32 %2, metadata !184, metadata !DIExpression()), !dbg !182
+  call void @llvm.dbg.value(metadata i32 %3, metadata !185, metadata !DIExpression()), !dbg !182
+  call void @llvm.dbg.value(metadata i32 %4, metadata !186, metadata !DIExpression()), !dbg !182
+  %6 = icmp sle i32 0, %4, !dbg !187
+  br i1 %6, label %7, label %9, !dbg !188
 
 7:                                                ; preds = %5
-  %8 = icmp sle i32 %4, %1, !dbg !180
+  %8 = icmp sle i32 %4, %1, !dbg !189
   br label %9
 
 9:                                                ; preds = %7, %5
-  %10 = phi i1 [ false, %5 ], [ %8, %7 ], !dbg !173
-  ret i1 %10, !dbg !173
+  %10 = phi i1 [ false, %5 ], [ %8, %7 ], !dbg !182
+  ret i1 %10, !dbg !182
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_5(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #0 !dbg !181 !pallas.exprWrapper !135 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !182, metadata !DIExpression()), !dbg !183
-  call void @llvm.dbg.value(metadata i32 %1, metadata !184, metadata !DIExpression()), !dbg !183
-  call void @llvm.dbg.value(metadata i32 %2, metadata !185, metadata !DIExpression()), !dbg !183
-  call void @llvm.dbg.value(metadata i32 %3, metadata !186, metadata !DIExpression()), !dbg !183
-  call void @llvm.dbg.value(metadata i32 %4, metadata !187, metadata !DIExpression()), !dbg !183
-  %6 = mul nsw i32 %4, %0, !dbg !188
-  %7 = icmp eq i32 %3, %6, !dbg !189
-  ret i1 %7, !dbg !183
-}
-
-; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_8(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !190 !pallas.exprWrapper !135 {
+define dso_local zeroext i1 @PALLAS_SPEC_7(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #0 !dbg !190 !pallas.exprWrapper !135 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !191, metadata !DIExpression()), !dbg !192
   call void @llvm.dbg.value(metadata i32 %1, metadata !193, metadata !DIExpression()), !dbg !192
   call void @llvm.dbg.value(metadata i32 %2, metadata !194, metadata !DIExpression()), !dbg !192
-  %4 = icmp sgt i32 %2, 0, !dbg !195
-  ret i1 %4, !dbg !192
+  call void @llvm.dbg.value(metadata i32 %3, metadata !195, metadata !DIExpression()), !dbg !192
+  call void @llvm.dbg.value(metadata i32 %4, metadata !196, metadata !DIExpression()), !dbg !192
+  %6 = mul nsw i32 %0, %1, !dbg !197
+  %7 = add nsw i32 %6, %2, !dbg !198
+  call void @llvm.dbg.value(metadata i32 %7, metadata !196, metadata !DIExpression()), !dbg !192
+  %8 = icmp ne i32 %7, 0, !dbg !199
+  ret i1 %8, !dbg !192
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_6(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #0 !dbg !196 !pallas.exprWrapper !135 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !197, metadata !DIExpression()), !dbg !198
-  call void @llvm.dbg.value(metadata i32 %1, metadata !199, metadata !DIExpression()), !dbg !198
-  call void @llvm.dbg.value(metadata i32 %2, metadata !200, metadata !DIExpression()), !dbg !198
-  call void @llvm.dbg.value(metadata i32 %3, metadata !201, metadata !DIExpression()), !dbg !198
-  call void @llvm.dbg.value(metadata i32 %4, metadata !202, metadata !DIExpression()), !dbg !198
-  %6 = mul nsw i32 %0, %1, !dbg !203
-  %7 = icmp eq i32 %3, %6, !dbg !204
-  ret i1 %7, !dbg !198
+define dso_local zeroext i1 @PALLAS_SPEC_6(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #0 !dbg !200 !pallas.exprWrapper !135 {
+  call void @llvm.dbg.value(metadata i32 %0, metadata !203, metadata !DIExpression()), !dbg !204
+  call void @llvm.dbg.value(metadata i32 %1, metadata !205, metadata !DIExpression()), !dbg !204
+  call void @llvm.dbg.value(metadata i32 %2, metadata !206, metadata !DIExpression()), !dbg !204
+  call void @llvm.dbg.value(metadata i32 %3, metadata !207, metadata !DIExpression()), !dbg !204
+  %5 = mul nsw i32 %0, %1, !dbg !208
+  %6 = icmp eq i32 %3, %5, !dbg !209
+  ret i1 %6, !dbg !204
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_7(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4, i32 noundef %5) #0 !dbg !205 !pallas.exprWrapper !135 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !208, metadata !DIExpression()), !dbg !209
-  call void @llvm.dbg.value(metadata i32 %1, metadata !210, metadata !DIExpression()), !dbg !209
-  call void @llvm.dbg.value(metadata i32 %2, metadata !211, metadata !DIExpression()), !dbg !209
-  call void @llvm.dbg.value(metadata i32 %3, metadata !212, metadata !DIExpression()), !dbg !209
-  call void @llvm.dbg.value(metadata i32 %4, metadata !213, metadata !DIExpression()), !dbg !209
-  call void @llvm.dbg.value(metadata i32 %5, metadata !214, metadata !DIExpression()), !dbg !209
-  %7 = mul nsw i32 %0, %1, !dbg !215
-  %8 = add nsw i32 %7, %2, !dbg !216
-  call void @llvm.dbg.value(metadata i32 %8, metadata !214, metadata !DIExpression()), !dbg !209
-  %9 = icmp ne i32 %8, 0, !dbg !217
-  ret i1 %9, !dbg !209
+define dso_local zeroext i1 @PALLAS_SPEC_8(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !210 !pallas.exprWrapper !135 {
+  call void @llvm.dbg.value(metadata i32 %0, metadata !211, metadata !DIExpression()), !dbg !212
+  call void @llvm.dbg.value(metadata i32 %1, metadata !213, metadata !DIExpression()), !dbg !212
+  call void @llvm.dbg.value(metadata i32 %2, metadata !214, metadata !DIExpression()), !dbg !212
+  %4 = icmp sgt i32 %2, 0, !dbg !215
+  ret i1 %4, !dbg !212
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_9(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !218 !pallas.exprWrapper !135 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !219, metadata !DIExpression()), !dbg !220
-  call void @llvm.dbg.value(metadata i32 %1, metadata !221, metadata !DIExpression()), !dbg !220
-  call void @llvm.dbg.value(metadata i32 %2, metadata !222, metadata !DIExpression()), !dbg !220
-  %4 = icmp sle i32 %2, %0, !dbg !223
-  ret i1 %4, !dbg !220
+define dso_local zeroext i1 @PALLAS_SPEC_9(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !216 !pallas.exprWrapper !135 {
+  call void @llvm.dbg.value(metadata i32 %0, metadata !217, metadata !DIExpression()), !dbg !218
+  call void @llvm.dbg.value(metadata i32 %1, metadata !219, metadata !DIExpression()), !dbg !218
+  call void @llvm.dbg.value(metadata i32 %2, metadata !220, metadata !DIExpression()), !dbg !218
+  %4 = icmp sle i32 %2, %0, !dbg !221
+  ret i1 %4, !dbg !218
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_10(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !224 !pallas.exprWrapper !135 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !225, metadata !DIExpression()), !dbg !226
-  call void @llvm.dbg.value(metadata i32 %1, metadata !227, metadata !DIExpression()), !dbg !226
-  call void @llvm.dbg.value(metadata i32 %2, metadata !228, metadata !DIExpression()), !dbg !226
-  %4 = sub nsw i32 0, %0, !dbg !229
-  %5 = icmp eq i32 %2, %4, !dbg !230
-  ret i1 %5, !dbg !226
+define dso_local zeroext i1 @PALLAS_SPEC_10(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !222 !pallas.exprWrapper !135 {
+  call void @llvm.dbg.value(metadata i32 %0, metadata !223, metadata !DIExpression()), !dbg !224
+  call void @llvm.dbg.value(metadata i32 %1, metadata !225, metadata !DIExpression()), !dbg !224
+  call void @llvm.dbg.value(metadata i32 %2, metadata !226, metadata !DIExpression()), !dbg !224
+  %4 = sub nsw i32 0, %0, !dbg !227
+  %5 = icmp eq i32 %2, %4, !dbg !228
+  ret i1 %5, !dbg !224
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_11(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !231 !pallas.exprWrapper !135 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !232, metadata !DIExpression()), !dbg !233
-  call void @llvm.dbg.value(metadata i32 %1, metadata !234, metadata !DIExpression()), !dbg !233
-  call void @llvm.dbg.value(metadata i32 %2, metadata !235, metadata !DIExpression()), !dbg !233
-  %4 = icmp sge i32 %2, 0, !dbg !236
-  ret i1 %4, !dbg !233
+define dso_local zeroext i1 @PALLAS_SPEC_11(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !229 !pallas.exprWrapper !135 {
+  call void @llvm.dbg.value(metadata i32 %0, metadata !230, metadata !DIExpression()), !dbg !231
+  call void @llvm.dbg.value(metadata i32 %1, metadata !232, metadata !DIExpression()), !dbg !231
+  call void @llvm.dbg.value(metadata i32 %2, metadata !233, metadata !DIExpression()), !dbg !231
+  %4 = icmp sge i32 %2, 0, !dbg !234
+  ret i1 %4, !dbg !231
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_12(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !237 !pallas.exprWrapper !135 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !238, metadata !DIExpression()), !dbg !239
-  call void @llvm.dbg.value(metadata i32 %1, metadata !240, metadata !DIExpression()), !dbg !239
-  call void @llvm.dbg.value(metadata i32 %2, metadata !241, metadata !DIExpression()), !dbg !239
-  %4 = icmp slt i32 %0, 0, !dbg !242
-  %5 = icmp sge i32 %2, 0, !dbg !243
-  %6 = call i1 @pallas.imply(i1 %4, i1 %5), !dbg !244
-  ret i1 %6, !dbg !239
+define dso_local zeroext i1 @PALLAS_SPEC_12(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !235 !pallas.exprWrapper !135 {
+  call void @llvm.dbg.value(metadata i32 %0, metadata !236, metadata !DIExpression()), !dbg !237
+  call void @llvm.dbg.value(metadata i32 %1, metadata !238, metadata !DIExpression()), !dbg !237
+  call void @llvm.dbg.value(metadata i32 %2, metadata !239, metadata !DIExpression()), !dbg !237
+  %4 = icmp slt i32 %0, 0, !dbg !240
+  %5 = icmp sge i32 %2, 0, !dbg !241
+  %6 = call i1 @pallas.imply(i1 %4, i1 %5), !dbg !242
+  ret i1 %6, !dbg !237
 }
 
-declare !pallas.specLib !245 i32 @pallas.result.0()
+declare !pallas.specLib !243 i32 @"pallas.result i32"()
 
-declare !pallas.specLib !246 i1 @pallas.imply(i1, i1)
+declare !pallas.specLib !244 i1 @pallas.imply(i1, i1)
 
 attributes #0 = { noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
@@ -292,7 +290,7 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !0 = distinct !DICompileUnit(language: DW_LANG_C11, file: !1, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
 !1 = !DIFile(filename: "examples/concepts/llvm/pallas/pallas_c_assert.c", directory: ".", checksumkind: CSK_MD5, checksum: "75228d18208f31bd8d07e4ab62411fd6")
 !2 = distinct !DICompileUnit(language: DW_LANG_C11, file: !3, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
-!3 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "3e448594ebb3b4508067630f02d6f6dd")
+!3 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "bf4658dc807724070c5b758c930dd2fd")
 !4 = !{i32 7, !"Dwarf Version", i32 5}
 !5 = !{i32 2, !"Debug Info Version", i32 3}
 !6 = !{i32 1, !"wchar_size", i32 4}
@@ -343,13 +341,13 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !51 = !DILocation(line: 27, column: 20, scope: !12)
 !52 = !{!53, !54}
 !53 = !{!"pallas.srcLoc", i64 23, i64 5, i64 25, i64 5, !19}
-!54 = !{!"pallas.assert", !55, ptr @PALLAS_SPEC_6, !22, !23, !24, !28, !29}
+!54 = !{!"pallas.assert", !55, ptr @PALLAS_SPEC_6, !22, !23, !24, !28}
 !55 = !{!"pallas.srcLoc", i64 24, i64 5, i64 24, i64 24, !19}
 !56 = !DILocalVariable(name: "tmp2", scope: !12, file: !1, line: 27, type: !15)
 !57 = !DILocation(line: 31, column: 5, scope: !12)
 !58 = !{!59, !60}
 !59 = !{!"pallas.srcLoc", i64 28, i64 5, i64 30, i64 5, !19}
-!60 = !{!"pallas.assert", !61, ptr @PALLAS_SPEC_7, !22, !23, !24, !28, !29, !56}
+!60 = !{!"pallas.assert", !61, ptr @PALLAS_SPEC_7, !22, !23, !24, !28, !56}
 !61 = !{!"pallas.srcLoc", i64 29, i64 5, i64 29, i64 30, !19}
 !62 = distinct !DISubprogram(name: "foo", scope: !1, file: !1, line: 38, type: !63, scopeLine: 38, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
 !63 = !DISubroutineType(types: !64)
@@ -458,81 +456,79 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !166 = !DILocalVariable(name: "b", arg: 2, scope: !163, file: !1, line: 36, type: !15)
 !167 = !DILocation(line: 36, column: 10, scope: !163)
 !168 = !DILocation(line: 36, column: 23, scope: !163)
-!169 = distinct !DISubprogram(name: "PALLAS_SPEC_4", scope: !1, file: !1, line: 17, type: !170, scopeLine: 17, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
+!169 = distinct !DISubprogram(name: "PALLAS_SPEC_5", scope: !1, file: !1, line: 18, type: !170, scopeLine: 18, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
 !170 = !DISubroutineType(types: !171)
 !171 = !{!134, !15, !15, !15, !15, !15}
-!172 = !DILocalVariable(name: "a", arg: 1, scope: !169, file: !1, line: 17, type: !15)
+!172 = !DILocalVariable(name: "a", arg: 1, scope: !169, file: !1, line: 18, type: !15)
 !173 = !DILocation(line: 0, scope: !169)
-!174 = !DILocalVariable(name: "b", arg: 2, scope: !169, file: !1, line: 17, type: !15)
-!175 = !DILocalVariable(name: "c", arg: 3, scope: !169, file: !1, line: 17, type: !15)
-!176 = !DILocalVariable(name: "tmp", arg: 4, scope: !169, file: !1, line: 17, type: !15)
-!177 = !DILocalVariable(name: "i", arg: 5, scope: !169, file: !1, line: 17, type: !15)
-!178 = !DILocation(line: 17, column: 22, scope: !169)
-!179 = !DILocation(line: 17, column: 27, scope: !169)
-!180 = !DILocation(line: 17, column: 32, scope: !169)
-!181 = distinct !DISubprogram(name: "PALLAS_SPEC_5", scope: !1, file: !1, line: 18, type: !170, scopeLine: 18, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
-!182 = !DILocalVariable(name: "a", arg: 1, scope: !181, file: !1, line: 18, type: !15)
-!183 = !DILocation(line: 0, scope: !181)
-!184 = !DILocalVariable(name: "b", arg: 2, scope: !181, file: !1, line: 18, type: !15)
-!185 = !DILocalVariable(name: "c", arg: 3, scope: !181, file: !1, line: 18, type: !15)
-!186 = !DILocalVariable(name: "tmp", arg: 4, scope: !181, file: !1, line: 18, type: !15)
-!187 = !DILocalVariable(name: "i", arg: 5, scope: !181, file: !1, line: 18, type: !15)
-!188 = !DILocation(line: 18, column: 29, scope: !181)
-!189 = !DILocation(line: 18, column: 24, scope: !181)
-!190 = distinct !DISubprogram(name: "PALLAS_SPEC_8", scope: !1, file: !1, line: 40, type: !132, scopeLine: 40, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
-!191 = !DILocalVariable(name: "a", arg: 1, scope: !190, file: !1, line: 40, type: !15)
+!174 = !DILocalVariable(name: "b", arg: 2, scope: !169, file: !1, line: 18, type: !15)
+!175 = !DILocalVariable(name: "c", arg: 3, scope: !169, file: !1, line: 18, type: !15)
+!176 = !DILocalVariable(name: "tmp", arg: 4, scope: !169, file: !1, line: 18, type: !15)
+!177 = !DILocalVariable(name: "i", arg: 5, scope: !169, file: !1, line: 18, type: !15)
+!178 = !DILocation(line: 18, column: 29, scope: !169)
+!179 = !DILocation(line: 18, column: 24, scope: !169)
+!180 = distinct !DISubprogram(name: "PALLAS_SPEC_4", scope: !1, file: !1, line: 17, type: !170, scopeLine: 17, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
+!181 = !DILocalVariable(name: "a", arg: 1, scope: !180, file: !1, line: 17, type: !15)
+!182 = !DILocation(line: 0, scope: !180)
+!183 = !DILocalVariable(name: "b", arg: 2, scope: !180, file: !1, line: 17, type: !15)
+!184 = !DILocalVariable(name: "c", arg: 3, scope: !180, file: !1, line: 17, type: !15)
+!185 = !DILocalVariable(name: "tmp", arg: 4, scope: !180, file: !1, line: 17, type: !15)
+!186 = !DILocalVariable(name: "i", arg: 5, scope: !180, file: !1, line: 17, type: !15)
+!187 = !DILocation(line: 17, column: 22, scope: !180)
+!188 = !DILocation(line: 17, column: 27, scope: !180)
+!189 = !DILocation(line: 17, column: 32, scope: !180)
+!190 = distinct !DISubprogram(name: "PALLAS_SPEC_7", scope: !1, file: !1, line: 29, type: !170, scopeLine: 29, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
+!191 = !DILocalVariable(name: "a", arg: 1, scope: !190, file: !1, line: 29, type: !15)
 !192 = !DILocation(line: 0, scope: !190)
-!193 = !DILocalVariable(name: "b", arg: 2, scope: !190, file: !1, line: 40, type: !15)
-!194 = !DILocalVariable(name: "tmp", arg: 3, scope: !190, file: !1, line: 40, type: !15)
-!195 = !DILocation(line: 40, column: 20, scope: !190)
-!196 = distinct !DISubprogram(name: "PALLAS_SPEC_6", scope: !1, file: !1, line: 24, type: !170, scopeLine: 24, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
-!197 = !DILocalVariable(name: "a", arg: 1, scope: !196, file: !1, line: 24, type: !15)
-!198 = !DILocation(line: 0, scope: !196)
-!199 = !DILocalVariable(name: "b", arg: 2, scope: !196, file: !1, line: 24, type: !15)
-!200 = !DILocalVariable(name: "c", arg: 3, scope: !196, file: !1, line: 24, type: !15)
-!201 = !DILocalVariable(name: "tmp", arg: 4, scope: !196, file: !1, line: 24, type: !15)
-!202 = !DILocalVariable(name: "i", arg: 5, scope: !196, file: !1, line: 24, type: !15)
-!203 = !DILocation(line: 24, column: 21, scope: !196)
-!204 = !DILocation(line: 24, column: 16, scope: !196)
-!205 = distinct !DISubprogram(name: "PALLAS_SPEC_7", scope: !1, file: !1, line: 29, type: !206, scopeLine: 29, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
-!206 = !DISubroutineType(types: !207)
-!207 = !{!134, !15, !15, !15, !15, !15, !15}
-!208 = !DILocalVariable(name: "a", arg: 1, scope: !205, file: !1, line: 29, type: !15)
-!209 = !DILocation(line: 0, scope: !205)
-!210 = !DILocalVariable(name: "b", arg: 2, scope: !205, file: !1, line: 29, type: !15)
-!211 = !DILocalVariable(name: "c", arg: 3, scope: !205, file: !1, line: 29, type: !15)
-!212 = !DILocalVariable(name: "tmp", arg: 4, scope: !205, file: !1, line: 29, type: !15)
-!213 = !DILocalVariable(name: "i", arg: 5, scope: !205, file: !1, line: 29, type: !15)
-!214 = !DILocalVariable(name: "tmp2", arg: 6, scope: !205, file: !1, line: 29, type: !15)
-!215 = !DILocation(line: 29, column: 22, scope: !205)
-!216 = !DILocation(line: 29, column: 27, scope: !205)
-!217 = !DILocation(line: 29, column: 12, scope: !205)
-!218 = distinct !DISubprogram(name: "PALLAS_SPEC_9", scope: !1, file: !1, line: 46, type: !132, scopeLine: 46, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
-!219 = !DILocalVariable(name: "a", arg: 1, scope: !218, file: !1, line: 46, type: !15)
-!220 = !DILocation(line: 0, scope: !218)
-!221 = !DILocalVariable(name: "b", arg: 2, scope: !218, file: !1, line: 46, type: !15)
-!222 = !DILocalVariable(name: "tmp", arg: 3, scope: !218, file: !1, line: 46, type: !15)
-!223 = !DILocation(line: 46, column: 20, scope: !218)
-!224 = distinct !DISubprogram(name: "PALLAS_SPEC_10", scope: !1, file: !1, line: 56, type: !132, scopeLine: 56, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
-!225 = !DILocalVariable(name: "a", arg: 1, scope: !224, file: !1, line: 56, type: !15)
-!226 = !DILocation(line: 0, scope: !224)
-!227 = !DILocalVariable(name: "b", arg: 2, scope: !224, file: !1, line: 56, type: !15)
-!228 = !DILocalVariable(name: "aVariable", arg: 3, scope: !224, file: !1, line: 56, type: !15)
-!229 = !DILocation(line: 56, column: 29, scope: !224)
-!230 = !DILocation(line: 56, column: 26, scope: !224)
-!231 = distinct !DISubprogram(name: "PALLAS_SPEC_11", scope: !1, file: !1, line: 64, type: !132, scopeLine: 64, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
-!232 = !DILocalVariable(name: "a", arg: 1, scope: !231, file: !1, line: 64, type: !15)
-!233 = !DILocation(line: 0, scope: !231)
-!234 = !DILocalVariable(name: "b", arg: 2, scope: !231, file: !1, line: 64, type: !15)
-!235 = !DILocalVariable(name: "aVariable", arg: 3, scope: !231, file: !1, line: 64, type: !15)
-!236 = !DILocation(line: 64, column: 26, scope: !231)
-!237 = distinct !DISubprogram(name: "PALLAS_SPEC_12", scope: !1, file: !1, line: 71, type: !132, scopeLine: 71, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
-!238 = !DILocalVariable(name: "a", arg: 1, scope: !237, file: !1, line: 71, type: !15)
-!239 = !DILocation(line: 0, scope: !237)
-!240 = !DILocalVariable(name: "b", arg: 2, scope: !237, file: !1, line: 71, type: !15)
-!241 = !DILocalVariable(name: "aVariable", arg: 3, scope: !237, file: !1, line: 71, type: !15)
-!242 = !DILocation(line: 71, column: 21, scope: !237)
-!243 = !DILocation(line: 72, column: 29, scope: !237)
-!244 = !DILocation(line: 71, column: 12, scope: !237)
-!245 = !{!"pallas.result"}
-!246 = !{!"pallas.imply"}
+!193 = !DILocalVariable(name: "b", arg: 2, scope: !190, file: !1, line: 29, type: !15)
+!194 = !DILocalVariable(name: "c", arg: 3, scope: !190, file: !1, line: 29, type: !15)
+!195 = !DILocalVariable(name: "tmp", arg: 4, scope: !190, file: !1, line: 29, type: !15)
+!196 = !DILocalVariable(name: "tmp2", arg: 5, scope: !190, file: !1, line: 29, type: !15)
+!197 = !DILocation(line: 29, column: 22, scope: !190)
+!198 = !DILocation(line: 29, column: 27, scope: !190)
+!199 = !DILocation(line: 29, column: 12, scope: !190)
+!200 = distinct !DISubprogram(name: "PALLAS_SPEC_6", scope: !1, file: !1, line: 24, type: !201, scopeLine: 24, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
+!201 = !DISubroutineType(types: !202)
+!202 = !{!134, !15, !15, !15, !15}
+!203 = !DILocalVariable(name: "a", arg: 1, scope: !200, file: !1, line: 24, type: !15)
+!204 = !DILocation(line: 0, scope: !200)
+!205 = !DILocalVariable(name: "b", arg: 2, scope: !200, file: !1, line: 24, type: !15)
+!206 = !DILocalVariable(name: "c", arg: 3, scope: !200, file: !1, line: 24, type: !15)
+!207 = !DILocalVariable(name: "tmp", arg: 4, scope: !200, file: !1, line: 24, type: !15)
+!208 = !DILocation(line: 24, column: 21, scope: !200)
+!209 = !DILocation(line: 24, column: 16, scope: !200)
+!210 = distinct !DISubprogram(name: "PALLAS_SPEC_8", scope: !1, file: !1, line: 40, type: !132, scopeLine: 40, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
+!211 = !DILocalVariable(name: "a", arg: 1, scope: !210, file: !1, line: 40, type: !15)
+!212 = !DILocation(line: 0, scope: !210)
+!213 = !DILocalVariable(name: "b", arg: 2, scope: !210, file: !1, line: 40, type: !15)
+!214 = !DILocalVariable(name: "tmp", arg: 3, scope: !210, file: !1, line: 40, type: !15)
+!215 = !DILocation(line: 40, column: 20, scope: !210)
+!216 = distinct !DISubprogram(name: "PALLAS_SPEC_9", scope: !1, file: !1, line: 46, type: !132, scopeLine: 46, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
+!217 = !DILocalVariable(name: "a", arg: 1, scope: !216, file: !1, line: 46, type: !15)
+!218 = !DILocation(line: 0, scope: !216)
+!219 = !DILocalVariable(name: "b", arg: 2, scope: !216, file: !1, line: 46, type: !15)
+!220 = !DILocalVariable(name: "tmp", arg: 3, scope: !216, file: !1, line: 46, type: !15)
+!221 = !DILocation(line: 46, column: 20, scope: !216)
+!222 = distinct !DISubprogram(name: "PALLAS_SPEC_10", scope: !1, file: !1, line: 56, type: !132, scopeLine: 56, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
+!223 = !DILocalVariable(name: "a", arg: 1, scope: !222, file: !1, line: 56, type: !15)
+!224 = !DILocation(line: 0, scope: !222)
+!225 = !DILocalVariable(name: "b", arg: 2, scope: !222, file: !1, line: 56, type: !15)
+!226 = !DILocalVariable(name: "aVariable", arg: 3, scope: !222, file: !1, line: 56, type: !15)
+!227 = !DILocation(line: 56, column: 29, scope: !222)
+!228 = !DILocation(line: 56, column: 26, scope: !222)
+!229 = distinct !DISubprogram(name: "PALLAS_SPEC_11", scope: !1, file: !1, line: 64, type: !132, scopeLine: 64, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
+!230 = !DILocalVariable(name: "a", arg: 1, scope: !229, file: !1, line: 64, type: !15)
+!231 = !DILocation(line: 0, scope: !229)
+!232 = !DILocalVariable(name: "b", arg: 2, scope: !229, file: !1, line: 64, type: !15)
+!233 = !DILocalVariable(name: "aVariable", arg: 3, scope: !229, file: !1, line: 64, type: !15)
+!234 = !DILocation(line: 64, column: 26, scope: !229)
+!235 = distinct !DISubprogram(name: "PALLAS_SPEC_12", scope: !1, file: !1, line: 71, type: !132, scopeLine: 71, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !16)
+!236 = !DILocalVariable(name: "a", arg: 1, scope: !235, file: !1, line: 71, type: !15)
+!237 = !DILocation(line: 0, scope: !235)
+!238 = !DILocalVariable(name: "b", arg: 2, scope: !235, file: !1, line: 71, type: !15)
+!239 = !DILocalVariable(name: "aVariable", arg: 3, scope: !235, file: !1, line: 71, type: !15)
+!240 = !DILocation(line: 71, column: 21, scope: !235)
+!241 = !DILocation(line: 72, column: 29, scope: !235)
+!242 = !DILocation(line: 71, column: 12, scope: !235)
+!243 = !{!"pallas.result"}
+!244 = !{!"pallas.imply"}

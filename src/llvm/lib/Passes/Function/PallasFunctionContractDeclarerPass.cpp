@@ -39,7 +39,7 @@ std::optional<bool> getAssumedFlag(const MDNode &contractMD) {
     auto *constMD =
         dyn_cast<ConstantAsMetadata>(contractMD.getOperand(2).get());
     auto *assumedVal = dyn_cast_if_present<ConstantInt>(constMD->getValue());
-    if (assumedVal == nullptr || (!assumedVal->getBitWidth() == 1)) {
+    if (assumedVal == nullptr || (assumedVal->getBitWidth() != 1)) {
         return std::nullopt;
     }
     return assumedVal->isOne();
@@ -370,6 +370,9 @@ Argument *PallasFunctionContractDeclarerPass::mapDIVarToArg(Function &f,
     // Try to map to unique dbg.declare
     auto *declIntr = pallas::utils::getUniqueDbgDeclare(intrinsics);
     if (declIntr != nullptr) {
+        if (auto *argument = dyn_cast<Argument>(declIntr->getAddress())) {
+            return argument;
+        }
         // Check if intrinsic refers to an alloca in the initial block of the
         // function that is set to the value of an argument in its first use.
         auto *alloc = dyn_cast_if_present<AllocaInst>(declIntr->getAddress());
@@ -394,12 +397,20 @@ Argument *PallasFunctionContractDeclarerPass::mapDIVarToArg(Function &f,
             if (storeInst == nullptr) {
                 return nullptr;
             }
-            auto *arg =
-                dyn_cast_if_present<Argument>(storeInst->getValueOperand());
-            if (arg == nullptr || arg->getParent() != &f) {
-                return nullptr;
+
+            if (auto *arg = dyn_cast<Argument>(storeInst->getValueOperand())) {
+                assert(arg->getParent() == &f);
+                return arg;
             }
-            return arg;
+            if (auto *cast = dyn_cast<CastInst>(storeInst->getValueOperand())) {
+                // We only go one layer deep here, but we might require more
+                // depending on what compilers do
+                if (auto *arg = dyn_cast<Argument>(cast->getOperand(0))) {
+                    assert(arg->getParent() == &f);
+                    return arg;
+                }
+            }
+            return nullptr;
         }
         return nullptr;
     }

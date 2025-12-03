@@ -5,6 +5,9 @@ import vct.col.ast.{Declaration, LLVMFunctionDefinition, Statement}
 import vct.col.ast.util.Declarator
 import vct.col.ast.ops.LLVMFunctionDefinitionOps
 import vct.col.print._
+import vct.col.ast.NormalFunction
+import vct.col.ast.WrapperFunction
+import vct.col.ast.PredicateDefinition
 
 trait LLVMFunctionDefinitionImpl[G]
     extends Declarator[G]
@@ -25,4 +28,16 @@ trait LLVMFunctionDefinitionImpl[G]
            returnType.show) <+> ctx.name(this) <> "(" <> Doc.args(args) <> ")"
       ) <+> body.map(_.layoutAsBlock).getOrElse(Text("")),
     ))
+
+  val isWrapper: Boolean =
+    functionType match {
+      case _: WrapperFunction[G] => true
+      case _ => false
+    }
+
+  val isPredicate: Boolean =
+    functionType match {
+      case _: PredicateDefinition[G] => true
+      case _ => false
+    }
 }

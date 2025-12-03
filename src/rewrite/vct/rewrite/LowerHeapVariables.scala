@@ -37,6 +37,7 @@ import vct.col.ast.{
 import vct.col.origin.{
   AbstractApplicable,
   AssignLocalOk,
+  LabelContext,
   NonNullPointerNull,
   Origin,
   PanicBlame,
@@ -53,9 +54,15 @@ case object LowerHeapVariables extends RewriterBuilder {
 
   override def desc: String =
     "Lower pointer HeapVariables to plain HeapVariables and LocalHeapVariables to Variables if their address is never taken"
+
+  val PointerCreationLabel: LabelContext = LabelContext(
+    "LowerHeapVariables Pointer Creation Method"
+  )
 }
 
 case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
+  import LowerHeapVariables._
+
   private val localStripped
       : SuccessionMap[LocalHeapVariable[Pre], Variable[Post]] = SuccessionMap()
   private val localLowered
@@ -91,7 +98,7 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
       t: TByValueClass[Pre],
       unique: Option[BigInt],
   ): Procedure[Post] = {
-    implicit val o: Origin = t.cls.decl.o
+    implicit val o: Origin = t.cls.decl.o.withContent(PointerCreationLabel)
 
     globalDeclarations.declare(withResult((result: Result[Post]) =>
       procedure[Post](

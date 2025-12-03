@@ -12,11 +12,14 @@ const std::string PALLAS_EXT_CONTRACT = "pallas.extContract";
 const std::string PALLAS_REQUIRES = "pallas.requires";
 const std::string PALLAS_ENSURES = "pallas.ensures";
 const std::string PALLAS_WRAPPER_FUNC = "pallas.exprWrapper";
+const std::string PALLAS_PRED_DEF = "pallas.predDef";
 const std::string PALLAS_SRC_LOC_ID = "pallas.srcLoc";
 const std::string PALLAS_LOOP_CONTR_ID = "pallas.loopInv";
 const std::string PALLAS_SPEC_STMNT_BLOCK = "pallas.stmntBlock";
 const std::string PALLAS_ASSUME = "pallas.assume";
 const std::string PALLAS_ASSERT = "pallas.assert";
+const std::string PALLAS_FOLD = "pallas.fold";
+const std::string PALLAS_UNFOLD = "pallas.unfold";
 
 const std::string PALLAS_SPEC_LIB_MARKER = "pallas.specLib";
 const std::string PALLAS_SPEC_RESULT = "pallas.result";
@@ -34,6 +37,7 @@ const std::string PALLAS_SPEC_BV = "pallas.boundVar";
 const std::string PALLAS_SPEC_FORALL = "pallas.forall";
 const std::string PALLAS_SPEC_SEPFORALL = "pallas.forallSep";
 const std::string PALLAS_SPEC_EXISTS = "pallas.exists";
+const std::string PALLAS_SPEC_UNFOLDING = "pallas.unfolding";
 
 // Legacy VCLLVM constants
 const std::string VC_PREFIX = "VC.";

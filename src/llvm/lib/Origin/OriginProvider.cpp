@@ -11,7 +11,6 @@
 #include "Origin/ContextDeriver.h"
 #include "Origin/PreferredNameDeriver.h"
 #include "Origin/ShortPositionDeriver.h"
-#include "Util/Constants.h"
 
 namespace col = vct::col::ast;
 
@@ -401,7 +400,7 @@ llvm2col::generatePallasWrapperCallOrigin(const llvm::Function &wrapperFunc,
     col::Origin *origin = new col::Origin();
     col::OriginContent *preferredNameContent = origin->add_content();
     col::PreferredName *preferredName = new col::PreferredName();
-    preferredName->add_preferred_name("Contract clause represented by " +
+    preferredName->add_preferred_name("Specification represented by " +
                                       deriveFunctionPreferredName(wrapperFunc));
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
@@ -539,6 +538,27 @@ col::Origin *llvm2col::generateTypeOrigin(llvm::Type &llvmType) {
     col::OriginContent *preferredNameContent = origin->add_content();
     col::PreferredName *preferredName = new col::PreferredName();
     preferredName->add_preferred_name(deriveTypePreferredName(llvmType));
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    return origin;
+}
+
+col::Origin *llvm2col::generateDITypeOrigin(llvm::DIType &debugType) {
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name(debugType.getName());
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    return origin;
+}
+
+col::Origin *
+llvm2col::generateStructMemberOrigin(llvm::DIDerivedType &memberType) {
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name(memberType.getName());
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
     return origin;

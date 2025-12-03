@@ -9,6 +9,7 @@ import vct.col.origin.{
   PointerLocationError,
   PointerNull,
   PointerSubscriptError,
+  PointerSubscriptToAddBlame,
   TypeName,
 }
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
@@ -45,16 +46,6 @@ case object DisambiguateLocation extends RewriterBuilder {
       expr.o.messageInContext(
         s"A ${cls.o.find[TypeName].map(_.name).getOrElse("class")} value (which will be expanded to permissions for every field) is not allowed in a trigger pattern"
       )
-  }
-
-  private case class PointerSubscriptToAddBlame(
-      blame: Blame[PointerSubscriptError]
-  ) extends Blame[PointerAddError] {
-    override def blame(error: PointerAddError): Unit =
-      error match {
-        case n: PointerNull => blame.blame(n)
-        case b: PointerBounds => blame.blame(b)
-      }
   }
 
   override def key: String = "disambiguateLocation"

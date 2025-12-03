@@ -3,7 +3,7 @@ package vct.col.origin
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.result.{Message, VerificationError}
-import vct.result.VerificationError.{SystemError, Unreachable}
+import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 
 sealed trait ContractFailure {
   def code: String
@@ -1202,6 +1202,15 @@ case class PointerArrayBounds(node: Node[_])
     s"The offsets in `$source`  may be outside the bounds of the array."
 }
 
+case class NonConstantStructIndex(origin: Origin) extends UserError {
+  override def code: String = "nonConstantStructIndex"
+
+  override def text: String =
+    origin.messageInContext(
+      s"This struct indexing operation (getelementptr) uses a non-constant struct index which we do not support."
+    )
+}
+
 sealed trait LockRegionFailure extends VerificationFailure
 
 sealed trait LockFailure extends LockRegionFailure
@@ -1734,4 +1743,15 @@ case class NoContext(inner: Blame[PreconditionFailed])
           "Function or method does not list any context_everywhere clauses, so cannot fail on a context_everywhere clause."
         ).blame(ctx)
     }
+}
+
+// Adapters below here
+case class PointerSubscriptToAddBlame(blame: Blame[PointerSubscriptError])
+    extends Blame[PointerAddError] {
+  override def blame(error: PointerAddError): Unit = {
+    error match {
+      case e @ PointerNull(_) => blame.blame(e)
+      case e @ PointerBounds(_) => blame.blame(e)
+    }
+  }
 }

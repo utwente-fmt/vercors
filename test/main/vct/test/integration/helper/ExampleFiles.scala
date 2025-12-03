@@ -40,6 +40,7 @@ case object ExampleFiles {
     "examples/concepts/llvm/pallas/pallas_c_perm_fail_1.c",
     "examples/concepts/llvm/pallas/pallas_c_perm_fail_2.c",
     "examples/concepts/llvm/pallas/pallas_c_perm_fail_3.c",
+    "examples/concepts/llvm/pallas/pallas_c_pred.c",
     "examples/concepts/llvm/pallas/pallas_c_old.c",
     "examples/concepts/llvm/pallas/pallas_c_old_fail.c",
     "examples/concepts/llvm/pallas/pallas_c_quantifier.c",
@@ -61,7 +62,8 @@ case object ExampleFiles {
     "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.h",
     "examples/concepts/llvm/pallas/extContracts/pallas_c_genContrAssume.c",
     "examples/concepts/llvm/pallas/extContracts/pallas_cpp_genContr.cpp",
-    "examples/concepts/llvm/pointer_casts.c"
+    "examples/concepts/llvm/pointer_casts.c",
+    "examples/concepts/llvm/structs.c"
   ).map(_.replaceAll("/", File.separator))
 
   val EXCLUSIONS: Seq[Path => Boolean] = Seq(
