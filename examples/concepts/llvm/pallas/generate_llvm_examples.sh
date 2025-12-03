@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Run from the root of the VerCors dir. 
+# Run from the root of the VerCors dir.
 # Put path to the spec2ir-repo here
 SPEC2IR_ROOT=/home/rme/repos/pallas_spec2ir
 SPEC2IR="${SPEC2IR_ROOT}/build/bin/pallasSpec2ir"
@@ -60,6 +60,7 @@ translate_c_file examples/concepts/llvm/pallas/pallas_result.c examples/concepts
 translate_c_file examples/concepts/llvm/pallas/extContracts/pallas_c_genContrAssume.c examples/concepts/llvm/pallas/extContracts/pallas_c_genContrAssume.ll ""
 translate_c_file examples/concepts/llvm/pointer_casts.c examples/concepts/llvm/pointer_casts.ll
 translate_c_file examples/concepts/c/pointer_relations.c examples/concepts/llvm/pointer_relations.ll
+translate_c_file examples/concepts/llvm/structs.c examples/concepts/llvm/structs.ll
 
 # C++ Tests
 echo "=============================================="

@@ -8,6 +8,7 @@
 #include "Util/BlockUtils.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
+#include "Util/PallasDIMapping.h"
 #include <llvm/Support/raw_ostream.h>
 
 namespace pallas {
@@ -130,13 +131,8 @@ col::Variable &FunctionCursor::declareVariable(Instruction &llvmInstruction,
     // set type of declaration
     try {
         const auto &dataLayout = llvmInstruction.getModule()->getDataLayout();
-        if (llvmPointerType == nullptr) {
-            llvm2col::transformAndSetType(*llvmInstruction.getType(),
-                                          *varDecl->mutable_t(), dataLayout);
-        } else {
-            llvm2col::transformAndSetPointerType(
-                *llvmPointerType, *varDecl->mutable_t(), dataLayout);
-        }
+        llvm2col::transformAndSetValueType(llvmInstruction, llvmPointerType,
+                                           *varDecl->mutable_t(), dataLayout);
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;
         errorStream << e.what() << " in variable declaration.";

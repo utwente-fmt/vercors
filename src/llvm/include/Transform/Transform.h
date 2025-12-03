@@ -2,6 +2,7 @@
 #define PALLAS_TRANSFORM_H
 
 #include <llvm/IR/DataLayout.h>
+#include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/Support/Casting.h>
 
@@ -19,8 +20,27 @@ namespace col = vct::col::ast;
 void transformAndSetPointerType(llvm::Type &llvmType, col::Type &colType,
                                 const llvm::DataLayout &dataLayout);
 
+void transformAndSetValueType(llvm::Value &value, llvm::Type *pointerType,
+                              col::Type &colType,
+                              const llvm::DataLayout &dataLayout);
+
 void transformAndSetType(llvm::Type &llvmType, col::Type &colType,
                          const llvm::DataLayout &dataLayout);
+
+bool transformAndSetBasicTypeWithDebugInfo(llvm::Type *llvmType,
+                                           llvm::DIBasicType &debugType,
+                                           col::Type &colType,
+                                           const llvm::DataLayout &dataLayout);
+bool transformAndSetCompositeTypeWithDebugInfo(
+    llvm::Type *llvmType, llvm::DICompositeType &debugType, col::Type &colType,
+    const llvm::DataLayout &dataLayout);
+bool transformAndSetDerivedTypeWithDebugInfo(
+    llvm::Type *llvmType, llvm::DIDerivedType &debugType, col::Type &colType,
+    const llvm::DataLayout &dataLayout);
+void transformAndSetTypeWithDebugInfo(llvm::Type *llvmType,
+                                      llvm::DIType *debugType,
+                                      col::Type &colType,
+                                      const llvm::DataLayout &dataLayout);
 
 /**
  * ATTEMPTS to convert any integer constant to a BigInt representation.
