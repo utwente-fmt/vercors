@@ -6,7 +6,14 @@ import vct.col.ast.ops.TMapOps
 
 trait TMapImpl[G] extends TMapOps[G] {
   this: TMap[G] =>
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("maps") <> open <> Doc.args(Seq(key, value)) <> close)
+  override def layout(implicit ctx: Ctx): Doc = {
+    Group(
+      ctx.syntax match {
+        case Ctx.Isar => open <> Doc.args(Seq(key, value)) <> close <+> Text("map")
+        case _ => Text("maps") <> open <> Doc.args(Seq(key, value)) <> close
+      }
+    )
+  }
+
   val subtypes: Seq[Type[G]] = Seq(key, value)
 }
