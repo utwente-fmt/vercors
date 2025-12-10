@@ -52,6 +52,15 @@ case object LangCToCol {
       )
   }
 
+  private case class WrongExtractBody(n: CExtractGPUKernelBody[_])
+      extends UserError {
+    override def code: String = "wrongExtractBody"
+    override def text: String =
+      n.o.messageInContext(
+        s"It is only allowed to extract a body of GPU kernel."
+      )
+  }
+
   private case class WrongGPUDimension(o: Origin) extends UserError {
     override def code: String = "wrongGPUDimension"
     override def text: String =
@@ -807,8 +816,21 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       cCurrentDefinitionParamSubstitutions.having(subs) {
         rw.globalDeclarations.declare(
           func.specs.collectFirst { case k: CGpgpuKernelSpecifier[Pre] =>
-            kernelProcedure(namedO, contract, info, Some(func.body), k)
+            val extract =
+              func.specs.collectFirst { case k: CExtractGPUKernelBody[_] => () }
+                .isDefined
+            kernelProcedure(
+              namedO,
+              contract,
+              info,
+              Some(func.body),
+              k,
+              extractBody = extract,
+            )
           }.getOrElse({
+            func.specs.collectFirst { case k: CExtractGPUKernelBody[_] =>
+              throw WrongExtractBody(k)
+            }
             val params =
               rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
             rw.labelDecls.scope {
@@ -1087,6 +1109,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       info: C.DeclaratorInfo[Pre],
       body: Option[Statement[Pre]],
       kernelSpec: CGpgpuKernelSpecifier[Pre],
+      extractBody: Boolean,
   ): Procedure[Post] = {
     dynamicSharedMemNames.clear()
     staticSharedMemNames.clear()
@@ -1100,7 +1123,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         cudaCurrentGridDim.having(gridDim) {
           val args =
             rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
-          val implFiltered = body.map(init => filterSharedDecl(init))
+          var implFiltered = body.map(init => filterSharedDecl(init))
 
           rw.variables.collect {
             dynamicSharedMemNames
@@ -1179,6 +1202,54 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                           .map(v => (v.get, c_const[Post](0))).toMap
                       )
 
+                      val content =
+                        if (extractBody) {
+                          val threadBounds: Expr[Post] =
+                            foldStar(getIters(threadIdx, blockDim).map {
+                              case IterVariable(v, from, to) =>
+                                And(
+                                  LessEq(from, v.get(o))(o),
+                                  Less(v.get(o), to)(o),
+                                )
+                            })(o)
+                          val blockBounds: Expr[Post] =
+                            foldStar(getIters(blockIdx, gridDim).map {
+                              case IterVariable(v, from, to) =>
+                                And(
+                                  LessEq(from, v.get(o))(o),
+                                  Less(v.get(o), to)(o),
+                                )
+                            })(o)
+
+                          val context = Star(
+                            threadBounds,
+                            Star(
+                              blockBounds,
+                              Star(
+                                nonZeroThreads,
+                                sub.dispatch(
+                                  rw.dispatch(contract.contextEverywhere)
+                                ),
+                              ),
+                            ),
+                          )
+                          inRequiresOfKernel = true
+                          val pre = Star(
+                            context,
+                            sub.dispatch(rw.dispatch(contractRequires)),
+                          )
+                          inRequiresOfKernel = false
+                          val post = Star(
+                            context,
+                            sub.dispatch(rw.dispatch(contractEnsures)),
+                          )
+                          val inner = rw.dispatch(implFiltered.get)
+                          Extract(
+                            FramedProof(pre, inner, post)(PanicBlame("TODO")),
+                            None,
+                          )(PanicBlame("TODO: Decreases"))
+                        } else { rw.dispatch(implFiltered.get) }
+
                       val innerContent = ParStatement(
                         ParBlock(
                           decl = blockDecl,
@@ -1192,7 +1263,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                           requires = sub
                             .dispatch(rw.dispatch(contractRequires)),
                           ensures = sub.dispatch(rw.dispatch(contractEnsures)),
-                          content = rw.dispatch(implFiltered.get),
+                          content = content,
                         )(KernelParFailure(kernelSpec))
                       )
                       val outerContent = ParStatement[Post](
@@ -1585,7 +1656,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         case Some(params) =>
           cFunctionDeclSuccessor((decl, idx)) = rw.globalDeclarations.declare(
             decl.decl.specs.collectFirst { case k: CGpgpuKernelSpecifier[Pre] =>
-              kernelProcedure(init.o, decl.decl.contract, info, None, k)
+              kernelProcedure(init.o, decl.decl.contract, info, None, k, false)
             }.getOrElse(
               new Procedure[Post](
                 returnType = t,

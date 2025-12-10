@@ -97,9 +97,10 @@ case class CToCol[G](
       implicit funcDef: FunctionDefinitionContext
   ): CFunctionDefinition[G] = {
     funcDef match {
-      case FunctionDefinition0(_, _, _, Some(declarationList), _) =>
+      case FunctionDefinition0(_, _, _, _, Some(declarationList), _) =>
         ??(declarationList)
       case FunctionDefinition0(
+            extractKernel,
             maybeContract,
             declSpecs,
             declarator,
@@ -111,13 +112,17 @@ case class CToCol[G](
           contract =>
             new CFunctionDefinition(
               contract.consumeApplicableContract(blame(funcDef)),
-              convert(declSpecs),
+              convert(declSpecs) ++ extractKernel.map(convert(_)),
               convert(declarator),
               convert(body),
             )(blame(funcDef)),
         )
     }
   }
+
+  def convert(
+      implicit decl: ValEmbededExtractBodyContext
+  ): CDeclarationSpecifier[G] = { new CExtractGPUKernelBody[G]() }
 
   def convert(implicit decl: DeclarationContext): CDeclaration[G] =
     decl match {
