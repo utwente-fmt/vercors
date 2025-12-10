@@ -10,10 +10,22 @@ trait AxiomaticDataTypeImpl[G]
   this: AxiomaticDataType[G] =>
   override def declarations: Seq[Declaration[G]] = decls ++ typeArgs
 
-  def layoutIsar(implicit ctx: Ctx): Doc =
+  def layoutIsar(implicit ctx: Ctx): Doc = {
     Group(
-      Text("locale") <+> ctx.name(this) <> "_signature" <+/> "begin" <+/> "end"
+      Group(
+        // TODO(edoput) cannot use the identifiers open and close for the type notation
+        // TODO(edoput) Why is Empty not in scope?
+        Text("typedef") <+> (if (typeArgs.nonEmpty) Text("\"") <> Text("(") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> Text(")") <> Text("\"") else Empty) <+> ctx.name(this)
+      )
+      <+/>
+      Group(
+        Text("locale") <+>
+          ctx.name(this) <> "_signature" <+/>
+          Doc.stack(decls) <+/>
+          "begin" <+/> "end"
+      )
     )
+  }
 
   def layoutSilver(implicit ctx: Ctx): Doc =
     Group(
