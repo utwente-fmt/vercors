@@ -15,7 +15,11 @@ trait AxiomaticDataTypeImpl[G]
       Group(
         // TODO(edoput) cannot use the identifiers open and close for the type notation
         // TODO(edoput) Why is Empty not in scope?
-        Text("typedef") <+> (if (typeArgs.nonEmpty) Text("\"") <> Text("(") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> Text(")") <> Text("\"") else Empty) <+> ctx.name(this)
+        Text("typedecl") <+>
+          (if (typeArgs.nonEmpty) Text("(") <>
+          // TODO(edoput) how do I map over only the types and not include also the names?
+          Doc.args(typeArgs.map(ctx.name).map(Text)) <>
+          Text(")") else Empty) <+> ctx.name(this)
       )
       <+/>
       Group(

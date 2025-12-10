@@ -13,7 +13,7 @@ trait ADTAxiomImpl[G] extends ADTAxiomOps[G] {
   override def layout(implicit ctx: Ctx): Doc =
     ctx.syntax match {
       case Ctx.Silver => Group(Text("axiom") <+> "{" <>> axiom.show <+/> "}")
-      case Ctx.Isar => Group(Text("assumes") <+> ":" <>> axiom.show )
+      case Ctx.Isar => Group(Text("assumes") <>> Text("\"") <> axiom.show <> Text("\""))
       case _ => Text("axiom") <+> axiom <> ";"
     }
 }
