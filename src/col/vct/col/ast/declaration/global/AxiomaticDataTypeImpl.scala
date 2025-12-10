@@ -20,7 +20,7 @@ trait AxiomaticDataTypeImpl[G]
       <+/>
       Group(
         Text("locale") <+>
-          ctx.name(this) <> "_signature" <+/>
+          ctx.name(this) <> "_signature" <+> "=" <+/>
           Doc.stack(decls) <+/>
           "begin" <+/> "end"
       )
