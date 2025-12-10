@@ -33,10 +33,20 @@ trait ADTFunctionInvocationImpl[G] extends ADTFunctionInvocationOps[G] {
   def layoutSilver(implicit ctx: Ctx): Doc =
     Group(Text(ctx.name(ref)) <> "(" <> Doc.args(args) <> ")")
 
+  def layoutIsar(implicit ctx: Ctx): Doc =
+    Group(
+      (if (args.nonEmpty)
+        Text("(") <> Text(ctx.name(ref)) <+> Doc.spread(args) <> ")"
+      else
+        Text(ctx.name(ref))
+        )
+    )
+
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
     ctx.syntax match {
       case Ctx.Silver => layoutSilver
+      case Ctx.Isar => layoutIsar
       case _ => layoutSpec
     }
 }
