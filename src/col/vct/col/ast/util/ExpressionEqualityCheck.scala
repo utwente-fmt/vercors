@@ -599,13 +599,18 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
   }
 
   def lessThenEq(lhs: Expr[G], rhs: Expr[G]): Option[Boolean] = {
+    // Only defined for integer types for now
+    (lhs.t, rhs.t) match {
+      case (_: IntType[G], _: IntType[G]) =>
+      case _ => return None
+    }
     replacerDepth = 0
     lessThenEqRecurse(lhs, rhs)
   }
 
   private def lessThenEqRecurse(lhs: Expr[G], rhs: Expr[G]): Option[Boolean] = {
-    // Compare values directly
     (isConstantIntRecurse(lhs), isConstantIntRecurse(rhs)) match {
+      // Compare values directly
       case (Some(i1), Some(i2)) => return Some(i1 <= i2)
       case _ =>
     }
