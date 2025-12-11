@@ -21,12 +21,24 @@ trait ProgramImpl[G]
       super.checkContextRecursor(context, f)
     }
 
+  def layoutIsar(implicit  ctx: Ctx) : Doc = {
+    Text("theory") <+> Text(ctx.theoryName) </>
+      Text("imports Main") </>
+      Text("begin") </>
+      Doc.stack2(declarations) </>
+      Text("end")
+  }
+
   override def layout(implicit ctx: Ctx): Doc = {
-    (if (ctx.syntax == Ctx.Java)
-       (Text("import java.util.concurrent.locks.Lock;") <+/>
-         "import java.util.concurrent.locks.ReentrantLock;" <+/>
-         "import java.util.concurrent.locks.Condition;" <> Line)
-     else
-       Empty) <> Doc.stack2(declarations)
+    ctx.syntax match {
+      case Ctx.Isar => layoutIsar
+      case _ =>
+        (if (ctx.syntax == Ctx.Java)
+          (Text("import java.util.concurrent.locks.Lock;") <+/>
+            "import java.util.concurrent.locks.ReentrantLock;" <+/>
+            "import java.util.concurrent.locks.Condition;" <> Line)
+        else
+          Empty) <> Doc.stack2(declarations)
+    }
   }
 }
