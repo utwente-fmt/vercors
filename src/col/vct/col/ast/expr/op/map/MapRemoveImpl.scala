@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op.map
 
 import vct.col.ast.{MapRemove, TMap, Type}
-import vct.col.print.{Ctx, Doc, Precedence, Group}
+import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.ast.ops.MapRemoveOps
 
 trait MapRemoveImpl[G] extends MapRemoveOps[G] {
@@ -10,6 +10,10 @@ trait MapRemoveImpl[G] extends MapRemoveOps[G] {
   override def t: Type[G] = mapType
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(assoc(map) <> ".remove(" <> Doc.arg(k) <> ")")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Group(Text("delete") <+> Doc.arg(k) <+> assoc(map))
+      case _ => Group(assoc(map) <> ".remove(" <> Doc.arg(k) <> ")")
+    }
+  }
 }

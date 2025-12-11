@@ -12,10 +12,11 @@ trait SetMemberImpl[G] extends SetMemberOps[G] {
   override def layout(implicit ctx: Ctx): Doc =
     lassoc(
       x,
-      if (ctx.syntax == Ctx.Silver)
-        "in"
-      else
-        "\\in",
+      ctx.syntax match {
+        case Ctx.Silver => "in"
+        case Ctx.Isar => "∈"
+        case _ => "\\in"
+      },
       xs,
     )
 }

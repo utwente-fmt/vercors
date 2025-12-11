@@ -9,6 +9,10 @@ trait ImpliesImpl[G] extends ImpliesOps[G] {
   override def t: Type[G] = right.t
 
   override def precedence: Int = Precedence.IMPLIES
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(nassoc(left) <+> "==>" <>> assoc(right))
+  override def layout(implicit ctx: Ctx): Doc = {
+    Group(ctx.syntax match {
+      case Ctx.Isar => nassoc(left) <+> "⟹" <+> assoc(right)
+      case _ => nassoc(left) <+> "==>" <>> assoc(right)
+    })
+  }
 }

@@ -7,5 +7,9 @@ import vct.col.ast.ops.EqOps
 trait EqImpl[G] extends EqOps[G] {
   this: Eq[G] =>
   override def precedence: Int = Precedence.EQUALITY
-  override def layout(implicit ctx: Ctx): Doc = lassoc(left, "==", right)
+  override def layout(implicit ctx: Ctx): Doc =
+    ctx.syntax match {
+      case Ctx.Isar => lassoc(left, "=", right)
+      case _ => lassoc(left, "==", right)
+    }
 }

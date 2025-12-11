@@ -10,6 +10,10 @@ trait MapConsImpl[G] extends MapConsOps[G] {
   def tailType: TMap[G] = map.t.asMap.get
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(assoc(map) <> ".add(" <> Doc.args(Seq(k, v)) <> ")")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Group(assoc(map) <> "(" <> k <> "↦" <> v <> ")")
+      case _ => Group(assoc(map) <> ".add(" <> Doc.args(Seq(k, v)) <> ")")
+    }
+  }
 }
