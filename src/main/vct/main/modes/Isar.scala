@@ -22,6 +22,7 @@ case object Isar extends LazyLogging {
     val blameProvider = ConstantBlameProvider(collector)
     val result = Parsing.ofOptions(options, blameProvider)
       .thenRun(Resolution.ofOptions(options, blameProvider))
+      .thenRun(Transformation.isarOfOptions(options))
       .thenRun(Output(
         options.isarOutput.orElse(Some(Paths.get("a.java"))),
         Ctx.Isar,

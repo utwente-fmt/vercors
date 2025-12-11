@@ -216,6 +216,15 @@ object Transformation extends LazyLogging {
         writeOutFunctions(after, options.outputAfterPass)
     )
 
+  def isarOfOptions(options: Options): Transformation =
+    Isar(onPassEvent =
+      options.outputIntermediatePrograms
+        .map(p => reportIntermediateProgram(p, "isarGen")).toSeq ++
+        writeOutFunctions(before, options.outputBeforePass) ++
+        writeOutFunctions(after, options.outputAfterPass)
+    )
+
+
   sealed trait TransformationEvent
   case object before extends TransformationEvent
   case object after extends TransformationEvent
@@ -569,3 +578,6 @@ case class PvlJavaCompat(override val onPassEvent: Seq[PassEventHandler] = Nil)
       onPassEvent,
       Seq(ImplicationToTernary, EncodeGlobalApplicables),
     )
+
+case class Isar(override val onPassEvent: Seq[PassEventHandler] = Nil) extends Transformation(onPassEvent,
+  Seq(Disambiguate))

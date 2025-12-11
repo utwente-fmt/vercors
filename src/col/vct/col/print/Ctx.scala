@@ -23,6 +23,7 @@ case class Ctx(
     tabWidth: Int = 4,
     names: Map[Declaration[_], String] = Map.empty,
     inSpec: Boolean = false,
+    theoryName: String = "PVL.thy"
 ) {
   def namesIn[G](node: Node[G]): Ctx =
     copy(names = {

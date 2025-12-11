@@ -64,6 +64,7 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
     val ctx = Ctx(
       syntax = syntax,
       names = names.asInstanceOf[Map[Declaration[_], String]],
+      theoryName = out.map(_.getFileName.toString.split('.').init.mkString(".")).getOrElse("NoOutput")
     )
 
     val txts: Seq[LiteralReadable] =
