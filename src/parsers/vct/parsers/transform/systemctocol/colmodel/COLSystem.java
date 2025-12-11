@@ -822,7 +822,7 @@ public class COLSystem<T> {
      * @return A list of processes encoding the threads of <code>sc_inst</code>
      */
     public java.util.List<ProcessClass> get_processes(SCClassInstance sc_inst) {
-        return process_mapping.get(sc_inst);
+        return process_mapping.getOrDefault(sc_inst, new java.util.ArrayList<>());
     }
 
     /**
