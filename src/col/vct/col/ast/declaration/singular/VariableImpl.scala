@@ -11,7 +11,7 @@ trait VariableImpl[G] extends VariableOps[G] with VariableFamilyOps[G] {
       case Ctx.C | Ctx.Cuda | Ctx.OpenCL | Ctx.CPP =>
         val (spec, decl) = t.layoutSplitDeclarator
         spec <+> decl <> ctx.name(this)
-      case Ctx.Isar => t.show <+> ctx.name(this)
+      case Ctx.Isar => Text(ctx.name(this))
       case Ctx.PVL | Ctx.Java => t.show <+> ctx.name(this)
       case Ctx.Silver => Text(ctx.name(this)) <> ":" <+> t
     }
