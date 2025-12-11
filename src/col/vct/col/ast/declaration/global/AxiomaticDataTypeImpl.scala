@@ -13,18 +13,15 @@ trait AxiomaticDataTypeImpl[G]
   def layoutIsar(implicit ctx: Ctx): Doc = {
     Group(
       Group(
-        // TODO(edoput) cannot use the identifiers open and close for the type notation
-        // TODO(edoput) Why is Empty not in scope?
         Text("typedecl") <+>
           (if (typeArgs.nonEmpty) Text("(") <>
-          // TODO(edoput) how do I map over only the types and not include also the names?
-          Doc.args(typeArgs.map(ctx.name).map(Text)) <>
+          Doc.args(typeArgs.map(Text("'") <> _.show)) <>
           Text(")") else Empty) <+> ctx.name(this)
       )
       <+/>
       Group(
         Text("locale") <+>
-          ctx.name(this) <> "_signature" <+> "=" <+/>
+          ctx.name(this) <> "_signature" <+> "=" <>>
           Doc.stack(decls) <+/>
           "begin" <+/> "end"
       )

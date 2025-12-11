@@ -14,7 +14,7 @@ trait ADTFunctionImpl[G]
 
   def layoutIsar(implicit ctx: Ctx) : Doc = {
     Group(
-       Text("fixes") <+> Text(ctx.name(this)) <+> Text("::") <+> Text("\"") <> Doc.foldr(args :+ returnType)(_ <+> "⇒" <+> _) <> Text("\"")
+       Text("fixes") <+> Text(ctx.name(this)) <+> Text("::") <+> Text("\"") <> Doc.foldr(args.map(_.t) :+ returnType)(_ <+> "⇒" <+> _) <> Text("\"")
     )
   }
   override def layout(implicit ctx: Ctx): Doc =
