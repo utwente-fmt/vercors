@@ -687,7 +687,11 @@ case object ResolveReferences extends LazyLogging {
           C.findDeref(obj, field, ctx, deref.blame)
             .getOrElse(throw NoSuchNameError("field", field, deref))
         )
-      case deref @ CPPClassMethodOrFieldAccess(obj, methodOrFieldName) =>
+      case deref @ CPPClassMethodOrFieldAccess(
+            obj,
+            methodOrFieldName,
+            typeArgs,
+          ) =>
         deref.ref = Some(
           CPP.findDeref(obj, methodOrFieldName, ctx, deref.blame).headOption
             .getOrElse(

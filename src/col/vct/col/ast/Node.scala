@@ -3000,6 +3000,7 @@ final case class CPPLocal[G](
 final case class CPPClassMethodOrFieldAccess[G](
     classInstance: Expr[G],
     methodOrFieldName: String,
+    typeArgs: Seq[CPPExprOrTypeSpecifier[G]],
 )(val blame: Blame[FrontendDerefError])(implicit val o: Origin)
     extends CPPExpr[G] with CPPClassMethodOrFieldAccessImpl[G] {
   var ref: Option[CPPDerefTarget[G]] = None

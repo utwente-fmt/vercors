@@ -669,10 +669,15 @@ case class CPPToCol[G](
       case PostfixExpression4(classVar, _, None, idExpr) =>
         convert(idExpr) match {
           case CPPTypedefName(name, Seq()) =>
-            CPPClassMethodOrFieldAccess(convert(classVar), name)(blame(expr))
-          case _ => ??(expr)
+            CPPClassMethodOrFieldAccess(convert(classVar), name, Seq())(blame(
+              expr
+            ))
+          case CPPTypedefName(name, typeArgs) =>
+            CPPClassMethodOrFieldAccess(convert(classVar), name, typeArgs)(
+              blame(expr)
+            )
         }
-      case PostfixExpression4(_, _, _, _) => ??(expr)
+      case PostfixExpression4(classVar, _, _, idExpr) => ??(expr)
       case PostfixExpression5(_, _, _) => ??(expr)
       case PostfixExpression6(_, _, _, _) => ??(expr)
       case PostfixExpression7(_, _, _) => ??(expr)

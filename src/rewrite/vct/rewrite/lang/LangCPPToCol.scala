@@ -1195,7 +1195,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     val classInstance: Option[Expr[Post]] =
       applicable match {
-        case CPPClassMethodOrFieldAccess(obj, _) => Some(rw.dispatch(obj))
+        case CPPClassMethodOrFieldAccess(obj, _, typeArgs) =>
+          Some(rw.dispatch(obj))
         case _ => None
       }
 

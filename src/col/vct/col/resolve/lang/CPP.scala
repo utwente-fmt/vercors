@@ -337,7 +337,14 @@ case object CPP {
             local.ref = Some(foundMatch.asInstanceOf[CPPNameTarget[G]])
             t.decl = Some(foundMatch)
             foundMatch
-          case (_, deref @ CPPClassMethodOrFieldAccess(classInstance, name)) =>
+          case (
+                _,
+                deref @ CPPClassMethodOrFieldAccess(
+                  classInstance,
+                  name,
+                  typArgs,
+                ),
+              ) =>
             // Currently linked method does not have correct params
             // So find all declarations with correct name and see if there is
             // an alternative whose parameters do match the arguments
