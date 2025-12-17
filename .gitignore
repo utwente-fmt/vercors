@@ -18,6 +18,8 @@ tmp
 tmp.*
 vct-tool.jar
 .bsp/
+.bloop/
+.metals/
 null/
 .compile-strict
 .include-vcllvm
@@ -64,3 +66,9 @@ __pycache__
 *.vpr
 test.pvl
 a.java
+
+# Pallas
+.include-pallas
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/settings.json

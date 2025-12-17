@@ -1,6 +1,6 @@
 package vct.col.ast.`type`
 
-import vct.col.ast.TVector
+import vct.col.ast.{TVector, Type}
 import vct.col.ast.ops.TVectorOps
 import vct.col.print.{Ctx, Doc, Group, Text}
 
@@ -11,4 +11,5 @@ trait TVectorImpl[G] extends TVectorOps[G] {
       Text("vector") <> open <> Doc.arg(element) <> "," <> size.toString <>
         close
     )
+  val subtypes: Seq[Type[G]] = Seq(element)
 }

@@ -23,7 +23,7 @@ class ColoredTiles {
          || (i < n - 2        && s[i+1] && s[i+2])
       );
   
-  pure boolean unique(seq<seq<boolean>> s)
+  pure boolean uniqueS(seq<seq<boolean>> s)
    = (\forall int i;0<=i && i<|s|;
        (\forall int j;0<=j && j<|s|; (s[i] == s[j]) ==> i == j));
        
@@ -63,7 +63,7 @@ class ColoredTiles {
     }
   }
   
-  requires unique(res);
+  requires uniqueS(res);
   requires 0 <= j;
   requires j < |res|;
   ensures (\forall int y;0 <= y && y < j;!(prefix + res[y] == prefix + res[j]));
@@ -78,9 +78,9 @@ class ColoredTiles {
     return;
   }
   
-  requires unique(ini);
+  requires uniqueS(ini);
   requires (\forall int y;0 <= y && y < |ini|;!(ini[y] == elm));
-  ensures unique(ini + seq<seq<boolean>> { elm });
+  ensures uniqueS(ini + seq<seq<boolean>> { elm });
   void lemma_unique_add_one(seq<seq<boolean>> ini, seq<boolean> elm)
   { 
     seq<seq<boolean>> res = ini + seq<seq<boolean>> { elm };
@@ -119,11 +119,11 @@ class ColoredTiles {
     assert (|res[1]| == count[1]);
     assert (|res[2]| == count[2]);
     assert (|res[3]| == count[3]);
-    assert unique(res[0]);
-    assert unique(res[1]);
-    assert unique(res[2]);
+    assert uniqueS(res[0]);
+    assert uniqueS(res[1]);
+    assert uniqueS(res[2]);
     assert !(res[3][0][0] == res[3][1][0]);
-    assert unique(res[3]);
+    assert uniqueS(res[3]);
     
     int n=4;
     loop_invariant n>=4 && n<=i;
@@ -131,7 +131,7 @@ class ColoredTiles {
     loop_invariant (\forall* int j;0<=j && j<i;Perm(count[j],write));
     loop_invariant (\forall int j;0<=j && j<n;|res[j]| == count[j]);
     loop_invariant (\forall int z=0..n, int y=0..|res[z]|; validSequence(res[z][y],z)); // all sequences valid
-    loop_invariant (\forall int z;0<=z && z<n;unique(res[z])); // all sequences unique
+    loop_invariant (\forall int z;0<=z && z<n;uniqueS(res[z])); // all sequences uniqueS
     while(n<i){
       seq<seq <boolean>> last = seq<seq <boolean>> {};
       count[n] = count[n-1];
@@ -144,10 +144,10 @@ class ColoredTiles {
       loop_invariant (\forall int y; 0<=y && y <j; validSequence(last[y],n));
       loop_invariant (\forall int z;0<=z && z <j;|last[z]|>0);
       loop_invariant (\forall int z;0<=z && z <j;last[z][0]==false);
-      loop_invariant (\forall int z;0<=z && z<|res|;unique(res[z]));
+      loop_invariant (\forall int z;0<=z && z<|res|;uniqueS(res[z]));
       loop_invariant (\let int predN = n - 1; (\forall int z;0<=z && z<j;(last[z] == seq <boolean> {false} + res[predN][z])));
       loop_invariant (\forall int z;0<=z && z<j;last[z][0]==false);
-      loop_invariant unique(last);
+      loop_invariant uniqueS(last);
       while (j < |res[n-1]|){
         lemma_uniqueness_implies_unequal(res[n - 1],j,seq <boolean> {false});
         assert (\let int predN = n - 1;
@@ -166,7 +166,7 @@ class ColoredTiles {
       loop_invariant (\forall int y;0<=y && y <|last|;validSequence(last[y],n));
       loop_invariant (\forall int y;0<=y && y <|startBlock|;startBlock[y]);
       loop_invariant (\forall int z;0<=z && z <|last|;has_false_in_prefix(last[z],k-1));
-      loop_invariant unique(last);
+      loop_invariant uniqueS(last);
       while(k < n){
         int j = 0;
         seq<seq <boolean>> nxtblock = seq<seq <boolean>> {};
@@ -182,7 +182,7 @@ class ColoredTiles {
         loop_invariant (\forall int y;0<=y && y <j;!has_false_in_prefix(nxtblock[y],k-1)); // li176
         loop_invariant (\forall int y;0<=y && y <j;has_false_in_prefix(nxtblock[y],k));  // li177
         loop_invariant (\forall int y;0<=y && y <j;nxtblock[y] == (startBlock+seq <boolean> {false}) + res[n-k-1][y]);
-        loop_invariant unique(nxtblock);
+        loop_invariant uniqueS(nxtblock);
         while (j < |res[n-k-1]|){
           seq<boolean> nxtelm = (startBlock + seq <boolean> {false}) + res[n-k-1][j];
           lemma_uniqueness_implies_unequal(res[n-k-1],j,startBlock + seq <boolean> {false});
@@ -211,7 +211,7 @@ class ColoredTiles {
     assert (\let int predI = i - 1;
         (\forall int y; 0<=y && y <|res[i-1]|;validSequence(res[predI][y],i-1)) // all sequences are valid
         );
-    assert unique(res[i-1]); // all sequences are unique
+    assert uniqueS(res[i-1]); // all sequences are uniqueS
     return count[i-1];
   }
   

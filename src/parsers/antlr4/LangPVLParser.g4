@@ -158,6 +158,10 @@ unit
  | '(' '\\chor' expr ')' # pvlLongChorExpr
  | '(' '\\' '[' ']' expr ')' # pvlShortChorExpr
  | '(' type ')' expr #pvlCastExpr
+ | '(' 'asserting' expr ')' # pvlBoolAsserting
+ | '(' 'asserting' expr ';' expr ')' # pvlAsserting
+ | '(' 'assuming' expr ')' # pvlBoolAssuming
+ | '(' 'assuming' expr ';' expr ')' # pvlAssuming
  | 'this' # pvlThis
  | 'null' # pvlNull
  | '\\sender' # pvlSender
@@ -169,7 +173,7 @@ unit
  | STRING_LITERAL # pvlString
  | CHARACTER_LITERAL # pvlChar
  | '(' expr ')' # pvlParens
- | identifier call? # pvlInvocation
+ | valReveal? identifier call? # pvlInvocation
  | valGenericAdtInvocation # pvlValAdtInvocation
  ;
 
@@ -199,7 +203,7 @@ statement
  | contract 'for' '(' iter ')' statement # pvlRangedFor
  | block # pvlBlock
  | 'goto' identifier ';' # pvlGoto
- | 'label' identifier ';' # pvlLabel
+ | contract 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
  | channelInvariant? 'communicate' access direction access ';' # pvlCommunicateStatement
  ;

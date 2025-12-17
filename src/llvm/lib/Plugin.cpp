@@ -1,12 +1,15 @@
+
+#include "Passes/Function/ExprWrapperMapper.h"
 #include "Passes/Function/FunctionBodyTransformer.h"
 #include "Passes/Function/FunctionContractDeclarer.h"
 #include "Passes/Function/FunctionDeclarer.h"
-#include "Passes/Function/PureAssigner.h"
 #include "Passes/Function/PallasFunctionContractDeclarerPass.h"
+#include "Passes/Function/PureAssigner.h"
 #include "Passes/Module/GlobalVariableDeclarer.h"
 #include "Passes/Module/ModuleSpecCollector.h"
 #include "Passes/Module/ProtobufPrinter.h"
 #include "Passes/Module/RootContainer.h"
+#include "Passes/Module/StructConsolidator.h"
 
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
@@ -27,6 +30,8 @@ llvm::PassPluginLibraryInfo getPallasPluginInfo() {
                             [&] { return pallas::FunctionDeclarer(); });
                         FAM.registerPass(
                             [&] { return pallas::FunctionContractDeclarer(); });
+                        FAM.registerPass(
+                            [&] { return pallas::ExprWrapperMapper(); });
                     });
                 PB.registerPipelineParsingCallback(
                     [](StringRef Name, llvm::ModulePassManager &MPM,
@@ -37,8 +42,15 @@ llvm::PassPluginLibraryInfo getPallasPluginInfo() {
                         } else if (Name == "pallas-declare-variables") {
                             MPM.addPass(pallas::GlobalVariableDeclarerPass());
                             return true;
+                        } else if (Name == "pallas-declare-function-contract") {
+                            MPM.addPass(
+                                pallas::PallasFunctionContractDeclarerPass());
+                            return true;
                         } else if (Name == "pallas-print-protobuf") {
                             MPM.addPass(pallas::ProtobufPrinter());
+                            return true;
+                        } else if (Name == "pallas-consolidate-structs") {
+                            MPM.addPass(pallas::StructConsolidatorPass());
                             return true;
                         }
                         return false;
@@ -55,13 +67,10 @@ llvm::PassPluginLibraryInfo getPallasPluginInfo() {
                         } else if (Name == "llvm-declare-function-contract") {
                             FPM.addPass(pallas::FunctionContractDeclarerPass());
                             return true;
-                        } else if (Name == "pallas-declare-function-contract") {
-                            FPM.addPass(pallas::PallasFunctionContractDeclarerPass());
-                            return true;
                         } else if (Name == "pallas-transform-function-body") {
                             FPM.addPass(pallas::FunctionBodyTransformerPass());
                             return true;
-                        } 
+                        }
                         return false;
                     });
             }};

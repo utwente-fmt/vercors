@@ -49,6 +49,7 @@ object AstBuildHelpers {
     def +(right: Expr[G])(implicit origin: Origin): Plus[G] = Plus(left, right)
     def -(right: Expr[G])(implicit origin: Origin): Minus[G] =
       Minus(left, right)
+    def unary_-(implicit origin: Origin): UMinus[G] = UMinus(left)
     def *(right: Expr[G])(implicit origin: Origin): Mult[G] = Mult(left, right)
     def /(
         right: Expr[G]
@@ -433,7 +434,7 @@ object AstBuildHelpers {
           .givenMap.map { case (Ref(v), e) =>
             (rewriter.succ(v), rewriter.dispatch(e))
           },
-        yields: Seq[(Expr[Post], Ref[Post, Variable[Post]])] = apply.yields
+        yields: => Seq[(Expr[Post], Ref[Post, Variable[Post]])] = apply.yields
           .map { case (a, b) => (rewriter.dispatch(a), rewriter.succ(b.decl)) },
     ): Invocation[Post] =
       apply match {
@@ -561,6 +562,26 @@ object AstBuildHelpers {
       }
   }
 
+  implicit class TriggeredQuantifierBuildHelpers[Pre, Post](
+      quantifier: TriggeredQuantifier[Pre]
+  )(implicit rewriter: AbstractRewriter[Pre, Post]) {
+    def rewrite(
+        bindings: => Seq[Variable[Post]] = rewriter.variables
+          .dispatch(quantifier.bindings),
+        triggers: => Seq[Seq[Expr[Post]]] = quantifier.triggers
+          .map(_.map(rewriter.dispatch)),
+        body: => Expr[Post] = rewriter.dispatch(quantifier.body),
+    ): TriggeredQuantifier[Post] =
+      quantifier match {
+        case q: Forall[Pre] =>
+          q.rewrite(bindings = bindings, triggers = triggers, body = body)
+        case q: Starall[Pre] =>
+          q.rewrite(bindings = bindings, triggers = triggers, body = body)
+        case q: Exists[Pre] =>
+          q.rewrite(bindings = bindings, triggers = triggers, body = body)
+      }
+  }
+
   private def constOrigin(value: scala.Any): Origin =
     Origin(Seq(LabelContext(s"constant ${value}")))
 
@@ -572,10 +593,10 @@ object AstBuildHelpers {
   def const[G](i: BigInt)(implicit o: Origin): IntegerValue[G] = IntegerValue(i)
 
   def c_const[G](i: Int)(implicit o: Origin): CIntegerValue[G] =
-    CIntegerValue(i)
+    CIntegerValue(i, TCInt())
 
   def c_const[G](i: BigInt)(implicit o: Origin): CIntegerValue[G] =
-    CIntegerValue(i)
+    CIntegerValue(i, TCInt())
 
   def contract[G](
       blame: Blame[NontrivialUnsatisfiable],
@@ -584,6 +605,7 @@ object AstBuildHelpers {
       ensures: AccountedPredicate[G] =
         UnitAccountedPredicate(tt[G])(constOrigin(true)),
       contextEverywhere: Expr[G] = tt[G],
+      kernelInvariant: Expr[G] = tt[G],
       signals: Seq[SignalsClause[G]] = Nil,
       givenArgs: Seq[Variable[G]] = Nil,
       yieldsArgs: Seq[Variable[G]] = Nil,
@@ -593,6 +615,7 @@ object AstBuildHelpers {
       requires,
       ensures,
       contextEverywhere,
+      kernelInvariant,
       signals,
       givenArgs,
       yieldsArgs,
@@ -629,6 +652,7 @@ object AstBuildHelpers {
       ensures: AccountedPredicate[G] =
         UnitAccountedPredicate(tt[G])(constOrigin(true)),
       contextEverywhere: Expr[G] = tt[G],
+      kernelInvariant: Expr[G] = tt[G],
       signals: Seq[SignalsClause[G]] = Nil,
       givenArgs: Seq[Variable[G]] = Nil,
       yieldsArgs: Seq[Variable[G]] = Nil,
@@ -646,6 +670,7 @@ object AstBuildHelpers {
         requires,
         ensures,
         contextEverywhere,
+        kernelInvariant,
         signals,
         givenArgs,
         yieldsArgs,
@@ -667,6 +692,7 @@ object AstBuildHelpers {
       ensures: AccountedPredicate[G] =
         UnitAccountedPredicate(tt[G])(constOrigin(true)),
       contextEverywhere: Expr[G] = tt[G],
+      kernelInvariant: Expr[G] = tt[G],
       signals: Seq[SignalsClause[G]] = Nil,
       givenArgs: Seq[Variable[G]] = Nil,
       yieldsArgs: Seq[Variable[G]] = Nil,
@@ -684,6 +710,7 @@ object AstBuildHelpers {
         requires,
         ensures,
         contextEverywhere,
+        kernelInvariant,
         signals,
         givenArgs,
         yieldsArgs,
@@ -705,6 +732,7 @@ object AstBuildHelpers {
       ensures: AccountedPredicate[G] =
         UnitAccountedPredicate(tt[G])(constOrigin(true)),
       contextEverywhere: Expr[G] = tt[G],
+      kernelInvariant: Expr[G] = tt[G],
       signals: Seq[SignalsClause[G]] = Nil,
       givenArgs: Seq[Variable[G]] = Nil,
       yieldsArgs: Seq[Variable[G]] = Nil,
@@ -723,6 +751,7 @@ object AstBuildHelpers {
         requires,
         ensures,
         contextEverywhere,
+        kernelInvariant,
         signals,
         givenArgs,
         yieldsArgs,
@@ -808,6 +837,18 @@ object AstBuildHelpers {
     )
   }
 
+  def staralls[G](
+      blame: Blame[ReceiverNotInjective],
+      ts: Seq[Type[G]],
+      body: Seq[Local[G]] => Expr[G],
+      triggers: Seq[Local[G]] => Seq[Seq[Expr[G]]] = (_: Seq[Local[G]]) => Nil,
+  ): Starall[G] = {
+    implicit val o: Origin = GeneratedQuantifier
+    val i_vars = ts.map(new Variable[G](_))
+    val is = i_vars.map((x: Variable[G]) => Local[G](x.ref))
+    Starall(bindings = i_vars, triggers = triggers(is), body = body(is))(blame)
+  }
+
   def forall[G](
       t: Type[G],
       body: Local[G] => Expr[G],
@@ -840,9 +881,25 @@ object AstBuildHelpers {
     Let(x_var, x, body(x_local))
   }
 
+  def letIfNonTrivial[G](
+      t: Type[G],
+      value: Expr[G],
+      inner: Expr[G] => Expr[G],
+  ): Expr[G] = {
+    value match {
+      case Local(_) | _: Constant[G] => inner(value)
+      case _ => let(t, value, inner)
+    }
+
+  }
+
   def assignLocal[G](local: Local[G], value: Expr[G])(
       implicit o: Origin
   ): Assign[G] = Assign(local, value)(AssignLocalOk)
+
+  def assignInitial[G](local: Local[G], value: Expr[G])(
+      implicit o: Origin
+  ): AssignInitial[G] = AssignInitial(local, value)(AssignLocalOk)
 
   def assignField[G](
       obj: Expr[G],

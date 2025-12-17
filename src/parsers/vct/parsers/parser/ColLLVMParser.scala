@@ -24,6 +24,7 @@ case class ColLLVMParser(
     debugOptions: DebugOptions,
     blameProvider: BlameProvider,
     pallas: Path,
+    runSROA: Boolean,
 ) extends Parser with LazyLogging {
   private case class LLVMParseError(errorCode: Int, error: String)
       extends UserError {
@@ -44,10 +45,14 @@ case class ColLLVMParser(
         "The ColLLVMParser needs to be provided with the path to pallas to parse LLVM-IR files"
       )
     }
+    var preprocessingPasses = Seq("break-crit-edges")
+    if (runSROA) { preprocessingPasses = Seq("sroa") ++ preprocessingPasses }
+    val prePStr = preprocessingPasses.mkString(",")
+
     val command = Seq(
       "opt-17",
       s"--load-pass-plugin=$pallas",
-      "--passes=module(pallas-declare-variables,pallas-collect-module-spec),function(pallas-declare-function,pallas-assign-pure,llvm-declare-function-contract,pallas-declare-function-contract,pallas-transform-function-body),module(pallas-print-protobuf)",
+      s"--passes=function($prePStr),module(pallas-consolidate-structs,pallas-declare-variables,pallas-collect-module-spec),function(pallas-declare-function,pallas-assign-pure,llvm-declare-function-contract),module(pallas-declare-function-contract),function(pallas-transform-function-body),module(pallas-print-protobuf)",
       "--disable-output",
     )
 

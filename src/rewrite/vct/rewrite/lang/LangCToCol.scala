@@ -3,35 +3,28 @@ package vct.rewrite.lang
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.ast.lang.c.CTVector.WrongVectorType
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
-import vct.rewrite.lang.LangSpecificToCol.NotAValue
+import vct.rewrite.lang.LangSpecificToCol.{NotAValue, InvalidPointerComparison}
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.lang.C
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.C.nameFromDeclarator
-import vct.col.resolve.lang.Java.logger
 import vct.col.rewrite.{Generation, Rewritten}
-import vct.col.typerules.CoercionUtils
-import vct.col.typerules.CoercionUtils.getCoercion
-import vct.col.util.SuccessionMap
+import vct.col.typerules.{CoercionUtils, TypeSize}
+import vct.col.util.{SuccessionMap, Substitute}
 import vct.col.util.AstBuildHelpers._
 import vct.result.Message
 import vct.result.VerificationError.{Unreachable, UserError}
 
+import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
 
 case object LangCToCol {
-  case class CGlobalStateNotSupported(example: CInit[_]) extends UserError {
-    override def code: String = "notSupported"
-    override def text: String =
-      example.o.messageInContext("Global variables in C are not supported.")
-  }
-
-  case class MultipleSharedMemoryDeclaration(decl: Node[_]) extends UserError {
+  private case class MultipleSharedMemoryDeclaration(decl: Node[_])
+      extends UserError {
     override def code: String = "multipleSharedMemoryDeclaration"
     override def text: String =
       decl.o.messageInContext(
@@ -39,7 +32,8 @@ case object LangCToCol {
       )
   }
 
-  case class WrongGPUKernelParameterType(param: CParam[_]) extends UserError {
+  private case class WrongGPUKernelParameterType(param: CParam[_])
+      extends UserError {
     override def code: String = "wrongParameterType"
     override def text: String =
       param.o.messageInContext(
@@ -47,7 +41,7 @@ case object LangCToCol {
       )
   }
 
-  case class WrongGPUType(param: CParam[_]) extends UserError {
+  private case class WrongGPUType(param: CParam[_]) extends UserError {
     override def code: String = "wrongGPUType"
     override def text: String =
       param.o.messageInContext(
@@ -55,35 +49,68 @@ case object LangCToCol {
       )
   }
 
-  case class WrongCType(decl: CLocalDeclaration[_]) extends UserError {
+  private case class WrongGPUDimension(o: Origin) extends UserError {
+    override def code: String = "wrongGPUDimension"
+    override def text: String =
+      o.messageInContext(s"We only support GPU dimensions up to size 3.")
+  }
+
+  private case class WrongCType(decl: Declaration[_]) extends UserError {
     override def code: String = "wrongCType"
     override def text: String =
       decl.o
         .messageInContext(s"This declaration has a type that is not supported.")
   }
 
-  case class WrongStructType(decl: Node[_]) extends UserError {
+  private case class UnsupportedArrayInitialiser(decl: Declaration[_])
+      extends UserError {
+    override def code: String = "unsupportedArrayInitialiser"
+    override def text: String =
+      decl.o.messageInContext(
+        "VerCors does not support array initialisers for multi-dimensional arrays yet"
+      )
+  }
+
+  private case class MissingArraySize(node: Node[_]) extends UserError {
+    override def code: String = "unsupportedArrayInitialiser"
+    override def text: String =
+      node.o.messageInContext(
+        "VerCors does not support arrays with incomplete sizes yet"
+      )
+  }
+
+  private case class WrongStructType(decl: Node[_]) extends UserError {
     override def code: String = "wrongStructType"
 
     override def text: String =
       decl.o.messageInContext(s"This has a struct type that is not supported.")
   }
 
-  case class WrongOpenCLLiteralVector(e: Node[_]) extends UserError {
+  private case class WrongUniqueFieldStruct(decl: Node[_]) extends UserError {
+    override def code: String = "wrongUniqueFieldStruct"
+
+    override def text: String =
+      decl.o.messageInContext(
+        s"Cannot add a unique pointer field towards a field which already had one for that field."
+      )
+  }
+
+  private case class WrongOpenCLLiteralVector(e: Node[_]) extends UserError {
     override def code: String = "wrongOpenCLLiteralVector"
 
     override def text: String =
       e.o.messageInContext(s"This OpenCL literal vector is not supported.")
   }
 
-  case class TypeUsedAsValue(decl: Node[_]) extends UserError {
+  private case class TypeUsedAsValue(decl: Node[_]) extends UserError {
     override def code: String = "typeUsedAsValue"
 
     override def text: String =
       decl.o.messageInContext(s"This type name is incorrectly used a value.")
   }
 
-  case class WrongGPULocalType(local: CLocalDeclaration[_]) extends UserError {
+  private case class WrongGPULocalType(local: CLocalDeclaration[_])
+      extends UserError {
     override def code: String = "wrongGPULocalType"
     override def text: String =
       local.o.messageInContext(
@@ -91,7 +118,7 @@ case object LangCToCol {
       )
   }
 
-  case class NotDynamicSharedMem(e: Expr[_]) extends UserError {
+  private case class NotDynamicSharedMem(e: Expr[_]) extends UserError {
     override def code: String = "notDynamicSharedMem"
     override def text: String =
       e.o.messageInContext(
@@ -99,19 +126,21 @@ case object LangCToCol {
       )
   }
 
-  case class WrongBarrierSpecifier(b: GpgpuBarrier[_]) extends UserError {
+  private case class WrongBarrierSpecifier(b: GpgpuBarrier[_])
+      extends UserError {
     override def code: String = "wrongBarrierSpecifier"
     override def text: String =
       b.o.messageInContext(s"The barrier has incorrect specifiers.")
   }
 
-  case class UnsupportedBarrierPermission(e: Node[_]) extends UserError {
+  private case class UnsupportedBarrierPermission(e: Node[_])
+      extends UserError {
     override def code: String = "unsupportedBarrierPermission"
     override def text: String =
       e.o.messageInContext(s"This is unsupported for barrier for now.")
   }
 
-  case class RedistributingBarrier(
+  private case class RedistributingBarrier(
       v: CNameTarget[_],
       barrier: GpgpuBarrier[_],
       global: Boolean,
@@ -128,7 +157,7 @@ case object LangCToCol {
       )
   }
 
-  case class CDoubleContracted(
+  private case class CDoubleContracted(
       decl: CGlobalDeclaration[_],
       defn: CFunctionDefinition[_],
   ) extends UserError {
@@ -140,14 +169,26 @@ case object LangCToCol {
       )
   }
 
-  case class KernelNotInjective(kernel: CGpgpuKernelSpecifier[_])
+  private case class KernelNotInjective(kernel: CGpgpuKernelSpecifier[_])
       extends Blame[ReceiverNotInjective] {
     override def blame(error: ReceiverNotInjective): Unit =
       kernel.blame
         .blame(KernelPredicateNotInjective(Left(kernel), error.resource))
   }
 
-  case class KernelParFailure(kernel: CGpgpuKernelSpecifier[_])
+  private case class KernelInvFailure(kernel: CGpgpuKernelSpecifier[_])
+      extends Blame[ParInvariantNotEstablished] {
+
+    override def blame(error: ParInvariantNotEstablished): Unit =
+      error match {
+        case ParInvariantNotEstablished(failure, node) =>
+          PanicBlame(
+            "Establishing Kernel invariant cannot fail, since an identical predicate is required before."
+          ).blame(KernelInvariantNotEstablished(failure, node))
+      }
+
+  }
+  private case class KernelParFailure(kernel: CGpgpuKernelSpecifier[_])
       extends Blame[ParBlockFailure] {
     override def blame(error: ParBlockFailure): Unit =
       error match {
@@ -167,7 +208,7 @@ case object LangCToCol {
       }
   }
 
-  case class KernelBarrierFailure(barrier: GpgpuBarrier[_])
+  private case class KernelBarrierFailure(barrier: GpgpuBarrier[_])
       extends Blame[ParBarrierFailure] {
     override def blame(error: ParBarrierFailure): Unit =
       error match {
@@ -184,7 +225,7 @@ case object LangCToCol {
       }
   }
 
-  case class ArrayMallocFailed(inv: CInvocation[_])
+  private case class ArrayMallocFailed(inv: CInvocation[_])
       extends Blame[ArraySizeError] {
     override def blame(error: ArraySizeError): Unit =
       error match {
@@ -193,7 +234,7 @@ case object LangCToCol {
       }
   }
 
-  case class VectorBoundFailed(subscript: AmbiguousSubscript[_])
+  private case class VectorBoundFailed(subscript: AmbiguousSubscript[_])
       extends Blame[InvocationFailure] {
     override def blame(error: InvocationFailure): Unit =
       error match {
@@ -209,13 +250,13 @@ case object LangCToCol {
       }
   }
 
-  case class UnsupportedCast(c: CCast[_]) extends UserError {
+  private case class UnsupportedCast(c: CCast[_]) extends UserError {
     override def code: String = "unsupportedCast"
     override def text: String =
       c.o.messageInContext("This cast is not supported")
   }
 
-  case class UnsupportedMalloc(c: Expr[_]) extends UserError {
+  private case class UnsupportedMalloc(c: Expr[_]) extends UserError {
     override def code: String = "unsupportedMalloc"
     override def text: String =
       c.o.messageInContext(
@@ -223,21 +264,12 @@ case object LangCToCol {
       )
   }
 
-  case class UnsupportedSizeof(c: Expr[_]) extends UserError {
-    override def code: String = "unsupportedSizeof"
-
-    override def text: String =
-      c.o.messageInContext(
-        "The use of 'sizeof' is only supported inside a malloc: '(t *) malloc(x*typeof(t)'."
-      )
-  }
-
-  case class UnsupportedStructPerm(o: Origin) extends UserError {
-    override def code: String = "unsupportedStructPerm"
-    override def text: String =
-      o.messageInContext(
-        "Shorthand for Permissions for structs not possible, since the struct has a cyclic reference"
-      )
+  private case class TypeSizeMayBeZeroBlame(
+      c: CCast[_],
+      blame: Blame[FrontendInvocationError],
+  ) extends Blame[DivByZero] {
+    override def blame(error: DivByZero): Unit =
+      blame.blame(TypeSizeMayBeZero(c))
   }
 }
 
@@ -247,35 +279,41 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
-  val cFunctionSuccessor
+  private val cFunctionSuccessor
       : SuccessionMap[CFunctionDefinition[Pre], Procedure[Post]] =
     SuccessionMap()
-  val cFunctionDeclSuccessor
+  private val cFunctionDeclSuccessor
       : SuccessionMap[(CGlobalDeclaration[Pre], Int), Procedure[Post]] =
     SuccessionMap()
-  val cNameSuccessor: SuccessionMap[CNameTarget[Pre], Variable[Post]] =
+  private val cNameSuccessor: SuccessionMap[CNameTarget[Pre], Variable[Post]] =
     SuccessionMap()
-  val cLocalHeapNameSuccessor
+  private val cLocalHeapNameSuccessor
       : SuccessionMap[CNameTarget[Pre], LocalHeapVariable[Post]] =
     SuccessionMap()
-  val cGlobalNameSuccessor
+  private val cGlobalNameSuccessor
       : SuccessionMap[CNameTarget[Pre], HeapVariable[Post]] = SuccessionMap()
-  val cStructSuccessor: SuccessionMap[CGlobalDeclaration[Pre], Class[Post]] =
-    SuccessionMap()
-  val cStructFieldsSuccessor: SuccessionMap[
+  private val cStructSuccessor
+      : SuccessionMap[CGlobalDeclaration[Pre], Class[Post]] = SuccessionMap()
+  private val cStructFieldsSuccessor: SuccessionMap[
     (CGlobalDeclaration[Pre], CStructMemberDeclarator[Pre]),
     InstanceField[Post],
   ] = SuccessionMap()
-  val cCurrentDefinitionParamSubstitutions
+  private val cCurrentDefinitionParamSubstitutions
       : ScopedStack[Map[CParam[Pre], CParam[Pre]]] = ScopedStack()
+  private val sizeOfFunctions: SuccessionMap[Type[Pre], Function[Post]] =
+    SuccessionMap()
 
-  val cudaCurrentThreadIdx: ScopedStack[CudaVec] = ScopedStack()
-  val cudaCurrentBlockIdx: ScopedStack[CudaVec] = ScopedStack()
-  val cudaCurrentBlockDim: ScopedStack[CudaVec] = ScopedStack()
-  val cudaCurrentGridDim: ScopedStack[CudaVec] = ScopedStack()
+  private val cudaCurrentThreadIdx: ScopedStack[CudaVec] = ScopedStack()
+  private val cudaCurrentBlockIdx: ScopedStack[CudaVec] = ScopedStack()
+  private val cudaCurrentBlockDim: ScopedStack[CudaVec] = ScopedStack()
+  private val cudaCurrentGridDim: ScopedStack[CudaVec] = ScopedStack()
+  private val cudaConstantDims: ScopedStack[ConstantCudaVec] = ScopedStack()
 
-  val cudaCurrentGrid: ScopedStack[ParBlockDecl[Post]] = ScopedStack()
-  val cudaCurrentBlock: ScopedStack[ParBlockDecl[Post]] = ScopedStack()
+  private val cudaCurrentGrid: ScopedStack[ParBlockDecl[Post]] = ScopedStack()
+  private val cudaCurrentBlock: ScopedStack[ParBlockDecl[Post]] = ScopedStack()
+
+  private val cudaKernelInvBlock: ScopedStack[ParInvariantDecl[Post]] =
+    ScopedStack()
 
   private val dynamicSharedMemNames: mutable.Set[CNameTarget[Pre]] = mutable
     .Set()
@@ -286,6 +324,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     mutable.Map()
   private val globalMemNames: mutable.Set[RefCParam[Pre]] = mutable.Set()
   private var kernelSpecifier: Option[CGpgpuKernelSpecifier[Pre]] = None
+  private val functionPointers
+      : mutable.Map[CFunctionDefinition[Pre], Function[Post]] = mutable.Map()
+  private val parameterContext: ScopedStack[Unit] = ScopedStack()
 
   private def CStructOrigin(sdecl: CStructDeclaration[_]): Origin =
     sdecl.o.sourceName(sdecl.name.get).withContent(TypeName("struct"))
@@ -306,6 +347,33 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           dim -> new Variable[Post](TCInt())(CudaIndexVariableOrigin(dim))
         ): _*
     )
+  }
+
+  class ConstantCudaVec(var indicesConstant: Seq[RefCudaVecDim[Pre]])(
+      implicit val o: Origin
+  ) {
+    var indices: ListMap[RefCudaVecDim[Pre], Variable[Post]] = ListMap(
+      indicesConstant.map(dim =>
+        dim -> new Variable[Post](TCInt())(CudaIndexVariableOrigin(dim))
+      ): _*
+    )
+    // Always keep the x var, if all variables in the block/grid are constant
+    if (
+      indicesConstant.collect {
+        case v: RefCudaVecDim[Pre]
+            if v.vec.isInstanceOf[RefCudaThreadIdx[Pre]] =>
+          v
+      }.size == 3
+    ) { indices = indices.removed(RefCudaVecX[Pre](RefCudaThreadIdx[Pre]())) }
+    if (
+      indicesConstant.collect {
+        case v: RefCudaVecDim[Pre]
+            if v.vec.isInstanceOf[RefCudaBlockIdx[Pre]] =>
+          v
+      }.size == 3
+    ) { indices = indices.removed(RefCudaVecX[Pre](RefCudaBlockIdx[Pre]())) }
+
+    def contains(e: RefCudaVecDim[Pre]): Boolean = indices.contains(e)
   }
 
   private def hasNoSharedMemNames(node: Node[Pre]): Boolean = {
@@ -360,7 +428,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     res.getOrElse(throw NotDynamicSharedMem(pointer))
   }
 
-  def isRatFloatOrInt(t: Type[Pre]): Boolean =
+  private def isRatFloatOrInt(t: Type[Pre]): Boolean =
     getBaseType(t) match {
       case _: FloatType[Pre] => true
       case _: TRational[Pre] => true
@@ -368,38 +436,206 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case _ => false
     }
 
-  def isFloat(t: Type[Pre]): Boolean =
+  private def isInt(t: Type[Pre]): Boolean =
+    getBaseType(t) match {
+      case _: IntType[Pre] => true
+      case _ => false
+    }
+
+  private def isFloat(t: Type[Pre]): Boolean =
     getBaseType(t) match {
       case _: FloatType[Pre] => true
       case _ => false
     }
 
-  def getBaseType[G](t: Type[G]): Type[G] =
+  @tailrec
+  private def getBaseType[G](t: Type[G]): Type[G] =
     t match {
-      case CPrimitiveType(specs) => C.getPrimitiveType(specs)
+      case CPrimitiveType(specs) =>
+        getBaseType(C.getPrimitiveType(specs, None, Some(t)))
+      case TUnique(it, _) => getBaseType(it)
+      case TConst(it) => getBaseType(it)
+      case t @ TClassUnique(cls, _) => t.inner
+      case CTStructUnique(it, _, _) => getBaseType(it)
       case _ => t
     }
 
-  def castIsId(exprType: Type[Pre], castType: Type[Pre]): Boolean =
-    (castType, getBaseType(exprType)) match {
-      case (tc, te) if tc == te => true
+  @tailrec
+  private def isConst[G](t: Type[G]): Boolean =
+    t match {
+      case CPrimitiveType(specs) =>
+        isConst(C.getPrimitiveType(specs, None, Some(t)))
+      case TConst(it) => true
+      case _ => false
+    }
+
+  @tailrec
+  private def getUnique[G](t: Type[G]): Option[BigInt] =
+    t match {
+      case CPrimitiveType(specs) =>
+        getUnique(C.getPrimitiveType(specs, None, Some(t)))
+      case TUnique(it, unique) => Some(unique)
+      case _ => None
+    }
+
+  private def getStructType[G](t: Type[G]): CType[G] =
+    t match {
+      case CPrimitiveType(specs) => ???
+      // getStructType(C.getPrimitiveType(specs, None, Some(t)))
+      case st: CTStructUnique[G] => st
+      case st: CTStruct[G] => st
+      case _ => throw WrongStructType(t)
+    }
+
+  private def getBaseStructTypeWithUnique[G](
+      t: Type[G],
+      m: Map[Ref[G, CStructMemberDeclarator[G]], BigInt] =
+        Map[Ref[G, CStructMemberDeclarator[G]], BigInt](),
+  ): Option[(CTStruct[G], Map[Ref[G, CStructMemberDeclarator[G]], BigInt])] =
+    t match {
+      case CPrimitiveType(specs) => ???
+//        getBaseStructTypeWithUnique(C.getPrimitiveType(specs, Some(t)), m)
+      case CTStructUnique(it, ref, unique) =>
+        if (m.contains(ref))
+          throw WrongUniqueFieldStruct(t)
+        getBaseStructTypeWithUnique(it, m + (ref -> unique))
+      case ts: CTStruct[G] => Some(ts, m)
+      case _ => None
+    }
+
+  private def castIsId(exprType: Type[Pre], castType: Type[Pre]): Boolean = {
+    (getBaseType(castType), getBaseType(exprType)) match {
+      case (tc, te) if tc == te && tc.bits == te.bits => true
       case (TCInt(), TBoundedInt(_, _)) => true
       case (TBoundedInt(_, _), TCInt()) => true
       case _ => false
     }
+  }
+
+  def sizeOf(t: Type[Pre], sizeOfOrigin: Origin): Expr[Post] = {
+    implicit val o: Origin = t.o
+    t.bits match {
+      case TypeSize.Exact(size) => c_const(size / 8)(sizeOfOrigin)
+      case b @ (TypeSize.Unknown() | TypeSize.Minimally(_)) =>
+        // Special casing arrays with runtime size
+        t match {
+          case CTArray(Some(size), innerType) =>
+            val sizeVar = new Variable[Post](TCInt())
+            functionInvocation(
+              TrueSatisfiable,
+              sizeOfFunctions.getOrElseUpdate(
+                t, {
+                  rw.globalDeclarations
+                    .declare(withResult((result: Result[Post]) =>
+                      function[Post](
+                        AbstractApplicable,
+                        TrueSatisfiable,
+                        TCInt(),
+                        args = Seq(sizeVar),
+                        ensures = UnitAccountedPredicate(innerType.bits match {
+                          case TypeSize.Unknown() => tt
+                          case TypeSize.Minimally(size) =>
+                            result >= sizeVar.get * c_const(size / 8)
+                          case TypeSize.Exact(size) =>
+                            result === sizeVar.get * c_const(size / 8)
+                        }),
+                      )(o.where(name = s"sizeOf_$t"))
+                    ))
+                },
+              ).ref[Function[Post]],
+              args = Seq(rw.dispatch(size)),
+            )(sizeOfOrigin)
+          case _ =>
+            functionInvocation(
+              TrueSatisfiable,
+              sizeOfFunctions.getOrElseUpdate(
+                t, {
+                  rw.globalDeclarations
+                    .declare(withResult((result: Result[Post]) =>
+                      function[Post](
+                        AbstractApplicable,
+                        TrueSatisfiable,
+                        TCInt(),
+                        ensures = UnitAccountedPredicate(b match {
+                          case TypeSize.Unknown() => tt
+                          case TypeSize.Minimally(size) =>
+                            result >= c_const(size / 8)
+                        }),
+                      )(o.where(name = s"sizeOf_$t"))
+                    ))
+                },
+              ).ref[Function[Post]],
+            )(sizeOfOrigin)
+        }
+    }
+  }
+
+  def rewriteComparison(cmp: Expr[Pre]): Expr[Post] = {
+    val (l, r) =
+      cmp match {
+        case AmbiguousEq(left, right, _, None) => (left, right)
+        case AmbiguousNeq(left, right, _, None) => (left, right)
+        case AmbiguousGreater(left, right, None) => (left, right)
+        case AmbiguousLess(left, right, None) => (left, right)
+        case AmbiguousGreaterEq(left, right, None) => (left, right)
+        case AmbiguousLessEq(left, right, None) => (left, right)
+        case _ => return cmp.rewriteDefault()
+      }
+
+    val leftPtr = l.t.asPointer
+    val rightPtr = r.t.asPointer
+    if (leftPtr.isDefined && rightPtr.isDefined) {
+      if (
+        CoercionUtils.getAnyCoercion(leftPtr.get.element, rightPtr.get.element)
+          .isDefined
+      ) {
+        val elementSize = Some(sizeOf(leftPtr.get.element, cmp.o))
+        cmp match {
+          case e @ AmbiguousEq(_, _, _, _) =>
+            e.rewrite(elementSize = elementSize)
+          case e @ AmbiguousNeq(_, _, _, _) =>
+            e.rewrite(elementSize = elementSize)
+          case e @ AmbiguousGreater(_, _, _) =>
+            e.rewrite(elementSize = elementSize)
+          case e @ AmbiguousLess(_, _, _) =>
+            e.rewrite(elementSize = elementSize)
+          case e @ AmbiguousGreaterEq(_, _, _) =>
+            e.rewrite(elementSize = elementSize)
+          case e @ AmbiguousLessEq(_, _, _) =>
+            e.rewrite(elementSize = elementSize)
+        }
+      } else { throw InvalidPointerComparison(cmp.o) }
+    } else { cmp.rewriteDefault() }
+  }
 
   def cast(c: CCast[Pre]): Expr[Post] =
     c match {
       case CCast(e, t) if castIsId(e.t, t) => rw.dispatch(c.expr)
+      case CCast(e, t @ TCInt()) if isInt(e.t) =>
+        Cast(rw.dispatch(e), TypeValue(rw.dispatch(t))(c.o))(c.o)
       case CCast(e, t)
           if (isFloat(t) && isRatFloatOrInt(e.t)) ||
             (isRatFloatOrInt(t) && isFloat(e.t)) =>
         // We can convert between rationals, integers and floats
         CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
+
+      case cast @ CCast(_, TOpenCLVector(_, _)) =>
+        createOpenCLLiteralVector(cast)
       case CCast(
-            inv @ CInvocation(CLocal("__vercors_malloc"), Seq(arg), Nil, Nil),
-            CTPointer(t2),
+            inv @ CInvocation(
+              CLocal("__vercors_malloc"),
+              Seq(arg),
+              Nil,
+              Nil,
+              false,
+            ),
+            tcast,
           ) =>
+        val t2 =
+          tcast match {
+            case CTPointer(t2) => t2
+            case _ => throw UnsupportedMalloc(c)
+          }
         val (t1, size) =
           arg match {
             case SizeOf(t1) if castIsId(t1, t2) => (t1, c_const[Post](1)(c.o))
@@ -407,27 +643,70 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               (t1, rw.dispatch(l))
             case AmbiguousMult(SizeOf(t1), r) if castIsId(t1, t2) =>
               (t1, rw.dispatch(r))
-            case _ => throw UnsupportedMalloc(c)
+            case _ =>
+              (
+                t2,
+                FloorDiv(rw.dispatch(arg), sizeOf(t2, c.o))(
+                  TypeSizeMayBeZeroBlame(c, inv.blame)
+                )(c.o),
+              )
           }
-        NewPointerArray(rw.dispatch(t1), size)(ArrayMallocFailed(inv))(c.o)
-      case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _), _) =>
+        NewPointer(rw.dispatch(t2), size, None)(ArrayMallocFailed(inv))(c.o)
+      case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _, _), _) =>
         throw UnsupportedMalloc(c)
       case CCast(n @ Null(), t) if t.asPointer.isDefined => rw.dispatch(n)
       case CCast(e, t) if e.t.asPointer.isDefined && t.asPointer.isDefined =>
-        val newE = rw.dispatch(e)
-        val newT = rw.dispatch(t)
-        val newEElement = newE.t.asPointer.get.element
-        val newTElement = newT.asPointer.get.element
+        val eElement = e.t.asPointer.get.element
+        val tElement = t.asPointer.get.element
+        val newEElement = getBaseType(rw.dispatch(eElement))
+        val newTElement = getBaseType(rw.dispatch(tElement))
         if (
           newEElement == TVoid[Post]() || newTElement == TVoid[Post]() ||
           CoercionUtils.firstElementIsType(newEElement, newTElement) ||
           CoercionUtils.firstElementIsType(newTElement, newEElement)
-        ) { Cast(newE, TypeValue(newT)(t.o))(c.o) }
-        else { throw UnsupportedCast(c) }
+        ) {
+          PointerCast(
+            rw.dispatch(e),
+            rw.dispatch(t),
+            sizeOf(eElement, c.o),
+            sizeOf(tElement, c.o),
+          )(c.o)
+        } else { throw UnsupportedCast(c) }
+      case CCast(e, t @ TCInt()) if e.t.asPointer.isDefined =>
+        if (isUniquePointerElement(e.t.asPointer.get.element))
+          throw UnsupportedCast(c)
+        IntegerPointerCast(
+          rw.dispatch(e),
+          rw.dispatch(t),
+          getStride(e.t.asPointer.get.element, c.o),
+        )(c.o)
+      case CCast(e, t @ CTPointer(innerType))
+          if getBaseType(e.t).isInstanceOf[TCInt[Pre]] &&
+            !isUniquePointerElement(innerType) =>
+        IntegerPointerCast(
+          rw.dispatch(e),
+          TPointer(rw.dispatch(innerType), None),
+          getStride(innerType, c.o),
+        )(c.o)
       case _ => throw UnsupportedCast(c)
     }
 
-  def rewriteGPUParam(
+  // Traverse all type qualifiers
+  private def isUniquePointerElement(t: Type[Pre]): Boolean =
+    t match {
+      case TUnique(_, _) => true
+      case TConst(inner) => isUniquePointerElement(inner)
+      case CTStructUnique(inner, _, _) => isUniquePointerElement(inner)
+      case _ => false
+    }
+
+  private def getStride(t: Type[Pre], o: Origin): Expr[Post] =
+    t match {
+      case t @ CTArray(_, _) => sizeOf(getArrayType(t), o)
+      case _ => sizeOf(t, o)
+    }
+
+  private def rewriteGPUParam(
       cParam: CParam[Pre],
       kernelSpecifier: CGpgpuKernelSpecifier[Pre],
   ): Unit = {
@@ -435,7 +714,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = cParam.o
     val varO = o.sourceName(C.getDeclaratorInfo(cParam.declarator).name)
     val cRef = RefCParam(cParam)
-    val tp = new TypeProperties(cParam.specifiers, cParam.declarator)
+    val tp = new TypeProperties(cParam.specifiers, cParam)
 
     kernelSpecifier match {
       case OpenCLKernel() =>
@@ -461,33 +740,36 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           throw WrongGPUKernelParameterType(cParam)
     }
 
-    val v =
+    val v = {
       new Variable[Post](cParam.specifiers.collectFirst {
         case t: CSpecificationType[Pre] => rw.dispatch(t.t)
       }.get)(varO)
+    }
     cNameSuccessor(cRef) = v
     rw.variables.declare(v)
   }
 
   def rewriteParam(cParam: CParam[Pre]): Unit = {
-    if (kernelSpecifier.isDefined)
-      return rewriteGPUParam(cParam, kernelSpecifier.get)
-    cParam.specifiers.collectFirst {
-      case GPULocal() => throw WrongGPUType(cParam)
-      case GPUGlobal() => throw WrongGPUType(cParam)
-    }
-    val specType =
-      cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] =>
-        rw.dispatch(t.t)
-      }.get
+    parameterContext.having(()) {
+      if (kernelSpecifier.isDefined)
+        return rewriteGPUParam(cParam, kernelSpecifier.get)
+      cParam.specifiers.collectFirst {
+        case GPULocal() => throw WrongGPUType(cParam)
+        case GPUGlobal() => throw WrongGPUType(cParam)
+      }
+      val prop = new TypeProperties(cParam.specifiers, cParam)
+      if (!prop.validCParam)
+        throw WrongCType(cParam)
+      val specType = rw.dispatch(prop.mainType.get)
 
-    cParam.drop()
-    val v =
-      new Variable[Post](specType)(
-        cParam.o.sourceName(C.getDeclaratorInfo(cParam.declarator).name)
-      )
-    cNameSuccessor(RefCParam(cParam)) = v
-    rw.variables.declare(v)
+      cParam.drop()
+      val v =
+        new Variable[Post](specType)(
+          cParam.o.sourceName(C.getDeclaratorInfo(cParam.declarator).name)
+        )
+      cNameSuccessor(RefCParam(cParam)) = v
+      rw.variables.declare(v)
+    }
   }
 
   def rewriteFunctionDef(func: CFunctionDefinition[Pre]): Unit = {
@@ -499,6 +781,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }.get
     val pure = func.specs.collectFirst { case CPure() => () }.isDefined
     val inline = func.specs.collectFirst { case CInline() => () }.isDefined
+    val opaque = func.specs.collectFirst { case COpaque() => () }.isDefined
 
     val (contract, subs: Map[CParam[Pre], CParam[Pre]]) =
       func.ref match {
@@ -534,6 +817,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 contract = rw.dispatch(contract),
                 inline = inline,
                 pure = pure,
+                opaque = opaque,
               )(func.blame)(namedO)
             }
           })
@@ -555,23 +839,50 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     foldStar(unfoldStar(e).map(allOneExpr(blame)(idx, dim, _)))(e.o)
   }
 
-  def allOneExpr(
+  private def allOneExpr(
       blame: Blame[ReceiverNotInjective]
   )(idx: CudaVec, dim: CudaVec, e: Expr[Post]): Expr[Post] = {
     implicit val o: Origin = e.o
+
     val vars = findVars(e)
-    val (filteredIdx, otherIdx) = idx.indices.values.zip(dim.indices.values)
-      .partition { case (i, _) => vars.contains(i) }
+    val nonConstant = idx.indices.zip(dim.indices.values).filter {
+      case ((cudaIndex, _), _) => !cudaConstantDims.top.contains(cudaIndex)
+    }.map { case ((_, index), dim) => (index, dim) }
+
+    val (filteredIdx, otherIdx) = nonConstant.partition { case (i, _) =>
+      vars.contains(i)
+    }
+    // Substitute all constant values (except threadIdx.x and blockIdx.x if all threads/blocks are constant)
+    val sub = Substitute[Post](
+      cudaConstantDims.top.indices.values.map(v => (v.get, c_const[Post](0)))
+        .toMap
+    )
+    val eSub = sub.dispatch(e)
+
+    val (prevBindings, b, prevBlame) =
+      eSub match {
+        case s @ Starall(bindings, Nil, b) => (bindings, b, Some(s.blame))
+        case Forall(bindings, Nil, b) => (bindings, b, None)
+        case b => (Seq(), b, None)
+      }
 
     val body =
       otherIdx.map { case (_, range) => range }
-        .foldLeft(e)((newE, scaleFactor) =>
+        .foldLeft(b)((newE, scaleFactor) =>
           Scale(scaleFactor.get, newE)(PanicBlame("Framed positive"))
         )
-    if (filteredIdx.isEmpty) { body }
-    else {
+    if (filteredIdx.isEmpty) {
+      if (prevBindings.isEmpty)
+        body
+      else {
+        prevBlame match {
+          case Some(oldBlame) => Starall(prevBindings, Nil, body)(oldBlame)
+          case None => Forall(prevBindings, Nil, body)
+        }
+      }
+    } else {
       Starall(
-        filteredIdx.map { case (v, _) => v }.toSeq,
+        filteredIdx.map { case (v, _) => v }.toSeq ++ prevBindings,
         Nil,
         Implies(
           foldAnd(filteredIdx.map { case (idx, dim) =>
@@ -621,13 +932,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case _ => throw Unreachable("Should not happen")
     }
 
-  def getInnerType(t: Type[Post]): Type[Post] =
-    t match {
-      case TArray(element) => element
-      case TPointer(element) => element
-      case _ => throw Unreachable("Already checked on pointer or array type")
-    }
-
   def declareSharedMemory()
       : (Seq[Variable[Post]], (Seq[Variable[Post]], Seq[Statement[Post]])) =
     rw.variables.collect {
@@ -640,12 +944,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         val v = new Variable[Post](TCInt())(varO)
         dynamicSharedMemLengthVar(d) = v
         rw.variables.declare(v)
-//      val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
         val assign: Statement[Post] = assignLocal(
           Local(cNameSuccessor(d).ref),
-          NewNonNullPointerArray[Post](
-            getInnerType(cNameSuccessor(d).t),
+          NewNonNullPointer[Post](
+            cNameSuccessor(d).t.asPointer.get.element,
             Local(v.ref),
+            None,
           )(PanicBlame("Shared memory sizes cannot be negative.")),
         )
         declarations ++= Seq(cNameSuccessor(d))
@@ -653,13 +957,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       })
       staticSharedMemNames.foreach { case (d, (size, blame)) =>
         implicit val o: Origin = getCDecl(d).o
-//      val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
         val assign: Statement[Post] = assignLocal(
           Local(cNameSuccessor(d).ref),
           // Since we set the size and blame together, we can assume the blame is not None
-          NewNonNullPointerArray[Post](
-            getInnerType(cNameSuccessor(d).t),
-            CIntegerValue(size),
+          NewNonNullPointer[Post](
+            cNameSuccessor(d).t.asPointer.get.element,
+            c_const(size),
+            None,
           )(blame.get),
         )
         declarations ++= Seq(cNameSuccessor(d))
@@ -668,6 +972,110 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
       (declarations, inits)
     }
+
+  // Returns the threadIdx or blockIdx if its dim is a constant 1
+  // E.g. blockDim.x == 1 returns threadIdx.x
+  def dimsOfSize1Expr(e: Expr[Pre]): Option[RefCudaVecDim[Pre]] = {
+    // If it is block or grid dim, get the idx from it
+    def getIdx(dim: RefCudaVec[Pre]): Option[RefCudaVec[Pre]] =
+      dim match {
+        case RefCudaBlockDim() => Some(RefCudaThreadIdx())
+        case RefCudaGridDim() => Some(RefCudaBlockIdx())
+        case _ => None
+      }
+
+    def cudaVec(target: CDerefTarget[Pre]): Option[RefCudaVecDim[Pre]] =
+      target match {
+        case RefCudaVecX(vec) => getIdx(vec).map(RefCudaVecX[Pre])
+        case RefCudaVecY(vec) => getIdx(vec).map(RefCudaVecY[Pre])
+        case RefCudaVecZ(vec) => getIdx(vec).map(RefCudaVecZ[Pre])
+        case _ => None
+      }
+
+    def openClVec(name: String, idx: Expr[Pre]): Option[RefCudaVecDim[Pre]] = {
+      val dims = Seq[RefCudaVec[Pre] => RefCudaVecDim[Pre]](
+        RefCudaVecX[Pre],
+        RefCudaVecY[Pre],
+        RefCudaVecZ[Pre],
+      )
+      idx match {
+        case CIntegerValue(i, _) if i >= 0 && i < 3 =>
+          val dim = dims(i.toInt)
+          if (name == "get_local_size")
+            Some(dim(RefCudaThreadIdx()))
+          else if (name == "get_num_groups")
+            Some(dim(RefCudaBlockIdx()))
+          else
+            None
+        case _ => None
+      }
+    }
+
+    e match {
+      case AmbiguousEq(acc: CFieldAccess[Pre], CIntegerValue(i, _), _, _)
+          if i == 1 =>
+        cudaVec(acc.ref.get)
+      case AmbiguousEq(CIntegerValue(i, _), acc: CFieldAccess[Pre], _, _)
+          if i == 1 =>
+        cudaVec(acc.ref.get)
+      case AmbiguousEq(CIntegerValue(i, _), inv: CInvocation[Pre], _, _)
+          if i == 1 && inv.args.size == 1 =>
+        openClVec(inv.ref.get.name, inv.args.head)
+      case AmbiguousEq(inv: CInvocation[Pre], CIntegerValue(i, _), _, _)
+          if i == 1 && inv.args.size == 1 =>
+        openClVec(inv.ref.get.name, inv.args.head)
+      case _ => None
+    }
+  }
+
+  def workDimConstrained(e: Expr[Pre]): Seq[RefCudaVecDim[Pre]] = {
+    def res(i: BigInt): Seq[RefCudaVecDim[Pre]] = {
+      var res = Seq[RefCudaVecDim[Pre]]()
+      if (i > 3)
+        throw WrongGPUDimension(e.o)
+      if (i < 3)
+        res =
+          res ++ Seq(
+            RefCudaVecZ[Pre](RefCudaThreadIdx()),
+            RefCudaVecZ[Pre](RefCudaBlockIdx()),
+          )
+      if (i < 2)
+        res =
+          res ++ Seq(
+            RefCudaVecY[Pre](RefCudaThreadIdx()),
+            RefCudaVecY[Pre](RefCudaBlockIdx()),
+          )
+      res
+    }
+
+    e match {
+      case AmbiguousEq(
+            inv @ CInvocation(_, Nil, Nil, Nil, _),
+            CIntegerValue(i, _),
+            _,
+            _,
+          ) if inv.ref.get.name == "get_work_dim" =>
+        res(i)
+      case AmbiguousEq(
+            CIntegerValue(i, _),
+            inv @ CInvocation(_, Nil, Nil, Nil, _),
+            _,
+            _,
+          ) if inv.ref.get.name == "get_work_dim" =>
+        res(i)
+      case _ => Seq()
+    }
+  }
+
+  def dimsOfSize1(
+      contract: ApplicableContract[Pre]
+  ): Seq[RefCudaVecDim[Pre]] = {
+    val UnitAccountedPredicate(contractRequires: Expr[Pre]) = contract.requires
+    (unfoldStar(contractRequires)
+      .flatMap(e => dimsOfSize1Expr(e) ++ workDimConstrained(e)) ++
+      unfoldStar(contract.contextEverywhere)
+        .flatMap(e => dimsOfSize1Expr(e) ++ workDimConstrained(e))).distinct
+  }
 
   def kernelProcedure(
       o: Origin,
@@ -679,176 +1087,230 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     dynamicSharedMemNames.clear()
     staticSharedMemNames.clear()
     kernelSpecifier = Some(kernelSpec)
+    val constantIdx = new ConstantCudaVec(dimsOfSize1(contract))(o)
 
     val blockDim = new CudaVec(RefCudaBlockDim())(o)
     val gridDim = new CudaVec(RefCudaGridDim())(o)
-    cudaCurrentBlockDim.having(blockDim) {
-      cudaCurrentGridDim.having(gridDim) {
-        val args =
-          rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
-        val implFiltered = body.map(init => filterSharedDecl(init))
+    cudaConstantDims.having(constantIdx) {
+      cudaCurrentBlockDim.having(blockDim) {
+        cudaCurrentGridDim.having(gridDim) {
+          val args =
+            rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
+          val implFiltered = body.map(init => filterSharedDecl(init))
 
-        rw.variables.collect {
-          dynamicSharedMemNames
-            .foreach(d => rw.variables.declare(cNameSuccessor(d)))
-        }
-        rw.variables.collect {
-          staticSharedMemNames
-            .foreach(d => rw.variables.declare(cNameSuccessor(d._1)))
-        }
-        val (
-          sharedMemSizes,
-          (
-            sharedMemDecls: Seq[Variable[Post]],
-            sharedMemInits: Seq[Statement[Post]],
-          ),
-        ) = declareSharedMemory()
+          rw.variables.collect {
+            dynamicSharedMemNames
+              .foreach(d => rw.variables.declare(cNameSuccessor(d)))
+          }
+          rw.variables.collect {
+            staticSharedMemNames
+              .foreach(d => rw.variables.declare(cNameSuccessor(d._1)))
+          }
+          val (
+            sharedMemSizes,
+            (
+              sharedMemDecls: Seq[Variable[Post]],
+              sharedMemInits: Seq[Statement[Post]],
+            ),
+          ) = declareSharedMemory()
 
-        val newArgs =
-          blockDim.indices.values.toSeq ++ gridDim.indices.values.toSeq ++
-            args ++ sharedMemSizes
-        val newGivenArgs = rw.variables.dispatch(contract.givenArgs)
-        val newYieldsArgs = rw.variables.dispatch(contract.yieldsArgs)
-        // We add the requirement that a GPU kernel must always have threads (non zero block or grid dimensions)
-        val nonZeroThreads: Expr[Post] =
-          foldStar(
-            (blockDim.indices.values ++ gridDim.indices.values)
-              .map(v => Less(CIntegerValue(0)(o), v.get(o))(o)).toSeq
-          )(o)
-        val UnitAccountedPredicate(contractRequires: Expr[Pre]) =
-          contract.requires
-        val UnitAccountedPredicate(contractEnsures: Expr[Pre]) =
-          contract.ensures
+          val newArgs =
+            blockDim.indices.values.toSeq ++ gridDim.indices.values.toSeq ++
+              args ++ sharedMemSizes
+          val newGivenArgs = rw.variables.dispatch(contract.givenArgs)
+          val newYieldsArgs = rw.variables.dispatch(contract.yieldsArgs)
+          // We add the requirement that a GPU kernel must always have threads (non zero block or grid dimensions)
+          val nonZeroThreads: Expr[Post] =
+            foldStar(
+              (blockDim.indices.values ++ gridDim.indices.values)
+                .map(v => Less(c_const(0)(o), v.get(o))(o)).toSeq
+            )(o)
+          val UnitAccountedPredicate(contractRequires: Expr[Pre]) =
+            contract.requires
+          val UnitAccountedPredicate(contractEnsures: Expr[Pre]) =
+            contract.ensures
 
-        val parBody = body.map(impl => {
-          implicit val o: Origin = impl.o
-          val threadIdx = new CudaVec(RefCudaThreadIdx())
-          val blockIdx = new CudaVec(RefCudaBlockIdx())
-          val gridDecl = new ParBlockDecl[Post]()
-          val blockDecl = new ParBlockDecl[Post]()
+          val parBody = body.map(impl => {
+            implicit val o: Origin = impl.o
+            val threadIdx = new CudaVec(RefCudaThreadIdx())
+            val blockIdx = new CudaVec(RefCudaBlockIdx())
+            val gridDecl = new ParBlockDecl[Post]()
+            val blockDecl = new ParBlockDecl[Post]()
+            val invDecl = new ParInvariantDecl[Post]()
 
-          cudaCurrentThreadIdx.having(threadIdx) {
-            cudaCurrentBlockIdx.having(blockIdx) {
-              cudaCurrentGrid.having(gridDecl) {
-                cudaCurrentBlock.having(blockDecl) {
-                  val contextBlock = foldStar(
-                    unfoldStar(contract.contextEverywhere)
-                      .filter(hasNoSharedMemNames)
-                      .map(allThreadsInBlock(KernelNotInjective(kernelSpec)))
-                  )
-                  val innerContent = ParStatement(
-                    ParBlock(
-                      decl = blockDecl,
-                      iters =
-                        threadIdx.indices.values.zip(blockDim.indices.values)
-                          .map { case (index, dim) =>
-                            IterVariable(index, c_const(0), dim.get)
-                          }.toSeq,
-                      // Context is already inherited
-                      context_everywhere = Star(
-                        nonZeroThreads,
-                        rw.dispatch(contract.contextEverywhere),
-                      ),
-                      requires = rw.dispatch(contractRequires),
-                      ensures = rw.dispatch(contractEnsures),
-                      content = rw.dispatch(implFiltered.get),
-                    )(KernelParFailure(kernelSpec))
-                  )
-                  ParStatement(
-                    ParBlock(
-                      decl = gridDecl,
-                      iters =
-                        blockIdx.indices.values.zip(gridDim.indices.values)
-                          .map { case (index, dim) =>
-                            IterVariable(index, c_const(0), dim.get)
-                          }.toSeq,
-                      // Context is added to requires and ensures here
-                      context_everywhere = tt,
-                      requires = Star(
-                        nonZeroThreads,
-                        Star(
-                          contextBlock,
-                          foldStar(
-                            unfoldStar(contractRequires)
-                              .filter(hasNoSharedMemNames)
-                              .map(allThreadsInBlock(
-                                KernelNotInjective(kernelSpec)
-                              ))
+            cudaCurrentThreadIdx.having(threadIdx) {
+              cudaCurrentBlockIdx.having(blockIdx) {
+                cudaCurrentGrid.having(gridDecl) {
+                  cudaCurrentBlock.having(blockDecl) {
+                    cudaKernelInvBlock.having(invDecl) {
+                      val contextBlock = foldStar(
+                        unfoldStar(contract.contextEverywhere)
+                          .filter(hasNoSharedMemNames).map(allThreadsInBlock(
+                            KernelNotInjective(kernelSpec)
+                          ))
+                      )
+                      def getIters(idxs: CudaVec, dims: CudaVec)
+                          : Seq[IterVariable[Post]] = {
+                        var innerIters =
+                          idxs.indices.zip(dims.indices.values)
+                            .filter { case ((cudaIndex, _), _) =>
+                              !constantIdx.contains(cudaIndex)
+                            }.map { case ((_, index), dim) =>
+                              IterVariable(index, c_const(0), dim.get)
+                            }.toSeq
+                        // Always have atleast the x dimension
+                        if (innerIters.isEmpty) {
+                          innerIters = Seq(IterVariable(
+                            idxs.indices.head._2,
+                            c_const(0),
+                            dims.indices.head._2.get,
+                          ))
+                        }
+                        innerIters
+                      }
+
+                      // Substitute all constant values (except threadIdx.x and blockIdx.x if all threads/blocks are constant)
+                      val sub = Substitute[Post](
+                        cudaConstantDims.top.indices.values
+                          .map(v => (v.get, c_const[Post](0))).toMap
+                      )
+
+                      val innerContent = ParStatement(
+                        ParBlock(
+                          decl = blockDecl,
+                          iters = getIters(threadIdx, blockDim),
+                          // Context is already inherited
+                          context_everywhere = Star(
+                            nonZeroThreads,
+                            sub
+                              .dispatch(rw.dispatch(contract.contextEverywhere)),
                           ),
-                        ),
-                      ),
-                      ensures = Star(
-                        nonZeroThreads,
-                        Star(
-                          contextBlock,
-                          foldStar(
-                            unfoldStar(contractEnsures)
-                              .filter(hasNoSharedMemNames)
-                              .map(allThreadsInBlock(
-                                KernelNotInjective(kernelSpec)
-                              ))
+                          requires = sub
+                            .dispatch(rw.dispatch(contractRequires)),
+                          ensures = sub.dispatch(rw.dispatch(contractEnsures)),
+                          content = rw.dispatch(implFiltered.get),
+                        )(KernelParFailure(kernelSpec))
+                      )
+                      val outerContent = ParStatement[Post](
+                        ParBlock(
+                          decl = gridDecl,
+                          iters = getIters(blockIdx, gridDim),
+                          // Context is added to requires and ensures here
+                          context_everywhere = tt,
+                          requires = Star(
+                            nonZeroThreads,
+                            Star(
+                              contextBlock,
+                              foldStar(
+                                unfoldStar(contractRequires)
+                                  .filter(hasNoSharedMemNames)
+                                  .map(allThreadsInBlock(
+                                    KernelNotInjective(kernelSpec)
+                                  ))
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      // Add shared memory initialization before beginning of inner parallel block
-                      content = Scope[Post](
-                        sharedMemDecls,
-                        Block[Post](sharedMemInits ++ Seq(innerContent)),
-                      ),
-                    )(KernelParFailure(kernelSpec))
-                  )
+                          ensures = Star(
+                            nonZeroThreads,
+                            Star(
+                              contextBlock,
+                              foldStar(
+                                unfoldStar(contractEnsures)
+                                  .filter(hasNoSharedMemNames)
+                                  .map(allThreadsInBlock(
+                                    KernelNotInjective(kernelSpec)
+                                  ))
+                              ),
+                            ),
+                          ),
+                          // Add shared memory initialization before beginning of inner parallel block
+                          content = Scope[Post](
+                            sharedMemDecls,
+                            Block[Post](sharedMemInits ++ Seq(innerContent)),
+                          ),
+                        )(KernelParFailure(kernelSpec))
+                      )
+                      val invariant = rw.dispatch(contract.kernelInvariant)
+                      val parStmt =
+                        ParInvariant(
+                          decl = invDecl,
+                          inv = invariant,
+                          content = outerContent,
+                        )(KernelInvFailure(kernelSpec))
+                      // For constant
+                      val constants: Seq[Variable[Post]] =
+                        constantIdx.indices.values.toSeq
+                      if (constants.nonEmpty) {
+                        Scope[Post](
+                          constants,
+                          Block[Post](
+                            constants
+                              .map(c => assignLocal(c.get, c_const[Post](0))) ++
+                              Seq(parStmt)
+                          ),
+                        )
+                      } else { parStmt }
+                    }
+                  }
                 }
               }
             }
-          }
-        })
+          })
 
-        val gridContext: Expr[Post] =
-          foldStar(
-            unfoldStar(contract.contextEverywhere).filter(hasNoSharedMemNames)
-              .map(allThreadsInGrid(KernelNotInjective(kernelSpec)))
-          )(o)
-        val requires: Expr[Post] =
-          foldStar(
-            Seq(gridContext, nonZeroThreads) ++ unfoldStar(contractRequires)
-              .filter(hasNoSharedMemNames)
-              .map(allThreadsInGrid(KernelNotInjective(kernelSpec)))
-          )(o)
-        val ensures: Expr[Post] =
-          foldStar(
-            Seq(gridContext, nonZeroThreads) ++ unfoldStar(contractEnsures)
-              .filter(hasNoSharedMemNames)
-              .map(allThreadsInGrid(KernelNotInjective(kernelSpec)))
-          )(o)
-        val result =
-          new Procedure[Post](
-            returnType = TVoid(),
-            args = newArgs,
-            outArgs = Nil,
-            typeArgs = Nil,
-            body = parBody,
-            contract =
-              ApplicableContract(
-                UnitAccountedPredicate(requires)(o),
-                UnitAccountedPredicate(ensures)(o),
-                // Context everywhere is already passed down in the body
-                tt,
-                contract.signals.map(rw.dispatch),
-                newGivenArgs,
-                newYieldsArgs,
-                contract.decreases.map(rw.dispatch),
-              )(contract.blame)(contract.o),
-          )(AbstractApplicable)(o)
-        kernelSpecifier = None
+          val gridContext: Expr[Post] =
+            foldStar(
+              unfoldStar(contract.contextEverywhere).filter(hasNoSharedMemNames)
+                .map(allThreadsInGrid(KernelNotInjective(kernelSpec)))
+            )(o)
+          // Don't scale kernelInvariants since they are established outside the par block
+          val kernelInvs: Expr[Post] =
+            foldStar(
+              unfoldStar(contract.kernelInvariant).filter(hasNoSharedMemNames)
+                .map(rw.dispatch)
+            )(o)
+          val requires: Expr[Post] =
+            foldStar(
+              Seq(gridContext, nonZeroThreads, kernelInvs) ++
+                unfoldStar(contractRequires).filter(hasNoSharedMemNames)
+                  .map(allThreadsInGrid(KernelNotInjective(kernelSpec)))
+            )(o)
+          val ensures: Expr[Post] =
+            foldStar(
+              Seq(gridContext, nonZeroThreads, kernelInvs) ++
+                unfoldStar(contractEnsures).filter(hasNoSharedMemNames)
+                  .map(allThreadsInGrid(KernelNotInjective(kernelSpec)))
+            )(o)
+          val result =
+            new Procedure[Post](
+              returnType = TVoid(),
+              args = newArgs,
+              outArgs = Nil,
+              typeArgs = Nil,
+              body = parBody,
+              contract =
+                ApplicableContract(
+                  UnitAccountedPredicate(requires)(o),
+                  UnitAccountedPredicate(ensures)(o),
+                  // Context everywhere is already passed down in the body
+                  tt,
+                  tt,
+                  contract.signals.map(rw.dispatch),
+                  newGivenArgs,
+                  newYieldsArgs,
+                  contract.decreases.map(rw.dispatch),
+                )(contract.blame)(contract.o),
+            )(AbstractApplicable)(o)
+          kernelSpecifier = None
 
-        result
+          result
+        }
       }
     }
   }
 
   class TypeProperties(
       specs: Seq[CDeclarationSpecifier[Pre]],
-      decl: CDeclarator[Pre],
+      decl: Declaration[Pre],
   ) {
     var arrayOrPointer = false
     var global = false
@@ -856,27 +1318,38 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     var extern = false
     var innerType: Option[Type[Pre]] = None
     var arraySize: Option[Expr[Pre]] = None
+    var mainType: Option[Type[Pre]] = None
+
     var sizeBlame: Option[Blame[ArraySizeError]] = None
+    var pure = false
+    var inline = false
+    var static = false
 
     specs.foreach {
       case GPULocal() => shared = true
       case GPUGlobal() => global = true
-      case CSpecificationType(CTPointer(t)) =>
+      case CSpecificationType(t) if t.asPointer.isDefined =>
+        val (inner, size, blame) = getInnerPointerInfo(t).get
         arrayOrPointer = true
-        innerType = Some(t)
-      case CSpecificationType(ctarr @ CTArray(size, t)) =>
+        innerType = Some(inner)
+        mainType = Some(t)
+        sizeBlame = blame
         arraySize = size
-        innerType = Some(t)
-        sizeBlame = Some(
-          ctarr.blame
-        ) // we set the blame here, together with the size
-        arrayOrPointer = true
+      case CSpecificationType(t) => mainType = Some(t)
       case CExtern() => extern = true
-      case _ =>
+      case CPure() => pure = true
+      case CInline() => inline = true
+      case CStatic() => static = true
+      // We want to make sure we process everything
+      case _ => ???
     }
 
     def isShared: Boolean = shared && !global
     def isGlobal: Boolean = !shared && global
+    def validNonGpu: Boolean = !global && !shared && mainType.isDefined
+    def validReturn: Boolean = validNonGpu && !static
+    def validCParam: Boolean = !pure && !inline && validNonGpu && !static
+    def validCLocal = validCParam
   }
 
   def addDynamicShared(
@@ -885,12 +1358,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       o: Origin,
   ): Unit = {
     dynamicSharedMemNames.add(cRef)
-    val v = new Variable[Post](TPointer[Post](rw.dispatch(t)))(o)
+    val v = new Variable[Post](TPointer[Post](rw.dispatch(t), None))(o)
     cNameSuccessor(cRef) = v
   }
 
   def addStaticShared(
-      decl: CDeclarator[Pre],
       cRef: CNameTarget[Pre],
       t: Type[Pre],
       o: Origin,
@@ -899,8 +1371,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       sizeBlame: Option[Blame[ArraySizeError]],
   ): Unit =
     arraySize match {
-      case Some(CIntegerValue(size)) =>
-        val v = new Variable[Post](TPointer[Post](rw.dispatch(t)))(o)
+      case Some(CIntegerValue(size, _)) =>
+        val v = new Variable[Post](TPointer[Post](rw.dispatch(t), None))(o)
         staticSharedMemNames(cRef) = (size, sizeBlame)
         cNameSuccessor(cRef) = v
       case _ => throw WrongGPULocalType(declStatement)
@@ -917,7 +1389,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     if (decl.decl.inits.size != 1)
       throw MultipleSharedMemoryDeclaration(decl)
 
-    val prop = new TypeProperties(decl.decl.specs, decl.decl.inits.head.decl)
+    val prop = new TypeProperties(decl.decl.specs, decl)
     if (!prop.shared)
       return false
     val init: CInit[Pre] = decl.decl.inits.head
@@ -938,7 +1410,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           !prop.extern
         ) {
           addStaticShared(
-            init.decl,
             cRef,
             prop.innerType.get,
             varO,
@@ -954,7 +1425,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           !prop.extern
         ) {
           addStaticShared(
-            init.decl,
             cRef,
             prop.innerType.get,
             varO,
@@ -982,11 +1452,46 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
+  def getFirstTypes(aggregate: Type[Pre]): Seq[Type[Pre]] =
+    aggregate match {
+      case struct: CTStruct[Pre] =>
+        val decls =
+          struct.ref.decl.decl match {
+            case CDeclaration(
+                  _,
+                  Seq(CStructDeclaration(Some(_), decls)),
+                  Seq(),
+                ) =>
+              decls
+            case _ => throw WrongStructType(struct.ref.decl)
+          }
+        decls.headOption.map { fieldDecl =>
+          val CStructMemberDeclarator(
+            specs: Seq[CDeclarationSpecifier[Pre]],
+            Seq(_),
+          ) = fieldDecl
+          val t =
+            specs.collectFirst { case t: CSpecificationType[Pre] =>
+              t.t match {
+                case TUnique(inner, _) => inner
+                case inner => inner
+              }
+            }.get
+          t +: getFirstTypes(t)
+        }.getOrElse(Nil)
+      case TArray(element) => element +: getFirstTypes(element)
+      case LLVMTStruct(_, _, _, elements, _) =>
+        elements.headOption.map { field => field.t +: getFirstTypes(field.t) }
+          .getOrElse(Nil)
+      case LLVMTArray(_, elementType) =>
+        elementType +: getFirstTypes(elementType)
+      case _ => Nil
+    }
+
   def rewriteStruct(decl: CGlobalDeclaration[Pre]): Unit = {
     val (decls, sdecl) =
       decl.decl match {
         case CDeclaration(
-              _,
               _,
               Seq(sdecl @ CStructDeclaration(Some(_), decls)),
               Seq(),
@@ -994,6 +1499,22 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           (decls, sdecl)
         case _ => throw WrongStructType(decl)
       }
+
+    val sizes = decls.map { fieldDecl =>
+      val CStructMemberDeclarator(
+        specs: Seq[CDeclarationSpecifier[Pre]],
+        Seq(_),
+      ) = fieldDecl
+      fieldDecl.drop()
+      val t =
+        specs.collectFirst { case t: CSpecificationType[Pre] =>
+          t.t match {
+            case TUnique(inner, _) => inner
+            case inner => inner
+          }
+        }.get
+      sizeOf(t, fieldDecl.o)
+    }
     val newStruct =
       new ByValueClass[Post](
         Seq(),
@@ -1004,22 +1525,37 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               Seq(x),
             ) = fieldDecl
             fieldDecl.drop()
-            val t =
+            val (t, unique) =
               specs.collectFirst { case t: CSpecificationType[Pre] =>
-                rw.dispatch(t.t)
+                t.t match {
+                  case TUnique(inner, unique) =>
+                    (rw.dispatch(inner), Some(unique))
+                  case inner => (rw.dispatch(inner), None)
+                }
               }.get
             cStructFieldsSuccessor((decl, fieldDecl)) =
-              new InstanceField(t = t, flags = Nil)(CStructFieldOrigin(x))
+              new InstanceField(
+                t = t,
+                flags =
+                  if (unique.isDefined)
+                    Seq(Unique[Post](unique.get)(CStructFieldOrigin(x)))
+                  else
+                    Nil,
+              )(CStructFieldOrigin(x))
             rw.classDeclarations
               .declare(cStructFieldsSuccessor((decl, fieldDecl)))
           }
         }._1,
+        false,
+        sizeOf(CTStruct(decl.ref), decl.o),
+        sizes,
       )(CStructOrigin(sdecl))
 
     rw.globalDeclarations.declare(newStruct)
     cStructSuccessor(decl) = newStruct
   }
 
+  // TODO: This seems to make a heap variable for every typedef which should not be needed
   def rewriteGlobalDecl(decl: CGlobalDeclaration[Pre]): Unit = {
     val isStruct =
       decl.decl.specs.collectFirst { case t: CStructDeclaration[Pre] => () }
@@ -1027,6 +1563,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     if (isStruct) { rewriteStruct(decl); return }
     val pure = decl.decl.specs.collectFirst { case CPure() => () }.isDefined
     val inline = decl.decl.specs.collectFirst { case CInline() => () }.isDefined
+    val opaque = decl.decl.specs.collectFirst { case COpaque() => () }.isDefined
 
     val t =
       decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] =>
@@ -1050,16 +1587,23 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 contract = rw.dispatch(decl.decl.contract),
                 pure = pure,
                 inline = inline,
+                opaque = opaque,
               )(AbstractApplicable)(init.o.sourceName(info.name))
             )
           )
         case None =>
           val newT =
-            if (t.asByValueClass.isDefined) { TNonNullPointer(t) }
-            else { t }
+            if (isConst(t)) { t }
+            else { TNonNullPointer(t, getUnique(t)) }
           cGlobalNameSuccessor(RefCGlobalDeclaration(decl, idx)) = rw
-            .globalDeclarations
-            .declare(new HeapVariable(newT)(init.o.sourceName(info.name)))
+            .globalDeclarations.declare(
+              new HeapVariable(
+                newT,
+                if (isConst(t)) { init.init.map(rw.dispatch) }
+                else
+                  None,
+              )(init.o.sourceName(info.name))
+            )
       }
     }
   }
@@ -1071,12 +1615,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   ): Seq[Statement[Post]] = {
     implicit val o: Origin = origin
     (exprs.zipWithIndex.map { case (value, index) =>
-      Assign[Post](
+      // Since we model const arrays with sequences internally, we cannot assign to them, so we assume their values
+      Assume[Post](
         AmbiguousSubscript(array.get, c_const(index))(PanicBlame(
-          "The explicit initialization of an array in C should never generate an assignment that exceeds the bounds of the array"
-        )),
-        rw.dispatch(value),
-      )(PanicBlame("Assignment for an explicit array initializer cannot fail."))
+          "The explicit initialization of an array in C should never exceed the bounds of the array"
+        )) === rw.dispatch(value)
+      )
     })
   }
 
@@ -1095,7 +1639,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case CLiteralArray(exprs) if exprs.size == size =>
         Block(Seq(
           LocalDecl(v),
-          assignLocal(
+          assignInitial(
             v.get,
             LiteralVector[Post](
               rw.dispatch(t.innerType),
@@ -1107,10 +1651,25 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
-  // TODO: (AS) Fixed-size arrays seem to become pointers but they're actually value types
+  private def getDimensions(cta: CTArray[Pre]): Seq[Option[Expr[Post]]] = {
+    cta.size.map(rw.dispatch) +:
+      (cta.innerType match {
+        case inner: CTArray[Pre] => getDimensions(inner)
+        case _ => Nil
+      })
+  }
+
+  @tailrec
+  private def getArrayType(cta: CTArray[Pre]): Type[Pre] =
+    cta.innerType match {
+      case inner: CTArray[Pre] => getArrayType(inner)
+      case inner => inner
+    }
+
   def rewriteArrayDeclaration(
       decl: CLocalDeclaration[Pre],
       cta: CTArray[Pre],
+      init: CInit[Pre],
   ): Statement[Post] = {
     // LangTypesToCol makes it so that each declaration only has one init
     val init = decl.decl.inits.head
@@ -1119,34 +1678,54 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     decl.decl.specs match {
       case Seq(CSpecificationType(cta @ CTArray(sizeOption, oldT))) =>
-        val t = rw.dispatch(oldT)
-        val v = new Variable[Post](TPointer(t))(o.sourceName(info.name))
+        val optDimensions = getDimensions(cta)
+        val innerMostType = rw.dispatch(getArrayType(cta))
+        val v =
+          new Variable[Post](
+            TNonNullPointerArray(innerMostType, optDimensions, None)
+          )(o.sourceName(info.name))
         cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
 
         (sizeOption, init.init) match {
           case (None, None) => throw WrongCType(decl)
           case (Some(size), None) =>
+            if (optDimensions.exists(_.isEmpty)) {
+              throw MissingArraySize(decl)
+            }
+            val dimensions = optDimensions.map(_.get)
             val newArr =
-              NewNonNullPointerArray[Post](t, rw.dispatch(size))(cta.blame)
+              NewPointerArray[Post](innerMostType, dimensions, None)(cta.blame)
             Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
           case (None, Some(CLiteralArray(exprs))) =>
+            oldT match {
+              case CTArray(_, _) => throw UnsupportedArrayInitialiser(decl)
+              case _ => {}
+            }
             val newArr =
-              NewNonNullPointerArray[Post](t, c_const[Post](exprs.size))(
-                cta.blame
-              )
+              NewPointerArray[Post](
+                innerMostType,
+                Seq(c_const[Post](exprs.size)),
+                None,
+              )(cta.blame)
             Block(
               Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++
                 assignliteralArray(v, exprs, o)
             )
           case (Some(size), Some(CLiteralArray(exprs))) =>
+            oldT match {
+              case CTArray(_, _) => throw UnsupportedArrayInitialiser(decl)
+              case _ => {}
+            }
             val realSize = isConstantInt(size).filter(_ >= 0)
               .getOrElse(throw WrongCType(decl))
             if (realSize < exprs.size)
               logger.warn(s"Excess elements in array initializer: '${decl}'")
             val newArr =
-              NewNonNullPointerArray[Post](t, c_const[Post](realSize))(
-                cta.blame
-              )
+              NewPointerArray[Post](
+                innerMostType,
+                Seq(c_const[Post](realSize)),
+                None,
+              )(cta.blame)
             Block(
               Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++
                 assignliteralArray(v, exprs.take(realSize.intValue), o)
@@ -1159,18 +1738,17 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteStructDeclaration(
       decl: CLocalDeclaration[Pre],
-      cts: CTStruct[Pre],
+      structT: Type[Pre],
   ): Statement[Post] = {
     val init = decl.decl.inits.head
     val info = C.getDeclaratorInfo(init.decl)
-    val ref = cts.ref
+    val t = structType(getStructType(structT))
 
     implicit val o: Origin = init.o
-    val targetClass: Class[Post] = cStructSuccessor(ref.decl)
-    val t = TByValueClass[Post](targetClass.ref, Seq())
-
     val v =
-      new LocalHeapVariable[Post](TNonNullPointer(t))(o.sourceName(info.name))
+      new LocalHeapVariable[Post](TNonNullPointer(t, None))(o.sourceName(
+        info.name
+      ))
     cLocalHeapNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
 
     if (init.init.isDefined) {
@@ -1188,23 +1766,21 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteLocal(decl: CLocalDeclaration[Pre]): Statement[Post] = {
     decl.drop()
-    decl.decl.specs.foreach {
-      case _: CSpecificationType[Pre] =>
-      case _ => throw WrongCType(decl)
-    }
-
+    val prop = new TypeProperties(decl.decl.specs, decl)
+    if (!prop.validCLocal)
+      throw WrongCType(decl)
     // LangTypesToCol makes it so that each declaration only has one init
     val init = decl.decl.inits.head
 
     val t =
-      decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => t.t }
-        .get match {
+      prop.mainType.get match {
         case t: CTVector[Pre] if init.init.collect({
               case _: CLiteralArray[Pre] => true
             }).isDefined =>
           return rewriteVectorDeclaration(decl, t, init)
-        case t: CTArray[Pre] => return rewriteArrayDeclaration(decl, t)
+        case t: CTArray[Pre] => return rewriteArrayDeclaration(decl, t, init)
         case t: CTStruct[Pre] => return rewriteStructDeclaration(decl, t)
+        case t: CTStructUnique[Pre] => return rewriteStructDeclaration(decl, t)
         case t => rw.dispatch(t)
       }
 
@@ -1213,7 +1789,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
     implicit val o: Origin = init.o
     init.init.map(value =>
-      Block(Seq(LocalDecl(v), assignLocal(v.get, rw.dispatch(value))))
+      Block(Seq(LocalDecl(v), assignInitial(v.get, rw.dispatch(value))))
     ).getOrElse(LocalDecl(v))
   }
 
@@ -1253,12 +1829,48 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     )(KernelBarrierFailure(barrier))
   }
 
-  def isPointer(t: Type[Pre]): Boolean = getPointer(t).isDefined
+  def gpuAtomic(atomic: GpgpuAtomic[Pre]): Statement[Post] = {
+    implicit val o: Origin = atomic.o
+    ParAtomic[Post](List(cudaKernelInvBlock.top.ref), rw.dispatch(atomic.impl))(
+      o
+    )
+  }
 
-  def getPointer(t: Type[Pre]): Option[TPointer[Pre]] =
+  def getInnerPointerInfo(
+      t: Type[Pre]
+  ): Option[(Type[Pre], Option[Expr[Pre]], Option[Blame[ArraySizeError]])] =
     getBaseType(t) match {
-      case t @ TPointer(_) => Some(t)
+      case TPointer(it, _) => Some((it, None, None))
+      case CTPointer(it) => Some((it, None, None))
+      case a @ CTArray(size, it) => Some((it, size, Some(a.blame)))
       case _ => None
+    }
+
+  def isVector(t: Type[Pre]): Boolean =
+    getBaseType(t) match {
+      case _: CTVector[Pre] => true
+      case _ => false
+    }
+
+  def isArray(t: Type[Pre]): Boolean =
+    getBaseType(t) match {
+      case _: CTArray[Pre] => true
+      case _ => false
+    }
+
+  def isStruct(t: Type[Pre]): Boolean = getStruct(t).isDefined
+
+  def getStruct(t: Type[Pre]): Option[CTStruct[Pre]] =
+    getBaseType(t) match {
+      case t: CTStruct[Pre] => Some(t)
+      case _ => None
+    }
+
+  def isPointer(t: Type[Pre]): Boolean =
+    getBaseType(t) match {
+      case TPointer(_, _) => true
+      case CTPointer(_) => true
+      case _ => false
     }
 
   def isNumeric(t: Type[Pre]): Boolean =
@@ -1338,7 +1950,21 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           )))
         else
           Local(cNameSuccessor.ref(ref))
-      case RefCFunctionDefinition(_) => throw NotAValue(local)
+      case RefCFunctionDefinition(func) =>
+        functionInvocation(
+          TrueSatisfiable,
+          functionPointers.getOrElseUpdate(
+            func, {
+              rw.globalDeclarations.declare(
+                function[Post](
+                  AbstractApplicable,
+                  TrueSatisfiable,
+                  TPointer(TVoid(), None),
+                )(func.o)
+              )
+            },
+          ).ref,
+        )
       case ref: RefCStruct[Pre] => throw NotAValue(local)
       case ref @ RefCGlobalDeclaration(decl, initIdx) =>
         C.getDeclaratorInfo(decl.decl.inits(initIdx).decl).params match {
@@ -1347,18 +1973,15 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] =>
                 t.t
               }.get
-            if (t.isInstanceOf[CTStruct[Pre]]) {
-              DerefPointer(
-                DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(
-                  local.blame
-                )
-              )(local.blame)
-            } else {
+            val derefHeap =
               DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(
                 local.blame
               )
-            }
-          case Some(_) => throw NotAValue(local)
+            if (isConst(t)) { derefHeap }
+            else { DerefPointer(derefHeap)(local.blame) }
+          case Some(_) =>
+            // Is this ever possible? I.e. would it not be a RefCFunctionDefinition?
+            throw NotAValue(local)
         }
       case ref: RefCLocalDeclaration[Pre]
           if cLocalHeapNameSuccessor.contains(ref) =>
@@ -1375,6 +1998,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     def getCuda(dim: RefCudaVecDim[Pre]): Expr[Post] =
       dim.vec match {
+        case _ if cudaConstantDims.top.indices.contains(dim) =>
+          cudaConstantDims.top.indices(dim).get
         case RefCudaThreadIdx() => cudaCurrentThreadIdx.top.indices(dim).get
         case RefCudaBlockIdx() => cudaCurrentBlockIdx.top.indices(dim).get
         case RefCudaBlockDim() => cudaCurrentBlockDim.top.indices(dim).get
@@ -1397,10 +2022,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         else {
           val elementType =
             deref.obj.t match {
-              case CPrimitiveType(
-                    Seq(CSpecificationType(v: TOpenCLVector[Pre]))
-                  ) =>
-                v.innerType
               case v: TOpenCLVector[Pre] => v.innerType
               case _ => ???
             }
@@ -1434,7 +2055,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         val b: Blame[PointerDerefError] = deref.blame
         val structRef =
           getBaseType(deref.struct.t) match {
-            case CTPointer(CTStruct(struct)) => struct
+            case CTPointer(struct) =>
+              getBaseStructTypeWithUnique(struct).map({ case (t, _) => t.ref })
+                .getOrElse(throw WrongStructType(deref.struct.t))
+            case CTArray(_, struct) =>
+              getBaseStructTypeWithUnique(struct).map({ case (t, _) => t.ref })
+                .getOrElse(throw WrongStructType(deref.struct.t))
             case t => throw WrongStructType(t)
           }
         Deref[Post](
@@ -1444,48 +2070,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
-  // Allow a user to write `Perm(p, write)` instead of `Perm(p.x, write) ** Perm(p.y, write)` for `struct p {int x, y}`
-  def unwrapStructPerm(
-      struct: AmbiguousLocation[Post],
-      perm: Expr[Pre],
-      structType: CTStruct[Pre],
-      origin: Origin,
-      visited: Seq[CTStruct[Pre]] = Seq(),
-  ): Expr[Post] = {
-    if (visited.contains(structType))
-      throw UnsupportedStructPerm(
-        origin
-      ) // We do not allow this notation for recursive structs
-    implicit val o: Origin = origin
-    val blame = PanicBlame("Field permission is framed")
-    val Seq(CStructDeclaration(_, fields)) = structType.ref.decl.decl.specs
-    val newPerm = rw.dispatch(perm)
-    val AmbiguousLocation(newExpr) = struct
-    val newFieldPerms = fields.map(member => {
-      val loc =
-        AmbiguousLocation(
-          Deref[Post](
-            newExpr,
-            cStructFieldsSuccessor.ref((structType.ref.decl, member)),
-          )(blame)
-        )(struct.blame)
-      member.specs.collectFirst {
-        case CSpecificationType(newStruct: CTStruct[Pre]) =>
-          // We recurse, since a field is another struct
-          Perm(loc, newPerm) &* unwrapStructPerm(
-            loc,
-            perm,
-            newStruct,
-            origin,
-            structType +: visited,
-          )
-      }.getOrElse(Perm(loc, newPerm))
-    })
-
-    foldStar(newFieldPerms)
-  }
-
-  def createUpdateVectorFunction(size: Int): Function[Post] = {
+  private def createUpdateVectorFunction(size: Int): Function[Post] = {
     implicit val o: Origin = Origin(Seq(LabelContext("vector update method")))
     /* for instance for size 4:
     requires i >= 0 && i < 4;
@@ -1542,7 +2127,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val sub @ AmbiguousSubscript(v, i) = assign.target
     val t =
       v.t match {
-        case CPrimitiveType(Seq(CSpecificationType(t: CTVector[Pre]))) => t
+        case t: CTVector[Pre] => t
         case _ => ???
       }
 
@@ -1570,7 +2155,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val CFieldAccess(obj, idxs) = assign.target
     val t =
       obj.t match {
-        case CPrimitiveType(Seq(CSpecificationType(t: TOpenCLVector[Pre]))) => t
+        case t: TOpenCLVector[Pre] => t
         case _ => ???
       }
 
@@ -1606,7 +2191,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val before: Statement[Post] =
       Block[Post](Seq(
         LocalDecl(rhs_val)(rhs.o),
-        assignLocal(rhs_val.get(rhs.o), rhs)(rhs.o),
+        assignInitial(rhs_val.get(rhs.o), rhs)(rhs.o),
       ))(assign.o)
 
     // Assign the correct values
@@ -1636,16 +2221,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     )(assign.o)
   }
 
-  def isCPointer(t: Type[_]) =
+  private def isCPointer(t: Type[_]) =
     getBaseType(t) match {
       case CTPointer(_) => true
       case _ => false
     }
 
-  def indexVectors(
+  private def indexVectors(
       e: Expr[Post],
       askedType: Type[Post],
-      inv: CInvocation[Pre],
+      cast: CCast[Pre],
   ): Seq[Expr[Post]] =
     e.t match {
       case t if t == askedType => Seq(e)
@@ -1657,16 +2242,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 "Type Checked"
               ))(e.o),
               askedType,
-              inv,
+              cast,
             )
           )
-      case _ => throw WrongOpenCLLiteralVector(inv)
+      case _ => throw WrongOpenCLLiteralVector(cast)
     }
 
-  def unwrapVectorArg(
+  private def unwrapVectorArg(
       e: Expr[Post],
       askedType: Type[Post],
-      inv: CInvocation[Pre],
+      cast: CCast[Pre],
   ): (Seq[Statement[Post]], Seq[Expr[Post]]) =
     e.t match {
       case t if t == askedType => (Nil, Seq(e))
@@ -1679,46 +2264,43 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               val v = new Variable[Post](e.t)
               val befores: Seq[Statement[Post]] = Seq(
                 LocalDecl(v),
-                assignLocal(v.get, e),
+                assignInitial(v.get, e),
               )
               (befores, v.get)
           }
-        (befores, indexVectors(varE, askedType, inv))
-      case _ => throw WrongOpenCLLiteralVector(inv)
+        (befores, indexVectors(varE, askedType, cast))
+      case _ => throw WrongOpenCLLiteralVector(cast)
     }
 
-  def createOpenCLLiteralVector(
-      size: BigInt,
-      innerType: Type[Pre],
-      inv: CInvocation[Pre],
-  ): Expr[Post] = {
-    implicit val o: Origin = inv.o
-    val (befores: Seq[Statement[Post]], newArgs: Seq[Expr[Post]]) =
-      inv.args
-        .map(a => unwrapVectorArg(rw.dispatch(a), rw.dispatch(innerType), inv))
-        .foldLeft[(Seq[Statement[Post]], Seq[Expr[Post]])](Nil, Nil)(
-          (base, extra) => (base._1 ++ extra._1, base._2 ++ extra._2)
-        )
-    if (newArgs.length != size)
-      throw WrongOpenCLLiteralVector(inv)
-    val result = LiteralVector[Post](rw.dispatch(innerType), newArgs)
-    if (befores.nonEmpty)
-      With(Block(befores), result)
-    else
-      result
+  private def unwrapWith(e: Expr[Pre]): Seq[Expr[Pre]] =
+    e match {
+      // This will break if someone uses With inside a vector literal
+      case With(Eval(before), after) => unwrapWith(before) :+ after
+      case e => Seq(e)
+    }
+
+  private def createOpenCLLiteralVector(cast: CCast[Pre]): Expr[Post] = {
+    implicit val o: Origin = cast.o
+    cast match {
+      case CCast(expr, TOpenCLVector(size, innerType)) =>
+        val (befores: Seq[Statement[Post]], newArgs: Seq[Expr[Post]]) =
+          unwrapWith(expr).map(a =>
+            unwrapVectorArg(rw.dispatch(a), rw.dispatch(innerType), cast)
+          ).foldLeft[(Seq[Statement[Post]], Seq[Expr[Post]])](Nil, Nil)(
+            (base, extra) => (base._1 ++ extra._1, base._2 ++ extra._2)
+          )
+        if (newArgs.length != size)
+          throw WrongOpenCLLiteralVector(cast)
+        val result = LiteralVector[Post](rw.dispatch(innerType), newArgs)
+        if (befores.nonEmpty)
+          With(Block(befores), result)
+        else { result }
+      case other => ???
+    }
   }
 
   def invocation(inv: CInvocation[Pre]): Expr[Post] = {
-    val CInvocation(applicable, args, givenMap, yields) = inv
-
-    inv.ref.get match {
-      case RefOpenCLVectorLiteralCInvocationTarget(size, t)
-          if givenMap.isEmpty && yields.isEmpty =>
-        return createOpenCLLiteralVector(size, t, inv)
-      case RefOpenCLVectorLiteralCInvocationTarget(size, t) =>
-        throw WrongOpenCLLiteralVector(inv)
-      case _ =>
-    }
+    val CInvocation(applicable, args, givenMap, yields, reveal) = inv
 
     val newArgs = args.map(a => rw.dispatch(a))
 
@@ -1732,6 +2314,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           args,
           givenMap,
           yields,
+          reveal,
           inv,
           inv.blame,
         )
@@ -1743,6 +2326,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
+          reveal = reveal,
         )(inv.blame)
       case e: RefCGlobalDeclaration[Pre] => globalInvocation(e, inv, newArgs)
     }
@@ -1772,7 +2356,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case ref: RefCFunctionDefinition[Pre] =>
         ProcedureInvocation[Post](
           cFunctionSuccessor.ref(ref.decl),
-          rw.dispatch(blocks) +: one +: one +: rw.dispatch(threads) +: one +:
+          rw.dispatch(threads) +: one +: one +: rw.dispatch(blocks) +: one +:
             one +: args.map(rw.dispatch),
           Nil,
           Nil,
@@ -1781,6 +2365,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         )(kernel.blame)
       case e: RefCGlobalDeclaration[Pre] => ???
     }
+  }
+
+  def getGpuIdx[A](s: Seq[A], i: Int, o: Origin): A = {
+    s.applyOrElse(i, (_: Int) => throw WrongGPUDimension(o))
   }
 
   /** Returns the local id of a thread in a given dimension.
@@ -1793,7 +2381,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     */
   def getCudaLocalThread(index: Int, origin: Origin): Expr[Post] = {
     implicit val o: Origin = origin
-    cudaCurrentThreadIdx.top.indices.values.toSeq.apply(index).get
+    val idxs = Seq(
+      RefCudaVecX[Pre](RefCudaThreadIdx()),
+      RefCudaVecY[Pre](RefCudaThreadIdx()),
+      RefCudaVecZ[Pre](RefCudaThreadIdx()),
+    )
+    val v = getGpuIdx(idxs, index, o)
+    cudaConstantDims.top.indices
+      .getOrElse(v, cudaCurrentThreadIdx.top.indices(v)).get
   }
 
   /** Returns the group id of a thread in a given dimension.
@@ -1806,7 +2401,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     */
   def getCudaGroupThread(index: Int, origin: Origin): Expr[Post] = {
     implicit val o: Origin = origin
-    cudaCurrentBlockIdx.top.indices.values.toSeq.apply(index).get
+    val idxs = Seq(
+      RefCudaVecX[Pre](RefCudaBlockIdx()),
+      RefCudaVecY[Pre](RefCudaBlockIdx()),
+      RefCudaVecZ[Pre](RefCudaBlockIdx()),
+    )
+    val v = getGpuIdx(idxs, index, o)
+    cudaConstantDims.top.indices
+      .getOrElse(v, cudaCurrentBlockIdx.top.indices(v)).get
   }
 
   /** Returns the local size of a given dimension.
@@ -1819,7 +2421,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     */
   def getCudaLocalSize(index: Int, origin: Origin): Expr[Post] = {
     implicit val o: Origin = origin
-    cudaCurrentBlockDim.top.indices.values.toSeq.apply(index).get
+    getGpuIdx(cudaCurrentBlockDim.top.indices.values.toSeq, index, o).get
   }
 
   /** Returns the global size of a given dimension.
@@ -1832,7 +2434,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     */
   def getCudaGroupSize(index: Int, o: Origin): Expr[Post] = {
     implicit val origin: Origin = o
-    cudaCurrentGridDim.top.indices.values.toSeq.apply(index).get
+    getGpuIdx(cudaCurrentGridDim.top.indices.values.toSeq, index, o).get
   }
 
   /** Rewrites a LocalThreadId and translates it to a linear ID value. The
@@ -1891,13 +2493,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       inv: CInvocation[Pre],
       rewrittenArgs: Seq[Expr[Post]],
   ): Expr[Post] = {
-    val CInvocation(_, args, givenMap, yields) = inv
+    val CInvocation(_, args, givenMap, yields, reveal) = inv
     val RefCGlobalDeclaration(decls, initIdx) = e
     implicit val o: Origin = inv.o
 
     (e.name, args, givenMap, yields) match {
       case (_, _, g, y) if g.nonEmpty || y.nonEmpty =>
-      case ("__vercors_free", Seq(xs), _, _) if isCPointer(xs.t) =>
+      case ("__vercors_free", Seq(xs), _, _) if isPointer(xs.t) =>
         return FreePointer[Post](rw.dispatch(xs))(inv.blame)(inv.o)
       case _ => ()
     }
@@ -1905,7 +2507,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val arg =
       if (args.size == 1) {
         args.head match {
-          case CIntegerValue(i) if i >= 0 && i < 3 => Some(i.toInt)
+          case CIntegerValue(i, _) => Some(i.toInt)
           case _ => None
         }
       } else
@@ -1929,13 +2531,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
+          reveal = reveal,
         )(inv.blame)
     }
   }
 
-  def pointerType(t: CTPointer[Pre]): Type[Post] = {
-    TPointer(rw.dispatch(t.innerType))
-  }
+  def pointerType(t: CPointerType[Pre]): Type[Post] =
+    t match {
+      case CTPointer(innerType) => TPointer(rw.dispatch(innerType), None)
+      case cta @ CTArray(_, _) => arrayType(cta)
+    }
 
   def vectorType(t: CType[Pre]): Type[Post] = {
     val (intSize, innerType) =
@@ -1953,12 +2558,35 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def arrayType(t: CTArray[Pre]): Type[Post] = {
     // The size of an array for an parameter is ignored
-    TPointer(rw.dispatch(t.innerType))
+    if (parameterContext.isEmpty) {
+      TNonNullPointerArray(rw.dispatch(getArrayType(t)), getDimensions(t), None)
+    } else {
+      TPointerArray(rw.dispatch(getArrayType(t)), getDimensions(t), None)
+    }
   }
 
-  def structType(t: CTStruct[Pre]): Type[Post] = {
-    val targetClass =
-      new LazyRef[Post, Class[Post]](cStructSuccessor(t.ref.decl))
-    TByValueClass[Post](targetClass, Seq())(t.o)
-  }
+  def structType(t: CType[Pre]): TClass[Post] =
+    t match {
+      case ts @ CTStruct(ref) =>
+        val targetClass =
+          new LazyRef[Post, Class[Post]](cStructSuccessor(ref.decl))
+        TByValueClass[Post](targetClass, Seq())(t.o)
+      case t @ CTStructUnique(_, _, _) =>
+        val (CTStruct(ref), map) = getBaseStructTypeWithUnique(t).get
+        val targetClass =
+          new LazyRef[Post, Class[Post]](cStructSuccessor(ref.decl))
+        val uniqueMap = map.toSeq.map { case (fieldRef, unique) =>
+          (
+            new LazyRef[Post, InstanceField[Post]](cStructFieldsSuccessor(
+              (ref.decl, fieldRef.decl)
+            )),
+            unique,
+          )
+        }
+        TClassUnique[Post](
+          TByValueClass[Post](targetClass, Seq())(t.o),
+          uniqueMap,
+        )(t.o)
+      case _ => ???
+    }
 }

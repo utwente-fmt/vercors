@@ -51,7 +51,7 @@ final class Tree {
     if (top.left == null) {
       //@ assert orig_contents == tolist(top.left) + seq<int>{top.data} + tolist(top.right);
       //@ assert tolist(top.left) == seq<int>{};
-      return top.left;
+      return top.right;
     } else {
       Tree cur, left;
       cur = top;

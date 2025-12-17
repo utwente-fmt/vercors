@@ -140,6 +140,7 @@ case class CheckProcessAlgebra[Pre <: Generation]()
                 Star(fieldPerms, rewriteDefault(process.ensures))
               ),
               tt,
+              tt,
               Seq(),
               Seq(),
               Seq(),

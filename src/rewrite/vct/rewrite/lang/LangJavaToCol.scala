@@ -226,12 +226,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 fields.decls.indices.map(decl => {
                   val local = JavaLocal[Pre](fields.decls(decl).name)(DerefPerm)
                   local.ref = Some(RefJavaField[Pre](fields, decl))
-                  Perm(
-                    AmbiguousLocation(local)(PanicBlame(
-                      "Field location is not a pointer."
-                    )),
-                    WritePerm(),
-                  )
+                  Perm(AmbiguousLocation(local), WritePerm())
                 })
             }.flatten))
           }
@@ -257,6 +252,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                   else
                     fieldPerms,
                 contextEverywhere = tt,
+                kernelInvariant = tt,
                 signals = Nil,
                 givenArgs = Nil,
                 yieldsArgs = Nil,
@@ -613,6 +609,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           args,
           givenMap,
           yields,
+          reveal = false,
           inv,
           inv.blame,
         )
@@ -754,9 +751,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def classType(t: JavaTClass[Pre]): Type[Post] =
     t.ref.decl match {
       case classOrInterface: JavaClassOrInterface[Pre] =>
-        TByReferenceClass(
+        TByReferenceClass[Post](
           javaInstanceClassSuccessor.ref(classOrInterface),
           t.typeArgs.map(rw.dispatch),
-        )
+        )(t.o)
     }
 }

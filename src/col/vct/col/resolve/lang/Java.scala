@@ -346,6 +346,7 @@ case object Java extends LazyLogging {
             UnitAccountedPredicate(tt),
             UnitAccountedPredicate(tt),
             tt,
+            tt,
             Nil,
             Nil,
             Nil,
@@ -378,6 +379,7 @@ case object Java extends LazyLogging {
           ApplicableContract(
             UnitAccountedPredicate(tt),
             UnitAccountedPredicate(tt),
+            tt,
             tt,
             Nil,
             Nil,
@@ -642,7 +644,7 @@ case object Java extends LazyLogging {
         }
       case _ => None
     }): Option[JavaDerefTarget[G]])
-      .orElse[JavaDerefTarget[G]](Spec.builtinField(obj, name, blame))
+      .orElse[JavaDerefTarget[G]](Spec.builtinField(obj.t, name, blame, obj.o))
 
   def findMethodInClass[G](
       cls: JavaClassOrInterface[G],
@@ -862,7 +864,7 @@ case object Java extends LazyLogging {
   def zeroValue[G](t: Type[G]): Expr[G] =
     t match {
       case TArray(_) => Null()
-      case TPointer(_) => Null()
+      case TPointer(_, _) => Null()
       case TSeq(element) => LiteralSeq(element, Nil)
       case TSet(element) => LiteralSet(element, Nil)
       case TBag(element) => LiteralBag(element, Nil)

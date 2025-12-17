@@ -45,6 +45,8 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
       adts: Seq[AxiomaticDataType[Pre]],
       fields: Seq[SilverField[Pre]],
       funcs: Seq[Function[Pre]],
+      proverTypes: Seq[ProverType[Pre]],
+      proverFuncs: Seq[ProverFunction[Pre]],
       predOutlines: Seq[Predicate[Pre]],
       predBodies: Seq[Predicate[Pre]],
       procOutlines: Seq[Procedure[Pre]],
@@ -72,7 +74,7 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
 
     def funcUsage: Seq[Function[Pre]] =
       scanNodes.flatMap(_.collect {
-        case FunctionInvocation(Ref(f), _, _, _, _) => f
+        case FunctionInvocation(Ref(f), _, _, _, _, _) => f
       }).distinct
 
     def predUsage: Seq[Predicate[Pre]] =
@@ -92,7 +94,12 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
     def procUsage: Seq[Procedure[Pre]] =
       scanNodes.flatMap(_.collect {
         case InvokeProcedure(Ref(p), _, _, _, _, _) => p
-        case ProcedureInvocation(Ref(p), _, _, _, _, _) => p
+        case ProcedureInvocation(Ref(p), _, _, _, _, _, _) => p
+      })
+
+    def proverFuncUsage: Seq[ProverFunction[Pre]] =
+      scanNodes.flatMap(_.collect { case ProverFunctionInvocation(Ref(p), _) =>
+        p
       })
 
     def step: FocusedProgram =
@@ -100,6 +107,8 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
         adts,
         (fields ++ fieldUsage).distinct,
         (funcs ++ funcUsage).distinct,
+        proverTypes,
+        (proverFuncs ++ proverFuncUsage).distinct,
         (predOutlines ++ predUsage).distinct,
         (predBodies ++ predContentUsage).distinct,
         (procOutlines ++ procUsage).distinct,
@@ -120,6 +129,8 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
         adts.filter(other.adts.contains),
         fields.filter(other.fields.contains),
         funcs.filter(other.funcs.contains),
+        proverTypes.filter(other.proverTypes.contains),
+        proverFuncs.filter(other.proverFuncs.contains),
         predOutlines.filter(other.predOutlines.contains),
         predBodies.filter(other.predBodies.contains),
         procOutlines.filter(other.procOutlines.contains),
@@ -132,6 +143,8 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
           adts.foreach(dispatch)
           fields.foreach(dispatch)
           funcs.foreach(dispatch)
+          proverTypes.foreach(dispatch)
+          proverFuncs.foreach(dispatch)
           predOutlines.foreach { pred =>
             if (predBodies.contains(pred))
               dispatch(pred)
@@ -151,6 +164,8 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
           adts,
           Nil,
           funcs.filter(_.contract.decreases.isEmpty),
+          proverTypes,
+          Nil,
           Nil,
           Nil,
           Seq(proc),
@@ -173,6 +188,8 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
     val funcs: ArrayBuffer[Function[Pre]] = ArrayBuffer()
     val preds: ArrayBuffer[Predicate[Pre]] = ArrayBuffer()
     val procs: ArrayBuffer[Procedure[Pre]] = ArrayBuffer()
+    val proverTypes: ArrayBuffer[ProverType[Pre]] = ArrayBuffer()
+    val proverFuncs: ArrayBuffer[ProverFunction[Pre]] = ArrayBuffer()
 
     program.declarations.foreach {
       case adt: AxiomaticDataType[Pre] => adts += adt
@@ -180,6 +197,8 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
       case func: Function[Pre] => funcs += func
       case pred: Predicate[Pre] => preds += pred
       case proc: Procedure[Pre] => procs += proc
+      case typ: ProverType[Pre] => proverTypes += typ
+      case func: ProverFunction[Pre] => proverFuncs += func
       case other => throw UnknownDeclaration(program, other)
     }
 
@@ -187,6 +206,8 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
       adts.toSeq,
       fields.toSeq,
       funcs.toSeq,
+      proverTypes.toSeq,
+      proverFuncs.toSeq,
       preds.toSeq,
       preds.toSeq,
       procs.toSeq,
@@ -216,7 +237,8 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
     make(
       context,
       globalDeclarations.dispatch(
-        program.adts ++ program.fields ++ program.funcs ++ program.predBodies
+        program.adts ++ program.fields ++ program.funcs ++
+          program.proverTypes ++ program.proverFuncs ++ program.predBodies
       ),
     ) +: program.procBodies.map(proc => make(context, program.focus(proc)))
   }

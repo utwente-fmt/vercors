@@ -95,9 +95,13 @@ object SerializeOrigin extends LazyLogging {
           )
         case ReadableOrigin(readable) =>
           // Not sure how to best deal with directory/filename here
-          Seq(ser.OriginContent.Content.ReadableOrigin(
-            ser.ReadableOrigin("", readable.fileName, None, None)
-          ))
+          Seq(ser.OriginContent.Content.ReadableOrigin(ser.ReadableOrigin(
+            "",
+            readable.underlyingPath.map(_.toString)
+              .getOrElse(readable.fileName),
+            None,
+            None,
+          )))
         case PositionRange(startLineIdx, endLineIdx, startEndColIdx) =>
           Seq(ser.OriginContent.Content.PositionRange(ser.PositionRange(
             startLineIdx,

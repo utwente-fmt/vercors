@@ -95,7 +95,7 @@ case class Silicon(
       totalTimeOut.toString,
       "--z3Exe",
       z3Path.toString,
-      "--z3ConfigArgs",
+      "--proverConfigArgs",
       z3Config,
     )
     if (optimizeUnsafe)

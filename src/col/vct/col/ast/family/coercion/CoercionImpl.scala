@@ -67,6 +67,11 @@ trait CoercionImpl[G] extends CoercionFamilyOps[G] {
       case CoerceCVectorVector(_, _) => true
       case CoerceResourceResourceVal() => true
       case CoerceResourceValResource() => true
+      case CoerceFromConst(_) => true
+      case CoerceToConst(_) => true
+      case CoerceFromUnique(_, _) => true
+      case CoerceToUnique(_, _) => true
+      case CoerceBetweenUnique(_, _, inner) => inner.isPromoting
       case CoerceMapOption(inner, _, _) => inner.isPromoting
       case CoerceMapTuple(inner, _, _) => inner.forall(_.isPromoting)
       case CoerceMapEither(inner, _, _) =>
@@ -83,7 +88,7 @@ trait CoercionImpl[G] extends CoercionFamilyOps[G] {
       case CoerceBoundIntFloat(_, _) => false
 
       case CoerceCIntCFloat(_) => true
-      case CoerceCIntInt() => true
+      case CoerceCIntInt(_) => true
       case CoerceCFloatFloat(_, _) => true
       case CoerceDecreasePrecision(_, _) => false
       case CoerceCFloatCInt(_) => false

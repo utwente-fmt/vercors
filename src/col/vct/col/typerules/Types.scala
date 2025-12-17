@@ -84,6 +84,15 @@ object Types {
 
       // TODO similar stuff for JavaClass
 
+      case (_: TNull[G], pt: PointerType[G]) => pt.asNullable
+      case (pt: PointerType[G], _: TNull[G]) => pt.asNullable
+      case (_: TNull[G], p: PointerArrayType[G]) => p.asNullable
+      case (p: PointerArrayType[G], _: TNull[G]) => p.asNullable
+      case (_: TNull[G], p: TConstPointerArray[G]) => TConstPointer(p.element)
+      case (p: TConstPointerArray[G], _: TNull[G]) => TConstPointer(p.element)
+      case (_: TNull[G], p: CTArray[G]) => p.asPointer.get.asNullable
+      case (p: CTArray[G], _: TNull[G]) => p.asPointer.get.asNullable
+
       case (TUnion(left), TUnion(right)) => TUnion((left ++ right).distinct)
       case (TUnion(left), right) => TUnion((left :+ right).distinct)
       case (left, TUnion(right)) => TUnion((left +: right).distinct)

@@ -123,7 +123,11 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
         })
 
         val finallyImpl = Block[Post](Seq(
-          Label(finallyEntry, Block(Nil)),
+          Label(
+            finallyEntry,
+            Block(Nil),
+            LoopInvariant(tt, None)(TrueSatisfiable),
+          ),
           needCurrentExceptionRestoration.having(true) { dispatch(after) },
           Branch(
             Seq((getExc !== Null(), Goto(exceptionalHandlerEntry.top.ref)))
@@ -152,7 +156,11 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
           Block(Seq(
             store,
             newBody,
-            Label(handlersEntry, Block(Nil)),
+            Label(
+              handlersEntry,
+              Block(Nil),
+              LoopInvariant(tt, None)(TrueSatisfiable),
+            ),
             catchImpl,
             finallyImpl,
             restore,
@@ -225,11 +233,19 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
                 Block(Seq(
                   dispatch(proof),
                   Goto[Post](labelDone.ref),
-                  Label(labelHandler, Block(Nil)),
+                  Label(
+                    labelHandler,
+                    Block(Nil),
+                    LoopInvariant(tt, None)(TrueSatisfiable),
+                  ),
                   Assert[Post](BooleanValue(false))(PackageThrowsAssertFailed(
                     w
                   )),
-                  Label(labelDone, Block(Nil)),
+                  Label(
+                    labelDone,
+                    Block(Nil),
+                    LoopInvariant(tt, None)(TrueSatisfiable),
+                  ),
                 )),
               ),
             )(w.blame)
@@ -275,7 +291,11 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
                 exceptionalHandlerEntry.having(bubble) {
                   currentException.having(exc) { dispatch(body) }
                 },
-                Label(bubble, Block(Nil)),
+                Label(
+                  bubble,
+                  Block(Nil),
+                  LoopInvariant(tt, None)(TrueSatisfiable),
+                ),
                 Assert(exc.get === Null())(AssertFailedSignalsNotClosed(method)),
               )),
             )
@@ -300,7 +320,11 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
               exceptionalHandlerEntry.having(bubble) {
                 currentException.having(exc) { dispatch(body) }
               },
-              Label(bubble, Block(Nil)),
+              Label(
+                bubble,
+                Block(Nil),
+                LoopInvariant(tt, None)(TrueSatisfiable),
+              ),
             ))
           })
 

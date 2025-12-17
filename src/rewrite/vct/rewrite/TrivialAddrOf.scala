@@ -1,10 +1,6 @@
 package vct.col.rewrite
 import vct.col.ast._
 import vct.col.origin._
-import vct.col.rewrite.TrivialAddrOf.{
-  SubscriptErrorAddError,
-  UnsupportedLocation,
-}
 import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, const}
 import vct.result.VerificationError.UserError
 
@@ -12,15 +8,6 @@ case object TrivialAddrOf extends RewriterBuilder {
   override def key: String = "trivialAddrOf"
   override def desc: String =
     "Rewrite trivial instances of the address-of operator & to an expression without it."
-
-  case class SubscriptErrorAddError(sub: PointerSubscript[_])
-      extends Blame[PointerAddError] {
-    override def blame(error: PointerAddError): Unit =
-      error match {
-        case err: PointerNull => sub.blame.blame(err)
-        case err: PointerBounds => sub.blame.blame(err)
-      }
-  }
 
   case class UnsupportedLocation(loc: Expr[_]) extends UserError {
     override def code: String = "wrongAddrOf"
@@ -30,6 +17,8 @@ case object TrivialAddrOf extends RewriterBuilder {
 }
 
 case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
+  import TrivialAddrOf._
+
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     e match {
       case DerefPointer(PointerAdd(AddrOf(pointer), offset))
@@ -39,10 +28,17 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
       case AddrOf(DerefPointer(p)) => dispatch(p)
 
       case AddrOf(sub @ PointerSubscript(p, i)) =>
-        PointerAdd(dispatch(p), dispatch(i))(SubscriptErrorAddError(sub))(e.o)
-
+        PointerAdd(dispatch(p), dispatch(i))(PointerSubscriptToAddBlame(
+          sub.blame
+        ))(e.o)
+      // Handled by EncodePointerArrays
+      case AddrOf(PointerArraySubscript(_, _)) => e.rewriteDefault()
       case AddrOf(Deref(_, _)) => e.rewriteDefault()
-      case AddrOf(other) => throw UnsupportedLocation(other)
+      // Nullable PointerArrays (i.e. those in parameters) are not special cased in EncodePointerArrays
+      case AddrOf(other)
+          if other.t.asPointerArray.isEmpty ||
+            !other.t.asPointerArray.get.isNonNull =>
+        throw UnsupportedLocation(other)
       case assign @ PreAssignExpression(target, AddrOf(value))
           if value.t.asByReferenceClass.isDefined =>
         implicit val o: Origin = assign.o
@@ -100,14 +96,13 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = assignO
     val newTarget = dispatch(target)
     val newValue = dispatch(value)
-    val newPointer = Eval(
-      PreAssignExpression(
+    val newPointer =
+      Assign(
         newTarget,
-        NewNonNullPointerArray(newValue.t, const[Post](1))(PanicBlame(
+        NewNonNullPointer(newValue.t, const[Post](1), None)(PanicBlame(
           "Size is > 0"
         )),
       )(blame)
-    )
     (newPointer, newTarget, newValue)
   }
 }

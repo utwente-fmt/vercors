@@ -13,6 +13,7 @@ import vct.main.Main.{
   EXIT_CODE_ERROR,
   EXIT_CODE_SUCCESS,
   EXIT_CODE_VERIFICATION_FAILURE,
+  EXIT_CODE_TIMEOUT,
 }
 import vct.main.stages.Stages
 import vct.options.types.PathOrStd
@@ -97,6 +98,9 @@ case object Verify extends LazyLogging {
     logTime(
       "VerCors",
       verifyWithOptions(options, options.inputs) match {
+        case Left(err: VerificationError.TimeOut) =>
+          logger.error(err.text)
+          return EXIT_CODE_TIMEOUT
         case Left(err: VerificationError.UserError) =>
           logger.error(err.text)
           EXIT_CODE_ERROR

@@ -43,7 +43,7 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
       case ThisObject(_) => true
       case IntegerValue(_) => true
       case LiteralSeq(_, vals) => vals.forall(isAllowedValue)
-      case FunctionInvocation(func, args, _, givenMap, _) =>
+      case FunctionInvocation(func, args, _, givenMap, _, _) =>
         func.decl.contract.decreases.isDefined &&
         func.decl.contract.contextEverywhere.t.equals(TBool[Pre]()) &&
         unfoldPredicate(func.decl.contract.requires)

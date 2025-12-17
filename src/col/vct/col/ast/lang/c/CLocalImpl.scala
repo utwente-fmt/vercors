@@ -18,7 +18,17 @@ trait CLocalImpl[G] extends CLocalOps[G] {
         )
       case ref: RefAxiomaticDataType[G] => Types.notAValue(ref)
       case RefVariable(decl) => decl.t
-      case ref: RefCFunctionDefinition[G] => Types.notAValue(ref)
+      case ref: RefCFunctionDefinition[G] =>
+        val declInfo = C.getDeclaratorInfo(ref.decl.declarator)
+        val ptr = CTFunction[G](
+          declInfo.typeOrReturnType(C.getPrimitiveType[G](ref.decl.specs)),
+          declInfo.params.get.map(p =>
+            C.getDeclaratorInfo(p.declarator)
+              .typeOrReturnType(C.getPrimitiveType(p.specifiers))
+          ),
+        )
+        ptr.decl = Some(ref);
+        CTPointer(ptr)
       case ref: RefCStruct[G] => Types.notAValue(ref)
       case ref @ RefCGlobalDeclaration(decls, initIdx) =>
         val declInfo = C.getDeclaratorInfo(decls.decl.inits(initIdx).decl)
@@ -26,9 +36,9 @@ trait CLocalImpl[G] extends CLocalOps[G] {
           case Some(_) => Types.notAValue(ref) // Function declaration
           case None =>
             declInfo
-              .typeOrReturnType(CPrimitiveType(
-                decls.decl.specs
-              )) // Static declaration
+              .typeOrReturnType(
+                C.getPrimitiveType(decls.decl.specs)
+              ) // Static declaration
         }
       case ref @ RefCLocalDeclaration(decls, initIdx) =>
         val declInfo = C.getDeclaratorInfo(decls.decl.inits(initIdx).decl)
@@ -36,9 +46,9 @@ trait CLocalImpl[G] extends CLocalOps[G] {
           case Some(_) => Types.notAValue(ref) // Function declaration
           case None =>
             declInfo
-              .typeOrReturnType(CPrimitiveType(
-                decls.decl.specs
-              )) // Static declaration
+              .typeOrReturnType(
+                C.getPrimitiveType(decls.decl.specs)
+              ) // Static declaration
         }
       case RefModelField(field) => field.t
       case target: SpecInvocationTarget[G] => Types.notAValue(target)

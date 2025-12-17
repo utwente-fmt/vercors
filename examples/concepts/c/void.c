@@ -1,8 +1,8 @@
 #include <stdbool.h>
 
 //@ requires ptr != NULL;
-//@ context is_float ==> Perm((float *)ptr, write\2);
-//@ context !is_float ==> Perm((int *)ptr, write\2);
+//@ context is_float ==> Perm(*(float *)ptr, write\2);
+//@ context !is_float ==> Perm(*(int *)ptr, write\2);
 //@ ensures is_float ==> \result == *((float *)ptr) > 10.0;
 //@ ensures !is_float ==> \result == *((int *)ptr) > 10;
 bool gt10(void *ptr, bool is_float) {

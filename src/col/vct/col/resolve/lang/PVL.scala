@@ -64,13 +64,13 @@ case object PVL {
           case ref: RefEnumConstant[G @unchecked] if ref.name == name =>
             ref.copy(enum = Some(enum))
         }
-      case _: TNotAValue[G] => Spec.builtinField(obj, name, blame)
+      case _: TNotAValue[G] => Spec.builtinField(obj.t, name, blame, obj.o)
       case TModel(ref) =>
         ref.decl.declarations.flatMap(Referrable.from).collectFirst {
           case ref: RefModelField[G] if ref.name == name => ref
         }
       case t: TClass[G] => findDerefOfClass(t.cls.decl, name)
-      case _ => Spec.builtinField(obj, name, blame)
+      case _ => Spec.builtinField(obj.t, name, blame, obj.o)
     }
 
   def findInstanceMethod[G](

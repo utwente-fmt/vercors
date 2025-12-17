@@ -1,18 +1,31 @@
 #ifndef PALLAS_PALLASFUNCTIONCONTRACTDECLARERPASS_H
 #define PALLAS_PALLASFUNCTIONCONTRACTDECLARERPASS_H
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Woverflow"
+#endif // __GNUC__
 #include "vct/col/ast/col.pb.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif // __GNUC__
 
 #include <memory>
 
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Metadata.h>
+#include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 
 /**
  * Pass that transforms Pallas function contracts that are defined as
  * metadata that is attached to an LLVM-function into
  * LlvmfunctionContract objects.
+ *
+ * This is a module-pass instead of a function-pass to ensure that it is also
+ * applied to function declarations which can be equiped with an
+ * external contract.
  *
  * This pass expects to be run after the following passes
  * - FunctionContractDeclarer
@@ -35,9 +48,14 @@ class PallasFunctionContractDeclarerPass
      * The value-filed of the contract is left empty, because the
      * ApplicableContract is constructed directly.
      */
-    PreservedAnalyses run(Function &f, FunctionAnalysisManager &fam);
+    PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
 
   private:
+    /**
+     * Run the transformation on the given function.
+     */
+    void runOnFunction(Function &f, FunctionAnalysisManager &fam);
+
     /**
      * Initializes the given ApplicableContract so that it represents a
      * trivial contract (i.e. it only contains a requires-true-clause).
@@ -65,6 +83,13 @@ class PallasFunctionContractDeclarerPass
                                    Function &f);
 
     /**
+     * Adds an empty kernel_invariant (i.e. kernel_invariant true;) to the
+     * given contract if it does not already have a kernel_invariant-clause.
+     */
+    void addEmptyKernelInvariant(col::ApplicableContract &contract,
+                                 Function &f);
+
+    /**
      * Tries to add a clause, that is represented by the given metadata-node, to
      * the given COL-contract.
      * Returns false if an error occurred (e.g. ill-formed metadata-node) and
@@ -75,9 +100,9 @@ class PallasFunctionContractDeclarerPass
     bool addClauseToContract(col::ApplicableContract &contract,
                              Metadata *clauseOperand,
                              FunctionAnalysisManager &fam, Function &parentFunc,
-                             col::LlvmFunctionDefinition &colParentFunc,
                              unsigned int clauseNum,
-                             const MDNode &contractSrcLoc);
+                             const MDNode &contractSrcLoc,
+                             const bool isExternal);
 
     /**
      * Tries to extract the wrapper-function from the given metadata-node that
@@ -88,6 +113,29 @@ class PallasFunctionContractDeclarerPass
      * ctxFunc is used to build error messages.
      */
     Function *getWrapperFuncFromClause(MDNode &clause, Function &ctxFunc);
+
+    /**
+     * Resolve the DIVariables from a given MD-nodes that encodes a contract-
+     * clause into col-variables.
+     */
+    std::optional<SmallVector<col::Variable *, 8>>
+    getContractArgs(const MDNode &clause, Function &parentFunc,
+                    FunctionAnalysisManager &fam);
+
+    /**
+     * Get the arguments for a call to a wrapper-function that is part of the
+     * given parent-function's contract.
+     */
+    std::optional<SmallVector<col::Variable *, 8>>
+    getExternalContractArgs(Function &parentFunc, FunctionAnalysisManager &fam);
+
+    /**
+     * Takes a function and a DIVariable that describes an argument of
+     * the original source-function and attempts to map the DIVariable
+     * to the corresponding argument of the llvm-function.
+     * If the mapping isnot possible, a nullptr is returned.
+     */
+    Argument *mapDIVarToArg(Function &f, DIVariable &diVar);
 
     /**
      * Initializes the given predicate 'newPred' such that it represents a split
@@ -107,29 +155,6 @@ class PallasFunctionContractDeclarerPass
      * and true is returned. Otherwise, false is returned.
      */
     bool hasConflictingContract(Function &f);
-
-    /**
-     * Checks if the given function has a metadata-node that is labeled as a
-     * Pallas function contract.
-     */
-    bool hasPallasContract(const Function &f);
-
-    /**
-     * Checks if the given function has a metadata-node that is labeled as a
-     * VCLLVM contract.
-     */
-    bool hasVcllvmContract(const Function &f);
-
-    /**
-     * Checks if the given metadata-node is a wellformed encoding of a
-     * pallas source-location.
-     */
-    bool isWellformedPallasLocation(const MDNode *mdNode);
-
-    /**
-     * Checks if the given metadata-node refers to a integer-constant.
-     */
-    bool isConstantInt(llvm::Metadata *md);
 };
 } // namespace pallas
 #endif // PALLAS_PALLASFUNCTIONCONTRACTDECLARERPASS_H

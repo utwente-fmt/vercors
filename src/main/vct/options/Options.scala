@@ -135,6 +135,10 @@ case object Options {
       opt[String]("backend-option").unbounded().keyName("<option>,...")
         .action((opt, c) => c.copy(backendFlags = c.backendFlags :+ opt))
         .text("Provide custom flags to Viper"),
+      opt[(String, String)]("prover-config").unbounded()
+        .keyValueName("<option>", "<value>").action((opt, c) =>
+          c.copy(proverConfigArgs = c.proverConfigArgs + (opt._1 -> opt._2))
+        ).text("Provide custom options to the SMT solver"),
       opt[Unit]("skip-backend").action((_, c) => c.copy(skipBackend = true))
         .text(
           "Stop VerCors successfully before the backend is used to verify the program"
@@ -313,6 +317,19 @@ case object Options {
       opt[PathOrStd]("contract-import-file").valueName("<path>")
         .action((path, c) => c.copy(contractImportFile = Some(path)))
         .text("Load function contracts from the specified file"),
+      opt[String]("target").valueName("<target string>|unset")
+        .action((target, c) =>
+          if (target.trim().equalsIgnoreCase("unset"))
+            c.copy(targetString = None)
+          else { c.copy(targetString = Some(target)) }
+        ).text(
+          "Set the target string used for determining type sizes, or 'unset' to make no assumptions about sizes"
+        ),
+      opt[Unit]("opaque-bitwise-operators").action((_, c) =>
+        c.copy(opaqueBitwiseOperators = true)
+      ).text(
+        "Replace bitwise operations (&, |, ^, <<, >>, ~) with opaque functions"
+      ),
       note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont").action((_, c) => c.copy(mode = Mode.VeyMont)).text(
@@ -384,6 +401,12 @@ case object Options {
               ),
           ),
       ),
+      note(""),
+      note("Pallas options"),
+      opt[Unit]("pallas-sroa").action((_, c) => c.copy(pallasRunSroa = true))
+        .text(
+          "Apply the SROA-pass of LLVM to the loaded IR before processing it."
+        ),
       note(""),
       note("Control flow graph"),
       opt[Unit]("build-cfg").action((_, c) => c.copy(mode = Mode.CFG)).text(
@@ -462,6 +485,7 @@ case class Options(
     outputBeforePass: Map[String, PathOrStd] = Map.empty,
     outputIntermediatePrograms: Option[Path] = None,
     backendFlags: Seq[String] = Nil,
+    proverConfigArgs: Map[String, String] = Map.empty,
     skipBackend: Boolean = false,
     skipTranslation: Boolean = false,
     skipTranslationAfter: Option[String] = None,
@@ -487,6 +511,8 @@ case class Options(
     bipReportFile: Option[PathOrStd] = None,
     inferHeapContextIntoFrame: Boolean = true,
     generatePermissions: Boolean = false,
+    targetString: Option[String] = None,
+    opaqueBitwiseOperators: Boolean = false,
 
     // Verify options - hidden
     devParserReportAmbiguities: Boolean = false,
@@ -521,6 +547,9 @@ case class Options(
       EncodePermissionStratification.Mode.Wrap,
     veymontSkipChoreographyVerification: Boolean = false,
     veymontSkipImplementationVerification: Boolean = false,
+
+    // Pallas options
+    pallasRunSroa: Boolean = false,
 
     // VeSUV options
     vesuvOutput: Path = null,

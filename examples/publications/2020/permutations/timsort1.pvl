@@ -11,8 +11,8 @@ requires start >= 0 && start < size;
 requires end >= 0 && end < size;
 requires start <= end;
 context (\forall* int i; i >= 0 && i < size; Perm(input[i], write));
-requires (\forall int i; 0 <= i && i < size; input[i] == inp_seq[i]);
-ensures (\forall int i; 0 <= i && i < size; input[i] == out_seq[i]);
+requires (\forall int i; 0 <= i && i < size; input[i] == {:inp_seq[i]:});
+ensures (\forall int i; 0 <= i && i < size; input[i] == {:out_seq[i]:});
 requires isPermutation<int>(orig_seq, inp_seq);
 ensures isPermutation<int>(orig_seq, out_seq);
 void insertion(int[] input, int size, int start, int end, seq<int> inp_seq){
@@ -27,7 +27,7 @@ void insertion(int[] input, int size, int start, int end, seq<int> inp_seq){
     loop_invariant outerLoop >= start+1 && outerLoop <= end+1;
     loop_invariant (\forall* int i; i >= 0 && i < size; Perm(input[i], write));
     loop_invariant |out_seq| == size;
-    loop_invariant (\forall int i; 0 <= i && i < size; input[i] == out_seq[i]);
+    loop_invariant (\forall int i; 0 <= i && i < size; input[i] == {:out_seq[i]:});
     loop_invariant isPermutation<int>(orig_seq, out_seq);
     while(outerLoop < end+1){
         innerLoop = outerLoop;
@@ -39,7 +39,7 @@ void insertion(int[] input, int size, int start, int end, seq<int> inp_seq){
         loop_invariant innerLoop >= start && innerLoop <= outerLoop;
         loop_invariant (\forall* int i; i >= 0 && i < size; Perm(input[i], write));
         loop_invariant |out_seq| == size;
-        loop_invariant (\forall int i; 0 <= i && i < size; input[i] == out_seq[i]);
+        loop_invariant (\forall int i; 0 <= i && i < size; input[i] == {:out_seq[i]:});
         loop_invariant isPermutation<int>(orig_seq, out_seq);
         while(innerLoop > start && input[innerLoop-1] > input[innerLoop]){
             lemma_permutation_apply<int>(orig_seq, out_seq, innerLoop-1, innerLoop);
@@ -78,8 +78,8 @@ context |inp_seq| == size;
 requires |orig_seq| == size;
 ensures |out_seq| == size;
 context (\forall* int k; k >= 0 && k < size; Perm(input[k], write));
-requires (\forall int k; 0 <= k && k < size; input[k] == inp_seq[k]);
-ensures (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
+requires (\forall int k; 0 <= k && k < size; input[k] == {:inp_seq[k]:});
+ensures (\forall int k; 0 <= k && k < size; input[k] == {:out_seq[k]:});
 requires isPermutation<int>(orig_seq, inp_seq);
 ensures isPermutation<int>(orig_seq, out_seq);
 void Tomerge(int[] input, int size, int start, int mid, int end, seq<int> inp_seq)
@@ -102,7 +102,7 @@ void Tomerge(int[] input, int size, int start, int mid, int end, seq<int> inp_se
     loop_invariant mid <= end;
     loop_invariant start2 > mid && start2 <= end+1;
     loop_invariant (\forall* int k; k >= 0 && k < size; Perm(input[k], write));
-    loop_invariant (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
+    loop_invariant (\forall int k; 0 <= k && k < size; input[k] == {:out_seq[k]:});
     loop_invariant isPermutation<int>(orig_seq, out_seq);
     while (start <= mid && start2 <= end) {
 
@@ -124,7 +124,7 @@ void Tomerge(int[] input, int size, int start, int mid, int end, seq<int> inp_se
             loop_invariant start2 > mid && start2 <= end;
             loop_invariant index <= start2 && index >= start;
             loop_invariant (\forall* int k; k >= 0 && k < size; Perm(input[k], write));
-            loop_invariant (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
+            loop_invariant (\forall int k; 0 <= k && k < size; input[k] == {:out_seq[k]:});
             loop_invariant isPermutation<int>(orig_seq, out_seq);
             while (index != start) {
                 //input[index] = input[index - 1];
@@ -156,8 +156,8 @@ context_everywhere size > 0;
 context |inp_seq| == size;
 ensures |out_seq| == size;
 context (\forall* int i; i >= 0 && i < size; Perm(input[i], write));
-requires (\forall int i; 0 <= i && i < size; input[i] == inp_seq[i]);
-ensures (\forall int i; 0 <= i && i < size; input[i] == out_seq[i]);
+requires (\forall int i; 0 <= i && i < size; input[i] == {:inp_seq[i]:});
+ensures (\forall int i; 0 <= i && i < size; input[i] == {:out_seq[i]:});
 ensures isPermutation<int>(inp_seq, out_seq);
 void timSort(int[] input, int size, seq<int> inp_seq)
 {
@@ -170,7 +170,7 @@ void timSort(int[] input, int size, seq<int> inp_seq)
     loop_invariant loopCounter >= 0 && loopCounter < size + RUN;
     loop_invariant (\forall* int i; i >= 0 && i < size; Perm(input[i], write));
     loop_invariant |out_seq| == size;
-    loop_invariant (\forall int i; 0 <= i && i < size; input[i] == out_seq[i]);
+    loop_invariant (\forall int i; 0 <= i && i < size; input[i] == {:out_seq[i]:});
     loop_invariant isPermutation<int>(inp_seq, out_seq);
     //for (int i = 0; i < size; i+=RUN){
     while(loopCounter < size)
@@ -194,7 +194,7 @@ void timSort(int[] input, int size, seq<int> inp_seq)
     loop_invariant chunk >= RUN && chunk < size + chunk;
     loop_invariant (\forall* int i; i >= 0 && i < size; Perm(input[i], write));
     loop_invariant |out_seq| == size;
-    loop_invariant (\forall int i; 0 <= i && i < size; input[i] == out_seq[i]);
+    loop_invariant (\forall int i; 0 <= i && i < size; input[i] == {:out_seq[i]:});
     loop_invariant isPermutation<int>(inp_seq, out_seq);
     while(chunk < size)
     {
@@ -208,7 +208,7 @@ void timSort(int[] input, int size, seq<int> inp_seq)
         loop_invariant chunk < size;
         loop_invariant (\forall* int i; i >= 0 && i < size; Perm(input[i], write));
         loop_invariant |out_seq| == size;
-        loop_invariant (\forall int i; 0 <= i && i < size; input[i] == out_seq[i]);
+        loop_invariant (\forall int i; 0 <= i && i < size; input[i] == {:out_seq[i]:});
         loop_invariant isPermutation<int>(inp_seq, out_seq);
         while(left < size)
         {

@@ -1,7 +1,6 @@
 package vct.col.resolve
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.data.BitString
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.ast.util.Declarator
@@ -13,6 +12,7 @@ import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, CPP, Java, LLVM, PVL, Spec}
 import vct.col.resolve.Resolve.{
   MalformedBipAnnotation,
+  MissingFunctionParameters,
   OnlyInChannelInvariant,
   SpecContractParser,
   SpecExprParser,
@@ -30,11 +30,10 @@ import vct.col.resolve.lang.JavaAnnotationData.{
   BipTransition,
 }
 import vct.col.rewrite.InitialGeneration
-import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, VarBuildHelpers}
+import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
 import vct.result.VerificationError.{Unreachable, UserError}
 
-import scala.collection.immutable.{AbstractSeq, LinearSeq}
 import scala.collection.mutable
 
 case object Resolve {
@@ -92,6 +91,14 @@ case object Resolve {
       e.o.messageInContext(
         "This expression is only inside within a `channel_invariant` clause."
       )
+  }
+
+  case class MissingFunctionParameters(declarator: Node[_]) extends UserError {
+    override def code: String = "missingFunctionParameters"
+
+    override def text: String =
+      declarator.o
+        .messageInContext("Missing function parameters for this declaration")
   }
 
   def getLit(e: Expr[_]): String =
@@ -206,6 +213,22 @@ case object ResolveTypes {
       case _ => ctx
     }
 
+  def addUniquePointerFieldRef[G](
+      specifiers: Seq[CDeclarationSpecifier[G]],
+      ctx: TypeResolutionContext[G],
+      blameNode: Node[G],
+  ): Unit = {
+    val pf: Seq[CUniquePointerField[G]] = specifiers.collect {
+      case CTypeQualifierDeclarationSpecifier(s: CUniquePointerField[G]) => s
+    }
+    pf.foreach(f =>
+      f.ref = Some(
+        C.getUniquePointerStructFieldRef(specifiers, f, ctx)
+          .getOrElse(throw NotSupportedStructUniqueField(blameNode))
+      )
+    )
+  }
+
   def resolveOne[G](node: Node[G], ctx: TypeResolutionContext[G]): Unit =
     node match {
       case javaClass @ JavaNamedType(genericNames) =>
@@ -224,6 +247,15 @@ case object ResolveTypes {
           C.findCStruct(name, ctx)
             .getOrElse(throw NoSuchNameError("struct", name, t))
         )
+      case d: CParam[G] => addUniquePointerFieldRef(d.specifiers, ctx, d)
+      case d: CStructMemberDeclarator[G] =>
+        addUniquePointerFieldRef(d.specs, ctx, d)
+      case d: CDeclaration[G] => addUniquePointerFieldRef(d.specs, ctx, d)
+      case d: CFunctionDefinition[G] =>
+        addUniquePointerFieldRef(d.specs, ctx, d)
+      case t: CPrimitiveType[G] =>
+        addUniquePointerFieldRef(t.specifiers, ctx, t)
+
       case t @ CPPTypedefName(nestedName, _) =>
         t.ref = Some(CPP.findCPPTypeName(nestedName, ctx).getOrElse(
           throw NoSuchNameError("class, struct, or namespace", nestedName, t)
@@ -520,6 +552,9 @@ case object ResolveReferences extends LazyLogging {
           })
         )
       case func: CFunctionDefinition[G] =>
+        if (!C.isFunctionDeclarator(func.declarator)) {
+          throw MissingFunctionParameters(func.declarator)
+        }
         var res = ctx.copy(currentResult = Some(RefCFunctionDefinition(func)))
           .declare(
             C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++
@@ -544,6 +579,9 @@ case object ResolveReferences extends LazyLogging {
           )
         }
       case func: CPPFunctionDefinition[G] =>
+        if (!CPP.isFunctionDeclarator(func.declarator)) {
+          throw MissingFunctionParameters(func.declarator)
+        }
         ctx.copy(currentResult = Some(RefCPPFunctionDefinition(func))).declare(
           CPP.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++
             func.contract.givenArgs ++ func.contract.yieldsArgs
@@ -751,7 +789,7 @@ case object ResolveReferences extends LazyLogging {
             .getOrElse(throw NoSuchNameError("field", name, deref))
         )
 
-      case inv @ CInvocation(obj, _, givenMap, yields) =>
+      case inv @ CInvocation(obj, _, givenMap, yields, _) =>
         inv.ref = Some(C.resolveInvocation(obj, ctx))
         Spec.resolveGiven(givenMap, inv.ref.get, inv)
         Spec.resolveYields(ctx, yields, inv.ref.get, inv)
@@ -798,6 +836,7 @@ case object ResolveReferences extends LazyLogging {
             typeArgs,
             givenMap,
             yields,
+            _,
           ) =>
         inv.ref = Some(
           PVL.findMethod(method, args, typeArgs, ctx)
@@ -812,6 +851,7 @@ case object ResolveReferences extends LazyLogging {
             typeArgs,
             givenMap,
             yields,
+            _,
           ) =>
         inv.ref = Some(
           PVL.findInstanceMethod(obj, method, args, typeArgs, inv.blame)
@@ -885,14 +925,14 @@ case object ResolveReferences extends LazyLogging {
         )
         Spec.resolveGiven(givenMap, RefProcedure(ref.decl), inv)
         Spec.resolveYields(ctx, yields, RefProcedure(ref.decl), inv)
-      case inv @ ProcedureInvocation(ref, _, _, _, givenMap, yields) =>
+      case inv @ ProcedureInvocation(ref, _, _, _, givenMap, yields, _) =>
         ref.tryResolve(name =>
           Spec.findProcedure(name, ctx)
             .getOrElse(throw NoSuchNameError("procedure", name, inv))
         )
         Spec.resolveGiven(givenMap, RefProcedure(ref.decl), inv)
         Spec.resolveYields(ctx, yields, RefProcedure(ref.decl), inv)
-      case inv @ FunctionInvocation(ref, _, _, givenMap, yields) =>
+      case inv @ FunctionInvocation(ref, _, _, givenMap, yields, _) =>
         ref.tryResolve(name =>
           Spec.findFunction(name, ctx)
             .getOrElse(throw NoSuchNameError("function", name, inv))
@@ -1139,6 +1179,7 @@ case object ResolveReferences extends LazyLogging {
             val importedDecl = ctx.importedDeclarations.find {
               case procedure: Procedure[G] =>
                 contract.name == procedure.o.get[SourceName].name
+              case _ => false
             }
             if (importedDecl.isDefined) {
               val importedProcedure = importedDecl.get
@@ -1169,6 +1210,7 @@ case object ResolveReferences extends LazyLogging {
         val importedDecl = ctx.importedDeclarations.find {
           case procedure: Procedure[G] =>
             contract.name == procedure.o.get[SourceName].name
+          case _ => false
         }
         if (importedDecl.isDefined) {
           val importedProcedure = importedDecl.get.asInstanceOf[Procedure[G]]
@@ -1193,6 +1235,8 @@ case object ResolveReferences extends LazyLogging {
               ),
               applicableContract.contextEverywhere &*
                 substitutedContract.contextEverywhere,
+              applicableContract.kernelInvariant &*
+                substitutedContract.kernelInvariant,
               applicableContract.signals ++ substitutedContract.signals,
               applicableContract.givenArgs ++ substitutedContract.givenArgs,
               applicableContract.yieldsArgs ++ substitutedContract.yieldsArgs,

@@ -24,6 +24,7 @@ case object Main extends LazyLogging {
   val EXIT_CODE_SUCCESS = 0
   val EXIT_CODE_VERIFICATION_FAILURE = 1
   val EXIT_CODE_ERROR = 2
+  val EXIT_CODE_TIMEOUT = 3
 
   case class TemporarilyUnsupported(feature: String, examples: Seq[Node[_]])
       extends UserError {
@@ -63,7 +64,7 @@ case object Main extends LazyLogging {
     } catch {
       case t: Throwable =>
         logger.error(s"Unrecoverable error: ${t.getMessage}", t)
-        throw t
+        System.exit(EXIT_CODE_ERROR)
     }
 
   /** Decide what to do from the parsed options.

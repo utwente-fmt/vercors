@@ -3,6 +3,9 @@
 
 # define M_PI           3.14159265358979323846  /* pi */
 
+const double NAN = vercorsNAN;
+const double INFINITY = vercorsINFINITY;
+
 /*@
   decreases;
 pure double M_PI() = 3.14159265358979323846;
@@ -106,19 +109,23 @@ float /*@ pure @*/ logf(float x);
 float /*@ pure @*/ powf(float x, float y);
 
 /*@
-  ensures \result == (float)((int)x);
+  ensures !\is_int(x) ==> \result == (float)((int)x);
+  ensures !\is_int(x) ==> ((int)\result) == ((int)x);
+  ensures \is_int(x) ==> \result == x;
   decreases;
 @*/
 float /*@ pure @*/ floorf(float x);
 
 /*@
   ensures \result == (\is_int(x) ? x : (float)((int)x + 1));
+  ensures !\is_int(x) ==> ((int)\result) == ((int)x + 1);
   decreases;
 @*/
 float /*@ pure @*/ ceilf(float x);
 
 /*@
   ensures !(x < 0 && \is_int(x-0.5)) ==> \result == (float)(int)(x + 0.5);
+  ensures !(x < 0 && \is_int(x-0.5)) ==> ((int)\result) == (int)(x + 0.5);
   ensures (x < 0 && \is_int(x-0.5)) ==> \result == x-0.5;
   decreases;
 @*/
@@ -223,18 +230,22 @@ double /*@ pure @*/ pow(double x, double y);
 
 /*@
   ensures \result == (double)((int)x);
+  ensures !\is_int(x) ==> ((int)\result) == ((int)x);
+  ensures \is_int(x) ==> \result == x;
   decreases;
 @*/
 double /*@ pure @*/ floor(double x);
 
 /*@
   ensures \result == (\is_int(x) ? x : (double)((int)x + 1));
+  ensures !\is_int(x) ==> ((int)\result) == ((int)x + 1);
   decreases;
 @*/
 double /*@ pure @*/ ceil(double x);
 
 /*@
   ensures !(x < 0 && \is_int(x-0.5)) ==> \result == (double)(int)(x + 0.5);
+  ensures !(x < 0 && \is_int(x-0.5)) ==> ((int)\result) == (int)(x + 0.5);
   ensures (x < 0 && \is_int(x-0.5)) ==> \result == x-0.5;
   decreases;
 @*/

@@ -3,13 +3,13 @@
 #include "Origin/OriginProvider.h"
 #include "Transform/BlockTransform.h"
 #include "Transform/Transform.h"
-#include "Util/Exceptions.h"
+#include "Util/BlockUtils.h"
 #include <llvm/IR/DebugInfo.h>
 
 const std::string SOURCE_LOC = "Transform::Instruction::MemoryOp";
 
 void llvm2col::transformMemoryOp(llvm::Instruction &llvmInstruction,
-                                 col::Block &colBlock,
+                                 col::LlvmBasicBlock &colBlock,
                                  pallas::FunctionCursor &funcCursor) {
     switch (llvm::Instruction::MemoryOps(llvmInstruction.getOpcode())) {
     case llvm::Instruction::Alloca:
@@ -35,31 +35,17 @@ void llvm2col::transformMemoryOp(llvm::Instruction &llvmInstruction,
 }
 
 void llvm2col::transformAllocA(llvm::AllocaInst &allocAInstruction,
-                               col::Block &colBlock,
+                               col::LlvmBasicBlock &colBlock,
                                pallas::FunctionCursor &funcCursor) {
-    col::LlvmAllocA *allocA = colBlock.add_statements()->mutable_llvm_alloc_a();
+    col::LlvmAllocA *allocA =
+        pallas::bodyAsBlock(colBlock).add_statements()->mutable_llvm_alloc_a();
     allocA->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(allocAInstruction));
 
-    if (allocAInstruction.getAllocatedType()->getTypeID() ==
-        llvm::Type::PointerTyID) {
-        // Pointers are opaque so we'll use the metadata to try and figure out
-        // what this pointer will point to
-        for (llvm::DbgDeclareInst *dbg :
-             llvm::FindDbgDeclareUses(&allocAInstruction)) {
-            llvm::errs() << "Use of AllocA ptr " << *dbg << "\n";
-            llvm::CallInst *dbgCall = llvm::cast<llvm::CallInst>(dbg);
-            llvm::Metadata *metadata =
-                llvm::cast<llvm::MetadataAsValue>(dbgCall->getOperand(1))
-                    ->getMetadata();
-            // TODO: Translate this information where possible
-        }
-        llvm2col::transformAndSetType(*allocAInstruction.getAllocatedType(),
-                                      *allocA->mutable_allocation_type());
-    } else {
-        llvm2col::transformAndSetType(*allocAInstruction.getAllocatedType(),
-                                      *allocA->mutable_allocation_type());
-    }
+    const auto &dataLayout = allocAInstruction.getModule()->getDataLayout();
+    llvm2col::transformAndSetValueType(
+        allocAInstruction, allocAInstruction.getAllocatedType(),
+        *allocA->mutable_return_type(), dataLayout);
     col::Variable &varDecl = funcCursor.declareVariable(
         allocAInstruction, allocAInstruction.getAllocatedType());
     allocA->mutable_variable()->set_id(varDecl.id());
@@ -106,17 +92,19 @@ void llvm2col::transformAtomicOrdering(llvm::AtomicOrdering ordering,
 }
 
 void llvm2col::transformLoad(llvm::LoadInst &loadInstruction,
-                             col::Block &colBlock,
+                             col::LlvmBasicBlock &colBlock,
                              pallas::FunctionCursor &funcCursor) {
     // We are not storing isVolatile and getAlign
-    col::LlvmLoad *load = colBlock.add_statements()->mutable_llvm_load();
+    col::LlvmLoad *load =
+        pallas::bodyAsBlock(colBlock).add_statements()->mutable_llvm_load();
     load->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(loadInstruction));
     load->set_allocated_blame(new col::Blame());
     col::Variable &varDecl = funcCursor.declareVariable(loadInstruction);
     load->mutable_variable()->set_id(varDecl.id());
-    llvm2col::transformAndSetType(*loadInstruction.getType(),
-                                  *load->mutable_load_type());
+    llvm2col::transformAndSetValueType(
+        loadInstruction, nullptr, *load->mutable_load_type(),
+        loadInstruction.getModule()->getDataLayout());
     llvm2col::transformAndSetExpr(funcCursor, loadInstruction,
                                   *loadInstruction.getPointerOperand(),
                                   *load->mutable_pointer());
@@ -125,10 +113,11 @@ void llvm2col::transformLoad(llvm::LoadInst &loadInstruction,
 }
 
 void llvm2col::transformStore(llvm::StoreInst &storeInstruction,
-                              col::Block &colBlock,
+                              col::LlvmBasicBlock &colBlock,
                               pallas::FunctionCursor &funcCursor) {
     // We are not storing isVolatile and getAlign
-    col::LlvmStore *store = colBlock.add_statements()->mutable_llvm_store();
+    col::LlvmStore *store =
+        pallas::bodyAsBlock(colBlock).add_statements()->mutable_llvm_store();
     store->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(storeInstruction));
     store->set_allocated_blame(new col::Blame());
@@ -143,9 +132,10 @@ void llvm2col::transformStore(llvm::StoreInst &storeInstruction,
 }
 
 void llvm2col::transformGetElementPtr(llvm::GetElementPtrInst &gepInstruction,
-                                      col::Block &colBlock,
+                                      col::LlvmBasicBlock &colBlock,
                                       pallas::FunctionCursor &funcCursor) {
 
+    const auto &dataLayout = gepInstruction.getModule()->getDataLayout();
     col::Assign &assignment = funcCursor.createAssignmentAndDeclaration(
         gepInstruction, colBlock, gepInstruction.getResultElementType());
     col::Expr *gepExpr = assignment.mutable_value();
@@ -153,10 +143,13 @@ void llvm2col::transformGetElementPtr(llvm::GetElementPtrInst &gepInstruction,
         gepExpr->mutable_llvm_get_element_pointer();
     gep->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(gepInstruction));
+    gep->set_allocated_blame(new col::Blame());
+    // Not using metadata info here since there is basically never a dbg.value
+    // or dbg.declare that refers to a GEP
     llvm2col::transformAndSetType(*gepInstruction.getSourceElementType(),
-                                  *gep->mutable_structure_type());
+                                  *gep->mutable_structure_type(), dataLayout);
     llvm2col::transformAndSetType(*gepInstruction.getResultElementType(),
-                                  *gep->mutable_result_type());
+                                  *gep->mutable_result_type(), dataLayout);
     llvm2col::transformAndSetExpr(funcCursor, gepInstruction,
                                   *gepInstruction.getPointerOperand(),
                                   *gep->mutable_pointer());

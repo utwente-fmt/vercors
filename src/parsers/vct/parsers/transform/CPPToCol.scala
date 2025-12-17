@@ -470,30 +470,30 @@ case class CPPToCol[G](
     expr match {
       case InclusiveOrExpression0(inner) => convert(inner)
       case InclusiveOrExpression1(left, _, right) =>
-        BitOr(convert(left), convert(right))
+        BitOr(convert(left), convert(right), 0, signed = true)(blame(expr))
     }
 
   def convert(implicit expr: ExclusiveOrExpressionContext): Expr[G] =
     expr match {
       case ExclusiveOrExpression0(inner) => convert(inner)
       case ExclusiveOrExpression1(left, _, right) =>
-        BitXor(convert(left), convert(right))
+        BitXor(convert(left), convert(right), 0, signed = true)(blame(expr))
     }
 
   def convert(implicit expr: AndExpressionContext): Expr[G] =
     expr match {
       case AndExpression0(inner) => convert(inner)
       case AndExpression1(left, _, right) =>
-        BitAnd(convert(left), convert(right))
+        BitAnd(convert(left), convert(right), 0, signed = true)(blame(expr))
     }
 
   def convert(implicit expr: EqualityExpressionContext): Expr[G] =
     expr match {
       case EqualityExpression0(inner) => convert(inner)
       case EqualityExpression1(left, _, right) =>
-        AmbiguousEq(convert(left), convert(right), TCInt())
+        AmbiguousEq(convert(left), convert(right), TCInt(), None)
       case EqualityExpression2(left, _, right) =>
-        AmbiguousNeq(convert(left), convert(right), TCInt())
+        AmbiguousNeq(convert(left), convert(right), TCInt(), None)
     }
 
   def convert(implicit expr: RelationalExpressionContext): Expr[G] =
@@ -501,10 +501,10 @@ case class CPPToCol[G](
       case RelationalExpression0(inner) => convert(inner)
       case RelationalExpression1(left, RelationalOp0(op), right) =>
         op match {
-          case "<" => col.AmbiguousLess(convert(left), convert(right))
-          case ">" => col.AmbiguousGreater(convert(left), convert(right))
-          case "<=" => AmbiguousLessEq(convert(left), convert(right))
-          case ">=" => AmbiguousGreaterEq(convert(left), convert(right))
+          case "<" => col.AmbiguousLess(convert(left), convert(right), None)
+          case ">" => col.AmbiguousGreater(convert(left), convert(right), None)
+          case "<=" => AmbiguousLessEq(convert(left), convert(right), None)
+          case ">=" => AmbiguousGreaterEq(convert(left), convert(right), None)
         }
       case RelationalExpression1(left, RelationalOp1(specOp), right) =>
         convert(expr, specOp, convert(left), convert(right))
@@ -514,9 +514,15 @@ case class CPPToCol[G](
     expr match {
       case ShiftExpression0(inner) => convert(inner)
       case ShiftExpression1(left, _, _, right) =>
-        BitShl(convert(left), convert(right))
+        BitShl(convert(left), convert(right), 0, signed = true)(blame(expr))
       case ShiftExpression2(left, _, _, right) =>
-        BitShr(convert(left), convert(right))
+        val l = convert(left)
+        val r = convert(right)
+        // The true in BitUShr will be replaced in LangSpecificToCol
+        if (isSigned(l.t) || isSigned(r.t))
+          BitShr(l, r, 0)(blame(expr))
+        else
+          BitUShr(l, r, 0, signed = true)(blame(expr))
     }
 
   def convert(implicit expr: AdditiveExpressionContext): Expr[G] =
@@ -764,9 +770,11 @@ case class CPPToCol[G](
     } catch { case _: NumberFormatException => None }
   }
 
-  def parseInt(i: String)(implicit o: Origin): Option[Expr[G]] =
-    try { Some(CIntegerValue(BigInt(i))) }
+  def parseInt(i: String)(implicit o: Origin): Option[Expr[G]] = {
+    // TODO: Proper integer parsing and typing
+    try { Some(CIntegerValue(BigInt(i), CPrimitiveType(Seq(CInt())))) }
     catch { case _: NumberFormatException => None }
+  }
 
   private def parseChar(value: String)(implicit o: Origin): Option[Expr[G]] = {
     val fixedValue = fixEscapeAndUnicodeChars(value)
@@ -1420,10 +1428,14 @@ case class CPPToCol[G](
           ))
       case ValContractClause11(_, invariant, _) =>
         collector.lock_invariant += ((contract, convert(invariant)))
-      case ValContractClause12(_, None, _) =>
-        collector.decreases += ((contract, DecreasesClauseNoRecursion()))
-      case ValContractClause12(_, Some(clause), _) =>
-        collector.decreases += ((contract, convert(clause)))
+      case ValContractClause12(decreases, _) =>
+        collector.decreases += ((contract, convert(decreases)))
+    }
+
+  def convert(implicit decreases: ValDecreasesContext): DecreasesClause[G] =
+    decreases match {
+      case ValDecreases0(_, None) => DecreasesClauseNoRecursion()
+      case ValDecreases0(_, Some(clause)) => convert(clause)
     }
 
   def convert(implicit clause: ValDecreasesMeasureContext): DecreasesClause[G] =
@@ -1667,7 +1679,8 @@ case class CPPToCol[G](
     block match {
       case ValEmbedStatementBlock0(_, stats, _) => Block(stats.map(convert(_)))
       case ValEmbedStatementBlock1(stats) => Block(stats.map(convert(_)))
-      case ValEmbedStatementBlock2(_, _, _, stat) => Extract(convert(stat))
+      case ValEmbedStatementBlock2(_, extract, decreases, _, stat) =>
+        Extract(convert(stat), decreases.map(convert(_)))(blame(block))
       case ValEmbedStatementBlock3(_, _, clauses, _, _, body, _, _, _) =>
         withContract(
           clauses,
@@ -1679,6 +1692,32 @@ case class CPPToCol[G](
             )(blame(block))
           },
         )
+      case ValEmbedStatementBlock4(
+            _,
+            _,
+            decreases,
+            _,
+            clauses,
+            _,
+            _,
+            body,
+            _,
+            _,
+            _,
+          ) =>
+        Extract(
+          withContract(
+            clauses,
+            contract => {
+              FramedProof(
+                AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+                Block(body.map(convert(_))),
+                AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
+              )(blame(block))
+            },
+          ),
+          decreases.map(convert(_)),
+        )(blame(block))
     }
 
   def convert(implicit stat: ValStatementContext): Statement[G] =
@@ -1696,10 +1735,15 @@ case class CPPToCol[G](
       case ValAssume(_, assn, _) => Assume(convert(assn))
       case ValInhale(_, resource, _) => Inhale(convert(resource))
       case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
-      case ValLabel(_, label, _) =>
-        Label(
-          new LabelDecl()(origin(stat).sourceName(convert(label))),
-          Block(Nil),
+      case ValLabel(contract, _, label, _) =>
+        withContract(
+          contract,
+          c =>
+            Label(
+              new LabelDecl()(origin(stat).sourceName(convert(label))),
+              Block(Nil),
+              c.consumeLoopContract(stat),
+            ),
         )
       case ValRefute(_, assn, _) => Refute(convert(assn))(blame(stat))
       case ValWitness(_, _, _) => ??(stat)
@@ -1734,7 +1778,8 @@ case class CPPToCol[G](
           convert(body),
         )(blame(stat))
       case ValCommit(_, obj, _) => Commit(convert(obj))(blame(stat))
-      case ValExtract(_, body) => Extract(convert(body))
+      case ValExtract(extract, decreases, body) =>
+        Extract(convert(body), decreases.map(convert(_)))(blame(stat))
       case ValFrame(_, clauses, body) =>
         withContract(
           clauses,
@@ -1846,6 +1891,36 @@ case class CPPToCol[G](
             (currentNamespacePath.reverse :+ convert(name)).mkString("::")
           ))
         )
+      case ValProverType(_, name, ints, _) =>
+        Seq(new ProverType(convert(ints))(origin(decl).sourceName(
+          (currentNamespacePath.reverse :+ convert(name)).mkString("::")
+        )))
+      case ValProverFunction(_, t, name, _, args, _, ints, _) =>
+        Seq(
+          new ProverFunction(
+            convert(ints),
+            args.map(convert(_)).getOrElse(Nil),
+            convert(t),
+          )(origin(decl).sourceName(
+            (currentNamespacePath.reverse :+ convert(name)).mkString("::")
+          ))
+        )
+    }
+
+  def convert(
+      implicit int: ValProverInterpretationsContext
+  ): Seq[(ProverLanguage[G], String)] =
+    int match {
+      case ValProverInterpretations0(int) => Seq(convert(int))
+      case ValProverInterpretations1(int, ints) => convert(int) +: convert(ints)
+    }
+
+  def convert(
+      implicit int: ValProverInterpretationContext
+  ): (ProverLanguage[G], String) =
+    int match {
+      case ValInterpSmtlib(_, int) => SmtLib()(origin(int)) -> convert(int)
+      case ValInterpBoogie(_, int) => Boogie()(origin(int)) -> convert(int)
     }
 
   def convert(
@@ -2009,7 +2084,7 @@ case class CPPToCol[G](
         TMap(convert(key), convert(value))
       case ValTupleType(_, _, t1, _, t2, _) =>
         TTuple(Seq(convert(t1), convert(t2)))
-      case ValPointerType(_, _, element, _) => TPointer(convert(element))
+      case ValPointerType(_, _, element, _) => TPointer(convert(element), None)
       case ValTypeType(_, _, element, _) => TType(convert(element))
       case ValEitherType(_, _, left, _, right, _) =>
         TEither(convert(left), convert(right))
@@ -2087,20 +2162,14 @@ case class CPPToCol[G](
 
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] =
     e match {
-      case ValCurPerm(_, _, loc, _) =>
-        CurPerm(AmbiguousLocation(convert(loc))(blame(e)))
+      case ValCurPerm(_, _, loc, _) => CurPerm(AmbiguousLocation(convert(loc)))
       case ValPerm(_, _, loc, _, perm, _) =>
-        Perm(AmbiguousLocation(convert(loc))(blame(e)), convert(perm))
-      case ValValue(_, _, loc, _) =>
-        Value(AmbiguousLocation(convert(loc))(blame(e)))
+        Perm(AmbiguousLocation(convert(loc)), convert(perm))
+      case ValValue(_, _, loc, _) => Value(AmbiguousLocation(convert(loc)))
       case ValAutoValue(_, _, loc, _) =>
-        AutoValue(AmbiguousLocation(convert(loc))(blame(e)))
+        AutoValue(AmbiguousLocation(convert(loc)))
       case ValPointsTo(_, _, loc, _, perm, _, v, _) =>
-        PointsTo(
-          AmbiguousLocation(convert(loc))(blame(e)),
-          convert(perm),
-          convert(v),
-        )
+        PointsTo(AmbiguousLocation(convert(loc)), convert(perm), convert(v))
       case ValHPerm(_, _, loc, _, perm, _) =>
         ModelPerm(convert(loc), convert(perm))
       case ValAPerm(_, _, loc, _, perm, _) =>
@@ -2114,6 +2183,7 @@ case class CPPToCol[G](
         PermPointer(convert(ptr), convert(n), convert(perm))
       case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) =>
         PermPointerIndex(convert(ptr), convert(idx), convert(perm))
+      case ValPointerBlock(_, _, ptr, _) => PointerBlock(convert(ptr))(blame(e))
       case ValPointerBlockLength(_, _, ptr, _) =>
         PointerBlockLength(convert(ptr))(blame(e))
       case ValPointerBlockOffset(_, _, ptr, _) =>
@@ -2177,7 +2247,7 @@ case class CPPToCol[G](
       case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
         ForPerm(
           convert(bindings),
-          AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)),
+          AmbiguousLocation(convert(loc))(origin(loc)),
           convert(body),
         )
       case ValForPermWithValue(_, _, _, id, _, body, _) =>
@@ -2347,4 +2417,9 @@ case class CPPToCol[G](
         Block(Nil)(DiagnosticOrigin)
     }
 
+  def isSigned(t: Type[G]): Boolean =
+    t match {
+      case t: BitwiseType[G] => t.signed
+      case _ => true
+    }
 }

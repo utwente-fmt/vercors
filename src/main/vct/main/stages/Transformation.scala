@@ -27,23 +27,36 @@ import vct.options.types.{Backend, PathOrStd}
 import vct.parsers.debug.DebugOptions
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
-import vct.rewrite.adt.ImportSetCompat
+import vct.rewrite.adt.{EncodeBitVectors, ImportSetCompat}
 import vct.rewrite.{
+  DisambiguateLocation,
   DisambiguatePredicateExpression,
+  EncodeAssuming,
   EncodeAutoValue,
   EncodeByValueClassUsage,
+  EncodeIntegerPointerCast,
+  EncodePointerArrays,
+  EncodePointerComparison,
   EncodeRange,
   EncodeResourceValues,
   ExplicitResourceValues,
   GenerateSingleOwnerPermissions,
   HeapVariableToRef,
   InlineTrivialLets,
-  LowerLocalHeapVariables,
+  LowerHeapVariables,
+  MakeUniqueMethodCopies,
   MonomorphizeClass,
   SmtlibToProverTypes,
+  TypeQualifierCoercion,
   VariableToPointer,
 }
 import vct.rewrite.lang.ReplaceSYCLTypes
+import vct.rewrite.pallas.{
+  InlinePallasPermLets,
+  InlinePallasWrappers,
+  ResolvePallasPredicates,
+  ResolvePallasQuantifiers,
+}
 import vct.rewrite.veymont._
 import vct.rewrite.veymont.generation._
 import vct.rewrite.veymont.verification._
@@ -53,7 +66,6 @@ import vct.rewrite.veymont.verification.EncodePermissionStratification.{
 
 import java.nio.file.Path
 import java.nio.file.Files
-import java.nio.file.Paths
 
 object Transformation extends LazyLogging {
   case class TransformationCheckError(
@@ -116,9 +128,9 @@ object Transformation extends LazyLogging {
     Of course, this all while still retaining the functionality of making it possible to pass more simplification rules
     using command line flags.
      */
-    Progress.hiddenStage(
-      s"Loading PVL library file ${readable.underlyingPath.getOrElse("<unknown>")}"
-    ) { Util.loadPVLLibraryFile(readable, debugOptions) }
+    Progress.hiddenStage(s"Loading PVL library file ${readable.fileName}") {
+      Util.loadPVLLibraryFile(readable, debugOptions)
+    }
   }
 
   def simplifierFor(path: PathOrStd, options: Options): RewriterBuilder =
@@ -170,6 +182,7 @@ object Transformation extends LazyLogging {
           veymontBranchUnanimity = options.veymontBranchUnanimity,
           veymontPermissionStratificationMode =
             options.veymontPermissionStratificationMode,
+          opaqueBitwiseOperators = options.opaqueBitwiseOperators,
         )
     }
 
@@ -347,13 +360,20 @@ case class SilverTransformation(
     veymontBranchUnanimity: Boolean = true,
     veymontPermissionStratificationMode: PermissionStratificationMode =
       PermissionStratificationMode.Wrap,
+    opaqueBitwiseOperators: Boolean = false,
 ) extends Transformation(
       onPassEvent,
       Seq(
+        CFloatIntCoercion,
         // Replace leftover SYCL types
         ReplaceSYCLTypes,
-        CFloatIntCoercion,
-
+        TypeQualifierCoercion,
+        MakeUniqueMethodCopies,
+        // Inline pallas-specifications
+        InlinePallasWrappers,
+        ResolvePallasPredicates,
+        InlinePallasPermLets,
+        ResolvePallasQuantifiers,
         // BIP transformations
         ComputeBipGlue,
         InstantiateBipSynchronizations,
@@ -402,6 +422,7 @@ case class SilverTransformation(
         IterationContractToParBlock,
         PropagateContextEverywhere, // inline context_everywhere into loop invariants
         EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
+        EncodePointerArrays,
         GivenYieldsToArgs,
         CheckProcessAlgebra,
         EncodeCurrentThread,
@@ -413,6 +434,8 @@ case class SilverTransformation(
         RefuteToInvertedAssert,
         ExplicitResourceValues,
         EncodeResourceValues,
+        EncodeAssuming,
+        EncodePointerComparison, // Assumes no context_everywhere
 
         // Encode parallel blocks
         EncodeSendRecv,
@@ -428,6 +451,8 @@ case class SilverTransformation(
         EncodeBreakReturn,
       ) ++ simplifyBeforeRelations ++ Seq(
         SimplifyQuantifiedRelations,
+        // We extract quantifier patterns before simplifying nested ones
+        ExtractInlineQuantifierPatterns,
         SimplifyNestedQuantifiers,
         TupledQuantifiers,
       ) ++ simplifyAfterRelations ++ Seq(
@@ -442,6 +467,7 @@ case class SilverTransformation(
         // value is pure and therefore be put in the contract of the constant function.
         ConstantifyFinalFields,
         EncodeByValueClassUsage,
+        LowerHeapVariables,
         // Resolve side effects including method invocations, for encodetrythrowsignals.
         ResolveExpressionSideChecks,
         ResolveExpressionSideEffects,
@@ -451,18 +477,20 @@ case class SilverTransformation(
         // No more classes
         ClassToRef,
         HeapVariableToRef,
-        LowerLocalHeapVariables,
         CheckContractSatisfiability.withArg(checkSat),
         DesugarCollectionOperators,
         EncodeNdIndex,
-        ExtractInlineQuantifierPatterns,
+        EncodeBitVectors.withArg(opaqueBitwiseOperators),
         // Translate internal types to domains
+        ImportVector.withArg(adtImporter),
+        // After ImportVector, but before SmtlibToProverTypes
         FloatToRat,
         SmtlibToProverTypes,
         EnumToDomain,
         ImportArray.withArg(adtImporter),
+        ImportConstPointer.withArg(adtImporter),
+        EncodeIntegerPointerCast,
         ImportPointer.withArg(adtImporter),
-        ImportVector.withArg(adtImporter),
         ImportMapCompat.withArg(adtImporter),
         ImportEither.withArg(adtImporter),
         ImportTuple.withArg(adtImporter),

@@ -5,13 +5,22 @@
 #include "Passes/Function/FunctionDeclarer.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
+#include "Util/PallasDIMapping.h"
+#include "Util/PallasMD.h"
+#include "Util/PallasWrapperUtils.h"
 
+#include <llvm/ADT/SmallSet.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/Argument.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/IntrinsicInst.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
+
+#include <optional>
 
 namespace pallas {
 const std::string SOURCE_LOC =
@@ -19,21 +28,50 @@ const std::string SOURCE_LOC =
 
 using namespace llvm;
 
+namespace {
+void addError(llvm::Function &func, const std::string &msg) {
+    pallas::ErrorReporter::addError(SOURCE_LOC, msg, func);
+}
+
+std::optional<bool> getAssumedFlag(const MDNode &contractMD) {
+    if (contractMD.getNumOperands() < 3)
+        return std::nullopt;
+    auto *constMD =
+        dyn_cast<ConstantAsMetadata>(contractMD.getOperand(2).get());
+    auto *assumedVal = dyn_cast_if_present<ConstantInt>(constMD->getValue());
+    if (assumedVal == nullptr || (assumedVal->getBitWidth() != 1)) {
+        return std::nullopt;
+    }
+    return assumedVal->isOne();
+}
+
+} // namespace
+
 /*
  * Pallas Function Contract Declarer Pass
  */
 PreservedAnalyses
-PallasFunctionContractDeclarerPass::run(Function &f,
-                                        FunctionAnalysisManager &fam) {
+PallasFunctionContractDeclarerPass::run(Module &m, ModuleAnalysisManager &mam) {
+    auto &fam =
+        mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
+    for (auto &f : m.functions()) {
+        runOnFunction(f, fam);
+    }
+    return PreservedAnalyses::all();
+}
+
+void PallasFunctionContractDeclarerPass::runOnFunction(
+    Function &f, FunctionAnalysisManager &fam) {
     // Check that f does not have a VCLLVM AND a Pallas contract
     if (hasConflictingContract(f))
-        return PreservedAnalyses::all();
+        return;
     // Skip, if f has a non-empty vcllvm-contract, or no contract at all
     // If it does not have a contract, we need an empty VCLLVM contract instead
-    // of an empty Pallas contract. Otherwise the mechanism for loading 
-    // contracts from a PVL-file does not get invoked. 
-    if (hasVcllvmContract(f) || !hasPallasContract(f))
-        return PreservedAnalyses::all();
+    // of an empty Pallas contract. Otherwise the mechanism for loading
+    // contracts from a PVL-file does not get invoked.
+    if (utils::hasVcllvmContract(f) ||
+        !(utils::hasPallasContract(f) || utils::hasExternalPallasContract(f)))
+        return;
 
     // Setup a fresh Pallas-contract
     FDCResult cResult = fam.getResult<FunctionContractDeclarer>(f);
@@ -41,29 +79,33 @@ PallasFunctionContractDeclarerPass::run(Function &f,
                                  .mutable_pallas_function_contract();
     colPallasContract->set_allocated_blame(new col::Blame());
 
+    // external-flag
+    bool isExternal = utils::hasExternalPallasContract(f);
+    colPallasContract->set_external(isExternal);
+
     // Get COL function
     FDResult fResult = fam.getResult<FunctionDeclarer>(f);
-    col::LlvmFunctionDefinition &colFunction =
-        fResult.getAssociatedColFuncDef();
+    // col::LlvmFunctionDefinition &colFunction =
+    //     fResult.getAssociatedColFuncDef();
 
     col::ApplicableContract *colContract = colPallasContract->mutable_content();
     colContract->set_allocated_blame(new col::Blame());
 
     // Check wellformedness of the contract-metadata
-    auto *contractNode = f.getMetadata(pallas::constants::PALLAS_FUNC_CONTRACT);
-    if (contractNode->getNumOperands() < 2) {
+    auto *contractNode = utils::getPallasContract(f);
+    if (contractNode->getNumOperands() < 3) {
         pallas::ErrorReporter::addError(
-            SOURCE_LOC, "Ill-formed contract. Expected at least 2 operands", f);
-        return PreservedAnalyses::all();
+            SOURCE_LOC, "Ill-formed contract. Expected at least 3 operands", f);
+        return;
     }
 
     auto *mdSrcLoc = dyn_cast<MDNode>(contractNode->getOperand(0).get());
-    if (!isWellformedPallasLocation(mdSrcLoc)) {
+    if (!pallas::utils::isWellformedPallasLocation(mdSrcLoc)) {
         pallas::ErrorReporter::addError(
             SOURCE_LOC,
             "Ill-formed contract. First operand should encode source-location.",
             f);
-        return PreservedAnalyses::all();
+        return;
     }
 
     // Build origin based on the source-location
@@ -72,14 +114,22 @@ PallasFunctionContractDeclarerPass::run(Function &f,
     colContract->set_allocated_origin(
         llvm2col::generatePallasFunctionContractOrigin(f, *mdSrcLoc));
 
+    // Set assumed-flag
+    auto assumedFlag = getAssumedFlag(*contractNode);
+    if (!assumedFlag.has_value()) {
+        addError(f, "Malformed function contract (assumed-flag)");
+        return;
+    }
+    colPallasContract->set_assumed(assumedFlag.value());
+
     // Handle contract clauses
-    unsigned int clauseIdx = 2;
+    unsigned int clauseIdx = 3;
     while (clauseIdx < contractNode->getNumOperands()) {
         auto addClauseSuccess = addClauseToContract(
             *colContract, contractNode->getOperand(clauseIdx).get(), fam, f,
-            colFunction, clauseIdx - 1, *mdSrcLoc);
+            clauseIdx - 2, *mdSrcLoc, isExternal);
         if (!addClauseSuccess)
-            return PreservedAnalyses::all();
+            return;
         ++clauseIdx;
     }
 
@@ -88,14 +138,87 @@ PallasFunctionContractDeclarerPass::run(Function &f,
     addEmptyRequires(*colContract, f);
     addEmptyEnsures(*colContract, f);
     addEmptyContextEverywhere(*colContract, f);
-    return PreservedAnalyses::all();
+    addEmptyKernelInvariant(*colContract, f);
+}
+
+std::optional<SmallVector<col::Variable *, 8>>
+PallasFunctionContractDeclarerPass::getExternalContractArgs(
+    Function &parentFunc, FunctionAnalysisManager &fam) {
+    // For external function, return the arguments of the parent-function
+    FDResult colFResult = fam.getResult<FunctionDeclarer>(parentFunc);
+
+    SmallVector<col::Variable *, 8> colArgs;
+    for (auto &arg : parentFunc.args()) {
+        auto colArgVar = &colFResult.getFuncArgMapEntry(arg);
+        colArgs.push_back(colArgVar);
+    }
+    return colArgs;
+}
+
+std::optional<SmallVector<col::Variable *, 8>>
+PallasFunctionContractDeclarerPass::getContractArgs(
+    const MDNode &clause, Function &parentFunc, FunctionAnalysisManager &fam) {
+    // Get DIVariables from the MD-Node of the clause
+    SmallVector<DIVariable *, 8> diVars;
+    unsigned int vIdx = 3;
+    while (vIdx < clause.getNumOperands()) {
+        if (auto *diVar = dyn_cast<DIVariable>(clause.getOperand(vIdx).get())) {
+            diVars.push_back(diVar);
+        } else {
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC,
+                "Ill-formed contract clause. Expected DIVariable as operand.",
+                parentFunc);
+            return std::nullopt;
+        }
+        vIdx++;
+    }
+
+    FDResult colFResult = fam.getResult<FunctionDeclarer>(parentFunc);
+
+    // Resolve the DIVariables to col-variables
+    SmallVector<col::Variable *, 8> colArgs;
+    for (auto *diVar : diVars) {
+
+        // Global values are not yet supported
+        auto *localVar = dyn_cast<DILocalVariable>(diVar);
+        if (localVar == nullptr || !localVar->isParameter()) {
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC,
+                "Ill-formed contract clause. Only arguments are currently "
+                "supported ",
+                parentFunc);
+            return std::nullopt;
+        }
+
+        // Check that the DIVariable belongs to the function to which the
+        // contract is attached
+        if (localVar->getScope() != parentFunc.getSubprogram()) {
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC,
+                "Ill-formed contract clause. DIVariable does not belong to "
+                "the function to which the contract is attached.",
+                parentFunc);
+            return std::nullopt;
+        }
+
+        auto llvmArg = mapDIVarToArg(parentFunc, *localVar);
+        if (llvmArg == nullptr) {
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC, "Unable to map DIVariable to argument.",
+                parentFunc);
+            return std::nullopt;
+        }
+        auto colArgVar = &colFResult.getFuncArgMapEntry(*llvmArg);
+        colArgs.push_back(colArgVar);
+    }
+    return colArgs;
 }
 
 bool PallasFunctionContractDeclarerPass::addClauseToContract(
     col::ApplicableContract &contract, Metadata *clauseOperand,
-    FunctionAnalysisManager &fam, Function &parentFunc,
-    col::LlvmFunctionDefinition &colParentFunc, unsigned int clauseNum,
-    const MDNode &contractSrcLoc) {
+    FunctionAnalysisManager &fam, Function &parentFunc, unsigned int clauseNum,
+    const MDNode &contractSrcLoc, const bool isExternal) {
 
     // Try to extract MDNode
     auto *clause = dyn_cast_if_present<MDNode>(clauseOperand);
@@ -108,10 +231,11 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
     }
 
     // Check number of operands
-    if (clause->getNumOperands() < 3) {
+    if ((!isExternal && clause->getNumOperands() < 3) ||
+        (isExternal && clause->getNumOperands() != 3)) {
         pallas::ErrorReporter::addError(
             SOURCE_LOC,
-            "Ill-formed contract clause. Expected at least 3 operands.",
+            "Ill-formed contract clause. Incorrect number of operands",
             parentFunc);
         return false;
     }
@@ -148,55 +272,11 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
     col::LlvmFunctionDefinition &colWrapperF =
         wrapperFResult.getAssociatedColFuncDef();
 
-    // Check wellformedness of the variables
-    SmallVector<DIVariable *, 8> diVars;
-    unsigned int vIdx = 3;
-    while (vIdx < clause->getNumOperands()) {
-        // Check that operand is a DIVariable
-        auto *diVar = dyn_cast<DIVariable>(clause->getOperand(vIdx).get());
-        if (diVar == nullptr) {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC,
-                "Ill-formed contract clause. Expected DIVariable as "
-                "operand.",
-                parentFunc);
-            return false;
-        }
-        diVars.push_back(diVar);
-        vIdx++;
-    }
-
-    // Resolve the DIVariables to col-variables
-    SmallVector<col::Variable *, 8> colArgs;
-    for (auto *diVar : diVars) {
-
-        // Global values are not yet supported
-        auto *localVar = dyn_cast<DILocalVariable>(diVar);
-        if (localVar == nullptr || !localVar->isParameter()) {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC,
-                "Ill-formed contract clause. Only arguments are currently "
-                "supported ",
-                parentFunc);
-            return false;
-        }
-
-        // TODO: Do we want to convert to llvm::Argument first?
-
-        // Check that the DIVariable belongs to the function to which the
-        // contract is attached
-        if (localVar->getScope() != parentFunc.getSubprogram()) {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC,
-                "Ill-formed contract clause. DIVariable does not belong to "
-                "the function to which the contract is attached.",
-                parentFunc);
-            return false;
-        }
-        // Indexing of getArg starts at 1
-        auto llvmArgIdx = localVar->getArg() - 1;
-        auto colArgVar = colParentFunc.args(llvmArgIdx);
-        colArgs.push_back(&colArgVar);
+    // Get arguments for the wrapper-call
+    auto wrapperArgs = isExternal ? getExternalContractArgs(parentFunc, fam)
+                                  : getContractArgs(*clause, parentFunc, fam);
+    if (!wrapperArgs.has_value()) {
+        return false;
     }
 
     // Build a call to the wrapper-function with the gathered arguments
@@ -211,7 +291,7 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
     fRef->set_id(colWrapperF.id());
 
     // Add argument-expression to invocation
-    for (auto *v : colArgs) {
+    for (auto *v : *wrapperArgs) {
         // Construct Local-node that references the variable and add it to the
         // list of arguments
         auto *argExpr = wrapperCall->add_args()->mutable_local();
@@ -223,7 +303,7 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
         varRef->set_id(v->id());
     }
 
-    // Construct an AccountedPredicate the wraps the call to the
+    // Construct an AccountedPredicate that wraps the call to the
     // wrapper-function
     col::UnitAccountedPredicate *newPred = new col::UnitAccountedPredicate();
     newPred->set_allocated_origin(llvm2col::generatePallasFContractClauseOrigin(
@@ -268,6 +348,84 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
     return true;
 }
 
+Argument *PallasFunctionContractDeclarerPass::mapDIVarToArg(Function &f,
+                                                            DIVariable &diVar) {
+    auto *locDiVar = dyn_cast<DILocalVariable>(&diVar);
+    if (locDiVar == nullptr || !locDiVar->isParameter()) {
+        return nullptr;
+    }
+
+    // Get the debug-intrinsic that uses the local variable.
+    SmallVector<DbgVariableIntrinsic *, 8> intrinsics;
+    for (auto i = inst_begin(&f), end = inst_end(&f); i != end; ++i) {
+        auto *asIntr = dyn_cast<DbgVariableIntrinsic>(&*i);
+        if (asIntr != nullptr && pallas::utils::hasDiExpression(*asIntr)) {
+            addError(f, "DIExpressions are not yet supported.");
+            return nullptr;
+        }
+        if (asIntr != nullptr && asIntr->getVariable() == locDiVar)
+            intrinsics.push_back(asIntr);
+    }
+
+    // Try to map to unique dbg.declare
+    auto *declIntr = pallas::utils::getUniqueDbgDeclare(intrinsics);
+    if (declIntr != nullptr) {
+        if (auto *argument = dyn_cast<Argument>(declIntr->getAddress())) {
+            return argument;
+        }
+        // Check if intrinsic refers to an alloca in the initial block of the
+        // function that is set to the value of an argument in its first use.
+        auto *alloc = dyn_cast_if_present<AllocaInst>(declIntr->getAddress());
+        if (alloc == nullptr || !alloc->isUsedInBasicBlock(&f.getEntryBlock()))
+            return nullptr;
+
+        // Find all instructions that use the alloca
+        SmallSet<Instruction *, 16> userInstr;
+        for (User *user : alloc->users()) {
+            if (auto *userInst = dyn_cast<Instruction>(user)) {
+                userInstr.insert(userInst);
+            }
+        }
+
+        // Check that the first user of the alloca is a store
+        // that stores the value of an argument.
+        for (auto &inst : f.getEntryBlock()) {
+            if (!userInstr.contains(&inst)) {
+                continue;
+            }
+            auto *storeInst = dyn_cast<StoreInst>(&inst);
+            if (storeInst == nullptr) {
+                return nullptr;
+            }
+
+            if (auto *arg = dyn_cast<Argument>(storeInst->getValueOperand())) {
+                assert(arg->getParent() == &f);
+                return arg;
+            }
+            if (auto *cast = dyn_cast<CastInst>(storeInst->getValueOperand())) {
+                // We only go one layer deep here, but we might require more
+                // depending on what compilers do
+                if (auto *arg = dyn_cast<Argument>(cast->getOperand(0))) {
+                    assert(arg->getParent() == &f);
+                    return arg;
+                }
+            }
+            return nullptr;
+        }
+        return nullptr;
+    }
+    // Try to map to dbg.value that refers directly to an argument of f
+    for (auto *intr : intrinsics) {
+        if (auto *valIntr = dyn_cast<DbgValueInst>(intr)) {
+            auto *arg = dyn_cast_if_present<Argument>(valIntr->getValue());
+            if (arg != nullptr && arg->getParent() == &f)
+                return arg;
+        }
+    }
+
+    return nullptr;
+}
+
 Function *PallasFunctionContractDeclarerPass::getWrapperFuncFromClause(
     MDNode &clause, Function &ctxFunc) {
     auto *wrapperFuncMD = dyn_cast<ValueAsMetadata>(clause.getOperand(2).get());
@@ -283,7 +441,7 @@ Function *PallasFunctionContractDeclarerPass::getWrapperFuncFromClause(
 
     // Check that the function is marked as a pallas wrapper function.
     auto *wrapperF = cast<Function>(wrapperFuncMD->getValue());
-    if (!wrapperF->hasMetadata(pallas::constants::PALLAS_WRAPPER_FUNC)) {
+    if (!utils::isPallasExprWrapper(*wrapperF)) {
         pallas::ErrorReporter::addError(
             SOURCE_LOC,
             "Ill-formed contract clause. Second operand does not point to "
@@ -346,6 +504,17 @@ void PallasFunctionContractDeclarerPass::addEmptyContextEverywhere(
     contextExpr->set_value(true);
 }
 
+void PallasFunctionContractDeclarerPass::addEmptyKernelInvariant(
+    col::ApplicableContract &contract, Function &f) {
+    if (contract.has_kernel_invariant())
+        return;
+    // Build expression for kernelInvariant
+    auto *kernelInvariant =
+        contract.mutable_kernel_invariant()->mutable_boolean_value();
+    kernelInvariant->set_allocated_origin(
+        llvm2col::generateFunctionContractOrigin(f, "true"));
+    kernelInvariant->set_value(true);
+}
 void PallasFunctionContractDeclarerPass::extendPredicate(
     col::AccountedPredicate *newPred, col::Origin *newPredOrigin,
     col::AccountedPredicate *left, col::UnitAccountedPredicate *right) {
@@ -357,56 +526,15 @@ void PallasFunctionContractDeclarerPass::extendPredicate(
 }
 
 bool PallasFunctionContractDeclarerPass::hasConflictingContract(Function &f) {
-    bool conflict = hasPallasContract(f) && hasVcllvmContract(f);
-    if (conflict) {
+    int contrCount = 0;
+    contrCount += utils::hasExternalPallasContract(f) ? 1 : 0;
+    contrCount += utils::hasPallasContract(f) ? 1 : 0;
+    contrCount += utils::hasVcllvmContract(f) ? 1 : 0;
+
+    if (contrCount > 1) {
         pallas::ErrorReporter::addError(
-            SOURCE_LOC,
-            "The function has both, a vcllvm and a pallas contract.", f);
-    }
-    return conflict;
-}
-
-bool PallasFunctionContractDeclarerPass::hasPallasContract(const Function &f) {
-    return f.hasMetadata(pallas::constants::PALLAS_FUNC_CONTRACT);
-}
-
-bool PallasFunctionContractDeclarerPass::hasVcllvmContract(const Function &f) {
-    return f.hasMetadata(pallas::constants::METADATA_CONTRACT_KEYWORD);
-}
-
-bool PallasFunctionContractDeclarerPass::isWellformedPallasLocation(
-    const MDNode *mdNode) {
-
-    if (mdNode == nullptr)
-        return false;
-
-    if (mdNode->getNumOperands() != 5)
-        return false;
-
-    // Check that first operand is a string-identifier
-    if (auto *mdStr = dyn_cast<MDString>(mdNode->getOperand(0).get())) {
-        if (mdStr->getString().str() != pallas::constants::PALLAS_SRC_LOC_ID)
-            return false;
-    } else {
-        return false;
-    }
-
-    // Check that the last four operands are integer constants
-    if (!isConstantInt(mdNode->getOperand(1).get()) ||
-        !isConstantInt(mdNode->getOperand(2).get()) ||
-        !isConstantInt(mdNode->getOperand(3).get()) ||
-        !isConstantInt(mdNode->getOperand(4).get())) {
-        return false;
-    }
-
-    return true;
-}
-
-bool PallasFunctionContractDeclarerPass::isConstantInt(llvm::Metadata *md) {
-    if (auto *mdConst = dyn_cast<llvm::ConstantAsMetadata>(md)) {
-        if (isa<llvm::ConstantInt>(mdConst->getValue())) {
-            return true;
-        }
+            SOURCE_LOC, "The function has multiple contracts!", f);
+        return true;
     }
     return false;
 }

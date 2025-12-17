@@ -7,7 +7,7 @@ import scala.collection.mutable
 
 case class Namer[G](syntax: Ctx.Syntax) {
   private val stack = ScopedStack[Node[G]]()
-  private val names = mutable.Map[(scala.Any, String, Int), Declaration[G]]()
+  private val names = mutable.Map[(scala.Any, String, BigInt), Declaration[G]]()
 
   private val keywords: Set[String] =
     syntax match {
@@ -79,18 +79,21 @@ case class Namer[G](syntax: Ctx.Syntax) {
       case _: CPPFunctionDefinition[G] => ()
     }
 
-  def unpackName(name: String): (String, Int) = {
+  def unpackName(name: String): (String, BigInt) = {
     val m = "^(.*?)([1-9][0-9]*)?$".r.findFirstMatchIn(name).get
-    if (Option(m.group(2)).isDefined) {
-      (m.group(1), Integer.parseInt(m.group(2)))
-    } else { (m.group(1), 0) }
+    m.subgroups match {
+      case Seq(prefix, null) =>
+        // subgroups returns _all_ capturing groups, putting null for those that were not matched
+        (prefix, 0)
+      case Seq(prefix, num) => (prefix, BigInt(num).abs)
+    }
   }
 
-  def packName(name: String, index: Int): String =
+  def packName(name: String, index: BigInt): String =
     if (index == 0)
       name
     else
-      s"$name$index"
+      s"$name${index.abs}"
 
   def nameKeyed(keys: Seq[scala.Any], decl: Declaration[G]): Unit = {
     if (keys.isEmpty) {

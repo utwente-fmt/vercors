@@ -11,12 +11,14 @@ channels {
   LINE_DIRECTIVE_CHANNEL
 }
 
+
 // lexer tokens needed for the SpecParser
 VAL_INLINE: EOF EOF;
 VAL_ASSERT: 'assert';
 VAL_PACKAGE: 'package';
 VAL_BOOL: EOF EOF;
 
+mode DEFAULT_MODE;
 IntegerLiteral:
 	DecimalLiteral Integersuffix?
 	| OctalLiteral Integersuffix?
@@ -181,6 +183,8 @@ fragment Universalcharactername:
 	'\\u' Hexquad
 	| '\\U' Hexquad Hexquad;
 
+Identifier: Identifiernondigit (Identifiernondigit | DIGIT)*;
+
 fragment Identifiernondigit: NONDIGIT | Universalcharactername;
 
 fragment NONDIGIT: [a-zA-Z_];
@@ -301,9 +305,6 @@ Whitespace: [ \t]+ -> skip;
 
 Newline: ('\r' '\n'? | '\n') -> skip;
 
-
-mode DEFAULT_MODE;
-Identifier: Identifiernondigit (Identifiernondigit | DIGIT)*;
 
 ExtraAt: ('\n'|'\r\n') [ \t\u000C]* '@' {inBlockSpec}? -> skip;
 

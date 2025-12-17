@@ -18,7 +18,7 @@ case class ChecksumReadableFile(
     checksumKind: String,
 ) extends InMemoryCachedReadable {
   override def underlyingPath: Option[Path] = Some(file)
-  override def fileName: String = file.toString
+  override def fileName: String = file.getFileName.toString
   override def isRereadable: Boolean = true
   private var checksumCache: Option[String] = None
 

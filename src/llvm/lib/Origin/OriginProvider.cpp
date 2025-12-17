@@ -4,14 +4,13 @@
 #include <utility>
 
 #include <llvm/IR/DebugInfoMetadata.h>
-#include <llvm/IR/Instruction.h>
 #include <llvm/IR/InstIterator.h>
+#include <llvm/IR/Instruction.h>
 #include <llvm/IR/Module.h>
 
 #include "Origin/ContextDeriver.h"
 #include "Origin/PreferredNameDeriver.h"
 #include "Origin/ShortPositionDeriver.h"
-#include "Util/Constants.h"
 
 namespace col = vct::col::ast;
 
@@ -215,7 +214,8 @@ std::pair<unsigned int, unsigned int> getEndPosFromMD(const llvm::Function &f) {
     if (sProg != nullptr)
         maxLine = sProg->getLine();
 
-    for (auto it = llvm::inst_begin(f), end = llvm::inst_end(f); it != end; ++it) {
+    for (auto it = llvm::inst_begin(f), end = llvm::inst_end(f); it != end;
+         ++it) {
         const llvm::Instruction *inst = &*it;
         auto &loc = inst->getDebugLoc();
         if (!loc)
@@ -223,13 +223,13 @@ std::pair<unsigned int, unsigned int> getEndPosFromMD(const llvm::Function &f) {
         unsigned int line = loc.getLine();
         unsigned int col = loc.getCol();
         if (line > maxLine) {
-            maxLine = line; 
+            maxLine = line;
             maxCol = col;
         } else if (line == maxLine && col > maxCol) {
             maxCol = col;
-        }   
+        }
     }
-    return { maxLine, maxCol };
+    return {maxLine, maxCol};
 }
 } // namespace
 
@@ -245,9 +245,10 @@ col::Origin *llvm2col::generateFuncDefOrigin(llvm::Function &llvmFunction) {
     if (sProg != nullptr) {
         auto endPos = getEndPosFromMD(llvmFunction);
         auto endLine = std::make_optional(endPos.first);
-        auto endCol = std::make_optional(endPos.second);;
-        generateSourceRangeOrigin(origin, *sProg, sProg->getLine(), 0,
-                                  endLine, endCol);
+        auto endCol = std::make_optional(endPos.second);
+        ;
+        generateSourceRangeOrigin(origin, *sProg, sProg->getLine(), 0, endLine,
+                                  endCol);
         return origin;
     }
 
@@ -265,28 +266,47 @@ col::Origin *llvm2col::generateFuncDefOrigin(llvm::Function &llvmFunction) {
 col::Origin *
 llvm2col::generatePallasFunctionContractOrigin(const llvm::Function &f,
                                                const llvm::MDNode &mdSrcLoc) {
+    auto prefName = "Function contract of " + deriveOperandPreferredName(f);
+    return generatePallasSpecOrigin(mdSrcLoc, prefName);
+}
 
+col::Origin *
+llvm2col::generatePallasLoopContractOrigin(const llvm::Loop &loop,
+                                           const llvm::MDNode &srcLoc) {
+    auto prefName = "Loop contract (" + loop.getName().str() + ")";
+    return generatePallasSpecOrigin(srcLoc, prefName);
+}
+
+col::Origin *
+llvm2col::generatePallasSpecStmntOrigin(const llvm::Instruction &llvmInstr,
+                                        const llvm::MDNode &srcLoc,
+                                        const std::string &stmntType) {
+    auto prefName = stmntType + " statement";
+    return generatePallasSpecOrigin(srcLoc, prefName);
+}
+
+col::Origin *
+llvm2col::generatePallasSpecOrigin(const llvm::MDNode &srcLoc,
+                                   const std::string &preferedName) {
     col::Origin *origin = new col::Origin();
+    // Preferred name
     col::OriginContent *preferredNameContent = origin->add_content();
-    col::PreferredName *preferredName = new col::PreferredName();
-    preferredName->add_preferred_name("Function contract of " +
-                                      deriveOperandPreferredName(f));
-    preferredNameContent->set_allocated_preferred_name(preferredName);
-
-    if (f.getSubprogram() == nullptr) {
-        return origin;
-    }
-
-    llvm::DIScope *scope = f.getSubprogram();
-    auto startLine = getIntValue(mdSrcLoc.getOperand(1).get());
-    auto startCol = getIntValue(mdSrcLoc.getOperand(2).get());
-    auto endLine =
-        std::make_optional(getIntValue(mdSrcLoc.getOperand(3).get()));
-    auto endCol = std::make_optional(getIntValue(mdSrcLoc.getOperand(4).get()));
-    generateSourceRangeOrigin(origin, *scope, startLine, startCol, endLine,
-                              endCol);
-
+    col::PreferredName *preferredNameNode = new col::PreferredName();
+    preferredNameNode->add_preferred_name(preferedName);
+    preferredNameContent->set_allocated_preferred_name(preferredNameNode);
+    // Src-loc
+    addSourceLocFromPallasMD(origin, srcLoc);
     return origin;
+}
+
+void llvm2col::addSourceLocFromPallasMD(col::Origin *origin,
+                                        const llvm::MDNode &srcLoc) {
+    auto startL = getIntValue(srcLoc.getOperand(1).get());
+    auto startC = getIntValue(srcLoc.getOperand(2).get());
+    auto endL = std::make_optional(getIntValue(srcLoc.getOperand(3).get()));
+    auto endC = std::make_optional(getIntValue(srcLoc.getOperand(4).get()));
+    auto file = llvm::cast<llvm::DIFile>(srcLoc.getOperand(5).get());
+    generateSourceRangeOrigin(origin, *file, startL, startC, endL, endC);
 }
 
 col::Origin *
@@ -380,7 +400,7 @@ llvm2col::generatePallasWrapperCallOrigin(const llvm::Function &wrapperFunc,
     col::Origin *origin = new col::Origin();
     col::OriginContent *preferredNameContent = origin->add_content();
     col::PreferredName *preferredName = new col::PreferredName();
-    preferredName->add_preferred_name("Contract clause represented by " +
+    preferredName->add_preferred_name("Specification represented by " +
                                       deriveFunctionPreferredName(wrapperFunc));
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
@@ -518,6 +538,27 @@ col::Origin *llvm2col::generateTypeOrigin(llvm::Type &llvmType) {
     col::OriginContent *preferredNameContent = origin->add_content();
     col::PreferredName *preferredName = new col::PreferredName();
     preferredName->add_preferred_name(deriveTypePreferredName(llvmType));
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    return origin;
+}
+
+col::Origin *llvm2col::generateDITypeOrigin(llvm::DIType &debugType) {
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name(debugType.getName());
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    return origin;
+}
+
+col::Origin *
+llvm2col::generateStructMemberOrigin(llvm::DIDerivedType &memberType) {
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name(memberType.getName());
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
     return origin;

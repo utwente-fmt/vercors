@@ -8,10 +8,11 @@ import vct.col.ast.ops.BitNotOps
 trait BitNotImpl[G] extends BitNotOps[G] {
   this: BitNot[G] =>
   override def t: Type[G] =
-    if (CoercionUtils.getCoercion(arg.t, TCInt()).isDefined)
-      TCInt()
-    else
-      TInt()
+    arg.t match {
+      case cint @ TCInt() => cint
+      case _ if CoercionUtils.getCoercion(arg.t, TCInt()).isDefined => TCInt()
+      case _ => TInt()
+    }
 
   override def precedence: Int = Precedence.PREFIX
   override def layout(implicit ctx: Ctx): Doc = Text("~") <> assoc(arg)

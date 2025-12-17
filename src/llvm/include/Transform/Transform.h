@@ -1,6 +1,11 @@
 #ifndef PALLAS_TRANSFORM_H
 #define PALLAS_TRANSFORM_H
 
+#include <llvm/IR/DataLayout.h>
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/Support/Casting.h>
+
 #include "Origin/OriginProvider.h"
 #include "Passes/Function/FunctionBodyTransformer.h"
 
@@ -12,9 +17,30 @@ namespace llvm2col {
 namespace col = vct::col::ast;
 
 // type transformers
-void transformAndSetPointerType(llvm::Type &llvmType, col::Type &colType);
+void transformAndSetPointerType(llvm::Type &llvmType, col::Type &colType,
+                                const llvm::DataLayout &dataLayout);
 
-void transformAndSetType(llvm::Type &llvmType, col::Type &colType);
+void transformAndSetValueType(llvm::Value &value, llvm::Type *pointerType,
+                              col::Type &colType,
+                              const llvm::DataLayout &dataLayout);
+
+void transformAndSetType(llvm::Type &llvmType, col::Type &colType,
+                         const llvm::DataLayout &dataLayout);
+
+bool transformAndSetBasicTypeWithDebugInfo(llvm::Type *llvmType,
+                                           llvm::DIBasicType &debugType,
+                                           col::Type &colType,
+                                           const llvm::DataLayout &dataLayout);
+bool transformAndSetCompositeTypeWithDebugInfo(
+    llvm::Type *llvmType, llvm::DICompositeType &debugType, col::Type &colType,
+    const llvm::DataLayout &dataLayout);
+bool transformAndSetDerivedTypeWithDebugInfo(
+    llvm::Type *llvmType, llvm::DIDerivedType &debugType, col::Type &colType,
+    const llvm::DataLayout &dataLayout);
+void transformAndSetTypeWithDebugInfo(llvm::Type *llvmType,
+                                      llvm::DIType *debugType,
+                                      col::Type &colType,
+                                      const llvm::DataLayout &dataLayout);
 
 /**
  * ATTEMPTS to convert any integer constant to a BigInt representation.
@@ -43,7 +69,8 @@ void transformAndSetExpr(pallas::FunctionCursor &functionCursor,
  */
 void transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
                               col::Origin *origin, llvm::Constant &llvmConstant,
-                              col::Expr &colExpr);
+                              col::Expr &colExpr,
+                              const llvm::DataLayout &dataLayout);
 
 /**
  * Used by TransformAndSetExpr
@@ -69,6 +96,18 @@ void transformBinExpr(llvm::Instruction &llvmInstruction,
     col::Expr *rExpr = colBinExpr.mutable_right();
     llvm2col::transformAndSetExpr(funcCursor, llvmInstruction,
                                   *llvmInstruction.getOperand(1), *rExpr);
+}
+template <class ColBinBitExpr>
+void transformBitwiseBinExpr(llvm::Instruction &llvmInstruction,
+                             ColBinBitExpr &colBinBitExpr,
+                             pallas::FunctionCursor &funcCursor) {
+    llvm::IntegerType *ty =
+        llvm::cast<llvm::IntegerType>(llvmInstruction.getType());
+    transformBinExpr(llvmInstruction, colBinBitExpr, funcCursor);
+    colBinBitExpr.set_allocated_blame(new col::Blame());
+    colBinBitExpr.set_bits(ty->getBitWidth());
+    colBinBitExpr.set_signed_(true);
+    // TODO: Figure out what to put for signed
 }
 
 template <class IDNode> int64_t setColNodeId(IDNode &idNode) {

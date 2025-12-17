@@ -45,9 +45,22 @@ FunctionContractDeclarerPass::run(Function &F, FunctionAnalysisManager &FAM) {
     // get col contract
     FDCResult result = FAM.getResult<FunctionContractDeclarer>(F);
     col::VcllvmFunctionContract *colContract =
-        result.getAssociatedColFuncContract().mutable_vcllvm_function_contract();
+        result.getAssociatedColFuncContract()
+            .mutable_vcllvm_function_contract();
     colContract->set_allocated_blame(new col::Blame());
     colContract->set_name(F.getName());
+
+    // Add a "requires false"-contract to Swift's fatalError-function
+    // (Since we currently do not support all instructions that it uses).
+    if (F.getName().str() == constants::SWIFT_FATAL_ERROR) {
+        ErrorReporter::addWarning(
+            SOURCE_LOC, "Generating contract for swift fatalError", F);
+        colContract->set_value("requires false;");
+        colContract->set_allocated_origin(
+            llvm2col::generateFunctionContractOrigin(F, "requires false;"));
+        return PreservedAnalyses::all();
+    }
+
     // check if contract keyword is present
     if (!F.hasMetadata(pallas::constants::METADATA_CONTRACT_KEYWORD)) {
         // set contract to a tautology

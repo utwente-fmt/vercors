@@ -8,7 +8,13 @@
 #include "Transform/Instruction/OtherOpTransform.h"
 #include "Transform/Instruction/TermOpTransform.h"
 #include "Transform/Instruction/UnaryOpTransform.h"
+#include "Transform/LoopContractTransform.h"
+#include "Transform/SpecStatementTransform.h"
+#include "Util/Constants.h"
 #include "Util/Exceptions.h"
+#include "Util/PallasMD.h"
+
+#include <llvm/IR/Metadata.h>
 
 const std::string SOURCE_LOC = "Transform::BlockTransform";
 
@@ -17,52 +23,41 @@ void llvm2col::transformLLVMBlock(llvm::BasicBlock &llvmBlock,
     if (functionCursor.isVisited(llvmBlock)) {
         return;
     }
-    pallas::LabeledColBlock &labeled = functionCursor.visitLLVMBlock(llvmBlock);
-    col::Block &colBlock = labeled.block;
-    /* for (auto *B : llvm::predecessors(&llvmBlock)) { */
-    /*     if (!functionCursor.isVisited(*B)) */
-    /*         return; */
-    /* } */
+    col::LlvmBasicBlock &labeled = functionCursor.visitLLVMBlock(llvmBlock);
     if (functionCursor.getLoopInfo().isLoopHeader(&llvmBlock)) {
         llvm::Loop *llvmLoop =
             functionCursor.getLoopInfo().getLoopFor(&llvmBlock);
-        col::LlvmLoop *loop = labeled.bb.mutable_loop();
+        col::LlvmLoop *loop = labeled.mutable_loop();
         loop->set_allocated_origin(generateLoopOrigin(*llvmLoop));
-        col::LoopContract *contract = loop->mutable_contract();
-        col::LoopInvariant *invariant = contract->mutable_loop_invariant();
-        col::BooleanValue *tt =
-            invariant->mutable_invariant()->mutable_boolean_value();
-        tt->set_value(true);
-        tt->set_allocated_origin(generateLabelledOrigin("constant true"));
-        invariant->set_allocated_origin(
-            generateLabelledOrigin("constant true"));
-        invariant->mutable_blame();
+        transformLoopContract(*llvmLoop, *loop->mutable_contract(),
+                              functionCursor);
 
-        loop->mutable_header()->set_id(labeled.bb.label().id());
-        pallas::LabeledColBlock labeled_latch =
-            functionCursor.getOrSetLLVMBlock2LabeledColBlockEntry(
+        loop->mutable_header()->set_id(labeled.label().id());
+        col::LlvmBasicBlock &labeled_latch =
+            functionCursor.getOrSetLLVMBlock2ColBlockEntry(
                 *llvmLoop->getLoopLatch());
-        loop->mutable_latch()->set_id(labeled_latch.bb.label().id());
+        loop->mutable_latch()->set_id(labeled_latch.label().id());
         for (auto &bb : llvmLoop->blocks()) {
-            pallas::LabeledColBlock labeled_bb =
-                functionCursor.getOrSetLLVMBlock2LabeledColBlockEntry(*bb);
-            loop->add_block_labels()->set_id(labeled_bb.bb.label().id());
+            col::LlvmBasicBlock &labeled_bb =
+                functionCursor.getOrSetLLVMBlock2ColBlockEntry(*bb);
+            loop->add_block_labels()->set_id(labeled_bb.label().id());
         }
     }
     for (auto &I : llvmBlock) {
-        transformInstruction(functionCursor, I, colBlock);
-    }
-
-    // When the last instuction is a branch, the block already gets completed
-    // in the call to transformInstruction.
-    if (!functionCursor.isComplete(colBlock)) {
-        functionCursor.complete(colBlock);
+        transformInstruction(functionCursor, I, labeled);
     }
 }
 
 void llvm2col::transformInstruction(pallas::FunctionCursor &funcCursor,
                                     llvm::Instruction &llvmInstruction,
-                                    col::Block &colBodyBlock) {
+                                    col::LlvmBasicBlock &colBodyBlock) {
+    // Check if a block of specification-statements is attached
+    if (llvm::MDNode *specMD =
+            pallas::utils::getSpecStmntBlock(llvmInstruction)) {
+        llvm2col::transformSpecStmntBlock(*specMD, llvmInstruction,
+                                          colBodyBlock, funcCursor);
+    }
+
     u_int32_t opCode = llvmInstruction.getOpcode();
     if (llvm::Instruction::TermOpsBegin <= opCode &&
         opCode < llvm::Instruction::TermOpsEnd) {
@@ -89,12 +84,6 @@ void llvm2col::transformInstruction(pallas::FunctionCursor &funcCursor,
     } else {
         reportUnsupportedOperatorError(SOURCE_LOC, llvmInstruction);
     }
-}
-
-void llvm2col::transformLoop(llvm::BasicBlock &llvmBlock,
-                             pallas::FunctionCursor &functionCursor) {
-    pallas::ErrorReporter::addError(SOURCE_LOC, "Unsupported loop detected",
-                                    llvmBlock);
 }
 
 void llvm2col::reportUnsupportedOperatorError(

@@ -3,12 +3,12 @@
 #include <vector_functions.h>
 
 /*@
-  context get_local_size(0) > 0 && get_local_size(1) == 1 && get_local_size(2) == 1;
+  context get_local_size(0) == 32 && get_local_size(1) == 1 && get_local_size(2) == 1;
   context get_num_groups(0) > 0 && get_num_groups(1) == 1 && get_num_groups(2) == 1;
   context a != NULL && b != NULL && c != NULL;
   context \pointer_length(a) >= size && \pointer_length(b) >= size && \pointer_length(c) >= size;
-  context \gtid*2 < size ==> (Perm(&a[\gtid*2], 1\2) ** Perm(&b[\gtid*2], 1\2) ** Perm(&c[\gtid*2], 1\1));
-  context \gtid*2+1 < size ==> (Perm(&a[\gtid*2+1], 1\2) ** Perm(&b[\gtid*2+1], 1\2) ** Perm(&c[\gtid*2+1], 1\1));
+  context \gtid*2 < size ==> (Perm(a[\gtid*2], 1\2) ** Perm(b[\gtid*2], 1\2) ** Perm(c[\gtid*2], 1\1));
+  context \gtid*2+1 < size ==> (Perm(a[\gtid*2+1], 1\2) ** Perm(b[\gtid*2+1], 1\2) ** Perm(c[\gtid*2+1], 1\1));
   ensures \gtid*2 < size ==> c[\gtid*2] == a[\gtid*2] + b[\gtid*2];
   ensures \gtid*2+1 < size ==> c[\gtid*2+1] == a[\gtid*2+1] + b[\gtid*2+1];
 @*/

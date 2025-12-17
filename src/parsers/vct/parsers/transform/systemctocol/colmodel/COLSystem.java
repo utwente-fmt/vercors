@@ -247,7 +247,7 @@ public class COLSystem<T> {
     public ApplicableContract<T> to_applicable_contract(Expr<T> pre, Expr<T> post) {
         AccountedPredicate<T> requires = new UnitAccountedPredicate<>(pre, OriGen.create());
         AccountedPredicate<T> ensures = new UnitAccountedPredicate<>(post, OriGen.create());
-        return new ApplicableContract<>(requires, ensures, TRUE, NO_SIGNALS, NO_VARS, NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        return new ApplicableContract<>(requires, ensures, TRUE, TRUE, NO_SIGNALS, NO_VARS, NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
     }
 
     /**

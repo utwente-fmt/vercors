@@ -4,52 +4,54 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.io.LiteralReadable
 import hre.stages.Stage
 import vct.col.ast.{
-  AddrOf,
   ApplicableContract,
-  CGlobalDeclaration,
   Expr,
+  Function,
   GlobalDeclaration,
   VCLLVMFunctionContract,
   LLVMGlobalSpecification,
   Program,
-  Refute,
   Verification,
   VerificationContext,
 }
-import org.antlr.v4.runtime.CharStreams
-import vct.col.ast._
 import vct.col.check.CheckError
-import vct.col.origin.{
-  FileSpanningOrigin,
-  InlineBipContext,
-  Origin,
-  OriginFilename,
-  ReadableOrigin,
-}
+import vct.col.origin.{FileSpanningOrigin, Origin, ReadableOrigin}
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.rewrite.bip.IsolateBipGlue
+import vct.col.typerules.{PlatformContext, TypeSize}
 import vct.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.importer.JavaLibraryLoader
-import vct.main.stages.Resolution.InputResolutionError
+import vct.main.stages.Resolution.{InputResolutionError, TargetError}
 import vct.options.Options
-import vct.options.types.ClassPathEntry
+import vct.options.types.{ClassPathEntry, PathOrStd}
 import vct.parsers.debug.DebugOptions
-import vct.parsers.err.FileNotFound
 import vct.parsers.parser.{ColJavaParser, ColLLVMContractParser, ColPVLParser}
 import vct.parsers.transform.BlameProvider
-import vct.parsers.{ParseResult, parser}
+import vct.parsers.ParseResult
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
 
-import java.io.{FileNotFoundException, Reader, StringReader}
-import java.nio.file.NoSuchFileException
+import java.io.{
+  InputStreamReader,
+  OutputStreamWriter,
+  StringReader,
+  StringWriter,
+}
+import java.nio.charset.StandardCharsets
+import java.nio.file.Path
 
 case object Resolution {
   case class InputResolutionError(errors: Seq[CheckError]) extends UserError {
     override def code: String =
       s"resolutionError:${errors.map(_.subcode).mkString(",")}"
     override def text: String = errors.map(_.message(_.o)).mkString("\n")
+  }
+
+  case class TargetError(target: String, output: String) extends UserError {
+    override def code: String = "targetError"
+    override def text: String =
+      s"Failed to get information for target: '$target', response from clang was:\n$output"
   }
 
   def ofOptions[G <: Generation](
@@ -76,6 +78,9 @@ case object Resolution {
         res.decls
       } else { Seq() },
       options.generatePermissions,
+      options.cc,
+      options.cIncludePath,
+      options.targetString,
     )
 }
 
@@ -126,6 +131,9 @@ case class Resolution[G <: Generation](
     ),
     importedDeclarations: Seq[GlobalDeclaration[G]] = Seq(),
     generatePermissions: Boolean = false,
+    cc: Path = Resources.getCcPath,
+    cSystemInclude: Path = Resources.getCIncludePath,
+    targetString: Option[String] = None,
 ) extends Stage[ParseResult[G], Verification[_ <: Generation]]
     with LazyLogging {
   override def friendlyName: String = "Name Resolution"
@@ -144,13 +152,17 @@ case class Resolution[G <: Generation](
     )
     val joinedProgram =
       Program(isolatedBipProgram.declarations ++ extraDecls)(blameProvider())
-    val typedProgram = LangTypesToCol().dispatch(joinedProgram)
+
+    val platformContext = queryPlatformContext()
+    logger.debug(s"Determined platform context: $platformContext")
+
+    val typedProgram = LangTypesToCol(platformContext).dispatch(joinedProgram)
     val javaParser = MyLocalJavaParser(blameProvider, parserDebugOptions)
     val llvmParser = MyLocalLLVMSpecParser(blameProvider, parserDebugOptions)
     val typedImports =
       if (importedDeclarations.isEmpty) { Seq() }
       else {
-        val ast = LangTypesToCol()
+        val ast = LangTypesToCol(platformContext)
           .dispatch(Program(importedDeclarations)(blameProvider()))
         ResolveReferences.resolve(ast, javaParser, llvmParser, Seq())
         LangSpecificToCol(generatePermissions).dispatch(ast)
@@ -161,8 +173,13 @@ case class Resolution[G <: Generation](
       case Nil => // ok
       case some => throw InputResolutionError(some)
     }
+    // (TODO (AS): I know this is ugly, it'll be removed after the Pallas contracts are working
+    val mergedProgram =
+      Program[Rewritten[G]](typedProgram.declarations ++ typedImports.collect {
+        case f: Function[Rewritten[G]] => f
+      })(typedProgram.blame)(typedProgram.o)
     val resolvedProgram = LangSpecificToCol(generatePermissions)
-      .dispatch(typedProgram)
+      .dispatch(mergedProgram)
     resolvedProgram.check match {
       case Nil => // ok
       // PB: This explicitly allows LangSpecificToCol to generate invalid ASTs, and will blame the input for them. The
@@ -171,5 +188,83 @@ case class Resolution[G <: Generation](
     }
 
     Verification(Seq(VerificationContext(resolvedProgram)), in.expectedErrors)
+  }
+
+  private def queryPlatformContext(): PlatformContext = {
+    if (targetString.isEmpty)
+      return PlatformContext.DEFAULT
+    val target = targetString.get
+    val process =
+      new ProcessBuilder(
+        cc.toString,
+        "-C",
+        "-E",
+        "-nostdinc",
+        "-nocudainc",
+        "-nocudalib",
+        "--cuda-host-only",
+        "-target",
+        target,
+        "-",
+      ).start()
+    val queryFile = PathOrStd.Path(cSystemInclude.resolve("platform_query.c"))
+    new Thread(
+      () => {
+        val writer =
+          new OutputStreamWriter(
+            process.getOutputStream,
+            StandardCharsets.UTF_8,
+          )
+        try {
+          val written = queryFile.read(_.transferTo(writer))
+          logger.debug(s"Wrote $written bytes to clang")
+        } finally { writer.close() }
+      },
+      "[VerCors] clang stdout writer",
+    ).start()
+    process.waitFor()
+
+    val writer = new StringWriter()
+    new InputStreamReader(process.getInputStream).transferTo(writer)
+
+    if (process.exitValue() != 0) {
+      new InputStreamReader(process.getErrorStream).transferTo(writer)
+      writer.close()
+      throw TargetError(target, writer.toString)
+    }
+
+    val map =
+      writer.toString.linesIterator.map(_.split('=')).collect {
+        case split if split.length == 2 =>
+          (
+            split(0),
+            try { BigInt(split(1)) }
+            catch {
+              case _: NumberFormatException =>
+                throw TargetError(target, writer.toString)
+            },
+          )
+      }.toMap
+
+    PlatformContext(
+      charSize = TypeSize.Exact(
+        map.getOrElse("char", throw TargetError(target, writer.toString))
+      ),
+      shortSize = TypeSize.Exact(
+        map.getOrElse("short", throw TargetError(target, writer.toString))
+      ),
+      intSize = TypeSize.Exact(
+        map.getOrElse("int", throw TargetError(target, writer.toString))
+      ),
+      longSize = TypeSize.Exact(
+        map.getOrElse("long", throw TargetError(target, writer.toString))
+      ),
+      longLongSize = TypeSize.Exact(
+        map.getOrElse("long long", throw TargetError(target, writer.toString))
+      ),
+      pointerSize = TypeSize.Exact(
+        map.getOrElse("intptr_t", throw TargetError(target, writer.toString))
+      ),
+    )
   }
 }

@@ -26,7 +26,7 @@ class AmbiguousOps extends VercorsSpec {
   """
 
   vercors should verify using anyBackend in "example showing collapsed pointer arithmetic" c """
-    //@ requires x != NULL ** Perm(x, write) ** \pointer_block_length(x) >= 2 + \pointer_block_offset(x);
+    //@ requires x != NULL ** Perm(*x, write) ** \pointer_block_length(x) >= 2 + \pointer_block_offset(x);
     void test(int *x) {
       int *y = x;
       y += 1;

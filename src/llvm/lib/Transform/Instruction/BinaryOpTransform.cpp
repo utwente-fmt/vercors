@@ -5,10 +5,13 @@
 #include "Transform/Transform.h"
 #include "Util/Exceptions.h"
 
+#include <llvm/IR/Constants.h>
+#include <llvm/Support/Casting.h>
+
 const std::string SOURCE_LOC = "Transform::Instruction::BinaryOp";
 
 void llvm2col::transformBinaryOp(llvm::Instruction &llvmInstruction,
-                                 col::Block &colBlock,
+                                 col::LlvmBasicBlock &colBlock,
                                  pallas::FunctionCursor &funcCursor) {
     col::Assign &assignment =
         funcCursor.createAssignmentAndDeclaration(llvmInstruction, colBlock);
@@ -51,34 +54,75 @@ void llvm2col::transformBinaryOp(llvm::Instruction &llvmInstruction,
     case llvm::Instruction::And: {
         col::BitAnd &expr = *assignment.mutable_value()->mutable_bit_and();
         transformBinExpr(llvmInstruction, expr, funcCursor);
+        expr.set_allocated_blame(new col::Blame());
         break;
     }
     case llvm::Instruction::Or: {
         col::BitOr &expr = *assignment.mutable_value()->mutable_bit_or();
-        transformBinExpr(llvmInstruction, expr, funcCursor);
+        transformBitwiseBinExpr(llvmInstruction, expr, funcCursor);
         break;
     }
     case llvm::Instruction::Xor: {
-        col::BitXor &expr = *assignment.mutable_value()->mutable_bit_xor();
-        transformBinExpr(llvmInstruction, expr, funcCursor);
+        transformBitwiseXor(llvmInstruction, assignment, funcCursor);
         break;
     }
     case llvm::Instruction::Shl: {
         col::BitShl &expr = *assignment.mutable_value()->mutable_bit_shl();
-        transformBinExpr(llvmInstruction, expr, funcCursor);
+        transformBitwiseBinExpr(llvmInstruction, expr, funcCursor);
         break;
     }
     case llvm::Instruction::LShr: {
         col::BitUShr &expr = *assignment.mutable_value()->mutable_bit_u_shr();
-        transformBinExpr(llvmInstruction, expr, funcCursor);
+        transformBitwiseBinExpr(llvmInstruction, expr, funcCursor);
         break;
     }
     case llvm::Instruction::AShr: {
+        llvm::IntegerType *ty =
+            llvm::cast<llvm::IntegerType>(llvmInstruction.getType());
         col::BitShr &expr = *assignment.mutable_value()->mutable_bit_shr();
         transformBinExpr(llvmInstruction, expr, funcCursor);
+        expr.set_allocated_blame(new col::Blame());
+        expr.set_bits(ty->getBitWidth());
         break;
     }
     default:
         reportUnsupportedOperatorError(SOURCE_LOC, llvmInstruction);
     }
+}
+
+void llvm2col::transformBitwiseXor(llvm::Instruction &llvmInstruction,
+                                   col::Assign &assignment,
+                                   pallas::FunctionCursor &funcCursor) {
+    // We encode some common cases manually, to avoid having to use bitvectors.
+    llvm::Type *ty = llvmInstruction.getType();
+    if (llvmInstruction.getType()->isIntegerTy(1)) {
+        // Binary operation on booleans
+        auto *rightAsConst = llvm::dyn_cast_if_present<llvm::ConstantInt>(
+            llvmInstruction.getOperand(1));
+        if (rightAsConst != nullptr && rightAsConst->isOne()) {
+            // XOR %1 true  --> not %1
+            col::Not *colNot = assignment.mutable_value()->mutable_not_();
+            colNot->set_allocated_origin(
+                generateBinExprOrigin(llvmInstruction));
+            llvm2col::transformAndSetExpr(funcCursor, llvmInstruction,
+                                          *llvmInstruction.getOperand(0),
+                                          *colNot->mutable_arg());
+            return;
+        }
+        auto *leftAsConst = llvm::dyn_cast_if_present<llvm::ConstantInt>(
+            llvmInstruction.getOperand(0));
+        if (leftAsConst != nullptr && leftAsConst->isOne()) {
+            // XOR true %2  --> not %2
+            col::Not *colNot = assignment.mutable_value()->mutable_not_();
+            colNot->set_allocated_origin(
+                generateBinExprOrigin(llvmInstruction));
+            llvm2col::transformAndSetExpr(funcCursor, llvmInstruction,
+                                          *llvmInstruction.getOperand(1),
+                                          *colNot->mutable_arg());
+            return;
+        }
+    }
+
+    col::BitXor &expr = *assignment.mutable_value()->mutable_bit_xor();
+    transformBitwiseBinExpr(llvmInstruction, expr, funcCursor);
 }

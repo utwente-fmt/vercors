@@ -200,8 +200,10 @@ abstract class VercorsSpec extends AnyFlatSpec {
       coveredExamples ++= paths
       val inputs = paths.map(PathOrStd.Path)
 
+      val flagsString = if (_flags.isEmpty) { "" } else {s" with flags ${_flags.mkString(" ")}"}
+
       for(backend <- backends) {
-        registerTest(verdict, s"Examples ${paths.mkString(", ")}", Seq(new Tag("exampleCase")), backend, inputs, _flags)
+        registerTest(verdict, s"Examples ${paths.mkString(", ")}$flagsString", Seq(new Tag("exampleCase")), backend, inputs, _flags)
       }
     }
 

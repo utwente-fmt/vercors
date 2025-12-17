@@ -88,7 +88,7 @@ attributes #2 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protect
 !llvm.ident = !{!9}
 
 !0 = distinct !DICompileUnit(language: DW_LANG_C11, file: !1, producer: "Debian clang version 17.0.6 (18)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
-!1 = !DIFile(filename: "examples/concepts/llvm/cubed.c", directory: ".", checksumkind: CSK_MD5, checksum: "9eee265bb6816adad054c09c4db471c1")
+!1 = !DIFile(filename: "examples/concepts/llvm/cubed.c", directory: ".", checksumkind: CSK_MD5, checksum: "2ea7c9d5acd6129f62210ad75d1003c1")
 !2 = !{i32 7, !"Dwarf Version", i32 5}
 !3 = !{i32 2, !"Debug Info Version", i32 3}
 !4 = !{i32 1, !"wchar_size", i32 4}

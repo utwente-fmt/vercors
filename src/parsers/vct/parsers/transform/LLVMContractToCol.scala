@@ -1,19 +1,16 @@
 package vct.parsers.transform
 
-import hre.data.BitString
 import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.antlr4.generated.LLVMSpecParser._
 import vct.antlr4.generated.LLVMSpecParserPatterns
 import vct.antlr4.generated.LLVMSpecParserPatterns._
 import vct.col.ast._
 import vct.col.origin.{ExpectedError, Origin}
-import vct.col.ref.{Ref, UnresolvedRef}
+import vct.col.ref.UnresolvedRef
 import vct.col.util.AstBuildHelpers.{ff, foldAnd, implies, tt}
 import vct.parsers.err.ParseError
 
 import scala.annotation.nowarn
-import scala.collection.immutable.{AbstractSeq, LinearSeq}
-import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
 case class LLVMContractToCol[G](
@@ -87,10 +84,14 @@ case class LLVMContractToCol[G](
             SignalsClause(variable, convert(exp))(OriginProvider(contract)),
           ))
       // case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
-      case ValContractClause12(_, None, _) =>
-        collector.decreases += ((contract, DecreasesClauseNoRecursion()))
-      case ValContractClause12(_, Some(clause), _) =>
-        collector.decreases += ((contract, convert(clause)))
+      case ValContractClause12(decreases, _) =>
+        collector.decreases += ((contract, convert(decreases)))
+    }
+
+  def convert(implicit decreases: ValDecreasesContext): DecreasesClause[G] =
+    decreases match {
+      case ValDecreases0(_, None) => DecreasesClauseNoRecursion()
+      case ValDecreases0(_, Some(clause)) => convert(clause)
     }
 
   def convert(implicit t: LangTypeContext): Type[G] =
@@ -177,9 +178,11 @@ case class LLVMContractToCol[G](
             }
           case TInt() =>
             bitOp match {
-              case LLVMSpecParserPatterns.And(_) => BitAnd(left, right)
-              case LLVMSpecParserPatterns.Or(_) => BitOr(left, right)
-              case Xor(_) => BitXor(left, right)
+              case LLVMSpecParserPatterns.And(_) =>
+                BitAnd(left, right, 0, signed = true)(blame(bitOp))
+              case LLVMSpecParserPatterns.Or(_) =>
+                BitOr(left, right, 0, signed = true)(blame(bitOp))
+              case Xor(_) => BitXor(left, right, 0, signed = true)(blame(bitOp))
             }
           case other =>
             throw ParseError(
@@ -361,20 +364,14 @@ case class LLVMContractToCol[G](
 
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] =
     e match {
-      case ValCurPerm(_, _, loc, _) =>
-        CurPerm(AmbiguousLocation(convert(loc))(blame(e)))
+      case ValCurPerm(_, _, loc, _) => CurPerm(AmbiguousLocation(convert(loc)))
       case ValPerm(_, _, loc, _, perm, _) =>
-        Perm(AmbiguousLocation(convert(loc))(blame(e)), convert(perm))
-      case ValValue(_, _, loc, _) =>
-        Value(AmbiguousLocation(convert(loc))(blame(e)))
+        Perm(AmbiguousLocation(convert(loc)), convert(perm))
+      case ValValue(_, _, loc, _) => Value(AmbiguousLocation(convert(loc)))
       case ValAutoValue(_, _, loc, _) =>
-        AutoValue(AmbiguousLocation(convert(loc))(blame(e)))
+        AutoValue(AmbiguousLocation(convert(loc)))
       case ValPointsTo(_, _, loc, _, perm, _, v, _) =>
-        PointsTo(
-          AmbiguousLocation(convert(loc))(blame(e)),
-          convert(perm),
-          convert(v),
-        )
+        PointsTo(AmbiguousLocation(convert(loc)), convert(perm), convert(v))
       case ValHPerm(_, _, loc, _, perm, _) =>
         ModelPerm(convert(loc), convert(perm))
       case ValAPerm(_, _, loc, _, perm, _) =>
@@ -388,6 +385,7 @@ case class LLVMContractToCol[G](
         PermPointer(convert(ptr), convert(n), convert(perm))
       case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) =>
         PermPointerIndex(convert(ptr), convert(idx), convert(perm))
+      case ValPointerBlock(_, _, ptr, _) => PointerBlock(convert(ptr))(blame(e))
       case ValPointerBlockLength(_, _, ptr, _) =>
         PointerBlockLength(convert(ptr))(blame(e))
       case ValPointerBlockOffset(_, _, ptr, _) =>
@@ -422,7 +420,7 @@ case class LLVMContractToCol[G](
       case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
         ForPerm(
           convert(bindings),
-          AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)),
+          AmbiguousLocation(convert(loc))(origin(loc)),
           convert(body),
         )
     }

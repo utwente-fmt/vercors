@@ -430,7 +430,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
           )),
         ))
 
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] =
@@ -446,6 +446,6 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
           )
         }
       case ScaleByParBlock(Ref(_), res) => dispatch(res)
-      case other => rewriteDefault(other)
+      case other => other.rewriteDefault()
     }
 }

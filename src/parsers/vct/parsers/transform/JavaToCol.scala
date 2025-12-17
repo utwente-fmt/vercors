@@ -675,7 +675,9 @@ case class JavaToCol[G](
         convert(tail, f, labels :+ convert(label), collector)
       case LoopAmalgamation2(_) =>
         labels.foldRight[Statement[G]](f(collector)) { case (label, stat) =>
-          Label(label, stat)(label.o)
+          Label(label, stat, LoopInvariant(tt, None)(TrueSatisfiable)(label.o))(
+            label.o
+          )
         }
     }
 
@@ -769,6 +771,7 @@ case class JavaToCol[G](
         Label(
           new LabelDecl()(origin(stat).sourceName(convert(label))),
           convert(statement),
+          LoopInvariant(tt, None)(TrueSatisfiable),
         )
       case Statement18(inner) => convert(inner)
     }
@@ -1042,7 +1045,7 @@ case class JavaToCol[G](
         }
       case JavaPrefixOp2(preOp, inner) =>
         preOp match {
-          case "~" => BitNot(convert(inner))
+          case "~" => BitNot(convert(inner), 0, signed = true)(blame(expr))
           case "!" => Not(convert(inner))
         }
       case JavaValPrefix(PrefixOp0(op), inner) =>
@@ -1067,16 +1070,24 @@ case class JavaToCol[G](
         }
       case JavaShift(left, shift, right) =>
         shift match {
-          case ShiftOp0(_, _) => BitShl(convert(left), convert(right))
-          case ShiftOp1(_, _, _) => BitUShr(convert(left), convert(right))
-          case ShiftOp2(_, _) => BitShr(convert(left), convert(right))
+          case ShiftOp0(_, _) =>
+            BitShl(convert(left), convert(right), 0, signed = true)(blame(expr))
+          case ShiftOp1(_, _, _) =>
+            BitUShr(convert(left), convert(right), 0, signed = true)(blame(
+              expr
+            ))
+          case ShiftOp2(_, _) =>
+            BitShr(convert(left), convert(right), 0)(blame(expr))
         }
       case JavaRel(left, comp, right) =>
         comp match {
-          case RelOp0("<=") => AmbiguousLessEq(convert(left), convert(right))
-          case RelOp0(">=") => AmbiguousGreaterEq(convert(left), convert(right))
-          case RelOp0(">") => AmbiguousGreater(convert(left), convert(right))
-          case RelOp0("<") => AmbiguousLess(convert(left), convert(right))
+          case RelOp0("<=") =>
+            AmbiguousLessEq(convert(left), convert(right), None)
+          case RelOp0(">=") =>
+            AmbiguousGreaterEq(convert(left), convert(right), None)
+          case RelOp0(">") =>
+            AmbiguousGreater(convert(left), convert(right), None)
+          case RelOp0("<") => AmbiguousLess(convert(left), convert(right), None)
           case RelOp1(valOp) =>
             convert(expr, valOp, convert(left), convert(right))
         }
@@ -1084,8 +1095,8 @@ case class JavaToCol[G](
         InstanceOf(convert(obj), TypeValue(convert(t)))
       case JavaEquals(left, eq, right) =>
         eq match {
-          case "==" => AmbiguousEq(convert(left), convert(right), TInt())
-          case "!=" => AmbiguousNeq(convert(left), convert(right), TInt())
+          case "==" => AmbiguousEq(convert(left), convert(right), TInt(), None)
+          case "!=" => AmbiguousNeq(convert(left), convert(right), TInt(), None)
         }
       case JavaBitAnd(left, _, right) =>
         AmbiguousComputationalAnd(convert(left), convert(right))
@@ -1119,11 +1130,11 @@ case class JavaToCol[G](
             case "*=" => AmbiguousMult(target, value)
             case "/=" => AmbiguousTruncDiv(target, value)(blame(expr))
             case "&=" => AmbiguousComputationalAnd(target, value)
-            case "|=" => BitOr(target, value)
-            case "^=" => BitXor(target, value)
-            case ">>=" => BitShr(target, value)
-            case ">>>=" => BitUShr(target, value)
-            case "<<=" => BitShl(target, value)
+            case "|=" => BitOr(target, value, 0, signed = true)(blame(expr))
+            case "^=" => BitXor(target, value, 0, signed = true)(blame(expr))
+            case ">>=" => BitShr(target, value, 0)(blame(expr))
+            case ">>>=" => BitUShr(target, value, 0, signed = true)(blame(expr))
+            case "<<=" => BitShl(target, value, 0, signed = true)(blame(expr))
             case "%=" => AmbiguousTruncMod(target, value)(blame(expr))
           },
         )(blame(expr))
@@ -1620,10 +1631,14 @@ case class JavaToCol[G](
           ))
       case ValContractClause11(_, invariant, _) =>
         collector.lock_invariant += ((contract, convert(invariant)))
-      case ValContractClause12(_, None, _) =>
-        collector.decreases += ((contract, DecreasesClauseNoRecursion()))
-      case ValContractClause12(_, Some(clause), _) =>
-        collector.decreases += ((contract, convert(clause)))
+      case ValContractClause12(decreases, _) =>
+        collector.decreases += ((contract, convert(decreases)))
+    }
+
+  def convert(implicit decreases: ValDecreasesContext): DecreasesClause[G] =
+    decreases match {
+      case ValDecreases0(_, None) => DecreasesClauseNoRecursion()
+      case ValDecreases0(_, Some(clause)) => convert(clause)
     }
 
   def convert(implicit clause: ValDecreasesMeasureContext): DecreasesClause[G] =
@@ -1866,7 +1881,8 @@ case class JavaToCol[G](
     block match {
       case ValEmbedStatementBlock0(_, stats, _) => Block(stats.map(convert(_)))
       case ValEmbedStatementBlock1(stats) => Block(stats.map(convert(_)))
-      case ValEmbedStatementBlock2(_, _, _, stat) => Extract(convert(stat))
+      case ValEmbedStatementBlock2(_, extract, decreases, _, stat) =>
+        Extract(convert(stat), decreases.map(convert(_)))(blame(block))
       case ValEmbedStatementBlock3(_, _, clauses, _, _, body, _, _, _) =>
         withContract(
           clauses,
@@ -1878,6 +1894,32 @@ case class JavaToCol[G](
             )(blame(block))
           },
         )
+      case ValEmbedStatementBlock4(
+            _,
+            _,
+            decreases,
+            _,
+            clauses,
+            _,
+            _,
+            body,
+            _,
+            _,
+            _,
+          ) =>
+        Extract(
+          withContract(
+            clauses,
+            contract => {
+              FramedProof(
+                AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+                Block(body.map(convert(_))),
+                AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
+              )(blame(block))
+            },
+          ),
+          decreases.map(convert(_)),
+        )(blame(block))
     }
 
   def convert(implicit stat: ValStatementContext): Statement[G] =
@@ -1895,10 +1937,15 @@ case class JavaToCol[G](
       case ValAssume(_, assn, _) => Assume(convert(assn))
       case ValInhale(_, resource, _) => Inhale(convert(resource))
       case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
-      case ValLabel(_, label, _) =>
-        Label(
-          new LabelDecl()(origin(stat).sourceName(convert(label))),
-          Block(Nil),
+      case ValLabel(contract, _, label, _) =>
+        withContract(
+          contract,
+          c =>
+            Label(
+              new LabelDecl()(origin(stat).sourceName(convert(label))),
+              Block(Nil),
+              c.consumeLoopContract(stat),
+            ),
         )
       case ValRefute(_, assn, _) => Refute(convert(assn))(blame(stat))
       case ValWitness(_, _, _) => ??(stat)
@@ -1933,7 +1980,8 @@ case class JavaToCol[G](
           convert(body),
         )(blame(stat))
       case ValCommit(_, obj, _) => Commit(convert(obj))(blame(stat))
-      case ValExtract(_, body) => Extract(convert(body))
+      case ValExtract(extract, decreases, body) =>
+        Extract(convert(body), decreases.map(convert(_)))(blame(stat))
       case ValFrame(_, clauses, body) =>
         withContract(
           clauses,
@@ -2035,6 +2083,34 @@ case class JavaToCol[G](
             typeArgs.map(convert(_)).getOrElse(Nil),
           )(origin(decl).sourceName(convert(name)))
         )
+      case ValProverType(_, name, ints, _) =>
+        Seq(
+          new ProverType(convert(ints))(origin(decl).sourceName(convert(name)))
+        )
+      case ValProverFunction(_, t, name, _, args, _, ints, _) =>
+        Seq(
+          new ProverFunction(
+            convert(ints),
+            args.map(convert(_)).getOrElse(Nil),
+            convert(t),
+          )(origin(decl).sourceName(convert(name)))
+        )
+    }
+
+  def convert(
+      implicit int: ValProverInterpretationsContext
+  ): Seq[(ProverLanguage[G], String)] =
+    int match {
+      case ValProverInterpretations0(int) => Seq(convert(int))
+      case ValProverInterpretations1(int, ints) => convert(int) +: convert(ints)
+    }
+
+  def convert(
+      implicit int: ValProverInterpretationContext
+  ): (ProverLanguage[G], String) =
+    int match {
+      case ValInterpSmtlib(_, int) => SmtLib()(origin(int)) -> convert(int)
+      case ValInterpBoogie(_, int) => Boogie()(origin(int)) -> convert(int)
     }
 
   def convert(
@@ -2265,7 +2341,7 @@ case class JavaToCol[G](
         TMap(convert(key), convert(value))
       case ValTupleType(_, _, t1, _, t2, _) =>
         TTuple(Seq(convert(t1), convert(t2)))
-      case ValPointerType(_, _, element, _) => TPointer(convert(element))
+      case ValPointerType(_, _, element, _) => TPointer(convert(element), None)
       case ValTypeType(_, _, element, _) => TType(convert(element))
       case ValEitherType(_, _, left, _, right, _) =>
         TEither(convert(left), convert(right))
@@ -2343,20 +2419,14 @@ case class JavaToCol[G](
 
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] =
     e match {
-      case ValCurPerm(_, _, loc, _) =>
-        CurPerm(AmbiguousLocation(convert(loc))(blame(e)))
+      case ValCurPerm(_, _, loc, _) => CurPerm(AmbiguousLocation(convert(loc)))
       case ValPerm(_, _, loc, _, perm, _) =>
-        Perm(AmbiguousLocation(convert(loc))(blame(e)), convert(perm))
-      case ValValue(_, _, loc, _) =>
-        Value(AmbiguousLocation(convert(loc))(blame(e)))
+        Perm(AmbiguousLocation(convert(loc)), convert(perm))
+      case ValValue(_, _, loc, _) => Value(AmbiguousLocation(convert(loc)))
       case ValAutoValue(_, _, loc, _) =>
-        AutoValue(AmbiguousLocation(convert(loc))(blame(e)))
+        AutoValue(AmbiguousLocation(convert(loc)))
       case ValPointsTo(_, _, loc, _, perm, _, v, _) =>
-        PointsTo(
-          AmbiguousLocation(convert(loc))(blame(e)),
-          convert(perm),
-          convert(v),
-        )
+        PointsTo(AmbiguousLocation(convert(loc)), convert(perm), convert(v))
       case ValHPerm(_, _, loc, _, perm, _) =>
         ModelPerm(convert(loc), convert(perm))
       case ValAPerm(_, _, loc, _, perm, _) =>
@@ -2370,6 +2440,7 @@ case class JavaToCol[G](
         PermPointer(convert(ptr), convert(n), convert(perm))
       case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) =>
         PermPointerIndex(convert(ptr), convert(idx), convert(perm))
+      case ValPointerBlock(_, _, ptr, _) => PointerBlock(convert(ptr))(blame(e))
       case ValPointerBlockLength(_, _, ptr, _) =>
         PointerBlockLength(convert(ptr))(blame(e))
       case ValPointerBlockOffset(_, _, ptr, _) =>
@@ -2433,7 +2504,7 @@ case class JavaToCol[G](
       case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
         ForPerm(
           convert(bindings),
-          AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)),
+          AmbiguousLocation(convert(loc))(origin(loc)),
           convert(body),
         )
       case ValForPermWithValue(_, _, _, id, _, body, _) =>
@@ -2532,6 +2603,13 @@ case class JavaToCol[G](
       case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
       case ValChoose(_, _, xs, _) => Choose(convert(xs))(blame(e))
       case ValChooseFresh(_, _, xs, _) => ChooseFresh(convert(xs))(blame(e))
+      case ValBoolAssuming(_, _, assn, _) => Assuming(convert(assn), tt)
+      case ValAssuming(_, _, assn, _, inner, _) =>
+        Assuming(convert(assn), convert(inner))
+      case ValBoolAsserting(_, _, assn, _) =>
+        Asserting(convert(assn), tt)(blame(e))
+      case ValAsserting(_, _, assn, _, inner, _) =>
+        Asserting(convert(assn), convert(inner))(blame(e))
     }
 
   def convert(implicit e: ValExprPairContext): (Expr[G], Expr[G]) =

@@ -1,24 +1,24 @@
 requires |xs| == |ys|;
 pure boolean property1(seq<int> xs, seq<int> ys) =
-    (\forall int i; 0 <= i && i < |ys|/2 && 2*i+2 < |ys|;
-    ((ys[2*i+1] <= ys[2*i+2]) ==>
-    (xs[2*i+1] == ys[2*i+1] && xs[2*i+2] == ys[2*i+2])));
+    (\forall int i, int j; 0 <= (i-1)/2 && (i-1)/2 < |ys|/2 && i+1 < |ys| && j == i + 1 && i % 2 == 1;
+    ((ys[i] <= ys[j]) ==>
+    ({:xs[i]:} == ys[i] && {:xs[j]:} == ys[j])));
 
 requires |xs| == |ys|;
 pure boolean property2(seq<int> xs, seq<int> ys) =
-    ((\forall int i; 0 <= i && i < |ys|/2 && 2*i+2 < |ys|;
-         ys[2*i+1] <= ys[2*i+2]) ==>
-         (\forall int i; 0 <= i && i < |ys|; xs[i] == ys[i]));
+    ((\forall int i; 0 <= (i-2)/2 && (i-2)/2 < |ys|/2 && i < |ys| && i % 2 == 0;
+         {:ys[i]:} <= ys[i]) ==>
+         (\forall int i; 0 <= i && i < |ys|; {:xs[i]:} == ys[i]));
 
 class OddEvenSort {
 
   ////////////////////////////////////////////////////////////////////////////////////////Lemmas
 
   requires |xs| == |ys|;
-  requires (\forall int i; i>=0 && i<|xs|/2 && 2*i+1<|xs|; xs[2*i] <= xs[2*i+1]);
-  requires (\forall int i; i>=0 && i<|ys|/2 && 2*i+2<|ys|; ys[2*i+1] <= ys[2*i+2]);
+  requires (\forall int i, int j; i/2>=0 && i/2<|xs|/2 && i+1<|xs| && j == i + 1 && i % 2 == 0; {:xs[i]:} <= {:xs[j]:});
+  requires (\forall int i, int j; (i-1)/2>=0 && (i-1)/2<|ys|/2 && i+1<|ys| && j == i + 1 && i % 2 == 1; {:ys[i]:} <= {:ys[j]:});
   requires (\forall int i; i>=0 && i<|xs|; xs[i] == {: ys[i] :});
-  ensures  (\forall int i; i>=0 && i<|ys|/2 && 2*i+2<|ys|; ys[2*i] <= ys[2*i+1] && ys[2*i+1] <= ys[2*i+2]);
+  ensures  (\forall int i, int j, int k; i/2>=0 && i/2<|ys|/2 && i+2<|ys| && j == i + 1 && k == i + 2 && i % 2 == 0; {:ys[i]:} <= {:ys[j]:} && ys[j] <= {:ys[k]:});
   void lemma_concat(seq<int> xs, seq<int> ys){
 
   }
@@ -33,14 +33,15 @@ class OddEvenSort {
   }
 
   requires |xs| % 2 == 1;
-  requires (\forall int i; i>=0 && i<|xs|/2 && 2*i+2<|xs|; xs[2*i] <= xs[2*i+1] && xs[2*i+1] <= xs[2*i+2]);
-  ensures (\forall int i; i>=0 && i<|xs|-1; xs[i] <= xs[i+1]);
+  requires (\forall int i, int j; i/2>=0 && i/2<|xs|/2 && i+2<|xs| && j == i + 1 && i % 2 == 0; {:xs[i]:} <= {:xs[j]:});
+  requires (\forall int i, int j; (i-1)/2>=0 && (i-1)/2<|xs|/2 && i+1<|xs| && j == i + 1 && i % 2 == 1; {:xs[i]:} <= {:xs[j]:});
+  ensures (\forall int i, int j; i>=0 && i<|xs|-1 && j == i + 1; {:xs[i]:} <= {:xs[j]:});
   void lemma_odd(seq<int> xs){
 
     int k = 0;
 
     loop_invariant 0 <= k && k <= |xs|/2;
-    loop_invariant (\forall int t; t>=0 && t<2*k; xs[t] <= xs[t+1]);
+    loop_invariant (\forall int t, int u; t>=0 && t<2*k && u == t + 1; {:xs[t]:} <= {:xs[u]:});
     while(k < |xs|/2)
     {
       lemma_odd_helper(xs, k);
@@ -63,16 +64,16 @@ class OddEvenSort {
   }
 
   requires |xs| % 2 == 0;
-  requires (\forall int i; i>=0 && i<|xs|/2 && 2*i+1<|xs|; xs[2*i] <= xs[2*i+1]);
-  requires (\forall int i; i>=0 && i<|xs|/2 && 2*i+2<|xs|; xs[2*i+1] <= xs[2*i+2]);
-  ensures (\forall int i; i>=0 && i<|xs|-1; xs[i] <= xs[i+1]);
+  requires (\forall int i, int j; i/2>=0 && i/2<|xs|/2 && i+1<|xs| && j == i + 1 && i % 2 == 0; {:xs[i]:} <= {:xs[j]:});
+  requires (\forall int i, int j; (i-1)/2>=0 && (i-1)/2<|xs|/2 && i+1<|xs| && j == i + 1 && i % 2 == 1; {:xs[i]:} <= {:xs[j]:});
+  ensures (\forall int i, int j; i>=0 && i<|xs|-1 && j == i + 1; {:xs[i]:} <= {:xs[j]:});
   void lemma_even(seq<int> xs){
 
     int k = 0;
 
     loop_invariant 0 <= k && k <= |xs|/2;
-    loop_invariant k <= (|xs|/2) -1 ==> (\forall int t; t>=0 && t<2*k; xs[t] <= xs[t+1]);
-    loop_invariant k > (|xs|/2) -1 ==> (\forall int t; t>=0 && t<2*k-1; xs[t] <= xs[t+1]);
+    loop_invariant k <= (|xs|/2) -1 ==> (\forall int t, int u; t>=0 && t<2*k && u == t + 1; {:xs[t]:} <= {:xs[u]:});
+    loop_invariant k > (|xs|/2) -1 ==> (\forall int t, int u; t>=0 && t<2*k-1 && u == t + 1; {:xs[t]:} <= {:xs[u]:});
     while(k < |xs|/2)
     {
       lemma_even_helper(xs, k);
@@ -98,36 +99,36 @@ class OddEvenSort {
   context Perm(loopCounter[0], write);
   context loopCounter[0] >= 0;
   context |inp_seq_all| == loopCounter[0] + 1;
-  context (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |inp_seq_all[i]|);
-  context (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], write));
-  requires (\forall int i; 0 <= i && i < contrib.length; contrib[i] == 0);
-  context (\forall* int i; 0 <= i && i < input.length; Perm(input[i], write));
+  context (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |{:inp_seq_all[i]:}|);
+  context (\forall* int i; 0 <= i && i < contrib.length; Perm({:contrib[i]:}, write));
+  requires (\forall int i; 0 <= i && i < contrib.length; {:contrib[i]:} == 0);
+  context (\forall* int i; 0 <= i && i < input.length; Perm({:input[i]:}, write));
   context Perm(isSorted[0], 1);
   context Perm(inp_seq_cur, 1);
   context |inp_seq_cur| == input.length;
-  context (\forall int i; 0 <= i && i < input.length; input[i] == inp_seq_cur[i]);
+  context (\forall int i; 0 <= i && i < input.length; input[i] == {:inp_seq_cur[i]:});
   context isPermutation<int>(inp_seq_all[0], inp_seq_cur);
-  requires (\forall int i; 0 <= i && i < |inp_seq_cur|; inp_seq_cur[i] == inp_seq_all[loopCounter[0]][i]);
-  ensures (\forall int i; 0 <= i && i < contrib.length/2 && 2*i < contrib.length; contrib[2*i] == 1);
-  ensures (\forall int i; 0 <= i && i < contrib.length/2 && 2*i+1 < contrib.length; contrib[2*i+1] == 0);
-  ensures (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
-                        inp_seq_all[loopCounter[0]][2*i] <= inp_seq_all[loopCounter[0]][2*i+1]) ==>
-                       (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|; inp_seq_cur[i] == inp_seq_all[loopCounter[0]][i]);
-  ensures (\forall int i; 0 <= i && i < input.length/2 && 2*i+1 < input.length; input[2*i] <= input[2*i+1]);
-  ensures (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
-                     ((inp_seq_all[loopCounter[0]][2*i] > inp_seq_all[loopCounter[0]][2*i+1]) ==>
-                     (inp_seq_cur[2*i] == inp_seq_all[loopCounter[0]][2*i+1] && inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]][2*i])));
-  ensures (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
-                     ((inp_seq_all[loopCounter[0]][2*i] <= inp_seq_all[loopCounter[0]][2*i+1]) ==>
-                     (inp_seq_cur[2*i] == inp_seq_all[loopCounter[0]][2*i] && inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]][2*i+1])));
-  ensures (\exists int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
-                     inp_seq_all[loopCounter[0]][2*i] > inp_seq_all[loopCounter[0]][2*i+1]) ==> !isSorted[0];
-  ensures isSorted[0]  ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter[0]][j] == inp_seq_cur[j]);
+  requires (\forall int i; 0 <= i && i < |inp_seq_cur|; {:1:inp_seq_cur[i]:} == {:2:inp_seq_all[loopCounter[0]][i]:});
+  ensures (\forall int i; 0 <= i/2 && i/2 < contrib.length/2 && i < contrib.length && i % 2 == 0; {:contrib[i]:} == 1);
+  ensures (\forall int i; 0 <= (i-1)/2 && (i-1)/2 < contrib.length/2 && i < contrib.length && i % 2 == 1; {:contrib[i]:} == 0);
+  ensures (\forall int i, int j; 0 <= i/2 && i/2 < |inp_seq_all[loopCounter[0]]|/2 && i+1 < |inp_seq_all[loopCounter[0]]| && j == i + 1 && i % 2 == 0;
+                        {:inp_seq_all[loopCounter[0]][i]:} <= {:inp_seq_all[loopCounter[0]][j]:}) ==>
+                       (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|; {:1:inp_seq_cur[i]:} == {:2:inp_seq_all[loopCounter[0]][i]:});
+  ensures (\forall int i, int j; 0 <= i/2 && i/2 < input.length/2 && i+1 < input.length && j == i + 1 && i % 2 == 0; {:input[i]:} <= {:input[j]:});
+  ensures (\forall int i, int j; 0 <= i/2 && i/2 < |inp_seq_all[loopCounter[0]]|/2 && i+1 < |inp_seq_all[loopCounter[0]]| && j == i + 1 && i % 2 == 0;
+                     (({:1:inp_seq_all[loopCounter[0]][i]:} > {:1:inp_seq_all[loopCounter[0]][j]:}) ==>
+                     ({:2:inp_seq_cur[i]:} == inp_seq_all[loopCounter[0]][j] && {:2:inp_seq_cur[j]:} == inp_seq_all[loopCounter[0]][i])));
+  ensures (\forall int i, int j; 0 <= i/2 && i/2 < |inp_seq_all[loopCounter[0]]|/2 && i+1 < |inp_seq_all[loopCounter[0]]| && j == i + 1 && i % 2 == 0;
+                     (({:1:inp_seq_all[loopCounter[0]][i]:} <= {:1:inp_seq_all[loopCounter[0]][j]:}) ==>
+                     ({:2:inp_seq_cur[i]:} == inp_seq_all[loopCounter[0]][i] && {:2:inp_seq_cur[j]:} == inp_seq_all[loopCounter[0]][j])));
+  ensures (\exists int i, int j; 0 <= i/2 && i/2 < |inp_seq_all[loopCounter[0]]|/2 && i+1 < |inp_seq_all[loopCounter[0]]| && j == i + 1 && i % 2 == 0;
+                     {:inp_seq_all[loopCounter[0]][i]:} > {:inp_seq_all[loopCounter[0]][j]:}) ==> !isSorted[0];
+  ensures isSorted[0]  ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; {:1:inp_seq_all[loopCounter[0]][j]:} == {:2:inp_seq_cur[j]:});
   void even_kernel(int[] input, boolean[] isSorted, int[] contrib, int[] loopCounter);/*{
     invariant inv(Perm(isSorted[0], write) ** Perm(inp_seq_cur, 1) ** input.length == |inp_seq_cur| ** contrib.length == input.length **
                   Perm(loopCounter[0], write) ** Perm(inp_seq_all, 1) **
                   (loopCounter[0] >= 0 && |inp_seq_all| == loopCounter[0] + 1) **
-                  (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |inp_seq_all[i]|) **
+                  (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |{:inp_seq_all[i]:}|) **
                   (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1\2)) **
                   (\forall* int i; 0 <= i && i < input.length; Perm(input[i], write)) **
                   (\forall int i; 0 <= i && i < input.length; input[i] == inp_seq_cur[i]) **
@@ -214,38 +215,41 @@ class OddEvenSort {
   context Perm(loopCounter[0], write);
   context loopCounter[0] >= 0;
   context |inp_seq_all| == loopCounter[0] + 2;
-  context (\forall int i; 0 <= i && i < loopCounter[0]+2; input.length == |inp_seq_all[i]|);
-  context (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], write));
-  context (\forall int i; 0 <= i && i < contrib.length/2 && 2*i < contrib.length; contrib[2*i] == 1);
-  requires (\forall int i; 0 <= i && i < contrib.length/2 && 2*i+1 < contrib.length; contrib[2*i+1] == 0);
-  context (\forall* int i; 0 <= i && i < input.length; Perm(input[i], write));
+  context (\forall int i; 0 <= i && i < loopCounter[0]+2; input.length == |{:inp_seq_all[i]:}|);
+  context (\forall* int i; 0 <= i && i < contrib.length; Perm({:contrib[i]:}, write));
+  context (\forall int i; 0 <= i/2 && i/2 < contrib.length/2 && 2 < contrib.length && i % 2 == 0; {:contrib[i]:} == 1);
+  requires (\forall int i; 0 <= (i-1)/2 && (i-1)/2 < contrib.length/2 && i < contrib.length && i % 2 == 1; {:contrib[i]:} == 0);
+  context (\forall* int i; 0 <= i && i < input.length; Perm({:input[i]:}, write));
   context Perm(isSorted[0], 1);
   context Perm(inp_seq_cur, 1);
   context |inp_seq_cur| == input.length;
-  context (\forall int i; 0 <= i && i < input.length; input[i] == inp_seq_cur[i]);
-  requires (\forall int i; 0 <= i && i < |inp_seq_cur|; inp_seq_cur[i] == inp_seq_all[loopCounter[0]+1][i]);
-  requires (\exists int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
-                     inp_seq_all[loopCounter[0]][2*i] > inp_seq_all[loopCounter[0]][2*i+1]) ==> !isSorted[0];
-  requires isSorted[0]  ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter[0]][j] == inp_seq_cur[j]);
+  context (\forall int i; 0 <= i && i < input.length; {:1:input[i]:} == {:2:inp_seq_cur[i]:});
+  requires (\forall int i; 0 <= i && i < |inp_seq_cur|; {:inp_seq_cur[i]:} == inp_seq_all[loopCounter[0]+1][i]);
+  requires (\exists int i, int j; 0 <= i/2 && i/2 < |inp_seq_all[loopCounter[0]]|/2 && i+1 < |inp_seq_all[loopCounter[0]]| && j == i + 1 && i % 2 == 0;
+                     {:inp_seq_all[loopCounter[0]][i]:} > {:inp_seq_all[loopCounter[0]][j]:}) ==> !isSorted[0];
+  requires isSorted[0]  ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; {:1:inp_seq_all[loopCounter[0]][j]:} == {:2:inp_seq_cur[j]:});
   context isPermutation<int>(inp_seq_all[0], inp_seq_cur);
-  ensures (\forall int i; 0 <= i && i < contrib.length/2 && 2*i+1 < contrib.length; contrib[2*i+1] == 1);
+  ensures (\forall int i; 0 <= (i-1)/2 && (i-1)/2 < contrib.length/2 && i < contrib.length && i % 2 == 1; {:contrib[i]:} == 1);
   ensures (\let int loopCounter0Succ = loopCounter[0] + 1;
-      (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
-                         inp_seq_all[loopCounter0Succ][2*i+1] <= inp_seq_all[loopCounter0Succ][2*i+2]) ==>
-                        (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|; inp_seq_cur[i] == inp_seq_all[loopCounter0Succ][i])
+      (\forall int i, int j; 0 <= (i-1)/2 && (i-1)/2 < |inp_seq_all[loopCounter[0]+1]|/2 && i+1 < |inp_seq_all[loopCounter[0]+1]| && j == i + 1 && i % 2 == 1;
+                         {:inp_seq_all[loopCounter0Succ][i]:} <= {:inp_seq_all[loopCounter0Succ][j]:}) ==>
+                        (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|; {:1:inp_seq_cur[i]:} == {:2:inp_seq_all[loopCounter0Succ][i]:})
                         );
-  ensures (\forall int i; 0 <= i && i < input.length/2 && 2*i+2 < input.length; input[2*i+1] <= input[2*i+2]);
-  ensures (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
-                     ((inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2]) ==>
-                     (inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]+1][2*i+2] && inp_seq_cur[2*i+2] == inp_seq_all[loopCounter[0]+1][2*i+1])));
-  ensures (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
-                     ((inp_seq_all[loopCounter[0]+1][2*i+1] <= inp_seq_all[loopCounter[0]+1][2*i+2]) ==>
-                     (inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]+1][2*i+1] && inp_seq_cur[2*i+2] == inp_seq_all[loopCounter[0]+1][2*i+2])));
-  ensures ((\exists int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
-                      (inp_seq_all[loopCounter[0]][2*i] > inp_seq_all[loopCounter[0]][2*i+1])) ||
-                      (\exists int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
-                      (inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2] ))) ==> !isSorted[0];
-  ensures isSorted[0] ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter[0]][j] == inp_seq_all[loopCounter[0]+1][j]);
+  ensures (\forall int i, int j; 0 <= (i-1)/2 && (i-1)/2 < input.length/2 && i+1 < input.length && j == i + 1 && i % 2 == 1; {:input[i]:} <= {:input[j]:});
+  ensures (\let int loopCounter0Succ = loopCounter[0] + 1;
+      (\forall int i, int j; 0 <= (i-1)/2 && (i-1)/2 < |inp_seq_all[loopCounter0Succ]|/2 && i+1 < |inp_seq_all[loopCounter0Succ]| && j == i + 1 && i % 2 == 1;
+                     (({:1:inp_seq_all[loopCounter0Succ][i]:} > {:1:inp_seq_all[loopCounter0Succ][j]:}) ==>
+                     ({:2:inp_seq_cur[i]:} == inp_seq_all[loopCounter0Succ][j] && {:2:inp_seq_cur[j]:} == inp_seq_all[loopCounter0Succ][i]))));
+  ensures (\let int loopCounter0Succ = loopCounter[0] + 1;
+      (\forall int i, int j; 0 <= (i-1)/2 && (i-1)/2 < |inp_seq_all[loopCounter0Succ]|/2 && i+1 < |inp_seq_all[loopCounter0Succ]| && j == i + 1 && i % 2 == 1;
+                     (({:1:inp_seq_all[loopCounter0Succ][i]:} <= {:1:inp_seq_all[loopCounter0Succ][j]:}) ==>
+                     ({:2:inp_seq_cur[i]:} == inp_seq_all[loopCounter0Succ][i] && {:2:inp_seq_cur[j]:} == inp_seq_all[loopCounter0Succ][j]))));
+  ensures ((\exists int i, int j; 0 <= i/2 && i/2 < |inp_seq_all[loopCounter[0]]|/2 && i+1 < |inp_seq_all[loopCounter[0]]| && j == i + 1 && i % 2 == 0;
+                      ({:inp_seq_all[loopCounter[0]][i]:} > {:inp_seq_all[loopCounter[0]][j]:})) ||
+                      (\let int loopCounter0Succ = loopCounter[0] + 1;
+                        (\exists int i, int j; 0 <= (i-1)/2 && (i-1)/2 < |inp_seq_all[loopCounter0Succ]|/2 && i+1 < |inp_seq_all[loopCounter0Succ]| && j == i + 1 && i % 2 == 1;
+                      ({:inp_seq_all[loopCounter0Succ][i]:} > {:inp_seq_all[loopCounter0Succ][j]:} )))) ==> !isSorted[0];
+  ensures isSorted[0] ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; {:inp_seq_all[loopCounter[0]][j]:} == inp_seq_all[loopCounter[0]+1][j]);
   void odd_kernel(int[] input, boolean[] isSorted, int[] contrib, int[] loopCounter);/*{
 
 
@@ -343,26 +347,26 @@ class OddEvenSort {
   context_everywhere isSorted.length == 1;
   context_everywhere loopCounter.length == 1;
   context_everywhere contrib.length == input.length;
-  context (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], write));
-  requires (\forall int i; 0 <= i && i < contrib.length; contrib[i] == 0); // initially none of the workers has terminated
+  context (\forall* int i; 0 <= i && i < contrib.length; Perm({:contrib[i]:}, write));
+  requires (\forall int i; 0 <= i && i < contrib.length; {:contrib[i]:} == 0); // initially none of the workers has terminated
   context Perm(isSorted[0], write);
    requires isSorted[0] == false;
   context Perm(loopCounter[0], write);
    requires loopCounter[0] == 0;
-   context (\forall* int i; 0 <= i && i < input.length; Perm(input[i], write));
+   context (\forall* int i; 0 <= i && i < input.length; Perm({:input[i]:}, write));
   context Perm(inp_seq_cur, 1);
   context |inp_seq_cur| == input.length;
-  requires (\forall int i; 0 <= i && i < input.length; input[i] == inp_seq_cur[i]);
+  requires (\forall int i; 0 <= i && i < input.length; {:1:input[i]:} == {:2:inp_seq_cur[i]:});
   context Perm(inp_seq_all, 1);
   requires |inp_seq_all| == loopCounter[0] + 1;
-  requires (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |inp_seq_all[i]|);
-  requires (\forall int i; 0 <= i && i < |inp_seq_all[0]|; inp_seq_all[0][i] == inp_seq_cur[i]);
-  ensures (\forall int i; 0 <= i && i < input.length; input[i] == inp_seq_cur[i]);
+  requires (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |{:inp_seq_all[i]:}|);
+  requires (\forall int i; 0 <= i && i < |inp_seq_all[0]|; {:1:inp_seq_all[0][i]:} == {:2:inp_seq_cur[i]:});
+  ensures (\forall int i; 0 <= i && i < input.length; {:1:input[i]:} == {:2:inp_seq_cur[i]:});
   ensures loopCounter[0] >= 0;
   ensures |inp_seq_all| == loopCounter[0] + 1;
-  ensures (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |inp_seq_all[i]|);
-  ensures (\forall int i; 0 <= i && i < |inp_seq_cur|; inp_seq_cur[i] == inp_seq_all[loopCounter[0]][i]);
-  ensures isSorted[0] && (\forall int i; i >= 0 && i < |inp_seq_cur|-1; inp_seq_cur[i] <= inp_seq_cur[i+1]);
+  ensures (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |{:inp_seq_all[i]:}|);
+  ensures (\forall int i; 0 <= i && i < |inp_seq_cur|; {:1:inp_seq_cur[i]:} == {:2:inp_seq_all[loopCounter[0]][i]:});
+  ensures isSorted[0] && (\forall int i, int j; i >= 0 && i < |inp_seq_cur|-1 && j == i + 1; {:inp_seq_cur[i]:} <= {:inp_seq_cur[j]:});
   ensures isPermutation<int>(inp_seq_all[0], inp_seq_cur);
   void sort(int[] input, boolean[] isSorted, int[] contrib) {
 
@@ -372,16 +376,16 @@ class OddEvenSort {
     loop_invariant Perm(loopCounter[0], write);
     loop_invariant loopCounter[0] >= 0;
     loop_invariant |inp_seq_all| == loopCounter[0] + 1;
-    loop_invariant (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |inp_seq_all[i]|);
-    loop_invariant (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], write));
-    loop_invariant (\forall int i; 0 <= i && i < contrib.length; contrib[i] == 0);
-     loop_invariant (\forall* int i; 0 <= i && i < input.length; Perm(input[i], write));
+    loop_invariant (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |{:inp_seq_all[i]:}|);
+    loop_invariant (\forall* int i; 0 <= i && i < contrib.length; Perm({:contrib[i]:}, write));
+    loop_invariant (\forall int i; 0 <= i && i < contrib.length; {:contrib[i]:} == 0);
+     loop_invariant (\forall* int i; 0 <= i && i < input.length; Perm({:input[i]:}, write));
      loop_invariant Perm(isSorted[0], 1);
     loop_invariant Perm(inp_seq_cur, 1);
     loop_invariant |inp_seq_cur| == input.length;
-    loop_invariant (\forall int i; 0 <= i && i < input.length; input[i] == inp_seq_cur[i]);
-    loop_invariant (\forall int i; 0 <= i && i < |inp_seq_cur|; inp_seq_cur[i] == inp_seq_all[loopCounter[0]][i]);
-    loop_invariant isSorted[0] ==> (\forall int i; i >= 0 && i < |inp_seq_cur|-1; inp_seq_cur[i] <= inp_seq_cur[i+1]);
+    loop_invariant (\forall int i; 0 <= i && i < input.length; {:1:input[i]:} == {:2:inp_seq_cur[i]:});
+    loop_invariant (\forall int i; 0 <= i && i < |inp_seq_cur|; {:1:inp_seq_cur[i]:} == {:2:inp_seq_all[loopCounter[0]][i]:});
+    loop_invariant isSorted[0] ==> (\forall int i, int j; i >= 0 && i < |inp_seq_cur|-1 && j == i + 1; {:inp_seq_cur[i]:} <= {:inp_seq_cur[j]:});
     loop_invariant isPermutation<int>(inp_seq_all[0], inp_seq_cur);
     while(!isSorted[0]){
       isSorted[0] = true;
@@ -393,12 +397,12 @@ class OddEvenSort {
       {
           // Restate precondition 1 of lemma_concat here to make sure it's provable later
           seq<int> xs = inp_seq_all[loopCounter[0]];
-          assert (\forall int i; i >= 0 && i < |xs|/2 && 2*i+1 < |xs|; xs[2*i] <= xs[2*i+1]);
+          assert (\forall int i, int j; i/2 >= 0 && i/2 < |xs|/2 && i+1 < |xs| && j == i + 1 && i % 2 == 0; {:xs[i]:} <= {:xs[j]:});
       }
 
-      assert (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |inp_seq_all[i]|);
+      assert (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |{:inp_seq_all[i]:}|);
       inp_seq_all = inp_seq_all + seq<seq<int>> {inp_seq_cur};
-      assert (\forall int i; 0 <= i && i < loopCounter[0]+2; input.length == |inp_seq_all[i]|);
+      assert (\forall int i; 0 <= i && i < loopCounter[0]+2; input.length == |{:inp_seq_all[i]:}|);
 
       ////////////////////////////////////////////////////////////////Odd phase
 
@@ -408,14 +412,14 @@ class OddEvenSort {
       {
           // Restate precondition 2 of lemma_concat explicitly here, this makes the proof go through
           seq<int> ys = inp_seq_all[loopCounter[0] + 1];
-          assert (\forall int i; i>=0 && i < |ys|/2 && 2*i+2 < |ys|; ys[2*i+1] <= ys[2*i+2]);
+          assert (\forall int i, int j; (i-1)/2>=0 && (i-1)/2 < |ys|/2 && i+1 < |ys| && j == i + 1 && i % 2 == 1; {:ys[i]:} <= {:ys[j]:});
         lemma_concat(inp_seq_all[loopCounter[0]], inp_seq_all[loopCounter[0]+1]);
       }
 
 
-      assert (\forall int i; 0 <= i && i < loopCounter[0]+2; input.length == |inp_seq_all[i]|);
+      assert (\forall int i; 0 <= i && i < loopCounter[0]+2; input.length == |{:inp_seq_all[i]:}|);
       inp_seq_all = inp_seq_all + seq<seq<int>> {inp_seq_cur};
-      assert (\forall int i; 0 <= i && i < loopCounter[0]+3; input.length == |inp_seq_all[i]|);
+      assert (\forall int i; 0 <= i && i < loopCounter[0]+3; input.length == |{:inp_seq_all[i]:}|);
 
 
       if(isSorted[0] && (|inp_seq_all[loopCounter[0]+2]| % 2 == 0))
@@ -427,20 +431,20 @@ class OddEvenSort {
         lemma_odd(inp_seq_all[loopCounter[0]+2]);
       }
 
-      assert isSorted[0] ==> (\forall int i; 0 <= i && i < |inp_seq_cur|-1; inp_seq_cur[i] <= inp_seq_cur[i+1]);
+      assert isSorted[0] ==> (\forall int i, int j; 0 <= i && i < |inp_seq_cur|-1 && j == i + 1; {:inp_seq_cur[i]:} <= {:inp_seq_cur[j]:});
 
       ///////////////////////////////////////////////////////////////////////////////////////////
 
       par setZero(int tid=0..contrib.length)
-      context Perm(contrib[tid], write);
-      ensures contrib[tid] == 0;
+      context Perm({:contrib[tid]:}, write);
+      ensures {:contrib[tid]:} == 0;
       {
         contrib[tid] = 0;
       }
 
       //////////////////////////////////////////////////////////////////////////////////////////
 
-      assert (\forall int i; 0 <= i && i < loopCounter[0]+3; input.length == |inp_seq_all[i]|);
+      assert (\forall int i; 0 <= i && i < loopCounter[0]+3; input.length == |{:inp_seq_all[i]:}|);
 
        assert Perm(isSorted[0], 1);
       assert Perm(inp_seq_cur, 1);
@@ -454,3 +458,4 @@ class OddEvenSort {
   }
 
 }
+

@@ -13,7 +13,7 @@ import vct.col.ast.{
 }
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.print.{Ctx, Doc, Text}
-import vct.col.typerules.CoercionUtils
+import vct.col.typerules.{CoercionUtils, PlatformContext}
 import vct.col.resolve.lang.C
 
 // https://en.wikipedia.org/wiki/Single-precision_floating-point_format#IEEE_754_standard:_binary32

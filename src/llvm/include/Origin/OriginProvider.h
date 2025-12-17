@@ -1,7 +1,15 @@
 #ifndef PALLAS_ORIGINPROVIDER_H
 #define PALLAS_ORIGINPROVIDER_H
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Woverflow"
+#endif // __GNUC__
 #include "vct/col/ast/Origin.pb.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif // __GNUC__
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/Instruction.h>
@@ -45,6 +53,9 @@ col::Origin *generateLoopOrigin(llvm::Loop &llvmLoop);
 col::Origin *generatePallasFunctionContractOrigin(const llvm::Function &f,
                                                   const llvm::MDNode &mdSrcLoc);
 
+col::Origin *generatePallasLoopContractOrigin(const llvm::Loop &loop,
+                                              const llvm::MDNode &mdSrcLoc);
+
 col::Origin *generateSingleStatementOrigin(llvm::Instruction &llvmInstruction);
 
 col::Origin *generateAssignTargetOrigin(llvm::Instruction &llvmInstruction);
@@ -73,6 +84,23 @@ generatePallasFContractClauseOrigin(const llvm::Function &parentFunc,
                                     const llvm::MDNode &clauseSrcLoc,
                                     unsigned int clauseNum);
 
+col::Origin *generatePallasSpecStmntOrigin(const llvm::Instruction &llvmInstr,
+                                           const llvm::MDNode &srcLoc,
+                                           const std::string &stmntType);
+
+/**
+ * Generates an origin based on a source-location in the metadata-format of
+ * Pallas and with the given preferred name.
+ */
+col::Origin *generatePallasSpecOrigin(const llvm::MDNode &srcLoc,
+                                      const std::string &preferedName);
+
+/**
+ * Adds the source-location that is encoded by the given MD-node in the
+ * specification format of Pallas to the given origin.
+ */
+void addSourceLocFromPallasMD(col::Origin *origin, const llvm::MDNode &srcLoc);
+
 col::Origin *generateOperandOrigin(llvm::Instruction &llvmInstruction,
                                    llvm::Value &llvmOperand);
 
@@ -87,6 +115,10 @@ col::Origin *generateGlobalVariableInitializerOrigin(
 col::Origin *generateVoidOperandOrigin(llvm::Instruction &llvmInstruction);
 
 col::Origin *generateTypeOrigin(llvm::Type &llvmType);
+
+col::Origin *generateDITypeOrigin(llvm::DIType &debugType);
+
+col::Origin *generateStructMemberOrigin(llvm::DIDerivedType &debugType);
 
 col::Origin *generateMemoryOrderingOrigin(llvm::AtomicOrdering &llvmOrdering);
 

@@ -137,6 +137,7 @@ case class PVLToCol[G](
                   contract.consumeApplicableContract(blame(method)),
                   inline = mods.consume(mods.inline),
                   pure = mods.consume(mods.pure),
+                  opaque = mods.consume(mods.opaque),
                 )(blame(method))(origin(method).sourceName(convert(name)))
               },
             ),
@@ -344,22 +345,22 @@ case class PVLToCol[G](
   def convert(implicit expr: EqExprContext): Expr[G] =
     expr match {
       case EqExpr0(left, _, right) =>
-        AmbiguousEq(convert(left), convert(right), TInt())
+        AmbiguousEq(convert(left), convert(right), TInt(), None)
       case EqExpr1(left, _, right) =>
-        AmbiguousNeq(convert(left), convert(right), TInt())
+        AmbiguousNeq(convert(left), convert(right), TInt(), None)
       case EqExpr2(inner) => convert(inner)
     }
 
   def convert(implicit expr: RelExprContext): Expr[G] =
     expr match {
       case RelExpr0(left, _, right) =>
-        AmbiguousLess(convert(left), convert(right))
+        AmbiguousLess(convert(left), convert(right), None)
       case RelExpr1(left, _, right) =>
-        AmbiguousLessEq(convert(left), convert(right))
+        AmbiguousLessEq(convert(left), convert(right), None)
       case RelExpr2(left, _, right) =>
-        AmbiguousGreaterEq(convert(left), convert(right))
+        AmbiguousGreaterEq(convert(left), convert(right), None)
       case RelExpr3(left, _, right) =>
-        AmbiguousGreater(convert(left), convert(right))
+        AmbiguousGreater(convert(left), convert(right), None)
       case RelExpr4(left, specOp, right) =>
         convert(expr, specOp, convert(left), convert(right))
       case RelExpr5(inner) => convert(inner)
@@ -450,6 +451,7 @@ case class PVLToCol[G](
           typeArgs.map(convert(_)).getOrElse(Nil),
           convertGiven(given),
           convertYields(yields),
+          false,
         )(blame(expr))
       case PostfixExpr1(xs, _, i, _) =>
         AmbiguousSubscript(convert(xs), convert(i))(blame(expr))
@@ -463,7 +465,7 @@ case class PVLToCol[G](
       case PvlChorPerm(_, _, endpoint, _, _, loc, _, perm, _) =>
         PVLChorPerm(
           PVLEndpointName(convert(endpoint))(origin(endpoint)),
-          AmbiguousLocation(convert(loc))(blame(expr)),
+          AmbiguousLocation(convert(loc)),
           convert(perm),
         )
       case PvlLongEndpointExpr(_, _, endpoint, _, inner, _) =>
@@ -479,6 +481,13 @@ case class PVLToCol[G](
       case PvlLongChorExpr(_, _, inner, _) => ChorExpr(convert(inner))
       case PvlShortChorExpr(_, _, _, _, inner, _) => ChorExpr(convert(inner))
       case PvlCastExpr(_, t, _, e) => Cast(convert(e), TypeValue(convert(t)))
+      case PvlBoolAsserting(_, _, assn, _) =>
+        Asserting(convert(assn), tt)(blame(expr))
+      case PvlAsserting(_, _, assn, _, inner, _) =>
+        Asserting(convert(assn), convert(inner))(blame(expr))
+      case PvlBoolAssuming(_, _, assn, _) => Assuming(convert(assn), tt)
+      case PvlAssuming(_, _, assn, _, inner, _) =>
+        Assuming(convert(assn), convert(inner))
       case PvlSender(_) => PVLSender()
       case PvlReceiver(_) => PVLReceiver()
       case PvlMessage(_) => PVLMessage()
@@ -491,8 +500,13 @@ case class PVLToCol[G](
       case PvlString(data) => StringValue(data.substring(1, data.length - 1))
       case PvlChar(s"'$data'") => CharValue(data.codePointAt(0))
       case PvlParens(_, inner, _) => convert(inner)
-      case PvlInvocation(id, None) => local(id, convert(id))
-      case PvlInvocation(id, Some(Call0(typeArgs, args, given, yields))) =>
+      case PvlInvocation(None, id, None) => local(id, convert(id))
+      case PvlInvocation(reveal, id, None) => ??(expr)
+      case PvlInvocation(
+            reveal,
+            id,
+            Some(Call0(typeArgs, args, given, yields)),
+          ) =>
         PVLInvocation(
           None,
           convert(id),
@@ -500,6 +514,7 @@ case class PVLToCol[G](
           typeArgs.map(convert(_)).getOrElse(Nil),
           convertGiven(given),
           convertYields(yields),
+          reveal.isDefined,
         )(blame(expr))
       case PvlValAdtInvocation(inner) => convert(inner)
     }
@@ -603,10 +618,15 @@ case class PVLToCol[G](
       case PvlBlock(inner) => convert(inner)
       case PvlGoto(_, label, _) =>
         Goto(new UnresolvedRef[G, LabelDecl[G]](convert(label)))
-      case PvlLabel(_, label, _) =>
-        Label(
-          new LabelDecl()(origin(stat).sourceName(convert(label))),
-          Block(Nil),
+      case PvlLabel(contract, _, label, _) =>
+        withContract(
+          contract,
+          c =>
+            Label(
+              new LabelDecl()(origin(stat).sourceName(convert(label))),
+              Block(Nil),
+              c.consumeLoopContract(stat),
+            ),
         )
       case PvlForStatement(inner, _) => convert(inner)
       case comm @ PvlCommunicateStatement(
@@ -1002,10 +1022,14 @@ case class PVLToCol[G](
           ))
       case ValContractClause11(_, invariant, _) =>
         collector.lock_invariant += ((contract, convert(invariant)))
-      case ValContractClause12(_, None, _) =>
-        collector.decreases += ((contract, DecreasesClauseNoRecursion()))
-      case ValContractClause12(_, Some(clause), _) =>
-        collector.decreases += ((contract, convert(clause)))
+      case ValContractClause12(decreases, _) =>
+        collector.decreases += ((contract, convert(decreases)))
+    }
+
+  def convert(implicit decreases: ValDecreasesContext): DecreasesClause[G] =
+    decreases match {
+      case ValDecreases0(_, None) => DecreasesClauseNoRecursion()
+      case ValDecreases0(_, Some(clause)) => convert(clause)
     }
 
   def convert(implicit clause: ValDecreasesMeasureContext): DecreasesClause[G] =
@@ -1030,6 +1054,7 @@ case class PVLToCol[G](
           case "pure" => collector.pure += mod
           case "inline" => collector.inline += mod
           case "thread_local" => collector.threadLocal += mod
+          case "opaque" => collector.opaque += mod
           case "bip_annotation" =>
             fail(mod, "This modifier is not allowed here.")
         }
@@ -1249,7 +1274,8 @@ case class PVLToCol[G](
     block match {
       case ValEmbedStatementBlock0(_, stats, _) => Block(stats.map(convert(_)))
       case ValEmbedStatementBlock1(stats) => Block(stats.map(convert(_)))
-      case ValEmbedStatementBlock2(_, _, _, stat) => Extract(convert(stat))
+      case ValEmbedStatementBlock2(_, extract, decreases, _, stat) =>
+        Extract(convert(stat), decreases.map(convert(_)))(blame(block))
       case ValEmbedStatementBlock3(_, _, clauses, _, _, body, _, _, _) =>
         withContract(
           clauses,
@@ -1261,6 +1287,32 @@ case class PVLToCol[G](
             )(blame(block))
           },
         )
+      case ValEmbedStatementBlock4(
+            _,
+            _,
+            decreases,
+            _,
+            clauses,
+            _,
+            _,
+            body,
+            _,
+            _,
+            _,
+          ) =>
+        Extract(
+          withContract(
+            clauses,
+            contract => {
+              FramedProof(
+                AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+                Block(body.map(convert(_))),
+                AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
+              )(blame(block))
+            },
+          ),
+          decreases.map(convert(_)),
+        )(blame(block))
     }
 
   def convert(implicit stat: ValStatementContext): Statement[G] =
@@ -1278,10 +1330,15 @@ case class PVLToCol[G](
       case ValAssume(_, assn, _) => Assume(convert(assn))
       case ValInhale(_, resource, _) => Inhale(convert(resource))
       case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
-      case ValLabel(_, label, _) =>
-        Label(
-          new LabelDecl()(origin(stat).sourceName(convert(label))),
-          Block(Nil),
+      case ValLabel(contract, _, label, _) =>
+        withContract(
+          contract,
+          c =>
+            Label(
+              new LabelDecl()(origin(stat).sourceName(convert(label))),
+              Block(Nil),
+              c.consumeLoopContract(stat),
+            ),
         )
       case ValRefute(_, assn, _) => Refute(convert(assn))(blame(stat))
       case ValWitness(_, _, _) => ??(stat)
@@ -1316,7 +1373,8 @@ case class PVLToCol[G](
           convert(body),
         )(blame(stat))
       case ValCommit(_, obj, _) => Commit(convert(obj))(blame(stat))
-      case ValExtract(_, body) => Extract(convert(body))
+      case ValExtract(extract, decreases, body) =>
+        Extract(convert(body), decreases.map(convert(_)))(blame(stat))
       case ValFrame(_, clauses, body) =>
         withContract(
           clauses,
@@ -1402,6 +1460,7 @@ case class PVLToCol[G](
                   convert(definition),
                   c.consumeApplicableContract(blame(decl)),
                   m.consume(m.inline),
+                  opaque = m.consume(m.opaque),
                 )(blame(decl))(namedOrigin)
               },
             ),
@@ -1678,7 +1737,7 @@ case class PVLToCol[G](
         TMap(convert(key), convert(value))
       case ValTupleType(_, _, t1, _, t2, _) =>
         TTuple(Seq(convert(t1), convert(t2)))
-      case ValPointerType(_, _, element, _) => TPointer(convert(element))
+      case ValPointerType(_, _, element, _) => TPointer(convert(element), None)
       case ValTypeType(_, _, element, _) => TType(convert(element))
       case ValEitherType(_, _, left, _, right, _) =>
         TEither(convert(left), convert(right))
@@ -1756,20 +1815,14 @@ case class PVLToCol[G](
 
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] =
     e match {
-      case ValCurPerm(_, _, loc, _) =>
-        CurPerm(AmbiguousLocation(convert(loc))(blame(e)))
+      case ValCurPerm(_, _, loc, _) => CurPerm(AmbiguousLocation(convert(loc)))
       case ValPerm(_, _, loc, _, perm, _) =>
-        Perm(AmbiguousLocation(convert(loc))(blame(e)), convert(perm))
-      case ValValue(_, _, loc, _) =>
-        Value(AmbiguousLocation(convert(loc))(blame(e)))
+        Perm(AmbiguousLocation(convert(loc)), convert(perm))
+      case ValValue(_, _, loc, _) => Value(AmbiguousLocation(convert(loc)))
       case ValAutoValue(_, _, loc, _) =>
-        AutoValue(AmbiguousLocation(convert(loc))(blame(e)))
+        AutoValue(AmbiguousLocation(convert(loc)))
       case ValPointsTo(_, _, loc, _, perm, _, v, _) =>
-        PointsTo(
-          AmbiguousLocation(convert(loc))(blame(e)),
-          convert(perm),
-          convert(v),
-        )
+        PointsTo(AmbiguousLocation(convert(loc)), convert(perm), convert(v))
       case ValHPerm(_, _, loc, _, perm, _) =>
         ModelPerm(convert(loc), convert(perm))
       case ValAPerm(_, _, loc, _, perm, _) =>
@@ -1783,6 +1836,7 @@ case class PVLToCol[G](
         PermPointer(convert(ptr), convert(n), convert(perm))
       case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) =>
         PermPointerIndex(convert(ptr), convert(idx), convert(perm))
+      case ValPointerBlock(_, _, ptr, _) => PointerBlock(convert(ptr))(blame(e))
       case ValPointerBlockLength(_, _, ptr, _) =>
         PointerBlockLength(convert(ptr))(blame(e))
       case ValPointerBlockOffset(_, _, ptr, _) =>
@@ -1846,7 +1900,7 @@ case class PVLToCol[G](
       case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
         ForPerm(
           convert(bindings),
-          AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)),
+          AmbiguousLocation(convert(loc))(origin(loc)),
           convert(body),
         )
       case ValForPermWithValue(_, _, _, id, _, body, _) =>
@@ -1943,8 +1997,21 @@ case class PVLToCol[G](
         val allIndices = convert(indices)
         NdPartialIndex(allIndices.init, allIndices.last, convert(dims))
       case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
+      case ValEuclideanDiv(_, _, left, _, right, _) =>
+        FloorDiv(convert(left), convert(right))(blame(e))
+      case ValEuclideanMod(_, _, left, _, right, _) =>
+        col.Mod(convert(left), convert(right))(blame(e))
+      case ValPow(_, _, left, _, right, _) =>
+        SmtlibPow(convert(left), convert(right))
       case ValChoose(_, _, xs, _) => Choose(convert(xs))(blame(e))
       case ValChooseFresh(_, _, xs, _) => ChooseFresh(convert(xs))(blame(e))
+      case ValBoolAssuming(_, _, assn, _) => Assuming(convert(assn), tt)
+      case ValAssuming(_, _, assn, _, inner, _) =>
+        Assuming(convert(assn), convert(inner))
+      case ValBoolAsserting(_, _, assn, _) =>
+        Asserting(convert(assn), tt)(blame(e))
+      case ValAsserting(_, _, assn, _, inner, _) =>
+        Asserting(convert(assn), convert(inner))(blame(e))
     }
 
   def convert(implicit e: ValExprPairContext): (Expr[G], Expr[G]) =

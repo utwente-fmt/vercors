@@ -8,8 +8,8 @@ import hre.util.ScopedStack
 import vct.col.rewrite.error.{ExcludedByPassOrder, ExtraNode}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.Referrable
+import vct.col.typerules.CoercionUtils
 import vct.col.util.SuccessionMap
-import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
 
@@ -24,11 +24,7 @@ case object ClassToRef extends RewriterBuilder {
   private def InstanceOfOrigin: Origin =
     Origin(Seq(PreferredName(Seq("subtype")), LabelContext("classToRef")))
 
-  private def ValueAdtOrigin: Origin =
-    Origin(Seq(PreferredName(Seq("Value")), LabelContext("classToRef")))
-
-  private def CastHelperOrigin: Origin =
-    Origin(Seq(LabelContext("classToRef cast helpers")))
+  val ByValueClassADTLabel = "ByValueClassADT"
 
   private case class InstanceNullPreconditionFailed(
       inner: Blame[InstanceNull],
@@ -46,29 +42,6 @@ case object ClassToRef extends RewriterBuilder {
   ) extends Blame[PointerDerefError] {
     override def blame(error: PointerDerefError): Unit = {
       inner.blame(InsufficientPermission(node))
-    }
-  }
-
-  private case class RequiresExhaleModeError() extends UserError {
-    override def code: String = "requiresMce"
-
-    override def text: String =
-      "This program contains complex casts. If running through Silicon the verification likely failed because " +
-        "complex cast support requires Viper's more complete exhale mode.\nThis mode can be enabled with the options: " +
-        "--backend-option --exhaleMode=2 or --backend-option --exhaleMode=1"
-  }
-
-  private case class RequiresExhaleModeBlame()
-      extends Blame[PointerDerefError] {
-    override def blame(error: PointerDerefError): Unit = {
-      error match {
-        case _: CopyClassFailed | _: CopyClassFailedBeforeCall |
-            _: PointerLocationError =>
-          PanicBlame(
-            s"Permission should be framed, did not expect: ${error.desc}"
-          )
-        case _: PointerInsufficientPermission => throw RequiresExhaleModeError()
-      }
     }
   }
 }
@@ -102,15 +75,6 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   var typeNumberStore: mutable.Map[Class[Pre], Int] = mutable.Map()
   val typeOf: SuccessionMap[Unit, Function[Post]] = SuccessionMap()
   val instanceOf: SuccessionMap[Unit, Function[Post]] = SuccessionMap()
-
-  val valueAdt: SuccessionMap[Unit, AxiomaticDataType[Post]] = SuccessionMap()
-  val valueAdtTypeArgument: Variable[Post] =
-    new Variable(TType(TAnyValue()))(ValueAdtOrigin.where(name = "V"))
-  val valueAsFunctions: mutable.Map[Type[Pre], ADTFunction[Post]] = mutable
-    .Map()
-
-  val castHelpers: SuccessionMap[Type[Pre], Procedure[Post]] = SuccessionMap()
-  val requiredCastHelpers: ScopedStack[mutable.Set[Type[Pre]]] = ScopedStack()
 
   def typeNumber(cls: Class[Pre]): Int =
     typeNumberStore.getOrElseUpdate(cls, typeNumberStore.size + 1)
@@ -159,53 +123,80 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     )
   }
 
-  private def makeValueAdt: AxiomaticDataType[Post] = {
-    new AxiomaticDataType[Post](
-      valueAsFunctions.values.toSeq,
-      Seq(valueAdtTypeArgument),
-    )(ValueAdtOrigin)
-  }
-
-  // TODO: Also generate value as axioms for arrays once those are properly supported for C/CPP/LLVM
-  private def makeValueAsFunction(
-      typeName: String,
-      t: Type[Post],
-  ): ADTFunction[Post] = {
-    new ADTFunction[Post](
-      Seq(new Variable(TVar[Post](valueAdtTypeArgument.ref))(
-        ValueAdtOrigin.where(name = "v")
-      )),
-      TNonNullPointer(t),
-    )(ValueAdtOrigin.where(name = "value_as_" + typeName))
-  }
-
-  private def unwrapValueAs(
+  private def unwrapCastAxioms(
       axiomType: TAxiomatic[Post],
       oldT: Type[Pre],
       newT: Type[Post],
+      unique: Option[BigInt],
       fieldRef: Ref[Post, ADTFunction[Post]],
+      structSize: Expr[Post],
+      fieldSize: Expr[Post],
+      toSize: Expr[Post],
   )(implicit o: Origin): Seq[ADTAxiom[Post]] = {
     (oldT match {
       case t: TByValueClass[Pre] => {
         // TODO: If there are no fields we should ignore the first field and add the axioms for the second field
         t.cls.decl.decls.collectFirst({ case field: InstanceField[Pre] =>
-          unwrapValueAs(axiomType, field.t, dispatch(field.t), fieldRef)
+          unwrapCastAxioms(
+            axiomType,
+            field.t,
+            dispatch(field.t),
+            field.flags.collectFirst { case Unique(unique) => unique },
+            fieldRef,
+            structSize,
+            fieldSize,
+            dispatch(t.cls.decl.asInstanceOf[ByValueClass[Pre]].childSizes.head),
+          )
         }).getOrElse(Nil)
       }
       case _ => Nil
     }) :+ new ADTAxiom[Post](forall(
-      axiomType,
+      TNonNullPointer(axiomType, None),
       body = { a =>
-        InlinePattern(adtFunctionInvocation[Post](
-          valueAsFunctions
-            .getOrElseUpdate(oldT, makeValueAsFunction(oldT.toString, newT))
-            .ref,
-          typeArgs = Some((valueAdt.ref(()), Seq(axiomType))),
-          args = Seq(a),
-        )) === Cast(
-          adtFunctionInvocation(fieldRef, args = Seq(a)),
-          TypeValue(TNonNullPointer(newT)),
+        InlinePattern(
+          PointerCast(a, TNonNullPointer(newT, unique), structSize, toSize)
+        ) === PointerCast(
+          adtFunctionInvocation(
+            fieldRef,
+            args = Seq(PointerToAdt(a, axiomType)(NonNullPointerNull)),
+          ),
+          TNonNullPointer(newT, unique),
+          fieldSize,
+          toSize,
         )
+      },
+    )) :+ new ADTAxiom[Post](foralls(
+      Seq(TNonNullPointer(newT, unique), TNonNullPointer(axiomType, None)),
+      body = { case Seq(a, b) =>
+        (a === PointerCast(
+          adtFunctionInvocation(
+            fieldRef,
+            args = Seq(
+              InlinePattern(PointerToAdt(b, axiomType)(NonNullPointerNull))
+            ),
+          ),
+          TNonNullPointer(newT, unique),
+          fieldSize,
+          toSize,
+        )) ==>
+          (InlinePattern(
+            PointerCast(a, TNonNullPointer(axiomType, None), toSize, structSize)
+          ) === b)
+      },
+    )) :+ new ADTAxiom[Post](foralls(
+      Seq(TNonNullPointer(TVoid(), None), TNonNullPointer(axiomType, None)),
+      body = { case Seq(x, y) =>
+        (x === InlinePattern(
+          PointerCast(y, TNonNullPointer(TVoid(), None), structSize, const(1))
+        )) ==>
+          (InlinePattern(
+            PointerCast(x, TNonNullPointer(newT, unique), const(1), fieldSize)
+          ) === PointerCast(
+            y,
+            TNonNullPointer(newT, unique),
+            structSize,
+            fieldSize,
+          ))
       },
     ))
   }
@@ -218,9 +209,6 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         globalDeclarations.declare(typeOf(()))
         instanceOf(()) = makeInstanceOf
         globalDeclarations.declare(instanceOf(()))
-        if (valueAsFunctions.nonEmpty) {
-          globalDeclarations.declare(valueAdt.getOrElseUpdate((), makeValueAdt))
-        }
       }._1
     )
 
@@ -386,48 +374,97 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   private def encodeByValueClass(cls: ByValueClass[Pre]) = {
     implicit val o: Origin = cls.o
     val axiomType = TAxiomatic[Post](byValClassSucc.ref(cls), Nil)
-    var valueAsAxioms: Seq[ADTAxiom[Post]] = Seq()
+    var castAxioms: Seq[ADTAxiom[Post]] = Seq()
     val (fieldFunctions, fieldInverses, fieldTypes) =
-      cls.decls.collect { case field: Field[Pre] =>
+      cls.decls.collect { case field: InstanceField[Pre] =>
         val newT = dispatch(field.t)
-        val nonnullT = TNonNullPointer(newT)
+        val unique = field.flags.collectFirst { case Unique(unique) => unique }
+        val nonnullT = TNonNullPointer(newT, unique)
         byValFieldSucc(field) =
           new ADTFunction[Post](
             Seq(new Variable(axiomType)(field.o)),
             nonnullT,
           )(field.o)
-        if (valueAsAxioms.isEmpty) {
+        if (castAxioms.isEmpty) {
           // This is the first field
-          valueAsAxioms =
-            valueAsAxioms :+ new ADTAxiom[Post](forall(
-              axiomType,
+          castAxioms =
+            castAxioms :+ new ADTAxiom[Post](forall(
+              TNonNullPointer(axiomType, None),
               body = { a =>
-                InlinePattern(adtFunctionInvocation[Post](
-                  valueAsFunctions.getOrElseUpdate(
-                    field.t,
-                    makeValueAsFunction(field.t.toString, newT),
-                  ).ref,
-                  typeArgs = Some((valueAdt.ref(()), Seq(axiomType))),
-                  args = Seq(a),
+                InlinePattern(PointerCast(
+                  a,
+                  TNonNullPointer(newT, unique),
+                  dispatch(cls.size),
+                  dispatch(cls.childSizes.head),
                 )) === adtFunctionInvocation(
                   byValFieldSucc.ref(field),
-                  args = Seq(a),
+                  args = Seq(PointerToAdt(a, axiomType)(NonNullPointerNull)),
                 )
+              },
+            )) :+ new ADTAxiom[Post](foralls(
+              Seq(
+                TNonNullPointer(newT, unique),
+                TNonNullPointer(axiomType, None),
+              ),
+              body = { case Seq(a, b) =>
+                (a === adtFunctionInvocation(
+                  byValFieldSucc.ref(field),
+                  args = Seq(InlinePattern(
+                    PointerToAdt(b, axiomType)(NonNullPointerNull)
+                  )),
+                )) ==>
+                  (InlinePattern(PointerCast(
+                    a,
+                    TNonNullPointer(axiomType, None),
+                    dispatch(cls.childSizes.head),
+                    dispatch(cls.size),
+                  )) === b)
+              },
+            )) :+ new ADTAxiom[Post](foralls(
+              Seq(
+                TNonNullPointer(TVoid(), None),
+                TNonNullPointer(axiomType, None),
+              ),
+              body = { case Seq(x, y) =>
+                (x === InlinePattern(PointerCast(
+                  y,
+                  TNonNullPointer(TVoid(), None),
+                  dispatch(cls.size),
+                  const(1),
+                ))) ==>
+                  (InlinePattern(PointerCast(
+                    x,
+                    TNonNullPointer(newT, unique),
+                    const(1),
+                    dispatch(cls.childSizes.head),
+                  )) === PointerCast(
+                    y,
+                    TNonNullPointer(newT, unique),
+                    dispatch(cls.size),
+                    dispatch(cls.childSizes.head),
+                  ))
               },
             ))
 
-          valueAsAxioms =
-            valueAsAxioms ++
+          castAxioms =
+            castAxioms ++
               (field.t match {
                 case t: TByValueClass[Pre] =>
                   // TODO: If there are no fields we should ignore the first field and add the axioms for the second field
                   t.cls.decl.decls
                     .collectFirst({ case innerF: InstanceField[Pre] =>
-                      unwrapValueAs(
+                      unwrapCastAxioms(
                         axiomType,
                         innerF.t,
                         dispatch(innerF.t),
+                        unique,
                         byValFieldSucc.ref(field),
+                        dispatch(cls.size),
+                        dispatch(cls.childSizes.head),
+                        dispatch(
+                          t.cls.decl.asInstanceOf[ByValueClass[Pre]].childSizes
+                            .head
+                        ),
                       )
                     }).getOrElse(Nil)
                 case _ => Nil
@@ -462,42 +499,6 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
             "new_" + cls.o.find[SourceName].map(_.name).getOrElse("unknown")
           )
       )
-    // TAnyValue is a placeholder the pointer adt doesn't have type parameters
-    val indexFunction =
-      new ADTFunction[Post](
-        Seq(new Variable(TNonNullPointer(TAnyValue()))(Origin(
-          Seq(PreferredName(Seq("pointer")), LabelContext("classToRef"))
-        ))),
-        TInt(),
-      )(
-        cls.o.copy(cls.o.originContents.filterNot(_.isInstanceOf[SourceName]))
-          .where(name =
-            "index_" + cls.o.find[SourceName].map(_.name).getOrElse("unknown")
-          )
-      )
-    val injectivityAxiom =
-      new ADTAxiom[Post](foralls(
-        Seq(axiomType, axiomType),
-        body = { case Seq(a0, a1) =>
-          foldAnd(fieldFunctions.map { f =>
-            Implies(
-              Eq(
-                adtFunctionInvocation[Post](f.ref, args = Seq(a0)),
-                adtFunctionInvocation[Post](f.ref, args = Seq(a1)),
-              ),
-              a0 === a1,
-            )
-          })
-        },
-        triggers = { case Seq(a0, a1) =>
-          fieldFunctions.map { f =>
-            Seq(
-              adtFunctionInvocation[Post](f.ref, None, args = Seq(a0)),
-              adtFunctionInvocation[Post](f.ref, None, args = Seq(a1)),
-            )
-          }
-        },
-      ))
     val destructorAxioms = fieldFunctions.zip(fieldInverses).map {
       case (f, inv) =>
         new ADTAxiom[Post](forall(
@@ -516,28 +517,92 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           },
         ))
     }
-    val indexAxioms = fieldFunctions.zipWithIndex.map { case (f, i) =>
-      new ADTAxiom[Post](forall(
-        axiomType,
-        body = { a =>
-          adtFunctionInvocation[Post](
-            indexFunction.ref,
-            None,
-            args = Seq(adtFunctionInvocation[Post](f.ref, None, args = Seq(a))),
-          ) === const(i)
-        },
-        triggers = { a =>
-          Seq(Seq(adtFunctionInvocation[Post](f.ref, None, args = Seq(a))))
-        },
-      ))
+    val outerRelationAxioms =
+      if (fieldFunctions.isEmpty)
+        Nil
+      else {
+        Seq(
+          new ADTAxiom[Post](forall(
+            TNonNullPointer(axiomType, None),
+            body = { a =>
+              Eq(
+                InlinePattern(
+                  IntegerPointerCast(a, TInt(), dispatch(cls.size)),
+                  group = 1,
+                ),
+                InlinePattern(
+                  IntegerPointerCast(
+                    adtFunctionInvocation[Post](
+                      fieldFunctions.head.ref,
+                      None,
+                      args = Seq(PointerToAdt(a, axiomType)(NonNullPointerNull)),
+                    ),
+                    TInt(),
+                    dispatch(cls.childSizes.head),
+                  ),
+                  group = 2,
+                ),
+              )
+            },
+          )),
+          new ADTAxiom[Post](forall(
+            TNonNullPointer(axiomType, None),
+            body = { a =>
+              GreaterEq(
+                InlinePattern(
+                  IntegerPointerCast(a, TInt(), dispatch(cls.size)),
+                  group = 1,
+                ) + dispatch(cls.size),
+                InlinePattern(
+                  IntegerPointerCast(
+                    adtFunctionInvocation[Post](
+                      fieldFunctions.last.ref,
+                      None,
+                      args = Seq(PointerToAdt(a, axiomType)(NonNullPointerNull)),
+                    ),
+                    TInt(),
+                    dispatch(cls.childSizes.last),
+                  ),
+                  group = 2,
+                ) + dispatch(cls.childSizes.last),
+              )
+            },
+          )),
+        )
+      }
+    val innerRelationAxioms = fieldFunctions.zipWithIndex.sliding(2).collect {
+      case Seq((f1, i), (f2, j)) =>
+        new ADTAxiom[Post](forall(
+          axiomType,
+          body = { a =>
+            LessEq(
+              InlinePattern(
+                IntegerPointerCast(
+                  adtFunctionInvocation[Post](f1.ref, None, args = Seq(a)),
+                  TInt(),
+                  dispatch(cls.childSizes(i)),
+                ),
+                group = 1,
+              ) + dispatch(cls.childSizes(i)),
+              InlinePattern(
+                IntegerPointerCast(
+                  adtFunctionInvocation[Post](f2.ref, None, args = Seq(a)),
+                  TInt(),
+                  dispatch(cls.childSizes(j)),
+                ),
+                group = 2,
+              ),
+            )
+          },
+        ))
     }
     byValConsSucc(cls) = constructor
     byValClassSucc(cls) =
       new AxiomaticDataType[Post](
-        Seq(indexFunction, injectivityAxiom) ++ destructorAxioms ++
-          indexAxioms ++ fieldFunctions ++ fieldInverses ++ valueAsAxioms,
+        destructorAxioms ++ fieldFunctions ++ fieldInverses ++ castAxioms ++
+          innerRelationAxioms ++ outerRelationAxioms,
         Nil,
-      )
+      )(o.withContent(LabelContext(ByValueClassADTLabel)))
     globalDeclarations.succeed(cls, byValClassSucc(cls))
   }
 
@@ -567,128 +632,55 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
-  private def addCastConstraints(
-      expr: Expr[Pre],
-      totalHelpers: mutable.Set[Type[Pre]],
-  ): Expr[Post] = {
-    val helpers: mutable.Set[Type[Pre]] = mutable.Set()
-    var result: Seq[Expr[Post]] = Nil
-    for (clause <- expr.unfoldStar) {
-      val newClause = requiredCastHelpers.having(helpers) { dispatch(clause) }
-      if (helpers.nonEmpty) {
-        result ++= helpers.map { t =>
-          unwrapCastConstraints(dispatch(t), t)(CastHelperOrigin)
-        }.toSeq
-        totalHelpers.addAll(helpers)
-        helpers.clear()
-      }
-      result = result :+ newClause
-    }
-    foldStar(result)(expr.o)
-  }
-
-  // For loops add cast helpers before and as an invariant (since otherwise the contract might not be well-formed)
-  override def dispatch(node: LoopContract[Pre]): LoopContract[Post] = {
-    val helpers: mutable.Set[Type[Pre]] = mutable.Set()
-    node match {
-      case inv @ LoopInvariant(invariant, decreases) => {
-        val result =
-          LoopInvariant(
-            addCastConstraints(invariant, helpers),
-            decreases.map(dispatch),
-          )(inv.blame)(node.o)
-        if (requiredCastHelpers.nonEmpty) {
-          requiredCastHelpers.top.addAll(helpers)
-        }
-        result
-      }
-//      case contract @ IterationContract(
-//            requires,
-//            ensures,
-//            context_everywhere,
-//          ) => {
-//        val result =
-//          IterationContract(
-//            addCastConstraints(requires, helpers),
-//            addCastConstraints(ensures, helpers),
-//            addCastConstraints(context_everywhere, helpers),
-//          )(contract.blame)(node.o)
-//        if (requiredCastHelpers.nonEmpty) {
-//          requiredCastHelpers.top.addAll(helpers)
-//        }
-//        result
-//      }
-      case _: IterationContract[Pre] => throw ExtraNode
-    }
-  }
-
-  override def dispatch(stat: Statement[Pre]): Statement[Post] = {
-    val helpers: mutable.Set[Type[Pre]] = mutable.Set()
-    val result =
-      requiredCastHelpers.having(helpers) {
-        stat match {
-          case Instantiate(Ref(cls), Local(Ref(v))) =>
-            instantiate(cls, succ(v))(stat.o)
-          case inv @ InvokeMethod(
-                obj,
-                Ref(method),
-                args,
-                outArgs,
-                typeArgs,
-                givenMap,
-                yields,
-              ) =>
-            InvokeProcedure[Post](
-              ref = methodSucc.ref(method),
-              args = dispatch(obj) +: args.map(dispatch),
-              outArgs = outArgs.map(dispatch),
-              typeArgs = typeArgs.map(dispatch),
-              givenMap = givenMap.map { case (Ref(v), e) =>
-                (succ(v), dispatch(e))
-              },
-              yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
-            )(PreBlameSplit.left(
-              InstanceNullPreconditionFailed(inv.blame, inv),
-              PreBlameSplit
-                .left(PanicBlame("incorrect instance method type?"), inv.blame),
-            ))(inv.o)
-          case inv @ InvokeConstructor(
-                Ref(cons),
-                _,
-                out,
-                args,
-                outArgs,
-                typeArgs,
-                givenMap,
-                yields,
-              ) =>
-            InvokeProcedure[Post](
-              ref = consSucc.ref(cons),
-              args = args.map(dispatch),
-              outArgs = dispatch(out) +: outArgs.map(dispatch),
-              typeArgs = typeArgs.map(dispatch),
-              givenMap = givenMap.map { case (Ref(v), e) =>
-                (succ(v), dispatch(e))
-              },
-              yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
-            )(inv.blame)(inv.o)
-          case other => super.dispatch(other)
-        }
-      }
-
-    if (helpers.nonEmpty) {
-      Block(helpers.map { t =>
+  override def dispatch(stat: Statement[Pre]): Statement[Post] =
+    stat match {
+      case Instantiate(Ref(cls), Local(Ref(v))) =>
+        instantiate(cls, succ(v))(stat.o)
+      case inv @ InvokeMethod(
+            obj,
+            Ref(method),
+            args,
+            outArgs,
+            typeArgs,
+            givenMap,
+            yields,
+          ) =>
         InvokeProcedure[Post](
-          castHelpers.getOrElseUpdate(t, makeCastHelper(t)).ref,
-          Nil,
-          Nil,
-          Nil,
-          Nil,
-          Nil,
-        )(TrueSatisfiable)(CastHelperOrigin)
-      }.toSeq :+ result)(stat.o)
-    } else { result }
-  }
+          ref = methodSucc.ref(method),
+          args = dispatch(obj) +: args.map(dispatch),
+          outArgs = outArgs.map(dispatch),
+          typeArgs = typeArgs.map(dispatch),
+          givenMap = givenMap.map { case (Ref(v), e) =>
+            (succ(v), dispatch(e))
+          },
+          yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+        )(PreBlameSplit.left(
+          InstanceNullPreconditionFailed(inv.blame, inv),
+          PreBlameSplit
+            .left(PanicBlame("incorrect instance method type?"), inv.blame),
+        ))(inv.o)
+      case inv @ InvokeConstructor(
+            Ref(cons),
+            _,
+            out,
+            args,
+            outArgs,
+            typeArgs,
+            givenMap,
+            yields,
+          ) =>
+        InvokeProcedure[Post](
+          ref = consSucc.ref(cons),
+          args = args.map(dispatch),
+          outArgs = dispatch(out) +: outArgs.map(dispatch),
+          typeArgs = typeArgs.map(dispatch),
+          givenMap = givenMap.map { case (Ref(v), e) =>
+            (succ(v), dispatch(e))
+          },
+          yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+        )(inv.blame)(inv.o)
+      case other => super.dispatch(other)
+    }
 
   override def dispatch(node: ApplyAnyPredicate[Pre]): ApplyAnyPredicate[Post] =
     node match {
@@ -699,85 +691,6 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         )(inv.o)
       case other => other.rewriteDefault()
     }
-
-  private def unwrapCastConstraints(outerType: Type[Post], t: Type[Pre])(
-      implicit o: Origin
-  ): Expr[Post] = {
-    val newT = dispatch(t)
-    val constraint =
-      forall[Post](
-        TNonNullPointer(outerType),
-        body = { p =>
-          PolarityDependent(
-            Greater(
-              CurPerm(PointerLocation(p)(PanicBlame(
-                "Referring to a non-null pointer should not cause any verification failures"
-              ))),
-              NoPerm(),
-            ) ==>
-              (InlinePattern(Cast(p, TypeValue(TNonNullPointer(newT)))) ===
-                adtFunctionInvocation(
-                  valueAsFunctions
-                    .getOrElseUpdate(t, makeValueAsFunction(t.toString, newT))
-                    .ref,
-                  typeArgs = Some((valueAdt.ref(()), Seq(outerType))),
-                  args = Seq(DerefPointer(p)(RequiresExhaleModeBlame())),
-                )),
-            tt,
-          )
-        },
-      ) &* forall[Post](
-        TNonNullPointer(outerType),
-        body = { p =>
-          PolarityDependent(
-            Greater(
-              CurPerm(PointerLocation(p)(PanicBlame(
-                "Referring to a non-null pointer should not cause any verification failures"
-              ))),
-              NoPerm(),
-            ) ==>
-              (InlinePattern(Cast(
-                Cast(p, TypeValue(TNonNullPointer(newT))),
-                TypeValue(TNonNullPointer(outerType)),
-              )) === p),
-            tt,
-          )
-        },
-      )
-
-    t match {
-      case TByValueClass(Ref(cls), _) =>
-        constraint &* cls.decls.collectFirst { case field: InstanceField[Pre] =>
-          unwrapCastConstraints(outerType, field.t)
-        }.getOrElse(tt)
-      case _ => constraint
-    }
-  }
-
-  private def makeCastHelper(t: Type[Pre]): Procedure[Post] = {
-    implicit val o: Origin = CastHelperOrigin
-      .where(name = "constraints_" + t.toString)
-    globalDeclarations.declare(procedure(
-      AbstractApplicable,
-      TrueSatisfiable,
-      ensures = UnitAccountedPredicate(unwrapCastConstraints(dispatch(t), t)),
-    ))
-  }
-
-  private def addCastHelpers(
-      t: Type[Pre],
-      helpers: mutable.Set[Type[Pre]],
-  ): Unit = {
-    t match {
-      case cls: TByValueClass[Pre] => {
-        helpers.add(t)
-        cls.cls.decl.decls.collectFirst { case field: InstanceField[Pre] =>
-          addCastHelpers(field.t, helpers)
-        }
-      }
-      case _ =>
-    }
-  }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     e match {
@@ -839,24 +752,39 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               deref.blame
             )(deref.o)
           case t: TByValueClass[Pre] =>
-            DerefPointer(
-              adtFunctionInvocation[Post](
-                byValFieldSucc.ref(field),
-                args = Seq(dispatch(obj)),
-              )(deref.o)
-            )(DerefFieldPointerBlame(
-              deref.blame,
-              deref,
-              t.cls.decl.asInstanceOf[ByValueClass[Pre]],
-              Referrable.originNameOrEmpty(field),
-            ))(deref.o)
+            if (field.t.asByValueClass.isDefined) {
+              PointerToAdt(
+                adtFunctionInvocation[Post](
+                  byValFieldSucc.ref(field),
+                  args = Seq(dispatch(obj)),
+                )(deref.o),
+                dispatch(field.t),
+              )(DerefFieldPointerBlame(
+                deref.blame,
+                deref,
+                t.cls.decl.asInstanceOf[ByValueClass[Pre]],
+                Referrable.originNameOrEmpty(field),
+              ))(deref.o)
+            } else {
+              DerefPointer(
+                adtFunctionInvocation[Post](
+                  byValFieldSucc.ref(field),
+                  args = Seq(dispatch(obj)),
+                )(deref.o)
+              )(DerefFieldPointerBlame(
+                deref.blame,
+                deref,
+                t.cls.decl.asInstanceOf[ByValueClass[Pre]],
+                Referrable.originNameOrEmpty(field),
+              ))(deref.o)
+            }
         }
       case TypeValue(t) =>
         t match {
           case t: TClass[Pre] if t.typeArgs.isEmpty =>
             const(typeNumber(t.cls.decl))(e.o)
-          // Keep pointer casts intact for the adtPointer stage
-          case _: TPointer[Pre] | _: TNonNullPointer[Pre] => e.rewriteDefault()
+          // Keep any casts intact for the adtAny stage
+          case _: TAnyValue[Pre] => e.rewriteDefault()
           case other => ???
         }
       case TypeOf(value) =>
@@ -892,18 +820,14 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
         )(PanicBlame("instanceOf requires nothing"))(e.o)
-      case Cast(value, typeValue) if value.t.asPointer.isDefined => {
-        // Keep pointer casts and add extra annotations
-        if (requiredCastHelpers.nonEmpty) {
-          addCastHelpers(value.t.asPointer.get.element, requiredCastHelpers.top)
-        }
-
-        e.rewriteDefault()
-      }
-      case Cast(value, typeValue) =>
+      case Cast(value, typeValue)
+          if value.t.asClass.isDefined ||
+            CoercionUtils.getAnyCoercion(value.t, TAnyClass[Pre]()).isDefined =>
         dispatch(
           value
         ) // Discard for now, should assert instanceOf(value, typeValue)
+      case Cast(value, TypeValue(t)) if value.t == t => dispatch(value)
+      case PointerCast(value, t, _, _) if value.t == t => dispatch(value)
       case Result(Ref(app)) =>
         app match {
           case function: Function[Pre] => Result[Post](succ(function))(e.o)
@@ -934,6 +858,15 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       case v @ Value(PredicateLocation(inv: InstancePredicateApply[Pre])) =>
         implicit val o: Origin = e.o
         Star[Post](v.rewrite(), dispatch(inv.obj) !== Null())
+      case dp @ DerefPointer(ptr) if dp.t.asByValueClass.isDefined =>
+        PointerToAdt(dispatch(ptr), dispatch(dp.t))(dp.blame)(dp.o)
+      case ps @ PointerSubscript(ptr, index) if ps.t.asByValueClass.isDefined =>
+        PointerToAdt(
+          PointerAdd(dispatch(ptr), dispatch(index))(PointerSubscriptToAddBlame(
+            ps.blame
+          ))(ps.o),
+          dispatch(ps.t),
+        )(ps.blame)(ps.o)
       case _ => super.dispatch(e)
     }
 

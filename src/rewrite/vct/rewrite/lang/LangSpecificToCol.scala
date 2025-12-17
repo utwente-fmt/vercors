@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
+import vct.col.ast.expr.op.BinOperatorTypes
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
@@ -13,9 +14,10 @@ import vct.col.rewrite.{
   Rewriter,
   RewriterBuilderArg,
   RewriterBuilderArg2,
+  Rewritten,
 }
+import vct.col.typerules.TypeSize
 import vct.result.VerificationError.UserError
-import vct.rewrite.lang.LangSpecificToCol.NotAValue
 
 case object LangSpecificToCol extends RewriterBuilderArg[Boolean] {
   override def key: String = "langSpecific"
@@ -30,11 +32,71 @@ case object LangSpecificToCol extends RewriterBuilderArg[Boolean] {
     override def text: String =
       value.o.messageInContext("Could not resolve this expression to a value.")
   }
+
+  case class NotValidReveal(value: Expr[_]) extends UserError {
+    override def code: String = "notValidReveal"
+    override def text: String =
+      value.o
+        .messageInContext("Adding reveal to this invocation is not supported.")
+  }
+
+  private case class IndeterminableBitVectorSize(op: Expr[_])
+      extends UserError {
+    override def code: String = "unknownBVSize"
+    override def text: String =
+      op.o.messageInContext(
+        "Could not determine the size of the bit vector for this bitwise operation"
+      )
+  }
+
+  private case class IndeterminableBitVectorSign(op: Expr[_])
+      extends UserError {
+    override def code: String = "unknownBVSign"
+    override def text: String =
+      op.o.messageInContext(
+        "Could not determine the signedness of the bit vector for this bitwise operation"
+      )
+  }
+
+  private case class IncompatibleBitVectorSign(
+      op: Expr[_],
+      l: Boolean,
+      r: Boolean,
+  ) extends UserError {
+    override def code: String = "incompatibleBVSign"
+    override def text: String =
+      op.o.messageInContext(
+        s"The signedness of the operands for this bitwise operation are `${if (l)
+            "signed"
+          else
+            "unsigned"}` and `${if (r)
+            "signed"
+          else
+            "unsigned"}` respectively. Only operations on equal signedness are supported"
+      )
+  }
+
+  private case class UnsignedArithmeticShift(op: Expr[_]) extends UserError {
+    override def code: String = "unsignedArithShift"
+    override def text: String =
+      op.o.messageInContext(
+        "It is not possible to perform an arithmetic right-shift on an unsigned value"
+      )
+  }
+  case class InvalidPointerComparison(cmp: Origin) extends UserError {
+    override def code: String = "incompatiblePointerComparison"
+    override def text: String =
+      cmp.messageInContext(
+        "Comparison between pointers of different types is not supported"
+      )
+  }
 }
 
 case class LangSpecificToCol[Pre <: Generation](
     generatePermissions: Boolean = false
 ) extends Rewriter[Pre] with LazyLogging {
+  import LangSpecificToCol._
+
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
   val bip: LangBipToCol[Pre] = LangBipToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)
@@ -84,6 +146,7 @@ case class LangSpecificToCol[Pre <: Generation](
       args: Seq[Expr[Pre]],
       givenArgsPre: Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])],
       yieldsPre: Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])],
+      reveal: Boolean,
       e: Expr[Pre],
       blame: Blame[FrontendInvocationError],
   ): Expr[Post] = {
@@ -104,6 +167,7 @@ case class LangSpecificToCol[Pre <: Generation](
           typeArgs.map(dispatch),
           givenArgs,
           yields,
+          reveal = reveal,
         )(blame)
       case RefProcedure(decl) =>
         ProcedureInvocation[Post](
@@ -113,7 +177,9 @@ case class LangSpecificToCol[Pre <: Generation](
           typeArgs.map(dispatch),
           givenArgs,
           yields,
+          reveal = reveal,
         )(blame)
+      case _ if reveal => throw NotValidReveal(e)
       case RefPredicate(decl) =>
         PredicateApplyExpr(PredicateApply[Post](succ(decl), args.map(dispatch)))
       case RefADTFunction(decl) =>
@@ -156,7 +222,10 @@ case class LangSpecificToCol[Pre <: Generation](
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     llvm.gatherBackEdges(program)
+    llvm.gatherWrappersInAssume(program)
     llvm.gatherTypeHints(program)
+    llvm.gatherPallasTypeSubst(program)
+    llvm.gatherHeapVariables(program)
     super.dispatch(program)
   }
 
@@ -189,7 +258,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case decl: CPPGlobalDeclaration[Pre] => cpp.rewriteGlobalDecl(decl)
       case decl: CPPLocalDeclaration[Pre] => ???
       case func: Function[Pre] => {
-        rewriteDefault(func)
+        super.dispatch(func)
         cpp.storeIfSYCLFunction(func)
       }
 
@@ -221,7 +290,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case chor: PVLChoreography[Pre] => veymont.rewriteChoreography(chor)
       case v: Variable[Pre] => llvm.rewriteLocalVariable(v)
 
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
@@ -258,8 +327,8 @@ case class LangSpecificToCol[Pre <: Generation](
       case CPPDeclarationStatement(decl) => cpp.rewriteLocalDecl(decl)
       case scope: CPPLifetimeScope[Pre] => cpp.rewriteLifetimeScope(scope)
       case goto: CGoto[Pre] => c.rewriteGoto(goto)
-      case goto: Goto[Pre] => llvm.rewriteGoto(goto)
       case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
+      case atomic: GpgpuAtomic[Pre] => c.gpuAtomic(atomic)
 
       case eval @ Eval(CPPInvocation(_, _, _, _)) =>
         cpp.invocationStatement(eval)
@@ -274,9 +343,15 @@ case class LangSpecificToCol[Pre <: Generation](
       case load: LLVMLoad[Pre] => llvm.rewriteLoad(load)
       case store: LLVMStore[Pre] => llvm.rewriteStore(store)
       case alloc: LLVMAllocA[Pre] => llvm.rewriteAllocA(alloc)
+      case memset: LLVMMemset[Pre] => llvm.rewriteMemset(memset)
+      case memcpy: LLVMMemcpy[Pre] => llvm.rewriteMemcpy(memcpy)
       case block: LLVMBasicBlock[Pre] => llvm.rewriteBasicBlock(block)
       case unreachable: LLVMBranchUnreachable[Pre] =>
         llvm.rewriteUnreachable(unreachable)
+      case fracOf: LLVMFracOf[Pre] => llvm.rewriteFracOf(fracOf)
+      case add: LLVMAddWithOverflow[Pre] => llvm.rewriteAddWithOverflow(add)
+      case sub: LLVMSubWithOverflow[Pre] => llvm.rewriteSubWithOverflow(sub)
+      case mult: LLVMMultWithOverflow[Pre] => llvm.rewriteMultWithOverflow(mult)
       case other => other.rewriteDefault()
     }
 
@@ -319,6 +394,14 @@ case class LangSpecificToCol[Pre <: Generation](
       case Cast(inner, TypeValue(t))
           if t == Java.float[Pre] || t == Java.double[Pre] =>
         CastFloat(dispatch(inner), dispatch(t))(e.o)
+      case Cast(inner, TypeValue(t))
+          if inner.t.asPointer.isDefined && t.asPointer.isDefined =>
+        PointerCast(
+          dispatch(inner),
+          dispatch(t),
+          c.sizeOf(inner.t.asPointer.get.element, e.o),
+          c.sizeOf(t.asPointer.get.element, e.o),
+        )(e.o)
 
       case local: PVLLocal[Pre] => pvl.local(local)
       case deref: PVLDeref[Pre] => pvl.deref(deref)
@@ -336,7 +419,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case local: LocalThreadId[Pre] => c.cudaLocalThreadId(local)
       case global: GlobalThreadId[Pre] => c.cudaGlobalThreadId(global)
       case cast: CCast[Pre] => c.cast(cast)
-      case sizeof: SizeOf[Pre] => throw LangCToCol.UnsupportedSizeof(sizeof)
+      case sizeof: SizeOf[Pre] => c.sizeOf(sizeof.tname, sizeof.o)
 
       case local: CPPLocal[Pre] => cpp.local(local)
       case deref: CPPClassMethodOrFieldAccess[Pre] => cpp.deref(deref)
@@ -346,77 +429,242 @@ case class LangSpecificToCol[Pre <: Generation](
       case arrSub @ AmbiguousSubscript(_, _) => cpp.rewriteSubscript(arrSub)
       case unfolding: Unfolding[Pre] => {
         cpp.checkPredicateFoldingAllowed(unfolding.res)
-        rewriteDefault(unfolding)
+        super.dispatch(unfolding)
       }
 
       case assign: PreAssignExpression[Pre] =>
         assign.target match {
           case AmbiguousSubscript(v, _) =>
             v.t match {
-              case CPrimitiveType(specs) if specs.collectFirst {
-                    case CSpecificationType(_: CTVector[Pre]) => ()
-                  }.isDefined =>
-                return c.assignSubscriptVector(assign)
+              case _: CTVector[Pre] => return c.assignSubscriptVector(assign)
               case _ =>
             }
           case CFieldAccess(obj, _) =>
             obj.t match {
-              case CPrimitiveType(specs) if specs.collectFirst {
-                    case CSpecificationType(_: TOpenCLVector[Pre]) => ()
-                  }.isDefined =>
-                return c.assignOpenCLVector(assign)
+              case TOpenCLVector(_, _) => return c.assignOpenCLVector(assign)
               case _ =>
             }
           case _ =>
         }
         assign.target.t match {
           case CPPPrimitiveType(_) => cpp.preAssignExpr(assign)
-          case _ => rewriteDefault(assign)
+          case _ => super.dispatch(assign)
         }
 
       case inv: SilverPartialADTFunctionInvocation[Pre] =>
         silver.adtInvocation(inv)
       case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
 
-      case inv: LLVMFunctionInvocation[Pre] =>
-        llvm.rewriteFunctionInvocation(inv)
       case inv: LLVMAmbiguousFunctionInvocation[Pre] =>
         llvm.rewriteAmbiguousFunctionInvocation(inv)
-      case local: LLVMLocal[Pre] => llvm.rewriteLocal(local)
+      case inv: LLVMFunctionInvocation[Pre] =>
+        llvm.rewriteFunctionInvocation(inv)
+      case local: LLVMLocal[Pre] => llvm.rewriteNamedLocal(local)
+      // TODO: This is not great, we will run this even if we're using a language that is not LLVM-IR
+      case local: Local[Pre] => llvm.rewriteLocal(local)
       case pointer: LLVMFunctionPointerValue[Pre] =>
         llvm.rewriteFunctionPointer(pointer)
       case pointer: LLVMPointerValue[Pre] => llvm.rewritePointerValue(pointer)
       case gep: LLVMGetElementPointer[Pre] => llvm.rewriteGetElementPointer(gep)
-      case int: LLVMIntegerValue[Pre] => IntegerValue(int.value)(int.o)
+      case extrVal: LLVMExtractValue[Pre] => llvm.rewriteExtractValue(extrVal)
+      case int: LLVMIntegerValue[Pre] => llvm.rewriteIntegerValue(int)
       case float: LLVMFloatValue[Pre] =>
         FloatValue(float.bigDecimalValue, dispatch(float.t))(float.o)
       case sext: LLVMSignExtend[Pre] => llvm.rewriteSignExtend(sext)
       case zext: LLVMZeroExtend[Pre] => llvm.rewriteZeroExtend(zext)
       case trunc: LLVMTruncate[Pre] => llvm.rewriteTruncate(trunc)
       case fpext: LLVMFloatExtend[Pre] => llvm.rewriteFloatExtend(fpext)
+      case cast: LLVMIntegerPointerCast[Pre] =>
+        llvm.rewriteIntegerPointerCast(cast)
+      case result: LLVMResult[Pre] => llvm.rewriteResult(result)
+      case llvmPerm: LLVMPerm[Pre] => llvm.rewritePerm(llvmPerm)
+      case llvmPBL: LLVMPtrBlockLength[Pre] =>
+        llvm.rewritePtrBlockLength(llvmPBL)
+      case llvmPBO: LLVMPtrBlockOffset[Pre] =>
+        llvm.rewritePtrBlockOffset(llvmPBO)
+      case llvmPL: LLVMPtrLength[Pre] => llvm.rewritePtrLength(llvmPL)
+      case llvmImply: LLVMImplies[Pre] => llvm.rewriteImplies(llvmImply)
+      case llvmAnd: LLVMAnd[Pre] => llvm.rewriteAnd(llvmAnd)
+      case llvmOr: LLVMOr[Pre] => llvm.rewriteOr(llvmOr)
+      case llvmStar: LLVMStar[Pre] => llvm.rewriteStar(llvmStar)
+      case llvmOld: LLVMOld[Pre] => llvm.rewriteOld(llvmOld)
+      case eq: AmbiguousEq[Pre] =>
+        llvm.correctPointerComparison(
+          eq.left,
+          eq.right,
+          AmbiguousEq(_, _, dispatch(eq.vectorInnerType), _)(e.o),
+        )(e.o)
+      case neq: AmbiguousNeq[Pre] =>
+        llvm.correctPointerComparison(
+          neq.left,
+          neq.right,
+          AmbiguousNeq(_, _, dispatch(neq.vectorInnerType), _)(e.o),
+        )(e.o)
+      case sel: Select[Pre] =>
+        llvm.correctPointerComparison(
+          sel.whenTrue,
+          sel.whenFalse,
+          (l, r, _) => Select(dispatch(sel.condition), l, r)(e.o),
+        )(e.o)
+      case b @ BitAnd(left, right, 0, true) =>
+        BitAnd(
+          dispatch(left),
+          dispatch(right),
+          determineBitVectorSize(e, left, right),
+          determineBitVectorSignedness(e, left, right),
+        )(b.blame)(e.o)
+      case b @ BitOr(left, right, 0, true) =>
+        BitOr(
+          dispatch(left),
+          dispatch(right),
+          determineBitVectorSize(e, left, right),
+          determineBitVectorSignedness(e, left, right),
+        )(b.blame)(e.o)
+      case b @ BitXor(left, right, 0, true) =>
+        BitXor(
+          dispatch(left),
+          dispatch(right),
+          determineBitVectorSize(e, left, right),
+          determineBitVectorSignedness(e, left, right),
+        )(b.blame)(e.o)
+      case b @ BitShl(left, right, 0, true) =>
+        BitShl(
+          dispatch(left),
+          dispatch(right),
+          determineBitVectorSize(e, left, right),
+          isSigned(left.t),
+        )(b.blame)(e.o)
+      case b @ AmbiguousBitShr(left, right) =>
+        if (isSigned(left.t)) {
+          BitShr(
+            dispatch(left),
+            dispatch(right),
+            determineBitVectorSize(e, left, right),
+          )(b.blame)(e.o)
+        } else {
+          BitUShr(
+            dispatch(left),
+            dispatch(right),
+            determineBitVectorSize(e, left, right),
+            signed = false,
+          )(b.blame)(e.o)
+        }
+      case b @ BitShr(left, right, 0) =>
+        if (!determineBitVectorSignedness(e, left, right)) {
+          throw UnsignedArithmeticShift(b)
+        }
+        BitShr(
+          dispatch(left),
+          dispatch(right),
+          determineBitVectorSize(e, left, right),
+        )(b.blame)(e.o)
+      case b @ BitUShr(left, right, 0, true) =>
+        BitUShr(
+          dispatch(left),
+          dispatch(right),
+          determineBitVectorSize(e, left, right),
+          isSigned(left.t),
+        )(b.blame)(e.o)
+      case b @ BitNot(arg, 0, true) =>
+        BitNot(
+          dispatch(arg),
+          determineBitVectorSize(e, arg, arg),
+          determineBitVectorSignedness(e, arg, arg),
+        )(b.blame)(e.o)
 
-      case other => rewriteDefault(other)
+      case cmp: AmbiguousComparison[Pre] => c.rewriteComparison(cmp)
+      case ord: AmbiguousOrderOp[Pre] => c.rewriteComparison(ord)
+
+      case other => super.dispatch(other)
     }
 
-  override def dispatch(t: Type[Pre]): Type[Post] =
+  private def setSize(t: Type[Post], size: TypeSize): Type[Post] = {
+    t.storedBits = size
+    t
+  }
+
+  private def isSigned(t: Type[Pre]): Boolean =
     t match {
-      case t: JavaTClass[Pre] => java.classType(t)
-      case t: CTPointer[Pre] => c.pointerType(t)
-      case t: CTVector[Pre] => c.vectorType(t)
-      case t: TOpenCLVector[Pre] => c.vectorType(t)
-      case t: CTArray[Pre] => c.arrayType(t)
-      case t: CTStruct[Pre] => c.structType(t)
-      case t: LLVMTInt[Pre] => TInt()(t.o)
-      case t: LLVMTFloat[Pre] => TFloat(t.exponent, t.mantissa)
-      case t: LLVMTStruct[Pre] => llvm.structType(t)
-      case t: LLVMTPointer[Pre] => llvm.pointerType(t)
-      case t: LLVMTArray[Pre] => llvm.arrayType(t)
-      case t: LLVMTVector[Pre] => llvm.vectorType(t)
-      case t: LLVMTMetadata[Pre] =>
-        TInt()(
-          t.o
-        ) // TODO: Ignore these by just assuming they're integers... or could we do TVoid?
-      case t: CPPTArray[Pre] => cpp.arrayType(t)
+      case t: BitwiseType[Pre] => t.signed
+      case _ => true
+    }
+
+  override def dispatch(t: Type[Pre]): Type[Post] = {
+    setSize(
+      t match {
+        case t: JavaTClass[Pre] => java.classType(t)
+        case t: CPointerType[Pre] => c.pointerType(t)
+        case _: CTFunction[Pre] => TVoid()
+        case t: CTVector[Pre] => c.vectorType(t)
+        case t: TOpenCLVector[Pre] => c.vectorType(t)
+        case t: TCInt[Pre] =>
+          val cint = t.rewriteDefault()
+          cint.signed = t.signed
+          cint
+        case t: CTArray[Pre] => c.arrayType(t)
+        case t: CTStruct[Pre] => c.structType(t)
+        case t: CTStructUnique[Pre] => c.structType(t)
+        case t: LLVMTInt[Pre] => llvm.intType(t)
+        case t: LLVMTFloat[Pre] => TFloat(t.exponent, t.mantissa)
+        case t: LLVMTStruct[Pre] => llvm.structType(t)
+        case t: LLVMTPointer[Pre] => llvm.pointerType(t)
+        case t: LLVMTArray[Pre] => llvm.arrayType(t)
+        case t: LLVMTVector[Pre] => llvm.vectorType(t)
+        case t: LLVMTMetadata[Pre] =>
+          TInt()(
+            t.o
+          ) // TODO: Ignore these by just assuming they're integers... or could we do TVoid?
+        case t: CPPTArray[Pre] => cpp.arrayType(t)
+        case other => super.dispatch(other)
+      },
+      t.storedBits,
+    )
+  }
+
+  private def determineBitVectorSize(
+      op: Expr[Pre],
+      left: Expr[Pre],
+      right: Expr[Pre],
+  ): Int = {
+    (
+      BinOperatorTypes.getBits(left.t),
+      BinOperatorTypes.getBits(right.t),
+    ) match {
+      case (0, _) | (_, 0) => throw IndeterminableBitVectorSize(op)
+      case (l, r) if l > r => l
+      case (_, r) => r
+    }
+  }
+
+  private def determineBitVectorSignedness(
+      op: Expr[Pre],
+      left: Expr[Pre],
+      right: Expr[Pre],
+  ): Boolean = {
+    (left.t, right.t) match {
+      case (l: BitwiseType[Pre], r: BitwiseType[Pre]) =>
+        if (l.signed == r.signed) { l.signed }
+        else { throw IncompatibleBitVectorSign(op, l.signed, r.signed) }
+      case (TUnique(l: BitwiseType[Pre], _), TUnique(r: BitwiseType[Pre], _)) =>
+        if (l.signed == r.signed) { l.signed }
+        else { throw IncompatibleBitVectorSign(op, l.signed, r.signed) }
+      case (l: BitwiseType[Pre], TUnique(r: BitwiseType[Pre], _)) =>
+        if (l.signed == r.signed) { l.signed }
+        else { throw IncompatibleBitVectorSign(op, l.signed, r.signed) }
+      case (TUnique(l: BitwiseType[Pre], _), r: BitwiseType[Pre]) =>
+        if (l.signed == r.signed) { l.signed }
+        else { throw IncompatibleBitVectorSign(op, l.signed, r.signed) }
+      case _ => throw IndeterminableBitVectorSign(op)
+    }
+  }
+
+  override def dispatch(
+      node: LoopContract[Pre]
+  ): LoopContract[Rewritten[Pre]] = {
+    node match {
+      case llvmLoopContract: LLVMLoopContract[Pre] =>
+        llvm.rewriteLoopContract(llvmLoopContract)
       case other => rewriteDefault(other)
     }
+  }
 }

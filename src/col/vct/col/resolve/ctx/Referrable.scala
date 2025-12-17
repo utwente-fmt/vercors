@@ -40,7 +40,7 @@ sealed trait Referrable[G] {
       case RefUnloadedJavaNamespace(_) => ""
       case RefCStruct(decl: CGlobalDeclaration[_]) =>
         decl.decl match {
-          case CDeclaration(_, _, Seq(defn: CStructDeclaration[G]), Seq()) =>
+          case CDeclaration(_, Seq(defn: CStructDeclaration[G]), Seq()) =>
             defn.name.getOrElse("")
           case _ => ???
         }
@@ -140,9 +140,9 @@ case object Referrable {
         return decl.decls.indices.map(RefCStructField(decl, _))
       case decl: CGlobalDeclaration[G] =>
         decl.decl match {
-          case CDeclaration(_, _, Seq(_: CStructDeclaration[G]), Seq()) =>
+          case CDeclaration(_, Seq(_: CStructDeclaration[G]), Seq()) =>
             RefCStruct(decl)
-          case CDeclaration(_, _, CTypedef() +: _, _) => RefTypeDef(decl)
+          case CDeclaration(_, CTypedef() +: _, _) => RefTypeDef(decl)
           case _ =>
             return decl.decl.inits.indices.map(RefCGlobalDeclaration(decl, _))
         }

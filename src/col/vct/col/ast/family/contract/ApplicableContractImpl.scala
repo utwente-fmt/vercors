@@ -4,18 +4,25 @@ import vct.col.ast.{
   ApplicableContract,
   BooleanValue,
   Node,
+  TResource,
   UnitAccountedPredicate,
 }
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.print._
-import vct.col.ast.ops.{ApplicableContractOps, ApplicableContractFamilyOps}
+import vct.col.ast.ops.{ApplicableContractFamilyOps, ApplicableContractOps}
 
 trait ApplicableContractImpl[G]
     extends NodeFamilyImpl[G]
     with ApplicableContractOps[G]
     with ApplicableContractFamilyOps[G] {
   this: ApplicableContract[G] =>
+
+  // Requires and ensures are checked in UnitAccountedPredicate
+  override def check(context: CheckContext[G]): Seq[CheckError] =
+    contextEverywhere.checkSubType(TResource()) ++
+      kernelInvariant.checkSubType(TResource())
+
   override def checkContextRecursor[T](
       context: CheckContext[G],
       f: (CheckContext[G], Node[G]) => T,
@@ -26,6 +33,7 @@ trait ApplicableContractImpl[G]
             requires,
             ensures,
             contextEverywhere,
+            kernelInvariant,
             signals,
             givenArgs,
             yieldsArgs,
@@ -35,6 +43,9 @@ trait ApplicableContractImpl[G]
           f(context.withPostcondition, ensures) +: f(
             context.withUndeclared(yieldsArgs).withPrecondition,
             contextEverywhere,
+          ) +: f(
+            context.withUndeclared(yieldsArgs).withPrecondition,
+            kernelInvariant,
           ) +:
           (signals.map(f(context, _)) ++ givenArgs.map(f(context, _)) ++
             yieldsArgs.map(f(context, _)) ++
@@ -46,6 +57,7 @@ trait ApplicableContractImpl[G]
       case ApplicableContract(
             UnitAccountedPredicate(BooleanValue(true)),
             UnitAccountedPredicate(BooleanValue(true)),
+            BooleanValue(true),
             BooleanValue(true),
             Nil,
             Nil,
@@ -62,6 +74,7 @@ trait ApplicableContractImpl[G]
     Doc.stack(Seq(
       Doc.stack(givenArgs.map(Text("given") <+> _.show <> ";")),
       Doc.stack(yieldsArgs.map(Text("yields") <+> _.show <> ";")),
+      DocUtil.clauses("kernel_invariant", kernelInvariant),
       DocUtil.clauses("context_everywhere", contextEverywhere),
       DocUtil.clauses("requires", requires),
       Doc.stack(decreases.toSeq),
@@ -73,6 +86,7 @@ trait ApplicableContractImpl[G]
     Doc.stack(Seq(
       Doc.stack(givenArgs.map(Text("given") <+> _.show)),
       Doc.stack(yieldsArgs.map(Text("yields") <+> _.show)),
+      DocUtil.clauses("kernel_invariant", kernelInvariant),
       DocUtil.clauses("context_everywhere", contextEverywhere),
       DocUtil.clauses("requires", requires),
       Doc.stack(decreases.toSeq),

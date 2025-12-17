@@ -9,7 +9,7 @@ trait BitOpImpl[G] {
     if (isBoolOp)
       TBool()
     else if (isCIntOp)
-      TCInt()
+      getNumericType
     else
       TInt()
 }

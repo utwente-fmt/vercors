@@ -3,7 +3,7 @@
 
 const std::string SOURCE_LOC = "Transform::Instruction::UnaryOp";
 void llvm2col::transformUnaryOp(llvm::Instruction &llvmInstruction,
-                                col::Block &colBlock,
+                                col::LlvmBasicBlock &colBlock,
                                 pallas::FunctionCursor &funcCursor) {
     // TODO stub
     reportUnsupportedOperatorError(SOURCE_LOC, llvmInstruction);

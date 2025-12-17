@@ -46,6 +46,16 @@ case object EncodeByValueClassUsage extends RewriterBuilder {
     }
   }
 
+  private case class InvocationBlameAdapter(blame: Blame[InvocationFailure])
+      extends Blame[PointerDerefError] {
+    override def blame(error: PointerDerefError) =
+      error match {
+        case e @ CopyClassFailed(_, _, _) => blame.blame(e)
+        case e @ CopyClassFailedBeforeCall(_, _, _) => blame.blame(e)
+        case _ => ???
+      }
+  }
+
   case class UnsupportedStructPerm(o: Origin) extends UserError {
     override def code: String = "unsupportedStructPerm"
     override def text: String =
@@ -64,19 +74,19 @@ case object EncodeByValueClassUsage extends RewriterBuilder {
   private case class InAssignmentStatement(assignment: Assign[_])
       extends CopyContext
 
-  private case class NoCopy() extends CopyContext
 }
 
 case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
 
   import EncodeByValueClassUsage._
 
-  private val inAssignment: ScopedStack[Unit] = ScopedStack()
-  private val copyContext: ScopedStack[CopyContext] = ScopedStack()
-  copyContext.push(NoCopy())
   private val classCreationMethodsSucc
       : SuccessionMap[TByValueClass[Pre], Procedure[Post]] = SuccessionMap()
+  private val heapLocalArgSucc
+      : SuccessionMap[Variable[Pre], LocalHeapVariable[Post]] = SuccessionMap()
+  private val inContract: ScopedStack[Unit] = ScopedStack()
 
+  // Duplicated in LowerHeapVariables, keep in sync
   def makeClassCreationMethod(t: TByValueClass[Pre]): Procedure[Post] = {
     implicit val o: Origin = t.cls.decl.o
 
@@ -86,7 +96,7 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
         contractBlame = TrueSatisfiable,
         returnType = dispatch(t),
         ensures = UnitAccountedPredicate(
-          unwrapClassPerm(result, WritePerm(), t)
+          unwrapClassPerm(result, Perm(_, WritePerm()), t)
         ),
         decreases = Some(DecreasesClauseNoRecursion[Post]()),
       )
@@ -96,80 +106,48 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(node: Statement[Pre]): Statement[Post] = {
     implicit val o: Origin = node.o
     node match {
-      case HeapLocalDecl(local)
-          if local.t.asPointer.get.element.asByValueClass.isDefined => {
-        val t = local.t.asPointer.get.element.asByValueClass.get
-        val newLocal = localHeapVariables.dispatch(local)
-        Block(Seq(
-          HeapLocalDecl(newLocal),
-//          Assign(
-//            HeapLocal[Post](newLocal.ref),
-//            NewNonNullPointerArray(t, const(1))(PanicBlame("Size > 0")),
-//          )(AssignLocalOk),
-          // TODO: Only do this if the first use does not overwrite it again (do something similar to what I implemented in ImportPointer)....
-          Assign(
-            newLocal.get(DerefAssignTarget),
-            procedureInvocation[Post](
-              TrueSatisfiable,
-              classCreationMethodsSucc
-                .getOrElseUpdate(t, makeClassCreationMethod(t)).ref,
-            ),
-          )(AssignLocalOk),
-        ))
-      }
       case assign: Assign[Pre] =>
-        val target = inAssignment.having(()) { dispatch(assign.target) }
+        val target = dispatch(assign.target)
         assign.target.t match {
-          case _: TByValueClass[Pre] =>
-            copyContext.having(InAssignmentStatement(assign)) {
-              assign.rewrite(target = target)
-            }
+          case t: TByValueClass[Pre] =>
+            doCopy(assign.value, target, t, InAssignmentStatement(assign))
           case _ => assign.rewrite(target = target)
         }
       case _ => node.rewriteDefault()
     }
   }
 
-  private def copyClassValue(
+  private def copyClassValue2(
       obj: Expr[Post],
       t: TByValueClass[Pre],
+      target: Expr[Post],
       blame: InstanceField[Pre] => Blame[InsufficientPermission],
-  ): Expr[Post] = {
+  ): Statement[Post] = {
     implicit val o: Origin = obj.o
-    val ov = new Variable[Post](obj.t)(o.where(name = "original"))
-    val v = new Variable[Post](dispatch(t))(o.where(name = "copy"))
+    val ov = new Variable[Post](dispatch(t))(o.where(name = "original"))
     val children = t.cls.decl.decls.collect { case f: InstanceField[Pre] =>
-      Assign[Post](
-        Deref[Post](v.get, succ(f))(DerefAssignTarget),
-        f.t match {
-          case inner: TByValueClass[Pre] =>
-            copyClassValue(Deref[Post](ov.get, succ(f))(blame(f)), inner, blame)
-          case _ => Deref[Post](ov.get, succ(f))(blame(f))
-        },
-      )(AssignLocalOk)
+      f.t match {
+        case inner: TByValueClass[Pre] =>
+          copyClassValue2(
+            Deref[Post](ov.get, succ(f))(blame(f)),
+            inner,
+            Deref[Post](target, succ(f))(DerefAssignTarget),
+            blame,
+          )
+        case _ =>
+          Assign[Post](
+            Deref[Post](target, succ(f))(DerefAssignTarget),
+            Deref[Post](ov.get, succ(f))(blame(f)),
+          )(AssignLocalOk)
+      }
     }
-    ScopedExpr(
-      Seq(ov, v),
-      Then(
-        With(
-          assignLocal(ov.get, obj),
-          PreAssignExpression(
-            v.get,
-            procedureInvocation[Post](
-              TrueSatisfiable,
-              classCreationMethodsSucc
-                .getOrElseUpdate(t, makeClassCreationMethod(t)).ref,
-            ),
-          )(AssignLocalOk),
-        ),
-        Block(children),
-      ),
-    )
+    Scope(Seq(ov), Block(assignLocal(ov.get, obj) +: children))
   }
 
+  // Duplicated in LowerHeapVariables, keep in sync
   private def unwrapClassPerm(
       obj: Expr[Post],
-      perm: Expr[Post],
+      perm: Location[Post] => Expr[Post],
       structType: TByValueClass[Pre],
       visited: Seq[TByValueClass[Pre]] = Seq(),
   ): Expr[Post] = {
@@ -186,13 +164,13 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
       val loc = FieldLocation[Post](obj, succ(member))
       member.t match {
         case inner: TByValueClass[Pre] =>
-          Perm[Post](loc, perm) &* unwrapClassPerm(
+          unwrapClassPerm(
             Deref[Post](obj, succ(member))(blame),
             perm,
             inner,
             structType +: visited,
           )
-        case _ => Perm(loc, perm)
+        case _ => perm(loc)
       }
     })
 
@@ -209,13 +187,22 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
           classCreationMethodsSucc
             .getOrElseUpdate(t, makeClassCreationMethod(t)).ref,
         )
-      case _ if inAssignment.nonEmpty => node.rewriteDefault()
       case Perm(ByValueClassLocation(e), p) =>
-        unwrapClassPerm(dispatch(e), dispatch(p), e.t.asByValueClass.get)
+        val permission = dispatch(p)
+        unwrapClassPerm(
+          dispatch(e),
+          Perm(_, permission),
+          e.t.asByValueClass.get,
+        )
+      case Value(ByValueClassLocation(e)) =>
+        unwrapClassPerm(dispatch(e), Value(_), e.t.asByValueClass.get)
+      case AutoValue(ByValueClassLocation(e)) =>
+        unwrapClassPerm(dispatch(e), AutoValue(_), e.t.asByValueClass.get)
       // Only doing this for TNonNullPointer pointers since those originate from the frontend and users can define heap variables of the normal TPointer pointer type
       case Perm(pl @ PointerLocation(dhv @ DerefHeapVariable(Ref(v))), p)
-          if v.t.isInstanceOf[TNonNullPointer[Pre]] =>
-        val t = v.t.asInstanceOf[TNonNullPointer[Pre]]
+          if v.t.isInstanceOf[TNonNullPointer[Pre]] ||
+            v.t.isInstanceOf[TNonNullConstPointer[Pre]] =>
+        val t = v.t.asPointer.get
         if (t.element.asByValueClass.isDefined) {
           val newV: Ref[Post, HeapVariable[Post]] = succ(v)
           val newP = dispatch(p)
@@ -225,69 +212,192 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
           )
         } else { node.rewriteDefault() }
       case assign: PreAssignExpression[Pre] =>
-        val target = inAssignment.having(()) { dispatch(assign.target) }
-        if (assign.target.t.asByValueClass.isDefined) {
-          copyContext.having(InAssignmentExpression(assign)) {
-            assign.rewrite(target = target)
-          }
-        } else {
-          // No need for copy semantics in this context
-          copyContext.having(NoCopy()) { assign.rewrite(target = target) }
+        val target = dispatch(assign.target)
+        assign.t match {
+          case t: TByValueClass[Pre] =>
+            With(
+              doCopy(assign.value, target, t, InAssignmentExpression(assign)),
+              target,
+            )
+          case _ => assign.rewrite(target = target)
         }
       case invocation: Invocation[Pre] =>
         invocation.rewrite(args = invocation.args.map { a =>
-          if (a.t.asByValueClass.isDefined) {
-            copyContext.having(InCall(invocation)) { dispatch(a) }
-          } else { copyContext.having(NoCopy()) { dispatch(a) } }
+          a.t match {
+            case t: TByValueClass[Pre] =>
+              val v = new Variable(dispatch(t))(a.o.where(name = "copy"))
+              ScopedExpr(
+                Seq(v),
+                With(
+                  Assign(
+                    v.get(a.o),
+                    procedureInvocation[Post](
+                      TrueSatisfiable,
+                      classCreationMethodsSucc
+                        .getOrElseUpdate(t, makeClassCreationMethod(t)).ref,
+                    )(a.o),
+                  )(AssignLocalOk)(a.o),
+                  With(
+                    doCopy(a, v.get(a.o), t, InCall(invocation)),
+                    v.get(a.o),
+                  )(a.o),
+                )(a.o),
+              )(a.o)
+            case _ => dispatch(a)
+          }
         })
-      case dp @ DerefPointer(HeapLocal(Ref(v)))
-          if v.t.asPointer.get.element.asByValueClass.isDefined =>
-        rewriteInCopyContext(dp, v.t.asPointer.get.element.asByValueClass.get)
-      case dp @ DerefPointer(DerefHeapVariable(Ref(v)))
-          if v.t.asPointer.get.element.asByValueClass.isDefined =>
-        rewriteInCopyContext(dp, v.t.asPointer.get.element.asByValueClass.get)
-      case deref @ Deref(_, Ref(f))
-          if f.t.asByValueClass.isDefined && copyContext.top != NoCopy() =>
-        // TODO: Improve blame message here
-        copyClassValue(
-          deref.rewriteDefault(),
-          f.t.asByValueClass.get,
-          f => deref.blame,
-        )
-      case dp @ DerefPointer(Local(Ref(v)))
-          if v.t.asPointer.get.element.asByValueClass.isDefined =>
-        // This can happen if the user specifies a local of type pointer to TByValueClass
-        rewriteInCopyContext(dp, v.t.asPointer.get.element.asByValueClass.get)
+      case Local(Ref(v))
+          if inContract.isEmpty && heapLocalArgSucc.contains(v) =>
+        heapLocalArgSucc(v).get(PanicBlame(
+          "Missing permission to procedure argument of struct type, no suitable blame available"
+        ))
       case _ => node.rewriteDefault()
     }
   }
 
-  private def rewriteInCopyContext(
-      dp: DerefPointer[Pre],
+  override def dispatch(decl: Declaration[Pre]): Unit = {
+    implicit val o: Origin = decl.o
+    decl match {
+      // TODO: AS: This transformation should be moved to LangCToCol to get proper blames
+      case proc: Procedure[Pre] =>
+        val byValueArgs = proc.args.filter(_.t.asByValueClass.isDefined)
+        globalDeclarations.succeed(
+          proc,
+          proc.rewrite(
+            body = proc.body.map(b =>
+              Scope(
+                Nil,
+                localHeapVariables.scope {
+                  Block(byValueArgs.flatMap { v =>
+                    val newVar =
+                      new LocalHeapVariable(
+                        TNonNullPointer(dispatch(v.t), None)
+                      )
+                    heapLocalArgSucc(v) = newVar
+                    Seq(
+                      HeapLocalDecl(newVar),
+                      Assign(
+                        newVar.get(PanicBlame(
+                          "Should always have access to local variable just after declaration"
+                        )),
+                        Local[Post](succ(v)),
+                      )(AssignLocalOk),
+                    )
+                  } :+ dispatch(b))
+                },
+              )
+            ),
+            contract = inContract.having(()) { dispatch(proc.contract) },
+          ),
+        )
+      case _ => super.dispatch(decl)
+    }
+  }
+
+  private def doCopy(
+      e: Expr[Pre],
+      target: Expr[Post],
       t: TByValueClass[Pre],
-  ): Expr[Post] = {
+      context: CopyContext,
+  ): Statement[Post] =
+    e match {
+      case assign: PreAssignExpression[Pre] =>
+        val innerTarget = dispatch(assign.target)
+        Block(Seq(
+          doCopy(assign.value, innerTarget, t, InAssignmentExpression(assign)),
+          doCopy(assign.value, target, t, context),
+        ))(assign.o)
+      case invocation: Invocation[Pre] =>
+        val newInvocation = invocation.rewrite(args = invocation.args.map { a =>
+          a.t match {
+            case t: TByValueClass[Pre] =>
+              val v = new Variable(dispatch(t))(a.o.where(name = "copy"))
+              ScopedExpr(
+                Seq(v),
+                With(
+                  Assign(
+                    v.get(a.o),
+                    procedureInvocation[Post](
+                      TrueSatisfiable,
+                      classCreationMethodsSucc
+                        .getOrElseUpdate(t, makeClassCreationMethod(t)).ref,
+                    )(a.o),
+                  )(AssignLocalOk)(a.o),
+                  With(
+                    doCopy(a, v.get(a.o), t, InCall(invocation)),
+                    v.get(a.o),
+                  )(a.o),
+                )(a.o),
+              )(a.o)
+            case _ => dispatch(a)
+          }
+        })
+        rewriteInCopyContext2(
+          newInvocation,
+          InvocationBlameAdapter(invocation.blame),
+          t,
+          target,
+          context,
+        )
+      case dp @ DerefPointer(_) =>
+        rewriteInCopyContext2(dispatch(dp), dp.blame, t, target, context)
+      case ps @ PointerSubscript(_, _) =>
+        rewriteInCopyContext2(dispatch(ps), ps.blame, t, target, context)
+      case deref @ Deref(_, _) =>
+        // TODO: Improve blame message here
+        copyClassValue2(deref.rewriteDefault(), t, target, f => deref.blame)
+      case Then(value, post) =>
+        Block(Seq(doCopy(value, target, t, context), dispatch(post)))(e.o)
+      case With(pre, value) =>
+        Block(Seq(dispatch(pre), doCopy(value, target, t, context)))(e.o)
+      case Local(Ref(v)) if heapLocalArgSucc.contains(v) =>
+        rewriteInCopyContext2(
+          heapLocalArgSucc(v).get(PanicBlame(
+            "Missing permission to procedure argument of struct type, no suitable blame available"
+          ))(e.o),
+          PanicBlame(
+            "Failed to copy struct that originated from a procedure argument, no suitable blame available"
+          ),
+          t,
+          target,
+          context,
+        )
+      case _ =>
+        println(e)
+        ???
+    }
+
+  private def rewriteInCopyContext2(
+      e: Expr[Post],
+      blame: Blame[PointerDerefError],
+      t: TByValueClass[Pre],
+      target: Expr[Post],
+      context: CopyContext,
+  ): Statement[Post] = {
     val cls = t.cls.decl.asInstanceOf[ByValueClass[Pre]]
 
-    copyContext.top match {
+    context match {
       case InCall(invocation) =>
-        copyClassValue(
-          dp.rewriteDefault(),
+        copyClassValue2(
+          e,
           t,
-          f => ClassCopyInCallFailed(dp.blame, invocation, cls, f),
+          target,
+          f => ClassCopyInCallFailed(blame, invocation, cls, f),
         )
       case InAssignmentExpression(assignment) =>
-        copyClassValue(
-          dp.rewriteDefault(),
+        copyClassValue2(
+          e,
           t,
-          f => ClassCopyInAssignmentFailed(dp.blame, assignment, cls, f),
+          target,
+          f => ClassCopyInAssignmentFailed(blame, assignment, cls, f),
         )
       case InAssignmentStatement(assignment) =>
-        copyClassValue(
-          dp.rewriteDefault(),
+        copyClassValue2(
+          e,
           t,
-          f => ClassCopyInAssignmentFailed(dp.blame, assignment, cls, f),
+          target,
+          f => ClassCopyInAssignmentFailed(blame, assignment, cls, f),
         )
-      case NoCopy() => dp.rewriteDefault()
     }
   }
 }

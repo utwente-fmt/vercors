@@ -3,6 +3,7 @@ package vct.col.rewrite.adt
 import hre.util.ScopedStack
 import vct.col.ast.{
   AxiomaticDataType,
+  Cast,
   CoerceSomethingAnyValue,
   Coercion,
   Expr,
@@ -12,6 +13,7 @@ import vct.col.ast.{
   TAxiomatic,
   TType,
   Type,
+  TypeValue,
 }
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.LazyRef
@@ -48,10 +50,23 @@ case class ImportAny[Pre <: Generation](importer: ImportADTImporter)
       case TType(TAnyValue()) =>
         // Only the any adt definition refers to itself, so this is the only place this trick is necessary.
         if (inAnyLoad.isEmpty)
-          rewriteDefault(t)
+          super.postCoerce(t)
         else
           TType(TAxiomatic(new LazyRef(anyAdt), Nil))
       case TAnyValue() => TAxiomatic(anyAdt.ref, Nil)
-      case other => rewriteDefault(other)
+      case other => super.postCoerce(other)
+    }
+
+  override def postCoerce(e: Expr[Pre]): Expr[Post] =
+    e match {
+      case Cast(value, TypeValue(TAnyValue())) =>
+        FunctionInvocation[Post](
+          anyFrom.ref,
+          Seq(dispatch(value)),
+          Seq(dispatch(value.t)),
+          Nil,
+          Nil,
+        )(PanicBlame("coercing to any requires nothing."))(e.o)
+      case other => super.postCoerce(other)
     }
 }

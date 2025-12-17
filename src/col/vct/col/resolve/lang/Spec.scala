@@ -75,12 +75,13 @@ case object Spec {
   }
 
   def builtinField[G](
-      obj: Expr[G],
+      objT: Type[G],
       field: String,
       blame: Blame[BuiltinError],
+      origin: Origin,
   ): Option[BuiltinField[G]] = {
-    implicit val o: Origin = obj.o
-    Some(BuiltinField((obj.t, field) match {
+    implicit val o: Origin = origin
+    Some(BuiltinField((objT, field) match {
       case (TArray(_), "length") => Length(_)(blame)
 
       case (_: SizedType[G], "isEmpty") => Empty(_)

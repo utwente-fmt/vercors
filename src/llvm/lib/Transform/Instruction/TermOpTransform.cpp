@@ -3,16 +3,16 @@
 #include "Origin/OriginProvider.h"
 #include "Transform/BlockTransform.h"
 #include "Transform/Transform.h"
+#include "Util/BlockUtils.h"
 #include "Util/Exceptions.h"
 
 #include <llvm/Analysis/CFG.h>
 #include <llvm/Support/raw_ostream.h>
 
-
 const std::string SOURCE_LOC = "Transform::Instruction::TermOp";
 
 void llvm2col::transformTermOp(llvm::Instruction &llvmInstruction,
-                               col::Block &colBlock,
+                               col::LlvmBasicBlock &colBlock,
                                pallas::FunctionCursor &funcCursor) {
     switch (llvm::Instruction::TermOps(llvmInstruction.getOpcode())) {
     case llvm::Instruction::Ret:
@@ -39,9 +39,10 @@ void llvm2col::transformTermOp(llvm::Instruction &llvmInstruction,
 }
 
 void llvm2col::transformRet(llvm::ReturnInst &llvmRetInstruction,
-                            col::Block &colBlock,
+                            col::LlvmBasicBlock &colBlock,
                             pallas::FunctionCursor &funcCursor) {
-    col::Return *returnStatement = colBlock.add_statements()->mutable_return_();
+    col::Return *returnStatement =
+        colBlock.mutable_terminator()->mutable_return_();
     returnStatement->set_allocated_origin(
         generateSingleStatementOrigin(llvmRetInstruction));
 
@@ -57,14 +58,11 @@ void llvm2col::transformRet(llvm::ReturnInst &llvmRetInstruction,
 }
 
 void llvm2col::transformConditionalBranch(llvm::BranchInst &llvmBrInstruction,
-                                          col::Block &colBlock,
+                                          col::LlvmBasicBlock &colBlock,
                                           pallas::FunctionCursor &funcCursor) {
-    col::Branch *colBranch = colBlock.add_statements()->mutable_branch();
+    col::Branch *colBranch = colBlock.mutable_terminator()->mutable_branch();
     colBranch->set_allocated_origin(
         generateSingleStatementOrigin(llvmBrInstruction));
-    // pre-declare completion because the final branch statement is already
-    // present
-    funcCursor.complete(colBlock);
 
     /*
      * I hear you think, why query the 2nd operand? wouldn't that be the false
@@ -94,53 +92,17 @@ void llvm2col::transformConditionalBranch(llvm::BranchInst &llvmBrInstruction,
                         *llvmBrInstruction.getCondition(),
                         *colTrueBranch->mutable_v1());
 
-    // Check if the true-branch is empty (i.e. if it jumps directly to a block
-    // that is also reachable from the false-branch). In that case, we need to
-    // add an empty block to ensure that assignments of phi-instructions get
-    // propagated correctly.
-    bool trueBranchEmpty =
-        isPotentiallyReachable(llvmFalseBlock, llvmTrueBlock);
-    if (trueBranchEmpty) {
-        // Build a new, empty Basic-block as a target for phi-assignments
-        pallas::LabeledColBlock emptyTrueBlock =
-            funcCursor.generateIntermediaryLabeledColBlock(llvmBrInstruction);
-        // Build block that is targeted by the true-branch
-        pallas::LabeledColBlock originalTrueBlock =
-            funcCursor.getOrSetLLVMBlock2LabeledColBlockEntry(*llvmTrueBlock);
-
-        // Add the new block to the map of phi-targets
-        funcCursor.addNewPhiAssignmentTargetBlock(
-            colBlock, originalTrueBlock.block, emptyTrueBlock.block);
-
-        // Add goto to the empty block
-        col::Goto *gotoTrueEmpty = colTrueBranch->mutable_v2()->mutable_goto_();
-        gotoTrueEmpty->mutable_lbl()->set_id(emptyTrueBlock.bb.label().id());
-        gotoTrueEmpty->set_allocated_origin(
-            generateSingleStatementOrigin(llvmBrInstruction));
-
-        // Extend the empty bock with a goto to the original target block
-        col::Goto *gotoTrueOriginal =
-            emptyTrueBlock.block.add_statements()->mutable_goto_();
-        gotoTrueOriginal->mutable_lbl()->set_id(
-            originalTrueBlock.bb.label().id());
-        gotoTrueOriginal->set_allocated_origin(
-            generateSingleStatementOrigin(llvmBrInstruction));
-        // Mark the 'empty' block as completed
-        funcCursor.complete(emptyTrueBlock.block);
-    } else {
-        // get or pre-generate target labeled block
-        pallas::LabeledColBlock labeledTrueColBlock =
-            funcCursor.getOrSetLLVMBlock2LabeledColBlockEntry(*llvmTrueBlock);
-        // goto statement to true block
-        col::Goto *trueGoto = colTrueBranch->mutable_v2()->mutable_goto_();
-        trueGoto->mutable_lbl()->set_id(labeledTrueColBlock.bb.label().id());
-        // set origin for goto to true block
-        trueGoto->set_allocated_origin(
-            generateSingleStatementOrigin(llvmBrInstruction));
-    }
+    // get or pre-generate target labeled block
+    col::LlvmBasicBlock &labeledTrueColBlock =
+        funcCursor.getOrSetLLVMBlock2ColBlockEntry(*llvmTrueBlock);
+    // goto statement to true block
+    col::Goto *trueGoto = colTrueBranch->mutable_v2()->mutable_goto_();
+    trueGoto->mutable_lbl()->set_id(labeledTrueColBlock.label().id());
+    // set origin for goto to true block
+    trueGoto->set_allocated_origin(
+        generateSingleStatementOrigin(llvmBrInstruction));
 
     // false branch
-    // TODO: Implemnt case for empty false-branch (identical to true-branch)
     col::Tuple2_VctColAstExpr_VctColAstStatement *colFalseBranch =
         colBranch->add_branches();
     // set conditional (which is a true constant as else == else if(true)))
@@ -151,55 +113,22 @@ void llvm2col::transformConditionalBranch(llvm::BranchInst &llvmBrInstruction,
     elseCondition->set_allocated_origin(generateOperandOrigin(
         llvmBrInstruction, *llvmBrInstruction.getCondition()));
 
-    bool falseBranchEmpty =
-        isPotentiallyReachable(llvmTrueBlock, llvmFalseBlock);
+    col::LlvmBasicBlock &labeledFalseColBlock =
+        funcCursor.getOrSetLLVMBlock2ColBlockEntry(*llvmFalseBlock);
+    // goto statement to false block
+    col::Goto *falseGoto = colFalseBranch->mutable_v2()->mutable_goto_();
+    falseGoto->mutable_lbl()->set_id(labeledFalseColBlock.label().id());
+    // set origin for goto to false block
+    falseGoto->set_allocated_origin(
+        llvm2col::generateSingleStatementOrigin(llvmBrInstruction));
 
-    if (falseBranchEmpty) {
-        // Build a new, empty Basic-block as a target for phi-assignments
-        pallas::LabeledColBlock emptyFalseBlock =
-            funcCursor.generateIntermediaryLabeledColBlock(llvmBrInstruction);
-        // Build block that is targeted by the false-branch
-        pallas::LabeledColBlock originalFalseBlock =
-            funcCursor.getOrSetLLVMBlock2LabeledColBlockEntry(*llvmFalseBlock);
-
-        // Add the new block to the map of phi-targets
-        funcCursor.addNewPhiAssignmentTargetBlock(
-            colBlock, originalFalseBlock.block, emptyFalseBlock.block);
-
-        // Add goto to the empty block
-        col::Goto *gotoFalseEmpty =
-            colFalseBranch->mutable_v2()->mutable_goto_();
-        gotoFalseEmpty->mutable_lbl()->set_id(emptyFalseBlock.bb.label().id());
-        gotoFalseEmpty->set_allocated_origin(
-            generateSingleStatementOrigin(llvmBrInstruction));
-
-        // Extend the empty bock with a goto to the original target block
-        col::Goto *gotoFalseOriginal =
-            emptyFalseBlock.block.add_statements()->mutable_goto_();
-        gotoFalseOriginal->mutable_lbl()->set_id(
-            originalFalseBlock.bb.label().id());
-        gotoFalseOriginal->set_allocated_origin(
-            generateSingleStatementOrigin(llvmBrInstruction));
-        // Mark the 'empty' block as completed
-        funcCursor.complete(emptyFalseBlock.block);
-    } else {
-        pallas::LabeledColBlock labeledFalseColBlock =
-            funcCursor.getOrSetLLVMBlock2LabeledColBlockEntry(*llvmFalseBlock);
-        // goto statement to false block
-        col::Goto *falseGoto = colFalseBranch->mutable_v2()->mutable_goto_();
-        falseGoto->mutable_lbl()->set_id(labeledFalseColBlock.bb.label().id());
-        // set origin for goto to false block
-        falseGoto->set_allocated_origin(
-            llvm2col::generateSingleStatementOrigin(llvmBrInstruction));
-    }
-
-    // Transform the blovks of the branches
+    // Transform the blocks of the branches
     transformLLVMBlock(*llvmTrueBlock, funcCursor);
     transformLLVMBlock(*llvmFalseBlock, funcCursor);
 }
 
 void llvm2col::transformUnConditionalBranch(
-    llvm::BranchInst &llvmBrInstruction, col::Block &colBlock,
+    llvm::BranchInst &llvmBrInstruction, col::LlvmBasicBlock &colBlock,
     pallas::FunctionCursor &funcCursor) {
     // get llvm target block
     auto *llvmTargetBlock =
@@ -207,23 +136,21 @@ void llvm2col::transformUnConditionalBranch(
     // transform llvm targetBlock
     transformLLVMBlock(*llvmTargetBlock, funcCursor);
     // get or pre generate target labeled block
-    pallas::LabeledColBlock labeledColBlock =
-        funcCursor.getOrSetLLVMBlock2LabeledColBlockEntry(*llvmTargetBlock);
+    col::LlvmBasicBlock &labeledColBlock =
+        funcCursor.getOrSetLLVMBlock2ColBlockEntry(*llvmTargetBlock);
     // create goto to target labeled block
-    col::Goto *colGoto = colBlock.add_statements()->mutable_goto_();
-    colGoto->mutable_lbl()->set_id(labeledColBlock.bb.label().id());
+    col::Goto *colGoto = colBlock.mutable_terminator()->mutable_goto_();
+    colGoto->mutable_lbl()->set_id(labeledColBlock.label().id());
     // set origin of goto statement
     colGoto->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(llvmBrInstruction));
-    // pre-declare completion because the final goto is already present
-    funcCursor.complete(colBlock);
 }
 
 void llvm2col::transformUnreachable(
-    llvm::UnreachableInst &llvmUnreachableInstruction, col::Block &colBlock,
-    pallas::FunctionCursor &funcCursor) {
+    llvm::UnreachableInst &llvmUnreachableInstruction,
+    col::LlvmBasicBlock &colBlock, pallas::FunctionCursor &funcCursor) {
     col::LlvmBranchUnreachable *unreachableStatement =
-        colBlock.add_statements()->mutable_llvm_branch_unreachable();
+        colBlock.mutable_terminator()->mutable_llvm_branch_unreachable();
     unreachableStatement->set_allocated_origin(
         generateSingleStatementOrigin(llvmUnreachableInstruction));
     unreachableStatement->set_allocated_blame(new col::Blame());

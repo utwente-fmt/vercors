@@ -105,7 +105,7 @@ case object LangCPPToCol {
           kernelLambda.blame.blame(SYCLKernelLambdaFailure(
             KernelPostconditionFailed(failure, Right(kernelLambda))
           ))
-        case TerminationMeasureFailed(applicable, apply, measure) =>
+        case error: TerminationMeasureFailed =>
           PanicBlame("Kernel lambdas do not have a termination measure yet")
             .blame(error)
         case ContextEverywhereFailedInPost(failure, node) =>
@@ -516,7 +516,7 @@ case object LangCPPToCol {
             (node.o, c.descInContext + ", since ..."),
             (failure.node.o, "... " + failure.descCompletion),
           )
-        case TerminationMeasureFailed(_, _, _) =>
+        case error: TerminationMeasureFailed =>
           PanicBlame(
             "This kernel class constructor should always be able to terminate."
           ).blame(error)
@@ -969,7 +969,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             declared = true
           case None =>
             cppGlobalNameSuccessor(RefCPPGlobalDeclaration(decl, idx)) = rw
-              .globalDeclarations.declare(new HeapVariable(t)(namedO))
+              .globalDeclarations
+              .declare(new HeapVariable(t, init.init.map(rw.dispatch))(namedO))
         }
       }
     }
@@ -1166,6 +1167,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           args,
           givenMap,
           yields,
+          reveal = false,
           inv,
           inv.blame,
         )
@@ -1945,7 +1947,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   )(implicit o: Origin): IterVariable[Post] = {
     val variable =
       new Variable[Post](TCInt())(o.where(name = s"${scope.idName}_$dimension"))
-    new IterVariable[Post](variable, CIntegerValue(0), maxRange)
+    new IterVariable[Post](variable, c_const(0), maxRange)
   }
 
   // Used for generation the contract for the method wrapping the parblocks
@@ -2677,18 +2679,18 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     decl.decl.specs match {
       case Seq(CPPSpecificationType(cta @ CPPTArray(sizeOption, oldT))) =>
         val t = rw.dispatch(oldT)
-        val v = new Variable[Post](TPointer(t))(o.sourceName(info.name))
+        val v = new Variable[Post](TPointer(t, None))(o.sourceName(info.name))
         cppNameSuccessor(RefCPPLocalDeclaration(decl, 0)) = v
 
         (sizeOption, init.init) match {
           case (None, None) => throw WrongCPPType(decl)
           case (Some(size), None) =>
             val newArr =
-              NewNonNullPointerArray[Post](t, rw.dispatch(size))(cta.blame)
+              NewNonNullPointer[Post](t, rw.dispatch(size), None)(cta.blame)
             Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
           case (None, Some(CPPLiteralArray(exprs))) =>
             val newArr =
-              NewNonNullPointerArray[Post](t, c_const[Post](exprs.size))(
+              NewNonNullPointer[Post](t, c_const[Post](exprs.size), None)(
                 cta.blame
               )
             Block(
@@ -2701,7 +2703,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             if (realSize < exprs.size)
               logger.warn(s"Excess elements in array initializer: '${decl}'")
             val newArr =
-              NewNonNullPointerArray[Post](t, c_const[Post](realSize))(
+              NewNonNullPointer[Post](t, c_const[Post](realSize), None)(
                 cta.blame
               )
             Block(
@@ -2731,6 +2733,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def arrayType(t: CPPTArray[Pre]): Type[Post] = {
     // TODO: we should not use pointer here
-    TPointer(rw.dispatch(t.innerType))
+    TPointer(rw.dispatch(t.innerType), None)
   }
 }

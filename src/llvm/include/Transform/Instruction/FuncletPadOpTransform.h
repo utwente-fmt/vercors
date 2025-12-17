@@ -6,7 +6,7 @@ namespace llvm2col {
 namespace col = vct::col::ast;
 
 void transformFuncletPadOp(llvm::Instruction &llvmInstruction,
-                           col::Block &colBlock,
+                           col::LlvmBasicBlock &colBlock,
                            pallas::FunctionCursor &funcCursor);
 } // namespace llvm2col
 #endif // PALLAS_FUNCLETPADOPTRANSFORM_H

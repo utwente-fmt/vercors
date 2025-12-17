@@ -73,6 +73,8 @@ case object Parsing {
       cSystemInclude = options.cIncludePath,
       cOtherIncludes = Nil,
       cDefines = options.cDefine,
+      targetString = options.targetString,
+      runSROA = options.pallasRunSroa,
     )
 }
 
@@ -88,6 +90,8 @@ case class Parsing[G <: Generation](
     cppSystemInclude: Path = Resources.getCPPIncludePath,
     cppOtherIncludes: Seq[Path] = Nil,
     cppDefines: Map[String, String] = Map.empty,
+    targetString: Option[String] = None,
+    runSROA: Boolean = false,
 ) extends Stage[Seq[Readable], ParseResult[G]] {
   override def friendlyName: String = "Parsing"
   override def progressWeight: Int = 4
@@ -99,8 +103,6 @@ case class Parsing[G <: Generation](
           .orElse(Language.fromFilename(readable.fileName))
           .getOrElse(throw UnknownFileExtension(readable.fileName))
 
-        val origin = Origin(Seq(ReadableOrigin(readable)))
-
         val parser =
           language match {
             case Language.C =>
@@ -109,9 +111,10 @@ case class Parsing[G <: Generation](
                 blameProvider,
                 cc,
                 cSystemInclude,
-                Option(Paths.get(readable.fileName).getParent).toSeq ++
+                readable.underlyingPath.map(_.toAbsolutePath.getParent).toSeq ++
                   cOtherIncludes,
                 cDefines,
+                targetString,
               )
             case Language.InterpretedC =>
               ColIParser(debugOptions, blameProvider, cOrigin = None)
@@ -121,7 +124,7 @@ case class Parsing[G <: Generation](
                 blameProvider,
                 ccpp,
                 cppSystemInclude,
-                Option(Paths.get(readable.fileName).getParent).toSeq ++
+                readable.underlyingPath.map(_.toAbsolutePath.getParent).toSeq ++
                   cppOtherIncludes,
                 cppDefines,
               )
@@ -133,7 +136,12 @@ case class Parsing[G <: Generation](
             case Language.SystemC =>
               new ColSystemCParser(Resources.getSystemCConfig)
             case Language.LLVM =>
-              ColLLVMParser(debugOptions, blameProvider, Resources.getPallas)
+              ColLLVMParser(
+                debugOptions,
+                blameProvider,
+                Resources.getPallas,
+                runSROA,
+              )
           }
 
         parser.parse[G](readable)

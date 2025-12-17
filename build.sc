@@ -10,31 +10,11 @@ import contrib.buildinfo.BuildInfo
 import me.pieterbos.mill.cpp.options.implicits._
 import me.pieterbos.mill.cpp.options.{CppCompileOptions, CppExecutableOptions}
 import me.pieterbos.mill.cpp.{CMakeModule, LinkableModule}
-import me.pieterbos.mill.cpp.toolchain.GccCompatible
 import mill.util.Jvm
 import vct.col.ast.structure
 import vct.col.ast.structure.{AllFamilies, FamilyDefinition, Name, NodeDefinition}
 
 import scala.util.control.NonFatal
-
-trait CppSharedModule extends CppModule {
-  def executableOptions: T[CppExecutableOptions] = T {
-    CppExecutableOptions(
-      transitiveDynamicObjects().map(_.path),
-      transitiveSystemLibraryDeps(),
-      Seq("-shared", "-fPIC"),
-      Nil,
-    )
-  }
-
-  def compile: T[PathRef] = T {
-    PathRef(toolchain.linkExecutable((compileOnly() ++ T.traverse(moduleDeps){
-      case it: CppModule => it.compileOnly
-      case it: LinkableModule => it.staticObjects
-      case _ => T.task { Result.Success(Seq.empty) }
-    }().flatten).map(_.path), T.dest, name(), executableOptions()))
-  }
-}
 
 object external extends Module {
   object z3 extends Module {
@@ -61,7 +41,7 @@ object external extends Module {
 object viper extends ScalaModule {
   object silverGit extends GitModule {
     def url = T { "https://github.com/viperproject/silver.git" }
-    def commitish = T { "10b1b26a20957e5f000bf1bbcd4017145148afd7" }
+    def commitish = T { "e7ce7757caff264b17e54f5c4fecedc77862c9ad" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -71,7 +51,7 @@ object viper extends ScalaModule {
 
   object siliconGit extends GitModule {
     def url = T { "https://github.com/viperproject/silicon.git" }
-    def commitish = T { "2030e3eb63f4b1c92ddc8885f7c937673effc9bd" }
+    def commitish = T { "2af1a000401a30ddc80eb482111df6662c4e49d3" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -82,7 +62,7 @@ object viper extends ScalaModule {
 
   object carbonGit extends GitModule {
     def url = T { "https://github.com/viperproject/carbon.git" }
-    def commitish = T { "d14a703fc6428fbae54e7333d8ede7efbbf850f0" }
+    def commitish = T { "7c5c1df49844ce2cd27d42d4d95859bbc3ad0142" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -400,7 +380,7 @@ object vercors extends Module {
     }
 
     def key = "col"
-    def deps = T { Agg.empty }
+    def deps = T { Agg(ivy"org.sosy-lab:java-smt:3.14.3") }
     override def sources = T {
       helpers.implTraits.run()
       super.sources()
@@ -438,7 +418,7 @@ object vercors extends Module {
 
     val includePallasCross = interp.watchValue {
       if(os.exists(settings.root / ".include-pallas")) {
-        Seq("pallas")
+        Seq("libPallas.so")
       } else {
         Seq.empty[String]
       }
@@ -447,7 +427,7 @@ object vercors extends Module {
     object pallasDep extends Cross[PallasDep](includePallasCross)
     trait PallasDep extends Cross.Module[String] {
       def path = T {
-        pallas.compile().path / os.up
+        pallas.cMakeBuild().path / "lib"
       }
     }
 
@@ -566,7 +546,7 @@ object vercors extends Module {
     def key = "main"
     def name = "VerCors"
     def dockerName = DockerImageName.Public("utwentefmt", "vercors")
-    def maintainer = "Pieter Bos <p.h.bos@utwente.nl>"
+    def maintainer = "The VerCors Team <vercors@lists.utwente.nl>"
     def homepage = Some("https://utwente.nl/vercors")
     def executableName = "vercors"
     def version = T { buildInfo.gitVersion() }
@@ -665,139 +645,41 @@ object vercors extends Module {
     }
   }
 
-  object pallas extends CppSharedModule { outer =>
-    def root: T[os.Path] = T { settings.src / "llvm" }
+  object pallas extends CMakeModule { outer =>
+    def root: T[PathRef] = T { PathRef(settings.src / "llvm") }
 
-    object llvm extends LinkableModule {
-      def moduleDeps = Nil
-      def systemLibraryDeps = T { Seq("LLVM-17") }
-      def staticObjects = T { Seq.empty[PathRef] }
-      def dynamicObjects = T { Seq.empty[PathRef] }
-      def exportIncludePaths = T.sources(
-        os.Path("/usr/include/llvm-17"),
-        os.Path("/usr/include/llvm-c-17"),
-      )
+    object protobufGit extends GitModule {
+      override def url: T[String] = "https://github.com/protocolbuffers/protobuf"
+      override def commitish: T[String] = "v25.2"
+      override def fetchSubmodulesRecursively = true
     }
 
-    object origin extends CppModule {
-      override def moduleDeps = Seq(llvm, proto, proto.protobuf.libprotobuf)
-      override def sources = T.sources(pallas.root() / "lib" / "Origin")
-      override def includePaths = T.sources(pallas.root() / "include")
-      override def compileOptions: T[Seq[String]] = Seq("-fPIC")
-    }
-    object passes extends CppModule {
-      override def moduleDeps = Seq(llvm, proto, util, origin, transform, proto.protobuf.libprotobuf)
-      override def sources = T.sources(pallas.root() / "lib" / "Passes")
-      override def includePaths = T.sources(pallas.root() / "include")
-      override def compileOptions: T[Seq[String]] = Seq("-fPIC")
-    }
-    object transform extends CppModule {
-      override def moduleDeps = Seq(llvm, proto, util, origin, proto.protobuf.libprotobuf)
-      override def sources = T.sources(pallas.root() / "lib" / "Transform")
-      override def includePaths = T.sources(pallas.root() / "include")
-      override def compileOptions: T[Seq[String]] = Seq("-fPIC")
-    }
-    object util extends CppModule {
-      override def moduleDeps = Seq(llvm, proto, origin, proto.protobuf.libprotobuf)
-      override def sources = T.sources(pallas.root() / "lib" / "Util")
-      override def includePaths = T.sources(pallas.root() / "include")
-      override def compileOptions: T[Seq[String]] = Seq("-fPIC")
-    }
-    object plugin extends CppModule {
-      override def moduleDeps = Seq(llvm, proto, passes, transform, proto.protobuf.libprotobuf)
-      override def sources = T.sources(pallas.root() / "lib" / "Plugin.cpp")
-      override def includePaths = T.sources(pallas.root() / "include")
-      override def compileOptions: T[Seq[String]] = Seq("-fPIC")
+    object plugin extends CMakeLibrary {
+      def target = T { "Pallas" }
     }
 
-    object proto extends CppModule {
-      object protobuf extends CMakeModule {
-        object protobufGit extends GitModule {
-          override def url: T[String] = "https://github.com/protocolbuffers/protobuf"
-          override def commitish: T[String] = "v25.2"
-          override def fetchSubmodulesRecursively = true
-        }
-        override def root = T.source(protobufGit.repo())
-        override def jobs = T { 2 }
-
-      override def cMakeSetupBuild: T[os.Path] = T {
-        val apiDir = T.dest / ".cmake" / "api" / "v1"
-        os.makeDir.all(apiDir / "query")
+    override def cMakeSetupBuild: T[os.Path] = T.persistent {
+      val apiDir = T.dest / ".cmake" / "api" / "v1"
+      os.makeDir.all(apiDir / "query")
+      if (!os.exists(apiDir / "query" / "codemodel-v2")) {
         os.write(apiDir / "query" / "codemodel-v2", "")
-        os.proc("cmake", "-B", T.dest, "-Dprotobuf_BUILD_TESTS=OFF", "-DABSL_PROPAGATE_CXX_STD=ON","-D", "CMAKE_POSITION_INDEPENDENT_CODE=ON", "-D", "CMAKE_CXX_FLAGS=-fPIC", "-D", "CMAKE_C_FLAGS=-fPIC", "-S", root().path).call(cwd = T.dest)
-        T.dest
       }
-
-        object libprotobuf extends CMakeLibrary {
-          def target = T { "libprotobuf" }
-        }
-
-        object protoc extends CMakeExecutable {
-          def target = T { "protoc" }
-        }
-      }
-
-      def protoPath = T.sources(
-        vercors.col.helpers.megacol().path / os.up / os.up / os.up / os.up,
-        settings.src / "serialize",
-        serialize.scalaPBUnpackProto().path
-      )
-      def generate = T {
-        os.proc(protobuf.protoc.executable().path,
-          protoPath().map(p => "-I=" + p.path.toString),
-          "--cpp_out=" + T.dest.toString,
-          (Seq(vercors.col.helpers.megacol()) ++
-            os.walk(serialize.scalaPBUnpackProto().path).filter(path => !path.startsWith(serialize.scalaPBUnpackProto().path / "google") && path.ext == "proto").map(PathRef(_)) ++
-            os.walk(settings.src / "serialize").filter(_.ext == "proto").map(PathRef(_))).map(_.path)
-        ).call()
-        T.dest
-      }
-      override def moduleDeps = Seq(protobuf.libprotobuf)
-      override def sources = T { Seq(PathRef(generate())) }
-      override def includePaths = T { Seq(PathRef(generate())) }
-      override def compileOptions: T[Seq[String]] = T { Seq("-fPIC") }
-
-      def precompileHeaders: T[PathRef] = T {
-        def isHiddenFile(path: os.Path): Boolean = path.last.startsWith(".")
-
-        val headers = for {
-          root <- allSources()
-          if os.exists(root.path)
-          path <- if(os.isDir(root.path)) os.walk(root.path) else Seq(root.path)
-          if os.isFile(path)
-          if !isHiddenFile(path)
-          if Seq("h", "hpp").contains(path.ext.toLowerCase)
-        } yield (root.path, path.relativeTo(root.path))
-
-        val options = CppCompileOptions(
-          allIncludePaths().map(_.path),
-          defines(),
-          includes().map(_.path),
-          standard(),
-          optimization(),
-          compileOptions(),
-          compileEarlyOptions(),
-        )
-
-        for((base, header) <- headers) {
-          val compileOut = toolchain.compile(base / header, T.dest, options)
-          val outDir = T.dest / header / os.up
-          val out = outDir / (header.last + ".gch")
-          os.makeDir.all(outDir)
-          os.move(compileOut, out)
-          os.copy(base / header, T.dest / header)
-        }
-
-        PathRef(T.dest)
-      }
-
-      override def exportIncludePaths: T[Seq[PathRef]] = T {
-        Seq(precompileHeaders())
-      }
+      os.proc("cmake",
+        "-B", T.dest,
+        "-DSCALA_PB_DIR=" + serialize.scalaPBUnpackProto().path,
+        "-DMEGACOL_DIR=" + (vercors.col.helpers.megacol().path / os.up / os.up / os.up / os.up),
+        "-DSERIALIZE_DIR=" + (settings.src / "serialize"),
+        "-DPROTOBUF_DIR=" + protobufGit.repo(),
+        "-G", "Ninja",
+        "-S", root().path).call(cwd = T.dest)
+      T.dest
     }
 
-    override def moduleDeps = Seq(origin, passes, transform, util, llvm, plugin, proto, proto.protobuf.libprotobuf)
-    override def compileOptions: T[Seq[String]] = T { Seq("-fPIC") }
+    def cMakeBuild: T[PathRef] = T.command {
+      val build = cMakeSetupBuild()
+      os.proc("cmake", "--build", build, "--parallel", jobs().max(8)).call()
+      PathRef(build)
+    }
   }
 
   object allTests extends ScalaModule with ReleaseModule {

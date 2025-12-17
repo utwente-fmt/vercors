@@ -23,7 +23,7 @@ trait SYCLTLocalAccessorImpl[G] extends SYCLTLocalAccessorOps[G] {
     genericArgs match {
       case Seq(
             CPPExprOrTypeSpecifier(None, Some(typeSpec)),
-            CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None),
+            CPPExprOrTypeSpecifier(Some(CIntegerValue(dim, _)), None),
           )
           if dim > 0 && dim <= 3 && Util.compatTypes[G](
             args,

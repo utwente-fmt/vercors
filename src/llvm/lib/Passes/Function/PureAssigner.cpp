@@ -3,6 +3,7 @@
 #include "Passes/Function/FunctionDeclarer.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
+#include "Util/PallasMD.h"
 
 #include <llvm/IR/Constants.h>
 
@@ -43,10 +44,8 @@ PreservedAnalyses PureAssignerPass::run(Function &F,
     }
 
     // Check if the function is annotated with a pallas function contract
-    if (F.hasMetadata(pallas::constants::PALLAS_FUNC_CONTRACT)) {
+    if (auto *contractMDNode = utils::getPallasContract(F)) {
         pureAnnotationCount++;
-        MDNode *contractMDNode =
-            F.getMetadata(pallas::constants::PALLAS_FUNC_CONTRACT);
         if (!isPallasPureWellformed(*contractMDNode, F))
             return PreservedAnalyses::all();
         // Extract pure-value (should work due to previous checks)
@@ -54,7 +53,7 @@ PreservedAnalyses PureAssignerPass::run(Function &F,
     }
 
     // Check if the function is marked as a pallas wrapper-function
-    if (F.hasMetadata(pallas::constants::PALLAS_WRAPPER_FUNC)) {
+    if (utils::isPallasExprWrapper(F)) {
         pureAnnotationCount++;
         isPure = true;
     }
@@ -103,7 +102,7 @@ bool PureAssignerPass::isPallasPureWellformed(MDNode &contractMD, Function &f) {
     auto *pureConst =
         dyn_cast<ConstantAsMetadata>(contractMD.getOperand(1).get());
     auto *pureVal = dyn_cast_if_present<ConstantInt>(pureConst->getValue());
-    if (pureVal == nullptr || (!pureVal->getBitWidth() == 1)) {
+    if (pureVal == nullptr || (pureVal->getBitWidth() != 1)) {
         reportError(f, "Ill-formed contract. Second operand should be boolean");
         return false;
     }

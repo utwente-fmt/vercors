@@ -15,11 +15,6 @@ namespace pallas {
 using namespace llvm;
 namespace col = vct::col::ast;
 
-struct LabeledColBlock {
-    col::LlvmBasicBlock &bb;
-    col::Block &block;
-};
-
 /**
  * The FunctionCursor is a stateful utility class to transform a LLVM function
  * body to a COL function body.
@@ -44,37 +39,12 @@ class FunctionCursor {
     /// include function arguments in the lut.
     std::unordered_map<llvm::Value *, col::Variable *> variableMap;
 
-    /// All LLVM blocks mapped 1-to-1 to a COL block. This mapping is not direct
-    /// in the sense that it uses the intermediate LabeledColBlock struct which
-    /// contains both the COL label and COL block associated to the LLVM block
-    std::unordered_map<llvm::BasicBlock *, LabeledColBlock>
-        llvmBlock2LabeledColBlock;
-
-    /// set of all COL blocks that have been completed. Completed meaning all
-    /// instructions of the corresponding LLVM block have been transformed. This
-    /// excludes possible future phi node back transformations.
-    std::set<col::Block *> completedColBlocks;
+    /// All LLVM blocks mapped 1-to-1 to a COL block.
+    std::unordered_map<llvm::BasicBlock *, col::LlvmBasicBlock &>
+        llvmBlock2ColBlock;
 
     /// set of all COL blocks that we have started transforming.
-    std::set<col::Block *> visitedColBlocks;
-
-    /// map of assignments which should be added to the basic block when it is
-    /// completed.
-    std::unordered_multimap<col::Block *, col::Assign *> phiAssignBuffer;
-
-    /// Map that is used to determine to which block a phi-assignment should be
-    /// added to. Usually, this is the block that is referenced in the phi-node.
-    /// However, in some cases we insert empty blocks to ensure that the
-    /// phi-assignments are propagated correctly.
-    /// In these cases, the phi-assignment should be added to the newly added
-    /// block.
-    /// The key of the map has the shape (from, toPhi) and
-    /// maps to the new block to which the phi-assignment should be propagated
-    /// (here [from] is the block from which the jump to the phi-instruction
-    /// occurs, and [toPhi] is the block of the phi-instruction). Assumes that
-    /// every key is ony inserted once.
-    std::map<std::pair<col::Block *, col::Block *>, col::Block *>
-        phiAssignmentTargetMap;
+    std::set<col::LlvmBasicBlock *> visitedColBlocks;
 
     /// Almost always when adding a variable to the variableMap, some extra
     /// processing is required which is why this method is private as to not
@@ -108,7 +78,7 @@ class FunctionCursor {
      */
     col::Assign &
     createAssignmentAndDeclaration(Instruction &llvmInstruction,
-                                   col::Block &colBlock,
+                                   col::LlvmBasicBlock &colBlock,
                                    Type *llvmPointerType = nullptr);
 
     /**
@@ -121,10 +91,11 @@ class FunctionCursor {
      * @return the created col assignment
      */
     col::Assign &createAssignment(Instruction &llvmInstruction,
-                                  col::Block &colBlock, col::Variable &varDecl);
+                                  col::LlvmBasicBlock &colBlock,
+                                  col::Variable &varDecl);
 
     col::Assign &createPhiAssignment(Instruction &llvmInstruction,
-                                     col::Block &colBlock,
+                                     col::LlvmBasicBlock &colBlock,
                                      col::Variable &varDecl);
 
     col::Variable &getVariableMapEntry(llvm::Value &llvmValue, bool inPhiNode);
@@ -135,28 +106,16 @@ class FunctionCursor {
      * get or set method which does the following" <ul> <li>If a mapping between
      * the given LLVM block and a COL block already exists, return the COL
      * block</li> <li>Else, initalise a new COL block in the buffer, add it to
-     * the llvmBlock2LabeledColBlock lut and return the newly created COL
+     * the llvmBlock2ColBlock lut and return the newly created COL
      * block</li>
      * </ul>
      *
      * @param llvmBlock
-     * @return A LabeledColBlock struct to which this llvmBlock is mapped to.
+     * @return Reference to col-block to which this llvmBlock is mapped to.
      */
-    LabeledColBlock &
-    getOrSetLLVMBlock2LabeledColBlockEntry(BasicBlock &llvmBlock);
+    col::LlvmBasicBlock &getOrSetLLVMBlock2ColBlockEntry(BasicBlock &llvmBlock);
 
-    /**
-     * Adds a new, uninitialized LabeledColBlock to the body of the function
-     * and returns a reference to this block.
-     * The function is intended to be used for intermediary blocks that are
-     * not present in the original llvm-module but are added during the
-     * transformation as targets for propagating phi-assignments.
-     * The passes instruction is used to construct the origin.
-     */
-    LabeledColBlock
-    generateIntermediaryLabeledColBlock(llvm::Instruction &originInstruction);
-
-    LabeledColBlock &visitLLVMBlock(BasicBlock &llvmBlock);
+    col::LlvmBasicBlock &visitLLVMBlock(BasicBlock &llvmBlock);
 
     llvm::FunctionAnalysisManager &getFunctionAnalysisManager();
 
@@ -169,20 +128,6 @@ class FunctionCursor {
      * @return
      */
     bool isVisited(llvm::BasicBlock &llvmBlock);
-
-    /**
-     * Mark COL Block as complete by adding it to the completedColBlocks set.
-     * @param llvmBlock
-     */
-    void complete(col::Block &colBlock);
-
-    /**
-     * Indicates whether an llvmBlock has been fully transformed (excluding
-     * possible phi node back transformations). Any completed block is also
-     * visited.
-     * @return true if block is in the completedColBlocks set, false otherwise.
-     */
-    bool isComplete(col::Block &colBlock);
 
     LoopInfo &getLoopInfo();
 
@@ -203,24 +148,6 @@ class FunctionCursor {
      * @return
      */
     FDResult &getFDResult(llvm::Function &otherLLVMFunction);
-
-    /**
-     * Add a new target block for a phi-assignment to the map of phi-taget
-     * blocks.
-     * @param from The block from which the edge to the phi-instruction starts.
-     * @param toPhi The block of the phi-instruction.
-     * @param newBlock The new block that was inserted on the edge.
-     */
-    void addNewPhiAssignmentTargetBlock(col::Block &from, col::Block &toPhi,
-                                        col::Block &newBlock);
-
-    /**
-     * Get the target-block for propagating a phi-assignment that is caused
-     * by an edge between blocks [from] --> [to].
-     * If a new block was inserted on this edge, the new block is returned.
-     * Otherwise, [from] is returned.
-     */
-    col::Block *getTargetForPhiAssignment(col::Block &from, col::Block &to);
 };
 
 class FunctionBodyTransformerPass

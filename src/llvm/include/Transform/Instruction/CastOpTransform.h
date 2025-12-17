@@ -5,19 +5,32 @@
 namespace llvm2col {
 namespace col = vct::col::ast;
 
-void transformCastOp(llvm::Instruction &llvmInstruction, col::Block &colBlock,
+void transformCastOp(llvm::Instruction &llvmInstruction,
+                     col::LlvmBasicBlock &colBlock,
                      pallas::FunctionCursor &funcCursor);
 
-void transformSExt(llvm::SExtInst &sextInstruction, col::Block &colBlock,
+void transformSExt(llvm::SExtInst &sextInstruction,
+                   col::LlvmBasicBlock &colBlock,
                    pallas::FunctionCursor &funcCursor);
 
-void transformZExt(llvm::ZExtInst &sextInstruction, col::Block &colBlock,
+void transformZExt(llvm::ZExtInst &sextInstruction,
+                   col::LlvmBasicBlock &colBlock,
                    pallas::FunctionCursor &funcCursor);
 
-void transformTrunc(llvm::TruncInst &truncInstruction, col::Block &colBlock,
+void transformTrunc(llvm::TruncInst &truncInstruction,
+                    col::LlvmBasicBlock &colBlock,
                     pallas::FunctionCursor &funcCursor);
 
-void transformFPExt(llvm::FPExtInst &fpextInstruction, col::Block &colBlock,
+void transformFPExt(llvm::FPExtInst &fpextInstruction,
+                    col::LlvmBasicBlock &colBlock,
                     pallas::FunctionCursor &funcCursor);
+
+void transformPtrToInt(llvm::PtrToIntInst &fpextInstruction,
+                       col::LlvmBasicBlock &colBlock,
+                       pallas::FunctionCursor &funcCursor);
+
+void transformIntToPtr(llvm::IntToPtrInst &fpextInstruction,
+                       col::LlvmBasicBlock &colBlock,
+                       pallas::FunctionCursor &funcCursor);
 } // namespace llvm2col
 #endif // PALLAS_CASTOPTRANSFORM_H
