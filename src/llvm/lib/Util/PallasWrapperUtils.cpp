@@ -96,17 +96,14 @@ bool buildArgExprFromDbgValue(col::LlvmFunctionInvocation &wrapperCall,
         }
     }
 
-    // Handle the case where the debug-info references a constant value. 
+    // Handle the case where the debug-info references a constant value.
     if (auto *constVal = llvm::dyn_cast<llvm::Constant>(llvmValue)) {
         auto *argExpr = wrapperCall.add_args();
         llvm2col::transformAndSetConstExpr(
-            functionCursor.getFunctionAnalysisManager(), 
+            functionCursor.getFunctionAnalysisManager(),
             // TODO: Put a more precise origin here!
-            llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc), 
-            *constVal, 
-            *argExpr, 
-            llvmParentFunc.getParent()->getDataLayout()
-        );
+            llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc),
+            *constVal, *argExpr, llvmParentFunc.getParent()->getDataLayout());
         return true;
     }
 

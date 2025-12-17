@@ -102,55 +102,68 @@ typedef __opencl_vector_type__(double, 16) double16;
   requires Perm(p[offset*2], read) ** Perm(p[offset*2+1], read);
   ensures \result.s0 == p[offset*2] && \result.s1 == p[offset*2+1];
 @*/
-/*@ pure */ int2 vload2(int offset, int* p);
+/*@ pure */ int2 vload2(int offset, int *p);
 
 /*@
   context p != NULL;
   context offset >= 0;
   context \pointer_length(p) >= offset*3+3;
-  requires Perm(p[offset*3], read) ** Perm(p[offset*3+1], read) ** Perm(p[offset*3+2], read);
-  ensures \result.s0 == p[offset*3] && \result.s1 == p[offset*3+1] && \result.s2 == p[offset*3+2];
+  requires Perm(p[offset*3], read) ** Perm(p[offset*3+1], read) **
+Perm(p[offset*3+2], read); ensures \result.s0 == p[offset*3] && \result.s1 ==
+p[offset*3+1] && \result.s2 == p[offset*3+2];
 @*/
-/*@ pure */ int3 vload3(int offset, int* p);
+/*@ pure */ int3 vload3(int offset, int *p);
 
 /*@
   context p != NULL;
   context offset >= 0;
   context \pointer_length(p) >= offset*4+4;
-  requires Perm(p[offset*4], read) ** Perm(p[offset*4+1], read) ** Perm(p[offset*4+2], read) ** Perm(p[offset*4+3], read);
-  ensures \result.s0 == p[offset*4] && \result.s1 == p[offset*4+1] && \result.s2 == p[offset*4+2]
+  requires Perm(p[offset*4], read) ** Perm(p[offset*4+1], read) **
+Perm(p[offset*4+2], read) ** Perm(p[offset*4+3], read); ensures \result.s0 ==
+p[offset*4] && \result.s1 == p[offset*4+1] && \result.s2 == p[offset*4+2]
       && \result.s3 == p[offset*4+3];
 @*/
-/*@ pure */ int4 vload4(int offset, int* p);
+/*@ pure */ int4 vload4(int offset, int *p);
 
 /*@
   context p != NULL;
   context offset >= 0;
   context \pointer_length(p) >= offset*8+8;
-  requires Perm(p[offset*8], read) ** Perm(p[offset*8+1], read) ** Perm(p[offset*8+2], read) ** Perm(p[offset*8+3], read)
-     ** Perm(p[offset*8+4], read) ** Perm(p[offset*8+5], read) ** Perm(p[offset*8+6], read) ** Perm(p[offset*8+7], read);
-  ensures \result.s0 == p[offset*8] && \result.s1 == p[offset*8+1] && \result.s2 == p[offset*8+2]
-      && \result.s3 == p[offset*8+3] && \result.s4 == p[offset*8+4] && \result.s5 == p[offset*8+5]
+  requires Perm(p[offset*8], read) ** Perm(p[offset*8+1], read) **
+Perm(p[offset*8+2], read) ** Perm(p[offset*8+3], read)
+     ** Perm(p[offset*8+4], read) ** Perm(p[offset*8+5], read) **
+Perm(p[offset*8+6], read) ** Perm(p[offset*8+7], read); ensures \result.s0 ==
+p[offset*8] && \result.s1 == p[offset*8+1] && \result.s2 == p[offset*8+2]
+      && \result.s3 == p[offset*8+3] && \result.s4 == p[offset*8+4] &&
+\result.s5 == p[offset*8+5]
       && \result.s6 == p[offset*8+6] && \result.s7 == p[offset*8+7];
 @*/
-/*@ pure */ int8 vload8(int offset, int* p);
+/*@ pure */ int8 vload8(int offset, int *p);
 
 /*@
   context p != NULL;
   context offset >= 0;
   context \pointer_length(p) >= offset*16+16;
-  requires Perm(p[offset*16], read) ** Perm(p[offset*16+1], read) ** Perm(p[offset*16+2], read) ** Perm(p[offset*16+3], read)
-     ** Perm(p[offset*16+4], read) ** Perm(p[offset*16+5], read) ** Perm(p[offset*16+6], read) ** Perm(p[offset*16+7], read)
-     ** Perm(p[offset*16+8], read) ** Perm(p[offset*16+9], read) ** Perm(p[offset*16+10], read) ** Perm(p[offset*16+11], read)
-     ** Perm(p[offset*16+12], read) ** Perm(p[offset*16+13], read) ** Perm(p[offset*16+14], read) ** Perm(p[offset*16+15], read);
-  ensures \result.s0 == p[offset*16] && \result.s1 == p[offset*16+1] && \result.s2 == p[offset*16+2]
-      && \result.s3 == p[offset*16+3] && \result.s4 == p[offset*16+4] && \result.s5 == p[offset*16+5]
-      && \result.s6 == p[offset*16+6] && \result.s7 == p[offset*16+7] && \result.s8 == p[offset*16+8]
-      && \result.s9 == p[offset*16+9] && \result.sA == p[offset*16+10] && \result.sB == p[offset*16+11]
-      && \result.sC == p[offset*16+12] && \result.sD == p[offset*16+13] && \result.sE == p[offset*16+14]
+  requires Perm(p[offset*16], read) ** Perm(p[offset*16+1], read) **
+Perm(p[offset*16+2], read) ** Perm(p[offset*16+3], read)
+     ** Perm(p[offset*16+4], read) ** Perm(p[offset*16+5], read) **
+Perm(p[offset*16+6], read) ** Perm(p[offset*16+7], read)
+     ** Perm(p[offset*16+8], read) ** Perm(p[offset*16+9], read) **
+Perm(p[offset*16+10], read) ** Perm(p[offset*16+11], read)
+     ** Perm(p[offset*16+12], read) ** Perm(p[offset*16+13], read) **
+Perm(p[offset*16+14], read) ** Perm(p[offset*16+15], read); ensures \result.s0
+== p[offset*16] && \result.s1 == p[offset*16+1] && \result.s2 == p[offset*16+2]
+      && \result.s3 == p[offset*16+3] && \result.s4 == p[offset*16+4] &&
+\result.s5 == p[offset*16+5]
+      && \result.s6 == p[offset*16+6] && \result.s7 == p[offset*16+7] &&
+\result.s8 == p[offset*16+8]
+      && \result.s9 == p[offset*16+9] && \result.sA == p[offset*16+10] &&
+\result.sB == p[offset*16+11]
+      && \result.sC == p[offset*16+12] && \result.sD == p[offset*16+13] &&
+\result.sE == p[offset*16+14]
       && \result.sF == p[offset*16+15];
 @*/
-/*@ pure */ int16 vload16(int offset, int* p);
+/*@ pure */ int16 vload16(int offset, int *p);
 
 /*@
   context p != NULL;
@@ -165,8 +178,9 @@ void vstore2(int2 data, int offset, int* p);
   context p != NULL;
   context offset >= 0;
   context \pointer_length(p) >= offset*3+3;
-  context Perm(p[offset*3], write) ** Perm(p[offset*3+1], write) ** Perm(p[offset*3+2], write);
-  ensures data.s0 == p[offset*3] && data.s1 == p[offset*3+1] && data.s2 == p[offset*3+2];
+  context Perm(p[offset*3], write) ** Perm(p[offset*3+1], write) **
+Perm(p[offset*3+2], write); ensures data.s0 == p[offset*3] && data.s1 ==
+p[offset*3+1] && data.s2 == p[offset*3+2];
 @*/
 void vstore3(int3 data, int offset, int* p);
 
@@ -174,9 +188,11 @@ void vstore3(int3 data, int offset, int* p);
   context p != NULL;
   context offset >= 0;
   context \pointer_length(p) >= offset*4+4;
-  context Perm(p[offset*4], write) ** Perm(p[offset*4+1], write) ** Perm(p[offset*4+2], write)
+  context Perm(p[offset*4], write) ** Perm(p[offset*4+1], write) **
+Perm(p[offset*4+2], write)
      ** Perm(p[offset*4+3], write);
-  ensures data.s0 == p[offset*4] && data.s1 == p[offset*4+1] && data.s2 == p[offset*4+2]
+  ensures data.s0 == p[offset*4] && data.s1 == p[offset*4+1] && data.s2 ==
+p[offset*4+2]
           && data.s3 == p[offset*4+3];
 @*/
 void vstore4(int4 data, int offset, int* p);
@@ -185,11 +201,15 @@ void vstore4(int4 data, int offset, int* p);
   context p != NULL;
   context offset >= 0;
   context \pointer_length(p) >= offset*8+8;
-  context Perm(p[offset*8], write) ** Perm(p[offset*8+1], write) ** Perm(p[offset*8+2], write)
-     ** Perm(p[offset*8+3], write) ** Perm(p[offset*8+4], write) ** Perm(p[offset*8+5], write)
+  context Perm(p[offset*8], write) ** Perm(p[offset*8+1], write) **
+Perm(p[offset*8+2], write)
+     ** Perm(p[offset*8+3], write) ** Perm(p[offset*8+4], write) **
+Perm(p[offset*8+5], write)
      ** Perm(p[offset*8+6], write) ** Perm(p[offset*8+7], write);
-  ensures data.s0 == p[offset*8] && data.s1 == p[offset*8+1] && data.s2 == p[offset*8+2]
-          && data.s3 == p[offset*8+3] && data.s4 == p[offset*8+4] && data.s5 == p[offset*8+5]
+  ensures data.s0 == p[offset*8] && data.s1 == p[offset*8+1] && data.s2 ==
+p[offset*8+2]
+          && data.s3 == p[offset*8+3] && data.s4 == p[offset*8+4] && data.s5 ==
+p[offset*8+5]
           && data.s6 == p[offset*8+6] && data.s7 == p[offset*8+7];
 @*/
 void vstore8(int8 data, int offset, int* p);
@@ -198,17 +218,27 @@ void vstore8(int8 data, int offset, int* p);
   context p != NULL;
   context offset >= 0;
   context \pointer_length(p) >= offset*16+16;
-  context Perm(p[offset*16], write) ** Perm(p[offset*16+1], write) ** Perm(p[offset*16+2], write)
-     ** Perm(p[offset*16+3], write) ** Perm(p[offset*16+4], write) ** Perm(p[offset*16+5], write)
-     ** Perm(p[offset*16+6], write) ** Perm(p[offset*16+7], write) ** Perm(p[offset*16+8], write)
-     ** Perm(p[offset*16+9], write) ** Perm(p[offset*16+10], write) ** Perm(p[offset*16+11], write)
-     ** Perm(p[offset*16+12], write) ** Perm(p[offset*16+13], write) ** Perm(p[offset*16+14], write)
+  context Perm(p[offset*16], write) ** Perm(p[offset*16+1], write) **
+Perm(p[offset*16+2], write)
+     ** Perm(p[offset*16+3], write) ** Perm(p[offset*16+4], write) **
+Perm(p[offset*16+5], write)
+     ** Perm(p[offset*16+6], write) ** Perm(p[offset*16+7], write) **
+Perm(p[offset*16+8], write)
+     ** Perm(p[offset*16+9], write) ** Perm(p[offset*16+10], write) **
+Perm(p[offset*16+11], write)
+     ** Perm(p[offset*16+12], write) ** Perm(p[offset*16+13], write) **
+Perm(p[offset*16+14], write)
      ** Perm(p[offset*16+15], write);
-  ensures data.s0 == p[offset*16] && data.s1 == p[offset*16+1] && data.s2 == p[offset*16+2]
-          && data.s3 == p[offset*16+3] && data.s4 == p[offset*16+4] && data.s5 == p[offset*16+5]
-          && data.s6 == p[offset*16+6] && data.s7 == p[offset*16+7] && data.s8 == p[offset*16+8]
-          && data.s9 == p[offset*16+9] && data.sA == p[offset*16+10] && data.sB == p[offset*16+11]
-          && data.sC == p[offset*16+12] && data.sD == p[offset*16+13] && data.sE == p[offset*16+14]
+  ensures data.s0 == p[offset*16] && data.s1 == p[offset*16+1] && data.s2 ==
+p[offset*16+2]
+          && data.s3 == p[offset*16+3] && data.s4 == p[offset*16+4] && data.s5
+== p[offset*16+5]
+          && data.s6 == p[offset*16+6] && data.s7 == p[offset*16+7] && data.s8
+== p[offset*16+8]
+          && data.s9 == p[offset*16+9] && data.sA == p[offset*16+10] && data.sB
+== p[offset*16+11]
+          && data.sC == p[offset*16+12] && data.sD == p[offset*16+13] && data.sE
+== p[offset*16+14]
           && data.sF == p[offset*16+15];
 @*/
 void vstore16(int16 data, int offset, int* p);
