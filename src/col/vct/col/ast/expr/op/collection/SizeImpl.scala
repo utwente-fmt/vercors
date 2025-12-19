@@ -11,12 +11,13 @@ trait SizeImpl[G] extends SizeOps[G] {
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
-      case Ctx.Isar => obj.t match {
-        case TSeq(_) => Text("size") <+> obj
-        case TSet(_) => Text("card") <+> obj
-        case TBag(_) => Text("size_multiset") <+> obj
-        case TMap(_, _) => Text("card (dom") <+> obj <> ")"
-      }
+      case Ctx.Isar =>
+        obj.t match {
+          case TSeq(_) => Text("int(length") <+> obj <> ")"
+          case TSet(_) => Text("int(card") <+> obj <> ")"
+          case TBag(_) => Text("int(size_multiset") <+> obj <> ")"
+          case TMap(_, _) => Text("int( card (dom") <+> obj <> "))"
+        }
       case _ => Text("|") <> obj <> "|"
     }
   }
