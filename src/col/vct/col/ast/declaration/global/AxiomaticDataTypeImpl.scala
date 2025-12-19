@@ -14,16 +14,15 @@ trait AxiomaticDataTypeImpl[G]
     Group(
       Group(
         Text("typedecl") <+>
-          (if (typeArgs.nonEmpty) Text("(") <>
-          Doc.args(typeArgs.map(Text("'") <> _.show)) <>
-          Text(")") else Empty) <+> ctx.name(this)
-      )
-      <+/>
-      Group(
-        Text("locale") <+>
-          ctx.name(this) <> "_signature" <+> "=" <>>
-          Doc.stack(decls) <+/>
-          "begin" <+/> "end"
+          (if (typeArgs.nonEmpty)
+             Text("(") <> Doc.args(typeArgs.map(Text("'") <> _.show)) <>
+               Text(")")
+           else
+             Empty) <+> ctx.name(this)
+      ) <+/> Group(
+        Text("locale") <+> ctx.name(this) <> "_signature" <+>
+          (if (decls.isEmpty) { Empty }
+           else { Text(" =") <>> Doc.stack(decls) }) <+/> "begin" <+/> "end"
       )
     )
   }
