@@ -17,7 +17,7 @@ trait TVarImpl[G] extends TVarOps[G] {
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
       case Ctx.Isar => Text("'" + ctx.name(ref))
-      case Ctx.Isar => Text(ctx.name(ref))
+      case _ => Text(ctx.name(ref))
     }
   }
 }
