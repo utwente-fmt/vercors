@@ -21,12 +21,10 @@ trait FunctionInvocationImpl[G] extends FunctionInvocationOps[G] {
     )
 
   def layoutIsar(implicit ctx: Ctx): Doc =
-    Group(
-      (if (args.nonEmpty)
-        Text("(") <> Text(ctx.name(ref)) <+> Doc.spread(args) <> ")"
-      else
-        Text(ctx.name(ref))
-        )
+    Group((if (args.nonEmpty)
+             Text("(") <> Text(ctx.name(ref)) <+> Doc.spread(args) <> ")"
+           else
+             Text(ctx.name(ref))))
 
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
