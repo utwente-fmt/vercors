@@ -11,8 +11,11 @@ trait LiteralBagImpl[G] extends LiteralBagOps[G] {
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
-      case Ctx.Isar => Group(Text("{#") <+> Doc.args(values) <+> Text("#}"))
-      case _ => Group(Text("bag<") <> element <> ">{" <> Doc.args(values) <> "}")
+      case Ctx.Isar =>
+        if (values.isEmpty) { Group(Text("{#}")) }
+        else { Group(Text("{#") <+> Doc.args(values) <+> Text("#}")) }
+      case _ =>
+        Group(Text("bag<") <> element <> ">{" <> Doc.args(values) <> "}")
     }
   }
 }
